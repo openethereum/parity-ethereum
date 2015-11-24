@@ -1,8 +1,12 @@
 [package]
+description = "Ethcore library"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
 name = "ethcore"
 version = "0.1.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
+log = "0.3"
+env_logger = "0.3"
 ethcore-util = "0.1.0"
-
