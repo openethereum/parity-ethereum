@@ -2,3 +2,7 @@
 name = "ethcore"
 version = "0.1.0"
 authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+ethcore-util = "0.1.0"
+
