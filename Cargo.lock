@@ -1,0 +1,4 @@
+[root]
+name = "ethcore-util"
+version = "0.1.0"
+
