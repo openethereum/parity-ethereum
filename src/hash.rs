@@ -59,5 +59,11 @@ impl_hash!(Hash4096, 512);
 
 #[test]
 fn it_works() {
-	assert_eq!(Hash64::from_str("0123456789abcdef").unwrap(), Hash64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]));
+	let h = Hash64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
+	assert_eq!(Hash64::from_str("0123456789abcdef").unwrap(), h);
+	assert_eq!(format!("{}", h), "0123456789abcdef");
+	assert_eq!(format!("{:?}", h), "0123456789abcdef");
+	assert!(h == h);
+	assert!(h != Hash64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xee]));
+	assert!(h != Hash64([0; 8]));
 }
