@@ -191,7 +191,7 @@ impl <'a> Iterator for RlpIterator<'a> {
     }
 }
 
-/// container that should be used to encoding the rlp
+/// container that should be used to encode rlp
 pub struct RlpStream {
     len: usize,
     max_len: usize,
@@ -200,8 +200,14 @@ pub struct RlpStream {
 }
 
 impl RlpStream {
-    /// create new container of size `max_len`
-    pub fn new(max_len: usize) -> RlpStream {
+    /// create new container for values appended one after another,
+    /// but not being part of the same array
+    pub fn new() -> RlpStream {
+        RlpStream::array(0)
+    }
+
+    /// create new container for array of size `max_len`
+    pub fn array(max_len: usize) -> RlpStream {
         RlpStream {
             len: 0,
             max_len: max_len,
@@ -238,7 +244,7 @@ impl RlpStream {
         self
     }
 
-    /// return try if stream is ready
+    /// return true if stream is ready
     pub fn is_finished(&self) -> bool {
         self.len == self.max_len
     }
@@ -593,7 +599,7 @@ mod tests {
 
     #[test]
     fn rlp_stream() {
-        let mut stream = RlpStream::new(2);
+        let mut stream = RlpStream::array(2);
         stream.append(&"cat").append(&"dog");
         let out = stream.out().unwrap();
         assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
