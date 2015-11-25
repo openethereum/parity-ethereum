@@ -43,7 +43,7 @@ impl ItemInfo {
 pub enum DecoderError {
     FromBytesError(FromBytesError),
     RlpIsTooShort,
-    RlpExpectedToBeArray,
+    RlpExpectedToBeList,
     BadRlp,
 }
 impl StdError for DecoderError {
@@ -73,16 +73,16 @@ impl <'a>Rlp<'a> {
     ///
     /// paren container caches searched position
     pub fn at(&self, index: usize) -> Result<Rlp<'a>, DecoderError> {
-        if !self.is_array() {
-            return Err(DecoderError::RlpExpectedToBeArray);
+        if !self.is_list() {
+            return Err(DecoderError::RlpExpectedToBeList);
         }
 
         // move to cached position if it's index is less or equal to
-        // current search index, otherwise move to beginning of array
+        // current search index, otherwise move to beginning of list
         let c = self.cache.get();
         let (mut bytes, to_skip) = match c.index <= index {
             true => (try!(Rlp::consume(self.bytes, c.offset)), index - c.index),
-            false => (try!(self.consume_array_prefix()), index)
+            false => (try!(self.consume_list_prefix()), index)
         };
 
         // skip up to x items
@@ -96,8 +96,8 @@ impl <'a>Rlp<'a> {
         Ok(Rlp::new(&bytes[0..found.prefix_len + found.value_len]))
     }
 
-    /// returns true if rlp is an array
-    pub fn is_array(&self) -> bool {
+    /// returns true if rlp is an list
+    pub fn is_list(&self) -> bool {
         self.bytes.len() > 0 && self.bytes[0] >= 0xc0
     }
 
@@ -112,7 +112,7 @@ impl <'a>Rlp<'a> {
     }
 
     /// consumes first found prefix
-    fn consume_array_prefix(&self) -> Result<&'a [u8], DecoderError> {
+    fn consume_list_prefix(&self) -> Result<&'a [u8], DecoderError> {
         let item = try!(Rlp::item_info(self.bytes));
         let bytes = try!(Rlp::consume(self.bytes, item.prefix_len));
         Ok(bytes)
@@ -201,13 +201,13 @@ pub struct RlpStream {
 
 impl RlpStream {
     /// create new container for values appended one after another,
-    /// but not being part of the same array
+    /// but not being part of the same list
     pub fn new() -> RlpStream {
-        RlpStream::array(0)
+        RlpStream::new_list(0)
     }
 
-    /// create new container for array of size `max_len`
-    pub fn array(max_len: usize) -> RlpStream {
+    /// create new container for list of size `max_len`
+    pub fn new_list(max_len: usize) -> RlpStream {
         RlpStream {
             len: 0,
             max_len: max_len,
@@ -235,7 +235,7 @@ impl RlpStream {
             },
         };
 
-        // if array is finished, prepend the length
+        // if list is finished, prepend the length
         if self.is_finished() {
             self.prepend_the_length();
         }
@@ -310,7 +310,7 @@ pub trait Encoder {
     type Error;
 
     fn emit_value(&mut self, bytes: &[u8]) -> Result<(), Self::Error>;
-    fn emit_array<F>(&mut self, f: F) -> Result<(), Self::Error> where 
+    fn emit_list<F>(&mut self, f: F) -> Result<(), Self::Error> where 
         F: FnOnce(&mut Self) -> Result<(), Self::Error>;
 }
 
@@ -322,8 +322,8 @@ impl <T> Encodable for T where T: ToBytes {
 
 impl <'a, T> Encodable for &'a [T] where T: Encodable + 'a {
     fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
-        encoder.emit_array(|e| {
-            // insert all array elements
+        encoder.emit_list(|e| {
+            // insert all list elements
             for el in self.iter() {
                 try!(el.encode(e));
             }
@@ -348,8 +348,8 @@ impl BasicEncoder {
         BasicEncoder { bytes: vec![] }
     }
 
-    /// inserts array prefix at given position
-    fn insert_array_len_at_pos(&mut self, len: usize, pos: usize) -> Result<(), EncoderError> {
+    /// inserts list prefix at given position
+    fn insert_list_len_at_pos(&mut self, len: usize, pos: usize) -> Result<(), EncoderError> {
         // new bytes
         let mut res: Vec<u8> = vec![];
         {
@@ -400,21 +400,21 @@ impl Encoder for BasicEncoder {
         Ok(())
     }
 
-    fn emit_array<F>(&mut self, f: F) -> Result<(), Self::Error> where 
+    fn emit_list<F>(&mut self, f: F) -> Result<(), Self::Error> where 
         F: FnOnce(&mut Self) -> Result<(), Self::Error> {
         
-        // get len before inserting an array
+        // get len before inserting an list
         let before_len = self.bytes.len();
 
-        // insert all array elements
+        // insert all list elements
         try!(f(self));
 
-        // get len after inserting an array
+        // get len after inserting an list
         let after_len = self.bytes.len();
 
-        // diff is array len
-        let array_len = after_len - before_len;
-        self.insert_array_len_at_pos(array_len, before_len)
+        // diff is list len
+        let list_len = after_len - before_len;
+        self.insert_list_len_at_pos(list_len, before_len)
     }
 }
 
@@ -428,7 +428,7 @@ mod tests {
         let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
         {
             let rlp = Rlp::new(&data);
-            assert!(rlp.is_array());
+            assert!(rlp.is_list());
            
             let cat = rlp.at(0).unwrap();
             assert!(cat.is_value());
@@ -449,7 +449,7 @@ mod tests {
         let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o'];
         {
             let rlp = Rlp::new(&data);
-            assert!(rlp.is_array());
+            assert!(rlp.is_list());
 
             let cat_err = rlp.at(0).unwrap_err();
             assert_eq!(cat_err, rlp::DecoderError::RlpIsTooShort);
@@ -593,7 +593,7 @@ mod tests {
 
     #[test]
     fn rlp_stream() {
-        let mut stream = RlpStream::array(2);
+        let mut stream = RlpStream::new_list(2);
         stream.append(&"cat").append(&"dog");
         let out = stream.out().unwrap();
         assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
