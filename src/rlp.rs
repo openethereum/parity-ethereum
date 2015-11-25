@@ -193,7 +193,7 @@ impl <'a> Iterator for RlpIterator<'a> {
 pub struct RlpStream {
     len: usize,
     max_len: usize,
-    bytes: Vec<u8>
+    encoder: BasicEncoder
 }
 
 impl RlpStream {
@@ -208,14 +208,14 @@ impl RlpStream {
         RlpStream {
             len: 0,
             max_len: max_len,
-            bytes: vec![]
+            encoder: BasicEncoder::new()
         }
     }
 
     /// apends value to the end of stream, chainable
     pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable {
         // encode given value and add it at the end of the stream
-        self.bytes.extend(encode(object));
+        object.encode(&mut self.encoder);
         self.len += 1;
 
         // if list is finished, prepend the length
@@ -235,30 +235,20 @@ impl RlpStream {
     /// streams out encoded bytes
     pub fn out(self) -> Result<Vec<u8>, EncoderError> {
         match self.is_finished() {
-            true => Ok(self.bytes),
+            true => Ok(self.encoder.out()),
             false => Err(EncoderError::StreamIsUnfinished)
         }
     }
 
     /// prepend the length of the bytes to the beginning of the vector
     fn prepend_the_length(&mut self) -> () {
-        let mut v = match self.bytes.len() {
-            len @ 0...55 => vec![0xc0u8 + len as u8],
-            len => {
-                let mut res = vec![0x7fu8 + len.to_bytes_len() as u8];
-                let mut b = len.to_bytes();
-                res.append(&mut b);
-                res
-            }
-        };
-
-        v.append(&mut self.bytes);
-        self.bytes = v;
+        let len = self.encoder.bytes.len();
+        self.encoder.insert_list_len_at_pos(len, 0);
     }
 }
 
 /// shortcut function to encode a `T: Encodable` into a Rlp `Vec<u8>`
-fn encode<E>(object: &E) -> Vec<u8> where E: Encodable {
+pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable {
     let mut encoder = BasicEncoder::new();
     object.encode(&mut encoder);
     encoder.out()
