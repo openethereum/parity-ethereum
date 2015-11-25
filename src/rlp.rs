@@ -191,8 +191,86 @@ impl <'a> Iterator for RlpIterator<'a> {
     }
 }
 
+/// container that should be used to encoding the rlp
+pub struct RlpStream {
+    len: usize,
+    max_len: usize,
+    bytes: Vec<u8>,
+    last_err: Option<EncoderError>
+}
+
+impl RlpStream {
+    /// create new container of size `max_len`
+    pub fn new(max_len: usize) -> RlpStream {
+        RlpStream {
+            len: 0,
+            max_len: max_len,
+            bytes: vec![],
+            last_err: None
+        }
+    }
+
+    /// apends value to the end of stream, chainable
+    pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable {
+        // if there was an error, stop appending
+        if !self.last_err.is_none() {
+            return self
+        }
+
+        // encode given value and add it at the end of the stream
+        match encode(object) {
+            Err(e) => {
+                self.last_err = Some(e);
+                return self;
+            },
+            Ok(ref mut v) => {
+                self.bytes.append(v);
+                self.len += 1;
+            },
+        };
+
+        // if array is finished, prepend the length
+        if self.is_finished() {
+            self.prepend_the_length();
+        }
+
+        // allow chaining calls
+        self
+    }
+
+    /// return try if stream is ready
+    pub fn is_finished(&self) -> bool {
+        self.len == self.max_len
+    }
+
+    /// streams out encoded bytes
+    pub fn out(self) -> Result<Vec<u8>, EncoderError> {
+        match self.last_err {
+            None if self.is_finished() => Ok(self.bytes),
+            Some(e) => Err(e),
+            _ => Err(EncoderError::StreamIsUnfinished)
+        }
+    }
+
+    /// prepend the length of the bytes to the beginning of the vector
+    fn prepend_the_length(&mut self) -> () {
+        let mut v = match self.bytes.len() {
+            len @ 0...55 => vec![0xc0u8 + len as u8],
+            len => {
+                let mut res = vec![0x7fu8 + len.to_bytes_len() as u8];
+                let mut b = len.to_bytes();
+                res.append(&mut b);
+                res
+            }
+        };
+
+        v.append(&mut self.bytes);
+        self.bytes = v;
+    }
+}
+
 /// shortcut function to encode a `T: Encodable` into a Rlp `Vec<u8>`
-pub fn encode<E>(object: &E) -> Result<Vec<u8>, EncoderError> where E: Encodable {
+fn encode<E>(object: &E) -> Result<Vec<u8>, EncoderError> where E: Encodable {
     let mut ret: Vec<u8> = vec![];
     {
         let mut encoder = BasicEncoder::new(&mut ret);
@@ -203,7 +281,8 @@ pub fn encode<E>(object: &E) -> Result<Vec<u8>, EncoderError> where E: Encodable
 
 #[derive(Debug)]
 pub enum EncoderError {
-    IoError(IoError)
+    IoError(IoError),
+    StreamIsUnfinished
 }
 
 impl StdError for EncoderError {
@@ -257,15 +336,15 @@ impl <'a, T> Encodable for &'a [T] where T: Encodable + 'a {
     }
 
     fn item_info(&self) -> ItemInfo {
-        let prefix_len = match self.len() {
-            0...55 => 1,
-            len => len.to_bytes_len()
-        };
-
         let value_len = self.iter().fold(0, |acc, ref enc| { 
             let item = enc.item_info(); 
             acc + item.prefix_len + item.value_len 
         });
+
+        let prefix_len = match value_len {
+            0...55 => 1,
+            len => len.to_bytes_len()
+        };
 
         ItemInfo::new(prefix_len, value_len)
     }
@@ -342,7 +421,7 @@ impl <W> Encoder for BasicEncoder<W> where W: Write {
 #[cfg(test)]
 mod tests {
     use rlp;
-    use rlp::Rlp;
+    use rlp::{Rlp, RlpStream};
 
     #[test]
     fn rlp_at() {
@@ -510,6 +589,14 @@ mod tests {
             ETestPair(vec![vec!["cat"]], vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])
         ];
         run_encode_tests(tests);
+    }
+
+    #[test]
+    fn rlp_stream() {
+        let mut stream = RlpStream::new(2);
+        stream.append(&"cat").append(&"dog");
+        let out = stream.out().unwrap();
+        assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
     }
 }
 
