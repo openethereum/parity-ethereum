@@ -2,8 +2,6 @@
 
 use std::fmt;
 use std::cell::Cell;
-use std::io::{Write};
-use std::io::Error as IoError;
 use std::error::Error as StdError;
 use bytes::{ToBytes, FromBytes, FromBytesError};
 
@@ -224,16 +222,18 @@ impl RlpStream {
         }
 
         // encode given value and add it at the end of the stream
-        match encode(object) {
-            Err(e) => {
-                self.last_err = Some(e);
-                return self;
-            },
-            Ok(ref mut v) => {
-                self.bytes.append(v);
-                self.len += 1;
-            },
-        };
+        self.bytes.extend(encode(object));
+        self.len += 1;
+
+            //Err(e) => {
+                //self.last_err = Some(e);
+                //return self;
+            //},
+            //Ok(ref mut v) => {
+                //self.bytes.append(v);
+                //self.len += 1;
+            //},
+        //};
 
         // if list is finished, prepend the length
         if self.is_finished() {
@@ -276,15 +276,14 @@ impl RlpStream {
 }
 
 /// shortcut function to encode a `T: Encodable` into a Rlp `Vec<u8>`
-fn encode<E>(object: &E) -> Result<Vec<u8>, EncoderError> where E: Encodable {
+fn encode<E>(object: &E) -> Vec<u8> where E: Encodable {
     let mut encoder = BasicEncoder::new();
-    try!(object.encode(&mut encoder));
-    Ok(encoder.out())
+    object.encode(&mut encoder);
+    encoder.out()
 }
 
 #[derive(Debug)]
 pub enum EncoderError {
-    IoError(IoError),
     StreamIsUnfinished
 }
 
@@ -298,42 +297,34 @@ impl fmt::Display for EncoderError {
     }
 }
 
-impl From<IoError> for EncoderError {
-    fn from(err: IoError) -> EncoderError { EncoderError::IoError(err) }
-}
-
 pub trait Encodable {
-    fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder;
+    fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder;
 }
 
 pub trait Encoder {
-    type Error;
-
-    fn emit_value(&mut self, bytes: &[u8]) -> Result<(), Self::Error>;
-    fn emit_list<F>(&mut self, f: F) -> Result<(), Self::Error> where 
-        F: FnOnce(&mut Self) -> Result<(), Self::Error>;
+    fn emit_value(&mut self, bytes: &[u8]) -> ();
+    fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> ();
 }
 
 impl <T> Encodable for T where T: ToBytes {
-    fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
+    fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
         encoder.emit_value(&self.to_bytes())
     }
 }
 
 impl <'a, T> Encodable for &'a [T] where T: Encodable + 'a {
-    fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
+    fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
         encoder.emit_list(|e| {
             // insert all list elements
             for el in self.iter() {
-                try!(el.encode(e));
+                el.encode(e);
             }
-            Ok(())
         })
     }
 }
 
 impl <T> Encodable for Vec<T> where T: Encodable {
-    fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
+    fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
         let r: &[T] = self.as_ref();
         r.encode(encoder)
     }
@@ -349,25 +340,24 @@ impl BasicEncoder {
     }
 
     /// inserts list prefix at given position
-    fn insert_list_len_at_pos(&mut self, len: usize, pos: usize) -> Result<(), EncoderError> {
+    fn insert_list_len_at_pos(&mut self, len: usize, pos: usize) -> () {
         // new bytes
         let mut res: Vec<u8> = vec![];
         {
             let (before_slice, after_slice) = self.bytes.split_at(pos); 
-            try!(res.write(before_slice));
+            res.extend(before_slice);
 
             match len {
-                0...55 => { try!(res.write(&[0xc0u8 + len as u8])); }
+                0...55 => res.push(0xc0u8 + len as u8),
                 _ => {
-                    try!(res.write(&[0x7fu8 + len.to_bytes_len() as u8]));
-                    try!(res.write(&len.to_bytes()));
+                    res.push(0x7fu8 + len.to_bytes_len() as u8);
+                    res.extend(len.to_bytes());
                 }
             };
 
-            try!(res.write(after_slice));
+            res.extend(after_slice);
         }
         self.bytes = res;
-        Ok(())
     }
 
     /// get encoded value
@@ -377,44 +367,39 @@ impl BasicEncoder {
 }
 
 impl Encoder for BasicEncoder {
-    type Error = EncoderError;
-
-    fn emit_value(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
+    fn emit_value(&mut self, bytes: &[u8]) -> () {
         match bytes.len() {
             // just 0
-            0 => { try!(self.bytes.write(&[0x80u8])); },
+            0 => self.bytes.push(0x80u8),
             // byte is its own encoding
-            1 if bytes[0] < 0x80 => { try!(self.bytes.write(bytes)); },
+            1 if bytes[0] < 0x80 => self.bytes.extend(bytes),
             // (prefix + length), followed by the string
             len @ 1 ... 55 => {
-                try!(self.bytes.write(&[0x80u8 + len as u8]));
-                try!(self.bytes.write(bytes));
+                self.bytes.push(0x80u8 + len as u8);
+                self.bytes.extend(bytes);
             }
             // (prefix + length of length), followed by the length, followd by the string
             len => {
-                try!(self.bytes.write(&[0xb7 + len.to_bytes_len() as u8]));
-                try!(self.bytes.write(&len.to_bytes()));
-                try!(self.bytes.write(bytes));
+                self.bytes.push(0xb7 + len.to_bytes_len() as u8);
+                self.bytes.extend(len.to_bytes());
+                self.bytes.extend(bytes);
             }
         }
-        Ok(())
     }
 
-    fn emit_list<F>(&mut self, f: F) -> Result<(), Self::Error> where 
-        F: FnOnce(&mut Self) -> Result<(), Self::Error> {
-        
+    fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> () {
         // get len before inserting an list
         let before_len = self.bytes.len();
 
         // insert all list elements
-        try!(f(self));
+        f(self);
 
         // get len after inserting an list
         let after_len = self.bytes.len();
 
         // diff is list len
         let list_len = after_len - before_len;
-        self.insert_list_len_at_pos(list_len, before_len)
+        self.insert_list_len_at_pos(list_len, before_len);
     }
 }
 
@@ -487,7 +472,7 @@ mod tests {
 
     fn run_encode_tests<T>(tests: Vec<ETestPair<T>>) where T: rlp::Encodable {
         for t in &tests {
-            let res = rlp::encode(&t.0).unwrap();
+            let res = rlp::encode(&t.0);
             assert_eq!(res, &t.1[..]);
         }
     }
