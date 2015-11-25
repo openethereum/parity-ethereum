@@ -9,3 +9,5 @@ authors = ["Ethcore <admin@ethcore.io>"]
 [dependencies]
 log = "0.3"
 env_logger = "0.3"
+rustc-serialize = "0.3"
+arrayvec = "0.3"

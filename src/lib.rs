@@ -1,3 +1,4 @@
-#[test]
-fn it_works() {
-}
+extern crate rustc_serialize;
+
+pub mod error;
+pub mod hash;
