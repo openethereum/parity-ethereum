@@ -41,7 +41,7 @@ impl ItemInfo {
 pub enum DecoderError {
     FromBytesError(FromBytesError),
     RlpIsTooShort,
-    RlpIsNotArray,
+    RlpExpectedToBeArray,
     BadRlp,
 }
 impl StdError for DecoderError {
@@ -72,7 +72,7 @@ impl <'a>Rlp<'a> {
     /// paren container caches searched position
     pub fn at(&self, index: usize) -> Result<Rlp<'a>, DecoderError> {
         if !self.is_array() {
-            return Err(DecoderError::RlpIsNotArray);
+            return Err(DecoderError::RlpExpectedToBeArray);
         }
 
         // move to cached position if it's index is less or equal to
