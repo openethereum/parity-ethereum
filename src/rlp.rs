@@ -243,6 +243,7 @@ impl RlpStream {
     }
 
     /// declare appending the list of given size
+    /// TODO: optimise insertion of empty list
     pub fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
         // push new list
         let position = self.encoder.bytes.len();
@@ -356,6 +357,7 @@ impl BasicEncoder {
     }
 
     /// inserts list prefix at given position
+    /// TODO: optimise it, so it does not copy an array
     fn insert_list_len_at_pos(&mut self, len: usize, pos: usize) -> () {
         // new bytes
         let mut res: Vec<u8> = vec![];
