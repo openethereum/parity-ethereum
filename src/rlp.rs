@@ -2,7 +2,7 @@
 
 use std::fmt;
 use std::cell::Cell;
-use std::io::{Write, BufWriter};
+use std::io::{Write};
 use std::io::Error as IoError;
 use std::error::Error as StdError;
 use bytes::{ToBytes, FromBytes, FromBytesError};
@@ -28,7 +28,7 @@ impl OffsetCache {
 }
 
 /// stores basic information about item
-pub struct ItemInfo {
+struct ItemInfo {
     prefix_len: usize,
     value_len: usize
 }
@@ -277,12 +277,9 @@ impl RlpStream {
 
 /// shortcut function to encode a `T: Encodable` into a Rlp `Vec<u8>`
 fn encode<E>(object: &E) -> Result<Vec<u8>, EncoderError> where E: Encodable {
-    let mut ret: Vec<u8> = vec![];
-    {
-        let mut encoder = BasicEncoder::new(&mut ret);
-        try!(object.encode(&mut encoder));
-    }
-    Ok(ret)
+    let mut encoder = BasicEncoder::new();
+    try!(object.encode(&mut encoder));
+    Ok(encoder.out())
 }
 
 #[derive(Debug)]
@@ -307,7 +304,6 @@ impl From<IoError> for EncoderError {
 
 pub trait Encodable {
     fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder;
-    fn item_info(&self) -> ItemInfo;
 }
 
 pub trait Encoder {
@@ -321,38 +317,11 @@ impl <T> Encodable for T where T: ToBytes {
     fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
         encoder.emit_value(self)
     }
-
-    fn item_info(&self) -> ItemInfo {
-        match self.to_bytes_len() {
-            // just 0
-            0 => ItemInfo::new(0, 1),
-            // byte is its own encoding
-            1 if self.first_byte().unwrap() < 0x80 => ItemInfo::new(0, 1),
-            // (prefix + length), followed by the stirng
-            len @ 1...55 => ItemInfo::new(1, len),
-            // (prefix + length of length), followed by the length, followed by the value
-            len => ItemInfo::new(1 + len.to_bytes_len(), len)
-        }
-    }
 }
 
 impl <'a, T> Encodable for &'a [T] where T: Encodable + 'a {
     fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
         encoder.emit_array(self)
-    }
-
-    fn item_info(&self) -> ItemInfo {
-        let value_len = self.iter().fold(0, |acc, ref enc| { 
-            let item = enc.item_info(); 
-            acc + item.prefix_len + item.value_len 
-        });
-
-        let prefix_len = match value_len {
-            0...55 => 1,
-            len => len.to_bytes_len()
-        };
-
-        ItemInfo::new(prefix_len, value_len)
     }
 }
 
@@ -361,24 +330,46 @@ impl <T> Encodable for Vec<T> where T: Encodable {
         let r: &[T] = self.as_ref();
         r.encode(encoder)
     }
+}
 
-    fn item_info(&self) -> ItemInfo {
-        let r: &[T] = self.as_ref();
-        r.item_info()
+struct BasicEncoder {
+    bytes: Vec<u8>
+}
+
+impl BasicEncoder {
+    fn new() -> BasicEncoder {
+        BasicEncoder { bytes: vec![] }
+    }
+
+    /// inserts array prefix at given position
+    fn insert_array_len_at_pos(&mut self, len: usize, pos: usize) -> Result<(), EncoderError> {
+        // new bytes
+        let mut res: Vec<u8> = vec![];
+        {
+            let (before_slice, after_slice) = self.bytes.split_at(pos); 
+            try!(res.write(before_slice));
+
+            match len {
+                0...55 => { try!(res.write(&[0xc0u8 + len as u8])); }
+                _ => {
+                    try!(res.write(&[0x7fu8 + len.to_bytes_len() as u8]));
+                    try!(res.write(&len.to_bytes()));
+                }
+            };
+
+            try!(res.write(after_slice));
+        }
+        self.bytes = res;
+        Ok(())
+    }
+
+    /// get encoded value
+    fn out(self) -> Vec<u8> {
+        self.bytes
     }
 }
 
-struct BasicEncoder<W> where W: Write {
-    writer: BufWriter<W>
-}
-
-impl <W> BasicEncoder<W> where W: Write {
-    pub fn new(writer: W) -> BasicEncoder<W> {
-        BasicEncoder { writer: BufWriter::new(writer) }
-    }
-}
-
-impl <W> Encoder for BasicEncoder<W> where W: Write {
+impl Encoder for BasicEncoder {
     type Error = EncoderError;
 
     fn emit_value<V>(&mut self, value: &V) -> Result<(), Self::Error> where V: Encodable + ToBytes {
@@ -387,40 +378,40 @@ impl <W> Encoder for BasicEncoder<W> where W: Write {
 
         match bytes.len() {
             // just 0
-            0 => { try!(self.writer.write(&[0x80u8])); },
+            0 => { try!(self.bytes.write(&[0x80u8])); },
             // byte is its own encoding
-            1 if bytes[0] < 0x80 => { try!(self.writer.write(bytes)); },
+            1 if bytes[0] < 0x80 => { try!(self.bytes.write(bytes)); },
             // (prefix + length), followed by the string
             len @ 1 ... 55 => {
-                try!(self.writer.write(&[0x80u8 + len as u8]));
-                try!(self.writer.write(bytes));
+                try!(self.bytes.write(&[0x80u8 + len as u8]));
+                try!(self.bytes.write(bytes));
             }
             // (prefix + length of length), followed by the length, followd by the string
             len => {
-                try!(self.writer.write(&[0xb7 + len.to_bytes_len() as u8]));
-                try!(self.writer.write(&len.to_bytes()));
-                try!(self.writer.write(bytes));
+                try!(self.bytes.write(&[0xb7 + len.to_bytes_len() as u8]));
+                try!(self.bytes.write(&len.to_bytes()));
+                try!(self.bytes.write(bytes));
             }
         }
         Ok(())
     }
 
     fn emit_array<V>(&mut self, array: &[V]) -> Result<(), Self::Error> where V: Encodable {
-        let item = array.item_info();
-
-        match item.value_len {
-            len @ 0...55 => { try!(self.writer.write(&[0xc0u8 + len as u8])); }
-            len => {
-                try!(self.writer.write(&[0x7fu8 + len.to_bytes_len() as u8]));
-                try!(self.writer.write(&len.to_bytes()));
-            }
-        };
         
+        // get len before inserting an array
+        let before_len = self.bytes.len();
+
+        // insert all array elements
         for el in array.iter() {
             try!(el.encode(self));
         }
 
-        Ok(())
+        // get len after inserting an array
+        let after_len = self.bytes.len();
+
+        // diff is array len
+        let array_len = after_len - before_len;
+        self.insert_array_len_at_pos(array_len, before_len)
     }
 }
 
