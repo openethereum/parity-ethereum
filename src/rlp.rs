@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::cell::Cell;
+use std::collections::LinkedList;
 use std::error::Error as StdError;
 use bytes::{ToBytes, FromBytes, FromBytesError};
 
@@ -189,10 +190,26 @@ impl <'a> Iterator for RlpIterator<'a> {
     }
 }
 
+#[derive(Debug)]
+struct ListInfo {
+    position: usize,
+    current: usize,
+    max: usize
+}
+
+impl ListInfo {
+    fn new(position: usize, max: usize) -> ListInfo {
+        ListInfo { 
+            position: position,
+            current: 0,
+            max: max
+        }
+    }
+}
+
 /// container that should be used to encode rlp
 pub struct RlpStream {
-    len: usize,
-    max_len: usize,
+    unfinished_lists: LinkedList<ListInfo>,
     encoder: BasicEncoder
 }
 
@@ -200,36 +217,51 @@ impl RlpStream {
     /// create new container for values appended one after another,
     /// but not being part of the same list
     pub fn new() -> RlpStream {
-        RlpStream::new_list(0)
+        RlpStream {
+            unfinished_lists: LinkedList::new(),
+            encoder: BasicEncoder::new()
+        }
     }
 
     /// create new container for list of size `max_len`
-    pub fn new_list(max_len: usize) -> RlpStream {
-        RlpStream {
-            len: 0,
-            max_len: max_len,
-            encoder: BasicEncoder::new()
-        }
+    pub fn new_list(len: usize) -> RlpStream {
+        let mut stream = RlpStream::new();
+        stream.append_list(len);
+        stream
     }
 
     /// apends value to the end of stream, chainable
     pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable {
         // encode given value and add it at the end of the stream
         object.encode(&mut self.encoder);
-        self.len += 1;
 
         // if list is finished, prepend the length
-        if self.is_finished() {
-            self.prepend_the_length();
+        self.try_to_finish();
+
+        // return chainable self
+        self
+    }
+
+    /// declare appending the list of given size
+    pub fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
+        // push new list
+        let position = self.encoder.bytes.len();
+        match len {
+            0 => {
+                // we may finish, if the appended list len is equal 0
+                self.encoder.insert_list_len_at_pos(0, position);
+                self.try_to_finish();
+            },
+            _ => self.unfinished_lists.push_back(ListInfo::new(position, len))
         }
 
-        // allow chaining calls
+        // return chainable self
         self
     }
 
     /// return true if stream is ready
     pub fn is_finished(&self) -> bool {
-        self.len == self.max_len
+        self.unfinished_lists.back().is_none()
     }
 
     /// streams out encoded bytes
@@ -240,10 +272,22 @@ impl RlpStream {
         }
     }
 
-    /// prepend the length of the bytes to the beginning of the vector
-    fn prepend_the_length(&mut self) -> () {
-        let len = self.encoder.bytes.len();
-        self.encoder.insert_list_len_at_pos(len, 0);
+    /// try to finish lists
+    fn try_to_finish(&mut self) -> () {
+        let should_finish = match self.unfinished_lists.back_mut() {
+            None => false,
+            Some(ref mut x) => {
+                x.current += 1;
+                x.current == x.max
+            }
+        };
+
+        if should_finish {    
+            let x = self.unfinished_lists.pop_back().unwrap();
+            let len = self.encoder.bytes.len() - x.position;
+            self.encoder.insert_list_len_at_pos(len, x.position);
+            self.try_to_finish();
+        }
     }
 }
 
@@ -554,6 +598,16 @@ mod tests {
         stream.append(&"cat").append(&"dog");
         let out = stream.out().unwrap();
         assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+    }
+
+    #[test]
+    fn rlp_stream_list() {
+        let mut stream = RlpStream::new_list(3);
+        stream.append_list(0);
+        stream.append_list(1).append(&vec![] as &Vec<u8>);
+        stream.append_list(2).append_list(0).append_list(1).append_list(0);
+        let out = stream.out().unwrap();
+        assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
     }
 }
 
