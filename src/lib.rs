@@ -1,5 +1,7 @@
 extern crate rustc_serialize;
 
+pub use std::str::FromStr;
+
 pub mod error;
 pub mod hash;
 pub mod bytes;

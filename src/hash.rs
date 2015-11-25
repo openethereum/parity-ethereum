@@ -1,14 +1,13 @@
 use rustc_serialize::hex::*;
 use error::EthcoreError;
 use std::str::FromStr;
+use std::fmt;
 
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
-		#[derive(PartialEq, Debug)]
-		struct $from ([u8; $size]);
+		pub struct $from (pub [u8; $size]);
 
 		impl FromStr for $from {
-//			type Output = $from;
 			type Err = EthcoreError;
 
 			fn from_str(s: &str) -> Result<$from, EthcoreError> {
@@ -21,6 +20,30 @@ macro_rules! impl_hash {
 				Ok(ret)
 			}
 		}
+
+		impl fmt::Debug for $from {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				for i in self.0.iter() {
+					try!(write!(f, "{:02x}", i));
+				}
+				Ok(())
+		    }
+   		}
+		impl fmt::Display for $from {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				(self as &fmt::Debug).fmt(f)
+		    }
+   		}
+		impl PartialEq for $from {
+		    fn eq(&self, other: &Self) -> bool {
+				for i in 0..$size {
+			        if self.0[i] != other.0[i] {
+			        	return false;
+			        }
+				}
+				true
+		    }
+		}
 	}
 }
 
@@ -28,7 +51,11 @@ impl_hash!(Hash64, 8);
 impl_hash!(Hash128, 16);
 impl_hash!(Address, 20);
 impl_hash!(Hash256, 32);
-//impl_hash!(Hash512, 64);
+impl_hash!(Hash512, 64);
+impl_hash!(Hash520, 65);
+impl_hash!(Hash1024, 128);
+impl_hash!(Hash2048, 256);
+impl_hash!(Hash4096, 512);
 
 #[test]
 fn it_works() {
