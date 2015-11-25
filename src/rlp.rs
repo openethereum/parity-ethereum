@@ -193,8 +193,7 @@ impl <'a> Iterator for RlpIterator<'a> {
 pub struct RlpStream {
     len: usize,
     max_len: usize,
-    bytes: Vec<u8>,
-    last_err: Option<EncoderError>
+    bytes: Vec<u8>
 }
 
 impl RlpStream {
@@ -209,18 +208,12 @@ impl RlpStream {
         RlpStream {
             len: 0,
             max_len: max_len,
-            bytes: vec![],
-            last_err: None
+            bytes: vec![]
         }
     }
 
     /// apends value to the end of stream, chainable
     pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable {
-        // if there was an error, stop appending
-        if !self.last_err.is_none() {
-            return self
-        }
-
         // encode given value and add it at the end of the stream
         self.bytes.extend(encode(object));
         self.len += 1;
@@ -241,10 +234,9 @@ impl RlpStream {
 
     /// streams out encoded bytes
     pub fn out(self) -> Result<Vec<u8>, EncoderError> {
-        match self.last_err {
-            None if self.is_finished() => Ok(self.bytes),
-            Some(e) => Err(e),
-            _ => Err(EncoderError::StreamIsUnfinished)
+        match self.is_finished() {
+            true => Ok(self.bytes),
+            false => Err(EncoderError::StreamIsUnfinished)
         }
     }
 
