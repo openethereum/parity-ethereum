@@ -34,7 +34,7 @@ struct ItemInfo {
 }
 
 impl ItemInfo {
-    pub fn new(prefix_len: usize, value_len: usize) -> ItemInfo {
+    fn new(prefix_len: usize, value_len: usize) -> ItemInfo {
         ItemInfo { prefix_len: prefix_len, value_len: value_len }
     }
 }
