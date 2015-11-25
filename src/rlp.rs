@@ -245,6 +245,9 @@ mod tests {
             assert!(dog.is_value());
             assert_eq!(dog.bytes, &[0x83, b'd', b'o', b'g']);
 
+            let none = iter.next();
+            assert!(none.is_none());
+
             let cat_again = rlp.at(0).unwrap();
             assert!(cat_again.is_value());
             assert_eq!(cat_again.bytes, &[0x83, b'c', b'a', b't']);
