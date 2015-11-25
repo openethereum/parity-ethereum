@@ -309,19 +309,26 @@ pub trait Encodable {
 pub trait Encoder {
     type Error;
 
-    fn emit_value<V>(&mut self, value: &V) -> Result<(), Self::Error> where V: Encodable + ToBytes;
-    fn emit_array<V>(&mut self, array: &[V]) -> Result<(), Self::Error> where V: Encodable;
+    fn emit_value(&mut self, bytes: &[u8]) -> Result<(), Self::Error>;
+    fn emit_array<F>(&mut self, f: F) -> Result<(), Self::Error> where 
+        F: FnOnce(&mut Self) -> Result<(), Self::Error>;
 }
 
 impl <T> Encodable for T where T: ToBytes {
     fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
-        encoder.emit_value(self)
+        encoder.emit_value(&self.to_bytes())
     }
 }
 
 impl <'a, T> Encodable for &'a [T] where T: Encodable + 'a {
     fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
-        encoder.emit_array(self)
+        encoder.emit_array(|e| {
+            // insert all array elements
+            for el in self.iter() {
+                try!(el.encode(e));
+            }
+            Ok(())
+        })
     }
 }
 
@@ -372,10 +379,7 @@ impl BasicEncoder {
 impl Encoder for BasicEncoder {
     type Error = EncoderError;
 
-    fn emit_value<V>(&mut self, value: &V) -> Result<(), Self::Error> where V: Encodable + ToBytes {
-        let v = value.to_bytes();
-        let bytes: &[u8] = v.as_ref();
-
+    fn emit_value(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
         match bytes.len() {
             // just 0
             0 => { try!(self.bytes.write(&[0x80u8])); },
@@ -396,15 +400,14 @@ impl Encoder for BasicEncoder {
         Ok(())
     }
 
-    fn emit_array<V>(&mut self, array: &[V]) -> Result<(), Self::Error> where V: Encodable {
+    fn emit_array<F>(&mut self, f: F) -> Result<(), Self::Error> where 
+        F: FnOnce(&mut Self) -> Result<(), Self::Error> {
         
         // get len before inserting an array
         let before_len = self.bytes.len();
 
         // insert all array elements
-        for el in array.iter() {
-            try!(el.encode(self));
-        }
+        try!(f(self));
 
         // get len after inserting an array
         let after_len = self.bytes.len();
