@@ -1,4 +1,47 @@
 //! Rlp serialization module
+//!
+//! Types implementing `Endocable` and `Decodable` traits
+//! can be easily coverted to and from rlp
+//! 
+//! # Examples:
+//! 
+//! ```rust
+//! extern crate ethcore_util;
+//! use ethcore_util::rlp::{RlpStream};
+//! 
+//! fn encode_value() {
+//!     // 1029
+//!     let mut stream = RlpStream::new();
+//!     stream.append(&1029u32);
+//!     let out = stream.out().unwrap();
+//!     assert_eq!(out, vec![0x82, 0x04, 0x05]);
+//! }
+//!
+//! fn encode_list() {
+//!     // [ "cat", "dog" ]
+//!     let mut stream = RlpStream::new_list(2);
+//!     stream.append(&"cat").append(&"dog");
+//!     let out = stream.out().unwrap();
+//!     assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+//! }
+//! 
+//! fn encode_list2() {
+//!     // [ [], [[]], [ [], [[]] ] ]
+//!     let mut stream = RlpStream::new_list(3);
+//!     stream.append_list(0);
+//!     stream.append_list(1).append_list(0);
+//!     stream.append_list(2).append_list(0).append_list(1).append_list(0);
+//!     let out = stream.out().unwrap();
+//!     assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
+//! }
+//!
+//! fn main() {
+//!     encode_value();
+//!     encode_list();
+//!     encode_list2();
+//! }
+//! ```
+//!
 
 use std::fmt;
 use std::cell::Cell;
