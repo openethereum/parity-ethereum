@@ -225,16 +225,6 @@ impl RlpStream {
         self.bytes.extend(encode(object));
         self.len += 1;
 
-            //Err(e) => {
-                //self.last_err = Some(e);
-                //return self;
-            //},
-            //Ok(ref mut v) => {
-                //self.bytes.append(v);
-                //self.len += 1;
-            //},
-        //};
-
         // if list is finished, prepend the length
         if self.is_finished() {
             self.prepend_the_length();
