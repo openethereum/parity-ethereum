@@ -403,5 +403,113 @@ mod tests {
             assert_eq!(cat_again.bytes, &[0x83, b'c', b'a', b't']);
         }
     }
+
+    struct ETestPair<T>(T, Vec<u8>) where T: rlp::Encodable;
+
+    fn run_encode_tests<T>(tests: Vec<ETestPair<T>>) where T: rlp::Encodable {
+        for t in &tests {
+            let res = rlp::encode(&t.0).unwrap();
+            assert_eq!(res, &t.1[..]);
+        }
+    }
+
+    #[test]
+    fn encode_u8() {
+        let tests = vec![
+            ETestPair(0u8, vec![0x80u8]),
+            ETestPair(15, vec![15]),
+            ETestPair(55, vec![55]),
+            ETestPair(56, vec![56]),
+            ETestPair(0x7f, vec![0x7f]),
+            ETestPair(0x80, vec![0x81, 0x80]),
+            ETestPair(0xff, vec![0x81, 0xff]),
+        ];
+        run_encode_tests(tests);
+    }
+
+    #[test]
+    fn encode_u16() {
+        let tests = vec![
+            ETestPair(0u16, vec![0x80u8]),
+            ETestPair(0x100, vec![0x82, 0x01, 0x00]),
+            ETestPair(0xffff, vec![0x82, 0xff, 0xff]),
+        ];
+        run_encode_tests(tests);
+    }
+
+    #[test]
+    fn encode_u32() {
+        let tests = vec![
+            ETestPair(0u32, vec![0x80u8]),
+            ETestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
+            ETestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
+        ];
+        run_encode_tests(tests);
+    }
+
+    #[test]
+    fn encode_u64() {
+        let tests = vec![
+            ETestPair(0u64, vec![0x80u8]),
+            ETestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+            ETestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+        ];
+        run_encode_tests(tests);
+    }
+
+    #[test]
+    fn encode_str() {
+        let tests = vec![
+            ETestPair("cat", vec![0x83, b'c', b'a', b't']),
+            ETestPair("dog", vec![0x83, b'd', b'o', b'g']),
+            ETestPair("Marek", vec![0x85, b'M', b'a', b'r', b'e', b'k']),
+            ETestPair("", vec![0x80]),
+            ETestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit",
+                     vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
+                    b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o', b'r',
+                    b' ', b's', b'i', b't', b' ', b'a', b'm', b'e', b't', b',',
+                    b' ', b'c', b'o', b'n', b's', b'e', b'c', b't', b'e', b't',
+                    b'u', b'r', b' ', b'a', b'd', b'i', b'p', b'i', b's', b'i',
+                    b'c', b'i', b'n', b'g', b' ', b'e', b'l', b'i', b't'])
+        ];
+        run_encode_tests(tests);
+    }
+
+    #[test]
+    fn encode_vector_u8() {
+        let tests = vec![
+            ETestPair(vec![], vec![0xc0]),
+            ETestPair(vec![15u8], vec![0xc1, 0x0f]),
+            ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+        ];
+        run_encode_tests(tests);
+    }
+
+    #[test]
+    fn encode_vector_u64() {
+        let tests = vec![
+            ETestPair(vec![], vec![0xc0]),
+            ETestPair(vec![15u64], vec![0xc1, 0x0f]),
+            ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+            ETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+        ];
+        run_encode_tests(tests);
+    }
+
+    #[test]
+    fn encode_vector_str() {
+        let tests = vec![
+            ETestPair(vec!["cat", "dog"], vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])
+        ];
+        run_encode_tests(tests);
+    }
+
+    #[test]
+    fn encode_vector_of_vectors_str() {
+        let tests = vec![
+            ETestPair(vec![vec!["cat"]], vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])
+        ];
+        run_encode_tests(tests);
+    }
 }
 
