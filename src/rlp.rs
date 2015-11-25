@@ -2,8 +2,10 @@
 
 use std::fmt;
 use std::cell::Cell;
+use std::io::{Write, BufWriter};
+use std::io::Error as IoError;
 use std::error::Error as StdError;
-use bytes::{FromBytes, FromBytesError};
+use bytes::{ToBytes, FromBytes, FromBytesError};
 
 /// rlp container
 #[derive(Debug)]
@@ -26,13 +28,13 @@ impl OffsetCache {
 }
 
 /// stores basic information about item
-struct ItemInfo {
+pub struct ItemInfo {
     prefix_len: usize,
     value_len: usize
 }
 
 impl ItemInfo {
-    fn new(prefix_len: usize, value_len: usize) -> ItemInfo {
+    pub fn new(prefix_len: usize, value_len: usize) -> ItemInfo {
         ItemInfo { prefix_len: prefix_len, value_len: value_len }
     }
 }
@@ -186,6 +188,154 @@ impl <'a> Iterator for RlpIterator<'a> {
         let result = self.rlp.at(index).ok();
         self.index += 1;
         result
+    }
+}
+
+/// shortcut function to encode a `T: Encodable` into a Rlp `Vec<u8>`
+pub fn encode<E>(object: &E) -> Result<Vec<u8>, EncoderError> where E: Encodable {
+    let mut ret: Vec<u8> = vec![];
+    {
+        let mut encoder = BasicEncoder::new(&mut ret);
+        try!(object.encode(&mut encoder));
+    }
+    Ok(ret)
+}
+
+#[derive(Debug)]
+pub enum EncoderError {
+    IoError(IoError)
+}
+
+impl StdError for EncoderError {
+    fn description(&self) -> &str { "encoder error" }
+}
+
+impl fmt::Display for EncoderError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self, f)
+    }
+}
+
+impl From<IoError> for EncoderError {
+    fn from(err: IoError) -> EncoderError { EncoderError::IoError(err) }
+}
+
+pub trait Encodable {
+    fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder;
+    fn item_info(&self) -> ItemInfo;
+}
+
+pub trait Encoder {
+    type Error;
+
+    fn emit_value<V>(&mut self, value: &V) -> Result<(), Self::Error> where V: Encodable + ToBytes;
+    fn emit_array<V>(&mut self, array: &[V]) -> Result<(), Self::Error> where V: Encodable;
+}
+
+impl <T> Encodable for T where T: ToBytes {
+    fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
+        encoder.emit_value(self)
+    }
+
+    fn item_info(&self) -> ItemInfo {
+        match self.to_bytes_len() {
+            // just 0
+            0 => ItemInfo::new(0, 1),
+            // byte is its own encoding
+            1 if self.first_byte().unwrap() < 0x80 => ItemInfo::new(0, 1),
+            // (prefix + length), followed by the stirng
+            len @ 1...55 => ItemInfo::new(1, len),
+            // (prefix + length of length), followed by the length, followed by the value
+            len => ItemInfo::new(1 + len.to_bytes_len(), len)
+        }
+    }
+}
+
+impl <'a, T> Encodable for &'a [T] where T: Encodable + 'a {
+    fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
+        encoder.emit_array(self)
+    }
+
+    fn item_info(&self) -> ItemInfo {
+        let prefix_len = match self.len() {
+            0...55 => 1,
+            len => len.to_bytes_len()
+        };
+
+        let value_len = self.iter().fold(0, |acc, ref enc| { 
+            let item = enc.item_info(); 
+            acc + item.prefix_len + item.value_len 
+        });
+
+        ItemInfo::new(prefix_len, value_len)
+    }
+}
+
+impl <T> Encodable for Vec<T> where T: Encodable {
+    fn encode<E>(&self, encoder: &mut E) -> Result<(), E::Error> where E: Encoder {
+        let r: &[T] = self.as_ref();
+        r.encode(encoder)
+    }
+
+    fn item_info(&self) -> ItemInfo {
+        let r: &[T] = self.as_ref();
+        r.item_info()
+    }
+}
+
+struct BasicEncoder<W> where W: Write {
+    writer: BufWriter<W>
+}
+
+impl <W> BasicEncoder<W> where W: Write {
+    pub fn new(writer: W) -> BasicEncoder<W> {
+        BasicEncoder { writer: BufWriter::new(writer) }
+    }
+}
+
+impl <W> Encoder for BasicEncoder<W> where W: Write {
+    type Error = EncoderError;
+
+    fn emit_value<V>(&mut self, value: &V) -> Result<(), Self::Error> where V: Encodable + ToBytes {
+        let v = value.to_bytes();
+        let bytes: &[u8] = v.as_ref();
+
+        match bytes.len() {
+            // just 0
+            0 => { try!(self.writer.write(&[0x80u8])); },
+            // byte is its own encoding
+            1 if bytes[0] < 0x80 => { try!(self.writer.write(bytes)); },
+            // (prefix + length), followed by the string
+            len @ 1 ... 55 => {
+                try!(self.writer.write(&[0x80u8 + len as u8]));
+                try!(self.writer.write(bytes));
+            }
+            // (prefix + length of length), followed by the length, followd by the string
+            len => {
+                try!(self.writer.write(&[0xb7 + len.to_bytes_len() as u8]));
+                try!(self.writer.write(&len.to_bytes()));
+                try!(self.writer.write(bytes));
+            }
+        }
+        Ok(())
+    }
+
+    fn emit_array<V>(&mut self, array: &[V]) -> Result<(), Self::Error> where V: Encodable {
+        let item = array.item_info();
+
+        match item.value_len {
+            len @ 0...55 => { try!(self.writer.write(&[0xc0u8 + len as u8])); }
+            len => {
+                try!(self.writer.write(&[0x7fu8 + len.to_bytes_len() as u8]));
+                try!(self.writer.write(&len.to_bytes()));
+            }
+        };
+        
+        for el in array.iter() {
+            try!(el.encode(self));
+        }
+
+        Ok(())
     }
 }
 
