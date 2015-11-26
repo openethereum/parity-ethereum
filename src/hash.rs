@@ -1,11 +1,30 @@
-use rustc_serialize::hex::*;
-use error::EthcoreError;
 use std::str::FromStr;
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::ops::{Index, IndexMut};
+use rustc_serialize::hex::*;
+use error::EthcoreError;
+use rand::Rng;
+use rand::os::OsRng;
 
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		pub struct $from (pub [u8; $size]);
+
+		impl $from {
+			pub fn new() -> $from {
+				$from([0; $size])
+			}
+			pub fn random() -> $from {
+				let mut hash = $from::new();
+				hash.randomize();
+				hash
+			}
+			pub fn randomize(&mut self) {
+				let mut rng = OsRng::new().unwrap();
+				rng.fill_bytes(&mut self.0);
+			}
+		}
 
 		impl FromStr for $from {
 			type Err = EthcoreError;
@@ -27,22 +46,51 @@ macro_rules! impl_hash {
 					try!(write!(f, "{:02x}", i));
 				}
 				Ok(())
-		    }
-   		}
+			}
+		}
 		impl fmt::Display for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				(self as &fmt::Debug).fmt(f)
-		    }
-   		}
+			}
+		}
+
+		impl Clone for $from {
+			fn clone(&self) -> $from {
+				*self
+			}
+		}
+		impl Copy for $from {}
+
 		impl PartialEq for $from {
-		    fn eq(&self, other: &Self) -> bool {
+			fn eq(&self, other: &Self) -> bool {
 				for i in 0..$size {
-			        if self.0[i] != other.0[i] {
-			        	return false;
-			        }
+					if self.0[i] != other.0[i] {
+						return false;
+					}
 				}
 				true
-		    }
+			}
+		}
+		impl Eq for $from { }
+
+		impl Hash for $from {
+			fn hash<H>(&self, state: &mut H) where H: Hasher {
+				state.write(&self.0);
+				state.finish();
+			}
+		}
+
+		impl Index<usize> for $from {
+			type Output = u8;
+
+			fn index<'a>(&'a self, index: usize) -> &'a u8 {
+				&self.0[index]
+			}
+		}
+		impl IndexMut<usize> for $from {
+			fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut u8 {
+				&mut self.0[index]
+			}
 		}
 	}
 }
