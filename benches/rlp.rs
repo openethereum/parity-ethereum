@@ -19,7 +19,7 @@ fn bench_stream_u64_value(b: &mut Bencher) {
     b.iter( || {
         //1029
         let mut stream = RlpStream::new();
-        stream.append(&1029u64);
+        stream.append(&0x1023456789abcdefu64);
         let _ = stream.out().unwrap();
     });
 }
@@ -28,7 +28,7 @@ fn bench_stream_u64_value(b: &mut Bencher) {
 fn bench_decode_u64_value(b: &mut Bencher) {
     b.iter( || {
         // 1029
-        let data = vec![0x82, 0x04, 0x05]; 
+        let data = vec![0x88, 0x10, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]; 
         let rlp = Rlp::new(&data);
         let _ = u64::decode(&rlp).unwrap();
     });
@@ -77,8 +77,9 @@ fn bench_decode_nested_empty_lists(b: &mut Bencher) {
         let rlp = Rlp::new(&data);
         let _v0: Vec<u8> = Decodable::decode(&rlp.at(0).unwrap()).unwrap();
         let _v1: Vec<Vec<u8>> = Decodable::decode(&rlp.at(1).unwrap()).unwrap();
-        let _v2a: Vec<u8> = Decodable::decode(&rlp.at(2).unwrap().at(0).unwrap()).unwrap();
-        let _v2b: Vec<Vec<u8>> = Decodable::decode(&rlp.at(2).unwrap().at(1).unwrap()).unwrap();
+        let nested_rlp = rlp.at(2).unwrap();
+        let _v2a: Vec<u8> = Decodable::decode(&nested_rlp.at(0).unwrap()).unwrap();
+        let _v2b: Vec<Vec<u8>> = Decodable::decode(&nested_rlp.at(1).unwrap()).unwrap();
     });
 }
 
