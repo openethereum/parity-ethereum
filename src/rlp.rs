@@ -262,7 +262,7 @@ impl <T> Decodable for Vec<T> where T: Decodable {
     }
 }
 
-trait Decoder {
+pub trait Decoder {
     fn read_value<T>(bytes: &[u8]) -> Result<T, DecoderError> where T: FromBytes;
 }
 
