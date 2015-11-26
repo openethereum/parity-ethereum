@@ -9,6 +9,7 @@ use rand::os::OsRng;
 
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
+		#[derive(Eq)]
 		pub struct $from (pub [u8; $size]);
 
 		impl $from {
@@ -71,7 +72,6 @@ macro_rules! impl_hash {
 				true
 			}
 		}
-		impl Eq for $from { }
 
 		impl Hash for $from {
 			fn hash<H>(&self, state: &mut H) where H: Hasher {
