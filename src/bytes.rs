@@ -8,6 +8,7 @@
 
 use std::fmt;
 use std::error::Error as StdError;
+use uint::{U128, U256};
 
 /// TODO: optimise some conversations
 pub trait ToBytes {
@@ -59,6 +60,7 @@ impl ToBytes for u64 {
     fn to_bytes(&self) -> Vec<u8> {
         let mut res= vec![];
         let count = self.to_bytes_len();
+        res.reserve(count);
         for i in 0..count {
             let j = count - 1 - i;
             res.push((*self >> (j * 8)) as u8);
@@ -82,6 +84,27 @@ impl_map_to_bytes!(usize, u64);
 impl_map_to_bytes!(u16, u64);
 impl_map_to_bytes!(u32, u64);
 
+macro_rules! impl_uint_to_bytes {
+    ($name: ident) => {
+        impl ToBytes for $name {
+            fn to_bytes(&self) -> Vec<u8> { 
+                let mut res= vec![];
+                let count = self.to_bytes_len();
+                res.reserve(count);
+                for i in 0..count {
+                    let j = count - 1 - i;
+                    res.push(self.byte(j));
+                }
+                res
+            }
+            fn to_bytes_len(&self) -> usize { (self.bits() + 7) / 8 }
+        }
+    }
+}
+
+impl_uint_to_bytes!(U256);
+impl_uint_to_bytes!(U128);
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum FromBytesError {
     UnexpectedEnd
@@ -101,6 +124,7 @@ pub type FromBytesResult<T> = Result<T, FromBytesError>;
 
 /// implements "Sized", so the compiler can deducate the size
 /// of the return type
+/// TODO: check size of bytes before conversation and return appropriate error
 pub trait FromBytes: Sized {
     fn from_bytes(bytes: &[u8]) -> FromBytesResult<Self>;
 }
@@ -149,3 +173,16 @@ macro_rules! impl_map_from_bytes {
 impl_map_from_bytes!(usize, u64);
 impl_map_from_bytes!(u16, u64);
 impl_map_from_bytes!(u32, u64);
+
+macro_rules! impl_uint_from_bytes {
+    ($name: ident) => {
+        impl FromBytes for $name {
+            fn from_bytes(bytes: &[u8]) -> FromBytesResult<$name> {
+                Ok($name::from(bytes))
+            }
+        }
+    }
+}
+
+impl_uint_from_bytes!(U256);
+impl_uint_from_bytes!(U128);

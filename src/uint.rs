@@ -180,6 +180,12 @@ macro_rules! construct_uint {
                 arr[index / 64] & (1 << (index % 64)) != 0
             }
 
+            #[inline]
+            pub fn byte(&self, index: usize) -> u8 {
+                let &$name(ref arr) = self;
+                (arr[index / 8] >> ((index % 8)) * 8) as u8
+            }
+
             /// Multiplication by u32
             fn mul_u32(self, other: u32) -> $name {
                 let $name(ref arr) = self;
@@ -227,7 +233,6 @@ macro_rules! construct_uint {
             type Err = FromHexError;
 
             fn from_str(value: &str) -> Result<$name, Self::Err> {
-                println!("{}", value);
                 let bytes: &[u8] = &try!(value.from_hex());
                 Ok(From::from(bytes))
             }
@@ -507,6 +512,7 @@ mod tests {
 
     #[test]
     pub fn uint256_bits_test() {
+        assert_eq!(U256::from(0u64).bits(), 0);
         assert_eq!(U256::from(255u64).bits(), 8);
         assert_eq!(U256::from(256u64).bits(), 9);
         assert_eq!(U256::from(300u64).bits(), 9);
@@ -523,11 +529,22 @@ mod tests {
         assert_eq!(shl.bits(), 0);
 
         //// Bit set check
+        //// 01010
         assert!(!U256::from(10u8).bit(0));
         assert!(U256::from(10u8).bit(1));
         assert!(!U256::from(10u8).bit(2));
         assert!(U256::from(10u8).bit(3));
         assert!(!U256::from(10u8).bit(4));
+
+        //// byte check
+        assert_eq!(U256::from(10u8).byte(0), 10);
+        assert_eq!(U256::from(0xffu64).byte(0), 0xff);
+        assert_eq!(U256::from(0xffu64).byte(1), 0);
+        assert_eq!(U256::from(0x01ffu64).byte(0), 0xff);
+        assert_eq!(U256::from(0x01ffu64).byte(1), 0x1);
+        assert_eq!(U256([0u64, 0xfc, 0, 0]).byte(8), 0xfc);
+        assert_eq!(U256([0u64, 0, 0, u64::max_value()]).byte(31), 0xff);
+        assert_eq!(U256([0u64, 0, 0, (u64::max_value() >> 8) + 1]).byte(31), 0x01);
     }
 
     #[test]
