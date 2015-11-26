@@ -58,6 +58,19 @@ impl Header {
 	}
 }
 
+pub struct Transaction {
+	pub to: Address,
+	pub gas: Uint256,
+	pub data: Bytes,
+	pub code: Bytes,
+}
+
+#[test]
+fn memorydb() {
+
+}
+
+
 /// Silly function to return 69.
 ///
 /// # Example
