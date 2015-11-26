@@ -286,14 +286,13 @@ impl RlpStream {
     }
 
     /// declare appending the list of given size
-    /// TODO: optimise insertion of empty list
     pub fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
         // push new list
         let position = self.encoder.bytes.len();
         match len {
             0 => {
                 // we may finish, if the appended list len is equal 0
-                self.encoder.insert_list_len_at_pos(0, position);
+                self.encoder.bytes.push(0xc0u8);
                 self.try_to_finish();
             },
             _ => self.unfinished_lists.push_back(ListInfo::new(position, len))
