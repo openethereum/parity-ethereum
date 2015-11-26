@@ -60,6 +60,7 @@ impl ToBytes for u64 {
     fn to_bytes(&self) -> Vec<u8> {
         let mut res= vec![];
         let count = self.to_bytes_len();
+        res.reserve(count);
         for i in 0..count {
             let j = count - 1 - i;
             res.push((*self >> (j * 8)) as u8);
@@ -89,6 +90,7 @@ macro_rules! impl_uint_to_bytes {
             fn to_bytes(&self) -> Vec<u8> { 
                 let mut res= vec![];
                 let count = self.to_bytes_len();
+                res.reserve(count);
                 for i in 0..count {
                     let j = count - 1 - i;
                     res.push(self.byte(j));

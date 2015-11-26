@@ -233,7 +233,6 @@ macro_rules! construct_uint {
             type Err = FromHexError;
 
             fn from_str(value: &str) -> Result<$name, Self::Err> {
-                println!("{}", value);
                 let bytes: &[u8] = &try!(value.from_hex());
                 Ok(From::from(bytes))
             }
