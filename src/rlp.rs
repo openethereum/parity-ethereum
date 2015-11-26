@@ -257,7 +257,7 @@ impl <T> Decodable for Vec<T> where T: Decodable {
     fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
         match rlp.is_list() {
             true => rlp.iter().map(|rlp| T::decode(&rlp)).collect(),
-            false => Err(DecoderError::RlpExpectedToBeValue)
+            false => Err(DecoderError::RlpExpectedToBeList)
         }
     }
 }
