@@ -86,6 +86,7 @@ pub enum DecoderError {
     FromBytesError(FromBytesError),
     RlpIsTooShort,
     RlpExpectedToBeList,
+    RlpExpectedToBeValue,
     BadRlp,
 }
 impl StdError for DecoderError {
@@ -230,6 +231,61 @@ impl <'a> Iterator for RlpIterator<'a> {
         let result = self.rlp.at(index).ok();
         self.index += 1;
         result
+    }
+}
+
+/// shortcut function to decode a Rlp `&[u8]` into an object
+pub fn decode<T>(bytes: &[u8]) -> Result<T, DecoderError> where T: Decodable {
+    let rlp = Rlp::new(bytes);
+    T::decode(&rlp)
+}
+
+pub trait Decodable: Sized {
+    fn decode(rlp: &Rlp) -> Result<Self, DecoderError>;
+}
+
+impl <T> Decodable for T where T: FromBytes {
+    fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+        match rlp.is_value() {
+            true => BasicDecoder::read_value(rlp.bytes),
+            false => Err(DecoderError::RlpExpectedToBeValue)
+        }
+    }
+}
+
+impl <T> Decodable for Vec<T> where T: Decodable {
+    fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+        match rlp.is_list() {
+            true => rlp.iter().map(|rlp| T::decode(&rlp)).collect(),
+            false => Err(DecoderError::RlpExpectedToBeValue)
+        }
+    }
+}
+
+trait Decoder {
+    fn read_value<T>(bytes: &[u8]) -> Result<T, DecoderError> where T: FromBytes;
+}
+
+struct BasicDecoder;
+
+impl Decoder for BasicDecoder {
+    fn read_value<T>(bytes: &[u8]) -> Result<T, DecoderError> where T: FromBytes {
+        match bytes.first().map(|&x| x) {
+            // rlp is too short
+            None => Err(DecoderError::RlpIsTooShort),
+            // single byt value
+            Some(l @ 0...0x7f) => Ok(try!(T::from_bytes(&[l]))),
+            // 0-55 bytes
+            Some(l @ 0x80...0xb7) => Ok(try!(T::from_bytes(&bytes[1..(1 + l as usize - 0x80)]))),
+            // longer than 55 bytes
+            Some(l @ 0xb8...0xbf) => {
+                let len_of_len = l as usize - 0xb7;
+                let begin_of_value = 1 as usize + len_of_len;
+                let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
+                Ok(try!(T::from_bytes(&bytes[begin_of_value..begin_of_value + len])))
+            },
+            _ => Err(DecoderError::BadRlp)
+        }
     }
 }
 
@@ -465,8 +521,9 @@ impl Encoder for BasicEncoder {
 
 #[cfg(test)]
 mod tests {
+    use std::{fmt, cmp};
     use rlp;
-    use rlp::{Rlp, RlpStream};
+    use rlp::{Rlp, RlpStream, Decodable};
 
     #[test]
     fn rlp_at() {
@@ -474,18 +531,23 @@ mod tests {
         {
             let rlp = Rlp::new(&data);
             assert!(rlp.is_list());
+            let animals = <Vec<String> as rlp::Decodable>::decode(&rlp).unwrap();
+            assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
            
             let cat = rlp.at(0).unwrap();
             assert!(cat.is_value());
             assert_eq!(cat.bytes, &[0x83, b'c', b'a', b't']);
+            assert_eq!(String::decode(&cat).unwrap(), "cat".to_string());
             
             let dog = rlp.at(1).unwrap();
             assert!(dog.is_value());
             assert_eq!(dog.bytes, &[0x83, b'd', b'o', b'g']);
+            assert_eq!(String::decode(&dog).unwrap(), "dog".to_string());
 
             let cat_again = rlp.at(0).unwrap();
             assert!(cat_again.is_value());
             assert_eq!(cat_again.bytes, &[0x83, b'c', b'a', b't']);
+            assert_eq!(String::decode(&cat_again).unwrap(), "cat".to_string());
         }
     }
 
@@ -648,10 +710,118 @@ mod tests {
     fn rlp_stream_list() {
         let mut stream = RlpStream::new_list(3);
         stream.append_list(0);
-        stream.append_list(1).append(&vec![] as &Vec<u8>);
+        stream.append_list(1).append_list(0);
         stream.append_list(2).append_list(0).append_list(1).append_list(0);
         let out = stream.out().unwrap();
         assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
+    }
+
+    struct DTestPair<T>(T, Vec<u8>) where T: rlp::Decodable + fmt::Debug + cmp::Eq;
+
+    fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: rlp::Decodable + fmt::Debug  + cmp::Eq {
+        for t in &tests {
+            let res: T = rlp::decode(&t.1).unwrap();
+            assert_eq!(res, t.0);
+        }
+    }
+
+    #[test]
+    fn decode_u8() {
+        let tests = vec![
+            DTestPair(0u8, vec![0u8]),
+            DTestPair(15, vec![15]),
+            DTestPair(55, vec![55]),
+            DTestPair(56, vec![56]),
+            DTestPair(0x7f, vec![0x7f]),
+            DTestPair(0x80, vec![0x81, 0x80]),
+            DTestPair(0xff, vec![0x81, 0xff]),
+        ];
+        run_decode_tests(tests);
+    }
+
+    #[test]
+    fn decode_u16() {
+        let tests = vec![
+            DTestPair(0u16, vec![0u8]),
+            DTestPair(0x100, vec![0x82, 0x01, 0x00]),
+            DTestPair(0xffff, vec![0x82, 0xff, 0xff]),
+        ];
+        run_decode_tests(tests);
+    }
+
+    #[test]
+    fn decode_u32() {
+        let tests = vec![
+            DTestPair(0u32, vec![0u8]),
+            DTestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
+            DTestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
+        ];
+        run_decode_tests(tests);
+    }
+
+    #[test]
+    fn decode_u64() {
+        let tests = vec![
+            DTestPair(0u64, vec![0u8]),
+            DTestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+            DTestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+        ];
+        run_decode_tests(tests);
+    }
+
+    #[test]
+    fn decode_str() {
+        let tests = vec![
+            DTestPair("cat".to_string(), vec![0x83, b'c', b'a', b't']),
+            DTestPair("dog".to_string(), vec![0x83, b'd', b'o', b'g']),
+            DTestPair("Marek".to_string(), vec![0x85, b'M', b'a', b'r', b'e', b'k']),
+            DTestPair("".to_string(), vec![0x80]),
+            DTestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit".to_string(),
+                     vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
+                    b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o', b'r',
+                    b' ', b's', b'i', b't', b' ', b'a', b'm', b'e', b't', b',',
+                    b' ', b'c', b'o', b'n', b's', b'e', b'c', b't', b'e', b't',
+                    b'u', b'r', b' ', b'a', b'd', b'i', b'p', b'i', b's', b'i',
+                    b'c', b'i', b'n', b'g', b' ', b'e', b'l', b'i', b't'])
+        ];
+        run_decode_tests(tests);
+    }
+    
+    #[test]
+    fn decode_vector_u8() {
+        let tests = vec![
+            DTestPair(vec![] as Vec<u8>, vec![0xc0]),
+            DTestPair(vec![15u8], vec![0xc1, 0x0f]),
+            DTestPair(vec![1u8, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+        ];
+        run_decode_tests(tests);
+    }
+
+    #[test]
+    fn decode_vector_u64() {
+        let tests = vec![
+            DTestPair(vec![], vec![0xc0]),
+            DTestPair(vec![15u64], vec![0xc1, 0x0f]),
+            DTestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+            DTestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+        ];
+        run_decode_tests(tests);
+    }
+
+    #[test]
+    fn decode_vector_str() {
+        let tests = vec![
+            DTestPair(vec!["cat".to_string(), "dog".to_string()], vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])
+        ];
+        run_decode_tests(tests);
+    }
+
+    #[test]
+    fn decode_vector_of_vectors_str() {
+        let tests = vec![
+            DTestPair(vec![vec!["cat".to_string()]], vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])
+        ];
+        run_decode_tests(tests);
     }
 }
 
