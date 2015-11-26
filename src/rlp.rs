@@ -459,6 +459,8 @@ impl BasicEncoder {
     fn insert_list_len_at_pos(&mut self, len: usize, pos: usize) -> () {
         // new bytes
         let mut res: Vec<u8> = vec![];
+        // reserve a space equal at least current space + space for length
+        res.reserve(self.bytes.len() + 1);
         {
             let (before_slice, after_slice) = self.bytes.split_at(pos); 
             res.extend(before_slice);
