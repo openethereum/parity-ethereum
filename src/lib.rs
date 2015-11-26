@@ -4,8 +4,10 @@ pub use std::str::FromStr;
 
 pub mod error;
 pub mod hash;
+pub mod uint;
 pub mod bytes;
 pub mod rlp;
+pub mod vector;
 
 #[test]
 fn it_works() {
