@@ -48,6 +48,7 @@ use std::cell::Cell;
 use std::collections::LinkedList;
 use std::error::Error as StdError;
 use bytes::{ToBytes, FromBytes, FromBytesError};
+use vector::InsertSlice;
 
 /// rlp container
 #[derive(Debug)]
@@ -455,27 +456,18 @@ impl BasicEncoder {
     }
 
     /// inserts list prefix at given position
-    /// TODO: optimise it, so it does not copy an array
+    /// TODO: optimise it further?
     fn insert_list_len_at_pos(&mut self, len: usize, pos: usize) -> () {
-        // new bytes
-        let mut res: Vec<u8> = vec![];
-        // reserve a space equal at least current space + space for length
-        res.reserve(self.bytes.len() + 1);
-        {
-            let (before_slice, after_slice) = self.bytes.split_at(pos); 
-            res.extend(before_slice);
+        let mut res = vec![];
+        match len {
+            0...55 => res.push(0xc0u8 + len as u8),
+            _ => {
+                res.push(0x7fu8 + len.to_bytes_len() as u8);
+                res.extend(len.to_bytes());
+            }
+        };
 
-            match len {
-                0...55 => res.push(0xc0u8 + len as u8),
-                _ => {
-                    res.push(0x7fu8 + len.to_bytes_len() as u8);
-                    res.extend(len.to_bytes());
-                }
-            };
-
-            res.extend(after_slice);
-        }
-        self.bytes = res;
+        self.bytes.insert_slice(pos, &res);
     }
 
     /// get encoded value
