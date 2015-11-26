@@ -138,7 +138,7 @@ impl <'a>Rlp<'a> {
         Ok(Rlp::new(&bytes[0..found.prefix_len + found.value_len]))
     }
 
-    /// returns true if rlp is an list
+    /// returns true if rlp is a list
     pub fn is_list(&self) -> bool {
         self.bytes.len() > 0 && self.bytes[0] >= 0xc0
     }
@@ -448,13 +448,13 @@ impl Encoder for BasicEncoder {
     }
 
     fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> () {
-        // get len before inserting an list
+        // get len before inserting a list
         let before_len = self.bytes.len();
 
         // insert all list elements
         f(self);
 
-        // get len after inserting an list
+        // get len after inserting a list
         let after_len = self.bytes.len();
 
         // diff is list len
