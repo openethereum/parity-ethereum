@@ -461,6 +461,10 @@ impl From<U128> for U256 {
     }
 }
 
+pub const ZERO_U256: U256 = U256([0x00u64; 4]);
+pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
+pub const BAD_U256: U256 = U256([0xffffffffffffffffu64; 4]);
+
 #[cfg(test)]
 mod tests {
     use uint::U256;

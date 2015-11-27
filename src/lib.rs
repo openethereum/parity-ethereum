@@ -15,6 +15,8 @@ pub mod vector;
 
 //pub mod network;
 
+pub type Bytes = Vec<u8>;
+
 #[test]
 fn it_works() {
 }
