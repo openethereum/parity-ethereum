@@ -6,8 +6,6 @@ extern crate tiny_keccak;
 #[macro_use]
 extern crate log;
 
-pub use std::str::FromStr;
-
 pub mod error;
 pub mod hash;
 pub mod uint;
@@ -16,11 +14,15 @@ pub mod rlp;
 pub mod vector;
 pub mod db;
 pub mod sha3;
+pub mod hashdb;
+pub mod memorydb;
 
 //pub mod network;
 
-pub type Bytes = Vec<u8>;
+pub use std::str::FromStr;
+pub use hash::*;
+pub use sha3::*;
+pub use bytes::*;
+pub use hashdb::*;
+pub use memorydb::*;
 
-#[test]
-fn it_works() {
-}

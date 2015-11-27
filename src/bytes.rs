@@ -10,6 +10,8 @@ use std::fmt;
 use std::error::Error as StdError;
 use uint::{U128, U256};
 
+pub type Bytes = Vec<u8>;
+
 pub trait BytesConvertable {
 	fn bytes(&self) -> &[u8];
 }
