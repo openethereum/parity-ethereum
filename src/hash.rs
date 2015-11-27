@@ -95,23 +95,23 @@ macro_rules! impl_hash {
 	}
 }
 
-impl_hash!(Hash64, 8);
-impl_hash!(Hash128, 16);
+impl_hash!(H64, 8);
+impl_hash!(H128, 16);
 impl_hash!(Address, 20);
-impl_hash!(Hash256, 32);
-impl_hash!(Hash512, 64);
-impl_hash!(Hash520, 65);
-impl_hash!(Hash1024, 128);
-impl_hash!(Hash2048, 256);
-impl_hash!(Hash4096, 512);
+impl_hash!(H256, 32);
+impl_hash!(H512, 64);
+impl_hash!(H520, 65);
+impl_hash!(H1024, 128);
+impl_hash!(H2048, 256);
+impl_hash!(H4096, 512);
 
 #[test]
 fn hash() {
-	let h = Hash64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
-	assert_eq!(Hash64::from_str("0123456789abcdef").unwrap(), h);
+	let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
+	assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
 	assert_eq!(format!("{}", h), "0123456789abcdef");
 	assert_eq!(format!("{:?}", h), "0123456789abcdef");
 	assert!(h == h);
-	assert!(h != Hash64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xee]));
-	assert!(h != Hash64([0; 8]));
+	assert!(h != H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xee]));
+	assert!(h != H64([0; 8]));
 }
