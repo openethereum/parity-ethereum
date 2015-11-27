@@ -1,40 +1,52 @@
 use std::str::FromStr;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::ops::{Index, IndexMut};
+use std::ops::{Index, IndexMut, BitOr};
 use rustc_serialize::hex::*;
 use error::EthcoreError;
 use rand::Rng;
 use rand::os::OsRng;
 use bytes::BytesConvertable;
 
+/// types implementing FixedHash must be also BytesConvertable
+pub trait FixedHash: BytesConvertable {
+	fn random() -> Self;
+	fn randomize(&mut self);
+	fn mut_bytes(&mut self) -> &mut [u8];
+}
+
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
 		pub struct $from (pub [u8; $size]);
 
-		impl $from {
-			pub fn new() -> $from {
-				$from([0; $size])
-			}
-			pub fn random() -> $from {
-				let mut hash = $from::new();
-				hash.randomize();
-				hash
-			}
-			pub fn randomize(&mut self) {
-				let mut rng = OsRng::new().unwrap();
-				rng.fill_bytes(&mut self.0);
-			}
 
-			pub fn mut_bytes(&mut self) -> &mut [u8; $size] {
-				&mut self.0
+		impl $from {
+			fn new() -> $from {
+				$from([0; $size])
 			}
 		}
 
 		impl BytesConvertable for $from {
 			fn bytes(&self) -> &[u8] {
 				&self.0
+			}
+		}
+
+		impl FixedHash for $from {
+			fn random() -> $from {
+				let mut hash = $from::new();
+				hash.randomize();
+				hash
+			}
+
+			fn randomize(&mut self) {
+				let mut rng = OsRng::new().unwrap();
+				rng.fill_bytes(&mut self.0);
+			}
+
+			fn mut_bytes(&mut self) -> &mut [u8] {
+				&mut self.0
 			}
 		}
 
@@ -68,10 +80,14 @@ macro_rules! impl_hash {
 
 		impl Clone for $from {
 			fn clone(&self) -> $from {
-				*self
+				unsafe {
+					use std::{mem, ptr};
+					let mut ret: $from = mem::uninitialized();
+					ptr::copy(self.0.as_ptr(), ret.0.as_mut_ptr(), mem::size_of::<$from>());
+					ret
+				}
 			}
 		}
-		impl Copy for $from {}
 
 		impl PartialEq for $from {
 			fn eq(&self, other: &Self) -> bool {
@@ -103,6 +119,30 @@ macro_rules! impl_hash {
 				&mut self.0[index]
 			}
 		}
+
+		impl<'a> BitOr for &'a $from {
+			type Output = $from;
+
+			fn bitor(self, rhs: Self) -> Self::Output {
+				unsafe {
+					use std::mem;
+					let mut ret: $from = mem::uninitialized();
+					for i in 0..$size {
+						ret.0[i] = self.0[i] | rhs.0[i];
+					}
+					ret
+				}
+			}
+		}
+
+		impl BitOr for $from {
+			type Output = $from;
+
+			fn bitor(self, rhs: Self) -> Self::Output {
+				&self | &rhs
+			}
+		}
+
 	}
 }
 
@@ -114,7 +154,6 @@ impl_hash!(H512, 64);
 impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
-impl_hash!(H4096, 512);
 
 #[test]
 fn hash() {
@@ -125,4 +164,17 @@ fn hash() {
 	assert!(h == h);
 	assert!(h != H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xee]));
 	assert!(h != H64([0; 8]));
+}
+
+#[test]
+fn hash_bitor() {
+	let a = H64([1; 8]);
+	let b = H64([2; 8]);
+	let c = H64([3; 8]);
+
+	// borrow
+	assert_eq!(&a | &b, c);
+
+	// move
+	assert_eq!(a | b, c);
 }

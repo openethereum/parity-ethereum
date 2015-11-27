@@ -16,6 +16,7 @@ pub mod db;
 pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
+pub mod bloom;
 
 //pub mod network;
 
