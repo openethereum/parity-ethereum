@@ -22,9 +22,26 @@ impl BytesConvertable for Vec<u8> {
 	fn bytes(&self) -> &[u8] { self }
 }
 
+macro_rules! impl_bytes_convertable_for_array {
+    ($zero: expr) => ();
+    ($len: expr, $($idx: expr),*) => {
+        impl BytesConvertable for [u8; $len] {
+            fn bytes(&self) -> &[u8] { self }
+        }
+        impl_bytes_convertable_for_array! { $($idx),* }
+    }
+}
+
+// two -1 at the end is not expanded
+impl_bytes_convertable_for_array! {
+        32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
+        15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1
+}
+
 #[test]
 fn bytes_convertable() {
 	assert_eq!(vec![0x12u8, 0x34].bytes(), &[0x12u8, 0x34]);
+    assert_eq!([0u8; 0].bytes(), &[]);
 }
 
 /// TODO: optimise some conversations

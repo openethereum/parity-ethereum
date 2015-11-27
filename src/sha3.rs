@@ -20,10 +20,11 @@ impl<T> Hashable for T where T: BytesConvertable {
 #[test]
 fn sha3_empty() {
 	use std::str::FromStr;
-	assert_eq!((&[0u8; 0][..]).sha3(), H256::from_str("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap());
+	assert_eq!([0u8; 0].sha3(), H256::from_str("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap());
 }
 #[test]
 fn sha3_as() {
 	use std::str::FromStr;
-	assert_eq!((&[0x41u8; 32][..]).sha3(), H256::from_str("59cad5948673622c1d64e2322488bf01619f7ff45789741b15a9f782ce9290a8").unwrap());
+	assert_eq!([0x41u8; 32].sha3(), H256::from_str("59cad5948673622c1d64e2322488bf01619f7ff45789741b15a9f782ce9290a8").unwrap());
 }
+
