@@ -1,7 +1,7 @@
 use std::mem::uninitialized;
 use tiny_keccak::keccak_256;
 use bytes::BytesConvertable;
-use hash::H256;
+use hash::{FixedHash, H256};
 
 trait Hashable {
 	fn sha3(&self) -> H256;

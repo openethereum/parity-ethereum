@@ -8,33 +8,45 @@ use rand::Rng;
 use rand::os::OsRng;
 use bytes::BytesConvertable;
 
+/// types implementing FixedHash must be also BytesConvertable
+pub trait FixedHash: BytesConvertable {
+	fn random() -> Self;
+	fn randomize(&mut self);
+	fn mut_bytes(&mut self) -> &mut [u8];
+}
+
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
 		pub struct $from (pub [u8; $size]);
 
-		impl $from {
-			pub fn new() -> $from {
-				$from([0; $size])
-			}
-			pub fn random() -> $from {
-				let mut hash = $from::new();
-				hash.randomize();
-				hash
-			}
-			pub fn randomize(&mut self) {
-				let mut rng = OsRng::new().unwrap();
-				rng.fill_bytes(&mut self.0);
-			}
 
-			pub fn mut_bytes(&mut self) -> &mut [u8; $size] {
-				&mut self.0
+		impl $from {
+			fn new() -> $from {
+				$from([0; $size])
 			}
 		}
 
 		impl BytesConvertable for $from {
 			fn bytes(&self) -> &[u8] {
 				&self.0
+			}
+		}
+
+		impl FixedHash for $from {
+			fn random() -> $from {
+				let mut hash = $from::new();
+				hash.randomize();
+				hash
+			}
+
+			fn randomize(&mut self) {
+				let mut rng = OsRng::new().unwrap();
+				rng.fill_bytes(&mut self.0);
+			}
+
+			fn mut_bytes(&mut self) -> &mut [u8] {
+				&mut self.0
 			}
 		}
 

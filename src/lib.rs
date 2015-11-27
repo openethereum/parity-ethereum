@@ -16,6 +16,7 @@ pub mod rlp;
 pub mod vector;
 pub mod db;
 pub mod sha3;
+pub mod bloom;
 
 //pub mod network;
 
