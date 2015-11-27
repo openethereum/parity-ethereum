@@ -6,6 +6,7 @@ use rustc_serialize::hex::*;
 use error::EthcoreError;
 use rand::Rng;
 use rand::os::OsRng;
+use bytes::BytesConvertable;
 
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
@@ -24,6 +25,16 @@ macro_rules! impl_hash {
 			pub fn randomize(&mut self) {
 				let mut rng = OsRng::new().unwrap();
 				rng.fill_bytes(&mut self.0);
+			}
+
+			pub fn mut_bytes(&mut self) -> &mut [u8; $size] {
+				&mut self.0
+			}
+		}
+
+		impl BytesConvertable for $from {
+			fn bytes(&self) -> &[u8] {
+				&self.0
 			}
 		}
 
