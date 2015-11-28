@@ -21,6 +21,7 @@ pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
 pub mod math;
+pub mod filter;
 
 //pub mod network;
 
