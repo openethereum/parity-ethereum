@@ -155,31 +155,31 @@ impl From<FromBytesError> for DecoderError {
 /// 
 /// It assumes that you know what you are doing. Doesn't bother
 /// you with error handling.
-pub struct UnsafeRlp<'a> {
+pub struct UntrustedRlp<'a> {
 	rlp: Rlp<'a>
 }
 
-impl<'a> From<Rlp<'a>> for UnsafeRlp<'a> {
-	fn from(rlp: Rlp<'a>) -> UnsafeRlp<'a> {
-		UnsafeRlp { rlp: rlp }
+impl<'a> From<Rlp<'a>> for UntrustedRlp<'a> {
+	fn from(rlp: Rlp<'a>) -> UntrustedRlp<'a> {
+		UntrustedRlp { rlp: rlp }
 	}
 }
 
-impl<'a> From<UnsafeRlp<'a>> for Rlp<'a> {
-	fn from(unsafe_rlp: UnsafeRlp<'a>) -> Rlp<'a> {
+impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
+	fn from(unsafe_rlp: UntrustedRlp<'a>) -> Rlp<'a> {
 		unsafe_rlp.rlp
 	}
 }
 
-impl<'a> UnsafeRlp<'a> {
-	/// returns new instance of `UnsafeRlp`
-	pub fn new(bytes: &'a [u8]) -> UnsafeRlp<'a> {
-		UnsafeRlp {
+impl<'a> UntrustedRlp<'a> {
+	/// returns new instance of `UntrustedRlp`
+	pub fn new(bytes: &'a [u8]) -> UntrustedRlp<'a> {
+		UntrustedRlp {
 			rlp: Rlp::new(bytes)
 		}
 	}
 
-	pub fn at(&self, index: usize) -> UnsafeRlp<'a> {
+	pub fn at(&self, index: usize) -> UntrustedRlp<'a> {
 		From::from(self.rlp.at(index).unwrap())
 	}
 
