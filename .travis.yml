@@ -2,7 +2,7 @@ language: rust
 
 before_script:
     - wget https://github.com/facebook/rocksdb/archive/rocksdb-3.13.tar.gz
-    - tar xvf rocksdb-3.8.tar.gz && cd rocksdb-rocksdb-3.8 && make shared_lib
+    - tar xvf rocksdb-3.13.tar.gz && cd rocksdb-rocksdb-3.13 && make shared_lib
     - make install
     - cd ..
 
