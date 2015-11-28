@@ -4,6 +4,7 @@ use error::*;
 use hash::*;
 use bytes::*;
 use sha3::*;
+use rlp::*;
 use hashdb::*;
 use memorydb::*;
 use std::ops::*;
@@ -34,10 +35,10 @@ impl OverlayDB {
 						if back_rc + rc < 0 {
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
-						self.put_payload(&key, (&back_value, rc + back_rc));
+						self.put_payload(&key, (back_value, rc + back_rc));
 					}
 					None => {
-						self.put_payload(&key, (&value, rc));
+						self.put_payload(&key, (value, rc));
 					}
 				};
 				ret += 1;
@@ -48,12 +49,20 @@ impl OverlayDB {
 
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(Bytes, i32)> {
-		unimplemented!();
+		db.get(&key.bytes())
+			.expect("Low-level database error. Some issue with your hard disk?")
+			.map(|d| {
+				Rlp r(d.deref());
+				r(Bytes, i32)
+			})
 	}
 
 	/// Get the refs and value of the given key.
-	fn put_payload(&self, key: &H256, payload: (&Bytes, i32)) {
-		unimplemented!();
+	fn put_payload(&self, key: &H256, payload: (Bytes, i32)) {
+		let mut s = RlpStream::new_list(2);
+		s.append(payload.1);
+		s.append(payload.0);
+		backing.put(&key.bytes(), &s.out().unwrap());
 	}
 }
 
