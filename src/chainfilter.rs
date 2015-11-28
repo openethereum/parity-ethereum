@@ -75,7 +75,6 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	/// 
 	/// bloom indexes are ordered from lowest to highest
 	fn lower_level_bloom_indexes(&self, index: &BloomIndex) -> Vec<BloomIndex> {
-		//let mut indexes: HashSet<BloomIndex> = HashSet::with_capacity(self.index_size);
 		let mut indexes: Vec<BloomIndex> = vec![];
 
 		// this is the lower level
