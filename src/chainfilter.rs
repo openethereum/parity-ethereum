@@ -110,38 +110,40 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	/// internal function which actually does bloom search
 	/// TODO: optimize it, maybe non-recursive version?
 	/// TODO: clean up?
-	fn blocks(&self, bloom: &H2048, from_block: usize, to_block: usize, level: u8, offset: usize) -> Vec<usize> {
+	fn blocks(&self, bloom: &H2048, from_block: usize, to_block: usize, level: u8, offset: usize) -> Option<Vec<usize>> {
 		let index = self.bloom_index(offset, level);
 
-		let contains = match self.data_source.bloom_at_index(&index) {
-			None => false,
+		match self.data_source.bloom_at_index(&index) {
+			None => return None,
 			Some(level_bloom) => match level {
 				// if we are on the lowest level
 				// take the value, exclude to_block
-				0 if offset < to_block => return vec![offset],
-				0 => false,
-				_ => level_bloom.contains(bloom)
+				0 if offset < to_block => return Some(vec![offset]),
+				// return None if it is is equal to to_block
+				0 => return None,
+				// return None if current level doesnt contain given bloom
+				_ if !level_bloom.contains(bloom) => return None,
+				// continue processing && go down
+				_ => ()
 			}
 		};
 
-		if contains {
-			let level_size = self.level_size(level - 1);
-			let from_index = self.bloom_index(from_block, level - 1);
-			let to_index = self.bloom_index(to_block, level - 1);
-			let res: Vec<usize> = self.lower_level_bloom_indexes(&index).into_iter()
-				// chose only blooms in range
-				.filter(|li| li.index >= from_index.index && li.index <= to_index.index)
-				// map them to offsets
-				.map(|li| li.index * level_size)
-				// get all blocks that may contain our bloom
-				.map(|off| self.blocks(bloom, from_block, to_block, level - 1, off))
-				// flatten nested structure
-				.flat_map(|v| v)
-				.collect();
-			return res
-		}
-
-		return vec![];
+		let level_size = self.level_size(level - 1);
+		let from_index = self.bloom_index(from_block, level - 1);
+		let to_index = self.bloom_index(to_block, level - 1);
+		let res: Vec<usize> = self.lower_level_bloom_indexes(&index).into_iter()
+			// chose only blooms in range
+			.filter(|li| li.index >= from_index.index && li.index <= to_index.index)
+			// map them to offsets
+			.map(|li| li.index * level_size)
+			// get all blocks that may contain our bloom
+			.map(|off| self.blocks(bloom, from_block, to_block, level - 1, off))
+			// filter existing ones
+			.filter_map(|x| x)
+			// flatten nested structure
+			.flat_map(|v| v)
+			.collect();
+		Some(res)
 	}
 }
 
@@ -264,7 +266,10 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 			let offset = level_size * index;
 
 			// go doooown!
-			result.extend(self.blocks(bloom, from_block, to_block, max_level, offset));
+			match self.blocks(bloom, from_block, to_block, max_level, offset) {
+				Some(blocks) => result.extend(blocks),
+				None => ()
+			};
 		}
 
 		result
