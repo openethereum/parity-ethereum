@@ -14,6 +14,7 @@ pub trait FixedHash: Sized + BytesConvertable {
 	fn new() -> Self;
 	fn random() -> Self;
 	fn randomize(&mut self);
+	fn size() -> usize;
 	fn mut_bytes(&mut self) -> &mut [u8];
 	fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
@@ -45,6 +46,10 @@ macro_rules! impl_hash {
 			fn randomize(&mut self) {
 				let mut rng = OsRng::new().unwrap();
 				rng.fill_bytes(&mut self.0);
+			}
+
+			fn size() -> usize {
+				$size
 			}
 
 			fn mut_bytes(&mut self) -> &mut [u8] {

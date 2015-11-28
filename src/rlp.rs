@@ -749,6 +749,19 @@ mod tests {
 	}
 
 	#[test]
+	fn encode_address() {
+		use hash::*;
+
+		let tests = vec![
+			ETestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+					  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
+					  	   		 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+						   		 0xb3, 0x7d, 0x11, 0x06])
+		];
+		run_encode_tests(tests);
+	}
+
+	#[test]
 	fn encode_vector_u8() {
 		let tests = vec![
             ETestPair(vec![], vec![0xc0]),
@@ -888,6 +901,19 @@ mod tests {
 		                                b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
 		                                b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
 		                                b'e', b'l', b'i', b't'])];
+		run_decode_tests(tests);
+	}
+
+	#[test]
+	fn decode_address() {
+		use hash::*;
+
+		let tests = vec![
+			DTestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+					  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
+					  	   		 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+						   		 0xb3, 0x7d, 0x11, 0x06])
+		];
 		run_decode_tests(tests);
 	}
 

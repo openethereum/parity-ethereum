@@ -35,8 +35,10 @@
 //! ```
 
 use std::fmt;
+use std::cmp::Ordering;
 use std::error::Error as StdError;
 use uint::{U128, U256};
+use hash::FixedHash;
 
 /// Vector of bytes
 pub type Bytes = Vec<u8>;
@@ -173,10 +175,26 @@ macro_rules! impl_uint_to_bytes {
 impl_uint_to_bytes!(U256);
 impl_uint_to_bytes!(U128);
 
+impl <T>ToBytes for T where T: FixedHash {
+	fn to_bytes(&self) -> Vec<u8> {
+		let mut res: Vec<u8> = vec![];
+		res.reserve(T::size());
+
+		unsafe {
+			use std::ptr;
+			ptr::copy(self.bytes().as_ptr(), res.as_mut_ptr(), T::size());
+			res.set_len(T::size());
+		}
+		
+		res
+	}
+}
+
 /// Error returned when FromBytes conversation goes wrong
 #[derive(Debug, PartialEq, Eq)]
 pub enum FromBytesError {
-	UnexpectedEnd
+	DataIsTooShort,
+	DataIsTooLong
 }
 
 impl StdError for FromBytesError {
@@ -256,3 +274,22 @@ macro_rules! impl_uint_from_bytes {
 
 impl_uint_from_bytes!(U256);
 impl_uint_from_bytes!(U128);
+
+impl <T>FromBytes for T where T: FixedHash {
+	fn from_bytes(bytes: &[u8]) -> FromBytesResult<T> {
+		match bytes.len().cmp(&T::size()) {
+			Ordering::Less => return Err(FromBytesError::DataIsTooShort),
+			Ordering::Greater => return Err(FromBytesError::DataIsTooLong),
+			Ordering::Equal => ()
+		};
+
+		unsafe {
+			use std::{mem, ptr};
+
+			let mut res: T = mem::uninitialized();
+			ptr::copy(bytes.as_ptr(), res.mut_bytes().as_mut_ptr(), T::size());
+
+			Ok(res)
+		}
+	}
+}
