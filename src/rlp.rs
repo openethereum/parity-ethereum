@@ -151,6 +151,54 @@ impl From<FromBytesError> for DecoderError {
 	}
 }
 
+/// Unsafe wrapper for rlp decoder.
+/// 
+/// It assumes that you know what you are doing. Doesn't bother
+/// you with error handling.
+pub struct UnsafeRlp<'a> {
+	rlp: Rlp<'a>
+}
+
+impl<'a> From<Rlp<'a>> for UnsafeRlp<'a> {
+	fn from(rlp: Rlp<'a>) -> UnsafeRlp<'a> {
+		UnsafeRlp { rlp: rlp }
+	}
+}
+
+impl<'a> From<UnsafeRlp<'a>> for Rlp<'a> {
+	fn from(unsafe_rlp: UnsafeRlp<'a>) -> Rlp<'a> {
+		unsafe_rlp.rlp
+	}
+}
+
+impl<'a> UnsafeRlp<'a> {
+	/// returns new instance of `UnsafeRlp`
+	pub fn new(bytes: &'a [u8]) -> UnsafeRlp<'a> {
+		UnsafeRlp {
+			rlp: Rlp::new(bytes)
+		}
+	}
+
+	pub fn at(&self, index: usize) -> UnsafeRlp<'a> {
+		From::from(self.rlp.at(index).unwrap())
+	}
+
+	/// returns true if rlp is a list
+	pub fn is_list(&self) -> bool {
+		self.rlp.is_list()
+	}
+
+	/// returns true if rlp is a value
+	pub fn is_value(&self) -> bool {
+		self.rlp.is_value()
+	}
+
+	/// returns rlp iterator
+	pub fn iter(&'a self) -> RlpIterator<'a> {
+		self.rlp.into_iter()
+	}
+}
+
 impl<'a> Rlp<'a> {
 	/// returns new instance of `Rlp`
 	pub fn new(bytes: &'a [u8]) -> Rlp<'a> {
