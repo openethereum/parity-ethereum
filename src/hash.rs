@@ -237,9 +237,15 @@ macro_rules! impl_hash {
 			}
 		}
 
+		impl $from {
+			pub fn hex(&self) -> String {
+				format!("{}", self)
+			}
+		}
 	}
 }
 
+impl_hash!(H32, 4);
 impl_hash!(H64, 8);
 impl_hash!(H128, 16);
 impl_hash!(Address, 20);
@@ -260,6 +266,7 @@ mod tests {
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
 		assert_eq!(format!("{}", h), "0123456789abcdef");
 		assert_eq!(format!("{:?}", h), "0123456789abcdef");
+		assert_eq!(h.hex(), "0123456789abcdef");
 		assert!(h == h);
 		assert!(h != H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xee]));
 		assert!(h != H64([0; 8]));

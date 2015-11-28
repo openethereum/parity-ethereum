@@ -4,6 +4,7 @@ use hash::*;
 use bytes::*;
 use sha3::*;
 use hashdb::*;
+use std::mem;
 use std::collections::HashMap;
 
 #[derive(Debug,Clone)]
@@ -25,7 +26,7 @@ use std::collections::HashMap;
 ///
 ///   let k = m.insert(d);
 ///   assert!(m.exists(&k));
-///   assert_eq!(m.lookup(&k).unwrap(), &d);
+///   assert_eq!(m.lookup(&k).unwrap(), d);
 ///
 ///   m.insert(d);
 ///   assert!(m.exists(&k));
@@ -38,7 +39,7 @@ use std::collections::HashMap;
 ///
 ///   m.insert(d);
 ///   assert!(m.exists(&k));
-///   assert_eq!(m.lookup(&k).unwrap(), &d);
+///   assert_eq!(m.lookup(&k).unwrap(), d);
 ///
 ///   m.kill(&k);
 ///   assert!(!m.exists(&k));
@@ -84,12 +85,27 @@ impl MemoryDB {
 			.collect();
 		for empty in empties { self.data.remove(&empty); }
 	}
+
+	/// Grab the raw information associated with a key. Returns None if the key
+	/// doesn't exist.
+	///
+	/// Even when Some is returned, the data is only guaranteed to be useful
+	/// when the refs > 0.
+	pub fn raw(&self, key: &H256) -> Option<&(Bytes, i32)> {
+		self.data.get(key)
+	}
+
+	pub fn drain(&mut self) -> HashMap<H256, (Bytes, i32)> {
+		let mut data = HashMap::new();
+		mem::swap(&mut self.data, &mut data);
+		data
+	}
 }
 
 impl HashDB for MemoryDB {
-	fn lookup(&self, key: &H256) -> Option<&Bytes> {
+	fn lookup(&self, key: &H256) -> Option<Bytes> {
 		match self.data.get(key) {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
 			_ => None
 		}
 	}
@@ -116,6 +132,7 @@ impl HashDB for MemoryDB {
 		}
 		key
 	}
+
 	fn kill(&mut self, key: &H256) {
 		if match self.data.get_mut(key) {
 			Some(&mut (_, ref mut x)) => { *x -= 1; false }

@@ -23,6 +23,7 @@ pub mod db;
 pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
+pub mod overlaydb;
 pub mod math;
 //pub mod filter;
 pub mod chainfilter;

@@ -14,10 +14,10 @@ pub trait HashDB {
 	///   let mut m = MemoryDB::new();
 	///   let hello_bytes = "Hello world!".as_bytes();
 	///   let hash = m.insert(hello_bytes);
-	///   assert_eq!(m.lookup(&hash).unwrap(), &hello_bytes);
+	///   assert_eq!(m.lookup(&hash).unwrap(), hello_bytes);
 	/// }
 	/// ```
-	fn lookup(&self, key: &H256) -> Option<&Bytes>;
+	fn lookup(&self, key: &H256) -> Option<Bytes>;
 
 	/// Check for the existance of a hash-key.
 	///
@@ -75,7 +75,7 @@ pub trait HashDB {
 	///   m.insert(d);	// OK - now it's "empty" again.
 	///   assert!(!m.exists(key));
 	///   m.insert(d);	// OK - now we've
-	///   assert_eq!(m.lookup(key).unwrap(), &d);
+	///   assert_eq!(m.lookup(key).unwrap(), d);
 	/// }
 	/// ```
 	fn kill(&mut self, key: &H256);
