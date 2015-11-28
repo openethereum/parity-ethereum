@@ -35,24 +35,26 @@ pub struct ChainFilter<'a, D>
 {
 	data_source: &'a D,
 	index_size: usize,
-	levels: u8,
-	level_sizes: HashMap<u8, usize>,
+	level_sizes: Vec<usize>,
 }
 
 impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 {
 	/// creates new filter instance
 	pub fn new(data_source: &'a D, index_size: usize, levels: u8) -> Self {
+		if levels == 0 {
+			panic!("ChainFilter requires and least 1 level");
+		}
+
 		let mut filter = ChainFilter {
 			data_source: data_source,
 			index_size: index_size,
-			levels: levels,
-			level_sizes: HashMap::new(),
+			level_sizes: vec![]
 		};
 
 		// cache level sizes, so we do not have to calculate them all the time
 		for i in 0..levels {
-			filter.level_sizes.insert(i, pow(index_size, i as usize));
+			filter.level_sizes.push(pow(index_size, i as usize));
 		}
 
 		filter
@@ -60,7 +62,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 
 	/// unsafely get level size
 	fn level_size(&self, level: u8) -> usize {
-		*self.level_sizes.get(&level).unwrap()
+		self.level_sizes[level as usize]
 	}
 
 	/// converts block number and level to `BloomIndex`
@@ -95,9 +97,14 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 		indexes
 	}
 
+	/// return number of levels
+	fn levels(&self) -> u8 {
+		self.level_sizes.len() as u8
+	}
+
 	/// returns max filter level
 	fn max_level(&self) -> u8 {
-		self.levels - 1
+		self.level_sizes.len() as u8 - 1
 	}
 
 	/// internal function which actually does bloom search
@@ -146,7 +153,7 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 	fn add_bloom(&self, bloom: &H2048, block_number: usize) -> HashMap<BloomIndex, H2048> {
 		let mut result: HashMap<BloomIndex, H2048> = HashMap::new();
 
-		for level in 0..self.levels {
+		for level in 0..self.levels() {
 			let bloom_index = self.bloom_index(block_number, level);
 			let new_bloom = match self.data_source.bloom_at_index(&bloom_index) {
 				Some(old_bloom) => old_bloom | bloom,
@@ -165,7 +172,7 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 	fn add_blooms(&self, blooms: &[H2048], block_number: usize) -> HashMap<BloomIndex, H2048> {
 		let mut result: HashMap<BloomIndex, H2048> = HashMap::new();
 
-		for level in 0..self.levels {
+		for level in 0..self.levels() {
 			for i in 0..blooms.len() {
 				let bloom_index = self.bloom_index(block_number + i, level);
 				let is_new_bloom = match result.get_mut(&bloom_index) {
@@ -199,13 +206,18 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 		let mut reset_index = self.bloom_index(block_number, 0);
 		result.insert(reset_index.clone(), bloom.clone());
 
-		for level in 1..self.levels {
+		for level in 1..self.levels() {
 			let index = self.bloom_index(block_number, level);
+			// get all bloom indexes that were used to construct this bloom
 			let lower_indexes = self.lower_level_bloom_indexes(&index);
 			let new_bloom = lower_indexes.into_iter()
+										 // skip reseted one
 			                             .filter(|li| li != &reset_index)
+										 // get blooms for these indexes
 			                             .map(|li| self.data_source.bloom_at_index(&li))
+										 // filter existing ones
 			                             .filter_map(|b| b)
+										 // BitOr all of them
 			                             .fold(H2048::new(), |acc, bloom| &acc | bloom);
 
 			reset_index = index.clone();
