@@ -19,6 +19,7 @@ pub trait FixedHash: Sized + BytesConvertable {
 	fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
 	fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash;
+	fn contains<'a>(&'a self, b: &'a Self) -> bool;
 }
 
 macro_rules! impl_hash {
@@ -108,7 +109,11 @@ macro_rules! impl_hash {
 
 			fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash {
 				let bp: Self = b.bloom_part($size);
-				(&bp & self) == bp
+				self.contains(&bp)
+			}
+
+			fn contains<'a>(&'a self, b: &'a Self) -> bool {
+				&(b & self) == b
 			}
 		}
 
