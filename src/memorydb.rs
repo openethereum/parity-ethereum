@@ -25,7 +25,7 @@ use std::collections::HashMap;
 ///
 ///   let k = m.insert(d);
 ///   assert!(m.exists(&k));
-///   assert_eq!(m.lookup(&k).unwrap(), &d);
+///   assert_eq!(m.lookup(&k).unwrap(), d);
 ///
 ///   m.insert(d);
 ///   assert!(m.exists(&k));
@@ -38,7 +38,7 @@ use std::collections::HashMap;
 ///
 ///   m.insert(d);
 ///   assert!(m.exists(&k));
-///   assert_eq!(m.lookup(&k).unwrap(), &d);
+///   assert_eq!(m.lookup(&k).unwrap(), d);
 ///
 ///   m.kill(&k);
 ///   assert!(!m.exists(&k));
@@ -84,12 +84,27 @@ impl MemoryDB {
 			.collect();
 		for empty in empties { self.data.remove(&empty); }
 	}
+
+	/// Grab the number of references a particular `key` has. Returns None if the key
+	/// doesn't exist.
+	fn refs(&self, key: &H256) -> Option<i32> {
+		self.data.get(key).map(|&(_, rc)| rc)
+	}
+
+	/// Grab the value associated with a particular `key`. Returns None if the key
+	/// doesn't exist.
+	///
+	/// Even when Some is returned, this is only guaranteed to return something useful
+	/// when `refs(key) > 0`.
+	fn value(&self, key: &H256) -> Option<&Bytes> {
+		self.data.get(key).map(|&(ref d, _)| d)
+	}
 }
 
 impl HashDB for MemoryDB {
-	fn lookup(&self, key: &H256) -> Option<&Bytes> {
+	fn lookup(&self, key: &H256) -> Option<Bytes> {
 		match self.data.get(key) {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
 			_ => None
 		}
 	}
@@ -116,6 +131,7 @@ impl HashDB for MemoryDB {
 		}
 		key
 	}
+
 	fn kill(&mut self, key: &H256) {
 		if match self.data.get_mut(key) {
 			Some(&mut (_, ref mut x)) => { *x -= 1; false }
