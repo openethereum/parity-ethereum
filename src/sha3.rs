@@ -3,7 +3,7 @@ use tiny_keccak::keccak_256;
 use bytes::BytesConvertable;
 use hash::{FixedHash, H256};
 
-trait Hashable {
+pub trait Hashable {
 	fn sha3(&self) -> H256;
 }
 

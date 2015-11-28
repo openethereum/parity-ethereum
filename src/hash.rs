@@ -9,23 +9,19 @@ use rand::os::OsRng;
 use bytes::BytesConvertable;
 
 /// types implementing FixedHash must be also BytesConvertable
-pub trait FixedHash: BytesConvertable {
+pub trait FixedHash: Sized + BytesConvertable {
+	fn new() -> Self;
 	fn random() -> Self;
 	fn randomize(&mut self);
 	fn mut_bytes(&mut self) -> &mut [u8];
+	fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
+	fn bloom_part<T>(&self) -> T where T: FixedHash;
 }
 
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
 		pub struct $from (pub [u8; $size]);
-
-
-		impl $from {
-			fn new() -> $from {
-				$from([0; $size])
-			}
-		}
 
 		impl BytesConvertable for $from {
 			fn bytes(&self) -> &[u8] {
@@ -34,6 +30,10 @@ macro_rules! impl_hash {
 		}
 
 		impl FixedHash for $from {
+			fn new() -> $from {
+				$from([0; $size])
+			}
+
 			fn random() -> $from {
 				let mut hash = $from::new();
 				hash.randomize();
@@ -47,6 +47,24 @@ macro_rules! impl_hash {
 
 			fn mut_bytes(&mut self) -> &mut [u8] {
 				&mut self.0
+			}
+
+			fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
+				let bp: Self = b.bloom_part();
+				let new_self = &bp | self;
+
+				// impl |= instead
+
+				unsafe {
+					use std::{mem, ptr};
+					ptr::copy(new_self.0.as_ptr(), self.0.as_mut_ptr(), mem::size_of::<Self>());
+				}
+
+				self
+			}
+
+			fn bloom_part<T>(&self) -> T where T: FixedHash {
+				panic!()
 			}
 		}
 
