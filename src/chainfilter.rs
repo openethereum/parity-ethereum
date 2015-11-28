@@ -74,7 +74,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	/// Borrows `FilterDataSource` for reading.
 	pub fn new(data_source: &'a D, index_size: usize, levels: u8) -> Self {
 		if levels == 0 {
-			panic!("ChainFilter requires and least 1 level");
+			panic!("ChainFilter requires at least 1 level");
 		}
 
 		let mut filter = ChainFilter {
