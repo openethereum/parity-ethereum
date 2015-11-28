@@ -7,38 +7,75 @@
 //!
 //! ```rust
 //! extern crate ethcore_util;
-//! use ethcore_util::rlp::{RlpStream};
+//! use ethcore_util::rlp::{Rlp, RlpStream, Decodable};
 //!
 //! fn encode_value() {
-//!     // 1029
-//!     let mut stream = RlpStream::new();
-//!     stream.append(&1029u32);
-//!     let out = stream.out().unwrap();
-//!     assert_eq!(out, vec![0x82, 0x04, 0x05]);
+//!		// 1029
+//!		let mut stream = RlpStream::new();
+//!		stream.append(&1029u32);
+//!		let out = stream.out().unwrap();
+//!		assert_eq!(out, vec![0x82, 0x04, 0x05]);
 //! }
 //!
 //! fn encode_list() {
-//!     // [ "cat", "dog" ]
-//!     let mut stream = RlpStream::new_list(2);
-//!     stream.append(&"cat").append(&"dog");
-//!     let out = stream.out().unwrap();
-//!     assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+//!		// [ "cat", "dog" ]
+//!		let mut stream = RlpStream::new_list(2);
+//!		stream.append(&"cat").append(&"dog");
+//!		let out = stream.out().unwrap();
+//!		assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 //! }
 //!
 //! fn encode_list2() {
-//!     // [ [], [[]], [ [], [[]] ] ]
-//!     let mut stream = RlpStream::new_list(3);
-//!     stream.append_list(0);
-//!     stream.append_list(1).append_list(0);
-//!     stream.append_list(2).append_list(0).append_list(1).append_list(0);
-//!     let out = stream.out().unwrap();
-//!     assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
+//!		// [ [], [[]], [ [], [[]] ] ]
+//!		let mut stream = RlpStream::new_list(3);
+//!		stream.append_list(0);
+//!		stream.append_list(1).append_list(0);
+//!		stream.append_list(2).append_list(0).append_list(1).append_list(0);
+//!		let out = stream.out().unwrap();
+//!		assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
+//! }
+//!
+//! fn decode_value() {
+//!		//  0x102456789abcdef
+//!		let data = vec![0x88, 0x10, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
+//!		let rlp = Rlp::new(&data);
+//!		let _ = u64::decode(&rlp).unwrap();
+//! }
+//! 
+//! fn decode_string() {
+//!		// "cat"
+//!		let data = vec![0x83, b'c', b'a', b't'];
+//!		let rlp = Rlp::new(&data);
+//!		let _ = String::decode(&rlp).unwrap();
+//! }
+//! 
+//! fn decode_list() {
+//!		// ["cat", "dog"]
+//!		let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+//!		let rlp = Rlp::new(&data);
+//!		let _ : Vec<String> = Decodable::decode(&rlp).unwrap();
+//! }
+//! 
+//! fn decode_list2() {
+//!		// [ [], [[]], [ [], [[]] ] ]
+//!		let data = vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0];
+//!		let rlp = Rlp::new(&data);
+//!		let _v0: Vec<u8> = Decodable::decode(&rlp.at(0).unwrap()).unwrap();
+//!		let _v1: Vec<Vec<u8>> = Decodable::decode(&rlp.at(1).unwrap()).unwrap();
+//!		let nested_rlp = rlp.at(2).unwrap();
+//!		let _v2a: Vec<u8> = Decodable::decode(&nested_rlp.at(0).unwrap()).unwrap();
+//!		let _v2b: Vec<Vec<u8>> = Decodable::decode(&nested_rlp.at(1).unwrap()).unwrap();
 //! }
 //!
 //! fn main() {
-//!     encode_value();
-//!     encode_list();
-//!     encode_list2();
+//!		encode_value();
+//!		encode_list();
+//!		encode_list2();
+//!
+//!		decode_value();
+//!		decode_string();
+//!		decode_list();
+//!		decode_list2();
 //! }
 //! ```
 //!
