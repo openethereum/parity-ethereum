@@ -1,16 +1,45 @@
-//! basic implementation of multilevel bloom filter
+//! Multilevel blockchain bloom filter.
 use std::collections::{HashMap};
 use hash::*;
-use filter::*;
 use sha3::*;
 use num::pow;
 
-/// in memory cache for blooms
+/// Represents bloom index in cache
+/// 
+/// On cache level 0, every block bloom is represented by different index.
+/// On higher cache levels, multiple block blooms are represented by one
+/// index. Their `BloomIndex` can be created from block number and given level.
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
+pub struct BloomIndex {
+	pub level: u8,
+	pub index: usize,
+}
+
+impl BloomIndex {
+	/// Default constructor for `BloomIndex`
+	pub fn new(level: u8, index: usize) -> BloomIndex {
+		BloomIndex {
+			level: level,
+			index: index,
+		}
+	}
+}
+
+/// Types implementing this trait should provide read access for bloom filters database.
+pub trait FilterDataSource {
+	/// returns reference to log at given position if it exists
+	fn bloom_at_index(&self, index: &BloomIndex) -> Option<&H2048>;
+}
+
+/// In memory cache for blooms.
+/// 
+/// Stores all blooms in HashMap, which indexes them by `BloomIndex`.
 pub struct MemoryCache {
 	blooms: HashMap<BloomIndex, H2048>,
 }
 
 impl MemoryCache {
+	/// Default constructor for MemoryCache
 	pub fn new() -> MemoryCache {
 		MemoryCache { blooms: HashMap::new() }
 	}
@@ -29,7 +58,7 @@ impl FilterDataSource for MemoryCache {
 	}
 }
 
-/// Should be used to find blocks in FilterDataSource
+/// Should be used for search operations on blockchain.
 pub struct ChainFilter<'a, D>
 	where D: FilterDataSource + 'a
 {
@@ -40,7 +69,9 @@ pub struct ChainFilter<'a, D>
 
 impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 {
-	/// creates new filter instance
+	/// Creates new filter instance.
+	/// 
+	/// Borrows `FilterDataSource` for reading.
 	pub fn new(data_source: &'a D, index_size: usize, levels: u8) -> Self {
 		if levels == 0 {
 			panic!("ChainFilter requires and least 1 level");
@@ -98,9 +129,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 		self.level_sizes.len() as u8 - 1
 	}
 
-	/// internal function which actually does bloom search
-	/// TODO: optimize it, maybe non-recursive version?
-	/// TODO: clean up?
+	/// internal function which does bloom search recursively
 	fn blocks(&self, bloom: &H2048, from_block: usize, to_block: usize, level: u8, offset: usize) -> Option<Vec<usize>> {
 		let index = self.bloom_index(offset, level);
 
@@ -136,14 +165,9 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 			.collect();
 		Some(res)
 	}
-}
 
-impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
-{
-	/// add new bloom to all levels 
-	///
-	/// BitOr new bloom with all levels of filter
-	fn add_bloom(&self, bloom: &H2048, block_number: usize) -> HashMap<BloomIndex, H2048> {
+	/// Adds new bloom to all filter levels
+	pub fn add_bloom(&self, bloom: &H2048, block_number: usize) -> HashMap<BloomIndex, H2048> {
 		let mut result: HashMap<BloomIndex, H2048> = HashMap::new();
 
 		for level in 0..self.levels() {
@@ -159,10 +183,8 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 		result
 	}
 
-	/// add new blooms starting from block number
-	/// 
-	/// BitOr new blooms with all levels of filter
-	fn add_blooms(&self, blooms: &[H2048], block_number: usize) -> HashMap<BloomIndex, H2048> {
+	/// Adds new blooms starting from block number.
+	pub fn add_blooms(&self, blooms: &[H2048], block_number: usize) -> HashMap<BloomIndex, H2048> {
 		let mut result: HashMap<BloomIndex, H2048> = HashMap::new();
 
 		for level in 0..self.levels() {
@@ -192,8 +214,8 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 		result
 	}
 
-	/// reset bloom at level 0 and forces rebuild on higher levels
-	fn reset_bloom(&self, bloom: &H2048, block_number: usize) -> HashMap<BloomIndex, H2048> {
+	/// Resets bloom at level 0 and forces rebuild on higher levels.
+	pub fn reset_bloom(&self, bloom: &H2048, block_number: usize) -> HashMap<BloomIndex, H2048> {
 		let mut result: HashMap<BloomIndex, H2048> = HashMap::new();
 
 		let mut reset_index = self.bloom_index(block_number, 0);
@@ -204,14 +226,14 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 			// get all bloom indexes that were used to construct this bloom
 			let lower_indexes = self.lower_level_bloom_indexes(&index);
 			let new_bloom = lower_indexes.into_iter()
-										 // skip reseted one
-										 .filter(|li| li != &reset_index)
-										 // get blooms for these indexes
-										 .map(|li| self.data_source.bloom_at_index(&li))
-										 // filter existing ones
-										 .filter_map(|b| b)
-										 // BitOr all of them
-										 .fold(H2048::new(), |acc, bloom| &acc | bloom);
+				// skip reseted one
+				.filter(|li| li != &reset_index)
+				// get blooms for these indexes
+				.map(|li| self.data_source.bloom_at_index(&li))
+				// filter existing ones
+				.filter_map(|b| b)
+				// BitOr all of them
+				.fold(H2048::new(), |acc, bloom| &acc | bloom);
 
 			reset_index = index.clone();
 			result.insert(index, &new_bloom | bloom);
@@ -220,27 +242,27 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 		result
 	}
 
-	/// sets lowest level bloom to 0 and forces rebuild on higher levels
-	fn clear_bloom(&self, block_number: usize) -> HashMap<BloomIndex, H2048> {
+	/// Sets lowest level bloom to 0 and forces rebuild on higher levels.
+	pub fn clear_bloom(&self, block_number: usize) -> HashMap<BloomIndex, H2048> {
 		self.reset_bloom(&H2048::new(), block_number)
 	}
 
-	/// returns numbers of blocks that may contain Address
-	fn blocks_with_address(&self, address: &Address, from_block: usize, to_block: usize) -> Vec<usize> {
+	/// Returns numbers of blocks that may contain Address.
+	pub fn blocks_with_address(&self, address: &Address, from_block: usize, to_block: usize) -> Vec<usize> {
 		let mut bloom = H2048::new();
 		bloom.shift_bloom(&address.sha3());
 		self.blocks_with_bloom(&bloom, from_block, to_block)
 	}
 
-	/// returns numbers of blocks that may contain Topic
-	fn blocks_with_topics(&self, topic: &H256, from_block: usize, to_block: usize) -> Vec<usize> {
+	/// Returns numbers of blocks that may contain Topic.
+	pub fn blocks_with_topics(&self, topic: &H256, from_block: usize, to_block: usize) -> Vec<usize> {
 		let mut bloom = H2048::new();
 		bloom.shift_bloom(&topic.sha3());
 		self.blocks_with_bloom(&bloom, from_block, to_block)
 	}
 
-	/// returns numbers of blocks that may log bloom
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: usize, to_block: usize) -> Vec<usize> {
+	/// Returns numbers of blocks that may log bloom.
+	pub fn blocks_with_bloom(&self, bloom: &H2048, from_block: usize, to_block: usize) -> Vec<usize> {
 		let mut result = vec![];
 		// lets start from highest level
 		let max_level = self.max_level();
@@ -266,7 +288,6 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 #[cfg(test)]
 mod tests {
 	use hash::*;
-	use filter::*;
 	use chainfilter::*;
 	use sha3::*;
 	use std::str::FromStr;
