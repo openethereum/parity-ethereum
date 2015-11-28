@@ -1,17 +1,49 @@
-//! To/From Bytes conversation for basic types
-//!
-//! Types implementing `ToBytes` and `FromBytes` traits
-//! can be easily converted to and from bytes
+//! Unified interfaces for bytes operations on basic types
 //! 
 //! # Examples
+//! ```rust
+//! extern crate ethcore_util as util;
+//! 
+//! fn bytes_convertable() {
+//! 	use util::bytes::BytesConvertable;
 //!
+//! 	let arr = [0; 5];
+//! 	let slice: &[u8] = arr.bytes();
+//! }
+//! 
+//! fn to_bytes() {
+//! 	use util::bytes::ToBytes;
+//! 	
+//! 	let a: Vec<u8> = "hello_world".to_bytes();
+//! 	let b: Vec<u8> = 400u32.to_bytes();
+//! 	let c: Vec<u8> = 0xffffffffffffffffu64.to_bytes();
+//! }
+//! 
+//! fn from_bytes() {
+//! 	use util::bytes::FromBytes;
+//! 	
+//! 	let a = String::from_bytes(&[b'd', b'o', b'g']);
+//! 	let b = u8::from_bytes(&[0xfa]);
+//! 	let c = u64::from_bytes(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+//! }
+//!
+//! fn main() {
+//! 	bytes_convertable();
+//! 	to_bytes();
+//! 	from_bytes();
+//! }
+//! ```
 
 use std::fmt;
+use std::cmp::Ordering;
 use std::error::Error as StdError;
 use uint::{U128, U256};
+use hash::FixedHash;
 
+/// Vector of bytes
 pub type Bytes = Vec<u8>;
 
+/// Slice of bytes to underlying memory
 pub trait BytesConvertable {
 	fn bytes(&self) -> &[u8];
 }
@@ -46,6 +78,8 @@ fn bytes_convertable() {
     assert_eq!([0u8; 0].bytes(), &[]);
 }
 
+/// Converts given type to its shortest representation in bytes
+///
 /// TODO: optimise some conversations
 pub trait ToBytes {
 	fn to_bytes(&self) -> Vec<u8>;
@@ -141,9 +175,26 @@ macro_rules! impl_uint_to_bytes {
 impl_uint_to_bytes!(U256);
 impl_uint_to_bytes!(U128);
 
+impl <T>ToBytes for T where T: FixedHash {
+	fn to_bytes(&self) -> Vec<u8> {
+		let mut res: Vec<u8> = vec![];
+		res.reserve(T::size());
+
+		unsafe {
+			use std::ptr;
+			ptr::copy(self.bytes().as_ptr(), res.as_mut_ptr(), T::size());
+			res.set_len(T::size());
+		}
+		
+		res
+	}
+}
+
+/// Error returned when FromBytes conversation goes wrong
 #[derive(Debug, PartialEq, Eq)]
 pub enum FromBytesError {
-	UnexpectedEnd
+	DataIsTooShort,
+	DataIsTooLong
 }
 
 impl StdError for FromBytesError {
@@ -156,10 +207,11 @@ impl fmt::Display for FromBytesError {
 	}
 }
 
+/// Alias for the result of FromBytes trait
 pub type FromBytesResult<T> = Result<T, FromBytesError>;
 
-/// implements "Sized", so the compiler can deducate the size
-/// of the return type
+/// Converts to given type from its bytes representation
+///
 /// TODO: check size of bytes before conversation and return appropriate error
 pub trait FromBytes: Sized {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<Self>;
@@ -222,3 +274,22 @@ macro_rules! impl_uint_from_bytes {
 
 impl_uint_from_bytes!(U256);
 impl_uint_from_bytes!(U128);
+
+impl <T>FromBytes for T where T: FixedHash {
+	fn from_bytes(bytes: &[u8]) -> FromBytesResult<T> {
+		match bytes.len().cmp(&T::size()) {
+			Ordering::Less => return Err(FromBytesError::DataIsTooShort),
+			Ordering::Greater => return Err(FromBytesError::DataIsTooLong),
+			Ordering::Equal => ()
+		};
+
+		unsafe {
+			use std::{mem, ptr};
+
+			let mut res: T = mem::uninitialized();
+			ptr::copy(bytes.as_ptr(), res.mut_bytes().as_mut_ptr(), T::size());
+
+			Ok(res)
+		}
+	}
+}

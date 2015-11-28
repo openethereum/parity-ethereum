@@ -7,38 +7,75 @@
 //!
 //! ```rust
 //! extern crate ethcore_util;
-//! use ethcore_util::rlp::{RlpStream};
+//! use ethcore_util::rlp::{Rlp, RlpStream, Decodable};
 //!
 //! fn encode_value() {
-//!     // 1029
-//!     let mut stream = RlpStream::new();
-//!     stream.append(&1029u32);
-//!     let out = stream.out().unwrap();
-//!     assert_eq!(out, vec![0x82, 0x04, 0x05]);
+//!		// 1029
+//!		let mut stream = RlpStream::new();
+//!		stream.append(&1029u32);
+//!		let out = stream.out().unwrap();
+//!		assert_eq!(out, vec![0x82, 0x04, 0x05]);
 //! }
 //!
 //! fn encode_list() {
-//!     // [ "cat", "dog" ]
-//!     let mut stream = RlpStream::new_list(2);
-//!     stream.append(&"cat").append(&"dog");
-//!     let out = stream.out().unwrap();
-//!     assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+//!		// [ "cat", "dog" ]
+//!		let mut stream = RlpStream::new_list(2);
+//!		stream.append(&"cat").append(&"dog");
+//!		let out = stream.out().unwrap();
+//!		assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 //! }
 //!
 //! fn encode_list2() {
-//!     // [ [], [[]], [ [], [[]] ] ]
-//!     let mut stream = RlpStream::new_list(3);
-//!     stream.append_list(0);
-//!     stream.append_list(1).append_list(0);
-//!     stream.append_list(2).append_list(0).append_list(1).append_list(0);
-//!     let out = stream.out().unwrap();
-//!     assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
+//!		// [ [], [[]], [ [], [[]] ] ]
+//!		let mut stream = RlpStream::new_list(3);
+//!		stream.append_list(0);
+//!		stream.append_list(1).append_list(0);
+//!		stream.append_list(2).append_list(0).append_list(1).append_list(0);
+//!		let out = stream.out().unwrap();
+//!		assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
+//! }
+//!
+//! fn decode_value() {
+//!		//  0x102456789abcdef
+//!		let data = vec![0x88, 0x10, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
+//!		let rlp = Rlp::new(&data);
+//!		let _ = u64::decode(&rlp).unwrap();
+//! }
+//! 
+//! fn decode_string() {
+//!		// "cat"
+//!		let data = vec![0x83, b'c', b'a', b't'];
+//!		let rlp = Rlp::new(&data);
+//!		let _ = String::decode(&rlp).unwrap();
+//! }
+//! 
+//! fn decode_list() {
+//!		// ["cat", "dog"]
+//!		let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+//!		let rlp = Rlp::new(&data);
+//!		let _ : Vec<String> = Decodable::decode(&rlp).unwrap();
+//! }
+//! 
+//! fn decode_list2() {
+//!		// [ [], [[]], [ [], [[]] ] ]
+//!		let data = vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0];
+//!		let rlp = Rlp::new(&data);
+//!		let _v0: Vec<u8> = Decodable::decode(&rlp.at(0).unwrap()).unwrap();
+//!		let _v1: Vec<Vec<u8>> = Decodable::decode(&rlp.at(1).unwrap()).unwrap();
+//!		let nested_rlp = rlp.at(2).unwrap();
+//!		let _v2a: Vec<u8> = Decodable::decode(&nested_rlp.at(0).unwrap()).unwrap();
+//!		let _v2b: Vec<Vec<u8>> = Decodable::decode(&nested_rlp.at(1).unwrap()).unwrap();
 //! }
 //!
 //! fn main() {
-//!     encode_value();
-//!     encode_list();
-//!     encode_list2();
+//!		encode_value();
+//!		encode_list();
+//!		encode_list2();
+//!
+//!		decode_value();
+//!		decode_string();
+//!		decode_list();
+//!		decode_list2();
 //! }
 //! ```
 //!
@@ -712,6 +749,19 @@ mod tests {
 	}
 
 	#[test]
+	fn encode_address() {
+		use hash::*;
+
+		let tests = vec![
+			ETestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+					  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
+					  	   		 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+						   		 0xb3, 0x7d, 0x11, 0x06])
+		];
+		run_encode_tests(tests);
+	}
+
+	#[test]
 	fn encode_vector_u8() {
 		let tests = vec![
             ETestPair(vec![], vec![0xc0]),
@@ -851,6 +901,19 @@ mod tests {
 		                                b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
 		                                b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
 		                                b'e', b'l', b'i', b't'])];
+		run_decode_tests(tests);
+	}
+
+	#[test]
+	fn decode_address() {
+		use hash::*;
+
+		let tests = vec![
+			DTestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+					  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
+					  	   		 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+						   		 0xb3, 0x7d, 0x11, 0x06])
+		];
 		run_decode_tests(tests);
 	}
 

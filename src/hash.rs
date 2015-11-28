@@ -1,31 +1,30 @@
 use std::str::FromStr;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::ops::{Index, IndexMut, BitOr};
+use std::ops::{Index, IndexMut, BitOr, BitAnd};
 use rustc_serialize::hex::*;
 use error::EthcoreError;
 use rand::Rng;
 use rand::os::OsRng;
 use bytes::BytesConvertable;
+use math::log2;
 
 /// types implementing FixedHash must be also BytesConvertable
-pub trait FixedHash: BytesConvertable {
+pub trait FixedHash: Sized + BytesConvertable {
+	fn new() -> Self;
 	fn random() -> Self;
 	fn randomize(&mut self);
+	fn size() -> usize;
 	fn mut_bytes(&mut self) -> &mut [u8];
+	fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
+	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
+	fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash;
 }
 
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
-		pub struct $from (pub [u8; $size]);
-
-
-		impl $from {
-			fn new() -> $from {
-				$from([0; $size])
-			}
-		}
+		pub struct $from ([u8; $size]);
 
 		impl BytesConvertable for $from {
 			fn bytes(&self) -> &[u8] {
@@ -34,6 +33,10 @@ macro_rules! impl_hash {
 		}
 
 		impl FixedHash for $from {
+			fn new() -> $from {
+				$from([0; $size])
+			}
+
 			fn random() -> $from {
 				let mut hash = $from::new();
 				hash.randomize();
@@ -45,8 +48,67 @@ macro_rules! impl_hash {
 				rng.fill_bytes(&mut self.0);
 			}
 
+			fn size() -> usize {
+				$size
+			}
+
 			fn mut_bytes(&mut self) -> &mut [u8] {
 				&mut self.0
+			}
+
+			fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
+				let bp: Self = b.bloom_part($size);
+				let new_self = &bp | self;
+
+				// impl |= instead
+
+				unsafe {
+					use std::{mem, ptr};
+					ptr::copy(new_self.0.as_ptr(), self.0.as_mut_ptr(), mem::size_of::<Self>());
+				}
+
+				self
+			}
+
+			fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash {
+				// numbers of bits
+				// TODO: move it to some constant
+				let p = 3;
+
+				let bloom_bits = m * 8;
+				let mask = bloom_bits - 1;
+				let bloom_bytes = (log2(bloom_bits) + 7) / 8;
+				//println!("bb: {}", bloom_bytes);
+
+				// must be a power of 2
+				assert_eq!(m & (m - 1), 0);
+				// out of range
+				assert!(p * bloom_bytes <= $size);
+
+				// return type
+				let mut ret = T::new();
+
+				// 'ptr' to out slice
+				let mut ptr = 0;
+
+				// set p number of bits,
+				// p is equal 3 according to yellowpaper
+				for _ in 0..p {
+					let mut index = 0 as usize;
+					for _ in 0..bloom_bytes {
+						index = (index << 8) | self.0[ptr] as usize;
+						ptr += 1;
+					}
+					index &= mask;
+					ret.mut_bytes()[m - 1 - index / 8] |= 1 << (index % 8);
+				}
+
+				ret
+			}
+
+			fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash {
+				let bp: Self = b.bloom_part($size);
+				(&bp & self) == bp
 			}
 		}
 
@@ -120,6 +182,7 @@ macro_rules! impl_hash {
 			}
 		}
 
+		/// BitOr on references
 		impl<'a> BitOr for &'a $from {
 			type Output = $from;
 
@@ -135,11 +198,37 @@ macro_rules! impl_hash {
 			}
 		}
 
+		/// Moving BitOr
 		impl BitOr for $from {
 			type Output = $from;
 
 			fn bitor(self, rhs: Self) -> Self::Output {
 				&self | &rhs
+			}
+		}
+
+		/// BitAnd on references
+		impl <'a> BitAnd for &'a $from {
+			type Output = $from;
+
+			fn bitand(self, rhs: Self) -> Self::Output {
+				unsafe {
+					use std::mem;
+					let mut ret: $from = mem::uninitialized();
+					for i in 0..$size {
+						ret.0[i] = self.0[i] & rhs.0[i];
+					}
+					ret
+				}
+			}
+		}
+
+		/// Moving BitAnd
+		impl BitAnd for $from {
+			type Output = $from;
+
+			fn bitand(self, rhs: Self) -> Self::Output {
+				&self & &rhs
 			}
 		}
 
@@ -155,26 +244,55 @@ impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
 
-#[test]
-fn hash() {
-	let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
-	assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
-	assert_eq!(format!("{}", h), "0123456789abcdef");
-	assert_eq!(format!("{:?}", h), "0123456789abcdef");
-	assert!(h == h);
-	assert!(h != H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xee]));
-	assert!(h != H64([0; 8]));
+#[cfg(test)]
+mod tests {
+	use hash::*;
+	use std::str::FromStr;
+
+	#[test]
+	fn hash() {
+		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
+		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
+		assert_eq!(format!("{}", h), "0123456789abcdef");
+		assert_eq!(format!("{:?}", h), "0123456789abcdef");
+		assert!(h == h);
+		assert!(h != H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xee]));
+		assert!(h != H64([0; 8]));
+	}
+
+	#[test]
+	fn hash_bitor() {
+		let a = H64([1; 8]);
+		let b = H64([2; 8]);
+		let c = H64([3; 8]);
+
+		// borrow
+		assert_eq!(&a | &b, c);
+
+		// move
+		assert_eq!(a | b, c);
+	}
+
+	#[test]
+	fn shift_bloom() {
+		use sha3::Hashable;
+		
+		let bloom = H2048::from_str("00000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002020000000000000000000000000000000000000000000008000000001000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
+		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
+		let topic = H256::from_str("02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
+
+		let mut my_bloom = H2048::new();
+		assert!(!my_bloom.contains_bloom(&address.sha3()));
+		assert!(!my_bloom.contains_bloom(&topic.sha3()));
+
+		my_bloom.shift_bloom(&address.sha3());
+		assert!(my_bloom.contains_bloom(&address.sha3()));
+		assert!(!my_bloom.contains_bloom(&topic.sha3()));
+			
+		my_bloom.shift_bloom(&topic.sha3());
+		assert_eq!(my_bloom, bloom);
+		assert!(my_bloom.contains_bloom(&address.sha3()));
+		assert!(my_bloom.contains_bloom(&topic.sha3()));
+	}
 }
 
-#[test]
-fn hash_bitor() {
-	let a = H64([1; 8]);
-	let b = H64([2; 8]);
-	let c = H64([3; 8]);
-
-	// borrow
-	assert_eq!(&a | &b, c);
-
-	// move
-	assert_eq!(a | b, c);
-}

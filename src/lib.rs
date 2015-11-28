@@ -1,3 +1,7 @@
+//! Ethcore-util library
+//! 
+//! TODO: check reexports
+
 extern crate rustc_serialize;
 extern crate mio;
 extern crate rand;
@@ -18,9 +22,11 @@ pub mod hashdb;
 pub mod memorydb;
 pub mod overlaydb;
 pub mod bloom;
+pub mod math;
 
 //pub mod network;
 
+// reexports
 pub use std::str::FromStr;
 pub use hash::*;
 pub use sha3::*;
