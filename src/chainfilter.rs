@@ -77,24 +77,15 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	/// 
 	/// bloom indexes are ordered from lowest to highest
 	fn lower_level_bloom_indexes(&self, index: &BloomIndex) -> Vec<BloomIndex> {
-		let mut indexes: Vec<BloomIndex> = vec![];
-
-		// this is the lower level
+		// this is the lowest level
 		if index.level == 0 {
-			return indexes;
+			return vec![];
 		}
 
 		let new_level = index.level - 1;
 		let offset = self.index_size * index.index;
 
-		for i in 0..self.index_size {
-			indexes.push(BloomIndex {
-				level: new_level,
-				index: offset + i,
-			});
-		}
-
-		indexes
+		(0..self.index_size).map(|i| BloomIndex::new(new_level, offset + i)).collect()
 	}
 
 	/// return number of levels
@@ -140,7 +131,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 			.map(|off| self.blocks(bloom, from_block, to_block, level - 1, off))
 			// filter existing ones
 			.filter_map(|x| x)
-			// flatten nested structure
+			// flatten nested structures
 			.flat_map(|v| v)
 			.collect();
 		Some(res)
