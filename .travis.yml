@@ -3,6 +3,7 @@ language: rust
 before_script:
     # g++4.8 for C++11 which is required by rocksdb
     - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+    - sudo apt-get update -y -qq
     - sudo apt-get install -qq --yes --force-yes g++-4.8
     - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 50
 
