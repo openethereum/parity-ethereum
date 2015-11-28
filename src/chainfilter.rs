@@ -1,5 +1,5 @@
 //! basic implementation of multilevel bloom filter
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use hash::*;
 use filter::*;
 use sha3::*;
@@ -14,6 +14,9 @@ impl MemoryCache {
 		MemoryCache { blooms: HashMap::new() }
 	}
 
+	/// inserts all blooms into cache
+	/// 
+	/// TODO: verify if extend update old items
 	pub fn insert_blooms(&mut self, blooms: HashMap<BloomIndex, H2048>) {
 		self.blooms.extend(blooms);
 	}
@@ -67,8 +70,11 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	}
 
 	/// return bloom which are dependencies for given index
-	fn lower_level_bloom_indexes(&self, index: &BloomIndex) -> HashSet<BloomIndex> {
-		let mut indexes: HashSet<BloomIndex> = HashSet::with_capacity(self.index_size);
+	/// 
+	/// bloom indexes are ordered from lowest to highest
+	fn lower_level_bloom_indexes(&self, index: &BloomIndex) -> Vec<BloomIndex> {
+		//let mut indexes: HashSet<BloomIndex> = HashSet::with_capacity(self.index_size);
+		let mut indexes: Vec<BloomIndex> = vec![];
 
 		// this is the lower level
 		if index.level == 0 {
@@ -79,13 +85,58 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 		let offset = self.index_size * index.index;
 
 		for i in 0..self.index_size {
-			indexes.insert(BloomIndex {
+			indexes.push(BloomIndex {
 				level: new_level,
 				index: offset + i,
 			});
 		}
 
 		indexes
+	}
+
+	/// returns max filter level
+	fn max_level(&self) -> u8 {
+		self.levels - 1
+	}
+
+	/// internal function which actually does bloom search
+	/// TODO: optimize it, maybe non-recursive version?
+	/// TODO2: clean up?
+	fn blocks(&self, bloom: &H2048, from_block: usize, to_block: usize, level: u8, offset: usize) -> Vec<usize> {
+		let mut result = vec![];
+		let index = self.bloom_index(offset, level);
+
+		match self.data_source.bloom_at_index(&index) {
+			None => (),
+			Some(level_bloom) => match level {
+				0 => {
+					// to_block exclusive
+					if offset < to_block {
+						result.push(offset);
+					}
+				},
+				_ => match level_bloom.contains(bloom) {
+					false => (),
+					true => {
+						let level_size = self.level_size(level - 1);
+						let from_index = self.bloom_index(from_block, level - 1);
+						let to_index = self.bloom_index(to_block, level - 1);
+						let res: Vec<usize> = self.lower_level_bloom_indexes(&index).into_iter()
+							// chose only blooms in range
+							.filter(|li| li.index >= from_index.index && li.index <= to_index.index)
+							// map them to offsets
+							.map(|li| li.index * level_size)
+							// get all blocks that may contain our bloom
+							.map(|off| self.blocks(bloom, from_block, to_block, level - 1, off))
+							// flatten nested structure
+							.flat_map(|v| v)
+							.collect();
+						return res
+					}
+				}
+			}
+		}
+		result
 	}
 }
 
@@ -191,16 +242,33 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 
 	/// returns numbers of blocks that may log bloom
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: usize, to_block: usize) -> Vec<usize> {
-		panic!();
+		let mut result = vec![];
+		// lets start from highest level
+		let max_level = self.max_level();
+		let level_size = self.level_size(max_level);
+		let from_index = self.bloom_index(from_block, max_level);
+		let to_index = self.bloom_index(to_block, max_level);
+
+		for index in from_index.index..to_index.index + 1 {
+			// offset will be used to calculate where we are right now
+			let offset = level_size * index;
+
+			// go doooown!
+			result.extend(self.blocks(bloom, from_block, to_block, max_level, offset));
+		}
+
+		result
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use std::collections::{HashMap, HashSet};
+	use std::collections::{HashMap};
 	use hash::*;
 	use filter::*;
 	use chainfilter::*;
+	use sha3::*;
+	use std::str::FromStr;
 
 	#[test]
 	fn test_level_size() {
@@ -258,12 +326,41 @@ mod tests {
 		assert_eq!(bi.level, 2);
 		assert_eq!(bi.index, 1);
 
-		let mut ebis = HashSet::with_capacity(16);
+		let mut ebis = vec![];
 		for i in 16..32 {
-			ebis.insert(BloomIndex::new(1, i));
+			ebis.push(BloomIndex::new(1, i));
 		}
 
 		let bis = filter.lower_level_bloom_indexes(&bi);
 		assert_eq!(ebis, bis);
+	}
+
+	#[test]
+	fn test_basic_search() {
+		let index_size = 16;
+		let bloom_levels = 3;
+
+		let mut cache = MemoryCache::new();
+		let topic = H256::from_str("8d936b1bd3fc635710969ccfba471fb17d598d9d1971b538dd712e1e4b4f4dba").unwrap();
+
+		let modified_blooms = {
+			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+			let block_number = 23;
+			let mut bloom = H2048::new();
+			bloom.shift_bloom(&topic.sha3());
+			filter.add_bloom(&bloom, block_number)
+		};
+
+		// number of modified blooms should always be equal number of levels
+		assert_eq!(modified_blooms.len(), bloom_levels as usize);
+		cache.insert_blooms(modified_blooms);
+
+		{
+			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+			let blocks = filter.blocks_with_topics(&topic, 0, 100);
+			println!("{:?}", blocks);
+			assert!(false);
+		}
+
 	}
 }
