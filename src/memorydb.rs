@@ -43,18 +43,39 @@ pub struct MemoryDB {
 }
 
 impl MemoryDB {
+	/// Create a new instance of the memory DB.
 	pub fn new() -> MemoryDB {
 		MemoryDB {
 			data: HashMap::new()
 		}
 	}
 
+	/// Clear all data from the database.
+	///
+	/// # Examples
+	/// ```rust
+	/// extern crate ethcore_util;
+	/// use ethcore_util::hashdb::*;
+	/// use ethcore_util::memorydb::*;
+	/// fn main() {
+	///   let mut m = MemoryDB::new();
+	///   let hello_bytes = "Hello world!".as_bytes();
+	///   let hash = m.insert(hello_bytes);
+	///   assert!(m.exists(&hash));
+	///   m.clear();
+	///   assert!(!m.exists(&hash));
+	/// }
+	/// ```
 	pub fn clear(&mut self) {
 		self.data.clear();
 	}
 
+	/// Purge all zero-referenced data from the database.
 	pub fn purge(&mut self) {
-		let empties: Vec<_> = self.data.iter().filter(|&(_, &(_, rc))| rc <= 0).map(|(k, _)| k.clone()).collect();
+		let empties: Vec<_> = self.data.iter()
+			.filter(|&(_, &(_, rc))| rc == 0)
+			.map(|(k, _)| k.clone())
+			.collect();
 		for empty in empties { self.data.remove(&empty); }
 	}
 }
