@@ -1,4 +1,43 @@
 //! Multilevel blockchain bloom filter.
+//! 
+//! ```
+//! extern crate ethcore_util as util;
+//! use std::str::FromStr;
+//! use util::chainfilter::*;
+//! use util::sha3::*;
+//! use util::hash::*;
+//! 
+//! fn main() {
+//!		let (index_size, bloom_levels) = (16, 3);
+//!		let mut cache = MemoryCache::new();
+//!		
+//!		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
+//!		
+//!		// borrow cache for reading inside the scope
+//!		let modified_blooms = {
+//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);	
+//!			let block_number = 39;
+//!			let mut bloom = H2048::new();
+//!			bloom.shift_bloom(&address.sha3());
+//!			filter.add_bloom(&bloom, block_number)
+//!		};
+//!		
+//!		// number of updated blooms is equal number of levels
+//!		assert_eq!(modified_blooms.len(), bloom_levels as usize);
+//!
+//!		// lets inserts modified blooms into the cache
+//!		cache.insert_blooms(modified_blooms);
+//!		
+//!		// borrow cache for another reading operations
+//!		{
+//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);	
+//!			let blocks = filter.blocks_with_address(&address, 10, 40);
+//!			assert_eq!(blocks.len(), 1);	
+//!			assert_eq!(blocks[0], 39);
+//!		}
+//! }
+//! ```
+//!
 use std::collections::{HashMap};
 use hash::*;
 use sha3::*;
@@ -255,7 +294,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	}
 
 	/// Returns numbers of blocks that may contain Topic.
-	pub fn blocks_with_topics(&self, topic: &H256, from_block: usize, to_block: usize) -> Vec<usize> {
+	pub fn blocks_with_topic(&self, topic: &H256, from_block: usize, to_block: usize) -> Vec<usize> {
 		let mut bloom = H2048::new();
 		bloom.shift_bloom(&topic.sha3());
 		self.blocks_with_bloom(&bloom, from_block, to_block)
@@ -379,27 +418,27 @@ mod tests {
 
 		{
 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-			let blocks = filter.blocks_with_topics(&topic, 0, 100);
+			let blocks = filter.blocks_with_topic(&topic, 0, 100);
 			assert_eq!(blocks.len(), 1);
 			assert_eq!(blocks[0], 23);
 		}
 
 		{
 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-			let blocks = filter.blocks_with_topics(&topic, 0, 23);
+			let blocks = filter.blocks_with_topic(&topic, 0, 23);
 			assert_eq!(blocks.len(), 0);
 		}
 
 		{
 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-			let blocks = filter.blocks_with_topics(&topic, 23, 24);
+			let blocks = filter.blocks_with_topic(&topic, 23, 24);
 			assert_eq!(blocks.len(), 1);
 			assert_eq!(blocks[0], 23);
 		}
 
 		{
 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-			let blocks = filter.blocks_with_topics(&topic, 24, 100);
+			let blocks = filter.blocks_with_topic(&topic, 24, 100);
 			assert_eq!(blocks.len(), 0);
 		}
 	}
