@@ -7,11 +7,19 @@ use std::collections::HashMap;
 /// On bloom level 0, all positions represent different blooms. 
 /// On higher levels multiple positions represent one bloom
 /// and should be transformed to `BlockIndex` to get index of this bloom
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub struct BloomIndex {
-	level: u8,
-	level_index: usize,
-	index: usize,
+	pub level: u8,
+	pub index: usize,
+}
+
+impl BloomIndex {
+	pub fn new(level: u8, index: usize) -> BloomIndex {
+		BloomIndex {
+			level: level,
+			index: index,
+		}
+	}
 }
 
 pub trait FilterDataSource {
@@ -20,12 +28,6 @@ pub trait FilterDataSource {
 }
 
 pub trait Filter: Sized {
-	/// creates new filter instance
-	fn new<T>(data_source: &T, index_size: usize, levels: u8) -> Self where T: FilterDataSource;
-
-	/// converts block number and level to `BloomIndex`
-	fn bloom_index(&self, block_number: usize, level: u8) -> BloomIndex;
-
 	/// add new bloom to all levels 
 	fn add_bloom(&self, bloom: &H2048, block_number: usize) -> HashMap<BloomIndex, H2048>;
 
@@ -39,11 +41,11 @@ pub trait Filter: Sized {
 	fn clear_bloom(&self, block_number: usize) -> HashMap<BloomIndex, H2048>;
 
 	/// returns numbers of blocks that may contain Address
-	fn blocks_with_address(&self, address: &Address) -> Vec<usize>;
+	fn blocks_with_address(&self, address: &Address, from_block: usize, to_block: usize) -> Vec<usize>;
 
 	/// returns numbers of blocks that may contain Topic
-	fn blocks_with_topics(&self, topic: &H256) -> Vec<usize>;
+	fn blocks_with_topics(&self, topic: &H256, from_block: usize, to_block: usize) -> Vec<usize>;
 
 	/// returns numbers of blocks that may log bloom
-	fn blocks_with_bloom(&self, bloom: &H2048) -> Vec<usize>;
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: usize, to_block: usize) -> Vec<usize>;
 }

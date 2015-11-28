@@ -7,8 +7,11 @@ extern crate mio;
 extern crate rand;
 extern crate rocksdb;
 extern crate tiny_keccak;
+extern crate num;
 #[macro_use]
 extern crate log;
+#[macro_use]
+pub mod macros;
 
 pub mod error;
 pub mod hash;
@@ -22,6 +25,7 @@ pub mod hashdb;
 pub mod memorydb;
 pub mod math;
 pub mod filter;
+pub mod chainfilter;
 
 //pub mod network;
 
