@@ -81,7 +81,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 		for i in 0..self.index_size {
 			indexes.insert(BloomIndex {
 				level: new_level,
-				index: offset + i	
+				index: offset + i,
 			});
 		}
 
@@ -96,12 +96,12 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 	/// BitOr new bloom with all levels of filter
 	fn add_bloom(&self, bloom: &H2048, block_number: usize) -> HashMap<BloomIndex, H2048> {
 		let mut result: HashMap<BloomIndex, H2048> = HashMap::new();
-		
+
 		for level in 0..self.levels {
-			let bloom_index = self.bloom_index(block_number, level); 
+			let bloom_index = self.bloom_index(block_number, level);
 			let new_bloom = match self.data_source.bloom_at_index(&bloom_index) {
 				Some(old_bloom) => old_bloom | bloom,
-				None => bloom.clone()
+				None => bloom.clone(),
 			};
 
 			result.insert(bloom_index, new_bloom);
@@ -122,18 +122,18 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 				let is_new_bloom = match result.get_mut(&bloom_index) {
 
 					// it was already modified
-					Some(to_shift) => { 
+					Some(to_shift) => {
 						*to_shift = &blooms[i] | to_shift;
 						false
-					},
-					None => true
+					}
+					None => true,
 				};
 
 				// it hasn't been modified yet
 				if is_new_bloom {
 					let new_bloom = match self.data_source.bloom_at_index(&bloom_index) {
 						Some(old_bloom) => old_bloom | &blooms[i],
-						None => blooms[i].clone()
+						None => blooms[i].clone(),
 					};
 					result.insert(bloom_index, new_bloom);
 				}
@@ -149,16 +149,16 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 
 		let mut reset_index = self.bloom_index(block_number, 0);
 		result.insert(reset_index.clone(), bloom.clone());
-		
+
 		for level in 1..self.levels {
 			let index = self.bloom_index(block_number, level);
 			let lower_indexes = self.lower_level_bloom_indexes(&index);
 			let new_bloom = lower_indexes.into_iter()
-				.filter(|li| li != &reset_index)
-				.map(|li| self.data_source.bloom_at_index(&li))
-				.filter_map(|b| b)
-				.fold(H2048::new(), | acc, bloom | { &acc | bloom });
-			
+			                             .filter(|li| li != &reset_index)
+			                             .map(|li| self.data_source.bloom_at_index(&li))
+			                             .filter_map(|b| b)
+			                             .fold(H2048::new(), |acc, bloom| &acc | bloom);
+
 			reset_index = index.clone();
 			result.insert(index, &new_bloom | bloom);
 		}
@@ -172,7 +172,11 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 	}
 
 	/// returns numbers of blocks that may contain Address
-	fn blocks_with_address(&self, address: &Address, from_block: usize ,to_block: usize) -> Vec<usize> {
+	fn blocks_with_address(&self,
+	                       address: &Address,
+	                       from_block: usize,
+	                       to_block: usize)
+	                       -> Vec<usize> {
 		let mut bloom = H2048::new();
 		bloom.shift_bloom(&address.sha3());
 		self.blocks_with_bloom(&bloom, from_block, to_block)
@@ -254,7 +258,7 @@ mod tests {
 		assert_eq!(bi.level, 2);
 		assert_eq!(bi.index, 1);
 
-		let mut ebis = HashSet::with_capacity(16); 
+		let mut ebis = HashSet::with_capacity(16);
 		for i in 16..32 {
 			ebis.insert(BloomIndex::new(1, i));
 		}
