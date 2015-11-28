@@ -5,6 +5,7 @@ use filter::*;
 use sha3::*;
 use num::pow;
 
+/// in memory cache for blooms
 pub struct MemoryCache {
 	blooms: HashMap<BloomIndex, H2048>,
 }
@@ -16,7 +17,7 @@ impl MemoryCache {
 
 	/// inserts all blooms into cache
 	/// 
-	/// TODO: verify if extend update old items
+	/// if bloom at given index already exists, overwrites it
 	pub fn insert_blooms(&mut self, blooms: HashMap<BloomIndex, H2048>) {
 		self.blooms.extend(blooms);
 	}
@@ -28,6 +29,7 @@ impl FilterDataSource for MemoryCache {
 	}
 }
 
+/// Should be used to find blocks in FilterDataSource
 pub struct ChainFilter<'a, D>
 	where D: FilterDataSource + 'a
 {
@@ -101,7 +103,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 
 	/// internal function which actually does bloom search
 	/// TODO: optimize it, maybe non-recursive version?
-	/// TODO2: clean up?
+	/// TODO: clean up?
 	fn blocks(&self, bloom: &H2048, from_block: usize, to_block: usize, level: u8, offset: usize) -> Vec<usize> {
 		let mut result = vec![];
 		let index = self.bloom_index(offset, level);
@@ -263,7 +265,6 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 
 #[cfg(test)]
 mod tests {
-	use std::collections::{HashMap};
 	use hash::*;
 	use filter::*;
 	use chainfilter::*;
@@ -336,7 +337,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_basic_search() {
+	fn test_topic_basic_search() {
 		let index_size = 16;
 		let bloom_levels = 3;
 
@@ -358,9 +359,27 @@ mod tests {
 		{
 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 			let blocks = filter.blocks_with_topics(&topic, 0, 100);
-			println!("{:?}", blocks);
-			assert!(false);
+			assert_eq!(blocks.len(), 1);
+			assert_eq!(blocks[0], 23);
 		}
 
+		{
+			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+			let blocks = filter.blocks_with_topics(&topic, 0, 23);
+			assert_eq!(blocks.len(), 0);
+		}
+
+		{
+			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+			let blocks = filter.blocks_with_topics(&topic, 23, 24);
+			assert_eq!(blocks.len(), 1);
+			assert_eq!(blocks[0], 23);
+		}
+
+		{
+			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+			let blocks = filter.blocks_with_topics(&topic, 24, 100);
+			assert_eq!(blocks.len(), 0);
+		}
 	}
 }
