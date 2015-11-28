@@ -4,6 +4,7 @@ use hash::*;
 use bytes::*;
 use sha3::*;
 use hashdb::*;
+use std::mem;
 use std::collections::HashMap;
 
 #[derive(Debug,Clone)]
@@ -85,19 +86,19 @@ impl MemoryDB {
 		for empty in empties { self.data.remove(&empty); }
 	}
 
-	/// Grab the number of references a particular `key` has. Returns None if the key
-	/// doesn't exist.
-	fn refs(&self, key: &H256) -> Option<i32> {
-		self.data.get(key).map(|&(_, rc)| rc)
-	}
-
-	/// Grab the value associated with a particular `key`. Returns None if the key
+	/// Grab the raw information associated with a key. Returns None if the key
 	/// doesn't exist.
 	///
-	/// Even when Some is returned, this is only guaranteed to return something useful
-	/// when `refs(key) > 0`.
-	fn value(&self, key: &H256) -> Option<&Bytes> {
-		self.data.get(key).map(|&(ref d, _)| d)
+	/// Even when Some is returned, the data is only guaranteed to be useful
+	/// when the refs > 0.
+	pub fn raw(&self, key: &H256) -> Option<&(Bytes, i32)> {
+		self.data.get(key)
+	}
+
+	pub fn drain(&mut self) -> HashMap<H256, (Bytes, i32)> {
+		let mut data = HashMap::new();
+		mem::swap(&mut self.data, &mut data);
+		data
 	}
 }
 
