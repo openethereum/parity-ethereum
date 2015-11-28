@@ -92,8 +92,27 @@ impl OverlayDB {
 		Ok(ret)
 	}
 
-	/// Revert all changes though `insert()` and `kill()` to this object since the
+	/// Revert all operations on this object (i.e. `insert()`s and `kill()`s) since the
 	/// last `commit()`.
+	///
+	/// # Example
+	/// ```
+	/// extern crate ethcore_util;
+	/// use ethcore_util::hashdb::*;
+	/// use ethcore_util::overlaydb::*;
+	/// fn main() {
+	///   let mut m = OverlayDB::new_temp();
+	///   let foo = m.insert(b"foo");	// insert foo.
+	///   m.commit().unwrap();			// commit - new operations begin here...
+	///   let bar = m.insert(b"bar");	// insert bar.
+	///   m.kill(&foo);					// kill foo.
+	///   assert!(!m.exists(&foo));		// foo is gone.
+	///   assert!(m.exists(&bar));		// bar is here.
+	///   m.revert();					// revert the last two operations.
+	///   assert!(m.exists(&foo));		// foo is here.
+	///   assert!(!m.exists(&bar));		// bar is gone.
+	/// }
+	/// ```
 	pub fn revert(&mut self) { self.overlay.clear(); }
 
 	/// Get the refs and value of the given key.
