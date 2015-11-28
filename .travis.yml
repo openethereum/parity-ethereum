@@ -20,8 +20,8 @@ before_script:
         #sudo make install
         #cd ..
       #else
-        brew update
-        brew install rocksdb
+    - brew update
+    - brew install rocksdb
       #fi
 
 after_success:
