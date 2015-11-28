@@ -105,40 +105,37 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	/// TODO: optimize it, maybe non-recursive version?
 	/// TODO: clean up?
 	fn blocks(&self, bloom: &H2048, from_block: usize, to_block: usize, level: u8, offset: usize) -> Vec<usize> {
-		let mut result = vec![];
 		let index = self.bloom_index(offset, level);
 
-		match self.data_source.bloom_at_index(&index) {
-			None => (),
+		let contains = match self.data_source.bloom_at_index(&index) {
+			None => false,
 			Some(level_bloom) => match level {
-				0 => {
-					// to_block exclusive
-					if offset < to_block {
-						result.push(offset);
-					}
-				},
-				_ => match level_bloom.contains(bloom) {
-					false => (),
-					true => {
-						let level_size = self.level_size(level - 1);
-						let from_index = self.bloom_index(from_block, level - 1);
-						let to_index = self.bloom_index(to_block, level - 1);
-						let res: Vec<usize> = self.lower_level_bloom_indexes(&index).into_iter()
-							// chose only blooms in range
-							.filter(|li| li.index >= from_index.index && li.index <= to_index.index)
-							// map them to offsets
-							.map(|li| li.index * level_size)
-							// get all blocks that may contain our bloom
-							.map(|off| self.blocks(bloom, from_block, to_block, level - 1, off))
-							// flatten nested structure
-							.flat_map(|v| v)
-							.collect();
-						return res
-					}
-				}
+				// if we are on the lowest level
+				// take the value, exclude to_block
+				0 if offset < to_block => return vec![offset],
+				0 => false,
+				_ => level_bloom.contains(bloom)
 			}
+		};
+
+		if contains {
+			let level_size = self.level_size(level - 1);
+			let from_index = self.bloom_index(from_block, level - 1);
+			let to_index = self.bloom_index(to_block, level - 1);
+			let res: Vec<usize> = self.lower_level_bloom_indexes(&index).into_iter()
+				// chose only blooms in range
+				.filter(|li| li.index >= from_index.index && li.index <= to_index.index)
+				// map them to offsets
+				.map(|li| li.index * level_size)
+				// get all blocks that may contain our bloom
+				.map(|off| self.blocks(bloom, from_block, to_block, level - 1, off))
+				// flatten nested structure
+				.flat_map(|v| v)
+				.collect();
+			return res
 		}
-		result
+
+		return vec![];
 	}
 }
 
