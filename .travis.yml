@@ -1,5 +1,12 @@
 language: rust
 
+rust:
+    - 1.4.0
+
+os:
+    - linux
+    #- osx
+
 before_script:
     # g++4.8 for C++11 which is required by rocksdb
     - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -9,7 +16,7 @@ before_script:
 
     - wget https://github.com/facebook/rocksdb/archive/rocksdb-3.13.tar.gz
     - tar xvf rocksdb-3.13.tar.gz && cd rocksdb-rocksdb-3.13 && make shared_lib
-    - make install
+    - sudo make install
     - cd ..
 
 after_success:
