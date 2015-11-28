@@ -1,5 +1,3 @@
-#![feature(concat_idents)]
-
 use rustc_serialize::hex::*;
 
 #[derive(Debug)]
@@ -27,7 +25,8 @@ impl From<BaseDataError> for EthcoreError {
 }
 
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
-/*macro_rules! assimilate {
+/*#![feature(concat_idents)]
+macro_rules! assimilate {
     ($name:ident) => (
 		impl From<concat_idents!($name, Error)> for EthcoreError {
 			fn from(err: concat_idents!($name, Error)) -> EthcoreError {

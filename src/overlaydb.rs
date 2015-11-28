@@ -3,7 +3,6 @@
 use error::*;
 use hash::*;
 use bytes::*;
-use sha3::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
@@ -19,26 +18,30 @@ pub struct OverlayDB {
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	fn new(backing: DB) -> OverlayDB {
+	pub fn new(backing: DB) -> OverlayDB {
 		OverlayDB{ overlay: MemoryDB::new(), backing: Arc::new(backing) }
 	}
 
 	/// Commit all memory operations to the backing database. 
-	fn commit(&mut self) -> Result<u32, EthcoreError> {
+	pub fn commit(&mut self) -> Result<u32, EthcoreError> {
 		let mut ret = 0u32;
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
 			if rc != 0 {
-				let new_entry = match self.payload(&key) {
+				match self.payload(&key) {
 					Some(x) => {
 						let (back_value, back_rc) = x;
-						if back_rc + rc < 0 {
+						let total_rc: i32 = back_rc as i32 + rc;
+						if total_rc < 0 {
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
-						self.put_payload(&key, (back_value, rc + back_rc));
+						self.put_payload(&key, (back_value, total_rc as u32));
 					}
 					None => {
-						self.put_payload(&key, (value, rc));
+						if rc < 0 {
+							return Err(From::from(BaseDataError::NegativelyReferencedHash));
+						}
+						self.put_payload(&key, (value, rc as u32));
 					}
 				};
 				ret += 1;
@@ -48,21 +51,21 @@ impl OverlayDB {
 	}
 
 	/// Get the refs and value of the given key.
-	fn payload(&self, key: &H256) -> Option<(Bytes, i32)> {
-		db.get(&key.bytes())
+	fn payload(&self, key: &H256) -> Option<(Bytes, u32)> {
+		self.backing.get(&key.bytes())
 			.expect("Low-level database error. Some issue with your hard disk?")
 			.map(|d| {
-				Rlp r(d.deref());
-				r(Bytes, i32)
+				let r = Rlp::new(d.deref());
+				(Bytes::decode(&r.at(1).unwrap()).unwrap(), u32::decode(&r.at(0).unwrap()).unwrap())
 			})
 	}
 
 	/// Get the refs and value of the given key.
-	fn put_payload(&self, key: &H256, payload: (Bytes, i32)) {
+	fn put_payload(&self, key: &H256, payload: (Bytes, u32)) {
 		let mut s = RlpStream::new_list(2);
-		s.append(payload.1);
-		s.append(payload.0);
-		backing.put(&key.bytes(), &s.out().unwrap());
+		s.append(&payload.1);
+		s.append(&payload.0);
+		self.backing.put(&key.bytes(), &s.out().unwrap()).expect("Low-level database error. Some issue with your hard disk?");
 	}
 }
 
@@ -78,7 +81,7 @@ impl HashDB for OverlayDB {
 				match self.payload(key) {
 					Some(x) => {
 						let (d, rc) = x;
-						if rc + memrc > 0 {
+						if rc as i32 + memrc > 0 {
 							Some(d)
 						}
 						else {
@@ -97,13 +100,13 @@ impl HashDB for OverlayDB {
 		// it positive again.
 		let k = self.overlay.raw(key);
 		match k {
-			Some(&(ref d, rc)) if rc > 0 => true,
+			Some(&(_, rc)) if rc > 0 => true,
 			_ => {
 				let memrc = k.map(|&(_, rc)| rc).unwrap_or(0);
 				match self.payload(key) {
 					Some(x) => {
-						let (d, rc) = x;
-						if rc + memrc > 0 {
+						let (_, rc) = x;
+						if rc as i32 + memrc > 0 {
 							true
 						}
 						else {

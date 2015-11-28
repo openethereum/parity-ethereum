@@ -50,10 +50,10 @@
 //! }
 //! 
 //! fn decode_list() {
-//!		// ["cat", "dog"]
-//!		let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
-//!		let rlp = Rlp::new(&data);
-//!		let _ : Vec<String> = Decodable::decode(&rlp).unwrap();
+//!     // ["cat", "dog"]
+//!     let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+//!     let rlp = Rlp::new(&data);
+//!     let _ : Vec<String> = Decodable::decode(&rlp).unwrap();
 //! }
 //! 
 //! fn decode_list2() {
