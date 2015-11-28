@@ -12,6 +12,14 @@ use std::env;
 use rocksdb::{DB, Writable};
 
 #[derive(Clone)]
+/// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
+///
+/// The operations `insert()` and `kill()` take place on the memory overlay; batches of
+/// such operations may be flushed to the disk-backed DB with `commit()` or discarded with
+/// `revert()`.
+///
+/// `lookup()` and `exists()` maintain normal behaviour - all `insert()` and `kill()` 
+/// queries have an immediate effect in terms of these functions.
 pub struct OverlayDB {
 	overlay: MemoryDB,
 	backing: Arc<DB>,
@@ -30,7 +38,33 @@ impl OverlayDB {
 		Self::new(DB::open_default(dir.to_str().unwrap()).unwrap())
 	}
 
-	/// Commit all memory operations to the backing database. 
+	/// Commit all memory operations to the backing database.
+	///
+	/// Returns either an error or the number of items changed in the backing database.
+	/// 
+	/// Will return an error if the number of `kill()`s ever exceeds the number of
+	/// `insert()`s for any key. This will leave the database in an undeterminate
+	/// state. Don't ever let it happen.
+	///
+	/// # Example
+	/// ```
+	/// extern crate ethcore_util;
+	/// use ethcore_util::hashdb::*;
+	/// use ethcore_util::overlaydb::*;
+	/// fn main() {
+	///   let mut m = OverlayDB::new_temp();
+	///   let key = m.insert(b"foo");			// insert item.
+	///   assert!(m.exists(&key));				// key exists (in memory).
+	///   assert_eq!(m.commit().unwrap(), 1);	// 1 item changed.
+	///   assert!(m.exists(&key));				// key still exists (in backing).
+	///   m.kill(&key);							// delete item.
+	///   assert!(!m.exists(&key));				// key "doesn't exist" (though still does in backing).
+	///   m.kill(&key);							// oh dear... more kills than inserts for the key...
+	///   //m.commit().unwrap();				// this commit/unwrap would cause a panic.
+	///   m.revert();							// revert both kills.
+	///   assert!(m.exists(&key));				// key now still exists.
+	/// }
+	/// ```
 	pub fn commit(&mut self) -> Result<u32, EthcoreError> {
 		let mut ret = 0u32;
 		for i in self.overlay.drain().into_iter() {
@@ -58,6 +92,8 @@ impl OverlayDB {
 		Ok(ret)
 	}
 
+	/// Revert all changes though `insert()` and `kill()` to this object since the
+	/// last `commit()`.
 	pub fn revert(&mut self) { self.overlay.clear(); }
 
 	/// Get the refs and value of the given key.
