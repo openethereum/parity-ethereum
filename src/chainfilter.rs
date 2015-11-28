@@ -214,13 +214,13 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 			let lower_indexes = self.lower_level_bloom_indexes(&index);
 			let new_bloom = lower_indexes.into_iter()
 										 // skip reseted one
-			                             .filter(|li| li != &reset_index)
+										 .filter(|li| li != &reset_index)
 										 // get blooms for these indexes
-			                             .map(|li| self.data_source.bloom_at_index(&li))
+										 .map(|li| self.data_source.bloom_at_index(&li))
 										 // filter existing ones
-			                             .filter_map(|b| b)
+										 .filter_map(|b| b)
 										 // BitOr all of them
-			                             .fold(H2048::new(), |acc, bloom| &acc | bloom);
+										 .fold(H2048::new(), |acc, bloom| &acc | bloom);
 
 			reset_index = index.clone();
 			result.insert(index, &new_bloom | bloom);
@@ -235,11 +235,7 @@ impl<'a, D> Filter for ChainFilter<'a, D> where D: FilterDataSource
 	}
 
 	/// returns numbers of blocks that may contain Address
-	fn blocks_with_address(&self,
-	                       address: &Address,
-	                       from_block: usize,
-	                       to_block: usize)
-	                       -> Vec<usize> {
+	fn blocks_with_address(&self, address: &Address, from_block: usize, to_block: usize) -> Vec<usize> {
 		let mut bloom = H2048::new();
 		bloom.shift_bloom(&address.sha3());
 		self.blocks_with_bloom(&bloom, from_block, to_block)
