@@ -17,7 +17,7 @@ pub trait HashDB {
 	///   assert_eq!(m.lookup(&hash).unwrap(), hello_bytes);
 	/// }
 	/// ```
-	fn lookup(&self, key: &H256) -> Option<Bytes>;
+	fn lookup(&self, key: &H256) -> Option<&[u8]>;
 
 	/// Check for the existance of a hash-key.
 	///

@@ -8,6 +8,7 @@ use hashdb::*;
 use memorydb::*;
 use std::ops::*;
 use std::sync::*;
+use std::cell::*;
 use std::env;
 use rocksdb::{DB, Writable};
 
@@ -135,19 +136,19 @@ impl OverlayDB {
 }
 
 impl HashDB for OverlayDB {
-	fn lookup(&self, key: &H256) -> Option<Bytes> {
+	fn lookup(&self, key: &H256) -> Option<&[u8]> {
 		// return ok if positive; if negative, check backing - might be enough references there to make
 		// it positive again.
 		let k = self.overlay.raw(key);
 		match k {
-			Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
+			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => {
 				let memrc = k.map(|&(_, rc)| rc).unwrap_or(0);
 				match self.payload(key) {
 					Some(x) => {
 						let (d, rc) = x;
 						if rc as i32 + memrc > 0 {
-							Some(d)
+							Some(&self.overlay.denote(key, d).0)
 						}
 						else {
 							None
@@ -193,7 +194,7 @@ impl HashDB for OverlayDB {
 fn overlaydb_overlay_insert_and_kill() {
 	let mut trie = OverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
-	assert_eq!(trie.lookup(&h), Some(b"hello world".to_vec()));
+	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
 	trie.kill(&h);
 	assert_eq!(trie.lookup(&h), None);
 }
@@ -202,11 +203,11 @@ fn overlaydb_overlay_insert_and_kill() {
 fn overlaydb_backing_insert_revert() {
 	let mut trie = OverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
-	assert_eq!(trie.lookup(&h), Some(b"hello world".to_vec()));
+	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&h), Some(b"hello world".to_vec()));
+	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
 	trie.revert();
-	assert_eq!(trie.lookup(&h), Some(b"hello world".to_vec()));
+	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
 }
 
 #[test]
@@ -230,7 +231,7 @@ fn overlaydb_backing_kill_revert() {
 	trie.kill(&h);
 	assert_eq!(trie.lookup(&h), None);
 	trie.revert();
-	assert_eq!(trie.lookup(&h), Some(b"hello world".to_vec()));
+	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
 }
 
 #[test]
@@ -248,29 +249,29 @@ fn overlaydb_negative() {
 fn overlaydb_complex() {
 	let mut trie = OverlayDB::new_temp();
 	let hfoo = trie.insert(b"foo");
-	assert_eq!(trie.lookup(&hfoo), Some(b"foo".to_vec()));
+	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
 	let hbar = trie.insert(b"bar");
-	assert_eq!(trie.lookup(&hbar), Some(b"bar".to_vec()));
+	assert_eq!(trie.lookup(&hbar).unwrap(), b"bar");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&hfoo), Some(b"foo".to_vec()));
-	assert_eq!(trie.lookup(&hbar), Some(b"bar".to_vec()));
+	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
+	assert_eq!(trie.lookup(&hbar).unwrap(), b"bar");
 	trie.insert(b"foo");	// two refs
-	assert_eq!(trie.lookup(&hfoo), Some(b"foo".to_vec()));
+	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&hfoo), Some(b"foo".to_vec()));
-	assert_eq!(trie.lookup(&hbar), Some(b"bar".to_vec()));
+	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
+	assert_eq!(trie.lookup(&hbar).unwrap(), b"bar");
 	trie.kill(&hbar);		// zero refs - delete
 	assert_eq!(trie.lookup(&hbar), None);
 	trie.kill(&hfoo);		// one ref - keep
-	assert_eq!(trie.lookup(&hfoo), Some(b"foo".to_vec()));
+	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&hfoo), Some(b"foo".to_vec()));
+	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
 	trie.kill(&hfoo);		// zero ref - would delete, but...
 	assert_eq!(trie.lookup(&hfoo), None);
 	trie.insert(b"foo");	// one ref - keep after all.
-	assert_eq!(trie.lookup(&hfoo), Some(b"foo".to_vec()));
+	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&hfoo), Some(b"foo".to_vec()));
+	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
 	trie.kill(&hfoo);		// zero ref - delete
 	assert_eq!(trie.lookup(&hfoo), None);
 	trie.commit().unwrap();	// 
