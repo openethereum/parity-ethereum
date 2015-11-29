@@ -1,5 +1,4 @@
 use hash::*;
-use bytes::Bytes;
 
 pub trait HashDB {
 	/// Look up a given hash into the bytes that hash to it, returning None if the 

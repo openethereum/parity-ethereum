@@ -104,9 +104,8 @@ impl MemoryDB {
 	pub fn denote(&self, key: &H256, value: Bytes) -> &(Bytes, i32) {
 		if self.data.get(&key) == None {
 			unsafe {
-				let p = &self.data as *const HashMap<H256, (Bytes, i32)>;
-				let mp = p as *mut HashMap<H256, (Bytes, i32)>;
-				(*mp).insert(key.clone(), (value, 0));
+				let p = &self.data as *const HashMap<H256, (Bytes, i32)> as *mut HashMap<H256, (Bytes, i32)>;
+				(*p).insert(key.clone(), (value, 0));
 			}
 		}
 		self.data.get(key).unwrap()
@@ -161,7 +160,7 @@ fn memorydb_denote() {
 	let hash = m.insert(hello_bytes);
 	assert_eq!(m.lookup(&hash).unwrap(), b"Hello world!");
 
-	for i in 0..1000 {
+	for _ in 0..1000 {
 		let r = H256::random();
 		let k = r.sha3();
 		let &(ref v, ref rc) = m.denote(&k, r.bytes().to_vec());

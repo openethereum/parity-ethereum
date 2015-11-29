@@ -8,7 +8,6 @@ use hashdb::*;
 use memorydb::*;
 use std::ops::*;
 use std::sync::*;
-use std::cell::*;
 use std::env;
 use rocksdb::{DB, Writable};
 
