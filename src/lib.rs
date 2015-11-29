@@ -33,6 +33,7 @@ pub mod overlaydb;
 pub mod math;
 pub mod chainfilter;
 pub mod crypto;
+pub mod triehash;
 
 //pub mod network;
 
