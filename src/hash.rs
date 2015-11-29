@@ -1,7 +1,8 @@
 use std::str::FromStr;
 use std::fmt;
+use std::ops;
 use std::hash::{Hash, Hasher};
-use std::ops::{Index, IndexMut, BitOr, BitAnd};
+use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitAnd};
 use rustc_serialize::hex::*;
 use error::EthcoreError;
 use rand::Rng;
@@ -16,6 +17,8 @@ pub trait FixedHash: Sized + BytesConvertable {
 	fn randomize(&mut self);
 	fn size() -> usize;
 	fn mut_bytes(&mut self) -> &mut [u8];
+	fn from_slice(src: &[u8]) -> Self;
+	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
 	fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
 	fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash;
@@ -25,11 +28,29 @@ pub trait FixedHash: Sized + BytesConvertable {
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
-		pub struct $from ([u8; $size]);
+		pub struct $from (pub [u8; $size]);
 
 		impl BytesConvertable for $from {
 			fn bytes(&self) -> &[u8] {
 				&self.0
+			}
+		}
+
+		impl Deref for $from {
+			type Target = [u8];
+			#[inline]
+			fn deref(&self) -> &[u8] {
+				unsafe {
+					::std::slice::from_raw_parts(self.0.as_ptr(), $size)
+				}
+			}
+		}
+		impl DerefMut for $from {
+			#[inline]
+			fn deref_mut(&mut self) -> &mut [u8] {
+				unsafe {
+					::std::slice::from_raw_parts_mut(self.0.as_mut_ptr(), $size)
+				}
 			}
 		}
 
@@ -55,6 +76,23 @@ macro_rules! impl_hash {
 
 			fn mut_bytes(&mut self) -> &mut [u8] {
 				&mut self.0
+			}
+
+			// TODO: remove once slice::clone_from_slice is stable
+			#[inline]
+			fn clone_from_slice(&mut self, src: &[u8]) -> usize {
+				let min = ::std::cmp::min($size, src.len());
+				let dst = &mut self.deref_mut()[.. min];
+				let src = &src[.. min];
+				for i in 0..min {
+					dst[i] = src[i];
+				}
+				min
+			}
+			fn from_slice(src: &[u8]) -> Self {
+				let mut r = Self::new();
+				r.clone_from_slice(src);
+				r
 			}
 
 			fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
@@ -184,6 +222,30 @@ macro_rules! impl_hash {
 		impl IndexMut<usize> for $from {
 			fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut u8 {
 				&mut self.0[index]
+			}
+		}
+		impl Index<ops::Range<usize>> for $from {
+			type Output = [u8];
+
+			fn index<'a>(&'a self, index: ops::Range<usize>) -> &'a [u8] {
+				&self.0[index]
+			}
+		}
+		impl IndexMut<ops::Range<usize>> for $from {
+			fn index_mut<'a>(&'a mut self, index: ops::Range<usize>) -> &'a mut [u8] {
+				&mut self.0[index]
+			}
+		}
+		impl Index<ops::RangeFull> for $from {
+			type Output = [u8];
+
+			fn index<'a>(&'a self, _index: ops::RangeFull) -> &'a [u8] {
+				&self.0
+			}
+		}
+		impl IndexMut<ops::RangeFull> for $from {
+			fn index_mut<'a>(&'a mut self, _index: ops::RangeFull) -> &'a mut [u8] {
+				&mut self.0
 			}
 		}
 

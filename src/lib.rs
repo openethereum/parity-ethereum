@@ -14,8 +14,13 @@ extern crate log;
 extern crate lazy_static;
 
 #[macro_use]
-pub mod macros;
+extern crate ifaces;
+extern crate time;
+extern crate crypto as rcrypto;
+extern crate secp256k1;
+extern crate arrayvec;
 
+pub mod macros;
 pub mod error;
 pub mod hash;
 pub mod uint;
@@ -28,9 +33,9 @@ pub mod hashdb;
 pub mod memorydb;
 pub mod overlaydb;
 pub mod math;
-//pub mod filter;
 pub mod chainfilter;
 pub mod trie;
+pub mod crypto;
 
 //pub mod network;
 
