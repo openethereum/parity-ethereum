@@ -4,7 +4,6 @@
 //use hash::*;
 //use rlp;
 
-///
 /// Hex-prefix Notation. First nibble has flags: oddness = 2^0 & termination = 2^1.
 ///
 /// The "termination marker" and "leaf-node" specifier are completely equivalent.
@@ -57,8 +56,8 @@
 ///	}
 /// ```
 ///  
-pub fn hex_prefix_encode(hex: &[u8], leaf: bool) -> Vec<u8> {
-	let inlen = hex.len();
+pub fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> Vec<u8> {
+	let inlen = nibbles.len();
 	let oddness_factor = inlen % 2;
 	// next even number divided by two
 	let reslen = (inlen + 2) >> 1;
@@ -68,7 +67,7 @@ pub fn hex_prefix_encode(hex: &[u8], leaf: bool) -> Vec<u8> {
 	let first_byte = {
 		let mut bits = ((inlen as u8 & 1) + (2 * leaf as u8)) << 4;
 		if oddness_factor == 1 {
-			bits += hex[0];
+			bits += nibbles[0];
 		}
 		bits
 	};
@@ -77,11 +76,33 @@ pub fn hex_prefix_encode(hex: &[u8], leaf: bool) -> Vec<u8> {
 
 	let mut offset = oddness_factor;	
 	while offset < inlen {
-		let byte = (hex[offset] << 4) + hex[offset + 1];
+		let byte = (nibbles[offset] << 4) + nibbles[offset + 1];
 		res.push(byte);
 		offset += 2;
 	}
 
+	res
+}
+
+/// Converts slice of bytes to nibbles.
+/// 
+/// ```rust
+///	extern crate ethcore_util as util;
+///	use util::triehash::*;
+///
+///	fn main () {
+///		let v = vec![0x31, 0x23, 0x45];
+///		let e = vec![3, 1, 2, 3, 4, 5];
+///		assert_eq!(as_nibbles(&v), e);
+///	}
+/// ```
+pub fn as_nibbles(bytes: &[u8]) -> Vec<u8> {
+	let mut res = vec![];
+	res.reserve(bytes.len() * 2);
+	for i in 0..bytes.len() {
+		res.push(bytes[i] >> 4);
+		res.push((bytes[i] << 4) >> 4);
+	}
 	res
 }
 
