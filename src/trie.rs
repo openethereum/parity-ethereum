@@ -17,10 +17,10 @@ pub trait Trie {
 	fn is_empty(&self) -> bool { *self.root() == SHA3_NULL_RLP }
 
 	// TODO: consider returning &[u8]...
-/*	fn at(key: &[u8]) -> Option<Bytes>;
+	fn contains(key: &[u8]) -> bool;
+	fn at(key: &[u8]) -> Option<&[u8]>;
 	fn insert(key: &[u8], value: &[u8]);
 	fn remove(key: &[u8]);
-	fn contains(key: &[u8]) -> bool;*/
 }
 
 pub struct TrieDB {
@@ -39,14 +39,28 @@ impl TrieDB {
 
 	pub fn db(&self) -> &HashDB { self.db.as_ref() }
 
-//	pub fn db_mut(&mut self) -> &mut HashDB { self.db.as }
-
 	fn insert_root(&mut self, root_data: &[u8]) { self.root = self.db.insert(root_data); }
 
 }
 
 impl Trie for TrieDB {
 	fn root(&self) -> &H256 { &self.root }
+
+	fn contains(_key: &[u8]) -> bool {
+		unimplemented!();
+	}
+
+	fn at(_key: &[u8]) -> Option<&[u8]> {
+		unimplemented!();
+	}
+
+	fn insert(_key: &[u8], _value: &[u8]) {
+		unimplemented!();
+	}
+
+	fn remove(_key: &[u8]) {
+		unimplemented!();
+	}
 }
 
 #[test]
