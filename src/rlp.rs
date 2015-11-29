@@ -446,7 +446,7 @@ impl RlpStream {
 		stream
 	}
 
-	/// apends value to the end of stream, chainable
+	/// Apends value to the end of stream, chainable.
 	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream
 		where E: Encodable
 	{
@@ -454,13 +454,13 @@ impl RlpStream {
 		object.encode(&mut self.encoder);
 
 		// if list is finished, prepend the length
-		self.try_to_finish();
+		self.try_to_finish(1);
 
 		// return chainable self
 		self
 	}
 
-	/// declare appending the list of given size
+	/// Declare appending the list of given size, chainable.
 	pub fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
 		// push new list
 		let position = self.encoder.bytes.len();
@@ -468,10 +468,22 @@ impl RlpStream {
 			0 => {
 				// we may finish, if the appended list len is equal 0
 				self.encoder.bytes.push(0xc0u8);
-				self.try_to_finish();
+				self.try_to_finish(1);
 			}
 			_ => self.unfinished_lists.push_back(ListInfo::new(position, len)),
 		}
+
+		// return chainable self
+		self
+	}
+
+	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
+	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a RlpStream {
+		// push raw items
+		self.encoder.bytes.extend(bytes);	
+
+		// try to finish and prepend the length
+		self.try_to_finish(item_count);
 
 		// return chainable self
 		self
@@ -491,11 +503,14 @@ impl RlpStream {
 	}
 
 	/// try to finish lists
-	fn try_to_finish(&mut self) -> () {
+	fn try_to_finish(&mut self, inserted_items: usize) -> () {
 		let should_finish = match self.unfinished_lists.back_mut() {
 			None => false,
 			Some(ref mut x) => {
-				x.current += 1;
+				x.current += inserted_items;
+				if x.current > x.max {
+					panic!("You cannot append more items then you expect!");
+				}
 				x.current == x.max
 			}
 		};
@@ -504,7 +519,7 @@ impl RlpStream {
 			let x = self.unfinished_lists.pop_back().unwrap();
 			let len = self.encoder.bytes.len() - x.position;
 			self.encoder.insert_list_len_at_pos(len, x.position);
-			self.try_to_finish();
+			self.try_to_finish(1);
 		}
 	}
 }

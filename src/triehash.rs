@@ -1,8 +1,11 @@
 //! Generete trie root
 
-//use std::collections::HashMap;
-//use hash::*;
-//use rlp;
+use std::collections::BTreeMap;
+use std::cmp;
+use hash::*;
+use sha3::*;
+use rlp;
+use rlp::RlpStream;
 
 /// Hex-prefix Notation. First nibble has flags: oddness = 2^0 & termination = 2^1.
 ///
@@ -104,6 +107,63 @@ pub fn as_nibbles(bytes: &[u8]) -> Vec<u8> {
 		res.push((bytes[i] << 4) >> 4);
 	}
 	res
+}
+
+struct NibblePair {
+	nibble: Vec<u8>,
+	data: Vec<u8>
+}
+
+pub fn ordered_trie_root(data: Vec<Vec<u8>>) -> H256 {
+	let vec: Vec<NibblePair> = data
+		// first put elements into btree to sort them by nibbles
+		// optimize it later
+		.into_iter()
+		.fold(BTreeMap::new(), | mut acc, vec | {
+			let len = acc.len();
+			acc.insert(as_nibbles(&rlp::encode(&len)), vec);
+			acc
+		})
+		// then move them to a vector
+		.into_iter()
+		.map(|(k, v)| NibblePair { nibble: k, data: v } )
+		.collect();
+
+	let out = match vec.len() {
+		0 => rlp::encode(&""),
+		_ => {
+			let mut stream = RlpStream::new();
+			hash256rlp(&vec, 0, &mut stream);
+			stream.out().unwrap()
+		}
+	};
+	
+	out.sha3()
+}
+
+fn shared_prefix_length<T>(v1: &[T], v2: &[T]) -> usize where T: Eq {
+	let len = cmp::min(v1.len(), v2.len());
+	(0..len).take_while(|&i| v1[i] == v2[i]).count()
+}
+
+fn hash256rlp(vec: &[NibblePair], pre_len: usize, stream: &mut RlpStream) {
+	match vec.len() {
+		0 => stream.append(&""),
+		1 => stream.append_list(2).append(&hex_prefix_encode(&vec[0].nibble, true)).append(&vec[0].data),
+		_ => {
+			let shared_prefix = vec.iter()
+				// skip first element
+				.skip(1)
+				// get minimum number of shared nibbles between first string and each successive
+				.fold(usize::max_value(), | acc, pair | cmp::min(shared_prefix_length(&vec[0].nibble, &pair.nibble), acc) );
+			//match shared_prefix > pre_len {
+
+				//true => hex_prefix_encode(&vec[0].nibble
+			//}
+			panic!();
+			
+		}
+	};
 }
 
 #[cfg(test)]
