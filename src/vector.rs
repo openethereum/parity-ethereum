@@ -1,4 +1,3 @@
-
 use std::ptr;
 
 pub trait InsertSlice<T> {
@@ -31,4 +30,7 @@ impl<T> InsertSlice<T> for Vec<T> {
             self.set_len(len + e_len);
         }
     }
+}
+
+pub trait SharedPreifx {
 }
