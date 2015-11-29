@@ -1,13 +1,14 @@
-//! UntrustedRlp serialization module
+//! Rlp serialization module
 //!
 //! Types implementing `Endocable` and `Decodable` traits
-//! can be easily coverted to and from rlp
+//! can be easily coverted to and from rlp.
+//! Trusted rlp should be decoded with `Rlp`, untrusted with `UntrustedRlp`.
 //!
 //! # Examples:
 //!
 //! ```rust
 //! extern crate ethcore_util;
-//! use ethcore_util::rlp::{UntrustedRlp, RlpStream, Decodable};
+//! use ethcore_util::rlp::{Rlp, UntrustedRlp, RlpStream, Decodable};
 //!
 //! fn encode_value() {
 //!		// 1029
@@ -35,11 +36,11 @@
 //!		assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
 //! }
 //!
-//! fn decode_untrusted_value() {
+//! fn decode_value() {
 //!		//  0x102456789abcdef
 //!		let data = vec![0x88, 0x10, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
-//!		let rlp = UntrustedRlp::new(&data);
-//!		let _ = u64::decode_untrusted(&rlp).unwrap();
+//!		let rlp = Rlp::new(&data);
+//!		let _ = u64::decode(&rlp);
 //! }
 //! 
 //! fn decode_untrusted_string() {
@@ -49,22 +50,22 @@
 //!		let _ = String::decode_untrusted(&rlp).unwrap();
 //! }
 //! 
-//! fn decode_untrusted_list() {
+//! fn decode_list() {
 //!     // ["cat", "dog"]
 //!     let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
-//!     let rlp = UntrustedRlp::new(&data);
-//!     let _ : Vec<String> = Decodable::decode_untrusted(&rlp).unwrap();
+//!     let rlp = Rlp::new(&data);
+//!     let _ : Vec<String> = Decodable::decode(&rlp);
 //! }
 //! 
-//! fn decode_untrusted_list2() {
+//! fn decode_list2() {
 //!		// [ [], [[]], [ [], [[]] ] ]
 //!		let data = vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0];
-//!		let rlp = UntrustedRlp::new(&data);
-//!		let _v0: Vec<u8> = Decodable::decode_untrusted(&rlp.at(0).unwrap()).unwrap();
-//!		let _v1: Vec<Vec<u8>> = Decodable::decode_untrusted(&rlp.at(1).unwrap()).unwrap();
-//!		let nested_rlp = rlp.at(2).unwrap();
-//!		let _v2a: Vec<u8> = Decodable::decode_untrusted(&nested_rlp.at(0).unwrap()).unwrap();
-//!		let _v2b: Vec<Vec<u8>> = Decodable::decode_untrusted(&nested_rlp.at(1).unwrap()).unwrap();
+//!		let rlp = Rlp::new(&data);
+//!		let _v0: Vec<u8> = Decodable::decode(&rlp.at(0));
+//!		let _v1: Vec<Vec<u8>> = Decodable::decode(&rlp.at(1));
+//!		let nested_rlp = rlp.at(2);
+//!		let _v2a: Vec<u8> = Decodable::decode(&nested_rlp.at(0));
+//!		let _v2b: Vec<Vec<u8>> = Decodable::decode(&nested_rlp.at(1));
 //! }
 //!
 //! fn main() {
@@ -72,10 +73,10 @@
 //!		encode_list();
 //!		encode_list2();
 //!
-//!		decode_untrusted_value();
+//!		decode_value();
 //!		decode_untrusted_string();
-//!		decode_untrusted_list();
-//!		decode_untrusted_list2();
+//!		decode_list();
+//!		decode_list2();
 //! }
 //! ```
 //!
