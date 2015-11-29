@@ -11,6 +11,9 @@ extern crate num;
 #[macro_use]
 extern crate log;
 #[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
 pub mod macros;
 
 pub mod error;
@@ -27,6 +30,7 @@ pub mod overlaydb;
 pub mod math;
 //pub mod filter;
 pub mod chainfilter;
+pub mod trie;
 
 //pub mod network;
 
