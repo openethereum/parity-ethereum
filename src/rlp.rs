@@ -456,9 +456,8 @@ impl RlpStream {
 	}
 
 	/// Apends value to the end of stream, chainable.
-	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream
-		where E: Encodable
-	{
+	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable + fmt::Debug {
+		//println!("append: {:?}", object);
 		// encode given value and add it at the end of the stream
 		object.encode(&mut self.encoder);
 
@@ -471,6 +470,7 @@ impl RlpStream {
 
 	/// Declare appending the list of given size, chainable.
 	pub fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
+		//println!("append_list: {}", len);
 		// push new list
 		let position = self.encoder.bytes.len();
 		match len {
@@ -488,6 +488,7 @@ impl RlpStream {
 
 	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
 	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
+		//println!("append_raw: {:?} len: {}, count: {}", bytes, bytes.len(), item_count);
 		// push raw items
 		self.encoder.bytes.extend(bytes);	
 
@@ -623,7 +624,7 @@ impl BasicEncoder {
 		match len {
 			0...55 => res.push(0xc0u8 + len as u8),
 			_ => {
-				res.push(0x7fu8 + len.to_bytes_len() as u8);
+				res.push(0xf7u8 + len.to_bytes_len() as u8);
 				res.extend(len.to_bytes());
 			}
 		};
@@ -658,8 +659,7 @@ impl Encoder for BasicEncoder {
 		}
 	}
 
-	fn emit_list<F>(&mut self, f: F) -> ()
-		where F: FnOnce(&mut Self) -> ()
+	fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> ()
 	{
 		// get len before inserting a list
 		let before_len = self.bytes.len();
@@ -889,6 +889,33 @@ mod tests {
 		stream.append_list(2).append_list(0).append_list(1).append_list(0);
 		let out = stream.out().unwrap();
 		assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
+	}
+
+	#[test]
+	fn rlp_stream_list2() {
+		let mut stream = RlpStream::new();
+		stream.append_list(17);
+		for _ in 0..17 {
+			stream.append(&"");
+		}
+		let out = stream.out().unwrap();
+		assert_eq!(out, vec![0xd1, 0x80, 0x80, 0x80, 0x80, 0x80,
+				   			 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]);
+	}
+
+	#[test]
+	fn rlp_stream_list3() {
+		let mut stream = RlpStream::new();
+		stream.append_list(17);
+
+		let mut res = vec![0xf8, 0x44];
+		for _ in 0..17 {
+			stream.append(&"aaa");
+			res.extend(vec![0x83, b'a', b'a', b'a']);
+		}
+		let out = stream.out().unwrap();
+		assert_eq!(out, res);
 	}
 
 	struct DTestPair<T>(T, Vec<u8>) where T: rlp::Decodable + fmt::Debug + cmp::Eq;

@@ -64,8 +64,22 @@ mod test {
 
 	#[test]
 	fn test_shared_prefix() {
+		let a = vec![1,2,3,4,5,6];
+		let b = vec![4,2,3,4,5,6];
+		assert_eq!(a.shared_prefix_len(&b), 0);
+	}
+
+	#[test]
+	fn test_shared_prefix2() {
 		let a = vec![1,2,3,3,5];
 		let b = vec![1,2,3];
 		assert_eq!(a.shared_prefix_len(&b), 3);
+	}
+	
+	#[test]
+	fn test_shared_prefix3() {
+		let a = vec![1,2,3,4,5,6];
+		let b = vec![1,2,3,4,5,6];
+		assert_eq!(a.shared_prefix_len(&b), 6);
 	}
 }

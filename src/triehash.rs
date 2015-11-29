@@ -139,6 +139,20 @@ impl NibblePair {
 	}
 }
 
+fn shared_nibble_prefix_len(vec: &[NibblePair]) -> usize {
+	if vec.len() == 0 {
+		return 0;
+	}
+
+	vec.iter()
+		// skip first element
+		.skip(1)
+		// get minimum number of shared nibbles between first and each successive
+		.fold(vec[0].nibble.len(), | acc, pair | { 
+			cmp::min(vec[0].nibble.shared_prefix_len(&pair.nibble), acc)
+		})
+}
+
 pub fn ordered_trie_root(data: Vec<Vec<u8>>) -> H256 {
 	let vec: Vec<NibblePair> = data
 		// first put elements into btree to sort them by nibbles
@@ -167,7 +181,6 @@ pub fn hash256(vec: &[NibblePair]) -> H256 {
 		}
 	};
 	
-	println!("out: {:?}", out);
 	out.sha3()
 }
 
@@ -182,13 +195,7 @@ fn hash256rlp(vec: &[NibblePair], pre_len: usize, stream: &mut RlpStream) {
 			stream.append(&vec[0].data);
 		},
 		_ => {
-			let shared_prefix = vec.iter()
-				// skip first element
-				.skip(1)
-				// get minimum number of shared nibbles between first and each successive
-				.fold(usize::max_value(), | acc, pair | { 
-					cmp::min(vec[0].nibble.shared_prefix_len(&pair.nibble), acc)
-				});
+			let shared_prefix = shared_nibble_prefix_len(vec);
 
 			match shared_prefix > pre_len {
 				true => {
@@ -199,12 +206,12 @@ fn hash256rlp(vec: &[NibblePair], pre_len: usize, stream: &mut RlpStream) {
 				false => {
 					stream.append_list(17);
 
-					// every nibble is longer then previous one
-					let iter = vec.iter()
-						// move to first element with len different then pre_len
-						.take_while(| pair | { pair.nibble.len() == pre_len });
-
-					let mut begin = iter.count();
+					// if first nibble len is equal to pre_len
+					// move forward
+					let mut begin = match pre_len == vec[0].nibble.len() {
+						true => 1,
+						false => 0
+					};
 
 					for i in 0..16 {
 						// cout how many successive elements have same next nibble
@@ -214,14 +221,14 @@ fn hash256rlp(vec: &[NibblePair], pre_len: usize, stream: &mut RlpStream) {
 							
 						match len {
 							0 => { stream.append(&""); },
-							_ => hash256aux(&vec[begin..begin + len], pre_len + 1, stream)
+							_ => hash256aux(&vec[begin..(begin + len)], pre_len + 1, stream)
 						}
 						begin += len;
 					}
 
 					match pre_len == vec[0].nibble.len() {
-						true => stream.append(&vec[0].data),
-						false => stream.append(&"")
+						true => { stream.append(&vec[0].data); } ,
+						false => { stream.append(&""); }
 					};
 				}
 			}
@@ -239,12 +246,47 @@ fn hash256aux(vec: &[NibblePair], pre_len: usize, stream: &mut RlpStream) {
 	};
 }
 
+
+#[test]
+fn test_shared_nibble_len() {
+	let len = shared_nibble_prefix_len(&vec![
+									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
+									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
+	]);
+
+	assert_eq!(len , 7);
+}
+
+#[test]
+fn test_shared_nibble_len2() {
+	let len = shared_nibble_prefix_len(&vec![
+									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
+									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
+									   NibblePair::new(vec![4, 1, 2, 3, 4, 5, 6], vec![])
+	]);
+
+	assert_eq!(len , 0);
+}
+
+#[test]
+fn test_shared_nibble_len3() {
+	let len = shared_nibble_prefix_len(&vec![
+									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
+									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
+									   NibblePair::new(vec![0, 1, 2, 4, 4, 5, 6], vec![])
+	]);
+
+	assert_eq!(len , 3);
+}
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use hash::*;
 	use triehash::*;
+
+
 
 	#[test]
 	fn empty_trie_root() {
@@ -263,8 +305,59 @@ mod tests {
 	}
 
 	#[test]
+	fn foo_trie_item() {
+
+		let v = vec![
+			NibblePair::new_raw(From::from("foo"),
+								From::from("bar")),
+			NibblePair::new_raw(From::from("food"),
+								From::from("bass"))
+		];
+		
+		assert_eq!(hash256(&v), H256::from_str("17beaa1648bafa633cda809c90c04af50fc8aed3cb40d16efbddee6fdf63c4c3").unwrap());
+	}
+
+	#[test]
+	fn dogs_trie_item() {
+
+		let v = vec![
+			NibblePair::new_raw(From::from("doe"),
+								From::from("reindeer")),
+
+			NibblePair::new_raw(From::from("dog"),
+								From::from("puppy")),
+
+			NibblePair::new_raw(From::from("dogglesworth"),
+								From::from("cat")),
+		];
+		
+		assert_eq!(hash256(&v), H256::from_str("8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3").unwrap());
+	}
+
+	#[test]
+	fn puppy_trie_items() {
+
+		let v = vec![
+			NibblePair::new_raw(From::from("do"),
+								From::from("verb")),
+
+			NibblePair::new_raw(From::from("dog"),
+								From::from("puppy")),
+
+			NibblePair::new_raw(From::from("doge"),
+								From::from("coin")),
+
+			NibblePair::new_raw(From::from("horse"),
+								From::from("stallion")),
+
+		];
+		
+		assert_eq!(hash256(&v), H256::from_str("5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84").unwrap());
+	}
+
+	#[test]
 	fn test_trie_root() {
-		let _v = vec![
+		let v = vec![
 			NibblePair::new_raw("0000000000000000000000000000000000000000000000000000000000000045".from_hex().unwrap(),
 								"22b224a1420a802ab51d326e29fa98e34c4f24ea".from_hex().unwrap()),
 
@@ -290,10 +383,9 @@ mod tests {
 								"697c7b8c961b56f675d570498424ac8de1a918f6".from_hex().unwrap())
 		];
 
-		let _root = H256::from_str("9f6221ebb8efe7cff60a716ecb886e67dd042014be444669f0159d8e68b42100").unwrap();
+		let root = H256::from_str("9f6221ebb8efe7cff60a716ecb886e67dd042014be444669f0159d8e68b42100").unwrap();
 
-		//let res = hash256(&v);
-		//println!("{:?}", res);
-		//assert_eq!(res, root);
+		let res = hash256(&v);
+		assert_eq!(res, root);
 	}
 }
