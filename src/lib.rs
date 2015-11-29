@@ -28,9 +28,8 @@ pub mod hashdb;
 pub mod memorydb;
 pub mod overlaydb;
 pub mod math;
-//pub mod filter;
 pub mod chainfilter;
-pub mod trie;
+//pub mod trie;
 
 //pub mod network;
 

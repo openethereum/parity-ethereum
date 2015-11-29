@@ -1,4 +1,4 @@
-//! Rlp serialization module
+//! UntrustedRlp serialization module
 //!
 //! Types implementing `Endocable` and `Decodable` traits
 //! can be easily coverted to and from rlp
@@ -7,7 +7,7 @@
 //!
 //! ```rust
 //! extern crate ethcore_util;
-//! use ethcore_util::rlp::{Rlp, RlpStream, Decodable};
+//! use ethcore_util::rlp::{UntrustedRlp, RlpStream, Decodable};
 //!
 //! fn encode_value() {
 //!		// 1029
@@ -38,28 +38,28 @@
 //! fn decode_value() {
 //!		//  0x102456789abcdef
 //!		let data = vec![0x88, 0x10, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
-//!		let rlp = Rlp::new(&data);
+//!		let rlp = UntrustedRlp::new(&data);
 //!		let _ = u64::decode(&rlp).unwrap();
 //! }
 //! 
 //! fn decode_string() {
 //!		// "cat"
 //!		let data = vec![0x83, b'c', b'a', b't'];
-//!		let rlp = Rlp::new(&data);
+//!		let rlp = UntrustedRlp::new(&data);
 //!		let _ = String::decode(&rlp).unwrap();
 //! }
 //! 
 //! fn decode_list() {
 //!     // ["cat", "dog"]
 //!     let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
-//!     let rlp = Rlp::new(&data);
+//!     let rlp = UntrustedRlp::new(&data);
 //!     let _ : Vec<String> = Decodable::decode(&rlp).unwrap();
 //! }
 //! 
 //! fn decode_list2() {
 //!		// [ [], [[]], [ [], [[]] ] ]
 //!		let data = vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0];
-//!		let rlp = Rlp::new(&data);
+//!		let rlp = UntrustedRlp::new(&data);
 //!		let _v0: Vec<u8> = Decodable::decode(&rlp.at(0).unwrap()).unwrap();
 //!		let _v1: Vec<Vec<u8>> = Decodable::decode(&rlp.at(1).unwrap()).unwrap();
 //!		let nested_rlp = rlp.at(2).unwrap();
@@ -89,7 +89,7 @@ use vector::InsertSlice;
 
 /// rlp container
 #[derive(Debug)]
-pub struct Rlp<'a> {
+pub struct UntrustedRlp<'a> {
 	bytes: &'a [u8],
 	cache: Cell<OffsetCache>,
 }
@@ -128,10 +128,10 @@ impl ItemInfo {
 #[derive(Debug, PartialEq, Eq)]
 pub enum DecoderError {
 	FromBytesError(FromBytesError),
-	RlpIsTooShort,
-	RlpExpectedToBeList,
-	RlpExpectedToBeValue,
-	BadRlp,
+	UntrustedRlpIsTooShort,
+	UntrustedRlpExpectedToBeList,
+	UntrustedRlpExpectedToBeValue,
+	BadUntrustedRlp,
 }
 impl StdError for DecoderError {
 	fn description(&self) -> &str {
@@ -155,31 +155,31 @@ impl From<FromBytesError> for DecoderError {
 /// 
 /// It assumes that you know what you are doing. Doesn't bother
 /// you with error handling.
-pub struct UntrustedRlp<'a> {
-	rlp: Rlp<'a>
-}
-
-impl<'a> From<Rlp<'a>> for UntrustedRlp<'a> {
-	fn from(rlp: Rlp<'a>) -> UntrustedRlp<'a> {
-		UntrustedRlp { rlp: rlp }
-	}
+pub struct Rlp<'a> {
+	rlp: UntrustedRlp<'a>
 }
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
-	fn from(unsafe_rlp: UntrustedRlp<'a>) -> Rlp<'a> {
+	fn from(rlp: UntrustedRlp<'a>) -> Rlp<'a> {
+		Rlp { rlp: rlp }
+	}
+}
+
+impl<'a> From<Rlp<'a>> for UntrustedRlp<'a> {
+	fn from(unsafe_rlp: Rlp<'a>) -> UntrustedRlp<'a> {
 		unsafe_rlp.rlp
 	}
 }
 
-impl<'a> UntrustedRlp<'a> {
-	/// returns new instance of `UntrustedRlp`
-	pub fn new(bytes: &'a [u8]) -> UntrustedRlp<'a> {
-		UntrustedRlp {
-			rlp: Rlp::new(bytes)
+impl<'a> Rlp<'a> {
+	/// returns new instance of `Rlp`
+	pub fn new(bytes: &'a [u8]) -> Rlp<'a> {
+		Rlp {
+			rlp: UntrustedRlp::new(bytes)
 		}
 	}
 
-	pub fn at(&self, index: usize) -> UntrustedRlp<'a> {
+	pub fn at(&self, index: usize) -> Rlp<'a> {
 		From::from(self.rlp.at(index).unwrap())
 	}
 
@@ -194,15 +194,15 @@ impl<'a> UntrustedRlp<'a> {
 	}
 
 	/// returns rlp iterator
-	pub fn iter(&'a self) -> RlpIterator<'a> {
+	pub fn iter(&'a self) -> UntrustedRlpIterator<'a> {
 		self.rlp.into_iter()
 	}
 }
 
-impl<'a> Rlp<'a> {
-	/// returns new instance of `Rlp`
-	pub fn new(bytes: &'a [u8]) -> Rlp<'a> {
-		Rlp {
+impl<'a> UntrustedRlp<'a> {
+	/// returns new instance of `UntrustedRlp`
+	pub fn new(bytes: &'a [u8]) -> UntrustedRlp<'a> {
+		UntrustedRlp {
 			bytes: bytes,
 			cache: Cell::new(OffsetCache::new(usize::max_value(), 0)),
 		}
@@ -211,28 +211,28 @@ impl<'a> Rlp<'a> {
 	/// get container subset at given index
 	///
 	/// paren container caches searched position
-	pub fn at(&self, index: usize) -> Result<Rlp<'a>, DecoderError> {
+	pub fn at(&self, index: usize) -> Result<UntrustedRlp<'a>, DecoderError> {
 		if !self.is_list() {
-			return Err(DecoderError::RlpExpectedToBeList);
+			return Err(DecoderError::UntrustedRlpExpectedToBeList);
 		}
 
 		// move to cached position if it's index is less or equal to
 		// current search index, otherwise move to beginning of list
 		let c = self.cache.get();
 		let (mut bytes, to_skip) = match c.index <= index {
-			true => (try!(Rlp::consume(self.bytes, c.offset)), index - c.index),
+			true => (try!(UntrustedRlp::consume(self.bytes, c.offset)), index - c.index),
 			false => (try!(self.consume_list_prefix()), index),
 		};
 
 		// skip up to x items
-		bytes = try!(Rlp::consume_items(bytes, to_skip));
+		bytes = try!(UntrustedRlp::consume_items(bytes, to_skip));
 
 		// update the cache
 		self.cache.set(OffsetCache::new(index, self.bytes.len() - bytes.len()));
 
 		// construct new rlp
-		let found = try!(Rlp::item_info(bytes));
-		Ok(Rlp::new(&bytes[0..found.prefix_len + found.value_len]))
+		let found = try!(UntrustedRlp::item_info(bytes));
+		Ok(UntrustedRlp::new(&bytes[0..found.prefix_len + found.value_len]))
 	}
 
 	/// returns true if rlp is a list
@@ -246,14 +246,14 @@ impl<'a> Rlp<'a> {
 	}
 
 	/// returns rlp iterator
-	pub fn iter(&'a self) -> RlpIterator<'a> {
+	pub fn iter(&'a self) -> UntrustedRlpIterator<'a> {
 		self.into_iter()
 	}
 
 	/// consumes first found prefix
 	fn consume_list_prefix(&self) -> Result<&'a [u8], DecoderError> {
-		let item = try!(Rlp::item_info(self.bytes));
-		let bytes = try!(Rlp::consume(self.bytes, item.prefix_len));
+		let item = try!(UntrustedRlp::item_info(self.bytes));
+		let bytes = try!(UntrustedRlp::consume(self.bytes, item.prefix_len));
 		Ok(bytes)
 	}
 
@@ -261,16 +261,18 @@ impl<'a> Rlp<'a> {
 	fn consume_items(bytes: &'a [u8], items: usize) -> Result<&'a [u8], DecoderError> {
 		let mut result = bytes;
 		for _ in 0..items {
-			let i = try!(Rlp::item_info(result));
-			result = try!(Rlp::consume(result, (i.prefix_len + i.value_len)));
+			let i = try!(UntrustedRlp::item_info(result));
+			result = try!(UntrustedRlp::consume(result, (i.prefix_len + i.value_len)));
 		}
 		Ok(result)
 	}
 
 	/// return first item info
+	///
+	/// TODO: move this to decoder?
 	fn item_info(bytes: &[u8]) -> Result<ItemInfo, DecoderError> {
 		let item = match bytes.first().map(|&x| x) {
-			None => return Err(DecoderError::RlpIsTooShort),
+			None => return Err(DecoderError::UntrustedRlpIsTooShort),
 			Some(0...0x7f) => ItemInfo::new(0, 1),
 			Some(l @ 0x80...0xb7) => ItemInfo::new(1, l as usize - 0x80),
 			Some(l @ 0xb8...0xbf) => {
@@ -286,12 +288,12 @@ impl<'a> Rlp<'a> {
 				let value_len = try!(usize::from_bytes(&bytes[1..prefix_len]));
 				ItemInfo::new(prefix_len, value_len)
 			}
-			_ => return Err(DecoderError::BadRlp),
+			_ => return Err(DecoderError::BadUntrustedRlp),
 		};
 
 		match item.prefix_len + item.value_len <= bytes.len() {
 			true => Ok(item),
-			false => Err(DecoderError::RlpIsTooShort),
+			false => Err(DecoderError::UntrustedRlpIsTooShort),
 		}
 	}
 
@@ -299,33 +301,33 @@ impl<'a> Rlp<'a> {
 	fn consume(bytes: &'a [u8], len: usize) -> Result<&'a [u8], DecoderError> {
 		match bytes.len() >= len {
 			true => Ok(&bytes[len..]),
-			false => Err(DecoderError::RlpIsTooShort),
+			false => Err(DecoderError::UntrustedRlpIsTooShort),
 		}
 	}
 }
 
 /// non-consuming rlp iterator
-pub struct RlpIterator<'a> {
-	rlp: &'a Rlp<'a>,
+pub struct UntrustedRlpIterator<'a> {
+	rlp: &'a UntrustedRlp<'a>,
 	index: usize,
 }
 
-impl<'a> IntoIterator for &'a Rlp<'a> {
-	type Item = Rlp<'a>;
-    type IntoIter = RlpIterator<'a>;
+impl<'a> IntoIterator for &'a UntrustedRlp<'a> {
+	type Item = UntrustedRlp<'a>;
+    type IntoIter = UntrustedRlpIterator<'a>;
 
 	fn into_iter(self) -> Self::IntoIter {
-		RlpIterator {
+		UntrustedRlpIterator {
 			rlp: self,
 			index: 0,
 		}
 	}
 }
 
-impl<'a> Iterator for RlpIterator<'a> {
-	type Item = Rlp<'a>;
+impl<'a> Iterator for UntrustedRlpIterator<'a> {
+	type Item = UntrustedRlp<'a>;
 
-	fn next(&mut self) -> Option<Rlp<'a>> {
+	fn next(&mut self) -> Option<UntrustedRlp<'a>> {
 		let index = self.index;
 		let result = self.rlp.at(index).ok();
 		self.index += 1;
@@ -333,34 +335,34 @@ impl<'a> Iterator for RlpIterator<'a> {
 	}
 }
 
-/// shortcut function to decode a Rlp `&[u8]` into an object
+/// shortcut function to decode a UntrustedRlp `&[u8]` into an object
 pub fn decode<T>(bytes: &[u8]) -> Result<T, DecoderError>
 	where T: Decodable
 {
-	let rlp = Rlp::new(bytes);
+	let rlp = UntrustedRlp::new(bytes);
 	T::decode(&rlp)
 }
 
 pub trait Decodable: Sized {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError>;
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError>;
 }
 
 impl<T> Decodable for T where T: FromBytes
 {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		match rlp.is_value() {
 			true => BasicDecoder::read_value(rlp.bytes),
-			false => Err(DecoderError::RlpExpectedToBeValue),
+			false => Err(DecoderError::UntrustedRlpExpectedToBeValue),
 		}
 	}
 }
 
 impl<T> Decodable for Vec<T> where T: Decodable
 {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		match rlp.is_list() {
 			true => rlp.iter().map(|rlp| T::decode(&rlp)).collect(),
-			false => Err(DecoderError::RlpExpectedToBeList),
+			false => Err(DecoderError::UntrustedRlpExpectedToBeList),
 		}
 	}
 }
@@ -377,7 +379,7 @@ impl Decoder for BasicDecoder {
 	{
 		match bytes.first().map(|&x| x) {
 			// rlp is too short
-			None => Err(DecoderError::RlpIsTooShort),
+			None => Err(DecoderError::UntrustedRlpIsTooShort),
 			// single byt value
 			Some(l @ 0...0x7f) => Ok(try!(T::from_bytes(&[l]))),
 			// 0-55 bytes
@@ -389,7 +391,7 @@ impl Decoder for BasicDecoder {
 				let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
 				Ok(try!(T::from_bytes(&bytes[begin_of_value..begin_of_value + len])))
 			}
-			_ => Err(DecoderError::BadRlp),
+			_ => Err(DecoderError::BadUntrustedRlp),
 		}
 	}
 }
@@ -497,7 +499,7 @@ impl RlpStream {
 	}
 }
 
-/// shortcut function to encode a `T: Encodable` into a Rlp `Vec<u8>`
+/// shortcut function to encode a `T: Encodable` into a UntrustedRlp `Vec<u8>`
 pub fn encode<E>(object: &E) -> Vec<u8>
 	where E: Encodable
 {
@@ -639,17 +641,16 @@ mod tests {
 	use std::{fmt, cmp};
 	use std::str::FromStr;
 	use rlp;
-	use rlp::{Rlp, RlpStream, Decodable};
+	use rlp::{UntrustedRlp, RlpStream, Decodable};
 	use uint::U256;
 
 	#[test]
 	fn rlp_at() {
 		let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 		{
-			let rlp = Rlp::new(&data);
+			let rlp = UntrustedRlp::new(&data);
 			assert!(rlp.is_list());
-			let animals =
-				<Vec<String> as rlp::Decodable>::decode(&rlp).unwrap();
+			let animals = <Vec<String> as rlp::Decodable>::decode(&rlp).unwrap();
 			assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
 
 			let cat = rlp.at(0).unwrap();
@@ -673,14 +674,14 @@ mod tests {
 	fn rlp_at_err() {
 		let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o'];
 		{
-			let rlp = Rlp::new(&data);
+			let rlp = UntrustedRlp::new(&data);
 			assert!(rlp.is_list());
 
 			let cat_err = rlp.at(0).unwrap_err();
-			assert_eq!(cat_err, rlp::DecoderError::RlpIsTooShort);
+			assert_eq!(cat_err, rlp::DecoderError::UntrustedRlpIsTooShort);
 
 			let dog_err = rlp.at(1).unwrap_err();
-			assert_eq!(dog_err, rlp::DecoderError::RlpIsTooShort);
+			assert_eq!(dog_err, rlp::DecoderError::UntrustedRlpIsTooShort);
 		}
 	}
 
@@ -688,7 +689,7 @@ mod tests {
 	fn rlp_iter() {
 		let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 		{
-			let rlp = Rlp::new(&data);
+			let rlp = UntrustedRlp::new(&data);
 			let mut iter = rlp.iter();
 
 			let cat = iter.next().unwrap();
