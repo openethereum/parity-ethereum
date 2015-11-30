@@ -83,10 +83,10 @@ impl ItemInfo {
 #[derive(Debug, PartialEq, Eq)]
 pub enum DecoderError {
 	FromBytesError(FromBytesError),
-	UntrustedRlpIsTooShort,
-	UntrustedRlpExpectedToBeList,
-	UntrustedRlpExpectedToBeValue,
-	BadUntrustedRlp,
+	RlpIsTooShort,
+	RlpExpectedToBeList,
+	RlpExpectedToBeData,
+	BadRlp,
 }
 impl StdError for DecoderError {
 	fn description(&self) -> &str {
@@ -230,7 +230,7 @@ impl<'a> UntrustedRlp<'a> {
 	/// ```
 	pub fn at(&self, index: usize) -> Result<UntrustedRlp<'a>, DecoderError> {
 		if !self.is_list() {
-			return Err(DecoderError::UntrustedRlpExpectedToBeList);
+			return Err(DecoderError::RlpExpectedToBeList);
 		}
 
 		// move to cached position if it's index is less or equal to
@@ -325,7 +325,7 @@ impl<'a> UntrustedRlp<'a> {
 	/// TODO: move this to decode_untrustedr?
 	fn item_info(bytes: &[u8]) -> Result<ItemInfo, DecoderError> {
 		let item = match bytes.first().map(|&x| x) {
-			None => return Err(DecoderError::UntrustedRlpIsTooShort),
+			None => return Err(DecoderError::RlpIsTooShort),
 			Some(0...0x7f) => ItemInfo::new(0, 1),
 			Some(l @ 0x80...0xb7) => ItemInfo::new(1, l as usize - 0x80),
 			Some(l @ 0xb8...0xbf) => {
@@ -341,12 +341,12 @@ impl<'a> UntrustedRlp<'a> {
 				let value_len = try!(usize::from_bytes(&bytes[1..prefix_len]));
 				ItemInfo::new(prefix_len, value_len)
 			}
-			_ => return Err(DecoderError::BadUntrustedRlp),
+			_ => return Err(DecoderError::BadRlp),
 		};
 
 		match item.prefix_len + item.value_len <= bytes.len() {
 			true => Ok(item),
-			false => Err(DecoderError::UntrustedRlpIsTooShort),
+			false => Err(DecoderError::RlpIsTooShort),
 		}
 	}
 
@@ -354,7 +354,7 @@ impl<'a> UntrustedRlp<'a> {
 	fn consume(bytes: &'a [u8], len: usize) -> Result<&'a [u8], DecoderError> {
 		match bytes.len() >= len {
 			true => Ok(&bytes[len..]),
-			false => Err(DecoderError::UntrustedRlpIsTooShort),
+			false => Err(DecoderError::RlpIsTooShort),
 		}
 	}
 }
@@ -448,7 +448,7 @@ impl<T> Decodable for T where T: FromBytes {
 			true => BasicDecoder::read_value(rlp.bytes, | bytes | {
 				Ok(try!(T::from_bytes(bytes)))
 			}),
-			false => Err(DecoderError::UntrustedRlpExpectedToBeValue),
+			false => Err(DecoderError::RlpExpectedToBeData),
 		}
 	}
 }
@@ -457,7 +457,7 @@ impl<T> Decodable for Vec<T> where T: Decodable {
 	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		match rlp.is_list() {
 			true => rlp.iter().map(|rlp| T::decode_untrusted(&rlp)).collect(),
-			false => Err(DecoderError::UntrustedRlpExpectedToBeList),
+			false => Err(DecoderError::RlpExpectedToBeList),
 		}
 	}
 }
@@ -470,7 +470,7 @@ impl Decodable for Vec<u8> {
 				res.extend(bytes);
 				Ok(res)
 			}),
-			false => Err(DecoderError::UntrustedRlpExpectedToBeValue),
+			false => Err(DecoderError::RlpExpectedToBeData),
 		}
 	}
 }
@@ -485,7 +485,7 @@ impl Decoder for BasicDecoder {
 	fn read_value<T, F>(bytes: &[u8], f: F) -> Result<T, DecoderError> where F: FnOnce(&[u8]) -> Result<T, DecoderError> {
 		match bytes.first().map(|&x| x) {
 			// rlp is too short
-			None => Err(DecoderError::UntrustedRlpIsTooShort),
+			None => Err(DecoderError::RlpIsTooShort),
 			// single byt value
 			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
 			// 0-55 bytes
@@ -497,7 +497,7 @@ impl Decoder for BasicDecoder {
 				let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
 				Ok(try!(f(&bytes[begin_of_value..begin_of_value + len])))
 			}
-			_ => Err(DecoderError::BadUntrustedRlp),
+			_ => Err(DecoderError::BadRlp),
 		}
 	}
 }
@@ -860,10 +860,10 @@ mod tests {
 			assert!(rlp.is_list());
 
 			let cat_err = rlp.at(0).unwrap_err();
-			assert_eq!(cat_err, rlp::DecoderError::UntrustedRlpIsTooShort);
+			assert_eq!(cat_err, rlp::DecoderError::RlpIsTooShort);
 
 			let dog_err = rlp.at(1).unwrap_err();
-			assert_eq!(dog_err, rlp::DecoderError::UntrustedRlpIsTooShort);
+			assert_eq!(dog_err, rlp::DecoderError::RlpIsTooShort);
 		}
 	}
 
