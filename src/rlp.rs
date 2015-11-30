@@ -348,7 +348,7 @@ impl<'a> UntrustedRlp<'a> {
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn data(&'a self) -> &'a [u8] {
+	pub fn data(&self) -> &[u8] {
 		self.bytes
 	}
 
@@ -1273,6 +1273,14 @@ mod tests {
 	fn encode_vector_of_vectors_str() {
 		let tests = vec![ETestPair(vec![vec!["cat"]], vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
 		run_encode_tests(tests);
+	}
+
+	#[test]
+	fn encode_bytes() {
+		let vec = vec![0u8];
+		let slice: &[u8] = &vec;
+		let res = rlp::encode(&slice);
+		assert_eq!(res, vec![0u8]);
 	}
 
 	#[test]
