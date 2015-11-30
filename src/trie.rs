@@ -50,14 +50,15 @@ impl TrieDB {
 	pub fn db(&self) -> &HashDB { self.db.as_ref() }
 
 	fn set_root_rlp(&mut self, root_data: &[u8]) {
+		self.db.kill(&self.root);
 		self.root = self.db.insert(root_data);
+		println!("set_root_rlp {:?} {:?}", root_data, self.root);
 	}
 
 	fn add(&mut self, key: &NibbleSlice, value: &[u8]) {
 		// determine what the new root is, insert new nodes and remove old as necessary.
-		let todo =
-		{
-			let root_rlp = self.db.lookup(&self.root).unwrap();
+		let todo = {
+			let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
 			self.merge(root_rlp, key, value)
 		};
 		self.apply(todo.1);
@@ -90,17 +91,22 @@ impl TrieDB {
 				// already have an extension. either fast_forward, cleve or transmute_to_branch.
 				unimplemented!();
 			},
-			Prototype::Data(0) => (Self::compose_extension(partial_key, value, true), Diff::new()),
+			Prototype::Data(0) => {
+				(Self::compose_extension(partial_key, value, true), Diff::new())
+			},
 			_ => panic!("Invalid RLP for node."),
 		}
 	}
 
 	fn compose_extension(partial_key: &NibbleSlice, value: &[u8], is_leaf: bool) -> Bytes {
+		println!("compose_extension {:?} {:?} {:?} ({:?})", partial_key, value, is_leaf, partial_key.encoded(is_leaf));
 		let mut s = RlpStream::new_list(2);
 		s.append(&partial_key.encoded(is_leaf));
 		s.append(&value.to_vec());	// WTF?!?!
 		//s.append(value);	// <-- should be.
-		s.out()
+		let r = s.out();
+		println!("output: -> {:?}", &r);
+		r
 	}
 }
 
@@ -127,6 +133,7 @@ impl Trie for TrieDB {
 #[test]
 fn playpen() {
 	use overlaydb::*;
+	use triehash::*;
 
 	(&[1, 2, 3]).starts_with(&[1, 2]);
 
@@ -134,5 +141,7 @@ fn playpen() {
 	t.init();
 	assert_eq!(*t.root(), SHA3_NULL_RLP);
 	assert!(t.is_empty());
+
 	t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+	assert_eq!(*t.root(), hash256(&[ NibblePair::new_raw(vec![0x01u8, 0x23], vec![0x01u8, 0x23])]));
 }
