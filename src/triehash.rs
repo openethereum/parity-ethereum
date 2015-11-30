@@ -177,7 +177,7 @@ pub fn hash256(vec: &[NibblePair]) -> H256 {
 		_ => {
 			let mut stream = RlpStream::new();
 			hash256rlp(&vec, 0, &mut stream);
-			stream.out().unwrap()
+			stream.out()
 		}
 	};
 	
@@ -251,7 +251,7 @@ fn hash256rlp(vec: &[NibblePair], pre_len: usize, stream: &mut RlpStream) {
 fn hash256aux(vec: &[NibblePair], pre_len: usize, stream: &mut RlpStream) {
 	let mut s = RlpStream::new();
 	hash256rlp(vec, pre_len, &mut s);
-	let out = s.out().unwrap();
+	let out = s.out();
 	match out.len() {
 		0...31 => stream.append_raw(&out, 1),
 		_ => stream.append(&out.sha3())

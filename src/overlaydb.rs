@@ -130,7 +130,7 @@ impl OverlayDB {
 		let mut s = RlpStream::new_list(2);
 		s.append(&payload.1);
 		s.append(&payload.0);
-		self.backing.put(&key.bytes(), &s.out().unwrap()).expect("Low-level database error. Some issue with your hard disk?");
+		self.backing.put(&key.bytes(), &s.out()).expect("Low-level database error. Some issue with your hard disk?");
 	}
 }
 

@@ -550,7 +550,7 @@ impl RlpStream {
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
 	/// 	stream.append(&"cat").append(&"dog");
-	/// 	let out = stream.out().unwrap();
+	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
@@ -575,7 +575,7 @@ impl RlpStream {
 	/// 	let mut stream = RlpStream::new_list(2);
 	/// 	stream.append_list(2).append(&"cat").append(&"dog");
 	/// 	stream.append(&"");	
-	/// 	let out = stream.out().unwrap();
+	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
 	/// }
 	/// ```
@@ -604,7 +604,7 @@ impl RlpStream {
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
 	/// 	stream.append_null().append_null();
-	/// 	let out = stream.out().unwrap();
+	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
 	/// }
 	/// ```
@@ -643,7 +643,7 @@ impl RlpStream {
 	/// 	assert_eq!(stream.is_finished(), false);
 	/// 	stream.append(&"dog");
 	/// 	assert_eq!(stream.is_finished(), true);
-	/// 	let out = stream.out().unwrap();
+	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	pub fn is_finished(&self) -> bool {
@@ -652,11 +652,11 @@ impl RlpStream {
 
 	/// Streams out encoded bytes.
 	/// 
-	/// Returns an error if stream is not finished.
-	pub fn out(self) -> Result<Vec<u8>, EncoderError> {
+	/// panic! if stream is not finished
+	pub fn out(self) -> Vec<u8> {
 		match self.is_finished() {
-			true => Ok(self.encoder.out()),
-			false => Err(EncoderError::StreamIsUnfinished),
+			true => self.encoder.out(),
+			false => panic!()
 		}
 	}
 
@@ -699,23 +699,6 @@ pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable
 	let mut encoder = BasicEncoder::new();
 	object.encode(&mut encoder);
 	encoder.out()
-}
-
-#[derive(Debug)]
-pub enum EncoderError {
-	StreamIsUnfinished,
-}
-
-impl StdError for EncoderError {
-	fn description(&self) -> &str {
-		"encoder error"
-	}
-}
-
-impl fmt::Display for EncoderError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Debug::fmt(&self, f)
-	}
 }
 
 pub trait Encodable {
@@ -1035,7 +1018,7 @@ mod tests {
 	fn rlp_stream() {
 		let mut stream = RlpStream::new_list(2);
 		stream.append(&"cat").append(&"dog");
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out,
 		           vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	}
@@ -1046,7 +1029,7 @@ mod tests {
 		stream.append_list(0);
 		stream.append_list(1).append_list(0);
 		stream.append_list(2).append_list(0).append_list(1).append_list(0);
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
 	}
 
@@ -1057,7 +1040,7 @@ mod tests {
 		for _ in 0..17 {
 			stream.append(&"");
 		}
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out, vec![0xd1, 0x80, 0x80, 0x80, 0x80, 0x80,
 				   			 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
 							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]);
@@ -1073,9 +1056,9 @@ mod tests {
 			stream.append(&"aaa");
 			res.extend(vec![0x83, b'a', b'a', b'a']);
 		}
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out, res);
-	}
+	};
 
 	struct DTestPair<T>(T, Vec<u8>) where T: rlp::Decodable + fmt::Debug + cmp::Eq;
 
