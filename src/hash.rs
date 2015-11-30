@@ -2,7 +2,7 @@ use std::str::FromStr;
 use std::fmt;
 use std::ops;
 use std::hash::{Hash, Hasher};
-use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitAnd};
+use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitAnd, BitXor};
 use rustc_serialize::hex::*;
 use error::EthcoreError;
 use rand::Rng;
@@ -19,6 +19,7 @@ pub trait FixedHash: Sized + BytesConvertable {
 	fn mut_bytes(&mut self) -> &mut [u8];
 	fn from_slice(src: &[u8]) -> Self;
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
+	fn copy_to(&self, dest: &mut [u8]);
 	fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
 	fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash;
@@ -93,6 +94,13 @@ macro_rules! impl_hash {
 				let mut r = Self::new();
 				r.clone_from_slice(src);
 				r
+			}
+
+			fn copy_to(&self, dest: &mut[u8]) {
+				unsafe {
+					let min = ::std::cmp::min($size, dest.len());
+					::std::ptr::copy(self.0.as_ptr(), dest.as_mut_ptr(), min);
+				}
 			}
 
 			fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
@@ -299,6 +307,30 @@ macro_rules! impl_hash {
 			}
 		}
 
+		/// BitXor on references
+		impl <'a> BitXor for &'a $from {
+			type Output = $from;
+
+			fn bitxor(self, rhs: Self) -> Self::Output {
+				unsafe {
+					use std::mem;
+					let mut ret: $from = mem::uninitialized();
+					for i in 0..$size {
+						ret.0[i] = self.0[i] ^ rhs.0[i];
+					}
+					ret
+				}
+			}
+		}
+
+		/// Moving BitXor
+		impl BitXor for $from {
+			type Output = $from;
+
+			fn bitxor(self, rhs: Self) -> Self::Output {
+				&self ^ &rhs
+			}
+		}
 		impl $from {
 			pub fn hex(&self) -> String {
 				format!("{}", self)

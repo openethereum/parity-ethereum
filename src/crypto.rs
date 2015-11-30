@@ -5,7 +5,8 @@ use rand::os::OsRng;
 
 pub type Secret=H256;
 pub type Public=H512;
-pub type Signature=H520;
+
+pub use ::sha3::Hashable;
 
 #[derive(Debug)]
 pub enum CryptoError {
@@ -94,46 +95,151 @@ impl KeyPair {
 	}
 }
 
-/// Recovers Public key from signed message hash.
-pub fn recover(signature: &Signature, message: &H256) -> Result<Public, CryptoError> {
-	use secp256k1::*;
-	let context = Secp256k1::new();
-	let rsig = try!(RecoverableSignature::from_compact(&context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
-	let publ = try!(context.recover(&try!(Message::from_slice(&message)), &rsig));
-	let serialized = publ.serialize_vec(&context, false);
-	let p: Public = Public::from_slice(&serialized[1..65]);
-	Ok(p)
-}
-/// Returns siganture of message hash.
-pub fn sign(secret: &Secret, message: &H256) -> Result<Signature, CryptoError> {
-	use secp256k1::*;
-	let context = Secp256k1::new();
-	let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
-	let s = try!(context.sign_recoverable(&try!(Message::from_slice(&message)), sec));
-	let (rec_id, data) = s.serialize_compact(&context);
-	let mut signature: ::crypto::Signature = unsafe { ::std::mem::uninitialized() };
-	signature.clone_from_slice(&data);
-	signature[64] = rec_id.to_i32() as u8;
-	Ok(signature)
-}
-/// Verify signature.
-pub fn verify(public: &Public, signature: &Signature, message: &H256) -> Result<bool, CryptoError> {
-	use secp256k1::*;
-	let context = Secp256k1::new();
-	let rsig = try!(RecoverableSignature::from_compact(&context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
-	let sig = rsig.to_standard(&context);
+pub mod ec {
+	use hash::*;
+	use crypto::*;
 
-	let mut pdata: [u8; 65] = [4u8; 65];
-	let ptr = pdata[1..].as_mut_ptr();
-	let src = public.as_ptr();
-	unsafe { ::std::ptr::copy_nonoverlapping(src, ptr, 64) };
-	let publ = try!(key::PublicKey::from_slice(&context, &pdata));
-	match context.verify(&try!(Message::from_slice(&message)), &sig, &publ) {
-		Ok(_) => Ok(true),
-		Err(Error::IncorrectSignature) => Ok(false),
-		Err(x) => Err(<CryptoError as From<Error>>::from(x))
+	pub type Signature = H520;
+	/// Recovers Public key from signed message hash.
+	pub fn recover(signature: &Signature, message: &H256) -> Result<Public, CryptoError> {
+		use secp256k1::*;
+		let context = Secp256k1::new();
+		let rsig = try!(RecoverableSignature::from_compact(&context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
+		let publ = try!(context.recover(&try!(Message::from_slice(&message)), &rsig));
+		let serialized = publ.serialize_vec(&context, false);
+		let p: Public = Public::from_slice(&serialized[1..65]);
+		Ok(p)
+	}
+	/// Returns siganture of message hash.
+	pub fn sign(secret: &Secret, message: &H256) -> Result<Signature, CryptoError> {
+		use secp256k1::*;
+		let context = Secp256k1::new();
+		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
+		let s = try!(context.sign_recoverable(&try!(Message::from_slice(&message)), sec));
+		let (rec_id, data) = s.serialize_compact(&context);
+		let mut signature: ec::Signature = unsafe { ::std::mem::uninitialized() };
+		signature.clone_from_slice(&data);
+		signature[64] = rec_id.to_i32() as u8;
+		Ok(signature)
+	}
+	/// Verify signature.
+	pub fn verify(public: &Public, signature: &Signature, message: &H256) -> Result<bool, CryptoError> {
+		use secp256k1::*;
+		let context = Secp256k1::new();
+		let rsig = try!(RecoverableSignature::from_compact(&context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
+		let sig = rsig.to_standard(&context);
+
+		let mut pdata: [u8; 65] = [4u8; 65];
+		let ptr = pdata[1..].as_mut_ptr();
+		let src = public.as_ptr();
+		unsafe { ::std::ptr::copy_nonoverlapping(src, ptr, 64) };
+		let publ = try!(key::PublicKey::from_slice(&context, &pdata));
+		match context.verify(&try!(Message::from_slice(&message)), &sig, &publ) {
+			Ok(_) => Ok(true),
+			Err(Error::IncorrectSignature) => Ok(false),
+			Err(x) => Err(<CryptoError as From<Error>>::from(x))
+		}
 	}
 }
+
+pub mod ecdh {
+	use crypto::*;
+
+	pub fn agree(secret: &Secret, public: &Public, ) -> Result<Secret, CryptoError> {
+		use secp256k1::*;
+		let context = Secp256k1::new();
+		let mut pdata: [u8; 65] = [4u8; 65];
+		let ptr = pdata[1..].as_mut_ptr();
+		let src = public.as_ptr();
+		unsafe { ::std::ptr::copy_nonoverlapping(src, ptr, 64) };
+		let publ = try!(key::PublicKey::from_slice(&context, &pdata));
+		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
+		let shared = ecdh::SharedSecret::new_raw(&context, &publ, &sec);
+		let s: Secret = unsafe { ::std::mem::transmute(shared) };
+		Ok(s)
+	}
+}
+
+pub mod ecies {
+	use hash::*;
+	use bytes::*;
+	use crypto::*;
+
+	pub fn encrypt(public: &Public, plain: &[u8]) -> Result<Bytes, CryptoError> {
+		use ::rcrypto::digest::Digest;
+		use ::rcrypto::sha2::Sha256;
+		use ::rcrypto::hmac::Hmac;
+		use ::rcrypto::mac::Mac;
+		let r = try!(KeyPair::create());
+		let z = try!(ecdh::agree(r.secret(), public));
+		let mut key = [0u8; 32];
+		let mut mkey = [0u8; 32];
+		kdf(&z, &[0u8; 0], &mut key);
+		let mut hasher = Sha256::new();
+		let mkey_material = &key[16..32];
+		hasher.input(mkey_material);
+		hasher.result(&mut mkey);
+		let ekey = &key[0..16];
+
+		let mut msg = vec![0u8; (1 + 64 + 16 + plain.len() + 32)];
+		msg[0] = 0x04u8;
+		{
+			let msgd = &mut msg[1..];
+			r.public().copy_to(&mut msgd[0..64]);
+			{
+				let cipher = &mut msgd[(64 + 16)..(64 + 16 + plain.len())];
+				aes::encrypt(ekey, &H128::new(), plain, cipher);
+			}
+			let mut hmac = Hmac::new(Sha256::new(), &mkey);
+			{
+				let cipher_iv = &msgd[64..(64 + 16 + plain.len())];
+				hmac.input(cipher_iv);
+			}
+			hmac.raw_result(&mut msgd[(64 + 16 + plain.len())..]);
+		}
+		Ok(msg)
+	}
+
+	fn kdf(secret: &Secret, s1: &[u8], dest: &mut [u8]) {
+		use ::rcrypto::digest::Digest;
+		use ::rcrypto::sha2::Sha256;
+		let mut hasher = Sha256::new();
+		// SEC/ISO/Shoup specify counter size SHOULD be equivalent
+		// to size of hash output, however, it also notes that
+		// the 4 bytes is okay. NIST specifies 4 bytes.
+		let mut ctr = 1u32;
+		let mut written = 0usize;
+		while written < dest.len() {
+			let ctrs = [(ctr >> 24) as u8, (ctr >> 16) as u8, (ctr >> 8) as u8, ctr as u8];
+			hasher.input(&ctrs);
+			hasher.input(secret);
+			hasher.input(s1);
+			hasher.result(&mut dest[written..(written + 32)]);
+			hasher.reset();
+			written += 32;
+			ctr += 1;
+		}
+	}
+}
+
+pub mod aes {
+	use hash::*;
+	use ::rcrypto::blockmodes::*;
+	use ::rcrypto::aessafe::*;
+	use ::rcrypto::symmetriccipher::*;
+	use ::rcrypto::buffer::*;
+
+	pub fn encrypt(k: &[u8], iv: &H128, plain: &[u8], dest: &mut [u8]) {
+		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv[..].to_vec());
+		encryptor.encrypt(&mut RefReadBuffer::new(plain), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
+	}
+
+	pub fn decrypt(k: &[u8], iv: &H128, encrypted: &[u8], dest: &mut [u8]) {
+		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv[..].to_vec());
+		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
+	}
+}
+
 
 #[cfg(test)]
 mod tests {

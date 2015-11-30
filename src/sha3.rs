@@ -5,6 +5,7 @@ use hash::{FixedHash, H256};
 
 pub trait Hashable {
 	fn sha3(&self) -> H256;
+	fn sha3_into(&self, dest: &mut [u8]);
 }
 
 impl<T> Hashable for T where T: BytesConvertable {
@@ -14,6 +15,9 @@ impl<T> Hashable for T where T: BytesConvertable {
 			keccak_256(self.bytes(), ret.mut_bytes());
 			ret
 		}
+	}
+	fn sha3_into(&self, dest: &mut [u8]) {
+		keccak_256(self.bytes(), dest);
 	}
 }
 

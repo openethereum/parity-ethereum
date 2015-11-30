@@ -11,9 +11,11 @@ use mio::util::{Slab};
 use mio::tcp::*;
 use mio::udp::*;
 use hash::*;
-use bytes::*;
+use crypto::*;
 use time::Tm;
 use error::EthcoreError;
+use network::connection::Connection;
+use network::handshake::Handshake;
 
 const DEFAULT_PORT: u16 = 30303;
 
@@ -27,9 +29,7 @@ const IDEAL_PEERS:u32 = 10;
 const BUCKET_SIZE: u32 = 16;	    ///< Denoted by k in [Kademlia]. Number of nodes stored in each bucket.
 const ALPHA: usize = 3;				///< Denoted by \alpha in [Kademlia]. Number of concurrent FindNode requests.
 
-type NodeId = H512;
-type PublicKey = H512;
-type SecretKey = H256;
+pub type NodeId = H512;
 
 #[derive(Debug)]
 struct NetworkConfiguration {
@@ -47,7 +47,7 @@ impl NetworkConfiguration {
             public_address: SocketAddr::from_str("0.0.0.0:30303").unwrap(),
             no_nat: false,
             no_discovery: false,
-            pin: false
+            pin: false,
         }
     }
 }
@@ -164,45 +164,6 @@ impl NodeBucket {
     }
 }
 
-struct Connection {
-    socket: TcpStream,
-	send_queue: Vec<Bytes>,
-}
-
-impl Connection {
-	fn new(socket: TcpStream) -> Connection {
-		Connection {
-			socket: socket,
-			send_queue: Vec::new(),
-		}
-	}
-}
-
-#[derive(PartialEq, Eq)]
-enum HandshakeState {
-	New,
-	AckAuth,
-	WriteHello,
-	ReadHello,
-	StartSession,
-}
-
-struct Handshake {
-	id: NodeId,
-	connection: Connection,
-	state: HandshakeState,
-}
-
-impl Handshake {
-	fn new(id: NodeId, socket: TcpStream) -> Handshake {
-		Handshake {
-			id: id,
-			connection: Connection::new(socket),
-			state: HandshakeState::New
-		}
-	}
-}
-
 struct Peer {
 	id: NodeId,
 	connection: Connection,
@@ -214,7 +175,7 @@ impl FindNodePacket {
     fn new(_endpoint: &NodeEndpoint, _id: &NodeId) -> FindNodePacket {
         FindNodePacket
     }
-    fn sign(&mut self, _secret: &SecretKey) {
+    fn sign(&mut self, _secret: &Secret) {
     }
 
     fn send(& self, _socket: &mut UdpSocket) {
@@ -236,11 +197,29 @@ pub enum HostMessage {
     Shutdown
 }
 
-pub struct Host {
-    secret: SecretKey,
-    node: Node,
-    sender: Sender<HostMessage>,
+pub struct HostInfo {
+    keys: KeyPair,
     config: NetworkConfiguration,
+	nonce: H256
+}
+
+impl HostInfo {
+	pub fn id(&self) -> &NodeId {
+		self.keys.public()
+	}
+
+	pub fn secret(&self) -> &Secret {
+		self.keys.secret()
+	}
+	pub fn next_nonce(&mut self) -> H256 {
+		self.nonce = self.nonce.sha3();
+		return self.nonce.clone();
+	}
+}
+
+pub struct Host {
+	info: HostInfo,
+    sender: Sender<HostMessage>,
     udp_socket: UdpSocket,
     listener: TcpListener,
     peers: Slab<Peer>,
@@ -282,9 +261,11 @@ impl Host {
         event_loop.timeout_ms(Token(NODETABLE_MAINTAIN), 7200).unwrap();
 
         let mut host = Host {
-            secret: SecretKey::new(),
-            node: Node::new(NodeId::new(), config.public_address.clone(), PeerType::Required), 
-            config: config,
+			info: HostInfo { 
+				keys: KeyPair::create().unwrap(),
+				config: config,
+				nonce: H256::random()
+			},
             sender: sender,
             udp_socket: udp_socket,
             listener: listener,
@@ -338,7 +319,7 @@ impl Host {
         }
         let mut tried_count = 0;
         {
-            let nearest = Host::nearest_node_entries(&self.node.id, &self.discovery_id, &self.node_buckets).into_iter();
+            let nearest = Host::nearest_node_entries(&self.info.id(), &self.discovery_id, &self.node_buckets).into_iter();
             let nodes = RefCell::new(&mut self.discovery_nodes);
             let nearest = nearest.filter(|x| nodes.borrow().contains(&x)).take(ALPHA);
             for r in nearest {
@@ -380,14 +361,14 @@ impl Host {
         ret
     }
 
-    fn nearest_node_entries<'a>(source: &NodeId, target: &NodeId, buckets: &'a Vec<NodeBucket>) -> Vec<&'a NodeId>
+    fn nearest_node_entries<'b>(source: &NodeId, target: &NodeId, buckets: &'b Vec<NodeBucket>) -> Vec<&'b NodeId>
     {
         // send ALPHA FindNode packets to nodes we know, closest to target
         const LAST_BIN: u32 = NODE_BINS - 1;
         let mut head = Host::distance(source, target);
         let mut tail = if head == 0  { LAST_BIN } else { (head - 1) % NODE_BINS };
 
-        let mut found: BTreeMap<u32, Vec<&'a NodeId>> = BTreeMap::new();
+        let mut found: BTreeMap<u32, Vec<&'b NodeId>> = BTreeMap::new();
         let mut count = 0;
 
         // if d is 0, then we roll look forward, if last, we reverse, else, spread from d
@@ -463,7 +444,6 @@ impl Host {
     }
 
     fn maintain_network(&mut self, event_loop: &mut EventLoop<Host>) {
-        self.keep_alive();
         self.connect_peers(event_loop);
     }
 
@@ -491,7 +471,7 @@ impl Host {
 			if connected && required {
 				req_conn += 1;
 			}
-			else if !connected && (!self.config.pin || required) {
+			else if !connected && (!self.info.config.pin || required) {
 				to_connect.push(n);
 			}
 		}
@@ -505,7 +485,7 @@ impl Host {
 			}
 		}
 		
-		if !self.config.pin
+		if !self.info.config.pin
 		{
 			let pending_count = 0; //TODO:
 			let peer_count = 0;
@@ -532,56 +512,88 @@ impl Host {
 			warn!("Aborted connect. Node already connecting.");
 			return;
 		}
-		let node = self.nodes.get_mut(id).unwrap();
-		node.last_attempted = Some(::time::now());
-		
-		
-		//blog(NetConnect) << "Attempting connection to node" << _p->id << "@" << ep << "from" << id();
-		let socket = match TcpStream::connect(&node.endpoint.address) {
-			Ok(socket) => socket,
-			Err(_) => {
-				warn!("Cannot connect to node");
-				return;
+
+		let socket = {
+			let node = self.nodes.get_mut(id).unwrap();
+			node.last_attempted = Some(::time::now());
+			
+			
+			//blog(NetConnect) << "Attempting connection to node" << _p->id << "@" << ep << "from" << id();
+			match TcpStream::connect(&node.endpoint.address) {
+				Ok(socket) => socket,
+				Err(_) => {
+					warn!("Cannot connect to node");
+					return;
+				}
 			}
 		};
-		let handshake = Handshake::new(id.clone(), socket);
-		match self.connecting.insert(handshake) {
-			Ok(token) => event_loop.register_opt(&self.connecting[token].connection.socket, token, EventSet::all(), PollOpt::edge()).unwrap(),
-			Err(_) => warn!("Max connections reached")
-		};
+
+		let nonce = self.info.next_nonce();
+		match self.connecting.insert_with(|token| Handshake::new(token, id, socket, &nonce).expect("Can't create handshake")) {
+			Some(token) => { 
+				self.connecting[token].register(event_loop).expect("Handshake token regisration failed"); 
+				self.connecting[token].start(&self.info, true);
+			},
+			None => { warn!("Max connections reached") }
+		}
 	}
-
-    fn keep_alive(&mut self) {
-    }
-
 
 
 	fn accept(&mut self, _event_loop: &mut EventLoop<Host>) {
-		warn!(target "net", "accept");
+		warn!(target: "net", "accept");
 	}
 
-	fn start_handshake(&mut self, token: Token,  _event_loop: &mut EventLoop<Host>) {
-		let handshake = match self.handshakes.get(&token) {
-			Some(h) => h,
-			None => {
-				warn!(target "net", "Received event for unknown handshake");
-				return;
+	fn handshake_writable(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+		if !{
+			let handshake = match self.connecting.get_mut(token) {
+				Some(h) => h,
+				None => {
+					warn!(target: "net", "Received event for unknown handshake");
+					return;
+				}
+			};
+			match handshake.writable(event_loop, &self.info) {
+				Err(e) => {
+					debug!(target: "net", "Handshake read error: {:?}", e);
+					false
+				},
+				Ok(_) => true
 			}
-		};
-
-
-
-
+		} {
+			self.kill_handshake(token, event_loop);
+		}
+	}
+	fn handshake_readable(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+		if !{
+			let handshake = match self.connecting.get_mut(token) {
+				Some(h) => h,
+				None => {
+					warn!(target: "net", "Received event for unknown handshake");
+					return;
+				}
+			};
+			match handshake.writable(event_loop, &self.info) {
+				Err(e) => {
+					debug!(target: "net", "Handshake read error: {:?}", e);
+					false
+				},
+				Ok(_) => true
+			}
+		} {
+			self.kill_handshake(token, event_loop);
+		}
+	}
+	fn handshake_timeout(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+		self.kill_handshake(token, event_loop)
+	}
+	fn kill_handshake(&mut self, token: Token, _event_loop: &mut EventLoop<Host>) {
+		self.connecting.remove(token);
 	}
 
-	fn read_handshake(&mut self, _event_loop: &mut EventLoop<Host>) {
-				warn!(target "net", "accept");
+	fn read_connection(&mut self, _token: Token, _event_loop: &mut EventLoop<Host>) {
 	}
 
-	fn read_connection(&mut self, _event_loop: &mut EventLoop<Host>) {
-	}
-
-	fn write_connection(&mut self, _event_loop: &mut EventLoop<Host>) {
+	fn write_connection(&mut self, _token: Token, _event_loop: &mut EventLoop<Host>) {
 	}
 }
 
@@ -594,16 +606,16 @@ impl Handler for Host {
 			match token.as_usize() {
 				TCP_ACCEPT =>  self.accept(event_loop),
 				IDLE => self.maintain_network(event_loop),
-				FIRST_CONNECTION ... LAST_CONNECTION => self.read_connection(event_loop),
-				FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.read_handshake(event_loop),
+				FIRST_CONNECTION ... LAST_CONNECTION => self.read_connection(token, event_loop),
+				FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_readable(token, event_loop),
 				NODETABLE_RECEIVE => {},
 				_ => panic!("Received unknown readable token"),
 			}
 		}
         else if events.is_writable() {
 			match token.as_usize() {
-				FIRST_CONNECTION ... LAST_CONNECTION => self.write_connection(event_loop),
-				FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.start_handshake(event_loop),
+				FIRST_CONNECTION ... LAST_CONNECTION => self.write_connection(token, event_loop),
+				FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_writable(token, event_loop),
 				_ => panic!("Received unknown writable token"),
 			}
 		}
@@ -612,6 +624,7 @@ impl Handler for Host {
 	fn timeout(&mut self, event_loop: &mut EventLoop<Host>, token: Token) {
 		match token.as_usize() {
 			IDLE => self.maintain_network(event_loop),
+			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_timeout(token, event_loop),
 			NODETABLE_DISCOVERY => {},
 			NODETABLE_MAINTAIN => {},
 			_ => panic!("Received unknown timer token"),

@@ -34,7 +34,7 @@ pub mod math;
 pub mod chainfilter;
 pub mod crypto;
 
-//pub mod network;
+pub mod network;
 
 // reexports
 pub use std::str::FromStr;
