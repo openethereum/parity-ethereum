@@ -236,6 +236,23 @@ impl<'a> Rlp<'a> {
 		self.rlp.is_data()
 	}
 
+	/// Int value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc1, 0x10];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.is_int(), false);
+	/// 	assert_eq!(rlp.at(0).is_int(), true);
+	/// }
+	/// ```
+	pub fn is_int(&self) -> bool {
+		self.rlp.is_int()
+	}
+
 	/// Get iterator over rlp-slices
 	/// 
 	/// ```rust
@@ -382,6 +399,32 @@ impl<'a> UntrustedRlp<'a> {
 	/// ```
 	pub fn is_data(&self) -> bool {
 		!self.is_null() && self.bytes[0] < 0xc0
+	}
+
+	/// Int value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc1, 0x10];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert_eq!(rlp.is_int(), false);
+	/// 	assert_eq!(rlp.at(0).unwrap().is_int(), true);
+	/// }
+	/// ```
+	pub fn is_int(&self) -> bool {
+		if self.is_null() {
+			return false;
+		}
+
+		match self.bytes[0] {
+			0...0x80 => true,
+			0x81...0xb7 => self.bytes[1] != 0,
+			b @ 0xb8...0xbf => self.bytes[1 + b as usize - 0xb7] != 0,
+			_ => false
+		}
 	}
 
 	/// Get iterator over rlp-slices
