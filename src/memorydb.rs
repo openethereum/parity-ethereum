@@ -37,6 +37,12 @@ use std::collections::HashMap;
 ///   m.kill(&k);
 ///   assert!(!m.exists(&k));
 ///
+///   m.kill(&k);
+///   assert!(!m.exists(&k));
+///
+///   m.insert(d);
+///   assert!(!m.exists(&k));
+
 ///   m.insert(d);
 ///   assert!(m.exists(&k));
 ///   assert_eq!(m.lookup(&k).unwrap(), d);
@@ -130,9 +136,9 @@ impl HashDB for MemoryDB {
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		let key = value.sha3();
 		if match self.data.get_mut(&key) {
-			Some(&mut (ref mut old_value, ref mut rc @ 0)) => {
+			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
 				*old_value = From::from(value.bytes());
-				*rc = 1;
+				*rc += 1;
 				false
 			},
 			Some(&mut (_, ref mut x)) => { *x += 1; false } ,
@@ -141,6 +147,20 @@ impl HashDB for MemoryDB {
 			self.data.insert(key.clone(), (From::from(value.bytes()), 1));
 		}
 		key
+	}
+
+	fn emplace(&mut self, key: H256, value: Bytes) {
+		match self.data.get_mut(&key) {
+			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
+				*old_value = value;
+				*rc += 1;
+				return;
+			},
+			Some(&mut (_, ref mut x)) => { *x += 1; return; } ,
+			None => {},
+		}
+		// ... None falls through into...
+		self.data.insert(key, (value, 1));
 	}
 
 	fn kill(&mut self, key: &H256) {

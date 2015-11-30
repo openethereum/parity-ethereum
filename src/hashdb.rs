@@ -1,4 +1,5 @@
 use hash::*;
+use bytes::*;
 
 pub trait HashDB {
 	/// Look up a given hash into the bytes that hash to it, returning None if the 
@@ -55,6 +56,9 @@ pub trait HashDB {
 	/// }
 	/// ```
 	fn insert(&mut self, value: &[u8]) -> H256;
+
+	/// Like `insert()` , except you provide the key and the data is all moved.
+	fn emplace(&mut self, key: H256, value: Bytes);
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
 	/// happen without the data being eventually being inserted into the DB.
