@@ -161,13 +161,13 @@ impl<'a> Rlp<'a> {
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
-	/// 	assert_eq!(rlp.items(), 2);
+	/// 	assert_eq!(rlp.item_count(), 2);
 	/// 	let view = rlp.at(1);
-	/// 	assert_eq!(view.items(), 0);
+	/// 	assert_eq!(view.item_count(), 0);
 	/// }
 	/// ```
-	pub fn items(&self) -> usize {
-		self.rlp.items()
+	pub fn item_count(&self) -> usize {
+		self.rlp.item_count()
 	}
 
 	/// Get view onto rlp-slice at index.
@@ -324,12 +324,12 @@ impl<'a> UntrustedRlp<'a> {
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = UntrustedRlp::new(&data);
-	/// 	assert_eq!(rlp.items(), 2);
+	/// 	assert_eq!(rlp.item_count(), 2);
 	/// 	let view = rlp.at(1).unwrap();
-	/// 	assert_eq!(view.items(), 0);
+	/// 	assert_eq!(view.item_count(), 0);
 	/// }
 	/// ```
-	pub fn items(&self) -> usize {
+	pub fn item_count(&self) -> usize {
 		match self.is_list() {
 			true => self.iter().count(),
 			false => 0
@@ -784,12 +784,12 @@ impl RlpStream {
 	/// 
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
-	/// 	stream.append_null().append_null();
+	/// 	stream.append_empty_data().append_empty_data();
 	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
 	/// }
 	/// ```
-	pub fn append_null<'a>(&'a mut self) -> &'a mut RlpStream {
+	pub fn append_empty_data<'a>(&'a mut self) -> &'a mut RlpStream {
 		// self push raw item
 		self.encoder.bytes.push(0x80);
 
