@@ -2,7 +2,7 @@
 //! 
 //! Allows encoding, decoding, and view onto rlp-slice 
 //!
-//!# When should you use what?
+//!# What should you use when?
 //!
 //!### Use `encode` function when: 
 //! * You want to encode something inline.
@@ -555,7 +555,6 @@ impl RlpStream {
 	/// }
 	/// ```
 	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable + fmt::Debug {
-		//println!("append: {:?}", object);
 		// encode given value and add it at the end of the stream
 		object.encode(&mut self.encoder);
 
@@ -581,7 +580,6 @@ impl RlpStream {
 	/// }
 	/// ```
 	pub fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
-		//println!("append_list: {}", len);
 		// push new list
 		let position = self.encoder.bytes.len();
 		match len {
@@ -597,9 +595,32 @@ impl RlpStream {
 		self
 	}
 
+	/// Apends null to the end of stream, chainable.
+	///
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append_null().append_null();
+	/// 	let out = stream.out().unwrap();
+	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
+	/// }
+	/// ```
+	pub fn append_null<'a>(&'a mut self) -> &'a mut RlpStream {
+		// self push raw item
+		self.encoder.bytes.push(0x80);
+
+		// try to finish and prepend the length
+		self.try_to_finish(1);
+
+		// return chainable self
+		self
+	}
+
 	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
 	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
-		//println!("append_raw: {:?} len: {}, count: {}", bytes, bytes.len(), item_count);
 		// push raw items
 		self.encoder.bytes.extend(bytes);	
 
