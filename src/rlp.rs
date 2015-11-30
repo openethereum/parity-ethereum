@@ -134,6 +134,24 @@ impl<'a> Rlp<'a> {
 		}
 	}
 
+	/// The bare data of the rlp.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	let view = rlp.at(1);
+	/// 	let dog = view.data();
+	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
+	/// }
+	/// ```
+	pub fn data(&'a self) -> &'a [u8] {
+		self.rlp.data()
+	}
+
 	/// Get view onto rlp-slice at index.
 	/// 
 	/// Caches offset to given index, so access to successive
@@ -210,6 +228,24 @@ impl<'a> UntrustedRlp<'a> {
 			bytes: bytes,
 			cache: Cell::new(OffsetCache::new(usize::max_value(), 0)),
 		}
+	}
+
+	/// The bare data of the rlp.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	let view = rlp.at(1).unwrap();
+	/// 	let dog = view.data();
+	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
+	/// }
+	/// ```
+	pub fn data(&'a self) -> &'a [u8] {
+		self.bytes
 	}
 
 	/// Get view onto rlp-slice at index
