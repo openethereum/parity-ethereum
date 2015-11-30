@@ -559,7 +559,7 @@ impl RlpStream {
 		object.encode(&mut self.encoder);
 
 		// if list is finished, prepend the length
-		self.try_to_finish(1);
+		self.note_appended(1);
 
 		// return chainable self
 		self
@@ -586,7 +586,7 @@ impl RlpStream {
 			0 => {
 				// we may finish, if the appended list len is equal 0
 				self.encoder.bytes.push(0xc0u8);
-				self.try_to_finish(1);
+				self.note_appended(1);
 			}
 			_ => self.unfinished_lists.push_back(ListInfo::new(position, len)),
 		}
@@ -613,7 +613,7 @@ impl RlpStream {
 		self.encoder.bytes.push(0x80);
 
 		// try to finish and prepend the length
-		self.try_to_finish(1);
+		self.note_appended(1);
 
 		// return chainable self
 		self
@@ -625,7 +625,7 @@ impl RlpStream {
 		self.encoder.bytes.extend(bytes);	
 
 		// try to finish and prepend the length
-		self.try_to_finish(item_count);
+		self.note_appended(item_count);
 
 		// return chainable self
 		self
@@ -652,7 +652,7 @@ impl RlpStream {
 
 	/// Streams out encoded bytes.
 	/// 
-	/// Returns an error if stream is not finished.
+	/// panic! if stream is not finished.
 	pub fn out(self) -> Vec<u8> {
 		match self.is_finished() {
 			true => self.encoder.out(),
@@ -660,8 +660,8 @@ impl RlpStream {
 		}
 	}
 
-	/// try to finish lists
-	fn try_to_finish(&mut self, inserted_items: usize) -> () {
+	/// Try to finish lists
+	fn note_appended(&mut self, inserted_items: usize) -> () {
 		let should_finish = match self.unfinished_lists.back_mut() {
 			None => false,
 			Some(ref mut x) => {
@@ -677,7 +677,7 @@ impl RlpStream {
 			let x = self.unfinished_lists.pop_back().unwrap();
 			let len = self.encoder.bytes.len() - x.position;
 			self.encoder.insert_list_len_at_pos(len, x.position);
-			self.try_to_finish(1);
+			self.note_appended(1);
 		}
 	}
 }
