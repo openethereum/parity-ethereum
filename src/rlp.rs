@@ -322,7 +322,7 @@ impl<'a> UntrustedRlp<'a> {
 
 	/// return first item info
 	///
-	/// TODO: move this to decode_untrustedr?
+	/// TODO: move this to decoder (?)
 	fn item_info(bytes: &[u8]) -> Result<ItemInfo, DecoderError> {
 		let item = match bytes.first().map(|&x| x) {
 			None => return Err(DecoderError::RlpIsTooShort),
