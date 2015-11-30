@@ -1,4 +1,6 @@
-//! Generete trie root
+//! Generete trie root.
+//! 
+//! This module should be used to generate trie root hash.
 
 use std::collections::BTreeMap;
 use std::cmp;
@@ -8,6 +10,21 @@ use rlp;
 use rlp::RlpStream;
 use vector::SharedPrefix;
 
+// todo: verify if example for ordered_trie_root is valid
+/// Generates a trie root hash for a vector of values
+/// 
+/// ```rust
+/// extern crate ethcore_util as util;
+/// use std::str::FromStr;
+/// use util::triehash::*;
+/// use util::hash::*;
+/// 
+/// fn main() {
+/// 	let v = vec![From::from("doe"), From::from("reindeer")];
+/// 	let root = "e766d5d51b89dc39d981b41bda63248d7abce4f0225eefd023792a540bcffee3";
+/// 	assert_eq!(ordered_trie_root(v), H256::from_str(root).unwrap());
+/// }
+/// ```
 pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 	let gen_input = input
 		// first put elements into btree to sort them by nibbles
@@ -26,6 +43,25 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 	gen_trie_root(gen_input)
 }
 
+/// Generates a trie root hash for a vector of key-values
+///
+/// ```rust
+/// extern crate ethcore_util as util;
+/// use std::str::FromStr;
+/// use util::triehash::*;
+/// use util::hash::*;
+/// 
+/// fn main() {
+/// 	let v = vec![
+/// 		(From::from("doe"), From::from("reindeer")),
+/// 		(From::from("dog"), From::from("puppy")),
+/// 		(From::from("dogglesworth"), From::from("cat")),
+/// 	];
+///
+/// 	let root = "8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3";
+/// 	assert_eq!(trie_root(v), H256::from_str(root).unwrap());
+/// }
+/// ```
 pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let gen_input = input
 		.into_iter()
@@ -60,44 +96,6 @@ fn gen_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 ///  [1,2,3,4,5,T]     0x312345   // 5 > 3
 ///  [1,2,3,4,T]       0x201234   // 4 > 3
 /// ``` 
-///  
-/// ```rust
-///	extern crate ethcore_util as util;
-///	use util::triehash::*;
-///  
-///	fn main() {
-///		let v = vec![0, 0, 1, 2, 3, 4, 5];
-///		let e = vec![0x10, 0x01, 0x23, 0x45];
-///		let h = hex_prefix_encode(&v, false);
-///		assert_eq!(h, e);
-///		
-///		let v = vec![0, 1, 2, 3, 4, 5];
-///		let e = vec![0x00, 0x01, 0x23, 0x45];
-///		let h = hex_prefix_encode(&v, false);
-///		assert_eq!(h, e);
-///		
-///		let v = vec![0, 1, 2, 3, 4, 5];
-///		let e = vec![0x20, 0x01, 0x23, 0x45];
-///		let h = hex_prefix_encode(&v, true);
-///		assert_eq!(h, e);
-///		
-///		let v = vec![1, 2, 3, 4, 5];
-///		let e = vec![0x31, 0x23, 0x45];
-///		let h = hex_prefix_encode(&v, true);
-///		assert_eq!(h, e);
-///		
-///		let v = vec![1, 2, 3, 4];
-///		let e = vec![0x00, 0x12, 0x34];
-///		let h = hex_prefix_encode(&v, false);
-///		assert_eq!(h, e);
-///		
-///		let v = vec![4, 1];
-///		let e = vec![0x20, 0x41];
-///		let h = hex_prefix_encode(&v, true);
-///		assert_eq!(h, e);
-///	}
-/// ```
-///  
 fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> Vec<u8> {
 	let inlen = nibbles.len();
 	let oddness_factor = inlen % 2;
@@ -127,22 +125,6 @@ fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> Vec<u8> {
 }
 
 /// Converts slice of bytes to nibbles.
-/// 
-/// ```rust
-///	extern crate ethcore_util as util;
-///	use util::triehash::*;
-///
-///	fn main () {
-///		let v = vec![0x31, 0x23, 0x45];
-///		let e = vec![3, 1, 2, 3, 4, 5];
-///		assert_eq!(as_nibbles(&v), e);
-///		
-///		// A => 65 => 0x41 => [4, 1]
-///		let v: Vec<u8> = From::from("A");
-///		let e = vec![4, 1]; 
-///		assert_eq!(as_nibbles(&v), e);
-///	}
-/// ```
 fn as_nibbles(bytes: &[u8]) -> Vec<u8> {
 	let mut res = vec![];
 	res.reserve(bytes.len() * 2);
@@ -235,6 +217,52 @@ fn hash256aux(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		0...31 => stream.append_raw(&out, 1),
 		_ => stream.append(&out.sha3())
 	};
+}
+
+
+#[test]
+fn test_nibbles() {
+	let v = vec![0x31, 0x23, 0x45];
+	let e = vec![3, 1, 2, 3, 4, 5];
+	assert_eq!(as_nibbles(&v), e);
+
+	// A => 65 => 0x41 => [4, 1]
+	let v: Vec<u8> = From::from("A");
+	let e = vec![4, 1]; 
+	assert_eq!(as_nibbles(&v), e);
+}
+
+#[test]
+fn test_hex_prefix_encode() {
+	let v = vec![0, 0, 1, 2, 3, 4, 5];
+	let e = vec![0x10, 0x01, 0x23, 0x45];
+	let h = hex_prefix_encode(&v, false);
+	assert_eq!(h, e);
+
+	let v = vec![0, 1, 2, 3, 4, 5];
+	let e = vec![0x00, 0x01, 0x23, 0x45];
+	let h = hex_prefix_encode(&v, false);
+	assert_eq!(h, e);
+
+	let v = vec![0, 1, 2, 3, 4, 5];
+	let e = vec![0x20, 0x01, 0x23, 0x45];
+	let h = hex_prefix_encode(&v, true);
+	assert_eq!(h, e);
+
+	let v = vec![1, 2, 3, 4, 5];
+	let e = vec![0x31, 0x23, 0x45];
+	let h = hex_prefix_encode(&v, true);
+	assert_eq!(h, e);
+
+	let v = vec![1, 2, 3, 4];
+	let e = vec![0x00, 0x12, 0x34];
+	let h = hex_prefix_encode(&v, false);
+	assert_eq!(h, e);
+
+	let v = vec![4, 1];
+	let e = vec![0x20, 0x41];
+	let h = hex_prefix_encode(&v, true);
+	assert_eq!(h, e);
 }
 
 #[cfg(test)]
