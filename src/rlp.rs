@@ -190,8 +190,8 @@ impl<'a> Rlp<'a> {
 	}
 
 	/// returns true if rlp is a value
-	pub fn is_value(&self) -> bool {
-		self.rlp.is_value()
+	pub fn is_data(&self) -> bool {
+		self.rlp.is_data()
 	}
 
 	/// returns rlp iterator
@@ -242,7 +242,7 @@ impl<'a> UntrustedRlp<'a> {
 	}
 
 	/// returns true if rlp is a value
-	pub fn is_value(&self) -> bool {
+	pub fn is_data(&self) -> bool {
 		self.bytes.len() > 0 && self.bytes[0] <= 0xbf
 	}
 
@@ -357,7 +357,7 @@ pub trait Decodable: Sized {
 
 impl<T> Decodable for T where T: FromBytes {
 	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		match rlp.is_value() {
+		match rlp.is_data() {
 			true => BasicDecoder::read_value(rlp.bytes, | bytes | {
 				Ok(try!(T::from_bytes(bytes)))
 			}),
@@ -377,7 +377,7 @@ impl<T> Decodable for Vec<T> where T: Decodable {
 
 impl Decodable for Vec<u8> {
 	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		match rlp.is_value() {
+		match rlp.is_data() {
 			true =>	BasicDecoder::read_value(rlp.bytes, | bytes | {
 				let mut res = vec![];
 				res.extend(bytes);
@@ -694,17 +694,17 @@ mod tests {
 			assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
 
 			let cat = rlp.at(0).unwrap();
-			assert!(cat.is_value());
+			assert!(cat.is_data());
 			assert_eq!(cat.bytes, &[0x83, b'c', b'a', b't']);
 			assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_string());
 
 			let dog = rlp.at(1).unwrap();
-			assert!(dog.is_value());
+			assert!(dog.is_data());
 			assert_eq!(dog.bytes, &[0x83, b'd', b'o', b'g']);
 			assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_string());
 
 			let cat_again = rlp.at(0).unwrap();
-			assert!(cat_again.is_value());
+			assert!(cat_again.is_data());
 			assert_eq!(cat_again.bytes, &[0x83, b'c', b'a', b't']);
 			assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_string());
 		}
@@ -733,18 +733,18 @@ mod tests {
 			let mut iter = rlp.iter();
 
 			let cat = iter.next().unwrap();
-			assert!(cat.is_value());
+			assert!(cat.is_data());
 			assert_eq!(cat.bytes, &[0x83, b'c', b'a', b't']);
 
 			let dog = iter.next().unwrap();
-			assert!(dog.is_value());
+			assert!(dog.is_data());
 			assert_eq!(dog.bytes, &[0x83, b'd', b'o', b'g']);
 
 			let none = iter.next();
 			assert!(none.is_none());
 
 			let cat_again = rlp.at(0).unwrap();
-			assert!(cat_again.is_value());
+			assert!(cat_again.is_data());
 			assert_eq!(cat_again.bytes, &[0x83, b'c', b'a', b't']);
 		}
 	}
