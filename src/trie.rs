@@ -88,6 +88,19 @@ impl TrieDB {
 				unimplemented!();
 			},
 			Prototype::List(2) => {
+				let their_key_rlp = o.at(0);
+				let (them, _) = NibbleSlice::from_encoded(their_key_rlp.data());
+				match partial_key.common_prefix(&them) {
+					0 => {
+						// transmute to branch here
+					},
+					cp if cp == them.len() => {
+						// fast-forward
+					},
+					_ => {
+						// cleve into two + branch in the middle
+					},
+				}
 				// already have an extension. either fast_forward, cleve or transmute_to_branch.
 				unimplemented!();
 			},
@@ -143,7 +156,5 @@ fn playpen() {
 	assert!(t.is_empty());
 
 	t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-	assert_eq!(*t.root(), trie_root(vec![
-									(vec![1u8, 0x23], vec![1u8, 0x23])
-	]));
+	assert_eq!(*t.root(), trie_root(vec![ (vec![1u8, 0x23], vec![1u8, 0x23]) ]));
 }

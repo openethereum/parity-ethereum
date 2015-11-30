@@ -38,6 +38,11 @@ impl<'a> NibbleSlice<'a> {
 	/// Create a new nibble slice with the given byte-slice with a nibble offset.
 	pub fn new_offset(data: &'a [u8], offset: usize) -> NibbleSlice { NibbleSlice{data: data, offset: offset} }
 
+	/// Create a new nibble slice from the given HPE encoded data (e.g. output of `encoded()`).
+	pub fn from_encoded(data: &'a [u8]) -> (NibbleSlice, bool) {
+		(Self::new_offset(data, if data[0] & 16 == 16 {1} else {2}), data[0] & 32 == 32)
+	}
+
 	/// Is this an empty slice?
 	pub fn is_empty(&self) -> bool { self.len() == 0 }
 
@@ -146,6 +151,15 @@ mod tests {
 		assert_eq!(n.encoded(true), &[0x20, 0x01, 0x23, 0x45]);
 		assert_eq!(n.mid(1).encoded(false), &[0x11, 0x23, 0x45]);
 		assert_eq!(n.mid(1).encoded(true), &[0x31, 0x23, 0x45]);
+	}
+
+	#[test]
+	fn from_encoded() {
+		let n = NibbleSlice::new(D);
+		assert_eq!((n, false), NibbleSlice::from_encoded(&[0x00, 0x01, 0x23, 0x45]));
+		assert_eq!((n, true), NibbleSlice::from_encoded(&[0x20, 0x01, 0x23, 0x45]));
+		assert_eq!((n.mid(1), false), NibbleSlice::from_encoded(&[0x11, 0x23, 0x45]));
+		assert_eq!((n.mid(1), true), NibbleSlice::from_encoded(&[0x31, 0x23, 0x45]));
 	}
 
 	#[test]
