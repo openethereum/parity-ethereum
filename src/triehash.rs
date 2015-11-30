@@ -138,9 +138,9 @@ fn as_nibbles(bytes: &[u8]) -> Vec<u8> {
 fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStream) {
 	let inlen = input.len();
 
-	// in case of empty slice, just append null
+	// in case of empty slice, just append empty data
 	if inlen == 0 {
-		stream.append(&""); 
+		stream.append_empty_data();
 		return;
 	}
 
@@ -196,7 +196,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		// if at least 1 successive element has the same nibble
 		// append their suffixes
 		match len {
-			0 => { stream.append(&""); },
+			0 => { stream.append_empty_data(); },
 			_ => hash256aux(&input[begin..(begin + len)], pre_len + 1, stream)
 		}
 		begin += len;
@@ -205,7 +205,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	// if fist key len is equal prefix, append it's value
 	match pre_len == key.len() {
 		true => { stream.append(&value); },
-		false => { stream.append(&""); }
+		false => { stream.append_empty_data(); }
 	};
 }
 

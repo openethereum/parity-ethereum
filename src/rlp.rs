@@ -132,7 +132,7 @@ pub enum Prototype {
 	List(usize),
 }
 
-impl<'a> Rlp<'a> {
+impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Create a new instance of `Rlp`
 	pub fn new(bytes: &'a [u8]) -> Rlp<'a> {
 		Rlp {
@@ -162,12 +162,11 @@ impl<'a> Rlp<'a> {
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
-	/// 	let view = rlp.at(1);
-	/// 	let dog = view.data();
+	/// 	let dog = rlp.at(1).data();
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn data(&self) -> &[u8] {
+	pub fn data(&'view self) -> &'a [u8] {
 		self.rlp.data()
 	}
 
@@ -223,7 +222,7 @@ impl<'a> Rlp<'a> {
 	/// 	assert_eq!(dog, "dog".to_string());
 	/// }
 	/// ```
-	pub fn at(&self, index: usize) -> Rlp<'a> {
+	pub fn at(&'view self, index: usize) -> Rlp<'a> {
 		From::from(self.rlp.at(index).unwrap())
 	}
 
@@ -325,7 +324,7 @@ impl<'a> Rlp<'a> {
 	}
 }
 
-impl<'a> UntrustedRlp<'a> {
+impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 	/// returns new instance of `UntrustedRlp`
 	pub fn new(bytes: &'a [u8]) -> UntrustedRlp<'a> {
 		UntrustedRlp {
@@ -343,12 +342,11 @@ impl<'a> UntrustedRlp<'a> {
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = UntrustedRlp::new(&data);
-	/// 	let view = rlp.at(1).unwrap();
-	/// 	let dog = view.data();
+	/// 	let dog = rlp.at(1).unwrap().data();
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn data(&self) -> &[u8] {
+	pub fn data(&'view self) -> &'a [u8] {
 		self.bytes
 	}
 
@@ -410,7 +408,7 @@ impl<'a> UntrustedRlp<'a> {
 	/// 	assert_eq!(dog, "dog".to_string());
 	/// }
 	/// ```
-	pub fn at(&self, index: usize) -> Result<UntrustedRlp<'a>, DecoderError> {
+	pub fn at(&'view self, index: usize) -> Result<UntrustedRlp<'a>, DecoderError> {
 		if !self.is_list() {
 			return Err(DecoderError::RlpExpectedToBeList);
 		}
@@ -1451,5 +1449,32 @@ mod tests {
 		let tests = vec![DTestPair(vec![vec!["cat".to_string()]],
 								   vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
 		run_decode_tests(tests);
+	}
+
+	#[test]
+	fn test_view() {
+		struct View<'a> {
+			bytes: &'a [u8]
+		}
+
+		impl <'a, 'view> View<'a> where 'a: 'view {
+			fn new(bytes: &'a [u8]) -> View<'a> {
+				View {
+					bytes: bytes
+				}
+			}
+
+			fn offset(&'view self, len: usize) -> View<'a> {
+				View::new(&self.bytes[len..])
+			}
+
+			fn data(&'view self) -> &'a [u8] {
+				self.bytes
+			}
+		}
+
+		let data = vec![0, 1, 2, 3];
+		let view = View::new(&data);
+		let _data_slice = view.offset(1).data();
 	}
 }
