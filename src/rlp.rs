@@ -152,6 +152,24 @@ impl<'a> Rlp<'a> {
 		self.rlp.data()
 	}
 
+	/// Returns number of rlp items.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.items(), 2);
+	/// 	let view = rlp.at(1);
+	/// 	assert_eq!(view.items(), 0);
+	/// }
+	/// ```
+	pub fn items(&self) -> usize {
+		self.rlp.items()
+	}
+
 	/// Get view onto rlp-slice at index.
 	/// 
 	/// Caches offset to given index, so access to successive
@@ -295,6 +313,27 @@ impl<'a> UntrustedRlp<'a> {
 	/// ```
 	pub fn data(&'a self) -> &'a [u8] {
 		self.bytes
+	}
+
+	/// Returns number of rlp items.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert_eq!(rlp.items(), 2);
+	/// 	let view = rlp.at(1).unwrap();
+	/// 	assert_eq!(view.items(), 0);
+	/// }
+	/// ```
+	pub fn items(&self) -> usize {
+		match self.is_list() {
+			true => self.iter().count(),
+			false => 0
+		}
 	}
 
 	/// Get view onto rlp-slice at index
