@@ -20,7 +20,7 @@ fn bench_stream_u64_value(b: &mut Bencher) {
 		// u64
 		let mut stream = RlpStream::new();
 		stream.append(&0x1023456789abcdefu64);
-		let _ = stream.out().unwrap();
+		let _ = stream.out();
 	});
 }
 
@@ -42,7 +42,7 @@ fn bench_stream_u256_value(b: &mut Bencher) {
 		stream.append(&U256::from_str("8090a0b0c0d0e0f009102030405060770000000000000001000000000\
 		                               00012f0")
 			               .unwrap());
-		let _ = stream.out().unwrap();
+		let _ = stream.out();
 	});
 }
 
@@ -66,7 +66,7 @@ fn bench_stream_nested_empty_lists(b: &mut Bencher) {
 		stream.append_list(0);
 		stream.append_list(1).append_list(0);
 		stream.append_list(2).append_list(0).append_list(1).append_list(0);
-		let _ = stream.out().unwrap();
+		let _ = stream.out();
 	});
 }
 
@@ -76,11 +76,11 @@ fn bench_decode_nested_empty_lists(b: &mut Bencher) {
 		// [ [], [[]], [ [], [[]] ] ]
 		let data = vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0];
 		let rlp = Rlp::new(&data);
-		let _v0: Vec<u8> = Decodable::decode(&rlp.at(0));
-		let _v1: Vec<Vec<u8>> = Decodable::decode(&rlp.at(1));
+		let _v0: Vec<u16> = Decodable::decode(&rlp.at(0));
+		let _v1: Vec<Vec<u16>> = Decodable::decode(&rlp.at(1));
 		let nested_rlp = rlp.at(2);
-		let _v2a: Vec<u8> = Decodable::decode(&nested_rlp.at(0));
-		let _v2b: Vec<Vec<u8>> = Decodable::decode(&nested_rlp.at(1));
+		let _v2a: Vec<u16> = Decodable::decode(&nested_rlp.at(0));
+		let _v2b: Vec<Vec<u16>> = Decodable::decode(&nested_rlp.at(1));
 	});
 }
 
@@ -91,6 +91,6 @@ fn bench_stream_1000_empty_lists(b: &mut Bencher) {
 		for _ in 0..1000 {
 			stream.append_list(0);
 		}
-		let _ = stream.out().unwrap();
+		let _ = stream.out();
 	});
 }
