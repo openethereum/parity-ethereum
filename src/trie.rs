@@ -143,5 +143,7 @@ fn playpen() {
 	assert!(t.is_empty());
 
 	t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-	assert_eq!(*t.root(), hash256(&[ NibblePair::new_raw(vec![0x01u8, 0x23], vec![0x01u8, 0x23])]));
+	assert_eq!(*t.root(), trie_root(vec![
+									(vec![1u8, 0x23], vec![1u8, 0x23])
+	]));
 }
