@@ -49,7 +49,7 @@ impl TrieDB {
 		self.root = self.db.insert(root_data);
 	}
 
-	fn insert(&mut self, key: &NibbleSlice, value: &[u8]) {
+	fn add(&mut self, key: &NibbleSlice, value: &[u8]) {
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: (Bytes, Diff);
 		{
@@ -76,7 +76,8 @@ impl TrieDB {
 	/// The database will be updated so as to make the returned RLP valid through inserting
 	/// and deleting nodes as necessary.
 	fn merge(&self, old: &[u8], partial_key: &NibbleSlice, value: &[u8]) -> (Bytes, Diff) {
-		let o = Rlp::new(old);
+		unimplemented!();
+/*		let o = Rlp::new(old);
 		match (o.type()) {
 			List(17) => {
 				// already have a branch. route and merge.
@@ -85,8 +86,8 @@ impl TrieDB {
 				// already have an extension. either fast_forward, cleve or transmute_to_branch.
 			},
 			Data(0) => compose_extension(partial_key),
-			_ -> panic!("Invalid RLP for node."),
-		}
+			_ => panic!("Invalid RLP for node."),
+		}*/
 	}
 
 	fn compose_extension(partial_key: &NibbleSlice, value: &[u8], is_leaf: bool) -> Bytes {
@@ -94,7 +95,7 @@ impl TrieDB {
 		s.append(&partial_key.encoded(is_leaf));
 		s.append(&value.to_vec());	// WTF?!?!
 		//s.append(value);	// <-- should be.
-		s.out().unwrap()
+		s.out()
 	}
 }
 
@@ -110,7 +111,7 @@ impl Trie for TrieDB {
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
-		(self as &mut TrieDB).insert(&NibbleSlice::new(key), value);
+		(self as &mut TrieDB).add(&NibbleSlice::new(key), value);
 	}
 
 	fn remove(&mut self, _key: &[u8]) {

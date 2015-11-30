@@ -126,11 +126,30 @@ impl<'a> From<Rlp<'a>> for UntrustedRlp<'a> {
 	}
 }
 
+pub enum Prototype {
+	Null,
+	Data(usize),
+	List(usize),
+}
+
 impl<'a> Rlp<'a> {
 	/// Create a new instance of `Rlp`
 	pub fn new(bytes: &'a [u8]) -> Rlp<'a> {
 		Rlp {
 			rlp: UntrustedRlp::new(bytes)
+		}
+	}
+
+	/// Get the prototype of the RLP.
+	pub fn prototype(&self) -> Prototype {
+		if self.is_data() {
+			Prototype::Data(self.size())
+		}
+		else if self.is_list() {
+			Prototype::List(self.item_count())
+		}
+		else {
+			Prototype::Null
 		}
 	}
 
@@ -148,7 +167,7 @@ impl<'a> Rlp<'a> {
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn data(&'a self) -> &'a [u8] {
+	pub fn data(&self) -> &[u8] {
 		self.rlp.data()
 	}
 
@@ -588,7 +607,7 @@ pub struct UntrustedRlpIterator<'a> {
 
 impl<'a> IntoIterator for &'a UntrustedRlp<'a> {
 	type Item = UntrustedRlp<'a>;
-    type IntoIter = UntrustedRlpIterator<'a>;
+	type IntoIter = UntrustedRlpIterator<'a>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		UntrustedRlpIterator {
@@ -617,7 +636,7 @@ pub struct RlpIterator<'a> {
 
 impl<'a> IntoIterator for &'a Rlp<'a> {
 	type Item = Rlp<'a>;
-    type IntoIter = RlpIterator<'a>;
+	type IntoIter = RlpIterator<'a>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		RlpIterator {
@@ -1147,63 +1166,63 @@ mod tests {
 	#[test]
 	fn encode_u16() {
 		let tests = vec![
-            ETestPair(0u16, vec![0x80u8]),
-            ETestPair(0x100, vec![0x82, 0x01, 0x00]),
-            ETestPair(0xffff, vec![0x82, 0xff, 0xff]),
-        ];
+			ETestPair(0u16, vec![0x80u8]),
+			ETestPair(0x100, vec![0x82, 0x01, 0x00]),
+			ETestPair(0xffff, vec![0x82, 0xff, 0xff]),
+		];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_u32() {
 		let tests = vec![
-            ETestPair(0u32, vec![0x80u8]),
-            ETestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
-            ETestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
-        ];
+			ETestPair(0u32, vec![0x80u8]),
+			ETestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
+			ETestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
+		];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_u64() {
 		let tests = vec![
-            ETestPair(0u64, vec![0x80u8]),
-            ETestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
-            ETestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-        ];
+			ETestPair(0u64, vec![0x80u8]),
+			ETestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+			ETestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+		];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_u256() {
 		let tests = vec![ETestPair(U256::from(0u64), vec![0x80u8]),
-		                 ETestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
-		                 ETestPair(U256::from(0xffffffffu64),
-		                           vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-		                 ETestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
-		                                           000100000000000012f0")
-			                           .unwrap(),
-		                           vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
-		                                0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
-		                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-		                                0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
+						 ETestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+						 ETestPair(U256::from(0xffffffffu64),
+								   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+						 ETestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
+												   000100000000000012f0")
+									   .unwrap(),
+								   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
+										0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
+										0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+										0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_str() {
 		let tests = vec![ETestPair("cat", vec![0x83, b'c', b'a', b't']),
-		                 ETestPair("dog", vec![0x83, b'd', b'o', b'g']),
-		                 ETestPair("Marek", vec![0x85, b'M', b'a', b'r', b'e', b'k']),
-		                 ETestPair("", vec![0x80]),
-		                 ETestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit",
-		                           vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
-		                                b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
-		                                b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
-		                                b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
-		                                b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
-		                                b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
-		                                b'e', b'l', b'i', b't'])];
+						 ETestPair("dog", vec![0x83, b'd', b'o', b'g']),
+						 ETestPair("Marek", vec![0x85, b'M', b'a', b'r', b'e', b'k']),
+						 ETestPair("", vec![0x80]),
+						 ETestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit",
+								   vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
+										b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
+										b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
+										b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
+										b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
+										b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
+										b'e', b'l', b'i', b't'])];
 		run_encode_tests(tests);
 	}
 
@@ -1214,8 +1233,8 @@ mod tests {
 		let tests = vec![
 			ETestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
 					  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
-					  	   		 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
-						   		 0xb3, 0x7d, 0x11, 0x06])
+								 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+								 0xb3, 0x7d, 0x11, 0x06])
 		];
 		run_encode_tests(tests);
 	}
@@ -1235,18 +1254,18 @@ mod tests {
 	#[test]
 	fn encode_vector_u64() {
 		let tests = vec![
-            ETestPair(vec![], vec![0xc0]),
-            ETestPair(vec![15u64], vec![0xc1, 0x0f]),
-            ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
-            ETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
-        ];
+			ETestPair(vec![], vec![0xc0]),
+			ETestPair(vec![15u64], vec![0xc1, 0x0f]),
+			ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+			ETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+		];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_vector_str() {
 		let tests = vec![ETestPair(vec!["cat", "dog"],
-		                           vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
+								   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
 		run_encode_tests(tests);
 	}
 
@@ -1262,7 +1281,7 @@ mod tests {
 		stream.append(&"cat").append(&"dog");
 		let out = stream.out();
 		assert_eq!(out,
-		           vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+				   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	}
 
 	#[test]
@@ -1284,7 +1303,7 @@ mod tests {
 		}
 		let out = stream.out();
 		assert_eq!(out, vec![0xd1, 0x80, 0x80, 0x80, 0x80, 0x80,
-				   			 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
 							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]);
 	}
 
@@ -1326,65 +1345,65 @@ mod tests {
 	#[test]
 	fn decode_untrusted_u16() {
 		let tests = vec![
-            DTestPair(0u16, vec![0u8]),
-            DTestPair(0x100, vec![0x82, 0x01, 0x00]),
-            DTestPair(0xffff, vec![0x82, 0xff, 0xff]),
-        ];
+			DTestPair(0u16, vec![0u8]),
+			DTestPair(0x100, vec![0x82, 0x01, 0x00]),
+			DTestPair(0xffff, vec![0x82, 0xff, 0xff]),
+		];
 		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_u32() {
 		let tests = vec![
-            DTestPair(0u32, vec![0u8]),
-            DTestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
-            DTestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
-        ];
+			DTestPair(0u32, vec![0u8]),
+			DTestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
+			DTestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
+		];
 		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_u64() {
 		let tests = vec![
-            DTestPair(0u64, vec![0u8]),
-            DTestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
-            DTestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-        ];
+			DTestPair(0u64, vec![0u8]),
+			DTestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+			DTestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+		];
 		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_u256() {
 		let tests = vec![DTestPair(U256::from(0u64), vec![0x80u8]),
-		                 DTestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
-		                 DTestPair(U256::from(0xffffffffu64),
-		                           vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-		                 DTestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
-		                                           000100000000000012f0")
-			                           .unwrap(),
-		                           vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
-		                                0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
-		                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-		                                0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
+						 DTestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+						 DTestPair(U256::from(0xffffffffu64),
+								   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+						 DTestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
+												   000100000000000012f0")
+									   .unwrap(),
+								   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
+										0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
+										0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+										0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
 		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_str() {
 		let tests = vec![DTestPair("cat".to_string(), vec![0x83, b'c', b'a', b't']),
-		                 DTestPair("dog".to_string(), vec![0x83, b'd', b'o', b'g']),
-		                 DTestPair("Marek".to_string(),
-		                           vec![0x85, b'M', b'a', b'r', b'e', b'k']),
-		                 DTestPair("".to_string(), vec![0x80]),
-		                 DTestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit"
-			                           .to_string(),
-		                           vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
-		                                b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
-		                                b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
-		                                b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
-		                                b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
-		                                b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
-		                                b'e', b'l', b'i', b't'])];
+						 DTestPair("dog".to_string(), vec![0x83, b'd', b'o', b'g']),
+						 DTestPair("Marek".to_string(),
+								   vec![0x85, b'M', b'a', b'r', b'e', b'k']),
+						 DTestPair("".to_string(), vec![0x80]),
+						 DTestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit"
+									   .to_string(),
+								   vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
+										b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
+										b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
+										b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
+										b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
+										b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
+										b'e', b'l', b'i', b't'])];
 		run_decode_tests(tests);
 	}
 
@@ -1395,8 +1414,8 @@ mod tests {
 		let tests = vec![
 			DTestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
 					  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
-					  	   		 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
-						   		 0xb3, 0x7d, 0x11, 0x06])
+								 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+								 0xb3, 0x7d, 0x11, 0x06])
 		];
 		run_decode_tests(tests);
 	}
@@ -1404,25 +1423,25 @@ mod tests {
 	#[test]
 	fn decode_untrusted_vector_u64() {
 		let tests = vec![
-            DTestPair(vec![], vec![0xc0]),
-            DTestPair(vec![15u64], vec![0xc1, 0x0f]),
-            DTestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
-            DTestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
-        ];
+			DTestPair(vec![], vec![0xc0]),
+			DTestPair(vec![15u64], vec![0xc1, 0x0f]),
+			DTestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+			DTestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+		];
 		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_vector_str() {
 		let tests = vec![DTestPair(vec!["cat".to_string(), "dog".to_string()],
-		                           vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
+								   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
 		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_vector_of_vectors_str() {
 		let tests = vec![DTestPair(vec![vec!["cat".to_string()]],
-		                           vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
+								   vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
 		run_decode_tests(tests);
 	}
 }
