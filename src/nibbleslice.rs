@@ -1,5 +1,6 @@
 //! Nibble-orientated view onto byte-slice, allowing nibble-precision offsets.
 use std::cmp::*;
+use bytes::*;
 
 /// Nibble-orientated view onto byte-slice, allowing nibble-precision offsets.
 ///
@@ -69,6 +70,18 @@ impl<'a> NibbleSlice<'a> {
 		}
 		i
 	}
+
+	pub fn encoded(&self, is_leaf: bool) -> Bytes {
+		let l = self.len();
+		let mut r = Bytes::with_capacity(l / 2 + 1);
+		let mut i = l % 2;
+		r.push(if i == 1 {0x10 + self.at(0)} else {0} + if is_leaf {0x20} else {0});
+		while i < l {
+			r.push(self.at(i) * 16 + self.at(i + 1));
+			i += 2;
+		}
+		r
+	}
 }
 
 impl<'a> PartialEq for NibbleSlice<'a> {
@@ -124,6 +137,15 @@ mod tests {
 		for i in 0..3 {
 			assert_eq!(m.at(i), i as u8 + 3);
 		}
+	}
+
+	#[test]
+	fn encoded() {
+		let n = NibbleSlice::new(D);
+		assert_eq!(n.encoded(false), &[0x00, 0x01, 0x23, 0x45]);
+		assert_eq!(n.encoded(true), &[0x20, 0x01, 0x23, 0x45]);
+		assert_eq!(n.mid(1).encoded(false), &[0x11, 0x23, 0x45]);
+		assert_eq!(n.mid(1).encoded(true), &[0x31, 0x23, 0x45]);
 	}
 
 	#[test]

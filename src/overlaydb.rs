@@ -186,6 +186,7 @@ impl HashDB for OverlayDB {
 		}
 	}
 	fn insert(&mut self, value: &[u8]) -> H256 { self.overlay.insert(value) }
+	fn emplace(&mut self, key: H256, value: Bytes) { self.overlay.emplace(key, value); }
 	fn kill(&mut self, key: &H256) { self.overlay.kill(key); }
 }
 
