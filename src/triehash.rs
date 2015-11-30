@@ -139,7 +139,7 @@ impl NibblePair {
 	}
 }
 
-fn shared_nibble_prefix_len(vec: &[NibblePair]) -> usize {
+fn nibble_shared_prefix_len(vec: &[NibblePair]) -> usize {
 	if vec.len() == 0 {
 		return 0;
 	}
@@ -185,54 +185,66 @@ pub fn hash256(vec: &[NibblePair]) -> H256 {
 }
 
 fn hash256rlp(vec: &[NibblePair], pre_len: usize, stream: &mut RlpStream) {
-	match vec.len() {
-		0 => { 
-			stream.append(&""); 
-		},
-		1 => {
-			stream.append_list(2);
-			stream.append(&hex_prefix_encode(&vec[0].nibble[pre_len..], true));
-			stream.append(&vec[0].data);
-		},
-		_ => {
-			let shared_prefix = shared_nibble_prefix_len(vec);
+	let vlen = vec.len();
 
-			match shared_prefix > pre_len {
-				true => {
-					stream.append_list(2);
-					stream.append(&hex_prefix_encode(&vec[0].nibble[pre_len..shared_prefix], false));
-					hash256aux(vec, shared_prefix, stream);
-				},
-				false => {
-					stream.append_list(17);
+	// in case of empty slice, just append null
+	if vlen == 0 {
+		stream.append(&""); 
+		return;
+	}
 
-					// if first nibble len is equal to pre_len
-					// move forward
-					let mut begin = match pre_len == vec[0].nibble.len() {
-						true => 1,
-						false => 0
-					};
+	// if the slice contains just one item, append the suffix of the key
+	// and then append value
+	if vlen == 1 {
+		stream.append_list(2);
+		stream.append(&hex_prefix_encode(&vec[0].nibble[pre_len..], true));
+		stream.append(&vec[0].data);
+		return;
+	}
 
-					for i in 0..16 {
-						// cout how many successive elements have same next nibble
-						let len = vec[begin..].iter()
-							.map(| pair | pair.nibble[pre_len] )
-							.take_while(|&q| q == i).count();
-							
-						match len {
-							0 => { stream.append(&""); },
-							_ => hash256aux(&vec[begin..(begin + len)], pre_len + 1, stream)
-						}
-						begin += len;
-					}
+	// get length of the longest shared prefix in slice keys
+	let shared_prefix = nibble_shared_prefix_len(vec);
 
-					match pre_len == vec[0].nibble.len() {
-						true => { stream.append(&vec[0].data); } ,
-						false => { stream.append(&""); }
-					};
-				}
-			}
+	// if shared prefix is higher than current prefix append its
+	// new part of the key to the stream
+	// then recursively append suffixes of all items who had this key
+	if shared_prefix > pre_len {
+		stream.append_list(2);
+		stream.append(&hex_prefix_encode(&vec[0].nibble[pre_len..shared_prefix], false));
+		hash256aux(vec, shared_prefix, stream);
+		return;
+	}
+
+	// an item for every possible nibble/suffix
+	// + 1 for data 
+	stream.append_list(17);
+
+	// if first key len is equal to prefix_len, move to next element
+	let mut begin = match pre_len == vec[0].nibble.len() {
+		true => 1,
+		false => 0
+	};
+
+	// iterate over all possible nibbles
+	for i in 0..16 {
+		// cout how many successive elements have same next nibble
+		let len = vec[begin..].iter()
+			.map(| pair | pair.nibble[pre_len] )
+			.take_while(|&q| q == i).count();
+			
+		// if at least 1 successive element has the same nibble
+		// append their suffixes
+		match len {
+			0 => { stream.append(&""); },
+			_ => hash256aux(&vec[begin..(begin + len)], pre_len + 1, stream)
 		}
+		begin += len;
+	}
+
+	// if fist key len is equal prefix, append it's value
+	match pre_len == vec[0].nibble.len() {
+		true => { stream.append(&vec[0].data); },
+		false => { stream.append(&""); }
 	};
 }
 
@@ -249,7 +261,7 @@ fn hash256aux(vec: &[NibblePair], pre_len: usize, stream: &mut RlpStream) {
 
 #[test]
 fn test_shared_nibble_len() {
-	let len = shared_nibble_prefix_len(&vec![
+	let len = nibble_shared_prefix_len(&vec![
 									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
 									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
 	]);
@@ -259,7 +271,7 @@ fn test_shared_nibble_len() {
 
 #[test]
 fn test_shared_nibble_len2() {
-	let len = shared_nibble_prefix_len(&vec![
+	let len = nibble_shared_prefix_len(&vec![
 									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
 									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
 									   NibblePair::new(vec![4, 1, 2, 3, 4, 5, 6], vec![])
@@ -270,7 +282,7 @@ fn test_shared_nibble_len2() {
 
 #[test]
 fn test_shared_nibble_len3() {
-	let len = shared_nibble_prefix_len(&vec![
+	let len = nibble_shared_prefix_len(&vec![
 									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
 									   NibblePair::new(vec![0, 1, 2, 3, 4, 5, 6], vec![]),
 									   NibblePair::new(vec![0, 1, 2, 4, 4, 5, 6], vec![])
