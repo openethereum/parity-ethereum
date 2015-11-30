@@ -34,6 +34,10 @@ struct Diff {
 	old: Vec<H256>,
 }
 
+impl Diff {
+	pub fn new() -> Diff { Diff { new: vec![], old: vec![] }}
+}
+
 impl TrieDB {
 	pub fn new<T>(db: T) -> Self where T: HashDB + 'static { TrieDB{ db: Box::new(db), root: H256::new() } }
 
@@ -51,11 +55,11 @@ impl TrieDB {
 
 	fn add(&mut self, key: &NibbleSlice, value: &[u8]) {
 		// determine what the new root is, insert new nodes and remove old as necessary.
-		let mut todo: (Bytes, Diff);
+		let todo =
 		{
 			let root_rlp = self.db.lookup(&self.root).unwrap();
-			todo = self.merge(root_rlp, key, value);
-		}
+			self.merge(root_rlp, key, value)
+		};
 		self.apply(todo.1);
 		self.set_root_rlp(&todo.0);
 	}
@@ -76,18 +80,19 @@ impl TrieDB {
 	/// The database will be updated so as to make the returned RLP valid through inserting
 	/// and deleting nodes as necessary.
 	fn merge(&self, old: &[u8], partial_key: &NibbleSlice, value: &[u8]) -> (Bytes, Diff) {
-		unimplemented!();
-/*		let o = Rlp::new(old);
-		match (o.type()) {
-			List(17) => {
+		let o = Rlp::new(old);
+		match o.prototype() {
+			Prototype::List(17) => {
 				// already have a branch. route and merge.
+				unimplemented!();
 			},
-			List(2) => {
+			Prototype::List(2) => {
 				// already have an extension. either fast_forward, cleve or transmute_to_branch.
+				unimplemented!();
 			},
-			Data(0) => compose_extension(partial_key),
+			Prototype::Data(0) => (Self::compose_extension(partial_key, value, true), Diff::new()),
 			_ => panic!("Invalid RLP for node."),
-		}*/
+		}
 	}
 
 	fn compose_extension(partial_key: &NibbleSlice, value: &[u8], is_leaf: bool) -> Bytes {
