@@ -134,6 +134,42 @@ impl<'a> Rlp<'a> {
 		}
 	}
 
+	/// The bare data of the rlp.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	let view = rlp.at(1);
+	/// 	let dog = view.data();
+	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
+	/// }
+	/// ```
+	pub fn data(&'a self) -> &'a [u8] {
+		self.rlp.data()
+	}
+
+	/// Returns number of rlp items.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.items(), 2);
+	/// 	let view = rlp.at(1);
+	/// 	assert_eq!(view.items(), 0);
+	/// }
+	/// ```
+	pub fn items(&self) -> usize {
+		self.rlp.items()
+	}
+
 	/// Get view onto rlp-slice at index.
 	/// 
 	/// Caches offset to given index, so access to successive
@@ -152,6 +188,38 @@ impl<'a> Rlp<'a> {
 	/// ```
 	pub fn at(&self, index: usize) -> Rlp<'a> {
 		From::from(self.rlp.at(index).unwrap())
+	}
+
+	/// No value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_null());
+	/// }
+	/// ```
+	pub fn is_null(&self) -> bool {
+		self.rlp.is_null()
+	}
+
+	/// Contains a zero-length string or zero-length list.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc0];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_empty());
+	/// }
+	/// ```
+	pub fn is_empty(&self) -> bool {
+		self.rlp.is_empty()
 	}
 
 	/// List value
@@ -186,6 +254,23 @@ impl<'a> Rlp<'a> {
 		self.rlp.is_data()
 	}
 
+	/// Int value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc1, 0x10];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.is_int(), false);
+	/// 	assert_eq!(rlp.at(0).is_int(), true);
+	/// }
+	/// ```
+	pub fn is_int(&self) -> bool {
+		self.rlp.is_int()
+	}
+
 	/// Get iterator over rlp-slices
 	/// 
 	/// ```rust
@@ -209,6 +294,45 @@ impl<'a> UntrustedRlp<'a> {
 		UntrustedRlp {
 			bytes: bytes,
 			cache: Cell::new(OffsetCache::new(usize::max_value(), 0)),
+		}
+	}
+
+	/// The bare data of the rlp.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	let view = rlp.at(1).unwrap();
+	/// 	let dog = view.data();
+	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
+	/// }
+	/// ```
+	pub fn data(&'a self) -> &'a [u8] {
+		self.bytes
+	}
+
+	/// Returns number of rlp items.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert_eq!(rlp.items(), 2);
+	/// 	let view = rlp.at(1).unwrap();
+	/// 	assert_eq!(view.items(), 0);
+	/// }
+	/// ```
+	pub fn items(&self) -> usize {
+		match self.is_list() {
+			true => self.iter().count(),
+			false => 0
 		}
 	}
 
@@ -252,6 +376,38 @@ impl<'a> UntrustedRlp<'a> {
 		Ok(UntrustedRlp::new(&bytes[0..found.prefix_len + found.value_len]))
 	}
 
+	/// No value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert!(rlp.is_null());
+	/// }
+	/// ```
+	pub fn is_null(&self) -> bool {
+		self.bytes.len() == 0
+	}
+
+	/// Contains a zero-length string or zero-length list.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc0];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert!(rlp.is_empty());
+	/// }
+	/// ```
+	pub fn is_empty(&self) -> bool {
+		!self.is_null() && (self.bytes[0] == 0xc0 || self.bytes[0] == 0x80)
+	}
+
 	/// List value
 	/// 
 	/// ```rust
@@ -265,7 +421,7 @@ impl<'a> UntrustedRlp<'a> {
 	/// }
 	/// ```
 	pub fn is_list(&self) -> bool {
-		self.bytes.len() > 0 && self.bytes[0] >= 0xc0
+		!self.is_null() && self.bytes[0] >= 0xc0
 	}
 
 	/// String value
@@ -281,7 +437,33 @@ impl<'a> UntrustedRlp<'a> {
 	/// }
 	/// ```
 	pub fn is_data(&self) -> bool {
-		self.bytes.len() > 0 && self.bytes[0] <= 0xbf
+		!self.is_null() && self.bytes[0] < 0xc0
+	}
+
+	/// Int value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc1, 0x10];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert_eq!(rlp.is_int(), false);
+	/// 	assert_eq!(rlp.at(0).unwrap().is_int(), true);
+	/// }
+	/// ```
+	pub fn is_int(&self) -> bool {
+		if self.is_null() {
+			return false;
+		}
+
+		match self.bytes[0] {
+			0...0x80 => true,
+			0x81...0xb7 => self.bytes[1] != 0,
+			b @ 0xb8...0xbf => self.bytes[1 + b as usize - 0xb7] != 0,
+			_ => false
+		}
 	}
 
 	/// Get iterator over rlp-slices
@@ -387,7 +569,6 @@ impl<'a> Iterator for UntrustedRlpIterator<'a> {
 		result
 	}
 }
-
 
 /// Iterator over trusted rlp-slice list elements.
 pub struct RlpIterator<'a> {
@@ -629,6 +810,28 @@ impl RlpStream {
 
 		// return chainable self
 		self
+	}
+
+	/// Clear the output stream so far.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(3);
+	/// 	stream.append(&"cat");
+	/// 	stream.clear();
+	/// 	stream.append(&"dog");
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0x83, b'd', b'o', b'g']);
+	/// }
+	pub fn clear(&mut self) {
+		// clear bytes
+		self.encoder.bytes.clear();
+
+		// clear lists
+		self.unfinished_lists.clear();
 	}
 
 	/// Returns true if stream doesnt expect any more items.
