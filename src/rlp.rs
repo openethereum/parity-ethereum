@@ -2,7 +2,7 @@
 //! 
 //! Allows encoding, decoding, and view onto rlp-slice 
 //!
-//!# When should you use what?
+//!# What should you use when?
 //!
 //!### Use `encode` function when: 
 //! * You want to encode something inline.
@@ -83,10 +83,10 @@ impl ItemInfo {
 #[derive(Debug, PartialEq, Eq)]
 pub enum DecoderError {
 	FromBytesError(FromBytesError),
-	UntrustedRlpIsTooShort,
-	UntrustedRlpExpectedToBeList,
-	UntrustedRlpExpectedToBeValue,
-	BadUntrustedRlp,
+	RlpIsTooShort,
+	RlpExpectedToBeList,
+	RlpExpectedToBeData,
+	BadRlp,
 }
 impl StdError for DecoderError {
 	fn description(&self) -> &str {
@@ -230,7 +230,7 @@ impl<'a> UntrustedRlp<'a> {
 	/// ```
 	pub fn at(&self, index: usize) -> Result<UntrustedRlp<'a>, DecoderError> {
 		if !self.is_list() {
-			return Err(DecoderError::UntrustedRlpExpectedToBeList);
+			return Err(DecoderError::RlpExpectedToBeList);
 		}
 
 		// move to cached position if it's index is less or equal to
@@ -322,10 +322,10 @@ impl<'a> UntrustedRlp<'a> {
 
 	/// return first item info
 	///
-	/// TODO: move this to decode_untrustedr?
+	/// TODO: move this to decoder (?)
 	fn item_info(bytes: &[u8]) -> Result<ItemInfo, DecoderError> {
 		let item = match bytes.first().map(|&x| x) {
-			None => return Err(DecoderError::UntrustedRlpIsTooShort),
+			None => return Err(DecoderError::RlpIsTooShort),
 			Some(0...0x7f) => ItemInfo::new(0, 1),
 			Some(l @ 0x80...0xb7) => ItemInfo::new(1, l as usize - 0x80),
 			Some(l @ 0xb8...0xbf) => {
@@ -341,12 +341,12 @@ impl<'a> UntrustedRlp<'a> {
 				let value_len = try!(usize::from_bytes(&bytes[1..prefix_len]));
 				ItemInfo::new(prefix_len, value_len)
 			}
-			_ => return Err(DecoderError::BadUntrustedRlp),
+			_ => return Err(DecoderError::BadRlp),
 		};
 
 		match item.prefix_len + item.value_len <= bytes.len() {
 			true => Ok(item),
-			false => Err(DecoderError::UntrustedRlpIsTooShort),
+			false => Err(DecoderError::RlpIsTooShort),
 		}
 	}
 
@@ -354,7 +354,7 @@ impl<'a> UntrustedRlp<'a> {
 	fn consume(bytes: &'a [u8], len: usize) -> Result<&'a [u8], DecoderError> {
 		match bytes.len() >= len {
 			true => Ok(&bytes[len..]),
-			false => Err(DecoderError::UntrustedRlpIsTooShort),
+			false => Err(DecoderError::RlpIsTooShort),
 		}
 	}
 }
@@ -448,7 +448,7 @@ impl<T> Decodable for T where T: FromBytes {
 			true => BasicDecoder::read_value(rlp.bytes, | bytes | {
 				Ok(try!(T::from_bytes(bytes)))
 			}),
-			false => Err(DecoderError::UntrustedRlpExpectedToBeValue),
+			false => Err(DecoderError::RlpExpectedToBeData),
 		}
 	}
 }
@@ -457,7 +457,7 @@ impl<T> Decodable for Vec<T> where T: Decodable {
 	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		match rlp.is_list() {
 			true => rlp.iter().map(|rlp| T::decode_untrusted(&rlp)).collect(),
-			false => Err(DecoderError::UntrustedRlpExpectedToBeList),
+			false => Err(DecoderError::RlpExpectedToBeList),
 		}
 	}
 }
@@ -470,7 +470,7 @@ impl Decodable for Vec<u8> {
 				res.extend(bytes);
 				Ok(res)
 			}),
-			false => Err(DecoderError::UntrustedRlpExpectedToBeValue),
+			false => Err(DecoderError::RlpExpectedToBeData),
 		}
 	}
 }
@@ -485,7 +485,7 @@ impl Decoder for BasicDecoder {
 	fn read_value<T, F>(bytes: &[u8], f: F) -> Result<T, DecoderError> where F: FnOnce(&[u8]) -> Result<T, DecoderError> {
 		match bytes.first().map(|&x| x) {
 			// rlp is too short
-			None => Err(DecoderError::UntrustedRlpIsTooShort),
+			None => Err(DecoderError::RlpIsTooShort),
 			// single byt value
 			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
 			// 0-55 bytes
@@ -497,7 +497,7 @@ impl Decoder for BasicDecoder {
 				let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
 				Ok(try!(f(&bytes[begin_of_value..begin_of_value + len])))
 			}
-			_ => Err(DecoderError::BadUntrustedRlp),
+			_ => Err(DecoderError::BadRlp),
 		}
 	}
 }
@@ -550,17 +550,16 @@ impl RlpStream {
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
 	/// 	stream.append(&"cat").append(&"dog");
-	/// 	let out = stream.out().unwrap();
+	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
 	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable + fmt::Debug {
-		//println!("append: {:?}", object);
 		// encode given value and add it at the end of the stream
 		object.encode(&mut self.encoder);
 
 		// if list is finished, prepend the length
-		self.try_to_finish(1);
+		self.note_appended(1);
 
 		// return chainable self
 		self
@@ -576,19 +575,18 @@ impl RlpStream {
 	/// 	let mut stream = RlpStream::new_list(2);
 	/// 	stream.append_list(2).append(&"cat").append(&"dog");
 	/// 	stream.append(&"");	
-	/// 	let out = stream.out().unwrap();
+	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
 	/// }
 	/// ```
 	pub fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
-		//println!("append_list: {}", len);
 		// push new list
 		let position = self.encoder.bytes.len();
 		match len {
 			0 => {
 				// we may finish, if the appended list len is equal 0
 				self.encoder.bytes.push(0xc0u8);
-				self.try_to_finish(1);
+				self.note_appended(1);
 			}
 			_ => self.unfinished_lists.push_back(ListInfo::new(position, len)),
 		}
@@ -597,14 +595,37 @@ impl RlpStream {
 		self
 	}
 
+	/// Apends null to the end of stream, chainable.
+	///
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append_null().append_null();
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
+	/// }
+	/// ```
+	pub fn append_null<'a>(&'a mut self) -> &'a mut RlpStream {
+		// self push raw item
+		self.encoder.bytes.push(0x80);
+
+		// try to finish and prepend the length
+		self.note_appended(1);
+
+		// return chainable self
+		self
+	}
+
 	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
 	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
-		//println!("append_raw: {:?} len: {}, count: {}", bytes, bytes.len(), item_count);
 		// push raw items
 		self.encoder.bytes.extend(bytes);	
 
 		// try to finish and prepend the length
-		self.try_to_finish(item_count);
+		self.note_appended(item_count);
 
 		// return chainable self
 		self
@@ -622,7 +643,7 @@ impl RlpStream {
 	/// 	assert_eq!(stream.is_finished(), false);
 	/// 	stream.append(&"dog");
 	/// 	assert_eq!(stream.is_finished(), true);
-	/// 	let out = stream.out().unwrap();
+	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	pub fn is_finished(&self) -> bool {
@@ -631,16 +652,16 @@ impl RlpStream {
 
 	/// Streams out encoded bytes.
 	/// 
-	/// Returns an error if stream is not finished.
-	pub fn out(self) -> Result<Vec<u8>, EncoderError> {
+	/// panic! if stream is not finished.
+	pub fn out(self) -> Vec<u8> {
 		match self.is_finished() {
-			true => Ok(self.encoder.out()),
-			false => Err(EncoderError::StreamIsUnfinished),
+			true => self.encoder.out(),
+			false => panic!()
 		}
 	}
 
-	/// try to finish lists
-	fn try_to_finish(&mut self, inserted_items: usize) -> () {
+	/// Try to finish lists
+	fn note_appended(&mut self, inserted_items: usize) -> () {
 		let should_finish = match self.unfinished_lists.back_mut() {
 			None => false,
 			Some(ref mut x) => {
@@ -656,7 +677,7 @@ impl RlpStream {
 			let x = self.unfinished_lists.pop_back().unwrap();
 			let len = self.encoder.bytes.len() - x.position;
 			self.encoder.insert_list_len_at_pos(len, x.position);
-			self.try_to_finish(1);
+			self.note_appended(1);
 		}
 	}
 }
@@ -678,23 +699,6 @@ pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable
 	let mut encoder = BasicEncoder::new();
 	object.encode(&mut encoder);
 	encoder.out()
-}
-
-#[derive(Debug)]
-pub enum EncoderError {
-	StreamIsUnfinished,
-}
-
-impl StdError for EncoderError {
-	fn description(&self) -> &str {
-		"encoder error"
-	}
-}
-
-impl fmt::Display for EncoderError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Debug::fmt(&self, f)
-	}
 }
 
 pub trait Encodable {
@@ -856,10 +860,10 @@ mod tests {
 			assert!(rlp.is_list());
 
 			let cat_err = rlp.at(0).unwrap_err();
-			assert_eq!(cat_err, rlp::DecoderError::UntrustedRlpIsTooShort);
+			assert_eq!(cat_err, rlp::DecoderError::RlpIsTooShort);
 
 			let dog_err = rlp.at(1).unwrap_err();
-			assert_eq!(dog_err, rlp::DecoderError::UntrustedRlpIsTooShort);
+			assert_eq!(dog_err, rlp::DecoderError::RlpIsTooShort);
 		}
 	}
 
@@ -1014,7 +1018,7 @@ mod tests {
 	fn rlp_stream() {
 		let mut stream = RlpStream::new_list(2);
 		stream.append(&"cat").append(&"dog");
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out,
 		           vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	}
@@ -1025,7 +1029,7 @@ mod tests {
 		stream.append_list(0);
 		stream.append_list(1).append_list(0);
 		stream.append_list(2).append_list(0).append_list(1).append_list(0);
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
 	}
 
@@ -1036,7 +1040,7 @@ mod tests {
 		for _ in 0..17 {
 			stream.append(&"");
 		}
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out, vec![0xd1, 0x80, 0x80, 0x80, 0x80, 0x80,
 				   			 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
 							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]);
@@ -1052,7 +1056,7 @@ mod tests {
 			stream.append(&"aaa");
 			res.extend(vec![0x83, b'a', b'a', b'a']);
 		}
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out, res);
 	}
 
