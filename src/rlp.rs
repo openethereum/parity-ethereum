@@ -652,7 +652,7 @@ impl RlpStream {
 
 	/// Streams out encoded bytes.
 	/// 
-	/// panic! if stream is not finished
+	/// Returns an error if stream is not finished.
 	pub fn out(self) -> Vec<u8> {
 		match self.is_finished() {
 			true => self.encoder.out(),
@@ -1058,7 +1058,7 @@ mod tests {
 		}
 		let out = stream.out();
 		assert_eq!(out, res);
-	};
+	}
 
 	struct DTestPair<T>(T, Vec<u8>) where T: rlp::Decodable + fmt::Debug + cmp::Eq;
 
