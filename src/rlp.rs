@@ -227,10 +227,6 @@ impl<'a> Rlp<'a> {
 		From::from(self.rlp.at(index).unwrap())
 	}
 
-	pub fn data_at(&self, _index: usize) -> &[u8] {
-		unimplemented!();
-	}
-
 	/// No value
 	/// 
 	/// ```rust
