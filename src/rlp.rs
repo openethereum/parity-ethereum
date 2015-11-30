@@ -631,6 +631,28 @@ impl RlpStream {
 		self
 	}
 
+	/// Clear the output stream so far.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(3);
+	/// 	stream.append(&"cat");
+	/// 	stream.clear();
+	/// 	stream.append(&"dog");
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0x83, b'd', b'o', b'g']);
+	/// }
+	pub fn clear(&mut self) {
+		// clear bytes
+		self.encoder.bytes.clear();
+
+		// clear lists
+		self.unfinished_lists.clear();
+	}
+
 	/// Returns true if stream doesnt expect any more items.
 	///
 	/// ```rust
