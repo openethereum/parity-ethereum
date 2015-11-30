@@ -1,7 +1,7 @@
 language: rust
 
 rust:
-    - 1.4.0
+    - beta
 
 os:
     #- linux
