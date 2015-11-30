@@ -172,6 +172,38 @@ impl<'a> Rlp<'a> {
 		From::from(self.rlp.at(index).unwrap())
 	}
 
+	/// No value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_null());
+	/// }
+	/// ```
+	pub fn is_null(&self) -> bool {
+		self.rlp.is_null()
+	}
+
+	/// Contains a zero-length string or zero-length list.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc0];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_empty());
+	/// }
+	/// ```
+	pub fn is_empty(&self) -> bool {
+		self.rlp.is_empty()
+	}
+
 	/// List value
 	/// 
 	/// ```rust
@@ -288,6 +320,38 @@ impl<'a> UntrustedRlp<'a> {
 		Ok(UntrustedRlp::new(&bytes[0..found.prefix_len + found.value_len]))
 	}
 
+	/// No value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert!(rlp.is_null());
+	/// }
+	/// ```
+	pub fn is_null(&self) -> bool {
+		self.bytes.len() == 0
+	}
+
+	/// Contains a zero-length string or zero-length list.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc0];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert!(rlp.is_empty());
+	/// }
+	/// ```
+	pub fn is_empty(&self) -> bool {
+		!self.is_null() && (self.bytes[0] == 0xc0 || self.bytes[0] == 0x80)
+	}
+
 	/// List value
 	/// 
 	/// ```rust
@@ -301,7 +365,7 @@ impl<'a> UntrustedRlp<'a> {
 	/// }
 	/// ```
 	pub fn is_list(&self) -> bool {
-		self.bytes.len() > 0 && self.bytes[0] >= 0xc0
+		!self.is_null() && self.bytes[0] >= 0xc0
 	}
 
 	/// String value
@@ -317,7 +381,7 @@ impl<'a> UntrustedRlp<'a> {
 	/// }
 	/// ```
 	pub fn is_data(&self) -> bool {
-		self.bytes.len() > 0 && self.bytes[0] <= 0xbf
+		!self.is_null() && self.bytes[0] < 0xc0
 	}
 
 	/// Get iterator over rlp-slices
@@ -423,7 +487,6 @@ impl<'a> Iterator for UntrustedRlpIterator<'a> {
 		result
 	}
 }
-
 
 /// Iterator over trusted rlp-slice list elements.
 pub struct RlpIterator<'a> {
