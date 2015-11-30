@@ -37,6 +37,12 @@ use std::collections::HashMap;
 ///   m.kill(&k);
 ///   assert!(!m.exists(&k));
 ///
+///   m.kill(&k);
+///   assert!(!m.exists(&k));
+///
+///   m.insert(d);
+///   assert!(!m.exists(&k));
+
 ///   m.insert(d);
 ///   assert!(m.exists(&k));
 ///   assert_eq!(m.lookup(&k).unwrap(), d);
@@ -100,12 +106,22 @@ impl MemoryDB {
 		mem::swap(&mut self.data, &mut data);
 		data
 	}
+
+	pub fn denote(&self, key: &H256, value: Bytes) -> &(Bytes, i32) {
+		if self.data.get(&key) == None {
+			unsafe {
+				let p = &self.data as *const HashMap<H256, (Bytes, i32)> as *mut HashMap<H256, (Bytes, i32)>;
+				(*p).insert(key.clone(), (value, 0));
+			}
+		}
+		self.data.get(key).unwrap()
+	}
 }
 
 impl HashDB for MemoryDB {
-	fn lookup(&self, key: &H256) -> Option<Bytes> {
+	fn lookup(&self, key: &H256) -> Option<&[u8]> {
 		match self.data.get(key) {
-			Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
+			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => None
 		}
 	}
@@ -120,9 +136,9 @@ impl HashDB for MemoryDB {
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		let key = value.sha3();
 		if match self.data.get_mut(&key) {
-			Some(&mut (ref mut old_value, ref mut rc @ 0)) => {
+			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
 				*old_value = From::from(value.bytes());
-				*rc = 1;
+				*rc += 1;
 				false
 			},
 			Some(&mut (_, ref mut x)) => { *x += 1; false } ,
@@ -131,6 +147,20 @@ impl HashDB for MemoryDB {
 			self.data.insert(key.clone(), (From::from(value.bytes()), 1));
 		}
 		key
+	}
+
+	fn emplace(&mut self, key: H256, value: Bytes) {
+		match self.data.get_mut(&key) {
+			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
+				*old_value = value;
+				*rc += 1;
+				return;
+			},
+			Some(&mut (_, ref mut x)) => { *x += 1; return; } ,
+			None => {},
+		}
+		// ... None falls through into...
+		self.data.insert(key, (value, 1));
 	}
 
 	fn kill(&mut self, key: &H256) {
@@ -143,3 +173,20 @@ impl HashDB for MemoryDB {
 	}
 }
 
+#[test]
+fn memorydb_denote() {
+	let mut m = MemoryDB::new();
+	let hello_bytes = b"Hello world!";
+	let hash = m.insert(hello_bytes);
+	assert_eq!(m.lookup(&hash).unwrap(), b"Hello world!");
+
+	for _ in 0..1000 {
+		let r = H256::random();
+		let k = r.sha3();
+		let &(ref v, ref rc) = m.denote(&k, r.bytes().to_vec());
+		assert_eq!(v, &r.bytes());
+		assert_eq!(*rc, 0);
+	}
+
+	assert_eq!(m.lookup(&hash).unwrap(), b"Hello world!");
+}

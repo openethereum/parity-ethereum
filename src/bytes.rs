@@ -23,7 +23,7 @@
 //! 	use util::bytes::FromBytes;
 //! 	
 //! 	let a = String::from_bytes(&[b'd', b'o', b'g']);
-//! 	let b = u8::from_bytes(&[0xfa]);
+//! 	let b = u16::from_bytes(&[0xfa]);
 //! 	let c = u64::from_bytes(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
 //! }
 //!
@@ -102,28 +102,6 @@ impl ToBytes for String {
 	}
 	
 	fn to_bytes_len(&self) -> usize { self.len() }
-}
-
-impl ToBytes for u8 {
-	fn to_bytes(&self) -> Vec<u8> {
-		match *self {
-			0 => vec![],
-			_ => vec![*self]
-		}
-	}
-
-	fn to_bytes_len(&self) -> usize {
-		match *self {
-			0 => 0,
-			_ => 1
-		}
-	}
-	fn first_byte(&self) -> Option<u8> { 
-		match *self {
-			0 => None,
-			_ => Some(*self) 
-		}
-	}
 }
 
 impl ToBytes for u64 {
@@ -223,15 +201,6 @@ impl FromBytes for String {
 	}
 }
 
-impl FromBytes for u8 {
-	fn from_bytes(bytes: &[u8]) -> FromBytesResult<u8> {
-		match bytes.len() {
-			0 => Ok(0),
-			_ => Ok(bytes[0])
-		}
-	}
-}
-
 impl FromBytes for u64 {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<u64> {
 		match bytes.len() {
@@ -293,3 +262,4 @@ impl <T>FromBytes for T where T: FixedHash {
 		}
 	}
 }
+

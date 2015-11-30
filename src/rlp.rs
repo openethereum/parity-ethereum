@@ -1,85 +1,34 @@
-//! Rlp serialization module
-//!
-//! Types implementing `Endocable` and `Decodable` traits
-//! can be easily coverted to and from rlp.
-//! Trusted rlp should be decoded with `Rlp`, untrusted with `UntrustedRlp`.
-//!
-//! # Examples:
-//!
-//! ```rust
-//! extern crate ethcore_util;
-//! use ethcore_util::rlp::{Rlp, UntrustedRlp, RlpStream, Decodable};
-//!
-//! fn encode_value() {
-//!		// 1029
-//!		let mut stream = RlpStream::new();
-//!		stream.append(&1029u32);
-//!		let out = stream.out().unwrap();
-//!		assert_eq!(out, vec![0x82, 0x04, 0x05]);
-//! }
-//!
-//! fn encode_list() {
-//!		// [ "cat", "dog" ]
-//!		let mut stream = RlpStream::new_list(2);
-//!		stream.append(&"cat").append(&"dog");
-//!		let out = stream.out().unwrap();
-//!		assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
-//! }
-//!
-//! fn encode_list2() {
-//!		// [ [], [[]], [ [], [[]] ] ]
-//!		let mut stream = RlpStream::new_list(3);
-//!		stream.append_list(0);
-//!		stream.append_list(1).append_list(0);
-//!		stream.append_list(2).append_list(0).append_list(1).append_list(0);
-//!		let out = stream.out().unwrap();
-//!		assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
-//! }
-//!
-//! fn decode_value() {
-//!		//  0x102456789abcdef
-//!		let data = vec![0x88, 0x10, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
-//!		let rlp = Rlp::new(&data);
-//!		let _ = u64::decode(&rlp);
-//! }
+//! Rlp serialization module 
 //! 
-//! fn decode_untrusted_string() {
-//!		// "cat"
-//!		let data = vec![0x83, b'c', b'a', b't'];
-//!		let rlp = UntrustedRlp::new(&data);
-//!		let _ = String::decode_untrusted(&rlp).unwrap();
-//! }
-//! 
-//! fn decode_list() {
-//!     // ["cat", "dog"]
-//!     let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
-//!     let rlp = Rlp::new(&data);
-//!     let _ : Vec<String> = Decodable::decode(&rlp);
-//! }
-//! 
-//! fn decode_list2() {
-//!		// [ [], [[]], [ [], [[]] ] ]
-//!		let data = vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0];
-//!		let rlp = Rlp::new(&data);
-//!		let _v0: Vec<u8> = Decodable::decode(&rlp.at(0));
-//!		let _v1: Vec<Vec<u8>> = Decodable::decode(&rlp.at(1));
-//!		let nested_rlp = rlp.at(2);
-//!		let _v2a: Vec<u8> = Decodable::decode(&nested_rlp.at(0));
-//!		let _v2b: Vec<Vec<u8>> = Decodable::decode(&nested_rlp.at(1));
-//! }
+//! Allows encoding, decoding, and view onto rlp-slice 
 //!
-//! fn main() {
-//!		encode_value();
-//!		encode_list();
-//!		encode_list2();
+//!# What should you use when?
 //!
-//!		decode_value();
-//!		decode_untrusted_string();
-//!		decode_list();
-//!		decode_list2();
-//! }
-//! ```
+//!### Use `encode` function when: 
+//! * You want to encode something inline.
+//! * You do not work on big set of data.
+//! * You want to encode whole data structure at once.
 //!
+//!### Use `decode` function when:
+//! * You want to decode something inline.
+//! * You do not work on big set of data.
+//! * You want to decode whole rlp at once.
+//!
+//!### Use `RlpStream` when:
+//! * You want to encode something in portions.
+//! * You encode a big set of data.
+//!
+//!### Use `Rlp` when:
+//! * You are working on trusted data (not corrupted).
+//! * You want to get view onto rlp-slice.
+//! * You don't want to decode whole rlp at once.
+//!
+//!### Use `UntrustedRlp` when: 
+//! * You are working on untrusted data (~corrupted).
+//! * You need to handle data corruption errors.
+//! * You are working on input data.
+//! * You want to get view onto rlp-slice.
+//! * You don't want to decode whole rlp at once.
 
 use std::fmt;
 use std::cell::Cell;
@@ -88,7 +37,12 @@ use std::error::Error as StdError;
 use bytes::{ToBytes, FromBytes, FromBytesError};
 use vector::InsertSlice;
 
-/// rlp container
+/// Data-oriented view onto rlp-slice.
+/// 
+/// This is immutable structere. No operations change it.
+/// 
+/// Should be used in places where, error handling is required,
+/// eg. on input
 #[derive(Debug)]
 pub struct UntrustedRlp<'a> {
 	bytes: &'a [u8],
@@ -129,10 +83,10 @@ impl ItemInfo {
 #[derive(Debug, PartialEq, Eq)]
 pub enum DecoderError {
 	FromBytesError(FromBytesError),
-	UntrustedRlpIsTooShort,
-	UntrustedRlpExpectedToBeList,
-	UntrustedRlpExpectedToBeValue,
-	BadUntrustedRlp,
+	RlpIsTooShort,
+	RlpExpectedToBeList,
+	RlpExpectedToBeData,
+	BadRlp,
 }
 impl StdError for DecoderError {
 	fn description(&self) -> &str {
@@ -152,10 +106,10 @@ impl From<FromBytesError> for DecoderError {
 	}
 }
 
-/// Unsafe wrapper for rlp decode_untrustedr.
+/// Data-oriented view onto trusted rlp-slice.
 /// 
-/// It assumes that you know what you are doing. Doesn't bother
-/// you with error handling.
+/// Unlikely to `UntrustedRlp` doesn't bother you with error
+/// handling. It assumes that you know what you are doing.
 pub struct Rlp<'a> {
 	rlp: UntrustedRlp<'a>
 }
@@ -172,31 +126,202 @@ impl<'a> From<Rlp<'a>> for UntrustedRlp<'a> {
 	}
 }
 
+pub enum Prototype {
+	Null,
+	Data(usize),
+	List(usize),
+}
+
 impl<'a> Rlp<'a> {
-	/// returns new instance of `Rlp`
+	/// Create a new instance of `Rlp`
 	pub fn new(bytes: &'a [u8]) -> Rlp<'a> {
 		Rlp {
 			rlp: UntrustedRlp::new(bytes)
 		}
 	}
 
+	/// Get the prototype of the RLP.
+	pub fn prototype(&self) -> Prototype {
+		if self.is_data() {
+			Prototype::Data(self.size())
+		}
+		else if self.is_list() {
+			Prototype::List(self.item_count())
+		}
+		else {
+			Prototype::Null
+		}
+	}
+
+	/// The bare data of the rlp.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	let view = rlp.at(1);
+	/// 	let dog = view.data();
+	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
+	/// }
+	/// ```
+	pub fn data(&self) -> &[u8] {
+		self.rlp.data()
+	}
+
+	/// Returns number of rlp items.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.item_count(), 2);
+	/// 	let view = rlp.at(1);
+	/// 	assert_eq!(view.item_count(), 0);
+	/// }
+	/// ```
+	pub fn item_count(&self) -> usize {
+		self.rlp.item_count()
+	}
+
+	/// Returns the number of bytes in the data, or zero if it isn't data.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.size(), 0);
+	/// 	let view = rlp.at(1);
+	/// 	assert_eq!(view.size(), 3);
+	/// }
+	/// ```
+	pub fn size(&self) -> usize {
+		self.rlp.size()
+	}
+
+	/// Get view onto rlp-slice at index.
+	/// 
+	/// Caches offset to given index, so access to successive
+	/// slices is faster.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	let dog = String::decode(&rlp.at(1));
+	/// 	assert_eq!(dog, "dog".to_string());
+	/// }
+	/// ```
 	pub fn at(&self, index: usize) -> Rlp<'a> {
 		From::from(self.rlp.at(index).unwrap())
 	}
 
-	/// returns true if rlp is a list
+	/// No value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_null());
+	/// }
+	/// ```
+	pub fn is_null(&self) -> bool {
+		self.rlp.is_null()
+	}
+
+	/// Contains a zero-length string or zero-length list.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc0];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_empty());
+	/// }
+	/// ```
+	pub fn is_empty(&self) -> bool {
+		self.rlp.is_empty()
+	}
+
+	/// List value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.is_list());
+	/// }
+	/// ```
 	pub fn is_list(&self) -> bool {
 		self.rlp.is_list()
 	}
 
-	/// returns true if rlp is a value
-	pub fn is_value(&self) -> bool {
-		self.rlp.is_value()
+	/// String value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert!(rlp.at(1).is_data());
+	/// }
+	/// ```
+	pub fn is_data(&self) -> bool {
+		self.rlp.is_data()
 	}
 
-	/// returns rlp iterator
-	pub fn iter(&'a self) -> UntrustedRlpIterator<'a> {
-		self.rlp.into_iter()
+	/// Int value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc1, 0x10];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	assert_eq!(rlp.is_int(), false);
+	/// 	assert_eq!(rlp.at(0).is_int(), true);
+	/// }
+	/// ```
+	pub fn is_int(&self) -> bool {
+		self.rlp.is_int()
+	}
+
+	/// Get iterator over rlp-slices
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = Rlp::new(&data);
+	/// 	let strings: Vec<String> = rlp.iter().map(| i | String::decode(&i)).collect();
+	/// }
+	/// ```
+	pub fn iter(&'a self) -> RlpIterator<'a> {
+		self.into_iter()
 	}
 }
 
@@ -209,12 +334,85 @@ impl<'a> UntrustedRlp<'a> {
 		}
 	}
 
-	/// get container subset at given index
-	///
-	/// paren container caches searched position
+	/// The bare data of the rlp.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	let view = rlp.at(1).unwrap();
+	/// 	let dog = view.data();
+	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
+	/// }
+	/// ```
+	pub fn data(&self) -> &[u8] {
+		self.bytes
+	}
+
+	/// Returns number of rlp items.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert_eq!(rlp.item_count(), 2);
+	/// 	let view = rlp.at(1).unwrap();
+	/// 	assert_eq!(view.item_count(), 0);
+	/// }
+	/// ```
+	pub fn item_count(&self) -> usize {
+		match self.is_list() {
+			true => self.iter().count(),
+			false => 0
+		}
+	}
+
+	/// Returns the number of bytes in the data, or zero if it isn't data.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert_eq!(rlp.size(), 0);
+	/// 	let view = rlp.at(1).unwrap();
+	/// 	assert_eq!(view.size(), 3);
+	/// }
+	/// ```
+	pub fn size(&self) -> usize {
+		match self.is_data() {
+			true => Self::item_info(self.bytes).unwrap().value_len,
+			false => 0
+		}
+	}
+
+	/// Get view onto rlp-slice at index
+	/// 
+	/// Caches offset to given index, so access to successive
+	/// slices is faster.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	let dog = String::decode_untrusted(&rlp.at(1).unwrap()).unwrap();
+	/// 	assert_eq!(dog, "dog".to_string());
+	/// }
+	/// ```
 	pub fn at(&self, index: usize) -> Result<UntrustedRlp<'a>, DecoderError> {
 		if !self.is_list() {
-			return Err(DecoderError::UntrustedRlpExpectedToBeList);
+			return Err(DecoderError::RlpExpectedToBeList);
 		}
 
 		// move to cached position if it's index is less or equal to
@@ -236,17 +434,111 @@ impl<'a> UntrustedRlp<'a> {
 		Ok(UntrustedRlp::new(&bytes[0..found.prefix_len + found.value_len]))
 	}
 
-	/// returns true if rlp is a list
+	/// No value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert!(rlp.is_null());
+	/// }
+	/// ```
+	pub fn is_null(&self) -> bool {
+		self.bytes.len() == 0
+	}
+
+	/// Contains a zero-length string or zero-length list.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc0];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert!(rlp.is_empty());
+	/// }
+	/// ```
+	pub fn is_empty(&self) -> bool {
+		!self.is_null() && (self.bytes[0] == 0xc0 || self.bytes[0] == 0x80)
+	}
+
+	/// List value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert!(rlp.is_list());
+	/// }
+	/// ```
 	pub fn is_list(&self) -> bool {
-		self.bytes.len() > 0 && self.bytes[0] >= 0xc0
+		!self.is_null() && self.bytes[0] >= 0xc0
 	}
 
-	/// returns true if rlp is a value
-	pub fn is_value(&self) -> bool {
-		self.bytes.len() > 0 && self.bytes[0] <= 0xbf
+	/// String value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert!(rlp.at(1).unwrap().is_data());
+	/// }
+	/// ```
+	pub fn is_data(&self) -> bool {
+		!self.is_null() && self.bytes[0] < 0xc0
 	}
 
-	/// returns rlp iterator
+	/// Int value
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc1, 0x10];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	assert_eq!(rlp.is_int(), false);
+	/// 	assert_eq!(rlp.at(0).unwrap().is_int(), true);
+	/// }
+	/// ```
+	pub fn is_int(&self) -> bool {
+		if self.is_null() {
+			return false;
+		}
+
+		match self.bytes[0] {
+			0...0x80 => true,
+			0x81...0xb7 => self.bytes[1] != 0,
+			b @ 0xb8...0xbf => self.bytes[1 + b as usize - 0xb7] != 0,
+			_ => false
+		}
+	}
+
+	/// Get iterator over rlp-slices
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	/// 	let rlp = UntrustedRlp::new(&data);
+	/// 	let strings: Vec<String> = rlp.iter()
+	/// 		.map(| i | String::decode_untrusted(&i))
+	/// 		.map(| s | s.unwrap())
+	/// 		.collect();
+	/// }
+	/// ```
 	pub fn iter(&'a self) -> UntrustedRlpIterator<'a> {
 		self.into_iter()
 	}
@@ -270,10 +562,10 @@ impl<'a> UntrustedRlp<'a> {
 
 	/// return first item info
 	///
-	/// TODO: move this to decode_untrustedr?
+	/// TODO: move this to decoder (?)
 	fn item_info(bytes: &[u8]) -> Result<ItemInfo, DecoderError> {
 		let item = match bytes.first().map(|&x| x) {
-			None => return Err(DecoderError::UntrustedRlpIsTooShort),
+			None => return Err(DecoderError::RlpIsTooShort),
 			Some(0...0x7f) => ItemInfo::new(0, 1),
 			Some(l @ 0x80...0xb7) => ItemInfo::new(1, l as usize - 0x80),
 			Some(l @ 0xb8...0xbf) => {
@@ -289,12 +581,12 @@ impl<'a> UntrustedRlp<'a> {
 				let value_len = try!(usize::from_bytes(&bytes[1..prefix_len]));
 				ItemInfo::new(prefix_len, value_len)
 			}
-			_ => return Err(DecoderError::BadUntrustedRlp),
+			_ => return Err(DecoderError::BadRlp),
 		};
 
 		match item.prefix_len + item.value_len <= bytes.len() {
 			true => Ok(item),
-			false => Err(DecoderError::UntrustedRlpIsTooShort),
+			false => Err(DecoderError::RlpIsTooShort),
 		}
 	}
 
@@ -302,12 +594,12 @@ impl<'a> UntrustedRlp<'a> {
 	fn consume(bytes: &'a [u8], len: usize) -> Result<&'a [u8], DecoderError> {
 		match bytes.len() >= len {
 			true => Ok(&bytes[len..]),
-			false => Err(DecoderError::UntrustedRlpIsTooShort),
+			false => Err(DecoderError::RlpIsTooShort),
 		}
 	}
 }
 
-/// non-consuming rlp iterator
+/// Iterator over rlp-slice list elements.
 pub struct UntrustedRlpIterator<'a> {
 	rlp: &'a UntrustedRlp<'a>,
 	index: usize,
@@ -315,7 +607,7 @@ pub struct UntrustedRlpIterator<'a> {
 
 impl<'a> IntoIterator for &'a UntrustedRlp<'a> {
 	type Item = UntrustedRlp<'a>;
-    type IntoIter = UntrustedRlpIterator<'a>;
+	type IntoIter = UntrustedRlpIterator<'a>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		UntrustedRlpIterator {
@@ -336,18 +628,50 @@ impl<'a> Iterator for UntrustedRlpIterator<'a> {
 	}
 }
 
-/// shortcut function to decoded Trusted Rlp `&[u8]` into an object
+/// Iterator over trusted rlp-slice list elements.
+pub struct RlpIterator<'a> {
+	rlp: &'a Rlp<'a>,
+	index: usize
+}
+
+impl<'a> IntoIterator for &'a Rlp<'a> {
+	type Item = Rlp<'a>;
+	type IntoIter = RlpIterator<'a>;
+
+	fn into_iter(self) -> Self::IntoIter {
+		RlpIterator {
+			rlp: self,
+			index: 0,
+		}
+	}
+}
+
+impl<'a> Iterator for RlpIterator<'a> {
+	type Item = Rlp<'a>;
+
+	fn next(&mut self) -> Option<Rlp<'a>> {
+		let index = self.index;
+		let result = self.rlp.rlp.at(index).ok().map(| iter | { From::from(iter) });
+		self.index += 1;
+		result
+	}
+}
+
+/// Shortcut function to decode trusted rlp
+/// 
+/// ```rust
+/// extern crate ethcore_util as util;
+/// use util::rlp::*;
+/// 
+/// fn main () {
+/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+/// 	let animals: Vec<String> = decode(&data);
+/// 	assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
+/// }
+/// ```
 pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 	let rlp = Rlp::new(bytes);
 	T::decode(&rlp)
-}
-
-/// shortcut function to decode UntrustedRlp `&[u8]` into an object
-pub fn decode_untrusted<T>(bytes: &[u8]) -> Result<T, DecoderError>
-	where T: Decodable
-{
-	let rlp = UntrustedRlp::new(bytes);
-	T::decode_untrusted(&rlp)
 }
 
 pub trait Decodable: Sized {
@@ -357,51 +681,62 @@ pub trait Decodable: Sized {
 	}
 }
 
-impl<T> Decodable for T where T: FromBytes
-{
+impl<T> Decodable for T where T: FromBytes {
 	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		match rlp.is_value() {
-			true => BasicDecoder::read_value(rlp.bytes),
-			false => Err(DecoderError::UntrustedRlpExpectedToBeValue),
+		match rlp.is_data() {
+			true => BasicDecoder::read_value(rlp.bytes, | bytes | {
+				Ok(try!(T::from_bytes(bytes)))
+			}),
+			false => Err(DecoderError::RlpExpectedToBeData),
 		}
 	}
 }
 
-impl<T> Decodable for Vec<T> where T: Decodable
-{
+impl<T> Decodable for Vec<T> where T: Decodable {
 	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		match rlp.is_list() {
 			true => rlp.iter().map(|rlp| T::decode_untrusted(&rlp)).collect(),
-			false => Err(DecoderError::UntrustedRlpExpectedToBeList),
+			false => Err(DecoderError::RlpExpectedToBeList),
+		}
+	}
+}
+
+impl Decodable for Vec<u8> {
+	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		match rlp.is_data() {
+			true =>	BasicDecoder::read_value(rlp.bytes, | bytes | {
+				let mut res = vec![];
+				res.extend(bytes);
+				Ok(res)
+			}),
+			false => Err(DecoderError::RlpExpectedToBeData),
 		}
 	}
 }
 
 pub trait Decoder {
-	fn read_value<T>(bytes: &[u8]) -> Result<T, DecoderError> where T: FromBytes;
+	fn read_value<T, F>(bytes: &[u8], f: F) -> Result<T, DecoderError> where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 }
 
 struct BasicDecoder;
 
 impl Decoder for BasicDecoder {
-	fn read_value<T>(bytes: &[u8]) -> Result<T, DecoderError>
-		where T: FromBytes
-	{
+	fn read_value<T, F>(bytes: &[u8], f: F) -> Result<T, DecoderError> where F: FnOnce(&[u8]) -> Result<T, DecoderError> {
 		match bytes.first().map(|&x| x) {
 			// rlp is too short
-			None => Err(DecoderError::UntrustedRlpIsTooShort),
+			None => Err(DecoderError::RlpIsTooShort),
 			// single byt value
-			Some(l @ 0...0x7f) => Ok(try!(T::from_bytes(&[l]))),
+			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
 			// 0-55 bytes
-			Some(l @ 0x80...0xb7) => Ok(try!(T::from_bytes(&bytes[1..(1 + l as usize - 0x80)]))),
+			Some(l @ 0x80...0xb7) => Ok(try!(f(&bytes[1..(1 + l as usize - 0x80)]))),
 			// longer than 55 bytes
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
 				let begin_of_value = 1 as usize + len_of_len;
 				let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
-				Ok(try!(T::from_bytes(&bytes[begin_of_value..begin_of_value + len])))
+				Ok(try!(f(&bytes[begin_of_value..begin_of_value + len])))
 			}
-			_ => Err(DecoderError::BadUntrustedRlp),
+			_ => Err(DecoderError::BadRlp),
 		}
 	}
 }
@@ -423,15 +758,14 @@ impl ListInfo {
 	}
 }
 
-/// container that should be used to encode rlp
+/// Appendable rlp encoder.
 pub struct RlpStream {
 	unfinished_lists: LinkedList<ListInfo>,
 	encoder: BasicEncoder,
 }
 
 impl RlpStream {
-	/// create new container for values appended one after another,
-	/// but not being part of the same list
+	/// Initializes instance of empty `RlpStream`.
 	pub fn new() -> RlpStream {
 		RlpStream {
 			unfinished_lists: LinkedList::new(),
@@ -439,28 +773,51 @@ impl RlpStream {
 		}
 	}
 
-	/// create new container for list of size `max_len`
+	/// Initializes the `RLPStream` as a list.
 	pub fn new_list(len: usize) -> RlpStream {
 		let mut stream = RlpStream::new();
 		stream.append_list(len);
 		stream
 	}
 
-	/// apends value to the end of stream, chainable
-	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream
-		where E: Encodable
-	{
+	/// Apends value to the end of stream, chainable.
+	///
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append(&"cat").append(&"dog");
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+	/// }
+	/// ```
+	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable + fmt::Debug {
 		// encode given value and add it at the end of the stream
 		object.encode(&mut self.encoder);
 
 		// if list is finished, prepend the length
-		self.try_to_finish();
+		self.note_appended(1);
 
 		// return chainable self
 		self
 	}
 
-	/// declare appending the list of given size
+	/// Declare appending the list of given size, chainable.
+	///
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append_list(2).append(&"cat").append(&"dog");
+	/// 	stream.append(&"");	
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
+	/// }
+	/// ```
 	pub fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
 		// push new list
 		let position = self.encoder.bytes.len();
@@ -468,7 +825,7 @@ impl RlpStream {
 			0 => {
 				// we may finish, if the appended list len is equal 0
 				self.encoder.bytes.push(0xc0u8);
-				self.try_to_finish();
+				self.note_appended(1);
 			}
 			_ => self.unfinished_lists.push_back(ListInfo::new(position, len)),
 		}
@@ -477,25 +834,102 @@ impl RlpStream {
 		self
 	}
 
-	/// return true if stream is ready
+	/// Apends null to the end of stream, chainable.
+	///
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append_empty_data().append_empty_data();
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
+	/// }
+	/// ```
+	pub fn append_empty_data<'a>(&'a mut self) -> &'a mut RlpStream {
+		// self push raw item
+		self.encoder.bytes.push(0x80);
+
+		// try to finish and prepend the length
+		self.note_appended(1);
+
+		// return chainable self
+		self
+	}
+
+	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
+	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
+		// push raw items
+		self.encoder.bytes.extend(bytes);	
+
+		// try to finish and prepend the length
+		self.note_appended(item_count);
+
+		// return chainable self
+		self
+	}
+
+	/// Clear the output stream so far.
+	/// 
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(3);
+	/// 	stream.append(&"cat");
+	/// 	stream.clear();
+	/// 	stream.append(&"dog");
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0x83, b'd', b'o', b'g']);
+	/// }
+	pub fn clear(&mut self) {
+		// clear bytes
+		self.encoder.bytes.clear();
+
+		// clear lists
+		self.unfinished_lists.clear();
+	}
+
+	/// Returns true if stream doesnt expect any more items.
+	///
+	/// ```rust
+	/// extern crate ethcore_util as util;
+	/// use util::rlp::*;
+	/// 
+	/// fn main () {
+	/// 	let mut stream = RlpStream::new_list(2);
+	/// 	stream.append(&"cat");
+	/// 	assert_eq!(stream.is_finished(), false);
+	/// 	stream.append(&"dog");
+	/// 	assert_eq!(stream.is_finished(), true);
+	/// 	let out = stream.out();
+	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+	/// }
 	pub fn is_finished(&self) -> bool {
 		self.unfinished_lists.back().is_none()
 	}
 
-	/// streams out encoded bytes
-	pub fn out(self) -> Result<Vec<u8>, EncoderError> {
+	/// Streams out encoded bytes.
+	/// 
+	/// panic! if stream is not finished.
+	pub fn out(self) -> Vec<u8> {
 		match self.is_finished() {
-			true => Ok(self.encoder.out()),
-			false => Err(EncoderError::StreamIsUnfinished),
+			true => self.encoder.out(),
+			false => panic!()
 		}
 	}
 
-	/// try to finish lists
-	fn try_to_finish(&mut self) -> () {
+	/// Try to finish lists
+	fn note_appended(&mut self, inserted_items: usize) -> () {
 		let should_finish = match self.unfinished_lists.back_mut() {
 			None => false,
 			Some(ref mut x) => {
-				x.current += 1;
+				x.current += inserted_items;
+				if x.current > x.max {
+					panic!("You cannot append more items then you expect!");
+				}
 				x.current == x.max
 			}
 		};
@@ -504,35 +938,28 @@ impl RlpStream {
 			let x = self.unfinished_lists.pop_back().unwrap();
 			let len = self.encoder.bytes.len() - x.position;
 			self.encoder.insert_list_len_at_pos(len, x.position);
-			self.try_to_finish();
+			self.note_appended(1);
 		}
 	}
 }
 
-/// shortcut function to encode a `T: Encodable` into a UntrustedRlp `Vec<u8>`
-pub fn encode<E>(object: &E) -> Vec<u8>
-	where E: Encodable
+/// Shortcut function to encode structure into rlp.
+///
+/// ```rust
+/// extern crate ethcore_util as util;
+/// use util::rlp::*;
+/// 
+/// fn main () {
+/// 	let animals = vec!["cat", "dog"];
+/// 	let out = encode(&animals);
+/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+/// }
+/// ```
+pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable
 {
 	let mut encoder = BasicEncoder::new();
 	object.encode(&mut encoder);
 	encoder.out()
-}
-
-#[derive(Debug)]
-pub enum EncoderError {
-	StreamIsUnfinished,
-}
-
-impl StdError for EncoderError {
-	fn description(&self) -> &str {
-		"encoder error"
-	}
-}
-
-impl fmt::Display for EncoderError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Debug::fmt(&self, f)
-	}
 }
 
 pub trait Encodable {
@@ -544,20 +971,14 @@ pub trait Encoder {
 	fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> ();
 }
 
-impl<T> Encodable for T where T: ToBytes
-{
-	fn encode<E>(&self, encoder: &mut E) -> ()
-		where E: Encoder
-	{
+impl<T> Encodable for T where T: ToBytes {
+	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
 		encoder.emit_value(&self.to_bytes())
 	}
 }
 
-impl<'a, T> Encodable for &'a [T] where T: Encodable + 'a
-{
-	fn encode<E>(&self, encoder: &mut E) -> ()
-		where E: Encoder
-	{
+impl<'a, T> Encodable for &'a [T] where T: Encodable + 'a {
+	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
 		encoder.emit_list(|e| {
 			// insert all list elements
 			for el in self.iter() {
@@ -567,13 +988,26 @@ impl<'a, T> Encodable for &'a [T] where T: Encodable + 'a
 	}
 }
 
-impl<T> Encodable for Vec<T> where T: Encodable
-{
-	fn encode<E>(&self, encoder: &mut E) -> ()
-		where E: Encoder
-	{
+impl<T> Encodable for Vec<T> where T: Encodable {
+	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
 		let r: &[T] = self.as_ref();
 		r.encode(encoder)
+	}
+}
+
+/// lets treat bytes differently than other lists
+/// they are a single value
+impl<'a> Encodable for &'a [u8] {
+	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
+		encoder.emit_value(self)
+	}
+}
+
+/// lets treat bytes differently than other lists
+/// they are a single value
+impl Encodable for Vec<u8> {
+	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
+		encoder.emit_value(self)
 	}
 }
 
@@ -593,7 +1027,7 @@ impl BasicEncoder {
 		match len {
 			0...55 => res.push(0xc0u8 + len as u8),
 			_ => {
-				res.push(0x7fu8 + len.to_bytes_len() as u8);
+				res.push(0xf7u8 + len.to_bytes_len() as u8);
 				res.extend(len.to_bytes());
 			}
 		};
@@ -628,8 +1062,7 @@ impl Encoder for BasicEncoder {
 		}
 	}
 
-	fn emit_list<F>(&mut self, f: F) -> ()
-		where F: FnOnce(&mut Self) -> ()
+	fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> ()
 	{
 		// get len before inserting a list
 		let before_len = self.bytes.len();
@@ -664,17 +1097,17 @@ mod tests {
 			assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
 
 			let cat = rlp.at(0).unwrap();
-			assert!(cat.is_value());
+			assert!(cat.is_data());
 			assert_eq!(cat.bytes, &[0x83, b'c', b'a', b't']);
 			assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_string());
 
 			let dog = rlp.at(1).unwrap();
-			assert!(dog.is_value());
+			assert!(dog.is_data());
 			assert_eq!(dog.bytes, &[0x83, b'd', b'o', b'g']);
 			assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_string());
 
 			let cat_again = rlp.at(0).unwrap();
-			assert!(cat_again.is_value());
+			assert!(cat_again.is_data());
 			assert_eq!(cat_again.bytes, &[0x83, b'c', b'a', b't']);
 			assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_string());
 		}
@@ -688,10 +1121,10 @@ mod tests {
 			assert!(rlp.is_list());
 
 			let cat_err = rlp.at(0).unwrap_err();
-			assert_eq!(cat_err, rlp::DecoderError::UntrustedRlpIsTooShort);
+			assert_eq!(cat_err, rlp::DecoderError::RlpIsTooShort);
 
 			let dog_err = rlp.at(1).unwrap_err();
-			assert_eq!(dog_err, rlp::DecoderError::UntrustedRlpIsTooShort);
+			assert_eq!(dog_err, rlp::DecoderError::RlpIsTooShort);
 		}
 	}
 
@@ -703,18 +1136,18 @@ mod tests {
 			let mut iter = rlp.iter();
 
 			let cat = iter.next().unwrap();
-			assert!(cat.is_value());
+			assert!(cat.is_data());
 			assert_eq!(cat.bytes, &[0x83, b'c', b'a', b't']);
 
 			let dog = iter.next().unwrap();
-			assert!(dog.is_value());
+			assert!(dog.is_data());
 			assert_eq!(dog.bytes, &[0x83, b'd', b'o', b'g']);
 
 			let none = iter.next();
 			assert!(none.is_none());
 
 			let cat_again = rlp.at(0).unwrap();
-			assert!(cat_again.is_value());
+			assert!(cat_again.is_data());
 			assert_eq!(cat_again.bytes, &[0x83, b'c', b'a', b't']);
 		}
 	}
@@ -729,81 +1162,67 @@ mod tests {
 			assert_eq!(res, &t.1[..]);
 		}
 	}
-
-	#[test]
-	fn encode_u8() {
-		let tests = vec![
-            ETestPair(0u8, vec![0x80u8]),
-            ETestPair(15, vec![15]),
-            ETestPair(55, vec![55]),
-            ETestPair(56, vec![56]),
-            ETestPair(0x7f, vec![0x7f]),
-            ETestPair(0x80, vec![0x81, 0x80]),
-            ETestPair(0xff, vec![0x81, 0xff]),
-        ];
-		run_encode_tests(tests);
-	}
-
+	
 	#[test]
 	fn encode_u16() {
 		let tests = vec![
-            ETestPair(0u16, vec![0x80u8]),
-            ETestPair(0x100, vec![0x82, 0x01, 0x00]),
-            ETestPair(0xffff, vec![0x82, 0xff, 0xff]),
-        ];
+			ETestPair(0u16, vec![0x80u8]),
+			ETestPair(0x100, vec![0x82, 0x01, 0x00]),
+			ETestPair(0xffff, vec![0x82, 0xff, 0xff]),
+		];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_u32() {
 		let tests = vec![
-            ETestPair(0u32, vec![0x80u8]),
-            ETestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
-            ETestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
-        ];
+			ETestPair(0u32, vec![0x80u8]),
+			ETestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
+			ETestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
+		];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_u64() {
 		let tests = vec![
-            ETestPair(0u64, vec![0x80u8]),
-            ETestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
-            ETestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-        ];
+			ETestPair(0u64, vec![0x80u8]),
+			ETestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+			ETestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+		];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_u256() {
 		let tests = vec![ETestPair(U256::from(0u64), vec![0x80u8]),
-		                 ETestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
-		                 ETestPair(U256::from(0xffffffffu64),
-		                           vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-		                 ETestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
-		                                           000100000000000012f0")
-			                           .unwrap(),
-		                           vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
-		                                0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
-		                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-		                                0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
+						 ETestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+						 ETestPair(U256::from(0xffffffffu64),
+								   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+						 ETestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
+												   000100000000000012f0")
+									   .unwrap(),
+								   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
+										0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
+										0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+										0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_str() {
 		let tests = vec![ETestPair("cat", vec![0x83, b'c', b'a', b't']),
-		                 ETestPair("dog", vec![0x83, b'd', b'o', b'g']),
-		                 ETestPair("Marek", vec![0x85, b'M', b'a', b'r', b'e', b'k']),
-		                 ETestPair("", vec![0x80]),
-		                 ETestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit",
-		                           vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
-		                                b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
-		                                b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
-		                                b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
-		                                b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
-		                                b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
-		                                b'e', b'l', b'i', b't'])];
+						 ETestPair("dog", vec![0x83, b'd', b'o', b'g']),
+						 ETestPair("Marek", vec![0x85, b'M', b'a', b'r', b'e', b'k']),
+						 ETestPair("", vec![0x80]),
+						 ETestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit",
+								   vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
+										b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
+										b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
+										b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
+										b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
+										b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
+										b'e', b'l', b'i', b't'])];
 		run_encode_tests(tests);
 	}
 
@@ -814,37 +1233,39 @@ mod tests {
 		let tests = vec![
 			ETestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
 					  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
-					  	   		 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
-						   		 0xb3, 0x7d, 0x11, 0x06])
+								 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+								 0xb3, 0x7d, 0x11, 0x06])
 		];
 		run_encode_tests(tests);
 	}
 
+	/// Vec<u8> is treated as a single value
 	#[test]
 	fn encode_vector_u8() {
 		let tests = vec![
-            ETestPair(vec![], vec![0xc0]),
-            ETestPair(vec![15u8], vec![0xc1, 0x0f]),
-            ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
-        ];
+			ETestPair(vec![], vec![0x80]),
+			ETestPair(vec![0u8], vec![0]),
+			ETestPair(vec![0x15], vec![0x15]),
+			ETestPair(vec![0x40, 0x00], vec![0x82, 0x40, 0x00]),
+		];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_vector_u64() {
 		let tests = vec![
-            ETestPair(vec![], vec![0xc0]),
-            ETestPair(vec![15u64], vec![0xc1, 0x0f]),
-            ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
-            ETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
-        ];
+			ETestPair(vec![], vec![0xc0]),
+			ETestPair(vec![15u64], vec![0xc1, 0x0f]),
+			ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+			ETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+		];
 		run_encode_tests(tests);
 	}
 
 	#[test]
 	fn encode_vector_str() {
 		let tests = vec![ETestPair(vec!["cat", "dog"],
-		                           vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
+								   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
 		run_encode_tests(tests);
 	}
 
@@ -855,12 +1276,20 @@ mod tests {
 	}
 
 	#[test]
+	fn encode_bytes() {
+		let vec = vec![0u8];
+		let slice: &[u8] = &vec;
+		let res = rlp::encode(&slice);
+		assert_eq!(res, vec![0u8]);
+	}
+
+	#[test]
 	fn rlp_stream() {
 		let mut stream = RlpStream::new_list(2);
 		stream.append(&"cat").append(&"dog");
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out,
-		           vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+				   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	}
 
 	#[test]
@@ -869,98 +1298,121 @@ mod tests {
 		stream.append_list(0);
 		stream.append_list(1).append_list(0);
 		stream.append_list(2).append_list(0).append_list(1).append_list(0);
-		let out = stream.out().unwrap();
+		let out = stream.out();
 		assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
+	}
+
+	#[test]
+	fn rlp_stream_list2() {
+		let mut stream = RlpStream::new();
+		stream.append_list(17);
+		for _ in 0..17 {
+			stream.append(&"");
+		}
+		let out = stream.out();
+		assert_eq!(out, vec![0xd1, 0x80, 0x80, 0x80, 0x80, 0x80,
+							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]);
+	}
+
+	#[test]
+	fn rlp_stream_list3() {
+		let mut stream = RlpStream::new();
+		stream.append_list(17);
+
+		let mut res = vec![0xf8, 0x44];
+		for _ in 0..17 {
+			stream.append(&"aaa");
+			res.extend(vec![0x83, b'a', b'a', b'a']);
+		}
+		let out = stream.out();
+		assert_eq!(out, res);
 	}
 
 	struct DTestPair<T>(T, Vec<u8>) where T: rlp::Decodable + fmt::Debug + cmp::Eq;
 
-	fn run_decode_untrusted_tests<T>(tests: Vec<DTestPair<T>>)
-		where T: rlp::Decodable + fmt::Debug + cmp::Eq
-	{
+	fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: rlp::Decodable + fmt::Debug + cmp::Eq {
 		for t in &tests {
-			let res: T = rlp::decode_untrusted(&t.1).unwrap();
+			let res: T = rlp::decode(&t.1);
 			assert_eq!(res, t.0);
 		}
 	}
 
+	/// Vec<u8> is treated as a single value
 	#[test]
-	fn decode_untrusted_u8() {
+	fn decode_vector_u8() {
 		let tests = vec![
-            DTestPair(0u8, vec![0u8]),
-            DTestPair(15, vec![15]),
-            DTestPair(55, vec![55]),
-            DTestPair(56, vec![56]),
-            DTestPair(0x7f, vec![0x7f]),
-            DTestPair(0x80, vec![0x81, 0x80]),
-            DTestPair(0xff, vec![0x81, 0xff]),
-        ];
-		run_decode_untrusted_tests(tests);
+			DTestPair(vec![], vec![0x80]),
+			DTestPair(vec![0u8], vec![0]),
+			DTestPair(vec![0x15], vec![0x15]),
+			DTestPair(vec![0x40, 0x00], vec![0x82, 0x40, 0x00]),
+		];
+		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_u16() {
 		let tests = vec![
-            DTestPair(0u16, vec![0u8]),
-            DTestPair(0x100, vec![0x82, 0x01, 0x00]),
-            DTestPair(0xffff, vec![0x82, 0xff, 0xff]),
-        ];
-		run_decode_untrusted_tests(tests);
+			DTestPair(0u16, vec![0u8]),
+			DTestPair(0x100, vec![0x82, 0x01, 0x00]),
+			DTestPair(0xffff, vec![0x82, 0xff, 0xff]),
+		];
+		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_u32() {
 		let tests = vec![
-            DTestPair(0u32, vec![0u8]),
-            DTestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
-            DTestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
-        ];
-		run_decode_untrusted_tests(tests);
+			DTestPair(0u32, vec![0u8]),
+			DTestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
+			DTestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
+		];
+		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_u64() {
 		let tests = vec![
-            DTestPair(0u64, vec![0u8]),
-            DTestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
-            DTestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-        ];
-		run_decode_untrusted_tests(tests);
+			DTestPair(0u64, vec![0u8]),
+			DTestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+			DTestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+		];
+		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_u256() {
 		let tests = vec![DTestPair(U256::from(0u64), vec![0x80u8]),
-		                 DTestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
-		                 DTestPair(U256::from(0xffffffffu64),
-		                           vec![0x84, 0xff, 0xff, 0xff, 0xff]),
-		                 DTestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
-		                                           000100000000000012f0")
-			                           .unwrap(),
-		                           vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
-		                                0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
-		                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-		                                0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
-		run_decode_untrusted_tests(tests);
+						 DTestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+						 DTestPair(U256::from(0xffffffffu64),
+								   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+						 DTestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
+												   000100000000000012f0")
+									   .unwrap(),
+								   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
+										0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
+										0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+										0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
+		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_str() {
 		let tests = vec![DTestPair("cat".to_string(), vec![0x83, b'c', b'a', b't']),
-		                 DTestPair("dog".to_string(), vec![0x83, b'd', b'o', b'g']),
-		                 DTestPair("Marek".to_string(),
-		                           vec![0x85, b'M', b'a', b'r', b'e', b'k']),
-		                 DTestPair("".to_string(), vec![0x80]),
-		                 DTestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit"
-			                           .to_string(),
-		                           vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
-		                                b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
-		                                b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
-		                                b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
-		                                b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
-		                                b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
-		                                b'e', b'l', b'i', b't'])];
-		run_decode_untrusted_tests(tests);
+						 DTestPair("dog".to_string(), vec![0x83, b'd', b'o', b'g']),
+						 DTestPair("Marek".to_string(),
+								   vec![0x85, b'M', b'a', b'r', b'e', b'k']),
+						 DTestPair("".to_string(), vec![0x80]),
+						 DTestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit"
+									   .to_string(),
+								   vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
+										b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
+										b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
+										b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
+										b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
+										b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
+										b'e', b'l', b'i', b't'])];
+		run_decode_tests(tests);
 	}
 
 	#[test]
@@ -970,44 +1422,34 @@ mod tests {
 		let tests = vec![
 			DTestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
 					  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
-					  	   		 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
-						   		 0xb3, 0x7d, 0x11, 0x06])
+								 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+								 0xb3, 0x7d, 0x11, 0x06])
 		];
-		run_decode_untrusted_tests(tests);
-	}
-
-	#[test]
-	fn decode_untrusted_vector_u8() {
-		let tests = vec![
-            DTestPair(vec![] as Vec<u8>, vec![0xc0]),
-            DTestPair(vec![15u8], vec![0xc1, 0x0f]),
-            DTestPair(vec![1u8, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
-        ];
-		run_decode_untrusted_tests(tests);
+		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_vector_u64() {
 		let tests = vec![
-            DTestPair(vec![], vec![0xc0]),
-            DTestPair(vec![15u64], vec![0xc1, 0x0f]),
-            DTestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
-            DTestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
-        ];
-		run_decode_untrusted_tests(tests);
+			DTestPair(vec![], vec![0xc0]),
+			DTestPair(vec![15u64], vec![0xc1, 0x0f]),
+			DTestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+			DTestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+		];
+		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_vector_str() {
 		let tests = vec![DTestPair(vec!["cat".to_string(), "dog".to_string()],
-		                           vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
-		run_decode_untrusted_tests(tests);
+								   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
+		run_decode_tests(tests);
 	}
 
 	#[test]
 	fn decode_untrusted_vector_of_vectors_str() {
 		let tests = vec![DTestPair(vec![vec!["cat".to_string()]],
-		                           vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
-		run_decode_untrusted_tests(tests);
+								   vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
+		run_decode_tests(tests);
 	}
 }
