@@ -167,8 +167,8 @@ impl<'a> Rlp<'a> {
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn data(&self) -> &[u8] {
-		self.rlp.data()
+	pub fn raw(&self) -> &[u8] {
+		self.rlp.raw()
 	}
 
 	/// Returns number of rlp items.
@@ -348,7 +348,7 @@ impl<'a> UntrustedRlp<'a> {
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn data(&self) -> &[u8] {
+	pub fn raw(&self) -> &[u8] {
 		self.bytes
 	}
 
