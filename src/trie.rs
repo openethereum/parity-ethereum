@@ -200,12 +200,12 @@ impl TrieDB {
 		match node {
 			Node::Leaf(slice, value) => try!(writeln!(f, "Leaf {:?}, {:?}", slice, value.pretty())),
 			Node::ExtensionRaw(ref slice, ref item) => {
-				try!(self.fmt_indent(f, deepness));
+//				try!(self.fmt_indent(f, deepness));
 				try!(write!(f, "Extension (raw): {:?} ", slice));
 				try!(self.fmt_all(item, f, deepness + 1));
 			},
 			Node::ExtensionSha3(ref slice, sha3) => {
-				try!(self.fmt_indent(f, deepness));
+//				try!(self.fmt_indent(f, deepness));
 				try!(write!(f, "Extension (sha3): {:?} ", slice));
 				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
 				try!(self.fmt_all(rlp, f, deepness + 1));
