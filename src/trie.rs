@@ -146,22 +146,8 @@ pub struct TrieDB {
 impl fmt::Debug for TrieDB {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "["));
-		{
-			let print_indent = | fo: &mut fmt::Formatter, times | { for i in 0..times { write!(fo, "    "); }};
-			let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
-
-			self.apply_to_all(root_rlp, &mut | node, deepness, index | {
-				print_indent(f, deepness);	
-				match *node {
-					Node::Leaf(ref slice, ref value) => { writeln!(f, "{:x}: Leaf {:?}, {:?}", index, slice, value); },
-					Node::ExtensionRaw(ref slice, ref item) => { write!(f, "Extension (raw): "); }
-					Node::ExtensionSha3(ref slice, ref sha3) => { write!(f, "Extension (sha3): "); }
-					Node::Branch(Some(ref nodes), ref value) => { writeln!(f, "{:x} Branch: ", index); }
-					_ => { writeln!(f, "node"); }
-				}
-			}, 0, 0);
-		}
-
+		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		try!(self.fmt_all(root_rlp, f, 0));
 		writeln!(f, "]")
 	}
 }
@@ -197,30 +183,47 @@ impl TrieDB {
 		}
 	}
 
-	fn apply_to_all<F>(&self, node: &[u8], f: &mut F, deepness: usize, index: usize) where F: FnMut(&Node, usize, usize) -> () {
+	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
+		for _ in 0..size { 
+			try!(write!(f, "    "));
+		}
+		Ok(())
+	}
+
+	fn fmt_all(&self, node: &[u8], f: &mut fmt::Formatter, deepness: usize) -> fmt::Result {
 		let node = Node::decoded(node);
 		match node {
-			Node::Leaf(_, _) => f(&node, deepness, index),
+			Node::Leaf(slice, value) => try!(writeln!(f, "Leaf {:?}, {:?}", slice, value.pretty())),
 			Node::ExtensionRaw(_, ref item) => {
-				f(&node, deepness, index);
-				self.apply_to_all(item, f, deepness + 1, 0);
+				try!(self.fmt_indent(f, deepness));
+				try!(write!(f, "Extension (raw): "));
+				try!(self.fmt_all(item, f, deepness + 1));
 			},
 			Node::ExtensionSha3(_, sha3) => {
-				f(&node, deepness, index);
+				try!(self.fmt_indent(f, deepness));
+				try!(write!(f, "Extension (sha3): "));
 				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
-				self.apply_to_all(rlp, f, deepness + 1, 0);
+				try!(self.fmt_all(rlp, f, deepness + 1));
 			},
-			Node::Branch(Some(ref nodes), ref value) => {
-				f(&node, deepness, index);
+			Node::Branch(Some(ref nodes), _) => {
+				try!(writeln!(f, "Branch: "));
 				for i in 0..16 {
-					self.apply_to_all(nodes[i], f, deepness + 1, i);
+					match Node::decoded(nodes[i]) {
+						Node::Branch(None, _) => (),
+						_ => {
+							try!(self.fmt_indent(f, deepness + 1));
+							try!(write!(f, "{:x}: ", i));
+							try!(self.fmt_all(nodes[i], f, deepness + 1));
+						}
+					}
 				}
 			},
 			// empty
-			n @ Node::Branch(_, _) => {
+			Node::Branch(_, _) => {
 				// do nothing
 			}
-		}
+		};
+		Ok(())
 	}
 
 	fn get<'a>(&'a self, key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
@@ -241,8 +244,6 @@ impl TrieDB {
 			},
 			Node::Branch(Some(ref nodes), ref value) => match key.is_empty() {
 				true => Some(value),
-				// we don't really need to do lookup for nodes[key.at(0)] in db?
-				// if its empty hash return Nonem without lookup
 				false => self.get_from_node(nodes[key.at(0) as usize], &key.mid(1))
 			},
 			_ => None
@@ -572,7 +573,7 @@ mod tests {
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
 		println!("trie:");
 		println!("{:?}", t);
-		assert!(false);
+		//assert!(false);
 	}
 
 	#[test]
