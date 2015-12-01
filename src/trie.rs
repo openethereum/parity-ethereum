@@ -17,7 +17,7 @@ pub trait Trie {
 
 	// TODO: consider returning &[u8]...
 	fn contains(&self, key: &[u8]) -> bool;
-	fn at<'a>(&'a self, key: &'a [u8]) -> Option<&'a [u8]>;
+	fn at<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
 	fn insert(&mut self, key: &[u8], value: &[u8]);
 	fn remove(&mut self, key: &[u8]);
 }
@@ -214,12 +214,12 @@ impl TrieDB {
 		Ok(())
 	}
 
-	fn get<'a>(&'a self, key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
+	fn get<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
 		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
 		self.get_from_node(&root_rlp, key)
 	}
 
-	fn get_from_node<'a>(&'a self, node: &'a [u8], key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
+	fn get_from_node<'a, 'key>(&'a self, node: &'a [u8], key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
 		match Node::decoded(node) {
 			Node::Leaf(ref slice, ref value) if key == slice => Some(value),
 			Node::Extension(ref slice, ref item) if key.starts_with(slice) => {
@@ -469,7 +469,7 @@ impl Trie for TrieDB {
 		unimplemented!();
 	}
 
-	fn at<'a>(&'a self, key: &'a [u8]) -> Option<&'a [u8]> {
+	fn at<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
 		self.get(&NibbleSlice::new(key))
 	}
 
@@ -596,6 +596,9 @@ mod tests {
 			let val: &[u8] = &v[i].1;
 			assert_eq!(t.at(&key).unwrap(), val);
 		}
+
+		// check lifetime
+		let _q = t.at(&[b'd', b'o']).unwrap();
 
 		assert_eq!(*t.root(), trie_root(v));
 	}
