@@ -181,7 +181,9 @@ impl TrieDB {
 	fn get_from_node<'a>(&'a self, node: &'a [u8], key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
 		match Node::decoded(node) {
 			Node::Leaf(ref slice, ref value) if key == slice => Some(value),
-			Node::ExtensionRaw(ref slice, ref item) if key.starts_with(slice) => self.get_from_node(item, &key.mid(slice.len())),
+			Node::ExtensionRaw(ref slice, ref item) if key.starts_with(slice) => {
+				self.get_from_node(item, &key.mid(slice.len()))
+			},
 			Node::ExtensionSha3(ref slice, ref sha3) => {
 				// lookup for this item	
 				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("not found!");
@@ -485,6 +487,41 @@ mod tests {
 		let mut t = TrieDB::new_memory();
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		assert_eq!(t.at(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
+	}
+
+	#[test]
+	fn test_at_three() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		assert_eq!(t.at(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
+		assert_eq!(t.at(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
+		assert_eq!(t.at(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
+		assert_eq!(t.at(&[0x82, 0x23]), None);
+	}
+
+	#[test]
+	fn test_at_dog() {
+		let mut t = TrieDB::new_memory();
+		let v: Vec<(Vec<u8>, Vec<u8>)> = vec![
+			(From::from("do"), From::from("verb")),
+			(From::from("dog"), From::from("puppy")),
+			(From::from("doge"), From::from("coin")),
+			(From::from("horse"), From::from("stallion")),
+		];
+
+		for i in 0..v.len() {
+			let key: &[u8]= &v[i].0;
+			let val: &[u8] = &v[i].1;
+			t.insert(&key, &val);
+		}
+
+		//for i in 0..v.len() {
+			//let key: &[u8]= &v[i].0;
+			//let val: &[u8] = &v[i].1;
+			//assert_eq!(t.at(&key).unwrap(), val);
+		//}
 	}
 
 	#[test]
