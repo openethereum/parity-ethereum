@@ -1,5 +1,6 @@
 //! Nibble-orientated view onto byte-slice, allowing nibble-precision offsets.
 use std::cmp::*;
+use std::fmt;
 use bytes::*;
 
 /// Nibble-orientated view onto byte-slice, allowing nibble-precision offsets.
@@ -25,7 +26,7 @@ use bytes::*;
 ///   assert_eq!(n2.mid(3).common_prefix(&n1), 3);
 /// }
 /// ```
-#[derive(Debug, Copy, Clone, Eq, Ord)]
+#[derive(Copy, Clone, Eq, Ord)]
 pub struct NibbleSlice<'a> {
 	data: &'a [u8],
 	offset: usize,
@@ -119,6 +120,15 @@ impl<'a> PartialOrd for NibbleSlice<'a> {
 			}
 		}
 		self.len().partial_cmp(&them.len())
+	}
+}
+
+impl<'a> fmt::Debug for NibbleSlice<'a> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for i in 0..self.len() {
+			try!(write!(f, "{:01x}", self.at(i)));
+		}
+		Ok(())
 	}
 }
 

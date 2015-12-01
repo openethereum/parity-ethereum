@@ -40,6 +40,38 @@ use std::error::Error as StdError;
 use uint::{U128, U256};
 use hash::FixedHash;
 
+pub struct PrettySlice<'a> (&'a [u8]);
+
+impl<'a> fmt::Debug for PrettySlice<'a> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for i in 0..self.0.len() {
+			try!(write!(f, "{:02x}", self.0[i]));
+		}
+		Ok(())
+	}
+}
+
+pub trait ToPretty {
+	fn pretty(&self) -> PrettySlice;
+}
+
+impl<'a> ToPretty for &'a [u8] {
+	fn pretty(&self) -> PrettySlice {
+		PrettySlice(self)
+	}
+}
+
+impl<'a> ToPretty for &'a Bytes {
+	fn pretty(&self) -> PrettySlice {
+		PrettySlice(self.bytes())
+	}
+}
+impl ToPretty for Bytes {
+	fn pretty(&self) -> PrettySlice {
+		PrettySlice(self.bytes())
+	}
+}
+
 /// Vector of bytes
 pub type Bytes = Vec<u8>;
 
