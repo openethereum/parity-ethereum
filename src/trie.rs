@@ -24,9 +24,10 @@ pub trait Trie {
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum Node<'a> {
+	NullRoot,
 	Leaf(NibbleSlice<'a>, &'a[u8]),
 	Extension(NibbleSlice<'a>, &'a[u8]),
-	Branch(Option<[&'a[u8]; 16]>, &'a [u8])
+	Branch([Option<&'a[u8]>; 16], Option<&'a [u8]>)
 }
 
 impl <'a>Node<'a> {
@@ -40,16 +41,18 @@ impl <'a>Node<'a> {
 			// fed back into this function or inline RLP which can be fed back into this function).
 			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
 				(slice, true) => Node::Leaf(slice, r.at(1).data()),
-				(slice, false) => Node::Extension(slice, r.at(1).raw())
+				(slice, false) => Node::Extension(slice, r.at(1).raw()),
 			},
 			// branch - first 16 are nodes, 17th is a value (or empty).
 			Prototype::List(17) => {
-				let mut nodes: [&'a [u8]; 16] = unsafe { ::std::mem::uninitialized() };
-				for i in 0..16 { nodes[i] = r.at(i).raw(); }
-				Node::Branch(Some(nodes), r.at(16).data())
+				let mut nodes: [Option<&'a [u8]>; 16] = unsafe { ::std::mem::uninitialized() };
+				for i in 0..16 {
+					nodes[i] = if r.at(i).is_empty() { None } else { Some(r.at(i).raw()) }
+				}
+				Node::Branch(nodes, if r.at(16).is_empty() { None } else { Some(r.at(16).data()) })
 			},
 			// an empty branch index.
-			Prototype::Data(0) => Node::Branch(None, r.data()),
+			Prototype::Data(0) => Node::NullRoot,
 			// something went wrong.
 			_ => panic!("Rlp is not valid.")
 		}
@@ -70,13 +73,21 @@ impl <'a>Node<'a> {
 				stream.append_raw(raw_rlp, 1);
 				stream.out()
 			},
-			Node::Branch(Some(ref nodes), ref value) => {
+			Node::Branch(ref nodes, ref value) => {
 				let mut stream = RlpStream::new_list(17);
-				for i in 0..16 { stream.append_raw(nodes[i], 1); }
-				stream.append(value);
+				for i in 0..16 { 
+					match nodes[i] {
+						Some(n) => { stream.append_raw(n, 1); },
+						None => { stream.append_empty_data(); },
+					}
+				}
+				match *value {
+					Some(n) => { stream.append(&n); },
+					None => { stream.append_empty_data(); },
+				}
 				stream.out()
 			},
-			Node::Branch(_, _) => {
+			Node::NullRoot => {
 				let mut stream = RlpStream::new();
 				stream.append_empty_data();
 				stream.out()
@@ -187,29 +198,34 @@ impl TrieDB {
 	fn fmt_all(&self, node: &[u8], f: &mut fmt::Formatter, deepness: usize) -> fmt::Result {
 		let node = Node::decoded(node);
 		match node {
-			Node::Leaf(slice, value) => try!(writeln!(f, "Leaf {:?}, {:?}", slice, value.pretty())),
+			Node::Leaf(slice, value) => try!(writeln!(f, "-{:?}: {:?}.", slice, value.pretty())),
 			Node::Extension(ref slice, ref item) => {
-				try!(write!(f, "Extension: {:?} ,", slice));
-				try!(self.fmt_all(self.get_raw_or_lookup(item), f, deepness + 1));
+				try!(write!(f, "-{:?}- ", slice));
+				try!(self.fmt_all(self.get_raw_or_lookup(item), f, deepness));
 			},
-			Node::Branch(Some(ref nodes), ref value) => {
-				try!(writeln!(f, "Branch: "));
-				try!(self.fmt_indent(f, deepness + 1));
-				if (!value.is_empty())
-					try!(writeln!(f, "= {:?}", value.pretty()));
-				for i in 0..16 {
-					let rlp = Rlp::new(nodes[i]);
-					if rlp.is_data() && rlp.size() != 0 {
+			Node::Branch(ref nodes, ref value) => {
+				try!(writeln!(f, "-< "));
+				match value {
+					&Some(v) => {
 						try!(self.fmt_indent(f, deepness + 1));
-						try!(write!(f, "{:x}: ", i));
-						try!(self.fmt_all(self.get_raw_or_lookup(nodes[i]), f, deepness + 1));
-						try!(writeln!(f, ""));
+						try!(writeln!(f, "=: {:?}", v.pretty()))
+					},
+					&None => {}
+				}
+				for i in 0..16 {
+					match nodes[i] {
+						Some(n) => {
+							try!(self.fmt_indent(f, deepness + 1));
+							try!(write!(f, "{:x}: ", i));
+							try!(self.fmt_all(self.get_raw_or_lookup(n), f, deepness + 1));
+						},
+						None => {},
 					}
 				}
 			},
 			// empty
-			Node::Branch(_, _) => {
-				// do nothing
+			Node::NullRoot => {
+				writeln!(f, "<empty>");
 			}
 		};
 		Ok(())
@@ -226,9 +242,14 @@ impl TrieDB {
 			Node::Extension(ref slice, ref item) if key.starts_with(slice) => {
 				self.get_from_node(self.get_raw_or_lookup(item), &key.mid(slice.len()))
 			},
-			Node::Branch(Some(ref nodes), ref value) => match key.is_empty() {
-				true => Some(value),
-				false => self.get_from_node(self.get_raw_or_lookup(nodes[key.at(0) as usize]), &key.mid(1))
+			Node::Branch(ref nodes, value) => match key.is_empty() {
+				true => value,
+				false => match nodes[key.at(0) as usize] {
+					Some(payload) => {
+						self.get_from_node(self.get_raw_or_lookup(payload), &key.mid(1))
+					},
+					None => None
+				}
 			},
 			_ => None
 		}
@@ -236,8 +257,9 @@ impl TrieDB {
 
 	fn get_raw_or_lookup<'a>(&'a self, node: &'a [u8]) -> &'a [u8] {
 		// check if its sha3 + len
-		match node.len() > 32 {
-			true => self.db.lookup(&H256::from_slice(&node[1..])).expect("Not found!"),
+		let r = Rlp::new(node);
+		match r.is_data() && r.size() == 32 {
+			true => self.db.lookup(&H256::decode(&r)).expect("Not found!"),
 			false => node
 		}
 	}
@@ -518,7 +540,7 @@ mod tests {
 
 	#[test]
 	fn test_node_empty_branch() {
-		let branch = Node::Branch(None, &b""[..]);
+		let branch = Node::Branch([None; 16], None);
 		let rlp = branch.encoded();
 		let branch2 = Node::decoded(&rlp);
 		assert_eq!(branch, branch2);
@@ -527,10 +549,10 @@ mod tests {
 	#[test]
 	fn test_node_branch() {
 		let k = rlp::encode(&"cat");
-		let mut nodes: [&[u8]; 16] = unsafe { ::std::mem::uninitialized() };
-		for i in 0..16 { nodes[i] = &k; }
+		let mut nodes: [Option<&[u8]>; 16] = unsafe { ::std::mem::uninitialized() };
+		for i in 0..16 { nodes[i] = Some(&k); }
 		let v: Vec<u8> = From::from("dog");
-		let branch = Node::Branch(Some(nodes), &v);
+		let branch = Node::Branch(nodes, Some(&v));
 		let rlp = branch.encoded();
 		let branch2 = Node::decoded(&rlp);
 		assert_eq!(branch, branch2);
