@@ -16,9 +16,84 @@ pub trait Trie {
 
 	// TODO: consider returning &[u8]...
 	fn contains(&self, key: &[u8]) -> bool;
-	fn at(&self, key: &[u8]) -> Option<&[u8]>;
+	fn at<'a>(&'a self, key: &'a [u8]) -> Option<&'a [u8]>;
 	fn insert(&mut self, key: &[u8], value: &[u8]);
 	fn remove(&mut self, key: &[u8]);
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub enum Node<'a> {
+	Leaf(NibbleSlice<'a>, &'a[u8]),
+	ExtensionRaw(NibbleSlice<'a>, &'a[u8]),
+	ExtensionSha3(NibbleSlice<'a>, &'a[u8]),
+	Branch(Option<[&'a[u8]; 16]>, &'a [u8])
+}
+
+impl <'a>Node<'a> {
+	pub fn decoded(node_rlp: &'a [u8]) -> Node<'a> {
+		let r = Rlp::new(node_rlp);
+		match r.prototype() {
+			// either leaf or extension - decode first item with NibbleSlice::??? 
+			// and use is_leaf return to figure out which.
+			// if leaf, second item is a value (is_data())
+			// if extension, second item is a node (either SHA3 to be looked up and 
+			// fed back into this function or inline RLP which can be fed back into this function).
+			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
+				(slice, true) => Node::Leaf(slice, r.at(1).data()),
+				(slice, false) => match r.at(1).raw().len() {
+					// its just raw extension
+					0...31 => Node::ExtensionRaw(slice, r.at(1).raw()),
+					// its SHA3 of raw extension + the length of sha3
+					33 => Node::ExtensionSha3(slice, r.at(1).data()),
+					_ => { panic!(); }
+				}
+			},
+			// branch - first 16 are nodes, 17th is a value (or empty).
+			Prototype::List(17) => {
+				let mut nodes: [&'a [u8]; 16] = unsafe { ::std::mem::uninitialized() };
+				for i in 0..16 { nodes[i] = r.at(i).raw(); }
+				Node::Branch(Some(nodes), r.at(16).data())
+			},
+			// an empty branch index.
+			Prototype::Data(0) => Node::Branch(None, r.data()),
+			// something went wrong.
+			_ => panic!("Rlp is not valid.")
+		}
+	}
+
+	pub fn encoded(&self) -> Bytes {
+		match *self {
+			Node::Leaf(ref slice, ref value) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&slice.encoded(true));
+				stream.append(value);
+				stream.out()
+			},
+			Node::ExtensionRaw(ref slice, ref raw_rlp) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&slice.encoded(false));
+				stream.append_raw(raw_rlp, 1);
+				stream.out()
+			},
+			Node::ExtensionSha3(ref slice, ref sha3) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&slice.encoded(false));
+				stream.append(sha3);
+				stream.out()
+			},
+			Node::Branch(Some(ref nodes), ref value) => {
+				let mut stream = RlpStream::new_list(17);
+				for i in 0..16 { stream.append_raw(nodes[i], 1); }
+				stream.append(value);
+				stream.out()
+			},
+			Node::Branch(_, _) => {
+				let mut stream = RlpStream::new();
+				stream.append_empty_data();
+				stream.out()
+			}
+		}
+	}
 }
 
 enum Operation {
@@ -95,6 +170,30 @@ impl TrieDB {
 					self.db.emplace(h, d);
 				}
 			}
+		}
+	}
+
+	fn get<'a>(&'a self, key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
+		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+		self.get_from_node(&root_rlp, key)
+	}
+
+	fn get_from_node<'a>(&'a self, node: &'a [u8], key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
+		match Node::decoded(node) {
+			Node::Leaf(ref slice, ref value) if key == slice => Some(value),
+			Node::ExtensionRaw(ref slice, ref item) if key.starts_with(slice) => self.get_from_node(item, &key.mid(slice.len())),
+			Node::ExtensionSha3(ref slice, ref sha3) => {
+				// lookup for this item	
+				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("not found!");
+				self.get_from_node(rlp, &key.mid(slice.len()))
+			},
+			Node::Branch(Some(ref nodes), ref value) => match key.is_empty() {
+				true => Some(value),
+				// we don't really need to do lookup for nodes[key.at(0)] in db?
+				// if its empty hash return Nonem without lookup
+				false => self.get_from_node(nodes[key.at(0) as usize], &key.mid(1))
+			},
+			_ => None
 		}
 	}
 
@@ -311,8 +410,8 @@ impl Trie for TrieDB {
 		unimplemented!();
 	}
 
-	fn at(&self, _key: &[u8]) -> Option<&[u8]> {
-		unimplemented!();
+	fn at<'a>(&'a self, key: &'a [u8]) -> Option<&'a [u8]> {
+		self.get(&NibbleSlice::new(key))
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
@@ -329,7 +428,69 @@ mod tests {
 	use memorydb::*;
 	use triehash::*;
 	use super::*;
+	use nibbleslice::*;
+	use rlp;
 	use env_logger;
+
+	#[test]
+	fn test_node_leaf() {
+		let k = vec![0x20u8, 0x01, 0x23, 0x45];
+		let v: Vec<u8> = From::from("cat");
+		let (slice, is_leaf) = NibbleSlice::from_encoded(&k);
+		assert_eq!(is_leaf, true);
+		let leaf = Node::Leaf(slice, &v);
+		let rlp = leaf.encoded();
+		let leaf2 = Node::decoded(&rlp);
+		assert_eq!(leaf, leaf2);
+	}
+
+	#[test]
+	fn test_node_extension() {
+		let k = vec![0x00u8, 0x01, 0x23, 0x45];
+		// in extension, value must be valid rlp
+		let v = rlp::encode(&"cat");
+		let (slice, is_leaf) = NibbleSlice::from_encoded(&k);
+		assert_eq!(is_leaf, false);
+		let ex = Node::ExtensionRaw(slice, &v);
+		let rlp = ex.encoded();
+		let ex2 = Node::decoded(&rlp);
+		assert_eq!(ex, ex2);
+	}
+
+	#[test]
+	fn test_node_empty_branch() {
+		let branch = Node::Branch(None, &b""[..]);
+		let rlp = branch.encoded();
+		let branch2 = Node::decoded(&rlp);
+		assert_eq!(branch, branch2);
+	}
+
+	#[test]
+	fn test_node_branch() {
+		let k = rlp::encode(&"cat");
+		let mut nodes: [&[u8]; 16] = unsafe { ::std::mem::uninitialized() };
+		for i in 0..16 { nodes[i] = &k; }
+		let v: Vec<u8> = From::from("dog");
+		let branch = Node::Branch(Some(nodes), &v);
+		let rlp = branch.encoded();
+		let branch2 = Node::decoded(&rlp);
+		assert_eq!(branch, branch2);
+	}
+
+	#[test]
+	fn test_at_empty() {
+		let mut t = TrieDB::new(MemoryDB::new());
+		t.init();
+		assert_eq!(t.at(&[0x5]), None);
+	}
+
+	#[test]
+	fn test_at_one() {
+		let mut t = TrieDB::new(MemoryDB::new());
+		t.init();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		assert_eq!(t.at(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
+	}
 
 	#[test]
 	fn playpen() {
