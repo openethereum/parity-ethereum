@@ -287,8 +287,23 @@ impl TrieDB {
 		r
 	}
 
+	fn compose_stub_branch(value: &[u8]) -> Bytes {
+		let mut s = RlpStream::new_list(17);
+		for _ in 0..16 { s.append_empty_data(); }
+		s.append(&value);
+		s.out()
+	}
+
 	fn compose_extension(partial: &NibbleSlice, raw_payload: &[u8]) -> Bytes {
 		Self::compose_raw(partial, raw_payload, false)
+	}
+
+	fn create_extension(partial: &NibbleSlice, downstream_node: Bytes, diff: &mut Diff) -> Bytes {
+		trace!("create_extension partial: {:?}, downstream_node: {:?}", partial, downstream_node.pretty());
+		let mut s = RlpStream::new_list(2);
+		s.append(&partial.encoded(false));
+		diff.new_node(downstream_node, &mut s);
+		s.out()
 	}
 
 	/// Return the bytes encoding the node represented by `rlp`. It will be unlinked from
@@ -423,13 +438,14 @@ impl TrieDB {
 					(_, cp) if cp == existing_key.len() => {
 						trace!("complete-prefix (cp={:?}): AUGMENT-AT-END", cp);
 						// fully-shared prefix for this extension:
-						// skip to the end of this extension and continue to augment there.
-						let n = if is_leaf { old_rlp.at(1).raw() } else { self.take_node(&old_rlp.at(1), diff) };
-						let downstream_node = self.augmented(n, &partial.mid(cp), value, diff);
-						let mut s = RlpStream::new_list(2);
-						s.append_raw(old_rlp.at(0).raw(), 1);
-						diff.new_node(downstream_node, &mut s);
-						s.out()
+						// transform to an extension + augmented version of onward node.
+						let downstream_node: Bytes = if is_leaf {
+							// no onward node because we're a leaf - create fake stub and use that.
+							self.augmented(&Self::compose_stub_branch(old_rlp.at(1).data()), &partial.mid(cp), value, diff)
+						} else {
+							self.augmented(self.take_node(&old_rlp.at(1), diff), &partial.mid(cp), value, diff)
+						};
+						Self::create_extension(&existing_key, downstream_node, diff)
 					},
 					(_, cp) => {
 						// partially-shared prefix for this extension:
@@ -453,7 +469,7 @@ impl TrieDB {
 					},
 				}
 			},
-			Prototype::Data(_) => {
+			Prototype::Data(0) => {
 				trace!("empty: COMPOSE");
 				Self::compose_leaf(partial, value)
 			},
@@ -579,7 +595,7 @@ mod tests {
 		let v: Vec<(Vec<u8>, Vec<u8>)> = vec![
 			(From::from("do"), From::from("verb")),
 			(From::from("dog"), From::from("puppy")),
-//			(From::from("doge"), From::from("coin")),
+			(From::from("doge"), From::from("coin")),
 //			(From::from("horse"), From::from("stallion")),
 		];
 
@@ -588,6 +604,8 @@ mod tests {
 			let val: &[u8] = &v[i].1;
 			t.insert(&key, &val);
 		}
+
+		trace!("{:?}", t);
 
 		assert_eq!(*t.root(), trie_root(v));
 
