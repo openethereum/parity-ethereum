@@ -595,8 +595,8 @@ mod tests {
 		let v: Vec<(Vec<u8>, Vec<u8>)> = vec![
 			(From::from("do"), From::from("verb")),
 			(From::from("dog"), From::from("puppy")),
-			(From::from("doge"), From::from("coin")),
-//			(From::from("horse"), From::from("stallion")),
+//			(From::from("doge"), From::from("coin")),
+			(From::from("horse"), From::from("stallion")),
 		];
 
 		for i in 0..v.len() {
