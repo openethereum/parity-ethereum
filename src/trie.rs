@@ -40,6 +40,7 @@ impl Diff {
 			self.0.push(Operation::New(rlp_sha3, rlp));
 		}
 		else {
+			trace!("new_node: inline node {:?}", &rlp);
 			out.append_raw(&rlp, 1);
 		}
 	}
@@ -67,13 +68,11 @@ pub struct TrieDB {
 }
 
 impl TrieDB {
-	pub fn new<T>(db: T) -> Self where T: HashDB + 'static { TrieDB{ db: Box::new(db), root: H256::new() } }
+	pub fn new_boxed(db_box: Box<HashDB>) -> Self { let mut r = TrieDB{ db: db_box, root: H256::new() }; r.set_root_rlp(&NULL_RLP); r }
 
-	pub fn new_boxed(db_box: Box<HashDB>) -> Self { TrieDB{ db: db_box, root: H256::new() } }
+	pub fn new<T>(db: T) -> Self where T: HashDB + 'static { Self::new_boxed(Box::new(db)) }
 
-	pub fn new_memory() -> Self { TrieDB{ db: Box::new(MemoryDB::new()), root: H256::new() } }
-
-	pub fn init(&mut self) { self.set_root_rlp(&NULL_RLP); }
+	pub fn new_memory() -> Self { Self::new(MemoryDB::new()) }
 
 	pub fn db(&self) -> &HashDB { self.db.as_ref() }
 
@@ -84,6 +83,7 @@ impl TrieDB {
 	}
 
 	fn apply(&mut self, diff: Diff) {
+		trace!("applying {:?} changes", diff.0.len());
 		for d in diff.0.into_iter() {
 			match d {
 				Operation::Delete(h) => {
@@ -99,11 +99,13 @@ impl TrieDB {
 	}
 
 	fn add(&mut self, key: &NibbleSlice, value: &[u8]) {
+		trace!("ADD: {:?} {:?}", key, value);
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Diff = Diff::new();
 		let root_rlp = self.augmented(self.db.lookup(&self.root).expect("Trie root not found!"), key, value, &mut todo);
 		self.apply(todo);
 		self.set_root_rlp(&root_rlp);
+		trace!("---");
 	}
 
 	fn compose_leaf(partial: &NibbleSlice, value: &[u8]) -> Bytes {
@@ -112,7 +114,7 @@ impl TrieDB {
 		s.append(&partial.encoded(true));
 		s.append(&value);
 		let r = s.out();
-		trace!("output: -> {:?}", &r);
+		trace!("compose_leaf: -> {:?}", &r);
 		r
 	}
 
@@ -122,7 +124,7 @@ impl TrieDB {
 		s.append(&partial.encoded(is_leaf));
 		s.append_raw(raw_payload, 1);
 		let r = s.out();
-		println!("output: -> {:?}", &r);
+		println!("compose_raw: -> {:?}", &r);
 		r
 	}
 
@@ -246,6 +248,7 @@ impl TrieDB {
 		let old_rlp = Rlp::new(old);
 		match old_rlp.prototype() {
 			Prototype::List(17) => {
+				trace!("branch: ROUTE,AUGMENT");
 				// already have a branch. route and augment.
 				self.augmented_into_branch(&old_rlp, partial, value, diff)
 			},
@@ -297,6 +300,7 @@ impl TrieDB {
 				}
 			},
 			Prototype::Data(0) => {
+				trace!("empty: COMPOSE");
 				Self::compose_leaf(partial, value)
 			},
 			_ => panic!("Invalid RLP for node."),
@@ -326,7 +330,6 @@ impl Trie for TrieDB {
 
 #[cfg(test)]
 mod tests {
-	use memorydb::*;
 	use triehash::*;
 	use super::*;
 	use env_logger;
@@ -335,33 +338,45 @@ mod tests {
 	fn playpen() {
 		env_logger::init().unwrap();
 
-		let mut t = TrieDB::new(MemoryDB::new());
-		t.init();
+		let mut t = TrieDB::new_memory();
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x11u8, 0x23], vec![0x11u8, 0x23])
+		]));
 	}
 
 	#[test]
 	fn init() {
-		let mut t = TrieDB::new(MemoryDB::new());
-		t.init();
+		let t = TrieDB::new_memory();
 		assert_eq!(*t.root(), SHA3_NULL_RLP);
 		assert!(t.is_empty());
 	}
 
 	#[test]
 	fn insert_on_empty() {
-		let mut t = TrieDB::new(MemoryDB::new());
-		t.init();
+		let mut t = TrieDB::new_memory();
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
 	}
 
 	#[test]
 	fn insert_replace_root() {
-		let mut t = TrieDB::new(MemoryDB::new());
-		t.init();
+		let mut t = TrieDB::new_memory();
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]);
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
+	}
+
+	#[test]
+	fn insert_branch_root() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x11u8, 0x23], vec![0x11u8, 0x23])
+		]));
 	}
 }
