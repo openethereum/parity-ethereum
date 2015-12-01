@@ -609,7 +609,7 @@ mod tests {
 		println!("{:?}", t);
 
 		// check lifetime
-		let _q = t.at(&[b'd', b'o']).unwrap();
+//		let _q = t.at(&[b'd', b'o']).unwrap();
 
 		assert_eq!(*t.root(), trie_root(v));
 	}
