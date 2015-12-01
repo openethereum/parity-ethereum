@@ -137,13 +137,13 @@ impl TrieDB {
 
 	/// Return the bytes encoding the node represented by `rlp`. It will be unlinked from
 	/// the trie.
-	fn take_node(&self, rlp: &Rlp, diff: &mut Diff) -> Bytes {
+	fn take_node<'a, 'rlp_view>(&'a self, rlp: &'rlp_view Rlp<'a>, diff: &mut Diff) -> &'a [u8] where 'a: 'rlp_view {
 		if (rlp.is_list()) {
-			rlp.raw().to_vec()
+			rlp.raw()
 		}
 		else if (rlp.is_data() && rlp.size() == 32) {
 			let h = H256::decode(rlp);
-			let r = self.db.lookup(&h).expect("Trie root not found!").to_vec();
+			let r = self.db.lookup(&h).expect("Trie root not found!");
 			diff.delete_node_sha3(h);
 			r
 		}
