@@ -116,6 +116,7 @@ impl Diff {
 	/// such that the reference is valid, once applied.
 	fn new_node(&mut self, rlp: Bytes, out: &mut RlpStream) {
 		if rlp.len() >= 32 {
+			trace!("new_node: reference node {:?}", rlp.pretty());
 			let rlp_sha3 = rlp.sha3();
 			out.append(&rlp_sha3);
 			self.0.push(Operation::New(rlp_sha3, rlp));
@@ -200,12 +201,10 @@ impl TrieDB {
 		match node {
 			Node::Leaf(slice, value) => try!(writeln!(f, "Leaf {:?}, {:?}", slice, value.pretty())),
 			Node::ExtensionRaw(ref slice, ref item) => {
-//				try!(self.fmt_indent(f, deepness));
 				try!(write!(f, "Extension (raw): {:?} ", slice));
 				try!(self.fmt_all(item, f, deepness + 1));
 			},
 			Node::ExtensionSha3(ref slice, sha3) => {
-//				try!(self.fmt_indent(f, deepness));
 				try!(write!(f, "Extension (sha3): {:?} ", slice));
 				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
 				try!(self.fmt_all(rlp, f, deepness + 1));
@@ -595,7 +594,7 @@ mod tests {
 		let v: Vec<(Vec<u8>, Vec<u8>)> = vec![
 			(From::from("do"), From::from("verb")),
 			(From::from("dog"), From::from("puppy")),
-//			(From::from("doge"), From::from("coin")),
+			(From::from("doge"), From::from("coin")),
 			(From::from("horse"), From::from("stallion")),
 		];
 
@@ -605,7 +604,7 @@ mod tests {
 			t.insert(&key, &val);
 		}
 
-		trace!("{:?}", t);
+//		trace!("{:?}", t);
 
 		assert_eq!(*t.root(), trie_root(v));
 
