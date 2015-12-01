@@ -115,7 +115,7 @@ impl Diff {
 			self.0.push(Operation::New(rlp_sha3, rlp));
 		}
 		else {
-			trace!("new_node: inline node {:?}", &rlp);
+			trace!("new_node: inline node {:?}", rlp.pretty());
 			out.append_raw(&rlp, 1);
 		}
 	}
@@ -154,7 +154,7 @@ impl TrieDB {
 	fn set_root_rlp(&mut self, root_data: &[u8]) {
 		self.db.kill(&self.root);
 		self.root = self.db.insert(root_data);
-		trace!("set_root_rlp {:?} {:?}", root_data, self.root);
+		trace!("set_root_rlp {:?} {:?}", root_data.pretty(), self.root);
 	}
 
 	fn apply(&mut self, diff: Diff) {
@@ -166,7 +166,7 @@ impl TrieDB {
 					self.db.kill(&h);
 				},
 				Operation::New(h, d) => {
-					trace!("TrieDB::apply +++ {:?} -> {:?}", &h, &d);
+					trace!("TrieDB::apply +++ {:?} -> {:?}", &h, d.pretty());
 					self.db.emplace(h, d);
 				}
 			}
@@ -200,32 +200,32 @@ impl TrieDB {
 	}
 
 	fn add(&mut self, key: &NibbleSlice, value: &[u8]) {
-		trace!("ADD: {:?} {:?}", key, value);
+		trace!("ADD: {:?} {:?}", key, value.pretty());
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Diff = Diff::new();
 		let root_rlp = self.augmented(self.db.lookup(&self.root).expect("Trie root not found!"), key, value, &mut todo);
 		self.apply(todo);
 		self.set_root_rlp(&root_rlp);
-		trace!("---");
+		trace!("/");
 	}
 
 	fn compose_leaf(partial: &NibbleSlice, value: &[u8]) -> Bytes {
-		trace!("compose_leaf {:?} {:?} ({:?})", partial, value, partial.encoded(true));
+		trace!("compose_leaf {:?} {:?} ({:?})", partial, value.pretty(), partial.encoded(true).pretty());
 		let mut s = RlpStream::new_list(2);
 		s.append(&partial.encoded(true));
 		s.append(&value);
 		let r = s.out();
-		trace!("compose_leaf: -> {:?}", &r);
+		trace!("compose_leaf: -> {:?}", r.pretty());
 		r
 	}
 
 	fn compose_raw(partial: &NibbleSlice, raw_payload: &[u8], is_leaf: bool) -> Bytes {
-		println!("compose_raw {:?} {:?} {:?} ({:?})", partial, raw_payload, is_leaf, partial.encoded(is_leaf));
+		println!("compose_raw {:?} {:?} {:?} ({:?})", partial, raw_payload.pretty(), is_leaf, partial.encoded(is_leaf));
 		let mut s = RlpStream::new_list(2);
 		s.append(&partial.encoded(is_leaf));
 		s.append_raw(raw_payload, 1);
 		let r = s.out();
-		println!("compose_raw: -> {:?}", &r);
+		println!("compose_raw: -> {:?}", r.pretty());
 		r
 	}
 
@@ -237,18 +237,18 @@ impl TrieDB {
 	/// the trie.
 	fn take_node<'a, 'rlp_view>(&'a self, rlp: &'rlp_view Rlp<'a>, diff: &mut Diff) -> &'a [u8] where 'a: 'rlp_view {
 		if rlp.is_list() {
-			trace!("take_node {:?} (inline)", rlp.raw());
+			trace!("take_node {:?} (inline)", rlp.raw().pretty());
 			rlp.raw()
 		}
 		else if rlp.is_data() && rlp.size() == 32 {
 			let h = H256::decode(rlp);
 			let r = self.db.lookup(&h).expect("Trie root not found!");
-			trace!("take_node {:?} (indirect for {:?})", rlp.raw(), r);
+			trace!("take_node {:?} (indirect for {:?})", rlp.raw().pretty(), r);
 			diff.delete_node_sha3(h);
 			r
 		}
 		else {
-			trace!("take_node {:?} (???)", rlp.raw());
+			trace!("take_node {:?} (???)", rlp.raw().pretty());
 			panic!("Empty or invalid node given?");
 		}
 	}
@@ -339,7 +339,7 @@ impl TrieDB {
 	///
 	/// **This operation will not insert the new node now destroy the original.**
 	fn augmented(&self, old: &[u8], partial: &NibbleSlice, value: &[u8], diff: &mut Diff) -> Bytes {
-		trace!("augmented ({:?}, {:?}, {:?})", old, partial, value);
+		trace!("augmented ({:?}, {:?}, {:?})", old.pretty(), partial, value.pretty());
 		// already have an extension. either fast_forward, cleve or transmute_to_branch.
 		let old_rlp = Rlp::new(old);
 		match old_rlp.prototype() {
