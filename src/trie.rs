@@ -564,7 +564,7 @@ mod tests {
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
 		println!("trie:");
 		println!("{:?}", t);
-		assert!(false);
+		//assert!(false);
 	}
 
 	#[test]
