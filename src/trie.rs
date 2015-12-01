@@ -393,7 +393,7 @@ impl TrieDB {
 				(true, i) if orig.at(i).is_empty() => // easy - original had empty slot.
 					diff.new_node(Self::compose_leaf(&partial.mid(1), value), &mut s),
 				(true, i) => {	// harder - original has something there already
-					let new = self.augmented(orig.at(i).raw(), &partial.mid(1), value, diff);
+					let new = self.augmented(self.take_node(&orig.at(i), diff), &partial.mid(1), value, diff);
 					diff.replace_node(&orig.at(i), new, &mut s);
 				}
 				(false, i) => { s.append_raw(orig.at(i).raw(), 1); },
@@ -472,7 +472,7 @@ impl TrieDB {
 				trace!("empty: COMPOSE");
 				Self::compose_leaf(partial, value)
 			},
-			_ => panic!("Invalid RLP for node."),
+			_ => panic!("Invalid RLP for node: {:?}", old.pretty()),
 		}
 	}
 }
@@ -591,11 +591,12 @@ mod tests {
 	fn test_at_dog() {
 		env_logger::init().ok();
 		let mut t = TrieDB::new_memory();
-		let v: Vec<(Vec<u8>, Vec<u8>)> = vec![
+		let mut v: Vec<(Vec<u8>, Vec<u8>)> = vec![
 			(From::from("do"), From::from("verb")),
 			(From::from("dog"), From::from("puppy")),
 			(From::from("doge"), From::from("coin")),
 			(From::from("horse"), From::from("stallion")),
+			(From::from("dot"), From::from("point")),
 		];
 
 		for i in 0..v.len() {
@@ -604,8 +605,9 @@ mod tests {
 			t.insert(&key, &val);
 		}
 
-//		trace!("{:?}", t);
+// 		trace!("{:?}", t);
 
+		v.sort();
 		assert_eq!(*t.root(), trie_root(v));
 
 		/*for i in 0..v.len() {
