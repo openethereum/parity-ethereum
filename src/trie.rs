@@ -465,8 +465,8 @@ impl TrieDB {
 impl Trie for TrieDB {
 	fn root(&self) -> &H256 { &self.root }
 
-	fn contains(&self, _key: &[u8]) -> bool {
-		unimplemented!();
+	fn contains(&self, key: &[u8]) -> bool {
+		self.at(key).is_some()
 	}
 
 	fn at<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
@@ -484,6 +484,7 @@ impl Trie for TrieDB {
 
 #[cfg(test)]
 mod tests {
+	use rustc_serialize::hex::FromHex;
 	use triehash::*;
 	use super::*;
 	use nibbleslice::*;
@@ -572,17 +573,9 @@ mod tests {
 		//assert!(false);
 	}
 
-	#[test]
-	fn test_at_dog() {
-		env_logger::init().ok();
+	fn test_all(v: Vec<(Vec<u8>, Vec<u8>)>) {
 		let mut t = TrieDB::new_memory();
-		let v: Vec<(Vec<u8>, Vec<u8>)> = vec![
-			(From::from("do"), From::from("verb")),
-			(From::from("dog"), From::from("puppy")),
-			(From::from("doge"), From::from("coin")),
-			(From::from("horse"), From::from("stallion")),
-		];
-
+	
 		for i in 0..v.len() {
 			let key: &[u8]= &v[i].0;
 			let val: &[u8] = &v[i].1;
@@ -601,6 +594,52 @@ mod tests {
 		let _q = t.at(&[b'd', b'o']).unwrap();
 
 		assert_eq!(*t.root(), trie_root(v));
+	}
+
+	#[test]
+	fn test_at_dog() {
+		env_logger::init().ok();
+		let v = vec![
+			(From::from("do"), From::from("verb")),
+			(From::from("dog"), From::from("puppy")),
+			(From::from("doge"), From::from("coin")),
+			(From::from("horse"), From::from("stallion")),
+		];
+
+		test_all(v);
+	}
+
+	#[test]
+	fn test_more_data() {
+		let v = vec![
+		
+			("0000000000000000000000000000000000000000000000000000000000000045".from_hex().unwrap(), 
+			 "22b224a1420a802ab51d326e29fa98e34c4f24ea".from_hex().unwrap()),
+
+			("0000000000000000000000000000000000000000000000000000000000000046".from_hex().unwrap(),
+			 "67706c2076330000000000000000000000000000000000000000000000000000".from_hex().unwrap()),
+
+			("000000000000000000000000697c7b8c961b56f675d570498424ac8de1a918f6".from_hex().unwrap(),
+			 "6f6f6f6820736f2067726561742c207265616c6c6c793f000000000000000000".from_hex().unwrap()),
+
+			("0000000000000000000000007ef9e639e2733cb34e4dfc576d4b23f72db776b2".from_hex().unwrap(),
+			 "4655474156000000000000000000000000000000000000000000000000000000".from_hex().unwrap()),
+
+			("000000000000000000000000ec4f34c97e43fbb2816cfd95e388353c7181dab1".from_hex().unwrap(),
+			 "4e616d6552656700000000000000000000000000000000000000000000000000".from_hex().unwrap()),
+
+			("4655474156000000000000000000000000000000000000000000000000000000".from_hex().unwrap(),
+			 "7ef9e639e2733cb34e4dfc576d4b23f72db776b2".from_hex().unwrap()),
+
+			("4e616d6552656700000000000000000000000000000000000000000000000000".from_hex().unwrap(),
+			 "ec4f34c97e43fbb2816cfd95e388353c7181dab1".from_hex().unwrap()),
+
+			("6f6f6f6820736f2067726561742c207265616c6c6c793f000000000000000000".from_hex().unwrap(),
+			 "697c7b8c961b56f675d570498424ac8de1a918f6".from_hex().unwrap())
+
+		];
+
+		test_all(v);
 	}
 
 	#[test]
