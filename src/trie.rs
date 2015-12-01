@@ -416,8 +416,19 @@ impl TrieDB {
 						trace!("complete-prefix (cp={:?}): AUGMENT-AT-END", cp);
 						// fully-shared prefix for this extension:
 						// skip to the end of this extension and continue to augment there.
-						let n = if is_leaf { old_rlp.at(1).raw() } else { self.take_node(&old_rlp.at(1), diff) };
-						let downstream_node = self.augmented(n, &partial.mid(cp), value, diff);
+						let downstream_node: Bytes;
+						if is_leaf {
+							// TODO: can maybe do with transmuted_to_branch_and_augmented/transmute to branch?
+							// create mostly-empty branch node.
+							let mut s = RlpStream::new_list(17);
+							for _ in 0..16 { s.append_empty_data(); }
+							s.append_raw(old_rlp.at(1).raw(), 1);
+							// create rlp for branch with single leaf item.
+							downstream_node = self.augmented(&s.out(), &partial.mid(cp), value, diff);
+						} else {
+							let n = self.take_node(&old_rlp.at(1), diff);
+							downstream_node = self.augmented(n, &partial.mid(cp), value, diff);
+						}
 						let mut s = RlpStream::new_list(2);
 						s.append_raw(old_rlp.at(0).raw(), 1);
 						diff.new_node(downstream_node, &mut s);
@@ -445,7 +456,7 @@ impl TrieDB {
 					},
 				}
 			},
-			Prototype::Data(_) => {
+			Prototype::Data(0) => {
 				trace!("empty: COMPOSE");
 				Self::compose_leaf(partial, value)
 			},
