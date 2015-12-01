@@ -62,7 +62,8 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 /// 	assert_eq!(trie_root(v), H256::from_str(root).unwrap());
 /// }
 /// ```
-pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
+pub fn trie_root(mut input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
+	input.sort();
 	let gen_input = input
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v))
