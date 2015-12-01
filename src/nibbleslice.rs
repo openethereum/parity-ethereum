@@ -126,7 +126,7 @@ impl<'a> PartialOrd for NibbleSlice<'a> {
 impl<'a> fmt::Debug for NibbleSlice<'a> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for i in 0..self.len() {
-			try!(write!(f, "{:01x}", i));
+			try!(write!(f, "{:01x}", self.at(i)));
 		}
 		Ok(())
 	}
