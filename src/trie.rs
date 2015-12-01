@@ -332,12 +332,14 @@ mod tests {
 	fn playpen() {
 		env_logger::init().unwrap();
 
+		let big_value = b"00000000000000000000000000000000";
+
 		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[], &[0x0]);
+		t.insert(&[0x01u8, 0x23], big_value);
+		t.insert(&[0x11u8, 0x23], big_value);
 		assert_eq!(*t.root(), trie_root(vec![
-			(vec![], vec![0x0]),
-			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x01u8, 0x23], big_value.to_vec()),
+			(vec![0x11u8, 0x23], big_value.to_vec())
 		]));
 	}
 
@@ -384,6 +386,68 @@ mod tests {
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
 			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
+		]));
+	}
+
+	#[test]
+	fn insert_value_into_branch_root() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[], &[0x0]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![], vec![0x0]),
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+		]));
+	}
+
+	#[test]
+	fn insert_split_leaf() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x01u8, 0x34], vec![0x01u8, 0x34]),
+		]));
+	}
+
+	#[test]
+	fn insert_split_extenstion() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01, 0x23, 0x45], &[0x01]);
+		t.insert(&[0x01, 0xf3, 0x45], &[0x02]);
+		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01, 0x23, 0x45], vec![0x01]),
+			(vec![0x01, 0xf3, 0x45], vec![0x02]),
+			(vec![0x01, 0xf3, 0xf5], vec![0x03]),
+		]));
+	}
+
+	#[test]
+	fn insert_big_value() {
+		let big_value0 = b"00000000000000000000000000000000";
+		let big_value1 = b"11111111111111111111111111111111";
+
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], big_value0);
+		t.insert(&[0x11u8, 0x23], big_value1);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], big_value0.to_vec()),
+			(vec![0x11u8, 0x23], big_value1.to_vec())
+		]));
+	}
+
+	#[test]
+	fn insert_duplicate_value() {
+		let big_value = b"00000000000000000000000000000000";
+
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], big_value);
+		t.insert(&[0x11u8, 0x23], big_value);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], big_value.to_vec()),
+			(vec![0x11u8, 0x23], big_value.to_vec())
 		]));
 	}
 }
