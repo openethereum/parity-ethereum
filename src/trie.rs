@@ -17,7 +17,7 @@ pub trait Trie {
 
 	// TODO: consider returning &[u8]...
 	fn contains(&self, key: &[u8]) -> bool;
-	fn at<'a>(&'a self, key: &'a [u8]) -> Option<&'a [u8]>;
+	fn at<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
 	fn insert(&mut self, key: &[u8], value: &[u8]);
 	fn remove(&mut self, key: &[u8]);
 }
@@ -204,7 +204,7 @@ impl TrieDB {
 				try!(self.fmt_all(self.get_raw_or_lookup(item), f, deepness));
 			},
 			Node::Branch(ref nodes, ref value) => {
-				try!(writeln!(f, "-< "));
+				try!(writeln!(f, ""));
 				match value {
 					&Some(v) => {
 						try!(self.fmt_indent(f, deepness + 1));
@@ -225,18 +225,18 @@ impl TrieDB {
 			},
 			// empty
 			Node::NullRoot => {
-				writeln!(f, "<empty>");
+				try!(writeln!(f, "<empty>"));
 			}
 		};
 		Ok(())
 	}
 
-	fn get<'a>(&'a self, key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
+	fn get<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
 		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
 		self.get_from_node(&root_rlp, key)
 	}
 
-	fn get_from_node<'a>(&'a self, node: &'a [u8], key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
+	fn get_from_node<'a, 'key>(&'a self, node: &'a [u8], key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
 		match Node::decoded(node) {
 			Node::Leaf(ref slice, ref value) if key == slice => Some(value),
 			Node::Extension(ref slice, ref item) if key.starts_with(slice) => {
@@ -492,7 +492,7 @@ impl Trie for TrieDB {
 		unimplemented!();
 	}
 
-	fn at<'a>(&'a self, key: &'a [u8]) -> Option<&'a [u8]> {
+	fn at<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
 		self.get(&NibbleSlice::new(key))
 	}
 
@@ -599,7 +599,7 @@ mod tests {
 	fn test_at_dog() {
 		env_logger::init().ok();
 		let mut t = TrieDB::new_memory();
-		let mut v: Vec<(Vec<u8>, Vec<u8>)> = vec![
+		let v: Vec<(Vec<u8>, Vec<u8>)> = vec![
 			(From::from("do"), From::from("verb")),
 			(From::from("dog"), From::from("puppy")),
 			(From::from("doge"), From::from("coin")),
@@ -615,7 +615,9 @@ mod tests {
 
  		trace!("{:?}", t);
 
-		v.sort();
+		// check lifetime
+		let _q = t.at(&[b'd', b'o']).unwrap();
+
 		assert_eq!(*t.root(), trie_root(v));
 	}
 
