@@ -97,6 +97,11 @@ impl <'a>Node<'a> {
 	}
 }
 
+//enum ValidationResult<'a> {
+	//Valid,
+	//Invalid { node: Node<'a>, depth: usize }
+//}
+
 enum Operation {
 	New(H256, Bytes),
 	Delete(H256),
@@ -194,14 +199,14 @@ impl TrieDB {
 		let node = Node::decoded(node);
 		match node {
 			Node::Leaf(slice, value) => try!(writeln!(f, "Leaf {:?}, {:?}", slice, value.pretty())),
-			Node::ExtensionRaw(_, ref item) => {
+			Node::ExtensionRaw(ref slice, ref item) => {
 				try!(self.fmt_indent(f, deepness));
-				try!(write!(f, "Extension (raw): "));
+				try!(write!(f, "Extension (raw): {:?} ", slice));
 				try!(self.fmt_all(item, f, deepness + 1));
 			},
-			Node::ExtensionSha3(_, sha3) => {
+			Node::ExtensionSha3(ref slice, sha3) => {
 				try!(self.fmt_indent(f, deepness));
-				try!(write!(f, "Extension (sha3): "));
+				try!(write!(f, "Extension (sha3): {:?} ", slice));
 				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
 				try!(self.fmt_all(rlp, f, deepness + 1));
 			},
