@@ -589,7 +589,7 @@ mod tests {
 
 	#[test]
 	fn test_at_dog() {
-		env_logger::init().unwrap();
+		env_logger::init().ok();
 		let mut t = TrieDB::new_memory();
 		let v: Vec<(Vec<u8>, Vec<u8>)> = vec![
 			(From::from("do"), From::from("verb")),
@@ -617,7 +617,7 @@ mod tests {
 
 	#[test]
 	fn playpen() {
-		env_logger::init().unwrap();
+		env_logger::init().ok();
 
 		let big_value = b"00000000000000000000000000000000";
 
