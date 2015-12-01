@@ -85,7 +85,7 @@ impl TrieDB {
 	fn set_root_rlp(&mut self, root_data: &[u8]) {
 		self.db.kill(&self.root);
 		self.root = self.db.insert(root_data);
-		println!("set_root_rlp {:?} {:?}", root_data, self.root);
+		trace!("set_root_rlp {:?} {:?}", root_data, self.root);
 	}
 
 	fn apply(&mut self, diff: Diff) {
@@ -102,30 +102,31 @@ impl TrieDB {
 			}
 		}
 	}
-/*
+
 	fn add(&mut self, key: &NibbleSlice, value: &[u8]) {
 		// determine what the new root is, insert new nodes and remove old as necessary.
-		let todo: Diff = Diff::new();
+		let mut todo: Diff = Diff::new();
 		let root_rlp = self.inject(self.db.lookup(&self.root).expect("Trie root not found!"), key, value, &mut todo);
 		self.apply(todo);
 		self.set_root_rlp(&root_rlp);
 	}
 
+	fn compose_leaf(partial: &NibbleSlice, value: &[u8]) -> Bytes {
+		trace!("compose_leaf {:?} {:?} ({:?})", partial, value, partial.encoded(true));
+		let mut s = RlpStream::new_list(2);
+		s.append(&partial.encoded(true));
+		s.append(&value);
+		let r = s.out();
+		trace!("output: -> {:?}", &r);
+		r
+	}
+
+/*
 	fn compose_raw(partial: &NibbleSlice, raw_payload: &[u8], bool is_leaf) -> Bytes {
 		println!("compose_raw {:?} {:?} {:?} ({:?})", partial, value, is_leaf, partial.encoded(is_leaf));
 		let mut s = RlpStream::new_list(2);
 		s.append(&partial.encoded(is_leaf));
 		s.append_raw(raw_payload, 1);
-		let r = s.out();
-		println!("output: -> {:?}", &r);
-		r
-	}
-
-	fn compose_leaf(partial: &NibbleSlice, value: &[u8]) -> Bytes {
-		println!("compose_leaf {:?} {:?} ({:?})", partial, value, partial.encoded(true));
-		let mut s = RlpStream::new_list(2);
-		s.append(&partial.encoded(true));
-		s.append(value);
 		let r = s.out();
 		println!("output: -> {:?}", &r);
 		r
@@ -232,6 +233,7 @@ impl TrieDB {
 		diff.new_node(self.inject(old, partial, value, diff), &mut out);
 		diff.delete_node(old, old_sha3);
 	}
+*/
 
 	/// Determine the RLP of the node, assuming we're inserting `partial` into the
 	/// node currently of data `old`. This will *not* delete any hash of `old` from the database;
@@ -246,11 +248,13 @@ impl TrieDB {
 		let old_rlp = Rlp::new(old);
 		match old_rlp.prototype() {
 			Prototype::List(17) => {
+				unimplemented!();
 				// already have a branch. route and inject.
-				self.injected_into_branch(old_rlp, partial, value, diff)
+//				self.injected_into_branch(old_rlp, partial, value, diff)
 			},
 			Prototype::List(2) => {
-				let their_key_rlp = old_rlp.at(0);
+				unimplemented!();
+/*				let their_key_rlp = old_rlp.at(0);
 				let (them, is_leaf) = NibbleSlice::from_encoded(their_key_rlp.data());
 
 				match partial.common_prefix(&them) {
@@ -290,15 +294,14 @@ impl TrieDB {
 						diff.new_node(injected_low, s);
 						s.out()
 					},
-				}
+				}*/
 			},
 			Prototype::Data(0) => {
-				(Self::compose_leaf(partial, value, true), Diff::new())
+				Self::compose_leaf(partial, value)
 			},
 			_ => panic!("Invalid RLP for node."),
 		}
 	}
-	*/
 }
 
 impl Trie for TrieDB {
@@ -313,8 +316,7 @@ impl Trie for TrieDB {
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
-		unimplemented!();
-//		(self as &mut TrieDB).add(&NibbleSlice::new(key), value);
+		(self as &mut TrieDB).add(&NibbleSlice::new(key), value);
 	}
 
 	fn remove(&mut self, _key: &[u8]) {
@@ -326,6 +328,9 @@ impl Trie for TrieDB {
 fn playpen() {
 	use overlaydb::*;
 	use triehash::*;
+	use env_logger;
+
+	env_logger::init().unwrap();
 
 	(&[1, 2, 3]).starts_with(&[1, 2]);
 
@@ -333,7 +338,9 @@ fn playpen() {
 	t.init();
 	assert_eq!(*t.root(), SHA3_NULL_RLP);
 	assert!(t.is_empty());
-/*
+
 	t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-	assert_eq!(*t.root(), trie_root(vec![ (vec![1u8, 0x23], vec![1u8, 0x23]) ]));*/
+	assert_eq!(*t.root(), trie_root(vec![ (vec![1u8, 0x23], vec![1u8, 0x23]) ]));
+
+	assert!(false);
 }
