@@ -25,8 +25,7 @@ pub trait Trie {
 #[derive(Eq, PartialEq, Debug)]
 pub enum Node<'a> {
 	Leaf(NibbleSlice<'a>, &'a[u8]),
-	ExtensionRaw(NibbleSlice<'a>, &'a[u8]),
-	ExtensionSha3(NibbleSlice<'a>, &'a[u8]),
+	Extension(NibbleSlice<'a>, &'a[u8]),
 	Branch(Option<[&'a[u8]; 16]>, &'a [u8])
 }
 
@@ -41,13 +40,7 @@ impl <'a>Node<'a> {
 			// fed back into this function or inline RLP which can be fed back into this function).
 			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
 				(slice, true) => Node::Leaf(slice, r.at(1).data()),
-				(slice, false) => match r.at(1).raw().len() {
-					// its just raw extension
-					0...31 => Node::ExtensionRaw(slice, r.at(1).raw()),
-					// its SHA3 of raw extension + the length of sha3
-					33 => Node::ExtensionSha3(slice, r.at(1).data()),
-					_ => { panic!(); }
-				}
+				(slice, false) => Node::Extension(slice, r.at(1).raw())
 			},
 			// branch - first 16 are nodes, 17th is a value (or empty).
 			Prototype::List(17) => {
@@ -62,6 +55,7 @@ impl <'a>Node<'a> {
 		}
 	}
 
+	// todo: should check length before encoding, cause it may just be sha3 of data
 	pub fn encoded(&self) -> Bytes {
 		match *self {
 			Node::Leaf(ref slice, ref value) => {
@@ -70,16 +64,10 @@ impl <'a>Node<'a> {
 				stream.append(value);
 				stream.out()
 			},
-			Node::ExtensionRaw(ref slice, ref raw_rlp) => {
+			Node::Extension(ref slice, ref raw_rlp) => {
 				let mut stream = RlpStream::new_list(2);
 				stream.append(&slice.encoded(false));
 				stream.append_raw(raw_rlp, 1);
-				stream.out()
-			},
-			Node::ExtensionSha3(ref slice, ref sha3) => {
-				let mut stream = RlpStream::new_list(2);
-				stream.append(&slice.encoded(false));
-				stream.append(sha3);
 				stream.out()
 			},
 			Node::Branch(Some(ref nodes), ref value) => {
@@ -200,27 +188,22 @@ impl TrieDB {
 		let node = Node::decoded(node);
 		match node {
 			Node::Leaf(slice, value) => try!(writeln!(f, "Leaf {:?}, {:?}", slice, value.pretty())),
-			Node::ExtensionRaw(ref slice, ref item) => {
-				try!(write!(f, "Extension (raw): {:?} ", slice));
-				try!(self.fmt_all(item, f, deepness + 1));
-			},
-			Node::ExtensionSha3(ref slice, sha3) => {
-				try!(write!(f, "Extension (sha3): {:?} ", slice));
-				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
-				try!(self.fmt_all(rlp, f, deepness + 1));
+			Node::Extension(ref slice, ref item) => {
+				try!(write!(f, "Extension: {:?} ,", slice));
+				try!(self.fmt_all(self.get_raw_or_lookup(item), f, deepness + 1));
 			},
 			Node::Branch(Some(ref nodes), ref value) => {
 				try!(writeln!(f, "Branch: "));
 				try!(self.fmt_indent(f, deepness + 1));
-				try!(writeln!(f, ": {:?}", value.pretty()));
+				if (!value.is_empty())
+					try!(writeln!(f, "= {:?}", value.pretty()));
 				for i in 0..16 {
-					match Node::decoded(nodes[i]) {
-						Node::Branch(None, _) => (),
-						_ => {
-							try!(self.fmt_indent(f, deepness + 1));
-							try!(write!(f, "{:x}: ", i));
-							try!(self.fmt_all(nodes[i], f, deepness + 1));
-						}
+					let rlp = Rlp::new(nodes[i]);
+					if rlp.is_data() && rlp.size() != 0 {
+						try!(self.fmt_indent(f, deepness + 1));
+						try!(write!(f, "{:x}: ", i));
+						try!(self.fmt_all(self.get_raw_or_lookup(nodes[i]), f, deepness + 1));
+						try!(writeln!(f, ""));
 					}
 				}
 			},
@@ -240,19 +223,22 @@ impl TrieDB {
 	fn get_from_node<'a>(&'a self, node: &'a [u8], key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
 		match Node::decoded(node) {
 			Node::Leaf(ref slice, ref value) if key == slice => Some(value),
-			Node::ExtensionRaw(ref slice, ref item) if key.starts_with(slice) => {
-				self.get_from_node(item, &key.mid(slice.len()))
-			},
-			Node::ExtensionSha3(ref slice, ref sha3) => {
-				// lookup for this item	
-				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
-				self.get_from_node(rlp, &key.mid(slice.len()))
+			Node::Extension(ref slice, ref item) if key.starts_with(slice) => {
+				self.get_from_node(self.get_raw_or_lookup(item), &key.mid(slice.len()))
 			},
 			Node::Branch(Some(ref nodes), ref value) => match key.is_empty() {
 				true => Some(value),
-				false => self.get_from_node(nodes[key.at(0) as usize], &key.mid(1))
+				false => self.get_from_node(self.get_raw_or_lookup(nodes[key.at(0) as usize]), &key.mid(1))
 			},
 			_ => None
+		}
+	}
+
+	fn get_raw_or_lookup<'a>(&'a self, node: &'a [u8]) -> &'a [u8] {
+		// check if its sha3 + len
+		match node.len() > 32 {
+			true => self.db.lookup(&H256::from_slice(&node[1..])).expect("Not found!"),
+			false => node
 		}
 	}
 
@@ -524,7 +510,7 @@ mod tests {
 		let v = rlp::encode(&"cat");
 		let (slice, is_leaf) = NibbleSlice::from_encoded(&k);
 		assert_eq!(is_leaf, false);
-		let ex = Node::ExtensionRaw(slice, &v);
+		let ex = Node::Extension(slice, &v);
 		let rlp = ex.encoded();
 		let ex2 = Node::decoded(&rlp);
 		assert_eq!(ex, ex2);
@@ -605,16 +591,10 @@ mod tests {
 			t.insert(&key, &val);
 		}
 
-// 		trace!("{:?}", t);
+ 		trace!("{:?}", t);
 
 		v.sort();
 		assert_eq!(*t.root(), trie_root(v));
-
-		/*for i in 0..v.len() {
-			let key: &[u8]= &v[i].0;
-			let val: &[u8] = &v[i].1;
-			assert_eq!(t.at(&key).unwrap(), val);
-		}*/
 	}
 
 	#[test]
