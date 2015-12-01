@@ -320,6 +320,19 @@ mod tests {
 	}
 
 	#[test]
+	fn broken() {
+		assert!(trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
+		]) !=
+		trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
+			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
+		]));
+	}
+
+	#[test]
 	fn test_trie_root() {
 		let v = vec![
 		
