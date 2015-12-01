@@ -121,9 +121,8 @@ impl TrieDB {
 		r
 	}
 
-/*
-	fn compose_raw(partial: &NibbleSlice, raw_payload: &[u8], bool is_leaf) -> Bytes {
-		println!("compose_raw {:?} {:?} {:?} ({:?})", partial, value, is_leaf, partial.encoded(is_leaf));
+	fn compose_raw(partial: &NibbleSlice, raw_payload: &[u8], is_leaf: bool) -> Bytes {
+		println!("compose_raw {:?} {:?} {:?} ({:?})", partial, raw_payload, is_leaf, partial.encoded(is_leaf));
 		let mut s = RlpStream::new_list(2);
 		s.append(&partial.encoded(is_leaf));
 		s.append_raw(raw_payload, 1);
@@ -138,18 +137,21 @@ impl TrieDB {
 
 	/// Return the bytes encoding the node represented by `rlp`. It will be unlinked from
 	/// the trie.
-	fn take_node(&self, rlp: &Rlp, &mut diff) -> Bytes {
-		if (rlp.is_data()) {
-			Bytes::decode(rlp)
+	fn take_node(&self, rlp: &Rlp, diff: &mut Diff) -> Bytes {
+		if (rlp.is_list()) {
+			rlp.raw().to_vec()
 		}
-		else {
+		else if (rlp.is_data() && rlp.size() == 32) {
 			let h = H256::decode(rlp);
-			let r = self.db.lookup(&h).expect("Trie root not found!").as_vec();
-			diff.delete_node(h);
+			let r = self.db.lookup(&h).expect("Trie root not found!").to_vec();
+			diff.delete_node_sha3(h);
 			r
 		}
+		else {
+			panic!("Empty or invalid node given?");
+		}
 	}
-
+/*
 	/// Transform an existing extension or leaf node plus a new partial/value to a two-entry branch.
 	///
 	/// **This operation will not insert the new node nor destroy the original.**
@@ -341,6 +343,4 @@ fn playpen() {
 
 	t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 	assert_eq!(*t.root(), trie_root(vec![ (vec![1u8, 0x23], vec![1u8, 0x23]) ]));
-
-	assert!(false);
 }
