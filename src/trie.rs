@@ -5,15 +5,10 @@ use hash::*;
 use nibbleslice::*;
 use bytes::*;
 use rlp::*;
-use log::*;
+//use log::*;
 
 pub const NULL_RLP: [u8; 1] = [0x80; 1];
 pub const SHA3_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
-
-/*lazy_static! {
-	pub static ref NULL_RLP: Bytes = { let mut r = RlpStream::new(); r.append(&""); r.out().unwrap() };
-	pub static ref SHA3_NULL_RLP: H256 = { use sha3::Hashable; NULL_RLP.sha3() };
-}*/
 
 pub trait Trie {
 	fn root(&self) -> &H256;
@@ -39,7 +34,7 @@ impl Diff {
 	/// Given the RLP that encodes a node, append a reference to that node `out` and leave `diff`
 	/// such that the reference is valid, once applied.
 	fn new_node(&mut self, rlp: Bytes, out: &mut RlpStream) {
-		if (rlp.len() >= 32) {
+		if rlp.len() >= 32 {
 			let rlp_sha3 = rlp.sha3();
 			out.append(&rlp_sha3);
 			self.0.push(Operation::New(rlp_sha3, rlp));
@@ -55,7 +50,7 @@ impl Diff {
 	}
 
 	fn delete_node(&mut self, old: &Rlp) {
-		if (old.is_data() && old.size() == 32) {
+		if old.is_data() && old.size() == 32 {
 			self.0.push(Operation::Delete(H256::decode(old)));
 		}
 	}
@@ -138,10 +133,10 @@ impl TrieDB {
 	/// Return the bytes encoding the node represented by `rlp`. It will be unlinked from
 	/// the trie.
 	fn take_node(&self, rlp: &Rlp, diff: &mut Diff) -> Bytes {
-		if (rlp.is_list()) {
+		if rlp.is_list() {
 			rlp.raw().to_vec()
 		}
-		else if (rlp.is_data() && rlp.size() == 32) {
+		else if rlp.is_data() && rlp.size() == 32 {
 			let h = H256::decode(rlp);
 			let r = self.db.lookup(&h).expect("Trie root not found!").to_vec();
 			diff.delete_node_sha3(h);
@@ -151,7 +146,46 @@ impl TrieDB {
 			panic!("Empty or invalid node given?");
 		}
 	}
-/*
+
+	/// Transform an existing extension or leaf node to an invalid single-entry branch.
+	///
+	/// **This operation will not insert the new node nor destroy the original.**
+	fn transmute_extension_to_branch(orig_partial: &NibbleSlice, orig_raw_payload: &[u8], diff: &mut Diff) -> Bytes {
+		let mut s = RlpStream::new_list(17);
+		assert!(!orig_partial.is_empty());	// extension nodes are not allowed to have empty partial keys.
+		let index = orig_partial.at(0);
+		// orig is extension - orig_raw_payload is a node itself.
+		for i in 0..17 {
+			if index == i {
+				if orig_partial.len() > 1 {
+					// still need an extension
+					diff.new_node(Self::compose_extension(&orig_partial.mid(1), orig_raw_payload), &mut s);
+				} else {
+					// was an extension of length 1 - just redirect the payload into here.
+					s.append_raw(orig_raw_payload, 1);
+				}
+			} else {
+				s.append_empty_data();
+			}
+		}
+		s.out()
+	}
+
+	fn transmute_leaf_to_branch(orig_partial: &NibbleSlice, orig_raw_payload: &[u8], diff: &mut Diff) -> Bytes {
+		let mut s = RlpStream::new_list(17);
+		let index = if orig_partial.is_empty() {16} else {orig_partial.at(0)};
+		// orig is leaf - orig_raw_payload is data representing the actual value.
+		for i in 0..17 {
+			if index == i {
+				// this is our node.
+				diff.new_node(Self::compose_raw(&orig_partial.mid(if i == 16 {0} else {1}), orig_raw_payload, true), &mut s);
+			} else {
+				s.append_empty_data();
+			}
+		}
+		s.out()
+	}
+
 	/// Transform an existing extension or leaf node plus a new partial/value to a two-entry branch.
 	///
 	/// **This operation will not insert the new node nor destroy the original.**
@@ -164,78 +198,35 @@ impl TrieDB {
 		// TODO: implement without having to make an intermediate representation.
 	}
 
-	/// Transform an existing extension or leaf node to an invalid single-entry branch.
-	///
-	/// **This operation will not insert the new node nor destroy the original.**
-	fn transmute_extension_to_branch(orig_partial: &NibbleSlice, orig_raw_payload: &[u8], diff: &mut Diff) -> Bytes {
-		let mut s = RLPStream::new_list(17);
-		assert!(!orig_partial.is_empty());	// extension nodes are not allowed to have empty partial keys.
-		let index = orig_partial.at(0);
-		// orig is extension - orig_payload is a node itself.
-		for i in 0..17 {
-			if index == i {
-				if orig_partial.len() > 1 {
-					// still need an extension
-					diff.new_node(compose_extension(orig_partial.mid(1), orig_raw_payload), s);
-				} else {
-					// was an extension of length 1 - just redirect the payload into here.
-					s.append_raw(orig_payload.raw(), 1);
-				}
-			} else {
-				s.append_null_data();
-			}
-		}
-		s.out()
-	}
-
-	fn transmute_leaf_to_branch(orig_partial: &NibbleSlice, orig_raw_payload: &[u8], diff: &mut Diff) -> Bytes {
-		let mut s = RLPStream::new_list(17);
-		let index = orig_partial.is_empty() ? 16 : orig_partial.at(0);
-		// orig is leaf - orig_payload is data representing the actual value.
-		for i in 0..17 {
-			if index == i {
-				// this is our node.
-				diff.new_node(compose_raw(orig_partial.mid(if i == 16 {0} else {1}), orig_raw_payload, true), s);
-			} else {
-				s.append_null_data();
-			}
-		}
-		s.out()
-	}
-
 	/// Given a branch node's RLP `orig` together with a `partial` key and `value`, return the
 	/// RLP-encoded node that accomodates the trie with the new entry. Mutate `diff` so that
 	/// once applied the returned node is valid.
 	fn injected_into_branch(&self, orig: &Rlp, partial: &NibbleSlice, value: &[u8], diff: &mut Diff) -> Bytes {
-		RlpStream s;
-		let index = partial.is_empty() ? 16 : partial.at(0);
-		for i in 0..17 {
-			if index == i && {
-				// this is our node.
-				if (orig.at(i).is_empty()) {
+		let mut s = RlpStream::new_list(17);
+		let index = if partial.is_empty() {16} else {partial.at(0) as usize};
+		for i in 0usize..17 {
+			if index == i {
+				// this is node to inject into...
+				if orig.at(i).is_empty() {
 					// easy - original had empty slot.
-					diff.new_node(compose_leaf(partial.mid(if i == 16 {0} else {1}), value), s);
-				} else if (i == 16) {
+					diff.new_node(Self::compose_leaf(&partial.mid(if i == 16 {0} else {1}), value), &mut s);
+				} else if i == 16 {
 					// leaf entry - just replace.
-					let new = compose_leaf(partial.mid(if i == 16 {0} else {1}), value);
-					diff.replace_node(orig.at(i).raw(), new, s), 
+					let new = Self::compose_leaf(&partial.mid(if i == 16 {0} else {1}), value);
+					diff.replace_node(&orig.at(i), new, &mut s); 
 				} else {
 					// harder - original has something there already
-					let new = self.inject(orig.at(i).raw(), partial.mid(1), value, diff);
-					diff.replace_node(orig.at(i).raw(), new, s)
+					let new = self.inject(orig.at(i).raw(), &partial.mid(1), value, diff);
+					diff.replace_node(&orig.at(i), new, &mut s);
 				}
 			} else {
 				s.append_raw(orig.at(i).raw(), 1);
 			}
 		}
-		s
+		s.out()
 	}
 
-	fn inject_and_replace(&self, old: &[u8], old_sha3: H256, partial: &NibbleSlice, value: &[u8], diff: &mut Diff, out: &mut RlpStream) {
-		diff.new_node(self.inject(old, partial, value, diff), &mut out);
-		diff.delete_node(old, old_sha3);
-	}
-*/
+
 
 	/// Determine the RLP of the node, assuming we're inserting `partial` into the
 	/// node currently of data `old`. This will *not* delete any hash of `old` from the database;
@@ -250,32 +241,29 @@ impl TrieDB {
 		let old_rlp = Rlp::new(old);
 		match old_rlp.prototype() {
 			Prototype::List(17) => {
-				unimplemented!();
 				// already have a branch. route and inject.
-//				self.injected_into_branch(old_rlp, partial, value, diff)
+				self.injected_into_branch(&old_rlp, partial, value, diff)
 			},
 			Prototype::List(2) => {
-				unimplemented!();
-/*				let their_key_rlp = old_rlp.at(0);
+				let their_key_rlp = old_rlp.at(0);
 				let (them, is_leaf) = NibbleSlice::from_encoded(their_key_rlp.data());
-
 				match partial.common_prefix(&them) {
 					0 if partial.is_empty() && them.is_empty() => {
 						// both empty: just replace.
-						compose_leaf(partial, value)
+						Self::compose_leaf(partial, value)
 					},
 					0 => {
 						// one of us isn't empty: transmute to branch here
-						transmute_to_branch_and_inject(is_leaf, them, old_rlp.at(1).raw())
+						self.transmute_to_branch_and_inject(is_leaf, &them, old_rlp.at(1).raw(), partial, value, diff)
 					},
 					cp if cp == them.len() => {
 						// fully-shared prefix for this extension:
 						// skip to the end of this extension and continue the inject there.
-						let n = self.take_node(old_rlp.at(1).raw());
-						let downstream_node = self.inject(&n, partial.mid(cp), value, diff);
+						let n = self.take_node(&old_rlp.at(1), diff);
+						let downstream_node = self.inject(&n, &partial.mid(cp), value, diff);
 						let mut s = RlpStream::new_list(2);
 						s.append_raw(old_rlp.at(0).raw(), 1);
-						diff.new_node(downstream_node, s);
+						diff.new_node(downstream_node, &mut s);
 						s.out()
 					},
 					cp => {
@@ -287,16 +275,16 @@ impl TrieDB {
 						// TODO: optimise by doing this without creating injected_low.
 
 						// low (farther from root)
-						let low = Self::compose_raw(them.mid(cp), old_rlp.at(1).raw(), is_leaf);
-						let injected_low = self.inject(&low, partial.mid(cp), value, diff);
+						let low = Self::compose_raw(&them.mid(cp), old_rlp.at(1).raw(), is_leaf);
+						let injected_low = self.inject(&low, &partial.mid(cp), value, diff);
 
 						// high (closer to root)
 						let mut s = RlpStream::new_list(2);
-						s.append(them.encoded_leftmost(cp, false));
-						diff.new_node(injected_low, s);
+						s.append(&them.encoded_leftmost(cp, false));
+						diff.new_node(injected_low, &mut s);
 						s.out()
 					},
-				}*/
+				}
 			},
 			Prototype::Data(0) => {
 				Self::compose_leaf(partial, value)
@@ -318,7 +306,7 @@ impl Trie for TrieDB {
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
-		(self as &mut TrieDB).add(&NibbleSlice::new(key), value);
+		self.add(&NibbleSlice::new(key), value);
 	}
 
 	fn remove(&mut self, _key: &[u8]) {
