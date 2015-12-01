@@ -1,3 +1,4 @@
+use std::fmt;
 use memorydb::*;
 use sha3::*;
 use hashdb::*;
@@ -142,6 +143,29 @@ pub struct TrieDB {
 	root: H256,
 }
 
+impl fmt::Debug for TrieDB {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		try!(writeln!(f, "["));
+		{
+			let print_indent = | fo: &mut fmt::Formatter, times | { for i in 0..times { write!(fo, "    "); }};
+			let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
+
+			self.apply_to_all(root_rlp, &mut | node, deepness | {
+				print_indent(f, deepness);	
+				match *node {
+					Node::Leaf(ref slice, ref value) => { writeln!(f, "Leaf: {:?}, {:?}", slice, value); },
+					Node::ExtensionRaw(ref slice, ref item) => { writeln!(f, "Extension (raw): "); }
+					Node::ExtensionSha3(ref slice, ref sha3) => { writeln!(f, "Extension (sha3): "); }
+					Node::Branch(Some(ref nodes), ref value) => { writeln!(f, "Branch: "); }
+					_ => { writeln!(f, "node"); }
+				}
+			}, 0);
+		}
+
+		writeln!(f, "]")
+	}
+}
+
 impl TrieDB {
 	pub fn new_boxed(db_box: Box<HashDB>) -> Self { let mut r = TrieDB{ db: db_box, root: H256::new() }; r.set_root_rlp(&NULL_RLP); r }
 
@@ -173,6 +197,32 @@ impl TrieDB {
 		}
 	}
 
+	fn apply_to_all<F>(&self, node: &[u8], f: &mut F, deepness: usize) where F: FnMut(&Node, usize) -> () {
+		let node = Node::decoded(node);
+		match node {
+			Node::Leaf(_, _) => f(&node, deepness),
+			Node::ExtensionRaw(_, ref item) => {
+				f(&node, deepness);
+				self.apply_to_all(item, f, deepness + 1);
+			},
+			Node::ExtensionSha3(_, sha3) => {
+				f(&node, deepness);
+				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
+				self.apply_to_all(rlp, f, deepness + 1);
+			},
+			Node::Branch(Some(ref nodes), ref value) => {
+				f(&node, deepness);
+				for i in 0..16 {
+					self.apply_to_all(nodes[i], f, deepness + 1);
+				}
+			},
+			// empty
+			n @ Node::Branch(_, _) => {
+				// do nothing
+			}
+		}
+	}
+
 	fn get<'a>(&'a self, key: &NibbleSlice<'a>) -> Option<&'a [u8]> {
 		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
 		self.get_from_node(&root_rlp, key)
@@ -186,7 +236,7 @@ impl TrieDB {
 			},
 			Node::ExtensionSha3(ref slice, ref sha3) => {
 				// lookup for this item	
-				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("not found!");
+				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
 				self.get_from_node(rlp, &key.mid(slice.len()))
 			},
 			Node::Branch(Some(ref nodes), ref value) => match key.is_empty() {
@@ -499,6 +549,17 @@ mod tests {
 		assert_eq!(t.at(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
 		assert_eq!(t.at(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
 		assert_eq!(t.at(&[0x82, 0x23]), None);
+	}
+
+	#[test]
+	fn test_print_trie() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		println!("trie:");
+		println!("{:?}", t);
+		assert!(false);
 	}
 
 	#[test]
