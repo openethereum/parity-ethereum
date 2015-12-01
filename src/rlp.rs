@@ -174,7 +174,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 		self.rlp.data()
 	}
 
-	/// Returns number of rlp items.
+	/// Returns number of RLP items.
 	/// 
 	/// ```rust
 	/// extern crate ethcore_util as util;
@@ -210,7 +210,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 		self.rlp.size()
 	}
 
-	/// Get view onto rlp-slice at index.
+	/// Get view onto RLP-slice at index.
 	/// 
 	/// Caches offset to given index, so access to successive
 	/// slices is faster.
@@ -337,7 +337,7 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 		}
 	}
 
-	/// The bare data of the rlp.
+	/// The bare data of the RLP.
 	/// 
 	/// ```rust
 	/// extern crate ethcore_util as util;
@@ -355,7 +355,8 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 	}
 
 	pub fn data(&'view self) -> &'a [u8] {
-		unimplemented!();
+		let ii = Self::item_info(self.bytes).unwrap();
+		&self.bytes[ii.prefix_len..(ii.prefix_len + ii.value_len)]
 	}
 
 	/// Returns number of rlp items.
