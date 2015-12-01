@@ -392,7 +392,7 @@ impl TrieDB {
 	///
 	/// **This operation will not insert the new node now destroy the original.**
 	fn augmented(&self, old: &[u8], partial: &NibbleSlice, value: &[u8], diff: &mut Diff) -> Bytes {
-		trace!("augmented ({:?}, {:?}, {:?})", old.pretty(), partial, value.pretty());
+		trace!("augmented (old: {:?}, partial: {:?}, value: {:?})", old.pretty(), partial, value.pretty());
 		// already have an extension. either fast_forward, cleve or transmute_to_branch.
 		let old_rlp = Rlp::new(old);
 		match old_rlp.prototype() {
@@ -404,29 +404,29 @@ impl TrieDB {
 			Prototype::List(2) => {
 				let existing_key_rlp = old_rlp.at(0);
 				let (existing_key, is_leaf) = NibbleSlice::from_encoded(existing_key_rlp.data());
-				match partial.common_prefix(&existing_key) {
-					cp if partial.len() == existing_key.len() && cp == existing_key.len() && is_leaf => {
+				match (is_leaf, partial.common_prefix(&existing_key)) {
+					(true, cp) if cp == existing_key.len() && partial.len() == existing_key.len() => {
 						// equivalent-leaf: replace
 						trace!("equivalent-leaf: REPLACE");
 						Self::compose_leaf(partial, value)
 					},
-					0 => {
+					(_, 0) => {
 						// one of us isn't empty: transmute to branch here
 						trace!("no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,AUGMENT", existing_key.len(), partial.len());
 						self.transmuted_to_branch_and_augmented(is_leaf, &existing_key, old_rlp.at(1).raw(), partial, value, diff)
 					},
-					cp if cp == existing_key.len() => {
+					(_, cp) if cp == existing_key.len() => {
 						trace!("complete-prefix (cp={:?}): AUGMENT-AT-END", cp);
 						// fully-shared prefix for this extension:
 						// skip to the end of this extension and continue to augment there.
-						let n = self.take_node(&old_rlp.at(1), diff);
+						let n = if is_leaf { old_rlp.at(1).raw() } else { self.take_node(&old_rlp.at(1), diff) };
 						let downstream_node = self.augmented(n, &partial.mid(cp), value, diff);
 						let mut s = RlpStream::new_list(2);
 						s.append_raw(old_rlp.at(0).raw(), 1);
 						diff.new_node(downstream_node, &mut s);
 						s.out()
 					},
-					cp => {
+					(_, cp) => {
 						// partially-shared prefix for this extension:
 						// split into two extensions, high and low, pass the
 						// low through augment with the value before inserting the result
@@ -448,7 +448,7 @@ impl TrieDB {
 					},
 				}
 			},
-			Prototype::Data(0) => {
+			Prototype::Data(_) => {
 				trace!("empty: COMPOSE");
 				Self::compose_leaf(partial, value)
 			},
@@ -574,8 +574,8 @@ mod tests {
 		let v: Vec<(Vec<u8>, Vec<u8>)> = vec![
 			(From::from("do"), From::from("verb")),
 			(From::from("dog"), From::from("puppy")),
-			(From::from("doge"), From::from("coin")),
-			(From::from("horse"), From::from("stallion")),
+//			(From::from("doge"), From::from("coin")),
+//			(From::from("horse"), From::from("stallion")),
 		];
 
 		for i in 0..v.len() {
@@ -584,11 +584,13 @@ mod tests {
 			t.insert(&key, &val);
 		}
 
-		//for i in 0..v.len() {
-			//let key: &[u8]= &v[i].0;
-			//let val: &[u8] = &v[i].1;
-			//assert_eq!(t.at(&key).unwrap(), val);
-		//}
+		assert_eq!(*t.root(), trie_root(v));
+
+		/*for i in 0..v.len() {
+			let key: &[u8]= &v[i].0;
+			let val: &[u8] = &v[i].1;
+			assert_eq!(t.at(&key).unwrap(), val);
+		}*/
 	}
 
 	#[test]
