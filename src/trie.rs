@@ -150,16 +150,16 @@ impl fmt::Debug for TrieDB {
 			let print_indent = | fo: &mut fmt::Formatter, times | { for i in 0..times { write!(fo, "    "); }};
 			let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
 
-			self.apply_to_all(root_rlp, &mut | node, deepness | {
+			self.apply_to_all(root_rlp, &mut | node, deepness, index | {
 				print_indent(f, deepness);	
 				match *node {
-					Node::Leaf(ref slice, ref value) => { writeln!(f, "Leaf: {:?}, {:?}", slice, value); },
-					Node::ExtensionRaw(ref slice, ref item) => { writeln!(f, "Extension (raw): "); }
-					Node::ExtensionSha3(ref slice, ref sha3) => { writeln!(f, "Extension (sha3): "); }
-					Node::Branch(Some(ref nodes), ref value) => { writeln!(f, "Branch: "); }
+					Node::Leaf(ref slice, ref value) => { writeln!(f, "{:x}: Leaf {:?}, {:?}", index, slice, value); },
+					Node::ExtensionRaw(ref slice, ref item) => { write!(f, "Extension (raw): "); }
+					Node::ExtensionSha3(ref slice, ref sha3) => { write!(f, "Extension (sha3): "); }
+					Node::Branch(Some(ref nodes), ref value) => { writeln!(f, "{:x} Branch: ", index); }
 					_ => { writeln!(f, "node"); }
 				}
-			}, 0);
+			}, 0, 0);
 		}
 
 		writeln!(f, "]")
@@ -197,23 +197,23 @@ impl TrieDB {
 		}
 	}
 
-	fn apply_to_all<F>(&self, node: &[u8], f: &mut F, deepness: usize) where F: FnMut(&Node, usize) -> () {
+	fn apply_to_all<F>(&self, node: &[u8], f: &mut F, deepness: usize, index: usize) where F: FnMut(&Node, usize, usize) -> () {
 		let node = Node::decoded(node);
 		match node {
-			Node::Leaf(_, _) => f(&node, deepness),
+			Node::Leaf(_, _) => f(&node, deepness, index),
 			Node::ExtensionRaw(_, ref item) => {
-				f(&node, deepness);
-				self.apply_to_all(item, f, deepness + 1);
+				f(&node, deepness, index);
+				self.apply_to_all(item, f, deepness + 1, 0);
 			},
 			Node::ExtensionSha3(_, sha3) => {
-				f(&node, deepness);
+				f(&node, deepness, index);
 				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
-				self.apply_to_all(rlp, f, deepness + 1);
+				self.apply_to_all(rlp, f, deepness + 1, 0);
 			},
 			Node::Branch(Some(ref nodes), ref value) => {
-				f(&node, deepness);
+				f(&node, deepness, index);
 				for i in 0..16 {
-					self.apply_to_all(nodes[i], f, deepness + 1);
+					self.apply_to_all(nodes[i], f, deepness + 1, i);
 				}
 			},
 			// empty
@@ -556,6 +556,7 @@ mod tests {
 	fn test_print_trie() {
 		let mut t = TrieDB::new_memory();
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x02u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
 		println!("trie:");
