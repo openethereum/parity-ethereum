@@ -213,22 +213,16 @@ impl TrieDB {
 		let mut s = RlpStream::new_list(17);
 		let index = if partial.is_empty() {16} else {partial.at(0) as usize};
 		for i in 0usize..17 {
-			if index == i {
-				// this is node to augment into...
-				if orig.at(i).is_empty() {
-					// easy - original had empty slot.
-					diff.new_node(Self::compose_leaf(&partial.mid(if i == 16 {0} else {1}), value), &mut s);
-				} else if i == 16 {
-					// leaf entry - just replace.
-					let new = Self::compose_leaf(&partial.mid(if i == 16 {0} else {1}), value);
-					diff.replace_node(&orig.at(i), new, &mut s); 
-				} else {
-					// harder - original has something there already
+			match (index == i, i) {
+				(true, 16) => // leaf entry - just replace.
+					{ s.append(&value); },
+				(true, i) if orig.at(i).is_empty() => // easy - original had empty slot.
+					diff.new_node(Self::compose_leaf(&partial.mid(1), value), &mut s),
+				(true, i) => {	// harder - original has something there already
 					let new = self.augmented(orig.at(i).raw(), &partial.mid(1), value, diff);
 					diff.replace_node(&orig.at(i), new, &mut s);
 				}
-			} else {
-				s.append_raw(orig.at(i).raw(), 1);
+				(false, i) => { s.append_raw(orig.at(i).raw(), 1); },
 			}
 		}
 		s.out()
@@ -340,21 +334,10 @@ mod tests {
 
 		let mut t = TrieDB::new_memory();
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
-		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
-		trace!("trieroot with 2 items: {:?}", trie_root(vec![
-			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
-			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
-		]));
-		trace!("trieroot with 3 items: {:?}", trie_root(vec![
-			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
-			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
-			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
-		]));
+		t.insert(&[], &[0x0]);
 		assert_eq!(*t.root(), trie_root(vec![
+			(vec![], vec![0x0]),
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
-			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
-			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
 		]));
 	}
 
@@ -381,13 +364,26 @@ mod tests {
 	}
 
 	#[test]
-	fn insert_branch_root() {
+	fn insert_make_branch_root() {
 		let mut t = TrieDB::new_memory();
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
 		assert_eq!(*t.root(), trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x11u8, 0x23], vec![0x11u8, 0x23])
+		]));
+	}
+
+	#[test]
+	fn insert_into_branch_root() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
+			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
 		]));
 	}
 }
