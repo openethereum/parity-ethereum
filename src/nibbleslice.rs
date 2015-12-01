@@ -87,6 +87,18 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		}
 		r
 	}
+
+	pub fn encoded_leftmost(&self, n: usize, is_leaf: bool) -> Bytes {
+		let l = min(self.len(), n);
+		let mut r = Bytes::with_capacity(l / 2 + 1);
+		let mut i = l % 2;
+		r.push(if i == 1 {0x10 + self.at(0)} else {0} + if is_leaf {0x20} else {0});
+		while i < l {
+			r.push(self.at(i) * 16 + self.at(i + 1));
+			i += 2;
+		}
+		r
+	}
 }
 
 impl<'a> PartialEq for NibbleSlice<'a> {

@@ -153,7 +153,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 		}
 	}
 
-	/// The bare data of the rlp.
+	/// The raw data of the RLP.
 	/// 
 	/// ```rust
 	/// extern crate ethcore_util as util;
@@ -162,15 +162,19 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
-	/// 	let dog = rlp.at(1).data();
+	/// 	let dog = rlp.at(1).raw();
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
+	pub fn raw(&'view self) -> &'a [u8] {
+		self.rlp.raw()
+	}
+
 	pub fn data(&'view self) -> &'a [u8] {
 		self.rlp.data()
 	}
 
-	/// Returns number of rlp items.
+	/// Returns number of RLP items.
 	/// 
 	/// ```rust
 	/// extern crate ethcore_util as util;
@@ -206,7 +210,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 		self.rlp.size()
 	}
 
-	/// Get view onto rlp-slice at index.
+	/// Get view onto RLP-slice at index.
 	/// 
 	/// Caches offset to given index, so access to successive
 	/// slices is faster.
@@ -333,7 +337,7 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 		}
 	}
 
-	/// The bare data of the rlp.
+	/// The bare data of the RLP.
 	/// 
 	/// ```rust
 	/// extern crate ethcore_util as util;
@@ -342,12 +346,17 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = UntrustedRlp::new(&data);
-	/// 	let dog = rlp.at(1).unwrap().data();
+	/// 	let dog = rlp.at(1).unwrap().raw();
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn data(&'view self) -> &'a [u8] {
+	pub fn raw(&'view self) -> &'a [u8] {
 		self.bytes
+	}
+
+	pub fn data(&'view self) -> &'a [u8] {
+		let ii = Self::item_info(self.bytes).unwrap();
+		&self.bytes[ii.prefix_len..(ii.prefix_len + ii.value_len)]
 	}
 
 	/// Returns number of rlp items.

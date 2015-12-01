@@ -1,5 +1,5 @@
 use std::mem::uninitialized;
-use tiny_keccak::keccak_256;
+use tiny_keccak::Keccak;
 use bytes::BytesConvertable;
 use hash::{FixedHash, H256};
 
@@ -11,8 +11,10 @@ pub trait Hashable {
 impl<T> Hashable for T where T: BytesConvertable {
 	fn sha3(&self) -> H256 {
 		unsafe {
+			let mut keccak = Keccak::new_keccak256();
+			keccak.update(self.bytes());
 			let mut ret: H256 = uninitialized();
-			keccak_256(self.bytes(), ret.mut_bytes());
+			keccak.finalize(ret.mut_bytes());
 			ret
 		}
 	}
