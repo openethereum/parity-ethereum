@@ -31,7 +31,7 @@ pub struct NibbleSlice<'a> {
 	offset: usize,
 }
 
-impl<'a> NibbleSlice<'a> {
+impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 	/// Create a new nibble slice with the given byte-slice.
 	pub fn new(data: &[u8]) -> NibbleSlice { NibbleSlice::new_offset(data, 0) }
 
@@ -60,7 +60,7 @@ impl<'a> NibbleSlice<'a> {
 	}
 
 	/// Return object which represents a view on to this slice (further) offset by `i` nibbles.
-	pub fn mid(&self, i: usize) -> Self { NibbleSlice{ data: self.data, offset: self.offset + i} }
+	pub fn mid(&'view self, i: usize) -> NibbleSlice<'a> { NibbleSlice{ data: self.data, offset: self.offset + i} }
 
 	/// Do we start with the same nibbles as the whole of `them`?
  	pub fn starts_with(&self, them: &Self) -> bool { self.common_prefix(them) == them.len() }
