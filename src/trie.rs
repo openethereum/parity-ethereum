@@ -147,7 +147,7 @@ impl fmt::Debug for TrieDB {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "["));
 		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
-		self.fmt_all(root_rlp, f, 0);
+		try!(self.fmt_all(root_rlp, f, 0));
 		writeln!(f, "]")
 	}
 }
@@ -184,7 +184,7 @@ impl TrieDB {
 	}
 
 	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
-		for i in 0..size { 
+		for _ in 0..size { 
 			try!(write!(f, "    "));
 		}
 		Ok(())
@@ -195,31 +195,31 @@ impl TrieDB {
 		match node {
 			Node::Leaf(slice, value) => try!(writeln!(f, "Leaf {:?}, {:?}", slice, value.pretty())),
 			Node::ExtensionRaw(_, ref item) => {
-				self.fmt_indent(f, deepness);
+				try!(self.fmt_indent(f, deepness));
 				try!(write!(f, "Extension (raw): "));
-				self.fmt_all(item, f, deepness + 1);
+				try!(self.fmt_all(item, f, deepness + 1));
 			},
 			Node::ExtensionSha3(_, sha3) => {
-				self.fmt_indent(f, deepness);
+				try!(self.fmt_indent(f, deepness));
 				try!(write!(f, "Extension (sha3): "));
 				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
-				self.fmt_all(rlp, f, deepness + 1);
+				try!(self.fmt_all(rlp, f, deepness + 1));
 			},
-			Node::Branch(Some(ref nodes), ref value) => {
+			Node::Branch(Some(ref nodes), _) => {
 				try!(writeln!(f, "Branch: "));
 				for i in 0..16 {
 					match Node::decoded(nodes[i]) {
 						Node::Branch(None, _) => (),
 						_ => {
-							self.fmt_indent(f, deepness + 1);
+							try!(self.fmt_indent(f, deepness + 1));
 							try!(write!(f, "{:x}: ", i));
-							self.fmt_all(nodes[i], f, deepness + 1);
+							try!(self.fmt_all(nodes[i], f, deepness + 1));
 						}
 					}
 				}
 			},
 			// empty
-			n @ Node::Branch(_, _) => {
+			Node::Branch(_, _) => {
 				// do nothing
 			}
 		};
@@ -244,8 +244,6 @@ impl TrieDB {
 			},
 			Node::Branch(Some(ref nodes), ref value) => match key.is_empty() {
 				true => Some(value),
-				// we don't really need to do lookup for nodes[key.at(0)] in db?
-				// if its empty hash return Nonem without lookup
 				false => self.get_from_node(nodes[key.at(0) as usize], &key.mid(1))
 			},
 			_ => None
