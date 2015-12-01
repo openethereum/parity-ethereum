@@ -190,7 +190,7 @@ impl TrieDB {
 
 	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
 		for _ in 0..size { 
-			try!(write!(f, "    "));
+			try!(write!(f, "  "));
 		}
 		Ok(())
 	}
@@ -210,8 +210,10 @@ impl TrieDB {
 				let rlp = self.db.lookup(&H256::from_slice(sha3)).expect("sha3 not found!");
 				try!(self.fmt_all(rlp, f, deepness + 1));
 			},
-			Node::Branch(Some(ref nodes), _) => {
+			Node::Branch(Some(ref nodes), ref value) => {
 				try!(writeln!(f, "Branch: "));
+				try!(self.fmt_indent(f, deepness + 1));
+				try!(writeln!(f, ": {:?}", value.pretty()));
 				for i in 0..16 {
 					match Node::decoded(nodes[i]) {
 						Node::Branch(None, _) => (),
