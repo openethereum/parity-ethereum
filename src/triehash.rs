@@ -190,9 +190,12 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	// iterate over all possible nibbles
 	for i in 0..16 {
 		// cout how many successive elements have same next nibble
-		let len = input[begin..].iter()
-			.map(| pair | pair.0[pre_len] )
-			.take_while(|&q| q == i).count();
+		let len = match begin < input.len() {
+			true => input[begin..].iter()
+				.map(| pair | pair.0[pre_len] )
+				.take_while(|&q| q == i).count(),
+			false => 0
+		};
 			
 		// if at least 1 successive element has the same nibble
 		// append their suffixes
