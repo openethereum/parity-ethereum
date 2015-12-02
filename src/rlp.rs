@@ -65,16 +65,16 @@ impl OffsetCache {
 	}
 }
 
-/// stores basic information about item
-struct ItemInfo {
-	prefix_len: usize,
-	value_len: usize,
+/// Stores basic information about item
+pub struct PayloadInfo {
+	pub header_len: usize,
+	pub value_len: usize,
 }
 
-impl ItemInfo {
-	fn new(prefix_len: usize, value_len: usize) -> ItemInfo {
-		ItemInfo {
-			prefix_len: prefix_len,
+impl PayloadInfo {
+	fn new(header_len: usize, value_len: usize) -> PayloadInfo {
+		PayloadInfo {
+			header_len: header_len,
 			value_len: value_len,
 		}
 	}
@@ -86,7 +86,6 @@ pub enum DecoderError {
 	RlpIsTooShort,
 	RlpExpectedToBeList,
 	RlpExpectedToBeData,
-	BadRlp,
 }
 impl StdError for DecoderError {
 	fn description(&self) -> &str {
@@ -168,6 +167,10 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// ```
 	pub fn raw(&'view self) -> &'a [u8] {
 		self.rlp.raw()
+	}
+
+	pub fn payload_info(&self) -> PayloadInfo {
+		self.rlp.payload_info().unwrap()
 	}
 
 	pub fn data(&'view self) -> &'a [u8] {
@@ -354,9 +357,13 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 		self.bytes
 	}
 
+	pub fn payload_info(&self) -> Result<PayloadInfo, DecoderError> {
+		BasicDecoder::payload_info(self.bytes)
+	}
+
 	pub fn data(&'view self) -> &'a [u8] {
-		let ii = Self::item_info(self.bytes).unwrap();
-		&self.bytes[ii.prefix_len..(ii.prefix_len + ii.value_len)]
+		let ii = BasicDecoder::payload_info(self.bytes).unwrap();
+		&self.bytes[ii.header_len..(ii.header_len + ii.value_len)]
 	}
 
 	/// Returns number of rlp items.
@@ -396,7 +403,7 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 	/// ```
 	pub fn size(&self) -> usize {
 		match self.is_data() {
-			true => Self::item_info(self.bytes).unwrap().value_len,
+			true => BasicDecoder::payload_info(self.bytes).unwrap().value_len,
 			false => 0
 		}
 	}
@@ -437,8 +444,8 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 		self.cache.set(OffsetCache::new(index, self.bytes.len() - bytes.len()));
 
 		// construct new rlp
-		let found = try!(UntrustedRlp::item_info(bytes));
-		Ok(UntrustedRlp::new(&bytes[0..found.prefix_len + found.value_len]))
+		let found = try!(BasicDecoder::payload_info(bytes));
+		Ok(UntrustedRlp::new(&bytes[0..found.header_len + found.value_len]))
 	}
 
 	/// No value
@@ -552,8 +559,8 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 
 	/// consumes first found prefix
 	fn consume_list_prefix(&self) -> Result<&'a [u8], DecoderError> {
-		let item = try!(UntrustedRlp::item_info(self.bytes));
-		let bytes = try!(UntrustedRlp::consume(self.bytes, item.prefix_len));
+		let item = try!(BasicDecoder::payload_info(self.bytes));
+		let bytes = try!(UntrustedRlp::consume(self.bytes, item.header_len));
 		Ok(bytes)
 	}
 
@@ -561,41 +568,12 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 	fn consume_items(bytes: &'a [u8], items: usize) -> Result<&'a [u8], DecoderError> {
 		let mut result = bytes;
 		for _ in 0..items {
-			let i = try!(UntrustedRlp::item_info(result));
-			result = try!(UntrustedRlp::consume(result, (i.prefix_len + i.value_len)));
+			let i = try!(BasicDecoder::payload_info(result));
+			result = try!(UntrustedRlp::consume(result, (i.header_len + i.value_len)));
 		}
 		Ok(result)
 	}
 
-	/// return first item info
-	///
-	/// TODO: move this to decoder (?)
-	fn item_info(bytes: &[u8]) -> Result<ItemInfo, DecoderError> {
-		let item = match bytes.first().map(|&x| x) {
-			None => return Err(DecoderError::RlpIsTooShort),
-			Some(0...0x7f) => ItemInfo::new(0, 1),
-			Some(l @ 0x80...0xb7) => ItemInfo::new(1, l as usize - 0x80),
-			Some(l @ 0xb8...0xbf) => {
-				let len_of_len = l as usize - 0xb7;
-				let prefix_len = 1 + len_of_len;
-				let value_len = try!(usize::from_bytes(&bytes[1..prefix_len]));
-				ItemInfo::new(prefix_len, value_len)
-			}
-			Some(l @ 0xc0...0xf7) => ItemInfo::new(1, l as usize - 0xc0),
-			Some(l @ 0xf8...0xff) => {
-				let len_of_len = l as usize - 0xf7;
-				let prefix_len = 1 + len_of_len;
-				let value_len = try!(usize::from_bytes(&bytes[1..prefix_len]));
-				ItemInfo::new(prefix_len, value_len)
-			}
-			_ => return Err(DecoderError::BadRlp),
-		};
-
-		match item.prefix_len + item.value_len <= bytes.len() {
-			true => Ok(item),
-			false => Err(DecoderError::RlpIsTooShort),
-		}
-	}
 
 	/// consumes slice prefix of length `len`
 	fn consume(bytes: &'a [u8], len: usize) -> Result<&'a [u8], DecoderError> {
@@ -727,6 +705,37 @@ pub trait Decoder {
 
 struct BasicDecoder;
 
+impl BasicDecoder {
+	/// Return first item info
+	fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
+		let item = match bytes.first().map(|&x| x) {
+			None => return Err(DecoderError::RlpIsTooShort),
+			Some(0...0x7f) => PayloadInfo::new(0, 1),
+			Some(l @ 0x80...0xb7) => PayloadInfo::new(1, l as usize - 0x80),
+			Some(l @ 0xb8...0xbf) => {
+				let len_of_len = l as usize - 0xb7;
+				let header_len = 1 + len_of_len;
+				let value_len = try!(usize::from_bytes(&bytes[1..header_len]));
+				PayloadInfo::new(header_len, value_len)
+			}
+			Some(l @ 0xc0...0xf7) => PayloadInfo::new(1, l as usize - 0xc0),
+			Some(l @ 0xf8...0xff) => {
+				let len_of_len = l as usize - 0xf7;
+				let header_len = 1 + len_of_len;
+				let value_len = try!(usize::from_bytes(&bytes[1..header_len]));
+				PayloadInfo::new(header_len, value_len)
+			},
+			// we cant reach this place, but rust requires _ to be implemented
+			_ => { panic!(); }
+		};
+
+		match item.header_len + item.value_len <= bytes.len() {
+			true => Ok(item),
+			false => Err(DecoderError::RlpIsTooShort),
+		}
+	}
+}
+
 impl Decoder for BasicDecoder {
 	fn read_value<T, F>(bytes: &[u8], f: F) -> Result<T, DecoderError> where F: FnOnce(&[u8]) -> Result<T, DecoderError> {
 		match bytes.first().map(|&x| x) {
@@ -743,7 +752,8 @@ impl Decoder for BasicDecoder {
 				let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
 				Ok(try!(f(&bytes[begin_of_value..begin_of_value + len])))
 			}
-			_ => Err(DecoderError::BadRlp),
+			// we are reading value, not a list!
+			_ => { panic!(); }
 		}
 	}
 }
@@ -800,7 +810,7 @@ impl RlpStream {
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable + fmt::Debug {
+	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable {
 		// encode given value and add it at the end of the stream
 		object.encode(&mut self.encoder);
 
