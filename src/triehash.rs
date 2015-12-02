@@ -32,12 +32,12 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 		.into_iter()
 		.fold(BTreeMap::new(), | mut acc, vec | {
 			let len = acc.len();
-			acc.insert(as_nibbles(&rlp::encode(&len)), vec);
+			acc.insert(rlp::encode(&len), vec);
 			acc
 		})
 		// then move them to a vector
 		.into_iter()
-		.map(|p| p )
+		.map(|(k, v)| (as_nibbles(&k), v) )
 		.collect();
 
 	gen_trie_root(gen_input)
@@ -62,11 +62,17 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 /// 	assert_eq!(trie_root(v), H256::from_str(root).unwrap());
 /// }
 /// ```
-pub fn trie_root(mut input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
-	input.sort();
+pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let gen_input = input
+		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
-		.map(|(k, v)| (as_nibbles(&k), v))
+		.fold(BTreeMap::new(), | mut acc, (k, v) | {
+			acc.insert(k, v);
+			acc
+		})
+		// then move them to a vector
+		.into_iter()
+		.map(|(k, v)| (as_nibbles(&k), v) )
 		.collect();
 
 	gen_trie_root(gen_input)
@@ -139,6 +145,7 @@ fn as_nibbles(bytes: &[u8]) -> Vec<u8> {
 fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStream) {
 	let inlen = input.len();
 
+	//println!("input: {:?}", input); 
 	// in case of empty slice, just append empty data
 	if inlen == 0 {
 		stream.append_empty_data();
@@ -167,6 +174,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 			cmp::min(key.shared_prefix_len(&k), acc)
 		});
 
+	println!("shared_prefix: {}, prefix_len: {}", shared_prefix, pre_len);
 	// if shared prefix is higher than current prefix append its
 	// new part of the key to the stream
 	// then recursively append suffixes of all items who had this key
@@ -192,8 +200,8 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		// cout how many successive elements have same next nibble
 		let len = match begin < input.len() {
 			true => input[begin..].iter()
-				.map(| pair | pair.0[pre_len] )
-				.take_while(|&q| q == i).count(),
+				.take_while(| pair | { println!("{:?}", pair.0); pair.0[pre_len] == i }).count(), 
+				//.take_while(|&q| q == i).count(),
 			false => 0
 		};
 			
