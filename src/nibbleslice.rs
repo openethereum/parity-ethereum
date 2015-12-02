@@ -30,6 +30,8 @@ use bytes::*;
 pub struct NibbleSlice<'a> {
 	data: &'a [u8],
 	offset: usize,
+	data_encode_suffix: &'a [u8],
+	offset_encode_suffix: usize,
 }
 
 impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
@@ -37,7 +39,26 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 	pub fn new(data: &[u8]) -> NibbleSlice { NibbleSlice::new_offset(data, 0) }
 
 	/// Create a new nibble slice with the given byte-slice with a nibble offset.
-	pub fn new_offset(data: &'a [u8], offset: usize) -> NibbleSlice { NibbleSlice{data: data, offset: offset} }
+	pub fn new_offset(data: &'a [u8], offset: usize) -> NibbleSlice { NibbleSlice{data: data, offset: offset, data_encode_suffix: &b""[..], offset_encode_suffix: 0} }
+
+	/// 
+	pub fn new_composed(a: &'a NibbleSlice, b: &'a NibbleSlice) -> NibbleSlice<'a> { NibbleSlice{data: a.data, offset: a.offset, data_encode_suffix: b.data, offset_encode_suffix: b.offset} }
+
+	/*pub fn new_composed_bytes_offset(a: &NibbleSlice, b: &NibbleSlice) -> (Bytes, usize) {
+		let r: Vec<u8>::with_capacity((a.len() + b.len() + 1) / 2);
+		let mut i = (a.len() + b.len()) % 2;
+		while i < a.len() {
+			match i % 2 {
+				0 => ,
+				1 => ,
+			}
+			i += 1;
+		}
+		while i < a.len() + b.len() {
+			i += 1;
+		}
+		(r, a.len() + b.len())
+	}*/
 
 	/// Create a new nibble slice from the given HPE encoded data (e.g. output of `encoded()`).
 	pub fn from_encoded(data: &'a [u8]) -> (NibbleSlice, bool) {
@@ -48,20 +69,32 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 	pub fn is_empty(&self) -> bool { self.len() == 0 }
 
 	/// Get the length (in nibbles, naturally) of this slice.
-	pub fn len(&self) -> usize { self.data.len() * 2 - self.offset }
+	pub fn len(&self) -> usize { (self.data.len() + self.data_encode_suffix.len()) * 2 - self.offset - self.offset_encode_suffix }
 
 	/// Get the nibble at position `i`.
 	pub fn at(&self, i: usize) -> u8 {
-		if (self.offset + i) & 1 == 1 {
-			self.data[(self.offset + i) / 2] & 15u8
+		let l = self.data.len() * 2 - self.offset;
+		if i < l {
+			if (self.offset + i) & 1 == 1 {
+				self.data[(self.offset + i) / 2] & 15u8
+			}
+			else {
+				self.data[(self.offset + i) / 2] >> 4
+			}
 		}
 		else {
-			self.data[(self.offset + i) / 2] >> 4
+			let i = i - l;
+			if (self.offset_encode_suffix + i) & 1 == 1 {
+				self.data_encode_suffix[(self.offset_encode_suffix + i) / 2] & 15u8
+			}
+			else {
+				self.data_encode_suffix[(self.offset_encode_suffix + i) / 2] >> 4
+			}
 		}
 	}
 
 	/// Return object which represents a view on to this slice (further) offset by `i` nibbles.
-	pub fn mid(&'view self, i: usize) -> NibbleSlice<'a> { NibbleSlice{ data: self.data, offset: self.offset + i} }
+	pub fn mid(&'view self, i: usize) -> NibbleSlice<'a> { NibbleSlice{ data: self.data, offset: self.offset + i, data_encode_suffix: &b""[..], offset_encode_suffix: 0 } }
 
 	/// Do we start with the same nibbles as the whole of `them`?
  	pub fn starts_with(&self, them: &Self) -> bool { self.common_prefix(them) == them.len() }

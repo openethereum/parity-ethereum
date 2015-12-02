@@ -33,74 +33,6 @@ pub enum Node<'a> {
 	Branch([&'a[u8]; 16], Option<&'a [u8]>)
 }
 
-impl <'a>Node<'a> {
-	pub fn decoded(node_rlp: &'a [u8]) -> Node<'a> {
-		let r = Rlp::new(node_rlp);
-		match r.prototype() {
-			// either leaf or extension - decode first item with NibbleSlice::??? 
-			// and use is_leaf return to figure out which.
-			// if leaf, second item is a value (is_data())
-			// if extension, second item is a node (either SHA3 to be looked up and 
-			// fed back into this function or inline RLP which can be fed back into this function).
-			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
-				(slice, true) => Node::Leaf(slice, r.at(1).data()),
-				(slice, false) => Node::Extension(slice, r.at(1).raw()),
-			},
-			// branch - first 16 are nodes, 17th is a value (or empty).
-			Prototype::List(17) => {
-				let mut nodes: [&'a [u8]; 16] = unsafe { ::std::mem::uninitialized() };
-				for i in 0..16 {
-					nodes[i] = r.at(i).raw();
-				}
-				Node::Branch(nodes, if r.at(16).is_empty() { None } else { Some(r.at(16).data()) })
-			},
-			// an empty branch index.
-			Prototype::Data(0) => Node::Empty,
-			// something went wrong.
-			_ => panic!("Rlp is not valid.")
-		}
-	}
-
-	// todo: should check length before encoding, cause it may just be sha3 of data
-	pub fn encoded(&self) -> Bytes {
-		match *self {
-			Node::Leaf(ref slice, ref value) => {
-				let mut stream = RlpStream::new_list(2);
-				stream.append(&slice.encoded(true));
-				stream.append(value);
-				stream.out()
-			},
-			Node::Extension(ref slice, ref raw_rlp) => {
-				let mut stream = RlpStream::new_list(2);
-				stream.append(&slice.encoded(false));
-				stream.append_raw(raw_rlp, 1);
-				stream.out()
-			},
-			Node::Branch(ref nodes, ref value) => {
-				let mut stream = RlpStream::new_list(17);
-				for i in 0..16 {
-					stream.append_raw(nodes[i], 1);
-				}
-				match *value {
-					Some(n) => { stream.append(&n); },
-					None => { stream.append_empty_data(); },
-				}
-				stream.out()
-			},
-			Node::Empty => {
-				let mut stream = RlpStream::new();
-				stream.append_empty_data();
-				stream.out()
-			}
-		}
-	}
-}
-
-//enum ValidationResult<'a> {
-	//Valid,
-	//Invalid { node: Node<'a>, depth: usize }
-//}
-
 enum Operation {
 	New(H256, Bytes),
 	Delete(H256),
@@ -137,11 +69,124 @@ impl Diff {
 		}
 	}
 
+	fn delete_node_from_slice(&mut self, old: &[u8]) {
+		let r = Rlp::new(old);
+		if r.is_data() && r.size() == 32 {
+			self.0.push(Operation::Delete(H256::decode(&r)));
+		}
+	}
+
 	fn replace_node(&mut self, old: &Rlp, rlp: Bytes, out: &mut RlpStream) {
 		self.delete_node(old);
 		self.new_node(rlp, out);
 	}
 }
+
+impl <'a>Node<'a> {
+	fn decoded(node_rlp: &'a [u8]) -> Node<'a> {
+		let r = Rlp::new(node_rlp);
+		match r.prototype() {
+			// either leaf or extension - decode first item with NibbleSlice::??? 
+			// and use is_leaf return to figure out which.
+			// if leaf, second item is a value (is_data())
+			// if extension, second item is a node (either SHA3 to be looked up and 
+			// fed back into this function or inline RLP which can be fed back into this function).
+			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
+				(slice, true) => Node::Leaf(slice, r.at(1).data()),
+				(slice, false) => Node::Extension(slice, r.at(1).raw()),
+			},
+			// branch - first 16 are nodes, 17th is a value (or empty).
+			Prototype::List(17) => {
+				let mut nodes: [&'a [u8]; 16] = unsafe { ::std::mem::uninitialized() };
+				for i in 0..16 {
+					nodes[i] = r.at(i).raw();
+				}
+				Node::Branch(nodes, if r.at(16).is_empty() { None } else { Some(r.at(16).data()) })
+			},
+			// an empty branch index.
+			Prototype::Data(0) => Node::Empty,
+			// something went wrong.
+			_ => panic!("Rlp is not valid.")
+		}
+	}
+
+	// todo: should check length before encoding, cause it may just be sha3 of data
+	fn encoded(&self) -> Bytes {
+		match *self {
+			Node::Leaf(ref slice, ref value) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&slice.encoded(true));
+				stream.append(value);
+				stream.out()
+			},
+			Node::Extension(ref slice, ref raw_rlp) => {
+				let mut stream = RlpStream::new_list(2);
+				stream.append(&slice.encoded(false));
+				stream.append_raw(raw_rlp, 1);
+				stream.out()
+			},
+			Node::Branch(ref nodes, ref value) => {
+				let mut stream = RlpStream::new_list(17);
+				for i in 0..16 {
+					stream.append_raw(nodes[i], 1);
+				}
+				match *value {
+					Some(n) => { stream.append(&n); },
+					None => { stream.append_empty_data(); },
+				}
+				stream.out()
+			},
+			Node::Empty => {
+				let mut stream = RlpStream::new();
+				stream.append_empty_data();
+				stream.out()
+			}
+		}
+	}
+
+	fn encoded_and_added(&self, diff: &mut Diff) -> Bytes {
+		let mut stream = RlpStream::new();
+		match *self {
+			Node::Leaf(ref slice, ref value) => {
+				stream.append_list(2);
+				stream.append(&slice.encoded(true));
+				stream.append(value);
+			},
+			Node::Extension(ref slice, ref raw_rlp) => {
+				stream.append_list(2);
+				stream.append(&slice.encoded(false));
+				stream.append_raw(raw_rlp, 1);
+			},
+			Node::Branch(ref nodes, ref value) => {
+				stream.append_list(17);
+				for i in 0..16 {
+					stream.append_raw(nodes[i], 1);
+				}
+				match *value {
+					Some(n) => { stream.append(&n); },
+					None => { stream.append_empty_data(); },
+				}
+			},
+			Node::Empty => {
+				stream.append_empty_data();
+			}
+		}
+		let node = stream.out();
+		match node.len() {
+			0 ... 31 => node,
+			_ => {
+				let mut stream = RlpStream::new();
+				diff.new_node(node, &mut stream);
+				stream.out()
+			}
+		}
+	}
+}
+
+//enum ValidationResult<'a> {
+	//Valid,
+	//Invalid { node: Node<'a>, depth: usize }
+//}
 
 pub struct TrieDB {
 	db: Box<HashDB>,
@@ -155,6 +200,11 @@ impl fmt::Debug for TrieDB {
 		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
 		writeln!(f, "]")
 	}
+}
+
+enum MaybeChanged<'a> {
+	Same(Node<'a>),
+	Changed(Bytes),
 }
 
 impl TrieDB {
@@ -201,9 +251,9 @@ impl TrieDB {
 
 	fn fmt_all(&self, node: Node, f: &mut fmt::Formatter, deepness: usize) -> fmt::Result {
 		match node {
-			Node::Leaf(slice, value) => try!(writeln!(f, "-{:?}: {:?}.", slice, value.pretty())),
+			Node::Leaf(slice, value) => try!(writeln!(f, "'{:?}: {:?}.", slice, value.pretty())),
 			Node::Extension(ref slice, ref item) => {
-				try!(write!(f, "-{:?}- ", slice));
+				try!(write!(f, "'{:?} ", slice));
 				try!(self.fmt_all(self.get_node(item), f, deepness));
 			},
 			Node::Branch(ref nodes, ref value) => {
@@ -220,7 +270,7 @@ impl TrieDB {
 						Node::Empty => {},
 						n => {
 							try!(self.fmt_indent(f, deepness + 1));
-							try!(write!(f, "{:x}: ", i));
+							try!(write!(f, "'{:x} ", i));
 							try!(self.fmt_all(n, f, deepness + 1));
 						}
 					}
@@ -253,7 +303,7 @@ impl TrieDB {
 		}
 	}
 
-	fn get_raw_or_lookup<'a>(&'a self, node: &'a [u8]) -> &'a [u8] {
+	fn get_raw_or_lookup<'a, 'b>(&'a self, node: &'b [u8]) -> &'b [u8] where 'a: 'b {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
@@ -276,9 +326,15 @@ impl TrieDB {
 		trace!("DELETE: {:?}", key);
 		// determine what the new root is, insert new nodes and remove old as necessary.
 		let mut todo: Diff = Diff::new();
-		let root_rlp = self.cleared(self.db.lookup(&self.root).expect("Trie root not found!"), key, &mut todo);
-		self.apply(todo);
-		self.set_root_rlp(&root_rlp);
+		match self.cleared_from_slice(self.db.lookup(&self.root).expect("Trie root not found!"), key, &mut todo) {
+			Some(root_rlp) => {
+				self.apply(todo);
+				self.set_root_rlp(&root_rlp);
+			},
+			None => {
+				trace!("no change needed");
+			}
+		}
 		trace!("/");
 	}
 
@@ -492,24 +548,159 @@ impl TrieDB {
 			_ => panic!("Invalid RLP for node: {:?}", old.pretty()),
 		}
 	}
+	fn encoded(n: MaybeChanged) -> Bytes {
+		match n {
+			MaybeChanged::Same(n) => n.encoded(),
+			MaybeChanged::Changed(b) => b,
+		}
+	}
 
+	fn ensure_is_changed(n: MaybeChanged) -> MaybeChanged {
+		match n {
+			MaybeChanged::Same(n) => MaybeChanged::Changed(n.encoded()),
+			f => f,
+		}
+	}
+	fn fixed_indirection<'a>(n: Node<'a>, diff: &mut Diff) -> MaybeChanged<'a> {
+		match n {
+			Node::Extension(partial, payload) if payload.len() >= 32 => {
+				// make indirect
+				MaybeChanged::Changed(Node::Extension(partial, &Node::decoded(payload).encoded_and_added(diff)).encoded())
+			},
+			Node::Branch(nodes, node_value) => {
+				// check each child isn't too big
+				// TODO OPTIMISE - should really check at the point of (re-)constructing the branch.
+				for i in 0..16 {
+					if nodes[i].len() >= 32 {
+						let n = Node::decoded(nodes[i]).encoded_and_added(diff);
+						let mut new_nodes = nodes;
+						new_nodes[i] = &n;
+						return MaybeChanged::Changed(Node::Branch(new_nodes, node_value).encoded())
+					}
+				}
+				MaybeChanged::Same(n)
+			}
+			_ => MaybeChanged::Same(n),
+		}
+	}
+
+	/// Given a node `n` which may be in an _invalid state_, fix it such that it is then in a valid
+	/// state.
+	///
+	/// _invalid state_ means:
+	/// - Branch node where there is only a single entry;
+	/// - Extension node followed by anything other than a Branch node.
+	/// - Extension node with a child which has too many bytes to be inline.
+	///
+	/// **This operation will not insert the new node nor destroy the original.**
+	fn fixed<'a, 'b>(&'a self, n: Node<'b>, diff: &mut Diff) -> MaybeChanged<'b> where 'a: 'b {
+		match n {
+			Node::Branch(nodes, node_value) => {
+				// if only a single value, transmute to leaf/extension and feed through fixed.
+				let mut index: [u8; 1] = [16; 1];
+				// 0-15 -> index of a non-null branch
+				// 16 -> no non-null branch
+				// 17 -> multiple non-null branches
+				for i in 0..16 {
+					match (nodes[i] == NULL_RLP, index[0]) {
+						(false, _) => {},
+						(true, 16) => index[0] = i as u8,
+						(true, _) => index[0] = 17,
+					}
+				}
+				match (index[0], node_value) {
+					(16, None) => panic!("Branch with no subvalues. Something went wrong."),
+					(0 ... 15, None) => {		// one onward node
+						// transmute to extension.
+						// TODO: OPTIMISE: - don't call fixed again but put the right node in straight away here.
+						// call fixed again since the transmute may cause invalidity.
+						MaybeChanged::Changed(Self::encoded(self.fixed(Node::Extension(NibbleSlice::new_offset(&index[..], 1), nodes[index[0] as usize]), diff)))
+					},
+					(16, Some(value)) => {		// one leaf value
+						// transmute to leaf.
+						// call fixed again since the transmute may cause invalidity.
+						MaybeChanged::Changed(Self::encoded(self.fixed(Node::Leaf(NibbleSlice::new(&b""[..]), value), diff)))
+					}
+					_ => {						// onwards node(s) and/or leaf
+						// no transmute needed, but should still fix the indirection.
+						Self::fixed_indirection(Node::Branch(nodes, node_value), diff)
+					},
+				}
+			},
+			Node::Extension(partial, payload) => {
+				match Node::decoded(self.get_raw_or_lookup(payload)) {
+					Node::Extension(sub_partial, sub_payload) => {
+						// combine with node below
+						diff.delete_node_from_slice(payload);
+						MaybeChanged::Changed(Self::encoded(Self::fixed_indirection(Node::Extension(NibbleSlice::new_composed(&partial, &sub_partial), sub_payload), diff)))
+					},
+					Node::Leaf(sub_partial, sub_value) => {
+						// combine with node below
+						diff.delete_node_from_slice(payload);
+						MaybeChanged::Changed(Self::encoded(Self::fixed_indirection(Node::Leaf(NibbleSlice::new_composed(&partial, &sub_partial), sub_value), diff)))
+					},
+					// no change, might still have an oversize node inline - fix indirection
+					_ => Self::fixed_indirection(n, diff),
+				}
+			},
+			// leaf or empty. no change.
+			n => { MaybeChanged::Same(n) }
+		}
+	}
 
 	/// Determine the RLP of the node, assuming we're removing `partial` from the
 	/// node currently of data `old`. This will *not* delete any hash of `old` from the database;
 	/// it will just return the new RLP that represents the new node.
+	/// `None` may be returned should no change be needed.
 	///
 	/// The database will be updated so as to make the returned RLP valid through inserting
 	/// and deleting nodes as necessary.
 	///
 	/// **This operation will not insert the new node nor destroy the original.**
-	fn cleared(&self, old: &[u8], partial: &NibbleSlice, _diff: &mut Diff) -> Bytes {
-		trace!("cleared (old: {:?}, partial: {:?})", old.pretty(), partial);
+	fn cleared_from_slice(&self, old: &[u8], partial: &NibbleSlice, diff: &mut Diff) -> Option<Bytes> {
+		self.cleared(Node::decoded(old), partial, diff)
+	}
 
-		unimplemented!();
+	fn cleared(&self, n: Node, partial: &NibbleSlice, diff: &mut Diff) -> Option<Bytes> {
+		trace!("cleared (old: {:?}, partial: {:?})", n, partial);
 
-/*		match (Node::decoded(old)) {
-
-		}*/
+		match (n, partial.is_empty()) {
+			(Node::Empty, _) => None,
+			(Node::Branch(nodes, None), true) => { None },
+			(Node::Branch(nodes, _), true) => Some(Self::encoded(self.fixed(Node::Branch(nodes, None), diff))),	// matched as leaf-branch - give back fixed branch with it.
+			(Node::Branch(nodes, value), false) => {
+				// Branch with partial left - route, clear, fix.
+				let i: usize = partial.at(0) as usize;
+				self.cleared(self.get_node(nodes[i]), &partial.mid(1), diff).map(|new_payload| {
+					// downsteam node needed to be changed.
+					diff.delete_node_from_slice(nodes[i]);
+					// return fixed up new node.
+					let mut new_nodes = nodes;
+					new_nodes[i] = &new_payload;
+					Self::encoded(self.fixed(Node::Branch(new_nodes, value), diff))
+				})
+			},
+			(Node::Leaf(node_partial, node_value), _) => {
+				match node_partial.common_prefix(partial) {
+					cp if cp == partial.len() => Some(Node::Empty.encoded()),		// leaf to be deleted - delete it :)
+					cp => None,												// anything else and the key doesn't exit - no change.
+				}
+			},
+			(Node::Extension(node_partial, node_payload), _) => {
+				match node_partial.common_prefix(partial) {
+					cp if cp < partial.len() => None,						// key in the middle of an extension - doesn't exist.
+					cp => {
+						// key at end of extension - skip, clear, fix
+						self.cleared(self.get_node(node_payload), &partial.mid(node_partial.len()), diff).map(|new_payload| {
+							// downsteam node needed to be changed.
+							diff.delete_node_from_slice(node_payload);
+							// return fixed up new node.
+							Self::encoded(self.fixed(Node::Extension(node_partial, &new_payload), diff))
+						})
+					},
+				}
+			},
+		}
 	}
 }
 
@@ -543,6 +734,136 @@ mod tests {
 	use env_logger;
 	use rand::random;
 	use bytes::ToPretty;
+
+	#[test]
+	fn playpen() {
+		env_logger::init().ok();
+
+		let mut t1 = TrieDB::new_memory();
+		t1.insert(&[0x01], &[0]);
+		t1.insert(&[0x01, 0x23], &[1]);
+		t1.insert(&[0x01, 0x34], &[2]);
+		t1.remove(&[0x01]);
+		let mut t2 = TrieDB::new_memory();
+		t2.insert(&[0x01, 0x23], &[1]);
+		t2.insert(&[0x01, 0x34], &[2]);
+		/*if t1.root() != t2.root()*/ {
+			trace!("{:?}", t1);
+			trace!("{:?}", t2);
+		}
+	}
+
+	#[test]
+	fn init() {
+		let t = TrieDB::new_memory();
+		assert_eq!(*t.root(), SHA3_NULL_RLP);
+		assert!(t.is_empty());
+	}
+
+	#[test]
+	fn insert_on_empty() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
+	}
+
+	#[test]
+	fn remove_to_empty() {
+	}
+
+	#[test]
+	fn insert_replace_root() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]);
+		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
+	}
+
+	#[test]
+	fn insert_make_branch_root() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x11u8, 0x23], vec![0x11u8, 0x23])
+		]));
+	}
+
+	#[test]
+	fn insert_into_branch_root() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
+		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
+			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
+		]));
+	}
+
+	#[test]
+	fn insert_value_into_branch_root() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[], &[0x0]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![], vec![0x0]),
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+		]));
+	}
+
+	#[test]
+	fn insert_split_leaf() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x01u8, 0x34], vec![0x01u8, 0x34]),
+		]));
+	}
+
+	#[test]
+	fn insert_split_extenstion() {
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01, 0x23, 0x45], &[0x01]);
+		t.insert(&[0x01, 0xf3, 0x45], &[0x02]);
+		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01, 0x23, 0x45], vec![0x01]),
+			(vec![0x01, 0xf3, 0x45], vec![0x02]),
+			(vec![0x01, 0xf3, 0xf5], vec![0x03]),
+		]));
+	}
+
+	#[test]
+	fn insert_big_value() {
+		let big_value0 = b"00000000000000000000000000000000";
+		let big_value1 = b"11111111111111111111111111111111";
+
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], big_value0);
+		t.insert(&[0x11u8, 0x23], big_value1);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], big_value0.to_vec()),
+			(vec![0x11u8, 0x23], big_value1.to_vec())
+		]));
+	}
+
+	#[test]
+	fn insert_duplicate_value() {
+		let big_value = b"00000000000000000000000000000000";
+
+		let mut t = TrieDB::new_memory();
+		t.insert(&[0x01u8, 0x23], big_value);
+		t.insert(&[0x11u8, 0x23], big_value);
+		assert_eq!(*t.root(), trie_root(vec![
+			(vec![0x01u8, 0x23], big_value.to_vec()),
+			(vec![0x11u8, 0x23], big_value.to_vec())
+		]));
+	}
 
 	#[test]
 	fn test_node_leaf() {
@@ -743,128 +1064,4 @@ mod tests {
 
 		test_all(v);
 	}
-
-	#[test]
-	fn playpen() {
-		env_logger::init().ok();
-
-		let big_value = b"00000000000000000000000000000000";
-
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], big_value);
-		t.insert(&[0x11u8, 0x23], big_value);
-		assert_eq!(*t.root(), trie_root(vec![
-			(vec![0x01u8, 0x23], big_value.to_vec()),
-			(vec![0x11u8, 0x23], big_value.to_vec())
-		]));
-	}
-
-	#[test]
-	fn init() {
-		let t = TrieDB::new_memory();
-		assert_eq!(*t.root(), SHA3_NULL_RLP);
-		assert!(t.is_empty());
-	}
-
-	#[test]
-	fn insert_on_empty() {
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
-	}
-
-	#[test]
-	fn insert_replace_root() {
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]);
-		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
-	}
-
-	#[test]
-	fn insert_make_branch_root() {
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
-		assert_eq!(*t.root(), trie_root(vec![
-			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
-			(vec![0x11u8, 0x23], vec![0x11u8, 0x23])
-		]));
-	}
-
-	#[test]
-	fn insert_into_branch_root() {
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
-		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
-		assert_eq!(*t.root(), trie_root(vec![
-			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
-			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
-			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
-		]));
-	}
-
-	#[test]
-	fn insert_value_into_branch_root() {
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[], &[0x0]);
-		assert_eq!(*t.root(), trie_root(vec![
-			(vec![], vec![0x0]),
-			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
-		]));
-	}
-
-	#[test]
-	fn insert_split_leaf() {
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]);
-		assert_eq!(*t.root(), trie_root(vec![
-			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
-			(vec![0x01u8, 0x34], vec![0x01u8, 0x34]),
-		]));
-	}
-
-	#[test]
-	fn insert_split_extenstion() {
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01, 0x23, 0x45], &[0x01]);
-		t.insert(&[0x01, 0xf3, 0x45], &[0x02]);
-		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]);
-		assert_eq!(*t.root(), trie_root(vec![
-			(vec![0x01, 0x23, 0x45], vec![0x01]),
-			(vec![0x01, 0xf3, 0x45], vec![0x02]),
-			(vec![0x01, 0xf3, 0xf5], vec![0x03]),
-		]));
-	}
-
-	#[test]
-	fn insert_big_value() {
-		let big_value0 = b"00000000000000000000000000000000";
-		let big_value1 = b"11111111111111111111111111111111";
-
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], big_value0);
-		t.insert(&[0x11u8, 0x23], big_value1);
-		assert_eq!(*t.root(), trie_root(vec![
-			(vec![0x01u8, 0x23], big_value0.to_vec()),
-			(vec![0x11u8, 0x23], big_value1.to_vec())
-		]));
-	}
-
-	#[test]
-	fn insert_duplicate_value() {
-		let big_value = b"00000000000000000000000000000000";
-
-		let mut t = TrieDB::new_memory();
-		t.insert(&[0x01u8, 0x23], big_value);
-		t.insert(&[0x11u8, 0x23], big_value);
-		assert_eq!(*t.root(), trie_root(vec![
-			(vec![0x01u8, 0x23], big_value.to_vec()),
-			(vec![0x11u8, 0x23], big_value.to_vec())
-		]));
-	}
 }
-
