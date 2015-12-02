@@ -170,6 +170,10 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 		self.rlp.raw()
 	}
 
+	pub fn payload_info(&self) -> PayloadInfo {
+		self.rlp.payload_info().unwrap()
+	}
+
 	pub fn data(&'view self) -> &'a [u8] {
 		self.rlp.data()
 	}
@@ -354,6 +358,10 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 		self.bytes
 	}
 
+	pub fn payload_info(&self) -> Result<PayloadInfo, DecoderError> {
+		BasicDecoder::payload_info(self.bytes)
+	}
+
 	pub fn data(&'view self) -> &'a [u8] {
 		let ii = BasicDecoder::payload_info(self.bytes).unwrap();
 		&self.bytes[ii.header_len..(ii.header_len + ii.value_len)]
@@ -400,8 +408,6 @@ impl<'a, 'view> UntrustedRlp<'a> where 'a: 'view {
 			false => 0
 		}
 	}
-
-	//pub fn payload_offset(&self) -> 
 
 	/// Get view onto rlp-slice at index
 	/// 
