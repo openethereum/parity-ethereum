@@ -721,8 +721,11 @@ impl Trie for TrieDB {
 
 #[cfg(test)]
 mod tests {
+	extern crate json_tests;
+	use self::json_tests::*;
 	use rustc_serialize::hex::FromHex;
 	use triehash::*;
+	use hash::*;
 	use super::*;
 	use nibbleslice::*;
 	use rlp;
@@ -1060,5 +1063,23 @@ mod tests {
 		];
 
 		test_all(v);
+	}
+
+	#[test]
+	fn test_trie_json() {
+		println!("Json trie test: ");
+		execute_tests_from_directory::<trie::TrieTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
+			println!("file: {}", file);
+
+			let mut t = TrieDB::new_memory();
+			for operation in input.into_iter() {
+				match operation {
+					trie::Operation::Insert(key, value) => t.insert(&key, &value),
+					trie::Operation::Remove(key) => t.remove(&key)
+				}
+			}
+
+			assert_eq!(*t.root(), H256::from_slice(&output));
+		});
 	}
 }

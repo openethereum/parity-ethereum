@@ -4,7 +4,7 @@ use rustc_serialize::*;
 use rustc_serialize::hex::FromHex;
 use super::{JsonTest, JsonLoader};
 
-pub enum OperationType {
+enum OperationType {
 	Insert,
 	Remove
 }
@@ -26,10 +26,9 @@ struct RawOperation {
 	value: Option<String>
 }
 
-pub struct Operation {
-	pub operation: OperationType,
-	pub key: Vec<u8>,
-	pub value: Option<Vec<u8>>
+pub enum Operation {
+	Insert(Vec<u8>, Vec<u8>),
+	Remove(Vec<u8>)
 }
 
 fn hex_or_string(s: &str) -> Vec<u8> {
@@ -41,12 +40,9 @@ fn hex_or_string(s: &str) -> Vec<u8> {
 
 impl Into<Operation> for RawOperation {
 	fn into(self) -> Operation {
-		Operation {
-			operation: self.operation,
-			key: hex_or_string(&self.key),
-			value: self.value.map(|v| {
-				hex_or_string(&v)
-			})
+		match self.operation {
+			OperationType::Insert => Operation::Insert(hex_or_string(&self.key), hex_or_string(&self.value.unwrap())),
+			OperationType::Remove => Operation::Remove(hex_or_string(&self.key))
 		}
 	}
 }
@@ -96,9 +92,9 @@ impl JsonTest for TriehashTest {
 		self.trietest.input()
 			.into_iter()
 			.fold(HashMap::new(), | mut map, o | {
-				match o.operation {
-					OperationType::Insert => map.insert(o.key, o.value.unwrap()),
-					OperationType::Remove => map.remove(&o.key)
+				match o {
+					Operation::Insert(k, v) => map.insert(k, v),
+					Operation::Remove(k) => map.remove(&k)
 				};
 				map
 			})
