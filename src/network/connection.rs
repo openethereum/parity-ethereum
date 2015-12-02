@@ -1,9 +1,22 @@
-use std::io::{self, Cursor, Read};
-use mio::*;
+#![allow(dead_code)] //TODO: remove this after everything is done
+use mio::{Token, EventSet, EventLoop, Timeout, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
 use hash::*;
+use sha3::*;
 use bytes::*;
-use network::host::Host;
+use rlp::*;
+use std::io::{self, Cursor, Read};
+use network::host::{Host};
+use network::Error;
+use network::handshake::Handshake;
+use crypto;
+use rcrypto::blockmodes::*;
+use rcrypto::aessafe::*;
+use rcrypto::symmetriccipher::*;
+use rcrypto::buffer::*;
+use tiny_keccak::Keccak;
+
+const ENCRYPTED_HEADER_LEN: usize = 32;
 
 pub struct Connection {
 	pub token: Token,
@@ -17,6 +30,189 @@ pub struct Connection {
 pub enum WriteStatus {
 	Ongoing,
 	Complete
+}
+
+enum EncryptedConnectionState {
+	Header,
+	Payload,
+}
+
+pub struct EncryptedConnection {
+	connection: Connection,
+	encoder: CtrMode<AesSafe128Encryptor>,
+	decoder: CtrMode<AesSafe128Encryptor>,
+	mac_encoder: EcbEncryptor<AesSafe128Encryptor, EncPadding<NoPadding>>,
+	egress_mac: Keccak,
+	ingress_mac: Keccak,
+	read_state: EncryptedConnectionState,
+	idle_timeout: Option<Timeout>,
+	protocol_id: u16,
+	payload_len: u32,
+}
+
+impl EncryptedConnection {
+	pub fn new(handshake: Handshake) -> Result<EncryptedConnection, Error> {
+		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_public));
+		let mut nonce_material = H512::new();
+		if handshake.originated {
+			handshake.remote_nonce.copy_to(&mut nonce_material[0..32]);
+			handshake.nonce.copy_to(&mut nonce_material[32..64]);
+		}
+		else {
+			handshake.nonce.copy_to(&mut nonce_material[0..32]);
+			handshake.remote_nonce.copy_to(&mut nonce_material[32..64]);
+		}
+		let mut key_material = H512::new();
+		shared.copy_to(&mut key_material[0..32]);
+		nonce_material.sha3_into(&mut key_material[32..64]);
+		key_material.sha3().copy_to(&mut key_material[32..64]);
+
+		let iv = vec![0u8; 16];
+		let encoder = CtrMode::new(AesSafe128Encryptor::new(&key_material[32..64]), iv);
+		let iv = vec![0u8; 16];
+		let decoder = CtrMode::new(AesSafe128Encryptor::new(&key_material[32..64]), iv);
+
+		key_material.sha3().copy_to(&mut key_material[32..64]);
+		let mac_encoder = EcbEncryptor::new(AesSafe128Encryptor::new(&key_material[32..64]), NoPadding);
+		
+		let mut egress_mac = Keccak::new_keccak256();
+		let mut mac_material = &H256::from_slice(&key_material[32..64]) ^ &handshake.remote_nonce;
+		egress_mac.update(&mac_material);
+		egress_mac.update(if handshake.originated { &handshake.auth_cipher } else { &handshake.ack_cipher });
+		
+		let mut ingress_mac = Keccak::new_keccak256();
+		mac_material = &(&mac_material ^ &handshake.remote_nonce) ^ &handshake.nonce;
+		ingress_mac.update(&mac_material);
+		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
+
+		Ok(EncryptedConnection {
+			connection: handshake.connection,
+			encoder: encoder,
+			decoder: decoder,
+			mac_encoder: mac_encoder,
+			egress_mac: egress_mac,
+			ingress_mac: ingress_mac,
+			read_state: EncryptedConnectionState::Header,
+			idle_timeout: None,
+			protocol_id: 0,
+			payload_len: 0
+		})
+	}
+
+	pub fn write_packet(&mut self, payload: &[u8]) -> Result<(), Error> {
+		let mut header = RlpStream::new();
+		let len = payload.len() as usize;
+		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
+		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);
+		//TODO: ger rid of vectors here
+		let mut header = header.out();
+		let padding = (16 - (payload.len() % 16)) % 16;
+		header.resize(16, 0u8);
+
+		let mut packet = vec![0u8; (32 + payload.len() + padding + 16)];
+		self.encoder.encrypt(&mut RefReadBuffer::new(&header), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
+		self.egress_mac.update(&packet[0..16]);
+		self.egress_mac.clone().finalize(&mut packet[16..32]);
+		self.encoder.encrypt(&mut RefReadBuffer::new(&payload), &mut RefWriteBuffer::new(&mut packet[32..(32 + len)]), padding == 0).expect("Invalid length or padding"); 
+		if padding != 0 {
+			let pad = [08; 16];
+			self.encoder.encrypt(&mut RefReadBuffer::new(&pad[0..padding]), &mut RefWriteBuffer::new(&mut packet[(32 + len)..(32 + len + padding)]), true).expect("Invalid length or padding"); 
+		}
+		self.egress_mac.update(&packet[32..(32 + len + padding)]);
+		self.egress_mac.clone().finalize(&mut packet[(32 + len + padding)..]);
+		self.connection.send(&packet);
+		Ok(())
+	}
+
+	fn read_header(&mut self, header: &[u8]) -> Result<(), Error> {
+		if header.len() != ENCRYPTED_HEADER_LEN {
+			return Err(Error::Auth);
+		}
+		self.ingress_mac.update(header);
+		let mac = &header[16..];
+		let mut expected = H128::new();
+		self.ingress_mac.clone().finalize(&mut expected);
+		if mac != &expected[..] {
+			return Err(Error::Auth);
+		}
+		
+		let mut header_dec = H128::new();
+		self.decoder.decrypt(&mut RefReadBuffer::new(&header[0..16]), &mut RefWriteBuffer::new(&mut header_dec), false).expect("Invalid length or padding");
+		
+		let length = ((header[0] as u32) << 8 + header[1] as u32) << 8 + header[2] as u32;
+		let header_rlp = UntrustedRlp::new(&header[3..]);
+		let protocol_id = try!(u16::decode_untrusted(&try!(header_rlp.at(0))));
+
+		self.payload_len = length;
+		self.protocol_id = protocol_id;
+		self.read_state = EncryptedConnectionState::Payload;
+
+		let padding = (16 - (length % 16)) % 16;
+		let full_length = length + padding + 16;
+		self.connection.expect(full_length as usize);
+		Ok(())
+	}
+
+	fn read_payload(&mut self, payload: &[u8]) -> Result<Bytes, Error> {
+		let padding = (16 - (self.payload_len  % 16)) % 16;
+		let full_length = (self.payload_len + padding + 16) as usize;
+		if payload.len() != full_length {
+			return Err(Error::Auth);
+		}
+		self.ingress_mac.update(&payload[0..payload.len() - 16]);
+		let mac = &payload[(payload.len() - 16)..];
+		let mut expected = H128::new();
+		self.ingress_mac.clone().finalize(&mut expected);
+		if mac != &expected[..] {
+			return Err(Error::Auth);
+		}
+
+		let mut packet = vec![0u8; self.payload_len as usize];
+		self.decoder.decrypt(&mut RefReadBuffer::new(&payload[0..(full_length - 16)]), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
+		packet.resize(self.payload_len as usize, 0u8);
+		Ok(packet)
+	}
+
+	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Bytes>, Error> {
+		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
+		try!(self.connection.reregister(event_loop));
+		match self.read_state {
+			EncryptedConnectionState::Header => {
+				match try!(self.connection.readable()) {
+					Some(data)  => { 
+						try!(self.read_header(&data)); 
+					},
+					None => {}
+				};
+				Ok(None)
+			},
+			EncryptedConnectionState::Payload => {
+				match try!(self.connection.readable()) {
+					Some(data)  => { 
+						self.read_state = EncryptedConnectionState::Header;
+						self.connection.expect(ENCRYPTED_HEADER_LEN);
+						Ok(Some(try!(self.read_payload(&data))))
+					},
+					None => Ok(None)
+				}
+			}
+		}
+	}
+
+	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
+		try!(self.connection.writable());
+		try!(self.connection.reregister(event_loop));
+		Ok(())
+	}
+
+    pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+		self.connection.expect(ENCRYPTED_HEADER_LEN);
+		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
+        self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
+		try!(self.connection.register(event_loop));
+		Ok(())
+    }
 }
 
 impl Connection {
@@ -35,11 +231,12 @@ impl Connection {
 		if self.rec_size != self.rec_buf.len() {
 			warn!(target:"net", "Unexpected connection read start");
 		}
-		unsafe { self.rec_buf.set_len(size) }
+		unsafe { self.rec_buf.set_len(0) }
 		self.rec_size = size;
 	}
 
-	pub fn readable(&mut self) -> io::Result<Option<&[u8]>> {
+	//TODO: return a slice
+	pub fn readable(&mut self) -> io::Result<Option<Bytes>> {
 		if self.rec_size == 0 || self.rec_buf.len() >= self.rec_size {
 			warn!(target:"net", "Unexpected connection read");
 		}
@@ -47,7 +244,10 @@ impl Connection {
 		// resolve "multiple applicable items in scope [E0034]" error
     	let sock_ref = <TcpStream as Read>::by_ref(&mut self.socket);
 		match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
-			Ok(Some(_)) if self.rec_buf.len() == self.rec_size => Ok(Some(&self.rec_buf[0..self.rec_size])),
+			Ok(Some(_)) if self.rec_buf.len() == self.rec_size => {
+				self.rec_size = 0;
+				Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
+			},
 			Ok(_) => Ok(None),
 			Err(e) => Err(e),
 		}
@@ -106,4 +306,5 @@ impl Connection {
         })
     }
 }
+
 

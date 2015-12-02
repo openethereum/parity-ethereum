@@ -19,7 +19,9 @@ impl<T> Hashable for T where T: BytesConvertable {
 		}
 	}
 	fn sha3_into(&self, dest: &mut [u8]) {
-		keccak_256(self.bytes(), dest);
+		let mut keccak = Keccak::new_keccak256();
+		keccak.update(self.bytes());
+		keccak.finalize(dest);
 	}
 }
 

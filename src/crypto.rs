@@ -48,10 +48,10 @@ impl From<::std::io::Error> for CryptoError {
 /// fn main() {
 ///   let pair = KeyPair::create().unwrap();
 ///   let message = H256::random();
-///   let signature = sign(pair.secret(), &message).unwrap();
+///   let signature = ec::sign(pair.secret(), &message).unwrap();
 ///
-///   assert!(verify(pair.public(), &signature, &message).unwrap());
-///   assert_eq!(recover(&signature, &message).unwrap(), *pair.public());
+///   assert!(ec::verify(pair.public(), &signature, &message).unwrap());
+///   assert_eq!(ec::recover(&signature, &message).unwrap(), *pair.public());
 /// }
 /// ```
 pub struct KeyPair {
@@ -200,6 +200,49 @@ pub mod ecies {
 		Ok(msg)
 	}
 
+	pub fn decrypt(secret: &Secret, encrypted: &[u8]) -> Result<Bytes, CryptoError> {
+		use ::rcrypto::digest::Digest;
+		use ::rcrypto::sha2::Sha256;
+		use ::rcrypto::hmac::Hmac;
+		use ::rcrypto::mac::Mac;
+
+		let meta_len = encrypted.len() - (1 + 64 + 16 + 32);
+		if encrypted.len() < meta_len  || encrypted[0] < 2 || encrypted[0] > 4 {
+			return Err(CryptoError::InvalidMessage); //invalid message: publickey
+		}
+		
+		let e = &encrypted[1..];
+		let p = Public::from_slice(&e[0..64]);
+		let z = try!(ecdh::agree(secret, &p));
+		let mut key = [0u8; 32];
+		kdf(&z, &[0u8; 0], &mut key);
+		let ekey = &key[0..16];
+		let mkey_material = &key[16..32];
+		let mut hasher = Sha256::new();
+		let mut mkey = [0u8; 32];
+		hasher.input(mkey_material);
+		hasher.result(&mut mkey);
+
+		let clen = encrypted.len() - meta_len;
+		let cypher_with_iv = &e[64..(64+16+clen)];
+		let cypher_iv = &cypher_with_iv[0..16];
+		let cypher_no_iv = &cypher_with_iv[16..];
+		let msg_mac = &e[(64+16+clen)..];
+
+		// Verify tag
+		let mut hmac = Hmac::new(Sha256::new(), &mkey);
+		hmac.input(cypher_iv);
+		let mut mac = H256::new();
+		hmac.raw_result(&mut mac);
+		if &mac[..] != msg_mac {
+			return Err(CryptoError::InvalidMessage);
+		}
+
+		let mut msg = vec![0u8; clen];
+		aes::decrypt(ekey, &H128::new(), cypher_no_iv, &mut msg[..]);
+		Ok(msg)
+	}
+
 	fn kdf(secret: &Secret, s1: &[u8], dest: &mut [u8]) {
 		use ::rcrypto::digest::Digest;
 		use ::rcrypto::sha2::Sha256;
@@ -252,10 +295,10 @@ mod tests {
 	fn test_signature() {
 		let pair = KeyPair::create().unwrap();
 		let message = H256::random();
-		let signature = sign(pair.secret(), &message).unwrap();
+		let signature = ec::sign(pair.secret(), &message).unwrap();
 
-		assert!(verify(pair.public(), &signature, &message).unwrap());
-		assert_eq!(recover(&signature, &message).unwrap(), *pair.public());
+		assert!(ec::verify(pair.public(), &signature, &message).unwrap());
+		assert_eq!(ec::recover(&signature, &message).unwrap(), *pair.public());
 	}
 
 	#[test]

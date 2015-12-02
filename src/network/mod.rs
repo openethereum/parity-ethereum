@@ -1,13 +1,18 @@
 extern crate mio;
-pub mod host;
-pub mod connection;
-pub mod handshake;
-
+mod host;
+mod connection;
+mod handshake;
+mod session;
 
 #[derive(Debug)]
 pub enum Error {
 	Crypto(::crypto::CryptoError),
 	Io(::std::io::Error),
+	Auth,
+	BadProtocol,
+	AddressParse(::std::net::AddrParseError),
+	AddressResolve(Option<::std::io::Error>),
+	NodeIdParse(::error::EthcoreError),
 }
 
 impl From<::std::io::Error> for Error {
@@ -21,4 +26,23 @@ impl From<::crypto::CryptoError> for Error {
 		Error::Crypto(err)
 	}
 }
+impl From<::std::net::AddrParseError> for Error {
+	fn from(err: ::std::net::AddrParseError) -> Error {
+		Error::AddressParse(err)
+	}
+}
+impl From<::error::EthcoreError> for Error {
+	fn from(err: ::error::EthcoreError) -> Error {
+		Error::NodeIdParse(err)
+	}
+}
+impl From<::rlp::DecoderError> for Error {
+	fn from(_err: ::rlp::DecoderError) -> Error {
+		Error::Auth
+	}
+}
 
+pub fn start_host()
+{
+	let _ = host::Host::start();
+}
