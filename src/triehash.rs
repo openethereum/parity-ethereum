@@ -32,12 +32,12 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 		.into_iter()
 		.fold(BTreeMap::new(), | mut acc, vec | {
 			let len = acc.len();
-			acc.insert(as_nibbles(&rlp::encode(&len)), vec);
+			acc.insert(rlp::encode(&len), vec);
 			acc
 		})
 		// then move them to a vector
 		.into_iter()
-		.map(|p| p )
+		.map(|(k, v)| (as_nibbles(&k), v) )
 		.collect();
 
 	gen_trie_root(gen_input)
@@ -64,8 +64,15 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 /// ```
 pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let gen_input = input
+		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
-		.map(|(k, v)| (as_nibbles(&k), v))
+		.fold(BTreeMap::new(), | mut acc, (k, v) | {
+			acc.insert(k, v);
+			acc
+		})
+		// then move them to a vector
+		.into_iter()
+		.map(|(k, v)| (as_nibbles(&k), v) )
 		.collect();
 
 	gen_trie_root(gen_input)
@@ -189,9 +196,12 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	// iterate over all possible nibbles
 	for i in 0..16 {
 		// cout how many successive elements have same next nibble
-		let len = input[begin..].iter()
-			.map(| pair | pair.0[pre_len] )
-			.take_while(|&q| q == i).count();
+		let len = match begin < input.len() {
+			true => input[begin..].iter()
+				.take_while(| pair | pair.0[pre_len] == i )
+				.count(), 
+			false => 0
+		};
 			
 		// if at least 1 successive element has the same nibble
 		// append their suffixes
@@ -268,7 +278,10 @@ fn test_hex_prefix_encode() {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
+	use std::collections::BTreeMap;
 	use rustc_serialize::hex::FromHex;
+	use rustc_serialize::json::Json;
+	use bytes::*;
 	use hash::*;
 	use triehash::*;
 
@@ -320,6 +333,20 @@ mod tests {
 	}
 
 	#[test]
+	fn out_of_order() {
+		assert!(trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
+			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
+		]) ==
+		trie_root(vec![
+			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
+			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
+			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
+		]));
+	}
+
+	#[test]
 	fn test_trie_root() {
 		let v = vec![
 		
@@ -351,4 +378,19 @@ mod tests {
 
 		assert_eq!(trie_root(v), H256::from_str("9f6221ebb8efe7cff60a716ecb886e67dd042014be444669f0159d8e68b42100").unwrap());
 	}
+
+	#[test]
+	fn test_triehash_json_trietest_json() {
+		let data = include_bytes!("../tests/TrieTests/trietest.json");
+
+		let s = String::from_bytes(data).unwrap();
+		let json = Json::from_str(&s).unwrap();
+		let obj = json.as_object().unwrap();
+
+		for (key, value) in obj.iter() {
+			println!("running test: {}", key);
+		}
+		assert!(false);
+	}
+
 }
