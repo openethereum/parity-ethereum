@@ -174,7 +174,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 			cmp::min(key.shared_prefix_len(&k), acc)
 		});
 
-	println!("shared_prefix: {}, prefix_len: {}", shared_prefix, pre_len);
+//	println!("shared_prefix: {}, prefix_len: {}", shared_prefix, pre_len);
 	// if shared prefix is higher than current prefix append its
 	// new part of the key to the stream
 	// then recursively append suffixes of all items who had this key
@@ -200,7 +200,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		// cout how many successive elements have same next nibble
 		let len = match begin < input.len() {
 			true => input[begin..].iter()
-				.take_while(| pair | { println!("{:?}", pair.0); pair.0[pre_len] == i }).count(), 
+				.take_while(| pair | { /*println!("{:?}", pair.0);*/ pair.0[pre_len] == i }).count(), 
 				//.take_while(|&q| q == i).count(),
 			false => 0
 		};
