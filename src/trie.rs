@@ -887,9 +887,11 @@ mod tests {
 
 	#[test]
 	fn test_node_empty_branch() {
-		let branch = Node::Branch([&b""[..]; 16], None);
+		let null_rlp = NULL_RLP;
+		let branch = Node::Branch([&null_rlp; 16], None);
 		let rlp = branch.encoded();
 		let branch2 = Node::decoded(&rlp);
+		println!("{:?}", rlp);
 		assert_eq!(branch, branch2);
 	}
 
