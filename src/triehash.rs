@@ -278,10 +278,7 @@ fn test_hex_prefix_encode() {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use std::collections::BTreeMap;
 	use rustc_serialize::hex::FromHex;
-	use rustc_serialize::json::Json;
-	use bytes::*;
 	use hash::*;
 	use triehash::*;
 
