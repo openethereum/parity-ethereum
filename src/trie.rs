@@ -558,19 +558,19 @@ impl TrieDB {
 
 	fn fixed_indirection<'a>(n: Node<'a>, diff: &mut Diff) -> MaybeChanged<'a> {
 		match n {
-			Node::Extension(partial, payload) if payload.len() >= 32 => {
+			Node::Extension(partial, payload) if payload.len() >= 32 && Rlp::new(payload).is_list() => {
 				// make indirect
 				MaybeChanged::Changed(Node::Extension(partial, &Node::decoded(payload).encoded_and_added(diff)).encoded())
 			},
-			Node::Branch(nodes, node_value) => {
+			Node::Branch(payloads, value) => {
 				// check each child isn't too big
 				// TODO OPTIMISE - should really check at the point of (re-)constructing the branch.
 				for i in 0..16 {
-					if nodes[i].len() >= 32 {
-						let n = Node::decoded(nodes[i]).encoded_and_added(diff);
-						let mut new_nodes = nodes;
+					if payloads[i].len() >= 32 && Rlp::new(payloads[i]).is_list() {
+						let n = Node::decoded(payloads[i]).encoded_and_added(diff);
+						let mut new_nodes = payloads;
 						new_nodes[i] = &n;
-						return MaybeChanged::Changed(Node::Branch(new_nodes, node_value).encoded())
+						return MaybeChanged::Changed(Node::Branch(new_nodes, value).encoded())
 					}
 				}
 				MaybeChanged::Same(n)
@@ -596,7 +596,7 @@ impl TrieDB {
 				#[derive(Debug)]
 				enum UsedIndex {
 					None,
-					One(usize),
+					One(u8),
 					Many,
 				};
 				let mut used_index = UsedIndex::None;
@@ -605,7 +605,7 @@ impl TrieDB {
 				// 17 -> multiple non-null branches
 				for i in 0..16 {
 					match (nodes[i] == NULL_RLP, &used_index) {
-						(false, &UsedIndex::None) => used_index = UsedIndex::One(i),
+						(false, &UsedIndex::None) => used_index = UsedIndex::One(i as u8),
 						(false, &UsedIndex::One(_)) => used_index = UsedIndex::Many,
 						(_, _) => {},
 					}
@@ -617,7 +617,7 @@ impl TrieDB {
 						// transmute to extension.
 						// TODO: OPTIMISE: - don't call fixed again but put the right node in straight away here.
 						// call fixed again since the transmute may cause invalidity.
-						let new_partial: [u8; 1] = [a as u8; 1];
+						let new_partial: [u8; 1] = [a; 1];
 						MaybeChanged::Changed(Self::encoded(self.fixed(Node::Extension(NibbleSlice::new_offset(&new_partial[..], 1), nodes[a as usize]), diff)))
 					},
 					(UsedIndex::None, Some(value)) => {		// one leaf value
@@ -627,6 +627,7 @@ impl TrieDB {
 					}
 					_ => {						// onwards node(s) and/or leaf
 						// no transmute needed, but should still fix the indirection.
+						trace!("no-transmute: FIXINDIRECTION");
 						Self::fixed_indirection(Node::Branch(nodes, node_value), diff)
 					},
 				}
@@ -756,14 +757,16 @@ mod tests {
 	fn playpen() {
 		env_logger::init().ok();
 
+		let big_value = b"00000000000000000000000000000000";
+
 		let mut t1 = TrieDB::new_memory();
-		t1.insert(&[0x01, 0x34], &[2]);
+		t1.insert(&[0x01, 0x23], &big_value.to_vec());
+		t1.insert(&[0x01, 0x34], &big_value.to_vec());
 		let mut t2 = TrieDB::new_memory();
-		t2.insert(&[0x01], &[0]);
-		t2.insert(&[0x01, 0x23], &[1]);
-		t2.insert(&[0x01, 0x34], &[2]);
+		t2.insert(&[0x01], &big_value.to_vec());
+		t2.insert(&[0x01, 0x23], &big_value.to_vec());
+		t2.insert(&[0x01, 0x34], &big_value.to_vec());
 		t2.remove(&[0x01]);
-		t2.remove(&[0x01, 0x23]);
 		/*if t1.root() != t2.root()*/ {
 			trace!("{:?}", t1);
 			trace!("{:?}", t2);
