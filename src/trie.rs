@@ -1,3 +1,5 @@
+extern crate rand;
+
 use std::fmt;
 use memorydb::*;
 use sha3::*;
@@ -6,6 +8,7 @@ use hash::*;
 use nibbleslice::*;
 use bytes::*;
 use rlp::*;
+
 //use log::*;
 
 pub const NULL_RLP: [u8; 1] = [0x80; 1];
@@ -509,10 +512,12 @@ impl Trie for TrieDB {
 mod tests {
 	use rustc_serialize::hex::FromHex;
 	use triehash::*;
+	use hash::*;
 	use super::*;
 	use nibbleslice::*;
 	use rlp;
 	use env_logger;
+	use rand::random;
 
 	#[test]
 	fn test_node_leaf() {
@@ -605,13 +610,50 @@ mod tests {
 			t.insert(&key, &val);
 		}
 
- 		trace!("{:?}", t);
-		println!("{:?}", t);
+// 		trace!("{:?}", t);
+//		println!("{:?}", t);
 
 		// check lifetime
 //		let _q = t.at(&[b'd', b'o']).unwrap();
 
 		assert_eq!(*t.root(), trie_root(v));
+	}
+
+	fn random_key() -> Vec<u8> {
+		let chars = b"abcdefgrstuvwABCDEFGRSTUVW";
+		let mut ret: Vec<u8> = Vec::new();
+		let r = random::<u8>() % 4 + 1;
+		for _ in 0..r {
+			ret.push(chars[random::<usize>() % chars.len()]);
+		}
+		ret
+	}
+
+	#[test]
+	fn stress() {
+		for _ in 0..1000 {
+			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
+			for j in 0..100u32 {
+				let key = random_key();
+				x.push((key, rlp::encode(&j)));
+			}
+			let real = trie_root(x.clone());
+
+			let mem = trie_root_mem(&x);
+			assert_eq!(mem, real);
+		}
+	}
+
+	fn trie_root_mem(v: &Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
+		let mut t = TrieDB::new_memory();
+		
+		for i in 0..v.len() {
+			let key: &[u8]= &v[i].0;
+			let val: &[u8] = &v[i].1;
+			t.insert(&key, &val);
+		}
+
+		t.root().clone()
 	}
 
 	#[test]
