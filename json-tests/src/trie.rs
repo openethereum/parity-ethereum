@@ -72,6 +72,7 @@ impl JsonTest for TrieTest {
 			.map(|i| i.into())
 			.collect()
 	}
+
 	fn output(&self) -> Self::Output {
 		hex_or_string(self.loader.output().as_string().unwrap())
 	}

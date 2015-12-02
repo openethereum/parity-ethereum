@@ -286,40 +286,6 @@ mod tests {
 	use triehash::*;
 
 	#[test]
-	fn empty_trie_root() {
-		assert_eq!(trie_root(vec![]), H256::from_str("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").unwrap());
-	}
-
-	#[test]
-	fn single_trie_item() {
-		let v = vec![(From::from("A"), From::from("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))];
-		assert_eq!(trie_root(v), H256::from_str("d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab").unwrap());
-	}
-
-	#[test]
-	fn foo_trie_item() {
-
-		let v = vec![
-			(From::from("foo"), From::from("bar")),
-			(From::from("food"), From::from("bass"))
-		];
-		
-		assert_eq!(trie_root(v), H256::from_str("17beaa1648bafa633cda809c90c04af50fc8aed3cb40d16efbddee6fdf63c4c3").unwrap());
-	}
-
-	#[test]
-	fn dogs_trie_item() {
-
-		let v = vec![
-			(From::from("doe"), From::from("reindeer")),
-			(From::from("dog"), From::from("puppy")),
-			(From::from("dogglesworth"), From::from("cat")),
-		];
-		
-		assert_eq!(trie_root(v), H256::from_str("8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3").unwrap());
-	}
-
-	#[test]
 	fn puppy_trie_items() {
 
 		let v = vec![
