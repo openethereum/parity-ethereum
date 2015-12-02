@@ -810,7 +810,7 @@ impl RlpStream {
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable + fmt::Debug {
+	pub fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable {
 		// encode given value and add it at the end of the stream
 		object.encode(&mut self.encoder);
 
