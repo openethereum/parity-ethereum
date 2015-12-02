@@ -548,6 +548,7 @@ impl TrieDB {
 			_ => panic!("Invalid RLP for node: {:?}", old.pretty()),
 		}
 	}
+
 	fn encoded(n: MaybeChanged) -> Bytes {
 		match n {
 			MaybeChanged::Same(n) => n.encoded(),
@@ -555,12 +556,6 @@ impl TrieDB {
 		}
 	}
 
-	fn ensure_is_changed(n: MaybeChanged) -> MaybeChanged {
-		match n {
-			MaybeChanged::Same(n) => MaybeChanged::Changed(n.encoded()),
-			f => f,
-		}
-	}
 	fn fixed_indirection<'a>(n: Node<'a>, diff: &mut Diff) -> MaybeChanged<'a> {
 		match n {
 			Node::Extension(partial, payload) if payload.len() >= 32 => {
@@ -666,7 +661,7 @@ impl TrieDB {
 
 		match (n, partial.is_empty()) {
 			(Node::Empty, _) => None,
-			(Node::Branch(nodes, None), true) => { None },
+			(Node::Branch(_, None), true) => { None },
 			(Node::Branch(nodes, _), true) => Some(Self::encoded(self.fixed(Node::Branch(nodes, None), diff))),	// matched as leaf-branch - give back fixed branch with it.
 			(Node::Branch(nodes, value), false) => {
 				// Branch with partial left - route, clear, fix.
@@ -680,16 +675,16 @@ impl TrieDB {
 					Self::encoded(self.fixed(Node::Branch(new_nodes, value), diff))
 				})
 			},
-			(Node::Leaf(node_partial, node_value), _) => {
+			(Node::Leaf(node_partial, _), _) => {
 				match node_partial.common_prefix(partial) {
 					cp if cp == partial.len() => Some(Node::Empty.encoded()),		// leaf to be deleted - delete it :)
-					cp => None,												// anything else and the key doesn't exit - no change.
+					_ => None,												// anything else and the key doesn't exit - no change.
 				}
 			},
 			(Node::Extension(node_partial, node_payload), _) => {
 				match node_partial.common_prefix(partial) {
 					cp if cp < partial.len() => None,						// key in the middle of an extension - doesn't exist.
-					cp => {
+					_ => {
 						// key at end of extension - skip, clear, fix
 						self.cleared(self.get_node(node_payload), &partial.mid(node_partial.len()), diff).map(|new_payload| {
 							// downsteam node needed to be changed.
