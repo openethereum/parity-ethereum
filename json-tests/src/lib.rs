@@ -54,15 +54,11 @@ pub fn execute_test_from_file<T, F>(path: &Path, f: &mut F) where T: JsonTest, F
 	f(test.input(), test.output())
 }
 
-pub fn execute_tests_in_directory<T, F>(pattern: &str, f: &mut F) where T: JsonTest, F: FnMut(String, T::Input, T::Output) {
+pub fn execute_tests_from_directory<T, F>(pattern: &str, f: &mut F) where T: JsonTest, F: FnMut(String, T::Input, T::Output) {
 	for path in glob(pattern).unwrap().filter_map(Result::ok) {
 		execute_test_from_file::<T, _>(&path, &mut | input, output | {
 			f(path.to_str().unwrap().to_string(), input, output);
 		});
 	}
-}
-
-#[test]
-fn it_works() {
 }
 
