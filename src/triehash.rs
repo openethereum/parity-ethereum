@@ -379,80 +379,15 @@ mod tests {
 		assert_eq!(trie_root(v), H256::from_str("9f6221ebb8efe7cff60a716ecb886e67dd042014be444669f0159d8e68b42100").unwrap());
 	}
 
-	//fn hex_or_string(s: &str) -> Vec<u8> {
-		//match s.starts_with("0x") {
-			//true => s[2..].from_hex().unwrap(),
-			//false => From::from(s)
-		//}
-	//}
-	
-	//pub fn yield_json_trietest<I, R>(data: &[u8], name: &str, insert: &mut I, remove: &mut R) -> H256 where I: FnMut(Vec<u8>, Vec<u8>), R: FnMut(Vec<u8>) {
-		////let data = include_bytes!("../tests/TrieTests/trietest.json");
+	extern crate json_tests;
+	use self::json_tests::*;
 
-		//let s = String::from_bytes(data).unwrap();
-		//let json = Json::from_str(&s).unwrap();
-		//let obj = json.as_object().unwrap();
-		//println!("here");
-
-		//let value = &obj[name];
-			
-		//let i = &value["in"];
-		//let o = &value["root"];
-		
-		//let root_str = o.as_string().unwrap();
-
-		//println!("here2");
-		//for i in i.as_array().unwrap().iter() {
-			//let key = hex_or_string(i[0].as_string().unwrap());
-
-			//match i[1].is_null() {
-				//true => remove(key),
-				//false => insert(key, hex_or_string(i[1].as_string().unwrap()))
-			//};
-		//}
-
-		//H256::from_str(&root_str[2..]).unwrap()
-	//}
-
-	////fn load_json_trietest(data: &[u8], name: &str) -> (Vec<(Vec<u8>, Vec<u8>)>, H256) {
-		////use std::cell::RefCell;
-		//let map = RefCell::new(HashMap::new());
-		//let root = yield_json_trietest(data, name, &mut | key, value | {
-			//map.borrow_mut().insert(key, value);
-		//}, &mut | key | {
-			//map.borrow_mut().remove(&key);
-		//});
-
-		//let res = map.into_inner()
-			//.into_iter()
-			//.map(|p| p)
-			//.collect();
-		//(res, root)
-	//}
-
-	//#[test]
-	//fn triehash_json_empty_values() {
-		//let (input, root) = load_json_trietest(include_bytes!("../tests/TrieTests/trietest.json"), "emptyValues");
-		//assert_eq!(trie_root(input), root);
-	//}
-
-	//#[test]
-	//fn triehash_json_branching_tests() {
-		//let (input, root) = load_json_trietest(include_bytes!("../tests/TrieTests/trietest.json"), "branchingTests");
-		//assert_eq!(trie_root(input), root);
-	//}
-
-	//#[test]
-	//fn triehash_json_jeff_tests() {
-		//let (input, root) = load_json_trietest(include_bytes!("../tests/TrieTests/trietest.json"), "jeff");
-		//assert_eq!(trie_root(input), root);
-	//}
-
-	////#[test]
-	////fn triehash_json_test1() {
-		//let (input, root) = load_json_trietest(include_bytes!("../tests/TrieTests/hex_encoded_securetrie_test.json"), "test1");
-		//assert_eq!(trie_root(input), root);
-	//}
-
-
+	#[test]
+	fn run_trie_tests() {
+		execute_tests_in_directory::<trie::TriehashTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
+			println!("file: {}, output: {:?}", file, output);
+			assert_eq!(trie_root(input), H256::from_slice(&output));
+		});
+	}
 }
+
