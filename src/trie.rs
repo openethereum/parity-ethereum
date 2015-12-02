@@ -589,29 +589,38 @@ impl TrieDB {
 	///
 	/// **This operation will not insert the new node nor destroy the original.**
 	fn fixed<'a, 'b>(&'a self, n: Node<'b>, diff: &mut Diff) -> MaybeChanged<'b> where 'a: 'b {
+		trace!("fixed node={:?}", n);
 		match n {
 			Node::Branch(nodes, node_value) => {
 				// if only a single value, transmute to leaf/extension and feed through fixed.
-				let mut index: [u8; 1] = [16; 1];
+				#[derive(Debug)]
+				enum UsedIndex {
+					None,
+					One(usize),
+					Many,
+				};
+				let mut used_index = UsedIndex::None;
 				// 0-15 -> index of a non-null branch
 				// 16 -> no non-null branch
 				// 17 -> multiple non-null branches
 				for i in 0..16 {
-					match (nodes[i] == NULL_RLP, index[0]) {
-						(false, _) => {},
-						(true, 16) => index[0] = i as u8,
-						(true, _) => index[0] = 17,
+					match (nodes[i] == NULL_RLP, &used_index) {
+						(false, &UsedIndex::None) => used_index = UsedIndex::One(i),
+						(false, &UsedIndex::One(_)) => used_index = UsedIndex::Many,
+						(_, _) => {},
 					}
 				}
-				match (index[0], node_value) {
-					(16, None) => panic!("Branch with no subvalues. Something went wrong."),
-					(0 ... 15, None) => {		// one onward node
+				trace!("branch: used_index={:?}, node_value={:?}", used_index, node_value);
+				match (used_index, node_value) {
+					(UsedIndex::None, None) => panic!("Branch with no subvalues. Something went wrong."),
+					(UsedIndex::One(a), None) => {		// one onward node
 						// transmute to extension.
 						// TODO: OPTIMISE: - don't call fixed again but put the right node in straight away here.
 						// call fixed again since the transmute may cause invalidity.
-						MaybeChanged::Changed(Self::encoded(self.fixed(Node::Extension(NibbleSlice::new_offset(&index[..], 1), nodes[index[0] as usize]), diff)))
+						let new_partial: [u8; 1] = [a as u8; 1];
+						MaybeChanged::Changed(Self::encoded(self.fixed(Node::Extension(NibbleSlice::new_offset(&new_partial[..], 1), nodes[a as usize]), diff)))
 					},
-					(16, Some(value)) => {		// one leaf value
+					(UsedIndex::None, Some(value)) => {		// one leaf value
 						// transmute to leaf.
 						// call fixed again since the transmute may cause invalidity.
 						MaybeChanged::Changed(Self::encoded(self.fixed(Node::Leaf(NibbleSlice::new(&b""[..]), value), diff)))
@@ -657,42 +666,52 @@ impl TrieDB {
 	}
 
 	fn cleared(&self, n: Node, partial: &NibbleSlice, diff: &mut Diff) -> Option<Bytes> {
-		trace!("cleared (old: {:?}, partial: {:?})", n, partial);
+		trace!("cleared old={:?}, partial={:?})", n, partial);
 
 		match (n, partial.is_empty()) {
 			(Node::Empty, _) => None,
 			(Node::Branch(_, None), true) => { None },
-			(Node::Branch(nodes, _), true) => Some(Self::encoded(self.fixed(Node::Branch(nodes, None), diff))),	// matched as leaf-branch - give back fixed branch with it.
-			(Node::Branch(nodes, value), false) => {
+			(Node::Branch(payloads, _), true) => Some(Self::encoded(self.fixed(Node::Branch(payloads, None), diff))),	// matched as leaf-branch - give back fixed branch with it.
+			(Node::Branch(payloads, value), false) => {
 				// Branch with partial left - route, clear, fix.
 				let i: usize = partial.at(0) as usize;
-				self.cleared(self.get_node(nodes[i]), &partial.mid(1), diff).map(|new_payload| {
+				trace!("branch-with-partial node[{:?}]={:?}", i, payloads[i].pretty());
+				self.cleared(self.get_node(payloads[i]), &partial.mid(1), diff).map(|new_payload| {
+					trace!("branch-new-payload={:?}; delete-old={:?}", new_payload.pretty(), payloads[i].pretty());
+
 					// downsteam node needed to be changed.
-					diff.delete_node_from_slice(nodes[i]);
+					diff.delete_node_from_slice(payloads[i]);
 					// return fixed up new node.
-					let mut new_nodes = nodes;
-					new_nodes[i] = &new_payload;
-					Self::encoded(self.fixed(Node::Branch(new_nodes, value), diff))
+					let mut new_payloads = payloads;
+					new_payloads[i] = &new_payload;
+					Self::encoded(self.fixed(Node::Branch(new_payloads, value), diff))
 				})
 			},
 			(Node::Leaf(node_partial, _), _) => {
+				trace!("leaf partial={:?}", node_partial);
 				match node_partial.common_prefix(partial) {
-					cp if cp == partial.len() => Some(Node::Empty.encoded()),		// leaf to be deleted - delete it :)
+					cp if cp == partial.len() => {		// leaf to be deleted - delete it :)
+						trace!("matched-prefix (cp={:?}): REPLACE-EMPTY", cp);
+						Some(Node::Empty.encoded())
+					},
 					_ => None,												// anything else and the key doesn't exit - no change.
 				}
 			},
 			(Node::Extension(node_partial, node_payload), _) => {
+				trace!("extension partial={:?}, payload={:?}", node_partial, node_payload.pretty());
 				match node_partial.common_prefix(partial) {
-					cp if cp < partial.len() => None,						// key in the middle of an extension - doesn't exist.
-					_ => {
+					cp if cp == node_partial.len() => {
+						trace!("matching-prefix (cp={:?}): SKIP,CLEAR,FIXUP", cp);
 						// key at end of extension - skip, clear, fix
 						self.cleared(self.get_node(node_payload), &partial.mid(node_partial.len()), diff).map(|new_payload| {
+							trace!("extension-new-payload={:?}; delete-old={:?}", new_payload.pretty(), node_payload.pretty());
 							// downsteam node needed to be changed.
 							diff.delete_node_from_slice(node_payload);
 							// return fixed up new node.
 							Self::encoded(self.fixed(Node::Extension(node_partial, &new_payload), diff))
 						})
 					},
+					_ => None,	// key in the middle of an extension - doesn't exist.
 				}
 			},
 		}
@@ -735,13 +754,13 @@ mod tests {
 		env_logger::init().ok();
 
 		let mut t1 = TrieDB::new_memory();
-		t1.insert(&[0x01], &[0]);
-		t1.insert(&[0x01, 0x23], &[1]);
 		t1.insert(&[0x01, 0x34], &[2]);
-		t1.remove(&[0x01]);
 		let mut t2 = TrieDB::new_memory();
+		t2.insert(&[0x01], &[0]);
 		t2.insert(&[0x01, 0x23], &[1]);
 		t2.insert(&[0x01, 0x34], &[2]);
+		t2.remove(&[0x01]);
+		t2.remove(&[0x01, 0x23]);
 		/*if t1.root() != t2.root()*/ {
 			trace!("{:?}", t1);
 			trace!("{:?}", t2);
