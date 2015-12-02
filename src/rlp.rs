@@ -86,7 +86,6 @@ pub enum DecoderError {
 	RlpIsTooShort,
 	RlpExpectedToBeList,
 	RlpExpectedToBeData,
-	BadRlp,
 }
 impl StdError for DecoderError {
 	fn description(&self) -> &str {
@@ -725,9 +724,9 @@ impl BasicDecoder {
 				let header_len = 1 + len_of_len;
 				let value_len = try!(usize::from_bytes(&bytes[1..header_len]));
 				PayloadInfo::new(header_len, value_len)
-			}
+			},
 			// we cant reach this place, but rust requires _ to be implemented
-			_ => return Err(DecoderError::BadRlp),
+			_ => { panic!(); }
 		};
 
 		match item.header_len + item.value_len <= bytes.len() {
@@ -753,7 +752,8 @@ impl Decoder for BasicDecoder {
 				let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
 				Ok(try!(f(&bytes[begin_of_value..begin_of_value + len])))
 			}
-			_ => Err(DecoderError::BadRlp),
+			// we are reading value, not a list!
+			_ => { panic!(); }
 		}
 	}
 }

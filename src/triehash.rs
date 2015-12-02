@@ -280,7 +280,10 @@ fn test_hex_prefix_encode() {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
+	use std::collections::BTreeMap;
 	use rustc_serialize::hex::FromHex;
+	use rustc_serialize::json::Json;
+	use bytes::*;
 	use hash::*;
 	use triehash::*;
 
@@ -377,4 +380,19 @@ mod tests {
 
 		assert_eq!(trie_root(v), H256::from_str("9f6221ebb8efe7cff60a716ecb886e67dd042014be444669f0159d8e68b42100").unwrap());
 	}
+
+	#[test]
+	fn test_triehash_json_trietest_json() {
+		let data = include_bytes!("../tests/TrieTests/trietest.json");
+
+		let s = String::from_bytes(data).unwrap();
+		let json = Json::from_str(&s).unwrap();
+		let obj = json.as_object().unwrap();
+
+		for (key, value) in obj.iter() {
+			println!("running test: {}", key);
+		}
+		assert!(false);
+	}
+
 }
