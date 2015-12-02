@@ -283,7 +283,7 @@ mod tests {
 	use triehash::*;
 
 	#[test]
-	fn test_trie_out_of_order() {
+	fn test_triehash_out_of_order() {
 		assert!(trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
@@ -297,7 +297,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_trie_json() {
+	fn test_triehash_json() {
 		execute_tests_from_directory::<trie::TriehashTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
 			println!("file: {}, output: {:?}", file, output);
 			assert_eq!(trie_root(input), H256::from_slice(&output));
