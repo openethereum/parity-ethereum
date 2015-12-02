@@ -303,7 +303,7 @@ impl TrieDB {
 		}
 	}
 
-	fn get_raw_or_lookup<'a, 'b>(&'a self, node: &'b [u8]) -> &'b [u8] where 'a: 'b {
+	fn get_raw_or_lookup<'a>(&'a self, node: &'a [u8]) -> &'a [u8] {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
