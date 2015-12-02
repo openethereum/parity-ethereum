@@ -656,7 +656,7 @@ mod tests {
 
 	#[test]
 	fn stress() {
-		for _ in 0..10000 {
+		for _ in 0..5000 {
 			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
 			for j in 0..4u32 {
 				let key = random_key();
