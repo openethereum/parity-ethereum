@@ -12,6 +12,7 @@ use mio::tcp::*;
 use mio::udp::*;
 use hash::*;
 use crypto::*;
+use rlp::*;
 use time::Tm;
 use network::handshake::Handshake;
 use network::session::Session;
@@ -55,6 +56,7 @@ impl NetworkConfiguration {
 #[derive(Debug)]
 struct NodeEndpoint {
     address: SocketAddr,
+    address_str: String,
     udp_port: u16
 }
 
@@ -62,6 +64,7 @@ impl NodeEndpoint {
     fn new(address: SocketAddr) -> NodeEndpoint {
         NodeEndpoint {
             address: address,
+			address_str: address.to_string(),
             udp_port: address.port()
         }
     }
@@ -71,6 +74,7 @@ impl NodeEndpoint {
 		match address {
 			Ok(Some(a)) => Ok(NodeEndpoint {
 				address: a,
+				address_str: s.to_string(),
 				udp_port: a.port()
 			}),
 			Ok(_) => Err(Error::AddressResolve(None)),
@@ -178,10 +182,38 @@ pub enum HostMessage {
     Shutdown
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct CapabilityInfo {
+	pub protocol: String,
+	pub version: u32,
+}
+
+impl Encodable for CapabilityInfo {
+	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
+		encoder.emit_list(|e| { 
+			self.protocol.encode(e);
+			self.version.encode(e);
+		});
+	}
+}
+
+impl Decodable for CapabilityInfo {
+	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(CapabilityInfo {
+			protocol: try!(String::decode_untrusted(&try!(rlp.at(0)))),
+			version: try!(u32::decode_untrusted(&try!(rlp.at(1)))),
+		})
+	}
+}
+
 pub struct HostInfo {
     keys: KeyPair,
     config: NetworkConfiguration,
-	nonce: H256
+	nonce: H256,
+	pub protocol_version: u32,
+	pub client_version: String,
+	pub listen_port: u16,
+	pub capabilities: Vec<CapabilityInfo>
 }
 
 impl HostInfo {
@@ -244,12 +276,17 @@ impl Host {
         let udp_socket = UdpSocket::bound(&addr).unwrap();
         event_loop.register_opt(&udp_socket, Token(NODETABLE_RECEIVE), EventSet::readable(), PollOpt::edge()).unwrap();
         event_loop.timeout_ms(Token(NODETABLE_MAINTAIN), 7200).unwrap();
+		let port = config.listen_address.port();
 
         let mut host = Host {
 			info: HostInfo { 
 				keys: KeyPair::create().unwrap(),
 				config: config,
-				nonce: H256::random()
+				nonce: H256::random(),
+				protocol_version: 4,
+				client_version: "parity".to_string(),
+				listen_port: port,
+				capabilities: vec![ CapabilityInfo { protocol: "eth".to_string(), version: 63 }],
 			},
             sender: sender,
             udp_socket: udp_socket,
@@ -262,7 +299,6 @@ impl Host {
 			nodes: HashMap::new(),
 			idle_timeout: idle_timeout
         };
-
 
 		host.add_node("enode://5374c1bff8df923d3706357eeb4983cd29a63be40a269aaa2296ee5f3b2119a8978c0ed68b8f6fc84aad0df18790417daadf91a4bfbb786a16c9b0a199fa254a@gav.ethdev.com:30300");
 		host.add_node("enode://e58d5e26b3b630496ec640f2530f3e7fa8a8c7dfe79d9e9c4aac80e3730132b869c852d3125204ab35bb1b1951f6f2d40996c1034fd8c5a69b383ee337f02ddc@gav.ethdev.com:30303");
@@ -429,7 +465,7 @@ impl Host {
     }
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.connections.iter().any(|e| match e { &ConnectionEntry::Session(ref s) => s.id.eq(&id), _ => false  })
+		self.connections.iter().any(|e| match e { &ConnectionEntry::Session(ref s) => s.info.id.eq(&id), _ => false  })
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
@@ -594,9 +630,10 @@ impl Host {
 	}
 
 	fn start_session(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+		let info = &self.info;
 		self.connections.replace_with(token, |c| {
 			match c {
-				ConnectionEntry::Handshake(h) => Session::new(h, event_loop)
+				ConnectionEntry::Handshake(h) => Session::new(h, event_loop, info)
 					.map(|s| Some(ConnectionEntry::Session(s)))
 					.unwrap_or_else(|e| { 
 						debug!(target: "net", "Session construction error: {:?}", e);

@@ -1,4 +1,5 @@
 #![allow(dead_code)] //TODO: remove this after everything is done
+use std::collections::VecDeque;
 use mio::{Token, EventSet, EventLoop, Timeout, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
 use hash::*;
@@ -23,13 +24,115 @@ pub struct Connection {
     pub socket: TcpStream,
 	rec_buf: Bytes,
 	rec_size: usize,
-	send_buf: Cursor<Bytes>,
+	send_queue: VecDeque<Cursor<Bytes>>,
 	interest: EventSet,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum WriteStatus {
 	Ongoing,
 	Complete
+}
+
+impl Connection {
+	pub fn new(token: Token, socket: TcpStream) -> Connection {
+		Connection {
+			token: token,
+			socket: socket,
+			send_queue: VecDeque::new(),
+			rec_buf: Bytes::new(),
+			rec_size: 0,
+			interest: EventSet::hup(),
+		}
+	}
+
+	pub fn expect(&mut self, size: usize) {
+		if self.rec_size != self.rec_buf.len() {
+			warn!(target:"net", "Unexpected connection read start");
+		}
+		unsafe { self.rec_buf.set_len(0) }
+		self.rec_size = size;
+	}
+
+	//TODO: return a slice
+	pub fn readable(&mut self) -> io::Result<Option<Bytes>> {
+		if self.rec_size == 0 || self.rec_buf.len() >= self.rec_size {
+			warn!(target:"net", "Unexpected connection read");
+		}
+		let max = self.rec_size - self.rec_buf.len();
+		// resolve "multiple applicable items in scope [E0034]" error
+    	let sock_ref = <TcpStream as Read>::by_ref(&mut self.socket);
+		match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
+			Ok(Some(_)) if self.rec_buf.len() == self.rec_size => {
+				self.rec_size = 0;
+				Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
+			},
+			Ok(_) => Ok(None),
+			Err(e) => Err(e),
+		}
+	}
+	
+	pub fn send(&mut self, data: Bytes) { //TODO: take ownership version
+		if data.len() != 0 {
+			self.send_queue.push_back(Cursor::new(data));
+		}
+        if !self.interest.is_writable() {
+            self.interest.insert(EventSet::writable());
+        }
+	}
+
+	pub fn writable(&mut self) -> io::Result<WriteStatus> {
+		if self.send_queue.is_empty() {
+			return Ok(WriteStatus::Complete)
+		}
+		{
+			let buf = self.send_queue.front_mut().unwrap();
+			let send_size = buf.get_ref().len();
+			if (buf.position() as usize) >= send_size {
+				warn!(target:"net", "Unexpected connection data");
+				return Ok(WriteStatus::Complete)
+			}
+			match self.socket.try_write_buf(buf) {
+				Ok(_) if (buf.position() as usize) < send_size => {
+					self.interest.insert(EventSet::writable());
+					Ok(WriteStatus::Ongoing)
+				},
+				Ok(_) if (buf.position() as usize) == send_size => {
+					self.interest.remove(EventSet::writable());
+					Ok(WriteStatus::Complete)
+				},
+				Ok(_) => { panic!("Wrote past buffer");},
+				Err(e) => Err(e)
+			}
+		}.and_then(|r| if r == WriteStatus::Complete {
+				self.send_queue.pop_front();
+				Ok(r)
+			}
+			else { Ok(r) }
+		)
+	}
+
+    pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
+        trace!(target: "net", "connection register; token={:?}", self.token);
+        self.interest.insert(EventSet::readable());
+        event_loop.register_opt(&self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
+            error!("Failed to reregister {:?}, {:?}", self.token, e);
+            Err(e)
+        })
+    }
+
+    pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
+        trace!(target: "net", "connection reregister; token={:?}", self.token);
+        event_loop.reregister( &self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
+            error!("Failed to reregister {:?}, {:?}", self.token, e);
+            Err(e)
+        })
+    }
+}
+
+pub struct Packet {
+	pub protocol: u16,
+	pub data: Bytes,
 }
 
 enum EncryptedConnectionState {
@@ -99,7 +202,7 @@ impl EncryptedConnection {
 		})
 	}
 
-	pub fn write_packet(&mut self, payload: &[u8]) -> Result<(), Error> {
+	pub fn send_packet(&mut self, payload: &[u8]) -> Result<(), Error> {
 		let mut header = RlpStream::new();
 		let len = payload.len() as usize;
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
@@ -120,7 +223,7 @@ impl EncryptedConnection {
 		}
 		self.egress_mac.update(&packet[32..(32 + len + padding)]);
 		self.egress_mac.clone().finalize(&mut packet[(32 + len + padding)..]);
-		self.connection.send(&packet);
+		self.connection.send(packet);
 		Ok(())
 	}
 
@@ -153,7 +256,7 @@ impl EncryptedConnection {
 		Ok(())
 	}
 
-	fn read_payload(&mut self, payload: &[u8]) -> Result<Bytes, Error> {
+	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, Error> {
 		let padding = (16 - (self.payload_len  % 16)) % 16;
 		let full_length = (self.payload_len + padding + 16) as usize;
 		if payload.len() != full_length {
@@ -170,10 +273,13 @@ impl EncryptedConnection {
 		let mut packet = vec![0u8; self.payload_len as usize];
 		self.decoder.decrypt(&mut RefReadBuffer::new(&payload[0..(full_length - 16)]), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
 		packet.resize(self.payload_len as usize, 0u8);
-		Ok(packet)
+		Ok(Packet {
+			protocol: self.protocol_id,
+			data: packet
+		})
 	}
 
-	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Bytes>, Error> {
+	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Packet>, Error> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		try!(self.connection.reregister(event_loop));
 		match self.read_state {
@@ -214,97 +320,4 @@ impl EncryptedConnection {
 		Ok(())
     }
 }
-
-impl Connection {
-	pub fn new(token: Token, socket: TcpStream) -> Connection {
-		Connection {
-			token: token,
-			socket: socket,
-			send_buf: Cursor::new(Bytes::new()),
-			rec_buf: Bytes::new(),
-			rec_size: 0,
-			interest: EventSet::hup(),
-		}
-	}
-
-	pub fn expect(&mut self, size: usize) {
-		if self.rec_size != self.rec_buf.len() {
-			warn!(target:"net", "Unexpected connection read start");
-		}
-		unsafe { self.rec_buf.set_len(0) }
-		self.rec_size = size;
-	}
-
-	//TODO: return a slice
-	pub fn readable(&mut self) -> io::Result<Option<Bytes>> {
-		if self.rec_size == 0 || self.rec_buf.len() >= self.rec_size {
-			warn!(target:"net", "Unexpected connection read");
-		}
-		let max = self.rec_size - self.rec_buf.len();
-		// resolve "multiple applicable items in scope [E0034]" error
-    	let sock_ref = <TcpStream as Read>::by_ref(&mut self.socket);
-		match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
-			Ok(Some(_)) if self.rec_buf.len() == self.rec_size => {
-				self.rec_size = 0;
-				Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
-			},
-			Ok(_) => Ok(None),
-			Err(e) => Err(e),
-		}
-	}
-	
-	pub fn send(&mut self, data: &[u8]) { //TODO: take ownership version
-		let send_size = self.send_buf.get_ref().len();
-		if send_size != 0 || self.send_buf.position() as usize >= send_size {
-			warn!(target:"net", "Unexpected connection send start");
-		}
-		if self.send_buf.get_ref().capacity() < data.len() {
-			let capacity = self.send_buf.get_ref().capacity();
-			self.send_buf.get_mut().reserve(data.len() - capacity);
-		}
-		unsafe { self.send_buf.get_mut().set_len(data.len()) }
-		unsafe { ::std::ptr::copy_nonoverlapping(data.as_ptr(), self.send_buf.get_mut()[..].as_mut_ptr(), data.len()) };
-        if !self.interest.is_writable() {
-            self.interest.insert(EventSet::writable());
-        }
-	}
-
-	pub fn writable(&mut self) -> io::Result<WriteStatus> {
-		let send_size = self.send_buf.get_ref().len();
-		if (self.send_buf.position() as usize) >= send_size {
-			warn!(target:"net", "Unexpected connection data");
-			return Ok(WriteStatus::Complete)
-		}
-		match self.socket.try_write_buf(&mut self.send_buf) {
-			Ok(_) if (self.send_buf.position() as usize) < send_size => {
-				self.interest.insert(EventSet::writable());
-				Ok(WriteStatus::Ongoing)
-			},
-			Ok(_) if (self.send_buf.position() as usize) == send_size => {
-				self.interest.remove(EventSet::writable());
-				Ok(WriteStatus::Complete)
-			},
-			Ok(_) => { panic!("Wrote past buffer");},
-			Err(e) => Err(e)
-		}
-	}
-
-    pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-        trace!(target: "net", "connection register; token={:?}", self.token);
-        self.interest.insert(EventSet::readable());
-        event_loop.register_opt(&self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-            error!("Failed to reregister {:?}, {:?}", self.token, e);
-            Err(e)
-        })
-    }
-
-    pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-        trace!(target: "net", "connection reregister; token={:?}", self.token);
-        event_loop.reregister( &self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-            error!("Failed to reregister {:?}, {:?}", self.token, e);
-            Err(e)
-        })
-    }
-}
-
 

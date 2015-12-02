@@ -725,7 +725,7 @@ pub trait Decoder {
 	fn read_value<T, F>(bytes: &[u8], f: F) -> Result<T, DecoderError> where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 }
 
-struct BasicDecoder;
+pub struct BasicDecoder;
 
 impl Decoder for BasicDecoder {
 	fn read_value<T, F>(bytes: &[u8], f: F) -> Result<T, DecoderError> where F: FnOnce(&[u8]) -> Result<T, DecoderError> {

@@ -4,6 +4,23 @@ mod connection;
 mod handshake;
 mod session;
 
+#[derive(Debug, Copy, Clone)]
+pub enum DisconnectReason
+{
+	DisconnectRequested,
+	TCPError,
+	BadProtocol,
+	UselessPeer,
+	TooManyPeers,
+	DuplicatePeer,
+	IncompatibleProtocol,
+	NullIdentity,
+	ClientQuit,
+	UnexpectedIdentity,
+	LocalIdentity,
+	PingTimeout,
+}
+
 #[derive(Debug)]
 pub enum Error {
 	Crypto(::crypto::CryptoError),
@@ -13,6 +30,7 @@ pub enum Error {
 	AddressParse(::std::net::AddrParseError),
 	AddressResolve(Option<::std::io::Error>),
 	NodeIdParse(::error::EthcoreError),
+	Disconnect(DisconnectReason)
 }
 
 impl From<::std::io::Error> for Error {

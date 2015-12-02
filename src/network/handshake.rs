@@ -180,8 +180,8 @@ impl Handshake {
 			self.nonce.copy_to(nonce);
 		}
 		let message = try!(crypto::ecies::encrypt(&self.id, &data));
-		self.connection.send(&message[..]);
-		self.auth_cipher = message;
+		self.auth_cipher = message.clone();
+		self.connection.send(message);
 		self.state = HandshakeState::WritingAuth;
 		Ok(())
 	}
@@ -198,8 +198,8 @@ impl Handshake {
 			self.nonce.copy_to(nonce);
 		}
 		let message = try!(crypto::ecies::encrypt(&self.id, &data));
-		self.connection.send(&message[..]);
-		self.ack_cipher = message;
+		self.ack_cipher = message.clone();
+		self.connection.send(message);
 		self.state = HandshakeState::WritingAck;
 		Ok(())
 	}
