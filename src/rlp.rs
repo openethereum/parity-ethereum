@@ -1259,7 +1259,7 @@ mod tests {
 		run_encode_tests(tests);
 	}
 
-	/// Vec<u8> is treated as a single value
+	/// Vec<u8> (Bytes) is treated as a single value
 	#[test]
 	fn encode_vector_u8() {
 		let tests = vec![
@@ -1295,74 +1295,6 @@ mod tests {
 		run_encode_tests(tests);
 	}
 
-	#[test]
-	fn encode_bytes() {
-		let vec = vec![0u8];
-		let slice: &[u8] = &vec;
-		let res = rlp::encode(&slice);
-		assert_eq!(res, vec![0u8]);
-	}
-
-	#[test]
-	fn rlp_stream() {
-		let mut stream = RlpStream::new_list(2);
-		stream.append(&"cat").append(&"dog");
-		let out = stream.out();
-		assert_eq!(out,
-				   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
-	}
-
-	#[test]
-	fn rlp_stream_list() {
-		let mut stream = RlpStream::new_list(3);
-		stream.append_list(0);
-		stream.append_list(1).append_list(0);
-		stream.append_list(2).append_list(0).append_list(1).append_list(0);
-		let out = stream.out();
-		assert_eq!(out, vec![0xc7, 0xc0, 0xc1, 0xc0, 0xc3, 0xc0, 0xc1, 0xc0]);
-	}
-
-	#[test]
-	fn rlp_stream_list2() {
-		let mut stream = RlpStream::new();
-		stream.append_list(17);
-		for _ in 0..17 {
-			stream.append(&"");
-		}
-		let out = stream.out();
-		assert_eq!(out, vec![0xd1, 0x80, 0x80, 0x80, 0x80, 0x80,
-							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]);
-	}
-
-	#[test]
-	fn rlp_stream_list4() {
-		let mut stream = RlpStream::new();
-		stream.append_list(17);
-		let v: Vec<u8> = vec![];
-		for _ in 0..17 {
-			stream.append(&v);
-		}
-		let out = stream.out();
-		assert_eq!(out, vec![0xd1, 0x80, 0x80, 0x80, 0x80, 0x80,
-							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]);
-	}
-
-	#[test]
-	fn rlp_stream_list3() {
-		let mut stream = RlpStream::new();
-		stream.append_list(17);
-
-		let mut res = vec![0xf8, 0x44];
-		for _ in 0..17 {
-			stream.append(&"aaa");
-			res.extend(vec![0x83, b'a', b'a', b'a']);
-		}
-		let out = stream.out();
-		assert_eq!(out, res);
-	}
-
 	struct DTestPair<T>(T, Vec<u8>) where T: rlp::Decodable + fmt::Debug + cmp::Eq;
 
 	fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: rlp::Decodable + fmt::Debug + cmp::Eq {
@@ -1372,7 +1304,7 @@ mod tests {
 		}
 	}
 
-	/// Vec<u8> is treated as a single value
+	/// Vec<u8> (Bytes) is treated as a single value
 	#[test]
 	fn decode_vector_u8() {
 		let tests = vec![
@@ -1485,33 +1417,6 @@ mod tests {
 		let tests = vec![DTestPair(vec![vec!["cat".to_string()]],
 								   vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
 		run_decode_tests(tests);
-	}
-
-	#[test]
-	fn test_view() {
-		struct View<'a> {
-			bytes: &'a [u8]
-		}
-
-		impl <'a, 'view> View<'a> where 'a: 'view {
-			fn new(bytes: &'a [u8]) -> View<'a> {
-				View {
-					bytes: bytes
-				}
-			}
-
-			fn offset(&'view self, len: usize) -> View<'a> {
-				View::new(&self.bytes[len..])
-			}
-
-			fn data(&'view self) -> &'a [u8] {
-				self.bytes
-			}
-		}
-
-		let data = vec![0, 1, 2, 3];
-		let view = View::new(&data);
-		let _data_slice = view.offset(1).data();
 	}
 
 	#[test]
