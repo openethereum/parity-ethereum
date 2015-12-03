@@ -1098,6 +1098,9 @@ impl Encoder for BasicEncoder {
 
 #[cfg(test)]
 mod tests {
+	extern crate json_tests;
+	use self::json_tests::execute_tests_from_directory;
+	use self::json_tests::rlp as rlptest;
 	use std::{fmt, cmp};
 	use std::str::FromStr;
 	use rlp;
@@ -1496,4 +1499,25 @@ mod tests {
 		let view = View::new(&data);
 		let _data_slice = view.offset(1).data();
 	}
+
+	#[test]
+	fn test_rlp_json() {
+		println!("Json rlp test: ");
+		execute_tests_from_directory::<rlptest::RlpStreamTest, _>("json-tests/json/rlp/*.json", &mut | file, input, output | {
+			println!("file: {}", file);
+
+			let mut stream = RlpStream::new();
+			for operation in input.into_iter() {
+				match operation {
+					rlptest::Operation::Append(ref v) => stream.append(v),
+					rlptest::Operation::AppendList(len) => stream.append_list(len),
+					rlptest::Operation::AppendRaw(ref raw, len) => stream.append_raw(raw, len),
+					rlptest::Operation::AppendEmpty => stream.append_empty_data()
+				};
+			}
+
+			assert_eq!(stream.out(), output);
+		});
+	}
+
 }
