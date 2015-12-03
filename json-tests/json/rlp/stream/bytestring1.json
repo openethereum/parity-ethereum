@@ -3,8 +3,8 @@
 	[
 		{
 			"operation": "append",
-			"value": "\u0000"
+			"value": "\u0001"
 		}
 	],
-	"output": "0x00"
+	"output": "0x01"
 }
