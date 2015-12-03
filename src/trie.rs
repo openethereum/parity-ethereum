@@ -742,7 +742,7 @@ impl Trie for TrieDB {
 #[cfg(test)]
 mod tests {
 	extern crate json_tests;
-	use self::json_tests::*;
+	use self::json_tests::{trie, execute_tests_from_directory};
 	use rustc_serialize::hex::FromHex;
 	use triehash::*;
 	use hash::*;

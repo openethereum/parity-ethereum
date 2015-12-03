@@ -1,0 +1,18 @@
+{
+	"input":
+	[
+		{
+			"operation": "append_list",
+			"len": 2
+		},
+		{
+			"operation": "append",
+			"value": "cat"
+		},
+		{
+			"operation": "append",
+			"value": "dog"
+		}
+	]
+	"output": "0xc88363617183646f67"
+}
