@@ -32,7 +32,7 @@ Also `append_raw` and `append_list` requires `len` field
 			"operation": "append",
 			"value": "dog"
 		}
-	]
+	],
 	"output": "0xc88363617183646f67"
 }
 ```
