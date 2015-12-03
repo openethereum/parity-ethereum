@@ -9,6 +9,7 @@ use rand::Rng;
 use rand::os::OsRng;
 use bytes::BytesConvertable;
 use math::log2;
+use uint::U256;
 
 /// types implementing FixedHash must be also BytesConvertable
 pub trait FixedHash: Sized + BytesConvertable {
@@ -307,6 +308,16 @@ macro_rules! impl_hash {
 	}
 }
 
+impl<'a> From<&'a U256> for H256 {
+    fn from(value: &'a U256) -> H256 {
+		unsafe {
+			let mut ret: H256 = ::std::mem::uninitialized();
+			value.to_bytes(&mut ret);
+			ret
+		}
+    }
+}
+
 impl_hash!(H32, 4);
 impl_hash!(H64, 8);
 impl_hash!(H128, 16);
@@ -350,7 +361,7 @@ mod tests {
 	#[test]
 	fn shift_bloom() {
 		use sha3::Hashable;
-		
+
 		let bloom = H2048::from_str("00000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002020000000000000000000000000000000000000000000008000000001000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
 		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
 		let topic = H256::from_str("02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
@@ -362,7 +373,7 @@ mod tests {
 		my_bloom.shift_bloom(&address.sha3());
 		assert!(my_bloom.contains_bloom(&address.sha3()));
 		assert!(!my_bloom.contains_bloom(&topic.sha3()));
-			
+
 		my_bloom.shift_bloom(&topic.sha3());
 		assert_eq!(my_bloom, bloom);
 		assert!(my_bloom.contains_bloom(&address.sha3()));
