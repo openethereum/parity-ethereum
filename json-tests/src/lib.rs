@@ -8,7 +8,9 @@ use std::fs::File;
 use glob::glob;
 use rustc_serialize::*;
 
+mod util;
 pub mod trie;
+pub mod rlp;
 
 pub trait JsonTest: Sized {
 	type Input;

@@ -1,27 +1,12 @@
 //! json trie tests
 use std::collections::HashMap;
 use rustc_serialize::*;
-use rustc_serialize::hex::FromHex;
 use super::{JsonTest, JsonLoader};
-
-enum OperationType {
-	Insert,
-	Remove
-}
-
-impl Decodable for OperationType {
-	fn decode<D>(d: &mut D) -> Result<OperationType, D::Error> where D: Decoder {
-		match try!(String::decode(d)).as_ref() {
-			"insert" => Ok(OperationType::Insert),
-			"remove" => Ok(OperationType::Remove),
-			other => panic!("invalid operation type: {}", other)
-		}
-	}
-}
+use util::*;
 
 #[derive(RustcDecodable)]
 struct RawOperation {
-	operation: OperationType,
+	operation: String,
 	key: String,
 	value: Option<String>
 }
@@ -31,18 +16,12 @@ pub enum Operation {
 	Remove(Vec<u8>)
 }
 
-fn hex_or_string(s: &str) -> Vec<u8> {
-	match s.starts_with("0x") {
-		true => s[2..].from_hex().unwrap(),
-		false => From::from(s)
-	}
-}
-
 impl Into<Operation> for RawOperation {
 	fn into(self) -> Operation {
-		match self.operation {
-			OperationType::Insert => Operation::Insert(hex_or_string(&self.key), hex_or_string(&self.value.unwrap())),
-			OperationType::Remove => Operation::Remove(hex_or_string(&self.key))
+		match self.operation.as_ref() {
+			"insert" => Operation::Insert(hex_or_string(&self.key), hex_or_string(&self.value.unwrap())),
+			"remove" => Operation::Remove(hex_or_string(&self.key)),
+			other => panic!("invalid operation type: {}", other)
 		}
 	}
 }
