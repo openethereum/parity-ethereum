@@ -186,6 +186,15 @@ macro_rules! construct_uint {
                 (arr[index / 8] >> ((index % 8)) * 8) as u8
             }
 
+            pub fn to_bytes(&self, bytes: &mut[u8]) {
+                assert!($n_words * 8 == bytes.len());
+                let &$name(ref arr) = self;
+                for i in 0..bytes.len() {
+                    let rev = bytes.len() - 1 - i;
+                    let pos = rev / 8;
+                    bytes[i] = (arr[pos] >> ((rev % 8) * 8)) as u8;
+                }
+            }
             /// Multiplication by u32
             fn mul_u32(self, other: u32) -> $name {
                 let $name(ref arr) = self;
@@ -287,7 +296,7 @@ macro_rules! construct_uint {
                 let mut sub_copy = self;
                 let mut shift_copy = other;
                 let mut ret = [0u64; $n_words];
-        
+
                 let my_bits = self.bits();
                 let your_bits = other.bits();
 
@@ -453,7 +462,7 @@ construct_uint!(U128, 2);
 
 impl From<U128> for U256 {
     fn from(value: U128) -> U256 {
-        let U128(ref arr) = value; 
+        let U128(ref arr) = value;
         let mut ret = [0; 4];
         ret[0] = arr[0];
         ret[1] = arr[1];
@@ -483,7 +492,7 @@ mod tests {
         assert_eq!(e, ub);
         assert_eq!(e, uc);
         assert_eq!(e, ud);
-        
+
         // test initialization from bytes
         let va = U256::from(&[10u8][..]);
         assert_eq!(e, va);
@@ -497,7 +506,7 @@ mod tests {
         assert_eq!(U256([0x12f0, 1 , 0x0910203040506077, 0x8090a0b0c0d0e0f0]), U256::from(&[
                                                                                           0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
                                                                                           0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77,
-                                                                                          0, 0, 0, 0, 0, 0, 0, 1, 
+                                                                                          0, 0, 0, 0, 0, 0, 0, 1,
                                                                                           0, 0, 0, 0, 0, 0, 0x12u8, 0xf0][..]));
         assert_eq!(U256([0x00192437100019fa, 0x243710, 0, 0]), U256::from(&[
                                                                           0x24u8, 0x37, 0x10,
@@ -515,6 +524,16 @@ mod tests {
     }
 
     #[test]
+    pub fn uint256_to() {
+		let hex = "8090a0b0c0d0e0f00910203040506077583a2cf8264910e1436bda32571012f0";
+		let uint = U256::from_str(hex).unwrap();
+		let mut bytes = [0u8; 32];
+		uint.to_bytes(&mut bytes);
+		let uint2 = U256::from(&bytes[..]);
+        assert_eq!(uint, uint2);
+    }
+
+    #[test]
     pub fn uint256_bits_test() {
         assert_eq!(U256::from(0u64).bits(), 0);
         assert_eq!(U256::from(255u64).bits(), 8);
@@ -522,7 +541,7 @@ mod tests {
         assert_eq!(U256::from(300u64).bits(), 9);
         assert_eq!(U256::from(60000u64).bits(), 16);
         assert_eq!(U256::from(70000u64).bits(), 17);
-   
+
         //// Try to read the following lines out loud quickly
         let mut shl = U256::from(70000u64);
         shl = shl << 100;
