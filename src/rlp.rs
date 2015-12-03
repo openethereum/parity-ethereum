@@ -1336,6 +1336,20 @@ mod tests {
 	}
 
 	#[test]
+	fn rlp_stream_list4() {
+		let mut stream = RlpStream::new();
+		stream.append_list(17);
+		let v: Vec<u8> = vec![];
+		for _ in 0..17 {
+			stream.append(&v);
+		}
+		let out = stream.out();
+		assert_eq!(out, vec![0xd1, 0x80, 0x80, 0x80, 0x80, 0x80,
+							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+							 0x80, 0x80, 0x80, 0x80, 0x80, 0x80]);
+	}
+
+	#[test]
 	fn rlp_stream_list3() {
 		let mut stream = RlpStream::new();
 		stream.append_list(17);
@@ -1503,7 +1517,7 @@ mod tests {
 	#[test]
 	fn test_rlp_json() {
 		println!("Json rlp test: ");
-		execute_tests_from_directory::<rlptest::RlpStreamTest, _>("json-tests/json/rlp/*.json", &mut | file, input, output | {
+		execute_tests_from_directory::<rlptest::RlpStreamTest, _>("json-tests/json/rlp/stream/*.json", &mut | file, input, output | {
 			println!("file: {}", file);
 
 			let mut stream = RlpStream::new();
