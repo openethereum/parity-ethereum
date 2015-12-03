@@ -38,8 +38,8 @@ impl From<::std::io::Error> for CryptoError {
 #[derive(Debug, PartialEq, Eq)]
 /// secp256k1 Key pair
 ///
-/// Use `create()` to create a new random key pair. 
-/// 
+/// Use `create()` to create a new random key pair.
+///
 /// # Example
 /// ```rust
 /// extern crate ethcore_util;
@@ -206,11 +206,11 @@ pub mod ecies {
 		use ::rcrypto::hmac::Hmac;
 		use ::rcrypto::mac::Mac;
 
-		let meta_len = encrypted.len() - (1 + 64 + 16 + 32);
+		let meta_len = 1 + 64 + 16 + 32;
 		if encrypted.len() < meta_len  || encrypted[0] < 2 || encrypted[0] > 4 {
 			return Err(CryptoError::InvalidMessage); //invalid message: publickey
 		}
-		
+
 		let e = &encrypted[1..];
 		let p = Public::from_slice(&e[0..64]);
 		let z = try!(ecdh::agree(secret, &p));
@@ -224,14 +224,14 @@ pub mod ecies {
 		hasher.result(&mut mkey);
 
 		let clen = encrypted.len() - meta_len;
-		let cypher_with_iv = &e[64..(64+16+clen)];
-		let cypher_iv = &cypher_with_iv[0..16];
-		let cypher_no_iv = &cypher_with_iv[16..];
+		let cipher_with_iv = &e[64..(64+16+clen)];
+		let cipher_iv = &cipher_with_iv[0..16];
+		let cipher_no_iv = &cipher_with_iv[16..];
 		let msg_mac = &e[(64+16+clen)..];
 
 		// Verify tag
 		let mut hmac = Hmac::new(Sha256::new(), &mkey);
-		hmac.input(cypher_iv);
+		hmac.input(cipher_with_iv);
 		let mut mac = H256::new();
 		hmac.raw_result(&mut mac);
 		if &mac[..] != msg_mac {
@@ -239,7 +239,7 @@ pub mod ecies {
 		}
 
 		let mut msg = vec![0u8; clen];
-		aes::decrypt(ekey, &H128::new(), cypher_no_iv, &mut msg[..]);
+		aes::decrypt(ekey, cipher_iv, cipher_no_iv, &mut msg[..]);
 		Ok(msg)
 	}
 
@@ -266,19 +266,18 @@ pub mod ecies {
 }
 
 pub mod aes {
-	use hash::*;
 	use ::rcrypto::blockmodes::*;
 	use ::rcrypto::aessafe::*;
 	use ::rcrypto::symmetriccipher::*;
 	use ::rcrypto::buffer::*;
 
-	pub fn encrypt(k: &[u8], iv: &H128, plain: &[u8], dest: &mut [u8]) {
-		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv[..].to_vec());
+	pub fn encrypt(k: &[u8], iv: &[u8], plain: &[u8], dest: &mut [u8]) {
+		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 		encryptor.encrypt(&mut RefReadBuffer::new(plain), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
 	}
 
-	pub fn decrypt(k: &[u8], iv: &H128, encrypted: &[u8], dest: &mut [u8]) {
-		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv[..].to_vec());
+	pub fn decrypt(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) {
+		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
 	}
 }

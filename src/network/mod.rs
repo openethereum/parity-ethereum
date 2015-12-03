@@ -3,6 +3,7 @@ mod host;
 mod connection;
 mod handshake;
 mod session;
+mod discovery;
 
 #[derive(Debug, Copy, Clone)]
 pub enum DisconnectReason

@@ -1,10 +1,8 @@
 #![allow(dead_code)] //TODO: remove this after everything is done
 //TODO: remove all unwraps
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::collections::{HashSet, HashMap, BTreeMap};
+use std::collections::{HashMap};
 use std::hash::{Hash, Hasher};
-use std::cell::{RefCell};
-use std::ops::{DerefMut};
 use std::str::{FromStr};
 use mio::*;
 use mio::util::{Slab};
@@ -18,17 +16,10 @@ use network::handshake::Handshake;
 use network::session::Session;
 use network::Error;
 
-const DEFAULT_PORT: u16 = 30303;
+const DEFAULT_PORT: u16 = 30304;
 
-const ADDRESS_BYTES_SIZE: u32 = 32;		        			///< Size of address type in bytes.
-const ADDRESS_BITS: u32 = 8 * ADDRESS_BYTES_SIZE;			///< Denoted by n in [Kademlia].
-const NODE_BINS: u32 = ADDRESS_BITS - 1;					///< Size of m_state (excludes root, which is us).
-const DISCOVERY_MAX_STEPS: u16 = 8;	                        ///< Max iterations of discovery. (discover)
 const MAX_CONNECTIONS: usize = 1024;
 const IDEAL_PEERS:u32 = 10;
-
-const BUCKET_SIZE: u32 = 16;	    ///< Denoted by k in [Kademlia]. Number of nodes stored in each bucket.
-const ALPHA: usize = 3;				///< Denoted by \alpha in [Kademlia]. Number of concurrent FindNode requests.
 
 pub type NodeId = H512;
 
@@ -44,8 +35,8 @@ struct NetworkConfiguration {
 impl NetworkConfiguration {
     fn new() -> NetworkConfiguration {
         NetworkConfiguration {
-            listen_address: SocketAddr::from_str("0.0.0.0:30303").unwrap(),
-            public_address: SocketAddr::from_str("0.0.0.0:30303").unwrap(),
+            listen_address: SocketAddr::from_str("0.0.0.0:30304").unwrap(),
+            public_address: SocketAddr::from_str("0.0.0.0:30304").unwrap(),
             no_nat: false,
             no_discovery: false,
             pin: false,
@@ -54,7 +45,7 @@ impl NetworkConfiguration {
 }
 
 #[derive(Debug)]
-struct NodeEndpoint {
+pub struct NodeEndpoint {
     address: SocketAddr,
     address_str: String,
     udp_port: u16
@@ -142,33 +133,6 @@ impl Hash for Node {
     }
 }
 
-struct NodeBucket {
-    distance: u32,
-    nodes: Vec<NodeId>
-}
-
-impl NodeBucket {
-    fn new(distance: u32) -> NodeBucket {
-        NodeBucket {
-            distance: distance,
-            nodes: Vec::new()
-        }
-    }
-}
-
-struct FindNodePacket;
-
-impl FindNodePacket {
-    fn new(_endpoint: &NodeEndpoint, _id: &NodeId) -> FindNodePacket {
-        FindNodePacket
-    }
-    fn sign(&mut self, _secret: &Secret) {
-    }
-
-    fn send(& self, _socket: &mut UdpSocket) {
-    }
-}
-
 // Tokens
 const TCP_ACCEPT: usize = 1;
 const IDLE: usize = 3;
@@ -190,7 +154,7 @@ pub struct CapabilityInfo {
 
 impl Encodable for CapabilityInfo {
 	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
-		encoder.emit_list(|e| { 
+		encoder.emit_list(|e| {
 			self.protocol.encode(e);
 			self.version.encode(e);
 		});
@@ -241,10 +205,6 @@ pub struct Host {
     udp_socket: UdpSocket,
     listener: TcpListener,
     connections: Slab<ConnectionEntry>,
-    discovery_round: u16,
-    discovery_id: NodeId,
-    discovery_nodes: HashSet<NodeId>,
-    node_buckets: Vec<NodeBucket>,
 	nodes: HashMap<NodeId, Node>,
 	idle_timeout: Timeout,
 }
@@ -279,7 +239,7 @@ impl Host {
 		let port = config.listen_address.port();
 
         let mut host = Host {
-			info: HostInfo { 
+			info: HostInfo {
 				keys: KeyPair::create().unwrap(),
 				config: config,
 				nonce: H256::random(),
@@ -292,14 +252,11 @@ impl Host {
             udp_socket: udp_socket,
             listener: listener,
 			connections: Slab::new_starting_at(Token(FIRST_CONNECTION), MAX_CONNECTIONS),
-            discovery_round: 0,
-            discovery_id: NodeId::new(),
-            discovery_nodes: HashSet::new(),
-            node_buckets: (0..NODE_BINS).map(|x| NodeBucket::new(x)).collect(),
 			nodes: HashMap::new(),
 			idle_timeout: idle_timeout
         };
 
+		host.add_node("enode://c022e7a27affdd1632f2e67dffeb87f02bf506344bb142e08d12b28e7e5c6e5dbb8183a46a77bff3631b51c12e8cf15199f797feafdc8834aaf078ad1a2bcfa0@127.0.0.1:30303");
 		host.add_node("enode://5374c1bff8df923d3706357eeb4983cd29a63be40a269aaa2296ee5f3b2119a8978c0ed68b8f6fc84aad0df18790417daadf91a4bfbb786a16c9b0a199fa254a@gav.ethdev.com:30300");
 		host.add_node("enode://e58d5e26b3b630496ec640f2530f3e7fa8a8c7dfe79d9e9c4aac80e3730132b869c852d3125204ab35bb1b1951f6f2d40996c1034fd8c5a69b383ee337f02ddc@gav.ethdev.com:30303");
 		host.add_node("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303");
@@ -320,145 +277,10 @@ impl Host {
 		match Node::from_str(id) {
 			Err(e) => { warn!("Could not add node: {:?}", e); },
 			Ok(n) => {
-				self.node_buckets[Host::distance(self.info.id(), &n.id) as usize].nodes.push(n.id.clone());
-				self.nodes.insert(n.id.clone(), n); 
+				self.nodes.insert(n.id.clone(), n);
 			}
 		}
 	}
-
-    fn start_node_discovery(&mut self, event_loop: &mut EventLoop<Host>) {
-        self.discovery_round = 0;
-        self.discovery_id.randomize();
-        self.discovery_nodes.clear();
-        self.discover(event_loop);
-    }
-
-    fn discover(&mut self, event_loop: &mut EventLoop<Host>) {
-        if self.discovery_round == DISCOVERY_MAX_STEPS
-        {
-            debug!("Restarting discovery");
-            self.start_node_discovery(event_loop);
-            return;
-        }
-        let mut tried_count = 0;
-        {
-            let nearest = Host::nearest_node_entries(&self.info.id(), &self.discovery_id, &self.node_buckets).into_iter();
-            let nodes = RefCell::new(&mut self.discovery_nodes);
-            let nearest = nearest.filter(|x| nodes.borrow().contains(&x)).take(ALPHA);
-            for r in nearest {
-                //let mut p = FindNodePacket::new(&r.endpoint, &self.discovery_id);
-                //p.sign(&self.secret);
-                //p.send(&mut self.udp_socket);
-                let mut borrowed = nodes.borrow_mut();
-                borrowed.deref_mut().insert(r.clone());
-                tried_count += 1;
-            }
-        }
-
-        if tried_count == 0
-        {
-            debug!("Restarting discovery");
-            self.start_node_discovery(event_loop);
-            return;
-        }
-        self.discovery_round += 1;
-        event_loop.timeout_ms(Token(NODETABLE_DISCOVERY), 1200).unwrap();
-    }
-
-	fn distance(a: &NodeId, b: &NodeId) -> u32 { 
-        let d = a.sha3() ^ b.sha3();
-        let mut ret:u32 = 0;
-        for i in 0..32 {
-            let mut v: u8 = d[i];
-            while v != 0 {
-                v >>= 1;
-                ret += 1;
-            }
-        }
-        ret
-    }
-
-    fn nearest_node_entries<'b>(source: &NodeId, target: &NodeId, buckets: &'b Vec<NodeBucket>) -> Vec<&'b NodeId>
-    {
-        // send ALPHA FindNode packets to nodes we know, closest to target
-        const LAST_BIN: u32 = NODE_BINS - 1;
-        let mut head = Host::distance(source, target);
-        let mut tail = if head == 0  { LAST_BIN } else { (head - 1) % NODE_BINS };
-
-        let mut found: BTreeMap<u32, Vec<&'b NodeId>> = BTreeMap::new();
-        let mut count = 0;
-
-        // if d is 0, then we roll look forward, if last, we reverse, else, spread from d
-        if head > 1 && tail != LAST_BIN {
-            while head != tail && head < NODE_BINS && count < BUCKET_SIZE
-            {
-                for n in buckets[head as usize].nodes.iter()
-                {
-                        if count < BUCKET_SIZE {
-							count += 1;
-                            found.entry(Host::distance(target, &n)).or_insert(Vec::new()).push(n);
-                        }
-                        else {
-                            break;
-                        }
-                }
-                if count < BUCKET_SIZE && tail != 0 {
-                    for n in buckets[tail as usize].nodes.iter() {
-                        if count < BUCKET_SIZE {
-							count += 1;
-                            found.entry(Host::distance(target, &n)).or_insert(Vec::new()).push(n);
-                        }
-                        else {
-                            break;
-                        }
-                    }
-                }
-
-                head += 1;
-                if tail > 0 {
-                    tail -= 1;
-                }
-            }
-        }
-        else if head < 2 {
-            while head < NODE_BINS && count < BUCKET_SIZE {
-                for n in buckets[head as usize].nodes.iter() {
-                        if count < BUCKET_SIZE {
-							count += 1;
-                            found.entry(Host::distance(target, &n)).or_insert(Vec::new()).push(n);
-                        }
-                        else {
-                            break;
-                        }
-                }
-                head += 1;
-            }
-        }
-        else {
-            while tail > 0 && count < BUCKET_SIZE {
-                for n in buckets[tail as usize].nodes.iter() {
-                        if count < BUCKET_SIZE {
-							count += 1;
-                            found.entry(Host::distance(target, &n)).or_insert(Vec::new()).push(n);
-                        }
-                        else {
-                            break;
-                        }
-                }
-                tail -= 1;
-            }
-        }
-
-        let mut ret:Vec<&NodeId> = Vec::new();
-        for (_, nodes) in found {
-            for n in nodes {
-                if ret.len() < BUCKET_SIZE as usize /* && n->endpoint && n->endpoint.isAllowed() */ {
-                    ret.push(n);
-                }
-            }
-        }
-        ret
-    }
 
     fn maintain_network(&mut self, event_loop: &mut EventLoop<Host>) {
         self.connect_peers(event_loop);
@@ -482,7 +304,9 @@ impl Host {
 		let mut to_connect: Vec<NodeInfo> = Vec::new();
 
 		let mut req_conn = 0;
-		for n in self.node_buckets.iter().flat_map(|n| &n.nodes).map(|id| NodeInfo { id: id.clone(), peer_type: self.nodes.get(id).unwrap().peer_type}) {
+		//TODO: use nodes from discovery here
+		//for n in self.node_buckets.iter().flat_map(|n| &n.nodes).map(|id| NodeInfo { id: id.clone(), peer_type: self.nodes.get(id).unwrap().peer_type}) {
+		for n in self.nodes.values().map(|n| NodeInfo { id: n.id.clone(), peer_type: n.peer_type }) {
 			let connected = self.have_session(&n.id) || self.connecting_to(&n.id);
 			let required = n.peer_type == PeerType::Required;
 			if connected && required {
@@ -501,7 +325,7 @@ impl Host {
 				req_conn += 1;
 			}
 		}
-		
+
 		if !self.info.config.pin
 		{
 			let pending_count = 0; //TODO:
@@ -533,8 +357,8 @@ impl Host {
 		let socket = {
 			let node = self.nodes.get_mut(id).unwrap();
 			node.last_attempted = Some(::time::now());
-			
-			
+
+
 			//blog(NetConnect) << "Attempting connection to node" << _p->id << "@" << ep << "from" << id();
 			match TcpStream::connect(&node.endpoint.address) {
 				Ok(socket) => socket,
@@ -547,7 +371,7 @@ impl Host {
 
 		let nonce = self.info.next_nonce();
 		match self.connections.insert_with(|token| ConnectionEntry::Handshake(Handshake::new(token, id, socket, &nonce).expect("Can't create handshake"))) {
-			Some(token) => { 
+			Some(token) => {
 				match self.connections.get_mut(token) {
 					Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
 						h.start(&self.info, true)
@@ -635,7 +459,7 @@ impl Host {
 			match c {
 				ConnectionEntry::Handshake(h) => Session::new(h, event_loop, info)
 					.map(|s| Some(ConnectionEntry::Session(s)))
-					.unwrap_or_else(|e| { 
+					.unwrap_or_else(|e| {
 						debug!(target: "net", "Session construction error: {:?}", e);
 						None
 					}),

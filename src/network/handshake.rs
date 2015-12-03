@@ -56,7 +56,7 @@ impl Handshake {
 		self.originated = originated;
 		if originated {
 			try!(self.write_auth(host));
-		} 
+		}
 		else {
 			self.state = HandshakeState::ReadingAuth;
 			self.connection.expect(AUTH_PACKET_SIZE);
@@ -73,17 +73,17 @@ impl Handshake {
 		match self.state {
 			HandshakeState::ReadingAuth => {
 				match try!(self.connection.readable()) {
-					Some(data)  => { 
-						try!(self.read_auth(host, &data)); 
-						try!(self.write_ack()); 
+					Some(data)  => {
+						try!(self.read_auth(host, &data));
+						try!(self.write_ack());
 					},
 					None => {}
 				};
 			},
 			HandshakeState::ReadingAck => {
 				match try!(self.connection.readable()) {
-					Some(data)  => { 
-						try!(self.read_ack(host, &data)); 
+					Some(data)  => {
+						try!(self.read_ack(host, &data));
 						self.state = HandshakeState::StartSession;
 					},
 					None => {}
@@ -91,7 +91,9 @@ impl Handshake {
 			},
 			_ => { panic!("Unexpected state") }
 		}
-		try!(self.connection.reregister(event_loop));
+		if self.state != HandshakeState::StartSession {
+			try!(self.connection.reregister(event_loop));
+		}
 		Ok(())
 	}
 
@@ -101,7 +103,7 @@ impl Handshake {
 			HandshakeState::WritingAuth => {
 				match try!(self.connection.writable()) {
 					WriteStatus::Complete => {
-						self.connection.expect(ACK_PACKET_SIZE); 
+						self.connection.expect(ACK_PACKET_SIZE);
 						self.state = HandshakeState::ReadingAck;
 					},
 					_ => {}
@@ -109,8 +111,8 @@ impl Handshake {
 			},
 			HandshakeState::WritingAck => {
 				match try!(self.connection.writable()) {
-					WriteStatus::Complete => { 
-						self.connection.expect(32); 
+					WriteStatus::Complete => {
+						self.connection.expect(32);
 						self.state = HandshakeState::StartSession;
 					},
 					_ => {}
@@ -118,7 +120,9 @@ impl Handshake {
 			},
 			_ => { panic!("Unexpected state") }
 		}
-		try!(self.connection.reregister(event_loop));
+		if self.state != HandshakeState::StartSession {
+			try!(self.connection.reregister(event_loop));
+		}
 		Ok(())
 	}
 
@@ -155,9 +159,8 @@ impl Handshake {
 		assert!(data.len() == ACK_PACKET_SIZE);
 		self.ack_cipher = data.to_vec();
 		let ack = try!(ecies::decrypt(host.secret(), data));
-		let (pubk, nonce) = ack.split_at(65);
-		self.remote_public.clone_from_slice(pubk);
-		self.remote_nonce.clone_from_slice(nonce);
+		self.remote_public.clone_from_slice(&ack[0..64]);
+		self.remote_nonce.clone_from_slice(&ack[64..(64+32)]);
 		Ok(())
 	}
 
@@ -171,7 +174,7 @@ impl Handshake {
 			let (hepubk, rest) = rest.split_at_mut(32);
 			let (pubk, rest) = rest.split_at_mut(64);
 			let (nonce, _) = rest.split_at_mut(32);
-			
+
 			// E(remote-pubk, S(ecdhe-random, ecdh-shared-secret^nonce) || H(ecdhe-random-pubk) || pubk || nonce || 0x0)
 			let shared = try!(crypto::ecdh::agree(host.secret(), &self.id));
 			try!(crypto::ec::sign(self.ecdhe.secret(), &(&shared ^ &self.nonce))).copy_to(sig);

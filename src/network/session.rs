@@ -1,5 +1,5 @@
-#![allow(dead_code)] //TODO: remove this after everything is done
-//TODO: hello packet timeout
+//#![allow(dead_code)] //TODO: remove this after everything is done
+
 use mio::*;
 use hash::*;
 use rlp::*;
@@ -30,11 +30,10 @@ const PACKET_PEERS: u8 = 0x05;
 const PACKET_USER: u8 = 0x10;
 const PACKET_LAST: u8 = 0x7f;
 
-impl Session { 
+impl Session {
 	pub fn new(h: Handshake, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<Session, Error> {
 		let id = h.id.clone();
-		let mut connection = try!(EncryptedConnection::new(h));
-		try!(connection.register(event_loop));
+		let connection = try!(EncryptedConnection::new(h));
 		let mut session = Session {
 			connection: connection,
 			had_hello: false,
@@ -47,13 +46,14 @@ impl Session {
 		};
 		try!(session.write_hello(host));
 		try!(session.write_ping());
+		try!(session.connection.register(event_loop));
 		Ok(session)
 	}
 
 	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<(), Error> {
 		match try!(self.connection.readable(event_loop)) {
-			Some(data)  => { 
-				try!(self.read_packet(data, host)); 
+			Some(data)  => {
+				try!(self.read_packet(data, host));
 			},
 			None => {}
 		};
@@ -105,7 +105,7 @@ impl Session {
 
 	fn read_hello(&mut self, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), Error> {
 		let protocol = try!(u32::decode_untrusted(&try!(rlp.at(0))));
-		let client_version = try!(String::decode_untrusted(&try!(rlp.at(0))));
+		let client_version = try!(String::decode_untrusted(&try!(rlp.at(1))));
 		let mut caps: Vec<CapabilityInfo> = try!(Decodable::decode_untrusted(&try!(rlp.at(2))));
 		let id = try!(NodeId::decode_untrusted(&try!(rlp.at(4))));
 
