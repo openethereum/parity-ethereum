@@ -20,3 +20,6 @@ num = "0.1"
 lazy_static = "0.1.*"
 eth-secp256k1 = { git = "https://github.com/arkpar/rust-secp256k1.git" }
 rust-crypto = "0.2.34"
+
+[dev-dependencies]
+json-tests = { path = "json-tests" }

@@ -1,0 +1,10 @@
+{
+	"input":
+	[
+		{
+			"operation": "append",
+			"value": "\u0000"
+		}
+	],
+	"output": "0x00"
+}

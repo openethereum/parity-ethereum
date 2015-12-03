@@ -277,63 +277,13 @@ fn test_hex_prefix_encode() {
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
-	use std::collections::BTreeMap;
-	use rustc_serialize::hex::FromHex;
-	use rustc_serialize::json::Json;
-	use bytes::*;
+	extern crate json_tests;
+	use self::json_tests::*;
 	use hash::*;
 	use triehash::*;
 
 	#[test]
-	fn empty_trie_root() {
-		assert_eq!(trie_root(vec![]), H256::from_str("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").unwrap());
-	}
-
-	#[test]
-	fn single_trie_item() {
-		let v = vec![(From::from("A"), From::from("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))];
-		assert_eq!(trie_root(v), H256::from_str("d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab").unwrap());
-	}
-
-	#[test]
-	fn foo_trie_item() {
-
-		let v = vec![
-			(From::from("foo"), From::from("bar")),
-			(From::from("food"), From::from("bass"))
-		];
-
-		assert_eq!(trie_root(v), H256::from_str("17beaa1648bafa633cda809c90c04af50fc8aed3cb40d16efbddee6fdf63c4c3").unwrap());
-	}
-
-	#[test]
-	fn dogs_trie_item() {
-
-		let v = vec![
-			(From::from("doe"), From::from("reindeer")),
-			(From::from("dog"), From::from("puppy")),
-			(From::from("dogglesworth"), From::from("cat")),
-		];
-
-		assert_eq!(trie_root(v), H256::from_str("8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3").unwrap());
-	}
-
-	#[test]
-	fn puppy_trie_items() {
-
-		let v = vec![
-			(From::from("do"), From::from("verb")),
-			(From::from("dog"), From::from("puppy")),
-			(From::from("doge"), From::from("coin")),
-			(From::from("horse"), From::from("stallion")),
-		];
-
-		assert_eq!(trie_root(v), H256::from_str("5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84").unwrap());
-	}
-
-	#[test]
-	fn out_of_order() {
+	fn test_triehash_out_of_order() {
 		assert!(trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
@@ -347,50 +297,10 @@ mod tests {
 	}
 
 	#[test]
-	fn test_trie_root() {
-		let v = vec![
-
-			("0000000000000000000000000000000000000000000000000000000000000045".from_hex().unwrap(),
-			 "22b224a1420a802ab51d326e29fa98e34c4f24ea".from_hex().unwrap()),
-
-			("0000000000000000000000000000000000000000000000000000000000000046".from_hex().unwrap(),
-			 "67706c2076330000000000000000000000000000000000000000000000000000".from_hex().unwrap()),
-
-			("000000000000000000000000697c7b8c961b56f675d570498424ac8de1a918f6".from_hex().unwrap(),
-			 "6f6f6f6820736f2067726561742c207265616c6c6c793f000000000000000000".from_hex().unwrap()),
-
-			("0000000000000000000000007ef9e639e2733cb34e4dfc576d4b23f72db776b2".from_hex().unwrap(),
-			 "4655474156000000000000000000000000000000000000000000000000000000".from_hex().unwrap()),
-
-			("000000000000000000000000ec4f34c97e43fbb2816cfd95e388353c7181dab1".from_hex().unwrap(),
-			 "4e616d6552656700000000000000000000000000000000000000000000000000".from_hex().unwrap()),
-
-			("4655474156000000000000000000000000000000000000000000000000000000".from_hex().unwrap(),
-			 "7ef9e639e2733cb34e4dfc576d4b23f72db776b2".from_hex().unwrap()),
-
-			("4e616d6552656700000000000000000000000000000000000000000000000000".from_hex().unwrap(),
-			 "ec4f34c97e43fbb2816cfd95e388353c7181dab1".from_hex().unwrap()),
-
-			("6f6f6f6820736f2067726561742c207265616c6c6c793f000000000000000000".from_hex().unwrap(),
-			 "697c7b8c961b56f675d570498424ac8de1a918f6".from_hex().unwrap())
-
-		];
-
-		assert_eq!(trie_root(v), H256::from_str("9f6221ebb8efe7cff60a716ecb886e67dd042014be444669f0159d8e68b42100").unwrap());
+	fn test_triehash_json() {
+		execute_tests_from_directory::<trie::TriehashTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
+			println!("file: {}, output: {:?}", file, output);
+			assert_eq!(trie_root(input), H256::from_slice(&output));
+		});
 	}
-
-	#[test]
-	fn test_triehash_json_trietest_json() {
-		//let data = include_bytes!("../tests/TrieTests/trietest.json");
-
-		//let s = String::from_bytes(data).unwrap();
-		//let json = Json::from_str(&s).unwrap();
-		//let obj = json.as_object().unwrap();
-
-		//for (key, value) in obj.iter() {
-		//	println!("running test: {}", key);
-		//}
-		//assert!(false);
-	}
-
 }

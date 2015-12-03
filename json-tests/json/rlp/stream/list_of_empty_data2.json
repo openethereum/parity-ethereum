@@ -1,0 +1,19 @@
+{
+	"input":
+	[
+		{
+			"operation": "append_list",
+			"len": 3
+		},
+		{
+			"operation": "append_empty"
+		},
+		{
+			"operation": "append_empty"
+		},
+		{
+			"operation": "append_empty"
+		}
+	],
+	"output": "0xc3808080"
+}

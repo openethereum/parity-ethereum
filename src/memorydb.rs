@@ -116,6 +116,10 @@ impl MemoryDB {
 		}
 		self.data.get(key).unwrap()
 	}
+
+	pub fn raw_keys(&self) -> HashMap<H256, i32> {
+		self.data.iter().filter_map(|(k, v)| if v.1 != 0 {Some((k.clone(), v.1))} else {None}).collect::<HashMap<H256, i32>>()
+	}
 }
 
 impl HashDB for MemoryDB {
@@ -124,6 +128,10 @@ impl HashDB for MemoryDB {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => None
 		}
+	}
+
+	fn keys(&self) -> HashMap<H256, u32> {
+		self.data.iter().filter_map(|(k, v)| if v.1 > 0 {Some((k.clone(), v.1 as u32))} else {None} ).collect::<HashMap<H256, u32>>()
 	}
 
 	fn exists(&self, key: &H256) -> bool {
