@@ -801,28 +801,86 @@ mod tests {
 	use rlp;
 	use env_logger;
 	use rand::random;
-	use bytes::ToPretty;
+	use std::collections::HashSet;
+	use bytes::{ToPretty,Bytes};
+
+	fn random_key() -> Vec<u8> {
+		let chars = b"abcdefgrstuvwABCDEFGRSTUVW";
+		let mut ret: Vec<u8> = Vec::new();
+		let r = random::<u8>() % 4 + 1;
+		for _ in 0..r {
+			ret.push(chars[random::<usize>() % chars.len()]);
+		}
+		ret
+	}
+
+	fn random_value(i: usize) -> Bytes {
+		match random::<usize>() % 2 {
+			0 => rlp::encode(&i),
+			_ => {
+				let mut h = H256::new();
+				h.mut_bytes()[31] = i as u8;
+				rlp::encode(&h)
+			},
+		}
+	}
+
+	fn populate_trie(v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDB {
+		let mut t = TrieDB::new_memory();
+		for i in 0..v.len() {
+			let key: &[u8]= &v[i].0;
+			let val: &[u8] = &v[i].1;
+			t.insert(&key, &val);
+		}
+		t
+	}
+
+	fn unpopulate_trie(t: &mut TrieDB, v: &Vec<(Vec<u8>, Vec<u8>)>) {
+		for i in v.iter() {
+			let key: &[u8]= &i.0;
+			t.remove(&key);
+		}
+	}
 
 	#[test]
 	fn playpen() {
 		env_logger::init().ok();
+		for _ in 0..1000 {
+			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
+			let mut got: HashSet<Vec<u8>> = HashSet::new();
+			for j in 0..10usize {
+				let key = random_key();
+				if !got.contains(&key) {
+					x.push((key.clone(), random_value(j)));
+					got.insert(key);
+				}
+			}
 
-		let big_value = b"00000000000000000000000000000000";
-
-		let mut t1 = TrieDB::new_memory();
-		t1.insert(&[0x01, 0x23], &big_value.to_vec());
-		t1.insert(&[0x01, 0x34], &big_value.to_vec());
-		trace!("keys remaining {:?}", t1.db_items_remaining());
-		assert!(t1.db_items_remaining().is_empty());
-		let mut t2 = TrieDB::new_memory();
-		t2.insert(&[0x01], &big_value.to_vec());
-		t2.insert(&[0x01, 0x23], &big_value.to_vec());
-		t2.insert(&[0x01, 0x34], &big_value.to_vec());
-		t2.remove(&[0x01]);
-		assert!(t2.db_items_remaining().is_empty());
-		/*if t1.root() != t2.root()*/ {
-			trace!("{:?}", t1);
-			trace!("{:?}", t2);
+			let real = trie_root(x.clone());
+			let mut memtrie = populate_trie(&x);
+			if *memtrie.root() != real || !memtrie.db_items_remaining().is_empty() {
+				println!("TRIE MISMATCH");
+				println!("");
+				println!("{:?} vs {:?}", memtrie.root(), real);
+				for i in x.iter() {
+					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
+				}
+				println!("{:?}", memtrie);
+			}
+			assert_eq!(*memtrie.root(), real);
+			assert!(memtrie.db_items_remaining().is_empty());
+			unpopulate_trie(&mut memtrie, &x);
+			if *memtrie.root() != SHA3_NULL_RLP || !memtrie.db_items_remaining().is_empty() {
+				println!("TRIE MISMATCH");
+				println!("");
+				println!("{:?} vs {:?}", memtrie.root(), real);
+				for i in x.iter() {
+					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
+				}
+				println!("{:?}", memtrie);
+			}
+			assert_eq!(*memtrie.root(), SHA3_NULL_RLP);
+			assert!(memtrie.db_items_remaining().is_empty());
 		}
 	}
 
@@ -842,6 +900,23 @@ mod tests {
 
 	#[test]
 	fn remove_to_empty() {
+		let big_value = b"00000000000000000000000000000000";
+
+		let mut t1 = TrieDB::new_memory();
+		t1.insert(&[0x01, 0x23], &big_value.to_vec());
+		t1.insert(&[0x01, 0x34], &big_value.to_vec());
+		trace!("keys remaining {:?}", t1.db_items_remaining());
+		assert!(t1.db_items_remaining().is_empty());
+		let mut t2 = TrieDB::new_memory();
+		t2.insert(&[0x01], &big_value.to_vec());
+		t2.insert(&[0x01, 0x23], &big_value.to_vec());
+		t2.insert(&[0x01, 0x34], &big_value.to_vec());
+		t2.remove(&[0x01]);
+		assert!(t2.db_items_remaining().is_empty());
+		/*if t1.root() != t2.root()*/ {
+			trace!("{:?}", t1);
+			trace!("{:?}", t2);
+		}
 	}
 
 	#[test]
@@ -1022,16 +1097,6 @@ mod tests {
 		//assert!(false);
 	}
 
-	fn random_key() -> Vec<u8> {
-		let chars = b"abcdefgrstuvwABCDEFGRSTUVW";
-		let mut ret: Vec<u8> = Vec::new();
-		let r = random::<u8>() % 4 + 1;
-		for _ in 0..r {
-			ret.push(chars[random::<usize>() % chars.len()]);
-		}
-		ret
-	}
-
 	#[test]
 	fn stress() {
 		for _ in 0..5000 {
@@ -1041,10 +1106,10 @@ mod tests {
 				x.push((key, rlp::encode(&j)));
 			}
 			let real = trie_root(x.clone());
-			let memtrie = trie_root_mem(&x);
+			let memtrie = populate_trie(&x);
 			let mut y = x.clone();
 			y.sort_by(|ref a, ref b| a.0.cmp(&b.0));
-			let memtrie_sorted = trie_root_mem(&y);
+			let memtrie_sorted = populate_trie(&y);
 			if *memtrie.root() != real || *memtrie_sorted.root() != real {
 				println!("TRIE MISMATCH");
 				println!("");
@@ -1062,18 +1127,6 @@ mod tests {
 			assert_eq!(*memtrie.root(), real);
 			assert_eq!(*memtrie_sorted.root(), real);
 		}
-	}
-
-	fn trie_root_mem(v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDB {
-		let mut t = TrieDB::new_memory();
-		
-		for i in 0..v.len() {
-			let key: &[u8]= &v[i].0;
-			let val: &[u8] = &v[i].1;
-			t.insert(&key, &val);
-		}
-
-		t
 	}
 
 	#[test]
