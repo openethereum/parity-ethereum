@@ -1,7 +1,11 @@
 use hash::*;
 use bytes::*;
+use std::collections::HashMap;
 
 pub trait HashDB {
+	/// Get the keys in the database together with number of underlying references.
+	fn keys(&self) -> HashMap<H256, u32>;
+
 	/// Look up a given hash into the bytes that hash to it, returning None if the 
 	/// hash is not known.
 	///

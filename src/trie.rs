@@ -8,6 +8,7 @@ use hash::*;
 use nibbleslice::*;
 use bytes::*;
 use rlp::*;
+use std::collections::HashMap;
 
 //use log::*;
 
@@ -238,11 +239,61 @@ impl TrieDB {
 		}
 	}
 
+	pub fn keys(&self) -> Vec<H256> {
+		let mut ret: Vec<H256> = Vec::new();
+		ret.push(self.root.clone());
+		self.accumulate_keys(self.root_node(), &mut ret);
+		ret
+	}
+
+	fn accumulate_keys(&self, node: Node, acc: &mut Vec<H256>) {
+		let mut handle_payload = |payload| {
+			let p = Rlp::new(payload);
+			if p.is_data() && p.size() == 32 {
+				acc.push(H256::decode(&p));
+			}
+
+			self.accumulate_keys(self.get_node(payload), acc);
+		};
+
+		match node {
+			Node::Extension(_, payload) => handle_payload(payload),
+			Node::Branch(payloads, _) => for payload in payloads.iter() { handle_payload(payload) },
+			_ => {},
+		}
+	}
+
+	fn to_map(hashes: Vec<H256>) -> HashMap<H256, u32> {
+		let mut r: HashMap<H256, u32> = HashMap::new();
+		for h in hashes.into_iter() {
+			let c = *r.get(&h).unwrap_or(&0);
+			r.insert(h, c + 1);
+		}
+		r
+	}
+
+	pub fn db_items_remaining(&self) -> HashMap<H256, u32> {
+		let mut ret = self.db().keys();
+		for (k, v) in Self::to_map(self.keys()).into_iter() {
+			let old = *ret.get(&k).expect("Node in trie is not in database!");
+			assert!(old >= v);
+			match old > v {
+				true => ret.insert(k, old - v),
+				_ => ret.remove(&k),
+			};
+		}
+		ret
+	}
+
 	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
 		for _ in 0..size { 
 			try!(write!(f, "  "));
 		}
 		Ok(())
+	}
+
+	fn root_node(&self) -> Node {
+		Node::decoded(self.db.lookup(&self.root).expect("Trie root not found!"))
 	}
 
 	fn get_node<'a>(&'a self, node: &'a [u8]) -> Node {
@@ -762,11 +813,14 @@ mod tests {
 		let mut t1 = TrieDB::new_memory();
 		t1.insert(&[0x01, 0x23], &big_value.to_vec());
 		t1.insert(&[0x01, 0x34], &big_value.to_vec());
+		trace!("keys remaining {:?}", t1.db_items_remaining());
+		assert!(t1.db_items_remaining().is_empty());
 		let mut t2 = TrieDB::new_memory();
 		t2.insert(&[0x01], &big_value.to_vec());
 		t2.insert(&[0x01, 0x23], &big_value.to_vec());
 		t2.insert(&[0x01, 0x34], &big_value.to_vec());
 		t2.remove(&[0x01]);
+		assert!(t2.db_items_remaining().is_empty());
 		/*if t1.root() != t2.root()*/ {
 			trace!("{:?}", t1);
 			trace!("{:?}", t2);

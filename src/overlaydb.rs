@@ -9,6 +9,7 @@ use memorydb::*;
 use std::ops::*;
 use std::sync::*;
 use std::env;
+use std::collections::HashMap;
 use rocksdb::{DB, Writable};
 
 #[derive(Clone)]
@@ -135,6 +136,20 @@ impl OverlayDB {
 }
 
 impl HashDB for OverlayDB {
+	fn keys(&self) -> HashMap<H256, u32> {
+		let mut ret: HashMap<H256, u32> = HashMap::new();
+		for (key, _) in self.backing.iterator().from_start() {
+			let h = H256::from_slice(key.deref());
+			let r = self.payload(&h).unwrap().1;
+			ret.insert(h, r);
+		}
+
+		for (key, refs) in self.overlay.raw_keys().into_iter() {
+			let refs = *ret.get(&key).unwrap_or(&0u32) as i32 + refs as i32;
+			ret.insert(key, refs as u32);
+		}
+		ret
+	}
 	fn lookup(&self, key: &H256) -> Option<&[u8]> {
 		// return ok if positive; if negative, check backing - might be enough references there to make
 		// it positive again.

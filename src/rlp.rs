@@ -125,6 +125,7 @@ impl<'a> From<Rlp<'a>> for UntrustedRlp<'a> {
 	}
 }
 
+#[derive(Debug)]
 pub enum Prototype {
 	Null,
 	Data(usize),
