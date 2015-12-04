@@ -1,4 +1,4 @@
-//! Generete trie root.
+//! Generetes trie root.
 //! 
 //! This module should be used to generate trie root hash.
 
@@ -10,7 +10,6 @@ use rlp;
 use rlp::RlpStream;
 use vector::SharedPrefix;
 
-// todo: verify if example for ordered_trie_root is valid
 /// Generates a trie root hash for a vector of values
 /// 
 /// ```rust
