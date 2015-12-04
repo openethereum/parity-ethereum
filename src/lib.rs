@@ -32,7 +32,6 @@ extern crate mio;
 extern crate rand;
 extern crate rocksdb;
 extern crate tiny_keccak;
-extern crate num;
 #[macro_use]
 extern crate log;
 #[macro_use]
