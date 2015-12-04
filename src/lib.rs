@@ -1,13 +1,37 @@
 //! Ethcore-util library
+//!
+//! ### Rust version:
+//! - beta
+//! - nightly
 //! 
-//! TODO: check reexports
+//! ### Supported platforms:
+//! - OSX
+//! - Linux
+//!
+//! ### Dependencies:
+//! - RocksDB 3.13 
+//! 
+//! ### Dependencies Installation:
+//!
+//! - OSX:
+//! 
+//!   ```bash
+//!   brew install rocksdb
+//!   ```
+//! 
+//! - From source:
+//!
+//!   ```bash
+//!   wget https://github.com/facebook/rocksdb/archive/rocksdb-3.13.tar.gz
+//!   tar xvf rocksdb-3.13.tar.gz && cd rocksdb-rocksdb-3.13 && make shared_lib
+//!   sudo make install
+//!   ```
 
 extern crate rustc_serialize;
 extern crate mio;
 extern crate rand;
 extern crate rocksdb;
 extern crate tiny_keccak;
-extern crate num;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -39,12 +63,3 @@ pub mod trie;
 pub mod nibbleslice;
 
 //pub mod network;
-
-// reexports
-pub use std::str::FromStr;
-pub use hash::*;
-pub use sha3::*;
-pub use bytes::*;
-pub use hashdb::*;
-pub use memorydb::*;
-

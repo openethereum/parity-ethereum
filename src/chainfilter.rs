@@ -41,7 +41,6 @@
 use std::collections::{HashMap};
 use hash::*;
 use sha3::*;
-use num::pow;
 
 /// Represents bloom index in cache
 /// 
@@ -119,13 +118,21 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 		let mut filter = ChainFilter {
 			data_source: data_source,
 			index_size: index_size,
-			level_sizes: vec![]
+			// 0 level has always a size of 1
+			level_sizes: vec![1]
 		};
 
 		// cache level sizes, so we do not have to calculate them all the time
-		for i in 0..levels {
-			filter.level_sizes.push(pow(index_size, i as usize));
-		}
+		// eg. if levels == 3, index_size = 16
+		// level_sizes = [1, 16, 256]
+		let additional: Vec<usize> = (1..).into_iter()
+			.scan(1, |acc, _| {
+				*acc = *acc * index_size; 
+				Some(*acc)
+			})
+			.take(levels as usize - 1)
+			.collect();
+		filter.level_sizes.extend(additional);
 
 		filter
 	}
