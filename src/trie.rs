@@ -511,58 +511,24 @@ impl TrieDB {
 		}
 	}
 
-	/// Transform an existing extension or leaf node to an invalid single-entry branch.
-	///
-	/// **This operation will not insert the new node nor destroy the original.**
-	fn transmuted_extension_to_branch(orig_partial: &NibbleSlice, orig_raw_payload: &[u8], diff: &mut Diff) -> Bytes {
-		trace!("transmuted_extension_to_branch");
-		let mut s = RlpStream::new_list(17);
-		assert!(!orig_partial.is_empty());	// extension nodes are not allowed to have empty partial keys.
-		let index = orig_partial.at(0);
-		// orig is extension - orig_raw_payload is a node itself.
-		for i in 0..17 {
-			if index == i {
-				if orig_partial.len() > 1 {
-					// still need an extension
-					diff.new_node(Self::compose_extension(&orig_partial.mid(1), orig_raw_payload), &mut s);
-				} else {
-					// was an extension of length 1 - just redirect the payload into here.
-					s.append_raw(orig_raw_payload, 1);
-				}
-			} else {
-				s.append_empty_data();
-			}
-		}
-		s.out()
-	}
-
-	fn transmuted_leaf_to_branch(orig_partial: &NibbleSlice, value: &[u8], diff: &mut Diff) -> Bytes {
-		trace!("transmuted_leaf_to_branch");
+	fn augmented_into_transmuted_branch(&self, orig_is_leaf: bool, orig_partial: &NibbleSlice, orig_raw_payload: &[u8], partial: &NibbleSlice, value: &[u8], diff: &mut Diff) -> Bytes {
+		assert!(orig_is_leaf || !orig_partial.is_empty());	// extension nodes are not allowed to have empty partial keys.
 		let mut s = RlpStream::new_list(17);
 		let index = if orig_partial.is_empty() {16} else {orig_partial.at(0)};
-		// orig is leaf - orig_raw_payload is data representing the actual value.
 		for i in 0..17 {
-			match (index == i, i) {
-				(true, 16) => // leaf entry - just replace.
-					{ s.append(&value); },
-				(true, _) => // easy - original had empty slot.
-					diff.new_node(Self::compose_leaf(&orig_partial.mid(1), value), &mut s),
-				(false, _) => { s.append_empty_data(); }
+			match orig_is_leaf {
+				// not us - empty.
+				_ if index != i => { s.append_empty_data(); },
+				// just replace.
+				true if i == 16 => { s.append(&value); },
+				// original has empty slot.
+				true => diff.new_node(Self::compose_leaf(&orig_partial.mid(1), Rlp::new(orig_raw_payload).data()), &mut s),
+				// 
+				false if orig_partial.len() > 1 => diff.new_node(Self::compose_extension(&orig_partial.mid(1), orig_raw_payload), &mut s),
+				false => { s.append_raw(orig_raw_payload, 1); },
 			}
-		}
-		s.out()
-	}
-
-	/// Transform an existing extension or leaf node plus a new partial/value to a two-entry branch.
-	///
-	/// **This operation will not insert the new node nor destroy the original.**
-	fn transmuted_to_branch_and_augmented(&self, orig_is_leaf: bool, orig_partial: &NibbleSlice, orig_raw_payload: &[u8], partial: &NibbleSlice, value: &[u8], diff: &mut Diff) -> Bytes {
-		trace!("transmuted_to_branch_and_augmented");
-		let intermediate = match orig_is_leaf {
-			true => Self::transmuted_leaf_to_branch(orig_partial, Rlp::new(orig_raw_payload).data(), diff),
-			false => Self::transmuted_extension_to_branch(orig_partial, orig_raw_payload, diff),
 		};
-		self.augmented(&intermediate, partial, value, diff)
+		self.augmented(&s.out(), partial, value, diff)
 		// TODO: implement without having to make an intermediate representation.
 	}
 
@@ -573,17 +539,19 @@ impl TrieDB {
 		trace!("augmented_into_branch");
 		let mut s = RlpStream::new_list(17);
 		let index = if partial.is_empty() {16} else {partial.at(0) as usize};
-		for i in 0usize..17 {
-			match (index == i, i) {
-				(true, 16) => // leaf entry - just replace.
-					{ s.append(&value); },
-				(true, i) if orig.at(i).is_empty() => // easy - original had empty slot.
-					diff.new_node(Self::compose_leaf(&partial.mid(1), value), &mut s),
-				(true, i) => {	// harder - original has something there already
+		for i in 0..17 {
+			match index == i {
+				// not us - leave alone.
+				false => { s.append_raw(orig.at(i).raw(), 1); },
+				// branch-leaf entry - just replace.
+				true if i == 16 => { s.append(&value); },
+				// original had empty slot - place a leaf there.
+				true if orig.at(i).is_empty() => diff.new_node(Self::compose_leaf(&partial.mid(1), value), &mut s),
+				// original has something there already; augment.
+				true => {	
 					let new = self.augmented(self.take_node(&orig.at(i), diff), &partial.mid(1), value, diff);
 					diff.new_node(new, &mut s);
 				}
-				(false, i) => { s.append_raw(orig.at(i).raw(), 1); },
 			}
 		}
 		s.out()
@@ -619,17 +587,16 @@ impl TrieDB {
 					(_, 0) => {
 						// one of us isn't empty: transmute to branch here
 						trace!("no-common-prefix, not-both-empty (exist={:?}; new={:?}): TRANSMUTE,AUGMENT", existing_key.len(), partial.len());
-						self.transmuted_to_branch_and_augmented(is_leaf, &existing_key, old_rlp.at(1).raw(), partial, value, diff)
+						self.augmented_into_transmuted_branch(is_leaf, &existing_key, old_rlp.at(1).raw(), partial, value, diff)
 					},
 					(_, cp) if cp == existing_key.len() => {
 						trace!("complete-prefix (cp={:?}): AUGMENT-AT-END", cp);
 						// fully-shared prefix for this extension:
 						// transform to an extension + augmented version of onward node.
-						let downstream_node: Bytes = if is_leaf {
+						let downstream_node: Bytes = match is_leaf {
 							// no onward node because we're a leaf - create fake stub and use that.
-							self.augmented(&Self::compose_stub_branch(old_rlp.at(1).data()), &partial.mid(cp), value, diff)
-						} else {
-							self.augmented(self.take_node(&old_rlp.at(1), diff), &partial.mid(cp), value, diff)
+							true => self.augmented(&Self::compose_stub_branch(old_rlp.at(1).data()), &partial.mid(cp), value, diff),
+							false => self.augmented(self.take_node(&old_rlp.at(1), diff), &partial.mid(cp), value, diff),
 						};
 						Self::create_extension(&existing_key, downstream_node, diff)
 					},
