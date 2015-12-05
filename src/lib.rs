@@ -1,5 +1,9 @@
-#[macro_use] extern crate log;
+#[macro_use] 
+extern crate log;
 extern crate ethcore_util;
+
+#[cfg(feature = "jit" )]
+extern crate evmjit;
 
 use ethcore_util::hash::*;
 use ethcore_util::uint::*;

@@ -10,3 +10,7 @@ authors = ["Ethcore <admin@ethcore.io>"]
 log = "0.3"
 env_logger = "0.3"
 ethcore-util = "0.1.0"
+evmjit = { path = "rust-evmjit", optional = true }
+
+[features]
+jit = ["evmjit"]
