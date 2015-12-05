@@ -26,6 +26,67 @@ pub trait Trie {
 	fn remove(&mut self, key: &[u8]);
 }
 
+pub enum Alphabet {
+	All,
+	Low,
+	Mid,
+	Custom(Bytes),
+}
+
+pub struct StandardMap {
+	alphabet: Alphabet,
+	min_key: usize,
+	diff_key: usize,
+	count: usize,
+}
+
+impl StandardMap {
+	fn random_bytes(min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8> {
+		assert!(min_count + diff_count <= 32);
+		*seed = seed.sha3();
+		let r = min_count + (seed.bytes()[31] as usize % (diff_count + 1));
+		seed.bytes()[0..r].to_vec()
+	}
+
+	fn random_value(seed: &mut H256) -> Bytes {
+		*seed = seed.sha3();
+		match seed.bytes()[0] % 2 {
+			1 => vec![seed.bytes()[31];1],
+			_ => seed.bytes().to_vec(),
+		}
+	}
+
+	fn random_word(alphabet: &[u8], min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8> {
+		assert!(min_count + diff_count <= 32);
+		*seed = seed.sha3();
+		let r = min_count + (seed.bytes()[31] as usize % (diff_count + 1));
+		let mut ret: Vec<u8> = Vec::with_capacity(r);
+		for i in 0..r {
+			ret.push(alphabet[seed.bytes()[i] as usize % alphabet.len()]);
+		}
+		ret
+	}
+
+	pub fn make(&self) -> Vec<(Bytes, Bytes)> {
+		let low = b"abcdef";
+		let mid = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
+
+		let mut d: Vec<(Bytes, Bytes)> = Vec::new();
+		let mut seed = H256::new();
+		for _ in 0..self.count {
+			let k = match self.alphabet {
+				Alphabet::All => Self::random_bytes(self.min_key, self.diff_key, &mut seed),
+				Alphabet::Low => Self::random_word(low, self.min_key, self.diff_key, &mut seed),
+				Alphabet::Mid => Self::random_word(mid, self.min_key, self.diff_key, &mut seed),
+				Alphabet::Custom(ref a) => Self::random_word(&a, self.min_key, self.diff_key, &mut seed),
+			};
+			let v = Self::random_value(&mut seed);
+			d.push((k, v))
+		}
+		d
+	}
+}
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum Node<'a> {
 	Empty,
@@ -34,11 +95,13 @@ pub enum Node<'a> {
 	Branch([&'a[u8]; 16], Option<&'a [u8]>)
 }
 
+#[derive(Debug)]
 enum Operation {
 	New(H256, Bytes),
 	Delete(H256),
 }
 
+#[derive(Debug)]
 struct Diff (Vec<Operation>);
 
 impl Diff {
@@ -48,8 +111,9 @@ impl Diff {
 	/// such that the reference is valid, once applied.
 	fn new_node(&mut self, rlp: Bytes, out: &mut RlpStream) {
 		if rlp.len() >= 32 {
-			trace!("new_node: reference node {:?}", rlp.pretty());
 			let rlp_sha3 = rlp.sha3();
+
+			trace!("new_node: reference node {:?} => {:?}", rlp_sha3, rlp.pretty());
 			out.append(&rlp_sha3);
 			self.0.push(Operation::New(rlp_sha3, rlp));
 		}
@@ -61,25 +125,18 @@ impl Diff {
 
 	/// Given the RLP that encodes a now-unused node, leave `diff` in such a state that it is noted.
 	fn delete_node_sha3(&mut self, old_sha3: H256) {
+		trace!("delete_node:  {:?}", old_sha3);
 		self.0.push(Operation::Delete(old_sha3));
 	}
 
 	fn delete_node(&mut self, old: &Rlp) {
 		if old.is_data() && old.size() == 32 {
-			self.0.push(Operation::Delete(H256::decode(old)));
+			self.delete_node_sha3(H256::decode(old));
 		}
 	}
 
 	fn delete_node_from_slice(&mut self, old: &[u8]) {
-		let r = Rlp::new(old);
-		if r.is_data() && r.size() == 32 {
-			self.0.push(Operation::Delete(H256::decode(&r)));
-		}
-	}
-
-	fn replace_node(&mut self, old: &Rlp, rlp: Bytes, out: &mut RlpStream) {
-		self.delete_node(old);
-		self.new_node(rlp, out);
+		self.delete_node(&Rlp::new(old));
 	}
 }
 
@@ -192,11 +249,12 @@ impl <'a>Node<'a> {
 pub struct TrieDB {
 	db: Box<HashDB>,
 	root: H256,
+	pub hash_count: usize,
 }
 
 impl fmt::Debug for TrieDB {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		try!(writeln!(f, "["));
+		try!(writeln!(f, "c={:?} [", self.hash_count));
 		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
 		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
 		writeln!(f, "]")
@@ -209,7 +267,7 @@ enum MaybeChanged<'a> {
 }
 
 impl TrieDB {
-	pub fn new_boxed(db_box: Box<HashDB>) -> Self { let mut r = TrieDB{ db: db_box, root: H256::new() }; r.set_root_rlp(&NULL_RLP); r }
+	pub fn new_boxed(db_box: Box<HashDB>) -> Self { let mut r = TrieDB{ db: db_box, root: H256::new(), hash_count: 0 }; r.root = r.db.insert(&NULL_RLP); r }
 
 	pub fn new<T>(db: T) -> Self where T: HashDB + 'static { Self::new_boxed(Box::new(db)) }
 
@@ -220,6 +278,7 @@ impl TrieDB {
 	fn set_root_rlp(&mut self, root_data: &[u8]) {
 		self.db.kill(&self.root);
 		self.root = self.db.insert(root_data);
+		self.hash_count += 1;
 		trace!("set_root_rlp {:?} {:?}", root_data.pretty(), self.root);
 	}
 
@@ -234,6 +293,7 @@ impl TrieDB {
 				Operation::New(h, d) => {
 					trace!("TrieDB::apply +++ {:?} -> {:?}", &h, d.pretty());
 					self.db.emplace(h, d);
+					self.hash_count += 1;
 				}
 			}
 		}
@@ -272,14 +332,13 @@ impl TrieDB {
 		r
 	}
 
-	pub fn db_items_remaining(&self) -> HashMap<H256, u32> {
+	pub fn db_items_remaining(&self) -> HashMap<H256, i32> {
 		let mut ret = self.db().keys();
 		for (k, v) in Self::to_map(self.keys()).into_iter() {
-			let old = *ret.get(&k).expect("Node in trie is not in database!");
-			assert!(old >= v);
-			match old > v {
-				true => ret.insert(k, old - v),
-				_ => ret.remove(&k),
+			let keycount = *ret.get(&k).unwrap_or(&0);
+			match keycount == v as i32 {
+				true => ret.remove(&k),
+				_ => ret.insert(k, keycount - v as i32),
 			};
 		}
 		ret
@@ -437,7 +496,11 @@ impl TrieDB {
 		}
 		else if rlp.is_data() && rlp.size() == 32 {
 			let h = H256::decode(rlp);
-			let r = self.db.lookup(&h).expect("Trie root not found!");
+			let r = self.db.lookup(&h).unwrap_or_else(||{
+				println!("Node not found! rlp={:?}, node_hash={:?}", rlp.raw().pretty(), h);
+				println!("Diff: {:?}", diff);
+				panic!();
+			});
 			trace!("take_node {:?} (indirect for {:?})", rlp.raw().pretty(), r);
 			diff.delete_node_sha3(h);
 			r
@@ -518,7 +581,7 @@ impl TrieDB {
 					diff.new_node(Self::compose_leaf(&partial.mid(1), value), &mut s),
 				(true, i) => {	// harder - original has something there already
 					let new = self.augmented(self.take_node(&orig.at(i), diff), &partial.mid(1), value, diff);
-					diff.replace_node(&orig.at(i), new, &mut s);
+					diff.new_node(new, &mut s);
 				}
 				(false, i) => { s.append_raw(orig.at(i).raw(), 1); },
 			}
@@ -801,28 +864,113 @@ mod tests {
 	use rlp;
 	use env_logger;
 	use rand::random;
-	use bytes::ToPretty;
+	use std::collections::HashSet;
+	use bytes::{ToPretty,Bytes};
+
+	fn random_key(alphabet: &[u8], min_count: usize, diff_count: usize) -> Vec<u8> {
+		let mut ret: Vec<u8> = Vec::new();
+		let r = min_count + if diff_count > 0 {random::<usize>() % diff_count} else {0};
+		for _ in 0..r {
+			ret.push(alphabet[random::<usize>() % alphabet.len()]);
+		}
+		ret
+	}
+	
+	fn random_value_indexed(j: usize) -> Bytes {
+		match random::<usize>() % 2 {
+			0 => rlp::encode(&j),
+			_ => {
+				let mut h = H256::new();
+				h.mut_bytes()[31] = j as u8;
+				rlp::encode(&h)
+			},
+		}
+	}
+
+	fn populate_trie(v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDB {
+		let mut t = TrieDB::new_memory();
+		for i in 0..v.len() {
+			let key: &[u8]= &v[i].0;
+			let val: &[u8] = &v[i].1;
+			t.insert(&key, &val);
+		}
+		t
+	}
+
+	fn unpopulate_trie(t: &mut TrieDB, v: &Vec<(Vec<u8>, Vec<u8>)>) {
+		for i in v.iter() {
+			let key: &[u8]= &i.0;
+			t.remove(&key);
+		}
+	}
+
+	macro_rules! map({$($key:expr => $value:expr),+ } => {
+		{
+			let mut m = ::std::collections::HashMap::new();
+			$(
+				m.insert($key, $value);
+			)+
+			m
+		}
+	};);
 
 	#[test]
 	fn playpen() {
 		env_logger::init().ok();
 
-		let big_value = b"00000000000000000000000000000000";
+		let maps = map!{
+			"six-low" => StandardMap{alphabet: Alphabet::Low, min_key: 6, diff_key: 0, count: 1000},
+			"six-mid" => StandardMap{alphabet: Alphabet::Mid, min_key: 6, diff_key: 0, count: 1000},
+			"six-all" => StandardMap{alphabet: Alphabet::All, min_key: 6, diff_key: 0, count: 1000},
+			"mix-mid" => StandardMap{alphabet: Alphabet::Mid, min_key: 1, diff_key: 5, count: 1000}
+		};
+		for sm in maps {
+			let m = sm.1.make();
+			let t = populate_trie(&m);
+			println!("{:?}: root={:?}, hash_count={:?}", sm.0, t.root(), t.hash_count);
+		};
+		panic!();
 
-		let mut t1 = TrieDB::new_memory();
-		t1.insert(&[0x01, 0x23], &big_value.to_vec());
-		t1.insert(&[0x01, 0x34], &big_value.to_vec());
-		trace!("keys remaining {:?}", t1.db_items_remaining());
-		assert!(t1.db_items_remaining().is_empty());
-		let mut t2 = TrieDB::new_memory();
-		t2.insert(&[0x01], &big_value.to_vec());
-		t2.insert(&[0x01, 0x23], &big_value.to_vec());
-		t2.insert(&[0x01, 0x34], &big_value.to_vec());
-		t2.remove(&[0x01]);
-		assert!(t2.db_items_remaining().is_empty());
-		/*if t1.root() != t2.root()*/ {
-			trace!("{:?}", t1);
-			trace!("{:?}", t2);
+		for test_i in 0..1 {
+			if test_i % 50 == 0 {
+				debug!("{:?} of 10000 stress tests done", test_i);
+			}
+			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
+			let mut got: HashSet<Vec<u8>> = HashSet::new();
+			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
+			for j in 0..1000usize {
+				let key = random_key(alphabet, 5, 0);
+				if !got.contains(&key) {
+					x.push((key.clone(), random_value_indexed(j)));
+					got.insert(key);
+				}
+			}
+
+			let real = trie_root(x.clone());
+			let mut memtrie = populate_trie(&x);
+			if *memtrie.root() != real || !memtrie.db_items_remaining().is_empty() {
+				println!("TRIE MISMATCH");
+				println!("");
+				println!("{:?} vs {:?}", memtrie.root(), real);
+				for i in x.iter() {
+					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
+				}
+				println!("{:?}", memtrie);
+			}
+			assert_eq!(*memtrie.root(), real);
+			assert!(memtrie.db_items_remaining().is_empty());
+			unpopulate_trie(&mut memtrie, &x);
+			if *memtrie.root() != SHA3_NULL_RLP || !memtrie.db_items_remaining().is_empty() {
+				println!("TRIE MISMATCH");
+				println!("");
+				println!("{:?} vs {:?}", memtrie.root(), real);
+				for i in x.iter() {
+					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
+				}
+				println!("{:?}", memtrie);
+			}
+			assert_eq!(*memtrie.root(), SHA3_NULL_RLP);
+			assert!(memtrie.db_items_remaining().is_empty());
 		}
 	}
 
@@ -842,6 +990,23 @@ mod tests {
 
 	#[test]
 	fn remove_to_empty() {
+		let big_value = b"00000000000000000000000000000000";
+
+		let mut t1 = TrieDB::new_memory();
+		t1.insert(&[0x01, 0x23], &big_value.to_vec());
+		t1.insert(&[0x01, 0x34], &big_value.to_vec());
+		trace!("keys remaining {:?}", t1.db_items_remaining());
+		assert!(t1.db_items_remaining().is_empty());
+		let mut t2 = TrieDB::new_memory();
+		t2.insert(&[0x01], &big_value.to_vec());
+		t2.insert(&[0x01, 0x23], &big_value.to_vec());
+		t2.insert(&[0x01, 0x34], &big_value.to_vec());
+		t2.remove(&[0x01]);
+		assert!(t2.db_items_remaining().is_empty());
+		/*if t1.root() != t2.root()*/ {
+			trace!("{:?}", t1);
+			trace!("{:?}", t2);
+		}
 	}
 
 	#[test]
@@ -1022,29 +1187,20 @@ mod tests {
 		//assert!(false);
 	}
 
-	fn random_key() -> Vec<u8> {
-		let chars = b"abcdefgrstuvwABCDEFGRSTUVW";
-		let mut ret: Vec<u8> = Vec::new();
-		let r = random::<u8>() % 4 + 1;
-		for _ in 0..r {
-			ret.push(chars[random::<usize>() % chars.len()]);
-		}
-		ret
-	}
-
 	#[test]
 	fn stress() {
 		for _ in 0..5000 {
 			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
+			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
 			for j in 0..4u32 {
-				let key = random_key();
+				let key = random_key(alphabet, 5, 1);
 				x.push((key, rlp::encode(&j)));
 			}
 			let real = trie_root(x.clone());
-			let memtrie = trie_root_mem(&x);
+			let memtrie = populate_trie(&x);
 			let mut y = x.clone();
 			y.sort_by(|ref a, ref b| a.0.cmp(&b.0));
-			let memtrie_sorted = trie_root_mem(&y);
+			let memtrie_sorted = populate_trie(&y);
 			if *memtrie.root() != real || *memtrie_sorted.root() != real {
 				println!("TRIE MISMATCH");
 				println!("");
@@ -1062,18 +1218,6 @@ mod tests {
 			assert_eq!(*memtrie.root(), real);
 			assert_eq!(*memtrie_sorted.root(), real);
 		}
-	}
-
-	fn trie_root_mem(v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDB {
-		let mut t = TrieDB::new_memory();
-		
-		for i in 0..v.len() {
-			let key: &[u8]= &v[i].0;
-			let val: &[u8] = &v[i].1;
-			t.insert(&key, &val);
-		}
-
-		t
 	}
 
 	#[test]
