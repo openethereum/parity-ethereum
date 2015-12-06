@@ -32,7 +32,6 @@
 
 use std::fmt;
 use std::cell::Cell;
-use std::collections::LinkedList;
 use std::error::Error as StdError;
 use bytes::{ToBytes, FromBytes, FromBytesError};
 use vector::InsertSlice;
@@ -778,7 +777,7 @@ impl ListInfo {
 
 /// Appendable rlp encoder.
 pub struct RlpStream {
-	unfinished_lists: LinkedList<ListInfo>,
+	unfinished_lists: Vec<ListInfo>,
 	encoder: BasicEncoder,
 }
 
@@ -786,7 +785,7 @@ impl RlpStream {
 	/// Initializes instance of empty `RlpStream`.
 	pub fn new() -> RlpStream {
 		RlpStream {
-			unfinished_lists: LinkedList::new(),
+			unfinished_lists: vec![],
 			encoder: BasicEncoder::new(),
 		}
 	}
@@ -848,7 +847,7 @@ impl RlpStream {
 			_ => { 
 				// reserve at least double size of the len
 				self.encoder.bytes.reserve(len * 2);
-				self.unfinished_lists.push_back(ListInfo::new(position, len));
+				self.unfinished_lists.push(ListInfo::new(position, len));
 			},
 		}
 
@@ -930,7 +929,7 @@ impl RlpStream {
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	pub fn is_finished(&self) -> bool {
-		self.unfinished_lists.back().is_none()
+		self.unfinished_lists.len() == 0
 	}
 
 	/// Streams out encoded bytes.
@@ -945,7 +944,12 @@ impl RlpStream {
 
 	/// Try to finish lists
 	fn note_appended(&mut self, inserted_items: usize) -> () {
-		let should_finish = match self.unfinished_lists.back_mut() {
+		if self.unfinished_lists.len() == 0 {
+			return;
+		}
+
+		let back = self.unfinished_lists.len() - 1;
+		let should_finish = match self.unfinished_lists.get_mut(back) {
 			None => false,
 			Some(ref mut x) => {
 				x.current += inserted_items;
@@ -957,7 +961,7 @@ impl RlpStream {
 		};
 
 		if should_finish {
-			let x = self.unfinished_lists.pop_back().unwrap();
+			let x = self.unfinished_lists.pop().unwrap();
 			let len = self.encoder.bytes.len() - x.position;
 			self.encoder.insert_list_len_at_pos(len, x.position);
 			self.note_appended(1);
