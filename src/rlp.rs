@@ -844,8 +844,12 @@ impl RlpStream {
 				// we may finish, if the appended list len is equal 0
 				self.encoder.bytes.push(0xc0u8);
 				self.note_appended(1);
-			}
-			_ => self.unfinished_lists.push_back(ListInfo::new(position, len)),
+			},
+			_ => { 
+				// reserve at least double size of the len
+				self.encoder.bytes.reserve(len * 2);
+				self.unfinished_lists.push_back(ListInfo::new(position, len));
+			},
 		}
 
 		// return chainable self
