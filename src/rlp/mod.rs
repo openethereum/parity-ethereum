@@ -38,11 +38,10 @@ pub mod untrusted_rlp;
 pub mod rlpstream;
 
 pub use self::faces::{DecoderError, Decoder, Decodable, View};
-pub use self::rlp::*;
-pub use self::untrusted_rlp::*;
+pub use self::rlp::{Rlp, RlpIterator};
+pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, Prototype, PayloadInfo};
 
 pub use self::old::{encode, RlpStream, Encodable};
-//pub use self::old::*;
 
 pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 	let rlp = Rlp::new(bytes);
