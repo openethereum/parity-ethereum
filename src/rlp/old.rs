@@ -32,10 +32,10 @@
 
 use std::fmt;
 use std::cell::Cell;
+use std::ops::Deref;
 use std::error::Error as StdError;
 use elastic_array::*;
 use bytes::{ToBytes, FromBytes, FromBytesError};
-use vector::InsertSlice;
 
 /// Data-oriented view onto rlp-slice.
 /// 
@@ -112,6 +112,14 @@ impl From<FromBytesError> for DecoderError {
 pub struct Rlp<'a> {
 	rlp: UntrustedRlp<'a>
 }
+
+//impl<'a> Deref for Rlp<'a> {
+	//type Target = UntrustedRlp<'a>;
+	
+	//fn deref(&self) -> &Self::Target {
+		//&self.rlp
+	//}
+//}
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
 	fn from(rlp: UntrustedRlp<'a>) -> Rlp<'a> {
@@ -837,8 +845,6 @@ impl RlpStream {
 	/// }
 	/// ```
 	pub fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
-		// push new list
-		let position = self.encoder.bytes.len();
 		match len {
 			0 => {
 				// we may finish, if the appended list len is equal 0
@@ -846,8 +852,7 @@ impl RlpStream {
 				self.note_appended(1);
 			},
 			_ => { 
-				// reserve at least double size of the len
-				//self.encoder.bytes.reserve(len * 2);
+				let position = self.encoder.bytes.len();
 				self.unfinished_lists.push(ListInfo::new(position, len));
 			},
 		}
