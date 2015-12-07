@@ -312,19 +312,27 @@ impl<'a> Decoder for BasicDecoder<'a> {
 }
 
 impl<T> Decodable for T where T: FromBytes {
-	fn decode<R, D>(decoder: &D) -> Result<R, DecoderError>  where D: Decoder {
-		unimplemented!()
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+		decoder.read_value(| bytes | {
+			Ok(try!(T::from_bytes(bytes)))
+		})
 	}
 }
 
 impl<T> Decodable for Vec<T> where T: Decodable {
-	fn decode<R, D>(decoder: &D) -> Result<R, DecoderError>  where D: Decoder {
-		unimplemented!()
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+		decoder.read_list(| decoders | {
+			decoders.iter().map(|d| T::decode(d)).collect()
+		})
 	}
 }
 
 impl Decodable for Vec<u8> {
-	fn decode<R, D>(decoder: &D) -> Result<R, DecoderError>  where D: Decoder {
-		unimplemented!()
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+		decoder.read_value(| bytes | {
+			let mut res = vec![];
+			res.extend(bytes);
+			Ok(res)
+		})
 	}
 }

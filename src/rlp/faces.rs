@@ -37,7 +37,7 @@ pub trait Decoder {
 }
 
 pub trait Decodable: Sized {
-	fn decode<T, D>(decoder: &D) -> Result<T, DecoderError>  where D: Decoder;
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
 }
 
 pub trait View<'a, 'view>: Sized {
