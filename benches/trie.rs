@@ -7,13 +7,10 @@ extern crate ethcore_util;
 extern crate log;
 
 use test::Bencher;
-use rand::random;
-//use ethcore_util::BytesConvertable;
 use ethcore_util::hash::*;
 use ethcore_util::bytes::*;
 use ethcore_util::trie::*;
 use ethcore_util::sha3::*;
-use ethcore_util::ToBytes::*;
 
 
 fn random_word(alphabet: &[u8], min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8> {
@@ -121,7 +118,7 @@ fn insertions_six_low(b: &mut Bencher) {
 fn sha3x1000(b: &mut Bencher) {
 	b.iter(||{
 		let mut seed = H256::new();
-		for i in 0..1000 {
+		for _ in 0..1000 {
 			seed = seed.sha3()
 		}
 	})

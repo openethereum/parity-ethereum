@@ -32,8 +32,8 @@
 
 use std::fmt;
 use std::cell::Cell;
-use std::collections::LinkedList;
 use std::error::Error as StdError;
+use elastic_array::*;
 use bytes::{ToBytes, FromBytes, FromBytesError};
 use vector::InsertSlice;
 
@@ -759,7 +759,7 @@ impl Decoder for BasicDecoder {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 struct ListInfo {
 	position: usize,
 	current: usize,
@@ -778,7 +778,7 @@ impl ListInfo {
 
 /// Appendable rlp encoder.
 pub struct RlpStream {
-	unfinished_lists: LinkedList<ListInfo>,
+	unfinished_lists: ElasticArray16<ListInfo>,
 	encoder: BasicEncoder,
 }
 
@@ -786,7 +786,7 @@ impl RlpStream {
 	/// Initializes instance of empty `RlpStream`.
 	pub fn new() -> RlpStream {
 		RlpStream {
-			unfinished_lists: LinkedList::new(),
+			unfinished_lists: ElasticArray16::new(),
 			encoder: BasicEncoder::new(),
 		}
 	}
@@ -844,8 +844,12 @@ impl RlpStream {
 				// we may finish, if the appended list len is equal 0
 				self.encoder.bytes.push(0xc0u8);
 				self.note_appended(1);
-			}
-			_ => self.unfinished_lists.push_back(ListInfo::new(position, len)),
+			},
+			_ => { 
+				// reserve at least double size of the len
+				//self.encoder.bytes.reserve(len * 2);
+				self.unfinished_lists.push(ListInfo::new(position, len));
+			},
 		}
 
 		// return chainable self
@@ -879,7 +883,7 @@ impl RlpStream {
 	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
 	pub fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
 		// push raw items
-		self.encoder.bytes.extend(bytes);	
+		self.encoder.bytes.append_slice(bytes);	
 
 		// try to finish and prepend the length
 		self.note_appended(item_count);
@@ -926,7 +930,7 @@ impl RlpStream {
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	pub fn is_finished(&self) -> bool {
-		self.unfinished_lists.back().is_none()
+		self.unfinished_lists.len() == 0
 	}
 
 	/// Streams out encoded bytes.
@@ -934,14 +938,19 @@ impl RlpStream {
 	/// panic! if stream is not finished.
 	pub fn out(self) -> Vec<u8> {
 		match self.is_finished() {
-			true => self.encoder.out(),
+			true => self.encoder.out().to_vec(),
 			false => panic!()
 		}
 	}
 
 	/// Try to finish lists
 	fn note_appended(&mut self, inserted_items: usize) -> () {
-		let should_finish = match self.unfinished_lists.back_mut() {
+		if self.unfinished_lists.len() == 0 {
+			return;
+		}
+
+		let back = self.unfinished_lists.len() - 1;
+		let should_finish = match self.unfinished_lists.get_mut(back) {
 			None => false,
 			Some(ref mut x) => {
 				x.current += inserted_items;
@@ -953,7 +962,7 @@ impl RlpStream {
 		};
 
 		if should_finish {
-			let x = self.unfinished_lists.pop_back().unwrap();
+			let x = self.unfinished_lists.pop().unwrap();
 			let len = self.encoder.bytes.len() - x.position;
 			self.encoder.insert_list_len_at_pos(len, x.position);
 			self.note_appended(1);
@@ -977,7 +986,7 @@ pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable
 {
 	let mut encoder = BasicEncoder::new();
 	object.encode(&mut encoder);
-	encoder.out()
+	encoder.out().to_vec()
 }
 
 pub trait Encodable {
@@ -1030,12 +1039,12 @@ impl Encodable for Vec<u8> {
 }
 
 struct BasicEncoder {
-	bytes: Vec<u8>,
+	bytes: ElasticArray1024<u8>,
 }
 
 impl BasicEncoder {
 	fn new() -> BasicEncoder {
-		BasicEncoder { bytes: vec![] }
+		BasicEncoder { bytes: ElasticArray1024::new() }
 	}
 
 	/// inserts list prefix at given position
@@ -1054,7 +1063,7 @@ impl BasicEncoder {
 	}
 
 	/// get encoded value
-	fn out(self) -> Vec<u8> {
+	fn out(self) -> ElasticArray1024<u8> {
 		self.bytes
 	}
 }
@@ -1065,17 +1074,17 @@ impl Encoder for BasicEncoder {
 			// just 0
 			0 => self.bytes.push(0x80u8),
 			// byte is its own encoding
-			1 if bytes[0] < 0x80 => self.bytes.extend(bytes),
+			1 if bytes[0] < 0x80 => self.bytes.append_slice(bytes),
 			// (prefix + length), followed by the string
 			len @ 1 ... 55 => {
 				self.bytes.push(0x80u8 + len as u8);
-				self.bytes.extend(bytes);
+				self.bytes.append_slice(bytes);
 			}
 			// (prefix + length of length), followed by the length, followd by the string
 			len => {
 				self.bytes.push(0xb7 + len.to_bytes_len() as u8);
-				self.bytes.extend(len.to_bytes());
-				self.bytes.extend(bytes);
+				self.bytes.append_slice(&len.to_bytes());
+				self.bytes.append_slice(bytes);
 			}
 		}
 	}
