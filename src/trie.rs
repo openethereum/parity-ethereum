@@ -1,3 +1,4 @@
+//! Key-value datastore with a modified Merkle tree.
 extern crate rand;
 
 use std::fmt;

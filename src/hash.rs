@@ -1,3 +1,5 @@
+//! General hash types, a fixed-size raw-data type used as the output of hash functions.
+
 use std::str::FromStr;
 use std::fmt;
 use std::ops;
@@ -11,7 +13,9 @@ use bytes::BytesConvertable;
 use math::log2;
 use uint::U256;
 
-/// types implementing FixedHash must be also BytesConvertable
+/// Trait for a fixed-size byte array to be used as the output of hash functions.
+/// 
+/// Note: types implementing `FixedHash` must be also `BytesConvertable`.
 pub trait FixedHash: Sized + BytesConvertable {
 	fn new() -> Self;
 	fn random() -> Self;
