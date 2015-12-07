@@ -1,8 +1,6 @@
-use std::fmt;
 use std::cell::Cell;
-use std::error::Error as StdError;
-use bytes::{FromBytes, FromBytesError};
-use super::faces::{View, Decoder, Decodable};
+use bytes::{FromBytes};
+use super::faces::{View, Decoder, Decodable, DecoderError};
 
 /// rlp offset
 #[derive(Copy, Clone, Debug)]
@@ -42,31 +40,6 @@ impl PayloadInfo {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum DecoderError {
-	FromBytesError(FromBytesError),
-	RlpIsTooShort,
-	RlpExpectedToBeList,
-	RlpExpectedToBeData,
-}
-impl StdError for DecoderError {
-	fn description(&self) -> &str {
-		"builder error"
-	}
-}
-
-impl fmt::Display for DecoderError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Debug::fmt(&self, f)
-	}
-}
-
-impl From<FromBytesError> for DecoderError {
-	fn from(err: FromBytesError) -> DecoderError {
-		DecoderError::FromBytesError(err)
-	}
-}
-
 /// Data-oriented view onto rlp-slice.
 /// 
 /// This is immutable structere. No operations change it.
@@ -94,7 +67,6 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 	type Data = Result<&'a [u8], DecoderError>;
 	type Item = Result<UntrustedRlp<'a>, DecoderError>;
 	type Iter = UntrustedRlpIterator<'a, 'view>;
-	type Error = DecoderError;
 
 	//returns new instance of `UntrustedRlp`
 	fn new(bytes: &'a [u8]) -> UntrustedRlp<'a> {
@@ -200,7 +172,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		self.into_iter()
 	}
 
-	fn as_val<T>(&self) -> Result<T, Self::Error> where T: Decodable {
+	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable {
 		// optimize, so it doesn't use clone (although This clone is cheap)
 		T::decode(&BasicDecoder::new(self.clone()))
 	}
@@ -305,10 +277,8 @@ impl<'a> BasicDecoder<'a> {
 }
 
 impl<'a> Decoder for BasicDecoder<'a> {
-	type Error = DecoderError;
-
-	fn read_value<T, F>(&self, f: F) -> Result<T, Self::Error>
-		where F: FnOnce(&[u8]) -> Result<T, Self::Error> {
+	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
+		where F: FnOnce(&[u8]) -> Result<T, DecoderError> {
 
 		let bytes = self.rlp.raw();
 
@@ -331,8 +301,8 @@ impl<'a> Decoder for BasicDecoder<'a> {
 		}
 	}
 
-	fn read_list<T, F>(&self, f: F) -> Result<T, Self::Error>
-		where F: FnOnce(&[Self]) -> Result<T, Self::Error> {
+	fn read_list<T, F>(&self, f: F) -> Result<T, DecoderError>
+		where F: FnOnce(&[Self]) -> Result<T, DecoderError> {
 
 		let v: Vec<BasicDecoder<'a>> = self.rlp.iter()
 			.map(| i | BasicDecoder::new(i))
@@ -341,3 +311,20 @@ impl<'a> Decoder for BasicDecoder<'a> {
 	}
 }
 
+impl<T> Decodable for T where T: FromBytes {
+	fn decode<R, D>(decoder: &D) -> Result<R, DecoderError>  where D: Decoder {
+		unimplemented!()
+	}
+}
+
+impl<T> Decodable for Vec<T> where T: Decodable {
+	fn decode<R, D>(decoder: &D) -> Result<R, DecoderError>  where D: Decoder {
+		unimplemented!()
+	}
+}
+
+impl Decodable for Vec<u8> {
+	fn decode<R, D>(decoder: &D) -> Result<R, DecoderError>  where D: Decoder {
+		unimplemented!()
+	}
+}

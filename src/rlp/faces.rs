@@ -1,15 +1,43 @@
+use std::fmt;
+use std::error::Error as StdError;
+use bytes::FromBytesError;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum DecoderError {
+	FromBytesError(FromBytesError),
+	RlpIsTooShort,
+	RlpExpectedToBeList,
+	RlpExpectedToBeData,
+}
+
+impl StdError for DecoderError {
+	fn description(&self) -> &str {
+		"builder error"
+	}
+}
+
+impl fmt::Display for DecoderError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		fmt::Debug::fmt(&self, f)
+	}
+}
+
+impl From<FromBytesError> for DecoderError {
+	fn from(err: FromBytesError) -> DecoderError {
+		DecoderError::FromBytesError(err)
+	}
+}
+
 pub trait Decoder {
-	type Error;
+	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
+		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 
-	fn read_value<T, F>(&self, f: F) -> Result<T, Self::Error>
-		where F: FnOnce(&[u8]) -> Result<T, Self::Error>;
-
-	fn read_list<T, F>(&self, f: F) -> Result<T, Self::Error>
-		where F: FnOnce(&[Self]) -> Result<T, Self::Error>;
+	fn read_list<T, F>(&self, f: F) -> Result<T, DecoderError>
+		where F: FnOnce(&[Self]) -> Result<T, DecoderError>;
 }
 
 pub trait Decodable: Sized {
-	fn decode<T, D>(decoder: &D) -> Result<T, D::Error>  where D: Decoder;
+	fn decode<T, D>(decoder: &D) -> Result<T, DecoderError>  where D: Decoder;
 }
 
 pub trait View<'a, 'view>: Sized {
@@ -18,7 +46,6 @@ pub trait View<'a, 'view>: Sized {
 	type Data;
 	type Item;
 	type Iter;
-	type Error;
 
 	/// Creates a new instance of `Rlp` reader
 	fn new(bytes: &'a [u8]) -> Self;
@@ -179,7 +206,7 @@ pub trait View<'a, 'view>: Sized {
 	/// ```
 	fn iter(&'view self) -> Self::Iter;
 
-	fn as_val<T>(&self) -> Result<T, Self::Error> where T: Decodable;
+	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable;
 }
 
 pub trait Encoder {

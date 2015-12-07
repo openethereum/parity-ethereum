@@ -1,4 +1,4 @@
-use super::faces::{View, Decodable};
+use super::faces::{View, Decodable, DecoderError};
 use super::untrusted_rlp::*;
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
@@ -22,7 +22,6 @@ impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
 	type Data = &'a [u8];
 	type Item = Rlp<'a>;
 	type Iter = RlpIterator<'a, 'view>;
-	type Error = DecoderError;
 	
 	/// Create a new instance of `Rlp`
 	fn new(bytes: &'a [u8]) -> Rlp<'a> {
@@ -83,14 +82,14 @@ impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
 		self.into_iter()
 	}
 
-	fn as_val<T>(&self) -> Result<T, Self::Error> where T: Decodable {
+	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable {
 		self.rlp.as_val()
 	}
 }
 
 impl <'a, 'view> Rlp<'a> where 'a: 'view {
 	fn reader_as_val<T, R>(r: &R) -> T where R: View<'a, 'view>, T: Decodable {
-		let res: Result<T, R::Error> = r.as_val();
+		let res: Result<T, DecoderError> = r.as_val();
 		res.unwrap_or_else(|_| panic!())
 	}
 
