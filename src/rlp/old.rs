@@ -1119,7 +1119,7 @@ mod tests {
 	use std::{fmt, cmp};
 	use std::str::FromStr;
 	use rlp;
-	use rlp::{UntrustedRlp, RlpStream, Decodable};
+	use rlp::{UntrustedRlp, RlpStream, Decodable, View};
 	use uint::U256;
 
 	#[test]
@@ -1128,23 +1128,27 @@ mod tests {
 		{
 			let rlp = UntrustedRlp::new(&data);
 			assert!(rlp.is_list());
-			let animals = <Vec<String> as rlp::Decodable>::decode_untrusted(&rlp).unwrap();
+			//let animals = <Vec<String> as rlp::Decodable>::decode_untrusted(&rlp).unwrap();
+			let animals: Vec<String> = rlp.as_val().unwrap();
 			assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
 
 			let cat = rlp.at(0).unwrap();
 			assert!(cat.is_data());
-			assert_eq!(cat.bytes, &[0x83, b'c', b'a', b't']);
-			assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_string());
+			assert_eq!(cat.raw(), &[0x83, b'c', b'a', b't']);
+			//assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_string());
+			assert_eq!(cat.as_val::<String>().unwrap(), "cat".to_string());
 
 			let dog = rlp.at(1).unwrap();
 			assert!(dog.is_data());
-			assert_eq!(dog.bytes, &[0x83, b'd', b'o', b'g']);
-			assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_string());
+			assert_eq!(dog.raw(), &[0x83, b'd', b'o', b'g']);
+			//assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_string());
+			assert_eq!(dog.as_val::<String>().unwrap(), "dog".to_string());
 
 			let cat_again = rlp.at(0).unwrap();
 			assert!(cat_again.is_data());
-			assert_eq!(cat_again.bytes, &[0x83, b'c', b'a', b't']);
-			assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_string());
+			assert_eq!(cat_again.raw(), &[0x83, b'c', b'a', b't']);
+			//assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_string());
+			assert_eq!(cat_again.as_val::<String>().unwrap(), "cat".to_string());
 		}
 	}
 
@@ -1172,18 +1176,18 @@ mod tests {
 
 			let cat = iter.next().unwrap();
 			assert!(cat.is_data());
-			assert_eq!(cat.bytes, &[0x83, b'c', b'a', b't']);
+			assert_eq!(cat.raw(), &[0x83, b'c', b'a', b't']);
 
 			let dog = iter.next().unwrap();
 			assert!(dog.is_data());
-			assert_eq!(dog.bytes, &[0x83, b'd', b'o', b'g']);
+			assert_eq!(dog.raw(), &[0x83, b'd', b'o', b'g']);
 
 			let none = iter.next();
 			assert!(none.is_none());
 
 			let cat_again = rlp.at(0).unwrap();
 			assert!(cat_again.is_data());
-			assert_eq!(cat_again.bytes, &[0x83, b'c', b'a', b't']);
+			assert_eq!(cat_again.raw(), &[0x83, b'c', b'a', b't']);
 		}
 	}
 
