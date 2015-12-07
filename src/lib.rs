@@ -4,7 +4,6 @@ extern crate ethcore_util;
 use ethcore_util::hash::*;
 use ethcore_util::uint::*;
 
-pub type Bytes = Vec<u8>;
 pub type LogBloom = Hash4096;
 
 pub static ZERO_ADDRESS: Address = Address([0x00; 20]);
