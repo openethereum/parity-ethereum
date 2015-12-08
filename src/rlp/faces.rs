@@ -116,7 +116,7 @@ pub trait View<'a, 'view>: Sized {
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
-	/// 	let dog = String::decode(&rlp.at(1));
+	/// 	let dog: String = rlp.at(1).as_val();
 	/// 	assert_eq!(dog, "dog".to_string());
 	/// }
 	fn at(&'view self, index: usize) -> Self::Item;
@@ -201,7 +201,7 @@ pub trait View<'a, 'view>: Sized {
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
-	/// 	let strings: Vec<String> = rlp.iter().map(| i | String::decode(&i)).collect();
+	/// 	let strings: Vec<String> = rlp.iter().map(| i | i.as_val()).collect();
 	/// }
 	/// ```
 	fn iter(&'view self) -> Self::Iter;

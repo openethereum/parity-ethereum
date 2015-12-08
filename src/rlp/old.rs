@@ -1119,7 +1119,7 @@ mod tests {
 	use std::{fmt, cmp};
 	use std::str::FromStr;
 	use rlp;
-	use rlp::{UntrustedRlp, RlpStream, Decodable, View};
+	use rlp::{UntrustedRlp, RlpStream, Decodable, View, Stream, Encodable};
 	use uint::U256;
 
 	#[test]
