@@ -23,20 +23,20 @@ impl Decodable for BlockHeader {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
 		decoder.read_list(| d | {
 			let blockheader = BlockHeader {
-				parent_hash: try!(H256::decode(&d[0])),
-				ommers_hash: try!(H256::decode(&d[1])),
-				beneficiary: try!(Address::decode(&d[2])),
-				state_root: try!(H256::decode(&d[3])),
-				transactions_root: try!(H256::decode(&d[4])),
-				receipts_root: try!(H256::decode(&d[5])),
-				log_bloom: try!(H2048::decode(&d[6])),
-				difficulty: try!(U256::decode(&d[7])),
-				number: try!(U256::decode(&d[8])),
-				gas_limit: try!(U256::decode(&d[9])),
-				gas_used: try!(U256::decode(&d[10])),
-				timestamp: try!(U256::decode(&d[11])),
-				mix_hash: try!(H256::decode(&d[12])),
-				nonce: try!(H64::decode(&d[13]))
+				parent_hash: try!(Decodable::decode(&d[0])),
+				ommers_hash: try!(Decodable::decode(&d[1])),
+				beneficiary: try!(Decodable::decode(&d[2])),
+				state_root: try!(Decodable::decode(&d[3])),
+				transactions_root: try!(Decodable::decode(&d[4])),
+				receipts_root: try!(Decodable::decode(&d[5])),
+				log_bloom: try!(Decodable::decode(&d[6])),
+				difficulty: try!(Decodable::decode(&d[7])),
+				number: try!(Decodable::decode(&d[8])),
+				gas_limit: try!(Decodable::decode(&d[9])),
+				gas_used: try!(Decodable::decode(&d[10])),
+				timestamp: try!(Decodable::decode(&d[11])),
+				mix_hash: try!(Decodable::decode(&d[12])),
+				nonce: try!(Decodable::decode(&d[13]))
 			};
 			Ok(blockheader)
 		})
