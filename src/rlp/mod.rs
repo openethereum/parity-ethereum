@@ -41,8 +41,8 @@ mod tests;
 
 pub use self::errors::DecoderError;
 pub use self::traits::{Decoder, Decodable, View, Stream, Encodable, Encoder};
+pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use self::rlp::{Rlp, RlpIterator};
-pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, Prototype, PayloadInfo};
 pub use self::rlpstream::{RlpStream};
 
 /// Shortcut function to decode trusted rlp
