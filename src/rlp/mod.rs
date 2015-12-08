@@ -37,13 +37,45 @@ pub mod rlp;
 pub mod untrusted_rlp;
 pub mod rlpstream;
 
-pub use self::faces::{DecoderError, Decoder, Decodable, View};
+pub use self::faces::{DecoderError, Decoder, Decodable, View, Stream, Encodable, Encoder};
 pub use self::rlp::{Rlp, RlpIterator};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, Prototype, PayloadInfo};
+pub use self::rlpstream::{RlpStream};
 
-pub use self::old::{encode, RlpStream, Encodable};
+//pub use self::old::{encode, RlpStream, Encodable};
 
+/// Shortcut function to decode trusted rlp
+/// 
+/// ```rust
+/// extern crate ethcore_util as util;
+/// use util::rlp::*;
+/// 
+/// fn main () {
+/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+/// 	let animals: Vec<String> = decode(&data);
+/// 	assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
+/// }
+/// ```
 pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 	let rlp = Rlp::new(bytes);
 	rlp.as_val()
+}
+
+/// Shortcut function to encode structure into rlp.
+///
+/// ```rust
+/// extern crate ethcore_util as util;
+/// use util::rlp::*;
+/// 
+/// fn main () {
+/// 	let animals = vec!["cat", "dog"];
+/// 	let out = encode(&animals);
+/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+/// }
+/// ```
+pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable
+{
+	let mut stream = RlpStream::new();
+	stream.append(object);
+	stream.out()
 }

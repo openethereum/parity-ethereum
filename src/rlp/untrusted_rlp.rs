@@ -266,7 +266,7 @@ impl<'a> BasicDecoder<'a> {
 				PayloadInfo::new(header_len, value_len)
 			},
 			// we cant reach this place, but rust requires _ to be implemented
-			_ => { panic!(); }
+			_ => { unreachable!(); }
 		};
 
 		match item.header_len + item.value_len <= bytes.len() {
@@ -297,7 +297,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 				Ok(try!(f(&bytes[begin_of_value..begin_of_value + len])))
 			}
 			// we are reading value, not a list!
-			_ => { unreachable!(); }
+			_ => Err(DecoderError::RlpExpectedToBeData)
 		}
 	}
 
