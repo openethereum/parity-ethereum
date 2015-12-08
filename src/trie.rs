@@ -158,7 +158,7 @@ impl Journal {
 	fn delete_node(&mut self, old: &[u8]) {
 		let r = Rlp::new(old);
 		if r.is_data() && r.size() == 32 {
-			self.delete_node_sha3(H256::decode(&r));
+			self.delete_node_sha3(r.as_val());
 		}
 	}
 }
@@ -383,7 +383,7 @@ impl TrieDB {
 		let mut handle_payload = |payload| {
 			let p = Rlp::new(payload);
 			if p.is_data() && p.size() == 32 {
-				acc.push(H256::decode(&p));
+				acc.push(p.as_val());
 			}
 
 			self.accumulate_keys(self.get_node(payload), acc);
@@ -481,7 +481,7 @@ impl TrieDB {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
-			true => self.db.lookup(&H256::decode(&r)).expect("Not found!"),
+			true => self.db.lookup(&r.as_val::<H256>()).expect("Not found!"),
 			false => node
 		}
 	}
@@ -561,7 +561,7 @@ impl TrieDB {
 			rlp.raw()
 		}
 		else if rlp.is_data() && rlp.size() == 32 {
-			let h = H256::decode(rlp);
+			let h = rlp.as_val();
 			let r = self.db.lookup(&h).unwrap_or_else(||{
 				println!("Node not found! rlp={:?}, node_hash={:?}", rlp.raw().pretty(), h);
 				println!("Journal: {:?}", journal);

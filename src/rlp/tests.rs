@@ -1,0 +1,345 @@
+extern crate json_tests;
+use self::json_tests::execute_tests_from_directory;
+use self::json_tests::rlp as rlptest;
+use std::{fmt, cmp};
+use std::str::FromStr;
+use rlp;
+use rlp::{UntrustedRlp, RlpStream, Decodable, View, Stream, Encodable};
+use uint::U256;
+
+#[test]
+fn rlp_at() {
+	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	{
+		let rlp = UntrustedRlp::new(&data);
+		assert!(rlp.is_list());
+		//let animals = <Vec<String> as rlp::Decodable>::decode_untrusted(&rlp).unwrap();
+		let animals: Vec<String> = rlp.as_val().unwrap();
+		assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
+
+		let cat = rlp.at(0).unwrap();
+		assert!(cat.is_data());
+		assert_eq!(cat.raw(), &[0x83, b'c', b'a', b't']);
+		//assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_string());
+		assert_eq!(cat.as_val::<String>().unwrap(), "cat".to_string());
+
+		let dog = rlp.at(1).unwrap();
+		assert!(dog.is_data());
+		assert_eq!(dog.raw(), &[0x83, b'd', b'o', b'g']);
+		//assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_string());
+		assert_eq!(dog.as_val::<String>().unwrap(), "dog".to_string());
+
+		let cat_again = rlp.at(0).unwrap();
+		assert!(cat_again.is_data());
+		assert_eq!(cat_again.raw(), &[0x83, b'c', b'a', b't']);
+		//assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_string());
+		assert_eq!(cat_again.as_val::<String>().unwrap(), "cat".to_string());
+	}
+}
+
+#[test]
+fn rlp_at_err() {
+	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o'];
+	{
+		let rlp = UntrustedRlp::new(&data);
+		assert!(rlp.is_list());
+
+		let cat_err = rlp.at(0).unwrap_err();
+		assert_eq!(cat_err, rlp::DecoderError::RlpIsTooShort);
+
+		let dog_err = rlp.at(1).unwrap_err();
+		assert_eq!(dog_err, rlp::DecoderError::RlpIsTooShort);
+	}
+}
+
+#[test]
+fn rlp_iter() {
+	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+	{
+		let rlp = UntrustedRlp::new(&data);
+		let mut iter = rlp.iter();
+
+		let cat = iter.next().unwrap();
+		assert!(cat.is_data());
+		assert_eq!(cat.raw(), &[0x83, b'c', b'a', b't']);
+
+		let dog = iter.next().unwrap();
+		assert!(dog.is_data());
+		assert_eq!(dog.raw(), &[0x83, b'd', b'o', b'g']);
+
+		let none = iter.next();
+		assert!(none.is_none());
+
+		let cat_again = rlp.at(0).unwrap();
+		assert!(cat_again.is_data());
+		assert_eq!(cat_again.raw(), &[0x83, b'c', b'a', b't']);
+	}
+}
+
+struct ETestPair<T>(T, Vec<u8>) where T: rlp::Encodable;
+
+fn run_encode_tests<T>(tests: Vec<ETestPair<T>>)
+	where T: rlp::Encodable
+{
+	for t in &tests {
+		let res = rlp::encode(&t.0);
+		assert_eq!(res, &t.1[..]);
+	}
+}
+
+#[test]
+fn encode_u16() {
+	let tests = vec![
+		ETestPair(0u16, vec![0x80u8]),
+		ETestPair(0x100, vec![0x82, 0x01, 0x00]),
+		ETestPair(0xffff, vec![0x82, 0xff, 0xff]),
+	];
+	run_encode_tests(tests);
+}
+
+#[test]
+fn encode_u32() {
+	let tests = vec![
+		ETestPair(0u32, vec![0x80u8]),
+		ETestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
+		ETestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
+	];
+	run_encode_tests(tests);
+}
+
+#[test]
+fn encode_u64() {
+	let tests = vec![
+		ETestPair(0u64, vec![0x80u8]),
+		ETestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+		ETestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+	];
+	run_encode_tests(tests);
+}
+
+#[test]
+fn encode_u256() {
+	let tests = vec![ETestPair(U256::from(0u64), vec![0x80u8]),
+					 ETestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+					 ETestPair(U256::from(0xffffffffu64),
+							   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+					 ETestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
+											   000100000000000012f0")
+								   .unwrap(),
+							   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
+									0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
+									0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+									0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
+	run_encode_tests(tests);
+}
+
+#[test]
+fn encode_str() {
+	let tests = vec![ETestPair("cat", vec![0x83, b'c', b'a', b't']),
+					 ETestPair("dog", vec![0x83, b'd', b'o', b'g']),
+					 ETestPair("Marek", vec![0x85, b'M', b'a', b'r', b'e', b'k']),
+					 ETestPair("", vec![0x80]),
+					 ETestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit",
+							   vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
+									b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
+									b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
+									b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
+									b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
+									b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
+									b'e', b'l', b'i', b't'])];
+	run_encode_tests(tests);
+}
+
+#[test]
+fn encode_address() {
+	use hash::*;
+
+	let tests = vec![
+		ETestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+				  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
+							 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+							 0xb3, 0x7d, 0x11, 0x06])
+	];
+	run_encode_tests(tests);
+}
+
+/// Vec<u8> (Bytes) is treated as a single value
+#[test]
+fn encode_vector_u8() {
+	let tests = vec![
+		ETestPair(vec![], vec![0x80]),
+		ETestPair(vec![0u8], vec![0]),
+		ETestPair(vec![0x15], vec![0x15]),
+		ETestPair(vec![0x40, 0x00], vec![0x82, 0x40, 0x00]),
+	];
+	run_encode_tests(tests);
+}
+
+#[test]
+fn encode_vector_u64() {
+	let tests = vec![
+		ETestPair(vec![], vec![0xc0]),
+		ETestPair(vec![15u64], vec![0xc1, 0x0f]),
+		ETestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+		ETestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+	];
+	run_encode_tests(tests);
+}
+
+#[test]
+fn encode_vector_str() {
+	let tests = vec![ETestPair(vec!["cat", "dog"],
+							   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
+	run_encode_tests(tests);
+}
+
+#[test]
+fn encode_vector_of_vectors_str() {
+	let tests = vec![ETestPair(vec![vec!["cat"]], vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
+	run_encode_tests(tests);
+}
+
+struct DTestPair<T>(T, Vec<u8>) where T: rlp::Decodable + fmt::Debug + cmp::Eq;
+
+fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: rlp::Decodable + fmt::Debug + cmp::Eq {
+	for t in &tests {
+		let res: T = rlp::decode(&t.1);
+		assert_eq!(res, t.0);
+	}
+}
+
+/// Vec<u8> (Bytes) is treated as a single value
+#[test]
+fn decode_vector_u8() {
+	let tests = vec![
+		DTestPair(vec![], vec![0x80]),
+		DTestPair(vec![0u8], vec![0]),
+		DTestPair(vec![0x15], vec![0x15]),
+		DTestPair(vec![0x40, 0x00], vec![0x82, 0x40, 0x00]),
+	];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_u16() {
+	let tests = vec![
+		DTestPair(0u16, vec![0u8]),
+		DTestPair(0x100, vec![0x82, 0x01, 0x00]),
+		DTestPair(0xffff, vec![0x82, 0xff, 0xff]),
+	];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_u32() {
+	let tests = vec![
+		DTestPair(0u32, vec![0u8]),
+		DTestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
+		DTestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
+	];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_u64() {
+	let tests = vec![
+		DTestPair(0u64, vec![0u8]),
+		DTestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+		DTestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+	];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_u256() {
+	let tests = vec![DTestPair(U256::from(0u64), vec![0x80u8]),
+					 DTestPair(U256::from(0x1000000u64), vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+					 DTestPair(U256::from(0xffffffffu64),
+							   vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+					 DTestPair(U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000\
+											   000100000000000012f0")
+								   .unwrap(),
+							   vec![0xa0, 0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
+									0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0x00,
+									0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+									0x00, 0x00, 0x00, 0x00, 0x12, 0xf0])];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_str() {
+	let tests = vec![DTestPair("cat".to_string(), vec![0x83, b'c', b'a', b't']),
+					 DTestPair("dog".to_string(), vec![0x83, b'd', b'o', b'g']),
+					 DTestPair("Marek".to_string(),
+							   vec![0x85, b'M', b'a', b'r', b'e', b'k']),
+					 DTestPair("".to_string(), vec![0x80]),
+					 DTestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit"
+								   .to_string(),
+							   vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
+									b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
+									b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
+									b't', b',', b' ', b'c', b'o', b'n', b's', b'e', b'c',
+									b't', b'e', b't', b'u', b'r', b' ', b'a', b'd', b'i',
+									b'p', b'i', b's', b'i', b'c', b'i', b'n', b'g', b' ',
+									b'e', b'l', b'i', b't'])];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_address() {
+	use hash::*;
+
+	let tests = vec![
+		DTestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+				  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
+							 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
+							 0xb3, 0x7d, 0x11, 0x06])
+	];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_vector_u64() {
+	let tests = vec![
+		DTestPair(vec![], vec![0xc0]),
+		DTestPair(vec![15u64], vec![0xc1, 0x0f]),
+		DTestPair(vec![1, 2, 3, 7, 0xff], vec![0xc6, 1, 2, 3, 7, 0x81, 0xff]),
+		DTestPair(vec![0xffffffff, 1, 2, 3, 7, 0xff], vec![0xcb, 0x84, 0xff, 0xff, 0xff, 0xff,  1, 2, 3, 7, 0x81, 0xff]),
+	];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_vector_str() {
+	let tests = vec![DTestPair(vec!["cat".to_string(), "dog".to_string()],
+							   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_vector_of_vectors_str() {
+	let tests = vec![DTestPair(vec![vec!["cat".to_string()]],
+							   vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn test_rlp_json() {
+	println!("Json rlp test: ");
+	execute_tests_from_directory::<rlptest::RlpStreamTest, _>("json-tests/json/rlp/stream/*.json", &mut | file, input, output | {
+		println!("file: {}", file);
+
+		let mut stream = RlpStream::new();
+		for operation in input.into_iter() {
+			match operation {
+				rlptest::Operation::Append(ref v) => stream.append(v),
+				rlptest::Operation::AppendList(len) => stream.append_list(len),
+				rlptest::Operation::AppendRaw(ref raw, len) => stream.append_raw(raw, len),
+				rlptest::Operation::AppendEmpty => stream.append_empty_data()
+			};
+		}
+
+		assert_eq!(stream.out(), output);
+	});
+}
+

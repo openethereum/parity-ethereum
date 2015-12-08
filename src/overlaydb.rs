@@ -122,7 +122,7 @@ impl OverlayDB {
 			.expect("Low-level database error. Some issue with your hard disk?")
 			.map(|d| {
 				let r = Rlp::new(d.deref());
-				(Bytes::decode(&r.at(1)), u32::decode(&r.at(0)))
+				(r.at(1).as_val(), r.at(0).as_val())
 			})
 	}
 
