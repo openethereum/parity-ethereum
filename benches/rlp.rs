@@ -91,6 +91,6 @@ fn bench_stream_1000_empty_lists(b: &mut Bencher) {
 		for _ in 0..1000 {
 			stream.append_list(0);
 		}
-		//let _ = stream.out();
+		let _ = stream.out();
 	});
 }
