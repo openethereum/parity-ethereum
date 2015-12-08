@@ -340,3 +340,15 @@ impl Decodable for Vec<u8> {
 		})
 	}
 }
+
+impl<T> Decodable for Option<T> where T: Decodable {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+		decoder.read_value(| bytes | {
+			let res = match bytes.len() {
+				0 => None,
+				_ => Some(try!(T::decode(decoder)))
+			};
+			Ok(res)
+		})
+	}
+}

@@ -207,13 +207,13 @@ impl Encoder for BasicEncoder {
 }
 
 impl<T> Encodable for T where T: ToBytes {
-	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
+	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
 		encoder.emit_value(&self.to_bytes())
 	}
 }
 
 impl<'a, T> Encodable for &'a [T] where T: Encodable + 'a {
-	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
+	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
 		encoder.emit_list(|e| {
 			// insert all list elements
 			for el in self.iter() {
@@ -224,7 +224,7 @@ impl<'a, T> Encodable for &'a [T] where T: Encodable + 'a {
 }
 
 impl<T> Encodable for Vec<T> where T: Encodable {
-	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
+	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
 		let r: &[T] = self.as_ref();
 		r.encode(encoder)
 	}
@@ -233,7 +233,7 @@ impl<T> Encodable for Vec<T> where T: Encodable {
 /// lets treat bytes differently than other lists
 /// they are a single value
 impl<'a> Encodable for &'a [u8] {
-	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
+	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
 		encoder.emit_value(self)
 	}
 }
@@ -241,7 +241,16 @@ impl<'a> Encodable for &'a [u8] {
 /// lets treat bytes differently than other lists
 /// they are a single value
 impl Encodable for Vec<u8> {
-	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
+	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
 		encoder.emit_value(self)
+	}
+}
+
+impl<T> Encodable for Option<T> where T: Encodable {
+	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
+		match *self {
+			Some(ref x) => x.encode(encoder),
+			None => encoder.emit_value(&[])
+		}
 	}
 }

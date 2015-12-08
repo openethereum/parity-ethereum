@@ -74,8 +74,7 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 /// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 /// }
 /// ```
-pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable
-{
+pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable {
 	let mut stream = RlpStream::new();
 	stream.append(object);
 	stream.out()
