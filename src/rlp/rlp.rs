@@ -84,16 +84,24 @@ impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
 	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable {
 		self.rlp.as_val()
 	}
+
+	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable {
+		self.at(index).rlp.as_val()
+	}
 }
 
 impl <'a, 'view> Rlp<'a> where 'a: 'view {
-	fn reader_as_val<T, R>(r: &R) -> T where R: View<'a, 'view>, T: Decodable {
+	fn view_as_val<T, R>(r: &R) -> T where R: View<'a, 'view>, T: Decodable {
 		let res: Result<T, DecoderError> = r.as_val();
 		res.unwrap_or_else(|_| panic!())
 	}
 
 	pub fn as_val<T>(&self) -> T where T: Decodable {
-		Self::reader_as_val(self)
+		Self::view_as_val(self)
+	}
+
+	pub fn val_at<T>(&self, index: usize) -> T where T: Decodable {
+		Self::view_as_val(&self.at(index))
 	}
 }
 

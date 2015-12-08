@@ -179,6 +179,8 @@ pub trait View<'a, 'view>: Sized {
 	fn iter(&'view self) -> Self::Iter;
 
 	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable;
+
+	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable;
 }
 
 pub trait Encoder {

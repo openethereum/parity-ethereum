@@ -176,6 +176,10 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		// optimize, so it doesn't use clone (although This clone is cheap)
 		T::decode(&BasicDecoder::new(self.clone()))
 	}
+
+	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable {
+		self.at(index).unwrap().as_val()
+	}
 }
 
 impl<'a> UntrustedRlp<'a> {
