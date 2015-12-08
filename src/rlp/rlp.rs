@@ -1,5 +1,4 @@
-use super::faces::{View, Decodable, DecoderError};
-use super::untrusted_rlp::*;
+use rlp::{View, Decodable, DecoderError, UntrustedRlp, PayloadInfo, Prototype};
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
 	fn from(rlp: UntrustedRlp<'a>) -> Rlp<'a> {

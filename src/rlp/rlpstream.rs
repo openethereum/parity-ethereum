@@ -1,6 +1,6 @@
 use elastic_array::*;
 use bytes::ToBytes;
-use super::faces::{Stream, Encoder, Encodable};
+use rlp::{Stream, Encoder, Encodable};
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {

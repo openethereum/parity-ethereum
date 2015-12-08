@@ -30,19 +30,20 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 
-pub mod old;
-
-pub mod faces;
+pub mod errors;
+pub mod traits;
 pub mod rlp;
 pub mod untrusted_rlp;
 pub mod rlpstream;
 
-pub use self::faces::{DecoderError, Decoder, Decodable, View, Stream, Encodable, Encoder};
+#[cfg(test)]
+mod tests;
+
+pub use self::errors::DecoderError;
+pub use self::traits::{Decoder, Decodable, View, Stream, Encodable, Encoder};
 pub use self::rlp::{Rlp, RlpIterator};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, Prototype, PayloadInfo};
 pub use self::rlpstream::{RlpStream};
-
-//pub use self::old::{encode, RlpStream, Encodable};
 
 /// Shortcut function to decode trusted rlp
 /// 

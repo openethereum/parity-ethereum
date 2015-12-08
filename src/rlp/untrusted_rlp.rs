@@ -1,6 +1,6 @@
 use std::cell::Cell;
 use bytes::{FromBytes};
-use super::faces::{View, Decoder, Decodable, DecoderError};
+use rlp::{View, Decoder, Decodable, DecoderError};
 
 /// rlp offset
 #[derive(Copy, Clone, Debug)]
