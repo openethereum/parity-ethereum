@@ -77,6 +77,7 @@ extern crate ethcore_util as util;
 extern crate evmjit;
 
 pub mod blockheader;
+pub mod transaction;
 
 #[test]
 fn it_works() {
