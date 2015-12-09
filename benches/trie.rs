@@ -10,6 +10,7 @@ use test::Bencher;
 use ethcore_util::hash::*;
 use ethcore_util::bytes::*;
 use ethcore_util::trie::*;
+use ethcore_util::triehash::*;
 use ethcore_util::sha3::*;
 
 
@@ -40,7 +41,7 @@ fn random_value(seed: &mut H256) -> Bytes {
 }
 
 #[bench]
-fn insertions_six_high(b: &mut Bencher) {
+fn trie_insertions_six_high(b: &mut Bencher) {
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
 	let mut seed = H256::new();
 	for _ in 0..1000 {
@@ -58,7 +59,22 @@ fn insertions_six_high(b: &mut Bencher) {
 }
 
 #[bench]
-fn insertions_six_mid(b: &mut Bencher) {
+fn triehash_insertions_six_high(b: &mut Bencher) {
+	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
+	let mut seed = H256::new();
+	for _ in 0..1000 {
+		let k = random_bytes(6, 0, &mut seed);
+		let v = random_value(&mut seed);
+		d.push((k, v))
+	}
+
+	b.iter(&||{
+		trie_root(d.clone());
+	})
+}
+
+#[bench]
+fn trie_insertions_six_mid(b: &mut Bencher) {
 	let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
 	let mut seed = H256::new();
@@ -77,7 +93,22 @@ fn insertions_six_mid(b: &mut Bencher) {
 }
 
 #[bench]
-fn insertions_random_mid(b: &mut Bencher) {
+fn triehash_insertions_six_mid(b: &mut Bencher) {
+	let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
+	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
+	let mut seed = H256::new();
+	for _ in 0..1000 {
+		let k = random_word(alphabet, 6, 0, &mut seed);
+		let v = random_value(&mut seed);
+		d.push((k, v))
+	}
+	b.iter(||{
+		trie_root(d.clone());
+	})
+}
+
+#[bench]
+fn trie_insertions_random_mid(b: &mut Bencher) {
 	let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
 	let mut seed = H256::new();
@@ -96,7 +127,23 @@ fn insertions_random_mid(b: &mut Bencher) {
 }
 
 #[bench]
-fn insertions_six_low(b: &mut Bencher) {
+fn triehash_insertions_random_mid(b: &mut Bencher) {
+	let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
+	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
+	let mut seed = H256::new();
+	for _ in 0..1000 {
+		let k = random_word(alphabet, 1, 5, &mut seed);
+		let v = random_value(&mut seed);
+		d.push((k, v))
+	}
+
+	b.iter(||{
+		trie_root(d.clone());
+	})
+}
+
+#[bench]
+fn trie_insertions_six_low(b: &mut Bencher) {
 	let alphabet = b"abcdef";
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
 	let mut seed = H256::new();
@@ -111,6 +158,22 @@ fn insertions_six_low(b: &mut Bencher) {
 		for i in d.iter() {
 			t.insert(&i.0, &i.1);
 		}
+	})
+}
+
+#[bench]
+fn triehash_insertions_six_low(b: &mut Bencher) {
+	let alphabet = b"abcdef";
+	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
+	let mut seed = H256::new();
+	for _ in 0..1000 {
+		let k = random_word(alphabet, 6, 0, &mut seed);
+		let v = random_value(&mut seed);
+		d.push((k, v))
+	}
+
+	b.iter(||{
+		trie_root(d.clone());
 	})
 }
 
