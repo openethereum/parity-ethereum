@@ -78,6 +78,8 @@ extern crate evmjit;
 
 pub mod blockheader;
 pub mod transaction;
+pub mod networkparams;
+pub mod denominations;
 
 #[test]
 fn it_works() {
