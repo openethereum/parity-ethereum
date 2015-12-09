@@ -82,6 +82,15 @@ macro_rules! construct_uint {
 					bytes[i] = (arr[pos] >> ((rev % 8) * 8)) as u8;
 				}
 			}
+
+			#[inline]
+			pub fn exp10(n: usize) -> $name {
+				match n {
+					0 => $name::from(1u64),
+					_ => $name::exp10(n - 1) * $name::from(10u64)
+				}
+			}
+
 			/// Multiplication by u32
 			fn mul_u32(self, other: u32) -> $name {
 				let $name(ref arr) = self;
@@ -167,12 +176,12 @@ macro_rules! construct_uint {
 			type Output = $name;
 
 			fn mul(self, other: $name) -> $name {
-				let mut me = self;
+				let mut res = $name::from(0u64);
 				// TODO: be more efficient about this
 				for i in 0..(2 * $n_words) {
-					me = (me + me.mul_u32((other >> (32 * i)).low_u32())) << (32 * i);
+					res = res + (self.mul_u32((other >> (32 * i)).low_u32()) << (32 * i));
 				}
-				me
+				res
 			}
 		}
 
@@ -515,6 +524,38 @@ mod tests {
 		assert_eq!(add << 0, U256([0xDEADBEEFDEADBEEF, 0xDEADBEEFDEADBEEF, 0, 0]));
 		assert_eq!(add >> 64, U256([0xDEADBEEFDEADBEEF, 0, 0, 0]));
 		assert_eq!(add << 64, U256([0, 0xDEADBEEFDEADBEEF, 0xDEADBEEFDEADBEEF, 0]));
+	}
+
+	#[test]
+	pub fn uint256_exp10() {
+		assert_eq!(U256::exp10(0), U256::from(1u64));
+		println!("\none: {:?}", U256::from(1u64));
+		println!("ten: {:?}", U256::from(10u64));
+		assert_eq!(U256::from(2u64) * U256::from(10u64), U256::from(20u64));
+		assert_eq!(U256::exp10(1), U256::from(10u64));
+		assert_eq!(U256::exp10(2), U256::from(100u64));
+		assert_eq!(U256::exp10(5), U256::from(100000u64));
+	}
+
+	#[test]
+	pub fn uint256_mul32() {
+		assert_eq!(U256::from(0u64).mul_u32(2), U256::from(0u64));
+		assert_eq!(U256::from(1u64).mul_u32(2), U256::from(2u64));
+		assert_eq!(U256::from(10u64).mul_u32(2), U256::from(20u64));
+		assert_eq!(U256::from(10u64).mul_u32(5), U256::from(50u64));
+		assert_eq!(U256::from(1000u64).mul_u32(50), U256::from(50000u64));
+	}
+
+	#[test]
+	pub fn uint256_mul() {
+		assert_eq!(U256::from(1u64) * U256::from(10u64), U256::from(10u64));
+	}
+
+	#[test]
+	fn uint256_div() {
+		assert_eq!(U256::from(10u64) /  U256::from(1u64), U256::from(10u64));
+		assert_eq!(U256::from(10u64) /  U256::from(2u64), U256::from(5u64));
+		assert_eq!(U256::from(10u64) /  U256::from(3u64), U256::from(3u64));
 	}
 }
 
