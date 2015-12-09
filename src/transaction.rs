@@ -11,6 +11,16 @@ pub struct Transaction {
 	data: Vec<u8>,
 }
 
+impl Transaction {
+	pub fn is_contract_creation(&self) -> bool {
+		self.receive_address.is_none()
+	}
+
+	pub fn is_message_call(&self) -> bool {
+		!self.is_contract_creation()
+	}
+}
+
 impl Encodable for Transaction {
 	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
 		encoder.emit_list(| e | {
