@@ -76,10 +76,15 @@ extern crate ethcore_util as util;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
 
+pub mod block;
+pub mod blockchain;
 pub mod blockheader;
+
 pub mod transaction;
 pub mod networkparams;
 pub mod denominations;
+
+pub mod state;
 
 #[test]
 fn it_works() {

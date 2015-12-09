@@ -2,10 +2,39 @@ use util::hash::*;
 use util::uint::*;
 use util::rlp::*;
 
+/// view onto block header rlp
+pub struct BlockView<'a> {
+	rlp: Rlp<'a>
+}
+
+impl<'a> BlockView<'a> {
+	pub fn new(bytes: &'a [u8]) -> BlockView<'a> {
+		BlockView {
+			rlp: Rlp::new(bytes)
+		}
+	}
+
+	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
+	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1) }
+	pub fn coinbase(&self) -> Address { self.rlp.val_at(2) }
+	pub fn state_root(&self) -> H256 { self.rlp.val_at(3) }
+	pub fn transactions_root(&self) -> H256 { self.rlp.val_at(4) }
+	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5) }
+	pub fn log_bloom(&self) -> H2048 { self.rlp.val_at(6) }
+	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
+	pub fn number(&self) -> U256 { self.rlp.val_at(8) }
+	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
+	pub fn gas_usd(&self) -> U256 { self.rlp.val_at(10) }
+	pub fn timestamp(&self) -> U256 { self.rlp.val_at(11) }
+	pub fn mix_hash(&self) -> H256 { self.rlp.val_at(12) }
+	pub fn nonce(&self) -> H64 { self.rlp.val_at(13) }
+}
+
+/// Data structure represening block header
 pub struct BlockHeader {
 	parent_hash: H256,
-	ommers_hash: H256,
-	beneficiary: Address,
+	uncles_hash: H256,
+	coinbase: Address,
 	state_root: H256,
 	transactions_root: H256,
 	receipts_root: H256,
@@ -22,10 +51,11 @@ pub struct BlockHeader {
 impl Decodable for BlockHeader {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
 		decoder.read_list(| d | {
+			// return an error if d != 14
 			let blockheader = BlockHeader {
 				parent_hash: try!(Decodable::decode(&d[0])),
-				ommers_hash: try!(Decodable::decode(&d[1])),
-				beneficiary: try!(Decodable::decode(&d[2])),
+				uncles_hash: try!(Decodable::decode(&d[1])),
+				coinbase: try!(Decodable::decode(&d[2])),
 				state_root: try!(Decodable::decode(&d[3])),
 				transactions_root: try!(Decodable::decode(&d[4])),
 				receipts_root: try!(Decodable::decode(&d[5])),
@@ -47,8 +77,8 @@ impl Encodable for BlockHeader {
 	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
 		encoder.emit_list(| e | {
 			self.parent_hash.encode(e);
-			self.ommers_hash.encode(e);
-			self.beneficiary.encode(e);
+			self.uncles_hash.encode(e);
+			self.coinbase.encode(e);
 			self.state_root.encode(e);
 			self.transactions_root.encode(e);
 			self.receipts_root.encode(e);
