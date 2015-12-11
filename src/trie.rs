@@ -2,7 +2,6 @@
 extern crate rand;
 
 use std::fmt;
-use memorydb::*;
 use sha3::*;
 use hashdb::*;
 use hash::*;
@@ -279,10 +278,16 @@ impl <'a>Node<'a> {
 ///
 /// # Example
 /// ```
-/// extern crate ethcore_util;
-/// use ethcore_util::trie::*;
+/// extern crate ethcore_util as util;
+/// use util::trie::*;
+/// use util::hashdb::*;
+/// use util::memorydb::*;
+/// use util::hash::*;
+///
 /// fn main() {
-///   let mut t = TrieDB::new_memory();
+///   let mut memdb = MemoryDB::new();
+///   let mut root = H256::new();
+///   let mut t = TrieDB::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
 ///   assert_eq!(*t.root(), SHA3_NULL_RLP);
 ///   t.insert(b"foo", b"bar");
@@ -294,9 +299,9 @@ impl <'a>Node<'a> {
 ///   assert!(t.db_items_remaining().is_empty());
 /// }
 /// ```
-pub struct TrieDB {
-	db: Box<HashDB>,
-	root: H256,
+pub struct TrieDB<'db, T> where T: 'db + HashDB {
+	db: &'db mut T,
+	root: &'db mut H256,
 	pub hash_count: usize,
 }
 
@@ -306,18 +311,37 @@ enum MaybeChanged<'a> {
 	Changed(Bytes),
 }
 
-impl TrieDB {
-	/// Create a new trie with the boxed backing database `box_db`.
-	pub fn new_boxed(db_box: Box<HashDB>) -> Self { let mut r = TrieDB{ db: db_box, root: H256::new(), hash_count: 0 }; r.root = r.db.insert(&NULL_RLP); r }
+impl<'db, T> TrieDB<'db, T> where T: 'db + HashDB {
+	/// Create a new trie with the backing database `db` and empty `root`
+	/// Initialise to the state entailed by the genesis block.
+	/// This guarantees the trie is built correctly.
+	pub fn new(db: &'db mut T, root: &'db mut H256) -> Self { 
+		let mut r = TrieDB{ 
+			db: db, 
+			root: root,
+			hash_count: 0 
+		}; 
 
-	/// Convenience function to create a new trie with the backing database `db`.
-	pub fn new<T>(db: T) -> Self where T: HashDB + 'static { Self::new_boxed(Box::new(db)) }
+		// set root rlp
+		*r.root = r.db.insert(&NULL_RLP); 
+		r 
+	}
 
-	/// Convenience function to create a new trie with a new `MemoryDB` based backing database.
-	pub fn new_memory() -> Self { Self::new(MemoryDB::new()) }
+	/// Create a new trie with the backing database `db` and `root`
+	/// Panics, if `root` does not exist
+	pub fn new_existing(db: &'db mut T, root: &'db mut H256) -> Self {
+		assert!(db.exists(root));
+		TrieDB { 
+			db: db, 
+			root: root,
+			hash_count: 0 
+		}
+	}
 
 	/// Get the backing database.
-	pub fn db(&self) -> &HashDB { self.db.as_ref() }
+	pub fn db(&'db self) -> &'db T { 
+		self.db 
+	}
 
 	/// Determine all the keys in the backing database that belong to the trie.
 	pub fn keys(&self) -> Vec<H256> {
@@ -355,7 +379,7 @@ impl TrieDB {
 	/// and removing the old.
 	fn set_root_rlp(&mut self, root_data: &[u8]) {
 		self.db.kill(&self.root);
-		self.root = self.db.insert(root_data);
+		*self.root = self.db.insert(root_data);
 		self.hash_count += 1;
 		trace!("set_root_rlp {:?} {:?}", root_data.pretty(), self.root);
 	}
@@ -868,7 +892,7 @@ impl TrieDB {
 	}
 }
 
-impl Trie for TrieDB {
+impl<'db, T> Trie for TrieDB<'db, T> where T: 'db + HashDB {
 	fn root(&self) -> &H256 { &self.root }
 
 	fn contains(&self, key: &[u8]) -> bool {
@@ -891,7 +915,7 @@ impl Trie for TrieDB {
 	}
 }
 
-impl fmt::Debug for TrieDB {
+impl<'db, T> fmt::Debug for TrieDB<'db, T> where T: 'db + HashDB {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "c={:?} [", self.hash_count));
 		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
@@ -906,6 +930,8 @@ mod tests {
 	use self::json_tests::{trie, execute_tests_from_directory};
 	use triehash::*;
 	use hash::*;
+	use hashdb::*;
+	use memorydb::*;
 	use super::*;
 	use nibbleslice::*;
 	use rlp;
@@ -934,8 +960,8 @@ mod tests {
 		}
 	}
 
-	fn populate_trie(v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDB {
-		let mut t = TrieDB::new_memory();
+	fn populate_trie<'db, T>(db: &'db mut T, root: &'db mut H256, v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDB<'db, T> where T: 'db + HashDB {
+		let mut t = TrieDB::new(db, root);
 		for i in 0..v.len() {
 			let key: &[u8]= &v[i].0;
 			let val: &[u8] = &v[i].1;
@@ -944,7 +970,7 @@ mod tests {
 		t
 	}
 
-	fn unpopulate_trie(t: &mut TrieDB, v: &Vec<(Vec<u8>, Vec<u8>)>) {
+	fn unpopulate_trie<'a, 'db, T>(t: &mut TrieDB<'db, T>, v: &Vec<(Vec<u8>, Vec<u8>)>) where T: 'db + HashDB {
 		for i in v.iter() {
 			let key: &[u8]= &i.0;
 			t.remove(&key);
@@ -994,7 +1020,9 @@ mod tests {
 			}
 
 			let real = trie_root(x.clone());
-			let mut memtrie = populate_trie(&x);
+			let mut memdb = MemoryDB::new();
+			let mut root = H256::new();
+			let mut memtrie = populate_trie(&mut memdb, &mut root, &x);
 			if *memtrie.root() != real || !memtrie.db_items_remaining().is_empty() {
 				println!("TRIE MISMATCH");
 				println!("");
@@ -1023,14 +1051,18 @@ mod tests {
 
 	#[test]
 	fn init() {
-		let t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let t = TrieDB::new(&mut memdb, &mut root);
 		assert_eq!(*t.root(), SHA3_NULL_RLP);
 		assert!(t.is_empty());
 	}
 
 	#[test]
 	fn insert_on_empty() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
 	}
@@ -1039,12 +1071,16 @@ mod tests {
 	fn remove_to_empty() {
 		let big_value = b"00000000000000000000000000000000";
 
-		let mut t1 = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t1 = TrieDB::new(&mut memdb, &mut root);
 		t1.insert(&[0x01, 0x23], &big_value.to_vec());
 		t1.insert(&[0x01, 0x34], &big_value.to_vec());
 		trace!("keys remaining {:?}", t1.db_items_remaining());
 		assert!(t1.db_items_remaining().is_empty());
-		let mut t2 = TrieDB::new_memory();
+		let mut memdb2 = MemoryDB::new();
+		let mut root2 = H256::new();
+		let mut t2 = TrieDB::new(&mut memdb2, &mut root2);
 		t2.insert(&[0x01], &big_value.to_vec());
 		t2.insert(&[0x01, 0x23], &big_value.to_vec());
 		t2.insert(&[0x01, 0x34], &big_value.to_vec());
@@ -1058,7 +1094,9 @@ mod tests {
 
 	#[test]
 	fn insert_replace_root() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]);
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
@@ -1066,7 +1104,9 @@ mod tests {
 
 	#[test]
 	fn insert_make_branch_root() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1077,7 +1117,9 @@ mod tests {
 
 	#[test]
 	fn insert_into_branch_root() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
@@ -1090,7 +1132,9 @@ mod tests {
 
 	#[test]
 	fn insert_value_into_branch_root() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[], &[0x0]);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1101,7 +1145,9 @@ mod tests {
 
 	#[test]
 	fn insert_split_leaf() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1112,7 +1158,9 @@ mod tests {
 
 	#[test]
 	fn insert_split_extenstion() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01, 0x23, 0x45], &[0x01]);
 		t.insert(&[0x01, 0xf3, 0x45], &[0x02]);
 		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]);
@@ -1128,7 +1176,9 @@ mod tests {
 		let big_value0 = b"00000000000000000000000000000000";
 		let big_value1 = b"11111111111111111111111111111111";
 
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value0);
 		t.insert(&[0x11u8, 0x23], big_value1);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1141,7 +1191,9 @@ mod tests {
 	fn insert_duplicate_value() {
 		let big_value = b"00000000000000000000000000000000";
 
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value);
 		t.insert(&[0x11u8, 0x23], big_value);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1199,20 +1251,26 @@ mod tests {
 
 	#[test]
 	fn test_at_empty() {
-		let t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let t = TrieDB::new(&mut memdb, &mut root);
 		assert_eq!(t.at(&[0x5]), None);
 	}
 
 	#[test]
 	fn test_at_one() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		assert_eq!(t.at(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
 	}
 
 	#[test]
 	fn test_at_three() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
@@ -1224,7 +1282,9 @@ mod tests {
 
 	#[test]
 	fn test_print_trie() {
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x02u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
@@ -1244,10 +1304,14 @@ mod tests {
 				x.push((key, rlp::encode(&j)));
 			}
 			let real = trie_root(x.clone());
-			let memtrie = populate_trie(&x);
+			let mut memdb = MemoryDB::new();
+			let mut root = H256::new();
+			let memtrie = populate_trie(&mut memdb, &mut root, &x);
 			let mut y = x.clone();
 			y.sort_by(|ref a, ref b| a.0.cmp(&b.0));
-			let memtrie_sorted = populate_trie(&y);
+			let mut memdb2 = MemoryDB::new();
+			let mut root2 = H256::new();
+			let memtrie_sorted = populate_trie(&mut memdb2, &mut root2, &y);
 			if *memtrie.root() != real || *memtrie_sorted.root() != real {
 				println!("TRIE MISMATCH");
 				println!("");
@@ -1273,7 +1337,9 @@ mod tests {
 		execute_tests_from_directory::<trie::TrieTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
 			println!("file: {}", file);
 
-			let mut t = TrieDB::new_memory();
+			let mut memdb = MemoryDB::new();
+			let mut root = H256::new();
+			let mut t = TrieDB::new(&mut memdb, &mut root);
 			for operation in input.into_iter() {
 				match operation {
 					trie::Operation::Insert(key, value) => t.insert(&key, &value),
@@ -1283,5 +1349,19 @@ mod tests {
 
 			assert_eq!(*t.root(), H256::from_slice(&output));
 		});
+	}
+
+	#[test]
+	fn test_trie_existing() {
+		let mut root = H256::new();
+		let mut db = MemoryDB::new();
+		{
+			let mut t = TrieDB::new(&mut db, &mut root);
+			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
+		}
+
+		{
+		 	let _ = TrieDB::new_existing(&mut db, &mut root);
+		}
 	}
 }

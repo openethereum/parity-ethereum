@@ -10,6 +10,8 @@ use test::Bencher;
 use ethcore_util::hash::*;
 use ethcore_util::bytes::*;
 use ethcore_util::trie::*;
+use ethcore_util::hashdb::*;
+use ethcore_util::memorydb::*;
 use ethcore_util::triehash::*;
 use ethcore_util::sha3::*;
 
@@ -51,7 +53,9 @@ fn trie_insertions_six_high(b: &mut Bencher) {
 	}
 
 	b.iter(||{
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1);
 		}
@@ -84,7 +88,9 @@ fn trie_insertions_six_mid(b: &mut Bencher) {
 		d.push((k, v))
 	}
 	b.iter(||{
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1);
 		}
@@ -119,7 +125,9 @@ fn trie_insertions_random_mid(b: &mut Bencher) {
 	}
 
 	b.iter(||{
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1);
 		}
@@ -154,7 +162,9 @@ fn trie_insertions_six_low(b: &mut Bencher) {
 	}
 
 	b.iter(||{
-		let mut t = TrieDB::new_memory();
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDB::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1);
 		}
