@@ -25,6 +25,7 @@ use std::fmt;
 use std::cmp::*;
 use std::ops::*;
 use std::str::FromStr;
+use std::hash::{Hash, Hasher};
 use rustc_serialize::hex::{FromHex, FromHexError};
 
 macro_rules! impl_map_from {
@@ -348,6 +349,13 @@ macro_rules! construct_uint {
 					try!(write!(f, "{:02x}", ch));
 				}
 				Ok(())
+			}
+		}
+
+		impl Hash for $name {
+			fn hash<H>(&self, state: &mut H) where H: Hasher {
+				unsafe { state.write(::std::slice::from_raw_parts(self.0.as_ptr() as *mut u8, self.0.len() * 8)); }
+				state.finish();
 			}
 		}
 	);
