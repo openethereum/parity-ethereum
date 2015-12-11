@@ -7,20 +7,23 @@ use blockheader::*;
 use block::*;
 use verifiedblock::*;
 use importroute::*;
+use account::*;
 
 pub struct BlockChain {
 	genesis_block: Vec<u8>,
-	genesis_hash: H256
+	genesis_hash: H256,
+	genesis_state: AccountMap
 }
 
 impl BlockChain {
-	pub fn new(genesis_block: Vec<u8>) -> BlockChain {
+	pub fn new(genesis_block: Vec<u8>, genesis_state: AccountMap) -> BlockChain {
 		// consider creating `GenesisView` for genesis block RLP
 		let genesis_hash = BlockView::new(&genesis_block).parent_hash().sha3();
 
 		BlockChain {
 			genesis_block: genesis_block,
-			genesis_hash: genesis_hash
+			genesis_hash: genesis_hash,
+			genesis_state: genesis_state
 		}
 	}
 
@@ -32,7 +35,7 @@ impl BlockChain {
 		}
 
 		let mut block = Block::new(db.clone());
-		// TODO: commit genesis state (accounts) to block.state
+		block.mutable_state().insert_accounts(&self.genesis_state);
 		block.mutable_state().commit_db();
 		// TODO: set previous block
 		// TODO: reset current

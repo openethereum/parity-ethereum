@@ -76,6 +76,7 @@ extern crate ethcore_util as util;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
 
+pub mod account;
 pub mod block;
 pub mod blockchain;
 pub mod blockheader;
