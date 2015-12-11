@@ -329,7 +329,7 @@ impl<'db, T> TrieDB<'db, T> where T: 'db + HashDB {
 
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
-	pub fn new_pre_existing(db: &'db mut T, root: &'db mut H256) -> Self {
+	pub fn new_existing(db: &'db mut T, root: &'db mut H256) -> Self {
 		assert!(db.exists(root));
 		TrieDB { 
 			db: db, 
@@ -1361,7 +1361,7 @@ mod tests {
 		}
 
 		{
-		 	let _ = TrieDB::new_pre_existing(&mut db, &mut root);
+		 	let _ = TrieDB::new_existing(&mut db, &mut root);
 		}
 	}
 }
