@@ -79,8 +79,11 @@ extern crate evmjit;
 pub mod block;
 pub mod blockchain;
 pub mod blockheader;
-
 pub mod transaction;
+pub mod verifiedblock;
+pub mod importroute;
+
+
 pub mod networkparams;
 pub mod denominations;
 

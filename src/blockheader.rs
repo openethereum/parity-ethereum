@@ -1,6 +1,7 @@
 use util::hash::*;
 use util::uint::*;
 use util::rlp::*;
+use util::sha3;
 
 /// view onto block header rlp
 pub struct BlockView<'a> {
@@ -30,7 +31,14 @@ impl<'a> BlockView<'a> {
 	pub fn nonce(&self) -> H64 { self.rlp.val_at(13) }
 }
 
+impl<'a> sha3::Hashable for BlockView<'a> {
+	fn sha3(&self) -> H256 {
+		self.rlp.data().sha3()
+	}
+}
+
 /// Data structure represening block header
+/// similar to cpp-ethereum's BlockInfo
 pub struct BlockHeader {
 	parent_hash: H256,
 	uncles_hash: H256,
