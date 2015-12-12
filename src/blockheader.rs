@@ -15,6 +15,12 @@ impl<'a> BlockView<'a> {
 		}
 	}
 
+	pub fn new_from_rlp(rlp: Rlp<'a>) -> BlockView<'a> {
+		BlockView {
+			rlp: rlp
+		}
+	}
+
 	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
 	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1) }
 	pub fn coinbase(&self) -> Address { self.rlp.val_at(2) }
@@ -33,7 +39,7 @@ impl<'a> BlockView<'a> {
 
 impl<'a> sha3::Hashable for BlockView<'a> {
 	fn sha3(&self) -> H256 {
-		self.rlp.data().sha3()
+		self.rlp.raw().sha3()
 	}
 }
 

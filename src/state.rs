@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use util::hash::*;
 use util::hashdb::*;
 use util::memorydb::*;
@@ -58,10 +59,10 @@ impl State {
 
 	/// Commit accounts to TrieDB. This is simplified version of
 	/// cpp-ethereum's dev::eth::commit.
-	pub fn insert_accounts(&mut self, map: &AccountMap) {
+	pub fn insert_accounts(&mut self, accounts: &HashMap<Address, Account>) {
 		let mut trie = TrieDB::new_existing(&mut self.db, &mut self.root);
 
-		for (address, account) in map.accounts().iter() {
+		for (address, account) in accounts.iter() {
 			let mut stream = RlpStream::new_list(4);
 			stream.append(account.nonce());
 			stream.append(account.balance());

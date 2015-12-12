@@ -3,6 +3,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use rustc_serialize::base64::FromBase64;
 use rustc_serialize::json::Json;
+use rustc_serialize::hex::FromHex;
 use flate2::read::GzDecoder;
 use util::rlp::*;
 use util::hash::*;
@@ -24,7 +25,7 @@ fn base_to_json(source: &[u8]) -> Json {
 
 pub struct Genesis {
 	block: Vec<u8>,
-	state: AccountMap
+	state: HashMap<Address, Account>
 }
 
 impl Genesis {
@@ -45,7 +46,7 @@ impl Genesis {
 		let difficulty = U256::from_str(&json["difficulty"].as_string().unwrap()[2..]).unwrap();
 		let gas_limit = U256::from_str(&json["gasLimit"].as_string().unwrap()[2..]).unwrap();
 		let timestamp = U256::from_str(&json["timestamp"].as_string().unwrap()[2..]).unwrap();
-		let extra_data: Vec<u8> = From::from(&json["extraData"].as_string().unwrap()[2..]);
+		let extra_data: Vec<u8> = json["extraData"].as_string().unwrap()[2..].from_hex().unwrap();
 		let nonce = H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap();
 
 		let log_bloom = H2048::new();
@@ -80,24 +81,32 @@ impl Genesis {
 		stream.append_raw(&empty_list, 1);
 		stream.append_raw(&empty_list, 1);
 	
-		let mut map = HashMap::new();
+		let mut state = HashMap::new();
 		let accounts = json["alloc"].as_object().expect("Missing genesis state");
 		for (address, acc) in accounts.iter() {
 			let addr = Address::from_str(address).unwrap();
 			let o = acc.as_object().unwrap();
 			let balance = U256::from_dec_str(o["balance"].as_string().unwrap()).unwrap();
-			map.insert(addr, Account::new_with_balance(balance));
+			state.insert(addr, Account::new_with_balance(balance));
 		}
 
 		Genesis {
 			block: stream.out(),
-			state: AccountMap::new(map)
+			state: state 
 		}
+	}
+
+	pub fn drain(self) -> (Vec<u8>, HashMap<Address, Account>) {
+		(self.block, self.state)
 	}
 }
 
 #[test]
 fn test_genesis() {
-	let g = Genesis::new_default();
+	use blockheader::*;
 
+	let g = Genesis::new_frontier();
+	let view = BlockView::new_from_rlp(Rlp::new(&g.block).at(0));
+	let genesis_hash = H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
+	assert_eq!(view.sha3(), genesis_hash);
 }

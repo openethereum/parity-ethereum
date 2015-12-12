@@ -25,16 +25,3 @@ impl Account {
 	pub fn storage(&self) -> &HashMap<U256, U256> { &self.storage }
 }
 
-pub struct AccountMap {
-	accounts: HashMap<Address, Account>
-}
-
-impl AccountMap {
-	pub fn new(accounts: HashMap<Address, Account>) -> AccountMap {
-		AccountMap {
-			accounts: accounts
-		}
-	}
-
-	pub fn accounts(&self) -> &HashMap<Address, Account> { &self.accounts }
-}
