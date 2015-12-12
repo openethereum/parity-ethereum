@@ -282,6 +282,8 @@ pub trait Stream: Sized {
 	/// }
 	fn is_finished(&self) -> bool;
 
+	fn raw(&self) -> &[u8];
+
 	/// Streams out encoded bytes.
 	/// 
 	/// panic! if stream is not finished.

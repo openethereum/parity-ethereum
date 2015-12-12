@@ -101,6 +101,10 @@ impl Stream for RlpStream {
 		self.unfinished_lists.len() == 0
 	}
 
+	fn raw(&self) -> &[u8] {
+		&self.encoder.bytes
+	}
+
 	fn out(self) -> Vec<u8> {
 		match self.is_finished() {
 			true => self.encoder.out().to_vec(),
