@@ -46,6 +46,11 @@ impl State {
 		Self::new(OverlayDB::new_temp())
 	}
 
+	/// Return reference to root
+	pub fn root(&self) -> &H256 {
+		&self.root
+	}
+
 	/// Commit everything to the disk
 	pub fn commit_db(&mut self) {
 		self.db.commit().expect("Number of kills exceeded number of inserts!");

@@ -71,6 +71,8 @@
 
 #[macro_use] 
 extern crate log;
+extern crate rustc_serialize;
+extern crate flate2;
 extern crate ethcore_util as util;
 
 #[cfg(feature = "jit" )]
@@ -81,6 +83,7 @@ pub mod block;
 pub mod blockchain;
 pub mod blockheader;
 pub mod transaction;
+pub mod genesis;
 pub mod verifiedblock;
 pub mod importroute;
 

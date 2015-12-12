@@ -10,6 +10,15 @@ pub struct Account {
 }
 
 impl Account {
+	pub fn new_with_balance(balance: U256) -> Account {
+		Account {
+			balance: balance,
+			code: vec![],
+			nonce: U256::from(0u8),
+			storage: HashMap::new()
+		}
+	}
+
 	pub fn balance(&self) -> &U256 { &self.balance }
 	pub fn code(&self) -> &[u8] { &self.code }
 	pub fn nonce(&self) -> &U256 { &self.nonce }
@@ -21,5 +30,11 @@ pub struct AccountMap {
 }
 
 impl AccountMap {
+	pub fn new(accounts: HashMap<Address, Account>) -> AccountMap {
+		AccountMap {
+			accounts: accounts
+		}
+	}
+
 	pub fn accounts(&self) -> &HashMap<Address, Account> { &self.accounts }
 }
