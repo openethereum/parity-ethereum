@@ -383,8 +383,13 @@ macro_rules! construct_uint {
 
 			/// TODO: optimize, throw appropriate err
 			fn from_dec_str(value: &str) -> Result<Self, Self::Err> {
-				let ten = $name::from(10u64);
-				Ok(value.bytes().map(|b| b - 48).fold($name::from(0u64), | acc, c | acc * ten + $name::from(c) ))
+				Ok(value.bytes()
+				   .map(|b| b - 48)
+				   .fold($name::from(0u64), | acc, c | 
+						 // fast multiplication by 10
+						 // (acc << 3) + (acc << 1) => acc * 10
+						 (acc << 3) + (acc << 1) + $name::from(c)
+					))
 			}
 		}
 
