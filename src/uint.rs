@@ -28,6 +28,11 @@ use std::str::FromStr;
 use std::hash::{Hash, Hasher};
 use rustc_serialize::hex::{FromHex, FromHexError};
 
+pub trait FromDecStr: Sized {
+	type Err;
+	fn from_dec_str(value: &str) -> Result<Self, Self::Err>;
+}
+
 macro_rules! impl_map_from {
 	($thing:ident, $from:ty, $to:ty) => {
 		impl From<$from> for $thing {
@@ -139,8 +144,13 @@ macro_rules! construct_uint {
 			type Err = FromHexError;
 
 			fn from_str(value: &str) -> Result<$name, Self::Err> {
-				let bytes: &[u8] = &try!(value.from_hex());
-				Ok(From::from(bytes))
+				let bytes: Vec<u8> = match value.len() % 2 == 0 {
+					true => try!(value.from_hex()),
+					false => try!(("0".to_string() + value).from_hex())
+				};
+
+				let bytes_ref: &[u8] = &bytes;
+				Ok(From::from(bytes_ref))
 			}
 		}
 
@@ -219,6 +229,15 @@ macro_rules! construct_uint {
 				}
 
 				$name(ret)
+			}
+		}
+
+		impl Rem<$name> for $name {
+			type Output = $name;
+
+			fn rem(self, other: $name) -> $name {
+				let times = self / other;
+				self - (times * other)
 			}
 		}
 
@@ -358,9 +377,21 @@ macro_rules! construct_uint {
 				state.finish();
 			}
 		}
+
+		impl FromDecStr for $name {
+			type Err = FromHexError;
+
+			/// TODO: optimize, throw appropriate err
+			fn from_dec_str(value: &str) -> Result<Self, Self::Err> {
+				let ten = $name::from(10u64);
+				Ok(value.bytes().map(|b| b - 48).fold($name::from(0u64), | acc, c | acc * ten + $name::from(c) ))
+			}
+		}
+
 	);
 }
 
+construct_uint!(U512, 8);
 construct_uint!(U256, 4);
 construct_uint!(U128, 2);
 
@@ -374,6 +405,10 @@ impl From<U128> for U256 {
 	}
 }
 
+
+
+
+
 pub const ZERO_U256: U256 = U256([0x00u64; 4]);
 pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
 pub const BAD_U256: U256 = U256([0xffffffffffffffffu64; 4]);
@@ -381,6 +416,7 @@ pub const BAD_U256: U256 = U256([0xffffffffffffffffu64; 4]);
 #[cfg(test)]
 mod tests {
 	use uint::U256;
+	use uint::FromDecStr;
 	use std::str::FromStr;
 
 	#[test]
@@ -564,6 +600,18 @@ mod tests {
 		assert_eq!(U256::from(10u64) /  U256::from(1u64), U256::from(10u64));
 		assert_eq!(U256::from(10u64) /  U256::from(2u64), U256::from(5u64));
 		assert_eq!(U256::from(10u64) /  U256::from(3u64), U256::from(3u64));
+	}
+
+	#[test]
+	fn uint256_rem() {
+		assert_eq!(U256::from(10u64) % U256::from(1u64), U256::from(0u64));
+		assert_eq!(U256::from(10u64) % U256::from(3u64), U256::from(1u64));
+	}
+
+	#[test]
+	fn uint256_from_dec_str() {
+		assert_eq!(U256::from_dec_str("10").unwrap(), U256::from(10u64));
+		assert_eq!(U256::from_dec_str("1024").unwrap(), U256::from(1024u64));
 	}
 }
 
