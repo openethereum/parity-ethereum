@@ -82,6 +82,7 @@ pub use util::uint::*;
 pub use util::bytes::*;
 
 pub mod state;
+pub mod account;
 pub mod blockheader;
 pub mod transaction;
 pub mod networkparams;
