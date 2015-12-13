@@ -69,13 +69,19 @@
 //!       sudo ldconfig
 //!       ```
 
-#[macro_use] 
+#[macro_use]
 extern crate log;
-extern crate ethcore_util as util;
-
+extern crate env_logger;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
+extern crate ethcore_util as util;
 
+//use util::error::*;
+pub use util::hash::*;
+pub use util::uint::*;
+pub use util::bytes::*;
+
+pub mod state;
 pub mod blockheader;
 pub mod transaction;
 pub mod networkparams;

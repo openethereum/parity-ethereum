@@ -1,4 +1,5 @@
 use util::hash::*;
+use util::bytes::*;
 use util::uint::*;
 use util::rlp::*;
 
@@ -8,7 +9,7 @@ pub struct Transaction {
 	gas: U256,
 	receive_address: Option<Address>,
 	value: U256,
-	data: Vec<u8>,
+	data: Bytes,
 }
 
 impl Transaction {
