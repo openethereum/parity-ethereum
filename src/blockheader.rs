@@ -24,7 +24,7 @@ impl<'a> BlockView<'a> {
 
 	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
 	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1) }
-	pub fn coinbase(&self) -> Address { self.rlp.val_at(2) }
+	pub fn author(&self) -> Address { self.rlp.val_at(2) }
 	pub fn state_root(&self) -> H256 { self.rlp.val_at(3) }
 	pub fn transactions_root(&self) -> H256 { self.rlp.val_at(4) }
 	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5) }
@@ -32,10 +32,10 @@ impl<'a> BlockView<'a> {
 	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
 	pub fn number(&self) -> U256 { self.rlp.val_at(8) }
 	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
-	pub fn gas_usd(&self) -> U256 { self.rlp.val_at(10) }
+	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10) }
 	pub fn timestamp(&self) -> U256 { self.rlp.val_at(11) }
-	pub fn mix_hash(&self) -> H256 { self.rlp.val_at(12) }
-	pub fn nonce(&self) -> H64 { self.rlp.val_at(13) }
+	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }
+	pub fn seal(&self) -> Vec<Bytes> { self.rlp.val_at(13) }
 }
 
 impl<'a> sha3::Hashable for BlockView<'a> {
