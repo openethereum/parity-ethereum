@@ -63,7 +63,7 @@ pub struct BlockHeader {
 }
 
 impl Decodable for BlockHeader {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		decoder.read_list(| d | {
 			// return an error if d != 14
 			let blockheader = BlockHeader {

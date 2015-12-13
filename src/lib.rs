@@ -83,6 +83,7 @@ pub mod block;
 pub mod blockchain;
 pub mod blockheader;
 pub mod transaction;
+pub mod extras;
 pub mod genesis;
 pub mod verifiedblock;
 pub mod importroute;

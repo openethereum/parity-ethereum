@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use util::hash::*;
+use util::uint::*;
 use util::rlp::*;
 use util::hashdb::*;
 use util::overlaydb::*;
@@ -10,12 +12,21 @@ use verifiedblock::*;
 use importroute::*;
 use account::*;
 use genesis::*;
+use extras::*;
 
 pub struct BlockChain {
+	// TODO: consider wrapping `genesis_info` into Arc<GenesisInfo>
+	// rlp list of 3
 	genesis_block: Vec<u8>,
+	// genesis block header
 	genesis_header: Vec<u8>,
 	genesis_hash: H256,
-	genesis_state: HashMap<Address, Account>
+	genesis_state: HashMap<Address, Account>,
+
+	// extras
+	// TODO: is arc really needed here, since blockchain itself will be wrapped
+	// into `Arc`?
+	block_details: Arc<Mutex<HashMap<H256, BlockDetails>>>
 }
 
 impl BlockChain {
@@ -39,17 +50,29 @@ impl BlockChain {
 	pub fn new(genesis: Genesis) -> BlockChain {
 		let (genesis_block, genesis_state) = genesis.drain();
 
-		let (genesis_header, genesis_hash) = {
-			let rlp = Rlp::new(&genesis_block).at(0);
-			(rlp.raw().to_vec(), BlockView::new_from_rlp(rlp).sha3())
+		let genesis_header = Rlp::new(&genesis_block).at(0).raw().to_vec();
+		let genesis_hash = BlockView::new(&genesis_header).sha3();
+
+		let genesis_details = BlockDetails {
+			number: U256::from(0u64),
+			total_difficulty: BlockView::new(&genesis_header).difficulty(),
+			parent: H256::new(),
+			children: vec![]
 		};
 
-		BlockChain {
+		// TODO: also insert into backing db
+		let mut block_details = HashMap::new();
+		block_details.insert(genesis_hash.clone(), genesis_details);
+
+		let bc = BlockChain {
 			genesis_block: genesis_block,
 			genesis_header: genesis_header,
 			genesis_hash: genesis_hash,
-			genesis_state: genesis_state
-		}
+			genesis_state: genesis_state,
+			block_details: Arc::new(Mutex::new(block_details))
+		};
+
+		bc
 	}
 
 	pub fn genesis_hash(&self) -> &H256 {
@@ -94,7 +117,8 @@ impl BlockChain {
 	/// Returns true if the given block is known 
 	/// (though not necessarily a part of the canon chain).
 	pub fn is_known(&self, hash: &H256) -> bool {
-		unimplemented!()
+		return false;
+		//unimplemented!()
 		// TODO: check is hash exist in hashes
 	}
 }
