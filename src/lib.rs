@@ -69,18 +69,25 @@
 //!       sudo ldconfig
 //!       ```
 
-#[macro_use] 
+#[macro_use]
 extern crate log;
 extern crate rustc_serialize;
 extern crate flate2;
-extern crate ethcore_util as util;
 
+extern crate env_logger;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
+extern crate ethcore_util as util;
+
+//use util::error::*;
+pub use util::hash::*;
+pub use util::uint::*;
+pub use util::bytes::*;
 
 pub mod account;
 pub mod block;
 pub mod blockchain;
+pub mod state;
 pub mod blockheader;
 pub mod transaction;
 pub mod extras;
@@ -92,7 +99,6 @@ pub mod importroute;
 pub mod networkparams;
 pub mod denominations;
 
-pub mod state;
 
 #[test]
 fn it_works() {
