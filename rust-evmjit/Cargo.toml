@@ -1,0 +1,7 @@
+[package]
+name = "evmjit"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+
+[dependencies]
+libc = "0.2.2"
