@@ -64,6 +64,7 @@ impl State {
 
 	/// Commit accounts to TrieDB. This is simplified version of
 	/// cpp-ethereum's dev::eth::commit.
+	/// accounts mutable because we may need to commit the code or storage and record that.
 	pub fn commit(db: &mut HashDB, mut root: H256, accounts: &mut HashMap<Address, Account>) -> H256 {
 		// first, commit the sub trees.
 		for (_, ref mut account) in accounts.iter_mut() {
@@ -86,7 +87,7 @@ impl State {
 	}
 
 	pub fn insert_accounts(&mut self, accounts: &mut HashMap<Address, Account>) {
-		let r = self.root.clone();
+		let r = self.root.clone();	// would prefer not to do this, really. 
 		self.root = Self::commit(&mut self.db, r, accounts);
 	}
 }

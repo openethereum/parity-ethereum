@@ -73,5 +73,13 @@ impl Account {
 		}{
 			self.code = new_code;
 		}
+
+		// that nasty bit of code should really be:
+		/*if let HashOrData::Data(ref d) = self.code {
+    		let h = db.insert(d);
+    		self.code = HashOrData::Both(h, d.clone());
+		}*/
+		// a rewrite it closer to this would be good...
+
 	}
 }
