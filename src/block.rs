@@ -12,16 +12,12 @@ pub struct Block {
 impl Block {
 	/// Creates block with empty state root
 	pub fn new(db: OverlayDB) -> Block {
-		Block {
-			state: State::new(db)
-		}
+		unimplemented!()
 	}
 
 	/// Creates block with state root
 	pub fn new_existing(db: OverlayDB, state_root: H256) -> Block {
-		Block {
-			state: State::new_existing(db, state_root)
-		}
+		unimplemented!()
 	}
 
 	/// Returns mutable reference to backing state
