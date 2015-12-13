@@ -299,8 +299,8 @@ impl <'a>Node<'a> {
 ///   assert!(t.db_items_remaining().is_empty());
 /// }
 /// ```
-pub struct TrieDB<'db, T> where T: 'db + HashDB {
-	db: &'db mut T,
+pub struct TrieDB<'db> {
+	db: &'db mut HashDB,
 	root: &'db mut H256,
 	pub hash_count: usize,
 }
@@ -311,12 +311,12 @@ enum MaybeChanged<'a> {
 	Changed(Bytes),
 }
 
-impl<'db, T> TrieDB<'db, T> where T: 'db + HashDB {
+impl<'db> TrieDB<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut T, root: &'db mut H256) -> Self { 
-		let mut r = TrieDB{ 
+	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self { 
+		let mut r = TrieDB{
 			db: db, 
 			root: root,
 			hash_count: 0 
@@ -329,7 +329,7 @@ impl<'db, T> TrieDB<'db, T> where T: 'db + HashDB {
 
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
-	pub fn new_existing(db: &'db mut T, root: &'db mut H256) -> Self {
+	pub fn new_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
 		assert!(db.exists(root));
 		TrieDB { 
 			db: db, 
@@ -339,7 +339,7 @@ impl<'db, T> TrieDB<'db, T> where T: 'db + HashDB {
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db T { 
+	pub fn db(&'db self) -> &'db HashDB { 
 		self.db 
 	}
 
@@ -364,7 +364,7 @@ impl<'db, T> TrieDB<'db, T> where T: 'db + HashDB {
 	/// Determine occurances of items in the backing database which are not related to this
 	/// trie.
 	pub fn db_items_remaining(&self) -> HashMap<H256, i32> {
-		let mut ret = self.db().keys();
+		let mut ret = self.db.keys();
 		for (k, v) in Self::to_map(self.keys()).into_iter() {
 			let keycount = *ret.get(&k).unwrap_or(&0);
 			match keycount == v as i32 {
@@ -892,7 +892,7 @@ impl<'db, T> TrieDB<'db, T> where T: 'db + HashDB {
 	}
 }
 
-impl<'db, T> Trie for TrieDB<'db, T> where T: 'db + HashDB {
+impl<'db> Trie for TrieDB<'db> {
 	fn root(&self) -> &H256 { &self.root }
 
 	fn contains(&self, key: &[u8]) -> bool {
@@ -915,7 +915,7 @@ impl<'db, T> Trie for TrieDB<'db, T> where T: 'db + HashDB {
 	}
 }
 
-impl<'db, T> fmt::Debug for TrieDB<'db, T> where T: 'db + HashDB {
+impl<'db> fmt::Debug for TrieDB<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "c={:?} [", self.hash_count));
 		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
@@ -960,7 +960,7 @@ mod tests {
 		}
 	}
 
-	fn populate_trie<'db, T>(db: &'db mut T, root: &'db mut H256, v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDB<'db, T> where T: 'db + HashDB {
+	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDB<'db> {
 		let mut t = TrieDB::new(db, root);
 		for i in 0..v.len() {
 			let key: &[u8]= &v[i].0;
@@ -970,7 +970,7 @@ mod tests {
 		t
 	}
 
-	fn unpopulate_trie<'a, 'db, T>(t: &mut TrieDB<'db, T>, v: &Vec<(Vec<u8>, Vec<u8>)>) where T: 'db + HashDB {
+	fn unpopulate_trie<'a, 'db>(t: &mut TrieDB<'db>, v: &Vec<(Vec<u8>, Vec<u8>)>) {
 		for i in v.iter() {
 			let key: &[u8]= &i.0;
 			t.remove(&key);
