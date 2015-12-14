@@ -62,15 +62,14 @@ pub struct BlockDetails {
 
 impl Decodable for BlockDetails {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.read_list(| d | {
-			let details = BlockDetails {
-				number: try!(Decodable::decode(&d[0])),
-				total_difficulty: try!(Decodable::decode(&d[1])),
-				parent: try!(Decodable::decode(&d[2])),
-				children: try!(Decodable::decode(&d[3]))
-			};
-			Ok(details)
-		})
+		let d = try!(decoder.as_list());
+		let details = BlockDetails {
+			number: try!(Decodable::decode(&d[0])),
+			total_difficulty: try!(Decodable::decode(&d[1])),
+			parent: try!(Decodable::decode(&d[2])),
+			children: try!(Decodable::decode(&d[3]))
+		};
+		Ok(details)
 	}
 }
 

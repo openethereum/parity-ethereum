@@ -15,7 +15,6 @@ flate2 = "0.2"
 rocksdb = "0.2.1"
 
 evmjit = { path = "rust-evmjit", optional = true }
-rustc-serialize = "0.3"
 
 [features]
 jit = ["evmjit"]
