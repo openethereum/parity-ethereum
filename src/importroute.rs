@@ -2,7 +2,7 @@ use util::hash::*;
 use transaction::*;
 
 pub struct ImportRoute {
-	dead_blocks: Vec<H256>,
-	live_blocks: Vec<H256>,
-	transactions: Vec<Transaction>
+	_dead_blocks: Vec<H256>,
+	_live_blocks: Vec<H256>,
+	_transactions: Vec<Transaction>
 }

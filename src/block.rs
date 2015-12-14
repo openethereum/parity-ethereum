@@ -1,5 +1,4 @@
 use util::hash::*;
-use util::hashdb::*;
 use util::overlaydb::*;
 use util::rlp::*;
 use util::sha3::*;
@@ -56,12 +55,12 @@ pub struct Block {
 
 impl Block {
 	/// Creates block with empty state root
-	pub fn new(db: OverlayDB) -> Block {
+	pub fn new(_db: OverlayDB) -> Block {
 		unimplemented!()
 	}
 
 	/// Creates block with state root
-	pub fn new_existing(db: OverlayDB, state_root: H256) -> Block {
+	pub fn new_existing(_db: OverlayDB, _state_root: H256) -> Block {
 		unimplemented!()
 	}
 

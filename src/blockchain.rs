@@ -23,9 +23,9 @@ pub struct BlockChain {
 	// rlp list of 3
 	genesis_block: Bytes,
 	// genesis block header
-	genesis_header: Bytes,
+	_genesis_header: Bytes,
 	genesis_hash: H256,
-	genesis_state: HashMap<Address, Account>,
+	_genesis_state: HashMap<Address, Account>,
 
 	last_block_number: U256,
 
@@ -35,9 +35,9 @@ pub struct BlockChain {
 	// extra caches
 	block_details: 			Extras<H256, BlockDetails>,
 	block_hashes: 			Extras<U256, H256>,
-	transaction_addresses: 	Extras<H256, TransactionAddress>,
+	transaction_addresses:	Extras<H256, TransactionAddress>,
 	block_logs: 			Extras<H256, BlockLogBlooms>,
-	blocks_blooms: 			Extras<H256, BlocksBlooms>,
+	_blocks_blooms: 			Extras<H256, BlocksBlooms>,
 
 	extras_db: DB,
 	blocks_db: DB
@@ -90,26 +90,26 @@ impl BlockChain {
 		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
 
 		{
-			let mut batch = WriteBatch::new();
-			batch.put(&genesis_hash.to_extras_slice(ExtrasIndex::BlockDetails), &encode(&genesis_details));
-			batch.put(&U256::from(0u8).to_extras_slice(ExtrasIndex::BlockHash), &encode(&genesis_hash));
-			extras_db.write(batch);
+			let batch = WriteBatch::new();
+			batch.put(&genesis_hash.to_extras_slice(ExtrasIndex::BlockDetails), &encode(&genesis_details)).unwrap();
+			batch.put(&U256::from(0u8).to_extras_slice(ExtrasIndex::BlockHash), &encode(&genesis_hash)).unwrap();
+			extras_db.write(batch).unwrap();
 
-			blocks_db.put(&genesis_hash, &genesis_block);
+			blocks_db.put(&genesis_hash, &genesis_block).unwrap();
 		}
 
 		BlockChain {
 			genesis_block: genesis_block,
-			genesis_header: genesis_header,
+			_genesis_header: genesis_header,
 			genesis_hash: genesis_hash,
-			genesis_state: genesis_state,
+			_genesis_state: genesis_state,
 			last_block_number: U256::from(0u8),
 			blocks: RwLock::new(HashMap::new()),
 			block_details: Extras::new(ExtrasIndex::BlockDetails),
 			block_hashes: Extras::new(ExtrasIndex::BlockHash),
 			transaction_addresses: Extras::new(ExtrasIndex::TransactionAddress),
 			block_logs: Extras::new(ExtrasIndex::BlockLogBlooms),
-			blocks_blooms: Extras::new(ExtrasIndex::BlocksBlooms),
+			_blocks_blooms: Extras::new(ExtrasIndex::BlocksBlooms),
 			extras_db: extras_db,
 			blocks_db: blocks_db
 		}
@@ -122,10 +122,10 @@ impl BlockChain {
 			return Block::new_existing(db.clone(), root)
 		}
 
-		let mut block = Block::new(db.clone());
+		let block = Block::new(db.clone());
 		// TODO: commit
 		//block.mutable_state().insert_accounts(&self.genesis_state);
-		block.mutable_state().db().commit();
+		// block.mutable_state().db().commit();
 		// TODO: set previous block
 		// TODO: reset current
 		block
@@ -136,7 +136,7 @@ impl BlockChain {
 		VerifiedBlock::new(block)
 	}
 
-	pub fn import_block(&self, block: &[u8], db: &OverlayDB) -> ImportRoute {
+	pub fn import_block(&self, block: &[u8], _db: &OverlayDB) -> ImportRoute {
 		let view = HeaderView::new(block);
 
 		// check if we already know this block
