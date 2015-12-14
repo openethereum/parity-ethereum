@@ -99,7 +99,7 @@ impl Decodable for Header {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = try!(decoder.as_list());
 
-		let blockheader = Header {
+		let mut blockheader = Header {
 			parent_hash: try!(Decodable::decode(&d[0])),
 			uncles_hash: try!(Decodable::decode(&d[1])),
 			author: try!(Decodable::decode(&d[2])),
@@ -115,7 +115,11 @@ impl Decodable for Header {
 			extra_data: try!(Decodable::decode(&d[12])),
 			seal: vec![],
 		};
-		// TODO: fill blockheader.seal with (raw) list items index 12..)
+
+		for i in 13..d.len() {
+			blockheader.seal.push(try!(Decodable::decode(&d[i])));
+		}
+
 		Ok(blockheader)
 	}
 }
@@ -136,7 +140,10 @@ impl Encodable for Header {
 			self.gas_used.encode(e);
 			self.timestamp.encode(e);
 			self.extra_data.encode(e);
-			// TODO: emit raw seal items.
+		
+			for b in self.seal.iter() {
+				b.encode(e);
+			}
 		})
 	}
 }
