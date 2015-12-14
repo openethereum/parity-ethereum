@@ -35,7 +35,13 @@ impl<'a> BlockView<'a> {
 	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10) }
 	pub fn timestamp(&self) -> U256 { self.rlp.val_at(11) }
 	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }
-	pub fn seal(&self) -> Vec<Bytes> { self.rlp.val_at(13) }
+	pub fn seal(&self) -> Vec<Bytes> { 
+		let mut seal = vec![];
+		for i in 13..self.rlp.item_count() {
+			seal.push(self.rlp.val_at(i));
+		}
+		seal
+	}
 }
 
 impl<'a> sha3::Hashable for BlockView<'a> {
