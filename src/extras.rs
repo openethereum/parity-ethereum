@@ -11,7 +11,10 @@ use util::rlp::*;
 pub enum ExtrasIndex {
 	BlockDetails = 0,
 	BlockHash = 1,
-}
+	TransactionAddress = 2,
+	BlockLogBlooms = 3,
+	BlocksBlooms = 4
+} 
 
 /// rw locked extra data with slice suffix
 // consifer if arc needed here, since blockchain itself will be wrapped
@@ -80,6 +83,89 @@ impl Encodable for BlockDetails {
 			self.total_difficulty.encode(e);
 			self.parent.encode(e);
 			self.children.encode(e);
+		})
+	}
+}
+
+#[derive(Clone)]
+pub struct BlockLogBlooms {
+	pub blooms: Vec<H2048>
+}
+
+impl Decodable for BlockLogBlooms {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let block_blooms = BlockLogBlooms {
+			blooms: try!(Decodable::decode(decoder))
+		};
+
+		Ok(block_blooms)
+	}
+}
+
+impl Encodable for BlockLogBlooms {
+	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
+		self.blooms.encode(encoder);
+	}
+}
+
+pub struct BlocksBlooms {
+	pub blooms: [H2048; 16]
+}
+
+impl Clone for BlocksBlooms {
+	fn clone(&self) -> Self {
+		let mut blooms: [H2048; 16] = unsafe { ::std::mem::uninitialized() };
+
+		for i in 0..self.blooms.len() {
+			blooms[i] = self.blooms[i].clone();
+		}
+
+		BlocksBlooms {
+			blooms: blooms
+		}
+	}
+}
+
+impl Decodable for BlocksBlooms {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let blocks_blooms = BlocksBlooms {
+			blooms: try!(Decodable::decode(decoder))
+		};
+
+		Ok(blocks_blooms)
+	}
+}
+
+impl Encodable for BlocksBlooms {
+	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
+		let blooms_ref: &[H2048] = &self.blooms;
+		blooms_ref.encode(encoder);
+	}
+}
+
+#[derive(Clone)]
+pub struct TransactionAddress {
+	pub block_hash: H256,
+	pub index: u64
+}
+
+impl Decodable for TransactionAddress {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = try!(decoder.as_list());
+		let tx_address = TransactionAddress {
+			block_hash: try!(Decodable::decode(&d[0])),
+			index: try!(Decodable::decode(&d[1]))
+		};
+
+		Ok(tx_address)
+	}
+}
+
+impl Encodable for TransactionAddress {
+	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
+		encoder.emit_list(| e | {
+			self.block_hash.encode(e);
+			self.index.encode(e);
 		})
 	}
 }

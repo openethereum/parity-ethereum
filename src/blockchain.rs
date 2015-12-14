@@ -18,7 +18,6 @@ use genesis::*;
 use extras::*;
 
 pub struct BlockChain {
-	// TODO: consider wrapping `genesis_info` into Arc<GenesisInfo>
 	// rlp list of 3
 	genesis_block: Vec<u8>,
 	// genesis block header
@@ -29,8 +28,12 @@ pub struct BlockChain {
 	last_block_number: U256,
 
 	// extras
-	blocks_details: Extras<H256, BlockDetails>,
-	blocks_hashes: Extras<U256, H256>,
+	block_details_hash: 		Extras<H256, BlockDetails>,
+	block_hashes_hash: 			Extras<U256, H256>,
+	transaction_addresses_hash: Extras<H256, TransactionAddress>,
+	block_logs_hash: 			Extras<H256, BlockLogBlooms>,
+	blocks_blooms_hash: 		Extras<H256, BlocksBlooms>,
+
 	extras_db: DB
 }
 
@@ -87,8 +90,11 @@ impl BlockChain {
 			genesis_hash: genesis_hash,
 			genesis_state: genesis_state,
 			last_block_number: U256::from(0u8),
-			blocks_details: Extras::new(ExtrasIndex::BlockDetails),
-			blocks_hashes: Extras::new(ExtrasIndex::BlockHash),
+			block_details_hash: Extras::new(ExtrasIndex::BlockDetails),
+			block_hashes_hash: Extras::new(ExtrasIndex::BlockHash),
+			transaction_addresses_hash: Extras::new(ExtrasIndex::TransactionAddress),
+			block_logs_hash: Extras::new(ExtrasIndex::BlockLogBlooms),
+			blocks_blooms_hash: Extras::new(ExtrasIndex::BlocksBlooms),
 			extras_db: db
 		}
 	}
@@ -135,7 +141,7 @@ impl BlockChain {
 
 	/// Get the hash of given block's number
 	pub fn number_hash(&self, hash: &U256) -> Option<H256> {
-		self.query_extras(hash, &self.blocks_hashes)
+		self.query_extras(hash, &self.block_hashes_hash)
 	}
 
 	/// Returns true if the given block is known 
@@ -144,7 +150,7 @@ impl BlockChain {
 		// TODO: first do lookup in blocks_db for given hash
 
 		// TODO: consider taking into account current block
-		match self.query_extras(hash, &self.blocks_details) {
+		match self.query_extras(hash, &self.block_details_hash) {
 			None => false,
 			Some(details) => details.number <= self.last_block_number
 		}
