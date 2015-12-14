@@ -106,7 +106,7 @@ fn test_genesis() {
 	use blockheader::*;
 
 	let g = Genesis::new_frontier();
-	let view = BlockView::new_from_rlp(Rlp::new(&g.block).at(0));
+	let view = BlockView::new(&g.block).header_view();
 	let genesis_hash = H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
 	assert_eq!(view.sha3(), genesis_hash);
 }

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 use std::path::Path;
 use std::hash::Hash;
 use rocksdb::{DB, WriteBatch, Writable};
@@ -70,12 +70,12 @@ impl BlockChain {
 	pub fn new(genesis: Genesis, path: &Path) -> BlockChain {
 		let (genesis_block, genesis_state) = genesis.drain();
 
-		let genesis_header = Rlp::new(&genesis_block).at(0).raw().to_vec();
-		let genesis_hash = BlockView::new(&genesis_header).sha3();
+		let genesis_header = BlockView::new(&genesis_block).header_view().rlp().raw().to_vec();
+		let genesis_hash = HeaderView::new(&genesis_header).sha3();
 
 		let genesis_details = BlockDetails {
 			number: U256::from(0u64),
-			total_difficulty: BlockView::new(&genesis_header).difficulty(),
+			total_difficulty: HeaderView::new(&genesis_header).difficulty(),
 			parent: H256::new(),
 			children: vec![]
 		};
@@ -94,7 +94,7 @@ impl BlockChain {
 			batch.put(&U256::from(0u8).to_extras_slice(ExtrasIndex::BlockHash), &encode(&genesis_hash));
 			extras_db.write(batch);
 
-			blocks_db.put(&genesis_hash, &genesis_header);
+			blocks_db.put(&genesis_hash, &genesis_block);
 		}
 
 		BlockChain {
@@ -114,13 +114,8 @@ impl BlockChain {
 		}
 	}
 
-	/// Returns reference to genesis hash
-	pub fn genesis_hash(&self) -> &H256 {
-		&self.genesis_hash
-	}
-
 	pub fn genesis_block(&self, db: &OverlayDB) -> Block {
-		let root = BlockView::new(&self.genesis_block).state_root();
+		let root = HeaderView::new(&self.genesis_block).state_root();
 
 		if db.exists(&root) {
 			return Block::new_existing(db.clone(), root)
@@ -141,7 +136,7 @@ impl BlockChain {
 	}
 
 	pub fn import_block(&self, block: &[u8], db: &OverlayDB) -> ImportRoute {
-		let view = BlockView::new(block);
+		let view = HeaderView::new(block);
 
 		// check if we already know this block
 		if self.is_known(&view.sha3()) {
@@ -153,11 +148,6 @@ impl BlockChain {
 		}
 
 		unimplemented!();
-	}
-
-	/// Get the hash of given block's number
-	pub fn number_hash(&self, hash: &U256) -> Option<H256> {
-		self.query_extras(hash, &self.block_hashes)
 	}
 
 	/// Returns true if the given block is known 
@@ -172,7 +162,48 @@ impl BlockChain {
 		}
 	}
 
-	pub fn block(&self, hash: &H256) -> Option<Bytes> {
+	/// Returns reference to genesis hash
+	pub fn genesis_hash(&self) -> &H256 {
+		&self.genesis_hash
+	}
+
+	/// Get the hash of given block's number
+	pub fn number_hash(&self, hash: &U256) -> Option<H256> {
+		self.query_extras(hash, &self.block_hashes)
+	}
+
+	/// Get the partial-header of a block
+	pub fn block_header(&self, hash: &H256) -> Option<Header> {
+		match self.block(hash) {
+			Some(bytes) => Some(BlockView::new(&bytes).header()),
+			None => None
+		}
+	}
+
+	/// Get a list of transaction hashes for a given block.
+	/// Returns None if block does not exist.
+	pub fn transaction_hashes(&self, hash: &H256) -> Option<Vec<H256>> {
+		match self.block(hash) {
+			Some(bytes) => Some(BlockView::new(&bytes).transaction_hashes()),
+			None => None
+		}
+	}
+
+	/// Get a list of uncle hashes for a given block.
+	/// Returns None if block does not exist.
+	pub fn uncle_hashes(&self, hash: &H256) -> Option<Vec<H256>> {
+		match self.block(hash) {
+			Some(bytes) => Some(BlockView::new(&bytes).uncle_hashes()),
+			None => None
+		}
+	}
+
+	/// Get the transactions' log blooms of a block
+	pub fn log_blooms(&self, hash: &H256) -> Option<BlockLogBlooms> {
+		self.query_extras(hash, &self.block_logs)
+	}
+
+	fn block(&self, hash: &H256) -> Option<Bytes> {
 		{
 			let read = self.blocks.read().unwrap();
 			match read.get(hash) {
@@ -195,7 +226,7 @@ impl BlockChain {
 		}
 	}
 
-	pub fn query_extras<K, T>(&self, hash: &K, cache: &Extras<K, T>) -> Option<T> where 
+	fn query_extras<K, T>(&self, hash: &K, cache: &Extras<K, T>) -> Option<T> where 
 		T: Clone + Decodable, 
 		K: ExtrasSliceConvertable + Eq + Hash + Clone {
 		{
@@ -220,7 +251,7 @@ impl BlockChain {
 		}
 	}
 
-	pub fn query_extras_exist<K, T>(&self, hash: &K, cache: &Extras<K, T>) -> bool where 
+	fn query_extras_exist<K, T>(&self, hash: &K, cache: &Extras<K, T>) -> bool where 
 		K: ExtrasSliceConvertable + Eq + Hash + Clone {
 		{
 			let read = cache.read().unwrap();

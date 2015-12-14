@@ -4,7 +4,7 @@ use util::uint::*;
 use util::rlp::*;
 use util::sha3;
 
-/// view onto block header rlp
+/// view onto block rlp
 pub struct BlockView<'a> {
 	rlp: Rlp<'a>
 }
@@ -22,6 +22,32 @@ impl<'a> BlockView<'a> {
 		}
 	}
 
+	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
+	pub fn header(&self) -> Header { self.rlp.val_at(0) }
+	pub fn header_view(&self) -> HeaderView<'a> { HeaderView::new_from_rlp(self.rlp.at(0)) }
+	pub fn transaction_hashes(&self) -> Vec<H256> { self.rlp.val_at(1) }
+	pub fn uncle_hashes(&self) -> Vec<H256> { self.rlp.val_at(2) }
+}
+
+/// view onto block header rlp
+pub struct HeaderView<'a> {
+	rlp: Rlp<'a>
+}
+
+impl<'a> HeaderView<'a> {
+	pub fn new(bytes: &'a [u8]) -> HeaderView<'a> {
+		HeaderView {
+			rlp: Rlp::new(bytes)
+		}
+	}
+
+	pub fn new_from_rlp(rlp: Rlp<'a>) -> HeaderView<'a> {
+		HeaderView {
+			rlp: rlp
+		}
+	}
+
+	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
 	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
 	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1) }
 	pub fn author(&self) -> Address { self.rlp.val_at(2) }
@@ -44,7 +70,7 @@ impl<'a> BlockView<'a> {
 	}
 }
 
-impl<'a> sha3::Hashable for BlockView<'a> {
+impl<'a> sha3::Hashable for HeaderView<'a> {
 	fn sha3(&self) -> H256 {
 		self.rlp.raw().sha3()
 	}
