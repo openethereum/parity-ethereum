@@ -11,6 +11,7 @@ log = "0.3"
 env_logger = "0.3"
 ethcore-util = "0.1.0"
 evmjit = { path = "rust-evmjit", optional = true }
+rustc-serialize = "0.3"
 
 [features]
 jit = ["evmjit"]

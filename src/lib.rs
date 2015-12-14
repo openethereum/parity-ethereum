@@ -72,6 +72,7 @@
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+extern crate rustc_serialize;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
 extern crate ethcore_util as util;
