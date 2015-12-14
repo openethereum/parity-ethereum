@@ -103,6 +103,7 @@ impl Genesis {
 
 #[test]
 fn test_genesis() {
+	use block::*;
 	use blockheader::*;
 
 	let g = Genesis::new_frontier();

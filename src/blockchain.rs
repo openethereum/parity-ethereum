@@ -17,6 +17,7 @@ use importroute::*;
 use account::*;
 use genesis::*;
 use extras::*;
+use transaction::*;
 
 pub struct BlockChain {
 	// rlp list of 3
@@ -153,13 +154,18 @@ impl BlockChain {
 	/// Returns true if the given block is known 
 	/// (though not necessarily a part of the canon chain).
 	pub fn is_known(&self, hash: &H256) -> bool {
-		// TODO: first do lookup in blocks_db for given hash
-
 		// TODO: consider taking into account current block
+		// TODO: first do lookup in blocks_db for given hash
+		// TODO: is comparing block numbers necessery?
 		match self.query_extras(hash, &self.block_details) {
 			None => false,
 			Some(details) => details.number <= self.last_block_number
 		}
+	}
+
+	/// Returns true if transaction is known.
+	pub fn is_known_transaction(&self, hash: &H256) -> bool {
+		self.query_extras_exist(hash, &self.transaction_addresses)
 	}
 
 	/// Returns reference to genesis hash
@@ -167,35 +173,43 @@ impl BlockChain {
 		&self.genesis_hash
 	}
 
-	/// Get the hash of given block's number
-	pub fn number_hash(&self, hash: &U256) -> Option<H256> {
-		self.query_extras(hash, &self.block_hashes)
-	}
-
 	/// Get the partial-header of a block
 	pub fn block_header(&self, hash: &H256) -> Option<Header> {
-		match self.block(hash) {
-			Some(bytes) => Some(BlockView::new(&bytes).header()),
-			None => None
-		}
+		self.block(hash).map(|bytes| BlockView::new(&bytes).header())
+	}
+
+	/// Get a list of transactions for a given block.
+	/// Returns None is block deos not exist.
+	pub fn transactions(&self, hash: &H256) -> Option<Vec<Transaction>> {
+		self.block(hash).map(|bytes| BlockView::new(&bytes).transactions())
 	}
 
 	/// Get a list of transaction hashes for a given block.
 	/// Returns None if block does not exist.
 	pub fn transaction_hashes(&self, hash: &H256) -> Option<Vec<H256>> {
-		match self.block(hash) {
-			Some(bytes) => Some(BlockView::new(&bytes).transaction_hashes()),
-			None => None
-		}
+		self.block(hash).map(|bytes| BlockView::new(&bytes).transaction_hashes())
+	}
+
+	/// Get a list of uncles for a given block.
+	/// Returns None is block deos not exist.
+	pub fn uncles(&self, hash: &H256) -> Option<Vec<Header>> {
+		self.block(hash).map(|bytes| BlockView::new(&bytes).uncles())
 	}
 
 	/// Get a list of uncle hashes for a given block.
 	/// Returns None if block does not exist.
 	pub fn uncle_hashes(&self, hash: &H256) -> Option<Vec<H256>> {
-		match self.block(hash) {
-			Some(bytes) => Some(BlockView::new(&bytes).uncle_hashes()),
-			None => None
-		}
+		self.block(hash).map(|bytes| BlockView::new(&bytes).uncle_hashes())
+	}
+
+	/// Get the familial details concerning a block.
+	pub fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
+		self.query_extras(hash, &self.block_details)
+	}
+
+	/// Get the hash of given block's number
+	pub fn number_hash(&self, hash: &U256) -> Option<H256> {
+		self.query_extras(hash, &self.block_hashes)
 	}
 
 	/// Get the transactions' log blooms of a block
