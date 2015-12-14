@@ -9,6 +9,7 @@ use util::rlp::*;
 use util::hashdb::*;
 use util::overlaydb::*;
 use util::sha3::*;
+use util::bytes::*;
 use blockheader::*;
 use block::*;
 use verifiedblock::*;
@@ -19,22 +20,26 @@ use extras::*;
 
 pub struct BlockChain {
 	// rlp list of 3
-	genesis_block: Vec<u8>,
+	genesis_block: Bytes,
 	// genesis block header
-	genesis_header: Vec<u8>,
+	genesis_header: Bytes,
 	genesis_hash: H256,
 	genesis_state: HashMap<Address, Account>,
 
 	last_block_number: U256,
 
-	// extras
-	block_details_hash: 		Extras<H256, BlockDetails>,
-	block_hashes_hash: 			Extras<U256, H256>,
-	transaction_addresses_hash: Extras<H256, TransactionAddress>,
-	block_logs_hash: 			Extras<H256, BlockLogBlooms>,
-	blocks_blooms_hash: 		Extras<H256, BlocksBlooms>,
+	// block cache
+	blocks: RwLock<HashMap<H256, Bytes>>,
 
-	extras_db: DB
+	// extra caches
+	block_details: 			Extras<H256, BlockDetails>,
+	block_hashes: 			Extras<U256, H256>,
+	transaction_addresses: 	Extras<H256, TransactionAddress>,
+	block_logs: 			Extras<H256, BlockLogBlooms>,
+	blocks_blooms: 			Extras<H256, BlocksBlooms>,
+
+	extras_db: DB,
+	blocks_db: DB
 }
 
 impl BlockChain {
@@ -75,13 +80,21 @@ impl BlockChain {
 			children: vec![]
 		};
 
-		let db = DB::open_default(path.to_str().unwrap()).unwrap();
+		let mut extras_path = path.to_path_buf();
+		extras_path.push("extras");
+		let extras_db = DB::open_default(extras_path.to_str().unwrap()).unwrap();
+
+		let mut blocks_path = path.to_path_buf();
+		blocks_path.push("blocks");
+		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
 
 		{
 			let mut batch = WriteBatch::new();
 			batch.put(&genesis_hash.to_extras_slice(ExtrasIndex::BlockDetails), &encode(&genesis_details));
 			batch.put(&U256::from(0u8).to_extras_slice(ExtrasIndex::BlockHash), &encode(&genesis_hash));
-			db.write(batch);
+			extras_db.write(batch);
+
+			blocks_db.put(&genesis_hash, &genesis_header);
 		}
 
 		BlockChain {
@@ -90,15 +103,18 @@ impl BlockChain {
 			genesis_hash: genesis_hash,
 			genesis_state: genesis_state,
 			last_block_number: U256::from(0u8),
-			block_details_hash: Extras::new(ExtrasIndex::BlockDetails),
-			block_hashes_hash: Extras::new(ExtrasIndex::BlockHash),
-			transaction_addresses_hash: Extras::new(ExtrasIndex::TransactionAddress),
-			block_logs_hash: Extras::new(ExtrasIndex::BlockLogBlooms),
-			blocks_blooms_hash: Extras::new(ExtrasIndex::BlocksBlooms),
-			extras_db: db
+			blocks: RwLock::new(HashMap::new()),
+			block_details: Extras::new(ExtrasIndex::BlockDetails),
+			block_hashes: Extras::new(ExtrasIndex::BlockHash),
+			transaction_addresses: Extras::new(ExtrasIndex::TransactionAddress),
+			block_logs: Extras::new(ExtrasIndex::BlockLogBlooms),
+			blocks_blooms: Extras::new(ExtrasIndex::BlocksBlooms),
+			extras_db: extras_db,
+			blocks_db: blocks_db
 		}
 	}
 
+	/// Returns reference to genesis hash
 	pub fn genesis_hash(&self) -> &H256 {
 		&self.genesis_hash
 	}
@@ -141,7 +157,7 @@ impl BlockChain {
 
 	/// Get the hash of given block's number
 	pub fn number_hash(&self, hash: &U256) -> Option<H256> {
-		self.query_extras(hash, &self.block_hashes_hash)
+		self.query_extras(hash, &self.block_hashes)
 	}
 
 	/// Returns true if the given block is known 
@@ -150,9 +166,32 @@ impl BlockChain {
 		// TODO: first do lookup in blocks_db for given hash
 
 		// TODO: consider taking into account current block
-		match self.query_extras(hash, &self.block_details_hash) {
+		match self.query_extras(hash, &self.block_details) {
 			None => false,
 			Some(details) => details.number <= self.last_block_number
+		}
+	}
+
+	pub fn block(&self, hash: &H256) -> Option<Bytes> {
+		{
+			let read = self.blocks.read().unwrap();
+			match read.get(hash) {
+				Some(v) => return Some(v.clone()),
+				None => ()
+			}
+		}
+
+		let opt = self.blocks_db.get(hash)
+			.expect("Low level database error. Some issue with disk?");
+
+		match opt {
+			Some(b) => {
+				let bytes: Bytes = b.to_vec();
+				let mut write = self.blocks.write().unwrap();
+				write.insert(hash.clone(), bytes.clone());
+				Some(bytes)
+			},
+			None => None
 		}
 	}
 
