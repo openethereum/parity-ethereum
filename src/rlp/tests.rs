@@ -343,3 +343,11 @@ fn test_rlp_json() {
 	});
 }
 
+#[test]
+fn test_decoding_array() {
+	let v = vec![5u16, 2u16];
+	let res = rlp::encode(&v);
+	let arr: [u16; 2] = rlp::decode(&res);
+	assert_eq!(arr[0], 5);
+	assert_eq!(arr[1], 2);
+}
