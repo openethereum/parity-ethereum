@@ -107,7 +107,7 @@ impl BlockChain {
 		let mut block = Block::new(db.clone());
 		// TODO: commit
 		//block.mutable_state().insert_accounts(&self.genesis_state);
-		block.mutable_state().commit_db();
+		block.mutable_state().db().commit();
 		// TODO: set previous block
 		// TODO: reset current
 		block

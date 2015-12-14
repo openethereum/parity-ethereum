@@ -87,7 +87,7 @@ impl Genesis {
 			let addr = Address::from_str(address).unwrap();
 			let o = acc.as_object().unwrap();
 			let balance = U256::from_dec_str(o["balance"].as_string().unwrap()).unwrap();
-			state.insert(addr, Account::new_with_balance(balance));
+			state.insert(addr, Account::new_basic(balance));
 		}
 
 		Genesis {
