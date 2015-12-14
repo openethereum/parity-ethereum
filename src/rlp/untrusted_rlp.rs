@@ -305,13 +305,11 @@ impl<'a> Decoder for BasicDecoder<'a> {
 		}
 	}
 
-	fn read_list<T, F>(&self, f: F) -> Result<T, DecoderError>
-		where F: FnOnce(&[Self]) -> Result<T, DecoderError> {
-
+	fn as_list(&self) -> Result<Vec<Self>, DecoderError> {
 		let v: Vec<BasicDecoder<'a>> = self.rlp.iter()
 			.map(| i | BasicDecoder::new(i))
 			.collect();
-		f(&v)
+		Ok(v)
 	}
 }
 
@@ -325,9 +323,8 @@ impl<T> Decodable for T where T: FromBytes {
 
 impl<T> Decodable for Vec<T> where T: Decodable {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
-		decoder.read_list(| decoders | {
-			decoders.iter().map(|d| T::decode(d)).collect()
-		})
+		let decoders = try!(decoder.as_list());
+		decoders.iter().map(|d| T::decode(d)).collect()
 	}
 }
 
@@ -357,18 +354,18 @@ macro_rules! impl_array_decodable {
 	($index_type:ty, $len:expr ) => (
 		impl<T> Decodable for [T; $len] where T: Decodable {
 			fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
-				decoder.read_list(| decoders | {
-					let mut result: [T; $len] = unsafe { ::std::mem::uninitialized() };
-					if decoders.len() != $len {
-						return Err(DecoderError::RlpIncorrectListLen);
-					}
-					
-					for i in 0..decoders.len() {
-						result[i] = try!(T::decode(&decoders[i]));
-					}
+				let decoders = try!(decoder.as_list());
 
-					Ok(result)
-				})
+				let mut result: [T; $len] = unsafe { ::std::mem::uninitialized() };
+				if decoders.len() != $len {
+					return Err(DecoderError::RlpIncorrectListLen);
+				}
+				
+				for i in 0..decoders.len() {
+					result[i] = try!(T::decode(&decoders[i]));
+				}
+
+				Ok(result)
 			}
 		}
 	)
