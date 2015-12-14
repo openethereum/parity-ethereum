@@ -97,26 +97,26 @@ impl Header {
 
 impl Decodable for Header {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		decoder.read_list(| d | {
-			let blockheader = Header {
-				parent_hash: try!(Decodable::decode(&d[0])),
-				uncles_hash: try!(Decodable::decode(&d[1])),
-				author: try!(Decodable::decode(&d[2])),
-				state_root: try!(Decodable::decode(&d[3])),
-				transactions_root: try!(Decodable::decode(&d[4])),
-				receipts_root: try!(Decodable::decode(&d[5])),
-				log_bloom: try!(Decodable::decode(&d[6])),
-				difficulty: try!(Decodable::decode(&d[7])),
-				number: try!(Decodable::decode(&d[8])),
-				gas_limit: try!(Decodable::decode(&d[9])),
-				gas_used: try!(Decodable::decode(&d[10])),
-				timestamp: try!(Decodable::decode(&d[11])),
-				extra_data: try!(Decodable::decode(&d[12])),
-				seal: vec![],
-			};
-			// TODO: fill blockheader.seal with (raw) list items index 12..)
-			Ok(blockheader)
-		})
+		let d = try!(decoder.as_list());
+
+		let blockheader = Header {
+			parent_hash: try!(Decodable::decode(&d[0])),
+			uncles_hash: try!(Decodable::decode(&d[1])),
+			author: try!(Decodable::decode(&d[2])),
+			state_root: try!(Decodable::decode(&d[3])),
+			transactions_root: try!(Decodable::decode(&d[4])),
+			receipts_root: try!(Decodable::decode(&d[5])),
+			log_bloom: try!(Decodable::decode(&d[6])),
+			difficulty: try!(Decodable::decode(&d[7])),
+			number: try!(Decodable::decode(&d[8])),
+			gas_limit: try!(Decodable::decode(&d[9])),
+			gas_used: try!(Decodable::decode(&d[10])),
+			timestamp: try!(Decodable::decode(&d[11])),
+			extra_data: try!(Decodable::decode(&d[12])),
+			seal: vec![],
+		};
+		// TODO: fill blockheader.seal with (raw) list items index 12..)
+		Ok(blockheader)
 	}
 }
 
