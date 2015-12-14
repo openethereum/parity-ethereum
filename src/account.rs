@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use util::hash::*;
+use util::sha3::*;
 use util::hashdb::*;
 use util::bytes::*;
 use util::trie::*;
@@ -32,7 +33,7 @@ impl Account {
 			nonce: nonce,
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: storage,
-			code_hash: None,
+			code_hash: Some(code.sha3()),
 			code_cache: code
 		}
 	}
@@ -45,6 +46,19 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: HashMap::new(),
 			code_hash: Some(SHA3_EMPTY),
+			code_cache: vec![],
+		}
+	}
+
+	/// Create a new account from RLP.
+	pub fn from_rlp(rlp: &[u8]) -> Account {
+		let r: Rlp = Rlp::new(rlp);
+		Account {
+			nonce: r.val_at(0),
+			balance: r.val_at(1),
+			storage_root: r.val_at(2),
+			storage_overlay: HashMap::new(),
+			code_hash: Some(r.val_at(3)),
 			code_cache: vec![],
 		}
 	}
@@ -62,24 +76,15 @@ impl Account {
 		}
 	}
 
-	/// Create a new account from RLP.
-	pub fn from_rlp(_rlp: &[u8]) -> Account {
-//		unimplemented!();
-		Account {
-			balance: U256::from(0u8),
-			nonce: U256::from(0u8),
-			storage_root: SHA3_NULL_RLP,
-			storage_overlay: HashMap::new(),
-			code_hash: Some(SHA3_EMPTY),
-			code_cache: vec![],
-		}
-	}
-
 	/// Set this account's code to the given code.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn set_code(&mut self, code: Bytes) {
 		assert!(self.code_hash.is_none());
 		self.code_cache = code;
+	}
+
+	pub fn set_storage(&mut self, key: H256, value: H256) {
+		self.storage_overlay.insert(key, value);
 	}
 
 	/// return the balance associated with this account.
@@ -90,8 +95,44 @@ impl Account {
 	pub fn code_hash(&self) -> H256 {
 		self.code_hash.clone().unwrap_or(SHA3_EMPTY)
 	}
+	/// returns the account's code. If `None` then the code cache isn't available -
+	/// get someone who knows to call `note_code`.
+	pub fn code(&self) -> Option<&[u8]> {
+		match self.code_hash {
+			Some(SHA3_EMPTY) | None if self.code_cache.is_empty() => Some(&self.code_cache),
+			Some(_) if !self.code_cache.is_empty() => Some(&self.code_cache),
+			_ => None,
+		}
+	}
+
+	/// Provide a byte array which hashes to the `code_hash`. returns the hash as a result.
+	pub fn note_code(&mut self, code: Bytes) -> Result<H256, H256> {
+		let h = code.sha3();
+		match self.code_hash {
+			Some(ref i) if h == *i => {
+				self.code_cache = code;
+				Ok(h)
+			},
+			_ => Err(h)
+		}
+	}
+
 	/// return the storage root associated with this account.
+	pub fn base_root(&self) -> &H256 { &self.storage_root }
+	/// return the storage root associated with this account or None if it has been altered via the overlay.
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_overlay.is_empty() {Some(&self.storage_root)} else {None} }
+	/// rturn the storage overlay.
+	pub fn storage_overlay(&self) -> &HashMap<H256, H256> { &self.storage_overlay }
+
+	/// Increment the nonce of the account by one.
+	pub fn inc_nonce(&mut self) { self.nonce = self.nonce + U256::from(1u8); }
+
+	/// Increment the nonce of the account by one.
+	pub fn add_balance(&mut self, x: &U256) { self.balance = self.balance + *x; }
+
+	/// Increment the nonce of the account by one.
+	pub fn sub_balance(&mut self, x: &U256) { self.balance = self.balance - *x; }
+
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
@@ -104,7 +145,7 @@ impl Account {
 		self.storage_overlay.clear();
 	}
 
-	/// Commit any unsaved code and ensure code is not `HashOrData::Data`.
+	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
 	pub fn commit_code(&mut self, db: &mut HashDB) {
 		if self.code_hash.is_none() && !self.code_cache.is_empty() {
 			self.code_hash = Some(db.insert(&self.code_cache));
@@ -120,4 +161,24 @@ impl Account {
 		stream.append(self.code_hash.as_ref().expect("Cannot form RLP of contract account without code."));
 		stream.out()
 	}
+}
+
+#[test]
+fn playpen() {
+}
+
+#[test]
+fn new_account() {
+	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
+	assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
+	assert_eq!(a.balance(), &U256::from(69u8));
+	assert_eq!(a.nonce(), &U256::from(0u8));
+	assert_eq!(a.code_hash(), SHA3_EMPTY);
+	assert_eq!(a.storage_root().unwrap(), &SHA3_NULL_RLP);
+}
+
+#[test]
+fn create_account() {
+	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
+	assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 }
