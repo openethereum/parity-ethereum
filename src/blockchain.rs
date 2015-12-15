@@ -27,17 +27,17 @@ pub struct BlockChain {
 	genesis_hash: H256,
 	_genesis_state: HashMap<Address, Account>,
 
-	last_block_number: U256,
+	_last_block_number: U256,
 
 	// block cache
 	blocks: RwLock<HashMap<H256, Bytes>>,
 
 	// extra caches
-	block_details: 			Extras<H256, BlockDetails>,
-	block_hashes: 			Extras<U256, H256>,
-	transaction_addresses:	Extras<H256, TransactionAddress>,
-	block_logs: 			Extras<H256, BlockLogBlooms>,
-	_blocks_blooms: 			Extras<H256, BlocksBlooms>,
+	block_details: Extras<H256, BlockDetails>,
+	block_hashes: Extras<U256, H256>,
+	transaction_addresses: Extras<H256, TransactionAddress>,
+	block_logs: Extras<H256, BlockLogBlooms>,
+	_blocks_blooms: Extras<H256, BlocksBlooms>,
 
 	extras_db: DB,
 	blocks_db: DB
@@ -103,7 +103,7 @@ impl BlockChain {
 			_genesis_header: genesis_header,
 			genesis_hash: genesis_hash,
 			_genesis_state: genesis_state,
-			last_block_number: U256::from(0u8),
+			_last_block_number: U256::from(0u8),
 			blocks: RwLock::new(HashMap::new()),
 			block_details: Extras::new(ExtrasIndex::BlockDetails),
 			block_hashes: Extras::new(ExtrasIndex::BlockHash),
@@ -122,32 +122,20 @@ impl BlockChain {
 			return Block::new_existing(db.clone(), root)
 		}
 
-		let block = Block::new(db.clone());
+		let _block = Block::new(db.clone());
 		// TODO: commit
 		//block.mutable_state().insert_accounts(&self.genesis_state);
 		// block.mutable_state().db().commit();
 		// TODO: set previous block
 		// TODO: reset current
-		block
+		unimplemented!()
 	}
 
-	pub fn verify_block<'a>(&self, block: &'a [u8]) -> VerifiedBlock<'a> {
-		//TODO: verify block 
-		VerifiedBlock::new(block)
+	pub fn verify_block<'a>(&self, _block: &'a [u8]) -> VerifiedBlock<'a> {
+		unimplemented!()
 	}
 
-	pub fn import_block(&self, block: &[u8], _db: &OverlayDB) -> ImportRoute {
-		let view = HeaderView::new(block);
-
-		// check if we already know this block
-		if self.is_known(&view.sha3()) {
-
-		}
-
-		// check if we already know parent of this block
-		if !self.is_known(&view.parent_hash()) {
-		}
-
+	pub fn import_block(&self, _block: &[u8], _db: &OverlayDB) -> ImportRoute {
 		unimplemented!();
 	}
 
@@ -155,12 +143,7 @@ impl BlockChain {
 	/// (though not necessarily a part of the canon chain).
 	pub fn is_known(&self, hash: &H256) -> bool {
 		// TODO: consider taking into account current block
-		// TODO: first do lookup in blocks_db for given hash
-		// TODO: is comparing block numbers necessery?
-		match self.query_extras(hash, &self.block_details) {
-			None => false,
-			Some(details) => details.number <= self.last_block_number
-		}
+		self.query_extras_exist(hash, &self.block_details)
 	}
 
 	/// Returns true if transaction is known.
