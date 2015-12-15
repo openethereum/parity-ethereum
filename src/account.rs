@@ -187,16 +187,25 @@ fn playpen() {
 fn commit_storage() {
 	let mut a = Account::new_contract(U256::from(69u8));
 	let mut db = OverlayDB::new_temp();
-	//a.set_code(vec![0x55, 0x44, 0xffu8]);
 	a.set_storage(From::from(&U256::from(0x00u64)), From::from(&U256::from(0x1234u64)));
+	assert_eq!(a.storage_root(), None);
 	a.commit_storage(&mut db);
 	assert_eq!(a.storage_root().unwrap().hex(), "3541f181d6dad5c504371884684d08c29a8bad04926f8ceddf5e279dbc3cc769");
 }
 
 #[test]
+fn commit_code() {
+	let mut a = Account::new_contract(U256::from(69u8));
+	let mut db = OverlayDB::new_temp();
+	a.set_code(vec![0x55, 0x44, 0xffu8]);
+	assert_eq!(a.code_hash(), SHA3_EMPTY);
+	a.commit_code(&mut db);
+	assert_eq!(a.code_hash().hex(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb");
+}
+
+#[test]
 fn rlpio() {
 	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
-	assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 	let b = Account::from_rlp(&a.rlp());
 	assert_eq!(a.balance(), b.balance());
 	assert_eq!(a.nonce(), b.nonce());
