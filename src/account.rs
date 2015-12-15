@@ -89,12 +89,15 @@ impl Account {
 
 	/// return the balance associated with this account.
 	pub fn balance(&self) -> &U256 { &self.balance }
+
 	/// return the nonce associated with this account.
 	pub fn nonce(&self) -> &U256 { &self.nonce }
+
 	/// return the code hash associated with this account.
 	pub fn code_hash(&self) -> H256 {
 		self.code_hash.clone().unwrap_or(SHA3_EMPTY)
 	}
+
 	/// returns the account's code. If `None` then the code cache isn't available -
 	/// get someone who knows to call `note_code`.
 	pub fn code(&self) -> Option<&[u8]> {
@@ -119,8 +122,10 @@ impl Account {
 
 	/// return the storage root associated with this account.
 	pub fn base_root(&self) -> &H256 { &self.storage_root }
+	
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_overlay.is_empty() {Some(&self.storage_root)} else {None} }
+	
 	/// rturn the storage overlay.
 	pub fn storage_overlay(&self) -> &HashMap<H256, H256> { &self.storage_overlay }
 
@@ -132,7 +137,6 @@ impl Account {
 
 	/// Increment the nonce of the account by one.
 	pub fn sub_balance(&mut self, x: &U256) { self.balance = self.balance - *x; }
-
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
@@ -163,8 +167,41 @@ impl Account {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+
+use super::*;
+use std::collections::HashMap;
+use util::hash::*;
+use util::bytes::*;
+use util::trie::*;
+use util::rlp::*;
+use util::uint::*;
+use util::overlaydb::*;
+
 #[test]
 fn playpen() {
+}
+
+#[test]
+fn commit_storage() {
+	let mut a = Account::new_contract(U256::from(69u8));
+	let mut db = OverlayDB::new_temp();
+	//a.set_code(vec![0x55, 0x44, 0xffu8]);
+	a.set_storage(From::from(&U256::from(0x00u64)), From::from(&U256::from(0x1234u64)));
+	a.commit_storage(&mut db);
+	assert_eq!(a.storage_root().unwrap().hex(), "3541f181d6dad5c504371884684d08c29a8bad04926f8ceddf5e279dbc3cc769");
+}
+
+#[test]
+fn rlpio() {
+	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
+	assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
+	let b = Account::from_rlp(&a.rlp());
+	assert_eq!(a.balance(), b.balance());
+	assert_eq!(a.nonce(), b.nonce());
+	assert_eq!(a.code_hash(), b.code_hash());
+	assert_eq!(a.storage_root(), b.storage_root());
 }
 
 #[test]
@@ -181,4 +218,6 @@ fn new_account() {
 fn create_account() {
 	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
 	assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
+}
+
 }
