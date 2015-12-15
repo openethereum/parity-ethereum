@@ -396,7 +396,6 @@ macro_rules! construct_uint {
 	);
 }
 
-construct_uint!(U512, 8);
 construct_uint!(U256, 4);
 construct_uint!(U128, 2);
 
@@ -409,10 +408,6 @@ impl From<U128> for U256 {
 		U256(ret)
 	}
 }
-
-
-
-
 
 pub const ZERO_U256: U256 = U256([0x00u64; 4]);
 pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);

@@ -50,7 +50,6 @@ pub mod uint;
 pub mod bytes;
 pub mod rlp;
 pub mod vector;
-pub mod db;
 pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
