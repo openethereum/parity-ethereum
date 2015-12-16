@@ -208,7 +208,7 @@ use util::uint::*;
 use std::str::FromStr;
 
 #[test]
-fn revived() {
+fn get_from_database() {
 	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
 	let (r, db) = {
 		let mut s = State::new_temp();
