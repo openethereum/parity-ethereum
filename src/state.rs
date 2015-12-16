@@ -63,6 +63,31 @@ impl State {
 		&mut self.db
 	}
 
+	/// Get the balance of account `a`.
+	pub fn balance(&mut self, a: &Address) -> U256 {
+		self.get(a, false).as_ref().map(|account| account.balance().clone()).unwrap_or(U256::from(0u8))
+	}
+
+	/// Add `incr` to the balance of account `a`.
+	pub fn add_balance(&mut self, a: &Address, incr: &U256) {
+		self.require(a, false).add_balance(incr)
+	}
+
+	/// Subtract `decr` from the balance of account `a`.
+	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
+		self.require(a, false).sub_balance(decr)
+	}
+
+	/// Get the nonce of account `a`.
+	pub fn nonce(&mut self, a: &Address) -> U256 {
+		self.get(a, false).as_ref().map(|account| account.nonce().clone()).unwrap_or(U256::from(0u8))
+	}
+
+	/// Increment the nonce of account `a` by 1.
+	pub fn inc_nonce(&mut self, a: &Address) {
+		self.require(a, false).inc_nonce()
+	}
+
 	/// Commit accounts to TrieDB. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	pub fn commit_into(db: &mut HashDB, mut root: H256, accounts: &mut HashMap<Address, Option<Account>>) -> H256 {
@@ -98,23 +123,40 @@ impl State {
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// `force_create` creates a new, empty basic account if there is not currently an active account.
-	fn ensure_cached(&mut self, a: &Address, require_code: bool, force_create: bool) {
+	fn get(&mut self, a: &Address, require_code: bool) -> Option<&mut Account> {
+		if self.cache.get(a).is_none() {
+			// load from trie.
+			self.cache.insert(a.clone(), TrieDB::new(&mut self.db, &mut self.root).at(&a).map(|rlp| Account::from_rlp(rlp)));
+		}
+
+		let db = &self.db;
+		self.cache.get_mut(a).unwrap().as_mut().map(|account| {
+			if require_code {
+				account.cache_code(db);
+			}
+			account
+		})
+	}
+
+	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
+	/// `force_create` creates a new, empty basic account if there is not currently an active account.
+	fn require(&mut self, a: &Address, require_code: bool) -> &mut Account {
 		if self.cache.get(a).is_none() {
 			// load from trie.
 			self.cache.insert(a.clone(), TrieDB::new(&mut self.db, &mut self.root).at(&a).map(|rlp| Account::from_rlp(rlp)));
 		}
 
 		if self.cache.get(a).unwrap().is_none() {
-			if !force_create { return; }
-			// create a new account
 			self.cache.insert(a.clone(), Some(Account::new_basic(U256::from(0u8))));
 		}
 
-		if require_code {
-			if let &mut Some(ref mut account) = self.cache.get_mut(a).unwrap() {
-				account.ensure_cached(&self.db);
+		let db = &self.db;
+		self.cache.get_mut(a).unwrap().as_mut().map(|account| {
+			if require_code {
+				account.cache_code(db);
 			}
-		}
+			account
+		}).unwrap()
 	}
 }
 
@@ -125,17 +167,38 @@ use super::*;
 use util::hash::*;
 use util::trie::*;
 use util::rlp::*;
+use util::uint::*;
 use std::str::FromStr;
 
 #[test]
 fn playpen() {
+
+}
+
+#[test]
+fn add_balance() {
+	let mut s = State::new_temp();
+	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	s.add_balance(&a, &U256::from(69u64));
+	assert_eq!(s.balance(&a), U256::from(69u64));
+	s.commit();
+	assert_eq!(s.balance(&a), U256::from(69u64));
+}
+
+#[test]
+fn balance() {
+	let mut s = State::new_temp();
+	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	assert_eq!(s.balance(&a), U256::from(0u64));
+	s.commit();
+	assert_eq!(s.balance(&a), U256::from(0u64));
 }
 
 #[test]
 fn ensure_cached() {
 	let mut s = State::new_temp();
 	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
-	s.ensure_cached(&a, false, true);
+	s.require(&a, false);
 	s.commit();
 	assert_eq!(s.root().hex(), "ec68b85fa2e0526dc0e821a5b33135459114f19173ce0479f5c09b21cc25b9a4");
 }

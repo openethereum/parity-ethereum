@@ -140,7 +140,7 @@ impl Account {
 	}
 
 	/// Provide a database to lookup `code_hash`. Should not be called if it is a contract without code.
-	pub fn ensure_cached(&mut self, db: &HashDB) -> bool {
+	pub fn cache_code(&mut self, db: &HashDB) -> bool {
 		// TODO: fill out self.code_cache;
 /*		return !self.is_cached() ||
 			match db.lookup(&self.code_hash.unwrap()) {	// why doesn't this work? unwrap causes move?!
@@ -247,7 +247,7 @@ fn note_code() {
 	};
 
 	let mut a = Account::from_rlp(&rlp);
-	assert_eq!(a.ensure_cached(&db), true);
+	assert_eq!(a.cache_code(&db), true);
 
 	let mut a = Account::from_rlp(&rlp);
 	assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));
