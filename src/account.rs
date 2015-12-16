@@ -83,8 +83,22 @@ impl Account {
 		self.code_cache = code;
 	}
 
+	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
 		self.storage_overlay.insert(key, value);
+	}
+
+	/// Get (and cache) the contents of the trie's storage at `key`.
+	pub fn storage_at(&mut self, db: &mut HashDB, key: H256) -> H256 {
+		match self.storage_overlay.get(&key) {
+			Some(x) => { return x.clone() },
+			_ => {}
+		}
+		// fetch - cannot be done in match because of the borrow rules.
+		let t = TrieDB::new_existing(db, &mut self.storage_root);
+		let r = H256::from_slice(t.at(key.bytes()).unwrap_or(&[0u8;32][..]));
+		self.storage_overlay.insert(key, r.clone());
+		r
 	}
 
 	/// return the balance associated with this account.
@@ -109,15 +123,37 @@ impl Account {
 	}
 
 	/// Provide a byte array which hashes to the `code_hash`. returns the hash as a result.
-	pub fn note_code(&mut self, code: Bytes) -> Result<H256, H256> {
+	pub fn note_code(&mut self, code: Bytes) -> Result<(), H256> {
 		let h = code.sha3();
 		match self.code_hash {
 			Some(ref i) if h == *i => {
 				self.code_cache = code;
-				Ok(h)
+				Ok(())
 			},
 			_ => Err(h)
 		}
+	}
+
+	/// Is `code_cache` valid; such that code is going to return Some?
+	pub fn is_cached(&self) -> bool {
+		!self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == Some(SHA3_EMPTY))
+	}
+
+	/// Provide a database to lookup `code_hash`. Should not be called if it is a contract without code.
+	pub fn ensure_cached(&mut self, db: &HashDB) -> bool {
+		// TODO: fill out self.code_cache;
+/*		return !self.is_cached() ||
+			match db.lookup(&self.code_hash.unwrap()) {	// why doesn't this work? unwrap causes move?!
+				Some(x) => { self.code_cache = x.to_vec(); true },
+				_ => { false }
+			}*/
+		if self.is_cached() { return true; }
+		return if let Some(ref h) = self.code_hash {
+			match db.lookup(&h) {
+				Some(x) => { self.code_cache = x.to_vec(); true },
+				_ => { false }
+			}
+		} else { false }
 	}
 
 	/// return the storage root associated with this account.
@@ -151,8 +187,10 @@ impl Account {
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
 	pub fn commit_code(&mut self, db: &mut HashDB) {
-		if self.code_hash.is_none() && !self.code_cache.is_empty() {
-			self.code_hash = Some(db.insert(&self.code_cache));
+		match (self.code_hash.is_none(), self.code_cache.is_empty()) {
+			(true, true) => self.code_hash = Some(self.code_cache.sha3()),
+			(true, false) => self.code_hash = Some(db.insert(&self.code_cache)),
+			(false, _) => {},
 		}
 	}
 
@@ -180,14 +218,46 @@ use util::uint::*;
 use util::overlaydb::*;
 
 #[test]
-fn playpen() {
+fn storage_at() {
+	let mut db = OverlayDB::new_temp();
+	let rlp = {
+		let mut a = Account::new_contract(U256::from(69u8));
+		a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
+		a.commit_storage(&mut db);
+		a.set_code(vec![]);
+		a.commit_code(&mut db);
+		a.rlp()
+	};
+
+	let mut a = Account::from_rlp(&rlp);
+	assert_eq!(a.storage_root().unwrap().hex(), "3541f181d6dad5c504371884684d08c29a8bad04926f8ceddf5e279dbc3cc769");
+	assert_eq!(a.storage_at(&mut db, H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
+	assert_eq!(a.storage_at(&mut db, H256::from(&U256::from(0x01u64))), H256::new());
+}
+
+#[test]
+fn note_code() {
+	let mut db = OverlayDB::new_temp();
+
+	let rlp = {
+		let mut a = Account::new_contract(U256::from(69u8));
+		a.set_code(vec![0x55, 0x44, 0xffu8]);
+		a.commit_code(&mut db);
+		a.rlp()
+	};
+
+	let mut a = Account::from_rlp(&rlp);
+	assert_eq!(a.ensure_cached(&db), true);
+
+	let mut a = Account::from_rlp(&rlp);
+	assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));
 }
 
 #[test]
 fn commit_storage() {
 	let mut a = Account::new_contract(U256::from(69u8));
 	let mut db = OverlayDB::new_temp();
-	a.set_storage(From::from(&U256::from(0x00u64)), From::from(&U256::from(0x1234u64)));
+	a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
 	assert_eq!(a.storage_root(), None);
 	a.commit_storage(&mut db);
 	assert_eq!(a.storage_root().unwrap().hex(), "3541f181d6dad5c504371884684d08c29a8bad04926f8ceddf5e279dbc3cc769");
