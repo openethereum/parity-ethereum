@@ -176,22 +176,44 @@ fn playpen() {
 }
 
 #[test]
-fn add_balance() {
+fn alter_balance() {
 	let mut s = State::new_temp();
 	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
 	s.add_balance(&a, &U256::from(69u64));
 	assert_eq!(s.balance(&a), U256::from(69u64));
 	s.commit();
 	assert_eq!(s.balance(&a), U256::from(69u64));
+	s.sub_balance(&a, &U256::from(42u64));
+	assert_eq!(s.balance(&a), U256::from(27u64));
+	s.commit();
+	assert_eq!(s.balance(&a), U256::from(27u64));
 }
 
 #[test]
-fn balance() {
+fn alter_nonce() {
+	let mut s = State::new_temp();
+	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	s.inc_nonce(&a);
+	assert_eq!(s.nonce(&a), U256::from(1u64));
+	s.inc_nonce(&a);
+	assert_eq!(s.nonce(&a), U256::from(2u64));
+	s.commit();
+	assert_eq!(s.nonce(&a), U256::from(2u64));
+	s.inc_nonce(&a);
+	assert_eq!(s.nonce(&a), U256::from(3u64));
+	s.commit();
+	assert_eq!(s.nonce(&a), U256::from(3u64));
+}
+
+#[test]
+fn balance_nonce() {
 	let mut s = State::new_temp();
 	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
 	assert_eq!(s.balance(&a), U256::from(0u64));
+	assert_eq!(s.nonce(&a), U256::from(0u64));
 	s.commit();
 	assert_eq!(s.balance(&a), U256::from(0u64));
+	assert_eq!(s.nonce(&a), U256::from(0u64));
 }
 
 #[test]
