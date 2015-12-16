@@ -13,6 +13,7 @@ ethcore-util = "0.1.0"
 rustc-serialize = "0.3"
 flate2 = "0.2"
 rocksdb = "0.2.1"
+heapsize = "0.2.0"
 
 evmjit = { path = "rust-evmjit", optional = true }
 

@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::cell::RefCell;
 use std::ops::Deref;
 use std::hash::Hash;
+use heapsize::HeapSizeOf;
 use util::uint::*;
 use util::hash::*;
 use util::rlp::*;
@@ -18,18 +19,18 @@ pub enum ExtrasIndex {
 
 /// rw locked extra data with slice suffix
 // consifer if arc needed here, since blockchain itself will be wrapped
-pub struct Extras<K, T>(RwLock<HashMap<K, T>>, ExtrasIndex) where K: Eq + Hash;
+pub struct Extras<K, T>(RefCell<HashMap<K, T>>, ExtrasIndex) where K: Eq + Hash;
 
 impl<K, T> Extras<K, T> where K: Eq + Hash {
 	pub fn new(i: ExtrasIndex) -> Extras<K, T> {
-		Extras(RwLock::new(HashMap::new()), i)
+		Extras(RefCell::new(HashMap::new()), i)
 	}
 
 	pub fn index(&self) -> ExtrasIndex { self.1 }
 }
 
 impl<K, T> Deref for Extras<K, T> where K : Eq + Hash {
-	type Target = RwLock<HashMap<K, T>>;
+	type Target = RefCell<HashMap<K, T>>;
 
 	fn deref(&self) -> &Self::Target {
 		&self.0
@@ -63,6 +64,12 @@ pub struct BlockDetails {
 	pub children: Vec<H256>
 }
 
+impl HeapSizeOf for BlockDetails {
+	fn heap_size_of_children(&self) -> usize {
+		self.children.heap_size_of_children()
+	}
+}
+
 impl Decodable for BlockDetails {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = try!(decoder.as_list());
@@ -92,6 +99,12 @@ pub struct BlockLogBlooms {
 	pub blooms: Vec<H2048>
 }
 
+impl HeapSizeOf for BlockLogBlooms {
+	fn heap_size_of_children(&self) -> usize {
+		self.blooms.heap_size_of_children()
+	}
+}
+
 impl Decodable for BlockLogBlooms {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let block_blooms = BlockLogBlooms {
@@ -110,6 +123,10 @@ impl Encodable for BlockLogBlooms {
 
 pub struct BlocksBlooms {
 	pub blooms: [H2048; 16]
+}
+
+impl HeapSizeOf for BlocksBlooms {
+	fn heap_size_of_children(&self) -> usize { 0 }
 }
 
 impl Clone for BlocksBlooms {
@@ -147,6 +164,10 @@ impl Encodable for BlocksBlooms {
 pub struct TransactionAddress {
 	pub block_hash: H256,
 	pub index: u64
+}
+
+impl HeapSizeOf for TransactionAddress {
+	fn heap_size_of_children(&self) -> usize { 0 }
 }
 
 impl Decodable for TransactionAddress {
