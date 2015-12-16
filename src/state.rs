@@ -5,7 +5,29 @@ use util::overlaydb::*;
 use util::trie::*;
 use util::rlp::*;
 use util::uint::*;
+use std::mem;
 use account::Account;
+/*
+enum ValueOrRef<'self, 'db: 'self> {
+	Value(OverlayDB),
+	Ref(&'db mut OverlayDB)
+}
+
+impl<'self, 'db> ValueOrRef<'self, 'db: 'self> {
+	pub fn get_mut(&mut self) -> &mut OverlayDB {
+		match self {
+			Value(ref mut x) => x,
+			Ref(x) => x,
+		}
+	}
+	pub fn get(&self) -> &OverlayDB {
+		match self {
+			Value(ref x) => x,
+			Ref(x) => x,
+		}
+	}
+}
+*/
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
@@ -58,12 +80,24 @@ impl State {
 		&self.root
 	}
 
+	/// Desttroy the current database and return it.
+	/// WARNING: the struct should be dropped immediately following this.
+	pub fn take_db(&mut self) -> OverlayDB {
+		mem::replace(&mut self.db, OverlayDB::new_temp())
+	}
+
+	/// Destroy the current object and return root and database.
+	pub fn drop(mut self) -> (H256, OverlayDB) {
+		(mem::replace(&mut self.root, H256::new()), mem::replace(&mut self.db, OverlayDB::new_temp()))
+	}
+
 	/// Expose the underlying database; good to use for calling `state.db().commit()`.
 	pub fn db(&mut self) -> &mut OverlayDB {
 		&mut self.db
 	}
 
 	/// Get the balance of account `a`.
+	// TODO: make immutable
 	pub fn balance(&mut self, a: &Address) -> U256 {
 		self.get(a, false).as_ref().map(|account| account.balance().clone()).unwrap_or(U256::from(0u8))
 	}
@@ -79,6 +113,7 @@ impl State {
 	}
 
 	/// Get the nonce of account `a`.
+	// TODO: make immutable
 	pub fn nonce(&mut self, a: &Address) -> U256 {
 		self.get(a, false).as_ref().map(|account| account.nonce().clone()).unwrap_or(U256::from(0u8))
 	}
@@ -123,10 +158,12 @@ impl State {
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// `force_create` creates a new, empty basic account if there is not currently an active account.
+	// TODO: make immutable.
 	fn get(&mut self, a: &Address, require_code: bool) -> Option<&mut Account> {
 		if self.cache.get(a).is_none() {
 			// load from trie.
-			self.cache.insert(a.clone(), TrieDB::new(&mut self.db, &mut self.root).at(&a).map(|rlp| Account::from_rlp(rlp)));
+			let t = TrieDB::new_existing(&mut self.db, &mut self.root);
+			self.cache.insert(a.clone(), t.at(&a).map(|rlp| { println!("RLP: {:?}", rlp); Account::from_rlp(rlp) }));
 		}
 
 		let db = &self.db;
@@ -171,8 +208,20 @@ use util::uint::*;
 use std::str::FromStr;
 
 #[test]
-fn playpen() {
+fn revived() {
+	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let (r, db) = {
+		let mut s = State::new_temp();
+		s.inc_nonce(&a);
+		s.add_balance(&a, &U256::from(69u64));
+		s.commit();
+		assert_eq!(s.balance(&a), U256::from(69u64));
+		(s.root().clone(), s.take_db())
+	};
 
+	let mut s = State::new_existing(db, r, U256::from(0u8));
+	assert_eq!(s.balance(&a), U256::from(69u64));
+	assert_eq!(s.nonce(&a), U256::from(1u64));
 }
 
 #[test]

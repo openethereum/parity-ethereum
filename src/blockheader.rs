@@ -102,6 +102,4 @@ impl Encodable for Header {
 
 #[cfg(test)]
 mod tests {
-	fn encoding_and_decoding() {
-	}
 }
