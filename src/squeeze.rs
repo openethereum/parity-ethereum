@@ -3,7 +3,7 @@ use std::hash::Hash;
 use heapsize::HeapSizeOf;
 
 /// Should be used to squeeze collections to certain size in bytes
-trait Squeeze {
+pub trait Squeeze {
 	fn squeeze(&mut self, size: usize);
 }
 
