@@ -96,7 +96,7 @@ impl Account {
 			_ => {}
 		}
 		// fetch - cannot be done in match because of the borrow rules.
-		let t = TrieDB::new_existing(db, &mut self.storage_root);
+		let t = TrieDBMut::new_existing(db, &mut self.storage_root);
 		let r = H256::from_slice(t.get(key.bytes()).unwrap_or(&[0u8;32][..]));
 		self.storage_overlay.insert(key, r.clone());
 		r
@@ -177,7 +177,7 @@ impl Account {
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
-		let mut t = TrieDB::new(db, &mut self.storage_root);
+		let mut t = TrieDBMut::new(db, &mut self.storage_root);
 		for (k, v) in self.storage_overlay.iter() {
 			// cast key and value to trait type,
 			// so we can call overloaded `to_bytes` method

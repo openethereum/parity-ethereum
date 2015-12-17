@@ -46,7 +46,7 @@ impl State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
-			let _ = TrieDB::new(&mut db, &mut root);
+			let _ = TrieDBMut::new(&mut db, &mut root);
 		}
 
 		State {
@@ -61,7 +61,7 @@ impl State {
 	pub fn new_existing(mut db: OverlayDB, mut root: H256, account_start_nonce: U256) -> State {
 		{
 			// trie should panic! if root does not exist
-			let _ = TrieDB::new_existing(&mut db, &mut root);
+			let _ = TrieDBMut::new_existing(&mut db, &mut root);
 		}
 
 		State {
@@ -125,7 +125,7 @@ impl State {
 		self.require(a, false).inc_nonce()
 	}
 
-	/// Commit accounts to TrieDB. This is similar to cpp-ethereum's dev::eth::commit.
+	/// Commit accounts to TrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	pub fn commit_into(db: &mut HashDB, mut root: H256, accounts: &mut HashMap<Address, Option<Account>>) -> H256 {
 		// first, commit the sub trees.
@@ -141,7 +141,7 @@ impl State {
 		}
 
 		{
-			let mut trie = TrieDB::new_existing(db, &mut root);
+			let mut trie = TrieDBMut::new_existing(db, &mut root);
 			for (address, ref a) in accounts.iter() {
 				match a {
 					&&Some(ref account) => trie.insert(address, &account.rlp()),
@@ -164,7 +164,7 @@ impl State {
 	fn get(&mut self, a: &Address, require_code: bool) -> Option<&Account> {
 		if self.cache.get(a).is_none() {
 			// load from trie.
-			let t = TrieDB::new_existing(&mut self.db, &mut self.root);
+			let t = TrieDBMut::new_existing(&mut self.db, &mut self.root);
 			self.cache.insert(a.clone(), t.get(&a).map(|rlp| { println!("RLP: {:?}", rlp); Account::from_rlp(rlp) }));
 		}
 
@@ -182,7 +182,7 @@ impl State {
 	fn require(&mut self, a: &Address, require_code: bool) -> &mut Account {
 		if self.cache.get(a).is_none() {
 			// load from trie.
-			self.cache.insert(a.clone(), TrieDB::new(&mut self.db, &mut self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+			self.cache.insert(a.clone(), TrieDBMut::new(&mut self.db, &mut self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		}
 
 		if self.cache.get(a).unwrap().is_none() {
