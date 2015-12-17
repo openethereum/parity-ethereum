@@ -1,3 +1,5 @@
+//! General hash types, a fixed-size raw-data type used as the output of hash functions.
+
 use std::str::FromStr;
 use std::fmt;
 use std::ops;
@@ -11,7 +13,9 @@ use bytes::BytesConvertable;
 use math::log2;
 use uint::U256;
 
-/// types implementing FixedHash must be also BytesConvertable
+/// Trait for a fixed-size byte array to be used as the output of hash functions.
+/// 
+/// Note: types implementing `FixedHash` must be also `BytesConvertable`.
 pub trait FixedHash: Sized + BytesConvertable {
 	fn new() -> Self;
 	fn random() -> Self;
@@ -40,19 +44,17 @@ macro_rules! impl_hash {
 
 		impl Deref for $from {
 			type Target = [u8];
+
 			#[inline]
 			fn deref(&self) -> &[u8] {
-				unsafe {
-					::std::slice::from_raw_parts(self.0.as_ptr(), $size)
-				}
+				&self.0
 			}
 		}
 		impl DerefMut for $from {
+
 			#[inline]
 			fn deref_mut(&mut self) -> &mut [u8] {
-				unsafe {
-					::std::slice::from_raw_parts_mut(self.0.as_mut_ptr(), $size)
-				}
+				&mut self.0
 			}
 		}
 
@@ -355,6 +357,7 @@ impl_hash!(H64, 8);
 impl_hash!(H128, 16);
 impl_hash!(Address, 20);
 impl_hash!(H256, 32);
+impl_hash!(H264, 33);
 impl_hash!(H512, 64);
 impl_hash!(H520, 65);
 impl_hash!(H1024, 128);

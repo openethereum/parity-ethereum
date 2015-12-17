@@ -1,8 +1,22 @@
+//! Wrapper around tiny-keccak crate.
+
 use std::mem::uninitialized;
 use tiny_keccak::Keccak;
 use bytes::BytesConvertable;
 use hash::{FixedHash, H256};
 
+/// Types implementing this trait are sha3able.
+/// 
+/// ```
+/// extern crate ethcore_util as util;
+/// use std::str::FromStr;
+/// use util::sha3::*;
+/// use util::hash::*;
+/// 
+/// fn main() {
+/// 	assert_eq!([0u8; 0].sha3(), H256::from_str("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap());
+/// }
+/// ```
 pub trait Hashable {
 	fn sha3(&self) -> H256;
 	fn sha3_into(&self, dest: &mut [u8]);

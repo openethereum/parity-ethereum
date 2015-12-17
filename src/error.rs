@@ -1,3 +1,5 @@
+//! General error types for use in ethcore.
+
 use rustc_serialize::hex::*;
 
 #[derive(Debug)]
@@ -6,6 +8,7 @@ pub enum BaseDataError {
 }
 
 #[derive(Debug)]
+/// General error type which should be capable of representing all errors in ethcore.
 pub enum EthcoreError {
 	FromHex(FromHexError),
 	BaseData(BaseDataError),

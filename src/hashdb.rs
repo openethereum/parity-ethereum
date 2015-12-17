@@ -1,10 +1,12 @@
+//! Database of byte-slices keyed to their Keccak hash.
 use hash::*;
 use bytes::*;
 use std::collections::HashMap;
 
+/// Trait modelling datastore keyed by a 32-byte Keccak hash.
 pub trait HashDB {
 	/// Get the keys in the database together with number of underlying references.
-	fn keys(&self) -> HashMap<H256, u32>;
+	fn keys(&self) -> HashMap<H256, i32>;
 
 	/// Look up a given hash into the bytes that hash to it, returning None if the 
 	/// hash is not known.

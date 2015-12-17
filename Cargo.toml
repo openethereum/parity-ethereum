@@ -16,10 +16,11 @@ rand = "0.3.12"
 time = "0.1.34"
 tiny-keccak = "1.0"
 rocksdb = "0.2.1"
-num = "0.1"
 lazy_static = "0.1.*"
 eth-secp256k1 = { git = "https://github.com/arkpar/rust-secp256k1.git" }
 rust-crypto = "0.2.34"
+elastic-array = "0.4"
+heapsize = "0.2"
 
 [dev-dependencies]
 json-tests = { path = "json-tests" }
