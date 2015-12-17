@@ -96,7 +96,7 @@ impl Account {
 			_ => {}
 		}
 		// fetch - cannot be done in match because of the borrow rules.
-		let t = TrieDBMut::new_existing(db, &mut self.storage_root);
+		let t = TrieDB::new(db, &self.storage_root);
 		let r = H256::from_slice(t.get(key.bytes()).unwrap_or(&[0u8;32][..]));
 		self.storage_overlay.insert(key, r.clone());
 		r
