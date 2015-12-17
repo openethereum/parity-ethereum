@@ -10,6 +10,7 @@ use util::hash::*;
 use util::uint::*;
 use util::sha3::*;
 use account::*;
+use blockheader::*;
 
 /// Converts file from base64 gzipped bytes to json
 fn base_to_json(source: &[u8]) -> Json {
@@ -33,54 +34,54 @@ impl Genesis {
 	pub fn new_frontier() -> Genesis {
 		let root = H256::from_str("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544").unwrap();
 		let json = base_to_json(include_bytes!("../res/genesis_frontier"));
-		Self::new_from_json(&json, &root)
+		let (header, state) = Self::load_genesis_json(&json, &root);
+		Self::new_from_header_and_state(header, state)
+	}
+
+	pub fn new_from_header_and_state(header: Header, state: HashMap<Address, Account>) -> Genesis {
+		let empty_list = RlpStream::new_list(0).out();
+		let mut stream = RlpStream::new_list(3);
+		stream.append(&header);
+		stream.append_raw(&empty_list, 1);
+		stream.append_raw(&empty_list, 1);
+
+		Genesis {
+			block: stream.out(),
+			state: state 
+		}
 	}
 
 	/// Loads genesis block from json file
-	pub fn new_from_json(json: &Json, state_root: &H256) -> Genesis {
+	fn load_genesis_json(json: &Json, state_root: &H256) -> (Header, HashMap<Address, Account>)  {
 		// once we commit ourselves to some json parsing library (serde?)
 		// move it to proper data structure
-		let mixhash = H256::from_str(&json["mixhash"].as_string().unwrap()[2..]).unwrap();
-		let parent_hash = H256::from_str(&json["parentHash"].as_string().unwrap()[2..]).unwrap();
-		let coinbase = Address::from_str(&json["coinbase"].as_string().unwrap()[2..]).unwrap();
-		let difficulty = U256::from_str(&json["difficulty"].as_string().unwrap()[2..]).unwrap();
-		let gas_limit = U256::from_str(&json["gasLimit"].as_string().unwrap()[2..]).unwrap();
-		let timestamp = U256::from_str(&json["timestamp"].as_string().unwrap()[2..]).unwrap();
-		let extra_data: Vec<u8> = json["extraData"].as_string().unwrap()[2..].from_hex().unwrap();
-		let nonce = H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap();
-
-		let log_bloom = H2048::new();
-		let number = 0u16;
-		let gas_used = 0u16;
-
+		
 		let empty_list = RlpStream::new_list(0).out();
 		let empty_list_sha3 = empty_list.sha3();
 		let empty_data = encode(&"");
 		let empty_data_sha3 = empty_data.sha3();
-
-		let mut stream = RlpStream::new_list(3);
-		stream.append_list(15);
-		stream.append(&parent_hash);
-		// uncles - empty list sha3
-		stream.append(&empty_list_sha3);
-		stream.append(&coinbase);
-		stream.append(state_root);
-		// transactions
-		stream.append(&empty_data_sha3);
-		// receipts
-		stream.append(&empty_data_sha3);
-		stream.append(&log_bloom);
-		stream.append(&difficulty);
-		stream.append(&number);
-		stream.append(&gas_limit);
-		stream.append(&gas_used);
-		stream.append(&timestamp);
-		stream.append(&extra_data);
-		stream.append(&mixhash);
-		stream.append(&nonce);
-		stream.append_raw(&empty_list, 1);
-		stream.append_raw(&empty_list, 1);
-	
+		
+		let header = Header {
+			parent_hash: H256::from_str(&json["parentHash"].as_string().unwrap()[2..]).unwrap(),
+			uncles_hash: empty_list_sha3.clone(),
+			author: Address::from_str(&json["coinbase"].as_string().unwrap()[2..]).unwrap(),
+			state_root: state_root.clone(),
+			transactions_root: empty_data_sha3.clone(),
+			receipts_root: empty_data_sha3.clone(),
+			log_bloom: H2048::new(),
+			difficulty: U256::from_str(&json["difficulty"].as_string().unwrap()[2..]).unwrap(),
+			number: U256::from(0u8),
+			gas_limit: U256::from_str(&json["gasLimit"].as_string().unwrap()[2..]).unwrap(),
+			gas_used: U256::from(0u8),
+			timestamp: U256::from_str(&json["timestamp"].as_string().unwrap()[2..]).unwrap(),
+			extra_data: json["extraData"].as_string().unwrap()[2..].from_hex().unwrap(),
+			seal: {
+				let mixhash = H256::from_str(&json["mixhash"].as_string().unwrap()[2..]).unwrap();
+				let nonce = H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap();
+				vec![mixhash.to_vec(), nonce.to_vec()]
+			}
+		};
+		
 		let mut state = HashMap::new();
 		let accounts = json["alloc"].as_object().expect("Missing genesis state");
 		for (address, acc) in accounts.iter() {
@@ -90,10 +91,7 @@ impl Genesis {
 			state.insert(addr, Account::new_basic(balance));
 		}
 
-		Genesis {
-			block: stream.out(),
-			state: state 
-		}
+		(header, state)
 	}
 
 	/// Returns genesis block
