@@ -8,15 +8,11 @@ use util::hash::*;
 use util::uint::*;
 use util::rlp::*;
 use util::hashdb::*;
-use util::overlaydb::*;
 use util::sha3::*;
 use util::bytes::*;
 use util::squeeze::*;
 use blockheader::*;
 use block::*;
-use verifiedblock::*;
-use importroute::*;
-use account::*;
 use genesis::*;
 use extras::*;
 use transaction::*;
@@ -31,24 +27,17 @@ pub struct CacheSize {
 }
 
 pub struct BlockChain {
-	// rlp list of 3
-	genesis_block: Bytes,
-	// genesis block header
-	_genesis_header: Bytes,
-	genesis_hash: H256,
-	_genesis_state: HashMap<Address, Account>,
-
 	last_block_number: Cell<U256>,
 
 	// block cache
 	blocks: RefCell<HashMap<H256, Bytes>>,
 
 	// extra caches
-	block_details: Extras<H256, BlockDetails>,
-	block_hashes: Extras<U256, H256>,
-	transaction_addresses: Extras<H256, TransactionAddress>,
-	block_logs: Extras<H256, BlockLogBlooms>,
-	blocks_blooms: Extras<H256, BlocksBlooms>,
+	block_details: RefCell<HashMap<H256, BlockDetails>>,
+	block_hashes: RefCell<HashMap<U256, H256>>,
+	transaction_addresses: RefCell<HashMap<H256, TransactionAddress>>,
+	block_logs: RefCell<HashMap<H256, BlockLogBlooms>>,
+	blocks_blooms: RefCell<HashMap<H256, BlocksBlooms>>,
 
 	extras_db: DB,
 	blocks_db: DB
@@ -74,24 +63,15 @@ impl BlockChain {
 	/// 	let genesis = Genesis::new_frontier();
 	/// 	let bc = BlockChain::new(genesis, &dir);
 	/// 	let genesis_hash = "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3";
-	/// 	assert_eq!(bc.genesis_hash(), &H256::from_str(genesis_hash).unwrap());
-	/// 	assert!(bc.is_known(bc.genesis_hash()));
-	/// 	assert_eq!(bc.genesis_hash(), &bc.block_hash(&U256::from(0u8)).unwrap());
+	/// 	assert_eq!(bc.genesis_hash(), H256::from_str(genesis_hash).unwrap());
+	/// 	assert!(bc.is_known(&bc.genesis_hash()));
+	/// 	assert_eq!(bc.genesis_hash(), bc.block_hash(&U256::from(0u8)).unwrap());
 	/// }
 	/// ```
 	pub fn new(genesis: Genesis, path: &Path) -> BlockChain {
-		let (genesis_block, genesis_state) = genesis.drain();
+		let (genesis_block, _genesis_state) = genesis.drain();
 
-		let genesis_header = BlockView::new(&genesis_block).header_view().rlp().raw().to_vec();
-		let genesis_hash = HeaderView::new(&genesis_header).sha3();
-
-		let genesis_details = BlockDetails {
-			number: U256::from(0u64),
-			total_difficulty: HeaderView::new(&genesis_header).difficulty(),
-			parent: H256::new(),
-			children: vec![]
-		};
-
+		// open dbs
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
 		let extras_db = DB::open_default(extras_path.to_str().unwrap()).unwrap();
@@ -100,34 +80,41 @@ impl BlockChain {
 		blocks_path.push("blocks");
 		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
 
-		{
-			let batch = WriteBatch::new();
-			batch.put(&genesis_hash.to_extras_slice(ExtrasIndex::BlockDetails), &encode(&genesis_details)).unwrap();
-			batch.put(&U256::from(0u8).to_extras_slice(ExtrasIndex::BlockHash), &encode(&genesis_hash)).unwrap();
-			extras_db.write(batch).unwrap();
-
-			blocks_db.put(&genesis_hash, &genesis_block).unwrap();
-		}
-
-		BlockChain {
-			genesis_block: genesis_block,
-			_genesis_header: genesis_header,
-			genesis_hash: genesis_hash,
-			_genesis_state: genesis_state,
+		let bc = BlockChain {
 			last_block_number: Cell::new(U256::from(0u8)),
 			blocks: RefCell::new(HashMap::new()),
-			block_details: Extras::new(ExtrasIndex::BlockDetails),
-			block_hashes: Extras::new(ExtrasIndex::BlockHash),
-			transaction_addresses: Extras::new(ExtrasIndex::TransactionAddress),
-			block_logs: Extras::new(ExtrasIndex::BlockLogBlooms),
-			blocks_blooms: Extras::new(ExtrasIndex::BlocksBlooms),
+			block_details: RefCell::new(HashMap::new()),
+			block_hashes: RefCell::new(HashMap::new()),
+			transaction_addresses: RefCell::new(HashMap::new()),
+			block_logs: RefCell::new(HashMap::new()),
+			blocks_blooms: RefCell::new(HashMap::new()),
 			extras_db: extras_db,
 			blocks_db: blocks_db
-		}
+		};
+
+		bc.insert_block(&genesis_block);
+		bc
 	}
 
-	pub fn import_block(&self, _block: &[u8], _db: &OverlayDB) -> ImportRoute {
-		unimplemented!();
+	/// Inserts the block into backing cache database.
+	/// Expects the block to be valid and already verified.
+	/// If the block is already known, does nothing.
+	pub fn insert_block(&self, bytes: &[u8]) {
+		let block = BlockView::new(bytes);
+		let header = block.header_view();
+
+		if self.is_known(&header.sha3()) {
+			return;
+		}
+
+		let hash = block.sha3();
+		
+		self.blocks_db.put(&hash, &bytes).unwrap();
+		
+		let batch = WriteBatch::new();
+		batch.put_extras(&hash, &block.block_details());
+		batch.put_extras(&header.number(), &hash);
+		self.extras_db.write(batch).unwrap();
 	}
 
 	/// Returns true if the given block is known 
@@ -143,8 +130,8 @@ impl BlockChain {
 	}
 
 	/// Returns reference to genesis hash
-	pub fn genesis_hash(&self) -> &H256 {
-		&self.genesis_hash
+	pub fn genesis_hash(&self) -> H256 {
+		self.block_hash(&U256::from(0u8)).expect("Genesis hash should always exist")
 	}
 
 	/// Get the partial-header of a block
@@ -224,8 +211,8 @@ impl BlockChain {
 		}
 	}
 
-	fn query_extras<K, T>(&self, hash: &K, cache: &Extras<K, T>) -> Option<T> where 
-		T: Clone + Decodable, 
+	fn query_extras<K, T>(&self, hash: &K, cache: &RefCell<HashMap<K, T>>) -> Option<T> where 
+		T: Clone + Decodable + ExtrasIndexable, 
 		K: ExtrasSliceConvertable + Eq + Hash + Clone {
 		{
 			let read = cache.borrow();
@@ -235,22 +222,16 @@ impl BlockChain {
 			}
 		}
 
-		let opt = self.extras_db.get(&hash.to_extras_slice(cache.index()))
-			.expect("Low level database error. Some issue with disk?");
-
-		match opt {
-			Some(b) => {
-				let t: T = decode(&b);
-				let mut write = cache.borrow_mut();
-				write.insert(hash.clone(), t.clone());
-				Some(t)
-			},
-			None => None
-		}
+		self.extras_db.get_extras(hash).map(| t: T | {
+			let mut write = cache.borrow_mut();
+			write.insert(hash.clone(), t.clone());
+			t
+		})
 	}
 
-	fn query_extras_exist<K, T>(&self, hash: &K, cache: &Extras<K, T>) -> bool where 
-		K: ExtrasSliceConvertable + Eq + Hash + Clone {
+	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RefCell<HashMap<K, T>>) -> bool where 
+		K: ExtrasSliceConvertable + Eq + Hash + Clone,
+		T: ExtrasIndexable {
 		{
 			let read = cache.borrow();
 			match read.get(hash) {
@@ -259,10 +240,7 @@ impl BlockChain {
 			}
 		}
 
-		let opt = self.extras_db.get(&hash.to_extras_slice(cache.index()))
-			.expect("Low level database error. Some issue with disk?");
-
-		opt.is_some()
+		self.extras_db.extras_exists::<_, T>(hash)
 	}
 
 	/// Get current cache size

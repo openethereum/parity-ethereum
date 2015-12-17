@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::hash::Hash;
 use heapsize::HeapSizeOf;
+use rocksdb::{DB, Writable};
 use util::uint::*;
 use util::hash::*;
 use util::rlp::*;
 
-/// workaround for lack of integer templates in Rust
+/// Represents index of extra data in database
 #[derive(Copy, Clone)]
 pub enum ExtrasIndex {
 	BlockDetails = 0,
@@ -17,26 +14,51 @@ pub enum ExtrasIndex {
 	BlocksBlooms = 4
 } 
 
-/// rw locked extra data with slice suffix
-// consifer if arc needed here, since blockchain itself will be wrapped
-pub struct Extras<K, T>(RefCell<HashMap<K, T>>, ExtrasIndex) where K: Eq + Hash;
-
-impl<K, T> Extras<K, T> where K: Eq + Hash {
-	pub fn new(i: ExtrasIndex) -> Extras<K, T> {
-		Extras(RefCell::new(HashMap::new()), i)
-	}
-
-	pub fn index(&self) -> ExtrasIndex { self.1 }
+/// trait used to write Extras data to db
+pub trait ExtrasWritable {
+	fn put_extras<K, T>(&self, hash: &K, value: &T) where
+		T: ExtrasIndexable + Encodable, 
+		K: ExtrasSliceConvertable;
 }
 
-impl<K, T> Deref for Extras<K, T> where K : Eq + Hash {
-	type Target = RefCell<HashMap<K, T>>;
+/// trait used to read Extras data from db
+pub trait ExtrasReadable {
+	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
+		T: ExtrasIndexable + Decodable,
+		K: ExtrasSliceConvertable;
 
-	fn deref(&self) -> &Self::Target {
-		&self.0
+	fn extras_exists<K, T>(&self, hash: &K) -> bool where
+		T: ExtrasIndexable,
+		K: ExtrasSliceConvertable;
+}
+
+impl<W> ExtrasWritable for W where W: Writable {
+	fn put_extras<K, T>(&self, hash: &K, value: &T) where
+		T: ExtrasIndexable + Encodable, 
+		K: ExtrasSliceConvertable {
+		
+		self.put(&hash.to_extras_slice(T::extras_index()), &encode(value)).unwrap()
 	}
 }
 
+impl ExtrasReadable for DB {
+	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
+		T: ExtrasIndexable + Decodable,
+		K: ExtrasSliceConvertable {
+
+		self.get(&hash.to_extras_slice(T::extras_index())).unwrap()
+			.map(|v| decode(&v))
+	}
+
+	fn extras_exists<K, T>(&self, hash: &K) -> bool where
+		T: ExtrasIndexable,
+		K: ExtrasSliceConvertable {
+
+		self.get(&hash.to_extras_slice(T::extras_index())).unwrap().is_some()
+	}
+}
+
+/// Implementations should convert arbitrary type to database key slice
 pub trait ExtrasSliceConvertable {
 	fn to_extras_slice(&self, i: ExtrasIndex) -> H264;
 }
@@ -55,13 +77,30 @@ impl ExtrasSliceConvertable for U256 {
 	}
 }
 
+/// Types implementing this trait can be indexed in extras database
+pub trait ExtrasIndexable {
+	fn extras_index() -> ExtrasIndex;
+}
 
+impl ExtrasIndexable for H256 {
+	fn extras_index() -> ExtrasIndex {
+		ExtrasIndex::BlockHash
+	}
+}
+
+/// Familial details concerning a block
 #[derive(Clone)]
 pub struct BlockDetails {
 	pub number: U256,
 	pub total_difficulty: U256,
 	pub parent: H256,
 	pub children: Vec<H256>
+}
+
+impl ExtrasIndexable for BlockDetails {
+	fn extras_index() -> ExtrasIndex {
+		ExtrasIndex::BlockDetails
+	}
 }
 
 impl HeapSizeOf for BlockDetails {
@@ -94,9 +133,16 @@ impl Encodable for BlockDetails {
 	}
 }
 
+/// Log blooms of certain block
 #[derive(Clone)]
 pub struct BlockLogBlooms {
 	pub blooms: Vec<H2048>
+}
+
+impl ExtrasIndexable for BlockLogBlooms {
+	fn extras_index() -> ExtrasIndex {
+		ExtrasIndex::BlockLogBlooms
+	}
 }
 
 impl HeapSizeOf for BlockLogBlooms {
@@ -121,8 +167,15 @@ impl Encodable for BlockLogBlooms {
 	}
 }
 
+/// Neighboring log blooms on certain level
 pub struct BlocksBlooms {
 	pub blooms: [H2048; 16]
+}
+
+impl ExtrasIndexable for BlocksBlooms {
+	fn extras_index() -> ExtrasIndex {
+		ExtrasIndex::BlocksBlooms
+	}
 }
 
 impl HeapSizeOf for BlocksBlooms {
@@ -160,10 +213,17 @@ impl Encodable for BlocksBlooms {
 	}
 }
 
+/// Represents address of certain transaction within block
 #[derive(Clone)]
 pub struct TransactionAddress {
 	pub block_hash: H256,
 	pub index: u64
+}
+
+impl ExtrasIndexable for TransactionAddress {
+	fn extras_index() -> ExtrasIndex {
+		ExtrasIndex::TransactionAddress
+	}
 }
 
 impl HeapSizeOf for TransactionAddress {
