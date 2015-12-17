@@ -6,6 +6,8 @@ use util::trie::*;
 use util::rlp::*;
 use util::uint::*;
 use std::mem;
+//use std::cell::*;
+//use std::ops::*;
 use account::Account;
 /*
 enum ValueOrRef<'self, 'db: 'self> {
@@ -159,11 +161,11 @@ impl State {
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// `force_create` creates a new, empty basic account if there is not currently an active account.
 	// TODO: make immutable.
-	fn get(&mut self, a: &Address, require_code: bool) -> Option<&mut Account> {
+	fn get(&mut self, a: &Address, require_code: bool) -> Option<&Account> {
 		if self.cache.get(a).is_none() {
 			// load from trie.
 			let t = TrieDB::new_existing(&mut self.db, &mut self.root);
-			self.cache.insert(a.clone(), t.at(&a).map(|rlp| { println!("RLP: {:?}", rlp); Account::from_rlp(rlp) }));
+			self.cache.insert(a.clone(), t.get(&a).map(|rlp| { println!("RLP: {:?}", rlp); Account::from_rlp(rlp) }));
 		}
 
 		let db = &self.db;
@@ -171,7 +173,7 @@ impl State {
 			if require_code {
 				account.cache_code(db);
 			}
-			account
+			account as &Account
 		})
 	}
 
@@ -180,7 +182,7 @@ impl State {
 	fn require(&mut self, a: &Address, require_code: bool) -> &mut Account {
 		if self.cache.get(a).is_none() {
 			// load from trie.
-			self.cache.insert(a.clone(), TrieDB::new(&mut self.db, &mut self.root).at(&a).map(|rlp| Account::from_rlp(rlp)));
+			self.cache.insert(a.clone(), TrieDB::new(&mut self.db, &mut self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		}
 
 		if self.cache.get(a).unwrap().is_none() {
