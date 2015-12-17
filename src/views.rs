@@ -6,7 +6,6 @@ use util::rlp::*;
 use util::sha3::*;
 use blockheader::*;
 use transaction::*;
-use extras::*;
 
 /// View onto block rlp.
 pub struct BlockView<'a> {
@@ -61,19 +60,6 @@ impl<'a> BlockView<'a> {
 	/// Return list of uncle hashes of given block.
 	pub fn uncle_hashes(&self) -> Vec<H256> { 
 		self.rlp.at(2).iter().map(|rlp| rlp.raw().sha3()).collect()
-	}
-
-	/// Return BlockDetaile object of given block
-	/// note* children is always an empty vector,
-	/// cause we can't deducate them from rlp.
-	pub fn block_details(&self) -> BlockDetails {
-		let header = self.header_view();
-		BlockDetails {
-			number: header.number(),
-			total_difficulty: header.difficulty(),
-			parent: header.parent_hash(),
-			children: vec![]
-		}
 	}
 }
 

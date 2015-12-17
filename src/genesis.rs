@@ -96,6 +96,17 @@ impl Genesis {
 		}
 	}
 
+	/// Returns genesis block
+	pub fn block(&self) -> &[u8] {
+		&self.block
+	}
+
+	/// Returns genesis block state
+	pub fn state(&self) -> &HashMap<Address, Account> {
+		&self.state
+	}
+
+	// not sure if this one is needed
 	pub fn drain(self) -> (Vec<u8>, HashMap<Address, Account>) {
 		(self.block, self.state)
 	}

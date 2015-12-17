@@ -17,6 +17,15 @@ use extras::*;
 use transaction::*;
 use views::*;
 
+/// blocks - a vector of hashes of all blocks, ordered from `from` block to `to` block.
+/// ancestor - best common ancestor of these blocks
+/// index - an index where best common ancestor would be
+pub struct TreeRoute {
+	pub blocks: Vec<H256>,
+	pub ancestor: H256,
+	pub index: usize
+}
+
 #[derive(Debug)]
 pub struct CacheSize {
 	pub blocks: usize,
@@ -27,7 +36,9 @@ pub struct CacheSize {
 }
 
 pub struct BlockChain {
-	last_block_number: Cell<U256>,
+	best_block_hash: Cell<H256>,
+	best_block_number: Cell<U256>,
+	best_block_total_difficulty: Cell<U256>,
 
 	// block cache
 	blocks: RefCell<HashMap<H256, Bytes>>,
@@ -57,31 +68,34 @@ impl BlockChain {
 	/// use util::uint::*;
 	/// 
 	/// fn main() {
+	/// 	let genesis = Genesis::new_frontier();
+	///
 	/// 	let mut dir = env::temp_dir();
 	/// 	dir.push(H32::random().hex());
 	///
-	/// 	let genesis = Genesis::new_frontier();
-	/// 	let bc = BlockChain::new(genesis, &dir);
+	/// 	let bc = BlockChain::new(&genesis, &dir);
+	///
 	/// 	let genesis_hash = "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3";
 	/// 	assert_eq!(bc.genesis_hash(), H256::from_str(genesis_hash).unwrap());
 	/// 	assert!(bc.is_known(&bc.genesis_hash()));
 	/// 	assert_eq!(bc.genesis_hash(), bc.block_hash(&U256::from(0u8)).unwrap());
 	/// }
 	/// ```
-	pub fn new(genesis: Genesis, path: &Path) -> BlockChain {
-		let (genesis_block, _genesis_state) = genesis.drain();
-
-		// open dbs
+	pub fn new(genesis: &Genesis, path: &Path) -> BlockChain {
+		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
 		let extras_db = DB::open_default(extras_path.to_str().unwrap()).unwrap();
 
+		// open blocks db
 		let mut blocks_path = path.to_path_buf();
 		blocks_path.push("blocks");
 		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
 
 		let bc = BlockChain {
-			last_block_number: Cell::new(U256::from(0u8)),
+			best_block_hash: Cell::new(H256::new()),
+			best_block_number: Cell::new(U256::from(0u8)),
+			best_block_total_difficulty: Cell::new(U256::from(0u8)),
 			blocks: RefCell::new(HashMap::new()),
 			block_details: RefCell::new(HashMap::new()),
 			block_hashes: RefCell::new(HashMap::new()),
@@ -92,14 +106,119 @@ impl BlockChain {
 			blocks_db: blocks_db
 		};
 
-		bc.insert_block(&genesis_block);
+		// load best block
+		let best_block_hash = match bc.extras_db.get(b"best").unwrap() {
+			Some(best) => H256::from_slice(&best),
+			None => {
+				// best block does not exist
+				// we need to insert genesis into the cache
+				let bytes = genesis.block();
+				let block = BlockView::new(bytes);
+				let header = block.header_view();
+				let hash = block.sha3();
+
+				let details = BlockDetails {
+					number: header.number(),
+					total_difficulty: header.difficulty(),
+					parent: header.parent_hash(),
+					children: vec![]
+				};
+
+				bc.blocks_db.put(&hash, bytes).unwrap();
+
+				let batch = WriteBatch::new();
+				batch.put_extras(&hash, &details);
+				batch.put_extras(&header.number(), &hash);
+				batch.put(b"best", &hash).unwrap();
+				bc.extras_db.write(batch).unwrap();
+				
+				hash
+			}
+		};
+
+		bc.best_block_hash.set(best_block_hash);
+		bc.best_block_number.set(bc.block_number(&best_block_hash).unwrap());
+		bc.best_block_total_difficulty.set(bc.block_details(&best_block_hash).unwrap().total_difficulty);
+
 		bc
+	}
+
+	/// Returns a tree route between `from` and `to`, which is a tuple of:
+	/// - a vector of hashes of all blocks, ordered from `from` to `to`.
+	/// - common ancestor of these blocks.
+	/// - an index where best common ancestor would be
+	/// 
+	/// 1.) live blocks only:
+	/// 
+	/// bc: A1 -> A2 -> A3 -> A4 -> A5
+	/// from: A5, to: A4
+	/// route: { blocks: [A5, A4], ancestor: A3, index: 2 }
+	/// 
+	/// 2.) bad blocks only:
+	/// 
+	/// bc: A1 -> A2 -> A3 -> A4 -> A5
+	///        -> B2 -> B3 -> B4
+	/// from: B4, to: B3
+	/// route: { blocks: [B4, B3], ancestor: B2, index: 2 }
+	///
+	/// 3.) fork:
+	///
+	/// bc: A1 -> A2 -> A3 -> A4
+	///              -> B3 -> B4
+	/// from: B4, to: A4
+	/// route: { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
+	pub fn tree_route(&self, from: &H256, to: &H256) -> TreeRoute {
+		let mut from_branch = vec![];
+		let mut to_branch = vec![];
+
+		let mut from_details = self.block_details(from).expect("from hash is invalid!");
+		let mut to_details = self.block_details(to).expect("to hash is invalid!");
+
+		let mut current_from = from.clone();
+		let mut current_to = to.clone();
+
+		// reset from && to to the same level
+		while from_details.number > to_details.number {
+			from_branch.push(current_from);
+			current_from = from_details.parent.clone();
+			from_details = self.block_details(&from_details.parent).unwrap();
+		}
+
+		while to_details.number > from_details.number {
+			to_branch.push(current_to);
+			current_to = to_details.parent.clone();
+			to_details = self.block_details(&to_details.parent).unwrap();
+		}
+
+		assert_eq!(from_details.number, to_details.number);
+
+		// move to shared parent
+		while from_details.parent != to_details.parent {
+			from_branch.push(current_from);
+			current_from = from_details.parent.clone();
+			from_details = self.block_details(&from_details.parent).unwrap();
+
+			to_branch.push(current_to);
+			current_to = to_details.parent.clone();
+			to_details = self.block_details(&to_details.parent).unwrap();
+		}
+
+		let index = from_branch.len();
+
+		from_branch.extend(to_branch.iter().rev());
+
+		TreeRoute {
+			blocks: from_branch,
+			ancestor: from_details.parent,
+			index: index
+		}
 	}
 
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
 	pub fn insert_block(&self, bytes: &[u8]) {
+		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 
@@ -107,20 +226,65 @@ impl BlockChain {
 			return;
 		}
 
+		// prepare variables
 		let hash = block.sha3();
+		let mut parent_details = self.block_details(&header.parent_hash()).expect("Invalid parent hash.");
+		let total_difficulty = parent_details.total_difficulty + header.difficulty();
+
+		// create current block details
+		let details = BlockDetails {
+			number: header.number(),
+			total_difficulty: total_difficulty,
+			parent: header.parent_hash(),
+			children: vec![]
+		};
 		
+		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
 		
-		let batch = WriteBatch::new();
-		batch.put_extras(&hash, &block.block_details());
-		batch.put_extras(&header.number(), &hash);
-		self.extras_db.write(batch).unwrap();
+		// update extra details
+		{
+			// insert new block details
+			let batch = WriteBatch::new();
+			batch.put_extras(&hash, &details);
+
+			// update parent details
+			parent_details.children.push(hash.clone());
+			batch.put_extras(&header.parent_hash(), &parent_details);
+			self.extras_db.write(batch).unwrap();
+		}
+
+		// check if we have new best block.
+		// if yes, it means that we need to move it and its ancestors 
+		// to "canon chain"
+		if total_difficulty > self.best_block_total_difficulty() {
+
+			// find the route between old best block and the new one
+			let route = self.tree_route(&self.best_block_hash(), &hash);
+			let ancestor_number = self.block_number(&route.ancestor).unwrap();
+			let start_number = ancestor_number + U256::from(1u8);
+			let extras_batch = route.blocks.iter()
+				.skip(route.index)
+				.enumerate()
+				.fold(WriteBatch::new(), | acc, (index, hash) | {
+					acc.put_extras(&(start_number + U256::from(index as u64)), hash);
+					acc
+				});
+
+			// update extras database
+			extras_batch.put(b"best", &hash).unwrap();
+			self.extras_db.write(extras_batch).unwrap();
+
+			// update local caches
+			self.best_block_hash.set(hash);
+			self.best_block_number.set(header.number());
+			self.best_block_total_difficulty.set(total_difficulty);
+		}
 	}
 
 	/// Returns true if the given block is known 
 	/// (though not necessarily a part of the canon chain).
 	pub fn is_known(&self, hash: &H256) -> bool {
-		// TODO: consider taking into account current block
 		self.query_extras_exist(hash, &self.block_details)
 	}
 
@@ -173,9 +337,19 @@ impl BlockChain {
 		self.query_extras(hash, &self.block_hashes)
 	}
 
-	/// Get last block number
-	pub fn last_block_number(&self) -> U256 {
-		self.last_block_number.get()
+	/// Get best block hash
+	pub fn best_block_hash(&self) -> H256 {
+		self.best_block_hash.get()
+	}
+
+	/// Get best block number
+	pub fn best_block_number(&self) -> U256 {
+		self.best_block_number.get()
+	}
+
+	/// Get best block total difficulty
+	pub fn best_block_total_difficulty(&self) -> U256 {
+		self.best_block_total_difficulty.get()
 	}
 
 	/// Get the number of given block's hash
