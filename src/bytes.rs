@@ -54,8 +54,20 @@ impl<'a> fmt::Debug for PrettySlice<'a> {
 	}
 }
 
+impl<'a> fmt::Display for PrettySlice<'a> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for i in 0..self.0.len() {
+			try!(write!(f, "{:02x}", self.0[i]));
+		}
+		Ok(())
+	}
+}
+
 pub trait ToPretty {
 	fn pretty(&self) -> PrettySlice;
+	fn to_hex(&self) -> String {
+		format!("{}", self.pretty())
+	}
 }
 
 impl<'a> ToPretty for &'a [u8] {

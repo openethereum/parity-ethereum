@@ -27,8 +27,11 @@ pub trait Trie {
 	fn contains(&self, key: &[u8]) -> bool;
 
 	/// What is the value of the given key in this trie?
-	fn at<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
+}
 
+/// A key-value datastore implemented as a database-backed modified Merkle tree.
+pub trait TrieMut: Trie {
 	/// Insert a `key`/`value` pair into the trie. An `empty` value is equivalent to removing
 	/// `key` from the trie.
 	fn insert(&mut self, key: &[u8], value: &[u8]);
@@ -287,12 +290,12 @@ impl <'a>Node<'a> {
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();
 ///   let mut root = H256::new();
-///   let mut t = TrieDB::new(&mut memdb, &mut root);
+///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
 ///   assert_eq!(*t.root(), SHA3_NULL_RLP);
 ///   t.insert(b"foo", b"bar");
 ///   assert!(t.contains(b"foo"));
-///   assert_eq!(t.at(b"foo").unwrap(), b"bar");
+///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
 ///   assert!(t.db_items_remaining().is_empty());
 ///   t.remove(b"foo");
 ///   assert!(!t.contains(b"foo"));
@@ -300,6 +303,12 @@ impl <'a>Node<'a> {
 /// }
 /// ```
 pub struct TrieDB<'db> {
+	db: &'db HashDB,
+	root: &'db H256,
+	pub hash_count: usize,
+}
+
+pub struct TrieDBMut<'db> {
 	db: &'db mut HashDB,
 	root: &'db mut H256,
 	pub hash_count: usize,
@@ -311,12 +320,12 @@ enum MaybeChanged<'a> {
 	Changed(Bytes),
 }
 
-impl<'db> TrieDB<'db> {
+impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self { 
-		let mut r = TrieDB{
+		let mut r = TrieDBMut{
 			db: db, 
 			root: root,
 			hash_count: 0 
@@ -331,7 +340,7 @@ impl<'db> TrieDB<'db> {
 	/// Panics, if `root` does not exist
 	pub fn new_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
 		assert!(db.exists(root));
-		TrieDB { 
+		TrieDBMut { 
 			db: db, 
 			root: root,
 			hash_count: 0 
@@ -390,11 +399,11 @@ impl<'db> TrieDB<'db> {
 		for d in journal.0.into_iter() {
 			match d {
 				Operation::Delete(h) => {
-					trace!("TrieDB::apply --- {:?}", &h);
+					trace!("TrieDBMut::apply --- {:?}", &h);
 					self.db.kill(&h);
 				},
 				Operation::New(h, d) => {
-					trace!("TrieDB::apply +++ {:?} -> {:?}", &h, d.pretty());
+					trace!("TrieDBMut::apply +++ {:?} -> {:?}", &h, d.pretty());
 					self.db.emplace(h, d);
 					self.hash_count += 1;
 				}
@@ -475,7 +484,7 @@ impl<'db> TrieDB<'db> {
 	}
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
-	fn get<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
+	fn do_lookup<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
 		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
 		self.get_from_node(&root_rlp, key)
 	}
@@ -892,17 +901,19 @@ impl<'db> TrieDB<'db> {
 	}
 }
 
-impl<'db> Trie for TrieDB<'db> {
+impl<'db> Trie for TrieDBMut<'db> {
 	fn root(&self) -> &H256 { &self.root }
 
 	fn contains(&self, key: &[u8]) -> bool {
-		self.at(key).is_some()
+		self.get(key).is_some()
 	}
 
-	fn at<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
-		self.get(&NibbleSlice::new(key))
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
+		self.do_lookup(&NibbleSlice::new(key))
 	}
+}
 
+impl<'db> TrieMut for TrieDBMut<'db> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
 		match value.is_empty() {
 			false => self.insert_ns(&NibbleSlice::new(key), value),
@@ -915,7 +926,7 @@ impl<'db> Trie for TrieDB<'db> {
 	}
 }
 
-impl<'db> fmt::Debug for TrieDB<'db> {
+impl<'db> fmt::Debug for TrieDBMut<'db> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		try!(writeln!(f, "c={:?} [", self.hash_count));
 		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
@@ -960,8 +971,8 @@ mod tests {
 		}
 	}
 
-	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDB<'db> {
-		let mut t = TrieDB::new(db, root);
+	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDBMut<'db> {
+		let mut t = TrieDBMut::new(db, root);
 		for i in 0..v.len() {
 			let key: &[u8]= &v[i].0;
 			let val: &[u8] = &v[i].1;
@@ -970,7 +981,7 @@ mod tests {
 		t
 	}
 
-	fn unpopulate_trie<'a, 'db>(t: &mut TrieDB<'db>, v: &Vec<(Vec<u8>, Vec<u8>)>) {
+	fn unpopulate_trie<'a, 'db>(t: &mut TrieDBMut<'db>, v: &Vec<(Vec<u8>, Vec<u8>)>) {
 		for i in v.iter() {
 			let key: &[u8]= &i.0;
 			t.remove(&key);
@@ -1053,7 +1064,7 @@ mod tests {
 	fn init() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let t = TrieDB::new(&mut memdb, &mut root);
+		let t = TrieDBMut::new(&mut memdb, &mut root);
 		assert_eq!(*t.root(), SHA3_NULL_RLP);
 		assert!(t.is_empty());
 	}
@@ -1062,7 +1073,7 @@ mod tests {
 	fn insert_on_empty() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x01u8, 0x23]) ]));
 	}
@@ -1073,14 +1084,14 @@ mod tests {
 
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t1 = TrieDB::new(&mut memdb, &mut root);
+		let mut t1 = TrieDBMut::new(&mut memdb, &mut root);
 		t1.insert(&[0x01, 0x23], &big_value.to_vec());
 		t1.insert(&[0x01, 0x34], &big_value.to_vec());
 		trace!("keys remaining {:?}", t1.db_items_remaining());
 		assert!(t1.db_items_remaining().is_empty());
 		let mut memdb2 = MemoryDB::new();
 		let mut root2 = H256::new();
-		let mut t2 = TrieDB::new(&mut memdb2, &mut root2);
+		let mut t2 = TrieDBMut::new(&mut memdb2, &mut root2);
 		t2.insert(&[0x01], &big_value.to_vec());
 		t2.insert(&[0x01, 0x23], &big_value.to_vec());
 		t2.insert(&[0x01, 0x34], &big_value.to_vec());
@@ -1096,7 +1107,7 @@ mod tests {
 	fn insert_replace_root() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x01u8, 0x23], &[0x23u8, 0x45]);
 		assert_eq!(*t.root(), trie_root(vec![ (vec![0x01u8, 0x23], vec![0x23u8, 0x45]) ]));
@@ -1106,7 +1117,7 @@ mod tests {
 	fn insert_make_branch_root() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x11u8, 0x23], &[0x11u8, 0x23]);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1119,7 +1130,7 @@ mod tests {
 	fn insert_into_branch_root() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
@@ -1134,7 +1145,7 @@ mod tests {
 	fn insert_value_into_branch_root() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[], &[0x0]);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1147,7 +1158,7 @@ mod tests {
 	fn insert_split_leaf() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x01u8, 0x34], &[0x01u8, 0x34]);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1160,7 +1171,7 @@ mod tests {
 	fn insert_split_extenstion() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01, 0x23, 0x45], &[0x01]);
 		t.insert(&[0x01, 0xf3, 0x45], &[0x02]);
 		t.insert(&[0x01, 0xf3, 0xf5], &[0x03]);
@@ -1178,7 +1189,7 @@ mod tests {
 
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value0);
 		t.insert(&[0x11u8, 0x23], big_value1);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1193,7 +1204,7 @@ mod tests {
 
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], big_value);
 		t.insert(&[0x11u8, 0x23], big_value);
 		assert_eq!(*t.root(), trie_root(vec![
@@ -1253,38 +1264,38 @@ mod tests {
 	fn test_at_empty() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let t = TrieDB::new(&mut memdb, &mut root);
-		assert_eq!(t.at(&[0x5]), None);
+		let t = TrieDBMut::new(&mut memdb, &mut root);
+		assert_eq!(t.get(&[0x5]), None);
 	}
 
 	#[test]
 	fn test_at_one() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
-		assert_eq!(t.at(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
+		assert_eq!(t.get(&[0x1, 0x23]).unwrap(), &[0x1u8, 0x23]);
 	}
 
 	#[test]
 	fn test_at_three() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]);
-		assert_eq!(t.at(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
-		assert_eq!(t.at(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
-		assert_eq!(t.at(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
-		assert_eq!(t.at(&[0x82, 0x23]), None);
+		assert_eq!(t.get(&[0x01, 0x23]).unwrap(), &[0x01u8, 0x23]);
+		assert_eq!(t.get(&[0xf1, 0x23]).unwrap(), &[0xf1u8, 0x23]);
+		assert_eq!(t.get(&[0x81, 0x23]).unwrap(), &[0x81u8, 0x23]);
+		assert_eq!(t.get(&[0x82, 0x23]), None);
 	}
 
 	#[test]
 	fn test_print_trie() {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0x02u8, 0x23], &[0x01u8, 0x23]);
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]);
@@ -1339,7 +1350,7 @@ mod tests {
 
 			let mut memdb = MemoryDB::new();
 			let mut root = H256::new();
-			let mut t = TrieDB::new(&mut memdb, &mut root);
+			let mut t = TrieDBMut::new(&mut memdb, &mut root);
 			for operation in input.into_iter() {
 				match operation {
 					trie::Operation::Insert(key, value) => t.insert(&key, &value),
@@ -1356,12 +1367,12 @@ mod tests {
 		let mut root = H256::new();
 		let mut db = MemoryDB::new();
 		{
-			let mut t = TrieDB::new(&mut db, &mut root);
+			let mut t = TrieDBMut::new(&mut db, &mut root);
 			t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]);
 		}
 
 		{
-		 	let _ = TrieDB::new_existing(&mut db, &mut root);
+		 	let _ = TrieDBMut::new_existing(&mut db, &mut root);
 		}
 	}
 }
