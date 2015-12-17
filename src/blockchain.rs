@@ -45,7 +45,7 @@ pub struct CacheSize {
 /// 
 /// **Does not do input data verifycation.**
 pub struct BlockChain {
-	best_block_hash: Cell<H256>,
+	best_block_hash: RefCell<H256>,
 	best_block_number: Cell<U256>,
 	best_block_total_difficulty: Cell<U256>,
 
@@ -102,7 +102,7 @@ impl BlockChain {
 		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
 
 		let bc = BlockChain {
-			best_block_hash: Cell::new(H256::new()),
+			best_block_hash: RefCell::new(H256::new()),
 			best_block_number: Cell::new(U256::from(0u8)),
 			best_block_total_difficulty: Cell::new(U256::from(0u8)),
 			blocks: RefCell::new(HashMap::new()),
@@ -144,9 +144,9 @@ impl BlockChain {
 			}
 		};
 
-		bc.best_block_hash.set(best_block_hash);
 		bc.best_block_number.set(bc.block_number(&best_block_hash).unwrap());
 		bc.best_block_total_difficulty.set(bc.block_details(&best_block_hash).unwrap().total_difficulty);
+		*bc.best_block_hash.borrow_mut() = best_block_hash;
 
 		bc
 	}
@@ -231,7 +231,7 @@ impl BlockChain {
 
 		let index = from_branch.len();
 
-		from_branch.extend(to_branch.iter().rev());
+		from_branch.extend(to_branch.into_iter().rev());
 
 		TreeRoute {
 			blocks: from_branch,
@@ -325,7 +325,7 @@ impl BlockChain {
 			self.extras_db.write(extras_batch).unwrap();
 
 			// update local caches
-			self.best_block_hash.set(hash);
+			*self.best_block_hash.borrow_mut() = hash;
 			self.best_block_number.set(header.number());
 			self.best_block_total_difficulty.set(total_difficulty);
 		}
@@ -388,7 +388,7 @@ impl BlockChain {
 
 	/// Get best block hash.
 	pub fn best_block_hash(&self) -> H256 {
-		self.best_block_hash.get()
+		self.best_block_hash.borrow().clone()
 	}
 
 	/// Get best block number.
@@ -507,10 +507,10 @@ mod tests {
 		
 		let genesis_hash = H256::from_str("3caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942").unwrap();
 
-		assert_eq!(bc.genesis_hash(), genesis_hash);
+		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
 		assert_eq!(bc.best_block_number(), U256::from(0u8));
-		assert_eq!(bc.best_block_hash(), genesis_hash);
-		assert_eq!(bc.block_hash(&U256::from(0u8)), Some(genesis_hash));
+		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
+		assert_eq!(bc.block_hash(&U256::from(0u8)), Some(genesis_hash.clone()));
 		assert_eq!(bc.block_hash(&U256::from(1u8)), None);
 		
 
@@ -520,12 +520,12 @@ mod tests {
 
 		let first_hash = H256::from_str("a940e5af7d146b3b917c953a82e1966b906dace3a4e355b5b0a4560190357ea1").unwrap();
 
-		assert_eq!(bc.block_hash(&U256::from(0u8)), Some(genesis_hash));
+		assert_eq!(bc.block_hash(&U256::from(0u8)), Some(genesis_hash.clone()));
 		assert_eq!(bc.best_block_number(), U256::from(1u8));
-		assert_eq!(bc.best_block_hash(), first_hash);
-		assert_eq!(bc.block_hash(&U256::from(1u8)), Some(first_hash));
-		assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash);
-		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash]);
+		assert_eq!(bc.best_block_hash(), first_hash.clone());
+		assert_eq!(bc.block_hash(&U256::from(1u8)), Some(first_hash.clone()));
+		assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
+		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
 		assert_eq!(bc.block_hash(&U256::from(2u8)), None);
 	}
 }
