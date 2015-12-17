@@ -87,7 +87,6 @@ pub use util::uint::*;
 pub use util::bytes::*;
 
 pub mod account;
-pub mod block;
 pub mod blockchain;
 pub mod state;
 pub mod blockheader;
