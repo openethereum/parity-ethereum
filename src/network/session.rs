@@ -14,11 +14,44 @@ pub struct Session {
 	had_hello: bool,
 }
 
+pub enum SessionData {
+	None,
+	Ready,
+	Packet {
+		data: Vec<u8>,
+		protocol: &'static str,
+		packet_id: u8,
+	},
+}
+
 pub struct SessionInfo {
 	pub id: NodeId,
 	pub client_version: String,
 	pub protocol_version: u32,
-	pub capabilities: Vec<CapabilityInfo>,
+	pub capabilities: Vec<SessionCapabilityInfo>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct PeerCapabilityInfo {
+	pub protocol: String,
+	pub version: u8,
+}
+
+impl Decodable for PeerCapabilityInfo {
+	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(PeerCapabilityInfo {
+			protocol: try!(String::decode_untrusted(&try!(rlp.at(0)))),
+			version: try!(u32::decode_untrusted(&try!(rlp.at(1)))) as u8,
+		})
+	}
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct SessionCapabilityInfo {
+	pub protocol: &'static str,
+	pub version: u8,
+	pub packet_count: u8,
+	pub id_offset: u8,
 }
 
 const PACKET_HELLO: u8 = 0x80;
@@ -50,43 +83,76 @@ impl Session {
 		Ok(session)
 	}
 
-	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<(), Error> {
+	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<SessionData, Error> {
 		match try!(self.connection.readable(event_loop)) {
-			Some(data)  => {
-				try!(self.read_packet(data, host));
-			},
-			None => {}
-		};
-		Ok(())
+			Some(data)  => self.read_packet(data, host),
+			None => Ok(SessionData::None)
+		}
 	}
 
 	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), Error> {
 		self.connection.writable(event_loop)
 	}
 
-	pub fn read_packet(&mut self, packet: Packet, host: &HostInfo) -> Result<(), Error> {
-		let data = &packet.data;
-		if data.len() < 2 {
+	pub fn have_capability(&self, protocol: &str) -> bool {
+		self.info.capabilities.iter().any(|c| c.protocol == protocol)
+	}
+
+	pub fn send_packet(&mut self, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), Error> {
+		let mut i = 0usize;
+		while protocol != self.info.capabilities[i].protocol {
+			i += 1;
+			if i == self.info.capabilities.len() {
+				debug!(target: "net", "Unkown protocol: {:?}", protocol);
+				return Ok(())
+			}
+		}
+		let pid = self.info.capabilities[i].id_offset + packet_id;
+		let mut rlp = RlpStream::new();
+		rlp.append(&(pid as u32));
+		rlp.append_raw(data, 1);
+		self.connection.send_packet(&rlp.out())
+	}
+
+	fn read_packet(&mut self, packet: Packet, host: &HostInfo) -> Result<SessionData, Error> {
+		if packet.data.len() < 2 {
 			return Err(Error::BadProtocol);
 		}
-		let packet_id = data[0];
-		let rlp = UntrustedRlp::new(&data[1..]); //TODO: validate rlp expected size
+		let packet_id = packet.data[0];
 		if packet_id != PACKET_HELLO && packet_id != PACKET_DISCONNECT && !self.had_hello {
 			return Err(Error::BadProtocol);
 		}
 		match packet_id {
-			PACKET_HELLO => self.read_hello(&rlp, host),
+			PACKET_HELLO => {
+			let rlp = UntrustedRlp::new(&packet.data[1..]); //TODO: validate rlp expected size
+				try!(self.read_hello(&rlp, host));
+				Ok(SessionData::Ready)
+			}
 			PACKET_DISCONNECT => Err(Error::Disconnect(DisconnectReason::DisconnectRequested)),
-			PACKET_PING => self.write_pong(),
-			PACKET_GET_PEERS => Ok(()), //TODO;
-			PACKET_PEERS => Ok(()),
+			PACKET_PING => {
+				try!(self.write_pong());
+				Ok(SessionData::None)
+			}
+			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
+			PACKET_PEERS => Ok(SessionData::None),
 			PACKET_USER ... PACKET_LAST => {
-				warn!(target: "net", "User packet: {:?}", rlp);
-				Ok(())
+				let mut i = 0usize;
+				while packet_id < self.info.capabilities[i].id_offset {
+					i += 1;
+					if i == self.info.capabilities.len() {
+						debug!(target: "net", "Unkown packet: {:?}", packet_id);
+						return Ok(SessionData::None)
+					}
+				}
+
+				// map to protocol
+				let protocol = self.info.capabilities[i].protocol;
+				let pid = packet_id - self.info.capabilities[i].id_offset;
+				return Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: pid } )
 			},
 			_ => {
-				debug!(target: "net", "Unkown packet: {:?}", rlp);
-				Ok(())
+				debug!(target: "net", "Unkown packet: {:?}", packet_id);
+				Ok(SessionData::None)
 			}
 		}
 	}
@@ -106,12 +172,24 @@ impl Session {
 	fn read_hello(&mut self, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), Error> {
 		let protocol = try!(u32::decode_untrusted(&try!(rlp.at(0))));
 		let client_version = try!(String::decode_untrusted(&try!(rlp.at(1))));
-		let mut caps: Vec<CapabilityInfo> = try!(Decodable::decode_untrusted(&try!(rlp.at(2))));
+		let peer_caps: Vec<PeerCapabilityInfo> = try!(Decodable::decode_untrusted(&try!(rlp.at(2))));
 		let id = try!(NodeId::decode_untrusted(&try!(rlp.at(4))));
 
 		// Intersect with host capabilities
 		// Leave only highset mutually supported capability version
-		caps.retain(|c| host.capabilities.contains(&c));
+		let mut caps: Vec<SessionCapabilityInfo> = Vec::new();
+		for hc in host.capabilities.iter() {
+			if peer_caps.iter().any(|c| c.protocol == hc.protocol && c.version == hc.version) {
+				caps.push(SessionCapabilityInfo {
+					protocol: hc.protocol,
+					version: hc.version,
+					id_offset: 0,
+					packet_count: hc.packet_count,
+				});
+			}
+		}
+
+		caps.retain(|c| host.capabilities.iter().any(|hc| hc.protocol == c.protocol && hc.version == c.version));
 		let mut i = 0;
 		while i < caps.len() {
 			if caps.iter().any(|c| c.protocol == caps[i].protocol && c.version > caps[i].version) {
@@ -122,7 +200,15 @@ impl Session {
 			}
 		}
 
+		i = 0;
+		let mut offset: u8 = PACKET_USER;
+		while i < caps.len() {
+			caps[i].id_offset = offset;
+			offset += caps[i].packet_count;
+			i += 1;
+		}
 		trace!(target: "net", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		self.info.capabilities = caps;
 		if protocol != host.protocol_version {
 			return Err(self.disconnect(DisconnectReason::UselessPeer));
 		}

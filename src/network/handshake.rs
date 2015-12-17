@@ -4,17 +4,15 @@ use hash::*;
 use bytes::Bytes;
 use crypto::*;
 use crypto;
-use network::connection::{Connection, WriteStatus};
+use network::connection::{Connection};
 use network::host::{NodeId, Host, HostInfo};
 use network::Error;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
 	New,
 	ReadingAuth,
-	WritingAuth,
 	ReadingAck,
-	WritingAck,
 	StartSession,
 }
 
@@ -89,7 +87,7 @@ impl Handshake {
 					None => {}
 				};
 			},
-			_ => { panic!("Unexpected state") }
+			_ => { panic!("Unexpected state"); }
 		}
 		if self.state != HandshakeState::StartSession {
 			try!(self.connection.reregister(event_loop));
@@ -99,27 +97,7 @@ impl Handshake {
 
 	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), Error> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
-		match self.state {
-			HandshakeState::WritingAuth => {
-				match try!(self.connection.writable()) {
-					WriteStatus::Complete => {
-						self.connection.expect(ACK_PACKET_SIZE);
-						self.state = HandshakeState::ReadingAck;
-					},
-					_ => {}
-				};
-			},
-			HandshakeState::WritingAck => {
-				match try!(self.connection.writable()) {
-					WriteStatus::Complete => {
-						self.connection.expect(32);
-						self.state = HandshakeState::StartSession;
-					},
-					_ => {}
-				};
-			},
-			_ => { panic!("Unexpected state") }
-		}
+		try!(self.connection.writable());
 		if self.state != HandshakeState::StartSession {
 			try!(self.connection.reregister(event_loop));
 		}
@@ -185,7 +163,8 @@ impl Handshake {
 		let message = try!(crypto::ecies::encrypt(&self.id, &data));
 		self.auth_cipher = message.clone();
 		self.connection.send(message);
-		self.state = HandshakeState::WritingAuth;
+		self.connection.expect(ACK_PACKET_SIZE);
+		self.state = HandshakeState::ReadingAck;
 		Ok(())
 	}
 
@@ -203,7 +182,7 @@ impl Handshake {
 		let message = try!(crypto::ecies::encrypt(&self.id, &data));
 		self.ack_cipher = message.clone();
 		self.connection.send(message);
-		self.state = HandshakeState::WritingAck;
+		self.state = HandshakeState::StartSession;
 		Ok(())
 	}
 }

@@ -4,6 +4,7 @@ mod connection;
 mod handshake;
 mod session;
 mod discovery;
+mod service;
 
 #[derive(Debug, Copy, Clone)]
 pub enum DisconnectReason
@@ -31,6 +32,7 @@ pub enum Error {
 	AddressParse(::std::net::AddrParseError),
 	AddressResolve(Option<::std::io::Error>),
 	NodeIdParse(::error::EthcoreError),
+	PeerNotFound,
 	Disconnect(DisconnectReason)
 }
 
@@ -61,7 +63,22 @@ impl From<::rlp::DecoderError> for Error {
 	}
 }
 
-pub fn start_host()
-{
-	let _ = host::Host::start();
+impl From<::mio::NotifyError<host::HostMessage>> for Error {
+	fn from(_err: ::mio::NotifyError<host::HostMessage>) -> Error {
+		Error::Io(::std::io::Error::new(::std::io::ErrorKind::ConnectionAborted, "Network IO notification error"))
+	}
 }
+
+pub type PeerId = host::PeerId;
+pub type HandlerIo<'s> = host::HostIo<'s>;
+
+pub trait ProtocolHandler: Send {
+	fn initialize(&mut self, io: &mut HandlerIo);
+	fn read(&mut self, io: &mut HandlerIo, packet_id: u8, data: &[u8]);
+	fn connected(&mut self, io: &mut HandlerIo, peer: &PeerId);
+	fn disconnected(&mut self, io: &mut HandlerIo, peer: &PeerId);
+}
+
+pub struct NetworkClient;
+
+

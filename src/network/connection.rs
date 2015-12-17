@@ -120,7 +120,7 @@ impl Connection {
 	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection register; token={:?}", self.token);
 		self.interest.insert(EventSet::readable());
-		event_loop.register_opt(&self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
+		event_loop.register(&self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
 			error!("Failed to reregister {:?}, {:?}", self.token, e);
 			Err(e)
 		})
