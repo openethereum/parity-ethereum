@@ -89,7 +89,7 @@ impl ExtrasIndexable for H256 {
 }
 
 /// Familial details concerning a block
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct BlockDetails {
 	pub number: U256,
 	pub total_difficulty: U256,

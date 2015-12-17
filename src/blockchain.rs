@@ -1,3 +1,5 @@
+//! Fast access to blockchain data.
+
 use std::collections::HashMap;
 use std::cell::{Cell, RefCell};
 use std::path::Path;
@@ -12,20 +14,24 @@ use util::sha3::*;
 use util::bytes::*;
 use util::squeeze::*;
 use blockheader::*;
-use genesis::*;
 use extras::*;
 use transaction::*;
 use views::*;
 
-/// blocks - a vector of hashes of all blocks, ordered from `from` block to `to` block.
-/// ancestor - best common ancestor of these blocks
-/// index - an index where best common ancestor would be
+/// Represents a tree route between `from` block and `to` block:
+/// 
+/// - `blocks` - a vector of hashes of all blocks, ordered from `from` to `to`.
+///
+/// - `ancestor` - best common ancestor of these blocks.
+///
+/// - `index` - an index where best common ancestor would be.
 pub struct TreeRoute {
 	pub blocks: Vec<H256>,
 	pub ancestor: H256,
 	pub index: usize
 }
 
+/// Represents blockchain's in-memory cache size in bytes.
 #[derive(Debug)]
 pub struct CacheSize {
 	pub blocks: usize,
@@ -35,6 +41,9 @@ pub struct CacheSize {
 	pub blocks_blooms: usize
 }
 
+/// Structure providing fast access to blockchain data.
+/// 
+/// **Does not do input data verifycation.**
 pub struct BlockChain {
 	best_block_hash: Cell<H256>,
 	best_block_number: Cell<U256>,
@@ -73,7 +82,7 @@ impl BlockChain {
 	/// 	let mut dir = env::temp_dir();
 	/// 	dir.push(H32::random().hex());
 	///
-	/// 	let bc = BlockChain::new(&genesis, &dir);
+	/// 	let bc = BlockChain::new(genesis.block(), &dir);
 	///
 	/// 	let genesis_hash = "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3";
 	/// 	assert_eq!(bc.genesis_hash(), H256::from_str(genesis_hash).unwrap());
@@ -81,7 +90,7 @@ impl BlockChain {
 	/// 	assert_eq!(bc.genesis_hash(), bc.block_hash(&U256::from(0u8)).unwrap());
 	/// }
 	/// ```
-	pub fn new(genesis: &Genesis, path: &Path) -> BlockChain {
+	pub fn new(genesis: &[u8], path: &Path) -> BlockChain {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
@@ -112,8 +121,7 @@ impl BlockChain {
 			None => {
 				// best block does not exist
 				// we need to insert genesis into the cache
-				let bytes = genesis.block();
-				let block = BlockView::new(bytes);
+				let block = BlockView::new(genesis);
 				let header = block.header_view();
 				let hash = block.sha3();
 
@@ -124,7 +132,7 @@ impl BlockChain {
 					children: vec![]
 				};
 
-				bc.blocks_db.put(&hash, bytes).unwrap();
+				bc.blocks_db.put(&hash, genesis).unwrap();
 
 				let batch = WriteBatch::new();
 				batch.put_extras(&hash, &details);
@@ -144,29 +152,47 @@ impl BlockChain {
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
+	/// 
 	/// - a vector of hashes of all blocks, ordered from `from` to `to`.
+	///
 	/// - common ancestor of these blocks.
+	///
 	/// - an index where best common ancestor would be
 	/// 
-	/// 1.) live blocks only:
+	/// 1.) from newer to older
 	/// 
-	/// bc: A1 -> A2 -> A3 -> A4 -> A5
-	/// from: A5, to: A4
-	/// route: { blocks: [A5, A4], ancestor: A3, index: 2 }
+	/// - bc: `A1 -> A2 -> A3 -> A4 -> A5`
+	/// - from: A5, to: A4
+	/// - route: 
+	///
+	///   ```json
+	///   { blocks: [A5], ancestor: A4, index: 1 }
+	///   ```
 	/// 
-	/// 2.) bad blocks only:
+	/// 2.) from older to newer
 	/// 
-	/// bc: A1 -> A2 -> A3 -> A4 -> A5
-	///        -> B2 -> B3 -> B4
-	/// from: B4, to: B3
-	/// route: { blocks: [B4, B3], ancestor: B2, index: 2 }
+	/// - bc: `A1 -> A2 -> A3 -> A4 -> A5`
+	/// - from: A3, to: A4
+	/// - route: 
+	/// 
+	///   ```json
+	///   { blocks: [A4], ancestor: A3, index: 0 }
+	///   ```
 	///
 	/// 3.) fork:
 	///
-	/// bc: A1 -> A2 -> A3 -> A4
+	/// - bc: 
+	///
+	///   ```text
+	///   A1 -> A2 -> A3 -> A4
 	///              -> B3 -> B4
-	/// from: B4, to: A4
-	/// route: { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
+	///   ``` 
+	/// - from: B4, to: A4
+	/// - route: 
+	/// 
+	///   ```json
+	///   { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
+	///   ```
 	pub fn tree_route(&self, from: &H256, to: &H256) -> TreeRoute {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
@@ -230,12 +256,13 @@ impl BlockChain {
 		let hash = block.sha3();
 		let mut parent_details = self.block_details(&header.parent_hash()).expect("Invalid parent hash.");
 		let total_difficulty = parent_details.total_difficulty + header.difficulty();
+		let parent_hash = header.parent_hash();
 
 		// create current block details
 		let details = BlockDetails {
 			number: header.number(),
 			total_difficulty: total_difficulty,
-			parent: header.parent_hash(),
+			parent: parent_hash.clone(),
 			children: vec![]
 		};
 		
@@ -250,8 +277,15 @@ impl BlockChain {
 
 			// update parent details
 			parent_details.children.push(hash.clone());
-			batch.put_extras(&header.parent_hash(), &parent_details);
+			batch.put_extras(&parent_hash, &parent_details);
 			self.extras_db.write(batch).unwrap();
+			
+			// also in cache if it's there...
+			let mut write = self.block_details.borrow_mut();
+			match write.get_mut(&parent_hash) {
+				Some(parent_details) => parent_details.children.push(hash.clone()),
+				None => ()
+			}
 		}
 
 		// check if we have new best block.
@@ -261,15 +295,30 @@ impl BlockChain {
 
 			// find the route between old best block and the new one
 			let route = self.tree_route(&self.best_block_hash(), &hash);
-			let ancestor_number = self.block_number(&route.ancestor).unwrap();
-			let start_number = ancestor_number + U256::from(1u8);
-			let extras_batch = route.blocks.iter()
-				.skip(route.index)
-				.enumerate()
-				.fold(WriteBatch::new(), | acc, (index, hash) | {
-					acc.put_extras(&(start_number + U256::from(index as u64)), hash);
-					acc
-				});
+
+			let extras_batch = match route.blocks.len() {
+				// its our parent
+				1 => {
+					let extras = WriteBatch::new();
+					extras.put_extras(&header.number(), &hash);
+					extras
+				},
+				// it is a fork
+				i if i > 1 => {
+					let ancestor_number = self.block_number(&route.ancestor).unwrap();
+					let start_number = ancestor_number + U256::from(1u8);
+					route.blocks.iter()
+						.skip(route.index)
+						.enumerate()
+						.fold(WriteBatch::new(), | acc, (index, hash) | {
+							acc.put_extras(&(start_number + U256::from(index as u64)), hash);
+							acc
+						})
+				},
+				// route.len() could be 0 only if inserted block is best block,
+				// and this is not possible at this stage
+				_ => { unreachable!(); }
+			};
 
 			// update extras database
 			extras_batch.put(b"best", &hash).unwrap();
@@ -293,12 +342,12 @@ impl BlockChain {
 		self.query_extras_exist(hash, &self.transaction_addresses)
 	}
 
-	/// Returns reference to genesis hash
+	/// Returns reference to genesis hash.
 	pub fn genesis_hash(&self) -> H256 {
 		self.block_hash(&U256::from(0u8)).expect("Genesis hash should always exist")
 	}
 
-	/// Get the partial-header of a block
+	/// Get the partial-header of a block.
 	pub fn block_header(&self, hash: &H256) -> Option<Header> {
 		self.block(hash).map(|bytes| BlockView::new(&bytes).header())
 	}
@@ -332,32 +381,32 @@ impl BlockChain {
 		self.query_extras(hash, &self.block_details)
 	}
 
-	/// Get the hash of given block's number
+	/// Get the hash of given block's number.
 	pub fn block_hash(&self, hash: &U256) -> Option<H256> {
 		self.query_extras(hash, &self.block_hashes)
 	}
 
-	/// Get best block hash
+	/// Get best block hash.
 	pub fn best_block_hash(&self) -> H256 {
 		self.best_block_hash.get()
 	}
 
-	/// Get best block number
+	/// Get best block number.
 	pub fn best_block_number(&self) -> U256 {
 		self.best_block_number.get()
 	}
 
-	/// Get best block total difficulty
+	/// Get best block total difficulty.
 	pub fn best_block_total_difficulty(&self) -> U256 {
 		self.best_block_total_difficulty.get()
 	}
 
-	/// Get the number of given block's hash
+	/// Get the number of given block's hash.
 	pub fn block_number(&self, hash: &H256) -> Option<U256> {
 		self.block(hash).map(|bytes| BlockView::new(&bytes).header_view().number())
 	}
 
-	/// Get the transactions' log blooms of a block
+	/// Get the transactions' log blooms of a block.
 	pub fn log_blooms(&self, hash: &H256) -> Option<BlockLogBlooms> {
 		self.query_extras(hash, &self.block_logs)
 	}
@@ -417,7 +466,7 @@ impl BlockChain {
 		self.extras_db.extras_exists::<_, T>(hash)
 	}
 
-	/// Get current cache size
+	/// Get current cache size.
 	pub fn cache_size(&self) -> CacheSize {
 		CacheSize {
 			blocks: self.blocks.heap_size_of_children(),
@@ -428,7 +477,7 @@ impl BlockChain {
 		}
 	}
 
-	/// Squeeze the cache if its too big
+	/// Tries to squeeze the cache if its too big.
 	pub fn squeeze_to_fit(&self, size: CacheSize) {
 		self.blocks.borrow_mut().squeeze(size.blocks);
 		self.block_details.borrow_mut().squeeze(size.block_details);
@@ -438,3 +487,45 @@ impl BlockChain {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+	use std::env;
+	use std::str::FromStr;
+	use rustc_serialize::hex::FromHex;
+	use util::hash::*;
+	use util::uint::*;
+	use blockchain::*;
+
+	#[test]
+	fn valid_tests_extra32() {
+		let genesis = "f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0925002c3260b44e44c3edebad1cc442142b03020209df1ab8bb86752edbd2cd7a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302000080832fefd8808454c98c8142a0363659b251bf8b819179874c8cce7b9b983d7f3704cbb58a3b334431f7032871889032d09c281e1236c0c0".from_hex().unwrap();
+
+		let mut dir = env::temp_dir();
+		dir.push(H32::random().hex());
+
+		let bc = BlockChain::new(&genesis, &dir);
+		
+		let genesis_hash = H256::from_str("3caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942").unwrap();
+
+		assert_eq!(bc.genesis_hash(), genesis_hash);
+		assert_eq!(bc.best_block_number(), U256::from(0u8));
+		assert_eq!(bc.best_block_hash(), genesis_hash);
+		assert_eq!(bc.block_hash(&U256::from(0u8)), Some(genesis_hash));
+		assert_eq!(bc.block_hash(&U256::from(1u8)), None);
+		
+
+		let first = "f90285f90219a03caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0bac6177a79e910c98d86ec31a09ae37ac2de15b754fd7bed1ba52362c49416bfa0d45893a296c1490a978e0bd321b5f2635d8280365c1fe9f693d65f233e791344a0c7778a7376099ee2e5c455791c1885b5c361b95713fddcbe32d97fd01334d296b90100000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000400000000000000000000000000000000000000000000000000000008302000001832fefd882560b845627cb99a00102030405060708091011121314151617181920212223242526272829303132a08ccb2837fb2923bd97e8f2d08ea32012d6e34be018c73e49a0f98843e8f47d5d88e53be49fec01012ef866f864800a82c35094095e7baea6a6c7c4c2dfeb977efac326af552d8785012a05f200801ba0cb088b8d2ff76a7b2c6616c9d02fb6b7a501afbf8b69d7180b09928a1b80b5e4a06448fe7476c606582039bb72a9f6f4b4fad18507b8dfbd00eebbe151cc573cd2c0".from_hex().unwrap();
+
+		bc.insert_block(&first);
+
+		let first_hash = H256::from_str("a940e5af7d146b3b917c953a82e1966b906dace3a4e355b5b0a4560190357ea1").unwrap();
+
+		assert_eq!(bc.block_hash(&U256::from(0u8)), Some(genesis_hash));
+		assert_eq!(bc.best_block_number(), U256::from(1u8));
+		assert_eq!(bc.best_block_hash(), first_hash);
+		assert_eq!(bc.block_hash(&U256::from(1u8)), Some(first_hash));
+		assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash);
+		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash]);
+		assert_eq!(bc.block_hash(&U256::from(2u8)), None);
+	}
+}
