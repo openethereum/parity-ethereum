@@ -63,9 +63,8 @@ impl State {
 		&mut self.db
 	}
 
-	/// Commit accounts to TrieDB. This is simplified version of
-	/// cpp-ethereum's dev::eth::commit.
-	/// accounts mutable because we may need to commit the code or storage and record that.
+	/// Commit accounts to TrieDB. This is similar to cpp-ethereum's dev::eth::commit.
+	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	pub fn commit_into(db: &mut HashDB, mut root: H256, accounts: &mut HashMap<Address, Option<Account>>) -> H256 {
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
@@ -96,4 +95,56 @@ impl State {
 		let r = self.root.clone();	// would prefer not to do this, really. 
 		self.root = Self::commit_into(&mut self.db, r, &mut self.cache);
 	}
+
+	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
+	/// `force_create` creates a new, empty basic account if there is not currently an active account.
+	fn ensure_cached(&mut self, a: &Address, require_code: bool, force_create: bool) {
+		if self.cache.get(a).is_none() {
+			// load from trie.
+			self.cache.insert(a.clone(), TrieDB::new(&mut self.db, &mut self.root).at(&a).map(|rlp| Account::from_rlp(rlp)));
+		}
+
+		if self.cache.get(a).unwrap().is_none() {
+			if !force_create { return; }
+			// create a new account
+			self.cache.insert(a.clone(), Some(Account::new_basic(U256::from(0u8))));
+		}
+
+		if require_code {
+			if let &mut Some(ref mut account) = self.cache.get_mut(a).unwrap() {
+				account.ensure_cached(&self.db);
+			}
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+
+use super::*;
+use util::hash::*;
+use util::trie::*;
+use util::rlp::*;
+use std::str::FromStr;
+
+#[test]
+fn playpen() {
+}
+
+#[test]
+fn ensure_cached() {
+	let mut s = State::new_temp();
+	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	s.ensure_cached(&a, false, true);
+	s.commit();
+	assert_eq!(s.root().hex(), "ec68b85fa2e0526dc0e821a5b33135459114f19173ce0479f5c09b21cc25b9a4");
+}
+
+#[test]
+fn create_empty() {
+	let mut s = State::new_temp();
+	s.commit();
+	assert_eq!(s.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
+}
+
 }
