@@ -253,7 +253,7 @@ impl EncryptedConnection {
 
 		let length = ((((hdec[0] as u32) << 8) + (hdec[1] as u32)) << 8) + (hdec[2] as u32);
 		let header_rlp = UntrustedRlp::new(&hdec[3..6]);
-		let protocol_id = try!(u16::decode_untrusted(&try!(header_rlp.at(0))));
+		let protocol_id = try!(header_rlp.val_at::<u16>(0));
 
 		self.payload_len = length;
 		self.protocol_id = protocol_id;

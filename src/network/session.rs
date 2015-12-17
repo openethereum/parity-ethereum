@@ -38,10 +38,12 @@ pub struct PeerCapabilityInfo {
 }
 
 impl Decodable for PeerCapabilityInfo {
-	fn decode_untrusted(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let c = try!(decoder.as_list());
+		let v: u32 = try!(Decodable::decode(&c[1]));
 		Ok(PeerCapabilityInfo {
-			protocol: try!(String::decode_untrusted(&try!(rlp.at(0)))),
-			version: try!(u32::decode_untrusted(&try!(rlp.at(1)))) as u8,
+			protocol: try!(Decodable::decode(&c[0])),
+			version: v as u8,
 		})
 	}
 }
@@ -170,10 +172,10 @@ impl Session {
 	}
 
 	fn read_hello(&mut self, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), Error> {
-		let protocol = try!(u32::decode_untrusted(&try!(rlp.at(0))));
-		let client_version = try!(String::decode_untrusted(&try!(rlp.at(1))));
-		let peer_caps: Vec<PeerCapabilityInfo> = try!(Decodable::decode_untrusted(&try!(rlp.at(2))));
-		let id = try!(NodeId::decode_untrusted(&try!(rlp.at(4))));
+		let protocol = try!(rlp.val_at::<u32>(0));
+		let client_version = try!(rlp.val_at::<String>(1));
+		let peer_caps = try!(rlp.val_at::<Vec<PeerCapabilityInfo>>(2));
+		let id = try!(rlp.val_at::<NodeId>(4));
 
 		// Intersect with host capabilities
 		// Leave only highset mutually supported capability version
