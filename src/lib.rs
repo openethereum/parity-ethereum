@@ -94,8 +94,7 @@ pub mod blockheader;
 pub mod transaction;
 pub mod extras;
 pub mod genesis;
-pub mod verifiedblock;
-pub mod importroute;
+pub mod views;
 
 pub mod networkparams;
 pub mod denominations;

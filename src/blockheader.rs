@@ -2,54 +2,6 @@ use util::hash::*;
 use util::bytes::*;
 use util::uint::*;
 use util::rlp::*;
-use util::sha3;
-
-/// view onto block header rlp
-pub struct HeaderView<'a> {
-	rlp: Rlp<'a>
-}
-
-impl<'a> HeaderView<'a> {
-	pub fn new(bytes: &'a [u8]) -> HeaderView<'a> {
-		HeaderView {
-			rlp: Rlp::new(bytes)
-		}
-	}
-
-	pub fn new_from_rlp(rlp: Rlp<'a>) -> HeaderView<'a> {
-		HeaderView {
-			rlp: rlp
-		}
-	}
-
-	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
-	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
-	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1) }
-	pub fn author(&self) -> Address { self.rlp.val_at(2) }
-	pub fn state_root(&self) -> H256 { self.rlp.val_at(3) }
-	pub fn transactions_root(&self) -> H256 { self.rlp.val_at(4) }
-	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5) }
-	pub fn log_bloom(&self) -> H2048 { self.rlp.val_at(6) }
-	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
-	pub fn number(&self) -> U256 { self.rlp.val_at(8) }
-	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
-	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10) }
-	pub fn timestamp(&self) -> U256 { self.rlp.val_at(11) }
-	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }
-	pub fn seal(&self) -> Vec<Bytes> { 
-		let mut seal = vec![];
-		for i in 13..self.rlp.item_count() {
-			seal.push(self.rlp.val_at(i));
-		}
-		seal
-	}
-}
-
-impl<'a> sha3::Hashable for HeaderView<'a> {
-	fn sha3(&self) -> H256 {
-		self.rlp.raw().sha3()
-	}
-}
 
 pub static ZERO_ADDRESS: Address = Address([0x00; 20]);
 pub static ZERO_H256: H256 = H256([0x00; 32]);

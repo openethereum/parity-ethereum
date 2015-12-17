@@ -12,10 +12,10 @@ use util::sha3::*;
 use util::bytes::*;
 use util::squeeze::*;
 use blockheader::*;
-use block::*;
 use genesis::*;
 use extras::*;
 use transaction::*;
+use views::*;
 
 #[derive(Debug)]
 pub struct CacheSize {
