@@ -219,7 +219,7 @@ impl BlockChain {
 		assert_eq!(from_details.number, to_details.number);
 
 		// move to shared parent
-		while from_details.parent != to_details.parent {
+		while current_from != current_to {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
 			from_details = self.block_details(&from_details.parent).unwrap();
