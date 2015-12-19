@@ -1,3 +1,5 @@
+#![feature(cell_extras)]
+
 //! Ethcore's ethereum implementation
 //! 
 //! ### Rust version
