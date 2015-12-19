@@ -123,6 +123,12 @@ impl State {
 		self.require(a, false).sub_balance(decr)
 	}
 
+	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
+	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256) {
+		self.sub_balance(from, by);
+		self.add_balance(to, by);
+	}
+
 	/// Increment the nonce of account `a` by 1.
 	pub fn inc_nonce(&mut self, a: &Address) {
 		self.require(a, false).inc_nonce()
@@ -136,6 +142,17 @@ impl State {
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn set_code(&mut self, a: &Address, code: Bytes) {
 		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8))).set_code(code);
+	}
+
+	/// Execute a given transaction.
+	/// This will change the state accordingly.
+/*	pub fn execute(_env_info: EnvInfo, _seal_engine: SealEngine, _t: Transaction, _p: Permanence) -> (ExecutionResult, TransactionReceipt) {
+		unimplemented!();
+	}*/
+
+	/// Convert into a JSON representation.
+	pub fn as_json(&self) -> String {
+		unimplemented!();
 	}
 
 	/// Commit accounts to TrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
@@ -169,6 +186,11 @@ impl State {
 	pub fn commit(&mut self) {
 		let r = self.root.clone();	// would prefer not to do this, really. 
 		self.root = Self::commit_into(&mut self.db, r, self.cache.borrow_mut().deref_mut());
+	}
+
+	/// Populate the state from `accounts`. Just uses `commit_into`.
+	pub fn populate_from(&mut self, _accounts: &mut HashMap<Address, Option<Account>>) {
+		unimplemented!();
 	}
 
 	/// Pull account `a` in our cache from the trie DB and return it.
@@ -272,6 +294,7 @@ fn get_from_database() {
 fn alter_balance() {
 	let mut s = State::new_temp();
 	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let b = Address::from_str("0000000000000000000000000000000000000001").unwrap();
 	s.add_balance(&a, &U256::from(69u64));
 	assert_eq!(s.balance(&a), U256::from(69u64));
 	s.commit();
@@ -280,6 +303,12 @@ fn alter_balance() {
 	assert_eq!(s.balance(&a), U256::from(27u64));
 	s.commit();
 	assert_eq!(s.balance(&a), U256::from(27u64));
+	s.transfer_balance(&a, &b, &U256::from(18u64));
+	assert_eq!(s.balance(&a), U256::from(9u64));
+	assert_eq!(s.balance(&b), U256::from(18u64));
+	s.commit();
+	assert_eq!(s.balance(&a), U256::from(9u64));
+	assert_eq!(s.balance(&b), U256::from(18u64));
 }
 
 #[test]
