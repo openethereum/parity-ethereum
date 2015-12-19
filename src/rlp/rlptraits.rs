@@ -1,11 +1,10 @@
 use rlp::DecoderError;
 
-pub trait Decoder {
+pub trait Decoder: Sized {
 	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
 		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 
-	fn read_list<T, F>(&self, f: F) -> Result<T, DecoderError>
-		where F: FnOnce(&[Self]) -> Result<T, DecoderError>;
+	fn as_list(&self) -> Result<Vec<Self>, DecoderError>;
 }
 
 pub trait Decodable: Sized {

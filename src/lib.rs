@@ -32,10 +32,14 @@ extern crate mio;
 extern crate rand;
 extern crate rocksdb;
 extern crate tiny_keccak;
+
+#[macro_use]
+extern crate heapsize;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
+
 extern crate env_logger;
 
 extern crate time;
@@ -50,7 +54,6 @@ pub mod uint;
 pub mod bytes;
 pub mod rlp;
 pub mod vector;
-pub mod db;
 pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
@@ -61,5 +64,7 @@ pub mod crypto;
 pub mod triehash;
 pub mod trie;
 pub mod nibbleslice;
+pub mod heapsizeof;
+pub mod squeeze;
 
 //pub mod network;
