@@ -30,8 +30,8 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 
-pub mod errors;
-pub mod traits;
+pub mod rlptraits;
+pub mod rlperrors;
 pub mod rlp;
 pub mod untrusted_rlp;
 pub mod rlpstream;
@@ -39,11 +39,15 @@ pub mod rlpstream;
 #[cfg(test)]
 mod tests;
 
-pub use self::errors::DecoderError;
-pub use self::traits::{Decoder, Decodable, View, Stream, Encodable, Encoder};
+pub use self::rlperrors::DecoderError;
+pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use self::rlp::{Rlp, RlpIterator};
 pub use self::rlpstream::{RlpStream};
+use super::hash::H256;
+
+pub const NULL_RLP: [u8; 1] = [0x80; 1];
+pub const SHA3_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
 
 /// Shortcut function to decode trusted rlp
 /// 
