@@ -55,7 +55,7 @@ fn trie_insertions_six_high(b: &mut Bencher) {
 	b.iter(||{
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1);
 		}
@@ -90,7 +90,7 @@ fn trie_insertions_six_mid(b: &mut Bencher) {
 	b.iter(||{
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1);
 		}
@@ -127,7 +127,7 @@ fn trie_insertions_random_mid(b: &mut Bencher) {
 	b.iter(||{
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1);
 		}
@@ -164,7 +164,7 @@ fn trie_insertions_six_low(b: &mut Bencher) {
 	b.iter(||{
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
-		let mut t = TrieDB::new(&mut memdb, &mut root);
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		for i in d.iter() {
 			t.insert(&i.0, &i.1);
 		}
