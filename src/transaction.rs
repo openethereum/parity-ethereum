@@ -37,17 +37,18 @@ impl Encodable for Transaction {
 
 impl Decodable for Transaction {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
-		decoder.read_list(| d | {
-			let transaction = Transaction {
-				nonce: try!(Decodable::decode(&d[0])),
-				gas_price: try!(Decodable::decode(&d[1])),
-				gas: try!(Decodable::decode(&d[2])),
-				receive_address: try!(Decodable::decode(&d[3])),
-				value: try!(Decodable::decode(&d[4])),
-				data: try!(Decodable::decode(&d[5])),
-			};
-			Ok(transaction)
-		})
+		let d = try!(decoder.as_list());
+
+		let transaction = Transaction {
+			nonce: try!(Decodable::decode(&d[0])),
+			gas_price: try!(Decodable::decode(&d[1])),
+			gas: try!(Decodable::decode(&d[2])),
+			receive_address: try!(Decodable::decode(&d[3])),
+			value: try!(Decodable::decode(&d[4])),
+			data: try!(Decodable::decode(&d[5])),
+		};
+
+		Ok(transaction)
 	}
 }
 

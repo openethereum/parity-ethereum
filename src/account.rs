@@ -96,7 +96,7 @@ impl Account {
 			_ => {}
 		}
 		// fetch - cannot be done in match because of the borrow rules.
-		let t = TrieDBMut::new_existing(db, &mut self.storage_root);
+		let t = TrieDB::new(db, &self.storage_root);
 		let r = H256::from_slice(t.get(key.bytes()).unwrap_or(&[0u8;32][..]));
 		self.storage_overlay.insert(key, r.clone());
 		r
@@ -286,6 +286,8 @@ fn rlpio() {
 
 #[test]
 fn new_account() {
+	use rustc_serialize::hex::ToHex;
+
 	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
 	assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 	assert_eq!(a.balance(), &U256::from(69u8));
@@ -296,6 +298,8 @@ fn new_account() {
 
 #[test]
 fn create_account() {
+	use rustc_serialize::hex::ToHex;
+
 	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
 	assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 }

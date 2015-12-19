@@ -61,7 +61,7 @@ impl State {
 	pub fn new_existing(mut db: OverlayDB, mut root: H256, account_start_nonce: U256) -> State {
 		{
 			// trie should panic! if root does not exist
-			let _ = TrieDBMut::new_existing(&mut db, &mut root);
+			let _ = TrieDB::new(&mut db, &mut root);
 		}
 
 		State {
@@ -164,8 +164,7 @@ impl State {
 	fn get(&mut self, a: &Address, require_code: bool) -> Option<&Account> {
 		if self.cache.get(a).is_none() {
 			// load from trie.
-			let t = TrieDBMut::new_existing(&mut self.db, &mut self.root);
-			self.cache.insert(a.clone(), t.get(&a).map(|rlp| { println!("RLP: {:?}", rlp); Account::from_rlp(rlp) }));
+			self.cache.insert(a.clone(), TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		}
 
 		let db = &self.db;
@@ -182,7 +181,7 @@ impl State {
 	fn require(&mut self, a: &Address, require_code: bool) -> &mut Account {
 		if self.cache.get(a).is_none() {
 			// load from trie.
-			self.cache.insert(a.clone(), TrieDBMut::new(&mut self.db, &mut self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+			self.cache.insert(a.clone(), TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		}
 
 		if self.cache.get(a).unwrap().is_none() {
