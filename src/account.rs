@@ -10,6 +10,7 @@ use util::uint::*;
 pub const SHA3_EMPTY: H256 = H256( [0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c, 0x92, 0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0, 0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b, 0x7b, 0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70] );
 
 /// Single account in the system.
+#[derive(Debug)]
 pub struct Account {
 	// Balance of the account.
 	balance: U256,
@@ -95,8 +96,8 @@ impl Account {
 			_ => {}
 		}
 		// fetch - cannot be done in match because of the borrow rules.
-		let t = TrieDB::new_existing(db, &mut self.storage_root);
-		let r = H256::from_slice(t.at(key.bytes()).unwrap_or(&[0u8;32][..]));
+		let t = TrieDBMut::new_existing(db, &mut self.storage_root);
+		let r = H256::from_slice(t.get(key.bytes()).unwrap_or(&[0u8;32][..]));
 		self.storage_overlay.insert(key, r.clone());
 		r
 	}
@@ -140,7 +141,7 @@ impl Account {
 	}
 
 	/// Provide a database to lookup `code_hash`. Should not be called if it is a contract without code.
-	pub fn ensure_cached(&mut self, db: &HashDB) -> bool {
+	pub fn cache_code(&mut self, db: &HashDB) -> bool {
 		// TODO: fill out self.code_cache;
 /*		return !self.is_cached() ||
 			match db.lookup(&self.code_hash.unwrap()) {	// why doesn't this work? unwrap causes move?!
@@ -176,7 +177,7 @@ impl Account {
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
-		let mut t = TrieDB::new(db, &mut self.storage_root);
+		let mut t = TrieDBMut::new(db, &mut self.storage_root);
 		for (k, v) in self.storage_overlay.iter() {
 			// cast key and value to trait type,
 			// so we can call overloaded `to_bytes` method
@@ -247,7 +248,7 @@ fn note_code() {
 	};
 
 	let mut a = Account::from_rlp(&rlp);
-	assert_eq!(a.ensure_cached(&db), true);
+	assert_eq!(a.cache_code(&db), true);
 
 	let mut a = Account::from_rlp(&rlp);
 	assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));
