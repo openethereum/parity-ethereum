@@ -1,312 +1,13 @@
-//! Key-value datastore with a modified Merkle tree.
-extern crate rand;
-
 use std::fmt;
-use sha3::*;
 use hashdb::*;
 use hash::*;
 use nibbleslice::*;
 use bytes::*;
 use rlp::*;
 use std::collections::HashMap;
-
-//use log::*;
-
-pub const NULL_RLP: [u8; 1] = [0x80; 1];
-pub const SHA3_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
-
-/// A key-value datastore implemented as a database-backed modified Merkle tree.
-pub trait Trie {
-	/// Return the root of the trie.
-	fn root(&self) -> &H256;
-
-	/// Is the trie empty?
-	fn is_empty(&self) -> bool { *self.root() == SHA3_NULL_RLP }
-
-	/// Does the trie contain a given key?
-	fn contains(&self, key: &[u8]) -> bool;
-
-	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key;
-}
-
-/// A key-value datastore implemented as a database-backed modified Merkle tree.
-pub trait TrieMut: Trie {
-	/// Insert a `key`/`value` pair into the trie. An `empty` value is equivalent to removing
-	/// `key` from the trie.
-	fn insert(&mut self, key: &[u8], value: &[u8]);
-
-	/// Remove a `key` from the trie. Equivalent to making it equal to the empty
-	/// value.
-	fn remove(&mut self, key: &[u8]);
-}
-
-/// Alphabet to use when creating words for insertion into tries.
-pub enum Alphabet {
-	All,
-	Low,
-	Mid,
-	Custom(Bytes),
-}
-
-/// Standard test map for profiling tries.
-pub struct StandardMap {
-	alphabet: Alphabet,
-	min_key: usize,
-	journal_key: usize,
-	count: usize,
-}
-
-impl StandardMap {
-	/// Get a bunch of random bytes, at least `min_count` bytes, at most `min_count` + `journal_count` bytes.
-	/// `seed` is mutated pseudoramdonly and used.
-	fn random_bytes(min_count: usize, journal_count: usize, seed: &mut H256) -> Vec<u8> {
-		assert!(min_count + journal_count <= 32);
-		*seed = seed.sha3();
-		let r = min_count + (seed.bytes()[31] as usize % (journal_count + 1));
-		seed.bytes()[0..r].to_vec()
-	}
-
-	/// Get a random value. Equal chance of being 1 byte as of 32. `seed` is mutated pseudoramdonly and used.
-	fn random_value(seed: &mut H256) -> Bytes {
-		*seed = seed.sha3();
-		match seed.bytes()[0] % 2 {
-			1 => vec![seed.bytes()[31];1],
-			_ => seed.bytes().to_vec(),
-		}
-	}
-
-	/// Get a random word of, at least `min_count` bytes, at most `min_count` + `journal_count` bytes.
-	/// Each byte is an item from `alphabet`. `seed` is mutated pseudoramdonly and used.
-	fn random_word(alphabet: &[u8], min_count: usize, journal_count: usize, seed: &mut H256) -> Vec<u8> {
-		assert!(min_count + journal_count <= 32);
-		*seed = seed.sha3();
-		let r = min_count + (seed.bytes()[31] as usize % (journal_count + 1));
-		let mut ret: Vec<u8> = Vec::with_capacity(r);
-		for i in 0..r {
-			ret.push(alphabet[seed.bytes()[i] as usize % alphabet.len()]);
-		}
-		ret
-	}
-
-	/// Create the standard map (set of keys and values) for the object's fields.
-	pub fn make(&self) -> Vec<(Bytes, Bytes)> {
-		let low = b"abcdef";
-		let mid = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
-
-		let mut d: Vec<(Bytes, Bytes)> = Vec::new();
-		let mut seed = H256::new();
-		for _ in 0..self.count {
-			let k = match self.alphabet {
-				Alphabet::All => Self::random_bytes(self.min_key, self.journal_key, &mut seed),
-				Alphabet::Low => Self::random_word(low, self.min_key, self.journal_key, &mut seed),
-				Alphabet::Mid => Self::random_word(mid, self.min_key, self.journal_key, &mut seed),
-				Alphabet::Custom(ref a) => Self::random_word(&a, self.min_key, self.journal_key, &mut seed),
-			};
-			let v = Self::random_value(&mut seed);
-			d.push((k, v))
-		}
-		d
-	}
-}
-
-/// Type of node in the trie and essential information thereof.
-#[derive(Eq, PartialEq, Debug)]
-pub enum Node<'a> {
-	Empty,
-	Leaf(NibbleSlice<'a>, &'a[u8]),
-	Extension(NibbleSlice<'a>, &'a[u8]),
-	Branch([&'a[u8]; 16], Option<&'a [u8]>)
-}
-
-/// Type of operation for the backing database - either a new node or a node deletion.
-#[derive(Debug)]
-enum Operation {
-	New(H256, Bytes),
-	Delete(H256),
-}
-
-/// A journal of operations on the backing database.
-#[derive(Debug)]
-struct Journal (Vec<Operation>);
-
-impl Journal {
-	/// Create a new, empty, object.
-	fn new() -> Journal { Journal(vec![]) }
-
-	/// Given the RLP that encodes a node, append a reference to that node `out` and leave `journal`
-	/// such that the reference is valid, once applied.
-	fn new_node(&mut self, rlp: Bytes, out: &mut RlpStream) {
-		if rlp.len() >= 32 {
-			let rlp_sha3 = rlp.sha3();
-
-			trace!("new_node: reference node {:?} => {:?}", rlp_sha3, rlp.pretty());
-			out.append(&rlp_sha3);
-			self.0.push(Operation::New(rlp_sha3, rlp));
-		}
-		else {
-			trace!("new_node: inline node {:?}", rlp.pretty());
-			out.append_raw(&rlp, 1);
-		}
-	}
-
-	/// Given the RLP that encodes a now-unused node, leave `journal` in such a state that it is noted.
-	fn delete_node_sha3(&mut self, old_sha3: H256) {
-		trace!("delete_node:  {:?}", old_sha3);
-		self.0.push(Operation::Delete(old_sha3));
-	}
-
-	/// Register an RLP-encoded node for deletion (given a slice), if it needs to be deleted.
-	fn delete_node(&mut self, old: &[u8]) {
-		let r = Rlp::new(old);
-		if r.is_data() && r.size() == 32 {
-			self.delete_node_sha3(r.as_val());
-		}
-	}
-}
-
-impl <'a>Node<'a> {
-	/// Decode the `node_rlp` and return the Node. 
-	fn decoded(node_rlp: &'a [u8]) -> Node<'a> {
-		let r = Rlp::new(node_rlp);
-		match r.prototype() {
-			// either leaf or extension - decode first item with NibbleSlice::??? 
-			// and use is_leaf return to figure out which.
-			// if leaf, second item is a value (is_data())
-			// if extension, second item is a node (either SHA3 to be looked up and 
-			// fed back into this function or inline RLP which can be fed back into this function).
-			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
-				(slice, true) => Node::Leaf(slice, r.at(1).data()),
-				(slice, false) => Node::Extension(slice, r.at(1).raw()),
-			},
-			// branch - first 16 are nodes, 17th is a value (or empty).
-			Prototype::List(17) => {
-				let mut nodes: [&'a [u8]; 16] = unsafe { ::std::mem::uninitialized() };
-				for i in 0..16 {
-					nodes[i] = r.at(i).raw();
-				}
-				Node::Branch(nodes, if r.at(16).is_empty() { None } else { Some(r.at(16).data()) })
-			},
-			// an empty branch index.
-			Prototype::Data(0) => Node::Empty,
-			// something went wrong.
-			_ => panic!("Rlp is not valid.")
-		}
-	}
-
-	/// Encode the node into RLP.
-	///
-	/// Will always return the direct node RLP even if it's 32 or more bytes. To get the
-	/// RLP which would be valid for using in another node, use `encoded_and_added()`.
-	fn encoded(&self) -> Bytes {
-		match *self {
-			Node::Leaf(ref slice, ref value) => {
-				let mut stream = RlpStream::new_list(2);
-				stream.append(&slice.encoded(true));
-				stream.append(value);
-				stream.out()
-			},
-			Node::Extension(ref slice, ref raw_rlp) => {
-				let mut stream = RlpStream::new_list(2);
-				stream.append(&slice.encoded(false));
-				stream.append_raw(raw_rlp, 1);
-				stream.out()
-			},
-			Node::Branch(ref nodes, ref value) => {
-				let mut stream = RlpStream::new_list(17);
-				for i in 0..16 {
-					stream.append_raw(nodes[i], 1);
-				}
-				match *value {
-					Some(n) => { stream.append(&n); },
-					None => { stream.append_empty_data(); },
-				}
-				stream.out()
-			},
-			Node::Empty => {
-				let mut stream = RlpStream::new();
-				stream.append_empty_data();
-				stream.out()
-			}
-		}
-	}
-
-	/// Encode the node, adding it to `journal` if necessary and return the RLP valid for
-	/// insertion into a parent node. 
-	fn encoded_and_added(&self, journal: &mut Journal) -> Bytes {
-		let mut stream = RlpStream::new();
-		match *self {
-			Node::Leaf(ref slice, ref value) => {
-				stream.append_list(2);
-				stream.append(&slice.encoded(true));
-				stream.append(value);
-			},
-			Node::Extension(ref slice, ref raw_rlp) => {
-				stream.append_list(2);
-				stream.append(&slice.encoded(false));
-				stream.append_raw(raw_rlp, 1);
-			},
-			Node::Branch(ref nodes, ref value) => {
-				stream.append_list(17);
-				for i in 0..16 {
-					stream.append_raw(nodes[i], 1);
-				}
-				match *value {
-					Some(n) => { stream.append(&n); },
-					None => { stream.append_empty_data(); },
-				}
-			},
-			Node::Empty => {
-				stream.append_empty_data();
-			}
-		}
-		let node = stream.out();
-		match node.len() {
-			0 ... 31 => node,
-			_ => {
-				let mut stream = RlpStream::new();
-				journal.new_node(node, &mut stream);
-				stream.out()
-			}
-		}
-	}
-}
-
-/// A `Trie` implementation using a generic `HashDB` backing database.
-/// 
-/// Use it as a `Trie` trait object. You can use `db()` to get the backing database object, `keys`
-/// to get the keys belonging to the trie in the backing database, and `db_items_remaining()` to get
-/// which items in the backing database do not belong to this trie. If this is the only trie in the
-/// backing database, then `db_items_remaining()` should be empty.
-///
-/// # Example
-/// ```
-/// extern crate ethcore_util as util;
-/// use util::trie::*;
-/// use util::hashdb::*;
-/// use util::memorydb::*;
-/// use util::hash::*;
-///
-/// fn main() {
-///   let mut memdb = MemoryDB::new();
-///   let mut root = H256::new();
-///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
-///   assert!(t.is_empty());
-///   assert_eq!(*t.root(), SHA3_NULL_RLP);
-///   t.insert(b"foo", b"bar");
-///   assert!(t.contains(b"foo"));
-///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
-///   assert!(t.db_items_remaining().is_empty());
-///   t.remove(b"foo");
-///   assert!(!t.contains(b"foo"));
-///   assert!(t.db_items_remaining().is_empty());
-/// }
-/// ```
-pub struct TrieDB<'db> {
-	db: &'db HashDB,
-	root: &'db H256,
-	pub hash_count: usize,
-}
+use super::node::*;
+use super::journal::*;
+use super::trietraits::*;
 
 pub struct TrieDBMut<'db> {
 	db: &'db mut HashDB,
@@ -318,185 +19,6 @@ pub struct TrieDBMut<'db> {
 enum MaybeChanged<'a> {
 	Same(Node<'a>),
 	Changed(Bytes),
-}
-
-impl<'db> TrieDB<'db> {
-	/// Create a new trie with the backing database `db` and `root`
-	/// Panics, if `root` does not exist
-	pub fn new(db: &'db HashDB, root: &'db H256) -> Self {
-		assert!(db.exists(root));
-		TrieDB { 
-			db: db, 
-			root: root,
-			hash_count: 0 
-		}
-	}
-
-	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB { 
-		self.db 
-	}
-
-	/// Determine all the keys in the backing database that belong to the trie.
-	pub fn keys(&self) -> Vec<H256> {
-		let mut ret: Vec<H256> = Vec::new();
-		ret.push(self.root.clone());
-		self.accumulate_keys(self.root_node(), &mut ret);
-		ret
-	}
-
-	/// Convert a vector of hashes to a hashmap of hash to occurances.
-	pub fn to_map(hashes: Vec<H256>) -> HashMap<H256, u32> {
-		let mut r: HashMap<H256, u32> = HashMap::new();
-		for h in hashes.into_iter() {
-			let c = *r.get(&h).unwrap_or(&0);
-			r.insert(h, c + 1);
-		}
-		r
-	}
-
-	/// Determine occurances of items in the backing database which are not related to this
-	/// trie.
-	pub fn db_items_remaining(&self) -> HashMap<H256, i32> {
-		let mut ret = self.db.keys();
-		for (k, v) in Self::to_map(self.keys()).into_iter() {
-			let keycount = *ret.get(&k).unwrap_or(&0);
-			match keycount == v as i32 {
-				true => ret.remove(&k),
-				_ => ret.insert(k, keycount - v as i32),
-			};
-		}
-		ret
-	}
-
-	/// Recursion helper for `keys`.
-	fn accumulate_keys(&self, node: Node, acc: &mut Vec<H256>) {
-		let mut handle_payload = |payload| {
-			let p = Rlp::new(payload);
-			if p.is_data() && p.size() == 32 {
-				acc.push(p.as_val());
-			}
-
-			self.accumulate_keys(self.get_node(payload), acc);
-		};
-
-		match node {
-			Node::Extension(_, payload) => handle_payload(payload),
-			Node::Branch(payloads, _) => for payload in payloads.iter() { handle_payload(payload) },
-			_ => {},
-		}
-	}
-
-	/// Get the root node's RLP.
-	fn root_node(&self) -> Node {
-		Node::decoded(self.db.lookup(&self.root).expect("Trie root not found!"))
-	}
-
-	/// Get the root node as a `Node`.
-	fn get_node<'a>(&'a self, node: &'a [u8]) -> Node {
-		Node::decoded(self.get_raw_or_lookup(node))
-	}
-
-	/// Indentation helper for `formal_all`.
-	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
-		for _ in 0..size { 
-			try!(write!(f, "  "));
-		}
-		Ok(())
-	}
-
-	/// Recursion helper for implementation of formatting trait.
-	fn fmt_all(&self, node: Node, f: &mut fmt::Formatter, deepness: usize) -> fmt::Result {
-		match node {
-			Node::Leaf(slice, value) => try!(writeln!(f, "'{:?}: {:?}.", slice, value.pretty())),
-			Node::Extension(ref slice, ref item) => {
-				try!(write!(f, "'{:?} ", slice));
-				try!(self.fmt_all(self.get_node(item), f, deepness));
-			},
-			Node::Branch(ref nodes, ref value) => {
-				try!(writeln!(f, ""));
-				match value {
-					&Some(v) => {
-						try!(self.fmt_indent(f, deepness + 1));
-						try!(writeln!(f, "=: {:?}", v.pretty()))
-					},
-					&None => {}
-				}
-				for i in 0..16 {
-					match self.get_node(nodes[i]) {
-						Node::Empty => {},
-						n => {
-							try!(self.fmt_indent(f, deepness + 1));
-							try!(write!(f, "'{:x} ", i));
-							try!(self.fmt_all(n, f, deepness + 1));
-						}
-					}
-				}
-			},
-			// empty
-			Node::Empty => {
-				try!(writeln!(f, "<empty>"));
-			}
-		};
-		Ok(())
-	}
-
-	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
-	fn do_lookup<'a, 'key>(&'a self, key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
-		self.get_from_node(&root_rlp, key)
-	}
-
-	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
-	/// value exists for the key.
-	///
-	/// Note: Not a public API; use Trie trait functions.
-	fn get_from_node<'a, 'key>(&'a self, node: &'a [u8], key: &NibbleSlice<'key>) -> Option<&'a [u8]> where 'a: 'key {
-		match Node::decoded(node) {
-			Node::Leaf(ref slice, ref value) if key == slice => Some(value),
-			Node::Extension(ref slice, ref item) if key.starts_with(slice) => {
-				self.get_from_node(self.get_raw_or_lookup(item), &key.mid(slice.len()))
-			},
-			Node::Branch(ref nodes, value) => match key.is_empty() {
-				true => value,
-				false => self.get_from_node(self.get_raw_or_lookup(nodes[key.at(0) as usize]), &key.mid(1))
-			},
-			_ => None
-		}
-	}
-
-	/// Given some node-describing data `node`, return the actual node RLP.
-	/// This could be a simple identity operation in the case that the node is sufficiently small, but
-	/// may require a database lookup.
-	fn get_raw_or_lookup<'a>(&'a self, node: &'a [u8]) -> &'a [u8] {
-		// check if its sha3 + len
-		let r = Rlp::new(node);
-		match r.is_data() && r.size() == 32 {
-			true => self.db.lookup(&r.as_val::<H256>()).expect("Not found!"),
-			false => node
-		}
-	}
-}
-
-impl<'db> Trie for TrieDB<'db> {
-	fn root(&self) -> &H256 { &self.root }
-
-	fn contains(&self, key: &[u8]) -> bool {
-		self.get(key).is_some()
-	}
-
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
-		self.do_lookup(&NibbleSlice::new(key))
-	}
-}
-
-impl<'db> fmt::Debug for TrieDB<'db> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		try!(writeln!(f, "c={:?} [", self.hash_count));
-		let root_rlp = self.db.lookup(&self.root).expect("Trie root not found!");
-		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
-		writeln!(f, "]")
-	}
 }
 
 impl<'db> TrieDBMut<'db> {
@@ -574,20 +96,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Apply the items in `journal` into the backing database.
 	fn apply(&mut self, journal: Journal) {
-		trace!("applying {:?} changes", journal.0.len());
-		for d in journal.0.into_iter() {
-			match d {
-				Operation::Delete(h) => {
-					trace!("TrieDBMut::apply --- {:?}", &h);
-					self.db.kill(&h);
-				},
-				Operation::New(h, d) => {
-					trace!("TrieDBMut::apply +++ {:?} -> {:?}", &h, d.pretty());
-					self.db.emplace(h, d);
-					self.hash_count += 1;
-				}
-			}
-		}
+		self.hash_count += journal.apply(self.db).inserts;
 	}
 
 	/// Recursion helper for `keys`.
@@ -1124,11 +633,13 @@ mod tests {
 	use memorydb::*;
 	use super::*;
 	use nibbleslice::*;
-	use rlp;
+	use rlp::*;
 	use env_logger;
 	use rand::random;
 	use std::collections::HashSet;
 	use bytes::{ToPretty,Bytes};
+	use super::super::node::*;
+	use super::super::trietraits::*;
 
 	fn random_key(alphabet: &[u8], min_count: usize, journal_count: usize) -> Vec<u8> {
 		let mut ret: Vec<u8> = Vec::new();
@@ -1141,11 +652,11 @@ mod tests {
 	
 	fn random_value_indexed(j: usize) -> Bytes {
 		match random::<usize>() % 2 {
-			0 => rlp::encode(&j),
+			0 => encode(&j),
 			_ => {
 				let mut h = H256::new();
 				h.mut_bytes()[31] = j as u8;
-				rlp::encode(&h)
+				encode(&h)
 			},
 		}
 	}
@@ -1408,7 +919,7 @@ mod tests {
 	fn test_node_extension() {
 		let k = vec![0x00u8, 0x01, 0x23, 0x45];
 		// in extension, value must be valid rlp
-		let v = rlp::encode(&"cat");
+		let v = encode(&"cat");
 		let (slice, is_leaf) = NibbleSlice::from_encoded(&k);
 		assert_eq!(is_leaf, false);
 		let ex = Node::Extension(slice, &v);
@@ -1429,7 +940,7 @@ mod tests {
 
 	#[test]
 	fn test_node_branch() {
-		let k = rlp::encode(&"cat");
+		let k = encode(&"cat");
 		let mut nodes: [&[u8]; 16] = unsafe { ::std::mem::uninitialized() };
 		for i in 0..16 { nodes[i] = &k; }
 		let v: Vec<u8> = From::from("dog");
@@ -1491,7 +1002,7 @@ mod tests {
 			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
 			for j in 0..4u32 {
 				let key = random_key(alphabet, 5, 1);
-				x.push((key, rlp::encode(&j)));
+				x.push((key, encode(&j)));
 			}
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::new();
