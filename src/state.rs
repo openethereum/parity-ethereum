@@ -173,12 +173,9 @@ impl State {
 
 	/// Pull account `a` in our cache from the trie DB and return it.
 	/// `require_code` requires that the code be cached, too.
-	// TODO: make immutable through returning an Option<Ref<Account>>
 	fn get(&self, a: &Address, require_code: bool) -> Ref<Option<Account>> {
-		if self.cache.borrow().get(a).is_none() {
-			// load from trie.
-			self.cache.borrow_mut().insert(a.clone(), TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
-		}
+		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
+			TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
 				account.cache_code(&self.db);
@@ -196,12 +193,8 @@ impl State {
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// `force_create` creates a new, empty basic account if there is not currently an active account.
 	fn require_or_from<F: FnOnce() -> Account>(&self, a: &Address, require_code: bool, default: F) -> RefMut<Account> {
-		// TODO: use entry
-		if self.cache.borrow().get(a).is_none() {
-			// load from trie.
-			self.cache.borrow_mut().insert(a.clone(), TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
-		}
-
+		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
+			TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		if self.cache.borrow().get(a).unwrap().is_none() {
 			self.cache.borrow_mut().insert(a.clone(), Some(default()));
 		}
