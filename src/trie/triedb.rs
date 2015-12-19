@@ -27,15 +27,10 @@ use super::node::*;
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();
 ///   let mut root = H256::new();
-///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
-///   assert!(t.is_empty());
-///   assert_eq!(*t.root(), SHA3_NULL_RLP);
-///   t.insert(b"foo", b"bar");
+///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar");
+///   let t = TrieDB::new(&memdb, &root);
 ///   assert!(t.contains(b"foo"));
 ///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
-///   assert!(t.db_items_remaining().is_empty());
-///   t.remove(b"foo");
-///   assert!(!t.contains(b"foo"));
 ///   assert!(t.db_items_remaining().is_empty());
 /// }
 /// ```

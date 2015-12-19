@@ -21,6 +21,37 @@ enum MaybeChanged<'a> {
 	Changed(Bytes),
 }
 
+/// A `Trie` implementation using a generic `HashDB` backing database.
+/// 
+/// Use it as a `Trie` trait object. You can use `db()` to get the backing database object, `keys`
+/// to get the keys belonging to the trie in the backing database, and `db_items_remaining()` to get
+/// which items in the backing database do not belong to this trie. If this is the only trie in the
+/// backing database, then `db_items_remaining()` should be empty.
+///
+/// # Example
+/// ```
+/// extern crate ethcore_util as util;
+/// use util::trie::*;
+/// use util::hashdb::*;
+/// use util::memorydb::*;
+/// use util::hash::*;
+/// use util::rlp::*;
+///
+/// fn main() {
+///   let mut memdb = MemoryDB::new();
+///   let mut root = H256::new();
+///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
+///   assert!(t.is_empty());
+///   assert_eq!(*t.root(), SHA3_NULL_RLP);
+///   t.insert(b"foo", b"bar");
+///   assert!(t.contains(b"foo"));
+///   assert_eq!(t.get(b"foo").unwrap(), b"bar");
+///   assert!(t.db_items_remaining().is_empty());
+///   t.remove(b"foo");
+///   assert!(!t.contains(b"foo"));
+///   assert!(t.db_items_remaining().is_empty());
+/// }
+/// ```
 impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
@@ -712,7 +743,7 @@ mod tests {
 			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
 			let mut got: HashSet<Vec<u8>> = HashSet::new();
 			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
-			for j in 0..1000usize {
+			for j in 0..100usize {
 				let key = random_key(alphabet, 5, 0);
 				if !got.contains(&key) {
 					x.push((key.clone(), random_value_indexed(j)));
@@ -997,7 +1028,7 @@ mod tests {
 
 	#[test]
 	fn stress() {
-		for _ in 0..500 {
+		for _ in 0..50 {
 			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
 			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
 			for j in 0..4u32 {
