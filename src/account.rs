@@ -6,6 +6,7 @@ use util::bytes::*;
 use util::trie::*;
 use util::rlp::*;
 use util::uint::*;
+use std::cell::*;
 
 pub const SHA3_EMPTY: H256 = H256( [0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c, 0x92, 0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0, 0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b, 0x7b, 0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70] );
 
@@ -19,7 +20,7 @@ pub struct Account {
 	// Trie-backed storage.
 	storage_root: H256,
 	// Overlay on trie-backed storage.
-	storage_overlay: HashMap<H256, H256>,
+	storage_overlay: RefCell<HashMap<H256, H256>>,
 	// Code hash of the account. If None, means that it's a contract whose code has not yet been set.
 	code_hash: Option<H256>,
 	// Code cache of the account.
@@ -33,7 +34,7 @@ impl Account {
 			balance: balance,
 			nonce: nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: storage,
+			storage_overlay: RefCell::new(storage),
 			code_hash: Some(code.sha3()),
 			code_cache: code
 		}
@@ -45,7 +46,7 @@ impl Account {
 			balance: balance,
 			nonce: U256::from(0u8),
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: HashMap::new(),
+			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: Some(SHA3_EMPTY),
 			code_cache: vec![],
 		}
@@ -58,7 +59,7 @@ impl Account {
 			nonce: r.val_at(0),
 			balance: r.val_at(1),
 			storage_root: r.val_at(2),
-			storage_overlay: HashMap::new(),
+			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: Some(r.val_at(3)),
 			code_cache: vec![],
 		}
@@ -71,7 +72,7 @@ impl Account {
 			balance: balance,
 			nonce: U256::from(0u8),
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: HashMap::new(),
+			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: None,
 			code_cache: vec![],
 		}
@@ -86,20 +87,14 @@ impl Account {
 
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
-		self.storage_overlay.insert(key, value);
+		self.storage_overlay.borrow_mut().insert(key, value);
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
-	pub fn storage_at(&mut self, db: &mut HashDB, key: H256) -> H256 {
-		match self.storage_overlay.get(&key) {
-			Some(x) => { return x.clone() },
-			_ => {}
-		}
-		// fetch - cannot be done in match because of the borrow rules.
-		let t = TrieDBMut::new_existing(db, &mut self.storage_root);
-		let r = H256::from_slice(t.get(key.bytes()).unwrap_or(&[0u8;32][..]));
-		self.storage_overlay.insert(key, r.clone());
-		r
+	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
+		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
+			H256::from_slice(TrieDB::new(db, &self.storage_root).get(key.bytes()).unwrap_or(&[0u8;32][..]))
+		}).clone()
 	}
 
 	/// return the balance associated with this account.
@@ -119,6 +114,7 @@ impl Account {
 		match self.code_hash {
 			Some(SHA3_EMPTY) | None if self.code_cache.is_empty() => Some(&self.code_cache),
 			Some(_) if !self.code_cache.is_empty() => Some(&self.code_cache),
+			None => Some(&self.code_cache),
 			_ => None,
 		}
 	}
@@ -161,10 +157,10 @@ impl Account {
 	pub fn base_root(&self) -> &H256 { &self.storage_root }
 	
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
-	pub fn storage_root(&self) -> Option<&H256> { if self.storage_overlay.is_empty() {Some(&self.storage_root)} else {None} }
+	pub fn storage_root(&self) -> Option<&H256> { if self.storage_overlay.borrow().is_empty() {Some(&self.storage_root)} else {None} }
 	
 	/// rturn the storage overlay.
-	pub fn storage_overlay(&self) -> &HashMap<H256, H256> { &self.storage_overlay }
+	pub fn storage_overlay(&self) -> Ref<HashMap<H256, H256>> { self.storage_overlay.borrow() }
 
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) { self.nonce = self.nonce + U256::from(1u8); }
@@ -178,19 +174,23 @@ impl Account {
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
 		let mut t = TrieDBMut::new(db, &mut self.storage_root);
-		for (k, v) in self.storage_overlay.iter() {
+		for (k, v) in self.storage_overlay.borrow().iter() {
 			// cast key and value to trait type,
 			// so we can call overloaded `to_bytes` method
 			t.insert(k, v);
 		}
-		self.storage_overlay.clear();
+		self.storage_overlay.borrow_mut().clear();
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
 	pub fn commit_code(&mut self, db: &mut HashDB) {
+		println!("Commiting code of {:?} - {:?}, {:?}", self, self.code_hash.is_none(), self.code_cache.is_empty());
 		match (self.code_hash.is_none(), self.code_cache.is_empty()) {
-			(true, true) => self.code_hash = Some(self.code_cache.sha3()),
-			(true, false) => self.code_hash = Some(db.insert(&self.code_cache)),
+			(true, true) => self.code_hash = Some(SHA3_EMPTY),
+			(true, false) => {
+				println!("Writing into DB {:?}", self.code_cache);
+				self.code_hash = Some(db.insert(&self.code_cache));
+			},
 			(false, _) => {},
 		}
 	}
@@ -213,7 +213,6 @@ use super::*;
 use std::collections::HashMap;
 use util::hash::*;
 use util::bytes::*;
-use util::trie::*;
 use util::rlp::*;
 use util::uint::*;
 use util::overlaydb::*;
@@ -230,10 +229,10 @@ fn storage_at() {
 		a.rlp()
 	};
 
-	let mut a = Account::from_rlp(&rlp);
+	let a = Account::from_rlp(&rlp);
 	assert_eq!(a.storage_root().unwrap().hex(), "3541f181d6dad5c504371884684d08c29a8bad04926f8ceddf5e279dbc3cc769");
-	assert_eq!(a.storage_at(&mut db, H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
-	assert_eq!(a.storage_at(&mut db, H256::from(&U256::from(0x01u64))), H256::new());
+	assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
+	assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x01u64))), H256::new());
 }
 
 #[test]
