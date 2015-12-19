@@ -5,7 +5,6 @@ use util::overlaydb::*;
 use util::trie::*;
 use util::rlp::*;
 use util::uint::*;
-use std::mem;
 //use std::cell::*;
 //use std::ops::*;
 use account::Account;
@@ -82,15 +81,9 @@ impl State {
 		&self.root
 	}
 
-	/// Desttroy the current database and return it.
-	/// WARNING: the struct should be dropped immediately following this.
-	pub fn take_db(&mut self) -> OverlayDB {
-		mem::replace(&mut self.db, OverlayDB::new_temp())
-	}
-
 	/// Destroy the current object and return root and database.
-	pub fn drop(mut self) -> (H256, OverlayDB) {
-		(mem::replace(&mut self.root, H256::new()), mem::replace(&mut self.db, OverlayDB::new_temp()))
+	pub fn drop(self) -> (H256, OverlayDB) {
+		(self.root, self.db)
 	}
 
 	/// Expose the underlying database; good to use for calling `state.db().commit()`.
@@ -258,7 +251,7 @@ fn code_from_database() {
 		assert_eq!(s.code(&a), Some(&[1u8, 2, 3][..]));
 		s.commit();
 		assert_eq!(s.code(&a), Some(&[1u8, 2, 3][..]));
-		(s.root().clone(), s.take_db())
+		s.drop()
 	};
 
 	let mut s = State::new_existing(db, r, U256::from(0u8));
@@ -272,7 +265,7 @@ fn storage_at_from_database() {
 		let mut s = State::new_temp();
 		s.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
 		s.commit();
-		(s.root().clone(), s.take_db())
+		s.drop()
 	};
 
 	let mut s = State::new_existing(db, r, U256::from(0u8));
@@ -288,7 +281,7 @@ fn get_from_database() {
 		s.add_balance(&a, &U256::from(69u64));
 		s.commit();
 		assert_eq!(s.balance(&a), U256::from(69u64));
-		(s.root().clone(), s.take_db())
+		s.drop()
 	};
 
 	let mut s = State::new_existing(db, r, U256::from(0u8));
