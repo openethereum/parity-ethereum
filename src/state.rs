@@ -9,28 +9,13 @@ use util::bytes::*;
 use util::rlp::*;
 use util::uint::*;
 use account::Account;
+use transaction::Transaction;
+use receipt::Receipt;
+use env_info::EnvInfo;
+use engine::Engine;
 
-/*
-enum ValueOrRef<'self, 'db: 'self> {
-	Value(OverlayDB),
-	Ref(&'db mut OverlayDB)
-}
-
-impl<'self, 'db> ValueOrRef<'self, 'db: 'self> {
-	pub fn get_mut(&mut self) -> &mut OverlayDB {
-		match self {
-			Value(ref mut x) => x,
-			Ref(x) => x,
-		}
-	}
-	pub fn get(&self) -> &OverlayDB {
-		match self {
-			Value(ref x) => x,
-			Ref(x) => x,
-		}
-	}
-}
-*/
+/// Information concerning the result of the `State::apply` operation.
+pub struct ApplyResult;	// TODO
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
@@ -146,9 +131,9 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-/*	pub fn execute(_env_info: EnvInfo, _seal_engine: SealEngine, _t: Transaction, _p: Permanence) -> (ExecutionResult, TransactionReceipt) {
+	pub fn apply(_env_info: &EnvInfo, _engine: &Engine, _t: &Transaction, _is_permanent: bool) -> (ApplyResult, Receipt) {
 		unimplemented!();
-	}*/
+	}
 
 	/// Convert into a JSON representation.
 	pub fn as_json(&self) -> String {
