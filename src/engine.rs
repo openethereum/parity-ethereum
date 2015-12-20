@@ -63,7 +63,16 @@ pub struct Params {
 }
 
 // TODO: move to ethcore-util
-/// A version value with strict meaning.
+/// A version value with strict meaning. Use `to_u32` to convert to a simple integer.
+/// 
+/// # Example
+/// ```
+/// extern crate ethcore;
+/// use ethcore::engine::*;
+/// fn main() {
+///   assert_eq!(SemanticVersion::new(1, 2, 3).as_u32(), 0x010203);
+/// }
+/// ```
 pub struct SemanticVersion {
 	/// Major version - API/feature removals & breaking changes.
 	pub major: u8,
@@ -78,7 +87,7 @@ impl SemanticVersion {
 	pub fn new(major: u8, minor: u8, tiny: u8) -> SemanticVersion { SemanticVersion{major: major, minor: minor, tiny: tiny} }
 
 	/// Convert to a `u32` representation.
-	pub fn as_u32(&self) -> u32 { ((self.major as u32) << 16u32) + ((self.minor as u32) << 8u32) + self.tiny as u32 }
+	pub fn as_u32(&self) -> u32 { ((self.major as u32) << 16) + ((self.minor as u32) << 8) + self.tiny as u32 }
 }
 
 // TODO: implement PartialOrdered for SemanticVersion.
