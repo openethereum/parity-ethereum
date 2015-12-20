@@ -97,6 +97,16 @@ macro_rules! construct_uint {
 				}
 			}
 
+			#[inline]
+			pub fn zero() -> $name {
+				From::from(0u64)
+			}
+			
+			#[inline]
+			pub fn one() -> $name {
+				From::from(1u64)
+			}
+
 			/// Multiplication by u32
 			fn mul_u32(self, other: u32) -> $name {
 				let $name(ref arr) = self;
@@ -125,6 +135,21 @@ macro_rules! construct_uint {
 		impl_map_from!($name, u8, u64);
 		impl_map_from!($name, u16, u64);
 		impl_map_from!($name, u32, u64);
+		impl_map_from!($name, usize, u64);
+
+		impl From<i64> for $name {
+			fn from(value: i64) -> $name {
+				match value >= 0 {
+					true => From::from(value as u64),
+					false => { panic!("Unsigned integer can't be created from negative value"); }
+				}
+			}
+		}
+
+		impl_map_from!($name, i8, i64);
+		impl_map_from!($name, i16, i64);
+		impl_map_from!($name, i32, i64);
+		impl_map_from!($name, isize, i64);
 
 		impl<'a> From<&'a [u8]> for $name {
 			fn from(bytes: &[u8]) -> $name {
