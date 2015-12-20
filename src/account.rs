@@ -41,10 +41,10 @@ impl Account {
 	}
 
 	/// Create a new account with the given balance.
-	pub fn new_basic(balance: U256) -> Account {
+	pub fn new_basic(balance: U256, nonce: U256) -> Account {
 		Account {
 			balance: balance,
-			nonce: U256::from(0u8),
+			nonce: nonce,
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: Some(SHA3_EMPTY),
