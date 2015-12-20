@@ -2,9 +2,11 @@ use util::uint::*;
 use util::hash::*;
 use util::bytes::*;
 use util::semantic_version::*;
-use header::Header;
 use std::collections::hash_map::*;
 use util::error::*;
+use header::Header;
+use account::Account;
+use transaction::Transaction;
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
 pub struct EvmSchedule {
@@ -52,15 +54,28 @@ pub struct Builtin {
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
 pub struct Params {
-	/*
-	TODO: std::unordered_map<Address, PrecompiledContract> precompiled;
-	*/
+	pub engine_name: String,
+
 	pub block_reward: U256,
 	pub maximum_extra_data_size: U256,
 	pub account_start_nonce: U256,
 	pub evm_schedule: EvmSchedule,
 	pub builtins: HashMap<Address, Builtin>,
 	pub misc: HashMap<String, String>,
+
+	// Genesis params.
+	pub parent_hash: H256,
+	pub author: Address,
+	pub difficulty: U256,
+	pub gas_limit: U256,
+	pub gas_used: U256,
+	pub timestamp: U256,
+	pub extra_data: Bytes,
+	pub genesis_state: HashMap<Address, Account>,
+	// Only pre-populate if known equivalent to genesis_state's root. If they're different Bad Things Will Happen,
+	pub state_root: Option<H256>,
+	pub seal_fields: usize,
+	pub seal_rlp: Bytes,
 }
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
@@ -69,7 +84,7 @@ pub trait Engine {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 	/// The version of this engine. Should be of the form 
-	fn version(&self) -> SemanticVersion { SemanticVersion::new(0, 0 ,0) }
+	fn version(&self) -> SemanticVersion { SemanticVersion::new(0, 0, 0) }
 
 	/// The number of additional header fields required for this engine.
 	fn seal_fields(&self) -> u32 { 0 }
@@ -79,22 +94,25 @@ pub trait Engine {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 
-	/// Verify that `header` is valid.
-	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
-	/// checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify(&self, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), EthcoreError> { Ok(()) }
-/*
-	virtual void verify(Strictness _s, BlockHeader const& _bi, BlockHeader const& _parent = BlockHeader(), bytesConstRef _block = bytesConstRef()) const;
-	/// Additional verification for transactions in blocks.
-	virtual void verifyTransaction(ImportRequirements::value _ir, TransactionBase const& _t, BlockHeader const& _bi) const;
-	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
-	virtual void populateFromParent(BlockHeader& _bi, BlockHeader const& _parent) const;
-*/
-
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &Params;
 	/// Set the general parameters of the chain.
 	fn set_params(&mut self, p: Params);
+
+	/// Get the EVM schedule for 
+	fn evm_schedule(&self) -> &EvmSchedule { &self.params().evm_schedule }
+
+	/// Verify that `header` is valid.
+	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
+	/// checks. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify(&self, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), EthcoreError> { Ok(()) }
+
+	/// Additional verification for transactions in blocks.
+	// TODO: Add flags for which bits of the transaction to check.
+	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> Result<(), EthcoreError> { Ok(()) }
+
+	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
+	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) -> Result<(), EthcoreError> { Ok(()) }
 }
 
 /// An engine which does not provide any consensus mechanism.
@@ -107,3 +125,20 @@ impl Engine for NullEngine {
 	fn params(&self) -> &Params { &self.params }
 	fn set_params(&mut self, params: Params) { self.params = params; }
 }
+
+impl Params {
+	/// Convert this object into a boxed Engine of the right underlying type.
+	pub fn to_engine(self) -> Box<Engine> { Box::new(NullEngine{params: self}) }
+
+	/// Determine the state root for the 
+	pub fn calculate_state_root(&self) -> H256 {
+		// TODO: use the trie_root to calculate.
+		unimplemented!();
+	}
+
+	pub fn genesis_block(&self) -> Bytes {
+		// TODO
+		unimplemented!();
+	}
+}
+
