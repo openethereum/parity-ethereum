@@ -1,5 +1,6 @@
 use std::collections::hash_map::*;
 use std::cell::*;
+use std::str::FromStr;
 use util::uint::*;
 use util::hash::*;
 use util::bytes::*;
@@ -106,7 +107,7 @@ impl Spec {
 				acc
 			}),
 			seal_fields: 2,
-			seal_rlp: encode(&vec![0u64; 2]),	// TODO: make correct
+			seal_rlp: { let mut r = RlpStream::new_list(2); r.append(&0x2au64); r.append(&H256::new()); r.out() },	// TODO: make correct
 			state_root_memo: RefCell::new(None),
 		}
 	}
@@ -143,7 +144,7 @@ impl Spec {
 				acc
 			}),
 			seal_fields: 2,
-			seal_rlp: encode(&vec![0u64; 2]),	// TODO: make correct
+			seal_rlp: { let mut r = RlpStream::new_list(2); r.append(&0x42u64); r.append(&H256::new()); r.out() },
 			state_root_memo: RefCell::new(None),
 		}
 	}
@@ -180,7 +181,7 @@ impl Spec {
 				acc
 			}),
 			seal_fields: 2,
-			seal_rlp: encode(&vec![0u64; 2]),	// TODO: make correct
+			seal_rlp: { let mut r = RlpStream::new_list(2); r.append(&0x00006d6f7264656eu64); r.append(&H256::from_str("00000000000000000000000000000000000000647572616c65787365646c6578").unwrap()); r.out() },	// TODO: make correct
 			state_root_memo: RefCell::new(None),
 		}
 	}
