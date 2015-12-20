@@ -1,6 +1,7 @@
 use util::uint::*;
 use util::hash::*;
 use util::bytes::*;
+use util::semantic_version::*;
 use header::Header;
 use std::collections::hash_map::*;
 use util::error::*;
@@ -61,36 +62,6 @@ pub struct Params {
 	pub builtins: HashMap<Address, Builtin>,
 	pub misc: HashMap<String, String>,
 }
-
-// TODO: move to ethcore-util
-/// A version value with strict meaning. Use `to_u32` to convert to a simple integer.
-/// 
-/// # Example
-/// ```
-/// extern crate ethcore;
-/// use ethcore::engine::*;
-/// fn main() {
-///   assert_eq!(SemanticVersion::new(1, 2, 3).as_u32(), 0x010203);
-/// }
-/// ```
-pub struct SemanticVersion {
-	/// Major version - API/feature removals & breaking changes.
-	pub major: u8,
-	/// Minor version - API/feature additions.
-	pub minor: u8,
-	/// Tiny version - bug fixes.
-	pub tiny: u8,
-}
-
-impl SemanticVersion {
-	/// Create a new object.
-	pub fn new(major: u8, minor: u8, tiny: u8) -> SemanticVersion { SemanticVersion{major: major, minor: minor, tiny: tiny} }
-
-	/// Convert to a `u32` representation.
-	pub fn as_u32(&self) -> u32 { ((self.major as u32) << 16) + ((self.minor as u32) << 8) + self.tiny as u32 }
-}
-
-// TODO: implement PartialOrdered for SemanticVersion.
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
