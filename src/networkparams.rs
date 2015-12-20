@@ -1,6 +1,8 @@
 use util::uint::*;
 use denominations::*;
 
+// TODO: move to params.rs.
+
 /// Network related const params
 /// TODO: make it configurable from json file
 pub struct NetworkParams {
