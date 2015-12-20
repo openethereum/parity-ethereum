@@ -91,7 +91,6 @@ pub mod account;
 pub mod header;
 pub mod transaction;
 pub mod receipt;
-pub mod networkparams;
 pub mod denominations;
 pub mod null_engine;
 pub mod evm_schedule;
