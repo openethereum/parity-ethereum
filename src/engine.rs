@@ -1,5 +1,7 @@
 use std::collections::hash_map::*;
 use util::bytes::*;
+use util::uint::*;
+use util::rlp::*;
 use util::semantic_version::*;
 use util::error::*;
 use header::Header;
@@ -30,6 +32,16 @@ pub trait Engine {
 	/// Get the EVM schedule for 
 	fn evm_schedule(&self, env_info: &EnvInfo) -> EvmSchedule;
 
+	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
+	fn maximum_extra_data_size(&self, _env_info: &EnvInfo) -> usize { decode(&self.spec().engine_params.get("maximum_extra_data_size").unwrap()) }
+	fn account_start_nonce(&self, _env_info: &EnvInfo) -> U256 { decode(&self.spec().engine_params.get("account_start_nonce").unwrap()) }
+	// TODO: refactor in terms of `on_preseal_block`
+	fn block_reward(&self, _env_info: &EnvInfo) -> U256 { decode(&self.spec().engine_params.get("block_reward").unwrap()) }
+
+	/// Block transformation functions, before and after the transactions.
+//	fn on_new_block(&self, _env_info: &EnvInfo, _block: &mut Block) -> Result<(), EthcoreError> {}
+//	fn on_preseal_block(&self, _env_info: &EnvInfo, _block: &mut Block) -> Result<(), EthcoreError> {}
+
 	/// Verify that `header` is valid.
 	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
 	/// checks. Returns either a null `Ok` or a general error detailing the problem with import.
@@ -42,8 +54,8 @@ pub trait Engine {
 	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
 	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) -> Result<(), EthcoreError> { Ok(()) }
 
-	// TODO: buildin contract routing - this will require removing the built-in configuration reading logic from Spec
-	// into here and removing the Spec::builtins field. It's a big job.
+	// TODO: buildin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
+	// from Spec into here and removing the Spec::builtins field.
 /*	fn is_builtin(&self, a: Address) -> bool;
 	fn cost_of_builtin(&self, a: Address, in: &[u8]) -> bignum;
 	fn execute_builtin(&self, a: Address, in: &[u8], out: &mut [u8]);

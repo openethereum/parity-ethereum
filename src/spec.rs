@@ -19,11 +19,9 @@ pub struct Spec {
 	// What engine are we using for this?
 	pub engine_name: String,
 
-	// Various parameters for the chain operation.
-	pub block_reward: U256,
-	pub maximum_extra_data_size: U256,
-	pub account_start_nonce: U256,
-	pub misc: HashMap<String, Bytes>,
+	// Parameters concerning operation of the specific engine we're using.
+	// Name -> RLP-encoded value
+	pub engine_params: HashMap<String, Bytes>,
 
 	// Builtin-contracts are here for now but would like to abstract into Engine API eventually.
 	pub builtins: HashMap<Address, Builtin>,
@@ -62,10 +60,6 @@ impl Spec {
 		Ref::map(self.state_root_memo.borrow(), |x|x.as_ref().unwrap())
 	}
 
-	pub fn block_reward(&self) -> U256 { self.block_reward }
-	pub fn maximum_extra_data_size(&self) -> U256 { self.maximum_extra_data_size }
-	pub fn account_start_nonce(&self) -> U256 { self.account_start_nonce }
-
 	/// Compose the genesis block for this chain.
 	pub fn genesis_block(&self) -> Bytes {
 		// TODO
@@ -78,10 +72,10 @@ impl Spec {
 	pub fn olympic() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
-			block_reward: finney() * U256::from(1500u64),
-			maximum_extra_data_size: U256::from(1024u64),
-			account_start_nonce: U256::from(0u64),
-			misc: vec![
+			engine_params: vec![
+				("block_reward", encode(&(finney() * U256::from(1500u64)))),
+				("maximum_extra_data_size", encode(&U256::from(1024u64))),
+				("account_start_nonce", encode(&U256::from(0u64))),
 				("gas_limit_bounds_divisor", encode(&1024u64)), 
 				("minimum_difficulty", encode(&131_072u64)), 
 				("difficulty_bound_divisor", encode(&2048u64)), 
@@ -115,10 +109,10 @@ impl Spec {
 	pub fn frontier() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
-			block_reward: ether() * U256::from(5u64),
-			maximum_extra_data_size: U256::from(32u64),
-			account_start_nonce: U256::from(0u64),
-			misc: vec![
+			engine_params: vec![
+				("block_reward", encode(&(ether() * U256::from(5u64)))),
+				("maximum_extra_data_size", encode(&U256::from(32u64))),
+				("account_start_nonce", encode(&U256::from(0u64))),
 				("gas_limit_bounds_divisor", encode(&1024u64)), 
 				("minimum_difficulty", encode(&131_072u64)), 
 				("difficulty_bound_divisor", encode(&2048u64)), 
@@ -152,10 +146,10 @@ impl Spec {
 	pub fn morden() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
-			block_reward: ether() * U256::from(5u64),
-			maximum_extra_data_size: U256::from(32u64),
-			account_start_nonce: U256::from(1u64) << 20,
-			misc: vec![
+			engine_params: vec![
+				("block_reward", encode(&(ether() * U256::from(5u64)))),
+				("maximum_extra_data_size", encode(&U256::from(32u64))),
+				("account_start_nonce", encode(&(U256::from(1u64) << 20))),
 				("gas_limit_bounds_divisor", encode(&1024u64)), 
 				("minimum_difficulty", encode(&131_072u64)), 
 				("difficulty_bound_divisor", encode(&2048u64)), 
