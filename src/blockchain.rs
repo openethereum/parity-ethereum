@@ -60,7 +60,7 @@ impl BestBlock {
 
 /// Structure providing fast access to blockchain data.
 /// 
-/// **Does not do input data verifycation.**
+/// **Does not do input data verification.**
 pub struct BlockChain {
 	best_block: RefCell<BestBlock>,
 
@@ -390,7 +390,7 @@ impl BlockChain {
 	}
 
 	/// Get a list of transactions for a given block.
-	/// Returns None is block deos not exist.
+	/// Returns None if block deos not exist.
 	pub fn transactions(&self, hash: &H256) -> Option<Vec<Transaction>> {
 		self.block(hash).map(|bytes| BlockView::new(&bytes).transactions())
 	}
@@ -402,7 +402,7 @@ impl BlockChain {
 	}
 
 	/// Get a list of uncles for a given block.
-	/// Returns None is block deos not exist.
+	/// Returns None if block deos not exist.
 	pub fn uncles(&self, hash: &H256) -> Option<Vec<Header>> {
 		self.block(hash).map(|bytes| BlockView::new(&bytes).uncles())
 	}
