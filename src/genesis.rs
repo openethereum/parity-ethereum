@@ -38,6 +38,7 @@ impl Genesis {
 		Self::new_from_header_and_state(header, state)
 	}
 
+	/// Creates genesis block from header and state hashmap
 	pub fn new_from_header_and_state(header: Header, state: HashMap<Address, Account>) -> Genesis {
 		let empty_list = RlpStream::new_list(0).out();
 		let mut stream = RlpStream::new_list(3);
@@ -76,6 +77,7 @@ impl Genesis {
 			timestamp: U256::from_str(&json["timestamp"].as_string().unwrap()[2..]).unwrap(),
 			extra_data: json["extraData"].as_string().unwrap()[2..].from_hex().unwrap(),
 			seal: {
+				// ethash specific fields
 				let mixhash = H256::from_str(&json["mixhash"].as_string().unwrap()[2..]).unwrap();
 				let nonce = H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap();
 				vec![mixhash.to_vec(), nonce.to_vec()]
