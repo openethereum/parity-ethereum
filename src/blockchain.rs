@@ -216,7 +216,7 @@ impl BlockChain {
 		self._tree_route((from_details, from), (to_details, to))
 	}
 
-	/// Same as `tree_route` function, but returns a route
+	/// Similar to `tree_route` function, but can be used to return a route
 	/// between blocks which may not be in database yet.
 	fn _tree_route(&self, from: (BlockDetails, H256), to: (BlockDetails, H256)) -> TreeRoute {
 		let mut from_branch = vec![];
