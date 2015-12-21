@@ -13,7 +13,7 @@ use util::hashdb::*;
 use util::sha3::*;
 use util::bytes::*;
 use util::squeeze::*;
-use blockheader::*;
+use header::*;
 use extras::*;
 use transaction::*;
 use views::*;

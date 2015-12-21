@@ -1,3 +1,5 @@
+#![feature(cell_extras)]
+
 //! Ethcore's ethereum implementation
 //! 
 //! ### Rust version
@@ -86,19 +88,19 @@ pub use util::hash::*;
 pub use util::uint::*;
 pub use util::bytes::*;
 
-pub mod account;
-pub mod blockchain;
+pub mod env_info;
+pub mod engine;
 pub mod state;
-pub mod blockheader;
+pub mod account;
+pub mod header;
 pub mod transaction;
-pub mod extras;
+pub mod receipt;
+pub mod denominations;
+pub mod null_engine;
+pub mod evm_schedule;
+pub mod builtin;
+pub mod spec;
 pub mod genesis;
 pub mod views;
-
-pub mod networkparams;
-pub mod denominations;
-
-
-#[test]
-fn it_works() {
-}
+pub mod blockchain;
+pub mod extras;

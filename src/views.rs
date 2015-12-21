@@ -4,7 +4,7 @@ use util::hash::*;
 use util::uint::*;
 use util::rlp::*;
 use util::sha3::*;
-use blockheader::*;
+use header::*;
 use transaction::*;
 
 /// View onto block rlp.
