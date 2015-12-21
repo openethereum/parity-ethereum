@@ -73,8 +73,12 @@
 
 #[macro_use]
 extern crate log;
-extern crate env_logger;
 extern crate rustc_serialize;
+extern crate flate2;
+extern crate rocksdb;
+extern crate heapsize;
+
+extern crate env_logger;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
 extern crate ethcore_util as util;
@@ -96,3 +100,7 @@ pub mod null_engine;
 pub mod evm_schedule;
 pub mod builtin;
 pub mod spec;
+pub mod genesis;
+pub mod views;
+pub mod blockchain;
+pub mod extras;
