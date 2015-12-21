@@ -217,7 +217,7 @@ impl BlockChain {
 	}
 
 	/// Same as `tree_route` function, but returns a route
-	/// between blocks that might not yet be in database.
+	/// between blocks which may not be in database yet.
 	fn _tree_route(&self, from: (BlockDetails, H256), to: (BlockDetails, H256)) -> TreeRoute {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
@@ -318,7 +318,7 @@ impl BlockChain {
 			children: vec![]
 		};
 		
-		// prepare update for extra details
+		// prepare the batch
 		let batch = WriteBatch::new();
 
 		// insert new block details
@@ -356,7 +356,7 @@ impl BlockChain {
 			_ => { unreachable!(); }
 		};
 
-		// this is new extras db
+		// this is new best block
 		batch.put(b"best", &hash).unwrap();
 
 		let best_block = BestBlock {
