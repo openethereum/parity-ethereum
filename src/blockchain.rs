@@ -216,8 +216,8 @@ impl BlockChain {
 		self._tree_route((from_details, from), (to_details, to))
 	}
 
-	/// Same as `tree_route` function, but returns a root between blocks that may not
-	/// be in database yet
+	/// Same as `tree_route` function, but returns a route
+	/// between blocks that might not yet be in database.
 	fn _tree_route(&self, from: (BlockDetails, H256), to: (BlockDetails, H256)) -> TreeRoute {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
@@ -272,11 +272,37 @@ impl BlockChain {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
+		let hash = block.sha3();
 
-		if self.is_known(&header.sha3()) {
+		if self.is_known(&hash) {
 			return;
 		}
 
+		// store block in db
+		self.blocks_db.put(&hash, &bytes).unwrap();
+		let (batch, new_best) = self.block_to_extras_insert_batch(bytes);
+
+		// update best block
+		let mut best_block = self.best_block.borrow_mut();
+		if let Some(b) = new_best {
+			*best_block = b;
+		}
+
+		// update caches
+		let mut write = self.block_details.borrow_mut();
+		write.remove(&header.parent_hash());
+
+		// update extras database
+		self.extras_db.write(batch).unwrap();
+	}
+
+	/// Transforms block into WriteBatch that may be written into database
+	/// Additionally, if it's new best block it returns new best block object.
+	fn block_to_extras_insert_batch(&self, bytes: &[u8]) -> (WriteBatch, Option<BestBlock>) {
+		// create views onto rlp
+		let block = BlockView::new(bytes);
+		let header = block.header_view();
+		
 		// prepare variables
 		let hash = block.sha3();
 		let mut parent_details = self.block_details(&header.parent_hash()).expect("Invalid parent hash.");
@@ -292,65 +318,54 @@ impl BlockChain {
 			children: vec![]
 		};
 		
-		// store block in db
-		self.blocks_db.put(&hash, &bytes).unwrap();
-		
-		let batch = WriteBatch::new();
 		// prepare update for extra details
-		{
-			// insert new block details
-			batch.put_extras(&hash, &details);
+		let batch = WriteBatch::new();
 
-			// update parent details
-			parent_details.children.push(hash.clone());
-			batch.put_extras(&parent_hash, &parent_details);
+		// insert new block details
+		batch.put_extras(&hash, &details);
+
+		// update parent details
+		parent_details.children.push(hash.clone());
+		batch.put_extras(&parent_hash, &parent_details);
+
+		// if it's not new best block, just return
+		if !is_new_best {
+			return (batch, None);
 		}
 
 		// if its new best block we need to make sure that all ancestors 
 		// are moved to "canon chain"
-		if is_new_best {
-			// find the route between old best block and the new one
-			let best_hash = self.best_block_hash();
-			let best_details = self.block_details(&best_hash).expect("best block hash is invalid!");
-			let route = self._tree_route((best_details, best_hash), (details, hash.clone()));
+		// find the route between old best block and the new one
+		let best_hash = self.best_block_hash();
+		let best_details = self.block_details(&best_hash).expect("best block hash is invalid!");
+		let route = self._tree_route((best_details, best_hash), (details, hash.clone()));
 
-			match route.blocks.len() {
-				// its our parent
-				1 => batch.put_extras(&header.number(), &hash),
-				// it is a fork
-				i if i > 1 => {
-					let ancestor_number = self.block_number(&route.ancestor).unwrap();
-					let start_number = ancestor_number + U256::from(1u8);
-					for (index, hash) in route.blocks.iter().skip(route.index).enumerate() {
-						batch.put_extras(&(start_number + U256::from(index as u64)), hash);
-					}
-				},
-				// route.len() could be 0 only if inserted block is best block,
-				// and this is not possible at this stage
-				_ => { unreachable!(); }
-			};
+		match route.blocks.len() {
+			// its our parent
+			1 => batch.put_extras(&header.number(), &hash),
+			// it is a fork
+			i if i > 1 => {
+				let ancestor_number = self.block_number(&route.ancestor).unwrap();
+				let start_number = ancestor_number + U256::from(1u8);
+				for (index, hash) in route.blocks.iter().skip(route.index).enumerate() {
+					batch.put_extras(&(start_number + U256::from(index as u64)), hash);
+				}
+			},
+			// route.len() could be 0 only if inserted block is best block,
+			// and this is not possible at this stage
+			_ => { unreachable!(); }
+		};
 
-			// this is new extras db
-			batch.put(b"best", &hash).unwrap();
-		}
+		// this is new extras db
+		batch.put(b"best", &hash).unwrap();
 
-		// apply update
-		{
-			// update local caches
-			let mut best_block = self.best_block.borrow_mut();
-			if is_new_best {
-				best_block.hash = hash;
-				best_block.number = header.number();
-				best_block.total_difficulty = total_difficulty;
-			}
+		let best_block = BestBlock {
+			hash: hash,
+			number: header.number(),
+			total_difficulty: total_difficulty
+		};
 
-			// remove outdated cached parent details
-			let mut write = self.block_details.borrow_mut();
-			write.remove(&parent_hash);
-
-			// update extras database
-			self.extras_db.write(batch).unwrap();
-		}
+		(batch, Some(best_block))
 	}
 
 	/// Returns true if the given block is known 
