@@ -41,7 +41,7 @@ pub struct CacheSize {
 	pub blocks_blooms: usize
 }
 
-/// Grouped information about best block
+/// Information about best block gathered together
 struct BestBlock {
 	pub hash: H256,
 	pub number: U256,
@@ -351,7 +351,7 @@ impl BlockChain {
 					batch.put_extras(&(start_number + U256::from(index as u64)), hash);
 				}
 			},
-			// route.len() could be 0 only if inserted block is best block,
+			// route.blocks.len() could be 0 only if inserted block is best block,
 			// and this is not possible at this stage
 			_ => { unreachable!(); }
 		};
