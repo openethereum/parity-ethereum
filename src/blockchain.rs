@@ -1,7 +1,7 @@
 //! Fast access to blockchain data.
 
 use std::collections::HashMap;
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::path::Path;
 use std::hash::Hash;
 use rocksdb::{DB, WriteBatch, Writable};
@@ -41,13 +41,28 @@ pub struct CacheSize {
 	pub blocks_blooms: usize
 }
 
+/// Grouped information about best block
+struct BestBlock {
+	pub hash: H256,
+	pub number: U256,
+	pub total_difficulty: U256
+}
+
+impl BestBlock {
+	fn new() -> BestBlock {
+		BestBlock {
+			hash: H256::new(),
+			number: U256::from(0),
+			total_difficulty: U256::from(0)
+		}
+	}
+}
+
 /// Structure providing fast access to blockchain data.
 /// 
 /// **Does not do input data verifycation.**
 pub struct BlockChain {
-	best_block_hash: RefCell<H256>,
-	best_block_number: Cell<U256>,
-	best_block_total_difficulty: Cell<U256>,
+	best_block: RefCell<BestBlock>,
 
 	// block cache
 	blocks: RefCell<HashMap<H256, Bytes>>,
@@ -102,9 +117,7 @@ impl BlockChain {
 		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
 
 		let bc = BlockChain {
-			best_block_hash: RefCell::new(H256::new()),
-			best_block_number: Cell::new(U256::from(0u8)),
-			best_block_total_difficulty: Cell::new(U256::from(0u8)),
+			best_block: RefCell::new(BestBlock::new()),
 			blocks: RefCell::new(HashMap::new()),
 			block_details: RefCell::new(HashMap::new()),
 			block_hashes: RefCell::new(HashMap::new()),
@@ -144,9 +157,12 @@ impl BlockChain {
 			}
 		};
 
-		bc.best_block_number.set(bc.block_number(&best_block_hash).unwrap());
-		bc.best_block_total_difficulty.set(bc.block_details(&best_block_hash).unwrap().total_difficulty);
-		*bc.best_block_hash.borrow_mut() = best_block_hash;
+		{
+			let mut best_block = bc.best_block.borrow_mut();
+			best_block.number = bc.block_number(&best_block_hash).unwrap();
+			best_block.total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
+			best_block.hash = best_block_hash;
+		}
 
 		bc
 	}
@@ -325,9 +341,10 @@ impl BlockChain {
 			self.extras_db.write(extras_batch).unwrap();
 
 			// update local caches
-			*self.best_block_hash.borrow_mut() = hash;
-			self.best_block_number.set(header.number());
-			self.best_block_total_difficulty.set(total_difficulty);
+			let mut best_block = self.best_block.borrow_mut();
+			best_block.hash = hash;
+			best_block.number = header.number();
+			best_block.total_difficulty = total_difficulty;
 		}
 	}
 
@@ -388,17 +405,17 @@ impl BlockChain {
 
 	/// Get best block hash.
 	pub fn best_block_hash(&self) -> H256 {
-		self.best_block_hash.borrow().clone()
+		self.best_block.borrow().hash.clone()
 	}
 
 	/// Get best block number.
 	pub fn best_block_number(&self) -> U256 {
-		self.best_block_number.get()
+		self.best_block.borrow().number
 	}
 
 	/// Get best block total difficulty.
 	pub fn best_block_total_difficulty(&self) -> U256 {
-		self.best_block_total_difficulty.get()
+		self.best_block.borrow().total_difficulty
 	}
 
 	/// Get the number of given block's hash.
