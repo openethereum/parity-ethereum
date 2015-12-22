@@ -66,6 +66,7 @@ pub mod trie;
 pub mod nibbleslice;
 pub mod heapsizeof;
 pub mod squeeze;
+pub mod semantic_version;
 
 pub mod network;
 

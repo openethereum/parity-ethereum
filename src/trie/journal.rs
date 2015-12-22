@@ -11,8 +11,11 @@ enum Operation {
 	Delete(H256),
 }
 
+/// How many insertions and removals were done in an `apply` operation.
 pub struct Score {
+	/// Number of insertions.
 	pub inserts: usize,
+	/// Number of removals.
 	pub removes: usize,
 }
 
@@ -54,6 +57,7 @@ impl Journal {
 		}
 	}
 
+	/// Apply this journal to the HashDB `db` and return the number of insertions and removals done.
 	pub fn apply(self, db: &mut HashDB) -> Score {
 		trace!("applying {:?} changes", self.0.len());
 		let mut ret = Score{inserts: 0, removes: 0};
