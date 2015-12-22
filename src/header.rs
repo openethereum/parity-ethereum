@@ -11,23 +11,23 @@ pub type LogBloom = H2048;
 
 #[derive(Debug)]
 pub struct Header {
-	parent_hash: H256,
-	timestamp: U256,
-	number: U256,
-	author: Address,
+	pub parent_hash: H256,
+	pub timestamp: U256,
+	pub number: U256,
+	pub author: Address,
 
-	transactions_root: H256,
-	uncles_hash: H256,
-	extra_data: Bytes,
+	pub transactions_root: H256,
+	pub uncles_hash: H256,
+	pub extra_data: Bytes,
 
-	state_root: H256,
-	receipts_root: H256,
-	log_bloom: LogBloom,
-	gas_used: U256,
-	gas_limit: U256,
+	pub state_root: H256,
+	pub receipts_root: H256,
+	pub log_bloom: LogBloom,
+	pub gas_used: U256,
+	pub gas_limit: U256,
 
-	difficulty: U256,
-	seal: Vec<Bytes>,
+	pub difficulty: U256,
+	pub seal: Vec<Bytes>,
 }
 
 impl Header {

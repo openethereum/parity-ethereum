@@ -1,3 +1,5 @@
+#![feature(cell_extras)]
+
 //! Ethcore's ethereum implementation
 //!
 //! ### Rust version
@@ -71,8 +73,12 @@
 
 #[macro_use]
 extern crate log;
-extern crate env_logger;
 extern crate rustc_serialize;
+extern crate flate2;
+extern crate rocksdb;
+extern crate heapsize;
+
+extern crate env_logger;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
 extern crate ethcore_util as util;
@@ -82,16 +88,22 @@ pub use util::hash::*;
 pub use util::uint::*;
 pub use util::bytes::*;
 
+pub mod env_info;
+pub mod engine;
 pub mod state;
 pub mod account;
-pub mod blockheader;
+pub mod header;
 pub mod transaction;
-pub mod networkparams;
+pub mod receipt;
 pub mod denominations;
+pub mod null_engine;
+pub mod evm_schedule;
+pub mod builtin;
+pub mod spec;
+pub mod genesis;
+pub mod views;
+pub mod blockchain;
+pub mod extras;
+
 pub mod eth;
-
 pub mod sync;
-
-#[test]
-fn it_works() {
-}

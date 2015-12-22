@@ -1,43 +1,29 @@
+use std::cell::*;
+use std::ops::*;
 use std::collections::HashMap;
 use util::hash::*;
 use util::hashdb::*;
 use util::overlaydb::*;
 use util::trie::*;
+use util::bytes::*;
 use util::rlp::*;
 use util::uint::*;
-use std::mem;
-//use std::cell::*;
-//use std::ops::*;
 use account::Account;
-/*
-enum ValueOrRef<'self, 'db: 'self> {
-	Value(OverlayDB),
-	Ref(&'db mut OverlayDB)
-}
+use transaction::Transaction;
+use receipt::Receipt;
+use env_info::EnvInfo;
+use engine::Engine;
 
-impl<'self, 'db> ValueOrRef<'self, 'db: 'self> {
-	pub fn get_mut(&mut self) -> &mut OverlayDB {
-		match self {
-			Value(ref mut x) => x,
-			Ref(x) => x,
-		}
-	}
-	pub fn get(&self) -> &OverlayDB {
-		match self {
-			Value(ref x) => x,
-			Ref(x) => x,
-		}
-	}
-}
-*/
+/// Information concerning the result of the `State::apply` operation.
+pub struct ApplyResult;	// TODO
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
 	db: OverlayDB,
 	root: H256,
-	cache: HashMap<Address, Option<Account>>,
+	cache: RefCell<HashMap<Address, Option<Account>>>,
 
-	_account_start_nonce: U256,
+	account_start_nonce: U256,
 }
 
 impl State {
@@ -52,8 +38,8 @@ impl State {
 		State {
 			db: db,
 			root: root,
-			cache: HashMap::new(),
-			_account_start_nonce: account_start_nonce,
+			cache: RefCell::new(HashMap::new()),
+			account_start_nonce: account_start_nonce,
 		}
 	}
 
@@ -61,14 +47,14 @@ impl State {
 	pub fn new_existing(mut db: OverlayDB, mut root: H256, account_start_nonce: U256) -> State {
 		{
 			// trie should panic! if root does not exist
-			let _ = TrieDBMut::new_existing(&mut db, &mut root);
+			let _ = TrieDB::new(&mut db, &mut root);
 		}
 
 		State {
 			db: db,
 			root: root,
-			cache: HashMap::new(),
-			_account_start_nonce: account_start_nonce,
+			cache: RefCell::new(HashMap::new()),
+			account_start_nonce: account_start_nonce,
 		}
 	}
 
@@ -77,20 +63,14 @@ impl State {
 		Self::new(OverlayDB::new_temp(), U256::from(0u8))
 	}
 
+	/// Destroy the current object and return root and database.
+	pub fn drop(self) -> (H256, OverlayDB) {
+		(self.root, self.db)
+	}
+
 	/// Return reference to root
 	pub fn root(&self) -> &H256 {
 		&self.root
-	}
-
-	/// Desttroy the current database and return it.
-	/// WARNING: the struct should be dropped immediately following this.
-	pub fn take_db(&mut self) -> OverlayDB {
-		mem::replace(&mut self.db, OverlayDB::new_temp())
-	}
-
-	/// Destroy the current object and return root and database.
-	pub fn drop(mut self) -> (H256, OverlayDB) {
-		(mem::replace(&mut self.root, H256::new()), mem::replace(&mut self.db, OverlayDB::new_temp()))
 	}
 
 	/// Expose the underlying database; good to use for calling `state.db().commit()`.
@@ -99,9 +79,23 @@ impl State {
 	}
 
 	/// Get the balance of account `a`.
-	// TODO: make immutable
-	pub fn balance(&mut self, a: &Address) -> U256 {
+	pub fn balance(&self, a: &Address) -> U256 {
 		self.get(a, false).as_ref().map(|account| account.balance().clone()).unwrap_or(U256::from(0u8))
+	}
+
+	/// Get the nonce of account `a`.
+	pub fn nonce(&self, a: &Address) -> U256 {
+		self.get(a, false).as_ref().map(|account| account.nonce().clone()).unwrap_or(U256::from(0u8))
+	}
+
+	/// Mutate storage of account `a` so that it is `value` for `key`.
+	pub fn storage_at(&self, a: &Address, key: &H256) -> H256 {
+		self.get(a, false).as_ref().map(|a|a.storage_at(&self.db, key)).unwrap_or(H256::new())	
+	}
+
+	/// Mutate storage of account `a` so that it is `value` for `key`.
+	pub fn code(&self, a: &Address) -> Option<Vec<u8>> {
+		self.get(a, true).as_ref().map(|a|a.code().map(|x|x.to_vec())).unwrap_or(None)
 	}
 
 	/// Add `incr` to the balance of account `a`.
@@ -114,15 +108,36 @@ impl State {
 		self.require(a, false).sub_balance(decr)
 	}
 
-	/// Get the nonce of account `a`.
-	// TODO: make immutable
-	pub fn nonce(&mut self, a: &Address) -> U256 {
-		self.get(a, false).as_ref().map(|account| account.nonce().clone()).unwrap_or(U256::from(0u8))
+	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
+	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256) {
+		self.sub_balance(from, by);
+		self.add_balance(to, by);
 	}
 
 	/// Increment the nonce of account `a` by 1.
 	pub fn inc_nonce(&mut self, a: &Address) {
 		self.require(a, false).inc_nonce()
+	}
+
+	/// Mutate storage of account `a` so that it is `value` for `key`.
+	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) {
+		self.require(a, false).set_storage(key, value);
+	}
+
+	/// Mutate storage of account `a` so that it is `value` for `key`.
+	pub fn set_code(&mut self, a: &Address, code: Bytes) {
+		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8))).set_code(code);
+	}
+
+	/// Execute a given transaction.
+	/// This will change the state accordingly.
+	pub fn apply(_env_info: &EnvInfo, _engine: &Engine, _t: &Transaction, _is_permanent: bool) -> (ApplyResult, Receipt) {
+		unimplemented!();
+	}
+
+	/// Convert into a JSON representation.
+	pub fn as_json(&self) -> String {
+		unimplemented!();
 	}
 
 	/// Commit accounts to TrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
@@ -155,47 +170,49 @@ impl State {
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) {
 		let r = self.root.clone();	// would prefer not to do this, really. 
-		self.root = Self::commit_into(&mut self.db, r, &mut self.cache);
+		self.root = Self::commit_into(&mut self.db, r, self.cache.borrow_mut().deref_mut());
 	}
 
-	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
-	/// `force_create` creates a new, empty basic account if there is not currently an active account.
-	// TODO: make immutable.
-	fn get(&mut self, a: &Address, require_code: bool) -> Option<&Account> {
-		if self.cache.get(a).is_none() {
-			// load from trie.
-			let t = TrieDBMut::new_existing(&mut self.db, &mut self.root);
-			self.cache.insert(a.clone(), t.get(&a).map(|rlp| { println!("RLP: {:?}", rlp); Account::from_rlp(rlp) }));
-		}
+	/// Populate the state from `accounts`. Just uses `commit_into`.
+	pub fn populate_from(&mut self, _accounts: &mut HashMap<Address, Option<Account>>) {
+		unimplemented!();
+	}
 
-		let db = &self.db;
-		self.cache.get_mut(a).unwrap().as_mut().map(|account| {
-			if require_code {
-				account.cache_code(db);
+	/// Pull account `a` in our cache from the trie DB and return it.
+	/// `require_code` requires that the code be cached, too.
+	fn get(&self, a: &Address, require_code: bool) -> Ref<Option<Account>> {
+		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
+			TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+		if require_code {
+			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
+				account.cache_code(&self.db);
 			}
-			account as &Account
-		})
+		}
+		Ref::map(self.cache.borrow(), |m| m.get(a).unwrap())
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// `force_create` creates a new, empty basic account if there is not currently an active account.
-	fn require(&mut self, a: &Address, require_code: bool) -> &mut Account {
-		if self.cache.get(a).is_none() {
-			// load from trie.
-			self.cache.insert(a.clone(), TrieDBMut::new(&mut self.db, &mut self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+	fn require(&self, a: &Address, require_code: bool) -> RefMut<Account> {
+		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce))
+	}
+
+	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
+	/// `force_create` creates a new, empty basic account if there is not currently an active account.
+	fn require_or_from<F: FnOnce() -> Account>(&self, a: &Address, require_code: bool, default: F) -> RefMut<Account> {
+		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
+			TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+		if self.cache.borrow().get(a).unwrap().is_none() {
+			self.cache.borrow_mut().insert(a.clone(), Some(default()));
 		}
 
-		if self.cache.get(a).unwrap().is_none() {
-			self.cache.insert(a.clone(), Some(Account::new_basic(U256::from(0u8))));
-		}
-
-		let db = &self.db;
-		self.cache.get_mut(a).unwrap().as_mut().map(|account| {
+		let b = self.cache.borrow_mut();
+		RefMut::map(b, |m| m.get_mut(a).unwrap().as_mut().map(|account| {
 			if require_code {
-				account.cache_code(db);
+				account.cache_code(&self.db);
 			}
 			account
-		}).unwrap()
+		}).unwrap())
 	}
 }
 
@@ -208,6 +225,38 @@ use util::trie::*;
 use util::rlp::*;
 use util::uint::*;
 use std::str::FromStr;
+use account::*;
+
+#[test]
+fn code_from_database() {
+	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let (r, db) = {
+		let mut s = State::new_temp();
+		s.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)));
+		s.set_code(&a, vec![1, 2, 3]);
+		assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
+		s.commit();
+		assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
+		s.drop()
+	};
+
+	let s = State::new_existing(db, r, U256::from(0u8));
+	assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
+}
+
+#[test]
+fn storage_at_from_database() {
+	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let (r, db) = {
+		let mut s = State::new_temp();
+		s.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
+		s.commit();
+		s.drop()
+	};
+
+	let s = State::new_existing(db, r, U256::from(0u8));
+	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
+}
 
 #[test]
 fn get_from_database() {
@@ -218,10 +267,10 @@ fn get_from_database() {
 		s.add_balance(&a, &U256::from(69u64));
 		s.commit();
 		assert_eq!(s.balance(&a), U256::from(69u64));
-		(s.root().clone(), s.take_db())
+		s.drop()
 	};
 
-	let mut s = State::new_existing(db, r, U256::from(0u8));
+	let s = State::new_existing(db, r, U256::from(0u8));
 	assert_eq!(s.balance(&a), U256::from(69u64));
 	assert_eq!(s.nonce(&a), U256::from(1u64));
 }
@@ -230,6 +279,7 @@ fn get_from_database() {
 fn alter_balance() {
 	let mut s = State::new_temp();
 	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let b = Address::from_str("0000000000000000000000000000000000000001").unwrap();
 	s.add_balance(&a, &U256::from(69u64));
 	assert_eq!(s.balance(&a), U256::from(69u64));
 	s.commit();
@@ -238,6 +288,12 @@ fn alter_balance() {
 	assert_eq!(s.balance(&a), U256::from(27u64));
 	s.commit();
 	assert_eq!(s.balance(&a), U256::from(27u64));
+	s.transfer_balance(&a, &b, &U256::from(18u64));
+	assert_eq!(s.balance(&a), U256::from(9u64));
+	assert_eq!(s.balance(&b), U256::from(18u64));
+	s.commit();
+	assert_eq!(s.balance(&a), U256::from(9u64));
+	assert_eq!(s.balance(&b), U256::from(18u64));
 }
 
 #[test]
