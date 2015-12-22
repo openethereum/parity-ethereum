@@ -47,6 +47,7 @@ impl From<::crypto::CryptoError> for Error {
 		Error::Crypto(err)
 	}
 }
+
 impl From<::std::net::AddrParseError> for Error {
 	fn from(err: ::std::net::AddrParseError) -> Error {
 		Error::AddressParse(err)
@@ -70,15 +71,19 @@ impl From<::mio::NotifyError<host::HostMessage>> for Error {
 }
 
 pub type PeerId = host::PeerId;
+pub type PacketId = host::PacketId;
+pub type TimerToken = host::TimerToken;
 pub type HandlerIo<'s> = host::HostIo<'s>;
 
 pub trait ProtocolHandler: Send {
 	fn initialize(&mut self, io: &mut HandlerIo);
-	fn read(&mut self, io: &mut HandlerIo, packet_id: u8, data: &[u8]);
+	fn read(&mut self, io: &mut HandlerIo, peer: &PeerId, packet_id: u8, data: &[u8]);
 	fn connected(&mut self, io: &mut HandlerIo, peer: &PeerId);
 	fn disconnected(&mut self, io: &mut HandlerIo, peer: &PeerId);
+	fn timeout(&mut self, io: &mut HandlerIo, timer: TimerToken);
 }
 
 pub struct NetworkClient;
+pub type NetworkService = service::NetworkService;
 
 
