@@ -78,7 +78,8 @@ impl Drop for ContextHandle {
 
 /// Component oriented wrapper around jit env c interface.
 pub trait Env {
-	fn sload(&mut self);
+	fn sload(&self, index: *const JitI256, out_value: *mut JitI256);
+	fn sstore(&mut self, index: *const JitI256, value: *const JitI256);
 }
 
 /// C abi compatible wrapper for jit env implementers.
@@ -100,12 +101,20 @@ impl EnvHandle {
 }
 
 impl Env for EnvHandle {
-	fn sload(&mut self) { 
+	fn sload(&self, index: *const JitI256, out_value: *mut JitI256) { 
 		match self.env_impl {
-			Some(ref mut env) => env.sload(),
+			Some(ref env) => env.sload(index, out_value),
 			None => { panic!(); }
 		}
 	}
+
+	fn sstore(&mut self, index: *const JitI256, value: *const JitI256) { 
+		match self.env_impl {
+			Some(ref mut env) => env.sstore(index, value),
+			None => { panic!(); }
+		}
+	}
+
 }
 
 /// ffi functions
@@ -158,14 +167,15 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sload(env: *mut EnvHandle, _index: *const JitI256, _value: *const JitI256) {
-		let env = &mut *env;
-		env.sload();
+	pub unsafe extern fn env_sload(env: *mut EnvHandle, index: *const JitI256, out_value: *mut JitI256) {
+		let env = &*env;
+		env.sload(index, out_value);
 	}
 
 	#[no_mangle]
-	pub extern fn env_sstore(_env: *mut EnvHandle, _index: *const JitI256, _value: *const JitI256) {
-		unimplemented!()
+	pub unsafe extern fn env_sstore(env: *mut EnvHandle, index: *const JitI256, value: *const JitI256) {
+		let env = &mut *env;
+		env.sstore(index, value);
 	}
 
 	#[no_mangle]
