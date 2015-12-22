@@ -83,6 +83,26 @@ pub trait Env {
 	fn sstore(&mut self, index: *const JitI256, value: *const JitI256);
 	fn balance(&self, address: *const JitI256, out_value: *mut JitI256);
 	fn blockhash(&self, number: *const JitI256, out_hash: *mut JitI256);
+
+	fn create(&mut self,
+			  io_gas: *mut u64,
+			  endowment: *const JitI256,
+			  init_beg: *const u8,
+			  init_size: *const u64,
+			  address: *mut JitI256);
+
+	fn call(&mut self,
+				io_gas: *mut u64,
+				call_gas: *const u64,
+				receive_address: *const JitI256,
+				value: *const JitI256,
+				in_beg: *const u8,
+				in_size: *const u64,
+				out_beg: *mut u8,
+				out_size: *mut u64,
+				code_address: JitI256) -> bool;
+
+	fn extcode(&self, address: *const JitI256, size: *mut u64) -> *const u8;
 }
 
 /// C abi compatible wrapper for jit env implementers.
@@ -197,41 +217,44 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub extern fn env_create(_env: *mut EnvHandle, 
-							 _io_gas: *const u64, 
-							 _endowment: *const JitI256, 
-							 _init_beg: *const u8, 
-							 _init_size: *const u64, 
-							 _address: *const JitI256) {
+	pub unsafe extern fn env_create(env: *mut EnvHandle, 
+							 io_gas: *mut u64, 
+							 endowment: *const JitI256, 
+							 init_beg: *const u8, 
+							 init_size: *const u64, 
+							 address: *mut JitI256) {
+		let env = &mut *env;
+		env.create(io_gas, endowment, init_beg, init_size, address);
+	}
+
+	#[no_mangle]
+	pub unsafe extern fn env_call(env: *mut EnvHandle, 
+						   io_gas: *mut u64,
+						   call_gas: *const u64,
+						   receive_address: *const JitI256,
+						   value: *const JitI256,
+						   in_beg: *const u8,
+						   in_size: *const u64,
+						   out_beg: *mut u8,
+						   out_size: *mut u64,
+						   code_address: JitI256) -> bool {
+		let env = &mut *env;
+		env.call(io_gas, call_gas, receive_address, value, in_beg, in_size, out_beg, out_size, code_address)
+	}
+
+	#[no_mangle]
+	pub unsafe extern fn env_sha3(_begin: *const u8, _size: *const u64, _out_hash: *const JitI256) {
 		unimplemented!()
 	}
 
 	#[no_mangle]
-	pub extern fn env_call(_env: *mut EnvHandle, 
-						   _io_gas: *const u64,
-						   _call_gas: *const u64,
-						   _receive_address: *const JitI256,
-						   _value: *const JitI256,
-						   _in_beg: *const u8,
-						   _in_size: *const u64,
-						   _out_beg: *const u8,
-						   _out_size: *const u64,
-						   _code_address: JitI256) {
-		unimplemented!()
+	pub unsafe extern fn env_extcode(env: *const EnvHandle, address: *const JitI256, size: *mut u64) -> *const u8 {
+		let env = &*env;
+		env.extcode(address, size)
 	}
 
 	#[no_mangle]
-	pub extern fn env_sha3(_begin: *const u8, _size: *const u64, _hash: *const JitI256) {
-		unimplemented!()
-	}
-
-	#[no_mangle]
-	pub extern fn env_extcode(_env: *mut EnvHandle, _address: *const JitI256, _size: *const u64) {
-		unimplemented!()
-	}
-
-	#[no_mangle]
-	pub extern fn env_log(_env: *mut EnvHandle,
+	pub unsafe extern fn env_log(_env: *mut EnvHandle,
 						  _beg: *const u8,
 						  _size: *const u64,
 						  _topic1: *const JitI256,
