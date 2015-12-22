@@ -3,7 +3,6 @@
 //! Requires latest version of Ethereum EVM JIT. https://github.com/debris/evmjit
 
 extern crate libc;
-use std::ptr;
 
 #[repr(C)]
 pub struct JitI256 {
@@ -37,20 +36,20 @@ pub struct RuntimeDataHandle {
 
 impl RuntimeDataHandle {
 	/// Creates new handle.
-	pub unsafe fn new() -> Self {
+	pub fn new() -> Self {
 		RuntimeDataHandle {
-			runtime_data: evmjit_create_runtime_data()
+			runtime_data: unsafe { evmjit_create_runtime_data() }
 		}
 	}
 
 	/// Returns immutable reference to runtime data.
-	pub unsafe fn runtime_data(&self) -> &JitRuntimeData {
-		&*self.runtime_data
+	pub fn runtime_data(&self) -> &JitRuntimeData {
+		unsafe { &*self.runtime_data }
 	}
 
 	/// Returns mutable reference to runtime data.
-	pub unsafe fn mut_runtime_data(&mut self) -> &mut JitRuntimeData {
-		&mut *self.runtime_data
+	pub fn mut_runtime_data(&mut self) -> &mut JitRuntimeData {
+		unsafe { &mut *self.runtime_data }
 	}
 }
 
@@ -76,21 +75,31 @@ pub enum JitReturnCode {
 /// JitContext struct declaration.
 pub enum JitContext {}
 
+/// Safe handle for jit context.
 pub struct ContextHandle {
-	data_handle: RuntimeDataHandle,
-	env: Env,
-	context: *mut JitContext
+	context: *mut JitContext,
+	_data_handle: RuntimeDataHandle
 }
 
 impl ContextHandle {
-	pub unsafe fn new(mut data_handle: RuntimeDataHandle, env: Env) -> Self {
-		// TODO: context should take env 
-		let context = evmjit_create_context(data_handle.mut_runtime_data(), &mut 0);
+	/// Creates new context handle.
+	pub fn new(mut data_handle: RuntimeDataHandle, mut env: Env) -> Self {
+		let context = unsafe { evmjit_create_context(data_handle.mut_runtime_data(), &mut env) };
 		ContextHandle {
-			data_handle: data_handle,
-			env: env,
-			context: context
+			context: context,
+			_data_handle: data_handle
 		}
+	}
+
+	/// Executes context.
+	pub fn exec(&mut self) -> JitReturnCode {
+		unsafe { evmjit_exec(self.context) }
+	}
+}
+
+impl Drop for ContextHandle {
+	fn drop(&mut self) {
+		unsafe { evmjit_destroy_context(self.context); }
 	}
 }
 
@@ -105,15 +114,23 @@ pub struct Env {
 }
 
 impl Env {
+	/// Creates new environment wrapper for given implementation
 	pub fn new<T>(env_impl: T) -> Self where T: JitEnv + 'static {
 		Env { env_impl: Some(Box::new(env_impl)) }
+	}
+
+	/// Creates empty environment.
+	/// It can be used to for any operations.
+	pub fn empty() -> Self {
+		Env { env_impl: None }
 	}
 }
 
 impl JitEnv for Env {
 	fn sload(&mut self) { 
-		if let Some(ref mut env) = self.env_impl {
-			env.sload();
+		match self.env_impl {
+			Some(ref mut env) => env.sload(),
+			None => { panic!(); }
 		}
 	}
 }
@@ -189,21 +206,22 @@ pub extern fn env_log(_env: *mut Env,
 extern "C" {
 	pub fn evmjit_create_runtime_data() -> *mut JitRuntimeData;
 	pub fn evmjit_destroy_runtime_data(data: *mut JitRuntimeData);
-
-	pub fn evmjit_create_context(data: *mut JitRuntimeData, env: *mut u8) -> *mut JitContext;
 	pub fn evmjit_destroy_context(context: *mut JitContext);
-
 	pub fn evmjit_exec(context: *mut JitContext) -> JitReturnCode;
+}
 
+#[link(name="evmjit")]
+// Env does not have to by a C type
+#[allow(improper_ctypes)]
+extern "C" {
+	pub fn evmjit_create_context(data: *mut JitRuntimeData, env: *mut Env) -> *mut JitContext;
 }
 
 #[test]
-fn it_works() {
+fn ffi_test() {
 	unsafe {
-		let mut env = 0u8;
-
 		let data = evmjit_create_runtime_data();
-		let context = evmjit_create_context(data, &mut env);
+		let context = evmjit_create_context(data, &mut Env::empty());
 
 		let code = evmjit_exec(context);
 		assert_eq!(code, JitReturnCode::Stop);
@@ -213,3 +231,8 @@ fn it_works() {
 	}
 }
 
+#[test]
+fn handle_test() {
+	let mut context = ContextHandle::new(RuntimeDataHandle::new(), Env::empty());
+	assert_eq!(context.exec(), JitReturnCode::Stop);
+}
