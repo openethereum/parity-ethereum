@@ -1,4 +1,4 @@
-//! Bare rust wrapper around evmjit
+//! Bare rust wrapper around evmjit.
 //! 
 //! Requires latest version of Ethereum EVM JIT. https://github.com/debris/evmjit
 //! 
@@ -14,6 +14,8 @@
 //! ```
 
 extern crate libc;
+extern crate tiny_keccak;
+
 use std::ops::{Deref, DerefMut};
 use self::ffi::*;
 
@@ -102,6 +104,14 @@ pub trait Env {
 				out_size: *mut u64,
 				code_address: JitI256) -> bool;
 
+	fn log(&mut self,
+		   beg: *const u8,
+		   size: *const u64,
+		   topic1: *const JitI256,
+		   topic2: *const JitI256,
+		   topic3: *const JitI256,
+		   topic4: *const JitI256);
+
 	fn extcode(&self, address: *const JitI256, size: *mut u64) -> *const u8;
 }
 
@@ -145,8 +155,10 @@ impl DerefMut for EnvHandle {
 
 /// ffi functions
 pub mod ffi {
-	use super::*;
+	use std::slice;
 	use libc;
+	use tiny_keccak::Keccak;
+	use super::*;
 
 	/// Jit context struct declaration.
 	pub enum JitContext {}
@@ -243,8 +255,14 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sha3(_begin: *const u8, _size: *const u64, _out_hash: *const JitI256) {
-		unimplemented!()
+	pub unsafe extern fn env_sha3(begin: *const u8, size: *const u64, out_hash: *mut JitI256) {
+		let out_hash = &mut *out_hash;
+		let input = slice::from_raw_parts(begin, *size as usize);
+		let outlen = out_hash.words.len() * 8;
+		let output = slice::from_raw_parts_mut(out_hash.words.as_mut_ptr() as *mut u8, outlen);
+		let mut sha3 = Keccak::new_sha3_256();
+		sha3.update(input);	
+		sha3.finalize(output);
 	}
 
 	#[no_mangle]
@@ -254,14 +272,15 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_log(_env: *mut EnvHandle,
-						  _beg: *const u8,
-						  _size: *const u64,
-						  _topic1: *const JitI256,
-						  _topic2: *const JitI256,
-						  _topic3: *const JitI256,
-						  _topic4: *const JitI256) {
-		unimplemented!()
+	pub unsafe extern fn env_log(env: *mut EnvHandle,
+						  beg: *const u8,
+						  size: *const u64,
+						  topic1: *const JitI256,
+						  topic2: *const JitI256,
+						  topic3: *const JitI256,
+						  topic4: *const JitI256) {
+		let env = &mut *env;
+		env.log(beg, size, topic1, topic2, topic3, topic4);
 	}
 
 
