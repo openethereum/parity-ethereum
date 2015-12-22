@@ -14,6 +14,7 @@
 //! ```
 
 extern crate libc;
+use std::ops::{Deref, DerefMut};
 use self::ffi::*;
 
 pub use self::ffi::JitReturnCode as ReturnCode;
@@ -80,6 +81,8 @@ impl Drop for ContextHandle {
 pub trait Env {
 	fn sload(&self, index: *const JitI256, out_value: *mut JitI256);
 	fn sstore(&mut self, index: *const JitI256, value: *const JitI256);
+	fn balance(&self, address: *const JitI256, out_value: *mut JitI256);
+	fn blockhash(&self, number: *const JitI256, out_hash: *mut JitI256);
 }
 
 /// C abi compatible wrapper for jit env implementers.
@@ -100,21 +103,24 @@ impl EnvHandle {
 	}
 }
 
-impl Env for EnvHandle {
-	fn sload(&self, index: *const JitI256, out_value: *mut JitI256) { 
+impl Deref for EnvHandle {
+	type Target = Box<Env>;
+
+	fn deref(&self) -> &Self::Target {
 		match self.env_impl {
-			Some(ref env) => env.sload(index, out_value),
+			Some(ref env) => env,
 			None => { panic!(); }
 		}
 	}
+}
 
-	fn sstore(&mut self, index: *const JitI256, value: *const JitI256) { 
+impl DerefMut for EnvHandle {
+	fn deref_mut(&mut self) -> &mut Self::Target {
 		match self.env_impl {
-			Some(ref mut env) => env.sstore(index, value),
+			Some(ref mut env) => env,
 			None => { panic!(); }
 		}
 	}
-
 }
 
 /// ffi functions
@@ -167,7 +173,7 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sload(env: *mut EnvHandle, index: *const JitI256, out_value: *mut JitI256) {
+	pub unsafe extern fn env_sload(env: *const EnvHandle, index: *const JitI256, out_value: *mut JitI256) {
 		let env = &*env;
 		env.sload(index, out_value);
 	}
@@ -179,13 +185,15 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub extern fn env_balance(_env: *mut EnvHandle, _address: *const JitI256, _value: *const JitI256) {
-		unimplemented!()
+	pub unsafe extern fn env_balance(env: *const EnvHandle, address: *const JitI256, out_value: *mut JitI256) {
+		let env = &*env;
+		env.balance(address, out_value);
 	}
 
 	#[no_mangle]
-	pub extern fn env_blockhash(_env: *mut EnvHandle, _number: *const JitI256, _hash: *const JitI256) {
-		unimplemented!()
+	pub unsafe extern fn env_blockhash(env: *const EnvHandle, number: *const JitI256, out_hash: *mut JitI256) {
+		let env = &*env;
+		env.blockhash(number, out_hash);
 	}
 
 	#[no_mangle]
