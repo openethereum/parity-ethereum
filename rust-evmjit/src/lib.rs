@@ -13,13 +13,13 @@
 //!
 //! ```
 
-extern crate libc;
 extern crate tiny_keccak;
 
 use std::ops::{Deref, DerefMut};
 use self::ffi::*;
 
 pub use self::ffi::JitReturnCode as ReturnCode;
+pub use self::ffi::JitI256 as I256;
 
 /// Component oriented safe handle to `JitRuntimeData`.
 pub struct RuntimeDataHandle {
@@ -48,6 +48,20 @@ impl RuntimeDataHandle {
 impl Drop for RuntimeDataHandle {
 	fn drop(&mut self) {
 		unsafe { evmjit_destroy_runtime_data(self.runtime_data) }
+	}
+}
+
+impl Deref for RuntimeDataHandle {
+	type Target = JitRuntimeData;
+
+	fn deref(&self) -> &Self::Target {
+		self.runtime_data()
+	}
+}
+
+impl DerefMut for RuntimeDataHandle {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		self.mut_runtime_data()
 	}
 }
 
@@ -156,7 +170,6 @@ impl DerefMut for EnvHandle {
 /// ffi functions
 pub mod ffi {
 	use std::slice;
-	use libc;
 	use tiny_keccak::Keccak;
 	use super::*;
 
@@ -178,6 +191,7 @@ pub mod ffi {
 	}
 
 	#[repr(C)]
+	#[derive(Debug)]
 	/// Signed 256 bit integer.
 	pub struct JitI256 {
 		pub words: [u64; 4]
@@ -188,7 +202,7 @@ pub mod ffi {
 	pub struct JitRuntimeData {
 		pub gas: i64,
 		pub gas_price: i64,
-		pub call_data: *const libc::c_char,
+		pub call_data: *const u8,
 		pub call_data_size: u64,
 		pub address: JitI256,
 		pub caller: JitI256,
@@ -199,7 +213,7 @@ pub mod ffi {
 		pub gas_limit: JitI256,
 		pub number: u64,
 		pub timestamp: i64,
-		pub code: *const libc::c_char,
+		pub code: *const u8,
 		pub code_size: u64,
 		pub code_hash: JitI256
 	}
