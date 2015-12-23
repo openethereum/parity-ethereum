@@ -5,18 +5,18 @@ use util::uint::*;
 use util::bytes::*;
 use evm;
 
-/// Should be used to convert jit i256 to ethcore types
-pub trait FromJit: Sized {
-	fn from_jit(input: &evmjit::I256) -> Self;
+/// Should be used to convert jit types to ethcore
+pub trait FromJit<T>: Sized {
+	fn from_jit(input: T) -> Self;
 }
 
-/// Should be used to covert ethcore types to jit i256
-pub trait IntoJit {
-	fn into_jit(self) -> evmjit::I256;
+/// Should be used to covert ethcore types to jit
+pub trait IntoJit<T> {
+	fn into_jit(self) -> T;
 }
 
-impl FromJit for U256 {
-	fn from_jit(input: &evmjit::I256) -> Self {
+impl<'a> FromJit<&'a evmjit::I256> for U256 {
+	fn from_jit(input: &'a evmjit::I256) -> Self {
 		let mut res: U256 = unsafe { mem::uninitialized() };
 		res.0[0] = input.words[3];
 		res.0[1] = input.words[2];
@@ -26,14 +26,14 @@ impl FromJit for U256 {
 	}
 }
 
-impl FromJit for H256 {
-	fn from_jit(input: &evmjit::I256) -> Self {
+impl<'a> FromJit<&'a evmjit::I256> for H256 {
+	fn from_jit(input: &'a evmjit::I256) -> Self {
 		let u = U256::from_jit(input);
 		H256::from(&u)
 	}
 }
 
-impl IntoJit for U256 {
+impl IntoJit<evmjit::I256> for U256 {
 	fn into_jit(self) -> evmjit::I256 {
 		let mut res: evmjit::I256 = unsafe { mem::uninitialized() };
 		res.words[0] = self.0[3];
@@ -44,7 +44,7 @@ impl IntoJit for U256 {
 	}
 }
 
-impl IntoJit for H256 {
+impl IntoJit<evmjit::I256> for H256 {
 	fn into_jit(self) -> evmjit::I256 {
 		let mut ret = [0; 4];
 		for i in 0..self.bytes().len() {
@@ -128,26 +128,40 @@ impl evmjit::Env for EnvAdapter {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+	use util::hash::*;
+	use util::uint::*;
+	use evmjit::{ContextHandle, RuntimeDataHandle, EnvHandle, ReturnCode};
+	use evm::*;
+	use evm::jit::{FromJit, IntoJit};
 
-#[test]
-fn test_to_and_from_u256() {
-	use std::str::FromStr;
+	#[test]
+	fn test_to_and_from_u256() {
+		use std::str::FromStr;
 
-	let u = U256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
-	let j = u.into_jit();
-	let u2 = U256::from_jit(&j);
-	assert_eq!(u, u2);
+		let u = U256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
+		let j = u.into_jit();
+		let u2 = U256::from_jit(&j);
+		assert_eq!(u, u2);
+	}
+
+	#[test]
+	fn test_to_and_from_h256() {
+		use std::str::FromStr;
+
+		let h = H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
+		let j = h.clone().into_jit();
+		let h2 = H256::from_jit(&j);
+		assert_eq!(h, h2);
+	}
+
+	#[test]
+	fn test_env_adapter() {
+		let data = RuntimeDataHandle::new();
+		let env = EnvAdapter::new();
+		let mut context = ContextHandle::new(data, EnvHandle::new(env));
+		assert_eq!(context.exec(), ReturnCode::Stop);
+	}
+
 }
-
-#[test]
-fn test_to_and_from_h256() {
-	use std::str::FromStr;
-
-	let h = H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
-	let j = h.clone().into_jit();
-	println!("jit: {:?}", j);
-	let h2 = H256::from_jit(&j);
-	assert_eq!(h, h2);
-}
-
-

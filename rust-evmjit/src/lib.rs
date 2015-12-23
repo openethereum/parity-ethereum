@@ -68,7 +68,8 @@ impl DerefMut for RuntimeDataHandle {
 /// Safe handle for jit context.
 pub struct ContextHandle {
 	context: *mut JitContext,
-	_data_handle: RuntimeDataHandle
+	_data_handle: RuntimeDataHandle,
+	_env: EnvHandle
 }
 
 impl ContextHandle {
@@ -77,7 +78,8 @@ impl ContextHandle {
 		let context = unsafe { evmjit_create_context(data_handle.mut_runtime_data(), &mut env) };
 		ContextHandle {
 			context: context,
-			_data_handle: data_handle
+			_data_handle: data_handle,
+			_env: env
 		}
 	}
 
@@ -270,6 +272,9 @@ pub mod ffi {
 
 	#[no_mangle]
 	pub unsafe extern fn env_sha3(begin: *const u8, size: *const u64, out_hash: *mut JitI256) {
+		// TODO: write tests
+		// it may be incorrect due to endianess
+		// if it is, don't use `from_raw_parts`
 		let out_hash = &mut *out_hash;
 		let input = slice::from_raw_parts(begin, *size as usize);
 		let outlen = out_hash.words.len() * 8;
