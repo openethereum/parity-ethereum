@@ -29,7 +29,7 @@ pub trait Engine {
 	/// Get the general parameters of the chain.
 	fn spec(&self) -> &Spec;
 
-	/// Get the EVM schedule for 
+	/// Get the EVM schedule for the given `env_info`.
 	fn evm_schedule(&self, env_info: &EnvInfo) -> EvmSchedule;
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
@@ -45,13 +45,16 @@ pub trait Engine {
 	/// Verify that `header` is valid.
 	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
 	/// checks. Returns either a null `Ok` or a general error detailing the problem with import.
+	// TODO: consider including State in the params.
 	fn verify(&self, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), EthcoreError> { Ok(()) }
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
+	// TODO: consider including State in the params.
 	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> Result<(), EthcoreError> { Ok(()) }
 
 	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
+	// TODO: consider including State in the params.
 	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) -> Result<(), EthcoreError> { Ok(()) }
 
 	// TODO: buildin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
@@ -60,4 +63,6 @@ pub trait Engine {
 	fn cost_of_builtin(&self, a: Address, in: &[u8]) -> bignum;
 	fn execute_builtin(&self, a: Address, in: &[u8], out: &mut [u8]);
 */
+
+	// TODO: sealing stuff - though might want to leave this for later.
 }
