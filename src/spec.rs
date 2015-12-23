@@ -67,9 +67,6 @@ pub struct Spec {
 }
 
 impl Spec {
-//	pub fn new(engine_name: String, engine_params: HashMap<String, Bytes>, builtins: HashMap<Address, Builtin>, genesis: Genesis) {
-//	}
-
 	/// Convert this object into a boxed Engine of the right underlying type.
 	// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
 	pub fn to_engine(self) -> Result<Box<Engine>, EthcoreError> {
@@ -125,7 +122,7 @@ impl Spec {
 
 
 impl Spec {
-	/// Loads genesis block from json file
+	/// Loads a chain-specification from a json data structure
 	pub fn from_json(json: Json) -> Spec {
 		// once we commit ourselves to some json parsing library (serde?)
 		// move it to proper data structure
@@ -157,7 +154,7 @@ impl Spec {
 
 		Spec {
 			engine_name: json["engineName"].as_string().unwrap().to_string(),
-			engine_params: json_to_rlp(&json["engineParams"]),
+			engine_params: json_to_rlp(&json["params"]),
 			builtins: builtins,
 			parent_hash: H256::from_str(&json["parentHash"].as_string().unwrap()[2..]).unwrap(),
 			author: Address::from_str(&json["coinbase"].as_string().unwrap()[2..]).unwrap(),
@@ -173,6 +170,7 @@ impl Spec {
 		}
 	}
 
+	/// Creates the Olympic network chain spec.
 	pub fn olympic() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
@@ -210,6 +208,7 @@ impl Spec {
 		}
 	}
 
+	/// Creates the Frontier network chain spec.
 	pub fn frontier() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
@@ -247,6 +246,7 @@ impl Spec {
 		}
 	}
 
+	/// Creates the Morden network chain spec.
 	pub fn morden() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
