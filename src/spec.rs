@@ -32,9 +32,28 @@ pub fn base_to_json(source: &[u8]) -> Json {
 	Json::from_str(&s).expect("Json is invalid")
 }
 
+/// Convert JSON value to equivlaent RLP representation.
+// TODO: handle container types.
+pub fn json_to_rlp(json: &Json) -> Bytes {
+	match json {
+		&Json::I64(o) => encode(&(o as u64)),
+		&Json::U64(o) => encode(&o),
+		&Json::String(ref s) if &s[0..2] == "0x" && U256::from_str(&s[2..]).is_ok() => {
+			encode(&U256::from_str(&s[2..]).unwrap())
+		},
+		&Json::String(ref s) => {
+			encode(s)
+		},
+		_ => panic!()
+	}
+}
+
 /// Convert JSON to a string->RLP map.
-pub fn json_to_rlp(_json: &Json) -> HashMap<String, Bytes> {
-	unimplemented!();
+pub fn json_to_rlp_map(json: &Json) -> HashMap<String, Bytes> {
+	json.as_object().unwrap().iter().map(|(k, v)| (k, json_to_rlp(v))).fold(HashMap::new(), |mut acc, kv| {
+				acc.insert(kv.0.clone(), kv.1);
+				acc
+			})
 }
 
 /// Parameters for a block chain; includes both those intrinsic to the design of the
@@ -154,7 +173,7 @@ impl Spec {
 
 		Spec {
 			engine_name: json["engineName"].as_string().unwrap().to_string(),
-			engine_params: json_to_rlp(&json["params"]),
+			engine_params: json_to_rlp_map(&json["params"]),
 			builtins: builtins,
 			parent_hash: H256::from_str(&json["parentHash"].as_string().unwrap()[2..]).unwrap(),
 			author: Address::from_str(&json["coinbase"].as_string().unwrap()[2..]).unwrap(),
