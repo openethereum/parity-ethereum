@@ -52,6 +52,10 @@ impl Header {
 			seal: vec![],
 		}
 	}
+
+	pub fn hash(&self) -> H256 {
+		unimplemented!();
+	}
 }
 
 impl Decodable for Header {
@@ -99,7 +103,7 @@ impl Encodable for Header {
 			self.gas_used.encode(e);
 			self.timestamp.encode(e);
 			self.extra_data.encode(e);
-		
+
 			for b in self.seal.iter() {
 				b.encode(e);
 			}

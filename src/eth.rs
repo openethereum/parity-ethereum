@@ -13,6 +13,14 @@ pub enum BlockStatus {
 	InChain,
 	Queued(QueueStatus),
 	Bad,
+	Unknown,
+}
+
+pub enum ImportResult {
+	Queued(QueueStatus),
+	AlreadyInChain,
+	AlreadyQueued(QueueStatus),
+	Bad,
 }
 
 pub struct BlockChainInfo {
@@ -30,16 +38,18 @@ pub type BlockNumber = u32;
 pub type BlockHeader = ::header::Header;
 
 pub trait BlockChainClient : Sync {
-	fn block_header(&self, h: &H256) -> Option<BlockHeader>;
+	fn block_header(&self, h: &H256) -> Option<Bytes>;
 	fn block_body(&self, h: &H256) -> Option<Bytes>;
 	fn block(&self, h: &H256) -> Option<Bytes>;
 	fn block_status(&self, h: &H256) -> BlockStatus;
-	fn block_header_at(&self, n: BlockNumber) -> Option<BlockHeader>;
+	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes>;
 	fn block_body_at(&self, h: BlockNumber) -> Option<Bytes>;
 	fn block_at(&self, h: BlockNumber) -> Option<Bytes>;
-	fn block_status_at(&self, h: BlockNumber) -> Option<Bytes>;
+	fn block_status_at(&self, h: BlockNumber) -> BlockStatus;
 	fn tree_route(&self, from: &H256, to: &H256) -> TreeRoute;
-	fn import_block(&mut self, b: Bytes) -> BlockStatus;
+	fn state_data(&self, h: &H256) -> Option<Bytes>;
+	fn block_receipts(&self, h: &H256) -> Option<Bytes>;
+	fn import_block(&mut self, b: &[u8]) -> ImportResult;
 	fn queue_stats(&self) -> BlockQueueStats;
 	fn clear_queue(&mut self) -> BlockQueueStats;
 	fn info(&self) -> BlockChainInfo;
