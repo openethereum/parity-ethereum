@@ -75,6 +75,7 @@ pub struct ContextHandle {
 impl ContextHandle {
 	/// Creates new context handle.
 	pub fn new(mut data_handle: RuntimeDataHandle, mut env: EnvHandle) -> Self {
+		import_evmjit_abi();
 		let context = unsafe { evmjit_create_context(data_handle.mut_runtime_data(), &mut env) };
 		ContextHandle {
 			context: context,
@@ -218,6 +219,35 @@ pub mod ffi {
 		pub code: *const u8,
 		pub code_size: u64,
 		pub code_hash: JitI256
+	}
+
+	/// Dumb function to "import" c abi in libraries 
+	/// which inherit from this library.
+	/// 
+	/// It needs compiled as a part of main executable.
+	/// 
+	/// To verify that c abi is "imported" correctly, run:
+	/// 
+	/// ```bash
+	///	nm your_executable -g | grep env 
+	/// ```
+	/// 
+	/// It Should give the following output:
+	///
+	/// ```bash
+	/// 0000000100078500 T _env_sha3
+	/// 0000000100078470 T _env_sstore
+	/// ```
+	pub fn import_evmjit_abi() {
+		let _env_sload = env_sload;
+		let _env_sstore = env_sstore;
+		let _env_balance = env_balance;
+		let _env_blockhash = env_blockhash;
+		let _env_create = env_create;
+		let _env_call = env_call;
+		let _env_sha3 = env_sha3;
+		let _env_extcode = env_extcode;
+		let _env_log = env_log;
 	}
 
 	#[no_mangle]
