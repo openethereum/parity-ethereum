@@ -3,6 +3,7 @@ use evmjit;
 use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
+use util::sha3::*;
 use evm;
 
 /// Should be used to convert jit types to ethcore
@@ -53,6 +54,37 @@ impl IntoJit<evmjit::I256> for H256 {
 			ret[pos] += (self.bytes()[i] as u64) << (rev % 8) * 8;
 		}
 		evmjit::I256 { words: ret }
+	}
+}
+
+impl IntoJit<evmjit::I256> for Address {
+	fn into_jit(self) -> evmjit::I256 {
+		H256::from(self).into_jit()
+	}
+}
+
+impl IntoJit<evmjit::RuntimeDataHandle> for evm::RuntimeData {
+	fn into_jit(self) -> evmjit::RuntimeDataHandle {
+		let mut data = evmjit::RuntimeDataHandle::new();
+		data.gas = self.gas as i64;
+		data.gas_price = self.gas_price as i64;
+		data.call_data = self.call_data.as_ptr();
+		data.call_data_size = self.call_data.len() as u64;
+		mem::forget(self.call_data);
+		data.address = self.address.into_jit();
+		data.caller = self.caller.into_jit();
+		data.origin = self.origin.into_jit();
+		data.call_value = self.call_value.into_jit();
+		data.coinbase = self.coinbase.into_jit();
+		data.difficulty = self.difficulty.into_jit();
+		data.gas_limit = self.gas_limit.into_jit();
+		data.number = self.number;
+		data.timestamp = self.timestamp as i64;
+		data.code = self.code.as_ptr();
+		data.code_size = self.code.len() as u64;
+		data.code_hash = self.code.sha3().into_jit();
+		mem::forget(self.code);
+		data
 	}
 }
 
@@ -158,9 +190,10 @@ mod tests {
 
 	#[test]
 	fn test_env_adapter() {
-		let data = RuntimeDataHandle::new();
+		let mut data = RuntimeData::new();
+		data.code = vec![0x60, 0x00, 0x60, 0x00, 0x20, 0x60, 0x00, 0x55];
 		let env = EnvAdapter::new();
-		let mut context = ContextHandle::new(data, EnvHandle::new(env));
+		let mut context = ContextHandle::new(data.into_jit(), EnvHandle::new(env));
 		assert_eq!(context.exec(), ReturnCode::Stop);
 	}
 

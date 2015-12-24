@@ -271,12 +271,12 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sha3(begin: *const u8, size: *const u64, out_hash: *mut JitI256) {
+	pub unsafe extern fn env_sha3(begin: *const u8, size: u64, out_hash: *mut JitI256) {
 		// TODO: write tests
 		// it may be incorrect due to endianess
 		// if it is, don't use `from_raw_parts`
 		let out_hash = &mut *out_hash;
-		let input = slice::from_raw_parts(begin, *size as usize);
+		let input = slice::from_raw_parts(begin, size as usize);
 		let outlen = out_hash.words.len() * 8;
 		let output = slice::from_raw_parts_mut(out_hash.words.as_mut_ptr() as *mut u8, outlen);
 		let mut sha3 = Keccak::new_sha3_256();
