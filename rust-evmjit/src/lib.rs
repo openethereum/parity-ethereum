@@ -224,7 +224,7 @@ pub mod ffi {
 	/// Dumb function to "import" c abi in libraries 
 	/// which inherit from this library.
 	/// 
-	/// It needs compiled as a part of main executable.
+	/// It needs to be compiled as a part of main executable.
 	/// 
 	/// To verify that c abi is "imported" correctly, run:
 	/// 
@@ -235,8 +235,15 @@ pub mod ffi {
 	/// It Should give the following output:
 	///
 	/// ```bash
-	/// 0000000100078500 T _env_sha3
-	/// 0000000100078470 T _env_sstore
+	/// 00000001000779e0 T _env_balance
+	/// 0000000100077a10 T _env_blockhash
+	/// 0000000100077a90 T _env_call
+	/// 0000000100077a40 T _env_create
+	/// 0000000100077b50 T _env_extcode
+	/// 0000000100077b80 T _env_log
+	/// 0000000100077b20 T _env_sha3
+	/// 0000000100077980 T _env_sload
+	/// 00000001000779b0 T _env_sstore
 	/// ```
 	pub fn import_evmjit_abi() {
 		let _env_sload = env_sload;
