@@ -1,0 +1,136 @@
+
+pub trait RangeCollection<K, V> {
+	fn have_item(&self, key: &K) -> bool;
+	fn find_item(&self, key: &K) -> Option<&V>;
+	fn get_tail(&mut self, key: &K) -> Range<K>;
+	fn remove_head(&mut self, start: &K);
+	fn remove_tail(&mut self, start: &K);
+	fn insert_item(&mut self, key: K, value: V);
+}
+
+impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq + Add<Output = K> + Sub<Output = K> + Copy + FromUsize + ToUsize {
+	fn have_item(&self, key: &K) -> bool {
+		match self.binary_search_by(|&(k, _)| k.cmp(key).reverse()) {
+			Ok(_) => true,
+			Err(index) => match self.get(index + 1) {
+				Some(&(ref k, ref v)) => k <= key && (*k + FromUsize::from_usize(v.len())) > *key,
+				_ => false
+			},
+		}
+	}
+
+	fn find_item(&self, key: &K) -> Option<&V> {
+		match self.binary_search_by(|&(k, _)| k.cmp(key).reverse()) {
+			Ok(index) => self.get(index).unwrap().1.get(0),
+			Err(index) => match self.get(index + 1) {
+				Some(&(ref k, ref v)) if k <= key && (*k + FromUsize::from_usize(v.len())) > *key => v.get((*key - *k).to_usize()),
+				_ => None
+			},
+		}
+	}
+
+	/// Get a range of elements from start till the end of the range
+	fn get_tail(&mut self, key: &K) -> Range<K> {
+		let kv = *key;
+		match self.binary_search_by(|&(k, _)| k.cmp(key).reverse()) {
+			Ok(index) => kv..(kv + FromUsize::from_usize(self[index].1.len())),
+			Err(index) => {
+				let mut empty = false;
+				match self.get_mut(index + 1) {
+					Some(&mut (ref k, ref mut v)) if k <= key && (*k + FromUsize::from_usize(v.len())) > *key => {
+						kv..(*k + FromUsize::from_usize(v.len()))
+					}
+					_ => kv..kv
+				}
+			},
+		}
+	}
+	/// Remove element key and following elements in the same range
+	fn remove_tail(&mut self, key: &K) {
+		match self.binary_search_by(|&(k, _)| k.cmp(key).reverse()) {
+			Ok(index) => { self.remove(index); },
+			Err(index) =>{
+				let mut empty = false;
+				match self.get_mut(index + 1) {
+					Some(&mut (ref k, ref mut v)) if k <= key && (*k + FromUsize::from_usize(v.len())) > *key => {
+						v.truncate((*key - *k).to_usize());
+						empty = v.is_empty();
+					}
+					_ => {}
+				}
+				if empty {
+					self.remove(index + 1);
+				}
+			},
+		}
+	}
+
+	/// Remove range elements up to key
+	fn remove_head(&mut self, key: &K) {
+		if *key == FromUsize::from_usize(0) {
+			return
+		}
+
+		let prev = *key - FromUsize::from_usize(1);
+		match self.binary_search_by(|&(k, _)| k.cmp(&prev).reverse()) {
+			Ok(index) => { self.remove(index); },
+			Err(index) => {
+				let mut empty = false;
+				match self.get_mut(index + 1) {
+					Some(&mut (ref mut k, ref mut v)) if *k <= prev && (*k + FromUsize::from_usize(v.len())) > *key => {
+						let head = v.split_off((*key - *k).to_usize());
+						empty = head.is_empty();
+						let removed = ::std::mem::replace(v, head);
+						let new_k = *k - FromUsize::from_usize(removed.len());
+						::std::mem::replace(k, new_k);
+					}
+					_ => {}
+				}
+				if empty {
+					self.remove(index + 1);
+				}
+			},
+		}
+	}
+
+	fn insert_item(&mut self, key: K, value: V) {
+		assert!(!self.have_item(&key));
+
+		let mut lower = match self.binary_search_by(|&(k, _)| k.cmp(&key).reverse()) {
+			Ok(index) => index,
+			Err(index) => index,
+		};
+
+		lower += 1;
+
+		let mut to_remove: Option<usize> = None;
+		if lower < self.len() && self[lower].0 + FromUsize::from_usize(self[lower].1.len()) == key {
+				// extend into existing chunk
+				self[lower].1.push(value);
+		}
+		else {
+			// insert a new chunk
+			let mut range: Vec<V> = vec![value];
+			self.insert(lower, (key, range));
+		};
+		let next = lower - 1;
+		if next < self.len()
+		{
+			{
+				let (mut next, mut inserted) = self.split_at_mut(lower);
+				let mut next = next.last_mut().unwrap();
+				let mut inserted = inserted.first_mut().unwrap();
+				if next.0 == key + FromUsize::from_usize(1)
+				{
+					inserted.1.append(&mut next.1);
+					to_remove = Some(lower - 1);
+				}
+			}
+
+			if let Some(r) = to_remove {
+				self.remove(r);
+			}
+		}
+	}
+}
+

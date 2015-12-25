@@ -31,7 +31,10 @@ pub struct BlockChainInfo {
 	pub last_block_number: BlockNumber
 }
 
-pub struct BlockQueueStats;
+pub struct BlockQueueStatus {
+	pub full: bool,
+}
+
 pub struct TreeRoute;
 
 pub type BlockNumber = u32;
@@ -50,7 +53,7 @@ pub trait BlockChainClient : Sync {
 	fn state_data(&self, h: &H256) -> Option<Bytes>;
 	fn block_receipts(&self, h: &H256) -> Option<Bytes>;
 	fn import_block(&mut self, b: &[u8]) -> ImportResult;
-	fn queue_stats(&self) -> BlockQueueStats;
-	fn clear_queue(&mut self) -> BlockQueueStats;
+	fn queue_status(&self) -> BlockQueueStatus;
+	fn clear_queue(&mut self);
 	fn info(&self) -> BlockChainInfo;
 }

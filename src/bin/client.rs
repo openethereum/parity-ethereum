@@ -5,7 +5,7 @@ use util::network::{NetworkService};
 
 
 fn main() {
-	let mut service = NetworkService::start().unwrap();
+	let _service = NetworkService::start().unwrap();
 	loop {
 		let mut cmd = String::new();
 		stdin().read_line(&mut cmd).unwrap();

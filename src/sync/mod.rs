@@ -4,21 +4,48 @@ use util::network::{ProtocolHandler, NetworkService, HandlerIo, TimerToken, Peer
 use sync::chain::{ChainSync, SyncIo};
 
 mod chain;
+mod range_collection;
+
+#[cfg(test)]
+mod tests;
 
 
-pub fn new(service: &mut NetworkService, eth_cleint: Arc<BlockChainClient>) {
-
+pub fn new(_service: &mut NetworkService, eth_client: Arc<BlockChainClient+Send+Sized>) -> EthSync {
+	EthSync {
+		chain: eth_client,
+		sync: ChainSync::new(),
+	}
 }
 
-struct EthSync {
-	idle: bool,
+pub struct EthSync {
 	chain: Arc<BlockChainClient+Send+Sized>,
 	sync: ChainSync
 }
 
+pub use self::chain::SyncStatus;
+
+impl EthSync {
+	pub fn is_syncing(&self) -> bool {
+		self.sync.is_syncing()
+	}
+
+	pub fn status(&self) -> SyncStatus {
+		self.sync.status()
+	}
+
+	pub fn stop_network(&mut self, io: &mut HandlerIo) {
+		self.sync.abort(&mut SyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
+	}
+
+	pub fn start_network(&mut self, io: &mut HandlerIo) {
+		self.sync.restart(&mut SyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
+	}
+}
+
 impl ProtocolHandler for EthSync {
 	fn initialize(&mut self, io: &mut HandlerIo) {
-		io.register_timer(1000);
+		self.sync.restart(&mut SyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
+		io.register_timer(1000).unwrap();
 	}
 
 	fn read(&mut self, io: &mut HandlerIo, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -33,7 +60,8 @@ impl ProtocolHandler for EthSync {
 		self.sync.on_peer_aborting(&mut SyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()), peer);
 	}
 
-	fn timeout(&mut self, io: &mut HandlerIo, timer: TimerToken) {
+	fn timeout(&mut self, io: &mut HandlerIo, _timer: TimerToken) {
+		self.sync.maintain_sync(&mut SyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
 	}
 }
 
