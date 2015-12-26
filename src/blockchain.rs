@@ -19,7 +19,7 @@ use transaction::*;
 use views::*;
 
 /// Represents a tree route between `from` block and `to` block:
-/// 
+///
 /// - `blocks` - a vector of hashes of all blocks, ordered from `from` to `to`.
 ///
 /// - `ancestor` - best common ancestor of these blocks.
@@ -59,7 +59,7 @@ impl BestBlock {
 }
 
 /// Structure providing fast access to blockchain data.
-/// 
+///
 /// **Does not do input data verification.**
 pub struct BlockChain {
 	best_block: RefCell<BestBlock>,
@@ -80,7 +80,7 @@ pub struct BlockChain {
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// extern crate ethcore;
@@ -90,7 +90,7 @@ impl BlockChain {
 	/// use ethcore::blockchain::*;
 	/// use util::hash::*;
 	/// use util::uint::*;
-	/// 
+	///
 	/// fn main() {
 	/// 	let genesis = Genesis::new_frontier();
 	///
@@ -152,7 +152,7 @@ impl BlockChain {
 				batch.put_extras(&header.number(), &hash);
 				batch.put(b"best", &hash).unwrap();
 				bc.extras_db.write(batch).unwrap();
-				
+
 				hash
 			}
 		};
@@ -168,44 +168,44 @@ impl BlockChain {
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
-	/// 
+	///
 	/// - a vector of hashes of all blocks, ordered from `from` to `to`.
 	///
 	/// - common ancestor of these blocks.
 	///
 	/// - an index where best common ancestor would be
-	/// 
+	///
 	/// 1.) from newer to older
-	/// 
+	///
 	/// - bc: `A1 -> A2 -> A3 -> A4 -> A5`
 	/// - from: A5, to: A4
-	/// - route: 
+	/// - route:
 	///
 	///   ```json
 	///   { blocks: [A5], ancestor: A4, index: 1 }
 	///   ```
-	/// 
+	///
 	/// 2.) from older to newer
-	/// 
+	///
 	/// - bc: `A1 -> A2 -> A3 -> A4 -> A5`
 	/// - from: A3, to: A4
-	/// - route: 
-	/// 
+	/// - route:
+	///
 	///   ```json
 	///   { blocks: [A4], ancestor: A3, index: 0 }
 	///   ```
 	///
 	/// 3.) fork:
 	///
-	/// - bc: 
+	/// - bc:
 	///
 	///   ```text
 	///   A1 -> A2 -> A3 -> A4
 	///              -> B3 -> B4
-	///   ``` 
+	///   ```
 	/// - from: B4, to: A4
-	/// - route: 
-	/// 
+	/// - route:
+	///
 	///   ```json
 	///   { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
 	///   ```
@@ -302,7 +302,7 @@ impl BlockChain {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
-		
+
 		// prepare variables
 		let hash = block.sha3();
 		let mut parent_details = self.block_details(&header.parent_hash()).expect("Invalid parent hash.");
@@ -317,7 +317,7 @@ impl BlockChain {
 			parent: parent_hash.clone(),
 			children: vec![]
 		};
-		
+
 		// prepare the batch
 		let batch = WriteBatch::new();
 
@@ -333,7 +333,7 @@ impl BlockChain {
 			return (batch, None);
 		}
 
-		// if its new best block we need to make sure that all ancestors 
+		// if its new best block we need to make sure that all ancestors
 		// are moved to "canon chain"
 		// find the route between old best block and the new one
 		let best_hash = self.best_block_hash();
@@ -368,7 +368,7 @@ impl BlockChain {
 		(batch, Some(best_block))
 	}
 
-	/// Returns true if the given block is known 
+	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	pub fn is_known(&self, hash: &H256) -> bool {
 		self.query_extras_exist(hash, &self.block_details)
@@ -471,8 +471,8 @@ impl BlockChain {
 		}
 	}
 
-	fn query_extras<K, T>(&self, hash: &K, cache: &RefCell<HashMap<K, T>>) -> Option<T> where 
-		T: Clone + Decodable + ExtrasIndexable, 
+	fn query_extras<K, T>(&self, hash: &K, cache: &RefCell<HashMap<K, T>>) -> Option<T> where
+		T: Clone + Decodable + ExtrasIndexable,
 		K: ExtrasSliceConvertable + Eq + Hash + Clone {
 		{
 			let read = cache.borrow();
@@ -489,7 +489,7 @@ impl BlockChain {
 		})
 	}
 
-	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RefCell<HashMap<K, T>>) -> bool where 
+	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RefCell<HashMap<K, T>>) -> bool where
 		K: ExtrasSliceConvertable + Eq + Hash + Clone,
 		T: ExtrasIndexable {
 		{
@@ -541,7 +541,7 @@ mod tests {
 		dir.push(H32::random().hex());
 
 		let bc = BlockChain::new(&genesis, &dir);
-		
+
 		let genesis_hash = H256::from_str("3caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942").unwrap();
 
 		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
@@ -549,7 +549,7 @@ mod tests {
 		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
 		assert_eq!(bc.block_hash(&U256::from(0u8)), Some(genesis_hash.clone()));
 		assert_eq!(bc.block_hash(&U256::from(1u8)), None);
-		
+
 
 		let first = "f90285f90219a03caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0bac6177a79e910c98d86ec31a09ae37ac2de15b754fd7bed1ba52362c49416bfa0d45893a296c1490a978e0bd321b5f2635d8280365c1fe9f693d65f233e791344a0c7778a7376099ee2e5c455791c1885b5c361b95713fddcbe32d97fd01334d296b90100000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000400000000000000000000000000000000000000000000000000000008302000001832fefd882560b845627cb99a00102030405060708091011121314151617181920212223242526272829303132a08ccb2837fb2923bd97e8f2d08ea32012d6e34be018c73e49a0f98843e8f47d5d88e53be49fec01012ef866f864800a82c35094095e7baea6a6c7c4c2dfeb977efac326af552d8785012a05f200801ba0cb088b8d2ff76a7b2c6616c9d02fb6b7a501afbf8b69d7180b09928a1b80b5e4a06448fe7476c606582039bb72a9f6f4b4fad18507b8dfbd00eebbe151cc573cd2c0".from_hex().unwrap();
 
@@ -610,22 +610,22 @@ mod tests {
 		assert_eq!(r0_1.blocks, [b1_hash.clone()]);
 		assert_eq!(r0_1.index, 0);
 
-		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone());	
+		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone());
 		assert_eq!(r0_2.ancestor, genesis_hash);
 		assert_eq!(r0_2.blocks, [b1_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r0_2.index, 0);
 
-		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone());	
+		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone());
 		assert_eq!(r1_3a.ancestor, b1_hash);
 		assert_eq!(r1_3a.blocks, [b2_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r1_3a.index, 0);
 
-		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone());	
+		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone());
 		assert_eq!(r1_3b.ancestor, b1_hash);
 		assert_eq!(r1_3b.blocks, [b2_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r1_3b.index, 0);
 
-		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone());	
+		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone());
 		assert_eq!(r3a_3b.ancestor, b2_hash);
 		assert_eq!(r3a_3b.blocks, [b3a_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r3a_3b.index, 1);
@@ -639,7 +639,7 @@ mod tests {
 		assert_eq!(r2_0.ancestor, genesis_hash);
 		assert_eq!(r2_0.blocks, [b2_hash.clone(), b1_hash.clone()]);
 		assert_eq!(r2_0.index, 2);
-		
+
 		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone());
 		assert_eq!(r3a_1.ancestor, b1_hash);
 		assert_eq!(r3a_1.blocks, [b3a_hash.clone(), b2_hash.clone()]);

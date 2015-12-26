@@ -35,7 +35,7 @@ pub struct BlockQueueStatus {
 	pub full: bool,
 }
 
-pub struct TreeRoute;
+pub type TreeRoute = ::blockchain::TreeRoute;
 
 pub type BlockNumber = u32;
 pub type BlockHeader = ::header::Header;
@@ -46,9 +46,9 @@ pub trait BlockChainClient : Sync {
 	fn block(&self, h: &H256) -> Option<Bytes>;
 	fn block_status(&self, h: &H256) -> BlockStatus;
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes>;
-	fn block_body_at(&self, h: BlockNumber) -> Option<Bytes>;
-	fn block_at(&self, h: BlockNumber) -> Option<Bytes>;
-	fn block_status_at(&self, h: BlockNumber) -> BlockStatus;
+	fn block_body_at(&self, n: BlockNumber) -> Option<Bytes>;
+	fn block_at(&self, n: BlockNumber) -> Option<Bytes>;
+	fn block_status_at(&self, n: BlockNumber) -> BlockStatus;
 	fn tree_route(&self, from: &H256, to: &H256) -> TreeRoute;
 	fn state_data(&self, h: &H256) -> Option<Bytes>;
 	fn block_receipts(&self, h: &H256) -> Option<Bytes>;

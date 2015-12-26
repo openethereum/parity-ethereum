@@ -1,4 +1,6 @@
+use std::cell::Cell;
 use util::hash::*;
+use util::sha3::*;
 use util::bytes::*;
 use util::uint::*;
 use util::rlp::*;
@@ -28,6 +30,8 @@ pub struct Header {
 
 	pub difficulty: U256,
 	pub seal: Vec<Bytes>,
+
+	pub hash: Cell<Option<H256>>, //TODO: make this private
 }
 
 impl Header {
@@ -50,37 +54,49 @@ impl Header {
 
 			difficulty: ZERO_U256.clone(),
 			seal: vec![],
+			hash: Cell::new(None),
 		}
 	}
 
 	pub fn hash(&self) -> H256 {
-		unimplemented!();
+		let hash = self.hash.get();
+		match hash {
+			Some(h) => h,
+			None => {
+				let mut stream = RlpStream::new();
+				stream.append(self);
+				let h = stream.raw().sha3();
+				self.hash.set(Some(h.clone()));
+				h
+			}
+		}
 	}
 }
 
 impl Decodable for Header {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = try!(decoder.as_list());
+		let r = decoder.as_rlp();
 
 		let mut blockheader = Header {
-			parent_hash: try!(Decodable::decode(&d[0])),
-			uncles_hash: try!(Decodable::decode(&d[1])),
-			author: try!(Decodable::decode(&d[2])),
-			state_root: try!(Decodable::decode(&d[3])),
-			transactions_root: try!(Decodable::decode(&d[4])),
-			receipts_root: try!(Decodable::decode(&d[5])),
-			log_bloom: try!(Decodable::decode(&d[6])),
-			difficulty: try!(Decodable::decode(&d[7])),
-			number: try!(Decodable::decode(&d[8])),
-			gas_limit: try!(Decodable::decode(&d[9])),
-			gas_used: try!(Decodable::decode(&d[10])),
-			timestamp: try!(Decodable::decode(&d[11])),
-			extra_data: try!(Decodable::decode(&d[12])),
+			parent_hash: try!(r.val_at(0)),
+			uncles_hash: try!(r.val_at(1)),
+			author: try!(r.val_at(2)),
+			state_root: try!(r.val_at(3)),
+			transactions_root: try!(r.val_at(4)),
+			receipts_root: try!(r.val_at(5)),
+			log_bloom: try!(r.val_at(6)),
+			difficulty: try!(r.val_at(7)),
+			number: try!(r.val_at(8)),
+			gas_limit: try!(r.val_at(9)),
+			gas_used: try!(r.val_at(10)),
+			timestamp: try!(r.val_at(11)),
+			extra_data: try!(r.val_at(12)),
 			seal: vec![],
+			hash: Cell::new(Some(r.raw().sha3()))
 		};
 
-		for i in 13..d.len() {
-			blockheader.seal.push(try!(Decodable::decode(&d[i])));
+		for i in 13..r.item_count() {
+			blockheader.seal.push(try!(r.val_at(i)))
 		}
 
 		Ok(blockheader)

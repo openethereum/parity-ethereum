@@ -1,5 +1,6 @@
 use std::io::Read;
 use std::str::FromStr;
+use std::cell::Cell;
 use std::collections::HashMap;
 use rustc_serialize::base64::FromBase64;
 use rustc_serialize::json::Json;
@@ -48,7 +49,7 @@ impl Genesis {
 
 		Genesis {
 			block: stream.out(),
-			state: state 
+			state: state
 		}
 	}
 
@@ -56,12 +57,12 @@ impl Genesis {
 	fn load_genesis_json(json: &Json, state_root: &H256) -> (Header, HashMap<Address, Account>)  {
 		// once we commit ourselves to some json parsing library (serde?)
 		// move it to proper data structure
-		
+
 		let empty_list = RlpStream::new_list(0).out();
 		let empty_list_sha3 = empty_list.sha3();
 		let empty_data = encode(&"");
 		let empty_data_sha3 = empty_data.sha3();
-		
+
 		let header = Header {
 			parent_hash: H256::from_str(&json["parentHash"].as_string().unwrap()[2..]).unwrap(),
 			uncles_hash: empty_list_sha3.clone(),
@@ -81,9 +82,10 @@ impl Genesis {
 				let mixhash = H256::from_str(&json["mixhash"].as_string().unwrap()[2..]).unwrap();
 				let nonce = H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap();
 				vec![mixhash.to_vec(), nonce.to_vec()]
-			}
+			},
+			hash: Cell::new(None)
 		};
-		
+
 		let mut state = HashMap::new();
 		let accounts = json["alloc"].as_object().expect("Missing genesis state");
 		for (address, acc) in accounts.iter() {

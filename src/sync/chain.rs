@@ -1,7 +1,7 @@
 use std::collections::{HashSet, HashMap};
 use std::cmp::{min, max};
 use std::mem::{replace};
-use util::network::{PeerId, HandlerIo, PacketId};
+use util::network::{PeerId, PacketId};
 use util::hash::{H256};
 use util::bytes::{Bytes};
 use util::uint::{U256};
@@ -10,23 +10,7 @@ use util::rlp::rlptraits::{Stream, View};
 use util::sha3::Hashable;
 use eth::{BlockNumber, BlockChainClient, BlockHeader, BlockStatus, QueueStatus, ImportResult};
 use sync::range_collection::{RangeCollection, ToUsize, FromUsize};
-
-pub struct SyncIo<'s, 'h> where 'h:'s {
-	network: &'s mut HandlerIo<'h>,
-	chain: &'s mut BlockChainClient
-}
-
-impl<'s, 'h> SyncIo<'s, 'h> {
-	pub fn new(network: &'s mut HandlerIo<'h>, chain: &'s mut BlockChainClient) -> SyncIo<'s,'h> {
-		SyncIo {
-			network: network,
-			chain: chain,
-		}
-	}
-	fn disable_peer(&mut self, peer_id: &PeerId) {
-		self.network.disable_peer(*peer_id);
-	}
-}
+use sync::{SyncIo};
 
 impl ToUsize for BlockNumber {
 	fn to_usize(&self) -> usize {
@@ -106,7 +90,6 @@ pub struct SyncStatus {
 enum PeerAsking
 {
 	Nothing,
-	State,
 	BlockHeaders,
 	BlockBodies,
 }
@@ -213,8 +196,8 @@ impl ChainSync {
 		self.starting_block = 0;
 		self.highest_block = 0;
 		self.have_common_block = false;
-		io.chain.clear_queue();
-		self.starting_block = io.chain.info().last_block_number;
+		io.chain().clear_queue();
+		self.starting_block = io.chain().info().last_block_number;
 		self.state = SyncState::NotSynced;
 	}
 
@@ -263,7 +246,7 @@ impl ChainSync {
 			if number > self.highest_block {
 				self.highest_block = number;
 			}
-			match io.chain.block_status(&info.hash()) {
+			match io.chain().block_status(&info.hash()) {
 				BlockStatus::InChain => {
 					self.have_common_block = true;
 					self.last_imported_block = number;
@@ -285,7 +268,7 @@ impl ChainSync {
 						}
 					}
 					let hdr = Header {
-						data: r.at(i).data().to_vec(),
+						data: r.at(i).raw().to_vec(),
 						hash: info.hash(),
 						parent: info.parent_hash,
 					};
@@ -298,7 +281,7 @@ impl ChainSync {
 						//empty body, just mark as downloaded
 						let mut body_stream = RlpStream::new_list(2);
 						body_stream.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-						body_stream.append_raw(&rlp::EMPTY_LIST_RLP, 1);
+						body_stream.append_raw(&rlp::NULL_RLP, 1);
 						self.bodies.insert_item(number, body_stream.out());
 					}
 					else {
@@ -327,8 +310,8 @@ impl ChainSync {
 		for i in 0..item_count {
 			let body: Rlp = r.at(i);
 			let tx = body.at(0);
-			let tx_root = ::util::triehash::ordered_trie_root(tx.iter().map(|r| r.data().to_vec()).collect()); //TODO: get rid of vectors here
-			let uncles = body.at(1).data().sha3();
+			let tx_root = ::util::triehash::ordered_trie_root(tx.iter().map(|r| r.raw().to_vec()).collect()); //TODO: get rid of vectors here
+			let uncles = body.at(1).raw().sha3();
 			let header_id = HeaderId {
 				transactions_root: tx_root,
 				uncles: uncles
@@ -336,7 +319,7 @@ impl ChainSync {
 			match self.header_ids.get(&header_id).map(|n| *n) {
 				Some(n) => {
 					self.header_ids.remove(&header_id);
-					self.bodies.insert_item(n, body.data().to_vec());
+					self.bodies.insert_item(n, body.raw().to_vec());
 				}
 				None =>  {
 					debug!(target: "sync", "Ignored unknown block body");
@@ -351,9 +334,9 @@ impl ChainSync {
 	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: &PeerId, r: &Rlp) {
 		let block_rlp = r.at(0);
 		let header_rlp = block_rlp.at(0);
-		let h = header_rlp.data().sha3();
+		let h = header_rlp.raw().sha3();
 
-		match io.chain.import_block(block_rlp.data()) {
+		match io.chain().import_block(block_rlp.raw()) {
 			ImportResult::AlreadyInChain  => {
 				trace!(target: "sync", "New block already in chain {:?}", h);
 			},
@@ -388,7 +371,7 @@ impl ChainSync {
 		let hashes = r.iter().map(|item| (item.val_at::<H256>(0), item.val_at::<U256>(1)));
 		let mut max_height: U256 = From::from(0);
 		for (h, d) in hashes {
-			match io.chain.block_status(&h) {
+			match io.chain().block_status(&h) {
 				BlockStatus::InChain  => {
 					trace!(target: "sync", "New block hash already in chain {:?}", h);
 				},
@@ -458,7 +441,7 @@ impl ChainSync {
 			(peer.latest.clone(), peer.difficulty.clone())
 		};
 
-		let td = io.chain.info().pending_total_difficulty;
+		let td = io.chain().info().pending_total_difficulty;
 		let syncing_difficulty = max(self.syncing_difficulty, td);
 		if force || peer_difficulty > syncing_difficulty {
 			// start sync
@@ -476,7 +459,7 @@ impl ChainSync {
 	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: &PeerId) {
 		self.clear_peer_download(peer_id);
 
-		if io.chain.queue_status().full {
+		if io.chain().queue_status().full {
 			self.pause_sync();
 			return;
 		}
@@ -511,7 +494,7 @@ impl ChainSync {
 			let mut start = 0usize;
 			if !self.have_common_block {
 				// download backwards until common block is found 1 header at a time
-				start = io.chain.info().last_block_number as usize;
+				start = io.chain().info().last_block_number as usize;
 				if !self.headers.is_empty() {
 					start = min(start, self.headers.range_iter().next().unwrap().0 as usize - 1);
 				}
@@ -585,7 +568,7 @@ impl ChainSync {
 				block_rlp.append_raw(&headers.1[i].data, 1);
 				block_rlp.append_raw(&bodies.1[i], 2);
 				let h = &headers.1[i].hash;
-				match io.chain.import_block(&block_rlp.out()) {
+				match io.chain().import_block(&block_rlp.out()) {
 					ImportResult::AlreadyInChain  => {
 						trace!(target: "sync", "Block already in chain {:?}", h);
 						self.last_imported_block = headers.0 + i as BlockNumber;
@@ -676,7 +659,7 @@ impl ChainSync {
 				warn!(target:"sync", "Asking {:?} while requesting {:?}", asking, peer.asking);
 			}
 		}
-		match sync.network.send(*peer_id, packet_id, packet) {
+		match sync.send(*peer_id, packet_id, packet) {
 			Err(e) => {
 				warn!(target:"sync", "Error sending request: {:?}", e);
 				sync.disable_peer(peer_id);
@@ -694,13 +677,20 @@ impl ChainSync {
 
 	fn send_status(&mut self, io: &mut SyncIo, peer_id: &PeerId) {
 		let mut packet = RlpStream::new_list(5);
-		let chain = io.chain.info();
+		let chain = io.chain().info();
 		packet.append(&(PROTOCOL_VERSION as u32));
 		packet.append(&0u32); //TODO: network id
 		packet.append(&chain.total_difficulty);
 		packet.append(&chain.last_block_hash);
 		packet.append(&chain.genesis_hash);
-		self.send_request(io, peer_id, PeerAsking::State, STATUS_PACKET, packet.out());
+		//TODO: handle timeout for status request
+		match io.send(*peer_id, STATUS_PACKET, packet.out()) {
+			Err(e) => {
+				warn!(target:"sync", "Error sending status request: {:?}", e);
+				io.disable_peer(peer_id);
+			}
+			Ok(_) => {  }
+		}
 	}
 
 	fn return_block_headers(&self, io: &mut SyncIo, r: &Rlp) {
@@ -709,12 +699,12 @@ impl ChainSync {
 		let max_headers: usize = r.val_at(1);
 		let skip: usize = r.val_at(2);
 		let reverse: bool = r.val_at(3);
-		let last = io.chain.info().last_block_number;
+		let last = io.chain().info().last_block_number;
 		let mut number = if r.at(0).size() == 32 {
 			// id is a hash
 			let hash: H256 = r.val_at(0);
 			trace!(target: "sync", "GetBlockHeaders (hash: {}, max: {}, skip: {}, reverse:{})", hash, max_headers, skip, reverse);
-			match io.chain.block_header(&hash) {
+			match io.chain().block_header(&hash) {
 				Some(hdr) => From::from(rlp::decode::<BlockHeader>(&hdr).number),
 				None => last
 			}
@@ -729,7 +719,7 @@ impl ChainSync {
 		let mut count = 0;
 		let mut data = Bytes::new();
 		while number < last && number > 1 && count < max_count {
-			match io.chain.block_header_at(number) {
+			match io.chain().block_header_at(number) {
 				Some(mut hdr) => {
 					data.append(&mut hdr);
 					count += 1;
@@ -745,7 +735,7 @@ impl ChainSync {
 		}
 		let mut rlp = RlpStream::new_list(count as usize);
 		rlp.append_raw(&data, count as usize);
-		io.network.respond(BLOCK_HEADERS_PACKET, rlp.out()).unwrap_or_else(|e|
+		io.respond(BLOCK_HEADERS_PACKET, rlp.out()).unwrap_or_else(|e|
 			debug!(target: "sync", "Error sending headers: {:?}", e));
 	}
 
@@ -759,7 +749,7 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			match io.chain.block_body(&r.val_at::<H256>(i)) {
+			match io.chain().block_body(&r.val_at::<H256>(i)) {
 				Some(mut hdr) => {
 					data.append(&mut hdr);
 					added += 1;
@@ -769,7 +759,7 @@ impl ChainSync {
 		}
 		let mut rlp = RlpStream::new_list(added);
 		rlp.append_raw(&data, added);
-		io.network.respond(BLOCK_BODIES_PACKET, rlp.out()).unwrap_or_else(|e|
+		io.respond(BLOCK_BODIES_PACKET, rlp.out()).unwrap_or_else(|e|
 			debug!(target: "sync", "Error sending headers: {:?}", e));
 	}
 
@@ -783,7 +773,7 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			match io.chain.state_data(&r.val_at::<H256>(i)) {
+			match io.chain().state_data(&r.val_at::<H256>(i)) {
 				Some(mut hdr) => {
 					data.append(&mut hdr);
 					added += 1;
@@ -793,7 +783,7 @@ impl ChainSync {
 		}
 		let mut rlp = RlpStream::new_list(added);
 		rlp.append_raw(&data, added);
-		io.network.respond(NODE_DATA_PACKET, rlp.out()).unwrap_or_else(|e|
+		io.respond(NODE_DATA_PACKET, rlp.out()).unwrap_or_else(|e|
 			debug!(target: "sync", "Error sending headers: {:?}", e));
 	}
 
@@ -807,7 +797,7 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			match io.chain.block_receipts(&r.val_at::<H256>(i)) {
+			match io.chain().block_receipts(&r.val_at::<H256>(i)) {
 				Some(mut hdr) => {
 					data.append(&mut hdr);
 					added += 1;
@@ -817,7 +807,7 @@ impl ChainSync {
 		}
 		let mut rlp = RlpStream::new_list(added);
 		rlp.append_raw(&data, added);
-		io.network.respond(RECEIPTS_PACKET, rlp.out()).unwrap_or_else(|e|
+		io.respond(RECEIPTS_PACKET, rlp.out()).unwrap_or_else(|e|
 			debug!(target: "sync", "Error sending headers: {:?}", e));
 	}
 
@@ -834,7 +824,7 @@ impl ChainSync {
 			NEW_BLOCK_HASHES_PACKET => self.on_peer_new_hashes(io, peer, &rlp),
 			GET_NODE_DATA_PACKET => self.return_node_data(io, &rlp),
 			GET_RECEIPTS_PACKET => self.return_receipts(io, &rlp),
-			_ => debug!(target: "sync", "Unkown packet {}", packet_id)
+			_ => debug!(target: "sync", "Unknown packet {}", packet_id)
 		}
 	}
 
