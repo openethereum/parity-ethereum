@@ -10,8 +10,8 @@ use sync::{SyncIo};
 use sync::chain::{ChainSync};
 
 struct TestBlockChainClient {
-	blocks: Vec<Bytes>,
- 	hashes: HashMap<H256, usize>,
+	blocks: HashMap<H256, Bytes>,
+ 	numbers: HashMap<usize, H256>,
 	genesis_hash: H256,
 	last_hash: H256,
 	difficulty: U256
@@ -21,8 +21,8 @@ impl TestBlockChainClient {
 	fn new() -> TestBlockChainClient {
 
 		let mut client = TestBlockChainClient {
-			blocks: Vec::new(),
-			hashes: HashMap::new(),
+			blocks: HashMap::new(),
+			numbers: HashMap::new(),
 			genesis_hash: H256::new(),
 			last_hash: H256::new(),
 			difficulty: From::from(0),
@@ -33,20 +33,20 @@ impl TestBlockChainClient {
 	}
 
 	pub fn add_blocks(&mut self, count: usize, empty: bool) {
-		for n in self.blocks.len()..(self.blocks.len() + count) {
+		for n in self.numbers.len()..(self.numbers.len() + count) {
 			let mut header = BlockHeader::new();
 			header.difficulty = From::from(n);
 			header.parent_hash = self.last_hash;
 			header.number = From::from(n);
 			let mut uncles = RlpStream::new_list(if empty {0} else {1});
 			if !empty {
-				uncles.append(&H256::random());
+				uncles.append(&H256::from(&U256::from(n)));
 				header.uncles_hash = uncles.raw().sha3();
 			}
 			let mut rlp = RlpStream::new_list(3);
 			rlp.append(&header);
-			rlp.append_raw(uncles.raw(), 1);
 			rlp.append_raw(&rlp::NULL_RLP, 1);
+			rlp.append_raw(uncles.raw(), 1);
 			self.import_block(rlp.raw());
 		}
 	}
@@ -54,27 +54,12 @@ impl TestBlockChainClient {
 
 impl BlockChainClient for TestBlockChainClient {
 	fn block_header(&self, h: &H256) -> Option<Bytes> {
-		self.hashes.get(h).and_then(|i| self.block_header_at(*i as BlockNumber))
+		self.blocks.get(h).map(|r| Rlp::new(r).at(0).raw().to_vec())
+
 	}
 
 	fn block_body(&self, h: &H256) -> Option<Bytes> {
-		self.hashes.get(h).and_then(|i| self.block_body_at(*i as BlockNumber))
-	}
-
-	fn block(&self, h: &H256) -> Option<Bytes> {
-		self.hashes.get(h).map(|i| self.blocks[*i].clone())
-	}
-
-	fn block_status(&self, h: &H256) -> BlockStatus {
-		self.hashes.get(h).map(|i| self.block_status_at(*i as BlockNumber)).unwrap_or(BlockStatus::Unknown)
-	}
-
-	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.blocks.get(n as usize).map(|r| Rlp::new(r).at(0).raw().to_vec())
-	}
-
-	fn block_body_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.blocks.get(n as usize).map(|r| {
+		self.blocks.get(h).map(|r| {
 			let mut stream = RlpStream::new_list(2);
 			stream.append_raw(Rlp::new(&r).at(1).raw(), 1);
 			stream.append_raw(Rlp::new(&r).at(2).raw(), 1);
@@ -82,8 +67,27 @@ impl BlockChainClient for TestBlockChainClient {
 		})
 	}
 
+	fn block(&self, h: &H256) -> Option<Bytes> {
+		self.blocks.get(h).map(|b| b.clone())
+	}
+
+	fn block_status(&self, h: &H256) -> BlockStatus {
+		match self.blocks.get(h) {
+			Some(_) => BlockStatus::InChain,
+			None => BlockStatus::Unknown
+		}
+	}
+
+	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
+		self.numbers.get(&(n as usize)).and_then(|h| self.block_header(h))
+	}
+
+	fn block_body_at(&self, n: BlockNumber) -> Option<Bytes> {
+		self.numbers.get(&(n as usize)).and_then(|h| self.block_body(h))
+	}
+
 	fn block_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.blocks.get(n as usize).map(|b| b.clone())
+		self.numbers.get(&(n as usize)).map(|h| self.blocks.get(h).unwrap().clone())
 	}
 
 	fn block_status_at(&self, n: BlockNumber) -> BlockStatus {
@@ -112,19 +116,41 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn import_block(&mut self, b: &[u8]) -> ImportResult {
 		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
-		if header.number != From::from(self.blocks.len()) {
-			panic!("Unexpected block number");
+		let number: usize = header.number.low_u64() as usize;
+		if number > self.blocks.len() {
+			panic!("Unexpected block number. Expected {}, got {}", self.blocks.len(), number);
 		}
-		if !self.blocks.is_empty() {
-			let parent = Rlp::new(self.blocks.last().unwrap()).val_at::<BlockHeader>(0);
-			if header.parent_hash != parent.hash() {
-				panic!("Unexpected block header");
+		if number > 0 {
+			match self.blocks.get(&header.parent_hash) {
+				Some(parent) => {
+					let parent = Rlp::new(parent).val_at::<BlockHeader>(0);
+					if parent.number != (header.number - From::from(1)) {
+						panic!("Unexpected block parent");
+					}
+				},
+				None => {
+					panic!("Unknown block parent {:?} for block {}", header.parent_hash, number);
+				}
 			}
 		}
-		self.difficulty = self.difficulty + header.difficulty;
-		self.last_hash = header.hash();
-		self.hashes.insert(header.hash(), self.blocks.len());
-		self.blocks.push(b.to_vec());
+		if number == self.numbers.len() {
+			self.difficulty = self.difficulty + header.difficulty;
+			self.last_hash = header.hash();
+			self.blocks.insert(header.hash(), b.to_vec());
+			self.numbers.insert(number, header.hash());
+			let mut parent_hash = header.parent_hash;
+			if number > 0 {
+				let mut n = number - 1;
+				while n > 0 && self.numbers[&n] != parent_hash {
+					*self.numbers.get_mut(&n).unwrap() = parent_hash;
+					n -= 1;
+					parent_hash = Rlp::new(&self.blocks[&parent_hash]).val_at::<BlockHeader>(0).parent_hash;
+				}
+			}
+		}
+		else {
+			self.blocks.insert(header.hash(), b.to_vec());
+		}
 		ImportResult::Queued(QueueStatus::Known)
 	}
 
@@ -222,7 +248,11 @@ impl TestNet {
 		net
 	}
 
-	pub fn peer(&mut self, i: usize) -> &mut TestPeer {
+	pub fn peer(&self, i: usize) -> &TestPeer {
+		self.peers.get(i).unwrap()
+	}
+
+	pub fn peer_mut(&mut self, i: usize) -> &mut TestPeer {
 		self.peers.get_mut(i).unwrap()
 	}
 
@@ -242,7 +272,9 @@ impl TestNet {
 			match self.peers[peer].queue.pop_front() {
 				Some(packet) => {
 					let mut p = self.peers.get_mut(packet.recipient).unwrap();
+					trace!("--- {} -> {} ---", peer, packet.recipient);
 					p.sync.on_packet(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)), &(peer as PeerId), packet.packet_id, &packet.data);
+					trace!("----------------");
 				},
 				None => {}
 			}
@@ -267,19 +299,41 @@ impl TestNet {
 #[test]
 fn full_sync_two_peers() {
 	let mut net = TestNet::new(3);
-	net.peer(1).chain.add_blocks(1000, false);
-	net.peer(2).chain.add_blocks(1000, false);
+	net.peer_mut(1).chain.add_blocks(1000, false);
+	net.peer_mut(2).chain.add_blocks(1000, false);
 	net.sync();
-	assert_eq!(net.peer(0).chain.block_at(50000), net.peer(1).chain.block_at(50000));
+	assert!(net.peer(0).chain.block_at(1000).is_some());
+	assert_eq!(net.peer(0).chain.blocks, net.peer(1).chain.blocks);
 }
 
 #[test]
 fn full_sync_empty_blocks() {
 	let mut net = TestNet::new(3);
 	for n in 0..200 {
-		net.peer(1).chain.add_blocks(5, n % 2 == 0);
-		net.peer(2).chain.add_blocks(5, n % 2 == 0);
+		net.peer_mut(1).chain.add_blocks(5, n % 2 == 0);
+		net.peer_mut(2).chain.add_blocks(5, n % 2 == 0);
 	}
 	net.sync();
-	assert_eq!(net.peer(0).chain.block_at(50000), net.peer(1).chain.block_at(50000));
+	assert!(net.peer(0).chain.block_at(1000).is_some());
+	assert_eq!(net.peer(0).chain.blocks, net.peer(1).chain.blocks);
+}
+
+#[test]
+fn forked_sync() {
+	::env_logger::init().ok();
+	let mut net = TestNet::new(3);
+	net.peer_mut(0).chain.add_blocks(300, false);
+	net.peer_mut(1).chain.add_blocks(300, false);
+	net.peer_mut(2).chain.add_blocks(300, false);
+	net.peer_mut(0).chain.add_blocks(100, true); //fork
+	net.peer_mut(1).chain.add_blocks(200, false);
+	net.peer_mut(2).chain.add_blocks(200, false);
+	net.peer_mut(1).chain.add_blocks(100, false); //fork between 1 and 2
+	net.peer_mut(2).chain.add_blocks(10, true);
+	// peer 1 has the best chain of 601 blocks
+	let peer1_chain = net.peer(1).chain.numbers.clone();
+	net.sync();
+	assert_eq!(net.peer(0).chain.numbers, peer1_chain);
+	assert_eq!(net.peer(1).chain.numbers, peer1_chain);
+	assert_eq!(net.peer(2).chain.numbers, peer1_chain);
 }

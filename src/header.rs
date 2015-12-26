@@ -37,22 +37,22 @@ pub struct Header {
 impl Header {
 	pub fn new() -> Header {
 		Header {
-			parent_hash: ZERO_H256.clone(),
-			timestamp: BAD_U256.clone(),
-			number: ZERO_U256.clone(),
-			author: ZERO_ADDRESS.clone(),
+			parent_hash: ZERO_H256,
+			timestamp: BAD_U256,
+			number: ZERO_U256,
+			author: ZERO_ADDRESS,
 
-			transactions_root: ZERO_H256.clone(),
-			uncles_hash: ZERO_H256.clone(),
+			transactions_root: SHA3_NULL_RLP,
+			uncles_hash: SHA3_EMPTY_LIST_RLP,
 			extra_data: vec![],
 
-			state_root: ZERO_H256.clone(),
-			receipts_root: ZERO_H256.clone(),
-			log_bloom: ZERO_LOGBLOOM.clone(),
-			gas_used: ZERO_U256.clone(),
-			gas_limit: ZERO_U256.clone(),
+			state_root: SHA3_NULL_RLP,
+			receipts_root: SHA3_NULL_RLP,
+			log_bloom: ZERO_LOGBLOOM,
+			gas_used: ZERO_U256,
+			gas_limit: ZERO_U256,
 
-			difficulty: ZERO_U256.clone(),
+			difficulty: ZERO_U256,
 			seal: vec![],
 			hash: Cell::new(None),
 		}
