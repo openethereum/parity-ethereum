@@ -321,6 +321,10 @@ impl<'a> Decoder for BasicDecoder<'a> {
 			.collect();
 		Ok(v)
 	}
+
+	fn as_rlp<'s>(&'s self) -> &'s UntrustedRlp<'s> {
+		&self.rlp
+	}
 }
 
 impl<T> Decodable for T where T: FromBytes {

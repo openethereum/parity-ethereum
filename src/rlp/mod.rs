@@ -1,10 +1,10 @@
-//! Rlp serialization module 
-//! 
-//! Allows encoding, decoding, and view onto rlp-slice 
+//! Rlp serialization module
+//!
+//! Allows encoding, decoding, and view onto rlp-slice
 //!
 //!# What should you use when?
 //!
-//!### Use `encode` function when: 
+//!### Use `encode` function when:
 //! * You want to encode something inline.
 //! * You do not work on big set of data.
 //! * You want to encode whole data structure at once.
@@ -23,7 +23,7 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 //!
-//!### Use `UntrustedRlp` when: 
+//!### Use `UntrustedRlp` when:
 //! * You are working on untrusted data (~corrupted).
 //! * You need to handle data corruption errors.
 //! * You are working on input data.
@@ -47,14 +47,16 @@ pub use self::rlpstream::{RlpStream};
 use super::hash::H256;
 
 pub const NULL_RLP: [u8; 1] = [0x80; 1];
+pub const EMPTY_LIST_RLP: [u8; 1] = [0xC0; 1];
 pub const SHA3_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
+pub const SHA3_EMPTY_LIST_RLP: H256 = H256( [0x1d, 0xcc, 0x4d, 0xe8, 0xde, 0xc7, 0x5d, 0x7a, 0xab, 0x85, 0xb5, 0x67, 0xb6, 0xcc, 0xd4, 0x1a, 0xd3, 0x12, 0x45, 0x1b, 0x94, 0x8a, 0x74, 0x13, 0xf0, 0xa1, 0x42, 0xfd, 0x40, 0xd4, 0x93, 0x47] );
 
 /// Shortcut function to decode trusted rlp
-/// 
+///
 /// ```rust
 /// extern crate ethcore_util as util;
 /// use util::rlp::*;
-/// 
+///
 /// fn main () {
 /// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 /// 	let animals: Vec<String> = decode(&data);
@@ -71,7 +73,7 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 /// ```rust
 /// extern crate ethcore_util as util;
 /// use util::rlp::*;
-/// 
+///
 /// fn main () {
 /// 	let animals = vec!["cat", "dog"];
 /// 	let out = encode(&animals);

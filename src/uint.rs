@@ -52,11 +52,17 @@ macro_rules! construct_uint {
 		impl $name {
 			/// Conversion to u32
 			#[inline]
-			fn low_u32(&self) -> u32 {
+			pub fn low_u32(&self) -> u32 {
 				let &$name(ref arr) = self;
 				arr[0] as u32
 			}
 
+			/// Conversion to u64
+			#[inline]
+			pub fn low_u64(&self) -> u64 {
+				let &$name(ref arr) = self;
+				arr[0]
+			}
 			/// Return the least number of bits needed to represent the number
 			#[inline]
 			pub fn bits(&self) -> usize {
@@ -101,7 +107,7 @@ macro_rules! construct_uint {
 			pub fn zero() -> $name {
 				From::from(0u64)
 			}
-			
+
 			#[inline]
 			pub fn one() -> $name {
 				From::from(1u64)
@@ -410,7 +416,7 @@ macro_rules! construct_uint {
 			fn from_dec_str(value: &str) -> Result<Self, Self::Err> {
 				Ok(value.bytes()
 				   .map(|b| b - 48)
-				   .fold($name::from(0u64), | acc, c | 
+				   .fold($name::from(0u64), | acc, c |
 						 // fast multiplication by 10
 						 // (acc << 3) + (acc << 1) => acc * 10
 						 (acc << 3) + (acc << 1) + $name::from(c)
@@ -431,6 +437,18 @@ impl From<U128> for U256 {
 		ret[0] = arr[0];
 		ret[1] = arr[1];
 		U256(ret)
+	}
+}
+
+impl From<U256> for u64 {
+	fn from(value: U256) -> u64 {
+		value.low_u64()
+	}
+}
+
+impl From<U256> for u32 {
+	fn from(value: U256) -> u32 {
+		value.low_u32()
 	}
 }
 

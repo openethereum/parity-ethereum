@@ -14,7 +14,7 @@ use math::log2;
 use uint::U256;
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
-/// 
+///
 /// Note: types implementing `FixedHash` must be also `BytesConvertable`.
 pub trait FixedHash: Sized + BytesConvertable {
 	fn new() -> Self;
@@ -33,7 +33,7 @@ pub trait FixedHash: Sized + BytesConvertable {
 
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
-		#[derive(Eq)]
+		#[derive(Eq, Copy)]
 		pub struct $from (pub [u8; $size]);
 
 		impl BytesConvertable for $from {

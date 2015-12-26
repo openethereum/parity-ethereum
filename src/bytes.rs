@@ -1,27 +1,27 @@
 //! Unified interfaces for bytes operations on basic types
-//! 
+//!
 //! # Examples
 //! ```rust
 //! extern crate ethcore_util as util;
-//! 
+//!
 //! fn bytes_convertable() {
 //! 	use util::bytes::BytesConvertable;
 //!
 //! 	let arr = [0; 5];
 //! 	let slice: &[u8] = arr.bytes();
 //! }
-//! 
+//!
 //! fn to_bytes() {
 //! 	use util::bytes::ToBytes;
-//! 	
+//!
 //! 	let a: Vec<u8> = "hello_world".to_bytes();
 //! 	let b: Vec<u8> = 400u32.to_bytes();
 //! 	let c: Vec<u8> = 0xffffffffffffffffu64.to_bytes();
 //! }
-//! 
+//!
 //! fn from_bytes() {
 //! 	use util::bytes::FromBytes;
-//! 	
+//!
 //! 	let a = String::from_bytes(&[b'd', b'o', b'g']);
 //! 	let b = u16::from_bytes(&[0xfa]);
 //! 	let c = u64::from_bytes(&[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
@@ -138,7 +138,7 @@ impl <'a> ToBytes for &'a str {
 	fn to_bytes(&self) -> Vec<u8> {
 		From::from(*self)
 	}
-	
+
 	fn to_bytes_len(&self) -> usize { self.len() }
 }
 
@@ -147,7 +147,7 @@ impl ToBytes for String {
 		let s: &str = self.as_ref();
 		From::from(s)
 	}
-	
+
 	fn to_bytes_len(&self) -> usize { self.len() }
 }
 
@@ -166,6 +166,14 @@ impl ToBytes for u64 {
 	fn to_bytes_len(&self) -> usize { 8 - self.leading_zeros() as usize / 8 }
 }
 
+impl ToBytes for bool {
+	fn to_bytes(&self) -> Vec<u8> {
+		vec![ if *self { 1u8 } else { 0u8 } ]
+	}
+
+	fn to_bytes_len(&self) -> usize { 1 }
+}
+
 macro_rules! impl_map_to_bytes {
 	($from: ident, $to: ty) => {
 		impl ToBytes for $from {
@@ -182,7 +190,7 @@ impl_map_to_bytes!(u32, u64);
 macro_rules! impl_uint_to_bytes {
 	($name: ident) => {
 		impl ToBytes for $name {
-			fn to_bytes(&self) -> Vec<u8> { 
+			fn to_bytes(&self) -> Vec<u8> {
 				let mut res= vec![];
 				let count = self.to_bytes_len();
 				res.reserve(count);
@@ -210,7 +218,7 @@ impl <T>ToBytes for T where T: FixedHash {
 			ptr::copy(self.bytes().as_ptr(), res.as_mut_ptr(), T::size());
 			res.set_len(T::size());
 		}
-		
+
 		res
 	}
 }
@@ -263,6 +271,17 @@ impl FromBytes for u64 {
 		}
 	}
 }
+
+impl FromBytes for bool {
+	fn from_bytes(bytes: &[u8]) -> FromBytesResult<bool> {
+		match bytes.len() {
+			0 => Ok(false),
+			1 => Ok(bytes[0] != 0),
+			_ => Err(FromBytesError::DataIsTooLong),
+		}
+	}
+}
+
 
 macro_rules! impl_map_from_bytes {
 	($from: ident, $to: ident) => {
