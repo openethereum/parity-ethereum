@@ -4,7 +4,7 @@ use self::json_tests::rlp as rlptest;
 use std::{fmt, cmp};
 use std::str::FromStr;
 use rlp;
-use rlp::{UntrustedRlp, RlpStream, Decodable, View, Stream, Encodable};
+use rlp::{UntrustedRlp, RlpStream, View, Stream};
 use uint::U256;
 
 #[test]
@@ -155,7 +155,7 @@ fn encode_address() {
 	use hash::*;
 
 	let tests = vec![
-		ETestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+		ETestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(),
 				  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
 							 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
 							 0xb3, 0x7d, 0x11, 0x06])
@@ -290,7 +290,7 @@ fn decode_untrusted_address() {
 	use hash::*;
 
 	let tests = vec![
-		DTestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+		DTestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(),
 				  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
 							 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
 							 0xb3, 0x7d, 0x11, 0x06])

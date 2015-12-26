@@ -655,19 +655,3 @@ impl Handler for Host {
 		}
 	}
 }
-
-
-#[cfg(test)]
-mod tests {
-    use network::host::Host;
-	use env_logger;
-    #[test]
-	//#[ignore]
-    fn net_connect() {
-		env_logger::init().unwrap();
-        let _ = Host::start();
-    }
-}
-
-
-
