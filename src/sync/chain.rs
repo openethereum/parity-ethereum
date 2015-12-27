@@ -261,7 +261,8 @@ impl ChainSync {
 				_ => {
 					if self.have_common_block {
 						//validate chain
-						if number == self.last_imported_block + 1 && info.parent_hash != self.last_imported_hash {
+						if self.have_common_block && number == self.last_imported_block + 1 && info.parent_hash != self.last_imported_hash {
+							// TODO: lower peer rating
 							debug!(target: "sync", "Mismatched block header {} {}", number, info.hash());
 							continue;
 						}
@@ -423,10 +424,11 @@ impl ChainSync {
 		self.send_status(io, peer);
 	}
 
-	/// Resume downloading after witing state
+	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
-		let peers: Vec<PeerId> = self.peers.keys().map(|k| *k).collect();
-		for p in peers {
+		let mut peers: Vec<(PeerId, U256)> = self.peers.iter().map(|(k, p)| (*k, p.difficulty)).collect();
+		peers.sort_by(|&(_, d1), &(_, d2)| d1.cmp(&d2).reverse()); //TODO: sort by rating
+		for (p, _) in peers {
 			self.sync_peer(io, &p, false);
 		}
 	}
@@ -511,12 +513,14 @@ impl ChainSync {
 			let mut start = 0usize;
 			if !self.have_common_block {
 				// download backwards until common block is found 1 header at a time
-				start = io.chain().info().last_block_number as usize;
+				let chain_info = io.chain().info();
+				start = chain_info.last_block_number as usize;
 				if !self.headers.is_empty() {
 					start = min(start, self.headers.range_iter().next().unwrap().0 as usize - 1);
 				}
 				if start == 0 {
 					self.have_common_block = true; //reached genesis
+					self.last_imported_hash = chain_info.genesis_hash;
 				}
 			}
 			if self.have_common_block {
