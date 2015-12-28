@@ -74,6 +74,8 @@ pub type PeerId = host::PeerId;
 pub type PacketId = host::PacketId;
 pub type TimerToken = host::TimerToken;
 pub type HandlerIo<'s> = host::HostIo<'s>;
+pub type Message = host::UserMessage;
+pub type MessageId = host::UserMessageId;
 
 pub trait ProtocolHandler: Send {
 	fn initialize(&mut self, io: &mut HandlerIo);
@@ -81,6 +83,7 @@ pub trait ProtocolHandler: Send {
 	fn connected(&mut self, io: &mut HandlerIo, peer: &PeerId);
 	fn disconnected(&mut self, io: &mut HandlerIo, peer: &PeerId);
 	fn timeout(&mut self, io: &mut HandlerIo, timer: TimerToken);
+	fn message(&mut self, io: &mut HandlerIo, message: &Message);
 }
 
 pub struct NetworkClient;

@@ -162,6 +162,15 @@ pub enum HostMessage {
 		protocol: ProtocolId,
 		data: Vec<u8>,
 	},
+	UserMessage(UserMessage),
+}
+
+pub type UserMessageId = u32;
+
+pub struct UserMessage {
+	protocol: ProtocolId,
+	id: UserMessageId,
+	data: Option<Vec<u8>>,
 }
 
 pub type PeerId = usize;
@@ -237,9 +246,21 @@ impl<'s> HostIo<'s> {
 		}
 	}
 
+	pub fn message(&mut self, id: UserMessageId, data: Option<Vec<u8>>) {
+		match self.event_loop.channel().send(HostMessage::UserMessage(UserMessage {
+			protocol: self.protocol,
+			id: id,
+			data: data
+		})) {
+			Ok(_) => {}
+			Err(e) => { panic!("Error sending io message {:?}", e); }
+		}
+	}
+
 	pub fn disable_peer(&mut self, _peer: PeerId) {
 		//TODO: remove capability, disconnect if no capabilities left
 	}
+
 }
 
 struct UserTimer {
@@ -652,6 +673,13 @@ impl Handler for Host {
 					}
 				}
 			},
+			HostMessage::UserMessage(message) => {
+				for (p, h) in self.handlers.iter_mut() {
+					if p != &message.protocol {
+						h.message(&mut HostIo::new(message.protocol, None, event_loop, &mut self.connections, &mut self.timers), &message);
+					}
+				}
+			}
 		}
 	}
 }
