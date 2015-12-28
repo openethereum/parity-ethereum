@@ -7,12 +7,12 @@ use util::sha3::*;
 use evm;
 
 /// Should be used to convert jit types to ethcore
-pub trait FromJit<T>: Sized {
+trait FromJit<T>: Sized {
 	fn from_jit(input: T) -> Self;
 }
 
 /// Should be used to covert ethcore types to jit
-pub trait IntoJit<T> {
+trait IntoJit<T> {
 	fn into_jit(self) -> T;
 }
 
@@ -88,19 +88,19 @@ impl IntoJit<evmjit::RuntimeDataHandle> for evm::RuntimeData {
 	}
 }
 
-pub struct EnvAdapter {
-	env: evm::Env
+struct EnvAdapter<'a> {
+	env: &'a mut evm::Env
 }
 
-impl EnvAdapter {
-	pub fn new() -> EnvAdapter {
+impl<'a> EnvAdapter<'a> {
+	fn new(env: &'a mut evm::Env) -> Self {
 		EnvAdapter {
-			env: evm::Env::new()
+			env: env
 		}
 	}
 }
 
-impl evmjit::Env for EnvAdapter {
+impl<'a> evmjit::Env for EnvAdapter<'a> {
 	fn sload(&self, index: *const evmjit::I256, out_value: *mut evmjit::I256) {
 		unsafe {
 			let i = H256::from_jit(&*index);
@@ -160,12 +160,35 @@ impl evmjit::Env for EnvAdapter {
 	}
 }
 
+impl From<evmjit::ReturnCode> for evm::ReturnCode {
+	fn from(code: evmjit::ReturnCode) -> Self {
+		match code {
+			evmjit::ReturnCode::Stop => evm::ReturnCode::Stop,
+			evmjit::ReturnCode::Return => evm::ReturnCode::Return,
+			evmjit::ReturnCode::Suicide => evm::ReturnCode::Suicide,
+			evmjit::ReturnCode::OutOfGas => evm::ReturnCode::OutOfGas,
+			_ => evm::ReturnCode::InternalError
+		}
+	}
+}
+
+pub struct JitEvm;
+
+impl evm::Evm for JitEvm {
+	fn exec(data: evm::RuntimeData, env: &mut evm::Env) -> evm::ReturnCode {
+		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
+		let env_adapter: EnvAdapter<'static> = unsafe { ::std::mem::transmute(EnvAdapter::new(env)) };
+		let mut env_handle = evmjit::EnvHandle::new(env_adapter);
+		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut env_handle) };
+		From::from(context.exec())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
 	use util::hash::*;
 	use util::uint::*;
-	use evmjit::{ContextHandle, RuntimeDataHandle, EnvHandle, ReturnCode, ffi};
 	use evm::*;
 	use evm::jit::{FromJit, IntoJit};
 
@@ -190,17 +213,8 @@ mod tests {
 	}
 
 	#[test]
-	fn test_env_sload() {
-		let env = EnvHandle::new(EnvAdapter::new());
-		let i = U256::from(0).into_jit();
-		let mut o = U256::from(0).into_jit();
-		unsafe {
-			ffi::env_sload(&env as *const _, &i as *const _, &mut o as *mut _);
-		}
-	}
-
-	#[test]
 	fn test_env_adapter() {
+
 		let mut data = RuntimeData::new();
 		data.coinbase = Address::from_str("2adc25665018aa1fe0e6bc666dac8fc2697ff9ba").unwrap();
 		data.difficulty = U256::from(0x0100);
@@ -215,11 +229,8 @@ mod tests {
 		data.gas_price = 0x3b9aca00;
 		data.origin = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		data.call_value = U256::from_str("0de0b6b3a7640000").unwrap();
-		let env = EnvAdapter::new();
-		let mut context = ContextHandle::new(data.into_jit(), EnvHandle::new(env));
-		// crashes with signal 11 on env.sload
-		assert_eq!(context.exec(), ReturnCode::Stop);
-		assert!(false);
+		let mut env = Env::new();
+		assert_eq!(JitEvm::exec(data, &mut env), ReturnCode::Stop);
 	}
 
 }

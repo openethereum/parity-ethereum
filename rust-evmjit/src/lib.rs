@@ -69,21 +69,19 @@ impl DerefMut for RuntimeDataHandle {
 pub struct ContextHandle {
 	context: *mut JitContext,
 	data_handle: RuntimeDataHandle,
-	env: EnvHandle
 }
 
 impl ContextHandle {
 	/// Creates new context handle.
-	pub fn new(data_handle: RuntimeDataHandle, env: EnvHandle) -> Self {
+	/// This function is unsafe cause env lifetime is not considered
+	pub unsafe fn new(data_handle: RuntimeDataHandle, env: &mut EnvHandle) -> Self {
 		import_evmjit_abi();
 		let mut handle = ContextHandle {
-			context: unsafe {::std::mem::uninitialized()},
+			context: std::mem::uninitialized(),
 			data_handle: data_handle,
-			env: env
 		};
 
-		println!("env address: {:?}", &handle.env as *const _);
-		handle.context = unsafe { evmjit_create_context(handle.data_handle.mut_runtime_data(), &mut handle.env) };
+		handle.context = evmjit_create_context(handle.data_handle.mut_runtime_data(), env);
 		handle
 	}
 
@@ -263,32 +261,30 @@ pub mod ffi {
 
 	#[no_mangle]
 	pub unsafe extern "C" fn env_sload(env: *const EnvHandle, index: *const JitI256, out_value: *mut JitI256) {
-		println!("sload env address: {:?}", env);
 		let env = &*env;
 		env.sload(index, out_value);
 	}
 
 	#[no_mangle]
 	pub unsafe extern "C" fn env_sstore(env: *mut EnvHandle, index: *mut JitI256, value: *mut JitI256) {
-		println!("sstore");
 		let env = &mut *env;
 		env.sstore(index, value);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_balance(env: *const EnvHandle, address: *const JitI256, out_value: *mut JitI256) {
+	pub unsafe extern "C" fn env_balance(env: *const EnvHandle, address: *const JitI256, out_value: *mut JitI256) {
 		let env = &*env;
 		env.balance(address, out_value);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_blockhash(env: *const EnvHandle, number: *const JitI256, out_hash: *mut JitI256) {
+	pub unsafe extern "C" fn env_blockhash(env: *const EnvHandle, number: *const JitI256, out_hash: *mut JitI256) {
 		let env = &*env;
 		env.blockhash(number, out_hash);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_create(env: *mut EnvHandle, 
+	pub unsafe extern "C" fn env_create(env: *mut EnvHandle, 
 							 io_gas: *mut u64, 
 							 endowment: *const JitI256, 
 							 init_beg: *const u8, 
@@ -299,7 +295,7 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_call(env: *mut EnvHandle, 
+	pub unsafe extern "C" fn env_call(env: *mut EnvHandle, 
 						   io_gas: *mut u64,
 						   call_gas: *const u64,
 						   receive_address: *const JitI256,
@@ -314,7 +310,7 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sha3(begin: *const u8, size: u64, out_hash: *mut JitI256) {
+	pub unsafe extern "C" fn env_sha3(begin: *const u8, size: u64, out_hash: *mut JitI256) {
 		// TODO: write tests
 		// it may be incorrect due to endianess
 		// if it is, don't use `from_raw_parts`
@@ -328,13 +324,13 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_extcode(env: *const EnvHandle, address: *const JitI256, size: *mut u64) -> *const u8 {
+	pub unsafe extern "C" fn env_extcode(env: *const EnvHandle, address: *const JitI256, size: *mut u64) -> *const u8 {
 		let env = &*env;
 		env.extcode(address, size)
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_log(env: *mut EnvHandle,
+	pub unsafe extern "C" fn env_log(env: *mut EnvHandle,
 						  beg: *const u8,
 						  size: *const u64,
 						  topic1: *const JitI256,
