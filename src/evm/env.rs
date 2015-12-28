@@ -8,11 +8,15 @@ impl Env {
 	}
 
 	pub fn sload(&self, _index: &H256) -> H256 {
-		unimplemented!();
+		println!("sload!");
+		//unimplemented!();
+		H256::new()
 	}
 
 	pub fn sstore(&self, _index: &H256, _value: &H256) {
-		unimplemented!();
+		println!("sstore!");
+		//unimplemented!();
+		
 	}
 }
 

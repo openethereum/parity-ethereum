@@ -68,20 +68,23 @@ impl DerefMut for RuntimeDataHandle {
 /// Safe handle for jit context.
 pub struct ContextHandle {
 	context: *mut JitContext,
-	_data_handle: RuntimeDataHandle,
-	_env: EnvHandle
+	data_handle: RuntimeDataHandle,
+	env: EnvHandle
 }
 
 impl ContextHandle {
 	/// Creates new context handle.
-	pub fn new(mut data_handle: RuntimeDataHandle, mut env: EnvHandle) -> Self {
+	pub fn new(data_handle: RuntimeDataHandle, env: EnvHandle) -> Self {
 		import_evmjit_abi();
-		let context = unsafe { evmjit_create_context(data_handle.mut_runtime_data(), &mut env) };
-		ContextHandle {
-			context: context,
-			_data_handle: data_handle,
-			_env: env
-		}
+		let mut handle = ContextHandle {
+			context: unsafe {::std::mem::uninitialized()},
+			data_handle: data_handle,
+			env: env
+		};
+
+		println!("env address: {:?}", &handle.env as *const _);
+		handle.context = unsafe { evmjit_create_context(handle.data_handle.mut_runtime_data(), &mut handle.env) };
+		handle
 	}
 
 	/// Executes context.
@@ -156,7 +159,7 @@ impl Deref for EnvHandle {
 	fn deref(&self) -> &Self::Target {
 		match self.env_impl {
 			Some(ref env) => env,
-			None => { panic!(); }
+			None => { panic!("Handle is empty!"); }
 		}
 	}
 }
@@ -165,7 +168,7 @@ impl DerefMut for EnvHandle {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		match self.env_impl {
 			Some(ref mut env) => env,
-			None => { panic!(); }
+			None => { panic!("Handle is empty!"); }
 		}
 	}
 }
@@ -201,6 +204,7 @@ pub mod ffi {
 	}
 
 	#[repr(C)]
+	#[derive(Debug)]
 	/// Jit runtime data.
 	pub struct JitRuntimeData {
 		pub gas: i64,
@@ -232,7 +236,7 @@ pub mod ffi {
 	///	nm your_executable -g | grep env 
 	/// ```
 	/// 
-	/// It Should give the following output:
+	/// It should give the following output:
 	///
 	/// ```bash
 	/// 00000001000779e0 T _env_balance
@@ -258,13 +262,15 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sload(env: *const EnvHandle, index: *const JitI256, out_value: *mut JitI256) {
+	pub unsafe extern "C" fn env_sload(env: *const EnvHandle, index: *const JitI256, out_value: *mut JitI256) {
+		println!("sload env address: {:?}", env);
 		let env = &*env;
 		env.sload(index, out_value);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sstore(env: *mut EnvHandle, index: *const JitI256, value: *const JitI256) {
+	pub unsafe extern "C" fn env_sstore(env: *mut EnvHandle, index: *mut JitI256, value: *mut JitI256) {
+		println!("sstore");
 		let env = &mut *env;
 		env.sstore(index, value);
 	}

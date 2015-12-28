@@ -162,9 +162,10 @@ impl evmjit::Env for EnvAdapter {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 	use util::hash::*;
 	use util::uint::*;
-	use evmjit::{ContextHandle, RuntimeDataHandle, EnvHandle, ReturnCode};
+	use evmjit::{ContextHandle, RuntimeDataHandle, EnvHandle, ReturnCode, ffi};
 	use evm::*;
 	use evm::jit::{FromJit, IntoJit};
 
@@ -189,12 +190,36 @@ mod tests {
 	}
 
 	#[test]
+	fn test_env_sload() {
+		let env = EnvHandle::new(EnvAdapter::new());
+		let i = U256::from(0).into_jit();
+		let mut o = U256::from(0).into_jit();
+		unsafe {
+			ffi::env_sload(&env as *const _, &i as *const _, &mut o as *mut _);
+		}
+	}
+
+	#[test]
 	fn test_env_adapter() {
 		let mut data = RuntimeData::new();
-		data.code = vec![0x60, 0x00, 0x60, 0x00, 0x20, 0x60, 0x00, 0x55];
+		data.coinbase = Address::from_str("2adc25665018aa1fe0e6bc666dac8fc2697ff9ba").unwrap();
+		data.difficulty = U256::from(0x0100);
+		data.gas_limit = U256::from(0x0f4240);
+		data.number = 0;
+		data.timestamp = 1;
+		
+		data.address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		data.caller = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		data.code = vec![0x60, 0x00, 0x60, 0x00, 0x55];
+		data.gas = 0x174876e800;
+		data.gas_price = 0x3b9aca00;
+		data.origin = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		data.call_value = U256::from_str("0de0b6b3a7640000").unwrap();
 		let env = EnvAdapter::new();
 		let mut context = ContextHandle::new(data.into_jit(), EnvHandle::new(env));
+		// crashes with signal 11 on env.sload
 		assert_eq!(context.exec(), ReturnCode::Stop);
+		assert!(false);
 	}
 
 }
