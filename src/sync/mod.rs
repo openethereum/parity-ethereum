@@ -1,6 +1,6 @@
 use std::sync::{Arc};
 use eth::{BlockChainClient};
-use util::network::{ProtocolHandler, NetworkService, HandlerIo, TimerToken, PeerId, PacketId, Error as NetworkError};
+use util::network::{ProtocolHandler, NetworkService, HandlerIo, TimerToken, PeerId, PacketId, Message, Error as NetworkError};
 use sync::chain::{ChainSync};
 
 mod chain;
@@ -100,6 +100,9 @@ impl ProtocolHandler for EthSync {
 
 	fn timeout(&mut self, io: &mut HandlerIo, _timer: TimerToken) {
 		self.sync.maintain_sync(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
+	}
+
+	fn message(&mut self, _io: &mut HandlerIo, _message: &Message) {
 	}
 }
 

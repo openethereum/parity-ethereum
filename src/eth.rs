@@ -38,7 +38,6 @@ pub struct BlockQueueStatus {
 pub type TreeRoute = ::blockchain::TreeRoute;
 
 pub type BlockNumber = u32;
-pub type BlockHeader = ::header::Header;
 
 pub trait BlockChainClient : Sync {
 	fn block_header(&self, h: &H256) -> Option<Bytes>;

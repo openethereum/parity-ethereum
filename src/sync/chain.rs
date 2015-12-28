@@ -8,7 +8,8 @@ use util::uint::{U256};
 use util::rlp::{Rlp, RlpStream, self}; //TODO: use UntrustedRlp
 use util::rlp::rlptraits::{Stream, View};
 use util::sha3::Hashable;
-use eth::{BlockNumber, BlockChainClient, BlockHeader, BlockStatus, QueueStatus, ImportResult};
+use eth::{BlockNumber, BlockChainClient, BlockStatus, QueueStatus, ImportResult};
+use views::{HeaderView};
 use sync::range_collection::{RangeCollection, ToUsize, FromUsize};
 use sync::{SyncIo};
 
@@ -242,8 +243,8 @@ impl ChainSync {
 		}
 
 		for i in 0..item_count {
-			let info: BlockHeader = r.val_at(i);
-			let number = BlockNumber::from(info.number);
+			let info = HeaderView::new_from_rlp(r.at(i));
+			let number = BlockNumber::from(info.number());
 			if number <= self.last_imported_block || self.headers.have_item(&number) {
 				trace!(target: "sync", "Skipping existing block header");
 				continue;
@@ -251,29 +252,30 @@ impl ChainSync {
 			if number > self.highest_block {
 				self.highest_block = number;
 			}
-			match io.chain().block_status(&info.hash()) {
+			let hash = info.sha3();
+			match io.chain().block_status(&hash) {
 				BlockStatus::InChain => {
 					self.have_common_block = true;
 					self.last_imported_block = number;
-					self.last_imported_hash = info.hash();
-					trace!(target: "sync", "Found common header {} ({})", number, info.hash());
+					self.last_imported_hash = hash;
+					trace!(target: "sync", "Found common header {} ({})", number, hash);
 				},
 				_ => {
 					if self.have_common_block {
 						//validate chain
-						if self.have_common_block && number == self.last_imported_block + 1 && info.parent_hash != self.last_imported_hash {
+						if self.have_common_block && number == self.last_imported_block + 1 && info.parent_hash() != self.last_imported_hash {
 							// TODO: lower peer rating
-							debug!(target: "sync", "Mismatched block header {} {}", number, info.hash());
+							debug!(target: "sync", "Mismatched block header {} {}", number, hash);
 							continue;
 						}
-						if self.headers.find_item(&(number - 1)).map_or(false, |p| p.hash != info.parent_hash) {
+						if self.headers.find_item(&(number - 1)).map_or(false, |p| p.hash != info.parent_hash()) {
 							// mismatching parent id, delete the previous block and don't add this one
 							// TODO: lower peer rating
-							debug!(target: "sync", "Mismatched block header {} {}", number, info.hash());
+							debug!(target: "sync", "Mismatched block header {} {}", number, hash);
 							self.remove_downloaded_blocks(number - 1);
 							continue;
 						}
-						if self.headers.find_item(&(number + 1)).map_or(false, |p| p.parent != info.hash()) {
+						if self.headers.find_item(&(number + 1)).map_or(false, |p| p.parent != hash) {
 							// mismatching parent id for the next block, clear following headers
 							debug!(target: "sync", "Mismatched block header {}", number + 1);
 							self.remove_downloaded_blocks(number + 1);
@@ -281,15 +283,15 @@ impl ChainSync {
 					}
 					let hdr = Header {
 						data: r.at(i).raw().to_vec(),
-						hash: info.hash(),
-						parent: info.parent_hash,
+						hash: hash,
+						parent: info.parent_hash(),
 					};
 					self.headers.insert_item(number, hdr);
 					let header_id = HeaderId {
-						transactions_root: info.transactions_root,
-						uncles: info.uncles_hash
+						transactions_root: info.transactions_root(),
+						uncles: info.uncles_hash()
 					};
-					trace!(target: "sync", "Got header {} ({})", number, info.hash());
+					trace!(target: "sync", "Got header {} ({})", number, hash);
 					if header_id.transactions_root == rlp::SHA3_NULL_RLP && header_id.uncles == rlp::SHA3_EMPTY_LIST_RLP {
 						//empty body, just mark as downloaded
 						let mut body_stream = RlpStream::new_list(2);
@@ -638,10 +640,10 @@ impl ChainSync {
 		for n in self.headers.get_tail(&start) {
 			match self.headers.find_item(&n) {
 				Some(ref header_data) => {
-					let header_to_delete: BlockHeader = rlp::decode(&header_data.data);
+					let header_to_delete = HeaderView::new(&header_data.data);
 					let header_id = HeaderId {
-						transactions_root: header_to_delete.transactions_root,
-						uncles: header_to_delete.uncles_hash
+						transactions_root: header_to_delete.transactions_root(),
+						uncles: header_to_delete.uncles_hash()
 					};
 					self.header_ids.remove(&header_id);
 				},
@@ -746,7 +748,7 @@ impl ChainSync {
 			let hash: H256 = r.val_at(0);
 			trace!(target: "sync", "-> GetBlockHeaders (hash: {}, max: {}, skip: {}, reverse:{})", hash, max_headers, skip, reverse);
 			match io.chain().block_header(&hash) {
-				Some(hdr) => From::from(rlp::decode::<BlockHeader>(&hdr).number),
+				Some(hdr) => From::from(HeaderView::new(&hdr).number()),
 				None => last
 			}
 		}
