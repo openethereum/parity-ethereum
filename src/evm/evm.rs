@@ -12,5 +12,5 @@ pub enum ReturnCode {
 }
 
 pub trait Evm {
-	fn exec(data: RuntimeData, env: &mut Env) -> ReturnCode;
+	fn exec(&self, data: RuntimeData, env: &mut Env) -> ReturnCode;
 }

@@ -189,7 +189,7 @@ impl From<evmjit::ReturnCode> for evm::ReturnCode {
 pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
-	fn exec(data: evm::RuntimeData, env: &mut evm::Env) -> evm::ReturnCode {
+	fn exec(&self, data: evm::RuntimeData, env: &mut evm::Env) -> evm::ReturnCode {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let env_adapter: EnvAdapter<'static> = unsafe { ::std::mem::transmute(EnvAdapter::new(env)) };
 		let mut env_handle = evmjit::EnvHandle::new(env_adapter);
@@ -205,6 +205,7 @@ mod tests {
 	use util::uint::*;
 	use evm::*;
 	use evm::jit::{FromJit, IntoJit};
+	use super::*;
 
 	#[test]
 	fn test_to_and_from_u256() {
@@ -254,7 +255,8 @@ mod tests {
 		data.origin = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		data.call_value = U256::from_str("0de0b6b3a7640000").unwrap();
 		let mut env = Env::new();
-		assert_eq!(JitEvm::exec(data, &mut env), ReturnCode::Stop);
+		let evm = JitEvm;
+		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
 	}
 
 }
