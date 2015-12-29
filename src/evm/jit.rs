@@ -34,6 +34,12 @@ impl<'a> FromJit<&'a evmjit::I256> for H256 {
 	}
 }
 
+impl<'a> FromJit<&'a evmjit::I256> for Address {
+	fn from_jit(input: &'a evmjit::I256) -> Self {
+		Address::from(H256::from_jit(input))
+	}
+}
+
 impl IntoJit<evmjit::I256> for U256 {
 	fn into_jit(self) -> evmjit::I256 {
 		let mut res: evmjit::I256 = unsafe { mem::uninitialized() };
@@ -115,12 +121,20 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 		}
 	}
 
-	fn balance(&self, _address: *const evmjit::I256, _out_value: *mut evmjit::I256) {
-		unimplemented!();
+	fn balance(&self, address: *const evmjit::I256, out_value: *mut evmjit::I256) {
+		unsafe {
+			let a = Address::from_jit(&*address);
+			let o = self.env.balance(&a);
+			*out_value = o.into_jit();
+		}
 	}
 
-	fn blockhash(&self, _number: *const evmjit::I256, _out_hash: *mut evmjit::I256) {
-		unimplemented!();
+	fn blockhash(&self, number: *const evmjit::I256, out_hash: *mut evmjit::I256) {
+		unsafe {
+			let n = U256::from_jit(&*number);
+			let o = self.env.blockhash(&n);
+			*out_hash = o.into_jit();
+		}
 	}
 
 	fn create(&mut self,
@@ -210,6 +224,16 @@ mod tests {
 		let j = h.clone().into_jit();
 		let h2 = H256::from_jit(&j);
 		assert_eq!(h, h2);
+	}
+
+	#[test]
+	fn test_to_and_from_address() {
+		use std::str::FromStr;
+
+		let a = Address::from_str("2adc25665018aa1fe0e6bc666dac8fc2697ff9ba").unwrap();
+		let j = a.clone().into_jit();
+		let a2 = Address::from_jit(&j);
+		assert_eq!(a, a2);
 	}
 
 	#[test]
