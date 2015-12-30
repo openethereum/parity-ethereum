@@ -191,6 +191,7 @@ impl Encodable for CapabilityInfo {
 	}
 }
 
+/// IO access point
 pub struct HostIo<'s> {
 	protocol: ProtocolId,
     connections: &'s mut Slab<ConnectionEntry>,
@@ -210,6 +211,7 @@ impl<'s> HostIo<'s> {
 		}
 	}
 
+	/// Send a packet over the network to another peer.
 	pub fn send(&mut self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		match self.connections.get_mut(Token(peer)) {
 			Some(&mut ConnectionEntry::Session(ref mut s)) => {
@@ -224,6 +226,7 @@ impl<'s> HostIo<'s> {
 		Ok(())
 	}
 
+	/// Respond to a current network message. Panics if no there is no packet in the context.
 	pub fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		match self.session {
 			Some(session) => self.send(session.as_usize(), packet_id, data),
@@ -233,6 +236,7 @@ impl<'s> HostIo<'s> {
 		}
 	}
 
+	/// Register a new IO timer. Returns a new timer toke. 'ProtocolHandler::timeout' will be called with the token.
 	pub fn register_timer(&mut self, ms: u64) -> Result<TimerToken, Error>{
 		match self.timers.insert(UserTimer {
 				delay: ms,
@@ -246,6 +250,7 @@ impl<'s> HostIo<'s> {
 		}
 	}
 
+	/// Broadcast a message to other IO clients
 	pub fn message(&mut self, id: UserMessageId, data: Option<Vec<u8>>) {
 		match self.event_loop.channel().send(HostMessage::UserMessage(UserMessage {
 			protocol: self.protocol,
@@ -257,6 +262,7 @@ impl<'s> HostIo<'s> {
 		}
 	}
 
+	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
 	pub fn disable_peer(&mut self, _peer: PeerId) {
 		//TODO: remove capability, disconnect if no capabilities left
 	}

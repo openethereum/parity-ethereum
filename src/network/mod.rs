@@ -77,16 +77,23 @@ pub type HandlerIo<'s> = host::HostIo<'s>;
 pub type Message = host::UserMessage;
 pub type MessageId = host::UserMessageId;
 
+/// Network IO protocol handler. This needs to be implemented for each new subprotocol.
+/// TODO: Separate p2p networking IO from IPC IO. `timeout` and `message` should go to a more genera IO provider.
+/// All the handler function are called from within IO event loop.
 pub trait ProtocolHandler: Send {
+	/// Initialize the hadler
 	fn initialize(&mut self, io: &mut HandlerIo);
+	/// Called when new network packet received.
 	fn read(&mut self, io: &mut HandlerIo, peer: &PeerId, packet_id: u8, data: &[u8]);
+	/// Called when new peer is connected. Only called when peer supports the same protocol.
 	fn connected(&mut self, io: &mut HandlerIo, peer: &PeerId);
+	/// Called when a previously connected peer disconnects.
 	fn disconnected(&mut self, io: &mut HandlerIo, peer: &PeerId);
+	/// Timer function called after a timeout created with `HandlerIo::timeout`.
 	fn timeout(&mut self, io: &mut HandlerIo, timer: TimerToken);
+	/// Called when a broadcasted message is received. The message can only be sent from a different protocol handler.
 	fn message(&mut self, io: &mut HandlerIo, message: &Message);
 }
 
-pub struct NetworkClient;
 pub type NetworkService = service::NetworkService;
-
 
