@@ -1,13 +1,32 @@
+//! Contract execution environment.
+
 use util::hash::*;
 use util::uint::*;
 use state::*;
 
+/// This structure represents contract execution environment.
+/// It should be initalized with `State` and contract address.
+/// 
+/// ```markdown
+/// extern crate ethcore_util as util;
+/// extern crate ethcore;
+/// use util::hash::*;
+/// use ethcore::state::*;
+/// use ethcore::evm::*;
+///
+/// fn main() {
+/// 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+/// 	let mut data = RuntimeData::new();
+/// 	let mut env = Env::new(State::new_temp(), address);
+/// }	
+/// ```
 pub struct Env {
 	state: State,
 	address: Address
 }
 
 impl Env {
+	/// Creates new evm environment object with backing state.
 	pub fn new(state: State, address: Address) -> Env {
 		Env {
 			state: state,
@@ -15,17 +34,19 @@ impl Env {
 		}
 	}
 
-	pub fn sload(&self, index: &H256) -> H256 {
-		self.state.storage_at(&self.address, index)
+	/// Returns a value for given key.
+	pub fn sload(&self, key: &H256) -> H256 {
+		self.state.storage_at(&self.address, key)
 	}
 
-	pub fn sstore(&mut self, index: H256, value: H256) {
-		println!("index: {:?}, value: {:?}", index, value);
-		self.state.set_storage(&self.address, index, value)
+	/// Stores a value for given key.
+	pub fn sstore(&mut self, key: H256, value: H256) {
+		self.state.set_storage(&self.address, key, value)
 	}
 
-	pub fn balance(&self, _address: &Address) -> U256 {
-		unimplemented!();
+	/// Returns address balance.
+	pub fn balance(&self, address: &Address) -> U256 {
+		self.state.balance(address)
 	}
 
 	pub fn blockhash(&self, _number: &U256) -> H256 {

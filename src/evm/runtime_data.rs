@@ -1,3 +1,5 @@
+//! Immutable runtime data.
+
 use util::hash::*;
 use util::uint::*;
 

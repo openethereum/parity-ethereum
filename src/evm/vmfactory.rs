@@ -1,4 +1,4 @@
-//! Vm factory.
+//! Evm factory.
 
 use evm::Evm;
 

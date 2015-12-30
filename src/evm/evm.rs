@@ -1,4 +1,4 @@
-//! EVM interface
+//! Evm interface.
 
 use evm::{RuntimeData, Env};
 
