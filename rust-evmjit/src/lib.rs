@@ -318,7 +318,7 @@ pub mod ffi {
 		let input = slice::from_raw_parts(begin, size as usize);
 		let outlen = out_hash.words.len() * 8;
 		let output = slice::from_raw_parts_mut(out_hash.words.as_mut_ptr() as *mut u8, outlen);
-		let mut sha3 = Keccak::new_sha3_256();
+		let mut sha3 = Keccak::new_keccak256();
 		sha3.update(input);	
 		sha3.finalize(output);
 	}

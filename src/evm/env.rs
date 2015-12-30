@@ -1,23 +1,27 @@
 use util::hash::*;
 use util::uint::*;
+use state::*;
 
-pub struct Env;
+pub struct Env {
+	state: State,
+	address: Address
+}
 
 impl Env {
-	pub fn new() -> Env {
-		Env
+	pub fn new(state: State, address: Address) -> Env {
+		Env {
+			state: state,
+			address: address
+		}
 	}
 
-	pub fn sload(&self, _index: &H256) -> H256 {
-		println!("sload!: {:?}", _index);
-		//unimplemented!();
-		H256::new()
+	pub fn sload(&self, index: &H256) -> H256 {
+		self.state.storage_at(&self.address, index)
 	}
 
-	pub fn sstore(&self, _index: &H256, _value: &H256) {
-		println!("sstore!: {:?} , {:?}", _index, _value);
-		//unimplemented!();
-		
+	pub fn sstore(&mut self, index: H256, value: H256) {
+		println!("index: {:?}, value: {:?}", index, value);
+		self.state.set_storage(&self.address, index, value)
 	}
 
 	pub fn balance(&self, _address: &Address) -> U256 {
@@ -47,6 +51,12 @@ impl Env {
 
 	pub fn log(&self, _topics: &[H256], _data: &[u8]) {
 		unimplemented!();
+	}
+
+	/// Drain state
+	// not sure if this is the best solution, but seems to be the easiest one, mk
+	pub fn state(self) -> State {
+		self.state
 	}
 }
 

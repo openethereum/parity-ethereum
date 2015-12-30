@@ -1,4 +1,5 @@
 use std::mem;
+use std::ptr;
 use evmjit;
 use util::hash::*;
 use util::uint::*;
@@ -18,12 +19,11 @@ trait IntoJit<T> {
 
 impl<'a> FromJit<&'a evmjit::I256> for U256 {
 	fn from_jit(input: &'a evmjit::I256) -> Self {
-		let mut res: U256 = unsafe { mem::uninitialized() };
-		res.0[0] = input.words[3];
-		res.0[1] = input.words[2];
-		res.0[2] = input.words[1];
-		res.0[3] = input.words[0];
-		res
+		unsafe {
+			let mut res: U256 = mem::uninitialized();
+			ptr::copy(input.words.as_ptr(), res.0.as_mut_ptr(), 4);
+			res
+		}
 	}
 }
 
@@ -42,12 +42,11 @@ impl<'a> FromJit<&'a evmjit::I256> for Address {
 
 impl IntoJit<evmjit::I256> for U256 {
 	fn into_jit(self) -> evmjit::I256 {
-		let mut res: evmjit::I256 = unsafe { mem::uninitialized() };
-		res.words[0] = self.0[3];
-		res.words[1] = self.0[2];
-		res.words[2] = self.0[1];
-		res.words[3] = self.0[0];
-		res
+		unsafe {
+			let mut res: evmjit::I256 = mem::uninitialized();
+			ptr::copy(self.0.as_ptr(), res.words.as_mut_ptr(), 4);
+			res
+		}
 	}
 }
 
@@ -56,7 +55,7 @@ impl IntoJit<evmjit::I256> for H256 {
 		let mut ret = [0; 4];
 		for i in 0..self.bytes().len() {
 			let rev = self.bytes().len() - 1 - i;
-			let pos = i / 8;
+			let pos = rev / 8;
 			ret[pos] += (self.bytes()[i] as u64) << (rev % 8) * 8;
 		}
 		evmjit::I256 { words: ret }
@@ -117,7 +116,7 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 
 	fn sstore(&mut self, index: *const evmjit::I256, value: *const evmjit::I256) {
 		unsafe {
-			self.env.sstore(&H256::from_jit(&*index), &H256::from_jit(&*value));
+			self.env.sstore(H256::from_jit(&*index), H256::from_jit(&*value));
 		}
 	}
 
@@ -200,12 +199,14 @@ impl evm::Evm for JitEvm {
 
 #[cfg(test)]
 mod tests {
+	use rustc_serialize::hex::FromHex;
 	use std::str::FromStr;
 	use util::hash::*;
 	use util::uint::*;
 	use evm::*;
 	use evm::jit::{FromJit, IntoJit};
 	use super::*;
+	use state::*;
 
 	#[test]
 	fn test_to_and_from_u256() {
@@ -238,25 +239,51 @@ mod tests {
 	}
 
 	#[test]
-	fn test_env_adapter() {
-
+	fn test_env_add() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let mut data = RuntimeData::new();
-		data.coinbase = Address::from_str("2adc25665018aa1fe0e6bc666dac8fc2697ff9ba").unwrap();
-		data.difficulty = U256::from(0x0100);
-		data.gas_limit = U256::from(0x0f4240);
-		data.number = 0;
-		data.timestamp = 1;
-		
-		data.address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		data.caller = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		data.code = vec![0x60, 0x00, 0x60, 0x00, 0x55];
+		data.address = address.clone(); 
 		data.gas = 0x174876e800;
-		data.gas_price = 0x3b9aca00;
-		data.origin = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		data.call_value = U256::from_str("0de0b6b3a7640000").unwrap();
-		let mut env = Env::new();
+		data.code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
+
+		let mut env = Env::new(State::new_temp(), address.clone());
 		let evm = JitEvm;
 		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
+		let state = env.state();
+		assert_eq!(state.storage_at(&address, &H256::new()), 
+				   H256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").unwrap());
+	}
+
+	#[test]
+	fn test_env_sha3_0() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut data = RuntimeData::new();
+		data.address = address.clone(); 
+		data.gas = 0x174876e800;
+		data.code = "6000600020600055".from_hex().unwrap();
+
+		let mut env = Env::new(State::new_temp(), address.clone());
+		let evm = JitEvm;
+		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
+		let state = env.state();
+		assert_eq!(state.storage_at(&address, &H256::new()), 
+				   H256::from_str("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap());
+	}
+
+	#[test]
+	fn test_env_sha3_1() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut data = RuntimeData::new();
+		data.address = address.clone(); 
+		data.gas = 0x174876e800;
+		data.code = "6005600420600055".from_hex().unwrap();
+
+		let mut env = Env::new(State::new_temp(), address.clone());
+		let evm = JitEvm;
+		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
+		let state = env.state();
+		assert_eq!(state.storage_at(&address, &H256::new()), 
+				   H256::from_str("c41589e7559804ea4a2080dad19d876a024ccb05117835447d72ce08c1d020ec").unwrap());
 	}
 
 }
