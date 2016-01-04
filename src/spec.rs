@@ -20,6 +20,8 @@ use null_engine::NullEngine;
 use denominations::*;
 use header::*;
 
+// TODO: need a JSON->cost closure converter.
+
 /// Converts file from base64 gzipped bytes to json
 pub fn base_to_json(source: &[u8]) -> Json {
 	// there is probably no need to store genesis in based64 gzip,
@@ -139,25 +141,28 @@ impl Spec {
 	}
 }
 
-
 impl Spec {
 	/// Loads a chain-specification from a json data structure
 	pub fn from_json(json: Json) -> Spec {
 		// once we commit ourselves to some json parsing library (serde?)
 		// move it to proper data structure
 		let mut state = HashMap::new();
+		let mut builtins = HashMap::new();
+
 		let accounts = json["alloc"].as_object().expect("Missing genesis state");
 		for (address, acc) in accounts.iter() {
 			let addr = Address::from_str(address).unwrap();
 			let o = acc.as_object().unwrap();
-			let balance = U256::from_dec_str(o["balance"].as_string().unwrap()).unwrap();
-			state.insert(addr, Account::new_basic(balance, U256::from(0)));
+			if let Json::Object(_) = o["precompiled"] {
+				if let Some(b) = Builtin::from_json(&o["precompiled"]) {
+					builtins.insert(addr.clone(), b);
+				}
+			}
+			let balance = U256::from_dec_str(o["balance"].as_string().unwrap_or("0")).unwrap();
+			let nonce = U256::from_dec_str(o["nonce"].as_string().unwrap_or("0")).unwrap();
+			// TODO: handle code & data is they exist.
+			state.insert(addr, Account::new_basic(balance, nonce));
 		}
-
-		let builtins = {
-			// TODO: populate from json.
-			HashMap::new()
-		};
 
 		let (seal_fields, seal_rlp) = {
 			if json.find("mixhash").is_some() && json.find("nonce").is_some() {
@@ -189,6 +194,15 @@ impl Spec {
 		}
 	}
 
+	fn standard_builtins() -> HashMap<Address, Builtin> {
+		let mut ret = HashMap::new();
+		ret.insert(Address::from_str("0000000000000000000000000000000000000001").unwrap(), Builtin::from_named_linear("ecrecover", 3000, 0).unwrap());
+		ret.insert(Address::from_str("0000000000000000000000000000000000000002").unwrap(), Builtin::from_named_linear("sha256", 60, 12).unwrap());
+		ret.insert(Address::from_str("0000000000000000000000000000000000000003").unwrap(), Builtin::from_named_linear("ripemd160", 600, 120).unwrap());
+		ret.insert(Address::from_str("0000000000000000000000000000000000000004").unwrap(), Builtin::from_named_linear("identity", 15, 3).unwrap());
+		ret
+	}
+
 	/// Creates the Olympic network chain spec.
 	pub fn olympic() -> Spec {
 		Spec {
@@ -207,7 +221,7 @@ impl Spec {
 				acc.insert(vec.0.to_string(), vec.1);
 				acc
 			}),
-			builtins: HashMap::new(),			// TODO: make correct
+			builtins: Self::standard_builtins(),
 			parent_hash: H256::new(),
 			author: Address::new(),
 			difficulty: U256::from(131_072u64),
@@ -245,7 +259,7 @@ impl Spec {
 				acc.insert(vec.0.to_string(), vec.1);
 				acc
 			}),
-			builtins: HashMap::new(),			// TODO: make correct
+			builtins: Self::standard_builtins(),
 			parent_hash: H256::new(),
 			author: Address::new(),
 			difficulty: U256::from(131_072u64),
@@ -283,7 +297,7 @@ impl Spec {
 				acc.insert(vec.0.to_string(), vec.1);
 				acc
 			}),
-			builtins: HashMap::new(),			// TODO: make correct
+			builtins: Self::standard_builtins(),
 			parent_hash: H256::new(),
 			author: Address::new(),
 			difficulty: U256::from(131_072u64),
