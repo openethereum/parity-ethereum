@@ -34,7 +34,7 @@ impl Genesis {
 	pub fn new_frontier() -> Genesis {
 		let root = H256::from_str("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544").unwrap();
 		let json = base_to_json(include_bytes!("../res/genesis_frontier"));
-		let (header, state) = Self::load_genesis_json(&json, &root);
+		let (header, state) = Self::load_genesis_json(json, root);
 		Self::new_from_header_and_state(header, state)
 	}
 
@@ -53,7 +53,7 @@ impl Genesis {
 	}
 
 	/// Loads genesis block from json file
-	fn load_genesis_json(json: &Json, state_root: &H256) -> (Header, HashMap<Address, Account>)  {
+	fn load_genesis_json(json: Json, state_root: H256) -> (Header, HashMap<Address, Account>)  {
 		// once we commit ourselves to some json parsing library (serde?)
 		// move it to proper data structure
 		
@@ -62,11 +62,20 @@ impl Genesis {
 		let empty_data = encode(&"");
 		let empty_data_sha3 = empty_data.sha3();
 		
+		let mut state = HashMap::new();
+		let accounts = json["alloc"].as_object().expect("Missing genesis state");
+		for (address, acc) in accounts.iter() {
+			let addr = Address::from_str(address).unwrap();
+			let o = acc.as_object().unwrap();
+			let balance = U256::from_dec_str(o["balance"].as_string().unwrap()).unwrap();
+			state.insert(addr, Account::new_basic(balance, U256::from(0)));
+		}
+
 		let header = Header {
 			parent_hash: H256::from_str(&json["parentHash"].as_string().unwrap()[2..]).unwrap(),
 			uncles_hash: empty_list_sha3.clone(),
 			author: Address::from_str(&json["coinbase"].as_string().unwrap()[2..]).unwrap(),
-			state_root: state_root.clone(),
+			state_root: state_root,
 			transactions_root: empty_data_sha3.clone(),
 			receipts_root: empty_data_sha3.clone(),
 			log_bloom: H2048::new(),
@@ -84,15 +93,6 @@ impl Genesis {
 			}
 		};
 		
-		let mut state = HashMap::new();
-		let accounts = json["alloc"].as_object().expect("Missing genesis state");
-		for (address, acc) in accounts.iter() {
-			let addr = Address::from_str(address).unwrap();
-			let o = acc.as_object().unwrap();
-			let balance = U256::from_dec_str(o["balance"].as_string().unwrap()).unwrap();
-			state.insert(addr, Account::new_basic(balance, U256::from(0)));
-		}
-
 		(header, state)
 	}
 
