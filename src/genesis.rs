@@ -1,6 +1,6 @@
 use std::io::Read;
 use std::str::FromStr;
-use std::cell::Cell;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use rustc_serialize::base64::FromBase64;
 use rustc_serialize::json::Json;
@@ -83,7 +83,7 @@ impl Genesis {
 				let nonce = H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap();
 				vec![mixhash.to_vec(), nonce.to_vec()]
 			},
-			hash: Cell::new(None)
+			hash: RefCell::new(None)
 		};
 
 		let mut state = HashMap::new();

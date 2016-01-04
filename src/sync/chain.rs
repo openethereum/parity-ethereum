@@ -257,7 +257,7 @@ impl ChainSync {
 				BlockStatus::InChain => {
 					self.have_common_block = true;
 					self.last_imported_block = number;
-					self.last_imported_hash = hash;
+					self.last_imported_hash = hash.clone();
 					trace!(target: "sync", "Found common header {} ({})", number, hash);
 				},
 				_ => {
@@ -283,7 +283,7 @@ impl ChainSync {
 					}
 					let hdr = Header {
 						data: r.at(i).raw().to_vec(),
-						hash: hash,
+						hash: hash.clone(),
 						parent: info.parent_hash(),
 					};
 					self.headers.insert_item(number, hdr);
@@ -597,17 +597,17 @@ impl ChainSync {
 					ImportResult::AlreadyInChain  => {
 						trace!(target: "sync", "Block already in chain {:?}", h);
 						self.last_imported_block = headers.0 + i as BlockNumber;
-						self.last_imported_hash = *h;
+						self.last_imported_hash = h.clone();
 					},
 					ImportResult::AlreadyQueued(_)  => {
 						trace!(target: "sync", "Block already queued {:?}", h);
 						self.last_imported_block = headers.0 + i as BlockNumber;
-						self.last_imported_hash = *h;
+						self.last_imported_hash = h.clone();
 					},
 					ImportResult::Queued(QueueStatus::Known) => {
 						trace!(target: "sync", "Block queued {:?}", h);
 						self.last_imported_block = headers.0 + i as BlockNumber;
-						self.last_imported_hash = *h;
+						self.last_imported_hash = h.clone();
 						imported += 1;
 					},
 					ImportResult::Queued(QueueStatus::Unknown) => {

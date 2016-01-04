@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::RefCell;
 use util::hash::*;
 use util::sha3::*;
 use util::bytes::*;
@@ -31,16 +31,16 @@ pub struct Header {
 	pub difficulty: U256,
 	pub seal: Vec<Bytes>,
 
-	pub hash: Cell<Option<H256>>, //TODO: make this private
+	pub hash: RefCell<Option<H256>>, //TODO: make this private
 }
 
 impl Header {
 	pub fn new() -> Header {
 		Header {
-			parent_hash: ZERO_H256,
+			parent_hash: ZERO_H256.clone(),
 			timestamp: BAD_U256,
 			number: ZERO_U256,
-			author: ZERO_ADDRESS,
+			author: ZERO_ADDRESS.clone(),
 
 			transactions_root: SHA3_NULL_RLP,
 			uncles_hash: SHA3_EMPTY_LIST_RLP,
@@ -48,26 +48,26 @@ impl Header {
 
 			state_root: SHA3_NULL_RLP,
 			receipts_root: SHA3_NULL_RLP,
-			log_bloom: ZERO_LOGBLOOM,
+			log_bloom: ZERO_LOGBLOOM.clone(),
 			gas_used: ZERO_U256,
 			gas_limit: ZERO_U256,
 
 			difficulty: ZERO_U256,
 			seal: vec![],
-			hash: Cell::new(None),
+			hash: RefCell::new(None),
 		}
 	}
 
 	pub fn hash(&self) -> H256 {
-		let hash = self.hash.get();
-		match hash {
-			Some(h) => h,
-			None => {
+		let mut hash = self.hash.borrow_mut();
+		match &mut *hash {
+			&mut Some(ref h) => h.clone(),
+			hash @ &mut None => {
 				let mut stream = RlpStream::new();
 				stream.append(self);
 				let h = stream.raw().sha3();
-				self.hash.set(Some(h.clone()));
-				h
+				*hash = Some(h.clone());
+				h.clone()
 			}
 		}
 	}
@@ -92,7 +92,7 @@ impl Decodable for Header {
 			timestamp: try!(r.val_at(11)),
 			extra_data: try!(r.val_at(12)),
 			seal: vec![],
-			hash: Cell::new(Some(r.raw().sha3()))
+			hash: RefCell::new(Some(r.raw().sha3()))
 		};
 
 		for i in 13..r.item_count() {

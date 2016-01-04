@@ -5,7 +5,8 @@ use util::uint::{U256};
 use util::sha3::Hashable;
 use util::rlp::{self, Rlp, RlpStream, View, Stream};
 use util::network::{PeerId, PacketId, Error as NetworkError};
-use eth::{BlockChainClient, BlockStatus, BlockNumber, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult, BlockHeader, QueueStatus};
+use eth::{BlockChainClient, BlockStatus, BlockNumber, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult, QueueStatus};
+use header::Header as BlockHeader;
 use sync::{SyncIo};
 use sync::chain::{ChainSync};
 
@@ -28,7 +29,7 @@ impl TestBlockChainClient {
 			difficulty: From::from(0),
 		};
 		client.add_blocks(1, true); // add genesis block
-		client.genesis_hash = client.last_hash;
+		client.genesis_hash = client.last_hash.clone();
 		client
 	}
 
@@ -36,7 +37,7 @@ impl TestBlockChainClient {
 		for n in self.numbers.len()..(self.numbers.len() + count) {
 			let mut header = BlockHeader::new();
 			header.difficulty = From::from(n);
-			header.parent_hash = self.last_hash;
+			header.parent_hash = self.last_hash.clone();
 			header.number = From::from(n);
 			let mut uncles = RlpStream::new_list(if empty {0} else {1});
 			if !empty {
@@ -142,7 +143,7 @@ impl BlockChainClient for TestBlockChainClient {
 			if number > 0 {
 				let mut n = number - 1;
 				while n > 0 && self.numbers[&n] != parent_hash {
-					*self.numbers.get_mut(&n).unwrap() = parent_hash;
+					*self.numbers.get_mut(&n).unwrap() = parent_hash.clone();
 					n -= 1;
 					parent_hash = Rlp::new(&self.blocks[&parent_hash]).val_at::<BlockHeader>(0).parent_hash;
 				}
@@ -167,8 +168,8 @@ impl BlockChainClient for TestBlockChainClient {
 		BlockChainInfo {
 			total_difficulty: self.difficulty,
 			pending_total_difficulty: self.difficulty,
-			genesis_hash: self.genesis_hash,
-			last_block_hash: self.last_hash,
+			genesis_hash: self.genesis_hash.clone(),
+			last_block_hash: self.last_hash.clone(),
 			last_block_number: self.blocks.len() as BlockNumber - 1,
 		}
 	}
