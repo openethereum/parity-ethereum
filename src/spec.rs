@@ -194,6 +194,7 @@ impl Spec {
 		}
 	}
 
+	/// Returns the builtins map for the standard network of Ethereum Olympic, Frontier and Homestead.
 	fn standard_builtins() -> HashMap<Address, Builtin> {
 		let mut ret = HashMap::new();
 		ret.insert(Address::from_str("0000000000000000000000000000000000000001").unwrap(), Builtin::from_named_linear("ecrecover", 3000, 0).unwrap());
@@ -204,7 +205,7 @@ impl Spec {
 	}
 
 	/// Creates the Olympic network chain spec.
-	pub fn olympic() -> Spec {
+	pub fn new_like_olympic() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
 			engine_params: vec![
@@ -241,8 +242,8 @@ impl Spec {
 		}
 	}
 
-	/// Creates the Frontier network chain spec.
-	pub fn frontier() -> Spec {
+	/// Creates the Frontier network chain spec, except for the genesis state, which is blank.
+	pub fn new_like_frontier() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
 			engine_params: vec![
@@ -280,7 +281,7 @@ impl Spec {
 	}
 
 	/// Creates the Morden network chain spec.
-	pub fn morden() -> Spec {
+	pub fn new_morden() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
 			engine_params: vec![
@@ -305,8 +306,8 @@ impl Spec {
 			gas_used: U256::from(0u64),
 			timestamp: U256::from(0u64),
 			extra_data: vec![],
-			genesis_state: vec![				// TODO: make correct
-				(Address::new(), Account::new_basic(U256::from(1) << 200, U256::from(0)))
+			genesis_state: vec![
+				(Address::from_str("102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c").unwrap(), Account::new_basic(U256::from(1) << 200, U256::from(0)))
 			].into_iter().fold(HashMap::new(), | mut acc, vec | {
 				acc.insert(vec.0, vec.1);
 				acc
