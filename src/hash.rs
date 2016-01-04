@@ -33,7 +33,7 @@ pub trait FixedHash: Sized + BytesConvertable {
 
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
-		#[derive(Eq, Copy)]
+		#[derive(Eq)]
 		pub struct $from (pub [u8; $size]);
 
 		impl BytesConvertable for $from {

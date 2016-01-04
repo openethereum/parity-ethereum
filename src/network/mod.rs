@@ -90,7 +90,7 @@ pub trait ProtocolHandler: Send {
 	/// Called when a previously connected peer disconnects.
 	fn disconnected(&mut self, io: &mut HandlerIo, peer: &PeerId);
 	/// Timer function called after a timeout created with `HandlerIo::timeout`.
-	fn timeout(&mut self, io: &mut HandlerIo, timer: TimerToken);
+	fn timeout(&mut self, io: &mut HandlerIo, timer: TimerToken) -> bool;
 	/// Called when a broadcasted message is received. The message can only be sent from a different protocol handler.
 	fn message(&mut self, io: &mut HandlerIo, message: &Message);
 }

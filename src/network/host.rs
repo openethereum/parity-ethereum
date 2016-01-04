@@ -1,4 +1,3 @@
-#![allow(dead_code)] //TODO: remove this after everything is done
 //TODO: remove all unwraps
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::collections::{HashMap};
@@ -16,7 +15,7 @@ use network::handshake::Handshake;
 use network::session::{Session, SessionData};
 use network::{Error, ProtocolHandler};
 
-const DEFAULT_PORT: u16 = 30304;
+const _DEFAULT_PORT: u16 = 30304;
 
 const MAX_CONNECTIONS: usize = 1024;
 const MAX_USER_TIMERS: usize = 32;
@@ -54,13 +53,6 @@ pub struct NodeEndpoint {
 }
 
 impl NodeEndpoint {
-    fn new(address: SocketAddr) -> NodeEndpoint {
-        NodeEndpoint {
-            address: address,
-			address_str: address.to_string(),
-            udp_port: address.port()
-        }
-    }
     fn from_str(s: &str) -> Result<NodeEndpoint, Error> {
 		println!("{:?}", s);
 		let address = s.to_socket_addrs().map(|mut i| i.next());
@@ -87,7 +79,6 @@ struct Node {
     endpoint: NodeEndpoint,
     peer_type: PeerType,
 	last_attempted: Option<Tm>,
-	confirmed: bool,
 }
 
 impl FromStr for Node {
@@ -105,21 +96,8 @@ impl FromStr for Node {
             endpoint: endpoint,
             peer_type: PeerType::Optional,
 			last_attempted: None,
-			confirmed: false
         })
 	}
-}
-
-impl Node {
-    fn new(id: NodeId, address: SocketAddr, t:PeerType) -> Node {
-        Node {
-            id: id,
-            endpoint: NodeEndpoint::new(address),
-            peer_type: t,
-			last_attempted: None,
-			confirmed: false
-        }
-    }
 }
 
 impl PartialEq for Node {
@@ -168,9 +146,9 @@ pub enum HostMessage {
 pub type UserMessageId = u32;
 
 pub struct UserMessage {
-	protocol: ProtocolId,
-	id: UserMessageId,
-	data: Option<Vec<u8>>,
+	pub protocol: ProtocolId,
+	pub id: UserMessageId,
+	pub data: Option<Vec<u8>>,
 }
 
 pub type PeerId = usize;
@@ -305,14 +283,13 @@ enum ConnectionEntry {
 
 pub struct Host {
 	info: HostInfo,
-    udp_socket: UdpSocket,
-    listener: TcpListener,
+    _udp_socket: UdpSocket,
+    _listener: TcpListener,
     connections: Slab<ConnectionEntry>,
     timers: Slab<UserTimer>,
 	nodes: HashMap<NodeId, Node>,
 	handlers: HashMap<ProtocolId, Box<ProtocolHandler>>,
-	idle_timeout: Timeout,
-	channel: Sender<HostMessage>,
+	_idle_timeout: Timeout,
 }
 
 impl Host {
@@ -352,14 +329,13 @@ impl Host {
 				//capabilities: vec![ CapabilityInfo { protocol: "eth".to_string(), version: 63 }],
 				capabilities: Vec::new(),
 			},
-            udp_socket: udp_socket,
-            listener: listener,
+            _udp_socket: udp_socket,
+            _listener: listener,
 			connections: Slab::new_starting_at(Token(FIRST_CONNECTION), MAX_CONNECTIONS),
 			timers: Slab::new_starting_at(Token(USER_TIMER), MAX_USER_TIMERS),
 			nodes: HashMap::new(),
 			handlers: HashMap::new(),
-			idle_timeout: idle_timeout,
-			channel: event_loop.channel(),
+			_idle_timeout: idle_timeout,
         };
 
 		host.add_node("enode://c022e7a27affdd1632f2e67dffeb87f02bf506344bb142e08d12b28e7e5c6e5dbb8183a46a77bff3631b51c12e8cf15199f797feafdc8834aaf078ad1a2bcfa0@127.0.0.1:30303");
@@ -639,10 +615,16 @@ impl Handler for Host {
 			NODETABLE_DISCOVERY => {},
 			NODETABLE_MAINTAIN => {},
 			USER_TIMER ... LAST_USER_TIMER => {
-				let protocol = self.timers.get_mut(token).expect("Unknown user timer token").protocol;
+				let (protocol, delay) = {
+					let timer = self.timers.get_mut(token).expect("Unknown user timer token");
+					(timer.protocol, timer.delay)
+				};
 				match self.handlers.get_mut(protocol) {
 					None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
-					Some(h) => h.timeout(&mut HostIo::new(protocol, None, event_loop, &mut self.connections, &mut self.timers), token.as_usize()),
+					Some(h) => {
+						h.timeout(&mut HostIo::new(protocol, None, event_loop, &mut self.connections, &mut self.timers), token.as_usize());
+						event_loop.timeout_ms(token, delay).expect("Error re-registering user timer");
+					}
 				}
 			}
 			_ => panic!("Unknown timer token"),

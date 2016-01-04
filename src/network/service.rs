@@ -1,5 +1,3 @@
-#![allow(dead_code)] //TODO: remove this after everything is done
-
 use std::thread::{self, JoinHandle};
 use mio::*;
 use network::{Error, ProtocolHandler};
