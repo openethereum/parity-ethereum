@@ -20,6 +20,7 @@ use self::ffi::*;
 
 pub use self::ffi::JitReturnCode as ReturnCode;
 pub use self::ffi::JitI256 as I256;
+pub use self::ffi::JitH256 as H256;
 
 /// Component oriented safe handle to `JitRuntimeData`.
 pub struct RuntimeDataHandle {
@@ -101,7 +102,7 @@ impl Drop for ContextHandle {
 pub trait Env {
 	fn sload(&self, index: *const JitI256, out_value: *mut JitI256);
 	fn sstore(&mut self, index: *const JitI256, value: *const JitI256);
-	fn balance(&self, address: *const JitI256, out_value: *mut JitI256);
+	fn balance(&self, address: *const JitH256, out_value: *mut JitI256);
 	fn blockhash(&self, number: *const JitI256, out_hash: *mut JitI256);
 
 	fn create(&mut self,
@@ -130,7 +131,7 @@ pub trait Env {
 		   topic3: *const JitI256,
 		   topic4: *const JitI256);
 
-	fn extcode(&self, address: *const JitI256, size: *mut u64) -> *const u8;
+	fn extcode(&self, address: *const JitH256, size: *mut u64) -> *const u8;
 }
 
 /// C abi compatible wrapper for jit env implementers.
@@ -174,6 +175,7 @@ impl DerefMut for EnvHandle {
 /// ffi functions
 pub mod ffi {
 	use std::slice;
+	use std::mem;
 	use tiny_keccak::Keccak;
 	use super::*;
 
@@ -195,10 +197,29 @@ pub mod ffi {
 	}
 
 	#[repr(C)]
-	#[derive(Debug)]
+	#[derive(Debug, Copy, Clone)]
 	/// Signed 256 bit integer.
 	pub struct JitI256 {
 		pub words: [u64; 4]
+	}
+
+	#[repr(C)]
+	#[derive(Debug, Copy, Clone)]
+	/// Jit Hash
+	pub struct JitH256 {
+		pub words: [u64; 4]
+	}
+
+	impl From<JitH256> for JitI256 {
+		fn from(mut hash: JitH256) -> JitI256 {
+			unsafe {
+				{
+					let bytes: &mut [u8] = slice::from_raw_parts_mut(hash.words.as_mut_ptr() as *mut u8, 32);
+					bytes.reverse();
+				}
+				mem::transmute(hash)
+			}
+		}
 	}
 
 	#[repr(C)]
@@ -272,7 +293,7 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_balance(env: *const EnvHandle, address: *const JitI256, out_value: *mut JitI256) {
+	pub unsafe extern "C" fn env_balance(env: *const EnvHandle, address: *const JitH256, out_value: *mut JitI256) {
 		let env = &*env;
 		env.balance(address, out_value);
 	}
@@ -321,7 +342,7 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_extcode(env: *const EnvHandle, address: *const JitI256, size: *mut u64) -> *const u8 {
+	pub unsafe extern "C" fn env_extcode(env: *const EnvHandle, address: *const JitH256, size: *mut u64) -> *const u8 {
 		let env = &*env;
 		env.extcode(address, size)
 	}
@@ -371,6 +392,15 @@ fn ffi_test() {
 
 #[test]
 fn handle_test() {
-	let mut context = ContextHandle::new(RuntimeDataHandle::new(), EnvHandle::empty());
-	assert_eq!(context.exec(), ReturnCode::Stop);
+	unsafe {
+		let mut context = ContextHandle::new(RuntimeDataHandle::new(), &mut EnvHandle::empty());
+		assert_eq!(context.exec(), ReturnCode::Stop);
+	}
+}
+
+#[test]
+fn hash_to_int() {
+	let h = H256 { words:[0x0123456789abcdef, 0, 0, 0] };
+	let i = I256::from(h);
+	assert_eq!([0u64, 0, 0, 0xefcdab8967452301], i.words);
 }

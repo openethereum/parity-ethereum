@@ -40,6 +40,12 @@ impl<'a> FromJit<&'a evmjit::I256> for Address {
 	}
 }
 
+impl<'a> FromJit<&'a evmjit::H256> for Address {
+	fn from_jit(input: &'a evmjit::H256) -> Self {
+		Address::from(H256::from_jit(&evmjit::I256::from(input.clone())))
+	}
+}
+
 impl IntoJit<evmjit::I256> for U256 {
 	fn into_jit(self) -> evmjit::I256 {
 		unsafe {
@@ -120,7 +126,7 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 		}
 	}
 
-	fn balance(&self, address: *const evmjit::I256, out_value: *mut evmjit::I256) {
+	fn balance(&self, address: *const evmjit::H256, out_value: *mut evmjit::I256) {
 		unsafe {
 			let a = Address::from_jit(&*address);
 			let o = self.env.balance(&a);
@@ -168,14 +174,9 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 		unimplemented!();
 	}
 
-	fn extcode(&self, address: *const evmjit::I256, size: *mut u64) -> *const u8 {
+	fn extcode(&self, address: *const evmjit::H256, size: *mut u64) -> *const u8 {
 		unsafe {
-			// bytes in this callback are reverted... do not know why
-			// it's the same in cpp implementation
-			// TODO: investigate and fix it on evmjit layer
-			let mut a = H256::from_jit(&*address);
-			a.reverse();
-			let code = self.env.extcode(&Address::from(a));
+			let code = self.env.extcode(&Address::from_jit(&*address));
 			*size = code.len() as u64;
 			let ptr = code.as_ptr();
 			mem::forget(code);
