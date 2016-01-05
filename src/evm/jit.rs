@@ -168,8 +168,19 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 		unimplemented!();
 	}
 
-	fn extcode(&self, _address: *const evmjit::I256, _size: *mut u64) -> *const u8 {
-		unimplemented!();
+	fn extcode(&self, address: *const evmjit::I256, size: *mut u64) -> *const u8 {
+		unsafe {
+			// bytes in this callback are reverted... do not know why
+			// it's the same in cpp implementation
+			// TODO: investigate and fix it on evmjit layer
+			let mut a = H256::from_jit(&*address);
+			a.reverse();
+			let code = self.env.extcode(&Address::from(a));
+			*size = code.len() as u64;
+			let ptr = code.as_ptr();
+			mem::forget(code);
+			ptr
+		}
 	}
 }
 
@@ -286,4 +297,70 @@ mod tests {
 				   H256::from_str("c41589e7559804ea4a2080dad19d876a024ccb05117835447d72ce08c1d020ec").unwrap());
 	}
 
+	#[test]
+	fn test_origin() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut data = RuntimeData::new();
+		data.address = address.clone();
+		data.origin = address.clone();
+		data.gas = 0x174876e800;
+		data.code = "32600055".from_hex().unwrap();
+
+		let mut env = Env::new(State::new_temp(), address.clone());
+		let evm = JitEvm;
+		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
+		let state = env.state();
+		assert_eq!(Address::from(state.storage_at(&address, &H256::new())), address.clone());
+	}
+
+	#[test]
+	fn test_caller() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut data = RuntimeData::new();
+		data.address = address.clone();
+		data.caller = address.clone();
+		data.gas = 0x174876e800;
+		data.code = "33600055".from_hex().unwrap();
+
+		let mut env = Env::new(State::new_temp(), address.clone());
+		let evm = JitEvm;
+		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
+		let state = env.state();
+		assert_eq!(Address::from(state.storage_at(&address, &H256::new())), address.clone());
+	}
+
+	#[test]
+	fn test_extcode_copy0() {
+		// 33 - caller
+		// 3b - extcodesize
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 33 - caller
+		// 3c - extcodecopy
+		// 60 00 - push 0
+		// 51 - load word from memory
+		// 60 00 - push 0
+		// 55 - sstore
+
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let caller = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let address_code = "333b60006000333c600051600055".from_hex().unwrap(); 
+		let caller_code = "6005600055".from_hex().unwrap(); 
+		let mut data = RuntimeData::new();
+		data.address = address.clone();
+		data.caller = caller.clone();
+		data.origin = caller.clone();
+		data.gas = 0x174876e800;
+		data.code = address_code.clone();
+
+		let mut state = State::new_temp();
+		state.set_code(&address, address_code);
+		state.set_code(&caller, caller_code);
+		let mut env = Env::new(state, caller.clone());
+		let evm = JitEvm;
+		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
+		let state = env.state();
+		assert_eq!(state.storage_at(&caller, &H256::new()), 
+				   H256::from_str("6005600055000000000000000000000000000000000000000000000000000000").unwrap());
+	}
 }

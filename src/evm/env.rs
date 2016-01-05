@@ -66,8 +66,8 @@ impl Env {
 	}
 
 	/// Returns code at given address
-	pub fn extcode(&self, _address: &Address) -> Vec<u8> {
-		unimplemented!();
+	pub fn extcode(&self, address: &Address) -> Vec<u8> {
+		self.state.code(address).unwrap_or(vec![])
 	}
 
 	pub fn log(&self, _topics: &[H256], _data: &[u8]) {
