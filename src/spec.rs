@@ -20,8 +20,6 @@ use null_engine::NullEngine;
 use denominations::*;
 use header::*;
 
-// TODO: need a JSON->cost closure converter.
-
 /// Converts file from base64 gzipped bytes to json
 pub fn base_to_json(source: &[u8]) -> Json {
 	// there is probably no need to store genesis in based64 gzip,
@@ -53,9 +51,9 @@ pub fn json_to_rlp(json: &Json) -> Bytes {
 /// Convert JSON to a string->RLP map.
 pub fn json_to_rlp_map(json: &Json) -> HashMap<String, Bytes> {
 	json.as_object().unwrap().iter().map(|(k, v)| (k, json_to_rlp(v))).fold(HashMap::new(), |mut acc, kv| {
-				acc.insert(kv.0.clone(), kv.1);
-				acc
-			})
+		acc.insert(kv.0.clone(), kv.1);
+		acc
+	})
 }
 
 /// Parameters for a block chain; includes both those intrinsic to the design of the
