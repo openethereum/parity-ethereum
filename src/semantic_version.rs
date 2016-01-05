@@ -2,8 +2,8 @@
 /// 
 /// # Example
 /// ```
-/// extern crate ethcore;
-/// use ethcore::engine::*;
+/// extern crate ethcore_util;
+/// use ethcore_util::semantic_version::*;
 /// fn main() {
 ///   assert_eq!(SemanticVersion::new(1, 2, 3).as_u32(), 0x010203);
 /// }
