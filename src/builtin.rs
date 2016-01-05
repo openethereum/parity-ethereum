@@ -11,6 +11,38 @@ pub struct Builtin {
 	pub execute: Box<Fn(&[u8], &mut [u8])>,
 }
 
+impl Builtin {
+	/// Create a new object from components.
+	pub fn new(cost: Box<Fn(usize) -> U256>, execute: Box<Fn(&[u8], &mut [u8])>) -> Builtin {
+		Builtin {cost: cost, execute: execute}
+	}
+
+	/// Create a new object from a builtin-function name with a linear cost associated with input size.
+	pub fn from_named_linear(name: &str, base_cost: usize, word_cost: usize) -> Option<Builtin> {
+		new_builtin_exec(name).map(|b| {
+			let cost = Box::new(move|s: usize| -> U256 {U256::from(base_cost) + U256::from(word_cost) * U256::from((s + 31) / 32)});
+			Self::new(cost, b)
+		})
+	}
+
+	/// Create a builtin from JSON.
+	///
+	/// JSON must be of the form `{ "name": "identity", "linear": {"base": 10, "word": 20} }`.
+	pub fn from_json(json: &Json) -> Option<Builtin> {
+		// NICE: figure out a more convenient means of handing errors here.
+		if let Json::String(ref name) = json["name"] {
+			if let Json::Object(ref o) = json["linear"] {
+				if let Json::U64(ref word) = o["word"] {
+					if let Json::U64(ref base) = o["base"] {
+						return Self::from_named_linear(&name[..], *base as usize, *word as usize);
+					}
+				}
+			}
+		}
+		None
+	}
+}
+
 /*
 ETH_REGISTER_PRECOMPILED(ecrecover)(bytesConstRef _in, bytesRef _out)
 {
@@ -56,38 +88,6 @@ ETH_REGISTER_PRECOMPILED(ripemd160)(bytesConstRef _in, bytesRef _out)
 }
 */
 
-impl Builtin {
-	/// Create a new object from components.
-	pub fn new(cost: Box<Fn(usize) -> U256>, execute: Box<Fn(&[u8], &mut [u8])>) -> Builtin {
-		Builtin {cost: cost, execute: execute}
-	}
-
-	/// Create a new object from a builtin-function name with a linear cost associated with input size.
-	pub fn from_named_linear(name: &str, base_cost: usize, word_cost: usize) -> Option<Builtin> {
-		new_builtin_exec(name).map(|b| {
-			let cost = Box::new(move|s: usize| -> U256 {U256::from(base_cost) + U256::from(word_cost) * U256::from((s + 31) / 32)});
-			Self::new(cost, b)
-		})
-	}
-
-	/// Create a builtin from JSON.
-	///
-	/// JSON must be of the form `{ "name": "identity", "linear": {"base": 10, "word": 20} }`.
-	pub fn from_json(json: &Json) -> Option<Builtin> {
-		// NICE: figure out a more convenient means of handing errors here.
-		if let Json::String(ref name) = json["name"] {
-			if let Json::Object(ref o) = json["linear"] {
-				if let Json::U64(ref word) = o["word"] {
-					if let Json::U64(ref base) = o["base"] {
-						return Self::from_named_linear(&name[..], *base as usize, *word as usize);
-					}
-				}
-			}
-		}
-		None
-	}
-}
-
 // TODO: turn in to a factory with dynamic registration.
 pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 	match name {
@@ -113,9 +113,17 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 fn identity() {
 	let f = new_builtin_exec("identity").unwrap();
 	let i = [0u8, 1, 2, 3];
-	for osize in [2, 4, 8].iter() {
-		let mut o = vec![255u8; *osize];
-		f(&i[..], &mut o[..]);
-		assert_eq!(i[..], o[..]);
-	}
+
+	let mut o2 = [255u8; 2];
+	f(&i[..], &mut o2[..]);
+	assert_eq!(i[0..2], o2);
+
+	let mut o4 = [255u8; 4];
+	f(&i[..], &mut o4[..]);
+	assert_eq!(i, o4);
+
+	let mut o8 = [255u8; 8];
+	f(&i[..], &mut o8[..]);
+	assert_eq!(i, o8[..4]);
+	assert_eq!([255u8; 4], o8[4..]);
 }
