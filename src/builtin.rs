@@ -20,7 +20,9 @@ impl Builtin {
 	/// Create a new object from a builtin-function name with a linear cost associated with input size.
 	pub fn from_named_linear(name: &str, base_cost: usize, word_cost: usize) -> Option<Builtin> {
 		new_builtin_exec(name).map(|b| {
-			let cost = Box::new(move|s: usize| -> U256 {U256::from(base_cost) + U256::from(word_cost) * U256::from((s + 31) / 32)});
+			let cost = Box::new(move|s: usize| -> U256 {
+				U256::from(base_cost) + U256::from(word_cost) * U256::from((s + 31) / 32)
+			});
 			Self::new(cost, b)
 		})
 	}
@@ -126,4 +128,34 @@ fn identity() {
 	f(&i[..], &mut o8[..]);
 	assert_eq!(i, o8[..4]);
 	assert_eq!([255u8; 4], o8[4..]);
+}
+
+#[test]
+fn from_named_linear() {
+	let b = Builtin::from_named_linear("identity", 10, 20).unwrap();
+	assert_eq!((*b.cost)(0), U256::from(10));
+	assert_eq!((*b.cost)(1), U256::from(30));
+	assert_eq!((*b.cost)(32), U256::from(30));
+	assert_eq!((*b.cost)(33), U256::from(50));
+
+	let i = [0u8, 1, 2, 3];
+	let mut o = [255u8; 4];
+	(*b.execute)(&i[..], &mut o[..]);
+	assert_eq!(i, o);
+}
+
+#[test]
+fn from_json() {
+	let text = "{ \"name\": \"identity\", \"linear\": {\"base\": 10, \"word\": 20} }";
+	let json = Json::from_str(text).unwrap();
+	let b = Builtin::from_json(&json).unwrap();
+	assert_eq!((*b.cost)(0), U256::from(10));
+	assert_eq!((*b.cost)(1), U256::from(30));
+	assert_eq!((*b.cost)(32), U256::from(30));
+	assert_eq!((*b.cost)(33), U256::from(50));
+
+	let i = [0u8, 1, 2, 3];
+	let mut o = [255u8; 4];
+	(*b.execute)(&i[..], &mut o[..]);
+	assert_eq!(i, o);
 }
