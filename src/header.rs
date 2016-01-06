@@ -3,12 +3,22 @@ use util::bytes::*;
 use util::uint::*;
 use util::rlp::*;
 
-pub static ZERO_ADDRESS: Address = Address([0x00; 20]);
-pub static ZERO_H256: H256 = H256([0x00; 32]);
-pub static ZERO_LOGBLOOM: LogBloom = H2048([0x00; 256]);
-
+/// Type for a 2048-bit log-bloom, as used by our blocks.
 pub type LogBloom = H2048;
 
+/// Constant address for point 0. Often used as a default.
+pub static ZERO_ADDRESS: Address = Address([0x00; 20]);
+/// Constant 256-bit datum for 0. Often used as a default.
+pub static ZERO_H256: H256 = H256([0x00; 32]);
+/// Constant 2048-bit datum for 0. Often used as a default.
+pub static ZERO_LOGBLOOM: LogBloom = H2048([0x00; 256]);
+
+/// A block header.
+///
+/// Reflects the specific RLP fields of a block in the chain with additional room for the seal
+/// which is non-specific.
+///
+/// Doesn't do all that much on its own.
 #[derive(Debug)]
 pub struct Header {
 	pub parent_hash: H256,
@@ -31,6 +41,7 @@ pub struct Header {
 }
 
 impl Header {
+	/// Create a new, default-valued, header.
 	pub fn new() -> Header {
 		Header {
 			parent_hash: ZERO_H256.clone(),
@@ -76,7 +87,7 @@ impl Decodable for Header {
 		};
 
 		for i in 13..d.len() {
-			blockheader.seal.push(try!(Decodable::decode(&d[i])));
+			blockheader.seal.push(d[i].as_raw().to_vec());
 		}
 
 		Ok(blockheader)
@@ -101,7 +112,7 @@ impl Encodable for Header {
 			self.extra_data.encode(e);
 		
 			for b in self.seal.iter() {
-				b.encode(e);
+				e.emit_raw(&b);
 			}
 		})
 	}
