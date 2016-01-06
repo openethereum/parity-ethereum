@@ -364,4 +364,22 @@ mod tests {
 		assert_eq!(state.storage_at(&caller, &H256::new()), 
 				   H256::from_str("6005600055000000000000000000000000000000000000000000000000000000").unwrap());
 	}
+
+	#[test]
+	fn test_balance() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut data = RuntimeData::new();
+		data.address = address.clone();
+		data.caller = address.clone();
+		data.gas = 0x174876e800;
+		data.code = "3331600055".from_hex().unwrap();
+
+		let mut state = State::new_temp();
+		state.add_balance(&address, &U256::from(0x10));
+		let mut env = Env::new(state, address.clone());
+		let evm = JitEvm;
+		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
+		let state = env.state();
+		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0x10)));
+	}
 }
