@@ -320,6 +320,26 @@ impl<'a> From<&'a U256> for H256 {
     }
 }
 
+impl From<H256> for Address {
+	fn from(value: H256) -> Address {
+		unsafe {
+			let mut ret: Address = ::std::mem::uninitialized();
+			::std::ptr::copy(value.as_ptr().offset(12), ret.as_mut_ptr(), 20);
+			ret
+		}
+	}
+}
+
+impl From<Address> for H256 {
+	fn from(value: Address) -> H256 {
+		unsafe {
+			let mut ret = H256::new();
+			::std::ptr::copy(value.as_ptr(), ret.as_mut_ptr().offset(12), 20);
+			ret
+		}
+	}
+}
+
 impl_hash!(H32, 4);
 impl_hash!(H64, 8);
 impl_hash!(H128, 16);
@@ -381,6 +401,14 @@ mod tests {
 		assert_eq!(my_bloom, bloom);
 		assert!(my_bloom.contains_bloom(&address.sha3()));
 		assert!(my_bloom.contains_bloom(&topic.sha3()));
+	}
+
+	#[test]
+	fn from_and_to_address() {
+		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
+		let h = H256::from(address.clone());
+		let a = Address::from(h);
+		assert_eq!(address, a);
 	}
 }
 
