@@ -5,3 +5,4 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 
 [dependencies]
 libc = "0.2.2"
+tiny-keccak = "1.0"
