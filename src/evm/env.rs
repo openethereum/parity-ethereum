@@ -88,15 +88,15 @@ impl Env {
 		}
 	}
 
-	/// Creates new contract
-	/// Returns new contract address gas used
+	/// Creates new contract.
+	/// Returns new contract address and gas used.
 	pub fn create(&self, _gas: u64, _endowment: &U256, _code: &[u8]) -> (Address, u64) {
 		unimplemented!();
 	}
 
-	/// Calls existing contract
-	/// Returns call output and gas used
-	pub fn call(&self, _gas: u64, _call_gas: u64, _receive_address: &H256, _value: &U256, _data: &[u8], _code_address: &Address) -> Option<(Vec<u8>, u64)>{
+	/// Calls existing contract.
+	/// Returns call output and gas used.
+	pub fn call(&self, _gas: u64, _call_gas: u64, _receive_address: &Address, _value: &U256, _data: &[u8], _code_address: &Address) -> Option<(Vec<u8>, u64)>{
 		unimplemented!();
 	}
 

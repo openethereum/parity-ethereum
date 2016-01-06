@@ -109,19 +109,19 @@ pub trait Env {
 			  io_gas: *mut u64,
 			  endowment: *const JitI256,
 			  init_beg: *const u8,
-			  init_size: *const u64,
-			  address: *mut JitI256);
+			  init_size: u64,
+			  address: *mut JitH256);
 
 	fn call(&mut self,
 				io_gas: *mut u64,
-				call_gas: *const u64,
-				receive_address: *const JitI256,
+				call_gas: u64,
+				receive_address: *const JitH256,
 				value: *const JitI256,
 				in_beg: *const u8,
-				in_size: *const u64,
+				in_size: u64,
 				out_beg: *mut u8,
-				out_size: *mut u64,
-				code_address: JitI256) -> bool;
+				out_size: u64,
+				code_address: *const JitH256) -> bool;
 
 	fn log(&mut self,
 		   beg: *const u8,
@@ -321,8 +321,8 @@ pub mod ffi {
 							 io_gas: *mut u64, 
 							 endowment: *const JitI256, 
 							 init_beg: *const u8, 
-							 init_size: *const u64, 
-							 address: *mut JitI256) {
+							 init_size: u64, 
+							 address: *mut JitH256) {
 		let env = &mut *env;
 		env.create(io_gas, endowment, init_beg, init_size, address);
 	}
@@ -330,20 +330,20 @@ pub mod ffi {
 	#[no_mangle]
 	pub unsafe extern "C" fn env_call(env: *mut EnvHandle, 
 						   io_gas: *mut u64,
-						   call_gas: *const u64,
-						   receive_address: *const JitI256,
+						   call_gas: u64,
+						   receive_address: *const JitH256,
 						   value: *const JitI256,
 						   in_beg: *const u8,
-						   in_size: *const u64,
+						   in_size: u64,
 						   out_beg: *mut u8,
-						   out_size: *mut u64,
-						   code_address: JitI256) -> bool {
+						   out_size: u64,
+						   code_address: *const JitH256) -> bool {
 		let env = &mut *env;
 		env.call(io_gas, call_gas, receive_address, value, in_beg, in_size, out_beg, out_size, code_address)
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_sha3(begin: *const u8, size: u64, out_hash: *mut JitI256) {
+	pub unsafe extern "C" fn env_sha3(begin: *const u8, size: u64, out_hash: *mut JitH256) {
 		let out_hash = &mut *out_hash;
 		let input = slice::from_raw_parts(begin, size as usize);
 		let outlen = out_hash.words.len() * 8;

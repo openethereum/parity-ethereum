@@ -88,6 +88,12 @@ impl IntoJit<evmjit::I256> for Address {
 	}
 }
 
+impl IntoJit<evmjit::H256> for Address {
+	fn into_jit(self) -> evmjit::H256 {
+		H256::from(self).into_jit()
+	}
+}
+
 impl IntoJit<evmjit::RuntimeDataHandle> for evm::RuntimeData {
 	fn into_jit(self) -> evmjit::RuntimeDataHandle {
 		let mut data = evmjit::RuntimeDataHandle::new();
@@ -157,25 +163,46 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 	}
 
 	fn create(&mut self,
-			  _io_gas: *mut u64,
-			  _endowment: *const evmjit::I256,
-			  _init_beg: *const u8,
-			  _init_size: *const u64,
-			  _address: *mut evmjit::I256) {
-		unimplemented!();
+			  io_gas: *mut u64,
+			  endowment: *const evmjit::I256,
+			  init_beg: *const u8,
+			  init_size: u64,
+			  address: *mut evmjit::H256) {
+		unsafe {
+			let (addr, gas) = self.env.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize));
+			*io_gas = gas;
+			*address = addr.into_jit();
+		}
 	}
 
 	fn call(&mut self,
-				_io_gas: *mut u64,
-				_call_gas: *const u64,
-				_receive_address: *const evmjit::I256,
-				_value: *const evmjit::I256,
-				_in_beg: *const u8,
-				_in_size: *const u64,
-				_out_beg: *mut u8,
-				_out_size: *mut u64,
-				_code_address: evmjit::I256) -> bool {
-		unimplemented!();
+				io_gas: *mut u64,
+				call_gas: u64,
+				receive_address: *const evmjit::H256,
+				value: *const evmjit::I256,
+				in_beg: *const u8,
+				in_size: u64,
+				mut out_beg: *mut u8,
+				out_size: u64,
+				code_address: *const evmjit::H256) -> bool {
+		unsafe {
+			let opt = self.env.call(*io_gas, 
+									call_gas, 
+									&Address::from_jit(&*receive_address),
+									&U256::from_jit(&*value),
+									slice::from_raw_parts(in_beg, in_size as usize),
+									&Address::from_jit(&*code_address));
+
+			if opt.is_none() {
+				return false;
+			}
+
+			let (mut output, gas) = opt.unwrap();
+			out_beg = output.as_mut_ptr();
+			mem::forget(output);
+			*io_gas = gas;
+			true
+		}
 	}
 
 	fn log(&mut self,
@@ -281,7 +308,7 @@ mod tests {
 		use std::str::FromStr;
 
 		let a = Address::from_str("2adc25665018aa1fe0e6bc666dac8fc2697ff9ba").unwrap();
-		let j = a.clone().into_jit();
+		let j: ::evmjit::I256 = a.clone().into_jit();
 		let a2 = Address::from_jit(&j);
 		assert_eq!(a, a2);
 	}
