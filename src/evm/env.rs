@@ -1,8 +1,30 @@
 //! Contract execution environment.
 
+use std::collections::HashSet;
 use util::hash::*;
 use util::uint::*;
+use util::bytes::*;
 use state::*;
+use evm::LogEntry;
+
+struct SubState {
+	// any accounts that have suicided
+	suicides: HashSet<Address>,
+	// any logs
+	logs: Vec<LogEntry>,
+	// refund counter of SSTORE nonzero->zero
+	refunds: U256
+}
+
+impl SubState {
+	fn new() -> SubState {
+		SubState {
+			suicides: HashSet::new(),
+			logs: vec![],
+			refunds: U256::zero()
+		}
+	}
+}
 
 /// This structure represents contract execution environment.
 /// It should be initalized with `State` and contract address.
@@ -22,7 +44,8 @@ use state::*;
 /// ```
 pub struct Env {
 	state: State,
-	address: Address
+	address: Address,
+	substate: SubState
 }
 
 impl Env {
@@ -30,7 +53,8 @@ impl Env {
 	pub fn new(state: State, address: Address) -> Env {
 		Env {
 			state: state,
-			address: address
+			address: address,
+			substate: SubState::new()
 		}
 	}
 
@@ -70,14 +94,21 @@ impl Env {
 		self.state.code(address).unwrap_or(vec![])
 	}
 
-	pub fn log(&self, _topics: &[H256], _data: &[u8]) {
-		unimplemented!();
+	/// Creates log entry with given topics and data
+	pub fn log(&mut self, topics: Vec<H256>, data: Bytes) {
+		let address = self.address.clone();
+		self.substate.logs.push(LogEntry::new(address, topics, data));
 	}
 
-	/// Drain state
+	/// Returns state
 	// not sure if this is the best solution, but seems to be the easiest one, mk
-	pub fn state(self) -> State {
-		self.state
+	pub fn state(&self) -> &State {
+		&self.state
+	}
+
+	/// Returns substate
+	pub fn logs(&self) -> &[LogEntry] {
+		&self.substate.logs
 	}
 }
 

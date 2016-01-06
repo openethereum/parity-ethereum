@@ -125,11 +125,11 @@ pub trait Env {
 
 	fn log(&mut self,
 		   beg: *const u8,
-		   size: *const u64,
-		   topic1: *const JitI256,
-		   topic2: *const JitI256,
-		   topic3: *const JitI256,
-		   topic4: *const JitI256);
+		   size: u64,
+		   topic1: *const JitH256,
+		   topic2: *const JitH256,
+		   topic3: *const JitH256,
+		   topic4: *const JitH256);
 
 	fn extcode(&self, address: *const JitH256, size: *mut u64) -> *const u8;
 }
@@ -218,6 +218,18 @@ pub mod ffi {
 					bytes.reverse();
 				}
 				mem::transmute(hash)
+			}
+		}
+	}
+
+	impl From<JitI256> for JitH256 {
+		fn from(mut i: JitI256) -> JitH256 {
+			unsafe {
+				{
+					let bytes: &mut [u8] = slice::from_raw_parts_mut(i.words.as_mut_ptr() as *mut u8, 32);
+					bytes.reverse();
+				}
+				mem::transmute(i)
 			}
 		}
 	}
@@ -350,11 +362,11 @@ pub mod ffi {
 	#[no_mangle]
 	pub unsafe extern "C" fn env_log(env: *mut EnvHandle,
 						  beg: *const u8,
-						  size: *const u64,
-						  topic1: *const JitI256,
-						  topic2: *const JitI256,
-						  topic3: *const JitI256,
-						  topic4: *const JitI256) {
+						  size: u64,
+						  topic1: *const JitH256,
+						  topic2: *const JitH256,
+						  topic3: *const JitH256,
+						  topic4: *const JitH256) {
 		let env = &mut *env;
 		env.log(beg, size, topic1, topic2, topic3, topic4);
 	}
@@ -403,4 +415,5 @@ fn hash_to_int() {
 	let h = H256 { words:[0x0123456789abcdef, 0, 0, 0] };
 	let i = I256::from(h);
 	assert_eq!([0u64, 0, 0, 0xefcdab8967452301], i.words);
+	assert_eq!(H256::from(i).words, h.words);
 }

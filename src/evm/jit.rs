@@ -1,5 +1,6 @@
 use std::mem;
 use std::ptr;
+use std::slice;
 use evmjit;
 use util::hash::*;
 use util::uint::*;
@@ -40,9 +41,15 @@ impl<'a> FromJit<&'a evmjit::I256> for Address {
 	}
 }
 
+impl<'a> FromJit<&'a evmjit::H256> for H256 {
+	fn from_jit(input: &'a evmjit::H256) -> Self {
+		H256::from_jit(&evmjit::I256::from(input.clone()))
+	}
+}
+
 impl<'a> FromJit<&'a evmjit::H256> for Address {
 	fn from_jit(input: &'a evmjit::H256) -> Self {
-		Address::from(H256::from_jit(&evmjit::I256::from(input.clone())))
+		Address::from(H256::from_jit(input))
 	}
 }
 
@@ -165,13 +172,34 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 	}
 
 	fn log(&mut self,
-		   _beg: *const u8,
-		   _size: *const u64,
-		   _topic1: *const evmjit::I256,
-		   _topic2: *const evmjit::I256,
-		   _topic3: *const evmjit::I256,
-		   _topic4: *const evmjit::I256) {
-		unimplemented!();
+		   beg: *const u8,
+		   size: u64,
+		   topic1: *const evmjit::H256,
+		   topic2: *const evmjit::H256,
+		   topic3: *const evmjit::H256,
+		   topic4: *const evmjit::H256) {
+
+		unsafe {
+			let mut topics = vec![];
+			if !topic1.is_null() {
+				topics.push(H256::from_jit(&*topic1));
+			}
+
+			if !topic2.is_null() {
+				topics.push(H256::from_jit(&*topic2));
+			}
+
+			if !topic3.is_null() {
+				topics.push(H256::from_jit(&*topic3));
+			}
+
+			if !topic4.is_null() {
+				topics.push(H256::from_jit(&*topic4));
+			}
+		
+			let bytes_ref: &[u8] = slice::from_raw_parts(beg, size as usize);
+			self.env.log(topics, bytes_ref.to_vec());
+		}
 	}
 
 	fn extcode(&self, address: *const evmjit::H256, size: *mut u64) -> *const u8 {
@@ -381,5 +409,54 @@ mod tests {
 		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
 		let state = env.state();
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0x10)));
+	}
+
+	#[test]
+	fn test_empty_log() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut data = RuntimeData::new();
+		data.address = address.clone();
+		data.caller = address.clone();
+		data.gas = 0x174876e800;
+		data.code = "60006000a0".from_hex().unwrap();
+
+		let mut env = Env::new(State::new_temp(), address.clone());
+		let evm = JitEvm;
+		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
+		let logs = env.logs();
+		assert_eq!(logs.len(), 1);
+		let log = &logs[0];
+		assert_eq!(log.address(), &address);
+		assert_eq!(log.topics().len(), 0);
+		assert_eq!(log.bloom(), H2048::from_str("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap());
+	}
+
+	#[test]
+	fn test_log_with_one_topic() {
+		// 60 ff - push ff
+		// 60 00 - push 00
+		// 53 - mstore 
+		// 33 - caller
+		// 60 20 - push 20
+		// 60 00 - push 0
+		// a1 - log with 1 topic
+
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut data = RuntimeData::new();
+		data.address = address.clone();
+		data.caller = address.clone();
+		data.gas = 0x174876e800;
+		data.code = "60ff6000533360206000a1".from_hex().unwrap();
+
+		let mut env = Env::new(State::new_temp(), address.clone());
+		let evm = JitEvm;
+		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
+		let logs = env.logs();
+		assert_eq!(logs.len(), 1);
+		let log = &logs[0];
+		assert_eq!(log.address(), &address);
+		assert_eq!(log.topics().len(), 1);
+		let topic = &log.topics()[0];
+		assert_eq!(topic, &H256::from(address.clone()));
 	}
 }
