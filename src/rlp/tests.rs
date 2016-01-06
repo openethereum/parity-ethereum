@@ -4,7 +4,7 @@ use self::json_tests::rlp as rlptest;
 use std::{fmt, cmp};
 use std::str::FromStr;
 use rlp;
-use rlp::{UntrustedRlp, RlpStream, Decodable, View, Stream, Encodable};
+use rlp::{UntrustedRlp, RlpStream, View, Stream};
 use uint::U256;
 
 #[test]
