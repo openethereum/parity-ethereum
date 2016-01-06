@@ -103,7 +103,7 @@ pub trait Env {
 	fn sload(&self, index: *const JitI256, out_value: *mut JitI256);
 	fn sstore(&mut self, index: *const JitI256, value: *const JitI256);
 	fn balance(&self, address: *const JitH256, out_value: *mut JitI256);
-	fn blockhash(&self, number: *const JitI256, out_hash: *mut JitI256);
+	fn blockhash(&self, number: *const JitI256, out_hash: *mut JitH256);
 
 	fn create(&mut self,
 			  io_gas: *mut u64,
@@ -311,7 +311,7 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_blockhash(env: *const EnvHandle, number: *const JitI256, out_hash: *mut JitI256) {
+	pub unsafe extern "C" fn env_blockhash(env: *const EnvHandle, number: *const JitI256, out_hash: *mut JitH256) {
 		let env = &*env;
 		env.blockhash(number, out_hash);
 	}

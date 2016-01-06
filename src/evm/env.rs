@@ -5,6 +5,7 @@ use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
 use state::*;
+use env_info::*;
 use evm::LogEntry;
 
 struct SubState {
@@ -34,15 +35,17 @@ impl SubState {
 /// extern crate ethcore;
 /// use util::hash::*;
 /// use ethcore::state::*;
+/// use ethcore::env_info::*;
 /// use ethcore::evm::*;
 ///
 /// fn main() {
 /// 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 /// 	let mut data = RuntimeData::new();
-/// 	let mut env = Env::new(State::new_temp(), address);
+/// 	let mut env = Env::new(EnvInfo::new(), State::new_temp(), address);
 /// }	
 /// ```
 pub struct Env {
+	info: EnvInfo,
 	state: State,
 	address: Address,
 	substate: SubState
@@ -50,8 +53,9 @@ pub struct Env {
 
 impl Env {
 	/// Creates new evm environment object with backing state.
-	pub fn new(state: State, address: Address) -> Env {
+	pub fn new(info: EnvInfo, state: State, address: Address) -> Env {
 		Env {
+			info: info,
 			state: state,
 			address: address,
 			substate: SubState::new()
@@ -73,8 +77,15 @@ impl Env {
 		self.state.balance(address)
 	}
 
-	pub fn blockhash(&self, _number: &U256) -> H256 {
-		unimplemented!();
+	/// Returns the hash of one of the 256 most recent complete blocks.
+	pub fn blockhash(&self, number: &U256) -> H256 {
+		match *number < self.info.number {
+			false => H256::from(&U256::zero()),
+			true => {
+				let index = self.info.number - *number - U256::one();
+				self.info.last_hashes[index.low_u32() as usize].clone()
+			}
+		}
 	}
 
 	/// Creates new contract
