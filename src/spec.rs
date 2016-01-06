@@ -331,15 +331,12 @@ impl Spec {
 	}
 }
 
+#[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use util::uint::*;
 	use util::hash::*;
-	use util::bytes::*;
-	use util::trie::*;
 	use util::sha3::*;
 	use views::*;
-	use util::memorydb::*;
 	use super::*;
 
 	#[test]
