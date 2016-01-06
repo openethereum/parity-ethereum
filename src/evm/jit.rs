@@ -457,6 +457,8 @@ mod tests {
 		assert_eq!(log.address(), &address);
 		assert_eq!(log.topics().len(), 1);
 		let topic = &log.topics()[0];
+		assert_eq!(topic, &H256::from_str("0000000000000000000000000f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap());
 		assert_eq!(topic, &H256::from(address.clone()));
+		assert_eq!(log.data(), &"ff00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap());
 	}
 }
