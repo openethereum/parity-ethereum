@@ -1,8 +1,14 @@
 use std::cmp::min;
 use std::fmt;
+use std::mem;
+use std::slice;
 use util::uint::*;
+use util::hash::*;
+use util::sha3::*;
+use util::bytes::*;
 use rustc_serialize::json::Json;
-//use crypto::recover;
+use std::io::Write;
+use util::crypto::*;
 
 /// Definition of a contract whose implementation is built-in. 
 pub struct Builtin {
@@ -98,7 +104,22 @@ ETH_REGISTER_PRECOMPILED(ripemd160)(bytesConstRef _in, bytesRef _out)
 }
 */
 
-// TODO: turn in to a factory with dynamic registration.
+/// Simple trait to allow for raw population of a Sized object from a byte slice.
+trait Populatable {
+	/// Populate self from byte slice `d` in a raw fashion.
+	fn populate_raw(&mut self, d: &[u8]);
+}
+
+impl<T> Populatable for T where T: Sized {
+	fn populate_raw(&mut self, d: &[u8]) {
+		unsafe {
+			slice::from_raw_parts_mut(self as *mut T as *mut u8, mem::size_of::<T>())
+		}.write(&d).unwrap();
+	}
+}
+
+/// Create a new builtin executor according to `name`.
+/// TODO: turn in to a factory with dynamic registration.
 pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 	match name {
 		"identity" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
@@ -107,26 +128,31 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 			}
 		})),
 		"ecrecover" => Some(Box::new(move|_input: &[u8], _output: &mut[u8]| {
-/*			#[repr(packed)]
+			#[repr(packed)]
+			#[derive(Debug)]
 			struct InType {
 				hash: H256,
 				v: H256,
 				r: H256,
 				s: H256,
 			}
-			let it: InType = InType { hash: H256::new(), v: H256::new(), r: H256::new(), s: H256::new() };
-			unsafe {
-				transmute()
+			let mut it: InType = InType { hash: H256::new(), v: H256::new(), r: H256::new(), s: H256::new() };
+			it.populate_raw(_input);
+			if it.v == H256::from(&U256::from(27)) || it.v == H256::from(&U256::from(28)) {
+				let s = Signature::from_rsv(&it.r, &it.s, it.v[31] - 27);
+				if is_valid(&s) {
+					match recover(&s, &it.hash) {
+						Ok(p) => {
+							let r = p.as_slice().sha3();
+							// NICE: optimise and separate out into populate-like function
+							for i in 0..min(32, _output.len()) {
+								_output[i] = if i < 12 {0} else {r[i]};
+							}
+						}
+						_ => {}
+					};
+				}
 			}
-			let hash = H256::from_slice(input[0..32]);
-			let v = H256::from_slice(input[32..64]);
-			let r = H256::from_slice(input[64..96]);
-			let s = H256::from_slice(input[96..128]);
-			if v == U256::from(27).hash() || v == U256::from(28).hash() {
-				v[31]
-			}
-			recover()*/
-			unimplemented!();
 		})),
 		"sha256" => Some(Box::new(move|_input: &[u8], _output: &mut[u8]| {
 			unimplemented!();
@@ -155,6 +181,64 @@ fn identity() {
 	f(&i[..], &mut o8[..]);
 	assert_eq!(i, o8[..4]);
 	assert_eq!([255u8; 4], o8[4..]);
+}
+
+#[test]
+fn ecrecover() {
+	use rustc_serialize::hex::FromHex;
+	/*let k = KeyPair::from_secret(b"test".sha3()).unwrap();
+	let a: Address = From::from(k.public().sha3());
+	println!("Address: {}", a);
+	let m = b"hello world".sha3();
+	println!("Message: {}", m);
+	let s = k.sign(&m).unwrap();
+	println!("Signed: {}", s);*/
+
+	let f = new_builtin_exec("ecrecover").unwrap();
+	let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+
+	let mut o = [255u8; 32];
+	f(&i[..], &mut o[..]);
+	assert_eq!(&o[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddb").unwrap())[..]);
+
+	let mut o8 = [255u8; 8];
+	f(&i[..], &mut o8[..]);
+	assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
+
+	let mut o34 = [255u8; 34];
+	f(&i[..], &mut o34[..]);
+	assert_eq!(&o34[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddbffff").unwrap())[..]);
+
+	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001a650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+	let mut o = [255u8; 32];
+	f(&i_bad[..], &mut o[..]);
+	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+	let mut o = [255u8; 32];
+	f(&i_bad[..], &mut o[..]);
+	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001b").unwrap();
+	let mut o = [255u8; 32];
+	f(&i_bad[..], &mut o[..]);
+	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000001b").unwrap();
+	let mut o = [255u8; 32];
+	f(&i_bad[..], &mut o[..]);
+	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+	let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
+	let mut o = [255u8; 32];
+	f(&i_bad[..], &mut o[..]);
+	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
+
+	// TODO: Should this (corrupted version of the above) fail rather than returning some address?
+/*	let i_bad = FromHex::from_hex("48173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+	let mut o = [255u8; 32];
+	f(&i_bad[..], &mut o[..]);
+	assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);*/
 }
 
 #[test]

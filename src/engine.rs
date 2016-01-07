@@ -57,7 +57,7 @@ pub trait Engine {
 	// TODO: consider including State in the params.
 	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) -> Result<(), EthcoreError> { Ok(()) }
 
-	// TODO: buildin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
+	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.
 /*	fn is_builtin(&self, a: Address) -> bool;
 	fn cost_of_builtin(&self, a: Address, in: &[u8]) -> bignum;
