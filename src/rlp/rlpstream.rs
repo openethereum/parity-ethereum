@@ -193,8 +193,11 @@ impl Encoder for BasicEncoder {
 		}
 	}
 
-	fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> ()
-	{
+	fn emit_raw(&mut self, bytes: &[u8]) -> () {
+		self.bytes.append_slice(bytes);
+	}
+
+	fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> () {
 		// get len before inserting a list
 		let before_len = self.bytes.len();
 

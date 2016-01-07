@@ -27,7 +27,7 @@ impl<T> Hashable for T where T: BytesConvertable {
 			let mut keccak = Keccak::new_keccak256();
 			keccak.update(self.bytes());
 			let mut ret: H256 = uninitialized();
-			keccak.finalize(ret.mut_bytes());
+			keccak.finalize(ret.as_slice_mut());
 			ret
 		}
 	}

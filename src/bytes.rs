@@ -306,10 +306,26 @@ impl <T>FromBytes for T where T: FixedHash {
 			use std::{mem, ptr};
 
 			let mut res: T = mem::uninitialized();
-			ptr::copy(bytes.as_ptr(), res.mut_bytes().as_mut_ptr(), T::size());
+			ptr::copy(bytes.as_ptr(), res.as_slice_mut().as_mut_ptr(), T::size());
 
 			Ok(res)
 		}
 	}
 }
 
+/// Simple trait to allow for raw population of a Sized object from a byte slice.
+pub trait Populatable {
+	/// Populate self from byte slice `d` in a raw fashion.
+	fn populate_raw(&mut self, d: &[u8]);
+}
+
+impl<T> Populatable for T where T: Sized {
+	fn populate_raw(&mut self, d: &[u8]) {
+		use std::mem;
+		use std::slice;
+		use std::io::Write;
+		unsafe {
+			slice::from_raw_parts_mut(self as *mut T as *mut u8, mem::size_of::<T>())
+		}.write(&d).unwrap();
+	}
+}

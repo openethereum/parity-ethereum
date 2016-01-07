@@ -305,6 +305,10 @@ impl<'a> Decoder for BasicDecoder<'a> {
 		}
 	}
 
+	fn as_raw(&self) -> &[u8] {
+		self.rlp.raw()
+	}
+
 	fn as_list(&self) -> Result<Vec<Self>, DecoderError> {
 		let v: Vec<BasicDecoder<'a>> = self.rlp.iter()
 			.map(| i | BasicDecoder::new(i))

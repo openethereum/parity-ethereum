@@ -686,7 +686,7 @@ mod tests {
 			0 => encode(&j),
 			_ => {
 				let mut h = H256::new();
-				h.mut_bytes()[31] = j as u8;
+				h.as_slice_mut()[31] = j as u8;
 				encode(&h)
 			},
 		}
