@@ -313,6 +313,8 @@ impl <T>FromBytes for T where T: FixedHash {
 	}
 }
 
+// TODO: tests and additional docs for these two.
+
 /// Simple trait to allow for raw population of a Sized object from a byte slice.
 pub trait Populatable {
 	/// Populate self from byte slice `d` in a raw fashion.
