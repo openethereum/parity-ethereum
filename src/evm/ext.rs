@@ -42,11 +42,11 @@ pub trait ExtFace {
 
 	/// Creates new contract.
 	/// Returns new contract address and gas used.
-	fn create(&self, _gas: u64, _endowment: &U256, _code: &[u8]) -> (Address, u64);
+	fn create(&self, gas: u64, endowment: &U256, code: &[u8]) -> (Address, u64);
 
 	/// Calls existing contract.
 	/// Returns call output and gas used.
-	fn call(&self, _gas: u64, _call_gas: u64, _receive_address: &Address, _value: &U256, _data: &[u8], _code_address: &Address) -> Option<(Vec<u8>, u64)>;
+	fn call(&self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address) -> Option<(Vec<u8>, u64)>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Vec<u8>;
@@ -68,41 +68,38 @@ pub trait ExtFace {
 ///
 /// fn main() {
 /// 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-/// 	let mut data = RuntimeData::new();
-/// 	let mut ext = Ext::new(EnvInfo::new(), State::new_temp(), address);
+/// 	let mut state = State::new_temp();
+/// 	let info = EnvInfo::new();
+/// 	let ext = Ext::new(&mut state, &info, address);
 /// }	
 /// ```
-pub struct Ext {
-	info: EnvInfo,
-	state: State,
+pub struct Ext<'a> {
+	state: &'a mut State,
+	info: &'a EnvInfo,
 	address: Address,
-	substate: SubState
+	substate: SubState,
+	depth: usize
 }
 
-impl Ext {
+impl<'a> Ext<'a> {
 	/// Creates new evm environment object with backing state.
-	pub fn new(info: EnvInfo, state: State, address: Address) -> Ext {
+	pub fn new(state: &'a mut State, info: &'a EnvInfo, address: Address, depth: usize) -> Self {
 		Ext {
-			info: info,
 			state: state,
+			info: info,
 			address: address,
-			substate: SubState::new()
+			substate: SubState::new(),
+			depth: depth
 		}
 	}
 
-	/// Returns state
-	// not sure if this is the best solution, but seems to be the easiest one, mk
-	pub fn state(&self) -> &State {
-		&self.state
-	}
-
-	/// Returns substate
+	/// Returns substate logs.
 	pub fn logs(&self) -> &[LogEntry] {
 		&self.substate.logs
 	}
 }
 
-impl ExtFace for Ext {
+impl<'a> ExtFace for Ext<'a> {
 	fn sload(&self, key: &H256) -> H256 {
 		self.state.storage_at(&self.address, key)
 	}

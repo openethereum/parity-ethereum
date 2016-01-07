@@ -6,9 +6,9 @@ use state::*;
 use env_info::*;
 use engine::*;
 use transaction::*;
-use evm::VmFactory;
+use evm::{VmFactory, ExtFace, Ext, RuntimeData};
 
-fn contract_address(address: &Address, nonce: &U256) -> Address {
+pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 	let mut stream = RlpStream::new_list(2);
 	stream.append(address);
 	stream.append(nonce);
@@ -23,16 +23,16 @@ pub struct Executive<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
-	level: usize
+	depth: usize
 }
 
 impl<'a> Executive<'a> {
-	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, level: usize) -> Self {
+	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
-			level: level
+			depth: depth
 		}
 	}
 
@@ -57,9 +57,12 @@ impl<'a> Executive<'a> {
 	}
 
 	fn create(&mut self, sender: &Address, endowment: &U256, gas_price: &U256, gas: &U256, init: &[u8], origin: &Address) -> ExecutiveResult {
-		let _new_address = contract_address(&sender, &(self.state.nonce(sender) - U256::one()));
-		let _evm = VmFactory::create();
-
+		let new_address = contract_address(&sender, &(self.state.nonce(sender) - U256::one()));
+		let mut ext = Ext::new(self.state, self.info, new_address, self.depth);
+		let data = RuntimeData::new();
+		// TODO: init runtime data
+		let evm = VmFactory::create();
+		evm.exec(data, &mut ext);
 		ExecutiveResult::Ok
 	}
 }
