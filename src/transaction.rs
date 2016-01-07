@@ -18,7 +18,7 @@ pub struct Transaction {
 	pub gas: U256,
 	pub to: Option<Address>,
 	pub value: U256,
-	pub data: Bytes,
+	pub data: Bytes
 }
 
 impl Transaction {
@@ -31,6 +31,12 @@ impl Transaction {
 			value: U256::zero(),
 			data: vec![]
 		}
+	}
+
+	/// Returns sender of the transaction.
+	/// TODO: implement
+	pub fn sender(&self) -> Address {
+		Address::new()
 	}
 
 	/// Is this transaction meant to create a contract?

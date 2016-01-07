@@ -1,3 +1,5 @@
+use util::hash::*;
+use util::uint::*;
 use state::*;
 use env_info::*;
 use engine::*;
@@ -27,9 +29,11 @@ impl<'a> Executive<'a> {
 	pub fn exec(&mut self, transaction: &Transaction) -> ExecutiveResult {
 		// TODO: validate that we have enough funds
 
+		self.state.inc_nonce(&transaction.sender());
+
 		match transaction.kind() {
 			TransactionKind::MessageCall => self.call(transaction),
-			TransactionKind::ContractCreation => self.create(transaction)
+			TransactionKind::ContractCreation => { unimplemented!(); }// self.create(&self.sender(), )
 		}
 	}
 
@@ -37,7 +41,7 @@ impl<'a> Executive<'a> {
 		ExecutiveResult::Ok
 	}
 
-	fn create(&mut self, transaction: &Transaction) -> ExecutiveResult {
+	fn create(&mut self, address: &Address, endowment: &U256, gas_price: &U256, gas: &U256, init: &[u8], origin: &Address) -> ExecutiveResult {
 		ExecutiveResult::Ok
 	}
 }

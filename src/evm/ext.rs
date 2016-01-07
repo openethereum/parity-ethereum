@@ -27,8 +27,8 @@ impl SubState {
 	}
 }
 
-/// This structure represents contract execution environment.
-/// It should be initalized with `State` and contract address.
+/// Externality interface for the Virtual Machine providing access to 
+/// world state.
 /// 
 /// ```markdown
 /// extern crate ethcore_util as util;
@@ -41,7 +41,7 @@ impl SubState {
 /// fn main() {
 /// 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 /// 	let mut data = RuntimeData::new();
-/// 	let mut env = Env::new(EnvInfo::new(), State::new_temp(), address);
+/// 	let mut ext = Ext::new(EnvInfo::new(), State::new_temp(), address);
 /// }	
 /// ```
 pub struct Ext {
