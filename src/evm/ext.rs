@@ -44,17 +44,17 @@ impl SubState {
 /// 	let mut env = Env::new(EnvInfo::new(), State::new_temp(), address);
 /// }	
 /// ```
-pub struct Env {
+pub struct Ext {
 	info: EnvInfo,
 	state: State,
 	address: Address,
 	substate: SubState
 }
 
-impl Env {
+impl Ext {
 	/// Creates new evm environment object with backing state.
-	pub fn new(info: EnvInfo, state: State, address: Address) -> Env {
-		Env {
+	pub fn new(info: EnvInfo, state: State, address: Address) -> Ext {
+		Ext {
 			info: info,
 			state: state,
 			address: address,

@@ -1,6 +1,6 @@
 //! Ethereum virtual machine.
 
-pub mod env;
+pub mod ext;
 pub mod runtime_data;
 pub mod evm;
 pub mod vmfactory;
@@ -10,6 +10,6 @@ pub mod executive;
 mod jit;
 
 pub use self::evm::{Evm, ReturnCode};
-pub use self::env::Env;
+pub use self::ext::Ext;
 pub use self::runtime_data::RuntimeData;
 pub use self::logentry::LogEntry;

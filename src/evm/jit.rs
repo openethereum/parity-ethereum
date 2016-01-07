@@ -119,37 +119,37 @@ impl IntoJit<evmjit::RuntimeDataHandle> for evm::RuntimeData {
 	}
 }
 
-struct EnvAdapter<'a> {
-	env: &'a mut evm::Env
+struct ExtAdapter<'a> {
+	ext: &'a mut evm::Ext
 }
 
-impl<'a> EnvAdapter<'a> {
-	fn new(env: &'a mut evm::Env) -> Self {
-		EnvAdapter {
-			env: env
+impl<'a> ExtAdapter<'a> {
+	fn new(ext: &'a mut evm::Ext) -> Self {
+		ExtAdapter {
+			ext: ext
 		}
 	}
 }
 
-impl<'a> evmjit::Env for EnvAdapter<'a> {
+impl<'a> evmjit::Ext for ExtAdapter<'a> {
 	fn sload(&self, index: *const evmjit::I256, out_value: *mut evmjit::I256) {
 		unsafe {
 			let i = H256::from_jit(&*index);
-			let o = self.env.sload(&i);
+			let o = self.ext.sload(&i);
 			*out_value = o.into_jit();
 		}
 	}
 
 	fn sstore(&mut self, index: *const evmjit::I256, value: *const evmjit::I256) {
 		unsafe {
-			self.env.sstore(H256::from_jit(&*index), H256::from_jit(&*value));
+			self.ext.sstore(H256::from_jit(&*index), H256::from_jit(&*value));
 		}
 	}
 
 	fn balance(&self, address: *const evmjit::H256, out_value: *mut evmjit::I256) {
 		unsafe {
 			let a = Address::from_jit(&*address);
-			let o = self.env.balance(&a);
+			let o = self.ext.balance(&a);
 			*out_value = o.into_jit();
 		}
 	}
@@ -157,7 +157,7 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 	fn blockhash(&self, number: *const evmjit::I256, out_hash: *mut evmjit::H256) {
 		unsafe {
 			let n = U256::from_jit(&*number);
-			let o = self.env.blockhash(&n);
+			let o = self.ext.blockhash(&n);
 			*out_hash = o.into_jit();
 		}
 	}
@@ -169,7 +169,7 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 			  init_size: u64,
 			  address: *mut evmjit::H256) {
 		unsafe {
-			let (addr, gas) = self.env.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize));
+			let (addr, gas) = self.ext.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize));
 			*io_gas = gas;
 			*address = addr.into_jit();
 		}
@@ -186,7 +186,7 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 				out_size: u64,
 				code_address: *const evmjit::H256) -> bool {
 		unsafe {
-			let opt = self.env.call(*io_gas, 
+			let opt = self.ext.call(*io_gas, 
 									call_gas, 
 									&Address::from_jit(&*receive_address),
 									&U256::from_jit(&*value),
@@ -232,13 +232,13 @@ impl<'a> evmjit::Env for EnvAdapter<'a> {
 			}
 		
 			let bytes_ref: &[u8] = slice::from_raw_parts(beg, size as usize);
-			self.env.log(topics, bytes_ref.to_vec());
+			self.ext.log(topics, bytes_ref.to_vec());
 		}
 	}
 
 	fn extcode(&self, address: *const evmjit::H256, size: *mut u64) -> *const u8 {
 		unsafe {
-			let code = self.env.extcode(&Address::from_jit(&*address));
+			let code = self.ext.extcode(&Address::from_jit(&*address));
 			*size = code.len() as u64;
 			let ptr = code.as_ptr();
 			mem::forget(code);
@@ -262,11 +262,11 @@ impl From<evmjit::ReturnCode> for evm::ReturnCode {
 pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, data: evm::RuntimeData, env: &mut evm::Env) -> evm::ReturnCode {
+	fn exec(&self, data: evm::RuntimeData, ext: &mut evm::Ext) -> evm::ReturnCode {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
-		let env_adapter: EnvAdapter<'static> = unsafe { ::std::mem::transmute(EnvAdapter::new(env)) };
-		let mut env_handle = evmjit::EnvHandle::new(env_adapter);
-		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut env_handle) };
+		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext)) };
+		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);
+		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
 		From::from(context.exec())
 	}
 }
@@ -314,49 +314,49 @@ mod tests {
 	}
 
 	#[test]
-	fn test_env_add() {
+	fn test_ext_add() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let mut data = RuntimeData::new();
 		data.address = address.clone(); 
 		data.gas = 0x174876e800;
 		data.code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
 
-		let mut env = Env::new(EnvInfo::new(), State::new_temp(), address.clone());
+		let mut ext = Ext::new(EnvInfo::new(), State::new_temp(), address.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let state = env.state();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let state = ext.state();
 		assert_eq!(state.storage_at(&address, &H256::new()), 
 				   H256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").unwrap());
 	}
 
 	#[test]
-	fn test_env_sha3_0() {
+	fn test_ext_sha3_0() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let mut data = RuntimeData::new();
 		data.address = address.clone(); 
 		data.gas = 0x174876e800;
 		data.code = "6000600020600055".from_hex().unwrap();
 
-		let mut env = Env::new(EnvInfo::new(), State::new_temp(), address.clone());
+		let mut ext = Ext::new(EnvInfo::new(), State::new_temp(), address.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let state = env.state();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let state = ext.state();
 		assert_eq!(state.storage_at(&address, &H256::new()), 
 				   H256::from_str("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap());
 	}
 
 	#[test]
-	fn test_env_sha3_1() {
+	fn test_ext_sha3_1() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let mut data = RuntimeData::new();
 		data.address = address.clone(); 
 		data.gas = 0x174876e800;
 		data.code = "6005600420600055".from_hex().unwrap();
 
-		let mut env = Env::new(EnvInfo::new(), State::new_temp(), address.clone());
+		let mut ext = Ext::new(EnvInfo::new(), State::new_temp(), address.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let state = env.state();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let state = ext.state();
 		assert_eq!(state.storage_at(&address, &H256::new()), 
 				   H256::from_str("c41589e7559804ea4a2080dad19d876a024ccb05117835447d72ce08c1d020ec").unwrap());
 	}
@@ -370,10 +370,10 @@ mod tests {
 		data.gas = 0x174876e800;
 		data.code = "32600055".from_hex().unwrap();
 
-		let mut env = Env::new(EnvInfo::new(), State::new_temp(), address.clone());
+		let mut ext = Ext::new(EnvInfo::new(), State::new_temp(), address.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let state = env.state();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let state = ext.state();
 		assert_eq!(Address::from(state.storage_at(&address, &H256::new())), address.clone());
 	}
 
@@ -386,10 +386,10 @@ mod tests {
 		data.gas = 0x174876e800;
 		data.code = "33600055".from_hex().unwrap();
 
-		let mut env = Env::new(EnvInfo::new(), State::new_temp(), address.clone());
+		let mut ext = Ext::new(EnvInfo::new(), State::new_temp(), address.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let state = env.state();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let state = ext.state();
 		assert_eq!(Address::from(state.storage_at(&address, &H256::new())), address.clone());
 	}
 
@@ -420,10 +420,10 @@ mod tests {
 		let mut state = State::new_temp();
 		state.set_code(&address, address_code);
 		state.set_code(&caller, caller_code);
-		let mut env = Env::new(EnvInfo::new(), state, caller.clone());
+		let mut ext = Ext::new(EnvInfo::new(), state, caller.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let state = env.state();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let state = ext.state();
 		assert_eq!(state.storage_at(&caller, &H256::new()), 
 				   H256::from_str("6005600055000000000000000000000000000000000000000000000000000000").unwrap());
 	}
@@ -439,10 +439,10 @@ mod tests {
 
 		let mut state = State::new_temp();
 		state.add_balance(&address, &U256::from(0x10));
-		let mut env = Env::new(EnvInfo::new(), state, address.clone());
+		let mut ext = Ext::new(EnvInfo::new(), state, address.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let state = env.state();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let state = ext.state();
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0x10)));
 	}
 
@@ -455,10 +455,10 @@ mod tests {
 		data.gas = 0x174876e800;
 		data.code = "60006000a0".from_hex().unwrap();
 
-		let mut env = Env::new(EnvInfo::new(), State::new_temp(), address.clone());
+		let mut ext = Ext::new(EnvInfo::new(), State::new_temp(), address.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let logs = env.logs();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let logs = ext.logs();
 		assert_eq!(logs.len(), 1);
 		let log = &logs[0];
 		assert_eq!(log.address(), &address);
@@ -483,10 +483,10 @@ mod tests {
 		data.gas = 0x174876e800;
 		data.code = "60ff6000533360206000a1".from_hex().unwrap();
 
-		let mut env = Env::new(EnvInfo::new(), State::new_temp(), address.clone());
+		let mut ext = Ext::new(EnvInfo::new(), State::new_temp(), address.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let logs = env.logs();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let logs = ext.logs();
 		assert_eq!(logs.len(), 1);
 		let log = &logs[0];
 		assert_eq!(log.address(), &address);
@@ -509,10 +509,10 @@ mod tests {
 		let mut info = EnvInfo::new();
 		info.number = U256::one();
 		info.last_hashes.push(H256::from(address.clone()));
-		let mut env = Env::new(info, State::new_temp(), address.clone());
+		let mut ext = Ext::new(info, State::new_temp(), address.clone());
 		let evm = JitEvm;
-		assert_eq!(evm.exec(data, &mut env), ReturnCode::Stop);
-		let state = env.state();
+		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
+		let state = ext.state();
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(address.clone()));
 	}
 }

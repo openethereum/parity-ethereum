@@ -7,10 +7,31 @@
 //! use evmjit::*;
 //! 
 //! fn main() {
-//! 	let mut context = ContextHandle::new(RuntimeDataHandle::new(), EnvHandle::empty());
+//! 	let mut context = ContextHandle::new(RuntimeDataHandle::new(), ExtHandle::empty());
 //! 	assert_eq!(context.exec(), ReturnCode::Stop);
 //! }
 //!
+//! ```
+//! 
+//!
+//! To verify that c abi is "imported" correctly, run:
+//! 
+//! ```bash
+//!	nm your_executable -g | grep ext 
+//! ```
+//! 
+//! It should give the following output:
+//!
+//! ```bash
+//! 00000001000779e0 T _ext_balance
+//! 0000000100077a10 T _ext_blockhash
+//! 0000000100077a90 T _ext_call
+//! 0000000100077a40 T _ext_create
+//! 0000000100077b50 T _ext_extcode
+//! 0000000100077b80 T _ext_log
+//! 0000000100077b20 T _ext_sha3
+//! 0000000100077980 T _ext_sload
+//! 00000001000779b0 T _ext_sstore
 //! ```
 
 extern crate tiny_keccak;
@@ -74,15 +95,14 @@ pub struct ContextHandle {
 
 impl ContextHandle {
 	/// Creates new context handle.
-	/// This function is unsafe cause env lifetime is not considered
-	pub unsafe fn new(data_handle: RuntimeDataHandle, env: &mut EnvHandle) -> Self {
-		import_evmjit_abi();
+	/// This function is unsafe cause ext lifetime is not considered
+	pub unsafe fn new(data_handle: RuntimeDataHandle, ext: &mut ExtHandle) -> Self {
 		let mut handle = ContextHandle {
 			context: std::mem::uninitialized(),
 			data_handle: data_handle,
 		};
 
-		handle.context = evmjit_create_context(handle.data_handle.mut_runtime_data(), env);
+		handle.context = evmjit_create_context(handle.data_handle.mut_runtime_data(), ext);
 		handle
 	}
 
@@ -98,8 +118,8 @@ impl Drop for ContextHandle {
 	}
 }
 
-/// Component oriented wrapper around jit env c interface.
-pub trait Env {
+/// Component oriented wrapper around jit ext c interface.
+pub trait Ext {
 	fn sload(&self, index: *const JitI256, out_value: *mut JitI256);
 	fn sstore(&mut self, index: *const JitI256, value: *const JitI256);
 	fn balance(&self, address: *const JitH256, out_value: *mut JitI256);
@@ -134,39 +154,39 @@ pub trait Env {
 	fn extcode(&self, address: *const JitH256, size: *mut u64) -> *const u8;
 }
 
-/// C abi compatible wrapper for jit env implementers.
-pub struct EnvHandle {
-	env_impl: Option<Box<Env>>
+/// C abi compatible wrapper for jit ext implementers.
+pub struct ExtHandle {
+	ext_impl: Option<Box<Ext>>
 }
 
-impl EnvHandle {
-	/// Creates new environment wrapper for given implementation
-	pub fn new<T>(env_impl: T) -> Self where T: Env + 'static {
-		EnvHandle { env_impl: Some(Box::new(env_impl)) }
+impl ExtHandle {
+	/// Creates new extironment wrapper for given implementation
+	pub fn new<T>(ext_impl: T) -> Self where T: Ext + 'static {
+		ExtHandle { ext_impl: Some(Box::new(ext_impl)) }
 	}
 
-	/// Creates empty environment.
+	/// Creates empty extironment.
 	/// It can be used to for any operations.
 	pub fn empty() -> Self {
-		EnvHandle { env_impl: None }
+		ExtHandle { ext_impl: None }
 	}
 }
 
-impl Deref for EnvHandle {
-	type Target = Box<Env>;
+impl Deref for ExtHandle {
+	type Target = Box<Ext>;
 
 	fn deref(&self) -> &Self::Target {
-		match self.env_impl {
-			Some(ref env) => env,
+		match self.ext_impl {
+			Some(ref ext) => ext,
 			None => { panic!("Handle is empty!"); }
 		}
 	}
 }
 
-impl DerefMut for EnvHandle {
+impl DerefMut for ExtHandle {
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		match self.env_impl {
-			Some(ref mut env) => env,
+		match self.ext_impl {
+			Some(ref mut ext) => ext,
 			None => { panic!("Handle is empty!"); }
 		}
 	}
@@ -256,79 +276,43 @@ pub mod ffi {
 		pub code_hash: JitI256
 	}
 
-	/// Dumb function to "import" c abi in libraries 
-	/// which inherit from this library.
-	/// 
-	/// It needs to be compiled as a part of main executable.
-	/// 
-	/// To verify that c abi is "imported" correctly, run:
-	/// 
-	/// ```bash
-	///	nm your_executable -g | grep env 
-	/// ```
-	/// 
-	/// It should give the following output:
-	///
-	/// ```bash
-	/// 00000001000779e0 T _env_balance
-	/// 0000000100077a10 T _env_blockhash
-	/// 0000000100077a90 T _env_call
-	/// 0000000100077a40 T _env_create
-	/// 0000000100077b50 T _env_extcode
-	/// 0000000100077b80 T _env_log
-	/// 0000000100077b20 T _env_sha3
-	/// 0000000100077980 T _env_sload
-	/// 00000001000779b0 T _env_sstore
-	/// ```
-	pub fn import_evmjit_abi() {
-		let _env_sload = env_sload;
-		let _env_sstore = env_sstore;
-		let _env_balance = env_balance;
-		let _env_blockhash = env_blockhash;
-		let _env_create = env_create;
-		let _env_call = env_call;
-		let _env_sha3 = env_sha3;
-		let _env_extcode = env_extcode;
-		let _env_log = env_log;
+	#[no_mangle]
+	pub unsafe extern "C" fn env_sload(ext: *const ExtHandle, index: *const JitI256, out_value: *mut JitI256) {
+		let ext = &*ext;
+		ext.sload(index, out_value);
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_sload(env: *const EnvHandle, index: *const JitI256, out_value: *mut JitI256) {
-		let env = &*env;
-		env.sload(index, out_value);
+	pub unsafe extern "C" fn env_sstore(ext: *mut ExtHandle, index: *mut JitI256, value: *mut JitI256) {
+		let ext = &mut *ext;
+		ext.sstore(index, value);
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_sstore(env: *mut EnvHandle, index: *mut JitI256, value: *mut JitI256) {
-		let env = &mut *env;
-		env.sstore(index, value);
+	pub unsafe extern "C" fn env_balance(ext: *const ExtHandle, address: *const JitH256, out_value: *mut JitI256) {
+		let ext = &*ext;
+		ext.balance(address, out_value);
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_balance(env: *const EnvHandle, address: *const JitH256, out_value: *mut JitI256) {
-		let env = &*env;
-		env.balance(address, out_value);
+	pub unsafe extern "C" fn env_blockhash(ext: *const ExtHandle, number: *const JitI256, out_hash: *mut JitH256) {
+		let ext = &*ext;
+		ext.blockhash(number, out_hash);
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_blockhash(env: *const EnvHandle, number: *const JitI256, out_hash: *mut JitH256) {
-		let env = &*env;
-		env.blockhash(number, out_hash);
-	}
-
-	#[no_mangle]
-	pub unsafe extern "C" fn env_create(env: *mut EnvHandle, 
+	pub unsafe extern "C" fn env_create(ext: *mut ExtHandle, 
 							 io_gas: *mut u64, 
 							 endowment: *const JitI256, 
 							 init_beg: *const u8, 
 							 init_size: u64, 
 							 address: *mut JitH256) {
-		let env = &mut *env;
-		env.create(io_gas, endowment, init_beg, init_size, address);
+		let ext = &mut *ext;
+		ext.create(io_gas, endowment, init_beg, init_size, address);
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_call(env: *mut EnvHandle, 
+	pub unsafe extern "C" fn env_call(ext: *mut ExtHandle, 
 						   io_gas: *mut u64,
 						   call_gas: u64,
 						   receive_address: *const JitH256,
@@ -338,8 +322,8 @@ pub mod ffi {
 						   out_beg: *mut u8,
 						   out_size: u64,
 						   code_address: *const JitH256) -> bool {
-		let env = &mut *env;
-		env.call(io_gas, call_gas, receive_address, value, in_beg, in_size, out_beg, out_size, code_address)
+		let ext = &mut *ext;
+		ext.call(io_gas, call_gas, receive_address, value, in_beg, in_size, out_beg, out_size, code_address)
 	}
 
 	#[no_mangle]
@@ -354,21 +338,21 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_extcode(env: *const EnvHandle, address: *const JitH256, size: *mut u64) -> *const u8 {
-		let env = &*env;
-		env.extcode(address, size)
+	pub unsafe extern "C" fn env_extcode(ext: *const ExtHandle, address: *const JitH256, size: *mut u64) -> *const u8 {
+		let ext = &*ext;
+		ext.extcode(address, size)
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_log(env: *mut EnvHandle,
+	pub unsafe extern "C" fn env_log(ext: *mut ExtHandle,
 						  beg: *const u8,
 						  size: u64,
 						  topic1: *const JitH256,
 						  topic2: *const JitH256,
 						  topic3: *const JitH256,
 						  topic4: *const JitH256) {
-		let env = &mut *env;
-		env.log(beg, size, topic1, topic2, topic3, topic4);
+		let ext = &mut *ext;
+		ext.log(beg, size, topic1, topic2, topic3, topic4);
 	}
 
 
@@ -381,10 +365,10 @@ pub mod ffi {
 	}
 
 	#[link(name="evmjit")]
-	// EnvHandle does not have to by a C type
+	// ExtHandle does not have to by a C type
 	#[allow(improper_ctypes)]
 	extern "C" {
-		pub fn evmjit_create_context(data: *mut JitRuntimeData, env: *mut EnvHandle) -> *mut JitContext;
+		pub fn evmjit_create_context(data: *mut JitRuntimeData, ext: *mut ExtHandle) -> *mut JitContext;
 	}
 }
 
@@ -392,7 +376,7 @@ pub mod ffi {
 fn ffi_test() {
 	unsafe {
 		let data = evmjit_create_runtime_data();
-		let context = evmjit_create_context(data, &mut EnvHandle::empty());
+		let context = evmjit_create_context(data, &mut ExtHandle::empty());
 
 		let code = evmjit_exec(context);
 		assert_eq!(code, JitReturnCode::Stop);
@@ -405,7 +389,7 @@ fn ffi_test() {
 #[test]
 fn handle_test() {
 	unsafe {
-		let mut context = ContextHandle::new(RuntimeDataHandle::new(), &mut EnvHandle::empty());
+		let mut context = ContextHandle::new(RuntimeDataHandle::new(), &mut ExtHandle::empty());
 		assert_eq!(context.exec(), ReturnCode::Stop);
 	}
 }
