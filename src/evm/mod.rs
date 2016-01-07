@@ -5,6 +5,7 @@ pub mod runtime_data;
 pub mod evm;
 pub mod vmfactory;
 pub mod logentry;
+pub mod executive;
 #[cfg(feature = "jit" )]
 mod jit;
 
