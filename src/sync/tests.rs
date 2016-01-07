@@ -5,7 +5,7 @@ use util::uint::{U256};
 use util::sha3::Hashable;
 use util::rlp::{self, Rlp, RlpStream, View, Stream};
 use util::network::{PeerId, PacketId, Error as NetworkError};
-use eth::{BlockChainClient, BlockStatus, BlockNumber, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult, QueueStatus};
+use client::{BlockChainClient, BlockStatus, BlockNumber, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult, QueueStatus};
 use header::Header as BlockHeader;
 use sync::{SyncIo};
 use sync::chain::{ChainSync};
@@ -164,7 +164,7 @@ impl BlockChainClient for TestBlockChainClient {
 	fn clear_queue(&mut self) {
 	}
 
-	fn info(&self) -> BlockChainInfo {
+	fn chain_info(&self) -> BlockChainInfo {
 		BlockChainInfo {
 			total_difficulty: self.difficulty,
 			pending_total_difficulty: self.difficulty,

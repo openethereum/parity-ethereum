@@ -1,7 +1,7 @@
-use std::sync::{Arc};
-use eth::{BlockChainClient};
+use std::sync::Arc;
+use client::BlockChainClient;
 use util::network::{ProtocolHandler, NetworkService, HandlerIo, TimerToken, PeerId, PacketId, Message, Error as NetworkError};
-use sync::chain::{ChainSync};
+use sync::chain::ChainSync;
 
 mod chain;
 mod range_collection;

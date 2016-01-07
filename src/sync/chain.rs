@@ -8,7 +8,7 @@ use util::uint::{U256};
 use util::rlp::{Rlp, RlpStream, self}; //TODO: use UntrustedRlp
 use util::rlp::rlptraits::{Stream, View};
 use util::sha3::Hashable;
-use eth::{BlockNumber, BlockChainClient, BlockStatus, QueueStatus, ImportResult};
+use client::{BlockNumber, BlockChainClient, BlockStatus, QueueStatus, ImportResult};
 use views::{HeaderView};
 use sync::range_collection::{RangeCollection, ToUsize, FromUsize};
 use sync::{SyncIo};
@@ -202,7 +202,7 @@ impl ChainSync {
 		self.highest_block = 0;
 		self.have_common_block = false;
 		io.chain().clear_queue();
-		self.starting_block = io.chain().info().best_block_number;
+		self.starting_block = io.chain().chain_info().best_block_number;
 		self.state = SyncState::NotSynced;
 	}
 
@@ -461,7 +461,7 @@ impl ChainSync {
 			(peer.latest.clone(), peer.difficulty.clone())
 		};
 
-		let td = io.chain().info().pending_total_difficulty;
+		let td = io.chain().chain_info().pending_total_difficulty;
 		let syncing_difficulty = max(self.syncing_difficulty, td);
 		if force || peer_difficulty > syncing_difficulty {
 			// start sync
@@ -515,7 +515,7 @@ impl ChainSync {
 			let mut start = 0usize;
 			if !self.have_common_block {
 				// download backwards until common block is found 1 header at a time
-				let chain_info = io.chain().info();
+				let chain_info = io.chain().chain_info();
 				start = chain_info.best_block_number as usize;
 				if !self.headers.is_empty() {
 					start = min(start, self.headers.range_iter().next().unwrap().0 as usize - 1);
@@ -720,7 +720,7 @@ impl ChainSync {
 
 	fn send_status(&mut self, io: &mut SyncIo, peer_id: &PeerId) {
 		let mut packet = RlpStream::new_list(5);
-		let chain = io.chain().info();
+		let chain = io.chain().chain_info();
 		packet.append(&(PROTOCOL_VERSION as u32));
 		packet.append(&0u32); //TODO: network id
 		packet.append(&chain.total_difficulty);
@@ -742,7 +742,7 @@ impl ChainSync {
 		let max_headers: usize = r.val_at(1);
 		let skip: usize = r.val_at(2);
 		let reverse: bool = r.val_at(3);
-		let last = io.chain().info().best_block_number;
+		let last = io.chain().chain_info().best_block_number;
 		let mut number = if r.at(0).size() == 32 {
 			// id is a hash
 			let hash: H256 = r.val_at(0);
