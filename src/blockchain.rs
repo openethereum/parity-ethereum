@@ -99,7 +99,7 @@ impl BlockChain {
 	///
 	/// 	let bc = BlockChain::new(genesis.block(), &dir);
 	///
-	/// 	let genesis_hash = "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3";
+	/// 	let genesis_hash = "347db3ae87cf4703f948676de5858af1a2a336cbe2e6e56c5041dd80bed3071f";
 	/// 	assert_eq!(bc.genesis_hash(), H256::from_str(genesis_hash).unwrap());
 	/// 	assert!(bc.is_known(&bc.genesis_hash()));
 	/// 	assert_eq!(bc.genesis_hash(), bc.block_hash(&U256::from(0u8)).unwrap());

@@ -117,6 +117,28 @@ impl Encodable for Header {
 		})
 	}
 }
+/*
+trait RlpStandard {
+	fn append(&self, s: &mut RlpStream);
+}
+
+impl RlpStandard for Header {
+	fn append(&self, s: &mut RlpStream) {
+		s.append_list(13);
+		s.append(self.parent_hash);
+		s.append_raw(self.seal[0]);
+		s.append_standard(self.x);
+	}
+	fn populate(&mut self, s: &Rlp) {
+	}
+}
+
+impl RlpStream {
+	fn append_standard<O>(&mut self, o: &O) where O: RlpStandard {
+		o.append(self);
+	}
+}
+*/
 
 #[cfg(test)]
 mod tests {

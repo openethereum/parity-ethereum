@@ -21,7 +21,7 @@ use denominations::*;
 use header::*;
 
 /// Converts file from base64 gzipped bytes to json
-pub fn base_to_json(source: &[u8]) -> Json {
+pub fn gzip64res_to_json(source: &[u8]) -> Json {
 	// there is probably no need to store genesis in based64 gzip,
 	// but that's what go does, and it was easy to load it this way
 	let data = source.from_base64().expect("Genesis block is malformed!");
@@ -36,9 +36,10 @@ pub fn base_to_json(source: &[u8]) -> Json {
 // TODO: handle container types.
 fn json_to_rlp(json: &Json) -> Bytes {
 	match json {
+		&Json::Boolean(o) => encode(&(if o {1u64} else {0})),
 		&Json::I64(o) => encode(&(o as u64)),
 		&Json::U64(o) => encode(&o),
-		&Json::String(ref s) if &s[0..2] == "0x" && U256::from_str(&s[2..]).is_ok() => {
+		&Json::String(ref s) if s.len() >= 2 && &s[0..2] == "0x" && U256::from_str(&s[2..]).is_ok() => {
 			encode(&U256::from_str(&s[2..]).unwrap())
 		},
 		&Json::String(ref s) => {
@@ -58,6 +59,7 @@ fn json_to_rlp_map(json: &Json) -> HashMap<String, Bytes> {
 
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
+#[derive(Debug)]
 pub struct Spec {
 	// What engine are we using for this?
 	pub engine_name: String,
@@ -140,9 +142,7 @@ impl Spec {
 		ret.append_raw(&empty_list, 1);
 		ret.out()
 	}
-}
 
-impl Spec {
 	/// Loads a chain-specification from a json data structure
 	pub fn from_json(json: Json) -> Spec {
 		// once we commit ourselves to some json parsing library (serde?)
@@ -150,48 +150,54 @@ impl Spec {
 		let mut state = HashMap::new();
 		let mut builtins = HashMap::new();
 
-		let accounts = json["alloc"].as_object().expect("Missing genesis state");
-		for (address, acc) in accounts.iter() {
-			let addr = Address::from_str(address).unwrap();
-			let o = acc.as_object().unwrap();
-			if let Json::Object(_) = o["precompiled"] {
-				if let Some(b) = Builtin::from_json(&o["precompiled"]) {
-					builtins.insert(addr.clone(), b);
+		if let Some(&Json::Object(ref accounts)) = json.find("accounts") {
+			for (address, acc) in accounts.iter() {
+				let addr = Address::from_str(address).unwrap();
+				if let Some(ref builtin_json) = acc.find("builtin") {
+					if let Some(builtin) = Builtin::from_json(builtin_json) {
+						builtins.insert(addr.clone(), builtin);
+					}
 				}
+				let balance = if let Some(&Json::String(ref b)) = acc.find("balance") {U256::from_dec_str(b).unwrap_or(U256::from(0))} else {U256::from(0)};
+				let nonce = if let Some(&Json::String(ref n)) = acc.find("nonce") {U256::from_dec_str(n).unwrap_or(U256::from(0))} else {U256::from(0)};
+				// TODO: handle code & data if they exist.
+				state.insert(addr, Account::new_basic(balance, nonce));
 			}
-			let balance = U256::from_dec_str(o["balance"].as_string().unwrap_or("0")).unwrap();
-			let nonce = U256::from_dec_str(o["nonce"].as_string().unwrap_or("0")).unwrap();
-			// TODO: handle code & data is they exist.
-			state.insert(addr, Account::new_basic(balance, nonce));
 		}
 
+		let genesis = &json["genesis"];//.as_object().expect("No genesis object in JSON");
+
 		let (seal_fields, seal_rlp) = {
-			if json.find("mixhash").is_some() && json.find("nonce").is_some() {
+			if genesis.find("mixHash").is_some() && genesis.find("nonce").is_some() {
 				let mut s = RlpStream::new();
-				s.append(&H256::from_str(&json["mixhash"].as_string().unwrap()[2..]).unwrap());
-				s.append(&H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap());
+				s.append(&H256::from_str(&genesis["mixHash"].as_string().expect("mixHash not a string.")[2..]).expect("Invalid mixHash string value"));
+				s.append(&H64::from_str(&genesis["nonce"].as_string().expect("nonce not a string.")[2..]).expect("Invalid nonce string value"));
 				(2, s.out())
 			} else {
 				// backup algo that will work with sealFields/sealRlp (and without).
-				(usize::from_str(&json["sealFields"].as_string().unwrap_or("0x")[2..]).unwrap(), json["sealRlp"].as_string().unwrap_or("0x")[2..].from_hex().unwrap())
+				(
+					usize::from_str(&genesis["sealFields"].as_string().unwrap_or("0x")[2..]).expect("Invalid sealFields integer data"),
+					genesis["sealRlp"].as_string().unwrap_or("0x")[2..].from_hex().expect("Invalid sealRlp hex data")
+				)
 			}
 		};
 
+		
 		Spec {
 			engine_name: json["engineName"].as_string().unwrap().to_string(),
 			engine_params: json_to_rlp_map(&json["params"]),
 			builtins: builtins,
-			parent_hash: H256::from_str(&json["parentHash"].as_string().unwrap()[2..]).unwrap(),
-			author: Address::from_str(&json["coinbase"].as_string().unwrap()[2..]).unwrap(),
-			difficulty: U256::from_str(&json["difficulty"].as_string().unwrap()[2..]).unwrap(),
-			gas_limit: U256::from_str(&json["gasLimit"].as_string().unwrap()[2..]).unwrap(),
+			parent_hash: H256::from_str(&genesis["parentHash"].as_string().unwrap()[2..]).unwrap(),
+			author: Address::from_str(&genesis["author"].as_string().unwrap()[2..]).unwrap(),
+			difficulty: U256::from_str(&genesis["difficulty"].as_string().unwrap()[2..]).unwrap(),
+			gas_limit: U256::from_str(&genesis["gasLimit"].as_string().unwrap()[2..]).unwrap(),
 			gas_used: U256::from(0u8),
-			timestamp: U256::from_str(&json["timestamp"].as_string().unwrap()[2..]).unwrap(),
-			extra_data: json["extraData"].as_string().unwrap()[2..].from_hex().unwrap(),
+			timestamp: U256::from_str(&genesis["timestamp"].as_string().unwrap()[2..]).unwrap(),
+			extra_data: genesis["extraData"].as_string().unwrap()[2..].from_hex().unwrap(),
 			genesis_state: state,
 			seal_fields: seal_fields,
 			seal_rlp: seal_rlp,
-			state_root_memo: RefCell::new(json["stateRoot"].as_string().map(|s| H256::from_str(&s[2..]).unwrap())),
+			state_root_memo: RefCell::new(genesis.find("stateRoot").and_then(|_| genesis["stateRoot"].as_string()).map(|s| H256::from_str(&s[2..]).unwrap())),
 		}
 	}
 
@@ -315,10 +321,10 @@ impl Spec {
 					(Address::from_str("0000000000000000000000000000000000000003").unwrap(), Account::new_basic(U256::from(1), n)),
 					(Address::from_str("0000000000000000000000000000000000000004").unwrap(), Account::new_basic(U256::from(1), n)),
 					(Address::from_str("102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c").unwrap(), Account::new_basic(U256::from(1) << 200, n))
-			]}.into_iter().fold(HashMap::new(), | mut acc, vec | {
-				acc.insert(vec.0, vec.1);
-				acc
-			}),
+				]}.into_iter().fold(HashMap::new(), | mut acc, vec | {
+					acc.insert(vec.0, vec.1);
+					acc
+				}),
 			seal_fields: 2,
 			seal_rlp: {
 				let mut r = RlpStream::new();
@@ -336,6 +342,7 @@ mod tests {
 	use std::str::FromStr;
 	use util::hash::*;
 	use util::sha3::*;
+	use rustc_serialize::json::Json;
 	use views::*;
 	use super::*;
 
@@ -343,6 +350,16 @@ mod tests {
 	fn all() {
 		let morden = Spec::new_morden();
 	//	let engine = morden.to_engine();	// Ethash doesn't exist as an engine yet, so would fail.
+
+		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
+		let genesis = morden.genesis_block();
+		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
+	}
+
+	#[test]
+	fn morden_res() {
+		let morden_json = Json::from_str(::std::str::from_utf8(include_bytes!("../res/morden.json")).unwrap()).expect("Json is invalid");
+		let morden = Spec::from_json(morden_json);
 
 		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = morden.genesis_block();

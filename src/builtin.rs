@@ -1,6 +1,8 @@
 use std::cmp::min;
+use std::fmt;
 use util::uint::*;
 use rustc_serialize::json::Json;
+//use crypto::recover;
 
 /// Definition of a contract whose implementation is built-in. 
 pub struct Builtin {
@@ -9,6 +11,12 @@ pub struct Builtin {
 	/// Run this built-in function with the input being the first argument and the output
 	/// being placed into the second.
 	pub execute: Box<Fn(&[u8], &mut [u8])>,
+}
+
+impl fmt::Debug for Builtin {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "<Builtin>")
+	}
 }
 
 impl Builtin {
@@ -99,6 +107,25 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 			}
 		})),
 		"ecrecover" => Some(Box::new(move|_input: &[u8], _output: &mut[u8]| {
+/*			#[repr(packed)]
+			struct InType {
+				hash: H256,
+				v: H256,
+				r: H256,
+				s: H256,
+			}
+			let it: InType = InType { hash: H256::new(), v: H256::new(), r: H256::new(), s: H256::new() };
+			unsafe {
+				transmute()
+			}
+			let hash = H256::from_slice(input[0..32]);
+			let v = H256::from_slice(input[32..64]);
+			let r = H256::from_slice(input[64..96]);
+			let s = H256::from_slice(input[96..128]);
+			if v == U256::from(27).hash() || v == U256::from(28).hash() {
+				v[31]
+			}
+			recover()*/
 			unimplemented!();
 		})),
 		"sha256" => Some(Box::new(move|_input: &[u8], _output: &mut[u8]| {
