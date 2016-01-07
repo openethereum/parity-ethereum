@@ -5,6 +5,7 @@ use std::fmt;
 use std::ops;
 use std::hash::{Hash, Hasher};
 use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitAnd};
+use std::cmp::{PartialOrd, Ordering};
 use rustc_serialize::hex::*;
 use error::EthcoreError;
 use rand::Rng;
@@ -21,7 +22,7 @@ pub trait FixedHash: Sized + BytesConvertable {
 	fn random() -> Self;
 	fn randomize(&mut self);
 	fn size() -> usize;
-	fn mut_bytes(&mut self) -> &mut [u8];
+	fn as_slice_mut(&mut self) -> &mut [u8];
 	fn from_slice(src: &[u8]) -> Self;
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
 	fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
@@ -77,7 +78,7 @@ macro_rules! impl_hash {
 				$size
 			}
 
-			fn mut_bytes(&mut self) -> &mut [u8] {
+			fn as_slice_mut(&mut self) -> &mut [u8] {
 				&mut self.0
 			}
 
@@ -142,7 +143,7 @@ macro_rules! impl_hash {
 						ptr += 1;
 					}
 					index &= mask;
-					ret.mut_bytes()[m - 1 - index / 8] |= 1 << (index % 8);
+					ret.as_slice_mut()[m - 1 - index / 8] |= 1 << (index % 8);
 				}
 
 				ret
@@ -205,6 +206,19 @@ macro_rules! impl_hash {
 					}
 				}
 				true
+			}
+		}
+
+		impl PartialOrd for $from {
+			fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+				for i in 0..$size {
+					if self.0[i] > other.0[i] {
+						return Some(Ordering::Greater);
+					} else if self.0[i] < other.0[i] {
+						return Some(Ordering::Less);
+					}
+				}
+				Some(Ordering::Equal)
 			}
 		}
 
@@ -311,7 +325,7 @@ macro_rules! impl_hash {
 }
 
 impl<'a> From<&'a U256> for H256 {
-    fn from(value: &'a U256) -> H256 {
+	fn from(value: &'a U256) -> H256 {
 		unsafe {
 			let mut ret: H256 = ::std::mem::uninitialized();
 			value.to_bytes(&mut ret);
@@ -338,6 +352,26 @@ impl From<Address> for H256 {
 			ret
 		}
 	}
+}
+
+pub fn h256_from_hex(s: &str) -> H256 {
+	use std::str::FromStr;
+	H256::from_str(s).unwrap()
+}
+
+pub fn h256_from_u64(n: u64) -> H256 {
+	use uint::U256;
+	H256::from(&U256::from(n))
+}
+
+pub fn address_from_hex(s: &str) -> Address {
+	use std::str::FromStr;
+	Address::from_str(s).unwrap()
+}
+
+pub fn address_from_u64(n: u64) -> Address {
+	let h256 = h256_from_u64(n);
+	From::from(h256)
 }
 
 impl_hash!(H32, 4);
