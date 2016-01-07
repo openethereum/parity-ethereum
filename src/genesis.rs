@@ -89,7 +89,7 @@ impl Genesis {
 				// ethash specific fields
 				let mixhash = H256::from_str(&json["mixhash"].as_string().unwrap()[2..]).unwrap();
 				let nonce = H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap();
-				vec![mixhash.to_vec(), nonce.to_vec()]
+				vec![encode(&mixhash), encode(&nonce)]
 			}
 		};
 		
@@ -118,6 +118,6 @@ fn test_genesis() {
 
 	let g = Genesis::new_frontier();
 	let view = BlockView::new(&g.block).header_view();
-	let genesis_hash = H256::from_str("347db3ae87cf4703f948676de5858af1a2a336cbe2e6e56c5041dd80bed3071f").unwrap();
+	let genesis_hash = H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
 	assert_eq!(view.sha3(), genesis_hash);
 }
