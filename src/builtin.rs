@@ -8,6 +8,7 @@ use rustc_serialize::json::Json;
 use std::io::Write;
 use util::crypto::*;
 use crypto::sha2::Sha256;
+use crypto::ripemd160::Ripemd160;
 use crypto::digest::Digest;
 
 /// Definition of a contract whose implementation is built-in. 
@@ -112,10 +113,13 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 				sha.result(ret.as_slice_mut());
 				copy_to(&ret, output);
 			}
-			// dev::sha256(_in).ref().copyTo(_out);
 		})),
-		"ripemd160" => Some(Box::new(move|_input: &[u8], _output: &mut[u8]| {
-			// h256(dev::ripemd160(_in), h256::AlignRight).ref().copyTo(_out);
+		"ripemd160" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+			let mut sha = Ripemd160::new();
+			sha.input(input);
+			let mut ret = H256::new();
+			sha.result(&mut ret.as_slice_mut()[12..32]);
+			copy_to(&ret, output);
 		})),
 		_ => None
 	}
@@ -157,6 +161,25 @@ fn sha256() {
 	let mut o34 = [255u8; 34];
 	f(&i[..], &mut o34[..]);
 	assert_eq!(&o34[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ffff").unwrap())[..]);
+}
+
+#[test]
+fn ripemd160() {
+	use rustc_serialize::hex::FromHex;
+	let f = new_builtin_exec("ripemd160").unwrap();
+	let i = [0u8; 0];
+
+	let mut o = [255u8; 32];
+	f(&i[..], &mut o[..]);
+	assert_eq!(&o[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31").unwrap())[..]);
+
+	let mut o8 = [255u8; 8];
+	f(&i[..], &mut o8[..]);
+	assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
+
+	let mut o34 = [255u8; 34];
+	f(&i[..], &mut o34[..]);
+	assert_eq!(&o34[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31ffff").unwrap())[..]);
 }
 
 #[test]
