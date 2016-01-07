@@ -1,7 +1,5 @@
 use std::cmp::min;
 use std::fmt;
-use std::mem;
-use std::slice;
 use util::uint::*;
 use util::hash::*;
 use util::sha3::*;
@@ -60,39 +58,6 @@ impl Builtin {
 }
 
 /*
-ETH_REGISTER_PRECOMPILED(ecrecover)(bytesConstRef _in, bytesRef _out)
-{
-	struct inType
-	{
-		h256 hash;
-		h256 v;
-		h256 r;
-		h256 s;
-	} in;
-
-	memcpy(&in, _in.data(), min(_in.size(), sizeof(in)));
-
-	h256 ret;
-	u256 v = (u256)in.v;
-	if (v >= 27 && v <= 28)
-	{
-		SignatureStruct sig(in.r, in.s, (byte)((int)v - 27));
-		if (sig.isValid())
-		{
-			try
-			{
-				if (Public rec = recover(sig, in.hash))
-				{
-					ret = dev::sha3(rec);
-					memset(ret.data(), 0, 12);
-					ret.ref().copyTo(_out);
-				}
-			}
-			catch (...) {}
-		}
-	}
-}
-
 ETH_REGISTER_PRECOMPILED(sha256)(bytesConstRef _in, bytesRef _out)
 {
 	dev::sha256(_in).ref().copyTo(_out);
@@ -103,20 +68,6 @@ ETH_REGISTER_PRECOMPILED(ripemd160)(bytesConstRef _in, bytesRef _out)
 	h256(dev::ripemd160(_in), h256::AlignRight).ref().copyTo(_out);
 }
 */
-
-/// Simple trait to allow for raw population of a Sized object from a byte slice.
-trait Populatable {
-	/// Populate self from byte slice `d` in a raw fashion.
-	fn populate_raw(&mut self, d: &[u8]);
-}
-
-impl<T> Populatable for T where T: Sized {
-	fn populate_raw(&mut self, d: &[u8]) {
-		unsafe {
-			slice::from_raw_parts_mut(self as *mut T as *mut u8, mem::size_of::<T>())
-		}.write(&d).unwrap();
-	}
-}
 
 /// Create a new builtin executor according to `name`.
 /// TODO: turn in to a factory with dynamic registration.
