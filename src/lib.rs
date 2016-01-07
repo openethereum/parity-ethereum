@@ -77,6 +77,7 @@ extern crate rustc_serialize;
 extern crate flate2;
 extern crate rocksdb;
 extern crate heapsize;
+extern crate crypto;
 
 extern crate env_logger;
 #[cfg(feature = "jit" )]

@@ -7,6 +7,8 @@ use util::bytes::*;
 use rustc_serialize::json::Json;
 use std::io::Write;
 use util::crypto::*;
+use crypto::sha2::Sha256;
+use crypto::digest::Digest;
 
 /// Definition of a contract whose implementation is built-in. 
 pub struct Builtin {
@@ -57,17 +59,12 @@ impl Builtin {
 	}
 }
 
-/*
-ETH_REGISTER_PRECOMPILED(sha256)(bytesConstRef _in, bytesRef _out)
-{
-	dev::sha256(_in).ref().copyTo(_out);
+pub fn copy_to(src: &[u8], dest: &mut[u8]) {
+	// NICE: optimise
+	for i in 0..min(src.len(), dest.len()) {
+		dest[i] = src[i];
+	}
 }
-
-ETH_REGISTER_PRECOMPILED(ripemd160)(bytesConstRef _in, bytesRef _out)
-{
-	h256(dev::ripemd160(_in), h256::AlignRight).ref().copyTo(_out);
-}
-*/
 
 /// Create a new builtin executor according to `name`.
 /// TODO: turn in to a factory with dynamic registration.
@@ -78,7 +75,7 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 				output[i] = input[i];
 			}
 		})),
-		"ecrecover" => Some(Box::new(move|_input: &[u8], _output: &mut[u8]| {
+		"ecrecover" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
 			#[repr(packed)]
 			#[derive(Debug)]
 			struct InType {
@@ -88,7 +85,7 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 				s: H256,
 			}
 			let mut it: InType = InType { hash: H256::new(), v: H256::new(), r: H256::new(), s: H256::new() };
-			it.populate_raw(_input);
+			it.populate_raw(input);
 			if it.v == H256::from(&U256::from(27)) || it.v == H256::from(&U256::from(28)) {
 				let s = Signature::from_rsv(&it.r, &it.s, it.v[31] - 27);
 				if is_valid(&s) {
@@ -96,8 +93,8 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 						Ok(p) => {
 							let r = p.as_slice().sha3();
 							// NICE: optimise and separate out into populate-like function
-							for i in 0..min(32, _output.len()) {
-								_output[i] = if i < 12 {0} else {r[i]};
+							for i in 0..min(32, output.len()) {
+								output[i] = if i < 12 {0} else {r[i]};
 							}
 						}
 						_ => {}
@@ -105,11 +102,20 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 				}
 			}
 		})),
-		"sha256" => Some(Box::new(move|_input: &[u8], _output: &mut[u8]| {
-			unimplemented!();
+		"sha256" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+			let mut sha = Sha256::new();
+			sha.input(input);
+			if output.len() >= 32 {
+				sha.result(output);
+			} else {
+				let mut ret = H256::new();
+				sha.result(ret.as_slice_mut());
+				copy_to(&ret, output);
+			}
+			// dev::sha256(_in).ref().copyTo(_out);
 		})),
 		"ripemd160" => Some(Box::new(move|_input: &[u8], _output: &mut[u8]| {
-			unimplemented!();
+			// h256(dev::ripemd160(_in), h256::AlignRight).ref().copyTo(_out);
 		})),
 		_ => None
 	}
@@ -132,6 +138,25 @@ fn identity() {
 	f(&i[..], &mut o8[..]);
 	assert_eq!(i, o8[..4]);
 	assert_eq!([255u8; 4], o8[4..]);
+}
+
+#[test]
+fn sha256() {
+	use rustc_serialize::hex::FromHex;
+	let f = new_builtin_exec("sha256").unwrap();
+	let i = [0u8; 0];
+
+	let mut o = [255u8; 32];
+	f(&i[..], &mut o[..]);
+	assert_eq!(&o[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
+
+	let mut o8 = [255u8; 8];
+	f(&i[..], &mut o8[..]);
+	assert_eq!(&o8[..], &(FromHex::from_hex("e3b0c44298fc1c14").unwrap())[..]);
+
+	let mut o34 = [255u8; 34];
+	f(&i[..], &mut o34[..]);
+	assert_eq!(&o34[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ffff").unwrap())[..]);
 }
 
 #[test]
