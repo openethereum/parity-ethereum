@@ -1,9 +1,9 @@
 //! Fast access to blockchain data.
 
 use std::collections::HashMap;
-use std::cell::RefCell;
 use std::path::Path;
 use std::hash::Hash;
+use std::sync::RwLock;
 use rocksdb::{DB, WriteBatch, Writable};
 use heapsize::HeapSizeOf;
 use util::hash::*;
@@ -62,17 +62,17 @@ impl BestBlock {
 ///
 /// **Does not do input data verification.**
 pub struct BlockChain {
-	best_block: RefCell<BestBlock>,
+	best_block: RwLock<BestBlock>,
 
 	// block cache
-	blocks: RefCell<HashMap<H256, Bytes>>,
+	blocks: RwLock<HashMap<H256, Bytes>>,
 
 	// extra caches
-	block_details: RefCell<HashMap<H256, BlockDetails>>,
-	block_hashes: RefCell<HashMap<U256, H256>>,
-	transaction_addresses: RefCell<HashMap<H256, TransactionAddress>>,
-	block_logs: RefCell<HashMap<H256, BlockLogBlooms>>,
-	blocks_blooms: RefCell<HashMap<H256, BlocksBlooms>>,
+	block_details: RwLock<HashMap<H256, BlockDetails>>,
+	block_hashes: RwLock<HashMap<U256, H256>>,
+	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
+	block_logs: RwLock<HashMap<H256, BlockLogBlooms>>,
+	blocks_blooms: RwLock<HashMap<H256, BlocksBlooms>>,
 
 	extras_db: DB,
 	blocks_db: DB
@@ -117,13 +117,13 @@ impl BlockChain {
 		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
 
 		let bc = BlockChain {
-			best_block: RefCell::new(BestBlock::new()),
-			blocks: RefCell::new(HashMap::new()),
-			block_details: RefCell::new(HashMap::new()),
-			block_hashes: RefCell::new(HashMap::new()),
-			transaction_addresses: RefCell::new(HashMap::new()),
-			block_logs: RefCell::new(HashMap::new()),
-			blocks_blooms: RefCell::new(HashMap::new()),
+			best_block: RwLock::new(BestBlock::new()),
+			blocks: RwLock::new(HashMap::new()),
+			block_details: RwLock::new(HashMap::new()),
+			block_hashes: RwLock::new(HashMap::new()),
+			transaction_addresses: RwLock::new(HashMap::new()),
+			block_logs: RwLock::new(HashMap::new()),
+			blocks_blooms: RwLock::new(HashMap::new()),
 			extras_db: extras_db,
 			blocks_db: blocks_db
 		};
@@ -158,7 +158,7 @@ impl BlockChain {
 		};
 
 		{
-			let mut best_block = bc.best_block.borrow_mut();
+			let mut best_block = bc.best_block.write().unwrap();
 			best_block.number = bc.block_number(&best_block_hash).unwrap();
 			best_block.total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
 			best_block.hash = best_block_hash;
@@ -272,7 +272,7 @@ impl BlockChain {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
-		let hash = block.sha3();
+		let hash = header.sha3();
 
 		if self.is_known(&hash) {
 			return;
@@ -283,13 +283,13 @@ impl BlockChain {
 		let (batch, new_best) = self.block_to_extras_insert_batch(bytes);
 
 		// update best block
-		let mut best_block = self.best_block.borrow_mut();
+		let mut best_block = self.best_block.write().unwrap();
 		if let Some(b) = new_best {
 			*best_block = b;
 		}
 
 		// update caches
-		let mut write = self.block_details.borrow_mut();
+		let mut write = self.block_details.write().unwrap();
 		write.remove(&header.parent_hash());
 
 		// update extras database
@@ -425,17 +425,17 @@ impl BlockChain {
 
 	/// Get best block hash.
 	pub fn best_block_hash(&self) -> H256 {
-		self.best_block.borrow().hash.clone()
+		self.best_block.read().unwrap().hash.clone()
 	}
 
 	/// Get best block number.
 	pub fn best_block_number(&self) -> U256 {
-		self.best_block.borrow().number
+		self.best_block.read().unwrap().number
 	}
 
 	/// Get best block total difficulty.
 	pub fn best_block_total_difficulty(&self) -> U256 {
-		self.best_block.borrow().total_difficulty
+		self.best_block.read().unwrap().total_difficulty
 	}
 
 	/// Get the number of given block's hash.
@@ -448,9 +448,10 @@ impl BlockChain {
 		self.query_extras(hash, &self.block_logs)
 	}
 
-	fn block(&self, hash: &H256) -> Option<Bytes> {
+	/// Get raw block data
+	pub fn block(&self, hash: &H256) -> Option<Bytes> {
 		{
-			let read = self.blocks.borrow();
+			let read = self.blocks.read().unwrap();
 			match read.get(hash) {
 				Some(v) => return Some(v.clone()),
 				None => ()
@@ -463,7 +464,7 @@ impl BlockChain {
 		match opt {
 			Some(b) => {
 				let bytes: Bytes = b.to_vec();
-				let mut write = self.blocks.borrow_mut();
+				let mut write = self.blocks.write().unwrap();
 				write.insert(hash.clone(), bytes.clone());
 				Some(bytes)
 			},
@@ -471,11 +472,11 @@ impl BlockChain {
 		}
 	}
 
-	fn query_extras<K, T>(&self, hash: &K, cache: &RefCell<HashMap<K, T>>) -> Option<T> where
+	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
 		T: Clone + Decodable + ExtrasIndexable,
 		K: ExtrasSliceConvertable + Eq + Hash + Clone {
 		{
-			let read = cache.borrow();
+			let read = cache.read().unwrap();
 			match read.get(hash) {
 				Some(v) => return Some(v.clone()),
 				None => ()
@@ -483,17 +484,17 @@ impl BlockChain {
 		}
 
 		self.extras_db.get_extras(hash).map(| t: T | {
-			let mut write = cache.borrow_mut();
+			let mut write = cache.write().unwrap();
 			write.insert(hash.clone(), t.clone());
 			t
 		})
 	}
 
-	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RefCell<HashMap<K, T>>) -> bool where
+	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> bool where
 		K: ExtrasSliceConvertable + Eq + Hash + Clone,
 		T: ExtrasIndexable {
 		{
-			let read = cache.borrow();
+			let read = cache.read().unwrap();
 			match read.get(hash) {
 				Some(_) => return true,
 				None => ()
@@ -506,21 +507,21 @@ impl BlockChain {
 	/// Get current cache size.
 	pub fn cache_size(&self) -> CacheSize {
 		CacheSize {
-			blocks: self.blocks.heap_size_of_children(),
-			block_details: self.block_details.heap_size_of_children(),
-			transaction_addresses: self.transaction_addresses.heap_size_of_children(),
-			block_logs: self.block_logs.heap_size_of_children(),
-			blocks_blooms: self.blocks_blooms.heap_size_of_children()
+			blocks: self.blocks.read().unwrap().heap_size_of_children(),
+			block_details: self.block_details.read().unwrap().heap_size_of_children(),
+			transaction_addresses: self.transaction_addresses.read().unwrap().heap_size_of_children(),
+			block_logs: self.block_logs.read().unwrap().heap_size_of_children(),
+			blocks_blooms: self.blocks_blooms.read().unwrap().heap_size_of_children()
 		}
 	}
 
 	/// Tries to squeeze the cache if its too big.
 	pub fn squeeze_to_fit(&self, size: CacheSize) {
-		self.blocks.borrow_mut().squeeze(size.blocks);
-		self.block_details.borrow_mut().squeeze(size.block_details);
-		self.transaction_addresses.borrow_mut().squeeze(size.transaction_addresses);
-		self.block_logs.borrow_mut().squeeze(size.block_logs);
-		self.blocks_blooms.borrow_mut().squeeze(size.blocks_blooms);
+		self.blocks.write().unwrap().squeeze(size.blocks);
+		self.block_details.write().unwrap().squeeze(size.block_details);
+		self.transaction_addresses.write().unwrap().squeeze(size.transaction_addresses);
+		self.block_logs.write().unwrap().squeeze(size.block_logs);
+		self.blocks_blooms.write().unwrap().squeeze(size.blocks_blooms);
 	}
 }
 

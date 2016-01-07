@@ -104,6 +104,8 @@ pub mod genesis;
 pub mod views;
 pub mod blockchain;
 pub mod extras;
+pub mod client;
 
 pub mod eth;
 pub mod sync;
+

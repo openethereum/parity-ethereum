@@ -180,7 +180,7 @@ impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq +
 fn test_range() {
 	use std::cmp::{Ordering};
 
-	let mut ranges: Vec<(u32, Vec<char>)> = Vec::new();
+	let mut ranges: Vec<(u64, Vec<char>)> = Vec::new();
 	assert_eq!(ranges.range_iter().next(), None);
 	assert_eq!(ranges.find_item(&1), None);
 	assert!(!ranges.have_item(&1));

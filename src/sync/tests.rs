@@ -169,8 +169,8 @@ impl BlockChainClient for TestBlockChainClient {
 			total_difficulty: self.difficulty,
 			pending_total_difficulty: self.difficulty,
 			genesis_hash: self.genesis_hash.clone(),
-			last_block_hash: self.last_hash.clone(),
-			last_block_number: self.blocks.len() as BlockNumber - 1,
+			best_block_hash: self.last_hash.clone(),
+			best_block_number: self.blocks.len() as BlockNumber - 1,
 		}
 	}
 }

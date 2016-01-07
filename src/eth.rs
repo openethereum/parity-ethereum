@@ -27,8 +27,8 @@ pub struct BlockChainInfo {
 	pub total_difficulty: U256,
 	pub pending_total_difficulty: U256,
 	pub genesis_hash: H256,
-	pub last_block_hash: H256,
-	pub last_block_number: BlockNumber
+	pub best_block_hash: H256,
+	pub best_block_number: BlockNumber
 }
 
 pub struct BlockQueueStatus {
@@ -37,21 +37,21 @@ pub struct BlockQueueStatus {
 
 pub type TreeRoute = ::blockchain::TreeRoute;
 
-pub type BlockNumber = u32;
+pub type BlockNumber = u64;
 
 pub trait BlockChainClient : Sync {
-	fn block_header(&self, h: &H256) -> Option<Bytes>;
-	fn block_body(&self, h: &H256) -> Option<Bytes>;
-	fn block(&self, h: &H256) -> Option<Bytes>;
-	fn block_status(&self, h: &H256) -> BlockStatus;
+	fn block_header(&self, hash: &H256) -> Option<Bytes>;
+	fn block_body(&self, hash: &H256) -> Option<Bytes>;
+	fn block(&self, hash: &H256) -> Option<Bytes>;
+	fn block_status(&self, hash: &H256) -> BlockStatus;
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes>;
 	fn block_body_at(&self, n: BlockNumber) -> Option<Bytes>;
 	fn block_at(&self, n: BlockNumber) -> Option<Bytes>;
 	fn block_status_at(&self, n: BlockNumber) -> BlockStatus;
 	fn tree_route(&self, from: &H256, to: &H256) -> TreeRoute;
-	fn state_data(&self, h: &H256) -> Option<Bytes>;
-	fn block_receipts(&self, h: &H256) -> Option<Bytes>;
-	fn import_block(&mut self, b: &[u8]) -> ImportResult;
+	fn state_data(&self, hash: &H256) -> Option<Bytes>;
+	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
+	fn import_block(&mut self, byte: &[u8]) -> ImportResult;
 	fn queue_status(&self) -> BlockQueueStatus;
 	fn clear_queue(&mut self);
 	fn info(&self) -> BlockChainInfo;

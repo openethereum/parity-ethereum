@@ -63,6 +63,13 @@ pub struct EthSync {
 pub use self::chain::SyncStatus;
 
 impl EthSync {
+	pub fn new(chain: Arc<BlockChainClient+Send+Sized>) -> EthSync {
+		EthSync {
+			chain: chain,
+			sync: ChainSync::new(),
+		}
+	}
+
 	pub fn is_syncing(&self) -> bool {
 		self.sync.is_syncing()
 	}

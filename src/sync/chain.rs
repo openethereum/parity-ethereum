@@ -202,7 +202,7 @@ impl ChainSync {
 		self.highest_block = 0;
 		self.have_common_block = false;
 		io.chain().clear_queue();
-		self.starting_block = io.chain().info().last_block_number;
+		self.starting_block = io.chain().info().best_block_number;
 		self.state = SyncState::NotSynced;
 	}
 
@@ -516,7 +516,7 @@ impl ChainSync {
 			if !self.have_common_block {
 				// download backwards until common block is found 1 header at a time
 				let chain_info = io.chain().info();
-				start = chain_info.last_block_number as usize;
+				start = chain_info.best_block_number as usize;
 				if !self.headers.is_empty() {
 					start = min(start, self.headers.range_iter().next().unwrap().0 as usize - 1);
 				}
@@ -724,7 +724,7 @@ impl ChainSync {
 		packet.append(&(PROTOCOL_VERSION as u32));
 		packet.append(&0u32); //TODO: network id
 		packet.append(&chain.total_difficulty);
-		packet.append(&chain.last_block_hash);
+		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		//TODO: handle timeout for status request
 		match io.send(*peer_id, STATUS_PACKET, packet.out()) {
@@ -742,7 +742,7 @@ impl ChainSync {
 		let max_headers: usize = r.val_at(1);
 		let skip: usize = r.val_at(2);
 		let reverse: bool = r.val_at(3);
-		let last = io.chain().info().last_block_number;
+		let last = io.chain().info().best_block_number;
 		let mut number = if r.at(0).size() == 32 {
 			// id is a hash
 			let hash: H256 = r.val_at(0);
