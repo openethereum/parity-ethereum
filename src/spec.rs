@@ -349,7 +349,7 @@ mod tests {
 	#[test]
 	fn all() {
 		let morden = Spec::new_morden();
-	//	let engine = morden.to_engine();	// Ethash doesn't exist as an engine yet, so would fail.
+//		let engine = morden.to_engine();	// Ethash doesn't exist as an engine yet, so would fail.
 
 		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = morden.genesis_block();
@@ -360,6 +360,8 @@ mod tests {
 	fn morden_res() {
 		let morden_json = Json::from_str(::std::str::from_utf8(include_bytes!("../res/morden.json")).unwrap()).expect("Json is invalid");
 		let morden = Spec::from_json(morden_json);
+
+//		let engine = morden.to_engine();	// Ethash doesn't exist as an engine yet, so would fail.
 
 		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = morden.genesis_block();
