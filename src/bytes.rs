@@ -92,7 +92,10 @@ pub type Bytes = Vec<u8>;
 
 /// Slice of bytes to underlying memory
 pub trait BytesConvertable {
+	// TODO: rename to as_slice
 	fn bytes(&self) -> &[u8];
+	fn as_slice(&self) -> &[u8] { self.bytes() }
+	fn to_bytes(&self) -> Bytes { self.as_slice().to_vec() }
 }
 
 impl<'a> BytesConvertable for &'a [u8] {

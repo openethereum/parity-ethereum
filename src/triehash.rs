@@ -77,6 +77,41 @@ pub fn trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	gen_trie_root(gen_input)
 }
 
+/// Generates a key-hashed (secure) trie root hash for a vector of key-values.
+///
+/// ```rust
+/// extern crate ethcore_util as util;
+/// use std::str::FromStr;
+/// use util::triehash::*;
+/// use util::hash::*;
+/// 
+/// fn main() {
+/// 	let v = vec![
+/// 		(From::from("doe"), From::from("reindeer")),
+/// 		(From::from("dog"), From::from("puppy")),
+/// 		(From::from("dogglesworth"), From::from("cat")),
+/// 	];
+///
+/// 	let root = "d4cd937e4a4368d7931a9cf51686b7e10abb3dce38a39000fd7902a092b64585";
+/// 	assert_eq!(sec_trie_root(v), H256::from_str(root).unwrap());
+/// }
+/// ```
+pub fn sec_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
+	let gen_input = input
+		// first put elements into btree to sort them and to remove duplicates
+		.into_iter()
+		.fold(BTreeMap::new(), | mut acc, (k, v) | {
+			acc.insert(k.sha3().to_vec(), v);
+			acc
+		})
+		// then move them to a vector
+		.into_iter()
+		.map(|(k, v)| (as_nibbles(&k), v) )
+		.collect();
+
+	gen_trie_root(gen_input)
+}
+
 fn gen_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let mut stream = RlpStream::new();
 	hash256rlp(&input, 0, &mut stream);
