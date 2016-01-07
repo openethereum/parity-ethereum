@@ -120,11 +120,11 @@ impl IntoJit<evmjit::RuntimeDataHandle> for evm::RuntimeData {
 }
 
 struct ExtAdapter<'a> {
-	ext: &'a mut evm::Ext
+	ext: &'a mut evm::ExtFace
 }
 
 impl<'a> ExtAdapter<'a> {
-	fn new(ext: &'a mut evm::Ext) -> Self {
+	fn new(ext: &'a mut evm::ExtFace) -> Self {
 		ExtAdapter {
 			ext: ext
 		}
@@ -262,7 +262,7 @@ impl From<evmjit::ReturnCode> for evm::ReturnCode {
 pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, data: evm::RuntimeData, ext: &mut evm::Ext) -> evm::ReturnCode {
+	fn exec(&self, data: evm::RuntimeData, ext: &mut evm::ExtFace) -> evm::ReturnCode {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext)) };
 		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);

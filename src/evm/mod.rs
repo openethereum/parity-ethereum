@@ -10,6 +10,8 @@ pub mod executive;
 mod jit;
 
 pub use self::evm::{Evm, ReturnCode};
-pub use self::ext::Ext;
+pub use self::ext::{ExtFace, Ext};
 pub use self::runtime_data::RuntimeData;
 pub use self::logentry::LogEntry;
+pub use self::vmfactory::VmFactory;
+pub use self::executive::Executive;
