@@ -96,7 +96,7 @@ impl Decodable for Header {
 		};
 
 		for i in 13..r.item_count() {
-			blockheader.seal.push(try!(r.val_at(i)))
+			blockheader.seal.push(try!(r.at(i)).raw().to_vec())
 		}
 
 		Ok(blockheader)
