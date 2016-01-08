@@ -7,6 +7,7 @@ use util::semantic_version::*;
 use util::error::*;
 use header::Header;
 use transaction::Transaction;
+use block::Block;
 use spec::Spec;
 use evm_schedule::EvmSchedule;
 use env_info::EnvInfo;

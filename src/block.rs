@@ -1,6 +1,11 @@
+use std::collections::hash_set::*;
+use util::hash::*;
+use util::error::*;
 use transaction::*;
 use engine::*;
+use header::*;
 use env_info::*;
+use state::*;
 
 /// A transaction/receipt execution entry.
 pub struct Entry {
@@ -22,36 +27,35 @@ pub struct Block {
 impl Block {
 	fn new(header: Header, state: State) -> Block {
 		Block {
-			header: Header:new(),
+			header: Header::new(),
 			state: state,
 			archive: Vec::new(),
 			archive_set: HashSet::new(),
 		}
 	}
 
-	pub fn state_mut(&mut self) -> &mut State { self.state }
+	pub fn state_mut(&mut self) -> &mut State { &mut self.state }
 }
 
 /// Trait for a object that is_a `Block`.
-trait IsBlock {
+pub trait IsBlock {
 	/// Get the block associated with this object.
 	fn block(&self) -> &Block;
 
 	/// Get the header associated with this object's block.
-	pub fn header(&self) -> &Header { self.block().header }
+	fn header(&self) -> &Header { &self.block().header }
 
 	/// Get the final state associated with this object's block.
-	pub fn state(&self) -> &State { self.block().state }
+	fn state(&self) -> &State { &self.block().state }
 
 	/// Get all information on transactions in this block.
-	pub fn archive(&self) -> &Vec<Entry> { self.block().archive }
+	fn archive(&self) -> &Vec<Entry> { &self.block().archive }
 }
 
 impl IsBlock for Block {
 	fn block(&self) -> &Block { self }
-	fn block_mut(&self) -> &mut Block { self }
 }
-
+/*
 /// Block that is ready for transactions to be added.
 ///
 /// It's a bit like a Vec<Transaction>, eccept that whenever a transaction is pushed, we execute it and
@@ -144,3 +148,4 @@ impl IsBlock for SealedBlock {
 	fn block(&self) -> &Block { self.block }
 	fn block_mut(&self) -> &mut Block { self.block.block }
 }
+*/

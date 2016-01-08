@@ -8,6 +8,7 @@ use util::trie::*;
 use util::bytes::*;
 use util::rlp::*;
 use util::uint::*;
+use util::error::*;
 use account::Account;
 use transaction::Transaction;
 use receipt::Receipt;
@@ -19,7 +20,7 @@ pub struct ApplyInfo {
 	r: Receipt,
 }
 
-type ApplyResult = Result<ApplyInfo, EthcoreError>;
+pub type ApplyResult = Result<ApplyInfo, EthcoreError>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {

@@ -1,5 +1,8 @@
+use util::error::*;
+use util::rlp::decode;
 use engine::Engine;
 use spec::Spec;
+use block::*;
 use evm_schedule::EvmSchedule;
 use env_info::EnvInfo;
 
@@ -23,6 +26,7 @@ impl Engine for Ethash {
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut Block) -> Result<(), EthcoreError> {
 		let a = block.header().author.clone();
-		block.state_mut().add_balance(a, decode(&self.spec().engine_params.get("block_reward").unwrap()));
+		block.state_mut().add_balance(&a, &decode(&self.spec().engine_params.get("block_reward").unwrap()));
+		Ok(())
 	}
 }

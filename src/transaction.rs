@@ -3,7 +3,7 @@ use util::bytes::*;
 use util::uint::*;
 use util::rlp::*;
 
-struct Receipt {
+pub struct Receipt {
 	gas_used: U256,
 }
 
