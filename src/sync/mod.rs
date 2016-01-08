@@ -9,7 +9,7 @@ mod range_collection;
 #[cfg(test)]
 mod tests;
 
-pub fn new(_service: &mut NetworkService, eth_client: Arc<BlockChainClient+Send+Sized>) -> EthSync {
+pub fn new(_service: &mut NetworkService, eth_client: Arc<BlockChainClient + Send + Sized>) -> EthSync {
 	EthSync {
 		chain: eth_client,
 		sync: ChainSync::new(),
@@ -56,14 +56,14 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 }
 
 pub struct EthSync {
-	chain: Arc<BlockChainClient+Send+Sized>,
+	chain: Arc<BlockChainClient + Send + Sized>,
 	sync: ChainSync
 }
 
 pub use self::chain::SyncStatus;
 
 impl EthSync {
-	pub fn new(chain: Arc<BlockChainClient+Send+Sized>) -> EthSync {
+	pub fn new(chain: Arc<BlockChainClient + Send + Sized>) -> EthSync {
 		EthSync {
 			chain: chain,
 			sync: ChainSync::new(),

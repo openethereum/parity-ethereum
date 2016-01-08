@@ -205,6 +205,7 @@ fn test_range() {
 	assert_eq!(ranges.find_item(&18), Some(&'r'));
 	assert!(ranges.have_item(&16));
 	assert_eq!(ranges.get_tail(&17), 17..19);
+	assert_eq!(ranges.get_tail(&16), 16..19);
 
 	ranges.insert_item(2, 'b');
 	assert_eq!(ranges.range_iter().cmp(vec![(2, &['b'][..]),  (16, &['p', 'q', 'r'][..])]),  Ordering::Equal);
