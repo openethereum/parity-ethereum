@@ -63,6 +63,28 @@ macro_rules! construct_uint {
 				let &$name(ref arr) = self;
 				arr[0]
 			}
+
+			/// Conversion to u32 with overflow checking
+			#[inline]
+			pub fn as_u32(&self) -> u32 {
+				let &$name(ref arr) = self;
+				if (arr[0] & (0xffffffffu64 << 32)) != 0 {
+					panic!("Intger overflow when casting U256") 
+				}
+				self.as_u64() as u32
+			}
+
+			/// Conversion to u64 with overflow checking
+			#[inline]
+			pub fn as_u64(&self) -> u64 {
+				let &$name(ref arr) = self;
+				for i in 1..$n_words {
+					if arr[i] != 0 {
+						panic!("Intger overflow when casting U256") 
+					}
+				}
+				arr[0]
+			}
 			/// Return the least number of bits needed to represent the number
 			#[inline]
 			pub fn bits(&self) -> usize {
@@ -442,13 +464,13 @@ impl From<U128> for U256 {
 
 impl From<U256> for u64 {
 	fn from(value: U256) -> u64 {
-		value.low_u64()
+		value.as_u64()
 	}
 }
 
 impl From<U256> for u32 {
 	fn from(value: U256) -> u32 {
-		value.low_u32()
+		value.as_u32()
 	}
 }
 

@@ -32,11 +32,11 @@ pub trait View<'a, 'view>: Sized {
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
-	/// 	let dog = rlp.at(1).raw();
+	/// 	let dog = rlp.at(1).as_raw();
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	fn raw(&'view self) -> &'a [u8];
+	fn as_raw(&'view self) -> &'a [u8];
 
 	/// Get the prototype of the RLP.
 	fn prototype(&self) -> Self::Prototype;

@@ -1,5 +1,3 @@
-//#![allow(dead_code)] //TODO: remove this after everything is done
-
 use mio::*;
 use hash::*;
 use rlp::*;
@@ -126,15 +124,15 @@ impl Session {
 		}
 		match packet_id {
 			PACKET_HELLO => {
-			let rlp = UntrustedRlp::new(&packet.data[1..]); //TODO: validate rlp expected size
+				let rlp = UntrustedRlp::new(&packet.data[1..]); //TODO: validate rlp expected size
 				try!(self.read_hello(&rlp, host));
 				Ok(SessionData::Ready)
-			}
+			},
 			PACKET_DISCONNECT => Err(Error::Disconnect(DisconnectReason::DisconnectRequested)),
 			PACKET_PING => {
 				try!(self.write_pong());
 				Ok(SessionData::None)
-			}
+			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
 			PACKET_PEERS => Ok(SessionData::None),
 			PACKET_USER ... PACKET_LAST => {
@@ -225,7 +223,6 @@ impl Session {
 	fn write_pong(&mut self) -> Result<(), Error>  {
 		self.send(try!(Session::prepare(PACKET_PONG, 0)))
 	}
-
 
 	fn disconnect(&mut self, reason: DisconnectReason) -> Error {
 		let mut rlp = RlpStream::new();

@@ -309,22 +309,22 @@ impl<'db> TrieDBMut<'db> {
 	/// removal instructions from the backing database.
 	fn take_node<'a, 'rlp_view>(&'a self, rlp: &'rlp_view Rlp<'a>, journal: &mut Journal) -> &'a [u8] where 'a: 'rlp_view {
 		if rlp.is_list() {
-			trace!("take_node {:?} (inline)", rlp.raw().pretty());
-			rlp.raw()
+			trace!("take_node {:?} (inline)", rlp.as_raw().pretty());
+			rlp.as_raw()
 		}
 		else if rlp.is_data() && rlp.size() == 32 {
 			let h = rlp.as_val();
 			let r = self.db.lookup(&h).unwrap_or_else(||{
-				println!("Node not found! rlp={:?}, node_hash={:?}", rlp.raw().pretty(), h);
+				println!("Node not found! rlp={:?}, node_hash={:?}", rlp.as_raw().pretty(), h);
 				println!("Journal: {:?}", journal);
 				panic!();
 			});
-			trace!("take_node {:?} (indirect for {:?})", rlp.raw().pretty(), r);
+			trace!("take_node {:?} (indirect for {:?})", rlp.as_raw().pretty(), r);
 			journal.delete_node_sha3(h);
 			r
 		}
 		else {
-			trace!("take_node {:?} (???)", rlp.raw().pretty());
+			trace!("take_node {:?} (???)", rlp.as_raw().pretty());
 			panic!("Empty or invalid node given?");
 		}
 	}
@@ -350,7 +350,7 @@ impl<'db> TrieDBMut<'db> {
 				for i in 0..17 {
 					match index == i {
 						// not us - leave alone.
-						false => { s.append_raw(old_rlp.at(i).raw(), 1); },
+						false => { s.append_raw(old_rlp.at(i).as_raw(), 1); },
 						// branch-leaf entry - just replace.
 						true if i == 16 => { s.append(&value); },
 						// original had empty slot - place a leaf there.
@@ -384,13 +384,13 @@ impl<'db> TrieDBMut<'db> {
 								// not us - empty.
 								_ if index != i => { s.append_empty_data(); },
 								// branch-value: just replace.
-								true if i == 16 => { s.append_raw(old_rlp.at(1).raw(), 1); },
+								true if i == 16 => { s.append_raw(old_rlp.at(1).as_raw(), 1); },
 								// direct extension: just replace.
-								false if existing_key.len() == 1 => { s.append_raw(old_rlp.at(1).raw(), 1); },
+								false if existing_key.len() == 1 => { s.append_raw(old_rlp.at(1).as_raw(), 1); },
 								// original has empty slot.
 								true => journal.new_node(Self::compose_leaf(&existing_key.mid(1), old_rlp.at(1).data()), &mut s),
 								// additional work required after branching.
-								false => journal.new_node(Self::compose_extension(&existing_key.mid(1), old_rlp.at(1).raw()), &mut s),
+								false => journal.new_node(Self::compose_extension(&existing_key.mid(1), old_rlp.at(1).as_raw()), &mut s),
 							}
 						};
 						self.augmented(&s.out(), partial, value, journal)
@@ -422,7 +422,7 @@ impl<'db> TrieDBMut<'db> {
 						trace!("partially-shared-prefix (exist={:?}; new={:?}; cp={:?}): AUGMENT-AT-END", existing_key.len(), partial.len(), cp);
 
 						// low (farther from root)
-						let low = Self::compose_raw(&existing_key.mid(cp), old_rlp.at(1).raw(), is_leaf);
+						let low = Self::compose_raw(&existing_key.mid(cp), old_rlp.at(1).as_raw(), is_leaf);
 						let augmented_low = self.augmented(&low, &partial.mid(cp), value, journal);
 
 						// high (closer to root)

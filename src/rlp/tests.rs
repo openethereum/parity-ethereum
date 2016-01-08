@@ -19,19 +19,19 @@ fn rlp_at() {
 
 		let cat = rlp.at(0).unwrap();
 		assert!(cat.is_data());
-		assert_eq!(cat.raw(), &[0x83, b'c', b'a', b't']);
+		assert_eq!(cat.as_raw(), &[0x83, b'c', b'a', b't']);
 		//assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_string());
 		assert_eq!(cat.as_val::<String>().unwrap(), "cat".to_string());
 
 		let dog = rlp.at(1).unwrap();
 		assert!(dog.is_data());
-		assert_eq!(dog.raw(), &[0x83, b'd', b'o', b'g']);
+		assert_eq!(dog.as_raw(), &[0x83, b'd', b'o', b'g']);
 		//assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_string());
 		assert_eq!(dog.as_val::<String>().unwrap(), "dog".to_string());
 
 		let cat_again = rlp.at(0).unwrap();
 		assert!(cat_again.is_data());
-		assert_eq!(cat_again.raw(), &[0x83, b'c', b'a', b't']);
+		assert_eq!(cat_again.as_raw(), &[0x83, b'c', b'a', b't']);
 		//assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_string());
 		assert_eq!(cat_again.as_val::<String>().unwrap(), "cat".to_string());
 	}
@@ -61,18 +61,18 @@ fn rlp_iter() {
 
 		let cat = iter.next().unwrap();
 		assert!(cat.is_data());
-		assert_eq!(cat.raw(), &[0x83, b'c', b'a', b't']);
+		assert_eq!(cat.as_raw(), &[0x83, b'c', b'a', b't']);
 
 		let dog = iter.next().unwrap();
 		assert!(dog.is_data());
-		assert_eq!(dog.raw(), &[0x83, b'd', b'o', b'g']);
+		assert_eq!(dog.as_raw(), &[0x83, b'd', b'o', b'g']);
 
 		let none = iter.next();
 		assert!(none.is_none());
 
 		let cat_again = rlp.at(0).unwrap();
 		assert!(cat_again.is_data());
-		assert_eq!(cat_again.raw(), &[0x83, b'c', b'a', b't']);
+		assert_eq!(cat_again.as_raw(), &[0x83, b'c', b'a', b't']);
 	}
 }
 

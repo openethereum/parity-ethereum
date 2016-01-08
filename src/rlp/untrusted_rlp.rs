@@ -79,7 +79,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		}
 	}
 
-	fn raw(&'view self) -> &'a [u8] {
+	fn as_raw(&'view self) -> &'a [u8] {
 		self.bytes
 	}
 
@@ -294,7 +294,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
 		where F: FnOnce(&[u8]) -> Result<T, DecoderError> {
 
-		let bytes = self.rlp.raw();
+		let bytes = self.rlp.as_raw();
 
 		match bytes.first().map(|&x| x) {
 			// rlp is too short
@@ -316,7 +316,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 	}
 
 	fn as_raw(&self) -> &[u8] {
-		self.rlp.raw()
+		self.rlp.as_raw()
 	}
 
 	fn as_list(&self) -> Result<Vec<Self>, DecoderError> {
