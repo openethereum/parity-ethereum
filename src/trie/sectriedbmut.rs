@@ -22,8 +22,8 @@ impl<'db> SecTrieDBMut<'db> {
 
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
-	pub fn new_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
-		SecTrieDBMut { raw: TrieDBMut::new_existing(db, root) }
+	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
+		SecTrieDBMut { raw: TrieDBMut::from_existing(db, root) }
 	}
 }
 
