@@ -11,11 +11,11 @@ pub struct Ethash {
 
 impl Ethash {
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
-		Box::new(NullEngine{spec: spec})
+		Box::new(Ethash{spec: spec})
 	}
 }
 
-impl Engine for NullEngine {
+impl Engine for Ethash {
 	fn name(&self) -> &str { "Ethash" }
 	fn spec(&self) -> &Spec { &self.spec }
 	fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }

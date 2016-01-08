@@ -105,3 +105,4 @@ pub mod genesis;
 pub mod views;
 pub mod blockchain;
 pub mod extras;
+pub mod ethash;

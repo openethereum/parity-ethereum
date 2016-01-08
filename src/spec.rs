@@ -17,6 +17,7 @@ use account::*;
 use engine::Engine;
 use builtin::Builtin;
 use null_engine::NullEngine;
+use ethash::Ethash;
 use denominations::*;
 use header::*;
 
