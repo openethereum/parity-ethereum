@@ -3,6 +3,7 @@
 use util::hash::*;
 use util::uint::*;
 
+// call_data
 pub struct RuntimeData {
 	pub gas: U256,
 	pub gas_price: U256,
