@@ -3,10 +3,6 @@ use util::bytes::*;
 use util::uint::*;
 use util::rlp::*;
 
-pub struct Receipt {
-	gas_used: U256,
-}
-
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
 pub struct Transaction {
@@ -23,9 +19,15 @@ impl Transaction {
 	pub fn is_contract_creation(&self) -> bool {
 		self.to.is_none()
 	}
+
 	/// Is this transaction meant to send a message?
 	pub fn is_message_call(&self) -> bool {
 		!self.is_contract_creation()
+	}
+
+	/// Get the hash of this transaction.
+	pub fn sha3(&self) -> H256 {
+		unimplemented!();
 	}
 }
 

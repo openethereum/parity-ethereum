@@ -36,11 +36,11 @@ pub trait Engine {
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
 	fn maximum_extra_data_size(&self, _env_info: &EnvInfo) -> usize { decode(&self.spec().engine_params.get("maximum_extra_data_size").unwrap()) }
-	fn account_start_nonce(&self, _env_info: &EnvInfo) -> U256 { decode(&self.spec().engine_params.get("account_start_nonce").unwrap()) }
+	fn account_start_nonce(&self) -> U256 { decode(&self.spec().engine_params.get("account_start_nonce").unwrap()) }
 
 	/// Block transformation functions, before and after the transactions.
-	fn on_new_block(&self, _block: &mut Block) -> Result<(), EthcoreError> { Ok(()) }
-	fn on_close_block(&self, _block: &mut Block) -> Result<(), EthcoreError> { Ok(()) }
+	fn on_new_block(&self, _block: &mut Block) {}
+	fn on_close_block(&self, _block: &mut Block) {}
 
 	/// Verify that `header` is valid.
 	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
@@ -55,7 +55,7 @@ pub trait Engine {
 
 	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
 	// TODO: consider including State in the params.
-	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) -> Result<(), EthcoreError> { Ok(()) }
+	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) {}
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.

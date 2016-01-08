@@ -1,7 +1,12 @@
 use std::collections::hash_set::*;
 use util::hash::*;
+use util::bytes::*;
+use util::uint::*;
 use util::error::*;
+use util::overlaydb::*;
 use transaction::*;
+use receipt::*;
+use blockchain::*;
 use engine::*;
 use header::*;
 use env_info::*;
@@ -25,7 +30,7 @@ pub struct Block {
 }
 
 impl Block {
-	fn new(header: Header, state: State) -> Block {
+	fn new(state: State) -> Block {
 		Block {
 			header: Header::new(),
 			state: state,
@@ -55,14 +60,14 @@ pub trait IsBlock {
 impl IsBlock for Block {
 	fn block(&self) -> &Block { self }
 }
-/*
+
 /// Block that is ready for transactions to be added.
 ///
 /// It's a bit like a Vec<Transaction>, eccept that whenever a transaction is pushed, we execute it and
 /// maintain the system `state()`. We also archive execution receipts in preparation for later block creation.
-pub struct OpenBlock {
+pub struct OpenBlock<'engine> {
 	block: Block,
-	engine: &Engine,
+	engine: &'engine Engine,
 	last_hashes: LastHashes,
 }
 
@@ -70,9 +75,9 @@ pub struct OpenBlock {
 /// and collected the uncles.
 ///
 /// There is no function available to push a transaction. If you want that you'll need to `reopen()` it.
-pub struct ClosedBlock {
-	open_block: OpenBlock,
-	uncles: Vec<Header>,
+pub struct ClosedBlock<'engine> {
+	open_block: OpenBlock<'engine>,
+	_uncles: Vec<Header>,
 }
 
 /// A block that has a valid seal.
@@ -80,72 +85,76 @@ pub struct ClosedBlock {
 /// The block's header has valid seal arguments. The block cannot be reversed into a ClosedBlock or OpenBlock.
 pub struct SealedBlock {
 	block: Block,
-	bytes: Bytes,
+	_bytes: Bytes,
 }
 
-impl OpenBlock {
-	pub fn new(engine: &Engine, mut db: OverlayDB, parent: &Header, last_hashes: LastHashes) -> OpenBlock {
+impl<'engine> OpenBlock<'engine> {
+	/// Create a new OpenBlock ready for transaction pushing.
+	pub fn new<'a>(engine: &'a Engine, db: OverlayDB, parent: &Header, last_hashes: LastHashes) -> OpenBlock<'a> {
 		let mut r = OpenBlock {
-			block: Block::new(State::new_existing(db, parent.state_root.clone(), engine.account_start_nonce())),
+			block: Block::new(State::from_existing(db, parent.state_root.clone(), engine.account_start_nonce())),
 			engine: engine,
 			last_hashes: last_hashes,
-		}
+		};
 
-		engine.populate_from_parent(r.block.header, parent);
-		engine.on_init_block(&mut r);
+		engine.populate_from_parent(&mut r.block.header, parent);
+		engine.on_new_block(&mut r.block);
 		r
 	}
 
-	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure ou the uncles.
-	pub fn push_transaction(&mut self, t: Transaction, mut h: Option<H256>) -> Result<&Receipt, EthcoreError> {
-		let env_info = EnvInfo{
-			number: self.header.number,
-			author: self.header.author,
-			timestamp: self.header.timestamp,
-			difficulty: self.header.difficulty,
+	/// Get the environment info concerning this block.
+	pub fn env_info(&self) -> EnvInfo {
+		// TODO: memoise.
+		EnvInfo {
+			number: self.block.header.number.clone(),
+			author: self.block.header.author.clone(),
+			timestamp: self.block.header.timestamp.clone(),
+			difficulty: self.block.header.difficulty.clone(),
 			last_hashes: self.last_hashes.clone(),
-			gas_used: if let Some(ref t) = self.archive.last() {t.receipt.gas_used} else {U256::from(0)},
-		};
-		match self.state.apply(env_info, self.engine, t, true) {
+			gas_used: if let Some(ref t) = self.block.archive.last() {t.receipt.gas_used} else {U256::from(0)},
+			gas_limit: self.block.header.gas_limit.clone(),
+		}
+	}
+
+	/// Push a transaction into the block. It will be executed, and archived together with the receipt.
+	pub fn push_transaction(&mut self, t: Transaction, h: Option<H256>) -> Result<&Receipt, EthcoreError> {
+		let env_info = self.env_info();
+		match self.block.state.apply(&env_info, self.engine, &t, true) {
 			Ok(x) => {
-				self.transactionHashes.insert(h.unwrap_or_else(||t.sha3()));
-				self.transactions.push(BlockTransaction{t, x.receipt});
-				Ok(&self.transactions.last().unwrap().receipt)
+				self.block.archive_set.insert(h.unwrap_or_else(||t.sha3()));
+				self.block.archive.push(Entry { transaction: t, receipt: x.receipt });
+				Ok(&self.block.archive.last().unwrap().receipt)
 			}
 			Err(x) => Err(x)
 		}
 	}
 
 	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure ou the uncles.
-	pub fn close(self, bc: &BlockChain) -> ClosedBlock { unimplemented!(); }
+	pub fn close(self, _bc: &BlockChain) -> ClosedBlock { unimplemented!(); }
 }
 
-impl IsBlock for OpenBlock {
-	fn block(&self) -> &Block { self.block }
-	fn block_mut(&self) -> &mut Block { self.block }
+impl<'engine> IsBlock for OpenBlock<'engine> {
+	fn block(&self) -> &Block { &self.block }
 }
 
-impl ClosedBlock {
+impl<'engine> ClosedBlock<'engine> {
 	/// Get the hash of the header without seal arguments.
 	pub fn preseal_hash(&self) -> H256 { unimplemented!(); }
 
 	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure ou the uncles.
-	pub fn seal(self, seal_fields: Vec<Bytes>) -> SealedBlock { unimplemented!(); }
+	pub fn seal(self, _seal_fields: Vec<Bytes>) -> SealedBlock { unimplemented!(); }
 
 	/// Turn this back into an `OpenBlock`.
-	pub fn reopen(self) -> OpenBlock { unimplemented!(); }
+	pub fn reopen(self) -> OpenBlock<'engine> { unimplemented!(); }
 }
 
-impl IsBlock for ClosedBlock {
-	fn block(&self) -> &Block { self.open_block.block }
-	fn block_mut(&self) -> &mut Block { self.open_block.block }
+impl<'engine> IsBlock for ClosedBlock<'engine> {
+	fn block(&self) -> &Block { &self.open_block.block }
 }
 
 impl SealedBlock {
 }
 
 impl IsBlock for SealedBlock {
-	fn block(&self) -> &Block { self.block }
-	fn block_mut(&self) -> &mut Block { self.block.block }
+	fn block(&self) -> &Block { &self.block }
 }
-*/
