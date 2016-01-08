@@ -101,7 +101,7 @@ impl Stream for RlpStream {
 		self.unfinished_lists.len() == 0
 	}
 
-	fn raw(&self) -> &[u8] {
+	fn as_raw(&self) -> &[u8] {
 		&self.encoder.bytes
 	}
 
