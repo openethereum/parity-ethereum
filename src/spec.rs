@@ -290,7 +290,7 @@ impl Spec {
 	}
 
 	/// Creates the actual Morden network chain spec.
-	pub fn new_morden() -> Spec {
+	pub fn new_morden_manual() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
 			engine_params: vec![
@@ -337,6 +337,23 @@ impl Spec {
 			state_root_memo: RefCell::new(None),
 		}
 	}
+
+	/// Create a new Spec from a JSON UTF-8 data resource `data`.
+	pub fn from_json_utf8(data: &[u8]) -> Spec {
+		Self::from_json_str(::std::str::from_utf8(data).unwrap())
+	}
+
+	/// Create a new Spec from a JSON string.
+	pub fn from_json_str(s: &str) -> Spec {
+		let json = Json::from_str(s).expect("Json is invalid");
+		Self::from_json(json)
+	}
+
+	/// Create a new Morden chain spec.
+	pub fn new_morden() -> Spec { Self::from_json_utf8(include_bytes!("../res/morden.json")) }
+
+	/// Create a new Frontier chain spec.
+	pub fn new_frontier() -> Spec { Self::from_json_utf8(include_bytes!("../res/frontier.json")) }
 }
 
 #[cfg(test)]
@@ -350,7 +367,7 @@ mod tests {
 
 	#[test]
 	fn all() {
-		let morden = Spec::new_morden();
+		let morden = Spec::new_morden_manual();
 //		let engine = morden.to_engine();	// Ethash doesn't exist as an engine yet, so would fail.
 
 		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
@@ -368,5 +385,7 @@ mod tests {
 		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = morden.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
+
+
 	}
 }
