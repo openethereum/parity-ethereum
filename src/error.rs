@@ -13,7 +13,7 @@ pub enum EthcoreError {
 	FromHex(FromHexError),
 	BaseData(BaseDataError),
 	BadSize,
-	UnknownName
+	UnknownName,
 }
 
 impl From<FromHexError> for EthcoreError {

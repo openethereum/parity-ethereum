@@ -9,18 +9,6 @@ use super::node::*;
 use super::journal::*;
 use super::trietraits::*;
 
-pub struct TrieDBMut<'db> {
-	db: &'db mut HashDB,
-	root: &'db mut H256,
-	pub hash_count: usize,
-}
-
-/// Option-like type allowing either a Node object passthrough or Bytes in the case of data alteration.
-enum MaybeChanged<'a> {
-	Same(Node<'a>),
-	Changed(Bytes),
-}
-
 /// A `Trie` implementation using a generic `HashDB` backing database.
 /// 
 /// Use it as a `Trie` trait object. You can use `db()` to get the backing database object, `keys`
@@ -52,6 +40,18 @@ enum MaybeChanged<'a> {
 ///   assert!(t.db_items_remaining().is_empty());
 /// }
 /// ```
+pub struct TrieDBMut<'db> {
+	db: &'db mut HashDB,
+	root: &'db mut H256,
+	pub hash_count: usize,
+}
+
+/// Option-like type allowing either a Node object passthrough or Bytes in the case of data alteration.
+enum MaybeChanged<'a> {
+	Same(Node<'a>),
+	Changed(Bytes),
+}
+
 impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
@@ -686,7 +686,7 @@ mod tests {
 			0 => encode(&j),
 			_ => {
 				let mut h = H256::new();
-				h.mut_bytes()[31] = j as u8;
+				h.as_slice_mut()[31] = j as u8;
 				encode(&h)
 			},
 		}

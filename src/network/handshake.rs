@@ -123,7 +123,7 @@ impl Handshake {
 		self.remote_public.clone_from_slice(pubk);
 		self.remote_nonce.clone_from_slice(nonce);
 		let shared = try!(ecdh::agree(host.secret(), &self.remote_public));
-		let signature = ec::Signature::from_slice(sig);
+		let signature = Signature::from_slice(sig);
 		let spub = try!(ec::recover(&signature, &(&shared ^ &self.remote_nonce)));
 		if &spub.sha3()[..] != hepubk {
 			trace!(target:"net", "Handshake hash mismath with {:?}", self.connection.socket.peer_addr());

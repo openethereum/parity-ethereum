@@ -6,6 +6,7 @@ pub trait Decoder: Sized {
 
 	fn as_list(&self) -> Result<Vec<Self>, DecoderError>;
 	fn as_rlp<'a>(&'a self) -> &'a UntrustedRlp<'a>;
+	fn as_raw(&self) -> &[u8];
 }
 
 pub trait Decodable: Sized {
@@ -186,6 +187,7 @@ pub trait View<'a, 'view>: Sized {
 pub trait Encoder {
 	fn emit_value(&mut self, bytes: &[u8]) -> ();
 	fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> ();
+	fn emit_raw(&mut self, bytes: &[u8]) -> ();
 }
 
 pub trait Encodable {

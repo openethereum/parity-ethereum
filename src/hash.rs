@@ -5,6 +5,7 @@ use std::fmt;
 use std::ops;
 use std::hash::{Hash, Hasher};
 use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitAnd, BitXor};
+use std::cmp::{PartialOrd, Ordering};
 use rustc_serialize::hex::*;
 use error::EthcoreError;
 use rand::Rng;
@@ -21,7 +22,7 @@ pub trait FixedHash: Sized + BytesConvertable {
 	fn random() -> Self;
 	fn randomize(&mut self);
 	fn size() -> usize;
-	fn mut_bytes(&mut self) -> &mut [u8];
+	fn as_slice_mut(&mut self) -> &mut [u8];
 	fn from_slice(src: &[u8]) -> Self;
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
 	fn copy_to(&self, dest: &mut [u8]);
@@ -78,7 +79,7 @@ macro_rules! impl_hash {
 				$size
 			}
 
-			fn mut_bytes(&mut self) -> &mut [u8] {
+			fn as_slice_mut(&mut self) -> &mut [u8] {
 				&mut self.0
 			}
 
@@ -150,7 +151,7 @@ macro_rules! impl_hash {
 						ptr += 1;
 					}
 					index &= mask;
-					ret.mut_bytes()[m - 1 - index / 8] |= 1 << (index % 8);
+					ret.as_slice_mut()[m - 1 - index / 8] |= 1 << (index % 8);
 				}
 
 				ret
@@ -213,6 +214,19 @@ macro_rules! impl_hash {
 					}
 				}
 				true
+			}
+		}
+
+		impl PartialOrd for $from {
+			fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+				for i in 0..$size {
+					if self.0[i] > other.0[i] {
+						return Some(Ordering::Greater);
+					} else if self.0[i] < other.0[i] {
+						return Some(Ordering::Less);
+					}
+				}
+				Some(Ordering::Equal)
 			}
 		}
 
@@ -343,13 +357,53 @@ macro_rules! impl_hash {
 }
 
 impl<'a> From<&'a U256> for H256 {
-    fn from(value: &'a U256) -> H256 {
+	fn from(value: &'a U256) -> H256 {
 		unsafe {
 			let mut ret: H256 = ::std::mem::uninitialized();
 			value.to_bytes(&mut ret);
 			ret
 		}
     }
+}
+
+impl From<H256> for Address {
+	fn from(value: H256) -> Address {
+		unsafe {
+			let mut ret: Address = ::std::mem::uninitialized();
+			::std::ptr::copy(value.as_ptr().offset(12), ret.as_mut_ptr(), 20);
+			ret
+		}
+	}
+}
+
+impl From<Address> for H256 {
+	fn from(value: Address) -> H256 {
+		unsafe {
+			let mut ret = H256::new();
+			::std::ptr::copy(value.as_ptr(), ret.as_mut_ptr().offset(12), 20);
+			ret
+		}
+	}
+}
+
+pub fn h256_from_hex(s: &str) -> H256 {
+	use std::str::FromStr;
+	H256::from_str(s).unwrap()
+}
+
+pub fn h256_from_u64(n: u64) -> H256 {
+	use uint::U256;
+	H256::from(&U256::from(n))
+}
+
+pub fn address_from_hex(s: &str) -> Address {
+	use std::str::FromStr;
+	Address::from_str(s).unwrap()
+}
+
+pub fn address_from_u64(n: u64) -> Address {
+	let h256 = h256_from_u64(n);
+	From::from(h256)
 }
 
 impl_hash!(H32, 4);
@@ -413,6 +467,14 @@ mod tests {
 		assert_eq!(my_bloom, bloom);
 		assert!(my_bloom.contains_bloom(&address.sha3()));
 		assert!(my_bloom.contains_bloom(&topic.sha3()));
+	}
+
+	#[test]
+	fn from_and_to_address() {
+		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
+		let h = H256::from(address.clone());
+		let a = Address::from(h);
+		assert_eq!(address, a);
 	}
 }
 
