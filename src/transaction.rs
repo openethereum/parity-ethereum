@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use util::hash::*;
 use util::bytes::*;
 use util::uint::*;

@@ -4,8 +4,8 @@ use util::hash::*;
 use util::uint::*;
 
 pub struct RuntimeData {
-	pub gas: u64,
-	pub gas_price: u64,
+	pub gas: U256,
+	pub gas_price: U256,
 	pub call_data: Vec<u8>,
 	pub address: Address,
 	pub caller: Address,
@@ -22,16 +22,16 @@ pub struct RuntimeData {
 impl RuntimeData {
 	pub fn new() -> RuntimeData {
 		RuntimeData {
-			gas: 0,
-			gas_price: 0,
+			gas: U256::zero(),
+			gas_price: U256::zero(),
 			call_data: vec![],
 			address: Address::new(),
 			caller: Address::new(),
 			origin: Address::new(),
-			call_value: U256::from(0),
+			call_value: U256::zero(),
 			coinbase: Address::new(),
-			difficulty: U256::from(0),
-			gas_limit: U256::from(0),
+			difficulty: U256::zero(),
+			gas_limit: U256::zero(),
 			number: 0,
 			timestamp: 0,
 			code: vec![]

@@ -58,11 +58,20 @@ impl<'a> Executive<'a> {
 
 	fn create(&mut self, sender: &Address, endowment: &U256, gas_price: &U256, gas: &U256, init: &[u8], origin: &Address) -> ExecutiveResult {
 		let new_address = contract_address(&sender, &(self.state.nonce(sender) - U256::one()));
-		let mut ext = Ext::new(self.state, self.info, new_address, self.depth);
-		let data = RuntimeData::new();
-		// TODO: init runtime data
-		let evm = VmFactory::create();
-		evm.exec(data, &mut ext);
+
+		{
+			let mut ext = Ext::new(self.state, self.info, self.engine, self.depth, new_address.clone());
+			let mut data = RuntimeData::new();
+
+			// TODO: init runtime data
+			data.gas = *gas;
+			data.gas_price = *gas_price;
+
+			let evm = VmFactory::create();
+			evm.exec(data, &mut ext);
+		}
+
+		self.state.transfer_balance(sender, &new_address, endowment);
 		ExecutiveResult::Ok
 	}
 }

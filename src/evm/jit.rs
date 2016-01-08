@@ -97,8 +97,10 @@ impl IntoJit<evmjit::H256> for Address {
 impl IntoJit<evmjit::RuntimeDataHandle> for evm::RuntimeData {
 	fn into_jit(self) -> evmjit::RuntimeDataHandle {
 		let mut data = evmjit::RuntimeDataHandle::new();
-		data.gas = self.gas as i64;
-		data.gas_price = self.gas_price as i64;
+		assert!(self.gas <= U256::from(u64::max_value()), "evmjit gas must be lower than 2 ^ 64");
+		assert!(self.gas_price <= U256::from(u64::max_value()), "evmjit gas_price must be lower than 2 ^ 64");
+		data.gas = self.gas.low_u64() as i64;
+		data.gas_price = self.gas_price.low_u64() as i64;
 		data.call_data = self.call_data.as_ptr();
 		data.call_data_size = self.call_data.len() as u64;
 		mem::forget(self.call_data);
@@ -282,6 +284,27 @@ mod tests {
 	use super::*;
 	use state::*;
 	use env_info::*;
+	use engine::*;
+	use evm_schedule::*;
+	use spec::*;
+
+	struct TestEngine {
+		spec: Spec
+	}
+
+	impl TestEngine {
+		fn new() -> Self {
+			TestEngine {
+				spec: Spec::frontier()
+			}
+		}
+	}
+
+	impl Engine for TestEngine {
+		fn name(&self) -> &str { "TestEngine" }
+		fn spec(&self) -> &Spec { &self.spec }
+		fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
+	}
 
 	#[test]
 	fn test_to_and_from_u256() {
@@ -318,14 +341,15 @@ mod tests {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let mut data = RuntimeData::new();
 		data.address = address.clone(); 
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
 		data.code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
 
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
+		let engine = TestEngine::new();
 
 		{
-			let mut ext = Ext::new(&mut state, &info, address.clone(), 0);
+			let mut ext = Ext::new(&mut state, &info, &engine, 0, address.clone());
 			let evm = JitEvm;
 			assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		}
@@ -339,14 +363,15 @@ mod tests {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let mut data = RuntimeData::new();
 		data.address = address.clone(); 
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
 		data.code = "6000600020600055".from_hex().unwrap();
 
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
+		let engine = TestEngine::new();
 
 		{
-			let mut ext = Ext::new(&mut state, &info, address.clone(), 0);
+			let mut ext = Ext::new(&mut state, &info, &engine, 0, address.clone());
 			let evm = JitEvm;
 			assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		}
@@ -360,14 +385,15 @@ mod tests {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let mut data = RuntimeData::new();
 		data.address = address.clone(); 
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
 		data.code = "6005600420600055".from_hex().unwrap();
 
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
+		let engine = TestEngine::new();
 
 		{
-			let mut ext = Ext::new(&mut state, &info, address.clone(), 0);
+			let mut ext = Ext::new(&mut state, &info, &engine, 0, address.clone());
 			let evm = JitEvm;
 			assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		}
@@ -382,14 +408,15 @@ mod tests {
 		let mut data = RuntimeData::new();
 		data.address = address.clone();
 		data.origin = address.clone();
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
 		data.code = "32600055".from_hex().unwrap();
 
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
+		let engine = TestEngine::new();
 
 		{
-			let mut ext = Ext::new(&mut state, &info, address.clone(), 0);
+			let mut ext = Ext::new(&mut state, &info, &engine, 0, address.clone());
 			let evm = JitEvm;
 			assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		}
@@ -403,14 +430,16 @@ mod tests {
 		let mut data = RuntimeData::new();
 		data.address = address.clone();
 		data.caller = address.clone();
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
+		data.code = "32600055".from_hex().unwrap();
 		data.code = "33600055".from_hex().unwrap();
 
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
+		let engine = TestEngine::new();
 
 		{
-			let mut ext = Ext::new(&mut state, &info, address.clone(), 0);
+			let mut ext = Ext::new(&mut state, &info, &engine, 0, address.clone());
 			let evm = JitEvm;
 			assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		}
@@ -439,16 +468,17 @@ mod tests {
 		data.address = address.clone();
 		data.caller = caller.clone();
 		data.origin = caller.clone();
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
 		data.code = address_code.clone();
 
 		let mut state = State::new_temp();
 		state.set_code(&address, address_code);
 		state.set_code(&caller, caller_code);
 		let info = EnvInfo::new();
+		let engine = TestEngine::new();
 
 		{
-			let mut ext = Ext::new(&mut state, &info, caller.clone(), 0);
+			let mut ext = Ext::new(&mut state, &info, &engine, 0, caller.clone());
 			let evm = JitEvm;
 			assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		}
@@ -463,15 +493,16 @@ mod tests {
 		let mut data = RuntimeData::new();
 		data.address = address.clone();
 		data.caller = address.clone();
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
 		data.code = "3331600055".from_hex().unwrap();
 
 		let mut state = State::new_temp();
 		state.add_balance(&address, &U256::from(0x10));
 		let info = EnvInfo::new();
+		let engine = TestEngine::new();
 
 		{
-			let mut ext = Ext::new(&mut state, &info, address.clone(), 0);
+			let mut ext = Ext::new(&mut state, &info, &engine, 0, address.clone());
 			let evm = JitEvm;
 			assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		}
@@ -485,12 +516,13 @@ mod tests {
 		let mut data = RuntimeData::new();
 		data.address = address.clone();
 		data.caller = address.clone();
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
 		data.code = "60006000a0".from_hex().unwrap();
 
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
-		let mut ext = Ext::new(&mut state, &info, address.clone(), 0);
+		let engine = TestEngine::new();
+		let mut ext = Ext::new(&mut state, &info, &engine, 0, address.clone());
 		let evm = JitEvm;
 		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		let logs = ext.logs();
@@ -515,12 +547,13 @@ mod tests {
 		let mut data = RuntimeData::new();
 		data.address = address.clone();
 		data.caller = address.clone();
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
 		data.code = "60ff6000533360206000a1".from_hex().unwrap();
 
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
-		let mut ext = Ext::new(&mut state, &info, address.clone(), 0);
+		let engine = TestEngine::new();
+		let mut ext = Ext::new(&mut state, &info, &engine, 0, address.clone());
 		let evm = JitEvm;
 		assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		let logs = ext.logs();
@@ -540,16 +573,17 @@ mod tests {
 		let mut data = RuntimeData::new();
 		data.address = address.clone();
 		data.caller = address.clone();
-		data.gas = 0x174876e800;
+		data.gas = U256::from(0x174876e800u64);
 		data.code = "600040600055".from_hex().unwrap();
 
 		let mut state = State::new_temp();
 		let mut info = EnvInfo::new();
 		info.number = U256::one();
 		info.last_hashes.push(H256::from(address.clone()));
+		let engine = TestEngine::new();
 
 		{
-			let mut ext = Ext::new(&mut state, &info, address.clone(), 0);
+			let mut ext = Ext::new(&mut state, &info, &engine, 0, address.clone());
 			let evm = JitEvm;
 			assert_eq!(evm.exec(data, &mut ext), ReturnCode::Stop);
 		}

@@ -7,6 +7,7 @@ use util::bytes::*;
 use state::*;
 use env_info::*;
 use evm::LogEntry;
+use engine::*;
 
 struct SubState {
 	// any accounts that have suicided
@@ -76,20 +77,22 @@ pub trait ExtFace {
 pub struct Ext<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
+	engine: &'a Engine,
+	depth: usize,
 	address: Address,
-	substate: SubState,
-	depth: usize
+	substate: SubState
 }
 
 impl<'a> Ext<'a> {
 	/// Creates new evm environment object with backing state.
-	pub fn new(state: &'a mut State, info: &'a EnvInfo, address: Address, depth: usize) -> Self {
+	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize, address: Address) -> Self {
 		Ext {
 			state: state,
 			info: info,
+			engine: engine,
+			depth: depth,
 			address: address,
 			substate: SubState::new(),
-			depth: depth
 		}
 	}
 
