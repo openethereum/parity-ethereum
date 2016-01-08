@@ -106,3 +106,4 @@ pub mod views;
 pub mod blockchain;
 pub mod extras;
 pub mod ethash;
+pub mod block;

@@ -58,6 +58,12 @@ impl Builtin {
 		}
 		None
 	}
+
+	/// Simple forwarder for cost.
+	pub fn cost(&self, s: usize) -> U256 { (*self.cost)(s) }
+
+	/// Simple forwarder for execute.
+	pub fn execute(&self, input: &[u8], output: &mut[u8]) { (*self.execute)(input, output); }
 }
 
 pub fn copy_to(src: &[u8], dest: &mut[u8]) {
