@@ -72,7 +72,7 @@ impl Connection {
 		}
 	}
 
-	pub fn send(&mut self, data: Bytes) { //TODO: take ownership version
+	pub fn send(&mut self, data: Bytes) {
 		if data.len() != 0 {
 			self.send_queue.push_back(Cursor::new(data));
 		}
@@ -106,7 +106,7 @@ impl Connection {
 		}.and_then(|r| {
 			if r == WriteStatus::Complete {
 				self.send_queue.pop_front();
-			};
+			}
 			if self.send_queue.is_empty() {
 				self.interest.remove(EventSet::writable());
 			}
@@ -121,7 +121,7 @@ impl Connection {
 		trace!(target: "net", "connection register; token={:?}", self.token);
 		self.interest.insert(EventSet::readable());
 		event_loop.register(&self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-			error!("Failed to reregister {:?}, {:?}", self.token, e);
+			error!("Failed to register {:?}, {:?}", self.token, e);
 			Err(e)
 		})
 	}
@@ -210,7 +210,6 @@ impl EncryptedConnection {
 	}
 
 	pub fn send_packet(&mut self, payload: &[u8]) -> Result<(), Error> {
-		println!("HEADER");
 		let mut header = RlpStream::new();
 		let len = payload.len() as usize;
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
