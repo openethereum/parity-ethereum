@@ -329,7 +329,7 @@ pub trait Populatable {
 	/// Copies a bunch of bytes `d` to `self`, overwriting as necessary.
 	///
 	/// If `d` is smaller, will leave some bytes untouched.
-	fn fax_raw(&mut self, d: &[u8]) {
+	fn copy_raw(&mut self, d: &[u8]) {
 		use std::io::Write;
 		self.as_slice_mut().write(&d).unwrap();
 	}
@@ -342,7 +342,7 @@ pub trait Populatable {
 	/// Copies the raw representation of an object `d` to `self`, overwriting as necessary.
 	///
 	/// If `d` is smaller, will leave some bytes untouched.
-	fn fax_raw_from(&mut self, d: &BytesConvertable) { self.fax_raw(d.as_slice()); }
+	fn copy_raw_from(&mut self, d: &BytesConvertable) { self.copy_raw(d.as_slice()); }
 
 	/// Get the raw slice for this object.
 	fn as_slice_mut(&mut self) -> &mut [u8];
@@ -369,10 +369,10 @@ impl<T> Populatable for [T] where T: Sized {
 #[test]
 fn fax_raw() {
 	let mut x = [255u8; 4];
-	x.fax_raw(&[1u8; 2][..]);
+	x.copy_raw(&[1u8; 2][..]);
 	assert_eq!(x, [1u8, 1, 255, 255]);
 	let mut x = [255u8; 4];
-	x.fax_raw(&[1u8; 6][..]);
+	x.copy_raw(&[1u8; 6][..]);
 	assert_eq!(x, [1u8, 1, 1, 1]);
 }
 
@@ -399,10 +399,10 @@ fn populate_raw_dyn() {
 #[test]
 fn fax_raw_dyn() {
 	let mut x = [255u8; 4];
-	x.fax_raw(&[1u8; 2][..]);
+	x.copy_raw(&[1u8; 2][..]);
 	assert_eq!(&x[..], [1u8, 1, 255, 255]);
 	let mut x = [255u8; 4];
-	x.fax_raw(&[1u8; 6][..]);
+	x.copy_raw(&[1u8; 6][..]);
 	assert_eq!(&x[..], [1u8, 1, 1, 1]);
 }
 
@@ -414,6 +414,6 @@ fn populate_big_types() {
 	h.populate_raw_from(&a);
 	assert_eq!(h, h256_from_hex("ffffffffffffffffffffffffffffffffffffffff000000000000000000000000"));
 	let mut h = h256_from_u64(0x69);
-	h.fax_raw_from(&a);
+	h.copy_raw_from(&a);
 	assert_eq!(h, h256_from_hex("ffffffffffffffffffffffffffffffffffffffff000000000000000000000069"));
 }
