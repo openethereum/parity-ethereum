@@ -160,10 +160,14 @@ impl Spec {
 						builtins.insert(addr.clone(), builtin);
 					}
 				}
-				let balance = if let Some(&Json::String(ref b)) = acc.find("balance") {U256::from_dec_str(b).unwrap_or(U256::from(0))} else {U256::from(0)};
-				let nonce = if let Some(&Json::String(ref n)) = acc.find("nonce") {U256::from_dec_str(n).unwrap_or(U256::from(0))} else {U256::from(0)};
+				let balance = acc.find("balance").and_then(|x| match x { &Json::String(ref b) => U256::from_dec_str(b).ok(), _ => None });
+				let nonce = acc.find("nonce").and_then(|x| match x { &Json::String(ref b) => U256::from_dec_str(b).ok(), _ => None });
+//				let balance = if let Some(&Json::String(ref b)) = acc.find("balance") {U256::from_dec_str(b).unwrap_or(U256::from(0))} else {U256::from(0)};
+//				let nonce = if let Some(&Json::String(ref n)) = acc.find("nonce") {U256::from_dec_str(n).unwrap_or(U256::from(0))} else {U256::from(0)};
 				// TODO: handle code & data if they exist.
-				state.insert(addr, Account::new_basic(balance, nonce));
+				if balance.is_some() || nonce.is_some() {
+					state.insert(addr, Account::new_basic(balance.unwrap_or(U256::from(0)), nonce.unwrap_or(U256::from(0))));
+				}
 			}
 		}
 
@@ -290,7 +294,7 @@ impl Spec {
 	}
 
 	/// Creates the actual Morden network chain spec.
-	pub fn new_morden() -> Spec {
+	pub fn new_morden_manual() -> Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
 			engine_params: vec![
@@ -337,6 +341,23 @@ impl Spec {
 			state_root_memo: RefCell::new(None),
 		}
 	}
+
+	/// Create a new Spec from a JSON UTF-8 data resource `data`.
+	pub fn from_json_utf8(data: &[u8]) -> Spec {
+		Self::from_json_str(::std::str::from_utf8(data).unwrap())
+	}
+
+	/// Create a new Spec from a JSON string.
+	pub fn from_json_str(s: &str) -> Spec {
+		let json = Json::from_str(s).expect("Json is invalid");
+		Self::from_json(json)
+	}
+
+	/// Create a new Morden chain spec.
+	pub fn new_morden() -> Spec { Self::from_json_utf8(include_bytes!("../res/morden.json")) }
+
+	/// Create a new Frontier chain spec.
+	pub fn new_frontier() -> Spec { Self::from_json_utf8(include_bytes!("../res/frontier.json")) }
 }
 
 #[cfg(test)]
@@ -349,9 +370,8 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn all() {
-		let morden = Spec::new_morden();
-//		let engine = morden.to_engine();	// Ethash doesn't exist as an engine yet, so would fail.
+	fn morden_manual() {
+		let morden = Spec::new_morden_manual();
 
 		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = morden.genesis_block();
@@ -359,14 +379,22 @@ mod tests {
 	}
 
 	#[test]
-	fn morden_res() {
-		let morden_json = Json::from_str(::std::str::from_utf8(include_bytes!("../res/morden.json")).unwrap()).expect("Json is invalid");
-		let morden = Spec::from_json(morden_json);
-
-//		let engine = morden.to_engine();	// Ethash doesn't exist as an engine yet, so would fail.
+	fn morden() {
+		let morden = Spec::new_morden();
 
 		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = morden.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
+	}
+
+	#[test]
+	fn frontier() {
+		let frontier = Spec::new_frontier();
+
+		assert_eq!(*frontier.state_root(), H256::from_str("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544").unwrap());
+		let genesis = frontier.genesis_block();
+		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap());
+
+		let engine = frontier.to_engine();
 	}
 }
