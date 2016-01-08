@@ -462,25 +462,23 @@ impl Host {
 	fn connection_writable(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
 		let mut kill = false;
 		let mut create_session = false;
-		{
-			match self.connections.get_mut(token) {
-				Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
-					h.writable(event_loop, &self.info).unwrap_or_else(|e| {
-						debug!(target: "net", "Handshake write error: {:?}", e);
-						kill = true;
-					});
-					create_session = h.done();
-				},
-				Some(&mut ConnectionEntry::Session(ref mut s)) => {
-					s.writable(event_loop, &self.info).unwrap_or_else(|e| {
-						debug!(target: "net", "Session write error: {:?}", e);
-						kill = true;
-					});
-				}
-				_ => {
-					warn!(target: "net", "Received event for unknown connection");
-				}
-			};
+		match self.connections.get_mut(token) {
+			Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
+				h.writable(event_loop, &self.info).unwrap_or_else(|e| {
+					debug!(target: "net", "Handshake write error: {:?}", e);
+					kill = true;
+				});
+				create_session = h.done();
+			},
+			Some(&mut ConnectionEntry::Session(ref mut s)) => {
+				s.writable(event_loop, &self.info).unwrap_or_else(|e| {
+					debug!(target: "net", "Session write error: {:?}", e);
+					kill = true;
+				});
+			}
+			_ => {
+				warn!(target: "net", "Received event for unknown connection");
+			}
 		}
 		if kill {
 			self.kill_connection(token, event_loop);
@@ -496,46 +494,44 @@ impl Host {
 		let mut create_session = false;
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Option<(ProtocolId, PacketId, Vec<u8>)> = None;
-		{
-			match self.connections.get_mut(token) {
-				Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
-					h.readable(event_loop, &self.info).unwrap_or_else(|e| {
-						debug!(target: "net", "Handshake read error: {:?}", e);
-						kill = true;
-					});
-					create_session = h.done();
-				},
-				Some(&mut ConnectionEntry::Session(ref mut s)) => {
-					let sd = { s.readable(event_loop, &self.info).unwrap_or_else(|e| {
-						debug!(target: "net", "Session read error: {:?}", e);
-						kill = true;
-						SessionData::None
-					}) };
-					match sd {
-						SessionData::Ready => {
-							for (p, _) in self.handlers.iter_mut() {
-								if s.have_capability(p)  {
-									ready_data.push(p);
-								}
+		match self.connections.get_mut(token) {
+			Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
+				h.readable(event_loop, &self.info).unwrap_or_else(|e| {
+					debug!(target: "net", "Handshake read error: {:?}", e);
+					kill = true;
+				});
+				create_session = h.done();
+			},
+			Some(&mut ConnectionEntry::Session(ref mut s)) => {
+				let sd = { s.readable(event_loop, &self.info).unwrap_or_else(|e| {
+					debug!(target: "net", "Session read error: {:?}", e);
+					kill = true;
+					SessionData::None
+				}) };
+				match sd {
+					SessionData::Ready => {
+						for (p, _) in self.handlers.iter_mut() {
+							if s.have_capability(p)  {
+								ready_data.push(p);
 							}
-						},
-						SessionData::Packet {
-							data,
-							protocol,
-							packet_id,
-						} => {
-							match self.handlers.get_mut(protocol) {
-								None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
-								Some(_) => packet_data = Some((protocol, packet_id, data)),
-							}
-						},
-						SessionData::None => {},
-					}
+						}
+					},
+					SessionData::Packet {
+						data,
+						protocol,
+						packet_id,
+					} => {
+						match self.handlers.get_mut(protocol) {
+							None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
+							Some(_) => packet_data = Some((protocol, packet_id, data)),
+						}
+					},
+					SessionData::None => {},
 				}
-				_ => {
-					warn!(target: "net", "Received event for unknown connection");
-				}
-			};
+			}
+			_ => {
+				warn!(target: "net", "Received event for unknown connection");
+			}
 		}
 		if kill {
 			self.kill_connection(token, event_loop);
@@ -572,93 +568,94 @@ impl Host {
 	fn connection_timeout(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
 		self.kill_connection(token, event_loop)
 	}
+
 	fn kill_connection(&mut self, token: Token, _event_loop: &mut EventLoop<Host>) {
 		self.connections.remove(token);
 	}
-	}
+}
 
-	impl Handler for Host {
-		type Timeout = Token;
-		type Message = HostMessage;
+impl Handler for Host {
+	type Timeout = Token;
+	type Message = HostMessage;
 
-		fn ready(&mut self, event_loop: &mut EventLoop<Host>, token: Token, events: EventSet) {
-			if events.is_readable() {
-				match token.as_usize() {
-					TCP_ACCEPT =>  self.accept(event_loop),
-					IDLE => self.maintain_network(event_loop),
-					FIRST_CONNECTION ... LAST_CONNECTION => self.connection_readable(token, event_loop),
-					NODETABLE_RECEIVE => {},
-					_ => panic!("Received unknown readable token"),
-				}
-			}
-			else if events.is_writable() {
-				match token.as_usize() {
-					FIRST_CONNECTION ... LAST_CONNECTION => self.connection_writable(token, event_loop),
-					_ => panic!("Received unknown writable token"),
-				}
-			}
-		}
-
-		fn timeout(&mut self, event_loop: &mut EventLoop<Host>, token: Token) {
+	fn ready(&mut self, event_loop: &mut EventLoop<Host>, token: Token, events: EventSet) {
+		if events.is_readable() {
 			match token.as_usize() {
+				TCP_ACCEPT => self.accept(event_loop),
 				IDLE => self.maintain_network(event_loop),
-				FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, event_loop),
-				NODETABLE_DISCOVERY => {},
-				NODETABLE_MAINTAIN => {},
-				USER_TIMER ... LAST_USER_TIMER => {
-					let (protocol, delay) = {
-						let timer = self.timers.get_mut(token).expect("Unknown user timer token");
-						(timer.protocol, timer.delay)
-					};
-					match self.handlers.get_mut(protocol) {
-						None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
-						Some(h) => {
-							h.timeout(&mut HostIo::new(protocol, None, event_loop, &mut self.connections, &mut self.timers), token.as_usize());
-							event_loop.timeout_ms(token, delay).expect("Error re-registering user timer");
-						}
-					}
-				}
-				_ => panic!("Unknown timer token"),
+				FIRST_CONNECTION ... LAST_CONNECTION => self.connection_readable(token, event_loop),
+				NODETABLE_RECEIVE => {},
+				_ => panic!("Received unknown readable token"),
 			}
 		}
+		else if events.is_writable() {
+			match token.as_usize() {
+				FIRST_CONNECTION ... LAST_CONNECTION => self.connection_writable(token, event_loop),
+				_ => panic!("Received unknown writable token"),
+			}
+		}
+	}
 
-		fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
-			match msg {
-				HostMessage::Shutdown => event_loop.shutdown(),
-				HostMessage::AddHandler {
-					handler,
-					protocol,
-					versions
-				} => {
-					self.handlers.insert(protocol, handler);
-					for v in versions {
-						self.info.capabilities.push(CapabilityInfo { protocol: protocol, version: v, packet_count:0 });
+	fn timeout(&mut self, event_loop: &mut EventLoop<Host>, token: Token) {
+		match token.as_usize() {
+			IDLE => self.maintain_network(event_loop),
+			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, event_loop),
+			NODETABLE_DISCOVERY => {},
+			NODETABLE_MAINTAIN => {},
+			USER_TIMER ... LAST_USER_TIMER => {
+				let (protocol, delay) = {
+					let timer = self.timers.get_mut(token).expect("Unknown user timer token");
+					(timer.protocol, timer.delay)
+				};
+				match self.handlers.get_mut(protocol) {
+					None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
+					Some(h) => {
+						h.timeout(&mut HostIo::new(protocol, None, event_loop, &mut self.connections, &mut self.timers), token.as_usize());
+						event_loop.timeout_ms(token, delay).expect("Error re-registering user timer");
 					}
-				},
-				HostMessage::Send {
-					peer,
-					packet_id,
-					protocol,
-					data,
-				} => {
-					match self.connections.get_mut(Token(peer as usize)) {
-						Some(&mut ConnectionEntry::Session(ref mut s)) => {
-							s.send_packet(protocol, packet_id as u8, &data).unwrap_or_else(|e| {
-								warn!(target: "net", "Send error: {:?}", e);
-							}); //TODO: don't copy vector data
-						},
-						_ => {
-							warn!(target: "net", "Send: Peer does not exist");
-						}
+				}
+			}
+			_ => panic!("Unknown timer token"),
+		}
+	}
+
+	fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
+		match msg {
+			HostMessage::Shutdown => event_loop.shutdown(),
+			HostMessage::AddHandler {
+				handler,
+				protocol,
+				versions
+			} => {
+				self.handlers.insert(protocol, handler);
+				for v in versions {
+					self.info.capabilities.push(CapabilityInfo { protocol: protocol, version: v, packet_count:0 });
+				}
+			},
+			HostMessage::Send {
+				peer,
+				packet_id,
+				protocol,
+				data,
+			} => {
+				match self.connections.get_mut(Token(peer as usize)) {
+					Some(&mut ConnectionEntry::Session(ref mut s)) => {
+						s.send_packet(protocol, packet_id as u8, &data).unwrap_or_else(|e| {
+							warn!(target: "net", "Send error: {:?}", e);
+						}); //TODO: don't copy vector data
+					},
+					_ => {
+						warn!(target: "net", "Send: Peer does not exist");
 					}
-				},
-				HostMessage::UserMessage(message) => {
-					for (p, h) in self.handlers.iter_mut() {
-						if p != &message.protocol {
-							h.message(&mut HostIo::new(message.protocol, None, event_loop, &mut self.connections, &mut self.timers), &message);
-						}
+				}
+			},
+			HostMessage::UserMessage(message) => {
+				for (p, h) in self.handlers.iter_mut() {
+					if p != &message.protocol {
+						h.message(&mut HostIo::new(message.protocol, None, event_loop, &mut self.connections, &mut self.timers), &message);
 					}
 				}
 			}
 		}
 	}
+}
