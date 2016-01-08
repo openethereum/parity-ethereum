@@ -86,7 +86,7 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 				s: H256,
 			}
 			let mut it: InType = InType { hash: H256::new(), v: H256::new(), r: H256::new(), s: H256::new() };
-			it.fax_raw(input);
+			it.copy_raw(input);
 			if it.v == H256::from(&U256::from(27)) || it.v == H256::from(&U256::from(28)) {
 				let s = Signature::from_rsv(&it.r, &it.s, it.v[31] - 27);
 				if is_valid(&s) {
