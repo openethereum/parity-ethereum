@@ -1,5 +1,6 @@
 use std::collections::hash_map::*;
 use util::bytes::*;
+use util::hash::*;
 use util::uint::*;
 use util::rlp::*;
 use util::semantic_version::*;
@@ -35,18 +36,16 @@ pub trait Engine {
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
 	fn maximum_extra_data_size(&self, _env_info: &EnvInfo) -> usize { decode(&self.spec().engine_params.get("maximum_extra_data_size").unwrap()) }
 	fn account_start_nonce(&self, _env_info: &EnvInfo) -> U256 { decode(&self.spec().engine_params.get("account_start_nonce").unwrap()) }
-	// TODO: refactor in terms of `on_preseal_block`
-	fn block_reward(&self, _env_info: &EnvInfo) -> U256 { decode(&self.spec().engine_params.get("block_reward").unwrap()) }
 
 	/// Block transformation functions, before and after the transactions.
-//	fn on_new_block(&self, _env_info: &EnvInfo, _block: &mut Block) -> Result<(), EthcoreError> {}
-//	fn on_preseal_block(&self, _env_info: &EnvInfo, _block: &mut Block) -> Result<(), EthcoreError> {}
+	fn on_new_block(&self, _block: &mut Block) -> Result<(), EthcoreError> { Ok(()) }
+	fn on_close_block(&self, _block: &mut Block) -> Result<(), EthcoreError> { Ok(()) }
 
 	/// Verify that `header` is valid.
 	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
 	/// checks. Returns either a null `Ok` or a general error detailing the problem with import.
 	// TODO: consider including State in the params.
-	fn verify(&self, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), EthcoreError> { Ok(()) }
+	fn verify_block(&self, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), EthcoreError> { Ok(()) }
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
@@ -59,10 +58,9 @@ pub trait Engine {
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.
-/*	fn is_builtin(&self, a: Address) -> bool;
-	fn cost_of_builtin(&self, a: Address, in: &[u8]) -> bignum;
-	fn execute_builtin(&self, a: Address, in: &[u8], out: &mut [u8]);
-*/
+	fn is_builtin(&self, a: &Address) -> bool { self.spec().builtins.contains_key(a) }
+	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 { self.spec().builtins.get(a).unwrap().cost(input.len()) }
+	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut [u8]) { self.spec().builtins.get(a).unwrap().execute(input, output); }
 
 	// TODO: sealing stuff - though might want to leave this for later.
 }

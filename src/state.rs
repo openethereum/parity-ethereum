@@ -15,7 +15,11 @@ use env_info::EnvInfo;
 use engine::Engine;
 
 /// Information concerning the result of the `State::apply` operation.
-pub struct ApplyResult;	// TODO
+pub struct ApplyInfo {
+	r: Receipt,
+}
+
+type ApplyResult = Result<ApplyInfo, EthcoreError>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
@@ -131,7 +135,7 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(_env_info: &EnvInfo, _engine: &Engine, _t: &Transaction, _is_permanent: bool) -> (ApplyResult, Receipt) {
+	pub fn apply(_env_info: &EnvInfo, _engine: &Engine, _t: &Transaction, _is_permanent: bool) -> ApplyResult {
 		unimplemented!();
 	}
 

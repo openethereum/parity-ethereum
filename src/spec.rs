@@ -370,9 +370,8 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn all() {
+	fn morden_manual() {
 		let morden = Spec::new_morden_manual();
-//		let engine = morden.to_engine();	// Ethash doesn't exist as an engine yet, so would fail.
 
 		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = morden.genesis_block();
@@ -386,8 +385,6 @@ mod tests {
 		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = morden.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
-		
-		let engine = morden.to_engine();
 	}
 
 	#[test]

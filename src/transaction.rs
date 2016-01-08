@@ -3,6 +3,10 @@ use util::bytes::*;
 use util::uint::*;
 use util::rlp::*;
 
+struct Receipt {
+	gas_used: U256,
+}
+
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
 pub struct Transaction {
