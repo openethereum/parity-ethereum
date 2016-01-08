@@ -1,4 +1,3 @@
-#![allow(dead_code)] //TODO: remove this after everything is done
 use std::collections::VecDeque;
 use mio::{Token, EventSet, EventLoop, Timeout, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
@@ -183,7 +182,6 @@ impl EncryptedConnection {
 
 		key_material.sha3().copy_to(&mut key_material[32..64]);
 		let mac_encoder = EcbEncryptor::new(AesSafe256Encryptor::new(&key_material[32..64]), NoPadding);
-		println!("SESSION key: {}", H256::from_slice(&key_material[32..64]).hex());
 
 		let mut egress_mac = Keccak::new_keccak256();
 		let mut mac_material = &H256::from_slice(&key_material[32..64]) ^ &handshake.remote_nonce;
@@ -292,17 +290,10 @@ impl EncryptedConnection {
 		let mut prev = H128::new();
 		mac.clone().finalize(&mut prev);
 		let mut enc = H128::new();
-		println!("before: {}", prev.hex());
 		mac_encoder.encrypt(&mut RefReadBuffer::new(&prev), &mut RefWriteBuffer::new(&mut enc), true).unwrap();
 		mac_encoder.reset();
-		println!("after {}", enc.hex());
 
-		if !seed.is_empty() {
-			enc = enc ^ H128::from_slice(seed);
-		}
-		else {
-			enc = enc ^ prev;
-		}
+		enc = enc ^ if seed.is_empty() { prev } else { H128::from_slice(seed) };
 		mac.update(&enc);
 	}
 
@@ -349,7 +340,7 @@ impl EncryptedConnection {
 }
 
 #[test]
-pub fn ctest() {
+pub fn test_encryption() {
 	use hash::*;
 	use std::str::FromStr;
 	let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
@@ -363,7 +354,6 @@ pub fn ctest() {
 	let mut encoder = EcbEncryptor::new(AesSafe256Encryptor::new(&key), NoPadding);
 	encoder.encrypt(&mut RefReadBuffer::new(&before), &mut RefWriteBuffer::new(&mut got), true).unwrap();
 	encoder.reset();
-	println!("got: {} ", got.hex());
 	assert_eq!(got, after);
 	got = H128::new();
 	encoder.encrypt(&mut RefReadBuffer::new(&before2), &mut RefWriteBuffer::new(&mut got), true).unwrap();

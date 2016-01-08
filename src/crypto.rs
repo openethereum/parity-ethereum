@@ -313,8 +313,6 @@ pub mod aes {
 
 #[cfg(test)]
 mod tests {
-
-	use std::str::FromStr;
 	use hash::*;
 	use crypto::*;
 

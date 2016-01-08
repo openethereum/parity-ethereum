@@ -30,8 +30,8 @@ pub struct Handshake {
 	pub ack_cipher: Bytes
 }
 
-const AUTH_PACKET_SIZE:usize = 307;
-const ACK_PACKET_SIZE:usize = 210;
+const AUTH_PACKET_SIZE: usize = 307;
+const ACK_PACKET_SIZE: usize = 210;
 
 impl Handshake {
 	pub fn new(token: Token, id: &NodeId, socket: TcpStream, nonce: &H256) -> Result<Handshake, Error> {
@@ -106,7 +106,7 @@ impl Handshake {
 
 	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
-        self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
+		self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
 		try!(self.connection.register(event_loop));
 		Ok(())
 	}
