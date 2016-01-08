@@ -35,6 +35,7 @@
 //! ```
 
 use std::fmt;
+use std::slice;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
 use uint::{U128, U256};
@@ -313,21 +314,56 @@ impl <T>FromBytes for T where T: FixedHash {
 	}
 }
 
-// TODO: tests and additional docs for these two.
-
 /// Simple trait to allow for raw population of a Sized object from a byte slice.
 pub trait Populatable {
-	/// Populate self from byte slice `d` in a raw fashion.
+	/// Copies a bunch of bytes `d` to `self`, overwriting as necessary.
+	///
+	/// If `d` is smaller, zero-out the remaining bytes.
 	fn populate_raw(&mut self, d: &[u8]);
+
+	/// Copies a bunch of bytes `d` to `self`, overwriting as necessary.
+	///
+	/// If `d` is smaller, will leave some bytes untouched.
+	fn copy_from_raw(&mut self, d: &[u8]);
 }
 
 impl<T> Populatable for T where T: Sized {
 	fn populate_raw(&mut self, d: &[u8]) {
 		use std::mem;
 		use std::slice;
+		unsafe {
+			let mut s = slice::from_raw_parts_mut(self as *mut T as *mut u8, mem::size_of::<T>());
+			for i in 0..s.len() {
+				s[i] = if i < d.len() {d[i]} else {0};
+			}
+		};
+	}
+
+	fn copy_from_raw(&mut self, d: &[u8]) {
+		use std::mem;
 		use std::io::Write;
 		unsafe {
 			slice::from_raw_parts_mut(self as *mut T as *mut u8, mem::size_of::<T>())
 		}.write(&d).unwrap();
 	}
+}
+
+//impl<T: Sized> Populatable for slice<T> {}
+
+#[test]
+fn copy_from_raw() {
+	let mut x = [255u8; 4];
+	x.copy_from_raw(&[1u8; 2][..]);
+	assert_eq!(x, [1u8, 1, 255, 255]);
+	x.copy_from_raw(&[1u8; 6][..]);
+	assert_eq!(x, [1u8, 1, 1, 1]);
+}
+
+#[test]
+fn populate_raw() {
+	let mut x = [255u8; 4];
+	x.populate_raw(&[1u8; 2][..]);
+	assert_eq!(x, [1u8, 1, 0, 0]);
+	x.populate_raw(&[1u8; 6][..]);
+	assert_eq!(x, [1u8, 1, 1, 1]);
 }
