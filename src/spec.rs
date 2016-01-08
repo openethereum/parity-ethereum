@@ -128,7 +128,7 @@ impl Spec {
 					s.out()
 				};
 				let r = Rlp::new(&seal);
-				(0..self.seal_fields).map(|i| r.at(i).raw().to_vec()).collect()
+				(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
 			},
 			hash: RefCell::new(None)
 		};

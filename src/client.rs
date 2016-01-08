@@ -128,15 +128,15 @@ impl Client {
 
 impl BlockChainClient for Client {
 	fn block_header(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.block(hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).raw().to_vec())
+		self.chain.block(hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec())
 	}
 
 	fn block_body(&self, hash: &H256) -> Option<Bytes> {
 		self.chain.block(hash).map(|bytes| {
 			let rlp = Rlp::new(&bytes);
 			let mut body = RlpStream::new();
-			body.append_raw(rlp.at(1).raw(), 1);
-			body.append_raw(rlp.at(2).raw(), 1);
+			body.append_raw(rlp.at(1).as_raw(), 1);
+			body.append_raw(rlp.at(2).as_raw(), 1);
 			body.out()
 		})
 	}

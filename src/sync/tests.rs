@@ -42,28 +42,28 @@ impl TestBlockChainClient {
 			let mut uncles = RlpStream::new_list(if empty {0} else {1});
 			if !empty {
 				uncles.append(&H256::from(&U256::from(n)));
-				header.uncles_hash = uncles.raw().sha3();
+				header.uncles_hash = uncles.as_raw().sha3();
 			}
 			let mut rlp = RlpStream::new_list(3);
 			rlp.append(&header);
 			rlp.append_raw(&rlp::NULL_RLP, 1);
-			rlp.append_raw(uncles.raw(), 1);
-			self.import_block(rlp.raw());
+			rlp.append_raw(uncles.as_raw(), 1);
+			self.import_block(rlp.as_raw());
 		}
 	}
 }
 
 impl BlockChainClient for TestBlockChainClient {
 	fn block_header(&self, h: &H256) -> Option<Bytes> {
-		self.blocks.get(h).map(|r| Rlp::new(r).at(0).raw().to_vec())
+		self.blocks.get(h).map(|r| Rlp::new(r).at(0).as_raw().to_vec())
 
 	}
 
 	fn block_body(&self, h: &H256) -> Option<Bytes> {
 		self.blocks.get(h).map(|r| {
 			let mut stream = RlpStream::new_list(2);
-			stream.append_raw(Rlp::new(&r).at(1).raw(), 1);
-			stream.append_raw(Rlp::new(&r).at(2).raw(), 1);
+			stream.append_raw(Rlp::new(&r).at(1).as_raw(), 1);
+			stream.append_raw(Rlp::new(&r).at(2).as_raw(), 1);
 			stream.out()
 		})
 	}

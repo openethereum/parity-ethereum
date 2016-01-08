@@ -49,7 +49,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return transaction hashes.
 	pub fn transaction_hashes(&self) -> Vec<H256> {
-		self.rlp.at(1).iter().map(|rlp| rlp.raw().sha3()).collect()
+		self.rlp.at(1).iter().map(|rlp| rlp.as_raw().sha3()).collect()
 	}
 
 	/// Return list of uncles of given block.
@@ -59,7 +59,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return list of uncle hashes of given block.
 	pub fn uncle_hashes(&self) -> Vec<H256> {
-		self.rlp.at(2).iter().map(|rlp| rlp.raw().sha3()).collect()
+		self.rlp.at(2).iter().map(|rlp| rlp.as_raw().sha3()).collect()
 	}
 }
 
@@ -143,6 +143,6 @@ impl<'a> HeaderView<'a> {
 
 impl<'a> Hashable for HeaderView<'a> {
 	fn sha3(&self) -> H256 {
-		self.rlp.raw().sha3()
+		self.rlp.as_raw().sha3()
 	}
 }

@@ -65,7 +65,7 @@ impl Header {
 			hash @ &mut None => {
 				let mut stream = RlpStream::new();
 				stream.append(self);
-				let h = stream.raw().sha3();
+				let h = stream.as_raw().sha3();
 				*hash = Some(h.clone());
 				h.clone()
 			}
@@ -92,11 +92,11 @@ impl Decodable for Header {
 			timestamp: try!(r.val_at(11)),
 			extra_data: try!(r.val_at(12)),
 			seal: vec![],
-			hash: RefCell::new(Some(r.raw().sha3()))
+			hash: RefCell::new(Some(r.as_raw().sha3()))
 		};
 
 		for i in 13..r.item_count() {
-			blockheader.seal.push(try!(r.at(i)).raw().to_vec())
+			blockheader.seal.push(try!(r.at(i)).as_raw().to_vec())
 		}
 
 		Ok(blockheader)

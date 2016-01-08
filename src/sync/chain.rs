@@ -282,7 +282,7 @@ impl ChainSync {
 						}
 					}
 					let hdr = Header {
-						data: r.at(i).raw().to_vec(),
+						data: r.at(i).as_raw().to_vec(),
 						hash: hash.clone(),
 						parent: info.parent_hash(),
 					};
@@ -326,8 +326,8 @@ impl ChainSync {
 		for i in 0..item_count {
 			let body: Rlp = r.at(i);
 			let tx = body.at(0);
-			let tx_root = ::util::triehash::ordered_trie_root(tx.iter().map(|r| r.raw().to_vec()).collect()); //TODO: get rid of vectors here
-			let uncles = body.at(1).raw().sha3();
+			let tx_root = ::util::triehash::ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
+			let uncles = body.at(1).as_raw().sha3();
 			let header_id = HeaderId {
 				transactions_root: tx_root,
 				uncles: uncles
@@ -335,7 +335,7 @@ impl ChainSync {
 			match self.header_ids.get(&header_id).map(|n| *n) {
 				Some(n) => {
 					self.header_ids.remove(&header_id);
-					self.bodies.insert_item(n, body.raw().to_vec());
+					self.bodies.insert_item(n, body.as_raw().to_vec());
 					trace!(target: "sync", "Got body {}", n);
 				}
 				None =>  {
@@ -351,10 +351,10 @@ impl ChainSync {
 	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: &PeerId, r: &Rlp) {
 		let block_rlp = r.at(0);
 		let header_rlp = block_rlp.at(0);
-		let h = header_rlp.raw().sha3();
+		let h = header_rlp.as_raw().sha3();
 
 		trace!(target: "sync", "{}-> NewBlock ({})", peer_id, h);
-		match io.chain().import_block(block_rlp.raw()) {
+		match io.chain().import_block(block_rlp.as_raw()) {
 			ImportResult::AlreadyInChain  => {
 				trace!(target: "sync", "New block already in chain {:?}", h);
 			},
@@ -590,8 +590,8 @@ impl ChainSync {
 				let mut block_rlp = RlpStream::new_list(3);
 				block_rlp.append_raw(&headers.1[i].data, 1);
 				let body = Rlp::new(&bodies.1[i]);
-				block_rlp.append_raw(body.at(0).raw(), 1);
-				block_rlp.append_raw(body.at(1).raw(), 1);
+				block_rlp.append_raw(body.at(0).as_raw(), 1);
+				block_rlp.append_raw(body.at(1).as_raw(), 1);
 				let h = &headers.1[i].hash;
 				match io.chain().import_block(&block_rlp.out()) {
 					ImportResult::AlreadyInChain  => {
