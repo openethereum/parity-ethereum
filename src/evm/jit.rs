@@ -8,6 +8,43 @@ use util::bytes::*;
 use util::sha3::*;
 use evm;
 
+/// Ethcore representation of evmjit runtime data.
+pub struct RuntimeData {
+	pub gas: U256,
+	pub gas_price: U256,
+	pub call_data: Vec<u8>,
+	pub address: Address,
+	pub caller: Address,
+	pub origin: Address,
+	pub call_value: U256,
+	pub coinbase: Address,
+	pub difficulty: U256,
+	pub gas_limit: U256,
+	pub number: u64,
+	pub timestamp: u64,
+	pub code: Vec<u8>
+}
+
+impl RuntimeData {
+	pub fn new() -> RuntimeData {
+		RuntimeData {
+			gas: U256::zero(),
+			gas_price: U256::zero(),
+			call_data: vec![],
+			address: Address::new(),
+			caller: Address::new(),
+			origin: Address::new(),
+			call_value: U256::zero(),
+			coinbase: Address::new(),
+			difficulty: U256::zero(),
+			gas_limit: U256::zero(),
+			number: 0,
+			timestamp: 0,
+			code: vec![]
+		}
+	}
+}
+
 /// Should be used to convert jit types to ethcore
 trait FromJit<T>: Sized {
 	fn from_jit(input: T) -> Self;
@@ -94,7 +131,7 @@ impl IntoJit<evmjit::H256> for Address {
 	}
 }
 
-impl IntoJit<evmjit::RuntimeDataHandle> for evm::RuntimeData {
+impl IntoJit<evmjit::RuntimeDataHandle> for RuntimeData {
 	fn into_jit(self) -> evmjit::RuntimeDataHandle {
 		let mut data = evmjit::RuntimeDataHandle::new();
 		assert!(self.gas <= U256::from(u64::max_value()), "evmjit gas must be lower than 2 ^ 64");
@@ -268,7 +305,7 @@ impl evm::Evm for JitEvm {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext)) };
 		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);
-		let mut data = evm::RuntimeData::new();
+		let mut data = RuntimeData::new();
 		let params = ext.params();
 		data.gas = params.gas;
 		data.gas_price = params.gas_price;

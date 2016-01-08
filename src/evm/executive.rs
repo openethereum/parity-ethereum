@@ -109,7 +109,6 @@ impl<'a> Executive<'a> {
 	fn create(&mut self) -> ExecutiveResult {
 		let address = self.params.address.clone();
 
-		//let new_address = contract_address(&address, &self.state.nonce(&address));
 		let new_address = self.params.address.clone();
 		self.state.inc_nonce(&address);
 
