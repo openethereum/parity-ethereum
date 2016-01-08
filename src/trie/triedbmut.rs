@@ -668,7 +668,7 @@ mod tests {
 	use env_logger;
 	use rand::random;
 	use std::collections::HashSet;
-	use bytes::{ToPretty,Bytes};
+	use bytes::{ToPretty,Bytes,Populatable};
 	use super::super::node::*;
 	use super::super::trietraits::*;
 
