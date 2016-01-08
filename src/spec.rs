@@ -93,6 +93,7 @@ impl Spec {
 	pub fn to_engine(self) -> Result<Box<Engine>, EthcoreError> {
 		match self.engine_name.as_ref() {
 			"NullEngine" => Ok(NullEngine::new_boxed(self)),
+			"Ethash" => Ok(Ethash::new_boxed(self)),
 			_ => Err(EthcoreError::UnknownName)
 		}
 	}
