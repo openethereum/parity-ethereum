@@ -168,8 +168,6 @@ pub fn verify(public: &Public, signature: &Signature, message: &H256) -> Result<
 
 #[cfg(test)]
 mod tests {
-
-	use std::str::FromStr;
 	use hash::*;
 	use crypto::*;
 
