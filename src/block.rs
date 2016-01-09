@@ -111,7 +111,7 @@ impl<'engine> OpenBlock<'engine> {
 		let env_info = self.env_info();
 		match self.block.state.apply(&env_info, self.engine, &t, true) {
 			Ok(x) => {
-				self.block.archive_set.insert(h.unwrap_or_else(||t.sha3()));
+				self.block.archive_set.insert(h.unwrap_or_else(||t.hash()));
 				self.block.archive.push(Entry { transaction: t, receipt: x.receipt });
 				Ok(&self.block.archive.last().unwrap().receipt)
 			}
@@ -122,15 +122,14 @@ impl<'engine> OpenBlock<'engine> {
 	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure out the uncles.
 	pub fn close(self, uncles: Vec<Header>, author: Address, extra_data: Bytes) -> ClosedBlock<'engine> {
 		let mut s = self;
-		// populate rest of header.
 		s.engine.on_close_block(&mut s.block);
 		s.block.header.author = author;
-//		s.header.transactions_root = ...;
+		s.block.header.transactions_root = ordered_trie_root(s.block.archive.iter().map(|ref e| e.transaction.rlp_bytes()).collect());
 		let uncle_bytes = uncles.iter().fold(RlpStream::new_list(uncles.len()), |mut s, u| {s.append(&u.rlp(Seal::With)); s} ).out();
 		s.block.header.uncles_hash = uncle_bytes.sha3();
 		s.block.header.extra_data = extra_data;
 		s.block.header.state_root = s.block.state.root().clone();
-//		s.header.receipts_root = ...;
+		s.block.header.receipts_root = ordered_trie_root(s.block.archive.iter().map(|ref e| e.receipt.rlp_bytes()).collect());
 		s.block.header.log_bloom = s.block.archive.iter().fold(LogBloom::zero(), |mut b, e| {b |= &e.receipt.log_bloom; b});
 		s.block.header.gas_used = s.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0));
 		s.block.header.note_dirty();
@@ -175,12 +174,10 @@ impl IsBlock for SealedBlock {
 #[test]
 fn open_block() {
 	use spec::*;
-	use ethereum::*;
-	let engine = new_morden().to_engine().unwrap();
+	let engine = Spec::new_test().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
 	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()]);
-	let b = b.close(vec![], Address::zero(), vec![]);
-	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244F40000").unwrap());
+	let _ = b.close(vec![], Address::zero(), vec![]);
 }
