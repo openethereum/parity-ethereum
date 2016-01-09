@@ -1,5 +1,5 @@
 #![feature(cell_extras)]
-
+#![feature(augmented_assignments)]
 //! Ethcore's ethereum implementation
 //! 
 //! ### Rust version
@@ -85,6 +85,7 @@ extern crate evmjit;
 extern crate ethcore_util as util;
 
 pub mod common;
+pub mod basic_types;
 pub mod env_info;
 pub mod engine;
 pub mod state;
