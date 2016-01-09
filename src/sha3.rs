@@ -3,7 +3,7 @@
 use std::mem::uninitialized;
 use tiny_keccak::Keccak;
 use bytes::{BytesConvertable,Populatable};
-use hash::H256;
+use hash::{H256, FixedHash};
 
 /// Types implementing this trait are sha3able.
 ///
