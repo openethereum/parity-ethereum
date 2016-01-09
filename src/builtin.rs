@@ -1,13 +1,4 @@
-use std::cmp::min;
-use std::fmt;
-use util::uint::*;
-use util::hash::*;
-use util::sha3::*;
-use util::bytes::*;
-use rustc_serialize::json::Json;
-use std::io::Write;
-use util::crypto::*;
-use util::crypto::ec::*;
+use util::*;
 use crypto::sha2::Sha256;
 use crypto::ripemd160::Ripemd160;
 use crypto::digest::Digest;
@@ -96,8 +87,8 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 			it.copy_raw(input);
 			if it.v == H256::from(&U256::from(27)) || it.v == H256::from(&U256::from(28)) {
 				let s = Signature::from_rsv(&it.r, &it.s, it.v[31] - 27);
-				if is_valid(&s) {
-					match recover(&s, &it.hash) {
+				if ec::is_valid(&s) {
+					match ec::recover(&s, &it.hash) {
 						Ok(p) => {
 							let r = p.as_slice().sha3();
 							// NICE: optimise and separate out into populate-like function

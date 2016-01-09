@@ -1,7 +1,4 @@
-use util::hash::*;
-use util::bytes::*;
-use util::uint::*;
-use util::rlp::*;
+use util::*;
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.

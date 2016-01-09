@@ -1,5 +1,4 @@
-use util::uint::*;
-use util::hash::*;
+use util::*;
 
 /// Simple vector of hashes, should be at most 256 items large, can be smaller if being used
 /// for a block whose number is less than 257.

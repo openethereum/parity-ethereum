@@ -1,18 +1,8 @@
 //! Fast access to blockchain data.
 
-use std::collections::HashMap;
-use std::path::Path;
-use std::hash::Hash;
-use std::sync::RwLock;
+use std::sync::*;
+use util::*;
 use rocksdb::{DB, WriteBatch, Writable};
-use heapsize::HeapSizeOf;
-use util::hash::*;
-use util::uint::*;
-use util::rlp::*;
-use util::hashdb::*;
-use util::sha3::*;
-use util::bytes::*;
-use util::squeeze::*;
 use header::*;
 use extras::*;
 use transaction::*;

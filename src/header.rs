@@ -1,9 +1,4 @@
-use std::cell::RefCell;
-use util::hash::*;
-use util::sha3::*;
-use util::bytes::*;
-use util::uint::*;
-use util::rlp::*;
+use util::*;
 
 /// Type for a 2048-bit log-bloom, as used by our blocks.
 pub type LogBloom = H2048;
@@ -70,16 +65,16 @@ impl Header {
 	}
 
 	pub fn hash(&self) -> H256 {
-		let mut hash = self.hash.borrow_mut();
-		match &mut *hash {
-			&mut Some(ref h) => h.clone(),
-			hash @ &mut None => {
-				let mut stream = RlpStream::new();
-				stream.append(self);
-				let h = stream.as_raw().sha3();
-				*hash = Some(h.clone());
-				h.clone()
-			}
+ 		let mut hash = self.hash.borrow_mut();
+ 		match &mut *hash {
+ 			&mut Some(ref h) => h.clone(),
+ 			hash @ &mut None => {
+ 				let mut stream = RlpStream::new();
+ 				stream.append(self);
+ 				let h = stream.as_raw().sha3();
+ 				*hash = Some(h.clone());
+ 				h.clone()
+ 			}
 		}
 	}
 }

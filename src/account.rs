@@ -1,12 +1,4 @@
-use std::collections::HashMap;
-use util::hash::*;
-use util::sha3::*;
-use util::hashdb::*;
-use util::bytes::*;
-use util::trie::*;
-use util::rlp::*;
-use util::uint::*;
-use std::cell::*;
+use util::*;
 
 pub const SHA3_EMPTY: H256 = H256( [0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c, 0x92, 0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0, 0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b, 0x7b, 0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70] );
 
@@ -66,7 +58,7 @@ impl Account {
 	}
 
 	/// Create a new contract account.
-	/// NOTE: make sure you use `set_code` on this before `commit`ing.
+	/// NOTE: make sure you use `init_code` on this before `commit`ing.
 	pub fn new_contract(balance: U256) -> Account {
 		Account {
 			balance: balance,
@@ -78,9 +70,16 @@ impl Account {
 		}
 	}
 
+	/// Reset this account to the status of a not-yet-initialised contract.
+	/// NOTE: Account should have `init_code()` called on it later.
+	pub fn reset_code(&mut self) {
+		self.code_hash = None;
+		self.code_cache = vec![];
+	}
+
 	/// Set this account's code to the given code.
-	/// NOTE: Account should have been created with `new_contract`.
-	pub fn set_code(&mut self, code: Bytes) {
+	/// NOTE: Account should have been created with `new_contract()` or have `reset_code()` called on it.
+	pub fn init_code(&mut self, code: Bytes) {
 		assert!(self.code_hash.is_none());
 		self.code_cache = code;
 	}
@@ -224,7 +223,7 @@ fn storage_at() {
 		let mut a = Account::new_contract(U256::from(69u8));
 		a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
 		a.commit_storage(&mut db);
-		a.set_code(vec![]);
+		a.init_code(vec![]);
 		a.commit_code(&mut db);
 		a.rlp()
 	};
@@ -241,7 +240,7 @@ fn note_code() {
 
 	let rlp = {
 		let mut a = Account::new_contract(U256::from(69u8));
-		a.set_code(vec![0x55, 0x44, 0xffu8]);
+		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		a.commit_code(&mut db);
 		a.rlp()
 	};
@@ -267,7 +266,7 @@ fn commit_storage() {
 fn commit_code() {
 	let mut a = Account::new_contract(U256::from(69u8));
 	let mut db = OverlayDB::new_temp();
-	a.set_code(vec![0x55, 0x44, 0xffu8]);
+	a.init_code(vec![0x55, 0x44, 0xffu8]);
 	assert_eq!(a.code_hash(), SHA3_EMPTY);
 	a.commit_code(&mut db);
 	assert_eq!(a.code_hash().hex(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb");
