@@ -8,6 +8,7 @@ use util::trie::*;
 use util::bytes::*;
 use util::rlp::*;
 use util::uint::*;
+use util::error::*;
 use account::Account;
 use transaction::Transaction;
 use receipt::Receipt;
@@ -15,7 +16,11 @@ use env_info::EnvInfo;
 use engine::Engine;
 
 /// Information concerning the result of the `State::apply` operation.
-pub struct ApplyResult;	// TODO
+pub struct ApplyInfo {
+	pub receipt: Receipt,
+}
+
+pub type ApplyResult = Result<ApplyInfo, EthcoreError>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
@@ -44,7 +49,7 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn new_existing(mut db: OverlayDB, mut root: H256, account_start_nonce: U256) -> State {
+	pub fn from_existing(mut db: OverlayDB, mut root: H256, account_start_nonce: U256) -> State {
 		{
 			// trie should panic! if root does not exist
 			let _ = TrieDB::new(&mut db, &mut root);
@@ -131,7 +136,7 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(_env_info: &EnvInfo, _engine: &Engine, _t: &Transaction, _is_permanent: bool) -> (ApplyResult, Receipt) {
+	pub fn apply(&mut self, _env_info: &EnvInfo, _engine: &Engine, _t: &Transaction, _is_permanent: bool) -> ApplyResult {
 		unimplemented!();
 	}
 
@@ -156,7 +161,7 @@ impl State {
 		}
 
 		{
-			let mut trie = TrieDBMut::new_existing(db, &mut root);
+			let mut trie = TrieDBMut::from_existing(db, &mut root);
 			for (address, ref a) in accounts.iter() {
 				match a {
 					&&Some(ref account) => trie.insert(address, &account.rlp()),
@@ -240,7 +245,7 @@ fn code_from_database() {
 		s.drop()
 	};
 
-	let s = State::new_existing(db, r, U256::from(0u8));
+	let s = State::from_existing(db, r, U256::from(0u8));
 	assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
 }
 
@@ -254,7 +259,7 @@ fn storage_at_from_database() {
 		s.drop()
 	};
 
-	let s = State::new_existing(db, r, U256::from(0u8));
+	let s = State::from_existing(db, r, U256::from(0u8));
 	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
 }
 
@@ -270,7 +275,7 @@ fn get_from_database() {
 		s.drop()
 	};
 
-	let s = State::new_existing(db, r, U256::from(0u8));
+	let s = State::from_existing(db, r, U256::from(0u8));
 	assert_eq!(s.balance(&a), U256::from(69u64));
 	assert_eq!(s.nonce(&a), U256::from(1u64));
 }

@@ -14,6 +14,7 @@ rustc-serialize = "0.3"
 flate2 = "0.2"
 rocksdb = "0.2.1"
 heapsize = "0.2.0"
+rust-crypto = "0.2.34"
 
 evmjit = { path = "rust-evmjit", optional = true }
 
