@@ -1,4 +1,3 @@
-use std::mem;
 use util::hash::*;
 use util::uint::*;
 use util::rlp::*;
@@ -89,7 +88,7 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	fn call(e: &mut Executive<'a>, p: &EvmParams) -> ExecutiveResult {
+	fn call(_e: &mut Executive<'a>, _p: &EvmParams) -> ExecutiveResult {
 		//let _ext = Externalities::from_executive(e, &p);
 		ExecutiveResult::Ok
 	}
@@ -97,6 +96,7 @@ impl<'a> Executive<'a> {
 	fn create(e: &mut Executive<'a>, params: &EvmParams) -> ExecutiveResult {
 		//self.state.require_or_from(&self.params.address, false, ||Account::new_contract(U256::from(0)));
 		//TODO: ensure that account at given address is created
+		e.state.new_contract(&params.address);
 		e.state.transfer_balance(&params.sender, &params.address, &params.value);
 
 		let code = {
@@ -110,13 +110,13 @@ impl<'a> Executive<'a> {
 				ExecutiveResult::Ok
 			},
 			EvmResult::Return(output) => {
-				//e.state.set_code(&params.address, output);
+				e.state.init_code(&params.address, output);
 				ExecutiveResult::Ok
 			},
 			EvmResult::OutOfGas => {
 				ExecutiveResult::OutOfGas
 			},
-			err => {
+			_err => {
 				ExecutiveResult::InternalError
 			}
 		}
@@ -255,21 +255,17 @@ mod tests {
 	use evm_schedule::*;
 	use super::contract_address;
 
-	struct TestEngine {
-		spec: Spec
-	}
+	struct TestEngine;
 
 	impl TestEngine {
 		fn new() -> Self {
-			TestEngine {
-				spec: Spec::new_like_frontier()
-			}
+			TestEngine
 		}
 	}
 
 	impl Engine for TestEngine {
 		fn name(&self) -> &str { "TestEngine" }
-		fn spec(&self) -> &Spec { &self.spec }
+		fn spec(&self) -> &Spec { unimplemented!() }
 		fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
 	}
 
@@ -311,8 +307,6 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let next_address = contract_address(&address, &U256::zero());
-		println!("address: {:?}", address);
-		println!("next address: {:?}", next_address);
 		let mut params = EvmParams::new();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -330,7 +324,6 @@ mod tests {
 		}
 		
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(next_address.clone()));
-		//assert_eq!(state.code(&next_address).unwrap(), "601080600c6000396000f3006000355415600957005b602035600035".from_hex().unwrap());
-		//assert!(false);
+		assert_eq!(state.code(&next_address).unwrap(), "6000355415600957005b602035600035".from_hex().unwrap());
 	}
 }

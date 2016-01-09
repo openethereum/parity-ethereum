@@ -336,21 +336,15 @@ mod tests {
 	use evm_schedule::*;
 	use spec::*;
 
-	struct TestEngine {
-		spec: Spec
-	}
+	struct TestEngine;
 
 	impl TestEngine {
-		fn new() -> Self {
-			TestEngine {
-				spec: Spec::new_like_frontier()
-			}
-		}
+		fn new() -> Self { TestEngine }
 	}
 
 	impl Engine for TestEngine {
 		fn name(&self) -> &str { "TestEngine" }
-		fn spec(&self) -> &Spec { &self.spec }
+		fn spec(&self) -> &Spec { unimplemented!() }
 		fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
 	}
 
@@ -520,8 +514,8 @@ mod tests {
 		params.code = address_code.clone();
 
 		let mut state = State::new_temp();
-		state.set_code(&address, address_code);
-		state.set_code(&sender, sender_code);
+		state.init_code(&address, address_code);
+		state.init_code(&sender, sender_code);
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
 

@@ -1,18 +1,7 @@
 //! Fast access to blockchain data.
 
-use std::collections::HashMap;
-use std::cell::RefCell;
-use std::path::Path;
-use std::hash::Hash;
+use util::*;
 use rocksdb::{DB, WriteBatch, Writable};
-use heapsize::HeapSizeOf;
-use util::hash::*;
-use util::uint::*;
-use util::rlp::*;
-use util::hashdb::*;
-use util::sha3::*;
-use util::bytes::*;
-use util::squeeze::*;
 use header::*;
 use extras::*;
 use transaction::*;
@@ -86,18 +75,19 @@ impl BlockChain {
 	/// extern crate ethcore;
 	/// use std::env;
 	/// use std::str::FromStr;
-	/// use ethcore::genesis::*;
+	/// use ethcore::spec::*;
 	/// use ethcore::blockchain::*;
+	/// use ethcore::ethereum;
 	/// use util::hash::*;
 	/// use util::uint::*;
 	/// 
 	/// fn main() {
-	/// 	let genesis = Genesis::new_frontier();
+	/// 	let spec = ethereum::new_frontier();
 	///
 	/// 	let mut dir = env::temp_dir();
 	/// 	dir.push(H32::random().hex());
 	///
-	/// 	let bc = BlockChain::new(genesis.block(), &dir);
+	/// 	let bc = BlockChain::new(&spec.genesis_block(), &dir);
 	///
 	/// 	let genesis_hash = "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3";
 	/// 	assert_eq!(bc.genesis_hash(), H256::from_str(genesis_hash).unwrap());

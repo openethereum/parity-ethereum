@@ -1,4 +1,4 @@
-use util::uint::*;
+use util::*;
 
 #[inline]
 pub fn ether() -> U256 { U256::exp10(18) }

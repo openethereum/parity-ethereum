@@ -85,11 +85,7 @@ extern crate evmjit;
 
 extern crate ethcore_util as util;
 
-//use util::error::*;
-pub use util::hash::*;
-pub use util::uint::*;
-pub use util::bytes::*;
-
+pub mod common;
 pub mod env_info;
 pub mod engine;
 pub mod state;
@@ -97,15 +93,14 @@ pub mod account;
 pub mod header;
 pub mod transaction;
 pub mod receipt;
-pub mod denominations;
 pub mod null_engine;
 pub mod evm_schedule;
 pub mod builtin;
 pub mod spec;
-pub mod genesis;
 pub mod views;
 pub mod blockchain;
 pub mod extras;
 pub mod evm;
-pub mod ethash;
 pub mod block;
+
+pub mod ethereum;

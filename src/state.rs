@@ -1,14 +1,4 @@
-use std::cell::*;
-use std::ops::*;
-use std::collections::HashMap;
-use util::hash::*;
-use util::hashdb::*;
-use util::overlaydb::*;
-use util::trie::*;
-use util::bytes::*;
-use util::rlp::*;
-use util::uint::*;
-use util::error::*;
+use util::*;
 use account::Account;
 use transaction::Transaction;
 use receipt::Receipt;
@@ -37,7 +27,7 @@ impl State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
-			let _ = TrieDBMut::new(&mut db, &mut root);
+			let _ = SecTrieDBMut::new(&mut db, &mut root);
 		}
 
 		State {
@@ -49,10 +39,10 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(mut db: OverlayDB, mut root: H256, account_start_nonce: U256) -> State {
+	pub fn from_existing(db: OverlayDB, root: H256, account_start_nonce: U256) -> State {
 		{
 			// trie should panic! if root does not exist
-			let _ = TrieDB::new(&mut db, &mut root);
+			let _ = SecTrieDB::new(&db, &root);
 		}
 
 		State {
@@ -81,6 +71,12 @@ impl State {
 	/// Expose the underlying database; good to use for calling `state.db().commit()`.
 	pub fn db(&mut self) -> &mut OverlayDB {
 		&mut self.db
+	}
+
+	/// Create a new contract at address `contract`. If there is already an account at the address
+	/// it will have its code reset, ready for `init_code()`.
+	pub fn new_contract(&mut self, contract: &Address) {
+		self.require_or_from(contract, false, || Account::new_contract(U256::from(0u8)), |r| r.reset_code());
 	}
 
 	/// Get the balance of account `a`.
@@ -129,9 +125,10 @@ impl State {
 		self.require(a, false).set_storage(key, value);
 	}
 
-	/// Mutate storage of account `a` so that it is `value` for `key`.
-	pub fn set_code(&mut self, a: &Address, code: Bytes) {
-		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8))).set_code(code);
+	/// Initialise the code of account `a` so that it is `value` for `key`.
+	/// NOTE: Account should have been created with `new_contract`.
+	pub fn init_code(&mut self, a: &Address, code: Bytes) {
+		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8)), |_|{}).init_code(code);
 	}
 
 	/// Execute a given transaction.
@@ -145,7 +142,7 @@ impl State {
 		unimplemented!();
 	}
 
-	/// Commit accounts to TrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
+	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	pub fn commit_into(db: &mut HashDB, mut root: H256, accounts: &mut HashMap<Address, Option<Account>>) -> H256 {
 		// first, commit the sub trees.
@@ -161,7 +158,7 @@ impl State {
 		}
 
 		{
-			let mut trie = TrieDBMut::from_existing(db, &mut root);
+			let mut trie = SecTrieDBMut::from_existing(db, &mut root);
 			for (address, ref a) in accounts.iter() {
 				match a {
 					&&Some(ref account) => trie.insert(address, &account.rlp()),
@@ -187,7 +184,7 @@ impl State {
 	/// `require_code` requires that the code be cached, too.
 	fn get(&self, a: &Address, require_code: bool) -> Ref<Option<Account>> {
 		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
-			TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
 				account.cache_code(&self.db);
@@ -197,18 +194,20 @@ impl State {
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
-	/// `force_create` creates a new, empty basic account if there is not currently an active account.
 	fn require(&self, a: &Address, require_code: bool) -> RefMut<Account> {
-		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce))
+		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce), |_|{})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
-	/// `force_create` creates a new, empty basic account if there is not currently an active account.
-	fn require_or_from<F: FnOnce() -> Account>(&self, a: &Address, require_code: bool, default: F) -> RefMut<Account> {
+	/// If it doesn't exist, make account equal the evaluation of `default`.
+	fn require_or_from<F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> RefMut<Account> {
 		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
-			TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
-		if self.cache.borrow().get(a).unwrap().is_none() {
+			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+		let preexists = self.cache.borrow().get(a).unwrap().is_none();
+		if preexists {
 			self.cache.borrow_mut().insert(a.clone(), Some(default()));
+		} else {
+			not_default(self.cache.borrow_mut().get_mut(a).unwrap().as_mut().unwrap());
 		}
 
 		let b = self.cache.borrow_mut();
@@ -237,8 +236,8 @@ fn code_from_database() {
 	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
 	let (r, db) = {
 		let mut s = State::new_temp();
-		s.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)));
-		s.set_code(&a, vec![1, 2, 3]);
+		s.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)), |_|{});
+		s.init_code(&a, vec![1, 2, 3]);
 		assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
 		s.commit();
 		assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
@@ -334,7 +333,7 @@ fn ensure_cached() {
 	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
 	s.require(&a, false);
 	s.commit();
-	assert_eq!(s.root().hex(), "ec68b85fa2e0526dc0e821a5b33135459114f19173ce0479f5c09b21cc25b9a4");
+	assert_eq!(s.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
 }
 
 #[test]

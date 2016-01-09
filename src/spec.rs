@@ -1,25 +1,7 @@
-use std::io::Read;
-use std::collections::HashMap;
-use std::cell::*;
-use std::str::FromStr;
-use rustc_serialize::base64::FromBase64;
-use rustc_serialize::json::Json;
-use rustc_serialize::hex::FromHex;
+use common::*;
 use flate2::read::GzDecoder;
-use util::uint::*;
-use util::hash::*;
-use util::bytes::*;
-use util::triehash::*;
-use util::error::*;
-use util::rlp::*;
-use util::sha3::*;
-use account::*;
-use engine::Engine;
-use builtin::Builtin;
-use null_engine::NullEngine;
-use ethash::Ethash;
-use denominations::*;
-use header::*;
+use engine::*;
+use null_engine::*;
 
 /// Converts file from base64 gzipped bytes to json
 pub fn gzip64res_to_json(source: &[u8]) -> Json {
@@ -94,7 +76,7 @@ impl Spec {
 	pub fn to_engine(self) -> Result<Box<Engine>, EthcoreError> {
 		match self.engine_name.as_ref() {
 			"NullEngine" => Ok(NullEngine::new_boxed(self)),
-			"Ethash" => Ok(Ethash::new_boxed(self)),
+			"Ethash" => Ok(super::ethereum::Ethash::new_boxed(self)),
 			_ => Err(EthcoreError::UnknownName)
 		}
 	}
@@ -107,7 +89,7 @@ impl Spec {
 		Ref::map(self.state_root_memo.borrow(), |x|x.as_ref().unwrap())
 	}
 
-	fn genesis_header(&self) -> Header {
+	pub fn genesis_header(&self) -> Header {
 		Header {
 			parent_hash: self.parent_hash.clone(),
 			timestamp: self.timestamp.clone(),
@@ -129,8 +111,9 @@ impl Spec {
 					s.out()
 				};
 				let r = Rlp::new(&seal);
-				(0..self.seal_fields).map(|i| r.at(i).raw().to_vec()).collect()
+				(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
 			},
+			hash: RefCell::new(None),
 		}
 	}
 
@@ -207,138 +190,14 @@ impl Spec {
 		}
 	}
 
-	/// Returns the builtins map for the standard network of Ethereum Olympic, Frontier and Homestead.
-	fn standard_builtins() -> HashMap<Address, Builtin> {
-		let mut ret = HashMap::new();
-		ret.insert(Address::from_str("0000000000000000000000000000000000000001").unwrap(), Builtin::from_named_linear("ecrecover", 3000, 0).unwrap());
-		ret.insert(Address::from_str("0000000000000000000000000000000000000002").unwrap(), Builtin::from_named_linear("sha256", 60, 12).unwrap());
-		ret.insert(Address::from_str("0000000000000000000000000000000000000003").unwrap(), Builtin::from_named_linear("ripemd160", 600, 120).unwrap());
-		ret.insert(Address::from_str("0000000000000000000000000000000000000004").unwrap(), Builtin::from_named_linear("identity", 15, 3).unwrap());
-		ret
-	}
-
-	/// Creates the Olympic network chain spec.
-	pub fn new_like_olympic() -> Spec {
-		Spec {
-			engine_name: "Ethash".to_string(),
-			engine_params: vec![
-				("block_reward", encode(&(finney() * U256::from(1500u64)))),
-				("maximum_extra_data_size", encode(&U256::from(1024u64))),
-				("account_start_nonce", encode(&U256::from(0u64))),
-				("gas_limit_bounds_divisor", encode(&1024u64)), 
-				("minimum_difficulty", encode(&131_072u64)), 
-				("difficulty_bound_divisor", encode(&2048u64)), 
-				("duration_limit", encode(&8u64)), 
-				("min_gas_limit", encode(&125_000u64)), 
-				("gas_floor_target", encode(&3_141_592u64)), 
-			].into_iter().fold(HashMap::new(), | mut acc, vec | {
-				acc.insert(vec.0.to_string(), vec.1);
-				acc
-			}),
-			builtins: Self::standard_builtins(),
-			parent_hash: H256::new(),
-			author: Address::new(),
-			difficulty: U256::from(131_072u64),
-			gas_limit: U256::from(0u64),
-			gas_used: U256::from(0u64),
-			timestamp: U256::from(0u64),
-			extra_data: vec![],
-			genesis_state: vec![				// TODO: make correct
-				(Address::new(), Account::new_basic(U256::from(1) << 200, U256::from(0)))
-			].into_iter().fold(HashMap::new(), | mut acc, vec | {
-				acc.insert(vec.0, vec.1);
-				acc
-			}),
-			seal_fields: 2,
-			seal_rlp: { let mut r = RlpStream::new_list(2); r.append(&H256::new()); r.append(&0x2au64); r.out() },	// TODO: make correct
-			state_root_memo: RefCell::new(None),
-		}
-	}
-
-	/// Creates the Frontier network chain spec, except for the genesis state, which is blank.
-	pub fn new_like_frontier() -> Spec {
-		Spec {
-			engine_name: "Ethash".to_string(),
-			engine_params: vec![
-				("block_reward", encode(&(ether() * U256::from(5u64)))),
-				("maximum_extra_data_size", encode(&U256::from(32u64))),
-				("account_start_nonce", encode(&U256::from(0u64))),
-				("gas_limit_bounds_divisor", encode(&1024u64)), 
-				("minimum_difficulty", encode(&131_072u64)), 
-				("difficulty_bound_divisor", encode(&2048u64)), 
-				("duration_limit", encode(&13u64)), 
-				("min_gas_limit", encode(&5000u64)), 
-				("gas_floor_target", encode(&3_141_592u64)), 
-			].into_iter().fold(HashMap::new(), | mut acc, vec | {
-				acc.insert(vec.0.to_string(), vec.1);
-				acc
-			}),
-			builtins: Self::standard_builtins(),
-			parent_hash: H256::new(),
-			author: Address::new(),
-			difficulty: U256::from(131_072u64),
-			gas_limit: U256::from(0u64),
-			gas_used: U256::from(0u64),
-			timestamp: U256::from(0u64),
-			extra_data: vec![],
-			genesis_state: vec![				// TODO: make correct
-				(Address::new(), Account::new_basic(U256::from(1) << 200, U256::from(0)))
-			].into_iter().fold(HashMap::new(), | mut acc, vec | {
-				acc.insert(vec.0, vec.1);
-				acc
-			}),
-			seal_fields: 2,
-			seal_rlp: { let mut r = RlpStream::new_list(2); r.append(&H256::new()); r.append(&0x42u64); r.out() },
-			state_root_memo: RefCell::new(None),
-		}
-	}
-
-	/// Creates the actual Morden network chain spec.
-	pub fn new_morden_manual() -> Spec {
-		Spec {
-			engine_name: "Ethash".to_string(),
-			engine_params: vec![
-				("block_reward", encode(&(ether() * U256::from(5u64)))),
-				("maximum_extra_data_size", encode(&U256::from(32u64))),
-				("account_start_nonce", encode(&(U256::from(1u64) << 20))),
-				("gas_limit_bounds_divisor", encode(&1024u64)), 
-				("minimum_difficulty", encode(&131_072u64)), 
-				("difficulty_bound_divisor", encode(&2048u64)), 
-				("duration_limit", encode(&13u64)), 
-				("min_gas_limit", encode(&5000u64)), 
-				("gas_floor_target", encode(&3_141_592u64)), 
-			].into_iter().fold(HashMap::new(), | mut acc, vec | {
-				acc.insert(vec.0.to_string(), vec.1);
-				acc
-			}),
-			builtins: Self::standard_builtins(),
-			parent_hash: H256::new(),
-			author: Address::new(),
-			difficulty: U256::from(0x20000u64),
-			gas_limit: U256::from(0x2fefd8u64),
-			gas_used: U256::from(0u64),
-			timestamp: U256::from(0u64),
-			extra_data: vec![],
-			genesis_state: {
-				let n = U256::from(1) << 20;
-				vec![
-					(Address::from_str("0000000000000000000000000000000000000001").unwrap(), Account::new_basic(U256::from(1), n)),
-					(Address::from_str("0000000000000000000000000000000000000002").unwrap(), Account::new_basic(U256::from(1), n)),
-					(Address::from_str("0000000000000000000000000000000000000003").unwrap(), Account::new_basic(U256::from(1), n)),
-					(Address::from_str("0000000000000000000000000000000000000004").unwrap(), Account::new_basic(U256::from(1), n)),
-					(Address::from_str("102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c").unwrap(), Account::new_basic(U256::from(1) << 200, n))
-				]}.into_iter().fold(HashMap::new(), | mut acc, vec | {
-					acc.insert(vec.0, vec.1);
-					acc
-				}),
-			seal_fields: 2,
-			seal_rlp: {
-				let mut r = RlpStream::new();
-				r.append(&H256::from_str("00000000000000000000000000000000000000647572616c65787365646c6578").unwrap());
-				r.append(&FromHex::from_hex("00006d6f7264656e").unwrap());
-				r.out()
-			},
-			state_root_memo: RefCell::new(None),
+	/// Ensure that the given state DB has the trie nodes in for the genesis state.
+	pub fn ensure_db_good(&self, db: &mut HashDB) {
+		if !db.contains(&self.state_root()) {
+			let mut root = H256::new();
+			let mut t = SecTrieDBMut::new(db, &mut root);
+			for (address, account) in self.genesis_state.iter() {
+				t.insert(address.as_slice(), &account.rlp());
+			}
 		}
 	}
 
@@ -353,11 +212,8 @@ impl Spec {
 		Self::from_json(json)
 	}
 
-	/// Create a new Morden chain spec.
-	pub fn new_morden() -> Spec { Self::from_json_utf8(include_bytes!("../res/morden.json")) }
-
-	/// Create a new Frontier chain spec.
-	pub fn new_frontier() -> Spec { Self::from_json_utf8(include_bytes!("../res/frontier.json")) }
+	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
+	pub fn new_test() -> Spec { Self::from_json_utf8(include_bytes!("../res/null_morden.json")) }
 }
 
 #[cfg(test)]
@@ -365,36 +221,17 @@ mod tests {
 	use std::str::FromStr;
 	use util::hash::*;
 	use util::sha3::*;
-	use rustc_serialize::json::Json;
 	use views::*;
 	use super::*;
 
 	#[test]
-	fn morden_manual() {
-		let morden = Spec::new_morden_manual();
+	fn test_chain() {
+		let test_spec = Spec::new_test();
 
-		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
-		let genesis = morden.genesis_block();
+		assert_eq!(*test_spec.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
+		let genesis = test_spec.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
-	}
 
-	#[test]
-	fn morden() {
-		let morden = Spec::new_morden();
-
-		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
-		let genesis = morden.genesis_block();
-		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
-	}
-
-	#[test]
-	fn frontier() {
-		let frontier = Spec::new_frontier();
-
-		assert_eq!(*frontier.state_root(), H256::from_str("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544").unwrap());
-		let genesis = frontier.genesis_block();
-		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap());
-
-		let engine = frontier.to_engine();
+		let _ = test_spec.to_engine();
 	}
 }
