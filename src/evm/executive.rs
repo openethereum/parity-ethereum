@@ -40,6 +40,10 @@ impl Substate {
 		}
 	}
 
+	pub fn logs(&self) -> &[LogEntry] {
+		&self.logs
+	}
+
 	/// Appends another substate to this substate.
 	fn accrue(&mut self, s: Substate) {
 		self.suicides.extend(s.suicides.into_iter());
@@ -203,7 +207,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&self, substate: Substate, gas: U256, gas_used: U256) {
+	fn finalize(&mut self, substate: Substate, gas: U256, gas_used: U256) {
 		let schedule = self.engine.evm_schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
@@ -214,7 +218,9 @@ impl<'a> Executive<'a> {
 		let refund = cmp::min(sstore_refunds + suicide_refunds, (gas - gas_used) / U256::from(2));
 
 		// perform suicides
-		//self.state.
+		for address in substate.suicides.iter() {
+			self.state.kill_account(address);
+		}
 	}
 }
 
@@ -248,8 +254,8 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn sstore(&mut self, key: H256, value: H256) {
+		// if SSTORE nonzero -> zero, increment refund count
 		if value == H256::new() && self.state.storage_at(&self.params.address, &key) != H256::new() {
-			//self.substate.refunds_count = self.substate.refunds_count + U256::from(self.engine.evm_schedule(self.info).sstore_refund_gas);
 			self.substate.refunds_count = self.substate.refunds_count + U256::one();
 		}
 		self.state.set_storage(&self.params.address, key, value)
@@ -269,9 +275,9 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> (Address, u64) {
+	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> Option<(Address, u64)> {
 		match self.state.balance(&self.params.address) >= *endowment && self.depth < 1024 {
-			false => (Address::new(), gas),
+			false => None,
 			true => {
 				let address = contract_address(&self.params.address, &self.state.nonce(&self.params.address));
 				let params = EvmParams {
@@ -292,7 +298,7 @@ impl<'a> Ext for Externalities<'a> {
 					println!("res: {:?}", res);
 				}
 				self.substate.accrue(substate);
-				(address, gas)
+				Some((address, gas))
 			}
 		}
 	}

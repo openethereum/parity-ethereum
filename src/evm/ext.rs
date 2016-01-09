@@ -18,11 +18,14 @@ pub trait Ext {
 	fn blockhash(&self, number: &U256) -> H256;
 
 	/// Creates new contract.
-	/// Returns new contract address and gas used.
-	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> (Address, u64);
+	/// If contract creation is successfull, 
+	/// returns new contract address and gas used,
+	/// otherwise `None`.
+	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> Option<(Address, u64)>;
 
-	/// Calls existing contract.
-	/// Returns call output and gas used.
+	/// Message call.
+	/// If call is successfull, returns call output and gas used,
+	/// otherwise `None`.
 	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address) -> Option<(Vec<u8>, u64)>;
 
 	/// Returns code at given address

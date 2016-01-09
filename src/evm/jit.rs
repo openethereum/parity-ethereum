@@ -208,9 +208,13 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			  init_size: u64,
 			  address: *mut evmjit::H256) {
 		unsafe {
-			let (addr, gas) = self.ext.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize));
-			*io_gas = gas;
-			*address = addr.into_jit();
+			match self.ext.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
+				Some((addr, gas)) => {
+					*io_gas = gas;
+					*address = addr.into_jit();
+				},
+				None => ()
+			};
 		}
 	}
 
@@ -389,9 +393,10 @@ mod tests {
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
 			let evm = JitEvm;
 			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
@@ -411,9 +416,10 @@ mod tests {
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
 			let evm = JitEvm;
 			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
@@ -433,9 +439,10 @@ mod tests {
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
 			let evm = JitEvm;
 			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
@@ -456,9 +463,10 @@ mod tests {
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
 			let evm = JitEvm;
 			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
@@ -479,9 +487,10 @@ mod tests {
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
 			let evm = JitEvm;
 			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
@@ -518,9 +527,10 @@ mod tests {
 		state.init_code(&sender, sender_code);
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
 			let evm = JitEvm;
 			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
@@ -542,9 +552,10 @@ mod tests {
 		state.add_balance(&address, &U256::from(0x10));
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
 			let evm = JitEvm;
 			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
@@ -563,10 +574,13 @@ mod tests {
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
-		let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
-		let evm = JitEvm;
-		assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
-		let logs = ext.logs();
+		let mut substate = Substate::new();
+		{
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let evm = JitEvm;
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
+		}
+		let logs = substate.logs();
 		assert_eq!(logs.len(), 1);
 		let log = &logs[0];
 		assert_eq!(log.address(), &address);
@@ -594,10 +608,13 @@ mod tests {
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
-		let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
-		let evm = JitEvm;
-		assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
-		let logs = ext.logs();
+		let mut substate = Substate::new();
+		{
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let evm = JitEvm;
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
+		}
+		let logs = substate.logs();
 		assert_eq!(logs.len(), 1);
 		let log = &logs[0];
 		assert_eq!(log.address(), &address);
@@ -621,9 +638,10 @@ mod tests {
 		info.number = U256::one();
 		info.last_hashes.push(H256::from(address.clone()));
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
 			let evm = JitEvm;
 			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
@@ -645,9 +663,10 @@ mod tests {
 		info.number = U256::one();
 		info.last_hashes.push(H256::from(address.clone()));
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
 			let evm = JitEvm;
 			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
