@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::cmp;
 use util::hash::*;
 use util::uint::*;
 use util::rlp::*;
@@ -26,7 +27,7 @@ pub struct Substate {
 	/// Any logs.
 	logs: Vec<LogEntry>,
 	/// Refund counter of SSTORE nonzero->zero.
-	refunds: U256,
+	refunds_count: U256,
 }
 
 impl Substate {
@@ -35,7 +36,7 @@ impl Substate {
 		Substate {
 			suicides: HashSet::new(),
 			logs: vec![],
-			refunds: U256::zero(),
+			refunds_count: U256::zero(),
 		}
 	}
 
@@ -43,7 +44,7 @@ impl Substate {
 	fn accrue(&mut self, s: Substate) {
 		self.suicides.extend(s.suicides.into_iter());
 		self.logs.extend(s.logs.into_iter());
-		self.refunds = self.refunds + s.refunds;
+		self.refunds_count = self.refunds_count + s.refunds_count;
 	}
 }
 
@@ -54,6 +55,7 @@ pub enum ExecutiveResult {
 	InternalError
 }
 
+/// Message-call/contract-creation executor; useful for executing transactions.
 pub struct Executive<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
@@ -61,7 +63,6 @@ pub struct Executive<'a> {
 	depth: usize,
 }
 
-/// Message-call/contract-creation executor; useful for executing transactions.
 impl<'a> Executive<'a> {
 	/// Creates new executive with depth equal 0.
 	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine) -> Self {
@@ -126,21 +127,58 @@ impl<'a> Executive<'a> {
 		};
 
 		// finalize here!
-		e.finalize(substate);
+		e.finalize(substate, U256::zero(), U256::zero());
 		res
 	}
 
 	/// Calls contract function with given contract params.
-	/// *Note. It does not finalize the transaction (doesn't do refund).
-	fn call(_e: &mut Executive<'a>, _p: &EvmParams, _s: &mut Substate) -> ExecutiveResult {
-		//let _ext = Externalities::from_executive(e, &p);
+	/// *Note. It does not finalize the transaction (doesn't do refunds, nor suicides).
+	fn call(e: &mut Executive<'a>, params: &EvmParams, substate: &mut Substate) -> ExecutiveResult {
+		// at first, transfer value to destination
+		e.state.transfer_balance(&params.sender, &params.address, &params.value);
+
+		// if destination is builtin, try to execute it, or quickly return
+		if e.engine.is_builtin(&params.address) {
+			return match e.engine.cost_of_builtin(&params.address, &params.data) > params.gas {
+				true => ExecutiveResult::OutOfGas,
+				false => {
+					// TODO: substract gas for execution
+					let mut out = vec![];
+					e.engine.execute_builtin(&params.address, &params.data, &mut out);
+					ExecutiveResult::Ok
+				}
+			}
+		}
+
+		// otherwise do `normal` execution if destination is a contract
+		// TODO: is executing contract with no code different from not executing contract at all?
+		// if yes, there is a logic issue here. mk
+		if params.code.len() > 0 {
+			return match {
+				let mut ext = Externalities::new(e.state, e.info, e.engine, e.depth, params, substate);
+				let evm = VmFactory::create();
+				evm.exec(&params, &mut ext)
+			} {
+				EvmResult::Stop => ExecutiveResult::Ok,
+				EvmResult::Return(_) => ExecutiveResult::Ok,
+				EvmResult::Suicide => {
+					substate.suicides.insert(params.address.clone());
+					ExecutiveResult::Ok
+				},
+				EvmResult::OutOfGas => ExecutiveResult::OutOfGas,
+				_err => ExecutiveResult::InternalError
+			}
+		}
+		
 		ExecutiveResult::Ok
 	}
 	
 	/// Creates contract with given contract params.
-	/// *Note. It does not finalize the transaction (doesn't do refund).
+	/// *Note. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	fn create(e: &mut Executive<'a>, params: &EvmParams, substate: &mut Substate) -> ExecutiveResult {
+		// at first create new contract
 		e.state.new_contract(&params.address);
+		// then transfer value to it
 		e.state.transfer_balance(&params.sender, &params.address, &params.value);
 
 		match {
@@ -156,6 +194,7 @@ impl<'a> Executive<'a> {
 				ExecutiveResult::Ok
 			},
 			EvmResult::Suicide => {
+				substate.suicides.insert(params.address.clone());
 				ExecutiveResult::Ok
 			},
 			EvmResult::OutOfGas => ExecutiveResult::OutOfGas,
@@ -163,8 +202,19 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	/// Finalizes the transaction (does refunds).
-	fn finalize(&self, _substate: Substate) {
+	/// Finalizes the transaction (does refunds and suicides).
+	fn finalize(&self, substate: Substate, gas: U256, gas_used: U256) {
+		let schedule = self.engine.evm_schedule(self.info);
+
+		// refunds from SSTORE nonzero -> zero
+		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.refunds_count;
+		// refunds from contract suicides
+		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
+		// real ammount to refund
+		let refund = cmp::min(sstore_refunds + suicide_refunds, (gas - gas_used) / U256::from(2));
+
+		// perform suicides
+		//self.state.
 	}
 }
 
@@ -190,12 +240,6 @@ impl<'a> Externalities<'a> {
 			substate: substate
 		}
 	}
-
-	// TODO: figure out how to use this function
-	// so the lifetime checker is satisfied
-	//pub fn from_executive(e: &mut Executive<'a>, params: &EvmParams, substate: &mut Substate) -> Self {
-		//Externalities::new(e.state, e.info, e.engine, e.depth, params)
-	//}
 }
 
 impl<'a> Ext for Externalities<'a> {
@@ -205,8 +249,8 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn sstore(&mut self, key: H256, value: H256) {
 		if value == H256::new() && self.state.storage_at(&self.params.address, &key) != H256::new() {
-			//self.substate.refunds = self.substate.refunds + U256::from(self.engine.evm_schedule(self.info).sstore_refund_gas);
-			self.substate.refunds = self.substate.refunds + U256::one();
+			//self.substate.refunds_count = self.substate.refunds_count + U256::from(self.engine.evm_schedule(self.info).sstore_refund_gas);
+			self.substate.refunds_count = self.substate.refunds_count + U256::one();
 		}
 		self.state.set_storage(&self.params.address, key, value)
 	}
