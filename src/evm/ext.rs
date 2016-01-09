@@ -1,4 +1,4 @@
-//! Contract execution environment.
+//! Interface for Evm externalities.
 
 use util::hash::*;
 use util::uint::*;

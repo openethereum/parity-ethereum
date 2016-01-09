@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use util::hash::*;
 use util::uint::*;
 use util::rlp::*;
@@ -17,6 +18,35 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 	From::from(stream.out().sha3())
 }
 
+/// State changes which should be applied in finalize,
+/// after transaction is fully executed.
+pub struct Substate {
+	/// Any accounts that have suicided.
+	suicides: HashSet<Address>,
+	/// Any logs.
+	logs: Vec<LogEntry>,
+	/// Refund counter of SSTORE nonzero->zero.
+	refunds: U256,
+}
+
+impl Substate {
+	/// Creates new substate.
+	pub fn new() -> Self {
+		Substate {
+			suicides: HashSet::new(),
+			logs: vec![],
+			refunds: U256::zero(),
+		}
+	}
+
+	/// Appends another substate to this substate.
+	fn accrue(&mut self, s: Substate) {
+		self.suicides.extend(s.suicides.into_iter());
+		self.logs.extend(s.logs.into_iter());
+		self.refunds = self.refunds + s.refunds;
+	}
+}
+
 #[derive(PartialEq, Debug)]
 pub enum ExecutiveResult {
 	Ok,
@@ -31,15 +61,20 @@ pub struct Executive<'a> {
 	depth: usize,
 }
 
+/// Message-call/contract-creation executor; useful for executing transactions.
 impl<'a> Executive<'a> {
+	/// Creates new executive with depth equal 0.
 	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine) -> Self {
 		Executive::new_with_depth(state, info, engine, 0)
 	}
 
+	/// Populates executive from parent externalities. Increments executive depth.
 	fn from_parent(e: &'a mut Externalities) -> Self {
 		Executive::new_with_depth(e.state, e.info, e.engine, e.depth + 1)
 	}
 
+	/// Helper constructor. Should be used to create `Executive` with desired depth.
+	/// Private.
 	fn new_with_depth(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
 		Executive {
 			state: state,
@@ -49,13 +84,16 @@ impl<'a> Executive<'a> {
 		}
 	}
 
+	/// This funtion should be used to execute transaction.
 	pub fn transact(e: &mut Executive<'a>, t: &Transaction) -> ExecutiveResult {
 		// TODO: validate that we have enough funds
 		// TODO: validate nonce ?
 	
 		let sender = t.sender();
 
-		match t.kind() {
+		let mut substate = Substate::new();
+
+		let res = match t.kind() {
 			TransactionKind::ContractCreation => {
 				let params = EvmParams {
 					address: contract_address(&sender, &t.nonce),
@@ -69,7 +107,7 @@ impl<'a> Executive<'a> {
 				};
 				e.state.inc_nonce(&params.address);
 				unimplemented!()
-				//Executive::call(e, &params)
+				//Executive::call(e, &params, &substate)
 			},
 			TransactionKind::MessageCall => {
 				let params = EvmParams {
@@ -83,29 +121,33 @@ impl<'a> Executive<'a> {
 					data: t.data.clone(),
 				};
 				e.state.inc_nonce(&params.address);
-				Executive::create(e, &params)
+				Executive::create(e, &params, &mut substate)
 			}
-		}
+		};
+
+		// finalize here!
+		e.finalize(substate);
+		res
 	}
 
-	fn call(_e: &mut Executive<'a>, _p: &EvmParams) -> ExecutiveResult {
+	/// Calls contract function with given contract params.
+	/// *Note. It does not finalize the transaction (doesn't do refund).
+	fn call(_e: &mut Executive<'a>, _p: &EvmParams, _s: &mut Substate) -> ExecutiveResult {
 		//let _ext = Externalities::from_executive(e, &p);
 		ExecutiveResult::Ok
 	}
 	
-	fn create(e: &mut Executive<'a>, params: &EvmParams) -> ExecutiveResult {
-		//self.state.require_or_from(&self.params.address, false, ||Account::new_contract(U256::from(0)));
-		//TODO: ensure that account at given address is created
+	/// Creates contract with given contract params.
+	/// *Note. It does not finalize the transaction (doesn't do refund).
+	fn create(e: &mut Executive<'a>, params: &EvmParams, substate: &mut Substate) -> ExecutiveResult {
 		e.state.new_contract(&params.address);
 		e.state.transfer_balance(&params.sender, &params.address, &params.value);
 
-		let code = {
-			let mut ext = Externalities::new(e.state, e.info, e.engine, e.depth, params);
+		match {
+			let mut ext = Externalities::new(e.state, e.info, e.engine, e.depth, params, substate);
 			let evm = VmFactory::create();
 			evm.exec(&params, &mut ext)
-		};
-
-		match code {
+		} {
 			EvmResult::Stop => {
 				ExecutiveResult::Ok
 			},
@@ -113,48 +155,47 @@ impl<'a> Executive<'a> {
 				e.state.init_code(&params.address, output);
 				ExecutiveResult::Ok
 			},
-			EvmResult::OutOfGas => {
-				ExecutiveResult::OutOfGas
+			EvmResult::Suicide => {
+				ExecutiveResult::Ok
 			},
-			_err => {
-				ExecutiveResult::InternalError
-			}
+			EvmResult::OutOfGas => ExecutiveResult::OutOfGas,
+			_err => ExecutiveResult::InternalError
 		}
+	}
+
+	/// Finalizes the transaction (does refunds).
+	fn finalize(&self, _substate: Substate) {
 	}
 }
 
+/// Implementation of evm Externalities.
 pub struct Externalities<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
 	depth: usize,
 	params: &'a EvmParams,
-	logs: Vec<LogEntry>,
-	refunds: U256
+	substate: &'a mut Substate
 }
 
 impl<'a> Externalities<'a> {
-	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize, params: &'a EvmParams) -> Self {
+	/// Basic `Externalities` constructor.
+	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize, params: &'a EvmParams, substate: &'a mut Substate) -> Self {
 		Externalities {
 			state: state,
 			info: info,
 			engine: engine,
 			depth: depth,
 			params: params,
-			logs: vec![],
-			refunds: U256::zero()
+			substate: substate
 		}
 	}
 
 	// TODO: figure out how to use this function
 	// so the lifetime checker is satisfied
-	//pub fn from_executive(e: &mut Executive<'a>, params: &EvmParams) -> Self {
+	//pub fn from_executive(e: &mut Executive<'a>, params: &EvmParams, substate: &mut Substate) -> Self {
 		//Externalities::new(e.state, e.info, e.engine, e.depth, params)
 	//}
-	
-	pub fn logs(&self) -> &[LogEntry] {
-		&self.logs
-	}
 }
 
 impl<'a> Ext for Externalities<'a> {
@@ -164,7 +205,8 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn sstore(&mut self, key: H256, value: H256) {
 		if value == H256::new() && self.state.storage_at(&self.params.address, &key) != H256::new() {
-			self.refunds = self.refunds + U256::from(self.engine.evm_schedule(self.info).sstore_refund_gas);
+			//self.substate.refunds = self.substate.refunds + U256::from(self.engine.evm_schedule(self.info).sstore_refund_gas);
+			self.substate.refunds = self.substate.refunds + U256::one();
 		}
 		self.state.set_storage(&self.params.address, key, value)
 	}
@@ -198,10 +240,14 @@ impl<'a> Ext for Externalities<'a> {
 					code: code.to_vec(),
 					data: vec![],
 				};
-				let mut ex = Executive::from_parent(self);
-				ex.state.inc_nonce(&address);
-				let res = Executive::create(&mut ex, &params);
-				println!("res: {:?}", res);
+				let mut substate = Substate::new();
+				{
+					let mut ex = Executive::from_parent(self);
+					ex.state.inc_nonce(&address);
+					let res = Executive::create(&mut ex, &params, &mut substate);
+					println!("res: {:?}", res);
+				}
+				self.substate.accrue(substate);
 				(address, gas)
 			}
 		}
@@ -221,11 +267,11 @@ impl<'a> Ext for Externalities<'a> {
 			data: data.to_vec(),
 		};
 
+		let mut substate = Substate::new();
 		{
 			let mut ex = Executive::from_parent(self);
-			Executive::call(&mut ex, &params);
+			Executive::call(&mut ex, &params, &mut substate);
 			unimplemented!();
-			
 		}
 	}
 
@@ -235,9 +281,8 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn log(&mut self, topics: Vec<H256>, data: Bytes) {
 		let address = self.params.address.clone();
-		self.logs.push(LogEntry::new(address, topics, data));
+		self.substate.logs.push(LogEntry::new(address, topics, data));
 	}
-
 }
 
 #[cfg(test)]
@@ -291,10 +336,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			assert_eq!(Executive::create(&mut ex, &params), ExecutiveResult::Ok);
+			assert_eq!(Executive::create(&mut ex, &params, &mut substate), ExecutiveResult::Ok);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0xf9u64)));
@@ -317,10 +363,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
 		let engine = TestEngine::new();
+		let mut substate = Substate::new();
 
 		{
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			assert_eq!(Executive::create(&mut ex, &params), ExecutiveResult::Ok);
+			assert_eq!(Executive::create(&mut ex, &params, &mut substate), ExecutiveResult::Ok);
 		}
 		
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(next_address.clone()));
