@@ -164,6 +164,7 @@ pub struct ChainSync {
 
 
 impl ChainSync {
+	/// Create a new instance of syncing strategy.
 	pub fn new() -> ChainSync {
 		ChainSync {
 			state: SyncState::NotSynced,
