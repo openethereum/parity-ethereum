@@ -1,14 +1,5 @@
-use std::io::Read;
-use std::str::FromStr;
-use std::collections::HashMap;
-use rustc_serialize::base64::FromBase64;
-use rustc_serialize::json::Json;
-use rustc_serialize::hex::FromHex;
+use util::*;
 use flate2::read::GzDecoder;
-use util::rlp::*;
-use util::hash::*;
-use util::uint::*;
-use util::sha3::*;
 use account::*;
 use header::*;
 
@@ -90,7 +81,8 @@ impl Genesis {
 				let mixhash = H256::from_str(&json["mixhash"].as_string().unwrap()[2..]).unwrap();
 				let nonce = H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap();
 				vec![encode(&mixhash), encode(&nonce)]
-			}
+			},
+			hash: RefCell::new(None),
 		};
 		
 		(header, state)

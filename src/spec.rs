@@ -1,25 +1,8 @@
-use std::io::Read;
-use std::collections::HashMap;
-use std::cell::*;
-use std::str::FromStr;
-use rustc_serialize::base64::FromBase64;
-use rustc_serialize::json::Json;
-use rustc_serialize::hex::FromHex;
+use common::*;
 use flate2::read::GzDecoder;
-use util::uint::*;
-use util::hash::*;
-use util::bytes::*;
-use util::triehash::*;
-use util::error::*;
-use util::rlp::*;
-use util::sha3::*;
-use account::*;
-use engine::Engine;
-use builtin::Builtin;
-use null_engine::NullEngine;
-use ethash::Ethash;
-use denominations::*;
-use header::*;
+use engine::*;
+use null_engine::*;
+use ethash::*;
 
 /// Converts file from base64 gzipped bytes to json
 pub fn gzip64res_to_json(source: &[u8]) -> Json {
@@ -107,7 +90,7 @@ impl Spec {
 		Ref::map(self.state_root_memo.borrow(), |x|x.as_ref().unwrap())
 	}
 
-	fn genesis_header(&self) -> Header {
+	pub fn genesis_header(&self) -> Header {
 		Header {
 			parent_hash: self.parent_hash.clone(),
 			timestamp: self.timestamp.clone(),
@@ -129,8 +112,9 @@ impl Spec {
 					s.out()
 				};
 				let r = Rlp::new(&seal);
-				(0..self.seal_fields).map(|i| r.at(i).raw().to_vec()).collect()
+				(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
 			},
+			hash: RefCell::new(None),
 		}
 	}
 
@@ -342,6 +326,17 @@ impl Spec {
 		}
 	}
 
+	/// Ensure that the given state DB has the trie nodes in for the genesis state.
+	pub fn ensure_db_good(&self, db: &mut HashDB) {
+		if !db.contains(&self.state_root()) {
+			let mut root = H256::new();
+			let mut t = SecTrieDBMut::new(db, &mut root);
+			for (address, account) in self.genesis_state.iter() {
+				t.insert(address.as_slice(), &account.rlp());
+			}
+		}
+	}
+
 	/// Create a new Spec from a JSON UTF-8 data resource `data`.
 	pub fn from_json_utf8(data: &[u8]) -> Spec {
 		Self::from_json_str(::std::str::from_utf8(data).unwrap())
@@ -365,26 +360,16 @@ mod tests {
 	use std::str::FromStr;
 	use util::hash::*;
 	use util::sha3::*;
-	use rustc_serialize::json::Json;
 	use views::*;
 	use super::*;
 
 	#[test]
-	fn morden_manual() {
-		let morden = Spec::new_morden_manual();
-
-		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
-		let genesis = morden.genesis_block();
-		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
-	}
-
-	#[test]
 	fn morden() {
-		let morden = Spec::new_morden();
-
-		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
-		let genesis = morden.genesis_block();
-		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
+		for morden in [Spec::new_morden(), Spec::new_morden_manual()].into_iter() {
+			assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
+			let genesis = morden.genesis_block();
+			assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
+		}
 	}
 
 	#[test]
