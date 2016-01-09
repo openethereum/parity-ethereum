@@ -120,21 +120,22 @@ impl<'engine> OpenBlock<'engine> {
 	}
 
 	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure out the uncles.
-	pub fn close(mut self, uncles: Vec<Header>, author: Address, extra_data: Bytes) -> ClosedBlock<'engine> {
+	pub fn close(self, uncles: Vec<Header>, author: Address, extra_data: Bytes) -> ClosedBlock<'engine> {
+		let mut s = self;
 		// populate rest of header.
-//		self.engine.on_close_block(...);
-		self.block.header.author = author;
-//		self.header.transactions_root = ...;
+		s.engine.on_close_block(&mut s.block);
+		s.block.header.author = author;
+//		s.header.transactions_root = ...;
 		let uncle_bytes = uncles.iter().fold(RlpStream::new_list(uncles.len()), |mut s, u| {s.append(&u.rlp(Seal::With)); s} ).out();
-		self.block.header.uncles_hash = uncle_bytes.sha3();
-		self.block.header.extra_data = extra_data;
-		self.block.header.state_root = self.block.state.root().clone();
-//		self.header.receipts_root = ...;
-		self.block.header.log_bloom = self.block.archive.iter().fold(LogBloom::zero(), |mut b, e| {b |= &e.receipt.log_bloom; b});
-		self.block.header.gas_used = self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0));
-		self.block.header.note_dirty();
+		s.block.header.uncles_hash = uncle_bytes.sha3();
+		s.block.header.extra_data = extra_data;
+		s.block.header.state_root = s.block.state.root().clone();
+//		s.header.receipts_root = ...;
+		s.block.header.log_bloom = s.block.archive.iter().fold(LogBloom::zero(), |mut b, e| {b |= &e.receipt.log_bloom; b});
+		s.block.header.gas_used = s.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0));
+		s.block.header.note_dirty();
 
-		ClosedBlock::new(self, uncle_bytes)
+		ClosedBlock::new(s, uncle_bytes)
 	}
 }
 
@@ -174,9 +175,12 @@ impl IsBlock for SealedBlock {
 #[test]
 fn open_block() {
 	use spec::*;
-	let engine = Spec::new_test().to_engine().unwrap();
+	use ethereum::*;
+	let engine = new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
-	let _ = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()]);
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()]);
+	let b = b.close(vec![], Address::zero(), vec![]);
+	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244F40000").unwrap());
 }
