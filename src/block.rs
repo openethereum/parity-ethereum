@@ -71,7 +71,7 @@ pub struct OpenBlock<'engine> {
 /// There is no function available to push a transaction. If you want that you'll need to `reopen()` it.
 pub struct ClosedBlock<'engine> {
 	open_block: OpenBlock<'engine>,
-	_uncles: Vec<Header>,
+	uncles: Bytes,
 }
 
 /// A block that has a valid seal.
@@ -105,7 +105,7 @@ impl<'engine> OpenBlock<'engine> {
 			timestamp: self.block.header.timestamp.clone(),
 			difficulty: self.block.header.difficulty.clone(),
 			last_hashes: self.last_hashes.clone(),
-			gas_used: if let Some(ref t) = self.block.archive.last() {t.receipt.gas_used} else {U256::from(0)},
+			gas_used: self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0)),
 			gas_limit: self.block.header.gas_limit.clone(),
 		}
 	}
@@ -124,7 +124,26 @@ impl<'engine> OpenBlock<'engine> {
 	}
 
 	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure out the uncles.
-	pub fn close(self, _uncles: Vec<Header>) -> ClosedBlock<'engine> { unimplemented!(); }
+	pub fn close(self, uncles: Vec<Header>, author: Address, extra_data: Bytes) -> ClosedBlock<'engine> {
+		// TODO: populate rest of header.
+		self.engine.on_close_block(...);
+		self.header.author = author;
+		//self.header.transactions_root = ...;
+		let s = RlpStream::new_list(uncles.len());
+		for u in uncles.iter() {
+			s.append(u.rlp())
+		}
+		let uncle_bytes = u.out();
+		self.header.uncles_hash = uncle_bytes.sha3();
+		self.header.extra_data = extra_data;
+		self.header.state_root = self.state.root().clone();
+		//self.header.receipts_root = ...;
+		//self.header.log_bloom = ...;	// will need to amalgamate.
+		self.header.gas_used = self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0));
+		self.header.note_dirty();
+
+		ClosedBlock::new(self, uncle_bytes)
+	}
 }
 
 impl<'engine> IsBlock for OpenBlock<'engine> {
@@ -132,6 +151,13 @@ impl<'engine> IsBlock for OpenBlock<'engine> {
 }
 
 impl<'engine> ClosedBlock<'engine> {
+	fn new(open_block: OpenBlock, uncles: Bytes) -> Self {
+		Self {
+			open_block: open_block,
+			uncles: uncles,
+		}
+	}
+
 	/// Get the hash of the header without seal arguments.
 	pub fn preseal_hash(&self) -> H256 { unimplemented!(); }
 

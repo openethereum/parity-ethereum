@@ -39,6 +39,13 @@ pub struct Header {
 	pub hash: RefCell<Option<H256>>, //TODO: make this private
 }
 
+enum SealInclusion {
+	WithSeal,
+	WithoutSeal,
+}
+
+pub use SealInclusion::*;
+
 impl Header {
 	/// Create a new, default-valued, header.
 	pub fn new() -> Header {
@@ -64,19 +71,55 @@ impl Header {
 		}
 	}
 
+	/// Get the hash of this header (sha3 of the RLP).
 	pub fn hash(&self) -> H256 {
  		let mut hash = self.hash.borrow_mut();
  		match &mut *hash {
  			&mut Some(ref h) => h.clone(),
  			hash @ &mut None => {
- 				let mut stream = RlpStream::new();
- 				stream.append(self);
- 				let h = stream.as_raw().sha3();
- 				*hash = Some(h.clone());
- 				h.clone()
+ 				*hash = Some(self.hash(WithSeal));
+ 				hash.unwrap().clone()
  			}
 		}
 	}
+
+	/// Note that some fields have changed. Resets the memoised hash.
+	pub fn note_dirty(&self) {
+ 		*self.hash.borrow_mut() = None;
+	}
+
+	// TODO: get hash without seal.
+
+	// TODO: make these functions traity 
+	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: SealInclusion) {
+		s.append_list(13 + if with_seal == WithSeal {self.seal.len()} else {0})
+		s.append(&self.parent_hash);
+		s.append(&self.uncles_hash);
+		s.append(&self.author);
+		s.append(&self.state_root);
+		s.append(&self.transactions_root);
+		s.append(&self.receipts_root);
+		s.append(&self.log_bloom);
+		s.append(&self.difficulty);
+		s.append(&self.number);
+		s.append(&self.gas_limit);
+		s.append(&self.gas_used);
+		s.append(&self.timestamp);
+		s.append(&self.extra_data);
+		if with_seal == WithSeal {
+			for b in self.seal.iter() {
+				e.append_raw(&b);
+			}
+		}
+	}
+
+	pub rlp(&self, with_seal: SealInclusion) -> Bytes {
+		let s = RlpStream::new();
+		self.stream_rlp(&mut s, with_seal);
+		s.out()
+	}
+
+	pub hash(&self, with_seal: SealInclusion) -> H256 { self.rlp().sha3() }
 }
 
 impl Decodable for Header {
