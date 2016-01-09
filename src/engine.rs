@@ -25,8 +25,8 @@ pub trait Engine {
 	fn evm_schedule(&self, env_info: &EnvInfo) -> EvmSchedule;
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	fn maximum_extra_data_size(&self, _env_info: &EnvInfo) -> usize { decode(&self.spec().engine_params.get("maximum_extra_data_size").unwrap()) }
-	fn account_start_nonce(&self) -> U256 { decode(&self.spec().engine_params.get("account_start_nonce").unwrap()) }
+	fn maximum_extra_data_size(&self, _env_info: &EnvInfo) -> usize { decode(&self.spec().engine_params.get("maximumExtraDataSize").unwrap()) }
+	fn account_start_nonce(&self) -> U256 { decode(&self.spec().engine_params.get("accountStartNonce").unwrap()) }
 
 	/// Block transformation functions, before and after the transactions.
 	fn on_new_block(&self, _block: &mut Block) {}

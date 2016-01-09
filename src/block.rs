@@ -1,7 +1,6 @@
 use util::*;
 use transaction::*;
 use receipt::*;
-use blockchain::*;
 use engine::*;
 use header::*;
 use env_info::*;
@@ -125,7 +124,7 @@ impl<'engine> OpenBlock<'engine> {
 	}
 
 	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure ou the uncles.
-	pub fn close(self, _bc: &BlockChain) -> ClosedBlock { unimplemented!(); }
+	pub fn close(self, _uncles: Vec<Header>) -> ClosedBlock<'engine> { unimplemented!(); }
 }
 
 impl<'engine> IsBlock for OpenBlock<'engine> {
@@ -152,4 +151,15 @@ impl SealedBlock {
 
 impl IsBlock for SealedBlock {
 	fn block(&self) -> &Block { &self.block }
+}
+
+#[test]
+fn open_block() {
+	use super::*;
+	use spec::*;
+	let engine = Spec::new_test().to_engine().unwrap();
+	let genesis_header = engine.spec().genesis_header();
+	let mut db = OverlayDB::new_temp();
+	engine.spec().ensure_db_good(&mut db);
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()]);
 }

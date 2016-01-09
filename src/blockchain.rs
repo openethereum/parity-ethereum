@@ -77,11 +77,12 @@ impl BlockChain {
 	/// use std::str::FromStr;
 	/// use ethcore::spec::*;
 	/// use ethcore::blockchain::*;
+	/// use ethcore::ethereum;
 	/// use util::hash::*;
 	/// use util::uint::*;
 	/// 
 	/// fn main() {
-	/// 	let spec = Spec::new_frontier();
+	/// 	let spec = ethereum::new_frontier();
 	///
 	/// 	let mut dir = env::temp_dir();
 	/// 	dir.push(H32::random().hex());

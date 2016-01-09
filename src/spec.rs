@@ -212,14 +212,8 @@ impl Spec {
 		Self::from_json(json)
 	}
 
-	/// Create a new Olympic chain spec.
-	pub fn new_olympic() -> Spec { Self::from_json_utf8(include_bytes!("../res/olympic.json")) }
-
-	/// Create a new Frontier chain spec.
-	pub fn new_frontier() -> Spec { Self::from_json_utf8(include_bytes!("../res/frontier.json")) }
-
-	/// Create a new Morden chain spec.
-	pub fn new_morden() -> Spec { Self::from_json_utf8(include_bytes!("../res/morden.json")) }
+	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
+	pub fn new_test() -> Spec { Self::from_json_utf8(include_bytes!("../res/null_morden.json")) }
 }
 
 #[cfg(test)]
@@ -231,24 +225,13 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn morden() {
-		let morden = Spec::new_morden();
+	fn test_chain() {
+		let test_spec = Spec::new_test();
 
-		assert_eq!(*morden.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
-		let genesis = morden.genesis_block();
+		assert_eq!(*test_spec.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
+		let genesis = test_spec.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
 
-		morden.to_engine();
-	}
-
-	#[test]
-	fn frontier() {
-		let frontier = Spec::new_frontier();
-
-		assert_eq!(*frontier.state_root(), H256::from_str("d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544").unwrap());
-		let genesis = frontier.genesis_block();
-		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap());
-
-		frontier.to_engine();
+		let _ = test_spec.to_engine();
 	}
 }
