@@ -27,7 +27,7 @@ impl State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
-			let _ = TrieDBMut::new(&mut db, &mut root);
+			let _ = SecTrieDBMut::new(&mut db, &mut root);
 		}
 
 		State {
@@ -39,10 +39,10 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(mut db: OverlayDB, mut root: H256, account_start_nonce: U256) -> State {
+	pub fn from_existing(db: OverlayDB, root: H256, account_start_nonce: U256) -> State {
 		{
 			// trie should panic! if root does not exist
-			let _ = TrieDB::new(&mut db, &mut root);
+			let _ = SecTrieDB::new(&db, &root);
 		}
 
 		State {
@@ -142,7 +142,7 @@ impl State {
 		unimplemented!();
 	}
 
-	/// Commit accounts to TrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
+	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	pub fn commit_into(db: &mut HashDB, mut root: H256, accounts: &mut HashMap<Address, Option<Account>>) -> H256 {
 		// first, commit the sub trees.
@@ -158,7 +158,7 @@ impl State {
 		}
 
 		{
-			let mut trie = TrieDBMut::from_existing(db, &mut root);
+			let mut trie = SecTrieDBMut::from_existing(db, &mut root);
 			for (address, ref a) in accounts.iter() {
 				match a {
 					&&Some(ref account) => trie.insert(address, &account.rlp()),
@@ -184,7 +184,7 @@ impl State {
 	/// `require_code` requires that the code be cached, too.
 	fn get(&self, a: &Address, require_code: bool) -> Ref<Option<Account>> {
 		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
-			TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
 				account.cache_code(&self.db);
@@ -202,7 +202,7 @@ impl State {
 	/// If it doesn't exist, make account equal the evaluation of `default`.
 	fn require_or_from<F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> RefMut<Account> {
 		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
-			TrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		let preexists = self.cache.borrow().get(a).unwrap().is_none();
 		if preexists {
 			self.cache.borrow_mut().insert(a.clone(), Some(default()));
@@ -333,7 +333,7 @@ fn ensure_cached() {
 	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
 	s.require(&a, false);
 	s.commit();
-	assert_eq!(s.root().hex(), "ec68b85fa2e0526dc0e821a5b33135459114f19173ce0479f5c09b21cc25b9a4");
+	assert_eq!(s.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
 }
 
 #[test]

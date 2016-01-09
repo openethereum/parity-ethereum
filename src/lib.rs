@@ -92,14 +92,13 @@ pub mod account;
 pub mod header;
 pub mod transaction;
 pub mod receipt;
-pub mod denominations;
 pub mod null_engine;
 pub mod evm_schedule;
 pub mod builtin;
 pub mod spec;
-pub mod genesis;
 pub mod views;
 pub mod blockchain;
 pub mod extras;
-pub mod ethash;
 pub mod block;
+
+pub mod ethereum;
