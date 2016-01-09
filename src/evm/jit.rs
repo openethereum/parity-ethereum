@@ -643,4 +643,28 @@ mod tests {
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(address.clone()));
 	}
+
+	#[test]
+	fn test_calldataload() {
+		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let mut params = EvmParams::new_create();
+		params.address = address.clone();
+		params.gas = U256::from(0x174876e800u64);
+		params.code = "600135600055".from_hex().unwrap();
+		params.data = "0123ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23".from_hex().unwrap();
+
+		let mut state = State::new_temp();
+		let mut info = EnvInfo::new();
+		info.number = U256::one();
+		info.last_hashes.push(H256::from(address.clone()));
+		let engine = TestEngine::new();
+
+		{
+			let mut ext = Executive::new_from_params(&mut state, &info, &engine, params);
+			let evm = JitEvm;
+			assert_eq!(evm.exec(&mut ext), ReturnCode::Stop);
+		}
+
+		assert_eq!(state.storage_at(&address, &H256::new()), H256::from_str("23ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23").unwrap());
+	}
 }
