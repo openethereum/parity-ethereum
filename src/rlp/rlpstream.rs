@@ -26,7 +26,7 @@ pub struct RlpStream {
 }
 
 impl Stream for RlpStream {
-	fn new() -> Self {	
+	fn new() -> Self {
 		RlpStream {
 			unfinished_lists: ElasticArray16::new(),
 			encoder: BasicEncoder::new(),
@@ -57,7 +57,7 @@ impl Stream for RlpStream {
 				self.encoder.bytes.push(0xc0u8);
 				self.note_appended(1);
 			},
-			_ => { 
+			_ => {
 				let position = self.encoder.bytes.len();
 				self.unfinished_lists.push(ListInfo::new(position, len));
 			},
@@ -66,7 +66,7 @@ impl Stream for RlpStream {
 		// return chainable self
 		self
 	}
-	
+
 	fn append_empty_data<'a>(&'a mut self) -> &'a mut RlpStream {
 		// self push raw item
 		self.encoder.bytes.push(0x80);
@@ -80,7 +80,7 @@ impl Stream for RlpStream {
 
 	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut RlpStream {
 		// push raw items
-		self.encoder.bytes.append_slice(bytes);	
+		self.encoder.bytes.append_slice(bytes);
 
 		// try to finish and prepend the length
 		self.note_appended(item_count);
@@ -101,7 +101,7 @@ impl Stream for RlpStream {
 		self.unfinished_lists.len() == 0
 	}
 
-	fn raw(&self) -> &[u8] {
+	fn as_raw(&self) -> &[u8] {
 		&self.encoder.bytes
 	}
 

@@ -15,3 +15,6 @@ Cargo.lock
 
 # Vim
 *.swp
+
+# GDB
+*.gdb_history

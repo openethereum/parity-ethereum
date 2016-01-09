@@ -3,22 +3,22 @@
 //! ### Rust version:
 //! - beta
 //! - nightly
-//! 
+//!
 //! ### Supported platforms:
 //! - OSX
 //! - Linux
 //!
 //! ### Dependencies:
-//! - RocksDB 3.13 
-//! 
+//! - RocksDB 3.13
+//!
 //! ### Dependencies Installation:
 //!
 //! - OSX:
-//! 
+//!
 //!   ```bash
 //!   brew install rocksdb
 //!   ```
-//! 
+//!
 //! - From source:
 //!
 //!   ```bash
@@ -68,4 +68,5 @@ pub mod heapsizeof;
 pub mod squeeze;
 pub mod semantic_version;
 
-//pub mod network;
+pub mod network;
+

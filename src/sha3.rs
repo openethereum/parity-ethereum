@@ -3,22 +3,25 @@
 use std::mem::uninitialized;
 use tiny_keccak::Keccak;
 use bytes::{BytesConvertable,Populatable};
-use hash::H256;
+use hash::{H256, FixedHash};
 
 /// Types implementing this trait are sha3able.
-/// 
+///
 /// ```
 /// extern crate ethcore_util as util;
 /// use std::str::FromStr;
 /// use util::sha3::*;
 /// use util::hash::*;
-/// 
+///
 /// fn main() {
 /// 	assert_eq!([0u8; 0].sha3(), H256::from_str("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap());
 /// }
 /// ```
 pub trait Hashable {
 	fn sha3(&self) -> H256;
+	fn sha3_into(&self, dest: &mut [u8]) {
+		self.sha3().copy_to(dest);
+	}
 }
 
 impl<T> Hashable for T where T: BytesConvertable {
@@ -30,6 +33,11 @@ impl<T> Hashable for T where T: BytesConvertable {
 			keccak.finalize(ret.as_slice_mut());
 			ret
 		}
+	}
+	fn sha3_into(&self, dest: &mut [u8]) {
+		let mut keccak = Keccak::new_keccak256();
+		keccak.update(self.bytes());
+		keccak.finalize(dest);
 	}
 }
 

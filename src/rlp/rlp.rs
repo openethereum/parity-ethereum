@@ -29,8 +29,8 @@ impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
 		}
 	}
 
-	fn raw(&'view self) -> &'a [u8] {
-		self.rlp.raw()
+	fn as_raw(&'view self) -> &'a [u8] {
+		self.rlp.as_raw()
 	}
 
 	fn prototype(&self) -> Self::Prototype {

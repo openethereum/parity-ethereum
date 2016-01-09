@@ -41,22 +41,24 @@ impl PayloadInfo {
 }
 
 /// Data-oriented view onto rlp-slice.
-/// 
+///
 /// This is immutable structere. No operations change it.
-/// 
+///
 /// Should be used in places where, error handling is required,
 /// eg. on input
 #[derive(Debug)]
 pub struct UntrustedRlp<'a> {
 	bytes: &'a [u8],
-	cache: Cell<OffsetCache>,
+	offset_cache: Cell<OffsetCache>,
+	count_cache: Cell<Option<usize>>,
 }
 
 impl<'a> Clone for UntrustedRlp<'a> {
 	fn clone(&self) -> UntrustedRlp<'a> {
 		UntrustedRlp {
 			bytes: self.bytes,
-			cache: Cell::new(OffsetCache::new(usize::max_value(), 0))
+			offset_cache: self.offset_cache.clone(),
+			count_cache: self.count_cache.clone(),
 		}
 	}
 }
@@ -72,11 +74,12 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 	fn new(bytes: &'a [u8]) -> UntrustedRlp<'a> {
 		UntrustedRlp {
 			bytes: bytes,
-			cache: Cell::new(OffsetCache::new(usize::max_value(), 0)),
+			offset_cache: Cell::new(OffsetCache::new(usize::max_value(), 0)),
+			count_cache: Cell::new(None)
 		}
 	}
-	
-	fn raw(&'view self) -> &'a [u8] {
+
+	fn as_raw(&'view self) -> &'a [u8] {
 		self.bytes
 	}
 
@@ -102,7 +105,14 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 
 	fn item_count(&self) -> usize {
 		match self.is_list() {
-			true => self.iter().count(),
+			true => match self.count_cache.get() {
+				Some(c) => c,
+				None => {
+					let c = self.iter().count();
+					self.count_cache.set(Some(c));
+					c
+				}
+			},
 			false => 0
 		}
 	}
@@ -122,7 +132,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 
 		// move to cached position if it's index is less or equal to
 		// current search index, otherwise move to beginning of list
-		let c = self.cache.get();
+		let c = self.offset_cache.get();
 		let (mut bytes, to_skip) = match c.index <= index {
 			true => (try!(UntrustedRlp::consume(self.bytes, c.offset)), index - c.index),
 			false => (try!(self.consume_list_prefix()), index),
@@ -132,7 +142,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		bytes = try!(UntrustedRlp::consume_items(bytes, to_skip));
 
 		// update the cache
-		self.cache.set(OffsetCache::new(index, self.bytes.len() - bytes.len()));
+		self.offset_cache.set(OffsetCache::new(index, self.bytes.len() - bytes.len()));
 
 		// construct new rlp
 		let found = try!(BasicDecoder::payload_info(bytes));
@@ -284,7 +294,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
 		where F: FnOnce(&[u8]) -> Result<T, DecoderError> {
 
-		let bytes = self.rlp.raw();
+		let bytes = self.rlp.as_raw();
 
 		match bytes.first().map(|&x| x) {
 			// rlp is too short
@@ -306,7 +316,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 	}
 
 	fn as_raw(&self) -> &[u8] {
-		self.rlp.raw()
+		self.rlp.as_raw()
 	}
 
 	fn as_list(&self) -> Result<Vec<Self>, DecoderError> {
@@ -314,6 +324,10 @@ impl<'a> Decoder for BasicDecoder<'a> {
 			.map(| i | BasicDecoder::new(i))
 			.collect();
 		Ok(v)
+	}
+
+	fn as_rlp<'s>(&'s self) -> &'s UntrustedRlp<'s> {
+		&self.rlp
 	}
 }
 
@@ -364,7 +378,7 @@ macro_rules! impl_array_decodable {
 				if decoders.len() != $len {
 					return Err(DecoderError::RlpIncorrectListLen);
 				}
-				
+
 				for i in 0..decoders.len() {
 					result[i] = try!(T::decode(&decoders[i]));
 				}

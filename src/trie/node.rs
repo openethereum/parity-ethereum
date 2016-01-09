@@ -25,13 +25,13 @@ impl<'a> Node<'a> {
 			// fed back into this function or inline RLP which can be fed back into this function).
 			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
 				(slice, true) => Node::Leaf(slice, r.at(1).data()),
-				(slice, false) => Node::Extension(slice, r.at(1).raw()),
+				(slice, false) => Node::Extension(slice, r.at(1).as_raw()),
 			},
 			// branch - first 16 are nodes, 17th is a value (or empty).
 			Prototype::List(17) => {
 				let mut nodes: [&'a [u8]; 16] = unsafe { ::std::mem::uninitialized() };
 				for i in 0..16 {
-					nodes[i] = r.at(i).raw();
+					nodes[i] = r.at(i).as_raw();
 				}
 				Node::Branch(nodes, if r.at(16).is_empty() { None } else { Some(r.at(16).data()) })
 			},
