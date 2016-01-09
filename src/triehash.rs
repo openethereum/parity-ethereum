@@ -29,11 +29,8 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 		// first put elements into btree to sort them by nibbles
 		// optimize it later
 		.into_iter()
-		.fold(BTreeMap::new(), | mut acc, vec | {
-			let len = acc.len();
-			acc.insert(rlp::encode(&len), vec);
-			acc
-		})
+		.enumerate()
+		.fold(BTreeMap::new(), | mut acc, (i, vec) | { acc.insert(rlp::encode(&i), vec); acc })
 		// then move them to a vector
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v) )

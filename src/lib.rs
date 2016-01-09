@@ -1,3 +1,4 @@
+#![feature(op_assign_traits)]
 //! Ethcore-util library
 //!
 //! ### Rust version:

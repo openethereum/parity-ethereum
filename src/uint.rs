@@ -424,6 +424,17 @@ macro_rules! construct_uint {
 			}
 		}
 
+		impl fmt::Display for $name {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				let &$name(ref data) = self;
+				try!(write!(f, "0x"));
+				for ch in data.iter().rev() {
+					try!(write!(f, "{:02x}", ch));
+				}
+				Ok(())
+			}
+		}
+
 		impl Hash for $name {
 			fn hash<H>(&self, state: &mut H) where H: Hasher {
 				unsafe { state.write(::std::slice::from_raw_parts(self.0.as_ptr() as *mut u8, self.0.len() * 8)); }
