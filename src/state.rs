@@ -1,14 +1,4 @@
-use std::cell::*;
-use std::ops::*;
-use std::collections::HashMap;
-use util::hash::*;
-use util::hashdb::*;
-use util::overlaydb::*;
-use util::trie::*;
-use util::bytes::*;
-use util::rlp::*;
-use util::uint::*;
-use util::error::*;
+use util::*;
 use account::Account;
 use transaction::Transaction;
 use receipt::Receipt;
@@ -129,9 +119,10 @@ impl State {
 		self.require(a, false).set_storage(key, value);
 	}
 
-	/// Mutate storage of account `a` so that it is `value` for `key`.
-	pub fn set_code(&mut self, a: &Address, code: Bytes) {
-		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8))).set_code(code);
+	/// Initialise the code of account `a` so that it is `value` for `key`.
+	/// NOTE: Account should have been created with `new_contract`.
+	pub fn init_code(&mut self, a: &Address, code: Bytes) {
+		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8))).init_code(code);
 	}
 
 	/// Execute a given transaction.
@@ -238,7 +229,7 @@ fn code_from_database() {
 	let (r, db) = {
 		let mut s = State::new_temp();
 		s.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)));
-		s.set_code(&a, vec![1, 2, 3]);
+		s.init_code(&a, vec![1, 2, 3]);
 		assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
 		s.commit();
 		assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));

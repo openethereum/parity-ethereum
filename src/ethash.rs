@@ -1,10 +1,7 @@
-//use util::error::*;
-use util::rlp::decode;
-use engine::Engine;
-use spec::Spec;
+use common::*;
 use block::*;
-use evm_schedule::EvmSchedule;
-use env_info::EnvInfo;
+use spec::*;
+use engine::*;
 
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
@@ -31,3 +28,13 @@ impl Engine for Ethash {
 }
 
 // TODO: test for on_close_block.
+#[test]
+fn playpen() {
+	use util::sha3::*;
+	use util::overlaydb::*;
+	let engine = Spec::new_morden().to_engine().unwrap();
+	let genesis_header = engine.spec().genesis_header();
+	let mut db = OverlayDB::new_temp();
+	engine.spec().ensure_db_good(&mut db);
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()]);
+}

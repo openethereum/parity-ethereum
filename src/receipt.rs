@@ -1,5 +1,4 @@
-use util::hash::*;
-use util::uint::*;
+use util::*;
 
 /// Information describing execution of a transaction.
 pub struct Receipt {

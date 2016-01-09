@@ -84,11 +84,7 @@ extern crate env_logger;
 extern crate evmjit;
 extern crate ethcore_util as util;
 
-//use util::error::*;
-pub use util::hash::*;
-pub use util::uint::*;
-pub use util::bytes::*;
-
+pub mod common;
 pub mod env_info;
 pub mod engine;
 pub mod state;

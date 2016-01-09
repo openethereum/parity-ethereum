@@ -1,8 +1,5 @@
-use heapsize::HeapSizeOf;
+use util::*;
 use rocksdb::{DB, Writable};
-use util::uint::*;
-use util::hash::*;
-use util::rlp::*;
 
 /// Represents index of extra data in database
 #[derive(Copy, Clone)]

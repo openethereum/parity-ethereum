@@ -1,7 +1,4 @@
-use util::hash::*;
-use util::bytes::*;
-use util::uint::*;
-use util::rlp::*;
+use util::*;
 
 /// Type for a 2048-bit log-bloom, as used by our blocks.
 pub type LogBloom = H2048;
@@ -38,6 +35,8 @@ pub struct Header {
 
 	pub difficulty: U256,
 	pub seal: Vec<Bytes>,
+
+	pub hash: RefCell<Option<H256>>, //TODO: make this private
 }
 
 impl Header {
@@ -61,6 +60,21 @@ impl Header {
 
 			difficulty: ZERO_U256.clone(),
 			seal: vec![],
+			hash: RefCell::new(None),
+		}
+	}
+
+	pub fn hash(&self) -> H256 {
+ 		let mut hash = self.hash.borrow_mut();
+ 		match &mut *hash {
+ 			&mut Some(ref h) => h.clone(),
+ 			hash @ &mut None => {
+ 				let mut stream = RlpStream::new();
+ 				stream.append(self);
+ 				let h = stream.as_raw().sha3();
+ 				*hash = Some(h.clone());
+ 				h.clone()
+ 			}
 		}
 	}
 }
@@ -84,6 +98,7 @@ impl Decodable for Header {
 			timestamp: try!(Decodable::decode(&d[11])),
 			extra_data: try!(Decodable::decode(&d[12])),
 			seal: vec![],
+			hash: RefCell::new(None),
 		};
 
 		for i in 13..d.len() {
