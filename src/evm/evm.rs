@@ -1,16 +1,17 @@
 //! Evm interface.
 
+use util::bytes::Bytes;
 use evm::{EvmParams, Ext};
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum ReturnCode {
+pub enum EvmResult {
 	Stop,
-	Return,
+	Return(Bytes),
 	Suicide,
 	OutOfGas,
 	InternalError
 }
 
 pub trait Evm {
-	fn exec(&self, params: &EvmParams, ext: &mut Ext) -> ReturnCode;
+	fn exec(&self, params: &EvmParams, ext: &mut Ext) -> EvmResult;
 }

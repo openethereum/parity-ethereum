@@ -286,22 +286,10 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 	}
 }
 
-impl From<evmjit::ReturnCode> for evm::ReturnCode {
-	fn from(code: evmjit::ReturnCode) -> Self {
-		match code {
-			evmjit::ReturnCode::Stop => evm::ReturnCode::Stop,
-			evmjit::ReturnCode::Return => evm::ReturnCode::Return,
-			evmjit::ReturnCode::Suicide => evm::ReturnCode::Suicide,
-			evmjit::ReturnCode::OutOfGas => evm::ReturnCode::OutOfGas,
-			_ => evm::ReturnCode::InternalError
-		}
-	}
-}
-
 pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, params: &evm::EvmParams, ext: &mut evm::Ext) -> evm::ReturnCode {
+	fn exec(&self, params: &evm::EvmParams, ext: &mut evm::Ext) -> evm::EvmResult {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext)) };
 		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);
@@ -314,7 +302,6 @@ impl evm::Evm for JitEvm {
 		data.origin = params.origin.clone();
 		data.call_value = params.value;
 		data.code = params.code.clone();
-		println!("params.address: {:?}, params.code: {:?}", params.address, params.code);
 
 		// TODO:
 		data.coinbase = Address::new();
@@ -324,7 +311,13 @@ impl evm::Evm for JitEvm {
 		data.timestamp = 0;
 		
 		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
-		From::from(context.exec())
+		match context.exec() {
+			evmjit::ReturnCode::Stop => evm::EvmResult::Stop,
+			evmjit::ReturnCode::Return => evm::EvmResult::Return(context.output_data().to_vec()),
+			evmjit::ReturnCode::Suicide => evm::EvmResult::Suicide,
+			evmjit::ReturnCode::OutOfGas => evm::EvmResult::OutOfGas,
+			_ => evm::EvmResult::InternalError
+		}
 	}
 }
 
@@ -406,7 +399,7 @@ mod tests {
 		{
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 			let evm = JitEvm;
-			assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), 
@@ -428,7 +421,7 @@ mod tests {
 		{
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 			let evm = JitEvm;
-			assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), 
@@ -450,7 +443,7 @@ mod tests {
 		{
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 			let evm = JitEvm;
-			assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), 
@@ -473,7 +466,7 @@ mod tests {
 		{
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 			let evm = JitEvm;
-			assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
 
 		assert_eq!(Address::from(state.storage_at(&address, &H256::new())), address.clone());
@@ -496,7 +489,7 @@ mod tests {
 		{
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 			let evm = JitEvm;
-			assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
 
 		assert_eq!(Address::from(state.storage_at(&address, &H256::new())), address.clone());
@@ -535,7 +528,7 @@ mod tests {
 		{
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 			let evm = JitEvm;
-			assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), 
@@ -559,7 +552,7 @@ mod tests {
 		{
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 			let evm = JitEvm;
-			assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0x10)));
@@ -578,7 +571,7 @@ mod tests {
 		let engine = TestEngine::new();
 		let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 		let evm = JitEvm;
-		assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+		assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		let logs = ext.logs();
 		assert_eq!(logs.len(), 1);
 		let log = &logs[0];
@@ -609,7 +602,7 @@ mod tests {
 		let engine = TestEngine::new();
 		let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 		let evm = JitEvm;
-		assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+		assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		let logs = ext.logs();
 		assert_eq!(logs.len(), 1);
 		let log = &logs[0];
@@ -638,7 +631,7 @@ mod tests {
 		{
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 			let evm = JitEvm;
-			assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(address.clone()));
@@ -662,7 +655,7 @@ mod tests {
 		{
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params);
 			let evm = JitEvm;
-			assert_eq!(evm.exec(&params, &mut ext), ReturnCode::Stop);
+			assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from_str("23ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23").unwrap());

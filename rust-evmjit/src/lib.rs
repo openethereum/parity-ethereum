@@ -110,6 +110,11 @@ impl ContextHandle {
 	pub fn exec(&mut self) -> JitReturnCode {
 		unsafe { evmjit_exec(self.context) }
 	}
+
+	/// Returns output data.
+	pub fn output_data(&self) -> &[u8] {
+		unsafe { std::slice::from_raw_parts(self.data_handle.call_data, self.data_handle.call_data_size as usize) }
+	}
 }
 
 impl Drop for ContextHandle {

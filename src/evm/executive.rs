@@ -8,7 +8,7 @@ use state::*;
 use env_info::*;
 use engine::*;
 use transaction::*;
-use evm::{VmFactory, Ext, LogEntry, EvmParams, ReturnCode};
+use evm::{VmFactory, Ext, LogEntry, EvmParams, EvmResult};
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -96,26 +96,24 @@ impl<'a> Executive<'a> {
 	
 	fn create(e: &mut Executive<'a>, params: &EvmParams) -> ExecutiveResult {
 		//self.state.require_or_from(&self.params.address, false, ||Account::new_contract(U256::from(0)));
+		//TODO: ensure that account at given address is created
 		e.state.transfer_balance(&params.sender, &params.address, &params.value);
-		let mut ext = Externalities::new(e.state, e.info, e.engine, e.depth, params);
 
 		let code = {
+			let mut ext = Externalities::new(e.state, e.info, e.engine, e.depth, params);
 			let evm = VmFactory::create();
 			evm.exec(&params, &mut ext)
 		};
 
 		match code {
-			ReturnCode::Stop => {  //| ReturnCode::Return => {
-				//println!("code: {:?}", code);
-				//self.state.set_code(&self.params.address, self.params.code.clone());
+			EvmResult::Stop => {
 				ExecutiveResult::Ok
 			},
-			ReturnCode::Return => {
-				//self.state.transfer_balance(&self.params.sender, &self.params.address, &self.params.value);
-				//self.state.set_code(&self.params.address, self.params.code.clone());
+			EvmResult::Return(output) => {
+				//e.state.set_code(&params.address, output);
 				ExecutiveResult::Ok
 			},
-			ReturnCode::OutOfGas => {
+			EvmResult::OutOfGas => {
 				ExecutiveResult::OutOfGas
 			},
 			err => {

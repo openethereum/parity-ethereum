@@ -9,7 +9,7 @@ pub mod params;
 #[cfg(feature = "jit" )]
 mod jit;
 
-pub use self::evm::{Evm, ReturnCode};
+pub use self::evm::{Evm, EvmResult};
 pub use self::ext::{Ext};
 pub use self::logentry::LogEntry;
 pub use self::vmfactory::VmFactory;
