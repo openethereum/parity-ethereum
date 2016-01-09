@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::fmt;
 use std::ops;
 use std::hash::{Hash, Hasher};
-use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitAnd, BitXor};
+use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitOrAssign, BitAnd, BitXor};
 use std::cmp::{PartialOrd, Ordering};
 use rustc_serialize::hex::*;
 use error::EthcoreError;
@@ -19,6 +19,8 @@ use uint::U256;
 /// Note: types implementing `FixedHash` must be also `BytesConvertable`.
 pub trait FixedHash: Sized + BytesConvertable + Populatable {
 	fn new() -> Self;
+	/// Synonym for `new()`. Prefer to new as it's more readable.
+	fn zero() -> Self;
 	fn random() -> Self;
 	fn randomize(&mut self);
 	fn size() -> usize;
@@ -61,6 +63,10 @@ macro_rules! impl_hash {
 
 		impl FixedHash for $from {
 			fn new() -> $from {
+				$from([0; $size])
+			}
+
+			fn zero() -> $from {
 				$from([0; $size])
 			}
 
@@ -299,6 +305,15 @@ macro_rules! impl_hash {
 			}
 		}
 
+		/// Moving BitOrAssign
+		impl<'a> BitOrAssign<&'a $from> for $from {
+			fn bitor_assign(&mut self, rhs: &'a Self) {
+				for i in 0..$size {
+					self.0[i] = self.0[i] | rhs.0[i];
+				}
+			}
+		}
+
 		/// BitAnd on references
 		impl <'a> BitAnd for &'a $from {
 			type Output = $from;
@@ -416,6 +431,11 @@ impl_hash!(H512, 64);
 impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
+
+/// Constant address for point 0. Often used as a default.
+pub static ZERO_ADDRESS: Address = Address([0x00; 20]);
+/// Constant 256-bit datum for 0. Often used as a default.
+pub static ZERO_H256: H256 = H256([0x00; 32]);
 
 #[cfg(test)]
 mod tests {
