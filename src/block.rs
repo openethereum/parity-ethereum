@@ -123,7 +123,7 @@ impl<'engine> OpenBlock<'engine> {
 		}
 	}
 
-	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure ou the uncles.
+	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure out the uncles.
 	pub fn close(self, _uncles: Vec<Header>) -> ClosedBlock<'engine> { unimplemented!(); }
 }
 
@@ -155,11 +155,10 @@ impl IsBlock for SealedBlock {
 
 #[test]
 fn open_block() {
-	use super::*;
 	use spec::*;
 	let engine = Spec::new_test().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
-	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()]);
+	let _ = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()]);
 }

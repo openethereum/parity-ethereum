@@ -56,7 +56,7 @@ mod tests {
 		let genesis = morden.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
 
-		morden.to_engine();
+		let _ = morden.to_engine();
 	}
 
 	#[test]
@@ -67,6 +67,6 @@ mod tests {
 		let genesis = frontier.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap());
 
-		frontier.to_engine();
+		let _ = frontier.to_engine();
 	}
 }
