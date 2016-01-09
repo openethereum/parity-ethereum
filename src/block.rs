@@ -1,9 +1,5 @@
-use util::*;
-use transaction::*;
-use receipt::*;
+use common::*;
 use engine::*;
-use header::*;
-use env_info::*;
 use state::*;
 
 /// A transaction/receipt execution entry.
@@ -71,7 +67,7 @@ pub struct OpenBlock<'engine> {
 /// There is no function available to push a transaction. If you want that you'll need to `reopen()` it.
 pub struct ClosedBlock<'engine> {
 	open_block: OpenBlock<'engine>,
-	_uncles: Vec<Header>,
+	uncles: Bytes,
 }
 
 /// A block that has a valid seal.
@@ -105,7 +101,7 @@ impl<'engine> OpenBlock<'engine> {
 			timestamp: self.block.header.timestamp.clone(),
 			difficulty: self.block.header.difficulty.clone(),
 			last_hashes: self.last_hashes.clone(),
-			gas_used: if let Some(ref t) = self.block.archive.last() {t.receipt.gas_used} else {U256::from(0)},
+			gas_used: self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0)),
 			gas_limit: self.block.header.gas_limit.clone(),
 		}
 	}
@@ -123,8 +119,24 @@ impl<'engine> OpenBlock<'engine> {
 		}
 	}
 
-	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure ou the uncles.
-	pub fn close(self, _uncles: Vec<Header>) -> ClosedBlock<'engine> { unimplemented!(); }
+	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure out the uncles.
+	pub fn close(self, uncles: Vec<Header>, author: Address, extra_data: Bytes) -> ClosedBlock<'engine> {
+		let mut s = self;
+		// populate rest of header.
+		s.engine.on_close_block(&mut s.block);
+		s.block.header.author = author;
+//		s.header.transactions_root = ...;
+		let uncle_bytes = uncles.iter().fold(RlpStream::new_list(uncles.len()), |mut s, u| {s.append(&u.rlp(Seal::With)); s} ).out();
+		s.block.header.uncles_hash = uncle_bytes.sha3();
+		s.block.header.extra_data = extra_data;
+		s.block.header.state_root = s.block.state.root().clone();
+//		s.header.receipts_root = ...;
+		s.block.header.log_bloom = s.block.archive.iter().fold(LogBloom::zero(), |mut b, e| {b |= &e.receipt.log_bloom; b});
+		s.block.header.gas_used = s.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0));
+		s.block.header.note_dirty();
+
+		ClosedBlock::new(s, uncle_bytes)
+	}
 }
 
 impl<'engine> IsBlock for OpenBlock<'engine> {
@@ -132,6 +144,13 @@ impl<'engine> IsBlock for OpenBlock<'engine> {
 }
 
 impl<'engine> ClosedBlock<'engine> {
+	fn new<'a>(open_block: OpenBlock<'a>, uncles: Bytes) -> ClosedBlock<'a> {
+		ClosedBlock {
+			open_block: open_block,
+			uncles: uncles,
+		}
+	}
+
 	/// Get the hash of the header without seal arguments.
 	pub fn preseal_hash(&self) -> H256 { unimplemented!(); }
 
@@ -155,11 +174,13 @@ impl IsBlock for SealedBlock {
 
 #[test]
 fn open_block() {
-	use super::*;
 	use spec::*;
-	let engine = Spec::new_test().to_engine().unwrap();
+	use ethereum::*;
+	let engine = new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
 	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()]);
+	let b = b.close(vec![], Address::zero(), vec![]);
+	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244F40000").unwrap());
 }
