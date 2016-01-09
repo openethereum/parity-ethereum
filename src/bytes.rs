@@ -35,6 +35,7 @@
 //! ```
 
 use std::fmt;
+use std::slice;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
 use uint::{U128, U256};
@@ -332,21 +333,106 @@ impl <T>FromBytes for T where T: FixedHash {
 	}
 }
 
-// TODO: tests and additional docs for these two.
-
 /// Simple trait to allow for raw population of a Sized object from a byte slice.
 pub trait Populatable {
-	/// Populate self from byte slice `d` in a raw fashion.
-	fn populate_raw(&mut self, d: &[u8]);
+	/// Copies a bunch of bytes `d` to `self`, overwriting as necessary.
+	///
+	/// If `d` is smaller, zero-out the remaining bytes.
+	fn populate_raw(&mut self, d: &[u8]) {
+		let mut s = self.as_slice_mut();
+		for i in 0..s.len() {
+			s[i] = if i < d.len() {d[i]} else {0};
+		}
+	}
+
+	/// Copies a bunch of bytes `d` to `self`, overwriting as necessary.
+	///
+	/// If `d` is smaller, will leave some bytes untouched.
+	fn copy_raw(&mut self, d: &[u8]) {
+		use std::io::Write;
+		self.as_slice_mut().write(&d).unwrap();
+	}
+
+	/// Copies the raw representation of an object `d` to `self`, overwriting as necessary.
+	///
+	/// If `d` is smaller, zero-out the remaining bytes.
+	fn populate_raw_from(&mut self, d: &BytesConvertable) { self.populate_raw(d.as_slice()); }
+
+	/// Copies the raw representation of an object `d` to `self`, overwriting as necessary.
+	///
+	/// If `d` is smaller, will leave some bytes untouched.
+	fn copy_raw_from(&mut self, d: &BytesConvertable) { self.copy_raw(d.as_slice()); }
+
+	/// Get the raw slice for this object.
+	fn as_slice_mut(&mut self) -> &mut [u8];
 }
 
 impl<T> Populatable for T where T: Sized {
-	fn populate_raw(&mut self, d: &[u8]) {
+	fn as_slice_mut(&mut self) -> &mut [u8] {
 		use std::mem;
-		use std::slice;
-		use std::io::Write;
 		unsafe {
 			slice::from_raw_parts_mut(self as *mut T as *mut u8, mem::size_of::<T>())
-		}.write(&d).unwrap();
+		}
 	}
+}
+
+impl<T> Populatable for [T] where T: Sized {
+	fn as_slice_mut(&mut self) -> &mut [u8] {
+		use std::mem;
+		unsafe {
+			slice::from_raw_parts_mut(self.as_mut_ptr() as *mut u8, mem::size_of::<T>() * self.len())
+		}
+	}
+}
+
+#[test]
+fn fax_raw() {
+	let mut x = [255u8; 4];
+	x.copy_raw(&[1u8; 2][..]);
+	assert_eq!(x, [1u8, 1, 255, 255]);
+	let mut x = [255u8; 4];
+	x.copy_raw(&[1u8; 6][..]);
+	assert_eq!(x, [1u8, 1, 1, 1]);
+}
+
+#[test]
+fn populate_raw() {
+	let mut x = [255u8; 4];
+	x.populate_raw(&[1u8; 2][..]);
+	assert_eq!(x, [1u8, 1, 0, 0]);
+	let mut x = [255u8; 4];
+	x.populate_raw(&[1u8; 6][..]);
+	assert_eq!(x, [1u8, 1, 1, 1]);
+}
+
+#[test]
+fn populate_raw_dyn() {
+	let mut x = [255u8; 4];
+	x.populate_raw(&[1u8; 2][..]);
+	assert_eq!(&x[..], [1u8, 1, 0, 0]);
+	let mut x = [255u8; 4];
+	x.populate_raw(&[1u8; 6][..]);
+	assert_eq!(&x[..], [1u8, 1, 1, 1]);
+}
+
+#[test]
+fn fax_raw_dyn() {
+	let mut x = [255u8; 4];
+	x.copy_raw(&[1u8; 2][..]);
+	assert_eq!(&x[..], [1u8, 1, 255, 255]);
+	let mut x = [255u8; 4];
+	x.copy_raw(&[1u8; 6][..]);
+	assert_eq!(&x[..], [1u8, 1, 1, 1]);
+}
+
+#[test]
+fn populate_big_types() {
+	use hash::*;
+	let a = address_from_hex("ffffffffffffffffffffffffffffffffffffffff");
+	let mut h = h256_from_u64(0x69);
+	h.populate_raw_from(&a);
+	assert_eq!(h, h256_from_hex("ffffffffffffffffffffffffffffffffffffffff000000000000000000000000"));
+	let mut h = h256_from_u64(0x69);
+	h.copy_raw_from(&a);
+	assert_eq!(h, h256_from_hex("ffffffffffffffffffffffffffffffffffffffff000000000000000000000069"));
 }

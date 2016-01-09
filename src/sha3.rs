@@ -2,8 +2,8 @@
 
 use std::mem::uninitialized;
 use tiny_keccak::Keccak;
-use bytes::BytesConvertable;
-use hash::{FixedHash, H256};
+use bytes::{BytesConvertable,Populatable};
+use hash::H256;
 
 /// Types implementing this trait are sha3able.
 ///

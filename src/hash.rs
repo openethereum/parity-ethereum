@@ -10,19 +10,18 @@ use rustc_serialize::hex::*;
 use error::EthcoreError;
 use rand::Rng;
 use rand::os::OsRng;
-use bytes::BytesConvertable;
+use bytes::{BytesConvertable,Populatable};
 use math::log2;
 use uint::U256;
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
 ///
 /// Note: types implementing `FixedHash` must be also `BytesConvertable`.
-pub trait FixedHash: Sized + BytesConvertable {
+pub trait FixedHash: Sized + BytesConvertable + Populatable {
 	fn new() -> Self;
 	fn random() -> Self;
 	fn randomize(&mut self);
 	fn size() -> usize;
-	fn as_slice_mut(&mut self) -> &mut [u8];
 	fn from_slice(src: &[u8]) -> Self;
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
 	fn copy_to(&self, dest: &mut [u8]);
@@ -78,10 +77,6 @@ macro_rules! impl_hash {
 
 			fn size() -> usize {
 				$size
-			}
-
-			fn as_slice_mut(&mut self) -> &mut [u8] {
-				&mut self.0
 			}
 
 			// TODO: remove once slice::clone_from_slice is stable

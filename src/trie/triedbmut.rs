@@ -70,7 +70,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
-	pub fn new_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
+	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
 		assert!(db.exists(root));
 		TrieDBMut { 
 			db: db, 
@@ -668,7 +668,7 @@ mod tests {
 	use env_logger;
 	use rand::random;
 	use std::collections::HashSet;
-	use bytes::{ToPretty,Bytes};
+	use bytes::{ToPretty,Bytes,Populatable};
 	use super::super::node::*;
 	use super::super::trietraits::*;
 
@@ -1093,7 +1093,7 @@ mod tests {
 		}
 
 		{
-		 	let _ = TrieDBMut::new_existing(&mut db, &mut root);
+		 	let _ = TrieDBMut::from_existing(&mut db, &mut root);
 		}
 	}
 }
