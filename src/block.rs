@@ -1,9 +1,5 @@
-use util::*;
-use transaction::*;
-use receipt::*;
+use common::*;
 use engine::*;
-use header::*;
-use env_info::*;
 use state::*;
 
 /// A transaction/receipt execution entry.
@@ -124,23 +120,19 @@ impl<'engine> OpenBlock<'engine> {
 	}
 
 	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure out the uncles.
-	pub fn close(self, uncles: Vec<Header>, author: Address, extra_data: Bytes) -> ClosedBlock<'engine> {
-		// TODO: populate rest of header.
-		self.engine.on_close_block(...);
-		self.header.author = author;
-		//self.header.transactions_root = ...;
-		let s = RlpStream::new_list(uncles.len());
-		for u in uncles.iter() {
-			s.append(u.rlp())
-		}
-		let uncle_bytes = u.out();
-		self.header.uncles_hash = uncle_bytes.sha3();
-		self.header.extra_data = extra_data;
-		self.header.state_root = self.state.root().clone();
-		//self.header.receipts_root = ...;
-		//self.header.log_bloom = ...;	// will need to amalgamate.
-		self.header.gas_used = self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0));
-		self.header.note_dirty();
+	pub fn close(mut self, uncles: Vec<Header>, author: Address, extra_data: Bytes) -> ClosedBlock<'engine> {
+		// populate rest of header.
+//		self.engine.on_close_block(...);
+		self.block.header.author = author;
+//		self.header.transactions_root = ...;
+		let uncle_bytes = uncles.iter().fold(RlpStream::new_list(uncles.len()), |mut s, u| {s.append(&u.rlp(Seal::With)); s} ).out();
+		self.block.header.uncles_hash = uncle_bytes.sha3();
+		self.block.header.extra_data = extra_data;
+		self.block.header.state_root = self.block.state.root().clone();
+//		self.header.receipts_root = ...;
+		self.block.header.log_bloom = self.block.archive.iter().fold(LogBloom::zero(), |mut b, e| {b |= &e.receipt.log_bloom; b});
+		self.block.header.gas_used = self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0));
+		self.block.header.note_dirty();
 
 		ClosedBlock::new(self, uncle_bytes)
 	}
@@ -151,8 +143,8 @@ impl<'engine> IsBlock for OpenBlock<'engine> {
 }
 
 impl<'engine> ClosedBlock<'engine> {
-	fn new(open_block: OpenBlock, uncles: Bytes) -> Self {
-		Self {
+	fn new<'a>(open_block: OpenBlock<'a>, uncles: Bytes) -> ClosedBlock<'a> {
+		ClosedBlock {
 			open_block: open_block,
 			uncles: uncles,
 		}

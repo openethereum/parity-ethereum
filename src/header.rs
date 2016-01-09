@@ -1,14 +1,5 @@
 use util::*;
-
-/// Type for a 2048-bit log-bloom, as used by our blocks.
-pub type LogBloom = H2048;
-
-/// Constant address for point 0. Often used as a default.
-pub static ZERO_ADDRESS: Address = Address([0x00; 20]);
-/// Constant 256-bit datum for 0. Often used as a default.
-pub static ZERO_H256: H256 = H256([0x00; 32]);
-/// Constant 2048-bit datum for 0. Often used as a default.
-pub static ZERO_LOGBLOOM: LogBloom = H2048([0x00; 256]);
+use basic_types::*;
 
 /// A block header.
 ///
@@ -39,12 +30,10 @@ pub struct Header {
 	pub hash: RefCell<Option<H256>>, //TODO: make this private
 }
 
-enum SealInclusion {
-	WithSeal,
-	WithoutSeal,
+pub enum Seal {
+	With,
+	Without,
 }
-
-pub use SealInclusion::*;
 
 impl Header {
 	/// Create a new, default-valued, header.
@@ -77,8 +66,8 @@ impl Header {
  		match &mut *hash {
  			&mut Some(ref h) => h.clone(),
  			hash @ &mut None => {
- 				*hash = Some(self.hash(WithSeal));
- 				hash.unwrap().clone()
+ 				*hash = Some(self.rlp_sha3(Seal::With));
+ 				hash.as_ref().unwrap().clone()
  			}
 		}
 	}
@@ -91,8 +80,8 @@ impl Header {
 	// TODO: get hash without seal.
 
 	// TODO: make these functions traity 
-	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: SealInclusion) {
-		s.append_list(13 + if with_seal == WithSeal {self.seal.len()} else {0})
+	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: Seal) {
+		s.append_list(13 + match with_seal { Seal::With => self.seal.len(), _ => 0 });
 		s.append(&self.parent_hash);
 		s.append(&self.uncles_hash);
 		s.append(&self.author);
@@ -106,20 +95,19 @@ impl Header {
 		s.append(&self.gas_used);
 		s.append(&self.timestamp);
 		s.append(&self.extra_data);
-		if with_seal == WithSeal {
-			for b in self.seal.iter() {
-				e.append_raw(&b);
-			}
+		match with_seal {
+			Seal::With => for b in self.seal.iter() { s.append_raw(&b, 1); },
+			_ => {}
 		}
 	}
 
-	pub rlp(&self, with_seal: SealInclusion) -> Bytes {
-		let s = RlpStream::new();
+	pub fn rlp(&self, with_seal: Seal) -> Bytes {
+		let mut s = RlpStream::new();
 		self.stream_rlp(&mut s, with_seal);
 		s.out()
 	}
 
-	pub hash(&self, with_seal: SealInclusion) -> H256 { self.rlp().sha3() }
+	pub fn rlp_sha3(&self, with_seal: Seal) -> H256 { self.rlp(with_seal).sha3() }
 }
 
 impl Decodable for Header {
