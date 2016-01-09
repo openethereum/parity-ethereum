@@ -1,10 +1,35 @@
-use util::uint::*;
-use util::hash::*;
-use util::rlp::*;
-use util::sha3::Hashable;
-use util::triehash::ordered_trie_root;
+use util::*;
 use header::Header;
 use client::BlockNumber;
+use engine::{Engine, VerificationMode};
+use views::BlockView;
+
+#[derive(Debug)]
+pub struct VerificationError {
+	pub block: Option<Bytes>,
+	pub error: VerificationErrorOption,
+}
+
+impl VerificationError {
+	pub fn block(error: BlockVerificationError, block: Option<Bytes>) -> VerificationError {
+		VerificationError {
+			block: block,
+			error: VerificationErrorOption::Block(error),
+		}
+	}
+	pub fn transaction(error: TransactionVerificationError, block: Option<Bytes>) -> VerificationError {
+		VerificationError {
+			block: block,
+			error: VerificationErrorOption::Transaction(error),
+		}
+	}
+}
+
+#[derive(Debug)]
+pub enum VerificationErrorOption {
+	Transaction(TransactionVerificationError),
+	Block(BlockVerificationError),
+}
 
 #[derive(Debug)]
 pub enum TransactionVerificationError {
@@ -18,7 +43,6 @@ pub enum TransactionVerificationError {
 		used: U256,
 		limit: U256
 	},
-	ExtraDataTooBig,
 	InvalidSignature,
 	InvalidTransactionFormat,
 }
@@ -30,8 +54,12 @@ pub enum BlockVerificationError {
 		limit: U256,
 	},
 	InvalidBlockFormat,
+	ExtraDataTooBig {
+		required: U256,
+		got: U256,
+	},
 	InvalidUnclesHash {
-		expected: H256,
+		required: H256,
 		got: H256,
 	},
 	TooManyUncles,
@@ -42,11 +70,18 @@ pub enum BlockVerificationError {
 	InvalidStateRoot,
 	InvalidGasUsed,
 	InvalidTransactionsRoot {
-		expected: H256,
+		required: H256,
 		got: H256,
 	},
-	InvalidDifficulty,
-	InvalidGasLimit,
+	InvalidDifficulty {
+		required: U256,
+		got: U256,
+	},
+	InvalidGasLimit {
+		min: U256,
+		max: U256,
+		got: U256,
+	},
 	InvalidReceiptsStateRoot,
 	InvalidTimestamp,
 	InvalidLogBloom,
@@ -93,17 +128,30 @@ pub fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_has
 	let expected_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
 	if &expected_root != transactions_root {
 		return Err(BlockVerificationError::InvalidTransactionsRoot {
-			expected: expected_root.clone(),
+			required: expected_root.clone(),
 			got: transactions_root.clone(),
 		});
 	}
 	let expected_uncles = block.at(2).as_raw().sha3();
 	if &expected_uncles != uncles_hash {
 		return Err(BlockVerificationError::InvalidUnclesHash {
-			expected: expected_uncles.clone(),
+			required: expected_uncles.clone(),
 			got: uncles_hash.clone(),
 		});
 	}
 	Ok(())
 }
 
+pub fn verify_block_basic(bytes: &[u8], parent: &Header, engine: &mut Engine) -> Result<(), BlockVerificationError> {
+	let block = BlockView::new(bytes);
+	let header = block.header();
+	try!(verify_header(&header));
+	try!(verify_parent(&header, parent));
+	try!(verify_block_integrity(bytes, &header.transactions_root, &header.uncles_hash));
+
+	Ok(())
+}
+
+pub fn verify_block_unordered(block: &[u8]) -> Result<(), BlockVerificationError> {
+	Ok(())
+}

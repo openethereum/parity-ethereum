@@ -102,4 +102,5 @@ pub mod extras;
 pub mod client;
 pub mod sync;
 pub mod block;
+pub mod verification;
 pub mod ethereum;

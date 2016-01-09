@@ -1,6 +1,7 @@
 use common::*;
 use block::Block;
 use spec::Spec;
+use verification::VerificationError;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -25,7 +26,7 @@ pub trait Engine {
 	fn evm_schedule(&self, env_info: &EnvInfo) -> EvmSchedule;
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	fn maximum_extra_data_size(&self, _env_info: &EnvInfo) -> usize { decode(&self.spec().engine_params.get("maximumExtraDataSize").unwrap()) }
+	fn maximum_extra_data_size(&self) -> usize { decode(&self.spec().engine_params.get("maximumExtraDataSize").unwrap()) }
 	fn account_start_nonce(&self) -> U256 { decode(&self.spec().engine_params.get("accountStartNonce").unwrap()) }
 
 	/// Block transformation functions, before and after the transactions.
@@ -36,12 +37,12 @@ pub trait Engine {
 	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
 	/// checks. Returns either a null `Ok` or a general error detailing the problem with import.
 	// TODO: consider including State in the params.
-	fn verify_block(&self, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), EthcoreError> { Ok(()) }
+	fn verify_block(&self, _mode: VerificationMode, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), VerificationError> { Ok(()) }
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
-	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> Result<(), EthcoreError> { Ok(()) }
+	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> Result<(), VerificationError> { Ok(()) }
 
 	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
 	// TODO: consider including State in the params.
@@ -54,4 +55,12 @@ pub trait Engine {
 	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut [u8]) { self.spec().builtins.get(a).unwrap().execute(input, output); }
 
 	// TODO: sealing stuff - though might want to leave this for later.
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum VerificationMode {
+	/// Do a quick and basic verification if possible.
+	Quick,
+	/// Do a full verification.
+	Full
 }
