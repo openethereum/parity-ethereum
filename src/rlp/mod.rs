@@ -43,7 +43,7 @@ pub use self::rlperrors::DecoderError;
 pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use self::rlpin::{Rlp, RlpIterator};
-pub use self::rlpstream::{RlpStream};
+pub use self::rlpstream::{RlpStream,RlpStandard};
 use super::hash::H256;
 
 pub const NULL_RLP: [u8; 1] = [0x80; 1];

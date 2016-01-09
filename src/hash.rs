@@ -27,9 +27,10 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable {
 	fn from_slice(src: &[u8]) -> Self;
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
 	fn copy_to(&self, dest: &mut [u8]);
-	fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
+	fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
+	fn with_bloomed<T>(mut self, b: &T) -> Self where T: FixedHash { self.shift_bloomed(b); self }
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
-	fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash;
+	fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash;
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
 	fn is_zero(&self) -> bool;
 }
@@ -109,11 +110,12 @@ macro_rules! impl_hash {
 				}
 			}
 
-			fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
+			fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
 				let bp: Self = b.bloom_part($size);
 				let new_self = &bp | self;
 
 				// impl |= instead
+				// TODO: that's done now!
 
 				unsafe {
 					use std::{mem, ptr};
@@ -159,7 +161,7 @@ macro_rules! impl_hash {
 				ret
 			}
 
-			fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash {
+			fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash {
 				let bp: Self = b.bloom_part($size);
 				self.contains(&bp)
 			}
@@ -367,6 +369,8 @@ macro_rules! impl_hash {
 			pub fn hex(&self) -> String {
 				format!("{}", self)
 			}
+
+			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
 		}
 	}
 }
@@ -468,7 +472,7 @@ mod tests {
 	}
 
 	#[test]
-	fn shift_bloom() {
+	fn shift_bloomed() {
 		use sha3::Hashable;
 
 		let bloom = H2048::from_str("00000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002020000000000000000000000000000000000000000000008000000001000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
@@ -476,17 +480,17 @@ mod tests {
 		let topic = H256::from_str("02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
 
 		let mut my_bloom = H2048::new();
-		assert!(!my_bloom.contains_bloom(&address.sha3()));
-		assert!(!my_bloom.contains_bloom(&topic.sha3()));
+		assert!(!my_bloom.contains_bloomed(&address.sha3()));
+		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
 
-		my_bloom.shift_bloom(&address.sha3());
-		assert!(my_bloom.contains_bloom(&address.sha3()));
-		assert!(!my_bloom.contains_bloom(&topic.sha3()));
+		my_bloom.shift_bloomed(&address.sha3());
+		assert!(my_bloom.contains_bloomed(&address.sha3()));
+		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
 
-		my_bloom.shift_bloom(&topic.sha3());
+		my_bloom.shift_bloomed(&topic.sha3());
 		assert_eq!(my_bloom, bloom);
-		assert!(my_bloom.contains_bloom(&address.sha3()));
-		assert!(my_bloom.contains_bloom(&topic.sha3()));
+		assert!(my_bloom.contains_bloomed(&address.sha3()));
+		assert!(my_bloom.contains_bloomed(&topic.sha3()));
 	}
 
 	#[test]
