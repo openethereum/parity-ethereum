@@ -1,10 +1,11 @@
+use std::sync::Arc;
 use std::path::Path;
 use util::uint::U256;
 use util::hash::*;
-use util::sha3::*;
 use util::rlp::*;
 use util::bytes::Bytes;
 use blockchain::BlockChain;
+use queue::BlockQueue;
 use views::BlockView;
 
 /// Status for a block in a queue.
@@ -106,7 +107,7 @@ pub trait BlockChainClient : Sync {
 	/// Get block queue information.
 	fn queue_status(&self) -> BlockQueueStatus;
 
-	/// Clear block qeueu and abort all import activity.
+	/// Clear block queue and abort all import activity.
 	fn clear_queue(&mut self);
 
 	/// Get blockchain information.
@@ -115,13 +116,16 @@ pub trait BlockChainClient : Sync {
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 pub struct Client {
-	chain: BlockChain
+	chain: Arc<BlockChain>,
+	queue: BlockQueue,
 }
 
 impl Client {
 	pub fn new(genesis: &[u8], path: &Path) -> Client {
+		let chain = Arc::new(BlockChain::new(genesis, path));
 		Client {
-			chain: BlockChain::new(genesis, path)
+			chain: chain.clone(),
+			queue: BlockQueue::new(chain)
 		}
 	}
 }
@@ -181,17 +185,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&mut self, bytes: &[u8]) -> ImportResult {
-		//TODO: verify block
-		{
-			let block = BlockView::new(bytes);
-			let header = block.header_view();
-			let hash = header.sha3();
-			if self.chain.is_known(&hash) {
-				return ImportResult::Bad;
-			}
-		}
-		self.chain.insert_block(bytes);
-		ImportResult::Queued(QueueStatus::Known)
+		self.queue.import_block(bytes)
 	}
 
 	fn queue_status(&self) -> BlockQueueStatus {
@@ -201,6 +195,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn clear_queue(&mut self) {
+		self.queue.clear();
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {

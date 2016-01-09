@@ -105,6 +105,7 @@ pub mod views;
 pub mod blockchain;
 pub mod extras;
 pub mod client;
-
 pub mod sync;
+pub mod verification;
+pub mod queue;
 
