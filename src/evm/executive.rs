@@ -107,18 +107,15 @@ impl<'a> Executive<'a> {
 	}
 
 	fn create(&mut self) -> ExecutiveResult {
-		let address = self.params.address.clone();
-
-		let new_address = self.params.address.clone();
-		self.state.inc_nonce(&address);
-
+		self.state.inc_nonce(&self.params.sender);
+	
 		{
 			let evm = VmFactory::create();
 			// TODO: valdidate that exec returns proper code
 			evm.exec(self);
 		}
 
-		self.state.transfer_balance(&address, &new_address, &self.params.value);
+		self.state.transfer_balance(&self.params.sender, &self.params.address, &self.params.value);
 		ExecutiveResult::Ok
 	}
 
@@ -226,6 +223,7 @@ mod tests {
 	use spec::*;
 	use engine::*;
 	use evm_schedule::*;
+	use super::contract_address;
 
 	struct TestEngine {
 		spec: Spec
@@ -248,27 +246,32 @@ mod tests {
 	#[test]
 	fn test_contract_address() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let contract_address = Address::from_str("3f09c73a5ed19289fb9bdc72f1742566df146f56").unwrap();
-		assert_eq!(contract_address, super::contract_address(&address, &U256::from(88)));
+		let expected_address = Address::from_str("3f09c73a5ed19289fb9bdc72f1742566df146f56").unwrap();
+		assert_eq!(expected_address, contract_address(&address, &U256::from(88)));
 	}
 
 	#[test]
 	fn test_executive() {
-		//let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		//let new_address = super::contract_address(&address, &U256::zero());
-		//let mut state = State::new_temp();
-		//state.add_balance(&address, &U256::from(0x100_000_000u64));
-		//let info = EnvInfo::new();
-		//let engine = TestEngine::new();
-		//let mut transaction = Transaction::new();
-		//transaction.data = "3331600055".from_hex().unwrap();
-		//transaction.gas = U256::from(0x174876e800u64);
+		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let address = contract_address(&sender, &U256::zero());
+		let mut params = EvmParams::new_create();
+		params.address = address.clone();
+		params.sender = sender.clone();
+		params.gas = U256::from(0x174876e800u64);
+		params.code = "3331600055".from_hex().unwrap();
+		params.value = U256::from(0x7);
+		let mut state = State::new_temp();
+		state.add_balance(&sender, &U256::from(0x100u64));
+		let info = EnvInfo::new();
+		let engine = TestEngine::new();
 
-		//{
-			//let mut ex = Executive::new(&mut state, &info, &engine, &transaction);
-			//ex.exec();
-		//}
+		{
+			let mut ex = Executive::new_from_params(&mut state, &info, &engine, params);
+			ex.exec();
+		}
 
-		//assert_eq!(state.storage_at(&new_address, &H256::new()), H256::from(&U256::from(0x100_000_000u64)));
+		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0x100u64)));
+		assert_eq!(state.balance(&sender), U256::from(0xf9));
+		assert_eq!(state.balance(&address), U256::from(0x7));
 	}
 }
