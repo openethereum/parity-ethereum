@@ -55,6 +55,11 @@ impl Transaction {
 			false => TransactionKind::ContractCreation
 		}
 	}
+
+	/// Get the hash of this transaction.
+	pub fn sha3(&self) -> H256 {
+		unimplemented!();
+	}
 }
 
 impl Encodable for Transaction {

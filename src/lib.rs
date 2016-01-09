@@ -77,6 +77,7 @@ extern crate rustc_serialize;
 extern crate flate2;
 extern crate rocksdb;
 extern crate heapsize;
+extern crate crypto;
 
 extern crate env_logger;
 #[cfg(feature = "jit" )]
@@ -106,3 +107,5 @@ pub mod views;
 pub mod blockchain;
 pub mod extras;
 pub mod evm;
+pub mod ethash;
+pub mod block;

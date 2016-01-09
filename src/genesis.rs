@@ -89,7 +89,7 @@ impl Genesis {
 				// ethash specific fields
 				let mixhash = H256::from_str(&json["mixhash"].as_string().unwrap()[2..]).unwrap();
 				let nonce = H64::from_str(&json["nonce"].as_string().unwrap()[2..]).unwrap();
-				vec![mixhash.to_vec(), nonce.to_vec()]
+				vec![encode(&mixhash), encode(&nonce)]
 			}
 		};
 		

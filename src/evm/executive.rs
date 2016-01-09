@@ -234,7 +234,7 @@ mod tests {
 	impl TestEngine {
 		fn new() -> Self {
 			TestEngine {
-				spec: Spec::frontier()
+				spec: Spec::new_like_frontier()
 			}
 		}
 	}
