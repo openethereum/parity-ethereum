@@ -1,5 +1,5 @@
 //! Generetes trie root.
-//! 
+//!
 //! This module should be used to generate trie root hash.
 
 use std::collections::BTreeMap;
@@ -11,13 +11,13 @@ use rlp::{RlpStream, Stream};
 use vector::SharedPrefix;
 
 /// Generates a trie root hash for a vector of values
-/// 
+///
 /// ```rust
 /// extern crate ethcore_util as util;
 /// use std::str::FromStr;
 /// use util::triehash::*;
 /// use util::hash::*;
-/// 
+///
 /// fn main() {
 /// 	let v = vec![From::from("doe"), From::from("reindeer")];
 /// 	let root = "e766d5d51b89dc39d981b41bda63248d7abce4f0225eefd023792a540bcffee3";
@@ -49,7 +49,7 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 /// use std::str::FromStr;
 /// use util::triehash::*;
 /// use util::hash::*;
-/// 
+///
 /// fn main() {
 /// 	let v = vec![
 /// 		(From::from("doe"), From::from("reindeer")),
@@ -121,9 +121,9 @@ fn gen_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 /// Hex-prefix Notation. First nibble has flags: oddness = 2^0 & termination = 2^1.
 ///
 /// The "termination marker" and "leaf-node" specifier are completely equivalent.
-/// 
+///
 /// Input values are in range `[0, 0xf]`.
-/// 
+///
 /// ```markdown
 ///  [0,0,1,2,3,4,5]   0x10012345 // 7 > 4
 ///  [0,1,2,3,4,5]     0x00012345 // 6 > 4
@@ -136,7 +136,7 @@ fn gen_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 ///  [0,1,2,3,4,5,T]   0x20012345 // 6 > 4
 ///  [1,2,3,4,5,T]     0x312345   // 5 > 3
 ///  [1,2,3,4,T]       0x201234   // 4 > 3
-/// ``` 
+/// ```
 fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> Vec<u8> {
 	let inlen = nibbles.len();
 	let oddness_factor = inlen % 2;
@@ -155,7 +155,7 @@ fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> Vec<u8> {
 
 	res.push(first_byte);
 
-	let mut offset = oddness_factor;	
+	let mut offset = oddness_factor;
 	while offset < inlen {
 		let byte = (nibbles[offset] << 4) + nibbles[offset + 1];
 		res.push(byte);
@@ -203,7 +203,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		// skip first element
 		.skip(1)
 		// get minimum number of shared nibbles between first and each successive
-		.fold(key.len(), | acc, &(ref k, _) | { 
+		.fold(key.len(), | acc, &(ref k, _) | {
 			cmp::min(key.shared_prefix_len(&k), acc)
 		});
 
@@ -218,7 +218,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	}
 
 	// an item for every possible nibble/suffix
-	// + 1 for data 
+	// + 1 for data
 	stream.append_list(17);
 
 	// if first key len is equal to prefix_len, move to next element
@@ -233,10 +233,10 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		let len = match begin < input.len() {
 			true => input[begin..].iter()
 				.take_while(| pair | pair.0[pre_len] == i )
-				.count(), 
+				.count(),
 			false => 0
 		};
-			
+
 		// if at least 1 successive element has the same nibble
 		// append their suffixes
 		match len {
@@ -272,7 +272,7 @@ fn test_nibbles() {
 
 	// A => 65 => 0x41 => [4, 1]
 	let v: Vec<u8> = From::from("A");
-	let e = vec![4, 1]; 
+	let e = vec![4, 1];
 	assert_eq!(as_nibbles(&v), e);
 }
 
@@ -338,4 +338,3 @@ mod tests {
 		});
 	}
 }
-

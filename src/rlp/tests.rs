@@ -19,19 +19,19 @@ fn rlp_at() {
 
 		let cat = rlp.at(0).unwrap();
 		assert!(cat.is_data());
-		assert_eq!(cat.raw(), &[0x83, b'c', b'a', b't']);
+		assert_eq!(cat.as_raw(), &[0x83, b'c', b'a', b't']);
 		//assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_string());
 		assert_eq!(cat.as_val::<String>().unwrap(), "cat".to_string());
 
 		let dog = rlp.at(1).unwrap();
 		assert!(dog.is_data());
-		assert_eq!(dog.raw(), &[0x83, b'd', b'o', b'g']);
+		assert_eq!(dog.as_raw(), &[0x83, b'd', b'o', b'g']);
 		//assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_string());
 		assert_eq!(dog.as_val::<String>().unwrap(), "dog".to_string());
 
 		let cat_again = rlp.at(0).unwrap();
 		assert!(cat_again.is_data());
-		assert_eq!(cat_again.raw(), &[0x83, b'c', b'a', b't']);
+		assert_eq!(cat_again.as_raw(), &[0x83, b'c', b'a', b't']);
 		//assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_string());
 		assert_eq!(cat_again.as_val::<String>().unwrap(), "cat".to_string());
 	}
@@ -61,18 +61,18 @@ fn rlp_iter() {
 
 		let cat = iter.next().unwrap();
 		assert!(cat.is_data());
-		assert_eq!(cat.raw(), &[0x83, b'c', b'a', b't']);
+		assert_eq!(cat.as_raw(), &[0x83, b'c', b'a', b't']);
 
 		let dog = iter.next().unwrap();
 		assert!(dog.is_data());
-		assert_eq!(dog.raw(), &[0x83, b'd', b'o', b'g']);
+		assert_eq!(dog.as_raw(), &[0x83, b'd', b'o', b'g']);
 
 		let none = iter.next();
 		assert!(none.is_none());
 
 		let cat_again = rlp.at(0).unwrap();
 		assert!(cat_again.is_data());
-		assert_eq!(cat_again.raw(), &[0x83, b'c', b'a', b't']);
+		assert_eq!(cat_again.as_raw(), &[0x83, b'c', b'a', b't']);
 	}
 }
 
@@ -155,7 +155,7 @@ fn encode_address() {
 	use hash::*;
 
 	let tests = vec![
-		ETestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+		ETestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(),
 				  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
 							 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
 							 0xb3, 0x7d, 0x11, 0x06])
@@ -290,7 +290,7 @@ fn decode_untrusted_address() {
 	use hash::*;
 
 	let tests = vec![
-		DTestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(), 
+		DTestPair(Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap(),
 				  vec![0x94, 0xef, 0x2d, 0x6d, 0x19, 0x40, 0x84, 0xc2, 0xde,
 							 0x36, 0xe0, 0xda, 0xbf, 0xce, 0x45, 0xd0, 0x46,
 							 0xb3, 0x7d, 0x11, 0x06])

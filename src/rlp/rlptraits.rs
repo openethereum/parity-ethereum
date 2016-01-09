@@ -1,11 +1,11 @@
-use rlp::DecoderError;
+use rlp::{DecoderError, UntrustedRlp};
 
 pub trait Decoder: Sized {
 	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
 		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 
 	fn as_list(&self) -> Result<Vec<Self>, DecoderError>;
-
+	fn as_rlp<'a>(&'a self) -> &'a UntrustedRlp<'a>;
 	fn as_raw(&self) -> &[u8];
 }
 
@@ -24,19 +24,19 @@ pub trait View<'a, 'view>: Sized {
 	fn new(bytes: &'a [u8]) -> Self;
 
 	/// The raw data of the RLP.
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
-	/// 	let dog = rlp.at(1).raw();
+	/// 	let dog = rlp.at(1).as_raw();
 	/// 	assert_eq!(dog, &[0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	fn raw(&'view self) -> &'a [u8];	
+	fn as_raw(&'view self) -> &'a [u8];
 
 	/// Get the prototype of the RLP.
 	fn prototype(&self) -> Self::Prototype;
@@ -46,11 +46,11 @@ pub trait View<'a, 'view>: Sized {
 	fn data(&'view self) -> Self::Data;
 
 	/// Returns number of RLP items.
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
@@ -62,11 +62,11 @@ pub trait View<'a, 'view>: Sized {
 	fn item_count(&self) -> usize;
 
 	/// Returns the number of bytes in the data, or zero if it isn't data.
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
@@ -78,14 +78,14 @@ pub trait View<'a, 'view>: Sized {
 	fn size(&self) -> usize;
 
 	/// Get view onto RLP-slice at index.
-	/// 
+	///
 	/// Caches offset to given index, so access to successive
 	/// slices is faster.
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
@@ -95,11 +95,11 @@ pub trait View<'a, 'view>: Sized {
 	fn at(&'view self, index: usize) -> Self::Item;
 
 	/// No value
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![];
 	/// 	let rlp = Rlp::new(&data);
@@ -109,11 +109,11 @@ pub trait View<'a, 'view>: Sized {
 	fn is_null(&self) -> bool;
 
 	/// Contains a zero-length string or zero-length list.
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![0xc0];
 	/// 	let rlp = Rlp::new(&data);
@@ -123,11 +123,11 @@ pub trait View<'a, 'view>: Sized {
 	fn is_empty(&self) -> bool;
 
 	/// List value
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
@@ -137,11 +137,11 @@ pub trait View<'a, 'view>: Sized {
 	fn is_list(&self) -> bool;
 
 	/// String value
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
@@ -151,11 +151,11 @@ pub trait View<'a, 'view>: Sized {
 	fn is_data(&self) -> bool;
 
 	/// Int value
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![0xc1, 0x10];
 	/// 	let rlp = Rlp::new(&data);
@@ -166,11 +166,11 @@ pub trait View<'a, 'view>: Sized {
 	fn is_int(&self) -> bool;
 
 	/// Get iterator over rlp-slices
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
 	/// 	let rlp = Rlp::new(&data);
@@ -207,7 +207,7 @@ pub trait Stream: Sized {
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
 	/// 	stream.append(&"cat").append(&"dog");
@@ -222,11 +222,11 @@ pub trait Stream: Sized {
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
 	/// 	stream.append_list(2).append(&"cat").append(&"dog");
-	/// 	stream.append(&"");	
+	/// 	stream.append(&"");
 	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
 	/// }
@@ -238,7 +238,7 @@ pub trait Stream: Sized {
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
 	/// 	stream.append_empty_data().append_empty_data();
@@ -252,11 +252,11 @@ pub trait Stream: Sized {
 	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self;
 
 	/// Clear the output stream so far.
-	/// 
+	///
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(3);
 	/// 	stream.append(&"cat");
@@ -272,7 +272,7 @@ pub trait Stream: Sized {
 	/// ```rust
 	/// extern crate ethcore_util as util;
 	/// use util::rlp::*;
-	/// 
+	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
 	/// 	stream.append(&"cat");
@@ -284,10 +284,10 @@ pub trait Stream: Sized {
 	/// }
 	fn is_finished(&self) -> bool;
 
-	fn raw(&self) -> &[u8];
+	fn as_raw(&self) -> &[u8];
 
 	/// Streams out encoded bytes.
-	/// 
+	///
 	/// panic! if stream is not finished.
 	fn out(self) -> Vec<u8>;
 }
