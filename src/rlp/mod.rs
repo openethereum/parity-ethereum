@@ -32,7 +32,7 @@
 
 pub mod rlptraits;
 pub mod rlperrors;
-pub mod rlp;
+pub mod rlpin;
 pub mod untrusted_rlp;
 pub mod rlpstream;
 
@@ -42,7 +42,7 @@ mod tests;
 pub use self::rlperrors::DecoderError;
 pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
-pub use self::rlp::{Rlp, RlpIterator};
+pub use self::rlpin::{Rlp, RlpIterator};
 pub use self::rlpstream::{RlpStream};
 use super::hash::H256;
 
