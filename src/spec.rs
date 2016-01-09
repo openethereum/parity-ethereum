@@ -206,15 +206,16 @@ impl Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
 			engine_params: vec![
-				("block_reward", encode(&(finney() * U256::from(1500u64)))),
-				("maximum_extra_data_size", encode(&U256::from(1024u64))),
-				("account_start_nonce", encode(&U256::from(0u64))),
-				("gas_limit_bounds_divisor", encode(&1024u64)), 
-				("minimum_difficulty", encode(&131_072u64)), 
-				("difficulty_bound_divisor", encode(&2048u64)), 
-				("duration_limit", encode(&8u64)), 
-				("min_gas_limit", encode(&125_000u64)), 
-				("gas_floor_target", encode(&3_141_592u64)), 
+				("blockReward", encode(&(finney() * U256::from(1500u64)))),
+				("frontierCompatibilityModeLimit", encode(&0xffffffffu64)),
+				("maximumExtraDataSize", encode(&U256::from(1024u64))),
+				("accountStartNonce", encode(&U256::from(0u64))),
+				("gasLimitBoundsDivisor", encode(&1024u64)), 
+				("minimumDifficulty", encode(&131_072u64)), 
+				("difficultyBoundDivisor", encode(&2048u64)), 
+				("durationLimit", encode(&8u64)), 
+				("minGasLimit", encode(&125_000u64)), 
+				("gasFloorTarget", encode(&3_141_592u64)), 
 			].into_iter().fold(HashMap::new(), | mut acc, vec | {
 				acc.insert(vec.0.to_string(), vec.1);
 				acc
@@ -244,15 +245,16 @@ impl Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
 			engine_params: vec![
-				("block_reward", encode(&(ether() * U256::from(5u64)))),
-				("maximum_extra_data_size", encode(&U256::from(32u64))),
-				("account_start_nonce", encode(&U256::from(0u64))),
-				("gas_limit_bounds_divisor", encode(&1024u64)), 
-				("minimum_difficulty", encode(&131_072u64)), 
-				("difficulty_bound_divisor", encode(&2048u64)), 
-				("duration_limit", encode(&13u64)), 
-				("min_gas_limit", encode(&5000u64)), 
-				("gas_floor_target", encode(&3_141_592u64)), 
+				("blockReward", encode(&(ether() * U256::from(5u64)))),
+				("frontierCompatibilityModeLimit", encode(&0xfffa2990u64)),
+				("maximumExtraDataSize", encode(&U256::from(32u64))),
+				("accountStartNonce", encode(&U256::from(0u64))),
+				("gasLimitBoundsDivisor", encode(&1024u64)), 
+				("minimumDifficulty", encode(&131_072u64)), 
+				("difficultyBoundDivisor", encode(&2048u64)), 
+				("durationLimit", encode(&13u64)), 
+				("minGasLimit", encode(&5000u64)), 
+				("gasFloorTarget", encode(&3_141_592u64)), 
 			].into_iter().fold(HashMap::new(), | mut acc, vec | {
 				acc.insert(vec.0.to_string(), vec.1);
 				acc
@@ -282,15 +284,16 @@ impl Spec {
 		Spec {
 			engine_name: "Ethash".to_string(),
 			engine_params: vec![
-				("block_reward", encode(&(ether() * U256::from(5u64)))),
-				("maximum_extra_data_size", encode(&U256::from(32u64))),
-				("account_start_nonce", encode(&(U256::from(1u64) << 20))),
-				("gas_limit_bounds_divisor", encode(&1024u64)), 
-				("minimum_difficulty", encode(&131_072u64)), 
-				("difficulty_bound_divisor", encode(&2048u64)), 
-				("duration_limit", encode(&13u64)), 
-				("min_gas_limit", encode(&5000u64)), 
-				("gas_floor_target", encode(&3_141_592u64)), 
+				("blockReward", encode(&(ether() * U256::from(5u64)))),
+				("frontierCompatibilityModeLimit", encode(&0xfffa2990u64)),
+				("maximumExtraDataSize", encode(&U256::from(32u64))),
+				("accountStartNonce", encode(&(U256::from(1u64) << 20))),
+				("gasLimitBoundsDivisor", encode(&1024u64)), 
+				("minimumDifficulty", encode(&131_072u64)), 
+				("difficultyBoundDivisor", encode(&2048u64)), 
+				("durationLimit", encode(&13u64)), 
+				("minGasLimit", encode(&5000u64)), 
+				("gasFloorTarget", encode(&3_141_592u64)),
 			].into_iter().fold(HashMap::new(), | mut acc, vec | {
 				acc.insert(vec.0.to_string(), vec.1);
 				acc
