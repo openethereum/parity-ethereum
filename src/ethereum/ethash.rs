@@ -30,7 +30,6 @@ impl Engine for Ethash {
 // TODO: test for on_close_block.
 #[test]
 fn playpen() {
-	use util::sha3::*;
 	use util::overlaydb::*;
 	let engine = Spec::new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
