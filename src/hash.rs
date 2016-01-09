@@ -30,6 +30,7 @@ pub trait FixedHash: Sized + BytesConvertable {
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
 	fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash;
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
+	fn is_zero(&self) -> bool;
 }
 
 macro_rules! impl_hash {
@@ -164,6 +165,10 @@ macro_rules! impl_hash {
 
 			fn contains<'a>(&'a self, b: &'a Self) -> bool {
 				&(b & self) == b
+			}
+
+			fn is_zero(&self) -> bool {
+				self.eq(&Self::new())
 			}
 		}
 
