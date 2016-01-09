@@ -3,12 +3,8 @@
 use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
-use evm::EvmParams;
 
 pub trait Ext {
-	/// Returns evm params.
-	fn params(&self) -> &EvmParams;
-
 	/// Returns a value for given key.
 	fn sload(&self, key: &H256) -> H256;
 

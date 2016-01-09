@@ -13,5 +13,5 @@ pub use self::evm::{Evm, ReturnCode};
 pub use self::ext::{Ext};
 pub use self::logentry::LogEntry;
 pub use self::vmfactory::VmFactory;
-pub use self::executive::{Executive, ExecutiveResult};
-pub use self::params::{EvmParams, ParamsKind};
+pub use self::executive::{Executive, ExecutiveResult, Externalities};
+pub use self::params::EvmParams;

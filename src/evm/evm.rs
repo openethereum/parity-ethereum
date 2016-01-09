@@ -1,6 +1,6 @@
 //! Evm interface.
 
-use evm::Ext;
+use evm::{EvmParams, Ext};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum ReturnCode {
@@ -12,5 +12,5 @@ pub enum ReturnCode {
 }
 
 pub trait Evm {
-	fn exec(&self, ext: &mut Ext) -> ReturnCode;
+	fn exec(&self, params: &EvmParams, ext: &mut Ext) -> ReturnCode;
 }

@@ -1,3 +1,4 @@
+use std::mem;
 use util::hash::*;
 use util::uint::*;
 use util::rlp::*;
@@ -7,7 +8,7 @@ use state::*;
 use env_info::*;
 use engine::*;
 use transaction::*;
-use evm::{VmFactory, Ext, LogEntry, EvmParams, ParamsKind, ReturnCode};
+use evm::{VmFactory, Ext, LogEntry, EvmParams, ReturnCode};
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -29,95 +30,78 @@ pub struct Executive<'a> {
 	info: &'a EnvInfo,
 	engine: &'a Engine,
 	depth: usize,
-	params: EvmParams,
-
-	logs: Vec<LogEntry>,
-	refunds: U256,
 }
 
 impl<'a> Executive<'a> {
-	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, t: &Transaction) -> Self {
-		// TODO: validate nonce ?
-		
-		let sender = t.sender();
-
-		let params = match t.kind() {
-			TransactionKind::ContractCreation => EvmParams {
-				address: contract_address(&sender, &t.nonce),
-				sender: sender.clone(),
-				origin: sender.clone(),
-				gas: t.gas,
-				gas_price: t.gas_price,
-				value: t.value,
-				code: t.data.clone(),
-				data: vec![],
-				kind: ParamsKind::Create
-			},
-			TransactionKind::MessageCall => EvmParams {
-				address: t.to.clone().unwrap(),
-				sender: sender.clone(),
-				origin: sender.clone(),
-				gas: t.gas,
-				gas_price: t.gas_price,
-				value: t.value,
-				code: state.code(&t.to.clone().unwrap()).unwrap_or(vec![]),
-				data: t.data.clone(),
-				kind: ParamsKind::Call
-			}
-		};
-
-		Executive::new_from_params(state, info, engine, params)
+	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine) -> Self {
+		Executive::new_with_depth(state, info, engine, 0)
 	}
 
-	pub fn new_from_params(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, params: EvmParams) -> Self {
+	fn from_parent(e: &'a mut Externalities) -> Self {
+		Executive::new_with_depth(e.state, e.info, e.engine, e.depth + 1)
+	}
+
+	fn new_with_depth(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
-			depth: 0,
-			params: params,
-			logs: vec![],
-			refunds: U256::zero(),
+			depth: depth,
 		}
 	}
 
-	fn from_parent(e: &'a mut Executive, params: EvmParams) -> Self {
-		Executive {
-			state: e.state,
-			info: e.info,
-			engine: e.engine,
-			depth: e.depth + 1,
-			params: params,
-			logs: vec![],
-			refunds: U256::zero(),
-		}
-	}
-
-	pub fn exec(&mut self) -> ExecutiveResult {
+	pub fn transact(e: &mut Executive<'a>, t: &Transaction) -> ExecutiveResult {
 		// TODO: validate that we have enough funds
+		// TODO: validate nonce ?
+	
+		let sender = t.sender();
 
-		match &self.params.kind() {
-			&ParamsKind::Call => { 
-				self.state.inc_nonce(&self.params.address);
-				self.call()
+		match t.kind() {
+			TransactionKind::ContractCreation => {
+				let params = EvmParams {
+					address: contract_address(&sender, &t.nonce),
+					sender: sender.clone(),
+					origin: sender.clone(),
+					gas: t.gas,
+					gas_price: t.gas_price,
+					value: t.value,
+					code: t.data.clone(),
+					data: vec![],
+				};
+				e.state.inc_nonce(&params.address);
+				unimplemented!()
+				//Executive::call(e, &params)
 			},
-			&ParamsKind::Create => self.create()
+			TransactionKind::MessageCall => {
+				let params = EvmParams {
+					address: t.to.clone().unwrap(),
+					sender: sender.clone(),
+					origin: sender.clone(),
+					gas: t.gas,
+					gas_price: t.gas_price,
+					value: t.value,
+					code: e.state.code(&t.to.clone().unwrap()).unwrap_or(vec![]),
+					data: t.data.clone(),
+				};
+				e.state.inc_nonce(&params.address);
+				Executive::create(e, &params)
+			}
 		}
 	}
 
-	fn call(&mut self) -> ExecutiveResult {
+	fn call(e: &mut Executive<'a>, p: &EvmParams) -> ExecutiveResult {
+		//let _ext = Externalities::from_executive(e, &p);
 		ExecutiveResult::Ok
 	}
-
-	fn create(&mut self) -> ExecutiveResult {
-		self.state.inc_nonce(&self.params.sender);
 	
+	fn create(e: &mut Executive<'a>, params: &EvmParams) -> ExecutiveResult {
 		//self.state.require_or_from(&self.params.address, false, ||Account::new_contract(U256::from(0)));
-		self.state.transfer_balance(&self.params.sender, &self.params.address, &self.params.value);
+		e.state.transfer_balance(&params.sender, &params.address, &params.value);
+		let mut ext = Externalities::new(e.state, e.info, e.engine, e.depth, params);
+
 		let code = {
 			let evm = VmFactory::create();
-			// TODO: valdidate that exec returns proper code
-			evm.exec(self)
+			evm.exec(&params, &mut ext)
 		};
 
 		match code {
@@ -139,17 +123,43 @@ impl<'a> Executive<'a> {
 			}
 		}
 	}
+}
 
+pub struct Externalities<'a> {
+	state: &'a mut State,
+	info: &'a EnvInfo,
+	engine: &'a Engine,
+	depth: usize,
+	params: &'a EvmParams,
+	logs: Vec<LogEntry>,
+	refunds: U256
+}
+
+impl<'a> Externalities<'a> {
+	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize, params: &'a EvmParams) -> Self {
+		Externalities {
+			state: state,
+			info: info,
+			engine: engine,
+			depth: depth,
+			params: params,
+			logs: vec![],
+			refunds: U256::zero()
+		}
+	}
+
+	// TODO: figure out how to use this function
+	// so the lifetime checker is satisfied
+	//pub fn from_executive(e: &mut Executive<'a>, params: &EvmParams) -> Self {
+		//Externalities::new(e.state, e.info, e.engine, e.depth, params)
+	//}
+	
 	pub fn logs(&self) -> &[LogEntry] {
 		&self.logs
 	}
 }
 
-impl<'a> Ext for Executive<'a> {
-	fn params(&self) -> &EvmParams {
-		&self.params
-	}
-
+impl<'a> Ext for Externalities<'a> {
 	fn sload(&self, key: &H256) -> H256 {
 		self.state.storage_at(&self.params.address, key)
 	}
@@ -189,12 +199,10 @@ impl<'a> Ext for Executive<'a> {
 					value: endowment.clone(),
 					code: code.to_vec(),
 					data: vec![],
-					kind: ParamsKind::Create
 				};
-				println!("address: {:?}", address);
-				println!("code: {:?}", code);
-				let mut ex = Executive::from_parent(self, params);
-				let res = ex.create();
+				let mut ex = Executive::from_parent(self);
+				ex.state.inc_nonce(&address);
+				let res = Executive::create(&mut ex, &params);
 				println!("res: {:?}", res);
 				(address, gas)
 			}
@@ -213,12 +221,11 @@ impl<'a> Ext for Executive<'a> {
 			value: value.clone(),
 			code: self.state.code(code_address).unwrap_or(vec![]),
 			data: data.to_vec(),
-			kind: ParamsKind::Call
 		};
 
 		{
-			let mut ex = Executive::from_parent(self, params);
-			ex.call();
+			let mut ex = Executive::from_parent(self);
+			Executive::call(&mut ex, &params);
 			unimplemented!();
 			
 		}
@@ -280,7 +287,7 @@ mod tests {
 	fn test_executive() {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(&sender, &U256::zero());
-		let mut params = EvmParams::new_create();
+		let mut params = EvmParams::new();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(0x174876e800u64);
@@ -292,8 +299,8 @@ mod tests {
 		let engine = TestEngine::new();
 
 		{
-			let mut ex = Executive::new_from_params(&mut state, &info, &engine, params);
-			assert_eq!(ex.exec(), ExecutiveResult::Ok);
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			assert_eq!(Executive::create(&mut ex, &params), ExecutiveResult::Ok);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0xf9u64)));
@@ -308,7 +315,7 @@ mod tests {
 		let next_address = contract_address(&address, &U256::zero());
 		println!("address: {:?}", address);
 		println!("next address: {:?}", next_address);
-		let mut params = EvmParams::new_create();
+		let mut params = EvmParams::new();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
@@ -320,8 +327,8 @@ mod tests {
 		let engine = TestEngine::new();
 
 		{
-			let mut ex = Executive::new_from_params(&mut state, &info, &engine, params);
-			assert_eq!(ex.exec(), ExecutiveResult::Ok);
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			assert_eq!(Executive::create(&mut ex, &params), ExecutiveResult::Ok);
 		}
 		
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(next_address.clone()));
