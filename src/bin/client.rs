@@ -9,12 +9,12 @@ use util::hash::*;
 use util::network::{NetworkService};
 use ethcore::client::Client;
 use ethcore::sync::EthSync;
-use ethcore::spec::Spec;
+use ethcore::ethereum;
 
 fn main() {
 	let mut service = NetworkService::start().unwrap();
 	//TODO: replace with proper genesis and chain params.
-	let frontier = Spec::new_frontier();
+	let frontier = ethereum::new_frontier();
 	let mut dir = env::temp_dir();
 	dir.push(H32::random().hex());
 	let client = Arc::new(Client::new(&frontier.genesis_block(), &dir));

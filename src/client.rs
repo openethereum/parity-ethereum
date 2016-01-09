@@ -1,11 +1,6 @@
 use std::sync::Arc;
-use std::path::Path;
-use util::uint::U256;
-use util::hash::*;
-use util::rlp::*;
-use util::bytes::Bytes;
+use util::*;
 use blockchain::BlockChain;
-use queue::BlockQueue;
 use views::BlockView;
 
 /// Status for a block in a queue.
@@ -117,7 +112,6 @@ pub trait BlockChainClient : Sync {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 pub struct Client {
 	chain: Arc<BlockChain>,
-	queue: BlockQueue,
 }
 
 impl Client {
@@ -125,7 +119,6 @@ impl Client {
 		let chain = Arc::new(BlockChain::new(genesis, path));
 		Client {
 			chain: chain.clone(),
-			queue: BlockQueue::new(chain)
 		}
 	}
 }
@@ -185,7 +178,17 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&mut self, bytes: &[u8]) -> ImportResult {
-		self.queue.import_block(bytes)
+		//TODO: verify block
+		{
+			let block = BlockView::new(bytes);
+			let header = block.header_view();
+			let hash = header.sha3();
+			if self.chain.is_known(&hash) {
+				return ImportResult::Bad;
+			}
+		}
+		self.chain.insert_block(bytes);
+		ImportResult::Queued(QueueStatus::Known)
 	}
 
 	fn queue_status(&self) -> BlockQueueStatus {
@@ -195,7 +198,6 @@ impl BlockChainClient for Client {
 	}
 
 	fn clear_queue(&mut self) {
-		self.queue.clear();
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
