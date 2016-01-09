@@ -2,8 +2,6 @@ use hash::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
 
-pub use ::sha3::Hashable;
-
 pub type Secret = H256;
 pub type Public = H512;
 pub type Signature = H520;

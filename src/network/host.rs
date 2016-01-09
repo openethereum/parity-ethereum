@@ -8,6 +8,7 @@ use mio::tcp::*;
 use mio::udp::*;
 use hash::*;
 use crypto::*;
+use sha3::Hashable;
 use rlp::*;
 use time::Tm;
 use network::handshake::Handshake;

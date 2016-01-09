@@ -8,6 +8,7 @@ use std::ops::{DerefMut};
 use mio::*;
 use mio::udp::*;
 use hash::*;
+use sha3::Hashable;
 use crypto::*;
 use network::host::*;
 

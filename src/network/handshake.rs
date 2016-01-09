@@ -1,6 +1,7 @@
 use mio::*;
 use mio::tcp::*;
 use hash::*;
+use sha3::Hashable;
 use bytes::Bytes;
 use crypto::*;
 use crypto;
