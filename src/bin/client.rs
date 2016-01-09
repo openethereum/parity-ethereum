@@ -5,21 +5,20 @@ extern crate rustc_serialize;
 use std::io::*;
 use std::env;
 use std::sync::Arc;
-use rustc_serialize::hex::FromHex;
 use util::hash::*;
 use util::network::{NetworkService};
 use ethcore::client::Client;
 use ethcore::sync::EthSync;
+use ethcore::spec::Spec;
 
 fn main() {
 	let mut service = NetworkService::start().unwrap();
 	//TODO: replace with proper genesis and chain params.
-	let genesis = "f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a07dba07d6b448a186e9612e5f737d1c909dce473e53199901a302c00646d523c1a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302000080832fefd8808454c98c8142a059262c330941f3fe2a34d16d6e3c7b30d2ceb37c6a0e9a994c494ee1a61d2410885aa4c8bf8e56e264c0c0".from_hex().unwrap();
+	let frontier = Spec::new_frontier();
 	let mut dir = env::temp_dir();
 	dir.push(H32::random().hex());
-	let client = Arc::new(Client::new(&genesis, &dir));
-	let sync = Box::new(EthSync::new(client));
-	service.register_protocol(sync, "eth", &[62u8, 63u8]).expect("Error registering eth protocol handler");
+	let client = Arc::new(Client::new(&frontier.genesis_block(), &dir));
+	EthSync::register(&mut service, client);
 	loop {
 		let mut cmd = String::new();
 		stdin().read_line(&mut cmd).unwrap();

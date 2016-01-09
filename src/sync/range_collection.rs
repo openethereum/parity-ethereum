@@ -1,3 +1,6 @@
+/// This module defines a trait for a collection of ranged values and an implementation
+/// for this trait over sorted vector.
+
 use std::ops::{Add, Sub, Range};
 
 pub trait ToUsize {
@@ -8,16 +11,28 @@ pub trait FromUsize {
 	fn from_usize(s: usize) -> Self;
 }
 
+/// A key-value collection orderd by key with sequential key-value pairs grouped together.
+/// Such group is called a range.
+/// E.g. a set of collection of 5 pairs {1, a}, {2, b}, {10, x}, {11, y}, {12, z} will be grouped into two ranges: {1, [a,b]}, {10, [x,y,z]}
 pub trait RangeCollection<K, V> {
+	/// Check if the given key is present in the collection.
 	fn have_item(&self, key: &K) -> bool;
+	/// Get value by key.
 	fn find_item(&self, key: &K) -> Option<&V>;
+	/// Get a range of keys from `key` till the end of the range that has `key`
+	/// Returns an empty range is key does not exist.
 	fn get_tail(&mut self, key: &K) -> Range<K>;
+	/// Remove all elements < `start` in the range that contains `start` - 1
 	fn remove_head(&mut self, start: &K);
+	/// Remove all elements >= `start` in the range that contains `start` 
 	fn remove_tail(&mut self, start: &K);
+	/// Remove all elements >= `tail`
 	fn insert_item(&mut self, key: K, value: V);
+	/// Get an iterator over ranges
 	fn range_iter<'c>(&'c self) -> RangeIterator<'c, K, V>;
 }
 
+/// Range iterator. For each range yelds a key for the first element of the range and a vector of values.
 pub struct RangeIterator<'c, K:'c, V:'c> {
 	range: usize,
 	collection: &'c Vec<(K, Vec<V>)>
@@ -72,7 +87,6 @@ impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq +
 		}
 	}
 
-	/// Get a range of elements from start till the end of the range
 	fn get_tail(&mut self, key: &K) -> Range<K> {
 		let kv = *key;
 		match self.binary_search_by(|&(k, _)| k.cmp(key).reverse()) {

@@ -7,8 +7,8 @@ use util::rlp::{self, Rlp, RlpStream, View, Stream};
 use util::network::{PeerId, PacketId, Error as NetworkError};
 use client::{BlockChainClient, BlockStatus, BlockNumber, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult, QueueStatus};
 use header::Header as BlockHeader;
-use sync::{SyncIo};
-use sync::chain::{ChainSync};
+use sync::io::SyncIo;
+use sync::chain::ChainSync;
 
 struct TestBlockChainClient {
 	blocks: HashMap<H256, Bytes>,

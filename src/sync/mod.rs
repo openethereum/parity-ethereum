@@ -1,88 +1,73 @@
+/// Blockchain sync module
+/// Implements ethereum protocol version 63 as specified here:
+/// https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
+///
+/// Usage example:
+///
+/// ```rust
+/// extern crate ethcore_util as util;
+/// extern crate ethcore;
+/// use std::env;
+/// use std::sync::Arc;
+/// use util::network::NetworkService;
+/// use ethcore::client::Client;
+/// use ethcore::sync::EthSync;
+/// use ethcore::spec::Spec;
+///
+/// fn main() {
+/// 	let mut service = NetworkService::start().unwrap();
+///		let frontier = Spec::new_frontier();
+/// 	let dir = env::temp_dir();
+/// 	let client = Arc::new(Client::new(&frontier.genesis_block(), &dir));
+/// 	EthSync::register(&mut service, client);
+/// }
+/// ```
+
 use std::sync::Arc;
 use client::BlockChainClient;
-use util::network::{ProtocolHandler, NetworkService, HandlerIo, TimerToken, PeerId, PacketId, Message, Error as NetworkError};
+use util::network::{ProtocolHandler, NetworkService, HandlerIo, TimerToken, PeerId, Message};
 use sync::chain::ChainSync;
+use sync::io::NetSyncIo;
 
 mod chain;
+mod io;
 mod range_collection;
 
 #[cfg(test)]
 mod tests;
 
-pub fn new(_service: &mut NetworkService, eth_client: Arc<BlockChainClient + Send + Sized>) -> EthSync {
-	EthSync {
-		chain: eth_client,
-		sync: ChainSync::new(),
-	}
-}
-
-pub trait SyncIo {
-	fn disable_peer(&mut self, peer_id: &PeerId);
-	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
-	fn chain<'s>(&'s mut self) -> &'s mut BlockChainClient;
-}
-
-pub struct NetSyncIo<'s, 'h> where 'h:'s {
-	network: &'s mut HandlerIo<'h>,
-	chain: &'s mut BlockChainClient
-}
-
-impl<'s, 'h> NetSyncIo<'s, 'h> {
-	pub fn new(network: &'s mut HandlerIo<'h>, chain: &'s mut BlockChainClient) -> NetSyncIo<'s,'h> {
-		NetSyncIo {
-			network: network,
-			chain: chain,
-		}
-	}
-}
-
-impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
-	fn disable_peer(&mut self, peer_id: &PeerId) {
-		self.network.disable_peer(*peer_id);
-	}
-
-	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>{
-		self.network.respond(packet_id, data)
-	}
-
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>{
-		self.network.send(peer_id, packet_id, data)
-	}
-
-	fn chain<'a>(&'a mut self) -> &'a mut BlockChainClient {
-		self.chain
-	}
-}
-
+/// Ethereum network protocol handler
 pub struct EthSync {
+	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
 	chain: Arc<BlockChainClient + Send + Sized>,
+	/// Sync strategy
 	sync: ChainSync
 }
 
 pub use self::chain::SyncStatus;
 
 impl EthSync {
-	pub fn new(chain: Arc<BlockChainClient + Send + Sized>) -> EthSync {
-		EthSync {
+	/// Creates and register protocol with the network service
+	pub fn register(service: &mut NetworkService, chain: Arc<BlockChainClient + Send + Sized>) {
+		let sync = Box::new(EthSync {
 			chain: chain,
 			sync: ChainSync::new(),
-		}
+		});
+		service.register_protocol(sync, "eth", &[62u8, 63u8]).expect("Error registering eth protocol handler");
 	}
 
-	pub fn is_syncing(&self) -> bool {
-		self.sync.is_syncing()
-	}
-
+	/// Get sync status
 	pub fn status(&self) -> SyncStatus {
 		self.sync.status()
 	}
 
-	pub fn stop_network(&mut self, io: &mut HandlerIo) {
+	/// Stop sync
+	pub fn stop(&mut self, io: &mut HandlerIo) {
 		self.sync.abort(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
 	}
 
-	pub fn start_network(&mut self, io: &mut HandlerIo) {
+	/// Restart sync
+	pub fn restart(&mut self, io: &mut HandlerIo) {
 		self.sync.restart(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
 	}
 }
