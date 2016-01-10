@@ -148,9 +148,9 @@ impl<'engine> OpenBlock<'engine> {
 	pub fn env_info(&self) -> EnvInfo {
 		// TODO: memoise.
 		EnvInfo {
-			number: self.block.header.number.clone(),
+			number: self.block.header.number,
 			author: self.block.header.author.clone(),
-			timestamp: self.block.header.timestamp.clone(),
+			timestamp: self.block.header.timestamp,
 			difficulty: self.block.header.difficulty.clone(),
 			last_hashes: self.last_hashes.clone(),
 			gas_used: self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0)),

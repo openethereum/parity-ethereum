@@ -17,20 +17,24 @@ impl Ethash {
 
 impl Engine for Ethash {
 	fn name(&self) -> &str { "Ethash" }
+	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	fn spec(&self) -> &Spec { &self.spec }
 	fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
 
 	/// Apply the block reward on finalisation of the block.
+	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut Block) {
 		let reward = self.spec().engine_params.get("blockReward").map(|a| decode(&a)).unwrap_or(U256::from(0u64));
 		let fields = block.fields();
-		fields.state.add_balance(&fields.header.author, &reward);
-/*
-		let uncle_authors = block.uncles.iter().map(|u| u.author().clone()).collect();
-		for a in uncle_authors {
-			block.state_mut().addBalance(a, _blockReward * (8 + i.number() - m_currentBlock.number()) / 8);
-			r += _blockReward / 32;
-		}*/
+
+		// Bestow block reward
+		fields.state.add_balance(&fields.header.author, &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
+
+		// Bestow uncle rewards
+		let current_number = fields.header.number();
+		for u in fields.uncles.iter() {
+			fields.state.add_balance(u.author(), &(reward * U256::from((8 + u.number() - current_number) / 8)));
+		}
 	}
 }
 
@@ -43,5 +47,5 @@ fn on_close_block() {
 	engine.spec().ensure_db_good(&mut db);
 	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), vec![]);
 	let b = b.close();
-	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244F40000").unwrap());
+	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 }

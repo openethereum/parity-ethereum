@@ -11,8 +11,8 @@ use basic_types::*;
 pub struct Header {
 	// TODO: make all private.
 	pub parent_hash: H256,
-	pub timestamp: U256,
-	pub number: U256,
+	pub timestamp: usize,
+	pub number: usize,
 	pub author: Address,
 
 	pub transactions_root: H256,
@@ -41,8 +41,8 @@ impl Header {
 	pub fn new() -> Header {
 		Header {
 			parent_hash: ZERO_H256.clone(),
-			timestamp: BAD_U256.clone(),
-			number: ZERO_U256.clone(),
+			timestamp: 0,
+			number: 0,
 			author: ZERO_ADDRESS.clone(),
 
 			transactions_root: ZERO_H256.clone(),
@@ -64,6 +64,7 @@ impl Header {
 	pub fn author(&self) -> &Address { &self.author }
 	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
 	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
+	pub fn number(&self) -> usize { self.number }
 
 	// TODO: seal_at, set_seal_at &c.
 

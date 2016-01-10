@@ -7,11 +7,11 @@ pub type LastHashes = Vec<H256>;
 /// Information concerning the execution environment for a message-call/contract-creation.
 pub struct EnvInfo {
 	/// The block number.
-	pub number: U256,
+	pub number: usize,
 	/// The block author.
 	pub author: Address,
 	/// The block timestamp.
-	pub timestamp: U256,
+	pub timestamp: usize,
 	/// The block difficulty.
 	pub difficulty: U256,
 	/// The block gas limit.
