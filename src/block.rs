@@ -8,14 +8,6 @@ pub struct Entry {
 	receipt: Receipt,
 }
 
-/// A set of fields that are publicly alterable. 
-pub struct BlockRefMut<'a> {
-	pub header: &'a Header,
-	pub state: &'a mut State,
-	pub archive: &'a Vec<Entry>,
-	pub uncles: &'a Vec<Header>,
-}
-
 /// Internal type for a block's common elements.
 pub struct Block {
 	header: Header,
@@ -29,7 +21,16 @@ pub struct Block {
 	uncles: Vec<Header>,
 }
 
+/// A set of references to `Block` fields that are publicly accessible. 
+pub struct BlockRefMut<'a> {
+	pub header: &'a Header,
+	pub state: &'a mut State,
+	pub archive: &'a Vec<Entry>,
+	pub uncles: &'a Vec<Header>,
+}
+
 impl Block {
+	/// Create a new block from the given `state`.
 	fn new(state: State) -> Block {
 		Block {
 			header: Header::new(),
@@ -40,6 +41,7 @@ impl Block {
 		}
 	}
 
+	/// Get a structure containing individual references to all public fields.
 	pub fn fields(&mut self) -> BlockRefMut {
 		BlockRefMut {
 			header: &self.header,
