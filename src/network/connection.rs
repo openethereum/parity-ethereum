@@ -154,7 +154,7 @@ pub struct EncryptedConnection {
 	read_state: EncryptedConnectionState,
 	idle_timeout: Option<Timeout>,
 	protocol_id: u16,
-	payload_len: u32,
+	payload_len: usize,
 }
 
 impl EncryptedConnection {
@@ -223,7 +223,7 @@ impl EncryptedConnection {
 		self.egress_mac.clone().finalize(&mut packet[16..32]);
 		self.encoder.encrypt(&mut RefReadBuffer::new(&payload), &mut RefWriteBuffer::new(&mut packet[32..(32 + len)]), padding == 0).expect("Invalid length or padding");
 		if padding != 0 {
-			let pad = [08; 16];
+			let pad = [0u8; 16];
 			self.encoder.encrypt(&mut RefReadBuffer::new(&pad[0..padding]), &mut RefWriteBuffer::new(&mut packet[(32 + len)..(32 + len + padding)]), true).expect("Invalid length or padding");
 		}
 		self.egress_mac.update(&packet[32..(32 + len + padding)]);
@@ -252,7 +252,7 @@ impl EncryptedConnection {
 		let header_rlp = UntrustedRlp::new(&hdec[3..6]);
 		let protocol_id = try!(header_rlp.val_at::<u16>(0));
 
-		self.payload_len = length;
+		self.payload_len = length as usize;
 		self.protocol_id = protocol_id;
 		self.read_state = EncryptedConnectionState::Payload;
 
@@ -264,7 +264,7 @@ impl EncryptedConnection {
 
 	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, Error> {
 		let padding = (16 - (self.payload_len  % 16)) % 16;
-		let full_length = (self.payload_len + padding + 16) as usize;
+		let full_length = self.payload_len + padding + 16;
 		if payload.len() != full_length {
 			return Err(Error::Auth);
 		}
@@ -277,9 +277,10 @@ impl EncryptedConnection {
 			return Err(Error::Auth);
 		}
 
-		let mut packet = vec![0u8; self.payload_len as usize];
-		self.decoder.decrypt(&mut RefReadBuffer::new(&payload[0..(full_length - 16)]), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
-		packet.resize(self.payload_len as usize, 0u8);
+		let mut packet = vec![0u8; self.payload_len];
+		self.decoder.decrypt(&mut RefReadBuffer::new(&payload[0..self.payload_len]), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
+		let mut pad_buf = [0u8; 16];
+		self.decoder.decrypt(&mut RefReadBuffer::new(&payload[self.payload_len..(payload.len() - 16)]), &mut RefWriteBuffer::new(&mut pad_buf), false).expect("Invalid length or padding");
 		Ok(Packet {
 			protocol: self.protocol_id,
 			data: packet
@@ -299,7 +300,6 @@ impl EncryptedConnection {
 
 	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Packet>, Error> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
-		try!(self.connection.reregister(event_loop));
 		match self.read_state {
 			EncryptedConnectionState::Header => {
 				match try!(self.connection.readable()) {
@@ -326,7 +326,6 @@ impl EncryptedConnection {
 	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		try!(self.connection.writable());
-		try!(self.connection.reregister(event_loop));
 		Ok(())
 	}
 
@@ -337,6 +336,12 @@ impl EncryptedConnection {
 		try!(self.connection.reregister(event_loop));
 		Ok(())
 	}
+
+	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+		try!(self.connection.reregister(event_loop));
+		Ok(())
+	}
+
 }
 
 #[test]

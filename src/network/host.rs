@@ -295,11 +295,10 @@ impl Host {
 	pub fn start(event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		let config = NetworkConfiguration::new();
 		/*
-		   match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {
-		   Some(iface) => config.public_address = iface.addr.unwrap(),
-		   None => warn!("No public network interface"),
-		   }
-		   */
+		match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {
+		Some(iface) => config.public_address = iface.addr.unwrap(),
+		None => warn!("No public network interface"),
+		*/
 
 		let addr = config.listen_address;
 		// Setup the server socket
@@ -487,8 +486,17 @@ impl Host {
 		if create_session {
 			self.start_session(token, event_loop);
 		}
+		match self.connections.get_mut(token) {
+			Some(&mut ConnectionEntry::Session(ref mut s)) => {
+				s.reregister(event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
+			},
+			_ => (),
+		}
 	}
 
+	fn connection_closed(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+		self.kill_connection(token, event_loop);
+	}
 
 	fn connection_readable(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
 		let mut kill = false;
@@ -549,6 +557,12 @@ impl Host {
 			h.read(&mut HostIo::new(p, Some(token), event_loop, &mut self.connections, &mut self.timers), &token.as_usize(), packet_id, &data[1..]);
 		}
 
+		match self.connections.get_mut(token) {
+			Some(&mut ConnectionEntry::Session(ref mut s)) => {
+				s.reregister(event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
+			},
+			_ => (),
+		}
 	}
 
 	fn start_session(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
@@ -570,7 +584,23 @@ impl Host {
 		self.kill_connection(token, event_loop)
 	}
 
-	fn kill_connection(&mut self, token: Token, _event_loop: &mut EventLoop<Host>) {
+	fn kill_connection(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+		let mut to_disconnect: Vec<ProtocolId> = Vec::new();
+		match self.connections.get_mut(token) {
+			Some(&mut ConnectionEntry::Handshake(_)) => (), // just abandon handshake
+			Some(&mut ConnectionEntry::Session(ref mut s)) if s.is_ready() => {
+				for (p, _) in self.handlers.iter_mut() {
+					if s.have_capability(p)  {
+						to_disconnect.push(p);
+					}
+				}
+			},
+			_ => (),
+		}
+		for p in to_disconnect {
+			let mut h = self.handlers.get_mut(p).unwrap();
+			h.disconnected(&mut HostIo::new(p, Some(token), event_loop, &mut self.connections, &mut self.timers), &token.as_usize());
+		}
 		self.connections.remove(token);
 	}
 }
@@ -580,7 +610,14 @@ impl Handler for Host {
 	type Message = HostMessage;
 
 	fn ready(&mut self, event_loop: &mut EventLoop<Host>, token: Token, events: EventSet) {
-		if events.is_readable() {
+		if events.is_hup() {
+			trace!(target: "net", "hup");
+			match token.as_usize() {
+				FIRST_CONNECTION ... LAST_CONNECTION => self.connection_closed(token, event_loop),
+				_ => warn!(target: "net", "Unexpected hup"),
+			};
+		}
+		else if events.is_readable() {
 			match token.as_usize() {
 				TCP_ACCEPT => self.accept(event_loop),
 				IDLE => self.maintain_network(event_loop),

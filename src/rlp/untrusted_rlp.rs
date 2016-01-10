@@ -188,7 +188,7 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 	}
 
 	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable {
-		self.at(index).unwrap().as_val()
+		try!(self.at(index)).as_val()
 	}
 }
 

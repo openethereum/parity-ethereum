@@ -83,6 +83,10 @@ impl Session {
 		Ok(session)
 	}
 
+	pub fn is_ready(&self) -> bool {
+		self.had_hello
+	}
+
 	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<SessionData, Error> {
 		match try!(self.connection.readable(event_loop)) {
 			Some(data)  => self.read_packet(data, host),
@@ -96,6 +100,10 @@ impl Session {
 
 	pub fn have_capability(&self, protocol: &str) -> bool {
 		self.info.capabilities.iter().any(|c| c.protocol == protocol)
+	}
+
+	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+		self.connection.reregister(event_loop)
 	}
 
 	pub fn send_packet(&mut self, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), Error> {
@@ -159,7 +167,7 @@ impl Session {
 
 	fn write_hello(&mut self, host: &HostInfo) -> Result<(), Error>  {
 		let mut rlp = RlpStream::new();
-		rlp.append(&(PACKET_HELLO as u32));
+		rlp.append_raw(&[PACKET_HELLO as u8], 0);
 		rlp.append_list(5)
 			.append(&host.protocol_version)
 			.append(&host.client_version)
@@ -217,11 +225,11 @@ impl Session {
 	}
 
 	fn write_ping(&mut self) -> Result<(), Error>  {
-		self.send(try!(Session::prepare(PACKET_PING, 0)))
+		self.send(try!(Session::prepare(PACKET_PING)))
 	}
 
 	fn write_pong(&mut self) -> Result<(), Error>  {
-		self.send(try!(Session::prepare(PACKET_PONG, 0)))
+		self.send(try!(Session::prepare(PACKET_PONG)))
 	}
 
 	fn disconnect(&mut self, reason: DisconnectReason) -> Error {
@@ -233,10 +241,10 @@ impl Session {
 		Error::Disconnect(reason)
 	}
 
-	fn prepare(packet_id: u8, items: usize) -> Result<RlpStream, Error> {
-		let mut rlp = RlpStream::new_list(1);
+	fn prepare(packet_id: u8) -> Result<RlpStream, Error> {
+		let mut rlp = RlpStream::new();
 		rlp.append(&(packet_id as u32));
-		rlp.append_list(items);
+		rlp.append_list(0);
 		Ok(rlp)
 	}
 
