@@ -69,49 +69,23 @@ pub enum DisconnectReason
 }
 
 #[derive(Debug)]
-pub enum Error {
-	Crypto(::crypto::CryptoError),
-	Io(::std::io::Error),
+pub enum NetworkError {
 	Auth,
 	BadProtocol,
-	AddressParse(::std::net::AddrParseError),
-	AddressResolve(Option<::std::io::Error>),
-	NodeIdParse(::error::EthcoreError),
 	PeerNotFound,
-	Disconnect(DisconnectReason)
+	Disconnect(DisconnectReason),
+	Mio(::std::io::Error),
 }
 
-impl From<::std::io::Error> for Error {
-	fn from(err: ::std::io::Error) -> Error {
-		Error::Io(err)
-	}
-}
-
-impl From<::crypto::CryptoError> for Error {
-	fn from(err: ::crypto::CryptoError) -> Error {
-		Error::Crypto(err)
+impl From<::rlp::DecoderError> for NetworkError {
+	fn from(_err: ::rlp::DecoderError) -> NetworkError {
+		NetworkError::Auth
 	}
 }
 
-impl From<::std::net::AddrParseError> for Error {
-	fn from(err: ::std::net::AddrParseError) -> Error {
-		Error::AddressParse(err)
-	}
-}
-impl From<::error::EthcoreError> for Error {
-	fn from(err: ::error::EthcoreError) -> Error {
-		Error::NodeIdParse(err)
-	}
-}
-impl From<::rlp::DecoderError> for Error {
-	fn from(_err: ::rlp::DecoderError) -> Error {
-		Error::Auth
-	}
-}
-
-impl From<::mio::NotifyError<host::HostMessage>> for Error {
-	fn from(_err: ::mio::NotifyError<host::HostMessage>) -> Error {
-		Error::Io(::std::io::Error::new(::std::io::ErrorKind::ConnectionAborted, "Network IO notification error"))
+impl From<::mio::NotifyError<host::HostMessage>> for NetworkError {
+	fn from(_err: ::mio::NotifyError<host::HostMessage>) -> NetworkError {
+		NetworkError::Mio(::std::io::Error::new(::std::io::ErrorKind::ConnectionAborted, "Network IO notification error"))
 	}
 }
 

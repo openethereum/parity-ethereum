@@ -7,7 +7,8 @@ use crypto::*;
 use crypto;
 use network::connection::{Connection};
 use network::host::{NodeId, Host, HostInfo};
-use network::Error;
+use error::*;
+use network::NetworkError;
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
@@ -35,7 +36,7 @@ const AUTH_PACKET_SIZE: usize = 307;
 const ACK_PACKET_SIZE: usize = 210;
 
 impl Handshake {
-	pub fn new(token: Token, id: &NodeId, socket: TcpStream, nonce: &H256) -> Result<Handshake, Error> {
+	pub fn new(token: Token, id: &NodeId, socket: TcpStream, nonce: &H256) -> Result<Handshake, UtilError> {
 		Ok(Handshake {
 			id: id.clone(),
 			connection: Connection::new(token, socket),
@@ -51,7 +52,7 @@ impl Handshake {
 		})
 	}
 
-	pub fn start(&mut self, host: &HostInfo, originated: bool) -> Result<(), Error> {
+	pub fn start(&mut self, host: &HostInfo, originated: bool) -> Result<(), UtilError> {
 		self.originated = originated;
 		if originated {
 			try!(self.write_auth(host));
@@ -67,7 +68,7 @@ impl Handshake {
 		self.state == HandshakeState::StartSession
 	}
 
-	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<(), Error> {
+	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		match self.state {
 			HandshakeState::ReadingAuth => {
@@ -96,7 +97,7 @@ impl Handshake {
 		Ok(())
 	}
 
-	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), Error> {
+	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		try!(self.connection.writable());
 		if self.state != HandshakeState::StartSession {
@@ -105,14 +106,14 @@ impl Handshake {
 		Ok(())
 	}
 
-	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
 		try!(self.connection.register(event_loop));
 		Ok(())
 	}
 
-	fn read_auth(&mut self, host: &HostInfo, data: &[u8]) -> Result<(), Error> {
+	fn read_auth(&mut self, host: &HostInfo, data: &[u8]) -> Result<(), UtilError> {
 		trace!(target:"net", "Received handshake auth to {:?}", self.connection.socket.peer_addr());
 		assert!(data.len() == AUTH_PACKET_SIZE);
 		self.auth_cipher = data.to_vec();
@@ -128,12 +129,12 @@ impl Handshake {
 		let spub = try!(ec::recover(&signature, &(&shared ^ &self.remote_nonce)));
 		if &spub.sha3()[..] != hepubk {
 			trace!(target:"net", "Handshake hash mismath with {:?}", self.connection.socket.peer_addr());
-			return Err(Error::Auth);
+			return Err(From::from(NetworkError::Auth));
 		};
 		self.write_ack()
 	}
 
-	fn read_ack(&mut self, host: &HostInfo, data: &[u8]) -> Result<(), Error> {
+	fn read_ack(&mut self, host: &HostInfo, data: &[u8]) -> Result<(), UtilError> {
 		trace!(target:"net", "Received handshake auth to {:?}", self.connection.socket.peer_addr());
 		assert!(data.len() == ACK_PACKET_SIZE);
 		self.ack_cipher = data.to_vec();
@@ -143,7 +144,7 @@ impl Handshake {
 		Ok(())
 	}
 
-	fn write_auth(&mut self, host: &HostInfo) -> Result<(), Error> {
+	fn write_auth(&mut self, host: &HostInfo) -> Result<(), UtilError> {
 		trace!(target:"net", "Sending handshake auth to {:?}", self.connection.socket.peer_addr());
 		let mut data = [0u8; /*Signature::SIZE*/ 65 + /*H256::SIZE*/ 32 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32 + 1]; //TODO: use associated constants
 		let len = data.len();
@@ -169,7 +170,7 @@ impl Handshake {
 		Ok(())
 	}
 
-	fn write_ack(&mut self) -> Result<(), Error> {
+	fn write_ack(&mut self) -> Result<(), UtilError> {
 		trace!(target:"net", "Sending handshake ack to {:?}", self.connection.socket.peer_addr());
 		let mut data = [0u8; 1 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32]; //TODO: use associated constants
 		let len = data.len();

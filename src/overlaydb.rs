@@ -66,7 +66,7 @@ impl OverlayDB {
 	///   assert!(m.exists(&key));				// key now still exists.
 	/// }
 	/// ```
-	pub fn commit(&mut self) -> Result<u32, EthcoreError> {
+	pub fn commit(&mut self) -> Result<u32, UtilError> {
 		let mut ret = 0u32;
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;

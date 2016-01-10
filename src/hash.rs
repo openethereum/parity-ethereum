@@ -7,7 +7,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitOrAssign, BitAnd, BitXor};
 use std::cmp::{PartialOrd, Ordering};
 use rustc_serialize::hex::*;
-use error::EthcoreError;
+use error::UtilError;
 use rand::Rng;
 use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
@@ -176,11 +176,10 @@ macro_rules! impl_hash {
 		}
 
 		impl FromStr for $from {
-			type Err = EthcoreError;
-
-			fn from_str(s: &str) -> Result<$from, EthcoreError> {
+			type Err = UtilError;
+			fn from_str(s: &str) -> Result<$from, UtilError> {
 				let a = try!(s.from_hex());
-				if a.len() != $size { return Err(EthcoreError::BadSize); }
+				if a.len() != $size { return Err(UtilError::BadSize); }
 				let mut ret = $from([0;$size]);
 				for i in 0..$size {
 					ret.0[i] = a[i];
