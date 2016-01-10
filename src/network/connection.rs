@@ -19,22 +19,33 @@ use tiny_keccak::Keccak;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 
+/// Low level tcp connection
 pub struct Connection {
+	/// Connection id (token)
 	pub token: Token,
+	/// Network socket
 	pub socket: TcpStream,
+	/// Receive buffer
 	rec_buf: Bytes,
+	/// Expected size
 	rec_size: usize,
+	/// Send out packets FIFO
 	send_queue: VecDeque<Cursor<Bytes>>,
+	/// Event flags this connection expects
 	interest: EventSet,
 }
 
+/// Connection write status.
 #[derive(PartialEq, Eq)]
 pub enum WriteStatus {
+	/// Some data is still pending for current packet
 	Ongoing,
+	/// All data sent.
 	Complete
 }
 
 impl Connection {
+	/// Create a new connection with given id and socket.
 	pub fn new(token: Token, socket: TcpStream) -> Connection {
 		Connection {
 			token: token,
@@ -46,6 +57,7 @@ impl Connection {
 		}
 	}
 
+	/// Put a connection into read mode. Receiving up `size` bytes of data.
 	pub fn expect(&mut self, size: usize) {
 		if self.rec_size != self.rec_buf.len() {
 			warn!(target:"net", "Unexpected connection read start");
@@ -54,6 +66,7 @@ impl Connection {
 		self.rec_size = size;
 	}
 
+	/// Readable IO handler. Called when there is some data to be read.
 	//TODO: return a slice
 	pub fn readable(&mut self) -> io::Result<Option<Bytes>> {
 		if self.rec_size == 0 || self.rec_buf.len() >= self.rec_size {
@@ -72,6 +85,7 @@ impl Connection {
 		}
 	}
 
+	/// Add a packet to send queue.
 	pub fn send(&mut self, data: Bytes) {
 		if data.len() != 0 {
 			self.send_queue.push_back(Cursor::new(data));
@@ -81,6 +95,7 @@ impl Connection {
 		}
 	}
 
+	/// Writable IO handler. Called when the socket is ready to send.
 	pub fn writable(&mut self) -> io::Result<WriteStatus> {
 		if self.send_queue.is_empty() {
 			return Ok(WriteStatus::Complete)
@@ -117,6 +132,7 @@ impl Connection {
 		})
 	}
 
+	/// Register this connection with the IO event loop.
 	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection register; token={:?}", self.token);
 		self.interest.insert(EventSet::readable());
@@ -126,6 +142,7 @@ impl Connection {
 		})
 	}
 
+	/// Update connection registration. Should be called at the end of the IO handler.
 	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection reregister; token={:?}", self.token);
 		event_loop.reregister( &self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
@@ -135,30 +152,47 @@ impl Connection {
 	}
 }
 
+/// RLPx packet
 pub struct Packet {
 	pub protocol: u16,
 	pub data: Bytes,
 }
 
+/// Encrypted connection receiving state.
 enum EncryptedConnectionState {
+	/// Reading a header.
 	Header,
+	/// Reading the rest of the packet.
 	Payload,
 }
 
+/// Connection implementing RLPx framing
+/// https://github.com/ethereum/devp2p/blob/master/rlpx.md#framing
 pub struct EncryptedConnection {
+	/// Underlying tcp connection
 	connection: Connection,
+	/// Egress data encryptor
 	encoder: CtrMode<AesSafe256Encryptor>,
+	/// Ingress data decryptor
 	decoder: CtrMode<AesSafe256Encryptor>,
+	/// Ingress data decryptor
 	mac_encoder: EcbEncryptor<AesSafe256Encryptor, EncPadding<NoPadding>>,
+	/// MAC for egress data
 	egress_mac: Keccak,
+	/// MAC for ingress data
 	ingress_mac: Keccak,
+	/// Read state
 	read_state: EncryptedConnectionState,
+	/// Disconnect timeout
 	idle_timeout: Option<Timeout>,
+	/// Protocol id for the last received packet
 	protocol_id: u16,
+	/// Payload expected to be received for the last header.
 	payload_len: usize,
 }
 
 impl EncryptedConnection {
+	/// Create an encrypted connection out of the handshake. Consumes a handshake object.
 	pub fn new(handshake: Handshake) -> Result<EncryptedConnection, UtilError> {
 		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_public));
 		let mut nonce_material = H512::new();
@@ -208,6 +242,7 @@ impl EncryptedConnection {
 		})
 	}
 
+	/// Send a packet
 	pub fn send_packet(&mut self, payload: &[u8]) -> Result<(), UtilError> {
 		let mut header = RlpStream::new();
 		let len = payload.len() as usize;
@@ -234,6 +269,7 @@ impl EncryptedConnection {
 		Ok(())
 	}
 
+	/// Decrypt and authenticate an incoming packet header. Prepare for receiving payload.
 	fn read_header(&mut self, header: &[u8]) -> Result<(), UtilError> {
 		if header.len() != ENCRYPTED_HEADER_LEN {
 			return Err(From::from(NetworkError::Auth));
@@ -263,6 +299,7 @@ impl EncryptedConnection {
 		Ok(())
 	}
 
+	/// Decrypt and authenticate packet payload.
 	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, UtilError> {
 		let padding = (16 - (self.payload_len  % 16)) % 16;
 		let full_length = self.payload_len + padding + 16;
@@ -288,6 +325,7 @@ impl EncryptedConnection {
 		})
 	}
 
+	/// Update MAC after reading or writing any data.
 	fn update_mac(mac: &mut Keccak, mac_encoder: &mut EcbEncryptor<AesSafe256Encryptor, EncPadding<NoPadding>>, seed: &[u8]) {
 		let mut prev = H128::new();
 		mac.clone().finalize(&mut prev);
@@ -299,6 +337,7 @@ impl EncryptedConnection {
 		mac.update(&enc);
 	}
 
+	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
 	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Packet>, UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		match self.read_state {
@@ -324,12 +363,14 @@ impl EncryptedConnection {
 		}
 	}
 
+	/// Writable IO handler. Processes send queeue.
 	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		try!(self.connection.writable());
 		Ok(())
 	}
 
+	/// Register this connection with the event handler.
 	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.connection.expect(ENCRYPTED_HEADER_LEN);
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
@@ -338,6 +379,7 @@ impl EncryptedConnection {
 		Ok(())
 	}
 
+	/// Update connection registration. This should be called at the end of the event loop.
 	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.reregister(event_loop));
 		Ok(())
