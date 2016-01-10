@@ -9,6 +9,8 @@ pub struct Transaction {
 	to: Option<Address>,
 	value: U256,
 	data: Bytes,
+
+	hash: RefCell<Option<H256>>, //TODO: make this private
 }
 
 impl Transaction {
@@ -21,10 +23,36 @@ impl Transaction {
 	pub fn is_message_call(&self) -> bool {
 		!self.is_contract_creation()
 	}
+}
 
-	/// Get the hash of this transaction.
-	pub fn sha3(&self) -> H256 {
-		unimplemented!();
+impl RlpStandard for Transaction {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append_list(6);
+		s.append(&self.nonce);
+		s.append(&self.gas_price);
+		s.append(&self.gas);
+		s.append(&self.to);
+		s.append(&self.value);
+		s.append(&self.data);
+	}
+}
+
+impl Transaction {
+	/// Get the hash of this header (sha3 of the RLP).
+	pub fn hash(&self) -> H256 {
+ 		let mut hash = self.hash.borrow_mut();
+ 		match &mut *hash {
+ 			&mut Some(ref h) => h.clone(),
+ 			hash @ &mut None => {
+ 				*hash = Some(self.rlp_sha3());
+ 				hash.as_ref().unwrap().clone()
+ 			}
+		}
+	}
+
+	/// Note that some fields have changed. Resets the memoised hash.
+	pub fn note_dirty(&self) {
+ 		*self.hash.borrow_mut() = None;
 	}
 }
 
@@ -52,6 +80,7 @@ impl Decodable for Transaction {
 			to: try!(Decodable::decode(&d[3])),
 			value: try!(Decodable::decode(&d[4])),
 			data: try!(Decodable::decode(&d[5])),
+			hash: RefCell::new(None)
 		};
 
 		Ok(transaction)

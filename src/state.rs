@@ -1,8 +1,4 @@
-use util::*;
-use account::Account;
-use transaction::Transaction;
-use receipt::Receipt;
-use env_info::EnvInfo;
+use common::*;
 use engine::Engine;
 
 /// Information concerning the result of the `State::apply` operation.
@@ -10,7 +6,7 @@ pub struct ApplyInfo {
 	pub receipt: Receipt,
 }
 
-pub type ApplyResult = Result<ApplyInfo, EthcoreError>;
+pub type ApplyResult = Result<ApplyInfo, Error>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
@@ -77,6 +73,11 @@ impl State {
 	/// it will have its code reset, ready for `init_code()`.
 	pub fn new_contract(&mut self, contract: &Address) {
 		self.require_or_from(contract, false, || Account::new_contract(U256::from(0u8)), |r| r.reset_code());
+	}
+
+	/// Remove an existing account.
+	pub fn kill_account(&mut self, account: &Address) {
+		self.cache.borrow_mut().insert(account.clone(), None);
 	}
 
 	/// Get the balance of account `a`.
@@ -228,12 +229,11 @@ use util::hash::*;
 use util::trie::*;
 use util::rlp::*;
 use util::uint::*;
-use std::str::FromStr;
 use account::*;
 
 #[test]
 fn code_from_database() {
-	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let a = Address::zero();
 	let (r, db) = {
 		let mut s = State::new_temp();
 		s.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)), |_|{});
@@ -250,7 +250,7 @@ fn code_from_database() {
 
 #[test]
 fn storage_at_from_database() {
-	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let a = Address::zero();
 	let (r, db) = {
 		let mut s = State::new_temp();
 		s.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
@@ -264,7 +264,7 @@ fn storage_at_from_database() {
 
 #[test]
 fn get_from_database() {
-	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let a = Address::zero();
 	let (r, db) = {
 		let mut s = State::new_temp();
 		s.inc_nonce(&a);
@@ -280,10 +280,44 @@ fn get_from_database() {
 }
 
 #[test]
+fn remove() {
+	let a = Address::zero();
+	let mut s = State::new_temp();
+	s.inc_nonce(&a);
+	assert_eq!(s.nonce(&a), U256::from(1u64));
+	s.kill_account(&a);
+	assert_eq!(s.nonce(&a), U256::from(0u64));
+}
+
+#[test]
+fn remove_from_database() {
+	let a = Address::zero();
+	let (r, db) = {
+		let mut s = State::new_temp();
+		s.inc_nonce(&a);
+		s.commit();
+		assert_eq!(s.nonce(&a), U256::from(1u64));
+		s.drop()
+	};
+
+	let (r, db) = {
+		let mut s = State::from_existing(db, r, U256::from(0u8));
+		assert_eq!(s.nonce(&a), U256::from(1u64));
+		s.kill_account(&a);
+		s.commit();
+		assert_eq!(s.nonce(&a), U256::from(0u64));
+		s.drop()
+	};
+
+	let s = State::from_existing(db, r, U256::from(0u8));
+	assert_eq!(s.nonce(&a), U256::from(0u64));
+}
+
+#[test]
 fn alter_balance() {
 	let mut s = State::new_temp();
-	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
-	let b = Address::from_str("0000000000000000000000000000000000000001").unwrap();
+	let a = Address::zero();
+	let b = address_from_u64(1u64);
 	s.add_balance(&a, &U256::from(69u64));
 	assert_eq!(s.balance(&a), U256::from(69u64));
 	s.commit();
@@ -303,7 +337,7 @@ fn alter_balance() {
 #[test]
 fn alter_nonce() {
 	let mut s = State::new_temp();
-	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let a = Address::zero();
 	s.inc_nonce(&a);
 	assert_eq!(s.nonce(&a), U256::from(1u64));
 	s.inc_nonce(&a);
@@ -319,7 +353,7 @@ fn alter_nonce() {
 #[test]
 fn balance_nonce() {
 	let mut s = State::new_temp();
-	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let a = Address::zero();
 	assert_eq!(s.balance(&a), U256::from(0u64));
 	assert_eq!(s.nonce(&a), U256::from(0u64));
 	s.commit();
@@ -330,7 +364,7 @@ fn balance_nonce() {
 #[test]
 fn ensure_cached() {
 	let mut s = State::new_temp();
-	let a = Address::from_str("0000000000000000000000000000000000000000").unwrap();
+	let a = Address::zero();
 	s.require(&a, false);
 	s.commit();
 	assert_eq!(s.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");

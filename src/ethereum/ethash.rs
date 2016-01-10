@@ -24,7 +24,7 @@ impl Engine for Ethash {
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut Block) {
 		let a = block.header().author.clone();
-		block.state_mut().add_balance(&a, &decode(&self.spec().engine_params.get("block_reward").unwrap()));
+		block.state_mut().add_balance(&a, &decode(&self.spec().engine_params.get("blockReward").unwrap()));
 	}
 
 	fn verify_block(&self, mode: VerificationMode, header: &Header, parent: Option<&Header>, block: Option<&[u8]>) -> Result<(), VerificationError> { 
@@ -113,11 +113,9 @@ impl Ethash {
 	}
 }
 
-// TODO: test for on_close_block.
 #[test]
-fn playpen() {
+fn on_close_block() {
 	use super::*;
-	use state::*;
 	let engine = new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
 	let mut db = OverlayDB::new_temp();
