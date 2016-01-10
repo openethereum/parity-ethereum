@@ -386,31 +386,35 @@ impl ChainSync {
 		let h = header_rlp.as_raw().sha3();
 
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
-		match io.chain().import_block(block_rlp.as_raw()) {
-			ImportResult::AlreadyInChain => {
-				trace!(target: "sync", "New block already in chain {:?}", h);
-			},
-			ImportResult::AlreadyQueued(_) => {
-				trace!(target: "sync", "New block already queued {:?}", h);
-			},
-			ImportResult::Queued(QueueStatus::Known) => {
-				trace!(target: "sync", "New block queued {:?}", h);
-			},
-			ImportResult::Queued(QueueStatus::Unknown) => {
-				trace!(target: "sync", "New block unknown {:?}", h);
-				//TODO: handle too many unknown blocks
-				let difficulty: U256 = try!(r.val_at(1));
-				let peer_difficulty = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer").difficulty;
-				if difficulty > peer_difficulty {
-					trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
-					self.sync_peer(io, peer_id, true);
+		let header_view = HeaderView::new(header_rlp.as_raw());
+		// TODO: Decompose block and add to self.headers and self.bodies instead
+		if header_view.number() == From::from(self.last_imported_block + 1) {
+			match io.chain().import_block(block_rlp.as_raw()) {
+				ImportResult::AlreadyInChain => {
+					trace!(target: "sync", "New block already in chain {:?}", h);
+				},
+				ImportResult::AlreadyQueued(_) => {
+					trace!(target: "sync", "New block already queued {:?}", h);
+				},
+				ImportResult::Queued(QueueStatus::Known) => {
+					trace!(target: "sync", "New block queued {:?}", h);
+				},
+				ImportResult::Queued(QueueStatus::Unknown) => {
+					trace!(target: "sync", "New block unknown {:?}", h);
+					//TODO: handle too many unknown blocks
+					let difficulty: U256 = try!(r.val_at(1));
+					let peer_difficulty = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer").difficulty;
+					if difficulty > peer_difficulty {
+						trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
+						self.sync_peer(io, peer_id, true);
+					}
+				},
+				ImportResult::Bad =>{
+					debug!(target: "sync", "Bad new block {:?}", h);
+					io.disable_peer(peer_id);
 				}
-			},
-			ImportResult::Bad =>{
-				debug!(target: "sync", "Bad new block {:?}", h);
-				io.disable_peer(peer_id);
-			}
-		};
+			};
+		} 
 		Ok(())
 	}
 

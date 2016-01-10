@@ -4,7 +4,8 @@ use util::hash::{H256, FixedHash};
 use util::uint::{U256};
 use util::sha3::Hashable;
 use util::rlp::{self, Rlp, RlpStream, View, Stream};
-use util::network::{PeerId, PacketId, Error as NetworkError};
+use util::network::{PeerId, PacketId};
+use util::error::UtilError;
 use client::{BlockChainClient, BlockStatus, BlockNumber, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult, QueueStatus};
 use header::Header as BlockHeader;
 use sync::io::SyncIo;
@@ -195,7 +196,7 @@ impl<'p> SyncIo for TestIo<'p> {
 	fn disable_peer(&mut self, _peer_id: &PeerId) {
 	}
 
-	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
+	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		self.queue.push_back(TestPacket {
 			data: data,
 			packet_id: packet_id,
@@ -204,7 +205,7 @@ impl<'p> SyncIo for TestIo<'p> {
 		Ok(())
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
+	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		self.queue.push_back(TestPacket {
 			data: data,
 			packet_id: packet_id,
