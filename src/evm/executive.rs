@@ -55,6 +55,9 @@ impl Substate {
 #[derive(PartialEq, Debug)]
 pub enum ExecutiveResult {
 	Ok,
+	BlockGasLimitReached { gas_limit: U256, gas_used: U256, gas: U256 },
+	InvalidNonce { expected: U256, is: U256 },
+	NotEnoughCash { required: U256, is: U256 },
 	OutOfGas,
 	InternalError
 }
@@ -91,17 +94,40 @@ impl<'a> Executive<'a> {
 
 	/// This funtion should be used to execute transaction.
 	pub fn transact(e: &mut Executive<'a>, t: &Transaction) -> ExecutiveResult {
-		// TODO: validate that we have enough funds
-		// TODO: validate nonce ?
-	
-		let sender = t.sender();
+		// validate if transaction fits into given block
+		if e.info.gas_used + t.gas > e.info.gas_limit {
+			return ExecutiveResult::BlockGasLimitReached { 
+				gas_limit: e.info.gas_limit, 
+				gas_used: e.info.gas_used, 
+				gas: t.gas 
+			};
+		}
 
+		let sender = t.sender();
+		let nonce = e.state.nonce(&sender);
+
+		// validate transaction nonce
+		if t.nonce != nonce {
+			return ExecutiveResult::InvalidNonce { expected: nonce, is: t.nonce };
+		}
+		
+		// TODO: we might need bigints here, or at least check overflows.
+		let balance = e.state.balance(&sender);
+		let gas_cost = t.gas * t.gas_price;
+		let total_cost = t.value + gas_cost;
+
+		// avoid unaffordable transactions
+		if balance < total_cost {
+			return ExecutiveResult::NotEnoughCash { required: total_cost, is: balance };
+		}
+
+		e.state.inc_nonce(&sender);
 		let mut substate = Substate::new();
 
 		let res = match t.kind() {
 			TransactionKind::ContractCreation => {
 				let params = EvmParams {
-					address: contract_address(&sender, &t.nonce),
+					address: contract_address(&sender, &nonce),
 					sender: sender.clone(),
 					origin: sender.clone(),
 					gas: t.gas,
@@ -110,9 +136,7 @@ impl<'a> Executive<'a> {
 					code: t.data.clone(),
 					data: vec![],
 				};
-				e.state.inc_nonce(&params.address);
-				unimplemented!()
-				//Executive::call(e, &params, &substate)
+				Executive::call(e, &params, &mut substate)
 			},
 			TransactionKind::MessageCall => {
 				let params = EvmParams {
@@ -125,13 +149,12 @@ impl<'a> Executive<'a> {
 					code: e.state.code(&t.to.clone().unwrap()).unwrap_or(vec![]),
 					data: t.data.clone(),
 				};
-				e.state.inc_nonce(&params.address);
 				Executive::create(e, &params, &mut substate)
 			}
 		};
 
 		// finalize here!
-		e.finalize(substate, U256::zero(), U256::zero());
+		e.finalize(substate, &sender, U256::zero(), U256::zero(), t.gas_price);
 		res
 	}
 
@@ -207,15 +230,23 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, substate: Substate, gas: U256, gas_used: U256) {
+	fn finalize(&mut self, substate: Substate, sender: &Address, gas: U256, gas_left: U256, gas_price: U256) {
 		let schedule = self.engine.evm_schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
 		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.refunds_count;
 		// refunds from contract suicides
 		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
+
 		// real ammount to refund
-		let refund = cmp::min(sstore_refunds + suicide_refunds, (gas - gas_used) / U256::from(2));
+		let refund = cmp::min(sstore_refunds + suicide_refunds, (gas - gas_left) / U256::from(2)) + gas_left;
+		let refund_value = refund * gas_price;
+		self.state.add_balance(sender, &refund_value);
+		
+		// fees earned by author
+		let fees = (gas - refund) * gas_price;
+		let author = &self.info.author;
+		self.state.add_balance(author, &fees);
 
 		// perform suicides
 		for address in substate.suicides.iter() {
