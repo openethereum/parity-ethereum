@@ -22,7 +22,9 @@ const MAX_CONNECTIONS: usize = 1024;
 const MAX_USER_TIMERS: usize = 32;
 const IDEAL_PEERS: u32 = 10;
 
+/// Node public key
 pub type NodeId = H512;
+/// IO Timer id
 pub type TimerToken = usize;
 
 #[derive(Debug)]
@@ -47,13 +49,18 @@ impl NetworkConfiguration {
 }
 
 #[derive(Debug)]
+/// Noe address info
 pub struct NodeEndpoint {
+	/// IP(V4 or V6) address
 	address: SocketAddr,
+	/// Address as string (can be host name).
 	address_str: String,
+	/// Conneciton port.
 	udp_port: u16
 }
 
 impl NodeEndpoint {
+	/// Create endpoint from string. Performs name resolution if given a host name.
 	fn from_str(s: &str) -> Result<NodeEndpoint, UtilError> {
 		let address = s.to_socket_addrs().map(|mut i| i.next());
 		match address {
@@ -124,39 +131,52 @@ const LAST_CONNECTION: usize = FIRST_CONNECTION + MAX_CONNECTIONS - 1;
 const USER_TIMER: usize = LAST_CONNECTION;
 const LAST_USER_TIMER: usize = USER_TIMER + MAX_USER_TIMERS - 1;
 
+/// Protocol handler level packet id
 pub type PacketId = u8;
+/// Protocol / handler id
 pub type ProtocolId = &'static str;
 
+/// Messages used to communitate with the event loop from other threads.
 pub enum HostMessage {
+	/// Shutdown the event loop
 	Shutdown,
+	/// Register a new protocol handler.
 	AddHandler {
 		handler: Box<ProtocolHandler+Send>,
 		protocol: ProtocolId,
 		versions: Vec<u8>,
 	},
+	/// Send data over the network.
 	Send {
 		peer: PeerId,
 		packet_id: PacketId,
 		protocol: ProtocolId,
 		data: Vec<u8>,
 	},
+	/// Broadcast a message across the protocol handlers.
 	UserMessage(UserMessage),
 }
 
+/// Id for broadcast message
 pub type UserMessageId = u32;
 
+/// User 
 pub struct UserMessage {
+	/// ID of a protocol
 	pub protocol: ProtocolId,
 	pub id: UserMessageId,
 	pub data: Option<Vec<u8>>,
 }
 
+/// Local (temporary) peer session ID.
 pub type PeerId = usize;
 
 #[derive(Debug, PartialEq, Eq)]
+/// Protocol info
 pub struct CapabilityInfo {
 	pub protocol: ProtocolId,
 	pub version: u8,
+	/// Total number of packet IDs this protocol support.
 	pub packet_count: u8,
 }
 
@@ -169,7 +189,7 @@ impl Encodable for CapabilityInfo {
 	}
 }
 
-/// IO access point
+/// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
 pub struct HostIo<'s> {
 	protocol: ProtocolId,
 	connections: &'s mut Slab<ConnectionEntry>,
@@ -179,6 +199,7 @@ pub struct HostIo<'s> {
 }
 
 impl<'s> HostIo<'s> {
+	/// Create a new IO access point. Takes references to all the data that can be updated within the IO handler.
 	fn new(protocol: ProtocolId, session: Option<Token>, event_loop: &'s mut EventLoop<Host>, connections: &'s mut Slab<ConnectionEntry>, timers: &'s mut Slab<UserTimer>) -> HostIo<'s> {
 		HostIo {
 			protocol: protocol,
@@ -252,24 +273,36 @@ struct UserTimer {
 	delay: u64,
 }
 
+/// Shared host information
 pub struct HostInfo {
+	/// Our private and public keys.
 	keys: KeyPair,
+	/// Current network configuration
 	config: NetworkConfiguration,
+	/// Connection nonce.
 	nonce: H256,
+	/// RLPx protocol version
 	pub protocol_version: u32,
+	/// Client identifier
 	pub client_version: String,
+	/// TCP connection port.
 	pub listen_port: u16,
+	/// Registered capabilities (handlers)
 	pub capabilities: Vec<CapabilityInfo>
 }
 
 impl HostInfo {
+	/// Returns public key
 	pub fn id(&self) -> &NodeId {
 		self.keys.public()
 	}
 
+	/// Returns secret key
 	pub fn secret(&self) -> &Secret {
 		self.keys.secret()
 	}
+
+	/// Increments and returns connection nonce.
 	pub fn next_nonce(&mut self) -> H256 {
 		self.nonce = self.nonce.sha3();
 		return self.nonce.clone();
@@ -281,6 +314,7 @@ enum ConnectionEntry {
 	Session(Session)
 }
 
+/// Root IO handler. Manages protocol handlers, IO timers and network connections.
 pub struct Host {
 	info: HostInfo,
 	_udp_socket: UdpSocket,
@@ -293,14 +327,14 @@ pub struct Host {
 }
 
 impl Host {
+	/// Creates a new instance and registers it with the event loop.
 	pub fn start(event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		let config = NetworkConfiguration::new();
 		/*
-		   match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {
-		   Some(iface) => config.public_address = iface.addr.unwrap(),
-		   None => warn!("No public network interface"),
-		   }
-		   */
+		match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {
+		Some(iface) => config.public_address = iface.addr.unwrap(),
+		None => warn!("No public network interface"),
+		*/
 
 		let addr = config.listen_address;
 		// Setup the server socket
@@ -458,7 +492,7 @@ impl Host {
 
 
 	fn accept(&mut self, _event_loop: &mut EventLoop<Host>) {
-		warn!(target: "net", "accept");
+		trace!(target: "net", "accept");
 	}
 
 	fn connection_writable(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
@@ -488,8 +522,17 @@ impl Host {
 		if create_session {
 			self.start_session(token, event_loop);
 		}
+		match self.connections.get_mut(token) {
+			Some(&mut ConnectionEntry::Session(ref mut s)) => {
+				s.reregister(event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
+			},
+			_ => (),
+		}
 	}
 
+	fn connection_closed(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+		self.kill_connection(token, event_loop);
+	}
 
 	fn connection_readable(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
 		let mut kill = false;
@@ -550,6 +593,12 @@ impl Host {
 			h.read(&mut HostIo::new(p, Some(token), event_loop, &mut self.connections, &mut self.timers), &token.as_usize(), packet_id, &data[1..]);
 		}
 
+		match self.connections.get_mut(token) {
+			Some(&mut ConnectionEntry::Session(ref mut s)) => {
+				s.reregister(event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
+			},
+			_ => (),
+		}
 	}
 
 	fn start_session(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
@@ -571,7 +620,23 @@ impl Host {
 		self.kill_connection(token, event_loop)
 	}
 
-	fn kill_connection(&mut self, token: Token, _event_loop: &mut EventLoop<Host>) {
+	fn kill_connection(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+		let mut to_disconnect: Vec<ProtocolId> = Vec::new();
+		match self.connections.get_mut(token) {
+			Some(&mut ConnectionEntry::Handshake(_)) => (), // just abandon handshake
+			Some(&mut ConnectionEntry::Session(ref mut s)) if s.is_ready() => {
+				for (p, _) in self.handlers.iter_mut() {
+					if s.have_capability(p)  {
+						to_disconnect.push(p);
+					}
+				}
+			},
+			_ => (),
+		}
+		for p in to_disconnect {
+			let mut h = self.handlers.get_mut(p).unwrap();
+			h.disconnected(&mut HostIo::new(p, Some(token), event_loop, &mut self.connections, &mut self.timers), &token.as_usize());
+		}
 		self.connections.remove(token);
 	}
 }
@@ -581,7 +646,14 @@ impl Handler for Host {
 	type Message = HostMessage;
 
 	fn ready(&mut self, event_loop: &mut EventLoop<Host>, token: Token, events: EventSet) {
-		if events.is_readable() {
+		if events.is_hup() {
+			trace!(target: "net", "hup");
+			match token.as_usize() {
+				FIRST_CONNECTION ... LAST_CONNECTION => self.connection_closed(token, event_loop),
+				_ => warn!(target: "net", "Unexpected hup"),
+			};
+		}
+		else if events.is_readable() {
 			match token.as_usize() {
 				TCP_ACCEPT => self.accept(event_loop),
 				IDLE => self.maintain_network(event_loop),
