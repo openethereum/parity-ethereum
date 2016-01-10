@@ -239,14 +239,17 @@ impl SealedBlock {
 		for e in self.block.archive.iter() { e.transaction.rlp_append(&mut block_rlp); }
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
-	}		
+	}
+
+	/// Drop this object and return the underlieing database.
+	pub fn drain(self) -> OverlayDB { self.block.state.drop().1 }
 }
 
 impl IsBlock for SealedBlock {
 	fn block(&self) -> &Block { &self.block }
 }
 
-pub fn enacted(rlp_bytes: &[u8], db: OverlayDB, engine: &Engine, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
+pub fn enact(rlp_bytes: &[u8], engine: &Engine, db: OverlayDB, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
 	let block = BlockView::new(rlp_bytes);
 	let header = block.header_view();
 	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author(), header.extra_data());
@@ -268,16 +271,25 @@ fn open_block() {
 	let b = b.close();
 	let _ = b.seal(vec![]);
 }
-/*
+
 #[test]
 fn enact_block() {
 	use spec::*;
 	let engine = Spec::new_test().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
+
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(vec![]).unwrap();
+	let orig_bytes = b.rlp_bytes();
+	let orig_db = b.drain();
 
-	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(vec![]).rlp_bytes();
-	Block::
+	let mut db = OverlayDB::new_temp();
+	engine.spec().ensure_db_good(&mut db);
+	let e = enact(&orig_bytes, engine.deref(), db, &genesis_header, &vec![genesis_header.hash()]).unwrap();
+
+	assert_eq!(e.rlp_bytes(), orig_bytes);
+	
+	let db = e.drain();
+	assert_eq!(orig_db.keys(), db.keys());
 }
-*/
