@@ -18,7 +18,7 @@
 //!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);	
 //!			let block_number = 39;
 //!			let mut bloom = H2048::new();
-//!			bloom.shift_bloom(&address.sha3());
+//!			bloom.shift_bloomed(&address.sha3());
 //!			filter.add_bloom(&bloom, block_number)
 //!		};
 //!		
@@ -296,14 +296,14 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	/// Returns numbers of blocks that may contain Address.
 	pub fn blocks_with_address(&self, address: &Address, from_block: usize, to_block: usize) -> Vec<usize> {
 		let mut bloom = H2048::new();
-		bloom.shift_bloom(&address.sha3());
+		bloom.shift_bloomed(&address.sha3());
 		self.blocks_with_bloom(&bloom, from_block, to_block)
 	}
 
 	/// Returns numbers of blocks that may contain Topic.
 	pub fn blocks_with_topic(&self, topic: &H256, from_block: usize, to_block: usize) -> Vec<usize> {
 		let mut bloom = H2048::new();
-		bloom.shift_bloom(&topic.sha3());
+		bloom.shift_bloomed(&topic.sha3());
 		self.blocks_with_bloom(&bloom, from_block, to_block)
 	}
 
@@ -415,7 +415,7 @@ mod tests {
 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 			let block_number = 23;
 			let mut bloom = H2048::new();
-			bloom.shift_bloom(&topic.sha3());
+			bloom.shift_bloomed(&topic.sha3());
 			filter.add_bloom(&bloom, block_number)
 		};
 
