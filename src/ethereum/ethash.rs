@@ -34,7 +34,7 @@ fn on_close_block() {
 	let genesis_header = engine.spec().genesis_header();
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
-	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()]);
-	let b = b.close(vec![], Address::zero(), vec![]);
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), vec![]);
+	let b = b.close();
 	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244F40000").unwrap());
 }

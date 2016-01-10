@@ -9,6 +9,7 @@ use basic_types::*;
 /// Doesn't do all that much on its own.
 #[derive(Debug)]
 pub struct Header {
+	// TODO: make all private.
 	pub parent_hash: H256,
 	pub timestamp: U256,
 	pub number: U256,
@@ -27,7 +28,7 @@ pub struct Header {
 	pub difficulty: U256,
 	pub seal: Vec<Bytes>,
 
-	pub hash: RefCell<Option<H256>>, //TODO: make this private
+	pub hash: RefCell<Option<H256>>,
 }
 
 pub enum Seal {
@@ -59,6 +60,16 @@ impl Header {
 			hash: RefCell::new(None),
 		}
 	}
+
+	pub fn author(&self) -> &Address { &self.author }
+	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
+	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
+
+	// TODO: seal_at, set_seal_at &c.
+
+	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
+	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.extra_data { self.extra_data = a; self.note_dirty(); } }
+	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
 
 	/// Get the hash of this header (sha3 of the RLP).
 	pub fn hash(&self) -> H256 {
@@ -163,28 +174,6 @@ impl Encodable for Header {
 		})
 	}
 }
-/*
-trait RlpStandard {
-	fn append(&self, s: &mut RlpStream);
-}
-
-impl RlpStandard for Header {
-	fn append(&self, s: &mut RlpStream) {
-		s.append_list(13);
-		s.append(self.parent_hash);
-		s.append_raw(self.seal[0]);
-		s.append_standard(self.x);
-	}
-	fn populate(&mut self, s: &Rlp) {
-	}
-}
-
-impl RlpStream {
-	fn append_standard<O>(&mut self, o: &O) where O: RlpStandard {
-		o.append(self);
-	}
-}
-*/
 
 #[cfg(test)]
 mod tests {
