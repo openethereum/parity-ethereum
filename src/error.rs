@@ -21,7 +21,6 @@ pub enum UtilError {
 	Network(NetworkError),
 	Decoder(DecoderError),
 	BadSize,
-	UnknownName,
 }
 
 impl From<FromHexError> for UtilError {
