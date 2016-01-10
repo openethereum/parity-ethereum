@@ -2,7 +2,7 @@ use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct EvmParams {
 	pub address: Address,
 	pub sender: Address,

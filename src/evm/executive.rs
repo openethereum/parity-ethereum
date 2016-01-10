@@ -52,6 +52,7 @@ impl Substate {
 	}
 }
 
+/// Result of executing the transaction.
 #[derive(PartialEq, Debug)]
 pub enum ExecutiveResult {
 	Ok,
@@ -186,7 +187,7 @@ impl<'a> Executive<'a> {
 				let evm = VmFactory::create();
 				evm.exec(&params, &mut ext)
 			} {
-				EvmResult::Stop => ExecutiveResult::Ok,
+				EvmResult::Stop { gas_left } => ExecutiveResult::Ok,
 				EvmResult::Return(_) => ExecutiveResult::Ok,
 				EvmResult::Suicide => {
 					substate.suicides.insert(params.address.clone());
@@ -213,7 +214,7 @@ impl<'a> Executive<'a> {
 			let evm = VmFactory::create();
 			evm.exec(&params, &mut ext)
 		} {
-			EvmResult::Stop => {
+			EvmResult::Stop { gas_left } => {
 				ExecutiveResult::Ok
 			},
 			EvmResult::Return(output) => {
@@ -307,53 +308,90 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> Option<(Address, u64)> {
-		match self.state.balance(&self.params.address) >= *endowment && self.depth < 1024 {
-			false => None,
-			true => {
-				let address = contract_address(&self.params.address, &self.state.nonce(&self.params.address));
-				let params = EvmParams {
-					address: address.clone(),
-					sender: self.params.address.clone(),
-					origin: self.params.origin.clone(),
-					gas: U256::from(gas),
-					gas_price: self.params.gas_price.clone(),
-					value: endowment.clone(),
-					code: code.to_vec(),
-					data: vec![],
-				};
-				let mut substate = Substate::new();
-				{
-					let mut ex = Executive::from_parent(self);
-					ex.state.inc_nonce(&address);
-					let res = Executive::create(&mut ex, &params, &mut substate);
-					println!("res: {:?}", res);
-				}
-				self.substate.accrue(substate);
-				Some((address, gas))
-			}
+		// if balance is insufficient or we are to deep, return
+		if self.state.balance(&self.params.address) < *endowment && self.depth >= 1024 {
+			return None
 		}
+
+		// create new contract address
+		let address = contract_address(&self.params.address, &self.state.nonce(&self.params.address));
+
+		// prepare the params
+		let params = EvmParams {
+			address: address.clone(),
+			sender: self.params.address.clone(),
+			origin: self.params.origin.clone(),
+			gas: U256::from(gas),
+			gas_price: self.params.gas_price.clone(),
+			value: endowment.clone(),
+			code: code.to_vec(),
+			data: vec![],
+		};
+
+		let mut substate = Substate::new();
+		{
+			let mut ex = Executive::from_parent(self);
+			ex.state.inc_nonce(&address);
+			let res = Executive::create(&mut ex, &params, &mut substate);
+		}
+
+		self.substate.accrue(substate);
+		Some((address, gas))
 	}
 
-	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address) -> Option<(Vec<u8>, u64)>{
+	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address) -> Option<(Vec<u8>, u64)> {
 		// TODO: validation of the call
 		
+		println!("gas: {:?}", gas);
+		println!("call_gas: {:?}", call_gas);
+
+		let schedule = self.engine.evm_schedule(self.info);
+		let mut gas_cost = call_gas;
+		let mut call_gas = call_gas;
+
+		let is_call = receive_address == code_address;
+		if is_call && self.state.code(&code_address).is_none() {
+			gas_cost = gas_cost + schedule.call_new_account_gas as u64;
+		}
+
+		if *value > U256::zero() {
+			assert!(schedule.call_value_transfer_gas > schedule.call_stipend, "overflow possible");
+			gas_cost = gas_cost + schedule.call_value_transfer_gas as u64;
+			call_gas = call_gas + schedule.call_stipend as u64;
+		}
+
+		if gas_cost > gas {
+			// TODO: maybe gas should always be updated?
+			return None;
+		}
+
+		// if we are too deep, return
+		// TODO: replace with >= 1024
+		if self.depth == 1 {
+			return None;
+		}
+
 		let params = EvmParams {
-			address: code_address.clone(),
-			sender: receive_address.clone(),
+			address: receive_address.clone(), 
+			sender: self.params.address.clone(),
 			origin: self.params.origin.clone(),
-			gas: U256::from(call_gas), // TODO: 
+			gas: U256::from(call_gas),
 			gas_price: self.params.gas_price.clone(),
 			value: value.clone(),
 			code: self.state.code(code_address).unwrap_or(vec![]),
 			data: data.to_vec(),
 		};
 
+		println!("params: {:?}", params);
+
 		let mut substate = Substate::new();
 		{
 			let mut ex = Executive::from_parent(self);
 			Executive::call(&mut ex, &params, &mut substate);
-			unimplemented!();
 		}
+
+		// TODO: replace call_gas with what's actually left
+		Some((vec![], gas - gas_cost + call_gas))
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {
@@ -380,6 +418,9 @@ mod tests {
 	use engine::*;
 	use evm_schedule::*;
 	use super::contract_address;
+	use ethereum;
+	use null_engine::*;
+	use std::ops::*;
 
 	struct TestEngine;
 
@@ -453,5 +494,53 @@ mod tests {
 		
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(next_address.clone()));
 		assert_eq!(state.code(&next_address).unwrap(), "6000355415600957005b602035600035".from_hex().unwrap());
+		//assert!(false);
+	}
+
+	#[test]
+	fn test_recursive_bomb1() {
+		// 60 01 - push 1
+		// 60 00 - push 0
+		// 54 - sload 
+		// 01 - add
+		// 60 00 - push 0
+		// 55 - sstore
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 30 - load address
+		// 60 e0 - push e0
+		// 5a - get gas
+		// 03 - sub
+		// f1 - message call (self in this case)
+		// 60 01 - push 1
+		// 55 - store
+		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let code = "600160005401600055600060006000600060003360e05a03f1600155".from_hex().unwrap();
+		let address = contract_address(&sender, &U256::zero());
+		let mut params = EvmParams::new();
+		params.address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(0x590b3);
+		params.gas_price = U256::one();
+		params.code = code.clone();
+		println!("init gas: {:?}", params.gas.low_u64());
+		let mut state = State::new_temp();
+		state.init_code(&address, code.clone());
+		let info = EnvInfo::new();
+		//let engine = TestEngine::new();
+		let engine = NullEngine::new_boxed(ethereum::new_frontier());
+		let mut substate = Substate::new();
+
+		{
+			let mut ex = Executive::new(&mut state, &info, engine.deref());
+			assert_eq!(Executive::call(&mut ex, &params, &mut substate), ExecutiveResult::Ok);
+		}
+
+		assert!(false);
+
 	}
 }

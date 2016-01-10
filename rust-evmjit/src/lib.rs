@@ -10,7 +10,6 @@
 //! 	let mut context = ContextHandle::new(RuntimeDataHandle::new(), ExtHandle::empty());
 //! 	assert_eq!(context.exec(), ReturnCode::Stop);
 //! }
-//!
 //! ```
 //! 
 //!
@@ -43,13 +42,17 @@ pub use self::ffi::JitReturnCode as ReturnCode;
 pub use self::ffi::JitI256 as I256;
 pub use self::ffi::JitH256 as H256;
 
-/// Component oriented safe handle to `JitRuntimeData`.
+/// Takes care of  proper initialization and destruction of `RuntimeData`.
+///
+/// This handle must be used to create runtime data,
+/// cause underneath it's a `C++` structure. Incombatible with rust
+/// structs.
 pub struct RuntimeDataHandle {
 	runtime_data: *mut JitRuntimeData
 }
 
 impl RuntimeDataHandle {
-	/// Creates new handle.
+	/// Creates new `RuntimeData` handle.
 	pub fn new() -> Self {
 		RuntimeDataHandle {
 			runtime_data: unsafe { evmjit_create_runtime_data() }
@@ -87,7 +90,11 @@ impl DerefMut for RuntimeDataHandle {
 	}
 }
 
-/// Safe handle for jit context.
+/// Takes care of  proper initialization and destruction of jit context.
+///
+/// This handle must be used to create context,
+/// cause underneath it's a `C++` structure. Incombatible with rust
+/// structs.
 pub struct ContextHandle {
 	context: *mut JitContext,
 	data_handle: RuntimeDataHandle,
@@ -95,7 +102,11 @@ pub struct ContextHandle {
 
 impl ContextHandle {
 	/// Creates new context handle.
+	/// 
 	/// This function is unsafe cause ext lifetime is not considered
+	/// We also can't make ExtHandle a member of `ContextHandle` structure,
+	/// cause this would be a move operation or it would require a template 
+	/// lifetime to a reference. Both solutions are not possible.
 	pub unsafe fn new(data_handle: RuntimeDataHandle, ext: &mut ExtHandle) -> Self {
 		let mut handle = ContextHandle {
 			context: std::mem::uninitialized(),
@@ -114,6 +125,11 @@ impl ContextHandle {
 	/// Returns output data.
 	pub fn output_data(&self) -> &[u8] {
 		unsafe { std::slice::from_raw_parts(self.data_handle.call_data, self.data_handle.call_data_size as usize) }
+	}
+
+	/// Returns gas left.
+	pub fn gas_left(&self) -> u64 {
+		self.data_handle.gas as u64
 	}
 }
 
