@@ -73,11 +73,11 @@ pub struct Spec {
 impl Spec {
 	/// Convert this object into a boxed Engine of the right underlying type.
 	// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
-	pub fn to_engine(self) -> Result<Box<Engine>, EthcoreError> {
+	pub fn to_engine(self) -> Result<Box<Engine>, Error> {
 		match self.engine_name.as_ref() {
 			"NullEngine" => Ok(NullEngine::new_boxed(self)),
 			"Ethash" => Ok(super::ethereum::Ethash::new_boxed(self)),
-			_ => Err(EthcoreError::UnknownName)
+			_ => Err(Error::UnknownEngineName(self.engine_name.clone()))
 		}
 	}
 
