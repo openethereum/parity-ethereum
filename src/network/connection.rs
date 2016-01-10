@@ -7,7 +7,8 @@ use bytes::*;
 use rlp::*;
 use std::io::{self, Cursor, Read};
 use network::host::{Host};
-use network::Error;
+use error::*;
+use network::NetworkError;
 use network::handshake::Handshake;
 use crypto;
 use rcrypto::blockmodes::*;
@@ -158,7 +159,7 @@ pub struct EncryptedConnection {
 }
 
 impl EncryptedConnection {
-	pub fn new(handshake: Handshake) -> Result<EncryptedConnection, Error> {
+	pub fn new(handshake: Handshake) -> Result<EncryptedConnection, UtilError> {
 		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_public));
 		let mut nonce_material = H512::new();
 		if handshake.originated {
@@ -207,7 +208,7 @@ impl EncryptedConnection {
 		})
 	}
 
-	pub fn send_packet(&mut self, payload: &[u8]) -> Result<(), Error> {
+	pub fn send_packet(&mut self, payload: &[u8]) -> Result<(), UtilError> {
 		let mut header = RlpStream::new();
 		let len = payload.len() as usize;
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
@@ -233,16 +234,16 @@ impl EncryptedConnection {
 		Ok(())
 	}
 
-	fn read_header(&mut self, header: &[u8]) -> Result<(), Error> {
+	fn read_header(&mut self, header: &[u8]) -> Result<(), UtilError> {
 		if header.len() != ENCRYPTED_HEADER_LEN {
-			return Err(Error::Auth);
+			return Err(From::from(NetworkError::Auth));
 		}
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &mut self.mac_encoder, &header[0..16]);
 		let mac = &header[16..];
 		let mut expected = H256::new();
 		self.ingress_mac.clone().finalize(&mut expected);
 		if mac != &expected[0..16] {
-			return Err(Error::Auth);
+			return Err(From::from(NetworkError::Auth));
 		}
 
 		let mut hdec = H128::new();
@@ -262,11 +263,11 @@ impl EncryptedConnection {
 		Ok(())
 	}
 
-	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, Error> {
+	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, UtilError> {
 		let padding = (16 - (self.payload_len  % 16)) % 16;
 		let full_length = self.payload_len + padding + 16;
 		if payload.len() != full_length {
-			return Err(Error::Auth);
+			return Err(From::from(NetworkError::Auth));
 		}
 		self.ingress_mac.update(&payload[0..payload.len() - 16]);
 		EncryptedConnection::update_mac(&mut self.ingress_mac, &mut self.mac_encoder, &[0u8; 0]);
@@ -274,7 +275,7 @@ impl EncryptedConnection {
 		let mut expected = H128::new();
 		self.ingress_mac.clone().finalize(&mut expected);
 		if mac != &expected[..] {
-			return Err(Error::Auth);
+			return Err(From::from(NetworkError::Auth));
 		}
 
 		let mut packet = vec![0u8; self.payload_len];
@@ -298,7 +299,7 @@ impl EncryptedConnection {
 		mac.update(&enc);
 	}
 
-	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Packet>, Error> {
+	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Packet>, UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		match self.read_state {
 			EncryptedConnectionState::Header => {
@@ -323,13 +324,13 @@ impl EncryptedConnection {
 		}
 	}
 
-	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		try!(self.connection.writable());
 		Ok(())
 	}
 
-	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.connection.expect(ENCRYPTED_HEADER_LEN);
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
@@ -337,7 +338,7 @@ impl EncryptedConnection {
 		Ok(())
 	}
 
-	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.reregister(event_loop));
 		Ok(())
 	}

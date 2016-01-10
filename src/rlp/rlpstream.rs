@@ -1,6 +1,8 @@
 use elastic_array::*;
-use bytes::ToBytes;
+use bytes::{Bytes, ToBytes};
 use rlp::{Stream, Encoder, Encodable};
+use hash::H256;
+use sha3::*;
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {
@@ -212,6 +214,20 @@ impl Encoder for BasicEncoder {
 		self.insert_list_len_at_pos(list_len, before_len);
 	}
 }
+
+pub trait RlpStandard {
+	fn rlp_append(&self, s: &mut RlpStream);
+
+	fn rlp_bytes(&self) -> Bytes {
+		let mut s = RlpStream::new();
+		self.rlp_append(&mut s);
+		s.out()
+	}
+
+	fn rlp_sha3(&self) -> H256 { self.rlp_bytes().sha3() }
+}
+
+// @debris TODO: implement Encoder for RlpStandard.
 
 impl<T> Encodable for T where T: ToBytes {
 	fn encode<E>(&self, encoder: &mut E) where E: Encoder {

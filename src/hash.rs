@@ -4,10 +4,10 @@ use std::str::FromStr;
 use std::fmt;
 use std::ops;
 use std::hash::{Hash, Hasher};
-use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitAnd, BitXor};
+use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitOrAssign, BitAnd, BitXor};
 use std::cmp::{PartialOrd, Ordering};
 use rustc_serialize::hex::*;
-use error::EthcoreError;
+use error::UtilError;
 use rand::Rng;
 use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
@@ -19,15 +19,18 @@ use uint::U256;
 /// Note: types implementing `FixedHash` must be also `BytesConvertable`.
 pub trait FixedHash: Sized + BytesConvertable + Populatable {
 	fn new() -> Self;
+	/// Synonym for `new()`. Prefer to new as it's more readable.
+	fn zero() -> Self;
 	fn random() -> Self;
 	fn randomize(&mut self);
 	fn size() -> usize;
 	fn from_slice(src: &[u8]) -> Self;
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
 	fn copy_to(&self, dest: &mut [u8]);
-	fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
+	fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
+	fn with_bloomed<T>(mut self, b: &T) -> Self where T: FixedHash { self.shift_bloomed(b); self }
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
-	fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash;
+	fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash;
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
 	fn is_zero(&self) -> bool;
 }
@@ -61,6 +64,10 @@ macro_rules! impl_hash {
 
 		impl FixedHash for $from {
 			fn new() -> $from {
+				$from([0; $size])
+			}
+
+			fn zero() -> $from {
 				$from([0; $size])
 			}
 
@@ -103,11 +110,12 @@ macro_rules! impl_hash {
 				}
 			}
 
-			fn shift_bloom<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
+			fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
 				let bp: Self = b.bloom_part($size);
 				let new_self = &bp | self;
 
 				// impl |= instead
+				// TODO: that's done now!
 
 				unsafe {
 					use std::{mem, ptr};
@@ -153,7 +161,7 @@ macro_rules! impl_hash {
 				ret
 			}
 
-			fn contains_bloom<T>(&self, b: &T) -> bool where T: FixedHash {
+			fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash {
 				let bp: Self = b.bloom_part($size);
 				self.contains(&bp)
 			}
@@ -168,11 +176,10 @@ macro_rules! impl_hash {
 		}
 
 		impl FromStr for $from {
-			type Err = EthcoreError;
-
-			fn from_str(s: &str) -> Result<$from, EthcoreError> {
+			type Err = UtilError;
+			fn from_str(s: &str) -> Result<$from, UtilError> {
 				let a = try!(s.from_hex());
-				if a.len() != $size { return Err(EthcoreError::BadSize); }
+				if a.len() != $size { return Err(UtilError::BadSize); }
 				let mut ret = $from([0;$size]);
 				for i in 0..$size {
 					ret.0[i] = a[i];
@@ -299,6 +306,15 @@ macro_rules! impl_hash {
 			}
 		}
 
+		/// Moving BitOrAssign
+		impl<'a> BitOrAssign<&'a $from> for $from {
+			fn bitor_assign(&mut self, rhs: &'a Self) {
+				for i in 0..$size {
+					self.0[i] = self.0[i] | rhs.0[i];
+				}
+			}
+		}
+
 		/// BitAnd on references
 		impl <'a> BitAnd for &'a $from {
 			type Output = $from;
@@ -352,6 +368,8 @@ macro_rules! impl_hash {
 			pub fn hex(&self) -> String {
 				format!("{}", self)
 			}
+
+			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
 		}
 	}
 }
@@ -417,6 +435,11 @@ impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
 
+/// Constant address for point 0. Often used as a default.
+pub static ZERO_ADDRESS: Address = Address([0x00; 20]);
+/// Constant 256-bit datum for 0. Often used as a default.
+pub static ZERO_H256: H256 = H256([0x00; 32]);
+
 #[cfg(test)]
 mod tests {
 	use hash::*;
@@ -448,7 +471,7 @@ mod tests {
 	}
 
 	#[test]
-	fn shift_bloom() {
+	fn shift_bloomed() {
 		use sha3::Hashable;
 
 		let bloom = H2048::from_str("00000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002020000000000000000000000000000000000000000000008000000001000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
@@ -456,17 +479,17 @@ mod tests {
 		let topic = H256::from_str("02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
 
 		let mut my_bloom = H2048::new();
-		assert!(!my_bloom.contains_bloom(&address.sha3()));
-		assert!(!my_bloom.contains_bloom(&topic.sha3()));
+		assert!(!my_bloom.contains_bloomed(&address.sha3()));
+		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
 
-		my_bloom.shift_bloom(&address.sha3());
-		assert!(my_bloom.contains_bloom(&address.sha3()));
-		assert!(!my_bloom.contains_bloom(&topic.sha3()));
+		my_bloom.shift_bloomed(&address.sha3());
+		assert!(my_bloom.contains_bloomed(&address.sha3()));
+		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
 
-		my_bloom.shift_bloom(&topic.sha3());
+		my_bloom.shift_bloomed(&topic.sha3());
 		assert_eq!(my_bloom, bloom);
-		assert!(my_bloom.contains_bloom(&address.sha3()));
-		assert!(my_bloom.contains_bloom(&topic.sha3()));
+		assert!(my_bloom.contains_bloomed(&address.sha3()));
+		assert!(my_bloom.contains_bloomed(&topic.sha3()));
 	}
 
 	#[test]

@@ -13,7 +13,8 @@ use rlp::*;
 use time::Tm;
 use network::handshake::Handshake;
 use network::session::{Session, SessionData};
-use network::{Error, ProtocolHandler};
+use error::*;
+use network::ProtocolHandler;
 
 const _DEFAULT_PORT: u16 = 30304;
 
@@ -53,7 +54,7 @@ pub struct NodeEndpoint {
 }
 
 impl NodeEndpoint {
-	fn from_str(s: &str) -> Result<NodeEndpoint, Error> {
+	fn from_str(s: &str) -> Result<NodeEndpoint, UtilError> {
 		let address = s.to_socket_addrs().map(|mut i| i.next());
 		match address {
 			Ok(Some(a)) => Ok(NodeEndpoint {
@@ -61,8 +62,8 @@ impl NodeEndpoint {
 				address_str: s.to_string(),
 				udp_port: a.port()
 			}),
-			Ok(_) => Err(Error::AddressResolve(None)),
-			Err(e) => Err(Error::AddressResolve(Some(e)))
+			Ok(_) => Err(UtilError::AddressResolve(None)),
+			Err(e) => Err(UtilError::AddressResolve(Some(e)))
 		}
 	}
 }
@@ -81,7 +82,7 @@ struct Node {
 }
 
 impl FromStr for Node {
-	type Err = Error;
+	type Err = UtilError;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if &s[0..8] == "enode://" && s.len() > 136 && &s[136..137] == "@" {
 			(try!(NodeId::from_str(&s[8..136])), try!(NodeEndpoint::from_str(&s[137..])))
@@ -189,7 +190,7 @@ impl<'s> HostIo<'s> {
 	}
 
 	/// Send a packet over the network to another peer.
-	pub fn send(&mut self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
+	pub fn send(&mut self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		match self.connections.get_mut(Token(peer)) {
 			Some(&mut ConnectionEntry::Session(ref mut s)) => {
 				s.send_packet(self.protocol, packet_id as u8, &data).unwrap_or_else(|e| {
@@ -204,7 +205,7 @@ impl<'s> HostIo<'s> {
 	}
 
 	/// Respond to a current network message. Panics if no there is no packet in the context.
-	pub fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
+	pub fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		match self.session {
 			Some(session) => self.send(session.as_usize(), packet_id, data),
 			None => {
@@ -214,7 +215,7 @@ impl<'s> HostIo<'s> {
 	}
 
 	/// Register a new IO timer. Returns a new timer toke. 'ProtocolHandler::timeout' will be called with the token.
-	pub fn register_timer(&mut self, ms: u64) -> Result<TimerToken, Error>{
+	pub fn register_timer(&mut self, ms: u64) -> Result<TimerToken, UtilError>{
 		match self.timers.insert(UserTimer {
 			delay: ms,
 			protocol: self.protocol,
@@ -292,7 +293,7 @@ pub struct Host {
 }
 
 impl Host {
-	pub fn start(event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+	pub fn start(event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		let config = NetworkConfiguration::new();
 		/*
 		match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {

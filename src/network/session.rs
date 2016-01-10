@@ -3,7 +3,8 @@ use hash::*;
 use rlp::*;
 use network::connection::{EncryptedConnection, Packet};
 use network::handshake::Handshake;
-use network::{Error, DisconnectReason};
+use error::*;
+use network::{NetworkError, DisconnectReason};
 use network::host::*;
 
 pub struct Session {
@@ -64,7 +65,7 @@ const PACKET_USER: u8 = 0x10;
 const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
-	pub fn new(h: Handshake, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<Session, Error> {
+	pub fn new(h: Handshake, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<Session, UtilError> {
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
 		let mut session = Session {
@@ -87,14 +88,14 @@ impl Session {
 		self.had_hello
 	}
 
-	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<SessionData, Error> {
+	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<SessionData, UtilError> {
 		match try!(self.connection.readable(event_loop)) {
-			Some(data)  => self.read_packet(data, host),
+			Some(data) => Ok(try!(self.read_packet(data, host))),
 			None => Ok(SessionData::None)
 		}
 	}
 
-	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), Error> {
+	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
 		self.connection.writable(event_loop)
 	}
 
@@ -102,11 +103,11 @@ impl Session {
 		self.info.capabilities.iter().any(|c| c.protocol == protocol)
 	}
 
-	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
+	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.connection.reregister(event_loop)
 	}
 
-	pub fn send_packet(&mut self, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), Error> {
+	pub fn send_packet(&mut self, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), UtilError> {
 		let mut i = 0usize;
 		while protocol != self.info.capabilities[i].protocol {
 			i += 1;
@@ -122,13 +123,13 @@ impl Session {
 		self.connection.send_packet(&rlp.out())
 	}
 
-	fn read_packet(&mut self, packet: Packet, host: &HostInfo) -> Result<SessionData, Error> {
+	fn read_packet(&mut self, packet: Packet, host: &HostInfo) -> Result<SessionData, UtilError> {
 		if packet.data.len() < 2 {
-			return Err(Error::BadProtocol);
+			return Err(From::from(NetworkError::BadProtocol));
 		}
 		let packet_id = packet.data[0];
 		if packet_id != PACKET_HELLO && packet_id != PACKET_DISCONNECT && !self.had_hello {
-			return Err(Error::BadProtocol);
+			return Err(From::from(NetworkError::BadProtocol));
 		}
 		match packet_id {
 			PACKET_HELLO => {
@@ -136,7 +137,7 @@ impl Session {
 				try!(self.read_hello(&rlp, host));
 				Ok(SessionData::Ready)
 			},
-			PACKET_DISCONNECT => Err(Error::Disconnect(DisconnectReason::DisconnectRequested)),
+			PACKET_DISCONNECT => Err(From::from(NetworkError::Disconnect(DisconnectReason::DisconnectRequested))),
 			PACKET_PING => {
 				try!(self.write_pong());
 				Ok(SessionData::None)
@@ -165,7 +166,7 @@ impl Session {
 		}
 	}
 
-	fn write_hello(&mut self, host: &HostInfo) -> Result<(), Error>  {
+	fn write_hello(&mut self, host: &HostInfo) -> Result<(), UtilError> {
 		let mut rlp = RlpStream::new();
 		rlp.append_raw(&[PACKET_HELLO as u8], 0);
 		rlp.append_list(5)
@@ -177,7 +178,7 @@ impl Session {
 		self.connection.send_packet(&rlp.out())
 	}
 
-	fn read_hello(&mut self, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), Error> {
+	fn read_hello(&mut self, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), UtilError> {
 		let protocol = try!(rlp.val_at::<u32>(0));
 		let client_version = try!(rlp.val_at::<String>(1));
 		let peer_caps = try!(rlp.val_at::<Vec<PeerCapabilityInfo>>(2));
@@ -218,37 +219,37 @@ impl Session {
 		trace!(target: "net", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
 		self.info.capabilities = caps;
 		if protocol != host.protocol_version {
-			return Err(self.disconnect(DisconnectReason::UselessPeer));
+			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
 		}
 		self.had_hello = true;
 		Ok(())
 	}
 
-	fn write_ping(&mut self) -> Result<(), Error>  {
+	fn write_ping(&mut self) -> Result<(), UtilError>  {
 		self.send(try!(Session::prepare(PACKET_PING)))
 	}
 
-	fn write_pong(&mut self) -> Result<(), Error>  {
+	fn write_pong(&mut self) -> Result<(), UtilError>  {
 		self.send(try!(Session::prepare(PACKET_PONG)))
 	}
 
-	fn disconnect(&mut self, reason: DisconnectReason) -> Error {
+	fn disconnect(&mut self, reason: DisconnectReason) -> NetworkError {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(PACKET_DISCONNECT as u32));
 		rlp.append_list(1);
 		rlp.append(&(reason.clone() as u32));
 		self.connection.send_packet(&rlp.out()).ok();
-		Error::Disconnect(reason)
+		NetworkError::Disconnect(reason)
 	}
 
-	fn prepare(packet_id: u8) -> Result<RlpStream, Error> {
+	fn prepare(packet_id: u8) -> Result<RlpStream, UtilError> {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(packet_id as u32));
 		rlp.append_list(0);
 		Ok(rlp)
 	}
 
-	fn send(&mut self, rlp: RlpStream) -> Result<(), Error> {
+	fn send(&mut self, rlp: RlpStream) -> Result<(), UtilError> {
 		self.connection.send_packet(&rlp.out())
 	}
 }
