@@ -13,20 +13,11 @@
 /// 4. Maintain sync by handling NewBlocks/NewHashes messages
 ///
 
-use std::collections::{HashSet, HashMap};
-use std::cmp::{min, max};
+use util::*;
 use std::mem::{replace};
-use util::network::{PeerId, PacketId};
-use util::hash::{H256, FixedHash};
-use util::bytes::{Bytes};
-use util::uint::{U256};
-use util::rlp::{Rlp, UntrustedRlp, RlpStream, self};
-use util::rlp::rlptraits::{Stream, View};
-use util::rlp::rlperrors::DecoderError;
-use util::sha3::Hashable;
-use client::{BlockNumber, BlockChainClient, BlockStatus, QueueStatus, ImportResult};
 use views::{HeaderView};
 use header::{Header as BlockHeader};
+use client::{BlockNumber, BlockChainClient, BlockStatus, QueueStatus, ImportResult};
 use sync::range_collection::{RangeCollection, ToUsize, FromUsize};
 use sync::io::SyncIo;
 
@@ -65,6 +56,8 @@ const GET_NODE_DATA_PACKET: u8 = 0x0d;
 const NODE_DATA_PACKET: u8 = 0x0e;
 const GET_RECEIPTS_PACKET: u8 = 0x0f;
 const RECEIPTS_PACKET: u8 = 0x10;
+
+const NETWORK_ID: U256 = ONE_U256; //TODO: get this from parent
 
 struct Header {
 	/// Header data
@@ -164,6 +157,7 @@ pub struct ChainSync {
 
 
 impl ChainSync {
+	/// Create a new instance of syncing strategy.
 	pub fn new() -> ChainSync {
 		ChainSync {
 			state: SyncState::NotSynced,
@@ -240,7 +234,19 @@ impl ChainSync {
 			asking_blocks: Vec::new(),
 		};
 
-		trace!(target: "sync", "New peer (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer.protocol_version, peer.network_id, peer.difficulty, peer.latest, peer.genesis);
+		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest, peer.genesis);
+		
+		let chain_info = io.chain().chain_info();
+		if peer.genesis != chain_info.genesis_hash {
+			io.disable_peer(peer_id);
+			trace!(target: "sync", "Peer {} genesis hash not matched", peer_id);
+			return Ok(());
+		}
+		if peer.network_id != NETWORK_ID {
+			io.disable_peer(peer_id);
+			trace!(target: "sync", "Peer {} network id not matched", peer_id);
+			return Ok(());
+		}
 
 		let old = self.peers.insert(peer_id.clone(), peer);
 		if old.is_some() {
@@ -380,31 +386,35 @@ impl ChainSync {
 		let h = header_rlp.as_raw().sha3();
 
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
-		match io.chain().import_block(block_rlp.as_raw()) {
-			ImportResult::AlreadyInChain => {
-				trace!(target: "sync", "New block already in chain {:?}", h);
-			},
-			ImportResult::AlreadyQueued(_) => {
-				trace!(target: "sync", "New block already queued {:?}", h);
-			},
-			ImportResult::Queued(QueueStatus::Known) => {
-				trace!(target: "sync", "New block queued {:?}", h);
-			},
-			ImportResult::Queued(QueueStatus::Unknown) => {
-				trace!(target: "sync", "New block unknown {:?}", h);
-				//TODO: handle too many unknown blocks
-				let difficulty: U256 = try!(r.val_at(1));
-				let peer_difficulty = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer").difficulty;
-				if difficulty > peer_difficulty {
-					trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
-					self.sync_peer(io, peer_id, true);
+		let header_view = HeaderView::new(header_rlp.as_raw());
+		// TODO: Decompose block and add to self.headers and self.bodies instead
+		if header_view.number() == From::from(self.last_imported_block + 1) {
+			match io.chain().import_block(block_rlp.as_raw()) {
+				ImportResult::AlreadyInChain => {
+					trace!(target: "sync", "New block already in chain {:?}", h);
+				},
+				ImportResult::AlreadyQueued(_) => {
+					trace!(target: "sync", "New block already queued {:?}", h);
+				},
+				ImportResult::Queued(QueueStatus::Known) => {
+					trace!(target: "sync", "New block queued {:?}", h);
+				},
+				ImportResult::Queued(QueueStatus::Unknown) => {
+					trace!(target: "sync", "New block unknown {:?}", h);
+					//TODO: handle too many unknown blocks
+					let difficulty: U256 = try!(r.val_at(1));
+					let peer_difficulty = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer").difficulty;
+					if difficulty > peer_difficulty {
+						trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
+						self.sync_peer(io, peer_id, true);
+					}
+				},
+				ImportResult::Bad =>{
+					debug!(target: "sync", "Bad new block {:?}", h);
+					io.disable_peer(peer_id);
 				}
-			},
-			ImportResult::Bad =>{
-				debug!(target: "sync", "Bad new block {:?}", h);
-				io.disable_peer(peer_id);
-			}
-		};
+			};
+		} 
 		Ok(())
 	}
 
@@ -448,8 +458,10 @@ impl ChainSync {
 	/// Called by peer when it is disconnecting
 	pub fn on_peer_aborting(&mut self, io: &mut SyncIo, peer: &PeerId) {
 		trace!(target: "sync", "== Disconnected {}", peer);
-		self.clear_peer_download(peer);
-		self.continue_sync(io);
+		if self.peers.contains_key(&peer) {
+			self.clear_peer_download(peer);
+			self.continue_sync(io);
+		}
 	}
 
 	/// Called when a new peer is connected
@@ -768,7 +780,7 @@ impl ChainSync {
 		let mut packet = RlpStream::new_list(5);
 		let chain = io.chain().chain_info();
 		packet.append(&(PROTOCOL_VERSION as u32));
-		packet.append(&0u32); //TODO: network id
+		packet.append(&NETWORK_ID); //TODO: network id
 		packet.append(&chain.total_difficulty);
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);

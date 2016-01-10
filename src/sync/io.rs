@@ -1,10 +1,11 @@
 use client::BlockChainClient;
-use util::network::{HandlerIo, PeerId, PacketId, Error as NetworkError};
+use util::network::{HandlerIo, PeerId, PacketId,};
+use util::error::UtilError;
 
 pub trait SyncIo {
 	fn disable_peer(&mut self, peer_id: &PeerId);
-	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
+	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>;
+	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>;
 	fn chain<'s>(&'s mut self) -> &'s mut BlockChainClient;
 }
 
@@ -27,11 +28,11 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.network.disable_peer(*peer_id);
 	}
 
-	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>{
+	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>{
 		self.network.respond(packet_id, data)
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>{
+	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>{
 		self.network.send(peer_id, packet_id, data)
 	}
 

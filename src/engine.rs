@@ -1,7 +1,6 @@
 use common::*;
 use block::Block;
 use spec::Spec;
-use verification::VerificationError;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -38,7 +37,9 @@ pub trait Engine {
 	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
 	/// checks. Returns either a null `Ok` or a general error detailing the problem with import.
 	// TODO: consider including State in the params.
-	fn verify_block(&self, _mode: VerificationMode, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_block_basic(&self, _header: &Header,  _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_block_final(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
@@ -56,12 +57,4 @@ pub trait Engine {
 	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut [u8]) { self.spec().builtins.get(a).unwrap().execute(input, output); }
 
 	// TODO: sealing stuff - though might want to leave this for later.
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum VerificationMode {
-	/// Do a quick and basic verification if possible.
-	Quick,
-	/// Do a full verification.
-	Full
 }

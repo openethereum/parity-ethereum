@@ -17,10 +17,29 @@ pub struct OutOfBounds<T: fmt::Debug> {
 
 #[derive(Debug)]
 pub enum BlockError {
-	TooManyUncles,
+	TooManyUncles(OutOfBounds<usize>),
 	UncleWrongGeneration,
 	ExtraDataOutOfBounds(OutOfBounds<usize>),
 	InvalidSealArity(Mismatch<usize>),
+	TooMuchGasUsed(OutOfBounds<U256>),
+	InvalidUnclesHash(Mismatch<H256>),
+	UncleTooOld(OutOfBounds<U256>),
+	UncleIsBrother(OutOfBounds<U256>),
+	UncleInChain(H256),
+	UncleParentNotInChain(H256),
+	InvalidStateRoot,
+	InvalidGasUsed,
+	InvalidTransactionsRoot(Mismatch<H256>),
+	InvalidDifficulty(Mismatch<U256>),
+	InvalidGasLimit(OutOfBounds<U256>),
+	InvalidReceiptsStateRoot,
+	InvalidTimestamp(OutOfBounds<U256>),
+	InvalidLogBloom,
+	InvalidBlockNonce,
+	InvalidParentHash(Mismatch<H256>),
+	InvalidNumber(OutOfBounds<U256>),
+	UnknownParent(H256),
+	UnknownUncleParent(H256),
 }
 
 #[derive(Debug)]

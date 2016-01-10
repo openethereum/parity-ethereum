@@ -1,6 +1,7 @@
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate rustc_serialize;
+extern crate env_logger;
 
 use std::io::*;
 use std::env;
@@ -12,6 +13,7 @@ use ethcore::sync::EthSync;
 use ethcore::ethereum;
 
 fn main() {
+	::env_logger::init().ok();
 	let mut service = NetworkService::start().unwrap();
 	//TODO: replace with proper genesis and chain params.
 	let frontier = ethereum::new_frontier();
