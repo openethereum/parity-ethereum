@@ -1,45 +1,16 @@
+/// Block and transaction verification functions
+///
+/// Block verification is done in 3 steps
+/// 1. Quick verification upon adding to the block queue
+/// 2. Signatures verification done in the queue.
+/// 3. Final verification against the blockchain done before enactment.
+
 use common::*;
 use client::BlockNumber;
 use engine::Engine;
 use blockchain::BlockChain;
 
-fn verify_header(header: &Header) -> Result<(), Error> {
-	if header.number > From::from(BlockNumber::max_value()) {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: From::from(0), found: header.number })))
-	}
-	if header.gas_used > header.gas_limit {
-		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: header.gas_limit, min: From::from(0), found: header.gas_used })));
-	}
-	Ok(())
-}
-
-fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
-	if !header.parent_hash.is_zero() && parent.hash() != header.parent_hash {
-		return Err(From::from(BlockError::InvalidParentHash(Mismatch { expected: parent.hash(), found: header.parent_hash.clone() })))
-	}
-	if header.timestamp <= parent.timestamp {
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: BAD_U256, min: parent.timestamp + From::from(1), found: header.timestamp })))
-	}
-	if header.number <= parent.number {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: parent.number + From::from(1), found: header.number })));
-	}
-	Ok(())
-}
-
-fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &H256) -> Result<(), Error> {
-	let block = Rlp::new(block);
-	let tx = block.at(1);
-	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
-	if expected_root != transactions_root {
-		return Err(From::from(BlockError::InvalidTransactionsRoot(Mismatch { expected: expected_root.clone(), found: transactions_root.clone() })))
-	}
-	let expected_uncles = &block.at(2).as_raw().sha3();
-	if expected_uncles != uncles_hash {
-		return Err(From::from(BlockError::InvalidUnclesHash(Mismatch { expected: expected_uncles.clone(), found: uncles_hash.clone() })))
-	}
-	Ok(())
-}
-
+/// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(bytes: &[u8], engine: &mut Engine) -> Result<(), Error> {
 	let block = BlockView::new(bytes);
 	let header = block.header();
@@ -53,6 +24,9 @@ pub fn verify_block_basic(bytes: &[u8], engine: &mut Engine) -> Result<(), Error
 	Ok(())
 }
 
+/// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
+/// Still operates on a individual block
+/// TODO: return cached transactions, header hash.
 pub fn verify_block_unordered(bytes: &[u8], engine: &mut Engine) -> Result<(), Error> {
 	let block = BlockView::new(bytes);
 	let header = block.header();
@@ -63,6 +37,7 @@ pub fn verify_block_unordered(bytes: &[u8], engine: &mut Engine) -> Result<(), E
 	Ok(())
 }
 
+/// Phase 3 verification. Check block information against parents and uncles.
 pub fn verify_block_final(bytes: &[u8], engine: &mut Engine, bc: &BlockChain) -> Result<(), Error> {
 	let block = BlockView::new(bytes);
 	let header = block.header();
@@ -72,8 +47,8 @@ pub fn verify_block_final(bytes: &[u8], engine: &mut Engine, bc: &BlockChain) ->
 
 	let num_uncles = Rlp::new(bytes).at(2).item_count();
 	if num_uncles != 0 {
-		if num_uncles > 2 {
-			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: 0, max: 2, found: num_uncles })));
+		if num_uncles > engine.maximum_uncle_count() {
+			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: 0, max: engine.maximum_uncle_count(), found: num_uncles })));
 		}
 
 		let mut excluded = HashSet::new();
@@ -137,3 +112,44 @@ pub fn verify_block_final(bytes: &[u8], engine: &mut Engine, bc: &BlockChain) ->
 	}
 	Ok(())
 }
+
+/// Check basic header parameters.
+fn verify_header(header: &Header) -> Result<(), Error> {
+	if header.number > From::from(BlockNumber::max_value()) {
+		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: From::from(0), found: header.number })))
+	}
+	if header.gas_used > header.gas_limit {
+		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: header.gas_limit, min: From::from(0), found: header.gas_used })));
+	}
+	Ok(())
+}
+
+/// Check header parameters agains parent header.
+fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
+	if !header.parent_hash.is_zero() && parent.hash() != header.parent_hash {
+		return Err(From::from(BlockError::InvalidParentHash(Mismatch { expected: parent.hash(), found: header.parent_hash.clone() })))
+	}
+	if header.timestamp <= parent.timestamp {
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: BAD_U256, min: parent.timestamp + From::from(1), found: header.timestamp })))
+	}
+	if header.number <= parent.number {
+		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: parent.number + From::from(1), found: header.number })));
+	}
+	Ok(())
+}
+
+/// Verify block data against header: transactions root and uncles hash.
+fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &H256) -> Result<(), Error> {
+	let block = Rlp::new(block);
+	let tx = block.at(1);
+	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
+	if expected_root != transactions_root {
+		return Err(From::from(BlockError::InvalidTransactionsRoot(Mismatch { expected: expected_root.clone(), found: transactions_root.clone() })))
+	}
+	let expected_uncles = &block.at(2).as_raw().sha3();
+	if expected_uncles != uncles_hash {
+		return Err(From::from(BlockError::InvalidUnclesHash(Mismatch { expected: expected_uncles.clone(), found: uncles_hash.clone() })))
+	}
+	Ok(())
+}
+
