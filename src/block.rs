@@ -8,6 +8,14 @@ pub struct Entry {
 	receipt: Receipt,
 }
 
+/// A set of fields that are publicly alterable. 
+pub struct BlockRefMut<'a> {
+	pub header: &'a Header,
+	pub state: &'a mut State,
+	pub archive: &'a Vec<Entry>,
+	pub uncles: &'a Vec<Header>,
+}
+
 /// Internal type for a block's common elements.
 pub struct Block {
 	header: Header,
@@ -32,7 +40,14 @@ impl Block {
 		}
 	}
 
-	pub fn state_mut(&mut self) -> &mut State { &mut self.state }
+	pub fn fields(&mut self) -> BlockRefMut {
+		BlockRefMut {
+			header: &self.header,
+			state: &mut self.state,
+			archive: &self.archive,
+			uncles: &self.uncles,
+		}
+	}
 }
 
 /// Trait for a object that is_a `Block`.

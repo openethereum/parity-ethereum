@@ -22,8 +22,16 @@ impl Engine for Ethash {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut Block) {
-		let a = block.header().author.clone();
-		block.state_mut().add_balance(&a, &decode(&self.spec().engine_params.get("blockReward").unwrap()));
+		let reward = self.spec().engine_params.get("blockReward").map(|a| decode(&a)).unwrap_or(U256::from(0u64));
+		let fields = block.fields();
+		let author = &fields.header.author;
+		fields.state.add_balance(author, &reward);
+/*
+		let uncle_authors = block.uncles.iter().map(|u| u.author().clone()).collect();
+		for a in uncle_authors {
+			block.state_mut().addBalance(a, _blockReward * (8 + i.number() - m_currentBlock.number()) / 8);
+			r += _blockReward / 32;
+		}*/
 	}
 }
 
