@@ -1,26 +1,24 @@
 use std::sync::Arc;
-//use util::bytes::*;
-use util::sha3::*;
+use util::*;
 use blockchain::BlockChain;
 use client::{QueueStatus, ImportResult};
 use views::{BlockView};
 
-
-pub struct BlockQueue {
-	chain: Arc<BlockChain>
-}
+/// A queue of blocks. Sits between network or other I/O and the BlockChain.
+/// Sorts them ready for blockchain insertion.
+pub struct BlockQueue;
 
 impl BlockQueue {
-	pub fn new(chain: Arc<BlockChain>) -> BlockQueue {
-		BlockQueue {
-			chain: chain
-		}
+	/// Creates a new queue instance.
+	pub fn new() -> BlockQueue {
 	}
 
+	/// Clear the queue and stop verification activity.
 	pub fn clear(&mut self) {
 	}
 
-	pub fn import_block(&mut self, bytes: &[u8]) -> ImportResult {
+	/// Add a block to the queue.
+	pub fn import_block(&mut self, bytes: &[u8], bc: &mut BlockChain) -> ImportResult {
 		//TODO: verify block
 		{
 			let block = BlockView::new(bytes);
@@ -30,7 +28,7 @@ impl BlockQueue {
 				return ImportResult::Bad;
 			}
 		}
-		self.chain.insert_block(bytes);
+		bc.insert_block(bytes);
 		ImportResult::Queued(QueueStatus::Known)
 	}
 }

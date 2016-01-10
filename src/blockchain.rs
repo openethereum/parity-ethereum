@@ -200,11 +200,16 @@ impl BlockChain {
 	///   ```json
 	///   { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
 	///   ```
-	pub fn tree_route(&self, from: H256, to: H256) -> TreeRoute {
-		let from_details = self.block_details(&from).expect("from hash is invalid!");
-		let to_details = self.block_details(&to).expect("to hash is invalid!");
-
-		self._tree_route((from_details, from), (to_details, to))
+	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
+		let from_details = match self.block_details(&from) {
+			Some(h) => h,
+			None => return None,
+		};
+		let to_details = match self.block_details(&to) {
+			Some(h) => h,
+			None => return None,
+		};
+		Some(self._tree_route((from_details, from), (to_details, to)))
 	}
 
 	/// Similar to `tree_route` function, but can be used to return a route
@@ -597,52 +602,52 @@ mod tests {
 		assert_eq!(bc.block_hash(&U256::from(3)).unwrap(), b3a_hash);
 
 		// test trie route
-		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone());
+		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r0_1.ancestor, genesis_hash);
 		assert_eq!(r0_1.blocks, [b1_hash.clone()]);
 		assert_eq!(r0_1.index, 0);
 
-		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone());
+		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone()).unwrap();
 		assert_eq!(r0_2.ancestor, genesis_hash);
 		assert_eq!(r0_2.blocks, [b1_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r0_2.index, 0);
 
-		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone());
+		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone()).unwrap();
 		assert_eq!(r1_3a.ancestor, b1_hash);
 		assert_eq!(r1_3a.blocks, [b2_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r1_3a.index, 0);
 
-		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone());
+		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone()).unwrap();
 		assert_eq!(r1_3b.ancestor, b1_hash);
 		assert_eq!(r1_3b.blocks, [b2_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r1_3b.index, 0);
 
-		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone());
+		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone()).unwrap();
 		assert_eq!(r3a_3b.ancestor, b2_hash);
 		assert_eq!(r3a_3b.blocks, [b3a_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r3a_3b.index, 1);
 
-		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone());
+		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone()).unwrap();
 		assert_eq!(r1_0.ancestor, genesis_hash);
 		assert_eq!(r1_0.blocks, [b1_hash.clone()]);
 		assert_eq!(r1_0.index, 1);
 
-		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone());
+		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone()).unwrap();
 		assert_eq!(r2_0.ancestor, genesis_hash);
 		assert_eq!(r2_0.blocks, [b2_hash.clone(), b1_hash.clone()]);
 		assert_eq!(r2_0.index, 2);
 
-		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone());
+		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r3a_1.ancestor, b1_hash);
 		assert_eq!(r3a_1.blocks, [b3a_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3a_1.index, 2);
 
-		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone());
+		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r3b_1.ancestor, b1_hash);
 		assert_eq!(r3b_1.blocks, [b3b_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3b_1.index, 2);
 
-		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone());
+		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone()).unwrap();
 		assert_eq!(r3b_3a.ancestor, b2_hash);
 		assert_eq!(r3b_3a.blocks, [b3b_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r3b_3a.index, 1);

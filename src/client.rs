@@ -2,21 +2,14 @@ use std::sync::Arc;
 use util::*;
 use blockchain::BlockChain;
 use views::BlockView;
-
-/// Status for a block in a queue.
-pub enum QueueStatus {
-	/// Part of the known chain.
-	Known,
-	/// Part of the unknown chain.
-	Unknown,
-}
+use error::ImportError;
 
 /// General block status
 pub enum BlockStatus {
 	/// Part of the blockchain.
 	InChain,
 	/// Queued for import.
-	Queued(QueueStatus),
+	Queued,
 	/// Known as bad.
 	Bad,
 	/// Unknown.
@@ -24,16 +17,7 @@ pub enum BlockStatus {
 }
 
 /// Result of import block operation.
-pub enum ImportResult {
-	/// Added to import queue.
-	Queued(QueueStatus),
-	/// Already in the chain.
-	AlreadyInChain,
-	/// Already queued for import.
-	AlreadyQueued(QueueStatus),
-	/// Bad or already known as bad.
-	Bad,
-}
+pub type ImportResult = Result<(), ImportError>;
 
 /// Information about the blockchain gthered together.
 pub struct BlockChainInfo {
@@ -88,7 +72,7 @@ pub trait BlockChainClient : Sync {
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
-	fn tree_route(&self, from: &H256, to: &H256) -> TreeRoute;
+	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute>;
 
 	/// Get latest state node
 	fn state_data(&self, hash: &H256) -> Option<Bytes>;
@@ -165,7 +149,7 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn tree_route(&self, from: &H256, to: &H256) -> TreeRoute {
+	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
 		self.chain.tree_route(from.clone(), to.clone())
 	}
 
@@ -184,11 +168,11 @@ impl BlockChainClient for Client {
 			let header = block.header_view();
 			let hash = header.sha3();
 			if self.chain.is_known(&hash) {
-				return ImportResult::Bad;
+				return Err(ImportError::AlreadyInChain);
 			}
 		}
 		self.chain.insert_block(bytes);
-		ImportResult::Queued(QueueStatus::Known)
+		Ok(())
 	}
 
 	fn queue_status(&self) -> BlockQueueStatus {

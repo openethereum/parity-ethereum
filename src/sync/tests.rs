@@ -6,7 +6,7 @@ use util::sha3::Hashable;
 use util::rlp::{self, Rlp, RlpStream, View, Stream};
 use util::network::{PeerId, PacketId};
 use util::error::UtilError;
-use client::{BlockChainClient, BlockStatus, BlockNumber, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult, QueueStatus};
+use client::{BlockChainClient, BlockStatus, BlockNumber, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult};
 use header::Header as BlockHeader;
 use sync::io::SyncIo;
 use sync::chain::ChainSync;
@@ -49,7 +49,7 @@ impl TestBlockChainClient {
 			rlp.append(&header);
 			rlp.append_raw(&rlp::NULL_RLP, 1);
 			rlp.append_raw(uncles.as_raw(), 1);
-			self.import_block(rlp.as_raw());
+			self.import_block(rlp.as_raw()).unwrap();
 		}
 	}
 }
@@ -100,12 +100,12 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn tree_route(&self, _from: &H256, _to: &H256) -> TreeRoute {
-		TreeRoute {
+	fn tree_route(&self, _from: &H256, _to: &H256) -> Option<TreeRoute> {
+		Some(TreeRoute {
 			blocks: Vec::new(),
 			ancestor: H256::new(),
 			index: 0
-		}
+		})
 	}
 
 	fn state_data(&self, _h: &H256) -> Option<Bytes> {
@@ -153,7 +153,7 @@ impl BlockChainClient for TestBlockChainClient {
 		else {
 			self.blocks.insert(header.hash(), b.to_vec());
 		}
-		ImportResult::Queued(QueueStatus::Known)
+		Ok(())
 	}
 
 	fn queue_status(&self) -> BlockQueueStatus {

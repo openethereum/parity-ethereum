@@ -17,8 +17,9 @@ use util::*;
 use std::mem::{replace};
 use views::{HeaderView};
 use header::{Header as BlockHeader};
-use client::{BlockNumber, BlockChainClient, BlockStatus, QueueStatus, ImportResult};
+use client::{BlockNumber, BlockChainClient, BlockStatus};
 use sync::range_collection::{RangeCollection, ToUsize, FromUsize};
+use error::*;
 use sync::io::SyncIo;
 
 impl ToUsize for BlockNumber {
@@ -76,12 +77,13 @@ struct HeaderId {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+/// Sync state 
 pub enum SyncState {
 	/// Initial chain sync has not started yet
 	NotSynced,
 	/// Initial chain sync complete. Waiting for new packets
 	Idle,
-	/// Block downloading paused. Waiting for block queue to process blocks and free space
+	/// Block downloading paused. Waiting for block queue to process blocks and free some space
 	Waiting,
 	/// Downloading blocks
 	Blocks,
@@ -108,24 +110,33 @@ pub struct SyncStatus {
 }
 
 #[derive(PartialEq, Eq, Debug)]
+/// Peer data type requested
 enum PeerAsking {
 	Nothing,
 	BlockHeaders,
 	BlockBodies,
 }
 
+/// Syncing peer information
 struct PeerInfo {
+	/// eth protocol version
 	protocol_version: u32,
+	/// Peer chain genesis hash
 	genesis: H256,
+	/// Peer network id 
 	network_id: U256,
+	/// Peer best block hash
 	latest: H256,
+	/// Peer total difficulty
 	difficulty: U256,
+	/// Type of data currenty being requested from peer.
 	asking: PeerAsking,
+	/// A set of block numbers being requested
 	asking_blocks: Vec<BlockNumber>,
 }
 
-type Body = Bytes;
-
+/// Blockchain sync handler.
+/// See module documentation for more details.
 pub struct ChainSync {
 	/// Sync state
 	state: SyncState,
@@ -140,7 +151,7 @@ pub struct ChainSync {
 	/// Downloaded headers.
 	headers: Vec<(BlockNumber, Vec<Header>)>, //TODO: use BTreeMap once range API is sable. For now it is a vector sorted in descending order
 	/// Downloaded bodies
-	bodies: Vec<(BlockNumber, Vec<Body>)>, //TODO: use BTreeMap once range API is sable. For now it is a vector sorted in descending order
+	bodies: Vec<(BlockNumber, Vec<Bytes>)>, //TODO: use BTreeMap once range API is sable. For now it is a vector sorted in descending order
 	/// Peer info
 	peers: HashMap<PeerId, PeerInfo>,
 	/// Used to map body to header
@@ -390,31 +401,31 @@ impl ChainSync {
 		// TODO: Decompose block and add to self.headers and self.bodies instead
 		if header_view.number() == From::from(self.last_imported_block + 1) {
 			match io.chain().import_block(block_rlp.as_raw()) {
-				ImportResult::AlreadyInChain => {
+				Err(ImportError::AlreadyInChain) => {
 					trace!(target: "sync", "New block already in chain {:?}", h);
 				},
-				ImportResult::AlreadyQueued(_) => {
+				Err(ImportError::AlreadyQueued) => {
 					trace!(target: "sync", "New block already queued {:?}", h);
 				},
-				ImportResult::Queued(QueueStatus::Known) => {
+				Ok(()) => {
 					trace!(target: "sync", "New block queued {:?}", h);
 				},
-				ImportResult::Queued(QueueStatus::Unknown) => {
-					trace!(target: "sync", "New block unknown {:?}", h);
-					//TODO: handle too many unknown blocks
-					let difficulty: U256 = try!(r.val_at(1));
-					let peer_difficulty = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer").difficulty;
-					if difficulty > peer_difficulty {
-						trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
-						self.sync_peer(io, peer_id, true);
-					}
-				},
-				ImportResult::Bad =>{
-					debug!(target: "sync", "Bad new block {:?}", h);
+				Err(e) => {
+					debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
 					io.disable_peer(peer_id);
 				}
 			};
 		} 
+		else {
+			trace!(target: "sync", "New block unknown {:?}", h);
+			//TODO: handle too many unknown blocks
+			let difficulty: U256 = try!(r.val_at(1));
+			let peer_difficulty = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer").difficulty;
+			if difficulty > peer_difficulty {
+				trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
+				self.sync_peer(io, peer_id, true);
+			}
+		}
 		Ok(())
 	}
 
@@ -434,7 +445,7 @@ impl ChainSync {
 				BlockStatus::InChain  => {
 					trace!(target: "sync", "New block hash already in chain {:?}", h);
 				},
-				BlockStatus::Queued(_) => {
+				BlockStatus::Queued => {
 					trace!(target: "sync", "New hash block already queued {:?}", h);
 				},
 				BlockStatus::Unknown => {
@@ -642,27 +653,24 @@ impl ChainSync {
 				block_rlp.append_raw(body.at(1).as_raw(), 1);
 				let h = &headers.1[i].hash;
 				match io.chain().import_block(&block_rlp.out()) {
-					ImportResult::AlreadyInChain  => {
+					Err(ImportError::AlreadyInChain) => {
 						trace!(target: "sync", "Block already in chain {:?}", h);
 						self.last_imported_block = headers.0 + i as BlockNumber;
 						self.last_imported_hash = h.clone();
 					},
-					ImportResult::AlreadyQueued(_)  => {
+					Err(ImportError::AlreadyQueued) => {
 						trace!(target: "sync", "Block already queued {:?}", h);
 						self.last_imported_block = headers.0 + i as BlockNumber;
 						self.last_imported_hash = h.clone();
 					},
-					ImportResult::Queued(QueueStatus::Known) => {
+					Ok(()) => {
 						trace!(target: "sync", "Block queued {:?}", h);
 						self.last_imported_block = headers.0 + i as BlockNumber;
 						self.last_imported_hash = h.clone();
 						imported += 1;
 					},
-					ImportResult::Queued(QueueStatus::Unknown) => {
-						panic!("Queued out of order block");
-					},
-					ImportResult::Bad =>{
-						debug!(target: "sync", "Bad block {:?}", h);
+					Err(e) => {
+						debug!(target: "sync", "Bad block {:?} : {:?}", h, e);
 						restart = true;
 					}
 				}

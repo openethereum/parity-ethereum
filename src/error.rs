@@ -24,6 +24,13 @@ pub enum BlockError {
 }
 
 #[derive(Debug)]
+pub enum ImportError {
+	Bad(BlockError),
+	AlreadyInChain,
+	AlreadyQueued,
+}
+
+#[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
 pub enum Error {
 	Util(UtilError),
