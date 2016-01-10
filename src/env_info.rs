@@ -11,7 +11,7 @@ pub struct EnvInfo {
 	/// The block author.
 	pub author: Address,
 	/// The block timestamp.
-	pub timestamp: usize,
+	pub timestamp: u64,
 	/// The block difficulty.
 	pub difficulty: U256,
 	/// The block gas limit.

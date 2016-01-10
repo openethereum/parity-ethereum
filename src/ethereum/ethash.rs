@@ -18,6 +18,13 @@ impl Ethash {
 impl Engine for Ethash {
 	fn name(&self) -> &str { "Ethash" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
+	// Two fields - mix
+	fn seal_fields(&self) -> usize { 2 }
+	// Two empty data items in RLP.
+	fn seal_rlp(&self) -> Bytes { encode(&H64::new()) }
+
+	/// Additional engine-specific information for the user/developer concerning `header`.
+	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 	fn spec(&self) -> &Spec { &self.spec }
 	fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
 
@@ -45,7 +52,8 @@ fn on_close_block() {
 	let genesis_header = engine.spec().genesis_header();
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
-	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), vec![]);
+	let last_hashes = vec![genesis_header.hash()];
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
 	let b = b.close();
 	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 }

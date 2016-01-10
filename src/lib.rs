@@ -78,6 +78,7 @@ extern crate flate2;
 extern crate rocksdb;
 extern crate heapsize;
 extern crate crypto;
+extern crate time;
 
 extern crate env_logger;
 #[cfg(feature = "jit" )]

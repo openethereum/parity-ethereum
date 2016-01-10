@@ -74,6 +74,13 @@ impl ExtrasSliceConvertable for U256 {
 	}
 }
 
+// NICE: make less horrible.
+impl ExtrasSliceConvertable for usize {
+	fn to_extras_slice(&self, i: ExtrasIndex) -> H264 {
+		U256::from(*self).to_extras_slice(i)
+	}
+}
+
 /// Types implementing this trait can be indexed in extras database
 pub trait ExtrasIndexable {
 	fn extras_index() -> ExtrasIndex;
@@ -88,7 +95,7 @@ impl ExtrasIndexable for H256 {
 /// Familial details concerning a block
 #[derive(Debug, Clone)]
 pub struct BlockDetails {
-	pub number: U256,
+	pub number: usize,
 	pub total_difficulty: U256,
 	pub parent: H256,
 	pub children: Vec<H256>
