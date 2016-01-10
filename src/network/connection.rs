@@ -342,7 +342,6 @@ impl EncryptedConnection {
 		try!(self.connection.reregister(event_loop));
 		Ok(())
 	}
-
 }
 
 #[test]
