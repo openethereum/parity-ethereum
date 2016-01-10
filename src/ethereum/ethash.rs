@@ -17,13 +17,31 @@ impl Ethash {
 
 impl Engine for Ethash {
 	fn name(&self) -> &str { "Ethash" }
+	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
+	// Two fields - mix
+	fn seal_fields(&self) -> usize { 2 }
+	// Two empty data items in RLP.
+	fn seal_rlp(&self) -> Bytes { encode(&H64::new()) }
+
+	/// Additional engine-specific information for the user/developer concerning `header`.
+	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 	fn spec(&self) -> &Spec { &self.spec }
 	fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
 
 	/// Apply the block reward on finalisation of the block.
+	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut Block) {
-		let a = block.header().author.clone();
-		block.state_mut().add_balance(&a, &decode(&self.spec().engine_params.get("blockReward").unwrap()));
+		let reward = self.spec().engine_params.get("blockReward").map(|a| decode(&a)).unwrap_or(U256::from(0u64));
+		let fields = block.fields();
+
+		// Bestow block reward
+		fields.state.add_balance(&fields.header.author, &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
+
+		// Bestow uncle rewards
+		let current_number = fields.header.number();
+		for u in fields.uncles.iter() {
+			fields.state.add_balance(u.author(), &(reward * U256::from((8 + u.number() - current_number) / 8)));
+		}
 	}
 }
 
@@ -34,7 +52,8 @@ fn on_close_block() {
 	let genesis_header = engine.spec().genesis_header();
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
-	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), vec![]);
+	let last_hashes = vec![genesis_header.hash()];
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
 	let b = b.close();
-	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244F40000").unwrap());
+	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 }
