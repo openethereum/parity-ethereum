@@ -68,6 +68,9 @@ impl Header {
 
 	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
 
+	pub fn state_root(&self) -> &H256 { &self.state_root }
+	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
+
 	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
 
 	// TODO: seal_at, set_seal_at &c.
