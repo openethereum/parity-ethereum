@@ -122,7 +122,7 @@ impl<'a> HeaderView<'a> {
 	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10) }
 
 	/// Returns timestamp.
-	pub fn timestamp(&self) -> usize { self.rlp.val_at(11) }
+	pub fn timestamp(&self) -> u64 { self.rlp.val_at(11) }
 
 	/// Returns block extra data.
 	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }

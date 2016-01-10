@@ -250,6 +250,7 @@ pub fn enacted(rlp_bytes: &[u8], db: OverlayDB, engine: &Engine, parent: &Header
 	let block = BlockView::new(rlp_bytes);
 	let header = block.header_view();
 	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author(), header.extra_data());
+	b.set_timestamp(header.timestamp());
 	for t in block.transactions().into_iter() { try!(b.push_transaction(t, None)); }
 	for u in block.uncles().into_iter() { try!(b.push_uncle(u)); }
 	Ok(try!(b.close().seal(header.seal())))
