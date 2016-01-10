@@ -86,6 +86,7 @@ extern crate ethcore_util as util;
 
 pub mod common;
 pub mod basic_types;
+pub mod error;
 pub mod env_info;
 pub mod engine;
 pub mod state;

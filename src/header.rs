@@ -9,6 +9,7 @@ use basic_types::*;
 /// Doesn't do all that much on its own.
 #[derive(Debug)]
 pub struct Header {
+	// TODO: make all private.
 	pub parent_hash: H256,
 	pub timestamp: U256,
 	pub number: U256,
@@ -59,6 +60,16 @@ impl Header {
 			hash: RefCell::new(None),
 		}
 	}
+
+	pub fn author(&self) -> &Address { &self.author }
+	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
+	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
+
+	// TODO: seal_at, set_seal_at &c.
+
+	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
+	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.extra_data { self.extra_data = a; self.note_dirty(); } }
+	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
 
 	/// Get the hash of this header (sha3 of the RLP).
 	pub fn hash(&self) -> H256 {
