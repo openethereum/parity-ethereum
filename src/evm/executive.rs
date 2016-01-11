@@ -9,11 +9,10 @@ use util::sha3::*;
 use util::bytes::*;
 use state::*;
 use env_info::*;
-use evm_schedule::*;
 use engine::*;
 use transaction::*;
 use log_entry::*;
-use evm::{VmFactory, Ext, EvmParams, EvmResult, EvmError};
+use evm::{Schedule, VmFactory, Ext, EvmParams, EvmResult, EvmError};
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -242,7 +241,7 @@ impl<'a> Executive<'a> {
 				Err(ExecutionError::OutOfGas)
 			},
 			Ok(gas_left) => {
-				let schedule = self.engine.evm_schedule(self.info);
+				let schedule = self.engine.schedule(self.info);
 
 				// refunds from SSTORE nonzero -> zero
 				let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.refunds_count;
@@ -294,7 +293,7 @@ pub struct Externalities<'a> {
 	depth: usize,
 	params: &'a EvmParams,
 	substate: &'a mut Substate,
-	schedule: EvmSchedule,
+	schedule: Schedule,
 	output: OutputPolicy<'a>
 }
 
@@ -314,7 +313,7 @@ impl<'a> Externalities<'a> {
 			depth: depth,
 			params: params,
 			substate: substate,
-			schedule: engine.evm_schedule(info),
+			schedule: engine.schedule(info),
 			output: output
 		}
 	}
@@ -459,7 +458,7 @@ impl<'a> Ext for Externalities<'a> {
 		self.substate.suicides.insert(address);
 	}
 
-	fn schedule(&self) -> &EvmSchedule {
+	fn schedule(&self) -> &Schedule {
 		&self.schedule
 	}
 }

@@ -3,7 +3,7 @@
 use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
-use evm_schedule::*;
+use evm::Schedule;
 use evm::EvmError;
 
 // TODO: replace all u64 with u256
@@ -54,5 +54,5 @@ pub trait Ext {
 	fn suicide(&mut self);
 
 	/// Returns schedule.
-	fn schedule(&self) -> &EvmSchedule;
+	fn schedule(&self) -> &Schedule;
 }

@@ -375,7 +375,7 @@ mod tests {
 	use state::*;
 	use env_info::*;
 	use engine::*;
-	use evm_schedule::*;
+	use schedule::*;
 	use spec::*;
 
 	struct TestEngine;
@@ -387,7 +387,7 @@ mod tests {
 	impl Engine for TestEngine {
 		fn name(&self) -> &str { "TestEngine" }
 		fn spec(&self) -> &Spec { unimplemented!() }
-		fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
+		fn schedule(&self, _env_info: &EnvInfo) -> Schedule { Schedule::new_frontier() }
 	}
 
 	#[test]

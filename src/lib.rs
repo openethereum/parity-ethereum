@@ -98,7 +98,6 @@ pub mod header;
 pub mod transaction;
 pub mod receipt;
 pub mod null_engine;
-pub mod evm_schedule;
 pub mod builtin;
 pub mod spec;
 pub mod views;
