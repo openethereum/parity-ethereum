@@ -47,13 +47,6 @@ impl Substate {
 	pub fn logs(&self) -> &[LogEntry] {
 		&self.logs
 	}
-
-	/// Appends another substate to this substate.
-	fn accrue(&mut self, s: Substate) {
-		self.suicides.extend(s.suicides.into_iter());
-		self.logs.extend(s.logs.into_iter());
-		self.refunds_count = self.refunds_count + s.refunds_count;
-	}
 }
 
 /// Transaction execution result.
@@ -425,17 +418,17 @@ impl<'a> Ext for Externalities<'a> {
 		self.state.code(address).unwrap_or(vec![])
 	}
 
-	fn ret(&mut self, gas: u64, data: &[u8]) -> Option<u64> {
+	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, EvmError> {
 		match &mut self.output {
 			&mut OutputPolicy::Return(ref mut slice) => unsafe {
 				let len = cmp::min(slice.len(), data.len());
 				ptr::copy(data.as_ptr(), slice.as_mut_ptr(), len);
-				Some(gas)
+				Ok(gas)
 			},
 			&mut OutputPolicy::InitContract => {
 				let return_cost = data.len() as u64 * self.schedule.create_data_gas as u64;
 				if return_cost > gas {
-					return None;
+					return Err(EvmError::OutOfGas);
 				}
 				let mut code = vec![];
 				code.reserve(data.len());
@@ -445,7 +438,7 @@ impl<'a> Ext for Externalities<'a> {
 				}
 				let address = &self.params.address;
 				self.state.init_code(address, code);
-				Some(gas - return_cost)
+				Ok(gas - return_cost)
 			}
 		}
 	}
