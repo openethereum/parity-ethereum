@@ -26,6 +26,7 @@ pub struct Transaction {
 }
 
 impl Transaction {
+	/// Append object into RLP stream, optionally with or without the signature.
 	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
 		s.append_list(6 + match with_seal { Seal::With => 3, _ => 0 });
 		s.append(&self.nonce);
@@ -43,13 +44,12 @@ impl Transaction {
 		}
 	}
 
+	/// Get the RLP serialisation of the object, optionally with or without the signature.
 	pub fn rlp_bytes_opt(&self, with_seal: Seal) -> Bytes {
 		let mut s = RlpStream::new();
 		self.rlp_append_opt(&mut s, with_seal);
 		s.out()
 	}
-
-	pub fn rlp_sha3_opt(&self, with_seal: Seal) -> H256 { self.rlp_bytes_opt(with_seal).sha3() }
 }
 
 impl RlpStandard for Transaction {
@@ -81,7 +81,7 @@ impl Transaction {
 	pub fn signature(&self) -> Signature { Signature::from_rsv(&self.r, &self.s, self.v - 27) }
 
 	/// The message hash of the transaction.
-	pub fn message_hash(&self) -> H256 { self.rlp_sha3_opt(Seal::Without) }
+	pub fn message_hash(&self) -> H256 { self.rlp_bytes_opt(Seal::Without).sha3() }
 
 	/// Returns transaction sender.
 	pub fn sender(&self) -> Result<Address, Error> { Ok(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3())) }
