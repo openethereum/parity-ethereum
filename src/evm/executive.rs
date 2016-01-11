@@ -503,20 +503,6 @@ mod tests {
 	use null_engine::*;
 	use std::ops::*;
 
-	struct TestEngine;
-
-	impl TestEngine {
-		fn new() -> Self {
-			TestEngine
-		}
-	}
-
-	impl Engine for TestEngine {
-		fn name(&self) -> &str { "TestEngine" }
-		fn spec(&self) -> &Spec { unimplemented!() }
-		fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
-	}
-
 	#[test]
 	fn test_contract_address() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
@@ -538,12 +524,12 @@ mod tests {
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
-		let engine = TestEngine::new();
+		let engine = NullEngine::new_boxed(ethereum::new_frontier());
 		let mut substate = Substate::new();
 
 		{
-			let mut ex = Executive::new(&mut state, &info, &engine);
-			assert_eq!(Executive::create(&mut ex, &params, &mut substate), ExecutionResult::Ok);
+			let mut ex = Executive::new(&mut state, &info, engine.deref());
+			let _res = ex.create(&params, &mut substate);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0xf9u64)));
@@ -565,12 +551,12 @@ mod tests {
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
-		let engine = TestEngine::new();
+		let engine = NullEngine::new_boxed(ethereum::new_frontier());
 		let mut substate = Substate::new();
 
 		{
-			let mut ex = Executive::new(&mut state, &info, &engine);
-			assert_eq!(Executive::create(&mut ex, &params, &mut substate), ExecutionResult::Ok);
+			let mut ex = Executive::new(&mut state, &info, engine.deref());
+			let _res = ex.create(&params, &mut substate);
 		}
 		
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(next_address.clone()));
@@ -612,13 +598,12 @@ mod tests {
 		let mut state = State::new_temp();
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::new();
-		//let engine = TestEngine::new();
 		let engine = NullEngine::new_boxed(ethereum::new_frontier());
 		let mut substate = Substate::new();
 
 		{
 			let mut ex = Executive::new(&mut state, &info, engine.deref());
-			assert_eq!(Executive::call(&mut ex, &params, &mut substate), ExecutionResult::Ok);
+			let _res = ex.call(&params, &mut substate, &mut []);
 		}
 
 		assert!(false);

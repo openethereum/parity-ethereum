@@ -210,8 +210,8 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			  address: *mut evmjit::H256) {
 		unsafe {
 			match self.ext.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
-				Some((addr, gas)) => {
-					*io_gas = gas;
+				Some((gas_left, addr)) => {
+					*io_gas = gas_left;
 					*address = addr.into_jit();
 				},
 				None => ()
@@ -235,18 +235,16 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 									&Address::from_jit(&*receive_address),
 									&U256::from_jit(&*value),
 									slice::from_raw_parts(in_beg, in_size as usize),
-									&Address::from_jit(&*code_address));
+									&Address::from_jit(&*code_address),
+									slice::from_raw_parts_mut(out_beg, out_size as usize));
 
-			if opt.is_none() {
-				return false;
+			match opt {
+				None => false,
+				Some(gas_left) => {
+					*io_gas = gas_left;
+					true
+				}
 			}
-
-			// TODO: fix this!
-			let (mut output, gas) = opt.unwrap();
-			out_beg = output.as_mut_ptr();
-			mem::forget(output);
-			*io_gas = gas;
-			true
 		}
 	}
 
@@ -318,18 +316,15 @@ impl evm::Evm for JitEvm {
 		
 		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
 		match context.exec() {
-			evmjit::ReturnCode::Stop => Ok(evm::EvmOutput::new(U256::from(context.gas_left()), None)),
-			evmjit::ReturnCode::Return => {
-				if context.output_data().len() as u64 * ext.schedule().create_data_gas as u64 > context.gas_left() {
-					return Err(evm::EvmError::OutOfGas);
-				}
-
-				Ok(evm::EvmOutput::new(U256::from(context.gas_left()), Some(context.output_data().to_vec())))
+			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),
+			evmjit::ReturnCode::Return => match ext.ret(context.gas_left(), context.output_data()) {
+				Some(gas_left) => Ok(U256::from(gas_left)),
+				None => Err(evm::EvmError::OutOfGas)
 			},
 			evmjit::ReturnCode::Suicide => { 
 				// what if there is a suicide and we run out of gas just after?
 				ext.suicide();
-				Ok(evm::EvmOutput::new(U256::from(context.gas_left()), None))
+				Ok(U256::from(context.gas_left()))
 			},
 			evmjit::ReturnCode::OutOfGas => Err(evm::EvmError::OutOfGas),
 			_err => Err(evm::EvmError::Internal)
@@ -408,7 +403,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
@@ -432,7 +427,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
@@ -456,7 +451,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
@@ -481,7 +476,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
@@ -506,7 +501,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
@@ -547,7 +542,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
@@ -573,7 +568,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
@@ -595,7 +590,7 @@ mod tests {
 		let engine = TestEngine::new();
 		let mut substate = Substate::new();
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
@@ -630,7 +625,7 @@ mod tests {
 		let engine = TestEngine::new();
 		let mut substate = Substate::new();
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
@@ -662,7 +657,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
@@ -688,7 +683,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate);
+			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
 			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});

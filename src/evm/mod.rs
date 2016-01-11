@@ -13,5 +13,6 @@ pub use self::evm::{Evm, EvmError, EvmResult};
 pub use self::ext::{Ext};
 pub use self::logentry::LogEntry;
 pub use self::vmfactory::VmFactory;
-pub use self::executive::{Executive, ExecutionResult, Externalities, Substate};
+// TODO: reduce this to absolutely necessary things
+pub use self::executive::{Executive, ExecutionResult, Externalities, Substate, OutputPolicy};
 pub use self::params::EvmParams;

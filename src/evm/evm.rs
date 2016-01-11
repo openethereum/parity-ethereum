@@ -5,7 +5,7 @@ use evm::{EvmParams, Ext};
 
 /// Evm errors.
 pub enum EvmError {
-	/// Returned when transaction execution run out of gas.
+	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	/// The state should be reverted to the state from before the
 	/// transaction execution. But it does not mean that transaction
 	/// was invalid. Balance still should be transfered and nonce
