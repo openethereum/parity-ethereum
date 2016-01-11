@@ -1,4 +1,5 @@
 use util::*;
+use basic_types::*;
 
 pub enum Action {
 	Create,
@@ -14,13 +15,14 @@ pub struct Transaction {
 	pub action: Action,
 	pub value: U256,
 	pub data: Bytes,
+	pub signature: Signature,
 
 	hash: RefCell<Option<H256>>, //TODO: make this private
 }
 
-impl RlpStandard for Transaction {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(6);
+impl Transaction {
+	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
+		s.append_list(6 + match with_seal { Seal::With => 3, _ => 0 });
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
@@ -30,7 +32,27 @@ impl RlpStandard for Transaction {
 		};
 		s.append(&self.value);
 		s.append(&self.data);
+		match with_seal {
+			Seal::With => {
+				s.append(&(self.signature.as_slice()[64] as u16));
+				s.append(&&self.signature.as_slice()[0..32]);
+				s.append(&&self.signature.as_slice()[32..64]);
+			},
+			_ => {}
+		}
 	}
+
+	pub fn rlp_bytes_opt(&self, with_seal: Seal) -> Bytes {
+		let mut s = RlpStream::new();
+		self.rlp_append_opt(&mut s, with_seal);
+		s.out()
+	}
+
+	pub fn rlp_sha3_opt(&self, with_seal: Seal) -> H256 { self.rlp_bytes_opt(with_seal).sha3() }	
+}
+
+impl RlpStandard for Transaction {
+	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_opt(s, Seal::With) }
 }
 
 impl Transaction {
@@ -55,7 +77,9 @@ impl Transaction {
 	pub fn action(&self) -> &Action { &self.action }
 
 	/// Returns transaction sender.
-	pub fn sender(&self) -> Address { Address::new() }
+	pub fn sender(&self) -> Address {
+		Address::new()
+	}
 }
 
 impl Decodable for Action {
@@ -72,17 +96,15 @@ impl Decodable for Action {
 impl Decodable for Transaction {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = try!(decoder.as_list());
-
-		let transaction = Transaction {
+		Ok(Transaction {
 			nonce: try!(Decodable::decode(&d[0])),
 			gas_price: try!(Decodable::decode(&d[1])),
 			gas: try!(Decodable::decode(&d[2])),
 			action: try!(Decodable::decode(&d[3])),
 			value: try!(Decodable::decode(&d[4])),
 			data: try!(Decodable::decode(&d[5])),
+			signature: Signature::from_rsv(&try!(Decodable::decode(&d[6])), &try!(Decodable::decode(&d[7])), try!(u16::decode(&d[8])) as u8),
 			hash: RefCell::new(None)
-		};
-
-		Ok(transaction)
+		})
 	}
 }
