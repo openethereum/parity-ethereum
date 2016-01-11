@@ -34,6 +34,7 @@
 //! }
 //! ```
 
+use std::mem;
 use std::fmt;
 use std::slice;
 use std::cmp::Ordering;
@@ -260,19 +261,23 @@ impl FromBytes for String {
 	}
 }
 
-impl FromBytes for u64 {
-	fn from_bytes(bytes: &[u8]) -> FromBytesResult<u64> {
-		match bytes.len() {
-			0 => Ok(0),
-			l @ 1...8 => {
-				let mut res = 0u64;
-				for i in 0..l {
-					let shift = (l - 1 - i) * 8;
-					res = res + ((bytes[i] as u64) << shift);
+macro_rules! impl_uint_from_bytes {
+	($to: ident) => {
+		impl FromBytes for $to {
+			fn from_bytes(bytes: &[u8]) -> FromBytesResult<$to> {
+				match bytes.len() {
+					0 => Ok(0),
+					l if l <= mem::size_of::<$to>() => {
+						let mut res = 0 as $to;
+						for i in 0..l {
+							let shift = (l - 1 - i) * 8;
+							res = res + ((bytes[i] as $to) << shift);
+						}
+						Ok(res)
+					}
+					_ => Err(FromBytesError::DataIsTooLong)
 				}
-				Ok(res)
 			}
-			_ => Err(FromBytesError::DataIsTooLong)
 		}
 	}
 }
@@ -287,20 +292,11 @@ impl FromBytes for bool {
 	}
 }
 
-
-macro_rules! impl_map_from_bytes {
-	($from: ident, $to: ident) => {
-		impl FromBytes for $from {
-			fn from_bytes(bytes: &[u8]) -> FromBytesResult<$from> {
-				$to::from_bytes(bytes).map(| x | { x as $from })
-			}
-		}
-	}
-}
-
-impl_map_from_bytes!(usize, u64);
-impl_map_from_bytes!(u16, u64);
-impl_map_from_bytes!(u32, u64);
+//impl_uint_from_bytes!(u8);
+impl_uint_from_bytes!(u16);
+impl_uint_from_bytes!(u32);
+impl_uint_from_bytes!(u64);
+impl_uint_from_bytes!(usize);
 
 macro_rules! impl_uint_from_bytes {
 	($name: ident) => {
