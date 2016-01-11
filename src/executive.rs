@@ -439,6 +439,10 @@ impl<'a> Ext for Externalities<'a> {
 	fn schedule(&self) -> &Schedule {
 		&self.schedule
 	}
+
+	fn env_info(&self) -> &EnvInfo {
+		&self.info
+	}
 }
 
 #[cfg(test)]

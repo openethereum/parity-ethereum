@@ -3,8 +3,8 @@
 use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
-use evm::Schedule;
-use evm::Error;
+use evm::{Schedule, Error};
+use env_info::*;
 
 // TODO: replace all u64 with u256
 pub trait Ext {
@@ -55,4 +55,7 @@ pub trait Ext {
 
 	/// Returns schedule.
 	fn schedule(&self) -> &Schedule;
+
+	/// Returns environment info.
+	fn env_info(&self) -> &EnvInfo;
 }
