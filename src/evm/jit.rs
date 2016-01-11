@@ -313,7 +313,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, params: &evm::ActionParams, ext: &mut evm::Ext) -> evm::Result {
+	fn exec(&self, params: &ActionParams, ext: &mut evm::Ext) -> evm::Result {
 		let mut optional_err = None;
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, &mut optional_err)) };
@@ -359,17 +359,13 @@ impl evm::Evm for JitEvm {
 
 #[cfg(test)]
 mod tests {
-	use rustc_serialize::hex::FromHex;
-	use std::str::FromStr;
-	use util::hash::*;
-	use util::uint::*;
-	use evm::*;
-	use evm::jit::{FromJit, IntoJit};
 	use super::*;
+	use common::*;
+	use evm::jit::{FromJit, IntoJit};
+	use evm::{Evm,Schedule};
+	use executive::*;
 	use state::*;
-	use env_info::*;
 	use engine::*;
-	use schedule::*;
 	use spec::*;
 
 	struct TestEngine;

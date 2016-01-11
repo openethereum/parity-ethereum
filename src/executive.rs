@@ -447,17 +447,11 @@ impl<'a> Ext for Externalities<'a> {
 
 #[cfg(test)]
 mod tests {
-	use rustc_serialize::hex::FromHex;
-	use std::str::FromStr;
-	use util::hash::*;
-	use util::uint::*;
-	use evm::*;
-	use env_info::*;
+	use super::*;
+	use common::*;
 	use state::*;
-	use super::contract_address;
 	use ethereum;
 	use null_engine::*;
-	use std::ops::*;
 
 	#[test]
 	fn test_contract_address() {
