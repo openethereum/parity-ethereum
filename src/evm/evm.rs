@@ -1,7 +1,7 @@
 //! Evm interface.
 
-use util::uint::U256;
-use evm::{EvmParams, Ext};
+use common::*;
+use evm::Ext;
 
 /// Evm errors.
 #[derive(Debug)]
@@ -25,5 +25,5 @@ pub type EvmResult = Result<U256, EvmError>;
 /// Evm interface.
 pub trait Evm {
 	/// This function should be used to execute transaction.
-	fn exec(&self, params: &EvmParams, ext: &mut Ext) -> EvmResult;
+	fn exec(&self, params: &ActionParams, ext: &mut Ext) -> EvmResult;
 }

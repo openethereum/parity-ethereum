@@ -319,7 +319,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, params: &evm::EvmParams, ext: &mut evm::Ext) -> evm::EvmResult {
+	fn exec(&self, params: &evm::ActionParams, ext: &mut evm::Ext) -> evm::EvmResult {
 		let mut optional_err = None;
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, &mut optional_err)) };
@@ -423,7 +423,7 @@ mod tests {
 	#[test]
 	fn test_ext_add() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone(); 
 		params.gas = U256::from(0x174876e800u64);
 		params.code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
@@ -447,7 +447,7 @@ mod tests {
 	#[test]
 	fn test_ext_sha3_0() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone(); 
 		params.gas = U256::from(0x174876e800u64);
 		params.code = "6000600020600055".from_hex().unwrap();
@@ -471,7 +471,7 @@ mod tests {
 	#[test]
 	fn test_ext_sha3_1() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone(); 
 		params.gas = U256::from(0x174876e800u64);
 		params.code = "6005600420600055".from_hex().unwrap();
@@ -495,7 +495,7 @@ mod tests {
 	#[test]
 	fn test_origin() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.origin = address.clone();
 		params.gas = U256::from(0x174876e800u64);
@@ -519,7 +519,7 @@ mod tests {
 	#[test]
 	fn test_sender() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.sender = address.clone();
 		params.gas = U256::from(0x174876e800u64);
@@ -558,7 +558,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address_code = "333b60006000333c600051600055".from_hex().unwrap(); 
 		let sender_code = "6005600055".from_hex().unwrap(); 
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
@@ -586,7 +586,7 @@ mod tests {
 	#[test]
 	fn test_balance() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.sender = address.clone();
 		params.gas = U256::from(0x174876e800u64);
@@ -611,7 +611,7 @@ mod tests {
 	#[test]
 	fn test_empty_log() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.gas = U256::from(0x174876e800u64);
 		params.code = "60006000a0".from_hex().unwrap();
@@ -645,7 +645,7 @@ mod tests {
 		// a1 - log with 1 topic
 
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.sender = address.clone();
 		params.gas = U256::from(0x174876e800u64);
@@ -675,7 +675,7 @@ mod tests {
 	#[test]
 	fn test_blockhash() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.gas = U256::from(0x174876e800u64);
 		params.code = "600040600055".from_hex().unwrap();
@@ -700,7 +700,7 @@ mod tests {
 	#[test]
 	fn test_calldataload() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.gas = U256::from(0x174876e800u64);
 		params.code = "600135600055".from_hex().unwrap();

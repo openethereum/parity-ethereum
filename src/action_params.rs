@@ -5,7 +5,7 @@ use util::bytes::*;
 
 /// Evm input params. Everything else should be specified in Externalities.
 #[derive(Clone, Debug)]
-pub struct EvmParams {
+pub struct ActionParams {
 	/// Address of currently executed code.
 	pub address: Address,
 	/// Sender of current part of the transaction.
@@ -24,9 +24,9 @@ pub struct EvmParams {
 	pub data: Bytes
 }
 
-impl EvmParams {
-	pub fn new() -> EvmParams {
-		EvmParams {
+impl ActionParams {
+	pub fn new() -> ActionParams {
+		ActionParams {
 			address: Address::new(),
 			sender: Address::new(),
 			origin: Address::new(),

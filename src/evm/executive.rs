@@ -1,18 +1,8 @@
 //! Transaction Execution environment.
-use std::collections::HashSet;
-use std::cmp;
-use std::ptr;
-use util::hash::*;
-use util::uint::*;
-use util::rlp::*;
-use util::sha3::*;
-use util::bytes::*;
+use common::*;
 use state::*;
-use env_info::*;
 use engine::*;
-use transaction::*;
-use log_entry::*;
-use evm::{Schedule, VmFactory, Ext, EvmParams, EvmResult, EvmError};
+use evm::{Schedule, VmFactory, Ext, EvmResult, EvmError};
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -158,7 +148,7 @@ impl<'a> Executive<'a> {
 
 		let res = match t.action() {
 			&Action::Create => {
-				let params = EvmParams {
+				let params = ActionParams {
 					address: contract_address(&sender, &nonce),
 					sender: sender.clone(),
 					origin: sender.clone(),
@@ -171,7 +161,7 @@ impl<'a> Executive<'a> {
 				self.create(&params, &mut substate)
 			},
 			&Action::Call(ref address) => {
-				let params = EvmParams {
+				let params = ActionParams {
 					address: address.clone(),
 					sender: sender.clone(),
 					origin: sender.clone(),
@@ -193,7 +183,7 @@ impl<'a> Executive<'a> {
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `EvmError`.
-	fn call(&mut self, params: &EvmParams, substate: &mut Substate, output: &mut [u8]) -> EvmResult {
+	fn call(&mut self, params: &ActionParams, substate: &mut Substate, output: &mut [u8]) -> EvmResult {
 		// at first, transfer value to destination
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
@@ -221,7 +211,7 @@ impl<'a> Executive<'a> {
 	/// Creates contract with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
-	fn create(&mut self, params: &EvmParams, substate: &mut Substate) -> EvmResult {
+	fn create(&mut self, params: &ActionParams, substate: &mut Substate) -> EvmResult {
 		// at first create new contract
 		self.state.new_contract(&params.address);
 		// then transfer value to it
@@ -291,7 +281,7 @@ pub struct Externalities<'a> {
 	info: &'a EnvInfo,
 	engine: &'a Engine,
 	depth: usize,
-	params: &'a EvmParams,
+	params: &'a ActionParams,
 	substate: &'a mut Substate,
 	schedule: Schedule,
 	output: OutputPolicy<'a>
@@ -303,7 +293,7 @@ impl<'a> Externalities<'a> {
 			   info: &'a EnvInfo, 
 			   engine: &'a Engine, 
 			   depth: usize, 
-			   params: &'a EvmParams, 
+			   params: &'a ActionParams, 
 			   substate: &'a mut Substate, 
 			   output: OutputPolicy<'a>) -> Self {
 		Externalities {
@@ -319,7 +309,7 @@ impl<'a> Externalities<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn from_executive(e: &'a mut Executive, params: &'a EvmParams, substate: &'a mut Substate, output: OutputPolicy<'a>) -> Self {
+	pub fn from_executive(e: &'a mut Executive, params: &'a ActionParams, substate: &'a mut Substate, output: OutputPolicy<'a>) -> Self {
 		Self::new(e.state, e.info, e.engine, e.depth, params, substate, output)
 	}
 }
@@ -361,7 +351,7 @@ impl<'a> Ext for Externalities<'a> {
 		let address = contract_address(&self.params.address, &self.state.nonce(&self.params.address));
 
 		// prepare the params
-		let params = EvmParams {
+		let params = ActionParams {
 			address: address.clone(),
 			sender: self.params.address.clone(),
 			origin: self.params.origin.clone(),
@@ -404,7 +394,7 @@ impl<'a> Ext for Externalities<'a> {
 			return Ok(gas + call_gas)
 		}
 
-		let params = EvmParams {
+		let params = ActionParams {
 			address: receive_address.clone(), 
 			sender: self.params.address.clone(),
 			origin: self.params.origin.clone(),
@@ -489,7 +479,7 @@ mod tests {
 	fn test_executive() {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(&sender, &U256::zero());
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(0x174876e800u64);
@@ -516,7 +506,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let next_address = contract_address(&address, &U256::zero());
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
@@ -562,7 +552,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let code = "600160005401600055600060006000600060003060e05a03f1600155".from_hex().unwrap();
 		let address = contract_address(&sender, &U256::zero());
-		let mut params = EvmParams::new();
+		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
