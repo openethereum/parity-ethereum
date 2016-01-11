@@ -221,6 +221,12 @@ impl State {
 	}
 }
 
+impl Clone for State {
+	fn clone(&self) -> Self {
+		State::from_existing(self.db.clone(), self.root.clone(), self.account_start_nonce.clone())
+	}
+}
+
 #[cfg(test)]
 mod tests {
 
