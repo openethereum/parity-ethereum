@@ -1,5 +1,6 @@
 use util::*;
 use basic_types::*;
+use error::Error;
 
 pub enum Action {
 	Create,
@@ -48,7 +49,7 @@ impl Transaction {
 		s.out()
 	}
 
-	pub fn rlp_sha3_opt(&self, with_seal: Seal) -> H256 { self.rlp_bytes_opt(with_seal).sha3() }	
+	pub fn rlp_sha3_opt(&self, with_seal: Seal) -> H256 { self.rlp_bytes_opt(with_seal).sha3() }
 }
 
 impl RlpStandard for Transaction {
@@ -77,8 +78,9 @@ impl Transaction {
 	pub fn action(&self) -> &Action { &self.action }
 
 	/// Returns transaction sender.
-	pub fn sender(&self) -> Address {
-		Address::new()
+	pub fn sender(&self) -> Result<Address, Error> {
+		let p = try!(ec::recover(&self.signature, &self.rlp_sha3_opt(Seal::Without)));
+		Ok(From::from(p.sha3()))
 	}
 }
 

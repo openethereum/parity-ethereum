@@ -97,6 +97,12 @@ impl From<ExecutionError> for Error {
 	}
 }
 
+impl From<CryptoError> for Error {
+	fn from(err: CryptoError) -> Error {
+		Error::Util(UtilError::Crypto(err))
+	}
+}
+
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
 /*#![feature(concat_idents)]
 macro_rules! assimilate {
