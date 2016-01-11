@@ -305,7 +305,11 @@ macro_rules! impl_uint_from_bytes {
 	($name: ident) => {
 		impl FromBytes for $name {
 			fn from_bytes(bytes: &[u8]) -> FromBytesResult<$name> {
-				Ok($name::from(bytes))
+				if bytes.len() <= $name::SIZE {
+					Ok($name::from(bytes))
+				} else {
+					Err(FromBytesError::DataIsTooLong)
+				}
 			}
 		}
 	}
