@@ -559,8 +559,5 @@ mod tests {
 			let _res = ex.call(&params, &mut substate, &mut []);
 			println!("res: {:?}", _res);
 		}
-
-		assert!(false);
-
 	}
 }
