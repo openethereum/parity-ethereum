@@ -50,6 +50,8 @@ macro_rules! construct_uint {
 		pub struct $name(pub [u64; $n_words]);
 
 		impl $name {
+			pub const SIZE: usize = $n_words * 8;
+
 			/// Conversion to u32
 			#[inline]
 			pub fn low_u32(&self) -> u32 {
