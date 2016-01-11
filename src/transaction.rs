@@ -16,7 +16,11 @@ pub struct Transaction {
 	pub action: Action,
 	pub value: U256,
 	pub data: Bytes,
-	pub signature: Signature,
+
+	// signature
+	pub v: u8,
+	pub r: H256,
+	pub s: H256,
 
 	hash: RefCell<Option<H256>>, //TODO: make this private
 }
@@ -34,11 +38,7 @@ impl Transaction {
 		s.append(&self.value);
 		s.append(&self.data);
 		match with_seal {
-			Seal::With => {
-				s.append(&(self.signature.as_slice()[64] as u16));
-				s.append(&&self.signature.as_slice()[0..32]);
-				s.append(&&self.signature.as_slice()[32..64]);
-			},
+			Seal::With => { s.append(&(self.v as u16)).append(&self.r).append(&self.s); },
 			_ => {}
 		}
 	}
@@ -77,11 +77,14 @@ impl Transaction {
 	/// Returns transaction type.
 	pub fn action(&self) -> &Action { &self.action }
 
+	/// Construct a signature object from the sig.
+	pub fn signature(&self) -> Signature { Signature::from_rsv(&self.r, &self.s, self.v - 27) }
+
+	/// The message hash of the transaction.
+	pub fn message_hash(&self) -> H256 { self.rlp_sha3_opt(Seal::Without) }
+
 	/// Returns transaction sender.
-	pub fn sender(&self) -> Result<Address, Error> {
-		let p = try!(ec::recover(&self.signature, &self.rlp_sha3_opt(Seal::Without)));
-		Ok(From::from(p.sha3()))
-	}
+	pub fn sender(&self) -> Result<Address, Error> { Ok(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3())) }
 }
 
 impl Decodable for Action {
@@ -105,8 +108,24 @@ impl Decodable for Transaction {
 			action: try!(Decodable::decode(&d[3])),
 			value: try!(Decodable::decode(&d[4])),
 			data: try!(Decodable::decode(&d[5])),
-			signature: Signature::from_rsv(&try!(Decodable::decode(&d[6])), &try!(Decodable::decode(&d[7])), try!(u16::decode(&d[8])) as u8),
+			v: try!(u16::decode(&d[6])) as u8,
+			r: try!(Decodable::decode(&d[7])),
+			s: try!(Decodable::decode(&d[8])),
 			hash: RefCell::new(None)
 		})
 	}
+}
+
+#[test]
+fn sender_test() {
+	let t: Transaction = decode(&FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+	assert_eq!(t.data, b"");
+	assert_eq!(t.gas, U256::from(0x5208u64));
+	assert_eq!(t.gas_price, U256::from(0x01u64));
+	assert_eq!(t.nonce, U256::from(0x00u64));
+	if let Action::Call(ref to) = t.action {
+		assert_eq!(*to, address_from_hex("095e7baea6a6c7c4c2dfeb977efac326af552d87"));
+	} else { panic!(); }
+	assert_eq!(t.value, U256::from(0x0au64));
+	assert_eq!(t.sender().unwrap(), address_from_hex("0f65fe9276bc9a24ae7083ae28e2660ef72df99e"));
 }
