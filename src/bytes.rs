@@ -264,7 +264,7 @@ impl FromBytes for u64 {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<u64> {
 		match bytes.len() {
 			0 => Ok(0),
-			l => {
+			l @ 1...8 => {
 				let mut res = 0u64;
 				for i in 0..l {
 					let shift = (l - 1 - i) * 8;
@@ -272,6 +272,7 @@ impl FromBytes for u64 {
 				}
 				Ok(res)
 			}
+			_ => Err(FromBytesError::DataIsTooLong)
 		}
 	}
 }
