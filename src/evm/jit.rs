@@ -316,11 +316,21 @@ impl evm::Evm for JitEvm {
 		
 		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
 		match context.exec() {
-			evmjit::ReturnCode::Stop => evm::EvmResult::Stop { gas_left: U256::from(context.gas_left()) },
-			evmjit::ReturnCode::Return => evm::EvmResult::Return(context.output_data().to_vec()),
-			evmjit::ReturnCode::Suicide => evm::EvmResult::Suicide,
-			evmjit::ReturnCode::OutOfGas => evm::EvmResult::OutOfGas,
-			_ => evm::EvmResult::InternalError
+			evmjit::ReturnCode::Stop => Ok(evm::EvmOutput::new(U256::from(context.gas_left()), None)),
+			evmjit::ReturnCode::Return => {
+				if context.output_data().len() as u64 * ext.schedule().create_data_gas as u64 > context.gas_left() {
+					return Err(evm::EvmError::OutOfGas);
+				}
+
+				Ok(evm::EvmOutput::new(U256::from(context.gas_left()), Some(context.output_data().to_vec())))
+			},
+			evmjit::ReturnCode::Suicide => { 
+				// what if there is a suicide and we run out of gas just after?
+				ext.suicide();
+				Ok(evm::EvmOutput::new(U256::from(context.gas_left()), None))
+			},
+			evmjit::ReturnCode::OutOfGas => Err(evm::EvmError::OutOfGas),
+			_err => Err(evm::EvmError::Internal)
 		}
 	}
 }

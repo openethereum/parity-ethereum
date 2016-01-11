@@ -3,6 +3,7 @@
 use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
+use evm_schedule::*;
 
 pub trait Ext {
 	/// Returns a value for given key.
@@ -33,4 +34,14 @@ pub trait Ext {
 
 	/// Creates log entry with given topics and data
 	fn log(&mut self, topics: Vec<H256>, data: Bytes);
+
+	/// Should be called when transaction calls `RETURN` opcode.
+	/// Returns gas_left if cost of returning the data is not too high.
+	fn ret(&mut self, gas: u64, data: &[u8]) -> Option<u64>;
+
+	/// Should be called when contract commits suicide.
+	fn suicide(&mut self);
+
+	/// Returns schedule.
+	fn schedule(&self) -> &EvmSchedule;
 }

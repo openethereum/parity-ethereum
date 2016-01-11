@@ -9,9 +9,9 @@ pub mod params;
 #[cfg(feature = "jit" )]
 mod jit;
 
-pub use self::evm::{Evm, EvmResult};
+pub use self::evm::{Evm, EvmError, EvmResult};
 pub use self::ext::{Ext};
 pub use self::logentry::LogEntry;
 pub use self::vmfactory::VmFactory;
-pub use self::executive::{Executive, ExecutiveResult, Externalities, Substate};
+pub use self::executive::{Executive, ExecutionResult, Externalities, Substate};
 pub use self::params::EvmParams;
