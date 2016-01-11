@@ -36,3 +36,11 @@ impl EnvInfo {
 		}
 	}
 }
+
+/// TODO: it should be the other way around.
+/// `new` should call `default`.
+impl Default for EnvInfo {
+	fn default() -> Self {
+		EnvInfo::new()
+	}
+}

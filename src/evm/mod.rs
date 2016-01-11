@@ -7,6 +7,9 @@ pub mod schedule;
 #[cfg(feature = "jit" )]
 mod jit;
 
+#[cfg(test)]
+mod tests;
+
 pub use self::evm::{Evm, Error, Result};
 pub use self::ext::Ext;
 pub use self::factory::Factory;
