@@ -2,7 +2,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{Schedule, VmFactory, Ext, EvmResult, EvmError};
+use evm::{Schedule, VmFactory, Ext};
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -182,8 +182,8 @@ impl<'a> Executive<'a> {
 	/// Calls contract function with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
-	/// Returns either gas_left or `EvmError`.
-	fn call(&mut self, params: &ActionParams, substate: &mut Substate, output: &mut [u8]) -> EvmResult {
+	/// Returns either gas_left or `evm::Error`.
+	fn call(&mut self, params: &ActionParams, substate: &mut Substate, output: &mut [u8]) -> evm::Result {
 		// at first, transfer value to destination
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
@@ -195,7 +195,7 @@ impl<'a> Executive<'a> {
 					self.engine.execute_builtin(&params.address, &params.data, output);
 					Ok(params.gas - cost)
 				},
-				false => Err(EvmError::OutOfGas)
+				false => Err(evm::Error::OutOfGas)
 			}
 		} else if params.code.len() > 0 {
 			// if destination is a contract, do normal message call
@@ -211,7 +211,7 @@ impl<'a> Executive<'a> {
 	/// Creates contract with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
-	fn create(&mut self, params: &ActionParams, substate: &mut Substate) -> EvmResult {
+	fn create(&mut self, params: &ActionParams, substate: &mut Substate) -> evm::Result {
 		// at first create new contract
 		self.state.new_contract(&params.address);
 		// then transfer value to it
@@ -223,10 +223,10 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &Transaction, substate: Substate, backup: State, result: EvmResult) -> ExecutionResult {
+	fn finalize(&mut self, t: &Transaction, substate: Substate, backup: State, result: evm::Result) -> ExecutionResult {
 		match result { 
-			Err(EvmError::Internal) => Err(ExecutionError::Internal),
-			Err(EvmError::OutOfGas) => {
+			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
+			Err(evm::Error::OutOfGas) => {
 				*self.state = backup;
 				Err(ExecutionError::OutOfGas)
 			},
@@ -341,7 +341,7 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), EvmError> {
+	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), evm::Error> {
 		// if balance is insufficient or we are to deep, return
 		if self.state.balance(&self.params.address) < *value && self.depth >= 1024 {
 			return Ok((gas, None));
@@ -367,7 +367,7 @@ impl<'a> Ext for Externalities<'a> {
 		ex.create(&params, self.substate).map(|gas_left| (gas_left.low_u64(), Some(address)))
 	}
 
-	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Result<u64, EvmError> {
+	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Result<u64, evm::Error> {
 		let mut gas_cost = call_gas;
 		let mut call_gas = call_gas;
 
@@ -383,7 +383,7 @@ impl<'a> Ext for Externalities<'a> {
 		}
 
 		if gas_cost > gas {
-			return Err(EvmError::OutOfGas)
+			return Err(evm::Error::OutOfGas)
 		}
 
 		let gas = gas - gas_cost;
@@ -413,7 +413,7 @@ impl<'a> Ext for Externalities<'a> {
 		self.state.code(address).unwrap_or(vec![])
 	}
 
-	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, EvmError> {
+	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
 		match &mut self.output {
 			&mut OutputPolicy::Return(ref mut slice) => unsafe {
 				let len = cmp::min(slice.len(), data.len());
@@ -423,7 +423,7 @@ impl<'a> Ext for Externalities<'a> {
 			&mut OutputPolicy::InitContract => {
 				let return_cost = data.len() as u64 * self.schedule.create_data_gas as u64;
 				if return_cost > gas {
-					return Err(EvmError::OutOfGas);
+					return Err(evm::Error::OutOfGas);
 				}
 				let mut code = vec![];
 				code.reserve(data.len());

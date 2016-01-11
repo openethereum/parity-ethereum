@@ -4,15 +4,14 @@ pub mod ext;
 pub mod evm;
 pub mod vmfactory;
 //pub mod logentry;
-pub mod executive;
 pub mod schedule;
 #[cfg(feature = "jit" )]
 mod jit;
 
-pub use self::evm::{Evm, EvmError, EvmResult};
-pub use self::ext::{Ext};
-//pub use self::logentry::LogEntry;
+// TODO: Error -> evm::Error, Result -> evm::Result
+pub use self::evm::{Evm, Error, Result};
+pub use self::ext::Ext;
+// TODO: VmFactory -> evm::Factory
+// TODO: module rename vmfactory -> factory
 pub use self::vmfactory::VmFactory;
-// TODO: reduce this to absolutely necessary things
-pub use self::executive::{Executive, ExecutionResult, Externalities, Substate, OutputPolicy};
 pub use self::schedule::Schedule;

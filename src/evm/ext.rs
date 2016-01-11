@@ -4,7 +4,7 @@ use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
 use evm::Schedule;
-use evm::EvmError;
+use evm::Error;
 
 // TODO: replace all u64 with u256
 pub trait Ext {
@@ -24,13 +24,13 @@ pub trait Ext {
 	/// 
 	/// If contract creation is successfull, return gas_left and contract address,
 	/// If depth is too big or transfer value exceeds balance, return None
-	/// Otherwise return appropriate `EvmError`.
-	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), EvmError>;
+	/// Otherwise return appropriate `Error`.
+	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), Error>;
 
 	/// Message call.
 	/// 
 	/// If call is successfull, returns gas left.
-	/// otherwise `EvmError`.
+	/// otherwise `Error`.
 	fn call(&mut self, 
 			gas: u64, 
 			call_gas: u64, 
@@ -38,7 +38,7 @@ pub trait Ext {
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<u64, EvmError>;
+			output: &mut [u8]) -> Result<u64, Error>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Vec<u8>;
@@ -48,7 +48,7 @@ pub trait Ext {
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.
-	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, EvmError>;
+	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, Error>;
 
 	/// Should be called when contract commits suicide.
 	fn suicide(&mut self);

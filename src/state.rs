@@ -1,5 +1,6 @@
 use common::*;
 use engine::Engine;
+//use executive::Executive;
 
 /// Information concerning the result of the `State::apply` operation.
 pub struct ApplyInfo {
@@ -134,7 +135,7 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, _env_info: &EnvInfo, _engine: &Engine, _t: &Transaction) -> ApplyResult {
+	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
 		unimplemented!();
 	}
 

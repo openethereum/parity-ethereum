@@ -1,12 +1,6 @@
 //! Just in time compiler execution environment.
-use std::mem;
-use std::ptr;
-use std::slice;
+use common::*;
 use evmjit;
-use util::hash::*;
-use util::uint::*;
-use util::bytes::*;
-use util::sha3::*;
 use evm;
 
 /// Ethcore representation of evmjit runtime data.
@@ -165,11 +159,11 @@ impl IntoJit<evmjit::RuntimeDataHandle> for RuntimeData {
 /// This adapter 'catches' them and moves upstream.
 struct ExtAdapter<'a> {
 	ext: &'a mut evm::Ext,
-	err: &'a mut Option<evm::EvmError>
+	err: &'a mut Option<evm::Error>
 }
 
 impl<'a> ExtAdapter<'a> {
-	fn new(ext: &'a mut evm::Ext, err: &'a mut Option<evm::EvmError>) -> Self {
+	fn new(ext: &'a mut evm::Ext, err: &'a mut Option<evm::Error>) -> Self {
 		ExtAdapter {
 			ext: ext,
 			err: err
@@ -222,7 +216,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 						*address = addr.into_jit();
 					}
 				},
-				Err(err @ evm::EvmError::OutOfGas) => {
+				Err(err @ evm::Error::OutOfGas) => {
 					*self.err = Some(err);
 					// hack to propagate `OutOfGas` to evmjit and stop
 					// the execution immediately.
@@ -258,7 +252,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 					*io_gas = gas_left;
 					true
 				},
-				Err(err @ evm::EvmError::OutOfGas) => {
+				Err(err @ evm::Error::OutOfGas) => {
 					*self.err = Some(err);
 					// hack to propagate `OutOfGas` to evmjit and stop
 					// the execution immediately.
@@ -319,7 +313,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, params: &evm::ActionParams, ext: &mut evm::Ext) -> evm::EvmResult {
+	fn exec(&self, params: &evm::ActionParams, ext: &mut evm::Ext) -> evm::Result {
 		let mut optional_err = None;
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, &mut optional_err)) };
@@ -357,8 +351,8 @@ impl evm::Evm for JitEvm {
 				ext.suicide();
 				Ok(U256::from(context.gas_left()))
 			},
-			evmjit::ReturnCode::OutOfGas => Err(evm::EvmError::OutOfGas),
-			_err => Err(evm::EvmError::Internal)
+			evmjit::ReturnCode::OutOfGas => Err(evm::Error::OutOfGas),
+			_err => Err(evm::Error::Internal)
 		}
 	}
 }
@@ -437,7 +431,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop);
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop);
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), 
@@ -461,7 +455,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), 
@@ -485,7 +479,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), 
@@ -510,7 +504,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 
 		assert_eq!(Address::from(state.storage_at(&address, &H256::new())), address.clone());
@@ -535,7 +529,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 
 		assert_eq!(Address::from(state.storage_at(&address, &H256::new())), address.clone());
@@ -576,7 +570,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), 
@@ -602,7 +596,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0x10)));
@@ -624,7 +618,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 		let logs = substate.logs();
 		assert_eq!(logs.len(), 1);
@@ -659,7 +653,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 		let logs = substate.logs();
 		assert_eq!(logs.len(), 1);
@@ -691,7 +685,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(address.clone()));
@@ -717,7 +711,7 @@ mod tests {
 			let mut ext = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::InitContract);
 			let evm = JitEvm;
 			let _res = evm.exec(&params, &mut ext);
-			//assert_eq!(evm.exec(&params, &mut ext), EvmResult::Stop {});
+			//assert_eq!(evm.exec(&params, &mut ext), Result::Stop {});
 		}
 
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from_str("23ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23").unwrap());

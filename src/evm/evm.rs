@@ -5,7 +5,7 @@ use evm::Ext;
 
 /// Evm errors.
 #[derive(Debug)]
-pub enum EvmError {
+pub enum Error {
 	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	/// The state should be reverted to the state from before the
 	/// transaction execution. But it does not mean that transaction
@@ -20,10 +20,10 @@ pub enum EvmError {
 /// Evm result.
 /// 
 /// Returns gas_left if execution is successfull, otherwise error.
-pub type EvmResult = Result<U256, EvmError>;
+pub type Result = result::Result<U256, Error>;
 
 /// Evm interface.
 pub trait Evm {
 	/// This function should be used to execute transaction.
-	fn exec(&self, params: &ActionParams, ext: &mut Ext) -> EvmResult;
+	fn exec(&self, params: &ActionParams, ext: &mut Ext) -> Result;
 }
