@@ -385,8 +385,8 @@ pub mod ffi {
 		pub fn evmjit_exec(context: *mut JitContext) -> JitReturnCode;
 	}
 
+	// ExtHandle is not a C type, so we need to allow "improper_ctypes" 
 	#[link(name="evmjit")]
-	// ExtHandle does not have to by a C type
 	#[allow(improper_ctypes)]
 	extern "C" {
 		pub fn evmjit_create_context(data: *mut JitRuntimeData, ext: *mut ExtHandle) -> *mut JitContext;
