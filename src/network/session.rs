@@ -7,27 +7,44 @@ use error::*;
 use network::{NetworkError, DisconnectReason};
 use network::host::*;
 
+/// Peer session over encrypted connection.
+/// When created waits for Hello packet exchange and signals ready state.
+/// Sends and receives protocol packets and handles basic packes such as ping/pong and disconnect.
 pub struct Session {
+	/// Shared session information
 	pub info: SessionInfo,
+	/// Underlying connection
 	connection: EncryptedConnection,
+	/// Session ready flag. Set after successfull Hello packet exchange
 	had_hello: bool,
 }
 
+/// Structure used to report various session events.
 pub enum SessionData {
 	None,
+	/// Session is ready to send/receive packets.
 	Ready,
+	/// A packet has been received
 	Packet {
+		/// Packet data
 		data: Vec<u8>,
+		/// Packet protocol ID
 		protocol: &'static str,
+		/// Zero based packet ID 
 		packet_id: u8,
 	},
 }
 
+/// Shared session information
 pub struct SessionInfo {
+	/// Peer public key
 	pub id: NodeId,
+	/// Peer client ID
 	pub client_version: String,
+	/// Peer RLPx protocol version
 	pub protocol_version: u32,
-	pub capabilities: Vec<SessionCapabilityInfo>,
+	/// Peer protocol capabilities
+	capabilities: Vec<SessionCapabilityInfo>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -48,7 +65,7 @@ impl Decodable for PeerCapabilityInfo {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct SessionCapabilityInfo {
+struct SessionCapabilityInfo {
 	pub protocol: &'static str,
 	pub version: u8,
 	pub packet_count: u8,
@@ -65,6 +82,7 @@ const PACKET_USER: u8 = 0x10;
 const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
+	/// Create a new session out of comepleted handshake. Consumes handshake object.
 	pub fn new(h: Handshake, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<Session, UtilError> {
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
@@ -84,6 +102,12 @@ impl Session {
 		Ok(session)
 	}
 
+	/// Check if session is ready to send/receive data
+	pub fn is_ready(&self) -> bool {
+		self.had_hello
+	}
+
+	/// Readable IO handler. Returns packet data if available.
 	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<SessionData, UtilError> {
 		match try!(self.connection.readable(event_loop)) {
 			Some(data) => Ok(try!(self.read_packet(data, host))),
@@ -91,14 +115,22 @@ impl Session {
 		}
 	}
 
+	/// Writable IO handler. Sends pending packets.
 	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
 		self.connection.writable(event_loop)
 	}
 
+	/// Checks if peer supports given capability
 	pub fn have_capability(&self, protocol: &str) -> bool {
 		self.info.capabilities.iter().any(|c| c.protocol == protocol)
 	}
 
+	/// Update registration with the event loop. Should be called at the end of the IO handler.
+	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		self.connection.reregister(event_loop)
+	}
+
+	/// Send a protocol packet to peer.
 	pub fn send_packet(&mut self, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), UtilError> {
 		let mut i = 0usize;
 		while protocol != self.info.capabilities[i].protocol {
@@ -160,7 +192,7 @@ impl Session {
 
 	fn write_hello(&mut self, host: &HostInfo) -> Result<(), UtilError> {
 		let mut rlp = RlpStream::new();
-		rlp.append(&(PACKET_HELLO as u32));
+		rlp.append_raw(&[PACKET_HELLO as u8], 0);
 		rlp.append_list(5)
 			.append(&host.protocol_version)
 			.append(&host.client_version)
@@ -217,12 +249,12 @@ impl Session {
 		Ok(())
 	}
 
-	fn write_ping(&mut self) -> Result<(), UtilError> {
-		self.send(try!(Session::prepare(PACKET_PING, 0)))
+	fn write_ping(&mut self) -> Result<(), UtilError>  {
+		self.send(try!(Session::prepare(PACKET_PING)))
 	}
 
-	fn write_pong(&mut self) -> Result<(), UtilError> {
-		self.send(try!(Session::prepare(PACKET_PONG, 0)))
+	fn write_pong(&mut self) -> Result<(), UtilError>  {
+		self.send(try!(Session::prepare(PACKET_PONG)))
 	}
 
 	fn disconnect(&mut self, reason: DisconnectReason) -> NetworkError {
@@ -234,10 +266,10 @@ impl Session {
 		NetworkError::Disconnect(reason)
 	}
 
-	fn prepare(packet_id: u8, items: usize) -> Result<RlpStream, UtilError> {
-		let mut rlp = RlpStream::new_list(1);
+	fn prepare(packet_id: u8) -> Result<RlpStream, UtilError> {
+		let mut rlp = RlpStream::new();
 		rlp.append(&(packet_id as u32));
-		rlp.append_list(items);
+		rlp.append_list(0);
 		Ok(rlp)
 	}
 

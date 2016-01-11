@@ -12,23 +12,39 @@ use network::NetworkError;
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
+	/// Just created
 	New,
+	/// Waiting for auth packet
 	ReadingAuth,
+	/// Waiting for ack packet
 	ReadingAck,
+	/// Ready to start a session
 	StartSession,
 }
 
+/// RLPx protocol handhake. See https://github.com/ethereum/devp2p/blob/master/rlpx.md#encrypted-handshake
 pub struct Handshake {
+	/// Remote node public key
 	pub id: NodeId,
+	/// Underlying connection
 	pub connection: Connection,
+	/// Handshake state
 	state: HandshakeState,
+	/// Outgoing or incoming connection
 	pub originated: bool,
+	/// Disconnect timeout
 	idle_timeout: Option<Timeout>,
+	/// ECDH ephemeral
 	pub ecdhe: KeyPair,
+	/// Connection nonce
 	pub nonce: H256,
+	/// Handshake public key
 	pub remote_public: Public,
+	/// Remote connection nonce.
 	pub remote_nonce: H256,
+	/// A copy of received encryped auth packet 
 	pub auth_cipher: Bytes,
+	/// A copy of received encryped ack packet 
 	pub ack_cipher: Bytes
 }
 
@@ -36,6 +52,7 @@ const AUTH_PACKET_SIZE: usize = 307;
 const ACK_PACKET_SIZE: usize = 210;
 
 impl Handshake {
+	/// Create a new handshake object
 	pub fn new(token: Token, id: &NodeId, socket: TcpStream, nonce: &H256) -> Result<Handshake, UtilError> {
 		Ok(Handshake {
 			id: id.clone(),
@@ -52,6 +69,7 @@ impl Handshake {
 		})
 	}
 
+	/// Start a handhsake
 	pub fn start(&mut self, host: &HostInfo, originated: bool) -> Result<(), UtilError> {
 		self.originated = originated;
 		if originated {
@@ -64,10 +82,12 @@ impl Handshake {
 		Ok(())
 	}
 
+	/// Check if handshake is complete
 	pub fn done(&self) -> bool {
 		self.state == HandshakeState::StartSession
 	}
 
+	/// Readable IO handler. Drives the state change.
 	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		match self.state {
@@ -97,6 +117,7 @@ impl Handshake {
 		Ok(())
 	}
 
+	/// Writabe IO handler.
 	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		try!(self.connection.writable());
@@ -106,6 +127,7 @@ impl Handshake {
 		Ok(())
 	}
 
+	/// Register the IO handler with the event loop
 	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
@@ -113,6 +135,7 @@ impl Handshake {
 		Ok(())
 	}
 
+	/// Parse, validate and confirm auth message
 	fn read_auth(&mut self, host: &HostInfo, data: &[u8]) -> Result<(), UtilError> {
 		trace!(target:"net", "Received handshake auth to {:?}", self.connection.socket.peer_addr());
 		assert!(data.len() == AUTH_PACKET_SIZE);
@@ -134,6 +157,7 @@ impl Handshake {
 		self.write_ack()
 	}
 
+	/// Parse and validate ack message
 	fn read_ack(&mut self, host: &HostInfo, data: &[u8]) -> Result<(), UtilError> {
 		trace!(target:"net", "Received handshake auth to {:?}", self.connection.socket.peer_addr());
 		assert!(data.len() == ACK_PACKET_SIZE);
@@ -144,6 +168,7 @@ impl Handshake {
 		Ok(())
 	}
 
+	/// Sends auth message
 	fn write_auth(&mut self, host: &HostInfo) -> Result<(), UtilError> {
 		trace!(target:"net", "Sending handshake auth to {:?}", self.connection.socket.peer_addr());
 		let mut data = [0u8; /*Signature::SIZE*/ 65 + /*H256::SIZE*/ 32 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32 + 1]; //TODO: use associated constants
@@ -170,6 +195,7 @@ impl Handshake {
 		Ok(())
 	}
 
+	/// Sends ack message
 	fn write_ack(&mut self) -> Result<(), UtilError> {
 		trace!(target:"net", "Sending handshake ack to {:?}", self.connection.socket.peer_addr());
 		let mut data = [0u8; 1 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32]; //TODO: use associated constants
