@@ -6,6 +6,7 @@ pub use std::cmp;
 pub use std::ptr;
 pub use std::result;
 pub use std::option;
+pub use std::mem;
 
 pub use std::path::Path;
 pub use std::str::{FromStr};
