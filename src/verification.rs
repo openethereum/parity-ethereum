@@ -13,11 +13,11 @@ use blockchain::BlockChain;
 pub fn verify_block_basic(bytes: &[u8], engine: &Engine) -> Result<(), Error> {
 	let block = BlockView::new(bytes);
 	let header = block.header();
-	try!(verify_header(&header));
+	try!(verify_header(&header, engine));
 	try!(verify_block_integrity(bytes, &header.transactions_root, &header.uncles_hash));
 	try!(engine.verify_block_basic(&header, Some(bytes)));
 	for u in Rlp::new(bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
-		try!(verify_header(&u));
+		try!(verify_header(&u, engine));
 		try!(engine.verify_block_basic(&u, None));
 	}
 	Ok(())
@@ -113,12 +113,20 @@ pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Res
 }
 
 /// Check basic header parameters.
-fn verify_header(header: &Header) -> Result<(), Error> {
+fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.number > From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: 0, found: header.number })))
 	}
 	if header.gas_used > header.gas_limit {
 		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: header.gas_limit, min: From::from(0), found: header.gas_used })));
+	}
+	let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
+	if header.gas_limit < min_gas_limit {
+		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: min_gas_limit, max: From::from(0), found: header.gas_limit }))); 
+	}
+	let maximum_extra_data_size = engine.maximum_extra_data_size();
+	if header.number != 0 && header.extra_data.len() > maximum_extra_data_size {
+		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: 0, max: maximum_extra_data_size, found: header.extra_data.len() }))); 
 	}
 	Ok(())
 }
