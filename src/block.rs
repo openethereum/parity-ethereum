@@ -169,7 +169,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// If valid, it will be executed, and archived together with the receipt.
 	pub fn push_transaction(&mut self, t: Transaction, h: Option<H256>) -> Result<&Receipt, Error> {
 		let env_info = self.env_info();
-		match self.block.state.apply(&env_info, self.engine, &t, true) {
+		match self.block.state.apply(&env_info, self.engine, &t) {
 			Ok(x) => {
 				self.block.archive_set.insert(h.unwrap_or_else(||t.hash()));
 				self.block.archive.push(Entry { transaction: t, receipt: x.receipt });

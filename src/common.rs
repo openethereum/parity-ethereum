@@ -8,4 +8,5 @@ pub use builtin::*;
 pub use header::*;
 pub use account::*;
 pub use transaction::*;
+pub use log_entry::*;
 pub use receipt::*;

@@ -1,27 +1,6 @@
 use util::*;
 use basic_types::LogBloom;
-
-/// A single log's entry.
-pub struct LogEntry {
-	pub address: Address,
-	pub topics: Vec<H256>,
-	pub data: Bytes,
-}
-
-impl RlpStandard for LogEntry {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(3);
-		s.append(&self.address);
-		s.append(&self.topics);
-		s.append(&self.data);
-	}
-}
-
-impl LogEntry {
-	pub fn bloom(&self) -> LogBloom {
-		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))
-	}
-}
+use log_entry::LogEntry;
 
 /// Information describing execution of a transaction.
 pub struct Receipt {
