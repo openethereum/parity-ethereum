@@ -22,3 +22,17 @@ pub struct EnvInfo {
 	/// The gas used.
 	pub gas_used: U256,
 }
+
+impl EnvInfo {
+	pub fn new() -> EnvInfo {
+		EnvInfo {
+			number: 0,
+			author: Address::new(),
+			timestamp: 0,
+			difficulty: U256::zero(),
+			gas_limit: U256::zero(),
+			last_hashes: vec![],
+			gas_used: U256::zero()
+		}
+	}
+}

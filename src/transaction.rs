@@ -8,12 +8,12 @@ pub enum Action {
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
 pub struct Transaction {
-	nonce: U256,
-	gas_price: U256,
-	gas: U256,
-	action: Action,
-	value: U256,
-	data: Bytes,
+	pub nonce: U256,
+	pub gas_price: U256,
+	pub gas: U256,
+	pub action: Action,
+	pub value: U256,
+	pub data: Bytes,
 
 	hash: RefCell<Option<H256>>, //TODO: make this private
 }
@@ -53,6 +53,9 @@ impl Transaction {
 
 	/// Returns transaction type.
 	pub fn action(&self) -> &Action { &self.action }
+
+	/// Returns transaction sender.
+	pub fn sender(&self) -> Address { Address::new() }
 }
 
 impl Decodable for Action {

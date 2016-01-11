@@ -1,6 +1,7 @@
 //! General error types for use in ethcore.
 
 use util::*;
+use header::BlockNumber;
 
 #[derive(Debug)]
 pub struct Mismatch<T: fmt::Debug> {
@@ -15,20 +16,65 @@ pub struct OutOfBounds<T: fmt::Debug> {
 	pub found: T,
 }
 
+/// Result of executing the transaction.
+#[derive(PartialEq, Debug)]
+pub enum ExecutionError {
+	/// Returned when block (gas_used + gas) > gas_limit.
+	/// 
+	/// If gas =< gas_limit, upstream may try to execute the transaction
+	/// in next block.
+	BlockGasLimitReached { gas_limit: U256, gas_used: U256, gas: U256 },
+	/// Returned when transaction nonce does not match state nonce.
+	InvalidNonce { expected: U256, is: U256 },
+	/// Returned when cost of transaction (value + gas_price * gas) exceeds 
+	/// current sender balance.
+	NotEnoughCash { required: U256, is: U256 },
+	/// Returned when internal evm error occurs.
+	Internal
+}
+
 #[derive(Debug)]
 pub enum BlockError {
-	TooManyUncles,
+	TooManyUncles(OutOfBounds<usize>),
 	UncleWrongGeneration,
 	ExtraDataOutOfBounds(OutOfBounds<usize>),
 	InvalidSealArity(Mismatch<usize>),
+	TooMuchGasUsed(OutOfBounds<U256>),
+	InvalidUnclesHash(Mismatch<H256>),
+	UncleTooOld(OutOfBounds<BlockNumber>),
+	UncleIsBrother(OutOfBounds<BlockNumber>),
+	UncleInChain(H256),
+	UncleParentNotInChain(H256),
+	InvalidStateRoot,
+	InvalidGasUsed,
+	InvalidTransactionsRoot(Mismatch<H256>),
+	InvalidDifficulty(Mismatch<U256>),
+	InvalidGasLimit(OutOfBounds<U256>),
+	InvalidReceiptsStateRoot,
+	InvalidTimestamp(OutOfBounds<u64>),
+	InvalidLogBloom,
+	InvalidBlockNonce,
+	InvalidParentHash(Mismatch<H256>),
+	InvalidNumber(OutOfBounds<BlockNumber>),
+	UnknownParent(H256),
+	UnknownUncleParent(H256),
 }
 
 #[derive(Debug)]
 pub enum ImportError {
-	Bad(BlockError),
+	Bad(Error),
 	AlreadyInChain,
 	AlreadyQueued,
 }
+
+impl From<Error> for ImportError {
+	fn from(err: Error) -> ImportError {
+		ImportError::Bad(err)
+	}
+}
+
+/// Result of import block operation.
+pub type ImportResult = Result<(), ImportError>;
 
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
@@ -36,11 +82,18 @@ pub enum Error {
 	Util(UtilError),
 	Block(BlockError),
 	UnknownEngineName(String),
+	Execution(ExecutionError),
 }
 
 impl From<BlockError> for Error {
 	fn from(err: BlockError) -> Error {
 		Error::Block(err)
+	}
+}
+
+impl From<ExecutionError> for Error {
+	fn from(err: ExecutionError) -> Error {
+		Error::Execution(err)
 	}
 }
 
