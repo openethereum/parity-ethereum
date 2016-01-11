@@ -2,6 +2,10 @@ pub use std::io;
 pub use std::str;
 pub use std::fmt;
 pub use std::slice;
+pub use std::cmp;
+pub use std::ptr;
+pub use std::result;
+pub use std::option;
 
 pub use std::path::Path;
 pub use std::str::{FromStr};
