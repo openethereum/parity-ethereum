@@ -9,6 +9,7 @@ pub use std::io::{Read,Write};
 pub use std::hash::{Hash, Hasher};
 pub use std::error::Error as StdError;
 
+pub use std::sync::*;
 pub use std::ops::*;
 pub use std::cmp::*;
 pub use std::cell::*;
