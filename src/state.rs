@@ -134,7 +134,7 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, _env_info: &EnvInfo, _engine: &Engine, _t: &Transaction, _is_permanent: bool) -> ApplyResult {
+	pub fn apply(&mut self, _env_info: &EnvInfo, _engine: &Engine, _t: &Transaction) -> ApplyResult {
 		unimplemented!();
 	}
 
