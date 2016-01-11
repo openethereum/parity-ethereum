@@ -323,3 +323,103 @@ fn test_calldataload() {
 	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("23ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23").unwrap());
 
 }
+
+#[test]
+fn test_author() {
+	let author = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+	let code = "41600055".from_hex().unwrap();
+
+	let mut params = ActionParams::new();
+	params.gas = U256::from(100_000);
+	params.code = code;
+	let mut ext = FakeExt::new();
+	ext.info.author = author;
+
+	let gas_left = {
+		let vm = Factory::create();
+		vm.exec(&params, &mut ext).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(79_995));
+	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap());
+}
+
+#[test]
+fn test_timestamp() {
+	let timestamp = 0x1234; 
+	let code = "42600055".from_hex().unwrap();
+
+	let mut params = ActionParams::new();
+	params.gas = U256::from(100_000);
+	params.code = code;
+	let mut ext = FakeExt::new();
+	ext.info.timestamp = timestamp;
+
+	let gas_left = {
+		let vm = Factory::create();
+		vm.exec(&params, &mut ext).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(79_995));
+	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000000000000000000000000000000000000001234").unwrap());
+}
+
+#[test]
+fn test_number() {
+	let number = 0x1234; 
+	let code = "43600055".from_hex().unwrap();
+
+	let mut params = ActionParams::new();
+	params.gas = U256::from(100_000);
+	params.code = code;
+	let mut ext = FakeExt::new();
+	ext.info.number = number;
+
+	let gas_left = {
+		let vm = Factory::create();
+		vm.exec(&params, &mut ext).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(79_995));
+	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000000000000000000000000000000000000001234").unwrap());
+}
+
+#[test]
+fn test_difficulty() {
+	let difficulty = U256::from(0x1234);
+	let code = "44600055".from_hex().unwrap();
+
+	let mut params = ActionParams::new();
+	params.gas = U256::from(100_000);
+	params.code = code;
+	let mut ext = FakeExt::new();
+	ext.info.difficulty = difficulty;
+
+	let gas_left = {
+		let vm = Factory::create();
+		vm.exec(&params, &mut ext).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(79_995));
+	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000000000000000000000000000000000000001234").unwrap());
+}
+
+#[test]
+fn test_gas_limit() {
+	let gas_limit = U256::from(0x1234);
+	let code = "45600055".from_hex().unwrap();
+
+	let mut params = ActionParams::new();
+	params.gas = U256::from(100_000);
+	params.code = code;
+	let mut ext = FakeExt::new();
+	ext.info.gas_limit = gas_limit;
+
+	let gas_left = {
+		let vm = Factory::create();
+		vm.exec(&params, &mut ext).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(79_995));
+	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000000000000000000000000000000000000001234").unwrap());
+}
