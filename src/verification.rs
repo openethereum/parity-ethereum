@@ -10,7 +10,7 @@ use engine::Engine;
 use blockchain::BlockChain;
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
-pub fn verify_block_basic(bytes: &[u8], engine: &mut Engine) -> Result<(), Error> {
+pub fn verify_block_basic(bytes: &[u8], engine: &Engine) -> Result<(), Error> {
 	let block = BlockView::new(bytes);
 	let header = block.header();
 	try!(verify_header(&header));
@@ -26,7 +26,7 @@ pub fn verify_block_basic(bytes: &[u8], engine: &mut Engine) -> Result<(), Error
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
 /// TODO: return cached transactions, header hash.
-pub fn verify_block_unordered(bytes: &[u8], engine: &mut Engine) -> Result<(), Error> {
+pub fn verify_block_unordered(bytes: &[u8], engine: &Engine) -> Result<(), Error> {
 	let block = BlockView::new(bytes);
 	let header = block.header();
 	try!(engine.verify_block_unordered(&header, Some(bytes)));
@@ -37,7 +37,7 @@ pub fn verify_block_unordered(bytes: &[u8], engine: &mut Engine) -> Result<(), E
 }
 
 /// Phase 3 verification. Check block information against parents and uncles.
-pub fn verify_block_final(bytes: &[u8], engine: &mut Engine, bc: &BlockChain) -> Result<(), Error> {
+pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Result<(), Error> {
 	let block = BlockView::new(bytes);
 	let header = block.header();
 	let parent = try!(bc.block_header(&header.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownParent(header.parent_hash.clone()))));

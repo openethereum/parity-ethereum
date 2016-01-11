@@ -45,10 +45,19 @@ pub enum BlockError {
 
 #[derive(Debug)]
 pub enum ImportError {
-	Bad(BlockError),
+	Bad(Error),
 	AlreadyInChain,
 	AlreadyQueued,
 }
+
+impl From<Error> for ImportError {
+	fn from(err: Error) -> ImportError {
+		ImportError::Bad(err)
+	}
+}
+
+/// Result of import block operation.
+pub type ImportResult = Result<(), ImportError>;
 
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.

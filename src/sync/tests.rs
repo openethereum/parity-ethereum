@@ -1,13 +1,7 @@
-use std::collections::{HashMap, VecDeque};
-use util::bytes::Bytes;
-use util::hash::{H256, FixedHash};
-use util::uint::{U256};
-use util::sha3::Hashable;
-use util::rlp::{self, Rlp, RlpStream, View, Stream};
-use util::network::{PeerId, PacketId};
-use util::error::UtilError;
-use client::{BlockChainClient, BlockStatus, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult};
+use util::*;
+use client::{BlockChainClient, BlockStatus, TreeRoute, BlockQueueStatus, BlockChainInfo};
 use header::{Header as BlockHeader, BlockNumber};
+use error::*;
 use sync::io::SyncIo;
 use sync::chain::ChainSync;
 
