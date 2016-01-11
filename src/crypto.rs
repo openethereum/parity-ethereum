@@ -37,7 +37,7 @@ impl From<::secp256k1::Error> for CryptoError {
 			::secp256k1::Error::InvalidPublicKey => CryptoError::InvalidPublic,
 			::secp256k1::Error::InvalidSignature => CryptoError::InvalidSignature,
 			::secp256k1::Error::InvalidSecretKey => CryptoError::InvalidSecret,
-			_ => panic!("Crypto error: {:?}", e),
+			_ => CryptoError::InvalidSignature,
 		}
 	}
 }

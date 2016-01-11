@@ -8,7 +8,7 @@ pub enum DecoderError {
 	RlpIsTooShort,
 	RlpExpectedToBeList,
 	RlpExpectedToBeData,
-	RlpIncorrectListLen
+	RlpIncorrectListLen,
 }
 
 impl StdError for DecoderError {
