@@ -10,6 +10,17 @@ pub struct Receipt {
 	pub logs: Vec<LogEntry>,
 }
 
+impl Receipt {
+	pub fn new(state_root: H256, gas_used: U256, logs: Vec<LogEntry>) -> Receipt {
+		Receipt {
+			state_root: state_root,
+			gas_used: gas_used,
+			log_bloom: logs.iter().fold(LogBloom::new(), |mut b, l| { b |= &l.bloom(); b }),
+			logs: logs,
+		}
+	}
+}
+
 impl RlpStandard for Receipt {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.append_list(4);

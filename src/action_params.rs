@@ -3,7 +3,9 @@ use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
 
-/// Evm input params. Everything else should be specified in Externalities.
+// TODO: should be a trait, possible to avoid cloning everything from a Transaction(/View).
+
+/// Action (call/create) input params. Everything else should be specified in Externalities.
 #[derive(Clone, Debug)]
 pub struct ActionParams {
 	/// Address of currently executed code.
