@@ -2,6 +2,8 @@ use util::*;
 use basic_types::*;
 use time::now_utc;
 
+pub type BlockNumber = u64;
+
 /// A block header.
 ///
 /// Reflects the specific RLP fields of a block in the chain with additional room for the seal
@@ -13,7 +15,7 @@ pub struct Header {
 	// TODO: make all private.
 	pub parent_hash: H256,
 	pub timestamp: u64,
-	pub number: usize,
+	pub number: BlockNumber,
 	pub author: Address,
 
 	pub transactions_root: H256,
@@ -46,23 +48,23 @@ impl Header {
 			number: 0,
 			author: ZERO_ADDRESS.clone(),
 
-			transactions_root: ZERO_H256.clone(),
-			uncles_hash: ZERO_H256.clone(),
+			transactions_root: SHA3_NULL_RLP,
+			uncles_hash: SHA3_EMPTY_LIST_RLP,
 			extra_data: vec![],
 
-			state_root: ZERO_H256.clone(),
-			receipts_root: ZERO_H256.clone(),
+			state_root: SHA3_NULL_RLP,
+			receipts_root: SHA3_NULL_RLP,
 			log_bloom: ZERO_LOGBLOOM.clone(),
-			gas_used: ZERO_U256.clone(),
-			gas_limit: ZERO_U256.clone(),
+			gas_used: ZERO_U256,
+			gas_limit: ZERO_U256,
 
-			difficulty: ZERO_U256.clone(),
+			difficulty: ZERO_U256,
 			seal: vec![],
 			hash: RefCell::new(None),
 		}
 	}
 
-	pub fn number(&self) -> usize { self.number }
+	pub fn number(&self) -> BlockNumber { self.number }
 	pub fn timestamp(&self) -> u64 { self.timestamp }
 	pub fn author(&self) -> &Address { &self.author }
 
@@ -72,7 +74,7 @@ impl Header {
 
 	// TODO: seal_at, set_seal_at &c.
 
-	pub fn set_number(&mut self, a: usize) { self.number = a; self.note_dirty(); }
+	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
 	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
 	pub fn set_timestamp_now(&mut self) { self.timestamp = now_utc().to_timespec().sec as u64; self.note_dirty(); }
 	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
@@ -133,28 +135,28 @@ impl Header {
 
 impl Decodable for Header {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = try!(decoder.as_list());
+		let r = decoder.as_rlp();
 
 		let mut blockheader = Header {
-			parent_hash: try!(Decodable::decode(&d[0])),
-			uncles_hash: try!(Decodable::decode(&d[1])),
-			author: try!(Decodable::decode(&d[2])),
-			state_root: try!(Decodable::decode(&d[3])),
-			transactions_root: try!(Decodable::decode(&d[4])),
-			receipts_root: try!(Decodable::decode(&d[5])),
-			log_bloom: try!(Decodable::decode(&d[6])),
-			difficulty: try!(Decodable::decode(&d[7])),
-			number: try!(Decodable::decode(&d[8])),
-			gas_limit: try!(Decodable::decode(&d[9])),
-			gas_used: try!(Decodable::decode(&d[10])),
-			timestamp: try!(Decodable::decode(&d[11])),
-			extra_data: try!(Decodable::decode(&d[12])),
+			parent_hash: try!(r.val_at(0)),
+			uncles_hash: try!(r.val_at(1)),
+			author: try!(r.val_at(2)),
+			state_root: try!(r.val_at(3)),
+			transactions_root: try!(r.val_at(4)),
+			receipts_root: try!(r.val_at(5)),
+			log_bloom: try!(r.val_at(6)),
+			difficulty: try!(r.val_at(7)),
+			number: try!(r.val_at(8)),
+			gas_limit: try!(r.val_at(9)),
+			gas_used: try!(r.val_at(10)),
+			timestamp: try!(r.val_at(11)),
+			extra_data: try!(r.val_at(12)),
 			seal: vec![],
-			hash: RefCell::new(None),
+			hash: RefCell::new(Some(r.as_raw().sha3()))
 		};
 
-		for i in 13..d.len() {
-			blockheader.seal.push(d[i].as_raw().to_vec());
+		for i in 13..r.item_count() {
+			blockheader.seal.push(try!(r.at(i)).as_raw().to_vec())
 		}
 
 		Ok(blockheader)
@@ -177,7 +179,7 @@ impl Encodable for Header {
 			self.gas_used.encode(e);
 			self.timestamp.encode(e);
 			self.extra_data.encode(e);
-		
+
 			for b in self.seal.iter() {
 				e.emit_raw(&b);
 			}

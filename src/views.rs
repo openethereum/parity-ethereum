@@ -24,18 +24,18 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return reference to underlaying rlp.
-	pub fn rlp(&self) -> &Rlp<'a> { 
-		&self.rlp 
+	pub fn rlp(&self) -> &Rlp<'a> {
+		&self.rlp
 	}
 
 	/// Create new Header object from header rlp.
-	pub fn header(&self) -> Header { 
+	pub fn header(&self) -> Header {
 		self.rlp.val_at(0)
 	}
 
 	/// Create new header view obto block head rlp.
-	pub fn header_view(&self) -> HeaderView<'a> { 
-		HeaderView::new_from_rlp(self.rlp.at(0)) 
+	pub fn header_view(&self) -> HeaderView<'a> {
+		HeaderView::new_from_rlp(self.rlp.at(0))
 	}
 
 	/// Return List of transactions in given block.
@@ -44,7 +44,7 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return transaction hashes.
-	pub fn transaction_hashes(&self) -> Vec<H256> { 
+	pub fn transaction_hashes(&self) -> Vec<H256> {
 		self.rlp.at(1).iter().map(|rlp| rlp.as_raw().sha3()).collect()
 	}
 
@@ -54,7 +54,7 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return list of uncle hashes of given block.
-	pub fn uncle_hashes(&self) -> Vec<H256> { 
+	pub fn uncle_hashes(&self) -> Vec<H256> {
 		self.rlp.at(2).iter().map(|rlp| rlp.as_raw().sha3()).collect()
 	}
 }
@@ -105,7 +105,7 @@ impl<'a> HeaderView<'a> {
 
 	/// Returns block receipts root.
 	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5) }
-	
+
 	/// Returns block log bloom.
 	pub fn log_bloom(&self) -> H2048 { self.rlp.val_at(6) }
 
@@ -113,7 +113,7 @@ impl<'a> HeaderView<'a> {
 	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
 
 	/// Returns block number.
-	pub fn number(&self) -> usize { self.rlp.val_at(8) }
+	pub fn number(&self) -> BlockNumber { self.rlp.val_at(8) }
 	
 	/// Returns block gas limit.
 	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
@@ -128,7 +128,7 @@ impl<'a> HeaderView<'a> {
 	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }
 
 	/// Returns block seal.
-	pub fn seal(&self) -> Vec<Bytes> { 
+	pub fn seal(&self) -> Vec<Bytes> {
 		let mut seal = vec![];
 		for i in 13..self.rlp.item_count() {
 			seal.push(self.rlp.val_at(i));

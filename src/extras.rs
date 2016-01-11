@@ -1,4 +1,5 @@
 use util::*;
+use header::BlockNumber;
 use rocksdb::{DB, Writable};
 
 /// Represents index of extra data in database
@@ -75,7 +76,7 @@ impl ExtrasSliceConvertable for U256 {
 }
 
 // NICE: make less horrible.
-impl ExtrasSliceConvertable for usize {
+impl ExtrasSliceConvertable for BlockNumber {
 	fn to_extras_slice(&self, i: ExtrasIndex) -> H264 {
 		U256::from(*self).to_extras_slice(i)
 	}
@@ -95,7 +96,7 @@ impl ExtrasIndexable for H256 {
 /// Familial details concerning a block
 #[derive(Debug, Clone)]
 pub struct BlockDetails {
-	pub number: usize,
+	pub number: BlockNumber,
 	pub total_difficulty: U256,
 	pub parent: H256,
 	pub children: Vec<H256>

@@ -4,7 +4,7 @@ use spec::Spec;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine {
+pub trait Engine : Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 	/// The version of this engine. Should be of the form 

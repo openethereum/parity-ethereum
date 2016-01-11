@@ -1,4 +1,5 @@
 use util::*;
+use header::BlockNumber;
 
 /// Simple vector of hashes, should be at most 256 items large, can be smaller if being used
 /// for a block whose number is less than 257.
@@ -7,7 +8,7 @@ pub type LastHashes = Vec<H256>;
 /// Information concerning the execution environment for a message-call/contract-creation.
 pub struct EnvInfo {
 	/// The block number.
-	pub number: usize,
+	pub number: BlockNumber,
 	/// The block author.
 	pub author: Address,
 	/// The block timestamp.
