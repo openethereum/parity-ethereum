@@ -16,8 +16,8 @@
 use util::*;
 use std::mem::{replace};
 use views::{HeaderView};
-use header::{Header as BlockHeader};
-use client::{BlockNumber, BlockChainClient, BlockStatus};
+use header::{BlockNumber, Header as BlockHeader};
+use client::{BlockChainClient, BlockStatus};
 use sync::range_collection::{RangeCollection, ToUsize, FromUsize};
 use error::*;
 use sync::io::SyncIo;

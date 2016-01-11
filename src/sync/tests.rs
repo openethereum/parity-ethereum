@@ -6,8 +6,8 @@ use util::sha3::Hashable;
 use util::rlp::{self, Rlp, RlpStream, View, Stream};
 use util::network::{PeerId, PacketId};
 use util::error::UtilError;
-use client::{BlockChainClient, BlockStatus, BlockNumber, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult};
-use header::Header as BlockHeader;
+use client::{BlockChainClient, BlockStatus, TreeRoute, BlockQueueStatus, BlockChainInfo, ImportResult};
+use header::{Header as BlockHeader, BlockNumber};
 use sync::io::SyncIo;
 use sync::chain::ChainSync;
 
@@ -39,7 +39,7 @@ impl TestBlockChainClient {
 			let mut header = BlockHeader::new();
 			header.difficulty = From::from(n);
 			header.parent_hash = self.last_hash.clone();
-			header.number = From::from(n);
+			header.number = n as BlockNumber;
 			let mut uncles = RlpStream::new_list(if empty {0} else {1});
 			if !empty {
 				uncles.append(&H256::from(&U256::from(n)));
@@ -118,7 +118,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn import_block(&mut self, b: &[u8]) -> ImportResult {
 		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
-		let number: usize = header.number.low_u64() as usize;
+		let number: usize = header.number as usize;
 		if number > self.blocks.len() {
 			panic!("Unexpected block number. Expected {}, got {}", self.blocks.len(), number);
 		}
@@ -126,7 +126,7 @@ impl BlockChainClient for TestBlockChainClient {
 			match self.blocks.get(&header.parent_hash) {
 				Some(parent) => {
 					let parent = Rlp::new(parent).val_at::<BlockHeader>(0);
-					if parent.number != (header.number - From::from(1)) {
+					if parent.number != (header.number - 1) {
 						panic!("Unexpected block parent");
 					}
 				},

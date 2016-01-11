@@ -60,7 +60,7 @@ pub struct Spec {
 	pub difficulty: U256,
 	pub gas_limit: U256,
 	pub gas_used: U256,
-	pub timestamp: U256,
+	pub timestamp: u64,
 	pub extra_data: Bytes,
 	pub genesis_state: HashMap<Address, Account>,
 	pub seal_fields: usize,
@@ -92,8 +92,8 @@ impl Spec {
 	pub fn genesis_header(&self) -> Header {
 		Header {
 			parent_hash: self.parent_hash.clone(),
-			timestamp: self.timestamp.clone(),
-			number: U256::from(0u8),
+			timestamp: self.timestamp,
+			number: 0,
 			author: self.author.clone(),
 			transactions_root: SHA3_NULL_RLP.clone(),
 			uncles_hash: RlpStream::new_list(0).out().sha3(),
@@ -181,7 +181,7 @@ impl Spec {
 			difficulty: U256::from_str(&genesis["difficulty"].as_string().unwrap()[2..]).unwrap(),
 			gas_limit: U256::from_str(&genesis["gasLimit"].as_string().unwrap()[2..]).unwrap(),
 			gas_used: U256::from(0u8),
-			timestamp: U256::from_str(&genesis["timestamp"].as_string().unwrap()[2..]).unwrap(),
+			timestamp: u64::from_str(&genesis["timestamp"].as_string().unwrap()[2..]).unwrap(),
 			extra_data: genesis["extraData"].as_string().unwrap()[2..].from_hex().unwrap(),
 			genesis_state: state,
 			seal_fields: seal_fields,

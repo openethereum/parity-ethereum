@@ -3,6 +3,7 @@ use util::*;
 use blockchain::BlockChain;
 use views::BlockView;
 use error::ImportError;
+use header::BlockNumber;
 
 /// General block status
 pub enum BlockStatus {
@@ -39,8 +40,6 @@ pub struct BlockQueueStatus {
 }
 
 pub type TreeRoute = ::blockchain::TreeRoute;
-
-pub type BlockNumber = u64;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync {
@@ -131,19 +130,19 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.chain.block_hash(&From::from(n)).and_then(|h| self.block_header(&h))
+		self.chain.block_hash(n).and_then(|h| self.block_header(&h))
 	}
 
 	fn block_body_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.chain.block_hash(&From::from(n)).and_then(|h| self.block_body(&h))
+		self.chain.block_hash(n).and_then(|h| self.block_body(&h))
 	}
 
 	fn block_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.chain.block_hash(&From::from(n)).and_then(|h| self.block(&h))
+		self.chain.block_hash(n).and_then(|h| self.block(&h))
 	}
 
 	fn block_status_at(&self, n: BlockNumber) -> BlockStatus {
-		match self.chain.block_hash(&From::from(n)) {
+		match self.chain.block_hash(n) {
 			Some(h) => self.block_status(&h),
 			None => BlockStatus::Unknown
 		}

@@ -1,5 +1,8 @@
 use util::*;
 use basic_types::*;
+use time::now_utc;
+
+pub type BlockNumber = u64;
 
 /// A block header.
 ///
@@ -11,8 +14,8 @@ use basic_types::*;
 pub struct Header {
 	// TODO: make all private.
 	pub parent_hash: H256,
-	pub timestamp: U256,
-	pub number: U256,
+	pub timestamp: u64,
+	pub number: BlockNumber,
 	pub author: Address,
 
 	pub transactions_root: H256,
@@ -41,8 +44,8 @@ impl Header {
 	pub fn new() -> Header {
 		Header {
 			parent_hash: ZERO_H256.clone(),
-			timestamp: BAD_U256,
-			number: ZERO_U256,
+			timestamp: 0,
+			number: 0,
 			author: ZERO_ADDRESS.clone(),
 
 			transactions_root: SHA3_NULL_RLP,
@@ -61,14 +64,23 @@ impl Header {
 		}
 	}
 
+	pub fn number(&self) -> BlockNumber { self.number }
+	pub fn timestamp(&self) -> u64 { self.timestamp }
 	pub fn author(&self) -> &Address { &self.author }
+
 	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
+
 	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
 
 	// TODO: seal_at, set_seal_at &c.
 
+	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
+	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
+	pub fn set_timestamp_now(&mut self) { self.timestamp = now_utc().to_timespec().sec as u64; self.note_dirty(); }
 	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
+
 	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.extra_data { self.extra_data = a; self.note_dirty(); } }
+
 	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
 
 	/// Get the hash of this header (sha3 of the RLP).

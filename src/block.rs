@@ -21,7 +21,16 @@ pub struct Block {
 	uncles: Vec<Header>,
 }
 
+/// A set of references to `Block` fields that are publicly accessible. 
+pub struct BlockRefMut<'a> {
+	pub header: &'a Header,
+	pub state: &'a mut State,
+	pub archive: &'a Vec<Entry>,
+	pub uncles: &'a Vec<Header>,
+}
+
 impl Block {
+	/// Create a new block from the given `state`.
 	fn new(state: State) -> Block {
 		Block {
 			header: Header::new(),
@@ -32,7 +41,15 @@ impl Block {
 		}
 	}
 
-	pub fn state_mut(&mut self) -> &mut State { &mut self.state }
+	/// Get a structure containing individual references to all public fields.
+	pub fn fields(&mut self) -> BlockRefMut {
+		BlockRefMut {
+			header: &self.header,
+			state: &mut self.state,
+			archive: &self.archive,
+			uncles: &self.uncles,
+		}
+	}
 }
 
 /// Trait for a object that is_a `Block`.
@@ -61,18 +78,18 @@ impl IsBlock for Block {
 ///
 /// It's a bit like a Vec<Transaction>, eccept that whenever a transaction is pushed, we execute it and
 /// maintain the system `state()`. We also archive execution receipts in preparation for later block creation.
-pub struct OpenBlock<'engine> {
+pub struct OpenBlock<'x, 'y> {
 	block: Block,
-	engine: &'engine Engine,
-	last_hashes: LastHashes,
+	engine: &'x Engine,
+	last_hashes: &'y LastHashes,
 }
 
 /// Just like OpenBlock, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
 /// and collected the uncles.
 ///
 /// There is no function available to push a transaction. If you want that you'll need to `reopen()` it.
-pub struct ClosedBlock<'engine> {
-	open_block: OpenBlock<'engine>,
+pub struct ClosedBlock<'x, 'y> {
+	open_block: OpenBlock<'x, 'y>,
 	uncle_bytes: Bytes,
 }
 
@@ -84,9 +101,9 @@ pub struct SealedBlock {
 	uncle_bytes: Bytes,
 }
 
-impl<'engine> OpenBlock<'engine> {
+impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// Create a new OpenBlock ready for transaction pushing.
-	pub fn new<'a>(engine: &'a Engine, db: OverlayDB, parent: &Header, last_hashes: LastHashes, author: Address, extra_data: Bytes) -> OpenBlock<'a> {
+	pub fn new<'a, 'b>(engine: &'a Engine, db: OverlayDB, parent: &Header, last_hashes: &'b LastHashes, author: Address, extra_data: Bytes) -> OpenBlock<'a, 'b> {
 		let mut r = OpenBlock {
 			block: Block::new(State::from_existing(db, parent.state_root.clone(), engine.account_start_nonce())),
 			engine: engine,
@@ -95,6 +112,8 @@ impl<'engine> OpenBlock<'engine> {
 
 		r.block.header.set_author(author);
 		r.block.header.set_extra_data(extra_data);
+		r.block.header.set_timestamp_now();
+
 		engine.populate_from_parent(&mut r.block.header, parent);
 		engine.on_new_block(&mut r.block);
 		r
@@ -102,6 +121,9 @@ impl<'engine> OpenBlock<'engine> {
 
 	/// Alter the author for the block.
 	pub fn set_author(&mut self, author: Address) { self.block.header.set_author(author); }
+
+	/// Alter the timestamp of the block.
+	pub fn set_timestamp(&mut self, timestamp: u64) { self.block.header.set_timestamp(timestamp); }
 
 	/// Alter the extra_data for the block.
 	pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
@@ -131,9 +153,9 @@ impl<'engine> OpenBlock<'engine> {
 	pub fn env_info(&self) -> EnvInfo {
 		// TODO: memoise.
 		EnvInfo {
-			number: self.block.header.number.clone(),
+			number: self.block.header.number,
 			author: self.block.header.author.clone(),
-			timestamp: self.block.header.timestamp.clone(),
+			timestamp: self.block.header.timestamp,
 			difficulty: self.block.header.difficulty.clone(),
 			last_hashes: self.last_hashes.clone(),
 			gas_used: self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0)),
@@ -157,7 +179,7 @@ impl<'engine> OpenBlock<'engine> {
 	}
 
 	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure out the uncles.
-	pub fn close(self) -> ClosedBlock<'engine> {
+	pub fn close(self) -> ClosedBlock<'x, 'y> {
 		let mut s = self;
 		s.engine.on_close_block(&mut s.block);
 		s.block.header.transactions_root = ordered_trie_root(s.block.archive.iter().map(|ref e| e.transaction.rlp_bytes()).collect());
@@ -173,16 +195,16 @@ impl<'engine> OpenBlock<'engine> {
 	}
 }
 
-impl<'engine> IsBlock for OpenBlock<'engine> {
+impl<'x, 'y> IsBlock for OpenBlock<'x, 'y> {
 	fn block(&self) -> &Block { &self.block }
 }
 
-impl<'engine> IsBlock for ClosedBlock<'engine> {
+impl<'x, 'y> IsBlock for ClosedBlock<'x, 'y> {
 	fn block(&self) -> &Block { &self.open_block.block }
 }
 
-impl<'engine> ClosedBlock<'engine> {
-	fn new<'a>(open_block: OpenBlock<'a>, uncle_bytes: Bytes) -> ClosedBlock<'a> {
+impl<'x, 'y> ClosedBlock<'x, 'y> {
+	fn new<'a, 'b>(open_block: OpenBlock<'a, 'b>, uncle_bytes: Bytes) -> ClosedBlock<'a, 'b> {
 		ClosedBlock {
 			open_block: open_block,
 			uncle_bytes: uncle_bytes,
@@ -205,7 +227,7 @@ impl<'engine> ClosedBlock<'engine> {
 	}
 
 	/// Turn this back into an `OpenBlock`.
-	pub fn reopen(self) -> OpenBlock<'engine> { self.open_block }
+	pub fn reopen(self) -> OpenBlock<'x, 'y> { self.open_block }
 }
 
 impl SealedBlock {
@@ -217,11 +239,24 @@ impl SealedBlock {
 		for e in self.block.archive.iter() { e.transaction.rlp_append(&mut block_rlp); }
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
-	}		
+	}
+
+	/// Drop this object and return the underlieing database.
+	pub fn drain(self) -> OverlayDB { self.block.state.drop().1 }
 }
 
 impl IsBlock for SealedBlock {
 	fn block(&self) -> &Block { &self.block }
+}
+
+pub fn enact(rlp_bytes: &[u8], engine: &Engine, db: OverlayDB, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
+	let block = BlockView::new(rlp_bytes);
+	let header = block.header_view();
+	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author(), header.extra_data());
+	b.set_timestamp(header.timestamp());
+	for t in block.transactions().into_iter() { try!(b.push_transaction(t, None)); }
+	for u in block.uncles().into_iter() { try!(b.push_uncle(u)); }
+	Ok(try!(b.close().seal(header.seal())))
 }
 
 #[test]
@@ -231,7 +266,30 @@ fn open_block() {
 	let genesis_header = engine.spec().genesis_header();
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
-	let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), vec![]);
+	let last_hashes = vec![genesis_header.hash()];
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
 	let b = b.close();
 	let _ = b.seal(vec![]);
+}
+
+#[test]
+fn enact_block() {
+	use spec::*;
+	let engine = Spec::new_test().to_engine().unwrap();
+	let genesis_header = engine.spec().genesis_header();
+
+	let mut db = OverlayDB::new_temp();
+	engine.spec().ensure_db_good(&mut db);
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(vec![]).unwrap();
+	let orig_bytes = b.rlp_bytes();
+	let orig_db = b.drain();
+
+	let mut db = OverlayDB::new_temp();
+	engine.spec().ensure_db_good(&mut db);
+	let e = enact(&orig_bytes, engine.deref(), db, &genesis_header, &vec![genesis_header.hash()]).unwrap();
+
+	assert_eq!(e.rlp_bytes(), orig_bytes);
+	
+	let db = e.drain();
+	assert_eq!(orig_db.keys(), db.keys());
 }
