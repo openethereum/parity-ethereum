@@ -160,13 +160,15 @@ impl IntoJit<evmjit::RuntimeDataHandle> for RuntimeData {
 }
 
 struct ExtAdapter<'a> {
-	ext: &'a mut evm::Ext
+	ext: &'a mut evm::Ext,
+	err: &'a mut Option<evm::EvmError>
 }
 
 impl<'a> ExtAdapter<'a> {
-	fn new(ext: &'a mut evm::Ext) -> Self {
+	fn new(ext: &'a mut evm::Ext, err: &'a mut Option<evm::EvmError>) -> Self {
 		ExtAdapter {
-			ext: ext
+			ext: ext,
+			err: err
 		}
 	}
 }
@@ -210,12 +212,21 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			  address: *mut evmjit::H256) {
 		unsafe {
 			match self.ext.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
-				Some((gas_left, addr)) => {
+				Ok((gas_left, opt)) => {
 					*io_gas = gas_left;
-					*address = addr.into_jit();
+					if let Some(addr) = opt {
+						*address = addr.into_jit();
+					}
 				},
-				None => ()
-			};
+				Err(err @ evm::EvmError::OutOfGas) => {
+					*self.err = Some(err);
+					// hack to propagate `OutOfGas` to evmjit and stop
+					// the execution immediately.
+					// Works, cause evmjit uses i64, not u64
+					*io_gas = -1i64 as u64
+				},
+				Err(err) => *self.err = Some(err)
+			}
 		}
 	}
 
@@ -230,7 +241,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				out_size: u64,
 				code_address: *const evmjit::H256) -> bool {
 		unsafe {
-			let opt = self.ext.call(*io_gas, 
+			let res = self.ext.call(*io_gas, 
 									call_gas, 
 									&Address::from_jit(&*receive_address),
 									&U256::from_jit(&*value),
@@ -238,11 +249,22 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 									&Address::from_jit(&*code_address),
 									slice::from_raw_parts_mut(out_beg, out_size as usize));
 
-			match opt {
-				None => false,
-				Some(gas_left) => {
+			match res {
+				Ok(gas_left) => {
 					*io_gas = gas_left;
 					true
+				},
+				Err(err @ evm::EvmError::OutOfGas) => {
+					*self.err = Some(err);
+					// hack to propagate `OutOfGas` to evmjit and stop
+					// the execution immediately.
+					// Works, cause evmjit uses i64, not u64
+					*io_gas = -1i64 as u64;
+					false
+				},
+				Err(err) => {
+					*self.err = Some(err);
+					false
 				}
 			}
 		}
@@ -294,8 +316,9 @@ pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
 	fn exec(&self, params: &evm::EvmParams, ext: &mut evm::Ext) -> evm::EvmResult {
+		let mut optional_err = None;
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
-		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext)) };
+		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, &mut optional_err)) };
 		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);
 		let mut data = RuntimeData::new();
 		data.gas = params.gas;
@@ -315,7 +338,14 @@ impl evm::Evm for JitEvm {
 		data.timestamp = 0;
 		
 		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
-		match context.exec() {
+		let res = context.exec();
+		
+		// check in adapter if execution of children contracts failed.
+		if let Some(err) = optional_err {
+			return Err(err);
+		}
+		
+		match res {
 			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),
 			evmjit::ReturnCode::Return => match ext.ret(context.gas_left(), context.output_data()) {
 				Some(gas_left) => Ok(U256::from(gas_left)),

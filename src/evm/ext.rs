@@ -4,6 +4,7 @@ use util::hash::*;
 use util::uint::*;
 use util::bytes::*;
 use evm_schedule::*;
+use evm::EvmError;
 
 pub trait Ext {
 	/// Returns a value for given key.
@@ -19,15 +20,24 @@ pub trait Ext {
 	fn blockhash(&self, number: &U256) -> H256;
 
 	/// Creates new contract.
-	/// If contract creation is successfull, 
-	/// return gas_left and contract address,
-	/// otherwise `None`.
-	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> Option<(u64, Address)>;
+	/// 
+	/// If contract creation is successfull, return gas_left and contract address,
+	/// If depth is too big or transfer value exceeds balance, return None
+	/// Otherwise return appropriate `EvmError`.
+	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), EvmError>;
 
 	/// Message call.
+	/// 
 	/// If call is successfull, returns gas left.
-	/// otherwise `None`.
-	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Option<u64>;
+	/// otherwise `EvmError`.
+	fn call(&mut self, 
+			gas: u64, 
+			call_gas: u64, 
+			receive_address: &Address, 
+			value: &U256, 
+			data: &[u8], 
+			code_address: &Address, 
+			output: &mut [u8]) -> Result<u64, EvmError>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Vec<u8>;

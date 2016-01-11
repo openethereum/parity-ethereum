@@ -123,9 +123,9 @@ impl<'a> Executive<'a> {
 		Executive::new_with_depth(state, info, engine, 0)
 	}
 
-	/// Populates executive from parent externalities. Increments executive depth.
-	fn from_parent(e: &'a mut Externalities) -> Self {
-		Executive::new_with_depth(e.state, e.info, e.engine, e.depth + 1)
+	/// Populates executive from parent properties. Increments executive depth.
+	fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
+		Executive::new_with_depth(state, info, engine, depth + 1)
 	}
 
 	/// Helper constructor. Should be used to create `Executive` with desired depth.
@@ -353,10 +353,10 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> Option<(u64, Address)> {
+	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), EvmError> {
 		// if balance is insufficient or we are to deep, return
-		if self.state.balance(&self.params.address) < *endowment && self.depth >= 1024 {
-			return None
+		if self.state.balance(&self.params.address) < *value && self.depth >= 1024 {
+			return Ok((gas, None));
 		}
 
 		// create new contract address
@@ -369,28 +369,17 @@ impl<'a> Ext for Externalities<'a> {
 			origin: self.params.origin.clone(),
 			gas: U256::from(gas),
 			gas_price: self.params.gas_price.clone(),
-			value: endowment.clone(),
+			value: value.clone(),
 			code: code.to_vec(),
 			data: vec![],
 		};
 
-		let mut substate = Substate::new();
-		{
-			let mut ex = Executive::from_parent(self);
-			ex.state.inc_nonce(&address);
-			let res = ex.create(&params, &mut substate);
-		}
-
-		self.substate.accrue(substate);
-		Some((gas, address))
+		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
+		ex.state.inc_nonce(&self.params.address);
+		ex.create(&params, self.substate).map(|gas_left| (gas_left.low_u64(), Some(address)))
 	}
 
-	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Option<u64> {
-		// TODO: validation of the call
-		
-		println!("gas: {:?}", gas);
-		println!("call_gas: {:?}", call_gas);
-
+	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Result<u64, EvmError> {
 		let mut gas_cost = call_gas;
 		let mut call_gas = call_gas;
 
@@ -406,13 +395,15 @@ impl<'a> Ext for Externalities<'a> {
 		}
 
 		if gas_cost > gas {
-			return None;
+			return Err(EvmError::OutOfGas)
 		}
 
-		// if we are too deep, return
-		// TODO: replace with >= 1024
-		if self.depth == 1 {
-			return None;
+		let mut gas = gas - gas_cost;
+
+		//println!("depth: {:?}", self.depth);
+		// if balance is insufficient or we are to deep, return
+		if self.state.balance(&self.params.address) < *value && self.depth >= 1024 {
+			return Ok(gas + call_gas)
 		}
 
 		let params = EvmParams {
@@ -426,18 +417,8 @@ impl<'a> Ext for Externalities<'a> {
 			data: data.to_vec(),
 		};
 
-		println!("params: {:?}", params);
-
-		let mut substate = Substate::new();
-		{
-			let mut ex = Executive::from_parent(self);
-			// TODO: take output into account
-			ex.call(&params, &mut substate, output);
-		}
-
-		self.substate.accrue(substate);
-		// TODO: replace call_gas with what's actually left
-		Some(gas - gas_cost + call_gas)
+		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
+		ex.call(&params, self.substate, output).map(|gas_left| gas + gas_left.low_u64())
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {
@@ -556,6 +537,7 @@ mod tests {
 		{
 			let mut ex = Executive::new(&mut state, &info, engine.deref());
 			let _res = ex.create(&params, &mut substate);
+			println!("res: {:?}", _res);
 		}
 		
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(next_address.clone()));
@@ -584,7 +566,7 @@ mod tests {
 		// 60 01 - push 1
 		// 55 - store
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let code = "600160005401600055600060006000600060003360e05a03f1600155".from_hex().unwrap();
+		let code = "600160005401600055600060006000600060003060e05a03f1600155".from_hex().unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let mut params = EvmParams::new();
 		params.address = address.clone();
@@ -603,6 +585,7 @@ mod tests {
 		{
 			let mut ex = Executive::new(&mut state, &info, engine.deref());
 			let _res = ex.call(&params, &mut substate, &mut []);
+			println!("res: {:?}", _res);
 		}
 
 		assert!(false);

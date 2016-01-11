@@ -4,6 +4,7 @@ use util::uint::U256;
 use evm::{EvmParams, Ext};
 
 /// Evm errors.
+#[derive(Debug)]
 pub enum EvmError {
 	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	/// The state should be reverted to the state from before the
