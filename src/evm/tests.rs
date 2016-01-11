@@ -13,11 +13,11 @@ struct FakeLogEntry {
 #[derive(Default)]
 struct FakeExt {
 	store: HashMap<H256, H256>,
-	balances: HashMap<Address, U256>,
+	_balances: HashMap<Address, U256>,
 	blockhashes: HashMap<U256, H256>,
 	codes: HashMap<Address, Bytes>,
 	logs: Vec<FakeLogEntry>,
-	suicide: HashSet<Address>,
+	_suicides: HashSet<Address>,
 	info: EnvInfo
 }
 

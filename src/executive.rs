@@ -45,7 +45,7 @@ pub struct Executed {
 	pub refunded: U256,
 	/// Cumulative gas used in current block so far.
 	/// 
-	/// cumulative_gas_used = gas_used(t0) + gas_used(t1) + ... gas_used(tn)
+	/// `cumulative_gas_used = gas_used(t0) + gas_used(t1) + ... gas_used(tn)`
 	///
 	/// where `tn` is current transaction.
 	pub cumulative_gas_used: U256,
