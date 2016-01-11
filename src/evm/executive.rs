@@ -69,18 +69,6 @@ pub struct Executed {
 	pub logs: Vec<LogEntry>
 }
 
-impl Executed {
-	fn new() -> Executed {
-		Executed {
-			gas: U256::zero(),
-			gas_used: U256::zero(),
-			refunded: U256::zero(),
-			cumulative_gas_used: U256::zero(),
-			logs: vec![]
-		}
-	}
-}
-
 /// Result of executing the transaction.
 #[derive(PartialEq, Debug)]
 pub enum ExecutionError {
@@ -94,6 +82,8 @@ pub enum ExecutionError {
 	/// Returned when cost of transaction (value + gas_price * gas) exceeds 
 	/// current sender balance.
 	NotEnoughCash { required: U256, is: U256 },
+	/// Returned when transaction execution runs out of gas.
+	OutOfGas,
 	/// Returned when internal evm error occurs.
 	Internal
 }
@@ -248,13 +238,10 @@ impl<'a> Executive<'a> {
 		match result { 
 			Err(EvmError::Internal) => Err(ExecutionError::Internal),
 			Err(EvmError::OutOfGas) => {
-				let executed = Executed::new();
 				*self.state = backup;
-				Ok(executed)
+				Err(ExecutionError::OutOfGas)
 			},
 			Ok(gas_left) => {
-				let executed = Executed::new();
-
 				let schedule = self.engine.evm_schedule(self.info);
 
 				// refunds from SSTORE nonzero -> zero
@@ -277,7 +264,14 @@ impl<'a> Executive<'a> {
 					self.state.kill_account(address);
 				}
 
-				Ok(executed)
+				let gas_used = t.gas - gas_left;
+				Ok(Executed {
+					gas: t.gas,
+					gas_used: gas_used,
+					refunded: refund,
+					cumulative_gas_used: self.info.gas_used + gas_used,
+					logs: substate.logs
+				})
 			}
 		}
 	}
@@ -477,12 +471,8 @@ mod tests {
 	use util::hash::*;
 	use util::uint::*;
 	use evm::*;
-	use transaction::*;
 	use env_info::*;
 	use state::*;
-	use spec::*;
-	use engine::*;
-	use evm_schedule::*;
 	use super::contract_address;
 	use ethereum;
 	use null_engine::*;

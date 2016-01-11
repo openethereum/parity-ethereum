@@ -241,7 +241,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				value: *const evmjit::I256,
 				in_beg: *const u8,
 				in_size: u64,
-				mut out_beg: *mut u8,
+				out_beg: *mut u8,
 				out_size: u64,
 				code_address: *const evmjit::H256) -> bool {
 		unsafe {
