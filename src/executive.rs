@@ -2,7 +2,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{self, Schedule, VmFactory, Ext};
+use evm::{self, Schedule, Factory, Ext};
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -184,7 +184,7 @@ impl<'a> Executive<'a> {
 		} else if params.code.len() > 0 {
 			// if destination is a contract, do normal message call
 			let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::Return(output));
-			let evm = VmFactory::create();
+			let evm = Factory::create();
 			evm.exec(&params, &mut ext)
 		} else {
 			// otherwise, nothing
@@ -202,7 +202,7 @@ impl<'a> Executive<'a> {
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
 		let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::InitContract);
-		let evm = VmFactory::create();
+		let evm = Factory::create();
 		evm.exec(&params, &mut ext)
 	}
 

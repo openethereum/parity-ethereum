@@ -3,9 +3,9 @@
 use evm::Evm;
 
 /// Evm factory. Creates appropriate Evm.
-pub struct VmFactory;
+pub struct Factory;
 
-impl VmFactory {
+impl Factory {
 	/// Returns jit vm
 	#[cfg(feature = "jit")]
 	pub fn create() -> Box<Evm> {
@@ -21,5 +21,5 @@ impl VmFactory {
 
 #[test]
 fn test_create_vm() {
-	let _vm = VmFactory::create();
+	let _vm = Factory::create();
 }
