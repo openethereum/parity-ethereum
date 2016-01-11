@@ -283,11 +283,12 @@ pub enum ExtMode {
 	Create
 }
 
-/// Wrapper structure for evm return data to avoid unnecessary copying.
+/// Policy for handling output data on `RETURN` opcode.
 pub enum OutputPolicy<'a> {
-	/// Reference to fixed sized output of a message call.
+	/// Return reference to fixed sized output.
+	/// Used for message calls.
 	Return(&'a mut [u8]),
-	/// Use it, if you want return code to initialize contract.
+	/// Init new contract as soon as `RETURN` is called.
 	InitContract
 }
 
