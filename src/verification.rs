@@ -36,7 +36,7 @@ pub fn verify_block_unordered(bytes: &[u8], engine: &Engine) -> Result<(), Error
 	Ok(())
 }
 
-/// Phase 3 verification. Check block information against parents and uncles.
+/// Phase 3 verification. Check block information against parent and uncles.
 pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Result<(), Error> {
 	let block = BlockView::new(bytes);
 	let header = block.header();
