@@ -12,6 +12,11 @@ pub struct Builtin {
 	pub execute: Box<Fn(&[u8], &mut [u8])>,
 }
 
+// Rust does not mark closurer that do not capture as Sync
+// We promise that all builtins are thread safe since they only operate on given input.
+unsafe impl Sync for Builtin {}
+unsafe impl Send for Builtin {}
+
 impl fmt::Debug for Builtin {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "<Builtin>")

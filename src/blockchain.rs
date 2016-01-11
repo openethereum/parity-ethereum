@@ -1,6 +1,5 @@
 //! Fast access to blockchain data.
 
-use std::sync::*;
 use util::*;
 use rocksdb::{DB, WriteBatch, Writable};
 use header::*;
@@ -34,7 +33,7 @@ pub struct CacheSize {
 /// Information about best block gathered together
 struct BestBlock {
 	pub hash: H256,
-	pub number: U256,
+	pub number: BlockNumber,
 	pub total_difficulty: U256
 }
 
@@ -42,7 +41,7 @@ impl BestBlock {
 	fn new() -> BestBlock {
 		BestBlock {
 			hash: H256::new(),
-			number: U256::from(0),
+			number: 0,
 			total_difficulty: U256::from(0)
 		}
 	}
@@ -59,7 +58,7 @@ pub struct BlockChain {
 
 	// extra caches
 	block_details: RwLock<HashMap<H256, BlockDetails>>,
-	block_hashes: RwLock<HashMap<U256, H256>>,
+	block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 	block_logs: RwLock<HashMap<H256, BlockLogBlooms>>,
 	blocks_blooms: RwLock<HashMap<H256, BlocksBlooms>>,
@@ -93,7 +92,7 @@ impl BlockChain {
 	/// 	let genesis_hash = "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3";
 	/// 	assert_eq!(bc.genesis_hash(), H256::from_str(genesis_hash).unwrap());
 	/// 	assert!(bc.is_known(&bc.genesis_hash()));
-	/// 	assert_eq!(bc.genesis_hash(), bc.block_hash(&U256::from(0u8)).unwrap());
+	/// 	assert_eq!(bc.genesis_hash(), bc.block_hash(0).unwrap());
 	/// }
 	/// ```
 	pub fn new(genesis: &[u8], path: &Path) -> BlockChain {
@@ -200,11 +199,16 @@ impl BlockChain {
 	///   ```json
 	///   { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
 	///   ```
-	pub fn tree_route(&self, from: H256, to: H256) -> TreeRoute {
-		let from_details = self.block_details(&from).expect("from hash is invalid!");
-		let to_details = self.block_details(&to).expect("to hash is invalid!");
-
-		self._tree_route((from_details, from), (to_details, to))
+	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
+		let from_details = match self.block_details(&from) {
+			Some(h) => h,
+			None => return None,
+		};
+		let to_details = match self.block_details(&to) {
+			Some(h) => h,
+			None => return None,
+		};
+		Some(self._tree_route((from_details, from), (to_details, to)))
 	}
 
 	/// Similar to `tree_route` function, but can be used to return a route
@@ -337,9 +341,9 @@ impl BlockChain {
 			// it is a fork
 			i if i > 1 => {
 				let ancestor_number = self.block_number(&route.ancestor).unwrap();
-				let start_number = ancestor_number + U256::from(1u8);
+				let start_number = ancestor_number + 1;
 				for (index, hash) in route.blocks.iter().skip(route.index).enumerate() {
-					batch.put_extras(&(start_number + U256::from(index as u64)), hash);
+					batch.put_extras(&(start_number + index as BlockNumber), hash);
 				}
 			},
 			// route.blocks.len() could be 0 only if inserted block is best block,
@@ -372,7 +376,7 @@ impl BlockChain {
 
 	/// Returns reference to genesis hash.
 	pub fn genesis_hash(&self) -> H256 {
-		self.block_hash(&U256::from(0u8)).expect("Genesis hash should always exist")
+		self.block_hash(0).expect("Genesis hash should always exist")
 	}
 
 	/// Get the partial-header of a block.
@@ -410,8 +414,8 @@ impl BlockChain {
 	}
 
 	/// Get the hash of given block's number.
-	pub fn block_hash(&self, hash: &U256) -> Option<H256> {
-		self.query_extras(hash, &self.block_hashes)
+	pub fn block_hash(&self, index: BlockNumber) -> Option<H256> {
+		self.query_extras(&index, &self.block_hashes)
 	}
 
 	/// Get best block hash.
@@ -420,7 +424,7 @@ impl BlockChain {
 	}
 
 	/// Get best block number.
-	pub fn best_block_number(&self) -> U256 {
+	pub fn best_block_number(&self) -> BlockNumber {
 		self.best_block.read().unwrap().number
 	}
 
@@ -430,7 +434,7 @@ impl BlockChain {
 	}
 
 	/// Get the number of given block's hash.
-	pub fn block_number(&self, hash: &H256) -> Option<U256> {
+	pub fn block_number(&self, hash: &H256) -> Option<BlockNumber> {
 		self.block(hash).map(|bytes| BlockView::new(&bytes).header_view().number())
 	}
 
@@ -522,7 +526,6 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use util::hash::*;
-	use util::uint::*;
 	use blockchain::*;
 
 	#[test]
@@ -537,25 +540,24 @@ mod tests {
 		let genesis_hash = H256::from_str("3caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942").unwrap();
 
 		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
-		assert_eq!(bc.best_block_number(), U256::from(0u8));
+		assert_eq!(bc.best_block_number(), 0);
 		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
-		assert_eq!(bc.block_hash(&U256::from(0u8)), Some(genesis_hash.clone()));
-		assert_eq!(bc.block_hash(&U256::from(1u8)), None);
-
-
+		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
+		assert_eq!(bc.block_hash(1), None);
+		
 		let first = "f90285f90219a03caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0bac6177a79e910c98d86ec31a09ae37ac2de15b754fd7bed1ba52362c49416bfa0d45893a296c1490a978e0bd321b5f2635d8280365c1fe9f693d65f233e791344a0c7778a7376099ee2e5c455791c1885b5c361b95713fddcbe32d97fd01334d296b90100000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000400000000000000000000000000000000000000000000000000000008302000001832fefd882560b845627cb99a00102030405060708091011121314151617181920212223242526272829303132a08ccb2837fb2923bd97e8f2d08ea32012d6e34be018c73e49a0f98843e8f47d5d88e53be49fec01012ef866f864800a82c35094095e7baea6a6c7c4c2dfeb977efac326af552d8785012a05f200801ba0cb088b8d2ff76a7b2c6616c9d02fb6b7a501afbf8b69d7180b09928a1b80b5e4a06448fe7476c606582039bb72a9f6f4b4fad18507b8dfbd00eebbe151cc573cd2c0".from_hex().unwrap();
 
 		bc.insert_block(&first);
 
 		let first_hash = H256::from_str("a940e5af7d146b3b917c953a82e1966b906dace3a4e355b5b0a4560190357ea1").unwrap();
 
-		assert_eq!(bc.block_hash(&U256::from(0u8)), Some(genesis_hash.clone()));
-		assert_eq!(bc.best_block_number(), U256::from(1u8));
+		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
+		assert_eq!(bc.best_block_number(), 1);
 		assert_eq!(bc.best_block_hash(), first_hash.clone());
-		assert_eq!(bc.block_hash(&U256::from(1u8)), Some(first_hash.clone()));
+		assert_eq!(bc.block_hash(1), Some(first_hash.clone()));
 		assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
-		assert_eq!(bc.block_hash(&U256::from(2u8)), None);
+		assert_eq!(bc.block_hash(2), None);
 	}
 
 	#[test]
@@ -585,64 +587,64 @@ mod tests {
 		bc.insert_block(&b3b);
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);
-		assert_eq!(bc.block_number(&genesis_hash).unwrap(), U256::from(0));
-		assert_eq!(bc.block_number(&b1_hash).unwrap(), U256::from(1));
-		assert_eq!(bc.block_number(&b2_hash).unwrap(), U256::from(2));
-		assert_eq!(bc.block_number(&b3a_hash).unwrap(), U256::from(3));
-		assert_eq!(bc.block_number(&b3b_hash).unwrap(), U256::from(3));
+		assert_eq!(bc.block_number(&genesis_hash).unwrap(), 0);
+		assert_eq!(bc.block_number(&b1_hash).unwrap(), 1);
+		assert_eq!(bc.block_number(&b2_hash).unwrap(), 2);
+		assert_eq!(bc.block_number(&b3a_hash).unwrap(), 3);
+		assert_eq!(bc.block_number(&b3b_hash).unwrap(), 3);
 
-		assert_eq!(bc.block_hash(&U256::from(0)).unwrap(), genesis_hash);
-		assert_eq!(bc.block_hash(&U256::from(1)).unwrap(), b1_hash);
-		assert_eq!(bc.block_hash(&U256::from(2)).unwrap(), b2_hash);
-		assert_eq!(bc.block_hash(&U256::from(3)).unwrap(), b3a_hash);
+		assert_eq!(bc.block_hash(0).unwrap(), genesis_hash);
+		assert_eq!(bc.block_hash(1).unwrap(), b1_hash);
+		assert_eq!(bc.block_hash(2).unwrap(), b2_hash);
+		assert_eq!(bc.block_hash(3).unwrap(), b3a_hash);
 
 		// test trie route
-		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone());
+		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r0_1.ancestor, genesis_hash);
 		assert_eq!(r0_1.blocks, [b1_hash.clone()]);
 		assert_eq!(r0_1.index, 0);
 
-		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone());
+		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone()).unwrap();
 		assert_eq!(r0_2.ancestor, genesis_hash);
 		assert_eq!(r0_2.blocks, [b1_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r0_2.index, 0);
 
-		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone());
+		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone()).unwrap();
 		assert_eq!(r1_3a.ancestor, b1_hash);
 		assert_eq!(r1_3a.blocks, [b2_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r1_3a.index, 0);
 
-		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone());
+		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone()).unwrap();
 		assert_eq!(r1_3b.ancestor, b1_hash);
 		assert_eq!(r1_3b.blocks, [b2_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r1_3b.index, 0);
 
-		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone());
+		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone()).unwrap();
 		assert_eq!(r3a_3b.ancestor, b2_hash);
 		assert_eq!(r3a_3b.blocks, [b3a_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r3a_3b.index, 1);
 
-		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone());
+		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone()).unwrap();
 		assert_eq!(r1_0.ancestor, genesis_hash);
 		assert_eq!(r1_0.blocks, [b1_hash.clone()]);
 		assert_eq!(r1_0.index, 1);
 
-		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone());
+		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone()).unwrap();
 		assert_eq!(r2_0.ancestor, genesis_hash);
 		assert_eq!(r2_0.blocks, [b2_hash.clone(), b1_hash.clone()]);
 		assert_eq!(r2_0.index, 2);
 
-		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone());
+		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r3a_1.ancestor, b1_hash);
 		assert_eq!(r3a_1.blocks, [b3a_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3a_1.index, 2);
 
-		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone());
+		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r3b_1.ancestor, b1_hash);
 		assert_eq!(r3b_1.blocks, [b3b_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3b_1.index, 2);
 
-		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone());
+		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone()).unwrap();
 		assert_eq!(r3b_3a.ancestor, b2_hash);
 		assert_eq!(r3b_3a.blocks, [b3b_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r3b_3a.index, 1);

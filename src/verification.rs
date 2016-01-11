@@ -6,7 +6,6 @@
 /// 3. Final verification against the blockchain done before enactment.
 
 use common::*;
-use client::BlockNumber;
 use engine::Engine;
 use blockchain::BlockChain;
 
@@ -82,12 +81,12 @@ pub fn verify_block_final(bytes: &[u8], engine: &mut Engine, bc: &BlockChain) ->
 			// 6											7
 			//												(8 Invalid)
 
-			let depth = if header.number > uncle.number { header.number - uncle.number } else { From::from(0) };
-			if depth > From::from(6) {
-				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: header.number - depth, max: header.number - From::from(1), found: uncle.number })));
+			let depth = if header.number > uncle.number { header.number - uncle.number } else { 0 };
+			if depth > 6 {
+				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: header.number - depth, max: header.number - 1, found: uncle.number })));
 			}
-			else if depth < From::from(1) {
-				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds { min: header.number - depth, max: header.number - From::from(1), found: uncle.number })));
+			else if depth < 1 {
+				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds { min: header.number - depth, max: header.number - 1, found: uncle.number })));
 			}
 
 			// cB
@@ -100,7 +99,7 @@ pub fn verify_block_final(bytes: &[u8], engine: &mut Engine, bc: &BlockChain) ->
 			// cB.p^7	-------------/
 			// cB.p^8
 			let mut expected_uncle_parent = header.parent_hash.clone();
-			for _ in 0..depth.as_u32() {
+			for _ in 0..depth {
 				 expected_uncle_parent = bc.block_details(&expected_uncle_parent).unwrap().parent;
 			}
 			if expected_uncle_parent != uncle_parent.hash() {
@@ -116,7 +115,7 @@ pub fn verify_block_final(bytes: &[u8], engine: &mut Engine, bc: &BlockChain) ->
 /// Check basic header parameters.
 fn verify_header(header: &Header) -> Result<(), Error> {
 	if header.number > From::from(BlockNumber::max_value()) {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: From::from(0), found: header.number })))
+		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: 0, found: header.number })))
 	}
 	if header.gas_used > header.gas_limit {
 		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: header.gas_limit, min: From::from(0), found: header.gas_used })));
@@ -130,10 +129,10 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 		return Err(From::from(BlockError::InvalidParentHash(Mismatch { expected: parent.hash(), found: header.parent_hash.clone() })))
 	}
 	if header.timestamp <= parent.timestamp {
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: BAD_U256, min: parent.timestamp + From::from(1), found: header.timestamp })))
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: u64::max_value(), min: parent.timestamp + 1, found: header.timestamp })))
 	}
 	if header.number <= parent.number {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: parent.number + From::from(1), found: header.number })));
+		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: BlockNumber::max_value(), min: parent.number + 1, found: header.number })));
 	}
 	Ok(())
 }

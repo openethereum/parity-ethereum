@@ -113,8 +113,8 @@ impl<'a> HeaderView<'a> {
 	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
 
 	/// Returns block number.
-	pub fn number(&self) -> U256 { self.rlp.val_at(8) }
-
+	pub fn number(&self) -> BlockNumber { self.rlp.val_at(8) }
+	
 	/// Returns block gas limit.
 	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
 
@@ -122,7 +122,7 @@ impl<'a> HeaderView<'a> {
 	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10) }
 
 	/// Returns timestamp.
-	pub fn timestamp(&self) -> U256 { self.rlp.val_at(11) }
+	pub fn timestamp(&self) -> u64 { self.rlp.val_at(11) }
 
 	/// Returns block extra data.
 	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }

@@ -1,6 +1,7 @@
 //! General error types for use in ethcore.
 
 use util::*;
+use header::BlockNumber;
 
 #[derive(Debug)]
 pub struct Mismatch<T: fmt::Debug> {
@@ -23,8 +24,8 @@ pub enum BlockError {
 	InvalidSealArity(Mismatch<usize>),
 	TooMuchGasUsed(OutOfBounds<U256>),
 	InvalidUnclesHash(Mismatch<H256>),
-	UncleTooOld(OutOfBounds<U256>),
-	UncleIsBrother(OutOfBounds<U256>),
+	UncleTooOld(OutOfBounds<BlockNumber>),
+	UncleIsBrother(OutOfBounds<BlockNumber>),
 	UncleInChain(H256),
 	UncleParentNotInChain(H256),
 	InvalidStateRoot,
@@ -33,13 +34,20 @@ pub enum BlockError {
 	InvalidDifficulty(Mismatch<U256>),
 	InvalidGasLimit(OutOfBounds<U256>),
 	InvalidReceiptsStateRoot,
-	InvalidTimestamp(OutOfBounds<U256>),
+	InvalidTimestamp(OutOfBounds<u64>),
 	InvalidLogBloom,
 	InvalidBlockNonce,
 	InvalidParentHash(Mismatch<H256>),
-	InvalidNumber(OutOfBounds<U256>),
+	InvalidNumber(OutOfBounds<BlockNumber>),
 	UnknownParent(H256),
 	UnknownUncleParent(H256),
+}
+
+#[derive(Debug)]
+pub enum ImportError {
+	Bad(BlockError),
+	AlreadyInChain,
+	AlreadyQueued,
 }
 
 #[derive(Debug)]
