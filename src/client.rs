@@ -1,8 +1,9 @@
 use util::*;
 use blockchain::BlockChain;
 use views::BlockView;
-use error::ImportError;
+use error::*;
 use header::BlockNumber;
+use spec::Spec;
 use engine::Engine;
 
 /// General block status
@@ -95,16 +96,17 @@ pub trait BlockChainClient : Sync {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 pub struct Client {
 	chain: Arc<BlockChain>,
-	_engine: Arc<Engine>,
+	_engine: Arc<Box<Engine>>,
 }
 
 impl Client {
-	pub fn new(engine: Arc<Engine>, path: &Path) -> Client {
-		let chain = Arc::new(BlockChain::new(&engine.spec().genesis_block(), path));
-		Client {
+	pub fn new(spec: Spec, path: &Path) -> Result<Client, Error> {
+		let chain = Arc::new(BlockChain::new(&spec.genesis_block(), path));
+		let engine = Arc::new(try!(spec.to_engine()));
+		Ok(Client {
 			chain: chain.clone(),
-			_engine: engine.clone(),
-		}
+			_engine: engine,
+		})
 	}
 }
 

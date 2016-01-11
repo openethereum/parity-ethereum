@@ -11,16 +11,15 @@ use util::network::{NetworkService};
 use ethcore::client::Client;
 use ethcore::sync::EthSync;
 use ethcore::ethereum;
-use ethcore::ethereum::ethash::Ethash;
 
 fn main() {
 	::env_logger::init().ok();
 	let mut service = NetworkService::start().unwrap();
 	//TODO: replace with proper genesis and chain params.
-	let engine = Ethash::new_arc(ethereum::new_frontier());
+	let spec = ethereum::new_frontier();
 	let mut dir = env::temp_dir();
 	dir.push(H32::random().hex());
-	let client = Arc::new(Client::new(engine, &dir));
+	let client = Arc::new(Client::new(spec, &dir).unwrap());
 	EthSync::register(&mut service, client);
 	loop {
 		let mut cmd = String::new();

@@ -13,10 +13,6 @@ impl Ethash {
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
 		Box::new(Ethash{spec: spec})
 	}
-
-	pub fn new_arc(spec: Spec) -> Arc<Engine> {
-		Arc::new(Ethash{spec: spec})
-	}
 }
 
 impl Engine for Ethash {
