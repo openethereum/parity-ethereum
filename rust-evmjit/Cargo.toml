@@ -3,6 +3,8 @@ name = "evmjit"
 version = "0.1.0"
 authors = ["debris <marek.kotewicz@gmail.com>"]
 
+[lib]
+crate-type = ["dylib"]
+
 [dependencies]
-libc = "0.2.2"
 tiny-keccak = "1.0"

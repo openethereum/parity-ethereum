@@ -2,6 +2,7 @@ use common::*;
 use block::*;
 use spec::*;
 use engine::*;
+use evm::Schedule;
 
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
@@ -26,7 +27,7 @@ impl Engine for Ethash {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 	fn spec(&self) -> &Spec { &self.spec }
-	fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
+	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { Schedule::new_frontier() }
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
@@ -45,7 +46,7 @@ impl Engine for Ethash {
 	}
 
 
-	fn verify_block_basic(&self, header: &Header,  _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_basic(&self, header: &Header,  _block: Option<&[u8]>) -> result::Result<(), Error> {
 		let min_difficulty = decode(self.spec().engine_params.get("minimumDifficulty").unwrap());
 		if header.difficulty < min_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: min_difficulty, found: header.difficulty })))
@@ -62,12 +63,12 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// TODO: Verify seal (full)
 		Ok(())
 	}
 
-	fn verify_block_final(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_final(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// Check difficulty is correct given the two timestamps.
 		let expected_difficulty = self.calculate_difficuty(header, parent);
 		if header.difficulty != expected_difficulty {
@@ -82,7 +83,7 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> result::Result<(), Error> { Ok(()) }
 }
 
 impl Ethash {

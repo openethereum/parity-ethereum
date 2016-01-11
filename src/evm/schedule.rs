@@ -1,5 +1,5 @@
 /// Definition of the cost schedule and other parameterisations for the EVM.
-pub struct EvmSchedule {
+pub struct Schedule {
 	pub exceptional_failed_code_deposit: bool,
 	pub have_delegate_call: bool,
 	pub stack_limit: usize,
@@ -32,19 +32,19 @@ pub struct EvmSchedule {
 	pub copy_gas: usize,
 }
 
-impl EvmSchedule {
+impl Schedule {
 	/// Schedule for the Frontier-era of the Ethereum main net.
-	pub fn new_frontier() -> EvmSchedule {
+	pub fn new_frontier() -> Schedule {
 		Self::new(false, false, 21000)
 	}
 
 	/// Schedule for the Homestead-era of the Ethereum main net.
-	pub fn new_homestead() -> EvmSchedule {
+	pub fn new_homestead() -> Schedule {
 		Self::new(true, true, 53000)
 	}
 
-	fn new(efcd: bool, hdc: bool, tcg: usize) -> EvmSchedule {
-		EvmSchedule{
+	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
+		Schedule{
 			exceptional_failed_code_deposit: efcd,
 			have_delegate_call: hdc,
 			stack_limit: 1024,

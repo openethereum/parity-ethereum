@@ -1,6 +1,7 @@
 use common::*;
 use block::Block;
 use spec::Spec;
+use evm::Schedule;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -22,7 +23,7 @@ pub trait Engine : Sync + Send {
 	fn spec(&self) -> &Spec;
 
 	/// Get the EVM schedule for the given `env_info`.
-	fn evm_schedule(&self, env_info: &EnvInfo) -> EvmSchedule;
+	fn schedule(&self, env_info: &EnvInfo) -> Schedule;
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
 	fn maximum_extra_data_size(&self) -> usize { decode(&self.spec().engine_params.get("maximumExtraDataSize").unwrap()) }

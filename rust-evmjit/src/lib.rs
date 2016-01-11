@@ -7,27 +7,52 @@
 //! use evmjit::*;
 //! 
 //! fn main() {
-//! 	let mut context = ContextHandle::new(RuntimeDataHandle::new(), EnvHandle::empty());
+//! 	let mut context = ContextHandle::new(RuntimeDataHandle::new(), ExtHandle::empty());
 //! 	assert_eq!(context.exec(), ReturnCode::Stop);
 //! }
+//! ```
+//! 
 //!
+//! To verify that c abi is "imported" correctly, run:
+//! 
+//! ```bash
+//!	nm your_executable -g | grep ext 
+//! ```
+//! 
+//! It should give the following output:
+//!
+//! ```bash
+//! 00000001000779e0 T _ext_balance
+//! 0000000100077a10 T _ext_blockhash
+//! 0000000100077a90 T _ext_call
+//! 0000000100077a40 T _ext_create
+//! 0000000100077b50 T _ext_extcode
+//! 0000000100077b80 T _ext_log
+//! 0000000100077b20 T _ext_sha3
+//! 0000000100077980 T _ext_sload
+//! 00000001000779b0 T _ext_sstore
 //! ```
 
-extern crate libc;
 extern crate tiny_keccak;
 
 use std::ops::{Deref, DerefMut};
 use self::ffi::*;
 
 pub use self::ffi::JitReturnCode as ReturnCode;
+pub use self::ffi::JitI256 as I256;
+pub use self::ffi::JitH256 as H256;
 
-/// Component oriented safe handle to `JitRuntimeData`.
+/// Takes care of  proper initialization and destruction of `RuntimeData`.
+///
+/// This handle must be used to create runtime data,
+/// cause underneath it's a `C++` structure. Incombatible with rust
+/// structs.
 pub struct RuntimeDataHandle {
 	runtime_data: *mut JitRuntimeData
 }
 
 impl RuntimeDataHandle {
-	/// Creates new handle.
+	/// Creates new `RuntimeData` handle.
 	pub fn new() -> Self {
 		RuntimeDataHandle {
 			runtime_data: unsafe { evmjit_create_runtime_data() }
@@ -51,25 +76,60 @@ impl Drop for RuntimeDataHandle {
 	}
 }
 
-/// Safe handle for jit context.
+impl Deref for RuntimeDataHandle {
+	type Target = JitRuntimeData;
+
+	fn deref(&self) -> &Self::Target {
+		self.runtime_data()
+	}
+}
+
+impl DerefMut for RuntimeDataHandle {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		self.mut_runtime_data()
+	}
+}
+
+/// Takes care of  proper initialization and destruction of jit context.
+///
+/// This handle must be used to create context,
+/// cause underneath it's a `C++` structure. Incombatible with rust
+/// structs.
 pub struct ContextHandle {
 	context: *mut JitContext,
-	_data_handle: RuntimeDataHandle
+	data_handle: RuntimeDataHandle,
 }
 
 impl ContextHandle {
 	/// Creates new context handle.
-	pub fn new(mut data_handle: RuntimeDataHandle, mut env: EnvHandle) -> Self {
-		let context = unsafe { evmjit_create_context(data_handle.mut_runtime_data(), &mut env) };
-		ContextHandle {
-			context: context,
-			_data_handle: data_handle
-		}
+	/// 
+	/// This function is unsafe cause ext lifetime is not considered
+	/// We also can't make ExtHandle a member of `ContextHandle` structure,
+	/// cause this would be a move operation or it would require a template 
+	/// lifetime to a reference. Both solutions are not possible.
+	pub unsafe fn new(data_handle: RuntimeDataHandle, ext: &mut ExtHandle) -> Self {
+		let mut handle = ContextHandle {
+			context: std::mem::uninitialized(),
+			data_handle: data_handle,
+		};
+
+		handle.context = evmjit_create_context(handle.data_handle.mut_runtime_data(), ext);
+		handle
 	}
 
 	/// Executes context.
 	pub fn exec(&mut self) -> JitReturnCode {
 		unsafe { evmjit_exec(self.context) }
+	}
+
+	/// Returns output data.
+	pub fn output_data(&self) -> &[u8] {
+		unsafe { std::slice::from_raw_parts(self.data_handle.call_data, self.data_handle.call_data_size as usize) }
+	}
+
+	/// Returns gas left.
+	pub fn gas_left(&self) -> u64 {
+		self.data_handle.gas as u64
 	}
 }
 
@@ -79,76 +139,76 @@ impl Drop for ContextHandle {
 	}
 }
 
-/// Component oriented wrapper around jit env c interface.
-pub trait Env {
+/// Component oriented wrapper around jit ext c interface.
+pub trait Ext {
 	fn sload(&self, index: *const JitI256, out_value: *mut JitI256);
 	fn sstore(&mut self, index: *const JitI256, value: *const JitI256);
-	fn balance(&self, address: *const JitI256, out_value: *mut JitI256);
-	fn blockhash(&self, number: *const JitI256, out_hash: *mut JitI256);
+	fn balance(&self, address: *const JitH256, out_value: *mut JitI256);
+	fn blockhash(&self, number: *const JitI256, out_hash: *mut JitH256);
 
 	fn create(&mut self,
 			  io_gas: *mut u64,
 			  endowment: *const JitI256,
 			  init_beg: *const u8,
-			  init_size: *const u64,
-			  address: *mut JitI256);
+			  init_size: u64,
+			  address: *mut JitH256);
 
 	fn call(&mut self,
 				io_gas: *mut u64,
-				call_gas: *const u64,
-				receive_address: *const JitI256,
+				call_gas: u64,
+				receive_address: *const JitH256,
 				value: *const JitI256,
 				in_beg: *const u8,
-				in_size: *const u64,
+				in_size: u64,
 				out_beg: *mut u8,
-				out_size: *mut u64,
-				code_address: JitI256) -> bool;
+				out_size: u64,
+				code_address: *const JitH256) -> bool;
 
 	fn log(&mut self,
 		   beg: *const u8,
-		   size: *const u64,
-		   topic1: *const JitI256,
-		   topic2: *const JitI256,
-		   topic3: *const JitI256,
-		   topic4: *const JitI256);
+		   size: u64,
+		   topic1: *const JitH256,
+		   topic2: *const JitH256,
+		   topic3: *const JitH256,
+		   topic4: *const JitH256);
 
-	fn extcode(&self, address: *const JitI256, size: *mut u64) -> *const u8;
+	fn extcode(&self, address: *const JitH256, size: *mut u64) -> *const u8;
 }
 
-/// C abi compatible wrapper for jit env implementers.
-pub struct EnvHandle {
-	env_impl: Option<Box<Env>>
+/// C abi compatible wrapper for jit ext implementers.
+pub struct ExtHandle {
+	ext_impl: Option<Box<Ext>>
 }
 
-impl EnvHandle {
-	/// Creates new environment wrapper for given implementation
-	pub fn new<T>(env_impl: T) -> Self where T: Env + 'static {
-		EnvHandle { env_impl: Some(Box::new(env_impl)) }
+impl ExtHandle {
+	/// Creates new extironment wrapper for given implementation
+	pub fn new<T>(ext_impl: T) -> Self where T: Ext + 'static {
+		ExtHandle { ext_impl: Some(Box::new(ext_impl)) }
 	}
 
-	/// Creates empty environment.
+	/// Creates empty extironment.
 	/// It can be used to for any operations.
 	pub fn empty() -> Self {
-		EnvHandle { env_impl: None }
+		ExtHandle { ext_impl: None }
 	}
 }
 
-impl Deref for EnvHandle {
-	type Target = Box<Env>;
+impl Deref for ExtHandle {
+	type Target = Box<Ext>;
 
 	fn deref(&self) -> &Self::Target {
-		match self.env_impl {
-			Some(ref env) => env,
-			None => { panic!(); }
+		match self.ext_impl {
+			Some(ref ext) => ext,
+			None => { panic!("Handle is empty!"); }
 		}
 	}
 }
 
-impl DerefMut for EnvHandle {
+impl DerefMut for ExtHandle {
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		match self.env_impl {
-			Some(ref mut env) => env,
-			None => { panic!(); }
+		match self.ext_impl {
+			Some(ref mut ext) => ext,
+			None => { panic!("Handle is empty!"); }
 		}
 	}
 }
@@ -156,7 +216,7 @@ impl DerefMut for EnvHandle {
 /// ffi functions
 pub mod ffi {
 	use std::slice;
-	use libc;
+	use std::mem;
 	use tiny_keccak::Keccak;
 	use super::*;
 
@@ -178,17 +238,50 @@ pub mod ffi {
 	}
 
 	#[repr(C)]
+	#[derive(Debug, Copy, Clone)]
 	/// Signed 256 bit integer.
 	pub struct JitI256 {
 		pub words: [u64; 4]
 	}
 
 	#[repr(C)]
+	#[derive(Debug, Copy, Clone)]
+	/// Jit Hash
+	pub struct JitH256 {
+		pub words: [u64; 4]
+	}
+
+	impl From<JitH256> for JitI256 {
+		fn from(mut hash: JitH256) -> JitI256 {
+			unsafe {
+				{
+					let bytes: &mut [u8] = slice::from_raw_parts_mut(hash.words.as_mut_ptr() as *mut u8, 32);
+					bytes.reverse();
+				}
+				mem::transmute(hash)
+			}
+		}
+	}
+
+	impl From<JitI256> for JitH256 {
+		fn from(mut i: JitI256) -> JitH256 {
+			unsafe {
+				{
+					let bytes: &mut [u8] = slice::from_raw_parts_mut(i.words.as_mut_ptr() as *mut u8, 32);
+					bytes.reverse();
+				}
+				mem::transmute(i)
+			}
+		}
+	}
+
+	#[repr(C)]
+	#[derive(Debug)]
 	/// Jit runtime data.
 	pub struct JitRuntimeData {
 		pub gas: i64,
 		pub gas_price: i64,
-		pub call_data: *const libc::c_char,
+		pub call_data: *const u8,
 		pub call_data_size: u64,
 		pub address: JitI256,
 		pub caller: JitI256,
@@ -199,88 +292,88 @@ pub mod ffi {
 		pub gas_limit: JitI256,
 		pub number: u64,
 		pub timestamp: i64,
-		pub code: *const libc::c_char,
+		pub code: *const u8,
 		pub code_size: u64,
 		pub code_hash: JitI256
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sload(env: *const EnvHandle, index: *const JitI256, out_value: *mut JitI256) {
-		let env = &*env;
-		env.sload(index, out_value);
+	pub unsafe extern "C" fn env_sload(ext: *const ExtHandle, index: *const JitI256, out_value: *mut JitI256) {
+		let ext = &*ext;
+		ext.sload(index, out_value);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sstore(env: *mut EnvHandle, index: *const JitI256, value: *const JitI256) {
-		let env = &mut *env;
-		env.sstore(index, value);
+	pub unsafe extern "C" fn env_sstore(ext: *mut ExtHandle, index: *mut JitI256, value: *mut JitI256) {
+		let ext = &mut *ext;
+		ext.sstore(index, value);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_balance(env: *const EnvHandle, address: *const JitI256, out_value: *mut JitI256) {
-		let env = &*env;
-		env.balance(address, out_value);
+	pub unsafe extern "C" fn env_balance(ext: *const ExtHandle, address: *const JitH256, out_value: *mut JitI256) {
+		let ext = &*ext;
+		ext.balance(address, out_value);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_blockhash(env: *const EnvHandle, number: *const JitI256, out_hash: *mut JitI256) {
-		let env = &*env;
-		env.blockhash(number, out_hash);
+	pub unsafe extern "C" fn env_blockhash(ext: *const ExtHandle, number: *const JitI256, out_hash: *mut JitH256) {
+		let ext = &*ext;
+		ext.blockhash(number, out_hash);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_create(env: *mut EnvHandle, 
+	pub unsafe extern "C" fn env_create(ext: *mut ExtHandle, 
 							 io_gas: *mut u64, 
 							 endowment: *const JitI256, 
 							 init_beg: *const u8, 
-							 init_size: *const u64, 
-							 address: *mut JitI256) {
-		let env = &mut *env;
-		env.create(io_gas, endowment, init_beg, init_size, address);
+							 init_size: u64, 
+							 address: *mut JitH256) {
+		let ext = &mut *ext;
+		ext.create(io_gas, endowment, init_beg, init_size, address);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_call(env: *mut EnvHandle, 
+	pub unsafe extern "C" fn env_call(ext: *mut ExtHandle, 
 						   io_gas: *mut u64,
-						   call_gas: *const u64,
-						   receive_address: *const JitI256,
+						   call_gas: u64,
+						   receive_address: *const JitH256,
 						   value: *const JitI256,
 						   in_beg: *const u8,
-						   in_size: *const u64,
+						   in_size: u64,
 						   out_beg: *mut u8,
-						   out_size: *mut u64,
-						   code_address: JitI256) -> bool {
-		let env = &mut *env;
-		env.call(io_gas, call_gas, receive_address, value, in_beg, in_size, out_beg, out_size, code_address)
+						   out_size: u64,
+						   code_address: *const JitH256) -> bool {
+		let ext = &mut *ext;
+		ext.call(io_gas, call_gas, receive_address, value, in_beg, in_size, out_beg, out_size, code_address)
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_sha3(begin: *const u8, size: *const u64, out_hash: *mut JitI256) {
+	pub unsafe extern "C" fn env_sha3(begin: *const u8, size: u64, out_hash: *mut JitH256) {
 		let out_hash = &mut *out_hash;
-		let input = slice::from_raw_parts(begin, *size as usize);
+		let input = slice::from_raw_parts(begin, size as usize);
 		let outlen = out_hash.words.len() * 8;
 		let output = slice::from_raw_parts_mut(out_hash.words.as_mut_ptr() as *mut u8, outlen);
-		let mut sha3 = Keccak::new_sha3_256();
+		let mut sha3 = Keccak::new_keccak256();
 		sha3.update(input);	
 		sha3.finalize(output);
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_extcode(env: *const EnvHandle, address: *const JitI256, size: *mut u64) -> *const u8 {
-		let env = &*env;
-		env.extcode(address, size)
+	pub unsafe extern "C" fn env_extcode(ext: *const ExtHandle, address: *const JitH256, size: *mut u64) -> *const u8 {
+		let ext = &*ext;
+		ext.extcode(address, size)
 	}
 
 	#[no_mangle]
-	pub unsafe extern fn env_log(env: *mut EnvHandle,
+	pub unsafe extern "C" fn env_log(ext: *mut ExtHandle,
 						  beg: *const u8,
-						  size: *const u64,
-						  topic1: *const JitI256,
-						  topic2: *const JitI256,
-						  topic3: *const JitI256,
-						  topic4: *const JitI256) {
-		let env = &mut *env;
-		env.log(beg, size, topic1, topic2, topic3, topic4);
+						  size: u64,
+						  topic1: *const JitH256,
+						  topic2: *const JitH256,
+						  topic3: *const JitH256,
+						  topic4: *const JitH256) {
+		let ext = &mut *ext;
+		ext.log(beg, size, topic1, topic2, topic3, topic4);
 	}
 
 
@@ -293,10 +386,10 @@ pub mod ffi {
 	}
 
 	#[link(name="evmjit")]
-	// EnvHandle does not have to by a C type
+	// ExtHandle does not have to by a C type
 	#[allow(improper_ctypes)]
 	extern "C" {
-		pub fn evmjit_create_context(data: *mut JitRuntimeData, env: *mut EnvHandle) -> *mut JitContext;
+		pub fn evmjit_create_context(data: *mut JitRuntimeData, ext: *mut ExtHandle) -> *mut JitContext;
 	}
 }
 
@@ -304,7 +397,7 @@ pub mod ffi {
 fn ffi_test() {
 	unsafe {
 		let data = evmjit_create_runtime_data();
-		let context = evmjit_create_context(data, &mut EnvHandle::empty());
+		let context = evmjit_create_context(data, &mut ExtHandle::empty());
 
 		let code = evmjit_exec(context);
 		assert_eq!(code, JitReturnCode::Stop);
@@ -316,6 +409,16 @@ fn ffi_test() {
 
 #[test]
 fn handle_test() {
-	let mut context = ContextHandle::new(RuntimeDataHandle::new(), EnvHandle::empty());
-	assert_eq!(context.exec(), ReturnCode::Stop);
+	unsafe {
+		let mut context = ContextHandle::new(RuntimeDataHandle::new(), &mut ExtHandle::empty());
+		assert_eq!(context.exec(), ReturnCode::Stop);
+	}
+}
+
+#[test]
+fn hash_to_int() {
+	let h = H256 { words:[0x0123456789abcdef, 0, 0, 0] };
+	let i = I256::from(h);
+	assert_eq!([0u64, 0, 0, 0xefcdab8967452301], i.words);
+	assert_eq!(H256::from(i).words, h.words);
 }
