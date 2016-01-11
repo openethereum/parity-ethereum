@@ -1,9 +1,9 @@
-use std::sync::Arc;
 use util::*;
 use blockchain::BlockChain;
 use views::BlockView;
 use error::ImportError;
 use header::BlockNumber;
+use engine::Engine;
 
 /// General block status
 pub enum BlockStatus {
@@ -95,13 +95,15 @@ pub trait BlockChainClient : Sync {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 pub struct Client {
 	chain: Arc<BlockChain>,
+	_engine: Arc<Engine>,
 }
 
 impl Client {
-	pub fn new(genesis: &[u8], path: &Path) -> Client {
-		let chain = Arc::new(BlockChain::new(genesis, path));
+	pub fn new(engine: Arc<Engine>, path: &Path) -> Client {
+		let chain = Arc::new(BlockChain::new(&engine.spec().genesis_block(), path));
 		Client {
 			chain: chain.clone(),
+			_engine: engine.clone(),
 		}
 	}
 }

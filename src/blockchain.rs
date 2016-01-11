@@ -1,6 +1,5 @@
 //! Fast access to blockchain data.
 
-use std::sync::*;
 use util::*;
 use rocksdb::{DB, WriteBatch, Writable};
 use header::*;

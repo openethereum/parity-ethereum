@@ -13,12 +13,13 @@
 /// use ethcore::client::Client;
 /// use ethcore::sync::EthSync;
 /// use ethcore::ethereum;
+/// use ethcore::ethereum::ethash::Ethash;
 ///
 /// fn main() {
 /// 	let mut service = NetworkService::start().unwrap();
-///		let frontier = ethereum::new_frontier();
+/// 	let engine = Ethash::new_arc(ethereum::new_frontier());
 /// 	let dir = env::temp_dir();
-/// 	let client = Arc::new(Client::new(&frontier.genesis_block(), &dir));
+/// 	let client = Arc::new(Client::new(engine, &dir));
 /// 	EthSync::register(&mut service, client);
 /// }
 /// ```

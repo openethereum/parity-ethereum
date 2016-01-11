@@ -40,6 +40,27 @@ fn json_to_rlp_map(json: &Json) -> HashMap<String, Bytes> {
 	})
 }
 
+//TODO: add code and data
+#[derive(Debug)]
+/// Genesis account data. Does no thave a DB overlay cache
+pub struct GenesisAccount {
+	// Balance of the account.
+	balance: U256,
+	// Nonce of the account.
+	nonce: U256,
+}
+
+impl GenesisAccount {
+	pub fn rlp(&self) -> Bytes {
+		let mut stream = RlpStream::new_list(4);
+		stream.append(&self.nonce);
+		stream.append(&self.balance);
+		stream.append(&SHA3_NULL_RLP);
+		stream.append(&SHA3_EMPTY);
+		stream.out()
+	}
+}
+
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
 #[derive(Debug)]
@@ -62,12 +83,12 @@ pub struct Spec {
 	pub gas_used: U256,
 	pub timestamp: u64,
 	pub extra_data: Bytes,
-	pub genesis_state: HashMap<Address, Account>,
+	pub genesis_state: HashMap<Address, GenesisAccount>,
 	pub seal_fields: usize,
 	pub seal_rlp: Bytes,
 
 	// May be prepopulated if we know this in advance.
-	state_root_memo: RefCell<Option<H256>>,
+	state_root_memo: RwLock<Option<H256>>,
 }
 
 impl Spec {
@@ -82,11 +103,11 @@ impl Spec {
 	}
 
 	/// Return the state root for the genesis state, memoising accordingly.
-	pub fn state_root(&self) -> Ref<H256> {
-		if self.state_root_memo.borrow().is_none() {
-			*self.state_root_memo.borrow_mut() = Some(sec_trie_root(self.genesis_state.iter().map(|(k, v)| (k.to_vec(), v.rlp())).collect()));
+	pub fn state_root(&self) -> H256 {
+		if self.state_root_memo.read().unwrap().is_none() {
+			*self.state_root_memo.write().unwrap() = Some(sec_trie_root(self.genesis_state.iter().map(|(k, v)| (k.to_vec(), v.rlp())).collect()));
 		}
-		Ref::map(self.state_root_memo.borrow(), |x|x.as_ref().unwrap())
+		self.state_root_memo.read().unwrap().as_ref().unwrap().clone()
 	}
 
 	pub fn genesis_header(&self) -> Header {
@@ -113,7 +134,7 @@ impl Spec {
 				let r = Rlp::new(&seal);
 				(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
 			},
-			hash: RefCell::new(None)
+			hash: RefCell::new(None),
 		}
 	}
 
@@ -149,7 +170,7 @@ impl Spec {
 //				let nonce = if let Some(&Json::String(ref n)) = acc.find("nonce") {U256::from_dec_str(n).unwrap_or(U256::from(0))} else {U256::from(0)};
 				// TODO: handle code & data if they exist.
 				if balance.is_some() || nonce.is_some() {
-					state.insert(addr, Account::new_basic(balance.unwrap_or(U256::from(0)), nonce.unwrap_or(U256::from(0))));
+					state.insert(addr, GenesisAccount { balance: balance.unwrap_or(U256::from(0)), nonce: nonce.unwrap_or(U256::from(0)) });
 				}
 			}
 		}
@@ -186,7 +207,7 @@ impl Spec {
 			genesis_state: state,
 			seal_fields: seal_fields,
 			seal_rlp: seal_rlp,
-			state_root_memo: RefCell::new(genesis.find("stateRoot").and_then(|_| genesis["stateRoot"].as_string()).map(|s| H256::from_str(&s[2..]).unwrap())),
+			state_root_memo: RwLock::new(genesis.find("stateRoot").and_then(|_| genesis["stateRoot"].as_string()).map(|s| H256::from_str(&s[2..]).unwrap())),
 		}
 	}
 
@@ -228,7 +249,7 @@ mod tests {
 	fn test_chain() {
 		let test_spec = Spec::new_test();
 
-		assert_eq!(*test_spec.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
+		assert_eq!(test_spec.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = test_spec.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
 
