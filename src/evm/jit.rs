@@ -159,6 +159,10 @@ impl IntoJit<evmjit::RuntimeDataHandle> for RuntimeData {
 	}
 }
 
+/// Externalities adapter. Maps callbacks from evmjit to externalities trait.
+/// 
+/// Evmjit doesn't have to know about children execution failures. 
+/// This adapter 'catches' them and moves upstream.
 struct ExtAdapter<'a> {
 	ext: &'a mut evm::Ext,
 	err: &'a mut Option<evm::EvmError>

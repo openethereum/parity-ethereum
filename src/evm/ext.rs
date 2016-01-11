@@ -6,6 +6,7 @@ use util::bytes::*;
 use evm_schedule::*;
 use evm::EvmError;
 
+// TODO: replace all u64 with u256
 pub trait Ext {
 	/// Returns a value for given key.
 	fn sload(&self, key: &H256) -> H256;
