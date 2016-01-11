@@ -4,14 +4,14 @@ use spec::Spec;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine {
+pub trait Engine : Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 	/// The version of this engine. Should be of the form 
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(0, 0, 0) }
 
 	/// The number of additional header fields required for this engine.
-	fn seal_fields(&self) -> u32 { 0 }
+	fn seal_fields(&self) -> usize { 0 }
 	/// Default values of the additional fields RLP-encoded in a raw (non-list) harness.
 	fn seal_rlp(&self) -> Bytes { vec![] }
 
@@ -25,23 +25,31 @@ pub trait Engine {
 	fn evm_schedule(&self, env_info: &EnvInfo) -> EvmSchedule;
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	fn maximum_extra_data_size(&self, _env_info: &EnvInfo) -> usize { decode(&self.spec().engine_params.get("maximumExtraDataSize").unwrap()) }
+	fn maximum_extra_data_size(&self) -> usize { decode(&self.spec().engine_params.get("maximumExtraDataSize").unwrap()) }
+	fn maximum_uncle_count(&self) -> usize { 2 }
 	fn account_start_nonce(&self) -> U256 { decode(&self.spec().engine_params.get("accountStartNonce").unwrap()) }
 
 	/// Block transformation functions, before and after the transactions.
 	fn on_new_block(&self, _block: &mut Block) {}
 	fn on_close_block(&self, _block: &mut Block) {}
 
-	/// Verify that `header` is valid.
-	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
-	/// checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	// TODO: consider including State in the params.
-	fn verify_block(&self, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), EthcoreError> { Ok(()) }
+	// TODO: consider including State in the params for verification functions.
+	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block) 
+	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify_block_basic(&self, _header: &Header,  _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+
+	/// Phase 2 verification. Perform costly checks such as transaction signatures. `block` (the header's full block) 
+	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+
+	/// Phase 3 verification. Check block information against parent and uncles. `block` (the header's full block) 
+	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify_block_final(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
-	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> Result<(), EthcoreError> { Ok(()) }
+	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
 	// TODO: consider including State in the params.

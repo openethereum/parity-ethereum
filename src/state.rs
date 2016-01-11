@@ -1,8 +1,4 @@
-use util::*;
-use account::Account;
-use transaction::Transaction;
-use receipt::Receipt;
-use env_info::EnvInfo;
+use common::*;
 use engine::Engine;
 
 /// Information concerning the result of the `State::apply` operation.
@@ -10,7 +6,7 @@ pub struct ApplyInfo {
 	pub receipt: Receipt,
 }
 
-pub type ApplyResult = Result<ApplyInfo, EthcoreError>;
+pub type ApplyResult = Result<ApplyInfo, Error>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
@@ -138,7 +134,7 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, _env_info: &EnvInfo, _engine: &Engine, _t: &Transaction, _is_permanent: bool) -> ApplyResult {
+	pub fn apply(&mut self, _env_info: &EnvInfo, _engine: &Engine, _t: &Transaction) -> ApplyResult {
 		unimplemented!();
 	}
 

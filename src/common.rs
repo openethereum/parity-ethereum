@@ -1,5 +1,6 @@
 pub use util::*;
 pub use basic_types::*;
+pub use error::*;
 pub use env_info::*;
 pub use evm_schedule::*;
 pub use views::*;
@@ -7,4 +8,5 @@ pub use builtin::*;
 pub use header::*;
 pub use account::*;
 pub use transaction::*;
+pub use log_entry::*;
 pub use receipt::*;

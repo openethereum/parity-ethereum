@@ -1,17 +1,28 @@
-//! Transaction log entry.
-use util::hash::*;
-use util::bytes::*;
-use util::sha3::*;
+use util::*;
+use basic_types::LogBloom;
 
-/// Data sturcture used to represent Evm log entry.
+/// A single log's entry.
 pub struct LogEntry {
-	address: Address,
-	topics: Vec<H256>,
-	data: Bytes
+	pub address: Address,
+	pub topics: Vec<H256>,
+	pub data: Bytes,
+}
+
+impl RlpStandard for LogEntry {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append_list(3);
+		s.append(&self.address);
+		s.append(&self.topics);
+		s.append(&self.data);
+	}
 }
 
 impl LogEntry {
-	/// This function should be called to create new log entry.
+	pub fn bloom(&self) -> LogBloom {
+		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))
+	}
+
+	/// Create a new log entry.
 	pub fn new(address: Address, topics: Vec<H256>, data: Bytes) -> LogEntry {
 		LogEntry {
 			address: address,
@@ -26,7 +37,7 @@ impl LogEntry {
 	}
 
 	/// Returns reference to topics.
-	pub fn topics(&self) -> &[H256] {
+	pub fn topics(&self) -> &Vec<H256> {
 		&self.topics
 	}
 
@@ -34,24 +45,12 @@ impl LogEntry {
 	pub fn data(&self) -> &Bytes {
 		&self.data
 	}
-
-	/// Returns log bloom of given log entry.
-	pub fn bloom(&self) -> H2048 {
-		let mut bloom = H2048::new();
-		bloom.shift_bloom(&self.address.sha3());
-		for topic in self.topics.iter() {
-			bloom.shift_bloom(&topic.sha3());
-		}
-		bloom
-	}
 }
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
-	use util::hash::*;
-	use util::bytes::*;
-	use evm::LogEntry;
+	use util::*;
+	use super::LogEntry;
 
 	#[test]
 	fn test_empty_log_bloom() {

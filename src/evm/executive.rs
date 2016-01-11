@@ -12,7 +12,8 @@ use env_info::*;
 use evm_schedule::*;
 use engine::*;
 use transaction::*;
-use evm::{VmFactory, Ext, LogEntry, EvmParams, EvmResult, EvmError};
+use log_entry::*;
+use evm::{VmFactory, Ext, EvmParams, EvmResult, EvmError};
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -167,8 +168,8 @@ impl<'a> Executive<'a> {
 		self.state.inc_nonce(&sender);
 		let mut substate = Substate::new();
 
-		let res = match t.kind() {
-			TransactionKind::ContractCreation => {
+		let res = match t.action() {
+			&Action::Create => {
 				let params = EvmParams {
 					address: contract_address(&sender, &nonce),
 					sender: sender.clone(),
@@ -179,20 +180,20 @@ impl<'a> Executive<'a> {
 					code: t.data.clone(),
 					data: vec![],
 				};
-				self.call(&params, &mut substate, &mut [])
+				self.create(&params, &mut substate)
 			},
-			TransactionKind::MessageCall => {
+			&Action::Call(ref address) => {
 				let params = EvmParams {
-					address: t.to.clone().unwrap(),
+					address: address.clone(),
 					sender: sender.clone(),
 					origin: sender.clone(),
 					gas: t.gas,
 					gas_price: t.gas_price,
 					value: t.value,
-					code: self.state.code(&t.to.clone().unwrap()).unwrap_or(vec![]),
+					code: self.state.code(address).unwrap_or(vec![]),
 					data: t.data.clone(),
 				};
-				self.create(&params, &mut substate)
+				self.call(&params, &mut substate, &mut [])
 			}
 		};
 
@@ -337,10 +338,10 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
-		match *number < self.info.number {
+		match *number < U256::from(self.info.number) {
 			false => H256::from(&U256::zero()),
 			true => {
-				let index = self.info.number - *number - U256::one();
+				let index = U256::from(self.info.number) - *number - U256::one();
 				self.info.last_hashes[index.low_u32() as usize].clone()
 			}
 		}

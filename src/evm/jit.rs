@@ -678,7 +678,7 @@ mod tests {
 
 		let mut state = State::new_temp();
 		let mut info = EnvInfo::new();
-		info.number = U256::one();
+		info.number = 1;
 		info.last_hashes.push(H256::from(address.clone()));
 		let engine = TestEngine::new();
 		let mut substate = Substate::new();
@@ -704,7 +704,7 @@ mod tests {
 
 		let mut state = State::new_temp();
 		let mut info = EnvInfo::new();
-		info.number = U256::one();
+		info.number = 1;
 		info.last_hashes.push(H256::from(address.clone()));
 		let engine = TestEngine::new();
 		let mut substate = Substate::new();

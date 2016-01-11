@@ -17,3 +17,6 @@ Cargo.lock
 
 # mac stuff
 .DS_Store
+
+# gdb files
+.gdb_history

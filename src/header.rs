@@ -1,5 +1,8 @@
 use util::*;
 use basic_types::*;
+use time::now_utc;
+
+pub type BlockNumber = u64;
 
 /// A block header.
 ///
@@ -9,9 +12,10 @@ use basic_types::*;
 /// Doesn't do all that much on its own.
 #[derive(Debug)]
 pub struct Header {
+	// TODO: make all private.
 	pub parent_hash: H256,
-	pub timestamp: U256,
-	pub number: U256,
+	pub timestamp: u64,
+	pub number: BlockNumber,
 	pub author: Address,
 
 	pub transactions_root: H256,
@@ -27,7 +31,7 @@ pub struct Header {
 	pub difficulty: U256,
 	pub seal: Vec<Bytes>,
 
-	pub hash: RefCell<Option<H256>>, //TODO: make this private
+	pub hash: RefCell<Option<H256>>,
 }
 
 pub enum Seal {
@@ -40,25 +44,47 @@ impl Header {
 	pub fn new() -> Header {
 		Header {
 			parent_hash: ZERO_H256.clone(),
-			timestamp: BAD_U256.clone(),
-			number: ZERO_U256.clone(),
+			timestamp: 0,
+			number: 0,
 			author: ZERO_ADDRESS.clone(),
 
-			transactions_root: ZERO_H256.clone(),
-			uncles_hash: ZERO_H256.clone(),
+			transactions_root: SHA3_NULL_RLP,
+			uncles_hash: SHA3_EMPTY_LIST_RLP,
 			extra_data: vec![],
 
-			state_root: ZERO_H256.clone(),
-			receipts_root: ZERO_H256.clone(),
+			state_root: SHA3_NULL_RLP,
+			receipts_root: SHA3_NULL_RLP,
 			log_bloom: ZERO_LOGBLOOM.clone(),
-			gas_used: ZERO_U256.clone(),
-			gas_limit: ZERO_U256.clone(),
+			gas_used: ZERO_U256,
+			gas_limit: ZERO_U256,
 
-			difficulty: ZERO_U256.clone(),
+			difficulty: ZERO_U256,
 			seal: vec![],
 			hash: RefCell::new(None),
 		}
 	}
+
+	pub fn number(&self) -> BlockNumber { self.number }
+	pub fn timestamp(&self) -> u64 { self.timestamp }
+	pub fn author(&self) -> &Address { &self.author }
+
+	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
+
+	pub fn state_root(&self) -> &H256 { &self.state_root }
+	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
+
+	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
+
+	// TODO: seal_at, set_seal_at &c.
+
+	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
+	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
+	pub fn set_timestamp_now(&mut self) { self.timestamp = now_utc().to_timespec().sec as u64; self.note_dirty(); }
+	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
+
+	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.extra_data { self.extra_data = a; self.note_dirty(); } }
+
+	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
 
 	/// Get the hash of this header (sha3 of the RLP).
 	pub fn hash(&self) -> H256 {
@@ -112,28 +138,28 @@ impl Header {
 
 impl Decodable for Header {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = try!(decoder.as_list());
+		let r = decoder.as_rlp();
 
 		let mut blockheader = Header {
-			parent_hash: try!(Decodable::decode(&d[0])),
-			uncles_hash: try!(Decodable::decode(&d[1])),
-			author: try!(Decodable::decode(&d[2])),
-			state_root: try!(Decodable::decode(&d[3])),
-			transactions_root: try!(Decodable::decode(&d[4])),
-			receipts_root: try!(Decodable::decode(&d[5])),
-			log_bloom: try!(Decodable::decode(&d[6])),
-			difficulty: try!(Decodable::decode(&d[7])),
-			number: try!(Decodable::decode(&d[8])),
-			gas_limit: try!(Decodable::decode(&d[9])),
-			gas_used: try!(Decodable::decode(&d[10])),
-			timestamp: try!(Decodable::decode(&d[11])),
-			extra_data: try!(Decodable::decode(&d[12])),
+			parent_hash: try!(r.val_at(0)),
+			uncles_hash: try!(r.val_at(1)),
+			author: try!(r.val_at(2)),
+			state_root: try!(r.val_at(3)),
+			transactions_root: try!(r.val_at(4)),
+			receipts_root: try!(r.val_at(5)),
+			log_bloom: try!(r.val_at(6)),
+			difficulty: try!(r.val_at(7)),
+			number: try!(r.val_at(8)),
+			gas_limit: try!(r.val_at(9)),
+			gas_used: try!(r.val_at(10)),
+			timestamp: try!(r.val_at(11)),
+			extra_data: try!(r.val_at(12)),
 			seal: vec![],
-			hash: RefCell::new(None),
+			hash: RefCell::new(Some(r.as_raw().sha3()))
 		};
 
-		for i in 13..d.len() {
-			blockheader.seal.push(d[i].as_raw().to_vec());
+		for i in 13..r.item_count() {
+			blockheader.seal.push(try!(r.at(i)).as_raw().to_vec())
 		}
 
 		Ok(blockheader)
@@ -156,35 +182,13 @@ impl Encodable for Header {
 			self.gas_used.encode(e);
 			self.timestamp.encode(e);
 			self.extra_data.encode(e);
-		
+
 			for b in self.seal.iter() {
 				e.emit_raw(&b);
 			}
 		})
 	}
 }
-/*
-trait RlpStandard {
-	fn append(&self, s: &mut RlpStream);
-}
-
-impl RlpStandard for Header {
-	fn append(&self, s: &mut RlpStream) {
-		s.append_list(13);
-		s.append(self.parent_hash);
-		s.append_raw(self.seal[0]);
-		s.append_standard(self.x);
-	}
-	fn populate(&mut self, s: &Rlp) {
-	}
-}
-
-impl RlpStream {
-	fn append_standard<O>(&mut self, o: &O) where O: RlpStandard {
-		o.append(self);
-	}
-}
-*/
 
 #[cfg(test)]
 mod tests {

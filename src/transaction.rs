@@ -1,9 +1,8 @@
 use util::*;
 
-#[derive(Eq, PartialEq)]
-pub enum TransactionKind {
-	ContractCreation,
-	MessageCall
+pub enum Action {
+	Create,
+	Call(Address),
 }
 
 /// A set of information describing an externally-originating message call
@@ -12,63 +11,61 @@ pub struct Transaction {
 	pub nonce: U256,
 	pub gas_price: U256,
 	pub gas: U256,
-	pub to: Option<Address>,
+	pub action: Action,
 	pub value: U256,
-	pub data: Bytes
+	pub data: Bytes,
+
+	hash: RefCell<Option<H256>>, //TODO: make this private
+}
+
+impl RlpStandard for Transaction {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append_list(6);
+		s.append(&self.nonce);
+		s.append(&self.gas_price);
+		s.append(&self.gas);
+		match self.action {
+			Action::Create => s.append_empty_data(),
+			Action::Call(ref to) => s.append(to),
+		};
+		s.append(&self.value);
+		s.append(&self.data);
+	}
 }
 
 impl Transaction {
-	pub fn new() -> Self {
-		Transaction {
-			nonce: U256::zero(),
-			gas_price: U256::zero(),
-			gas: U256::zero(),
-			to: None,
-			value: U256::zero(),
-			data: vec![]
+	/// Get the hash of this header (sha3 of the RLP).
+	pub fn hash(&self) -> H256 {
+ 		let mut hash = self.hash.borrow_mut();
+ 		match &mut *hash {
+ 			&mut Some(ref h) => h.clone(),
+ 			hash @ &mut None => {
+ 				*hash = Some(self.rlp_sha3());
+ 				hash.as_ref().unwrap().clone()
+ 			}
 		}
 	}
 
-	/// Returns sender of the transaction.
-	/// TODO: implement
-	pub fn sender(&self) -> Address {
-		Address::new()
-	}
-
-	/// Is this transaction meant to create a contract?
-	pub fn is_contract_creation(&self) -> bool {
-		self.kind() == TransactionKind::ContractCreation
-	}
-
-	/// Is this transaction meant to send a message?
-	pub fn is_message_call(&self) -> bool {
-		self.kind() == TransactionKind::MessageCall
+	/// Note that some fields have changed. Resets the memoised hash.
+	pub fn note_dirty(&self) {
+ 		*self.hash.borrow_mut() = None;
 	}
 
 	/// Returns transaction type.
-	pub fn kind(&self) -> TransactionKind {
-		match self.to.is_some() {
-			true => TransactionKind::MessageCall,
-			false => TransactionKind::ContractCreation
-		}
-	}
+	pub fn action(&self) -> &Action { &self.action }
 
-	/// Get the hash of this transaction.
-	pub fn sha3(&self) -> H256 {
-		unimplemented!();
-	}
+	/// Returns transaction sender.
+	pub fn sender(&self) -> Address { Address::new() }
 }
 
-impl Encodable for Transaction {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
-		encoder.emit_list(| e | {
-			self.nonce.encode(e);
-			self.gas_price.encode(e);
-			self.gas.encode(e);
-			self.to.encode(e);
-			self.value.encode(e);
-			self.data.encode(e);
-		})
+impl Decodable for Action {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let rlp = decoder.as_rlp();
+		if rlp.is_empty() {
+			Ok(Action::Create)
+		} else {
+			Ok(Action::Call(try!(rlp.as_val())))
+		}
 	}
 }
 
@@ -80,12 +77,12 @@ impl Decodable for Transaction {
 			nonce: try!(Decodable::decode(&d[0])),
 			gas_price: try!(Decodable::decode(&d[1])),
 			gas: try!(Decodable::decode(&d[2])),
-			to: try!(Decodable::decode(&d[3])),
+			action: try!(Decodable::decode(&d[3])),
 			value: try!(Decodable::decode(&d[4])),
 			data: try!(Decodable::decode(&d[5])),
+			hash: RefCell::new(None)
 		};
 
 		Ok(transaction)
 	}
 }
-
