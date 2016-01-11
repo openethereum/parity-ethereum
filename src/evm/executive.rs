@@ -229,7 +229,7 @@ impl<'a> Executive<'a> {
 			}
 		} else if params.code.len() > 0 {
 			// if destination is a contract, do normal message call
-			let mut ext = Externalities::new(self.state, self.info, self.engine, self.depth, params, substate, OutputPolicy::Return(output));
+			let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::Return(output));
 			let evm = VmFactory::create();
 			evm.exec(&params, &mut ext)
 		} else {
@@ -247,7 +247,7 @@ impl<'a> Executive<'a> {
 		// then transfer value to it
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
-		let mut ext = Externalities::new(self.state, self.info, self.engine, self.depth, params, substate, OutputPolicy::InitContract);
+		let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::InitContract);
 		let evm = VmFactory::create();
 		evm.exec(&params, &mut ext)
 	}
@@ -323,6 +323,11 @@ impl<'a> Externalities<'a> {
 			schedule: engine.evm_schedule(info),
 			output: output
 		}
+	}
+
+	/// Creates `Externalities` from `Executive`.
+	pub fn from_executive(e: &'a mut Executive, params: &'a EvmParams, substate: &'a mut Substate, output: OutputPolicy<'a>) -> Self {
+		Self::new(e.state, e.info, e.engine, e.depth, params, substate, output)
 	}
 }
 
