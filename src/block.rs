@@ -105,11 +105,12 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// Create a new OpenBlock ready for transaction pushing.
 	pub fn new<'a, 'b>(engine: &'a Engine, db: OverlayDB, parent: &Header, last_hashes: &'b LastHashes, author: Address, extra_data: Bytes) -> OpenBlock<'a, 'b> {
 		let mut r = OpenBlock {
-			block: Block::new(State::from_existing(db, parent.state_root.clone(), engine.account_start_nonce())),
+			block: Block::new(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce())),
 			engine: engine,
 			last_hashes: last_hashes,
 		};
 
+		r.block.header.set_number(parent.number() + 1);
 		r.block.header.set_author(author);
 		r.block.header.set_extra_data(extra_data);
 		r.block.header.set_timestamp_now();
@@ -249,8 +250,10 @@ impl IsBlock for SealedBlock {
 	fn block(&self) -> &Block { &self.block }
 }
 
-pub fn enact(rlp_bytes: &[u8], engine: &Engine, db: OverlayDB, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
-	let block = BlockView::new(rlp_bytes);
+/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
+/// 
+pub fn enact(block_bytes: &[u8], engine: &Engine, db: OverlayDB, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
+	let block = BlockView::new(block_bytes);
 	let header = block.header_view();
 	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author(), header.extra_data());
 	b.set_timestamp(header.timestamp());
@@ -292,4 +295,5 @@ fn enact_block() {
 	
 	let db = e.drain();
 	assert_eq!(orig_db.keys(), db.keys());
+	assert!(orig_db.keys().iter().filter(|k| orig_db.get(k.0) != db.get(k.0)).next() == None);
 }
