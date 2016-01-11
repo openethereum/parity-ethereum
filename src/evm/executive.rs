@@ -278,11 +278,6 @@ impl<'a> Executive<'a> {
 	}
 }
 
-pub enum ExtMode {
-	Call,
-	Create
-}
-
 /// Policy for handling output data on `RETURN` opcode.
 pub enum OutputPolicy<'a> {
 	/// Return reference to fixed sized output.
@@ -411,7 +406,6 @@ impl<'a> Ext for Externalities<'a> {
 		}
 
 		if gas_cost > gas {
-			// TODO: maybe gas should always be updated?
 			return None;
 		}
 
