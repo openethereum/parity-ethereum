@@ -328,12 +328,11 @@ impl evm::Evm for JitEvm {
 		data.call_value = params.value;
 		data.code = params.code.clone();
 
-		// TODO:
-		data.author = Address::new();
-		data.difficulty = U256::zero();
-		data.gas_limit = U256::zero();
-		data.number = 0;
-		data.timestamp = 0;
+		data.author = ext.env_info().author.clone();
+		data.difficulty = ext.env_info().difficulty;
+		data.gas_limit = ext.env_info().gas_limit;
+		data.number = ext.env_info().number;
+		data.timestamp = ext.env_info().timestamp;
 		
 		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
 		let res = context.exec();
