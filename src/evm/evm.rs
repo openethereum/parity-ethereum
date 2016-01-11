@@ -1,7 +1,6 @@
 //! Evm interface.
 
 use util::uint::U256;
-use util::bytes::Bytes;
 use evm::{EvmParams, Ext};
 
 /// Evm errors.

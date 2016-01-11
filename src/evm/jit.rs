@@ -1,3 +1,4 @@
+//! Just in time compiler execution environment.
 use std::mem;
 use std::ptr;
 use std::slice;
@@ -240,6 +241,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				return false;
 			}
 
+			// TODO: fix this!
 			let (mut output, gas) = opt.unwrap();
 			out_beg = output.as_mut_ptr();
 			mem::forget(output);

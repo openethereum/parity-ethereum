@@ -20,14 +20,14 @@ pub trait Ext {
 
 	/// Creates new contract.
 	/// If contract creation is successfull, 
-	/// returns new contract address and gas left,
+	/// return gas_left and contract address,
 	/// otherwise `None`.
-	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> Option<(Address, u64)>;
+	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> Option<(u64, Address)>;
 
 	/// Message call.
-	/// If call is successfull, returns call output and gas left.
+	/// If call is successfull, returns gas left.
 	/// otherwise `None`.
-	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address) -> Option<(Vec<u8>, u64)>;
+	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Option<u64>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Vec<u8>;

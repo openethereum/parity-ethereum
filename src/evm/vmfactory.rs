@@ -2,8 +2,7 @@
 
 use evm::Evm;
 
-/// Vm factory. Creates appropriate Evm.
-/// TODO: SmartVm
+/// Evm factory. Creates appropriate Evm.
 pub struct VmFactory;
 
 impl VmFactory {

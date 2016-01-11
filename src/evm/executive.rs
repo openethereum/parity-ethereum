@@ -1,3 +1,4 @@
+//! Transaction Execution environment.
 use std::collections::HashSet;
 use std::cmp;
 use std::ptr;
@@ -139,11 +140,11 @@ impl<'a> Executive<'a> {
 	}
 
 	/// This funtion should be used to execute transaction.
-	pub fn transact(e: &mut Executive<'a>, t: &Transaction) -> ExecutionResult {
+	pub fn transact(&mut self, t: &Transaction) -> ExecutionResult {
 		// TODO: validate transaction signature ?/ sender
 
 		let sender = t.sender();
-		let nonce = e.state.nonce(&sender);
+		let nonce = self.state.nonce(&sender);
 
 		// validate transaction nonce
 		if t.nonce != nonce {
@@ -151,16 +152,16 @@ impl<'a> Executive<'a> {
 		}
 		
 		// validate if transaction fits into given block
-		if e.info.gas_used + t.gas > e.info.gas_limit {
+		if self.info.gas_used + t.gas > self.info.gas_limit {
 			return Err(ExecutionError::BlockGasLimitReached { 
-				gas_limit: e.info.gas_limit, 
-				gas_used: e.info.gas_used, 
+				gas_limit: self.info.gas_limit, 
+				gas_used: self.info.gas_used, 
 				gas: t.gas 
 			});
 		}
 
 		// TODO: we might need bigints here, or at least check overflows.
-		let balance = e.state.balance(&sender);
+		let balance = self.state.balance(&sender);
 		let gas_cost = t.gas * t.gas_price;
 		let total_cost = t.value + gas_cost;
 
@@ -170,7 +171,7 @@ impl<'a> Executive<'a> {
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
-		e.state.inc_nonce(&sender);
+		self.state.inc_nonce(&sender);
 		let mut substate = Substate::new();
 
 		let res = match t.kind() {
@@ -185,7 +186,7 @@ impl<'a> Executive<'a> {
 					code: t.data.clone(),
 					data: vec![],
 				};
-				Executive::call(e, &params, &mut substate, &mut [])
+				self.call(&params, &mut substate, &mut [])
 			},
 			TransactionKind::MessageCall => {
 				let params = EvmParams {
@@ -195,15 +196,15 @@ impl<'a> Executive<'a> {
 					gas: t.gas,
 					gas_price: t.gas_price,
 					value: t.value,
-					code: e.state.code(&t.to.clone().unwrap()).unwrap_or(vec![]),
+					code: self.state.code(&t.to.clone().unwrap()).unwrap_or(vec![]),
 					data: t.data.clone(),
 				};
-				Executive::create(e, &params, &mut substate)
+				self.create(&params, &mut substate)
 			}
 		};
 
 		// finalize here!
-		e.finalize(substate, &sender, U256::zero(), U256::zero(), t.gas_price);
+		self.finalize(substate, &sender, U256::zero(), U256::zero(), t.gas_price);
 		//res
 		Ok(Executed::new())
 	}
@@ -212,23 +213,23 @@ impl<'a> Executive<'a> {
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `EvmError`.
-	fn call(e: &mut Executive<'a>, params: &EvmParams, substate: &mut Substate, output: &mut [u8]) -> EvmResult {
+	fn call(&mut self, params: &EvmParams, substate: &mut Substate, output: &mut [u8]) -> EvmResult {
 		// at first, transfer value to destination
-		e.state.transfer_balance(&params.sender, &params.address, &params.value);
+		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
-		if e.engine.is_builtin(&params.address) {
+		if self.engine.is_builtin(&params.address) {
 			// if destination is builtin, try to execute it
-			let cost = e.engine.cost_of_builtin(&params.address, &params.data);
+			let cost = self.engine.cost_of_builtin(&params.address, &params.data);
 			match cost <= params.gas {
 				true => {
-					e.engine.execute_builtin(&params.address, &params.data, output);
+					self.engine.execute_builtin(&params.address, &params.data, output);
 					Ok(params.gas - cost)
 				},
 				false => Err(EvmError::OutOfGas)
 			}
 		} else if params.code.len() > 0 {
 			// if destination is a contract, do normal message call
-			let mut ext = Externalities::new(e.state, e.info, e.engine, e.depth, params, substate, OutputPolicy::Return(output));
+			let mut ext = Externalities::new(self.state, self.info, self.engine, self.depth, params, substate, OutputPolicy::Return(output));
 			let evm = VmFactory::create();
 			evm.exec(&params, &mut ext)
 		} else {
@@ -240,13 +241,13 @@ impl<'a> Executive<'a> {
 	/// Creates contract with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
-	fn create(e: &mut Executive<'a>, params: &EvmParams, substate: &mut Substate) -> EvmResult {
+	fn create(&mut self, params: &EvmParams, substate: &mut Substate) -> EvmResult {
 		// at first create new contract
-		e.state.new_contract(&params.address);
+		self.state.new_contract(&params.address);
 		// then transfer value to it
-		e.state.transfer_balance(&params.sender, &params.address, &params.value);
+		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
-		let mut ext = Externalities::new(e.state, e.info, e.engine, e.depth, params, substate, OutputPolicy::InitContract);
+		let mut ext = Externalities::new(self.state, self.info, self.engine, self.depth, params, substate, OutputPolicy::InitContract);
 		let evm = VmFactory::create();
 		evm.exec(&params, &mut ext)
 	}
@@ -351,7 +352,7 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> Option<(Address, u64)> {
+	fn create(&mut self, gas: u64, endowment: &U256, code: &[u8]) -> Option<(u64, Address)> {
 		// if balance is insufficient or we are to deep, return
 		if self.state.balance(&self.params.address) < *endowment && self.depth >= 1024 {
 			return None
@@ -376,14 +377,14 @@ impl<'a> Ext for Externalities<'a> {
 		{
 			let mut ex = Executive::from_parent(self);
 			ex.state.inc_nonce(&address);
-			let res = Executive::create(&mut ex, &params, &mut substate);
+			let res = ex.create(&params, &mut substate);
 		}
 
 		self.substate.accrue(substate);
-		Some((address, gas))
+		Some((gas, address))
 	}
 
-	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address) -> Option<(Vec<u8>, u64)> {
+	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Option<u64> {
 		// TODO: validation of the call
 		
 		println!("gas: {:?}", gas);
@@ -431,12 +432,12 @@ impl<'a> Ext for Externalities<'a> {
 		{
 			let mut ex = Executive::from_parent(self);
 			// TODO: take output into account
-			Executive::call(&mut ex, &params, &mut substate, &mut []);
+			ex.call(&params, &mut substate, output);
 		}
 
 		self.substate.accrue(substate);
 		// TODO: replace call_gas with what's actually left
-		Some((vec![], gas - gas_cost + call_gas))
+		Some(gas - gas_cost + call_gas)
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {

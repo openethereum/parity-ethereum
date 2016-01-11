@@ -1,3 +1,4 @@
+//! Transaction log entry.
 use util::hash::*;
 use util::bytes::*;
 use util::sha3::*;
