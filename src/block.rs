@@ -142,7 +142,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// that the header itself is actually valid.
 	pub fn push_uncle(&mut self, valid_uncle_header: Header) -> Result<(), BlockError> {
 		if self.block.uncles.len() >= self.engine.maximum_uncle_count() {
-			return Err(BlockError::TooManyUncles);
+			return Err(BlockError::TooManyUncles(OutOfBounds{min: 0, max: self.engine.maximum_uncle_count(), found: self.block.uncles.len()}));
 		}
 		// TODO: check number
 		// TODO: check not a direct ancestor (use last_hashes for that)

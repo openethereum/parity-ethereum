@@ -33,11 +33,18 @@ pub trait Engine : Sync + Send {
 	fn on_new_block(&self, _block: &mut Block) {}
 	fn on_close_block(&self, _block: &mut Block) {}
 
-	/// Verify that `header` is valid.
-	/// `parent` (the parent header) and `block` (the header's full block) may be provided for additional
-	/// checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	// TODO: consider including State in the params.
-	fn verify_block(&self, _header: &Header, _parent: Option<&Header>, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	// TODO: consider including State in the params for verification functions.
+	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block) 
+	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify_block_basic(&self, _header: &Header,  _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+
+	/// Phase 2 verification. Perform costly checks such as transaction signatures. `block` (the header's full block) 
+	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+
+	/// Phase 3 verification. Check block information against parent and uncles. `block` (the header's full block) 
+	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify_block_final(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.

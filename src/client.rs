@@ -5,6 +5,7 @@ use error::*;
 use header::BlockNumber;
 use spec::Spec;
 use engine::Engine;
+use queue::BlockQueue;
 
 /// General block status
 pub enum BlockStatus {
@@ -17,9 +18,6 @@ pub enum BlockStatus {
 	/// Unknown.
 	Unknown,
 }
-
-/// Result of import block operation.
-pub type ImportResult = Result<(), ImportError>;
 
 /// Information about the blockchain gthered together.
 pub struct BlockChainInfo {
@@ -95,28 +93,30 @@ pub trait BlockChainClient : Sync {
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 pub struct Client {
-	chain: Arc<BlockChain>,
+	chain: Arc<RwLock<BlockChain>>,
 	_engine: Arc<Box<Engine>>,
+	queue: BlockQueue,
 }
 
 impl Client {
 	pub fn new(spec: Spec, path: &Path) -> Result<Client, Error> {
-		let chain = Arc::new(BlockChain::new(&spec.genesis_block(), path));
+		let chain = Arc::new(RwLock::new(BlockChain::new(&spec.genesis_block(), path)));
 		let engine = Arc::new(try!(spec.to_engine()));
 		Ok(Client {
 			chain: chain.clone(),
-			_engine: engine,
+			_engine: engine.clone(),
+			queue: BlockQueue::new(chain.clone(), engine.clone()),
 		})
 	}
 }
 
 impl BlockChainClient for Client {
 	fn block_header(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.block(hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec())
+		self.chain.read().unwrap().block(hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec())
 	}
 
 	fn block_body(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.block(hash).map(|bytes| {
+		self.chain.read().unwrap().block(hash).map(|bytes| {
 			let rlp = Rlp::new(&bytes);
 			let mut body = RlpStream::new();
 			body.append_raw(rlp.at(1).as_raw(), 1);
@@ -126,34 +126,34 @@ impl BlockChainClient for Client {
 	}
 
 	fn block(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.block(hash)
+		self.chain.read().unwrap().block(hash)
 	}
 
 	fn block_status(&self, hash: &H256) -> BlockStatus {
-		if self.chain.is_known(&hash) { BlockStatus::InChain } else { BlockStatus::Unknown }
+		if self.chain.read().unwrap().is_known(&hash) { BlockStatus::InChain } else { BlockStatus::Unknown }
 	}
 
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.chain.block_hash(n).and_then(|h| self.block_header(&h))
+		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_header(&h))
 	}
 
 	fn block_body_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.chain.block_hash(n).and_then(|h| self.block_body(&h))
+		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_body(&h))
 	}
 
 	fn block_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.chain.block_hash(n).and_then(|h| self.block(&h))
+		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block(&h))
 	}
 
 	fn block_status_at(&self, n: BlockNumber) -> BlockStatus {
-		match self.chain.block_hash(n) {
+		match self.chain.read().unwrap().block_hash(n) {
 			Some(h) => self.block_status(&h),
 			None => BlockStatus::Unknown
 		}
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
-		self.chain.tree_route(from.clone(), to.clone())
+		self.chain.read().unwrap().tree_route(from.clone(), to.clone())
 	}
 
 	fn state_data(&self, _hash: &H256) -> Option<Bytes> {
@@ -165,17 +165,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&mut self, bytes: &[u8]) -> ImportResult {
-		//TODO: verify block
-		{
-			let block = BlockView::new(bytes);
-			let header = block.header_view();
-			let hash = header.sha3();
-			if self.chain.is_known(&hash) {
-				return Err(ImportError::AlreadyInChain);
-			}
-		}
-		self.chain.insert_block(bytes);
-		Ok(())
+		self.queue.import_block(bytes)
 	}
 
 	fn queue_status(&self) -> BlockQueueStatus {
@@ -188,12 +178,13 @@ impl BlockChainClient for Client {
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
+		let chain = self.chain.read().unwrap();
 		BlockChainInfo {
-			total_difficulty: self.chain.best_block_total_difficulty(),
-			pending_total_difficulty: self.chain.best_block_total_difficulty(),
-			genesis_hash: self.chain.genesis_hash(),
-			best_block_hash: self.chain.best_block_hash(),
-			best_block_number: From::from(self.chain.best_block_number())
+			total_difficulty: chain.best_block_total_difficulty(),
+			pending_total_difficulty: chain.best_block_total_difficulty(),
+			genesis_hash: chain.genesis_hash(),
+			best_block_hash: chain.best_block_hash(),
+			best_block_number: From::from(chain.best_block_number())
 		}
 	}
 }
