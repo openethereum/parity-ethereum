@@ -367,7 +367,7 @@ impl<'a> Ext for Externalities<'a> {
 		let mut call_gas = call_gas;
 
 		let is_call = receive_address == code_address;
-		if is_call && self.state.code(&code_address).is_none() {
+		if is_call && !self.state.exists(&code_address) {
 			gas_cost = gas_cost + self.schedule.call_new_account_gas as u64;
 		}
 
