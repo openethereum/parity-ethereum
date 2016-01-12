@@ -419,7 +419,10 @@ impl<'a> Ext for Externalities<'a> {
 			&mut OutputPolicy::InitContract => {
 				let return_cost = data.len() as u64 * self.schedule.create_data_gas as u64;
 				if return_cost > gas {
-					return Err(evm::Error::OutOfGas);
+					match self.schedule.exceptional_failed_code_deposit {
+						true => return Err(evm::Error::OutOfGas),
+						false => return Ok(gas)
+					}
 				}
 				let mut code = vec![];
 				code.reserve(data.len());
