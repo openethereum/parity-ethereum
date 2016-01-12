@@ -23,10 +23,58 @@ pub struct Transaction {
 	pub r: U256,
 	pub s: U256,
 
-	hash: RefCell<Option<H256>>, //TODO: make this private
+	hash: RefCell<Option<H256>>,
+	sender: RefCell<Option<Address>>,
 }
 
 impl Transaction {
+	/// Create a new message-call transaction.
+	pub fn new_call(to: Address, value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
+		Transaction {
+			nonce: nonce,
+			gas_price: gas_price,
+			gas: gas,
+			action: Action::Call(to),
+			value: value,
+			data: data,
+			v: 0,
+			r: U256::zero(),
+			s: U256::zero(),
+			hash: RefCell::new(None),
+			sender: RefCell::new(None),
+		}
+	}
+
+	/// Create a new contract-creation transaction.
+	pub fn new_create(value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
+		Transaction {
+			nonce: nonce,
+			gas_price: gas_price,
+			gas: gas,
+			action: Action::Create,
+			value: value,
+			data: data,
+			v: 0,
+			r: U256::zero(),
+			s: U256::zero(),
+			hash: RefCell::new(None),
+			sender: RefCell::new(None),
+		}
+	}
+
+	/// Get the nonce of the transaction.
+	pub fn nonce(&self) -> &U256 { &self.nonce }
+	/// Get the gas price of the transaction.
+	pub fn gas_price(&self) -> &U256 { &self.gas_price }
+	/// Get the gas of the transaction.
+	pub fn gas(&self) -> &U256 { &self.gas }
+	/// Get the action of the transaction (Create or Call).
+	pub fn action(&self) -> &Action { &self.action }
+	/// Get the value of the transaction.
+	pub fn value(&self) -> &U256 { &self.value }
+	/// Get the data of the transaction.
+	pub fn data(&self) -> &Bytes { &self.data }
+
 	/// Append object into RLP stream, optionally with or without the signature.
 	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
 		s.append_list(6 + match with_seal { Seal::With => 3, _ => 0 });
@@ -75,9 +123,6 @@ impl Transaction {
  		*self.hash.borrow_mut() = None;
 	}
 
-	/// Returns transaction type.
-	pub fn action(&self) -> &Action { &self.action }
-
 	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
 	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
 
@@ -88,7 +133,16 @@ impl Transaction {
 	pub fn message_hash(&self) -> H256 { self.rlp_bytes_opt(Seal::Without).sha3() }
 
 	/// Returns transaction sender.
-	pub fn sender(&self) -> Result<Address, Error> { Ok(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3())) }
+	pub fn sender(&self) -> Result<Address, Error> {
+ 		let mut sender = self.sender.borrow_mut();
+ 		match &mut *sender {
+ 			&mut Some(ref h) => Ok(h.clone()),
+ 			sender @ &mut None => {
+ 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3()));
+ 				Ok(sender.as_ref().unwrap().clone())
+ 			}
+		}
+	}
 
 	/// Signs the transaction as coming from `sender`.
 	pub fn sign(&mut self, secret: &Secret) {
@@ -96,8 +150,11 @@ impl Transaction {
 		let (r, s, v) = sig.unwrap().to_rsv();
 		self.r = r;
 		self.s = s;
-		self.v = v;
+		self.v = v + 27;
 	}
+
+	/// Signs the transaction as coming from `sender`.
+	pub fn signed(self, secret: &Secret) -> Transaction { let mut r = self; r.sign(secret); r }
 
 	/// Get the transaction cost in gas for the given params.
 	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule) -> u64 {
@@ -150,7 +207,8 @@ impl Decodable for Transaction {
 			v: try!(u16::decode(&d[6])) as u8,
 			r: try!(Decodable::decode(&d[7])),
 			s: try!(Decodable::decode(&d[8])),
-			hash: RefCell::new(None)
+			hash: RefCell::new(None),
+			sender: RefCell::new(None),
 		})
 	}
 }
@@ -167,4 +225,11 @@ fn sender_test() {
 	} else { panic!(); }
 	assert_eq!(t.value, U256::from(0x0au64));
 	assert_eq!(t.sender().unwrap(), address_from_hex("0f65fe9276bc9a24ae7083ae28e2660ef72df99e"));
+}
+
+#[test]
+fn signing() {
+	let key = KeyPair::create().unwrap();
+	let t = Transaction::new_create(U256::from(42u64), b"Hello!".to_vec(), U256::from(3000u64), U256::from(50_000u64), U256::from(1u64)).signed(&key.secret());
+	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
 }
