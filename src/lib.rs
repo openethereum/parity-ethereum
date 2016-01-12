@@ -1,5 +1,7 @@
 #![feature(cell_extras)]
 #![feature(augmented_assignments)]
+//#![feature(plugin)]
+//#![plugin(interpolate_idents)]
 //! Ethcore's ethereum implementation
 //!
 //! ### Rust version
