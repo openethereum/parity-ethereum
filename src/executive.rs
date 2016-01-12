@@ -21,6 +21,8 @@ struct Substate {
 	logs: Vec<LogEntry>,
 	/// Refund counter of SSTORE nonzero->zero.
 	refunds_count: U256,
+	/// Created contracts.
+	contracts_created: Vec<Address>
 }
 
 impl Substate {
@@ -30,6 +32,7 @@ impl Substate {
 			suicides: HashSet::new(),
 			logs: vec![],
 			refunds_count: U256::zero(),
+			contracts_created: vec![]
 		}
 	}
 }
@@ -55,6 +58,13 @@ pub struct Executed {
 
 	/// Execution ended running out of gas.
 	pub out_of_gas: bool,
+	/// Addresses of contracts created during execution of transaction.
+	/// Ordered from earliest creation.
+	/// 
+	/// eg. sender creates contract A and A in constructor creates contract B 
+	/// 
+	/// B creation ends first, and it will be the first element of the vector.
+	pub contracts_created: Vec<Address>
 }
 
 /// Transaction execution result.
@@ -217,6 +227,7 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
 					out_of_gas: true,
+					contracts_created: vec![]
 				})
 			},
 			Ok(gas_left) => {
@@ -250,6 +261,7 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + gas_used,
 					logs: substate.logs,
 					out_of_gas: false,
+					contracts_created: substate.contracts_created
 				})
 			}
 		}
@@ -405,6 +417,7 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
+		println!("ret");
 		match &mut self.output {
 			&mut OutputPolicy::Return(ref mut slice) => unsafe {
 				let len = cmp::min(slice.len(), data.len());
@@ -427,6 +440,7 @@ impl<'a> Ext for Externalities<'a> {
 				}
 				let address = &self.params.address;
 				self.state.init_code(address, code);
+				self.substate.contracts_created.push(address.clone());
 				Ok(gas - return_cost)
 			}
 		}
@@ -463,13 +477,15 @@ mod tests {
 	use super::Substate;
 
 	struct TestEngine {
-		spec: Spec
+		spec: Spec,
+		stack_limit: usize
 	}
 
 	impl TestEngine {
-		fn new() -> TestEngine {
+		fn new(stack_limit: usize) -> TestEngine {
 			TestEngine {
-				spec: ethereum::new_frontier()
+				spec: ethereum::new_frontier(),
+				stack_limit: stack_limit 
 			}
 		}
 	}
@@ -479,7 +495,7 @@ mod tests {
 		fn spec(&self) -> &Spec { &self.spec }
 		fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
 			let mut schedule = Schedule::new_frontier();
-			schedule.stack_limit = 0;
+			schedule.stack_limit = self.stack_limit; 
 			schedule
 		}
 	}
@@ -505,7 +521,7 @@ mod tests {
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
-		let engine = TestEngine::new();
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let gas_left = {
@@ -517,12 +533,16 @@ mod tests {
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0xf9u64)));
 		assert_eq!(state.balance(&sender), U256::from(0xf9));
 		assert_eq!(state.balance(&address), U256::from(0x7));
+		// 0 cause contract hasn't returned
+		assert_eq!(substate.contracts_created.len(), 0);
 
 		// TODO: just test state root.
 	}
 
 	#[test]
 	fn test_create_contract() {
+		// code:
+		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
 		// 60 00 - push 0
 		// 52
@@ -532,6 +552,16 @@ mod tests {
 		// f0 - create
 		// 60 00 - push 0
 		// 55 sstore
+		//
+		// other code:
+		//
+		// 60 10 - push 16
+		// 80 - duplicate first stack item
+		// 60 0c - push 12
+		// 60 00 - push 0
+		// 39 - copy current code to memory
+		// 60 00 - push 0
+		// f3 - return
 
 		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
 
@@ -545,10 +575,11 @@ mod tests {
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = code.clone();
+		params.value = U256::from(100);
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
-		let engine = TestEngine::new();
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let gas_left = {
@@ -557,6 +588,58 @@ mod tests {
 		};
 		
 		assert_eq!(gas_left, U256::from(47_976));
+		assert_eq!(substate.contracts_created.len(), 0);
+	}
+
+	#[test]
+	fn test_create_contract_without_stack_limit() {
+		// code:
+		//
+		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
+		// 60 00 - push 0
+		// 52
+		// 60 1d - push 29
+		// 60 03 - push 3
+		// 60 17 - push 17
+		// f0 - create
+		// 60 00 - push 0
+		// 55 sstore
+		//
+		// other code:
+		//
+		// 60 10 - push 16
+		// 80 - duplicate first stack item
+		// 60 0c - push 12
+		// 60 00 - push 0
+		// 39 - copy current code to memory
+		// 60 00 - push 0
+		// f3 - return
+
+		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
+
+		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let address = contract_address(&sender, &U256::zero());
+		let next_address = contract_address(&address, &U256::zero());
+		let mut params = ActionParams::new();
+		params.address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(100_000);
+		params.code = code.clone();
+		params.value = U256::from(100);
+		let mut state = State::new_temp();
+		state.add_balance(&sender, &U256::from(100));
+		let info = EnvInfo::new();
+		let engine = TestEngine::new(1024);
+		let mut substate = Substate::new();
+
+		{
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.create(&params, &mut substate).unwrap();
+		}
+		
+		assert_eq!(substate.contracts_created.len(), 1);
+		assert_eq!(substate.contracts_created[0], next_address);
 	}
 
 	#[test]
@@ -605,7 +688,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100_000));
 
 		let info = EnvInfo::new();
-		let engine = TestEngine::new();
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let gas_left = {
@@ -647,7 +730,7 @@ mod tests {
 		let mut state = State::new_temp();
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::new();
-		let engine = TestEngine::new();
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
 		let gas_left = {
