@@ -14,7 +14,7 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
-pub struct Substate {
+struct Substate {
 	/// Any accounts that have suicided.
 	suicides: HashSet<Address>,
 	/// Any logs.
@@ -25,21 +25,16 @@ pub struct Substate {
 
 impl Substate {
 	/// Creates new substate.
-	pub fn new() -> Self {
+	fn new() -> Self {
 		Substate {
 			suicides: HashSet::new(),
 			logs: vec![],
 			refunds_count: U256::zero(),
 		}
 	}
-
-	// TODO: remove
-	pub fn logs(&self) -> &[LogEntry] {
-		&self.logs
-	}
 }
 
-/// Transaction execution result.
+/// Transaction execution receipt.
 pub struct Executed {
 	/// Gas paid up front for execution of transaction.
 	pub gas: U256,
@@ -61,9 +56,10 @@ pub struct Executed {
 	pub out_of_gas: bool,
 }
 
+/// Transaction execution result.
 pub type ExecutionResult = Result<Executed, ExecutionError>;
 
-/// Message-call/contract-creation executor; useful for executing transactions.
+/// Transaction executor.
 pub struct Executive<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
@@ -72,7 +68,7 @@ pub struct Executive<'a> {
 }
 
 impl<'a> Executive<'a> {
-	/// Creates new executive with depth equal 0.
+	/// Basic constructor.
 	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine) -> Self {
 		Executive::new_with_depth(state, info, engine, 0)
 	}
@@ -259,7 +255,7 @@ impl<'a> Executive<'a> {
 }
 
 /// Policy for handling output data on `RETURN` opcode.
-pub enum OutputPolicy<'a> {
+enum OutputPolicy<'a> {
 	/// Return reference to fixed sized output.
 	/// Used for message calls.
 	Return(&'a mut [u8]),
@@ -268,7 +264,7 @@ pub enum OutputPolicy<'a> {
 }
 
 /// Implementation of evm Externalities.
-pub struct Externalities<'a> {
+struct Externalities<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
@@ -281,7 +277,7 @@ pub struct Externalities<'a> {
 
 impl<'a> Externalities<'a> {
 	/// Basic `Externalities` constructor.
-	pub fn new(state: &'a mut State, 
+	fn new(state: &'a mut State, 
 			   info: &'a EnvInfo, 
 			   engine: &'a Engine, 
 			   depth: usize, 
@@ -301,7 +297,7 @@ impl<'a> Externalities<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn from_executive(e: &'a mut Executive, params: &'a ActionParams, substate: &'a mut Substate, output: OutputPolicy<'a>) -> Self {
+	fn from_executive(e: &'a mut Executive, params: &'a ActionParams, substate: &'a mut Substate, output: OutputPolicy<'a>) -> Self {
 		Self::new(e.state, e.info, e.engine, e.depth, params, substate, output)
 	}
 }
@@ -443,6 +439,10 @@ impl<'a> Ext for Externalities<'a> {
 	fn schedule(&self) -> &Schedule {
 		&self.schedule
 	}
+
+	fn env_info(&self) -> &EnvInfo {
+		&self.info
+	}
 }
 
 #[cfg(test)]
@@ -452,6 +452,7 @@ mod tests {
 	use state::*;
 	use ethereum;
 	use null_engine::*;
+	use super::Substate;
 
 	#[test]
 	fn test_contract_address() {

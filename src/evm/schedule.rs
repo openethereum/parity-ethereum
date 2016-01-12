@@ -1,3 +1,5 @@
+//! Cost schedule and other parameterisations for the EVM.
+
 /// Definition of the cost schedule and other parameterisations for the EVM.
 pub struct Schedule {
 	pub exceptional_failed_code_deposit: bool,

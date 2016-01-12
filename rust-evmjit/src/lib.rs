@@ -287,7 +287,7 @@ pub mod ffi {
 		pub caller: JitI256,
 		pub origin: JitI256,
 		pub call_value: JitI256,
-		pub coinbase: JitI256,
+		pub author: JitI256,
 		pub difficulty: JitI256,
 		pub gas_limit: JitI256,
 		pub number: u64,
