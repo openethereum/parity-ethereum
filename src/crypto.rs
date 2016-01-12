@@ -120,6 +120,8 @@ impl KeyPair {
 
 pub mod ec {
 	use hash::*;
+	use uint::*;
+	use standard::*;
 	use crypto::*;
 	use crypto::{self};
 
@@ -136,6 +138,7 @@ pub mod ec {
 	}
 	/// Returns siganture of message hash.
 	pub fn sign(secret: &Secret, message: &H256) -> Result<Signature, CryptoError> {
+		// TODO: allow creation of only low-s signatures.
 		use secp256k1::*;
 		let context = Secp256k1::new();
 		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
@@ -163,6 +166,16 @@ pub mod ec {
 			Err(Error::IncorrectSignature) => Ok(false),
 			Err(x) => Err(<CryptoError as From<Error>>::from(x))
 		}
+	}
+
+	/// Check if this is a "low" signature.
+	pub fn is_low(sig: &Signature) -> bool {
+		H256::from_slice(&sig[32..64]) <= h256_from_hex("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0")
+	}
+
+	/// Check if this is a "low" signature.
+	pub fn is_low_s(s: &U256) -> bool {
+		s <= &U256::from_str("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0").unwrap()
 	}
 
 	/// Check if each component of the signature is in range.
