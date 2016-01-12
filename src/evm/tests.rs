@@ -26,7 +26,7 @@ impl FakeExt {
 }
 
 impl Ext for FakeExt {
-	fn sload(&self, key: &H256) -> H256 {
+  fn sload(&self, key: &H256) -> H256 {
 		self.store.get(key).unwrap_or(&H256::new()).clone()
 	}
 
@@ -61,10 +61,10 @@ impl Ext for FakeExt {
 		self.codes.get(address).unwrap_or(&Bytes::new()).clone()
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: Bytes) {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		self.logs.push(FakeLogEntry {
 			topics: topics,
-			data: data
+			data: data.to_vec()
 		});
 	}
 
@@ -86,8 +86,17 @@ impl Ext for FakeExt {
 }
 
 #[test]
-fn test_add() {
-	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+#[cfg(feature = "jit")]
+fn test_add_jit() {
+  test_add(Box::new(super::jit::JitEvm));
+}
+#[test]
+fn test_add_interpreter() {
+  test_add(Box::new(super::interpreter::Interpreter));
+}
+
+fn test_add(vm : Box<super::Evm>) {
+  let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
 
 	let mut params = ActionParams::new();
@@ -97,7 +106,6 @@ fn test_add() {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
-		let vm = Factory::create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 

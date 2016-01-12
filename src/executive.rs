@@ -206,7 +206,8 @@ impl<'a> Executive<'a> {
 	fn finalize(&mut self, t: &Transaction, substate: Substate, backup: State, result: evm::Result) -> ExecutionResult {
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
-			Err(evm::Error::OutOfGas) => {
+			// TODO [ToDr] BadJumpDestination @debris - how to handle that?
+			Err(evm::Error::OutOfGas) | Err(evm::Error::BadJumpDestination) => {
 				*self.state = backup;
 				Ok(Executed {
 					gas: t.gas,
@@ -426,9 +427,9 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: Bytes) {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		let address = self.params.address.clone();
-		self.substate.logs.push(LogEntry::new(address, topics, data));
+		self.substate.logs.push(LogEntry::new(address, topics, data.to_vec()));
 	}
 
 	fn suicide(&mut self) {

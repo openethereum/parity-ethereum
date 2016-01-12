@@ -15,7 +15,7 @@ impl Factory {
 	/// Returns native rust evm
 	#[cfg(not(feature = "jit"))]
 	pub fn create() -> Box<Evm> {
-		unimplemented!();
+		Box::new(super::interpreter::Interpreter::new())
 	}
 }
 

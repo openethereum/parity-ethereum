@@ -295,7 +295,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			}
 		
 			let bytes_ref: &[u8] = slice::from_raw_parts(beg, size as usize);
-			self.ext.log(topics, bytes_ref.to_vec());
+			self.ext.log(topics, bytes_ref);
 		}
 	}
 

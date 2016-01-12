@@ -12,6 +12,9 @@ pub enum Error {
 	/// was invalid. Balance still should be transfered and nonce
 	/// should be increased.
 	OutOfGas,
+	/// `BadJumpDestination` is returned when execution tried to move
+	/// to position that wasn't marked with JUMPDEST instruction
+	BadJumpDestination,
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
 	Internal,

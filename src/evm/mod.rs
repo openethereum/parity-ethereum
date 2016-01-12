@@ -2,8 +2,10 @@
 
 pub mod ext;
 pub mod evm;
+pub mod interpreter;
 pub mod factory;
 pub mod schedule;
+mod instructions;
 #[cfg(feature = "jit" )]
 mod jit;
 
