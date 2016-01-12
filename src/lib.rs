@@ -109,6 +109,9 @@ pub mod blockchain;
 pub mod extras;
 pub mod evm;
 
+#[cfg(test)]
+mod tests;
+
 pub mod client;
 pub mod sync;
 pub mod block;
