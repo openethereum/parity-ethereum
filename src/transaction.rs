@@ -90,25 +90,33 @@ impl Transaction {
 	/// Returns transaction sender.
 	pub fn sender(&self) -> Result<Address, Error> { Ok(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3())) }
 
+	/// Signs the transaction as coming from `sender`.
+	pub fn sign(&mut self, secret: &Secret) {
+		let sig = ec::sign(secret, &self.message_hash());
+		let (r, s, v) = sig.unwrap().to_rsv();
+		self.r = r;
+		self.s = s;
+		self.v = v;
+	}
+
 	/// Get the transaction cost in gas for the given params.
-	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule) -> U256 {
-		// CRITICAL TODO XXX FIX NEED BIGINT!!!!!
+	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule) -> u64 {
 		data.iter().fold(
-			U256::from(if is_create {schedule.tx_create_gas} else {schedule.tx_gas}),
-			|g, b| g + U256::from(match *b { 0 => schedule.tx_data_zero_gas, _ => schedule.tx_data_non_zero_gas})
+			(if is_create {schedule.tx_create_gas} else {schedule.tx_gas}) as u64,
+			|g, b| g + (match *b { 0 => schedule.tx_data_zero_gas, _ => schedule.tx_data_non_zero_gas }) as u64
 		)
 	}
 
 	/// Get the transaction cost in gas for this transaction.
-	pub fn gas_required(&self, schedule: &Schedule) -> U256 {
+	pub fn gas_required(&self, schedule: &Schedule) -> u64 {
 		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
 	pub fn validate(self, schedule: &Schedule) -> Result<Transaction, Error> {
 		try!(self.sender());
-		if self.gas < self.gas_required(&schedule) {
-			Err(From::from(TransactionError::InvalidGasLimit(OutOfBounds{min: Some(self.gas_required(&schedule)), max: None, found: self.gas})))
+		if self.gas < U256::from(self.gas_required(&schedule)) {
+			Err(From::from(TransactionError::InvalidGasLimit(OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas})))
 		} else {
 			Ok(self)
 		}

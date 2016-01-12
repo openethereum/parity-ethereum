@@ -123,17 +123,17 @@ impl<'a> Executive<'a> {
 
 		// TODO: we might need bigints here, or at least check overflows.
 		let balance = self.state.balance(&sender);
-		let gas_cost = t.gas * t.gas_price;
-		let total_cost = t.value + gas_cost;
+		let gas_cost = U512::from(t.gas) * U512::from(t.gas_price);
+		let total_cost = U512::from(t.value) + gas_cost;
 
 		// avoid unaffordable transactions
-		if balance < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, is: balance }));
+		if U512::from(balance) < total_cost {
+			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, is: U512::from(balance) }));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
 		self.state.inc_nonce(&sender);
-		self.state.sub_balance(&sender, &gas_cost);
+		self.state.sub_balance(&sender, &U256::from(gas_cost));
 
 		let mut substate = Substate::new();
 		let backup = self.state.clone();
