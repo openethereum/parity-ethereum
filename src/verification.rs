@@ -307,7 +307,7 @@ mod tests {
 		good_uncle2.timestamp = parent7.timestamp + 10;
 		good_uncle2.extra_data.push(2u8);
 
-		let good_uncles = vec![ good_uncle1, good_uncle2 ];
+		let good_uncles = vec![ good_uncle1.clone(), good_uncle2.clone() ];
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
@@ -388,5 +388,13 @@ mod tests {
 		header.number = 9;
 		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
 			InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number }));
+		
+		header = good.clone();
+		let mut bad_uncles = good_uncles.clone();
+		bad_uncles.push(good_uncle1.clone());
+		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine.deref(), &bc),
+			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count()), min: None, found: bad_uncles.len() }));
+
+		// TODO: some additional uncle checks
 	}
 }
