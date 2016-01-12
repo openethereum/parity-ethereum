@@ -196,29 +196,31 @@ fn json_tests() {
 	let mut failed = Vec::new();
 	let schedule = Schedule::new_frontier();
 	for (name, test) in json.as_object().unwrap() {
+		let mut fail = false;
+		let mut fail_unless = |cond: bool| if !cond && fail { failed.push(name.to_string()); fail = true };
 		let _ = BlockNumber::from_str(test["blocknumber"].as_string().unwrap()).unwrap();
 		let rlp = bytes_from_json(&test["rlp"]);
 		let r: Result<Transaction, DecoderError> = UntrustedRlp::new(&rlp).as_val();
 		if let Ok(t) = r {
 			if t.sender().is_ok() && t.gas >= t.gas_required(&schedule, &U256::zero()) {
 				if let (Some(&Json::Object(ref tx)), Some(&Json::String(ref expect_sender))) = (test.find("transaction"), test.find("sender")) {
-					assert_eq!(t.sender().unwrap(), address_from_hex(clean(expect_sender)));
-					assert_eq!(t.data, bytes_from_json(&tx["data"]));
-					assert_eq!(t.gas, u256_from_json(&tx["gasLimit"]));
-					assert_eq!(t.gas_price, u256_from_json(&tx["gasPrice"]));
-					assert_eq!(t.nonce, u256_from_json(&tx["nonce"]));
-					assert_eq!(t.value, u256_from_json(&tx["value"]));
+					fail_unless(t.sender().unwrap() == address_from_hex(clean(expect_sender)));
+					fail_unless(t.data == bytes_from_json(&tx["data"]));
+					fail_unless(t.gas == u256_from_json(&tx["gasLimit"]));
+					fail_unless(t.gas_price == u256_from_json(&tx["gasPrice"]));
+					fail_unless(t.nonce == u256_from_json(&tx["nonce"]));
+					fail_unless(t.value == u256_from_json(&tx["value"]));
 					if let Action::Call(ref to) = t.action {
-						assert_eq!(to, &address_from_json(&tx["to"]));
+						fail_unless(to == &address_from_json(&tx["to"]));
 					} else {
-						assert_eq!(bytes_from_json(&tx["to"]).len(), 0);
+						fail_unless(bytes_from_json(&tx["to"]).len() == 0);
 					}
 				}
-				else { failed.push(name.to_string()); }
+				else { fail_unless(false) }
 			}
-			else if test.find("transaction").is_some() { failed.push(name.to_string()); }
+			else { fail_unless(test.find("transaction").is_none()) }
 		}
-		else if test.find("transaction").is_some() { failed.push(name.to_string()); }
+		else { fail_unless(test.find("transaction").is_none()) }
 	}
 	for f in failed.iter() {
 		println!("FAILED: {:?}", f);
