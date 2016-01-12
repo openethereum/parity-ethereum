@@ -747,9 +747,10 @@ mod tests {
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
+		let contract = contract_address(&sender, &U256::zero());
 
 		let mut state = State::new_temp();
-		state.add_balance(&sender, &U256::from(17));	
+		state.add_balance(&sender, &U256::from(18));	
 		let mut info = EnvInfo::new();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0);
@@ -760,20 +761,25 @@ mod tests {
 		};
 
 		assert_eq!(executed.gas, U256::from(100_000));
-		assert_eq!(executed.gas_used, U256::from(5025));
-		assert_eq!(executed.refunded, U256::from(94_975));
-		assert_eq!(executed.cumulative_gas_used, U256::from(5025));
+		assert_eq!(executed.gas_used, U256::from(20_025));
+		assert_eq!(executed.refunded, U256::from(79_975));
+		assert_eq!(executed.cumulative_gas_used, U256::from(20_025));
 		assert_eq!(executed.logs.len(), 0);
 		assert_eq!(executed.out_of_gas, false);
 		assert_eq!(executed.contracts_created.len(), 0);
+		assert_eq!(state.balance(&sender), U256::from(1));
+		assert_eq!(state.balance(&contract), U256::from(17));
+		assert_eq!(state.nonce(&sender), U256::from(1));
+		assert_eq!(state.storage_at(&contract, &H256::new()), H256::from(&U256::from(1)));
 	}
 
 	#[test]
 	fn test_transact_invalid_sender() {
-		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
+		let t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
 
 		let mut state = State::new_temp();
-		let info = EnvInfo::new();
+		let mut info = EnvInfo::new();
+		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0);
 
 		let res = {
@@ -783,7 +789,7 @@ mod tests {
 		
 		match res {
 			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => (),
-			_ => assert!(false, "expected signature error")
+			_ => assert!(false, "Expected invalid signature error.")
 		}
 	}
 
@@ -792,9 +798,12 @@ mod tests {
 		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::one());
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
+		let sender = t.sender().unwrap();
 		
 		let mut state = State::new_temp();
-		let info = EnvInfo::new();
+		state.add_balance(&sender, &U256::from(17));	
+		let mut info = EnvInfo::new();
+		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0);
 
 		let res = {
@@ -803,8 +812,60 @@ mod tests {
 		};
 		
 		match res {
-			Err(Error::Execution(ExecutionError::InvalidNonce { expected, is })) if expected == U256::zero() && is == U256::one() => (), 
-			_ => assert!(false, "expected signature error")
+			Err(Error::Execution(ExecutionError::InvalidNonce { expected, is })) 
+				if expected == U256::zero() && is == U256::one() => (), 
+			_ => assert!(false, "Expected invalid nonce error.")
+		}
+	}
+
+	#[test]
+	fn test_transact_gas_limit_reached() {
+		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(80_001), U256::zero(), U256::zero());
+		let keypair = KeyPair::create().unwrap();
+		t.sign(&keypair.secret());
+		let sender = t.sender().unwrap();
+
+		let mut state = State::new_temp();
+		state.add_balance(&sender, &U256::from(17));	
+		let mut info = EnvInfo::new();
+		info.gas_used = U256::from(20_000);
+		info.gas_limit = U256::from(100_000);
+		let engine = TestEngine::new(0);
+
+		let res = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.transact(&t)
+		};
+
+		match res {
+			Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) 
+				if gas_limit == U256::from(100_000) && gas_used == U256::from(20_000) && gas == U256::from(80_001) => (), 
+			_ => assert!(false, "Expected block gas limit error.")
+		}
+	}
+
+	#[test]
+	fn test_not_enough_cash() {
+		let mut t = Transaction::new_create(U256::from(18), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::one(), U256::zero());
+		let keypair = KeyPair::create().unwrap();
+		t.sign(&keypair.secret());
+		let sender = t.sender().unwrap();
+
+		let mut state = State::new_temp();
+		state.add_balance(&sender, &U256::from(100_017));	
+		let mut info = EnvInfo::new();
+		info.gas_limit = U256::from(100_000);
+		let engine = TestEngine::new(0);
+
+		let res = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.transact(&t)
+		};
+		
+		match res {
+			Err(Error::Execution(ExecutionError::NotEnoughCash { required , is })) 
+				if required == U512::zero() && is == U512::one() => (), 
+			_ => assert!(false, "Expected not enough cash error.")
 		}
 	}
 }
