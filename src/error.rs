@@ -11,8 +11,8 @@ pub struct Mismatch<T: fmt::Debug> {
 
 #[derive(Debug)]
 pub struct OutOfBounds<T: fmt::Debug> {
-	pub min: T,
-	pub max: T,
+	pub min: Option<T>,
+	pub max: Option<T>,
 	pub found: T,
 }
 
@@ -31,6 +31,11 @@ pub enum ExecutionError {
 	NotEnoughCash { required: U256, is: U256 },
 	/// Returned when internal evm error occurs.
 	Internal
+}
+
+#[derive(Debug)]
+pub enum TransactionError {
+	InvalidGasLimit(OutOfBounds<U256>),
 }
 
 #[derive(Debug)]
@@ -83,6 +88,13 @@ pub enum Error {
 	Block(BlockError),
 	UnknownEngineName(String),
 	Execution(ExecutionError),
+	Transaction(TransactionError),
+}
+
+impl From<TransactionError> for Error {
+	fn from(err: TransactionError) -> Error {
+		Error::Transaction(err)
+	}
 }
 
 impl From<BlockError> for Error {
@@ -100,6 +112,12 @@ impl From<ExecutionError> for Error {
 impl From<CryptoError> for Error {
 	fn from(err: CryptoError) -> Error {
 		Error::Util(UtilError::Crypto(err))
+	}
+}
+
+impl From<DecoderError> for Error {
+	fn from(err: DecoderError) -> Error {
+		Error::Util(UtilError::Decoder(err))
 	}
 }
 

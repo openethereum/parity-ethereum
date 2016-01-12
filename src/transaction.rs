@@ -1,6 +1,6 @@
 use util::*;
 use basic_types::*;
-use error::Error;
+use error::*;
 use evm::Schedule;
 
 pub enum Action {
@@ -91,17 +91,27 @@ impl Transaction {
 	pub fn sender(&self) -> Result<Address, Error> { Ok(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3())) }
 
 	/// Get the transaction cost in gas for the given params.
-	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule, gas: &U256) -> U256 {
+	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule) -> U256 {
 		// CRITICAL TODO XXX FIX NEED BIGINT!!!!!
 		data.iter().fold(
-			U256::from(if is_create {schedule.tx_create_gas} else {schedule.tx_gas}) + *gas,
+			U256::from(if is_create {schedule.tx_create_gas} else {schedule.tx_gas}),
 			|g, b| g + U256::from(match *b { 0 => schedule.tx_data_zero_gas, _ => schedule.tx_data_non_zero_gas})
 		)
 	}
 
-	/// Get the transaction cost in gas for this transaction
-	pub fn gas_required(&self, schedule: &Schedule, gas: &U256) -> U256 {
-		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule, gas)
+	/// Get the transaction cost in gas for this transaction.
+	pub fn gas_required(&self, schedule: &Schedule) -> U256 {
+		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
+	}
+
+	/// Do basic validation, checking for valid signature and minimum gas,
+	pub fn validate(self, schedule: &Schedule) -> Result<Transaction, Error> {
+		try!(self.sender());
+		if self.gas < self.gas_required(&schedule) {
+			Err(From::from(TransactionError::InvalidGasLimit(OutOfBounds{min: Some(self.gas_required(&schedule)), max: None, found: self.gas})))
+		} else {
+			Ok(self)
+		}
 	}
 }
 
@@ -200,27 +210,22 @@ fn json_tests() {
 		let mut fail_unless = |cond: bool| if !cond && fail { failed.push(name.to_string()); fail = true };
 		let _ = BlockNumber::from_str(test["blocknumber"].as_string().unwrap()).unwrap();
 		let rlp = bytes_from_json(&test["rlp"]);
-		let r: Result<Transaction, DecoderError> = UntrustedRlp::new(&rlp).as_val();
-		if let Ok(t) = r {
-			if t.sender().is_ok() && t.gas >= t.gas_required(&schedule, &U256::zero()) {
-				if let (Some(&Json::Object(ref tx)), Some(&Json::String(ref expect_sender))) = (test.find("transaction"), test.find("sender")) {
-					fail_unless(t.sender().unwrap() == address_from_hex(clean(expect_sender)));
-					fail_unless(t.data == bytes_from_json(&tx["data"]));
-					fail_unless(t.gas == u256_from_json(&tx["gasLimit"]));
-					fail_unless(t.gas_price == u256_from_json(&tx["gasPrice"]));
-					fail_unless(t.nonce == u256_from_json(&tx["nonce"]));
-					fail_unless(t.value == u256_from_json(&tx["value"]));
-					if let Action::Call(ref to) = t.action {
-						fail_unless(to == &address_from_json(&tx["to"]));
-					} else {
-						fail_unless(bytes_from_json(&tx["to"]).len() == 0);
-					}
-				}
-				else { fail_unless(false) }
+		let res = UntrustedRlp::new(&rlp).as_val().map_err(|e| From::from(e)).and_then(|t: Transaction| t.validate(&schedule));
+		fail_unless(test.find("transaction").is_none() == res.is_err());
+		if let (Some(&Json::Object(ref tx)), Some(&Json::String(ref expect_sender))) = (test.find("transaction"), test.find("sender")) {
+			let t = res.unwrap();
+			fail_unless(t.sender().unwrap() == address_from_hex(clean(expect_sender)));
+			fail_unless(t.data == bytes_from_json(&tx["data"]));
+			fail_unless(t.gas == u256_from_json(&tx["gasLimit"]));
+			fail_unless(t.gas_price == u256_from_json(&tx["gasPrice"]));
+			fail_unless(t.nonce == u256_from_json(&tx["nonce"]));
+			fail_unless(t.value == u256_from_json(&tx["value"]));
+			if let Action::Call(ref to) = t.action {
+				fail_unless(to == &address_from_json(&tx["to"]));
+			} else {
+				fail_unless(bytes_from_json(&tx["to"]).len() == 0);
 			}
-			else { fail_unless(test.find("transaction").is_none()) }
 		}
-		else { fail_unless(test.find("transaction").is_none()) }
 	}
 	for f in failed.iter() {
 		println!("FAILED: {:?}", f);
