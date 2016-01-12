@@ -27,6 +27,21 @@ pub struct Transaction {
 }
 
 impl Transaction {
+	pub fn new(nonce: U256, gas_price: U256, gas: U256, action: Action, value: U256, data: Bytes) -> Transaction {
+		Transaction {
+			nonce: nonce,
+			gas_price: gas_price,
+			gas: gas,
+			action: action,
+			value: value,
+			data: data,
+			v: 0,
+			r: U256::zero(),
+			s: U256::zero(),
+			hash: RefCell::new(None)
+		}
+	}
+
 	/// Append object into RLP stream, optionally with or without the signature.
 	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
 		s.append_list(6 + match with_seal { Seal::With => 3, _ => 0 });
