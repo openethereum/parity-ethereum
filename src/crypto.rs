@@ -1,4 +1,6 @@
 use hash::*;
+use bytes::*;
+use uint::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
 
@@ -18,6 +20,11 @@ impl Signature {
 		}
 		ret[64] = v;
 		ret
+	}
+
+	/// Convert transaction to R, S and V components.
+	pub fn to_rsv(&self) -> (U256, U256, u8) {
+		(U256::from(&self.as_slice()[0..32]), U256::from(&self.as_slice()[32..64]), self[64])
 	}
 }
 
