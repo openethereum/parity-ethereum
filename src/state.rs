@@ -2,7 +2,7 @@ use common::*;
 use engine::Engine;
 use executive::Executive;
 
-pub type ApplyResult = Result<Receipt, ExecutionError>;
+pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
@@ -74,6 +74,11 @@ impl State {
 	/// Remove an existing account.
 	pub fn kill_account(&mut self, account: &Address) {
 		self.cache.borrow_mut().insert(account.clone(), None);
+	}
+
+	/// Determine whether an account exists.
+	pub fn exists(&self, a: &Address) -> bool {
+		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || SecTrieDB::new(&self.db, &self.root).contains(&a)
 	}
 
 	/// Get the balance of account `a`.
@@ -287,9 +292,12 @@ fn get_from_database() {
 fn remove() {
 	let a = Address::zero();
 	let mut s = State::new_temp();
+	assert_eq!(s.exists(&a), false);
 	s.inc_nonce(&a);
+	assert_eq!(s.exists(&a), true);
 	assert_eq!(s.nonce(&a), U256::from(1u64));
 	s.kill_account(&a);
+	assert_eq!(s.exists(&a), false);
 	assert_eq!(s.nonce(&a), U256::from(0u64));
 }
 
@@ -300,20 +308,24 @@ fn remove_from_database() {
 		let mut s = State::new_temp();
 		s.inc_nonce(&a);
 		s.commit();
+		assert_eq!(s.exists(&a), true);
 		assert_eq!(s.nonce(&a), U256::from(1u64));
 		s.drop()
 	};
 
 	let (r, db) = {
 		let mut s = State::from_existing(db, r, U256::from(0u8));
+		assert_eq!(s.exists(&a), true);
 		assert_eq!(s.nonce(&a), U256::from(1u64));
 		s.kill_account(&a);
 		s.commit();
+		assert_eq!(s.exists(&a), false);
 		assert_eq!(s.nonce(&a), U256::from(0u64));
 		s.drop()
 	};
 
 	let s = State::from_existing(db, r, U256::from(0u8));
+	assert_eq!(s.exists(&a), false);
 	assert_eq!(s.nonce(&a), U256::from(0u64));
 }
 

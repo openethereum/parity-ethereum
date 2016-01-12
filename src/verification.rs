@@ -47,7 +47,7 @@ pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Res
 	let num_uncles = Rlp::new(bytes).at(2).item_count();
 	if num_uncles != 0 {
 		if num_uncles > engine.maximum_uncle_count() {
-			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: 0, max: engine.maximum_uncle_count(), found: num_uncles })));
+			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: None, max: Some(engine.maximum_uncle_count()), found: num_uncles })));
 		}
 
 		let mut excluded = HashSet::new();
@@ -83,10 +83,10 @@ pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Res
 
 			let depth = if header.number > uncle.number { header.number - uncle.number } else { 0 };
 			if depth > 6 {
-				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: header.number - depth, max: header.number - 1, found: uncle.number })));
+				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: Some(header.number - depth), max: Some(header.number - 1), found: uncle.number })));
 			}
 			else if depth < 1 {
-				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds { min: header.number - depth, max: header.number - 1, found: uncle.number })));
+				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds { min: Some(header.number - depth), max: Some(header.number - 1), found: uncle.number })));
 			}
 
 			// cB
@@ -115,10 +115,10 @@ pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Res
 /// Check basic header parameters.
 fn verify_header(header: &Header) -> Result<(), Error> {
 	if header.number > From::from(BlockNumber::max_value()) {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: 0, found: header.number })))
+		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number })))
 	}
 	if header.gas_used > header.gas_limit {
-		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: header.gas_limit, min: From::from(0), found: header.gas_used })));
+		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used })));
 	}
 	Ok(())
 }
@@ -129,10 +129,10 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 		return Err(From::from(BlockError::InvalidParentHash(Mismatch { expected: parent.hash(), found: header.parent_hash.clone() })))
 	}
 	if header.timestamp <= parent.timestamp {
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: u64::max_value(), min: parent.timestamp + 1, found: header.timestamp })))
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp + 1), found: header.timestamp })))
 	}
 	if header.number <= parent.number {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: BlockNumber::max_value(), min: parent.number + 1, found: header.number })));
+		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number })));
 	}
 	Ok(())
 }
