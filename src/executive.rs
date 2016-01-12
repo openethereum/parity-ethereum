@@ -120,17 +120,17 @@ impl<'a> Executive<'a> {
 
 		// TODO: we might need bigints here, or at least check overflows.
 		let balance = self.state.balance(&sender);
-		let gas_cost = t.gas * t.gas_price;
-		let total_cost = t.value + gas_cost;
+		let gas_cost = U512::from(t.gas) * U512::from(t.gas_price);
+		let total_cost = U512::from(t.value) + gas_cost;
 
 		// avoid unaffordable transactions
-		if balance < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, is: balance }));
+		if U512::from(balance) < total_cost {
+			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, is: U512::from(balance) }));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
 		self.state.inc_nonce(&sender);
-		self.state.sub_balance(&sender, &gas_cost);
+		self.state.sub_balance(&sender, &U256::from(gas_cost));
 
 		let mut substate = Substate::new();
 		let backup = self.state.clone();
@@ -743,10 +743,9 @@ mod tests {
 
 	#[test]
 	fn test_transact_simple() {
-		let mut t = Transaction::new(U256::zero(), U256::zero(), U256::from(100_000), Action::Create, U256::from(17), "3331600055".from_hex().unwrap());
-		t.r = U256::from_str("98ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4a").unwrap();
-		t.s = U256::from_str("8887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a3").unwrap();
-		t.v = 0x1c;
+		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
+		let keypair = KeyPair::create().unwrap();
+		t.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state = State::new_temp();
@@ -771,10 +770,7 @@ mod tests {
 
 	#[test]
 	fn test_transact_invalid_sender() {
-		let mut t = Transaction::new(U256::zero(), U256::zero(), U256::from(100_000), Action::Create, U256::from(17), "3331600055".from_hex().unwrap());
-		t.r = U256::from_str("98ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4a").unwrap();
-		t.s = U256::from_str("8887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a3").unwrap();
-		t.v = 0x1d;
+		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
 
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
@@ -793,11 +789,10 @@ mod tests {
 
 	#[test]
 	fn test_transact_invalid_nonce() {
-		let mut t = Transaction::new(U256::one(), U256::zero(), U256::from(100_000), Action::Create, U256::from(17), "3331600055".from_hex().unwrap());
-		t.r = U256::from_str("98ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4a").unwrap();
-		t.s = U256::from_str("8887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a3").unwrap();
-		t.v = 0x1c;
-
+		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::one());
+		let keypair = KeyPair::create().unwrap();
+		t.sign(&keypair.secret());
+		
 		let mut state = State::new_temp();
 		let info = EnvInfo::new();
 		let engine = TestEngine::new(0);
