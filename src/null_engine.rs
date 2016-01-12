@@ -1,6 +1,6 @@
 use engine::Engine;
 use spec::Spec;
-use evm_schedule::EvmSchedule;
+use evm::Schedule;
 use env_info::EnvInfo;
 
 /// An engine which does not provide any consensus mechanism.
@@ -17,5 +17,5 @@ impl NullEngine {
 impl Engine for NullEngine {
 	fn name(&self) -> &str { "NullEngine" }
 	fn spec(&self) -> &Spec { &self.spec }
-	fn evm_schedule(&self, _env_info: &EnvInfo) -> EvmSchedule { EvmSchedule::new_frontier() }
+	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { Schedule::new_frontier() }
 }

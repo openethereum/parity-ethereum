@@ -12,19 +12,19 @@ pub use self::denominations::*;
 use super::spec::*;
 
 /// Create a new Olympic chain spec.
-pub fn new_olympic() -> Spec { Spec::from_json_utf8(include_bytes!("res/olympic.json")) }
+pub fn new_olympic() -> Spec { Spec::from_json_utf8(include_bytes!("../../res/ethereum/olympic.json")) }
 
 /// Create a new Frontier mainnet chain spec.
-pub fn new_frontier() -> Spec { Spec::from_json_utf8(include_bytes!("res/frontier.json")) }
+pub fn new_frontier() -> Spec { Spec::from_json_utf8(include_bytes!("../../res/ethereum/frontier.json")) }
 
 /// Create a new Frontier chain spec as though it never changes to Homestead.
-pub fn new_frontier_test() -> Spec { Spec::from_json_utf8(include_bytes!("res/frontier_test.json")) }
+pub fn new_frontier_test() -> Spec { Spec::from_json_utf8(include_bytes!("../../res/ethereum/frontier_test.json")) }
 
 /// Create a new Homestead chain spec as though it never changed from Frontier.
-pub fn new_homestead_test() -> Spec { Spec::from_json_utf8(include_bytes!("res/homestead_test.json")) }
+pub fn new_homestead_test() -> Spec { Spec::from_json_utf8(include_bytes!("../../res/ethereum/homestead_test.json")) }
 
 /// Create a new Morden chain spec.
-pub fn new_morden() -> Spec { Spec::from_json_utf8(include_bytes!("res/morden.json")) }
+pub fn new_morden() -> Spec { Spec::from_json_utf8(include_bytes!("../../res/ethereum/morden.json")) }
 
 #[cfg(test)]
 mod tests {

@@ -129,7 +129,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// Alter the extra_data for the block.
 	pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
 		if extra_data.len() > self.engine.maximum_extra_data_size() {
-			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds{min: 0, max: self.engine.maximum_extra_data_size(), found: extra_data.len()}))
+			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds{min: None, max: Some(self.engine.maximum_extra_data_size()), found: extra_data.len()}))
 		} else {
 			self.block.header.set_extra_data(extra_data);
 			Ok(())
@@ -142,7 +142,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// that the header itself is actually valid.
 	pub fn push_uncle(&mut self, valid_uncle_header: Header) -> Result<(), BlockError> {
 		if self.block.uncles.len() >= self.engine.maximum_uncle_count() {
-			return Err(BlockError::TooManyUncles(OutOfBounds{min: 0, max: self.engine.maximum_uncle_count(), found: self.block.uncles.len()}));
+			return Err(BlockError::TooManyUncles(OutOfBounds{min: None, max: Some(self.engine.maximum_uncle_count()), found: self.block.uncles.len()}));
 		}
 		// TODO: check number
 		// TODO: check not a direct ancestor (use last_hashes for that)
@@ -169,13 +169,13 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// If valid, it will be executed, and archived together with the receipt.
 	pub fn push_transaction(&mut self, t: Transaction, h: Option<H256>) -> Result<&Receipt, Error> {
 		let env_info = self.env_info();
-		match self.block.state.apply(&env_info, self.engine, &t, true) {
-			Ok(x) => {
+		match self.block.state.apply(&env_info, self.engine, &t) {
+			Ok(receipt) => {
 				self.block.archive_set.insert(h.unwrap_or_else(||t.hash()));
-				self.block.archive.push(Entry { transaction: t, receipt: x.receipt });
+				self.block.archive.push(Entry { transaction: t, receipt: receipt });
 				Ok(&self.block.archive.last().unwrap().receipt)
 			}
-			Err(x) => Err(x)
+			Err(x) => Err(From::from(x))
 		}
 	}
 

@@ -34,11 +34,6 @@ pub struct Header {
 	pub hash: RefCell<Option<H256>>,
 }
 
-pub enum Seal {
-	With,
-	Without,
-}
-
 impl Header {
 	/// Create a new, default-valued, header.
 	pub fn new() -> Header {

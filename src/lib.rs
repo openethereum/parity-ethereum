@@ -83,25 +83,30 @@ extern crate time;
 extern crate env_logger;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
+
 extern crate ethcore_util as util;
 
 pub mod common;
 pub mod basic_types;
+pub mod executive;
 pub mod error;
+pub mod log_entry;
 pub mod env_info;
 pub mod engine;
 pub mod state;
 pub mod account;
+pub mod action_params;
 pub mod header;
 pub mod transaction;
 pub mod receipt;
 pub mod null_engine;
-pub mod evm_schedule;
 pub mod builtin;
 pub mod spec;
 pub mod views;
 pub mod blockchain;
 pub mod extras;
+pub mod evm;
+
 pub mod client;
 pub mod sync;
 pub mod block;

@@ -47,7 +47,7 @@ pub fn verify_block_final<BC>(bytes: &[u8], engine: &Engine, bc: &BC) -> Result<
 	let num_uncles = Rlp::new(bytes).at(2).item_count();
 	if num_uncles != 0 {
 		if num_uncles > engine.maximum_uncle_count() {
-			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: 0, max: engine.maximum_uncle_count(), found: num_uncles })));
+			return Err(From::from(BlockError::TooManyUncles(OutOfBounds { min: None, max: Some(engine.maximum_uncle_count()), found: num_uncles })));
 		}
 
 		let mut excluded = HashSet::new();
@@ -82,10 +82,10 @@ pub fn verify_block_final<BC>(bytes: &[u8], engine: &Engine, bc: &BC) -> Result<
 
 			let depth = if header.number > uncle.number { header.number - uncle.number } else { 0 };
 			if depth > 6 {
-				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: header.number - depth, max: header.number - 1, found: uncle.number })));
+				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: Some(header.number - depth), max: Some(header.number - 1), found: uncle.number })));
 			}
 			else if depth < 1 {
-				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds { min: header.number - depth, max: header.number - 1, found: uncle.number })));
+				return Err(From::from(BlockError::UncleIsBrother(OutOfBounds { min: Some(header.number - depth), max: Some(header.number - 1), found: uncle.number })));
 			}
 
 			// cB
@@ -121,18 +121,18 @@ pub fn verify_block_final<BC>(bytes: &[u8], engine: &Engine, bc: &BC) -> Result<
 /// Check basic header parameters.
 fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.number >= From::from(BlockNumber::max_value()) {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: From::from(BlockNumber::max_value()), min: 0, found: header.number })))
+		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number })))
 	}
 	if header.gas_used > header.gas_limit {
-		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: header.gas_limit, min: From::from(0), found: header.gas_used })));
+		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used })));
 	}
 	let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
 	if header.gas_limit < min_gas_limit {
-		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: min_gas_limit, max: BAD_U256, found: header.gas_limit })));
+		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit })));
 	}
 	let maximum_extra_data_size = engine.maximum_extra_data_size();
 	if header.number != 0 && header.extra_data.len() > maximum_extra_data_size {
-		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: 0, max: maximum_extra_data_size, found: header.extra_data.len() })));
+		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data.len() })));
 	}
 	Ok(())
 }
@@ -143,10 +143,10 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 		return Err(From::from(BlockError::InvalidParentHash(Mismatch { expected: parent.hash(), found: header.parent_hash.clone() })))
 	}
 	if header.timestamp <= parent.timestamp {
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: u64::max_value(), min: parent.timestamp + 1, found: header.timestamp })))
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp + 1), found: header.timestamp })))
 	}
 	if header.number <= parent.number {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: BlockNumber::max_value(), min: parent.number + 1, found: header.number })));
+		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number })));
 	}
 	Ok(())
 }
@@ -339,27 +339,27 @@ mod tests {
 
 		header.gas_limit = min_gas_limit - From::from(1);
 		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
-			InvalidGasLimit(OutOfBounds { min: min_gas_limit, max: BAD_U256, found: header.gas_limit }));
+			InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit }));
 
 		header = good.clone();
 		header.number = BlockNumber::max_value();
 		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
-			InvalidNumber(OutOfBounds { max: BlockNumber::max_value(), min: 0, found: header.number }));
+			InvalidNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number }));
 
 		header = good.clone();
 		header.gas_used = header.gas_limit + From::from(1);
 		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
-			TooMuchGasUsed(OutOfBounds { max: header.gas_limit, min: From::from(0), found: header.gas_used }));
+			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used }));
 
 		header = good.clone();
 		header.extra_data.resize(engine.maximum_extra_data_size() + 1, 0u8);
 		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
-			ExtraDataOutOfBounds(OutOfBounds { max: engine.maximum_extra_data_size(), min: 0, found: header.extra_data.len() }));
+			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data.len() }));
 
 		header = good.clone();
 		header.extra_data.resize(engine.maximum_extra_data_size() + 1, 0u8);
 		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
-			ExtraDataOutOfBounds(OutOfBounds { max: engine.maximum_extra_data_size(), min: 0, found: header.extra_data.len() }));
+			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data.len() }));
 
 		header = good.clone();
 		header.uncles_hash = good_uncles_hash.clone();
@@ -382,11 +382,11 @@ mod tests {
 		header = good.clone();
 		header.timestamp = 10;
 		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
-			InvalidTimestamp(OutOfBounds { max: u64::max_value(), min: parent.timestamp + 1, found: header.timestamp }));
+			InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp + 1), found: header.timestamp }));
 
 		header = good.clone();
 		header.number = 9;
 		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
-			InvalidNumber(OutOfBounds { max: BlockNumber::max_value(), min: parent.number + 1, found: header.number }));
+			InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number }));
 	}
 }

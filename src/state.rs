@@ -1,12 +1,8 @@
 use common::*;
 use engine::Engine;
+use executive::Executive;
 
-/// Information concerning the result of the `State::apply` operation.
-pub struct ApplyInfo {
-	pub receipt: Receipt,
-}
-
-pub type ApplyResult = Result<ApplyInfo, Error>;
+pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
@@ -134,8 +130,10 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, _env_info: &EnvInfo, _engine: &Engine, _t: &Transaction, _is_permanent: bool) -> ApplyResult {
-		unimplemented!();
+	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
+		let e = try!(Executive::new(self, env_info, engine).transact(t));
+		self.commit();
+		Ok(Receipt::new(self.root().clone(), e.gas_used, e.logs))
 	}
 
 	/// Convert into a JSON representation.
@@ -218,6 +216,12 @@ impl State {
 			}
 			account
 		}).unwrap())
+	}
+}
+
+impl Clone for State {
+	fn clone(&self) -> Self {
+		State::from_existing(self.db.clone(), self.root.clone(), self.account_start_nonce.clone())
 	}
 }
 

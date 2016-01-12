@@ -11,9 +11,31 @@ pub struct Mismatch<T: fmt::Debug> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct OutOfBounds<T: fmt::Debug> {
-	pub min: T,
-	pub max: T,
+	pub min: Option<T>,
+	pub max: Option<T>,
 	pub found: T,
+}
+
+/// Result of executing the transaction.
+#[derive(PartialEq, Debug)]
+pub enum ExecutionError {
+	/// Returned when block (gas_used + gas) > gas_limit.
+	/// 
+	/// If gas =< gas_limit, upstream may try to execute the transaction
+	/// in next block.
+	BlockGasLimitReached { gas_limit: U256, gas_used: U256, gas: U256 },
+	/// Returned when transaction nonce does not match state nonce.
+	InvalidNonce { expected: U256, is: U256 },
+	/// Returned when cost of transaction (value + gas_price * gas) exceeds 
+	/// current sender balance.
+	NotEnoughCash { required: U256, is: U256 },
+	/// Returned when internal evm error occurs.
+	Internal
+}
+
+#[derive(Debug)]
+pub enum TransactionError {
+	InvalidGasLimit(OutOfBounds<U256>),
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -65,11 +87,37 @@ pub enum Error {
 	Util(UtilError),
 	Block(BlockError),
 	UnknownEngineName(String),
+	Execution(ExecutionError),
+	Transaction(TransactionError),
+}
+
+impl From<TransactionError> for Error {
+	fn from(err: TransactionError) -> Error {
+		Error::Transaction(err)
+	}
 }
 
 impl From<BlockError> for Error {
 	fn from(err: BlockError) -> Error {
 		Error::Block(err)
+	}
+}
+
+impl From<ExecutionError> for Error {
+	fn from(err: ExecutionError) -> Error {
+		Error::Execution(err)
+	}
+}
+
+impl From<CryptoError> for Error {
+	fn from(err: CryptoError) -> Error {
+		Error::Util(UtilError::Crypto(err))
+	}
+}
+
+impl From<DecoderError> for Error {
+	fn from(err: DecoderError) -> Error {
+		Error::Util(UtilError::Decoder(err))
 	}
 }
 
