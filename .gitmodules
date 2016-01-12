@@ -1,0 +1,3 @@
+[submodule "res/ethereum/tests"]
+	path = res/ethereum/tests
+	url = git@github.com:ethereum/tests
