@@ -356,3 +356,36 @@ impl evm::Evm for JitEvm {
 	}
 }
 
+#[test]
+fn test_to_and_from_u256() {
+	let u = U256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
+	let j = u.into_jit();
+	let u2 = U256::from_jit(&j);
+	assert_eq!(u, u2);
+}
+
+#[test]
+fn test_to_and_from_h256() {
+	let h = H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
+	let j: ::evmjit::I256 = h.clone().into_jit();
+	let h2 = H256::from_jit(&j);
+	
+	assert_eq!(h, h2);
+
+	let j: ::evmjit::H256 = h.clone().into_jit();
+	let h2 = H256::from_jit(&j);
+	assert_eq!(h, h2);
+}
+
+#[test]
+fn test_to_and_from_address() {
+	let a = Address::from_str("2adc25665018aa1fe0e6bc666dac8fc2697ff9ba").unwrap();
+	let j: ::evmjit::I256 = a.clone().into_jit();
+	let a2 = Address::from_jit(&j);
+
+	assert_eq!(a, a2);
+
+	let j: ::evmjit::H256 = a.clone().into_jit();
+	let a2 = Address::from_jit(&j);
+	assert_eq!(a, a2);
+}
