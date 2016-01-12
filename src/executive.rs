@@ -21,6 +21,8 @@ struct Substate {
 	logs: Vec<LogEntry>,
 	/// Refund counter of SSTORE nonzero->zero.
 	refunds_count: U256,
+	/// Created contracts.
+	contracts_created: Vec<Address>
 }
 
 impl Substate {
@@ -30,11 +32,13 @@ impl Substate {
 			suicides: HashSet::new(),
 			logs: vec![],
 			refunds_count: U256::zero(),
+			contracts_created: vec![]
 		}
 	}
 }
 
 /// Transaction execution receipt.
+#[derive(Debug)]
 pub struct Executed {
 	/// Gas paid up front for execution of transaction.
 	pub gas: U256,
@@ -54,6 +58,13 @@ pub struct Executed {
 
 	/// Execution ended running out of gas.
 	pub out_of_gas: bool,
+	/// Addresses of contracts created during execution of transaction.
+	/// Ordered from earliest creation.
+	/// 
+	/// eg. sender creates contract A and A in constructor creates contract B 
+	/// 
+	/// B creation ends first, and it will be the first element of the vector.
+	pub contracts_created: Vec<Address>
 }
 
 /// Transaction execution result.
@@ -64,7 +75,7 @@ pub struct Executive<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
-	depth: usize,
+	depth: usize
 }
 
 impl<'a> Executive<'a> {
@@ -85,7 +96,7 @@ impl<'a> Executive<'a> {
 			state: state,
 			info: info,
 			engine: engine,
-			depth: depth,
+			depth: depth
 		}
 	}
 
@@ -122,8 +133,9 @@ impl<'a> Executive<'a> {
 
 		// NOTE: there can be no invalid transactions from this point.
 		self.state.inc_nonce(&sender);
-		let mut substate = Substate::new();
+		self.state.sub_balance(&sender, &gas_cost);
 
+		let mut substate = Substate::new();
 		let backup = self.state.clone();
 
 		let res = match t.action() {
@@ -215,6 +227,7 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
 					out_of_gas: true,
+					contracts_created: vec![]
 				})
 			},
 			Ok(gas_left) => {
@@ -248,6 +261,7 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + gas_used,
 					logs: substate.logs,
 					out_of_gas: false,
+					contracts_created: substate.contracts_created
 				})
 			}
 		}
@@ -331,7 +345,7 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), evm::Error> {
 		// if balance is insufficient or we are to deep, return
-		if self.state.balance(&self.params.address) < *value && self.depth >= 1024 {
+		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.stack_limit {
 			return Ok((gas, None));
 		}
 
@@ -360,7 +374,7 @@ impl<'a> Ext for Externalities<'a> {
 		let mut call_gas = call_gas;
 
 		let is_call = receive_address == code_address;
-		if is_call && self.state.code(&code_address).is_none() {
+		if is_call && !self.state.exists(&code_address) {
 			gas_cost = gas_cost + self.schedule.call_new_account_gas as u64;
 		}
 
@@ -376,9 +390,8 @@ impl<'a> Ext for Externalities<'a> {
 
 		let gas = gas - gas_cost;
 
-		//println!("depth: {:?}", self.depth);
 		// if balance is insufficient or we are to deep, return
-		if self.state.balance(&self.params.address) < *value && self.depth >= 1024 {
+		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.stack_limit {
 			return Ok(gas + call_gas)
 		}
 
@@ -394,7 +407,9 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
-		ex.call(&params, self.substate, output).map(|gas_left| gas + gas_left.low_u64())
+		ex.call(&params, self.substate, output).map(|gas_left| {
+			gas + gas_left.low_u64()
+		})
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {
@@ -402,6 +417,7 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
+		println!("ret");
 		match &mut self.output {
 			&mut OutputPolicy::Return(ref mut slice) => unsafe {
 				let len = cmp::min(slice.len(), data.len());
@@ -411,7 +427,10 @@ impl<'a> Ext for Externalities<'a> {
 			&mut OutputPolicy::InitContract => {
 				let return_cost = data.len() as u64 * self.schedule.create_data_gas as u64;
 				if return_cost > gas {
-					return Err(evm::Error::OutOfGas);
+					return match self.schedule.exceptional_failed_code_deposit {
+						true => Err(evm::Error::OutOfGas),
+						false => Ok(gas)
+					}
 				}
 				let mut code = vec![];
 				code.reserve(data.len());
@@ -421,6 +440,7 @@ impl<'a> Ext for Externalities<'a> {
 				}
 				let address = &self.params.address;
 				self.state.init_code(address, code);
+				self.substate.contracts_created.push(address.clone());
 				Ok(gas - return_cost)
 			}
 		}
@@ -451,8 +471,34 @@ mod tests {
 	use common::*;
 	use state::*;
 	use ethereum;
-	use null_engine::*;
+	use engine::*;
+	use spec::*;
+	use evm::Schedule;
 	use super::Substate;
+
+	struct TestEngine {
+		spec: Spec,
+		stack_limit: usize
+	}
+
+	impl TestEngine {
+		fn new(stack_limit: usize) -> TestEngine {
+			TestEngine {
+				spec: ethereum::new_frontier(),
+				stack_limit: stack_limit 
+			}
+		}
+	}
+
+	impl Engine for TestEngine {
+		fn name(&self) -> &str { "TestEngine" }
+		fn spec(&self) -> &Spec { &self.spec }
+		fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
+			let mut schedule = Schedule::new_frontier();
+			schedule.stack_limit = self.stack_limit; 
+			schedule
+		}
+	}
 
 	#[test]
 	fn test_contract_address() {
@@ -463,35 +509,114 @@ mod tests {
 
 	#[test]
 	// TODO: replace params with transactions!
-	fn test_executive() {
+	fn test_sender_balance() {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.sender = sender.clone();
-		params.gas = U256::from(0x174876e800u64);
+		params.gas = U256::from(100_000);
 		params.code = "3331600055".from_hex().unwrap();
 		params.value = U256::from(0x7);
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
-		let engine = NullEngine::new_boxed(ethereum::new_frontier());
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		{
-			let mut ex = Executive::new(&mut state, &info, engine.deref());
-			let _res = ex.create(&params, &mut substate);
-		}
+		let gas_left = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.create(&params, &mut substate).unwrap()
+		};
 
+		assert_eq!(gas_left, U256::from(79_975));
 		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(&U256::from(0xf9u64)));
 		assert_eq!(state.balance(&sender), U256::from(0xf9));
 		assert_eq!(state.balance(&address), U256::from(0x7));
+		// 0 cause contract hasn't returned
+		assert_eq!(substate.contracts_created.len(), 0);
 
 		// TODO: just test state root.
 	}
 
 	#[test]
 	fn test_create_contract() {
+		// code:
+		//
+		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
+		// 60 00 - push 0
+		// 52
+		// 60 1d - push 29
+		// 60 03 - push 3
+		// 60 17 - push 17
+		// f0 - create
+		// 60 00 - push 0
+		// 55 sstore
+		//
+		// other code:
+		//
+		// 60 10 - push 16
+		// 80 - duplicate first stack item
+		// 60 0c - push 12
+		// 60 00 - push 0
+		// 39 - copy current code to memory
+		// 60 00 - push 0
+		// f3 - return
+
+		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
+
+		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let address = contract_address(&sender, &U256::zero());
+		// TODO: add tests for 'callcreate'
+		//let next_address = contract_address(&address, &U256::zero());
+		let mut params = ActionParams::new();
+		params.address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(100_000);
+		params.code = code.clone();
+		params.value = U256::from(100);
+		let mut state = State::new_temp();
+		state.add_balance(&sender, &U256::from(100));
+		let info = EnvInfo::new();
+		let engine = TestEngine::new(0);
+		let mut substate = Substate::new();
+
+		let gas_left = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.create(&params, &mut substate).unwrap()
+		};
+		
+		assert_eq!(gas_left, U256::from(47_976));
+		assert_eq!(substate.contracts_created.len(), 0);
+	}
+
+	#[test]
+	fn test_create_contract_without_stack_limit() {
+		// code:
+		//
+		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
+		// 60 00 - push 0
+		// 52
+		// 60 1d - push 29
+		// 60 03 - push 3
+		// 60 17 - push 17
+		// f0 - create
+		// 60 00 - push 0
+		// 55 sstore
+		//
+		// other code:
+		//
+		// 60 10 - push 16
+		// 80 - duplicate first stack item
+		// 60 0c - push 12
+		// 60 00 - push 0
+		// 39 - copy current code to memory
+		// 60 00 - push 0
+		// f3 - return
+
+		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
+
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let next_address = contract_address(&address, &U256::zero());
@@ -499,23 +624,80 @@ mod tests {
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
-		params.gas = U256::from(0x174876e800u64);
-		params.code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036000f0600055".from_hex().unwrap();
+		params.gas = U256::from(100_000);
+		params.code = code.clone();
+		params.value = U256::from(100);
 		let mut state = State::new_temp();
-		state.add_balance(&sender, &U256::from(0x100u64));
+		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
-		let engine = NullEngine::new_boxed(ethereum::new_frontier());
+		let engine = TestEngine::new(1024);
 		let mut substate = Substate::new();
 
 		{
-			let mut ex = Executive::new(&mut state, &info, engine.deref());
-			let _res = ex.create(&params, &mut substate);
-			println!("res: {:?}", _res);
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.create(&params, &mut substate).unwrap();
 		}
 		
-		assert_eq!(state.storage_at(&address, &H256::new()), H256::from(next_address.clone()));
-		assert_eq!(state.code(&next_address).unwrap(), "6000355415600957005b602035600035".from_hex().unwrap());
-		//assert!(false);
+		assert_eq!(substate.contracts_created.len(), 1);
+		assert_eq!(substate.contracts_created[0], next_address);
+	}
+
+	#[test]
+	fn test_aba_calls() {
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 60 18 - push 18
+		// 73 945304eb96065b2a98b57a48a06ae28d285a71b5 - push this address
+		// 61 03e8 - push 1000
+		// f1 - message call
+		// 58 - get PC
+		// 55 - sstore
+
+		let code_a = "6000600060006000601873945304eb96065b2a98b57a48a06ae28d285a71b56103e8f15855".from_hex().unwrap();
+
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 60 00 - push 0
+		// 60 17 - push 17
+		// 73 0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6 - push this address
+		// 61 0x01f4 - push 500
+		// f1 - message call
+		// 60 01 - push 1
+		// 01 - add
+		// 58 - get PC
+		// 55 - sstore
+		let code_b = "60006000600060006017730f572e5295c57f15886f9b263e2f6d2d6c7b5ec66101f4f16001015855".from_hex().unwrap();
+
+		let address_a = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let address_b = Address::from_str("945304eb96065b2a98b57a48a06ae28d285a71b5" ).unwrap();
+		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+
+		let mut params = ActionParams::new();
+		params.address = address_a.clone();
+		params.sender = sender.clone();
+		params.gas = U256::from(100_000);
+		params.code = code_a.clone();
+		params.value = U256::from(100_000);
+
+		let mut state = State::new_temp();
+		state.init_code(&address_a, code_a.clone());
+		state.init_code(&address_b, code_b.clone());
+		state.add_balance(&sender, &U256::from(100_000));
+
+		let info = EnvInfo::new();
+		let engine = TestEngine::new(0);
+		let mut substate = Substate::new();
+
+		let gas_left = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.call(&params, &mut substate, &mut []).unwrap()
+		};
+
+		assert_eq!(gas_left, U256::from(73_237));
+		assert_eq!(state.storage_at(&address_a, &H256::from(&U256::from(0x23))), H256::from(&U256::from(1)));
 	}
 
 	#[test]
@@ -537,28 +719,27 @@ mod tests {
 		// 03 - sub
 		// f1 - message call (self in this case)
 		// 60 01 - push 1
-		// 55 - store
+		// 55 - sstore
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let code = "600160005401600055600060006000600060003060e05a03f1600155".from_hex().unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let mut params = ActionParams::new();
 		params.address = address.clone();
-		params.sender = sender.clone();
-		params.origin = sender.clone();
-		params.gas = U256::from(0x590b3);
-		params.gas_price = U256::one();
+		params.gas = U256::from(100_000);
 		params.code = code.clone();
-		println!("init gas: {:?}", params.gas.low_u64());
 		let mut state = State::new_temp();
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::new();
-		let engine = NullEngine::new_boxed(ethereum::new_frontier());
+		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		{
-			let mut ex = Executive::new(&mut state, &info, engine.deref());
-			let _res = ex.call(&params, &mut substate, &mut []);
-			println!("res: {:?}", _res);
-		}
+		let gas_left = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.call(&params, &mut substate, &mut []).unwrap()
+		};
+
+		assert_eq!(gas_left, U256::from(59_870));
+		assert_eq!(state.storage_at(&address, &H256::from(&U256::zero())), H256::from(&U256::from(1)));
+		assert_eq!(state.storage_at(&address, &H256::from(&U256::one())), H256::from(&U256::from(1)));
 	}
 }

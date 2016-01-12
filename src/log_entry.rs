@@ -2,6 +2,7 @@ use util::*;
 use basic_types::LogBloom;
 
 /// A single log's entry.
+#[derive(Debug)]
 pub struct LogEntry {
 	pub address: Address,
 	pub topics: Vec<H256>,
