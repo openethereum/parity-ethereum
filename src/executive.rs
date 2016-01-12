@@ -65,30 +65,28 @@ pub struct Executive<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
-	depth: usize,
-	max_depth: usize
+	depth: usize
 }
 
 impl<'a> Executive<'a> {
 	/// Basic constructor.
 	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine) -> Self {
-		Executive::new_with_depth(state, info, engine, 0, 1024)
+		Executive::new_with_depth(state, info, engine, 0)
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize, max_depth: usize) -> Self {
-		Executive::new_with_depth(state, info, engine, depth + 1, max_depth)
+	fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
+		Executive::new_with_depth(state, info, engine, depth + 1)
 	}
 
 	/// Helper constructor. Should be used to create `Executive` with desired depth.
 	/// Private.
-	fn new_with_depth(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize, max_depth: usize) -> Self {
+	fn new_with_depth(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
-			depth: depth,
-			max_depth: max_depth
+			depth: depth
 		}
 	}
 
@@ -273,7 +271,6 @@ struct Externalities<'a> {
 	info: &'a EnvInfo,
 	engine: &'a Engine,
 	depth: usize,
-	max_depth: usize,
 	params: &'a ActionParams,
 	substate: &'a mut Substate,
 	schedule: Schedule,
@@ -286,7 +283,6 @@ impl<'a> Externalities<'a> {
 			   info: &'a EnvInfo, 
 			   engine: &'a Engine, 
 			   depth: usize, 
-			   max_depth: usize, 
 			   params: &'a ActionParams, 
 			   substate: &'a mut Substate, 
 			   output: OutputPolicy<'a>) -> Self {
@@ -295,7 +291,6 @@ impl<'a> Externalities<'a> {
 			info: info,
 			engine: engine,
 			depth: depth,
-			max_depth: max_depth,
 			params: params,
 			substate: substate,
 			schedule: engine.schedule(info),
@@ -305,7 +300,7 @@ impl<'a> Externalities<'a> {
 
 	/// Creates `Externalities` from `Executive`.
 	fn from_executive(e: &'a mut Executive, params: &'a ActionParams, substate: &'a mut Substate, output: OutputPolicy<'a>) -> Self {
-		Self::new(e.state, e.info, e.engine, e.depth, e.max_depth, params, substate, output)
+		Self::new(e.state, e.info, e.engine, e.depth, params, substate, output)
 	}
 }
 
@@ -338,7 +333,7 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), evm::Error> {
 		// if balance is insufficient or we are to deep, return
-		if self.state.balance(&self.params.address) < *value || self.depth >= self.max_depth {
+		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.stack_limit {
 			return Ok((gas, None));
 		}
 
@@ -357,7 +352,7 @@ impl<'a> Ext for Externalities<'a> {
 			data: vec![],
 		};
 
-		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth, self.max_depth);
+		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
 		ex.state.inc_nonce(&self.params.address);
 		ex.create(&params, self.substate).map(|gas_left| (gas_left.low_u64(), Some(address)))
 	}
@@ -384,7 +379,7 @@ impl<'a> Ext for Externalities<'a> {
 		let gas = gas - gas_cost;
 
 		// if balance is insufficient or we are to deep, return
-		if self.state.balance(&self.params.address) < *value || self.depth >= self.max_depth {
+		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.stack_limit {
 			return Ok(gas + call_gas)
 		}
 
@@ -399,7 +394,7 @@ impl<'a> Ext for Externalities<'a> {
 			data: data.to_vec(),
 		};
 
-		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth, self.max_depth);
+		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
 		ex.call(&params, self.substate, output).map(|gas_left| {
 			gas + gas_left.low_u64()
 		})
@@ -462,8 +457,32 @@ mod tests {
 	use common::*;
 	use state::*;
 	use ethereum;
-	use null_engine::*;
+	use engine::*;
+	use spec::*;
+	use evm::Schedule;
 	use super::Substate;
+
+	struct TestEngine {
+		spec: Spec
+	}
+
+	impl TestEngine {
+		fn new() -> TestEngine {
+			TestEngine {
+				spec: ethereum::new_frontier()
+			}
+		}
+	}
+
+	impl Engine for TestEngine {
+		fn name(&self) -> &str { "TestEngine" }
+		fn spec(&self) -> &Spec { &self.spec }
+		fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
+			let mut schedule = Schedule::new_frontier();
+			schedule.stack_limit = 0;
+			schedule
+		}
+	}
 
 	#[test]
 	fn test_contract_address() {
@@ -486,11 +505,11 @@ mod tests {
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
-		let engine = NullEngine::new_boxed(ethereum::new_frontier());
+		let engine = TestEngine::new();
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, engine.deref());
+			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(&params, &mut substate).unwrap()
 		};
 
@@ -529,11 +548,11 @@ mod tests {
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
-		let engine = NullEngine::new_boxed(ethereum::new_frontier());
+		let engine = TestEngine::new();
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new_with_depth(&mut state, &info, engine.deref(), 0, 0);
+			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(&params, &mut substate).unwrap()
 		};
 		
@@ -586,11 +605,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100_000));
 
 		let info = EnvInfo::new();
-		let engine = NullEngine::new_boxed(ethereum::new_frontier());
+		let engine = TestEngine::new();
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new_with_depth(&mut state, &info, engine.deref(), 0, 0);
+			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(&params, &mut substate, &mut []).unwrap()
 		};
 
@@ -628,11 +647,11 @@ mod tests {
 		let mut state = State::new_temp();
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::new();
-		let engine = NullEngine::new_boxed(ethereum::new_frontier());
+		let engine = TestEngine::new();
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new_with_depth(&mut state, &info, engine.deref(), 0, 0);
+			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(&params, &mut substate, &mut []).unwrap()
 		};
 
