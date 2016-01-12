@@ -2,7 +2,7 @@ use common::*;
 use engine::Engine;
 use executive::Executive;
 
-pub type ApplyResult = Result<Receipt, ExecutionError>;
+pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {

@@ -89,25 +89,25 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	/// Executes transaction.
-	pub fn transact(&mut self, t: &Transaction) -> ExecutionResult {
+	/// This funtion should be used to execute transaction.
+	pub fn transact(&mut self, t: &Transaction) -> Result<Executed, Error> {
 		// TODO: validate transaction signature ?/ sender
 
-		let sender = t.sender();
+		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
 		// validate transaction nonce
 		if t.nonce != nonce {
-			return Err(ExecutionError::InvalidNonce { expected: nonce, is: t.nonce });
+			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, is: t.nonce }));
 		}
 		
 		// validate if transaction fits into given block
 		if self.info.gas_used + t.gas > self.info.gas_limit {
-			return Err(ExecutionError::BlockGasLimitReached { 
+			return Err(From::from(ExecutionError::BlockGasLimitReached { 
 				gas_limit: self.info.gas_limit, 
 				gas_used: self.info.gas_used, 
 				gas: t.gas 
-			});
+			}));
 		}
 
 		// TODO: we might need bigints here, or at least check overflows.
@@ -117,7 +117,7 @@ impl<'a> Executive<'a> {
 
 		// avoid unaffordable transactions
 		if balance < total_cost {
-			return Err(ExecutionError::NotEnoughCash { required: total_cost, is: balance });
+			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, is: balance }));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
@@ -156,7 +156,7 @@ impl<'a> Executive<'a> {
 		};
 
 		// finalize here!
-		self.finalize(t, substate, backup, res)
+		Ok(try!(self.finalize(t, substate, backup, res)))
 	}
 
 	/// Calls contract function with given contract params.
@@ -228,7 +228,7 @@ impl<'a> Executive<'a> {
 				// real ammount to refund
 				let refund = cmp::min(sstore_refunds + suicide_refunds, (t.gas - gas_left) / U256::from(2)) + gas_left;
 				let refund_value = refund * t.gas_price;
-				self.state.add_balance(&t.sender(), &refund_value);
+				self.state.add_balance(&t.sender().unwrap(), &refund_value);
 				
 				// fees earned by author
 				let fees = (t.gas - refund) * t.gas_price;
