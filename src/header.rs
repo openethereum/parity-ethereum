@@ -10,7 +10,7 @@ pub type BlockNumber = u64;
 /// which is non-specific.
 ///
 /// Doesn't do all that much on its own.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Header {
 	// TODO: make all private.
 	pub parent_hash: H256,

@@ -3,20 +3,20 @@
 use util::*;
 use header::BlockNumber;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Mismatch<T: fmt::Debug> {
 	pub expected: T,
 	pub found: T,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct OutOfBounds<T: fmt::Debug> {
 	pub min: T,
 	pub max: T,
 	pub found: T,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BlockError {
 	TooManyUncles(OutOfBounds<usize>),
 	UncleWrongGeneration,
