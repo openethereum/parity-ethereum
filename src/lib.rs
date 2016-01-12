@@ -71,6 +71,7 @@ pub mod nibbleslice;
 pub mod heapsizeof;
 pub mod squeeze;
 pub mod semantic_version;
+pub mod io;
 pub mod network;
 
 pub use common::*;
