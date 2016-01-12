@@ -3,13 +3,13 @@
 use util::*;
 use header::BlockNumber;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Mismatch<T: fmt::Debug> {
 	pub expected: T,
 	pub found: T,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct OutOfBounds<T: fmt::Debug> {
 	pub min: Option<T>,
 	pub max: Option<T>,
@@ -38,7 +38,7 @@ pub enum TransactionError {
 	InvalidGasLimit(OutOfBounds<U256>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BlockError {
 	TooManyUncles(OutOfBounds<usize>),
 	UncleWrongGeneration,

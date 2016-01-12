@@ -1,5 +1,5 @@
 use util::*;
-use blockchain::BlockChain;
+use blockchain::*;
 use views::{BlockView};
 use verification::*;
 use error::*;

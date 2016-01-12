@@ -1,5 +1,5 @@
 use util::*;
-use blockchain::BlockChain;
+use blockchain::{BlockChain, BlockProvider};
 use views::BlockView;
 use error::*;
 use header::BlockNumber;

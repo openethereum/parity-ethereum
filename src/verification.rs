@@ -7,17 +7,17 @@
 
 use common::*;
 use engine::Engine;
-use blockchain::BlockChain;
+use blockchain::*;
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(bytes: &[u8], engine: &Engine) -> Result<(), Error> {
 	let block = BlockView::new(bytes);
 	let header = block.header();
-	try!(verify_header(&header));
+	try!(verify_header(&header, engine));
 	try!(verify_block_integrity(bytes, &header.transactions_root, &header.uncles_hash));
 	try!(engine.verify_block_basic(&header, Some(bytes)));
 	for u in Rlp::new(bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
-		try!(verify_header(&u));
+		try!(verify_header(&u, engine));
 		try!(engine.verify_block_basic(&u, None));
 	}
 	Ok(())
@@ -37,7 +37,7 @@ pub fn verify_block_unordered(bytes: &[u8], engine: &Engine) -> Result<(), Error
 }
 
 /// Phase 3 verification. Check block information against parent and uncles.
-pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Result<(), Error> {
+pub fn verify_block_final<BC>(bytes: &[u8], engine: &Engine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
 	let block = BlockView::new(bytes);
 	let header = block.header();
 	let parent = try!(bc.block_header(&header.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownParent(header.parent_hash.clone()))));
@@ -67,9 +67,8 @@ pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Res
 		}
 
 		for uncle in Rlp::new(bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
-			let uncle_parent = try!(bc.block_header(&uncle.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownUncleParent(uncle.parent_hash.clone()))));
-			if excluded.contains(&uncle_parent.hash()) {
-				return Err(From::from(BlockError::UncleInChain(uncle_parent.hash())))
+			if excluded.contains(&uncle.hash()) {
+				return Err(From::from(BlockError::UncleInChain(uncle.hash())))
 			}
 
 			// m_currentBlock.number() - uncle.number()		m_cB.n - uP.n()
@@ -99,13 +98,20 @@ pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Res
 			// cB.p^7	-------------/
 			// cB.p^8
 			let mut expected_uncle_parent = header.parent_hash.clone();
+			let uncle_parent = try!(bc.block_header(&uncle.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownUncleParent(uncle.parent_hash.clone()))));
 			for _ in 0..depth {
-				 expected_uncle_parent = bc.block_details(&expected_uncle_parent).unwrap().parent;
+				match bc.block_details(&expected_uncle_parent) {
+					Some(details) => { 
+						expected_uncle_parent = details.parent;
+					},
+					None => break
+				}
 			}
 			if expected_uncle_parent != uncle_parent.hash() {
 				return Err(From::from(BlockError::UncleParentNotInChain(uncle_parent.hash())));
 			}
 
+			try!(verify_parent(&uncle, &uncle_parent));
 			try!(engine.verify_block_final(&uncle, &uncle_parent, Some(bytes)));
 		}
 	}
@@ -113,12 +119,20 @@ pub fn verify_block_final(bytes: &[u8], engine: &Engine, bc: &BlockChain) -> Res
 }
 
 /// Check basic header parameters.
-fn verify_header(header: &Header) -> Result<(), Error> {
-	if header.number > From::from(BlockNumber::max_value()) {
+fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
+	if header.number >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number })))
 	}
 	if header.gas_used > header.gas_limit {
 		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used })));
+	}
+	let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
+	if header.gas_limit < min_gas_limit {
+		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit })));
+	}
+	let maximum_extra_data_size = engine.maximum_extra_data_size();
+	if header.number != 0 && header.extra_data.len() > maximum_extra_data_size {
+		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data.len() })));
 	}
 	Ok(())
 }
@@ -152,3 +166,235 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 	Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+	use util::*;
+	use header::*;
+	use verification::*;
+	use extras::*;
+	use error::*;
+	use error::BlockError::*;
+	use views::*;
+	use blockchain::*;
+	use ethereum;
+
+	fn create_test_block(header: &Header) -> Bytes {
+		let mut rlp = RlpStream::new_list(3);
+		rlp.append(header);
+		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
+		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
+		rlp.out()
+	}
+
+	fn create_test_block_with_data(header: &Header, transactions: &[Bytes], uncles: &[Header]) -> Bytes {
+		let mut rlp = RlpStream::new_list(3);
+		rlp.append(header);
+		rlp.append_list(transactions.len());
+		for t in transactions {
+			rlp.append_raw(t, 1);
+		}
+		rlp.append_list(uncles.len());
+		for h in uncles {
+			rlp.append(h);
+		}
+		rlp.out()
+	}
+
+	fn check_ok(result: Result<(), Error>) {
+		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
+	}
+
+	fn check_fail(result: Result<(), Error>, e: BlockError) {
+		match result {
+			Err(Error::Block(ref error)) if *error == e => (),
+			Err(other) => panic!("Block verification failed.\nExpected: {:?}\nGot: {:?}", e, other),
+			Ok(_) => panic!("Block verification failed.\nExpected: {:?}\nGot: Ok", e),
+		}
+	}
+
+	struct TestBlockChain {
+		blocks: HashMap<H256, Bytes>,
+		numbers: HashMap<BlockNumber, H256>,
+	}
+
+	impl TestBlockChain {
+		pub fn new() -> TestBlockChain {
+			TestBlockChain {
+				blocks: HashMap::new(),
+				numbers: HashMap::new(),
+			}
+		}
+
+		pub fn insert(&mut self, bytes: Bytes) {
+			let number = BlockView::new(&bytes).header_view().number();
+			let hash = BlockView::new(&bytes).header_view().sha3();
+			self.blocks.insert(hash.clone(), bytes);
+			self.numbers.insert(number, hash.clone());
+		}
+	}
+
+	impl BlockProvider for TestBlockChain {
+		fn is_known(&self, hash: &H256) -> bool {
+			self.blocks.contains_key(hash)
+		}
+
+		/// Get raw block data
+		fn block(&self, hash: &H256) -> Option<Bytes> {
+			self.blocks.get(hash).map(|b| b.clone())
+		}
+
+		/// Get the familial details concerning a block.
+		fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
+			self.blocks.get(hash).map(|bytes| {
+				let header = BlockView::new(bytes).header();
+				BlockDetails {
+					number: header.number,
+					total_difficulty: header.difficulty,
+					parent: header.parent_hash,
+					children: Vec::new(),
+				}
+			})
+		}
+
+		/// Get the hash of given block's number.
+		fn block_hash(&self, index: BlockNumber) -> Option<H256> {
+			self.numbers.get(&index).map(|h| h.clone())
+		}
+	}
+
+	#[test]
+	fn test_verify_block() {
+		// Test against morden
+		let mut good = Header::new();
+		let spec = ethereum::new_morden();
+		let engine = spec.to_engine().unwrap();
+
+		let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
+		let min_difficulty = decode(engine.spec().engine_params.get("minimumDifficulty").unwrap());
+		good.gas_limit = min_gas_limit;
+		good.difficulty = min_difficulty;
+		good.timestamp = 40;
+		good.number = 10;
+
+		let good_transactions = vec![ vec![ 1u8 ], vec![ 2u8 ] ]; // TODO: proper transactions
+
+		let diff_inc = U256::from(0x40);
+
+		let mut parent6 = good.clone();
+		parent6.number = 6;
+		let mut parent7 = good.clone();
+		parent7.number = 7;
+		parent7.parent_hash = parent6.hash();
+		parent7.difficulty = parent6.difficulty + diff_inc;
+		parent7.timestamp = parent6.timestamp + 10;
+		let mut parent8 = good.clone();
+		parent8.number = 8;
+		parent8.parent_hash = parent7.hash();
+		parent8.difficulty = parent7.difficulty + diff_inc;
+		parent8.timestamp = parent7.timestamp + 10;
+
+		let mut good_uncle1 = good.clone();
+		good_uncle1.number = 9;
+		good_uncle1.parent_hash = parent8.hash();
+		good_uncle1.difficulty = parent8.difficulty + diff_inc;
+		good_uncle1.timestamp = parent8.timestamp + 10;
+		good_uncle1.extra_data.push(1u8);
+
+		let mut good_uncle2 = good.clone();
+		good_uncle2.number = 8;
+		good_uncle2.parent_hash = parent7.hash();
+		good_uncle2.difficulty = parent7.difficulty + diff_inc;
+		good_uncle2.timestamp = parent7.timestamp + 10;
+		good_uncle2.extra_data.push(2u8);
+
+		let good_uncles = vec![ good_uncle1.clone(), good_uncle2.clone() ];
+		let mut uncles_rlp = RlpStream::new();
+		uncles_rlp.append(&good_uncles);
+		let good_uncles_hash = uncles_rlp.as_raw().sha3();
+		let good_transactions_root = ordered_trie_root(good_transactions.clone());
+
+		let mut parent = good.clone();
+		parent.number = 9;
+		parent.timestamp = parent8.timestamp + 10;
+		parent.parent_hash = parent8.hash();
+		parent.difficulty = parent8.difficulty + diff_inc;
+
+		good.parent_hash = parent.hash();
+		good.difficulty = parent.difficulty + diff_inc;
+		good.timestamp = parent.timestamp + 10;
+
+		let mut bc = TestBlockChain::new();
+		bc.insert(create_test_block(&good));
+		bc.insert(create_test_block(&parent));
+		bc.insert(create_test_block(&parent6));
+		bc.insert(create_test_block(&parent7));
+		bc.insert(create_test_block(&parent8));
+
+		check_ok(verify_block_basic(&create_test_block(&good), engine.deref()));
+
+		let mut header = good.clone();
+		header.transactions_root = good_transactions_root.clone();
+		header.uncles_hash = good_uncles_hash.clone();
+		check_ok(verify_block_basic(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref()));
+
+		header.gas_limit = min_gas_limit - From::from(1);
+		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
+			InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit }));
+
+		header = good.clone();
+		header.number = BlockNumber::max_value();
+		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
+			InvalidNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number }));
+
+		header = good.clone();
+		header.gas_used = header.gas_limit + From::from(1);
+		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
+			TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used }));
+
+		header = good.clone();
+		header.extra_data.resize(engine.maximum_extra_data_size() + 1, 0u8);
+		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
+			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data.len() }));
+
+		header = good.clone();
+		header.extra_data.resize(engine.maximum_extra_data_size() + 1, 0u8);
+		check_fail(verify_block_basic(&create_test_block(&header), engine.deref()),
+			ExtraDataOutOfBounds(OutOfBounds { max: Some(engine.maximum_extra_data_size()), min: None, found: header.extra_data.len() }));
+
+		header = good.clone();
+		header.uncles_hash = good_uncles_hash.clone();
+		check_fail(verify_block_basic(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref()),
+			InvalidTransactionsRoot(Mismatch { expected: good_transactions_root.clone(), found: header.transactions_root }));
+
+		header = good.clone();
+		header.transactions_root = good_transactions_root.clone();
+		check_fail(verify_block_basic(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref()),
+			InvalidUnclesHash(Mismatch { expected: good_uncles_hash.clone(), found: header.uncles_hash }));
+
+		check_ok(verify_block_final(&create_test_block(&good), engine.deref(), &bc));
+		check_ok(verify_block_final(&create_test_block_with_data(&good, &good_transactions, &good_uncles), engine.deref(), &bc));
+
+		header = good.clone();
+		header.parent_hash = H256::random();
+		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
+			UnknownParent(header.parent_hash));
+
+		header = good.clone();
+		header.timestamp = 10;
+		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
+			InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp + 1), found: header.timestamp }));
+
+		header = good.clone();
+		header.number = 9;
+		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
+			InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number }));
+		
+		header = good.clone();
+		let mut bad_uncles = good_uncles.clone();
+		bad_uncles.push(good_uncle1.clone());
+		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine.deref(), &bc),
+			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count()), min: None, found: bad_uncles.len() }));
+
+		// TODO: some additional uncle checks
+	}
+}

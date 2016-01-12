@@ -47,6 +47,55 @@ impl BestBlock {
 	}
 }
 
+/// Interface for querying blocks by hash and by number.
+pub trait BlockProvider {
+	/// Returns true if the given block is known
+	/// (though not necessarily a part of the canon chain).
+	fn is_known(&self, hash: &H256) -> bool;
+
+	/// Get raw block data
+	fn block(&self, hash: &H256) -> Option<Bytes>;
+
+	/// Get the familial details concerning a block.
+	fn block_details(&self, hash: &H256) -> Option<BlockDetails>;
+
+	/// Get the hash of given block's number.
+	fn block_hash(&self, index: BlockNumber) -> Option<H256>;
+
+	/// Get the partial-header of a block.
+	fn block_header(&self, hash: &H256) -> Option<Header> {
+		self.block(hash).map(|bytes| BlockView::new(&bytes).header())
+	}
+
+	/// Get a list of uncles for a given block.
+	/// Returns None if block deos not exist.
+	fn uncles(&self, hash: &H256) -> Option<Vec<Header>> {
+		self.block(hash).map(|bytes| BlockView::new(&bytes).uncles())
+	}
+
+	/// Get a list of uncle hashes for a given block.
+	/// Returns None if block does not exist.
+	fn uncle_hashes(&self, hash: &H256) -> Option<Vec<H256>> {
+		self.block(hash).map(|bytes| BlockView::new(&bytes).uncle_hashes())
+	}
+
+	/// Get the number of given block's hash.
+	fn block_number(&self, hash: &H256) -> Option<BlockNumber> {
+		self.block(hash).map(|bytes| BlockView::new(&bytes).header_view().number())
+	}
+
+	/// Get a list of transactions for a given block.
+	/// Returns None if block deos not exist.
+	fn transactions(&self, hash: &H256) -> Option<Vec<Transaction>> {
+		self.block(hash).map(|bytes| BlockView::new(&bytes).transactions())
+	}
+
+	/// Returns reference to genesis hash.
+	fn genesis_hash(&self) -> H256 {
+		self.block_hash(0).expect("Genesis hash should always exist")
+	}
+}
+
 /// Structure providing fast access to blockchain data.
 ///
 /// **Does not do input data verification.**
@@ -65,6 +114,48 @@ pub struct BlockChain {
 
 	extras_db: DB,
 	blocks_db: DB
+}
+
+impl BlockProvider for BlockChain {
+	/// Returns true if the given block is known
+	/// (though not necessarily a part of the canon chain).
+	fn is_known(&self, hash: &H256) -> bool {
+		self.query_extras_exist(hash, &self.block_details)
+	}
+
+	/// Get raw block data
+	fn block(&self, hash: &H256) -> Option<Bytes> {
+		{
+			let read = self.blocks.read().unwrap();
+			match read.get(hash) {
+				Some(v) => return Some(v.clone()),
+				None => ()
+			}
+		}
+
+		let opt = self.blocks_db.get(hash)
+			.expect("Low level database error. Some issue with disk?");
+
+		match opt {
+			Some(b) => {
+				let bytes: Bytes = b.to_vec();
+				let mut write = self.blocks.write().unwrap();
+				write.insert(hash.clone(), bytes.clone());
+				Some(bytes)
+			},
+			None => None
+		}
+	}
+
+	/// Get the familial details concerning a block.
+	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
+		self.query_extras(hash, &self.block_details)
+	}
+
+	/// Get the hash of given block's number.
+	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
+		self.query_extras(&index, &self.block_hashes)
+	}
 }
 
 impl BlockChain {
@@ -363,59 +454,9 @@ impl BlockChain {
 		(batch, Some(best_block))
 	}
 
-	/// Returns true if the given block is known
-	/// (though not necessarily a part of the canon chain).
-	pub fn is_known(&self, hash: &H256) -> bool {
-		self.query_extras_exist(hash, &self.block_details)
-	}
-
 	/// Returns true if transaction is known.
 	pub fn is_known_transaction(&self, hash: &H256) -> bool {
 		self.query_extras_exist(hash, &self.transaction_addresses)
-	}
-
-	/// Returns reference to genesis hash.
-	pub fn genesis_hash(&self) -> H256 {
-		self.block_hash(0).expect("Genesis hash should always exist")
-	}
-
-	/// Get the partial-header of a block.
-	pub fn block_header(&self, hash: &H256) -> Option<Header> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).header())
-	}
-
-	/// Get a list of transactions for a given block.
-	/// Returns None if block deos not exist.
-	pub fn transactions(&self, hash: &H256) -> Option<Vec<Transaction>> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).transactions())
-	}
-
-	/// Get a list of transaction hashes for a given block.
-	/// Returns None if block does not exist.
-	pub fn transaction_hashes(&self, hash: &H256) -> Option<Vec<H256>> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).transaction_hashes())
-	}
-
-	/// Get a list of uncles for a given block.
-	/// Returns None if block deos not exist.
-	pub fn uncles(&self, hash: &H256) -> Option<Vec<Header>> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).uncles())
-	}
-
-	/// Get a list of uncle hashes for a given block.
-	/// Returns None if block does not exist.
-	pub fn uncle_hashes(&self, hash: &H256) -> Option<Vec<H256>> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).uncle_hashes())
-	}
-
-	/// Get the familial details concerning a block.
-	pub fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
-		self.query_extras(hash, &self.block_details)
-	}
-
-	/// Get the hash of given block's number.
-	pub fn block_hash(&self, index: BlockNumber) -> Option<H256> {
-		self.query_extras(&index, &self.block_hashes)
 	}
 
 	/// Get best block hash.
@@ -433,38 +474,9 @@ impl BlockChain {
 		self.best_block.read().unwrap().total_difficulty
 	}
 
-	/// Get the number of given block's hash.
-	pub fn block_number(&self, hash: &H256) -> Option<BlockNumber> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).header_view().number())
-	}
-
 	/// Get the transactions' log blooms of a block.
 	pub fn log_blooms(&self, hash: &H256) -> Option<BlockLogBlooms> {
 		self.query_extras(hash, &self.block_logs)
-	}
-
-	/// Get raw block data
-	pub fn block(&self, hash: &H256) -> Option<Bytes> {
-		{
-			let read = self.blocks.read().unwrap();
-			match read.get(hash) {
-				Some(v) => return Some(v.clone()),
-				None => ()
-			}
-		}
-
-		let opt = self.blocks_db.get(hash)
-			.expect("Low level database error. Some issue with disk?");
-
-		match opt {
-			Some(b) => {
-				let bytes: Bytes = b.to_vec();
-				let mut write = self.blocks.write().unwrap();
-				write.insert(hash.clone(), bytes.clone());
-				Some(bytes)
-			},
-			None => None
-		}
 	}
 
 	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
