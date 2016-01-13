@@ -35,6 +35,14 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable {
 	fn is_zero(&self) -> bool;
 }
 
+fn clean_0x(s: &str) -> &str {
+	if s.len() >= 2 && &s[0..2] == "0x" {
+		&s[2..]
+	} else {
+		s
+	}
+}
+
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
@@ -390,6 +398,17 @@ macro_rules! impl_hash {
 				ret
 			}
 		}
+
+		impl<'_> From<&'_ str> for $from {
+			fn from(s: &'_ str) -> $from {
+				use std::str::FromStr;
+				if s.len() % 2 == 1 {
+					$from::from_str(&("0".to_string() + &(clean_0x(s).to_string()))[..]).unwrap_or($from::new())
+				} else {
+					$from::from_str(clean_0x(s)).unwrap_or($from::new())
+				}
+			}
+		}
 	}
 }
 
@@ -517,6 +536,20 @@ mod tests {
 		let h = H256::from(address.clone());
 		let a = Address::from(h);
 		assert_eq!(address, a);
+	}
+
+	#[test]
+	fn from_u64() {
+		assert_eq!(H128::from(0x1234567890abcdef), H128::from_str("00000000000000001234567890abcdef").unwrap());
+		assert_eq!(H64::from(0x1234567890abcdef), H64::from_str("1234567890abcdef").unwrap());
+		assert_eq!(H32::from(0x1234567890abcdef), H32::from_str("90abcdef").unwrap());
+	}
+
+	#[test]
+	fn from_str() {
+		assert_eq!(H64::from(0x1234567890abcdef), H64::from("0x1234567890abcdef"));
+		assert_eq!(H64::from(0x1234567890abcdef), H64::from("1234567890abcdef"));
+		assert_eq!(H64::from(0x234567890abcdef), H64::from("0x234567890abcdef"));
 	}
 }
 
