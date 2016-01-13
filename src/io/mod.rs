@@ -70,6 +70,7 @@ pub type TimerToken = service::TimerToken;
 pub type StreamToken = service::StreamToken;
 pub type IoContext<'s, M> = service::IoContext<'s, M>;
 pub type IoService<M> = service::IoService<M>;
+pub type IoChannel<M> = service::IoChannel<M>;
 //pub const USER_TOKEN_START: usize = service::USER_TOKEN; // TODO: ICE in rustc 1.7.0-nightly (49c382779 2016-01-12)
 
 #[cfg(test)]

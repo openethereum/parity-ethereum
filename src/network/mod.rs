@@ -61,6 +61,7 @@ pub type PacketId = host::PacketId;
 pub type NetworkContext<'s,'io,  Message> = host::NetworkContext<'s, 'io, Message>;
 pub type NetworkService<Message> = service::NetworkService<Message>;
 pub type NetworkIoMessage<Message> = host::NetworkIoMessage<Message>;
+pub use network::host::NetworkIoMessage::User as UserMessage;
 pub type NetworkError = error::NetworkError;
 
 use io::*;

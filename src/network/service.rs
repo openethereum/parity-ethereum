@@ -40,5 +40,10 @@ impl<Message> NetworkService<Message> where Message: Send + 'static {
 		}));
 		Ok(())
 	}
+
+	pub fn io(&mut self) -> &mut IoService<NetworkIoMessage<Message>> {
+		&mut self.io_service
+	}
+
 }
 

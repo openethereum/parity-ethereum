@@ -146,6 +146,19 @@ impl<Message> Handler for IoManager<Message> where Message: Send + 'static {
 	}
 }
 
+/// Allows sending messages into the event loop. All the IO handlers will get the message
+/// in the `message` callback.
+pub struct IoChannel<Message> where Message: Send {
+	channel: Sender<IoMessage<Message>> 
+}
+
+impl<Message> IoChannel<Message> where Message: Send {
+	pub fn send(&mut self, message: Message) -> Result<(), IoError> {
+		try!(self.channel.send(IoMessage::UserMessage(message)));
+		Ok(())
+	}
+}
+
 /// General IO Service. Starts an event loop and dispatches IO requests.
 /// 'Message' is a notification message type
 pub struct IoService<Message> where Message: Send + 'static {
@@ -179,6 +192,11 @@ impl<Message> IoService<Message> where Message: Send + 'static {
 	pub fn send_message(&mut self, message: Message) -> Result<(), IoError> {
 		try!(self.host_channel.send(IoMessage::UserMessage(message)));
 		Ok(())
+	}
+
+	/// Create a new message channel
+	pub fn channel(&mut self) -> IoChannel<Message> {
+		IoChannel { channel: self.host_channel.clone() }
 	}
 }
 

@@ -76,10 +76,7 @@ pub enum NetworkIoMessage<Message> where Message: Send {
 		data: Vec<u8>,
 	},
 	/// User message
-	User {
-		protocol: ProtocolId,
-		message: Message,
-	},
+	User(Message),
 }
 
 /// Local (temporary) peer session ID.
@@ -609,14 +606,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					}
 				}
 			},
-			&mut NetworkIoMessage::User {
-				ref protocol,
-				ref message
-			} => {
+			&mut NetworkIoMessage::User(ref message) => {
 				for (p, h) in self.handlers.iter_mut() {
-					if p != protocol {
-						h.message(&mut NetworkContext::new(io, p, None, &mut self.connections, &mut self.timers), &message);
-					}
+					h.message(&mut NetworkContext::new(io, p, None, &mut self.connections, &mut self.timers), &message);
 				}
 			}
 		}
