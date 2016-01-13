@@ -14,7 +14,7 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
-struct Substate {
+pub struct Substate {
 	/// Any accounts that have suicided.
 	suicides: HashSet<Address>,
 	/// Any logs.
@@ -27,7 +27,7 @@ struct Substate {
 
 impl Substate {
 	/// Creates new substate.
-	fn new() -> Self {
+	pub fn new() -> Self {
 		Substate {
 			suicides: HashSet::new(),
 			logs: vec![],
@@ -160,7 +160,9 @@ impl<'a> Executive<'a> {
 					code: self.state.code(address).unwrap_or(vec![]),
 					data: t.data.clone(),
 				};
-				self.call(&params, &mut substate, &mut [])
+				// TODO: move output upstream
+				let mut out = vec![];
+				self.call(&params, &mut substate, BytesRef::Flexible(&mut out))
 			}
 		};
 
@@ -172,7 +174,7 @@ impl<'a> Executive<'a> {
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
-	fn call(&mut self, params: &ActionParams, substate: &mut Substate, output: &mut [u8]) -> evm::Result {
+	pub fn call(&mut self, params: &ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
 		// at first, transfer value to destination
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
@@ -181,7 +183,7 @@ impl<'a> Executive<'a> {
 			let cost = self.engine.cost_of_builtin(&params.address, &params.data);
 			match cost <= params.gas {
 				true => {
-					self.engine.execute_builtin(&params.address, &params.data, output);
+					self.engine.execute_builtin(&params.address, &params.data, &mut output);
 					Ok(params.gas - cost)
 				},
 				false => Err(evm::Error::OutOfGas)
@@ -267,20 +269,26 @@ impl<'a> Executive<'a> {
 }
 
 /// Policy for handling output data on `RETURN` opcode.
-enum OutputPolicy<'a> {
+pub enum OutputPolicy<'a> {
 	/// Return reference to fixed sized output.
 	/// Used for message calls.
-	Return(&'a mut [u8]),
+	Return(BytesRef<'a>),
 	/// Init new contract as soon as `RETURN` is called.
 	InitContract
 }
 
 /// Implementation of evm Externalities.
-struct Externalities<'a> {
+pub struct Externalities<'a> {
+	#[cfg(test)]
+	pub state: &'a mut State,
+	#[cfg(not(test))]
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
 	depth: usize,
+	#[cfg(test)]
+	pub params: &'a ActionParams,
+	#[cfg(not(test))]
 	params: &'a ActionParams,
 	substate: &'a mut Substate,
 	schedule: Schedule,
@@ -289,7 +297,7 @@ struct Externalities<'a> {
 
 impl<'a> Externalities<'a> {
 	/// Basic `Externalities` constructor.
-	fn new(state: &'a mut State, 
+	pub fn new(state: &'a mut State, 
 			   info: &'a EnvInfo, 
 			   engine: &'a Engine, 
 			   depth: usize, 
@@ -332,19 +340,19 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
-		match *number < U256::from(self.info.number) {
-			false => H256::from(&U256::zero()),
+		match *number < U256::from(self.info.number) && number.low_u64() >= cmp::max(256, self.info.number) - 256 {
 			true => {
-				let index = U256::from(self.info.number) - *number - U256::one();
-				self.info.last_hashes[index.low_u32() as usize].clone()
-			}
+				let index = self.info.number - number.low_u64() - 1;
+				self.info.last_hashes[index as usize].clone()
+			},
+			false => H256::from(&U256::zero()),
 		}
 	}
 
-	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), evm::Error> {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> Result<(U256, Option<Address>), evm::Error> {
 		// if balance is insufficient or we are to deep, return
 		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.stack_limit {
-			return Ok((gas, None));
+			return Ok((*gas, None));
 		}
 
 		// create new contract address
@@ -355,7 +363,7 @@ impl<'a> Ext for Externalities<'a> {
 			address: address.clone(),
 			sender: self.params.address.clone(),
 			origin: self.params.origin.clone(),
-			gas: U256::from(gas),
+			gas: *gas,
 			gas_price: self.params.gas_price.clone(),
 			value: value.clone(),
 			code: code.to_vec(),
@@ -364,29 +372,29 @@ impl<'a> Ext for Externalities<'a> {
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
 		ex.state.inc_nonce(&self.params.address);
-		ex.create(&params, self.substate).map(|gas_left| (gas_left.low_u64(), Some(address)))
+		ex.create(&params, self.substate).map(|gas_left| (gas_left, Some(address)))
 	}
 
-	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Result<u64, evm::Error> {
-		let mut gas_cost = call_gas;
-		let mut call_gas = call_gas;
+	fn call(&mut self, gas: &U256, call_gas: &U256, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Result<U256, evm::Error> {
+		let mut gas_cost = *call_gas;
+		let mut call_gas = *call_gas;
 
 		let is_call = receive_address == code_address;
 		if is_call && !self.state.exists(&code_address) {
-			gas_cost = gas_cost + self.schedule.call_new_account_gas as u64;
+			gas_cost = gas_cost + U256::from(self.schedule.call_new_account_gas);
 		}
 
 		if *value > U256::zero() {
 			assert!(self.schedule.call_value_transfer_gas > self.schedule.call_stipend, "overflow possible");
-			gas_cost = gas_cost + self.schedule.call_value_transfer_gas as u64;
-			call_gas = call_gas + self.schedule.call_stipend as u64;
+			gas_cost = gas_cost + U256::from(self.schedule.call_value_transfer_gas);
+			call_gas = call_gas + U256::from(self.schedule.call_stipend);
 		}
 
-		if gas_cost > gas {
+		if gas_cost > *gas {
 			return Err(evm::Error::OutOfGas)
 		}
 
-		let gas = gas - gas_cost;
+		let gas = *gas - gas_cost;
 
 		// if balance is insufficient or we are to deep, return
 		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.stack_limit {
@@ -397,7 +405,7 @@ impl<'a> Ext for Externalities<'a> {
 			address: receive_address.clone(), 
 			sender: self.params.address.clone(),
 			origin: self.params.origin.clone(),
-			gas: U256::from(call_gas),
+			gas: call_gas,
 			gas_price: self.params.gas_price.clone(),
 			value: value.clone(),
 			code: self.state.code(code_address).unwrap_or(vec![]),
@@ -405,29 +413,33 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
-		ex.call(&params, self.substate, output).map(|gas_left| {
-			gas + gas_left.low_u64()
-		})
+		ex.call(&params, self.substate, BytesRef::Fixed(output))
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {
 		self.state.code(address).unwrap_or(vec![])
 	}
 
-	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
-		println!("ret");
+	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		match &mut self.output {
-			&mut OutputPolicy::Return(ref mut slice) => unsafe {
+			&mut OutputPolicy::Return(BytesRef::Fixed(ref mut slice)) => unsafe {
 				let len = cmp::min(slice.len(), data.len());
 				ptr::copy(data.as_ptr(), slice.as_mut_ptr(), len);
-				Ok(gas)
+				Ok(*gas)
+			},
+			&mut OutputPolicy::Return(BytesRef::Flexible(ref mut vec)) => unsafe {
+				vec.clear();
+				vec.reserve(data.len());
+				ptr::copy(data.as_ptr(), vec.as_mut_ptr(), data.len());
+				vec.set_len(data.len());
+				Ok(*gas)
 			},
 			&mut OutputPolicy::InitContract => {
-				let return_cost = data.len() as u64 * self.schedule.create_data_gas as u64;
-				if return_cost > gas {
+				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
+				if return_cost > *gas {
 					return match self.schedule.exceptional_failed_code_deposit {
 						true => Err(evm::Error::OutOfGas),
-						false => Ok(gas)
+						false => Ok(*gas)
 					}
 				}
 				let mut code = vec![];
@@ -439,7 +451,7 @@ impl<'a> Ext for Externalities<'a> {
 				let address = &self.params.address;
 				self.state.init_code(address, code);
 				self.substate.contracts_created.push(address.clone());
-				Ok(gas - return_cost)
+				Ok(*gas - return_cost)
 			}
 		}
 	}
@@ -449,8 +461,10 @@ impl<'a> Ext for Externalities<'a> {
 		self.substate.logs.push(LogEntry::new(address, topics, data));
 	}
 
-	fn suicide(&mut self) {
+	fn suicide(&mut self, refund_address: &Address) {
 		let address = self.params.address.clone();
+		let balance = self.balance(&address);
+		self.state.transfer_balance(&address, refund_address, &balance);
 		self.substate.suicides.insert(address);
 	}
 
@@ -472,7 +486,6 @@ mod tests {
 	use engine::*;
 	use spec::*;
 	use evm::Schedule;
-	use super::Substate;
 
 	struct TestEngine {
 		spec: Spec,
@@ -482,7 +495,7 @@ mod tests {
 	impl TestEngine {
 		fn new(stack_limit: usize) -> TestEngine {
 			TestEngine {
-				spec: ethereum::new_frontier(),
+				spec: ethereum::new_frontier_test(),
 				stack_limit: stack_limit 
 			}
 		}
@@ -585,7 +598,60 @@ mod tests {
 			ex.create(&params, &mut substate).unwrap()
 		};
 		
-		assert_eq!(gas_left, U256::from(47_976));
+		assert_eq!(gas_left, U256::from(62_976));
+		// ended with max depth
+		assert_eq!(substate.contracts_created.len(), 0);
+	}
+
+	#[test]
+	fn test_create_contract_value_too_high() {
+		// code:
+		//
+		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
+		// 60 00 - push 0
+		// 52
+		// 60 1d - push 29
+		// 60 03 - push 3
+		// 60 e6 - push 230
+		// f0 - create a contract trying to send 230.
+		// 60 00 - push 0
+		// 55 sstore
+		//
+		// other code:
+		//
+		// 60 10 - push 16
+		// 80 - duplicate first stack item
+		// 60 0c - push 12
+		// 60 00 - push 0
+		// 39 - copy current code to memory
+		// 60 00 - push 0
+		// f3 - return
+
+		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d600360e6f0600055".from_hex().unwrap();
+
+		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let address = contract_address(&sender, &U256::zero());
+		// TODO: add tests for 'callcreate'
+		//let next_address = contract_address(&address, &U256::zero());
+		let mut params = ActionParams::new();
+		params.address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(100_000);
+		params.code = code.clone();
+		params.value = U256::from(100);
+		let mut state = State::new_temp();
+		state.add_balance(&sender, &U256::from(100));
+		let info = EnvInfo::new();
+		let engine = TestEngine::new(0);
+		let mut substate = Substate::new();
+
+		let gas_left = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.create(&params, &mut substate).unwrap()
+		};
+		
+		assert_eq!(gas_left, U256::from(62_976));
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
@@ -691,7 +757,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.call(&params, &mut substate, &mut []).unwrap()
+			ex.call(&params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(73_237));
@@ -733,7 +799,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.call(&params, &mut substate, &mut []).unwrap()
+			ex.call(&params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(59_870));
@@ -864,8 +930,8 @@ mod tests {
 		
 		match res {
 			Err(Error::Execution(ExecutionError::NotEnoughCash { required , is })) 
-				if required == U512::zero() && is == U512::one() => (), 
-			_ => assert!(false, "Expected not enough cash error.")
+				if required == U512::from(100_018) && is == U512::from(100_017) => (), 
+			_ => assert!(false, "Expected not enough cash error. {:?}", res)
 		}
 	}
 }

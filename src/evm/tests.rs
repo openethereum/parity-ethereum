@@ -42,18 +42,18 @@ impl Ext for FakeExt {
 		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
 	}
 
-	fn create(&mut self, _gas: u64, _value: &U256, _code: &[u8]) -> result::Result<(u64, Option<Address>), evm::Error> {
+	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8]) -> result::Result<(U256, Option<Address>), evm::Error> {
 		unimplemented!();
 	}
 
 	fn call(&mut self, 
-			_gas: u64, 
-			_call_gas: u64, 
+			_gas: &U256, 
+			_call_gas: &U256, 
 			_receive_address: &Address, 
 			_value: &U256, 
 			_data: &[u8], 
 			_code_address: &Address, 
-			_output: &mut [u8]) -> result::Result<u64, evm::Error> {
+			_output: &mut [u8]) -> result::Result<U256, evm::Error> {
 		unimplemented!();
 	}
 
@@ -68,11 +68,11 @@ impl Ext for FakeExt {
 		});
 	}
 
-	fn ret(&mut self, _gas: u64, _data: &[u8]) -> result::Result<u64, evm::Error> {
+	fn ret(&mut self, _gas: &U256, _data: &[u8]) -> result::Result<U256, evm::Error> {
 		unimplemented!();
 	}
 
-	fn suicide(&mut self) {
+	fn suicide(&mut self, _refund_address: &Address) {
 		unimplemented!();
 	}
 
