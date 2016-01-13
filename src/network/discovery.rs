@@ -10,7 +10,7 @@ use mio::udp::*;
 use hash::*;
 use sha3::Hashable;
 use crypto::*;
-use network::host::*;
+use network::node::*;
 
 const ADDRESS_BYTES_SIZE: u32 = 32;							///< Size of address type in bytes.
 const ADDRESS_BITS: u32 = 8 * ADDRESS_BYTES_SIZE;			///< Denoted by n in [Kademlia].
@@ -70,14 +70,14 @@ impl Discovery {
 		self.node_buckets[Discovery::distance(&self.id, &id) as usize].nodes.push(id.clone());
 	}
 
-	fn start_node_discovery(&mut self, event_loop: &mut EventLoop<Host>) {
+	fn start_node_discovery<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) {
 		self.discovery_round = 0;
 		self.discovery_id.randomize();
 		self.discovery_nodes.clear();
 		self.discover(event_loop);
 	}
 
-	fn discover(&mut self, event_loop: &mut EventLoop<Host>) {
+	fn discover<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) {
 		if self.discovery_round == DISCOVERY_MAX_STEPS
 		{
 			debug!("Restarting discovery");

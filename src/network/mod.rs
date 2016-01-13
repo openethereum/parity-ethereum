@@ -9,27 +9,27 @@
 /// struct MyHandler;
 ///
 /// impl ProtocolHandler for MyHandler {
-///		fn initialize(&mut self, io: &mut HandlerIo) {
+///		fn initialize(&mut self, io: &mut NetworkContext) {
 ///			io.register_timer(1000);
 ///		}
 ///
-///		fn read(&mut self, io: &mut HandlerIo, peer: &PeerId, packet_id: u8, data: &[u8]) {
+///		fn read(&mut self, io: &mut NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 ///			println!("Received {} ({} bytes) from {}", packet_id, data.len(), peer);
 ///		}
 ///
-///		fn connected(&mut self, io: &mut HandlerIo, peer: &PeerId) {
+///		fn connected(&mut self, io: &mut NetworkContext, peer: &PeerId) {
 ///			println!("Connected {}", peer);
 ///		}
 ///
-///		fn disconnected(&mut self, io: &mut HandlerIo, peer: &PeerId) {
+///		fn disconnected(&mut self, io: &mut NetworkContext, peer: &PeerId) {
 ///			println!("Disconnected {}", peer);
 ///		}
 ///
-///		fn timeout(&mut self, io: &mut HandlerIo, timer: TimerToken) {
+///		fn timeout(&mut self, io: &mut NetworkContext, timer: TimerToken) {
 ///			println!("Timeout {}", timer);
 ///		}
 ///
-///		fn message(&mut self, io: &mut HandlerIo, message: &Message) {
+///		fn message(&mut self, io: &mut NetworkContext, message: &Message) {
 ///			println!("Message {}:{}", message.protocol, message.id);
 ///		}
 /// }
@@ -50,69 +50,31 @@ mod handshake;
 mod session;
 mod discovery;
 mod service;
-
-#[derive(Debug, Copy, Clone)]
-pub enum DisconnectReason
-{
-	DisconnectRequested,
-	TCPError,
-	BadProtocol,
-	UselessPeer,
-	TooManyPeers,
-	DuplicatePeer,
-	IncompatibleProtocol,
-	NullIdentity,
-	ClientQuit,
-	UnexpectedIdentity,
-	LocalIdentity,
-	PingTimeout,
-}
-
-#[derive(Debug)]
-pub enum NetworkError {
-	Auth,
-	BadProtocol,
-	PeerNotFound,
-	Disconnect(DisconnectReason),
-	Mio(::std::io::Error),
-}
-
-impl From<::rlp::DecoderError> for NetworkError {
-	fn from(_err: ::rlp::DecoderError) -> NetworkError {
-		NetworkError::Auth
-	}
-}
-
-impl From<::mio::NotifyError<host::HostMessage>> for NetworkError {
-	fn from(_err: ::mio::NotifyError<host::HostMessage>) -> NetworkError {
-		NetworkError::Mio(::std::io::Error::new(::std::io::ErrorKind::ConnectionAborted, "Network IO notification error"))
-	}
-}
+mod error;
+mod node;
 
 pub type PeerId = host::PeerId;
 pub type PacketId = host::PacketId;
-pub type TimerToken = host::TimerToken;
-pub type HandlerIo<'s> = host::HostIo<'s>;
-pub type Message = host::UserMessage;
-pub type MessageId = host::UserMessageId;
+pub type NetworkContext<'s, Message> = host::NetworkContext<'s, Message>;
+pub type NetworkService<Message> = service::NetworkService<Message>;
+pub type NetworkIoMessage<Message> = host::NetworkIoMessage<Message>;
+pub type NetworkError = error::NetworkError;
+
+use io::*;
 
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
-/// TODO: Separate p2p networking IO from IPC IO. `timeout` and `message` should go to a more genera IO provider.
 /// All the handler function are called from within IO event loop.
-pub trait ProtocolHandler: Send {
-	/// Initialize the hadler
-	fn initialize(&mut self, io: &mut HandlerIo);
+/// `Message` is the type for message data.
+pub trait NetworkProtocolHandler<Message>: Send where Message: Send {
 	/// Called when new network packet received.
-	fn read(&mut self, io: &mut HandlerIo, peer: &PeerId, packet_id: u8, data: &[u8]);
+	fn read(&mut self, io: &mut NetworkContext<Message>, peer: &PeerId, packet_id: u8, data: &[u8]);
 	/// Called when new peer is connected. Only called when peer supports the same protocol.
-	fn connected(&mut self, io: &mut HandlerIo, peer: &PeerId);
+	fn connected(&mut self, io: &mut NetworkContext<Message>, peer: &PeerId);
 	/// Called when a previously connected peer disconnects.
-	fn disconnected(&mut self, io: &mut HandlerIo, peer: &PeerId);
-	/// Timer function called after a timeout created with `HandlerIo::timeout`.
-	fn timeout(&mut self, io: &mut HandlerIo, timer: TimerToken);
-	/// Called when a broadcasted message is received. The message can only be sent from a different protocol handler.
-	fn message(&mut self, io: &mut HandlerIo, message: &Message);
+	fn disconnected(&mut self, io: &mut NetworkContext<Message>, peer: &PeerId);
+	/// Timer function called after a timeout created with `NetworkContext::timeout`.
+	fn timeout(&mut self, _io: &mut NetworkContext<Message>, _timer: TimerToken) {}
+	/// Called when a broadcasted message is received. The message can only be sent from a different IO handler.
+	fn message(&mut self, _io: &mut NetworkContext<Message>, _message: &Message) {}
 }
-
-pub type NetworkService = service::NetworkService;
 

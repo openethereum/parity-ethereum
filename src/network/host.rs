@@ -1,6 +1,7 @@
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::mem;
+use std::net::{SocketAddr };
 use std::collections::{HashMap};
-use std::hash::{Hash, Hasher};
+use std::hash::{Hasher};
 use std::str::{FromStr};
 use mio::*;
 use mio::util::{Slab};
@@ -10,22 +11,17 @@ use hash::*;
 use crypto::*;
 use sha3::Hashable;
 use rlp::*;
-use time::Tm;
 use network::handshake::Handshake;
 use network::session::{Session, SessionData};
 use error::*;
-use network::ProtocolHandler;
+use io::*;
+use network::NetworkProtocolHandler;
+use network::node::*;
 
 const _DEFAULT_PORT: u16 = 30304;
 
 const MAX_CONNECTIONS: usize = 1024;
-const MAX_USER_TIMERS: usize = 32;
 const IDEAL_PEERS: u32 = 10;
-
-/// Node public key
-pub type NodeId = H512;
-/// IO Timer id
-pub type TimerToken = usize;
 
 #[derive(Debug)]
 struct NetworkConfiguration {
@@ -48,88 +44,15 @@ impl NetworkConfiguration {
 	}
 }
 
-#[derive(Debug)]
-/// Noe address info
-pub struct NodeEndpoint {
-	/// IP(V4 or V6) address
-	address: SocketAddr,
-	/// Address as string (can be host name).
-	address_str: String,
-	/// Conneciton port.
-	udp_port: u16
-}
-
-impl NodeEndpoint {
-	/// Create endpoint from string. Performs name resolution if given a host name.
-	fn from_str(s: &str) -> Result<NodeEndpoint, UtilError> {
-		let address = s.to_socket_addrs().map(|mut i| i.next());
-		match address {
-			Ok(Some(a)) => Ok(NodeEndpoint {
-				address: a,
-				address_str: s.to_string(),
-				udp_port: a.port()
-			}),
-			Ok(_) => Err(UtilError::AddressResolve(None)),
-			Err(e) => Err(UtilError::AddressResolve(Some(e)))
-		}
-	}
-}
-
-#[derive(PartialEq, Eq, Copy, Clone)]
-enum PeerType {
-	Required,
-	Optional
-}
-
-struct Node {
-	id: NodeId,
-	endpoint: NodeEndpoint,
-	peer_type: PeerType,
-	last_attempted: Option<Tm>,
-}
-
-impl FromStr for Node {
-	type Err = UtilError;
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let (id, endpoint) = if &s[0..8] == "enode://" && s.len() > 136 && &s[136..137] == "@" {
-			(try!(NodeId::from_str(&s[8..136])), try!(NodeEndpoint::from_str(&s[137..])))
-		}
-		else {
-			(NodeId::new(), try!(NodeEndpoint::from_str(s)))
-		};
-
-		Ok(Node {
-			id: id,
-			endpoint: endpoint,
-			peer_type: PeerType::Optional,
-			last_attempted: None,
-		})
-	}
-}
-
-impl PartialEq for Node {
-	fn eq(&self, other: &Self) -> bool {
-		self.id == other.id
-	}
-}
-impl Eq for Node { }
-
-impl Hash for Node {
-	fn hash<H>(&self, state: &mut H) where H: Hasher {
-		self.id.hash(state)
-	}
-}
-
 // Tokens
-const TCP_ACCEPT: usize = 1;
-const IDLE: usize = 3;
-const NODETABLE_RECEIVE: usize = 4;
-const NODETABLE_MAINTAIN: usize = 5;
-const NODETABLE_DISCOVERY: usize = 6;
-const FIRST_CONNECTION: usize = 7;
+const TOKEN_BEGIN: usize = USER_TOKEN_START;
+const TCP_ACCEPT: usize = TOKEN_BEGIN;
+const IDLE: usize = TOKEN_BEGIN + 1;
+const NODETABLE_RECEIVE: usize = TOKEN_BEGIN + 2;
+const NODETABLE_MAINTAIN: usize = TOKEN_BEGIN + 3;
+const NODETABLE_DISCOVERY: usize = TOKEN_BEGIN + 4;
+const FIRST_CONNECTION: usize = TOKEN_BEGIN + 16;
 const LAST_CONNECTION: usize = FIRST_CONNECTION + MAX_CONNECTIONS - 1;
-const USER_TIMER: usize = LAST_CONNECTION;
-const LAST_USER_TIMER: usize = USER_TIMER + MAX_USER_TIMERS - 1;
 
 /// Protocol handler level packet id
 pub type PacketId = u8;
@@ -137,12 +60,10 @@ pub type PacketId = u8;
 pub type ProtocolId = &'static str;
 
 /// Messages used to communitate with the event loop from other threads.
-pub enum HostMessage {
-	/// Shutdown the event loop
-	Shutdown,
+pub enum NetworkIoMessage<Message> where Message: Send {
 	/// Register a new protocol handler.
 	AddHandler {
-		handler: Box<ProtocolHandler+Send>,
+		handler: Option<Box<NetworkProtocolHandler<Message>+Send>>,
 		protocol: ProtocolId,
 		versions: Vec<u8>,
 	},
@@ -153,19 +74,11 @@ pub enum HostMessage {
 		protocol: ProtocolId,
 		data: Vec<u8>,
 	},
-	/// Broadcast a message across the protocol handlers.
-	UserMessage(UserMessage),
-}
-
-/// Id for broadcast message
-pub type UserMessageId = u32;
-
-/// User 
-pub struct UserMessage {
-	/// ID of a protocol
-	pub protocol: ProtocolId,
-	pub id: UserMessageId,
-	pub data: Option<Vec<u8>>,
+	/// User message
+	User {
+		protocol: ProtocolId,
+		message: Message,
+	},
 }
 
 /// Local (temporary) peer session ID.
@@ -190,31 +103,38 @@ impl Encodable for CapabilityInfo {
 }
 
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
-pub struct HostIo<'s> {
-	protocol: ProtocolId,
+pub struct NetworkContext<'s, Message> where Message: Send + 'static {
+	io: IoContext<'s, NetworkIoMessage<Message>>,
+	protocol: Option<ProtocolId>,
 	connections: &'s mut Slab<ConnectionEntry>,
-	timers: &'s mut Slab<UserTimer>,
-	session: Option<Token>,
-	event_loop: &'s mut EventLoop<Host>,
+	timers: &'s mut HashMap<TimerToken, ProtocolId>,
+	session: Option<StreamToken>,
 }
 
-impl<'s> HostIo<'s> {
-	/// Create a new IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(protocol: ProtocolId, session: Option<Token>, event_loop: &'s mut EventLoop<Host>, connections: &'s mut Slab<ConnectionEntry>, timers: &'s mut Slab<UserTimer>) -> HostIo<'s> {
-		HostIo {
+impl<'s, Message> NetworkContext<'s, Message> where Message: Send + 'static, {
+	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
+	fn new(io: IoContext<'s, NetworkIoMessage<Message>>, 
+		protocol: Option<ProtocolId>, 
+		session: Option<StreamToken>, connections: &'s mut Slab<ConnectionEntry>, 
+		timers: &'s mut HashMap<TimerToken, ProtocolId>) -> NetworkContext<'s, Message> {
+		NetworkContext {
+			io: io,
 			protocol: protocol,
 			session: session,
-			event_loop: event_loop,
 			connections: connections,
 			timers: timers,
 		}
+	}
+
+	fn set_protocol(&mut self, protocol: ProtocolId) {
+		self.protocol = Some(protocol);
 	}
 
 	/// Send a packet over the network to another peer.
 	pub fn send(&mut self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		match self.connections.get_mut(Token(peer)) {
 			Some(&mut ConnectionEntry::Session(ref mut s)) => {
-				s.send_packet(self.protocol, packet_id as u8, &data).unwrap_or_else(|e| {
+				s.send_packet(self.protocol.unwrap(), packet_id as u8, &data).unwrap_or_else(|e| {
 					warn!(target: "net", "Send error: {:?}", e);
 				}); //TODO: don't copy vector data
 			},
@@ -228,36 +148,10 @@ impl<'s> HostIo<'s> {
 	/// Respond to a current network message. Panics if no there is no packet in the context.
 	pub fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		match self.session {
-			Some(session) => self.send(session.as_usize(), packet_id, data),
+			Some(session) => self.send(session, packet_id, data),
 			None => {
 				panic!("Respond: Session does not exist")
 			}
-		}
-	}
-
-	/// Register a new IO timer. Returns a new timer toke. 'ProtocolHandler::timeout' will be called with the token.
-	pub fn register_timer(&mut self, ms: u64) -> Result<TimerToken, UtilError>{
-		match self.timers.insert(UserTimer {
-			delay: ms,
-			protocol: self.protocol,
-		}) {
-			Ok(token) => {
-				self.event_loop.timeout_ms(token, ms).expect("Error registering user timer");
-				Ok(token.as_usize())
-			},
-			_ => { panic!("Max timers reached") }
-		}
-	}
-
-	/// Broadcast a message to other IO clients
-	pub fn message(&mut self, id: UserMessageId, data: Option<Vec<u8>>) {
-		match self.event_loop.channel().send(HostMessage::UserMessage(UserMessage {
-			protocol: self.protocol,
-			id: id,
-			data: data
-		})) {
-			Ok(_) => {}
-			Err(e) => { panic!("Error sending io message {:?}", e); }
 		}
 	}
 
@@ -266,11 +160,16 @@ impl<'s> HostIo<'s> {
 		//TODO: remove capability, disconnect if no capabilities left
 	}
 
-}
-
-struct UserTimer {
-	protocol: ProtocolId,
-	delay: u64,
+	/// Register a new IO timer. Returns a new timer token. 'NetworkProtocolHandler::timeout' will be called with the token.
+	pub fn register_timer(&mut self, ms: u64) -> Result<TimerToken, UtilError>{
+		match self.io.register_timer(ms) {
+			Ok(token) => {
+				self.timers.insert(token, self.protocol.unwrap());
+				Ok(token)
+			},
+			e @ Err(_) => e,
+		}
+	}
 }
 
 /// Shared host information
@@ -315,67 +214,40 @@ enum ConnectionEntry {
 }
 
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
-pub struct Host {
+pub struct Host<Message> where Message: Send {
 	info: HostInfo,
-	_udp_socket: UdpSocket,
-	_listener: TcpListener,
+	udp_socket: UdpSocket,
+	listener: TcpListener,
 	connections: Slab<ConnectionEntry>,
-	timers: Slab<UserTimer>,
+	timers: HashMap<TimerToken, ProtocolId>,
 	nodes: HashMap<NodeId, Node>,
-	handlers: HashMap<ProtocolId, Box<ProtocolHandler>>,
-	_idle_timeout: Timeout,
+	handlers: HashMap<ProtocolId, Box<NetworkProtocolHandler<Message>>>,
 }
 
-impl Host {
-	/// Creates a new instance and registers it with the event loop.
-	pub fn start(event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+impl<Message> Host<Message> where Message: Send {
+	pub fn new() -> Host<Message> {
 		let config = NetworkConfiguration::new();
-		/*
-		match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {
-		Some(iface) => config.public_address = iface.addr.unwrap(),
-		None => warn!("No public network interface"),
-		*/
-
 		let addr = config.listen_address;
 		// Setup the server socket
 		let listener = TcpListener::bind(&addr).unwrap();
-		// Start listening for incoming connections
-		event_loop.register(&listener, Token(TCP_ACCEPT), EventSet::readable(), PollOpt::edge()).unwrap();
-		let idle_timeout = event_loop.timeout_ms(Token(IDLE), 1000).unwrap(); //TODO: check delay
-		// open the udp socket
 		let udp_socket = UdpSocket::bound(&addr).unwrap();
-		event_loop.register(&udp_socket, Token(NODETABLE_RECEIVE), EventSet::readable(), PollOpt::edge()).unwrap();
-		event_loop.timeout_ms(Token(NODETABLE_MAINTAIN), 7200).unwrap();
-		let port = config.listen_address.port();
-
-		let mut host = Host {
+		Host::<Message> {
 			info: HostInfo {
 				keys: KeyPair::create().unwrap(),
 				config: config,
 				nonce: H256::random(),
 				protocol_version: 4,
 				client_version: "parity".to_string(),
-				listen_port: port,
+				listen_port: 0,
 				capabilities: Vec::new(),
 			},
-			_udp_socket: udp_socket,
-			_listener: listener,
+			udp_socket: udp_socket,
+			listener: listener,
 			connections: Slab::new_starting_at(Token(FIRST_CONNECTION), MAX_CONNECTIONS),
-			timers: Slab::new_starting_at(Token(USER_TIMER), MAX_USER_TIMERS),
+			timers: HashMap::new(),
 			nodes: HashMap::new(),
 			handlers: HashMap::new(),
-			_idle_timeout: idle_timeout,
-		};
-
-		host.add_node("enode://c022e7a27affdd1632f2e67dffeb87f02bf506344bb142e08d12b28e7e5c6e5dbb8183a46a77bff3631b51c12e8cf15199f797feafdc8834aaf078ad1a2bcfa0@127.0.0.1:30303");
-		host.add_node("enode://5374c1bff8df923d3706357eeb4983cd29a63be40a269aaa2296ee5f3b2119a8978c0ed68b8f6fc84aad0df18790417daadf91a4bfbb786a16c9b0a199fa254a@gav.ethdev.com:30300");
-		host.add_node("enode://e58d5e26b3b630496ec640f2530f3e7fa8a8c7dfe79d9e9c4aac80e3730132b869c852d3125204ab35bb1b1951f6f2d40996c1034fd8c5a69b383ee337f02ddc@gav.ethdev.com:30303");
-		host.add_node("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303");
-		host.add_node("enode://7f25d3eab333a6b98a8b5ed68d962bb22c876ffcd5561fca54e3c2ef27f754df6f7fd7c9b74cc919067abac154fb8e1f8385505954f161ae440abc355855e034@54.207.93.166:30303");
-		host.add_node("enode://5374c1bff8df923d3706357eeb4983cd29a63be40a269aaa2296ee5f3b2119a8978c0ed68b8f6fc84aad0df18790417daadf91a4bfbb786a16c9b0a199fa254a@92.51.165.126:30303");
-
-		try!(event_loop.run(&mut host));
-		Ok(())
+		}
 	}
 
 	fn add_node(&mut self, id: &str) {
@@ -387,8 +259,8 @@ impl Host {
 		}
 	}
 
-	fn maintain_network(&mut self, event_loop: &mut EventLoop<Host>) {
-		self.connect_peers(event_loop);
+	fn maintain_network(&mut self, io: IoContext<NetworkIoMessage<Message>>) {
+		self.connect_peers(io);
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
@@ -399,8 +271,7 @@ impl Host {
 		self.connections.iter().any(|e| match e { &ConnectionEntry::Handshake(ref h) => h.id.eq(&id), _ => false  })
 	}
 
-	fn connect_peers(&mut self, event_loop: &mut EventLoop<Host>) {
-
+	fn connect_peers(&mut self, mut io: IoContext<NetworkIoMessage<Message>>) {
 		struct NodeInfo {
 			id: NodeId,
 			peer_type: PeerType
@@ -425,7 +296,7 @@ impl Host {
 		for n in to_connect.iter() {
 			if n.peer_type == PeerType::Required {
 				if req_conn < IDEAL_PEERS {
-					self.connect_peer(&n.id, event_loop);
+					self.connect_peer(&n.id, &mut io);
 				}
 				req_conn += 1;
 			}
@@ -440,14 +311,14 @@ impl Host {
 				for n in to_connect.iter() {
 					if n.peer_type == PeerType::Optional && open_slots > 0 {
 						open_slots -= 1;
-						self.connect_peer(&n.id, event_loop);
+						self.connect_peer(&n.id, &mut io);
 					}
 				}
 			}
 		}
 	}
 
-	fn connect_peer(&mut self, id: &NodeId, event_loop: &mut EventLoop<Host>) {
+	fn connect_peer(&mut self, id: &NodeId, io: &mut IoContext<NetworkIoMessage<Message>>) {
 		if self.have_session(id)
 		{
 			warn!("Aborted connect. Node already connected.");
@@ -478,7 +349,7 @@ impl Host {
 				match self.connections.get_mut(token) {
 					Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
 						h.start(&self.info, true)
-							.and_then(|_| h.register(event_loop))
+							.and_then(|_| h.register(io.event_loop))
 							.unwrap_or_else (|e| {
 								debug!(target: "net", "Handshake create error: {:?}", e);
 							});
@@ -491,23 +362,23 @@ impl Host {
 	}
 
 
-	fn accept(&mut self, _event_loop: &mut EventLoop<Host>) {
+	fn accept(&mut self, _io: IoContext<NetworkIoMessage<Message>>) {
 		trace!(target: "net", "accept");
 	}
 
-	fn connection_writable(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+	fn connection_writable<'s>(&'s mut self, token: StreamToken, io: IoContext<'s, NetworkIoMessage<Message>>) {
 		let mut kill = false;
 		let mut create_session = false;
-		match self.connections.get_mut(token) {
+		match self.connections.get_mut(Token(token)) {
 			Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
-				h.writable(event_loop, &self.info).unwrap_or_else(|e| {
+				h.writable(io.event_loop, &self.info).unwrap_or_else(|e| {
 					debug!(target: "net", "Handshake write error: {:?}", e);
 					kill = true;
 				});
 				create_session = h.done();
 			},
 			Some(&mut ConnectionEntry::Session(ref mut s)) => {
-				s.writable(event_loop, &self.info).unwrap_or_else(|e| {
+				s.writable(io.event_loop, &self.info).unwrap_or_else(|e| {
 					debug!(target: "net", "Session write error: {:?}", e);
 					kill = true;
 				});
@@ -516,39 +387,41 @@ impl Host {
 				warn!(target: "net", "Received event for unknown connection");
 			}
 		}
+		let mut net_context = NetworkContext::new(io, None, Some(token), &mut self.connections, &mut self.timers);
 		if kill {
-			self.kill_connection(token, event_loop);
+			Host::kill_connection(token, &mut net_context, &mut self.handlers);
 		}
 		if create_session {
-			self.start_session(token, event_loop);
+			Host::start_session(&self.info, token, &mut net_context);
 		}
-		match self.connections.get_mut(token) {
+		match net_context.connections.get_mut(Token(token)) {
 			Some(&mut ConnectionEntry::Session(ref mut s)) => {
-				s.reregister(event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
+				s.reregister(net_context.io.event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
 			},
 			_ => (),
 		}
 	}
 
-	fn connection_closed(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
-		self.kill_connection(token, event_loop);
+	fn connection_closed<'s>(&'s mut self, token: TimerToken, io: IoContext<'s, NetworkIoMessage<Message>>) {
+		let mut net_context = NetworkContext::new(io, None, Some(token), &mut self.connections, &mut self.timers);
+		Host::kill_connection(token, &mut net_context, &mut self.handlers);
 	}
 
-	fn connection_readable(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+	fn connection_readable<'s>(&'s mut self, token: StreamToken, io: IoContext<'s, NetworkIoMessage<Message>>) {
 		let mut kill = false;
 		let mut create_session = false;
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Option<(ProtocolId, PacketId, Vec<u8>)> = None;
-		match self.connections.get_mut(token) {
+		match self.connections.get_mut(Token(token)) {
 			Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
-				h.readable(event_loop, &self.info).unwrap_or_else(|e| {
+				h.readable(io.event_loop, &self.info).unwrap_or_else(|e| {
 					debug!(target: "net", "Handshake read error: {:?}", e);
 					kill = true;
 				});
 				create_session = h.done();
 			},
 			Some(&mut ConnectionEntry::Session(ref mut s)) => {
-				let sd = { s.readable(event_loop, &self.info).unwrap_or_else(|e| {
+				let sd = { s.readable(io.event_loop, &self.info).unwrap_or_else(|e| {
 					debug!(target: "net", "Session read error: {:?}", e);
 					kill = true;
 					SessionData::None
@@ -578,32 +451,35 @@ impl Host {
 				warn!(target: "net", "Received event for unknown connection");
 			}
 		}
+		let mut net_context = NetworkContext::new(io, None, Some(token), &mut self.connections, &mut self.timers);
 		if kill {
-			self.kill_connection(token, event_loop);
+			Host::kill_connection(token, &mut net_context, &mut self.handlers);
 		}
 		if create_session {
-			self.start_session(token, event_loop);
+			Host::start_session(&self.info, token, &mut net_context);
 		}
 		for p in ready_data {
 			let mut h = self.handlers.get_mut(p).unwrap();
-			h.connected(&mut HostIo::new(p, Some(token), event_loop, &mut self.connections, &mut self.timers), &token.as_usize());
+			net_context.set_protocol(p);
+			h.connected(&mut net_context, &token);
 		}
 		if let Some((p, packet_id, data)) = packet_data {
 			let mut h = self.handlers.get_mut(p).unwrap();
-			h.read(&mut HostIo::new(p, Some(token), event_loop, &mut self.connections, &mut self.timers), &token.as_usize(), packet_id, &data[1..]);
+			net_context.set_protocol(p);
+			h.read(&mut net_context, &token, packet_id, &data[1..]);
 		}
 
-		match self.connections.get_mut(token) {
+		match net_context.connections.get_mut(Token(token)) {
 			Some(&mut ConnectionEntry::Session(ref mut s)) => {
-				s.reregister(event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
+				s.reregister(net_context.io.event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
 			},
 			_ => (),
 		}
 	}
 
-	fn start_session(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
-		let info = &self.info;
-		self.connections.replace_with(token, |c| {
+	fn start_session(info: &HostInfo, token: StreamToken, io: &mut NetworkContext<Message>) {
+		let event_loop = &mut io.io.event_loop;
+		io.connections.replace_with(Token(token), |c| {
 			match c {
 				ConnectionEntry::Handshake(h) => Session::new(h, event_loop, info)
 					.map(|s| Some(ConnectionEntry::Session(s)))
@@ -616,16 +492,17 @@ impl Host {
 		}).expect("Error updating slab with session");
 	}
 
-	fn connection_timeout(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
-		self.kill_connection(token, event_loop)
+	fn connection_timeout<'s>(&'s mut self, token: StreamToken, io: IoContext<'s, NetworkIoMessage<Message>>) {
+		let mut net_context = NetworkContext::new(io, None, Some(token), &mut self.connections, &mut self.timers);
+		Host::kill_connection(token, &mut net_context, &mut self.handlers)
 	}
 
-	fn kill_connection(&mut self, token: Token, event_loop: &mut EventLoop<Host>) {
+	fn kill_connection(token: StreamToken, io: &mut NetworkContext<Message>, handlers: &mut HashMap<ProtocolId, Box<NetworkProtocolHandler<Message>>>) {
 		let mut to_disconnect: Vec<ProtocolId> = Vec::new();
-		match self.connections.get_mut(token) {
+		match io.connections.get_mut(Token(token)) {
 			Some(&mut ConnectionEntry::Handshake(_)) => (), // just abandon handshake
 			Some(&mut ConnectionEntry::Session(ref mut s)) if s.is_ready() => {
-				for (p, _) in self.handlers.iter_mut() {
+				for (p, _) in handlers.iter_mut() {
 					if s.have_capability(p)  {
 						to_disconnect.push(p);
 					}
@@ -634,87 +511,103 @@ impl Host {
 			_ => (),
 		}
 		for p in to_disconnect {
-			let mut h = self.handlers.get_mut(p).unwrap();
-			h.disconnected(&mut HostIo::new(p, Some(token), event_loop, &mut self.connections, &mut self.timers), &token.as_usize());
+			let mut h = handlers.get_mut(p).unwrap();
+			io.set_protocol(p);
+			h.disconnected(io, &token);
 		}
-		self.connections.remove(token);
+		io.connections.remove(Token(token));
 	}
 }
 
-impl Handler for Host {
-	type Timeout = Token;
-	type Message = HostMessage;
+impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Message: Send + 'static {
+	/// Initialize networking
+	fn initialize(&mut self, io: IoContext<NetworkIoMessage<Message>>) {
+		/*
+		match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {
+		Some(iface) => config.public_address = iface.addr.unwrap(),
+		None => warn!("No public network interface"),
+		*/
 
-	fn ready(&mut self, event_loop: &mut EventLoop<Host>, token: Token, events: EventSet) {
-		if events.is_hup() {
-			trace!(target: "net", "hup");
-			match token.as_usize() {
-				FIRST_CONNECTION ... LAST_CONNECTION => self.connection_closed(token, event_loop),
-				_ => warn!(target: "net", "Unexpected hup"),
-			};
-		}
-		else if events.is_readable() {
-			match token.as_usize() {
-				TCP_ACCEPT => self.accept(event_loop),
-				IDLE => self.maintain_network(event_loop),
-				FIRST_CONNECTION ... LAST_CONNECTION => self.connection_readable(token, event_loop),
-				NODETABLE_RECEIVE => {},
-				_ => panic!("Received unknown readable token"),
-			}
-		}
-		else if events.is_writable() {
-			match token.as_usize() {
-				FIRST_CONNECTION ... LAST_CONNECTION => self.connection_writable(token, event_loop),
-				_ => panic!("Received unknown writable token"),
-			}
+		// Start listening for incoming connections
+		io.event_loop.register(&self.listener, Token(TCP_ACCEPT), EventSet::readable(), PollOpt::edge()).unwrap();
+		io.event_loop.timeout_ms(Token(IDLE), 1000).unwrap(); //TODO: check delay
+		// open the udp socket
+		io.event_loop.register(&self.udp_socket, Token(NODETABLE_RECEIVE), EventSet::readable(), PollOpt::edge()).unwrap();
+		io.event_loop.timeout_ms(Token(NODETABLE_MAINTAIN), 7200).unwrap();
+		let port = self.info.config.listen_address.port();
+		self.info.listen_port = port;
+
+		self.add_node("enode://c022e7a27affdd1632f2e67dffeb87f02bf506344bb142e08d12b28e7e5c6e5dbb8183a46a77bff3631b51c12e8cf15199f797feafdc8834aaf078ad1a2bcfa0@127.0.0.1:30303");
+		self.add_node("enode://5374c1bff8df923d3706357eeb4983cd29a63be40a269aaa2296ee5f3b2119a8978c0ed68b8f6fc84aad0df18790417daadf91a4bfbb786a16c9b0a199fa254a@gav.ethdev.com:30300");
+		self.add_node("enode://e58d5e26b3b630496ec640f2530f3e7fa8a8c7dfe79d9e9c4aac80e3730132b869c852d3125204ab35bb1b1951f6f2d40996c1034fd8c5a69b383ee337f02ddc@gav.ethdev.com:30303");
+		self.add_node("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303");
+		self.add_node("enode://7f25d3eab333a6b98a8b5ed68d962bb22c876ffcd5561fca54e3c2ef27f754df6f7fd7c9b74cc919067abac154fb8e1f8385505954f161ae440abc355855e034@54.207.93.166:30303");
+		self.add_node("enode://5374c1bff8df923d3706357eeb4983cd29a63be40a269aaa2296ee5f3b2119a8978c0ed68b8f6fc84aad0df18790417daadf91a4bfbb786a16c9b0a199fa254a@92.51.165.126:30303");
+	}
+
+	fn stream_hup(&mut self, io: IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+		trace!(target: "net", "Hup: {}", stream);
+		match stream {
+			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_closed(stream, io),
+			_ => warn!(target: "net", "Unexpected hup"),
+		};
+	}
+
+	fn stream_readable(&mut self, io: IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+		match stream {
+			TCP_ACCEPT => self.accept(io),
+			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_readable(stream, io),
+			NODETABLE_RECEIVE => {},
+			_ => panic!("Received unknown readable token"),
 		}
 	}
 
-	fn timeout(&mut self, event_loop: &mut EventLoop<Host>, token: Token) {
-		match token.as_usize() {
-			IDLE => self.maintain_network(event_loop),
-			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, event_loop),
+	fn stream_writable(&mut self, io: IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
+		match stream {
+			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_writable(stream, io),
+			_ => panic!("Received unknown writable token"),
+		}
+	}
+
+	fn timeout(&mut self, io: IoContext<NetworkIoMessage<Message>>, token: TimerToken) {
+		match token {
+			IDLE => self.maintain_network(io),
+			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, io),
 			NODETABLE_DISCOVERY => {},
 			NODETABLE_MAINTAIN => {},
-			USER_TIMER ... LAST_USER_TIMER => {
-				let (protocol, delay) = {
-					let timer = self.timers.get_mut(token).expect("Unknown user timer token");
-					(timer.protocol, timer.delay)
-				};
+			_ => {
+				let protocol: ProtocolId  = self.timers.get_mut(&token).expect("Unknown user timer token");
 				match self.handlers.get_mut(protocol) {
 					None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
 					Some(h) => {
-						h.timeout(&mut HostIo::new(protocol, None, event_loop, &mut self.connections, &mut self.timers), token.as_usize());
-						event_loop.timeout_ms(token, delay).expect("Error re-registering user timer");
+						h.timeout(&mut NetworkContext::new(io, Some(protocol), Some(token), &mut self.connections, &mut self.timers), token);
 					}
 				}
 			}
-			_ => panic!("Unknown timer token"),
 		}
 	}
 
-	fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
-		match msg {
-			HostMessage::Shutdown => event_loop.shutdown(),
-			HostMessage::AddHandler {
-				handler,
-				protocol,
-				versions
+	fn message(&mut self, io: IoContext<NetworkIoMessage<Message>>, message: &mut NetworkIoMessage<Message>) {
+		match message {
+			&mut NetworkIoMessage::AddHandler {
+				ref mut handler,
+				ref protocol,
+				ref versions
 			} => {
-				self.handlers.insert(protocol, handler);
+				self.handlers.insert(protocol, mem::replace(handler, None).unwrap());
 				for v in versions {
-					self.info.capabilities.push(CapabilityInfo { protocol: protocol, version: v, packet_count:0 });
+					self.info.capabilities.push(CapabilityInfo { protocol: protocol, version: *v, packet_count:0 });
 				}
 			},
-			HostMessage::Send {
-				peer,
-				packet_id,
-				protocol,
-				data,
+			&mut NetworkIoMessage::Send {
+				ref peer,
+				ref packet_id,
+				ref protocol,
+				ref data,
 			} => {
-				match self.connections.get_mut(Token(peer as usize)) {
+				match self.connections.get_mut(Token(*peer as usize)) {
 					Some(&mut ConnectionEntry::Session(ref mut s)) => {
-						s.send_packet(protocol, packet_id as u8, &data).unwrap_or_else(|e| {
+						s.send_packet(protocol, *packet_id as u8, &data).unwrap_or_else(|e| {
 							warn!(target: "net", "Send error: {:?}", e);
 						}); //TODO: don't copy vector data
 					},
@@ -723,10 +616,15 @@ impl Handler for Host {
 					}
 				}
 			},
-			HostMessage::UserMessage(message) => {
+			&mut NetworkIoMessage::User {
+				ref protocol,
+				ref message
+			} => {
+				let mut net_context = NetworkContext::new(io, None, None, &mut self.connections, &mut self.timers);
 				for (p, h) in self.handlers.iter_mut() {
-					if p != &message.protocol {
-						h.message(&mut HostIo::new(message.protocol, None, event_loop, &mut self.connections, &mut self.timers), &message);
+					if p != protocol {
+						net_context.set_protocol(p);
+						h.message(&mut net_context, &message);
 					}
 				}
 			}
