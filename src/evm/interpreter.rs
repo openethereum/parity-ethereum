@@ -66,6 +66,74 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 		self.len()
 	}
 }
+
+trait Memory {
+	/// Retrieve current size of the memory
+	fn size(&self) -> usize;
+	/// Resize (shrink or expand) the memory to specified size (fills 0)
+	fn resize(&mut self, new_size: usize);
+	/// Write single byte to memory
+	fn write_byte(&mut self, offset: U256, value: U256);
+	/// Write a word from memory
+	fn write(&mut self, offset: U256, value: U256);
+	/// Read a word from memory
+	fn read(&self, offset: U256) -> u32;
+	/// Write slice of bytes to memory
+	fn write_slice(&mut self, offset: U256, &[u8]);
+	/// Retrieve part of the memory between offset and offset + size
+	fn read_slice(&self, offset: U256, size: U256) -> &[u8];
+}
+impl Memory for Vec<u8> {
+	fn size(&self) -> usize {
+		return self.len()
+	}
+
+	fn read_slice(&self, init_off_u: U256, init_size_u: U256) -> &[u8] {
+		let init_off = init_off_u.low_u64() as usize;
+		let init_size = init_size_u.low_u64() as usize;
+		&self[init_off..init_off + init_size]
+	}
+
+	fn read(&self, offset: U256) -> u32 {
+		let off = offset.low_u64() as usize;
+		let mut val : u32 = 0;
+		for pos in off..off+4 {
+			val = val << 8;
+			val = val | (self[pos] as u32);
+		}
+		val
+	}
+
+	fn write_slice(&mut self, offset: U256, slice: &[u8]) {
+		let off = offset.low_u64() as usize;
+		
+		// TODO [todr] Optimize?
+		for pos in off..off+slice.len() {
+			self[pos] = slice[pos - off];
+		}
+	}
+
+	fn write(&mut self, offset: U256, value: U256) {
+		let off = offset.low_u64() as usize;
+		let mut val = value.low_u64() as u32;
+	
+		self[off] = (val >> 24) as u8;
+		self[off+1] = (val >> 16) as u8;
+		self[off+2] = (val >> 8) as u8;
+		self[off+3] = (val & 0xff) as u8;
+	}
+
+	fn write_byte(&mut self, offset: U256, value: U256) {
+		let off = offset.low_u64() as usize;
+		let val = value.low_u64() as u64;
+		self[off] = (val & 0xff) as u8;
+	}
+
+	fn resize(&mut self, new_size: usize) {
+		self.resize(new_size, 0);
+	}
+}
+
 /// Abstraction over raw vector of Bytes. Easier state management of PC.
 struct CodeReader<'a> {
 	position: ProgramCounter,
@@ -91,14 +159,6 @@ impl<'a> CodeReader<'a> {
 	fn len (&self) -> usize {
 		self.code.len()
 	}
-
-	// TODO [todr] All get_slice should operate on memory not code!!!
-	/// Retrieve part of the code described by offset and size
-	fn get_slice(&self, init_off_u: U256, init_size_u: U256) -> &[u8] {
-		let init_off = init_off_u.low_u64() as usize;
-		let init_size = init_size_u.low_u64() as usize;
-		&self.code[self.position + init_off..self.position + init_off + init_size]
-	}
 }
 
 enum InstructionCost {
@@ -123,6 +183,7 @@ impl evm::Evm for Interpreter {
     // TODO reserve stack
 		let mut current_gas = params.gas.clone();
     let mut stack = vec![];
+    let mut mem = vec![];
 		let mut reader = CodeReader {
 			position: 0,
 			code: &code
@@ -133,14 +194,14 @@ impl evm::Evm for Interpreter {
 			reader.position += 1;
 
 			// Calculate gas cost
-			let gas_cost = try!(self.get_gas_cost(current_gas, params, ext, instruction, &stack));
+			let gas_cost = try!(self.get_gas_cost(ext, instruction, Memory::size(&mem), &stack));
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			current_gas = current_gas - gas_cost;
 			println!("Gas cost: {} (left: {})", gas_cost, current_gas);
 			println!("Executing: {} ", instructions::get_info(instruction).name);
 			// Execute instruction
 			let result = try!(self.exec_instruction(
-					current_gas, params, ext, instruction, &mut reader, &mut stack
+					current_gas, params, ext, instruction, &mut reader, &mut mem, &mut stack
 			));
 
 			// Advance
@@ -169,10 +230,9 @@ impl evm::Evm for Interpreter {
 impl Interpreter {
 
 	fn get_gas_cost(&self,
-									gas: Gas,
-									params: &ActionParams,
 									ext: &evm::Ext,
 									instruction: Instruction,
+									current_mem_size: usize,
 									stack: &Stack<U256>
 									) -> evm::Result {
 
@@ -276,16 +336,34 @@ impl Interpreter {
 					Ok(gas)
 				},
 				InstructionCost::GasMem(gas, mem) => {
-					// TODO [todr] Take memory into consideration
-					Ok(gas)
+					let mem_gas = self.mem_gas_cost(schedule, current_mem_size, &mem);
+					Ok(gas + mem_gas)
 				},
 				InstructionCost::GasMemCopy(gas, mem, copy) => {
-					// TODO [todr] Take memory into consideration
+					let mem_gas = self.mem_gas_cost(schedule, current_mem_size, &mem);
 					let copy_gas = U256::from(schedule.copy_gas) * (add_u256_usize(&copy, 31) / U256::from(32));
-					Ok(gas + copy_gas)
+					Ok(gas + copy_gas + mem_gas)
 				}
 			}
 	}
+	
+	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> U256 {
+		let gas_for_mem = |mem_size: usize| {
+			let s = mem_size / 32;
+			schedule.memory_gas * s + s * s / schedule.quad_coeff_div
+		};
+
+		let mem_size_rounded = add_u256_usize(mem_size, 31).low_u64() as usize / 32 * 32;
+		let mem_gas = gas_for_mem(mem_size_rounded);
+		let current_mem_gas = gas_for_mem(current_mem_size);
+
+		U256::from(if mem_gas > current_mem_gas {
+			mem_gas - current_mem_gas
+		} else {
+			0
+		})
+	}
+
 
 	fn mem_needed(&self, offset: &U256, size: &U256) -> U256 {
 		if self.is_zero(size) {
@@ -301,6 +379,7 @@ impl Interpreter {
 											ext: &mut evm::Ext,
 											instruction: Instruction,
 											code: &mut CodeReader, 
+											mem: &mut Memory, 
 											stack: &mut Stack<U256>
 										 ) -> Result<InstructionResult, evm::Error> {
 		match instruction {
@@ -328,7 +407,7 @@ impl Interpreter {
 				let init_size = stack.pop_back();
 
 				// TODO [todr] Fix u64 for gas
-				let contract_code = code.get_slice(init_off, init_size);
+				let contract_code = mem.read_slice(init_off, init_size);
 				// TODO [todr] Fix u64 for gasLeft
 				let (gas_left, maybe_address) = try!(
 					ext.create(gas.low_u64(), &endowment, &contract_code)
@@ -345,7 +424,7 @@ impl Interpreter {
 			instructions::RETURN => {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
-				let return_code = code.get_slice(init_off, init_size);
+				let return_code = mem.read_slice(init_off, init_size);
 				// TODO [todr] Fix u64 for gas
 				let gas_left = try!(ext.ret(gas.low_u64(), &return_code));
 				// TODO [todr] Fix u64 for gasLeft
@@ -374,31 +453,35 @@ impl Interpreter {
 					.skip(2)
 					.map(H256::from)
 					.collect();
-				ext.log(topics, code.get_slice(offset, size));
+				ext.log(topics, mem.read_slice(offset, size));
 			},
 			instructions::PUSH1...instructions::PUSH32 => {
 				// Load to stack
 				let bytes = instructions::get_push_bytes(instruction);
-				// TODO [todr] move positions management outside of CodeReader
 				let val = code.read(bytes);
 				stack.push(val);
 			},
 			instructions::MLOAD => {
-				// TODO [ToDr] load word from mem?
+				let word = mem.read(stack.pop_back());
+				stack.push(U256::from(word));
 			},
 			instructions::MSTORE => {
-				// TODO [ToDr] save word to mem?
+				let offset = stack.pop_back();
+				let word = stack.pop_back();
+				mem.write(offset, word);
 			},
 			instructions::MSTORE8 => {
-				// TODO [ToDr] save byte to mem?
+				let offset = stack.pop_back();
+				let byte = stack.pop_back();
+				mem.write_byte(offset, byte);
 			},
 			instructions::MSIZE => {
-				// Size of memry to stack
+				stack.push(U256::from(mem.size()));
 			},
 			instructions::SHA3 => {
 				let offset = stack.pop_back();
 				let size = stack.pop_back();
-				let sha3 = code.get_slice(offset, size).sha3();
+				let sha3 = mem.read_slice(offset, size).sha3();
 				stack.push(U256::from(sha3.as_slice()));
 			},
 			instructions::SLOAD => {
@@ -446,12 +529,17 @@ impl Interpreter {
 				let len = ext.extcode(&address).len();
 				stack.push(U256::from(len));
 			},
-			// instructions::CALLDATACOPY => {},
-			// instructions::CODECOPY => {},
-			// instructions::EXTCODECOPY => {
-			// 	let address = u256_to_addres(&stack.pop_back());
-			// 	let code = ext.extcode(address);
-			// },
+			instructions::CALLDATACOPY => {
+				self.copy_data_to_memory(mem, stack, &params.data);
+			},
+			instructions::CODECOPY => {
+				self.copy_data_to_memory(mem, stack, &params.code);
+			},
+			instructions::EXTCODECOPY => {
+				let address = u256_to_address(&stack.pop_back());
+				let code = ext.extcode(&address);
+				self.copy_data_to_memory(mem, stack, &code);
+			},
 			instructions::GASPRICE => {
 				stack.push(params.gas_price.clone());
 			},
@@ -480,6 +568,17 @@ impl Interpreter {
 			}
 		};
 		Ok(InstructionResult::AdditionalGasCost(U256::zero()))
+	}
+
+	fn copy_data_to_memory(&self,
+												 mem: &mut Memory,
+												 stack: &mut Stack<U256>,
+												 data: &Bytes) {
+		let offset = stack.pop_back();
+		let index = stack.pop_back().low_u64() as usize;
+		let size = stack.pop_back().low_u64() as usize;
+
+		mem.write_slice(offset, &data[index..size]);
 	}
 
 	fn verify_instructions_requirements(&self, 
@@ -671,5 +770,33 @@ mod tests {
 
 		// then
 		assert!(valid_jump_destinations.contains(&66));
+	}
+
+	#[test]
+	fn test_memory_read_and_write() {
+		// given
+		let mem : &mut super::Memory = &mut vec![];
+		mem.resize(4);
+
+		// when
+		mem.write(U256::from(0x00), U256::from(0xabcdef));
+
+		// then
+		assert_eq!(mem.read(U256::from(0x00)), 0xabcdef);
+	}
+
+	#[test]
+	fn test_memory_read_and_write_byte() {
+		// given
+		let mem : &mut super::Memory = &mut vec![];
+		mem.resize(4);
+
+		// when
+		mem.write_byte(U256::from(0x01), U256::from(0xab));
+		mem.write_byte(U256::from(0x02), U256::from(0xcd));
+		mem.write_byte(U256::from(0x03), U256::from(0xef));
+
+		// then
+		assert_eq!(mem.read(U256::from(0x00)), 0xabcdef);
 	}
 }
