@@ -168,7 +168,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let mut state = State::new_temp();
 
 		test.find("pre").map(|pre| for (addr, s) in pre.as_object().unwrap() {
-			let address = address_from_str(addr);
+			let address = Address::from(addr.as_ref());
 			let balance = u256_from_json(&s["balance"]);
 			let code = bytes_from_json(&s["code"]);
 			let _nonce = u256_from_json(&s["nonce"]);
@@ -235,7 +235,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 
 				test.find("post").map(|pre| for (addr, s) in pre.as_object().unwrap() {
-					let address = address_from_str(addr);
+					let address = Address::from(addr.as_ref());
 					//let balance = u256_from_json(&s["balance"]);
 
 					fail_unless(state.code(&address).unwrap_or(vec![]) == bytes_from_json(&s["code"]), "code is incorrect");
