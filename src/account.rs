@@ -110,6 +110,12 @@ macro_rules! map {
 	}
 }
 
+macro_rules! mapx {
+	( $( $x:expr => $y:expr ),* ) => {
+		vec![ $( ( From::from($x), From::from($y) ) ),* ].into_iter().collect::<BTreeMap<_, _>>()
+	}
+}
+
 macro_rules! x {
 	( $x:expr ) => {
 		From::from($x)
@@ -246,42 +252,52 @@ fn account_diff_existence() {
 
 #[test]
 fn account_diff_basic() {
-	let a = PodAccount{balance: U256::from(69u64), nonce: U256::zero(), code: vec![], storage: BTreeMap::new()};
-	let b = PodAccount{balance: U256::from(42u64), nonce: U256::from(1u64), code: vec![], storage: BTreeMap::new()};
+	let a = PodAccount{balance: x!(69), nonce: x!(0), code: vec![], storage: map![]};
+	let b = PodAccount{balance: x!(42), nonce: x!(1), code: vec![], storage: map![]};
 	assert_eq!(pod_diff(Some(&a), Some(&b)), Some(AccountDiff {
-		balance: Diff::Changed(U256::from(69u64), U256::from(42u64)),
-		nonce: Diff::Changed(U256::zero(), U256::from(1u64)),
+		balance: Diff::Changed(x!(69), x!(42)),
+		nonce: Diff::Changed(x!(0), x!(1)),
 		code: Diff::Same,
-		storage: BTreeMap::new(),
+		storage: map![],
 	}));
 }
 
 #[test]
 fn account_diff_code() {
-	let a = PodAccount{balance: U256::zero(), nonce: U256::zero(), code: vec![], storage: BTreeMap::new()};
-	let b = PodAccount{balance: U256::zero(), nonce: U256::from(1u64), code: vec![0x00u8], storage: BTreeMap::new()};
+	let a = PodAccount{balance: x!(0), nonce: x!(0), code: vec![], storage: map![]};
+	let b = PodAccount{balance: x!(0), nonce: x!(1), code: vec![0], storage: map![]};
 	assert_eq!(pod_diff(Some(&a), Some(&b)), Some(AccountDiff {
 		balance: Diff::Same,
-		nonce: Diff::Changed(U256::zero(), U256::from(1u64)),
-		code: Diff::Changed(vec![], vec![0x00u8]),
-		storage: BTreeMap::new(),
+		nonce: Diff::Changed(x!(0), x!(1)),
+		code: Diff::Changed(vec![], vec![0]),
+		storage: map![],
 	}));
 }
 
 #[test]
 fn account_diff_storage() {
-	let a = PodAccount{balance: U256::zero(), nonce: U256::zero(), code: vec![], storage: vec![(1, 1), (2, 2), (3, 3), (4, 4), (5, 0), (6, 0), (7, 0)].into_iter().fold(BTreeMap::new(), |mut m, (k, v)|{m.insert(H256::from(k), H256::from(v)); m})};
-	let b = PodAccount{balance: U256::zero(), nonce: U256::zero(), code: vec![], storage: vec![(1, 1), (2, 3), (3, 0), (5, 0), (7, 7), (8, 0), (9, 9)].into_iter().fold(BTreeMap::new(), |mut m, (k, v)|{m.insert(H256::from(k), H256::from(v)); m})};
+	let a = PodAccount {
+		balance: x!(0),
+		nonce: x!(0),
+		code: vec![],
+		storage: mapx![1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 0, 6 => 0, 7 => 0]
+	};
+	let b = PodAccount {
+		balance: x!(0),
+		nonce: x!(0),
+		code: vec![],
+		storage: mapx![1 => 1, 2 => 3, 3 => 0, 5 => 0, 7 => 7, 8 => 0, 9 => 9]
+	};
 	assert_eq!(pod_diff(Some(&a), Some(&b)), Some(AccountDiff {
 		balance: Diff::Same,
 		nonce: Diff::Same,
 		code: Diff::Same,
 		storage: map![
-			x!(2) => Diff::new(H256::from(2), H256::from(3)),
-			x!(3) => Diff::new(H256::from(3), H256::from(0)),
-			x!(4) => Diff::new(H256::from(4), H256::from(0)),
-			x!(7) => Diff::new(H256::from(0), H256::from(7)),
-			x!(9) => Diff::new(H256::from(0), H256::from(9))
+			x!(2) => Diff::new(x!(2), x!(3)),
+			x!(3) => Diff::new(x!(3), x!(0)),
+			x!(4) => Diff::new(x!(4), x!(0)),
+			x!(7) => Diff::new(x!(0), x!(7)),
+			x!(9) => Diff::new(x!(0), x!(9))
 		],
 	}));
 }
