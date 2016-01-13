@@ -237,8 +237,16 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 					let address = address_from_str(addr);
 					//let balance = u256_from_json(&s["balance"]);
 
-					fail_unless(state.code(&address) == Some(bytes_from_json(&s["code"])), "code is incorrect");
+					fail_unless(state.code(&address).unwrap_or(vec![]) == bytes_from_json(&s["code"]), "code is incorrect");
 					fail_unless(state.balance(&address) == u256_from_json(&s["balance"]), "balance is incorrect");
+					fail_unless(state.nonce(&address) == u256_from_json(&s["nonce"]), "nonce is incorrect");
+
+					for (k, v) in s["storage"].as_object().unwrap() {
+						let key = H256::from(&u256_from_str(k));
+						let val = H256::from(&u256_from_json(v));
+
+						fail_unless(state.storage_at(&address, &key) == val, "storage is incorrect");
+					}
 				});
 
 			}
