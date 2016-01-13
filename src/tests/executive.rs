@@ -213,10 +213,11 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		}).is_none();
 		
 		let mut substate = Substate::new();
+		let mut output = vec![];
 
 		// execute
 		let res = {
-			let ex = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(&mut []));
+			let ex = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
 			let mut test_ext = TestExt::new(ex);
 			let evm = Factory::create();
 			evm.exec(&params, &mut test_ext)
@@ -226,9 +227,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
 			Ok(gas_left) => {
+				println!("name: {}, gas_left : {:?}, expected: {:?}", name, gas_left, u256_from_json(&test["gas"]));
 				fail_unless(!out_of_gas, "expected to run out of gas.");
 				fail_unless(gas_left == u256_from_json(&test["gas"]), "gas_left is incorrect");
-				println!("name: {}, gas_left : {:?}, expected: {:?}", name, gas_left, u256_from_json(&test["gas"]));
+				fail_unless(output == bytes_from_json(&test["out"]), "output is incorrect");
 			}
 		}
 	}

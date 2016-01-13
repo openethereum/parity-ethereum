@@ -160,7 +160,9 @@ impl<'a> Executive<'a> {
 					code: self.state.code(address).unwrap_or(vec![]),
 					data: t.data.clone(),
 				};
-				self.call(&params, &mut substate, &mut [])
+				// TODO: move output upstream
+				let mut out = vec![];
+				self.call(&params, &mut substate, BytesRef::Flexible(&mut out))
 			}
 		};
 
@@ -172,7 +174,7 @@ impl<'a> Executive<'a> {
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
-	pub fn call(&mut self, params: &ActionParams, substate: &mut Substate, output: &mut [u8]) -> evm::Result {
+	pub fn call(&mut self, params: &ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
 		// at first, transfer value to destination
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
@@ -181,7 +183,7 @@ impl<'a> Executive<'a> {
 			let cost = self.engine.cost_of_builtin(&params.address, &params.data);
 			match cost <= params.gas {
 				true => {
-					self.engine.execute_builtin(&params.address, &params.data, output);
+					self.engine.execute_builtin(&params.address, &params.data, &mut output);
 					Ok(params.gas - cost)
 				},
 				false => Err(evm::Error::OutOfGas)
@@ -270,7 +272,7 @@ impl<'a> Executive<'a> {
 pub enum OutputPolicy<'a> {
 	/// Return reference to fixed sized output.
 	/// Used for message calls.
-	Return(&'a mut [u8]),
+	Return(BytesRef<'a>),
 	/// Init new contract as soon as `RETURN` is called.
 	InitContract
 }
@@ -405,7 +407,7 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
-		ex.call(&params, self.substate, output).map(|gas_left| {
+		ex.call(&params, self.substate, BytesRef::Fixed(output)).map(|gas_left| {
 			gas + gas_left.low_u64()
 		})
 	}
@@ -416,9 +418,16 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
 		match &mut self.output {
-			&mut OutputPolicy::Return(ref mut slice) => unsafe {
+			&mut OutputPolicy::Return(BytesRef::Fixed(ref mut slice)) => unsafe {
 				let len = cmp::min(slice.len(), data.len());
 				ptr::copy(data.as_ptr(), slice.as_mut_ptr(), len);
+				Ok(gas)
+			},
+			&mut OutputPolicy::Return(BytesRef::Flexible(ref mut vec)) => unsafe {
+				vec.clear();
+				vec.reserve(data.len());
+				ptr::copy(data.as_ptr(), vec.as_mut_ptr(), data.len());
+				vec.set_len(data.len());
 				Ok(gas)
 			},
 			&mut OutputPolicy::InitContract => {
@@ -743,7 +752,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.call(&params, &mut substate, &mut []).unwrap()
+			ex.call(&params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(73_237));
@@ -785,7 +794,7 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.call(&params, &mut substate, &mut []).unwrap()
+			ex.call(&params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(59_870));
