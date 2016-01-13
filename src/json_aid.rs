@@ -35,7 +35,7 @@ pub fn h256_from_json(json: &Json) -> H256 {
 	}
 }
 
-pub fn u256_from_hex(s: &str) -> U256 {
+pub fn u256_from_str(s: &str) -> U256 {
 	if s.len() >= 2 && &s[0..2] == "0x" {
 		U256::from_str(&s[2..]).unwrap_or(U256::from(0))
 	} else {
@@ -44,7 +44,7 @@ pub fn u256_from_hex(s: &str) -> U256 {
 }
 
 pub fn u256_from_json(json: &Json) -> U256 {
-	u256_from_hex(json.as_string().unwrap_or(""))
+	u256_from_str(json.as_string().unwrap_or(""))
 }
 
 pub fn usize_from_json(json: &Json) -> usize {
