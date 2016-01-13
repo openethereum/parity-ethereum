@@ -16,26 +16,26 @@ const LAST_USER_TIMER: usize = USER_TIMER + MAX_USER_TIMERS - 1;
 pub const USER_TOKEN: usize = LAST_USER_TIMER + 1;
 
 /// Messages used to communicate with the event loop from other threads.
-pub enum IoMessage<M> where M: Send + Sized {
+pub enum IoMessage<Message> where Message: Send + Sized {
 	/// Shutdown the event loop
 	Shutdown,
 	/// Register a new protocol handler.
 	AddHandler {
-		handler: Box<IoHandler<M>+Send>,
+		handler: Box<IoHandler<Message>+Send>,
 	},
 	/// Broadcast a message across all protocol handlers.
-	UserMessage(M)
+	UserMessage(Message)
 }
 
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
-pub struct IoContext<'s, M> where M: Send + 'static {
+pub struct IoContext<'s, Message> where Message: Send + 'static {
 	timers: &'s mut Slab<UserTimer>,
-	pub event_loop: &'s mut EventLoop<IoManager<M>>,
+	pub event_loop: &'s mut EventLoop<IoManager<Message>>,
 }
 
-impl<'s, M> IoContext<'s, M> where M: Send + 'static {
+impl<'s, Message> IoContext<'s, Message> where Message: Send + 'static {
 	/// Create a new IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(event_loop: &'s mut EventLoop<IoManager<M>>, timers: &'s mut Slab<UserTimer>) -> IoContext<'s, M> {
+	fn new(event_loop: &'s mut EventLoop<IoManager<Message>>, timers: &'s mut Slab<UserTimer>) -> IoContext<'s, Message> {
 		IoContext {
 			event_loop: event_loop,
 			timers: timers,
@@ -56,7 +56,7 @@ impl<'s, M> IoContext<'s, M> where M: Send + 'static {
 	}
 
 	/// Broadcast a message to other IO clients
-	pub fn message(&mut self, message: M) {
+	pub fn message(&mut self, message: Message) {
 		match self.event_loop.channel().send(IoMessage::UserMessage(message)) {
 			Ok(_) => {}
 			Err(e) => { panic!("Error sending io message {:?}", e); }
@@ -69,14 +69,14 @@ struct UserTimer {
 }
 
 /// Root IO handler. Manages user handlers, messages and IO timers.
-pub struct IoManager<M> where M: Send {
+pub struct IoManager<Message> where Message: Send {
 	timers: Slab<UserTimer>,
-	handlers: Vec<Box<IoHandler<M>>>,
+	handlers: Vec<Box<IoHandler<Message>>>,
 }
 
-impl<M> IoManager<M> where M: Send + 'static {
+impl<Message> IoManager<Message> where Message: Send + 'static {
 	/// Creates a new instance and registers it with the event loop.
-	pub fn start(event_loop: &mut EventLoop<IoManager<M>>) -> Result<(), UtilError> {
+	pub fn start(event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), UtilError> {
 		let mut io = IoManager {
 			timers: Slab::new_starting_at(Token(USER_TIMER), MAX_USER_TIMERS),
 			handlers: Vec::new(),
@@ -86,24 +86,24 @@ impl<M> IoManager<M> where M: Send + 'static {
 	}
 }
 
-impl<M> Handler for IoManager<M> where M: Send + 'static {
+impl<Message> Handler for IoManager<Message> where Message: Send + 'static {
 	type Timeout = Token;
-	type Message = IoMessage<M>;
+	type Message = IoMessage<Message>;
 
 	fn ready(&mut self, event_loop: &mut EventLoop<Self>, token: Token, events: EventSet) {
 		if events.is_hup() {
 			for h in self.handlers.iter_mut() {
-				h.stream_hup(IoContext::new(event_loop, &mut self.timers), token.as_usize());
+				h.stream_hup(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 			}
 		}
 		else if events.is_readable() {
 			for h in self.handlers.iter_mut() {
-				h.stream_readable(IoContext::new(event_loop, &mut self.timers), token.as_usize());
+				h.stream_readable(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 			}
 		}
 		else if events.is_writable() {
 			for h in self.handlers.iter_mut() {
-				h.stream_writable(IoContext::new(event_loop, &mut self.timers), token.as_usize());
+				h.stream_writable(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 			}
 		}
 	}
@@ -116,13 +116,13 @@ impl<M> Handler for IoManager<M> where M: Send + 'static {
 					timer.delay
 				};
 				for h in self.handlers.iter_mut() {
-					h.timeout(IoContext::new(event_loop, &mut self.timers), token.as_usize());
+					h.timeout(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 				}
 				event_loop.timeout_ms(token, delay).expect("Error re-registering user timer");
 			}
 			_ => { // Just pass the event down. IoHandler is supposed to re-register it if required.
 				for h in self.handlers.iter_mut() {
-					h.timeout(IoContext::new(event_loop, &mut self.timers), token.as_usize());
+					h.timeout(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 				}
 			}
 		}
@@ -139,7 +139,7 @@ impl<M> Handler for IoManager<M> where M: Send + 'static {
 			},
 			IoMessage::UserMessage(ref mut data) => {
 				for h in self.handlers.iter_mut() {
-					h.message(IoContext::new(event_loop, &mut self.timers), data);
+					h.message(&mut IoContext::new(event_loop, &mut self.timers), data);
 				}
 			}
 		}
@@ -147,19 +147,19 @@ impl<M> Handler for IoManager<M> where M: Send + 'static {
 }
 
 /// General IO Service. Starts an event loop and dispatches IO requests.
-/// 'M' is a notification message type
-pub struct IoService<M> where M: Send + 'static {
+/// 'Message' is a notification message type
+pub struct IoService<Message> where Message: Send + 'static {
 	thread: Option<JoinHandle<()>>,
-	host_channel: Sender<IoMessage<M>>
+	host_channel: Sender<IoMessage<Message>>
 }
 
-impl<M> IoService<M> where M: Send + 'static {
+impl<Message> IoService<Message> where Message: Send + 'static {
 	/// Starts IO event loop
-	pub fn start() -> Result<IoService<M>, UtilError> {
+	pub fn start() -> Result<IoService<Message>, UtilError> {
 		let mut event_loop = EventLoop::new().unwrap();
         let channel = event_loop.channel();
 		let thread = thread::spawn(move || {
-			IoManager::<M>::start(&mut event_loop).unwrap(); //TODO:
+			IoManager::<Message>::start(&mut event_loop).unwrap(); //TODO:
 		});
 		Ok(IoService {
 			thread: Some(thread),
@@ -168,7 +168,7 @@ impl<M> IoService<M> where M: Send + 'static {
 	}
 
 	/// Regiter a IO hadnler with the event loop.
-	pub fn register_handler(&mut self, handler: Box<IoHandler<M>+Send>) -> Result<(), IoError> {
+	pub fn register_handler(&mut self, handler: Box<IoHandler<Message>+Send>) -> Result<(), IoError> {
 		try!(self.host_channel.send(IoMessage::AddHandler {
 			handler: handler,
 		}));
@@ -176,13 +176,13 @@ impl<M> IoService<M> where M: Send + 'static {
 	}
 
 	/// Send a message over the network. Normaly `HostIo::send` should be used. This can be used from non-io threads.
-	pub fn send_message(&mut self, message: M) -> Result<(), IoError> {
+	pub fn send_message(&mut self, message: Message) -> Result<(), IoError> {
 		try!(self.host_channel.send(IoMessage::UserMessage(message)));
 		Ok(())
 	}
 }
 
-impl<M> Drop for IoService<M> where M: Send {
+impl<Message> Drop for IoService<Message> where Message: Send {
 	fn drop(&mut self) {
 		self.host_channel.send(IoMessage::Shutdown).unwrap();
 		self.thread.take().unwrap().join().unwrap();

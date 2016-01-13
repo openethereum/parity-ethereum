@@ -89,3 +89,4 @@ pub use heapsizeof::*;
 pub use squeeze::*;
 pub use semantic_version::*;
 pub use network::*;
+pub use io::*;
