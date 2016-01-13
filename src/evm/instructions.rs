@@ -25,9 +25,9 @@ pub fn get_dup_position (i: Instruction) -> usize {
 
 #[test]
 fn test_get_dup_position() {
-	assert_eq!(get_dup_position(DUP1), 1);
-	assert_eq!(get_dup_position(DUP5), 5);
-	assert_eq!(get_dup_position(DUP10), 10);
+	assert_eq!(get_dup_position(DUP1), 0);
+	assert_eq!(get_dup_position(DUP5), 4);
+	assert_eq!(get_dup_position(DUP10), 9);
 }
 
 pub fn get_swap_position (i : Instruction) -> usize {
