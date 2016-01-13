@@ -73,6 +73,11 @@ impl<'a> CodeReader<'a> {
 		U256::zero()
 	}
 
+	fn len (&self) -> usize {
+		self.code.len()
+	}
+
+	// TODO [todr] All get_slice should operate on memory not code!!!
 	/// Retrieve part of the code described by offset and size
 	fn get_slice(&self, init_off_u: U256, init_size_u: U256) -> &[u8] {
 		let init_off = init_off_u.low_u64() as usize;
@@ -161,7 +166,7 @@ impl Interpreter {
 				// TODO [todr] Fix u64 for gasLeft
 				let (gas_left, maybe_address) = try!(ext.create(gas.low_u64(), &endowment, &contract_code));
 				match maybe_address {
-					Some(address) => stack.push(U256::from(address)),
+					Some(address) => stack.push(address_to_u256(address)),
 					None => stack.push(U256::zero())
 				}
 				Ok(U256::from(gas_left))
@@ -206,6 +211,7 @@ impl Interpreter {
 			instructions::PUSH1...instructions::PUSH32 => {
 				// Load to stack
 				let bytes = instructions::get_push_bytes(instruction);
+				// TODO [todr] move positions management outside of CodeReader
 				let val = code.read(bytes);
 				stack.push(val);
 				Ok(gas)
@@ -226,6 +232,13 @@ impl Interpreter {
 				// Size of memry to stack
 				Ok(gas)
 			},
+			instructions::SHA3 => {
+				let offset = stack.pop_back();
+				let size = stack.pop_back();
+				let sha3 = code.get_slice(offset, size).sha3();
+				stack.push(U256::from(sha3.as_slice()));
+				Ok(gas)
+			},
 			instructions::SLOAD => {
 				let key = H256::from(&stack.pop_back());
 				let word = U256::from(ext.sload(&key).as_slice());
@@ -244,6 +257,79 @@ impl Interpreter {
 			},
 			instructions::GAS => {
 				stack.push(U256::from(gas));
+				Ok(gas)
+			},
+			instructions::ADDRESS => {
+				stack.push(address_to_u256(params.address.clone()));
+				Ok(gas)
+			},
+			instructions::ORIGIN => {
+				stack.push(address_to_u256(params.origin.clone()));
+				Ok(gas)
+			},
+			instructions::BALANCE => {
+				let address = u256_to_address(&stack.pop_back());
+				let balance = ext.balance(&address);
+				stack.push(balance);
+				Ok(gas)
+			},
+			instructions::CALLER => {
+				stack.push(address_to_u256(params.sender.clone()));
+				Ok(gas)
+			},
+			instructions::CALLVALUE => {
+				stack.push(params.value.clone());
+				Ok(gas)
+			},
+			// instructions::CALLDATALOAD
+			instructions::CALLDATASIZE => {
+				stack.push(U256::from(params.data.len()));
+				Ok(gas)
+			},
+			instructions::CODESIZE => {
+				stack.push(U256::from(code.len()));
+				Ok(gas)
+			},
+			instructions::EXTCODESIZE => {
+				let address = u256_to_address(&stack.pop_back());
+				let len = ext.extcode(&address).len();
+				stack.push(U256::from(len));
+				Ok(gas)
+			},
+			// instructions::CALLDATACOPY => {},
+			// instructions::CODECOPY => {},
+			// instructions::EXTCODECOPY => {
+			// 	let address = u256_to_addres(&stack.pop_back());
+			// 	let code = ext.extcode(address);
+			// },
+			instructions::GASPRICE => {
+				stack.push(params.gas_price.clone());
+				Ok(gas)
+			},
+			instructions::BLOCKHASH => {
+				let block_number = stack.pop_back();
+				let block_hash = ext.blockhash(&block_number);
+				stack.push(U256::from(block_hash.as_slice()));
+				Ok(gas)
+			},
+			instructions::COINBASE => {
+				stack.push(address_to_u256(ext.env_info().author.clone()));
+				Ok(gas)
+			},
+			instructions::TIMESTAMP => {
+				stack.push(U256::from(ext.env_info().timestamp));
+				Ok(gas)
+			},
+			instructions::NUMBER => {
+				stack.push(U256::from(ext.env_info().number));
+				Ok(gas)
+			},
+			instructions::DIFFICULTY => {
+				stack.push(ext.env_info().difficulty.clone());
+				Ok(gas)
+			},
+			instructions::GASLIMIT => {
+				stack.push(ext.env_info().gas_limit.clone());
 				Ok(gas)
 			},
 			_ => {
@@ -267,6 +353,14 @@ impl Interpreter {
 		U256::zero() == val
 	}
 
+	fn bool_to_u256(&self, val: bool) -> U256 {
+		if val {
+			U256::one()
+		} else {
+			U256::zero()
+		}
+	}
+
 	fn exec_stack_instruction(&self, instruction: Instruction, stack : &mut Stack<U256>) {
 		match instruction {
 			instructions::DUP1...instructions::DUP16 => {
@@ -278,11 +372,89 @@ impl Interpreter {
 				let position = instructions::get_swap_position(instruction);
 				stack.swap_with_top(position)
 			},
+			instructions::POP => {
+				stack.pop_back();
+			},
 			instructions::ADD => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(a + b);
 			},
+			instructions::MUL => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(a * b);
+			},
+			instructions::SUB => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(a - b);
+			},
+			instructions::DIV => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(if self.is_zero(b) {
+					a / b 
+				} else {
+					U256::zero()
+				});
+			},
+			instructions::MOD => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(if self.is_zero(b) {
+					a % b 
+				} else {
+					U256::zero()
+				});
+			},
+			// instructions::SDIV => {},
+			// instructions::SMOD => {},
+			// instructions::EXP => {},
+			instructions::NOT => {
+				let a = stack.pop_back();
+				stack.push(!a);
+			},
+			instructions::LT => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(self.bool_to_u256(a < b));
+			},
+			// instructions::SLT => {},
+			instructions::GT => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(self.bool_to_u256(a > b));
+			},
+			// instructions::SGT => {},
+			instructions::EQ => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(self.bool_to_u256(a == b));
+			},
+			instructions::ISZERO => {
+				let a = stack.pop_back();
+				stack.push(self.bool_to_u256(self.is_zero(a)));
+			},
+			instructions::AND => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(a & b);
+			},
+			instructions::OR => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(a | b);
+			},
+			instructions::XOR => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				stack.push(a ^ b);
+			},
+			// instructions::BYTE => {},
+			// instructions::ADDMOD => {},
+			// instructions::MULMOD => {},
+			// instructions::SIGNEXTEND => {},
 			_ => panic!(format!("Unknown stack instruction: {:x}", instruction))
 		}
   }
@@ -304,6 +476,15 @@ impl Interpreter {
 
     return jump_dests;
   }
+
+}
+
+fn u256_to_address(value: &U256) -> Address {
+	Address::from(H256::from(value))
+}
+
+fn address_to_u256(value: Address) -> U256 {
+	U256::from(H256::from(value).as_slice())
 }
 
 #[cfg(test)]
