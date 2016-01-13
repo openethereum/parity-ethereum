@@ -6,6 +6,7 @@ use header::BlockNumber;
 pub type LastHashes = Vec<H256>;
 
 /// Information concerning the execution environment for a message-call/contract-creation.
+#[derive(Debug)]
 pub struct EnvInfo {
 	/// The block number.
 	pub number: BlockNumber,
@@ -33,6 +34,18 @@ impl EnvInfo {
 			gas_limit: U256::zero(),
 			last_hashes: vec![],
 			gas_used: U256::zero()
+		}
+	}
+
+	pub fn from_json(json: &Json) -> EnvInfo {
+		EnvInfo {
+			number: u64_from_json(&json["currentNumber"]),
+			author: address_from_json(&json["currentCoinbase"]),
+			difficulty: u256_from_json(&json["currentDifficulty"]),
+			gas_limit: u256_from_json(&json["currentGasLimit"]),
+			timestamp: u64_from_json(&json["currentTimestamp"]),
+			last_hashes: vec![h256_from_json(&json["previousHash"])],
+			gas_used: U256::zero(),
 		}
 	}
 }
