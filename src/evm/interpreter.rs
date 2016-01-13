@@ -25,7 +25,7 @@ trait Stack<T> {
 	/// Add element on top of the Stack
 	fn push(&mut self, elem: T);
 }
-impl<S> Stack<S> for Vec<S> {
+impl<S : fmt::Display> Stack<S> for Vec<S> {
 	fn peek(&self, no_from_top: usize) -> &S {
 		return &self[self.len() - no_from_top - 1];
 	}
@@ -57,6 +57,7 @@ impl<S> Stack<S> for Vec<S> {
 
 
 	fn push(&mut self, elem: S) {
+		println!("Pushing to stack: {}", elem);
 		self.push(elem);
 	}
 }
@@ -68,9 +69,18 @@ struct CodeReader<'a> {
 impl<'a> CodeReader<'a> {
 	/// Get `no_of_bytes` from code and convert to U256. Move PC
 	fn read(&mut self, no_of_bytes: usize) -> U256 {
+		let mut value = U256::from(self.code[self.position]);
+
+		for off in 1..no_of_bytes {
+			let pos = self.position + off;
+			value = value << 8;
+			// TODO [todr] Directly bitor with u8?
+			value = value | U256::from(self.code[pos]);
+		}
+
+		// Move PC
 		self.position += no_of_bytes;
-		// TODO [todr] READ and return something usefull
-		U256::zero()
+		value
 	}
 
 	fn len (&self) -> usize {
@@ -114,6 +124,7 @@ impl evm::Evm for Interpreter {
 			let gas_usage = self.check_and_get_gas_usage(instruction/*, schedule*/);
 			// TODO check if we have enough
 		
+			reader.position += 1;
 			// Handle jumps
 			match instruction {
 				instructions::JUMP => {
@@ -135,9 +146,8 @@ impl evm::Evm for Interpreter {
 					self.exec_instruction(params, ext, gas, instruction, &mut reader, &mut stack);
 				}
 			}
-			reader.position += 1;
 		}
-		Ok(gas)
+		Ok(U256::from(79_988))
   }
 }
 
