@@ -381,7 +381,7 @@ impl<'a> From<&'a U256> for H256 {
 			value.to_bytes(&mut ret);
 			ret
 		}
-    }
+	}
 }
 
 impl From<H256> for Address {
