@@ -1,6 +1,7 @@
 use client::BlockChainClient;
-use util::network::{HandlerIo, PeerId, PacketId,};
+use util::{NetworkContext, PeerId, PacketId,};
 use util::error::UtilError;
+use sync::SyncMessage;
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -16,15 +17,15 @@ pub trait SyncIo {
 	fn chain<'s>(&'s mut self) -> &'s mut BlockChainClient;
 }
 
-/// Wraps `HandlerIo` and the blockchain client
-pub struct NetSyncIo<'s, 'h> where 'h:'s {
-	network: &'s mut HandlerIo<'h>,
+/// Wraps `NetworkContext` and the blockchain client
+pub struct NetSyncIo<'s, 'h, 'io> where 'h: 's, 'io: 'h {
+	network: &'s mut NetworkContext<'h, 'io, SyncMessage>,
 	chain: &'s mut BlockChainClient
 }
 
-impl<'s, 'h> NetSyncIo<'s, 'h> {
-	/// Creates a new instance from the `HandlerIo` and the blockchain client reference.
-	pub fn new(network: &'s mut HandlerIo<'h>, chain: &'s mut BlockChainClient) -> NetSyncIo<'s,'h> {
+impl<'s, 'h, 'io> NetSyncIo<'s, 'h, 'io> {
+	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
+	pub fn new(network: &'s mut NetworkContext<'h, 'io, SyncMessage>, chain: &'s mut BlockChainClient) -> NetSyncIo<'s,'h,'io> {
 		NetSyncIo {
 			network: network,
 			chain: chain,
@@ -32,7 +33,7 @@ impl<'s, 'h> NetSyncIo<'s, 'h> {
 	}
 }
 
-impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
+impl<'s, 'h, 'op> SyncIo for NetSyncIo<'s, 'h, 'op> {
 	fn disable_peer(&mut self, peer_id: &PeerId) {
 		self.network.disable_peer(*peer_id);
 	}

@@ -24,7 +24,9 @@
 
 use std::sync::Arc;
 use client::BlockChainClient;
-use util::network::{ProtocolHandler, NetworkService, HandlerIo, TimerToken, PeerId, Message};
+use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
+use util::TimerToken;
+use util::Bytes;
 use sync::chain::ChainSync;
 use sync::io::NetSyncIo;
 
@@ -34,6 +36,13 @@ mod range_collection;
 
 #[cfg(test)]
 mod tests;
+
+/// Message type for external events
+pub enum SyncMessage {
+	/// New block has been imported into the blockchain
+	NewBlock(Bytes)
+}
+
 
 /// Ethereum network protocol handler
 pub struct EthSync {
@@ -47,7 +56,7 @@ pub use self::chain::SyncStatus;
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService, chain: Arc<BlockChainClient + Send + Sized>) {
+	pub fn register(service: &mut NetworkService<SyncMessage>, chain: Arc<BlockChainClient + Send + Sized>) {
 		let sync = Box::new(EthSync {
 			chain: chain,
 			sync: ChainSync::new(),
@@ -61,39 +70,39 @@ impl EthSync {
 	}
 
 	/// Stop sync
-	pub fn stop(&mut self, io: &mut HandlerIo) {
+	pub fn stop(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.abort(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
 	}
 
 	/// Restart sync
-	pub fn restart(&mut self, io: &mut HandlerIo) {
+	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.restart(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
 	}
 }
 
-impl ProtocolHandler for EthSync {
-	fn initialize(&mut self, io: &mut HandlerIo) {
+impl NetworkProtocolHandler<SyncMessage> for EthSync {
+	fn initialize(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.restart(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
 		io.register_timer(1000).unwrap();
 	}
 
-	fn read(&mut self, io: &mut HandlerIo, peer: &PeerId, packet_id: u8, data: &[u8]) {
+	fn read(&mut self, io: &mut NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		self.sync.on_packet(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()), peer, packet_id, data);
 	}
 
-	fn connected(&mut self, io: &mut HandlerIo, peer: &PeerId) {
+	fn connected(&mut self, io: &mut NetworkContext<SyncMessage>, peer: &PeerId) {
 		self.sync.on_peer_connected(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()), peer);
 	}
 
-	fn disconnected(&mut self, io: &mut HandlerIo, peer: &PeerId) {
+	fn disconnected(&mut self, io: &mut NetworkContext<SyncMessage>, peer: &PeerId) {
 		self.sync.on_peer_aborting(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()), peer);
 	}
 
-	fn timeout(&mut self, io: &mut HandlerIo, _timer: TimerToken) {
+	fn timeout(&mut self, io: &mut NetworkContext<SyncMessage>, _timer: TimerToken) {
 		self.sync.maintain_sync(&mut NetSyncIo::new(io, Arc::get_mut(&mut self.chain).unwrap()));
 	}
 
-	fn message(&mut self, _io: &mut HandlerIo, _message: &Message) {
+	fn message(&mut self, _io: &mut NetworkContext<SyncMessage>, _message: &SyncMessage) {
 	}
 }
 
