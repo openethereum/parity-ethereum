@@ -224,16 +224,22 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl PartialOrd for $from {
-			fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		impl Ord for $from {
+			fn cmp(&self, other: &Self) -> Ordering {
 				for i in 0..$size {
 					if self.0[i] > other.0[i] {
-						return Some(Ordering::Greater);
+						return Ordering::Greater;
 					} else if self.0[i] < other.0[i] {
-						return Some(Ordering::Less);
+						return Ordering::Less;
 					}
 				}
-				Some(Ordering::Equal)
+				Ordering::Equal
+			}
+		}
+
+		impl PartialOrd for $from {
+			fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+				Some(self.cmp(other))
 			}
 		}
 
