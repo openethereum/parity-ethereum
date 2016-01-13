@@ -1,36 +1,11 @@
 pub use common::*;
 
-pub fn clean(s: &str) -> &str {
-	if s.len() >= 2 && &s[0..2] == "0x" {
-		&s[2..]
-	} else {
-		s
-	}
-}
-
-pub fn bytes_from_json(json: &Json) -> Bytes {
-	let s = json.as_string().unwrap();
-	if s.len() % 2 == 1 {
-		FromHex::from_hex(&("0".to_string() + &(clean(s).to_string()))[..]).unwrap_or(vec![])
-	} else {
-		FromHex::from_hex(clean(s)).unwrap_or(vec![])
-	}
-}
-
-pub fn address_from_json(json: &Json) -> Address {
-	address_from_str(json.as_string().unwrap())
-}
-
 pub fn address_from_str<'a>(s: &'a str) -> Address {
 	if s.len() % 2 == 1 {
 		address_from_hex(&("0".to_string() + &(clean(s).to_string()))[..])
 	} else {
 		address_from_hex(clean(s))
 	}
-}
-
-pub fn u256_from_json(json: &Json) -> U256 {
-	u256_from_str(json.as_string().unwrap())
 }
 
 pub fn u256_from_str<'a>(s: &'a str) -> U256 {

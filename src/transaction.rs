@@ -3,6 +3,7 @@ use basic_types::*;
 use error::*;
 use evm::Schedule;
 
+#[derive(Debug,Clone)]
 pub enum Action {
 	Create,
 	Call(Address),
@@ -10,6 +11,7 @@ pub enum Action {
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
+#[derive(Debug,Clone)]
 pub struct Transaction {
 	pub nonce: U256,
 	pub gas_price: U256,
@@ -28,6 +30,21 @@ pub struct Transaction {
 }
 
 impl Transaction {
+	pub fn new() -> Self {
+		Transaction {
+			nonce: U256::zero(),
+			gas_price: U256::zero(),
+			gas: U256::zero(),
+			action: Action::Create,
+			value: U256::zero(),
+			data: vec![],
+			v: 0,
+			r: U256::zero(),
+			s: U256::zero(),
+			hash: RefCell::new(None),
+			sender: RefCell::new(None),
+		}
+	}
 	/// Create a new message-call transaction.
 	pub fn new_call(to: Address, value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
 		Transaction {
@@ -60,6 +77,32 @@ impl Transaction {
 			hash: RefCell::new(None),
 			sender: RefCell::new(None),
 		}
+	}
+
+	pub fn from_json(json: &Json) -> Transaction {
+		let mut r = Transaction {
+			nonce: u256_from_json(&json["nonce"]),
+			gas_price: u256_from_json(&json["gasPrice"]),
+			gas: u256_from_json(&json["gasLimit"]),
+			action: match bytes_from_json(&json["to"]) {
+				ref x if x.len() == 0 => Action::Create,
+				ref x => Action::Call(Address::from_slice(x)),
+			},
+			value: u256_from_json(&json["value"]),
+			data: bytes_from_json(&json["data"]),
+			v: match json.find("v") { Some(ref j) => u8_from_json(j), None => 0 },
+			r: match json.find("r") { Some(ref j) => u256_from_json(j), None => U256::zero() },
+			s: match json.find("s") { Some(ref j) => u256_from_json(j), None => U256::zero() },
+			hash: RefCell::new(None),
+			sender: match json.find("sender") {
+				Some(&Json::String(ref sender)) => RefCell::new(Some(address_from_hex(clean(sender)))),
+				_ => RefCell::new(None),
+			},
+		};
+		if let Some(&Json::String(ref secret_key)) = json.find("secretKey") {
+			r.sign(&h256_from_hex(clean(secret_key)));
+		}
+		r
 	}
 
 	/// Get the nonce of the transaction.
@@ -146,6 +189,7 @@ impl Transaction {
 
 	/// Signs the transaction as coming from `sender`.
 	pub fn sign(&mut self, secret: &Secret) {
+		// TODO: make always low.
 		let sig = ec::sign(secret, &self.message_hash());
 		let (r, s, v) = sig.unwrap().to_rsv();
 		self.r = r;
@@ -170,7 +214,10 @@ impl Transaction {
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
-	pub fn validate(self, schedule: &Schedule) -> Result<Transaction, Error> {
+	pub fn validate(self, schedule: &Schedule, require_low: bool) -> Result<Transaction, Error> {
+		if require_low && !ec::is_low_s(&self.s) {
+			return Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)));
+		}
 		try!(self.sender());
 		if self.gas < U256::from(self.gas_required(&schedule)) {
 			Err(From::from(TransactionError::InvalidGasLimit(OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas})))
