@@ -5,6 +5,7 @@ use executive::Executive;
 pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
+#[derive(Clone)]
 pub struct State {
 	db: OverlayDB,
 	root: H256,
@@ -179,9 +180,11 @@ impl State {
 		self.root = Self::commit_into(&mut self.db, r, self.cache.borrow_mut().deref_mut());
 	}
 
-	/// Populate the state from `accounts`. Just uses `commit_into`.
-	pub fn populate_from(&mut self, _accounts: &mut HashMap<Address, Option<Account>>) {
-		unimplemented!();
+	/// Populate the state from `accounts`.
+	pub fn populate_from(&mut self, accounts: HashMap<Address, PodAccount>) {
+		for (add, acc) in accounts.into_iter() {
+			self.cache.borrow_mut().insert(add, Some(Account::from_pod(acc)));
+		}
 	}
 
 	/// Pull account `a` in our cache from the trie DB and return it.
@@ -224,9 +227,9 @@ impl State {
 	}
 }
 
-impl Clone for State {
-	fn clone(&self) -> Self {
-		State::from_existing(self.db.clone(), self.root.clone(), self.account_start_nonce.clone())
+impl fmt::Debug for State {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{:?}", self.cache.borrow())
 	}
 }
 

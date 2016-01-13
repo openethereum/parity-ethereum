@@ -6,15 +6,16 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let mut failed = Vec::new();
 	let old_schedule = evm::Schedule::new_frontier();
 	let new_schedule = evm::Schedule::new_homestead();
+	let ot = RefCell::new(Transaction::new());
 	for (name, test) in json.as_object().unwrap() {
 		let mut fail = false;
-		let mut fail_unless = |cond: bool| if !cond && fail { failed.push(name.to_string()); fail = true };
+		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); println!("Transaction: {:?}", ot.borrow()); fail = true };
 		let schedule = match test.find("blocknumber")
 			.and_then(|j| j.as_string())
 			.and_then(|s| BlockNumber::from_str(s).ok())
 			.unwrap_or(0) { x if x < 900000 => &old_schedule, _ => &new_schedule };
 		let rlp = bytes_from_json(&test["rlp"]);
-		let res = UntrustedRlp::new(&rlp).as_val().map_err(|e| From::from(e)).and_then(|t: Transaction| t.validate(schedule));
+		let res = UntrustedRlp::new(&rlp).as_val().map_err(|e| From::from(e)).and_then(|t: Transaction| t.validate(schedule, schedule.have_delegate_call));
 		fail_unless(test.find("transaction").is_none() == res.is_err());
 		if let (Some(&Json::Object(ref tx)), Some(&Json::String(ref expect_sender))) = (test.find("transaction"), test.find("sender")) {
 			let t = res.unwrap();
@@ -25,8 +26,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			fail_unless(t.nonce == u256_from_json(&tx["nonce"]));
 			fail_unless(t.value == u256_from_json(&tx["value"]));
 			if let Action::Call(ref to) = t.action {
+				*ot.borrow_mut() = t.clone();
 				fail_unless(to == &address_from_json(&tx["to"]));
 			} else {
+				*ot.borrow_mut() = t.clone();
 				fail_unless(bytes_from_json(&tx["to"]).len() == 0);
 			}
 		}
