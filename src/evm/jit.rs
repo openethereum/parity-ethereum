@@ -209,9 +209,9 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			  init_size: u64,
 			  address: *mut evmjit::H256) {
 		unsafe {
-			match self.ext.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
+			match self.ext.create(&U256::from(*io_gas), &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
 				Ok((gas_left, opt)) => {
-					*io_gas = gas_left;
+					*io_gas = gas_left.low_u64();
 					*address = match opt {
 						Some(addr) => addr.into_jit(),
 						_ => Address::new().into_jit()
@@ -240,8 +240,8 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				out_size: u64,
 				code_address: *const evmjit::H256) -> bool {
 		unsafe {
-			let res = self.ext.call(*io_gas, 
-									call_gas, 
+			let res = self.ext.call(&U256::from(*io_gas), 
+									&U256::from(call_gas), 
 									&Address::from_jit(&*receive_address),
 									&U256::from_jit(&*value),
 									slice::from_raw_parts(in_beg, in_size as usize),
@@ -250,7 +250,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 
 			match res {
 				Ok(gas_left) => {
-					*io_gas = gas_left;
+					*io_gas = gas_left.low_u64();
 					true
 				},
 				Err(err @ evm::Error::OutOfGas) => {
@@ -345,7 +345,7 @@ impl evm::Evm for JitEvm {
 		
 		match res {
 			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),
-			evmjit::ReturnCode::Return => ext.ret(context.gas_left(), context.output_data()).map(|gas_left| U256::from(gas_left)),
+			evmjit::ReturnCode::Return => ext.ret(&U256::from(context.gas_left()), context.output_data()),
 			evmjit::ReturnCode::Suicide => { 
 				ext.suicide(&Address::from_jit(&context.suicide_refund_address()));
 				Ok(U256::from(context.gas_left()))

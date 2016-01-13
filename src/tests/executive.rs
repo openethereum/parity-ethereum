@@ -71,7 +71,7 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.blockhash(number)
 	}
 
-	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), evm::Error> {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> Result<(U256, Option<Address>), evm::Error> {
 		// in call and create we need to check if we exited with insufficient balance or max limit reached.
 		// in case of reaching max depth, we should store callcreates. Otherwise, ignore.
 		let res = self.ext.create(gas, value, code);
@@ -82,7 +82,7 @@ impl<'a> Ext for TestExt<'a> {
 				self.callcreates.push(CallCreate {
 					data: code.to_vec(),
 					destination: address.clone(),
-					_gas_limit: U256::from(gas),
+					_gas_limit: *gas,
 					value: *value
 				});
 				Ok((gas_left, Some(address)))
@@ -94,7 +94,7 @@ impl<'a> Ext for TestExt<'a> {
 					data: code.to_vec(),
 					// TODO: address is not stored here?
 					destination: Address::new(),
-					_gas_limit: U256::from(gas),
+					_gas_limit: *gas,
 					value: *value
 				});
 				Ok((gas_left, Some(address)))
@@ -104,13 +104,13 @@ impl<'a> Ext for TestExt<'a> {
 	}
 
 	fn call(&mut self, 
-			gas: u64, 
-			call_gas: u64, 
+			gas: &U256, 
+			call_gas: &U256, 
 			receive_address: &Address, 
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<u64, evm::Error> {
+			output: &mut [u8]) -> Result<U256, evm::Error> {
 		let res = self.ext.call(gas, call_gas, receive_address, value, data, code_address, output);
 		let ext = &self.ext;
 		match res {
@@ -118,7 +118,7 @@ impl<'a> Ext for TestExt<'a> {
 				self.callcreates.push(CallCreate {
 					data: data.to_vec(),
 					destination: receive_address.clone(),
-					_gas_limit: U256::from(call_gas),
+					_gas_limit: *call_gas,
 					value: *value
 				});
 				Ok(gas_left)
@@ -135,7 +135,7 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.log(topics, data)
 	}
 
-	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
+	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		self.ext.ret(gas, data)
 	}
 
