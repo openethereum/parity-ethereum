@@ -18,7 +18,10 @@ pub fn bytes_from_json(json: &Json) -> Bytes {
 }
 
 pub fn address_from_json(json: &Json) -> Address {
-	let s = json.as_string().unwrap();
+	address_from_str(json.as_string().unwrap())
+}
+
+pub fn address_from_str<'a>(s: &'a str) -> Address {
 	if s.len() % 2 == 1 {
 		address_from_hex(&("0".to_string() + &(clean(s).to_string()))[..])
 	} else {
@@ -27,7 +30,10 @@ pub fn address_from_json(json: &Json) -> Address {
 }
 
 pub fn u256_from_json(json: &Json) -> U256 {
-	let s = json.as_string().unwrap();
+	u256_from_str(json.as_string().unwrap())
+}
+
+pub fn u256_from_str<'a>(s: &'a str) -> U256 {
 	if s.len() >= 2 && &s[0..2] == "0x" {
 		// hex
 		U256::from_str(&s[2..]).unwrap()

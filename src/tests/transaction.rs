@@ -8,7 +8,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let new_schedule = evm::Schedule::new_homestead();
 	for (name, test) in json.as_object().unwrap() {
 		let mut fail = false;
-		let mut fail_unless = |cond: bool| if !cond && fail { failed.push(name.to_string()); fail = true };
+		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true };
 		let schedule = match test.find("blocknumber")
 			.and_then(|j| j.as_string())
 			.and_then(|s| BlockNumber::from_str(s).ok())

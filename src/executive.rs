@@ -14,7 +14,7 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
-struct Substate {
+pub struct Substate {
 	/// Any accounts that have suicided.
 	suicides: HashSet<Address>,
 	/// Any logs.
@@ -27,7 +27,7 @@ struct Substate {
 
 impl Substate {
 	/// Creates new substate.
-	fn new() -> Self {
+	pub fn new() -> Self {
 		Substate {
 			suicides: HashSet::new(),
 			logs: vec![],
@@ -172,7 +172,7 @@ impl<'a> Executive<'a> {
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
-	fn call(&mut self, params: &ActionParams, substate: &mut Substate, output: &mut [u8]) -> evm::Result {
+	pub fn call(&mut self, params: &ActionParams, substate: &mut Substate, output: &mut [u8]) -> evm::Result {
 		// at first, transfer value to destination
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
@@ -332,12 +332,12 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
-		match *number < U256::from(self.info.number) {
-			false => H256::from(&U256::zero()),
+		match *number < U256::from(self.info.number) && number.low_u64() >= cmp::max(256, self.info.number) - 256 {
 			true => {
-				let index = U256::from(self.info.number) - *number - U256::one();
-				self.info.last_hashes[index.low_u32() as usize].clone()
-			}
+				let index = self.info.number - number.low_u64() - 1;
+				self.info.last_hashes[index as usize].clone()
+			},
+			false => H256::from(&U256::zero()),
 		}
 	}
 
@@ -415,7 +415,6 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
-		println!("ret");
 		match &mut self.output {
 			&mut OutputPolicy::Return(ref mut slice) => unsafe {
 				let len = cmp::min(slice.len(), data.len());
@@ -472,7 +471,7 @@ mod tests {
 	use engine::*;
 	use spec::*;
 	use evm::Schedule;
-	use super::Substate;
+	//use super::Substate;
 
 	struct TestEngine {
 		spec: Spec,
@@ -482,7 +481,7 @@ mod tests {
 	impl TestEngine {
 		fn new(stack_limit: usize) -> TestEngine {
 			TestEngine {
-				spec: ethereum::new_frontier(),
+				spec: ethereum::new_frontier_test(),
 				stack_limit: stack_limit 
 			}
 		}
