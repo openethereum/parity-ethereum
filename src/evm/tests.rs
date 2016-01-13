@@ -30,7 +30,7 @@ impl FakeExt {
 
 impl Default for Schedule {
 	fn default() -> Self {
-		Schedule::new_homestead()
+		Schedule::new_frontier()
 	}
 }
 
