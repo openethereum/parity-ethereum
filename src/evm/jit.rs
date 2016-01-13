@@ -345,7 +345,7 @@ impl evm::Evm for JitEvm {
 		
 		match res {
 			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),
-			evmjit::ReturnCode::Return => ext.ret(context.gas_left(), context.output_data()).map(|gas_left| U256::from(gas_left)),
+			evmjit::ReturnCode::Return => ext.ret(&U256::from(context.gas_left()), context.output_data()),
 			evmjit::ReturnCode::Suicide => { 
 				ext.suicide(&Address::from_jit(&context.suicide_refund_address()));
 				Ok(U256::from(context.gas_left()))

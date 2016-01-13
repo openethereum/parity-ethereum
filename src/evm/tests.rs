@@ -68,7 +68,7 @@ impl Ext for FakeExt {
 		});
 	}
 
-	fn ret(&mut self, _gas: u64, _data: &[u8]) -> result::Result<u64, evm::Error> {
+	fn ret(&mut self, _gas: &U256, _data: &[u8]) -> result::Result<U256, evm::Error> {
 		unimplemented!();
 	}
 

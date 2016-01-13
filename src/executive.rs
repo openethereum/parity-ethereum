@@ -422,26 +422,26 @@ impl<'a> Ext for Externalities<'a> {
 		self.state.code(address).unwrap_or(vec![])
 	}
 
-	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
+	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		match &mut self.output {
 			&mut OutputPolicy::Return(BytesRef::Fixed(ref mut slice)) => unsafe {
 				let len = cmp::min(slice.len(), data.len());
 				ptr::copy(data.as_ptr(), slice.as_mut_ptr(), len);
-				Ok(gas)
+				Ok(*gas)
 			},
 			&mut OutputPolicy::Return(BytesRef::Flexible(ref mut vec)) => unsafe {
 				vec.clear();
 				vec.reserve(data.len());
 				ptr::copy(data.as_ptr(), vec.as_mut_ptr(), data.len());
 				vec.set_len(data.len());
-				Ok(gas)
+				Ok(*gas)
 			},
 			&mut OutputPolicy::InitContract => {
-				let return_cost = data.len() as u64 * self.schedule.create_data_gas as u64;
-				if return_cost > gas {
+				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
+				if return_cost > *gas {
 					return match self.schedule.exceptional_failed_code_deposit {
 						true => Err(evm::Error::OutOfGas),
-						false => Ok(gas)
+						false => Ok(*gas)
 					}
 				}
 				let mut code = vec![];
@@ -453,7 +453,7 @@ impl<'a> Ext for Externalities<'a> {
 				let address = &self.params.address;
 				self.state.init_code(address, code);
 				self.substate.contracts_created.push(address.clone());
-				Ok(gas - return_cost)
+				Ok(*gas - return_cost)
 			}
 		}
 	}

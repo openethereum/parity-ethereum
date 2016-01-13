@@ -135,7 +135,7 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.log(topics, data)
 	}
 
-	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
+	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		self.ext.ret(gas, data)
 	}
 

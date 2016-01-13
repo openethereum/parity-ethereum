@@ -48,7 +48,7 @@ pub trait Ext {
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.
-	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, Error>;
+	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, Error>;
 
 	/// Should be called when contract commits suicide.
 	/// Address to which funds should be refunded.
