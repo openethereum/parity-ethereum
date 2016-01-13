@@ -1,4 +1,5 @@
 use util::*;
+use itertools::Itertools;
 
 pub const SHA3_EMPTY: H256 = H256( [0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c, 0x92, 0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0, 0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b, 0x7b, 0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70] );
 
@@ -19,6 +20,12 @@ impl<T> Diff<T> where T: Eq {
 	pub fn post(&self) -> &T { match self.post_opt { Some(ref x) => x, None => &self.pre } }
 }
 
+impl<T> From<T> for Diff<T> where T: Eq {
+	fn from(t: T) -> Diff<T> {
+		Diff::one(t)
+	}
+}
+
 #[derive(Debug,Clone,PartialEq,Eq)]
 /// Genesis account data. Does not have a DB overlay cache.
 pub struct PodAccount {
@@ -31,7 +38,7 @@ pub struct PodAccount {
 }
 
 #[derive(Debug,Clone,PartialEq,Eq)]
-pub struct PodAccountDiff {
+pub struct AccountDiff {
 	pub exists: Diff<bool>,
 	pub balance: Option<Diff<U256>>,
 	pub nonce: Option<Diff<U256>>,
@@ -39,25 +46,23 @@ pub struct PodAccountDiff {
 	pub storage: BTreeMap<H256, Diff<H256>>,
 }
 
-type StateDiff = BTreeMap<Address, PodAccountDiff>;
+pub type StateDiff = BTreeMap<Address, AccountDiff>;
 
-pub fn diff(pre: &Option<PodAccount>, post: &Option<PodAccount>) -> Option<PodAccountDiff> {
+pub fn pod_diff(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
 	match (pre, post) {
-		(&Some(ref x), &None) | (&None, &Some(ref x)) => Some(PodAccountDiff {
+		(Some(x), None) | (None, Some(x)) => Some(AccountDiff {
 			exists: Diff::new(pre.is_some(), post.is_some()),
 			balance: Diff::one_opt(x.balance.clone()),
 			nonce: Diff::one_opt(x.nonce.clone()),
 			code: Diff::one_opt(x.code.clone()),
 			storage: x.storage.iter().fold(BTreeMap::new(), |mut m, (k, v)| {m.insert(k.clone(), Diff::one(v.clone())); m})
 		}),
-		(&Some(ref pre), &Some(ref post)) => {
-			let pre_keys: BTreeSet<_> = pre.storage.keys().collect();
-			let post_keys: BTreeSet<_> = post.storage.keys().collect();
-			let storage: Vec<_> = pre_keys.union(&post_keys)
+		(Some(pre), Some(post)) => {
+			let storage: Vec<_> = pre.storage.keys().merge(post.storage.keys())
 				.filter(|k| pre.storage.get(k).unwrap_or(&H256::new()) != post.storage.get(k).unwrap_or(&H256::new()))
 				.collect();
 			if pre.balance != post.balance || pre.nonce != post.nonce || pre.code != post.code || storage.len() > 0 {
-				Some(PodAccountDiff {
+				Some(AccountDiff {
 					exists: Diff::one(true),
 					balance: Diff::new_opt(pre.balance.clone(), post.balance.clone()),
 					nonce: Diff::new_opt(pre.nonce.clone(), post.nonce.clone()),
@@ -76,24 +81,164 @@ pub fn diff(pre: &Option<PodAccount>, post: &Option<PodAccount>) -> Option<PodAc
 	}
 }
 
+pub fn pod_map_diff(pre: &BTreeMap<Address, PodAccount>, post: &BTreeMap<Address, PodAccount>) -> StateDiff {
+	pre.keys()
+		.merge(post.keys())
+		.filter_map(|acc| pod_diff(pre.get(acc), post.get(acc)).map(|d|(acc.clone(), d)))
+		.collect::<BTreeMap<_, _>>()
+}
+
+macro_rules! map {
+	( $( $x:expr => $y:expr ),* ) => {
+		vec![ $( ($x, $y) ),* ].into_iter().collect::<BTreeMap<_, _>>()
+	}
+}
+
+macro_rules! x {
+	( $x:expr ) => {
+		From::from($x)
+	}
+}
+
+macro_rules! xx {
+	( $x:expr ) => {
+		From::from(From::from($x))
+	}
+}
+
+#[test]
+fn state_diff_create_delete() {
+	let a = map![
+		x!(1) => PodAccount{
+			balance: x!(69),
+			nonce: x!(0),
+			code: vec![],
+			storage: map![]
+		}
+	];
+	assert_eq!(pod_map_diff(&a, &map![]), map![
+		x!(1) => AccountDiff{
+			exists: Diff::new(true, false),
+			balance: Diff::one_opt(x!(69)),
+			nonce: Diff::one_opt(x!(0)),
+			code: Diff::one_opt(vec![]),
+			storage: map![],
+		}
+	]);
+	assert_eq!(pod_map_diff(&map![], &a), map![
+		x!(1) => AccountDiff{
+			exists: Diff::new(false, true),
+			balance: Diff::one_opt(x!(69)),
+			nonce: Diff::one_opt(x!(0)),
+			code: Diff::one_opt(vec![]),
+			storage: map![],
+		}
+	]);
+}
+
+#[test]
+fn state_diff_cretae_delete_with_unchanged() {
+	let a = map![
+		x!(1) => PodAccount{
+			balance: x!(69),
+			nonce: x!(0),
+			code: vec![],
+			storage: map![]
+		}
+	];
+	let b = map![
+		x!(1) => PodAccount{
+			balance: x!(69),
+			nonce: x!(0),
+			code: vec![],
+			storage: map![]
+		},
+		x!(2) => PodAccount{
+			balance: x!(69),
+			nonce: x!(0),
+			code: vec![],
+			storage: map![]
+		}
+	];
+	assert_eq!(pod_map_diff(&a, &b), map![
+		x!(2) => AccountDiff{
+			exists: Diff::new(false, true),
+			balance: Diff::one_opt(x!(69)),
+			nonce: Diff::one_opt(x!(0)),
+			code: Diff::one_opt(vec![]),
+			storage: map![],
+		}
+	]);
+	assert_eq!(pod_map_diff(&b, &a), map![
+		x!(2) => AccountDiff{
+			exists: Diff::new(true, false),
+			balance: Diff::one_opt(x!(69)),
+			nonce: Diff::one_opt(x!(0)),
+			code: Diff::one_opt(vec![]),
+			storage: map![],
+		}
+	]);
+}
+
+#[test]
+fn state_diff_change_with_unchanged() {
+	let a = map![
+		x!(1) => PodAccount{
+			balance: x!(69),
+			nonce: x!(0),
+			code: vec![],
+			storage: map![]
+		},
+		x!(2) => PodAccount{
+			balance: x!(69),
+			nonce: x!(0),
+			code: vec![],
+			storage: map![]
+		}
+	];
+	let b = map![
+		x!(1) => PodAccount{
+			balance: x!(69),
+			nonce: x!(1),
+			code: vec![],
+			storage: map![]
+		},
+		x!(2) => PodAccount{
+			balance: x!(69),
+			nonce: x!(0),
+			code: vec![],
+			storage: map![]
+		}
+	];
+	assert_eq!(pod_map_diff(&a, &b), map![
+		x!(1) => AccountDiff{
+			exists: Diff::one(true),
+			balance: None,
+			nonce: Diff::new_opt(x!(0), x!(1)),
+			code: None,
+			storage: map![],
+		}
+	]);
+}
+
 #[test]
 fn account_diff_existence() {
-	let a = Some(PodAccount{balance: U256::from(69u64), nonce: U256::zero(), code: vec![], storage: BTreeMap::new()});
-	assert_eq!(diff(&a, &a), None);
-	assert_eq!(diff(&None, &a), Some(PodAccountDiff{
+	let a = PodAccount{balance: x!(69), nonce: x!(0), code: vec![], storage: map![]};
+	assert_eq!(pod_diff(Some(&a), Some(&a)), None);
+	assert_eq!(pod_diff(None, Some(&a)), Some(AccountDiff{
 		exists: Diff::new(false, true),
-		balance: Diff::one_opt(U256::from(69u64)),
-		nonce: Diff::one_opt(U256::zero()),
+		balance: Diff::one_opt(x!(69)),
+		nonce: Diff::one_opt(x!(0)),
 		code: Diff::one_opt(vec![]),
-		storage: BTreeMap::new(),
+		storage: map![],
 	}));
 }
 
 #[test]
 fn account_diff_basic() {
-	let a = Some(PodAccount{balance: U256::from(69u64), nonce: U256::zero(), code: vec![], storage: BTreeMap::new()});
-	let b = Some(PodAccount{balance: U256::from(42u64), nonce: U256::from(1u64), code: vec![], storage: BTreeMap::new()});
-	assert_eq!(diff(&a, &b), Some(PodAccountDiff {
+	let a = PodAccount{balance: U256::from(69u64), nonce: U256::zero(), code: vec![], storage: BTreeMap::new()};
+	let b = PodAccount{balance: U256::from(42u64), nonce: U256::from(1u64), code: vec![], storage: BTreeMap::new()};
+	assert_eq!(pod_diff(Some(&a), Some(&b)), Some(AccountDiff {
 		exists: Diff::one(true),
 		balance: Diff::new_opt(U256::from(69u64), U256::from(42u64)),
 		nonce: Diff::new_opt(U256::zero(), U256::from(1u64)),
@@ -104,9 +249,9 @@ fn account_diff_basic() {
 
 #[test]
 fn account_diff_code() {
-	let a = Some(PodAccount{balance: U256::zero(), nonce: U256::zero(), code: vec![], storage: BTreeMap::new()});
-	let b = Some(PodAccount{balance: U256::zero(), nonce: U256::from(1u64), code: vec![0x00u8], storage: BTreeMap::new()});
-	assert_eq!(diff(&a, &b), Some(PodAccountDiff {
+	let a = PodAccount{balance: U256::zero(), nonce: U256::zero(), code: vec![], storage: BTreeMap::new()};
+	let b = PodAccount{balance: U256::zero(), nonce: U256::from(1u64), code: vec![0x00u8], storage: BTreeMap::new()};
+	assert_eq!(pod_diff(Some(&a), Some(&b)), Some(AccountDiff {
 		exists: Diff::one(true),
 		balance: None,
 		nonce: Diff::new_opt(U256::zero(), U256::from(1u64)),
@@ -123,9 +268,9 @@ pub fn h256_from_u8(v: u8) -> H256 {
 
 #[test]
 fn account_diff_storage() {
-	let a = Some(PodAccount{balance: U256::zero(), nonce: U256::zero(), code: vec![], storage: vec![(1u8, 1u8), (2, 2), (3, 3), (4, 4), (5, 0), (6, 0), (7, 0)].into_iter().fold(BTreeMap::new(), |mut m, (k, v)|{m.insert(h256_from_u8(k), h256_from_u8(v)); m})});
-	let b = Some(PodAccount{balance: U256::zero(), nonce: U256::zero(), code: vec![], storage: vec![(1u8, 1u8), (2, 3), (3, 0), (5, 0), (7, 7), (8, 0), (9, 9)].into_iter().fold(BTreeMap::new(), |mut m, (k, v)|{m.insert(h256_from_u8(k), h256_from_u8(v)); m})});
-	assert_eq!(diff(&a, &b), Some(PodAccountDiff {
+	let a = PodAccount{balance: U256::zero(), nonce: U256::zero(), code: vec![], storage: vec![(1u8, 1u8), (2, 2), (3, 3), (4, 4), (5, 0), (6, 0), (7, 0)].into_iter().fold(BTreeMap::new(), |mut m, (k, v)|{m.insert(h256_from_u8(k), h256_from_u8(v)); m})};
+	let b = PodAccount{balance: U256::zero(), nonce: U256::zero(), code: vec![], storage: vec![(1u8, 1u8), (2, 3), (3, 0), (5, 0), (7, 7), (8, 0), (9, 9)].into_iter().fold(BTreeMap::new(), |mut m, (k, v)|{m.insert(h256_from_u8(k), h256_from_u8(v)); m})};
+	assert_eq!(pod_diff(Some(&a), Some(&b)), Some(AccountDiff {
 		exists: Diff::one(true),
 		balance: None,
 		nonce: None,
