@@ -54,13 +54,34 @@ impl AccountDiff {
 	}
 }
 
-/*impl Debug for AccountDiff {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{:?}", PodAccount::from_account(self))
-	}
-}*/
+#[derive(Debug,Clone,PartialEq,Eq)]
+pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
-pub type StateDiff = BTreeMap<Address, AccountDiff>;
+impl fmt::Display for AccountDiff {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "...\n")
+	}
+}
+
+impl fmt::Display for Existance {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			&Existance::Born => try!(write!(f, "+++")),
+			&Existance::Alive => try!(write!(f, "***")),
+			&Existance::Died => try!(write!(f, "---")),
+		}
+		Ok(())
+	}
+}
+
+impl fmt::Display for StateDiff {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for (add, acc) in self.0.iter() {
+			try!(write!(f, "{} {}: {}", acc.existance(), add, acc));
+		}
+		Ok(())
+	}
+}
 
 pub fn pod_diff(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
 	match (pre, post) {
@@ -101,7 +122,7 @@ pub fn pod_diff(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 }
 
 pub fn pod_map_diff(pre: &BTreeMap<Address, PodAccount>, post: &BTreeMap<Address, PodAccount>) -> StateDiff {
-	pre.keys().merge(post.keys()).filter_map(|acc| pod_diff(pre.get(acc), post.get(acc)).map(|d|(acc.clone(), d))).collect()
+	StateDiff(pre.keys().merge(post.keys()).filter_map(|acc| pod_diff(pre.get(acc), post.get(acc)).map(|d|(acc.clone(), d))).collect())
 }
 
 #[test]
@@ -114,22 +135,22 @@ fn state_diff_create_delete() {
 			storage: map![]
 		}
 	];
-	assert_eq!(pod_map_diff(&a, &map![]), map![
+	assert_eq!(pod_map_diff(&a, &map![]), StateDiff(map![
 		x!(1) => AccountDiff{
 			balance: Diff::Died(x!(69)),
 			nonce: Diff::Died(x!(0)),
 			code: Diff::Died(vec![]),
 			storage: map![],
 		}
-	]);
-	assert_eq!(pod_map_diff(&map![], &a), map![
+	]));
+	assert_eq!(pod_map_diff(&map![], &a), StateDiff(map![
 		x!(1) => AccountDiff{
 			balance: Diff::Born(x!(69)),
 			nonce: Diff::Born(x!(0)),
 			code: Diff::Born(vec![]),
 			storage: map![],
 		}
-	]);
+	]));
 }
 
 #[test]
@@ -156,22 +177,22 @@ fn state_diff_cretae_delete_with_unchanged() {
 			storage: map![]
 		}
 	];
-	assert_eq!(pod_map_diff(&a, &b), map![
+	assert_eq!(pod_map_diff(&a, &b), StateDiff(map![
 		x!(2) => AccountDiff{
 			balance: Diff::Born(x!(69)),
 			nonce: Diff::Born(x!(0)),
 			code: Diff::Born(vec![]),
 			storage: map![],
 		}
-	]);
-	assert_eq!(pod_map_diff(&b, &a), map![
+	]));
+	assert_eq!(pod_map_diff(&b, &a), StateDiff(map![
 		x!(2) => AccountDiff{
 			balance: Diff::Died(x!(69)),
 			nonce: Diff::Died(x!(0)),
 			code: Diff::Died(vec![]),
 			storage: map![],
 		}
-	]);
+	]));
 }
 
 #[test]
@@ -204,14 +225,14 @@ fn state_diff_change_with_unchanged() {
 			storage: map![]
 		}
 	];
-	assert_eq!(pod_map_diff(&a, &b), map![
+	assert_eq!(pod_map_diff(&a, &b), StateDiff(map![
 		x!(1) => AccountDiff{
 			balance: Diff::Same,
 			nonce: Diff::Changed(x!(0), x!(1)),
 			code: Diff::Same,
 			storage: map![],
 		}
-	]);
+	]));
 }
 
 #[test]
