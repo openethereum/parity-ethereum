@@ -457,8 +457,10 @@ impl<'a> Ext for Externalities<'a> {
 		self.substate.logs.push(LogEntry::new(address, topics, data));
 	}
 
-	fn suicide(&mut self) {
+	fn suicide(&mut self, refund_address: &Address) {
 		let address = self.params.address.clone();
+		let balance = self.balance(&address);
+		self.state.transfer_balance(&address, refund_address, &balance);
 		self.substate.suicides.insert(address);
 	}
 

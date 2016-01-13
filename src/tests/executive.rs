@@ -139,8 +139,8 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.ret(gas, data)
 	}
 
-	fn suicide(&mut self) {
-		self.ext.suicide()
+	fn suicide(&mut self, refund_address: &Address) {
+		self.ext.suicide(refund_address)
 	}
 
 	fn schedule(&self) -> &Schedule {
@@ -227,10 +227,20 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
 			Ok(gas_left) => {
-				println!("name: {}, gas_left : {:?}, expected: {:?}", name, gas_left, u256_from_json(&test["gas"]));
+				//println!("name: {}, gas_left : {:?}, expected: {:?}", name, gas_left, u256_from_json(&test["gas"]));
 				fail_unless(!out_of_gas, "expected to run out of gas.");
 				fail_unless(gas_left == u256_from_json(&test["gas"]), "gas_left is incorrect");
 				fail_unless(output == bytes_from_json(&test["out"]), "output is incorrect");
+
+
+				test.find("post").map(|pre| for (addr, s) in pre.as_object().unwrap() {
+					let address = address_from_str(addr);
+					//let balance = u256_from_json(&s["balance"]);
+
+					fail_unless(state.code(&address) == Some(bytes_from_json(&s["code"])), "code is incorrect");
+					fail_unless(state.balance(&address) == u256_from_json(&s["balance"]), "balance is incorrect");
+				});
+
 			}
 		}
 	}
@@ -247,11 +257,11 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
 declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperationTest"}
 // this one crashes with some vm internal error. Separately they pass.
-//declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
+declare_test_ignore!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
 declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfoTest"}
 declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperationsTest"}
 // this one take way too long.
-//declare_test!{ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}
+declare_test_ignore!{ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}
 declare_test!{ExecutiveTests_vmLogTest, "VMTests/vmLogTest"}
 declare_test!{ExecutiveTests_vmPerformanceTest, "VMTests/vmPerformanceTest"}
 declare_test!{ExecutiveTests_vmPushDupSwapTest, "VMTests/vmPushDupSwapTest"}

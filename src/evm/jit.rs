@@ -347,8 +347,7 @@ impl evm::Evm for JitEvm {
 			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),
 			evmjit::ReturnCode::Return => ext.ret(context.gas_left(), context.output_data()).map(|gas_left| U256::from(gas_left)),
 			evmjit::ReturnCode::Suicide => { 
-				// what if there is a suicide and we run out of gas just after?
-				ext.suicide();
+				ext.suicide(&Address::from_jit(&context.suicide_refund_address()));
 				Ok(U256::from(context.gas_left()))
 			},
 			evmjit::ReturnCode::OutOfGas => Err(evm::Error::OutOfGas),

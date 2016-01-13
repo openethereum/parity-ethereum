@@ -127,6 +127,12 @@ impl ContextHandle {
 		unsafe { std::slice::from_raw_parts(self.data_handle.call_data, self.data_handle.call_data_size as usize) }
 	}
 
+	/// Returns address to which funds should be transfered after suicide.
+	pub fn suicide_refund_address(&self) -> JitI256 {
+		// evmjit reuses data_handle address field to store suicide address
+		self.data_handle.address
+	}
+
 	/// Returns gas left.
 	pub fn gas_left(&self) -> u64 {
 		self.data_handle.gas as u64

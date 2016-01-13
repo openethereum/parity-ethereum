@@ -51,7 +51,8 @@ pub trait Ext {
 	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, Error>;
 
 	/// Should be called when contract commits suicide.
-	fn suicide(&mut self);
+	/// Address to which funds should be refunded.
+	fn suicide(&mut self, refund_address: &Address);
 
 	/// Returns schedule.
 	fn schedule(&self) -> &Schedule;
