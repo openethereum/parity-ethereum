@@ -23,10 +23,58 @@ pub struct Transaction {
 	pub r: U256,
 	pub s: U256,
 
-	hash: RefCell<Option<H256>>, //TODO: make this private
+	hash: RefCell<Option<H256>>,
+	sender: RefCell<Option<Address>>,
 }
 
 impl Transaction {
+	/// Create a new message-call transaction.
+	pub fn new_call(to: Address, value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
+		Transaction {
+			nonce: nonce,
+			gas_price: gas_price,
+			gas: gas,
+			action: Action::Call(to),
+			value: value,
+			data: data,
+			v: 0,
+			r: U256::zero(),
+			s: U256::zero(),
+			hash: RefCell::new(None),
+			sender: RefCell::new(None),
+		}
+	}
+
+	/// Create a new contract-creation transaction.
+	pub fn new_create(value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
+		Transaction {
+			nonce: nonce,
+			gas_price: gas_price,
+			gas: gas,
+			action: Action::Create,
+			value: value,
+			data: data,
+			v: 0,
+			r: U256::zero(),
+			s: U256::zero(),
+			hash: RefCell::new(None),
+			sender: RefCell::new(None),
+		}
+	}
+
+	/// Get the nonce of the transaction.
+	pub fn nonce(&self) -> &U256 { &self.nonce }
+	/// Get the gas price of the transaction.
+	pub fn gas_price(&self) -> &U256 { &self.gas_price }
+	/// Get the gas of the transaction.
+	pub fn gas(&self) -> &U256 { &self.gas }
+	/// Get the action of the transaction (Create or Call).
+	pub fn action(&self) -> &Action { &self.action }
+	/// Get the value of the transaction.
+	pub fn value(&self) -> &U256 { &self.value }
+	/// Get the data of the transaction.
+	pub fn data(&self) -> &Bytes { &self.data }
+
 	/// Append object into RLP stream, optionally with or without the signature.
 	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
 		s.append_list(6 + match with_seal { Seal::With => 3, _ => 0 });
@@ -75,9 +123,6 @@ impl Transaction {
  		*self.hash.borrow_mut() = None;
 	}
 
-	/// Returns transaction type.
-	pub fn action(&self) -> &Action { &self.action }
-
 	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
 	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
 
@@ -88,27 +133,47 @@ impl Transaction {
 	pub fn message_hash(&self) -> H256 { self.rlp_bytes_opt(Seal::Without).sha3() }
 
 	/// Returns transaction sender.
-	pub fn sender(&self) -> Result<Address, Error> { Ok(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3())) }
+	pub fn sender(&self) -> Result<Address, Error> {
+ 		let mut sender = self.sender.borrow_mut();
+ 		match &mut *sender {
+ 			&mut Some(ref h) => Ok(h.clone()),
+ 			sender @ &mut None => {
+ 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3()));
+ 				Ok(sender.as_ref().unwrap().clone())
+ 			}
+		}
+	}
+
+	/// Signs the transaction as coming from `sender`.
+	pub fn sign(&mut self, secret: &Secret) {
+		let sig = ec::sign(secret, &self.message_hash());
+		let (r, s, v) = sig.unwrap().to_rsv();
+		self.r = r;
+		self.s = s;
+		self.v = v + 27;
+	}
+
+	/// Signs the transaction as coming from `sender`.
+	pub fn signed(self, secret: &Secret) -> Transaction { let mut r = self; r.sign(secret); r }
 
 	/// Get the transaction cost in gas for the given params.
-	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule) -> U256 {
-		// CRITICAL TODO XXX FIX NEED BIGINT!!!!!
+	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule) -> u64 {
 		data.iter().fold(
-			U256::from(if is_create {schedule.tx_create_gas} else {schedule.tx_gas}),
-			|g, b| g + U256::from(match *b { 0 => schedule.tx_data_zero_gas, _ => schedule.tx_data_non_zero_gas})
+			(if is_create {schedule.tx_create_gas} else {schedule.tx_gas}) as u64,
+			|g, b| g + (match *b { 0 => schedule.tx_data_zero_gas, _ => schedule.tx_data_non_zero_gas }) as u64
 		)
 	}
 
 	/// Get the transaction cost in gas for this transaction.
-	pub fn gas_required(&self, schedule: &Schedule) -> U256 {
+	pub fn gas_required(&self, schedule: &Schedule) -> u64 {
 		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
 	pub fn validate(self, schedule: &Schedule) -> Result<Transaction, Error> {
 		try!(self.sender());
-		if self.gas < self.gas_required(&schedule) {
-			Err(From::from(TransactionError::InvalidGasLimit(OutOfBounds{min: Some(self.gas_required(&schedule)), max: None, found: self.gas})))
+		if self.gas < U256::from(self.gas_required(&schedule)) {
+			Err(From::from(TransactionError::InvalidGasLimit(OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas})))
 		} else {
 			Ok(self)
 		}
@@ -142,113 +207,29 @@ impl Decodable for Transaction {
 			v: try!(u16::decode(&d[6])) as u8,
 			r: try!(Decodable::decode(&d[7])),
 			s: try!(Decodable::decode(&d[8])),
-			hash: RefCell::new(None)
+			hash: RefCell::new(None),
+			sender: RefCell::new(None),
 		})
 	}
 }
 
-pub fn clean(s: &str) -> &str {
-	if s.len() >= 2 && &s[0..2] == "0x" {
-		&s[2..]
-	} else {
-		s
-	}
+#[test]
+fn sender_test() {
+	let t: Transaction = decode(&FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+	assert_eq!(t.data, b"");
+	assert_eq!(t.gas, U256::from(0x5208u64));
+	assert_eq!(t.gas_price, U256::from(0x01u64));
+	assert_eq!(t.nonce, U256::from(0x00u64));
+	if let Action::Call(ref to) = t.action {
+		assert_eq!(*to, address_from_hex("095e7baea6a6c7c4c2dfeb977efac326af552d87"));
+	} else { panic!(); }
+	assert_eq!(t.value, U256::from(0x0au64));
+	assert_eq!(t.sender().unwrap(), address_from_hex("0f65fe9276bc9a24ae7083ae28e2660ef72df99e"));
 }
 
-pub fn bytes_from_json(json: &Json) -> Bytes {
-	let s = json.as_string().unwrap();
-	if s.len() % 2 == 1 {
-		FromHex::from_hex(&("0".to_string() + &(clean(s).to_string()))[..]).unwrap_or(vec![])
-	} else {
-		FromHex::from_hex(clean(s)).unwrap_or(vec![])
-	}
-}
-
-pub fn address_from_json(json: &Json) -> Address {
-	let s = json.as_string().unwrap();
-	if s.len() % 2 == 1 {
-		address_from_hex(&("0".to_string() + &(clean(s).to_string()))[..])
-	} else {
-		address_from_hex(clean(s))
-	}
-}
-
-pub fn u256_from_json(json: &Json) -> U256 {
-	let s = json.as_string().unwrap();
-	if s.len() >= 2 && &s[0..2] == "0x" {
-		// hex
-		U256::from_str(&s[2..]).unwrap()
-	}
-	else {
-		// dec
-		U256::from_dec_str(s).unwrap()
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use util::*;
-	use evm::Schedule;
-	use header::BlockNumber;
-	use super::*;
-
-	#[test]
-	fn sender_test() {
-		let t: Transaction = decode(&FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
-		assert_eq!(t.data, b"");
-		assert_eq!(t.gas, U256::from(0x5208u64));
-		assert_eq!(t.gas_price, U256::from(0x01u64));
-		assert_eq!(t.nonce, U256::from(0x00u64));
-		if let Action::Call(ref to) = t.action {
-			assert_eq!(*to, address_from_hex("095e7baea6a6c7c4c2dfeb977efac326af552d87"));
-		} else { panic!(); }
-		assert_eq!(t.value, U256::from(0x0au64));
-		assert_eq!(t.sender().unwrap(), address_from_hex("0f65fe9276bc9a24ae7083ae28e2660ef72df99e"));
-	}
-
-	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
-		let mut failed = Vec::new();
-		let schedule = Schedule::new_frontier();
-		for (name, test) in json.as_object().unwrap() {
-			let mut fail = false;
-			let mut fail_unless = |cond: bool| if !cond && fail { failed.push(name.to_string()); fail = true };
-			let _ = BlockNumber::from_str(test["blocknumber"].as_string().unwrap()).unwrap();
-			let rlp = bytes_from_json(&test["rlp"]);
-			let res = UntrustedRlp::new(&rlp).as_val().map_err(|e| From::from(e)).and_then(|t: Transaction| t.validate(&schedule));
-			fail_unless(test.find("transaction").is_none() == res.is_err());
-			if let (Some(&Json::Object(ref tx)), Some(&Json::String(ref expect_sender))) = (test.find("transaction"), test.find("sender")) {
-				let t = res.unwrap();
-				fail_unless(t.sender().unwrap() == address_from_hex(clean(expect_sender)));
-				fail_unless(t.data == bytes_from_json(&tx["data"]));
-				fail_unless(t.gas == u256_from_json(&tx["gasLimit"]));
-				fail_unless(t.gas_price == u256_from_json(&tx["gasPrice"]));
-				fail_unless(t.nonce == u256_from_json(&tx["nonce"]));
-				fail_unless(t.value == u256_from_json(&tx["value"]));
-				if let Action::Call(ref to) = t.action {
-					fail_unless(to == &address_from_json(&tx["to"]));
-				} else {
-					fail_unless(bytes_from_json(&tx["to"]).len() == 0);
-				}
-			}
-		}
-		for f in failed.iter() {
-			println!("FAILED: {:?}", f);
-		}
-		failed
-	}
-
-	macro_rules! declare_test {
-		($test_set_name: ident/$name: ident) => {
-			#[test]
-			#[allow(non_snake_case)]
-			fn $name() {
-				assert!(do_json_test(include_bytes!(concat!("../res/ethereum/tests/", stringify!($test_set_name), "/", stringify!($name), ".json"))).len() == 0);
-			}
-		}
-	}
-
-	declare_test!{TransactionTests/ttTransactionTest}
-	declare_test!{TransactionTests/tt10mbDataField}
-	declare_test!{TransactionTests/ttWrongRLPTransaction}
+#[test]
+fn signing() {
+	let key = KeyPair::create().unwrap();
+	let t = Transaction::new_create(U256::from(42u64), b"Hello!".to_vec(), U256::from(3000u64), U256::from(50_000u64), U256::from(1u64)).signed(&key.secret());
+	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
 }

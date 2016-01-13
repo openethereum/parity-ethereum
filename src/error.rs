@@ -3,13 +3,13 @@
 use util::*;
 use header::BlockNumber;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Mismatch<T: fmt::Debug> {
 	pub expected: T,
 	pub found: T,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct OutOfBounds<T: fmt::Debug> {
 	pub min: Option<T>,
 	pub max: Option<T>,
@@ -28,7 +28,7 @@ pub enum ExecutionError {
 	InvalidNonce { expected: U256, is: U256 },
 	/// Returned when cost of transaction (value + gas_price * gas) exceeds 
 	/// current sender balance.
-	NotEnoughCash { required: U256, is: U256 },
+	NotEnoughCash { required: U512, is: U512 },
 	/// Returned when internal evm error occurs.
 	Internal
 }
@@ -38,7 +38,7 @@ pub enum TransactionError {
 	InvalidGasLimit(OutOfBounds<U256>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BlockError {
 	TooManyUncles(OutOfBounds<usize>),
 	UncleWrongGeneration,

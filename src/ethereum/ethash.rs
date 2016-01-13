@@ -51,14 +51,6 @@ impl Engine for Ethash {
 		if header.difficulty < min_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: min_difficulty, found: header.difficulty })))
 		}
-		let min_gas_limit = decode(self.spec().engine_params.get("minGasLimit").unwrap());
-		if header.gas_limit < min_gas_limit {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit }))); 
-		}
-		let maximum_extra_data_size = self.maximum_extra_data_size();
-		if header.number != 0 && header.extra_data.len() > maximum_extra_data_size {
-			return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data.len() }))); 
-		}
 		// TODO: Verify seal (quick)
 		Ok(())
 	}

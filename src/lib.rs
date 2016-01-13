@@ -1,5 +1,7 @@
 #![feature(cell_extras)]
 #![feature(augmented_assignments)]
+//#![feature(plugin)]
+//#![plugin(interpolate_idents)]
 //! Ethcore's ethereum implementation
 //!
 //! ### Rust version
@@ -106,6 +108,9 @@ pub mod views;
 pub mod blockchain;
 pub mod extras;
 pub mod evm;
+
+#[cfg(test)]
+mod tests;
 
 pub mod client;
 pub mod sync;
