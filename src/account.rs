@@ -104,30 +104,6 @@ pub fn pod_map_diff(pre: &BTreeMap<Address, PodAccount>, post: &BTreeMap<Address
 	pre.keys().merge(post.keys()).filter_map(|acc| pod_diff(pre.get(acc), post.get(acc)).map(|d|(acc.clone(), d))).collect()
 }
 
-macro_rules! map {
-	( $( $x:expr => $y:expr ),* ) => {
-		vec![ $( ($x, $y) ),* ].into_iter().collect::<BTreeMap<_, _>>()
-	}
-}
-
-macro_rules! mapx {
-	( $( $x:expr => $y:expr ),* ) => {
-		vec![ $( ( From::from($x), From::from($y) ) ),* ].into_iter().collect::<BTreeMap<_, _>>()
-	}
-}
-
-macro_rules! x {
-	( $x:expr ) => {
-		From::from($x)
-	}
-}
-
-macro_rules! xx {
-	( $x:expr ) => {
-		From::from(From::from($x))
-	}
-}
-
 #[test]
 fn state_diff_create_delete() {
 	let a = map![
