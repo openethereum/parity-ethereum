@@ -3,7 +3,8 @@ use state::*;
 use executive::*;
 use spec::*;
 use engine::*;
-use evm::{Schedule};
+use evm;
+use evm::{Schedule, Ext, Factory};
 use ethereum;
 
 struct TestEngine {
@@ -30,13 +31,134 @@ impl Engine for TestEngine {
 	}
 }
 
+struct CallCreate {
+	data: Bytes,
+	destination: Address,
+	gas_limit: U256,
+	value: U256
+}
+
+/// Tiny wrapper around executive externalities.
+/// Stores callcreates.
+struct TestExt<'a> {
+	ext: Externalities<'a>,
+	callcreates: Vec<CallCreate>
+}
+
+impl<'a> TestExt<'a> {
+	fn new(ext: Externalities<'a>) -> TestExt {
+		TestExt {
+			ext: ext,
+			callcreates: vec![]
+		}
+	}
+}
+
+impl<'a> Ext for TestExt<'a> {
+	fn sload(&self, key: &H256) -> H256 {
+		self.ext.sload(key)
+	}
+
+	fn sstore(&mut self, key: H256, value: H256) {
+		self.ext.sstore(key, value)
+	}
+
+	fn balance(&self, address: &Address) -> U256 {
+		self.ext.balance(address)
+	}
+
+	fn blockhash(&self, number: &U256) -> H256 {
+		self.ext.blockhash(number)
+	}
+
+	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), evm::Error> {
+		// in call and create we need to check if we exited with insufficient balance or max limit reached.
+		// in case of reaching max depth, we should store callcreates. Otherwise, ignore.
+		let res = self.ext.create(gas, value, code);
+		let ext = &self.ext;
+		match res {
+			// just record call create
+			Ok((gas_left, Some(address))) => {
+				self.callcreates.push(CallCreate {
+					data: code.to_vec(),
+					destination: address.clone(),
+					gas_limit: U256::from(gas),
+					value: *value
+				});
+				Ok((gas_left, Some(address)))
+			},
+			// creation failed only due to reaching stack_limit
+			Ok((gas_left, None)) if ext.state.balance(&ext.params.address) >= *value => {
+				let address = contract_address(&ext.params.address, &ext.state.nonce(&ext.params.address));
+				self.callcreates.push(CallCreate {
+					data: code.to_vec(),
+					// TODO: address is not stored here?
+					destination: Address::new(),
+					gas_limit: U256::from(gas),
+					value: *value
+				});
+				Ok((gas_left, Some(address)))
+			},
+			other => other
+		}
+	}
+
+	fn call(&mut self, 
+			gas: u64, 
+			call_gas: u64, 
+			receive_address: &Address, 
+			value: &U256, 
+			data: &[u8], 
+			code_address: &Address, 
+			output: &mut [u8]) -> Result<u64, evm::Error> {
+		let res = self.ext.call(gas, call_gas, receive_address, value, data, code_address, output);
+		let ext = &self.ext;
+		match res {
+			Ok(gas_left) if ext.state.balance(&ext.params.address) >= *value => {
+				self.callcreates.push(CallCreate {
+					data: data.to_vec(),
+					destination: receive_address.clone(),
+					gas_limit: U256::from(call_gas),
+					value: *value
+				});
+				Ok(gas_left)
+			},
+			other => other
+		}
+	}
+
+	fn extcode(&self, address: &Address) -> Vec<u8> {
+		self.ext.extcode(address)
+	}
+	
+	fn log(&mut self, topics: Vec<H256>, data: Bytes) {
+		self.ext.log(topics, data)
+	}
+
+	fn ret(&mut self, gas: u64, data: &[u8]) -> Result<u64, evm::Error> {
+		self.ext.ret(gas, data)
+	}
+
+	fn suicide(&mut self) {
+		self.ext.suicide()
+	}
+
+	fn schedule(&self) -> &Schedule {
+		self.ext.schedule()
+	}
+
+	fn env_info(&self) -> &EnvInfo {
+		self.ext.env_info()
+	}
+}
+
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 	for (name, test) in json.as_object().unwrap() {
-		::std::io::stdout().write(&name.as_bytes());
-		::std::io::stdout().write(b"\n");
-		::std::io::stdout().flush();
+		//::std::io::stdout().write(&name.as_bytes());
+		//::std::io::stdout().write(b"\n");
+		//::std::io::stdout().flush();
 		//println!("name: {:?}", name);
 		let mut fail = false;
 		//let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true };
@@ -94,8 +216,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		// execute
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.call(&params, &mut substate, &mut [])
+			let ex = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(&mut []));
+			let mut test_ext = TestExt::new(ex);
+			let evm = Factory::create();
+			evm.exec(&params, &mut test_ext)
 		};
 
 		// then validate
@@ -119,7 +243,16 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 }
 
 declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
-declare_test!{ExecutiveTests_vmSha3Test, "VMTests/vmSha3Test"}
 declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperationTest"}
+// this one crashes with some vm internal error. Separately they pass.
 //declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
 declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfoTest"}
+declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperationsTest"}
+// this one take way too long.
+//declare_test!{ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}
+declare_test!{ExecutiveTests_vmLogTest, "VMTests/vmLogTest"}
+declare_test!{ExecutiveTests_vmPerformanceTest, "VMTests/vmPerformanceTest"}
+declare_test!{ExecutiveTests_vmPushDupSwapTest, "VMTests/vmPushDupSwapTest"}
+declare_test!{ExecutiveTests_vmSha3Test, "VMTests/vmSha3Test"}
+declare_test!{ExecutiveTests_vmSystemOperationsTest, "VMTests/vmSystemOperationsTest"}
+declare_test!{ExecutiveTests_vmtests, "VMTests/vmtests"}

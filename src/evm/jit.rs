@@ -212,16 +212,17 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			match self.ext.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
 				Ok((gas_left, opt)) => {
 					*io_gas = gas_left;
-					if let Some(addr) = opt {
-						*address = addr.into_jit();
-					}
+					*address = match opt {
+						Some(addr) => addr.into_jit(),
+						_ => Address::new().into_jit()
+					};
 				},
 				Err(err @ evm::Error::OutOfGas) => {
 					*self.err = Some(err);
 					// hack to propagate `OutOfGas` to evmjit and stop
 					// the execution immediately.
 					// Works, cause evmjit uses i64, not u64
-					*io_gas = -1i64 as u64
+					*io_gas = -1i64 as u64;
 				},
 				Err(err) => *self.err = Some(err)
 			}

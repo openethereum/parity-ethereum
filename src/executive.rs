@@ -267,7 +267,7 @@ impl<'a> Executive<'a> {
 }
 
 /// Policy for handling output data on `RETURN` opcode.
-enum OutputPolicy<'a> {
+pub enum OutputPolicy<'a> {
 	/// Return reference to fixed sized output.
 	/// Used for message calls.
 	Return(&'a mut [u8]),
@@ -276,12 +276,12 @@ enum OutputPolicy<'a> {
 }
 
 /// Implementation of evm Externalities.
-struct Externalities<'a> {
-	state: &'a mut State,
+pub struct Externalities<'a> {
+	pub state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
 	depth: usize,
-	params: &'a ActionParams,
+	pub params: &'a ActionParams,
 	substate: &'a mut Substate,
 	schedule: Schedule,
 	output: OutputPolicy<'a>
@@ -289,7 +289,7 @@ struct Externalities<'a> {
 
 impl<'a> Externalities<'a> {
 	/// Basic `Externalities` constructor.
-	fn new(state: &'a mut State, 
+	pub fn new(state: &'a mut State, 
 			   info: &'a EnvInfo, 
 			   engine: &'a Engine, 
 			   depth: usize, 
@@ -584,7 +584,60 @@ mod tests {
 			ex.create(&params, &mut substate).unwrap()
 		};
 		
-		assert_eq!(gas_left, U256::from(47_976));
+		assert_eq!(gas_left, U256::from(62_976));
+		// ended with max depth
+		assert_eq!(substate.contracts_created.len(), 0);
+	}
+
+	#[test]
+	fn test_create_contract_value_too_high() {
+		// code:
+		//
+		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
+		// 60 00 - push 0
+		// 52
+		// 60 1d - push 29
+		// 60 03 - push 3
+		// 60 e6 - push 230
+		// f0 - create a contract trying to send 230.
+		// 60 00 - push 0
+		// 55 sstore
+		//
+		// other code:
+		//
+		// 60 10 - push 16
+		// 80 - duplicate first stack item
+		// 60 0c - push 12
+		// 60 00 - push 0
+		// 39 - copy current code to memory
+		// 60 00 - push 0
+		// f3 - return
+
+		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d600360e6f0600055".from_hex().unwrap();
+
+		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let address = contract_address(&sender, &U256::zero());
+		// TODO: add tests for 'callcreate'
+		//let next_address = contract_address(&address, &U256::zero());
+		let mut params = ActionParams::new();
+		params.address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(100_000);
+		params.code = code.clone();
+		params.value = U256::from(100);
+		let mut state = State::new_temp();
+		state.add_balance(&sender, &U256::from(100));
+		let info = EnvInfo::new();
+		let engine = TestEngine::new(0);
+		let mut substate = Substate::new();
+
+		let gas_left = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.create(&params, &mut substate).unwrap()
+		};
+		
+		assert_eq!(gas_left, U256::from(62_976));
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
@@ -863,8 +916,8 @@ mod tests {
 		
 		match res {
 			Err(Error::Execution(ExecutionError::NotEnoughCash { required , is })) 
-				if required == U512::zero() && is == U512::one() => (), 
-			_ => assert!(false, "Expected not enough cash error.")
+				if required == U512::from(100_018) && is == U512::from(100_017) => (), 
+			_ => assert!(false, "Expected not enough cash error. {:?}", res)
 		}
 	}
 }
