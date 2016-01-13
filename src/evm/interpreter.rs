@@ -42,7 +42,7 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 
 	fn pop_back(&mut self) -> S {
 		let val = self.pop();
-		println!("Popping from slide.");
+		println!("Popping from stack.");
 		match val {
 			Some(x) => x,
 			None => panic!("Tried to pop from empty stack.")
@@ -51,7 +51,7 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 
 	fn pop_n(&mut self, no_of_elems: usize) -> Vec<S> {
 		let mut vec = Vec::new();
-		for i in 1..no_of_elems {
+		for _i in 1..no_of_elems+1 {
 			vec.push(self.pop_back());
 		}
 		vec
@@ -72,13 +72,15 @@ trait Memory {
 	fn size(&self) -> usize;
 	/// Resize (shrink or expand) the memory to specified size (fills 0)
 	fn resize(&mut self, new_size: usize);
+	/// Resize the memory only if its smaller
+	fn expand(&mut self, new_size: U256);
 	/// Write single byte to memory
 	fn write_byte(&mut self, offset: U256, value: U256);
-	/// Write a word from memory
+	/// Write a word to memory. Does not resize memory!
 	fn write(&mut self, offset: U256, value: U256);
 	/// Read a word from memory
-	fn read(&self, offset: U256) -> u32;
-	/// Write slice of bytes to memory
+	fn read(&self, offset: U256) -> U256;
+	/// Write slice of bytes to memory. Does not resize memory!
 	fn write_slice(&mut self, offset: U256, &[u8]);
 	/// Retrieve part of the memory between offset and offset + size
 	fn read_slice(&self, offset: U256, size: U256) -> &[u8];
@@ -94,33 +96,35 @@ impl Memory for Vec<u8> {
 		&self[init_off..init_off + init_size]
 	}
 
-	fn read(&self, offset: U256) -> u32 {
+	fn read(&self, offset: U256) -> U256 {
 		let off = offset.low_u64() as usize;
-		let mut val : u32 = 0;
-		for pos in off..off+4 {
+		let mut val = U256::zero();
+		for pos in off..off+32 {
 			val = val << 8;
-			val = val | (self[pos] as u32);
+			val = val | U256::from(self[pos] as u8);
 		}
 		val
 	}
 
 	fn write_slice(&mut self, offset: U256, slice: &[u8]) {
 		let off = offset.low_u64() as usize;
-		
+
 		// TODO [todr] Optimize?
 		for pos in off..off+slice.len() {
+			println!("Writing {:x}", slice[pos - off]);
 			self[pos] = slice[pos - off];
 		}
 	}
 
 	fn write(&mut self, offset: U256, value: U256) {
 		let off = offset.low_u64() as usize;
-		let mut val = value.low_u64() as u32;
+		let mut val = value;
 	
-		self[off] = (val >> 24) as u8;
-		self[off+1] = (val >> 16) as u8;
-		self[off+2] = (val >> 8) as u8;
-		self[off+3] = (val & 0xff) as u8;
+		let end = off + 32;
+		for pos in off..end {
+			self[end - pos - 1] = (val & U256::from(0xff)).low_u64() as u8;
+			val = val >> 8;
+		}
 	}
 
 	fn write_byte(&mut self, offset: U256, value: U256) {
@@ -131,6 +135,13 @@ impl Memory for Vec<u8> {
 
 	fn resize(&mut self, new_size: usize) {
 		self.resize(new_size, 0);
+	}
+	
+	fn expand(&mut self, new_size: U256) {
+		let size = new_size.low_u64() as usize;
+		if size > self.len() {
+			Memory::resize(self, size)
+		}
 	}
 }
 
@@ -194,7 +205,7 @@ impl evm::Evm for Interpreter {
 			reader.position += 1;
 
 			// Calculate gas cost
-			let gas_cost = try!(self.get_gas_cost(ext, instruction, Memory::size(&mem), &stack));
+			let gas_cost = try!(self.get_gas_cost_and_expand_mem(ext, instruction, &mut mem, &stack));
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			current_gas = current_gas - gas_cost;
 			println!("Gas cost: {} (left: {})", gas_cost, current_gas);
@@ -229,10 +240,10 @@ impl evm::Evm for Interpreter {
 
 impl Interpreter {
 
-	fn get_gas_cost(&self,
+	fn get_gas_cost_and_expand_mem(&self,
 									ext: &evm::Ext,
 									instruction: Instruction,
-									current_mem_size: usize,
+									mem: &mut Memory,
 									stack: &Stack<U256>
 									) -> evm::Result {
 
@@ -335,12 +346,14 @@ impl Interpreter {
 				InstructionCost::Gas(gas) => {
 					Ok(gas)
 				},
-				InstructionCost::GasMem(gas, mem) => {
-					let mem_gas = self.mem_gas_cost(schedule, current_mem_size, &mem);
+				InstructionCost::GasMem(gas, mem_size) => {
+					mem.expand(mem_size);
+					let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
 					Ok(gas + mem_gas)
 				},
-				InstructionCost::GasMemCopy(gas, mem, copy) => {
-					let mem_gas = self.mem_gas_cost(schedule, current_mem_size, &mem);
+				InstructionCost::GasMemCopy(gas, mem_size, copy) => {
+					mem.expand(mem_size);
+					let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
 					let copy_gas = U256::from(schedule.copy_gas) * (add_u256_usize(&copy, 31) / U256::from(32));
 					Ok(gas + copy_gas + mem_gas)
 				}
@@ -456,7 +469,6 @@ impl Interpreter {
 				ext.log(topics, mem.read_slice(offset, size));
 			},
 			instructions::PUSH1...instructions::PUSH32 => {
-				// Load to stack
 				let bytes = instructions::get_push_bytes(instruction);
 				let val = code.read(bytes);
 				stack.push(val);
@@ -517,7 +529,12 @@ impl Interpreter {
 			instructions::CALLVALUE => {
 				stack.push(params.value.clone());
 			},
-			// instructions::CALLDATALOAD
+			instructions::CALLDATALOAD => {
+				let id = stack.pop_back().low_u64() as usize;
+				let mut v = params.data[id..id+32].to_vec();
+				v.resize(32, 0);
+				stack.push(U256::from(&v[..]))
+			},
 			instructions::CALLDATASIZE => {
 				stack.push(U256::from(params.data.len()));
 			},
@@ -538,6 +555,9 @@ impl Interpreter {
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());
 				let code = ext.extcode(&address);
+				for b in &code {
+					println!("Code: {:x}", b);
+				}
 				self.copy_data_to_memory(mem, stack, &code);
 			},
 			instructions::GASPRICE => {
@@ -578,7 +598,7 @@ impl Interpreter {
 		let index = stack.pop_back().low_u64() as usize;
 		let size = stack.pop_back().low_u64() as usize;
 
-		mem.write_slice(offset, &data[index..size]);
+		mem.write_slice(offset, &data[index..index+size]);
 	}
 
 	fn verify_instructions_requirements(&self, 
@@ -776,27 +796,27 @@ mod tests {
 	fn test_memory_read_and_write() {
 		// given
 		let mem : &mut super::Memory = &mut vec![];
-		mem.resize(4);
+		mem.resize(32);
 
 		// when
 		mem.write(U256::from(0x00), U256::from(0xabcdef));
 
 		// then
-		assert_eq!(mem.read(U256::from(0x00)), 0xabcdef);
+		assert_eq!(mem.read(U256::from(0x00)), U256::from(0xabcdef));
 	}
 
 	#[test]
 	fn test_memory_read_and_write_byte() {
 		// given
 		let mem : &mut super::Memory = &mut vec![];
-		mem.resize(4);
+		mem.resize(32);
 
 		// when
-		mem.write_byte(U256::from(0x01), U256::from(0xab));
-		mem.write_byte(U256::from(0x02), U256::from(0xcd));
-		mem.write_byte(U256::from(0x03), U256::from(0xef));
+		mem.write_byte(U256::from(0x1d), U256::from(0xab));
+		mem.write_byte(U256::from(0x1e), U256::from(0xcd));
+		mem.write_byte(U256::from(0x1f), U256::from(0xef));
 
 		// then
-		assert_eq!(mem.read(U256::from(0x00)), 0xabcdef);
+		assert_eq!(mem.read(U256::from(0x00)), U256::from(0xabcdef));
 	}
 }
