@@ -45,12 +45,13 @@ impl NetworkConfiguration {
 }
 
 // Tokens
-const TOKEN_BEGIN: usize = USER_TOKEN_START;
-const TCP_ACCEPT: usize = TOKEN_BEGIN;
-const IDLE: usize = TOKEN_BEGIN + 1;
-const NODETABLE_RECEIVE: usize = TOKEN_BEGIN + 2;
-const NODETABLE_MAINTAIN: usize = TOKEN_BEGIN + 3;
-const NODETABLE_DISCOVERY: usize = TOKEN_BEGIN + 4;
+//const TOKEN_BEGIN: usize = USER_TOKEN_START; // TODO: ICE in rustc 1.7.0-nightly (49c382779 2016-01-12)
+const TOKEN_BEGIN: usize = 32;
+const TCP_ACCEPT: usize = TOKEN_BEGIN + 1;
+const IDLE: usize = TOKEN_BEGIN + 2;
+const NODETABLE_RECEIVE: usize = TOKEN_BEGIN + 3;
+const NODETABLE_MAINTAIN: usize = TOKEN_BEGIN + 4;
+const NODETABLE_DISCOVERY: usize = TOKEN_BEGIN + 5;
 const FIRST_CONNECTION: usize = TOKEN_BEGIN + 16;
 const LAST_CONNECTION: usize = FIRST_CONNECTION + MAX_CONNECTIONS - 1;
 
@@ -545,9 +546,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 
 	fn stream_readable<'s>(&'s mut self, io: &mut IoContext<'s, NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
-			TCP_ACCEPT => self.accept(io),
 			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_readable(stream, io),
 			NODETABLE_RECEIVE => {},
+			TCP_ACCEPT => self.accept(io), 
 			_ => panic!("Received unknown readable token"),
 		}
 	}

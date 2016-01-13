@@ -13,7 +13,7 @@ pub type StreamToken = usize;
 const MAX_USER_TIMERS: usize = 32;
 const USER_TIMER: usize = 0;
 const LAST_USER_TIMER: usize = USER_TIMER + MAX_USER_TIMERS - 1;
-pub const USER_TOKEN: usize = LAST_USER_TIMER + 1;
+//const USER_TOKEN: usize = LAST_USER_TIMER + 1;
 
 /// Messages used to communicate with the event loop from other threads.
 pub enum IoMessage<Message> where Message: Send + Sized {
