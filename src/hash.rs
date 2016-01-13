@@ -550,6 +550,8 @@ mod tests {
 		assert_eq!(H64::from(0x1234567890abcdef), H64::from("0x1234567890abcdef"));
 		assert_eq!(H64::from(0x1234567890abcdef), H64::from("1234567890abcdef"));
 		assert_eq!(H64::from(0x234567890abcdef), H64::from("0x234567890abcdef"));
+		// too short.
+		assert_eq!(H64::from(0), H64::from("0x34567890abcdef"));
 	}
 }
 
