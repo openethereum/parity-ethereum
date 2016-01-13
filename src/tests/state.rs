@@ -1,5 +1,6 @@
 use super::test_common::*;
 use state::*;
+use executive::*;
 use ethereum;
 
 pub fn map_h256_h256_from_json(json: &Json) -> BTreeMap<H256, H256> {
@@ -46,17 +47,17 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let post = pod_map_from_json(&test["post"]);
 		// TODO: read test["logs"]
 
-		println!("Transaction: {:?}", t);
-		println!("Env: {:?}", env);
+		//println!("Transaction: {:?}", t);
+		//println!("Env: {:?}", env);
 
 		let mut s = State::new_temp();
 		s.populate_from(pre);
 
-		s.apply(&env, engine.deref(), &t).unwrap();
+		Executive::new(&mut s, &env, engine.deref()).transact(&t).unwrap();
 		let our_post = s.to_pod_map();
 
 		if fail_unless(s.root() == &post_state_root) {
-			println!("DIFF:\n{}", pod_map_diff(&post, &our_post));
+			println!("FAILED {}.   Diff:\n{}", name, pod_map_diff(&post, &our_post));
 		}
 
 		// TODO: Compare logs.

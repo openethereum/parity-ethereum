@@ -59,7 +59,30 @@ pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
 impl fmt::Display for AccountDiff {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "...\n")
+		match self.nonce {
+			Diff::Born(ref x) => try!(write!(f, "#{}", x)),
+			Diff::Changed(ref pre, ref post) => try!(write!(f, "#{} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *	min(pre, post))),
+			_ => {},
+		}
+		match self.balance {
+			Diff::Born(ref x) => try!(write!(f, "${}", x)),
+			Diff::Changed(ref pre, ref post) => try!(write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))),
+			_ => {},
+		}
+		match self.code {
+			Diff::Born(ref x) => try!(write!(f, "@{}", x.pretty())),
+			_ => {},
+		}
+		try!(write!(f, "\n"));
+		for (k, dv) in self.storage.iter() {
+			match dv {
+				&Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", k, v)),
+				&Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", k, post, pre)),
+				&Diff::Died(_) => try!(write!(f, "    X  {}\n", k)),
+				_ => {},
+			}
+		}
+		Ok(())
 	}
 }
 
@@ -68,7 +91,7 @@ impl fmt::Display for Existance {
 		match self {
 			&Existance::Born => try!(write!(f, "+++")),
 			&Existance::Alive => try!(write!(f, "***")),
-			&Existance::Died => try!(write!(f, "---")),
+			&Existance::Died => try!(write!(f, "XXX")),
 		}
 		Ok(())
 	}
