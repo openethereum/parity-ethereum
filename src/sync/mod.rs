@@ -24,7 +24,7 @@
 
 use std::sync::Arc;
 use client::BlockChainClient;
-use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
+use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, NetworkIoMessage};
 use util::TimerToken;
 use util::Bytes;
 use sync::chain::ChainSync;
@@ -40,9 +40,12 @@ mod tests;
 /// Message type for external events
 pub enum SyncMessage {
 	/// New block has been imported into the blockchain
-	NewBlock(Bytes)
+	NewChainBlock(Bytes),
+	/// A block is ready 
+	BlockVerified(Bytes),
 }
 
+pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 
 /// Ethereum network protocol handler
 pub struct EthSync {

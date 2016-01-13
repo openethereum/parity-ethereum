@@ -121,6 +121,18 @@ impl From<DecoderError> for Error {
 	}
 }
 
+impl From<UtilError> for Error {
+	fn from(err: UtilError) -> Error {
+		Error::Util(err)
+	}
+}
+
+impl From<IoError> for Error {
+	fn from(err: IoError) -> Error {
+		Error::Util(From::from(err))
+	}
+}
+
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
 /*#![feature(concat_idents)]
 macro_rules! assimilate {

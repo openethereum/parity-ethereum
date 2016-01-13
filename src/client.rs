@@ -6,6 +6,7 @@ use header::BlockNumber;
 use spec::Spec;
 use engine::Engine;
 use queue::BlockQueue;
+use sync::NetSyncMessage;
 
 /// General block status
 pub enum BlockStatus {
@@ -99,14 +100,19 @@ pub struct Client {
 }
 
 impl Client {
-	pub fn new(spec: Spec, path: &Path) -> Result<Client, Error> {
+	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Client, Error> {
 		let chain = Arc::new(RwLock::new(BlockChain::new(&spec.genesis_block(), path)));
 		let engine = Arc::new(try!(spec.to_engine()));
 		Ok(Client {
 			chain: chain.clone(),
 			_engine: engine.clone(),
-			queue: BlockQueue::new(chain.clone(), engine.clone()),
+			queue: BlockQueue::new(chain.clone(), engine.clone(), message_channel),
 		})
+	}
+
+
+	pub fn import_verified_block(&mut self, bytes: Bytes) {
+		self.chain.write().unwrap().insert_block(&bytes);
 	}
 }
 

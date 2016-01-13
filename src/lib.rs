@@ -111,6 +111,7 @@ pub mod views;
 pub mod blockchain;
 pub mod extras;
 pub mod evm;
+pub mod service;
 
 #[cfg(test)]
 mod tests;
