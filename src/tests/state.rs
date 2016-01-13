@@ -9,18 +9,25 @@ pub fn hashmap_h256_h256_from_json(json: &Json) -> HashMap<H256, H256> {
 	})
 }
 
+pub fn map_h256_h256_from_json(json: &Json) -> BTreeMap<H256, H256> {
+	json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut m, (key, value)| {
+		m.insert(H256::from(&u256_from_hex(key)), H256::from(&u256_from_json(value)));
+		m
+	})
+}
+
 /// Translate the JSON object into a hash map of account information ready for insertion into State.
-pub fn pod_account_map_from_json(json: &Json) -> HashMap<Address, PodAccount> {
-	json.as_object().unwrap().iter().fold(HashMap::new(), |mut state, (address, acc)| {
+pub fn pod_map_from_json(json: &Json) -> BTreeMap<Address, PodAccount> {
+	json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut state, (address, acc)| {
 		let balance = acc.find("balance").map(&u256_from_json);
 		let nonce = acc.find("nonce").map(&u256_from_json);
-		let storage: Option<HashMap<H256, H256>> = acc.find("storage").map(&hashmap_h256_h256_from_json);;
+		let storage = acc.find("storage").map(&map_h256_h256_from_json);;
 		let code = acc.find("code").map(&bytes_from_json);
-		if balance.is_some() || nonce.is_some() {
+		if balance.is_some() || nonce.is_some() || storage.is_some() || code.is_some() {
 			state.insert(address_from_hex(address), PodAccount{
 				balance: balance.unwrap_or(U256::zero()),
 				nonce: nonce.unwrap_or(U256::zero()),
-				storage: storage.unwrap_or(HashMap::new()),
+				storage: storage.unwrap_or(BTreeMap::new()),
 				code: code.unwrap_or(Vec::new())
 			});
 		}
@@ -42,8 +49,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let env = EnvInfo::from_json(&test["env"]);
 		let out = bytes_from_json(&test["out"]);
 		let post_state_root = h256_from_json(&test["postStateRoot"]);
-		let pre = pod_account_map_from_json(&test["pre"]);
-		let post = pod_account_map_from_json(&test["post"]);
+		let pre = pod_map_from_json(&test["pre"]);
+		let post = pod_map_from_json(&test["post"]);
 		// TODO: read test["logs"]
 
 		println!("Transaction: {:?}", t);
@@ -55,12 +62,11 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let mut s = State::new_temp();
 		s.populate_from(pre);
 		s.apply(&env, engine.deref(), &t).unwrap();
-
-		println!("{:?} ? {:?}", s.root(), post_state_root);
+		let our_post = s.to_pod_map();
 
 		if fail_unless(s.root() == &post_state_root) {
 			println!("EXPECTED:\n{:?}", post);
-			println!("GOT:\n{:?}", s);
+			println!("GOT:\n{:?}", our_post);
 		}
 
 		// TODO: Compare logs.

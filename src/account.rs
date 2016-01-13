@@ -3,26 +3,14 @@ use util::*;
 pub const SHA3_EMPTY: H256 = H256( [0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c, 0x92, 0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0, 0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b, 0x7b, 0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70] );
 
 #[derive(Debug)]
-/// Genesis account data. Does no thave a DB overlay cache
+/// Genesis account data. Does not have a DB overlay cache.
 pub struct PodAccount {
 	// Balance of the account.
 	pub balance: U256,
 	// Nonce of the account.
 	pub nonce: U256,
 	pub code: Bytes,
-	pub storage: HashMap<H256, H256>,
-}
-
-impl PodAccount {
-	pub fn rlp(&self) -> Bytes {
-		let mut stream = RlpStream::new_list(4);
-		stream.append(&self.nonce);
-		stream.append(&self.balance);
-		// TODO.
-		stream.append(&SHA3_NULL_RLP);
-		stream.append(&self.code.sha3());
-		stream.out()
-	}
+	pub storage: BTreeMap<H256, H256>,
 }
 
 /// Single account in the system.
@@ -40,6 +28,29 @@ pub struct Account {
 	code_hash: Option<H256>,
 	// Code cache of the account.
 	code_cache: Bytes,
+}
+
+impl PodAccount {
+	/// Convert Account to a PodAccount.
+	/// NOTE: This will silently fail unless the account is fully cached.
+	pub fn from_account(acc: &Account) -> PodAccount {
+		PodAccount {
+			balance: acc.balance.clone(),
+			nonce: acc.nonce.clone(),
+			storage: acc.storage_overlay.borrow().iter().fold(BTreeMap::new(), |mut m, (k, v)| {m.insert(k.clone(), v.clone()); m}),
+			code: acc.code_cache.clone()
+		}
+	}
+
+	pub fn rlp(&self) -> Bytes {
+		let mut stream = RlpStream::new_list(4);
+		stream.append(&self.nonce);
+		stream.append(&self.balance);
+		// TODO.
+		stream.append(&SHA3_NULL_RLP);
+		stream.append(&self.code.sha3());
+		stream.out()
+	}
 }
 
 impl Account {
@@ -61,7 +72,7 @@ impl Account {
 			balance: pod.balance,
 			nonce: pod.nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: RefCell::new(pod.storage),
+			storage_overlay: RefCell::new(pod.storage.into_iter().fold(HashMap::new(), |mut m, (k, v)| {m.insert(k, v); m})),
 			code_hash: Some(pod.code.sha3()),
 			code_cache: pod.code
 		}
@@ -242,7 +253,7 @@ impl Account {
 
 impl fmt::Debug for Account {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{:?}", PodAccount{balance: self.balance.clone(), nonce: self.nonce.clone(), storage: self.storage_overlay.borrow().clone(), code: self.code_cache.clone()})
+		write!(f, "{:?}", PodAccount::from_account(self))
 	}
 }
 
