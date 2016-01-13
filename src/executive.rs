@@ -349,10 +349,10 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), evm::Error> {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> Result<(U256, Option<Address>), evm::Error> {
 		// if balance is insufficient or we are to deep, return
 		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.stack_limit {
-			return Ok((gas, None));
+			return Ok((*gas, None));
 		}
 
 		// create new contract address
@@ -363,7 +363,7 @@ impl<'a> Ext for Externalities<'a> {
 			address: address.clone(),
 			sender: self.params.address.clone(),
 			origin: self.params.origin.clone(),
-			gas: U256::from(gas),
+			gas: *gas,
 			gas_price: self.params.gas_price.clone(),
 			value: value.clone(),
 			code: code.to_vec(),
@@ -372,7 +372,7 @@ impl<'a> Ext for Externalities<'a> {
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
 		ex.state.inc_nonce(&self.params.address);
-		ex.create(&params, self.substate).map(|gas_left| (gas_left.low_u64(), Some(address)))
+		ex.create(&params, self.substate).map(|gas_left| (gas_left, Some(address)))
 	}
 
 	fn call(&mut self, gas: u64, call_gas: u64, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Result<u64, evm::Error> {

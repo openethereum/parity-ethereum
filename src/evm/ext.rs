@@ -25,7 +25,7 @@ pub trait Ext {
 	/// If contract creation is successfull, return gas_left and contract address,
 	/// If depth is too big or transfer value exceeds balance, return None
 	/// Otherwise return appropriate `Error`.
-	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), Error>;
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> Result<(U256, Option<Address>), Error>;
 
 	/// Message call.
 	/// 

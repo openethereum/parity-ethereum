@@ -71,7 +71,7 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.blockhash(number)
 	}
 
-	fn create(&mut self, gas: u64, value: &U256, code: &[u8]) -> Result<(u64, Option<Address>), evm::Error> {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> Result<(U256, Option<Address>), evm::Error> {
 		// in call and create we need to check if we exited with insufficient balance or max limit reached.
 		// in case of reaching max depth, we should store callcreates. Otherwise, ignore.
 		let res = self.ext.create(gas, value, code);
@@ -82,7 +82,7 @@ impl<'a> Ext for TestExt<'a> {
 				self.callcreates.push(CallCreate {
 					data: code.to_vec(),
 					destination: address.clone(),
-					_gas_limit: U256::from(gas),
+					_gas_limit: *gas,
 					value: *value
 				});
 				Ok((gas_left, Some(address)))
@@ -94,7 +94,7 @@ impl<'a> Ext for TestExt<'a> {
 					data: code.to_vec(),
 					// TODO: address is not stored here?
 					destination: Address::new(),
-					_gas_limit: U256::from(gas),
+					_gas_limit: *gas,
 					value: *value
 				});
 				Ok((gas_left, Some(address)))

@@ -209,9 +209,9 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			  init_size: u64,
 			  address: *mut evmjit::H256) {
 		unsafe {
-			match self.ext.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
+			match self.ext.create(&U256::from(*io_gas), &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
 				Ok((gas_left, opt)) => {
-					*io_gas = gas_left;
+					*io_gas = gas_left.low_u64();
 					*address = match opt {
 						Some(addr) => addr.into_jit(),
 						_ => Address::new().into_jit()
