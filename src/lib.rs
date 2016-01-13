@@ -73,18 +73,16 @@
 //!       sudo ldconfig
 //!       ```
 
-#[macro_use]
-extern crate log;
+#[macro_use] extern crate log;
 extern crate rustc_serialize;
+#[macro_use] extern crate itertools;
 extern crate flate2;
 extern crate rocksdb;
 extern crate heapsize;
 extern crate crypto;
 extern crate time;
-
 extern crate env_logger;
-#[cfg(feature = "jit" )]
-extern crate evmjit;
+#[cfg(feature = "jit" )] extern crate evmjit;
 
 extern crate ethcore_util as util;
 
