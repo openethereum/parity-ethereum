@@ -47,13 +47,13 @@ impl Ext for FakeExt {
 	}
 
 	fn call(&mut self, 
-			_gas: u64, 
-			_call_gas: u64, 
+			_gas: &U256, 
+			_call_gas: &U256, 
 			_receive_address: &Address, 
 			_value: &U256, 
 			_data: &[u8], 
 			_code_address: &Address, 
-			_output: &mut [u8]) -> result::Result<u64, evm::Error> {
+			_output: &mut [u8]) -> result::Result<U256, evm::Error> {
 		unimplemented!();
 	}
 

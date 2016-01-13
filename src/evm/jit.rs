@@ -240,8 +240,8 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				out_size: u64,
 				code_address: *const evmjit::H256) -> bool {
 		unsafe {
-			let res = self.ext.call(*io_gas, 
-									call_gas, 
+			let res = self.ext.call(&U256::from(*io_gas), 
+									&U256::from(call_gas), 
 									&Address::from_jit(&*receive_address),
 									&U256::from_jit(&*value),
 									slice::from_raw_parts(in_beg, in_size as usize),
@@ -250,7 +250,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 
 			match res {
 				Ok(gas_left) => {
-					*io_gas = gas_left;
+					*io_gas = gas_left.low_u64();
 					true
 				},
 				Err(err @ evm::Error::OutOfGas) => {

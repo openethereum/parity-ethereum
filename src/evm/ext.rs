@@ -6,7 +6,6 @@ use util::bytes::*;
 use evm::{Schedule, Error};
 use env_info::*;
 
-// TODO: replace all u64 with u256
 pub trait Ext {
 	/// Returns a value for given key.
 	fn sload(&self, key: &H256) -> H256;
@@ -32,13 +31,13 @@ pub trait Ext {
 	/// If call is successfull, returns gas left.
 	/// otherwise `Error`.
 	fn call(&mut self, 
-			gas: u64, 
-			call_gas: u64, 
+			gas: &U256, 
+			call_gas: &U256, 
 			receive_address: &Address, 
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<u64, Error>;
+			output: &mut [u8]) -> Result<U256, Error>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Vec<u8>;

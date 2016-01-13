@@ -104,13 +104,13 @@ impl<'a> Ext for TestExt<'a> {
 	}
 
 	fn call(&mut self, 
-			gas: u64, 
-			call_gas: u64, 
+			gas: &U256, 
+			call_gas: &U256, 
 			receive_address: &Address, 
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<u64, evm::Error> {
+			output: &mut [u8]) -> Result<U256, evm::Error> {
 		let res = self.ext.call(gas, call_gas, receive_address, value, data, code_address, output);
 		let ext = &self.ext;
 		match res {
@@ -118,7 +118,7 @@ impl<'a> Ext for TestExt<'a> {
 				self.callcreates.push(CallCreate {
 					data: data.to_vec(),
 					destination: receive_address.clone(),
-					_gas_limit: U256::from(call_gas),
+					_gas_limit: *call_gas,
 					value: *value
 				});
 				Ok(gas_left)
