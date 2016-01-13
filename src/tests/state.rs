@@ -55,18 +55,20 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		println!("Transaction: {:?}", t);
 		println!("Env: {:?}", env);
-		println!("Out: {:?}", out);
-		println!("Pre: {:?}", pre);
-		println!("Post: {:?}", post);
+
+		println!("Pre:\n{:?}", pre);
 
 		let mut s = State::new_temp();
 		s.populate_from(pre);
+		println!("Our-pre:\n{:?}", s.to_pod_map());
+
 		s.apply(&env, engine.deref(), &t).unwrap();
 		let our_post = s.to_pod_map();
 
 		if fail_unless(s.root() == &post_state_root) {
 			println!("EXPECTED:\n{:?}", post);
 			println!("GOT:\n{:?}", our_post);
+//			println!("DIFF:\n{:?}", pod_map_diff(post, our_post));
 		}
 
 		// TODO: Compare logs.
