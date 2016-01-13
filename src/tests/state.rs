@@ -56,7 +56,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let our_post = s.to_pod_map();
 
 		if fail_unless(s.root() == &post_state_root) {
-			println!("DIFF:\n{:?}", pod_map_diff(&post, &our_post));
+			println!("DIFF:\n{}", pod_map_diff(&post, &our_post));
 		}
 
 		// TODO: Compare logs.
