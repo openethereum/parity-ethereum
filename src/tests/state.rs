@@ -2,13 +2,6 @@ use super::test_common::*;
 use state::*;
 use ethereum;
 
-pub fn hashmap_h256_h256_from_json(json: &Json) -> HashMap<H256, H256> {
-	json.as_object().unwrap().iter().fold(HashMap::new(), |mut m, (key, value)| {
-		m.insert(H256::from(&u256_from_str(key)), H256::from(&u256_from_json(value)));
-		m
-	})
-}
-
 pub fn map_h256_h256_from_json(json: &Json) -> BTreeMap<H256, H256> {
 	json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut m, (key, value)| {
 		m.insert(H256::from(&u256_from_str(key)), H256::from(&u256_from_json(value)));

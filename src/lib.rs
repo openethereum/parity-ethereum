@@ -84,7 +84,7 @@ extern crate time;
 extern crate env_logger;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
-extern crate ethcore_util as util;
+#[macro_use] extern crate ethcore_util as util;
 
 pub mod common;
 pub mod basic_types;
