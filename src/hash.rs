@@ -377,6 +377,19 @@ macro_rules! impl_hash {
 
 			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
 		}
+
+		impl From<u64> for $from {
+			fn from(mut value: u64) -> $from {
+				let mut ret = $from::new();
+				for i in 0..8 {
+					if i < $size {
+						ret.0[$size - i - 1] = (value & 0xff) as u8;
+						value >>= 8;
+					}
+				}
+				ret
+			}
+		}
 	}
 }
 
@@ -387,7 +400,7 @@ impl<'a> From<&'a U256> for H256 {
 			value.to_bytes(&mut ret);
 			ret
 		}
-    }
+	}
 }
 
 impl From<H256> for Address {
