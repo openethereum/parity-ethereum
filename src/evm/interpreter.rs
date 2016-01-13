@@ -84,6 +84,8 @@ trait Memory {
 	fn write_slice(&mut self, offset: U256, &[u8]);
 	/// Retrieve part of the memory between offset and offset + size
 	fn read_slice(&self, offset: U256, size: U256) -> &[u8];
+	/// Retrieve writeable part of memory
+	fn writeable_slice(&mut self, offset: U256, size: U256) -> &mut[u8];
 }
 impl Memory for Vec<u8> {
 	fn size(&self) -> usize {
@@ -104,6 +106,12 @@ impl Memory for Vec<u8> {
 			val = val | U256::from(self[pos] as u8);
 		}
 		val
+	}
+
+	fn writeable_slice(&mut self, offset: U256, size: U256) -> &mut [u8] {
+		let off = offset.low_u64() as usize;
+		let s = size.low_u64() as usize;
+		&mut self[off..off+s]
 	}
 
 	fn write_slice(&mut self, offset: U256, slice: &[u8]) {
@@ -419,30 +427,59 @@ impl Interpreter {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
 
-				// TODO [todr] Fix u64 for gas
 				let contract_code = mem.read_slice(init_off, init_size);
-				// TODO [todr] Fix u64 for gasLeft
 				let (gas_left, maybe_address) = try!(
-					ext.create(gas.low_u64(), &endowment, &contract_code)
+					ext.create(&gas, &endowment, &contract_code)
 				);
 				match maybe_address {
 					Some(address) => stack.push(address_to_u256(address)),
 					None => stack.push(U256::zero())
 				}
 				return Ok(InstructionResult::AdditionalGasCost(
-					gas - Gas::from(gas_left)
+					gas - gas_left
 				));
 			},
-			// CALL, CALLCODE, DELEGATECALL
+			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL => {
+				let call_gas = stack.pop_back();
+				let code_address = u256_to_address(&stack.pop_back());
+
+				let value = if instruction == instructions::DELEGATECALL {
+					params.value
+				} else {
+					stack.pop_back()
+				};
+
+				let address = if instruction == instructions::CALL {
+					&code_address
+				} else {
+					&params.address
+				};
+
+				let in_off = stack.pop_back();
+				let in_size = stack.pop_back();
+				let out_off = stack.pop_back();
+				let out_size = stack.pop_back();
+
+				let gas_left = {
+						// we need to write and read from memory in the same time
+						// and we don't want to copy
+						let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
+						let output = mem.writeable_slice(out_off, out_size);
+						try!(
+							ext.call(&gas, &call_gas, address, &value, input, &code_address, output)
+						)
+				};
+				return Ok(InstructionResult::AdditionalGasCost(
+					gas - gas_left
+				));
+			}, 
 			instructions::RETURN => {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
 				let return_code = mem.read_slice(init_off, init_size);
-				// TODO [todr] Fix u64 for gas
-				let gas_left = try!(ext.ret(gas.low_u64(), &return_code));
-				// TODO [todr] Fix u64 for gasLeft
+				let gas_left = try!(ext.ret(&gas, &return_code));
 				return Ok(InstructionResult::StopExecutionWithGasCost(
-					gas - Gas::from(gas_left)
+					gas - gas_left
 				));
 			},
 			instructions::STOP => {
@@ -451,8 +488,7 @@ impl Interpreter {
 			instructions::SUICIDE => {
 				// TODO [todr] Suicide should have argument with address of contract that funds should be transfered to
 				let address = stack.pop_back();
-				// ext.suicide(Address::from(address));
-				ext.suicide();
+				ext.suicide(&u256_to_address(&address));
 				return Ok(InstructionResult::StopExecution);
 			},
 			instructions::LOG0...instructions::LOG4 => {
