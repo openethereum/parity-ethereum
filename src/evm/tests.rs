@@ -72,7 +72,7 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn suicide(&mut self) {
+	fn suicide(&mut self, _refund_address: &Address) {
 		unimplemented!();
 	}
 

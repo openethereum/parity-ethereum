@@ -212,16 +212,17 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			match self.ext.create(*io_gas, &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
 				Ok((gas_left, opt)) => {
 					*io_gas = gas_left;
-					if let Some(addr) = opt {
-						*address = addr.into_jit();
-					}
+					*address = match opt {
+						Some(addr) => addr.into_jit(),
+						_ => Address::new().into_jit()
+					};
 				},
 				Err(err @ evm::Error::OutOfGas) => {
 					*self.err = Some(err);
 					// hack to propagate `OutOfGas` to evmjit and stop
 					// the execution immediately.
 					// Works, cause evmjit uses i64, not u64
-					*io_gas = -1i64 as u64
+					*io_gas = -1i64 as u64;
 				},
 				Err(err) => *self.err = Some(err)
 			}
@@ -346,8 +347,7 @@ impl evm::Evm for JitEvm {
 			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),
 			evmjit::ReturnCode::Return => ext.ret(context.gas_left(), context.output_data()).map(|gas_left| U256::from(gas_left)),
 			evmjit::ReturnCode::Suicide => { 
-				// what if there is a suicide and we run out of gas just after?
-				ext.suicide();
+				ext.suicide(&Address::from_jit(&context.suicide_refund_address()));
 				Ok(U256::from(context.gas_left()))
 			},
 			evmjit::ReturnCode::OutOfGas => Err(evm::Error::OutOfGas),
