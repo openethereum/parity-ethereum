@@ -39,6 +39,7 @@ use std::fmt;
 use std::slice;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
+use std::ops::{Deref, DerefMut};
 use uint::{U128, U256};
 use hash::FixedHash;
 
@@ -86,6 +87,31 @@ impl<'a> ToPretty for &'a Bytes {
 impl ToPretty for Bytes {
 	fn pretty(&self) -> PrettySlice {
 		PrettySlice(self.bytes())
+	}
+}
+
+pub enum BytesRef<'a> {
+	Flexible(&'a mut Bytes),
+	Fixed(&'a mut [u8])
+}
+
+impl<'a> Deref for BytesRef<'a> {
+	type Target = [u8];
+
+	fn deref(&self) -> &[u8] {
+		match self {
+			&BytesRef::Flexible(ref bytes) => bytes,
+			&BytesRef::Fixed(ref bytes) => bytes
+		}
+	}
+}
+
+impl <'a> DerefMut for BytesRef<'a> {
+	fn deref_mut(&mut self) -> &mut [u8] {
+		match self {
+			&mut BytesRef::Flexible(ref mut bytes) => bytes,
+			&mut BytesRef::Fixed(ref mut bytes) => bytes
+		}
 	}
 }
 
