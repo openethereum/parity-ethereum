@@ -100,12 +100,7 @@ impl Memory for Vec<u8> {
 
 	fn read(&self, offset: U256) -> U256 {
 		let off = offset.low_u64() as usize;
-		let mut val = U256::zero();
-		for pos in off..off+32 {
-			val = val << 8;
-			val = val | U256::from(self[pos] as u8);
-		}
-		val
+		U256::from(&self[off..off+32])
 	}
 
 	fn writeable_slice(&mut self, offset: U256, size: U256) -> &mut [u8] {
@@ -130,7 +125,7 @@ impl Memory for Vec<u8> {
 	
 		let end = off + 32;
 		for pos in off..end {
-			self[end - pos - 1] = (val & U256::from(0xff)).low_u64() as u8;
+			self[end - pos - 1] = val.low_u64() as u8;
 			val = val >> 8;
 		}
 	}
@@ -138,7 +133,7 @@ impl Memory for Vec<u8> {
 	fn write_byte(&mut self, offset: U256, value: U256) {
 		let off = offset.low_u64() as usize;
 		let val = value.low_u64() as u64;
-		self[off] = (val & 0xff) as u8;
+		self[off] = val as u8;
 	}
 
 	fn resize(&mut self, new_size: usize) {
