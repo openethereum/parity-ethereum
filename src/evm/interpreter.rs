@@ -2,7 +2,6 @@
 
 use common::*;
 use evm;
-use super::schedule::Schedule;
 use super::instructions as instructions;
 use super::instructions::Instruction;
 
@@ -24,6 +23,8 @@ trait Stack<T> {
 	fn pop_n(&mut self, no_of_elems: usize) -> Vec<T>;
 	/// Add element on top of the Stack
 	fn push(&mut self, elem: T);
+	/// Get number of elements on Stack
+	fn size(&self) -> usize;
 }
 impl<S : fmt::Display> Stack<S> for Vec<S> {
 	fn peek(&self, no_from_top: usize) -> &S {
@@ -55,10 +56,13 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 		vec
 	}
 
-
 	fn push(&mut self, elem: S) {
 		println!("Pushing to stack: {}", elem);
 		self.push(elem);
+	}
+
+	fn size(&self) -> usize {
+		self.len()
 	}
 }
 /// Abstraction over raw vector of Bytes. Easier state management of PC.
@@ -94,25 +98,24 @@ impl<'a> CodeReader<'a> {
 		let init_size = init_size_u.low_u64() as usize;
 		&self.code[self.position + init_off..self.position + init_off + init_size]
 	}
+}
 
-	/// Stop any further execution (move PC to the end)
-	fn stop_execution(&mut self) {
-		self.position = self.code.len();
-	}
+enum InstructionResult {
+	AdditionalGasCost(U256),
+	JumpToPosition(U256),
+	StopExecutionWithGasCost(U256),
+	StopExecution
 }
 
 pub struct Interpreter;
 
 impl evm::Evm for Interpreter {
 	fn exec(&self, params: &ActionParams, ext: &mut evm::Ext) -> evm::Result {
-    // TODO schedule?
-    // TODO reserve stack
-
-		// let schedule = ext.schedule();
     let code = &params.code;
     let valid_jump_destinations = self.find_jump_destinations(&code);
 
-		let mut gas = params.gas.clone();
+    // TODO reserve stack
+		let mut current_gas = params.gas.clone();
     let mut stack = vec![];
 		let mut reader = CodeReader {
 			position: 0,
@@ -121,51 +124,110 @@ impl evm::Evm for Interpreter {
 
     while reader.position < code.len() {
       let instruction = code[reader.position];
-			let gas_usage = self.check_and_get_gas_usage(instruction/*, schedule*/);
-			// TODO check if we have enough
-		
 			reader.position += 1;
-			// Handle jumps
-			match instruction {
-				instructions::JUMP => {
-					let jump = stack.pop_back();
-					reader.position = try!(self.verify_jump(jump, &valid_jump_destinations));
+
+			// Calculate gas cost
+			let gas_cost = try!(self.get_gas_cost(current_gas, params, ext, instruction, &stack));
+			try!(self.verify_gas(&current_gas, &gas_cost));
+			current_gas = current_gas - gas_cost;
+
+			// Execute instruction
+			let result = try!(self.exec_instruction(
+					current_gas, params, ext, instruction, &mut reader, &mut stack
+			));
+
+			// Advance
+			match result {
+				InstructionResult::JumpToPosition(position) => {
+					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
+					reader.position = pos;
 				},
-				instructions::JUMPI => {
-					let condition = stack.pop_back();
-					let jump = stack.pop_back();
-					if !self.is_zero(condition) {
-						reader.position = try!(self.verify_jump(jump, &valid_jump_destinations));
-					}
+				InstructionResult::AdditionalGasCost(gas_cost) => {
+					current_gas = current_gas - gas_cost;
 				},
-				instructions::JUMPDEST => {
-					// ignore
+				InstructionResult::StopExecutionWithGasCost(gas_cost) => { 
+					current_gas = current_gas - gas_cost;
+					reader.position = code.len();
 				},
-				_ => {
-					// Execute all other instructions
-					self.exec_instruction(params, ext, gas, instruction, &mut reader, &mut stack);
+				InstructionResult::StopExecution => {
+					reader.position = code.len();
 				}
 			}
 		}
-		Ok(U256::from(79_988))
+
+		Ok(current_gas)
   }
 }
 
 impl Interpreter {
 
-	fn check_and_get_gas_usage(&self, instruction: Instruction/*, schedule: &Schedule*/) -> Gas {
-		U256::zero()
+	fn get_gas_cost(&self,
+									gas: Gas,
+									params: &ActionParams,
+									ext: &evm::Ext,
+									instruction: Instruction,
+									stack: &Stack<U256>
+									) -> evm::Result {
+
+			let schedule = ext.schedule();
+			let info = instructions::get_info(instruction);
+
+			if !schedule.have_delegate_call && instruction == instructions::DELEGATECALL {
+				return Err(evm::Error::BadInstruction);
+			}
+			if info.tier == instructions::GasPriceTier::InvalidTier {
+				return Err(evm::Error::BadInstruction);
+			}
+
+			try!(self.verify_instructions_requirements(&info, schedule.stack_limit, stack));
+
+			let tier = instructions::get_tier_idx(info.tier);
+			let run_gas = schedule.tier_step_gas[tier];
+
+
+			Ok(Gas::from(run_gas))
+	}
+
+	fn verify_instructions_requirements(&self, 
+																			info: &instructions::InstructionInfo, 
+																			stack_limit: usize, 
+																			stack: &Stack<U256>) -> Result<(), evm::Error> {
+		if !stack.has(info.args) {
+			Err(evm::Error::StackUnderflow(info.args, stack.size()))
+		} else if stack.size() - info.args + info.ret > stack_limit {
+			Err(evm::Error::OutOfStack(info.ret - info.args, stack_limit))
+		} else {
+			Ok(())
+		}
 	}
 
 	fn exec_instruction(&self,
+											gas: Gas,
 											params: &ActionParams,
 											ext: &mut evm::Ext,
-											gas: Gas,
 											instruction: Instruction,
 											code: &mut CodeReader, 
 											stack: &mut Stack<U256>
-										 ) -> evm::Result {
+										 ) -> Result<InstructionResult, evm::Error> {
 		match instruction {
+			instructions::JUMP => {
+				let jump = stack.pop_back();
+				return Ok(InstructionResult::JumpToPosition(
+					jump
+				));
+			},
+			instructions::JUMPI => {
+				let condition = stack.pop_back();
+				let jump = stack.pop_back();
+				if !self.is_zero(condition) {
+					return Ok(InstructionResult::JumpToPosition(
+						jump
+					));
+				}
+			},
+			instructions::JUMPDEST => {
+				// ignore
+			},
 			instructions::CREATE => {
 				let endowment = stack.pop_back();
 				let init_off = stack.pop_back();
@@ -174,35 +236,38 @@ impl Interpreter {
 				// TODO [todr] Fix u64 for gas
 				let contract_code = code.get_slice(init_off, init_size);
 				// TODO [todr] Fix u64 for gasLeft
-				let (gas_left, maybe_address) = try!(ext.create(gas.low_u64(), &endowment, &contract_code));
+				let (gas_left, maybe_address) = try!(
+					ext.create(gas.low_u64(), &endowment, &contract_code)
+				);
 				match maybe_address {
 					Some(address) => stack.push(address_to_u256(address)),
 					None => stack.push(U256::zero())
 				}
-				Ok(U256::from(gas_left))
+				return Ok(InstructionResult::AdditionalGasCost(
+					gas - Gas::from(gas_left)
+				));
 			},
 			// CALL, CALLCODE, DELEGATECALL
 			instructions::RETURN => {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
-				code.stop_execution();
 				let return_code = code.get_slice(init_off, init_size);
 				// TODO [todr] Fix u64 for gas
 				let gas_left = try!(ext.ret(gas.low_u64(), &return_code));
 				// TODO [todr] Fix u64 for gasLeft
-				Ok(U256::from(gas_left))
+				return Ok(InstructionResult::StopExecutionWithGasCost(
+					gas - Gas::from(gas_left)
+				));
 			},
 			instructions::STOP => {
-				code.stop_execution();
-				Ok(gas)
+				return Ok(InstructionResult::StopExecution);
 			},
 			instructions::SUICIDE => {
 				// TODO [todr] Suicide should have argument with address of contract that funds should be transfered to
 				let address = stack.pop_back();
 				// ext.suicide(Address::from(address));
 				ext.suicide();
-				code.stop_execution();
-				Ok(gas)
+				return Ok(InstructionResult::StopExecution);
 			},
 			instructions::LOG0...instructions::LOG4 => {
 				let no_of_topics = instructions::get_log_topics(instruction);
@@ -216,7 +281,6 @@ impl Interpreter {
 					.map(H256::from)
 					.collect();
 				ext.log(topics, code.get_slice(offset, size));
-				Ok(gas)
 			},
 			instructions::PUSH1...instructions::PUSH32 => {
 				// Load to stack
@@ -224,87 +288,69 @@ impl Interpreter {
 				// TODO [todr] move positions management outside of CodeReader
 				let val = code.read(bytes);
 				stack.push(val);
-				Ok(gas)
 			},
 			instructions::MLOAD => {
 				// TODO [ToDr] load word from mem?
-				Ok(gas)
 			},
 			instructions::MSTORE => {
 				// TODO [ToDr] save word to mem?
-				Ok(gas)
 			},
 			instructions::MSTORE8 => {
 				// TODO [ToDr] save byte to mem?
-				Ok(gas)
 			},
 			instructions::MSIZE => {
 				// Size of memry to stack
-				Ok(gas)
 			},
 			instructions::SHA3 => {
 				let offset = stack.pop_back();
 				let size = stack.pop_back();
 				let sha3 = code.get_slice(offset, size).sha3();
 				stack.push(U256::from(sha3.as_slice()));
-				Ok(gas)
 			},
 			instructions::SLOAD => {
 				let key = H256::from(&stack.pop_back());
 				let word = U256::from(ext.sload(&key).as_slice());
 				stack.push(word);
-				Ok(gas)
 			},
 			instructions::SSTORE => {
 				let key = H256::from(&stack.pop_back());
 				let word = H256::from(&stack.pop_back());
 				ext.sstore(key, word);
-				Ok(gas)
 			},
 			instructions::PC => {
 				stack.push(U256::from(code.position));
-				Ok(gas)
 			},
 			instructions::GAS => {
-				stack.push(U256::from(gas));
-				Ok(gas)
+				stack.push(gas.clone());
 			},
 			instructions::ADDRESS => {
 				stack.push(address_to_u256(params.address.clone()));
-				Ok(gas)
 			},
 			instructions::ORIGIN => {
 				stack.push(address_to_u256(params.origin.clone()));
-				Ok(gas)
 			},
 			instructions::BALANCE => {
 				let address = u256_to_address(&stack.pop_back());
 				let balance = ext.balance(&address);
 				stack.push(balance);
-				Ok(gas)
 			},
 			instructions::CALLER => {
 				stack.push(address_to_u256(params.sender.clone()));
-				Ok(gas)
 			},
 			instructions::CALLVALUE => {
 				stack.push(params.value.clone());
-				Ok(gas)
 			},
 			// instructions::CALLDATALOAD
 			instructions::CALLDATASIZE => {
 				stack.push(U256::from(params.data.len()));
-				Ok(gas)
 			},
 			instructions::CODESIZE => {
 				stack.push(U256::from(code.len()));
-				Ok(gas)
 			},
 			instructions::EXTCODESIZE => {
 				let address = u256_to_address(&stack.pop_back());
 				let len = ext.extcode(&address).len();
 				stack.push(U256::from(len));
-				Ok(gas)
 			},
 			// instructions::CALLDATACOPY => {},
 			// instructions::CODECOPY => {},
@@ -314,38 +360,39 @@ impl Interpreter {
 			// },
 			instructions::GASPRICE => {
 				stack.push(params.gas_price.clone());
-				Ok(gas)
 			},
 			instructions::BLOCKHASH => {
 				let block_number = stack.pop_back();
 				let block_hash = ext.blockhash(&block_number);
 				stack.push(U256::from(block_hash.as_slice()));
-				Ok(gas)
 			},
 			instructions::COINBASE => {
 				stack.push(address_to_u256(ext.env_info().author.clone()));
-				Ok(gas)
 			},
 			instructions::TIMESTAMP => {
 				stack.push(U256::from(ext.env_info().timestamp));
-				Ok(gas)
 			},
 			instructions::NUMBER => {
 				stack.push(U256::from(ext.env_info().number));
-				Ok(gas)
 			},
 			instructions::DIFFICULTY => {
 				stack.push(ext.env_info().difficulty.clone());
-				Ok(gas)
 			},
 			instructions::GASLIMIT => {
 				stack.push(ext.env_info().gas_limit.clone());
-				Ok(gas)
 			},
 			_ => {
 				self.exec_stack_instruction(instruction, stack);
-				Ok(gas)
 			}
+		};
+		Ok(InstructionResult::AdditionalGasCost(U256::zero()))
+	}
+
+	fn verify_gas(&self, current_gas: &U256, gas_cost: &U256) -> Result<(), evm::Error> {
+		if current_gas < gas_cost {
+			Err(evm::Error::OutOfGas)
+		} else {
+			Ok(())
 		}
 	}
 

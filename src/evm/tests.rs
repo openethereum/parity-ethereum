@@ -18,11 +18,20 @@ struct FakeExt {
 	codes: HashMap<Address, Bytes>,
 	logs: Vec<FakeLogEntry>,
 	_suicides: HashSet<Address>,
-	info: EnvInfo
+	info: EnvInfo,
+	_schedule: Schedule
 }
 
 impl FakeExt {
-	fn new() -> Self { FakeExt::default() }
+	fn new() -> Self { 
+		FakeExt::default()
+	}
+}
+
+impl Default for Schedule {
+	fn default() -> Self {
+		Schedule::new_homestead()
+	}
 }
 
 impl Ext for FakeExt {
@@ -77,12 +86,40 @@ impl Ext for FakeExt {
 	}
 
 	fn schedule(&self) -> &Schedule {
-		unimplemented!();
+		&self._schedule
 	}
 
 	fn env_info(&self) -> &EnvInfo {
 		&self.info
 	}
+}
+
+#[test]
+
+fn test_stack_underflow() {
+	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+	let code = "01600055".from_hex().unwrap();
+
+	let mut params = ActionParams::new();
+	params.address = address.clone();
+	params.gas = U256::from(100_000);
+	params.code = code;
+	let mut ext = FakeExt::new();
+
+	let err = {
+		let vm : Box<evm::Evm> = Box::new(super::interpreter::Interpreter);
+		vm.exec(&params, &mut ext).unwrap_err()
+	};
+	
+	match err {
+		evm::Error::StackUnderflow(wanted, stack) => {
+			assert_eq!(wanted, 2);
+			assert_eq!(stack, 0);
+		}
+		_ => {
+			assert!(false, "Expected StackUndeflow")
+		}
+	};
 }
 
 macro_rules! evm_test(

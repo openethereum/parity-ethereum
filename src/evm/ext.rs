@@ -2,7 +2,6 @@
 
 use util::hash::*;
 use util::uint::*;
-use util::bytes::*;
 use evm::{Schedule, Error};
 use env_info::*;
 

@@ -216,7 +216,11 @@ impl<'a> Executive<'a> {
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
 			// TODO [ToDr] BadJumpDestination @debris - how to handle that?
-			Err(evm::Error::OutOfGas) | Err(evm::Error::BadJumpDestination) => {
+			Err(evm::Error::OutOfGas) 
+				| Err(evm::Error::BadJumpDestination) 
+				| Err(evm::Error::BadInstruction) 
+				| Err(evm::Error::StackUnderflow(_, _))
+				| Err(evm::Error::OutOfStack(_, _)) => {
 				*self.state = backup;
 				Ok(Executed {
 					gas: t.gas,
