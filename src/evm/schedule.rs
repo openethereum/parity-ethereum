@@ -50,7 +50,7 @@ impl Schedule {
 			exceptional_failed_code_deposit: efcd,
 			have_delegate_call: hdc,
 			stack_limit: 1024,
-			tier_step_gas: [0usize, 2, 3, 4, 5, 8, 10, 20],
+			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
 			exp_gas: 10,
 			exp_byte_gas: 10,
 			sha3_gas: 30,
