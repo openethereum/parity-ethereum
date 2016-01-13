@@ -9,6 +9,9 @@ pub enum DecoderError {
 	RlpExpectedToBeList,
 	RlpExpectedToBeData,
 	RlpIncorrectListLen,
+	RlpDataLenWithZeroPrefix,
+	RlpListLenWithZeroPrefix,
+	RlpInvalidIndirection,
 }
 
 impl StdError for DecoderError {
