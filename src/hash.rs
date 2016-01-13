@@ -35,6 +35,14 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable {
 	fn is_zero(&self) -> bool;
 }
 
+fn clean_0x(s: &str) -> &str {
+	if s.len() >= 2 && &s[0..2] == "0x" {
+		&s[2..]
+	} else {
+		s
+	}
+}
+
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
@@ -224,16 +232,22 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl PartialOrd for $from {
-			fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		impl Ord for $from {
+			fn cmp(&self, other: &Self) -> Ordering {
 				for i in 0..$size {
 					if self.0[i] > other.0[i] {
-						return Some(Ordering::Greater);
+						return Ordering::Greater;
 					} else if self.0[i] < other.0[i] {
-						return Some(Ordering::Less);
+						return Ordering::Less;
 					}
 				}
-				Some(Ordering::Equal)
+				Ordering::Equal
+			}
+		}
+
+		impl PartialOrd for $from {
+			fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+				Some(self.cmp(other))
 			}
 		}
 
@@ -371,6 +385,30 @@ macro_rules! impl_hash {
 
 			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
 		}
+
+		impl From<u64> for $from {
+			fn from(mut value: u64) -> $from {
+				let mut ret = $from::new();
+				for i in 0..8 {
+					if i < $size {
+						ret.0[$size - i - 1] = (value & 0xff) as u8;
+						value >>= 8;
+					}
+				}
+				ret
+			}
+		}
+
+		impl<'_> From<&'_ str> for $from {
+			fn from(s: &'_ str) -> $from {
+				use std::str::FromStr;
+				if s.len() % 2 == 1 {
+					$from::from_str(&("0".to_string() + &(clean_0x(s).to_string()))[..]).unwrap_or($from::new())
+				} else {
+					$from::from_str(clean_0x(s)).unwrap_or($from::new())
+				}
+			}
+		}
 	}
 }
 
@@ -498,6 +536,22 @@ mod tests {
 		let h = H256::from(address.clone());
 		let a = Address::from(h);
 		assert_eq!(address, a);
+	}
+
+	#[test]
+	fn from_u64() {
+		assert_eq!(H128::from(0x1234567890abcdef), H128::from_str("00000000000000001234567890abcdef").unwrap());
+		assert_eq!(H64::from(0x1234567890abcdef), H64::from_str("1234567890abcdef").unwrap());
+		assert_eq!(H32::from(0x1234567890abcdef), H32::from_str("90abcdef").unwrap());
+	}
+
+	#[test]
+	fn from_str() {
+		assert_eq!(H64::from(0x1234567890abcdef), H64::from("0x1234567890abcdef"));
+		assert_eq!(H64::from(0x1234567890abcdef), H64::from("1234567890abcdef"));
+		assert_eq!(H64::from(0x234567890abcdef), H64::from("0x234567890abcdef"));
+		// too short.
+		assert_eq!(H64::from(0), H64::from("0x34567890abcdef"));
 	}
 }
 

@@ -269,6 +269,7 @@ impl<'a> BasicDecoder<'a> {
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
 				let header_len = 1 + len_of_len;
+				if bytes[1] == 0 { return Err(DecoderError::RlpDataLenWithZeroPrefix); }
 				let value_len = try!(usize::from_bytes(&bytes[1..header_len]));
 				PayloadInfo::new(header_len, value_len)
 			}
@@ -277,6 +278,7 @@ impl<'a> BasicDecoder<'a> {
 				let len_of_len = l as usize - 0xf7;
 				let header_len = 1 + len_of_len;
 				let value_len = try!(usize::from_bytes(&bytes[1..header_len]));
+				if bytes[1] == 0 { return Err(DecoderError::RlpListLenWithZeroPrefix); }
 				PayloadInfo::new(header_len, value_len)
 			},
 			// we cant reach this place, but rust requires _ to be implemented
@@ -302,7 +304,13 @@ impl<'a> Decoder for BasicDecoder<'a> {
 			// single byt value
 			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
 			// 0-55 bytes
-			Some(l @ 0x80...0xb7) => Ok(try!(f(&bytes[1..(1 + l as usize - 0x80)]))),
+			Some(l @ 0x80...0xb7) => {
+				let d = &bytes[1..(1 + l as usize - 0x80)];
+				if l == 0x81 && d[0] < 0x80 {
+					return Err(DecoderError::RlpInvalidIndirection);
+				}
+				Ok(try!(f(d)))
+			},
 			// longer than 55 bytes
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
