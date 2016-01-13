@@ -57,6 +57,7 @@ pub mod hash;
 pub mod uint;
 pub mod bytes;
 pub mod rlp;
+pub mod json_aid;
 pub mod vector;
 pub mod sha3;
 pub mod hashdb;
@@ -74,6 +75,7 @@ pub mod semantic_version;
 pub mod network;
 
 pub use common::*;
+pub use json_aid::*;
 pub use rlp::*;
 pub use hashdb::*;
 pub use memorydb::*;
