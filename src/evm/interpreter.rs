@@ -239,118 +239,117 @@ impl Interpreter {
 									mem: &mut Memory,
 									stack: &Stack<U256>
 									) -> evm::Result {
+		let schedule = ext.schedule();
+		let info = instructions::get_info(instruction);
 
-			let schedule = ext.schedule();
-			let info = instructions::get_info(instruction);
+		if !schedule.have_delegate_call && instruction == instructions::DELEGATECALL {
+			return Err(evm::Error::BadInstruction);
+		}
+		if info.tier == instructions::GasPriceTier::InvalidTier {
+			return Err(evm::Error::BadInstruction);
+		}
 
-			if !schedule.have_delegate_call && instruction == instructions::DELEGATECALL {
-				return Err(evm::Error::BadInstruction);
+		try!(self.verify_instructions_requirements(&info, schedule.stack_limit, stack));
+
+		let tier = instructions::get_tier_idx(info.tier);
+		let default_gas = U256::from(schedule.tier_step_gas[tier]);
+
+		let cost = match instruction {
+			instructions::SSTORE => {
+				let address = H256::from(stack.peek(0));
+				let val = U256::from(ext.sload(&address).as_slice());
+				let gas = if self.is_zero(&val) && !self.is_zero(stack.peek(1)) {
+					schedule.sstore_set_gas
+				} else {
+					schedule.sstore_reset_gas
+				};
+				InstructionCost::Gas(U256::from(gas))
+			},
+			instructions::SLOAD => {
+				InstructionCost::Gas(U256::from(schedule.sload_gas))
+			},
+			instructions::MSTORE => {
+				InstructionCost::GasMem(default_gas, add_u256_usize(stack.peek(0), 32))
+			},
+			instructions::MLOAD => {
+				InstructionCost::GasMem(default_gas, add_u256_usize(stack.peek(0), 32))
+			},
+			instructions::MSTORE8 => {
+				InstructionCost::GasMem(default_gas, add_u256_usize(stack.peek(0), 1))
+			},
+			instructions::RETURN => {
+				InstructionCost::GasMem(default_gas, self.mem_needed(stack.peek(0), stack.peek(1)))
+			},
+			instructions::SHA3 => {
+				let words = add_u256_usize(stack.peek(1), 31) / U256::from(32);
+				let gas = U256::from(schedule.sha3_gas) + (U256::from(schedule.sha3_word_gas) * words);
+				InstructionCost::GasMem(gas, self.mem_needed(stack.peek(0), stack.peek(1)))
+			},
+			instructions::CALLDATACOPY => {
+				InstructionCost::GasMemCopy(default_gas, self.mem_needed(stack.peek(0), stack.peek(2)), stack.peek(2).clone())
+			},
+			instructions::CODECOPY => {
+				InstructionCost::GasMemCopy(default_gas, self.mem_needed(stack.peek(0), stack.peek(2)), stack.peek(2).clone())
+			},
+			instructions::EXTCODECOPY => {
+				InstructionCost::GasMemCopy(default_gas, self.mem_needed(stack.peek(1), stack.peek(3)), stack.peek(3).clone())
+			},
+			instructions::JUMPDEST => {
+				InstructionCost::Gas(U256::one())
+			},
+			instructions::LOG0...instructions::LOG4 => {
+				let no_of_topics = instructions::get_log_topics(instruction);
+				let log_gas = schedule.log_gas + schedule.log_topic_gas * no_of_topics;
+				let data_gas = stack.peek(1).clone() * U256::from(schedule.log_data_gas);
+				let gas = data_gas + U256::from(log_gas);
+				InstructionCost::GasMem(gas, self.mem_needed(stack.peek(0), stack.peek(1)))
+			},
+			instructions::CALL | instructions::CALLCODE => {
+				let gas = add_u256_usize(stack.peek(0), schedule.call_gas + schedule.call_value_transfer_gas);
+				let mem = cmp::max(
+					self.mem_needed(stack.peek(5), stack.peek(6)),
+					self.mem_needed(stack.peek(3), stack.peek(4))
+				);
+				InstructionCost::GasMem(gas, mem)
+			},
+			instructions::DELEGATECALL => {
+				let gas = add_u256_usize(stack.peek(0), schedule.call_gas);
+				let mem = cmp::max(
+					self.mem_needed(stack.peek(4), stack.peek(5)),
+					self.mem_needed(stack.peek(2), stack.peek(3))
+				);
+				InstructionCost::GasMem(gas, mem)
+			},
+			instructions::CREATE => {
+				let gas = U256::from(schedule.create_gas);
+				let mem = self.mem_needed(stack.peek(1), stack.peek(2));
+				InstructionCost::GasMem(gas, mem)
+			},
+			instructions::EXP => {
+				let expon = stack.peek(1);
+				// TODO [todr] not sure how to calculate that
+				let gas = U256::from(schedule.exp_gas);
+				InstructionCost::Gas(gas)
+			},
+			_ => InstructionCost::Gas(default_gas)
+		};
+
+		match cost {
+			InstructionCost::Gas(gas) => {
+				Ok(gas)
+			},
+			InstructionCost::GasMem(gas, mem_size) => {
+				mem.expand(mem_size);
+				let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
+				Ok(gas + mem_gas)
+			},
+			InstructionCost::GasMemCopy(gas, mem_size, copy) => {
+				mem.expand(mem_size);
+				let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
+				let copy_gas = U256::from(schedule.copy_gas) * (add_u256_usize(&copy, 31) / U256::from(32));
+				Ok(gas + copy_gas + mem_gas)
 			}
-			if info.tier == instructions::GasPriceTier::InvalidTier {
-				return Err(evm::Error::BadInstruction);
-			}
-
-			try!(self.verify_instructions_requirements(&info, schedule.stack_limit, stack));
-
-			let tier = instructions::get_tier_idx(info.tier);
-			let default_gas = U256::from(schedule.tier_step_gas[tier]);
-
-			let cost = match instruction {
-				instructions::SSTORE => {
-					let address = H256::from(stack.peek(0));
-					let val = U256::from(ext.sload(&address).as_slice());
-					let gas = if self.is_zero(&val) && !self.is_zero(stack.peek(1)) {
-						schedule.sstore_set_gas
-					} else {
-						schedule.sstore_reset_gas
-					};
-					InstructionCost::Gas(U256::from(gas))
-				},
-				instructions::SLOAD => {
-					InstructionCost::Gas(U256::from(schedule.sload_gas))
-				},
-				instructions::MSTORE => {
-					InstructionCost::GasMem(default_gas, add_u256_usize(stack.peek(0), 32))
-				},
-				instructions::MLOAD => {
-					InstructionCost::GasMem(default_gas, add_u256_usize(stack.peek(0), 32))
-				},
-				instructions::MSTORE8 => {
-					InstructionCost::GasMem(default_gas, add_u256_usize(stack.peek(0), 1))
-				},
-				instructions::RETURN => {
-					InstructionCost::GasMem(default_gas, self.mem_needed(stack.peek(0), stack.peek(1)))
-				},
-				instructions::SHA3 => {
-					let words = add_u256_usize(stack.peek(1), 31) / U256::from(32);
-					let gas = U256::from(schedule.sha3_gas) + (U256::from(schedule.sha3_word_gas) * words);
-					InstructionCost::GasMem(gas, self.mem_needed(stack.peek(0), stack.peek(1)))
-				},
-				instructions::CALLDATACOPY => {
-					InstructionCost::GasMemCopy(default_gas, self.mem_needed(stack.peek(0), stack.peek(2)), stack.peek(2).clone())
-				},
-				instructions::CODECOPY => {
-					InstructionCost::GasMemCopy(default_gas, self.mem_needed(stack.peek(0), stack.peek(2)), stack.peek(2).clone())
-				},
-				instructions::EXTCODECOPY => {
-					InstructionCost::GasMemCopy(default_gas, self.mem_needed(stack.peek(1), stack.peek(3)), stack.peek(3).clone())
-				},
-				instructions::JUMPDEST => {
-					InstructionCost::Gas(U256::one())
-				},
-				instructions::LOG0...instructions::LOG4 => {
-					let no_of_topics = instructions::get_log_topics(instruction);
-					let log_gas = schedule.log_gas + schedule.log_topic_gas * no_of_topics;
-					let data_gas = stack.peek(1).clone() * U256::from(schedule.log_data_gas);
-					let gas = data_gas + U256::from(log_gas);
-					InstructionCost::GasMem(gas, self.mem_needed(stack.peek(0), stack.peek(1)))
-				},
-				instructions::CALL | instructions::CALLCODE => {
-					let gas = add_u256_usize(stack.peek(0), schedule.call_gas + schedule.call_value_transfer_gas);
-					let mem = cmp::max(
-						self.mem_needed(stack.peek(5), stack.peek(6)),
-						self.mem_needed(stack.peek(3), stack.peek(4))
-					);
-					InstructionCost::GasMem(gas, mem)
-				},
-				instructions::DELEGATECALL => {
-					let gas = add_u256_usize(stack.peek(0), schedule.call_gas);
-					let mem = cmp::max(
-						self.mem_needed(stack.peek(4), stack.peek(5)),
-						self.mem_needed(stack.peek(2), stack.peek(3))
-					);
-					InstructionCost::GasMem(gas, mem)
-				},
-				instructions::CREATE => {
-					let gas = U256::from(schedule.create_gas);
-					let mem = self.mem_needed(stack.peek(1), stack.peek(2));
-					InstructionCost::GasMem(gas, mem)
-				},
-				instructions::EXP => {
-					let expon = stack.peek(1);
-					// TODO [todr] not sure how to calculate that
-					let gas = U256::from(schedule.exp_gas);
-					InstructionCost::Gas(gas)
-				},
-				_ => InstructionCost::Gas(default_gas)
-			};
-
-			match cost {
-				InstructionCost::Gas(gas) => {
-					Ok(gas)
-				},
-				InstructionCost::GasMem(gas, mem_size) => {
-					mem.expand(mem_size);
-					let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
-					Ok(gas + mem_gas)
-				},
-				InstructionCost::GasMemCopy(gas, mem_size, copy) => {
-					mem.expand(mem_size);
-					let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
-					let copy_gas = U256::from(schedule.copy_gas) * (add_u256_usize(&copy, 31) / U256::from(32));
-					Ok(gas + copy_gas + mem_gas)
-				}
-			}
+		}
 	}
 	
 	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> U256 {
@@ -380,14 +379,14 @@ impl Interpreter {
 	}
 
 	fn exec_instruction(&self,
-											gas: Gas,
-											params: &ActionParams,
-											ext: &mut evm::Ext,
-											instruction: Instruction,
-											code: &mut CodeReader, 
-											mem: &mut Memory, 
-											stack: &mut Stack<U256>
-										 ) -> Result<InstructionResult, evm::Error> {
+						gas: Gas,
+						params: &ActionParams,
+						ext: &mut evm::Ext,
+						instruction: Instruction,
+						code: &mut CodeReader, 
+						mem: &mut Memory, 
+						stack: &mut Stack<U256>
+					   ) -> Result<InstructionResult, evm::Error> {
 		match instruction {
 			instructions::JUMP => {
 				let jump = stack.pop_back();
@@ -446,13 +445,13 @@ impl Interpreter {
 				let out_size = stack.pop_back();
 
 				let gas_left = {
-						// we need to write and read from memory in the same time
-						// and we don't want to copy
-						let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
-						let output = mem.writeable_slice(out_off, out_size);
-						try!(
-							ext.call(&gas, &call_gas, address, &value, input, &code_address, output)
-						)
+					// we need to write and read from memory in the same time
+					// and we don't want to copy
+					let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
+					let output = mem.writeable_slice(out_off, out_size);
+					try!(
+						ext.call(&gas, &call_gas, address, &value, input, &code_address, output)
+					)
 				};
 				return Ok(InstructionResult::AdditionalGasCost(
 					gas - gas_left
@@ -611,9 +610,9 @@ impl Interpreter {
 	}
 
 	fn copy_data_to_memory(&self,
-												 mem: &mut Memory,
-												 stack: &mut Stack<U256>,
-												 data: &Bytes) {
+						   mem: &mut Memory,
+						   stack: &mut Stack<U256>,
+						   data: &Bytes) {
 		let offset = stack.pop_back();
 		let index = stack.pop_back().low_u64() as usize;
 		let size = stack.pop_back().low_u64() as usize;
@@ -622,9 +621,9 @@ impl Interpreter {
 	}
 
 	fn verify_instructions_requirements(&self, 
-																			info: &instructions::InstructionInfo, 
-																			stack_limit: usize, 
-																			stack: &Stack<U256>) -> Result<(), evm::Error> {
+										info: &instructions::InstructionInfo, 
+										stack_limit: usize, 
+										stack: &Stack<U256>) -> Result<(), evm::Error> {
 		if !stack.has(info.args) {
 			Err(evm::Error::StackUnderflow {
 				instruction: info.name,
@@ -768,14 +767,14 @@ impl Interpreter {
 			// TODO instructions::SIGNEXTEND => {},
 			_ => panic!(format!("Unknown stack instruction: {:x}", instruction))
 		}
-  }
+	}
 
-  fn find_jump_destinations(&self, code : &Bytes) -> HashSet<CodePosition> {
-    let mut jump_dests = HashSet::new();
+	fn find_jump_destinations(&self, code : &Bytes) -> HashSet<CodePosition> {
+		let mut jump_dests = HashSet::new();
 		let mut position = 0;
 
 		while position < code.len() {
-      let instruction = code[position];
+			let instruction = code[position];
 
 			if instruction == instructions::JUMPDEST {
 				jump_dests.insert(position);
@@ -783,10 +782,10 @@ impl Interpreter {
 				position += instructions::get_push_bytes(instruction);
 			}
 			position += 1;
-    }
+		}
 
-    return jump_dests;
-  }
+		return jump_dests;
+	}
 
 }
 
