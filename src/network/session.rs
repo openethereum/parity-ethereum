@@ -242,6 +242,7 @@ impl Session {
 			i += 1;
 		}
 		trace!(target: "net", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		self.info.client_version = client_version;
 		self.info.capabilities = caps;
 		if protocol != host.protocol_version {
 			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));

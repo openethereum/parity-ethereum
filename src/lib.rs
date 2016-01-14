@@ -29,6 +29,7 @@
 //!   sudo make install
 //!   ```
 
+extern crate slab;
 extern crate rustc_serialize;
 extern crate mio;
 extern crate rand;
