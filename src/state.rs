@@ -127,10 +127,7 @@ impl State {
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) {
-		match value == H256::new() {
-			true => self.require(a, false).reset_storage(&key),
-			false => self.require(a, false).set_storage(key, value)
-		}
+		self.require(a, false).set_storage(key, value)
 	}
 
 	/// Initialise the code of account `a` so that it is `value` for `key`.
