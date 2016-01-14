@@ -74,27 +74,29 @@ pub struct Executive<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
+	factory: &'a Factory,
 	depth: usize
 }
 
 impl<'a> Executive<'a> {
 	/// Basic constructor.
-	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine) -> Self {
-		Executive::new_with_depth(state, info, engine, 0)
+	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, factory: &'a Factory) -> Self {
+		Executive::new_with_depth(state, info, engine, factory, 0)
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
-		Executive::new_with_depth(state, info, engine, depth + 1)
+	fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, factory: &'a Factory, depth: usize) -> Self {
+		Executive::new_with_depth(state, info, engine, factory, depth + 1)
 	}
 
 	/// Helper constructor. Should be used to create `Executive` with desired depth.
 	/// Private.
-	fn new_with_depth(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
+	fn new_with_depth(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, factory: &'a Factory, depth: usize) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
+			factory: factory,
 			depth: depth
 		}
 	}
@@ -191,8 +193,7 @@ impl<'a> Executive<'a> {
 		} else if params.code.len() > 0 {
 			// if destination is a contract, do normal message call
 			let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::Return(output));
-			let evm = Factory::create();
-			evm.exec(&params, &mut ext)
+			self.factory.create().exec(&params, &mut ext)
 		} else {
 			// otherwise, nothing
 			Ok(params.gas)
@@ -209,8 +210,7 @@ impl<'a> Executive<'a> {
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
 		let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::InitContract);
-		let evm = Factory::create();
-		evm.exec(&params, &mut ext)
+		self.factory.create().exec(&params, &mut ext)
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
@@ -290,6 +290,7 @@ pub struct Externalities<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
+	factory: &'a Factory,
 	depth: usize,
 	#[cfg(test)]
 	pub params: &'a ActionParams,
@@ -304,7 +305,8 @@ impl<'a> Externalities<'a> {
 	/// Basic `Externalities` constructor.
 	pub fn new(state: &'a mut State, 
 			   info: &'a EnvInfo, 
-			   engine: &'a Engine, 
+			   engine: &'a Engine,
+			   factory: &'a Factory,
 			   depth: usize,
 			   params: &'a ActionParams, 
 			   substate: &'a mut Substate, 
@@ -313,6 +315,7 @@ impl<'a> Externalities<'a> {
 			state: state,
 			info: info,
 			engine: engine,
+			factory: factory,
 			depth: depth,
 			params: params,
 			substate: substate,
@@ -323,7 +326,7 @@ impl<'a> Externalities<'a> {
 
 	/// Creates `Externalities` from `Executive`.
 	fn from_executive(e: &'a mut Executive, params: &'a ActionParams, substate: &'a mut Substate, output: OutputPolicy<'a>) -> Self {
-		Self::new(e.state, e.info, e.engine, e.depth, params, substate, output)
+		Self::new(e.state, e.info, e.engine, e.factory, e.depth, params, substate, output)
 	}
 }
 
@@ -375,7 +378,7 @@ impl<'a> Ext for Externalities<'a> {
 			data: vec![],
 		};
 
-		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
+		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.factory, self.depth);
 		ex.state.inc_nonce(&self.params.address);
 		ex.create(&params, self.substate).map(|gas_left| (gas_left, Some(address)))
 	}
@@ -417,7 +420,7 @@ impl<'a> Ext for Externalities<'a> {
 			data: data.to_vec(),
 		};
 
-		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
+		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.factory, self.depth);
 		ex.call(&params, self.substate, BytesRef::Fixed(output))
 	}
 
@@ -491,6 +494,7 @@ mod tests {
 	use engine::*;
 	use spec::*;
 	use evm::Schedule;
+	use evm::Factory;
 
 	struct TestEngine {
 		spec: Spec,
@@ -541,7 +545,8 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(&params, &mut substate).unwrap()
 		};
 
@@ -599,7 +604,8 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(&params, &mut substate).unwrap()
 		};
 		
@@ -652,7 +658,8 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(&params, &mut substate).unwrap()
 		};
 		
@@ -703,7 +710,8 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(&params, &mut substate).unwrap();
 		}
 		
@@ -761,7 +769,8 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.call(&params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
 		};
 
@@ -803,7 +812,8 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.call(&params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
 		};
 
@@ -827,7 +837,8 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let executed = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t).unwrap()
 		};
 
@@ -854,7 +865,8 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t)
 		};
 		
@@ -878,7 +890,8 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t)
 		};
 		
@@ -904,7 +917,8 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t)
 		};
 
@@ -929,7 +943,8 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let factory = Factory::default();
+			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t)
 		};
 		

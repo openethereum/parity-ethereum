@@ -217,9 +217,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		// execute
 		let (res, callcreates) = {
-			let ex = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
+			let factory = Factory::default();
+			let ex = Externalities::new(&mut state, &info, &engine, &factory, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
 			let mut test_ext = TestExt::new(ex);
-			let evm = Factory::create();
+			let evm = Factory::default().create();
 			let res = evm.exec(&params, &mut test_ext);
 			(res, test_ext.callcreates)
 		};
