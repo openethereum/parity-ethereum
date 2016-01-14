@@ -106,6 +106,8 @@ impl<'a> Executive<'a> {
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
+		// TODO: error on base gas required
+
 		// validate transaction nonce
 		if t.nonce != nonce {
 			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, is: t.nonce }));
@@ -137,13 +139,16 @@ impl<'a> Executive<'a> {
 		let mut substate = Substate::new();
 		let backup = self.state.clone();
 
+		let schedule = self.engine.schedule(self.info);
+		let init_gas = t.gas - U256::from(t.gas_required(&schedule));
+
 		let res = match t.action() {
 			&Action::Create => {
 				let params = ActionParams {
 					address: contract_address(&sender, &nonce),
 					sender: sender.clone(),
 					origin: sender.clone(),
-					gas: t.gas,
+					gas: init_gas,
 					gas_price: t.gas_price,
 					value: t.value,
 					code: t.data.clone(),
@@ -156,7 +161,7 @@ impl<'a> Executive<'a> {
 					address: address.clone(),
 					sender: sender.clone(),
 					origin: sender.clone(),
-					gas: t.gas,
+					gas: init_gas,
 					gas_price: t.gas_price,
 					value: t.value,
 					code: self.state.code(address).unwrap_or(vec![]),
@@ -421,7 +426,7 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.factory, self.depth);
-		ex.call(&params, self.substate, BytesRef::Fixed(output))
+		ex.call(&params, self.substate, BytesRef::Fixed(output)).map(|gas_left| gas + gas_left)
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {

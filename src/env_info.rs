@@ -30,22 +30,23 @@ impl EnvInfo {
 			number: 0,
 			author: Address::new(),
 			timestamp: 0,
-			difficulty: U256::zero(),
-			gas_limit: U256::zero(),
+			difficulty: x!(0),
+			gas_limit: x!(0),
 			last_hashes: vec![],
-			gas_used: U256::zero()
+			gas_used: x!(0),
 		}
 	}
 
 	pub fn from_json(json: &Json) -> EnvInfo {
+		let current_number = u64_from_json(&json["currentNumber"]);
 		EnvInfo {
-			number: u64_from_json(&json["currentNumber"]),
+			number: current_number,
 			author: address_from_json(&json["currentCoinbase"]),
 			difficulty: u256_from_json(&json["currentDifficulty"]),
 			gas_limit: u256_from_json(&json["currentGasLimit"]),
 			timestamp: u64_from_json(&json["currentTimestamp"]),
-			last_hashes: vec![h256_from_json(&json["previousHash"])],
-			gas_used: U256::zero(),
+			last_hashes: (1..257).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
+			gas_used: x!(0),
 		}
 	}
 }

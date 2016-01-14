@@ -183,8 +183,8 @@ impl State {
 	}
 
 	/// Populate the state from `accounts`.
-	pub fn populate_from(&mut self, accounts: BTreeMap<Address, PodAccount>) {
-		for (add, acc) in accounts.into_iter() {
+	pub fn populate_from(&mut self, accounts: PodState) {
+		for (add, acc) in accounts.drain().into_iter() {
 			self.cache.borrow_mut().insert(add, Some(Account::from_pod(acc)));
 		}
 	}
@@ -201,14 +201,14 @@ impl State {
 	}
 
 	/// Populate a PodAccount map from this state.
-	pub fn to_pod_map(&self) -> BTreeMap<Address, PodAccount> {
+	pub fn to_pod(&self) -> PodState {
 		// TODO: handle database rather than just the cache.
-		self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
+		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let &Some(ref acc) = opt {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}
 			m
-		})
+		}))
 	}
 
 	/// Pull account `a` in our cache from the trie DB and return it.

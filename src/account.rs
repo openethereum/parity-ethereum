@@ -36,6 +36,58 @@ pub struct PodAccount {
 	pub storage: BTreeMap<H256, H256>,
 }
 
+impl fmt::Display for PodAccount {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "(bal={}; nonce={}; code={} bytes, #{}; storage={} items)", self.balance, self.nonce, self.code.len(), self.code.sha3(), self.storage.len())
+	}
+}
+
+#[derive(Debug,Clone,PartialEq,Eq)]
+pub struct PodState (BTreeMap<Address, PodAccount>);
+
+pub fn map_h256_h256_from_json(json: &Json) -> BTreeMap<H256, H256> {
+	json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut m, (key, value)| {
+		m.insert(H256::from(&u256_from_str(key)), H256::from(&u256_from_json(value)));
+		m
+	})
+}
+
+impl PodState {
+	/// Contruct a new object from the `m`.
+	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
+
+	/// Translate the JSON object into a hash map of account information ready for insertion into State.
+	pub fn from_json(json: &Json) -> PodState {
+		PodState(json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut state, (address, acc)| {
+			let balance = acc.find("balance").map(&u256_from_json);
+			let nonce = acc.find("nonce").map(&u256_from_json);
+			let storage = acc.find("storage").map(&map_h256_h256_from_json);;
+			let code = acc.find("code").map(&bytes_from_json);
+			if balance.is_some() || nonce.is_some() || storage.is_some() || code.is_some() {
+				state.insert(address_from_hex(address), PodAccount{
+					balance: balance.unwrap_or(U256::zero()),
+					nonce: nonce.unwrap_or(U256::zero()),
+					storage: storage.unwrap_or(BTreeMap::new()),
+					code: code.unwrap_or(Vec::new())
+				});
+			}
+			state
+		}))
+	}
+
+	/// Drain object to get the underlying map.
+	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
+}
+
+impl fmt::Display for PodState {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for (add, acc) in &self.0 {
+			try!(writeln!(f, "{} => {}", add, acc));
+		}
+		Ok(())
+	}
+}
+
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct AccountDiff {
 	pub balance: Diff<U256>,				// Allowed to be Same
@@ -54,12 +106,47 @@ impl AccountDiff {
 	}
 }
 
+fn format(u: &H256) -> String {
+	if u <= &H256::from(0xffffffff) {
+		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u32(), U256::from(u.as_slice()).low_u32())
+	} else if u <= &H256::from(u64::max_value()) {
+		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u64(), U256::from(u.as_slice()).low_u64())
+//	} else if u <= &H256::from("0xffffffffffffffffffffffffffffffffffffffff") {
+//		format!("@{}", Address::from(u))
+	} else {
+		format!("#{}", u)
+	}
+}
+
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
 impl fmt::Display for AccountDiff {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "...\n")
+		match self.nonce {
+			Diff::Born(ref x) => try!(write!(f, "  non {}", x)),
+			Diff::Changed(ref pre, ref post) => try!(write!(f, "#{} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *	min(pre, post))),
+			_ => {},
+		}
+		match self.balance {
+			Diff::Born(ref x) => try!(write!(f, "  bal {}", x)),
+			Diff::Changed(ref pre, ref post) => try!(write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))),
+			_ => {},
+		}
+		match self.code {
+			Diff::Born(ref x) => try!(write!(f, "  code {}", x.pretty())),
+			_ => {},
+		}
+		try!(write!(f, "\n"));
+		for (k, dv) in self.storage.iter() {
+			match dv {
+				&Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", format(k), format(v))),
+				&Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", format(k), format(post), format(pre))),
+				&Diff::Died(_) => try!(write!(f, "    X  {}\n", format(k))),
+				_ => {},
+			}
+		}
+		Ok(())
 	}
 }
 
@@ -68,7 +155,7 @@ impl fmt::Display for Existance {
 		match self {
 			&Existance::Born => try!(write!(f, "+++")),
 			&Existance::Alive => try!(write!(f, "***")),
-			&Existance::Died => try!(write!(f, "---")),
+			&Existance::Died => try!(write!(f, "XXX")),
 		}
 		Ok(())
 	}
@@ -121,21 +208,21 @@ pub fn pod_diff(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 	}
 }
 
-pub fn pod_map_diff(pre: &BTreeMap<Address, PodAccount>, post: &BTreeMap<Address, PodAccount>) -> StateDiff {
-	StateDiff(pre.keys().merge(post.keys()).filter_map(|acc| pod_diff(pre.get(acc), post.get(acc)).map(|d|(acc.clone(), d))).collect())
+pub fn pod_state_diff(pre: &PodState, post: &PodState) -> StateDiff {
+	StateDiff(pre.0.keys().merge(post.0.keys()).filter_map(|acc| pod_diff(pre.0.get(acc), post.0.get(acc)).map(|d|(acc.clone(), d))).collect())
 }
 
 #[test]
 fn state_diff_create_delete() {
-	let a = map![
+	let a = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(0),
 			code: vec![],
 			storage: map![]
 		}
-	];
-	assert_eq!(pod_map_diff(&a, &map![]), StateDiff(map![
+	]);
+	assert_eq!(pod_state_diff(&a, &PodState(map![])), StateDiff(map![
 		x!(1) => AccountDiff{
 			balance: Diff::Died(x!(69)),
 			nonce: Diff::Died(x!(0)),
@@ -143,7 +230,7 @@ fn state_diff_create_delete() {
 			storage: map![],
 		}
 	]));
-	assert_eq!(pod_map_diff(&map![], &a), StateDiff(map![
+	assert_eq!(pod_state_diff(&PodState(map![]), &a), StateDiff(map![
 		x!(1) => AccountDiff{
 			balance: Diff::Born(x!(69)),
 			nonce: Diff::Born(x!(0)),
@@ -155,15 +242,15 @@ fn state_diff_create_delete() {
 
 #[test]
 fn state_diff_cretae_delete_with_unchanged() {
-	let a = map![
+	let a = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(0),
 			code: vec![],
 			storage: map![]
 		}
-	];
-	let b = map![
+	]);
+	let b = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(0),
@@ -176,8 +263,8 @@ fn state_diff_cretae_delete_with_unchanged() {
 			code: vec![],
 			storage: map![]
 		}
-	];
-	assert_eq!(pod_map_diff(&a, &b), StateDiff(map![
+	]);
+	assert_eq!(pod_state_diff(&a, &b), StateDiff(map![
 		x!(2) => AccountDiff{
 			balance: Diff::Born(x!(69)),
 			nonce: Diff::Born(x!(0)),
@@ -185,7 +272,7 @@ fn state_diff_cretae_delete_with_unchanged() {
 			storage: map![],
 		}
 	]));
-	assert_eq!(pod_map_diff(&b, &a), StateDiff(map![
+	assert_eq!(pod_state_diff(&b, &a), StateDiff(map![
 		x!(2) => AccountDiff{
 			balance: Diff::Died(x!(69)),
 			nonce: Diff::Died(x!(0)),
@@ -197,7 +284,7 @@ fn state_diff_cretae_delete_with_unchanged() {
 
 #[test]
 fn state_diff_change_with_unchanged() {
-	let a = map![
+	let a = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(0),
@@ -210,8 +297,8 @@ fn state_diff_change_with_unchanged() {
 			code: vec![],
 			storage: map![]
 		}
-	];
-	let b = map![
+	]);
+	let b = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(1),
@@ -224,8 +311,8 @@ fn state_diff_change_with_unchanged() {
 			code: vec![],
 			storage: map![]
 		}
-	];
-	assert_eq!(pod_map_diff(&a, &b), StateDiff(map![
+	]);
+	assert_eq!(pod_state_diff(&a, &b), StateDiff(map![
 		x!(1) => AccountDiff{
 			balance: Diff::Same,
 			nonce: Diff::Changed(x!(0), x!(1)),
@@ -299,6 +386,12 @@ fn account_diff_storage() {
 	}));
 }
 
+#[derive(PartialEq,Eq,Clone,Copy)]
+pub enum Filth {
+	Clean,
+	Dirty,
+}
+
 /// Single account in the system.
 #[derive(Clone)]
 pub struct Account {
@@ -308,8 +401,8 @@ pub struct Account {
 	nonce: U256,
 	// Trie-backed storage.
 	storage_root: H256,
-	// Overlay on trie-backed storage.
-	storage_overlay: RefCell<HashMap<H256, H256>>,
+	// Overlay on trie-backed storage - tuple is (<clean>, <value>).
+	storage_overlay: RefCell<HashMap<H256, (Filth, H256)>>,
 	// Code hash of the account. If None, means that it's a contract whose code has not yet been set.
 	code_hash: Option<H256>,
 	// Code cache of the account.
@@ -323,7 +416,7 @@ impl PodAccount {
 		PodAccount {
 			balance: acc.balance.clone(),
 			nonce: acc.nonce.clone(),
-			storage: acc.storage_overlay.borrow().iter().fold(BTreeMap::new(), |mut m, (k, v)| {m.insert(k.clone(), v.clone()); m}),
+			storage: acc.storage_overlay.borrow().iter().fold(BTreeMap::new(), |mut m, (k, &(_, ref v))| {m.insert(k.clone(), v.clone()); m}),
 			code: acc.code_cache.clone()
 		}
 	}
@@ -346,7 +439,7 @@ impl Account {
 			balance: balance,
 			nonce: nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: RefCell::new(storage),
+			storage_overlay: RefCell::new(storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: Some(code.sha3()),
 			code_cache: code
 		}
@@ -358,7 +451,7 @@ impl Account {
 			balance: pod.balance,
 			nonce: pod.nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: RefCell::new(pod.storage.into_iter().fold(HashMap::new(), |mut m, (k, v)| {m.insert(k, v); m})),
+			storage_overlay: RefCell::new(pod.storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: Some(pod.code.sha3()),
 			code_cache: pod.code
 		}
@@ -418,14 +511,14 @@ impl Account {
 
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
-		self.storage_overlay.borrow_mut().insert(key, value);
+		self.storage_overlay.borrow_mut().insert(key, (Filth::Dirty, value));
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
-			H256::from_slice(TrieDB::new(db, &self.storage_root).get(key.bytes()).unwrap_or(&[0u8;32][..]))
-		}).clone()
+			(Filth::Clean, H256::from(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).map(|v| -> U256 {decode(v)}).unwrap_or(U256::zero())))
+		}).1.clone()
 	}
 
 	/// return the balance associated with this account.
@@ -486,12 +579,18 @@ impl Account {
 
 	/// return the storage root associated with this account.
 	pub fn base_root(&self) -> &H256 { &self.storage_root }
+
+	/// Determine whether there are any un-`commit()`-ed storage-setting operations.
+	pub fn storage_is_clean(&self) -> bool { self.storage_overlay.borrow().iter().find(|&(_, &(f, _))| f == Filth::Dirty).is_none() }
 	
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
-	pub fn storage_root(&self) -> Option<&H256> { if self.storage_overlay.borrow().is_empty() {Some(&self.storage_root)} else {None} }
+	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
 	
-	/// rturn the storage overlay.
-	pub fn storage_overlay(&self) -> Ref<HashMap<H256, H256>> { self.storage_overlay.borrow() }
+	/// return the storage root associated with this account or None if it has been altered via the overlay.
+	pub fn recent_storage_root(&self) -> &H256 { &self.storage_root }
+	
+	/// return the storage overlay.
+	pub fn storage_overlay(&self) -> Ref<HashMap<H256, (Filth, H256)>> { self.storage_overlay.borrow() }
 
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) { self.nonce = self.nonce + U256::from(1u8); }
@@ -504,13 +603,15 @@ impl Account {
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
-		let mut t = TrieDBMut::new(db, &mut self.storage_root);
-		for (k, v) in self.storage_overlay.borrow().iter() {
-			// cast key and value to trait type,
-			// so we can call overloaded `to_bytes` method
-			t.insert(k, v);
+		let mut t = SecTrieDBMut::new(db, &mut self.storage_root);
+		for (k, &mut (ref mut f, ref mut v)) in self.storage_overlay.borrow_mut().iter_mut() {
+			if f == &Filth::Dirty {
+				// cast key and value to trait type,
+				// so we can call overloaded `to_bytes` method
+				t.insert(k, &encode(&U256::from(v.as_slice())));
+				*f = Filth::Clean;
+			}
 		}
-		self.storage_overlay.borrow_mut().clear();
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
@@ -567,7 +668,7 @@ fn storage_at() {
 	};
 
 	let a = Account::from_rlp(&rlp);
-	assert_eq!(a.storage_root().unwrap().hex(), "3541f181d6dad5c504371884684d08c29a8bad04926f8ceddf5e279dbc3cc769");
+	assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
 	assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x01u64))), H256::new());
 }
@@ -597,7 +698,7 @@ fn commit_storage() {
 	a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
 	assert_eq!(a.storage_root(), None);
 	a.commit_storage(&mut db);
-	assert_eq!(a.storage_root().unwrap().hex(), "3541f181d6dad5c504371884684d08c29a8bad04926f8ceddf5e279dbc3cc769");
+	assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 }
 
 #[test]
