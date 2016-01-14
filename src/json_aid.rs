@@ -8,7 +8,7 @@ pub fn clean(s: &str) -> &str {
 	}
 }
 
-pub fn u256_from_str(s: &str) -> U256 {
+fn u256_from_str(s: &str) -> U256 {
 	if s.len() >= 2 && &s[0..2] == "0x" {
 		U256::from_str(&s[2..]).unwrap_or(U256::from(0))
 	} else {
@@ -16,57 +16,24 @@ pub fn u256_from_str(s: &str) -> U256 {
 	}
 }
 
-pub fn bytes_from_json(json: &Json) -> Bytes {
-	let s = json.as_string().unwrap_or("");
-	if s.len() % 2 == 1 {
-		FromHex::from_hex(&("0".to_string() + &(clean(s).to_string()))[..]).unwrap_or(vec![])
-	} else {
-		FromHex::from_hex(clean(s)).unwrap_or(vec![])
+impl FromJson for Bytes {
+	fn from_json(json: &Json) -> Self {
+		let s = json.as_string().unwrap_or("");
+		if s.len() % 2 == 1 {
+			FromHex::from_hex(&("0".to_string() + &(clean(s).to_string()))[..]).unwrap_or(vec![])
+		} else {
+			FromHex::from_hex(clean(s)).unwrap_or(vec![])
+		}
 	}
 }
 
-pub fn address_from_json(json: &Json) -> Address {
-	From::from(json.as_string().unwrap_or("0000000000000000000000000000000000000000"))
-}
-
-pub fn h256_from_json(json: &Json) -> H256 {
-	let s = json.as_string().unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
-	if s.len() % 2 == 1 {
-		h256_from_hex(&("0".to_string() + &(clean(s).to_string()))[..])
-	} else {
-		h256_from_hex(clean(s))
+impl FromJson for BTreeMap<H256, H256> {
+	fn from_json(json: &Json) -> Self {
+		json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut m, (key, value)| {
+			m.insert(x!(&u256_from_str(key)), x!(&U256::from_json(value)));
+			m
+		})
 	}
-}
-
-pub fn vec_h256_from_json(json: &Json) -> Vec<H256> {
-	json.as_array().unwrap().iter().map(&h256_from_json).collect()
-}
-
-pub fn map_h256_h256_from_json(json: &Json) -> BTreeMap<H256, H256> {
-	json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut m, (key, value)| {
-		m.insert(H256::from(&u256_from_str(key)), H256::from(&U256::from_json(value)));
-		m
-	})
-}
-
-pub fn usize_from_json(json: &Json) -> usize {
-	U256::from_json(json).low_u64() as usize
-}
-
-pub fn u64_from_json(json: &Json) -> u64 {
-	U256::from_json(json).low_u64()
-}
-
-pub fn u32_from_json(json: &Json) -> u32 {
-	U256::from_json(json).low_u32()
-}
-
-pub fn u16_from_json(json: &Json) -> u16 {
-	U256::from_json(json).low_u32() as u16
-}
-
-pub fn u8_from_json(json: &Json) -> u8 {
-	U256::from_json(json).low_u32() as u8
 }
 
 impl<T> FromJson for Vec<T> where T: FromJson {
@@ -90,12 +57,6 @@ impl FromJson for u32 {
 impl FromJson for u16 {
 	fn from_json(json: &Json) -> Self {
 		U256::from_json(json).low_u64() as u16
-	}
-}
-
-impl FromJson for u8 {
-	fn from_json(json: &Json) -> Self {
-		U256::from_json(json).low_u64() as u8
 	}
 }
 
