@@ -51,6 +51,7 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 
 	fn pop_n(&mut self, no_of_elems: usize) -> Vec<S> {
 		let mut vec = Vec::new();
+
 		for _i in 1..no_of_elems+1 {
 			vec.push(self.pop_back());
 		}
@@ -182,53 +183,53 @@ pub struct Interpreter;
 
 impl evm::Evm for Interpreter {
 	fn exec(&self, params: &ActionParams, ext: &mut evm::Ext) -> evm::Result {
-    let code = &params.code;
-    let valid_jump_destinations = self.find_jump_destinations(&code);
+		let code = &params.code;
+		let valid_jump_destinations = self.find_jump_destinations(&code);
 
 		let mut current_gas = params.gas.clone();
-    let mut stack = Vec::with_capacity(ext.schedule().stack_limit);
-    let mut mem = vec![];
+		let mut stack = Vec::with_capacity(ext.schedule().stack_limit);
+		let mut mem = vec![];
 		let mut reader = CodeReader {
 			position: 0,
 			code: &code
 		};
 
-    while reader.position < code.len() {
-      let instruction = code[reader.position];
-		reader.position += 1;
+		while reader.position < code.len() {
+			let instruction = code[reader.position];
+			reader.position += 1;
 
-		// Calculate gas cost
-		let gas_cost = try!(self.get_gas_cost_and_expand_mem(ext, instruction, &mut mem, &stack));
-		try!(self.verify_gas(&current_gas, &gas_cost));
-		current_gas = current_gas - gas_cost;
-		println!("Gas cost: {} (left: {})", gas_cost, current_gas);
-		println!("Executing: {} ", instructions::get_info(instruction).name);
-		// Execute instruction
-		let result = try!(self.exec_instruction(
-				current_gas, params, ext, instruction, &mut reader, &mut mem, &mut stack
-		));
+			// Calculate gas cost
+			let gas_cost = try!(self.get_gas_cost_and_expand_mem(ext, instruction, &mut mem, &stack));
+			try!(self.verify_gas(&current_gas, &gas_cost));
+			current_gas = current_gas - gas_cost;
+			println!("Gas cost: {} (left: {})", gas_cost, current_gas);
+			println!("Executing: {} ", instructions::get_info(instruction).name);
+			// Execute instruction
+			let result = try!(self.exec_instruction(
+					current_gas, params, ext, instruction, &mut reader, &mut mem, &mut stack
+					));
 
-		// Advance
-		match result {
-			InstructionResult::JumpToPosition(position) => {
-				let pos = try!(self.verify_jump(position, &valid_jump_destinations));
-				reader.position = pos;
-			},
-			InstructionResult::AdditionalGasCost(gas_cost) => {
-				current_gas = current_gas - gas_cost;
-			},
-			InstructionResult::StopExecutionWithGasCost(gas_cost) => { 
-				current_gas = current_gas - gas_cost;
-				reader.position = code.len();
-			},
-			InstructionResult::StopExecution => {
-				reader.position = code.len();
+			// Advance
+			match result {
+				InstructionResult::JumpToPosition(position) => {
+					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
+					reader.position = pos;
+				},
+				InstructionResult::AdditionalGasCost(gas_cost) => {
+					current_gas = current_gas - gas_cost;
+				},
+				InstructionResult::StopExecutionWithGasCost(gas_cost) => { 
+					current_gas = current_gas - gas_cost;
+					reader.position = code.len();
+				},
+				InstructionResult::StopExecution => {
+					reader.position = code.len();
+				}
 			}
 		}
-	}
 
-	Ok(current_gas)
-  }
+		Ok(current_gas)
+	}
 }
 
 impl Interpreter {
