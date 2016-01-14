@@ -18,12 +18,7 @@ pub fn bytes_from_json(json: &Json) -> Bytes {
 }
 
 pub fn address_from_json(json: &Json) -> Address {
-	let s = json.as_string().unwrap_or("0000000000000000000000000000000000000000");
-	if s.len() % 2 == 1 {
-		address_from_hex(&("0".to_string() + &(clean(s).to_string()))[..])
-	} else {
-		address_from_hex(clean(s))
-	}
+	From::from(json.as_string().unwrap_or("0000000000000000000000000000000000000000"))
 }
 
 pub fn h256_from_json(json: &Json) -> H256 {
