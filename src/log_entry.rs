@@ -2,7 +2,7 @@ use util::*;
 use basic_types::LogBloom;
 
 /// A single log's entry.
-#[derive(Debug)]
+#[derive(Debug,PartialEq,Eq)]
 pub struct LogEntry {
 	pub address: Address,
 	pub topics: Vec<H256>,
@@ -19,16 +19,22 @@ impl RlpStandard for LogEntry {
 }
 
 impl LogEntry {
-	pub fn bloom(&self) -> LogBloom {
-		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))
-	}
-
 	/// Create a new log entry.
 	pub fn new(address: Address, topics: Vec<H256>, data: Bytes) -> LogEntry {
 		LogEntry {
 			address: address,
 			topics: topics,
 			data: data
+		}
+	}
+
+	/// Convert given JSON object to a LogEntry.
+	pub fn from_json(json: &Json) -> LogEntry {
+		// TODO: check bloom.
+		LogEntry {
+			address: address_from_json(&json["address"]),
+			topics: vec_h256_from_json(&json["topics"]),
+			data: bytes_from_json(&json["data"]),
 		}
 	}
 
@@ -45,6 +51,11 @@ impl LogEntry {
 	/// Returns reference to data.
 	pub fn data(&self) -> &Bytes {
 		&self.data
+	}
+
+	/// Calculates the bloom of this log entry.
+	pub fn bloom(&self) -> LogBloom {
+		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))
 	}
 }
 
