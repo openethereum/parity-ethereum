@@ -243,11 +243,11 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 					true
 				},
 				Err(err @ evm::Error::OutOfGas) => {
-					//*self.err = Some(err);
+					*self.err = Some(err);
 					// hack to propagate `OutOfGas` to evmjit and stop
 					// the execution immediately.
 					// Works, cause evmjit uses i64, not u64
-					*io_gas = 0 as u64;
+					*io_gas = -1i64 as u64;
 					false
 				},
 				Err(err) => {
