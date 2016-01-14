@@ -71,7 +71,7 @@ macro_rules! construct_uint {
 			pub fn as_u32(&self) -> u32 {
 				let &$name(ref arr) = self;
 				if (arr[0] & (0xffffffffu64 << 32)) != 0 {
-					panic!("Intger overflow when casting U256") 
+					panic!("Integer overflow when casting U256") 
 				}
 				self.as_u64() as u32
 			}
@@ -82,7 +82,7 @@ macro_rules! construct_uint {
 				let &$name(ref arr) = self;
 				for i in 1..$n_words {
 					if arr[i] != 0 {
-						panic!("Intger overflow when casting U256") 
+						panic!("Integer overflow when casting U256") 
 					}
 				}
 				arr[0]
