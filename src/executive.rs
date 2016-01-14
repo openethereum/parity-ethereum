@@ -212,12 +212,15 @@ impl<'a> Executive<'a> {
 		} else if params.code.len() > 0 {
 			// if destination is a contract, do normal message call
 			
+			// part of substate that may be reverted
+			let mut unconfirmed_substate = Substate::new();
+
 			let res = {
-				let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::Return(output));
+				let mut ext = Externalities::from_executive(self, params, &mut unconfirmed_substate, OutputPolicy::Return(output));
 				let evm = Factory::create();
 				evm.exec(&params, &mut ext)
 			};
-			self.revert_if_needed(&res, substate, backup);
+			self.revert_if_needed(&res, substate, unconfirmed_substate, backup);
 			res
 		} else {
 			// otherwise, nothing
@@ -232,6 +235,9 @@ impl<'a> Executive<'a> {
 		// backup used in case of running out of gas
 		let backup = self.state.clone();
 
+		// part of substate that may be reverted
+		let mut unconfirmed_substate = Substate::new();
+
 		// at first create new contract
 		self.state.new_contract(&params.address);
 
@@ -239,11 +245,11 @@ impl<'a> Executive<'a> {
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
 		let res = {
-			let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::InitContract);
+			let mut ext = Externalities::from_executive(self, params, &mut unconfirmed_substate, OutputPolicy::InitContract);
 			let evm = Factory::create();
 			evm.exec(&params, &mut ext)
 		};
-		self.revert_if_needed(&res, substate, backup);
+		self.revert_if_needed(&res, substate, unconfirmed_substate, backup);
 		res
 	}
 
@@ -300,15 +306,14 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	fn revert_if_needed(&mut self, result: &evm::Result, substate: &mut Substate, backup: State) {
+	fn revert_if_needed(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
 		// TODO: handle other evm::Errors same as OutOfGas once they are implemented
 		match result {
 			&Err(evm::Error::OutOfGas) => {
 				substate.out_of_gas = true;
 				self.state.revert(backup);
 			},
-			&Err(evm::Error::Internal) => (),
-			&Ok(_) => ()
+			&Ok(_) | &Err(evm::Error::Internal) => substate.accrue(un_substate)
 		}
 	}
 }
@@ -417,12 +422,8 @@ impl<'a> Ext for Externalities<'a> {
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
 		ex.state.inc_nonce(&self.params.address);
-		let mut substate = Substate::new();
-		match ex.create(&params, &mut substate) {
-			Ok(gas_left) => {
-				self.substate.accrue(substate);
-				(gas_left, Some(address))
-			},
+		match ex.create(&params, self.substate) {
+			Ok(gas_left) => (gas_left, Some(address)),
 			_ => (U256::zero(), None)
 		}
 	}
@@ -472,12 +473,8 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
-		let mut substate = Substate::new();
-		match ex.call(&params, &mut substate, BytesRef::Fixed(output)) {
-			Ok(gas_left) => { 
-				self.substate.accrue(substate);
-				Ok((gas + gas_left, true))
-			}, 
+		match ex.call(&params, self.substate, BytesRef::Fixed(output)) {
+			Ok(gas_left) => Ok((gas + gas_left, true)),
 			_ => Ok((gas, false))
 		}
 	}
