@@ -60,7 +60,7 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_block_final(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// Check difficulty is correct given the two timestamps.
 		let expected_difficulty = self.calculate_difficuty(header, parent);
 		if header.difficulty != expected_difficulty {

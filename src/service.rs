@@ -19,9 +19,11 @@ pub struct ClientService {
 impl ClientService {
 	pub fn start(spec: Spec) -> Result<ClientService, Error> {
 		let mut net_service = try!(NetworkService::start());
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-		let client = Arc::new(Client::new(spec, &dir, net_service.io().channel()).unwrap());
+		info!("Starting {}", net_service.host_info());
+		let mut dir = env::home_dir().unwrap();
+		dir.push(".parity");
+		dir.push(H64::from(spec.genesis_header().hash()).hex());
+		let client = Arc::new(RwLock::new(try!(Client::new(spec, &dir, net_service.io().channel()))));
 		EthSync::register(&mut net_service, client.clone());
 		let client_io = Box::new(ClientIoHandler {
 			client: client
@@ -35,7 +37,7 @@ impl ClientService {
 }
 
 struct ClientIoHandler {
-	client: Arc<Client>
+	client: Arc<RwLock<Client>>
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
@@ -47,7 +49,7 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 			&mut UserMessage(ref mut message) =>  {
 				match message {
 					&mut SyncMessage::BlockVerified(ref mut bytes) => {
-						Arc::get_mut(&mut self.client).unwrap().import_verified_block(mem::replace(bytes, Bytes::new()));
+						self.client.write().unwrap().import_verified_block(mem::replace(bytes, Bytes::new()));
 					},
 					_ => {},
 				}

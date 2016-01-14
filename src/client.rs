@@ -46,7 +46,7 @@ pub struct BlockQueueStatus {
 pub type TreeRoute = ::blockchain::TreeRoute;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync {
+pub trait BlockChainClient : Sync + Send {
 	/// Get raw block header data by block header hash.
 	fn block_header(&self, hash: &H256) -> Option<Bytes>;
 
@@ -111,11 +111,13 @@ impl Client {
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
 		let db = DB::open_default(state_path.to_str().unwrap()).unwrap();
+		let mut state_db = OverlayDB::new(db);
+		engine.spec().ensure_db_good(&mut state_db);
 
 		Ok(Client {
 			chain: chain.clone(),
 			engine: engine.clone(),
-			state_db: OverlayDB::new(db),
+			state_db: state_db,
 			queue: BlockQueue::new(engine.clone(), message_channel),
 		})
 	}
@@ -123,16 +125,16 @@ impl Client {
 
 	pub fn import_verified_block(&mut self, bytes: Bytes) {
 		let block = BlockView::new(&bytes);
-		let header = block.header_view();
-		if let Err(e) = verify_block_final(&bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
-			warn!(target: "client", "Stage 3 block verification failed for {}\nError: {:?}", header.sha3(), e);
+		let header = block.header();
+		if let Err(e) = verify_block_family(&bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
+			warn!(target: "client", "Stage 3 block verification failed for {}\nError: {:?}", header.hash(), e);
 			// TODO: mark as bad
 			return;
 		};
-		let parent = match self.chain.read().unwrap().block_header(&header.parent_hash()) {
+		let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
 			Some(p) => p,
 			None => {
-				warn!(target: "client", "Stage 3 import failed for {}: Parent not found ({}) ", header.sha3(), header.parent_hash());
+				warn!(target: "client", "Block import failed for {}: Parent not found ({}) ", header.hash(), header.parent_hash);
 				return;
 			},
 		};
@@ -150,15 +152,26 @@ impl Client {
 			}
 		}
 
-		let mut b = OpenBlock::new(self.engine.deref().deref(), self.state_db.clone(), &parent, &last_hashes, header.author(), header.extra_data());
-
-		for t in block.transactions().into_iter() { 
-			if let Err(e) = b.push_transaction(t.clone(), None) {
-				warn!(target: "client", "Stage 3 transaction import failed for block {}\nTransaction:{:?}\nError: {:?}", header.sha3(), t, e);
+		let result = match enact(&bytes, self.engine.deref().deref(), self.state_db.clone(), &parent, &last_hashes) {
+			Ok(b) => b,
+			Err(e) => {
+				warn!(target: "client", "Block import failed for {}\nError: {:?}", header.hash(), e);
 				return;
-			};
+			}
+		};
+		if let Err(e) = verify_block_final(&header, result.block().header()) {
+			warn!(target: "client", "Stage 4 block verification failed for {}\nError: {:?}", header.hash(), e);
 		}
-		self.chain.write().unwrap().insert_block(&bytes);
+
+		self.chain.write().unwrap().insert_block(&bytes); //TODO: err here?
+		match result.drain().commit() {
+			Ok(_) => (),
+			Err(e) => {
+				warn!(target: "client", "State DB commit failed: {:?}", e);
+				return;
+			}
+		}
+		info!(target: "client", "Imported {}", header.hash());
 	}
 }
 

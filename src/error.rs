@@ -2,6 +2,7 @@
 
 use util::*;
 use header::BlockNumber;
+use basic_types::LogBloom;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Mismatch<T: fmt::Debug> {
@@ -50,15 +51,15 @@ pub enum BlockError {
 	UncleIsBrother(OutOfBounds<BlockNumber>),
 	UncleInChain(H256),
 	UncleParentNotInChain(H256),
-	InvalidStateRoot,
-	InvalidGasUsed,
+	InvalidStateRoot(Mismatch<H256>),
+	InvalidGasUsed(Mismatch<U256>),
 	InvalidTransactionsRoot(Mismatch<H256>),
 	InvalidDifficulty(Mismatch<U256>),
 	InvalidGasLimit(OutOfBounds<U256>),
-	InvalidReceiptsStateRoot,
+	InvalidReceiptsStateRoot(Mismatch<H256>),
 	InvalidTimestamp(OutOfBounds<u64>),
-	InvalidLogBloom,
-	InvalidBlockNonce,
+	InvalidLogBloom(Mismatch<LogBloom>),
+	InvalidBlockNonce(Mismatch<H256>),
 	InvalidParentHash(Mismatch<H256>),
 	InvalidNumber(OutOfBounds<BlockNumber>),
 	UnknownParent(H256),

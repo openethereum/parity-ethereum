@@ -37,13 +37,13 @@ pub fn verify_block_unordered(bytes: &[u8], engine: &Engine) -> Result<(), Error
 }
 
 /// Phase 3 verification. Check block information against parent and uncles.
-pub fn verify_block_final<BC>(bytes: &[u8], engine: &Engine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
+pub fn verify_block_family<BC>(bytes: &[u8], engine: &Engine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
 	// TODO: verify timestamp
 	let block = BlockView::new(bytes);
 	let header = block.header();
 	let parent = try!(bc.block_header(&header.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownParent(header.parent_hash.clone()))));
 	try!(verify_parent(&header, &parent));
-	try!(engine.verify_block_final(&header, &parent, Some(bytes)));
+	try!(engine.verify_block_family(&header, &parent, Some(bytes)));
 
 	let num_uncles = Rlp::new(bytes).at(2).item_count();
 	if num_uncles != 0 {
@@ -113,8 +113,25 @@ pub fn verify_block_final<BC>(bytes: &[u8], engine: &Engine, bc: &BC) -> Result<
 			}
 
 			try!(verify_parent(&uncle, &uncle_parent));
-			try!(engine.verify_block_final(&uncle, &uncle_parent, Some(bytes)));
+			try!(engine.verify_block_family(&uncle, &uncle_parent, Some(bytes)));
 		}
+	}
+	Ok(())
+}
+
+/// Phase 4 verification. Check block information against transaction enactment results,
+pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> {
+	if expected.state_root != got.state_root {
+		return Err(From::from(BlockError::InvalidStateRoot(Mismatch { expected: expected.state_root.clone(), found: got.state_root.clone() })))
+	}
+	if expected.receipts_root != got.receipts_root {
+		return Err(From::from(BlockError::InvalidReceiptsStateRoot(Mismatch { expected: expected.receipts_root.clone(), found: got.receipts_root.clone() })))
+	}
+	if expected.log_bloom != got.log_bloom {
+		return Err(From::from(BlockError::InvalidLogBloom(Mismatch { expected: expected.log_bloom.clone(), found: got.log_bloom.clone() })))
+	}
+	if expected.gas_used != got.gas_used {
+		return Err(From::from(BlockError::InvalidGasUsed(Mismatch { expected: expected.gas_used, found: got.gas_used })))
 	}
 	Ok(())
 }
@@ -372,28 +389,28 @@ mod tests {
 		check_fail(verify_block_basic(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref()),
 			InvalidUnclesHash(Mismatch { expected: good_uncles_hash.clone(), found: header.uncles_hash }));
 
-		check_ok(verify_block_final(&create_test_block(&good), engine.deref(), &bc));
-		check_ok(verify_block_final(&create_test_block_with_data(&good, &good_transactions, &good_uncles), engine.deref(), &bc));
+		check_ok(verify_block_family(&create_test_block(&good), engine.deref(), &bc));
+		check_ok(verify_block_family(&create_test_block_with_data(&good, &good_transactions, &good_uncles), engine.deref(), &bc));
 
 		header = good.clone();
 		header.parent_hash = H256::random();
-		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
+		check_fail(verify_block_family(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
 			UnknownParent(header.parent_hash));
 
 		header = good.clone();
 		header.timestamp = 10;
-		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
+		check_fail(verify_block_family(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
 			InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp + 1), found: header.timestamp }));
 
 		header = good.clone();
 		header.number = 9;
-		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
+		check_fail(verify_block_family(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
 			InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number }));
 		
 		header = good.clone();
 		let mut bad_uncles = good_uncles.clone();
 		bad_uncles.push(good_uncle1.clone());
-		check_fail(verify_block_final(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine.deref(), &bc),
+		check_fail(verify_block_family(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine.deref(), &bc),
 			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count()), min: None, found: bad_uncles.len() }));
 
 		// TODO: some additional uncle checks

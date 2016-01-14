@@ -8,13 +8,17 @@ use sync::SyncMessage;
 // TODO: ratings
 pub trait SyncIo {
 	/// Disable a peer
-	fn disable_peer(&mut self, peer_id: &PeerId);
+	fn disable_peer(&mut self, peer_id: PeerId);
 	/// Respond to current request with a packet. Can be called from an IO handler for incoming packet.
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>;
 	/// Send a packet to a peer.
 	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>;
 	/// Get the blockchain
 	fn chain<'s>(&'s mut self) -> &'s mut BlockChainClient;
+	/// Returns peer client identifier string
+	fn peer_info(&self, peer_id: PeerId) -> String {
+		peer_id.to_string()
+	}
 }
 
 /// Wraps `NetworkContext` and the blockchain client
@@ -34,8 +38,8 @@ impl<'s, 'h, 'io> NetSyncIo<'s, 'h, 'io> {
 }
 
 impl<'s, 'h, 'op> SyncIo for NetSyncIo<'s, 'h, 'op> {
-	fn disable_peer(&mut self, peer_id: &PeerId) {
-		self.network.disable_peer(*peer_id);
+	fn disable_peer(&mut self, peer_id: PeerId) {
+		self.network.disable_peer(peer_id);
 	}
 
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>{
@@ -48,6 +52,10 @@ impl<'s, 'h, 'op> SyncIo for NetSyncIo<'s, 'h, 'op> {
 
 	fn chain<'a>(&'a mut self) -> &'a mut BlockChainClient {
 		self.chain
+	}
+
+	fn peer_info(&self, peer_id: PeerId) -> String {
+		self.network.peer_info(peer_id)
 	}
 }
 
