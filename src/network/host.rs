@@ -16,7 +16,6 @@ use error::*;
 use io::*;
 use network::NetworkProtocolHandler;
 use network::node::*;
-use slab::Index;
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
