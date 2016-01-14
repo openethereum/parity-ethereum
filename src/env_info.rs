@@ -45,7 +45,7 @@ impl EnvInfo {
 			difficulty: u256_from_json(&json["currentDifficulty"]),
 			gas_limit: u256_from_json(&json["currentGasLimit"]),
 			timestamp: u64_from_json(&json["currentTimestamp"]),
-			last_hashes: (1..257).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
+			last_hashes: (0..current_number).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
 			gas_used: x!(0),
 		}
 	}

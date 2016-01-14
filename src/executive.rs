@@ -219,11 +219,23 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &Transaction, substate: Substate, backup: State, result: evm::Result) -> ExecutionResult {
+	fn finalize(&mut self, t: &Transaction, substate: Substate, mut backup: State, result: evm::Result) -> ExecutionResult {
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
 			Err(evm::Error::OutOfGas) => {
-				*self.state = backup;
+				// apply first transfer to backup, and then revert everything
+				let sender = t.sender().unwrap();
+				match t.action() {
+					&Action::Create => {
+						let nonce = backup.nonce(&sender);
+						let address = contract_address(&sender, &nonce);
+						backup.new_contract(&address);
+						backup.transfer_balance(&sender, &address, &t.value);
+					}
+					&Action::Call(ref address) => backup.transfer_balance(&sender, address, &t.value)
+				}
+				
+				self.state.revert(backup);
 				Ok(Executed {
 					gas: t.gas,
 					gas_used: t.gas,
@@ -832,9 +844,9 @@ mod tests {
 		};
 
 		assert_eq!(executed.gas, U256::from(100_000));
-		assert_eq!(executed.gas_used, U256::from(20_025));
-		assert_eq!(executed.refunded, U256::from(79_975));
-		assert_eq!(executed.cumulative_gas_used, U256::from(20_025));
+		assert_eq!(executed.gas_used, U256::from(41_301));
+		assert_eq!(executed.refunded, U256::from(58_699));
+		assert_eq!(executed.cumulative_gas_used, U256::from(41_301));
 		assert_eq!(executed.logs.len(), 0);
 		assert_eq!(executed.out_of_gas, false);
 		assert_eq!(executed.contracts_created.len(), 0);
