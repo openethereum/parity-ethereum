@@ -857,9 +857,9 @@ mod tests {
 		};
 
 		assert_eq!(executed.gas, U256::from(100_000));
-		assert_eq!(executed.gas_used, U256::from(20_025));
-		assert_eq!(executed.refunded, U256::from(79_975));
-		assert_eq!(executed.cumulative_gas_used, U256::from(20_025));
+		assert_eq!(executed.gas_used, U256::from(41_301));
+		assert_eq!(executed.refunded, U256::from(58_699));
+		assert_eq!(executed.cumulative_gas_used, U256::from(41_301));
 		assert_eq!(executed.logs.len(), 0);
 		assert_eq!(executed.out_of_gas, false);
 		assert_eq!(executed.contracts_created.len(), 0);
