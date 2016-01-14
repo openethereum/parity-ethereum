@@ -241,33 +241,37 @@ impl<'a> Executive<'a> {
 
 	/// Finalizes the transaction (does refunds and suicides).
 	fn finalize(&mut self, t: &Transaction, substate: Substate, result: evm::Result) -> ExecutionResult {
+		let schedule = self.engine.schedule(self.info);
+
+		// refunds from SSTORE nonzero -> zero
+		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.refunds_count;
+		// refunds from contract suicides
+		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
+
+		// real ammount to refund
+		let gas_left = match &result { &Ok(x) => x, _ => x!(0) };
+		let refund = cmp::min(sstore_refunds + suicide_refunds, (t.gas - gas_left) / U256::from(2)) + gas_left;
+		let refund_value = refund * t.gas_price;
+		self.state.add_balance(&t.sender().unwrap(), &refund_value);
+		
+		// fees earned by author
+		let fees = t.gas - refund;
+		let fees_value = fees * t.gas_price;
+		let author = &self.info.author;
+		self.state.add_balance(author, &fees_value);
+		println!("Compensating: fees: {}, fees_value: {}, author: {}", fees, fees_value, author);
+
+		// perform suicides
+		for address in substate.suicides.iter() {
+			println!("Killing {}", address);
+			self.state.kill_account(address);
+		}
+
+		let gas_used = t.gas - gas_left;
+
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
-			Ok(gas_left) => {
-				let schedule = self.engine.schedule(self.info);
-
-				// refunds from SSTORE nonzero -> zero
-				let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.refunds_count;
-				// refunds from contract suicides
-				let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
-
-				// real ammount to refund
-				let refund = cmp::min(sstore_refunds + suicide_refunds, (t.gas - gas_left) / U256::from(2)) + gas_left;
-				let refund_value = refund * t.gas_price;
-				self.state.add_balance(&t.sender().unwrap(), &refund_value);
-				
-				// fees earned by author
-				let fees = t.gas - refund;
-				let fees_value = fees * t.gas_price;
-				let author = &self.info.author;
-				self.state.add_balance(author, &fees_value);
-
-				// perform suicides
-				for address in substate.suicides.iter() {
-					self.state.kill_account(address);
-				}
-
-				let gas_used = t.gas - gas_left;
+			Ok(_) => {
 				Ok(Executed {
 					gas: t.gas,
 					gas_used: gas_used,
