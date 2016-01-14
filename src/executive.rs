@@ -684,7 +684,7 @@ mod tests {
 		// 60 00 - push 0
 		// f3 - return
 
-		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
+		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());

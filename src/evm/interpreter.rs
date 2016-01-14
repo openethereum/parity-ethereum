@@ -235,11 +235,11 @@ impl evm::Evm for Interpreter {
 impl Interpreter {
 
 	fn get_gas_cost_and_expand_mem(&self,
-									ext: &evm::Ext,
-									instruction: Instruction,
-									mem: &mut Memory,
-									stack: &Stack<U256>
-									) -> evm::Result {
+								   ext: &evm::Ext,
+								   instruction: Instruction,
+								   mem: &mut Memory,
+								   stack: &Stack<U256>
+								  ) -> evm::Result {
 		let schedule = ext.schedule();
 		let info = instructions::get_info(instruction);
 
@@ -262,8 +262,10 @@ impl Interpreter {
 		let cost = match instruction {
 			instructions::SSTORE => {
 				let address = H256::from(stack.peek(0));
+				let newval = stack.peek(1);
 				let val = U256::from(ext.sload(&address).as_slice());
-				let gas = if self.is_zero(&val) && !self.is_zero(stack.peek(1)) {
+
+				let gas = if self.is_zero(&val) && !self.is_zero(newval) {
 					schedule.sstore_set_gas
 				} else {
 					schedule.sstore_reset_gas
@@ -310,7 +312,7 @@ impl Interpreter {
 				InstructionCost::GasMem(gas, self.mem_needed(stack.peek(0), stack.peek(1)))
 			},
 			instructions::CALL | instructions::CALLCODE => {
-				let gas = add_u256_usize(stack.peek(0), schedule.call_gas + schedule.call_value_transfer_gas);
+				let gas = add_u256_usize(stack.peek(0), schedule.call_gas);
 				let mem = cmp::max(
 					self.mem_needed(stack.peek(5), stack.peek(6)),
 					self.mem_needed(stack.peek(3), stack.peek(4))
@@ -344,14 +346,16 @@ impl Interpreter {
 				Ok(gas)
 			},
 			InstructionCost::GasMem(gas, mem_size) => {
-				mem.expand(mem_size);
 				let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
+				// Expand after calculating the cost
+				mem.expand(mem_size);
 				Ok(gas + mem_gas)
 			},
 			InstructionCost::GasMemCopy(gas, mem_size, copy) => {
-				mem.expand(mem_size);
 				let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
 				let copy_gas = U256::from(schedule.copy_gas) * (add_u256_usize(&copy, 31) / U256::from(32));
+				// Expand after calculating the cost
+				mem.expand(mem_size);
 				Ok(gas + copy_gas + mem_gas)
 			}
 		}
@@ -482,13 +486,11 @@ impl Interpreter {
 			},
 			instructions::LOG0...instructions::LOG4 => {
 				let no_of_topics = instructions::get_log_topics(instruction);
-				let topics_data = stack.pop_n(no_of_topics + 2);
 
-				let offset = topics_data[0];
-				let size = topics_data[1];
-				let topics = topics_data
+				let offset = stack.pop_back();
+				let size = stack.pop_back();
+				let topics = stack.pop_n(no_of_topics)
 					.iter()
-					.skip(2)
 					.map(H256::from)
 					.collect();
 				ext.log(topics, mem.read_slice(offset, size));
