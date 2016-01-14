@@ -206,7 +206,10 @@ macro_rules! impl_hash {
 		}
 		impl fmt::Display for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				(self as &fmt::Debug).fmt(f)
+				for i in self.0[0..3].iter() {
+					try!(write!(f, "{:02x}", i));
+				}
+				write!(f, "…{:02x}", self.0.last().unwrap())
 			}
 		}
 
@@ -380,7 +383,7 @@ macro_rules! impl_hash {
 		}
 		impl $from {
 			pub fn hex(&self) -> String {
-				format!("{}", self)
+				format!("{:?}", self)
 			}
 
 			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
@@ -412,8 +415,18 @@ macro_rules! impl_hash {
 	}
 }
 
-impl<'a> From<&'a U256> for H256 {
-	fn from(value: &'a U256) -> H256 {
+impl From<U256> for H256 {
+	fn from(value: U256) -> H256 {
+		unsafe {
+			let mut ret: H256 = ::std::mem::uninitialized();
+			value.to_bytes(&mut ret);
+			ret
+		}
+	}
+}
+
+impl<'_> From<&'_ U256> for H256 {
+	fn from(value: &'_ U256) -> H256 {
 		unsafe {
 			let mut ret: H256 = ::std::mem::uninitialized();
 			value.to_bytes(&mut ret);
@@ -431,9 +444,29 @@ impl From<H256> for Address {
 		}
 	}
 }
-
+/*
+impl<'_> From<&'_ H256> for Address {
+	fn from(value: &'_ H256) -> Address {
+		unsafe {
+			let mut ret: Address = ::std::mem::uninitialized();
+			::std::ptr::copy(value.as_ptr().offset(12), ret.as_mut_ptr(), 20);
+			ret
+		}
+	}
+}
+*/
 impl From<Address> for H256 {
 	fn from(value: Address) -> H256 {
+		unsafe {
+			let mut ret = H256::new();
+			::std::ptr::copy(value.as_ptr(), ret.as_mut_ptr().offset(12), 20);
+			ret
+		}
+	}
+}
+
+impl<'_> From<&'_ Address> for H256 {
+	fn from(value: &'_ Address) -> H256 {
 		unsafe {
 			let mut ret = H256::new();
 			::std::ptr::copy(value.as_ptr(), ret.as_mut_ptr().offset(12), 20);
@@ -487,7 +520,7 @@ mod tests {
 	fn hash() {
 		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
-		assert_eq!(format!("{}", h), "0123456789abcdef");
+		assert_eq!(format!("{}", h), "012345…ef");
 		assert_eq!(format!("{:?}", h), "0123456789abcdef");
 		assert_eq!(h.hex(), "0123456789abcdef");
 		assert!(h == h);
