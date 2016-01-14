@@ -195,39 +195,39 @@ impl evm::Evm for Interpreter {
 
     while reader.position < code.len() {
       let instruction = code[reader.position];
-			reader.position += 1;
+		reader.position += 1;
 
-			// Calculate gas cost
-			let gas_cost = try!(self.get_gas_cost_and_expand_mem(ext, instruction, &mut mem, &stack));
-			try!(self.verify_gas(&current_gas, &gas_cost));
-			current_gas = current_gas - gas_cost;
-			println!("Gas cost: {} (left: {})", gas_cost, current_gas);
-			println!("Executing: {} ", instructions::get_info(instruction).name);
-			// Execute instruction
-			let result = try!(self.exec_instruction(
-					current_gas, params, ext, instruction, &mut reader, &mut mem, &mut stack
-			));
+		// Calculate gas cost
+		let gas_cost = try!(self.get_gas_cost_and_expand_mem(ext, instruction, &mut mem, &stack));
+		try!(self.verify_gas(&current_gas, &gas_cost));
+		current_gas = current_gas - gas_cost;
+		println!("Gas cost: {} (left: {})", gas_cost, current_gas);
+		println!("Executing: {} ", instructions::get_info(instruction).name);
+		// Execute instruction
+		let result = try!(self.exec_instruction(
+				current_gas, params, ext, instruction, &mut reader, &mut mem, &mut stack
+		));
 
-			// Advance
-			match result {
-				InstructionResult::JumpToPosition(position) => {
-					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
-					reader.position = pos;
-				},
-				InstructionResult::AdditionalGasCost(gas_cost) => {
-					current_gas = current_gas - gas_cost;
-				},
-				InstructionResult::StopExecutionWithGasCost(gas_cost) => { 
-					current_gas = current_gas - gas_cost;
-					reader.position = code.len();
-				},
-				InstructionResult::StopExecution => {
-					reader.position = code.len();
-				}
+		// Advance
+		match result {
+			InstructionResult::JumpToPosition(position) => {
+				let pos = try!(self.verify_jump(position, &valid_jump_destinations));
+				reader.position = pos;
+			},
+			InstructionResult::AdditionalGasCost(gas_cost) => {
+				current_gas = current_gas - gas_cost;
+			},
+			InstructionResult::StopExecutionWithGasCost(gas_cost) => { 
+				current_gas = current_gas - gas_cost;
+				reader.position = code.len();
+			},
+			InstructionResult::StopExecution => {
+				reader.position = code.len();
 			}
 		}
+	}
 
-		Ok(current_gas)
+	Ok(current_gas)
   }
 }
 
