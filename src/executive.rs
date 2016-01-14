@@ -2,7 +2,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{self, Schedule, Factory, Ext};
+use evm::{self, Schedule, Factory, Ext, CallResult};
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -38,6 +38,8 @@ impl Substate {
 			contracts_created: vec![]
 		}
 	}
+
+	pub fn out_of_gas(&self) -> bool { self.out_of_gas }
 }
 
 /// Transaction execution receipt.
@@ -207,7 +209,8 @@ impl<'a> Executive<'a> {
 				let evm = Factory::create();
 				evm.exec(&params, &mut ext)
 			};
-			self.handle_out_of_gas(res, substate, backup)
+			self.revert_if_needed(&res, substate, backup);
+			res
 		} else {
 			// otherwise, nothing
 			Ok(params.gas)
@@ -232,7 +235,8 @@ impl<'a> Executive<'a> {
 			let evm = Factory::create();
 			evm.exec(&params, &mut ext)
 		};
-		self.handle_out_of_gas(res, substate, backup)
+		self.revert_if_needed(&res, substate, backup);
+		res
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
@@ -278,12 +282,11 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	pub fn handle_out_of_gas(&mut self, result: evm::Result, substate: &mut Substate, backup: State) -> evm::Result {
-		if let &Err(evm::Error::OutOfGas) = &result {
+	pub fn revert_if_needed(&mut self, result: &evm::Result, substate: &mut Substate, backup: State) {
+		if let &Err(evm::Error::OutOfGas) = result {
 			substate.out_of_gas = true;
 			self.state.revert(backup);
 		}
-		result
 	}
 }
 
@@ -398,7 +401,14 @@ impl<'a> Ext for Externalities<'a> {
 		//ex.create(&params, self.substate).map(|gas_left| (gas_left, Some(address)))
 	}
 
-	fn call(&mut self, gas: &U256, call_gas: &U256, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Result<U256, evm::Error> {
+	fn call(&mut self, 
+			gas: &U256, 
+			call_gas: &U256, 
+			receive_address: &Address, 
+			value: &U256, 
+			data: &[u8], 
+			code_address: &Address, 
+			output: &mut [u8]) -> Option<CallResult> {
 		let mut gas_cost = *call_gas;
 		let mut call_gas = *call_gas;
 
@@ -414,14 +424,17 @@ impl<'a> Ext for Externalities<'a> {
 		}
 
 		if gas_cost > *gas {
-			return Err(evm::Error::OutOfGas)
+			self.substate.out_of_gas = true;
+			return None;
+			//return (U256::from(-1i64 as u64), false);
 		}
 
 		let gas = *gas - gas_cost;
 
 		// if balance is insufficient or we are to deep, return
 		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.max_depth {
-			return Ok(gas + call_gas)
+			return Some(CallResult::new(gas + call_gas, true));
+			//return (gas + call_gas, true);
 		}
 
 		let params = ActionParams {
@@ -436,7 +449,14 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
-		ex.call(&params, self.substate, BytesRef::Fixed(output)).map(|gas_left| gas + gas_left)
+		match ex.call(&params, self.substate, BytesRef::Fixed(output)) {
+			Ok(gas_left) => Some(CallResult::new(gas + gas_left, true)),
+			_ => {
+				self.substate.out_of_gas = true;
+				Some(CallResult::new(gas, false))
+			}
+		}
+		//ex.call(&params, self.substate, BytesRef::Fixed(output)).map(|gas_left| gas + gas_left)
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {

@@ -4,7 +4,7 @@ use executive::*;
 use spec::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory};
+use evm::{Schedule, Ext, Factory, CallResult};
 use ethereum;
 
 struct TestEngine {
@@ -110,21 +110,20 @@ impl<'a> Ext for TestExt<'a> {
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<U256, evm::Error> {
-		let res = self.ext.call(gas, call_gas, receive_address, value, data, code_address, output);
+			output: &mut [u8]) -> Option<CallResult> {
+		let opt = self.ext.call(gas, call_gas, receive_address, value, data, code_address, output);
 		let ext = &self.ext;
-		match res {
-			Ok(gas_left) if ext.state.balance(&ext.params.address) >= *value => {
+		if let &Some(_) = &opt {
+			if ext.state.balance(&ext.params.address) >= *value {
 				self.callcreates.push(CallCreate {
 					data: data.to_vec(),
 					destination: receive_address.clone(),
 					_gas_limit: *call_gas,
 					value: *value
 				});
-				Ok(gas_left)
-			},
-			other => other
+			}
 		}
+		opt
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {

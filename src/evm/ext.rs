@@ -6,6 +6,20 @@ use util::bytes::*;
 use evm::{Schedule, Error};
 use env_info::*;
 
+pub struct CallResult {
+	pub gas_left: U256,
+	pub success: bool
+}
+
+impl CallResult {
+	pub fn new(gas_left: U256, success: bool) -> Self {
+		CallResult {
+			gas_left: gas_left,
+			success: success
+		}
+	}
+}
+
 pub trait Ext {
 	/// Returns a value for given key.
 	fn sload(&self, key: &H256) -> H256;
@@ -26,8 +40,9 @@ pub trait Ext {
 
 	/// Message call.
 	/// 
-	/// If call is successfull, returns gas left.
-	/// otherwise `Error`.
+	/// Returns None, if we run out of gas.
+	/// Otherwise returns call_result which contains gas left 
+	/// and true if subcall was successfull.
 	fn call(&mut self, 
 			gas: &U256, 
 			call_gas: &U256, 
@@ -35,7 +50,7 @@ pub trait Ext {
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<U256, Error>;
+			output: &mut [u8]) -> Option<CallResult>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Vec<u8>;

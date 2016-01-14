@@ -229,30 +229,21 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				out_size: u64,
 				code_address: *const evmjit::H256) -> bool {
 		unsafe {
-			let res = self.ext.call(&U256::from(*io_gas), 
+			let opt = self.ext.call(&U256::from(*io_gas), 
 									&U256::from(call_gas), 
 									&Address::from_jit(&*receive_address),
 									&U256::from_jit(&*value),
 									slice::from_raw_parts(in_beg, in_size as usize),
 									&Address::from_jit(&*code_address),
 									slice::from_raw_parts_mut(out_beg, out_size as usize));
-
-			match res {
-				Ok(gas_left) => {
-					*io_gas = gas_left.low_u64();
-					true
-				},
-				Err(err @ evm::Error::OutOfGas) => {
-					*self.err = Some(err);
-					// hack to propagate `OutOfGas` to evmjit and stop
-					// the execution immediately.
-					// Works, cause evmjit uses i64, not u64
+			match opt {
+				None => {
 					*io_gas = -1i64 as u64;
 					false
 				},
-				Err(err) => {
-					*self.err = Some(err);
-					false
+				Some(res) => {
+					*io_gas = res.gas_left.low_u64();
+					res.success
 				}
 			}
 		}
