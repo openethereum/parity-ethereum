@@ -1,396 +1,5 @@
 use util::*;
-use itertools::Itertools;
-
-pub const SHA3_EMPTY: H256 = H256( [0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c, 0x92, 0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0, 0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b, 0x7b, 0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70] );
-
-#[derive(Debug,Clone,PartialEq,Eq)]
-pub enum Diff<T> where T: Eq {
-	Same,
-	Born(T),
-	Changed(T, T),
-	Died(T),
-}
-
-#[derive(Debug,Clone,PartialEq,Eq)]
-pub enum Existance {
-	Born,
-	Alive,
-	Died,
-}
-
-impl<T> Diff<T> where T: Eq {
-	pub fn new(pre: T, post: T) -> Self { if pre == post { Diff::Same } else { Diff::Changed(pre, post) } }
-	pub fn pre(&self) -> Option<&T> { match self { &Diff::Died(ref x) | &Diff::Changed(ref x, _) => Some(x), _ => None } }
-	pub fn post(&self) -> Option<&T> { match self { &Diff::Born(ref x) | &Diff::Changed(_, ref x) => Some(x), _ => None } }
-	pub fn is_same(&self) -> bool { match self { &Diff::Same => true, _ => false }}
-}
-
-#[derive(Debug,Clone,PartialEq,Eq)]
-/// Genesis account data. Does not have a DB overlay cache.
-pub struct PodAccount {
-	// Balance of the account.
-	pub balance: U256,
-	// Nonce of the account.
-	pub nonce: U256,
-	pub code: Bytes,
-	pub storage: BTreeMap<H256, H256>,
-}
-
-impl fmt::Display for PodAccount {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "(bal={}; nonce={}; code={} bytes, #{}; storage={} items)", self.balance, self.nonce, self.code.len(), self.code.sha3(), self.storage.len())
-	}
-}
-
-#[derive(Debug,Clone,PartialEq,Eq)]
-pub struct PodState (BTreeMap<Address, PodAccount>);
-
-pub fn map_h256_h256_from_json(json: &Json) -> BTreeMap<H256, H256> {
-	json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut m, (key, value)| {
-		m.insert(H256::from(&u256_from_str(key)), H256::from(&u256_from_json(value)));
-		m
-	})
-}
-
-impl PodState {
-	/// Contruct a new object from the `m`.
-	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
-
-	/// Translate the JSON object into a hash map of account information ready for insertion into State.
-	pub fn from_json(json: &Json) -> PodState {
-		PodState(json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut state, (address, acc)| {
-			let balance = acc.find("balance").map(&u256_from_json);
-			let nonce = acc.find("nonce").map(&u256_from_json);
-			let storage = acc.find("storage").map(&map_h256_h256_from_json);;
-			let code = acc.find("code").map(&bytes_from_json);
-			if balance.is_some() || nonce.is_some() || storage.is_some() || code.is_some() {
-				state.insert(address_from_hex(address), PodAccount{
-					balance: balance.unwrap_or(U256::zero()),
-					nonce: nonce.unwrap_or(U256::zero()),
-					storage: storage.unwrap_or(BTreeMap::new()),
-					code: code.unwrap_or(Vec::new())
-				});
-			}
-			state
-		}))
-	}
-
-	/// Drain object to get the underlying map.
-	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
-}
-
-impl fmt::Display for PodState {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		for (add, acc) in &self.0 {
-			try!(writeln!(f, "{} => {}", add, acc));
-		}
-		Ok(())
-	}
-}
-
-#[derive(Debug,Clone,PartialEq,Eq)]
-pub struct AccountDiff {
-	pub balance: Diff<U256>,				// Allowed to be Same
-	pub nonce: Diff<U256>,					// Allowed to be Same
-	pub code: Diff<Bytes>,					// Allowed to be Same
-	pub storage: BTreeMap<H256, Diff<H256>>,// Not allowed to be Same
-}
-
-impl AccountDiff {
-	pub fn existance(&self) -> Existance {
-		match self.balance {
-			Diff::Born(_) => Existance::Born,
-			Diff::Died(_) => Existance::Died,
-			_ => Existance::Alive,
-		}
-	}
-}
-
-fn format(u: &H256) -> String {
-	if u <= &H256::from(0xffffffff) {
-		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u32(), U256::from(u.as_slice()).low_u32())
-	} else if u <= &H256::from(u64::max_value()) {
-		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u64(), U256::from(u.as_slice()).low_u64())
-//	} else if u <= &H256::from("0xffffffffffffffffffffffffffffffffffffffff") {
-//		format!("@{}", Address::from(u))
-	} else {
-		format!("#{}", u)
-	}
-}
-
-#[derive(Debug,Clone,PartialEq,Eq)]
-pub struct StateDiff (BTreeMap<Address, AccountDiff>);
-
-impl fmt::Display for AccountDiff {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match self.nonce {
-			Diff::Born(ref x) => try!(write!(f, "  non {}", x)),
-			Diff::Changed(ref pre, ref post) => try!(write!(f, "#{} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *	min(pre, post))),
-			_ => {},
-		}
-		match self.balance {
-			Diff::Born(ref x) => try!(write!(f, "  bal {}", x)),
-			Diff::Changed(ref pre, ref post) => try!(write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))),
-			_ => {},
-		}
-		match self.code {
-			Diff::Born(ref x) => try!(write!(f, "  code {}", x.pretty())),
-			_ => {},
-		}
-		try!(write!(f, "\n"));
-		for (k, dv) in self.storage.iter() {
-			match dv {
-				&Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", format(k), format(v))),
-				&Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", format(k), format(post), format(pre))),
-				&Diff::Died(_) => try!(write!(f, "    X  {}\n", format(k))),
-				_ => {},
-			}
-		}
-		Ok(())
-	}
-}
-
-impl fmt::Display for Existance {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match self {
-			&Existance::Born => try!(write!(f, "+++")),
-			&Existance::Alive => try!(write!(f, "***")),
-			&Existance::Died => try!(write!(f, "XXX")),
-		}
-		Ok(())
-	}
-}
-
-impl fmt::Display for StateDiff {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		for (add, acc) in self.0.iter() {
-			try!(write!(f, "{} {}: {}", acc.existance(), add, acc));
-		}
-		Ok(())
-	}
-}
-
-pub fn pod_diff(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
-	match (pre, post) {
-		(None, Some(x)) => Some(AccountDiff {
-			balance: Diff::Born(x.balance.clone()),
-			nonce: Diff::Born(x.nonce.clone()),
-			code: Diff::Born(x.code.clone()),
-			storage: x.storage.iter().map(|(k, v)| (k.clone(), Diff::Born(v.clone()))).collect(),
-		}),
-		(Some(x), None) => Some(AccountDiff {
-			balance: Diff::Died(x.balance.clone()),
-			nonce: Diff::Died(x.nonce.clone()),
-			code: Diff::Died(x.code.clone()),
-			storage: x.storage.iter().map(|(k, v)| (k.clone(), Diff::Died(v.clone()))).collect(),
-		}),
-		(Some(pre), Some(post)) => {
-			let storage: Vec<_> = pre.storage.keys().merge(post.storage.keys())
-				.filter(|k| pre.storage.get(k).unwrap_or(&H256::new()) != post.storage.get(k).unwrap_or(&H256::new()))
-				.collect();
-			let r = AccountDiff {
-				balance: Diff::new(pre.balance.clone(), post.balance.clone()),
-				nonce: Diff::new(pre.nonce.clone(), post.nonce.clone()),
-				code: Diff::new(pre.code.clone(), post.code.clone()),
-				storage: storage.into_iter().map(|k|
-					(k.clone(), Diff::new(
-						pre.storage.get(&k).cloned().unwrap_or(H256::new()),
-						post.storage.get(&k).cloned().unwrap_or(H256::new())
-					))).collect(),
-			};
-			if r.balance.is_same() && r.nonce.is_same() && r.code.is_same() && r.storage.len() == 0 {
-				None
-			} else {
-				Some(r)
-			}
-		},
-		_ => None,
-	}
-}
-
-pub fn pod_state_diff(pre: &PodState, post: &PodState) -> StateDiff {
-	StateDiff(pre.0.keys().merge(post.0.keys()).filter_map(|acc| pod_diff(pre.0.get(acc), post.0.get(acc)).map(|d|(acc.clone(), d))).collect())
-}
-
-#[test]
-fn state_diff_create_delete() {
-	let a = PodState(map![
-		x!(1) => PodAccount{
-			balance: x!(69),
-			nonce: x!(0),
-			code: vec![],
-			storage: map![]
-		}
-	]);
-	assert_eq!(pod_state_diff(&a, &PodState(map![])), StateDiff(map![
-		x!(1) => AccountDiff{
-			balance: Diff::Died(x!(69)),
-			nonce: Diff::Died(x!(0)),
-			code: Diff::Died(vec![]),
-			storage: map![],
-		}
-	]));
-	assert_eq!(pod_state_diff(&PodState(map![]), &a), StateDiff(map![
-		x!(1) => AccountDiff{
-			balance: Diff::Born(x!(69)),
-			nonce: Diff::Born(x!(0)),
-			code: Diff::Born(vec![]),
-			storage: map![],
-		}
-	]));
-}
-
-#[test]
-fn state_diff_cretae_delete_with_unchanged() {
-	let a = PodState(map![
-		x!(1) => PodAccount{
-			balance: x!(69),
-			nonce: x!(0),
-			code: vec![],
-			storage: map![]
-		}
-	]);
-	let b = PodState(map![
-		x!(1) => PodAccount{
-			balance: x!(69),
-			nonce: x!(0),
-			code: vec![],
-			storage: map![]
-		},
-		x!(2) => PodAccount{
-			balance: x!(69),
-			nonce: x!(0),
-			code: vec![],
-			storage: map![]
-		}
-	]);
-	assert_eq!(pod_state_diff(&a, &b), StateDiff(map![
-		x!(2) => AccountDiff{
-			balance: Diff::Born(x!(69)),
-			nonce: Diff::Born(x!(0)),
-			code: Diff::Born(vec![]),
-			storage: map![],
-		}
-	]));
-	assert_eq!(pod_state_diff(&b, &a), StateDiff(map![
-		x!(2) => AccountDiff{
-			balance: Diff::Died(x!(69)),
-			nonce: Diff::Died(x!(0)),
-			code: Diff::Died(vec![]),
-			storage: map![],
-		}
-	]));
-}
-
-#[test]
-fn state_diff_change_with_unchanged() {
-	let a = PodState(map![
-		x!(1) => PodAccount{
-			balance: x!(69),
-			nonce: x!(0),
-			code: vec![],
-			storage: map![]
-		},
-		x!(2) => PodAccount{
-			balance: x!(69),
-			nonce: x!(0),
-			code: vec![],
-			storage: map![]
-		}
-	]);
-	let b = PodState(map![
-		x!(1) => PodAccount{
-			balance: x!(69),
-			nonce: x!(1),
-			code: vec![],
-			storage: map![]
-		},
-		x!(2) => PodAccount{
-			balance: x!(69),
-			nonce: x!(0),
-			code: vec![],
-			storage: map![]
-		}
-	]);
-	assert_eq!(pod_state_diff(&a, &b), StateDiff(map![
-		x!(1) => AccountDiff{
-			balance: Diff::Same,
-			nonce: Diff::Changed(x!(0), x!(1)),
-			code: Diff::Same,
-			storage: map![],
-		}
-	]));
-}
-
-#[test]
-fn account_diff_existence() {
-	let a = PodAccount{balance: x!(69), nonce: x!(0), code: vec![], storage: map![]};
-	assert_eq!(pod_diff(Some(&a), Some(&a)), None);
-	assert_eq!(pod_diff(None, Some(&a)), Some(AccountDiff{
-		balance: Diff::Born(x!(69)),
-		nonce: Diff::Born(x!(0)),
-		code: Diff::Born(vec![]),
-		storage: map![],
-	}));
-}
-
-#[test]
-fn account_diff_basic() {
-	let a = PodAccount{balance: x!(69), nonce: x!(0), code: vec![], storage: map![]};
-	let b = PodAccount{balance: x!(42), nonce: x!(1), code: vec![], storage: map![]};
-	assert_eq!(pod_diff(Some(&a), Some(&b)), Some(AccountDiff {
-		balance: Diff::Changed(x!(69), x!(42)),
-		nonce: Diff::Changed(x!(0), x!(1)),
-		code: Diff::Same,
-		storage: map![],
-	}));
-}
-
-#[test]
-fn account_diff_code() {
-	let a = PodAccount{balance: x!(0), nonce: x!(0), code: vec![], storage: map![]};
-	let b = PodAccount{balance: x!(0), nonce: x!(1), code: vec![0], storage: map![]};
-	assert_eq!(pod_diff(Some(&a), Some(&b)), Some(AccountDiff {
-		balance: Diff::Same,
-		nonce: Diff::Changed(x!(0), x!(1)),
-		code: Diff::Changed(vec![], vec![0]),
-		storage: map![],
-	}));
-}
-
-#[test]
-fn account_diff_storage() {
-	let a = PodAccount {
-		balance: x!(0),
-		nonce: x!(0),
-		code: vec![],
-		storage: mapx![1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 0, 6 => 0, 7 => 0]
-	};
-	let b = PodAccount {
-		balance: x!(0),
-		nonce: x!(0),
-		code: vec![],
-		storage: mapx![1 => 1, 2 => 3, 3 => 0, 5 => 0, 7 => 7, 8 => 0, 9 => 9]
-	};
-	assert_eq!(pod_diff(Some(&a), Some(&b)), Some(AccountDiff {
-		balance: Diff::Same,
-		nonce: Diff::Same,
-		code: Diff::Same,
-		storage: map![
-			x!(2) => Diff::new(x!(2), x!(3)),
-			x!(3) => Diff::new(x!(3), x!(0)),
-			x!(4) => Diff::new(x!(4), x!(0)),
-			x!(7) => Diff::new(x!(0), x!(7)),
-			x!(9) => Diff::new(x!(0), x!(9))
-		],
-	}));
-}
-
-#[derive(PartialEq,Eq,Clone,Copy)]
-pub enum Filth {
-	Clean,
-	Dirty,
-}
+use pod_account::*;
 
 /// Single account in the system.
 #[derive(Clone)]
@@ -407,29 +16,6 @@ pub struct Account {
 	code_hash: Option<H256>,
 	// Code cache of the account.
 	code_cache: Bytes,
-}
-
-impl PodAccount {
-	/// Convert Account to a PodAccount.
-	/// NOTE: This will silently fail unless the account is fully cached.
-	pub fn from_account(acc: &Account) -> PodAccount {
-		PodAccount {
-			balance: acc.balance.clone(),
-			nonce: acc.nonce.clone(),
-			storage: acc.storage_overlay.borrow().iter().fold(BTreeMap::new(), |mut m, (k, &(_, ref v))| {m.insert(k.clone(), v.clone()); m}),
-			code: acc.code_cache.clone()
-		}
-	}
-
-	pub fn rlp(&self) -> Bytes {
-		let mut stream = RlpStream::new_list(4);
-		stream.append(&self.nonce);
-		stream.append(&self.balance);
-		// TODO.
-		stream.append(&SHA3_NULL_RLP);
-		stream.append(&self.code.sha3());
-		stream.out()
-	}
 }
 
 impl Account {
@@ -651,98 +237,93 @@ impl fmt::Debug for Account {
 #[cfg(test)]
 mod tests {
 
-use super::*;
-use std::collections::HashMap;
-use util::hash::*;
-use util::bytes::*;
-use util::rlp::*;
-use util::uint::*;
-use util::overlaydb::*;
+	use util::*;
+	use super::*;
 
-#[test]
-fn storage_at() {
-	let mut db = OverlayDB::new_temp();
-	let rlp = {
+	#[test]
+	fn storage_at() {
+		let mut db = OverlayDB::new_temp();
+		let rlp = {
+			let mut a = Account::new_contract(U256::from(69u8));
+			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
+			a.commit_storage(&mut db);
+			a.init_code(vec![]);
+			a.commit_code(&mut db);
+			a.rlp()
+		};
+
+		let a = Account::from_rlp(&rlp);
+		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
+		assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
+		assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x01u64))), H256::new());
+	}
+
+	#[test]
+	fn note_code() {
+		let mut db = OverlayDB::new_temp();
+
+		let rlp = {
+			let mut a = Account::new_contract(U256::from(69u8));
+			a.init_code(vec![0x55, 0x44, 0xffu8]);
+			a.commit_code(&mut db);
+			a.rlp()
+		};
+
+		let mut a = Account::from_rlp(&rlp);
+		assert_eq!(a.cache_code(&db), true);
+
+		let mut a = Account::from_rlp(&rlp);
+		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));
+	}
+
+	#[test]
+	fn commit_storage() {
 		let mut a = Account::new_contract(U256::from(69u8));
+		let mut db = OverlayDB::new_temp();
 		a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
+		assert_eq!(a.storage_root(), None);
 		a.commit_storage(&mut db);
-		a.init_code(vec![]);
-		a.commit_code(&mut db);
-		a.rlp()
-	};
+		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
+	}
 
-	let a = Account::from_rlp(&rlp);
-	assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
-	assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
-	assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x01u64))), H256::new());
-}
-
-#[test]
-fn note_code() {
-	let mut db = OverlayDB::new_temp();
-
-	let rlp = {
+	#[test]
+	fn commit_code() {
 		let mut a = Account::new_contract(U256::from(69u8));
+		let mut db = OverlayDB::new_temp();
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
+		assert_eq!(a.code_hash(), SHA3_EMPTY);
 		a.commit_code(&mut db);
-		a.rlp()
-	};
+		assert_eq!(a.code_hash().hex(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb");
+	}
 
-	let mut a = Account::from_rlp(&rlp);
-	assert_eq!(a.cache_code(&db), true);
+	#[test]
+	fn rlpio() {
+		let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
+		let b = Account::from_rlp(&a.rlp());
+		assert_eq!(a.balance(), b.balance());
+		assert_eq!(a.nonce(), b.nonce());
+		assert_eq!(a.code_hash(), b.code_hash());
+		assert_eq!(a.storage_root(), b.storage_root());
+	}
 
-	let mut a = Account::from_rlp(&rlp);
-	assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));
-}
+	#[test]
+	fn new_account() {
+		use rustc_serialize::hex::ToHex;
 
-#[test]
-fn commit_storage() {
-	let mut a = Account::new_contract(U256::from(69u8));
-	let mut db = OverlayDB::new_temp();
-	a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
-	assert_eq!(a.storage_root(), None);
-	a.commit_storage(&mut db);
-	assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
-}
+		let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
+		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
+		assert_eq!(a.balance(), &U256::from(69u8));
+		assert_eq!(a.nonce(), &U256::from(0u8));
+		assert_eq!(a.code_hash(), SHA3_EMPTY);
+		assert_eq!(a.storage_root().unwrap(), &SHA3_NULL_RLP);
+	}
 
-#[test]
-fn commit_code() {
-	let mut a = Account::new_contract(U256::from(69u8));
-	let mut db = OverlayDB::new_temp();
-	a.init_code(vec![0x55, 0x44, 0xffu8]);
-	assert_eq!(a.code_hash(), SHA3_EMPTY);
-	a.commit_code(&mut db);
-	assert_eq!(a.code_hash().hex(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb");
-}
+	#[test]
+	fn create_account() {
+		use rustc_serialize::hex::ToHex;
 
-#[test]
-fn rlpio() {
-	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
-	let b = Account::from_rlp(&a.rlp());
-	assert_eq!(a.balance(), b.balance());
-	assert_eq!(a.nonce(), b.nonce());
-	assert_eq!(a.code_hash(), b.code_hash());
-	assert_eq!(a.storage_root(), b.storage_root());
-}
-
-#[test]
-fn new_account() {
-	use rustc_serialize::hex::ToHex;
-
-	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
-	assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
-	assert_eq!(a.balance(), &U256::from(69u8));
-	assert_eq!(a.nonce(), &U256::from(0u8));
-	assert_eq!(a.code_hash(), SHA3_EMPTY);
-	assert_eq!(a.storage_root().unwrap(), &SHA3_NULL_RLP);
-}
-
-#[test]
-fn create_account() {
-	use rustc_serialize::hex::ToHex;
-
-	let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
-	assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
-}
+		let a = Account::new(U256::from(69u8), U256::from(0u8), HashMap::new(), Bytes::new());
+		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
+	}
 
 }
