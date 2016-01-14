@@ -47,7 +47,7 @@ impl FromJson for EnvInfo {
 			difficulty: xjson!(&json["currentDifficulty"]),
 			gas_limit: xjson!(&json["currentGasLimit"]),
 			timestamp: xjson!(&json["currentTimestamp"]),
-			last_hashes: (1..257).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
+			last_hashes: (1..cmp::min(current_number + 1, 257)).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
 			gas_used: x!(0),
 		}
 	}

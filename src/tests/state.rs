@@ -11,6 +11,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let engine = ethereum::new_frontier_test().to_engine().unwrap();
 
 	for (name, test) in json.as_object().unwrap() {
+		println!("name: {:?}", name);
 		let mut fail = false;
 		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true; true } else {false};
 
@@ -58,4 +59,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 }
 
 declare_test!{StateTests_stExample, "StateTests/stExample"}
+declare_test!{StateTests_stBlockHashTest, "StateTests/stBlockHashTest"}
 declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}
+declare_test!{StateTests_stCallCodes, "StateTests/stCallCodes"}
+declare_test_ignore!{StateTests_stCallCreateCallCodeTest, "StateTests/stCallCreateCallCodeTest"}
