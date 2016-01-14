@@ -11,6 +11,6 @@ mod jit;
 mod tests;
 
 pub use self::evm::{Evm, Error, Result};
-pub use self::ext::{Ext, CallResult};
+pub use self::ext::{Ext};
 pub use self::factory::Factory;
 pub use self::schedule::Schedule;

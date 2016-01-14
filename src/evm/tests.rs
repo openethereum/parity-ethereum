@@ -1,6 +1,6 @@
 use common::*;
 use evm;
-use evm::{Ext, Schedule, Factory, CallResult};
+use evm::{Ext, Schedule, Factory};
 
 struct FakeLogEntry {
 	topics: Vec<H256>,
@@ -53,7 +53,7 @@ impl Ext for FakeExt {
 			_value: &U256, 
 			_data: &[u8], 
 			_code_address: &Address, 
-			_output: &mut [u8]) -> Option<CallResult> {
+			_output: &mut [u8]) -> result::Result<(U256, bool), evm::Error> {
 		unimplemented!();
 	}
 

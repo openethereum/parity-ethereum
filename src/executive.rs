@@ -2,7 +2,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{self, Schedule, Factory, Ext, CallResult};
+use evm::{self, Schedule, Factory, Ext};
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -408,7 +408,7 @@ impl<'a> Ext for Externalities<'a> {
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Option<CallResult> {
+			output: &mut [u8]) -> Result<(U256, bool), evm::Error> {
 		let mut gas_cost = *call_gas;
 		let mut call_gas = *call_gas;
 
@@ -425,7 +425,7 @@ impl<'a> Ext for Externalities<'a> {
 
 		if gas_cost > *gas {
 			self.substate.out_of_gas = true;
-			return None;
+			return Err(evm::Error::OutOfGas);
 			//return (U256::from(-1i64 as u64), false);
 		}
 
@@ -433,8 +433,9 @@ impl<'a> Ext for Externalities<'a> {
 
 		// if balance is insufficient or we are to deep, return
 		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.max_depth {
-			return Some(CallResult::new(gas + call_gas, true));
+			//return Some(CallResult::new(gas + call_gas, true));
 			//return (gas + call_gas, true);
+			return Ok((gas + call_gas, true));
 		}
 
 		let params = ActionParams {
@@ -450,10 +451,11 @@ impl<'a> Ext for Externalities<'a> {
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
 		match ex.call(&params, self.substate, BytesRef::Fixed(output)) {
-			Ok(gas_left) => Some(CallResult::new(gas + gas_left, true)),
+			Ok(gas_left) => Ok((gas + gas_left, true)), //Some(CallResult::new(gas + gas_left, true)),
 			_ => {
 				self.substate.out_of_gas = true;
-				Some(CallResult::new(gas, false))
+				Ok((gas, false))
+				//Some(CallResult::new(gas, false))
 			}
 		}
 		//ex.call(&params, self.substate, BytesRef::Fixed(output)).map(|gas_left| gas + gas_left)
