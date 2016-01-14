@@ -242,7 +242,7 @@ pub fn get_info (instruction: Instruction) -> InstructionInfo {
 		RETURN => 		InstructionInfo::new("RETURN",			0, 2, 0, true, GasPriceTier::ZeroTier),
 		DELEGATECALL => InstructionInfo::new("DELEGATECALL",	0, 6, 1, true, GasPriceTier::SpecialTier),
 		SUICIDE => 		InstructionInfo::new("SUICIDE",			0, 1, 0, true, GasPriceTier::ZeroTier),
-		_ => panic!(format!("Undefined instruction: {}", instruction))
+		_ => InstructionInfo::new("INVALID_INSTRUCTION", 0, 0, 0, false, GasPriceTier::InvalidTier)
 	}
 }
 

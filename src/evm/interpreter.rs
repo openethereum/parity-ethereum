@@ -244,12 +244,12 @@ impl Interpreter {
 
 		if !schedule.have_delegate_call && instruction == instructions::DELEGATECALL {
 			return Err(evm::Error::BadInstruction {
-				instruction: info.name
+				instruction: instruction
 			});
 		}
 		if info.tier == instructions::GasPriceTier::InvalidTier {
 			return Err(evm::Error::BadInstruction {
-				instruction: info.name
+				instruction: instruction
 			});
 		}
 
@@ -608,7 +608,7 @@ impl Interpreter {
 				stack.push(ext.env_info().gas_limit.clone());
 			},
 			_ => {
-				self.exec_stack_instruction(instruction, stack);
+				try!(self.exec_stack_instruction(instruction, stack));
 			}
 		};
 		Ok(InstructionResult::AdditionalGasCost(U256::zero()))
@@ -678,7 +678,7 @@ impl Interpreter {
 		}
 	}
 
-	fn exec_stack_instruction(&self, instruction: Instruction, stack : &mut Stack<U256>) {
+	fn exec_stack_instruction(&self, instruction: Instruction, stack : &mut Stack<U256>) -> Result<(), evm::Error> {
 		match instruction {
 			instructions::DUP1...instructions::DUP16 => {
 				let position = instructions::get_dup_position(instruction);
@@ -772,8 +772,13 @@ impl Interpreter {
 			// TODO instructions::ADDMOD => {},
 			// TODO instructions::MULMOD => {},
 			// TODO instructions::SIGNEXTEND => {},
-			_ => panic!(format!("Unknown stack instruction: {:x}", instruction))
+			_ => {
+				return Err(evm::Error::BadInstruction {
+					instruction: instruction
+				});
+			}
 		}
+		Ok(())
 	}
 
 	fn find_jump_destinations(&self, code : &Bytes) -> HashSet<CodePosition> {

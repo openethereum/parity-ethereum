@@ -19,7 +19,7 @@ pub enum Error {
 	},
 	/// `BadInstructions` is returned when given instruction is not supported
 	BadInstruction {
-		instruction: &'static str,
+		instruction: u8,
 	},
 	/// `StackUnderflow` when there is not enough stack elements to execute instruction
 	/// First parameter says how many elements were needed and the second how many were actually on Stack
