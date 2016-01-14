@@ -3,32 +3,6 @@ use state::*;
 use executive::*;
 use ethereum;
 
-pub fn map_h256_h256_from_json(json: &Json) -> BTreeMap<H256, H256> {
-	json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut m, (key, value)| {
-		m.insert(H256::from(&u256_from_str(key)), H256::from(&u256_from_json(value)));
-		m
-	})
-}
-
-/// Translate the JSON object into a hash map of account information ready for insertion into State.
-pub fn pod_map_from_json(json: &Json) -> BTreeMap<Address, PodAccount> {
-	json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut state, (address, acc)| {
-		let balance = acc.find("balance").map(&u256_from_json);
-		let nonce = acc.find("nonce").map(&u256_from_json);
-		let storage = acc.find("storage").map(&map_h256_h256_from_json);;
-		let code = acc.find("code").map(&bytes_from_json);
-		if balance.is_some() || nonce.is_some() || storage.is_some() || code.is_some() {
-			state.insert(address_from_hex(address), PodAccount{
-				balance: balance.unwrap_or(U256::zero()),
-				nonce: nonce.unwrap_or(U256::zero()),
-				storage: storage.unwrap_or(BTreeMap::new()),
-				code: code.unwrap_or(Vec::new())
-			});
-		}
-		state
-	})
-}
-
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
@@ -43,9 +17,9 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let env = EnvInfo::from_json(&test["env"]);
 		let _out = bytes_from_json(&test["out"]);
 		let post_state_root = h256_from_json(&test["postStateRoot"]);
-		let pre = pod_map_from_json(&test["pre"]);
-		let post = pod_map_from_json(&test["post"]);
-		// TODO: read test["logs"]
+		let pre = PodState::from_json(&test["pre"]);
+		let post = PodState::from_json(&test["post"]);
+		let logs: Vec<_> = test["logs"].as_array().unwrap().iter().map(&LogEntry::from_json).collect();
 
 		//println!("Transaction: {:?}", t);
 		//println!("Env: {:?}", env);
@@ -59,20 +33,28 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		let mut s = State::new_temp();
 		s.populate_from(pre);
+		let r = s.apply(&env, engine.deref(), &t).unwrap();
 
-		s.apply(&env, engine.deref(), &t).unwrap();
-		let our_post = s.to_pod_map();
-
-		if fail_unless(s.root() == &post_state_root) {
-			println!("FAILED {}.   Diff:\n{}", name, pod_map_diff(&post, &our_post));
+		if fail_unless(&r.state_root == &post_state_root) {
+			println!("!!! {}: State mismatch (got: {}, expect: {}):", name, r.state_root, post_state_root);
+			let our_post = s.to_pod();
+			println!("Got:\n{}", our_post);
+			println!("Expect:\n{}", post);
+			println!("Diff ---expect -> +++got:\n{}", pod_state_diff(&post, &our_post));
 		}
 
-		// TODO: Compare logs.
+		if fail_unless(logs == r.logs) {
+			println!("!!! {}: Logs mismatch:", name);
+			println!("Got:\n{:?}", r.logs);
+			println!("Expect:\n{:?}", logs);
+		}
+
+		// TODO: Add extra APIs for output
+		//if fail_unless(out == r.)
 	}
-	for f in failed.iter() {
-		println!("FAILED: {:?}", f);
-	}
+	println!("!!! {:?} tests from failed.", failed.len());
 	failed
 }
 
 declare_test!{StateTests_stExample, "StateTests/stExample"}
+declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}
