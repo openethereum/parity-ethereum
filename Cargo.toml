@@ -21,6 +21,7 @@ eth-secp256k1 = { git = "https://github.com/arkpar/rust-secp256k1.git" }
 rust-crypto = "0.2.34"
 elastic-array = "0.4"
 heapsize = "0.2"
+itertools = "0.4"
 
 [dev-dependencies]
 json-tests = { path = "json-tests" }
