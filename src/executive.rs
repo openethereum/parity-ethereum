@@ -292,7 +292,7 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	pub fn revert_if_needed(&mut self, result: &evm::Result, substate: &mut Substate, backup: State) {
+	fn revert_if_needed(&mut self, result: &evm::Result, substate: &mut Substate, backup: State) {
 		if let &Err(evm::Error::OutOfGas) = result {
 			substate.out_of_gas = true;
 			self.state.revert(backup);
@@ -433,7 +433,6 @@ impl<'a> Ext for Externalities<'a> {
 		}
 
 		if gas_cost > *gas {
-			self.substate.out_of_gas = true;
 			return Err(evm::Error::OutOfGas);
 		}
 
