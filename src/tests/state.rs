@@ -50,14 +50,19 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		//println!("Transaction: {:?}", t);
 		//println!("Env: {:?}", env);
 
+		{
+			let mut s = State::new_temp();
+			s.populate_from(post.clone());
+			s.commit();
+			assert_eq!(&post_state_root, s.root());
+		}
+
 		let mut s = State::new_temp();
 		s.populate_from(pre);
 
-		let e = Executive::new(&mut s, &env, engine.deref()).transact(&t).unwrap();
-		println!("executed: {:?}", e);
+		s.apply(&env, engine.deref(), &t).unwrap();
 		let our_post = s.to_pod_map();
 
-		s.commit();
 		if fail_unless(s.root() == &post_state_root) {
 			println!("FAILED {}.   Diff:\n{}", name, pod_map_diff(&post, &our_post));
 		}

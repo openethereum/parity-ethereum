@@ -459,7 +459,7 @@ impl Account {
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
-			H256::from_slice(TrieDB::new(db, &self.storage_root).get(key.bytes()).unwrap_or(&[0u8;32][..]))
+			H256::from_slice(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).unwrap_or(&[0u8;32][..]))
 		}).clone()
 	}
 
@@ -539,13 +539,13 @@ impl Account {
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
-		let mut t = TrieDBMut::new(db, &mut self.storage_root);
+		let mut t = SecTrieDBMut::new(db, &mut self.storage_root);
 		for (k, v) in self.storage_overlay.borrow().iter() {
 			// cast key and value to trait type,
 			// so we can call overloaded `to_bytes` method
-			t.insert(k, v);
+			t.insert(k, &encode(&U256::from(v.as_slice())));
 		}
-		self.storage_overlay.borrow_mut().clear();
+//		self.storage_overlay.borrow_mut().clear();
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
