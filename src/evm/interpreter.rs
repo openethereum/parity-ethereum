@@ -311,7 +311,8 @@ impl Interpreter {
 				InstructionCost::GasMem(gas, self.mem_needed(stack.peek(0), stack.peek(1)))
 			},
 			instructions::CALL | instructions::CALLCODE => {
-				let gas = add_u256_usize(stack.peek(0), schedule.call_gas);
+				// [todr] we actuall call gas_cost is calculated in ext
+				let gas = U256::from(schedule.call_gas);
 				let mem = cmp::max(
 					self.mem_needed(stack.peek(5), stack.peek(6)),
 					self.mem_needed(stack.peek(3), stack.peek(4))
@@ -534,7 +535,7 @@ impl Interpreter {
 				ext.sstore(key, word);
 			},
 			instructions::PC => {
-				stack.push(U256::from(code.position));
+				stack.push(U256::from(code.position - 1));
 			},
 			instructions::GAS => {
 				stack.push(gas.clone());
