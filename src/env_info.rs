@@ -42,8 +42,8 @@ impl EnvInfo {
 		EnvInfo {
 			number: current_number,
 			author: address_from_json(&json["currentCoinbase"]),
-			difficulty: u256_from_json(&json["currentDifficulty"]),
-			gas_limit: u256_from_json(&json["currentGasLimit"]),
+			difficulty: xjson!(&json["currentDifficulty"]),
+			gas_limit: xjson!(&json["currentGasLimit"]),
 			timestamp: u64_from_json(&json["currentTimestamp"]),
 			last_hashes: (1..257).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
 			gas_used: x!(0),

@@ -47,8 +47,8 @@ impl fmt::Display for PodAccount {
 #[cfg(test)]
 mod test {
 	use common::*;
-	use super::*;
 	use account_diff::*;
+	use super::*;
 
 	#[test]
 	fn existence() {

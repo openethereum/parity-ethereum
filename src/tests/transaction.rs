@@ -21,10 +21,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			let t = res.unwrap();
 			fail_unless(t.sender().unwrap() == address_from_hex(clean(expect_sender)));
 			fail_unless(t.data == bytes_from_json(&tx["data"]));
-			fail_unless(t.gas == u256_from_json(&tx["gasLimit"]));
-			fail_unless(t.gas_price == u256_from_json(&tx["gasPrice"]));
-			fail_unless(t.nonce == u256_from_json(&tx["nonce"]));
-			fail_unless(t.value == u256_from_json(&tx["value"]));
+			fail_unless(t.gas == xjson!(&tx["gasLimit"]));
+			fail_unless(t.gas_price == xjson!(&tx["gasPrice"]));
+			fail_unless(t.nonce == xjson!(&tx["nonce"]));
+			fail_unless(t.value == xjson!(&tx["value"]));
 			if let Action::Call(ref to) = t.action {
 				*ot.borrow_mut() = t.clone();
 				fail_unless(to == &address_from_json(&tx["to"]));

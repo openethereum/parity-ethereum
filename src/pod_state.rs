@@ -11,8 +11,8 @@ impl PodState {
 	/// Translate the JSON object into a hash map of account information ready for insertion into State.
 	pub fn from_json(json: &Json) -> PodState {
 		PodState(json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut state, (address, acc)| {
-			let balance = acc.find("balance").map(&u256_from_json);
-			let nonce = acc.find("nonce").map(&u256_from_json);
+			let balance = acc.find("balance").map(&U256::from_json);
+			let nonce = acc.find("nonce").map(&U256::from_json);
 			let storage = acc.find("storage").map(&map_h256_h256_from_json);;
 			let code = acc.find("code").map(&bytes_from_json);
 			if balance.is_some() || nonce.is_some() || storage.is_some() || code.is_some() {
