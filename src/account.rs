@@ -187,7 +187,10 @@ impl Account {
 			if f == &Filth::Dirty {
 				// cast key and value to trait type,
 				// so we can call overloaded `to_bytes` method
-				t.insert(k, &encode(&U256::from(v.as_slice())));
+				match v.is_zero() {
+					true => t.remove(k),
+					false => t.insert(k, &encode(&U256::from(v.as_slice()))),
+				}
 				*f = Filth::Clean;
 			}
 		}
