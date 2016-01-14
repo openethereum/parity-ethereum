@@ -36,26 +36,25 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let r = s.apply(&env, engine.deref(), &t).unwrap();
 
 		if fail_unless(&r.state_root == &post_state_root) {
-			println!("!!! {}: State mismatch (expect: {}, got: {}):", name, r.state_root, post_state_root);
+			println!("!!! {}: State mismatch (got: {}, expect: {}):", name, r.state_root, post_state_root);
 			let our_post = s.to_pod();
-			println!("Expect:\n{}\n", post);
-			println!("Got:\n{}\n", our_post);
-			println!("Diff:\n{}", pod_state_diff(&post, &our_post));
+			println!("Got:\n{}", our_post);
+			println!("Expect:\n{}", post);
+			println!("Diff ---expect -> +++got:\n{}", pod_state_diff(&post, &our_post));
 		}
 
 		if fail_unless(logs == r.logs) {
 			println!("!!! {}: Logs mismatch:", name);
-			println!("Expect:\n{:?}", logs);
 			println!("Got:\n{:?}", r.logs);
+			println!("Expect:\n{:?}", logs);
 		}
 
 		// TODO: Add extra APIs for output
 		//if fail_unless(out == r.)
 	}
-	for f in failed.iter() {
-		println!("FAILED: {:?}", f);
-	}
+	println!("!!! {:?} tests from failed.", failed.len());
 	failed
 }
 
 declare_test!{StateTests_stExample, "StateTests/stExample"}
+declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}
