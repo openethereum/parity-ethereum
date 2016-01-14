@@ -4,17 +4,19 @@ use executive::*;
 use spec::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory};
+use evm::{Schedule, Ext, Factory, VMType};
 use ethereum;
 
 struct TestEngine {
+	vm_factory: Factory,
 	spec: Spec,
 	max_depth: usize
 }
 
 impl TestEngine {
-	fn new(max_depth: usize) -> TestEngine {
+	fn new(max_depth: usize, vm_type: VMType) -> TestEngine {
 		TestEngine {
+			vm_factory: Factory::new(vm_type),
 			spec: ethereum::new_frontier_test(),
 			max_depth: max_depth 
 		}
@@ -24,6 +26,7 @@ impl TestEngine {
 impl Engine for TestEngine {
 	fn name(&self) -> &str { "TestEngine" }
 	fn spec(&self) -> &Spec { &self.spec }
+	fn vm_factory(&self) -> &Factory { &self.vm_factory }
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
 		let mut schedule = Schedule::new_frontier();
 		schedule.max_depth = self.max_depth; 
@@ -194,7 +197,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			info.timestamp = u256_from_json(&env["currentTimestamp"]).low_u64();
 		});
 
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, VMType::Jit);
 
 		// params
 		let mut params = ActionParams::new();
@@ -217,8 +220,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		// execute
 		let (res, callcreates) = {
-			let factory = Factory::default();
-			let ex = Externalities::new(&mut state, &info, &engine, &factory, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
+			let ex = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
 			let mut test_ext = TestExt::new(ex);
 			let evm = Factory::default().create();
 			let res = evm.exec(&params, &mut test_ext);

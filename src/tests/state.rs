@@ -1,6 +1,5 @@
 use super::test_common::*;
 use state::*;
-use executive::*;
 use ethereum;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {

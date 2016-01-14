@@ -17,3 +17,4 @@ pub use self::evm::{Evm, Error, Result};
 pub use self::ext::Ext;
 pub use self::factory::Factory;
 pub use self::schedule::Schedule;
+pub use self::factory::VMType;

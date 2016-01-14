@@ -1,7 +1,6 @@
 use common::*;
 use engine::Engine;
 use executive::Executive;
-use evm::Factory;
 
 pub type ApplyResult = Result<Receipt, Error>;
 
@@ -138,8 +137,7 @@ impl State {
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
-		// TODO [todr] Pass VM factory?
-		let e = try!(Executive::new(self, env_info, engine, &Factory::default()).transact(t));
+		let e = try!(Executive::new(self, env_info, engine).transact(t));
 		self.commit();
 		Ok(Receipt::new(self.root().clone(), e.gas_used, e.logs))
 	}
