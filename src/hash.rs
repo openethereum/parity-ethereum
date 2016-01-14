@@ -444,6 +444,16 @@ impl From<H256> for Address {
 		}
 	}
 }
+
+impl From<H256> for H64 {
+	fn from(value: H256) -> H64 {
+		unsafe {
+			let mut ret: H64 = ::std::mem::uninitialized();
+			::std::ptr::copy(value.as_ptr().offset(20), ret.as_mut_ptr(), 8);
+			ret
+		}
+	}
+}
 /*
 impl<'_> From<&'_ H256> for Address {
 	fn from(value: &'_ H256) -> Address {

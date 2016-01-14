@@ -355,7 +355,6 @@ impl<Message> Host<Message> where Message: Send {
 		let nonce = self.info.next_nonce();
 		match self.connections.insert_with(|token| ConnectionEntry::Handshake(Handshake::new(token, id, socket, &nonce).expect("Can't create handshake"))) {
 			Some(token) => {
-				warn!(target: "slab", "inserted {}", token.as_usize());
 				match self.connections.get_mut(token) {
 					Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
 						h.start(&self.info, true)
@@ -536,7 +535,6 @@ impl<Message> Host<Message> where Message: Send {
 			h.disconnected(&mut NetworkContext::new(io, p, Some(token), &mut self.connections, &mut self.timers), &token);
 		}
 		self.connections.remove(Token(token));
-		warn!(target: "slab", "removed {}", token);
 	}
 }
 
