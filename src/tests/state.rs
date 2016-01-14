@@ -16,8 +16,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		let t = Transaction::from_json(&test["transaction"]);
 		let env = EnvInfo::from_json(&test["env"]);
-		let _out = bytes_from_json(&test["out"]);
-		let post_state_root = h256_from_json(&test["postStateRoot"]);
+		let _out = Bytes::from_json(&test["out"]);
+		let post_state_root = xjson!(&test["postStateRoot"]);
 		let pre = PodState::from_json(&test["pre"]);
 		let post = PodState::from_json(&test["post"]);
 		let logs: Vec<_> = test["logs"].as_array().unwrap().iter().map(&LogEntry::from_json).collect();

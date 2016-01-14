@@ -79,32 +79,6 @@ impl Transaction {
 		}
 	}
 
-	pub fn from_json(json: &Json) -> Transaction {
-		let mut r = Transaction {
-			nonce: xjson!(&json["nonce"]),
-			gas_price: xjson!(&json["gasPrice"]),
-			gas: xjson!(&json["gasLimit"]),
-			action: match bytes_from_json(&json["to"]) {
-				ref x if x.len() == 0 => Action::Create,
-				ref x => Action::Call(Address::from_slice(x)),
-			},
-			value: xjson!(&json["value"]),
-			data: bytes_from_json(&json["data"]),
-			v: match json.find("v") { Some(ref j) => u8_from_json(j), None => 0 },
-			r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
-			s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
-			hash: RefCell::new(None),
-			sender: match json.find("sender") {
-				Some(&Json::String(ref sender)) => RefCell::new(Some(address_from_hex(clean(sender)))),
-				_ => RefCell::new(None),
-			},
-		};
-		if let Some(&Json::String(ref secret_key)) = json.find("secretKey") {
-			r.sign(&h256_from_hex(clean(secret_key)));
-		}
-		r
-	}
-
 	/// Get the nonce of the transaction.
 	pub fn nonce(&self) -> &U256 { &self.nonce }
 	/// Get the gas price of the transaction.
@@ -141,6 +115,34 @@ impl Transaction {
 		let mut s = RlpStream::new();
 		self.rlp_append_opt(&mut s, with_seal);
 		s.out()
+	}
+}
+
+impl FromJson for Transaction {
+	fn from_json(json: &Json) -> Transaction {
+		let mut r = Transaction {
+			nonce: xjson!(&json["nonce"]),
+			gas_price: xjson!(&json["gasPrice"]),
+			gas: xjson!(&json["gasLimit"]),
+			action: match Bytes::from_json(&json["to"]) {
+				ref x if x.len() == 0 => Action::Create,
+				ref x => Action::Call(Address::from_slice(x)),
+			},
+			value: xjson!(&json["value"]),
+			data: xjson!(&json["data"]),
+			v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
+			r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
+			s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
+			hash: RefCell::new(None),
+			sender: match json.find("sender") {
+				Some(&Json::String(ref sender)) => RefCell::new(Some(address_from_hex(clean(sender)))),
+				_ => RefCell::new(None),
+			},
+		};
+		if let Some(&Json::String(ref secret_key)) = json.find("secretKey") {
+			r.sign(&h256_from_hex(clean(secret_key)));
+		}
+		r
 	}
 }
 

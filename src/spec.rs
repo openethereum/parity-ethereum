@@ -148,9 +148,11 @@ impl Spec {
 		ret.append_raw(&empty_list, 1);
 		ret.out()
 	}
+}
 
+impl FromJson for Spec {
 	/// Loads a chain-specification from a json data structure
-	pub fn from_json(json: Json) -> Spec {
+	fn from_json(json: &Json) -> Spec {
 		// once we commit ourselves to some json parsing library (serde?)
 		// move it to proper data structure
 		let mut state = HashMap::new();
@@ -210,7 +212,9 @@ impl Spec {
 			state_root_memo: RwLock::new(genesis.find("stateRoot").and_then(|_| genesis["stateRoot"].as_string()).map(|s| H256::from_str(&s[2..]).unwrap())),
 		}
 	}
+}
 
+impl Spec {
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good(&self, db: &mut HashDB) {
 		if !db.contains(&self.state_root()) {
@@ -229,8 +233,7 @@ impl Spec {
 
 	/// Create a new Spec from a JSON string.
 	pub fn from_json_str(s: &str) -> Spec {
-		let json = Json::from_str(s).expect("Json is invalid");
-		Self::from_json(json)
+		Self::from_json(&Json::from_str(s).expect("Json is invalid"))
 	}
 
 	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
