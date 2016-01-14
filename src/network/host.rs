@@ -357,7 +357,6 @@ impl<Message> Host<Message> where Message: Send {
 		let nonce = self.info.next_nonce();
 		match self.connections.insert_with(|token| ConnectionEntry::Handshake(Handshake::new(Token(token), id, socket, &nonce).expect("Can't create handshake"))) {
 			Some(token) => {
-				warn!(target: "slab", "inserted {}", token.as_usize());
 				match self.connections.get_mut(token) {
 					Some(&mut ConnectionEntry::Handshake(ref mut h)) => {
 						h.start(&self.info, true)
@@ -502,7 +501,6 @@ impl<Message> Host<Message> where Message: Send {
 			},
 			_ => panic!("Error updating slab with session")
 		}*/
-		warn!(target: "slab", "replaced {}", token.as_usize());
 		self.connections.replace_with(token, |c| {
 			match c {
 				ConnectionEntry::Handshake(h) => Session::new(h, io.event_loop, info)
@@ -542,7 +540,6 @@ impl<Message> Host<Message> where Message: Send {
 		}
 		if remove {
 			self.connections.remove(token);
-			warn!(target: "slab", "removed {}", token);
 		}
 	}
 }
