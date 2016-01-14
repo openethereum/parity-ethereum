@@ -441,7 +441,7 @@ impl From<H256> for Address {
 		}
 	}
 }
-
+/*
 impl<'_> From<&'_ H256> for Address {
 	fn from(value: &'_ H256) -> Address {
 		unsafe {
@@ -451,7 +451,7 @@ impl<'_> From<&'_ H256> for Address {
 		}
 	}
 }
-
+*/
 impl From<Address> for H256 {
 	fn from(value: Address) -> H256 {
 		unsafe {
