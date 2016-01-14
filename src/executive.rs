@@ -21,7 +21,7 @@ pub struct Substate {
 	logs: Vec<LogEntry>,
 	/// Refund counter of SSTORE nonzero->zero.
 	refunds_count: U256,
-	/// True if transaction, or one of it's subcalls runs out of gas.
+	/// True if transaction, or one of its subcalls runs out of gas.
 	out_of_gas: bool,
 	/// Created contracts.
 	contracts_created: Vec<Address>
@@ -293,10 +293,17 @@ impl<'a> Executive<'a> {
 	}
 
 	fn revert_if_needed(&mut self, result: &evm::Result, substate: &mut Substate, backup: State) {
-		if let &Err(evm::Error::OutOfGas) = result {
-			substate.out_of_gas = true;
-			self.state.revert(backup);
+		// TODO: handle other evm::Errors same as OutOfGas once they are implemented
+		match &result {
+			&Err(evm::Error::OutOfGas) => {
+				substate.out_of_gas = true;
+				self.state.revert(backup);
+			},
+			&Err(evm::Error::Internal) => (),
+			&Ok(_) => ()
+			
 		}
+		result
 	}
 }
 
