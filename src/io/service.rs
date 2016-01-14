@@ -136,6 +136,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + 'static {
 				handler,
 			} => {
 				self.handlers.push(handler);
+				self.handlers.last_mut().unwrap().initialize(&mut IoContext::new(event_loop, &mut self.timers));
 			},
 			IoMessage::UserMessage(ref mut data) => {
 				for h in self.handlers.iter_mut() {
