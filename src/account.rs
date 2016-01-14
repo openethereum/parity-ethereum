@@ -386,6 +386,12 @@ fn account_diff_storage() {
 	}));
 }
 
+#[derive(PartialEq,Eq,Clone,Copy)]
+pub enum Filth {
+	Clean,
+	Dirty,
+}
+
 /// Single account in the system.
 #[derive(Clone)]
 pub struct Account {
@@ -395,8 +401,8 @@ pub struct Account {
 	nonce: U256,
 	// Trie-backed storage.
 	storage_root: H256,
-	// Overlay on trie-backed storage.
-	storage_overlay: RefCell<HashMap<H256, H256>>,
+	// Overlay on trie-backed storage - tuple is (<clean>, <value>).
+	storage_overlay: RefCell<HashMap<H256, (Filth, H256)>>,
 	// Code hash of the account. If None, means that it's a contract whose code has not yet been set.
 	code_hash: Option<H256>,
 	// Code cache of the account.
@@ -410,7 +416,7 @@ impl PodAccount {
 		PodAccount {
 			balance: acc.balance.clone(),
 			nonce: acc.nonce.clone(),
-			storage: acc.storage_overlay.borrow().iter().fold(BTreeMap::new(), |mut m, (k, v)| {m.insert(k.clone(), v.clone()); m}),
+			storage: acc.storage_overlay.borrow().iter().fold(BTreeMap::new(), |mut m, (k, &(_, ref v))| {m.insert(k.clone(), v.clone()); m}),
 			code: acc.code_cache.clone()
 		}
 	}
@@ -433,7 +439,7 @@ impl Account {
 			balance: balance,
 			nonce: nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: RefCell::new(storage),
+			storage_overlay: RefCell::new(storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: Some(code.sha3()),
 			code_cache: code
 		}
@@ -445,7 +451,7 @@ impl Account {
 			balance: pod.balance,
 			nonce: pod.nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: RefCell::new(pod.storage.into_iter().fold(HashMap::new(), |mut m, (k, v)| {m.insert(k, v); m})),
+			storage_overlay: RefCell::new(pod.storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: Some(pod.code.sha3()),
 			code_cache: pod.code
 		}
@@ -505,14 +511,14 @@ impl Account {
 
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
-		self.storage_overlay.borrow_mut().insert(key, value);
+		self.storage_overlay.borrow_mut().insert(key, (Filth::Dirty, value));
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
-			H256::from_slice(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).unwrap_or(&[0u8;32][..]))
-		}).clone()
+			(Filth::Clean, H256::from(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).map(|v| -> U256 {decode(v)}).unwrap_or(U256::zero())))
+		}).1.clone()
 	}
 
 	/// return the balance associated with this account.
@@ -573,12 +579,18 @@ impl Account {
 
 	/// return the storage root associated with this account.
 	pub fn base_root(&self) -> &H256 { &self.storage_root }
+
+	/// Determine whether there are any un-`commit()`-ed storage-setting operations.
+	pub fn storage_is_clean(&self) -> bool { self.storage_overlay.borrow().iter().find(|&(_, &(f, _))| f == Filth::Dirty).is_none() }
 	
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
-	pub fn storage_root(&self) -> Option<&H256> { if self.storage_overlay.borrow().is_empty() {Some(&self.storage_root)} else {None} }
+	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
 	
-	/// rturn the storage overlay.
-	pub fn storage_overlay(&self) -> Ref<HashMap<H256, H256>> { self.storage_overlay.borrow() }
+	/// return the storage root associated with this account or None if it has been altered via the overlay.
+	pub fn recent_storage_root(&self) -> &H256 { &self.storage_root }
+	
+	/// return the storage overlay.
+	pub fn storage_overlay(&self) -> Ref<HashMap<H256, (Filth, H256)>> { self.storage_overlay.borrow() }
 
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) { self.nonce = self.nonce + U256::from(1u8); }
@@ -592,12 +604,14 @@ impl Account {
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
 		let mut t = SecTrieDBMut::new(db, &mut self.storage_root);
-		for (k, v) in self.storage_overlay.borrow().iter() {
-			// cast key and value to trait type,
-			// so we can call overloaded `to_bytes` method
-			t.insert(k, &encode(&U256::from(v.as_slice())));
+		for (k, &mut (ref mut f, ref mut v)) in self.storage_overlay.borrow_mut().iter_mut() {
+			if f == &Filth::Dirty {
+				// cast key and value to trait type,
+				// so we can call overloaded `to_bytes` method
+				t.insert(k, &encode(&U256::from(v.as_slice())));
+				*f = Filth::Clean;
+			}
 		}
-//		self.storage_overlay.borrow_mut().clear();
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
@@ -654,7 +668,7 @@ fn storage_at() {
 	};
 
 	let a = Account::from_rlp(&rlp);
-	assert_eq!(a.storage_root().unwrap().hex(), "3541f181d6dad5c504371884684d08c29a8bad04926f8ceddf5e279dbc3cc769");
+	assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
 	assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x01u64))), H256::new());
 }
@@ -684,7 +698,7 @@ fn commit_storage() {
 	a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
 	assert_eq!(a.storage_root(), None);
 	a.commit_storage(&mut db);
-	assert_eq!(a.storage_root().unwrap().hex(), "3541f181d6dad5c504371884684d08c29a8bad04926f8ceddf5e279dbc3cc769");
+	assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 }
 
 #[test]
