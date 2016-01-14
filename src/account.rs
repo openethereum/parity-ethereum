@@ -36,6 +36,58 @@ pub struct PodAccount {
 	pub storage: BTreeMap<H256, H256>,
 }
 
+impl fmt::Display for PodAccount {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "(bal={}; nonce={}; code={} bytes, #{}; storage={} items)", self.balance, self.nonce, self.code.len(), self.code.sha3(), self.storage.len())
+	}
+}
+
+#[derive(Debug,Clone,PartialEq,Eq)]
+pub struct PodState (BTreeMap<Address, PodAccount>);
+
+pub fn map_h256_h256_from_json(json: &Json) -> BTreeMap<H256, H256> {
+	json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut m, (key, value)| {
+		m.insert(H256::from(&u256_from_str(key)), H256::from(&u256_from_json(value)));
+		m
+	})
+}
+
+impl PodState {
+	/// Contruct a new object from the `m`.
+	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
+
+	/// Translate the JSON object into a hash map of account information ready for insertion into State.
+	pub fn from_json(json: &Json) -> PodState {
+		PodState(json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut state, (address, acc)| {
+			let balance = acc.find("balance").map(&u256_from_json);
+			let nonce = acc.find("nonce").map(&u256_from_json);
+			let storage = acc.find("storage").map(&map_h256_h256_from_json);;
+			let code = acc.find("code").map(&bytes_from_json);
+			if balance.is_some() || nonce.is_some() || storage.is_some() || code.is_some() {
+				state.insert(address_from_hex(address), PodAccount{
+					balance: balance.unwrap_or(U256::zero()),
+					nonce: nonce.unwrap_or(U256::zero()),
+					storage: storage.unwrap_or(BTreeMap::new()),
+					code: code.unwrap_or(Vec::new())
+				});
+			}
+			state
+		}))
+	}
+
+	/// Drain object to get the underlying map.
+	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
+}
+
+impl fmt::Display for PodState {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		for (add, acc) in &self.0 {
+			try!(writeln!(f, "{} => {}", add, acc));
+		}
+		Ok(())
+	}
+}
+
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct AccountDiff {
 	pub balance: Diff<U256>,				// Allowed to be Same
@@ -156,21 +208,21 @@ pub fn pod_diff(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 	}
 }
 
-pub fn pod_map_diff(pre: &BTreeMap<Address, PodAccount>, post: &BTreeMap<Address, PodAccount>) -> StateDiff {
-	StateDiff(pre.keys().merge(post.keys()).filter_map(|acc| pod_diff(pre.get(acc), post.get(acc)).map(|d|(acc.clone(), d))).collect())
+pub fn pod_state_diff(pre: &PodState, post: &PodState) -> StateDiff {
+	StateDiff(pre.0.keys().merge(post.0.keys()).filter_map(|acc| pod_diff(pre.0.get(acc), post.0.get(acc)).map(|d|(acc.clone(), d))).collect())
 }
 
 #[test]
 fn state_diff_create_delete() {
-	let a = map![
+	let a = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(0),
 			code: vec![],
 			storage: map![]
 		}
-	];
-	assert_eq!(pod_map_diff(&a, &map![]), StateDiff(map![
+	]);
+	assert_eq!(pod_state_diff(&a, &PodState(map![])), StateDiff(map![
 		x!(1) => AccountDiff{
 			balance: Diff::Died(x!(69)),
 			nonce: Diff::Died(x!(0)),
@@ -178,7 +230,7 @@ fn state_diff_create_delete() {
 			storage: map![],
 		}
 	]));
-	assert_eq!(pod_map_diff(&map![], &a), StateDiff(map![
+	assert_eq!(pod_state_diff(&PodState(map![]), &a), StateDiff(map![
 		x!(1) => AccountDiff{
 			balance: Diff::Born(x!(69)),
 			nonce: Diff::Born(x!(0)),
@@ -190,15 +242,15 @@ fn state_diff_create_delete() {
 
 #[test]
 fn state_diff_cretae_delete_with_unchanged() {
-	let a = map![
+	let a = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(0),
 			code: vec![],
 			storage: map![]
 		}
-	];
-	let b = map![
+	]);
+	let b = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(0),
@@ -211,8 +263,8 @@ fn state_diff_cretae_delete_with_unchanged() {
 			code: vec![],
 			storage: map![]
 		}
-	];
-	assert_eq!(pod_map_diff(&a, &b), StateDiff(map![
+	]);
+	assert_eq!(pod_state_diff(&a, &b), StateDiff(map![
 		x!(2) => AccountDiff{
 			balance: Diff::Born(x!(69)),
 			nonce: Diff::Born(x!(0)),
@@ -220,7 +272,7 @@ fn state_diff_cretae_delete_with_unchanged() {
 			storage: map![],
 		}
 	]));
-	assert_eq!(pod_map_diff(&b, &a), StateDiff(map![
+	assert_eq!(pod_state_diff(&b, &a), StateDiff(map![
 		x!(2) => AccountDiff{
 			balance: Diff::Died(x!(69)),
 			nonce: Diff::Died(x!(0)),
@@ -232,7 +284,7 @@ fn state_diff_cretae_delete_with_unchanged() {
 
 #[test]
 fn state_diff_change_with_unchanged() {
-	let a = map![
+	let a = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(0),
@@ -245,8 +297,8 @@ fn state_diff_change_with_unchanged() {
 			code: vec![],
 			storage: map![]
 		}
-	];
-	let b = map![
+	]);
+	let b = PodState(map![
 		x!(1) => PodAccount{
 			balance: x!(69),
 			nonce: x!(1),
@@ -259,8 +311,8 @@ fn state_diff_change_with_unchanged() {
 			code: vec![],
 			storage: map![]
 		}
-	];
-	assert_eq!(pod_map_diff(&a, &b), StateDiff(map![
+	]);
+	assert_eq!(pod_state_diff(&a, &b), StateDiff(map![
 		x!(1) => AccountDiff{
 			balance: Diff::Same,
 			nonce: Diff::Changed(x!(0), x!(1)),
