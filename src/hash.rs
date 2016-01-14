@@ -206,7 +206,10 @@ macro_rules! impl_hash {
 		}
 		impl fmt::Display for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				(self as &fmt::Debug).fmt(f)
+				for i in self.0[0..3].iter() {
+					try!(write!(f, "{:02x}", i));
+				}
+				write!(f, "…{:02x}", self.0.last().unwrap())
 			}
 		}
 
