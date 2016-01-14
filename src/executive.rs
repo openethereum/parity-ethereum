@@ -294,16 +294,14 @@ impl<'a> Executive<'a> {
 
 	fn revert_if_needed(&mut self, result: &evm::Result, substate: &mut Substate, backup: State) {
 		// TODO: handle other evm::Errors same as OutOfGas once they are implemented
-		match &result {
+		match result {
 			&Err(evm::Error::OutOfGas) => {
 				substate.out_of_gas = true;
 				self.state.revert(backup);
 			},
 			&Err(evm::Error::Internal) => (),
 			&Ok(_) => ()
-			
 		}
-		result
 	}
 }
 
