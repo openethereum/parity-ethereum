@@ -39,6 +39,14 @@ impl Substate {
 		}
 	}
 
+	pub fn accrue(&mut self, s: Substate) {
+		self.suicides.extend(s.suicides.into_iter());
+		self.logs.extend(s.logs.into_iter());
+		self.refunds_count = self.refunds_count + s.refunds_count;
+		self.out_of_gas |= s.out_of_gas;
+		self.contracts_created.extend(s.contracts_created.into_iter());
+	}
+
 	pub fn out_of_gas(&self) -> bool { self.out_of_gas }
 }
 
@@ -409,8 +417,12 @@ impl<'a> Ext for Externalities<'a> {
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
 		ex.state.inc_nonce(&self.params.address);
-		match ex.create(&params, self.substate) {
-			Ok(gas_left) => (gas_left, Some(address)),
+		let mut substate = Substate::new();
+		match ex.create(&params, &mut substate) {
+			Ok(gas_left) => {
+				self.substate.accrue(substate);
+				(gas_left, Some(address))
+			},
 			_ => (U256::zero(), None)
 		}
 	}
@@ -460,8 +472,12 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
-		match ex.call(&params, self.substate, BytesRef::Fixed(output)) {
-			Ok(gas_left) => Ok((gas + gas_left, true)), //Some(CallResult::new(gas + gas_left, true)),
+		let mut substate = Substate::new();
+		match ex.call(&params, &mut substate, BytesRef::Fixed(output)) {
+			Ok(gas_left) => { 
+				self.substate.accrue(substate);
+				Ok((gas + gas_left, true))
+			}, 
 			_ => Ok((gas, false))
 		}
 	}
