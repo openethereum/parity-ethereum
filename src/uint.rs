@@ -21,17 +21,8 @@
 ///! The functions here are designed to be fast.
 ///!
 
-use std::fmt;
-use std::cmp::*;
-use std::ops::*;
-use std::str::FromStr;
-use std::hash::{Hash, Hasher};
-use rustc_serialize::hex::{FromHex, FromHexError};
-
-pub trait FromDecStr: Sized {
-	type Err;
-	fn from_dec_str(value: &str) -> Result<Self, Self::Err>;
-}
+use standard::*;
+use from_json::*;
 
 macro_rules! impl_map_from {
 	($thing:ident, $from:ty, $to:ty) => {
@@ -43,32 +34,77 @@ macro_rules! impl_map_from {
 	}
 }
 
+pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + fmt::Display + PartialOrd + Ord + PartialEq + Eq + Hash {
+
+	/// Size of this type.
+	const SIZE: usize;
+
+	fn zero() -> Self;
+	fn one() -> Self;
+
+	type FromDecStrErr;
+	fn from_dec_str(value: &str) -> Result<Self, Self::FromDecStrErr>;
+
+	/// Conversion to u32
+	fn low_u32(&self) -> u32;
+
+	/// Conversion to u64
+	fn low_u64(&self) -> u64;
+
+	/// Conversion to u32 with overflow checking
+	fn as_u32(&self) -> u32;
+
+	/// Conversion to u64 with overflow checking
+	fn as_u64(&self) -> u64;
+	
+	/// Return the least number of bits needed to represent the number
+	fn bits(&self) -> usize;
+	fn bit(&self, index: usize) -> bool;
+	fn byte(&self, index: usize) -> u8;
+	fn to_bytes(&self, bytes: &mut[u8]);
+
+	fn exp10(n: usize) -> Self;
+}
+
 macro_rules! construct_uint {
 	($name:ident, $n_words:expr) => (
 		/// Little-endian large integer type
 		#[derive(Copy, Clone, Eq, PartialEq)]
 		pub struct $name(pub [u64; $n_words]);
 
-		impl $name {
-			pub const SIZE: usize = $n_words * 8;
+		impl Uint for $name {
+			const SIZE: usize = $n_words * 8;
+
+			type FromDecStrErr = FromHexError;
+
+			/// TODO: optimize, throw appropriate err
+			fn from_dec_str(value: &str) -> Result<Self, Self::FromDecStrErr> {
+				Ok(value.bytes()
+				   .map(|b| b - 48)
+				   .fold($name::from(0u64), | acc, c |
+						 // fast multiplication by 10
+						 // (acc << 3) + (acc << 1) => acc * 10
+						 (acc << 3) + (acc << 1) + $name::from(c)
+					))
+			}
 
 			/// Conversion to u32
 			#[inline]
-			pub fn low_u32(&self) -> u32 {
+			fn low_u32(&self) -> u32 {
 				let &$name(ref arr) = self;
 				arr[0] as u32
 			}
 
 			/// Conversion to u64
 			#[inline]
-			pub fn low_u64(&self) -> u64 {
+			fn low_u64(&self) -> u64 {
 				let &$name(ref arr) = self;
 				arr[0]
 			}
 
 			/// Conversion to u32 with overflow checking
 			#[inline]
-			pub fn as_u32(&self) -> u32 {
+			fn as_u32(&self) -> u32 {
 				let &$name(ref arr) = self;
 				if (arr[0] & (0xffffffffu64 << 32)) != 0 {
 					panic!("Integer overflow when casting U256") 
@@ -78,7 +114,7 @@ macro_rules! construct_uint {
 
 			/// Conversion to u64 with overflow checking
 			#[inline]
-			pub fn as_u64(&self) -> u64 {
+			fn as_u64(&self) -> u64 {
 				let &$name(ref arr) = self;
 				for i in 1..$n_words {
 					if arr[i] != 0 {
@@ -89,7 +125,7 @@ macro_rules! construct_uint {
 			}
 			/// Return the least number of bits needed to represent the number
 			#[inline]
-			pub fn bits(&self) -> usize {
+			fn bits(&self) -> usize {
 				let &$name(ref arr) = self;
 				for i in 1..$n_words {
 					if arr[$n_words - i] > 0 { return (0x40 * ($n_words - i + 1)) - arr[$n_words - i].leading_zeros() as usize; }
@@ -98,18 +134,18 @@ macro_rules! construct_uint {
 			}
 
 			#[inline]
-			pub fn bit(&self, index: usize) -> bool {
+			fn bit(&self, index: usize) -> bool {
 				let &$name(ref arr) = self;
 				arr[index / 64] & (1 << (index % 64)) != 0
 			}
 
 			#[inline]
-			pub fn byte(&self, index: usize) -> u8 {
+			fn byte(&self, index: usize) -> u8 {
 				let &$name(ref arr) = self;
 				(arr[index / 8] >> ((index % 8)) * 8) as u8
 			}
 
-			pub fn to_bytes(&self, bytes: &mut[u8]) {
+			fn to_bytes(&self, bytes: &mut[u8]) {
 				assert!($n_words * 8 == bytes.len());
 				let &$name(ref arr) = self;
 				for i in 0..bytes.len() {
@@ -120,7 +156,7 @@ macro_rules! construct_uint {
 			}
 
 			#[inline]
-			pub fn exp10(n: usize) -> $name {
+			fn exp10(n: usize) -> $name {
 				match n {
 					0 => $name::from(1u64),
 					_ => $name::exp10(n - 1) * $name::from(10u64)
@@ -128,15 +164,17 @@ macro_rules! construct_uint {
 			}
 
 			#[inline]
-			pub fn zero() -> $name {
+			fn zero() -> $name {
 				From::from(0u64)
 			}
 
 			#[inline]
-			pub fn one() -> $name {
+			fn one() -> $name {
 				From::from(1u64)
 			}
+		}
 
+		impl $name {
 			/// Multiplication by u32
 			fn mul_u32(self, other: u32) -> $name {
 				let $name(ref arr) = self;
@@ -154,11 +192,34 @@ macro_rules! construct_uint {
 			}
 		}
 
+		impl Default for $name {
+			fn default() -> Self {
+				$name::zero()
+			}
+		}
+
 		impl From<u64> for $name {
 			fn from(value: u64) -> $name {
 				let mut ret = [0; $n_words];
 				ret[0] = value;
 				$name(ret)
+			}
+		}
+
+		impl FromJson for $name {
+			fn from_json(json: &Json) -> Self {
+				match json {
+					&Json::String(ref s) => {
+						if s.len() >= 2 && &s[0..2] == "0x" {
+							FromStr::from_str(&s[2..]).unwrap_or(Default::default())
+						} else {
+							Uint::from_dec_str(s).unwrap_or(Default::default())
+						}
+					},
+					&Json::U64(u) => From::from(u),
+					&Json::I64(i) => From::from(i as u64),
+					_ => Uint::zero(),
+				}
 			}
 		}
 
@@ -443,22 +504,6 @@ macro_rules! construct_uint {
 				state.finish();
 			}
 		}
-
-		impl FromDecStr for $name {
-			type Err = FromHexError;
-
-			/// TODO: optimize, throw appropriate err
-			fn from_dec_str(value: &str) -> Result<Self, Self::Err> {
-				Ok(value.bytes()
-				   .map(|b| b - 48)
-				   .fold($name::from(0u64), | acc, c |
-						 // fast multiplication by 10
-						 // (acc << 3) + (acc << 1) => acc * 10
-						 (acc << 3) + (acc << 1) + $name::from(c)
-					))
-			}
-		}
-
 	);
 }
 
@@ -557,8 +602,7 @@ pub const BAD_U256: U256 = U256([0xffffffffffffffffu64; 4]);
 
 #[cfg(test)]
 mod tests {
-	use uint::U256;
-	use uint::FromDecStr;
+	use uint::{Uint, U256};
 	use std::str::FromStr;
 
 	#[test]
