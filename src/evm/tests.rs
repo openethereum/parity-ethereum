@@ -112,9 +112,9 @@ fn test_stack_underflow() {
 	};
 	
 	match err {
-		evm::Error::StackUnderflow(wanted, stack) => {
+		evm::Error::StackUnderflow {instruction: _, wanted, on_stack} => {
 			assert_eq!(wanted, 2);
-			assert_eq!(stack, 0);
+			assert_eq!(on_stack, 0);
 		}
 		_ => {
 			assert!(false, "Expected StackUndeflow")

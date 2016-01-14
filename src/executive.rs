@@ -221,8 +221,8 @@ impl<'a> Executive<'a> {
 			Err(evm::Error::OutOfGas) 
 				| Err(evm::Error::BadJumpDestination) 
 				| Err(evm::Error::BadInstruction) 
-				| Err(evm::Error::StackUnderflow(_, _))
-				| Err(evm::Error::OutOfStack(_, _)) => {
+				| Err(evm::Error::StackUnderflow {instruction: _, wanted: _, on_stack: _})
+				| Err(evm::Error::OutOfStack {instruction: _, wanted: _, limit: _}) => {
 				*self.state = backup;
 				Ok(Executed {
 					gas: t.gas,

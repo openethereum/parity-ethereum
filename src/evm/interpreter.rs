@@ -626,9 +626,17 @@ impl Interpreter {
 																			stack_limit: usize, 
 																			stack: &Stack<U256>) -> Result<(), evm::Error> {
 		if !stack.has(info.args) {
-			Err(evm::Error::StackUnderflow(info.args, stack.size()))
+			Err(evm::Error::StackUnderflow {
+				instruction: info.name,
+				wanted: info.args, 
+				on_stack: stack.size()
+			})
 		} else if stack.size() - info.args + info.ret > stack_limit {
-			Err(evm::Error::OutOfStack(info.ret - info.args, stack_limit))
+			Err(evm::Error::OutOfStack {
+				instruction: info.name,
+				wanted: info.ret - info.args, 
+				limit: stack_limit
+			})
 		} else {
 			Ok(())
 		}

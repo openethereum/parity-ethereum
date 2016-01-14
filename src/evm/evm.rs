@@ -19,9 +19,17 @@ pub enum Error {
 	BadInstruction,
 	/// `StackUnderflow` when there is not enough stack elements to execute instruction
 	/// First parameter says how many elements were needed and the second how many were actually on Stack
-	StackUnderflow(/*wanted*/usize, /*on_stack*/usize),
+	StackUnderflow {
+		instruction: &'static str,
+		wanted: usize, 
+		on_stack: usize
+	},
 	/// When execution would exceed defined Stack Limit
-	OutOfStack(/*wanted*/usize, /*stack_limit*/usize),
+	OutOfStack {
+		instruction: &'static str,
+		wanted: usize, 
+		limit: usize
+	},
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
 	Internal,
