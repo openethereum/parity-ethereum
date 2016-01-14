@@ -74,7 +74,7 @@ trait Memory {
 	/// Resize (shrink or expand) the memory to specified size (fills 0)
 	fn resize(&mut self, new_size: usize);
 	/// Resize the memory only if its smaller
-	fn expand(&mut self, new_size: U256);
+	fn expand(&mut self, new_size: usize);
 	/// Write single byte to memory
 	fn write_byte(&mut self, offset: U256, value: U256);
 	/// Write a word to memory. Does not resize memory!
@@ -141,8 +141,7 @@ impl Memory for Vec<u8> {
 		self.resize(new_size, 0);
 	}
 	
-	fn expand(&mut self, new_size: U256) {
-		let size = new_size.low_u64() as usize;
+	fn expand(&mut self, size: usize) {
 		if size > self.len() {
 			Memory::resize(self, size)
 		}
@@ -203,7 +202,7 @@ impl evm::Evm for Interpreter {
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			current_gas = current_gas - gas_cost;
 			println!("Gas cost: {} (left: {})", gas_cost, current_gas);
-			println!("Executing: {} ", instructions::get_info(instruction).name);
+			println!("Executing: {} ({:x})", instructions::get_info(instruction).name, instruction);
 			// Execute instruction
 			let result = try!(self.exec_instruction(
 					current_gas, params, ext, instruction, &mut reader, &mut mem, &mut stack
@@ -346,36 +345,37 @@ impl Interpreter {
 				Ok(gas)
 			},
 			InstructionCost::GasMem(gas, mem_size) => {
-				let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
+				let (mem_gas, new_mem_size) = self.mem_gas_cost(schedule, mem.size(), &mem_size);
 				// Expand after calculating the cost
-				mem.expand(mem_size);
+				mem.expand(new_mem_size);
 				Ok(gas + mem_gas)
 			},
 			InstructionCost::GasMemCopy(gas, mem_size, copy) => {
-				let mem_gas = self.mem_gas_cost(schedule, mem.size(), &mem_size);
+				let (mem_gas, new_mem_size) = self.mem_gas_cost(schedule, mem.size(), &mem_size);
 				let copy_gas = U256::from(schedule.copy_gas) * (add_u256_usize(&copy, 31) / U256::from(32));
 				// Expand after calculating the cost
-				mem.expand(mem_size);
+				mem.expand(new_mem_size);
 				Ok(gas + copy_gas + mem_gas)
 			}
 		}
 	}
 	
-	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> U256 {
+	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> (U256, usize) {
 		let gas_for_mem = |mem_size: usize| {
 			let s = mem_size / 32;
 			schedule.memory_gas * s + s * s / schedule.quad_coeff_div
 		};
 
-		let mem_size_rounded = add_u256_usize(mem_size, 31).low_u64() as usize / 32 * 32;
-		let mem_gas = gas_for_mem(mem_size_rounded);
+		let req_mem_size = mem_size.low_u64() as usize;
+		let req_mem_size_rounded = (req_mem_size + 31) / 32 * 32;
+		let new_mem_gas = gas_for_mem(req_mem_size_rounded);
 		let current_mem_gas = gas_for_mem(current_mem_size);
 
-		U256::from(if mem_gas > current_mem_gas {
-			mem_gas - current_mem_gas
+		(if req_mem_size_rounded > current_mem_size {
+			U256::from(new_mem_gas - current_mem_gas)
 		} else {
-			0
-		})
+			U256::zero()
+		}, req_mem_size_rounded)
 	}
 
 
@@ -582,9 +582,6 @@ impl Interpreter {
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());
 				let code = ext.extcode(&address);
-				for b in &code {
-					println!("Code: {:x}", b);
-				}
 				self.copy_data_to_memory(mem, stack, &code);
 			},
 			instructions::GASPRICE => {
@@ -820,6 +817,7 @@ fn address_to_u256(value: Address) -> U256 {
 mod tests {
 	use common::*;
 	use super::*;
+	use evm;
 
 	#[test]
 	fn test_find_jump_destinations() {
@@ -832,6 +830,22 @@ mod tests {
 
 		// then
 		assert!(valid_jump_destinations.contains(&66));
+	}
+
+	#[test]
+	fn test_calculate_mem_cost() {
+		// given
+		let interpreter = Interpreter;
+		let schedule = evm::Schedule::default();
+		let current_mem_size = 0;
+		let mem_size = U256::from(5);
+	
+		// when
+		let (mem_cost, mem_size) = interpreter.mem_gas_cost(&schedule, current_mem_size, &mem_size);
+
+		// then
+		assert_eq!(mem_cost, U256::from(3));
+		assert_eq!(mem_size, 32);
 	}
 
 	#[test]
