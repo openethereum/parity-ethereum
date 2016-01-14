@@ -10,6 +10,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let engine = ethereum::new_frontier_test().to_engine().unwrap();
 
 	for (name, test) in json.as_object().unwrap() {
+		println!("name: {:?}", name);
 		let mut fail = false;
 		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true; true } else {false};
 

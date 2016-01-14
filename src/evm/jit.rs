@@ -209,23 +209,12 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			  init_size: u64,
 			  address: *mut evmjit::H256) {
 		unsafe {
-			match self.ext.create(&U256::from(*io_gas), &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
-				Ok((gas_left, opt)) => {
-					*io_gas = gas_left.low_u64();
-					*address = match opt {
-						Some(addr) => addr.into_jit(),
-						_ => Address::new().into_jit()
-					};
-				},
-				Err(err @ evm::Error::OutOfGas) => {
-					*self.err = Some(err);
-					// hack to propagate `OutOfGas` to evmjit and stop
-					// the execution immediately.
-					// Works, cause evmjit uses i64, not u64
-					*io_gas = -1i64 as u64;
-				},
-				Err(err) => *self.err = Some(err)
-			}
+			let (gas_left, opt_addr) = self.ext.create(&U256::from(*io_gas), &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize));
+			*io_gas = gas_left.low_u64();
+			*address = match opt_addr {
+				Some(addr) => addr.into_jit(),
+				_ => Address::new().into_jit()
+			};
 		}
 	}
 
@@ -254,11 +243,11 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 					true
 				},
 				Err(err @ evm::Error::OutOfGas) => {
-					*self.err = Some(err);
+					//*self.err = Some(err);
 					// hack to propagate `OutOfGas` to evmjit and stop
 					// the execution immediately.
 					// Works, cause evmjit uses i64, not u64
-					*io_gas = -1i64 as u64;
+					*io_gas = 0 as u64;
 					false
 				},
 				Err(err) => {
@@ -337,6 +326,7 @@ impl evm::Evm for JitEvm {
 		
 		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
 		let res = context.exec();
+		println!("jit res: {:?}", res);
 		
 		// check in adapter if execution of children contracts failed.
 		if let Some(err) = optional_err {

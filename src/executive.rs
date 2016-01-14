@@ -21,6 +21,8 @@ pub struct Substate {
 	logs: Vec<LogEntry>,
 	/// Refund counter of SSTORE nonzero->zero.
 	refunds_count: U256,
+	/// True if transaction, or one of it's subcalls runs out of gas.
+	out_of_gas: bool,
 	/// Created contracts.
 	contracts_created: Vec<Address>
 }
@@ -32,6 +34,7 @@ impl Substate {
 			suicides: HashSet::new(),
 			logs: vec![],
 			refunds_count: U256::zero(),
+			out_of_gas: false,
 			contracts_created: vec![]
 		}
 	}
@@ -135,7 +138,6 @@ impl<'a> Executive<'a> {
 		self.state.sub_balance(&sender, &U256::from(gas_cost));
 
 		let mut substate = Substate::new();
-		let backup = self.state.clone();
 
 		let schedule = self.engine.schedule(self.info);
 		let init_gas = t.gas - U256::from(t.gas_required(&schedule));
@@ -172,7 +174,7 @@ impl<'a> Executive<'a> {
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, backup, res)))
+		Ok(try!(self.finalize(t, substate, res)))
 	}
 
 	/// Calls contract function with given contract params.
@@ -180,6 +182,9 @@ impl<'a> Executive<'a> {
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
 	pub fn call(&mut self, params: &ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
+		// backup used in case of running out of gas
+		let backup = self.state.clone();
+
 		// at first, transfer value to destination
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
@@ -191,13 +196,18 @@ impl<'a> Executive<'a> {
 					self.engine.execute_builtin(&params.address, &params.data, &mut output);
 					Ok(params.gas - cost)
 				},
-				false => Err(evm::Error::OutOfGas)
+				// just drain the whole gas
+				false => Ok(U256::zero())
 			}
 		} else if params.code.len() > 0 {
 			// if destination is a contract, do normal message call
-			let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::Return(output));
-			let evm = Factory::create();
-			evm.exec(&params, &mut ext)
+			
+			let res = {
+				let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::Return(output));
+				let evm = Factory::create();
+				evm.exec(&params, &mut ext)
+			};
+			self.handle_out_of_gas(res, substate, backup)
 		} else {
 			// otherwise, nothing
 			Ok(params.gas)
@@ -208,44 +218,27 @@ impl<'a> Executive<'a> {
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
 	fn create(&mut self, params: &ActionParams, substate: &mut Substate) -> evm::Result {
+		// backup used in case of running out of gas
+		let backup = self.state.clone();
+
 		// at first create new contract
 		self.state.new_contract(&params.address);
+
 		// then transfer value to it
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
-		let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::InitContract);
-		let evm = Factory::create();
-		evm.exec(&params, &mut ext)
+		let res = {
+			let mut ext = Externalities::from_executive(self, params, substate, OutputPolicy::InitContract);
+			let evm = Factory::create();
+			evm.exec(&params, &mut ext)
+		};
+		self.handle_out_of_gas(res, substate, backup)
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &Transaction, substate: Substate, mut backup: State, result: evm::Result) -> ExecutionResult {
+	fn finalize(&mut self, t: &Transaction, substate: Substate, result: evm::Result) -> ExecutionResult {
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
-			Err(evm::Error::OutOfGas) => {
-				// apply first transfer to backup, and then revert everything
-				let sender = t.sender().unwrap();
-				match t.action() {
-					&Action::Create => {
-						let nonce = backup.nonce(&sender);
-						let address = contract_address(&sender, &nonce);
-						backup.new_contract(&address);
-						backup.transfer_balance(&sender, &address, &t.value);
-					}
-					&Action::Call(ref address) => backup.transfer_balance(&sender, address, &t.value)
-				}
-				
-				self.state.revert(backup);
-				Ok(Executed {
-					gas: t.gas,
-					gas_used: t.gas,
-					refunded: U256::zero(),
-					cumulative_gas_used: self.info.gas_used + t.gas,
-					logs: vec![],
-					out_of_gas: true,
-					contracts_created: vec![]
-				})
-			},
 			Ok(gas_left) => {
 				let schedule = self.engine.schedule(self.info);
 
@@ -277,11 +270,20 @@ impl<'a> Executive<'a> {
 					refunded: refund,
 					cumulative_gas_used: self.info.gas_used + gas_used,
 					logs: substate.logs,
-					out_of_gas: false,
+					out_of_gas: substate.out_of_gas,
 					contracts_created: substate.contracts_created
 				})
-			}
+			},
+			_err => { unreachable!() }
 		}
+	}
+
+	pub fn handle_out_of_gas(&mut self, result: evm::Result, substate: &mut Substate, backup: State) -> evm::Result {
+		if let &Err(evm::Error::OutOfGas) = &result {
+			substate.out_of_gas = true;
+			self.state.revert(backup);
+		}
+		result
 	}
 }
 
@@ -366,10 +368,10 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> Result<(U256, Option<Address>), evm::Error> {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> (U256, Option<Address>) {
 		// if balance is insufficient or we are to deep, return
 		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.max_depth {
-			return Ok((*gas, None));
+			return (*gas, None);
 		}
 
 		// create new contract address
@@ -389,7 +391,11 @@ impl<'a> Ext for Externalities<'a> {
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
 		ex.state.inc_nonce(&self.params.address);
-		ex.create(&params, self.substate).map(|gas_left| (gas_left, Some(address)))
+		match ex.create(&params, self.substate) {
+			Ok(gas_left) => (gas_left, Some(address)),
+			_ => (U256::zero(), None)
+		}
+		//ex.create(&params, self.substate).map(|gas_left| (gas_left, Some(address)))
 	}
 
 	fn call(&mut self, gas: &U256, call_gas: &U256, receive_address: &Address, value: &U256, data: &[u8], code_address: &Address, output: &mut [u8]) -> Result<U256, evm::Error> {
