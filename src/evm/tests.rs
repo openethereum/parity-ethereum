@@ -122,22 +122,8 @@ fn test_stack_underflow() {
 	};
 }
 
-macro_rules! evm_test(
-	($name_test: ident: $name_jit: ident, $name_int: ident) => {
-		#[test]
-		#[cfg(feature = "jit")]
-		fn $name_jit() {
-			$name_test(super::Factory::new(super::factory::VMType::Jit).create());
-		}
-		#[test]
-		fn $name_int() {
-			$name_test(super::Factory::new(super::factory::VMType::Interpreter).create());
-		}
-	}
-);
-
 evm_test!{test_add: test_add_jit, test_add_int}
-fn test_add(vm : Box<super::Evm>) {
+fn test_add(factory: super::Factory) {
   let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
 
@@ -148,6 +134,7 @@ fn test_add(vm : Box<super::Evm>) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -156,7 +143,7 @@ fn test_add(vm : Box<super::Evm>) {
 }
 
 evm_test!{test_sha3: test_sha3_jit, test_sha3_int}
-fn test_sha3(vm: Box<super::Evm>) {
+fn test_sha3(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "6000600020600055".from_hex().unwrap();
 
@@ -167,6 +154,7 @@ fn test_sha3(vm: Box<super::Evm>) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -175,7 +163,7 @@ fn test_sha3(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_address: test_address_jit, test_address_int}
-fn test_address(vm: Box<super::Evm>) {
+fn test_address(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "30600055".from_hex().unwrap();
 
@@ -186,6 +174,7 @@ fn test_address(vm: Box<super::Evm>) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -194,7 +183,7 @@ fn test_address(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_origin: test_origin_jit, test_origin_int}
-fn test_origin(vm: Box<super::Evm>) {
+fn test_origin(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let origin = Address::from_str("cd1722f2947def4cf144679da39c4c32bdc35681").unwrap();
 	let code = "32600055".from_hex().unwrap();
@@ -207,6 +196,7 @@ fn test_origin(vm: Box<super::Evm>) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -215,7 +205,7 @@ fn test_origin(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_sender: test_sender_jit, test_sender_int}
-fn test_sender(vm: Box<super::Evm>) {
+fn test_sender(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let sender = Address::from_str("cd1722f2947def4cf144679da39c4c32bdc35681").unwrap();
 	let code = "33600055".from_hex().unwrap();
@@ -228,6 +218,7 @@ fn test_sender(vm: Box<super::Evm>) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -236,7 +227,7 @@ fn test_sender(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_extcodecopy: test_extcodecopy_jit, test_extcodecopy_int}
-fn test_extcodecopy(vm: Box<super::Evm>) {
+fn test_extcodecopy(factory: super::Factory) {
 		// 33 - sender
 		// 3b - extcodesize
 		// 60 00 - push 0
@@ -262,6 +253,7 @@ fn test_extcodecopy(vm: Box<super::Evm>) {
 	ext.codes.insert(sender, sender_code);
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -270,7 +262,7 @@ fn test_extcodecopy(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_log_empty: test_log_empty_jit, test_log_empty_int}
-fn test_log_empty(vm: Box<super::Evm>) {
+fn test_log_empty(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "60006000a0".from_hex().unwrap();
 
@@ -281,6 +273,7 @@ fn test_log_empty(vm: Box<super::Evm>) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -291,7 +284,7 @@ fn test_log_empty(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_log_sender: test_log_sender_jit, test_log_sender_int}
-fn test_log_sender(vm: Box<super::Evm>) {
+fn test_log_sender(factory: super::Factory) {
 	// 60 ff - push ff
 	// 60 00 - push 00
 	// 53 - mstore 
@@ -312,6 +305,7 @@ fn test_log_sender(vm: Box<super::Evm>) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -323,7 +317,7 @@ fn test_log_sender(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_blockhash: test_blockhash_jit, test_blockhash_int}
-fn test_blockhash(vm: Box<super::Evm>) {
+fn test_blockhash(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "600040600055".from_hex().unwrap();
 	let blockhash = H256::from_str("123400000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681").unwrap();
@@ -336,6 +330,7 @@ fn test_blockhash(vm: Box<super::Evm>) {
 	ext.blockhashes.insert(U256::zero(), blockhash.clone());
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -344,7 +339,7 @@ fn test_blockhash(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_calldataload: test_calldataload_jit, test_calldataload_int}
-fn test_calldataload(vm: Box<super::Evm>) {
+fn test_calldataload(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "600135600055".from_hex().unwrap();
 	let data = "0123ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23".from_hex().unwrap();
@@ -357,6 +352,7 @@ fn test_calldataload(vm: Box<super::Evm>) {
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -366,7 +362,7 @@ fn test_calldataload(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_author: test_author_jit, test_author_int}
-fn test_author(vm: Box<super::Evm>) {
+fn test_author(factory: super::Factory) {
 	let author = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "41600055".from_hex().unwrap();
 
@@ -377,6 +373,7 @@ fn test_author(vm: Box<super::Evm>) {
 	ext.info.author = author;
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -385,7 +382,7 @@ fn test_author(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_timestamp: test_timestamp_jit, test_timestamp_int}
-fn test_timestamp(vm: Box<super::Evm>) {
+fn test_timestamp(factory: super::Factory) {
 	let timestamp = 0x1234; 
 	let code = "42600055".from_hex().unwrap();
 
@@ -396,6 +393,7 @@ fn test_timestamp(vm: Box<super::Evm>) {
 	ext.info.timestamp = timestamp;
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -404,7 +402,7 @@ fn test_timestamp(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_number: test_number_jit, test_number_int}
-fn test_number(vm: Box<super::Evm>) {
+fn test_number(factory: super::Factory) {
 	let number = 0x1234; 
 	let code = "43600055".from_hex().unwrap();
 
@@ -415,6 +413,7 @@ fn test_number(vm: Box<super::Evm>) {
 	ext.info.number = number;
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -423,7 +422,7 @@ fn test_number(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_difficulty: test_difficulty_jit, test_difficulty_int}
-fn test_difficulty(vm: Box<super::Evm>) {
+fn test_difficulty(factory: super::Factory) {
 	let difficulty = U256::from(0x1234);
 	let code = "44600055".from_hex().unwrap();
 
@@ -434,6 +433,7 @@ fn test_difficulty(vm: Box<super::Evm>) {
 	ext.info.difficulty = difficulty;
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 
@@ -442,7 +442,7 @@ fn test_difficulty(vm: Box<super::Evm>) {
 }
 
 evm_test!{test_gas_limit: test_gas_limit_jit, test_gas_limit_int}
-fn test_gas_limit(vm: Box<super::Evm>) {
+fn test_gas_limit(factory: super::Factory) {
 	let gas_limit = U256::from(0x1234);
 	let code = "45600055".from_hex().unwrap();
 
@@ -453,6 +453,7 @@ fn test_gas_limit(vm: Box<super::Evm>) {
 	ext.info.gas_limit = gas_limit;
 
 	let gas_left = {
+		let vm = factory.create();
 		vm.exec(&params, &mut ext).unwrap()
 	};
 

@@ -62,3 +62,18 @@ impl Factory {
 fn test_create_vm() {
 	let _vm = Factory::default().create();
 }
+
+#[macro_export]
+macro_rules! evm_test(
+	($name_test: ident: $name_jit: ident, $name_int: ident) => {
+		#[test]
+		#[cfg(feature = "jit")]
+		fn $name_jit() {
+			$name_test(super::Factory::new(super::factory::VMType::Jit));
+		}
+		#[test]
+		fn $name_int() {
+			$name_test(super::Factory::new(super::factory::VMType::Interpreter));
+		}
+	}
+);

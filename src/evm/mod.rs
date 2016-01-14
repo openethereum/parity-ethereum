@@ -3,6 +3,7 @@
 pub mod ext;
 pub mod evm;
 pub mod interpreter;
+#[macro_use]
 pub mod factory;
 pub mod schedule;
 mod instructions;

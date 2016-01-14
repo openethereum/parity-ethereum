@@ -500,6 +500,7 @@ mod tests {
 	use spec::*;
 	use evm::Schedule;
 	use evm::Factory;
+	use evm::factory::VMType;
 
 	struct TestEngine {
 		spec: Spec,
@@ -532,9 +533,24 @@ mod tests {
 		assert_eq!(expected_address, contract_address(&address, &U256::from(88)));
 	}
 
-	#[test]
+	// TODO [todr] this is copy-pasted for evm::factory
+	macro_rules! evm_test(
+		($name_test: ident: $name_jit: ident, $name_int: ident) => {
+			#[test]
+			#[cfg(feature = "jit")]
+			fn $name_jit() {
+				$name_test(Factory::new(VMType::Jit));
+			}
+			#[test]
+			fn $name_int() {
+				$name_test(Factory::new(VMType::Interpreter));
+			}
+		}
+	);
+
 	// TODO: replace params with transactions!
-	fn test_sender_balance() {
+	evm_test!{test_sender_balance: test_sender_balance_jit, test_sender_balance_int}
+	fn test_sender_balance(factory: Factory) {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let mut params = ActionParams::new();
@@ -550,7 +566,6 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(&params, &mut substate).unwrap()
 		};
@@ -565,8 +580,8 @@ mod tests {
 		// TODO: just test state root.
 	}
 
-	#[test]
-	fn test_create_contract() {
+	evm_test!{test_create_contract: test_create_contract_jit, test_create_contract_int}
+	fn test_create_contract(factory: Factory) {
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -609,7 +624,6 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(&params, &mut substate).unwrap()
 		};
@@ -619,8 +633,8 @@ mod tests {
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
-	#[test]
-	fn test_create_contract_value_too_high() {
+	evm_test!{test_create_contract_value_too_high: test_create_contract_value_too_high_jit, test_create_contract_value_too_high_int}
+	fn test_create_contract_value_too_high(factory: Factory) {
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -663,7 +677,6 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(&params, &mut substate).unwrap()
 		};
@@ -672,8 +685,8 @@ mod tests {
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
-	#[test]
-	fn test_create_contract_without_max_depth() {
+	evm_test!{test_create_contract_without_max_depth: test_create_contract_without_max_depth_jit, test_create_contract_without_max_depth_int}
+	fn test_create_contract_without_max_depth(factory: Factory) {
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -715,7 +728,6 @@ mod tests {
 		let mut substate = Substate::new();
 
 		{
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.create(&params, &mut substate).unwrap();
 		}
@@ -724,8 +736,8 @@ mod tests {
 		assert_eq!(substate.contracts_created[0], next_address);
 	}
 
-	#[test]
-	fn test_aba_calls() {
+	evm_test!{test_aba_calls: test_aba_calls_jit, test_aba_calls_int}
+	fn test_aba_calls(factory: Factory) {
 		// 60 00 - push 0
 		// 60 00 - push 0
 		// 60 00 - push 0
@@ -774,7 +786,6 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.call(&params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
 		};
@@ -783,8 +794,8 @@ mod tests {
 		assert_eq!(state.storage_at(&address_a, &H256::from(&U256::from(0x23))), H256::from(&U256::from(1)));
 	}
 
-	#[test]
-	fn test_recursive_bomb1() {
+	evm_test!{test_recursive_bomb1: test_recursive_bomb1_jit, test_recursive_bomb1_int}
+	fn test_recursive_bomb1(factory: Factory) {
 		// 60 01 - push 1
 		// 60 00 - push 0
 		// 54 - sload 
@@ -817,7 +828,6 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let gas_left = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.call(&params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
 		};
@@ -827,8 +837,8 @@ mod tests {
 		assert_eq!(state.storage_at(&address, &H256::from(&U256::one())), H256::from(&U256::from(1)));
 	}
 
-	#[test]
-	fn test_transact_simple() {
+	evm_test!{test_transact_simple: test_transact_simple_jit, test_transact_simple_int}
+	fn test_transact_simple(factory: Factory) {
 		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
@@ -842,7 +852,6 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let executed = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t).unwrap()
 		};
@@ -860,8 +869,8 @@ mod tests {
 		assert_eq!(state.storage_at(&contract, &H256::new()), H256::from(&U256::from(1)));
 	}
 
-	#[test]
-	fn test_transact_invalid_sender() {
+	evm_test!{test_transact_invalid_sender: test_transact_invalid_sender_jit, test_transact_invalid_sender_int}
+	fn test_transact_invalid_sender(factory: Factory) {
 		let t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
 
 		let mut state = State::new_temp();
@@ -870,7 +879,6 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let res = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t)
 		};
@@ -881,8 +889,8 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn test_transact_invalid_nonce() {
+	evm_test!{test_transact_invalid_nonce: test_transact_invalid_nonce_jit, test_transact_invalid_nonce_int}
+	fn test_transact_invalid_nonce(factory: Factory) {
 		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::one());
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
@@ -895,7 +903,6 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let res = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t)
 		};
@@ -907,8 +914,8 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn test_transact_gas_limit_reached() {
+	evm_test!{test_transact_gas_limit_reached: test_transact_gas_limit_reached_jit, test_transact_gas_limit_reached_int}
+	fn test_transact_gas_limit_reached(factory: Factory) {
 		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(80_001), U256::zero(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
@@ -922,7 +929,6 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let res = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t)
 		};
@@ -934,8 +940,8 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn test_not_enough_cash() {
+	evm_test!{test_not_enough_cash: test_not_enough_cash_jit, test_not_enough_cash_int}
+	fn test_not_enough_cash(factory: Factory) {
 		let mut t = Transaction::new_create(U256::from(18), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::one(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
@@ -948,7 +954,6 @@ mod tests {
 		let engine = TestEngine::new(0);
 
 		let res = {
-			let factory = Factory::default();
 			let mut ex = Executive::new(&mut state, &info, &engine, &factory);
 			ex.transact(&t)
 		};
