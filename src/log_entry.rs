@@ -28,16 +28,6 @@ impl LogEntry {
 		}
 	}
 
-	/// Convert given JSON object to a LogEntry.
-	pub fn from_json(json: &Json) -> LogEntry {
-		// TODO: check bloom.
-		LogEntry {
-			address: address_from_json(&json["address"]),
-			topics: vec_h256_from_json(&json["topics"]),
-			data: bytes_from_json(&json["data"]),
-		}
-	}
-
 	/// Returns reference to address.
 	pub fn address(&self) -> &Address {
 		&self.address
@@ -56,6 +46,18 @@ impl LogEntry {
 	/// Calculates the bloom of this log entry.
 	pub fn bloom(&self) -> LogBloom {
 		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))
+	}
+}
+
+impl FromJson for LogEntry {
+	/// Convert given JSON object to a LogEntry.
+	fn from_json(json: &Json) -> LogEntry {
+		// TODO: check bloom.
+		LogEntry {
+			address: xjson!(&json["address"]),
+			topics: xjson!(&json["topics"]),
+			data: xjson!(&json["data"]),
+		}
 	}
 }
 

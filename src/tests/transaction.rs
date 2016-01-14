@@ -14,23 +14,23 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			.and_then(|j| j.as_string())
 			.and_then(|s| BlockNumber::from_str(s).ok())
 			.unwrap_or(0) { x if x < 900000 => &old_schedule, _ => &new_schedule };
-		let rlp = bytes_from_json(&test["rlp"]);
+		let rlp = Bytes::from_json(&test["rlp"]);
 		let res = UntrustedRlp::new(&rlp).as_val().map_err(|e| From::from(e)).and_then(|t: Transaction| t.validate(schedule, schedule.have_delegate_call));
 		fail_unless(test.find("transaction").is_none() == res.is_err());
 		if let (Some(&Json::Object(ref tx)), Some(&Json::String(ref expect_sender))) = (test.find("transaction"), test.find("sender")) {
 			let t = res.unwrap();
 			fail_unless(t.sender().unwrap() == address_from_hex(clean(expect_sender)));
-			fail_unless(t.data == bytes_from_json(&tx["data"]));
-			fail_unless(t.gas == u256_from_json(&tx["gasLimit"]));
-			fail_unless(t.gas_price == u256_from_json(&tx["gasPrice"]));
-			fail_unless(t.nonce == u256_from_json(&tx["nonce"]));
-			fail_unless(t.value == u256_from_json(&tx["value"]));
+			fail_unless(t.data == Bytes::from_json(&tx["data"]));
+			fail_unless(t.gas == xjson!(&tx["gasLimit"]));
+			fail_unless(t.gas_price == xjson!(&tx["gasPrice"]));
+			fail_unless(t.nonce == xjson!(&tx["nonce"]));
+			fail_unless(t.value == xjson!(&tx["value"]));
 			if let Action::Call(ref to) = t.action {
 				*ot.borrow_mut() = t.clone();
-				fail_unless(to == &address_from_json(&tx["to"]));
+				fail_unless(to == &xjson!(&tx["to"]));
 			} else {
 				*ot.borrow_mut() = t.clone();
-				fail_unless(bytes_from_json(&tx["to"]).len() == 0);
+				fail_unless(Bytes::from_json(&tx["to"]).len() == 0);
 			}
 		}
 	}
