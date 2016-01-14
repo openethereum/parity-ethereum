@@ -33,7 +33,7 @@ impl Engine for TestEngine {
 
 struct CallCreate {
 	data: Bytes,
-	destination: Address,
+	destination: Option<Address>,
 	_gas_limit: U256,
 	value: U256
 }
@@ -81,7 +81,7 @@ impl<'a> Ext for TestExt<'a> {
 			(gas_left, Some(address)) => {
 				self.callcreates.push(CallCreate {
 					data: code.to_vec(),
-					destination: address.clone(),
+					destination: Some(address.clone()),
 					_gas_limit: *gas,
 					value: *value
 				});
@@ -89,14 +89,14 @@ impl<'a> Ext for TestExt<'a> {
 			},
 			// creation failed only due to reaching max_depth
 			(gas_left, None) if ext.state.balance(&ext.params.address) >= *value => {
-				let address = contract_address(&ext.params.address, &ext.state.nonce(&ext.params.address));
 				self.callcreates.push(CallCreate {
 					data: code.to_vec(),
-					// TODO: address is not stored here?
-					destination: Address::new(),
+					// callcreate test does not need an address
+					destination: None,
 					_gas_limit: *gas,
 					value: *value
 				});
+				let address = contract_address(&ext.params.address, &ext.state.nonce(&ext.params.address));
 				(gas_left, Some(address))
 			},
 			other => other
@@ -117,7 +117,7 @@ impl<'a> Ext for TestExt<'a> {
 			if ext.state.balance(&ext.params.address) >= *value {
 				self.callcreates.push(CallCreate {
 					data: data.to_vec(),
-					destination: receive_address.clone(),
+					destination: Some(receive_address.clone()),
 					_gas_limit: *call_gas,
 					value: *value
 				});
@@ -244,7 +244,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 					let is = &callcreates[i];
 					let expected = &cc[i];
 					fail_unless(is.data == Bytes::from_json(&expected["data"]), "callcreates data is incorrect");
-					fail_unless(is.destination == xjson!(&expected["destination"]), "callcreates destination is incorrect");
+					match &is.destination {
+						&None => fail_unless(expected["destination"].as_string().unwrap() == "", "destination should be empty"),
+						&Some(ref address) => fail_unless(address == &xjson!(&expected["destination"]), "callcreates destination is incorrect")
+					}
 					fail_unless(is.value == xjson!(&expected["value"]), "callcreates value is incorrect");
 
 					// TODO: call_gas is calculated in externalities and is not exposed to TestExt.
