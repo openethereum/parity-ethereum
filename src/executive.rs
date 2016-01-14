@@ -104,6 +104,8 @@ impl<'a> Executive<'a> {
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
+		// TODO: error on base gas required
+
 		// validate transaction nonce
 		if t.nonce != nonce {
 			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, is: t.nonce }));
@@ -136,7 +138,7 @@ impl<'a> Executive<'a> {
 		let backup = self.state.clone();
 
 		let schedule = self.engine.schedule(self.info);
-		let init_gas = t.gas - U256::from(schedule.tx_gas);
+		let init_gas = t.gas - U256::from(t.gas_required(&schedule));
 
 		let res = match t.action() {
 			&Action::Create => {
