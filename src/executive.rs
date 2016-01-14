@@ -418,7 +418,7 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
-		ex.call(&params, self.substate, BytesRef::Fixed(output))
+		ex.call(&params, self.substate, BytesRef::Fixed(output)).map(|gas_left| gas + gas_left)
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {
