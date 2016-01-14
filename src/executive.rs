@@ -300,7 +300,7 @@ impl<'a> Externalities<'a> {
 	pub fn new(state: &'a mut State, 
 			   info: &'a EnvInfo, 
 			   engine: &'a Engine, 
-			   depth: usize, 
+			   depth: usize,
 			   params: &'a ActionParams, 
 			   substate: &'a mut Substate, 
 			   output: OutputPolicy<'a>) -> Self {
@@ -351,7 +351,7 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> Result<(U256, Option<Address>), evm::Error> {
 		// if balance is insufficient or we are to deep, return
-		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.stack_limit {
+		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.max_depth {
 			return Ok((*gas, None));
 		}
 
@@ -397,7 +397,7 @@ impl<'a> Ext for Externalities<'a> {
 		let gas = *gas - gas_cost;
 
 		// if balance is insufficient or we are to deep, return
-		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.stack_limit {
+		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.max_depth {
 			return Ok(gas + call_gas)
 		}
 
@@ -489,14 +489,14 @@ mod tests {
 
 	struct TestEngine {
 		spec: Spec,
-		stack_limit: usize
+		max_depth: usize
 	}
 
 	impl TestEngine {
-		fn new(stack_limit: usize) -> TestEngine {
+		fn new(max_depth: usize) -> TestEngine {
 			TestEngine {
 				spec: ethereum::new_frontier_test(),
-				stack_limit: stack_limit 
+				max_depth: max_depth 
 			}
 		}
 	}
@@ -506,7 +506,7 @@ mod tests {
 		fn spec(&self) -> &Spec { &self.spec }
 		fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
 			let mut schedule = Schedule::new_frontier();
-			schedule.stack_limit = self.stack_limit; 
+			schedule.max_depth = self.max_depth;
 			schedule
 		}
 	}
@@ -656,7 +656,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_create_contract_without_stack_limit() {
+	fn test_create_contract_without_max_depth() {
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
