@@ -1,6 +1,7 @@
 use super::test_common::*;
 use state::*;
-use executive::*;
+use pod_state::*;
+use state_diff::*;
 use ethereum;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
@@ -40,7 +41,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			let our_post = s.to_pod();
 			println!("Got:\n{}", our_post);
 			println!("Expect:\n{}", post);
-			println!("Diff ---expect -> +++got:\n{}", pod_state_diff(&post, &our_post));
+			println!("Diff ---expect -> +++got:\n{}", StateDiff::diff_pod(&post, &our_post));
 		}
 
 		if fail_unless(logs == r.logs) {
