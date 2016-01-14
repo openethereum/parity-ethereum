@@ -219,8 +219,8 @@ impl<'a> Executive<'a> {
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
 			// TODO [ToDr] BadJumpDestination @debris - how to handle that?
 			Err(evm::Error::OutOfGas) 
-				| Err(evm::Error::BadJumpDestination) 
-				| Err(evm::Error::BadInstruction) 
+				| Err(evm::Error::BadJumpDestination { destination: _ }) 
+				| Err(evm::Error::BadInstruction { instruction: _ }) 
 				| Err(evm::Error::StackUnderflow {instruction: _, wanted: _, on_stack: _})
 				| Err(evm::Error::OutOfStack {instruction: _, wanted: _, limit: _}) => {
 				*self.state = backup;

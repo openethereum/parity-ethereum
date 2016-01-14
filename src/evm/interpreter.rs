@@ -243,10 +243,14 @@ impl Interpreter {
 		let info = instructions::get_info(instruction);
 
 		if !schedule.have_delegate_call && instruction == instructions::DELEGATECALL {
-			return Err(evm::Error::BadInstruction);
+			return Err(evm::Error::BadInstruction {
+				instruction: info.name
+			});
 		}
 		if info.tier == instructions::GasPriceTier::InvalidTier {
-			return Err(evm::Error::BadInstruction);
+			return Err(evm::Error::BadInstruction {
+				instruction: info.name
+			});
 		}
 
 		try!(self.verify_instructions_requirements(&info, schedule.stack_limit, stack));
@@ -656,7 +660,9 @@ impl Interpreter {
 		if valid_jump_destinations.contains(&jump) {
 			Ok(jump)
 		} else {
-			Err(evm::Error::BadJumpDestination)
+			Err(evm::Error::BadJumpDestination {
+				destination: jump
+			})
 		}
 	}
 

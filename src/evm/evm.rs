@@ -14,9 +14,13 @@ pub enum Error {
 	OutOfGas,
 	/// `BadJumpDestination` is returned when execution tried to move
 	/// to position that wasn't marked with JUMPDEST instruction
-	BadJumpDestination,
+	BadJumpDestination {
+		destination: usize
+	},
 	/// `BadInstructions` is returned when given instruction is not supported
-	BadInstruction,
+	BadInstruction {
+		instruction: &'static str,
+	},
 	/// `StackUnderflow` when there is not enough stack elements to execute instruction
 	/// First parameter says how many elements were needed and the second how many were actually on Stack
 	StackUnderflow {
