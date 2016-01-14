@@ -156,18 +156,9 @@ struct CodeReader<'a> {
 impl<'a> CodeReader<'a> {
 	/// Get `no_of_bytes` from code and convert to U256. Move PC
 	fn read(&mut self, no_of_bytes: usize) -> U256 {
-		let mut value = U256::from(self.code[self.position]);
-
-		for off in 1..no_of_bytes {
-			let pos = self.position + off;
-			value = value << 8;
-			// TODO [todr] Directly bitor with u8?
-			value = value | U256::from(self.code[pos]);
-		}
-
-		// Move PC
+		let pos = self.position;
 		self.position += no_of_bytes;
-		value
+		U256::from(&self.code[pos..pos+no_of_bytes])
 	}
 
 	fn len (&self) -> usize {
@@ -194,9 +185,8 @@ impl evm::Evm for Interpreter {
     let code = &params.code;
     let valid_jump_destinations = self.find_jump_destinations(&code);
 
-    // TODO reserve stack
 		let mut current_gas = params.gas.clone();
-    let mut stack = vec![];
+    let mut stack = Vec::with_capacity(ext.schedule().stack_limit);
     let mut mem = vec![];
 		let mut reader = CodeReader {
 			position: 0,
@@ -481,7 +471,6 @@ impl Interpreter {
 				return Ok(InstructionResult::StopExecution);
 			},
 			instructions::SUICIDE => {
-				// TODO [todr] Suicide should have argument with address of contract that funds should be transfered to
 				let address = stack.pop_back();
 				ext.suicide(&u256_to_address(&address));
 				return Ok(InstructionResult::StopExecution);
@@ -722,9 +711,9 @@ impl Interpreter {
 					U256::zero()
 				});
 			},
-			// instructions::SDIV => {},
-			// instructions::SMOD => {},
-			// instructions::EXP => {},
+			// TODO instructions::SDIV => {},
+			// TODO instructions::SMOD => {},
+			// TODO instructions::EXP => {},
 			instructions::NOT => {
 				let a = stack.pop_back();
 				stack.push(!a);
@@ -734,13 +723,13 @@ impl Interpreter {
 				let b = stack.pop_back();
 				stack.push(self.bool_to_u256(a < b));
 			},
-			// instructions::SLT => {},
+			// TODO instructions::SLT => {},
 			instructions::GT => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(self.bool_to_u256(a > b));
 			},
-			// instructions::SGT => {},
+			// TODO instructions::SGT => {},
 			instructions::EQ => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
@@ -765,10 +754,10 @@ impl Interpreter {
 				let b = stack.pop_back();
 				stack.push(a ^ b);
 			},
-			// instructions::BYTE => {},
-			// instructions::ADDMOD => {},
-			// instructions::MULMOD => {},
-			// instructions::SIGNEXTEND => {},
+			// TODO instructions::BYTE => {},
+			// TODO instructions::ADDMOD => {},
+			// TODO instructions::MULMOD => {},
+			// TODO instructions::SIGNEXTEND => {},
 			_ => panic!(format!("Unknown stack instruction: {:x}", instruction))
 		}
   }
