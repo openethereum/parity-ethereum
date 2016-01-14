@@ -150,9 +150,12 @@ impl Account {
 	pub fn cache_code(&mut self, db: &HashDB) -> bool {
 		// TODO: fill out self.code_cache;
 		return self.is_cached() ||
-			match db.lookup(self.code_hash.as_ref().unwrap()) {	// why doesn't this work? unwrap causes move?!
-				Some(x) => { self.code_cache = x.to_vec(); true },
-				_ => { false }
+			match self.code_hash {
+				Some(ref h) => match db.lookup(h) {
+					Some(x) => { self.code_cache = x.to_vec(); true },
+					_ => false,
+				},
+				_ => false,
 			}
 	}
 
