@@ -383,7 +383,7 @@ macro_rules! impl_hash {
 		}
 		impl $from {
 			pub fn hex(&self) -> String {
-				format!("{}", self)
+				format!("{:?}", self)
 			}
 
 			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
@@ -520,7 +520,7 @@ mod tests {
 	fn hash() {
 		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
-		assert_eq!(format!("{}", h), "0123456789abcdef");
+		assert_eq!(format!("{}", h), "012345…ef");
 		assert_eq!(format!("{:?}", h), "0123456789abcdef");
 		assert_eq!(h.hex(), "0123456789abcdef");
 		assert!(h == h);
