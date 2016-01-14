@@ -149,18 +149,11 @@ impl Account {
 	/// Provide a database to lookup `code_hash`. Should not be called if it is a contract without code.
 	pub fn cache_code(&mut self, db: &HashDB) -> bool {
 		// TODO: fill out self.code_cache;
-/*		return !self.is_cached() ||
-			match db.lookup(&self.code_hash.unwrap()) {	// why doesn't this work? unwrap causes move?!
-				Some(x) => { self.code_cache = x.to_vec(); true },
-				_ => { false }
-			}*/
-		if self.is_cached() { return true; }
-		return if let Some(ref h) = self.code_hash {
-			match db.lookup(&h) {
+		return self.is_cached() ||
+			match db.lookup(self.code_hash.as_ref().unwrap()) {	// why doesn't this work? unwrap causes move?!
 				Some(x) => { self.code_cache = x.to_vec(); true },
 				_ => { false }
 			}
-		} else { false }
 	}
 
 	/// return the storage root associated with this account.
@@ -266,7 +259,7 @@ mod tests {
 		};
 
 		let mut a = Account::from_rlp(&rlp);
-		assert_eq!(a.cache_code(&db), true);
+		assert!(a.cache_code(&db));
 
 		let mut a = Account::from_rlp(&rlp);
 		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));
