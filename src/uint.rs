@@ -145,10 +145,15 @@ macro_rules! construct_uint {
 				for i in 0..$n_words {
 					let upper = other as u64 * (arr[i] >> 32);
 					let lower = other as u64 * (arr[i] & 0xFFFFFFFF);
-					if i < 3 {
-						carry[i + 1] += upper >> 32;
+
+					ret[i] = lower.wrapping_add(upper << 32);
+
+					if i < $n_words - 1 {
+						carry[i + 1] = upper >> 32;
+						if ret[i] < lower {
+							carry[i + 1] += 1;
+						}
 					}
-					ret[i] = lower + (upper << 32);
 				}
 				$name(ret) + $name(carry)
 			}
@@ -557,7 +562,9 @@ pub const BAD_U256: U256 = U256([0xffffffffffffffffu64; 4]);
 
 #[cfg(test)]
 mod tests {
+	use uint::U128;
 	use uint::U256;
+	use uint::U512;
 	use uint::FromDecStr;
 	use std::str::FromStr;
 
@@ -735,6 +742,60 @@ mod tests {
 	#[test]
 	pub fn uint256_mul() {
 		assert_eq!(U256::from(1u64) * U256::from(10u64), U256::from(10u64));
+	}
+
+	#[test]
+	pub fn uint128_add() {
+		assert_eq!(
+			U128::from_str("fffffffffffffffff").unwrap() + U128::from_str("fffffffffffffffff").unwrap(),
+			U128::from_str("1ffffffffffffffffe").unwrap()
+		);
+	}
+
+	#[test]
+	pub fn uint128_add_overflow() {
+		assert_eq!(
+			  U128::from_str("ffffffffffffffffffffffffffffffff").unwrap()
+			+ U128::from_str("ffffffffffffffffffffffffffffffff").unwrap(),
+			  U128::from_str("fffffffffffffffffffffffffffffffe").unwrap()
+		);
+	}
+
+	#[test]
+	pub fn uint128_mul() {
+		assert_eq!(
+			U128::from_str("fffffffff").unwrap() * U128::from_str("fffffffff").unwrap(),
+			U128::from_str("ffffffffe000000001").unwrap());
+	}
+
+	#[test]
+	pub fn uint512_mul() {
+		assert_eq!(
+			U512::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
+			*
+			U512::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap(),
+			U512::from_str("3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000000000000000000000000000000000000000000000000001").unwrap()
+		);
+	}
+
+	#[test]
+	pub fn uint256_mul_overflow() {
+		assert_eq!(
+			U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
+			*
+			U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap(),
+			U256::from_str("1").unwrap()
+			);
+	}
+
+	#[test]
+	pub fn uint256_mul_overflow2() {
+		assert_eq!(
+			U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
+			*
+			U256::from_str("2").unwrap(),
+			U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").unwrap()
+			);
 	}
 
 	#[test]
