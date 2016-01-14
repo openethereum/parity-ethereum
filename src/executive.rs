@@ -533,21 +533,6 @@ mod tests {
 		assert_eq!(expected_address, contract_address(&address, &U256::from(88)));
 	}
 
-	// TODO [todr] this is copy-pasted for evm::factory
-	macro_rules! evm_test(
-		($name_test: ident: $name_jit: ident, $name_int: ident) => {
-			#[test]
-			#[cfg(feature = "jit")]
-			fn $name_jit() {
-				$name_test(Factory::new(VMType::Jit));
-			}
-			#[test]
-			fn $name_int() {
-				$name_test(Factory::new(VMType::Interpreter));
-			}
-		}
-	);
-
 	// TODO: replace params with transactions!
 	evm_test!{test_sender_balance: test_sender_balance_jit, test_sender_balance_int}
 	fn test_sender_balance(factory: Factory) {

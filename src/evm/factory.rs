@@ -69,11 +69,11 @@ macro_rules! evm_test(
 		#[test]
 		#[cfg(feature = "jit")]
 		fn $name_jit() {
-			$name_test(super::Factory::new(super::factory::VMType::Jit));
+			$name_test(Factory::new(VMType::Jit));
 		}
 		#[test]
 		fn $name_int() {
-			$name_test(super::Factory::new(super::factory::VMType::Interpreter));
+			$name_test(Factory::new(VMType::Interpreter));
 		}
 	}
 );

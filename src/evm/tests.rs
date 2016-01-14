@@ -1,6 +1,6 @@
 use common::*;
 use evm;
-use evm::{Ext, Schedule};
+use evm::{Ext, Schedule, Factory, VMType};
 
 struct FakeLogEntry {
 	topics: Vec<H256>,
