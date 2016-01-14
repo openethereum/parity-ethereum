@@ -54,31 +54,43 @@ impl AccountDiff {
 	}
 }
 
+fn format(u: &H256) -> String {
+	if u <= &H256::from(0xffffffff) {
+		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u32(), U256::from(u.as_slice()).low_u32())
+	} else if u <= &H256::from(u64::max_value()) {
+		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u64(), U256::from(u.as_slice()).low_u64())
+//	} else if u <= &H256::from("0xffffffffffffffffffffffffffffffffffffffff") {
+//		format!("@{}", Address::from(u))
+	} else {
+		format!("#{}", u)
+	}
+}
+
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
 impl fmt::Display for AccountDiff {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self.nonce {
-			Diff::Born(ref x) => try!(write!(f, "#{}", x)),
+			Diff::Born(ref x) => try!(write!(f, "  non {}", x)),
 			Diff::Changed(ref pre, ref post) => try!(write!(f, "#{} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *	min(pre, post))),
 			_ => {},
 		}
 		match self.balance {
-			Diff::Born(ref x) => try!(write!(f, "${}", x)),
+			Diff::Born(ref x) => try!(write!(f, "  bal {}", x)),
 			Diff::Changed(ref pre, ref post) => try!(write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))),
 			_ => {},
 		}
 		match self.code {
-			Diff::Born(ref x) => try!(write!(f, "@{}", x.pretty())),
+			Diff::Born(ref x) => try!(write!(f, "  code {}", x.pretty())),
 			_ => {},
 		}
 		try!(write!(f, "\n"));
 		for (k, dv) in self.storage.iter() {
 			match dv {
-				&Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", k, v)),
-				&Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", k, post, pre)),
-				&Diff::Died(_) => try!(write!(f, "    X  {}\n", k)),
+				&Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", format(k), format(v))),
+				&Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", format(k), format(post), format(pre))),
+				&Diff::Died(_) => try!(write!(f, "    X  {}\n", format(k))),
 				_ => {},
 			}
 		}
@@ -447,7 +459,7 @@ impl Account {
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
-			H256::from_slice(TrieDB::new(db, &self.storage_root).get(key.bytes()).unwrap_or(&[0u8;32][..]))
+			H256::from_slice(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).unwrap_or(&[0u8;32][..]))
 		}).clone()
 	}
 
@@ -527,13 +539,13 @@ impl Account {
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
-		let mut t = TrieDBMut::new(db, &mut self.storage_root);
+		let mut t = SecTrieDBMut::new(db, &mut self.storage_root);
 		for (k, v) in self.storage_overlay.borrow().iter() {
 			// cast key and value to trait type,
 			// so we can call overloaded `to_bytes` method
-			t.insert(k, v);
+			t.insert(k, &encode(&U256::from(v.as_slice())));
 		}
-		self.storage_overlay.borrow_mut().clear();
+//		self.storage_overlay.borrow_mut().clear();
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
