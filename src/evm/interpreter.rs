@@ -453,6 +453,7 @@ impl Interpreter {
 						ext.call(&gas, &call_gas, address, &value, input, &code_address, output)
 					)
 				};
+				stack.push(U256::one());
 				return Ok(InstructionResult::AdditionalGasCost(
 					gas - gas_left
 				));
