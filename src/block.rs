@@ -297,7 +297,7 @@ fn enact_block() {
 
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
-	let e = enact(&orig_bytes, engine.deref(), db, &genesis_header, &vec![genesis_header.hash()]).unwrap();
+	let e = enact_and_seal(&orig_bytes, engine.deref(), db, &genesis_header, &vec![genesis_header.hash()]).unwrap();
 
 	assert_eq!(e.rlp_bytes(), orig_bytes);
 	

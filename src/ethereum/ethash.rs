@@ -41,8 +41,9 @@ impl Engine for Ethash {
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			fields.state.add_balance(u.author(), &(reward * U256::from((8 + u.number() - current_number) / 8)));
+			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
 		}
+		fields.state.commit();
 	}
 
 
@@ -126,6 +127,25 @@ fn on_close_block() {
 	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
 	let b = b.close();
 	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
+}
+
+#[test]
+fn on_close_block_with_uncle() {
+	use super::*;
+	let engine = new_morden().to_engine().unwrap();
+	let genesis_header = engine.spec().genesis_header();
+	let mut db = OverlayDB::new_temp();
+	engine.spec().ensure_db_good(&mut db);
+	let last_hashes = vec![genesis_header.hash()];
+	let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
+	let mut uncle = Header::new();
+	let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
+	uncle.author = uncle_author.clone();
+	b.push_uncle(uncle).unwrap();
+	
+	let b = b.close();
+	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("478eae0e571ba000").unwrap());
+	assert_eq!(b.state().balance(&uncle_author), U256::from_str("3cb71f51fc558000").unwrap());
 }
 
 // TODO: difficulty test

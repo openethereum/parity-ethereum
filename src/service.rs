@@ -20,6 +20,7 @@ impl ClientService {
 	pub fn start(spec: Spec) -> Result<ClientService, Error> {
 		let mut net_service = try!(NetworkService::start());
 		info!("Starting {}", net_service.host_info());
+		info!("Configured for {} using {} engine", spec.name, spec.engine_name);
 		let mut dir = env::home_dir().unwrap();
 		dir.push(".parity");
 		dir.push(H64::from(spec.genesis_header().hash()).hex());

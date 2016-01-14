@@ -113,6 +113,7 @@ impl Client {
 		let db = DB::open_default(state_path.to_str().unwrap()).unwrap();
 		let mut state_db = OverlayDB::new(db);
 		engine.spec().ensure_db_good(&mut state_db);
+		state_db.commit().expect("Error commiting genesis state to state DB");
 
 		Ok(Client {
 			chain: chain.clone(),
@@ -161,6 +162,7 @@ impl Client {
 		};
 		if let Err(e) = verify_block_final(&header, result.block().header()) {
 			warn!(target: "client", "Stage 4 block verification failed for {}\nError: {:?}", header.hash(), e);
+			return;
 		}
 
 		self.chain.write().unwrap().insert_block(&bytes); //TODO: err here?

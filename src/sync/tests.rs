@@ -187,7 +187,7 @@ impl<'p> TestIo<'p> {
 }
 
 impl<'p> SyncIo for TestIo<'p> {
-	fn disable_peer(&mut self, _peer_id: &PeerId) {
+	fn disable_peer(&mut self, _peer_id: PeerId) {
 	}
 
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
@@ -257,7 +257,7 @@ impl TestNet {
 			for client in 0..self.peers.len() {
 				if peer != client {
 					let mut p = self.peers.get_mut(peer).unwrap();
-					p.sync.on_peer_connected(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(client as PeerId)), &(client as PeerId));
+					p.sync.on_peer_connected(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(client as PeerId)), client as PeerId);
 				}
 			}
 		}
@@ -269,7 +269,7 @@ impl TestNet {
 				Some(packet) => {
 					let mut p = self.peers.get_mut(packet.recipient).unwrap();
 					trace!("--- {} -> {} ---", peer, packet.recipient);
-					p.sync.on_packet(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)), &(peer as PeerId), packet.packet_id, &packet.data);
+					p.sync.on_packet(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)), peer as PeerId, packet.packet_id, &packet.data);
 					trace!("----------------");
 				},
 				None => {}
