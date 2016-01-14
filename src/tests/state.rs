@@ -39,8 +39,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		if fail_unless(&r.state_root == &post_state_root) {
 			println!("!!! {}: State mismatch (got: {}, expect: {}):", name, r.state_root, post_state_root);
 			let our_post = s.to_pod();
-			println!("Got:\n{}", our_post);
-			println!("Expect:\n{}", post);
+			println!("Got:\n{:?}", our_post);
+			println!("Expect:\n{:?}", post);
 			println!("Diff ---expect -> +++got:\n{}", pod_state_diff(&post, &our_post));
 		}
 
@@ -58,4 +58,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 }
 
 declare_test!{StateTests_stExample, "StateTests/stExample"}
+declare_test!{StateTests_stBlockHashTest, "StateTests/stBlockHashTest"}
 declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}
+declare_test!{StateTests_stCallCodes, "StateTests/stCallCodes"}
+declare_test_ignore!{StateTests_stCallCreateCallCodeTest, "StateTests/stCallCreateCallCodeTest"}

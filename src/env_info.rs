@@ -39,7 +39,7 @@ impl EnvInfo {
 
 	pub fn from_json(json: &Json) -> EnvInfo {
 		let current_number = u64_from_json(&json["currentNumber"]);
-		EnvInfo {
+		let e = EnvInfo {
 			number: current_number,
 			author: address_from_json(&json["currentCoinbase"]),
 			difficulty: u256_from_json(&json["currentDifficulty"]),
@@ -47,7 +47,9 @@ impl EnvInfo {
 			timestamp: u64_from_json(&json["currentTimestamp"]),
 			last_hashes: (0..current_number).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
 			gas_used: x!(0),
-		}
+		};
+		println!("hashes: {:?}", e.last_hashes);
+		e
 	}
 }
 

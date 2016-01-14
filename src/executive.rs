@@ -278,7 +278,17 @@ impl<'a> Executive<'a> {
 					contracts_created: substate.contracts_created
 				})
 			},
-			_err => { unreachable!() }
+			_err => {
+				Ok(Executed {
+					gas: t.gas,
+					gas_used: t.gas,
+					refunded: U256::zero(),
+					cumulative_gas_used: self.info.gas_used + t.gas,
+					logs: vec![],
+					out_of_gas: true,
+					contracts_created: vec![]
+				})
+			}
 		}
 	}
 

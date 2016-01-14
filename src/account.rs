@@ -513,6 +513,10 @@ impl Account {
 	pub fn set_storage(&mut self, key: H256, value: H256) {
 		self.storage_overlay.borrow_mut().insert(key, (Filth::Dirty, value));
 	}
+	
+	pub fn reset_storage(&mut self, key: &H256) {
+		self.storage_overlay.borrow_mut().remove(key);
+	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {

@@ -325,7 +325,6 @@ impl evm::Evm for JitEvm {
 		
 		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
 		let res = context.exec();
-		println!("jit res: {:?}", res);
 		
 		// check in adapter if execution of children contracts failed.
 		if let Some(err) = optional_err {

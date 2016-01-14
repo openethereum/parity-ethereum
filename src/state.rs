@@ -125,7 +125,10 @@ impl State {
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) {
-		self.require(a, false).set_storage(key, value);
+		match value == H256::new() {
+			true => self.require(a, false).reset_storage(&key),
+			false => self.require(a, false).set_storage(key, value)
+		}
 	}
 
 	/// Initialise the code of account `a` so that it is `value` for `key`.
@@ -138,7 +141,7 @@ impl State {
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
-		println!("Executed: {:?}", e);
+		//println!("Executed: {:?}", e);
 		self.commit();
 		Ok(Receipt::new(self.root().clone(), e.gas_used, e.logs))
 	}
