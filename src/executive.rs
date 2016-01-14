@@ -252,6 +252,7 @@ impl<'a> Executive<'a> {
 		let gas_left = match &result { &Ok(x) => x, _ => x!(0) };
 		let refund = cmp::min(sstore_refunds + suicide_refunds, (t.gas - gas_left) / U256::from(2)) + gas_left;
 		let refund_value = refund * t.gas_price;
+		trace!("Refunding sender: gas_left: {}, refund: {}, refund_value: {}, sender: {}", gas_left, refund, refund_value, t.sender().unwrap());
 		self.state.add_balance(&t.sender().unwrap(), &refund_value);
 		
 		// fees earned by author
@@ -259,11 +260,11 @@ impl<'a> Executive<'a> {
 		let fees_value = fees * t.gas_price;
 		let author = &self.info.author;
 		self.state.add_balance(author, &fees_value);
-		println!("Compensating: fees: {}, fees_value: {}, author: {}", fees, fees_value, author);
+		trace!("Compensating author: fees: {}, fees_value: {}, author: {}", fees, fees_value, author);
 
 		// perform suicides
 		for address in substate.suicides.iter() {
-			println!("Killing {}", address);
+			trace!("Killing {}", address);
 			self.state.kill_account(address);
 		}
 
