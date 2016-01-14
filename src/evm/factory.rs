@@ -1,10 +1,30 @@
 //! Evm factory.
-
+use std::fmt;
 use evm::Evm;
 
+#[derive(Clone)]
 pub enum VMType {
 	Jit,
 	Interpreter
+}
+impl fmt::Display for VMType {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", match *self {
+			VMType::Jit => "JIT",
+			VMType::Interpreter => "INT"
+		})
+	}
+}
+
+impl VMType {
+	#[cfg(feature="jit")]
+	pub fn all() -> Vec<VMType> {
+		vec![VMType::Jit, VMType::Interpreter]
+	}
+	#[cfg(not(feature="jit"))]
+	pub fn all() -> Vec<VMType> {
+		vec![VMType::Interpreter]
+	}
 }
 
 /// Evm factory. Creates appropriate Evm.
