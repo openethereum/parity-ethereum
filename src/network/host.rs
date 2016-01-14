@@ -223,7 +223,7 @@ enum ConnectionEntry {
 
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
 pub struct Host<Message> where Message: Send {
-	info: HostInfo,
+	pub info: HostInfo,
 	udp_socket: UdpSocket,
 	listener: TcpListener,
 	connections: Slab<ConnectionEntry>,

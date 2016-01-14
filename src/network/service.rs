@@ -8,15 +8,19 @@ use io::*;
 /// `Message` defines a notification data type.
 pub struct NetworkService<Message> where Message: Send + 'static {
 	io_service: IoService<NetworkIoMessage<Message>>,
+	host_info: String,
 }
 
 impl<Message> NetworkService<Message> where Message: Send + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<NetworkService<Message>, UtilError> {
 		let mut io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
-		try!(io_service.register_handler(Box::new(Host::new())));
+		let host = Box::new(Host::new());
+		let host_info = host.info.client_version.clone();
+		try!(io_service.register_handler(host));
 		Ok(NetworkService {
-			io_service: io_service
+			io_service: io_service,
+			host_info: host_info,
 		})
 	}
 
@@ -41,9 +45,16 @@ impl<Message> NetworkService<Message> where Message: Send + 'static {
 		Ok(())
 	}
 
+	/// Returns host identifier string as advertised to other peers
+	pub fn host_info(&self) -> String {
+		self.host_info.clone()
+	}
+
+	/// Returns underlying io service.
 	pub fn io(&mut self) -> &mut IoService<NetworkIoMessage<Message>> {
 		&mut self.io_service
 	}
+
 
 }
 
