@@ -54,31 +54,43 @@ impl AccountDiff {
 	}
 }
 
+fn format(u: &H256) -> String {
+	if u <= &H256::from(0xffffffff) {
+		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u32(), U256::from(u.as_slice()).low_u32())
+	} else if u <= &H256::from(u64::max_value()) {
+		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u64(), U256::from(u.as_slice()).low_u64())
+//	} else if u <= &H256::from("0xffffffffffffffffffffffffffffffffffffffff") {
+//		format!("@{}", Address::from(u))
+	} else {
+		format!("#{}", u)
+	}
+}
+
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
 impl fmt::Display for AccountDiff {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self.nonce {
-			Diff::Born(ref x) => try!(write!(f, "#{}", x)),
+			Diff::Born(ref x) => try!(write!(f, "  non {}", x)),
 			Diff::Changed(ref pre, ref post) => try!(write!(f, "#{} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *	min(pre, post))),
 			_ => {},
 		}
 		match self.balance {
-			Diff::Born(ref x) => try!(write!(f, "${}", x)),
+			Diff::Born(ref x) => try!(write!(f, "  bal {}", x)),
 			Diff::Changed(ref pre, ref post) => try!(write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))),
 			_ => {},
 		}
 		match self.code {
-			Diff::Born(ref x) => try!(write!(f, "@{}", x.pretty())),
+			Diff::Born(ref x) => try!(write!(f, "  code {}", x.pretty())),
 			_ => {},
 		}
 		try!(write!(f, "\n"));
 		for (k, dv) in self.storage.iter() {
 			match dv {
-				&Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", k, v)),
-				&Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", k, post, pre)),
-				&Diff::Died(_) => try!(write!(f, "    X  {}\n", k)),
+				&Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", format(k), format(v))),
+				&Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", format(k), format(post), format(pre))),
+				&Diff::Died(_) => try!(write!(f, "    X  {}\n", format(k))),
 				_ => {},
 			}
 		}
