@@ -99,8 +99,7 @@ impl<'a> Ext for TestExt<'a> {
 				});
 				(gas_left, Some(address))
 			},
-			// compiler is wrong...
-			_other => { unreachable!() }
+			other => other
 		}
 	}
 
