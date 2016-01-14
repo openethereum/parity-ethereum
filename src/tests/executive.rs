@@ -9,14 +9,14 @@ use ethereum;
 
 struct TestEngine {
 	spec: Spec,
-	stack_limit: usize
+	max_depth: usize
 }
 
 impl TestEngine {
-	fn new(stack_limit: usize) -> TestEngine {
+	fn new(max_depth: usize) -> TestEngine {
 		TestEngine {
 			spec: ethereum::new_frontier_test(),
-			stack_limit: stack_limit 
+			max_depth: max_depth 
 		}
 	}
 }
@@ -26,7 +26,7 @@ impl Engine for TestEngine {
 	fn spec(&self) -> &Spec { &self.spec }
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
 		let mut schedule = Schedule::new_frontier();
-		schedule.stack_limit = self.stack_limit; 
+		schedule.max_depth = self.max_depth; 
 		schedule
 	}
 }
