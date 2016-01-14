@@ -135,13 +135,16 @@ impl<'a> Executive<'a> {
 		let mut substate = Substate::new();
 		let backup = self.state.clone();
 
+		let schedule = self.engine.schedule(self.info);
+		let init_gas = t.gas - U256::from(schedule.tx_gas);
+
 		let res = match t.action() {
 			&Action::Create => {
 				let params = ActionParams {
 					address: contract_address(&sender, &nonce),
 					sender: sender.clone(),
 					origin: sender.clone(),
-					gas: t.gas,
+					gas: init_gas,
 					gas_price: t.gas_price,
 					value: t.value,
 					code: t.data.clone(),
@@ -154,7 +157,7 @@ impl<'a> Executive<'a> {
 					address: address.clone(),
 					sender: sender.clone(),
 					origin: sender.clone(),
-					gas: t.gas,
+					gas: init_gas,
 					gas_price: t.gas_price,
 					value: t.value,
 					code: self.state.code(address).unwrap_or(vec![]),
