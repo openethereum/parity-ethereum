@@ -38,6 +38,7 @@ pub fn verify_block_unordered(bytes: &[u8], engine: &Engine) -> Result<(), Error
 
 /// Phase 3 verification. Check block information against parent and uncles.
 pub fn verify_block_final<BC>(bytes: &[u8], engine: &Engine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
+	// TODO: verify timestamp
 	let block = BlockView::new(bytes);
 	let header = block.header();
 	let parent = try!(bc.block_header(&header.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownParent(header.parent_hash.clone()))));

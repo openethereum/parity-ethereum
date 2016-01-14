@@ -1,6 +1,4 @@
 use util::*;
-use blockchain::*;
-use views::{BlockView};
 use verification::*;
 use error::*;
 use engine::Engine;
@@ -9,16 +7,14 @@ use sync::*;
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
-	bc: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	message_channel: IoChannel<NetSyncMessage>
 }
 
 impl BlockQueue {
 	/// Creates a new queue instance.
-	pub fn new(bc: Arc<RwLock<BlockChain>>, engine: Arc<Box<Engine>>, message_channel: IoChannel<NetSyncMessage>) -> BlockQueue {
+	pub fn new(engine: Arc<Box<Engine>>, message_channel: IoChannel<NetSyncMessage>) -> BlockQueue {
 		BlockQueue {
-			bc: bc,
 			engine: engine,
 			message_channel: message_channel
 		}
@@ -30,13 +26,8 @@ impl BlockQueue {
 
 	/// Add a block to the queue.
 	pub fn import_block(&mut self, bytes: &[u8]) -> ImportResult {
-		let header = BlockView::new(bytes).header();
-		if self.bc.read().unwrap().is_known(&header.hash()) {
-			return Err(ImportError::AlreadyInChain);
-		}
 		try!(verify_block_basic(bytes, self.engine.deref().deref()));
 		try!(verify_block_unordered(bytes, self.engine.deref().deref()));
-		try!(verify_block_final(bytes, self.engine.deref().deref(), self.bc.read().unwrap().deref()));
 		try!(self.message_channel.send(UserMessage(SyncMessage::BlockVerified(bytes.to_vec()))).map_err(|e| Error::from(e)));
 		Ok(())
 	}
