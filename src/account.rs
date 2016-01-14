@@ -153,18 +153,14 @@ impl Account {
 	/// Provide a database to lookup `code_hash`. Should not be called if it is a contract without code.
 	pub fn cache_code(&mut self, db: &HashDB) -> bool {
 		// TODO: fill out self.code_cache;
-/*		return !self.is_cached() ||
-			match db.lookup(&self.code_hash.unwrap()) {	// why doesn't this work? unwrap causes move?!
-				Some(x) => { self.code_cache = x.to_vec(); true },
-				_ => { false }
-			}*/
-		if self.is_cached() { return true; }
-		return if let Some(ref h) = self.code_hash {
-			match db.lookup(&h) {
-				Some(x) => { self.code_cache = x.to_vec(); true },
-				_ => { false }
+		return self.is_cached() ||
+			match self.code_hash {
+				Some(ref h) => match db.lookup(h) {
+					Some(x) => { self.code_cache = x.to_vec(); true },
+					_ => false,
+				},
+				_ => false,
 			}
-		} else { false }
 	}
 
 	/// return the storage root associated with this account.
@@ -193,12 +189,15 @@ impl Account {
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut HashDB) {
-		let mut t = SecTrieDBMut::new(db, &mut self.storage_root);
+		let mut t = SecTrieDBMut::from_existing(db, &mut self.storage_root);
 		for (k, &mut (ref mut f, ref mut v)) in self.storage_overlay.borrow_mut().iter_mut() {
 			if f == &Filth::Dirty {
 				// cast key and value to trait type,
 				// so we can call overloaded `to_bytes` method
-				t.insert(k, &encode(&U256::from(v.as_slice())));
+				match v.is_zero() {
+					true => { t.remove(k); },
+					false => { t.insert(k, &encode(&U256::from(v.as_slice()))); },
+				}
 				*f = Filth::Clean;
 			}
 		}
@@ -270,7 +269,7 @@ mod tests {
 		};
 
 		let mut a = Account::from_rlp(&rlp);
-		assert_eq!(a.cache_code(&db), true);
+		assert!(a.cache_code(&db));
 
 		let mut a = Account::from_rlp(&rlp);
 		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));
@@ -280,8 +279,21 @@ mod tests {
 	fn commit_storage() {
 		let mut a = Account::new_contract(U256::from(69u8));
 		let mut db = OverlayDB::new_temp();
-		a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
+		a.set_storage(x!(0), x!(0x1234));
 		assert_eq!(a.storage_root(), None);
+		a.commit_storage(&mut db);
+		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
+	}
+
+	#[test]
+	fn commit_remove_commit_storage() {
+		let mut a = Account::new_contract(U256::from(69u8));
+		let mut db = OverlayDB::new_temp();
+		a.set_storage(x!(0), x!(0x1234));
+		a.commit_storage(&mut db);
+		a.set_storage(x!(1), x!(0x1234));
+		a.commit_storage(&mut db);
+		a.set_storage(x!(1), x!(0));
 		a.commit_storage(&mut db);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
 	}

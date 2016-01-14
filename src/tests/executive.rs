@@ -228,7 +228,6 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 				fail_unless(gas_left == xjson!(&test["gas"]), "gas_left is incorrect");
 				fail_unless(output == Bytes::from_json(&test["out"]), "output is incorrect");
 
-
 				test.find("post").map(|pre| for (addr, s) in pre.as_object().unwrap() {
 					let address = Address::from(addr.as_ref());
 
@@ -241,19 +240,16 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 				let cc = test["callcreates"].as_array().unwrap();
 				fail_unless(callcreates.len() == cc.len(), "callcreates does not match");
 				for i in 0..cc.len() {
-					let is = &callcreates[i];
+					let callcreate = &callcreates[i];
 					let expected = &cc[i];
-					fail_unless(is.data == Bytes::from_json(&expected["data"]), "callcreates data is incorrect");
-					match &is.destination {
-						&None => fail_unless(expected["destination"].as_string().unwrap() == "", "destination should be empty"),
-						&Some(ref address) => fail_unless(address == &xjson!(&expected["destination"]), "callcreates destination is incorrect")
-					}
-					fail_unless(is.value == xjson!(&expected["value"]), "callcreates value is incorrect");
+					fail_unless(callcreate.data == Bytes::from_json(&expected["data"]), "callcreates data is incorrect");
+					fail_unless(callcreate.destination == xjson!(&expected["destination"]), "callcreates destination is incorrect");
+					fail_unless(callcreate.value == xjson!(&expected["value"]), "callcreates value is incorrect");
 
 					// TODO: call_gas is calculated in externalities and is not exposed to TestExt.
 					// maybe move it to it's own function to simplify calculation?
-					//println!("name: {:?}, is {:?}, expected: {:?}", name, is.gas_limit, U256::from(&expected["gasLimit"]));
-					//fail_unless(is.gas_limit == U256::from(&expected["gasLimit"]), "callcreates gas_limit is incorrect");
+					//println!("name: {:?}, callcreate {:?}, expected: {:?}", name, callcreate.gas_limit, U256::from(&expected["gasLimit"]));
+					//fail_unless(callcreate.gas_limit == U256::from(&expected["gasLimit"]), "callcreates gas_limit is incorrect");
 				}
 			}
 		}
