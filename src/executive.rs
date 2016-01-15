@@ -220,7 +220,7 @@ impl<'a> Executive<'a> {
 				let evm = Factory::create();
 				evm.exec(&params, &mut ext)
 			};
-			self.revert_if_needed(&res, substate, unconfirmed_substate, backup);
+			self.enact_result(&res, substate, unconfirmed_substate, backup);
 			res
 		} else {
 			// otherwise, nothing
@@ -249,7 +249,7 @@ impl<'a> Executive<'a> {
 			let evm = Factory::create();
 			evm.exec(&params, &mut ext)
 		};
-		self.revert_if_needed(&res, substate, unconfirmed_substate, backup);
+		self.enact_result(&res, substate, unconfirmed_substate, backup);
 		res
 	}
 
@@ -306,7 +306,7 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	fn revert_if_needed(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
+	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
 		// TODO: handle other evm::Errors same as OutOfGas once they are implemented
 		match result {
 			&Err(evm::Error::OutOfGas) => {
