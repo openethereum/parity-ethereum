@@ -242,7 +242,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
 			Ok(gas_left) => {
-				//println!("name: {}, gas_left : {:?}, expected: {:?}", name, gas_left, U256::from(&test["gas"]));
+				println!("name: {}, gas_left : {:?}", name, gas_left);
 				fail_unless(!out_of_gas, "expected to run out of gas.");
 				fail_unless(gas_left == xjson!(&test["gas"]), "gas_left is incorrect");
 				fail_unless(output == Bytes::from_json(&test["out"]), "output is incorrect");
