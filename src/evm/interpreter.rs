@@ -43,7 +43,6 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 
 	fn pop_back(&mut self) -> S {
 		let val = self.pop();
-		println!("Popping from stack.");
 		match val {
 			Some(x) => x,
 			None => panic!("Tried to pop from empty stack.")
@@ -60,7 +59,7 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 	}
 
 	fn push(&mut self, elem: S) {
-		println!("Pushing to stack: {}", elem);
+		// println!("Pushing to stack: {}", elem);
 		self.push(elem);
 	}
 
@@ -116,7 +115,6 @@ impl Memory for Vec<u8> {
 
 		// TODO [todr] Optimize?
 		for pos in off..off+slice.len() {
-			println!("Writing {:x}", slice[pos - off]);
 			self[pos] = slice[pos - off];
 		}
 	}
@@ -202,8 +200,11 @@ impl evm::Evm for Interpreter {
 			let gas_cost = try!(self.get_gas_cost_and_expand_mem(ext, instruction, &mut mem, &stack));
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			current_gas = current_gas - gas_cost;
-			println!("Gas cost: {} (left: {})", gas_cost, current_gas);
-			println!("Executing: {} ({:x})", instructions::get_info(instruction).name, instruction);
+			// println!("Executing: {} (0x{:x}) [Gas Cost: {} (Left: {})]", 
+			// 				   instructions::get_info(instruction).name, instruction,
+			// 				   gas_cost,
+			// 				   current_gas
+			// );
 			// Execute instruction
 			let result = try!(self.exec_instruction(
 					current_gas, params, ext, instruction, &mut reader, &mut mem, &mut stack
@@ -337,8 +338,8 @@ impl Interpreter {
 			},
 			instructions::EXP => {
 				let expon = stack.peek(1);
-				let first_bits = (expon.byte(0) / 8) as usize;
-				let gas = U256::from(schedule.exp_gas + schedule.exp_byte_gas * (32 - first_bits));
+				let bytes = ((expon.bits() + 7) / 8) as usize;
+				let gas = U256::from(schedule.exp_gas + schedule.exp_byte_gas * bytes);
 				InstructionCost::Gas(gas)
 			},
 			_ => InstructionCost::Gas(default_gas)
@@ -408,8 +409,8 @@ impl Interpreter {
 				));
 			},
 			instructions::JUMPI => {
-				let condition = stack.pop_back();
 				let jump = stack.pop_back();
+				let condition = stack.pop_back();
 				if !self.is_zero(&condition) {
 					return Ok(InstructionResult::JumpToPosition(
 						jump
@@ -627,8 +628,14 @@ impl Interpreter {
 		let offset = stack.pop_back();
 		let index = stack.pop_back().low_u64() as usize;
 		let size = stack.pop_back().low_u64() as usize;
+		let data_size = data.len();
+		let bound_size = if size + index > data_size {
+			data_size
+		} else {
+			size + index
+		};
 
-		mem.write_slice(offset, &data[index..index+size]);
+		mem.write_slice(offset, &data[index..bound_size]);
 	}
 
 	fn verify_instructions_requirements(&self, 
@@ -737,31 +744,29 @@ impl Interpreter {
 				});
 			},
 			instructions::SDIV => {
-				let ua = stack.pop_back();
-				let ub = stack.pop_back();
-				let (a, sign_a) = get_and_reset_sign(ua);
-				let (b, sign_b) = get_and_reset_sign(ub);
+				let (a, sign_a) = get_and_reset_sign(stack.pop_back());
+				let (b, sign_b) = get_and_reset_sign(stack.pop_back());
 
-				println!("Values: {}({}), {}({})", a, sign_a, b, sign_b);
-				let max = !U256::zero();
-				println!("Max: {}", max);
-				stack.push(if self.is_zero(&ub) {
+				// -2^255
+				let min = U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
+				stack.push(if self.is_zero(&b) {
 					U256::zero()
-				} else if ub == max || sign_a && self.is_zero(&a) {
-					max
+				} else if a == min && b == !U256::zero() {
+					min
 				} else {
 					let (c, _overflow) = a.overflowing_div(b);
 					set_sign(c, sign_a ^ sign_b)
 				});
 			},
 			instructions::SMOD => {
-				let (a, sign_a) = get_and_reset_sign(stack.pop_back());
+				let ua = stack.pop_back();
 				let ub = stack.pop_back();
-				let (b, sign_b) = get_and_reset_sign(ub);
+				let (a, sign_a) = get_and_reset_sign(ua);
+				let (b, _sign_b) = get_and_reset_sign(ub);
 
-				stack.push(if !self.is_zero(&ub) {
+				stack.push(if !self.is_zero(&b) {
 					let (c, _overflow) = a.overflowing_rem(b);
-					set_sign(c, sign_a ^ sign_b)
+					set_sign(c, sign_a)
 				} else {
 					U256::zero()
 				});
@@ -868,7 +873,21 @@ impl Interpreter {
 					U256::zero()
 				});
 			},
-			instructions::SIGNEXTEND => {},
+			instructions::SIGNEXTEND => {
+				let bit = stack.pop_back();
+				if bit < U256::from(32) {
+					let number = stack.pop_back();
+					let bit_position = (bit.low_u64() * 8 + 7) as usize;
+
+					let bit = number.bit(bit_position);
+					let mask = (U256::one() << bit_position) - U256::one();
+					stack.push(if bit {
+						number | !mask
+					} else {
+						number & mask
+					});
+				}
+			},
 			_ => {
 				return Err(evm::Error::BadInstruction {
 					instruction: instruction
@@ -899,12 +918,17 @@ impl Interpreter {
 }
 
 fn get_and_reset_sign(value: U256) -> (U256, bool) {
-	let sign = value.bit(255);
-	(set_sign(value, false), sign)
+	let sign = (value >> 255).low_u64() == 1;
+	(set_sign(value, sign), sign)
 }
 
-fn set_sign(value: U256, sign: bool) -> U256 {
-	value | (U256::from(sign as usize) << 256)
+pub fn set_sign(value: U256, sign: bool) -> U256 {
+	if sign {
+		let (val, _overflow) = (!U256::zero() ^ value).overflowing_add(U256::one());
+		val
+	} else {
+		value
+	}
 }
 
 fn add_u256_usize(value: &U256, num: usize) -> U256 {
