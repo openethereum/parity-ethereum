@@ -6,6 +6,8 @@ use engine::*;
 use evm;
 use evm::{Schedule, Ext, Factory};
 use ethereum;
+use externalities::*;
+use substate::*;
 
 struct TestEngine {
 	spec: Spec,
