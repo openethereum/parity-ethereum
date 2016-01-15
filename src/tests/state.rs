@@ -4,11 +4,6 @@ use pod_state::*;
 use state_diff::*;
 use ethereum;
 
-fn flush(s: String) {
-	::std::io::stdout().write(s.as_bytes()).unwrap();
-	::std::io::stdout().flush().unwrap();
-}
-
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
@@ -39,32 +34,31 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 			//println!("Transaction: {:?}", t);
 			//println!("Env: {:?}", env);
+			let calc_post = sec_trie_root(post.get().iter().map(|(k, v)| (k.to_vec(), v.rlp())).collect());
 
-			{
+			if fail_unless(post_state_root == calc_post) {
+				println!("!!! {}: Trie root mismatch (got: {}, expect: {}):", name, calc_post, post_state_root);
+				println!("!!! Post:\n{}", post);
+			} else {
 				let mut s = State::new_temp();
-				s.populate_from(post.clone());
+				s.populate_from(pre);
 				s.commit();
-				assert_eq!(&post_state_root, s.root());
-			}
+				let res = s.apply(&env, engine.deref(), &t);
 
-			let mut s = State::new_temp();
-			s.populate_from(pre);
-			s.commit();
-			let res = s.apply(&env, engine.deref(), &t);
+				if fail_unless(s.root() == &post_state_root) {
+					println!("!!! {}: State mismatch (got: {}, expect: {}):", name, s.root(), post_state_root);
+					let our_post = s.to_pod();
+					println!("Got:\n{}", our_post);
+					println!("Expect:\n{}", post);
+					println!("Diff ---expect -> +++got:\n{}", StateDiff::diff_pod(&post, &our_post));
+				}
 
-			if fail_unless(s.root() == &post_state_root) {
-				println!("!!! {}: State mismatch (got: {}, expect: {}):", name, s.root(), post_state_root);
-				let our_post = s.to_pod();
-				println!("Got:\n{}", our_post);
-				println!("Expect:\n{}", post);
-				println!("Diff ---expect -> +++got:\n{}", StateDiff::diff_pod(&post, &our_post));
-			}
-
-			if let Ok(r) = res {
-				if fail_unless(logs == r.logs) {
-					println!("!!! {}: Logs mismatch:", name);
-					println!("Got:\n{:?}", r.logs);
-					println!("Expect:\n{:?}", logs);
+				if let Ok(r) = res {
+					if fail_unless(logs == r.logs) {
+						println!("!!! {}: Logs mismatch:", name);
+						println!("Got:\n{:?}", r.logs);
+						println!("Expect:\n{:?}", logs);
+					}
 				}
 			}
 		}
