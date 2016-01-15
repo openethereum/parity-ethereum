@@ -1,4 +1,6 @@
 use std::cell::Cell;
+use std::fmt;
+use rustc_serialize::hex::ToHex;
 use bytes::{FromBytes};
 use rlp::{View, Decoder, Decodable, DecoderError};
 
@@ -59,6 +61,24 @@ impl<'a> Clone for UntrustedRlp<'a> {
 			bytes: self.bytes,
 			offset_cache: self.offset_cache.clone(),
 			count_cache: self.count_cache.clone(),
+		}
+	}
+}
+
+impl<'a> fmt::Display for UntrustedRlp<'a> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		match self.prototype() {
+			Ok(Prototype::Null) => write!(f, "null"),
+			Ok(Prototype::Data(_)) => write!(f, "\"0x{}\"", self.data().unwrap().to_hex()),
+			Ok(Prototype::List(len)) => {
+				try!(write!(f, "["));
+				for i in 0..len-1 {
+					try!(write!(f, "{}, ", self.at(i).unwrap()));
+				}
+				try!(write!(f, "{}", self.at(len - 1).unwrap()));
+				write!(f, "]")
+			},
+			Err(err) => write!(f, "{:?}", err)
 		}
 	}
 }
@@ -410,3 +430,12 @@ impl_array_decodable_recursive!(
 	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 	32, 40, 48, 56, 64, 72, 96, 128, 160, 192, 224,
 );
+
+#[test]
+fn test_rlp_display() {
+	use rustc_serialize::hex::FromHex;
+	let data = "f84d0589010efbef67941f79b2a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470".from_hex().unwrap();
+	let rlp = UntrustedRlp::new(&data);
+	println!("{}", rlp);
+}
+
