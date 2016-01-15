@@ -207,7 +207,10 @@ impl<'a> Executive<'a> {
 					Ok(params.gas - cost)
 				},
 				// just drain the whole gas
-				false => Ok(U256::zero())
+				false => {
+					substate.excepted = true;
+					Ok(params.gas)
+				}
 			}
 		} else if params.code.len() > 0 {
 			// if destination is a contract, do normal message call
