@@ -34,8 +34,3 @@ macro_rules! xx {
 		From::from(From::from($x))
 	}
 }
-
-pub fn flush(s: String) {
-	::std::io::stdout().write(s.as_bytes()).unwrap();
-	::std::io::stdout().flush().unwrap();
-}
