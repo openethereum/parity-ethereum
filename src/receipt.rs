@@ -3,6 +3,7 @@ use basic_types::LogBloom;
 use log_entry::LogEntry;
 
 /// Information describing execution of a transaction.
+#[derive(Debug)]
 pub struct Receipt {
 	pub state_root: H256,
 	pub gas_used: U256,

@@ -111,6 +111,7 @@ pub mod blockchain;
 pub mod extras;
 pub mod substate;
 pub mod evm;
+pub mod service;
 pub mod executive;
 pub mod externalities;
 

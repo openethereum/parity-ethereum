@@ -93,7 +93,7 @@ fn test_add() {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -113,7 +113,7 @@ fn test_sha3() {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -133,7 +133,7 @@ fn test_address() {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -155,7 +155,7 @@ fn test_origin() {
 	params.address = address.clone();
 	params.origin = origin.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -177,7 +177,7 @@ fn test_sender() {
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -211,7 +211,7 @@ fn test_extcodecopy() {
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.codes.insert(sender, sender_code);
 
@@ -232,7 +232,7 @@ fn test_log_empty() {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -264,7 +264,7 @@ fn test_log_sender() {
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -288,7 +288,7 @@ fn test_blockhash() {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.blockhashes.insert(U256::zero(), blockhash.clone());
 
@@ -310,8 +310,8 @@ fn test_calldataload() {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
-	params.data = data;
+	params.code = Some(code);
+	params.data = Some(data);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -331,7 +331,7 @@ fn test_author() {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.author = author;
 
@@ -351,7 +351,7 @@ fn test_timestamp() {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.timestamp = timestamp;
 
@@ -371,7 +371,7 @@ fn test_number() {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.number = number;
 
@@ -391,7 +391,7 @@ fn test_difficulty() {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.difficulty = difficulty;
 
@@ -411,7 +411,7 @@ fn test_gas_limit() {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.gas_limit = gas_limit;
 

@@ -125,28 +125,31 @@ impl<'a> Executive<'a> {
 
 		let res = match t.action() {
 			&Action::Create => {
+				let new_address = contract_address(&sender, &nonce);
 				let params = ActionParams {
-					address: contract_address(&sender, &nonce),
+					code_address: new_address.clone(),
+					address: new_address,
 					sender: sender.clone(),
 					origin: sender.clone(),
 					gas: init_gas,
 					gas_price: t.gas_price,
 					value: t.value,
-					code: t.data.clone(),
-					data: vec![],
+					code: Some(t.data.clone()),
+					data: None,
 				};
 				self.create(&params, &mut substate)
 			},
 			&Action::Call(ref address) => {
 				let params = ActionParams {
+					code_address: address.clone(),
 					address: address.clone(),
 					sender: sender.clone(),
 					origin: sender.clone(),
 					gas: init_gas,
 					gas_price: t.gas_price,
 					value: t.value,
-					code: self.state.code(address).unwrap_or(vec![]),
-					data: t.data.clone(),
+					code: self.state.code(address),
+					data: Some(t.data.clone()),
 				};
 				// TODO: move output upstream
 				let mut out = vec![];
@@ -169,12 +172,16 @@ impl<'a> Executive<'a> {
 		// at first, transfer value to destination
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
-		if self.engine.is_builtin(&params.address) {
+		if self.engine.is_builtin(&params.code_address) {
 			// if destination is builtin, try to execute it
-			let cost = self.engine.cost_of_builtin(&params.address, &params.data);
+			
+			let default = [];
+			let data = if let &Some(ref d) = &params.data { d as &[u8] } else { &default as &[u8] };
+
+			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			match cost <= params.gas {
 				true => {
-					self.engine.execute_builtin(&params.address, &params.data, &mut output);
+					self.engine.execute_builtin(&params.code_address, data, &mut output);
 					Ok(params.gas - cost)
 				},
 				// just drain the whole gas
@@ -183,7 +190,7 @@ impl<'a> Executive<'a> {
 					Err(evm::Error::OutOfGas)
 				}
 			}
-		} else if params.code.len() > 0 {
+		} else if params.code.is_some() {
 			// if destination is a contract, do normal message call
 			
 			// part of substate that may be reverted
@@ -345,7 +352,7 @@ mod tests {
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = "3331600055".from_hex().unwrap();
+		params.code = Some("3331600055".from_hex().unwrap());
 		params.value = U256::from(0x7);
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(0x100u64));
@@ -403,7 +410,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = code.clone();
+		params.code = Some(code.clone());
 		params.value = U256::from(100);
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
@@ -456,7 +463,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = code.clone();
+		params.code = Some(code.clone());
 		params.value = U256::from(100);
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
@@ -507,7 +514,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = code.clone();
+		params.code = Some(code.clone());
 		params.value = U256::from(100);
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
@@ -561,7 +568,7 @@ mod tests {
 		params.address = address_a.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = code_a.clone();
+		params.code = Some(code_a.clone());
 		params.value = U256::from(100_000);
 
 		let mut state = State::new_temp();
@@ -608,7 +615,7 @@ mod tests {
 		let mut params = ActionParams::new();
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
-		params.code = code.clone();
+		params.code = Some(code.clone());
 		let mut state = State::new_temp();
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::new();

@@ -1,4 +1,5 @@
 {
+	"name": "Morden",
 	"engineName": "NullEngine",
 	"params": {
 		"accountStartNonce": "0x0100000",

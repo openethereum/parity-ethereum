@@ -97,14 +97,15 @@ impl<'a> Ext for Externalities<'a> {
 
 		// prepare the params
 		let params = ActionParams {
+			code_address: address.clone(),
 			address: address.clone(),
 			sender: self.params.address.clone(),
 			origin: self.params.origin.clone(),
 			gas: *gas,
 			gas_price: self.params.gas_price.clone(),
 			value: value.clone(),
-			code: code.to_vec(),
-			data: vec![],
+			code: Some(code.to_vec()),
+			data: None,
 		};
 
 		self.state.inc_nonce(&self.params.address);
@@ -149,14 +150,15 @@ impl<'a> Ext for Externalities<'a> {
 		}
 
 		let params = ActionParams {
+			code_address: code_address.clone(),
 			address: receive_address.clone(), 
 			sender: self.params.address.clone(),
 			origin: self.params.origin.clone(),
 			gas: call_gas,
 			gas_price: self.params.gas_price.clone(),
 			value: value.clone(),
-			code: self.state.code(code_address).unwrap_or(vec![]),
-			data: data.to_vec(),
+			code: self.state.code(code_address),
+			data: Some(data.to_vec()),
 		};
 
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);

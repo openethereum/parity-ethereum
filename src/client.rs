@@ -1,4 +1,5 @@
 use util::*;
+use rocksdb::{DB};
 use blockchain::{BlockChain, BlockProvider};
 use views::BlockView;
 use error::*;
@@ -6,6 +7,10 @@ use header::BlockNumber;
 use spec::Spec;
 use engine::Engine;
 use queue::BlockQueue;
+use sync::NetSyncMessage;
+use env_info::LastHashes;
+use verification::*;
+use block::*;
 
 /// General block status
 pub enum BlockStatus {
@@ -41,7 +46,7 @@ pub struct BlockQueueStatus {
 pub type TreeRoute = ::blockchain::TreeRoute;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync {
+pub trait BlockChainClient : Sync + Send {
 	/// Get raw block header data by block header hash.
 	fn block_header(&self, hash: &H256) -> Option<Bytes>;
 
@@ -94,19 +99,85 @@ pub trait BlockChainClient : Sync {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
-	_engine: Arc<Box<Engine>>,
+	engine: Arc<Box<Engine>>,
+	state_db: OverlayDB,
 	queue: BlockQueue,
 }
 
 impl Client {
-	pub fn new(spec: Spec, path: &Path) -> Result<Client, Error> {
+	/// Create a new client with given spec and DB path.
+	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Client, Error> {
 		let chain = Arc::new(RwLock::new(BlockChain::new(&spec.genesis_block(), path)));
 		let engine = Arc::new(try!(spec.to_engine()));
+		let mut state_path = path.to_path_buf();
+		state_path.push("state");
+		let db = DB::open_default(state_path.to_str().unwrap()).unwrap();
+		let mut state_db = OverlayDB::new(db);
+		engine.spec().ensure_db_good(&mut state_db);
+		state_db.commit().expect("Error commiting genesis state to state DB");
+
 		Ok(Client {
 			chain: chain.clone(),
-			_engine: engine.clone(),
-			queue: BlockQueue::new(chain.clone(), engine.clone()),
+			engine: engine.clone(),
+			state_db: state_db,
+			queue: BlockQueue::new(engine.clone(), message_channel),
 		})
+	}
+
+	/// This is triggered by a message coming from a block queue when the block is ready for insertion
+	pub fn import_verified_block(&mut self, bytes: Bytes) {
+		let block = BlockView::new(&bytes);
+		let header = block.header();
+		if let Err(e) = verify_block_family(&header, &bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
+			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			self.queue.mark_as_bad(&header.hash());
+			return;
+		};
+		let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
+			Some(p) => p,
+			None => {
+				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
+				self.queue.mark_as_bad(&header.hash());
+				return;
+			},
+		};
+		// build last hashes
+		let mut last = self.chain.read().unwrap().best_block_hash();
+		let mut last_hashes = LastHashes::new();
+		last_hashes.resize(256, H256::new());
+		for i in 0..255 {
+			match self.chain.read().unwrap().block_details(&last) {
+				Some(details) => {
+					last_hashes[i + 1] = details.parent.clone();
+					last = details.parent.clone();
+				},
+				None => break,
+			}
+		}
+
+		let result = match enact(&bytes, self.engine.deref().deref(), self.state_db.clone(), &parent, &last_hashes) {
+			Ok(b) => b,
+			Err(e) => {
+				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+				self.queue.mark_as_bad(&header.hash());
+				return;
+			}
+		};
+		if let Err(e) = verify_block_final(&header, result.block().header()) {
+			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			self.queue.mark_as_bad(&header.hash());
+			return;
+		}
+
+		self.chain.write().unwrap().insert_block(&bytes); //TODO: err here?
+		match result.drain().commit() {
+			Ok(_) => (),
+			Err(e) => {
+				warn!(target: "client", "State DB commit failed: {:?}", e);
+				return;
+			}
+		}
+		info!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 	}
 }
 
@@ -165,6 +236,10 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&mut self, bytes: &[u8]) -> ImportResult {
+		let header = BlockView::new(bytes).header();
+		if self.chain.read().unwrap().is_known(&header.hash()) {
+			return Err(ImportError::AlreadyInChain);
+		}
 		self.queue.import_block(bytes)
 	}
 

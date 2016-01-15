@@ -1,4 +1,5 @@
 {
+	"name": "Morden",
 	"engineName": "Ethash",
 	"params": {
 		"accountStartNonce": "0x0100000",
