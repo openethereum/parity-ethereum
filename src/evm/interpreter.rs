@@ -499,7 +499,7 @@ impl Interpreter {
 					.iter()
 					.map(H256::from)
 					.collect();
-				ext.log(topics, mem.read_slice(offset, size));
+				ext.log(topics, mem.read_slice(offset, size).to_vec());
 			},
 			instructions::PUSH1...instructions::PUSH32 => {
 				let bytes = instructions::get_push_bytes(instruction);

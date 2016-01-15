@@ -2,7 +2,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{self, Factory, Ext};
+use evm::{self, Ext};
 use externalities::*;
 use substate::*;
 
@@ -270,7 +270,6 @@ impl<'a> Executive<'a> {
 					refunded: U256::zero(),
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
-					excepted: true,
 					contracts_created: vec![]
 				})
 			},
@@ -282,16 +281,6 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + gas_used,
 					logs: substate.logs,
 					contracts_created: substate.contracts_created
-				})
-			},
-			_err => {
-				Ok(Executed {
-					gas: t.gas,
-					gas_used: t.gas,
-					refunded: U256::zero(),
-					cumulative_gas_used: self.info.gas_used + t.gas,
-					logs: vec![],
-					contracts_created: vec![]
 				})
 			}
 		}
@@ -320,7 +309,7 @@ mod tests {
 	use ethereum;
 	use engine::*;
 	use spec::*;
-	use evm::Schedule;
+	use evm::{Schedule, Factory, VMType};
 	use substate::*;
 
 	struct TestEngine {

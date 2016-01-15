@@ -41,7 +41,7 @@ pub trait Ext {
 	fn extcode(&self, address: &Address) -> Vec<u8>;
 
 	/// Creates log entry with given topics and data
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]);
+	fn log(&mut self, topics: Vec<H256>, data: Vec<u8>);
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.

@@ -70,10 +70,10 @@ impl Ext for FakeExt {
 		self.codes.get(address).unwrap_or(&Bytes::new()).clone()
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
+	fn log(&mut self, topics: Vec<H256>, data: Vec<u8>) {
 		self.logs.push(FakeLogEntry {
 			topics: topics,
-			data: data.to_vec()
+			data: data
 		});
 	}
 
