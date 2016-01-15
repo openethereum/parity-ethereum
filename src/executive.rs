@@ -304,7 +304,6 @@ mod tests {
 	use spec::*;
 	use evm::Schedule;
 	use substate::*;
-	use externalities::*;
 
 	struct TestEngine {
 		spec: Spec,
