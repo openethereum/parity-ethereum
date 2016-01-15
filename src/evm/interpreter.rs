@@ -696,23 +696,27 @@ impl Interpreter {
 			instructions::ADD => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				stack.push(a + b);
+				let (c, _overflow) = a.overflowing_add(a, b);
+				stack.push(c);
 			},
 			instructions::MUL => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				stack.push(a * b);
+				let (c, _overflow) = a.overflowing_mul(a, b);
+				stack.push(c);
 			},
 			instructions::SUB => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				stack.push(a - b);
+				let (c, _overflow) = a.overflowing_sub(a, b);
+				stack.push(c);
 			},
 			instructions::DIV => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(if !self.is_zero(&b) {
-					a / b 
+					let (c, _overflow) = a.overflowing_div(a, b);
+					c
 				} else {
 					U256::zero()
 				});
@@ -721,7 +725,8 @@ impl Interpreter {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(if !self.is_zero(&b) {
-					a % b 
+					let (c, _overflow) = a.overflowing_rem(a, b);
+					c
 				} else {
 					U256::zero()
 				});
