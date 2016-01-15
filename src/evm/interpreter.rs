@@ -734,9 +734,33 @@ impl Interpreter {
 					U256::zero()
 				});
 			},
-			// TODO instructions::SDIV => {},
-			// TODO instructions::SMOD => {},
-			// TODO instructions::EXP => {},
+			instructions::SDIV => {
+				let (a, sign_a) = get_and_reset_sign(stack.pop_back());
+				let (b, sign_b) = get_and_reset_sign(stack.pop_back());
+
+				stack.push(if !self.is_zero(&b) {
+					let (c, _overflow) = a.overflowing_div(b);
+					set_sign(c, sign_a ^ sign_b)
+				} else {
+					U256::zero()
+				});
+			},
+			instructions::SMOD => {
+				let (a, sign_a) = get_and_reset_sign(stack.pop_back());
+				let (b, sign_b) = get_and_reset_sign(stack.pop_back());
+
+				stack.push(if !self.is_zero(&b) {
+					let (c, _overflow) = a.overflowing_rem(b);
+					set_sign(c, sign_a ^ sign_b)
+				} else {
+					U256::zero()
+				});
+			},
+			instructions::EXP => {
+				let base = stack.pop_back();
+				let expon = stack.pop_back();
+				stack.push(u256_pow(base, expon));
+			},
 			instructions::NOT => {
 				let a = stack.pop_back();
 				stack.push(!a);
@@ -746,13 +770,31 @@ impl Interpreter {
 				let b = stack.pop_back();
 				stack.push(self.bool_to_u256(a < b));
 			},
-			// TODO instructions::SLT => {},
+			instructions::SLT => {
+				let (a, neg_a) = get_and_reset_sign(stack.pop_back());
+				let (b, neg_b) = get_and_reset_sign(stack.pop_back());
+
+				let is_positive_lt = a < b && (neg_a | neg_b) == false;
+				let is_negative_lt = a > b && (neg_a & neg_b) == true;
+				let has_different_signs = neg_a == true && neg_b == false;
+
+				stack.push(self.bool_to_u256(is_positive_lt | is_negative_lt | has_different_signs));
+			},
 			instructions::GT => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(self.bool_to_u256(a > b));
 			},
-			// TODO instructions::SGT => {},
+			instructions::SGT => {
+				let (a, neg_a) = get_and_reset_sign(stack.pop_back());
+				let (b, neg_b) = get_and_reset_sign(stack.pop_back());
+
+				let is_positive_gt = a > b && (neg_a | neg_b) == false;
+				let is_negative_gt = a < b && (neg_a & neg_b) == true;
+				let has_different_signs = neg_a == false && neg_b == true;
+
+				stack.push(self.bool_to_u256(is_positive_gt | is_negative_gt | has_different_signs));
+			},
 			instructions::EQ => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
@@ -777,10 +819,42 @@ impl Interpreter {
 				let b = stack.pop_back();
 				stack.push(a ^ b);
 			},
-			// TODO instructions::BYTE => {},
-			// TODO instructions::ADDMOD => {},
-			// TODO instructions::MULMOD => {},
-			// TODO instructions::SIGNEXTEND => {},
+			instructions::BYTE => {
+				let word = stack.pop_back();
+				let byte = if word < U256::from(32) {
+					word >> (8 * (31 - word.low_u64() as usize))
+				} else {
+					U256::zero()
+				};
+				stack.push(byte);
+			},
+			instructions::ADDMOD => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				let c = stack.pop_back();
+
+				stack.push(if !self.is_zero(&c) {
+					let (res, _overflow) = a.overflowing_add(b);
+					let (x, _overflow) = res.overflowing_rem(c);
+					x
+				} else {
+					U256::zero()
+				});
+			},
+			instructions::MULMOD => {
+				let a = stack.pop_back();
+				let b = stack.pop_back();
+				let c = stack.pop_back();
+
+				stack.push(if !self.is_zero(&c) {
+					let (res, _overflow) = a.overflowing_mul(b);
+					let (x, _overflow) = res.overflowing_rem(c);
+					x
+				} else {
+					U256::zero()
+				});
+			},
+			instructions::SIGNEXTEND => {},
 			_ => {
 				return Err(evm::Error::BadInstruction {
 					instruction: instruction
@@ -808,6 +882,20 @@ impl Interpreter {
 		return jump_dests;
 	}
 
+}
+
+fn u256_pow(value: U256, expon: U256) -> U256 {
+	// TODO implement me!
+	U256::zero()
+}
+
+fn get_and_reset_sign(value: U256) -> (U256, bool) {
+	let sign = value.bit(255);
+	(set_sign(value, false), sign)
+}
+
+fn set_sign(value: U256, sign: bool) -> U256 {
+	value | (U256::from(sign as usize) << 256)
 }
 
 fn add_u256_usize(value: &U256, num: usize) -> U256 {
