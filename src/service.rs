@@ -1,10 +1,3 @@
-//! Client service.
-//!
-//!
-//!
-//!
-//!
-
 use util::*;
 use sync::*;
 use spec::Spec;
@@ -12,11 +5,13 @@ use error::*;
 use std::env;
 use client::Client;
 
+/// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
 	_net_service: NetworkService<SyncMessage>,
 }
 
 impl ClientService {
+	/// Start the service in a separate thread.
 	pub fn start(spec: Spec) -> Result<ClientService, Error> {
 		let mut net_service = try!(NetworkService::start());
 		info!("Starting {}", net_service.host_info());
@@ -37,13 +32,13 @@ impl ClientService {
 	}
 }
 
+/// IO interface for the Client handler
 struct ClientIoHandler {
 	client: Arc<RwLock<Client>>
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>) {
-	}
+	fn initialize<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>) { }
 
 	fn message<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>, net_message: &'s mut NetSyncMessage) {
 		match net_message {
@@ -52,11 +47,11 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 					&mut SyncMessage::BlockVerified(ref mut bytes) => {
 						self.client.write().unwrap().import_verified_block(mem::replace(bytes, Bytes::new()));
 					},
-					_ => {},
+					_ => {}, // ignore other messages
 				}
 
 			}
-			_ => {},
+			_ => {}, // ignore other messages
 		}
 
 	}

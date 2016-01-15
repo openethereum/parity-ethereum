@@ -105,6 +105,7 @@ pub struct Client {
 }
 
 impl Client {
+	/// Create a new client with given spec and DB path.
 	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Client, Error> {
 		let chain = Arc::new(RwLock::new(BlockChain::new(&spec.genesis_block(), path)));
 		let engine = Arc::new(try!(spec.to_engine()));
@@ -123,7 +124,7 @@ impl Client {
 		})
 	}
 
-
+	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_block(&mut self, bytes: Bytes) {
 		let block = BlockView::new(&bytes);
 		let header = block.header();
@@ -173,7 +174,7 @@ impl Client {
 				return;
 			}
 		}
-		info!(target: "client", "Imported {}", header.hash());
+		info!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 	}
 }
 
