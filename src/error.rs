@@ -19,16 +19,19 @@ pub struct OutOfBounds<T: fmt::Debug> {
 /// Result of executing the transaction.
 #[derive(PartialEq, Debug)]
 pub enum ExecutionError {
+	/// Returned when there gas paid for transaction execution is
+	/// lower than base gas required.
+	NotEnoughBaseGas { required: U256, got: U256 },
 	/// Returned when block (gas_used + gas) > gas_limit.
 	/// 
 	/// If gas =< gas_limit, upstream may try to execute the transaction
 	/// in next block.
 	BlockGasLimitReached { gas_limit: U256, gas_used: U256, gas: U256 },
 	/// Returned when transaction nonce does not match state nonce.
-	InvalidNonce { expected: U256, is: U256 },
+	InvalidNonce { expected: U256, got: U256 },
 	/// Returned when cost of transaction (value + gas_price * gas) exceeds 
 	/// current sender balance.
-	NotEnoughCash { required: U512, is: U512 },
+	NotEnoughCash { required: U512, got: U512 },
 	/// Returned when internal evm error occurs.
 	Internal
 }
