@@ -142,7 +142,7 @@ impl State {
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
 		//println!("Executed: {:?}", e);
 		self.commit();
-		Ok(Receipt::new(self.root().clone(), e.gas_used, e.logs))
+		Ok(Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs))
 	}
 
 	pub fn revert(&mut self, backup: State) {
@@ -156,7 +156,7 @@ impl State {
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
-	pub fn commit_into(db: &mut HashDB, mut root: H256, accounts: &mut HashMap<Address, Option<Account>>) -> H256 {
+	pub fn commit_into(db: &mut HashDB, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>) {
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
 		for (_, ref mut a) in accounts.iter_mut() {
@@ -170,7 +170,7 @@ impl State {
 		}
 
 		{
-			let mut trie = SecTrieDBMut::from_existing(db, &mut root);
+			let mut trie = SecTrieDBMut::from_existing(db, root);
 			for (address, ref a) in accounts.iter() {
 				match a {
 					&&Some(ref account) => trie.insert(address, &account.rlp()),
@@ -178,13 +178,11 @@ impl State {
 				}
 			}
 		}
-		root
 	}
 
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) {
-		let r = self.root.clone();	// would prefer not to do this, really. 
-		self.root = Self::commit_into(&mut self.db, r, self.cache.borrow_mut().deref_mut());
+		Self::commit_into(&mut self.db, &mut self.root, self.cache.borrow_mut().deref_mut());
 	}
 
 	/// Populate the state from `accounts`.
