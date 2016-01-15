@@ -4,17 +4,19 @@ use executive::*;
 use spec::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory};
+use evm::{Schedule, Ext, Factory, VMType};
 use ethereum;
 
 struct TestEngine {
+	vm_factory: Factory,
 	spec: Spec,
 	max_depth: usize
 }
 
 impl TestEngine {
-	fn new(max_depth: usize) -> TestEngine {
+	fn new(max_depth: usize, vm_type: VMType) -> TestEngine {
 		TestEngine {
+			vm_factory: Factory::new(vm_type),
 			spec: ethereum::new_frontier_test(),
 			max_depth: max_depth 
 		}
@@ -24,6 +26,7 @@ impl TestEngine {
 impl Engine for TestEngine {
 	fn name(&self) -> &str { "TestEngine" }
 	fn spec(&self) -> &Spec { &self.spec }
+	fn vm_factory(&self) -> &Factory { &self.vm_factory }
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
 		let mut schedule = Schedule::new_frontier();
 		schedule.max_depth = self.max_depth; 
@@ -153,16 +156,28 @@ impl<'a> Ext for TestExt<'a> {
 }
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
+	let vms = VMType::all();
+	
+	vms
+		.iter()
+		.flat_map(|vm| do_json_test_for(vm, json_data))
+		.collect()
+}
+
+fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 	for (name, test) in json.as_object().unwrap() {
 		// sync io is usefull when something crashes in jit
-		//::std::io::stdout().write(&name.as_bytes());
-		//::std::io::stdout().write(b"\n");
-		//::std::io::stdout().flush();
+		// ::std::io::stdout().write(&name.as_bytes());
+		// ::std::io::stdout().write(b"\n");
+		// ::std::io::stdout().flush();
 		let mut fail = false;
 		//let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true };
-		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail { failed.push(name.to_string() + ": "+ s); fail = true };
+		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail { 
+			failed.push(format!("[{}] {}: {}", vm, name.to_string(), s)); 
+			fail = true 
+		};
 	
 		// test env
 		let mut state = State::new_temp();
@@ -194,7 +209,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			info.timestamp = u256_from_json(&env["currentTimestamp"]).low_u64();
 		});
 
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, vm.clone());
 
 		// params
 		let mut params = ActionParams::new();
@@ -219,7 +234,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let (res, callcreates) = {
 			let ex = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
 			let mut test_ext = TestExt::new(ex);
-			let evm = Factory::create();
+			let evm = engine.vm_factory().create();
 			let res = evm.exec(&params, &mut test_ext);
 			(res, test_ext.callcreates)
 		};

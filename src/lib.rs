@@ -88,6 +88,8 @@ extern crate env_logger;
 
 pub mod common;
 pub mod basic_types;
+#[macro_use]
+pub mod evm;
 pub mod executive;
 pub mod error;
 pub mod log_entry;
@@ -105,7 +107,6 @@ pub mod spec;
 pub mod views;
 pub mod blockchain;
 pub mod extras;
-pub mod evm;
 
 #[cfg(test)]
 mod tests;
