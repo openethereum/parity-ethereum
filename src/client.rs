@@ -129,14 +129,14 @@ impl Client {
 		let block = BlockView::new(&bytes);
 		let header = block.header();
 		if let Err(e) = verify_block_family(&bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
-			warn!(target: "client", "Stage 3 block verification failed for {}\nError: {:?}", header.hash(), e);
+			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			// TODO: mark as bad
 			return;
 		};
 		let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
 			Some(p) => p,
 			None => {
-				warn!(target: "client", "Block import failed for {}: Parent not found ({}) ", header.hash(), header.parent_hash);
+				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
 				return;
 			},
 		};
@@ -157,12 +157,12 @@ impl Client {
 		let result = match enact(&bytes, self.engine.deref().deref(), self.state_db.clone(), &parent, &last_hashes) {
 			Ok(b) => b,
 			Err(e) => {
-				warn!(target: "client", "Block import failed for {}\nError: {:?}", header.hash(), e);
+				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				return;
 			}
 		};
 		if let Err(e) = verify_block_final(&header, result.block().header()) {
-			warn!(target: "client", "Stage 4 block verification failed for {}\nError: {:?}", header.hash(), e);
+			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return;
 		}
 

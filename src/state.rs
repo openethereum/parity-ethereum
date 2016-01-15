@@ -142,7 +142,9 @@ impl State {
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
 		//println!("Executed: {:?}", e);
 		self.commit();
-		Ok(Receipt::new(self.root().clone(), e.gas_used, e.logs))
+		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
+		debug!("Transaction receipt: {:?}", receipt);
+		Ok(receipt)
 	}
 
 	pub fn revert(&mut self, backup: State) {
