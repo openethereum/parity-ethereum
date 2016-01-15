@@ -4,54 +4,72 @@ use pod_state::*;
 use state_diff::*;
 use ethereum;
 
+fn flush(s: String) {
+	::std::io::stdout().write(s.as_bytes()).unwrap();
+	::std::io::stdout().flush().unwrap();
+}
+
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 
 	let engine = ethereum::new_frontier_test().to_engine().unwrap();
 
+	flush(format!("\n"));
+
 	for (name, test) in json.as_object().unwrap() {
-		println!("name: {:?}", name);
 		let mut fail = false;
-		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true; true } else {false};
-
-		let t = Transaction::from_json(&test["transaction"]);
-		let env = EnvInfo::from_json(&test["env"]);
-		let _out = Bytes::from_json(&test["out"]);
-		let post_state_root = xjson!(&test["postStateRoot"]);
-		let pre = PodState::from_json(&test["pre"]);
-		let post = PodState::from_json(&test["post"]);
-		let logs: Vec<_> = test["logs"].as_array().unwrap().iter().map(&LogEntry::from_json).collect();
-
-		//println!("Transaction: {:?}", t);
-		//println!("Env: {:?}", env);
-
 		{
-			let mut s = State::new_temp();
-			s.populate_from(post.clone());
-			s.commit();
-			assert_eq!(&post_state_root, s.root());
-		}
+			let mut fail_unless = |cond: bool| if !cond && !fail {
+				failed.push(name.to_string());
+				flush(format!("FAIL\n"));
+				fail = true;
+				true
+			} else {false};
 
-		let mut s = State::new_temp();
-		s.populate_from(pre);
-		s.commit();
-		let res = s.apply(&env, engine.deref(), &t);
+			flush(format!("   - {}...", name));
 
-		if fail_unless(s.root() == &post_state_root) {
-			println!("!!! {}: State mismatch (got: {}, expect: {}):", name, s.root(), post_state_root);
-			let our_post = s.to_pod();
-			println!("Got:\n{}", our_post);
-			println!("Expect:\n{}", post);
-			println!("Diff ---expect -> +++got:\n{}", StateDiff::diff_pod(&post, &our_post));
-		}
+			let t = Transaction::from_json(&test["transaction"]);
+			let env = EnvInfo::from_json(&test["env"]);
+			let _out = Bytes::from_json(&test["out"]);
+			let post_state_root = xjson!(&test["postStateRoot"]);
+			let pre = PodState::from_json(&test["pre"]);
+			let post = PodState::from_json(&test["post"]);
+			let logs: Vec<_> = test["logs"].as_array().unwrap().iter().map(&LogEntry::from_json).collect();
 
-		if let Ok(r) = res {
-			if fail_unless(logs == r.logs) {
-				println!("!!! {}: Logs mismatch:", name);
-				println!("Got:\n{:?}", r.logs);
-				println!("Expect:\n{:?}", logs);
+			//println!("Transaction: {:?}", t);
+			//println!("Env: {:?}", env);
+
+			{
+				let mut s = State::new_temp();
+				s.populate_from(post.clone());
+				s.commit();
+				assert_eq!(&post_state_root, s.root());
 			}
+
+			let mut s = State::new_temp();
+			s.populate_from(pre);
+			s.commit();
+			let res = s.apply(&env, engine.deref(), &t);
+
+			if fail_unless(s.root() == &post_state_root) {
+				println!("!!! {}: State mismatch (got: {}, expect: {}):", name, s.root(), post_state_root);
+				let our_post = s.to_pod();
+				println!("Got:\n{}", our_post);
+				println!("Expect:\n{}", post);
+				println!("Diff ---expect -> +++got:\n{}", StateDiff::diff_pod(&post, &our_post));
+			}
+
+			if let Ok(r) = res {
+				if fail_unless(logs == r.logs) {
+					println!("!!! {}: Logs mismatch:", name);
+					println!("Got:\n{:?}", r.logs);
+					println!("Expect:\n{:?}", logs);
+				}
+			}
+		}
+		if !fail {
+			flush(format!("ok\n"));
 		}
 		// TODO: Add extra APIs for output
 		//if fail_unless(out == r.)
