@@ -2,6 +2,7 @@ use common::*;
 use block::Block;
 use spec::Spec;
 use evm::Schedule;
+use evm::Factory;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -21,6 +22,9 @@ pub trait Engine : Sync + Send {
 
 	/// Get the general parameters of the chain.
 	fn spec(&self) -> &Spec;
+
+	/// Get current EVM factory
+	fn vm_factory(&self) -> &Factory;
 
 	/// Get the EVM schedule for the given `env_info`.
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule;

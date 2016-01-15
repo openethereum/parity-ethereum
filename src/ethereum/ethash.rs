@@ -3,16 +3,22 @@ use block::*;
 use spec::*;
 use engine::*;
 use evm::Schedule;
+use evm::Factory;
 
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct Ethash {
 	spec: Spec,
+	factory: Factory
 }
 
 impl Ethash {
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
-		Box::new(Ethash{spec: spec})
+		Box::new(Ethash{
+			spec: spec,
+			// TODO [todr] should this return any specific factory?
+			factory: Factory::default()
+		})
 	}
 }
 
@@ -27,7 +33,11 @@ impl Engine for Ethash {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 	fn spec(&self) -> &Spec { &self.spec }
+
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { Schedule::new_frontier() }
+	fn vm_factory(&self) -> &Factory {
+		&self.factory
+	}
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
