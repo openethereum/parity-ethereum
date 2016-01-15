@@ -267,6 +267,8 @@ impl Interpreter {
 
 				let gas = if self.is_zero(&val) && !self.is_zero(newval) {
 					schedule.sstore_set_gas
+				} else if !self.is_zero(&val) && self.is_zero(newval) {
+					schedule.sstore_set_gas
 				} else {
 					schedule.sstore_reset_gas
 				};
@@ -735,21 +737,29 @@ impl Interpreter {
 				});
 			},
 			instructions::SDIV => {
-				let (a, sign_a) = get_and_reset_sign(stack.pop_back());
-				let (b, sign_b) = get_and_reset_sign(stack.pop_back());
+				let ua = stack.pop_back();
+				let ub = stack.pop_back();
+				let (a, sign_a) = get_and_reset_sign(ua);
+				let (b, sign_b) = get_and_reset_sign(ub);
 
-				stack.push(if !self.is_zero(&b) {
+				println!("Values: {}({}), {}({})", a, sign_a, b, sign_b);
+				let max = !U256::zero();
+				println!("Max: {}", max);
+				stack.push(if self.is_zero(&ub) {
+					U256::zero()
+				} else if ub == max || sign_a && self.is_zero(&a) {
+					max
+				} else {
 					let (c, _overflow) = a.overflowing_div(b);
 					set_sign(c, sign_a ^ sign_b)
-				} else {
-					U256::zero()
 				});
 			},
 			instructions::SMOD => {
 				let (a, sign_a) = get_and_reset_sign(stack.pop_back());
-				let (b, sign_b) = get_and_reset_sign(stack.pop_back());
+				let ub = stack.pop_back();
+				let (b, sign_b) = get_and_reset_sign(ub);
 
-				stack.push(if !self.is_zero(&b) {
+				stack.push(if !self.is_zero(&ub) {
 					let (c, _overflow) = a.overflowing_rem(b);
 					set_sign(c, sign_a ^ sign_b)
 				} else {
@@ -835,9 +845,11 @@ impl Interpreter {
 				let c = stack.pop_back();
 
 				stack.push(if !self.is_zero(&c) {
-					let (res, _overflow) = a.overflowing_add(b);
-					let (x, _overflow) = res.overflowing_rem(c);
-					x
+					// upcast to 512
+					let a5 = U512::from(a);
+					let (res, _overflow) = a5.overflowing_add(U512::from(b));
+					let (x, _overflow) = res.overflowing_rem(U512::from(c));
+					U256::from(x)
 				} else {
 					U256::zero()
 				});
@@ -848,9 +860,10 @@ impl Interpreter {
 				let c = stack.pop_back();
 
 				stack.push(if !self.is_zero(&c) {
-					let (res, _overflow) = a.overflowing_mul(b);
-					let (x, _overflow) = res.overflowing_rem(c);
-					x
+					let a5 = U512::from(a);
+					let (res, _overflow) = a5.overflowing_mul(U512::from(b));
+					let (x, _overflow) = res.overflowing_rem(U512::from(c));
+					U256::from(x)
 				} else {
 					U256::zero()
 				});

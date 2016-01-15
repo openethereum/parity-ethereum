@@ -167,6 +167,9 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 	for (name, test) in json.as_object().unwrap() {
+		if name != "addmod1_overflow3" {
+			continue;
+		}
 		println!("name: {:?}", name);
 		// sync io is usefull when something crashes in jit
 		// ::std::io::stdout().write(&name.as_bytes());
