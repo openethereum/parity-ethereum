@@ -30,6 +30,7 @@
 //!   sudo make install
 //!   ```
 
+extern crate slab;
 extern crate rustc_serialize;
 extern crate mio;
 extern crate rand;
@@ -76,6 +77,7 @@ pub mod nibbleslice;
 pub mod heapsizeof;
 pub mod squeeze;
 pub mod semantic_version;
+pub mod io;
 pub mod network;
 
 pub use common::*;
@@ -95,3 +97,4 @@ pub use heapsizeof::*;
 pub use squeeze::*;
 pub use semantic_version::*;
 pub use network::*;
+pub use io::*;
