@@ -409,7 +409,7 @@ macro_rules! construct_uint {
 					let (v, mul_overflow) = self.overflowing_mul_u32((other >> (32 * i)).low_u32());
 					let (new_res, add_overflow) = res.overflowing_add(v << (32 * i));
 					res = new_res;
-					overflow = overflow || mul_overflow || add_overflow;
+					overflow |= mul_overflow | add_overflow;
 				}
 				(res, overflow)
 			}
@@ -964,17 +964,17 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn uint256_pow_overflow () {
-		U256::from(2).pow(U256::from(0x001));
+		U256::from(2).pow(U256::from(0x100));
 	}
 
 	#[test]
 	fn uint256_overflowing_pow () {
 		assert_eq!(
-			U256::from(2).overflowing_pow(U256::from(0xfe)),
-			(U256::zero(), false)
+			U256::from(2).overflowing_pow(U256::from(0xff)),
+			(U256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap(), false)
 		);
 		assert_eq!(
-			U256::from(2).overflowing_pow(U256::from(0x001)),
+			U256::from(2).overflowing_pow(U256::from(0x100)),
 			(U256::zero(), true)
 		);
 	}
