@@ -65,6 +65,8 @@ impl GenesisAccount {
 /// chain and those to be interpreted by the active chain engine.
 #[derive(Debug)]
 pub struct Spec {
+	// User friendly spec name
+	pub name: String,
 	// What engine are we using for this?
 	pub engine_name: String,
 
@@ -196,6 +198,7 @@ impl FromJson for Spec {
 
 		
 		Spec {
+			name: json.find("name").map(|j| j.as_string().unwrap()).unwrap_or("unknown").to_string(),
 			engine_name: json["engineName"].as_string().unwrap().to_string(),
 			engine_params: json_to_rlp_map(&json["params"]),
 			builtins: builtins,
@@ -218,11 +221,16 @@ impl Spec {
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good(&self, db: &mut HashDB) {
 		if !db.contains(&self.state_root()) {
-			let mut root = H256::new();
-			let mut t = SecTrieDBMut::new(db, &mut root);
-			for (address, account) in self.genesis_state.iter() {
-				t.insert(address.as_slice(), &account.rlp());
+			info!("Populating genesis state...");
+			let mut root = H256::new(); 
+			{
+				let mut t = SecTrieDBMut::new(db, &mut root);
+				for (address, account) in self.genesis_state.iter() {
+					t.insert(address.as_slice(), &account.rlp());
+				}
 			}
+			assert!(db.contains(&self.state_root()));
+			info!("Genesis state is ready");
 		}
 	}
 

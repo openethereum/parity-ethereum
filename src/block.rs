@@ -229,6 +229,9 @@ impl<'x, 'y> ClosedBlock<'x, 'y> {
 
 	/// Turn this back into an `OpenBlock`.
 	pub fn reopen(self) -> OpenBlock<'x, 'y> { self.open_block }
+
+	/// Drop this object and return the underlieing database.
+	pub fn drain(self) -> OverlayDB { self.open_block.block.state.drop().1 }
 }
 
 impl SealedBlock {
@@ -251,15 +254,20 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-/// 
-pub fn enact(block_bytes: &[u8], engine: &Engine, db: OverlayDB, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
+pub fn enact<'x, 'y>(block_bytes: &[u8], engine: &'x Engine, db: OverlayDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
 	let block = BlockView::new(block_bytes);
 	let header = block.header_view();
 	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author(), header.extra_data());
 	b.set_timestamp(header.timestamp());
 	for t in block.transactions().into_iter() { try!(b.push_transaction(t, None)); }
 	for u in block.uncles().into_iter() { try!(b.push_uncle(u)); }
-	Ok(try!(b.close().seal(header.seal())))
+	Ok(b.close())
+}
+
+/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
+pub fn enact_and_seal(block_bytes: &[u8], engine: &Engine, db: OverlayDB, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
+	let header = BlockView::new(block_bytes).header_view();
+	Ok(try!(try!(enact(block_bytes, engine, db, parent, last_hashes)).seal(header.seal())))
 }
 
 #[test]
@@ -289,7 +297,7 @@ fn enact_block() {
 
 	let mut db = OverlayDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
-	let e = enact(&orig_bytes, engine.deref(), db, &genesis_header, &vec![genesis_header.hash()]).unwrap();
+	let e = enact_and_seal(&orig_bytes, engine.deref(), db, &genesis_header, &vec![genesis_header.hash()]).unwrap();
 
 	assert_eq!(e.rlp_bytes(), orig_bytes);
 	

@@ -45,7 +45,7 @@ pub trait Engine : Sync + Send {
 
 	/// Phase 3 verification. Check block information against parent and uncles. `block` (the header's full block) 
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_final(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_block_family(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
 
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.

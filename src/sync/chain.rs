@@ -234,7 +234,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer to report status
-	fn on_peer_status(&mut self, io: &mut SyncIo, peer_id: &PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_status(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let peer = PeerInfo {
 			protocol_version: try!(r.val_at(0)),
 			network_id: try!(r.val_at(1)),
@@ -263,12 +263,13 @@ impl ChainSync {
 		if old.is_some() {
 			panic!("ChainSync: new peer already exists");
 		}
+		info!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
 		self.sync_peer(io, peer_id, false);
 		Ok(())
 	}
 
 	/// Called by peer once it has new block headers during sync
-	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: &PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		self.reset_peer_asking(peer_id, PeerAsking::BlockHeaders);
 		let item_count = r.item_count();
 		trace!(target: "sync", "{} -> BlockHeaders ({} entries)", peer_id, item_count);
@@ -351,7 +352,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block bodies
-	fn on_peer_block_bodies(&mut self, io: &mut SyncIo, peer_id: &PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_block_bodies(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		use util::triehash::ordered_trie_root;
 		self.reset_peer_asking(peer_id, PeerAsking::BlockBodies);
 		let item_count = r.item_count();
@@ -391,7 +392,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block bodies
-	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: &PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let block_rlp = try!(r.at(0));
 		let header_rlp = try!(block_rlp.at(0));
 		let h = header_rlp.as_raw().sha3();
@@ -430,7 +431,7 @@ impl ChainSync {
 	}
 
 	/// Handles NewHashes packet. Initiates headers download for any unknown hashes. 
-	fn on_peer_new_hashes(&mut self, io: &mut SyncIo, peer_id: &PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_new_hashes(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		if self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer").asking != PeerAsking::Nothing {
 			trace!(target: "sync", "Ignoring new hashes since we're already downloading.");
 			return Ok(());
@@ -467,16 +468,18 @@ impl ChainSync {
 	}
 
 	/// Called by peer when it is disconnecting
-	pub fn on_peer_aborting(&mut self, io: &mut SyncIo, peer: &PeerId) {
-		trace!(target: "sync", "== Disconnected {}", peer);
+	pub fn on_peer_aborting(&mut self, io: &mut SyncIo, peer: PeerId) {
+		trace!(target: "sync", "== Disconnecting {}", peer);
 		if self.peers.contains_key(&peer) {
+			info!(target: "sync", "Disconneced {}:{}", peer, io.peer_info(peer));
 			self.clear_peer_download(peer);
+			self.peers.remove(&peer);
 			self.continue_sync(io);
 		}
 	}
 
 	/// Called when a new peer is connected
-	pub fn on_peer_connected(&mut self, io: &mut SyncIo, peer: &PeerId) {
+	pub fn on_peer_connected(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Connected {}", peer);
 		self.send_status(io, peer);
 	}
@@ -486,7 +489,7 @@ impl ChainSync {
 		let mut peers: Vec<(PeerId, U256)> = self.peers.iter().map(|(k, p)| (*k, p.difficulty)).collect();
 		peers.sort_by(|&(_, d1), &(_, d2)| d1.cmp(&d2).reverse()); //TODO: sort by rating
 		for (p, _) in peers {
-			self.sync_peer(io, &p, false);
+			self.sync_peer(io, p, false);
 		}
 	}
 
@@ -504,7 +507,7 @@ impl ChainSync {
 	}
 
 	/// Find something to do for a peer. Called for a new peer or when a peer is done with it's task.
-	fn sync_peer(&mut self, io: &mut SyncIo,  peer_id: &PeerId, force: bool) {
+	fn sync_peer(&mut self, io: &mut SyncIo,  peer_id: PeerId, force: bool) {
 		let (peer_latest, peer_difficulty) = {
 			let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
 			if peer.asking != PeerAsking::Nothing {
@@ -534,7 +537,7 @@ impl ChainSync {
 	}
 
 	/// Find some headers or blocks to download for a peer.
-	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: &PeerId) {
+	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: PeerId) {
 		self.clear_peer_download(peer_id);
 
 		if io.chain().queue_status().full {
@@ -564,7 +567,7 @@ impl ChainSync {
 			}
 		}
 		if !needed_bodies.is_empty() {
-			replace(&mut self.peers.get_mut(peer_id).unwrap().asking_blocks, needed_numbers);
+			replace(&mut self.peers.get_mut(&peer_id).unwrap().asking_blocks, needed_numbers);
 			self.request_bodies(io, peer_id, needed_bodies);
 		}
 		else {
@@ -607,7 +610,7 @@ impl ChainSync {
 				if !headers.is_empty() {
 					start = headers[0] as usize;
 					let count = headers.len();
-					replace(&mut self.peers.get_mut(peer_id).unwrap().asking_blocks, headers);
+					replace(&mut self.peers.get_mut(&peer_id).unwrap().asking_blocks, headers);
 					assert!(!self.headers.have_item(&(start as BlockNumber)));
 					self.request_headers_by_number(io, peer_id, start as BlockNumber, count, 0, false);
 				}
@@ -619,7 +622,7 @@ impl ChainSync {
 	}
 
 	/// Clear all blocks/headers marked as being downloaded by a peer.
-	fn clear_peer_download(&mut self, peer_id: &PeerId) {
+	fn clear_peer_download(&mut self, peer_id: PeerId) {
 		let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
 		for b in &peer.asking_blocks {
 			self.downloading_headers.remove(&b);
@@ -715,7 +718,7 @@ impl ChainSync {
 	}
 
 	/// Request headers from a peer by block hash
-	fn request_headers_by_hash(&mut self, sync: &mut SyncIo, peer_id: &PeerId, h: &H256, count: usize, skip: usize, reverse: bool) {
+	fn request_headers_by_hash(&mut self, sync: &mut SyncIo, peer_id: PeerId, h: &H256, count: usize, skip: usize, reverse: bool) {
 		trace!(target: "sync", "{} <- GetBlockHeaders: {} entries starting from {}", peer_id, count, h);
 		let mut rlp = RlpStream::new_list(4);
 		rlp.append(h);
@@ -726,7 +729,7 @@ impl ChainSync {
 	}
 
 	/// Request headers from a peer by block number
-	fn request_headers_by_number(&mut self, sync: &mut SyncIo, peer_id: &PeerId, n: BlockNumber, count: usize, skip: usize, reverse: bool) {
+	fn request_headers_by_number(&mut self, sync: &mut SyncIo, peer_id: PeerId, n: BlockNumber, count: usize, skip: usize, reverse: bool) {
 		let mut rlp = RlpStream::new_list(4);
 		trace!(target: "sync", "{} <- GetBlockHeaders: {} entries starting from {}", peer_id, count, n);
 		rlp.append(&n);
@@ -737,7 +740,7 @@ impl ChainSync {
 	}
 
 	/// Request block bodies from a peer
-	fn request_bodies(&mut self, sync: &mut SyncIo, peer_id: &PeerId, hashes: Vec<H256>) {
+	fn request_bodies(&mut self, sync: &mut SyncIo, peer_id: PeerId, hashes: Vec<H256>) {
 		let mut rlp = RlpStream::new_list(hashes.len());
 		trace!(target: "sync", "{} <- GetBlockBodies: {} entries", peer_id, hashes.len());
 		for h in hashes {
@@ -747,7 +750,7 @@ impl ChainSync {
 	}
 
 	/// Reset peer status after request is complete.
-	fn reset_peer_asking(&mut self, peer_id: &PeerId, asking: PeerAsking) {
+	fn reset_peer_asking(&mut self, peer_id: PeerId, asking: PeerAsking) {
 		let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
 		if peer.asking != asking {
 			warn!(target:"sync", "Asking {:?} while expected {:?}", peer.asking, asking);
@@ -758,14 +761,14 @@ impl ChainSync {
 	}
 
 	/// Generic request sender
-	fn send_request(&mut self, sync: &mut SyncIo, peer_id: &PeerId, asking: PeerAsking,  packet_id: PacketId, packet: Bytes) {
+	fn send_request(&mut self, sync: &mut SyncIo, peer_id: PeerId, asking: PeerAsking,  packet_id: PacketId, packet: Bytes) {
 		{
 			let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
 			if peer.asking != PeerAsking::Nothing {
 				warn!(target:"sync", "Asking {:?} while requesting {:?}", asking, peer.asking);
 			}
 		}
-		match sync.send(*peer_id, packet_id, packet) {
+		match sync.send(peer_id, packet_id, packet) {
 			Err(e) => {
 				warn!(target:"sync", "Error sending request: {:?}", e);
 				sync.disable_peer(peer_id);
@@ -779,12 +782,12 @@ impl ChainSync {
 	}
 
 	/// Called when peer sends us new transactions
-	fn on_peer_transactions(&mut self, _io: &mut SyncIo, _peer_id: &PeerId, _r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_transactions(&mut self, _io: &mut SyncIo, _peer_id: PeerId, _r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		Ok(())
 	}
 
 	/// Send Status message
-	fn send_status(&mut self, io: &mut SyncIo, peer_id: &PeerId) {
+	fn send_status(&mut self, io: &mut SyncIo, peer_id: PeerId) {
 		let mut packet = RlpStream::new_list(5);
 		let chain = io.chain().chain_info();
 		packet.append(&(PROTOCOL_VERSION as u32));
@@ -793,7 +796,7 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		//TODO: handle timeout for status request
-		match io.send(*peer_id, STATUS_PACKET, packet.out()) {
+		match io.send(peer_id, STATUS_PACKET, packet.out()) {
 			Err(e) => {
 				warn!(target:"sync", "Error sending status request: {:?}", e);
 				io.disable_peer(peer_id);
@@ -940,7 +943,7 @@ impl ChainSync {
 	}
 
 	/// Dispatch incoming requests and responses
-	pub fn on_packet(&mut self, io: &mut SyncIo, peer: &PeerId, packet_id: u8, data: &[u8]) {
+	pub fn on_packet(&mut self, io: &mut SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = UntrustedRlp::new(data);
 		let result = match packet_id {
 			STATUS_PACKET => self.on_peer_status(io, peer, &rlp),

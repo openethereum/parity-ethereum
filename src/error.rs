@@ -2,6 +2,7 @@
 
 use util::*;
 use header::BlockNumber;
+use basic_types::LogBloom;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Mismatch<T: fmt::Debug> {
@@ -53,15 +54,15 @@ pub enum BlockError {
 	UncleIsBrother(OutOfBounds<BlockNumber>),
 	UncleInChain(H256),
 	UncleParentNotInChain(H256),
-	InvalidStateRoot,
-	InvalidGasUsed,
+	InvalidStateRoot(Mismatch<H256>),
+	InvalidGasUsed(Mismatch<U256>),
 	InvalidTransactionsRoot(Mismatch<H256>),
 	InvalidDifficulty(Mismatch<U256>),
 	InvalidGasLimit(OutOfBounds<U256>),
-	InvalidReceiptsStateRoot,
+	InvalidReceiptsStateRoot(Mismatch<H256>),
 	InvalidTimestamp(OutOfBounds<u64>),
-	InvalidLogBloom,
-	InvalidBlockNonce,
+	InvalidLogBloom(Mismatch<LogBloom>),
+	InvalidBlockNonce(Mismatch<H256>),
 	InvalidParentHash(Mismatch<H256>),
 	InvalidNumber(OutOfBounds<BlockNumber>),
 	UnknownParent(H256),
@@ -70,14 +71,14 @@ pub enum BlockError {
 
 #[derive(Debug)]
 pub enum ImportError {
-	Bad(Error),
+	Bad(Option<Error>),
 	AlreadyInChain,
 	AlreadyQueued,
 }
 
 impl From<Error> for ImportError {
 	fn from(err: Error) -> ImportError {
-		ImportError::Bad(err)
+		ImportError::Bad(Some(err))
 	}
 }
 
@@ -121,6 +122,18 @@ impl From<CryptoError> for Error {
 impl From<DecoderError> for Error {
 	fn from(err: DecoderError) -> Error {
 		Error::Util(UtilError::Decoder(err))
+	}
+}
+
+impl From<UtilError> for Error {
+	fn from(err: UtilError) -> Error {
+		Error::Util(err)
+	}
+}
+
+impl From<IoError> for Error {
+	fn from(err: IoError) -> Error {
+		Error::Util(From::from(err))
 	}
 }
 
