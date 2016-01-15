@@ -1,5 +1,6 @@
 #![feature(cell_extras)]
 #![feature(augmented_assignments)]
+#![feature(wrapping)]
 //#![feature(plugin)]
 //#![plugin(interpolate_idents)]
 //! Ethcore's ethereum implementation

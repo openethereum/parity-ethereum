@@ -290,14 +290,13 @@ impl<'a> Executive<'a> {
 				| Err(evm::Error::BadInstruction { instruction: _ }) 
 				| Err(evm::Error::StackUnderflow {instruction: _, wanted: _, on_stack: _})
 				| Err(evm::Error::OutOfStack {instruction: _, wanted: _, limit: _}) => {
-				*self.state = backup;
 				Ok(Executed {
 					gas: t.gas,
 					gas_used: t.gas,
 					refunded: U256::zero(),
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
-					out_of_gas: true,
+					excepted: true,
 					contracts_created: vec![]
 				})
 			},
@@ -311,17 +310,6 @@ impl<'a> Executive<'a> {
 					excepted: substate.excepted,
 					contracts_created: substate.contracts_created
 				})
-			},
-			_err => {
-				Ok(Executed {
-					gas: t.gas,
-					gas_used: t.gas,
-					refunded: U256::zero(),
-					cumulative_gas_used: self.info.gas_used + t.gas,
-					logs: vec![],
-					excepted: true,
-					contracts_created: vec![]
-				})
 			}
 		}
 	}
@@ -329,7 +317,11 @@ impl<'a> Executive<'a> {
 	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
 		// TODO: handle other evm::Errors same as OutOfGas once they are implemented
 		match result {
-			&Err(evm::Error::OutOfGas) => {
+			&Err(evm::Error::OutOfGas)
+				| &Err(evm::Error::BadJumpDestination { destination: _ }) 
+				| &Err(evm::Error::BadInstruction { instruction: _ }) 
+				| &Err(evm::Error::StackUnderflow {instruction: _, wanted: _, on_stack: _})
+				| &Err(evm::Error::OutOfStack {instruction: _, wanted: _, limit: _}) => {
 				substate.excepted = true;
 				self.state.revert(backup);
 			},

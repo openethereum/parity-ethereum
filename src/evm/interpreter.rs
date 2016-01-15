@@ -4,6 +4,7 @@ use common::*;
 use evm;
 use super::instructions as instructions;
 use super::instructions::Instruction;
+use std::num::wrapping::OverflowingOps;
 
 type CodePosition = usize;
 type Gas = U256;
@@ -422,9 +423,7 @@ impl Interpreter {
 				let init_size = stack.pop_back();
 
 				let contract_code = mem.read_slice(init_off, init_size);
-				let (gas_left, maybe_address) = try!(
-					ext.create(&gas, &endowment, &contract_code)
-				);
+				let (gas_left, maybe_address) = ext.create(&gas, &endowment, &contract_code);
 				match maybe_address {
 					Some(address) => stack.push(address_to_u256(address)),
 					None => stack.push(U256::zero())
@@ -454,7 +453,7 @@ impl Interpreter {
 				let out_off = stack.pop_back();
 				let out_size = stack.pop_back();
 
-				let gas_left = {
+				let (gas_left, call_successful) = {
 					// we need to write and read from memory in the same time
 					// and we don't want to copy
 					let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
@@ -463,7 +462,11 @@ impl Interpreter {
 						ext.call(&gas, &call_gas, address, &value, input, &code_address, output)
 					)
 				};
-				stack.push(U256::one());
+				if call_successful {
+					stack.push(U256::one());
+				} else {
+					stack.push(U256::zero());
+				}
 				return Ok(InstructionResult::AdditionalGasCost(
 					gas - gas_left
 				));
@@ -696,26 +699,26 @@ impl Interpreter {
 			instructions::ADD => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				let (c, _overflow) = a.overflowing_add(a, b);
+				let (c, _overflow) = a.overflowing_add(b);
 				stack.push(c);
 			},
 			instructions::MUL => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				let (c, _overflow) = a.overflowing_mul(a, b);
+				let (c, _overflow) = a.overflowing_mul(b);
 				stack.push(c);
 			},
 			instructions::SUB => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				let (c, _overflow) = a.overflowing_sub(a, b);
+				let (c, _overflow) = a.overflowing_sub(b);
 				stack.push(c);
 			},
 			instructions::DIV => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(if !self.is_zero(&b) {
-					let (c, _overflow) = a.overflowing_div(a, b);
+					let (c, _overflow) = a.overflowing_div(b);
 					c
 				} else {
 					U256::zero()
@@ -725,7 +728,7 @@ impl Interpreter {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(if !self.is_zero(&b) {
-					let (c, _overflow) = a.overflowing_rem(a, b);
+					let (c, _overflow) = a.overflowing_rem(b);
 					c
 				} else {
 					U256::zero()
