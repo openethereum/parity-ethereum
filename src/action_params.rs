@@ -9,6 +9,9 @@ use util::bytes::*;
 #[derive(Clone, Debug)]
 pub struct ActionParams {
 	/// Address of currently executed code.
+	pub code_address: Address,
+	/// Receive address. Usually equal to code_address,
+	/// except when called using CALLCODE.
 	pub address: Address,
 	/// Sender of current part of the transaction.
 	pub sender: Address,
@@ -21,22 +24,23 @@ pub struct ActionParams {
 	/// Transaction value.
 	pub value: U256,
 	/// Code being executed.
-	pub code: Bytes,
+	pub code: Option<Bytes>,
 	/// Input data.
-	pub data: Bytes
+	pub data: Option<Bytes>
 }
 
 impl ActionParams {
 	pub fn new() -> ActionParams {
 		ActionParams {
+			code_address: Address::new(),
 			address: Address::new(),
 			sender: Address::new(),
 			origin: Address::new(),
 			gas: U256::zero(),
 			gas_price: U256::zero(),
 			value: U256::zero(),
-			code: vec![],
-			data: vec![],
+			code: None,
+			data: None
 		}
 	}
 }
