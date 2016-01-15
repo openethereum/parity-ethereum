@@ -57,12 +57,12 @@ impl<'a> TestExt<'a> {
 }
 
 impl<'a> Ext for TestExt<'a> {
-	fn sload(&self, key: &H256) -> H256 {
-		self.ext.sload(key)
+	fn storage_at(&self, key: &H256) -> H256 {
+		self.ext.storage_at(key)
 	}
 
-	fn sstore(&mut self, key: H256, value: H256) {
-		self.ext.sstore(key, value)
+	fn set_storage_at(&mut self, key: H256, value: H256) {
+		self.ext.set_storage_at(key, value)
 	}
 
 	fn balance(&self, address: &Address) -> U256 {

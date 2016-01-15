@@ -3,6 +3,7 @@ use engine::Engine;
 use executive::Executive;
 use pod_account::*;
 use pod_state::*;
+use state_diff::*;
 
 pub type ApplyResult = Result<Receipt, Error>;
 
@@ -106,11 +107,13 @@ impl State {
 
 	/// Add `incr` to the balance of account `a`.
 	pub fn add_balance(&mut self, a: &Address, incr: &U256) {
+		flush(format!("state: add_balance({}, {})\n", a, incr));
 		self.require(a, false).add_balance(incr)
 	}
 
 	/// Subtract `decr` from the balance of account `a`.
 	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
+		flush(format!("state: sub_balance({}, {})\n", a, decr));
 		self.require(a, false).sub_balance(decr)
 	}
 
@@ -139,8 +142,13 @@ impl State {
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
+
+		let old = self.to_pod();
+
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
 		//println!("Executed: {:?}", e);
+
+		flush(format!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod())));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 		debug!("Transaction receipt: {:?}", receipt);

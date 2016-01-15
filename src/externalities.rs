@@ -60,15 +60,19 @@ impl<'a> Externalities<'a> {
 }
 
 impl<'a> Ext for Externalities<'a> {
-	fn sload(&self, key: &H256) -> H256 {
+	fn storage_at(&self, key: &H256) -> H256 {
+//		flush(format!("ext: storage_at({}, {}) == {}\n", self.params.address, key, U256::from(self.state.storage_at(&self.params.address, key).as_slice())));
 		self.state.storage_at(&self.params.address, key)
 	}
 
-	fn sstore(&mut self, key: H256, value: H256) {
+	fn set_storage_at(&mut self, key: H256, value: H256) {
+		let old = self.state.storage_at(&self.params.address, &key);
 		// if SSTORE nonzero -> zero, increment refund count
-		if value == H256::new() && self.state.storage_at(&self.params.address, &key) != H256::new() {
+		if value.is_zero() && !old.is_zero() {
+//			flush(format!("ext: additional refund. {} -> {}\n", self.substate.refunds_count, self.substate.refunds_count + x!(1)));
 			self.substate.refunds_count = self.substate.refunds_count + U256::one();
 		}
+//		flush(format!("ext: set_storage_at({}, {}): {} -> {}\n", self.params.address, key, U256::from(old.as_slice()), U256::from(value.as_slice())));
 		self.state.set_storage(&self.params.address, key, value)
 	}
 

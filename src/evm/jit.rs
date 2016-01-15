@@ -175,14 +175,14 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 	fn sload(&self, index: *const evmjit::I256, out_value: *mut evmjit::I256) {
 		unsafe {
 			let i = H256::from_jit(&*index);
-			let o = self.ext.sload(&i);
+			let o = self.ext.storage_at(&i);
 			*out_value = o.into_jit();
 		}
 	}
 
 	fn sstore(&mut self, index: *const evmjit::I256, value: *const evmjit::I256) {
 		unsafe {
-			self.ext.sstore(H256::from_jit(&*index), H256::from_jit(&*value));
+			self.ext.set_storage_at(H256::from_jit(&*index), H256::from_jit(&*value));
 		}
 	}
 
