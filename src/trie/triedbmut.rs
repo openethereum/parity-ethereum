@@ -1,10 +1,7 @@
-use std::fmt;
+use common::*;
 use hashdb::*;
-use hash::*;
 use nibbleslice::*;
-use bytes::*;
 use rlp::*;
-use std::collections::HashMap;
 use super::node::*;
 use super::journal::*;
 use super::trietraits::*;
@@ -71,7 +68,10 @@ impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
-		assert!(db.exists(root));
+		if !db.exists(root) {
+			flush(format!("Trie root not found {}", root));
+			panic!("Trie root not found!");
+		}
 		TrieDBMut { 
 			db: db, 
 			root: root,
