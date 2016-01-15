@@ -711,7 +711,7 @@ impl Interpreter {
 			instructions::DIV => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				stack.push(if self.is_zero(&b) {
+				stack.push(if !self.is_zero(&b) {
 					a / b 
 				} else {
 					U256::zero()
@@ -720,7 +720,7 @@ impl Interpreter {
 			instructions::MOD => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				stack.push(if self.is_zero(&b) {
+				stack.push(if !self.is_zero(&b) {
 					a % b 
 				} else {
 					U256::zero()
