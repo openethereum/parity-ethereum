@@ -140,7 +140,7 @@ impl State {
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
-		//println!("Executed: {:?}", e);
+		println!("Executed: {:?}", e);
 		self.commit();
 		Ok(Receipt::new(self.root().clone(), e.gas_used, e.logs))
 	}
