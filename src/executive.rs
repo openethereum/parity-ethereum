@@ -196,8 +196,6 @@ impl<'a> Executive<'a> {
 			// part of substate that may be reverted
 			let mut unconfirmed_substate = Substate::new();
 
-			info!("exec: call; env_info={:?}", self.info);
-
 			let res = {
 				let mut ext = self.to_externalities(params, &mut unconfirmed_substate, OutputPolicy::Return(output));
 				let evm = Factory::create();

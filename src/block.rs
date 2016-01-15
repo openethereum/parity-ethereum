@@ -126,6 +126,15 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// Alter the timestamp of the block.
 	pub fn set_timestamp(&mut self, timestamp: u64) { self.block.header.set_timestamp(timestamp); }
 
+	/// Alter the difficulty for the block.
+	pub fn set_difficulty(&mut self, a: U256) { self.block.header.set_difficulty(a); }
+
+	/// Alter the gas limit for the block.
+	pub fn set_gas_limit(&mut self, a: U256) { self.block.header.set_gas_limit(a); }
+
+	/// Alter the gas limit for the block.
+	pub fn set_gas_used(&mut self, a: U256) { self.block.header.set_gas_used(a); }
+
 	/// Alter the extra_data for the block.
 	pub fn set_extra_data(&mut self, extra_data: Bytes) -> Result<(), BlockError> {
 		if extra_data.len() > self.engine.maximum_extra_data_size() {
@@ -158,7 +167,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 			author: self.block.header.author.clone(),
 			timestamp: self.block.header.timestamp,
 			difficulty: self.block.header.difficulty.clone(),
-			last_hashes: self.last_hashes.clone(),
+			last_hashes: self.last_hashes.clone(),		// TODO: should be a reference.
 			gas_used: self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0)),
 			gas_limit: self.block.header.gas_limit.clone(),
 		}
@@ -169,6 +178,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// If valid, it will be executed, and archived together with the receipt.
 	pub fn push_transaction(&mut self, t: Transaction, h: Option<H256>) -> Result<&Receipt, Error> {
 		let env_info = self.env_info();
+//		info!("env_info says gas_used={}", env_info.gas_used);
 		match self.block.state.apply(&env_info, self.engine, &t) {
 			Ok(receipt) => {
 				self.block.archive_set.insert(h.unwrap_or_else(||t.hash()));
@@ -260,10 +270,14 @@ pub fn enact<'x, 'y>(block_bytes: &[u8], engine: &'x Engine, db: OverlayDB, pare
 		let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
 //		flush(format!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author())));
 	}
+
 	let block = BlockView::new(block_bytes);
 	let header = block.header_view();
 	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author(), header.extra_data());
+	b.set_difficulty(header.difficulty());
+	b.set_gas_limit(header.gas_limit());
 	b.set_timestamp(header.timestamp());
+//	info!("enact: Enacting #{}. env_info={:?}", header.number(), b.env_info());
 	for t in block.transactions().into_iter() { try!(b.push_transaction(t, None)); }
 	for u in block.uncles().into_iter() { try!(b.push_uncle(u)); }
 	Ok(b.close())
