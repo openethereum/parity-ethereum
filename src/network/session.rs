@@ -4,8 +4,9 @@ use rlp::*;
 use network::connection::{EncryptedConnection, Packet};
 use network::handshake::Handshake;
 use error::*;
-use network::{NetworkError, DisconnectReason};
+use network::error::{NetworkError, DisconnectReason};
 use network::host::*;
+use network::node::NodeId;
 
 /// Peer session over encrypted connection.
 /// When created waits for Hello packet exchange and signals ready state.
@@ -83,7 +84,7 @@ const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
 	/// Create a new session out of comepleted handshake. Consumes handshake object.
-	pub fn new(h: Handshake, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<Session, UtilError> {
+	pub fn new<Host:Handler<Timeout=Token>>(h: Handshake, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<Session, UtilError> {
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
 		let mut session = Session {
@@ -108,7 +109,7 @@ impl Session {
 	}
 
 	/// Readable IO handler. Returns packet data if available.
-	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<SessionData, UtilError> {
+	pub fn readable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<SessionData, UtilError> {
 		match try!(self.connection.readable(event_loop)) {
 			Some(data) => Ok(try!(self.read_packet(data, host))),
 			None => Ok(SessionData::None)
@@ -116,7 +117,7 @@ impl Session {
 	}
 
 	/// Writable IO handler. Sends pending packets.
-	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
+	pub fn writable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
 		self.connection.writable(event_loop)
 	}
 
@@ -126,7 +127,7 @@ impl Session {
 	}
 
 	/// Update registration with the event loop. Should be called at the end of the IO handler.
-	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn reregister<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.connection.reregister(event_loop)
 	}
 
@@ -241,6 +242,7 @@ impl Session {
 			i += 1;
 		}
 		trace!(target: "net", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		self.info.client_version = client_version;
 		self.info.capabilities = caps;
 		if protocol != host.protocol_version {
 			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
