@@ -64,16 +64,13 @@ impl<'db> TrieDBMut<'db> {
 		}; 
 
 		// set root rlp
-		*r.root = r.db.insert(&NULL_RLP); 
+		*r.root = SHA3_NULL_RLP.clone(); 
 		r 
 	}
 
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
-		if !db.exists(root) && root == &SHA3_NULL_RLP {
-			*root = db.insert(&NULL_RLP); 
-		}
 		assert!(db.exists(root));
 		TrieDBMut { 
 			db: db, 
@@ -111,7 +108,7 @@ impl<'db> TrieDBMut<'db> {
 		let mut ret = self.db.keys();
 		for (k, v) in Self::to_map(self.keys()).into_iter() {
 			let keycount = *ret.get(&k).unwrap_or(&0);
-			match keycount == v as i32 {
+			match keycount <= v as i32 {
 				true => ret.remove(&k),
 				_ => ret.insert(k, keycount - v as i32),
 			};
@@ -771,8 +768,9 @@ mod tests {
 			assert!(memtrie.db_items_remaining().is_empty());
 			unpopulate_trie(&mut memtrie, &x);
 			if *memtrie.root() != SHA3_NULL_RLP || !memtrie.db_items_remaining().is_empty() {
-				println!("TRIE MISMATCH");
+				println!("- TRIE MISMATCH");
 				println!("");
+				println!("remaining: {:?}", memtrie.db_items_remaining());
 				println!("{:?} vs {:?}", memtrie.root(), real);
 				for i in x.iter() {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
@@ -811,7 +809,7 @@ mod tests {
 		let mut t1 = TrieDBMut::new(&mut memdb, &mut root);
 		t1.insert(&[0x01, 0x23], &big_value.to_vec());
 		t1.insert(&[0x01, 0x34], &big_value.to_vec());
-		trace!("keys remaining {:?}", t1.db_items_remaining());
+		println!("********************** keys remaining {:?}", t1.db_items_remaining());
 		assert!(t1.db_items_remaining().is_empty());
 		let mut memdb2 = MemoryDB::new();
 		let mut root2 = H256::new();
