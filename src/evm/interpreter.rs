@@ -565,9 +565,15 @@ impl Interpreter {
 			},
 			instructions::CALLDATALOAD => {
 				let id = stack.pop_back().low_u64() as usize;
-				let mut v = params.data[id..id+32].to_vec();
-				v.resize(32, 0);
-				stack.push(U256::from(&v[..]))
+				let max = id.wrapping_add(32);
+				let bound = cmp::min(params.data.len(), max);
+				if id < bound {
+					let mut v = params.data[id..bound].to_vec();
+					v.resize(32, 0);
+					stack.push(U256::from(&v[..]))
+				} else {
+					stack.push(U256::zero())
+				}
 			},
 			instructions::CALLDATASIZE => {
 				stack.push(U256::from(params.data.len()));
@@ -626,16 +632,20 @@ impl Interpreter {
 						   stack: &mut Stack<U256>,
 						   data: &Bytes) {
 		let offset = stack.pop_back();
-		let index = stack.pop_back().low_u64() as usize;
-		let size = stack.pop_back().low_u64() as usize;
+		let index = stack.pop_back();
+		let size = stack.pop_back();
 		let data_size = data.len();
-		let bound_size = if size + index > data_size {
-			data_size
-		} else {
-			size + index
-		};
 
-		mem.write_slice(offset, &data[index..bound_size]);
+		if index < U256::from(data_size) {
+			let u_index = index.low_u64() as usize;
+			let bound_size = if size + index > U256::from(data_size) {
+				data_size
+			} else {
+				size.low_u64() as usize + u_index
+			};
+
+			mem.write_slice(offset, &data[u_index..bound_size]);
+		}
 	}
 
 	fn verify_instructions_requirements(&self, 

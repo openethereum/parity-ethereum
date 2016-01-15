@@ -168,7 +168,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 	for (name, test) in json.as_object().unwrap() {
-		// if name != "byte0" {
+		// if name != "calldataload0" {
 			// continue;
 		// }
 		println!("name: {:?}", name);
