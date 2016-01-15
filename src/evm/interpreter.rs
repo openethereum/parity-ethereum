@@ -335,8 +335,8 @@ impl Interpreter {
 			},
 			instructions::EXP => {
 				let expon = stack.peek(1);
-				// TODO [todr] not sure how to calculate that
-				let gas = U256::from(schedule.exp_gas);
+				let first_bits = (expon.byte(0) / 8) as usize;
+				let gas = U256::from(schedule.exp_gas + schedule.exp_byte_gas * (32 - first_bits));
 				InstructionCost::Gas(gas)
 			},
 			_ => InstructionCost::Gas(default_gas)
@@ -759,7 +759,7 @@ impl Interpreter {
 			instructions::EXP => {
 				let base = stack.pop_back();
 				let expon = stack.pop_back();
-				stack.push(u256_pow(base, expon));
+				stack.push(base.pow(expon));
 			},
 			instructions::NOT => {
 				let a = stack.pop_back();
@@ -882,11 +882,6 @@ impl Interpreter {
 		return jump_dests;
 	}
 
-}
-
-fn u256_pow(value: U256, expon: U256) -> U256 {
-	// TODO implement me!
-	U256::zero()
 }
 
 fn get_and_reset_sign(value: U256) -> (U256, bool) {
