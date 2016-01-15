@@ -44,7 +44,10 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 	fn pop_back(&mut self) -> S {
 		let val = self.pop();
 		match val {
-			Some(x) => x,
+			Some(x) => {
+				// println!("Poping from stack: {}", x);
+				x
+			},
 			None => panic!("Tried to pop from empty stack.")
 		}
 	}
@@ -87,8 +90,17 @@ trait Memory {
 	fn read_slice(&self, offset: U256, size: U256) -> &[u8];
 	/// Retrieve writeable part of memory
 	fn writeable_slice(&mut self, offset: U256, size: U256) -> &mut[u8];
+	fn dump(&self);
 }
 impl Memory for Vec<u8> {
+	fn dump(&self) {
+		println!("MemoryDump:");
+		for i in self.iter() {
+			print!("{:02x} ", i);
+		}
+		println!("");
+	}
+
 	fn size(&self) -> usize {
 		return self.len()
 	}
@@ -124,7 +136,7 @@ impl Memory for Vec<u8> {
 		let mut val = value;
 	
 		let end = off + 32;
-		for pos in off..end {
+		for pos in 0..32 {
 			self[end - pos - 1] = val.low_u64() as u8;
 			val = val >> 8;
 		}
@@ -157,7 +169,8 @@ impl<'a> CodeReader<'a> {
 	fn read(&mut self, no_of_bytes: usize) -> U256 {
 		let pos = self.position;
 		self.position += no_of_bytes;
-		U256::from(&self.code[pos..pos+no_of_bytes])
+		let max = cmp::min(pos + no_of_bytes, self.code.len());
+		U256::from(&self.code[pos..max])
 	}
 
 	fn len (&self) -> usize {
@@ -724,7 +737,7 @@ impl Interpreter {
 	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &HashSet<usize>) -> Result<usize, evm::Error> {
 		let jump = jump_u.low_u64() as usize;
 
-		if valid_jump_destinations.contains(&jump) {
+		if valid_jump_destinations.contains(&jump) && jump_u < U256::from(!0 as usize) {
 			Ok(jump)
 		} else {
 			Err(evm::Error::BadJumpDestination {
@@ -1037,13 +1050,13 @@ mod tests {
 	fn test_memory_read_and_write() {
 		// given
 		let mem : &mut super::Memory = &mut vec![];
-		mem.resize(32);
+		mem.resize(0x80 + 32);
 
 		// when
-		mem.write(U256::from(0x00), U256::from(0xabcdef));
+		mem.write(U256::from(0x80), U256::from(0xabcdef));
 
 		// then
-		assert_eq!(mem.read(U256::from(0x00)), U256::from(0xabcdef));
+		assert_eq!(mem.read(U256::from(0x80)), U256::from(0xabcdef));
 	}
 
 	#[test]

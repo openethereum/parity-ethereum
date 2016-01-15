@@ -168,7 +168,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 	for (name, test) in json.as_object().unwrap() {
-		// if name != "calldataload_BigOffset" {
+		// if name != "for_loop1" {
 			// continue;
 		// }
 		println!("name: {:?}", name);
@@ -242,7 +242,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
 			Ok(gas_left) => {
-				println!("name: {}, gas_left : {:?}", name, gas_left);
+				// println!("name: {}, gas_left : {:?}", name, gas_left);
 				fail_unless(!out_of_gas, "expected to run out of gas.");
 				fail_unless(gas_left == xjson!(&test["gas"]), "gas_left is incorrect");
 				fail_unless(output == Bytes::from_json(&test["out"]), "output is incorrect");
