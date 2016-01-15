@@ -10,7 +10,7 @@ use std::ops::*;
 use std::sync::*;
 use std::env;
 use std::collections::HashMap;
-use rocksdb::{DB, Writable};
+use rocksdb::{DB, Writable, IteratorMode};
 
 #[derive(Clone)]
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
@@ -138,7 +138,7 @@ impl OverlayDB {
 impl HashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iterator().from_start() {
+		for (key, _) in self.backing.iterator(IteratorMode::Start) {
 			let h = H256::from_slice(key.deref());
 			let r = self.payload(&h).unwrap().1;
 			ret.insert(h, r as i32);
