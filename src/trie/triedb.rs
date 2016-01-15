@@ -1,10 +1,7 @@
-use std::fmt;
+use common::*;
 use hashdb::*;
-use hash::*;
 use nibbleslice::*;
-use bytes::*;
 use rlp::*;
-use std::collections::HashMap;
 use super::trietraits::*;
 use super::node::*;
 
@@ -44,7 +41,10 @@ impl<'db> TrieDB<'db> {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
 	pub fn new(db: &'db HashDB, root: &'db H256) -> Self {
-		assert!(db.exists(root));
+		if !db.exists(root) {
+			flush(format!("Trie root not found {}", root));
+			panic!("Trie root not found!");
+		}
 		TrieDB { 
 			db: db, 
 			root: root,
