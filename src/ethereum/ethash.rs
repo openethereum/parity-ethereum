@@ -20,6 +20,8 @@ impl Ethash {
 			factory: Factory::default()
 		})
 	}
+
+	fn u256_param(&self, name: &str) -> U256 { self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(U256::from(0u64)) }
 }
 
 impl Engine for Ethash {
@@ -39,6 +41,20 @@ impl Engine for Ethash {
 		&self.factory
 	}
 
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+		header.difficulty = self.calculate_difficuty(header, parent);
+		header.gas_limit = {
+			let gas_floor_target: U256 = x!(3141562);
+			let gas_limit = parent.gas_limit;
+			let bound_divisor = self.u256_param("gasLimitBoundDivisor");
+			if gas_limit < gas_floor_target {
+				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - x!(1))
+			} else {
+				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1) + (header.gas_used * x!(6) / x!(5)) / bound_divisor)
+			}
+		};
+	}
+
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut Block) {
@@ -54,7 +70,6 @@ impl Engine for Ethash {
 			fields.state.add_balance(u.author(), &(reward * U256::from((8 + u.number() - current_number) / 8)));
 		}
 	}
-
 
 	fn verify_block_basic(&self, header: &Header,  _block: Option<&[u8]>) -> result::Result<(), Error> {
 		let min_difficulty = decode(self.spec().engine_params.get("minimumDifficulty").unwrap());

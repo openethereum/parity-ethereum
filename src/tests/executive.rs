@@ -6,6 +6,8 @@ use engine::*;
 use evm;
 use evm::{Schedule, Ext, Factory, VMType};
 use ethereum;
+use externalities::*;
+use substate::*;
 
 struct TestEngine {
 	vm_factory: Factory,
