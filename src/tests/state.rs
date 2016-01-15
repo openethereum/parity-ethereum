@@ -58,8 +58,22 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
-declare_test!{StateTests_stExample, "StateTests/stExample"}
 declare_test!{StateTests_stBlockHashTest, "StateTests/stBlockHashTest"}
-declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}
 declare_test!{StateTests_stCallCodes, "StateTests/stCallCodes"}
-declare_test_ignore!{StateTests_stCallCreateCallCodeTest, "StateTests/stCallCreateCallCodeTest"}
+declare_test_ignore!{StateTests_stCallCreateCallCodeTest, "StateTests/stCallCreateCallCodeTest"}	// << XXX FIXME 
+declare_test!{StateTests_stDelegatecallTest, "StateTests/stDelegatecallTest"}
+declare_test!{StateTests_stExample, "StateTests/stExample"}
+declare_test!{StateTests_stInitCodeTest, "StateTests/stInitCodeTest"}
+declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}
+declare_test!{StateTests_stMemoryStressTest, "StateTests/stMemoryStressTest"}
+declare_test!{StateTests_stMemoryTest, "StateTests/stMemoryTest"}
+declare_test!{StateTests_stPreCompiledContracts, "StateTests/stPreCompiledContracts"}
+declare_test_ignore!{StateTests_stQuadraticComplexityTest, "StateTests/stQuadraticComplexityTest"}	// << XXX FIXME 
+declare_test_ignore!{StateTests_stRecursiveCreate, "StateTests/stRecursiveCreate"}					// << XXX FIXME 
+declare_test!{StateTests_stRefundTest, "StateTests/stRefundTest"}
+declare_test!{StateTests_stSolidityTest, "StateTests/stSolidityTest"}
+declare_test!{StateTests_stSpecialTest, "StateTests/stSpecialTest"}
+declare_test!{StateTests_stSystemOperationsTest, "StateTests/stSystemOperationsTest"}
+declare_test!{StateTests_stTransactionTest, "StateTests/stTransactionTest"}
+declare_test!{StateTests_stTransitionTest, "StateTests/stTransitionTest"}
+declare_test!{StateTests_stWalletTest, "StateTests/stWalletTest"}
