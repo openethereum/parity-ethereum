@@ -133,3 +133,12 @@ impl<'a, 'view> Iterator for RlpIterator<'a, 'view> {
 		result
 	}
 }
+
+#[test]
+fn break_it() {
+	use common::*;
+	let h: Bytes = FromHex::from_hex("f84d0589010efbef67941f79b2a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap();
+	let r: Rlp = Rlp::new(&h);
+	let u: U256 = r.val_at(1);
+	assert_eq!(format!("{}", u), "0x10efbef67941f79b2");
+}
