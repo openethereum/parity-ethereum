@@ -209,7 +209,7 @@ impl<'a> Executive<'a> {
 				// just drain the whole gas
 				false => {
 					substate.excepted = true;
-					Ok(params.gas)
+					Ok(U256::zero())
 				}
 			}
 		} else if params.code.len() > 0 {
