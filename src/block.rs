@@ -255,6 +255,11 @@ impl IsBlock for SealedBlock {
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 pub fn enact<'x, 'y>(block_bytes: &[u8], engine: &'x Engine, db: OverlayDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
+	{
+		let header = BlockView::new(block_bytes).header_view();
+		let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
+//		flush(format!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author())));
+	}
 	let block = BlockView::new(block_bytes);
 	let header = block.header_view();
 	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author(), header.extra_data());

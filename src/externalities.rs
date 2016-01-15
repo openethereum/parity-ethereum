@@ -84,9 +84,14 @@ impl<'a> Ext for Externalities<'a> {
 		match *number < U256::from(self.info.number) && number.low_u64() >= cmp::max(256, self.info.number) - 256 {
 			true => {
 				let index = self.info.number - number.low_u64() - 1;
-				self.info.last_hashes[index as usize].clone()
+				let r = self.info.last_hashes[index as usize].clone();
+//				flush(format!("ext: blockhash({}) -> {} self.info.number={}\n", number, r, self.info.number));
+				r
 			},
-			false => H256::from(&U256::zero()),
+			false => {
+//				flush(format!("ext: blockhash({}) -> null self.info.number={}\n", number, self.info.number));
+				H256::from(&U256::zero())
+			},
 		}
 	}
 
@@ -142,6 +147,8 @@ impl<'a> Ext for Externalities<'a> {
 			call_gas = call_gas + U256::from(self.schedule.call_stipend);
 		}
 
+//		flush(format!("Externalities::call(gas={}, call_gas={}, recv={}, value={}, data={}, code={})\n", gas, call_gas, receive_address, value, data.pretty(), code_address));
+
 		if gas_cost > *gas {
 			return Err(evm::Error::OutOfGas);
 		}
@@ -165,8 +172,13 @@ impl<'a> Ext for Externalities<'a> {
 			data: Some(data.to_vec()),
 		};
 
-		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
-		match ex.call(&params, self.substate, BytesRef::Fixed(output)) {
+
+//		flush(format!("Externalities::call: BEFORE: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address)));
+//		flush(format!("Externalities::call: CALLING: params={:?}\n", params));
+		let r = Executive::from_parent(self.state, self.info, self.engine, self.depth).call(&params, self.substate, BytesRef::Fixed(output));
+//		flush(format!("Externalities::call: AFTER: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address)));
+
+		match r {
 			Ok(gas_left) => Ok((gas + gas_left, true)),
 			_ => Ok((gas, false))
 		}

@@ -196,6 +196,8 @@ impl<'a> Executive<'a> {
 			// part of substate that may be reverted
 			let mut unconfirmed_substate = Substate::new();
 
+			info!("exec: call; env_info={:?}", self.info);
+
 			let res = {
 				let mut ext = self.to_externalities(params, &mut unconfirmed_substate, OutputPolicy::Return(output));
 				let evm = Factory::create();
@@ -257,12 +259,12 @@ impl<'a> Executive<'a> {
 		let refund_value = gas_left * t.gas_price;
 		let fees_value = gas_used * t.gas_price;
 
-		flush(format!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
-			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value));
+//		flush(format!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
+//			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value));
 
-		flush(format!("exec::finalize: Refunding sender={}\n", t.sender().unwrap()));
+//		flush(format!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap()));
 		self.state.add_balance(&t.sender().unwrap(), &refund_value);
-		flush(format!("exec::finalize: Compensating author: fees_value: {}, author: {}", fees_value, &self.info.author));
+//		flush(format!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author));
 		self.state.add_balance(&self.info.author, &fees_value);
 
 		// perform suicides
