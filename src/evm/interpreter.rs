@@ -564,10 +564,11 @@ impl Interpreter {
 				stack.push(params.value.clone());
 			},
 			instructions::CALLDATALOAD => {
-				let id = stack.pop_back().low_u64() as usize;
+				let big_id = stack.pop_back();
+				let id = big_id.low_u64() as usize;
 				let max = id.wrapping_add(32);
 				let bound = cmp::min(params.data.len(), max);
-				if id < bound {
+				if id < bound && big_id < U256::from(params.data.len()) {
 					let mut v = params.data[id..bound].to_vec();
 					v.resize(32, 0);
 					stack.push(U256::from(&v[..]))
