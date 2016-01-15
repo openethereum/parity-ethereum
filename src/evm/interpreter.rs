@@ -45,7 +45,7 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 		let val = self.pop();
 		match val {
 			Some(x) => {
-				println!("Poping from stack: {}", x);
+				// println!("Poping from stack: {}", x);
 				x
 			},
 			None => panic!("Tried to pop from empty stack.")
@@ -62,7 +62,7 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 	}
 
 	fn push(&mut self, elem: S) {
-		println!("Pushing to stack: {}", elem);
+		// println!("Pushing to stack: {}", elem);
 		self.push(elem);
 	}
 
@@ -108,7 +108,12 @@ impl Memory for Vec<u8> {
 	fn read_slice(&self, init_off_u: U256, init_size_u: U256) -> &[u8] {
 		let init_off = init_off_u.low_u64() as usize;
 		let init_size = init_size_u.low_u64() as usize;
-		&self[init_off..init_off + init_size]
+		// When size is zero we haven't actually expanded the memory
+		if init_size == 0 {
+			&self[0..0]
+		} else {
+			&self[init_off..init_off + init_size]
+		}
 	}
 
 	fn read(&self, offset: U256) -> U256 {
@@ -119,7 +124,12 @@ impl Memory for Vec<u8> {
 	fn writeable_slice(&mut self, offset: U256, size: U256) -> &mut [u8] {
 		let off = offset.low_u64() as usize;
 		let s = size.low_u64() as usize;
-		&mut self[off..off+s]
+
+		if s == 0 {
+			&mut self[0..0]
+		} else {
+			&mut self[off..off+s]
+		}
 	}
 
 	fn write_slice(&mut self, offset: U256, slice: &[u8]) {
@@ -221,11 +231,11 @@ impl evm::Evm for Interpreter {
 			mem.expand(mem_size);
 			current_gas = current_gas - gas_cost;
 
-			println!("Executing: {} (0x{:x}) [Gas Cost: {} (Left: {})]", 
-							   instructions::get_info(instruction).name, instruction,
-							   gas_cost,
-							   current_gas
-			);
+			// println!("Executing: {} (0x{:x}) [Gas Cost: {} (Left: {})]", 
+			// 				   instructions::get_info(instruction).name, instruction,
+			// 				   gas_cost,
+			// 				   current_gas
+			// );
 
 			// Execute instruction
 			let result = try!(self.exec_instruction(
@@ -313,7 +323,7 @@ impl Interpreter {
 				InstructionCost::GasMem(default_gas, self.mem_needed(stack.peek(0), stack.peek(1)))
 			},
 			instructions::SHA3 => {
-				let words = add_u256_usize(stack.peek(1), 31) / U256::from(32);
+				let words = add_u256_usize(stack.peek(1), 31) >> 5;
 				let gas = U256::from(schedule.sha3_gas) + (U256::from(schedule.sha3_word_gas) * words);
 				InstructionCost::GasMem(gas, self.mem_needed(stack.peek(0), stack.peek(1)))
 			},
@@ -400,18 +410,18 @@ impl Interpreter {
 	}
 	
 	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> (U256, usize) {
-		let gas_for_mem = |mem_size: usize| {
-			let s = mem_size / 32;
-			schedule.memory_gas * s + s * s / schedule.quad_coeff_div
+		let gas_for_mem = |mem_size: U256| {
+			let s = mem_size >> 5;
+			s * U256::from(schedule.memory_gas) + s * s / U256::from(schedule.quad_coeff_div)
 		};
 
 		let req_mem_size = mem_size.low_u64() as usize;
 		let req_mem_size_rounded = (req_mem_size + 31) / 32 * 32;
-		let new_mem_gas = gas_for_mem(req_mem_size_rounded);
-		let current_mem_gas = gas_for_mem(current_mem_size);
+		let new_mem_gas = gas_for_mem(U256::from(req_mem_size_rounded));
+		let current_mem_gas = gas_for_mem(U256::from(current_mem_size));
 
 		(if req_mem_size_rounded > current_mem_size {
-			U256::from(new_mem_gas - current_mem_gas)
+			new_mem_gas - current_mem_gas
 		} else {
 			U256::zero()
 		}, req_mem_size_rounded)
@@ -440,11 +450,9 @@ impl Interpreter {
 		if self.is_zero(size) {
 			RequiredMem::Mem(U256::zero())
 		} else {
-			let (result, overflow) = offset.clone().overflowing_add(size.clone());
-			if overflow {
-				RequiredMem::OutOfMemory
-			} else {
-				RequiredMem::Mem(result)
+			match offset.clone().overflowing_add(size.clone()) {
+				(_result, true) => RequiredMem::OutOfMemory,
+				(result, false) => RequiredMem::Mem(result)
 			}
 		}
 	}
@@ -494,7 +502,8 @@ impl Interpreter {
 			},
 			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL => {
 				let call_gas = stack.pop_back();
-				let code_address = u256_to_address(&stack.pop_back());
+				let code_address = stack.pop_back();
+				let code_address = u256_to_address(&code_address);
 
 				let value = if instruction == instructions::DELEGATECALL {
 					params.value
