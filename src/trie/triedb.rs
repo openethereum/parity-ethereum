@@ -81,7 +81,7 @@ impl<'db> TrieDB<'db> {
 		let mut ret = self.db.keys();
 		for (k, v) in Self::to_map(self.keys()).into_iter() {
 			let keycount = *ret.get(&k).unwrap_or(&0);
-			match keycount == v as i32 {
+			match keycount <= v as i32 {
 				true => ret.remove(&k),
 				_ => ret.insert(k, keycount - v as i32),
 			};

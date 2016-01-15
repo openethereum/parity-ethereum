@@ -1,5 +1,6 @@
 #![feature(op_assign_traits)]
 #![feature(associated_consts)]
+#![feature(wrapping)]
 //! Ethcore-util library
 //!
 //! ### Rust version:

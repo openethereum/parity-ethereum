@@ -195,7 +195,6 @@ macro_rules! impl_hash {
 			fn from_json(json: &Json) -> Self {
 				match json {
 					&Json::String(ref s) => {
-						println!("s: {}", s);
 						match s.len() % 2 {
 							0 => FromStr::from_str(clean_0x(s)).unwrap(),
 							_ => FromStr::from_str(&("0".to_string() + &(clean_0x(s).to_string()))[..]).unwrap()
