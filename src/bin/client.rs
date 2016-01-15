@@ -6,19 +6,15 @@ extern crate env_logger;
 
 use std::io::*;
 use std::env;
-use log::{LogRecord, LogLevelFilter};
+use log::{LogLevelFilter};
 use env_logger::LogBuilder;
 use util::hash::*;
 use ethcore::service::ClientService;
 use ethcore::ethereum;
 
 fn setup_log() {
-	let format = |record: &LogRecord| {
-		format!("{} - {}", record.level(), record.args())
-	};
-
 	let mut builder = LogBuilder::new();
-	builder.format(format).filter(None, LogLevelFilter::Info);
+	builder.filter(None, LogLevelFilter::Info);
 
 	if env::var("RUST_LOG").is_ok() {
 		builder.parse(&env::var("RUST_LOG").unwrap());
