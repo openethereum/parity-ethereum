@@ -128,15 +128,16 @@ impl Client {
 	pub fn import_verified_block(&mut self, bytes: Bytes) {
 		let block = BlockView::new(&bytes);
 		let header = block.header();
-		if let Err(e) = verify_block_family(&bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
+		if let Err(e) = verify_block_family(&header, &bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			// TODO: mark as bad
+			self.queue.mark_as_bad(&header.hash());
 			return;
 		};
 		let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
 			Some(p) => p,
 			None => {
 				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
+				self.queue.mark_as_bad(&header.hash());
 				return;
 			},
 		};
@@ -158,11 +159,13 @@ impl Client {
 			Ok(b) => b,
 			Err(e) => {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+				self.queue.mark_as_bad(&header.hash());
 				return;
 			}
 		};
 		if let Err(e) = verify_block_final(&header, result.block().header()) {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			self.queue.mark_as_bad(&header.hash());
 			return;
 		}
 

@@ -68,14 +68,14 @@ pub enum BlockError {
 
 #[derive(Debug)]
 pub enum ImportError {
-	Bad(Error),
+	Bad(Option<Error>),
 	AlreadyInChain,
 	AlreadyQueued,
 }
 
 impl From<Error> for ImportError {
 	fn from(err: Error) -> ImportError {
-		ImportError::Bad(err)
+		ImportError::Bad(Some(err))
 	}
 }
 
