@@ -40,7 +40,7 @@ use std::slice;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
 use std::ops::{Deref, DerefMut};
-use uint::{U128, U256};
+use uint::{Uint, U128, U256};
 use hash::FixedHash;
 
 pub struct PrettySlice<'a> (&'a [u8]);

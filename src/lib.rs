@@ -35,16 +35,15 @@ extern crate mio;
 extern crate rand;
 extern crate rocksdb;
 extern crate tiny_keccak;
-
 #[macro_use]
 extern crate heapsize;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
-
+#[macro_use]
+extern crate itertools;
 extern crate env_logger;
-
 extern crate time;
 extern crate crypto as rcrypto;
 extern crate secp256k1;
@@ -52,12 +51,16 @@ extern crate arrayvec;
 extern crate elastic_array;
 
 pub mod standard;
+#[macro_use]
+pub mod from_json;
+#[macro_use]
 pub mod common;
 pub mod error;
 pub mod hash;
 pub mod uint;
 pub mod bytes;
 pub mod rlp;
+pub mod misc;
 pub mod json_aid;
 pub mod vector;
 pub mod sha3;
@@ -76,6 +79,7 @@ pub mod semantic_version;
 pub mod network;
 
 pub use common::*;
+pub use misc::*;
 pub use json_aid::*;
 pub use rlp::*;
 pub use hashdb::*;

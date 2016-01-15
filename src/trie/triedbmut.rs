@@ -71,6 +71,9 @@ impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
+		if !db.exists(root) && root == &SHA3_NULL_RLP {
+			*root = db.insert(&NULL_RLP); 
+		}
 		assert!(db.exists(root));
 		TrieDBMut { 
 			db: db, 

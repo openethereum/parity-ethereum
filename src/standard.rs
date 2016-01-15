@@ -7,6 +7,7 @@ pub use std::ptr;
 pub use std::result;
 pub use std::option;
 pub use std::mem;
+pub use std::ops;
 
 pub use std::path::Path;
 pub use std::str::{FromStr};
@@ -22,6 +23,7 @@ pub use std::collections::*;
 
 pub use rustc_serialize::json::Json;
 pub use rustc_serialize::base64::FromBase64;
-pub use rustc_serialize::hex::FromHex;
+pub use rustc_serialize::hex::{FromHex, FromHexError};
 
 pub use heapsize::HeapSizeOf;
+pub use itertools::Itertools;

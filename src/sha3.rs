@@ -5,6 +5,8 @@ use tiny_keccak::Keccak;
 use bytes::{BytesConvertable,Populatable};
 use hash::{H256, FixedHash};
 
+pub const SHA3_EMPTY: H256 = H256( [0xc5, 0xd2, 0x46, 0x01, 0x86, 0xf7, 0x23, 0x3c, 0x92, 0x7e, 0x7d, 0xb2, 0xdc, 0xc7, 0x03, 0xc0, 0xe5, 0x00, 0xb6, 0x53, 0xca, 0x82, 0x27, 0x3b, 0x7b, 0xfa, 0xd8, 0x04, 0x5d, 0x85, 0xa4, 0x70] );
+
 /// Types implementing this trait are sha3able.
 ///
 /// ```
@@ -43,12 +45,10 @@ impl<T> Hashable for T where T: BytesConvertable {
 
 #[test]
 fn sha3_empty() {
-	use std::str::FromStr;
-	assert_eq!([0u8; 0].sha3(), H256::from_str("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap());
+	assert_eq!([0u8; 0].sha3(), SHA3_EMPTY);
 }
 #[test]
 fn sha3_as() {
-	use std::str::FromStr;
-	assert_eq!([0x41u8; 32].sha3(), H256::from_str("59cad5948673622c1d64e2322488bf01619f7ff45789741b15a9f782ce9290a8").unwrap());
+	assert_eq!([0x41u8; 32].sha3(), From::from("59cad5948673622c1d64e2322488bf01619f7ff45789741b15a9f782ce9290a8"));
 }
 

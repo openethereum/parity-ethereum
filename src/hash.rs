@@ -1,23 +1,18 @@
 //! General hash types, a fixed-size raw-data type used as the output of hash functions.
 
-use std::str::FromStr;
-use std::fmt;
-use std::ops;
-use std::hash::{Hash, Hasher};
-use std::ops::{Index, IndexMut, Deref, DerefMut, BitOr, BitOrAssign, BitAnd, BitXor};
-use std::cmp::{PartialOrd, Ordering};
-use rustc_serialize::hex::*;
+use standard::*;
+use math::log2;
 use error::UtilError;
 use rand::Rng;
 use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
-use math::log2;
-use uint::U256;
+use from_json::*;
+use uint::{Uint, U256};
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
 ///
 /// Note: types implementing `FixedHash` must be also `BytesConvertable`.
-pub trait FixedHash: Sized + BytesConvertable + Populatable {
+pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default {
 	fn new() -> Self;
 	/// Synonym for `new()`. Prefer to new as it's more readable.
 	fn zero() -> Self;
@@ -193,6 +188,21 @@ macro_rules! impl_hash {
 					ret.0[i] = a[i];
 				}
 				Ok(ret)
+			}
+		}
+
+		impl FromJson for $from {
+			fn from_json(json: &Json) -> Self {
+				match json {
+					&Json::String(ref s) => {
+						println!("s: {}", s);
+						match s.len() % 2 {
+							0 => FromStr::from_str(clean_0x(s)).unwrap(),
+							_ => FromStr::from_str(&("0".to_string() + &(clean_0x(s).to_string()))[..]).unwrap()
+						}
+					},
+					_ => Default::default(),
+				}
 			}
 		}
 
@@ -381,12 +391,17 @@ macro_rules! impl_hash {
 				&self ^ &rhs
 			}
 		}
+
 		impl $from {
 			pub fn hex(&self) -> String {
 				format!("{:?}", self)
 			}
 
 			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
+		}
+
+		impl Default for $from {
+			fn default() -> Self { $from::new() }
 		}
 
 		impl From<u64> for $from {
