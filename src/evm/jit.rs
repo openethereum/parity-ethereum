@@ -310,12 +310,12 @@ impl evm::Evm for JitEvm {
 		let mut data = RuntimeData::new();
 		data.gas = params.gas;
 		data.gas_price = params.gas_price;
-		data.call_data = params.data.clone();
+		data.call_data = params.data.clone().unwrap_or(vec![]);
 		data.address = params.address.clone();
 		data.caller = params.sender.clone();
 		data.origin = params.origin.clone();
 		data.call_value = params.value;
-		data.code = params.code.clone();
+		data.code = params.code.clone().unwrap_or(vec![]);
 
 		data.author = ext.env_info().author.clone();
 		data.difficulty = ext.env_info().difficulty;
