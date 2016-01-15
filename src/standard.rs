@@ -27,8 +27,3 @@ pub use rustc_serialize::hex::{FromHex, FromHexError};
 
 pub use heapsize::HeapSizeOf;
 pub use itertools::Itertools;
-
-pub fn flush(s: String) {
-	::std::io::stdout().write(s.as_bytes()).unwrap();
-	::std::io::stdout().flush().unwrap();
-}
