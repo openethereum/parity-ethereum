@@ -30,6 +30,7 @@ pub enum IoMessage<Message> where Message: Send + Sized {
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
 pub struct IoContext<'s, Message> where Message: Send + 'static {
 	timers: &'s mut Slab<UserTimer>,
+	/// Low leve MIO Event loop for custom handler registration.
 	pub event_loop: &'s mut EventLoop<IoManager<Message>>,
 }
 
@@ -43,7 +44,7 @@ impl<'s, Message> IoContext<'s, Message> where Message: Send + 'static {
 	}
 
 	/// Register a new IO timer. Returns a new timer token. 'IoHandler::timeout' will be called with the token.
-	pub fn register_timer(&mut self, ms: u64) -> Result<TimerToken, UtilError>{
+	pub fn register_timer(&mut self, ms: u64) -> Result<TimerToken, UtilError> {
 		match self.timers.insert(UserTimer {
 			delay: ms,
 		}) {
