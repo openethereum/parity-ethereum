@@ -117,11 +117,18 @@ impl<'a> Executive<'a> {
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
-		// TODO: error on base gas required
+		let schedule = self.engine.schedule(self.info);
+		let base_gas_required = U256::from(t.gas_required(&schedule));
+
+		if t.gas < base_gas_required {
+			return Err(From::from(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas }));
+		}
+
+		let init_gas = t.gas - base_gas_required;
 
 		// validate transaction nonce
 		if t.nonce != nonce {
-			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, is: t.nonce }));
+			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
 		}
 		
 		// validate if transaction fits into given block
@@ -140,7 +147,7 @@ impl<'a> Executive<'a> {
 
 		// avoid unaffordable transactions
 		if U512::from(balance) < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, is: U512::from(balance) }));
+			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: U512::from(balance) }));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
@@ -148,9 +155,6 @@ impl<'a> Executive<'a> {
 		self.state.sub_balance(&sender, &U256::from(gas_cost));
 
 		let mut substate = Substate::new();
-
-		let schedule = self.engine.schedule(self.info);
-		let init_gas = t.gas - U256::from(t.gas_required(&schedule));
 
 		let res = match t.action() {
 			&Action::Create => {
@@ -949,8 +953,8 @@ mod tests {
 		};
 		
 		match res {
-			Err(Error::Execution(ExecutionError::InvalidNonce { expected, is })) 
-				if expected == U256::zero() && is == U256::one() => (), 
+			Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) 
+				if expected == U256::zero() && got == U256::one() => (), 
 			_ => assert!(false, "Expected invalid nonce error.")
 		}
 	}
@@ -1000,8 +1004,8 @@ mod tests {
 		};
 		
 		match res {
-			Err(Error::Execution(ExecutionError::NotEnoughCash { required , is })) 
-				if required == U512::from(100_018) && is == U512::from(100_017) => (), 
+			Err(Error::Execution(ExecutionError::NotEnoughCash { required , got })) 
+				if required == U512::from(100_018) && got == U512::from(100_017) => (), 
 			_ => assert!(false, "Expected not enough cash error. {:?}", res)
 		}
 	}
