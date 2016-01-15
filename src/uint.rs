@@ -183,6 +183,64 @@ macro_rules! construct_uint {
 		}
 
 		impl $name {
+
+			pub fn pow(self, expon: $name) -> $name {
+				if expon == $name::zero() {
+					return $name::one()
+				}
+				let is_even = |x : &$name| x.low_u64() & 1 == 0;
+
+				let u_one = $name::one();
+				let u_two = $name::from(2);
+				let mut y = u_one;
+				let mut n = expon;
+				let mut x = self;
+				while n > u_one {
+					if is_even(&n) {
+						x = x * x;
+						n = n / u_two;
+					} else {
+						y = x * y;
+						x = x * x;
+						n = (n - u_one) / u_two;
+					}
+				}
+				x * y
+			}
+
+			pub fn overflowing_pow(self, expon: $name) -> ($name, bool) {
+				if expon == $name::zero() {
+					return ($name::one(), false)
+				}
+				let is_even = |x : &$name| x.low_u64() & 1 == 0;
+
+				let u_one = $name::one();
+				let u_two = $name::from(2);
+				let mut y = u_one;
+				let mut n = expon;
+				let mut x = self;
+				let mut overflow = false;
+
+				while n > u_one {
+					if is_even(&n) {
+						let (c, mul_overflow) = x.overflowing_mul(x);
+						x = c;
+						overflow |= mul_overflow;
+						n = n / u_two;
+					} else {
+						let (new_y, y_overflow) = x.overflowing_mul(y);
+						let (new_x, x_overflow) = x.overflowing_mul(x);
+						x = new_x;
+						y = new_y;
+						overflow |= y_overflow | x_overflow;
+
+						n = (n - u_one) / u_two;
+					}
+				}
+				let (res, mul_overflow) = x.overflowing_mul(y);
+				(res, mul_overflow | overflow)
+			}
+
 			/// Multiplication by u32
 			fn mul_u32(self, other: u32) -> $name {
 				let $name(ref arr) = self;
@@ -892,6 +950,33 @@ mod tests {
 		assert_eq!(U256::from(10u64).mul_u32(2), U256::from(20u64));
 		assert_eq!(U256::from(10u64).mul_u32(5), U256::from(50u64));
 		assert_eq!(U256::from(1000u64).mul_u32(50), U256::from(50000u64));
+	}
+
+	#[test]
+	fn uint256_pow () {
+		assert_eq!(U256::from(10).pow(U256::from(0)), U256::from(1));
+		assert_eq!(U256::from(10).pow(U256::from(1)), U256::from(10));
+		assert_eq!(U256::from(10).pow(U256::from(2)), U256::from(100));
+		assert_eq!(U256::from(10).pow(U256::from(3)), U256::from(1000));
+		assert_eq!(U256::from(10).pow(U256::from(20)), U256::exp10(20));
+	}
+
+	#[test]
+	#[should_panic]
+	fn uint256_pow_overflow () {
+		U256::from(2).pow(U256::from(0x001));
+	}
+
+	#[test]
+	fn uint256_overflowing_pow () {
+		assert_eq!(
+			U256::from(2).overflowing_pow(U256::from(0xfe)),
+			(U256::zero(), false)
+		);
+		assert_eq!(
+			U256::from(2).overflowing_pow(U256::from(0x001)),
+			(U256::zero(), true)
+		);
 	}
 
 	#[test]
