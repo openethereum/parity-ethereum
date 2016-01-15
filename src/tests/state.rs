@@ -1,5 +1,7 @@
 use super::test_common::*;
 use state::*;
+use pod_state::*;
+use state_diff::*;
 use ethereum;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
@@ -9,13 +11,14 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let engine = ethereum::new_frontier_test().to_engine().unwrap();
 
 	for (name, test) in json.as_object().unwrap() {
+		println!("name: {:?}", name);
 		let mut fail = false;
 		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true; true } else {false};
 
 		let t = Transaction::from_json(&test["transaction"]);
 		let env = EnvInfo::from_json(&test["env"]);
-		let _out = bytes_from_json(&test["out"]);
-		let post_state_root = h256_from_json(&test["postStateRoot"]);
+		let _out = Bytes::from_json(&test["out"]);
+		let post_state_root = xjson!(&test["postStateRoot"]);
 		let pre = PodState::from_json(&test["pre"]);
 		let post = PodState::from_json(&test["post"]);
 		let logs: Vec<_> = test["logs"].as_array().unwrap().iter().map(&LogEntry::from_json).collect();
@@ -39,7 +42,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			let our_post = s.to_pod();
 			println!("Got:\n{}", our_post);
 			println!("Expect:\n{}", post);
-			println!("Diff ---expect -> +++got:\n{}", pod_state_diff(&post, &our_post));
+			println!("Diff ---expect -> +++got:\n{}", StateDiff::diff_pod(&post, &our_post));
 		}
 
 		if fail_unless(logs == r.logs) {
@@ -56,4 +59,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 }
 
 declare_test!{StateTests_stExample, "StateTests/stExample"}
+declare_test!{StateTests_stBlockHashTest, "StateTests/stBlockHashTest"}
 declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}
+declare_test!{StateTests_stCallCodes, "StateTests/stCallCodes"}
+declare_test_ignore!{StateTests_stCallCreateCallCodeTest, "StateTests/stCallCreateCallCodeTest"}

@@ -20,15 +20,14 @@ pub trait Ext {
 
 	/// Creates new contract.
 	/// 
-	/// If contract creation is successfull, return gas_left and contract address,
-	/// If depth is too big or transfer value exceeds balance, return None
-	/// Otherwise return appropriate `Error`.
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> Result<(U256, Option<Address>), Error>;
+	/// Returns gas_left and contract address if contract creation was succesfull.
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> (U256, Option<Address>);
 
 	/// Message call.
 	/// 
-	/// If call is successfull, returns gas left.
-	/// otherwise `Error`.
+	/// Returns Err, if we run out of gas.
+	/// Otherwise returns call_result which contains gas left 
+	/// and true if subcall was successfull.
 	fn call(&mut self, 
 			gas: &U256, 
 			call_gas: &U256, 
@@ -36,7 +35,7 @@ pub trait Ext {
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<U256, Error>;
+			output: &mut [u8]) -> Result<(U256, bool), Error>;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Vec<u8>;

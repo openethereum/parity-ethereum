@@ -1,6 +1,8 @@
 use common::*;
 use engine::Engine;
 use executive::Executive;
+use pod_account::*;
+use pod_state::*;
 
 pub type ApplyResult = Result<Receipt, Error>;
 
@@ -125,7 +127,7 @@ impl State {
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) {
-		self.require(a, false).set_storage(key, value);
+		self.require(a, false).set_storage(key, value)
 	}
 
 	/// Initialise the code of account `a` so that it is `value` for `key`.
@@ -138,8 +140,13 @@ impl State {
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
+		//println!("Executed: {:?}", e);
 		self.commit();
 		Ok(Receipt::new(self.root().clone(), e.gas_used, e.logs))
+	}
+
+	pub fn revert(&mut self, backup: State) {
+		self.cache = backup.cache;
 	}
 
 	/// Convert into a JSON representation.
@@ -201,7 +208,7 @@ impl State {
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
 		// TODO: handle database rather than just the cache.
-		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
+		PodState::new(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let &Some(ref acc) = opt {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}

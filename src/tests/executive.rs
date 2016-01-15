@@ -36,7 +36,7 @@ impl Engine for TestEngine {
 
 struct CallCreate {
 	data: Bytes,
-	destination: Address,
+	destination: Option<Address>,
 	_gas_limit: U256,
 	value: U256
 }
@@ -74,33 +74,33 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.blockhash(number)
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> Result<(U256, Option<Address>), evm::Error> {
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> (U256, Option<Address>) {
 		// in call and create we need to check if we exited with insufficient balance or max limit reached.
 		// in case of reaching max depth, we should store callcreates. Otherwise, ignore.
 		let res = self.ext.create(gas, value, code);
 		let ext = &self.ext;
 		match res {
 			// just record call create
-			Ok((gas_left, Some(address))) => {
+			(gas_left, Some(address)) => {
 				self.callcreates.push(CallCreate {
 					data: code.to_vec(),
-					destination: address.clone(),
+					destination: Some(address.clone()),
 					_gas_limit: *gas,
 					value: *value
 				});
-				Ok((gas_left, Some(address)))
+				(gas_left, Some(address))
 			},
 			// creation failed only due to reaching max_depth
-			Ok((gas_left, None)) if ext.state.balance(&ext.params.address) >= *value => {
-				let address = contract_address(&ext.params.address, &ext.state.nonce(&ext.params.address));
+			(gas_left, None) if ext.state.balance(&ext.params.address) >= *value => {
 				self.callcreates.push(CallCreate {
 					data: code.to_vec(),
-					// TODO: address is not stored here?
-					destination: Address::new(),
+					// callcreate test does not need an address
+					destination: None,
 					_gas_limit: *gas,
 					value: *value
 				});
-				Ok((gas_left, Some(address)))
+				let address = contract_address(&ext.params.address, &ext.state.nonce(&ext.params.address));
+				(gas_left, Some(address))
 			},
 			other => other
 		}
@@ -113,21 +113,20 @@ impl<'a> Ext for TestExt<'a> {
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<U256, evm::Error> {
+			output: &mut [u8]) -> Result<(U256, bool), evm::Error> {
 		let res = self.ext.call(gas, call_gas, receive_address, value, data, code_address, output);
 		let ext = &self.ext;
-		match res {
-			Ok(gas_left) if ext.state.balance(&ext.params.address) >= *value => {
+		if let &Ok(_some) = &res {
+			if ext.state.balance(&ext.params.address) >= *value {
 				self.callcreates.push(CallCreate {
 					data: data.to_vec(),
-					destination: receive_address.clone(),
+					destination: Some(receive_address.clone()),
 					_gas_limit: *call_gas,
 					value: *value
 				});
-				Ok(gas_left)
-			},
-			other => other
+			}
 		}
+		res
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {
@@ -168,6 +167,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 	for (name, test) in json.as_object().unwrap() {
+		println!("name: {:?}", name);
 		// sync io is usefull when something crashes in jit
 		// ::std::io::stdout().write(&name.as_bytes());
 		// ::std::io::stdout().write(b"\n");
@@ -184,29 +184,24 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 
 		test.find("pre").map(|pre| for (addr, s) in pre.as_object().unwrap() {
 			let address = Address::from(addr.as_ref());
-			let balance = u256_from_json(&s["balance"]);
-			let code = bytes_from_json(&s["code"]);
-			let _nonce = u256_from_json(&s["nonce"]);
+			let balance = xjson!(&s["balance"]);
+			let code = xjson!(&s["code"]);
+			let _nonce: U256 = xjson!(&s["nonce"]);
 
 			state.new_contract(&address);
 			state.add_balance(&address, &balance);
 			state.init_code(&address, code);
-
-			for (k, v) in s["storage"].as_object().unwrap() {
-				let key = H256::from(&u256_from_str(k));
-				let val = H256::from(&u256_from_json(v));
-				state.set_storage(&address, key, val);
-			}
+			BTreeMap::from_json(&s["storage"]).into_iter().foreach(|(k, v)| state.set_storage(&address, k, v));
 		});
 
 		let mut info = EnvInfo::new();
 
 		test.find("env").map(|env| {
-			info.author = address_from_json(&env["currentCoinbase"]);
-			info.difficulty = u256_from_json(&env["currentDifficulty"]);
-			info.gas_limit = u256_from_json(&env["currentGasLimit"]);
-			info.number = u256_from_json(&env["currentNumber"]).low_u64();
-			info.timestamp = u256_from_json(&env["currentTimestamp"]).low_u64();
+			info.author = xjson!(&env["currentCoinbase"]);
+			info.difficulty = xjson!(&env["currentDifficulty"]);
+			info.gas_limit = xjson!(&env["currentGasLimit"]);
+			info.number = xjson!(&env["currentNumber"]);
+			info.timestamp = xjson!(&env["currentTimestamp"]);
 		});
 
 		let engine = TestEngine::new(0, vm.clone());
@@ -214,14 +209,14 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		// params
 		let mut params = ActionParams::new();
 		test.find("exec").map(|exec| {
-			params.address = address_from_json(&exec["address"]);
-			params.sender = address_from_json(&exec["caller"]);
-			params.origin = address_from_json(&exec["origin"]);
-			params.code = bytes_from_json(&exec["code"]);
-			params.data = bytes_from_json(&exec["data"]);
-			params.gas = u256_from_json(&exec["gas"]);
-			params.gas_price = u256_from_json(&exec["gasPrice"]);
-			params.value = u256_from_json(&exec["value"]);
+			params.address = xjson!(&exec["address"]);
+			params.sender = xjson!(&exec["caller"]);
+			params.origin = xjson!(&exec["origin"]);
+			params.code = xjson!(&exec["code"]);
+			params.data = xjson!(&exec["data"]);
+			params.gas = xjson!(&exec["gas"]);
+			params.gas_price = xjson!(&exec["gasPrice"]);
+			params.value = xjson!(&exec["value"]);
 		});
 
 		let out_of_gas = test.find("callcreates").map(|_calls| {
@@ -243,41 +238,33 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
 			Ok(gas_left) => {
-				//println!("name: {}, gas_left : {:?}, expected: {:?}", name, gas_left, u256_from_json(&test["gas"]));
+				//println!("name: {}, gas_left : {:?}, expected: {:?}", name, gas_left, U256::from(&test["gas"]));
 				fail_unless(!out_of_gas, "expected to run out of gas.");
-				fail_unless(gas_left == u256_from_json(&test["gas"]), "gas_left is incorrect");
-				fail_unless(output == bytes_from_json(&test["out"]), "output is incorrect");
-
+				fail_unless(gas_left == xjson!(&test["gas"]), "gas_left is incorrect");
+				fail_unless(output == Bytes::from_json(&test["out"]), "output is incorrect");
 
 				test.find("post").map(|pre| for (addr, s) in pre.as_object().unwrap() {
 					let address = Address::from(addr.as_ref());
-					//let balance = u256_from_json(&s["balance"]);
 
-					fail_unless(state.code(&address).unwrap_or(vec![]) == bytes_from_json(&s["code"]), "code is incorrect");
-					fail_unless(state.balance(&address) == u256_from_json(&s["balance"]), "balance is incorrect");
-					fail_unless(state.nonce(&address) == u256_from_json(&s["nonce"]), "nonce is incorrect");
-
-					for (k, v) in s["storage"].as_object().unwrap() {
-						let key = H256::from(&u256_from_str(k));
-						let val = H256::from(&u256_from_json(v));
-
-						fail_unless(state.storage_at(&address, &key) == val, "storage is incorrect");
-					}
+					fail_unless(state.code(&address).unwrap_or(vec![]) == Bytes::from_json(&s["code"]), "code is incorrect");
+					fail_unless(state.balance(&address) == xjson!(&s["balance"]), "balance is incorrect");
+					fail_unless(state.nonce(&address) == xjson!(&s["nonce"]), "nonce is incorrect");
+					BTreeMap::from_json(&s["storage"]).iter().foreach(|(k, v)| fail_unless(&state.storage_at(&address, &k) == v, "storage is incorrect"));
 				});
 
 				let cc = test["callcreates"].as_array().unwrap();
 				fail_unless(callcreates.len() == cc.len(), "callcreates does not match");
 				for i in 0..cc.len() {
-					let is = &callcreates[i];
+					let callcreate = &callcreates[i];
 					let expected = &cc[i];
-					fail_unless(is.data == bytes_from_json(&expected["data"]), "callcreates data is incorrect");
-					fail_unless(is.destination == address_from_json(&expected["destination"]), "callcreates destination is incorrect");
-					fail_unless(is.value == u256_from_json(&expected["value"]), "callcreates value is incorrect");
+					fail_unless(callcreate.data == Bytes::from_json(&expected["data"]), "callcreates data is incorrect");
+					fail_unless(callcreate.destination == xjson!(&expected["destination"]), "callcreates destination is incorrect");
+					fail_unless(callcreate.value == xjson!(&expected["value"]), "callcreates value is incorrect");
 
 					// TODO: call_gas is calculated in externalities and is not exposed to TestExt.
 					// maybe move it to it's own function to simplify calculation?
-					//println!("name: {:?}, is {:?}, expected: {:?}", name, is.gas_limit, u256_from_json(&expected["gasLimit"]));
-					//fail_unless(is.gas_limit == u256_from_json(&expected["gasLimit"]), "callcreates gas_limit is incorrect");
+					//println!("name: {:?}, callcreate {:?}, expected: {:?}", name, callcreate.gas_limit, U256::from(&expected["gasLimit"]));
+					//fail_unless(callcreate.gas_limit == U256::from(&expected["gasLimit"]), "callcreates gas_limit is incorrect");
 				}
 			}
 		}

@@ -36,16 +36,18 @@ impl EnvInfo {
 			gas_used: x!(0),
 		}
 	}
+}
 
-	pub fn from_json(json: &Json) -> EnvInfo {
-		let current_number = u64_from_json(&json["currentNumber"]);
+impl FromJson for EnvInfo {
+	fn from_json(json: &Json) -> EnvInfo {
+		let current_number: u64 = xjson!(&json["currentNumber"]);
 		EnvInfo {
 			number: current_number,
-			author: address_from_json(&json["currentCoinbase"]),
-			difficulty: u256_from_json(&json["currentDifficulty"]),
-			gas_limit: u256_from_json(&json["currentGasLimit"]),
-			timestamp: u64_from_json(&json["currentTimestamp"]),
-			last_hashes: (1..257).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
+			author: xjson!(&json["currentCoinbase"]),
+			difficulty: xjson!(&json["currentDifficulty"]),
+			gas_limit: xjson!(&json["currentGasLimit"]),
+			timestamp: xjson!(&json["currentTimestamp"]),
+			last_hashes: (1..cmp::min(current_number + 1, 257)).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
 			gas_used: x!(0),
 		}
 	}

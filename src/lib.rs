@@ -73,18 +73,19 @@
 //!       sudo ldconfig
 //!       ```
 
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 extern crate rustc_serialize;
-#[macro_use] extern crate itertools;
 extern crate flate2;
 extern crate rocksdb;
 extern crate heapsize;
 extern crate crypto;
 extern crate time;
 extern crate env_logger;
-#[cfg(feature = "jit" )] extern crate evmjit;
-
-#[macro_use] extern crate ethcore_util as util;
+#[cfg(feature = "jit" )]
+extern crate evmjit;
+#[macro_use]
+extern crate ethcore_util as util;
 
 pub mod common;
 pub mod basic_types;
@@ -94,6 +95,10 @@ pub mod executive;
 pub mod error;
 pub mod log_entry;
 pub mod env_info;
+pub mod pod_account;
+pub mod pod_state;
+pub mod account_diff;
+pub mod state_diff;
 pub mod engine;
 pub mod state;
 pub mod account;

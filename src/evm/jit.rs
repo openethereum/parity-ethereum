@@ -209,23 +209,12 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			  init_size: u64,
 			  address: *mut evmjit::H256) {
 		unsafe {
-			match self.ext.create(&U256::from(*io_gas), &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize)) {
-				Ok((gas_left, opt)) => {
-					*io_gas = gas_left.low_u64();
-					*address = match opt {
-						Some(addr) => addr.into_jit(),
-						_ => Address::new().into_jit()
-					};
-				},
-				Err(err @ evm::Error::OutOfGas) => {
-					*self.err = Some(err);
-					// hack to propagate `OutOfGas` to evmjit and stop
-					// the execution immediately.
-					// Works, cause evmjit uses i64, not u64
-					*io_gas = -1i64 as u64;
-				},
-				Err(err) => *self.err = Some(err)
-			}
+			let (gas_left, opt_addr) = self.ext.create(&U256::from(*io_gas), &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize));
+			*io_gas = gas_left.low_u64();
+			*address = match opt_addr {
+				Some(addr) => addr.into_jit(),
+				_ => Address::new().into_jit()
+			};
 		}
 	}
 
@@ -247,22 +236,21 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 									slice::from_raw_parts(in_beg, in_size as usize),
 									&Address::from_jit(&*code_address),
 									slice::from_raw_parts_mut(out_beg, out_size as usize));
-
 			match res {
-				Ok(gas_left) => {
+				Ok((gas_left, ok)) => {
 					*io_gas = gas_left.low_u64();
-					true
-				},
-				Err(err @ evm::Error::OutOfGas) => {
-					*self.err = Some(err);
-					// hack to propagate `OutOfGas` to evmjit and stop
-					// the execution immediately.
-					// Works, cause evmjit uses i64, not u64
+					ok
+				}
+				Err(evm::Error::OutOfGas) => {
+					// hack to propagate out_of_gas to evmjit.
+					// must be negative
 					*io_gas = -1i64 as u64;
 					false
 				},
 				Err(err) => {
+					// internal error.
 					*self.err = Some(err);
+					*io_gas = -1i64 as u64;
 					false
 				}
 			}
