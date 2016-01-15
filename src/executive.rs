@@ -763,4 +763,40 @@ mod tests {
 			_ => assert!(false, "Expected not enough cash error. {:?}", res)
 		}
 	}
+
+	evm_test!{test_sha3: test_sha3_jit, test_sha3_int}
+	fn test_sha3(factory: Factory) {
+		let code = "6064640fffffffff20600055".from_hex().unwrap();
+
+		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let address = contract_address(&sender, &U256::zero());
+		// TODO: add tests for 'callcreate'
+		//let next_address = contract_address(&address, &U256::zero());
+		let mut params = ActionParams::new();
+		params.address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(0x0186a0);
+		params.code = code.clone();
+		params.value = U256::from_str("0de0b6b3a7640000").unwrap();
+		let mut state = State::new_temp();
+		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
+		let info = EnvInfo::new();
+		let engine = TestEngine::new(0, factory);
+		let mut substate = Substate::new();
+
+		let result = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.create(&params, &mut substate)
+		};
+
+		match result {
+			Err(_) => {
+			},
+			_ => {
+				panic!("Expected OutOfGas");
+			}
+		}
+	}
+
 }
