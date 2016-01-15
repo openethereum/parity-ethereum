@@ -759,7 +759,8 @@ impl Interpreter {
 			instructions::EXP => {
 				let base = stack.pop_back();
 				let expon = stack.pop_back();
-				stack.push(base.pow(expon));
+				let (res, _overflow) = base.overflowing_pow(expon);
+				stack.push(res);
 			},
 			instructions::NOT => {
 				let a = stack.pop_back();
