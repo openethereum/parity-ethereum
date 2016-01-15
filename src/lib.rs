@@ -89,7 +89,6 @@ extern crate ethcore_util as util;
 
 pub mod common;
 pub mod basic_types;
-pub mod executive;
 pub mod error;
 pub mod log_entry;
 pub mod env_info;
@@ -110,7 +109,10 @@ pub mod spec;
 pub mod views;
 pub mod blockchain;
 pub mod extras;
+pub mod substate;
 pub mod evm;
+pub mod executive;
+pub mod externalities;
 
 #[cfg(test)]
 mod tests;
