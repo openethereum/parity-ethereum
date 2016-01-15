@@ -31,8 +31,7 @@ impl PodAccount {
 		let mut stream = RlpStream::new_list(4);
 		stream.append(&self.nonce);
 		stream.append(&self.balance);
-		// TODO.
-		stream.append(&SHA3_NULL_RLP);
+		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k.to_vec(), encode(&U256::from(v.as_slice())))).collect()));
 		stream.append(&self.code.sha3());
 		stream.out()
 	}
