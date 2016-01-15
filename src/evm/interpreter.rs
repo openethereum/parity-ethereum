@@ -837,8 +837,9 @@ impl Interpreter {
 			},
 			instructions::BYTE => {
 				let word = stack.pop_back();
+				let val = stack.pop_back();
 				let byte = if word < U256::from(32) {
-					word >> (8 * (31 - word.low_u64() as usize))
+					(val >> (8 * (31 - word.low_u64() as usize))) & U256::from(0xff)
 				} else {
 					U256::zero()
 				};
