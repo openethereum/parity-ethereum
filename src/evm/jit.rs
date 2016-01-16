@@ -3,43 +3,6 @@ use common::*;
 use evmjit;
 use evm;
 
-/// Ethcore representation of evmjit runtime data.
-struct RuntimeData {
-	gas: U256,
-	gas_price: U256,
-	call_data: Bytes,
-	address: Address,
-	caller: Address,
-	origin: Address,
-	call_value: U256,
-	author: Address,
-	difficulty: U256,
-	gas_limit: U256,
-	number: u64,
-	timestamp: u64,
-	code: Bytes
-}
-
-impl RuntimeData {
-	fn new() -> RuntimeData {
-		RuntimeData {
-			gas: U256::zero(),
-			gas_price: U256::zero(),
-			call_data: vec![],
-			address: Address::new(),
-			caller: Address::new(),
-			origin: Address::new(),
-			call_value: U256::zero(),
-			author: Address::new(),
-			difficulty: U256::zero(),
-			gas_limit: U256::zero(),
-			number: 0,
-			timestamp: 0,
-			code: vec![]
-		}
-	}
-}
-
 /// Should be used to convert jit types to ethcore
 trait FromJit<T>: Sized {
 	fn from_jit(input: T) -> Self;
@@ -126,64 +89,42 @@ impl IntoJit<evmjit::H256> for Address {
 	}
 }
 
-impl IntoJit<evmjit::RuntimeDataHandle> for RuntimeData {
-	fn into_jit(self) -> evmjit::RuntimeDataHandle {
-		let mut data = evmjit::RuntimeDataHandle::new();
-		assert!(self.gas <= U256::from(u64::max_value()), "evmjit gas must be lower than 2 ^ 64");
-		assert!(self.gas_price <= U256::from(u64::max_value()), "evmjit gas_price must be lower than 2 ^ 64");
-		data.gas = self.gas.low_u64() as i64;
-		data.gas_price = self.gas_price.low_u64() as i64;
-		data.call_data = self.call_data.as_ptr();
-		data.call_data_size = self.call_data.len() as u64;
-		mem::forget(self.call_data);
-		data.address = self.address.into_jit();
-		data.caller = self.caller.into_jit();
-		data.origin = self.origin.into_jit();
-		data.call_value = self.call_value.into_jit();
-		data.author = self.author.into_jit();
-		data.difficulty = self.difficulty.into_jit();
-		data.gas_limit = self.gas_limit.into_jit();
-		data.number = self.number;
-		data.timestamp = self.timestamp as i64;
-		data.code = self.code.as_ptr();
-		data.code_size = self.code.len() as u64;
-		data.code_hash = self.code.sha3().into_jit();
-		mem::forget(self.code);
-		data
-	}
-}
-
 /// Externalities adapter. Maps callbacks from evmjit to externalities trait.
 /// 
 /// Evmjit doesn't have to know about children execution failures. 
 /// This adapter 'catches' them and moves upstream.
 struct ExtAdapter<'a> {
 	ext: &'a mut evm::Ext,
-	err: &'a mut Option<evm::Error>
+	address: Address
 }
 
 impl<'a> ExtAdapter<'a> {
-	fn new(ext: &'a mut evm::Ext, err: &'a mut Option<evm::Error>) -> Self {
+	fn new(ext: &'a mut evm::Ext, address: Address) -> Self {
 		ExtAdapter {
 			ext: ext,
-			err: err
+			address: address
 		}
 	}
 }
 
 impl<'a> evmjit::Ext for ExtAdapter<'a> {
-	fn sload(&self, index: *const evmjit::I256, out_value: *mut evmjit::I256) {
+	fn sload(&self, key: *const evmjit::I256, out_value: *mut evmjit::I256) {
 		unsafe {
-			let i = H256::from_jit(&*index);
+			let i = H256::from_jit(&*key);
 			let o = self.ext.storage_at(&i);
 			*out_value = o.into_jit();
 		}
 	}
 
-	fn sstore(&mut self, index: *const evmjit::I256, value: *const evmjit::I256) {
-		unsafe {
-			self.ext.set_storage_at(H256::from_jit(&*index), H256::from_jit(&*value));
+	fn sstore(&mut self, key: *const evmjit::I256, value: *const evmjit::I256) {
+		let key = unsafe { H256::from_jit(&*key) };
+		let value = unsafe { H256::from_jit(&*value) };
+		let old_value = self.ext.storage_at(&key);
+		// if SSTORE nonzero -> zero, increment refund count
+		if !old_value.is_zero() && value.is_zero() {
+			self.ext.inc_sstore_clears();
 		}
+		self.ext.set_storage(key, value);
 	}
 
 	fn balance(&self, address: *const evmjit::H256, out_value: *mut evmjit::I256) {
@@ -204,17 +145,29 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 
 	fn create(&mut self,
 			  io_gas: *mut u64,
-			  endowment: *const evmjit::I256,
+			  value: *const evmjit::I256,
 			  init_beg: *const u8,
 			  init_size: u64,
 			  address: *mut evmjit::H256) {
-		unsafe {
-			let (gas_left, opt_addr) = self.ext.create(&U256::from(*io_gas), &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize));
-			*io_gas = gas_left.low_u64();
-			*address = match opt_addr {
-				Some(addr) => addr.into_jit(),
-				_ => Address::new().into_jit()
-			};
+			
+		let gas = unsafe { U256::from(*io_gas) };
+		let value = unsafe { U256::from_jit(&*value) };
+		let code = unsafe { slice::from_raw_parts(init_beg, init_size as usize) };
+
+		// check if balance is sufficient and we are not too deep
+		if self.ext.balance(&self.address) >= value && self.ext.depth() < self.ext.schedule().max_depth {
+			match self.ext.create(&gas, &value, code) {
+				evm::ContractCreateResult::Created(new_address, gas_left) => unsafe {
+					*address = new_address.into_jit();
+					*io_gas = gas_left.low_u64();
+				},
+				evm::ContractCreateResult::Failed => unsafe {
+					*address = Address::new().into_jit();
+					*io_gas = 0;
+				}
+			}
+		} else {
+			unsafe { *address = Address::new().into_jit(); }
 		}
 	}
 
@@ -228,31 +181,56 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				out_beg: *mut u8,
 				out_size: u64,
 				code_address: *const evmjit::H256) -> bool {
-		unsafe {
-			let res = self.ext.call(&U256::from(*io_gas), 
-									&U256::from(call_gas), 
-									&Address::from_jit(&*receive_address),
-									&U256::from_jit(&*value),
-									slice::from_raw_parts(in_beg, in_size as usize),
-									&Address::from_jit(&*code_address),
-									slice::from_raw_parts_mut(out_beg, out_size as usize));
-			match res {
-				Ok((gas_left, ok)) => {
-					*io_gas = gas_left.low_u64();
-					ok
-				}
-				Err(evm::Error::OutOfGas) => {
-					// hack to propagate out_of_gas to evmjit.
-					// must be negative
-					*io_gas = -1i64 as u64;
-					false
-				},
-				Err(err) => {
-					// internal error.
-					*self.err = Some(err);
-					*io_gas = -1i64 as u64;
-					false
-				}
+
+		let mut gas = unsafe { U256::from(*io_gas) };
+		let mut call_gas = U256::from(call_gas);
+		let mut gas_cost = call_gas;
+		let receive_address = unsafe { Address::from_jit(&*receive_address) };
+		let code_address = unsafe { Address::from_jit(&*code_address) };
+		let value = unsafe { U256::from_jit(&*value) };
+
+		// receive address and code address are the same in normal calls
+		let is_callcode = receive_address != code_address;
+		if !is_callcode && !self.ext.exists(&code_address) {
+			gas_cost = gas_cost + U256::from(self.ext.schedule().call_new_account_gas);
+		}
+
+		if value > U256::zero() {
+			assert!(self.ext.schedule().call_value_transfer_gas > self.ext.schedule().call_stipend, "overflow possible");
+			gas_cost = gas_cost + U256::from(self.ext.schedule().call_value_transfer_gas);
+			call_gas = call_gas + U256::from(self.ext.schedule().call_stipend);
+		}
+
+		if gas_cost > gas {
+			unsafe {
+				*io_gas = -1i64 as u64;
+				return false;
+			}
+		}
+
+		gas = gas - gas_cost;
+
+		// check if balance is sufficient and we are not too deep
+		if self.ext.balance(&self.address) < value || self.ext.depth() >= self.ext.schedule().max_depth {
+			unsafe {
+				*io_gas = (gas + call_gas).low_u64();
+				return false;
+			}
+		}
+
+		match self.ext.call(&call_gas, 
+					  &receive_address, 
+					  &value, 
+					  unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
+					  &code_address,
+					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) }) {
+			evm::MessageCallResult::Success(gas_left) => unsafe {
+				*io_gas = (gas + gas_left).low_u64();
+				true
+			},
+			evm::MessageCallResult::Failed => unsafe {
+				*io_gas = gas.low_u64();
+				false
 			}
 		}
 	}
@@ -302,34 +280,40 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, params: &ActionParams, ext: &mut evm::Ext) -> evm::Result {
-		let mut optional_err = None;
+	fn exec(&self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
-		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, &mut optional_err)) };
+		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, params.address.clone())) };
 		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);
-		let mut data = RuntimeData::new();
-		data.gas = params.gas;
-		data.gas_price = params.gas_price;
-		data.call_data = params.data.clone().unwrap_or(vec![]);
-		data.address = params.address.clone();
-		data.caller = params.sender.clone();
-		data.origin = params.origin.clone();
-		data.call_value = params.value;
-		data.code = params.code.clone().unwrap_or(vec![]);
+		assert!(params.gas <= U256::from(i64::max_value() as u64), "evmjit max gas is 2 ^ 63");
+		assert!(params.gas_price <= U256::from(i64::max_value() as u64), "evmjit max gas is 2 ^ 63");
 
-		data.author = ext.env_info().author.clone();
-		data.difficulty = ext.env_info().difficulty;
-		data.gas_limit = ext.env_info().gas_limit;
+		let call_data = params.data.unwrap_or(vec![]);
+		let code = params.code.unwrap_or(vec![]);
+
+		let mut data = evmjit::RuntimeDataHandle::new();
+		data.gas = params.gas.low_u64() as i64;
+		data.gas_price = params.gas_price.low_u64() as i64;
+		data.call_data = call_data.as_ptr();
+		data.call_data_size = call_data.len() as u64;
+		mem::forget(call_data);
+		data.code = code.as_ptr();
+		data.code_size = code.len() as u64;
+		data.code_hash = code.sha3().into_jit();
+		mem::forget(code);
+		data.address = params.address.into_jit();
+		data.caller = params.sender.into_jit();
+		data.origin = params.origin.into_jit();
+		data.call_value = params.value.into_jit();
+
+		data.author = ext.env_info().author.clone().into_jit();
+		data.difficulty = ext.env_info().difficulty.into_jit();
+		data.gas_limit = ext.env_info().gas_limit.into_jit();
 		data.number = ext.env_info().number;
-		data.timestamp = ext.env_info().timestamp;
-		
-		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
+		// don't really know why jit timestamp is int..
+		data.timestamp = ext.env_info().timestamp as i64;
+
+		let mut context = unsafe { evmjit::ContextHandle::new(data, &mut ext_handle) };
 		let res = context.exec();
-		
-		// check in adapter if execution of children contracts failed.
-		if let Some(err) = optional_err {
-			return Err(err);
-		}
 		
 		match res {
 			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),

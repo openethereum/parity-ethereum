@@ -21,3 +21,4 @@ evmjit = { path = "rust-evmjit", optional = true }
 
 [features]
 jit = ["evmjit"]
+evm_debug = []
