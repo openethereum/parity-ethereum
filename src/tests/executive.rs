@@ -65,6 +65,10 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.set_storage_at(key, value)
 	}
 
+	fn exists(&self, address: &Address) -> bool {
+		self.ext.exists(address)
+	}
+
 	fn balance(&self, address: &Address) -> U256 {
 		self.ext.balance(address)
 	}
@@ -151,6 +155,10 @@ impl<'a> Ext for TestExt<'a> {
 
 	fn env_info(&self) -> &EnvInfo {
 		self.ext.env_info()
+	}
+
+	fn depth(&self) -> usize {
+		self.ext.depth()
 	}
 }
 

@@ -3,7 +3,7 @@ use common::*;
 use state::*;
 use engine::*;
 use executive::*;
-use evm::{self, Schedule, Ext};
+use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult};
 use substate::*;
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -61,19 +61,23 @@ impl<'a> Externalities<'a> {
 
 impl<'a> Ext for Externalities<'a> {
 	fn storage_at(&self, key: &H256) -> H256 {
-		trace!("ext: storage_at({}, {}) == {}\n", self.params.address, key, U256::from(self.state.storage_at(&self.params.address, key).as_slice()));
+		//trace!("ext: storage_at({}, {}) == {}\n", self.params.address, key, U256::from(self.state.storage_at(&self.params.address, key).as_slice()));
 		self.state.storage_at(&self.params.address, key)
 	}
 
-	fn set_storage_at(&mut self, key: H256, value: H256) {
-		let old = self.state.storage_at(&self.params.address, &key);
+	fn set_storage(&mut self, key: H256, value: H256) {
+		//let old = self.state.storage_at(&self.params.address, &key);
 		// if SSTORE nonzero -> zero, increment refund count
-		if value.is_zero() && !old.is_zero() {
-			trace!("ext: additional refund. {} -> {}\n", self.substate.refunds_count, self.substate.refunds_count + x!(1));
-			self.substate.refunds_count = self.substate.refunds_count + U256::one();
-		}
-		trace!("ext: set_storage_at({}, {}): {} -> {}\n", self.params.address, key, U256::from(old.as_slice()), U256::from(value.as_slice()));
+		//if value.is_zero() && !old.is_zero() {
+			//trace!("ext: additional refund. {} -> {}\n", self.substate.refunds_count, self.substate.refunds_count + x!(1));
+			//self.substate.refunds_count = self.substate.refunds_count + U256::one();
+		//}
+		//trace!("ext: set_storage_at({}, {}): {} -> {}\n", self.params.address, key, U256::from(old.as_slice()), U256::from(value.as_slice()));
 		self.state.set_storage(&self.params.address, key, value)
+	}
+
+	fn exists(&self, address: &Address) -> bool {
+		self.state.exists(address)
 	}
 
 	fn balance(&self, address: &Address) -> U256 {
@@ -95,12 +99,7 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> (U256, Option<Address>) {
-		// if balance is insufficient or we are to deep, return
-		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.max_depth {
-			return (*gas, None);
-		}
-
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
 		// create new contract address
 		let address = contract_address(&self.params.address, &self.state.nonce(&self.params.address));
 
@@ -119,71 +118,42 @@ impl<'a> Ext for Externalities<'a> {
 
 		self.state.inc_nonce(&self.params.address);
 		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
+		
+		// TODO: handle internal error separately
 		match ex.create(&params, self.substate) {
-			Ok(gas_left) => (gas_left, Some(address)),
-			_ => (U256::zero(), None)
+			Ok(gas_left) => {
+				self.substate.contracts_created.push(address.clone());
+				ContractCreateResult::Created(address, gas_left)
+			},
+			_ => ContractCreateResult::Failed
 		}
 	}
 
 	fn call(&mut self, 
 			gas: &U256, 
-			call_gas: &U256, 
-			receive_address: &Address, 
+			address: &Address, 
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<(U256, bool), evm::Error> {
-
-		let mut gas_cost = *call_gas;
-		let mut call_gas = *call_gas;
-
-		let is_call = receive_address == code_address;
-		if is_call && !self.state.exists(&code_address) {
-			gas_cost = gas_cost + U256::from(self.schedule.call_new_account_gas);
-		}
-
-		if *value > U256::zero() {
-			assert!(self.schedule.call_value_transfer_gas > self.schedule.call_stipend, "overflow possible");
-			gas_cost = gas_cost + U256::from(self.schedule.call_value_transfer_gas);
-			call_gas = call_gas + U256::from(self.schedule.call_stipend);
-		}
-
-		debug!("Externalities::call(gas={}, call_gas={}, recv={}, value={}, data={}, code={})\n", gas, call_gas, receive_address, value, data.pretty(), code_address);
-
-		if gas_cost > *gas {
-			debug!("Externalities::call: OutOfGas gas_cost={}, gas={}", gas_cost, gas);
-			return Err(evm::Error::OutOfGas);
-		}
-
-		let gas = *gas - gas_cost;
-
-		// if balance is insufficient or we are too deep, return
-		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.max_depth {
-			debug!("Externalities::call: OutOfCash bal({})={}, value={}", self.params.address, self.state.balance(&self.params.address), value);
-			return Ok((gas + call_gas, false));
-		}
+			output: &mut [u8]) -> MessageCallResult {
 
 		let params = ActionParams {
 			code_address: code_address.clone(),
-			address: receive_address.clone(), 
+			address: address.clone(), 
 			sender: self.params.address.clone(),
 			origin: self.params.origin.clone(),
-			gas: call_gas,
+			gas: *gas,
 			gas_price: self.params.gas_price.clone(),
 			value: value.clone(),
 			code: self.state.code(code_address),
 			data: Some(data.to_vec()),
 		};
 
+		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
 
-		trace!("Externalities::call: BEFORE: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address));
-		trace!("Externalities::call: CALLING: params={:?}\n", params);
-		let r = Executive::from_parent(self.state, self.info, self.engine, self.depth).call(&params, self.substate, BytesRef::Fixed(output));
-		trace!("Externalities::call: AFTER: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address));
-
-		match r {
-			Ok(gas_left) => Ok((gas + gas_left, true)),
-			_ => Ok((gas, false))
+		match ex.call(&params, self.substate, BytesRef::Fixed(output)) {
+			Ok(gas_left) => MessageCallResult::Success(gas_left),
+			_ => MessageCallResult::Failed
 		}
 	}
 
@@ -221,7 +191,6 @@ impl<'a> Ext for Externalities<'a> {
 				}
 				let address = &self.params.address;
 				self.state.init_code(address, code);
-				self.substate.contracts_created.push(address.clone());
 				Ok(*gas - return_cost)
 			}
 		}
@@ -245,5 +214,13 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn env_info(&self) -> &EnvInfo {
 		&self.info
+	}
+
+	fn depth(&self) -> usize {
+		self.depth
+	}
+
+	fn add_sstore_refund(&mut self) {
+		self.substate.sstore_refunds_count = self.substate.sstore_refunds_count + U256::one();
 	}
 }

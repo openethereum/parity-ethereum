@@ -34,6 +34,10 @@ impl Ext for FakeExt {
 		self.store.insert(key, value);
 	}
 
+	fn exists(&self, address: &Address) -> bool {
+		unimplemented!();
+	}
+
 	fn balance(&self, _address: &Address) -> U256 {
 		unimplemented!();
 	}
@@ -82,6 +86,10 @@ impl Ext for FakeExt {
 
 	fn env_info(&self) -> &EnvInfo {
 		&self.info
+	}
+
+	fn depth(&self) -> usize {
+		unimplemented!();
 	}
 }
 

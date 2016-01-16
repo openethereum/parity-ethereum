@@ -159,31 +159,36 @@ impl IntoJit<evmjit::RuntimeDataHandle> for RuntimeData {
 /// This adapter 'catches' them and moves upstream.
 struct ExtAdapter<'a> {
 	ext: &'a mut evm::Ext,
-	err: &'a mut Option<evm::Error>
+	address: Address
 }
 
 impl<'a> ExtAdapter<'a> {
-	fn new(ext: &'a mut evm::Ext, err: &'a mut Option<evm::Error>) -> Self {
+	fn new(ext: &'a mut evm::Ext, address: Address) -> Self {
 		ExtAdapter {
 			ext: ext,
-			err: err
+			address: address
 		}
 	}
 }
 
 impl<'a> evmjit::Ext for ExtAdapter<'a> {
-	fn sload(&self, index: *const evmjit::I256, out_value: *mut evmjit::I256) {
+	fn sload(&self, key: *const evmjit::I256, out_value: *mut evmjit::I256) {
 		unsafe {
-			let i = H256::from_jit(&*index);
+			let i = H256::from_jit(&*key);
 			let o = self.ext.storage_at(&i);
 			*out_value = o.into_jit();
 		}
 	}
 
-	fn sstore(&mut self, index: *const evmjit::I256, value: *const evmjit::I256) {
-		unsafe {
-			self.ext.set_storage_at(H256::from_jit(&*index), H256::from_jit(&*value));
+	fn sstore(&mut self, key: *const evmjit::I256, value: *const evmjit::I256) {
+		let key = unsafe { H256::from_jit(&*key) };
+		let value = unsafe { H256::from_jit(&*value) };
+		let old_value = self.ext.storage_at(&key);
+		// if SSTORE nonzero -> zero, increment refund count
+		if !old_value.is_zero() && value.is_zero() {
+			self.ext.add_sstore_refund();
 		}
+		self.ext.set_storage(key, value);
 	}
 
 	fn balance(&self, address: *const evmjit::H256, out_value: *mut evmjit::I256) {
@@ -204,17 +209,29 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 
 	fn create(&mut self,
 			  io_gas: *mut u64,
-			  endowment: *const evmjit::I256,
+			  value: *const evmjit::I256,
 			  init_beg: *const u8,
 			  init_size: u64,
 			  address: *mut evmjit::H256) {
+			
+		let gas = unsafe { U256::from(*io_gas) };
+		let value = unsafe { U256::from_jit(&*value) };
+		let code = unsafe { slice::from_raw_parts(init_beg, init_size as usize) };
+
+		// check if balance is sufficient and we are not too deep
+		if self.ext.balance(&self.address) >= value && self.ext.depth() < self.ext.schedule().max_depth {
+			if let evm::ContractCreateResult::Created(new_address, gas_left) = self.ext.create(&gas, &value, code) {
+				unsafe {
+					*io_gas = gas_left.low_u64();
+					*address = new_address.into_jit();
+					return;
+				}
+			}
+		}
+
 		unsafe {
-			let (gas_left, opt_addr) = self.ext.create(&U256::from(*io_gas), &U256::from_jit(&*endowment), slice::from_raw_parts(init_beg, init_size as usize));
-			*io_gas = gas_left.low_u64();
-			*address = match opt_addr {
-				Some(addr) => addr.into_jit(),
-				_ => Address::new().into_jit()
-			};
+			*io_gas = 0;
+			*address = Address::new().into_jit();
 		}
 	}
 
@@ -228,31 +245,56 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				out_beg: *mut u8,
 				out_size: u64,
 				code_address: *const evmjit::H256) -> bool {
-		unsafe {
-			let res = self.ext.call(&U256::from(*io_gas), 
-									&U256::from(call_gas), 
-									&Address::from_jit(&*receive_address),
-									&U256::from_jit(&*value),
-									slice::from_raw_parts(in_beg, in_size as usize),
-									&Address::from_jit(&*code_address),
-									slice::from_raw_parts_mut(out_beg, out_size as usize));
-			match res {
-				Ok((gas_left, ok)) => {
-					*io_gas = gas_left.low_u64();
-					ok
-				}
-				Err(evm::Error::OutOfGas) => {
-					// hack to propagate out_of_gas to evmjit.
-					// must be negative
-					*io_gas = -1i64 as u64;
-					false
-				},
-				Err(err) => {
-					// internal error.
-					*self.err = Some(err);
-					*io_gas = -1i64 as u64;
-					false
-				}
+
+		let mut gas = unsafe { U256::from(*io_gas) };
+		let mut call_gas = U256::from(call_gas);
+		let mut gas_cost = call_gas;
+		let receive_address = unsafe { Address::from_jit(&*receive_address) };
+		let code_address = unsafe { Address::from_jit(&*code_address) };
+		let value = unsafe { U256::from_jit(&*value) };
+
+		// receive address and code address are the same in normal calls
+		let is_callcode = receive_address != code_address;
+		if !is_callcode && !self.ext.exists(&code_address) {
+			gas_cost = gas_cost + U256::from(self.ext.schedule().call_new_account_gas);
+		}
+
+		if value > U256::zero() {
+			assert!(self.ext.schedule().call_value_transfer_gas > self.ext.schedule().call_stipend, "overflow possible");
+			gas_cost = gas_cost + U256::from(self.ext.schedule().call_value_transfer_gas);
+			call_gas = call_gas + U256::from(self.ext.schedule().call_stipend);
+		}
+
+		if gas_cost > gas {
+			unsafe {
+				*io_gas = -1i64 as u64;
+				return false;
+			}
+		}
+
+		gas = gas - gas_cost;
+
+		// check if balance is sufficient and we are not too deep
+		if self.ext.balance(&self.address) < value || self.ext.depth() >= self.ext.schedule().max_depth {
+			unsafe {
+				*io_gas = (gas + call_gas).low_u64();
+				return false;
+			}
+		}
+
+		match self.ext.call(&call_gas, 
+					  &receive_address, 
+					  &value, 
+					  unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
+					  &code_address,
+					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) }) {
+			evm::MessageCallResult::Success(gas_left) => unsafe {
+				*io_gas = (gas + gas_left).low_u64();
+				true
+			},
+			evm::MessageCallResult::Failed => unsafe {
+				*io_gas = gas.low_u64();
+				false
 			}
 		}
 	}
@@ -303,9 +345,8 @@ pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
 	fn exec(&self, params: &ActionParams, ext: &mut evm::Ext) -> evm::Result {
-		let mut optional_err = None;
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
-		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, &mut optional_err)) };
+		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, params.address.clone())) };
 		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);
 		let mut data = RuntimeData::new();
 		data.gas = params.gas;
@@ -325,11 +366,6 @@ impl evm::Evm for JitEvm {
 		
 		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
 		let res = context.exec();
-		
-		// check in adapter if execution of children contracts failed.
-		if let Some(err) = optional_err {
-			return Err(err);
-		}
 		
 		match res {
 			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),

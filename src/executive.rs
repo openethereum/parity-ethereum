@@ -203,7 +203,7 @@ impl<'a> Executive<'a> {
 				evm.exec(&params, &mut ext)
 			};
 
-			trace!("exec: sstore-clears={}\n", unconfirmed_substate.refunds_count);
+			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_refunds_count);
 			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 			self.enact_result(&res, substate, unconfirmed_substate, backup);
 			trace!("exec: new substate={:?}\n", substate);
@@ -244,7 +244,7 @@ impl<'a> Executive<'a> {
 		let schedule = self.engine.schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
-		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.refunds_count;
+		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.sstore_refunds_count;
 		// refunds from contract suicides
 		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
 		let refunds_bound = sstore_refunds + suicide_refunds;
