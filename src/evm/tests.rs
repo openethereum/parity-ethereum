@@ -103,7 +103,7 @@ fn test_stack_underflow() {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let err = {

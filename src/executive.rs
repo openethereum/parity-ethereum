@@ -784,7 +784,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(0x0186a0);
-		params.code = code.clone();
+		params.code = Some(code.clone());
 		params.value = U256::from_str("0de0b6b3a7640000").unwrap();
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());

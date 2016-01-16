@@ -215,7 +215,7 @@ pub struct Interpreter;
 
 impl evm::Evm for Interpreter {
 	fn exec(&self, params: &ActionParams, ext: &mut evm::Ext) -> evm::Result {
-		let code = &params.code;
+		let code = &params.code.clone().unwrap();
 		let valid_jump_destinations = self.find_jump_destinations(&code);
 
 		let mut current_gas = params.gas.clone();
@@ -653,9 +653,10 @@ impl Interpreter {
 				let big_id = stack.pop_back();
 				let id = big_id.low_u64() as usize;
 				let max = id.wrapping_add(32);
-				let bound = cmp::min(params.data.len(), max);
-				if id < bound && big_id < U256::from(params.data.len()) {
-					let mut v = params.data[id..bound].to_vec();
+				let data = params.data.clone().unwrap();
+				let bound = cmp::min(data.len(), max);
+				if id < bound && big_id < U256::from(data.len()) {
+					let mut v = data[id..bound].to_vec();
 					v.resize(32, 0);
 					stack.push(U256::from(&v[..]))
 				} else {
@@ -663,7 +664,7 @@ impl Interpreter {
 				}
 			},
 			instructions::CALLDATASIZE => {
-				stack.push(U256::from(params.data.len()));
+				stack.push(U256::from(params.data.clone().unwrap().len()));
 			},
 			instructions::CODESIZE => {
 				stack.push(U256::from(code.len()));
@@ -674,10 +675,10 @@ impl Interpreter {
 				stack.push(U256::from(len));
 			},
 			instructions::CALLDATACOPY => {
-				self.copy_data_to_memory(mem, stack, &params.data);
+				self.copy_data_to_memory(mem, stack, &params.data.clone().unwrap());
 			},
 			instructions::CODECOPY => {
-				self.copy_data_to_memory(mem, stack, &params.code);
+				self.copy_data_to_memory(mem, stack, &params.code.clone().unwrap());
 			},
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());
