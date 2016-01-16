@@ -22,12 +22,12 @@ impl Ethash {
 	}
 
 	fn u64_param(&self, name: &str) -> u64 {
-		*self.u64_params.write().unwrap().entry("name".to_string()).or_insert_with(||
+		*self.u64_params.write().unwrap().entry(name.to_string()).or_insert_with(||
 			self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(0u64))
 	}
 
 	fn u256_param(&self, name: &str) -> U256 {
-		*self.u256_params.write().unwrap().entry("name".to_string()).or_insert_with(||
+		*self.u256_params.write().unwrap().entry(name.to_string()).or_insert_with(||
 			self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(x!(0)))
 	}
 }
@@ -132,7 +132,6 @@ impl Ethash {
 		let difficulty_bound_divisor = self.u256_param("difficultyBoundDivisor");
 		let duration_limit = self.u64_param("durationLimit");
 		let frontier_limit = self.u64_param("frontierCompatibilityModeLimit");
-		info!("Frontier limit: {}", frontier_limit);
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {
 				parent.difficulty - (parent.difficulty / difficulty_bound_divisor) 
