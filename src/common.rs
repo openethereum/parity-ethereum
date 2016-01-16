@@ -35,7 +35,23 @@ macro_rules! xx {
 	}
 }
 
+#[macro_export]
+macro_rules! flush {
+	($($arg:tt)*) => ($crate::flush(format!("{}", format_args!($($arg)*))));
+}
+
+#[macro_export]
+macro_rules! flushln {
+	($fmt:expr) => (flush!(concat!($fmt, "\n")));
+	($fmt:expr, $($arg:tt)*) => (flush!(concat!($fmt, "\n"), $($arg)*));
+}
+
 pub fn flush(s: String) {
 	::std::io::stdout().write(s.as_bytes()).unwrap();
 	::std::io::stdout().flush().unwrap();
+}
+
+#[test]
+fn test_flush() {
+	flushln!("hello_world {:?}", 1);
 }
