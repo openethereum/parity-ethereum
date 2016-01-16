@@ -12,6 +12,7 @@ macro_rules! evm_debug {
 		println!($x);
 	}
 }
+
 #[cfg(feature = "evm_debug")]
 fn color(instruction: Instruction, name: &'static str) -> String {
 	let c = instruction as usize % 6;
@@ -23,7 +24,6 @@ fn color(instruction: Instruction, name: &'static str) -> String {
 macro_rules! evm_debug {
 	($x: expr) => {}
 }
-
 
 type CodePosition = usize;
 type Gas = U256;
@@ -46,6 +46,7 @@ trait Stack<T> {
 	/// Get number of elements on Stack
 	fn size(&self) -> usize;
 }
+
 impl<S : fmt::Display> Stack<S> for Vec<S> {
 	fn peek(&self, no_from_top: usize) -> &S {
 		return &self[self.len() - no_from_top - 1];
@@ -116,6 +117,7 @@ trait Memory {
 	fn dump(&self);
 }
 
+/// Checks whether offset and size is valid memory range
 fn is_valid_range(off: usize, size: usize)  -> bool {
 	// When size is zero we haven't actually expanded the memory
 	let (_a, overflow) = off.overflowing_add(size);
@@ -123,7 +125,6 @@ fn is_valid_range(off: usize, size: usize)  -> bool {
 }
 
 impl Memory for Vec<u8> {
-
 	fn dump(&self) {
 		println!("MemoryDump:");
 		for i in self.iter() {
@@ -203,6 +204,7 @@ struct CodeReader<'a> {
 	position: ProgramCounter,
 	code: &'a Bytes
 }
+
 impl<'a> CodeReader<'a> {
 	/// Get `no_of_bytes` from code and convert to U256. Move PC
 	fn read(&mut self, no_of_bytes: usize) -> U256 {
@@ -235,7 +237,7 @@ enum InstructionResult {
 	StopExecution
 }
 
-
+/// Intepreter EVM implementation
 pub struct Interpreter;
 
 impl evm::Evm for Interpreter {
@@ -300,7 +302,6 @@ impl evm::Evm for Interpreter {
 }
 
 impl Interpreter {
-
 	fn get_gas_cost_mem(&self,
 						ext: &evm::Ext,
 						instruction: Instruction,
@@ -315,7 +316,7 @@ impl Interpreter {
 				instruction: instruction
 			});
 		}
-		if info.tier == instructions::GasPriceTier::InvalidTier {
+		if info.tier == instructions::GasPriceTier::Invalid {
 			return Err(evm::Error::BadInstruction {
 				instruction: instruction
 			});
@@ -461,7 +462,6 @@ impl Interpreter {
 			let s = mem_size >> 5;
 			s * U256::from(schedule.memory_gas) + s * s / U256::from(schedule.quad_coeff_div)
 		};
-
 		let current_mem_size = U256::from(current_mem_size);
 		let req_mem_size_rounded = ((mem_size.clone() + U256::from(31)) >> 5) << 5;
 		let new_mem_gas = gas_for_mem(U256::from(req_mem_size_rounded));
@@ -473,7 +473,6 @@ impl Interpreter {
 			U256::zero()
 		}, req_mem_size_rounded.low_u64() as usize)
 	}
-
 
 	fn mem_max(&self, m_a: RequiredMem, m_b: RequiredMem) -> RequiredMem {
 		match (m_a, m_b) {
@@ -495,13 +494,13 @@ impl Interpreter {
 
 	fn mem_needed(&self, offset: &U256, size: &U256) -> RequiredMem {
 		if self.is_zero(size) {
-			RequiredMem::Mem(U256::zero())
-		} else {
-			match offset.clone().overflowing_add(size.clone()) {
-				(_result, true) => RequiredMem::OutOfMemory,
-				(result, false) => {
-						RequiredMem::Mem(result)
-				}
+			return RequiredMem::Mem(U256::zero());
+		}
+
+		match offset.clone().overflowing_add(size.clone()) {
+			(_result, true) => RequiredMem::OutOfMemory,
+			(result, false) => {
+					RequiredMem::Mem(result)
 			}
 		}
 	}
@@ -818,7 +817,7 @@ impl Interpreter {
 		}
 	}
 
-	fn exec_stack_instruction(&self, instruction: Instruction, stack : &mut Stack<U256>) -> Result<(), evm::Error> {
+	fn exec_stack_instruction(&self, instruction: Instruction, stack: &mut Stack<U256>) -> Result<(), evm::Error> {
 		match instruction {
 			instructions::DUP1...instructions::DUP16 => {
 				let position = instructions::get_dup_position(instruction);
@@ -1025,7 +1024,7 @@ impl Interpreter {
 		Ok(())
 	}
 
-	fn find_jump_destinations(&self, code : &Bytes) -> HashSet<CodePosition> {
+	fn find_jump_destinations(&self, code: &Bytes) -> HashSet<CodePosition> {
 		let mut jump_dests = HashSet::new();
 		let mut position = 0;
 
@@ -1042,7 +1041,6 @@ impl Interpreter {
 
 		return jump_dests;
 	}
-
 }
 
 fn get_and_reset_sign(value: U256) -> (U256, bool) {
@@ -1050,7 +1048,7 @@ fn get_and_reset_sign(value: U256) -> (U256, bool) {
 	(set_sign(value, sign), sign)
 }
 
-pub fn set_sign(value: U256, sign: bool) -> U256 {
+fn set_sign(value: U256, sign: bool) -> U256 {
 	if sign {
 		let (val, _overflow) = (!U256::zero() ^ value).overflowing_add(U256::one());
 		val
@@ -1059,14 +1057,17 @@ pub fn set_sign(value: U256, sign: bool) -> U256 {
 	}
 }
 
+#[inline]
 fn add_u256_usize(value: &U256, num: usize) -> (U256, bool) {
 	value.clone().overflowing_add(U256::from(num))
 }
 
+#[inline]
 fn u256_to_address(value: &U256) -> Address {
 	Address::from(H256::from(value))
 }
 
+#[inline]
 fn address_to_u256(value: Address) -> U256 {
 	U256::from(H256::from(value).as_slice())
 }
@@ -1109,7 +1110,7 @@ mod tests {
 	#[test]
 	fn test_memory_read_and_write() {
 		// given
-		let mem : &mut super::Memory = &mut vec![];
+		let mem: &mut super::Memory = &mut vec![];
 		mem.resize(0x80 + 32);
 
 		// when
@@ -1122,7 +1123,7 @@ mod tests {
 	#[test]
 	fn test_memory_read_and_write_byte() {
 		// given
-		let mem : &mut super::Memory = &mut vec![];
+		let mem: &mut super::Memory = &mut vec![];
 		mem.resize(32);
 
 		// when

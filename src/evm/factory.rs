@@ -7,6 +7,7 @@ pub enum VMType {
 	Jit,
 	Interpreter
 }
+
 impl fmt::Display for VMType {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{}", match *self {
@@ -17,10 +18,13 @@ impl fmt::Display for VMType {
 }
 
 impl VMType {
+	/// Return all possible VMs (JIT, Interpreter)
 	#[cfg(feature="jit")]
 	pub fn all() -> Vec<VMType> {
 		vec![VMType::Jit, VMType::Interpreter]
 	}
+
+	/// Return all possible VMs (Interpreter)
 	#[cfg(not(feature="jit"))]
 	pub fn all() -> Vec<VMType> {
 		vec![VMType::Interpreter]
@@ -33,7 +37,7 @@ pub struct Factory {
 }
 
 impl Factory {
-
+	/// Create fresh instance of VM
 	pub fn create(&self) -> Box<Evm> {
 		match self.evm {
 			VMType::Jit => {
@@ -45,6 +49,7 @@ impl Factory {
 		}	
 	}
 
+	/// Create new instance of specific `VMType` factory
 	pub fn new(evm: VMType) -> Factory {
 		Factory {
 			evm: evm
@@ -83,6 +88,7 @@ fn test_create_vm() {
 	let _vm = Factory::default().create();
 }
 
+/// Create tests by injecting different VM factories
 #[macro_export]
 macro_rules! evm_test(
 	($name_test: ident: $name_jit: ident, $name_int: ident) => {
@@ -98,6 +104,7 @@ macro_rules! evm_test(
 	}
 );
 
+/// Create ignored tests by injecting different VM factories
 #[macro_export]
 macro_rules! evm_test_ignore(
 	($name_test: ident: $name_jit: ident, $name_int: ident) => {
