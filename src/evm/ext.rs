@@ -6,12 +6,35 @@ use util::bytes::*;
 use evm::{Schedule, Error};
 use env_info::*;
 
+/// Result of externalities create function.
+pub enum ContractCreateResult {
+	/// Returned when creation was successfull.
+	/// Contains an address of newly created contract and gas left.
+	Created(Address, U256),
+	/// Returned when contract creation failed.
+	/// VM doesn't have to know the reason.
+	Failed
+}
+
+/// Result of externalities call function.
+pub enum MessageCallResult {
+	/// Returned when message call was successfull.
+	/// Contains gas left.
+	Success(U256),
+	/// Returned when message call failed.
+	/// VM doesn't have to know the reason.
+	Failed
+}
+
 pub trait Ext {
 	/// Returns a value for given key.
 	fn storage_at(&self, key: &H256) -> H256;
 
 	/// Stores a value for given key.
-	fn set_storage_at(&mut self, key: H256, value: H256);
+	fn set_storage(&mut self, key: H256, value: H256);
+
+	/// Determine whether an account exists.
+	fn exists(&self, address: &Address) -> bool;
 
 	/// Returns address balance.
 	fn balance(&self, address: &Address) -> U256;
@@ -22,7 +45,7 @@ pub trait Ext {
 	/// Creates new contract.
 	/// 
 	/// Returns gas_left and contract address if contract creation was succesfull.
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> (U256, Option<Address>);
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult;
 
 	/// Message call.
 	/// 
@@ -31,12 +54,11 @@ pub trait Ext {
 	/// and true if subcall was successfull.
 	fn call(&mut self, 
 			gas: &U256, 
-			call_gas: &U256, 
-			receive_address: &Address, 
+			address: &Address, 
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<(U256, bool), Error>;
+			output: &mut [u8]) -> MessageCallResult;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Vec<u8>;
@@ -57,4 +79,13 @@ pub trait Ext {
 
 	/// Returns environment info.
 	fn env_info(&self) -> &EnvInfo;
+
+	/// Returns current depth of execution.
+	/// 
+	/// If contract A calls contract B, and contract B calls C,
+	/// then A depth is 0, B is 1, C is 2 and so on.
+	fn depth(&self) -> usize;
+
+	/// Increments sstore refunds count by 1.
+	fn inc_sstore_clears(&mut self);
 }
