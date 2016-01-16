@@ -17,6 +17,7 @@ impl<Message> NetworkService<Message> where Message: Send + 'static {
 		let mut io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
 		let host = Box::new(Host::new());
 		let host_info = host.info.client_version.clone();
+		info!("NetworkService::start(): id={:?}", host.info.id());
 		try!(io_service.register_handler(host));
 		Ok(NetworkService {
 			io_service: io_service,

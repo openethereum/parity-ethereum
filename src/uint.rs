@@ -622,8 +622,15 @@ macro_rules! construct_uint {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				let &$name(ref data) = self;
 				try!(write!(f, "0x"));
+				let mut latch = false;
 				for ch in data.iter().rev() {
-					try!(write!(f, "{:02x}", ch));
+					for x in 0..16 {
+						let nibble = (ch & (15u64 << ((15 - x) * 4) as u64)) >> (((15 - x) * 4) as u64);
+						if !latch { latch = nibble != 0 }
+						if latch {
+							try!(write!(f, "{:x}", nibble));
+						}
+					}
 				}
 				Ok(())
 			}
