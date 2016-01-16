@@ -95,12 +95,12 @@ impl<'a> BlockView<'a> {
 	pub fn header_view(&self) -> HeaderView<'a> {
 		HeaderView::new_from_rlp(self.rlp.at(0))
 	}
-/*
+
 	/// Return List of transactions in given block.
-	pub fn transactions(&self) -> Vec<TransactionView> {
+	pub fn transaction_views(&self) -> Vec<TransactionView> {
 		self.rlp.at(1).iter().map(|rlp| TransactionView::new_from_rlp(rlp)).collect()
 	}
-*/
+
 	/// Return List of transactions in given block.
 	pub fn transactions(&self) -> Vec<Transaction> {
 		self.rlp.val_at(1)
