@@ -614,7 +614,7 @@ impl Interpreter {
 					.iter()
 					.map(H256::from)
 					.collect();
-				ext.log(topics, mem.read_slice(offset, size).to_vec());
+				ext.log(topics, mem.read_slice(offset, size));
 			},
 			instructions::PUSH1...instructions::PUSH32 => {
 				let bytes = instructions::get_push_bytes(instruction);

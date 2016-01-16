@@ -66,14 +66,14 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn extcode(&self, address: &Address) -> Vec<u8> {
+	fn extcode(&self, address: &Address) -> Bytes {
 		self.codes.get(address).unwrap_or(&Bytes::new()).clone()
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: Vec<u8>) {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		self.logs.push(FakeLogEntry {
 			topics: topics,
-			data: data
+			data: data.to_vec()
 		});
 	}
 

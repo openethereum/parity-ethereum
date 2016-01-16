@@ -132,11 +132,11 @@ impl<'a> Ext for TestExt<'a> {
 		res
 	}
 
-	fn extcode(&self, address: &Address) -> Vec<u8> {
+	fn extcode(&self, address: &Address) -> Bytes  {
 		self.ext.extcode(address)
 	}
 	
-	fn log(&mut self, topics: Vec<H256>, data: Vec<u8>) {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		self.ext.log(topics, data)
 	}
 

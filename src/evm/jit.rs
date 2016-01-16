@@ -7,7 +7,7 @@ use evm;
 struct RuntimeData {
 	gas: U256,
 	gas_price: U256,
-	call_data: Vec<u8>,
+	call_data: Bytes,
 	address: Address,
 	caller: Address,
 	origin: Address,
@@ -17,7 +17,7 @@ struct RuntimeData {
 	gas_limit: U256,
 	number: u64,
 	timestamp: u64,
-	code: Vec<u8>
+	code: Bytes
 }
 
 impl RuntimeData {
