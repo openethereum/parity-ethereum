@@ -4,26 +4,14 @@ use pod_state::*;
 use state_diff::*;
 use ethereum;
 
-const HOMESTEAD_BLOCK : u64 = 0x0dbba0;
-
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 
-	let engine = |block_number: u64| {
-		if block_number >= HOMESTEAD_BLOCK {
-			ethereum::new_homestead_test().to_engine().unwrap()
-		} else {
-			ethereum::new_frontier_test().to_engine().unwrap()
-		}
-	};
-
+	let engine = ethereum::new_frontier_like_test().to_engine().unwrap();
 	flush(format!("\n"));
 
 	for (name, test) in json.as_object().unwrap() {
-		if name != "createNameRegistratorPerTxsAt" {
-			continue;
-		}
 		let mut fail = false;
 		{
 			let mut fail_unless = |cond: bool| if !cond && !fail {
@@ -35,9 +23,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 			flush(format!("   - {}...", name));
 
-			let env = EnvInfo::from_json(&test["env"]);
-			let engine = engine(env.number);
 			let t = Transaction::from_json(&test["transaction"]);
+			let env = EnvInfo::from_json(&test["env"]);
 			let _out = Bytes::from_json(&test["out"]);
 			let post_state_root = xjson!(&test["postStateRoot"]);
 			let pre = PodState::from_json(&test["pre"]);
