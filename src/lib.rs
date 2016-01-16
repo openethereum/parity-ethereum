@@ -113,6 +113,7 @@ pub mod views;
 pub mod blockchain;
 pub mod extras;
 pub mod substate;
+pub mod service;
 pub mod executive;
 pub mod externalities;
 

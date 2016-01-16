@@ -130,7 +130,7 @@ fn test_add(factory: super::Factory) {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -150,7 +150,7 @@ fn test_sha3(factory: super::Factory) {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -170,7 +170,7 @@ fn test_address(factory: super::Factory) {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -192,7 +192,7 @@ fn test_origin(factory: super::Factory) {
 	params.address = address.clone();
 	params.origin = origin.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -214,7 +214,7 @@ fn test_sender(factory: super::Factory) {
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -248,7 +248,7 @@ fn test_extcodecopy(factory: super::Factory) {
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.codes.insert(sender, sender_code);
 
@@ -269,7 +269,7 @@ fn test_log_empty(factory: super::Factory) {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -301,7 +301,7 @@ fn test_log_sender(factory: super::Factory) {
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -325,7 +325,7 @@ fn test_blockhash(factory: super::Factory) {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.blockhashes.insert(U256::zero(), blockhash.clone());
 
@@ -347,8 +347,8 @@ fn test_calldataload(factory: super::Factory) {
 	let mut params = ActionParams::new();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = code;
-	params.data = data;
+	params.code = Some(code);
+	params.data = Some(data);
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -368,7 +368,7 @@ fn test_author(factory: super::Factory) {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.author = author;
 
@@ -388,7 +388,7 @@ fn test_timestamp(factory: super::Factory) {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.timestamp = timestamp;
 
@@ -408,7 +408,7 @@ fn test_number(factory: super::Factory) {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.number = number;
 
@@ -428,7 +428,7 @@ fn test_difficulty(factory: super::Factory) {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.difficulty = difficulty;
 
@@ -448,7 +448,7 @@ fn test_gas_limit(factory: super::Factory) {
 
 	let mut params = ActionParams::new();
 	params.gas = U256::from(100_000);
-	params.code = code;
+	params.code = Some(code);
 	let mut ext = FakeExt::new();
 	ext.info.gas_limit = gas_limit;
 

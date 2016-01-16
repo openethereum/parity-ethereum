@@ -1,26 +1,32 @@
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate rustc_serialize;
+extern crate log;
 extern crate env_logger;
 
 use std::io::*;
 use std::env;
-use std::sync::Arc;
+use log::{LogLevelFilter};
+use env_logger::LogBuilder;
 use util::hash::*;
-use util::network::{NetworkService};
-use ethcore::client::Client;
-use ethcore::sync::EthSync;
+use ethcore::service::ClientService;
 use ethcore::ethereum;
 
+fn setup_log() {
+	let mut builder = LogBuilder::new();
+	builder.filter(None, LogLevelFilter::Info);
+
+	if env::var("RUST_LOG").is_ok() {
+		builder.parse(&env::var("RUST_LOG").unwrap());
+	}
+
+	builder.init().unwrap();
+}
+
 fn main() {
-	::env_logger::init().ok();
-	let mut service = NetworkService::start().unwrap();
-	//TODO: replace with proper genesis and chain params.
+	setup_log();
 	let spec = ethereum::new_frontier();
-	let mut dir = env::temp_dir();
-	dir.push(H32::random().hex());
-	let client = Arc::new(Client::new(spec, &dir).unwrap());
-	EthSync::register(&mut service, client);
+	let mut _service = ClientService::start(spec).unwrap();
 	loop {
 		let mut cmd = String::new();
 		stdin().read_line(&mut cmd).unwrap();
