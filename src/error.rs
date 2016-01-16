@@ -3,6 +3,7 @@
 use rustc_serialize::hex::FromHexError;
 use network::NetworkError;
 use rlp::DecoderError;
+use io;
 
 #[derive(Debug)]
 pub enum BaseDataError {
@@ -13,7 +14,8 @@ pub enum BaseDataError {
 /// General error type which should be capable of representing all errors in ethcore.
 pub enum UtilError {
 	Crypto(::crypto::CryptoError),
-	Io(::std::io::Error),
+	StdIo(::std::io::Error),
+	Io(io::IoError),
 	AddressParse(::std::net::AddrParseError),
 	AddressResolve(Option<::std::io::Error>),
 	FromHex(FromHexError),
@@ -43,6 +45,12 @@ impl From<NetworkError> for UtilError {
 
 impl From<::std::io::Error> for UtilError {
 	fn from(err: ::std::io::Error) -> UtilError {
+		UtilError::StdIo(err)
+	}
+}
+
+impl From<io::IoError> for UtilError {
+	fn from(err: io::IoError) -> UtilError {
 		UtilError::Io(err)
 	}
 }

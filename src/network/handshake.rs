@@ -6,9 +6,10 @@ use bytes::Bytes;
 use crypto::*;
 use crypto;
 use network::connection::{Connection};
-use network::host::{NodeId, Host, HostInfo};
+use network::host::{HostInfo};
+use network::node::NodeId;
 use error::*;
-use network::NetworkError;
+use network::error::NetworkError;
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
@@ -88,7 +89,7 @@ impl Handshake {
 	}
 
 	/// Readable IO handler. Drives the state change.
-	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<(), UtilError> {
+	pub fn readable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		match self.state {
 			HandshakeState::ReadingAuth => {
@@ -118,7 +119,7 @@ impl Handshake {
 	}
 
 	/// Writabe IO handler.
-	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
+	pub fn writable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		try!(self.connection.writable());
 		if self.state != HandshakeState::StartSession {
@@ -128,7 +129,7 @@ impl Handshake {
 	}
 
 	/// Register the IO handler with the event loop
-	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn register<Host:Handler<Timeout=Token>>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
 		try!(self.connection.register(event_loop));

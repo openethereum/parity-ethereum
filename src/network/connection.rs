@@ -1,14 +1,13 @@
 use std::collections::VecDeque;
-use mio::{Token, EventSet, EventLoop, Timeout, PollOpt, TryRead, TryWrite};
+use mio::{Handler, Token, EventSet, EventLoop, Timeout, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
 use hash::*;
 use sha3::*;
 use bytes::*;
 use rlp::*;
 use std::io::{self, Cursor, Read};
-use network::host::{Host};
 use error::*;
-use network::NetworkError;
+use network::error::NetworkError;
 use network::handshake::Handshake;
 use crypto;
 use rcrypto::blockmodes::*;
@@ -133,7 +132,7 @@ impl Connection {
 	}
 
 	/// Register this connection with the IO event loop.
-	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
+	pub fn register<Host: Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection register; token={:?}", self.token);
 		self.interest.insert(EventSet::readable());
 		event_loop.register(&self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
@@ -143,7 +142,7 @@ impl Connection {
 	}
 
 	/// Update connection registration. Should be called at the end of the IO handler.
-	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
+	pub fn reregister<Host: Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection reregister; token={:?}", self.token);
 		event_loop.reregister( &self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
 			error!("Failed to reregister {:?}, {:?}", self.token, e);
@@ -338,7 +337,7 @@ impl EncryptedConnection {
 	}
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
-	pub fn readable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Packet>, UtilError> {
+	pub fn readable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Packet>, UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		match self.read_state {
 			EncryptedConnectionState::Header => {
@@ -364,14 +363,14 @@ impl EncryptedConnection {
 	}
 
 	/// Writable IO handler. Processes send queeue.
-	pub fn writable(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn writable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		try!(self.connection.writable());
 		Ok(())
 	}
 
 	/// Register this connection with the event handler.
-	pub fn register(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn register<Host:Handler<Timeout=Token>>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.connection.expect(ENCRYPTED_HEADER_LEN);
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
@@ -380,7 +379,7 @@ impl EncryptedConnection {
 	}
 
 	/// Update connection registration. This should be called at the end of the event loop.
-	pub fn reregister(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn reregister<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.reregister(event_loop));
 		Ok(())
 	}
