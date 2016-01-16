@@ -91,7 +91,7 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn add_sstore_refund(&mut self) {
+	fn inc_sstore_refund(&mut self) {
 		unimplemented!();
 	}
 }
@@ -109,7 +109,7 @@ fn test_add() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_988));
@@ -129,7 +129,7 @@ fn test_sha3() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_961));
@@ -149,7 +149,7 @@ fn test_address() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -171,7 +171,7 @@ fn test_origin() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -193,7 +193,7 @@ fn test_sender() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -228,7 +228,7 @@ fn test_extcodecopy() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_935));
@@ -248,7 +248,7 @@ fn test_log_empty() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(99_619));
@@ -280,7 +280,7 @@ fn test_log_sender() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(98_974));
@@ -305,7 +305,7 @@ fn test_blockhash() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_974));
@@ -327,7 +327,7 @@ fn test_calldataload() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_991));
@@ -348,7 +348,7 @@ fn test_author() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -368,7 +368,7 @@ fn test_timestamp() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -388,7 +388,7 @@ fn test_number() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -408,7 +408,7 @@ fn test_difficulty() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -428,7 +428,7 @@ fn test_gas_limit() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));

@@ -36,7 +36,7 @@ impl Engine for TestEngine {
 struct CallCreate {
 	data: Bytes,
 	destination: Option<Address>,
-	_gas_limit: U256,
+	gas_limit: U256,
 	value: U256
 }
 
@@ -53,12 +53,13 @@ impl<'a> TestExt<'a> {
 			   info: &'a EnvInfo, 
 			   engine: &'a Engine, 
 			   depth: usize,
-			   params: &'a ActionParams, 
+			   origin_info: OriginInfo,
 			   substate: &'a mut Substate, 
-			   output: OutputPolicy<'a>) -> Self {
+			   output: OutputPolicy<'a>,
+			   address: Address) -> Self {
 		TestExt {
-			contract_address: contract_address(&params.address, &state.nonce(&params.address)),
-			ext: Externalities::new(state, info, engine, depth, params, substate, output),
+			contract_address: contract_address(&address, &state.nonce(&address)),
+			ext: Externalities::new(state, info, engine, depth, origin_info, substate, output),
 			callcreates: vec![]
 		}
 	}
@@ -89,7 +90,7 @@ impl<'a> Ext for TestExt<'a> {
 		self.callcreates.push(CallCreate {
 			data: code.to_vec(),
 			destination: None,
-			_gas_limit: *gas,
+			gas_limit: *gas,
 			value: *value
 		});
 		ContractCreateResult::Created(self.contract_address.clone(), *gas)
@@ -105,7 +106,7 @@ impl<'a> Ext for TestExt<'a> {
 		self.callcreates.push(CallCreate {
 			data: data.to_vec(),
 			destination: Some(receive_address.clone()),
-			_gas_limit: *gas,
+			gas_limit: *gas,
 			value: *value
 		});
 		MessageCallResult::Success(*gas)
@@ -139,8 +140,8 @@ impl<'a> Ext for TestExt<'a> {
 		0
 	}
 
-	fn add_sstore_refund(&mut self) {
-		self.ext.add_sstore_refund()
+	fn inc_sstore_refund(&mut self) {
+		self.ext.inc_sstore_refund()
 	}
 }
 
@@ -205,9 +206,16 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		// execute
 		let (res, callcreates) = {
-			let mut ex = TestExt::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
+			let mut ex = TestExt::new(&mut state, 
+									  &info, 
+									  &engine, 
+									  0, 
+									  OriginInfo::from(&params), 
+									  &mut substate, 
+									  OutputPolicy::Return(BytesRef::Flexible(&mut output)),
+									  params.address.clone());
 			let evm = Factory::create();
-			let res = evm.exec(&params, &mut ex);
+			let res = evm.exec(params, &mut ex);
 			(res, ex.callcreates)
 		};
 
@@ -237,11 +245,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 					fail_unless(callcreate.data == Bytes::from_json(&expected["data"]), "callcreates data is incorrect");
 					fail_unless(callcreate.destination == xjson!(&expected["destination"]), "callcreates destination is incorrect");
 					fail_unless(callcreate.value == xjson!(&expected["value"]), "callcreates value is incorrect");
-
-					// TODO: call_gas is calculated in externalities and is not exposed to TestExt.
-					// maybe move it to it's own function to simplify calculation?
-					//println!("name: {:?}, callcreate {:?}, expected: {:?}", name, callcreate.gas_limit, U256::from(&expected["gasLimit"]));
-					//fail_unless(callcreate.gas_limit == U256::from(&expected["gasLimit"]), "callcreates gas_limit is incorrect");
+					fail_unless(callcreate.gas_limit == xjson!(&expected["gasLimit"]), "callcreates gas_limit is incorrect");
 				}
 			}
 		}

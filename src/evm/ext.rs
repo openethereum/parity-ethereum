@@ -87,5 +87,5 @@ pub trait Ext {
 	fn depth(&self) -> usize;
 
 	/// Increments sstore refunds count by 1.
-	fn add_sstore_refund(&mut self);
+	fn inc_sstore_refund(&mut self);
 }

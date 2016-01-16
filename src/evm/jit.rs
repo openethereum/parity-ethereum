@@ -3,43 +3,6 @@ use common::*;
 use evmjit;
 use evm;
 
-/// Ethcore representation of evmjit runtime data.
-struct RuntimeData {
-	gas: U256,
-	gas_price: U256,
-	call_data: Vec<u8>,
-	address: Address,
-	caller: Address,
-	origin: Address,
-	call_value: U256,
-	author: Address,
-	difficulty: U256,
-	gas_limit: U256,
-	number: u64,
-	timestamp: u64,
-	code: Vec<u8>
-}
-
-impl RuntimeData {
-	fn new() -> RuntimeData {
-		RuntimeData {
-			gas: U256::zero(),
-			gas_price: U256::zero(),
-			call_data: vec![],
-			address: Address::new(),
-			caller: Address::new(),
-			origin: Address::new(),
-			call_value: U256::zero(),
-			author: Address::new(),
-			difficulty: U256::zero(),
-			gas_limit: U256::zero(),
-			number: 0,
-			timestamp: 0,
-			code: vec![]
-		}
-	}
-}
-
 /// Should be used to convert jit types to ethcore
 trait FromJit<T>: Sized {
 	fn from_jit(input: T) -> Self;
@@ -126,33 +89,6 @@ impl IntoJit<evmjit::H256> for Address {
 	}
 }
 
-impl IntoJit<evmjit::RuntimeDataHandle> for RuntimeData {
-	fn into_jit(self) -> evmjit::RuntimeDataHandle {
-		let mut data = evmjit::RuntimeDataHandle::new();
-		assert!(self.gas <= U256::from(u64::max_value()), "evmjit gas must be lower than 2 ^ 64");
-		assert!(self.gas_price <= U256::from(u64::max_value()), "evmjit gas_price must be lower than 2 ^ 64");
-		data.gas = self.gas.low_u64() as i64;
-		data.gas_price = self.gas_price.low_u64() as i64;
-		data.call_data = self.call_data.as_ptr();
-		data.call_data_size = self.call_data.len() as u64;
-		mem::forget(self.call_data);
-		data.address = self.address.into_jit();
-		data.caller = self.caller.into_jit();
-		data.origin = self.origin.into_jit();
-		data.call_value = self.call_value.into_jit();
-		data.author = self.author.into_jit();
-		data.difficulty = self.difficulty.into_jit();
-		data.gas_limit = self.gas_limit.into_jit();
-		data.number = self.number;
-		data.timestamp = self.timestamp as i64;
-		data.code = self.code.as_ptr();
-		data.code_size = self.code.len() as u64;
-		data.code_hash = self.code.sha3().into_jit();
-		mem::forget(self.code);
-		data
-	}
-}
-
 /// Externalities adapter. Maps callbacks from evmjit to externalities trait.
 /// 
 /// Evmjit doesn't have to know about children execution failures. 
@@ -186,7 +122,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		let old_value = self.ext.storage_at(&key);
 		// if SSTORE nonzero -> zero, increment refund count
 		if !old_value.is_zero() && value.is_zero() {
-			self.ext.add_sstore_refund();
+			self.ext.inc_sstore_refund();
 		}
 		self.ext.set_storage(key, value);
 	}
@@ -344,27 +280,39 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 pub struct JitEvm;
 
 impl evm::Evm for JitEvm {
-	fn exec(&self, params: &ActionParams, ext: &mut evm::Ext) -> evm::Result {
+	fn exec(&self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, params.address.clone())) };
 		let mut ext_handle = evmjit::ExtHandle::new(ext_adapter);
-		let mut data = RuntimeData::new();
-		data.gas = params.gas;
-		data.gas_price = params.gas_price;
-		data.call_data = params.data.clone().unwrap_or(vec![]);
-		data.address = params.address.clone();
-		data.caller = params.sender.clone();
-		data.origin = params.origin.clone();
-		data.call_value = params.value;
-		data.code = params.code.clone().unwrap_or(vec![]);
+		assert!(params.gas <= U256::from(i64::max_value() as u64), "evmjit max gas is 2 ^ 63");
+		assert!(params.gas_price <= U256::from(i64::max_value() as u64), "evmjit max gas is 2 ^ 63");
 
-		data.author = ext.env_info().author.clone();
-		data.difficulty = ext.env_info().difficulty;
-		data.gas_limit = ext.env_info().gas_limit;
+		let call_data = params.data.unwrap_or(vec![]);
+		let code = params.code.unwrap_or(vec![]);
+
+		let mut data = evmjit::RuntimeDataHandle::new();
+		data.gas = params.gas.low_u64() as i64;
+		data.gas_price = params.gas_price.low_u64() as i64;
+		data.call_data = call_data.as_ptr();
+		data.call_data_size = call_data.len() as u64;
+		mem::forget(call_data);
+		data.code = code.as_ptr();
+		data.code_size = code.len() as u64;
+		data.code_hash = code.sha3().into_jit();
+		mem::forget(code);
+		data.address = params.address.into_jit();
+		data.caller = params.sender.into_jit();
+		data.origin = params.origin.into_jit();
+		data.call_value = params.value.into_jit();
+
+		data.author = ext.env_info().author.clone().into_jit();
+		data.difficulty = ext.env_info().difficulty.into_jit();
+		data.gas_limit = ext.env_info().gas_limit.into_jit();
 		data.number = ext.env_info().number;
-		data.timestamp = ext.env_info().timestamp;
-		
-		let mut context = unsafe { evmjit::ContextHandle::new(data.into_jit(), &mut ext_handle) };
+		// don't really know why jit timestamp is int..
+		data.timestamp = ext.env_info().timestamp as i64;
+
+		let mut context = unsafe { evmjit::ContextHandle::new(data, &mut ext_handle) };
 		let res = context.exec();
 		
 		match res {

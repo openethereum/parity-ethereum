@@ -25,5 +25,5 @@ pub type Result = result::Result<U256, Error>;
 /// Evm interface.
 pub trait Evm {
 	/// This function should be used to execute transaction.
-	fn exec(&self, params: &ActionParams, ext: &mut Ext) -> Result;
+	fn exec(&self, params: ActionParams, ext: &mut Ext) -> Result;
 }
