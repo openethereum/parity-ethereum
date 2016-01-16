@@ -474,6 +474,38 @@ macro_rules! construct_uint {
 			}
 		}
 
+		// TODO: optimise and traitify.
+
+		impl<'a> AddAssign<&'a $name> for $name {
+			fn add_assign(&mut self, other: &'a Self) {
+				*self = self.add(*other);
+			}
+		}
+
+		impl<'a> SubAssign<&'a $name> for $name {
+			fn sub_assign(&mut self, other: &'a Self) {
+				*self = self.sub(*other);
+			}
+		}
+
+		impl<'a> MulAssign<&'a $name> for $name {
+			fn mul_assign(&mut self, other: &'a Self) {
+				*self = self.mul(*other);
+			}
+		}
+
+		impl<'a> DivAssign<&'a $name> for $name {
+			fn div_assign(&mut self, other: &'a Self) {
+				*self = self.div(*other);
+			}
+		}
+
+		impl<'a> RemAssign<&'a $name> for $name {
+			fn rem_assign(&mut self, other: &'a Self) {
+				*self = self.rem(*other);
+			}
+		}
+
 		impl BitAnd<$name> for $name {
 			type Output = $name;
 
