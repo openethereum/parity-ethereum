@@ -67,7 +67,9 @@ impl Header {
 
 	pub fn state_root(&self) -> &H256 { &self.state_root }
 	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
+	pub fn gas_limit(&self) -> &U256 { &self.gas_limit }
 
+	pub fn difficulty(&self) -> &U256 { &self.difficulty }
 	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
 
 	// TODO: seal_at, set_seal_at &c.
@@ -79,6 +81,10 @@ impl Header {
 
 	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.extra_data { self.extra_data = a; self.note_dirty(); } }
 
+	pub fn set_gas_used(&mut self, a: U256) { self.gas_used = a; self.note_dirty(); }
+	pub fn set_gas_limit(&mut self, a: U256) { self.gas_limit = a; self.note_dirty(); }
+
+	pub fn set_difficulty(&mut self, a: U256) { self.difficulty = a; self.note_dirty(); }
 	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
 
 	/// Get the hash of this header (sha3 of the RLP).

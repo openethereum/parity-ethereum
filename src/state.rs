@@ -3,6 +3,7 @@ use engine::Engine;
 use executive::Executive;
 use pod_account::*;
 use pod_state::*;
+use state_diff::*;
 
 pub type ApplyResult = Result<Receipt, Error>;
 
@@ -106,12 +107,16 @@ impl State {
 
 	/// Add `incr` to the balance of account `a`.
 	pub fn add_balance(&mut self, a: &Address, incr: &U256) {
-		self.require(a, false).add_balance(incr)
+		let old = self.balance(a);
+		self.require(a, false).add_balance(incr);
+		trace!("state: add_balance({}, {}): {} -> {}\n", a, incr, old, self.balance(a));
 	}
 
 	/// Subtract `decr` from the balance of account `a`.
 	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
-		self.require(a, false).sub_balance(decr)
+		let old = self.balance(a);
+		self.require(a, false).sub_balance(decr);
+		trace!("state: sub_balance({}, {}): {} -> {}\n", a, decr, old, self.balance(a));
 	}
 
 	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
@@ -139,8 +144,13 @@ impl State {
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
+
+		let old = self.to_pod();
+
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
 		//println!("Executed: {:?}", e);
+
+		debug!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 		debug!("Transaction receipt: {:?}", receipt);
@@ -219,8 +229,9 @@ impl State {
 	/// Pull account `a` in our cache from the trie DB and return it.
 	/// `require_code` requires that the code be cached, too.
 	fn get(&self, a: &Address, require_code: bool) -> Ref<Option<Account>> {
-		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
-			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+		self.cache.borrow_mut().entry(a.clone()).or_insert_with(|| {
+			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp))
+		});
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
 				account.cache_code(&self.db);

@@ -205,7 +205,6 @@ impl Account {
 		match (self.code_hash.is_none(), self.code_cache.is_empty()) {
 			(true, true) => self.code_hash = Some(SHA3_EMPTY),
 			(true, false) => {
-				println!("Writing into DB {:?}", self.code_cache);
 				self.code_hash = Some(db.insert(&self.code_cache));
 			},
 			(false, _) => {},
