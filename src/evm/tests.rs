@@ -91,7 +91,7 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn inc_sstore_refund(&mut self) {
+	fn inc_sstore_clear_count(&mut self) {
 		unimplemented!();
 	}
 }

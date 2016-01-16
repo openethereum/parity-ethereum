@@ -140,8 +140,8 @@ impl<'a> Ext for TestExt<'a> {
 		0
 	}
 
-	fn inc_sstore_refund(&mut self) {
-		self.ext.inc_sstore_refund()
+	fn inc_sstore_clear_count(&mut self) {
+		self.ext.inc_sstore_clear_count()
 	}
 }
 
