@@ -220,18 +220,18 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 
 		// check if balance is sufficient and we are not too deep
 		if self.ext.balance(&self.address) >= value && self.ext.depth() < self.ext.schedule().max_depth {
-			if let evm::ContractCreateResult::Created(new_address, gas_left) = self.ext.create(&gas, &value, code) {
-				unsafe {
-					*io_gas = gas_left.low_u64();
+			match self.ext.create(&gas, &value, code) {
+				evm::ContractCreateResult::Created(new_address, gas_left) => unsafe {
 					*address = new_address.into_jit();
-					return;
+					*io_gas = gas_left.low_u64();
+				},
+				evm::ContractCreateResult::Failed => unsafe {
+					*address = Address::new().into_jit();
+					*io_gas = 0;
 				}
 			}
-		}
-
-		unsafe {
-			*io_gas = 0;
-			*address = Address::new().into_jit();
+		} else {
+			unsafe { *address = Address::new().into_jit(); }
 		}
 	}
 

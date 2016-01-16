@@ -1,6 +1,6 @@
 use common::*;
 use evm;
-use evm::{Ext, Schedule, Factory};
+use evm::{Ext, Schedule, Factory, ContractCreateResult, MessageCallResult};
 
 struct FakeLogEntry {
 	topics: Vec<H256>,
@@ -30,7 +30,7 @@ impl Ext for FakeExt {
 		self.store.get(key).unwrap_or(&H256::new()).clone()
 	}
 
-	fn set_storage_at(&mut self, key: H256, value: H256) {
+	fn set_storage(&mut self, key: H256, value: H256) {
 		self.store.insert(key, value);
 	}
 
@@ -46,18 +46,17 @@ impl Ext for FakeExt {
 		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
 	}
 
-	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8]) -> (U256, Option<Address>) {
+	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8]) -> ContractCreateResult {
 		unimplemented!();
 	}
 
 	fn call(&mut self, 
 			_gas: &U256, 
-			_call_gas: &U256, 
-			_receive_address: &Address, 
+			_address: &Address, 
 			_value: &U256, 
 			_data: &[u8], 
 			_code_address: &Address, 
-			_output: &mut [u8]) -> result::Result<(U256, bool), evm::Error> {
+			_output: &mut [u8]) -> MessageCallResult {
 		unimplemented!();
 	}
 
@@ -89,6 +88,10 @@ impl Ext for FakeExt {
 	}
 
 	fn depth(&self) -> usize {
+		unimplemented!();
+	}
+
+	fn add_sstore_refund(&mut self) {
 		unimplemented!();
 	}
 }

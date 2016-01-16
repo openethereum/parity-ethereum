@@ -4,7 +4,7 @@ use executive::*;
 use spec::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory};
+use evm::{Schedule, Ext, Factory, ContractCreateResult, MessageCallResult};
 use ethereum;
 use externalities::*;
 use substate::*;
@@ -61,8 +61,8 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.storage_at(key)
 	}
 
-	fn set_storage_at(&mut self, key: H256, value: H256) {
-		self.ext.set_storage_at(key, value)
+	fn set_storage(&mut self, key: H256, value: H256) {
+		self.ext.set_storage(key, value)
 	}
 
 	fn exists(&self, address: &Address) -> bool {
@@ -77,60 +77,31 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.blockhash(number)
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> (U256, Option<Address>) {
-		// in call and create we need to check if we exited with insufficient balance or max limit reached.
-		// in case of reaching max depth, we should store callcreates. Otherwise, ignore.
-		let res = self.ext.create(gas, value, code);
-		let ext = &self.ext;
-		match res {
-			// just record call create
-			(gas_left, Some(address)) => {
-				self.callcreates.push(CallCreate {
-					data: code.to_vec(),
-					destination: Some(address.clone()),
-					_gas_limit: *gas,
-					value: *value
-				});
-				(gas_left, Some(address))
-			},
-			// creation failed only due to reaching max_depth
-			(gas_left, None) if ext.state.balance(&ext.params.address) >= *value => {
-				self.callcreates.push(CallCreate {
-					data: code.to_vec(),
-					// callcreate test does not need an address
-					destination: None,
-					_gas_limit: *gas,
-					value: *value
-				});
-				let address = contract_address(&ext.params.address, &ext.state.nonce(&ext.params.address));
-				(gas_left, Some(address))
-			},
-			other => other
-		}
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
+		let address = contract_address(&self.ext.params.address, &self.ext.state.nonce(&self.ext.params.address));
+		self.callcreates.push(CallCreate {
+			data: code.to_vec(),
+			destination: None,
+			_gas_limit: *gas,
+			value: *value
+		});
+		ContractCreateResult::Created(address, *gas)
 	}
 
 	fn call(&mut self, 
 			gas: &U256, 
-			call_gas: &U256, 
 			receive_address: &Address, 
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> Result<(U256, bool), evm::Error> {
-		let res = self.ext.call(gas, call_gas, receive_address, value, data, code_address, output);
-		let ext = &self.ext;
-		if let &Ok((gas_left, _)) = &res {
-			if ext.state.balance(&ext.params.address) >= *value {
-				self.callcreates.push(CallCreate {
-					data: data.to_vec(),
-					destination: Some(receive_address.clone()),
-					_gas_limit: *call_gas,
-					value: *value
-				});
-				return Ok((gas_left, true))
-			}
-		}
-		res
+			output: &mut [u8]) -> MessageCallResult {
+		self.callcreates.push(CallCreate {
+			data: data.to_vec(),
+			destination: Some(receive_address.clone()),
+			_gas_limit: *gas,
+			value: *value
+		});
+		MessageCallResult::Success(*gas)
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {
@@ -158,7 +129,11 @@ impl<'a> Ext for TestExt<'a> {
 	}
 
 	fn depth(&self) -> usize {
-		self.ext.depth()
+		0
+	}
+
+	fn add_sstore_refund(&mut self) {
+		self.ext.add_sstore_refund()
 	}
 }
 
@@ -200,7 +175,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			info.timestamp = xjson!(&env["currentTimestamp"]);
 		});
 
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(1);
 
 		// params
 		let mut params = ActionParams::new();
