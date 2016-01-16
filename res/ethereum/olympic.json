@@ -3,7 +3,7 @@
 	"engineName": "Ethash",
 	"params": {
 		"accountStartNonce": "0x00",
-		"frontierCompatibilityModeLimit": "0xffffffff",
+		"frontierCompatibilityModeLimit": "0xffffffffffffffff",
 		"maximumExtraDataSize": "0x0400",
 		"tieBreakingGas": false,
 		"minGasLimit": "125000",

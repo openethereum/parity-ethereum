@@ -132,6 +132,7 @@ impl Ethash {
 		let difficulty_bound_divisor = self.u256_param("difficultyBoundDivisor");
 		let duration_limit = self.u64_param("durationLimit");
 		let frontier_limit = self.u64_param("frontierCompatibilityModeLimit");
+		info!("Frontier limit: {}", frontier_limit);
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {
 				parent.difficulty - (parent.difficulty / difficulty_bound_divisor) 
