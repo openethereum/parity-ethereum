@@ -4,7 +4,7 @@ use executive::*;
 use spec::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory};
+use evm::{Schedule, Ext, Factory, ContractCreateResult, MessageCallResult};
 use ethereum;
 use externalities::*;
 use substate::*;
@@ -36,7 +36,7 @@ impl Engine for TestEngine {
 struct CallCreate {
 	data: Bytes,
 	destination: Option<Address>,
-	_gas_limit: U256,
+	gas_limit: U256,
 	value: U256
 }
 
@@ -44,13 +44,22 @@ struct CallCreate {
 /// Stores callcreates.
 struct TestExt<'a> {
 	ext: Externalities<'a>,
-	callcreates: Vec<CallCreate>
+	callcreates: Vec<CallCreate>,
+	contract_address: Address
 }
 
 impl<'a> TestExt<'a> {
-	fn new(ext: Externalities<'a>) -> TestExt {
+	fn new(state: &'a mut State, 
+			   info: &'a EnvInfo, 
+			   engine: &'a Engine, 
+			   depth: usize,
+			   origin_info: OriginInfo,
+			   substate: &'a mut Substate, 
+			   output: OutputPolicy<'a>,
+			   address: Address) -> Self {
 		TestExt {
-			ext: ext,
+			contract_address: contract_address(&address, &state.nonce(&address)),
+			ext: Externalities::new(state, info, engine, depth, origin_info, substate, output),
 			callcreates: vec![]
 		}
 	}
@@ -61,8 +70,12 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.storage_at(key)
 	}
 
-	fn set_storage_at(&mut self, key: H256, value: H256) {
-		self.ext.set_storage_at(key, value)
+	fn set_storage(&mut self, key: H256, value: H256) {
+		self.ext.set_storage(key, value)
+	}
+
+	fn exists(&self, address: &Address) -> bool {
+		self.ext.exists(address)
 	}
 
 	fn balance(&self, address: &Address) -> U256 {
@@ -73,59 +86,30 @@ impl<'a> Ext for TestExt<'a> {
 		self.ext.blockhash(number)
 	}
 
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> (U256, Option<Address>) {
-		// in call and create we need to check if we exited with insufficient balance or max limit reached.
-		// in case of reaching max depth, we should store callcreates. Otherwise, ignore.
-		let res = self.ext.create(gas, value, code);
-		let ext = &self.ext;
-		match res {
-			// just record call create
-			(gas_left, Some(address)) => {
-				self.callcreates.push(CallCreate {
-					data: code.to_vec(),
-					destination: Some(address.clone()),
-					_gas_limit: *gas,
-					value: *value
-				});
-				(gas_left, Some(address))
-			},
-			// creation failed only due to reaching max_depth
-			(gas_left, None) if ext.state.balance(&ext.params.address) >= *value => {
-				self.callcreates.push(CallCreate {
-					data: code.to_vec(),
-					// callcreate test does not need an address
-					destination: None,
-					_gas_limit: *gas,
-					value: *value
-				});
-				let address = contract_address(&ext.params.address, &ext.state.nonce(&ext.params.address));
-				(gas_left, Some(address))
-			},
-			other => other
-		}
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
+		self.callcreates.push(CallCreate {
+			data: code.to_vec(),
+			destination: None,
+			gas_limit: *gas,
+			value: *value
+		});
+		ContractCreateResult::Created(self.contract_address.clone(), *gas)
 	}
 
 	fn call(&mut self, 
 			gas: &U256, 
-			call_gas: &U256, 
 			receive_address: &Address, 
 			value: &U256, 
 			data: &[u8], 
-			code_address: &Address, 
-			output: &mut [u8]) -> Result<(U256, bool), evm::Error> {
-		let res = self.ext.call(gas, call_gas, receive_address, value, data, code_address, output);
-		let ext = &self.ext;
-		if let &Ok(_some) = &res {
-			if ext.state.balance(&ext.params.address) >= *value {
-				self.callcreates.push(CallCreate {
-					data: data.to_vec(),
-					destination: Some(receive_address.clone()),
-					_gas_limit: *call_gas,
-					value: *value
-				});
-			}
-		}
-		res
+			_code_address: &Address, 
+			_output: &mut [u8]) -> MessageCallResult {
+		self.callcreates.push(CallCreate {
+			data: data.to_vec(),
+			destination: Some(receive_address.clone()),
+			gas_limit: *gas,
+			value: *value
+		});
+		MessageCallResult::Success(*gas)
 	}
 
 	fn extcode(&self, address: &Address) -> Vec<u8> {
@@ -150,6 +134,14 @@ impl<'a> Ext for TestExt<'a> {
 
 	fn env_info(&self) -> &EnvInfo {
 		self.ext.env_info()
+	}
+
+	fn depth(&self) -> usize {
+		0
+	}
+
+	fn inc_sstore_clears(&mut self) {
+		self.ext.inc_sstore_clears()
 	}
 }
 
@@ -191,7 +183,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			info.timestamp = xjson!(&env["currentTimestamp"]);
 		});
 
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(1);
 
 		// params
 		let mut params = ActionParams::new();
@@ -214,11 +206,17 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		// execute
 		let (res, callcreates) = {
-			let ex = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
-			let mut test_ext = TestExt::new(ex);
+			let mut ex = TestExt::new(&mut state, 
+									  &info, 
+									  &engine, 
+									  0, 
+									  OriginInfo::from(&params), 
+									  &mut substate, 
+									  OutputPolicy::Return(BytesRef::Flexible(&mut output)),
+									  params.address.clone());
 			let evm = Factory::create();
-			let res = evm.exec(&params, &mut test_ext);
-			(res, test_ext.callcreates)
+			let res = evm.exec(params, &mut ex);
+			(res, ex.callcreates)
 		};
 
 		// then validate
@@ -247,11 +245,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 					fail_unless(callcreate.data == Bytes::from_json(&expected["data"]), "callcreates data is incorrect");
 					fail_unless(callcreate.destination == xjson!(&expected["destination"]), "callcreates destination is incorrect");
 					fail_unless(callcreate.value == xjson!(&expected["value"]), "callcreates value is incorrect");
-
-					// TODO: call_gas is calculated in externalities and is not exposed to TestExt.
-					// maybe move it to it's own function to simplify calculation?
-					//println!("name: {:?}, callcreate {:?}, expected: {:?}", name, callcreate.gas_limit, U256::from(&expected["gasLimit"]));
-					//fail_unless(callcreate.gas_limit == U256::from(&expected["gasLimit"]), "callcreates gas_limit is incorrect");
+					fail_unless(callcreate.gas_limit == xjson!(&expected["gasLimit"]), "callcreates gas_limit is incorrect");
 				}
 			}
 		}

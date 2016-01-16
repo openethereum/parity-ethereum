@@ -1,6 +1,6 @@
 use common::*;
 use evm;
-use evm::{Ext, Schedule, Factory};
+use evm::{Ext, Schedule, Factory, ContractCreateResult, MessageCallResult};
 
 struct FakeLogEntry {
 	topics: Vec<H256>,
@@ -30,8 +30,12 @@ impl Ext for FakeExt {
 		self.store.get(key).unwrap_or(&H256::new()).clone()
 	}
 
-	fn set_storage_at(&mut self, key: H256, value: H256) {
+	fn set_storage(&mut self, key: H256, value: H256) {
 		self.store.insert(key, value);
+	}
+
+	fn exists(&self, _address: &Address) -> bool {
+		unimplemented!();
 	}
 
 	fn balance(&self, _address: &Address) -> U256 {
@@ -42,18 +46,17 @@ impl Ext for FakeExt {
 		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
 	}
 
-	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8]) -> (U256, Option<Address>) {
+	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8]) -> ContractCreateResult {
 		unimplemented!();
 	}
 
 	fn call(&mut self, 
 			_gas: &U256, 
-			_call_gas: &U256, 
-			_receive_address: &Address, 
+			_address: &Address, 
 			_value: &U256, 
 			_data: &[u8], 
 			_code_address: &Address, 
-			_output: &mut [u8]) -> result::Result<(U256, bool), evm::Error> {
+			_output: &mut [u8]) -> MessageCallResult {
 		unimplemented!();
 	}
 
@@ -83,6 +86,14 @@ impl Ext for FakeExt {
 	fn env_info(&self) -> &EnvInfo {
 		&self.info
 	}
+
+	fn depth(&self) -> usize {
+		unimplemented!();
+	}
+
+	fn inc_sstore_clears(&mut self) {
+		unimplemented!();
+	}
 }
 
 #[test]
@@ -98,7 +109,7 @@ fn test_add() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_988));
@@ -118,7 +129,7 @@ fn test_sha3() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_961));
@@ -138,7 +149,7 @@ fn test_address() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -160,7 +171,7 @@ fn test_origin() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -182,7 +193,7 @@ fn test_sender() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -217,7 +228,7 @@ fn test_extcodecopy() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_935));
@@ -237,7 +248,7 @@ fn test_log_empty() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(99_619));
@@ -269,7 +280,7 @@ fn test_log_sender() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(98_974));
@@ -294,7 +305,7 @@ fn test_blockhash() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_974));
@@ -316,7 +327,7 @@ fn test_calldataload() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_991));
@@ -337,7 +348,7 @@ fn test_author() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -357,7 +368,7 @@ fn test_timestamp() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -377,7 +388,7 @@ fn test_number() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -397,7 +408,7 @@ fn test_difficulty() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
@@ -417,7 +428,7 @@ fn test_gas_limit() {
 
 	let gas_left = {
 		let vm = Factory::create();
-		vm.exec(&params, &mut ext).unwrap()
+		vm.exec(params, &mut ext).unwrap()
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
