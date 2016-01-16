@@ -17,21 +17,11 @@ pub enum OutputPolicy<'a> {
 
 /// Implementation of evm Externalities.
 pub struct Externalities<'a> {
-	
-	#[cfg(test)]
-	pub state: &'a mut State,
-	#[cfg(not(test))]
 	state: &'a mut State,
-
 	info: &'a EnvInfo,
 	engine: &'a Engine,
 	depth: usize,
-	
-	#[cfg(test)]
-	pub params: &'a ActionParams,
-	#[cfg(not(test))]
 	params: &'a ActionParams,
-	
 	substate: &'a mut Substate,
 	schedule: Schedule,
 	output: OutputPolicy<'a>

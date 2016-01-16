@@ -34,7 +34,7 @@ impl Ext for FakeExt {
 		self.store.insert(key, value);
 	}
 
-	fn exists(&self, address: &Address) -> bool {
+	fn exists(&self, _address: &Address) -> bool {
 		unimplemented!();
 	}
 

@@ -44,13 +44,21 @@ struct CallCreate {
 /// Stores callcreates.
 struct TestExt<'a> {
 	ext: Externalities<'a>,
-	callcreates: Vec<CallCreate>
+	callcreates: Vec<CallCreate>,
+	contract_address: Address
 }
 
 impl<'a> TestExt<'a> {
-	fn new(ext: Externalities<'a>) -> TestExt {
+	fn new(state: &'a mut State, 
+			   info: &'a EnvInfo, 
+			   engine: &'a Engine, 
+			   depth: usize,
+			   params: &'a ActionParams, 
+			   substate: &'a mut Substate, 
+			   output: OutputPolicy<'a>) -> Self {
 		TestExt {
-			ext: ext,
+			contract_address: contract_address(&params.address, &state.nonce(&params.address)),
+			ext: Externalities::new(state, info, engine, depth, params, substate, output),
 			callcreates: vec![]
 		}
 	}
@@ -78,14 +86,13 @@ impl<'a> Ext for TestExt<'a> {
 	}
 
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
-		let address = contract_address(&self.ext.params.address, &self.ext.state.nonce(&self.ext.params.address));
 		self.callcreates.push(CallCreate {
 			data: code.to_vec(),
 			destination: None,
 			_gas_limit: *gas,
 			value: *value
 		});
-		ContractCreateResult::Created(address, *gas)
+		ContractCreateResult::Created(self.contract_address.clone(), *gas)
 	}
 
 	fn call(&mut self, 
@@ -93,8 +100,8 @@ impl<'a> Ext for TestExt<'a> {
 			receive_address: &Address, 
 			value: &U256, 
 			data: &[u8], 
-			code_address: &Address, 
-			output: &mut [u8]) -> MessageCallResult {
+			_code_address: &Address, 
+			_output: &mut [u8]) -> MessageCallResult {
 		self.callcreates.push(CallCreate {
 			data: data.to_vec(),
 			destination: Some(receive_address.clone()),
@@ -198,11 +205,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 		// execute
 		let (res, callcreates) = {
-			let ex = Externalities::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
-			let mut test_ext = TestExt::new(ex);
+			let mut ex = TestExt::new(&mut state, &info, &engine, 0, &params, &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output)));
 			let evm = Factory::create();
-			let res = evm.exec(&params, &mut test_ext);
-			(res, test_ext.callcreates)
+			let res = evm.exec(&params, &mut ex);
+			(res, ex.callcreates)
 		};
 
 		// then validate
