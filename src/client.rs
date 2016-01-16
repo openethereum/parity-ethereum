@@ -138,7 +138,7 @@ impl Client {
 		engine.spec().ensure_db_good(&mut state_db);
 		state_db.commit().expect("Error commiting genesis state to state DB");
 
-		chain.write().unwrap().ensure_good(&state_db);
+//		chain.write().unwrap().ensure_good(&state_db);
 
 		Ok(Client {
 			chain: chain,

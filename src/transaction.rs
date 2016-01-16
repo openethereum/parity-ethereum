@@ -215,6 +215,15 @@ impl Transaction {
 		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
 	}
 
+	/// Checks whether the signature has a low 's' value.
+	pub fn check_low_s(&self) -> Result<(), Error> {
+		if !ec::is_low_s(&self.s) {
+			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)))
+		} else {
+			Ok(())
+		}
+	}
+
 	/// Do basic validation, checking for valid signature and minimum gas,
 	pub fn validate(self, schedule: &Schedule, require_low: bool) -> Result<Transaction, Error> {
 		if require_low && !ec::is_low_s(&self.s) {

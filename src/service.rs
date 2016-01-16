@@ -38,7 +38,8 @@ struct ClientIoHandler {
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>) { }
+	fn initialize<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>) {
+	}
 
 	fn message<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>, net_message: &'s mut NetSyncMessage) {
 		match net_message {
