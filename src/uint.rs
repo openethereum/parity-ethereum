@@ -585,6 +585,68 @@ macro_rules! construct_uint {
 			}
 		}
 
+		// TODO: optimise and traitify.
+
+		impl<'a> AddAssign<&'a $name> for $name {
+			fn add_assign(&mut self, other: &'a Self) {
+				*self = self.add(*other);
+			}
+		}
+
+		impl<'a> SubAssign<&'a $name> for $name {
+			fn sub_assign(&mut self, other: &'a Self) {
+				*self = self.sub(*other);
+			}
+		}
+
+		impl<'a> MulAssign<&'a $name> for $name {
+			fn mul_assign(&mut self, other: &'a Self) {
+				*self = self.mul(*other);
+			}
+		}
+
+		impl<'a> DivAssign<&'a $name> for $name {
+			fn div_assign(&mut self, other: &'a Self) {
+				*self = self.div(*other);
+			}
+		}
+
+		impl<'a> RemAssign<&'a $name> for $name {
+			fn rem_assign(&mut self, other: &'a Self) {
+				*self = self.rem(*other);
+			}
+		}
+
+		impl AddAssign<$name> for $name {
+			fn add_assign(&mut self, other: Self) {
+				*self = self.add(other);
+			}
+		}
+
+		impl SubAssign<$name> for $name {
+			fn sub_assign(&mut self, other: Self) {
+				*self = self.sub(other);
+			}
+		}
+
+		impl MulAssign<$name> for $name {
+			fn mul_assign(&mut self, other: Self) {
+				*self = self.mul(other);
+			}
+		}
+
+		impl DivAssign<$name> for $name {
+			fn div_assign(&mut self, other: Self) {
+				*self = self.div(other);
+			}
+		}
+
+		impl RemAssign<$name> for $name {
+			fn rem_assign(&mut self, other: Self) {
+				*self = self.rem(other);
+			}
+		}
+
 		impl BitAnd<$name> for $name {
 			type Output = $name;
 
@@ -854,6 +916,37 @@ mod tests {
 	use uint::{Uint, U128, U256, U512};
 	use std::str::FromStr;
 	use std::num::wrapping::OverflowingOps;
+
+	#[test]
+	pub fn assign_ops() {
+		let x: U256 = x!(69);
+		let y: U256 = x!(42);
+		{
+			let mut z = x;
+			z += y;
+			assert_eq!(z, x + y);
+		}
+		{
+			let mut z = x;
+			z -= y;
+			assert_eq!(z, x - y);
+		}
+		{
+			let mut z = x;
+			z *= y;
+			assert_eq!(z, x * y);
+		}
+		{
+			let mut z = x;
+			z /= y;
+			assert_eq!(z, x / y);
+		}
+		{
+			let mut z = x;
+			z %= y;
+			assert_eq!(z, x % y);
+		}
+	}
 
 	#[test]
 	pub fn uint256_from() {
