@@ -380,6 +380,7 @@ pub const LOG1: Instruction =  0xa1; //< Makes a log entry; 1 topic.
 pub const LOG2: Instruction =  0xa2; //< Makes a log entry; 2 topics.
 pub const LOG3: Instruction =  0xa3; //< Makes a log entry; 3 topics.
 pub const LOG4: Instruction =  0xa4; //< Makes a log entry; 4 topics.
+pub const NO_OF_LOG_INSTRUCTIONS : usize = 5;
 
 pub const CREATE: Instruction =  0xf0;		//< create a new account with associated code
 pub const CALL: Instruction =  0xf1; //< message-call into an account
