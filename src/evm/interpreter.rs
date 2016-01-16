@@ -40,7 +40,7 @@ trait Stack<T> {
 	fn has(&self, no_of_elems: usize) -> bool;
 	/// Get element from top and remove it from Stack. Panics if stack is empty.
 	fn pop_back(&mut self) -> T;
-	/// Get (up to 5) elements from top and remove them from Stack. Panics if stack is empty.
+	/// Get (up to `instructions::MAX_NO_OF_TOPICS`) elements from top and remove them from Stack. Panics if stack is empty.
 	fn pop_n(&mut self, no_of_elems: usize) -> &[T];
 	/// Add element on top of the Stack
 	fn push(&mut self, elem: T);
@@ -50,14 +50,14 @@ trait Stack<T> {
 
 struct VecStack<S> {
 	stack: Vec<S>,
-	logs: [S; instructions::NO_OF_LOG_INSTRUCTIONS]
+	logs: [S; instructions::MAX_NO_OF_TOPICS]
 }
 
 impl<S : Copy> VecStack<S> {
 	fn with_capacity(capacity: usize, zero: S) -> Self {
 		VecStack {
 			stack: Vec::with_capacity(capacity),
-			logs: [zero; instructions::NO_OF_LOG_INSTRUCTIONS]
+			logs: [zero; instructions::MAX_NO_OF_TOPICS]
 		}
 	}
 }
@@ -91,7 +91,7 @@ impl<S> Stack<S> for VecStack<S> {
 	}
 
 	fn pop_n(&mut self, no_of_elems: usize) -> &[S] {
-		assert!(no_of_elems < instructions::NO_OF_LOG_INSTRUCTIONS);
+		assert!(no_of_elems <= instructions::MAX_NO_OF_TOPICS);
 
 		for i in 0..no_of_elems {
 			self.logs[i] = self.pop_back();
