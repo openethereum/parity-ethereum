@@ -561,13 +561,13 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		let port = self.info.config.listen_address.port();
 		self.info.listen_port = port;
 
-		self.add_node("enode://a9a921de2ff09a9a4d38b623c67b2d6b477a8e654ae95d874750cbbcb31b33296496a7b4421934e2629269e180823e52c15c2b19fc59592ec51ffe4f2de76ed7@127.0.0.1:30303");
+//		self.add_node("enode://a9a921de2ff09a9a4d38b623c67b2d6b477a8e654ae95d874750cbbcb31b33296496a7b4421934e2629269e180823e52c15c2b19fc59592ec51ffe4f2de76ed7@127.0.0.1:30303");
 		// GO bootnodes
-//		self.add_node("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303"); // IE
-//		self.add_node("enode://de471bccee3d042261d52e9bff31458daecc406142b401d4cd848f677479f73104b9fdeb090af9583d3391b7f10cb2ba9e26865dd5fca4fcdc0fb1e3b723c786@54.94.239.50:30303");  // BR
-//		self.add_node("enode://1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082@52.74.57.123:30303");  // SG
+		self.add_node("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303"); // IE
+		self.add_node("enode://de471bccee3d042261d52e9bff31458daecc406142b401d4cd848f677479f73104b9fdeb090af9583d3391b7f10cb2ba9e26865dd5fca4fcdc0fb1e3b723c786@54.94.239.50:30303");  // BR
+		self.add_node("enode://1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082@52.74.57.123:30303");  // SG
 		// ETH/DEV cpp-ethereum (poc-9.ethdev.com)
-// 		self.add_node("enode://979b7fa28feeb35a4741660a16076f1943202cb72b6af70d327f053e248bab9ba81760f39d0701ef1d8f89cc1fbd2cacba0710a12cd5314d5e0c9021aa3637f9@5.1.83.226:30303");
+ 		self.add_node("enode://979b7fa28feeb35a4741660a16076f1943202cb72b6af70d327f053e248bab9ba81760f39d0701ef1d8f89cc1fbd2cacba0710a12cd5314d5e0c9021aa3637f9@5.1.83.226:30303");
 	}
 
 	fn stream_hup<'s>(&'s mut self, io: &mut IoContext<'s, NetworkIoMessage<Message>>, stream: StreamToken) {
