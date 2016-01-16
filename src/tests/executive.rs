@@ -115,7 +115,7 @@ impl<'a> Ext for TestExt<'a> {
 			output: &mut [u8]) -> Result<(U256, bool), evm::Error> {
 		let res = self.ext.call(gas, call_gas, receive_address, value, data, code_address, output);
 		let ext = &self.ext;
-		if let &Ok(_some) = &res {
+		if let &Ok((gas_left, _)) = &res {
 			if ext.state.balance(&ext.params.address) >= *value {
 				self.callcreates.push(CallCreate {
 					data: data.to_vec(),
@@ -123,6 +123,7 @@ impl<'a> Ext for TestExt<'a> {
 					_gas_limit: *call_gas,
 					value: *value
 				});
+				return Ok((gas_left, true))
 			}
 		}
 		res
