@@ -6,6 +6,25 @@ use super::instructions as instructions;
 use super::instructions::Instruction;
 use std::num::wrapping::OverflowingOps;
 
+#[cfg(feature = "evm_debug")]
+macro_rules! evm_debug {
+	($x: expr) => {
+		println!($x);
+	}
+}
+#[cfg(feature = "evm_debug")]
+fn color(instruction: Instruction, name: &'static str) -> String {
+	let c = instruction as usize % 6;
+	let colors = [31, 34, 33, 32, 35, 36];
+	format!("\x1B[1;{}m{}\x1B[0m", colors[c], name)
+}
+
+#[cfg(not(feature = "evm_debug"))]
+macro_rules! evm_debug {
+	($x: expr) => {}
+}
+
+
 type CodePosition = usize;
 type Gas = U256;
 type ProgramCounter = usize;
@@ -45,7 +64,9 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 		let val = self.pop();
 		match val {
 			Some(x) => {
-				// println!("Poping from stack: {}", x);
+				evm_debug!({
+					format!("   POP: {}", x)
+				});
 				x
 			},
 			None => panic!("Tried to pop from empty stack.")
@@ -62,7 +83,9 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 	}
 
 	fn push(&mut self, elem: S) {
-		// println!("Pushing to stack: {}", elem);
+		evm_debug!({
+			format!("  PUSH: {}", elem)
+		});
 		self.push(elem);
 	}
 
@@ -100,10 +123,13 @@ fn is_valid_range(off: usize, size: usize)  -> bool {
 }
 
 impl Memory for Vec<u8> {
+
 	fn dump(&self) {
 		println!("MemoryDump:");
 		for i in self.iter() {
-			print!("{:02x} ", i);
+			println!({
+				format!("{:02x} ", i)
+			});
 		}
 		println!("");
 	}
@@ -211,6 +237,7 @@ enum InstructionResult {
 	StopExecution
 }
 
+
 pub struct Interpreter;
 
 impl evm::Evm for Interpreter {
@@ -236,11 +263,15 @@ impl evm::Evm for Interpreter {
 			mem.expand(mem_size);
 			current_gas = current_gas - gas_cost;
 
-			// println!("Executing: {} (0x{:x}) [Gas Cost: {} (Left: {})]", 
-			// 				   instructions::get_info(instruction).name, instruction,
-			// 				   gas_cost,
-			// 				   current_gas
-			// );
+			evm_debug!({
+				format!("[0x{:x}][{}(0x{:x}) Gas: {}\n  Gas Before: {}",
+					reader.position,
+					color(instruction, instructions::get_info(instruction).name),
+					instruction,
+					gas_cost,
+					current_gas + gas_cost
+				)
+			});
 
 			// Execute instruction
 			let result = try!(self.exec_instruction(
@@ -306,7 +337,7 @@ impl Interpreter {
 				let gas = if self.is_zero(&val) && !self.is_zero(newval) {
 					schedule.sstore_set_gas
 				} else if !self.is_zero(&val) && self.is_zero(newval) {
-					schedule.sstore_set_gas
+					schedule.sstore_reset_gas
 				} else {
 					schedule.sstore_reset_gas
 				};

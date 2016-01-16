@@ -13,6 +13,9 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	flush(format!("\n"));
 
 	for (name, test) in json.as_object().unwrap() {
+		// if name != "TestStoreGasPrices" {
+			// continue;
+		// }
 		let mut fail = false;
 		{
 			let mut fail_unless = |cond: bool| if !cond && !fail {
