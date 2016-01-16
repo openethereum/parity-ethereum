@@ -516,6 +516,8 @@ pub const LOG2: Instruction = 0xa2;
 pub const LOG3: Instruction = 0xa3;
 /// Makes a log entry; 4 topics.
 pub const LOG4: Instruction = 0xa4;
+/// Maximal number of topics for log instructions
+pub const MAX_NO_OF_TOPICS : usize = 4;
 
 /// create a new account with associated code
 pub const CREATE: Instruction = 0xf0;	

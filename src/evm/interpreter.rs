@@ -5,6 +5,7 @@ use evm;
 use super::instructions as instructions;
 use super::instructions::Instruction;
 use std::num::wrapping::OverflowingOps;
+use std::marker::Copy;
 
 #[cfg(feature = "evm_debug")]
 macro_rules! evm_debug {
@@ -39,30 +40,44 @@ trait Stack<T> {
 	fn has(&self, no_of_elems: usize) -> bool;
 	/// Get element from top and remove it from Stack. Panics if stack is empty.
 	fn pop_back(&mut self) -> T;
-	/// Get elements from top and remove them from Stack. Panics if stack is empty.
-	fn pop_n(&mut self, no_of_elems: usize) -> Vec<T>;
+	/// Get (up to `instructions::MAX_NO_OF_TOPICS`) elements from top and remove them from Stack. Panics if stack is empty.
+	fn pop_n(&mut self, no_of_elems: usize) -> &[T];
 	/// Add element on top of the Stack
 	fn push(&mut self, elem: T);
 	/// Get number of elements on Stack
 	fn size(&self) -> usize;
 }
 
-impl<S : fmt::Display> Stack<S> for Vec<S> {
+struct VecStack<S> {
+	stack: Vec<S>,
+	logs: [S; instructions::MAX_NO_OF_TOPICS]
+}
+
+impl<S : Copy> VecStack<S> {
+	fn with_capacity(capacity: usize, zero: S) -> Self {
+		VecStack {
+			stack: Vec::with_capacity(capacity),
+			logs: [zero; instructions::MAX_NO_OF_TOPICS]
+		}
+	}
+}
+
+impl<S : fmt::Display> Stack<S> for VecStack<S> {
 	fn peek(&self, no_from_top: usize) -> &S {
-		return &self[self.len() - no_from_top - 1];
+		return &self.stack[self.stack.len() - no_from_top - 1];
 	}
 
 	fn swap_with_top(&mut self, no_from_top: usize) {
-		let len = self.len();
-		self.swap(len - no_from_top - 1, len - 1);
+		let len = self.stack.len();
+		self.stack.swap(len - no_from_top - 1, len - 1);
 	}
 
 	fn has(&self, no_of_elems: usize) -> bool {
-		self.len() >= no_of_elems
+		self.stack.len() >= no_of_elems
 	}
 
 	fn pop_back(&mut self) -> S {
-		let val = self.pop();
+		let val = self.stack.pop();
 		match val {
 			Some(x) => {
 				evm_debug!({
@@ -74,24 +89,24 @@ impl<S : fmt::Display> Stack<S> for Vec<S> {
 		}
 	}
 
-	fn pop_n(&mut self, no_of_elems: usize) -> Vec<S> {
-		let mut vec = Vec::new();
+	fn pop_n(&mut self, no_of_elems: usize) -> &[S] {
+		assert!(no_of_elems <= instructions::MAX_NO_OF_TOPICS);
 
-		for _i in 1..no_of_elems+1 {
-			vec.push(self.pop_back());
+		for i in 0..no_of_elems {
+			self.logs[i] = self.pop_back();
 		}
-		vec
+		&self.logs[0..no_of_elems]
 	}
 
 	fn push(&mut self, elem: S) {
 		evm_debug!({
 			format!("  PUSH: {}", elem)
 		});
-		self.push(elem);
+		self.stack.push(elem);
 	}
 
 	fn size(&self) -> usize {
-		self.len()
+		self.stack.len()
 	}
 }
 
@@ -246,7 +261,7 @@ impl evm::Evm for Interpreter {
 		let valid_jump_destinations = self.find_jump_destinations(&code);
 
 		let mut current_gas = params.gas.clone();
-		let mut stack = Vec::with_capacity(ext.schedule().stack_limit);
+		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
 		let mut mem = vec![];
 		let mut reader = CodeReader {
 			position: 0,
