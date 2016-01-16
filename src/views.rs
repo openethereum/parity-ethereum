@@ -2,7 +2,7 @@
 use util::*;
 use header::*;
 use transaction::*;
-/*
+
 /// View onto block rlp.
 pub struct TransactionView<'a> {
 	rlp: Rlp<'a>
@@ -11,7 +11,7 @@ pub struct TransactionView<'a> {
 impl<'a> TransactionView<'a> {
 	/// Creates new view onto block from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> TransactionView<'a> {
-		BlockView {
+		TransactionView {
 			rlp: Rlp::new(bytes)
 		}
 	}
@@ -34,13 +34,13 @@ impl<'a> TransactionView<'a> {
 
 	pub fn gas(&self) -> U256 { self.rlp.val_at(2) }
 
-	pub fn action(&self) -> Action { self.rlp.val_at(3) }
+	// TODO: something like pub fn action(&self) -> Action { self.rlp.val_at(3) }
 
 	pub fn value(&self) -> U256 { self.rlp.val_at(4) }
 
 	pub fn data(&self) -> Bytes { self.rlp.val_at(5) }
 
-	pub fn v(&self) -> u8 { self.rlp.val_at(6) }
+	pub fn v(&self) -> u8 { let r: u16 = self.rlp.val_at(6); r as u8 }
 
 	pub fn r(&self) -> U256 { self.rlp.val_at(7) }
 
@@ -52,7 +52,7 @@ impl<'a> Hashable for TransactionView<'a> {
 		self.rlp.as_raw().sha3()
 	}
 }
-*/
+
 /// View onto block rlp.
 pub struct BlockView<'a> {
 	rlp: Rlp<'a>
