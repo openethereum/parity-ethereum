@@ -600,10 +600,10 @@ macro_rules! construct_uint {
 				let mut latch = false;
 				for ch in data.iter().rev() {
 					for x in 0..16 {
-						let ch = ch & (15u64 << ((15 - x) * 4) as u64) >> ((15 - x) * 4) as u64;
-						if !latch { latch = ch != 0 }
+						let nibble = (ch & (15u64 << ((15 - x) * 4) as u64)) >> (((15 - x) * 4) as u64);
+						if !latch { latch = nibble != 0 }
 						if latch {
-							try!(write!(f, "{:01x}", ch));
+							try!(write!(f, "{:x}", nibble));
 						}
 					}
 				}

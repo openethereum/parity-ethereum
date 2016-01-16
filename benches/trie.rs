@@ -188,10 +188,10 @@ fn triehash_insertions_six_low(b: &mut Bencher) {
 }
 
 #[bench]
-fn sha3x1000(b: &mut Bencher) {
+fn sha3x10000(b: &mut Bencher) {
 	b.iter(||{
 		let mut seed = H256::new();
-		for _ in 0..1000 {
+		for _ in 0..10000 {
 			seed = seed.sha3()
 		}
 	})
