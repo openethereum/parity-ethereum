@@ -7,7 +7,8 @@ use client::Client;
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
-	_net_service: NetworkService<SyncMessage>,
+	net_service: NetworkService<SyncMessage>,
+	client: Arc<RwLock<Client>>,
 }
 
 impl ClientService {
@@ -22,13 +23,22 @@ impl ClientService {
 		let client = Arc::new(RwLock::new(try!(Client::new(spec, &dir, net_service.io().channel()))));
 		EthSync::register(&mut net_service, client.clone());
 		let client_io = Box::new(ClientIoHandler {
-			client: client
+			client: client.clone()
 		});
 		try!(net_service.io().register_handler(client_io));
 
 		Ok(ClientService {
-			_net_service: net_service,
+			net_service: net_service,
+			client: client,
 		})
+	}
+
+	pub fn io(&mut self) -> &mut IoService<NetSyncMessage> {
+		self.net_service.io()
+	}
+
+	pub fn client(&self) -> Arc<RwLock<Client>> {
+		self.client.clone()
 	}
 }
 

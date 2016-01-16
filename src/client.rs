@@ -14,6 +14,7 @@ use verification::*;
 use block::*;
 
 /// General block status
+#[derive(Debug)]
 pub enum BlockStatus {
 	/// Part of the blockchain.
 	InChain,
@@ -26,6 +27,7 @@ pub enum BlockStatus {
 }
 
 /// Information about the blockchain gthered together.
+#[derive(Debug)]
 pub struct BlockChainInfo {
 	/// Blockchain difficulty.
 	pub total_difficulty: U256,
@@ -40,6 +42,7 @@ pub struct BlockChainInfo {
 }
 
 /// Block queue status
+#[derive(Debug)]
 pub struct BlockQueueStatus {
 	pub full: bool,
 }
