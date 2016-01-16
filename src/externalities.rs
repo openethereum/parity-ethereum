@@ -220,7 +220,7 @@ impl<'a> Ext for Externalities<'a> {
 		self.depth
 	}
 
-	fn inc_sstore_clear_count(&mut self) {
+	fn inc_sstore_clears(&mut self) {
 		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
 	}
 }

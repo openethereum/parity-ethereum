@@ -122,7 +122,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		let old_value = self.ext.storage_at(&key);
 		// if SSTORE nonzero -> zero, increment refund count
 		if !old_value.is_zero() && value.is_zero() {
-			self.ext.inc_sstore_clear_count();
+			self.ext.inc_sstore_clears();
 		}
 		self.ext.set_storage(key, value);
 	}
