@@ -150,7 +150,7 @@ impl State {
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
 		//println!("Executed: {:?}", e);
 
-//		flush(format!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod())));
+		debug!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 		debug!("Transaction receipt: {:?}", receipt);

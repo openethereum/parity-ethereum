@@ -171,6 +171,7 @@ impl<'a> Executive<'a> {
 
 		// at first, transfer value to destination
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		debug!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
 		if self.engine.is_builtin(&params.code_address) {
 			// if destination is builtin, try to execute it

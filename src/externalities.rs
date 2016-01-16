@@ -133,6 +133,7 @@ impl<'a> Ext for Externalities<'a> {
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> Result<(U256, bool), evm::Error> {
+
 		let mut gas_cost = *call_gas;
 		let mut call_gas = *call_gas;
 
@@ -147,9 +148,10 @@ impl<'a> Ext for Externalities<'a> {
 			call_gas = call_gas + U256::from(self.schedule.call_stipend);
 		}
 
-//		flush(format!("Externalities::call(gas={}, call_gas={}, recv={}, value={}, data={}, code={})\n", gas, call_gas, receive_address, value, data.pretty(), code_address));
+		debug!("Externalities::call(gas={}, call_gas={}, recv={}, value={}, data={}, code={})\n", gas, call_gas, receive_address, value, data.pretty(), code_address);
 
 		if gas_cost > *gas {
+			debug!("Externalities::call: OutOfGas gas_cost={}, gas={}", gas_cost, gas);
 			return Err(evm::Error::OutOfGas);
 		}
 
@@ -157,7 +159,8 @@ impl<'a> Ext for Externalities<'a> {
 
 		// if balance is insufficient or we are too deep, return
 		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.max_depth {
-			return Ok((gas + call_gas, true));
+			debug!("Externalities::call: OutOfCash bal({})={}, value={}", self.params.address, self.state.balance(&self.params.address), value);
+			return Ok((gas + call_gas, false));
 		}
 
 		let params = ActionParams {
