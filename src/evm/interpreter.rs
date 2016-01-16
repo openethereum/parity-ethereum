@@ -249,9 +249,10 @@ enum InstructionCost {
 enum InstructionResult {
 	Ok,
 	UseAllGas,
+	GasLeft(U256),
 	UnusedGas(U256),
 	JumpToPosition(U256),
-	StopExecutionWithGasCost(U256),
+	StopExecutionWithGasLeft(U256),
 	StopExecution
 }
 
@@ -305,12 +306,15 @@ impl evm::Evm for Interpreter {
 				InstructionResult::UseAllGas => {
 					current_gas = U256::zero();
 				},
+				InstructionResult::GasLeft(gas_left) => {
+					current_gas = gas_left;
+				},
 				InstructionResult::JumpToPosition(position) => {
 					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
 					reader.position = pos;
 				},
-				InstructionResult::StopExecutionWithGasCost(gas_cost) => { 
-					current_gas = current_gas - gas_cost;
+				InstructionResult::StopExecutionWithGasLeft(gas_left) => { 
+					current_gas = gas_left;
 					reader.position = code.len();
 				},
 				InstructionResult::StopExecution => {
@@ -589,7 +593,7 @@ impl Interpreter {
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
 						stack.push(address_to_u256(address));
-						Ok(InstructionResult::UnusedGas(gas - gas_left))
+						Ok(InstructionResult::GasLeft(gas_left))
 					},
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
@@ -657,8 +661,8 @@ impl Interpreter {
 				let init_size = stack.pop_back();
 				let return_code = mem.read_slice(init_off, init_size);
 				let gas_left = try!(ext.ret(&gas, &return_code));
-				return Ok(InstructionResult::StopExecutionWithGasCost(
-					gas - gas_left
+				return Ok(InstructionResult::StopExecutionWithGasLeft(
+					gas_left
 				));
 			},
 			instructions::STOP => {
@@ -944,7 +948,7 @@ impl Interpreter {
 				let (b, sign_b) = get_and_reset_sign(stack.pop_back());
 
 				// -2^255
-				let min = U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
+				let min = (U256::one() << 255) - U256::one();
 				stack.push(if self.is_zero(&b) {
 					U256::zero()
 				} else if a == min && b == !U256::zero() {
