@@ -142,14 +142,13 @@ impl Client {
 			},
 		};
 		// build last hashes
-		let mut last = self.chain.read().unwrap().best_block_hash();
 		let mut last_hashes = LastHashes::new();
 		last_hashes.resize(256, H256::new());
+		last_hashes[0] = header.parent_hash.clone();
 		for i in 0..255 {
-			match self.chain.read().unwrap().block_details(&last) {
+			match self.chain.read().unwrap().block_details(&last_hashes[i]) {
 				Some(details) => {
 					last_hashes[i + 1] = details.parent.clone();
-					last = details.parent.clone();
 				},
 				None => break,
 			}

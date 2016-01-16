@@ -7,10 +7,10 @@ use env_info::*;
 
 pub trait Ext {
 	/// Returns a value for given key.
-	fn sload(&self, key: &H256) -> H256;
+	fn storage_at(&self, key: &H256) -> H256;
 
 	/// Stores a value for given key.
-	fn sstore(&mut self, key: H256, value: H256);
+	fn set_storage_at(&mut self, key: H256, value: H256);
 
 	/// Returns address balance.
 	fn balance(&self, address: &Address) -> U256;

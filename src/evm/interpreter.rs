@@ -301,7 +301,7 @@ impl Interpreter {
 			instructions::SSTORE => {
 				let address = H256::from(stack.peek(0));
 				let newval = stack.peek(1);
-				let val = U256::from(ext.sload(&address).as_slice());
+				let val = U256::from(ext.storage_at(&address).as_slice());
 
 				let gas = if self.is_zero(&val) && !self.is_zero(newval) {
 					schedule.sstore_set_gas
@@ -618,13 +618,13 @@ impl Interpreter {
 			},
 			instructions::SLOAD => {
 				let key = H256::from(&stack.pop_back());
-				let word = U256::from(ext.sload(&key).as_slice());
+				let word = U256::from(ext.storage_at(&key).as_slice());
 				stack.push(word);
 			},
 			instructions::SSTORE => {
 				let key = H256::from(&stack.pop_back());
 				let word = H256::from(&stack.pop_back());
-				ext.sstore(key, word);
+				ext.set_storage_at(key, word);
 			},
 			instructions::PC => {
 				stack.push(U256::from(code.position - 1));

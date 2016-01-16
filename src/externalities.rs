@@ -60,15 +60,19 @@ impl<'a> Externalities<'a> {
 }
 
 impl<'a> Ext for Externalities<'a> {
-	fn sload(&self, key: &H256) -> H256 {
+	fn storage_at(&self, key: &H256) -> H256 {
+		trace!("ext: storage_at({}, {}) == {}\n", self.params.address, key, U256::from(self.state.storage_at(&self.params.address, key).as_slice()));
 		self.state.storage_at(&self.params.address, key)
 	}
 
-	fn sstore(&mut self, key: H256, value: H256) {
+	fn set_storage_at(&mut self, key: H256, value: H256) {
+		let old = self.state.storage_at(&self.params.address, &key);
 		// if SSTORE nonzero -> zero, increment refund count
-		if value == H256::new() && self.state.storage_at(&self.params.address, &key) != H256::new() {
+		if value.is_zero() && !old.is_zero() {
+			trace!("ext: additional refund. {} -> {}\n", self.substate.refunds_count, self.substate.refunds_count + x!(1));
 			self.substate.refunds_count = self.substate.refunds_count + U256::one();
 		}
+		trace!("ext: set_storage_at({}, {}): {} -> {}\n", self.params.address, key, U256::from(old.as_slice()), U256::from(value.as_slice()));
 		self.state.set_storage(&self.params.address, key, value)
 	}
 
@@ -80,9 +84,14 @@ impl<'a> Ext for Externalities<'a> {
 		match *number < U256::from(self.info.number) && number.low_u64() >= cmp::max(256, self.info.number) - 256 {
 			true => {
 				let index = self.info.number - number.low_u64() - 1;
-				self.info.last_hashes[index as usize].clone()
+				let r = self.info.last_hashes[index as usize].clone();
+				trace!("ext: blockhash({}) -> {} self.info.number={}\n", number, r, self.info.number);
+				r
 			},
-			false => H256::from(&U256::zero()),
+			false => {
+				trace!("ext: blockhash({}) -> null self.info.number={}\n", number, self.info.number);
+				H256::from(&U256::zero())
+			},
 		}
 	}
 
@@ -124,6 +133,7 @@ impl<'a> Ext for Externalities<'a> {
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> Result<(U256, bool), evm::Error> {
+
 		let mut gas_cost = *call_gas;
 		let mut call_gas = *call_gas;
 
@@ -138,7 +148,10 @@ impl<'a> Ext for Externalities<'a> {
 			call_gas = call_gas + U256::from(self.schedule.call_stipend);
 		}
 
+		debug!("Externalities::call(gas={}, call_gas={}, recv={}, value={}, data={}, code={})\n", gas, call_gas, receive_address, value, data.pretty(), code_address);
+
 		if gas_cost > *gas {
+			debug!("Externalities::call: OutOfGas gas_cost={}, gas={}", gas_cost, gas);
 			return Err(evm::Error::OutOfGas);
 		}
 
@@ -146,7 +159,8 @@ impl<'a> Ext for Externalities<'a> {
 
 		// if balance is insufficient or we are too deep, return
 		if self.state.balance(&self.params.address) < *value || self.depth >= self.schedule.max_depth {
-			return Ok((gas + call_gas, true));
+			debug!("Externalities::call: OutOfCash bal({})={}, value={}", self.params.address, self.state.balance(&self.params.address), value);
+			return Ok((gas + call_gas, false));
 		}
 
 		let params = ActionParams {
@@ -161,8 +175,13 @@ impl<'a> Ext for Externalities<'a> {
 			data: Some(data.to_vec()),
 		};
 
-		let mut ex = Executive::from_parent(self.state, self.info, self.engine, self.depth);
-		match ex.call(&params, self.substate, BytesRef::Fixed(output)) {
+
+		trace!("Externalities::call: BEFORE: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address));
+		trace!("Externalities::call: CALLING: params={:?}\n", params);
+		let r = Executive::from_parent(self.state, self.info, self.engine, self.depth).call(&params, self.substate, BytesRef::Fixed(output));
+		trace!("Externalities::call: AFTER: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address));
+
+		match r {
 			Ok(gas_left) => Ok((gas + gas_left, true)),
 			_ => Ok((gas, false))
 		}

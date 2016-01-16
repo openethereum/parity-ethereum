@@ -171,6 +171,7 @@ impl<'a> Executive<'a> {
 
 		// at first, transfer value to destination
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		debug!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
 		if self.engine.is_builtin(&params.code_address) {
 			// if destination is builtin, try to execute it
@@ -200,7 +201,11 @@ impl<'a> Executive<'a> {
 				let mut ext = self.to_externalities(params, &mut unconfirmed_substate, OutputPolicy::Return(output));
 				self.engine.vm_factory().create().exec(&params, &mut ext)
 			};
+
+			trace!("exec: sstore-clears={}\n", unconfirmed_substate.refunds_count);
+			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 			self.enact_result(&res, substate, unconfirmed_substate, backup);
+			trace!("exec: new substate={:?}\n", substate);
 			res
 		} else {
 			// otherwise, nothing
@@ -240,28 +245,30 @@ impl<'a> Executive<'a> {
 		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.refunds_count;
 		// refunds from contract suicides
 		let suicide_refunds = U256::from(schedule.suicide_refund_gas) * U256::from(substate.suicides.len());
+		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left = match &result { &Ok(x) => x, _ => x!(0) };
-		let refund = cmp::min(sstore_refunds + suicide_refunds, (t.gas - gas_left) / U256::from(2)) + gas_left;
-		let refund_value = refund * t.gas_price;
-		trace!("Refunding sender: sstore0s: {}, suicides: {}, gas_left: {}, refund: {}, refund_value: {}, sender: {}", sstore_refunds, suicide_refunds, gas_left, refund, refund_value, t.sender().unwrap());
+		let gas_left_prerefund = match &result { &Ok(x) => x, _ => x!(0) };
+		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
+		let gas_left = gas_left_prerefund + refunded;
+
+		let gas_used = t.gas - gas_left;
+		let refund_value = gas_left * t.gas_price;
+		let fees_value = gas_used * t.gas_price;
+
+		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
+			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
+
+		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
 		self.state.add_balance(&t.sender().unwrap(), &refund_value);
-		
-		// fees earned by author
-		let fees = t.gas - refund;
-		let fees_value = fees * t.gas_price;
-		let author = &self.info.author;
-		self.state.add_balance(author, &fees_value);
-		trace!("Compensating author: fees: {}, fees_value: {}, author: {}", fees, fees_value, author);
+		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
+		self.state.add_balance(&self.info.author, &fees_value);
 
 		// perform suicides
 		for address in substate.suicides.iter() {
 			trace!("Killing {}", address);
 			self.state.kill_account(address);
 		}
-
-		let gas_used = t.gas - gas_left;
 
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
@@ -280,16 +287,16 @@ impl<'a> Executive<'a> {
 					contracts_created: vec![]
 				})
 			},
-			Ok(_) => {
+			_ => {
 				Ok(Executed {
 					gas: t.gas,
 					gas_used: gas_used,
-					refunded: refund,
+					refunded: refunded,
 					cumulative_gas_used: self.info.gas_used + gas_used,
 					logs: substate.logs,
-					contracts_created: substate.contracts_created
+					contracts_created: substate.contracts_created,
 				})
-			}
+			},
 		}
 	}
 

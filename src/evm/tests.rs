@@ -35,11 +35,11 @@ impl Default for Schedule {
 }
 
 impl Ext for FakeExt {
-  fn sload(&self, key: &H256) -> H256 {
+	fn storage_at(&self, key: &H256) -> H256 {
 		self.store.get(key).unwrap_or(&H256::new()).clone()
 	}
 
-	fn sstore(&mut self, key: H256, value: H256) {
+	fn set_storage_at(&mut self, key: H256, value: H256) {
 		self.store.insert(key, value);
 	}
 
