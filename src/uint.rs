@@ -595,23 +595,30 @@ macro_rules! construct_uint {
 
 		impl fmt::Debug for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				let &$name(ref data) = self;
-				try!(write!(f, "0x"));
-				let mut latch = false;
-				for ch in data.iter().rev() {
-					for x in 0..16 {
-						let nibble = (ch & (15u64 << ((15 - x) * 4) as u64)) >> (((15 - x) * 4) as u64);
-						if !latch { latch = nibble != 0 }
-						if latch {
-							try!(write!(f, "{:x}", nibble));
-						}
-					}
-				}
-				Ok(())
+				fmt::Display::fmt(self, f)
 			}
 		}
 
 		impl fmt::Display for $name {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				if *self == $name::zero() {
+					return write!(f, "0");
+				}
+
+				let mut s = String::new();
+				let mut current = *self;
+				let ten = $name::from(10);
+
+				while current != $name::zero() {
+					s = format!("{}{}", (current % ten).low_u32(), s);
+					current = current / ten;
+				}
+
+				write!(f, "{}", s)
+			}
+		}
+
+		impl fmt::LowerHex for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				let &$name(ref data) = self;
 				try!(write!(f, "0x"));
@@ -1065,6 +1072,17 @@ mod tests {
 	fn uint256_from_dec_str() {
 		assert_eq!(U256::from_dec_str("10").unwrap(), U256::from(10u64));
 		assert_eq!(U256::from_dec_str("1024").unwrap(), U256::from(1024u64));
+	}
+
+	#[test]
+	fn display_uint() {
+		let s = "12345678987654321023456789";
+		assert_eq!(format!("{}", U256::from_dec_str(s).unwrap()), s);
+	}
+
+	#[test]
+	fn display_uint_zero() {
+		assert_eq!(format!("{}", U256::from(0)), "0");
 	}
 }
 

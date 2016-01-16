@@ -600,14 +600,12 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, io),
 			NODETABLE_DISCOVERY => {},
 			NODETABLE_MAINTAIN => {},
-			_ => {
-				let protocol = *self.timers.get_mut(&token).expect("Unknown user timer token");
-				match self.handlers.get_mut(protocol) {
-					None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
-					Some(h) => {
-						h.timeout(&mut NetworkContext::new(io, protocol, Some(token), &mut self.connections, &mut self.timers), token);
-					}
-				}
+			_ => match self.timers.get_mut(&token).map(|p| *p) {
+					Some(protocol) => match self.handlers.get_mut(protocol) {
+							None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
+							Some(h) => { h.timeout(&mut NetworkContext::new(io, protocol, Some(token), &mut self.connections, &mut self.timers), token); }
+					},
+					None => {} // time not registerd through us
 			}
 		}
 	}
