@@ -15,8 +15,7 @@ pub enum OutputPolicy<'a> {
 	InitContract
 }
 
-/// Things that externalities need to know about
-/// transaction origin.
+/// Transaction properties that externalities need to know about.
 pub struct OriginInfo {
 	address: Address,
 	origin: Address,
