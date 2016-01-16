@@ -58,6 +58,7 @@ macro_rules! panic_on_overflow {
 		}
 	}
 }
+
 pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + fmt::Display + PartialOrd + Ord + PartialEq + Eq + Hash {
 
 	/// Size of this type.
@@ -83,11 +84,19 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 	
 	/// Return the least number of bits needed to represent the number
 	fn bits(&self) -> usize;
+	/// Return if specific bit is set
 	fn bit(&self, index: usize) -> bool;
+	/// Return single byte
 	fn byte(&self, index: usize) -> u8;
+	/// Get this Uint as slice of bytes
 	fn to_bytes(&self, bytes: &mut[u8]);
 
+	/// Create `Uint(10**n)`
 	fn exp10(n: usize) -> Self;
+	/// Return eponentation `self**other`. Panic on overflow.
+	fn pow(self, other: Self) -> Self;
+	/// Return wrapped eponentation `self**other` and flag if there was an overflow
+	fn overflowing_pow(self, other: Self) -> (Self, bool);
 }
 
 macro_rules! construct_uint {
@@ -112,14 +121,12 @@ macro_rules! construct_uint {
 					))
 			}
 
-			/// Conversion to u32
 			#[inline]
 			fn low_u32(&self) -> u32 {
 				let &$name(ref arr) = self;
 				arr[0] as u32
 			}
 
-			/// Conversion to u64
 			#[inline]
 			fn low_u64(&self) -> u64 {
 				let &$name(ref arr) = self;
@@ -147,6 +154,7 @@ macro_rules! construct_uint {
 				}
 				arr[0]
 			}
+
 			/// Return the least number of bits needed to represent the number
 			#[inline]
 			fn bits(&self) -> usize {
@@ -180,34 +188,33 @@ macro_rules! construct_uint {
 			}
 
 			#[inline]
-			fn exp10(n: usize) -> $name {
+			fn exp10(n: usize) -> Self {
 				match n {
-					0 => $name::from(1u64),
-					_ => $name::exp10(n - 1) * $name::from(10u64)
+					0 => Self::from(1u64),
+					_ => Self::exp10(n - 1) * Self::from(10u64)
 				}
 			}
 
 			#[inline]
-			fn zero() -> $name {
+			fn zero() -> Self {
 				From::from(0u64)
 			}
 
 			#[inline]
-			fn one() -> $name {
+			fn one() -> Self {
 				From::from(1u64)
 			}
-		}
 
-		impl $name {
-
-			pub fn pow(self, expon: $name) -> $name {
-				if expon == $name::zero() {
-					return $name::one()
+			/// Fast exponentation by squaring
+			/// https://en.wikipedia.org/wiki/Exponentiation_by_squaring
+			fn pow(self, expon: Self) -> Self {
+				if expon == Self::zero() {
+					return Self::one()
 				}
-				let is_even = |x : &$name| x.low_u64() & 1 == 0;
+				let is_even = |x : &Self| x.low_u64() & 1 == 0;
 
-				let u_one = $name::one();
-				let u_two = $name::from(2);
+				let u_one = Self::one();
+				let u_two = Self::from(2);
 				let mut y = u_one;
 				let mut n = expon;
 				let mut x = self;
@@ -224,14 +231,16 @@ macro_rules! construct_uint {
 				x * y
 			}
 
-			pub fn overflowing_pow(self, expon: $name) -> ($name, bool) {
-				if expon == $name::zero() {
-					return ($name::one(), false)
+			/// Fast exponentation by squaring
+			/// https://en.wikipedia.org/wiki/Exponentiation_by_squaring
+			fn overflowing_pow(self, expon: Self) -> (Self, bool) {
+				if expon == Self::zero() {
+					return (Self::one(), false)
 				}
-				let is_even = |x : &$name| x.low_u64() & 1 == 0;
+				let is_even = |x : &Self| x.low_u64() & 1 == 0;
 
-				let u_one = $name::one();
-				let u_two = $name::from(2);
+				let u_one = Self::one();
+				let u_two = Self::from(2);
 				let mut y = u_one;
 				let mut n = expon;
 				let mut x = self;
@@ -250,9 +259,11 @@ macro_rules! construct_uint {
 				let res = overflowing!(x.overflowing_mul(y), overflow);
 				(res, overflow)
 			}
+		}
 
+		impl $name {
 			/// Multiplication by u32
-			fn mul_u32(self, other: u32) -> $name {
+			fn mul_u32(self, other: u32) -> Self {
 				let $name(ref arr) = self;
 				let mut carry = [0u64; $n_words];
 				let mut ret = [0u64; $n_words];
@@ -273,7 +284,7 @@ macro_rules! construct_uint {
 			}
 
 			/// Overflowing multiplication by u32
-			fn overflowing_mul_u32(self, other: u32) -> ($name, bool) {
+			fn overflowing_mul_u32(self, other: u32) -> (Self, bool) {
 				let $name(ref arr) = self;
 				let mut carry = [0u64; $n_words];
 				let mut ret = [0u64; $n_words];
