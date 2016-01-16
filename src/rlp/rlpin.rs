@@ -1,3 +1,4 @@
+use std::fmt;
 use rlp::{View, Decodable, DecoderError, UntrustedRlp, PayloadInfo, Prototype};
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
@@ -13,6 +14,12 @@ impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
 #[derive(Debug)]
 pub struct Rlp<'a> {
 	rlp: UntrustedRlp<'a>
+}
+
+impl<'a> fmt::Display for Rlp<'a> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		write!(f, "{}", self.rlp)
+	}
 }
 
 impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
