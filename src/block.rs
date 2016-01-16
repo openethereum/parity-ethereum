@@ -268,7 +268,7 @@ pub fn enact<'x, 'y>(block_bytes: &[u8], engine: &'x Engine, db: OverlayDB, pare
 	{
 		let header = BlockView::new(block_bytes).header_view();
 		let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
-//		flush(format!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author())));
+		trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
 	}
 
 	let block = BlockView::new(block_bytes);

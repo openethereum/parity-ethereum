@@ -203,10 +203,10 @@ impl<'a> Executive<'a> {
 				evm.exec(&params, &mut ext)
 			};
 
-//			flush(format!("exec: sstore-clears={}\n", unconfirmed_substate.refunds_count));
-//			flush(format!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate));
+			trace!("exec: sstore-clears={}\n", unconfirmed_substate.refunds_count);
+			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 			self.enact_result(&res, substate, unconfirmed_substate, backup);
-//			flush(format!("exec: new substate={:?}\n", substate));
+			trace!("exec: new substate={:?}\n", substate);
 			res
 		} else {
 			// otherwise, nothing
@@ -258,17 +258,17 @@ impl<'a> Executive<'a> {
 		let refund_value = gas_left * t.gas_price;
 		let fees_value = gas_used * t.gas_price;
 
-//		flush(format!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
-//			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value));
+		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
+			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
-//		flush(format!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap()));
+		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
 		self.state.add_balance(&t.sender().unwrap(), &refund_value);
-//		flush(format!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author));
+		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value);
 
 		// perform suicides
 		for address in substate.suicides.iter() {
-//			trace!("Killing {}", address);
+			trace!("Killing {}", address);
 			self.state.kill_account(address);
 		}
 

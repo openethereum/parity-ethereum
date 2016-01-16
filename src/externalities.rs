@@ -61,7 +61,7 @@ impl<'a> Externalities<'a> {
 
 impl<'a> Ext for Externalities<'a> {
 	fn storage_at(&self, key: &H256) -> H256 {
-//		flush(format!("ext: storage_at({}, {}) == {}\n", self.params.address, key, U256::from(self.state.storage_at(&self.params.address, key).as_slice())));
+		trace!("ext: storage_at({}, {}) == {}\n", self.params.address, key, U256::from(self.state.storage_at(&self.params.address, key).as_slice()));
 		self.state.storage_at(&self.params.address, key)
 	}
 
@@ -69,10 +69,10 @@ impl<'a> Ext for Externalities<'a> {
 		let old = self.state.storage_at(&self.params.address, &key);
 		// if SSTORE nonzero -> zero, increment refund count
 		if value.is_zero() && !old.is_zero() {
-//			flush(format!("ext: additional refund. {} -> {}\n", self.substate.refunds_count, self.substate.refunds_count + x!(1)));
+			trace!("ext: additional refund. {} -> {}\n", self.substate.refunds_count, self.substate.refunds_count + x!(1));
 			self.substate.refunds_count = self.substate.refunds_count + U256::one();
 		}
-//		flush(format!("ext: set_storage_at({}, {}): {} -> {}\n", self.params.address, key, U256::from(old.as_slice()), U256::from(value.as_slice())));
+		trace!("ext: set_storage_at({}, {}): {} -> {}\n", self.params.address, key, U256::from(old.as_slice()), U256::from(value.as_slice()));
 		self.state.set_storage(&self.params.address, key, value)
 	}
 
@@ -85,11 +85,11 @@ impl<'a> Ext for Externalities<'a> {
 			true => {
 				let index = self.info.number - number.low_u64() - 1;
 				let r = self.info.last_hashes[index as usize].clone();
-//				flush(format!("ext: blockhash({}) -> {} self.info.number={}\n", number, r, self.info.number));
+				trace!("ext: blockhash({}) -> {} self.info.number={}\n", number, r, self.info.number);
 				r
 			},
 			false => {
-//				flush(format!("ext: blockhash({}) -> null self.info.number={}\n", number, self.info.number));
+				trace!("ext: blockhash({}) -> null self.info.number={}\n", number, self.info.number);
 				H256::from(&U256::zero())
 			},
 		}
@@ -176,10 +176,10 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 
-//		flush(format!("Externalities::call: BEFORE: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address)));
-//		flush(format!("Externalities::call: CALLING: params={:?}\n", params));
+		trace!("Externalities::call: BEFORE: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address));
+		trace!("Externalities::call: CALLING: params={:?}\n", params);
 		let r = Executive::from_parent(self.state, self.info, self.engine, self.depth).call(&params, self.substate, BytesRef::Fixed(output));
-//		flush(format!("Externalities::call: AFTER: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address)));
+		trace!("Externalities::call: AFTER: bal({})={}, bal({})={}\n", params.sender, self.state.balance(&params.sender), params.address, self.state.balance(&params.address));
 
 		match r {
 			Ok(gas_left) => Ok((gas + gas_left, true)),

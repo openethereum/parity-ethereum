@@ -107,16 +107,16 @@ impl State {
 
 	/// Add `incr` to the balance of account `a`.
 	pub fn add_balance(&mut self, a: &Address, incr: &U256) {
-//		let old = self.balance(a);
+		let old = self.balance(a);
 		self.require(a, false).add_balance(incr);
-//		flush(format!("state: add_balance({}, {}): {} -> {}\n", a, incr, old, self.balance(a)));
+		trace!("state: add_balance({}, {}): {} -> {}\n", a, incr, old, self.balance(a));
 	}
 
 	/// Subtract `decr` from the balance of account `a`.
 	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
-//		let old = self.balance(a);
+		let old = self.balance(a);
 		self.require(a, false).sub_balance(decr);
-//		flush(format!("state: sub_balance({}, {}): {} -> {}\n", a, decr, old, self.balance(a)));
+		trace!("state: sub_balance({}, {}): {} -> {}\n", a, decr, old, self.balance(a));
 	}
 
 	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
@@ -230,13 +230,6 @@ impl State {
 	/// `require_code` requires that the code be cached, too.
 	fn get(&self, a: &Address, require_code: bool) -> Ref<Option<Account>> {
 		self.cache.borrow_mut().entry(a.clone()).or_insert_with(|| {
-			/*{
-				let orlp = SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| rlp.to_vec());
-				if let Some(rlp) = orlp {
-					let acc = Account::from_rlp(&rlp);
-					flush(format!("State::get({}) -> {} (bal={})\n", a, rlp.pretty(), acc.balance()));
-				}
-			}*/
 			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp))
 		});
 		if require_code {
