@@ -127,9 +127,7 @@ impl Memory for Vec<u8> {
 	fn dump(&self) {
 		println!("MemoryDump:");
 		for i in self.iter() {
-			println!({
-				format!("{:02x} ", i)
-			});
+			println!("{:02x} ", i);
 		}
 		println!("");
 	}
