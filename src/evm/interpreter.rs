@@ -465,7 +465,7 @@ impl Interpreter {
 			},
 			InstructionCost::GasMem(gas, mem_size) => match mem_size {
 				RequiredMem::Mem(mem_size) => {
-					let (mem_gas, new_mem_size) = self.mem_gas_cost(schedule, mem.size(), &mem_size);
+					let (mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, mem.size(), &mem_size));
 					let gas = overflowing!(gas.overflowing_add(mem_gas));
 					Ok((gas, new_mem_size))
 				},
@@ -473,7 +473,7 @@ impl Interpreter {
 			},
 			InstructionCost::GasMemCopy(gas, mem_size, copy) => match mem_size {
 				RequiredMem::Mem(mem_size) => {
-					let (mem_gas, new_mem_size) = self.mem_gas_cost(schedule, mem.size(), &mem_size);
+					let (mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, mem.size(), &mem_size));
 					let copy = overflowing!(add_u256_usize(&copy, 31));
 					let copy_gas = U256::from(schedule.copy_gas) * (copy / U256::from(32));
 					let gas = overflowing!(gas.overflowing_add(copy_gas));
@@ -485,21 +485,24 @@ impl Interpreter {
 		}
 	}
 
-	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> (U256, usize) {
+	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> Result<(U256, usize), evm::Error> {
 		let gas_for_mem = |mem_size: U256| {
 			let s = mem_size >> 5;
-			s * U256::from(schedule.memory_gas) + s * s / U256::from(schedule.quad_coeff_div)
+			// s * memory_gas + s * s / quad_coeff_div
+			let a = overflowing!(s.overflowing_mul(U256::from(schedule.memory_gas)));
+			let b = overflowing!(s.overflowing_mul(s / U256::from(schedule.quad_coeff_div)));
+			Ok(a + b)
 		};
 		let current_mem_size = U256::from(current_mem_size);
-		let req_mem_size_rounded = ((mem_size.clone() + U256::from(31)) >> 5) << 5;
-		let new_mem_gas = gas_for_mem(U256::from(req_mem_size_rounded));
-		let current_mem_gas = gas_for_mem(current_mem_size);
+		let req_mem_size_rounded = (overflowing!(mem_size.overflowing_add(U256::from(31))) >> 5) << 5;
+		let new_mem_gas = try!(gas_for_mem(U256::from(req_mem_size_rounded)));
+		let current_mem_gas = try!(gas_for_mem(current_mem_size));
 
-		(if req_mem_size_rounded > current_mem_size {
+		Ok((if req_mem_size_rounded > current_mem_size {
 			new_mem_gas - current_mem_gas
 		} else {
 			U256::zero()
-		}, req_mem_size_rounded.low_u64() as usize)
+		}, req_mem_size_rounded.low_u64() as usize))
 	}
 
 	fn mem_max(&self, m_a: RequiredMem, m_b: RequiredMem) -> RequiredMem {
@@ -1100,7 +1103,7 @@ fn get_and_reset_sign(value: U256) -> (U256, bool) {
 
 fn set_sign(value: U256, sign: bool) -> U256 {
 	if sign {
-		(!U256::zero() ^ value).overflowing_add(U256::one()).0;
+		(!U256::zero() ^ value).overflowing_add(U256::one()).0
 	} else {
 		value
 	}
@@ -1119,6 +1122,23 @@ fn u256_to_address(value: &U256) -> Address {
 #[inline]
 fn address_to_u256(value: Address) -> U256 {
 	U256::from(H256::from(value).as_slice())
+}
+
+#[test]
+fn test_mem_gas_cost() {
+	// given
+	let interpreter = Interpreter;
+	let schedule = evm::Schedule::default();
+	let current_mem_size = 5;
+	let mem_size = !U256::zero();
+
+	// when
+	let result = interpreter.mem_gas_cost(&schedule, current_mem_size, &mem_size);
+
+	// then
+	if let Ok(_) = result {
+		assert!(false, "Should fail with OutOfGas");
+	}
 }
 
 #[cfg(test)]
@@ -1149,7 +1169,7 @@ mod tests {
 		let mem_size = U256::from(5);
 	
 		// when
-		let (mem_cost, mem_size) = interpreter.mem_gas_cost(&schedule, current_mem_size, &mem_size);
+		let (mem_cost, mem_size) = interpreter.mem_gas_cost(&schedule, current_mem_size, &mem_size).unwrap();
 
 		// then
 		assert_eq!(mem_cost, U256::from(3));
