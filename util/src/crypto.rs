@@ -8,6 +8,10 @@ pub type Secret = H256;
 pub type Public = H512;
 pub type Signature = H520;
 
+lazy_static! {
+	static ref SECP256K1: Secp256k1 = Secp256k1::new();
+}
+
 impl Signature {
 	/// Create a new signature from the R, S and V componenets.
 	pub fn from_rsv(r: &H256, s: &H256, v: u8) -> Signature {
@@ -82,10 +86,10 @@ pub struct KeyPair {
 impl KeyPair {
 	/// Create a pair from secret key
 	pub fn from_secret(secret: Secret) -> Result<KeyPair, CryptoError> {
-		let context = Secp256k1::new();
-		let s: key::SecretKey = try!(key::SecretKey::from_slice(&context, &secret));
-		let pub_key = try!(key::PublicKey::from_secret_key(&context, &s));
-		let serialized = pub_key.serialize_vec(&context, false);
+		let context = &SECP256K1;
+		let s: key::SecretKey = try!(key::SecretKey::from_slice(context, &secret));
+		let pub_key = try!(key::PublicKey::from_secret_key(context, &s));
+		let serialized = pub_key.serialize_vec(context, false);
 		let p: Public = Public::from_slice(&serialized[1..65]);
 		Ok(KeyPair {
 			secret: secret,
@@ -94,10 +98,10 @@ impl KeyPair {
 	}
 	/// Create a new random key pair
 	pub fn create() -> Result<KeyPair, CryptoError> {
-		let context = Secp256k1::new();
+		let context = &SECP256K1;
 		let mut rng = try!(OsRng::new());
 		let (sec, publ) = try!(context.generate_keypair(&mut rng));
-		let serialized = publ.serialize_vec(&context, false);
+		let serialized = publ.serialize_vec(context, false);
 		let p: Public = Public::from_slice(&serialized[1..65]);
 		let s: Secret = unsafe { ::std::mem::transmute(sec) };
 		Ok(KeyPair {
@@ -128,10 +132,10 @@ pub mod ec {
 	/// Recovers Public key from signed message hash.
 	pub fn recover(signature: &Signature, message: &H256) -> Result<Public, CryptoError> {
 		use secp256k1::*;
-		let context = Secp256k1::new();
-		let rsig = try!(RecoverableSignature::from_compact(&context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
+		let context = &crypto::SECP256K1;
+		let rsig = try!(RecoverableSignature::from_compact(context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
 		let publ = try!(context.recover(&try!(Message::from_slice(&message)), &rsig));
-		let serialized = publ.serialize_vec(&context, false);
+		let serialized = publ.serialize_vec(context, false);
 		let p: Public = Public::from_slice(&serialized[1..65]);
 		//TODO: check if it's the zero key and fail if so.
 		Ok(p)
@@ -140,10 +144,10 @@ pub mod ec {
 	pub fn sign(secret: &Secret, message: &H256) -> Result<Signature, CryptoError> {
 		// TODO: allow creation of only low-s signatures.
 		use secp256k1::*;
-		let context = Secp256k1::new();
+		let context = &crypto::SECP256K1;
 		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
 		let s = try!(context.sign_recoverable(&try!(Message::from_slice(&message)), sec));
-		let (rec_id, data) = s.serialize_compact(&context);
+		let (rec_id, data) = s.serialize_compact(context);
 		let mut signature: crypto::Signature = unsafe { ::std::mem::uninitialized() };
 		signature.clone_from_slice(&data);
 		signature[64] = rec_id.to_i32() as u8;
@@ -152,15 +156,15 @@ pub mod ec {
 	/// Verify signature.
 	pub fn verify(public: &Public, signature: &Signature, message: &H256) -> Result<bool, CryptoError> {
 		use secp256k1::*;
-		let context = Secp256k1::new();
-		let rsig = try!(RecoverableSignature::from_compact(&context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
-		let sig = rsig.to_standard(&context);
+		let context = &crypto::SECP256K1;
+		let rsig = try!(RecoverableSignature::from_compact(context, &signature[0..64], try!(RecoveryId::from_i32(signature[64] as i32))));
+		let sig = rsig.to_standard(context);
 
 		let mut pdata: [u8; 65] = [4u8; 65];
 		let ptr = pdata[1..].as_mut_ptr();
 		let src = public.as_ptr();
 		unsafe { ::std::ptr::copy_nonoverlapping(src, ptr, 64) };
-		let publ = try!(key::PublicKey::from_slice(&context, &pdata));
+		let publ = try!(key::PublicKey::from_slice(context, &pdata));
 		match context.verify(&try!(Message::from_slice(&message)), &sig, &publ) {
 			Ok(_) => Ok(true),
 			Err(Error::IncorrectSignature) => Ok(false),
@@ -190,17 +194,18 @@ pub mod ec {
 
 pub mod ecdh {
 	use crypto::*;
+	use crypto::{self};
 
 	pub fn agree(secret: &Secret, public: &Public, ) -> Result<Secret, CryptoError> {
 		use secp256k1::*;
-		let context = Secp256k1::new();
+		let context = &crypto::SECP256K1;
 		let mut pdata: [u8; 65] = [4u8; 65];
 		let ptr = pdata[1..].as_mut_ptr();
 		let src = public.as_ptr();
 		unsafe { ::std::ptr::copy_nonoverlapping(src, ptr, 64) };
-		let publ = try!(key::PublicKey::from_slice(&context, &pdata));
+		let publ = try!(key::PublicKey::from_slice(context, &pdata));
 		let sec: &key::SecretKey = unsafe { ::std::mem::transmute(secret) };
-		let shared = ecdh::SharedSecret::new_raw(&context, &publ, &sec);
+		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
 		let s: Secret = unsafe { ::std::mem::transmute(shared) };
 		Ok(s)
 	}

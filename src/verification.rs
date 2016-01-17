@@ -201,7 +201,9 @@ mod tests {
 	use views::*;
 	use blockchain::*;
 	use engine::*;
-	use ethereum;
+	use spec::*;
+	use transaction::*;
+	use basic_types::*;
 
 	fn create_test_block(header: &Header) -> Bytes {
 		let mut rlp = RlpStream::new_list(3);
@@ -211,12 +213,12 @@ mod tests {
 		rlp.out()
 	}
 
-	fn create_test_block_with_data(header: &Header, transactions: &[Bytes], uncles: &[Header]) -> Bytes {
+	fn create_test_block_with_data(header: &Header, transactions: &[&Transaction], uncles: &[Header]) -> Bytes {
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(header);
 		rlp.append_list(transactions.len());
 		for t in transactions {
-			rlp.append_raw(t, 1);
+			rlp.append_raw(&t.rlp_bytes_opt(Seal::With), 1);
 		}
 		rlp.append_list(uncles.len());
 		for h in uncles {
@@ -301,7 +303,7 @@ mod tests {
 	fn test_verify_block() {
 		// Test against morden
 		let mut good = Header::new();
-		let spec = ethereum::new_morden();
+		let spec = Spec::new_test();
 		let engine = spec.to_engine().unwrap();
 
 		let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
@@ -311,7 +313,9 @@ mod tests {
 		good.timestamp = 40;
 		good.number = 10;
 
-		let good_transactions = vec![ vec![ 1u8 ], vec![ 2u8 ] ]; // TODO: proper transactions
+		let tr1 = Transaction::new_create(x!(0), Bytes::new(), x!(30000), x!(40000), x!(1));
+		let tr2 = Transaction::new_create(x!(0), Bytes::new(), x!(30000), x!(40000), x!(2));
+		let good_transactions = [ &tr1, &tr2 ];
 
 		let diff_inc = U256::from(0x40);
 
@@ -346,7 +350,7 @@ mod tests {
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
-		let good_transactions_root = ordered_trie_root(good_transactions.clone());
+		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| t.rlp_bytes_opt(Seal::With)).collect());
 
 		let mut parent = good.clone();
 		parent.number = 9;

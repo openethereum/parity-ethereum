@@ -62,6 +62,7 @@ pub enum BlockError {
 	InvalidReceiptsStateRoot(Mismatch<H256>),
 	InvalidTimestamp(OutOfBounds<u64>),
 	InvalidLogBloom(Mismatch<LogBloom>),
+	InvalidEthashDifficulty(Mismatch<U256>),
 	InvalidBlockNonce(Mismatch<H256>),
 	InvalidParentHash(Mismatch<H256>),
 	InvalidNumber(OutOfBounds<BlockNumber>),
