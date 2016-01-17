@@ -32,6 +32,7 @@ pub struct Header {
 	pub seal: Vec<Bytes>,
 
 	pub hash: RefCell<Option<H256>>,
+	pub bare_hash: RefCell<Option<H256>>,
 }
 
 impl Header {
@@ -56,6 +57,7 @@ impl Header {
 			difficulty: ZERO_U256,
 			seal: vec![],
 			hash: RefCell::new(None),
+			bare_hash: RefCell::new(None),
 		}
 	}
 
@@ -99,12 +101,23 @@ impl Header {
 		}
 	}
 
+	/// Get the hash of the header excluding the seal
+	pub fn bare_hash(&self) -> H256 {
+		let mut hash = self.bare_hash.borrow_mut();
+		match &mut *hash {
+			&mut Some(ref h) => h.clone(),
+			hash @ &mut None => {
+				*hash = Some(self.rlp_sha3(Seal::Without));
+				hash.as_ref().unwrap().clone()
+			}
+		}
+	}
+
 	/// Note that some fields have changed. Resets the memoised hash.
 	pub fn note_dirty(&self) {
  		*self.hash.borrow_mut() = None;
+ 		*self.bare_hash.borrow_mut() = None;
 	}
-
-	// TODO: get hash without seal.
 
 	// TODO: make these functions traity 
 	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: Seal) {
@@ -156,7 +169,8 @@ impl Decodable for Header {
 			timestamp: try!(r.val_at(11)),
 			extra_data: try!(r.val_at(12)),
 			seal: vec![],
-			hash: RefCell::new(Some(r.as_raw().sha3()))
+			hash: RefCell::new(Some(r.as_raw().sha3())),
+			bare_hash: RefCell::new(None),
 		};
 
 		for i in 13..r.item_count() {

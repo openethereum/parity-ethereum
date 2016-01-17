@@ -1,0 +1,9 @@
+[package]
+name = "ethash"
+version = "0.1.0"
+authors = ["arkpar <arkadiy@ethcore.io"]
+
+[lib]
+
+[dependencies]
+tiny-keccak = "1.0"
