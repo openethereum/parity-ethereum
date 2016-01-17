@@ -20,3 +20,7 @@ Cargo.lock
 
 # gdb files
 .gdb_history
+
+/json-tests/target/
+
+
