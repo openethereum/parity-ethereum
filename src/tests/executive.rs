@@ -4,19 +4,21 @@ use executive::*;
 use spec::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory, ContractCreateResult, MessageCallResult};
+use evm::{Schedule, Ext, Factory, VMType, ContractCreateResult, MessageCallResult};
 use ethereum;
 use externalities::*;
 use substate::*;
 
 struct TestEngine {
+	vm_factory: Factory,
 	spec: Spec,
 	max_depth: usize
 }
 
 impl TestEngine {
-	fn new(max_depth: usize) -> TestEngine {
+	fn new(max_depth: usize, vm_type: VMType) -> TestEngine {
 		TestEngine {
+			vm_factory: Factory::new(vm_type),
 			spec: ethereum::new_frontier_test(),
 			max_depth: max_depth 
 		}
@@ -26,6 +28,7 @@ impl TestEngine {
 impl Engine for TestEngine {
 	fn name(&self) -> &str { "TestEngine" }
 	fn spec(&self) -> &Spec { &self.spec }
+	fn vm_factory(&self) -> &Factory { &self.vm_factory }
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
 		let mut schedule = Schedule::new_frontier();
 		schedule.max_depth = self.max_depth; 
@@ -112,11 +115,11 @@ impl<'a> Ext for TestExt<'a> {
 		MessageCallResult::Success(*gas)
 	}
 
-	fn extcode(&self, address: &Address) -> Vec<u8> {
+	fn extcode(&self, address: &Address) -> Bytes  {
 		self.ext.extcode(address)
 	}
 	
-	fn log(&mut self, topics: Vec<H256>, data: Bytes) {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		self.ext.log(topics, data)
 	}
 
@@ -146,17 +149,28 @@ impl<'a> Ext for TestExt<'a> {
 }
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
+	let vms = VMType::all();
+	vms
+		.iter()
+		.flat_map(|vm| do_json_test_for(vm, json_data))
+		.collect()
+}
+
+fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 	for (name, test) in json.as_object().unwrap() {
 		println!("name: {:?}", name);
 		// sync io is usefull when something crashes in jit
-		//::std::io::stdout().write(&name.as_bytes());
-		//::std::io::stdout().write(b"\n");
-		//::std::io::stdout().flush();
+		// ::std::io::stdout().write(&name.as_bytes());
+		// ::std::io::stdout().write(b"\n");
+		// ::std::io::stdout().flush();
 		let mut fail = false;
 		//let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true };
-		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail { failed.push(name.to_string() + ": "+ s); fail = true };
+		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail { 
+			failed.push(format!("[{}] {}: {}", vm, name.to_string(), s)); 
+			fail = true 
+		};
 	
 		// test env
 		let mut state = State::new_temp();
@@ -183,7 +197,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			info.timestamp = xjson!(&env["currentTimestamp"]);
 		});
 
-		let engine = TestEngine::new(1);
+		let engine = TestEngine::new(1, vm.clone());
 
 		// params
 		let mut params = ActionParams::new();
@@ -214,7 +228,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 									  &mut substate, 
 									  OutputPolicy::Return(BytesRef::Flexible(&mut output)),
 									  params.address.clone());
-			let evm = Factory::create();
+			let evm = engine.vm_factory().create();
 			let res = evm.exec(params, &mut ex);
 			(res, ex.callcreates)
 		};
@@ -223,7 +237,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
 			Ok(gas_left) => {
-				//println!("name: {}, gas_left : {:?}, expected: {:?}", name, gas_left, U256::from(&test["gas"]));
+				// println!("name: {}, gas_left : {:?}", name, gas_left);
 				fail_unless(!out_of_gas, "expected to run out of gas.");
 				fail_unless(gas_left == xjson!(&test["gas"]), "gas_left is incorrect");
 				fail_unless(output == Bytes::from_json(&test["out"]), "output is incorrect");

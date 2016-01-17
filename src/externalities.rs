@@ -157,7 +157,7 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn extcode(&self, address: &Address) -> Vec<u8> {
+	fn extcode(&self, address: &Address) -> Bytes {
 		self.state.code(address).unwrap_or(vec![])
 	}
 
@@ -196,9 +196,9 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: Bytes) {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		let address = self.origin_info.address.clone();
-		self.substate.logs.push(LogEntry::new(address, topics, data));
+		self.substate.logs.push(LogEntry::new(address, topics, data.to_vec()));
 	}
 
 	fn suicide(&mut self, refund_address: &Address) {

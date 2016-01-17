@@ -2,7 +2,7 @@
 use common::*;
 use state::*;
 use engine::*;
-use evm::{self, Factory, Ext};
+use evm::{self, Ext};
 use externalities::*;
 use substate::*;
 
@@ -199,8 +199,7 @@ impl<'a> Executive<'a> {
 
 			let res = {
 				let mut ext = self.to_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return(output));
-				let evm = Factory::create();
-				evm.exec(params, &mut ext)
+				self.engine.vm_factory().create().exec(params, &mut ext)
 			};
 
 			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
@@ -232,8 +231,7 @@ impl<'a> Executive<'a> {
 
 		let res = {
 			let mut ext = self.to_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract);
-			let evm = Factory::create();
-			evm.exec(params, &mut ext)
+			self.engine.vm_factory().create().exec(params, &mut ext)
 		};
 		self.enact_result(&res, substate, unconfirmed_substate, backup);
 		res
@@ -274,6 +272,21 @@ impl<'a> Executive<'a> {
 
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
+			// TODO [ToDr] BadJumpDestination @debris - how to handle that?
+			Err(evm::Error::OutOfGas) 
+				| Err(evm::Error::BadJumpDestination { destination: _ }) 
+				| Err(evm::Error::BadInstruction { instruction: _ }) 
+				| Err(evm::Error::StackUnderflow {instruction: _, wanted: _, on_stack: _})
+				| Err(evm::Error::OutOfStack {instruction: _, wanted: _, limit: _}) => {
+				Ok(Executed {
+					gas: t.gas,
+					gas_used: t.gas,
+					refunded: U256::zero(),
+					cumulative_gas_used: self.info.gas_used + t.gas,
+					logs: vec![],
+					contracts_created: vec![]
+				})
+			},
 			_ => {
 				Ok(Executed {
 					gas: t.gas,
@@ -290,7 +303,11 @@ impl<'a> Executive<'a> {
 	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
 		// TODO: handle other evm::Errors same as OutOfGas once they are implemented
 		match result {
-			&Err(evm::Error::OutOfGas) => {
+			&Err(evm::Error::OutOfGas)
+				| &Err(evm::Error::BadJumpDestination { destination: _ }) 
+				| &Err(evm::Error::BadInstruction { instruction: _ }) 
+				| &Err(evm::Error::StackUnderflow {instruction: _, wanted: _, on_stack: _})
+				| &Err(evm::Error::OutOfStack {instruction: _, wanted: _, limit: _}) => {
 				self.state.revert(backup);
 			},
 			&Ok(_) | &Err(evm::Error::Internal) => substate.accrue(un_substate)
@@ -306,17 +323,19 @@ mod tests {
 	use ethereum;
 	use engine::*;
 	use spec::*;
-	use evm::Schedule;
+	use evm::{Schedule, Factory, VMType};
 	use substate::*;
 
 	struct TestEngine {
+		factory: Factory,
 		spec: Spec,
 		max_depth: usize
 	}
 
 	impl TestEngine {
-		fn new(max_depth: usize) -> TestEngine {
+		fn new(max_depth: usize, factory: Factory) -> TestEngine {
 			TestEngine {
+				factory: factory,
 				spec: ethereum::new_frontier_test(),
 				max_depth: max_depth 
 			}
@@ -326,6 +345,9 @@ mod tests {
 	impl Engine for TestEngine {
 		fn name(&self) -> &str { "TestEngine" }
 		fn spec(&self) -> &Spec { &self.spec }
+		fn vm_factory(&self) -> &Factory {
+			&self.factory
+		}
 		fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
 			let mut schedule = Schedule::new_frontier();
 			schedule.max_depth = self.max_depth;
@@ -340,9 +362,9 @@ mod tests {
 		assert_eq!(expected_address, contract_address(&address, &U256::from(88)));
 	}
 
-	#[test]
 	// TODO: replace params with transactions!
-	fn test_sender_balance() {
+	evm_test!{test_sender_balance: test_sender_balance_jit, test_sender_balance_int}
+	fn test_sender_balance(factory: Factory) {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let mut params = ActionParams::new();
@@ -354,7 +376,7 @@ mod tests {
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
 		let gas_left = {
@@ -372,8 +394,8 @@ mod tests {
 		// TODO: just test state root.
 	}
 
-	#[test]
-	fn test_create_contract() {
+	evm_test!{test_create_contract: test_create_contract_jit, test_create_contract_int}
+	fn test_create_contract(factory: Factory) {
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -412,7 +434,7 @@ mod tests {
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
 		let gas_left = {
@@ -425,8 +447,8 @@ mod tests {
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
-	#[test]
-	fn test_create_contract_value_too_high() {
+	evm_test!{test_create_contract_value_too_high: test_create_contract_value_too_high_jit, test_create_contract_value_too_high_int}
+	fn test_create_contract_value_too_high(factory: Factory) {
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -465,7 +487,7 @@ mod tests {
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
 		let gas_left = {
@@ -477,8 +499,8 @@ mod tests {
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
-	#[test]
-	fn test_create_contract_without_max_depth() {
+	evm_test!{test_create_contract_without_max_depth: test_create_contract_without_max_depth_jit, test_create_contract_without_max_depth_int}
+	fn test_create_contract_without_max_depth(factory: Factory) {
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -501,7 +523,7 @@ mod tests {
 		// 60 00 - push 0
 		// f3 - return
 
-		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
+		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
@@ -516,7 +538,7 @@ mod tests {
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
-		let engine = TestEngine::new(1024);
+		let engine = TestEngine::new(1024, factory);
 		let mut substate = Substate::new();
 
 		{
@@ -529,9 +551,8 @@ mod tests {
 	}
 
 	// test is incorrect, mk
-	#[ignore]
-	#[test]
-	fn test_aba_calls() {
+	evm_test_ignore!{test_aba_calls: test_aba_calls_jit, test_aba_calls_int}
+	fn test_aba_calls(factory: Factory) {
 		// 60 00 - push 0
 		// 60 00 - push 0
 		// 60 00 - push 0
@@ -576,7 +597,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100_000));
 
 		let info = EnvInfo::new();
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
 		let gas_left = {
@@ -589,9 +610,8 @@ mod tests {
 	}
 
 	// test is incorrect, mk
-	#[ignore]
-	#[test]
-	fn test_recursive_bomb1() {
+	evm_test_ignore!{test_recursive_bomb1: test_recursive_bomb1_jit, test_recursive_bomb1_int}
+	fn test_recursive_bomb1(factory: Factory) {
 		// 60 01 - push 1
 		// 60 00 - push 0
 		// 54 - sload 
@@ -620,7 +640,7 @@ mod tests {
 		let mut state = State::new_temp();
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::new();
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
 		let gas_left = {
@@ -634,9 +654,8 @@ mod tests {
 	}
 
 	// test is incorrect, mk
-	#[ignore]
-	#[test]
-	fn test_transact_simple() {
+	evm_test_ignore!{test_transact_simple: test_transact_simple_jit, test_transact_simple_int}
+	fn test_transact_simple(factory: Factory) {
 		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
@@ -647,7 +666,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from(18));	
 		let mut info = EnvInfo::new();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 
 		let executed = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -666,14 +685,14 @@ mod tests {
 		assert_eq!(state.storage_at(&contract, &H256::new()), H256::from(&U256::from(1)));
 	}
 
-	#[test]
-	fn test_transact_invalid_sender() {
+	evm_test!{test_transact_invalid_sender: test_transact_invalid_sender_jit, test_transact_invalid_sender_int}
+	fn test_transact_invalid_sender(factory: Factory) {
 		let t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
 
 		let mut state = State::new_temp();
 		let mut info = EnvInfo::new();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -686,8 +705,8 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn test_transact_invalid_nonce() {
+	evm_test!{test_transact_invalid_nonce: test_transact_invalid_nonce_jit, test_transact_invalid_nonce_int}
+	fn test_transact_invalid_nonce(factory: Factory) {
 		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::one());
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
@@ -697,7 +716,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from(17));	
 		let mut info = EnvInfo::new();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -711,8 +730,8 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn test_transact_gas_limit_reached() {
+	evm_test!{test_transact_gas_limit_reached: test_transact_gas_limit_reached_jit, test_transact_gas_limit_reached_int}
+	fn test_transact_gas_limit_reached(factory: Factory) {
 		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(80_001), U256::zero(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
@@ -723,7 +742,7 @@ mod tests {
 		let mut info = EnvInfo::new();
 		info.gas_used = U256::from(20_000);
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -737,8 +756,8 @@ mod tests {
 		}
 	}
 
-	#[test]
-	fn test_not_enough_cash() {
+	evm_test!{test_not_enough_cash: test_not_enough_cash_jit, test_not_enough_cash_int}
+	fn test_not_enough_cash(factory: Factory) {
 		let mut t = Transaction::new_create(U256::from(18), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::one(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
 		t.sign(&keypair.secret());
@@ -748,7 +767,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100_017));	
 		let mut info = EnvInfo::new();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
+		let engine = TestEngine::new(0, factory);
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -761,4 +780,40 @@ mod tests {
 			_ => assert!(false, "Expected not enough cash error. {:?}", res)
 		}
 	}
+
+	evm_test!{test_sha3: test_sha3_jit, test_sha3_int}
+	fn test_sha3(factory: Factory) {
+		let code = "6064640fffffffff20600055".from_hex().unwrap();
+
+		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let address = contract_address(&sender, &U256::zero());
+		// TODO: add tests for 'callcreate'
+		//let next_address = contract_address(&address, &U256::zero());
+		let mut params = ActionParams::new();
+		params.address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(0x0186a0);
+		params.code = Some(code.clone());
+		params.value = U256::from_str("0de0b6b3a7640000").unwrap();
+		let mut state = State::new_temp();
+		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
+		let info = EnvInfo::new();
+		let engine = TestEngine::new(0, factory);
+		let mut substate = Substate::new();
+
+		let result = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			ex.create(params, &mut substate)
+		};
+
+		match result {
+			Err(_) => {
+			},
+			_ => {
+				panic!("Expected OutOfGas");
+			}
+		}
+	}
+
 }

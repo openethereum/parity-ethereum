@@ -3,11 +3,13 @@ use block::*;
 use spec::*;
 use engine::*;
 use evm::Schedule;
+use evm::Factory;
 
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct Ethash {
 	spec: Spec,
+	factory: Factory,
 	u64_params: RwLock<HashMap<String, u64>>,
 	u256_params: RwLock<HashMap<String, U256>>,
 }
@@ -16,8 +18,10 @@ impl Ethash {
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
 		Box::new(Ethash{
 			spec: spec,
+			// TODO [todr] should this return any specific factory?
+			factory: Factory::default(),
 			u64_params: RwLock::new(HashMap::new()),
-			u256_params: RwLock::new(HashMap::new()),
+			u256_params: RwLock::new(HashMap::new())
 		})
 	}
 
@@ -43,6 +47,11 @@ impl Engine for Ethash {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 	fn spec(&self) -> &Spec { &self.spec }
+
+	fn vm_factory(&self) -> &Factory {
+		&self.factory
+	}
+
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
 		match env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
 			true => Schedule::new_frontier(),
