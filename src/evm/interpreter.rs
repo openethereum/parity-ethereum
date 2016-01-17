@@ -631,7 +631,6 @@ impl Interpreter {
 
 				return match call_result {
 					MessageCallResult::Success(gas_left) => {
-						println!("Unused: {}", gas_left);
 						stack.push(U256::one());
 						Ok(InstructionResult::UnusedGas(gas_left))
 					},
