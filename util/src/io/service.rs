@@ -155,7 +155,7 @@ pub struct IoChannel<Message> where Message: Send {
 }
 
 impl<Message> IoChannel<Message> where Message: Send {
-	pub fn send(&mut self, message: Message) -> Result<(), IoError> {
+	pub fn send(&self, message: Message) -> Result<(), IoError> {
 		try!(self.channel.send(IoMessage::UserMessage(message)));
 		Ok(())
 	}

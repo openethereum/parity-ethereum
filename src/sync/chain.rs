@@ -401,7 +401,7 @@ impl ChainSync {
 		let header_view = HeaderView::new(header_rlp.as_raw());
 		// TODO: Decompose block and add to self.headers and self.bodies instead
 		if header_view.number() == From::from(self.last_imported_block + 1) {
-			match io.chain().import_block(block_rlp.as_raw()) {
+			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
 				Err(ImportError::AlreadyInChain) => {
 					trace!(target: "sync", "New block already in chain {:?}", h);
 				},
@@ -655,7 +655,7 @@ impl ChainSync {
 				block_rlp.append_raw(body.at(0).as_raw(), 1);
 				block_rlp.append_raw(body.at(1).as_raw(), 1);
 				let h = &headers.1[i].hash;
-				match io.chain().import_block(&block_rlp.out()) {
+				match io.chain().import_block(block_rlp.out()) {
 					Err(ImportError::AlreadyInChain) => {
 						trace!(target: "sync", "Block already in chain {:?}", h);
 						self.last_imported_block = headers.0 + i as BlockNumber;

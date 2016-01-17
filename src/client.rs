@@ -88,7 +88,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Import a block into the blockchain.
-	fn import_block(&mut self, byte: &[u8]) -> ImportResult;
+	fn import_block(&mut self, bytes: Bytes) -> ImportResult;
 
 	/// Get block queue information.
 	fn queue_status(&self) -> BlockQueueStatus;
@@ -152,58 +152,75 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_block(&mut self, bytes: Bytes) {
-		let block = BlockView::new(&bytes);
-		let header = block.header();
-		if let Err(e) = verify_block_family(&header, &bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
-			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			self.queue.mark_as_bad(&header.hash());
+	pub fn import_verified_blocks(&mut self) {
+		
+		let mut bad = HashSet::new();
+		let blocks = self.queue.drain(128); 
+		if blocks.is_empty() {
 			return;
-		};
-		let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
-			Some(p) => p,
-			None => {
-				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
+		}
+
+		for block in blocks {
+			if bad.contains(&block.header.parent_hash) {
+				self.queue.mark_as_bad(&block.header.hash());
+				bad.insert(block.header.hash());
+				continue;
+			}
+
+			let header = &block.header;
+			if let Err(e) = verify_block_family(&header, &block.bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
+				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.queue.mark_as_bad(&header.hash());
+				bad.insert(block.header.hash());
 				return;
-			},
-		};
-		// build last hashes
-		let mut last_hashes = LastHashes::new();
-		last_hashes.resize(256, H256::new());
-		last_hashes[0] = header.parent_hash.clone();
-		for i in 0..255 {
-			match self.chain.read().unwrap().block_details(&last_hashes[i]) {
-				Some(details) => {
-					last_hashes[i + 1] = details.parent.clone();
+			};
+			let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
+				Some(p) => p,
+				None => {
+					warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
+					self.queue.mark_as_bad(&header.hash());
+					bad.insert(block.header.hash());
+					return;
 				},
-				None => break,
+			};
+			// build last hashes
+			let mut last_hashes = LastHashes::new();
+			last_hashes.resize(256, H256::new());
+			last_hashes[0] = header.parent_hash.clone();
+			for i in 0..255 {
+				match self.chain.read().unwrap().block_details(&last_hashes[i]) {
+					Some(details) => {
+						last_hashes[i + 1] = details.parent.clone();
+					},
+					None => break,
+				}
 			}
-		}
 
-		let result = match enact(&bytes, self.engine.deref().deref(), self.state_db.clone(), &parent, &last_hashes) {
-			Ok(b) => b,
-			Err(e) => {
-				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			let result = match enact_verified(&block, self.engine.deref().deref(), self.state_db.clone(), &parent, &last_hashes) {
+				Ok(b) => b,
+				Err(e) => {
+					warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+				bad.insert(block.header.hash());
+					self.queue.mark_as_bad(&header.hash());
+					return;
+				}
+			};
+			if let Err(e) = verify_block_final(&header, result.block().header()) {
+				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.queue.mark_as_bad(&header.hash());
 				return;
 			}
-		};
-		if let Err(e) = verify_block_final(&header, result.block().header()) {
-			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			self.queue.mark_as_bad(&header.hash());
-			return;
-		}
 
-		self.chain.write().unwrap().insert_block(&bytes); //TODO: err here?
-		match result.drain().commit() {
-			Ok(_) => (),
-			Err(e) => {
-				warn!(target: "client", "State DB commit failed: {:?}", e);
-				return;
+			self.chain.write().unwrap().insert_block(&block.bytes); //TODO: err here?
+			match result.drain().commit() {
+				Ok(_) => (),
+				Err(e) => {
+					warn!(target: "client", "State DB commit failed: {:?}", e);
+					return;
+				}
 			}
+			info!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
-		info!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 	}
 }
 
@@ -261,8 +278,8 @@ impl BlockChainClient for Client {
 		unimplemented!();
 	}
 
-	fn import_block(&mut self, bytes: &[u8]) -> ImportResult {
-		let header = BlockView::new(bytes).header();
+	fn import_block(&mut self, bytes: Bytes) -> ImportResult {
+		let header = BlockView::new(&bytes).header();
 		if self.chain.read().unwrap().is_known(&header.hash()) {
 			return Err(ImportError::AlreadyInChain);
 		}

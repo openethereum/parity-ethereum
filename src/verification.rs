@@ -9,6 +9,16 @@ use common::*;
 use engine::Engine;
 use blockchain::*;
 
+/// Preprocessed block data gathered in `verify_block_unordered` call
+pub struct PreVerifiedBlock {
+	/// Populated block header
+	pub header: Header,
+	/// Populated block transactions
+	pub transactions: Vec<Transaction>,
+	/// Block bytes
+	pub bytes: Bytes,
+}
+
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
 	try!(verify_header(&header, engine));
@@ -29,19 +39,26 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
-/// TODO: return cached transactions, header hash.
-pub fn verify_block_unordered(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
-	try!(engine.verify_block_unordered(&header, Some(bytes)));
-	for u in Rlp::new(bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
+/// Returns a PreVerifiedBlock structure populated with transactions
+pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreVerifiedBlock, Error> {
+	try!(engine.verify_block_unordered(&header, Some(&bytes)));
+	for u in Rlp::new(&bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
 		try!(engine.verify_block_unordered(&u, None));
 	}
-	// Verify transactions.
-	// TODO: pass in pre-recovered transactions - maybe verify_transaction wants to call `sender()`.
-	let v = BlockView::new(bytes);
-	for t in v.transactions() {
-		try!(engine.verify_transaction(&t, &header));
+	// Verify transactions. 
+	let mut transactions = Vec::new();
+	{
+		let v = BlockView::new(&bytes);
+		for t in v.transactions() {
+			try!(engine.verify_transaction(&t, &header));
+			transactions.push(t);
+		}
 	}
-	Ok(())
+	Ok(PreVerifiedBlock {
+		header: header,
+		transactions: transactions,
+		bytes: bytes,
+	})
 }
 
 /// Phase 3 verification. Check block information against parent and uncles.
