@@ -18,6 +18,7 @@ rust-crypto = "0.2.34"
 time = "0.1"
 #interpolate_idents = { git = "https://github.com/SkylerLipthay/interpolate_idents" }
 evmjit = { path = "rust-evmjit", optional = true }
+ethash = { path = "ethash" }
 
 [features]
 default = ["jit"]

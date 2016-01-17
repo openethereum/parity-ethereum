@@ -1,3 +1,6 @@
+extern crate ethash;
+
+use self::ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
 use spec::*;
@@ -8,11 +11,15 @@ use evm::Schedule;
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct Ethash {
 	spec: Spec,
+	pow: EthashManager,
 }
 
 impl Ethash {
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
-		Box::new(Ethash{spec: spec})
+		Box::new(Ethash {
+			spec: spec,
+			pow: EthashManager::new(),
+		})
 	}
 
 	fn u256_param(&self, name: &str) -> U256 { self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(U256::from(0u64)) }
@@ -69,12 +76,26 @@ impl Engine for Ethash {
 		if header.difficulty < min_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: min_difficulty, found: header.difficulty })))
 		}
-		// TODO: Verify seal (quick)
+		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
+				&Ethash::to_ethash(header.bare_hash()), 
+				header.nonce(),
+				&Ethash::to_ethash(header.mix_hash()))));
+		if difficulty < header.difficulty {
+			return Err(From::from(BlockError::InvalidEthashDifficulty(Mismatch { expected: header.difficulty, found: difficulty })));
+		}
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		// TODO: Verify seal (full)
+	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		let result = self.pow.compute_light(header.number as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce());
+		let mix = Ethash::from_ethash(result.mix_hash);
+		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
+		if mix != header.mix_hash() {
+			return Err(From::from(BlockError::InvalidBlockNonce(Mismatch { expected: mix, found: header.mix_hash() })));
+		}
+		if difficulty < header.difficulty {
+			return Err(From::from(BlockError::InvalidEthashDifficulty(Mismatch { expected: header.difficulty, found: difficulty })));
+		}
 		Ok(())
 	}
 
@@ -130,6 +151,27 @@ impl Ethash {
 			target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
 		}
 		target
+	}
+	
+	fn boundary_to_difficulty(boundary: &H256) -> U256 {
+		U256::from((U512::one() << 256) / x!(U256::from(boundary.as_slice())))
+	}
+
+	fn to_ethash(hash: H256) -> EH256 {
+		unsafe { mem::transmute(hash) }
+	}
+
+	fn from_ethash(hash: EH256) -> H256 {
+		unsafe { mem::transmute(hash) }
+	}
+}
+
+impl Header {
+	fn nonce(&self) -> u64 {
+		decode(&self.seal()[1])
+	}
+	fn mix_hash(&self) -> H256 {
+		decode(&self.seal()[0])
 	}
 }
 
