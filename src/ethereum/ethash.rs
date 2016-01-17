@@ -6,23 +6,47 @@ use block::*;
 use spec::*;
 use engine::*;
 use evm::Schedule;
+use evm::Factory;
 
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct Ethash {
 	spec: Spec,
+<<<<<<< HEAD
 	pow: EthashManager,
+=======
+	factory: Factory,
+	u64_params: RwLock<HashMap<String, u64>>,
+	u256_params: RwLock<HashMap<String, U256>>,
+>>>>>>> a350aae82b00d2bee0e6be8017d38b644121d3e9
 }
 
 impl Ethash {
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
+<<<<<<< HEAD
 		Box::new(Ethash {
 			spec: spec,
 			pow: EthashManager::new(),
+=======
+		Box::new(Ethash{
+			spec: spec,
+			// TODO [todr] should this return any specific factory?
+			factory: Factory::default(),
+			u64_params: RwLock::new(HashMap::new()),
+			u256_params: RwLock::new(HashMap::new())
+>>>>>>> a350aae82b00d2bee0e6be8017d38b644121d3e9
 		})
 	}
 
-	fn u256_param(&self, name: &str) -> U256 { self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(U256::from(0u64)) }
+	fn u64_param(&self, name: &str) -> u64 {
+		*self.u64_params.write().unwrap().entry(name.to_string()).or_insert_with(||
+			self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(0u64))
+	}
+
+	fn u256_param(&self, name: &str) -> U256 {
+		*self.u256_params.write().unwrap().entry(name.to_string()).or_insert_with(||
+			self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(x!(0)))
+	}
 }
 
 impl Engine for Ethash {
@@ -36,7 +60,17 @@ impl Engine for Ethash {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 	fn spec(&self) -> &Spec { &self.spec }
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { Schedule::new_frontier() }
+
+	fn vm_factory(&self) -> &Factory {
+		&self.factory
+	}
+
+	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
+		match env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
+			true => Schedule::new_frontier(),
+			_ => Schedule::new_homestead(),
+		}
+	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		header.difficulty = self.calculate_difficuty(header, parent);
@@ -71,7 +105,7 @@ impl Engine for Ethash {
 		fields.state.commit();
 	}
 
-	fn verify_block_basic(&self, header: &Header,  _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		let min_difficulty = decode(self.spec().engine_params.get("minimumDifficulty").unwrap());
 		if header.difficulty < min_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: min_difficulty, found: header.difficulty })))
@@ -114,7 +148,12 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> result::Result<(), Error> { Ok(()) }
+	fn verify_transaction_basic(&self, t: &Transaction, header: &Header) -> result::Result<(), Error> {
+		if header.number() >= self.u64_param("frontierCompatibilityModeLimit") {
+			try!(t.check_low_s());
+		}
+		Ok(())
+	}
 }
 
 impl Ethash {
@@ -124,10 +163,10 @@ impl Ethash {
 			panic!("Can't calculate genesis block difficulty");
 		}
 
-		let min_difficulty = decode(self.spec().engine_params.get("minimumDifficulty").unwrap());
-		let difficulty_bound_divisor = decode(self.spec().engine_params.get("difficultyBoundDivisor").unwrap());
-		let duration_limit: u64 = decode(self.spec().engine_params.get("durationLimit").unwrap());
-		let frontier_limit = decode(self.spec().engine_params.get("frontierCompatibilityModeLimit").unwrap());
+		let min_difficulty = self.u256_param("minimumDifficulty");
+		let difficulty_bound_divisor = self.u256_param("difficultyBoundDivisor");
+		let duration_limit = self.u64_param("durationLimit");
+		let frontier_limit = self.u64_param("frontierCompatibilityModeLimit");
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {
 				parent.difficulty - (parent.difficulty / difficulty_bound_divisor) 

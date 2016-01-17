@@ -101,7 +101,7 @@ impl State {
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
-	pub fn code(&self, a: &Address) -> Option<Vec<u8>> {
+	pub fn code(&self, a: &Address) -> Option<Bytes> {
 		self.get(a, true).as_ref().map(|a|a.code().map(|x|x.to_vec())).unwrap_or(None)
 	}
 

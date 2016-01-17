@@ -18,6 +18,12 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 		try!(verify_header(&u, engine));
 		try!(engine.verify_block_basic(&u, None));
 	}
+	// Verify transactions.
+	// TODO: either use transaction views or cache the decoded transactions.
+	let v = BlockView::new(bytes);
+	for t in v.transactions() {
+		try!(engine.verify_transaction_basic(&t, &header));
+	}
 	Ok(())
 }
 
@@ -28,6 +34,12 @@ pub fn verify_block_unordered(header: &Header, bytes: &[u8], engine: &Engine) ->
 	try!(engine.verify_block_unordered(&header, Some(bytes)));
 	for u in Rlp::new(bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
 		try!(engine.verify_block_unordered(&u, None));
+	}
+	// Verify transactions.
+	// TODO: pass in pre-recovered transactions - maybe verify_transaction wants to call `sender()`.
+	let v = BlockView::new(bytes);
+	for t in v.transactions() {
+		try!(engine.verify_transaction(&t, &header));
 	}
 	Ok(())
 }
