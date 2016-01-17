@@ -12,29 +12,21 @@ use evm::Factory;
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct Ethash {
 	spec: Spec,
-<<<<<<< HEAD
 	pow: EthashManager,
-=======
 	factory: Factory,
 	u64_params: RwLock<HashMap<String, u64>>,
 	u256_params: RwLock<HashMap<String, U256>>,
->>>>>>> a350aae82b00d2bee0e6be8017d38b644121d3e9
 }
 
 impl Ethash {
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
-<<<<<<< HEAD
 		Box::new(Ethash {
 			spec: spec,
 			pow: EthashManager::new(),
-=======
-		Box::new(Ethash{
-			spec: spec,
 			// TODO [todr] should this return any specific factory?
 			factory: Factory::default(),
 			u64_params: RwLock::new(HashMap::new()),
 			u256_params: RwLock::new(HashMap::new())
->>>>>>> a350aae82b00d2bee0e6be8017d38b644121d3e9
 		})
 	}
 
