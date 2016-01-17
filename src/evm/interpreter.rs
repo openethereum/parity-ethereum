@@ -490,8 +490,9 @@ impl Interpreter {
 			let s = mem_size >> 5;
 			// s * memory_gas + s * s / quad_coeff_div
 			let a = overflowing!(s.overflowing_mul(U256::from(schedule.memory_gas)));
-			let b = overflowing!(s.overflowing_mul(s / U256::from(schedule.quad_coeff_div)));
-			Ok(a + b)
+			// We need to go to U512 to calculate s*s/quad_coeff_div
+			let b = U256::from(U512::from(s) * U512::from(s) / U512::from(schedule.quad_coeff_div));
+			Ok(overflowing!(a.overflowing_add(b)))
 		};
 		let current_mem_size = U256::from(current_mem_size);
 		let req_mem_size_rounded = (overflowing!(mem_size.overflowing_add(U256::from(31))) >> 5) << 5;
