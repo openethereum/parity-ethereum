@@ -1,8 +1,8 @@
 //! Interface for Evm externalities.
 
+use common::Bytes;
 use util::hash::*;
 use util::uint::*;
-use util::bytes::*;
 use evm::{Schedule, Error};
 use env_info::*;
 
@@ -61,10 +61,10 @@ pub trait Ext {
 			output: &mut [u8]) -> MessageCallResult;
 
 	/// Returns code at given address
-	fn extcode(&self, address: &Address) -> Vec<u8>;
+	fn extcode(&self, address: &Address) -> Bytes;
 
 	/// Creates log entry with given topics and data
-	fn log(&mut self, topics: Vec<H256>, data: Bytes);
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]);
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.

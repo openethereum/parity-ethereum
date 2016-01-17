@@ -2,8 +2,11 @@
 
 pub mod ext;
 pub mod evm;
+pub mod interpreter;
+#[macro_use]
 pub mod factory;
 pub mod schedule;
+mod instructions;
 #[cfg(feature = "jit" )]
 mod jit;
 
@@ -14,3 +17,4 @@ pub use self::evm::{Evm, Error, Result};
 pub use self::ext::{Ext, ContractCreateResult, MessageCallResult};
 pub use self::factory::Factory;
 pub use self::schedule::Schedule;
+pub use self::factory::VMType;

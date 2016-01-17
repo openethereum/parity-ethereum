@@ -8,8 +8,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 
-	let engine = ethereum::new_frontier_test().to_engine().unwrap();
-
+	let engine = ethereum::new_frontier_like_test().to_engine().unwrap();
 	flush(format!("\n"));
 
 	for (name, test) in json.as_object().unwrap() {

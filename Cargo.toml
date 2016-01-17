@@ -20,5 +20,5 @@ time = "0.1"
 evmjit = { path = "rust-evmjit", optional = true }
 
 [features]
-default = ["jit"]
 jit = ["evmjit"]
+evm_debug = []
