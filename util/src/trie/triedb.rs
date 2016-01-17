@@ -109,7 +109,12 @@ impl<'db> TrieDB<'db> {
 
 	/// Get the root node's RLP.
 	fn root_node(&self) -> Node {
-		Node::decoded(self.db.lookup(&self.root).expect("Trie root not found!"))
+		Node::decoded(self.root_data())
+	}
+
+	/// Get the data of the root node.
+	fn root_data(&self) -> &[u8] {
+		self.db.lookup(&self.root).expect("Trie root not found!")
 	}
 
 	/// Get the root node as a `Node`.
@@ -242,7 +247,7 @@ impl<'a> TrieDBIterator<'a> {
 			trail: vec![],
 			key_nibbles: Vec::new(),
 		};
-		r.descend(db.db.lookup(&db.root).expect("Trie root not found!"));
+		r.descend(db.root_data());
 		r
 	}
 
