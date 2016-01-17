@@ -61,6 +61,44 @@ impl<'a> Hashable for TransactionView<'a> {
 	}
 }
 
+/// View onto transaction rlp.
+pub struct AccountView<'a> {
+	rlp: Rlp<'a>
+}
+
+impl<'a> AccountView<'a> {
+	/// Creates new view onto block from raw bytes.
+	pub fn new(bytes: &'a [u8]) -> AccountView<'a> {
+		AccountView {
+			rlp: Rlp::new(bytes)
+		}
+	}
+
+	/// Creates new view onto block from rlp.
+	pub fn new_from_rlp(rlp: Rlp<'a>) -> AccountView<'a> {
+		AccountView {
+			rlp: rlp
+		}
+	}
+
+	/// Return reference to underlaying rlp.
+	pub fn rlp(&self) -> &Rlp<'a> {
+		&self.rlp
+	}
+
+	/// Get the nonce field of the transaction.
+	pub fn nonce(&self) -> U256 { self.rlp.val_at(0) }
+
+	/// Get the gas_price field of the transaction.
+	pub fn balance(&self) -> U256 { self.rlp.val_at(1) }
+
+	/// Get the gas field of the transaction.
+	pub fn storage_root(&self) -> H256 { self.rlp.val_at(2) }
+
+	/// Get the value field of the transaction.
+	pub fn code_hash(&self) -> H256 { self.rlp.val_at(3) }
+}
+
 /// View onto block rlp.
 pub struct BlockView<'a> {
 	rlp: Rlp<'a>
@@ -97,13 +135,13 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return List of transactions in given block.
-	pub fn transaction_views(&self) -> Vec<TransactionView> {
-		self.rlp.at(1).iter().map(|rlp| TransactionView::new_from_rlp(rlp)).collect()
+	pub fn transactions(&self) -> Vec<Transaction> {
+		self.rlp.val_at(1)
 	}
 
 	/// Return List of transactions in given block.
-	pub fn transactions(&self) -> Vec<Transaction> {
-		self.rlp.val_at(1)
+	pub fn transaction_views(&self) -> Vec<TransactionView> {
+		self.rlp.at(1).iter().map(|rlp| TransactionView::new_from_rlp(rlp)).collect()
 	}
 
 	/// Return transaction hashes.
@@ -114,6 +152,11 @@ impl<'a> BlockView<'a> {
 	/// Return list of uncles of given block.
 	pub fn uncles(&self) -> Vec<Header> {
 		self.rlp.val_at(2)
+	}
+
+	/// Return List of transactions in given block.
+	pub fn uncle_views(&self) -> Vec<HeaderView> {
+		self.rlp.at(2).iter().map(|rlp| HeaderView::new_from_rlp(rlp)).collect()
 	}
 
 	/// Return list of uncle hashes of given block.

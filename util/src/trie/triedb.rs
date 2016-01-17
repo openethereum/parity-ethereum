@@ -42,7 +42,7 @@ impl<'db> TrieDB<'db> {
 	/// Panics, if `root` does not exist
 	pub fn new(db: &'db HashDB, root: &'db H256) -> Self {
 		if !db.exists(root) {
-			flush(format!("Trie root not found {}", root));
+			flushln!("TrieDB::new({}): Trie root not found!", root);
 			panic!("Trie root not found!");
 		}
 		TrieDB { 
@@ -258,10 +258,7 @@ impl<'a> TrieDBIterator<'a> {
 			node: self.db.get_node(d)
 		});
 		match self.trail.last().unwrap().node {
-			Node::Leaf(n, _) | Node::Extension(n, _) => {
-				println!("Entering. Extend key {:?}, {:?}", self.key_nibbles, n.iter().collect::<Vec<_>>());
-				self.key_nibbles.extend(n.iter());
-			},
+			Node::Leaf(n, _) | Node::Extension(n, _) => { self.key_nibbles.extend(n.iter()); },
 			_ => {}
 		}
 	}
@@ -288,11 +285,10 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 			(Status::Exiting, n) => {
 				match n {
 					Node::Leaf(n, _) | Node::Extension(n, _) => {
-						println!("Exiting. Truncate key {:?}, {:?}", self.key_nibbles, n.iter().collect::<Vec<_>>());
 						let l = self.key_nibbles.len();
 						self.key_nibbles.truncate(l - n.len());
 					},
-					Node::Branch(_, _) => { println!("Exit branch. Pop {:?}.", self.key_nibbles); self.key_nibbles.pop(); },
+					Node::Branch(_, _) => { self.key_nibbles.pop(); },
 					_ => {}
 				}
 				self.trail.pop();
@@ -304,13 +300,13 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 			(Status::At, Node::Branch(_, _)) => self.next(),
 			(Status::AtChild(i), Node::Branch(children, _)) if children[i].len() > 0 => {
 				match i {
-					0 => { println!("Enter first child of branch. Push {:?}.", self.key_nibbles); self.key_nibbles.push(0); },
+					0 => self.key_nibbles.push(0),
 					i => *self.key_nibbles.last_mut().unwrap() = i as u8,
 				}
 				self.descend_next(children[i])
 			},
 			(Status::AtChild(i), Node::Branch(_, _)) => {
-				if i == 0 { println!("Enter first child of branch. Push {:?}.", self.key_nibbles); self.key_nibbles.push(0); }
+				if i == 0 { self.key_nibbles.push(0); }
 				self.next()
 			},
 			_ => panic!() // Should never see Entering or AtChild without a Branch here.
