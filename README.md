@@ -1,1 +1,1 @@
-# ethcore-util
+# ethcore

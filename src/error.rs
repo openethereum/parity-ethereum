@@ -1,75 +1,139 @@
 //! General error types for use in ethcore.
 
-use rustc_serialize::hex::FromHexError;
-use network::NetworkError;
-use rlp::DecoderError;
-use io;
+use util::*;
+use header::BlockNumber;
+use basic_types::LogBloom;
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Mismatch<T: fmt::Debug> {
+	pub expected: T,
+	pub found: T,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct OutOfBounds<T: fmt::Debug> {
+	pub min: Option<T>,
+	pub max: Option<T>,
+	pub found: T,
+}
+
+/// Result of executing the transaction.
+#[derive(PartialEq, Debug)]
+pub enum ExecutionError {
+	/// Returned when there gas paid for transaction execution is
+	/// lower than base gas required.
+	NotEnoughBaseGas { required: U256, got: U256 },
+	/// Returned when block (gas_used + gas) > gas_limit.
+	/// 
+	/// If gas =< gas_limit, upstream may try to execute the transaction
+	/// in next block.
+	BlockGasLimitReached { gas_limit: U256, gas_used: U256, gas: U256 },
+	/// Returned when transaction nonce does not match state nonce.
+	InvalidNonce { expected: U256, got: U256 },
+	/// Returned when cost of transaction (value + gas_price * gas) exceeds 
+	/// current sender balance.
+	NotEnoughCash { required: U512, got: U512 },
+	/// Returned when internal evm error occurs.
+	Internal
+}
 
 #[derive(Debug)]
-pub enum BaseDataError {
-	NegativelyReferencedHash,
+pub enum TransactionError {
+	InvalidGasLimit(OutOfBounds<U256>),
 }
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum BlockError {
+	TooManyUncles(OutOfBounds<usize>),
+	UncleWrongGeneration,
+	ExtraDataOutOfBounds(OutOfBounds<usize>),
+	InvalidSealArity(Mismatch<usize>),
+	TooMuchGasUsed(OutOfBounds<U256>),
+	InvalidUnclesHash(Mismatch<H256>),
+	UncleTooOld(OutOfBounds<BlockNumber>),
+	UncleIsBrother(OutOfBounds<BlockNumber>),
+	UncleInChain(H256),
+	UncleParentNotInChain(H256),
+	InvalidStateRoot(Mismatch<H256>),
+	InvalidGasUsed(Mismatch<U256>),
+	InvalidTransactionsRoot(Mismatch<H256>),
+	InvalidDifficulty(Mismatch<U256>),
+	InvalidGasLimit(OutOfBounds<U256>),
+	InvalidReceiptsStateRoot(Mismatch<H256>),
+	InvalidTimestamp(OutOfBounds<u64>),
+	InvalidLogBloom(Mismatch<LogBloom>),
+	InvalidBlockNonce(Mismatch<H256>),
+	InvalidParentHash(Mismatch<H256>),
+	InvalidNumber(OutOfBounds<BlockNumber>),
+	UnknownParent(H256),
+	UnknownUncleParent(H256),
+}
+
+#[derive(Debug)]
+pub enum ImportError {
+	Bad(Option<Error>),
+	AlreadyInChain,
+	AlreadyQueued,
+}
+
+impl From<Error> for ImportError {
+	fn from(err: Error) -> ImportError {
+		ImportError::Bad(Some(err))
+	}
+}
+
+/// Result of import block operation.
+pub type ImportResult = Result<(), ImportError>;
 
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
-pub enum UtilError {
-	Crypto(::crypto::CryptoError),
-	StdIo(::std::io::Error),
-	Io(io::IoError),
-	AddressParse(::std::net::AddrParseError),
-	AddressResolve(Option<::std::io::Error>),
-	FromHex(FromHexError),
-	BaseData(BaseDataError),
-	Network(NetworkError),
-	Decoder(DecoderError),
-	BadSize,
+pub enum Error {
+	Util(UtilError),
+	Block(BlockError),
+	UnknownEngineName(String),
+	Execution(ExecutionError),
+	Transaction(TransactionError),
 }
 
-impl From<FromHexError> for UtilError {
-	fn from(err: FromHexError) -> UtilError {
-		UtilError::FromHex(err)
+impl From<TransactionError> for Error {
+	fn from(err: TransactionError) -> Error {
+		Error::Transaction(err)
 	}
 }
 
-impl From<BaseDataError> for UtilError {
-	fn from(err: BaseDataError) -> UtilError {
-		UtilError::BaseData(err)
+impl From<BlockError> for Error {
+	fn from(err: BlockError) -> Error {
+		Error::Block(err)
 	}
 }
 
-impl From<NetworkError> for UtilError {
-	fn from(err: NetworkError) -> UtilError {
-		UtilError::Network(err)
+impl From<ExecutionError> for Error {
+	fn from(err: ExecutionError) -> Error {
+		Error::Execution(err)
 	}
 }
 
-impl From<::std::io::Error> for UtilError {
-	fn from(err: ::std::io::Error) -> UtilError {
-		UtilError::StdIo(err)
+impl From<CryptoError> for Error {
+	fn from(err: CryptoError) -> Error {
+		Error::Util(UtilError::Crypto(err))
 	}
 }
 
-impl From<io::IoError> for UtilError {
-	fn from(err: io::IoError) -> UtilError {
-		UtilError::Io(err)
+impl From<DecoderError> for Error {
+	fn from(err: DecoderError) -> Error {
+		Error::Util(UtilError::Decoder(err))
 	}
 }
 
-impl From<::crypto::CryptoError> for UtilError {
-	fn from(err: ::crypto::CryptoError) -> UtilError {
-		UtilError::Crypto(err)
+impl From<UtilError> for Error {
+	fn from(err: UtilError) -> Error {
+		Error::Util(err)
 	}
 }
 
-impl From<::std::net::AddrParseError> for UtilError {
-	fn from(err: ::std::net::AddrParseError) -> UtilError {
-		UtilError::AddressParse(err)
-	}
-}
-
-impl From<::rlp::DecoderError> for UtilError {
-	fn from(err: ::rlp::DecoderError) -> UtilError {
-		UtilError::Decoder(err)
+impl From<IoError> for Error {
+	fn from(err: IoError) -> Error {
+		Error::Util(From::from(err))
 	}
 }
 
