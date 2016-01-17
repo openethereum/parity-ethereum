@@ -1,0 +1,16 @@
+{
+	"input":
+	[
+		{
+			"operation": "insert",
+			"key": "foo",
+			"value": "bar"
+		},
+		{
+			"operation": "insert",
+			"key": "food",
+			"value": "bass"
+		}
+	],
+	"output": "0x17beaa1648bafa633cda809c90c04af50fc8aed3cb40d16efbddee6fdf63c4c3"
+}

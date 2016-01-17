@@ -1,0 +1,11 @@
+{
+	"input":
+	[
+		{
+			"operation": "insert",
+			"key": "A",
+			"value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		}
+	],
+	"output": "0xd23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab"
+}

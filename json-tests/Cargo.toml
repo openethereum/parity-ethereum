@@ -1,0 +1,8 @@
+[package]
+name = "json-tests"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+
+[dependencies]
+rustc-serialize = "0.3"
+glob = "*"
