@@ -103,7 +103,7 @@ impl Account {
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
-			(Filth::Clean, H256::from(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).map(|v| -> U256 {decode(v)}).unwrap_or(U256::zero())))
+			(Filth::Clean, H256::from(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).map_or(U256::zero(), |v| -> U256 {decode(v)})))
 		}).1.clone()
 	}
 
@@ -149,7 +149,7 @@ impl Account {
 	/// Provide a database to lookup `code_hash`. Should not be called if it is a contract without code.
 	pub fn cache_code(&mut self, db: &HashDB) -> bool {
 		// TODO: fill out self.code_cache;
-		return self.is_cached() ||
+		self.is_cached() ||
 			match self.code_hash {
 				Some(ref h) => match db.lookup(h) {
 					Some(x) => { self.code_cache = x.to_vec(); true },

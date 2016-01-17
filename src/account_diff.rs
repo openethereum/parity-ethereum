@@ -12,10 +12,10 @@ pub enum Existance {
 
 impl fmt::Display for Existance {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match self {
-			&Existance::Born => try!(write!(f, "+++")),
-			&Existance::Alive => try!(write!(f, "***")),
-			&Existance::Died => try!(write!(f, "XXX")),
+		match *self {
+			Existance::Born => try!(write!(f, "+++")),
+			Existance::Alive => try!(write!(f, "***")),
+			Existance::Died => try!(write!(f, "XXX")),
 		}
 		Ok(())
 	}
@@ -102,16 +102,15 @@ impl fmt::Display for AccountDiff {
 			Diff::Changed(ref pre, ref post) => try!(write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))),
 			_ => {},
 		}
-		match self.code {
-			Diff::Born(ref x) => try!(write!(f, "  code {}", x.pretty())),
-			_ => {},
+		if let Diff::Born(ref x) = self.code {
+			try!(write!(f, "  code {}", x.pretty()));
 		}
 		try!(write!(f, "\n"));
-		for (k, dv) in self.storage.iter() {
-			match dv {
-				&Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", interpreted_hash(k), interpreted_hash(v))),
-				&Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", interpreted_hash(k), interpreted_hash(post), interpreted_hash(pre))),
-				&Diff::Died(_) => try!(write!(f, "    X  {}\n", interpreted_hash(k))),
+		for (k, dv) in &self.storage {
+			match *dv {
+				Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", interpreted_hash(k), interpreted_hash(v))),
+				Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", interpreted_hash(k), interpreted_hash(post), interpreted_hash(pre))),
+				Diff::Died(_) => try!(write!(f, "    X  {}\n", interpreted_hash(k))),
 				_ => {},
 			}
 		}

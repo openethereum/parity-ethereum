@@ -87,22 +87,22 @@ impl State {
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> U256 {
-		self.get(a, false).as_ref().map(|account| account.balance().clone()).unwrap_or(U256::from(0u8))
+		self.get(a, false).as_ref().map_or(U256::zero(), |account| account.balance().clone())
 	}
 
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> U256 {
-		self.get(a, false).as_ref().map(|account| account.nonce().clone()).unwrap_or(U256::from(0u8))
+		self.get(a, false).as_ref().map_or(U256::zero(), |account| account.nonce().clone())
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn storage_at(&self, a: &Address, key: &H256) -> H256 {
-		self.get(a, false).as_ref().map(|a|a.storage_at(&self.db, key)).unwrap_or(H256::new())	
+		self.get(a, false).as_ref().map_or(H256::new(), |a|a.storage_at(&self.db, key))	
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
-		self.get(a, true).as_ref().map(|a|a.code().map(|x|x.to_vec())).unwrap_or(None)
+		self.get(a, true).as_ref().map_or(None, |a|a.code().map(|x|x.to_vec()))
 	}
 
 	/// Add `incr` to the balance of account `a`.
@@ -168,6 +168,7 @@ impl State {
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
+	#[allow(match_ref_pats)]
 	pub fn commit_into(db: &mut HashDB, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>) {
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
@@ -184,9 +185,9 @@ impl State {
 		{
 			let mut trie = SecTrieDBMut::from_existing(db, root);
 			for (address, ref a) in accounts.iter() {
-				match a {
-					&&Some(ref account) => trie.insert(address, &account.rlp()),
-					&&None => trie.remove(address),
+				match **a {
+					Some(ref account) => trie.insert(address, &account.rlp()),
+					None => trie.remove(address),
 				}
 			}
 		}
@@ -208,7 +209,7 @@ impl State {
 	pub fn to_hashmap_pod(&self) -> HashMap<Address, PodAccount> {
 		// TODO: handle database rather than just the cache.
 		self.cache.borrow().iter().fold(HashMap::new(), |mut m, (add, opt)| {
-			if let &Some(ref acc) = opt {
+			if let Some(ref acc) = *opt {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}
 			m
@@ -219,7 +220,7 @@ impl State {
 	pub fn to_pod(&self) -> PodState {
 		// TODO: handle database rather than just the cache.
 		PodState::new(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
-			if let &Some(ref acc) = opt {
+			if let Some(ref acc) = *opt {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}
 			m

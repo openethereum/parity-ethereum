@@ -212,7 +212,7 @@ impl ChainSync {
 		self.downloading_bodies.clear();
 		self.headers.clear();
 		self.bodies.clear();
-		for (_, ref mut p) in self.peers.iter_mut() {
+		for (_, ref mut p) in &mut self.peers {
 			p.asking_blocks.clear();
 		}
 		self.header_ids.clear();
@@ -375,7 +375,7 @@ impl ChainSync {
 				transactions_root: tx_root,
 				uncles: uncles
 			};
-			match self.header_ids.get(&header_id).map(|n| *n) {
+			match self.header_ids.get(&header_id).cloned() {
 				Some(n) => {
 					self.header_ids.remove(&header_id);
 					self.bodies.insert_item(n, body.as_raw().to_vec());
@@ -699,16 +699,13 @@ impl ChainSync {
 	/// Used to recover from an error and re-download parts of the chain detected as bad.
 	fn remove_downloaded_blocks(&mut self, start: BlockNumber) {
 		for n in self.headers.get_tail(&start) {
-			match self.headers.find_item(&n) {
-				Some(ref header_data) => {
-					let header_to_delete = HeaderView::new(&header_data.data);
-					let header_id = HeaderId {
-						transactions_root: header_to_delete.transactions_root(),
-						uncles: header_to_delete.uncles_hash()
-					};
-					self.header_ids.remove(&header_id);
-				},
-				None => {}
+			if let Some(ref header_data) = self.headers.find_item(&n) {
+				let header_to_delete = HeaderView::new(&header_data.data);
+				let header_id = HeaderId {
+					transactions_root: header_to_delete.transactions_root(),
+					uncles: header_to_delete.uncles_hash()
+				};
+				self.header_ids.remove(&header_id);
 			}
 			self.downloading_bodies.remove(&n);
 			self.downloading_headers.remove(&n);
@@ -796,12 +793,9 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		//TODO: handle timeout for status request
-		match io.send(peer_id, STATUS_PACKET, packet.out()) {
-			Err(e) => {
-				warn!(target:"sync", "Error sending status request: {:?}", e);
-				io.disable_peer(peer_id);
-			}
-			Ok(_) => ()
+		if let Err(e) = io.send(peer_id, STATUS_PACKET, packet.out()) {
+			warn!(target:"sync", "Error sending status request: {:?}", e);
+			io.disable_peer(peer_id);
 		}
 	}
 
@@ -837,12 +831,9 @@ impl ChainSync {
 		let mut data = Bytes::new();
 		let inc = (skip + 1) as BlockNumber;
 		while number <= last && number > 0 && count < max_count {
-			match io.chain().block_header_at(number) {
-				Some(mut hdr) => {
-					data.append(&mut hdr);
-					count += 1;
-				}
-				None => {}
+			if let Some(mut hdr) = io.chain().block_header_at(number) {
+				data.append(&mut hdr);
+				count += 1;
 			}
 			if reverse {
 				if number <= inc {

@@ -65,7 +65,7 @@ impl<S : Copy> VecStack<S> {
 
 impl<S : fmt::Display> Stack<S> for VecStack<S> {
 	fn peek(&self, no_from_top: usize) -> &S {
-		return &self.stack[self.stack.len() - no_from_top - 1];
+		&self.stack[self.stack.len() - no_from_top - 1]
 	}
 
 	fn swap_with_top(&mut self, no_from_top: usize) {
@@ -150,7 +150,7 @@ impl Memory for Vec<u8> {
 	}
 
 	fn size(&self) -> usize {
-		return self.len()
+		self.len()
 	}
 
 	fn read_slice(&self, init_off_u: U256, init_size_u: U256) -> &[u8] {
@@ -820,7 +820,7 @@ impl Interpreter {
 	fn copy_data_to_memory(&self,
 						   mem: &mut Memory,
 						   stack: &mut Stack<U256>,
-						   data: &Bytes) {
+						   data: &[u8]) {
 		let offset = stack.pop_back();
 		let index = stack.pop_back();
 		let size = stack.pop_back();
@@ -1097,7 +1097,7 @@ impl Interpreter {
 		Ok(())
 	}
 
-	fn find_jump_destinations(&self, code: &Bytes) -> HashSet<CodePosition> {
+	fn find_jump_destinations(&self, code: &[u8]) -> HashSet<CodePosition> {
 		let mut jump_dests = HashSet::new();
 		let mut position = 0;
 
@@ -1112,7 +1112,7 @@ impl Interpreter {
 			position += 1;
 		}
 
-		return jump_dests;
+		jump_dests
 	}
 }
 

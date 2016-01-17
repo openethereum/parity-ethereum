@@ -127,9 +127,8 @@ impl BlockProvider for BlockChain {
 	fn block(&self, hash: &H256) -> Option<Bytes> {
 		{
 			let read = self.blocks.read().unwrap();
-			match read.get(hash) {
-				Some(v) => return Some(v.clone()),
-				None => ()
+			if let Some(v) = read.get(hash) {
+				return Some(v.clone());
 			}
 		}
 
@@ -509,9 +508,8 @@ impl BlockChain {
 		T: ExtrasIndexable {
 		{
 			let read = cache.read().unwrap();
-			match read.get(hash) {
-				Some(_) => return true,
-				None => ()
+			if let Some(_) = read.get(hash) {
+				return true;
 			}
 		}
 

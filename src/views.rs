@@ -98,7 +98,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return List of transactions in given block.
 	pub fn transaction_views(&self) -> Vec<TransactionView> {
-		self.rlp.at(1).iter().map(|rlp| TransactionView::new_from_rlp(rlp)).collect()
+		self.rlp.at(1).iter().map(TransactionView::new_from_rlp).collect()
 	}
 
 	/// Return List of transactions in given block.
