@@ -1,0 +1,10 @@
+{
+	"input":
+	[
+		{
+			"operation": "append",
+			"value": "0x0400"
+		}
+	],
+	"output": "0x820400"
+}

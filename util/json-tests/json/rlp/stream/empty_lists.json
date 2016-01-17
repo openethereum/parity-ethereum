@@ -1,0 +1,38 @@
+{
+	"input":
+	[
+		{
+			"operation": "append_list",
+			"len": 3
+		},
+		{
+			"operation": "append_list",
+			"len": 0
+		},
+		{
+			"operation": "append_list",
+			"len": 1
+		},
+		{
+			"operation": "append_list",
+			"len": 0
+		},
+		{
+			"operation": "append_list",
+			"len": 2
+		},
+		{
+			"operation": "append_list",
+			"len": 0
+		},
+		{
+			"operation": "append_list",
+			"len": 1
+		},
+		{
+			"operation": "append_list",
+			"len": 0
+		}
+	],
+	"output": "0xc7c0c1c0c3c0c1c0"
+}
