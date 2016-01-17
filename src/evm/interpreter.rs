@@ -144,7 +144,7 @@ trait Memory {
 /// Checks whether offset and size is valid memory range
 fn is_valid_range(off: usize, size: usize)  -> bool {
 	// When size is zero we haven't actually expanded the memory
-	let (_a, overflow) = off.overflowing_add(size);
+	let overflow = off.overflowing_add(size).1;
 	size > 0 && !overflow
 }
 
@@ -890,27 +890,23 @@ impl Interpreter {
 			instructions::ADD => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				let (c, _overflow) = a.overflowing_add(b);
-				stack.push(c);
+				stack.push(a.overflowing_add(b).0);
 			},
 			instructions::MUL => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				let (c, _overflow) = a.overflowing_mul(b);
-				stack.push(c);
+				stack.push(a.overflowing_mul(b).0);
 			},
 			instructions::SUB => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				let (c, _overflow) = a.overflowing_sub(b);
-				stack.push(c);
+				stack.push(a.overflowing_sub(b).0);
 			},
 			instructions::DIV => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(if !self.is_zero(&b) {
-					let (c, _overflow) = a.overflowing_div(b);
-					c
+					a.overflowing_div(b).0
 				} else {
 					U256::zero() 
 				});
@@ -919,8 +915,7 @@ impl Interpreter {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(if !self.is_zero(&b) {
-					let (c, _overflow) = a.overflowing_rem(b);
-					c
+					a.overflowing_rem(b).0
 				} else {
 					U256::zero()
 				});
@@ -936,7 +931,7 @@ impl Interpreter {
 				} else if a == min && b == !U256::zero() {
 					min
 				} else {
-					let (c, _overflow) = a.overflowing_div(b);
+					let c = a.overflowing_div(b).0;
 					set_sign(c, sign_a ^ sign_b)
 				});
 			},
@@ -944,10 +939,10 @@ impl Interpreter {
 				let ua = stack.pop_back();
 				let ub = stack.pop_back();
 				let (a, sign_a) = get_and_reset_sign(ua);
-				let (b, _sign_b) = get_and_reset_sign(ub);
+				let b = get_and_reset_sign(ub).0;
 
 				stack.push(if !self.is_zero(&b) {
-					let (c, _overflow) = a.overflowing_rem(b);
+					let c = a.overflowing_rem(b).0;
 					set_sign(c, sign_a)
 				} else {
 					U256::zero()
@@ -956,7 +951,7 @@ impl Interpreter {
 			instructions::EXP => {
 				let base = stack.pop_back();
 				let expon = stack.pop_back();
-				let (res, _overflow) = base.overflowing_pow(expon);
+				let res = base.overflowing_pow(expon).0;
 				stack.push(res);
 			},
 			instructions::NOT => {
@@ -1034,8 +1029,8 @@ impl Interpreter {
 				stack.push(if !self.is_zero(&c) {
 					// upcast to 512
 					let a5 = U512::from(a);
-					let (res, _overflow) = a5.overflowing_add(U512::from(b));
-					let (x, _overflow) = res.overflowing_rem(U512::from(c));
+					let res = a5.overflowing_add(U512::from(b)).0;
+					let x = res.overflowing_rem(U512::from(c)).0;
 					U256::from(x)
 				} else {
 					U256::zero()
@@ -1048,8 +1043,8 @@ impl Interpreter {
 
 				stack.push(if !self.is_zero(&c) {
 					let a5 = U512::from(a);
-					let (res, _overflow) = a5.overflowing_mul(U512::from(b));
-					let (x, _overflow) = res.overflowing_rem(U512::from(c));
+					let res = a5.overflowing_mul(U512::from(b)).0;
+					let x = res.overflowing_rem(U512::from(c)).0;
 					U256::from(x)
 				} else {
 					U256::zero()
@@ -1105,8 +1100,7 @@ fn get_and_reset_sign(value: U256) -> (U256, bool) {
 
 fn set_sign(value: U256, sign: bool) -> U256 {
 	if sign {
-		let (val, _overflow) = (!U256::zero() ^ value).overflowing_add(U256::one());
-		val
+		(!U256::zero() ^ value).overflowing_add(U256::one()).0;
 	} else {
 		value
 	}
