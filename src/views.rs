@@ -2,7 +2,57 @@
 use util::*;
 use header::*;
 use transaction::*;
+/*
+/// View onto block rlp.
+pub struct TransactionView<'a> {
+	rlp: Rlp<'a>
+}
 
+impl<'a> TransactionView<'a> {
+	/// Creates new view onto block from raw bytes.
+	pub fn new(bytes: &'a [u8]) -> TransactionView<'a> {
+		BlockView {
+			rlp: Rlp::new(bytes)
+		}
+	}
+
+	/// Creates new view onto block from rlp.
+	pub fn new_from_rlp(rlp: Rlp<'a>) -> TransactionView<'a> {
+		TransactionView {
+			rlp: rlp
+		}
+	}
+
+	/// Return reference to underlaying rlp.
+	pub fn rlp(&self) -> &Rlp<'a> {
+		&self.rlp
+	}
+
+	pub fn nonce(&self) -> U256 { self.rlp.val_at(0) }
+
+	pub fn gas_price(&self) -> U256 { self.rlp.val_at(1) }
+
+	pub fn gas(&self) -> U256 { self.rlp.val_at(2) }
+
+	pub fn action(&self) -> Action { self.rlp.val_at(3) }
+
+	pub fn value(&self) -> U256 { self.rlp.val_at(4) }
+
+	pub fn data(&self) -> Bytes { self.rlp.val_at(5) }
+
+	pub fn v(&self) -> u8 { self.rlp.val_at(6) }
+
+	pub fn r(&self) -> U256 { self.rlp.val_at(7) }
+
+	pub fn s(&self) -> U256 { self.rlp.val_at(8) }
+}
+
+impl<'a> Hashable for TransactionView<'a> {
+	fn sha3(&self) -> H256 {
+		self.rlp.as_raw().sha3()
+	}
+}
+*/
 /// View onto block rlp.
 pub struct BlockView<'a> {
 	rlp: Rlp<'a>
@@ -37,7 +87,12 @@ impl<'a> BlockView<'a> {
 	pub fn header_view(&self) -> HeaderView<'a> {
 		HeaderView::new_from_rlp(self.rlp.at(0))
 	}
-
+/*
+	/// Return List of transactions in given block.
+	pub fn transactions(&self) -> Vec<TransactionView> {
+		self.rlp.at(1).iter().map(|rlp| TransactionView::new_from_rlp(rlp)).collect()
+	}
+*/
 	/// Return List of transactions in given block.
 	pub fn transactions(&self) -> Vec<Transaction> {
 		self.rlp.val_at(1)
