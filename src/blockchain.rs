@@ -252,8 +252,7 @@ impl BlockChain {
 	/// If it doesn't, then rewind down until we find one that does and delete data to ensure that
 	/// later blocks will be reimported. 
 	pub fn ensure_good(&mut self, _state: &OverlayDB) {
-		info!("Rescuing database.");
-		// TODO.
+		unimplemented!();
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
