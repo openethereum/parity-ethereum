@@ -2,8 +2,8 @@
 use util::*;
 use header::*;
 use transaction::*;
-/*
-/// View onto block rlp.
+
+/// View onto transaction rlp.
 pub struct TransactionView<'a> {
 	rlp: Rlp<'a>
 }
@@ -11,7 +11,7 @@ pub struct TransactionView<'a> {
 impl<'a> TransactionView<'a> {
 	/// Creates new view onto block from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> TransactionView<'a> {
-		BlockView {
+		TransactionView {
 			rlp: Rlp::new(bytes)
 		}
 	}
@@ -28,23 +28,31 @@ impl<'a> TransactionView<'a> {
 		&self.rlp
 	}
 
+	/// Get the nonce field of the transaction.
 	pub fn nonce(&self) -> U256 { self.rlp.val_at(0) }
 
+	/// Get the gas_price field of the transaction.
 	pub fn gas_price(&self) -> U256 { self.rlp.val_at(1) }
 
+	/// Get the gas field of the transaction.
 	pub fn gas(&self) -> U256 { self.rlp.val_at(2) }
 
-	pub fn action(&self) -> Action { self.rlp.val_at(3) }
-
+	/// Get the value field of the transaction.
 	pub fn value(&self) -> U256 { self.rlp.val_at(4) }
 
+	/// Get the data field of the transaction.
 	pub fn data(&self) -> Bytes { self.rlp.val_at(5) }
 
-	pub fn v(&self) -> u8 { self.rlp.val_at(6) }
+	/// Get the v field of the transaction.
+	pub fn v(&self) -> u8 { let r: u16 = self.rlp.val_at(6); r as u8 }
 
+	/// Get the r field of the transaction.
 	pub fn r(&self) -> U256 { self.rlp.val_at(7) }
 
+	/// Get the s field of the transaction.
 	pub fn s(&self) -> U256 { self.rlp.val_at(8) }
+
+	// TODO: something like pub fn action(&self) -> Action { self.rlp.val_at(3) }
 }
 
 impl<'a> Hashable for TransactionView<'a> {
@@ -52,7 +60,7 @@ impl<'a> Hashable for TransactionView<'a> {
 		self.rlp.as_raw().sha3()
 	}
 }
-*/
+
 /// View onto block rlp.
 pub struct BlockView<'a> {
 	rlp: Rlp<'a>
@@ -87,12 +95,12 @@ impl<'a> BlockView<'a> {
 	pub fn header_view(&self) -> HeaderView<'a> {
 		HeaderView::new_from_rlp(self.rlp.at(0))
 	}
-/*
+
 	/// Return List of transactions in given block.
-	pub fn transactions(&self) -> Vec<TransactionView> {
+	pub fn transaction_views(&self) -> Vec<TransactionView> {
 		self.rlp.at(1).iter().map(|rlp| TransactionView::new_from_rlp(rlp)).collect()
 	}
-*/
+
 	/// Return List of transactions in given block.
 	pub fn transactions(&self) -> Vec<Transaction> {
 		self.rlp.val_at(1)
