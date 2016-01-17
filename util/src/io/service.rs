@@ -151,13 +151,21 @@ impl<Message> Handler for IoManager<Message> where Message: Send + 'static {
 /// Allows sending messages into the event loop. All the IO handlers will get the message
 /// in the `message` callback.
 pub struct IoChannel<Message> where Message: Send {
-	channel: Sender<IoMessage<Message>> 
+	channel: Option<Sender<IoMessage<Message>>>
 }
 
 impl<Message> IoChannel<Message> where Message: Send {
+	/// Send a msessage through the channel
 	pub fn send(&self, message: Message) -> Result<(), IoError> {
-		try!(self.channel.send(IoMessage::UserMessage(message)));
+		if let Some(ref channel) = self.channel {
+			try!(channel.send(IoMessage::UserMessage(message)));
+		}
 		Ok(())
+	}
+
+	/// Create a new channel to connected to event loop.
+	pub fn disconnected() -> IoChannel<Message> {
+		IoChannel { channel: None }
 	}
 }
 
@@ -198,7 +206,7 @@ impl<Message> IoService<Message> where Message: Send + 'static {
 
 	/// Create a new message channel
 	pub fn channel(&mut self) -> IoChannel<Message> {
-		IoChannel { channel: self.host_channel.clone() }
+		IoChannel { channel: Some(self.host_channel.clone()) }
 	}
 }
 

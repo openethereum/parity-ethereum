@@ -229,3 +229,17 @@ impl Drop for BlockQueue {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+	use util::*;
+	use spec::*;
+	use queue::*;
+
+	#[test]
+	fn test_block_queue() {
+		// TODO better test
+		let spec = Spec::new_test();
+		let engine = spec.to_engine().unwrap();
+		let _ = BlockQueue::new(Arc::new(engine), IoChannel::disconnected());
+	}
+}
