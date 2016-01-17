@@ -198,6 +198,126 @@ impl<'db> TrieDB<'db> {
 	}
 }
 
+#[derive(Clone, Eq, PartialEq)]
+enum Status {
+	Entering,
+	At,
+	AtChild(usize),
+	Exiting,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct Crumb<'a> {
+	node: Node<'a>,
+//	key: &'a[u8],
+	status: Status,
+}
+
+impl<'a> Crumb<'a> {
+	/// Move on to next status in the node's sequence.
+	fn increment(&mut self) {
+		self.status = match (&self.status, &self.node) {
+			(_, &Node::Empty) => Status::Exiting,
+			(&Status::Entering, _) => Status::At,
+			(&Status::At, &Node::Branch(_, _)) => Status::AtChild(0),
+			(&Status::AtChild(x), &Node::Branch(_, _)) if x < 15 => Status::AtChild(x + 1),
+			_ => Status::Exiting,
+		}
+	}
+}
+
+/// Iterator for going through all values in the trie.
+#[derive(Clone)]
+pub struct TrieDBIterator<'a> {
+	db: &'a TrieDB<'a>,
+	trail: Vec<Crumb<'a>>,
+	key_nibbles: Bytes,
+}
+
+impl<'a> TrieDBIterator<'a> {
+	/// Create a new iterator.
+	fn new(db: &'a TrieDB) -> TrieDBIterator<'a> {
+		let mut r = TrieDBIterator {
+			db: db,
+			trail: vec![],
+			key_nibbles: Vec::new(),
+		};
+		r.descend(db.db.lookup(&db.root).expect("Trie root not found!"));
+		r
+	}
+
+	/// Descend into a payload.
+	fn descend(&mut self, d: &'a [u8]) {
+		self.trail.push(Crumb {
+			status: Status::Entering,
+			node: self.db.get_node(d)
+		});
+		match self.trail.last().unwrap().node {
+			Node::Leaf(n, _) | Node::Extension(n, _) => {
+				println!("Entering. Extend key {:?}, {:?}", self.key_nibbles, n.iter().collect::<Vec<_>>());
+				self.key_nibbles.extend(n.iter());
+			},
+			_ => {}
+		}
+	}
+
+	/// Descend into a payload and get the next item.
+	fn descend_next(&mut self, d: &'a [u8]) -> Option<(Bytes, &'a [u8])> { self.descend(d); self.next() }
+
+	/// The present key.
+	fn key(&self) -> Bytes {
+		// collapse the key_nibbles down to bytes.
+		self.key_nibbles.iter().step(2).zip(self.key_nibbles.iter().skip(1).step(2)).map(|(h, l)| h * 16 + l).collect()
+	}
+}
+
+impl<'a> Iterator for TrieDBIterator<'a> {
+	type Item = (Bytes, &'a [u8]);
+
+	fn next(&mut self) -> Option<Self::Item> {
+		let b = match self.trail.last_mut() {
+			Some(ref mut b) => { b.increment(); b.clone() },
+			None => return None
+		};
+		match (b.status, b.node) {
+			(Status::Exiting, n) => {
+				match n {
+					Node::Leaf(n, _) | Node::Extension(n, _) => {
+						println!("Exiting. Truncate key {:?}, {:?}", self.key_nibbles, n.iter().collect::<Vec<_>>());
+						let l = self.key_nibbles.len();
+						self.key_nibbles.truncate(l - n.len());
+					},
+					Node::Branch(_, _) => { println!("Exit branch. Pop {:?}.", self.key_nibbles); self.key_nibbles.pop(); },
+					_ => {}
+				}
+				self.trail.pop();
+				self.next()
+			},
+			(Status::At, Node::Leaf(_, v)) => Some((self.key(), v)),
+			(Status::At, Node::Extension(_, d)) => self.descend_next(d),
+			(Status::At, Node::Branch(_, Some(v))) => Some((self.key(), v)),
+			(Status::At, Node::Branch(_, _)) => self.next(),
+			(Status::AtChild(i), Node::Branch(children, _)) if children[i].len() > 0 => {
+				match i {
+					0 => { println!("Enter first child of branch. Push {:?}.", self.key_nibbles); self.key_nibbles.push(0); },
+					i => *self.key_nibbles.last_mut().unwrap() = i as u8,
+				}
+				self.descend_next(children[i])
+			},
+			(Status::AtChild(i), Node::Branch(_, _)) => {
+				if i == 0 { println!("Enter first child of branch. Push {:?}.", self.key_nibbles); self.key_nibbles.push(0); }
+				self.next()
+			},
+			_ => panic!() // Should never see Entering or AtChild without a Branch here.
+		}
+	}
+}
+
+impl<'db> TrieDB<'db> {
+	/// Get all keys/values stored in the trie.
+	pub fn iter(&self) -> TrieDBIterator { TrieDBIterator::new(self) }
+}
+
 impl<'db> Trie for TrieDB<'db> {
 	fn root(&self) -> &H256 { &self.root }
 
@@ -217,4 +337,22 @@ impl<'db> fmt::Debug for TrieDB<'db> {
 		try!(self.fmt_all(Node::decoded(root_rlp), f, 0));
 		writeln!(f, "]")
 	}
+}
+
+#[test]
+fn iterator() {
+	use memorydb::*;
+	use super::triedbmut::*;
+	
+	let d = vec![ &b"A"[..], &b"AA"[..], &b"AB"[..], &b"B"[..] ];
+
+	let mut memdb = MemoryDB::new();
+	let mut root = H256::new();
+	{
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		for x in &d {
+			t.insert(&x, &x);
+		}
+	}
+	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).iter().map(|x|x.0).collect::<Vec<_>>());
 }

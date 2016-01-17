@@ -5,7 +5,7 @@ use rlp::*;
 use super::journal::*;
 
 /// Type of node in the trie and essential information thereof.
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Node<'a> {
 	Empty,
 	Leaf(NibbleSlice<'a>, &'a[u8]),
