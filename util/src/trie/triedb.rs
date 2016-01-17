@@ -360,4 +360,5 @@ fn iterator() {
 		}
 	}
 	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), TrieDB::new(&memdb, &root).iter().map(|x|x.0).collect::<Vec<_>>());
+	assert_eq!(d, TrieDB::new(&memdb, &root).iter().map(|x|x.1).collect::<Vec<_>>());
 }
