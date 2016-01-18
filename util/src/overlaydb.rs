@@ -71,6 +71,7 @@ impl OverlayDB {
 	/// ```
 	pub fn commit(&mut self) -> Result<u32, UtilError> {
 		let mut ret = 0u32;
+		let mut deletes = 0usize;
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
 			if rc != 0 {
@@ -81,7 +82,7 @@ impl OverlayDB {
 						if total_rc < 0 {
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
-						self.put_payload(&key, (back_value, total_rc as u32));
+						deletes += if self.put_payload(&key, (back_value, total_rc as u32)) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
@@ -93,6 +94,7 @@ impl OverlayDB {
 				ret += 1;
 			}
 		}
+		info!("OverlayDB::commit() deleted {} nodes", deletes);
 		Ok(ret)
 	}
 
@@ -130,14 +132,16 @@ impl OverlayDB {
 	}
 
 	/// Get the refs and value of the given key.
-	fn put_payload(&self, key: &H256, payload: (Bytes, u32)) {
+	fn put_payload(&self, key: &H256, payload: (Bytes, u32)) -> bool {
 		if payload.1 > 0 {
 			let mut s = RlpStream::new_list(2);
 			s.append(&payload.1);
 			s.append(&payload.0);
 			self.backing.put(&key.bytes(), &s.out()).expect("Low-level database error. Some issue with your hard disk?");
+			false
 		} else {
 			self.backing.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+			true
 		}
 
 	}

@@ -100,6 +100,7 @@ impl JournalDB {
 					self.forward.remove(i);
 				}
 				try!(self.backing.delete(&last));
+				info!("JournalDB: delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, to_remove.len());
 				index += 1;
 			}
 		}
