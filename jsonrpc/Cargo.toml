@@ -1,0 +1,10 @@
+[package]
+name = "jsonrpc"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+
+[dependencies]
+# always carefully check serde versions before an update
+serde = "0.6.7"
+serde_macros = "0.6.5"
+serde_json = "0.6.0"
