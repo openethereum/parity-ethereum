@@ -6,7 +6,7 @@
 use std::mem;
 use std::ptr;
 use sizes::{CACHE_SIZES, DAG_SIZES};
-use tiny_keccak::Keccak;
+use sha3::{self};
 
 pub const ETHASH_EPOCH_LENGTH: u64 = 30000;
 pub const ETHASH_CACHE_ROUNDS: usize = 3;
@@ -85,9 +85,7 @@ fn fnv_hash(x: u32, y: u32) -> u32 {
 
 #[inline]
 fn sha3_512(input: &[u8], output: &mut [u8]) {
-		let mut sha3 = Keccak::new_keccak512();
-		sha3.update(input);
-		sha3.finalize(output);
+	unsafe { sha3::sha3_512(output.as_mut_ptr(), output.len(), input.as_ptr(), input.len()) };
 }
 
 #[inline]
@@ -107,9 +105,7 @@ fn get_seedhash(block_number: u64) -> H256 {
 	let epochs = block_number / ETHASH_EPOCH_LENGTH;
 	let mut ret: H256 = [0u8; 32];
 	for _ in 0..epochs {
-		let mut sha3 = Keccak::new_keccak256();
-		sha3.update(&ret);
-		sha3.finalize(&mut ret);
+		unsafe { sha3::sha3_256(ret[..].as_mut_ptr(), 32, ret[..].as_ptr(), 32) };
 	}
 	ret
 }
@@ -125,15 +121,12 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256) -> 
 	unsafe { ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32) };
 	unsafe { ptr::copy_nonoverlapping(mem::transmute(&nonce), buf[32..].as_mut_ptr(), 8) };
 
-	let mut sha3 = Keccak::new_keccak512();
-	sha3.update(&buf[0..40]);
-	sha3.finalize(&mut buf);
+	unsafe { sha3::sha3_512(buf.as_mut_ptr(), 64, buf.as_ptr(), 40) };
 	unsafe { ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32) };
 
 	let mut hash = [0u8; 32];
-	let mut sha3 = Keccak::new_keccak256();
-	sha3.update(&buf);
-	sha3.finalize(&mut hash);
+	unsafe { sha3::sha3_256(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len()) };
+	hash.as_mut_ptr();
 	hash
 }
 
@@ -157,10 +150,7 @@ fn hash_compute(light: &Light, full_size: usize,  header_hash: &H256, nonce: u64
 
 	// compute sha3-512 hash and replicate across mix
 	unsafe {
-		let mut sha3 = Keccak::new_keccak512();
-		sha3.update(&s_mix.get_unchecked(0).bytes[0..40]);
-		sha3.finalize(&mut s_mix.get_unchecked_mut(0).bytes);
-
+		sha3::sha3_512(s_mix.get_unchecked_mut(0).bytes.as_mut_ptr(), NODE_BYTES, s_mix.get_unchecked(0).bytes.as_ptr(), 40);
 		let (f_mix, mut mix) = s_mix.split_at_mut(1);
 		for w in 0..MIX_WORDS {
 			*mix.get_unchecked_mut(0).as_words_mut().get_unchecked_mut(w) = *f_mix.get_unchecked(0).as_words().get_unchecked(w % NODE_WORDS);
@@ -189,15 +179,13 @@ fn hash_compute(light: &Light, full_size: usize,  header_hash: &H256, nonce: u64
 			*mix.get_unchecked_mut(0).as_words_mut().get_unchecked_mut(i) = reduction;
 		}
 
-		let mut mix_hash: H256 = [0u8; 32];
+		let mut mix_hash = [0u8; 32];
+		let mut buf = [0u8; 32 + 64];
+		ptr::copy_nonoverlapping(f_mix.get_unchecked_mut(0).bytes.as_ptr(), buf.as_mut_ptr(), 64);
+		ptr::copy_nonoverlapping(mix.get_unchecked_mut(0).bytes.as_ptr(), buf[64..].as_mut_ptr(), 32);
 		ptr::copy_nonoverlapping(mix.get_unchecked_mut(0).bytes.as_ptr(), mix_hash.as_mut_ptr(), 32);
 		let mut value: H256 = [0u8; 32];
-
-		let mut sha3 = Keccak::new_keccak256();
-		sha3.update(&f_mix.get_unchecked(0).bytes);
-		sha3.update(&mix_hash);
-		sha3.finalize(&mut value);
-
+		sha3::sha3_256(value.as_mut_ptr(), value.len(),  buf.as_ptr(), buf.len());
 		ProofOfWork {
 			mix_hash: mix_hash,
 			value: value,
@@ -212,10 +200,7 @@ fn calculate_dag_item(node_index: u32, light: &Light) -> Node {
 		let init = cache_nodes.get_unchecked(node_index as usize % num_parent_nodes);
 		let mut ret = init.clone();
 		*ret.as_words_mut().get_unchecked_mut(0) ^= node_index;
-
-		let mut sha3 = Keccak::new_keccak512();
-		sha3.update(&ret.bytes);
-		sha3.finalize(&mut ret.bytes);
+		sha3::sha3_512(ret.bytes.as_mut_ptr(), ret.bytes.len(), ret.bytes.as_ptr(), ret.bytes.len());
 
 		for i in 0..ETHASH_DATASET_PARENTS {
 			let parent_index = fnv_hash(node_index ^ i, *ret.as_words().get_unchecked(i as usize % NODE_WORDS)) % num_parent_nodes as u32;
@@ -224,10 +209,7 @@ fn calculate_dag_item(node_index: u32, light: &Light) -> Node {
 				*ret.as_words_mut().get_unchecked_mut(w) = fnv_hash(*ret.as_words().get_unchecked(w), *parent.as_words().get_unchecked(w));
 			}
 		}
-
-		let mut sha3 = Keccak::new_keccak512();
-		sha3.update(&ret.bytes);
-		sha3.finalize(&mut ret.bytes);
+		sha3::sha3_512(ret.bytes.as_mut_ptr(), ret.bytes.len(), ret.bytes.as_ptr(), ret.bytes.len());
 		ret
 	}
 }
@@ -246,9 +228,7 @@ fn light_new(block_number: u64) -> Light {
 	unsafe {
 		sha3_512(&seedhash[0..32], &mut nodes.get_unchecked_mut(0).bytes);
 		for i in 1..num_nodes {
-			let mut sha3 = Keccak::new_keccak512();
-			sha3.update(&nodes.get_unchecked_mut(i - 1).bytes);
-			sha3.finalize(&mut nodes.get_unchecked_mut(i).bytes);
+			sha3::sha3_512(nodes.get_unchecked_mut(i).bytes.as_mut_ptr(), NODE_BYTES, nodes.get_unchecked(i - 1).bytes.as_ptr(), NODE_BYTES);
 		}
 		
 		for _ in 0..ETHASH_CACHE_ROUNDS {
@@ -275,9 +255,9 @@ fn test_difficulty_test() {
 	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d ]; 
 	let nonce = 0xd7b3ac70a301a249;
 	let boundary_good = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
-	assert!(quick_check_difficulty(&hash, nonce, &mix_hash, &boundary_good));
+	assert_eq!(quick_get_difficulty(&hash, nonce, &mix_hash)[..], boundary_good[..]);
 	let boundary_bad = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3a, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
-	assert!(!quick_check_difficulty(&hash, nonce, &mix_hash, &boundary_bad));
+	assert!(quick_get_difficulty(&hash, nonce, &mix_hash)[..] != boundary_bad[..]);
 }
 
 #[test]

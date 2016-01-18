@@ -146,6 +146,10 @@ impl Engine for Ethash {
 		}
 		Ok(())
 	}
+
+	fn verify_transaction(&self, t: &Transaction, _header: &Header) -> Result<(), Error> {
+		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
 }
 
 impl Ethash {

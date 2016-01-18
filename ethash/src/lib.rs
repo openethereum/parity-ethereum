@@ -1,6 +1,6 @@
 //! Ethash implementation
 //! See https://github.com/ethereum/wiki/wiki/Ethash
-extern crate tiny_keccak;
+extern crate sha3;
 mod sizes;
 mod compute;
 
