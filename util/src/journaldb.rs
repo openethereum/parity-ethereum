@@ -68,7 +68,7 @@ impl JournalDB {
 				let mut r = RlpStream::new_list(2);
 				r.append(&now);
 				r.append(&index);
-				last = r.out();
+				last = r.drain();
 				&last
 			})).is_some() {
 				index += 1;
@@ -78,7 +78,7 @@ impl JournalDB {
 			r.append(id);
 			r.append(&self.inserts);
 			r.append(&self.removes);
-			try!(self.backing.put(&last, &r.out()));
+			try!(self.backing.put(&last, r.as_raw()));
 			self.inserts.clear();
 			self.removes.clear();
 		}
@@ -91,7 +91,7 @@ impl JournalDB {
 				let mut r = RlpStream::new_list(2);
 				r.append(&end_era);
 				r.append(&index);
-				last = r.out();
+				last = r.drain();
 				&last
 			})) {
 				let rlp = Rlp::new(&rlp_data);

@@ -1,6 +1,5 @@
 use util::*;
 use rocksdb::{Options, DB};
-use rocksdb::DBCompactionStyle::DBUniversalCompaction;
 use blockchain::{BlockChain, BlockProvider};
 use views::BlockView;
 use error::*;
