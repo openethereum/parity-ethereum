@@ -137,6 +137,7 @@ impl Spec {
 				(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
 			},
 			hash: RefCell::new(None),
+			bare_hash: RefCell::new(None),
 		}
 	}
 
