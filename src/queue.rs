@@ -38,7 +38,7 @@ struct QueueSignal {
 impl QueueSignal {
 	fn set(&self) {
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
-			self.message_channel.send(UserMessage(SyncMessage::BlockVerified)).expect("Error seding BlockVerified message");
+			self.message_channel.send(UserMessage(SyncMessage::BlockVerified)).expect("Error sending BlockVerified message");
 		}
 	}
 	fn reset(&self) {
