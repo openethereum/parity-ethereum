@@ -21,14 +21,26 @@ pub enum ErrorCode {
 
 impl ErrorCode {
 	pub fn code(&self) -> i64 {
-		match self {
-			&ErrorCode::ParseError => -32700,
-			&ErrorCode::InvalidRequest => -32600,
-			&ErrorCode::MethodNotFound => -32601,
-			&ErrorCode::InvalidParams => -32602,
-			&ErrorCode::InternalError => -32603,
-			&ErrorCode::ServerError(code) => code
+		match *self {
+			ErrorCode::ParseError => -32700,
+			ErrorCode::InvalidRequest => -32600,
+			ErrorCode::MethodNotFound => -32601,
+			ErrorCode::InvalidParams => -32602,
+			ErrorCode::InternalError => -32603,
+			ErrorCode::ServerError(code) => code
 		}
+	}
+
+	pub fn description(&self) -> String {
+		let desc = match *self {
+			ErrorCode::ParseError => "Parse error.",
+			ErrorCode::InvalidRequest => "Invalid request.",
+			ErrorCode::MethodNotFound => "Method not found.",
+			ErrorCode::InvalidParams => "Invalid params.",
+			ErrorCode::InternalError => "Internal error.",
+			ErrorCode::ServerError(_) => "Server error.",
+		};
+		desc.to_string()
 	}
 }
 
@@ -44,4 +56,14 @@ pub struct Error {
 	code: ErrorCode,
 	message: String,
 	data: Option<Value>
+}
+
+impl Error {
+	pub fn new(code: ErrorCode) -> Error {
+		Error {
+			message: code.description(),
+			code: code,
+			data: None
+		}
+	}
 }

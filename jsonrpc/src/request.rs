@@ -1,8 +1,9 @@
 //! jsonrpc request
 use serde::de::{Deserialize, Deserializer, Visitor, SeqVisitor, MapVisitor};
 use serde::de::impls::{VecVisitor};
-use super::{Id, Params, Version};
+use super::{Id, Params, Version, Value};
 
+/// Represents jsonrpc request which is a method call.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct MethodCall {
 	/// A String specifying the version of the JSON-RPC protocol. 
@@ -19,6 +20,7 @@ pub struct MethodCall {
 	pub id: Id,
 }
 
+/// Represents jsonrpc request which is a notification.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Notification {
 	/// A String specifying the version of the JSON-RPC protocol. 
@@ -31,32 +33,34 @@ pub struct Notification {
 	pub params: Option<Params>
 }
 
+/// Represents single jsonrpc call.
 #[derive(Debug, PartialEq)]
-pub enum RequestBatchSlice {
+pub enum Call {
 	MethodCall(MethodCall),
-	Notification(Notification)
+	Notification(Notification),
+	Invalid(Value)
 }
 
-impl Deserialize for RequestBatchSlice {
-	fn deserialize<D>(deserializer: &mut D) -> Result<RequestBatchSlice, D::Error>
+impl Deserialize for Call {
+	fn deserialize<D>(deserializer: &mut D) -> Result<Call, D::Error>
 	where D: Deserializer {
-		ok!(MethodCall::deserialize(deserializer).map(RequestBatchSlice::MethodCall));
-		Notification::deserialize(deserializer).map(RequestBatchSlice::Notification)
+		ok!(MethodCall::deserialize(deserializer).map(Call::MethodCall));
+		ok!(Notification::deserialize(deserializer).map(Call::Notification));
+		Value::deserialize(deserializer).map(Call::Invalid)
 	}
 }
 
+/// Represents jsonrpc request.
 #[derive(Debug, PartialEq)]
 pub enum Request {
-	MethodCall(MethodCall),
-	Notification(Notification),
-	Batch(Vec<RequestBatchSlice>)
+	Single(Call),
+	Batch(Vec<Call>)
 }
 
 impl Deserialize for Request {
 	fn deserialize<D>(deserializer: &mut D) -> Result<Request, D::Error>
 	where D: Deserializer {
-		ok!(MethodCall::deserialize(deserializer).map(Request::MethodCall));
-		ok!(Notification::deserialize(deserializer).map(Request::Notification));
+		ok!(Call::deserialize(deserializer).map(Request::Single));
 		deserializer.visit(BatchVisitor)
 	}
 }
