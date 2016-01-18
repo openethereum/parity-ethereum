@@ -69,6 +69,7 @@ pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
 pub mod overlaydb;
+pub mod journaldb;
 pub mod math;
 pub mod chainfilter;
 pub mod crypto;

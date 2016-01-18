@@ -22,6 +22,7 @@ pub enum UtilError {
 	BaseData(BaseDataError),
 	Network(NetworkError),
 	Decoder(DecoderError),
+	SimpleString(String),
 	BadSize,
 }
 
@@ -70,6 +71,12 @@ impl From<::std::net::AddrParseError> for UtilError {
 impl From<::rlp::DecoderError> for UtilError {
 	fn from(err: ::rlp::DecoderError) -> UtilError {
 		UtilError::Decoder(err)
+	}
+}
+
+impl From<String> for UtilError {
+	fn from(err: String) -> UtilError {
+		UtilError::SimpleString(err)
 	}
 }
 

@@ -15,11 +15,11 @@ use rocksdb::{DB, Writable, IteratorMode};
 #[derive(Clone)]
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
 ///
-/// The operations `insert()` and `kill()` take place on the memory overlay; batches of
+/// The operations `insert()` and `remove()` take place on the memory overlay; batches of
 /// such operations may be flushed to the disk-backed DB with `commit()` or discarded with
 /// `revert()`.
 ///
-/// `lookup()` and `exists()` maintain normal behaviour - all `insert()` and `kill()` 
+/// `lookup()` and `contains()` maintain normal behaviour - all `insert()` and `remove()` 
 /// queries have an immediate effect in terms of these functions.
 pub struct OverlayDB {
 	overlay: MemoryDB,
@@ -28,8 +28,11 @@ pub struct OverlayDB {
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new(backing: DB) -> OverlayDB {
-		OverlayDB{ overlay: MemoryDB::new(), backing: Arc::new(backing) }
+	pub fn new(backing: DB) -> OverlayDB { Self::new_with_arc(Arc::new(backing)) }
+
+	/// Create a new instance of OverlayDB given a `backing` database.
+	pub fn new_with_arc(backing: Arc<DB>) -> OverlayDB {
+		OverlayDB{ overlay: MemoryDB::new(), backing: backing }
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
@@ -70,9 +73,7 @@ impl OverlayDB {
 		let mut ret = 0u32;
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
-			// until we figure out state trie pruning, only commit stuff when it has a strictly positive delkta of RCs - 
-			// this prevents RCs being reduced to 0 where the DB would pretent that the node had been removed.
-			if rc > 0 {
+			if rc != 0 {
 				match self.payload(&key) {
 					Some(x) => {
 						let (back_value, back_rc) = x;
