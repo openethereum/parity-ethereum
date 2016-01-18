@@ -89,6 +89,7 @@ pub use rlp::*;
 pub use hashdb::*;
 pub use memorydb::*;
 pub use overlaydb::*;
+pub use journaldb::*;
 pub use math::*;
 pub use chainfilter::*;
 pub use crypto::*;

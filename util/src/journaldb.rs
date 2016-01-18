@@ -46,7 +46,7 @@ impl JournalDB {
 
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
-	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, &H256)>) -> Result<u32, UtilError> {
+	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format: 
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -95,7 +95,7 @@ impl JournalDB {
 				&last
 			})) {
 				let rlp = Rlp::new(&rlp_data);
-				let to_remove: Vec<H256> = rlp.val_at(if *canon_id == rlp.val_at(0) {2} else {1});
+				let to_remove: Vec<H256> = rlp.val_at(if canon_id == rlp.val_at(0) {2} else {1});
 				for i in to_remove.iter() {
 					self.forward.remove(i);
 				}

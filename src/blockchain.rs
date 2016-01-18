@@ -251,7 +251,7 @@ impl BlockChain {
 	/// Ensure that the best block does indeed have a state_root in the state DB.
 	/// If it doesn't, then rewind down until we find one that does and delete data to ensure that
 	/// later blocks will be reimported. 
-	pub fn ensure_good(&mut self, _state: &OverlayDB) {
+	pub fn ensure_good(&mut self, _state: &JournalDB) {
 		unimplemented!();
 	}
 

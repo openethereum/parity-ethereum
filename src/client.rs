@@ -104,9 +104,11 @@ pub trait BlockChainClient : Sync + Send {
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
-	state_db: OverlayDB,
+	state_db: JournalDB,
 	queue: BlockQueue,
 }
+
+const HISTORY: u64 = 1000;
 
 impl Client {
 	/// Create a new client with given spec and DB path.
@@ -135,11 +137,12 @@ impl Client {
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
 		let db = DB::open(&opts, state_path.to_str().unwrap()).unwrap();
-		let mut state_db = OverlayDB::new(db);
+		let mut state_db = JournalDB::new(db);
 		
 		let engine = Arc::new(try!(spec.to_engine()));
-		engine.spec().ensure_db_good(&mut state_db);
-		state_db.commit().expect("Error commiting genesis state to state DB");
+		if engine.spec().ensure_db_good(&mut state_db) {
+			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+		}
 
 //		chain.write().unwrap().ensure_good(&state_db);
 
@@ -196,7 +199,8 @@ impl Client {
 		}
 
 		self.chain.write().unwrap().insert_block(&bytes); //TODO: err here?
-		match result.drain().commit() {
+		let ancient = if header.number() >= HISTORY { Some(header.number() - HISTORY) } else { None };
+		match result.drain().commit(header.number(), &header.hash(), ancient.map(|n|(n, self.chain.read().unwrap().block_hash(n).unwrap()))) {
 			Ok(_) => (),
 			Err(e) => {
 				warn!(target: "client", "State DB commit failed: {:?}", e);

@@ -220,7 +220,7 @@ impl FromJson for Spec {
 
 impl Spec {
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, db: &mut HashDB) {
+	pub fn ensure_db_good(&self, db: &mut HashDB) -> bool {
 		if !db.contains(&self.state_root()) {
 			info!("Populating genesis state...");
 			let mut root = H256::new(); 
@@ -232,7 +232,8 @@ impl Spec {
 			}
 			assert!(db.contains(&self.state_root()));
 			info!("Genesis state is ready");
-		}
+			true
+		} else { false }
 	}
 
 	/// Create a new Spec from a JSON UTF-8 data resource `data`.

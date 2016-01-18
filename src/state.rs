@@ -10,7 +10,7 @@ pub type ApplyResult = Result<Receipt, Error>;
 /// Representation of the entire state of all accounts in the system.
 #[derive(Clone)]
 pub struct State {
-	db: OverlayDB,
+	db: JournalDB,
 	root: H256,
 	cache: RefCell<HashMap<Address, Option<Account>>>,
 
@@ -19,7 +19,7 @@ pub struct State {
 
 impl State {
 	/// Creates new state with empty state root
-	pub fn new(mut db: OverlayDB, account_start_nonce: U256) -> State {
+	pub fn new(mut db: JournalDB, account_start_nonce: U256) -> State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
@@ -35,7 +35,7 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: OverlayDB, root: H256, account_start_nonce: U256) -> State {
+	pub fn from_existing(db: JournalDB, root: H256, account_start_nonce: U256) -> State {
 		{
 			// trie should panic! if root does not exist
 			let _ = SecTrieDB::new(&db, &root);
@@ -51,11 +51,11 @@ impl State {
 
 	/// Create temporary state object
 	pub fn new_temp() -> State {
-		Self::new(OverlayDB::new_temp(), U256::from(0u8))
+		Self::new(JournalDB::new_temp(), U256::from(0u8))
 	}
 
 	/// Destroy the current object and return root and database.
-	pub fn drop(self) -> (H256, OverlayDB) {
+	pub fn drop(self) -> (H256, JournalDB) {
 		(self.root, self.db)
 	}
 
@@ -65,7 +65,7 @@ impl State {
 	}
 
 	/// Expose the underlying database; good to use for calling `state.db().commit()`.
-	pub fn db(&mut self) -> &mut OverlayDB {
+	pub fn db(&mut self) -> &mut JournalDB {
 		&mut self.db
 	}
 

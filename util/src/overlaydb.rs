@@ -131,10 +131,15 @@ impl OverlayDB {
 
 	/// Get the refs and value of the given key.
 	fn put_payload(&self, key: &H256, payload: (Bytes, u32)) {
-		let mut s = RlpStream::new_list(2);
-		s.append(&payload.1);
-		s.append(&payload.0);
-		self.backing.put(&key.bytes(), &s.out()).expect("Low-level database error. Some issue with your hard disk?");
+		if payload.1 > 0 {
+			let mut s = RlpStream::new_list(2);
+			s.append(&payload.1);
+			s.append(&payload.0);
+			self.backing.put(&key.bytes(), &s.out()).expect("Low-level database error. Some issue with your hard disk?");
+		} else {
+			self.backing.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+		}
+
 	}
 }
 
