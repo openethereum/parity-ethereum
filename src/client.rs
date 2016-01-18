@@ -105,12 +105,28 @@ pub trait BlockChainClient : Sync + Send {
 	fn chain_info(&self) -> BlockChainInfo;
 }
 
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
+pub struct ClientReport {
+	pub blocks_imported: usize,
+	pub transactions_applied: usize,
+	pub gas_processed: U256,
+}
+
+impl ClientReport {
+	pub fn accrue_block(&mut self, block: &PreVerifiedBlock) {
+		self.blocks_imported += 1;
+		self.transactions_applied += block.transactions.len();
+		self.gas_processed += block.header.gas_used;
+	}
+}
+
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: JournalDB,
 	queue: BlockQueue,
+	report: ClientReport,
 }
 
 const HISTORY: u64 = 1000;
@@ -156,6 +172,7 @@ impl Client {
 			engine: engine.clone(),
 			state_db: state_db,
 			queue: BlockQueue::new(engine, message_channel),
+			report: Default::default(),
 		})
 	}
 
@@ -228,13 +245,20 @@ impl Client {
 					return;
 				}
 			}
-			info!(target: "client", "Imported #{} ({})", header.number(), header.hash());
+			self.report.accrue_block(&block);
+
+			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
 	}
 
 	/// Get info on the cache.
 	pub fn cache_info(&self) -> CacheSize {
 		self.chain.read().unwrap().cache_size()
+	}
+
+	/// Get the report.
+	pub fn report(&self) -> ClientReport {
+		self.report.clone()
 	}
 
 	/// Tick the client.
