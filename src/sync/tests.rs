@@ -43,7 +43,7 @@ impl TestBlockChainClient {
 			rlp.append(&header);
 			rlp.append_raw(&rlp::NULL_RLP, 1);
 			rlp.append_raw(uncles.as_raw(), 1);
-			self.import_block(rlp.as_raw()).unwrap();
+			self.import_block(rlp.as_raw().to_vec()).unwrap();
 		}
 	}
 }
@@ -110,7 +110,7 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn import_block(&mut self, b: &[u8]) -> ImportResult {
+	fn import_block(&mut self, b: Bytes) -> ImportResult {
 		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
 		let number: usize = header.number as usize;
 		if number > self.blocks.len() {
@@ -132,7 +132,7 @@ impl BlockChainClient for TestBlockChainClient {
 		if number == self.numbers.len() {
 			self.difficulty = self.difficulty + header.difficulty;
 			self.last_hash = header.hash();
-			self.blocks.insert(header.hash(), b.to_vec());
+			self.blocks.insert(header.hash(), b);
 			self.numbers.insert(number, header.hash());
 			let mut parent_hash = header.parent_hash;
 			if number > 0 {

@@ -55,8 +55,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 		match net_message {
 			&mut UserMessage(ref mut message) =>  {
 				match message {
-					&mut SyncMessage::BlockVerified(ref mut bytes) => {
-						self.client.write().unwrap().import_verified_block(mem::replace(bytes, Bytes::new()));
+					&mut SyncMessage::BlockVerified => {
+						self.client.write().unwrap().import_verified_blocks();
 					},
 					_ => {}, // ignore other messages
 				}
