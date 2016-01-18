@@ -70,7 +70,9 @@ impl OverlayDB {
 		let mut ret = 0u32;
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
-			if rc != 0 {
+			// until we figure out state trie pruning, only commit stuff when it has a strictly positive delkta of RCs - 
+			// this prevents RCs being reduced to 0 where the DB would pretent that the node had been removed.
+			if rc > 0 {
 				match self.payload(&key) {
 					Some(x) => {
 						let (back_value, back_rc) = x;
