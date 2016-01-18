@@ -94,7 +94,7 @@ impl OverlayDB {
 				ret += 1;
 			}
 		}
-		info!("OverlayDB::commit() deleted {} nodes", deletes);
+		trace!("OverlayDB::commit() deleted {} nodes", deletes);
 		Ok(ret)
 	}
 
