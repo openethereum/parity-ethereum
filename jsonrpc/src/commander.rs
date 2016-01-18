@@ -1,3 +1,5 @@
+//! method and notification commands executor
+
 use std::collections::HashMap;
 use super::{Params, Value, Error, ErrorCode};
 
@@ -25,12 +27,12 @@ impl Commander {
 		}
 	}
 
-	pub fn add_method<C>(&mut self, name: String, command: C) where C: MethodCommand + 'static {
-		self.methods.insert(name, Box::new(command));
+	pub fn add_method<C>(&mut self, name: &str, command: C) where C: MethodCommand + 'static {
+		self.methods.insert(name.to_string(), Box::new(command));
 	}
 
-	pub fn add_notification<C>(&mut self, name: String, command: C) where C: NotificationCommand + 'static {
-		self.notifications.insert(name, Box::new(command));
+	pub fn add_notification<C>(&mut self, name: &str, command: C) where C: NotificationCommand + 'static {
+		self.notifications.insert(name.to_string(), Box::new(command));
 	}
 
 	pub fn execute_method(&mut self, name: String, params: Option<Params>) -> Result<Value, Error> {

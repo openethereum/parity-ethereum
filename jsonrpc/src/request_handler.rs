@@ -13,12 +13,12 @@ impl RequestHandler {
 	}
 
 	#[inline]
-	pub fn add_method<C>(&mut self, name: String, command: C) where C: MethodCommand + 'static {
+	pub fn add_method<C>(&mut self, name: &str, command: C) where C: MethodCommand + 'static {
 		self.commander.add_method(name, command)
 	}
 
 	#[inline]
-	pub fn add_notification<C>(&mut self, name: String, command: C) where C: NotificationCommand + 'static {
+	pub fn add_notification<C>(&mut self, name: &str, command: C) where C: NotificationCommand + 'static {
 		self.commander.add_notification(name, command)
 	}
 
