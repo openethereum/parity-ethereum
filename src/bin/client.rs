@@ -53,7 +53,9 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	fn timeout<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>, timer: TimerToken) {
 		if self.timer == timer {
-			println!("Chain info: {:?}", self.client.read().unwrap().deref().chain_info());
+			self.client.tick();
+			println!("Chain info: {}", self.client.read().unwrap().deref().chain_info());
+			println!("Cache info: {:?}", self.client.read().unwrap().deref().cache_info());
 		}
 	}
 }

@@ -1,6 +1,6 @@
 use util::*;
 use rocksdb::{Options, DB};
-use blockchain::{BlockChain, BlockProvider};
+use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
 use error::*;
 use header::BlockNumber;
@@ -38,6 +38,12 @@ pub struct BlockChainInfo {
 	pub best_block_hash: H256,
 	/// Best blockchain block number.
 	pub best_block_number: BlockNumber
+}
+
+impl fmt::Display for BlockChainInfo {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "#{}.{}", self.best_block_number, self.best_block_hash)
+	}
 }
 
 /// Block queue status
@@ -207,6 +213,16 @@ impl Client {
 			}
 		}
 		debug!(target: "client", "Imported #{} ({})", header.number(), header.hash());
+	}
+
+	/// Get info on the cache.
+	pub fn cache_info(&self) -> CacheSize {
+		self.chain.read().unwrap().cache_size()
+	}
+
+	/// Tick the client.
+	pub fn tick(&self) {
+		self.chain.read().unwrap().collect_garbage(false);
 	}
 }
 
