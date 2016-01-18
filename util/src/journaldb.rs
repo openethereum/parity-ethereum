@@ -26,8 +26,6 @@ impl JournalDB {
 	/// Create a new instance given a `backing` database.
 	pub fn new(backing: DB) -> JournalDB {
 		let db = Arc::new(backing);
-		// TODO: check it doesn't overwrite anything before.
-		// TODO: proper handling of errors (return )
 		JournalDB {
 			forward: OverlayDB::new_with_arc(db.clone()),
 			backing: db,
@@ -48,7 +46,7 @@ impl JournalDB {
 
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
-	pub fn commit(&mut self, now: u64, id: &H256, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, &H256)>) -> Result<u32, UtilError> {
 		// journal format: 
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -81,29 +79,30 @@ impl JournalDB {
 			r.append(&self.inserts);
 			r.append(&self.removes);
 			try!(self.backing.put(&last, &r.out()));
+			self.inserts.clear();
+			self.removes.clear();
 		}
 
 		// apply old commits' details
-		let mut index = 0usize;
-		let mut last;
-		while let Some(rlp_data) = try!(self.backing.get({
-			let mut r = RlpStream::new_list(2);
-			r.append(&end_era);
-			r.append(&index);
-			last = r.out();
-			&last
-		})) {
-			let rlp = Rlp::new(&rlp_data);
-			let to_remove: Vec<H256> = rlp.val_at(if *canon_id == rlp.val_at(0) {2} else {1});
-			for i in to_remove.iter() {
-				self.forward.remove(i);
+		if let Some((end_era, canon_id)) = end {
+			let mut index = 0usize;
+			let mut last;
+			while let Some(rlp_data) = try!(self.backing.get({
+				let mut r = RlpStream::new_list(2);
+				r.append(&end_era);
+				r.append(&index);
+				last = r.out();
+				&last
+			})) {
+				let rlp = Rlp::new(&rlp_data);
+				let to_remove: Vec<H256> = rlp.val_at(if *canon_id == rlp.val_at(0) {2} else {1});
+				for i in to_remove.iter() {
+					self.forward.remove(i);
+				}
+				try!(self.backing.delete(&last));
+				index += 1;
 			}
-			try!(self.backing.delete(&last));
-			index += 1;
 		}
-
-		self.inserts.clear();
-		self.removes.clear();
 
 		self.forward.commit()
 	}
@@ -120,4 +119,95 @@ impl HashDB for JournalDB {
 	fn insert(&mut self, value: &[u8]) -> H256 { let r = self.forward.insert(value); self.inserts.push(r.clone()); r }
 	fn emplace(&mut self, key: H256, value: Bytes) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }
 	fn kill(&mut self, key: &H256) { self.removes.push(key.clone()); }
+}
+
+#[cfg(test)]
+mod tests {
+	use common::*;
+	use super::*;
+	use hashdb::*;
+
+	#[test]
+	fn long_history() {
+		// history is 3
+		let mut jdb = JournalDB::new_temp();
+		let h = jdb.insert(b"foo");
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.exists(&h));
+		jdb.remove(&h);
+		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		assert!(jdb.exists(&h));
+		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		assert!(jdb.exists(&h));
+		jdb.commit(3, &b"3".sha3(), Some((0, &b"0".sha3()))).unwrap();
+		assert!(jdb.exists(&h));
+		jdb.commit(4, &b"4".sha3(), Some((1, &b"1".sha3()))).unwrap();
+		assert!(!jdb.exists(&h));
+	}
+
+	#[test]
+	fn complex() {
+		// history is 1
+		let mut jdb = JournalDB::new_temp();
+
+		let foo = jdb.insert(b"foo");
+		let bar = jdb.insert(b"bar");
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.exists(&foo));
+		assert!(jdb.exists(&bar));
+
+		jdb.remove(&foo);
+		jdb.remove(&bar);
+		let baz = jdb.insert(b"baz");
+		jdb.commit(1, &b"1".sha3(), Some((0, &b"0".sha3()))).unwrap();
+		assert!(jdb.exists(&foo));
+		assert!(jdb.exists(&bar));
+		assert!(jdb.exists(&baz));
+
+		let foo = jdb.insert(b"foo");
+		jdb.remove(&baz);
+		jdb.commit(2, &b"2".sha3(), Some((1, &b"1".sha3()))).unwrap();
+		assert!(jdb.exists(&foo));
+		assert!(!jdb.exists(&bar));
+		assert!(jdb.exists(&baz));
+
+		jdb.remove(&foo);
+		jdb.commit(3, &b"3".sha3(), Some((2, &b"2".sha3()))).unwrap();
+		assert!(jdb.exists(&foo));
+		assert!(!jdb.exists(&bar));
+		assert!(!jdb.exists(&baz));
+
+		jdb.commit(4, &b"4".sha3(), Some((3, &b"3".sha3()))).unwrap();
+		assert!(!jdb.exists(&foo));
+		assert!(!jdb.exists(&bar));
+		assert!(!jdb.exists(&baz));
+	}
+
+	#[test]
+	fn fork() {
+		// history is 1
+		let mut jdb = JournalDB::new_temp();
+
+		let foo = jdb.insert(b"foo");
+		let bar = jdb.insert(b"bar");
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.exists(&foo));
+		assert!(jdb.exists(&bar));
+
+		jdb.remove(&foo);
+		let baz = jdb.insert(b"baz");
+		jdb.commit(1, &b"1a".sha3(), Some((0, &b"0".sha3()))).unwrap();
+
+		jdb.remove(&bar);
+		jdb.commit(1, &b"1b".sha3(), Some((0, &b"0".sha3()))).unwrap();
+
+		assert!(jdb.exists(&foo));
+		assert!(jdb.exists(&bar));
+		assert!(jdb.exists(&baz));
+
+		jdb.commit(2, &b"2b".sha3(), Some((1, &b"1b".sha3()))).unwrap();
+		assert!(jdb.exists(&foo));
+		assert!(!jdb.exists(&baz));
+		assert!(!jdb.exists(&bar));
+	}
 }
