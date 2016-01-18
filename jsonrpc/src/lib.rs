@@ -19,6 +19,7 @@ pub mod response;
 pub mod error;
 pub mod commander;
 pub mod request_handler;
+pub mod io;
 
 pub use self::version::Version;
 pub use self::id::Id;
@@ -29,4 +30,5 @@ pub use self::error::{ErrorCode, Error};
 pub use serde_json::Value;
 pub use self::commander::{Commander, MethodCommand, NotificationCommand};
 pub use self::request_handler::RequestHandler;
+pub use self::io::IoHandler;
 
