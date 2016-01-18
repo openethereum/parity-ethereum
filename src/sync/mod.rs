@@ -43,7 +43,7 @@ pub enum SyncMessage {
 	/// New block has been imported into the blockchain
 	NewChainBlock(Bytes),
 	/// A block is ready 
-	BlockVerified(Bytes),
+	BlockVerified,
 }
 
 pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;

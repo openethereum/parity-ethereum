@@ -1,6 +1,7 @@
 use common::*;
 use engine::*;
 use state::*;
+use verification::PreVerifiedBlock;
 
 /// A transaction/receipt execution entry.
 pub struct Entry {
@@ -263,30 +264,39 @@ impl IsBlock for SealedBlock {
 	fn block(&self) -> &Block { &self.block }
 }
 
-/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact<'x, 'y>(block_bytes: &[u8], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
+/// Enact the block given by block header, transactions and uncles
+pub fn enact<'x, 'y>(header: &Header, transactions: &[Transaction], uncles: &[Header], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
 	{
-		let header = BlockView::new(block_bytes).header_view();
 		let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
 		trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
 	}
 
-	let block = BlockView::new(block_bytes);
-	let header = block.header_view();
-	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author(), header.extra_data());
-	b.set_difficulty(header.difficulty());
-	b.set_gas_limit(header.gas_limit());
+	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author().clone(), header.extra_data().clone());
+	b.set_difficulty(*header.difficulty());
+	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
-//	info!("enact: Enacting #{}. env_info={:?}", header.number(), b.env_info());
-	for t in block.transactions().into_iter() { try!(b.push_transaction(t, None)); }
-	for u in block.uncles().into_iter() { try!(b.push_uncle(u)); }
+	for t in transactions { try!(b.push_transaction(t.clone(), None)); }
+	for u in uncles { try!(b.push_uncle(u.clone())); }
 	Ok(b.close())
+}
+
+/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
+pub fn enact_bytes<'x, 'y>(block_bytes: &[u8], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
+	let block = BlockView::new(block_bytes);
+	let header = block.header();
+	enact(&header, &block.transactions(), &block.uncles(), engine, db, parent, last_hashes)
+}
+
+/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
+pub fn enact_verified<'x, 'y>(block: &PreVerifiedBlock, engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
+	let view = BlockView::new(&block.bytes);
+	enact(&block.header, &block.transactions, &view.uncles(), engine, db, parent, last_hashes)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
 pub fn enact_and_seal(block_bytes: &[u8], engine: &Engine, db: JournalDB, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
 	let header = BlockView::new(block_bytes).header_view();
-	Ok(try!(try!(enact(block_bytes, engine, db, parent, last_hashes)).seal(header.seal())))
+	Ok(try!(try!(enact_bytes(block_bytes, engine, db, parent, last_hashes)).seal(header.seal())))
 }
 
 #[test]
