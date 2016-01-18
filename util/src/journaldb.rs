@@ -140,9 +140,9 @@ mod tests {
 		assert!(jdb.exists(&h));
 		jdb.commit(2, &b"2".sha3(), None).unwrap();
 		assert!(jdb.exists(&h));
-		jdb.commit(3, &b"3".sha3(), Some((0, &b"0".sha3()))).unwrap();
+		jdb.commit(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.exists(&h));
-		jdb.commit(4, &b"4".sha3(), Some((1, &b"1".sha3()))).unwrap();
+		jdb.commit(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(!jdb.exists(&h));
 	}
 
@@ -160,25 +160,25 @@ mod tests {
 		jdb.remove(&foo);
 		jdb.remove(&bar);
 		let baz = jdb.insert(b"baz");
-		jdb.commit(1, &b"1".sha3(), Some((0, &b"0".sha3()))).unwrap();
+		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.exists(&foo));
 		assert!(jdb.exists(&bar));
 		assert!(jdb.exists(&baz));
 
 		let foo = jdb.insert(b"foo");
 		jdb.remove(&baz);
-		jdb.commit(2, &b"2".sha3(), Some((1, &b"1".sha3()))).unwrap();
+		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(jdb.exists(&foo));
 		assert!(!jdb.exists(&bar));
 		assert!(jdb.exists(&baz));
 
 		jdb.remove(&foo);
-		jdb.commit(3, &b"3".sha3(), Some((2, &b"2".sha3()))).unwrap();
+		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
 		assert!(jdb.exists(&foo));
 		assert!(!jdb.exists(&bar));
 		assert!(!jdb.exists(&baz));
 
-		jdb.commit(4, &b"4".sha3(), Some((3, &b"3".sha3()))).unwrap();
+		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
 		assert!(!jdb.exists(&foo));
 		assert!(!jdb.exists(&bar));
 		assert!(!jdb.exists(&baz));
@@ -197,16 +197,16 @@ mod tests {
 
 		jdb.remove(&foo);
 		let baz = jdb.insert(b"baz");
-		jdb.commit(1, &b"1a".sha3(), Some((0, &b"0".sha3()))).unwrap();
+		jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
 
 		jdb.remove(&bar);
-		jdb.commit(1, &b"1b".sha3(), Some((0, &b"0".sha3()))).unwrap();
+		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
 
 		assert!(jdb.exists(&foo));
 		assert!(jdb.exists(&bar));
 		assert!(jdb.exists(&baz));
 
-		jdb.commit(2, &b"2b".sha3(), Some((1, &b"1b".sha3()))).unwrap();
+		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 		assert!(jdb.exists(&foo));
 		assert!(!jdb.exists(&baz));
 		assert!(!jdb.exists(&bar));
