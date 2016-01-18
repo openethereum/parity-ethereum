@@ -6,4 +6,4 @@ authors = ["arkpar <arkadiy@ethcore.io"]
 [lib]
 
 [dependencies]
-tiny-keccak = "1.0"
+sha3 = { path = "../util/sha3" }
