@@ -96,6 +96,17 @@ pub trait BlockProvider {
 	}
 }
 
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
+struct CacheID {
+	id: H256,
+	extra: usize
+}
+
+struct CacheManager {
+	cache_usage: VecDeque<HashSet<CacheID>>,
+	in_use: HashSet<CacheID>,
+}
+
 /// Structure providing fast access to blockchain data.
 ///
 /// **Does not do input data verification.**
@@ -113,7 +124,9 @@ pub struct BlockChain {
 	blocks_blooms: RwLock<HashMap<H256, BlocksBlooms>>,
 
 	extras_db: DB,
-	blocks_db: DB
+	blocks_db: DB,
+
+	cache_man: RwLock<CacheManager>,
 }
 
 impl BlockProvider for BlockChain {
@@ -157,6 +170,10 @@ impl BlockProvider for BlockChain {
 		self.query_extras(&index, &self.block_hashes)
 	}
 }
+
+const COLLECTION_QUEUE_SIZE: usize = 2;
+const MIN_CACHE_SIZE: usize = 1;
+const MAX_CACHE_SIZE: usize = 1024 * 1024 * 1;
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
@@ -206,7 +223,8 @@ impl BlockChain {
 			block_logs: RwLock::new(HashMap::new()),
 			blocks_blooms: RwLock::new(HashMap::new()),
 			extras_db: extras_db,
-			blocks_db: blocks_db
+			blocks_db: blocks_db,
+			cache_man: RwLock::new(CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()}),
 		};
 
 		// load best block
@@ -536,6 +554,23 @@ impl BlockChain {
 		self.transaction_addresses.write().unwrap().squeeze(size.transaction_addresses);
 		self.block_logs.write().unwrap().squeeze(size.block_logs);
 		self.blocks_blooms.write().unwrap().squeeze(size.blocks_blooms);
+	}
+
+	fn note_used(&self, id: CacheID) {
+		let mut cache_man = self.cache_man.write().unwrap();
+		cache_man.cache_usage[0].insert(id.clone());
+		// TODO: check more than just the first?
+		if cache_man.cache_usage[1].contains(&id) {
+			cache_man.cache_usage[1].remove(&id);
+		}
+		else {
+			cache_man.in_use.insert(id);
+		}
+	}
+
+	/// Ticks our cache system and throws out any old data.
+	pub fn tick(&self) {
+
 	}
 }
 
