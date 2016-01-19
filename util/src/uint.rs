@@ -58,15 +58,20 @@ macro_rules! panic_on_overflow {
 	}
 }
 
+/// TODO [Gav Wood] Please document me
 pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + fmt::Display + PartialOrd + Ord + PartialEq + Eq + Hash {
 
 	/// Size of this type.
 	const SIZE: usize;
 
+	/// TODO [Gav Wood] Please document me
 	fn zero() -> Self;
+	/// TODO [Gav Wood] Please document me
 	fn one() -> Self;
 
+	/// TODO [Gav Wood] Please document me
 	type FromDecStrErr;
+	/// TODO [Gav Wood] Please document me
 	fn from_dec_str(value: &str) -> Result<Self, Self::FromDecStrErr>;
 
 	/// Conversion to u32
@@ -98,18 +103,25 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 	fn overflowing_pow(self, other: Self) -> (Self, bool);
 
 
+	/// TODO [debris] Please document me
 	fn overflowing_add(self, other: Self) -> (Self, bool);
 
+	/// TODO [debris] Please document me
 	fn overflowing_sub(self, other: Self) -> (Self, bool);
 
+	/// TODO [debris] Please document me
 	fn overflowing_mul(self, other: Self) -> (Self, bool);
 	
+	/// TODO [debris] Please document me
 	fn overflowing_div(self, other: Self) -> (Self, bool);
 
+	/// TODO [debris] Please document me
 	fn overflowing_rem(self, other: Self) -> (Self, bool);
 
+	/// TODO [debris] Please document me
 	fn overflowing_neg(self) -> (Self, bool);
 	
+	/// TODO [Gav Wood] Please document me
 	fn overflowing_shl(self, shift: u32) -> (Self, bool);
 }
 
@@ -914,8 +926,11 @@ impl From<U256> for u32 {
 	}
 }
 
+/// TODO [Gav Wood] Please document me
 pub const ZERO_U256: U256 = U256([0x00u64; 4]);
+/// TODO [Gav Wood] Please document me
 pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
+/// TODO [Gav Wood] Please document me
 pub const BAD_U256: U256 = U256([0xffffffffffffffffu64; 4]);
 
 #[cfg(test)]

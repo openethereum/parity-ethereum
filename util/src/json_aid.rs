@@ -1,5 +1,6 @@
 use common::*;
 
+/// TODO [Gav Wood] Please document me
 pub fn clean(s: &str) -> &str {
 	if s.len() >= 2 && &s[0..2] == "0x" {
 		&s[2..]

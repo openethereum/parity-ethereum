@@ -33,10 +33,12 @@ impl ClientService {
 		})
 	}
 
+	/// TODO [arkpar] Please document me
 	pub fn io(&mut self) -> &mut IoService<NetSyncMessage> {
 		self.net_service.io()
 	}
 
+	/// TODO [arkpar] Please document me
 	pub fn client(&self) -> Arc<RwLock<Client>> {
 		self.client.clone()
 	}
