@@ -471,7 +471,7 @@ impl ChainSync {
 	pub fn on_peer_aborting(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Disconnecting {}", peer);
 		if self.peers.contains_key(&peer) {
-			info!(target: "sync", "Disconneced {}:{}", peer, io.peer_info(peer));
+			info!(target: "sync", "Disconnected {}:{}", peer, io.peer_info(peer));
 			self.clear_peer_download(peer);
 			self.peers.remove(&peer);
 			self.continue_sync(io);

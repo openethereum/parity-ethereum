@@ -12,6 +12,7 @@ use util::*;
 use ethcore::client::*;
 use ethcore::service::ClientService;
 use ethcore::ethereum;
+use ethcore::blockchain::CacheSize;
 use ethcore::sync::*;
 
 fn setup_log() {
@@ -29,7 +30,7 @@ fn main() {
 	setup_log();
 	let spec = ethereum::new_frontier();
 	let mut service = ClientService::start(spec).unwrap();
-	let io_handler  = Box::new(ClientIoHandler { client: service.client(), timer: 0 });
+	let io_handler  = Box::new(ClientIoHandler { client: service.client(), timer: 0, info: Default::default() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 	loop {
 		let mut cmd = String::new();
@@ -40,10 +41,47 @@ fn main() {
 	}
 }
 
+#[derive(Default, Debug)]
+struct Informant {
+	chain_info: Option<BlockChainInfo>,
+	cache_info: Option<CacheSize>,
+	report: Option<ClientReport>,
+}
+
+impl Informant {
+	pub fn tick(&mut self, client: &Client) {
+		// 5 seconds betwen calls. TODO: calculate this properly.
+		let dur = 5usize;
+
+		let chain_info = client.chain_info();
+		let cache_info = client.cache_info();
+		let report = client.report();
+
+		if let (_, &Some(ref last_cache_info), &Some(ref last_report)) = (&self.chain_info, &self.cache_info, &self.report) {
+			println!("[ {} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //···{}···//  {} ({}) bl  {} ({}) ex ]",
+				chain_info.best_block_number,
+				chain_info.best_block_hash,
+				(report.blocks_imported - last_report.blocks_imported) / dur,
+				(report.transactions_applied - last_report.transactions_applied) / dur,
+				(report.gas_processed - last_report.gas_processed) / From::from(dur),
+				0, // TODO: peers
+				cache_info.blocks,
+				cache_info.blocks as isize - last_cache_info.blocks as isize,
+				cache_info.block_details,
+				cache_info.block_details as isize - last_cache_info.block_details as isize
+			);
+		}
+
+		self.chain_info = Some(chain_info);
+		self.cache_info = Some(cache_info);
+		self.report = Some(report);
+	}
+}
 
 struct ClientIoHandler {
 	client: Arc<RwLock<Client>>,
 	timer: TimerToken,
+	info: Informant,
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
@@ -53,7 +91,9 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	fn timeout<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>, timer: TimerToken) {
 		if self.timer == timer {
-			println!("Chain info: {:?}", self.client.read().unwrap().deref().chain_info());
+			let client = self.client.read().unwrap();
+			client.tick();
+			self.info.tick(client.deref());
 		}
 	}
 }
