@@ -23,7 +23,6 @@
 
 use standard::*;
 use from_json::*;
-//use std::num::wrapping::OverflowingOps;
 
 macro_rules! impl_map_from {
 	($thing:ident, $from:ty, $to:ty) => {
