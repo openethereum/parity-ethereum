@@ -64,7 +64,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> 
 /// Phase 3 verification. Check block information against parent and uncles.
 pub fn verify_block_family<BC>(header: &Header, bytes: &[u8], engine: &Engine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
 	// TODO: verify timestamp
-	let parent = try!(bc.block_header(&header.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownParent(header.parent_hash.clone()))));
+	let parent = try!(bc.block_header(&header.parent_hash).ok_or_else(|| Error::from(BlockError::UnknownParent(header.parent_hash.clone()))));
 	try!(verify_parent(&header, &parent));
 	try!(engine.verify_block_family(&header, &parent, Some(bytes)));
 
@@ -122,7 +122,7 @@ pub fn verify_block_family<BC>(header: &Header, bytes: &[u8], engine: &Engine, b
 			// cB.p^7	-------------/
 			// cB.p^8
 			let mut expected_uncle_parent = header.parent_hash.clone();
-			let uncle_parent = try!(bc.block_header(&uncle.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownUncleParent(uncle.parent_hash.clone()))));
+			let uncle_parent = try!(bc.block_header(&uncle.parent_hash).ok_or_else(|| Error::from(BlockError::UnknownUncleParent(uncle.parent_hash.clone()))));
 			for _ in 0..depth {
 				match bc.block_details(&expected_uncle_parent) {
 					Some(details) => { 
@@ -284,7 +284,7 @@ mod tests {
 
 		/// Get raw block data
 		fn block(&self, hash: &H256) -> Option<Bytes> {
-			self.blocks.get(hash).map(|b| b.clone())
+			self.blocks.get(hash).cloned()
 		}
 
 		/// Get the familial details concerning a block.
@@ -302,7 +302,7 @@ mod tests {
 
 		/// Get the hash of given block's number.
 		fn block_hash(&self, index: BlockNumber) -> Option<H256> {
-			self.numbers.get(&index).map(|h| h.clone())
+			self.numbers.get(&index).cloned()
 		}
 	}
 

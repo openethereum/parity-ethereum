@@ -24,6 +24,7 @@ heapsize = "0.2"
 itertools = "0.4"
 slab = { git = "https://github.com/arkpar/slab.git" }
 sha3 = { path = "sha3" }
+clippy = "*"
 
 [dev-dependencies]
 json-tests = { path = "json-tests" }

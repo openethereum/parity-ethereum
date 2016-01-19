@@ -718,7 +718,7 @@ impl Interpreter {
 				let big_id = stack.pop_back();
 				let id = big_id.low_u64() as usize;
 				let max = id.wrapping_add(32);
-				let data = params.data.clone().unwrap_or(vec![]);
+				let data = params.data.clone().unwrap_or_else(|| vec![]);
 				let bound = cmp::min(data.len(), max);
 				if id < bound && big_id < U256::from(data.len()) {
 					let mut v = data[id..bound].to_vec();
@@ -729,7 +729,7 @@ impl Interpreter {
 				}
 			},
 			instructions::CALLDATASIZE => {
-				stack.push(U256::from(params.data.clone().unwrap_or(vec![]).len()));
+				stack.push(U256::from(params.data.clone().map_or(0, |l| l.len())));
 			},
 			instructions::CODESIZE => {
 				stack.push(U256::from(code.len()));
@@ -740,10 +740,10 @@ impl Interpreter {
 				stack.push(U256::from(len));
 			},
 			instructions::CALLDATACOPY => {
-				self.copy_data_to_memory(mem, stack, &params.data.clone().unwrap_or(vec![]));
+				self.copy_data_to_memory(mem, stack, &params.data.clone().unwrap_or_else(|| vec![]));
 			},
 			instructions::CODECOPY => {
-				self.copy_data_to_memory(mem, stack, &params.code.clone().unwrap_or(vec![]));
+				self.copy_data_to_memory(mem, stack, &params.code.clone().unwrap_or_else(|| vec![]));
 			},
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());

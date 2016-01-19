@@ -10,9 +10,9 @@ pub fn clean(s: &str) -> &str {
 
 fn u256_from_str(s: &str) -> U256 {
 	if s.len() >= 2 && &s[0..2] == "0x" {
-		U256::from_str(&s[2..]).unwrap_or(U256::from(0))
+		U256::from_str(&s[2..]).unwrap_or_else(|_| U256::zero())
 	} else {
-		U256::from_dec_str(s).unwrap_or(U256::from(0))
+		U256::from_dec_str(s).unwrap_or_else(|_| U256::zero())
 	}
 }
 
@@ -20,8 +20,8 @@ impl FromJson for Bytes {
 	fn from_json(json: &Json) -> Self {
 		match *json {
 			Json::String(ref s) => match s.len() % 2 {
-				0 => FromHex::from_hex(clean(s)).unwrap_or(vec![]),
-				_ => FromHex::from_hex(&("0".to_owned() + &(clean(s).to_owned()))[..]).unwrap_or(vec![]),
+				0 => FromHex::from_hex(clean(s)).unwrap_or_else(|_| vec![]),
+				_ => FromHex::from_hex(&("0".to_owned() + &(clean(s).to_owned()))[..]).unwrap_or_else(|_| vec![]),
 			},
 			_ => vec![],
 		}

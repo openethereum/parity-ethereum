@@ -158,7 +158,7 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn extcode(&self, address: &Address) -> Bytes {
-		self.state.code(address).unwrap_or(vec![])
+		self.state.code(address).unwrap_or_else(|| vec![])
 	}
 
 	#[allow(match_ref_pats)]

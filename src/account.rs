@@ -248,8 +248,8 @@ mod tests {
 
 		let a = Account::from_rlp(&rlp);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
-		assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
-		assert_eq!(a.storage_at(&mut db, &H256::from(&U256::from(0x01u64))), H256::new());
+		assert_eq!(a.storage_at(&db, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
+		assert_eq!(a.storage_at(&db, &H256::from(&U256::from(0x01u64))), H256::new());
 	}
 
 	#[test]

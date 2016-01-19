@@ -176,7 +176,7 @@ impl FromJson for Spec {
 //				let nonce = if let Some(&Json::String(ref n)) = acc.find("nonce") {U256::from_dec_str(n).unwrap_or(U256::from(0))} else {U256::from(0)};
 				// TODO: handle code & data if they exist.
 				if balance.is_some() || nonce.is_some() {
-					state.insert(addr, GenesisAccount { balance: balance.unwrap_or(U256::from(0)), nonce: nonce.unwrap_or(U256::from(0)) });
+					state.insert(addr, GenesisAccount { balance: balance.unwrap_or_else(U256::zero), nonce: nonce.unwrap_or_else(U256::zero) });
 				}
 			}
 		}

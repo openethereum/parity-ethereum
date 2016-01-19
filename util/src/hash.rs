@@ -424,9 +424,9 @@ macro_rules! impl_hash {
 			fn from(s: &'_ str) -> $from {
 				use std::str::FromStr;
 				if s.len() % 2 == 1 {
-					$from::from_str(&("0".to_owned() + &(clean_0x(s).to_owned()))[..]).unwrap_or($from::new())
+					$from::from_str(&("0".to_owned() + &(clean_0x(s).to_owned()))[..]).unwrap_or_else(|_| $from::new())
 				} else {
-					$from::from_str(clean_0x(s)).unwrap_or($from::new())
+					$from::from_str(clean_0x(s)).unwrap_or_else(|_| $from::new())
 				}
 			}
 		}
@@ -545,6 +545,7 @@ mod tests {
 	use std::str::FromStr;
 
 	#[test]
+	#[allow(eq_op)]
 	fn hash() {
 		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);

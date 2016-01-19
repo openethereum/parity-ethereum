@@ -25,10 +25,10 @@ impl FromJson for PodState {
 			let code = acc.find("code").map(&Bytes::from_json);
 			if balance.is_some() || nonce.is_some() || storage.is_some() || code.is_some() {
 				state.insert(address_from_hex(address), PodAccount{
-					balance: balance.unwrap_or(U256::zero()),
-					nonce: nonce.unwrap_or(U256::zero()),
-					storage: storage.unwrap_or(BTreeMap::new()),
-					code: code.unwrap_or(Vec::new())
+					balance: balance.unwrap_or_else(U256::zero),
+					nonce: nonce.unwrap_or_else(U256::zero),
+					storage: storage.unwrap_or_else(BTreeMap::new),
+					code: code.unwrap_or_else(Vec::new)
 				});
 			}
 			state

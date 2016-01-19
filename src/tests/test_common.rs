@@ -6,7 +6,7 @@ macro_rules! declare_test {
 		#[test]
 		#[allow(non_snake_case)]
 		fn $id() {
-			assert!(do_json_test(include_bytes!(concat!("../../res/ethereum/tests/", $name, ".json"))).len() == 0);
+			assert!(do_json_test(include_bytes!(concat!("../../res/ethereum/tests/", $name, ".json"))).is_empty());
 		}
 	};
 }
@@ -18,7 +18,7 @@ macro_rules! declare_test_ignore {
 		#[ignore]
 		#[allow(non_snake_case)]
 		fn $id() {
-			assert!(do_json_test(include_bytes!(concat!("../../res/ethereum/tests/", $name, ".json"))).len() == 0);
+			assert!(do_json_test(include_bytes!(concat!("../../res/ethereum/tests/", $name, ".json"))).is_empty());
 		}
 	};
 }
