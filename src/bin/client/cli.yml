@@ -1,0 +1,14 @@
+# NOTE! use 4 spaces instead of tabs. 
+# rust yml parser do not support tabs
+
+name: parity
+version: 0.1.0
+about: Ethereum rust implementation
+
+args:
+    - VERBOSITY:
+        long: verbosity
+        help: Logging verbosity (RUST_LOG)
+        takes_value: true
+
+

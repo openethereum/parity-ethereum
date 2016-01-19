@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate clap;
+
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate rustc_serialize;
@@ -5,7 +8,6 @@ extern crate log;
 extern crate env_logger;
 
 use std::io::stdin;
-use std::env;
 use log::{LogLevelFilter};
 use env_logger::LogBuilder;
 use util::*;
@@ -14,19 +16,22 @@ use ethcore::service::ClientService;
 use ethcore::ethereum;
 use ethcore::sync::*;
 
-fn setup_log() {
+fn setup_log(filter: Option<&str>) {
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
-	if env::var("RUST_LOG").is_ok() {
-		builder.parse(&env::var("RUST_LOG").unwrap());
+	if let Some(f) = filter {
+		builder.parse(f);
 	}
 
 	builder.init().unwrap();
 }
 
 fn main() {
-	setup_log();
+	let yaml = load_yaml!("cli.yml");
+	let matches = clap::App::from_yaml(yaml).get_matches();
+	setup_log(matches.value_of("VERBOSITY"));
+
 	let spec = ethereum::new_frontier();
 	let mut service = ClientService::start(spec).unwrap();
 	let io_handler  = Box::new(ClientIoHandler { client: service.client(), timer: 0 });
