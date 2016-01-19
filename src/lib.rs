@@ -82,6 +82,7 @@ extern crate heapsize;
 extern crate crypto;
 extern crate time;
 extern crate env_logger;
+extern crate num_cpus;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
 #[macro_use]

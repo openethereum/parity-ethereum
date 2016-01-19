@@ -34,6 +34,22 @@ pub struct NibbleSlice<'a> {
 	offset_encode_suffix: usize,
 }
 
+pub struct NibbleSliceIterator<'a> {
+	p: &'a NibbleSlice<'a>,
+	i: usize,
+}
+
+impl<'a> Iterator for NibbleSliceIterator<'a> {
+	type Item = u8;
+	fn next(&mut self) -> Option<u8> {
+		self.i += 1;
+		match self.i <= self.p.len() {
+			true => Some(self.p.at(self.i - 1)),
+			false => None,
+		}
+	}
+}
+
 impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 	/// Create a new nibble slice with the given byte-slice.
 	pub fn new(data: &[u8]) -> NibbleSlice { NibbleSlice::new_offset(data, 0) }
@@ -41,7 +57,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 	/// Create a new nibble slice with the given byte-slice with a nibble offset.
 	pub fn new_offset(data: &'a [u8], offset: usize) -> NibbleSlice { NibbleSlice{data: data, offset: offset, data_encode_suffix: &b""[..], offset_encode_suffix: 0} }
 
-	/// 
+	/// Create a composed nibble slice; one followed by the other.
 	pub fn new_composed(a: &'a NibbleSlice, b: &'a NibbleSlice) -> NibbleSlice<'a> { NibbleSlice{data: a.data, offset: a.offset, data_encode_suffix: b.data, offset_encode_suffix: b.offset} }
 
 	/*pub fn new_composed_bytes_offset(a: &NibbleSlice, b: &NibbleSlice) -> (Bytes, usize) {
@@ -59,6 +75,10 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		}
 		(r, a.len() + b.len())
 	}*/
+
+	pub fn iter(&'a self) -> NibbleSliceIterator<'a> {
+		NibbleSliceIterator { p: self, i: 0 }
+	}
 
 	/// Create a new nibble slice from the given HPE encoded data (e.g. output of `encoded()`).
 	pub fn from_encoded(data: &'a [u8]) -> (NibbleSlice, bool) {
@@ -187,6 +207,14 @@ mod tests {
 		for i in 0..3 {
 			assert_eq!(n.at(i), i as u8 + 3);
 		}
+	}
+
+	#[test]
+	fn iterator() {
+		let n = NibbleSlice::new(D);
+		let mut nibbles: Vec<u8> = vec![];
+		nibbles.extend(n.iter());
+		assert_eq!(nibbles, (0u8..6).collect::<Vec<_>>())
 	}
 
 	#[test]

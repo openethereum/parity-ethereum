@@ -27,6 +27,14 @@ fn color(instruction: Instruction, name: &'static str) -> String {
 	format!("\x1B[1;{}m{}\x1B[0m", colors[c], name)
 }
 
+macro_rules! overflowing {
+	($x: expr) => {{
+		let (v, overflow) = $x;
+		if overflow { return Err(evm::Error::OutOfGas); }
+		v
+	}}
+}
+
 type CodePosition = usize;
 type Gas = U256;
 type ProgramCounter = usize;
@@ -136,7 +144,7 @@ trait Memory {
 /// Checks whether offset and size is valid memory range
 fn is_valid_range(off: usize, size: usize)  -> bool {
 	// When size is zero we haven't actually expanded the memory
-	let (_a, overflow) = off.overflowing_add(size);
+	let overflow = off.overflowing_add(size).1;
 	size > 0 && !overflow
 }
 
@@ -235,15 +243,10 @@ impl<'a> CodeReader<'a> {
 	}
 }
 
-enum RequiredMem {
-	Mem(U256),
-	OutOfMemory
-}
-
 enum InstructionCost {
 	Gas(U256),
-	GasMem(U256, RequiredMem),
-	GasMemCopy(U256, RequiredMem, U256)
+	GasMem(U256, U256),
+	GasMemCopy(U256, U256, U256)
 }
 
 enum InstructionResult {
@@ -373,35 +376,31 @@ impl Interpreter {
 				InstructionCost::Gas(U256::from(schedule.sload_gas))
 			},
 			instructions::MSTORE => {
-				InstructionCost::GasMem(default_gas, self.mem_needed_const(stack.peek(0), 32))
+				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 32)))
 			},
 			instructions::MLOAD => {
-				InstructionCost::GasMem(default_gas, self.mem_needed_const(stack.peek(0), 32))
+				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 32)))
 			},
 			instructions::MSTORE8 => {
-				InstructionCost::GasMem(default_gas, self.mem_needed_const(stack.peek(0), 1))
+				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 1)))
 			},
 			instructions::RETURN => {
-				InstructionCost::GasMem(default_gas, self.mem_needed(stack.peek(0), stack.peek(1)))
+				InstructionCost::GasMem(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
 			},
 			instructions::SHA3 => {
-				match add_u256_usize(stack.peek(1), 31) {
-					(_w, true) => InstructionCost::GasMem(U256::zero(), RequiredMem::OutOfMemory),
-					(w, false) => {
-						let words = w >> 5;
-						let gas = U256::from(schedule.sha3_gas) + (U256::from(schedule.sha3_word_gas) * words);
-						InstructionCost::GasMem(gas, self.mem_needed(stack.peek(0), stack.peek(1)))
-					}
-				}
+				let w = overflowing!(add_u256_usize(stack.peek(1), 31));
+				let words = w >> 5;
+				let gas = U256::from(schedule.sha3_gas) + (U256::from(schedule.sha3_word_gas) * words);
+				InstructionCost::GasMem(gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
 			},
 			instructions::CALLDATACOPY => {
-				InstructionCost::GasMemCopy(default_gas, self.mem_needed(stack.peek(0), stack.peek(2)), stack.peek(2).clone())
+				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(2))), stack.peek(2).clone())
 			},
 			instructions::CODECOPY => {
-				InstructionCost::GasMemCopy(default_gas, self.mem_needed(stack.peek(0), stack.peek(2)), stack.peek(2).clone())
+				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(2))), stack.peek(2).clone())
 			},
 			instructions::EXTCODECOPY => {
-				InstructionCost::GasMemCopy(default_gas, self.mem_needed(stack.peek(1), stack.peek(3)), stack.peek(3).clone())
+				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(1), stack.peek(3))), stack.peek(3).clone())
 			},
 			instructions::JUMPDEST => {
 				InstructionCost::Gas(U256::one())
@@ -409,50 +408,41 @@ impl Interpreter {
 			instructions::LOG0...instructions::LOG4 => {
 				let no_of_topics = instructions::get_log_topics(instruction);
 				let log_gas = schedule.log_gas + schedule.log_topic_gas * no_of_topics;
-				// TODO [todr] potential overflow of datagass
-				let data_gas = stack.peek(1).clone() * U256::from(schedule.log_data_gas);
-				let gas = try!(self.gas_add(data_gas, U256::from(log_gas)));
-				InstructionCost::GasMem(gas, self.mem_needed(stack.peek(0), stack.peek(1)))
+
+				let data_gas = overflowing!(stack.peek(1).overflowing_mul(U256::from(schedule.log_data_gas)));
+				let gas = overflowing!(data_gas.overflowing_add(U256::from(log_gas)));
+				InstructionCost::GasMem(gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
 			},
 			instructions::CALL | instructions::CALLCODE => {
-				match add_u256_usize(stack.peek(0), schedule.call_gas) {
-					(_gas, true) => InstructionCost::GasMem(U256::zero(), RequiredMem::OutOfMemory),
-					(mut gas, false) => {
-						let mem = self.mem_max(
-							self.mem_needed(stack.peek(5), stack.peek(6)),
-							self.mem_needed(stack.peek(3), stack.peek(4))
-						);
-						
-						let address = u256_to_address(stack.peek(1));
+				let mut gas  = overflowing!(add_u256_usize(stack.peek(0), schedule.call_gas));
+				let mem = cmp::max(
+					try!(self.mem_needed(stack.peek(5), stack.peek(6))),
+					try!(self.mem_needed(stack.peek(3), stack.peek(4)))
+				);
+				
+				let address = u256_to_address(stack.peek(1));
 
-						// TODO [todr] Potential overflows
-						if instruction == instructions::CALL && !ext.exists(&address) {
-							gas = gas + U256::from(schedule.call_new_account_gas);
-						};
+				if instruction == instructions::CALL && !ext.exists(&address) {
+					gas = overflowing!(gas.overflowing_add(U256::from(schedule.call_new_account_gas)));
+				};
 
-						if stack.peek(2).clone() > U256::zero() {
-							gas = gas + U256::from(schedule.call_value_transfer_gas)
-						};
+				if stack.peek(2).clone() > U256::zero() {
+					gas = overflowing!(gas.overflowing_add(U256::from(schedule.call_value_transfer_gas)));
+				};
 
-						InstructionCost::GasMem(gas,mem)
-					}
-				}
+				InstructionCost::GasMem(gas,mem)
 			},
 			instructions::DELEGATECALL => {
-				match add_u256_usize(stack.peek(0), schedule.call_gas) {
-					(_gas, true) => InstructionCost::GasMem(U256::zero(), RequiredMem::OutOfMemory),
-					(gas, false) => {
-						let mem = self.mem_max(
-							self.mem_needed(stack.peek(4), stack.peek(5)),
-							self.mem_needed(stack.peek(2), stack.peek(3))
-						);
-						InstructionCost::GasMem(gas, mem)
-					}
-				}
+				let gas = overflowing!(add_u256_usize(stack.peek(0), schedule.call_gas));
+				let mem = cmp::max(
+					try!(self.mem_needed(stack.peek(4), stack.peek(5))),
+					try!(self.mem_needed(stack.peek(2), stack.peek(3)))
+				);
+				InstructionCost::GasMem(gas, mem)
 			},
 			instructions::CREATE => {
 				let gas = U256::from(schedule.create_gas);
-				let mem = self.mem_needed(stack.peek(1), stack.peek(2));
+				let mem = try!(self.mem_needed(stack.peek(1), stack.peek(2)));
 				InstructionCost::GasMem(gas, mem)
 			},
 			instructions::EXP => {
@@ -468,84 +458,57 @@ impl Interpreter {
 			InstructionCost::Gas(gas) => {
 				Ok((gas, 0))
 			},
-			InstructionCost::GasMem(gas, mem_size) => match mem_size {
-				RequiredMem::Mem(mem_size) => {
-					let (mem_gas, new_mem_size) = self.mem_gas_cost(schedule, mem.size(), &mem_size);
-					let gas = try!(self.gas_add(gas, mem_gas));
-					Ok((gas, new_mem_size))
-				},
-				RequiredMem::OutOfMemory => Err(evm::Error::OutOfGas)
+			InstructionCost::GasMem(gas, mem_size) => {
+				let (mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, mem.size(), &mem_size));
+				let gas = overflowing!(gas.overflowing_add(mem_gas));
+				Ok((gas, new_mem_size))
 			},
-			InstructionCost::GasMemCopy(gas, mem_size, copy) => match mem_size {
-				RequiredMem::Mem(mem_size) => {
-					let (mem_gas, new_mem_size) = self.mem_gas_cost(schedule, mem.size(), &mem_size);
-					match add_u256_usize(&copy, 31) {
-						(_c, true) => Err(evm::Error::OutOfGas),
-						(copy, false) => {
-							let copy_gas = U256::from(schedule.copy_gas) * (copy / U256::from(32));
-							let gas = try!(self.gas_add(try!(self.gas_add(gas, copy_gas)), mem_gas));
-							Ok((gas, new_mem_size))
-						}
-					}
-				},
-				RequiredMem::OutOfMemory => Err(evm::Error::OutOfGas)
+			InstructionCost::GasMemCopy(gas, mem_size, copy) => {
+				let (mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, mem.size(), &mem_size));
+				let copy = overflowing!(add_u256_usize(&copy, 31));
+				let copy_gas = U256::from(schedule.copy_gas) * (copy / U256::from(32));
+				let gas = overflowing!(gas.overflowing_add(copy_gas));
+				let gas = overflowing!(gas.overflowing_add(mem_gas));
+				Ok((gas, new_mem_size))
 			}
 		}
 	}
 
-	fn gas_add(&self, a: U256, b: U256) -> Result<U256, evm::Error> {
-		match a.overflowing_add(b) {
-			(_val, true) => Err(evm::Error::OutOfGas),
-			(val, false) => Ok(val)
-		}
-	}
-	
-	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> (U256, usize) {
+	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &U256) -> Result<(U256, usize), evm::Error> {
 		let gas_for_mem = |mem_size: U256| {
 			let s = mem_size >> 5;
-			s * U256::from(schedule.memory_gas) + s * s / U256::from(schedule.quad_coeff_div)
+			// s * memory_gas + s * s / quad_coeff_div
+			let a = overflowing!(s.overflowing_mul(U256::from(schedule.memory_gas)));
+			// We need to go to U512 to calculate s*s/quad_coeff_div
+			let b = U512::from(s) * U512::from(s) / U512::from(schedule.quad_coeff_div);
+			if b > U512::from(!U256::zero()) {
+				Err(evm::Error::OutOfGas)
+			} else {
+				Ok(overflowing!(a.overflowing_add(U256::from(b))))
+			}
 		};
 		let current_mem_size = U256::from(current_mem_size);
-		let req_mem_size_rounded = ((mem_size.clone() + U256::from(31)) >> 5) << 5;
-		let new_mem_gas = gas_for_mem(U256::from(req_mem_size_rounded));
-		let current_mem_gas = gas_for_mem(current_mem_size);
+		let req_mem_size_rounded = (overflowing!(mem_size.overflowing_add(U256::from(31))) >> 5) << 5;
+		let new_mem_gas = try!(gas_for_mem(U256::from(req_mem_size_rounded)));
+		let current_mem_gas = try!(gas_for_mem(current_mem_size));
 
-		(if req_mem_size_rounded > current_mem_size {
+		Ok((if req_mem_size_rounded > current_mem_size {
 			new_mem_gas - current_mem_gas
 		} else {
 			U256::zero()
-		}, req_mem_size_rounded.low_u64() as usize)
+		}, req_mem_size_rounded.low_u64() as usize))
 	}
 
-	fn mem_max(&self, m_a: RequiredMem, m_b: RequiredMem) -> RequiredMem {
-		match (m_a, m_b) {
-			(RequiredMem::Mem(a), RequiredMem::Mem(b)) => {
-				RequiredMem::Mem(cmp::max(a, b))
-			},
-			(RequiredMem::OutOfMemory, _) | (_, RequiredMem::OutOfMemory) => {
-				RequiredMem::OutOfMemory
-			}
-		}
+	fn mem_needed_const(&self, mem: &U256, add: usize) -> Result<U256, evm::Error> {
+		Ok(overflowing!(mem.overflowing_add(U256::from(add))))
 	}
 
-	fn mem_needed_const(&self, mem: &U256, add: usize) -> RequiredMem {
-		match mem.overflowing_add(U256::from(add)) {
-			(_, true) => RequiredMem::OutOfMemory,
-			(mem, false) => RequiredMem::Mem(mem)
-		}
-	}
-
-	fn mem_needed(&self, offset: &U256, size: &U256) -> RequiredMem {
+	fn mem_needed(&self, offset: &U256, size: &U256) -> Result<U256, ::evm::Error> {
 		if self.is_zero(size) {
-			return RequiredMem::Mem(U256::zero());
+			return Ok(U256::zero());
 		}
 
-		match offset.clone().overflowing_add(size.clone()) {
-			(_result, true) => RequiredMem::OutOfMemory,
-			(result, false) => {
-					RequiredMem::Mem(result)
-			}
-		}
+		Ok(overflowing!(offset.overflowing_add(size.clone())))
 	}
 
 	fn exec_instruction(&self,
@@ -646,7 +609,6 @@ impl Interpreter {
 
 				return match call_result {
 					MessageCallResult::Success(gas_left) => {
-						println!("Unused: {}", gas_left);
 						stack.push(U256::one());
 						Ok(InstructionResult::UnusedGas(gas_left))
 					},
@@ -906,41 +868,34 @@ impl Interpreter {
 			instructions::ADD => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				let (c, _overflow) = a.overflowing_add(b);
-				stack.push(c);
+				stack.push(a.overflowing_add(b).0);
 			},
 			instructions::MUL => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				let (c, _overflow) = a.overflowing_mul(b);
-				stack.push(c);
+				stack.push(a.overflowing_mul(b).0);
 			},
 			instructions::SUB => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				let (c, _overflow) = a.overflowing_sub(b);
-				stack.push(c);
+				stack.push(a.overflowing_sub(b).0);
 			},
 			instructions::DIV => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				stack.push(match !self.is_zero(&b) {
-					true => {
-						let (c, _overflow) = a.overflowing_div(b);
-						c
-					},
-					false => U256::zero()
+				stack.push(if !self.is_zero(&b) {
+					a.overflowing_div(b).0
+				} else {
+					U256::zero() 
 				});
 			},
 			instructions::MOD => {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
-				stack.push(match !self.is_zero(&b) {
-					true => {
-						let (c, _overflow) = a.overflowing_rem(b);
-						c
-					},
-					false => U256::zero()
+				stack.push(if !self.is_zero(&b) {
+					a.overflowing_rem(b).0
+				} else {
+					U256::zero()
 				});
 			},
 			instructions::SDIV => {
@@ -954,7 +909,7 @@ impl Interpreter {
 				} else if a == min && b == !U256::zero() {
 					min
 				} else {
-					let (c, _overflow) = a.overflowing_div(b);
+					let c = a.overflowing_div(b).0;
 					set_sign(c, sign_a ^ sign_b)
 				});
 			},
@@ -962,10 +917,10 @@ impl Interpreter {
 				let ua = stack.pop_back();
 				let ub = stack.pop_back();
 				let (a, sign_a) = get_and_reset_sign(ua);
-				let (b, _sign_b) = get_and_reset_sign(ub);
+				let b = get_and_reset_sign(ub).0;
 
 				stack.push(if !self.is_zero(&b) {
-					let (c, _overflow) = a.overflowing_rem(b);
+					let c = a.overflowing_rem(b).0;
 					set_sign(c, sign_a)
 				} else {
 					U256::zero()
@@ -974,7 +929,7 @@ impl Interpreter {
 			instructions::EXP => {
 				let base = stack.pop_back();
 				let expon = stack.pop_back();
-				let (res, _overflow) = base.overflowing_pow(expon);
+				let res = base.overflowing_pow(expon).0;
 				stack.push(res);
 			},
 			instructions::NOT => {
@@ -1052,8 +1007,8 @@ impl Interpreter {
 				stack.push(if !self.is_zero(&c) {
 					// upcast to 512
 					let a5 = U512::from(a);
-					let (res, _overflow) = a5.overflowing_add(U512::from(b));
-					let (x, _overflow) = res.overflowing_rem(U512::from(c));
+					let res = a5.overflowing_add(U512::from(b)).0;
+					let x = res.overflowing_rem(U512::from(c)).0;
 					U256::from(x)
 				} else {
 					U256::zero()
@@ -1066,8 +1021,8 @@ impl Interpreter {
 
 				stack.push(if !self.is_zero(&c) {
 					let a5 = U512::from(a);
-					let (res, _overflow) = a5.overflowing_mul(U512::from(b));
-					let (x, _overflow) = res.overflowing_rem(U512::from(c));
+					let res = a5.overflowing_mul(U512::from(b)).0;
+					let x = res.overflowing_rem(U512::from(c)).0;
 					U256::from(x)
 				} else {
 					U256::zero()
@@ -1123,8 +1078,7 @@ fn get_and_reset_sign(value: U256) -> (U256, bool) {
 
 fn set_sign(value: U256, sign: bool) -> U256 {
 	if sign {
-		let (val, _overflow) = (!U256::zero() ^ value).overflowing_add(U256::one());
-		val
+		(!U256::zero() ^ value).overflowing_add(U256::one()).0
 	} else {
 		value
 	}
@@ -1143,6 +1097,23 @@ fn u256_to_address(value: &U256) -> Address {
 #[inline]
 fn address_to_u256(value: Address) -> U256 {
 	U256::from(H256::from(value).as_slice())
+}
+
+#[test]
+fn test_mem_gas_cost() {
+	// given
+	let interpreter = Interpreter;
+	let schedule = evm::Schedule::default();
+	let current_mem_size = 5;
+	let mem_size = !U256::zero();
+
+	// when
+	let result = interpreter.mem_gas_cost(&schedule, current_mem_size, &mem_size);
+
+	// then
+	if let Ok(_) = result {
+		assert!(false, "Should fail with OutOfGas");
+	}
 }
 
 #[cfg(test)]
@@ -1173,7 +1144,7 @@ mod tests {
 		let mem_size = U256::from(5);
 	
 		// when
-		let (mem_cost, mem_size) = interpreter.mem_gas_cost(&schedule, current_mem_size, &mem_size);
+		let (mem_cost, mem_size) = interpreter.mem_gas_cost(&schedule, current_mem_size, &mem_size).unwrap();
 
 		// then
 		assert_eq!(mem_cost, U256::from(3));
