@@ -29,7 +29,7 @@ pub trait RangeCollection<K, V> {
 	/// Remove all elements >= `tail`
 	fn insert_item(&mut self, key: K, value: V);
 	/// Get an iterator over ranges
-	fn range_iter<'c>(&'c self) -> RangeIterator<'c, K, V>;
+	fn range_iter(& self) -> RangeIterator<K, V>;
 }
 
 /// Range iterator. For each range yelds a key for the first element of the range and a vector of values.
@@ -60,7 +60,7 @@ impl<'c, K:'c, V:'c> Iterator for RangeIterator<'c, K, V> where K: Add<Output = 
 }
 
 impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq + Add<Output = K> + Sub<Output = K> + Copy + FromUsize + ToUsize {
-	fn range_iter<'c>(&'c self) -> RangeIterator<'c, K, V> {
+	fn range_iter(&self) -> RangeIterator<K, V> {
 		RangeIterator {
 			range: self.len(),
 			collection: self

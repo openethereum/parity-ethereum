@@ -66,7 +66,7 @@ impl AccountDiff {
 							post.storage.get(&k).cloned().unwrap_or(H256::new())
 						))).collect(),
 				};
-				if r.balance.is_same() && r.nonce.is_same() && r.code.is_same() && r.storage.len() == 0 {
+				if r.balance.is_same() && r.nonce.is_same() && r.code.is_same() && r.storage.is_empty() {
 					None
 				} else {
 					Some(r)

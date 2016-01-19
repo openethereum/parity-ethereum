@@ -200,7 +200,7 @@ impl FromJson for Spec {
 
 		
 		Spec {
-			name: json.find("name").map(|j| j.as_string().unwrap()).unwrap_or("unknown").to_owned(),
+			name: json.find("name").map_or("unknown", |j| j.as_string().unwrap()).to_owned(),
 			engine_name: json["engineName"].as_string().unwrap().to_owned(),
 			engine_params: json_to_rlp_map(&json["params"]),
 			builtins: builtins,

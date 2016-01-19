@@ -490,9 +490,8 @@ impl BlockChain {
 		K: ExtrasSliceConvertable + Eq + Hash + Clone {
 		{
 			let read = cache.read().unwrap();
-			match read.get(hash) {
-				Some(v) => return Some(v.clone()),
-				None => ()
+			if let Some(v) = read.get(hash) {
+				return Some(v.clone());
 			}
 		}
 

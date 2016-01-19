@@ -3,6 +3,8 @@
 #![feature(wrapping)]
 //#![feature(plugin)]
 //#![plugin(interpolate_idents)]
+#![allow(match_bool, needless_range_loop, match_ref_pats)]
+
 //! Ethcore's ethereum implementation
 //!
 //! ### Rust version
@@ -86,7 +88,6 @@ extern crate num_cpus;
 #[cfg(feature = "jit" )]
 extern crate evmjit;
 #[macro_use]
-#[allow(match_bool)]
 extern crate ethcore_util as util;
 
 pub mod common;

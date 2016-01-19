@@ -268,6 +268,7 @@ impl ChainSync {
 		Ok(())
 	}
 
+	#[allow(cyclomatic_complexity)]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		self.reset_peer_asking(peer_id, PeerAsking::BlockHeaders);
@@ -865,12 +866,9 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			match io.chain().block_body(&try!(r.val_at::<H256>(i))) {
-				Some(mut hdr) => {
-					data.append(&mut hdr);
-					added += 1;
-				}
-				None => {}
+			if let Some(mut hdr) = io.chain().block_body(&try!(r.val_at::<H256>(i))) {
+				data.append(&mut hdr);
+				added += 1;
 			}
 		}
 		let mut rlp = RlpStream::new_list(added);
@@ -892,12 +890,9 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			match io.chain().state_data(&try!(r.val_at::<H256>(i))) {
-				Some(mut hdr) => {
-					data.append(&mut hdr);
-					added += 1;
-				}
-				None => {}
+			if let Some(mut hdr) = io.chain().state_data(&try!(r.val_at::<H256>(i))) {
+				data.append(&mut hdr);
+				added += 1;
 			}
 		}
 		let mut rlp = RlpStream::new_list(added);
@@ -918,12 +913,9 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			match io.chain().block_receipts(&try!(r.val_at::<H256>(i))) {
-				Some(mut hdr) => {
-					data.append(&mut hdr);
-					added += 1;
-				}
-				None => {}
+			if let Some(mut hdr) = io.chain().block_receipts(&try!(r.val_at::<H256>(i))) {
+				data.append(&mut hdr);
+				added += 1;
 			}
 		}
 		let mut rlp = RlpStream::new_list(added);
