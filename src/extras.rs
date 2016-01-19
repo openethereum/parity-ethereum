@@ -3,7 +3,7 @@ use header::BlockNumber;
 use rocksdb::{DB, Writable};
 
 /// Represents index of extra data in database
-#[derive(Copy, Clone)]
+#[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
 pub enum ExtrasIndex {
 	BlockDetails = 0,
 	BlockHash = 1,
@@ -59,6 +59,7 @@ impl ExtrasReadable for DB {
 /// Implementations should convert arbitrary type to database key slice
 pub trait ExtrasSliceConvertable {
 	fn to_extras_slice(&self, i: ExtrasIndex) -> H264;
+	fn as_h256(&self) -> Option<&H256> { None }
 }
 
 impl ExtrasSliceConvertable for H256 {
@@ -67,6 +68,7 @@ impl ExtrasSliceConvertable for H256 {
 		slice[32] = i as u8;
 		slice
 	}
+	fn as_h256(&self) -> Option<&H256> { Some(self) }
 }
 
 impl ExtrasSliceConvertable for U256 {

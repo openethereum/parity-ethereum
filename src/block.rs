@@ -104,7 +104,7 @@ pub struct SealedBlock {
 
 impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// Create a new OpenBlock ready for transaction pushing.
-	pub fn new<'a, 'b>(engine: &'a Engine, db: OverlayDB, parent: &Header, last_hashes: &'b LastHashes, author: Address, extra_data: Bytes) -> OpenBlock<'a, 'b> {
+	pub fn new<'a, 'b>(engine: &'a Engine, db: JournalDB, parent: &Header, last_hashes: &'b LastHashes, author: Address, extra_data: Bytes) -> OpenBlock<'a, 'b> {
 		let mut r = OpenBlock {
 			block: Block::new(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce())),
 			engine: engine,
@@ -242,7 +242,7 @@ impl<'x, 'y> ClosedBlock<'x, 'y> {
 	pub fn reopen(self) -> OpenBlock<'x, 'y> { self.open_block }
 
 	/// Drop this object and return the underlieing database.
-	pub fn drain(self) -> OverlayDB { self.open_block.block.state.drop().1 }
+	pub fn drain(self) -> JournalDB { self.open_block.block.state.drop().1 }
 }
 
 impl SealedBlock {
@@ -257,7 +257,7 @@ impl SealedBlock {
 	}
 
 	/// Drop this object and return the underlieing database.
-	pub fn drain(self) -> OverlayDB { self.block.state.drop().1 }
+	pub fn drain(self) -> JournalDB { self.block.state.drop().1 }
 }
 
 impl IsBlock for SealedBlock {
@@ -265,7 +265,7 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-pub fn enact<'x, 'y>(header: &Header, transactions: &[Transaction], uncles: &[Header], engine: &'x Engine, db: OverlayDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
+pub fn enact<'x, 'y>(header: &Header, transactions: &[Transaction], uncles: &[Header], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
 	{
 		let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
 		trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
@@ -281,20 +281,20 @@ pub fn enact<'x, 'y>(header: &Header, transactions: &[Transaction], uncles: &[He
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_bytes<'x, 'y>(block_bytes: &[u8], engine: &'x Engine, db: OverlayDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
+pub fn enact_bytes<'x, 'y>(block_bytes: &[u8], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
 	let block = BlockView::new(block_bytes);
 	let header = block.header();
 	enact(&header, &block.transactions(), &block.uncles(), engine, db, parent, last_hashes)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_verified<'x, 'y>(block: &PreVerifiedBlock, engine: &'x Engine, db: OverlayDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
+pub fn enact_verified<'x, 'y>(block: &PreVerifiedBlock, engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
 	let view = BlockView::new(&block.bytes);
 	enact(&block.header, &block.transactions, &view.uncles(), engine, db, parent, last_hashes)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
-pub fn enact_and_seal(block_bytes: &[u8], engine: &Engine, db: OverlayDB, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
+pub fn enact_and_seal(block_bytes: &[u8], engine: &Engine, db: JournalDB, parent: &Header, last_hashes: &LastHashes) -> Result<SealedBlock, Error> {
 	let header = BlockView::new(block_bytes).header_view();
 	Ok(try!(try!(enact_bytes(block_bytes, engine, db, parent, last_hashes)).seal(header.seal())))
 }
@@ -304,7 +304,7 @@ fn open_block() {
 	use spec::*;
 	let engine = Spec::new_test().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
-	let mut db = OverlayDB::new_temp();
+	let mut db = JournalDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
 	let last_hashes = vec![genesis_header.hash()];
 	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
@@ -318,13 +318,13 @@ fn enact_block() {
 	let engine = Spec::new_test().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
 
-	let mut db = OverlayDB::new_temp();
+	let mut db = JournalDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
 	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(vec![]).unwrap();
 	let orig_bytes = b.rlp_bytes();
 	let orig_db = b.drain();
 
-	let mut db = OverlayDB::new_temp();
+	let mut db = JournalDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
 	let e = enact_and_seal(&orig_bytes, engine.deref(), db, &genesis_header, &vec![genesis_header.hash()]).unwrap();
 

@@ -1,7 +1,6 @@
 #![feature(op_assign_traits)]
 #![feature(augmented_assignments)]
 #![feature(associated_consts)]
-#![feature(wrapping)]
 //! Ethcore-util library
 //!
 //! ### Rust version:
@@ -69,6 +68,7 @@ pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
 pub mod overlaydb;
+pub mod journaldb;
 pub mod math;
 pub mod chainfilter;
 pub mod crypto;
@@ -88,6 +88,7 @@ pub use rlp::*;
 pub use hashdb::*;
 pub use memorydb::*;
 pub use overlaydb::*;
+pub use journaldb::*;
 pub use math::*;
 pub use chainfilter::*;
 pub use crypto::*;

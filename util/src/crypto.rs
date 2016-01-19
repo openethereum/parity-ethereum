@@ -151,6 +151,12 @@ pub mod ec {
 		let mut signature: crypto::Signature = unsafe { ::std::mem::uninitialized() };
 		signature.clone_from_slice(&data);
 		signature[64] = rec_id.to_i32() as u8;
+
+		let (_, s, v) = signature.to_rsv();
+		let secp256k1n = U256::from_str("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141").unwrap();
+		if !is_low_s(&s) {
+			signature = super::Signature::from_rsv(&H256::from_slice(&signature[0..32]), &H256::from(secp256k1n - s), v ^ 1);
+		}
 		Ok(signature)
 	}
 	/// Verify signature.
@@ -174,7 +180,7 @@ pub mod ec {
 
 	/// Check if this is a "low" signature.
 	pub fn is_low(sig: &Signature) -> bool {
-		H256::from_slice(&sig[32..64]) <= h256_from_hex("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0")
+		H256::from_slice(&sig[32..64]) <= h256_from_hex("7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0")
 	}
 
 	/// Check if this is a "low" signature.
