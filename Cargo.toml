@@ -24,3 +24,7 @@ num_cpus = "0.2"
 [features]
 jit = ["evmjit"]
 evm_debug = []
+
+[[bin]]
+name = "client"
+path = "src/bin/client/main.rs"
