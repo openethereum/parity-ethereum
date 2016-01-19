@@ -93,10 +93,10 @@ pub struct Spec {
 	state_root_memo: RwLock<Option<H256>>,
 }
 
+#[allow(wrong_self_convention)] // because to_engine(self) should be to_engine(&self)
 impl Spec {
 	/// Convert this object into a boxed Engine of the right underlying type.
 	// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
-	#[allow(wrong_self_convention)]
 	pub fn to_engine(self) -> Result<Box<Engine>, Error> {
 		match self.engine_name.as_ref() {
 			"NullEngine" => Ok(NullEngine::new_boxed(self)),

@@ -75,7 +75,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn to_externalities<'_>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_>) -> Externalities {
+	pub fn as_externalities<'_>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_>) -> Externalities {
 		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output)
 	}
 
@@ -198,7 +198,7 @@ impl<'a> Executive<'a> {
 			let mut unconfirmed_substate = Substate::new();
 
 			let res = {
-				let mut ext = self.to_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return(output));
+				let mut ext = self.as_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return(output));
 				self.engine.vm_factory().create().exec(params, &mut ext)
 			};
 
@@ -230,7 +230,7 @@ impl<'a> Executive<'a> {
 		self.state.transfer_balance(&params.sender, &params.address, &params.value);
 
 		let res = {
-			let mut ext = self.to_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract);
 			self.engine.vm_factory().create().exec(params, &mut ext)
 		};
 		self.enact_result(&res, substate, unconfirmed_substate, backup);

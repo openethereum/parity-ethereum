@@ -152,6 +152,7 @@ impl Engine for Ethash {
 	}
 }
 
+#[allow(wrong_self_convention)] // to_ethash should take self
 impl Ethash {
 	fn calculate_difficuty(&self, header: &Header, parent: &Header) -> U256 {
 		const EXP_DIFF_PERIOD: u64 = 100000;
