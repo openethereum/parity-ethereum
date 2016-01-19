@@ -236,7 +236,7 @@ mod tests {
 
 	#[test]
 	fn storage_at() {
-		let mut db = MemoryDB::new_temp();
+		let mut db = MemoryDB::new();
 		let rlp = {
 			let mut a = Account::new_contract(U256::from(69u8));
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
@@ -254,7 +254,7 @@ mod tests {
 
 	#[test]
 	fn note_code() {
-		let mut db = MemoryDB::new_temp();
+		let mut db = MemoryDB::new();
 
 		let rlp = {
 			let mut a = Account::new_contract(U256::from(69u8));
@@ -273,7 +273,7 @@ mod tests {
 	#[test]
 	fn commit_storage() {
 		let mut a = Account::new_contract(U256::from(69u8));
-		let mut db = MemoryDB::new_temp();
+		let mut db = MemoryDB::new();
 		a.set_storage(x!(0), x!(0x1234));
 		assert_eq!(a.storage_root(), None);
 		a.commit_storage(&mut db);
@@ -283,7 +283,7 @@ mod tests {
 	#[test]
 	fn commit_remove_commit_storage() {
 		let mut a = Account::new_contract(U256::from(69u8));
-		let mut db = MemoryDB::new_temp();
+		let mut db = MemoryDB::new();
 		a.set_storage(x!(0), x!(0x1234));
 		a.commit_storage(&mut db);
 		a.set_storage(x!(1), x!(0x1234));
@@ -296,7 +296,7 @@ mod tests {
 	#[test]
 	fn commit_code() {
 		let mut a = Account::new_contract(U256::from(69u8));
-		let mut db = MemoryDB::new_temp();
+		let mut db = MemoryDB::new();
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_hash(), SHA3_EMPTY);
 		a.commit_code(&mut db);
