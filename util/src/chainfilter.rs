@@ -321,10 +321,9 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 			let offset = level_size * index;
 
 			// go doooown!
-			match self.blocks(bloom, from_block, to_block, max_level, offset) {
-				Some(blocks) => result.extend(blocks),
-				None => ()
-			};
+			if let Some(blocks) = self.blocks(bloom, from_block, to_block, max_level, offset) {
+				result.extend(blocks);
+			}
 		}
 
 		result

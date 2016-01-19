@@ -5,7 +5,7 @@ pub trait Decoder: Sized {
 		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 
 	fn as_list(&self) -> Result<Vec<Self>, DecoderError>;
-	fn as_rlp<'a>(&'a self) -> &'a UntrustedRlp<'a>;
+	fn as_rlp(&self) -> &UntrustedRlp;
 	fn as_raw(&self) -> &[u8];
 }
 
@@ -231,7 +231,7 @@ pub trait Stream: Sized {
 	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
 	/// }
 	/// ```
-	fn append_list<'a>(&'a mut self, len: usize) -> &'a mut Self;
+	fn append_list(&mut self, len: usize) -> &mut Self;
 
 	/// Apends null to the end of stream, chainable.
 	///
@@ -246,7 +246,7 @@ pub trait Stream: Sized {
 	/// 	assert_eq!(out, vec![0xc2, 0x80, 0x80]);
 	/// }
 	/// ```
-	fn append_empty_data<'a>(&'a mut self) -> &'a mut Self;
+	fn append_empty_data(&mut self) -> &mut Self;
 
 	/// Appends raw (pre-serialised) RLP data. Use with caution. Chainable.
 	fn append_raw<'a>(&'a mut self, bytes: &[u8], item_count: usize) -> &'a mut Self;

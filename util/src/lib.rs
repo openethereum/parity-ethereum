@@ -2,6 +2,7 @@
 #![feature(augmented_assignments)]
 #![feature(associated_consts)]
 #![feature(wrapping)]
+#![allow(needless_range_loop, match_bool)]
 //! Ethcore-util library
 //!
 //! ### Rust version:

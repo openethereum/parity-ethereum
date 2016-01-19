@@ -182,7 +182,7 @@ impl Session {
 				// map to protocol
 				let protocol = self.info.capabilities[i].protocol;
 				let pid = packet_id - self.info.capabilities[i].id_offset;
-				return Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: pid } )
+				Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: pid } )
 			},
 			_ => {
 				debug!(target: "net", "Unkown packet: {:?}", packet_id);
@@ -212,7 +212,7 @@ impl Session {
 		// Intersect with host capabilities
 		// Leave only highset mutually supported capability version
 		let mut caps: Vec<SessionCapabilityInfo> = Vec::new();
-		for hc in host.capabilities.iter() {
+		for hc in &host.capabilities {
 			if peer_caps.iter().any(|c| c.protocol == hc.protocol && c.version == hc.version) {
 				caps.push(SessionCapabilityInfo {
 					protocol: hc.protocol,

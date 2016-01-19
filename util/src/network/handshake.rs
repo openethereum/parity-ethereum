@@ -93,21 +93,15 @@ impl Handshake {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		match self.state {
 			HandshakeState::ReadingAuth => {
-				match try!(self.connection.readable()) {
-					Some(data)  => {
-						try!(self.read_auth(host, &data));
-						try!(self.write_ack());
-					},
-					None => {}
+				if let Some(data) = try!(self.connection.readable()) {
+					try!(self.read_auth(host, &data));
+					try!(self.write_ack());
 				};
 			},
 			HandshakeState::ReadingAck => {
-				match try!(self.connection.readable()) {
-					Some(data)  => {
-						try!(self.read_ack(host, &data));
-						self.state = HandshakeState::StartSession;
-					},
-					None => {}
+				if let Some(data) = try!(self.connection.readable()) {
+					try!(self.read_ack(host, &data));
+					self.state = HandshakeState::StartSession;
 				};
 			},
 			_ => { panic!("Unexpected state"); }

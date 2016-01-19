@@ -86,7 +86,7 @@ impl Connection {
 
 	/// Add a packet to send queue.
 	pub fn send(&mut self, data: Bytes) {
-		if data.len() != 0 {
+		if !data.is_empty() {
 			self.send_queue.push_back(Cursor::new(data));
 		}
 		if !self.interest.is_writable() {
@@ -341,11 +341,8 @@ impl EncryptedConnection {
 		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
 		match self.read_state {
 			EncryptedConnectionState::Header => {
-				match try!(self.connection.readable()) {
-					Some(data)  => {
-						try!(self.read_header(&data));
-					},
-					None => {}
+				if let Some(data) = try!(self.connection.readable()) {
+					try!(self.read_header(&data));
 				};
 				Ok(None)
 			},

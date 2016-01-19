@@ -62,7 +62,7 @@ impl Discovery {
 			discovery_round: 0,
 			discovery_id: NodeId::new(),
 			discovery_nodes: HashSet::new(),
-			node_buckets: (0..NODE_BINS).map(|x| NodeBucket::new(x)).collect(),
+			node_buckets: (0..NODE_BINS).map(NodeBucket::new).collect(),
 		}
 	}
 
@@ -122,7 +122,8 @@ impl Discovery {
 		ret
 	}
 
-	fn nearest_node_entries<'b>(source: &NodeId, target: &NodeId, buckets: &'b Vec<NodeBucket>) -> Vec<&'b NodeId>
+	#[allow(cyclomatic_complexity)]
+	fn nearest_node_entries<'b>(source: &NodeId, target: &NodeId, buckets: &'b [NodeBucket]) -> Vec<&'b NodeId>
 	{
 		// send ALPHA FindNode packets to nodes we know, closest to target
 		const LAST_BIN: u32 = NODE_BINS - 1;
@@ -136,7 +137,7 @@ impl Discovery {
 		if head > 1 && tail != LAST_BIN {
 			while head != tail && head < NODE_BINS && count < BUCKET_SIZE
 			{
-				for n in buckets[head as usize].nodes.iter()
+				for n in &buckets[head as usize].nodes
 				{
 						if count < BUCKET_SIZE {
 							count += 1;
@@ -147,7 +148,7 @@ impl Discovery {
 						}
 				}
 				if count < BUCKET_SIZE && tail != 0 {
-					for n in buckets[tail as usize].nodes.iter() {
+					for n in &buckets[tail as usize].nodes {
 						if count < BUCKET_SIZE {
 							count += 1;
 							found.entry(Discovery::distance(target, &n)).or_insert(Vec::new()).push(n);
@@ -166,7 +167,7 @@ impl Discovery {
 		}
 		else if head < 2 {
 			while head < NODE_BINS && count < BUCKET_SIZE {
-				for n in buckets[head as usize].nodes.iter() {
+				for n in &buckets[head as usize].nodes {
 						if count < BUCKET_SIZE {
 							count += 1;
 							found.entry(Discovery::distance(target, &n)).or_insert(Vec::new()).push(n);
@@ -180,7 +181,7 @@ impl Discovery {
 		}
 		else {
 			while tail > 0 && count < BUCKET_SIZE {
-				for n in buckets[tail as usize].nodes.iter() {
+				for n in &buckets[tail as usize].nodes {
 						if count < BUCKET_SIZE {
 							count += 1;
 							found.entry(Discovery::distance(target, &n)).or_insert(Vec::new()).push(n);

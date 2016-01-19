@@ -193,11 +193,11 @@ macro_rules! impl_hash {
 
 		impl FromJson for $from {
 			fn from_json(json: &Json) -> Self {
-				match json {
-					&Json::String(ref s) => {
+				match *json {
+					Json::String(ref s) => {
 						match s.len() % 2 {
 							0 => FromStr::from_str(clean_0x(s)).unwrap(),
-							_ => FromStr::from_str(&("0".to_string() + &(clean_0x(s).to_string()))[..]).unwrap()
+							_ => FromStr::from_str(&("0".to_owned() + &(clean_0x(s).to_owned()))[..]).unwrap()
 						}
 					},
 					_ => Default::default(),
@@ -207,7 +207,7 @@ macro_rules! impl_hash {
 
 		impl fmt::Debug for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				for i in self.0.iter() {
+				for i in &self.0[..] {
 					try!(write!(f, "{:02x}", i));
 				}
 				Ok(())
@@ -215,11 +215,11 @@ macro_rules! impl_hash {
 		}
 		impl fmt::Display for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				for i in self.0[0..2].iter() {
+				for i in &self.0[0..2] {
 					try!(write!(f, "{:02x}", i));
 				}
 				try!(write!(f, "…"));
-				for i in self.0[$size - 4..$size].iter() {
+				for i in &self.0[$size - 4..$size] {
 					try!(write!(f, "{:02x}", i));
 				}
 				Ok(())
@@ -277,36 +277,36 @@ macro_rules! impl_hash {
 		impl Index<usize> for $from {
 			type Output = u8;
 
-			fn index<'a>(&'a self, index: usize) -> &'a u8 {
+			fn index(&self, index: usize) -> &u8 {
 				&self.0[index]
 			}
 		}
 		impl IndexMut<usize> for $from {
-			fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut u8 {
+			fn index_mut(&mut self, index: usize) -> &mut u8 {
 				&mut self.0[index]
 			}
 		}
 		impl Index<ops::Range<usize>> for $from {
 			type Output = [u8];
 
-			fn index<'a>(&'a self, index: ops::Range<usize>) -> &'a [u8] {
+			fn index(&self, index: ops::Range<usize>) -> &[u8] {
 				&self.0[index]
 			}
 		}
 		impl IndexMut<ops::Range<usize>> for $from {
-			fn index_mut<'a>(&'a mut self, index: ops::Range<usize>) -> &'a mut [u8] {
+			fn index_mut(&mut self, index: ops::Range<usize>) -> &mut [u8] {
 				&mut self.0[index]
 			}
 		}
 		impl Index<ops::RangeFull> for $from {
 			type Output = [u8];
 
-			fn index<'a>(&'a self, _index: ops::RangeFull) -> &'a [u8] {
+			fn index(&self, _index: ops::RangeFull) -> &[u8] {
 				&self.0
 			}
 		}
 		impl IndexMut<ops::RangeFull> for $from {
-			fn index_mut<'a>(&'a mut self, _index: ops::RangeFull) -> &'a mut [u8] {
+			fn index_mut(&mut self, _index: ops::RangeFull) -> &mut [u8] {
 				&mut self.0
 			}
 		}
@@ -424,7 +424,7 @@ macro_rules! impl_hash {
 			fn from(s: &'_ str) -> $from {
 				use std::str::FromStr;
 				if s.len() % 2 == 1 {
-					$from::from_str(&("0".to_string() + &(clean_0x(s).to_string()))[..]).unwrap_or($from::new())
+					$from::from_str(&("0".to_owned() + &(clean_0x(s).to_owned()))[..]).unwrap_or($from::new())
 				} else {
 					$from::from_str(clean_0x(s)).unwrap_or($from::new())
 				}

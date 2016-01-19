@@ -41,7 +41,7 @@ impl Stream for RlpStream {
 		stream
 	}
 
-	fn append<'a, E>(&'a mut self, object: &E) -> &'a mut RlpStream where E: Encodable {
+	fn append<E>(&mut self, object: &E) -> &mut RlpStream where E: Encodable {
 		// encode given value and add it at the end of the stream
 		object.encode(&mut self.encoder);
 
@@ -52,7 +52,7 @@ impl Stream for RlpStream {
 		self
 	}
 
-	fn append_list<'a>(&'a mut self, len: usize) -> &'a mut RlpStream {
+	fn append_list(&mut self, len: usize) -> &mut RlpStream {
 		match len {
 			0 => {
 				// we may finish, if the appended list len is equal 0
@@ -69,7 +69,7 @@ impl Stream for RlpStream {
 		self
 	}
 
-	fn append_empty_data<'a>(&'a mut self) -> &'a mut RlpStream {
+	fn append_empty_data(&mut self) -> &mut RlpStream {
 		// self push raw item
 		self.encoder.bytes.push(0x80);
 

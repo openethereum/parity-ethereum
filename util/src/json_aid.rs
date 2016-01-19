@@ -18,10 +18,10 @@ fn u256_from_str(s: &str) -> U256 {
 
 impl FromJson for Bytes {
 	fn from_json(json: &Json) -> Self {
-		match json {
-			&Json::String(ref s) => match s.len() % 2 {
+		match *json {
+			Json::String(ref s) => match s.len() % 2 {
 				0 => FromHex::from_hex(clean(s)).unwrap_or(vec![]),
-				_ => FromHex::from_hex(&("0".to_string() + &(clean(s).to_string()))[..]).unwrap_or(vec![]),
+				_ => FromHex::from_hex(&("0".to_owned() + &(clean(s).to_owned()))[..]).unwrap_or(vec![]),
 			},
 			_ => vec![],
 		}
@@ -30,8 +30,8 @@ impl FromJson for Bytes {
 
 impl FromJson for BTreeMap<H256, H256> {
 	fn from_json(json: &Json) -> Self {
-		match json {
-			&Json::Object(ref o) => o.iter().map(|(key, value)| (x!(&u256_from_str(key)), x!(&U256::from_json(value)))).collect(),
+		match *json {
+			Json::Object(ref o) => o.iter().map(|(key, value)| (x!(&u256_from_str(key)), x!(&U256::from_json(value)))).collect(),
 			_ => BTreeMap::new(),
 		}
 	}
@@ -39,8 +39,8 @@ impl FromJson for BTreeMap<H256, H256> {
 
 impl<T> FromJson for Vec<T> where T: FromJson {
 	fn from_json(json: &Json) -> Self {
-		match json {
-			&Json::Array(ref o) => o.iter().map(|x|T::from_json(x)).collect(),
+		match *json {
+			Json::Array(ref o) => o.iter().map(|x|T::from_json(x)).collect(),
 			_ => Vec::new(),
 		}
 	}
@@ -48,9 +48,9 @@ impl<T> FromJson for Vec<T> where T: FromJson {
 
 impl<T> FromJson for Option<T> where T: FromJson {
 	fn from_json(json: &Json) -> Self {
-		match json {
-			&Json::String(ref o) if o.is_empty() => None,
-			&Json::Null => None,
+		match *json {
+			Json::String(ref o) if o.is_empty() => None,
+			Json::Null => None,
 			_ => Some(FromJson::from_json(json)),
 		}
 	}

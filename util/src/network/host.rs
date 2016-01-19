@@ -175,7 +175,7 @@ impl<'s, 'io, Message> NetworkContext<'s, 'io, Message> where Message: Send + 's
 				s.info.client_version.clone()
 			},
 			_ => {
-				"unknown".to_string()
+				"unknown".to_owned()
 			}
 		}
 	}
@@ -213,7 +213,7 @@ impl HostInfo {
 	/// Increments and returns connection nonce.
 	pub fn next_nonce(&mut self) -> H256 {
 		self.nonce = self.nonce.sha3();
-		return self.nonce.clone();
+		self.nonce.clone()
 	}
 }
 
@@ -246,7 +246,7 @@ impl<Message> Host<Message> where Message: Send {
 				config: config,
 				nonce: H256::random(),
 				protocol_version: 4,
-				client_version: "parity".to_string(),
+				client_version: "parity".to_owned(),
 				listen_port: 0,
 				capabilities: Vec::new(),
 			},
@@ -274,11 +274,11 @@ impl<Message> Host<Message> where Message: Send {
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.connections.iter().any(|e| match e { &ConnectionEntry::Session(ref s) => s.info.id.eq(&id), _ => false  })
+		self.connections.iter().any(|e| match *e { ConnectionEntry::Session(ref s) => s.info.id.eq(&id), _ => false  })
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
-		self.connections.iter().any(|e| match e { &ConnectionEntry::Handshake(ref h) => h.id.eq(&id), _ => false  })
+		self.connections.iter().any(|e| match *e { ConnectionEntry::Handshake(ref h) => h.id.eq(&id), _ => false  })
 	}
 
 	fn connect_peers(&mut self, io: &mut IoContext<NetworkIoMessage<Message>>) {
@@ -303,7 +303,7 @@ impl<Message> Host<Message> where Message: Send {
 			}
 		}
 
-		for n in to_connect.iter() {
+		for n in &to_connect {
 			if n.peer_type == PeerType::Required {
 				if req_conn < IDEAL_PEERS {
 					self.connect_peer(&n.id, io);
@@ -318,7 +318,7 @@ impl<Message> Host<Message> where Message: Send {
 			let peer_count = 0;
 			let mut open_slots = IDEAL_PEERS - peer_count  - pending_count + req_conn;
 			if open_slots > 0 {
-				for n in to_connect.iter() {
+				for n in &to_connect {
 					if n.peer_type == PeerType::Optional && open_slots > 0 {
 						open_slots -= 1;
 						self.connect_peer(&n.id, io);
@@ -328,6 +328,7 @@ impl<Message> Host<Message> where Message: Send {
 		}
 	}
 
+	#[allow(single_match)]
 	fn connect_peer(&mut self, id: &NodeId, io: &mut IoContext<NetworkIoMessage<Message>>) {
 		if self.have_session(id)
 		{
@@ -376,6 +377,7 @@ impl<Message> Host<Message> where Message: Send {
 		trace!(target: "net", "accept");
 	}
 
+	#[allow(single_match)]
 	fn connection_writable<'s>(&'s mut self, token: StreamToken, io: &mut IoContext<'s, NetworkIoMessage<Message>>) {
 		let mut kill = false;
 		let mut create_session = false;
@@ -436,7 +438,7 @@ impl<Message> Host<Message> where Message: Send {
 				}) };
 				match sd {
 					SessionData::Ready => {
-						for (p, _) in self.handlers.iter_mut() {
+						for (p, _) in &mut self.handlers {
 							if s.have_capability(p)  {
 								ready_data.push(p);
 							}
@@ -475,11 +477,8 @@ impl<Message> Host<Message> where Message: Send {
 			h.read(&mut NetworkContext::new(io, p, Some(token), &mut self.connections, &mut self.timers), &token, packet_id, &data[1..]);
 		}
 
-		match self.connections.get_mut(token) {
-			Some(&mut ConnectionEntry::Session(ref mut s)) => {
-				s.reregister(io.event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
-			},
-			_ => (),
+		if let Some(&mut ConnectionEntry::Session(ref mut s)) = self.connections.get_mut(token) {
+			s.reregister(io.event_loop).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
 		}
 	}
 
@@ -523,7 +522,7 @@ impl<Message> Host<Message> where Message: Send {
 		match self.connections.get_mut(token) {
 			Some(&mut ConnectionEntry::Handshake(_)) => (), // just abandon handshake
 			Some(&mut ConnectionEntry::Session(ref mut s)) if s.is_ready() => {
-				for (p, _) in self.handlers.iter_mut() {
+				for (p, _) in &mut self.handlers {
 					if s.have_capability(p)  {
 						to_disconnect.push(p);
 					}
@@ -600,19 +599,20 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, io),
 			NODETABLE_DISCOVERY => {},
 			NODETABLE_MAINTAIN => {},
-			_ => match self.timers.get_mut(&token).map(|p| *p) {
-					Some(protocol) => match self.handlers.get_mut(protocol) {
+			_ => {
+				if let Some(protocol) = self.timers.get_mut(&token).map(|p| *p) {
+					match self.handlers.get_mut(protocol) {
 							None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
 							Some(h) => { h.timeout(&mut NetworkContext::new(io, protocol, Some(token), &mut self.connections, &mut self.timers), token); }
-					},
-					None => {} // time not registerd through us
+					};
+				} // else time not registerd through us
 			}
 		}
 	}
 
 	fn message<'s>(&'s mut self, io: &mut IoContext<'s, NetworkIoMessage<Message>>, message: &'s mut NetworkIoMessage<Message>) {
-		match message {
-			&mut NetworkIoMessage::AddHandler {
+		match *message {
+			NetworkIoMessage::AddHandler {
 				ref mut handler,
 				ref protocol,
 				ref versions
@@ -624,7 +624,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					self.info.capabilities.push(CapabilityInfo { protocol: protocol, version: *v, packet_count:0 });
 				}
 			},
-			&mut NetworkIoMessage::Send {
+			NetworkIoMessage::Send {
 				ref peer,
 				ref packet_id,
 				ref protocol,
@@ -641,8 +641,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					}
 				}
 			},
-			&mut NetworkIoMessage::User(ref message) => {
-				for (p, h) in self.handlers.iter_mut() {
+			NetworkIoMessage::User(ref message) => {
+				for (p, h) in &mut self.handlers {
 					h.message(&mut NetworkContext::new(io, p, None, &mut self.connections, &mut self.timers), &message);
 				}
 			}

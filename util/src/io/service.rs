@@ -93,17 +93,17 @@ impl<Message> Handler for IoManager<Message> where Message: Send + 'static {
 
 	fn ready(&mut self, event_loop: &mut EventLoop<Self>, token: Token, events: EventSet) {
 		if events.is_hup() {
-			for h in self.handlers.iter_mut() {
+			for h in &mut self.handlers {
 				h.stream_hup(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 			}
 		}
 		else if events.is_readable() {
-			for h in self.handlers.iter_mut() {
+			for h in &mut self.handlers {
 				h.stream_readable(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 			}
 		}
 		else if events.is_writable() {
-			for h in self.handlers.iter_mut() {
+			for h in &mut self.handlers {
 				h.stream_writable(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 			}
 		}
@@ -116,13 +116,13 @@ impl<Message> Handler for IoManager<Message> where Message: Send + 'static {
 					let timer = self.timers.get_mut(token).expect("Unknown user timer token");
 					timer.delay
 				};
-				for h in self.handlers.iter_mut() {
+				for h in &mut self.handlers {
 					h.timeout(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 				}
 				event_loop.timeout_ms(token, delay).expect("Error re-registering user timer");
 			}
 			_ => { // Just pass the event down. IoHandler is supposed to re-register it if required.
-				for h in self.handlers.iter_mut() {
+				for h in &mut self.handlers {
 					h.timeout(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
 				}
 			}
@@ -140,7 +140,7 @@ impl<Message> Handler for IoManager<Message> where Message: Send + 'static {
 				self.handlers.last_mut().unwrap().initialize(&mut IoContext::new(event_loop, &mut self.timers));
 			},
 			IoMessage::UserMessage(ref mut data) => {
-				for h in self.handlers.iter_mut() {
+				for h in &mut self.handlers {
 					h.message(&mut IoContext::new(event_loop, &mut self.timers), data);
 				}
 			}

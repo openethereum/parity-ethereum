@@ -282,7 +282,7 @@ impl<'a> BasicDecoder<'a> {
 
 	/// Return first item info
 	fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
-		let item = match bytes.first().map(|&x| x) {
+		let item = match bytes.first().cloned() {
 			None => return Err(DecoderError::RlpIsTooShort),
 			Some(0...0x7f) => PayloadInfo::new(0, 1),
 			Some(l @ 0x80...0xb7) => PayloadInfo::new(1, l as usize - 0x80),
@@ -318,7 +318,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 
 		let bytes = self.rlp.as_raw();
 
-		match bytes.first().map(|&x| x) {
+		match bytes.first().cloned() {
 			// rlp is too short
 			None => Err(DecoderError::RlpIsTooShort),
 			// single byt value
@@ -349,12 +349,12 @@ impl<'a> Decoder for BasicDecoder<'a> {
 
 	fn as_list(&self) -> Result<Vec<Self>, DecoderError> {
 		let v: Vec<BasicDecoder<'a>> = self.rlp.iter()
-			.map(| i | BasicDecoder::new(i))
+			.map(BasicDecoder::new)
 			.collect();
 		Ok(v)
 	}
 
-	fn as_rlp<'s>(&'s self) -> &'s UntrustedRlp<'s> {
+	fn as_rlp(&self) -> &UntrustedRlp {
 		&self.rlp
 	}
 }
@@ -399,6 +399,7 @@ impl<T> Decodable for Option<T> where T: Decodable {
 macro_rules! impl_array_decodable {
 	($index_type:ty, $len:expr ) => (
 		impl<T> Decodable for [T; $len] where T: Decodable {
+			#[allow(len_zero)]
 			fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
 				let decoders = try!(decoder.as_list());
 
