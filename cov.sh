@@ -15,7 +15,7 @@ if ! type kcov > /dev/null; then
 	exit 1
 fi
 
-cargo test --no-run
+cargo test --no-run || exit 2
 mkdir -p target/coverage
-kcov --verify --skip-solibs target/coverage target/debug/ethcore-*
+kcov --exclude-pattern ~/.multirust --include-pattern src --verify target/coverage target/debug/ethcore*
 xdg-open target/coverage/index.html
