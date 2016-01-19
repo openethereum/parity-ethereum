@@ -111,8 +111,6 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 	fn overflowing_neg(self) -> (Self, bool);
 	
 	fn overflowing_shl(self, shift: u32) -> (Self, bool);
-	
-	fn overflowing_shr(self, shift: u32) -> (Self, bool);
 }
 
 macro_rules! construct_uint {
@@ -367,12 +365,6 @@ macro_rules! construct_uint {
 				}
 				($name(ret), overflow)
 			}
-
-			fn overflowing_shr(self, _shift32: u32) -> ($name, bool) {
-				// TODO [todr] not used for now
-				unimplemented!();
-			}
-
 		}
 
 		impl $name {
@@ -1310,28 +1302,6 @@ mod tests {
 			(U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap(), false)
 		);
 	}
-
-	#[ignore]
-	#[test]
-	pub fn uint256_shr_overflow() {
-		assert_eq!(
-			U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shr(4),
-			(U256::from_str("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap(), true)
-		);
-	}
-
-	#[ignore]
-	#[test]
-	pub fn uint256_shr_overflow2() {
-		assert_eq!(
-			U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap()
-			.overflowing_shr(4),
-			(U256::from_str("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap(), false)
-		);
-	}
-
-
 
 	#[test]
 	pub fn uint256_mul() {
