@@ -4,7 +4,6 @@ use common::*;
 use evm;
 use super::instructions as instructions;
 use super::instructions::Instruction;
-use std::num::wrapping::OverflowingOps;
 use std::marker::Copy;
 use evm::{MessageCallResult, ContractCreateResult};
 

@@ -142,6 +142,14 @@ impl RlpStream {
 			self.note_appended(1);
 		}
 	}
+
+	/// Drain the object and return the underlying ElasticArray.
+	pub fn drain(self) -> ElasticArray1024<u8> {
+		match self.is_finished() {
+			true => self.encoder.bytes,
+			false => panic!()
+		}
+	}
 }
 
 struct BasicEncoder {

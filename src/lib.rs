@@ -1,9 +1,8 @@
 #![feature(cell_extras)]
 #![feature(augmented_assignments)]
-#![feature(wrapping)]
 //#![feature(plugin)]
 //#![plugin(interpolate_idents)]
-#![allow(match_bool, needless_range_loop, match_ref_pats)]
+#![allow(match_bool, needless_range_loop)]
 
 //! Ethcore's ethereum implementation
 //!

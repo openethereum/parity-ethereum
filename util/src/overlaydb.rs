@@ -15,11 +15,11 @@ use rocksdb::{DB, Writable, IteratorMode};
 #[derive(Clone)]
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
 ///
-/// The operations `insert()` and `kill()` take place on the memory overlay; batches of
+/// The operations `insert()` and `remove()` take place on the memory overlay; batches of
 /// such operations may be flushed to the disk-backed DB with `commit()` or discarded with
 /// `revert()`.
 ///
-/// `lookup()` and `exists()` maintain normal behaviour - all `insert()` and `kill()` 
+/// `lookup()` and `contains()` maintain normal behaviour - all `insert()` and `remove()` 
 /// queries have an immediate effect in terms of these functions.
 pub struct OverlayDB {
 	overlay: MemoryDB,
@@ -28,8 +28,11 @@ pub struct OverlayDB {
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new(backing: DB) -> OverlayDB {
-		OverlayDB{ overlay: MemoryDB::new(), backing: Arc::new(backing) }
+	pub fn new(backing: DB) -> OverlayDB { Self::new_with_arc(Arc::new(backing)) }
+
+	/// Create a new instance of OverlayDB given a `backing` database.
+	pub fn new_with_arc(backing: Arc<DB>) -> OverlayDB {
+		OverlayDB{ overlay: MemoryDB::new(), backing: backing }
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
@@ -68,11 +71,10 @@ impl OverlayDB {
 	/// ```
 	pub fn commit(&mut self) -> Result<u32, UtilError> {
 		let mut ret = 0u32;
+		let mut deletes = 0usize;
 		for i in self.overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
-			// until we figure out state trie pruning, only commit stuff when it has a strictly positive delkta of RCs - 
-			// this prevents RCs being reduced to 0 where the DB would pretent that the node had been removed.
-			if rc > 0 {
+			if rc != 0 {
 				match self.payload(&key) {
 					Some(x) => {
 						let (back_value, back_rc) = x;
@@ -80,7 +82,7 @@ impl OverlayDB {
 						if total_rc < 0 {
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
-						self.put_payload(&key, (back_value, total_rc as u32));
+						deletes += if self.put_payload(&key, (back_value, total_rc as u32)) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
@@ -92,6 +94,7 @@ impl OverlayDB {
 				ret += 1;
 			}
 		}
+		trace!("OverlayDB::commit() deleted {} nodes", deletes);
 		Ok(ret)
 	}
 
@@ -129,11 +132,18 @@ impl OverlayDB {
 	}
 
 	/// Get the refs and value of the given key.
-	fn put_payload(&self, key: &H256, payload: (Bytes, u32)) {
-		let mut s = RlpStream::new_list(2);
-		s.append(&payload.1);
-		s.append(&payload.0);
-		self.backing.put(&key.bytes(), &s.out()).expect("Low-level database error. Some issue with your hard disk?");
+	fn put_payload(&self, key: &H256, payload: (Bytes, u32)) -> bool {
+		if payload.1 > 0 {
+			let mut s = RlpStream::new_list(2);
+			s.append(&payload.1);
+			s.append(&payload.0);
+			self.backing.put(&key.bytes(), s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
+			false
+		} else {
+			self.backing.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+			true
+		}
+
 	}
 }
 
