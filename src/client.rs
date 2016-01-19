@@ -1,7 +1,6 @@
 use util::*;
 use rocksdb::{Options, DB};
-use rocksdb::DBCompactionStyle::DBUniversalCompaction;
-use blockchain::{BlockChain, BlockProvider};
+use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
 use error::*;
 use header::BlockNumber;
@@ -39,6 +38,12 @@ pub struct BlockChainInfo {
 	pub best_block_hash: H256,
 	/// Best blockchain block number.
 	pub best_block_number: BlockNumber
+}
+
+impl fmt::Display for BlockChainInfo {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "#{}.{}", self.best_block_number, self.best_block_hash)
+	}
 }
 
 /// Block queue status
@@ -100,13 +105,31 @@ pub trait BlockChainClient : Sync + Send {
 	fn chain_info(&self) -> BlockChainInfo;
 }
 
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
+pub struct ClientReport {
+	pub blocks_imported: usize,
+	pub transactions_applied: usize,
+	pub gas_processed: U256,
+}
+
+impl ClientReport {
+	pub fn accrue_block(&mut self, block: &PreVerifiedBlock) {
+		self.blocks_imported += 1;
+		self.transactions_applied += block.transactions.len();
+		self.gas_processed += block.header.gas_used;
+	}
+}
+
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
-	state_db: OverlayDB,
+	state_db: JournalDB,
 	queue: BlockQueue,
+	report: ClientReport,
 }
+
+const HISTORY: u64 = 1000;
 
 impl Client {
 	/// Create a new client with given spec and DB path.
@@ -115,7 +138,7 @@ impl Client {
 		let mut opts = Options::new();
 		opts.create_if_missing(true);
 		opts.set_max_open_files(256);
-		opts.set_use_fsync(false);
+		/*opts.set_use_fsync(false);
 		opts.set_bytes_per_sync(8388608);
 		opts.set_disable_data_sync(false);
 		opts.set_block_cache_size_mb(1024);
@@ -130,16 +153,17 @@ impl Client {
 		opts.set_max_background_compactions(4);
 		opts.set_max_background_flushes(4);
 		opts.set_filter_deletes(false);
-		opts.set_disable_auto_compactions(true);		
+		opts.set_disable_auto_compactions(false);*/
 
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
 		let db = DB::open(&opts, state_path.to_str().unwrap()).unwrap();
-		let mut state_db = OverlayDB::new(db);
+		let mut state_db = JournalDB::new(db);
 		
 		let engine = Arc::new(try!(spec.to_engine()));
-		engine.spec().ensure_db_good(&mut state_db);
-		state_db.commit().expect("Error commiting genesis state to state DB");
+		if engine.spec().ensure_db_good(&mut state_db) {
+			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+		}
 
 //		chain.write().unwrap().ensure_good(&state_db);
 
@@ -148,6 +172,7 @@ impl Client {
 			engine: engine.clone(),
 			state_db: state_db,
 			queue: BlockQueue::new(engine, message_channel),
+			report: Default::default(),
 		})
 	}
 
@@ -212,15 +237,33 @@ impl Client {
 			}
 
 			self.chain.write().unwrap().insert_block(&block.bytes); //TODO: err here?
-			match result.drain().commit() {
+			let ancient = if header.number() >= HISTORY { Some(header.number() - HISTORY) } else { None };
+			match result.drain().commit(header.number(), &header.hash(), ancient.map(|n|(n, self.chain.read().unwrap().block_hash(n).unwrap()))) {
 				Ok(_) => (),
 				Err(e) => {
 					warn!(target: "client", "State DB commit failed: {:?}", e);
 					return;
 				}
 			}
-			info!(target: "client", "Imported #{} ({})", header.number(), header.hash());
+			self.report.accrue_block(&block);
+
+			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
+	}
+
+	/// Get info on the cache.
+	pub fn cache_info(&self) -> CacheSize {
+		self.chain.read().unwrap().cache_size()
+	}
+
+	/// Get the report.
+	pub fn report(&self) -> ClientReport {
+		self.report.clone()
+	}
+
+	/// Tick the client.
+	pub fn tick(&self) {
+		self.chain.read().unwrap().collect_garbage(false);
 	}
 }
 
