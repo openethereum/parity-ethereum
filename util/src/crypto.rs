@@ -4,8 +4,11 @@ use uint::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
 
+/// TODO [Gav Wood] Please document me
 pub type Secret = H256;
+/// TODO [Gav Wood] Please document me
 pub type Public = H512;
+/// TODO [Gav Wood] Please document me
 pub type Signature = H520;
 
 lazy_static! {
@@ -33,11 +36,17 @@ impl Signature {
 }
 
 #[derive(Debug)]
+/// TODO [arkpar] Please document me
 pub enum CryptoError {
+	/// TODO [arkpar] Please document me
 	InvalidSecret,
+	/// TODO [arkpar] Please document me
 	InvalidPublic,
+	/// TODO [arkpar] Please document me
 	InvalidSignature,
+	/// TODO [arkpar] Please document me
 	InvalidMessage,
+	/// TODO [arkpar] Please document me
 	Io(::std::io::Error),
 }
 
@@ -122,6 +131,7 @@ impl KeyPair {
 	pub fn sign(&self, message: &H256) -> Result<Signature, CryptoError> { ec::sign(&self.secret, message) }
 }
 
+/// TODO [arkpar] Please document me
 pub mod ec {
 	use hash::*;
 	use uint::*;
@@ -198,10 +208,12 @@ pub mod ec {
 	}
 }
 
+/// TODO [arkpar] Please document me
 pub mod ecdh {
 	use crypto::*;
 	use crypto::{self};
 
+	/// TODO [arkpar] Please document me
 	pub fn agree(secret: &Secret, public: &Public, ) -> Result<Secret, CryptoError> {
 		use secp256k1::*;
 		let context = &crypto::SECP256K1;
@@ -217,11 +229,13 @@ pub mod ecdh {
 	}
 }
 
+/// TODO [arkpar] Please document me
 pub mod ecies {
 	use hash::*;
 	use bytes::*;
 	use crypto::*;
 
+	/// TODO [arkpar] Please document me
 	pub fn encrypt(public: &Public, plain: &[u8]) -> Result<Bytes, CryptoError> {
 		use ::rcrypto::digest::Digest;
 		use ::rcrypto::sha2::Sha256;
@@ -257,6 +271,7 @@ pub mod ecies {
 		Ok(msg)
 	}
 
+	/// TODO [arkpar] Please document me
 	pub fn decrypt(secret: &Secret, encrypted: &[u8]) -> Result<Bytes, CryptoError> {
 		use ::rcrypto::digest::Digest;
 		use ::rcrypto::sha2::Sha256;
@@ -322,17 +337,20 @@ pub mod ecies {
 	}
 }
 
+/// TODO [arkpar] Please document me
 pub mod aes {
 	use ::rcrypto::blockmodes::*;
 	use ::rcrypto::aessafe::*;
 	use ::rcrypto::symmetriccipher::*;
 	use ::rcrypto::buffer::*;
 
+	/// TODO [arkpar] Please document me
 	pub fn encrypt(k: &[u8], iv: &[u8], plain: &[u8], dest: &mut [u8]) {
 		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 		encryptor.encrypt(&mut RefReadBuffer::new(plain), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
 	}
 
+	/// TODO [arkpar] Please document me
 	pub fn decrypt(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) {
 		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");

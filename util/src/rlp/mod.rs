@@ -30,10 +30,15 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 
+/// TODO [Gav Wood] Please document me
 pub mod rlptraits;
+/// TODO [Gav Wood] Please document me
 pub mod rlperrors;
+/// TODO [debris] Please document me
 pub mod rlpin;
+/// TODO [debris] Please document me
 pub mod untrusted_rlp;
+/// TODO [debris] Please document me
 pub mod rlpstream;
 
 #[cfg(test)]
@@ -46,9 +51,13 @@ pub use self::rlpin::{Rlp, RlpIterator};
 pub use self::rlpstream::{RlpStream,RlpStandard};
 use super::hash::H256;
 
+/// TODO [arkpar] Please document me
 pub const NULL_RLP: [u8; 1] = [0x80; 1];
+/// TODO [Gav Wood] Please document me
 pub const EMPTY_LIST_RLP: [u8; 1] = [0xC0; 1];
+/// TODO [arkpar] Please document me
 pub const SHA3_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x55, 0xa6, 0xff, 0x83, 0x45, 0xe6, 0x92, 0xc0, 0xf8, 0x6e, 0x5b, 0x48, 0xe0, 0x1b, 0x99, 0x6c, 0xad, 0xc0, 0x01, 0x62, 0x2f, 0xb5, 0xe3, 0x63, 0xb4, 0x21] );
+/// TODO [debris] Please document me
 pub const SHA3_EMPTY_LIST_RLP: H256 = H256( [0x1d, 0xcc, 0x4d, 0xe8, 0xde, 0xc7, 0x5d, 0x7a, 0xab, 0x85, 0xb5, 0x67, 0xb6, 0xcc, 0xd4, 0x1a, 0xd3, 0x12, 0x45, 0x1b, 0x94, 0x8a, 0x74, 0x13, 0xf0, 0xa1, 0x42, 0xfd, 0x40, 0xd4, 0x93, 0x47] );
 
 /// Shortcut function to decode trusted rlp

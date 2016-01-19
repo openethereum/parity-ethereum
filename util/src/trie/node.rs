@@ -7,9 +7,13 @@ use super::journal::*;
 /// Type of node in the trie and essential information thereof.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Node<'a> {
+	/// TODO [Gav Wood] Please document me
 	Empty,
+	/// TODO [Gav Wood] Please document me
 	Leaf(NibbleSlice<'a>, &'a[u8]),
+	/// TODO [Gav Wood] Please document me
 	Extension(NibbleSlice<'a>, &'a[u8]),
+	/// TODO [Gav Wood] Please document me
 	Branch([&'a[u8]; 16], Option<&'a [u8]>)
 }
 

@@ -3,7 +3,9 @@
 //! Contains all Ethereum network specific stuff, such as denominations and
 //! consensus specifications.
 
+/// TODO [Gav Wood] Please document me
 pub mod ethash;
+/// TODO [Gav Wood] Please document me
 pub mod denominations;
 
 pub use self::ethash::*;

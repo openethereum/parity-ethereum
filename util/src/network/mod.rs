@@ -56,12 +56,18 @@ mod service;
 mod error;
 mod node;
 
+/// TODO [arkpar] Please document me
 pub type PeerId = host::PeerId;
+/// TODO [arkpar] Please document me
 pub type PacketId = host::PacketId;
+/// TODO [arkpar] Please document me
 pub type NetworkContext<'s,'io,  Message> = host::NetworkContext<'s, 'io, Message>;
+/// TODO [arkpar] Please document me
 pub type NetworkService<Message> = service::NetworkService<Message>;
+/// TODO [arkpar] Please document me
 pub type NetworkIoMessage<Message> = host::NetworkIoMessage<Message>;
 pub use network::host::NetworkIoMessage::User as UserMessage;
+/// TODO [arkpar] Please document me
 pub type NetworkError = error::NetworkError;
 
 use io::*;

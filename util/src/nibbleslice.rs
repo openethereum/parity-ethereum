@@ -34,6 +34,7 @@ pub struct NibbleSlice<'a> {
 	offset_encode_suffix: usize,
 }
 
+/// TODO [Gav Wood] Please document me
 pub struct NibbleSliceIterator<'a> {
 	p: &'a NibbleSlice<'a>,
 	i: usize,
@@ -76,6 +77,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		(r, a.len() + b.len())
 	}*/
 
+	/// TODO [Gav Wood] Please document me
 	pub fn iter(&'a self) -> NibbleSliceIterator<'a> {
 		NibbleSliceIterator { p: self, i: 0 }
 	}
@@ -130,6 +132,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		i
 	}
 
+	/// TODO [Gav Wood] Please document me
 	pub fn encoded(&self, is_leaf: bool) -> Bytes {
 		let l = self.len();
 		let mut r = Bytes::with_capacity(l / 2 + 1);
@@ -142,6 +145,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		r
 	}
 
+	/// TODO [Gav Wood] Please document me
 	pub fn encoded_leftmost(&self, n: usize, is_leaf: bool) -> Bytes {
 		let l = min(self.len(), n);
 		let mut r = Bytes::with_capacity(l / 2 + 1);

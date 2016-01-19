@@ -5,8 +5,11 @@ use pod_account::*;
 /// Change in existance type. 
 // TODO: include other types of change.
 pub enum Existance {
+	/// TODO [Gav Wood] Please document me
 	Born,
+	/// TODO [Gav Wood] Please document me
 	Alive,
+	/// TODO [Gav Wood] Please document me
 	Died,
 }
 
@@ -22,14 +25,20 @@ impl fmt::Display for Existance {
 }
 
 #[derive(Debug,Clone,PartialEq,Eq)]
+/// TODO [Gav Wood] Please document me
 pub struct AccountDiff {
+	/// TODO [Gav Wood] Please document me
 	pub balance: Diff<U256>,				// Allowed to be Same
+	/// TODO [Gav Wood] Please document me
 	pub nonce: Diff<U256>,					// Allowed to be Same
+	/// TODO [Gav Wood] Please document me
 	pub code: Diff<Bytes>,					// Allowed to be Same
+	/// TODO [Gav Wood] Please document me
 	pub storage: BTreeMap<H256, Diff<H256>>,// Not allowed to be Same
 }
 
 impl AccountDiff {
+	/// TODO [Gav Wood] Please document me
 	pub fn existance(&self) -> Existance {
 		match self.balance {
 			Diff::Born(_) => Existance::Born,
@@ -38,6 +47,7 @@ impl AccountDiff {
 		}
 	}
 
+	/// TODO [Gav Wood] Please document me
 	pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
 		match (pre, post) {
 			(None, Some(x)) => Some(AccountDiff {

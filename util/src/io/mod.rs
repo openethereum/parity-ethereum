@@ -38,7 +38,9 @@
 mod service;
 
 #[derive(Debug)]
+/// TODO [arkpar] Please document me
 pub enum IoError {
+	/// TODO [arkpar] Please document me
 	Mio(::std::io::Error),
 }
 
@@ -66,10 +68,15 @@ pub trait IoHandler<Message>: Send where Message: Send + 'static {
 	fn stream_writable<'s>(&'s mut self, _io: &mut IoContext<'s, Message>, _stream: StreamToken) {}
 }
 
+/// TODO [arkpar] Please document me
 pub type TimerToken = service::TimerToken;
+/// TODO [arkpar] Please document me
 pub type StreamToken = service::StreamToken;
+/// TODO [arkpar] Please document me
 pub type IoContext<'s, M> = service::IoContext<'s, M>;
+/// TODO [arkpar] Please document me
 pub type IoService<M> = service::IoService<M>;
+/// TODO [arkpar] Please document me
 pub type IoChannel<M> = service::IoChannel<M>;
 //pub const USER_TOKEN_START: usize = service::USER_TOKEN; // TODO: ICE in rustc 1.7.0-nightly (49c382779 2016-01-12)
 

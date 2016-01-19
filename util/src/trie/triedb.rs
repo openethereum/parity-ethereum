@@ -34,6 +34,7 @@ use super::node::*;
 pub struct TrieDB<'db> {
 	db: &'db HashDB,
 	root: &'db H256,
+	/// TODO [Gav Wood] Please document me
 	pub hash_count: usize,
 }
 
