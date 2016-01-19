@@ -3,8 +3,11 @@ use std::fmt;
 use evm::Evm;
 
 #[derive(Clone)]
+/// TODO [Tomusdrw] Please document me
 pub enum VMType {
+	/// TODO [Tomusdrw] Please document me
 	Jit,
+	/// TODO [Tomusdrw] Please document me
 	Interpreter
 }
 

@@ -3,6 +3,7 @@ use pod_state::*;
 use account_diff::*;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
+/// TODO [Gav Wood] Please document me
 pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
 impl StateDiff {

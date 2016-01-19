@@ -7,9 +7,13 @@ use hash::*;
 
 /// Alphabet to use when creating words for insertion into tries.
 pub enum Alphabet {
+	/// TODO [Gav Wood] Please document me
 	All,
+	/// TODO [Gav Wood] Please document me
 	Low,
+	/// TODO [Gav Wood] Please document me
 	Mid,
+	/// TODO [Gav Wood] Please document me
 	Custom(Bytes),
 }
 

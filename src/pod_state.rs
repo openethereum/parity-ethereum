@@ -2,6 +2,7 @@ use util::*;
 use pod_account::*;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
+/// TODO [Gav Wood] Please document me
 pub struct PodState (BTreeMap<Address, PodAccount>);
 
 impl PodState {

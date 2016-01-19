@@ -2,36 +2,67 @@
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
 pub struct Schedule {
+	/// TODO [Gav Wood] Please document me
 	pub exceptional_failed_code_deposit: bool,
+	/// TODO [Gav Wood] Please document me
 	pub have_delegate_call: bool,
+	/// TODO [Tomusdrw] Please document me
 	pub stack_limit: usize,
+	/// TODO [Gav Wood] Please document me
 	pub max_depth: usize,
+	/// TODO [Gav Wood] Please document me
 	pub tier_step_gas: [usize; 8],
+	/// TODO [Gav Wood] Please document me
 	pub exp_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub exp_byte_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub sha3_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub sha3_word_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub sload_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub sstore_set_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub sstore_reset_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub sstore_refund_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub jumpdest_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub log_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub log_data_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub log_topic_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub create_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub call_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub call_stipend: usize,
+	/// TODO [Gav Wood] Please document me
 	pub call_value_transfer_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub call_new_account_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub suicide_refund_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub memory_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub quad_coeff_div: usize,
+	/// TODO [Gav Wood] Please document me
 	pub create_data_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub tx_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub tx_create_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub tx_data_zero_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub tx_data_non_zero_gas: usize,
+	/// TODO [Gav Wood] Please document me
 	pub copy_gas: usize,
 }
 

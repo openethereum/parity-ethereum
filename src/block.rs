@@ -26,9 +26,13 @@ pub struct Block {
 
 /// A set of references to `Block` fields that are publicly accessible. 
 pub struct BlockRefMut<'a> {
+	/// TODO [Gav Wood] Please document me
 	pub header: &'a Header,
+	/// TODO [Gav Wood] Please document me
 	pub state: &'a mut State,
+	/// TODO [Gav Wood] Please document me
 	pub archive: &'a Vec<Entry>,
+	/// TODO [Gav Wood] Please document me
 	pub uncles: &'a Vec<Header>,
 }
 

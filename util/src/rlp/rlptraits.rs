@@ -1,23 +1,36 @@
 use rlp::{DecoderError, UntrustedRlp};
 
+/// TODO [debris] Please document me
 pub trait Decoder: Sized {
+	/// TODO [debris] Please document me
 	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
 		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 
+	/// TODO [arkpar] Please document me
 	fn as_list(&self) -> Result<Vec<Self>, DecoderError>;
+	/// TODO [Gav Wood] Please document me
 	fn as_rlp(&self) -> &UntrustedRlp;
+	/// TODO [debris] Please document me
 	fn as_raw(&self) -> &[u8];
 }
 
+/// TODO [debris] Please document me
 pub trait Decodable: Sized {
+	/// TODO [debris] Please document me
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
 }
 
+/// TODO [debris] Please document me
 pub trait View<'a, 'view>: Sized {
+	/// TODO [debris] Please document me
 	type Prototype;
+	/// TODO [debris] Please document me
 	type PayloadInfo;
+	/// TODO [debris] Please document me
 	type Data;
+	/// TODO [debris] Please document me
 	type Item;
+	/// TODO [debris] Please document me
 	type Iter;
 
 	/// Creates a new instance of `Rlp` reader
@@ -41,8 +54,10 @@ pub trait View<'a, 'view>: Sized {
 	/// Get the prototype of the RLP.
 	fn prototype(&self) -> Self::Prototype;
 
+	/// TODO [debris] Please document me
 	fn payload_info(&self) -> Self::PayloadInfo;
 
+	/// TODO [debris] Please document me
 	fn data(&'view self) -> Self::Data;
 
 	/// Returns number of RLP items.
@@ -179,21 +194,30 @@ pub trait View<'a, 'view>: Sized {
 	/// ```
 	fn iter(&'view self) -> Self::Iter;
 
+	/// TODO [debris] Please document me
 	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable;
 
+	/// TODO [debris] Please document me
 	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable;
 }
 
+/// TODO [debris] Please document me
 pub trait Encoder {
+	/// TODO [debris] Please document me
 	fn emit_value(&mut self, bytes: &[u8]) -> ();
+	/// TODO [Gav Wood] Please document me
 	fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> ();
+	/// TODO [debris] Please document me
 	fn emit_raw(&mut self, bytes: &[u8]) -> ();
 }
 
+/// TODO [debris] Please document me
 pub trait Encodable {
+	/// TODO [debris] Please document me
 	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder;
 }
 
+/// TODO [debris] Please document me
 pub trait Stream: Sized {
 
 	/// Initializes instance of empty `Stream`.
@@ -284,6 +308,7 @@ pub trait Stream: Sized {
 	/// }
 	fn is_finished(&self) -> bool;
 
+	/// TODO [debris] Please document me
 	fn as_raw(&self) -> &[u8];
 
 	/// Streams out encoded bytes.

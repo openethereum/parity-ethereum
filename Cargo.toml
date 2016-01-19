@@ -25,3 +25,7 @@ clippy = "*" # Always newest, since we use nightly
 [features]
 jit = ["evmjit"]
 evm_debug = []
+
+[[bin]]
+name = "client"
+path = "src/bin/client/main.rs"

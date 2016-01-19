@@ -204,6 +204,7 @@ impl BlockQueue {
 		verification.verified = new_verified;
 	}
 
+	/// TODO [arkpar] Please document me
 	pub fn drain(&mut self, max: usize) -> Vec<PreVerifiedBlock> {
 		let mut verification = self.verification.lock().unwrap();
 		let count = min(max, verification.verified.len());

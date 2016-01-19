@@ -21,15 +21,21 @@ impl OffsetCache {
 }
 
 #[derive(Debug)]
+/// TODO [debris] Please document me
 pub enum Prototype {
+	/// TODO [debris] Please document me
 	Null,
+	/// TODO [debris] Please document me
 	Data(usize),
+	/// TODO [debris] Please document me
 	List(usize),
 }
 
 /// Stores basic information about item
 pub struct PayloadInfo {
+	/// TODO [debris] Please document me
 	pub header_len: usize,
+	/// TODO [debris] Please document me
 	pub value_len: usize,
 }
 

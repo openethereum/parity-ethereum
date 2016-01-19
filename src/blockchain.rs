@@ -15,18 +15,26 @@ use views::*;
 ///
 /// - `index` - an index where best common ancestor would be.
 pub struct TreeRoute {
+	/// TODO [debris] Please document me
 	pub blocks: Vec<H256>,
+	/// TODO [debris] Please document me
 	pub ancestor: H256,
+	/// TODO [debris] Please document me
 	pub index: usize
 }
 
 /// Represents blockchain's in-memory cache size in bytes.
 #[derive(Debug)]
 pub struct CacheSize {
+	/// TODO [debris] Please document me
 	pub blocks: usize,
+	/// TODO [debris] Please document me
 	pub block_details: usize,
+	/// TODO [debris] Please document me
 	pub transaction_addresses: usize,
+	/// TODO [debris] Please document me
 	pub block_logs: usize,
+	/// TODO [debris] Please document me
 	pub blocks_blooms: usize
 }
 

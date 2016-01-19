@@ -51,6 +51,7 @@ pub struct GenesisAccount {
 }
 
 impl GenesisAccount {
+	/// TODO [arkpar] Please document me
 	pub fn rlp(&self) -> Bytes {
 		let mut stream = RlpStream::new_list(4);
 		stream.append(&self.nonce);
@@ -66,27 +67,41 @@ impl GenesisAccount {
 #[derive(Debug)]
 pub struct Spec {
 	// User friendly spec name
+	/// TODO [Gav Wood] Please document me
 	pub name: String,
 	// What engine are we using for this?
+	/// TODO [Gav Wood] Please document me
 	pub engine_name: String,
 
 	// Parameters concerning operation of the specific engine we're using.
 	// Name -> RLP-encoded value
+	/// TODO [Gav Wood] Please document me
 	pub engine_params: HashMap<String, Bytes>,
 
 	// Builtin-contracts are here for now but would like to abstract into Engine API eventually.
+	/// TODO [Gav Wood] Please document me
 	pub builtins: HashMap<Address, Builtin>,
 
 	// Genesis params.
+	/// TODO [Gav Wood] Please document me
 	pub parent_hash: H256,
+	/// TODO [Gav Wood] Please document me
 	pub author: Address,
+	/// TODO [Gav Wood] Please document me
 	pub difficulty: U256,
+	/// TODO [Gav Wood] Please document me
 	pub gas_limit: U256,
+	/// TODO [Gav Wood] Please document me
 	pub gas_used: U256,
+	/// TODO [Gav Wood] Please document me
 	pub timestamp: u64,
+	/// TODO [arkpar] Please document me
 	pub extra_data: Bytes,
+	/// TODO [Gav Wood] Please document me
 	pub genesis_state: HashMap<Address, GenesisAccount>,
+	/// TODO [Gav Wood] Please document me
 	pub seal_fields: usize,
+	/// TODO [Gav Wood] Please document me
 	pub seal_rlp: Bytes,
 
 	// May be prepopulated if we know this in advance.
@@ -113,6 +128,7 @@ impl Spec {
 		self.state_root_memo.read().unwrap().as_ref().unwrap().clone()
 	}
 
+	/// TODO [Gav Wood] Please document me
 	pub fn genesis_header(&self) -> Header {
 		Header {
 			parent_hash: self.parent_hash.clone(),

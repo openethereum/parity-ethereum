@@ -5,6 +5,7 @@ use pod_account::*;
 use pod_state::*;
 use state_diff::*;
 
+/// TODO [Gav Wood] Please document me
 pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
@@ -157,6 +158,7 @@ impl State {
 		Ok(receipt)
 	}
 
+	/// TODO [debris] Please document me
 	pub fn revert(&mut self, backup: State) {
 		self.cache = backup.cache;
 	}

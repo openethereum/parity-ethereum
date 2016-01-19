@@ -26,6 +26,7 @@ pub enum MessageCallResult {
 	Failed
 }
 
+/// TODO [debris] Please document me
 pub trait Ext {
 	/// Returns a value for given key.
 	fn storage_at(&self, key: &H256) -> H256;

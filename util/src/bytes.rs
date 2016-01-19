@@ -43,6 +43,7 @@ use std::ops::{Deref, DerefMut};
 use uint::{Uint, U128, U256};
 use hash::FixedHash;
 
+/// TODO [Gav Wood] Please document me
 pub struct PrettySlice<'a> (&'a [u8]);
 
 impl<'a> fmt::Debug for PrettySlice<'a> {
@@ -66,8 +67,11 @@ impl<'a> fmt::Display for PrettySlice<'a> {
 	}
 }
 
+/// TODO [Gav Wood] Please document me
 pub trait ToPretty {
+	/// TODO [Gav Wood] Please document me
 	fn pretty(&self) -> PrettySlice;
+	/// TODO [Gav Wood] Please document me
 	fn to_hex(&self) -> String {
 		format!("{}", self.pretty())
 	}
@@ -90,8 +94,11 @@ impl ToPretty for Bytes {
 	}
 }
 
+/// TODO [debris] Please document me
 pub enum BytesRef<'a> {
+	/// TODO [debris] Please document me
 	Flexible(&'a mut Bytes),
+	/// TODO [debris] Please document me
 	Fixed(&'a mut [u8])
 }
 
@@ -121,8 +128,11 @@ pub type Bytes = Vec<u8>;
 /// Slice of bytes to underlying memory
 pub trait BytesConvertable {
 	// TODO: rename to as_slice
+	/// TODO [Gav Wood] Please document me
 	fn bytes(&self) -> &[u8];
+	/// TODO [Gav Wood] Please document me
 	fn as_slice(&self) -> &[u8] { self.bytes() }
+	/// TODO [Gav Wood] Please document me
 	fn to_bytes(&self) -> Bytes { self.as_slice().to_vec() }
 }
 
@@ -160,8 +170,11 @@ fn bytes_convertable() {
 ///
 /// TODO: optimise some conversations
 pub trait ToBytes {
+	/// TODO [Gav Wood] Please document me
 	fn to_bytes(&self) -> Vec<u8>;
+	/// TODO [Gav Wood] Please document me
 	fn to_bytes_len(&self) -> usize { self.to_bytes().len() }
+	/// TODO [debris] Please document me
 	fn first_byte(&self) -> Option<u8> { self.to_bytes().first().map(|&x| { x })}
 }
 
@@ -257,7 +270,9 @@ impl <T>ToBytes for T where T: FixedHash {
 /// Error returned when FromBytes conversation goes wrong
 #[derive(Debug, PartialEq, Eq)]
 pub enum FromBytesError {
+	/// TODO [debris] Please document me
 	DataIsTooShort,
+	/// TODO [debris] Please document me
 	DataIsTooLong
 }
 
@@ -278,6 +293,7 @@ pub type FromBytesResult<T> = Result<T, FromBytesError>;
 ///
 /// TODO: check size of bytes before conversation and return appropriate error
 pub trait FromBytes: Sized {
+	/// TODO [debris] Please document me
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<Self>;
 }
 
