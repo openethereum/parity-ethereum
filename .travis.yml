@@ -1,0 +1,11 @@
+language: rust
+
+rust:
+    - nightly
+
+os:
+    - osx
+
+before_script:
+    - brew update
+    - brew install rocksdb
