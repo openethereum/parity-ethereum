@@ -741,7 +741,10 @@ impl Interpreter {
 				stack.push(address_to_u256(params.sender.clone()));
 			},
 			instructions::CALLVALUE => {
-				stack.push(params.value.clone());
+				stack.push(match params.value {
+					ActionValue::Transfer(val) => val,
+					ActionValue::Apparent(val) => val,
+				});
 			},
 			instructions::CALLDATALOAD => {
 				let big_id = stack.pop_back();

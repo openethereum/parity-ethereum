@@ -29,10 +29,13 @@ impl OriginInfo {
 	pub fn from(params: &ActionParams) -> Self {
 		OriginInfo {
 			sender: params.sender.clone(),
-			value: params.value.clone(),
 			address: params.address.clone(),
 			origin: params.origin.clone(),
-			gas_price: params.gas_price.clone()
+			gas_price: params.gas_price.clone(),
+			value: match params.value {
+				ActionValue::Transfer(val) => val,
+				ActionValue::Apparent(val) => val,
+			}
 		}
 	}
 }
@@ -115,8 +118,7 @@ impl<'a> Ext for Externalities<'a> {
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price.clone(),
-			value: value.clone(),
-			is_value_transfer: true,
+			value: ActionValue::Transfer(value.clone()),
 			code: Some(code.to_vec()),
 			data: None,
 		};
@@ -147,8 +149,7 @@ impl<'a> Ext for Externalities<'a> {
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price.clone(),
-			value: self.origin_info.value.clone(),
-			is_value_transfer: false,
+			value: ActionValue::Apparent(self.origin_info.value.clone()),
 			code: self.state.code(code_address),
 			data: Some(data.to_vec()),
 		};
@@ -176,8 +177,7 @@ impl<'a> Ext for Externalities<'a> {
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price.clone(),
-			value: value.clone(),
-			is_value_transfer: true,
+			value: ActionValue::Transfer(value.clone()),
 			code: self.state.code(code_address),
 			data: Some(data.to_vec()),
 		};

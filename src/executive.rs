@@ -133,8 +133,7 @@ impl<'a> Executive<'a> {
 					origin: sender.clone(),
 					gas: init_gas,
 					gas_price: t.gas_price,
-					value: t.value,
-					is_value_transfer: true,
+					value: ActionValue::Transfer(t.value),
 					code: Some(t.data.clone()),
 					data: None,
 				};
@@ -148,8 +147,7 @@ impl<'a> Executive<'a> {
 					origin: sender.clone(),
 					gas: init_gas,
 					gas_price: t.gas_price,
-					value: t.value,
-					is_value_transfer: true,
+					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address),
 					data: Some(t.data.clone()),
 				};
@@ -173,8 +171,8 @@ impl<'a> Executive<'a> {
 		let backup = self.state.clone();
 
 		// at first, transfer value to destination
-		if params.is_value_transfer {
-			self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		if let ActionValue::Transfer(val) = params.value {
+			self.state.transfer_balance(&params.sender, &params.address, &val);
 		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
@@ -232,8 +230,8 @@ impl<'a> Executive<'a> {
 		self.state.new_contract(&params.address);
 
 		// then transfer value to it
-		if params.is_value_transfer {
-			self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		if let ActionValue::Transfer(val) = params.value {
+			self.state.transfer_balance(&params.sender, &params.address, &val);
 		}
 
 		let res = {
