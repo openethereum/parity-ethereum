@@ -20,6 +20,7 @@ time = "0.1"
 evmjit = { path = "rust-evmjit", optional = true }
 ethash = { path = "ethash" }
 num_cpus = "0.2"
+clap = { version = "1.5", features = ["yaml"] }
 
 [features]
 jit = ["evmjit"]
