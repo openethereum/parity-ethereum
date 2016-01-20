@@ -224,7 +224,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 			params.data = xjson!(&exec["data"]);
 			params.gas = xjson!(&exec["gas"]);
 			params.gas_price = xjson!(&exec["gasPrice"]);
-			params.value = xjson!(&exec["value"]);
+			params.value = ActionValue::Transfer(xjson!(&exec["value"]));
 		});
 
 		let out_of_gas = test.find("callcreates").map(|_calls| {

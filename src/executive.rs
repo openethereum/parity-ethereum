@@ -377,7 +377,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some("3331600055".from_hex().unwrap());
-		params.value = U256::from(0x7);
+		params.value = ActionValue::Transfer(U256::from(0x7));
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
@@ -435,7 +435,7 @@ mod tests {
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
-		params.value = U256::from(100);
+		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
@@ -488,7 +488,7 @@ mod tests {
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
-		params.value = U256::from(100);
+		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
@@ -539,7 +539,7 @@ mod tests {
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
-		params.value = U256::from(100);
+		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
@@ -594,7 +594,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code_a.clone());
-		params.value = U256::from(100_000);
+		params.value = ActionValue::Transfer(U256::from(100_000));
 
 		let mut state = State::new_temp();
 		state.init_code(&address_a, code_a.clone());
@@ -800,7 +800,7 @@ mod tests {
 		params.origin = sender.clone();
 		params.gas = U256::from(0x0186a0);
 		params.code = Some(code.clone());
-		params.value = U256::from_str("0de0b6b3a7640000").unwrap();
+		params.value = ActionValue::Transfer(U256::from_str("0de0b6b3a7640000").unwrap());
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
 		let info = EnvInfo::new();
