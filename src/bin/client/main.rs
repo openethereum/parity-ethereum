@@ -32,7 +32,8 @@ fn setup_log() {
 
 #[cfg(feature = "rpc")]
 fn setup_rpc_server(client: Arc<RwLock<Client>>) {
-	let server = ethrpc::HttpServer::new(client, 1);
+	let mut server = ethrpc::HttpServer::new(1);
+	server.add_delegate(ethrpc::EthClient::new(client));
 	server.start_async("127.0.0.1:3030");
 }
 
