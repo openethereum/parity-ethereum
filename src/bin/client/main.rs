@@ -4,6 +4,9 @@ extern crate rustc_serialize;
 extern crate log;
 extern crate env_logger;
 
+#[cfg(feature = "rpc")]
+mod ethrpc;
+
 use std::io::stdin;
 use std::env;
 use log::{LogLevelFilter};
@@ -26,10 +29,22 @@ fn setup_log() {
 	builder.init().unwrap();
 }
 
+
+#[cfg(feature = "rpc")]
+fn setup_rpc_server(client: Arc<RwLock<Client>>) {
+	let server = ethrpc::HttpServer::new(client, 1);
+	server.start_async("127.0.0.1:3030");
+}
+
+#[cfg(not(feature = "rpc"))]
+fn setup_rpc_server(_client: Arc<RwLock<Client>>) {
+}
+
 fn main() {
 	setup_log();
 	let spec = ethereum::new_frontier();
 	let mut service = ClientService::start(spec).unwrap();
+	setup_rpc_server(service.client());
 	let io_handler  = Box::new(ClientIoHandler { client: service.client(), timer: 0, info: Default::default() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 	loop {
