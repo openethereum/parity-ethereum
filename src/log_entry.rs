@@ -4,8 +4,11 @@ use basic_types::LogBloom;
 /// A single log's entry.
 #[derive(Debug,PartialEq,Eq)]
 pub struct LogEntry {
+	/// TODO [Gav Wood] Please document me
 	pub address: Address,
+	/// TODO [Gav Wood] Please document me
 	pub topics: Vec<H256>,
+	/// TODO [Gav Wood] Please document me
 	pub data: Bytes,
 }
 

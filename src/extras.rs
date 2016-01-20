@@ -5,15 +5,21 @@ use rocksdb::{DB, Writable};
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
 pub enum ExtrasIndex {
+	/// TODO [debris] Please document me
 	BlockDetails = 0,
+	/// TODO [debris] Please document me
 	BlockHash = 1,
+	/// TODO [debris] Please document me
 	TransactionAddress = 2,
+	/// TODO [debris] Please document me
 	BlockLogBlooms = 3,
+	/// TODO [debris] Please document me
 	BlocksBlooms = 4
 } 
 
 /// trait used to write Extras data to db
 pub trait ExtrasWritable {
+	/// TODO [debris] Please document me
 	fn put_extras<K, T>(&self, hash: &K, value: &T) where
 		T: ExtrasIndexable + Encodable, 
 		K: ExtrasSliceConvertable;
@@ -21,10 +27,12 @@ pub trait ExtrasWritable {
 
 /// trait used to read Extras data from db
 pub trait ExtrasReadable {
+	/// TODO [debris] Please document me
 	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
 		T: ExtrasIndexable + Decodable,
 		K: ExtrasSliceConvertable;
 
+	/// TODO [debris] Please document me
 	fn extras_exists<K, T>(&self, hash: &K) -> bool where
 		T: ExtrasIndexable,
 		K: ExtrasSliceConvertable;
@@ -58,7 +66,9 @@ impl ExtrasReadable for DB {
 
 /// Implementations should convert arbitrary type to database key slice
 pub trait ExtrasSliceConvertable {
+	/// TODO [Gav Wood] Please document me
 	fn to_extras_slice(&self, i: ExtrasIndex) -> H264;
+	/// TODO [debris] Please document me
 	fn as_h256(&self) -> Option<&H256> { None }
 }
 
@@ -86,6 +96,7 @@ impl ExtrasSliceConvertable for BlockNumber {
 
 /// Types implementing this trait can be indexed in extras database
 pub trait ExtrasIndexable {
+	/// TODO [debris] Please document me
 	fn extras_index() -> ExtrasIndex;
 }
 
@@ -98,9 +109,13 @@ impl ExtrasIndexable for H256 {
 /// Familial details concerning a block
 #[derive(Debug, Clone)]
 pub struct BlockDetails {
+	/// TODO [debris] Please document me
 	pub number: BlockNumber,
+	/// TODO [debris] Please document me
 	pub total_difficulty: U256,
+	/// TODO [debris] Please document me
 	pub parent: H256,
+	/// TODO [debris] Please document me
 	pub children: Vec<H256>
 }
 
@@ -143,6 +158,7 @@ impl Encodable for BlockDetails {
 /// Log blooms of certain block
 #[derive(Clone)]
 pub struct BlockLogBlooms {
+	/// TODO [debris] Please document me
 	pub blooms: Vec<H2048>
 }
 
@@ -176,6 +192,7 @@ impl Encodable for BlockLogBlooms {
 
 /// Neighboring log blooms on certain level
 pub struct BlocksBlooms {
+	/// TODO [debris] Please document me
 	pub blooms: [H2048; 16]
 }
 
@@ -223,7 +240,9 @@ impl Encodable for BlocksBlooms {
 /// Represents address of certain transaction within block
 #[derive(Clone)]
 pub struct TransactionAddress {
+	/// TODO [debris] Please document me
 	pub block_hash: H256,
+	/// TODO [debris] Please document me
 	pub index: u64
 }
 

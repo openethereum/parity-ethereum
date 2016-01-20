@@ -4,9 +4,13 @@ use account::*;
 #[derive(Debug,Clone,PartialEq,Eq)]
 /// Genesis account data. Does not have a DB overlay cache.
 pub struct PodAccount {
+	/// TODO [Gav Wood] Please document me
 	pub balance: U256,
+	/// TODO [Gav Wood] Please document me
 	pub nonce: U256,
+	/// TODO [Gav Wood] Please document me
 	pub code: Bytes,
+	/// TODO [Gav Wood] Please document me
 	pub storage: BTreeMap<H256, H256>,
 }
 
@@ -27,6 +31,7 @@ impl PodAccount {
 		}
 	}
 
+	/// TODO [Gav Wood] Please document me
 	pub fn rlp(&self) -> Bytes {
 		let mut stream = RlpStream::new_list(4);
 		stream.append(&self.nonce);

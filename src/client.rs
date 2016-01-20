@@ -49,9 +49,11 @@ impl fmt::Display for BlockChainInfo {
 /// Block queue status
 #[derive(Debug)]
 pub struct BlockQueueStatus {
+	/// TODO [arkpar] Please document me
 	pub full: bool,
 }
 
+/// TODO [arkpar] Please document me
 pub type TreeRoute = ::blockchain::TreeRoute;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -106,13 +108,18 @@ pub trait BlockChainClient : Sync + Send {
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
+/// TODO [Gav Wood] Please document me
 pub struct ClientReport {
+	/// TODO [Gav Wood] Please document me
 	pub blocks_imported: usize,
+	/// TODO [Gav Wood] Please document me
 	pub transactions_applied: usize,
+	/// TODO [Gav Wood] Please document me
 	pub gas_processed: U256,
 }
 
 impl ClientReport {
+	/// TODO [Gav Wood] Please document me
 	pub fn accrue_block(&mut self, block: &PreVerifiedBlock) {
 		self.blocks_imported += 1;
 		self.transactions_applied += block.transactions.len();
