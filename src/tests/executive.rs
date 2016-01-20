@@ -115,6 +115,22 @@ impl<'a> Ext for TestExt<'a> {
 		MessageCallResult::Success(*gas)
 	}
 
+	fn delegatecall(&mut self, 
+			gas: &U256, 
+			value: &U256, 
+			data: &[u8], 
+			_code_address: &Address, 
+			_output: &mut [u8]) -> MessageCallResult {
+
+		self.callcreates.push(CallCreate {
+			data: data.to_vec(),
+			destination: None,
+			gas_limit: *gas,
+			value: *value
+		});
+		MessageCallResult::Success(*gas)
+	}
+
 	fn extcode(&self, address: &Address) -> Bytes  {
 		self.ext.extcode(address)
 	}
@@ -200,7 +216,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		let engine = TestEngine::new(1, vm.clone());
 
 		// params
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		test.find("exec").map(|exec| {
 			params.address = xjson!(&exec["address"]);
 			params.sender = xjson!(&exec["caller"]);

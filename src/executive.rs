@@ -134,6 +134,7 @@ impl<'a> Executive<'a> {
 					gas: init_gas,
 					gas_price: t.gas_price,
 					value: t.value,
+					is_value_transfer: true,
 					code: Some(t.data.clone()),
 					data: None,
 				};
@@ -148,6 +149,7 @@ impl<'a> Executive<'a> {
 					gas: init_gas,
 					gas_price: t.gas_price,
 					value: t.value,
+					is_value_transfer: true,
 					code: self.state.code(address),
 					data: Some(t.data.clone()),
 				};
@@ -166,11 +168,14 @@ impl<'a> Executive<'a> {
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
 	pub fn call(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
+    println!("Calling executive. Sender: {}", params.sender);
 		// backup used in case of running out of gas
 		let backup = self.state.clone();
 
 		// at first, transfer value to destination
-		self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		if params.is_value_transfer {
+			self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
 		if self.engine.is_builtin(&params.code_address) {
@@ -227,7 +232,9 @@ impl<'a> Executive<'a> {
 		self.state.new_contract(&params.address);
 
 		// then transfer value to it
-		self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		if params.is_value_transfer {
+			self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		}
 
 		let res = {
 			let mut ext = self.to_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract);
@@ -367,7 +374,7 @@ mod tests {
 	fn test_sender_balance(factory: Factory) {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(&sender, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
@@ -424,7 +431,7 @@ mod tests {
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
@@ -477,7 +484,7 @@ mod tests {
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
@@ -528,7 +535,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let next_address = contract_address(&address, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
@@ -584,7 +591,7 @@ mod tests {
 		let address_b = Address::from_str("945304eb96065b2a98b57a48a06ae28d285a71b5" ).unwrap();
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address_a.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
@@ -633,7 +640,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let code = "600160005401600055600060006000600060003060e05a03f1600155".from_hex().unwrap();
 		let address = contract_address(&sender, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
@@ -789,7 +796,7 @@ mod tests {
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();

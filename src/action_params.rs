@@ -23,15 +23,17 @@ pub struct ActionParams {
 	pub gas_price: U256,
 	/// Transaction value.
 	pub value: U256,
+	/// Should transfer value from sender to origin
+	pub is_value_transfer: bool,
 	/// Code being executed.
 	pub code: Option<Bytes>,
 	/// Input data.
 	pub data: Option<Bytes>
 }
 
-impl ActionParams {
-	/// TODO [Gav Wood] Please document me
-	pub fn new() -> ActionParams {
+impl Default for ActionParams {
+	/// Returns default ActionParams initialized with zeros
+	fn default() -> ActionParams {
 		ActionParams {
 			code_address: Address::new(),
 			address: Address::new(),
@@ -41,7 +43,8 @@ impl ActionParams {
 			gas_price: U256::zero(),
 			value: U256::zero(),
 			code: None,
-			data: None
+			data: None,
+			is_value_transfer: true
 		}
 	}
 }

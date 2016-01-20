@@ -564,17 +564,50 @@ impl Interpreter {
 					}
 				};
 			},
-			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL => {
+			instructions::DELEGATECALL => {
+				let call_gas = stack.pop_back();
+				let code_address = stack.pop_back();
+				let code_address = u256_to_address(&code_address);
+
+				let value = params.value;
+
+				let in_off = stack.pop_back();
+				let in_size = stack.pop_back();
+				let out_off = stack.pop_back();
+				let out_size = stack.pop_back();
+
+				let can_call = ext.depth() < ext.schedule().max_depth;
+				if !can_call {
+					stack.push(U256::zero());
+					return Ok(InstructionResult::UnusedGas(call_gas));
+				}
+
+				let call_result = {
+					// we need to write and read from memory in the same time
+					// and we don't want to copy
+					let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
+					let output = mem.writeable_slice(out_off, out_size);
+					ext.delegatecall(&call_gas, &value, input, &code_address, output)
+				};
+
+				return match call_result {
+					MessageCallResult::Success(gas_left) => {
+						stack.push(U256::one());
+						Ok(InstructionResult::UnusedGas(gas_left))
+					},
+					MessageCallResult::Failed  => {
+						stack.push(U256::zero());
+						Ok(InstructionResult::Ok)
+					}
+				};
+			},
+			instructions::CALL | instructions::CALLCODE => {
 				assert!(ext.schedule().call_value_transfer_gas > ext.schedule().call_stipend, "overflow possible");
 				let call_gas = stack.pop_back();
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
-				let is_delegatecall = instruction == instructions::DELEGATECALL;
 
-				let value = match is_delegatecall {
-					true => params.value,
-					false => stack.pop_back()
-				};
+				let value = stack.pop_back();
 
 				let address = match instruction == instructions::CALL {
 					true => &code_address,
@@ -586,12 +619,12 @@ impl Interpreter {
 				let out_off = stack.pop_back();
 				let out_size = stack.pop_back();
 
-				let call_gas = call_gas + match !is_delegatecall && value > U256::zero() {
+				let call_gas = call_gas + match value > U256::zero() {
 					true => U256::from(ext.schedule().call_stipend),
 					false => U256::zero()
 				};
 
-				let can_call = (is_delegatecall || ext.balance(&params.address) >= value) && ext.depth() < ext.schedule().max_depth;
+				let can_call = ext.balance(&params.address) >= value && ext.depth() < ext.schedule().max_depth;
 
 				if !can_call {
 					stack.push(U256::zero());

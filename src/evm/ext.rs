@@ -26,7 +26,7 @@ pub enum MessageCallResult {
 	Failed
 }
 
-/// TODO [debris] Please document me
+/// Externalities interface for EVMs
 pub trait Ext {
 	/// Returns a value for given key.
 	fn storage_at(&self, key: &H256) -> H256;
@@ -56,6 +56,18 @@ pub trait Ext {
 	fn call(&mut self, 
 			gas: &U256, 
 			address: &Address, 
+			value: &U256, 
+			data: &[u8], 
+			code_address: &Address, 
+			output: &mut [u8]) -> MessageCallResult;
+
+	/// Delegate Message call.
+	/// 
+	/// Returns Err, if we run out of gas.
+	/// Otherwise returns call_result which contains gas left 
+	/// and true if subcall was successfull.
+	fn delegatecall(&mut self, 
+			gas: &U256, 
 			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
