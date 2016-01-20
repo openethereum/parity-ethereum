@@ -18,6 +18,7 @@ pub enum OutputPolicy<'a> {
 /// Transaction properties that externalities need to know about.
 pub struct OriginInfo {
 	sender: Address,
+	value: U256,
 	address: Address,
 	origin: Address,
 	gas_price: U256
@@ -28,6 +29,7 @@ impl OriginInfo {
 	pub fn from(params: &ActionParams) -> Self {
 		OriginInfo {
 			sender: params.sender.clone(),
+			value: params.value.clone(),
 			address: params.address.clone(),
 			origin: params.origin.clone(),
 			gas_price: params.gas_price.clone()
@@ -134,7 +136,6 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn delegatecall(&mut self, 
 			gas: &U256, 
-			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> MessageCallResult {
@@ -146,7 +147,7 @@ impl<'a> Ext for Externalities<'a> {
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price.clone(),
-			value: value.clone(),
+			value: self.origin_info.value.clone(),
 			is_value_transfer: false,
 			code: self.state.code(code_address),
 			data: Some(data.to_vec()),

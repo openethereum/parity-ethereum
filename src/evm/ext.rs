@@ -68,7 +68,6 @@ pub trait Ext {
 	/// and true if subcall was successfull.
 	fn delegatecall(&mut self, 
 			gas: &U256, 
-			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> MessageCallResult;

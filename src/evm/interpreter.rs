@@ -569,8 +569,6 @@ impl Interpreter {
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
 
-				let value = params.value;
-
 				let in_off = stack.pop_back();
 				let in_size = stack.pop_back();
 				let out_off = stack.pop_back();
@@ -587,7 +585,7 @@ impl Interpreter {
 					// and we don't want to copy
 					let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
 					let output = mem.writeable_slice(out_off, out_size);
-					ext.delegatecall(&call_gas, &value, input, &code_address, output)
+					ext.delegatecall(&call_gas, input, &code_address, output)
 				};
 
 				return match call_result {

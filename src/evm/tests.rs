@@ -71,7 +71,6 @@ impl Ext for FakeExt {
 
 	fn delegatecall(&mut self, 
 			_gas: &U256, 
-			_value: &U256, 
 			_data: &[u8], 
 			_address: &Address, 
 			_output: &mut [u8]) -> MessageCallResult {

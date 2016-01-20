@@ -117,7 +117,6 @@ impl<'a> Ext for TestExt<'a> {
 
 	fn delegatecall(&mut self, 
 			gas: &U256, 
-			value: &U256, 
 			data: &[u8], 
 			_code_address: &Address, 
 			_output: &mut [u8]) -> MessageCallResult {
@@ -126,7 +125,7 @@ impl<'a> Ext for TestExt<'a> {
 			data: data.to_vec(),
 			destination: None,
 			gas_limit: *gas,
-			value: *value
+			value: U256::zero()
 		});
 		MessageCallResult::Success(*gas)
 	}
