@@ -2,7 +2,9 @@
 
 use std::ptr;
 
+/// TODO [debris] Please document me
 pub trait InsertSlice<T> {
+				/// TODO [debris] Please document me
     fn insert_slice(&mut self, index: usize, elements: &[T]);
 }
 
@@ -47,6 +49,7 @@ impl<T> InsertSlice<T> for Vec<T> {
 ///	}
 /// ```
 pub trait SharedPrefix <T> {
+	/// TODO [debris] Please document me
 	fn shared_prefix_len(&self, elem: &[T]) -> usize;
 }
 

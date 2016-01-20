@@ -40,6 +40,7 @@ use super::trietraits::*;
 pub struct TrieDBMut<'db> {
 	db: &'db mut HashDB,
 	root: &'db mut H256,
+	/// TODO [Gav Wood] Please document me
 	pub hash_count: usize,
 }
 

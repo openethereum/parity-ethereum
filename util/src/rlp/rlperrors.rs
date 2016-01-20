@@ -3,14 +3,23 @@ use std::error::Error as StdError;
 use bytes::FromBytesError;
 
 #[derive(Debug, PartialEq, Eq)]
+/// TODO [debris] Please document me
 pub enum DecoderError {
+	/// TODO [debris] Please document me
 	FromBytesError(FromBytesError),
+	/// TODO [debris] Please document me
 	RlpIsTooShort,
+	/// TODO [debris] Please document me
 	RlpExpectedToBeList,
+	/// TODO [Gav Wood] Please document me
 	RlpExpectedToBeData,
+	/// TODO [Gav Wood] Please document me
 	RlpIncorrectListLen,
+	/// TODO [Gav Wood] Please document me
 	RlpDataLenWithZeroPrefix,
+	/// TODO [Gav Wood] Please document me
 	RlpListLenWithZeroPrefix,
+	/// TODO [debris] Please document me
 	RlpInvalidIndirection,
 }
 

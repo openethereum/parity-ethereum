@@ -4,8 +4,11 @@ use error::*;
 use evm::Schedule;
 
 #[derive(Debug,Clone)]
+/// TODO [Gav Wood] Please document me
 pub enum Action {
+	/// TODO [Gav Wood] Please document me
 	Create,
+	/// TODO [debris] Please document me
 	Call(Address),
 }
 
@@ -13,16 +16,25 @@ pub enum Action {
 /// or contract creation operation.
 #[derive(Debug,Clone)]
 pub struct Transaction {
+	/// TODO [debris] Please document me
 	pub nonce: U256,
+	/// TODO [debris] Please document me
 	pub gas_price: U256,
+	/// TODO [debris] Please document me
 	pub gas: U256,
+	/// TODO [debris] Please document me
 	pub action: Action,
+	/// TODO [debris] Please document me
 	pub value: U256,
+	/// TODO [Gav Wood] Please document me
 	pub data: Bytes,
 
 	// signature
+	/// TODO [Gav Wood] Please document me
 	pub v: u8,
+	/// TODO [Gav Wood] Please document me
 	pub r: U256,
+	/// TODO [debris] Please document me
 	pub s: U256,
 
 	hash: RefCell<Option<H256>>,
@@ -30,6 +42,7 @@ pub struct Transaction {
 }
 
 impl Transaction {
+	/// TODO [Gav Wood] Please document me
 	pub fn new() -> Self {
 		Transaction {
 			nonce: x!(0),

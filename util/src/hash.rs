@@ -13,20 +13,33 @@ use uint::{Uint, U256};
 ///
 /// Note: types implementing `FixedHash` must be also `BytesConvertable`.
 pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default {
+	/// TODO [Gav Wood] Please document me
 	fn new() -> Self;
 	/// Synonym for `new()`. Prefer to new as it's more readable.
 	fn zero() -> Self;
+	/// TODO [debris] Please document me
 	fn random() -> Self;
+	/// TODO [debris] Please document me
 	fn randomize(&mut self);
+	/// TODO [arkpar] Please document me
 	fn size() -> usize;
+	/// TODO [arkpar] Please document me
 	fn from_slice(src: &[u8]) -> Self;
+	/// TODO [arkpar] Please document me
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
+	/// TODO [Gav Wood] Please document me
 	fn copy_to(&self, dest: &mut [u8]);
+	/// TODO [Gav Wood] Please document me
 	fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
+	/// TODO [debris] Please document me
 	fn with_bloomed<T>(mut self, b: &T) -> Self where T: FixedHash { self.shift_bloomed(b); self }
+	/// TODO [Gav Wood] Please document me
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
+	/// TODO [debris] Please document me
 	fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash;
+	/// TODO [arkpar] Please document me
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
+	/// TODO [debris] Please document me
 	fn is_zero(&self) -> bool;
 }
 
@@ -41,6 +54,7 @@ fn clean_0x(s: &str) -> &str {
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
+		/// TODO [Gav Wood] Please document me
 		pub struct $from (pub [u8; $size]);
 
 		impl BytesConvertable for $from {
@@ -396,10 +410,12 @@ macro_rules! impl_hash {
 		}
 
 		impl $from {
+			/// TODO [Gav Wood] Please document me
 			pub fn hex(&self) -> String {
 				format!("{:?}", self)
 			}
 
+			/// TODO [Gav Wood] Please document me
 			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
 		}
 
@@ -503,21 +519,25 @@ impl<'_> From<&'_ Address> for H256 {
 	}
 }
 
+/// TODO [Gav Wood] Please document me
 pub fn h256_from_hex(s: &str) -> H256 {
 	use std::str::FromStr;
 	H256::from_str(s).unwrap()
 }
 
+/// TODO [Gav Wood] Please document me
 pub fn h256_from_u64(n: u64) -> H256 {
 	use uint::U256;
 	H256::from(&U256::from(n))
 }
 
+/// TODO [Gav Wood] Please document me
 pub fn address_from_hex(s: &str) -> Address {
 	use std::str::FromStr;
 	Address::from_str(s).unwrap()
 }
 
+/// TODO [Gav Wood] Please document me
 pub fn address_from_u64(n: u64) -> Address {
 	let h256 = h256_from_u64(n);
 	From::from(h256)

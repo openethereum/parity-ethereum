@@ -3,9 +3,13 @@ use common::*;
 #[derive(Debug,Clone,PartialEq,Eq)]
 /// Diff type for specifying a change (or not).
 pub enum Diff<T> where T: Eq {
+	/// TODO [Gav Wood] Please document me
 	Same,
+	/// TODO [Gav Wood] Please document me
 	Born(T),
+	/// TODO [Gav Wood] Please document me
 	Changed(T, T),
+	/// TODO [Gav Wood] Please document me
 	Died(T),
 }
 
@@ -26,6 +30,8 @@ impl<T> Diff<T> where T: Eq {
 #[derive(PartialEq,Eq,Clone,Copy)]
 /// Boolean type for clean/dirty status.
 pub enum Filth {
+	/// TODO [Gav Wood] Please document me
 	Clean,
+	/// TODO [Gav Wood] Please document me
 	Dirty,
 }
