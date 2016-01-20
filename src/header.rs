@@ -2,7 +2,7 @@ use util::*;
 use basic_types::*;
 use time::now_utc;
 
-/// Current number of block type
+/// Type for BlockNumber
 pub type BlockNumber = u64;
 
 /// A block header.
