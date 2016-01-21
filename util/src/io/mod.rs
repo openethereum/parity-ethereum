@@ -8,27 +8,28 @@
 ///
 /// struct MyHandler;
 ///
+/// #[derive(Clone)]
 /// struct MyMessage {
 /// 	data: u32
 /// }
 ///
 ///	impl IoHandler<MyMessage> for MyHandler {
-///		fn initialize(&mut self, io: &mut IoContext<MyMessage>) {
-///			io.register_timer(1000).unwrap();
+///		fn initialize(&self, io: &IoContext<MyMessage>) {
+///			io.register_timer(0, 1000).unwrap();
 ///		}
 ///
-///		fn timeout(&mut self, _io: &mut IoContext<MyMessage>, timer: TimerToken) {
+///		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
 ///			println!("Timeout {}", timer);
 ///		}
 ///
-///		fn message(&mut self, _io: &mut IoContext<MyMessage>, message: &mut MyMessage) {
+///		fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
 ///			println!("Message {}", message.data);
 ///		}
 ///	}
 ///
 /// fn main () {
 /// 	let mut service = IoService::<MyMessage>::start().expect("Error creating network service");
-/// 	service.register_handler(Box::new(MyHandler)).unwrap();
+/// 	service.register_handler(Arc::new(MyHandler)).unwrap();
 ///
 /// 	// Wait for quit condition
 /// 	// ...
@@ -93,24 +94,26 @@ pub use io::service::TOKENS_PER_HANDLER;
 #[cfg(test)]
 mod tests {
 
+	use std::sync::Arc;
 	use io::*;
 
 	struct MyHandler;
 
+	#[derive(Clone)]
 	struct MyMessage {
 		data: u32
 	}
 
 	impl IoHandler<MyMessage> for MyHandler {
-		fn initialize(&mut self, io: &mut IoContext<MyMessage>) {
-			io.register_timer(1000).unwrap();
+		fn initialize(&self, io: &IoContext<MyMessage>) {
+			io.register_timer(0, 1000).unwrap();
 		}
 
-		fn timeout(&mut self, _io: &mut IoContext<MyMessage>, timer: TimerToken) {
+		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
 			println!("Timeout {}", timer);
 		}
 
-		fn message(&mut self, _io: &mut IoContext<MyMessage>, message: &mut MyMessage) {
+		fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
 			println!("Message {}", message.data);
 		}
 	}
@@ -118,7 +121,7 @@ mod tests {
 	#[test]
 	fn test_service_register_handler () {
 		let mut service = IoService::<MyMessage>::start().expect("Error creating network service");
-		service.register_handler(Box::new(MyHandler)).unwrap();
+		service.register_handler(Arc::new(MyHandler)).unwrap();
 	}
 
 }
