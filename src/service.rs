@@ -22,7 +22,7 @@ impl ClientService {
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		let client = Arc::new(RwLock::new(try!(Client::new(spec, &dir, net_service.io().channel()))));
 		EthSync::register(&mut net_service, client.clone());
-		let client_io = Box::new(ClientIoHandler {
+		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
 		});
 		try!(net_service.io().register_handler(client_io));
@@ -48,14 +48,14 @@ struct ClientIoHandler {
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>) {
+	fn initialize(&self, _io: &IoContext<NetSyncMessage>) {
 	}
 
-	fn message<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>, net_message: &'s mut NetSyncMessage) {
+	fn message(&self, _io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
 		match net_message {
-			&mut UserMessage(ref mut message) =>  {
+			&UserMessage(ref message) =>  {
 				match message {
-					&mut SyncMessage::BlockVerified => {
+					&SyncMessage::BlockVerified => {
 						self.client.write().unwrap().import_verified_blocks();
 					},
 					_ => {}, // ignore other messages

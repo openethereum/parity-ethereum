@@ -51,6 +51,7 @@ extern crate crypto as rcrypto;
 extern crate secp256k1;
 extern crate arrayvec;
 extern crate elastic_array;
+extern crate crossbeam;
 
 pub mod standard;
 #[macro_use]

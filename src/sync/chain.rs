@@ -424,6 +424,10 @@ impl ChainSync {
 			let peer_difficulty = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer").difficulty;
 			if difficulty > peer_difficulty {
 				trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
+				{
+					let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
+					peer.latest = header_view.sha3();
+				}
 				self.sync_peer(io, peer_id, true);
 			}
 		}

@@ -1,6 +1,5 @@
 use util::*;
 use rocksdb::{Options, DB};
-use rocksdb::DBCompactionStyle::DBUniversalCompaction;
 use blockchain::{BlockChain, BlockProvider};
 use views::BlockView;
 use error::*;
@@ -113,7 +112,9 @@ impl Client {
 	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Client, Error> {
 		let chain = Arc::new(RwLock::new(BlockChain::new(&spec.genesis_block(), path)));
 		let mut opts = Options::new();
+		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
+		/*
 		opts.set_max_open_files(256);
 		opts.set_use_fsync(false);
 		opts.set_bytes_per_sync(8388608);
@@ -131,6 +132,7 @@ impl Client {
 		opts.set_max_background_flushes(4);
 		opts.set_filter_deletes(false);
 		opts.set_disable_auto_compactions(true);		
+		*/
 
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
@@ -219,7 +221,7 @@ impl Client {
 					return;
 				}
 			}
-			info!(target: "client", "Imported #{} ({})", header.number(), header.hash());
+			//info!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
 	}
 }

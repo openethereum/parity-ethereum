@@ -56,31 +56,31 @@ mod service;
 mod error;
 mod node;
 
-pub type PeerId = host::PeerId;
-pub type PacketId = host::PacketId;
-pub type NetworkContext<'s,'io,  Message> = host::NetworkContext<'s, 'io, Message>;
-pub type NetworkService<Message> = service::NetworkService<Message>;
-pub type NetworkIoMessage<Message> = host::NetworkIoMessage<Message>;
+pub use network::host::PeerId;
+pub use network::host::PacketId;
+pub use network::host::NetworkContext;
+pub use network::service::NetworkService;
+pub use network::host::NetworkIoMessage;
 pub use network::host::NetworkIoMessage::User as UserMessage;
-pub type NetworkError = error::NetworkError;
+pub use network::error::NetworkError;
 
-use io::*;
+use io::TimerToken;
 
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
 /// All the handler function are called from within IO event loop.
 /// `Message` is the type for message data.
-pub trait NetworkProtocolHandler<Message>: Send where Message: Send {
+pub trait NetworkProtocolHandler<Message>: Sync + Send where Message: Send + Sync + Clone {
 	/// Initialize the handler
-	fn initialize(&mut self, _io: &mut NetworkContext<Message>) {}
+	fn initialize(&self, _io: &NetworkContext<Message>) {}
 	/// Called when new network packet received.
-	fn read(&mut self, io: &mut NetworkContext<Message>, peer: &PeerId, packet_id: u8, data: &[u8]);
+	fn read(&self, io: &NetworkContext<Message>, peer: &PeerId, packet_id: u8, data: &[u8]);
 	/// Called when new peer is connected. Only called when peer supports the same protocol.
-	fn connected(&mut self, io: &mut NetworkContext<Message>, peer: &PeerId);
+	fn connected(&self, io: &NetworkContext<Message>, peer: &PeerId);
 	/// Called when a previously connected peer disconnects.
-	fn disconnected(&mut self, io: &mut NetworkContext<Message>, peer: &PeerId);
+	fn disconnected(&self, io: &NetworkContext<Message>, peer: &PeerId);
 	/// Timer function called after a timeout created with `NetworkContext::timeout`.
-	fn timeout(&mut self, _io: &mut NetworkContext<Message>, _timer: TimerToken) {}
+	fn timeout(&self, _io: &NetworkContext<Message>, _timer: TimerToken) {}
 	/// Called when a broadcasted message is received. The message can only be sent from a different IO handler.
-	fn message(&mut self, _io: &mut NetworkContext<Message>, _message: &Message) {}
+	fn message(&self, _io: &NetworkContext<Message>, _message: &Message) {}
 }
 

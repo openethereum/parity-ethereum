@@ -1,148 +1,221 @@
+use std::sync::*;
 use std::thread::{self, JoinHandle};
+use std::collections::HashMap;
 use mio::*;
-use mio::util::{Slab};
 use hash::*;
 use rlp::*;
 use error::*;
 use io::{IoError, IoHandler};
+use arrayvec::*;
+use crossbeam::sync::chase_lev;
+use io::worker::{Worker, Work, WorkType};
 
 pub type TimerToken = usize;
 pub type StreamToken = usize;
+pub type HandlerId = usize;
 
 // Tokens
-const MAX_USER_TIMERS: usize = 32;
-const USER_TIMER: usize = 0;
-const LAST_USER_TIMER: usize = USER_TIMER + MAX_USER_TIMERS - 1;
-//const USER_TOKEN: usize = LAST_USER_TIMER + 1;
+pub const TOKENS_PER_HANDLER: usize = 16384;
 
 /// Messages used to communicate with the event loop from other threads.
-pub enum IoMessage<Message> where Message: Send + Sized {
+#[derive(Clone)]
+pub enum IoMessage<Message> where Message: Send + Clone + Sized {
 	/// Shutdown the event loop
 	Shutdown,
 	/// Register a new protocol handler.
 	AddHandler {
-		handler: Box<IoHandler<Message>+Send>,
+		handler: Arc<IoHandler<Message>+Send>,
+	},
+	AddTimer {
+		handler_id: HandlerId,
+		token: TimerToken,
+		delay: u64,
+	},
+	RemoveTimer {
+		handler_id: HandlerId,
+		token: TimerToken,
+	},
+	RegisterStream {
+		handler_id: HandlerId,
+		token: StreamToken,
+	},
+	UpdateStreamRegistration {
+		handler_id: HandlerId,
+		token: StreamToken,
 	},
 	/// Broadcast a message across all protocol handlers.
 	UserMessage(Message)
 }
 
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
-pub struct IoContext<'s, Message> where Message: Send + 'static {
-	timers: &'s mut Slab<UserTimer>,
-	/// Low leve MIO Event loop for custom handler registration.
-	pub event_loop: &'s mut EventLoop<IoManager<Message>>,
+pub struct IoContext<Message> where Message: Send + Clone + 'static {
+	pub channel: IoChannel<Message>,
+	pub handler: HandlerId,
 }
 
-impl<'s, Message> IoContext<'s, Message> where Message: Send + 'static {
+impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	/// Create a new IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(event_loop: &'s mut EventLoop<IoManager<Message>>, timers: &'s mut Slab<UserTimer>) -> IoContext<'s, Message> {
+	pub fn new(channel: IoChannel<Message>, handler: HandlerId) -> IoContext<Message> {
 		IoContext {
-			event_loop: event_loop,
-			timers: timers,
+			handler: handler,
+			channel: channel,
 		}
 	}
 
-	/// Register a new IO timer. Returns a new timer token. 'IoHandler::timeout' will be called with the token.
-	pub fn register_timer(&mut self, ms: u64) -> Result<TimerToken, UtilError> {
-		match self.timers.insert(UserTimer {
+	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
+	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), UtilError> {
+		try!(self.channel.send_io(IoMessage::AddTimer {
+			token: token,
 			delay: ms,
-		}) {
-			Ok(token) => {
-				self.event_loop.timeout_ms(token, ms).expect("Error registering user timer");
-				Ok(token.as_usize())
-			},
-			_ => { panic!("Max timers reached") }
-		}
+			handler_id: self.handler,
+		}));
+		Ok(())
+	}
+
+	/// Delete a timer.
+	pub fn clear_timer(&self, token: TimerToken) -> Result<(), UtilError> {
+		try!(self.channel.send_io(IoMessage::RemoveTimer {
+			token: token,
+			handler_id: self.handler,
+		}));
+		Ok(())
+	}
+	/// Register a new IO stream.
+	pub fn register_stream(&self, token: StreamToken) -> Result<(), UtilError> {
+		try!(self.channel.send_io(IoMessage::RegisterStream {
+			token: token,
+			handler_id: self.handler,
+		}));
+		Ok(())
+	}
+
+	/// Reregister an IO stream.
+	pub fn update_registration(&self, token: StreamToken) -> Result<(), UtilError> {
+		try!(self.channel.send_io(IoMessage::UpdateStreamRegistration {
+			token: token,
+			handler_id: self.handler,
+		}));
+		Ok(())
 	}
 
 	/// Broadcast a message to other IO clients
-	pub fn message(&mut self, message: Message) {
-		match self.event_loop.channel().send(IoMessage::UserMessage(message)) {
-			Ok(_) => {}
-			Err(e) => { panic!("Error sending io message {:?}", e); }
-		}
+	pub fn message(&self, message: Message) {
+		self.channel.send(message).expect("Error seding message");
 	}
 }
 
+#[derive(Clone)]
 struct UserTimer {
 	delay: u64,
+	timeout: Timeout,
 }
 
 /// Root IO handler. Manages user handlers, messages and IO timers.
-pub struct IoManager<Message> where Message: Send {
-	timers: Slab<UserTimer>,
-	handlers: Vec<Box<IoHandler<Message>>>,
+pub struct IoManager<Message> where Message: Send + Sync {
+	timers: Arc<RwLock<HashMap<HandlerId, UserTimer>>>,
+	handlers: Vec<Arc<IoHandler<Message>>>,
+	_workers: Vec<Worker>,
+	worker_channel: chase_lev::Worker<Work<Message>>,
+	work_ready: Arc<Condvar>,
 }
 
-impl<Message> IoManager<Message> where Message: Send + 'static {
+impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	/// Creates a new instance and registers it with the event loop.
 	pub fn start(event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), UtilError> {
+		let (worker, stealer) = chase_lev::deque();
+		let num_workers = 4;
+		let work_ready_mutex =  Arc::new(Mutex::new(false));
+		let work_ready = Arc::new(Condvar::new());
+		let workers = (0..num_workers).map(|i| 
+			Worker::new(i, stealer.clone(), IoChannel::new(event_loop.channel()), work_ready.clone(), work_ready_mutex.clone())).collect();
+
 		let mut io = IoManager {
-			timers: Slab::new_starting_at(Token(USER_TIMER), MAX_USER_TIMERS),
+			timers: Arc::new(RwLock::new(HashMap::new())),
 			handlers: Vec::new(),
+			worker_channel: worker,
+			_workers: workers,
+			work_ready: work_ready,
 		};
 		try!(event_loop.run(&mut io));
 		Ok(())
 	}
 }
 
-impl<Message> Handler for IoManager<Message> where Message: Send + 'static {
+impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync + 'static {
 	type Timeout = Token;
 	type Message = IoMessage<Message>;
 
-	fn ready(&mut self, event_loop: &mut EventLoop<Self>, token: Token, events: EventSet) {
+	fn ready(&mut self, _event_loop: &mut EventLoop<Self>, token: Token, events: EventSet) {
+		let handler_index  = token.as_usize() / TOKENS_PER_HANDLER;
+		let token_id  = token.as_usize() % TOKENS_PER_HANDLER;
+		if handler_index >= self.handlers.len() {
+			panic!("Unexpected stream token: {}", token.as_usize());
+		}
+		let handler = self.handlers[handler_index].clone();
+
 		if events.is_hup() {
-			for h in self.handlers.iter_mut() {
-				h.stream_hup(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
+			self.worker_channel.push(Work { work_type: WorkType::Hup, token: token_id, handler: handler.clone(), handler_id: handler_index });
+		}
+		else {
+			if events.is_readable() {
+				self.worker_channel.push(Work { work_type: WorkType::Readable, token: token_id, handler: handler.clone(), handler_id: handler_index });
+			}
+			if events.is_writable() {
+				self.worker_channel.push(Work { work_type: WorkType::Writable, token: token_id, handler: handler.clone(), handler_id: handler_index });
 			}
 		}
-		else if events.is_readable() {
-			for h in self.handlers.iter_mut() {
-				h.stream_readable(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
-			}
-		}
-		else if events.is_writable() {
-			for h in self.handlers.iter_mut() {
-				h.stream_writable(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
-			}
-		}
+		self.work_ready.notify_all();
 	}
 
 	fn timeout(&mut self, event_loop: &mut EventLoop<Self>, token: Token) {
-		match token.as_usize() {
-			USER_TIMER ... LAST_USER_TIMER => {
-				let delay = {
-					let timer = self.timers.get_mut(token).expect("Unknown user timer token");
-					timer.delay
-				};
-				for h in self.handlers.iter_mut() {
-					h.timeout(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
-				}
-				event_loop.timeout_ms(token, delay).expect("Error re-registering user timer");
-			}
-			_ => { // Just pass the event down. IoHandler is supposed to re-register it if required.
-				for h in self.handlers.iter_mut() {
-					h.timeout(&mut IoContext::new(event_loop, &mut self.timers), token.as_usize());
-				}
-			}
+		let handler_index  = token.as_usize()  / TOKENS_PER_HANDLER;
+		let token_id  = token.as_usize()  % TOKENS_PER_HANDLER;
+		if handler_index >= self.handlers.len() {
+			panic!("Unexpected timer token: {}", token.as_usize());
+		}
+		if let Some(timer) = self.timers.read().unwrap().get(&token.as_usize()) {
+			event_loop.timeout_ms(token, timer.delay).expect("Error re-registering user timer");
+			let handler = self.handlers[handler_index].clone();
+			self.worker_channel.push(Work { work_type: WorkType::Timeout, token: token_id, handler: handler, handler_id: handler_index });
+			self.work_ready.notify_all();
 		}
 	}
 
 	fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
-		let mut m = msg;
-		match m {
+		match msg {
 			IoMessage::Shutdown => event_loop.shutdown(),
-			IoMessage::AddHandler {
-				handler,
-			} => {
-				self.handlers.push(handler);
-				self.handlers.last_mut().unwrap().initialize(&mut IoContext::new(event_loop, &mut self.timers));
+			IoMessage::AddHandler { handler } => {
+				let handler_id = {
+					self.handlers.push(handler.clone());
+					self.handlers.len() - 1
+				};
+				handler.initialize(&IoContext::new(IoChannel::new(event_loop.channel()), handler_id));
 			},
-			IoMessage::UserMessage(ref mut data) => {
-				for h in self.handlers.iter_mut() {
-					h.message(&mut IoContext::new(event_loop, &mut self.timers), data);
+			IoMessage::AddTimer { handler_id, token, delay } => {
+				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
+				let timeout = event_loop.timeout_ms(Token(timer_id), delay).expect("Error registering user timer");
+				self.timers.write().unwrap().insert(timer_id, UserTimer { delay: delay, timeout: timeout });
+			},
+			IoMessage::RemoveTimer { handler_id, token } => {
+				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
+				if let Some(timer) = self.timers.write().unwrap().remove(&timer_id) {
+					event_loop.clear_timeout(timer.timeout);
 				}
+			},
+			IoMessage::RegisterStream { handler_id, token } => {
+				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
+				handler.register_stream(token, Token(token + handler_id * TOKENS_PER_HANDLER), event_loop);
+			},
+			IoMessage::UpdateStreamRegistration { handler_id, token } => {
+				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
+				handler.update_stream(token, Token(token + handler_id * TOKENS_PER_HANDLER), event_loop);
+			},
+			IoMessage::UserMessage(data) => {
+				for n in 0 .. self.handlers.len() {
+					let handler = self.handlers[n].clone();
+					self.worker_channel.push(Work { work_type: WorkType::Message(data.clone()), token: 0, handler: handler, handler_id: n });
+				}
+				self.work_ready.notify_all();
 			}
 		}
 	}
@@ -150,11 +223,19 @@ impl<Message> Handler for IoManager<Message> where Message: Send + 'static {
 
 /// Allows sending messages into the event loop. All the IO handlers will get the message
 /// in the `message` callback.
-pub struct IoChannel<Message> where Message: Send {
+pub struct IoChannel<Message> where Message: Send + Clone{
 	channel: Option<Sender<IoMessage<Message>>>
 }
 
-impl<Message> IoChannel<Message> where Message: Send {
+impl<Message> Clone for IoChannel<Message> where Message: Send + Clone {
+	fn clone(&self) -> IoChannel<Message> {
+		IoChannel {
+			channel: self.channel.clone()
+		}
+	}
+}
+
+impl<Message> IoChannel<Message> where Message: Send + Clone {
 	/// Send a msessage through the channel
 	pub fn send(&self, message: Message) -> Result<(), IoError> {
 		if let Some(ref channel) = self.channel {
@@ -163,20 +244,30 @@ impl<Message> IoChannel<Message> where Message: Send {
 		Ok(())
 	}
 
+	pub fn send_io(&self, message: IoMessage<Message>) -> Result<(), IoError> {
+		if let Some(ref channel) = self.channel {
+			try!(channel.send(message))
+		}
+		Ok(())
+	}
 	/// Create a new channel to connected to event loop.
 	pub fn disconnected() -> IoChannel<Message> {
 		IoChannel { channel: None }
+	}
+
+	fn new(channel: Sender<IoMessage<Message>>) -> IoChannel<Message> {
+		IoChannel { channel: Some(channel) }
 	}
 }
 
 /// General IO Service. Starts an event loop and dispatches IO requests.
 /// 'Message' is a notification message type
-pub struct IoService<Message> where Message: Send + 'static {
+pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
 	thread: Option<JoinHandle<()>>,
-	host_channel: Sender<IoMessage<Message>>
+	host_channel: Sender<IoMessage<Message>>,
 }
 
-impl<Message> IoService<Message> where Message: Send + 'static {
+impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, UtilError> {
 		let mut event_loop = EventLoop::new().unwrap();
@@ -191,7 +282,7 @@ impl<Message> IoService<Message> where Message: Send + 'static {
 	}
 
 	/// Regiter a IO hadnler with the event loop.
-	pub fn register_handler(&mut self, handler: Box<IoHandler<Message>+Send>) -> Result<(), IoError> {
+	pub fn register_handler(&mut self, handler: Arc<IoHandler<Message>+Send>) -> Result<(), IoError> {
 		try!(self.host_channel.send(IoMessage::AddHandler {
 			handler: handler,
 		}));
@@ -210,7 +301,7 @@ impl<Message> IoService<Message> where Message: Send + 'static {
 	}
 }
 
-impl<Message> Drop for IoService<Message> where Message: Send {
+impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
 		self.host_channel.send(IoMessage::Shutdown).unwrap();
 		self.thread.take().unwrap().join().unwrap();

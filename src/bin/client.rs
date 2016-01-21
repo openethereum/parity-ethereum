@@ -29,7 +29,7 @@ fn main() {
 	setup_log();
 	let spec = ethereum::new_frontier();
 	let mut service = ClientService::start(spec).unwrap();
-	let io_handler  = Box::new(ClientIoHandler { client: service.client(), timer: 0 });
+	let io_handler  = Arc::new(ClientIoHandler { client: service.client() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 	loop {
 		let mut cmd = String::new();
@@ -43,16 +43,15 @@ fn main() {
 
 struct ClientIoHandler {
 	client: Arc<RwLock<Client>>,
-	timer: TimerToken,
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize<'s>(&'s mut self, io: &mut IoContext<'s, NetSyncMessage>) { 
-		self.timer = io.register_timer(5000).expect("Error registering timer");
+	fn initialize(&self, io: &IoContext<NetSyncMessage>) { 
+		io.register_timer(0, 5000).expect("Error registering timer");
 	}
 
-	fn timeout<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>, timer: TimerToken) {
-		if self.timer == timer {
+	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
+		if timer == 0 {
 			println!("Chain info: {:?}", self.client.read().unwrap().deref().chain_info());
 		}
 	}

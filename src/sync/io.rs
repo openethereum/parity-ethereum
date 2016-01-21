@@ -22,14 +22,14 @@ pub trait SyncIo {
 }
 
 /// Wraps `NetworkContext` and the blockchain client
-pub struct NetSyncIo<'s, 'h, 'io> where 'h: 's, 'io: 'h {
-	network: &'s mut NetworkContext<'h, 'io, SyncMessage>,
+pub struct NetSyncIo<'s, 'h> where 'h: 's {
+	network: &'s NetworkContext<'h, SyncMessage>,
 	chain: &'s mut BlockChainClient
 }
 
-impl<'s, 'h, 'io> NetSyncIo<'s, 'h, 'io> {
+impl<'s, 'h> NetSyncIo<'s, 'h> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s mut NetworkContext<'h, 'io, SyncMessage>, chain: &'s mut BlockChainClient) -> NetSyncIo<'s,'h,'io> {
+	pub fn new(network: &'s NetworkContext<'h, SyncMessage>, chain: &'s mut BlockChainClient) -> NetSyncIo<'s, 'h> {
 		NetSyncIo {
 			network: network,
 			chain: chain,
@@ -37,7 +37,7 @@ impl<'s, 'h, 'io> NetSyncIo<'s, 'h, 'io> {
 	}
 }
 
-impl<'s, 'h, 'op> SyncIo for NetSyncIo<'s, 'h, 'op> {
+impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 	fn disable_peer(&mut self, peer_id: PeerId) {
 		self.network.disable_peer(peer_id);
 	}
