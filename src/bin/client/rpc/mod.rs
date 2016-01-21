@@ -10,7 +10,7 @@ macro_rules! rpcerr {
 pub mod traits;
 pub mod impls;
 
-pub use self::traits::{Web3, Eth, Net};
+pub use self::traits::{Web3, Eth, EthFilter, Net};
 pub use self::impls::*;
 
 

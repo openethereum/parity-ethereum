@@ -43,3 +43,23 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	}
 }
 
+// TODO: do filters api properly if we commit outselves to polling again...
+pub trait EthFilter: Sized + Send + Sync + 'static {
+	/// Returns id of new block filter
+	fn new_block_filter(&self, _: Params) -> Result<Value, Error> { rpcerr!() }
+
+	/// Returns id of new block filter
+	fn new_pending_transaction_filter(&self, _: Params) -> Result<Value, Error> { rpcerr!() }
+
+	/// Returns filter changes since last poll
+	fn filter_changes(&self, _: Params) -> Result<Value, Error> { rpcerr!() }
+
+	/// Should be used to convert object to io delegate.
+	fn to_delegate(self) -> IoDelegate<Self> {
+		let mut delegate = IoDelegate::new(Arc::new(self));
+		delegate.add_method("eth_newBlockFilter", EthFilter::new_block_filter);
+		delegate.add_method("eth_newPendingTransactionFilter", EthFilter::new_pending_transaction_filter);
+		delegate.add_method("eth_getFilterChanges", EthFilter::new_block_filter);
+		delegate
+	}
+}

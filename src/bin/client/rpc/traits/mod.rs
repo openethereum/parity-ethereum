@@ -4,5 +4,5 @@ pub mod eth;
 pub mod net;
 
 pub use self::web3::Web3;
-pub use self::eth::Eth;
+pub use self::eth::{Eth, EthFilter};
 pub use self::net::Net;

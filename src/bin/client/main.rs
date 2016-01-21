@@ -36,7 +36,9 @@ fn setup_rpc_server(client: Arc<RwLock<Client>>) {
 	
 	let mut server = HttpServer::new(1);
 	server.add_delegate(Web3Client::new().to_delegate());
-	server.add_delegate(EthClient::new(client).to_delegate());
+	server.add_delegate(EthClient::new(client.clone()).to_delegate());
+	server.add_delegate(EthFilterClient::new(client).to_delegate());
+	server.add_delegate(NetClient::new().to_delegate());
 	server.start_async("127.0.0.1:3030");
 }
 

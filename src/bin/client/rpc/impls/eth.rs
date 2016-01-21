@@ -3,7 +3,7 @@ use rustc_serialize::hex::ToHex;
 use util::hash::*;
 use ethcore::client::*;
 use rpc::jsonrpc_core::*;
-use rpc::Eth;
+use rpc::{Eth, EthFilter};
 
 pub struct EthClient {
 	client: Arc<RwLock<Client>>,
@@ -32,6 +32,13 @@ impl Eth for EthClient {
 		}
 	}
 
+	fn gas_price(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => Ok(Value::U64(0)),
+			_ => Err(Error::invalid_params())
+		}
+	}
+
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => Ok(Value::U64(self.client.read().unwrap().chain_info().best_block_number)),
@@ -44,5 +51,38 @@ impl Eth for EthClient {
 			Params::None => Ok(Value::Bool(false)),
 			_ => Err(Error::invalid_params())
 		}
+	}
+
+	fn hashrate(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => Ok(Value::U64(0)),
+			_ => Err(Error::invalid_params())
+		}
+	}
+}
+
+pub struct EthFilterClient {
+	client: Arc<RwLock<Client>>
+}
+
+impl EthFilterClient {
+	pub fn new(client: Arc<RwLock<Client>>) -> Self {
+		EthFilterClient {
+			client: client
+		}
+	}
+}
+
+impl EthFilter for EthFilterClient {
+	fn new_block_filter(&self, _params: Params) -> Result<Value, Error> {
+		Ok(Value::U64(0))
+	}
+
+	fn new_pending_transaction_filter(&self, _params: Params) -> Result<Value, Error> {
+		Ok(Value::U64(1))
+	}
+
+	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
+		Ok(Value::String(self.client.read().unwrap().chain_info().best_block_hash.to_hex()))
 	}
 }
