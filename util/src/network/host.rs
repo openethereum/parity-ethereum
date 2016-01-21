@@ -69,21 +69,21 @@ pub type ProtocolId = &'static str;
 pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
 	/// Register a new protocol handler.
 	AddHandler {
+		/// Handler shared instance.
 		handler: Arc<NetworkProtocolHandler<Message> + Sync>,
+		/// Protocol Id.
 		protocol: ProtocolId,
+		/// Supported protocol versions.
 		versions: Vec<u8>,
 	},
+	/// Register a new protocol timer
 	AddTimer {
+		/// Protocol Id.
 		protocol: ProtocolId,
+		/// Timer token.
 		token: TimerToken,
+		/// Timer delay in milliseconds.
 		delay: u64,
-	},
-	/// Send data over the network. // TODO: remove this
-	Send {
-		peer: PeerId,
-		packet_id: PacketId,
-		protocol: ProtocolId,
-		data: Vec<u8>,
 	},
 	/// User message
 	User(Message),
@@ -643,23 +643,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				};
 				self.timers.write().unwrap().insert(handler_token, ProtocolTimer { protocol: protocol, token: *token });
 				io.register_timer(handler_token, *delay).expect("Error registering timer");
-			},
-			&NetworkIoMessage::Send {
-				ref peer,
-				ref packet_id,
-				ref protocol,
-				ref data,
-			} => {
-				if let Some(connection) = self.connections.read().unwrap().get(*peer).map(|c| c.clone()) {
-					match connection.lock().unwrap().deref_mut() {
-						&mut ConnectionEntry::Session(ref mut s) => {
-							s.send_packet(protocol, *packet_id as u8, &data).unwrap_or_else(|e| {
-								warn!(target: "net", "Send error: {:?}", e);
-							}); //TODO: don't copy vector data
-						},
-						_ => { warn!(target: "net", "Send: Peer session not exist"); }
-					}
-				} else { warn!(target: "net", "Send: Peer does not exist"); } 
 			},
 			&NetworkIoMessage::User(ref message) => {
 				for (p, h) in self.handlers.read().unwrap().iter() {

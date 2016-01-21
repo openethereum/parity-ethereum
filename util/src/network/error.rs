@@ -19,11 +19,17 @@ pub enum DisconnectReason
 }
 
 #[derive(Debug)]
+/// Network error.
 pub enum NetworkError {
+	/// Authentication error.
 	Auth,
+	/// Unrecognised protocol.
 	BadProtocol,
+	/// Peer not found.
 	PeerNotFound,
+	/// Peer is diconnected.
 	Disconnect(DisconnectReason),
+	/// Socket IO error.
 	Io(IoError),
 }
 

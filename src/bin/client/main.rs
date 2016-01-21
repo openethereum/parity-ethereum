@@ -3,11 +3,12 @@ extern crate ethcore;
 extern crate rustc_serialize;
 extern crate log;
 extern crate env_logger;
+extern crate ctrlc;
 
-use std::io::stdin;
 use std::env;
 use log::{LogLevelFilter};
 use env_logger::LogBuilder;
+use ctrlc::CtrlC;
 use util::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
@@ -31,13 +32,15 @@ fn main() {
 	let mut service = ClientService::start(spec).unwrap();
 	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
-	loop {
-		let mut cmd = String::new();
-		stdin().read_line(&mut cmd).unwrap();
-		if cmd == "quit\n" || cmd == "exit\n" || cmd == "q\n" {
-			break;
-		}
-	}
+
+	let exit = Arc::new(Condvar::new());
+	let e = exit.clone();
+    CtrlC::set_handler(move || {
+		e.notify_all();
+    });
+
+	let mutex = Mutex::new(());
+	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
 }
 
 struct Informant {

@@ -10,11 +10,14 @@ use arrayvec::*;
 use crossbeam::sync::chase_lev;
 use io::worker::{Worker, Work, WorkType};
 
+/// Timer ID
 pub type TimerToken = usize;
+/// Timer ID
 pub type StreamToken = usize;
+/// IO Hadndler ID
 pub type HandlerId = usize;
 
-// Tokens
+/// Maximum number of tokens a handler can use
 pub const TOKENS_PER_HANDLER: usize = 16384;
 
 /// Messages used to communicate with the event loop from other threads.
@@ -49,8 +52,8 @@ pub enum IoMessage<Message> where Message: Send + Clone + Sized {
 
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
 pub struct IoContext<Message> where Message: Send + Clone + 'static {
-	pub channel: IoChannel<Message>,
-	pub handler: HandlerId,
+	channel: IoChannel<Message>,
+	handler: HandlerId,
 }
 
 impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
@@ -249,6 +252,7 @@ impl<Message> IoChannel<Message> where Message: Send + Clone {
 		Ok(())
 	}
 
+	/// Send low level io message
 	pub fn send_io(&self, message: IoMessage<Message>) -> Result<(), IoError> {
 		if let Some(ref channel) = self.channel {
 			try!(channel.send(message))

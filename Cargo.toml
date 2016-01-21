@@ -20,6 +20,7 @@ time = "0.1"
 evmjit = { path = "rust-evmjit", optional = true }
 ethash = { path = "ethash" }
 num_cpus = "0.2"
+ctrlc = "1.0"
 
 [features]
 jit = ["evmjit"]

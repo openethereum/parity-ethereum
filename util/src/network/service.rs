@@ -2,7 +2,7 @@ use std::sync::*;
 use error::*;
 use network::{NetworkProtocolHandler};
 use network::error::{NetworkError};
-use network::host::{Host, NetworkIoMessage, PeerId, PacketId, ProtocolId};
+use network::host::{Host, NetworkIoMessage, ProtocolId};
 use io::*;
 
 /// IO Service with networking
@@ -24,17 +24,6 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 			io_service: io_service,
 			host_info: host_info,
 		})
-	}
-
-	/// Send a message over the network. Normaly `HostIo::send` should be used. This can be used from non-io threads.
-	pub fn send(&mut self, peer: &PeerId, packet_id: PacketId, protocol: ProtocolId, data: &[u8]) -> Result<(), NetworkError> {
-		try!(self.io_service.send_message(NetworkIoMessage::Send {
-			peer: *peer,
-			packet_id: packet_id,
-			protocol: protocol,
-			data: data.to_vec()
-		}));
-		Ok(())
 	}
 
 	/// Regiter a new protocol handler with the event loop.
