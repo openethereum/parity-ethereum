@@ -41,7 +41,9 @@ mod worker;
 use mio::{EventLoop, Token};
 
 #[derive(Debug)]
+/// TODO [arkpar] Please document me
 pub enum IoError {
+	/// TODO [arkpar] Please document me
 	Mio(::std::io::Error),
 }
 
@@ -73,13 +75,20 @@ pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + Clone + '
 	fn update_stream(&self, _stream: StreamToken, _reg: Token, _event_loop: &mut EventLoop<IoManager<Message>>) {}
 }
 
-pub type TimerToken = service::TimerToken;
-pub type StreamToken = service::StreamToken;
+/// TODO [arkpar] Please document me
+pub use io::service::TimerToken;
+/// TODO [arkpar] Please document me
+pub use io::service::StreamToken;
+/// TODO [arkpar] Please document me
 pub use io::service::IoContext;
-pub type IoService<Message> = service::IoService<Message>;
-pub type IoChannel<Message> = service::IoChannel<Message>;
-pub type IoManager<Message> = service::IoManager<Message>;
-pub const TOKENS_PER_HANDLER: usize = service::TOKENS_PER_HANDLER;
+/// TODO [arkpar] Please document me
+pub use io::service::IoService;
+/// TODO [arkpar] Please document me
+pub use io::service::IoChannel;
+/// TODO [arkpar] Please document me
+pub use io::service::IoManager;
+/// TODO [arkpar] Please document me
+pub use io::service::TOKENS_PER_HANDLER;
 
 #[cfg(test)]
 mod tests {

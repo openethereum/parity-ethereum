@@ -15,19 +15,32 @@ use views::*;
 ///
 /// - `index` - an index where best common ancestor would be.
 pub struct TreeRoute {
+	/// TODO [debris] Please document me
 	pub blocks: Vec<H256>,
+	/// TODO [debris] Please document me
 	pub ancestor: H256,
+	/// TODO [debris] Please document me
 	pub index: usize
 }
 
 /// Represents blockchain's in-memory cache size in bytes.
 #[derive(Debug)]
 pub struct CacheSize {
+	/// TODO [debris] Please document me
 	pub blocks: usize,
+	/// TODO [debris] Please document me
 	pub block_details: usize,
+	/// TODO [debris] Please document me
 	pub transaction_addresses: usize,
+	/// TODO [debris] Please document me
 	pub block_logs: usize,
+	/// TODO [debris] Please document me
 	pub blocks_blooms: usize
+}
+
+impl CacheSize {
+	/// Total amount used by the cache.
+	fn total(&self) -> usize { self.blocks + self.block_details + self.transaction_addresses + self.block_logs + self.blocks_blooms }
 }
 
 /// Information about best block gathered together
@@ -96,6 +109,17 @@ pub trait BlockProvider {
 	}
 }
 
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
+enum CacheID {
+	Block(H256),
+	Extras(ExtrasIndex, H256),
+}
+
+struct CacheManager {
+	cache_usage: VecDeque<HashSet<CacheID>>,
+	in_use: HashSet<CacheID>,
+}
+
 /// Structure providing fast access to blockchain data.
 ///
 /// **Does not do input data verification.**
@@ -113,7 +137,9 @@ pub struct BlockChain {
 	blocks_blooms: RwLock<HashMap<H256, BlocksBlooms>>,
 
 	extras_db: DB,
-	blocks_db: DB
+	blocks_db: DB,
+
+	cache_man: RwLock<CacheManager>,
 }
 
 impl BlockProvider for BlockChain {
@@ -136,6 +162,8 @@ impl BlockProvider for BlockChain {
 		let opt = self.blocks_db.get(hash)
 			.expect("Low level database error. Some issue with disk?");
 
+		self.note_used(CacheID::Block(hash.clone()));
+
 		match opt {
 			Some(b) => {
 				let bytes: Bytes = b.to_vec();
@@ -157,6 +185,10 @@ impl BlockProvider for BlockChain {
 		self.query_extras(&index, &self.block_hashes)
 	}
 }
+
+const COLLECTION_QUEUE_SIZE: usize = 2;
+const MIN_CACHE_SIZE: usize = 1;
+const MAX_CACHE_SIZE: usize = 1024 * 1024 * 1;
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
@@ -197,6 +229,9 @@ impl BlockChain {
 		blocks_path.push("blocks");
 		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
 
+		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
+		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
+
 		let bc = BlockChain {
 			best_block: RwLock::new(BestBlock::new()),
 			blocks: RwLock::new(HashMap::new()),
@@ -206,7 +241,8 @@ impl BlockChain {
 			block_logs: RwLock::new(HashMap::new()),
 			blocks_blooms: RwLock::new(HashMap::new()),
 			extras_db: extras_db,
-			blocks_db: blocks_db
+			blocks_db: blocks_db,
+			cache_man: RwLock::new(cache_man),
 		};
 
 		// load best block
@@ -251,7 +287,7 @@ impl BlockChain {
 	/// Ensure that the best block does indeed have a state_root in the state DB.
 	/// If it doesn't, then rewind down until we find one that does and delete data to ensure that
 	/// later blocks will be reimported. 
-	pub fn ensure_good(&mut self, _state: &OverlayDB) {
+	pub fn ensure_good(&mut self, _state: &JournalDB) {
 		unimplemented!();
 	}
 
@@ -497,6 +533,10 @@ impl BlockChain {
 			}
 		}
 
+		if let Some(h) = hash.as_h256() {
+			self.note_used(CacheID::Extras(T::extras_index(), h.clone()));
+		}
+
 		self.extras_db.get_extras(hash).map(| t: T | {
 			let mut write = cache.write().unwrap();
 			write.insert(hash.clone(), t.clone());
@@ -536,6 +576,56 @@ impl BlockChain {
 		self.transaction_addresses.write().unwrap().squeeze(size.transaction_addresses);
 		self.block_logs.write().unwrap().squeeze(size.block_logs);
 		self.blocks_blooms.write().unwrap().squeeze(size.blocks_blooms);
+	}
+
+	/// Let the cache system know that a cacheable item has been used.
+	fn note_used(&self, id: CacheID) {
+		let mut cache_man = self.cache_man.write().unwrap();
+		if !cache_man.cache_usage[0].contains(&id) {
+			cache_man.cache_usage[0].insert(id.clone());
+			if cache_man.in_use.contains(&id) {
+				if let Some(c) = cache_man.cache_usage.iter_mut().skip(1).find(|e|e.contains(&id)) {
+					c.remove(&id);
+				}
+			} else {
+				cache_man.in_use.insert(id);
+			}
+		}
+	}
+
+	/// Ticks our cache system and throws out any old data.
+	pub fn collect_garbage(&self, force: bool) {
+		// TODO: check time.
+		let timeout = true;
+
+		let t = self.cache_size().total();
+		if t < MIN_CACHE_SIZE || (!timeout && (!force || t < MAX_CACHE_SIZE)) { return; }
+
+		let mut cache_man = self.cache_man.write().unwrap();
+		let mut blocks = self.blocks.write().unwrap();
+		let mut block_details = self.block_details.write().unwrap();
+		let mut block_hashes = self.block_hashes.write().unwrap();
+		let mut transaction_addresses = self.transaction_addresses.write().unwrap();
+		let mut block_logs = self.block_logs.write().unwrap();
+		let mut blocks_blooms = self.blocks_blooms.write().unwrap();
+
+		for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
+			cache_man.in_use.remove(&id);
+			match id {
+				CacheID::Block(h) => { blocks.remove(&h); },
+				CacheID::Extras(ExtrasIndex::BlockDetails, h) => { block_details.remove(&h); },
+				CacheID::Extras(ExtrasIndex::TransactionAddress, h) => { transaction_addresses.remove(&h); },
+				CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
+				CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => { blocks_blooms.remove(&h); },
+				_ => panic!(),
+			}
+		}
+		cache_man.cache_usage.push_front(HashSet::new());
+
+		// TODO: handle block_hashes properly.
+		block_hashes.clear();
+
+		// TODO: m_lastCollection = chrono::system_clock::now();
 	}
 }
 

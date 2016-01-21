@@ -142,6 +142,14 @@ impl RlpStream {
 			self.note_appended(1);
 		}
 	}
+
+	/// Drain the object and return the underlying ElasticArray.
+	pub fn drain(self) -> ElasticArray1024<u8> {
+		match self.is_finished() {
+			true => self.encoder.bytes,
+			false => panic!()
+		}
+	}
 }
 
 struct BasicEncoder {
@@ -215,15 +223,19 @@ impl Encoder for BasicEncoder {
 	}
 }
 
+/// TODO [Gav Wood] Please document me
 pub trait RlpStandard {
+	/// TODO [Gav Wood] Please document me
 	fn rlp_append(&self, s: &mut RlpStream);
 
+	/// TODO [Gav Wood] Please document me
 	fn rlp_bytes(&self) -> Bytes {
 		let mut s = RlpStream::new();
 		self.rlp_append(&mut s);
 		s.out()
 	}
 
+	/// TODO [Gav Wood] Please document me
 	fn rlp_sha3(&self) -> H256 { self.rlp_bytes().sha3() }
 }
 

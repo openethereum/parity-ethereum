@@ -33,10 +33,12 @@ impl ClientService {
 		})
 	}
 
+	/// TODO [arkpar] Please document me
 	pub fn io(&mut self) -> &mut IoService<NetSyncMessage> {
 		self.net_service.io()
 	}
 
+	/// TODO [arkpar] Please document me
 	pub fn client(&self) -> Arc<RwLock<Client>> {
 		self.client.clone()
 	}
@@ -47,8 +49,18 @@ struct ClientIoHandler {
 	client: Arc<RwLock<Client>>
 }
 
+const CLIENT_TICK_TIMER: TimerToken = 0;
+const CLIENT_TICK_MS: u64 = 5000;
+
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize(&self, _io: &IoContext<NetSyncMessage>) {
+	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
+		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
+	}
+
+	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
+		if timer == CLIENT_TICK_TIMER {
+			self.client.read().unwrap().tick();
+		}
 	}
 
 	fn message(&self, _io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {

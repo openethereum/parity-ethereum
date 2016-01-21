@@ -107,12 +107,14 @@ impl MemoryDB {
 		self.data.get(key)
 	}
 
+	/// TODO [Gav Wood] Please document me
 	pub fn drain(&mut self) -> HashMap<H256, (Bytes, i32)> {
 		let mut data = HashMap::new();
 		mem::swap(&mut self.data, &mut data);
 		data
 	}
 
+	/// TODO [Gav Wood] Please document me
 	pub fn denote(&self, key: &H256, value: Bytes) -> &(Bytes, i32) {
 		if self.raw(key) == None {
 			unsafe {

@@ -25,6 +25,7 @@ pub struct EnvInfo {
 }
 
 impl EnvInfo {
+	/// TODO [debris] Please document me
 	pub fn new() -> EnvInfo {
 		EnvInfo {
 			number: 0,

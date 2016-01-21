@@ -4,8 +4,11 @@ use uint::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
 
+/// TODO [Gav Wood] Please document me
 pub type Secret = H256;
+/// TODO [Gav Wood] Please document me
 pub type Public = H512;
+/// TODO [Gav Wood] Please document me
 pub type Signature = H520;
 
 lazy_static! {
@@ -33,11 +36,17 @@ impl Signature {
 }
 
 #[derive(Debug)]
+/// TODO [arkpar] Please document me
 pub enum CryptoError {
+	/// TODO [arkpar] Please document me
 	InvalidSecret,
+	/// TODO [arkpar] Please document me
 	InvalidPublic,
+	/// TODO [arkpar] Please document me
 	InvalidSignature,
+	/// TODO [arkpar] Please document me
 	InvalidMessage,
+	/// TODO [arkpar] Please document me
 	Io(::std::io::Error),
 }
 
@@ -122,6 +131,7 @@ impl KeyPair {
 	pub fn sign(&self, message: &H256) -> Result<Signature, CryptoError> { ec::sign(&self.secret, message) }
 }
 
+/// TODO [arkpar] Please document me
 pub mod ec {
 	use hash::*;
 	use uint::*;
@@ -151,6 +161,12 @@ pub mod ec {
 		let mut signature: crypto::Signature = unsafe { ::std::mem::uninitialized() };
 		signature.clone_from_slice(&data);
 		signature[64] = rec_id.to_i32() as u8;
+
+		let (_, s, v) = signature.to_rsv();
+		let secp256k1n = U256::from_str("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141").unwrap();
+		if !is_low_s(&s) {
+			signature = super::Signature::from_rsv(&H256::from_slice(&signature[0..32]), &H256::from(secp256k1n - s), v ^ 1);
+		}
 		Ok(signature)
 	}
 	/// Verify signature.
@@ -174,7 +190,7 @@ pub mod ec {
 
 	/// Check if this is a "low" signature.
 	pub fn is_low(sig: &Signature) -> bool {
-		H256::from_slice(&sig[32..64]) <= h256_from_hex("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0")
+		H256::from_slice(&sig[32..64]) <= h256_from_hex("7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0")
 	}
 
 	/// Check if this is a "low" signature.
@@ -192,10 +208,12 @@ pub mod ec {
 	}
 }
 
+/// TODO [arkpar] Please document me
 pub mod ecdh {
 	use crypto::*;
 	use crypto::{self};
 
+	/// TODO [arkpar] Please document me
 	pub fn agree(secret: &Secret, public: &Public, ) -> Result<Secret, CryptoError> {
 		use secp256k1::*;
 		let context = &crypto::SECP256K1;
@@ -211,11 +229,13 @@ pub mod ecdh {
 	}
 }
 
+/// TODO [arkpar] Please document me
 pub mod ecies {
 	use hash::*;
 	use bytes::*;
 	use crypto::*;
 
+	/// TODO [arkpar] Please document me
 	pub fn encrypt(public: &Public, plain: &[u8]) -> Result<Bytes, CryptoError> {
 		use ::rcrypto::digest::Digest;
 		use ::rcrypto::sha2::Sha256;
@@ -251,6 +271,7 @@ pub mod ecies {
 		Ok(msg)
 	}
 
+	/// TODO [arkpar] Please document me
 	pub fn decrypt(secret: &Secret, encrypted: &[u8]) -> Result<Bytes, CryptoError> {
 		use ::rcrypto::digest::Digest;
 		use ::rcrypto::sha2::Sha256;
@@ -316,17 +337,20 @@ pub mod ecies {
 	}
 }
 
+/// TODO [arkpar] Please document me
 pub mod aes {
 	use ::rcrypto::blockmodes::*;
 	use ::rcrypto::aessafe::*;
 	use ::rcrypto::symmetriccipher::*;
 	use ::rcrypto::buffer::*;
 
+	/// TODO [arkpar] Please document me
 	pub fn encrypt(k: &[u8], iv: &[u8], plain: &[u8], dest: &mut [u8]) {
 		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 		encryptor.encrypt(&mut RefReadBuffer::new(plain), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");
 	}
 
+	/// TODO [arkpar] Please document me
 	pub fn decrypt(k: &[u8], iv: &[u8], encrypted: &[u8], dest: &mut [u8]) {
 		let mut encryptor = CtrMode::new(AesSafe128Encryptor::new(k), iv.to_vec());
 		encryptor.decrypt(&mut RefReadBuffer::new(encrypted), &mut RefWriteBuffer::new(dest), true).expect("Invalid length or padding");

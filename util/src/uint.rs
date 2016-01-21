@@ -23,7 +23,6 @@
 
 use standard::*;
 use from_json::*;
-use std::num::wrapping::OverflowingOps;
 
 macro_rules! impl_map_from {
 	($thing:ident, $from:ty, $to:ty) => {
@@ -59,15 +58,20 @@ macro_rules! panic_on_overflow {
 	}
 }
 
+/// TODO [Gav Wood] Please document me
 pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + fmt::Display + PartialOrd + Ord + PartialEq + Eq + Hash {
 
 	/// Size of this type.
 	const SIZE: usize;
 
+	/// TODO [Gav Wood] Please document me
 	fn zero() -> Self;
+	/// TODO [Gav Wood] Please document me
 	fn one() -> Self;
 
+	/// TODO [Gav Wood] Please document me
 	type FromDecStrErr;
+	/// TODO [Gav Wood] Please document me
 	fn from_dec_str(value: &str) -> Result<Self, Self::FromDecStrErr>;
 
 	/// Conversion to u32
@@ -97,6 +101,28 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 	fn pow(self, other: Self) -> Self;
 	/// Return wrapped eponentation `self**other` and flag if there was an overflow
 	fn overflowing_pow(self, other: Self) -> (Self, bool);
+
+
+	/// TODO [debris] Please document me
+	fn overflowing_add(self, other: Self) -> (Self, bool);
+
+	/// TODO [debris] Please document me
+	fn overflowing_sub(self, other: Self) -> (Self, bool);
+
+	/// TODO [debris] Please document me
+	fn overflowing_mul(self, other: Self) -> (Self, bool);
+	
+	/// TODO [debris] Please document me
+	fn overflowing_div(self, other: Self) -> (Self, bool);
+
+	/// TODO [debris] Please document me
+	fn overflowing_rem(self, other: Self) -> (Self, bool);
+
+	/// TODO [debris] Please document me
+	fn overflowing_neg(self) -> (Self, bool);
+	
+	/// TODO [Gav Wood] Please document me
+	fn overflowing_shl(self, shift: u32) -> (Self, bool);
 }
 
 macro_rules! construct_uint {
@@ -259,6 +285,98 @@ macro_rules! construct_uint {
 				let res = overflowing!(x.overflowing_mul(y), overflow);
 				(res, overflow)
 			}
+
+			fn overflowing_add(self, other: $name) -> ($name, bool) {
+				let $name(ref me) = self;
+				let $name(ref you) = other;
+				let mut ret = [0u64; $n_words];
+				let mut carry = [0u64; $n_words];
+				let mut b_carry = false;
+				let mut overflow = false;
+
+				for i in 0..$n_words {
+					ret[i] = me[i].wrapping_add(you[i]);
+
+					if ret[i] < me[i] {
+						if i < $n_words - 1 {
+							carry[i + 1] = 1;
+							b_carry = true;
+						} else {
+							overflow = true;
+						}
+					}
+				}
+				if b_carry {
+					let ret = overflowing!($name(ret).overflowing_add($name(carry)), overflow);
+					(ret, overflow)
+				} else { 
+					($name(ret), overflow)
+				}
+			}
+
+			fn overflowing_sub(self, other: $name) -> ($name, bool) {
+				let res = overflowing!((!other).overflowing_add(From::from(1u64)));
+				let res = overflowing!(self.overflowing_add(res));
+				(res, self < other)
+			}
+
+			fn overflowing_mul(self, other: $name) -> ($name, bool) {
+				let mut res = $name::from(0u64);
+				let mut overflow = false;
+				// TODO: be more efficient about this
+				for i in 0..(2 * $n_words) {
+					let v = overflowing!(self.overflowing_mul_u32((other >> (32 * i)).low_u32()), overflow);
+					let res2 = overflowing!(v.overflowing_shl(32 * i as u32), overflow);
+					res = overflowing!(res.overflowing_add(res2), overflow);
+				}
+				(res, overflow)
+			}
+
+			fn overflowing_div(self, other: $name) -> ($name, bool) {
+				(self / other, false)
+			}
+
+			fn overflowing_rem(self, other: $name) -> ($name, bool) {
+				(self % other, false)
+			}
+
+			fn overflowing_neg(self) -> ($name, bool) {
+				(!self, true)
+			}
+
+			fn overflowing_shl(self, shift32: u32) -> ($name, bool) {
+				let $name(ref original) = self;
+				let mut ret = [0u64; $n_words];
+				let shift = shift32 as usize;
+				let word_shift = shift / 64;
+				let bit_shift = shift % 64;
+				for i in 0..$n_words {
+					// Shift
+					if i + word_shift < $n_words {
+						ret[i + word_shift] += original[i] << bit_shift;
+					}
+					// Carry
+					if bit_shift > 0 && i + word_shift + 1 < $n_words {
+						ret[i + word_shift + 1] += original[i] >> (64 - bit_shift);
+					}
+				}
+				// Detecting overflow
+				let last = $n_words - word_shift - if bit_shift > 0 { 1 } else { 0 };
+				let overflow = if bit_shift > 0 {
+					(original[last] >> (64 - bit_shift)) > 0
+				} else if word_shift > 0 {
+					original[last] > 0
+				} else {
+					false
+				};
+
+				for i in last+1..$n_words-1 {
+					if original[i] > 0 {
+						return ($name(ret), true);
+					}
+				}
+				($name(ret), overflow)
+			}
 		}
 
 		impl $name {
@@ -387,105 +505,6 @@ macro_rules! construct_uint {
 
 				let bytes_ref: &[u8] = &bytes;
 				Ok(From::from(bytes_ref))
-			}
-		}
-
-		impl OverflowingOps for $name {
-			fn overflowing_add(self, other: $name) -> ($name, bool) {
-				let $name(ref me) = self;
-				let $name(ref you) = other;
-				let mut ret = [0u64; $n_words];
-				let mut carry = [0u64; $n_words];
-				let mut b_carry = false;
-				let mut overflow = false;
-
-				for i in 0..$n_words {
-					ret[i] = me[i].wrapping_add(you[i]);
-
-					if ret[i] < me[i] {
-						if i < $n_words - 1 {
-							carry[i + 1] = 1;
-							b_carry = true;
-						} else {
-							overflow = true;
-						}
-					}
-				}
-				if b_carry {
-					let ret = overflowing!($name(ret).overflowing_add($name(carry)), overflow);
-					(ret, overflow)
-				} else { 
-					($name(ret), overflow)
-				}
-			}
-
-			fn overflowing_sub(self, other: $name) -> ($name, bool) {
-				let res = overflowing!((!other).overflowing_add(From::from(1u64)));
-				let res = overflowing!(self.overflowing_add(res));
-				(res, self < other)
-			}
-
-			fn overflowing_mul(self, other: $name) -> ($name, bool) {
-				let mut res = $name::from(0u64);
-				let mut overflow = false;
-				// TODO: be more efficient about this
-				for i in 0..(2 * $n_words) {
-					let v = overflowing!(self.overflowing_mul_u32((other >> (32 * i)).low_u32()), overflow);
-					let res2 = overflowing!(v.overflowing_shl(32 * i as u32), overflow);
-					res = overflowing!(res.overflowing_add(res2), overflow);
-				}
-				(res, overflow)
-			}
-
-			fn overflowing_div(self, other: $name) -> ($name, bool) {
-				(self / other, false)
-			}
-
-			fn overflowing_rem(self, other: $name) -> ($name, bool) {
-				(self % other, false)
-			}
-
-			fn overflowing_neg(self) -> ($name, bool) {
-				(!self, true)
-			}
-
-			fn overflowing_shl(self, shift32: u32) -> ($name, bool) {
-				let $name(ref original) = self;
-				let mut ret = [0u64; $n_words];
-				let shift = shift32 as usize;
-				let word_shift = shift / 64;
-				let bit_shift = shift % 64;
-				for i in 0..$n_words {
-					// Shift
-					if i + word_shift < $n_words {
-						ret[i + word_shift] += original[i] << bit_shift;
-					}
-					// Carry
-					if bit_shift > 0 && i + word_shift + 1 < $n_words {
-						ret[i + word_shift + 1] += original[i] >> (64 - bit_shift);
-					}
-				}
-				// Detecting overflow
-				let last = $n_words - word_shift - if bit_shift > 0 { 1 } else { 0 };
-				let overflow = if bit_shift > 0 {
-					(original[last] >> (64 - bit_shift)) > 0
-				} else if word_shift > 0 {
-					original[last] > 0
-				} else {
-					false
-				};
-
-				for i in last+1..$n_words-1 {
-					if original[i] > 0 {
-						return ($name(ret), true);
-					}
-				}
-				($name(ret), overflow)
-			}
-
-			fn overflowing_shr(self, _shift32: u32) -> ($name, bool) {
-				// TODO [todr] not used for now
-				unimplemented!();
 			}
 		}
 
@@ -907,15 +926,17 @@ impl From<U256> for u32 {
 	}
 }
 
+/// TODO [Gav Wood] Please document me
 pub const ZERO_U256: U256 = U256([0x00u64; 4]);
+/// TODO [Gav Wood] Please document me
 pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
+/// TODO [Gav Wood] Please document me
 pub const BAD_U256: U256 = U256([0xffffffffffffffffu64; 4]);
 
 #[cfg(test)]
 mod tests {
 	use uint::{Uint, U128, U256, U512};
 	use std::str::FromStr;
-	use std::num::wrapping::OverflowingOps;
 
 	#[test]
 	pub fn assign_ops() {
@@ -1296,28 +1317,6 @@ mod tests {
 			(U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap(), false)
 		);
 	}
-
-	#[ignore]
-	#[test]
-	pub fn uint256_shr_overflow() {
-		assert_eq!(
-			U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shr(4),
-			(U256::from_str("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap(), true)
-		);
-	}
-
-	#[ignore]
-	#[test]
-	pub fn uint256_shr_overflow2() {
-		assert_eq!(
-			U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap()
-			.overflowing_shr(4),
-			(U256::from_str("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap(), false)
-		);
-	}
-
-
 
 	#[test]
 	pub fn uint256_mul() {

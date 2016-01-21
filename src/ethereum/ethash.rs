@@ -19,6 +19,7 @@ pub struct Ethash {
 }
 
 impl Ethash {
+	/// TODO [arkpar] Please document me
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
 		Box::new(Ethash {
 			spec: spec,
@@ -215,7 +216,7 @@ fn on_close_block() {
 	use super::*;
 	let engine = new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
-	let mut db = OverlayDB::new_temp();
+	let mut db = JournalDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
 	let last_hashes = vec![genesis_header.hash()];
 	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
@@ -228,7 +229,7 @@ fn on_close_block_with_uncle() {
 	use super::*;
 	let engine = new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
-	let mut db = OverlayDB::new_temp();
+	let mut db = JournalDB::new_temp();
 	engine.spec().ensure_db_good(&mut db);
 	let last_hashes = vec![genesis_header.hash()];
 	let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);

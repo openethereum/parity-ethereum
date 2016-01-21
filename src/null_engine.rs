@@ -11,6 +11,7 @@ pub struct NullEngine {
 }
 
 impl NullEngine {
+	/// TODO [Tomusdrw] Please document me
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
 		Box::new(NullEngine{
 			spec: spec,

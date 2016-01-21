@@ -6,22 +6,36 @@ use rlp::DecoderError;
 use io;
 
 #[derive(Debug)]
+/// TODO [Gav Wood] Please document me
 pub enum BaseDataError {
+	/// TODO [Gav Wood] Please document me
 	NegativelyReferencedHash,
 }
 
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
 pub enum UtilError {
+	/// TODO [Gav Wood] Please document me
 	Crypto(::crypto::CryptoError),
+	/// TODO [Gav Wood] Please document me
 	StdIo(::std::io::Error),
+	/// TODO [Gav Wood] Please document me
 	Io(io::IoError),
+	/// TODO [Gav Wood] Please document me
 	AddressParse(::std::net::AddrParseError),
+	/// TODO [Gav Wood] Please document me
 	AddressResolve(Option<::std::io::Error>),
+	/// TODO [Gav Wood] Please document me
 	FromHex(FromHexError),
+	/// TODO [Gav Wood] Please document me
 	BaseData(BaseDataError),
+	/// TODO [Gav Wood] Please document me
 	Network(NetworkError),
+	/// TODO [Gav Wood] Please document me
 	Decoder(DecoderError),
+	/// TODO [Gav Wood] Please document me
+	SimpleString(String),
+	/// TODO [Gav Wood] Please document me
 	BadSize,
 }
 
@@ -70,6 +84,12 @@ impl From<::std::net::AddrParseError> for UtilError {
 impl From<::rlp::DecoderError> for UtilError {
 	fn from(err: ::rlp::DecoderError) -> UtilError {
 		UtilError::Decoder(err)
+	}
+}
+
+impl From<String> for UtilError {
+	fn from(err: String) -> UtilError {
+		UtilError::SimpleString(err)
 	}
 }
 

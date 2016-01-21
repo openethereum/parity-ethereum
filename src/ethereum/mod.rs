@@ -3,7 +3,9 @@
 //! Contains all Ethereum network specific stuff, such as denominations and
 //! consensus specifications.
 
+/// TODO [Gav Wood] Please document me
 pub mod ethash;
+/// TODO [Gav Wood] Please document me
 pub mod denominations;
 
 pub use self::ethash::*;
@@ -40,7 +42,7 @@ mod tests {
 	fn ensure_db_good() {
 		let engine = new_morden().to_engine().unwrap();
 		let genesis_header = engine.spec().genesis_header();
-		let mut db = OverlayDB::new_temp();
+		let mut db = JournalDB::new_temp();
 		engine.spec().ensure_db_good(&mut db);
 		let s = State::from_existing(db.clone(), genesis_header.state_root.clone(), engine.account_start_nonce());
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000001")), U256::from(1u64));

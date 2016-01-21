@@ -48,6 +48,7 @@ pub enum SyncMessage {
 	BlockVerified,
 }
 
+/// TODO [arkpar] Please document me
 pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 
 /// Ethereum network protocol handler

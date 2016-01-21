@@ -1,6 +1,6 @@
+#![warn(missing_docs)]
 #![feature(cell_extras)]
 #![feature(augmented_assignments)]
-#![feature(wrapping)]
 //#![feature(plugin)]
 //#![plugin(interpolate_idents)]
 //! Ethcore's ethereum implementation
@@ -89,31 +89,51 @@ extern crate evmjit;
 #[macro_use]
 extern crate ethcore_util as util;
 
+/// TODO [Gav Wood] Please document me
 pub mod common;
+/// TODO [Tomusdrw] Please document me
 pub mod basic_types;
 #[macro_use]
 pub mod evm;
 pub mod error;
+/// TODO [Gav Wood] Please document me
 pub mod log_entry;
+/// TODO [Gav Wood] Please document me
 pub mod env_info;
+/// TODO [Gav Wood] Please document me
 pub mod pod_account;
+/// TODO [Gav Wood] Please document me
 pub mod pod_state;
+/// TODO [Gav Wood] Please document me
 pub mod account_diff;
+/// TODO [Gav Wood] Please document me
 pub mod state_diff;
+/// TODO [Gav Wood] Please document me
 pub mod engine;
+/// TODO [Gav Wood] Please document me
 pub mod state;
+/// TODO [Gav Wood] Please document me
 pub mod account;
 pub mod action_params;
+/// TODO [debris] Please document me
 pub mod header;
+/// TODO [Gav Wood] Please document me
 pub mod transaction;
+/// TODO [Gav Wood] Please document me
 pub mod receipt;
+/// TODO [Gav Wood] Please document me
 pub mod null_engine;
+/// TODO [Gav Wood] Please document me
 pub mod builtin;
+/// TODO [debris] Please document me
 pub mod spec;
 pub mod views;
 pub mod blockchain;
+/// TODO [Gav Wood] Please document me
 pub mod extras;
+/// TODO [arkpar] Please document me
 pub mod substate;
+/// TODO [Gav Wood] Please document me
 pub mod service;
 pub mod executive;
 pub mod externalities;
@@ -121,9 +141,14 @@ pub mod externalities;
 #[cfg(test)]
 mod tests;
 
+/// TODO [arkpar] Please document me
 pub mod client;
+/// TODO [arkpar] Please document me
 pub mod sync;
+/// TODO [arkpar] Please document me
 pub mod block;
+/// TODO [arkpar] Please document me
 pub mod verification;
+/// TODO [debris] Please document me
 pub mod queue;
 pub mod ethereum;
