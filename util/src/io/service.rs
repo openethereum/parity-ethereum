@@ -102,6 +102,11 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 	pub fn message(&self, message: Message) {
 		self.channel.send(message).expect("Error seding message");
 	}
+
+	/// Get message channel
+	pub fn channel(&self) -> IoChannel<Message> {
+		self.channel.clone()
+	}
 }
 
 #[derive(Clone)]

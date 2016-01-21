@@ -25,9 +25,10 @@
 use std::ops::*;
 use std::sync::*;
 use client::Client;
-use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, NetworkIoMessage};
+use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
 use sync::chain::ChainSync;
-use util::{Bytes, TimerToken};
+use util::TimerToken;
+use service::SyncMessage;
 use sync::io::NetSyncIo;
 
 mod chain;
@@ -39,22 +40,10 @@ mod tests;
 
 const SYNC_TIMER: usize = 0;
 
-/// Message type for external events
-#[derive(Clone)]
-pub enum SyncMessage {
-	/// New block has been imported into the blockchain
-	NewChainBlock(Bytes), //TODO: use Cow
-	/// A block is ready 
-	BlockVerified,
-}
-
-/// TODO [arkpar] Please document me
-pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
-
 /// Ethereum network protocol handler
 pub struct EthSync {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
-	chain: Arc<RwLock<Client>>,
+	chain: Arc<Client>,
 	/// Sync strategy
 	sync: RwLock<ChainSync>
 }
@@ -63,7 +52,7 @@ pub use self::chain::SyncStatus;
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, chain: Arc<RwLock<Client>>) {
+	pub fn register(service: &mut NetworkService<SyncMessage>, chain: Arc<Client>) {
 		let sync = Arc::new(EthSync {
 			chain: chain,
 			sync: RwLock::new(ChainSync::new()),
@@ -78,12 +67,12 @@ impl EthSync {
 
 	/// Stop sync
 	pub fn stop(&mut self, io: &mut NetworkContext<SyncMessage>) {
-		self.sync.write().unwrap().abort(&mut NetSyncIo::new(io, self.chain.write().unwrap().deref_mut()));
+		self.sync.write().unwrap().abort(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
-		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.write().unwrap().deref_mut()));
+		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 }
 
@@ -93,20 +82,20 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	}
 
 	fn read(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		self.sync.write().unwrap().on_packet(&mut NetSyncIo::new(io, self.chain.write().unwrap().deref_mut()) , *peer, packet_id, data);
+		self.sync.write().unwrap().on_packet(&mut NetSyncIo::new(io, self.chain.deref()) , *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
-		self.sync.write().unwrap().on_peer_connected(&mut NetSyncIo::new(io, self.chain.write().unwrap().deref_mut()), *peer);
+		self.sync.write().unwrap().on_peer_connected(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
 	}
 
 	fn disconnected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
-		self.sync.write().unwrap().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.write().unwrap().deref_mut()), *peer);
+		self.sync.write().unwrap().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
 	}
 
 	fn timeout(&self, io: &NetworkContext<SyncMessage>, timer: TimerToken) {
 		if timer == SYNC_TIMER {
-			self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.write().unwrap().deref_mut()));
+			self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
 		}
 	}
 }

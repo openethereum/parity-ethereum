@@ -10,10 +10,9 @@ use log::{LogLevelFilter};
 use env_logger::LogBuilder;
 use util::*;
 use ethcore::client::*;
-use ethcore::service::ClientService;
+use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
-use ethcore::sync::*;
 
 fn setup_log() {
 	let mut builder = LogBuilder::new();
@@ -90,7 +89,7 @@ impl Informant {
 const INFO_TIMER: TimerToken = 0;
 
 struct ClientIoHandler {
-	client: Arc<RwLock<Client>>,
+	client: Arc<Client>,
 	info: Informant,
 }
 
@@ -101,8 +100,7 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
 		if INFO_TIMER == timer {
-			let client = self.client.read().unwrap();
-			self.info.tick(client.deref());
+			self.info.tick(&self.client);
 		}
 	}
 }

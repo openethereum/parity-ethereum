@@ -675,13 +675,13 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				if let Some(connection) = self.connections.read().unwrap().get(stream).map(|c| c.clone()) {
 					match connection.lock().unwrap().deref() {
 						&ConnectionEntry::Handshake(ref h) => h.register_socket(reg, event_loop).expect("Error registering socket"),
-						_ => warn!("Unexpected session stream registration")
+						&ConnectionEntry::Session(_) => warn!("Unexpected session stream registration")
 					}
-				} else { warn!("Unexpected stream registration")}
+				} else {} // expired
 			}
 			NODETABLE_RECEIVE => event_loop.register(self.udp_socket.lock().unwrap().deref(), Token(NODETABLE_RECEIVE), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
 			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
-			_ => warn!("Unexpected stream regitration")
+			_ => warn!("Unexpected stream registration")
 		}
 	}
 
@@ -693,7 +693,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 						&ConnectionEntry::Handshake(ref h) => h.update_socket(reg, event_loop).expect("Error updating socket"),
 						&ConnectionEntry::Session(ref s) => s.update_socket(reg, event_loop).expect("Error updating socket"),
 					}
-				} else { warn!("Unexpected stream update")}
+				} else {} // expired
 			}
 			NODETABLE_RECEIVE => event_loop.reregister(self.udp_socket.lock().unwrap().deref(), Token(NODETABLE_RECEIVE), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
 			TCP_ACCEPT => event_loop.reregister(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),

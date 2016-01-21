@@ -5,10 +5,22 @@ use error::*;
 use std::env;
 use client::Client;
 
+/// Message type for external and internal events
+#[derive(Clone)]
+pub enum SyncMessage {
+	/// New block has been imported into the blockchain
+	NewChainBlock(Bytes), //TODO: use Cow
+	/// A block is ready 
+	BlockVerified,
+}
+
+/// TODO [arkpar] Please document me
+pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
+
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
 	net_service: NetworkService<SyncMessage>,
-	client: Arc<RwLock<Client>>,
+	client: Arc<Client>,
 }
 
 impl ClientService {
@@ -20,7 +32,7 @@ impl ClientService {
 		let mut dir = env::home_dir().unwrap();
 		dir.push(".parity");
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
-		let client = Arc::new(RwLock::new(try!(Client::new(spec, &dir, net_service.io().channel()))));
+		let client = try!(Client::new(spec, &dir, net_service.io().channel()));
 		EthSync::register(&mut net_service, client.clone());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
@@ -39,14 +51,14 @@ impl ClientService {
 	}
 
 	/// TODO [arkpar] Please document me
-	pub fn client(&self) -> Arc<RwLock<Client>> {
+	pub fn client(&self) -> Arc<Client> {
 		self.client.clone()
 	}
 }
 
 /// IO interface for the Client handler
 struct ClientIoHandler {
-	client: Arc<RwLock<Client>>
+	client: Arc<Client>
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
@@ -59,16 +71,16 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
 		if timer == CLIENT_TICK_TIMER {
-			self.client.read().unwrap().tick();
+			self.client.tick();
 		}
 	}
 
-	fn message(&self, _io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
+	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
 		match net_message {
 			&UserMessage(ref message) =>  {
 				match message {
 					&SyncMessage::BlockVerified => {
-						self.client.write().unwrap().import_verified_blocks();
+						self.client.import_verified_blocks(&io.channel());
 					},
 					_ => {}, // ignore other messages
 				}

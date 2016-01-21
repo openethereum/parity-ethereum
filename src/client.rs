@@ -6,8 +6,9 @@ use error::*;
 use header::BlockNumber;
 use spec::Spec;
 use engine::Engine;
-use queue::BlockQueue;
-use sync::NetSyncMessage;
+use block_queue::BlockQueue;
+use db_queue::{DbQueue, StateDBCommit};
+use service::NetSyncMessage;
 use env_info::LastHashes;
 use verification::*;
 use block::*;
@@ -95,13 +96,13 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Import a block into the blockchain.
-	fn import_block(&mut self, bytes: Bytes) -> ImportResult;
+	fn import_block(&self, bytes: Bytes) -> ImportResult;
 
 	/// Get block queue information.
 	fn queue_status(&self) -> BlockQueueStatus;
 
 	/// Clear block queue and abort all import activity.
-	fn clear_queue(&mut self);
+	fn clear_queue(&self);
 
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
@@ -132,19 +133,24 @@ pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: JournalDB,
-	queue: BlockQueue,
-	report: ClientReport,
+	block_queue: RwLock<BlockQueue>,
+	db_queue: RwLock<DbQueue>,
+	report: RwLock<ClientReport>,
+	uncommited_states: RwLock<HashMap<H256, JournalDB>>,
+	import_lock: Mutex<()>
 }
 
 const HISTORY: u64 = 1000;
 
 impl Client {
 	/// Create a new client with given spec and DB path.
-	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Client, Error> {
+	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
 		let chain = Arc::new(RwLock::new(BlockChain::new(&spec.genesis_block(), path)));
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
+		opts.set_disable_data_sync(true);
+		opts.set_disable_auto_compactions(true);
 		/*opts.set_use_fsync(false);
 		opts.set_bytes_per_sync(8388608);
 		opts.set_disable_data_sync(false);
@@ -164,37 +170,46 @@ impl Client {
 
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
-		let db = DB::open(&opts, state_path.to_str().unwrap()).unwrap();
-		let mut state_db = JournalDB::new(db);
+		let db = Arc::new(DB::open(&opts, state_path.to_str().unwrap()).unwrap());
 		
 		let engine = Arc::new(try!(spec.to_engine()));
-		if engine.spec().ensure_db_good(&mut state_db) {
-			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+		{
+			let mut state_db = JournalDB::new_with_arc(db.clone());
+			if engine.spec().ensure_db_good(&mut state_db) {
+				state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+			}
 		}
+		let state_db = JournalDB::new_with_arc(db);
 
-//		chain.write().unwrap().ensure_good(&state_db);
-
-		Ok(Client {
+		let client = Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
 			state_db: state_db,
-			queue: BlockQueue::new(engine, message_channel),
-			report: Default::default(),
-		})
+			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
+			db_queue: RwLock::new(DbQueue::new()),
+			report: RwLock::new(Default::default()),
+			uncommited_states: RwLock::new(HashMap::new()),
+			import_lock: Mutex::new(()),
+		});
+
+		let weak = Arc::downgrade(&client);
+		client.db_queue.read().unwrap().start(weak);
+		Ok(client)
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&mut self) {
+	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) {
 		
 		let mut bad = HashSet::new();
-		let blocks = self.queue.drain(128); 
+		let _import_lock = self.import_lock.lock();
+		let blocks = self.block_queue.write().unwrap().drain(128); 
 		if blocks.is_empty() {
 			return;
 		}
 
 		for block in blocks {
 			if bad.contains(&block.header.parent_hash) {
-				self.queue.mark_as_bad(&block.header.hash());
+				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
 				bad.insert(block.header.hash());
 				continue;
 			}
@@ -202,7 +217,7 @@ impl Client {
 			let header = &block.header;
 			if let Err(e) = verify_block_family(&header, &block.bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
 				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				self.queue.mark_as_bad(&header.hash());
+				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 				bad.insert(block.header.hash());
 				return;
 			};
@@ -210,7 +225,7 @@ impl Client {
 				Some(p) => p,
 				None => {
 					warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
-					self.queue.mark_as_bad(&header.hash());
+					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 					bad.insert(block.header.hash());
 					return;
 				},
@@ -228,18 +243,23 @@ impl Client {
 				}
 			}
 
-			let result = match enact_verified(&block, self.engine.deref().deref(), self.state_db.clone(), &parent, &last_hashes) {
+			let db = match self.uncommited_states.read().unwrap().get(&header.parent_hash) {
+				Some(db) => db.clone(),
+				None => self.state_db.clone(),
+			};
+
+			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
 					warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				bad.insert(block.header.hash());
-					self.queue.mark_as_bad(&header.hash());
+					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 					return;
 				}
 			};
 			if let Err(e) = verify_block_final(&header, result.block().header()) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				self.queue.mark_as_bad(&header.hash());
+				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 				return;
 			}
 
@@ -252,9 +272,23 @@ impl Client {
 					return;
 				}
 			}
-			self.report.accrue_block(&block);
+			/*
+			let db = result.drain();
+			self.uncommited_states.write().unwrap().insert(header.hash(), db.clone());
+			self.db_queue.write().unwrap().queue(StateDBCommit {
+				now: header.number(),
+				hash: header.hash().clone(),
+				end: ancient.map(|n|(n, self.chain.read().unwrap().block_hash(n).unwrap())),
+				db: db,
+			});*/
+			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
+	}
+
+	/// Clear cached state overlay 
+	pub fn clear_state(&self, hash: &H256) {
+		self.uncommited_states.write().unwrap().remove(hash);
 	}
 
 	/// Get info on the cache.
@@ -264,7 +298,7 @@ impl Client {
 
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
-		self.report.clone()
+		self.report.read().unwrap().clone()
 	}
 
 	/// Tick the client.
@@ -327,12 +361,12 @@ impl BlockChainClient for Client {
 		unimplemented!();
 	}
 
-	fn import_block(&mut self, bytes: Bytes) -> ImportResult {
+	fn import_block(&self, bytes: Bytes) -> ImportResult {
 		let header = BlockView::new(&bytes).header();
 		if self.chain.read().unwrap().is_known(&header.hash()) {
 			return Err(ImportError::AlreadyInChain);
 		}
-		self.queue.import_block(bytes)
+		self.block_queue.write().unwrap().import_block(bytes)
 	}
 
 	fn queue_status(&self) -> BlockQueueStatus {
@@ -341,7 +375,8 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn clear_queue(&mut self) {
+	fn clear_queue(&self) {
+		self.block_queue.write().unwrap().clear();
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {

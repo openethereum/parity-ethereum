@@ -1,12 +1,14 @@
+//! A queue of blocks. Sits between network or other I/O and the BlockChain.
+//! Sorts them ready for blockchain insertion.
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use util::*;
 use verification::*;
 use error::*;
 use engine::Engine;
-use sync::*;
 use views::*;
 use header::*;
+use service::*;
 
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
 /// Sorts them ready for blockchain insertion.
