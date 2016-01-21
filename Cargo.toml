@@ -23,7 +23,8 @@ num_cpus = "0.2"
 
 [features]
 jit = ["evmjit"]
-evm_debug = []
+test-heavy = []
+evm-debug = []
 
 [[bin]]
 name = "client"
