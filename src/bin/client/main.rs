@@ -5,7 +5,7 @@ extern crate log;
 extern crate env_logger;
 
 #[cfg(feature = "rpc")]
-mod ethrpc;
+mod rpc;
 
 use std::io::stdin;
 use std::env;
@@ -32,7 +32,7 @@ fn setup_log() {
 
 #[cfg(feature = "rpc")]
 fn setup_rpc_server(client: Arc<RwLock<Client>>) {
-	use self::ethrpc::*;
+	use self::rpc::*;
 	
 	let mut server = HttpServer::new(1);
 	server.add_delegate(Web3Client::new().to_delegate());
