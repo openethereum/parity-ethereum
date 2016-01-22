@@ -7,19 +7,19 @@ use super::instructions::Instruction;
 use std::marker::Copy;
 use evm::{MessageCallResult, ContractCreateResult};
 
-#[cfg(not(feature = "evm_debug"))]
+#[cfg(not(feature = "evm-debug"))]
 macro_rules! evm_debug {
 	($x: expr) => {}
 }
 
-#[cfg(feature = "evm_debug")]
+#[cfg(feature = "evm-debug")]
 macro_rules! evm_debug {
 	($x: expr) => {
 		$x
 	}
 }
 
-#[cfg(feature = "evm_debug")]
+#[cfg(feature = "evm-debug")]
 fn color(instruction: Instruction, name: &'static str) -> String {
 	let c = instruction as usize % 6;
 	let colors = [31, 34, 33, 32, 35, 36];

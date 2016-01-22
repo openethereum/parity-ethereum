@@ -25,7 +25,8 @@ clippy = "*" # Always newest, since we use nightly
 
 [features]
 jit = ["evmjit"]
-evm_debug = []
+test-heavy = []
+evm-debug = []
 
 [[bin]]
 name = "client"

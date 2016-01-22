@@ -11,7 +11,7 @@ pub struct NullEngine {
 }
 
 impl NullEngine {
-	/// TODO [Tomusdrw] Please document me
+	/// Returns new instance of NullEngine with default VM Factory
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
 		Box::new(NullEngine{
 			spec: spec,
