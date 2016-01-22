@@ -7,7 +7,6 @@ use header::BlockNumber;
 use spec::Spec;
 use engine::Engine;
 use block_queue::{BlockQueue, BlockQueueInfo};
-use db_queue::{DbQueue};
 use service::NetSyncMessage;
 use env_info::LastHashes;
 use verification::*;
@@ -127,7 +126,6 @@ pub struct Client {
 	engine: Arc<Box<Engine>>,
 	state_db: JournalDB,
 	block_queue: RwLock<BlockQueue>,
-	db_queue: RwLock<DbQueue>,
 	report: RwLock<ClientReport>,
 	uncommited_states: RwLock<HashMap<H256, JournalDB>>,
 	import_lock: Mutex<()>
@@ -172,20 +170,15 @@ impl Client {
 		}
 		let state_db = JournalDB::new_with_arc(db);
 
-		let client = Arc::new(Client {
+		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
 			state_db: state_db,
 			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
-			db_queue: RwLock::new(DbQueue::new()),
 			report: RwLock::new(Default::default()),
 			uncommited_states: RwLock::new(HashMap::new()),
 			import_lock: Mutex::new(()),
-		});
-
-		let weak = Arc::downgrade(&client);
-		client.db_queue.read().unwrap().start(weak);
-		Ok(client)
+		}))
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion

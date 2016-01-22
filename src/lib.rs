@@ -149,7 +149,5 @@ pub mod sync;
 pub mod block;
 /// TODO [arkpar] Please document me
 pub mod verification;
-/// TODO [debris] Please document me
-pub mod db_queue;
 pub mod block_queue;
 pub mod ethereum;
