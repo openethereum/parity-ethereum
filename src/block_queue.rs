@@ -15,8 +15,10 @@ use service::*;
 pub struct BlockQueueInfo {
 	/// Indicates that queue is full
 	pub full: bool,
-	/// Number of queued blocks
-	pub queue_size: usize,
+	/// Number of queued blocks pending verification
+	pub unverified_queue_size: usize,
+	/// Number of verified queued blocks pending import
+	pub verified_queue_size: usize,
 }
 
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
@@ -235,9 +237,11 @@ impl BlockQueue {
 
 	/// Get queue status.
 	pub fn queue_info(&self) -> BlockQueueInfo {
+		let verification = self.verification.lock().unwrap();
 		BlockQueueInfo {
 			full: false,
-			queue_size: self.verification.lock().unwrap().unverified.len(),
+			verified_queue_size: verification.verified.len(),
+			unverified_queue_size: verification.unverified.len(),
 		}
 	}
 }

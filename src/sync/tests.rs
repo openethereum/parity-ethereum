@@ -131,7 +131,8 @@ impl BlockChainClient for TestBlockChainClient {
 				}
 			}
 		}
-		if number == self.numbers.read().unwrap().len() {
+		let len = self.numbers.read().unwrap().len();
+		if number == len {
 			*self.difficulty.write().unwrap().deref_mut() += header.difficulty;
 			mem::replace(self.last_hash.write().unwrap().deref_mut(), header.hash());
 			self.blocks.write().unwrap().insert(header.hash(), b);
@@ -155,7 +156,8 @@ impl BlockChainClient for TestBlockChainClient {
 	fn queue_info(&self) -> BlockQueueInfo {
 		BlockQueueInfo {
 			full: false,
-			queue_size: 0,
+			verified_queue_size: 0,
+			unverified_queue_size: 0,
 		}
 	}
 
