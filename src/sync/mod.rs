@@ -17,7 +17,7 @@
 /// fn main() {
 /// 	let mut service = NetworkService::start().unwrap();
 /// 	let dir = env::temp_dir();
-/// 	let client = Arc::new(Client::new(ethereum::new_frontier(), &dir).unwrap());
+/// 	let client = Client::new(ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
 /// 	EthSync::register(&mut service, client);
 /// }
 /// ```
