@@ -36,10 +36,7 @@ fn main() {
 
 	let exit = Arc::new(Condvar::new());
 	let e = exit.clone();
-    CtrlC::set_handler(move || {
-		e.notify_all();
-    });
-
+	CtrlC::set_handler(move || { e.notify_all(); });
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
 }
