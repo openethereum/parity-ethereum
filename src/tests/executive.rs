@@ -187,15 +187,9 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 			BTreeMap::from_json(&s["storage"]).into_iter().foreach(|(k, v)| state.set_storage(&address, k, v));
 		});
 
-		let mut info = EnvInfo::new();
-
-		test.find("env").map(|env| {
-			info.author = xjson!(&env["currentCoinbase"]);
-			info.difficulty = xjson!(&env["currentDifficulty"]);
-			info.gas_limit = xjson!(&env["currentGasLimit"]);
-			info.number = xjson!(&env["currentNumber"]);
-			info.timestamp = xjson!(&env["currentTimestamp"]);
-		});
+		let info = test.find("env").map(|env| {
+			EnvInfo::from_json(env)
+		}).unwrap_or_default();
 
 		let engine = TestEngine::new(1, vm.clone());
 
@@ -277,7 +271,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
 declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperationTest"}
 // this one crashes with some vm internal error. Separately they pass.
-declare_test_ignore!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
+declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
 declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfoTest"}
 declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperationsTest"}
 // this one take way too long.
