@@ -141,7 +141,7 @@ impl Discovery {
 				{
 						if count < BUCKET_SIZE {
 							count += 1;
-							found.entry(Discovery::distance(target, &n)).or_insert(Vec::new()).push(n);
+							found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
 						}
 						else {
 							break;
@@ -151,7 +151,7 @@ impl Discovery {
 					for n in &buckets[tail as usize].nodes {
 						if count < BUCKET_SIZE {
 							count += 1;
-							found.entry(Discovery::distance(target, &n)).or_insert(Vec::new()).push(n);
+							found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
 						}
 						else {
 							break;
@@ -170,7 +170,7 @@ impl Discovery {
 				for n in &buckets[head as usize].nodes {
 						if count < BUCKET_SIZE {
 							count += 1;
-							found.entry(Discovery::distance(target, &n)).or_insert(Vec::new()).push(n);
+							found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
 						}
 						else {
 							break;
@@ -184,7 +184,7 @@ impl Discovery {
 				for n in &buckets[tail as usize].nodes {
 						if count < BUCKET_SIZE {
 							count += 1;
-							found.entry(Discovery::distance(target, &n)).or_insert(Vec::new()).push(n);
+							found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
 						}
 						else {
 							break;

@@ -22,6 +22,7 @@ rust-crypto = "0.2.34"
 elastic-array = "0.4"
 heapsize = "0.2"
 itertools = "0.4"
+crossbeam = "0.2"
 slab = { git = "https://github.com/arkpar/slab.git" }
 sha3 = { path = "sha3" }
 clippy = "*" # Always newest, since we use nightly

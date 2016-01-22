@@ -34,6 +34,16 @@ impl JournalDB {
 		}
 	}
 
+	/// Create a new instance given a shared `backing` database.
+	pub fn new_with_arc(backing: Arc<DB>) -> JournalDB {
+		JournalDB {
+			forward: OverlayDB::new_with_arc(backing.clone()),
+			backing: backing,
+			inserts: vec![],
+			removes: vec![],
+		}
+	}
+
 	/// Create a new instance with an anonymous temporary database.
 	pub fn new_temp() -> JournalDB {
 		let mut dir = env::temp_dir();
