@@ -6,8 +6,8 @@ use error::*;
 use header::BlockNumber;
 use spec::Spec;
 use engine::Engine;
-use block_queue::BlockQueue;
-use db_queue::{DbQueue, StateDBCommit};
+use block_queue::{BlockQueue, BlockQueueInfo};
+use db_queue::{DbQueue};
 use service::NetSyncMessage;
 use env_info::LastHashes;
 use verification::*;
@@ -45,13 +45,6 @@ impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "#{}.{}", self.best_block_number, self.best_block_hash)
 	}
-}
-
-/// Block queue status
-#[derive(Debug)]
-pub struct BlockQueueStatus {
-	/// TODO [arkpar] Please document me
-	pub full: bool,
 }
 
 /// TODO [arkpar] Please document me
@@ -99,7 +92,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn import_block(&self, bytes: Bytes) -> ImportResult;
 
 	/// Get block queue information.
-	fn queue_status(&self) -> BlockQueueStatus;
+	fn queue_info(&self) -> BlockQueueInfo;
 
 	/// Clear block queue and abort all import activity.
 	fn clear_queue(&self);
@@ -149,8 +142,6 @@ impl Client {
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
-		opts.set_disable_data_sync(true);
-		opts.set_disable_auto_compactions(true);
 		/*opts.set_use_fsync(false);
 		opts.set_bytes_per_sync(8388608);
 		opts.set_disable_data_sync(false);
@@ -199,7 +190,6 @@ impl Client {
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) {
-		
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.write().unwrap().drain(128); 
@@ -243,11 +233,7 @@ impl Client {
 				}
 			}
 
-			let db = match self.uncommited_states.read().unwrap().get(&header.parent_hash) {
-				Some(db) => db.clone(),
-				None => self.state_db.clone(),
-			};
-
+			let db = self.state_db.clone();
 			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
@@ -272,15 +258,6 @@ impl Client {
 					return;
 				}
 			}
-			/*
-			let db = result.drain();
-			self.uncommited_states.write().unwrap().insert(header.hash(), db.clone());
-			self.db_queue.write().unwrap().queue(StateDBCommit {
-				now: header.number(),
-				hash: header.hash().clone(),
-				end: ancient.map(|n|(n, self.chain.read().unwrap().block_hash(n).unwrap())),
-				db: db,
-			});*/
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
@@ -369,10 +346,8 @@ impl BlockChainClient for Client {
 		self.block_queue.write().unwrap().import_block(bytes)
 	}
 
-	fn queue_status(&self) -> BlockQueueStatus {
-		BlockQueueStatus {
-			full: false
-		}
+	fn queue_info(&self) -> BlockQueueInfo {
+		self.block_queue.read().unwrap().queue_info()
 	}
 
 	fn clear_queue(&self) {

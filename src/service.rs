@@ -21,6 +21,7 @@ pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 pub struct ClientService {
 	net_service: NetworkService<SyncMessage>,
 	client: Arc<Client>,
+	sync: Arc<EthSync>,
 }
 
 impl ClientService {
@@ -33,7 +34,7 @@ impl ClientService {
 		dir.push(".parity");
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		let client = try!(Client::new(spec, &dir, net_service.io().channel()));
-		EthSync::register(&mut net_service, client.clone());
+		let sync = EthSync::register(&mut net_service, client.clone());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
 		});
@@ -42,6 +43,7 @@ impl ClientService {
 		Ok(ClientService {
 			net_service: net_service,
 			client: client,
+			sync: sync,
 		})
 	}
 
@@ -53,6 +55,12 @@ impl ClientService {
 	/// TODO [arkpar] Please document me
 	pub fn client(&self) -> Arc<Client> {
 		self.client.clone()
+	
+	}
+	
+	/// Get shared sync handler
+	pub fn sync(&self) -> Arc<EthSync> {
+		self.sync.clone()
 	}
 }
 

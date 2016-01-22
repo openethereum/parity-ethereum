@@ -10,6 +10,15 @@ use views::*;
 use header::*;
 use service::*;
 
+/// Block queue status
+#[derive(Debug)]
+pub struct BlockQueueInfo {
+	/// Indicates that queue is full
+	pub full: bool,
+	/// Number of queued blocks
+	pub queue_size: usize,
+}
+
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
@@ -65,14 +74,15 @@ impl BlockQueue {
 		let deleting = Arc::new(AtomicBool::new(false));
 
 		let mut verifiers: Vec<JoinHandle<()>> = Vec::new();
-		let thread_count = max(::num_cpus::get(), 2) - 1;
-		for _ in 0..thread_count {
+		let thread_count = max(::num_cpus::get(), 3) - 2;
+		for i in 0..thread_count {
 			let verification = verification.clone();
 			let engine = engine.clone();
 			let more_to_verify = more_to_verify.clone();
 			let ready_signal = ready_signal.clone();
 			let deleting = deleting.clone();
-			verifiers.push(thread::spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal,  deleting)));
+			verifiers.push(thread::Builder::new().name(format!("Verifier #{}", i)).spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal,  deleting))
+				.expect("Error starting block verification thread"));
 		}
 		BlockQueue {
 			engine: engine,
@@ -206,7 +216,7 @@ impl BlockQueue {
 		verification.verified = new_verified;
 	}
 
-	/// TODO [arkpar] Please document me
+	/// Removes up to `max` verified blocks from the queue
 	pub fn drain(&mut self, max: usize) -> Vec<PreVerifiedBlock> {
 		let mut verification = self.verification.lock().unwrap();
 		let count = min(max, verification.verified.len());
@@ -217,7 +227,18 @@ impl BlockQueue {
 			result.push(block);
 		}
 		self.ready_signal.reset();
+		if !verification.verified.is_empty() {
+			self.ready_signal.set();
+		}
 		result
+	}
+
+	/// Get queue status.
+	pub fn queue_info(&self) -> BlockQueueInfo {
+		BlockQueueInfo {
+			full: false,
+			queue_size: self.verification.lock().unwrap().unverified.len(),
+		}
 	}
 }
 

@@ -107,6 +107,10 @@ pub struct SyncStatus {
 	pub blocks_total: usize,
 	/// Number of blocks downloaded so far.
 	pub blocks_received: usize,
+	/// Total number of connected peers
+	pub num_peers: usize,
+	/// Total number of active peers
+	pub num_active_peers: usize,
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -195,8 +199,10 @@ impl ChainSync {
 			start_block_number: self.starting_block,
 			last_imported_block_number: self.last_imported_block,
 			highest_block_number: self.highest_block,
-			blocks_total: (self.last_imported_block - self.starting_block) as usize,
-			blocks_received: (self.highest_block - self.starting_block) as usize,
+			blocks_received: (self.last_imported_block - self.starting_block) as usize,
+			blocks_total: (self.highest_block - self.starting_block) as usize,
+			num_peers: self.peers.len(),
+			num_active_peers: self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count(),
 		}
 	}
 
@@ -544,7 +550,7 @@ impl ChainSync {
 	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: PeerId) {
 		self.clear_peer_download(peer_id);
 
-		if io.chain().queue_status().full {
+		if io.chain().queue_info().full {
 			self.pause_sync();
 			return;
 		}
@@ -971,7 +977,7 @@ impl ChainSync {
 	}
 
 	/// Maintain other peers. Send out any new blocks and transactions
-	pub fn maintain_sync(&mut self, _io: &mut SyncIo) {
+	pub fn _maintain_sync(&mut self, _io: &mut SyncIo) {
 	}
 }
 

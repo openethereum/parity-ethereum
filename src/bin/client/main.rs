@@ -14,6 +14,7 @@ use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
+use ethcore::sync::EthSync;
 
 fn setup_log() {
 	let mut builder = LogBuilder::new();
@@ -30,7 +31,7 @@ fn main() {
 	setup_log();
 	let spec = ethereum::new_frontier();
 	let mut service = ClientService::start(spec).unwrap();
-	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default() });
+	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: service.sync() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 	let exit = Arc::new(Condvar::new());
@@ -60,22 +61,29 @@ impl Default for Informant {
 }
 
 impl Informant {
-	pub fn tick(&self, client: &Client) {
+	pub fn tick(&self, client: &Client, sync: &EthSync) {
 		// 5 seconds betwen calls. TODO: calculate this properly.
 		let dur = 5usize;
 
 		let chain_info = client.chain_info();
+		let queue_info = client.queue_info();
 		let cache_info = client.cache_info();
 		let report = client.report();
+		let sync_info = sync.status();
 
 		if let (_, &Some(ref last_cache_info), &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
-			println!("[ {} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //···{}···//  {} ({}) bl  {} ({}) ex ]",
+			println!("[ {} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, {} downloaded, {} queued ···//  {} ({}) bl  {} ({}) ex ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
 				(report.blocks_imported - last_report.blocks_imported) / dur,
 				(report.transactions_applied - last_report.transactions_applied) / dur,
 				(report.gas_processed - last_report.gas_processed) / From::from(dur),
-				0, // TODO: peers
+
+				sync_info.num_active_peers,
+				sync_info.num_peers,
+				sync_info.blocks_received,
+				queue_info.queue_size,
+
 				cache_info.blocks,
 				cache_info.blocks as isize - last_cache_info.blocks as isize,
 				cache_info.block_details,
@@ -93,6 +101,7 @@ const INFO_TIMER: TimerToken = 0;
 
 struct ClientIoHandler {
 	client: Arc<Client>,
+	sync: Arc<EthSync>,
 	info: Informant,
 }
 
@@ -103,7 +112,7 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
 		if INFO_TIMER == timer {
-			self.info.tick(&self.client);
+			self.info.tick(&self.client, &self.sync);
 		}
 	}
 }

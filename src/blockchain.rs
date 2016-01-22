@@ -342,19 +342,19 @@ impl BlockChain {
 			Some(h) => h,
 			None => return None,
 		};
-		Some(self._tree_route((from_details, from), (to_details, to)))
+		Some(self._tree_route((&from_details, &from), (&to_details, &to)))
 	}
 
 	/// Similar to `tree_route` function, but can be used to return a route
 	/// between blocks which may not be in database yet.
-	fn _tree_route(&self, from: (BlockDetails, H256), to: (BlockDetails, H256)) -> TreeRoute {
+	fn _tree_route(&self, from: (&BlockDetails, &H256), to: (&BlockDetails, &H256)) -> TreeRoute {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = from.0;
-		let mut to_details = to.0;
-		let mut current_from = from.1;
-		let mut current_to = to.1;
+		let mut from_details = from.0.clone();
+		let mut to_details = to.0.clone();
+		let mut current_from = from.1.clone();
+		let mut current_to = to.1.clone();
 
 		// reset from && to to the same level
 		while from_details.number > to_details.number {
@@ -409,7 +409,7 @@ impl BlockChain {
 
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
-		let (batch, new_best) = self.block_to_extras_insert_batch(bytes);
+		let (batch, new_best, details) = self.block_to_extras_insert_batch(bytes);
 
 		// update best block
 		let mut best_block = self.best_block.write().unwrap();
@@ -420,6 +420,8 @@ impl BlockChain {
 		// update caches
 		let mut write = self.block_details.write().unwrap();
 		write.remove(&header.parent_hash());
+		write.insert(hash.clone(), details);
+		self.note_used(CacheID::Block(hash));
 
 		// update extras database
 		self.extras_db.write(batch).unwrap();
@@ -427,7 +429,7 @@ impl BlockChain {
 
 	/// Transforms block into WriteBatch that may be written into database
 	/// Additionally, if it's new best block it returns new best block object.
-	fn block_to_extras_insert_batch(&self, bytes: &[u8]) -> (WriteBatch, Option<BestBlock>) {
+	fn block_to_extras_insert_batch(&self, bytes: &[u8]) -> (WriteBatch, Option<BestBlock>, BlockDetails) {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -459,7 +461,7 @@ impl BlockChain {
 
 		// if it's not new best block, just return
 		if !is_new_best {
-			return (batch, None);
+			return (batch, None, details);
 		}
 
 		// if its new best block we need to make sure that all ancestors
@@ -467,7 +469,7 @@ impl BlockChain {
 		// find the route between old best block and the new one
 		let best_hash = self.best_block_hash();
 		let best_details = self.block_details(&best_hash).expect("best block hash is invalid!");
-		let route = self._tree_route((best_details, best_hash), (details, hash.clone()));
+		let route = self._tree_route((&best_details, &best_hash), (&details, &hash));
 
 		match route.blocks.len() {
 			// its our parent
@@ -494,7 +496,7 @@ impl BlockChain {
 			total_difficulty: total_difficulty
 		};
 
-		(batch, Some(best_block))
+		(batch, Some(best_block), details)
 	}
 
 	/// Returns true if transaction is known.

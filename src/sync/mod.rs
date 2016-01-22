@@ -27,7 +27,6 @@ use std::sync::*;
 use client::Client;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
 use sync::chain::ChainSync;
-use util::TimerToken;
 use service::SyncMessage;
 use sync::io::NetSyncIo;
 
@@ -37,8 +36,6 @@ mod range_collection;
 
 #[cfg(test)]
 mod tests;
-
-const SYNC_TIMER: usize = 0;
 
 /// Ethereum network protocol handler
 pub struct EthSync {
@@ -52,12 +49,13 @@ pub use self::chain::SyncStatus;
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, chain: Arc<Client>) {
+	pub fn register(service: &mut NetworkService<SyncMessage>, chain: Arc<Client>) -> Arc<EthSync> {
 		let sync = Arc::new(EthSync {
 			chain: chain,
 			sync: RwLock::new(ChainSync::new()),
 		});
 		service.register_protocol(sync.clone(), "eth", &[62u8, 63u8]).expect("Error registering eth protocol handler");
+		sync
 	}
 
 	/// Get sync status
@@ -77,8 +75,7 @@ impl EthSync {
 }
 
 impl NetworkProtocolHandler<SyncMessage> for EthSync {
-	fn initialize(&self, io: &NetworkContext<SyncMessage>) {
-		io.register_timer(SYNC_TIMER, 1000).unwrap();
+	fn initialize(&self, _io: &NetworkContext<SyncMessage>) {
 	}
 
 	fn read(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -91,12 +88,6 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 
 	fn disconnected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
 		self.sync.write().unwrap().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
-	}
-
-	fn timeout(&self, io: &NetworkContext<SyncMessage>, timer: TimerToken) {
-		if timer == SYNC_TIMER {
-			self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
-		}
 	}
 }
 
