@@ -36,7 +36,7 @@ impl RlpStandard for Receipt {
 		// TODO: make work:
 		//s.append(&self.logs);
 		s.append_list(self.logs.len());
-		for l in self.logs.iter() {
+		for l in &self.logs {
 			l.rlp_append(s);
 		}
 	}

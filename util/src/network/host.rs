@@ -133,9 +133,9 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 
 	/// Send a packet over the network to another peer.
 	pub fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
-		if let Some(connection) = self.connections.read().unwrap().get(peer).map(|c| c.clone()) {
-			match connection.lock().unwrap().deref_mut() {
-				&mut ConnectionEntry::Session(ref mut s) => {
+		if let Some(connection) = self.connections.read().unwrap().get(peer).cloned() {
+			match *connection.lock().unwrap().deref_mut() {
+				ConnectionEntry::Session(ref mut s) => {
 					s.send_packet(self.protocol, packet_id as u8, &data).unwrap_or_else(|e| {
 						warn!(target: "net", "Send error: {:?}", e);
 					}); //TODO: don't copy vector data
@@ -175,15 +175,12 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 
 	/// Returns peer identification string
 	pub fn peer_info(&self, peer: PeerId) -> String {
-		if let Some(connection) = self.connections.read().unwrap().get(peer).map(|c| c.clone()) {
-			match connection.lock().unwrap().deref() {
-				&ConnectionEntry::Session(ref s) => {
-					return s.info.client_version.clone()
-				},
-				_ => {}
+		if let Some(connection) = self.connections.read().unwrap().get(peer).cloned() {
+			if let ConnectionEntry::Session(ref s) = *connection.lock().unwrap().deref() {
+				return s.info.client_version.clone()
 			}
 		}
-		"unknown".to_string()
+		"unknown".to_owned()
 	}
 }
 
@@ -219,7 +216,7 @@ impl HostInfo {
 	/// Increments and returns connection nonce.
 	pub fn next_nonce(&mut self) -> H256 {
 		self.nonce = self.nonce.sha3();
-		return self.nonce.clone();
+		self.nonce.clone()
 	}
 }
 
@@ -261,7 +258,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				config: config,
 				nonce: H256::random(),
 				protocol_version: 4,
-				client_version: "parity".to_string(),
+				client_version: "parity".to_owned(),
 				listen_port: 0,
 				capabilities: Vec::new(),
 			}),
@@ -314,11 +311,11 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.connections.read().unwrap().iter().any(|e| match e.lock().unwrap().deref() { &ConnectionEntry::Session(ref s) => s.info.id.eq(&id), _ => false  })
+		self.connections.read().unwrap().iter().any(|e| match *e.lock().unwrap().deref() { ConnectionEntry::Session(ref s) => s.info.id.eq(&id), _ => false  })
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
-		self.connections.read().unwrap().iter().any(|e| match e.lock().unwrap().deref() { &ConnectionEntry::Handshake(ref h) => h.id.eq(&id), _ => false  })
+		self.connections.read().unwrap().iter().any(|e| match *e.lock().unwrap().deref() { ConnectionEntry::Handshake(ref h) => h.id.eq(&id), _ => false  })
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -344,7 +341,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 		}
 
-		for n in to_connect.iter() {
+		for n in &to_connect {
 			if n.peer_type == PeerType::Required {
 				if req_conn < IDEAL_PEERS {
 					self.connect_peer(&n.id, io);
@@ -358,7 +355,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			let peer_count = 0;
 			let mut open_slots = IDEAL_PEERS - peer_count  - pending_count + req_conn;
 			if open_slots > 0 {
-				for n in to_connect.iter() {
+				for n in &to_connect {
 					if n.peer_type == PeerType::Optional && open_slots > 0 {
 						open_slots -= 1;
 						self.connect_peer(&n.id, io);
@@ -368,8 +365,11 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
+	#[allow(single_match)]
+	#[allow(block_in_if_condition_stmt)]
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage<Message>>) {
-		if self.have_session(id) {
+		if self.have_session(id)
+		{
 			warn!("Aborted connect. Node already connected.");
 			return;
 		}
@@ -410,12 +410,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		trace!(target: "net", "accept");
 	}
 
+	#[allow(single_match)]
 	fn connection_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
 		let mut create_session = false;
 		let mut kill = false;
-		if let Some(connection) = self.connections.read().unwrap().get(token).map(|c| c.clone()) {
-			match connection.lock().unwrap().deref_mut() {
-				&mut ConnectionEntry::Handshake(ref mut h) => {
+		if let Some(connection) = self.connections.read().unwrap().get(token).cloned() {
+			match *connection.lock().unwrap().deref_mut() {
+				ConnectionEntry::Handshake(ref mut h) => {
 					match h.writable(io, &self.info.read().unwrap()) {
 						Err(e) => {
 							debug!(target: "net", "Handshake write error: {:?}", e);
@@ -427,7 +428,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						create_session = true;
 					}
 				},
-				&mut ConnectionEntry::Session(ref mut s) => {
+				ConnectionEntry::Session(ref mut s) => {
 					match s.writable(io, &self.info.read().unwrap()) {
 						Err(e) => {
 							debug!(target: "net", "Session write error: {:?}", e);
@@ -457,21 +458,18 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut packet_data: Option<(ProtocolId, PacketId, Vec<u8>)> = None;
 		let mut create_session = false;
 		let mut kill = false;
-		if let Some(connection) = self.connections.read().unwrap().get(token).map(|c| c.clone()) {
-			match connection.lock().unwrap().deref_mut() {
-				&mut ConnectionEntry::Handshake(ref mut h) => {
-					match h.readable(io, &self.info.read().unwrap()) {
-						Err(e) => {
-							debug!(target: "net", "Handshake read error: {:?}", e);
-							kill = true;
-						},
-						Ok(_) => ()
+		if let Some(connection) = self.connections.read().unwrap().get(token).cloned() {
+			match *connection.lock().unwrap().deref_mut() {
+				ConnectionEntry::Handshake(ref mut h) => {
+					if let Err(e) = h.readable(io, &self.info.read().unwrap()) {
+						debug!(target: "net", "Handshake read error: {:?}", e);
+						kill = true;
 					}
 					if h.done() {
 						create_session = true;
 					}
 				},
-				&mut ConnectionEntry::Session(ref mut s) => {
+				ConnectionEntry::Session(ref mut s) => {
 					match s.readable(io, &self.info.read().unwrap()) {
 						Err(e) => {
 							debug!(target: "net", "Handshake read error: {:?}", e);
@@ -508,11 +506,11 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 		for p in ready_data {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
-			h.connected(&mut NetworkContext::new(io, p, Some(token), self.connections.clone()), &token);
+			h.connected(&NetworkContext::new(io, p, Some(token), self.connections.clone()), &token);
 		}
 		if let Some((p, packet_id, data)) = packet_data {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
-			h.read(&mut NetworkContext::new(io, p, Some(token), self.connections.clone()), &token, packet_id, &data[1..]);
+			h.read(&NetworkContext::new(io, p, Some(token), self.connections.clone()), &token, packet_id, &data[1..]);
 		}
 		io.update_registration(token).unwrap_or_else(|e| debug!(target: "net", "Token registration error: {:?}", e));
 	}
@@ -538,12 +536,12 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut to_disconnect: Vec<ProtocolId> = Vec::new();
 		{
 			let mut connections = self.connections.write().unwrap();
-			if let Some(connection) = connections.get(token).map(|c| c.clone()) {
-				match connection.lock().unwrap().deref_mut() {
-					&mut ConnectionEntry::Handshake(_) => {
+			if let Some(connection) = connections.get(token).cloned() {
+				match *connection.lock().unwrap().deref_mut() {
+					ConnectionEntry::Handshake(_) => {
 						connections.remove(token);
 					},
-					&mut ConnectionEntry::Session(ref mut s) if s.is_ready() => {
+					ConnectionEntry::Session(ref mut s) if s.is_ready() => {
 						for (p, _) in self.handlers.read().unwrap().iter() {
 							if s.have_capability(p)  {
 								to_disconnect.push(p);
@@ -557,7 +555,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 		for p in to_disconnect {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
-			h.disconnected(&mut NetworkContext::new(io, p, Some(token), self.connections.clone()), &token);
+			h.disconnected(&NetworkContext::new(io, p, Some(token), self.connections.clone()), &token);
 		}
 	}
 }
@@ -602,8 +600,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, io),
 			NODETABLE_DISCOVERY => {},
 			NODETABLE_MAINTAIN => {},
-			_ => match self.timers.read().unwrap().get(&token).map(|p| *p) {
-				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).map(|h| h.clone()) {
+			_ => match self.timers.read().unwrap().get(&token).cloned() {
+				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {
 						None => { warn!(target: "net", "No handler found for protocol: {:?}", timer.protocol) },
 						Some(h) => { h.timeout(&NetworkContext::new(io, timer.protocol, None, self.connections.clone()), timer.token); }
 				},
@@ -613,8 +611,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	}
 
 	fn message(&self, io: &IoContext<NetworkIoMessage<Message>>, message: &NetworkIoMessage<Message>) {
-		match message {
-			&NetworkIoMessage::AddHandler {
+		match *message {
+			NetworkIoMessage::AddHandler {
 				ref handler,
 				ref protocol,
 				ref versions
@@ -627,7 +625,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					info.capabilities.push(CapabilityInfo { protocol: protocol, version: *v, packet_count:0 });
 				}
 			},
-			&NetworkIoMessage::AddTimer {
+			NetworkIoMessage::AddTimer {
 				ref protocol,
 				ref delay,
 				ref token,
@@ -642,9 +640,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				self.timers.write().unwrap().insert(handler_token, ProtocolTimer { protocol: protocol, token: *token });
 				io.register_timer(handler_token, *delay).expect("Error registering timer");
 			},
-			&NetworkIoMessage::User(ref message) => {
+			NetworkIoMessage::User(ref message) => {
 				for (p, h) in self.handlers.read().unwrap().iter() {
-					h.message(&mut NetworkContext::new(io, p, None, self.connections.clone()), &message);
+					h.message(&NetworkContext::new(io, p, None, self.connections.clone()), &message);
 				}
 			}
 		}
@@ -653,10 +651,10 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn register_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
 		match stream {
 			FIRST_CONNECTION ... LAST_CONNECTION => {
-				if let Some(connection) = self.connections.read().unwrap().get(stream).map(|c| c.clone()) {
-					match connection.lock().unwrap().deref() {
-						&ConnectionEntry::Handshake(ref h) => h.register_socket(reg, event_loop).expect("Error registering socket"),
-						&ConnectionEntry::Session(_) => warn!("Unexpected session stream registration")
+				if let Some(connection) = self.connections.read().unwrap().get(stream).cloned() {
+					match *connection.lock().unwrap().deref() {
+						ConnectionEntry::Handshake(ref h) => h.register_socket(reg, event_loop).expect("Error registering socket"),
+						ConnectionEntry::Session(_) => warn!("Unexpected session stream registration")
 					}
 				} else {} // expired
 			}
@@ -669,10 +667,10 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn update_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
 		match stream {
 			FIRST_CONNECTION ... LAST_CONNECTION => {
-				if let Some(connection) = self.connections.read().unwrap().get(stream).map(|c| c.clone()) {
-					match connection.lock().unwrap().deref() {
-						&ConnectionEntry::Handshake(ref h) => h.update_socket(reg, event_loop).expect("Error updating socket"),
-						&ConnectionEntry::Session(ref s) => s.update_socket(reg, event_loop).expect("Error updating socket"),
+				if let Some(connection) = self.connections.read().unwrap().get(stream).cloned() {
+					match *connection.lock().unwrap().deref() {
+						ConnectionEntry::Handshake(ref h) => h.update_socket(reg, event_loop).expect("Error updating socket"),
+						ConnectionEntry::Session(ref s) => s.update_socket(reg, event_loop).expect("Error updating socket"),
 					}
 				} else {} // expired
 			}

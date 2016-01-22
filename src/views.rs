@@ -141,7 +141,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return List of transactions in given block.
 	pub fn transaction_views(&self) -> Vec<TransactionView> {
-		self.rlp.at(1).iter().map(|rlp| TransactionView::new_from_rlp(rlp)).collect()
+		self.rlp.at(1).iter().map(TransactionView::new_from_rlp).collect()
 	}
 
 	/// Return transaction hashes.
@@ -156,7 +156,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return List of transactions in given block.
 	pub fn uncle_views(&self) -> Vec<HeaderView> {
-		self.rlp.at(2).iter().map(|rlp| HeaderView::new_from_rlp(rlp)).collect()
+		self.rlp.at(2).iter().map(HeaderView::new_from_rlp).collect()
 	}
 
 	/// Return list of uncle hashes of given block.

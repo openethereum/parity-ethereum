@@ -14,7 +14,7 @@ pub trait SyncIo {
 	/// Send a packet to a peer.
 	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>;
 	/// Get the blockchain
-	fn chain<'s>(&'s self) -> &'s BlockChainClient;
+	fn chain(&self) -> &BlockChainClient;
 	/// Returns peer client identifier string
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
@@ -50,7 +50,7 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.network.send(peer_id, packet_id, data)
 	}
 
-	fn chain<'a>(&'a self) -> &'a BlockChainClient {
+	fn chain(&self) -> &BlockChainClient {
 		self.chain
 	}
 

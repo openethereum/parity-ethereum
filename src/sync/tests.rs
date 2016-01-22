@@ -66,7 +66,7 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn block(&self, h: &H256) -> Option<Bytes> {
-		self.blocks.read().unwrap().get(h).map(|b| b.clone())
+		self.blocks.read().unwrap().get(h).cloned()
 	}
 
 	fn block_status(&self, h: &H256) -> BlockStatus {
@@ -211,7 +211,7 @@ impl<'p> SyncIo for TestIo<'p> {
 		Ok(())
 	}
 
-	fn chain<'a>(&'a self) -> &'a BlockChainClient {
+	fn chain(&self) -> &BlockChainClient {
 		self.chain
 	}
 }
@@ -268,14 +268,11 @@ impl TestNet {
 
 	pub fn sync_step(&mut self) {
 		for peer in 0..self.peers.len() {
-			match self.peers[peer].queue.pop_front() {
-				Some(packet) => {
-					let mut p = self.peers.get_mut(packet.recipient).unwrap();
-					trace!("--- {} -> {} ---", peer, packet.recipient);
-					p.sync.on_packet(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)), peer as PeerId, packet.packet_id, &packet.data);
-					trace!("----------------");
-				},
-				None => {}
+			if let Some(packet) = self.peers[peer].queue.pop_front() {
+				let mut p = self.peers.get_mut(packet.recipient).unwrap();
+				trace!("--- {} -> {} ---", peer, packet.recipient);
+				p.sync.on_packet(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)), peer as PeerId, packet.packet_id, &packet.data);
+				trace!("----------------");
 			}
 			let mut p = self.peers.get_mut(peer).unwrap();
 			p.sync._maintain_sync(&mut TestIo::new(&mut p.chain, &mut p.queue, None));

@@ -72,7 +72,7 @@ impl<S : Copy> VecStack<S> {
 
 impl<S : fmt::Display> Stack<S> for VecStack<S> {
 	fn peek(&self, no_from_top: usize) -> &S {
-		return &self.stack[self.stack.len() - no_from_top - 1];
+		&self.stack[self.stack.len() - no_from_top - 1]
 	}
 
 	fn swap_with_top(&mut self, no_from_top: usize) {
@@ -157,7 +157,7 @@ impl Memory for Vec<u8> {
 	}
 
 	fn size(&self) -> usize {
-		return self.len()
+		self.len()
 	}
 
 	fn read_slice(&self, init_off_u: U256, init_size_u: U256) -> &[u8] {
@@ -228,6 +228,7 @@ struct CodeReader<'a> {
 	code: &'a Bytes
 }
 
+#[allow(len_without_is_empty)]
 impl<'a> CodeReader<'a> {
 	/// Get `no_of_bytes` from code and convert to U256. Move PC
 	fn read(&mut self, no_of_bytes: usize) -> U256 {
@@ -330,6 +331,7 @@ impl evm::Evm for Interpreter {
 }
 
 impl Interpreter {
+	#[allow(cyclomatic_complexity)]
 	fn get_gas_cost_mem(&self,
 						ext: &evm::Ext,
 						instruction: Instruction,
@@ -716,7 +718,7 @@ impl Interpreter {
 				let big_id = stack.pop_back();
 				let id = big_id.low_u64() as usize;
 				let max = id.wrapping_add(32);
-				let data = params.data.clone().unwrap_or(vec![]);
+				let data = params.data.clone().unwrap_or_else(|| vec![]);
 				let bound = cmp::min(data.len(), max);
 				if id < bound && big_id < U256::from(data.len()) {
 					let mut v = data[id..bound].to_vec();
@@ -727,7 +729,7 @@ impl Interpreter {
 				}
 			},
 			instructions::CALLDATASIZE => {
-				stack.push(U256::from(params.data.clone().unwrap_or(vec![]).len()));
+				stack.push(U256::from(params.data.clone().map_or(0, |l| l.len())));
 			},
 			instructions::CODESIZE => {
 				stack.push(U256::from(code.len()));
@@ -738,10 +740,10 @@ impl Interpreter {
 				stack.push(U256::from(len));
 			},
 			instructions::CALLDATACOPY => {
-				self.copy_data_to_memory(mem, stack, &params.data.clone().unwrap_or(vec![]));
+				self.copy_data_to_memory(mem, stack, &params.data.clone().unwrap_or_else(|| vec![]));
 			},
 			instructions::CODECOPY => {
-				self.copy_data_to_memory(mem, stack, &params.code.clone().unwrap_or(vec![]));
+				self.copy_data_to_memory(mem, stack, &params.code.clone().unwrap_or_else(|| vec![]));
 			},
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());
@@ -781,7 +783,7 @@ impl Interpreter {
 	fn copy_data_to_memory(&self,
 						   mem: &mut Memory,
 						   stack: &mut Stack<U256>,
-						   data: &Bytes) {
+						   data: &[u8]) {
 		let offset = stack.pop_back();
 		let index = stack.pop_back();
 		let size = stack.pop_back();
@@ -1051,7 +1053,7 @@ impl Interpreter {
 		Ok(())
 	}
 
-	fn find_jump_destinations(&self, code: &Bytes) -> HashSet<CodePosition> {
+	fn find_jump_destinations(&self, code: &[u8]) -> HashSet<CodePosition> {
 		let mut jump_dests = HashSet::new();
 		let mut position = 0;
 
@@ -1066,7 +1068,7 @@ impl Interpreter {
 			position += 1;
 		}
 
-		return jump_dests;
+		jump_dests
 	}
 }
 

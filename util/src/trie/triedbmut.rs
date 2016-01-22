@@ -50,6 +50,7 @@ enum MaybeChanged<'a> {
 	Changed(Bytes),
 }
 
+#[allow(wrong_self_convention)]
 impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
@@ -145,7 +146,7 @@ impl<'db> TrieDBMut<'db> {
 
 		match node {
 			Node::Extension(_, payload) => handle_payload(payload),
-			Node::Branch(payloads, _) => for payload in payloads.iter() { handle_payload(payload) },
+			Node::Branch(payloads, _) => for payload in &payloads { handle_payload(payload) },
 			_ => {},
 		}
 	}
@@ -178,12 +179,9 @@ impl<'db> TrieDBMut<'db> {
 			},
 			Node::Branch(ref nodes, ref value) => {
 				try!(writeln!(f, ""));
-				match value {
-					&Some(v) => {
-						try!(self.fmt_indent(f, deepness + 1));
-						try!(writeln!(f, "=: {:?}", v.pretty()))
-					},
-					&None => {}
+				if let Some(v) = *value {
+					try!(self.fmt_indent(f, deepness + 1));
+					try!(writeln!(f, "=: {:?}", v.pretty()))
 				}
 				for i in 0..16 {
 					match self.get_node(nodes[i]) {
@@ -331,6 +329,7 @@ impl<'db> TrieDBMut<'db> {
 		}
 	}
 
+	#[allow(cyclomatic_complexity)]
 	/// Determine the RLP of the node, assuming we're inserting `partial` into the
 	/// node currently of data `old`. This will *not* delete any hash of `old` from the database;
 	/// it will just return the new RLP that includes the new node.
@@ -694,7 +693,7 @@ mod tests {
 		}
 	}
 
-	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &Vec<(Vec<u8>, Vec<u8>)>) -> TrieDBMut<'db> {
+	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db> {
 		let mut t = TrieDBMut::new(db, root);
 		for i in 0..v.len() {
 			let key: &[u8]= &v[i].0;
@@ -704,8 +703,8 @@ mod tests {
 		t
 	}
 
-	fn unpopulate_trie<'a, 'db>(t: &mut TrieDBMut<'db>, v: &Vec<(Vec<u8>, Vec<u8>)>) {
-		for i in v.iter() {
+	fn unpopulate_trie<'db>(t: &mut TrieDBMut<'db>, v: &[(Vec<u8>, Vec<u8>)]) {
+		for i in v {
 			let key: &[u8]= &i.0;
 			t.remove(&key);
 		}
@@ -761,7 +760,7 @@ mod tests {
 				println!("TRIE MISMATCH");
 				println!("");
 				println!("{:?} vs {:?}", memtrie.root(), real);
-				for i in x.iter() {
+				for i in &x {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
 				println!("{:?}", memtrie);
@@ -774,7 +773,7 @@ mod tests {
 				println!("");
 				println!("remaining: {:?}", memtrie.db_items_remaining());
 				println!("{:?} vs {:?}", memtrie.root(), real);
-				for i in x.iter() {
+				for i in &x {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
 				println!("{:?}", memtrie);
@@ -1051,12 +1050,12 @@ mod tests {
 				println!("TRIE MISMATCH");
 				println!("");
 				println!("ORIGINAL... {:?}", memtrie.root());
-				for i in x.iter() {
+				for i in &x {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
 				println!("{:?}", memtrie);
 				println!("SORTED... {:?}", memtrie_sorted.root());
-				for i in y.iter() {
+				for i in &y {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
 				println!("{:?}", memtrie_sorted);

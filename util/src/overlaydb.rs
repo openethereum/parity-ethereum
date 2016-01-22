@@ -169,7 +169,7 @@ impl HashDB for OverlayDB {
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => {
-				let memrc = k.map(|&(_, rc)| rc).unwrap_or(0);
+				let memrc = k.map_or(0, |&(_, rc)| rc);
 				match self.payload(key) {
 					Some(x) => {
 						let (d, rc) = x;
@@ -194,16 +194,11 @@ impl HashDB for OverlayDB {
 		match k {
 			Some(&(_, rc)) if rc > 0 => true,
 			_ => {
-				let memrc = k.map(|&(_, rc)| rc).unwrap_or(0);
+				let memrc = k.map_or(0, |&(_, rc)| rc);
 				match self.payload(key) {
 					Some(x) => {
 						let (_, rc) = x;
-						if rc as i32 + memrc > 0 {
-							true
-						}
-						else {
-							false
-						}
+						rc as i32 + memrc > 0
 					}
 					// Replace above match arm with this once https://github.com/rust-lang/rust/issues/15287 is done.
 					//Some((d, rc)) if rc + memrc > 0 => true,

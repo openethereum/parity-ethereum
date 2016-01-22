@@ -132,7 +132,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	pub fn start(event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), UtilError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
-		let work_ready_mutex =  Arc::new(Mutex::new(false));
+		let work_ready_mutex =  Arc::new(Mutex::new(()));
 		let work_ready = Arc::new(Condvar::new());
 		let workers = (0..num_workers).map(|i| 
 			Worker::new(i, stealer.clone(), IoChannel::new(event_loop.channel()), work_ready.clone(), work_ready_mutex.clone())).collect();

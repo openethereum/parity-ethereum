@@ -35,7 +35,7 @@ impl Worker {
 						stealer: chase_lev::Stealer<Work<Message>>, 
 						channel: IoChannel<Message>,
 						wait: Arc<Condvar>,
-						wait_mutex: Arc<Mutex<bool>>) -> Worker 
+						wait_mutex: Arc<Mutex<()>>) -> Worker 
 						where Message: Send + Sync + Clone + 'static {
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
@@ -51,7 +51,7 @@ impl Worker {
 
 	fn work_loop<Message>(stealer: chase_lev::Stealer<Work<Message>>,
 						channel: IoChannel<Message>, wait: Arc<Condvar>, 
-						wait_mutex: Arc<Mutex<bool>>, 
+						wait_mutex: Arc<Mutex<()>>, 
 						deleting: Arc<AtomicBool>) 
 						where Message: Send + Sync + Clone + 'static {
 		while !deleting.load(AtomicOrdering::Relaxed) {
@@ -62,13 +62,8 @@ impl Worker {
 					return;
 				}
 			}
-			loop {
-				match stealer.steal() {
-					chase_lev::Steal::Data(work) => {
-						Worker::do_work(work, channel.clone());
-					}
-					_ => break
-				}
+			while let chase_lev::Steal::Data(work) = stealer.steal() {
+				Worker::do_work(work, channel.clone());
 			}
 		}
 	}
@@ -76,19 +71,19 @@ impl Worker {
 	fn do_work<Message>(work: Work<Message>, channel: IoChannel<Message>) where Message: Send + Sync + Clone + 'static {
 		match work.work_type {
 			WorkType::Readable => {
-				work.handler.stream_readable(&mut IoContext::new(channel, work.handler_id), work.token);
+				work.handler.stream_readable(&IoContext::new(channel, work.handler_id), work.token);
 			},
 			WorkType::Writable => {
-				work.handler.stream_writable(&mut IoContext::new(channel, work.handler_id), work.token);
+				work.handler.stream_writable(&IoContext::new(channel, work.handler_id), work.token);
 			}
 			WorkType::Hup => {
-				work.handler.stream_hup(&mut IoContext::new(channel, work.handler_id), work.token);
+				work.handler.stream_hup(&IoContext::new(channel, work.handler_id), work.token);
 			}
 			WorkType::Timeout => {
-				work.handler.timeout(&mut IoContext::new(channel, work.handler_id), work.token);
+				work.handler.timeout(&IoContext::new(channel, work.handler_id), work.token);
 			}
 			WorkType::Message(message) => {
-				work.handler.message(&mut IoContext::new(channel, work.handler_id), &message);
+				work.handler.message(&IoContext::new(channel, work.handler_id), &message);
 			}
 		}
 	}
