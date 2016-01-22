@@ -257,7 +257,7 @@ impl Drop for BlockQueue {
 mod tests {
 	use util::*;
 	use spec::*;
-	use queue::*;
+	use block_queue::*;
 
 	#[test]
 	fn test_block_queue() {
