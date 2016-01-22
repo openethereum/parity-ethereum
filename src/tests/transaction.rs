@@ -70,7 +70,7 @@ declare_test!{TransactionTests/Homestead/ttWrongRLPTransaction}
 declare_test!{TransactionTests/RandomTests/tr201506052141PYTHON}*/
 
 declare_test!{TransactionTests_ttTransactionTest, "TransactionTests/ttTransactionTest"}
-declare_test!{TransactionTests_tt10mbDataField, "TransactionTests/tt10mbDataField"}
+declare_test!{heavy => TransactionTests_tt10mbDataField, "TransactionTests/tt10mbDataField"}
 declare_test!{TransactionTests_ttWrongRLPTransaction, "TransactionTests/ttWrongRLPTransaction"}
 declare_test!{TransactionTests_Homestead_ttTransactionTest, "TransactionTests/Homestead/ttTransactionTest"}
 declare_test!{heavy => TransactionTests_Homestead_tt10mbDataField, "TransactionTests/Homestead/tt10mbDataField"}

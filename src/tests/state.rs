@@ -78,8 +78,8 @@ declare_test!{StateTests_stDelegatecallTest, "StateTests/stDelegatecallTest"}
 declare_test!{StateTests_stExample, "StateTests/stExample"}
 declare_test!{StateTests_stInitCodeTest, "StateTests/stInitCodeTest"}
 declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}
-declare_test!{StateTests_stMemoryStressTest, "StateTests/stMemoryStressTest"}
-declare_test!{StateTests_stMemoryTest, "StateTests/stMemoryTest"}
+declare_test!{heavy => StateTests_stMemoryStressTest, "StateTests/stMemoryStressTest"}
+declare_test!{heavy => StateTests_stMemoryTest, "StateTests/stMemoryTest"}
 declare_test!{StateTests_stPreCompiledContracts, "StateTests/stPreCompiledContracts"}
 declare_test!{heavy => StateTests_stQuadraticComplexityTest, "StateTests/stQuadraticComplexityTest"} //<< Too long
 declare_test!{ignore => StateTests_stRecursiveCreate, "StateTests/stRecursiveCreate"} //<< Out of stack 
