@@ -53,20 +53,13 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	fn initialize<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>) {
 	}
 
+	#[allow(match_ref_pats)]
 	fn message<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>, net_message: &'s mut NetSyncMessage) {
-		match net_message {
-			&mut UserMessage(ref mut message) =>  {
-				match message {
-					&mut SyncMessage::BlockVerified => {
-						self.client.write().unwrap().import_verified_blocks();
-					},
-					_ => {}, // ignore other messages
-				}
-
+		if let &mut UserMessage(ref mut message) = net_message {
+			if let &mut SyncMessage::BlockVerified= message {
+				self.client.write().unwrap().import_verified_blocks();
 			}
-			_ => {}, // ignore other messages
 		}
-
 	}
 }
 

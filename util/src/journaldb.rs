@@ -96,7 +96,7 @@ impl JournalDB {
 			})) {
 				let rlp = Rlp::new(&rlp_data);
 				let to_remove: Vec<H256> = rlp.val_at(if canon_id == rlp.val_at(0) {2} else {1});
-				for i in to_remove.iter() {
+				for i in &to_remove {
 					self.forward.remove(i);
 				}
 				try!(self.backing.delete(&last));

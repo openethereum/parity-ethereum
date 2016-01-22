@@ -42,7 +42,7 @@ pub trait Squeeze {
 
 impl<K, T> Squeeze for HashMap<K, T> where K: Eq + Hash + Clone + HeapSizeOf, T: HeapSizeOf {
 	fn squeeze(&mut self, size: usize) {
-		if self.len() == 0 {
+		if self.is_empty() {
 			return
 		}
 		
@@ -50,7 +50,7 @@ impl<K, T> Squeeze for HashMap<K, T> where K: Eq + Hash + Clone + HeapSizeOf, T:
 		let all_entries = size_of_entry * self.len();
 		let mut shrinked_size = all_entries;
 
-		while self.len() > 0 && shrinked_size > size {
+		while !self.is_empty() && shrinked_size > size {
 			// could be optimized
 			let key = self.keys().next().unwrap().clone();
 			self.remove(&key);

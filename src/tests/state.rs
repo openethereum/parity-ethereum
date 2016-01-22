@@ -15,7 +15,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let mut fail = false;
 		{
 			let mut fail_unless = |cond: bool| if !cond && !fail {
-				failed.push(name.to_string());
+				failed.push(name.clone());
 				flush(format!("FAIL\n"));
 				fail = true;
 				true

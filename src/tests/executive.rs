@@ -168,7 +168,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		let mut fail = false;
 		//let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true };
 		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail { 
-			failed.push(format!("[{}] {}: {}", vm, name.to_string(), s)); 
+			failed.push(format!("[{}] {}: {}", vm, name, s)); 
 			fail = true 
 		};
 	
@@ -245,7 +245,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 				test.find("post").map(|pre| for (addr, s) in pre.as_object().unwrap() {
 					let address = Address::from(addr.as_ref());
 
-					fail_unless(state.code(&address).unwrap_or(vec![]) == Bytes::from_json(&s["code"]), "code is incorrect");
+					fail_unless(state.code(&address).unwrap_or_else(|| vec![]) == Bytes::from_json(&s["code"]), "code is incorrect");
 					fail_unless(state.balance(&address) == xjson!(&s["balance"]), "balance is incorrect");
 					fail_unless(state.nonce(&address) == xjson!(&s["nonce"]), "nonce is incorrect");
 					BTreeMap::from_json(&s["storage"]).iter().foreach(|(k, v)| fail_unless(&state.storage_at(&address, &k) == v, "storage is incorrect"));
@@ -266,7 +266,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 	}
 
 
-	for f in failed.iter() {
+	for f in &failed {
 		println!("FAILED: {:?}", f);
 	}
 

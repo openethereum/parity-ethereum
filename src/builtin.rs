@@ -94,16 +94,13 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 			if it.v == H256::from(&U256::from(27)) || it.v == H256::from(&U256::from(28)) {
 				let s = Signature::from_rsv(&it.r, &it.s, it.v[31] - 27);
 				if ec::is_valid(&s) {
-					match ec::recover(&s, &it.hash) {
-						Ok(p) => {
-							let r = p.as_slice().sha3();
-							// NICE: optimise and separate out into populate-like function
-							for i in 0..min(32, output.len()) {
-								output[i] = if i < 12 {0} else {r[i]};
-							}
+					if let Ok(p) = ec::recover(&s, &it.hash) {
+						let r = p.as_slice().sha3();
+						// NICE: optimise and separate out into populate-like function
+						for i in 0..min(32, output.len()) {
+							output[i] = if i < 12 {0} else {r[i]};
 						}
-						_ => {}
-					};
+					}
 				}
 			}
 		})),
