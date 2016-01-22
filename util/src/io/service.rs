@@ -313,7 +313,7 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
 		self.host_channel.send(IoMessage::Shutdown).unwrap();
-		self.thread.take().unwrap().join().unwrap();
+		self.thread.take().unwrap().join().ok();
 	}
 }
 

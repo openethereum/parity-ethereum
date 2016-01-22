@@ -99,6 +99,6 @@ impl Drop for Worker {
 		self.deleting.store(true, AtomicOrdering::Relaxed);
 		self.wait.notify_all();
 		let thread = mem::replace(&mut self.thread, None).unwrap();
-		thread.join().unwrap();
+		thread.join().ok();
 	}
 }

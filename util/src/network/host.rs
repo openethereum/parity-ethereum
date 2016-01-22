@@ -438,7 +438,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					io.update_registration(token).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
 				}
 			}
-		} else { warn!(target: "net", "Received event for unknown connection") }
+		} 
 		if kill {
 			self.kill_connection(token, io); //TODO: mark connection as dead an check in kill_connection
 			return;
@@ -498,9 +498,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					}
 				}
 			}
-		} else {
-			warn!(target: "net", "Received event for unknown connection");
-		}
+		} 
 		if kill {
 			self.kill_connection(token, io); //TODO: mark connection as dead an check in kill_connection
 			return;
