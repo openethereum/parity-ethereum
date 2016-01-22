@@ -285,7 +285,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		host.add_node("enode://de471bccee3d042261d52e9bff31458daecc406142b401d4cd848f677479f73104b9fdeb090af9583d3391b7f10cb2ba9e26865dd5fca4fcdc0fb1e3b723c786@54.94.239.50:30303");  // BR
 		host.add_node("enode://1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082@52.74.57.123:30303");  // SG
 		// ETH/DEV cpp-ethereum (poc-9.ethdev.com)
-		host.add_node("enode://979b7fa28feeb35a4741660a16076f1943202cb72b6af70d327f053e248bab9ba81760f39d0701ef1d8f89cc1fbd2cacba0710a12cd5314d5e0c9021aa3637f9@5.1.83.226:30303");
+		//host.add_node("enode://979b7fa28feeb35a4741660a16076f1943202cb72b6af70d327f053e248bab9ba81760f39d0701ef1d8f89cc1fbd2cacba0710a12cd5314d5e0c9021aa3637f9@5.1.83.226:30303");
 		host
 	}
 
@@ -395,7 +395,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		};
 
 		let nonce = self.info.write().unwrap().next_nonce();
-		if self.connections.write().unwrap().insert_with(|token| {
+		let mut connections = self.connections.write().unwrap();
+		if connections.insert_with(|token| {
 			let mut handshake = Handshake::new(token, id, socket, &nonce).expect("Can't create handshake");
 			handshake.start(io, &self.info.read().unwrap(), true).and_then(|_| io.register_stream(token)).unwrap_or_else (|e| {
 				debug!(target: "net", "Handshake create error: {:?}", e);
@@ -552,6 +553,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					_ => {},
 				}
 			}
+			io.deregister_stream(token).expect("Error deregistering stream");
 		}
 		for p in to_disconnect {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
@@ -661,6 +663,24 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			NODETABLE_RECEIVE => event_loop.register(self.udp_socket.lock().unwrap().deref(), Token(NODETABLE_RECEIVE), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
 			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
 			_ => warn!("Unexpected stream registration")
+		}
+	}
+
+	fn deregister_stream(&self, stream: StreamToken, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
+		match stream {
+			FIRST_CONNECTION ... LAST_CONNECTION => {
+				let mut connections = self.connections.write().unwrap();
+				if let Some(connection) = connections.get(stream).cloned() {
+					match *connection.lock().unwrap().deref() {
+						ConnectionEntry::Handshake(ref h) => h.deregister_socket(event_loop).expect("Error deregistering socket"),
+						ConnectionEntry::Session(ref s) => s.deregister_socket(event_loop).expect("Error deregistering session socket"),
+					}
+					connections.remove(stream);
+				} 
+			},
+			NODETABLE_RECEIVE => event_loop.deregister(self.udp_socket.lock().unwrap().deref()).unwrap(),
+			TCP_ACCEPT => event_loop.deregister(self.tcp_listener.lock().unwrap().deref()).unwrap(),
+			_ => warn!("Unexpected stream deregistration")
 		}
 	}
 

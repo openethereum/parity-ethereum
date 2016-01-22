@@ -134,6 +134,12 @@ impl Handshake {
 		Ok(())
 	}
 
+	/// Delete registration
+	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		try!(self.connection.deregister_socket(event_loop));
+		Ok(())
+	}
+
 	/// Parse, validate and confirm auth message
 	fn read_auth(&mut self, host: &HostInfo, data: &[u8]) -> Result<(), UtilError> {
 		trace!(target:"net", "Received handshake auth to {:?}", self.connection.socket.peer_addr());

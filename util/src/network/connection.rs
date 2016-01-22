@@ -150,6 +150,13 @@ impl Connection {
 			Err(e)
 		})
 	}
+
+	/// Delete connection registration. Should be called at the end of the IO handler.
+	pub fn deregister_socket<Host: Handler>(&self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
+		trace!(target: "net", "connection deregister; token={:?}", self.token);
+		event_loop.deregister(&self.socket).ok(); // ignore errors here
+		Ok(())
+	}
 }
 
 /// RLPx packet
@@ -369,6 +376,12 @@ impl EncryptedConnection {
 	/// Update connection registration. This should be called at the end of the event loop.
 	pub fn update_socket<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.update_socket(reg, event_loop));
+		Ok(())
+	}
+
+	/// Delete connection registration. This should be called at the end of the event loop.
+	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		try!(self.connection.deregister_socket(event_loop));
 		Ok(())
 	}
 }

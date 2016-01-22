@@ -42,6 +42,10 @@ pub enum IoMessage<Message> where Message: Send + Clone + Sized {
 		handler_id: HandlerId,
 		token: StreamToken,
 	},
+	DeregisterStream {
+		handler_id: HandlerId,
+		token: StreamToken,
+	},
 	UpdateStreamRegistration {
 		handler_id: HandlerId,
 		token: StreamToken,
@@ -83,9 +87,19 @@ impl<Message> IoContext<Message> where Message: Send + Clone + 'static {
 		}));
 		Ok(())
 	}
+
 	/// Register a new IO stream.
 	pub fn register_stream(&self, token: StreamToken) -> Result<(), UtilError> {
 		try!(self.channel.send_io(IoMessage::RegisterStream {
+			token: token,
+			handler_id: self.handler,
+		}));
+		Ok(())
+	}
+
+	/// Deregister an IO stream.
+	pub fn deregister_stream(&self, token: StreamToken) -> Result<(), UtilError> {
+		try!(self.channel.send_io(IoMessage::DeregisterStream {
 			token: token,
 			handler_id: self.handler,
 		}));
@@ -213,6 +227,10 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			IoMessage::RegisterStream { handler_id, token } => {
 				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
 				handler.register_stream(token, Token(token + handler_id * TOKENS_PER_HANDLER), event_loop);
+			},
+			IoMessage::DeregisterStream { handler_id, token } => {
+				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
+				handler.deregister_stream(token, event_loop);
 			},
 			IoMessage::UpdateStreamRegistration { handler_id, token } => {
 				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
