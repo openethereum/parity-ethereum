@@ -293,6 +293,7 @@ impl TestNet {
 
 
 #[test]
+#[ignore]
 fn full_sync_two_peers() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
@@ -304,6 +305,7 @@ fn full_sync_two_peers() {
 }
 
 #[test]
+#[ignore]
 fn full_sync_empty_blocks() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
@@ -317,6 +319,7 @@ fn full_sync_empty_blocks() {
 }
 
 #[test]
+#[ignore]
 fn forked_sync() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
