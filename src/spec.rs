@@ -10,7 +10,7 @@ pub fn gzip64res_to_json(source: &[u8]) -> Json {
 	let data = source.from_base64().expect("Genesis block is malformed!");
 	let data_ref: &[u8] = &data;
 	let mut decoder = GzDecoder::new(data_ref).expect("Gzip is invalid");
-	let mut s: String = "".to_string();
+	let mut s: String = "".to_owned();
 	decoder.read_to_string(&mut s).expect("Gzip is invalid");
 	Json::from_str(&s).expect("Json is invalid")
 }
@@ -18,14 +18,14 @@ pub fn gzip64res_to_json(source: &[u8]) -> Json {
 /// Convert JSON value to equivlaent RLP representation.
 // TODO: handle container types.
 fn json_to_rlp(json: &Json) -> Bytes {
-	match json {
-		&Json::Boolean(o) => encode(&(if o {1u64} else {0})),
-		&Json::I64(o) => encode(&(o as u64)),
-		&Json::U64(o) => encode(&o),
-		&Json::String(ref s) if s.len() >= 2 && &s[0..2] == "0x" && U256::from_str(&s[2..]).is_ok() => {
+	match *json {
+		Json::Boolean(o) => encode(&(if o {1u64} else {0})),
+		Json::I64(o) => encode(&(o as u64)),
+		Json::U64(o) => encode(&o),
+		Json::String(ref s) if s.len() >= 2 && &s[0..2] == "0x" && U256::from_str(&s[2..]).is_ok() => {
 			encode(&U256::from_str(&s[2..]).unwrap())
 		},
-		&Json::String(ref s) => {
+		Json::String(ref s) => {
 			encode(s)
 		},
 		_ => panic!()
@@ -111,6 +111,7 @@ pub struct Spec {
 	state_root_memo: RwLock<Option<H256>>,
 }
 
+#[allow(wrong_self_convention)] // because to_engine(self) should be to_engine(&self)
 impl Spec {
 	/// Convert this object into a boxed Engine of the right underlying type.
 	// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
@@ -191,19 +192,19 @@ impl FromJson for Spec {
 						builtins.insert(addr.clone(), builtin);
 					}
 				}
-				let balance = acc.find("balance").and_then(|x| match x { &Json::String(ref b) => U256::from_dec_str(b).ok(), _ => None });
-				let nonce = acc.find("nonce").and_then(|x| match x { &Json::String(ref b) => U256::from_dec_str(b).ok(), _ => None });
+				let balance = acc.find("balance").and_then(|x| match *x { Json::String(ref b) => U256::from_dec_str(b).ok(), _ => None });
+				let nonce = acc.find("nonce").and_then(|x| match *x { Json::String(ref b) => U256::from_dec_str(b).ok(), _ => None });
 //				let balance = if let Some(&Json::String(ref b)) = acc.find("balance") {U256::from_dec_str(b).unwrap_or(U256::from(0))} else {U256::from(0)};
 //				let nonce = if let Some(&Json::String(ref n)) = acc.find("nonce") {U256::from_dec_str(n).unwrap_or(U256::from(0))} else {U256::from(0)};
 				// TODO: handle code & data if they exist.
 				if balance.is_some() || nonce.is_some() {
-					state.insert(addr, GenesisAccount { balance: balance.unwrap_or(U256::from(0)), nonce: nonce.unwrap_or(U256::from(0)) });
+					state.insert(addr, GenesisAccount { balance: balance.unwrap_or_else(U256::zero), nonce: nonce.unwrap_or_else(U256::zero) });
 				}
 			}
 		}
 
 		let nodes = if let Some(&Json::Array(ref ns)) = json.find("nodes") {
-			ns.iter().filter_map(|n| if let &Json::String(ref s) = n { Some(s.to_string()) } else {None}).collect()
+			ns.iter().filter_map(|n| if let Json::String(ref s) = *n { Some(s.clone()) } else {None}).collect()
 		} else { Vec::new() };
 
 		let genesis = &json["genesis"];//.as_object().expect("No genesis object in JSON");
@@ -224,8 +225,8 @@ impl FromJson for Spec {
 		};
 		
 		Spec {
-			name: json.find("name").map(|j| j.as_string().unwrap()).unwrap_or("unknown").to_string(),
-			engine_name: json["engineName"].as_string().unwrap().to_string(),
+			name: json.find("name").map_or("unknown", |j| j.as_string().unwrap()).to_owned(),
+			engine_name: json["engineName"].as_string().unwrap().to_owned(),
 			engine_params: json_to_rlp_map(&json["params"]),
 			nodes: nodes,
 			builtins: builtins,
@@ -252,7 +253,7 @@ impl Spec {
 			let mut root = H256::new(); 
 			{
 				let mut t = SecTrieDBMut::new(db, &mut root);
-				for (address, account) in self.genesis_state.iter() {
+				for (address, account) in &self.genesis_state {
 					t.insert(address.as_slice(), &account.rlp());
 				}
 			}

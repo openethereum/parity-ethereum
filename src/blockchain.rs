@@ -153,9 +153,8 @@ impl BlockProvider for BlockChain {
 	fn block(&self, hash: &H256) -> Option<Bytes> {
 		{
 			let read = self.blocks.read().unwrap();
-			match read.get(hash) {
-				Some(v) => return Some(v.clone()),
-				None => ()
+			if let Some(v) = read.get(hash) {
+				return Some(v.clone());
 			}
 		}
 
@@ -188,7 +187,7 @@ impl BlockProvider for BlockChain {
 
 const COLLECTION_QUEUE_SIZE: usize = 2;
 const MIN_CACHE_SIZE: usize = 1;
-const MAX_CACHE_SIZE: usize = 1024 * 1024 * 1;
+const MAX_CACHE_SIZE: usize = 1024 * 1024;
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
@@ -342,19 +341,19 @@ impl BlockChain {
 			Some(h) => h,
 			None => return None,
 		};
-		Some(self._tree_route((from_details, from), (to_details, to)))
+		Some(self._tree_route((&from_details, &from), (&to_details, &to)))
 	}
 
 	/// Similar to `tree_route` function, but can be used to return a route
 	/// between blocks which may not be in database yet.
-	fn _tree_route(&self, from: (BlockDetails, H256), to: (BlockDetails, H256)) -> TreeRoute {
+	fn _tree_route(&self, from: (&BlockDetails, &H256), to: (&BlockDetails, &H256)) -> TreeRoute {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = from.0;
-		let mut to_details = to.0;
-		let mut current_from = from.1;
-		let mut current_to = to.1;
+		let mut from_details = from.0.clone();
+		let mut to_details = to.0.clone();
+		let mut current_from = from.1.clone();
+		let mut current_to = to.1.clone();
 
 		// reset from && to to the same level
 		while from_details.number > to_details.number {
@@ -409,7 +408,7 @@ impl BlockChain {
 
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
-		let (batch, new_best) = self.block_to_extras_insert_batch(bytes);
+		let (batch, new_best, details) = self.block_to_extras_insert_batch(bytes);
 
 		// update best block
 		let mut best_block = self.best_block.write().unwrap();
@@ -420,6 +419,8 @@ impl BlockChain {
 		// update caches
 		let mut write = self.block_details.write().unwrap();
 		write.remove(&header.parent_hash());
+		write.insert(hash.clone(), details);
+		self.note_used(CacheID::Block(hash));
 
 		// update extras database
 		self.extras_db.write(batch).unwrap();
@@ -427,7 +428,7 @@ impl BlockChain {
 
 	/// Transforms block into WriteBatch that may be written into database
 	/// Additionally, if it's new best block it returns new best block object.
-	fn block_to_extras_insert_batch(&self, bytes: &[u8]) -> (WriteBatch, Option<BestBlock>) {
+	fn block_to_extras_insert_batch(&self, bytes: &[u8]) -> (WriteBatch, Option<BestBlock>, BlockDetails) {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -459,7 +460,7 @@ impl BlockChain {
 
 		// if it's not new best block, just return
 		if !is_new_best {
-			return (batch, None);
+			return (batch, None, details);
 		}
 
 		// if its new best block we need to make sure that all ancestors
@@ -467,7 +468,7 @@ impl BlockChain {
 		// find the route between old best block and the new one
 		let best_hash = self.best_block_hash();
 		let best_details = self.block_details(&best_hash).expect("best block hash is invalid!");
-		let route = self._tree_route((best_details, best_hash), (details, hash.clone()));
+		let route = self._tree_route((&best_details, &best_hash), (&details, &hash));
 
 		match route.blocks.len() {
 			// its our parent
@@ -494,7 +495,7 @@ impl BlockChain {
 			total_difficulty: total_difficulty
 		};
 
-		(batch, Some(best_block))
+		(batch, Some(best_block), details)
 	}
 
 	/// Returns true if transaction is known.
@@ -527,9 +528,8 @@ impl BlockChain {
 		K: ExtrasSliceConvertable + Eq + Hash + Clone {
 		{
 			let read = cache.read().unwrap();
-			match read.get(hash) {
-				Some(v) => return Some(v.clone()),
-				None => ()
+			if let Some(v) = read.get(hash) {
+				return Some(v.clone());
 			}
 		}
 
@@ -549,9 +549,8 @@ impl BlockChain {
 		T: ExtrasIndexable {
 		{
 			let read = cache.read().unwrap();
-			match read.get(hash) {
-				Some(_) => return true,
-				None => ()
+			if let Some(_) = read.get(hash) {
+				return true;
 			}
 		}
 
@@ -670,6 +669,7 @@ mod tests {
 	}
 
 	#[test]
+	#[allow(cyclomatic_complexity)]
 	fn test_small_fork() {
 		let genesis = "f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a07dba07d6b448a186e9612e5f737d1c909dce473e53199901a302c00646d523c1a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302000080832fefd8808454c98c8142a059262c330941f3fe2a34d16d6e3c7b30d2ceb37c6a0e9a994c494ee1a61d2410885aa4c8bf8e56e264c0c0".from_hex().unwrap();
 		let b1 = "f90261f901f9a05716670833ec874362d65fea27a7cd35af5897d275b31a44944113111e4e96d2a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0cb52de543653d86ccd13ba3ddf8b052525b04231c6884a4db3188a184681d878a0e78628dd45a1f8dc495594d83b76c588a3ee67463260f8b7d4a42f574aeab29aa0e9244cf7503b79c03d3a099e07a80d2dbc77bb0b502d8a89d51ac0d68dd31313b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302000001832fefd882520884562791e580a051b3ecba4e3f2b49c11d42dd0851ec514b1be3138080f72a2b6e83868275d98f8877671f479c414b47f862f86080018304cb2f94095e7baea6a6c7c4c2dfeb977efac326af552d870a801ca09e2709d7ec9bbe6b1bbbf0b2088828d14cd5e8642a1fee22dc74bfa89761a7f9a04bd8813dee4be989accdb708b1c2e325a7e9c695a8024e30e89d6c644e424747c0".from_hex().unwrap();

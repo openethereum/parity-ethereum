@@ -15,7 +15,7 @@ impl StateDiff {
 
 impl fmt::Display for StateDiff {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		for (add, acc) in self.0.iter() {
+		for (add, acc) in &self.0 {
 			try!(write!(f, "{} {}: {}", acc.existance(), add, acc));
 		}
 		Ok(())

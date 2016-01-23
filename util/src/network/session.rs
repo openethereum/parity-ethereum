@@ -4,6 +4,7 @@ use rlp::*;
 use network::connection::{EncryptedConnection, Packet};
 use network::handshake::Handshake;
 use error::*;
+use io::{IoContext};
 use network::error::{NetworkError, DisconnectReason};
 use network::host::*;
 use network::node::NodeId;
@@ -84,7 +85,7 @@ const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
 	/// Create a new session out of comepleted handshake. Consumes handshake object.
-	pub fn new<Host:Handler<Timeout=Token>>(h: Handshake, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<Session, UtilError> {
+	pub fn new<Message>(h: Handshake, _io: &IoContext<Message>, host: &HostInfo) -> Result<Session, UtilError> where Message: Send + Sync + Clone {
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
 		let mut session = Session {
@@ -99,7 +100,6 @@ impl Session {
 		};
 		try!(session.write_hello(host));
 		try!(session.write_ping());
-		try!(session.connection.register(event_loop));
 		Ok(session)
 	}
 
@@ -109,16 +109,16 @@ impl Session {
 	}
 
 	/// Readable IO handler. Returns packet data if available.
-	pub fn readable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<SessionData, UtilError> {
-		match try!(self.connection.readable(event_loop)) {
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<SessionData, UtilError>  where Message: Send + Sync + Clone {
+		match try!(self.connection.readable(io)) {
 			Some(data) => Ok(try!(self.read_packet(data, host))),
 			None => Ok(SessionData::None)
 		}
 	}
 
 	/// Writable IO handler. Sends pending packets.
-	pub fn writable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
-		self.connection.writable(event_loop)
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Sync + Clone {
+		self.connection.writable(io)
 	}
 
 	/// Checks if peer supports given capability
@@ -127,8 +127,8 @@ impl Session {
 	}
 
 	/// Update registration with the event loop. Should be called at the end of the IO handler.
-	pub fn reregister<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		self.connection.reregister(event_loop)
+	pub fn update_socket<Host:Handler>(&self, reg:Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		self.connection.update_socket(reg, event_loop)
 	}
 
 	/// Send a protocol packet to peer.
@@ -182,7 +182,7 @@ impl Session {
 				// map to protocol
 				let protocol = self.info.capabilities[i].protocol;
 				let pid = packet_id - self.info.capabilities[i].id_offset;
-				return Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: pid } )
+				Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: pid } )
 			},
 			_ => {
 				debug!(target: "net", "Unkown packet: {:?}", packet_id);
@@ -212,7 +212,7 @@ impl Session {
 		// Intersect with host capabilities
 		// Leave only highset mutually supported capability version
 		let mut caps: Vec<SessionCapabilityInfo> = Vec::new();
-		for hc in host.capabilities.iter() {
+		for hc in &host.capabilities {
 			if peer_caps.iter().any(|c| c.protocol == hc.protocol && c.version == hc.version) {
 				caps.push(SessionCapabilityInfo {
 					protocol: hc.protocol,

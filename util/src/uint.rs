@@ -200,7 +200,7 @@ macro_rules! construct_uint {
 			#[inline]
 			fn byte(&self, index: usize) -> u8 {
 				let &$name(ref arr) = self;
-				(arr[index / 8] >> ((index % 8)) * 8) as u8
+				(arr[index / 8] >> (((index % 8)) * 8)) as u8
 			}
 
 			fn to_bytes(&self, bytes: &mut[u8]) {
@@ -446,16 +446,16 @@ macro_rules! construct_uint {
 
 		impl FromJson for $name {
 			fn from_json(json: &Json) -> Self {
-				match json {
-					&Json::String(ref s) => {
+				match *json {
+					Json::String(ref s) => {
 						if s.len() >= 2 && &s[0..2] == "0x" {
-							FromStr::from_str(&s[2..]).unwrap_or(Default::default())
+							FromStr::from_str(&s[2..]).unwrap_or_else(|_| Default::default())
 						} else {
-							Uint::from_dec_str(s).unwrap_or(Default::default())
+							Uint::from_dec_str(s).unwrap_or_else(|_| Default::default())
 						}
 					},
-					&Json::U64(u) => From::from(u),
-					&Json::I64(i) => From::from(i as u64),
+					Json::U64(u) => From::from(u),
+					Json::I64(i) => From::from(i as u64),
 					_ => Uint::zero(),
 				}
 			}
@@ -488,7 +488,7 @@ macro_rules! construct_uint {
 				for i in 0..bytes.len() {
 					let rev = bytes.len() - 1 - i;
 					let pos = rev / 8;
-					ret[pos] += (bytes[i] as u64) << (rev % 8) * 8;
+					ret[pos] += (bytes[i] as u64) << ((rev % 8) * 8);
 				}
 				$name(ret)
 			}
@@ -500,7 +500,7 @@ macro_rules! construct_uint {
 			fn from_str(value: &str) -> Result<$name, Self::Err> {
 				let bytes: Vec<u8> = match value.len() % 2 == 0 {
 					true => try!(value.from_hex()),
-					false => try!(("0".to_string() + value).from_hex())
+					false => try!(("0".to_owned() + value).from_hex())
 				};
 
 				let bytes_ref: &[u8] = &bytes;
@@ -1061,6 +1061,7 @@ mod tests {
 	}
 
 	#[test]
+	#[allow(eq_op)]
 	pub fn uint256_comp_test() {
 		let small = U256([10u64, 0, 0, 0]);
 		let big = U256([0x8C8C3EE70C644118u64, 0x0209E7378231E632, 0, 0]);

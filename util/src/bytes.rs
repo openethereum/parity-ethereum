@@ -106,18 +106,18 @@ impl<'a> Deref for BytesRef<'a> {
 	type Target = [u8];
 
 	fn deref(&self) -> &[u8] {
-		match self {
-			&BytesRef::Flexible(ref bytes) => bytes,
-			&BytesRef::Fixed(ref bytes) => bytes
+		match *self {
+			BytesRef::Flexible(ref bytes) => bytes,
+			BytesRef::Fixed(ref bytes) => bytes
 		}
 	}
 }
 
 impl <'a> DerefMut for BytesRef<'a> {
 	fn deref_mut(&mut self) -> &mut [u8] {
-		match self {
-			&mut BytesRef::Flexible(ref mut bytes) => bytes,
-			&mut BytesRef::Fixed(ref mut bytes) => bytes
+		match *self {
+			BytesRef::Flexible(ref mut bytes) => bytes,
+			BytesRef::Fixed(ref mut bytes) => bytes
 		}
 	}
 }
@@ -299,7 +299,7 @@ pub trait FromBytes: Sized {
 
 impl FromBytes for String {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<String> {
-		Ok(::std::str::from_utf8(bytes).unwrap().to_string())
+		Ok(::std::str::from_utf8(bytes).unwrap().to_owned())
 	}
 }
 

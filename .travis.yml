@@ -1,0 +1,16 @@
+language: rust
+
+rust:
+    - nightly
+
+os:
+    - osx
+
+before_script:
+    - brew update
+    - brew install rocksdb
+
+cache:
+  directories:
+  - $TRAVIS_BUILD_DIR/target
+  - $HOME/.cargo
