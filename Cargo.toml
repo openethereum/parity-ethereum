@@ -20,10 +20,13 @@ time = "0.1"
 evmjit = { path = "rust-evmjit", optional = true }
 ethash = { path = "ethash" }
 num_cpus = "0.2"
+ctrlc = "1.0"
+clippy = "*" # Always newest, since we use nightly
 
 [features]
 jit = ["evmjit"]
-evm_debug = []
+test-heavy = []
+evm-debug = []
 
 [[bin]]
 name = "client"

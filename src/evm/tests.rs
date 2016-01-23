@@ -19,7 +19,7 @@ struct FakeExt {
 	logs: Vec<FakeLogEntry>,
 	_suicides: HashSet<Address>,
 	info: EnvInfo,
-	_schedule: Schedule
+	schedule: Schedule
 }
 
 impl FakeExt {
@@ -97,7 +97,7 @@ impl Ext for FakeExt {
 	}
 
 	fn schedule(&self) -> &Schedule {
-		&self._schedule
+		&self.schedule
 	}
 
 	fn env_info(&self) -> &EnvInfo {
@@ -130,7 +130,7 @@ fn test_stack_underflow() {
 	};
 	
 	match err {
-		evm::Error::StackUnderflow {instruction: _, wanted, on_stack} => {
+		evm::Error::StackUnderflow {wanted, on_stack, ..} => {
 			assert_eq!(wanted, 2);
 			assert_eq!(on_stack, 0);
 		}

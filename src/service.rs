@@ -5,10 +5,23 @@ use error::*;
 use std::env;
 use client::Client;
 
+/// Message type for external and internal events
+#[derive(Clone)]
+pub enum SyncMessage {
+	/// New block has been imported into the blockchain
+	NewChainBlock(Bytes), //TODO: use Cow
+	/// A block is ready 
+	BlockVerified,
+}
+
+/// TODO [arkpar] Please document me
+pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
+
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
 	net_service: NetworkService<SyncMessage>,
-	client: Arc<RwLock<Client>>,
+	client: Arc<Client>,
+	sync: Arc<EthSync>,
 }
 
 impl ClientService {
@@ -20,9 +33,9 @@ impl ClientService {
 		let mut dir = env::home_dir().unwrap();
 		dir.push(".parity");
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
-		let client = Arc::new(RwLock::new(try!(Client::new(spec, &dir, net_service.io().channel()))));
-		EthSync::register(&mut net_service, client.clone());
-		let client_io = Box::new(ClientIoHandler {
+		let client = try!(Client::new(spec, &dir, net_service.io().channel()));
+		let sync = EthSync::register(&mut net_service, client.clone());
+		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
 		});
 		try!(net_service.io().register_handler(client_io));
@@ -30,6 +43,7 @@ impl ClientService {
 		Ok(ClientService {
 			net_service: net_service,
 			client: client,
+			sync: sync,
 		})
 	}
 
@@ -39,34 +53,47 @@ impl ClientService {
 	}
 
 	/// TODO [arkpar] Please document me
-	pub fn client(&self) -> Arc<RwLock<Client>> {
+	pub fn client(&self) -> Arc<Client> {
 		self.client.clone()
+	
+	}
+	
+	/// Get shared sync handler
+	pub fn sync(&self) -> Arc<EthSync> {
+		self.sync.clone()
 	}
 }
 
 /// IO interface for the Client handler
 struct ClientIoHandler {
-	client: Arc<RwLock<Client>>
+	client: Arc<Client>
 }
 
+const CLIENT_TICK_TIMER: TimerToken = 0;
+const CLIENT_TICK_MS: u64 = 5000;
+
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>) {
+	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
+		io.register_timer(CLIENT_TICK_TIMER, CLIENT_TICK_MS).expect("Error registering client timer");
 	}
 
-	fn message<'s>(&'s mut self, _io: &mut IoContext<'s, NetSyncMessage>, net_message: &'s mut NetSyncMessage) {
-		match net_message {
-			&mut UserMessage(ref mut message) =>  {
-				match message {
-					&mut SyncMessage::BlockVerified => {
-						self.client.write().unwrap().import_verified_blocks();
-					},
-					_ => {}, // ignore other messages
-				}
-
-			}
-			_ => {}, // ignore other messages
+	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
+		if timer == CLIENT_TICK_TIMER {
+			self.client.tick();
 		}
+	}
 
+	#[allow(match_ref_pats)]
+	#[allow(single_match)]
+	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
+		if let &UserMessage(ref message) = net_message {
+			match message {
+				&SyncMessage::BlockVerified => {
+					self.client.import_verified_blocks(&io.channel());
+				},
+				_ => {}, // ignore other messages
+			}
+		}
 	}
 }
 

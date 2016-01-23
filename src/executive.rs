@@ -75,7 +75,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn to_externalities<'_>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_>) -> Externalities {
+	pub fn as_externalities<'_>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_>) -> Externalities {
 		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output)
 	}
 
@@ -123,8 +123,8 @@ impl<'a> Executive<'a> {
 
 		let mut substate = Substate::new();
 
-		let res = match t.action() {
-			&Action::Create => {
+		let res = match *t.action() {
+			Action::Create => {
 				let new_address = contract_address(&sender, &nonce);
 				let params = ActionParams {
 					code_address: new_address.clone(),
@@ -139,7 +139,7 @@ impl<'a> Executive<'a> {
 				};
 				self.create(params, &mut substate)
 			},
-			&Action::Call(ref address) => {
+			Action::Call(ref address) => {
 				let params = ActionParams {
 					code_address: address.clone(),
 					address: address.clone(),
@@ -180,7 +180,7 @@ impl<'a> Executive<'a> {
 			// if destination is builtin, try to execute it
 			
 			let default = [];
-			let data = if let &Some(ref d) = &params.data { d as &[u8] } else { &default as &[u8] };
+			let data = if let Some(ref d) = params.data { d as &[u8] } else { &default as &[u8] };
 
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			match cost <= params.gas {
@@ -201,7 +201,7 @@ impl<'a> Executive<'a> {
 			let mut unconfirmed_substate = Substate::new();
 
 			let res = {
-				let mut ext = self.to_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return(output));
+				let mut ext = self.as_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return(output));
 				self.engine.vm_factory().create().exec(params, &mut ext)
 			};
 
@@ -235,7 +235,7 @@ impl<'a> Executive<'a> {
 		}
 
 		let res = {
-			let mut ext = self.to_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract);
 			self.engine.vm_factory().create().exec(params, &mut ext)
 		};
 		self.enact_result(&res, substate, unconfirmed_substate, backup);
@@ -253,7 +253,7 @@ impl<'a> Executive<'a> {
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left_prerefund = match &result { &Ok(x) => x, _ => x!(0) };
+		let gas_left_prerefund = match result { Ok(x) => x, _ => x!(0) };
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
 		let gas_left = gas_left_prerefund + refunded;
 
@@ -270,7 +270,7 @@ impl<'a> Executive<'a> {
 		self.state.add_balance(&self.info.author, &fees_value);
 
 		// perform suicides
-		for address in substate.suicides.iter() {
+		for address in &substate.suicides {
 			trace!("Killing {}", address);
 			self.state.kill_account(address);
 		}
@@ -278,11 +278,7 @@ impl<'a> Executive<'a> {
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
 			// TODO [ToDr] BadJumpDestination @debris - how to handle that?
-			Err(evm::Error::OutOfGas) 
-				| Err(evm::Error::BadJumpDestination { destination: _ }) 
-				| Err(evm::Error::BadInstruction { instruction: _ }) 
-				| Err(evm::Error::StackUnderflow {instruction: _, wanted: _, on_stack: _})
-				| Err(evm::Error::OutOfStack {instruction: _, wanted: _, limit: _}) => {
+			Err(_) => {
 				Ok(Executed {
 					gas: t.gas,
 					gas_used: t.gas,
@@ -307,15 +303,15 @@ impl<'a> Executive<'a> {
 
 	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
 		// TODO: handle other evm::Errors same as OutOfGas once they are implemented
-		match result {
-			&Err(evm::Error::OutOfGas)
-				| &Err(evm::Error::BadJumpDestination { destination: _ }) 
-				| &Err(evm::Error::BadInstruction { instruction: _ }) 
-				| &Err(evm::Error::StackUnderflow {instruction: _, wanted: _, on_stack: _})
-				| &Err(evm::Error::OutOfStack {instruction: _, wanted: _, limit: _}) => {
+		match *result {
+			Err(evm::Error::OutOfGas)
+				| Err(evm::Error::BadJumpDestination {..}) 
+				| Err(evm::Error::BadInstruction {.. }) 
+				| Err(evm::Error::StackUnderflow {..})
+				| Err(evm::Error::OutOfStack {..}) => {
 				self.state.revert(backup);
 			},
-			&Ok(_) | &Err(evm::Error::Internal) => substate.accrue(un_substate)
+			Ok(_) | Err(evm::Error::Internal) => substate.accrue(un_substate)
 		}
 	}
 }

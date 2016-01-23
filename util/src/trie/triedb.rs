@@ -38,6 +38,7 @@ pub struct TrieDB<'db> {
 	pub hash_count: usize,
 }
 
+#[allow(wrong_self_convention)]
 impl<'db> TrieDB<'db> {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
@@ -103,7 +104,7 @@ impl<'db> TrieDB<'db> {
 
 		match node {
 			Node::Extension(_, payload) => handle_payload(payload),
-			Node::Branch(payloads, _) => for payload in payloads.iter() { handle_payload(payload) },
+			Node::Branch(payloads, _) => for payload in &payloads { handle_payload(payload) },
 			_ => {},
 		}
 	}
@@ -141,12 +142,9 @@ impl<'db> TrieDB<'db> {
 			},
 			Node::Branch(ref nodes, ref value) => {
 				try!(writeln!(f, ""));
-				match value {
-					&Some(v) => {
-						try!(self.fmt_indent(f, deepness + 1));
-						try!(writeln!(f, "=: {:?}", v.pretty()))
-					},
-					&None => {}
+				if let Some(v) = *value {
+					try!(self.fmt_indent(f, deepness + 1));
+					try!(writeln!(f, "=: {:?}", v.pretty()))
 				}
 				for i in 0..16 {
 					match self.get_node(nodes[i]) {

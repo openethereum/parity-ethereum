@@ -1,3 +1,5 @@
+#![allow(ptr_arg)] // Because of &LastHashes -> &Vec<_>
+
 use common::*;
 use engine::*;
 use state::*;
@@ -173,7 +175,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 			timestamp: self.block.header.timestamp,
 			difficulty: self.block.header.difficulty.clone(),
 			last_hashes: self.last_hashes.clone(),		// TODO: should be a reference.
-			gas_used: self.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0)),
+			gas_used: self.block.archive.last().map_or(U256::zero(), |t| t.receipt.gas_used),
 			gas_limit: self.block.header.gas_limit.clone(),
 		}
 	}
@@ -204,7 +206,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 		s.block.header.state_root = s.block.state.root().clone();
 		s.block.header.receipts_root = ordered_trie_root(s.block.archive.iter().map(|ref e| e.receipt.rlp_bytes()).collect());
 		s.block.header.log_bloom = s.block.archive.iter().fold(LogBloom::zero(), |mut b, e| {b |= &e.receipt.log_bloom; b});
-		s.block.header.gas_used = s.block.archive.last().map(|t| t.receipt.gas_used).unwrap_or(U256::from(0));
+		s.block.header.gas_used = s.block.archive.last().map_or(U256::zero(), |t| t.receipt.gas_used);
 		s.block.header.note_dirty();
 
 		ClosedBlock::new(s, uncle_bytes)
@@ -255,7 +257,7 @@ impl SealedBlock {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.block.header.stream_rlp(&mut block_rlp, Seal::With);
 		block_rlp.append_list(self.block.archive.len());
-		for e in self.block.archive.iter() { e.transaction.rlp_append(&mut block_rlp); }
+		for e in &self.block.archive { e.transaction.rlp_append(&mut block_rlp); }
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
 	}

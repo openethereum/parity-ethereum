@@ -10,6 +10,7 @@ use network::host::{HostInfo};
 use network::node::NodeId;
 use error::*;
 use network::error::NetworkError;
+use io::{IoContext, StreamToken};
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
@@ -33,8 +34,6 @@ pub struct Handshake {
 	state: HandshakeState,
 	/// Outgoing or incoming connection
 	pub originated: bool,
-	/// Disconnect timeout
-	idle_timeout: Option<Timeout>,
 	/// ECDH ephemeral
 	pub ecdhe: KeyPair,
 	/// Connection nonce
@@ -51,16 +50,16 @@ pub struct Handshake {
 
 const AUTH_PACKET_SIZE: usize = 307;
 const ACK_PACKET_SIZE: usize = 210;
+const HANDSHAKE_TIMEOUT: u64 = 30000;
 
 impl Handshake {
 	/// Create a new handshake object
-	pub fn new(token: Token, id: &NodeId, socket: TcpStream, nonce: &H256) -> Result<Handshake, UtilError> {
+	pub fn new(token: StreamToken, id: &NodeId, socket: TcpStream, nonce: &H256) -> Result<Handshake, UtilError> {
 		Ok(Handshake {
 			id: id.clone(),
 			connection: Connection::new(token, socket),
 			originated: false,
 			state: HandshakeState::New,
-			idle_timeout: None,
 			ecdhe: try!(KeyPair::create()),
 			nonce: nonce.clone(),
 			remote_public: Public::new(),
@@ -71,8 +70,9 @@ impl Handshake {
 	}
 
 	/// Start a handhsake
-	pub fn start(&mut self, host: &HostInfo, originated: bool) -> Result<(), UtilError> {
+	pub fn start<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo, originated: bool) -> Result<(), UtilError> where Message: Send + Clone{
 		self.originated = originated;
+		io.register_timer(self.connection.token, HANDSHAKE_TIMEOUT).ok();
 		if originated {
 			try!(self.write_auth(host));
 		}
@@ -89,50 +89,48 @@ impl Handshake {
 	}
 
 	/// Readable IO handler. Drives the state change.
-	pub fn readable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>, host: &HostInfo) -> Result<(), UtilError> {
-		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
+		io.clear_timer(self.connection.token).unwrap();
 		match self.state {
 			HandshakeState::ReadingAuth => {
-				match try!(self.connection.readable()) {
-					Some(data)  => {
-						try!(self.read_auth(host, &data));
-						try!(self.write_ack());
-					},
-					None => {}
+				if let Some(data) = try!(self.connection.readable()) {
+					try!(self.read_auth(host, &data));
+					try!(self.write_ack());
 				};
 			},
 			HandshakeState::ReadingAck => {
-				match try!(self.connection.readable()) {
-					Some(data)  => {
-						try!(self.read_ack(host, &data));
-						self.state = HandshakeState::StartSession;
-					},
-					None => {}
+				if let Some(data) = try!(self.connection.readable()) {
+					try!(self.read_ack(host, &data));
+					self.state = HandshakeState::StartSession;
 				};
 			},
+			HandshakeState::StartSession => {},
 			_ => { panic!("Unexpected state"); }
 		}
 		if self.state != HandshakeState::StartSession {
-			try!(self.connection.reregister(event_loop));
+			try!(io.update_registration(self.connection.token));
 		}
 		Ok(())
 	}
 
 	/// Writabe IO handler.
-	pub fn writable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>, _host: &HostInfo) -> Result<(), UtilError> {
-		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
+		io.clear_timer(self.connection.token).unwrap();
 		try!(self.connection.writable());
 		if self.state != HandshakeState::StartSession {
-			try!(self.connection.reregister(event_loop));
+			io.update_registration(self.connection.token).unwrap();
 		}
 		Ok(())
 	}
 
-	/// Register the IO handler with the event loop
-	pub fn register<Host:Handler<Timeout=Token>>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
-		self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
-		try!(self.connection.register(event_loop));
+	/// Register the socket with the event loop
+	pub fn register_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		try!(self.connection.register_socket(reg, event_loop));
+		Ok(())
+	}
+
+	pub fn update_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		try!(self.connection.update_socket(reg, event_loop));
 		Ok(())
 	}
 

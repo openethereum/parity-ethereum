@@ -183,7 +183,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		let mut fail = false;
 		//let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true };
 		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail { 
-			failed.push(format!("[{}] {}: {}", vm, name.to_string(), s)); 
+			failed.push(format!("[{}] {}: {}", vm, name, s)); 
 			fail = true 
 		};
 	
@@ -202,15 +202,9 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 			BTreeMap::from_json(&s["storage"]).into_iter().foreach(|(k, v)| state.set_storage(&address, k, v));
 		});
 
-		let mut info = EnvInfo::new();
-
-		test.find("env").map(|env| {
-			info.author = xjson!(&env["currentCoinbase"]);
-			info.difficulty = xjson!(&env["currentDifficulty"]);
-			info.gas_limit = xjson!(&env["currentGasLimit"]);
-			info.number = xjson!(&env["currentNumber"]);
-			info.timestamp = xjson!(&env["currentTimestamp"]);
-		});
+		let info = test.find("env").map(|env| {
+			EnvInfo::from_json(env)
+		}).unwrap_or_default();
 
 		let engine = TestEngine::new(1, vm.clone());
 
@@ -260,7 +254,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 				test.find("post").map(|pre| for (addr, s) in pre.as_object().unwrap() {
 					let address = Address::from(addr.as_ref());
 
-					fail_unless(state.code(&address).unwrap_or(vec![]) == Bytes::from_json(&s["code"]), "code is incorrect");
+					fail_unless(state.code(&address).unwrap_or_else(|| vec![]) == Bytes::from_json(&s["code"]), "code is incorrect");
 					fail_unless(state.balance(&address) == xjson!(&s["balance"]), "balance is incorrect");
 					fail_unless(state.nonce(&address) == xjson!(&s["nonce"]), "nonce is incorrect");
 					BTreeMap::from_json(&s["storage"]).iter().foreach(|(k, v)| fail_unless(&state.storage_at(&address, &k) == v, "storage is incorrect"));
@@ -281,7 +275,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 	}
 
 
-	for f in failed.iter() {
+	for f in &failed {
 		println!("FAILED: {:?}", f);
 	}
 
@@ -292,11 +286,10 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
 declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperationTest"}
 // this one crashes with some vm internal error. Separately they pass.
-declare_test_ignore!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
+declare_test!{ignore => ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
 declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfoTest"}
 declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperationsTest"}
-// this one take way too long.
-declare_test_ignore!{ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}
+declare_test!{heavy => ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}
 declare_test!{ExecutiveTests_vmLogTest, "VMTests/vmLogTest"}
 declare_test!{ExecutiveTests_vmPerformanceTest, "VMTests/vmPerformanceTest"}
 declare_test!{ExecutiveTests_vmPushDupSwapTest, "VMTests/vmPushDupSwapTest"}

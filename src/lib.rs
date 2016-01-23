@@ -1,8 +1,11 @@
 #![warn(missing_docs)]
 #![feature(cell_extras)]
 #![feature(augmented_assignments)]
-//#![feature(plugin)]
+#![feature(plugin)]
 //#![plugin(interpolate_idents)]
+#![plugin(clippy)]
+#![allow(needless_range_loop, match_bool)]
+
 //! Ethcore's ethereum implementation
 //!
 //! ### Rust version
@@ -73,7 +76,6 @@
 //!       sudo make install
 //!       sudo ldconfig
 //!       ```
-
 #[macro_use]
 extern crate log;
 extern crate rustc_serialize;
@@ -149,6 +151,5 @@ pub mod sync;
 pub mod block;
 /// TODO [arkpar] Please document me
 pub mod verification;
-/// TODO [debris] Please document me
-pub mod queue;
+pub mod block_queue;
 pub mod ethereum;
