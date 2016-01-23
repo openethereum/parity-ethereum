@@ -73,6 +73,9 @@ pub struct Spec {
 	/// TODO [Gav Wood] Please document me
 	pub engine_name: String,
 
+	/// Known nodes on the network in enode format.
+	pub nodes: Vec<String>,
+
 	// Parameters concerning operation of the specific engine we're using.
 	// Name -> RLP-encoded value
 	/// TODO [Gav Wood] Please document me
@@ -126,6 +129,9 @@ impl Spec {
 		}
 		self.state_root_memo.read().unwrap().as_ref().unwrap().clone()
 	}
+
+	/// Get the known knodes of the network in enode format.
+	pub fn nodes(&self) -> &Vec<String> { &self.nodes }
 
 	/// TODO [Gav Wood] Please document me
 	pub fn genesis_header(&self) -> Header {
@@ -196,6 +202,10 @@ impl FromJson for Spec {
 			}
 		}
 
+		let nodes = if let Some(&Json::Array(ref ns)) = json.find("nodes") {
+			ns.iter().filter_map(|n| if let &Json::String(ref s) = n { Some(s.to_string()) } else {None}).collect()
+		} else { Vec::new() };
+
 		let genesis = &json["genesis"];//.as_object().expect("No genesis object in JSON");
 
 		let (seal_fields, seal_rlp) = {
@@ -212,12 +222,12 @@ impl FromJson for Spec {
 				)
 			}
 		};
-
 		
 		Spec {
 			name: json.find("name").map(|j| j.as_string().unwrap()).unwrap_or("unknown").to_string(),
 			engine_name: json["engineName"].as_string().unwrap().to_string(),
 			engine_params: json_to_rlp_map(&json["params"]),
+			nodes: nodes,
 			builtins: builtins,
 			parent_hash: H256::from_str(&genesis["parentHash"].as_string().unwrap()[2..]).unwrap(),
 			author: Address::from_str(&genesis["author"].as_string().unwrap()[2..]).unwrap(),

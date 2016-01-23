@@ -1,6 +1,10 @@
+#![feature(plugin)]
+//#![plugin(docopt_macros)]
+
+extern crate docopt;
+extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
-extern crate rustc_serialize;
 extern crate log;
 extern crate env_logger;
 
@@ -14,8 +18,27 @@ use ethcore::service::ClientService;
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethcore::sync::*;
+use docopt::Docopt;
 
-fn setup_log() {
+const USAGE: &'static str = "
+Parity. Ethereum Client.
+
+Usage:
+  parity [options]
+  parity [options] <enode>...
+
+Options:
+  -l --logging LOGGING  Specify the logging level
+  -h --help             Show this screen.
+";
+
+#[derive(Debug, RustcDecodable)]
+struct Args {
+    arg_enode: Option<Vec<String>>,
+    flag_logging: Option<String>,
+}
+
+fn setup_log(init: &Option<String>) {
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
@@ -23,14 +46,28 @@ fn setup_log() {
 		builder.parse(&env::var("RUST_LOG").unwrap());
 	}
 
+	if let &Some(ref x) = init {
+		builder.parse(x);
+	}
+
 	builder.init().unwrap();
 }
 
 fn main() {
-	setup_log();
+	let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
+
+	setup_log(&args.flag_logging);
+
 	let spec = ethereum::new_frontier();
-	let mut service = ClientService::start(spec).unwrap();
+
+	let init_nodes = match &args.arg_enode {
+		&None => spec.nodes().clone(),
+		&Some(ref enodes) => enodes.clone(),
+	};
+
+	let mut service = ClientService::start(spec, &init_nodes).unwrap();
 	let io_handler  = Box::new(ClientIoHandler { client: service.client(), timer: 0, info: Default::default() });
+
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 	loop {
 		let mut cmd = String::new();

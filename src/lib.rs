@@ -89,6 +89,8 @@ extern crate evmjit;
 #[macro_use]
 extern crate ethcore_util as util;
 
+// NOTE: Add doc parser exception for these pub declarations.
+
 /// TODO [Gav Wood] Please document me
 pub mod common;
 /// TODO [Tomusdrw] Please document me

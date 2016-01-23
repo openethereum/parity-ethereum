@@ -13,9 +13,10 @@ pub struct NetworkService<Message> where Message: Send + 'static {
 
 impl<Message> NetworkService<Message> where Message: Send + 'static {
 	/// Starts IO event loop
-	pub fn start() -> Result<NetworkService<Message>, UtilError> {
+	pub fn start(init_nodes: &Vec<String>) -> Result<NetworkService<Message>, UtilError> {
 		let mut io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
-		let host = Box::new(Host::new());
+		let mut host = Box::new(Host::new());
+		for n in init_nodes { host.add_node(&n); }
 		let host_info = host.info.client_version.clone();
 		info!("NetworkService::start(): id={:?}", host.info.id());
 		try!(io_service.register_handler(host));
@@ -55,7 +56,5 @@ impl<Message> NetworkService<Message> where Message: Send + 'static {
 	pub fn io(&mut self) -> &mut IoService<NetworkIoMessage<Message>> {
 		&mut self.io_service
 	}
-
-
 }
 

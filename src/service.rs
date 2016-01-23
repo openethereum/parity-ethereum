@@ -13,8 +13,8 @@ pub struct ClientService {
 
 impl ClientService {
 	/// Start the service in a separate thread.
-	pub fn start(spec: Spec) -> Result<ClientService, Error> {
-		let mut net_service = try!(NetworkService::start());
+	pub fn start(spec: Spec, init_nodes: &Vec<String>) -> Result<ClientService, Error> {
+		let mut net_service = try!(NetworkService::start(init_nodes));
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {} engine", spec.name, spec.engine_name);
 		let mut dir = env::home_dir().unwrap();
@@ -31,6 +31,11 @@ impl ClientService {
 			net_service: net_service,
 			client: client,
 		})
+	}
+
+	/// Get the network service.
+	pub fn add_node(&mut self, _enode: &str) {
+		unimplemented!();
 	}
 
 	/// TODO [arkpar] Please document me
