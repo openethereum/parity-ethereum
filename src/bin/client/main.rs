@@ -1,4 +1,5 @@
 #![feature(plugin)]
+// TODO: uncomment once this can be made to work.
 //#![plugin(docopt_macros)]
 
 extern crate docopt;
