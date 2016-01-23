@@ -40,7 +40,7 @@
 /// }
 ///
 /// fn main () {
-/// 	let mut service = NetworkService::<MyMessage>::start().expect("Error creating network service");
+/// 	let mut service = NetworkService::<MyMessage>::start(NetworkConfiguration::new()).expect("Error creating network service");
 /// 	service.register_protocol(Arc::new(MyHandler), "myproto", &[1u8]);
 ///
 /// 	// Wait for quit condition
@@ -71,6 +71,7 @@ pub use network::host::NetworkIoMessage;
 pub use network::host::NetworkIoMessage::User as UserMessage;
 /// TODO [arkpar] Please document me
 pub use network::error::NetworkError;
+pub use network::host::NetworkConfiguration;
 
 use io::TimerToken;
 
@@ -130,6 +131,6 @@ fn test_net_service() {
 		}
 	}
 
-	let mut service = NetworkService::<MyMessage>::start().expect("Error creating network service");
+	let mut service = NetworkService::<MyMessage>::start(NetworkConfiguration::new()).expect("Error creating network service");
 	service.register_protocol(Arc::new(MyHandler), "myproto", &[1u8]).unwrap();
 }

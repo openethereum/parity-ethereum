@@ -30,7 +30,13 @@ fn setup_log() {
 fn main() {
 	setup_log();
 	let spec = ethereum::new_frontier();
-	let mut service = ClientService::start(spec).unwrap();
+	let mut net_settings = NetworkConfiguration::new();
+	let args: Vec<_> = env::args().collect();
+	if args.len() == 2 {
+		net_settings.boot_nodes.push(args[1].trim_matches('\"').to_string());
+	}
+
+	let mut service = ClientService::start(spec, net_settings).unwrap();
 	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: service.sync() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 

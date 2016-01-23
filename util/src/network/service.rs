@@ -1,6 +1,6 @@
 use std::sync::*;
 use error::*;
-use network::{NetworkProtocolHandler};
+use network::{NetworkProtocolHandler, NetworkConfiguration};
 use network::error::{NetworkError};
 use network::host::{Host, NetworkIoMessage, ProtocolId};
 use io::*;
@@ -14,9 +14,9 @@ pub struct NetworkService<Message> where Message: Send + Sync + Clone + 'static 
 
 impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
-	pub fn start() -> Result<NetworkService<Message>, UtilError> {
+	pub fn start(config: NetworkConfiguration) -> Result<NetworkService<Message>, UtilError> {
 		let mut io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
-		let host = Arc::new(Host::new());
+		let host = Arc::new(Host::new(config));
 		let host_info = host.client_version();
 		info!("NetworkService::start(): id={:?}", host.client_id());
 		try!(io_service.register_handler(host));

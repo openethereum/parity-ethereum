@@ -28,22 +28,32 @@ const IDEAL_PEERS: u32 = 10;
 const MAINTENANCE_TIMEOUT: u64 = 1000;
 
 #[derive(Debug)]
-struct NetworkConfiguration {
-	listen_address: SocketAddr,
-	public_address: SocketAddr,
-	nat_enabled: bool,
-	discovery_enabled: bool,
-	pin: bool,
+/// Network service configuration
+pub struct NetworkConfiguration {
+	/// IP address to listen for incoming connections
+	pub listen_address: SocketAddr,
+	/// IP address to advertise
+	pub public_address: SocketAddr,
+	/// Enable NAT configuration
+	pub nat_enabled: bool,
+	/// Enable discovery
+	pub discovery_enabled: bool,
+	/// Pin to boot nodes only
+	pub pin: bool,
+	/// List of initial node addresses
+	pub boot_nodes: Vec<String>,
 }
 
 impl NetworkConfiguration {
-	fn new() -> NetworkConfiguration {
+	/// Create a new instance of default settings.
+	pub fn new() -> NetworkConfiguration {
 		NetworkConfiguration {
 			listen_address: SocketAddr::from_str("0.0.0.0:30304").unwrap(),
 			public_address: SocketAddr::from_str("0.0.0.0:30304").unwrap(),
 			nat_enabled: true,
 			discovery_enabled: true,
 			pin: false,
+			boot_nodes: Vec::new(),
 		}
 	}
 }
@@ -246,8 +256,8 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 }
 
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
-	pub fn new() -> Host<Message> {
-		let config = NetworkConfiguration::new();
+	/// Create a new instance
+	pub fn new(config: NetworkConfiguration) -> Host<Message> {
 		let addr = config.listen_address;
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&addr).unwrap();
@@ -279,13 +289,19 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		None => warn!("No public network interface"),
 		*/
 
-		// self.add_node("enode://a9a921de2ff09a9a4d38b623c67b2d6b477a8e654ae95d874750cbbcb31b33296496a7b4421934e2629269e180823e52c15c2b19fc59592ec51ffe4f2de76ed7@127.0.0.1:30303");
-		// GO bootnodes
-		host.add_node("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303"); // IE
-		host.add_node("enode://de471bccee3d042261d52e9bff31458daecc406142b401d4cd848f677479f73104b9fdeb090af9583d3391b7f10cb2ba9e26865dd5fca4fcdc0fb1e3b723c786@54.94.239.50:30303");  // BR
-		host.add_node("enode://1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082@52.74.57.123:30303");  // SG
+		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
+		if boot_nodes.is_empty() {
+			// GO bootnodes
+			host.add_node("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303"); // IE
+			host.add_node("enode://de471bccee3d042261d52e9bff31458daecc406142b401d4cd848f677479f73104b9fdeb090af9583d3391b7f10cb2ba9e26865dd5fca4fcdc0fb1e3b723c786@54.94.239.50:30303");  // BR
+			host.add_node("enode://1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082@52.74.57.123:30303");  // SG
+		}
+		else {
+			for n in boot_nodes {
+				host.add_node(&n);
+			}
+		}
 		// ETH/DEV cpp-ethereum (poc-9.ethdev.com)
-		//host.add_node("enode://979b7fa28feeb35a4741660a16076f1943202cb72b6af70d327f053e248bab9ba81760f39d0701ef1d8f89cc1fbd2cacba0710a12cd5314d5e0c9021aa3637f9@5.1.83.226:30303");
 		host
 	}
 
@@ -517,7 +533,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn start_session(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
-		self.connections.write().unwrap().replace_with(token, |c| {
+		let mut connections = self.connections.write().unwrap();
+		connections.replace_with(token, |c| {
 			match Arc::try_unwrap(c).ok().unwrap().into_inner().unwrap() {
 				ConnectionEntry::Handshake(h) => {
 					let session = Session::new(h, io, &self.info.read().unwrap()).expect("Session creation error");

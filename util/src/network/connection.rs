@@ -137,8 +137,8 @@ impl Connection {
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection register; token={:?}", reg);
 		event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-			error!("Failed to register {:?}, {:?}", reg, e);
-			Err(e)
+			debug!("Failed to register {:?}, {:?}", reg, e);
+			Ok(())
 		})
 	}
 
@@ -146,8 +146,8 @@ impl Connection {
 	pub fn update_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection reregister; token={:?}", reg);
 		event_loop.reregister( &self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-			error!("Failed to reregister {:?}, {:?}", reg, e);
-			Err(e)
+			debug!("Failed to reregister {:?}, {:?}", reg, e);
+			Ok(())
 		})
 	}
 
