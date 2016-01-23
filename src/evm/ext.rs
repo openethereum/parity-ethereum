@@ -55,19 +55,9 @@ pub trait Ext {
 	/// and true if subcall was successfull.
 	fn call(&mut self, 
 			gas: &U256, 
-			address: &Address, 
-			value: &U256, 
-			data: &[u8], 
-			code_address: &Address, 
-			output: &mut [u8]) -> MessageCallResult;
-
-	/// Delegate Message call.
-	/// 
-	/// Returns Err, if we run out of gas.
-	/// Otherwise returns call_result which contains gas left 
-	/// and true if subcall was successfull.
-	fn delegatecall(&mut self, 
-			gas: &U256, 
+			sender_address: &Address, 
+			receive_address: &Address, 
+			value: Option<&U256>,
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> MessageCallResult;

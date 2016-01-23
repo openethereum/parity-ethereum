@@ -587,7 +587,7 @@ impl Interpreter {
 					// and we don't want to copy
 					let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
 					let output = mem.writeable_slice(out_off, out_size);
-					ext.delegatecall(&call_gas, input, &code_address, output)
+					ext.call(&call_gas, &params.sender, &params.address, None, input, &code_address, output)
 				};
 
 				return match call_result {
@@ -609,11 +609,6 @@ impl Interpreter {
 
 				let value = stack.pop_back();
 
-				let address = match instruction == instructions::CALL {
-					true => &code_address,
-					false => &params.address
-				};
-
 				let in_off = stack.pop_back();
 				let in_size = stack.pop_back();
 				let out_off = stack.pop_back();
@@ -622,6 +617,11 @@ impl Interpreter {
 				let call_gas = call_gas + match value > U256::zero() {
 					true => U256::from(ext.schedule().call_stipend),
 					false => U256::zero()
+				};
+
+				let (sender_address, receive_address) = match instruction == instructions::CALL {
+					true => (&params.address, &code_address),
+					false => (&params.address, &params.address)
 				};
 
 				let can_call = ext.balance(&params.address) >= value && ext.depth() < ext.schedule().max_depth;
@@ -636,7 +636,7 @@ impl Interpreter {
 					// and we don't want to copy
 					let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
 					let output = mem.writeable_slice(out_off, out_size);
-					ext.call(&call_gas, address, &value, input, &code_address, output)
+					ext.call(&call_gas, sender_address, receive_address, Some(&value), input, &code_address, output)
 				};
 
 				return match call_result {

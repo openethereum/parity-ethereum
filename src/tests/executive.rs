@@ -101,8 +101,9 @@ impl<'a> Ext for TestExt<'a> {
 
 	fn call(&mut self, 
 			gas: &U256, 
+			_sender_address: &Address, 
 			receive_address: &Address, 
-			value: &U256, 
+			value: Option<&U256>,
 			data: &[u8], 
 			_code_address: &Address, 
 			_output: &mut [u8]) -> MessageCallResult {
@@ -110,22 +111,7 @@ impl<'a> Ext for TestExt<'a> {
 			data: data.to_vec(),
 			destination: Some(receive_address.clone()),
 			gas_limit: *gas,
-			value: *value
-		});
-		MessageCallResult::Success(*gas)
-	}
-
-	fn delegatecall(&mut self, 
-			gas: &U256, 
-			data: &[u8], 
-			_code_address: &Address, 
-			_output: &mut [u8]) -> MessageCallResult {
-
-		self.callcreates.push(CallCreate {
-			data: data.to_vec(),
-			destination: None,
-			gas_limit: *gas,
-			value: U256::zero()
+			value: *value.unwrap()
 		});
 		MessageCallResult::Success(*gas)
 	}

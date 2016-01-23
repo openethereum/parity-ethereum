@@ -61,18 +61,11 @@ impl Ext for FakeExt {
 
 	fn call(&mut self, 
 			_gas: &U256, 
-			_address: &Address, 
-			_value: &U256, 
+			_sender_address: &Address, 
+			_receive_address: &Address, 
+			_value: Option<&U256>,
 			_data: &[u8], 
 			_code_address: &Address, 
-			_output: &mut [u8]) -> MessageCallResult {
-		unimplemented!();
-	}
-
-	fn delegatecall(&mut self, 
-			_gas: &U256, 
-			_data: &[u8], 
-			_address: &Address, 
 			_output: &mut [u8]) -> MessageCallResult {
 		unimplemented!();
 	}

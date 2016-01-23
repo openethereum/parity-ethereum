@@ -17,18 +17,16 @@ pub enum OutputPolicy<'a> {
 
 /// Transaction properties that externalities need to know about.
 pub struct OriginInfo {
-	sender: Address,
-	value: U256,
 	address: Address,
 	origin: Address,
-	gas_price: U256
+	gas_price: U256,
+	value: U256
 }
 
 impl OriginInfo {
 	/// Populates origin info from action params.
 	pub fn from(params: &ActionParams) -> Self {
 		OriginInfo {
-			sender: params.sender.clone(),
 			address: params.address.clone(),
 			origin: params.origin.clone(),
 			gas_price: params.gas_price.clone(),
@@ -136,51 +134,30 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn delegatecall(&mut self, 
-			gas: &U256, 
-			data: &[u8], 
-			code_address: &Address, 
-			output: &mut [u8]) -> MessageCallResult {
-
-		let params = ActionParams {
-			code_address: code_address.clone(),
-			address: self.origin_info.address.clone(), 
-			sender: self.origin_info.sender.clone(),
-			origin: self.origin_info.origin.clone(),
-			gas: *gas,
-			gas_price: self.origin_info.gas_price.clone(),
-			value: ActionValue::Apparent(self.origin_info.value.clone()),
-			code: self.state.code(code_address),
-			data: Some(data.to_vec()),
-		};
-
-		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
-    
-		match ex.call(params, self.substate, BytesRef::Fixed(output)) {
-			Ok(gas_left) => MessageCallResult::Success(gas_left),
-			_ => MessageCallResult::Failed
-		}
-  }
-
 	fn call(&mut self, 
 			gas: &U256, 
-			address: &Address, 
-			value: &U256, 
+			sender_address: &Address, 
+			receive_address: &Address, 
+			value: Option<&U256>,
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> MessageCallResult {
 
-		let params = ActionParams {
+		let mut params = ActionParams {
+			sender: sender_address.clone(),
+			address: receive_address.clone(), 
+			value: ActionValue::Apparent(self.origin_info.value.clone()),
 			code_address: code_address.clone(),
-			address: address.clone(), 
-			sender: self.origin_info.address.clone(),
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price.clone(),
-			value: ActionValue::Transfer(value.clone()),
 			code: self.state.code(code_address),
 			data: Some(data.to_vec()),
 		};
+
+		if let Some(value) = value {
+			params.value = ActionValue::Transfer(value.clone());
+		}
 
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
 

@@ -21,7 +21,7 @@ evmjit = { path = "rust-evmjit", optional = true }
 ethash = { path = "ethash" }
 num_cpus = "0.2"
 ctrlc = "1.0"
-clippy = "*" # Always newest, since we use nightly
+clippy = "0.0.37" # Always newest, since we use nightly
 
 [features]
 jit = ["evmjit"]
