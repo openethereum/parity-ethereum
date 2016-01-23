@@ -475,6 +475,9 @@ impl ChainSync {
 				}
 			}
 		};
+		if max_height != x!(0) {
+			self.sync_peer(io, peer_id, true);
+		}
 		Ok(())
 	}
 
