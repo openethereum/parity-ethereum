@@ -47,6 +47,11 @@ impl ClientService {
 		})
 	}
 
+	/// Get the network service.
+	pub fn add_node(&mut self, _enode: &str) {
+		unimplemented!();
+	}
+
 	/// TODO [arkpar] Please document me
 	pub fn io(&mut self) -> &mut IoService<NetSyncMessage> {
 		self.net_service.io()

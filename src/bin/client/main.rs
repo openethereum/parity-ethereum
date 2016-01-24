@@ -1,6 +1,11 @@
+#![feature(plugin)]
+// TODO: uncomment once this can be made to work.
+//#![plugin(docopt_macros)]
+
+extern crate docopt;
+extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
-extern crate rustc_serialize;
 extern crate log;
 extern crate env_logger;
 extern crate ctrlc;
@@ -15,8 +20,27 @@ use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethcore::sync::EthSync;
+use docopt::Docopt;
 
-fn setup_log() {
+const USAGE: &'static str = "
+Parity. Ethereum Client.
+
+Usage:
+  parity [options]
+  parity [options] <enode>...
+
+Options:
+  -l --logging LOGGING  Specify the logging level
+  -h --help             Show this screen.
+";
+
+#[derive(Debug, RustcDecodable)]
+struct Args {
+    arg_enode: Option<Vec<String>>,
+    flag_logging: Option<String>,
+}
+
+fn setup_log(init: &Option<String>) {
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
@@ -24,18 +48,25 @@ fn setup_log() {
 		builder.parse(&env::var("RUST_LOG").unwrap());
 	}
 
+	if let &Some(ref x) = init {
+		builder.parse(x);
+	}
+
 	builder.init().unwrap();
 }
 
 fn main() {
-	setup_log();
-	let spec = ethereum::new_frontier();
-	let mut net_settings = NetworkConfiguration::new();
-	let args: Vec<_> = env::args().collect();
-	if args.len() == 2 {
-		net_settings.boot_nodes = Some(vec! [args[1].trim_matches('\"').to_string()]);
-	}
+	let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
 
+	setup_log(&args.flag_logging);
+
+	let spec = ethereum::new_frontier();
+	let init_nodes = match &args.arg_enode {
+		&None => spec.nodes().clone(),
+		&Some(ref enodes) => enodes.clone(),
+	};
+	let mut net_settings = NetworkConfiguration::new();
+	net_settings.boot_nodes = init_nodes;
 	let mut service = ClientService::start(spec, net_settings).unwrap();
 	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: service.sync() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
