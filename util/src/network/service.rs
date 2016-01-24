@@ -14,9 +14,11 @@ pub struct NetworkService<Message> where Message: Send + Sync + Clone + 'static 
 
 impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
-	pub fn start() -> Result<NetworkService<Message>, UtilError> {
+	pub fn start(init_nodes: &[String]) -> Result<NetworkService<Message>, UtilError> {
 		let mut io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
-		let host = Arc::new(Host::new());
+		let mut host = Host::new();
+		for n in init_nodes { host.add_node(&n); }
+		let host = Arc::new(host);
 		let host_info = host.client_version();
 		info!("NetworkService::start(): id={:?}", host.client_id());
 		try!(io_service.register_handler(host));
