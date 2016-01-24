@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use mio::*;
 use mio::tcp::*;
 use hash::*;
@@ -10,6 +11,7 @@ use network::host::{HostInfo};
 use network::node::NodeId;
 use error::*;
 use network::error::NetworkError;
+use network::stats::NetworkStats;
 use io::{IoContext, StreamToken};
 
 #[derive(PartialEq, Eq, Debug)]
@@ -54,10 +56,10 @@ const HANDSHAKE_TIMEOUT: u64 = 30000;
 
 impl Handshake {
 	/// Create a new handshake object
-	pub fn new(token: StreamToken, id: &NodeId, socket: TcpStream, nonce: &H256) -> Result<Handshake, UtilError> {
+	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256, stats: Arc<NetworkStats>) -> Result<Handshake, UtilError> {
 		Ok(Handshake {
-			id: id.clone(),
-			connection: Connection::new(token, socket),
+			id: if let Some(id) = id { id.clone()} else { NodeId::new() },
+			connection: Connection::new(token, socket, stats),
 			originated: false,
 			state: HandshakeState::New,
 			ecdhe: try!(KeyPair::create()),
@@ -143,29 +145,36 @@ impl Handshake {
 	/// Parse, validate and confirm auth message
 	fn read_auth(&mut self, host: &HostInfo, data: &[u8]) -> Result<(), UtilError> {
 		trace!(target:"net", "Received handshake auth to {:?}", self.connection.socket.peer_addr());
-		assert!(data.len() == AUTH_PACKET_SIZE);
+		if data.len() != AUTH_PACKET_SIZE {
+			debug!(target:"net", "Wrong auth packet size");
+			return Err(From::from(NetworkError::BadProtocol));
+		}
 		self.auth_cipher = data.to_vec();
 		let auth = try!(ecies::decrypt(host.secret(), data));
 		let (sig, rest) = auth.split_at(65);
 		let (hepubk, rest) = rest.split_at(32);
 		let (pubk, rest) = rest.split_at(64);
 		let (nonce, _) = rest.split_at(32);
-		self.remote_public.clone_from_slice(pubk);
+		self.id.clone_from_slice(pubk);
 		self.remote_nonce.clone_from_slice(nonce);
-		let shared = try!(ecdh::agree(host.secret(), &self.remote_public));
+		let shared = try!(ecdh::agree(host.secret(), &self.id));
 		let signature = Signature::from_slice(sig);
 		let spub = try!(ec::recover(&signature, &(&shared ^ &self.remote_nonce)));
+		self.remote_public = spub.clone();
 		if &spub.sha3()[..] != hepubk {
 			trace!(target:"net", "Handshake hash mismath with {:?}", self.connection.socket.peer_addr());
 			return Err(From::from(NetworkError::Auth));
 		};
-		self.write_ack()
+		Ok(())
 	}
 
 	/// Parse and validate ack message
 	fn read_ack(&mut self, host: &HostInfo, data: &[u8]) -> Result<(), UtilError> {
 		trace!(target:"net", "Received handshake auth to {:?}", self.connection.socket.peer_addr());
-		assert!(data.len() == ACK_PACKET_SIZE);
+		if data.len() != ACK_PACKET_SIZE {
+			debug!(target:"net", "Wrong ack packet size");
+			return Err(From::from(NetworkError::BadProtocol));
+		}
 		self.ack_cipher = data.to_vec();
 		let ack = try!(ecies::decrypt(host.secret(), data));
 		self.remote_public.clone_from_slice(&ack[0..64]);

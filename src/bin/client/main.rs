@@ -33,7 +33,7 @@ fn main() {
 	let mut net_settings = NetworkConfiguration::new();
 	let args: Vec<_> = env::args().collect();
 	if args.len() == 2 {
-		net_settings.boot_nodes.push(args[1].trim_matches('\"').to_string());
+		net_settings.boot_nodes = Some(vec! [args[1].trim_matches('\"').to_string()]);
 	}
 
 	let mut service = ClientService::start(spec, net_settings).unwrap();

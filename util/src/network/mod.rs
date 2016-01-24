@@ -1,5 +1,4 @@
-/// Network and general IO module.
-///
+/// Network and general IO module. 
 /// Example usage for craeting a network service and adding an IO handler:
 ///
 /// ```rust
@@ -56,22 +55,20 @@ mod discovery;
 mod service;
 mod error;
 mod node;
+mod stats;
 
-/// TODO [arkpar] Please document me
+#[cfg(test)]
+mod tests;
+
 pub use network::host::PeerId;
-/// TODO [arkpar] Please document me
 pub use network::host::PacketId;
-/// TODO [arkpar] Please document me
 pub use network::host::NetworkContext;
-/// TODO [arkpar] Please document me
 pub use network::service::NetworkService;
-/// TODO [arkpar] Please document me
 pub use network::host::NetworkIoMessage;
-/// TODO [arkpar] Please document me
 pub use network::host::NetworkIoMessage::User as UserMessage;
-/// TODO [arkpar] Please document me
 pub use network::error::NetworkError;
 pub use network::host::NetworkConfiguration;
+pub use network::stats::NetworkStats;
 
 use io::TimerToken;
 
@@ -93,44 +90,3 @@ pub trait NetworkProtocolHandler<Message>: Sync + Send where Message: Send + Syn
 	fn message(&self, _io: &NetworkContext<Message>, _message: &Message) {}
 }
 
-
-#[test]
-fn test_net_service() {
-
-	use std::sync::Arc;
-	struct MyHandler;
-
-	#[derive(Clone)]
-	struct MyMessage {
-		data: u32
-	}
-
-	impl NetworkProtocolHandler<MyMessage> for MyHandler {
-		fn initialize(&self, io: &NetworkContext<MyMessage>) {
-			io.register_timer(0, 1000).unwrap();
-		}
-
-		fn read(&self, _io: &NetworkContext<MyMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
-			println!("Received {} ({} bytes) from {}", packet_id, data.len(), peer);
-		}
-
-		fn connected(&self, _io: &NetworkContext<MyMessage>, peer: &PeerId) {
-			println!("Connected {}", peer);
-		}
-
-		fn disconnected(&self, _io: &NetworkContext<MyMessage>, peer: &PeerId) {
-			println!("Disconnected {}", peer);
-		}
-
-		fn timeout(&self, _io: &NetworkContext<MyMessage>, timer: TimerToken) {
-			println!("Timeout {}", timer);
-		}
-
-		fn message(&self, _io: &NetworkContext<MyMessage>, message: &MyMessage) {
-			println!("Message {}", message.data);
-		}
-	}
-
-	let mut service = NetworkService::<MyMessage>::start(NetworkConfiguration::new()).expect("Error creating network service");
-	service.register_protocol(Arc::new(MyHandler), "myproto", &[1u8]).unwrap();
-}

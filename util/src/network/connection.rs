@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::collections::VecDeque;
 use mio::{Handler, Token, EventSet, EventLoop, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
@@ -10,6 +11,7 @@ use error::*;
 use io::{IoContext, StreamToken};
 use network::error::NetworkError;
 use network::handshake::Handshake;
+use network::stats::NetworkStats;
 use crypto;
 use rcrypto::blockmodes::*;
 use rcrypto::aessafe::*;
@@ -34,6 +36,8 @@ pub struct Connection {
 	send_queue: VecDeque<Cursor<Bytes>>,
 	/// Event flags this connection expects
 	interest: EventSet,
+	/// Shared network staistics
+	stats: Arc<NetworkStats>,
 }
 
 /// Connection write status.
@@ -47,7 +51,7 @@ pub enum WriteStatus {
 
 impl Connection {
 	/// Create a new connection with given id and socket.
-	pub fn new(token: StreamToken, socket: TcpStream) -> Connection {
+	pub fn new(token: StreamToken, socket: TcpStream, stats: Arc<NetworkStats>) -> Connection {
 		Connection {
 			token: token,
 			socket: socket,
@@ -55,6 +59,7 @@ impl Connection {
 			rec_buf: Bytes::new(),
 			rec_size: 0,
 			interest: EventSet::hup() | EventSet::readable(),
+			stats: stats,
 		}
 	}
 
@@ -68,7 +73,6 @@ impl Connection {
 	}
 
 	/// Readable IO handler. Called when there is some data to be read.
-	//TODO: return a slice
 	pub fn readable(&mut self) -> io::Result<Option<Bytes>> {
 		if self.rec_size == 0 || self.rec_buf.len() >= self.rec_size {
 			warn!(target:"net", "Unexpected connection read");
@@ -77,9 +81,12 @@ impl Connection {
 		// resolve "multiple applicable items in scope [E0034]" error
 		let sock_ref = <TcpStream as Read>::by_ref(&mut self.socket);
 		match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
-			Ok(Some(_)) if self.rec_buf.len() == self.rec_size => {
-				self.rec_size = 0;
-				Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
+			Ok(Some(size)) if size != 0  => {
+				self.stats.inc_recv(size);
+				if self.rec_size != 0 && self.rec_buf.len() == self.rec_size {
+					self.rec_size = 0;
+					Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
+				} else { Ok(None) }
 			},
 			Ok(_) => Ok(None),
 			Err(e) => Err(e),
@@ -109,14 +116,17 @@ impl Connection {
 				return Ok(WriteStatus::Complete)
 			}
 			match self.socket.try_write_buf(buf) {
-				Ok(_) if (buf.position() as usize) < send_size => {
+				Ok(Some(size)) if (buf.position() as usize) < send_size => {
 					self.interest.insert(EventSet::writable());
+					self.stats.inc_send(size);
 					Ok(WriteStatus::Ongoing)
 				},
-				Ok(_) if (buf.position() as usize) == send_size => {
+				Ok(Some(size)) if (buf.position() as usize) == send_size => {
+					self.stats.inc_send(size);
 					Ok(WriteStatus::Complete)
 				},
-				Ok(_) => { panic!("Wrote past buffer");},
+				Ok(Some(_)) => { panic!("Wrote past buffer");},
+				Ok(None) => Ok(WriteStatus::Ongoing),
 				Err(e) => Err(e)
 			}
 		}.and_then(|r| {

@@ -3,6 +3,7 @@ use error::*;
 use network::{NetworkProtocolHandler, NetworkConfiguration};
 use network::error::{NetworkError};
 use network::host::{Host, NetworkIoMessage, ProtocolId};
+use network::stats::{NetworkStats};
 use io::*;
 
 /// IO Service with networking
@@ -10,6 +11,7 @@ use io::*;
 pub struct NetworkService<Message> where Message: Send + Sync + Clone + 'static {
 	io_service: IoService<NetworkIoMessage<Message>>,
 	host_info: String,
+	stats: Arc<NetworkStats>
 }
 
 impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'static {
@@ -17,12 +19,14 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 	pub fn start(config: NetworkConfiguration) -> Result<NetworkService<Message>, UtilError> {
 		let mut io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
 		let host = Arc::new(Host::new(config));
+		let stats = host.stats().clone();
 		let host_info = host.client_version();
 		info!("NetworkService::start(): id={:?}", host.client_id());
 		try!(io_service.register_handler(host));
 		Ok(NetworkService {
 			io_service: io_service,
 			host_info: host_info,
+			stats: stats,
 		})
 	}
 
@@ -44,6 +48,11 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 	/// Returns underlying io service.
 	pub fn io(&mut self) -> &mut IoService<NetworkIoMessage<Message>> {
 		&mut self.io_service
+	}
+
+	/// Returns underlying io service.
+	pub fn stats(&self) -> &NetworkStats {
+		&self.stats
 	}
 }
 

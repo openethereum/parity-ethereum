@@ -17,6 +17,7 @@ use error::*;
 use io::*;
 use network::NetworkProtocolHandler;
 use network::node::*;
+use network::stats::NetworkStats;
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -41,7 +42,9 @@ pub struct NetworkConfiguration {
 	/// Pin to boot nodes only
 	pub pin: bool,
 	/// List of initial node addresses
-	pub boot_nodes: Vec<String>,
+	pub boot_nodes: Option<Vec<String>>,
+	/// Use provided node key instead of default
+	pub use_secret: Option<Secret>,
 }
 
 impl NetworkConfiguration {
@@ -53,8 +56,17 @@ impl NetworkConfiguration {
 			nat_enabled: true,
 			discovery_enabled: true,
 			pin: false,
-			boot_nodes: Vec::new(),
+			boot_nodes: None,
+			use_secret: None,
 		}
+	}
+
+	/// Create new default configuration with sepcified listen port.
+	pub fn new_with_port(port: u16) -> NetworkConfiguration {
+		let mut config = NetworkConfiguration::new();
+		config.listen_address = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap();
+		config.public_address = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap();
+		config
 	}
 }
 
@@ -253,6 +265,7 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler<Message>>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
+	stats: Arc<NetworkStats>,
 }
 
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
@@ -264,7 +277,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let udp_socket = UdpSocket::bound(&addr).unwrap();
 		let mut host = Host::<Message> {
 			info: RwLock::new(HostInfo {
-				keys: KeyPair::create().unwrap(),
+				keys: if let Some(ref secret) = config.use_secret { KeyPair::from_secret(secret.clone()).unwrap() } else { KeyPair::create().unwrap() },
 				config: config,
 				nonce: H256::random(),
 				protocol_version: 4,
@@ -279,6 +292,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			handlers: RwLock::new(HashMap::new()),
 			timers: RwLock::new(HashMap::new()),
 			timer_counter: RwLock::new(LAST_CONNECTION + 1),
+			stats: Arc::new(NetworkStats::default()),
 		};
 		let port = host.info.read().unwrap().config.listen_address.port();
 		host.info.write().unwrap().deref_mut().listen_port = port;
@@ -290,19 +304,22 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		*/
 
 		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
-		if boot_nodes.is_empty() {
+		if boot_nodes.is_none() {
 			// GO bootnodes
 			host.add_node("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303"); // IE
 			host.add_node("enode://de471bccee3d042261d52e9bff31458daecc406142b401d4cd848f677479f73104b9fdeb090af9583d3391b7f10cb2ba9e26865dd5fca4fcdc0fb1e3b723c786@54.94.239.50:30303");  // BR
 			host.add_node("enode://1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082@52.74.57.123:30303");  // SG
 		}
 		else {
-			for n in boot_nodes {
+			for n in boot_nodes.unwrap() {
 				host.add_node(&n);
 			}
 		}
-		// ETH/DEV cpp-ethereum (poc-9.ethdev.com)
 		host
+	}
+
+	pub fn stats(&self) -> Arc<NetworkStats> {
+		self.stats.clone()
 	}
 
 	pub fn add_node(&mut self, id: &str) {
@@ -382,7 +399,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	#[allow(single_match)]
-	#[allow(block_in_if_condition_stmt)]
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage<Message>>) {
 		if self.have_session(id)
 		{
@@ -409,12 +425,16 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				}
 			}
 		};
+		self.create_connection(socket, Some(id), io);
+	}
 
+	#[allow(block_in_if_condition_stmt)]
+	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage<Message>>) {
 		let nonce = self.info.write().unwrap().next_nonce();
 		let mut connections = self.connections.write().unwrap();
 		if connections.insert_with(|token| {
-			let mut handshake = Handshake::new(token, id, socket, &nonce).expect("Can't create handshake");
-			handshake.start(io, &self.info.read().unwrap(), true).and_then(|_| io.register_stream(token)).unwrap_or_else (|e| {
+			let mut handshake = Handshake::new(token, id, socket, &nonce, self.stats.clone()).expect("Can't create handshake");
+			handshake.start(io, &self.info.read().unwrap(), id.is_some()).and_then(|_| io.register_stream(token)).unwrap_or_else (|e| {
 				debug!(target: "net", "Handshake create error: {:?}", e);
 			});
 			Arc::new(Mutex::new(ConnectionEntry::Handshake(handshake)))
@@ -423,8 +443,20 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 	}
 
-	fn accept(&self, _io: &IoContext<NetworkIoMessage<Message>>) {
+	fn accept(&self, io: &IoContext<NetworkIoMessage<Message>>) {
 		trace!(target: "net", "accept");
+		loop {
+			let socket = match self.tcp_listener.lock().unwrap().accept() {
+				Ok(None) => break,
+				Ok(Some((sock, _addr))) => sock,
+				Err(e) => {
+					warn!("Error accepting connection: {:?}", e);
+					break
+				},
+			};
+			self.create_connection(socket, None, io);
+		}
+		io.update_registration(TCP_ACCEPT).expect("Error registering TCP listener");
 	}
 
 	#[allow(single_match)]
@@ -539,6 +571,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				ConnectionEntry::Handshake(h) => {
 					let session = Session::new(h, io, &self.info.read().unwrap()).expect("Session creation error");
 					io.update_registration(token).expect("Error updating session registration");
+					self.stats.inc_sessions();
 					Some(Arc::new(Mutex::new(ConnectionEntry::Session(session))))
 				},
 				_ => { None } // handshake expired

@@ -17,5 +17,5 @@ fi
 
 cargo test --no-run || exit $?
 mkdir -p target/coverage
-kcov --exclude-pattern ~/.multirust --include-pattern src --verify target/coverage target/debug/ethcore*
+kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1 --include-pattern src --verify target/coverage target/debug/ethcore*
 xdg-open target/coverage/index.html
