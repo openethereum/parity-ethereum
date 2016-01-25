@@ -47,18 +47,18 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
-declare_test!{ignore => BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}		// UNKNOWN
+declare_test!{ignore => BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}			// FAILS
 declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
-declare_test!{ignore => BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}			// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}						// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}				// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}		// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}			// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}			// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}				// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}						// FAILS (Suicides, GasUsed)
-declare_test!{ignore => BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}	// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}						// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}			// UNKNOWN
-declare_test!{ignore => BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}					// UNKNOWN
+declare_test!{ignore => BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}				// FAILS
+declare_test!{ignore => BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}							// FAILS
+declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
+declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
+declare_test!{ignore => BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}				// FAILS
+declare_test!{ignore => BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}				// FAILS
+declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
+declare_test!{ignore => BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}							// FAILS (Suicides, GasUsed)
+declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
+declare_test!{ignore => BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}	// FAILS
+declare_test!{ignore => BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}							// FAILS
+declare_test!{ignore => BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}				// FAILS
+declare_test!{ignore => BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}						// FAILS
