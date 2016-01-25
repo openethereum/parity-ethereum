@@ -74,6 +74,8 @@ pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + Clone + '
 	fn register_stream(&self, _stream: StreamToken, _reg: Token, _event_loop: &mut EventLoop<IoManager<Message>>) {}
 	/// Re-register a stream with the event loop
 	fn update_stream(&self, _stream: StreamToken, _reg: Token, _event_loop: &mut EventLoop<IoManager<Message>>) {}
+	/// Deregister a stream. Called whenstream is removed from event loop
+	fn deregister_stream(&self, _stream: StreamToken, _event_loop: &mut EventLoop<IoManager<Message>>) {}
 }
 
 /// TODO [arkpar] Please document me

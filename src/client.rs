@@ -162,14 +162,10 @@ impl Client {
 		let db = Arc::new(DB::open(&opts, state_path.to_str().unwrap()).unwrap());
 		
 		let engine = Arc::new(try!(spec.to_engine()));
-		{
-			let mut state_db = JournalDB::new_with_arc(db.clone());
-			if engine.spec().ensure_db_good(&mut state_db) {
-				state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
-			}
+		let mut state_db = JournalDB::new_with_arc(db.clone());
+		if engine.spec().ensure_db_good(&mut state_db) {
+			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
-		let state_db = JournalDB::new_with_arc(db);
-
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),

@@ -26,8 +26,8 @@ pub struct ClientService {
 
 impl ClientService {
 	/// Start the service in a separate thread.
-	pub fn start(spec: Spec, init_nodes: &[String]) -> Result<ClientService, Error> {
-		let mut net_service = try!(NetworkService::start(init_nodes));
+	pub fn start(spec: Spec, net_config: NetworkConfiguration) -> Result<ClientService, Error> {
+		let mut net_service = try!(NetworkService::start(net_config));
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {} engine", spec.name, spec.engine_name);
 		let mut dir = env::home_dir().unwrap();

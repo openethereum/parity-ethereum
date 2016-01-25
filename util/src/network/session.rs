@@ -131,6 +131,11 @@ impl Session {
 		self.connection.update_socket(reg, event_loop)
 	}
 
+	/// Delete registration
+	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		self.connection.deregister_socket(event_loop)
+	}
+
 	/// Send a protocol packet to peer.
 	pub fn send_packet(&mut self, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), UtilError> {
 		let mut i = 0usize;

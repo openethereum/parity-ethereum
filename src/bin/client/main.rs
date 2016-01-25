@@ -61,13 +61,13 @@ fn main() {
 	setup_log(&args.flag_logging);
 
 	let spec = ethereum::new_frontier();
-
 	let init_nodes = match &args.arg_enode {
 		&None => spec.nodes().clone(),
 		&Some(ref enodes) => enodes.clone(),
 	};
-
-	let mut service = ClientService::start(spec, &init_nodes).unwrap();
+	let mut net_settings = NetworkConfiguration::new();
+	net_settings.boot_nodes = init_nodes;
+	let mut service = ClientService::start(spec, net_settings).unwrap();
 	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: service.sync() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
