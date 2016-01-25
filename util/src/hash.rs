@@ -469,6 +469,18 @@ impl<'_> From<&'_ U256> for H256 {
 	}
 }
 
+impl From<H256> for U256 {
+	fn from(value: H256) -> U256 {
+		U256::from(value.bytes())
+	}
+}
+
+impl<'_> From<&'_ H256> for U256 {
+	fn from(value: &'_ H256) -> U256 {
+		U256::from(value.bytes())
+	}
+}
+
 impl From<H256> for Address {
 	fn from(value: H256) -> Address {
 		unsafe {
@@ -562,6 +574,7 @@ pub static ZERO_H256: H256 = H256([0x00; 32]);
 #[cfg(test)]
 mod tests {
 	use hash::*;
+	use uint::*;
 	use std::str::FromStr;
 
 	#[test]
@@ -634,6 +647,19 @@ mod tests {
 		assert_eq!(H64::from(0x234567890abcdef), H64::from("0x234567890abcdef"));
 		// too short.
 		assert_eq!(H64::from(0), H64::from("0x34567890abcdef"));
+	}
+
+	#[test]
+	fn from_and_to_u256() {
+		let u: U256 = x!(0x123456789abcdef0u64);
+		let h = H256::from(u);
+		assert_eq!(H256::from(u), H256::from("000000000000000000000000000000000000000000000000123456789abcdef0"));
+		let h_ref = H256::from(&u);
+		assert_eq!(h, h_ref);
+		let r_ref: U256 = From::from(&h);
+		assert_eq!(r_ref, u);
+		let r: U256 = From::from(h);
+		assert_eq!(r, u);
 	}
 }
 
