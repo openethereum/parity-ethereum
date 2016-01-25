@@ -1,5 +1,1 @@
 # ethcore
-
-
-# Running clippy
-
