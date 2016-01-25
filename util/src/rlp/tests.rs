@@ -375,3 +375,17 @@ fn test_rlp_long_data_length_check()
 	let as_val: Result<String, DecoderError> = rlp.as_val();
 	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), as_val);
 }
+
+#[test]
+fn test_the_exact_long_string()
+{
+	let mut data: Vec<u8> = vec![0xb8, 255];
+	for _ in 0..255 {
+		data.push(b'c');
+	}
+
+	let rlp = UntrustedRlp::new(&data);
+
+	let as_val: Result<String, DecoderError> = rlp.as_val();
+	assert!(as_val.is_ok());
+}
