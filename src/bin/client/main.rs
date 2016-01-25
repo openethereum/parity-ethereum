@@ -1,7 +1,5 @@
 #![feature(plugin)]
-// TODO: uncomment once this can be made to work.
-//#![plugin(docopt_macros)]
-
+#![plugin(docopt_macros)]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -23,9 +21,8 @@ use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethcore::sync::EthSync;
-use docopt::Docopt;
 
-const USAGE: &'static str = "
+docopt!(Args derive Debug, "
 Parity. Ethereum Client.
 
 Usage:
@@ -35,15 +32,9 @@ Usage:
 Options:
   -l --logging LOGGING  Specify the logging level
   -h --help             Show this screen.
-";
+");
 
-#[derive(Debug, RustcDecodable)]
-struct Args {
-    arg_enode: Option<Vec<String>>,
-    flag_logging: Option<String>,
-}
-
-fn setup_log(init: &Option<String>) {
+fn setup_log(init: &String) {
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
@@ -51,9 +42,7 @@ fn setup_log(init: &Option<String>) {
 		builder.parse(&env::var("RUST_LOG").unwrap());
 	}
 
-	if let &Some(ref x) = init {
-		builder.parse(x);
-	}
+	builder.parse(init);
 
 	builder.init().unwrap();
 }
@@ -76,14 +65,14 @@ fn setup_rpc_server(_client: Arc<Client>) {
 }
 
 fn main() {
-	let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
+	let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
 
 	setup_log(&args.flag_logging);
 
 	let spec = ethereum::new_frontier();
-	let init_nodes = match &args.arg_enode {
-		&None => spec.nodes().clone(),
-		&Some(ref enodes) => enodes.clone(),
+	let init_nodes = match args.arg_enode.len() {
+		0 => spec.nodes().clone(),
+		_ => args.arg_enode.clone(),
 	};
 	let mut net_settings = NetworkConfiguration::new();
 	net_settings.boot_nodes = init_nodes;

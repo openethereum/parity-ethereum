@@ -78,9 +78,9 @@ fn test_net_connect() {
 	let key1 = KeyPair::create().unwrap();
 	let mut config1 = NetworkConfiguration::new_with_port(30344);
 	config1.use_secret = Some(key1.secret().clone());
-	config1.boot_nodes = Some(vec![ ]);
+	config1.boot_nodes = vec![ ];
 	let mut config2 = NetworkConfiguration::new_with_port(30345);
-	config2.boot_nodes = Some(vec![ format!("enode://{}@127.0.0.1:30344", key1.public().hex()) ]);
+	config2.boot_nodes = vec![ format!("enode://{}@127.0.0.1:30344", key1.public().hex()) ];
 	let mut service1 = NetworkService::<TestProtocolMessage>::start(config1).unwrap();
 	let mut service2 = NetworkService::<TestProtocolMessage>::start(config2).unwrap();
 	let handler1 = TestProtocol::register(&mut service1);

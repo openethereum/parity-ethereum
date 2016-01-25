@@ -22,6 +22,7 @@ ethash = { path = "ethash" }
 num_cpus = "0.2"
 clippy = "0.0.37"
 docopt = "0.6"
+docopt_macros = "0.6"
 ctrlc = "1.0"
 jsonrpc-core = { version = "1.0", optional = true }
 jsonrpc-http-server = { version = "1.0", optional = true }
