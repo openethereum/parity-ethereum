@@ -59,6 +59,10 @@ impl Eth for EthClient {
 			_ => Err(Error::invalid_params())
 		}
 	}
+
+	fn block_transaction_count(&self, _: Params) -> Result<Value, Error> {
+		Ok(Value::U64(0))
+	}
 }
 
 pub struct EthFilterClient {
@@ -83,7 +87,6 @@ impl EthFilter for EthFilterClient {
 	}
 
 	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
-		println!("filter changes: {:?}", self.client.chain_info().best_block_hash.to_hex());
 		Ok(Value::Array(vec![Value::String(self.client.chain_info().best_block_hash.to_hex())]))
 	}
 }
