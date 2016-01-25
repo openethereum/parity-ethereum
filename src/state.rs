@@ -146,15 +146,15 @@ impl State {
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
 
-		let old = self.to_pod();
+//		let old = self.to_pod();
 
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
 		//println!("Executed: {:?}", e);
 
-		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
+//		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
-		trace!("Transaction receipt: {:?}", receipt);
+//		trace!("Transaction receipt: {:?}", receipt);
 		Ok(receipt)
 	}
 

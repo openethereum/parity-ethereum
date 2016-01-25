@@ -80,7 +80,7 @@ pub struct Spec {
 	/// TODO [arkpar] Please document me
 	pub extra_data: Bytes,
 	/// TODO [Gav Wood] Please document me
-	pub genesis_state: PodState,
+	genesis_state: PodState,
 	/// TODO [Gav Wood] Please document me
 	pub seal_fields: usize,
 	/// TODO [Gav Wood] Please document me
@@ -181,6 +181,17 @@ impl Spec {
 		self.seal_fields = seal_fields;
 		self.seal_rlp = seal_rlp;
 		self.state_root_memo = RwLock::new(genesis.find("stateRoot").and_then(|_| Some(H256::from_json(&genesis["stateRoot"]))));
+	}
+
+	/// Alter the value of the genesis state.
+	pub fn set_genesis_state(&mut self, s: PodState) {
+		self.genesis_state = s;
+		*self.state_root_memo.write().unwrap() = None;
+	}
+
+	/// Returns `false` if the memoized state root is invalid. `true` otherwise.
+	pub fn is_state_root_valid(&self) -> bool {
+		self.state_root_memo.read().unwrap().clone().map_or(true, |sr| sr == self.genesis_state.root())
 	}
 }
 

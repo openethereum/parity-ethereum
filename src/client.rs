@@ -181,7 +181,6 @@ impl Client {
 
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
-		flushln!("Flushing queue {:?}", self.block_queue.read().unwrap().queue_info());
 		self.block_queue.write().unwrap().flush();
 	}
 
@@ -189,9 +188,8 @@ impl Client {
 	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) {
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
-
-		for block in self.block_queue.write().unwrap().drain(128) {
-			flushln!("Importing block...");
+		let blocks = self.block_queue.write().unwrap().drain(128);
+		for block in blocks {
 			if bad.contains(&block.header.parent_hash) {
 				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
 				bad.insert(block.header.hash());
@@ -238,6 +236,7 @@ impl Client {
 				}
 			};
 			if let Err(e) = verify_block_final(&header, result.block().header()) {
+				flushln!("Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 				return;

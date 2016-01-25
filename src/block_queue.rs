@@ -19,11 +19,16 @@ pub struct BlockQueueInfo {
 	pub unverified_queue_size: usize,
 	/// Number of verified queued blocks pending import
 	pub verified_queue_size: usize,
+	/// Number of blocks being verified
+	pub verifying_queue_size: usize,
 }
 
 impl BlockQueueInfo {
 	/// The total size of the queues.
-	pub fn total_queue_size(&self) -> usize { self.unverified_queue_size + self.verified_queue_size }
+	pub fn total_queue_size(&self) -> usize { self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size }
+
+	/// The size of the unverified and verifying queues.
+	pub fn incomplete_queue_size(&self) -> usize { self.unverified_queue_size + self.verifying_queue_size }
 }
 
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
@@ -91,7 +96,7 @@ impl BlockQueue {
 			let ready_signal = ready_signal.clone();
 			let empty = empty.clone();
 			let deleting = deleting.clone();
-			verifiers.push(thread::Builder::new().name(format!("Verifier #{}", i)).spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal,  deleting, empty))
+			verifiers.push(thread::Builder::new().name(format!("Verifier #{}", i)).spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty))
 				.expect("Error starting block verification thread"));
 		}
 		BlockQueue {
@@ -114,7 +119,6 @@ impl BlockQueue {
 				if lock.unverified.is_empty() && lock.verifying.is_empty() {
 					empty.notify_all();
 				}
-
 
 				while lock.unverified.is_empty() && !deleting.load(AtomicOrdering::Relaxed) {
 					lock = wait.wait(lock).unwrap();
@@ -154,7 +158,6 @@ impl BlockQueue {
 				},
 				Err(err) => {
 					let mut v = verification.lock().unwrap();
-					flushln!("Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					warn!(target: "client", "Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					v.bad.insert(block_hash.clone());
 					v.verifying.retain(|e| e.hash != block_hash);
@@ -187,9 +190,10 @@ impl BlockQueue {
 
 	/// Wait for queue to be empty
 	pub fn flush(&mut self) {
-		let mutex: Mutex<()> = Mutex::new(());
-		let lock = mutex.lock().unwrap();
-		let _ = self.empty.wait(lock).unwrap();
+		let mut verification = self.verification.lock().unwrap();
+		while !verification.unverified.is_empty() && !verification.verifying.is_empty() {
+			verification = self.empty.wait(verification).unwrap();
+		}
 	}
 
 	/// Add a block to the queue.
@@ -265,6 +269,7 @@ impl BlockQueue {
 			full: false,
 			verified_queue_size: verification.verified.len(),
 			unverified_queue_size: verification.unverified.len(),
+			verifying_queue_size: verification.verifying.len(),
 		}
 	}
 }

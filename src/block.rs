@@ -188,6 +188,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 //		info!("env_info says gas_used={}", env_info.gas_used);
 		match self.block.state.apply(&env_info, self.engine, &t) {
 			Ok(receipt) => {
+				flushln!("Transaction executed {:?}", receipt);
 				self.block.archive_set.insert(h.unwrap_or_else(||t.hash()));
 				self.block.archive.push(Entry { transaction: t, receipt: receipt });
 				Ok(&self.block.archive.last().unwrap().receipt)

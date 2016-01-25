@@ -22,8 +22,9 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 			let blocks: Vec<Bytes> = test["blocks"].as_array().unwrap().iter().map(|e| xjson!(&e["rlp"])).collect();
 			let mut spec = ethereum::new_frontier_like_test();
+			spec.set_genesis_state(PodState::from_json(test.find("pre").unwrap()));
 			spec.overwrite_genesis(test.find("genesisBlockHeader").unwrap());
-			spec.genesis_state = PodState::from_json(test.find("pre").unwrap());
+			assert!(spec.is_state_root_valid());
 
 			let mut dir = env::temp_dir();
 			dir.push(H32::random().hex());
@@ -32,9 +33,12 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 				blocks.into_iter().foreach(|b| {
 					client.import_block(b).unwrap();
 				});
+				flushln!("Imported all");
 				client.flush_queue();
+				flushln!("Flushed");
 				client.import_verified_blocks(&IoChannel::disconnected());
-				flushln!("Best hash: {}", client.chain_info().best_block_hash);
+				flushln!("Checking...");
+				fail_unless(client.chain_info().best_block_hash == H256::from_json(&test["lastblockhash"]));
 			}
 			fs::remove_dir_all(&dir).unwrap();
 		}
@@ -46,4 +50,5 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
-declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
+//declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
+declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
