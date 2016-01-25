@@ -33,11 +33,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 				blocks.into_iter().foreach(|b| {
 					client.import_block(b).unwrap();
 				});
-				flushln!("Imported all");
 				client.flush_queue();
-				flushln!("Flushed");
 				client.import_verified_blocks(&IoChannel::disconnected());
-				flushln!("Checking...");
 				fail_unless(client.chain_info().best_block_hash == H256::from_json(&test["lastblockhash"]));
 			}
 			fs::remove_dir_all(&dir).unwrap();
@@ -50,5 +47,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
+// Fails. TODO: figure out why.
 //declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
+
 declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
