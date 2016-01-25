@@ -35,6 +35,7 @@ pub struct BlockQueue {
 	verifiers: Vec<JoinHandle<()>>,
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
+	empty: Arc<Condvar>,
 	processing: HashSet<H256>
 }
 
@@ -79,6 +80,7 @@ impl BlockQueue {
 		let more_to_verify = Arc::new(Condvar::new());
 		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
 		let deleting = Arc::new(AtomicBool::new(false));
+		let empty = Arc::new(Condvar::new());
 
 		let mut verifiers: Vec<JoinHandle<()>> = Vec::new();
 		let thread_count = max(::num_cpus::get(), 3) - 2;
@@ -87,8 +89,9 @@ impl BlockQueue {
 			let engine = engine.clone();
 			let more_to_verify = more_to_verify.clone();
 			let ready_signal = ready_signal.clone();
+			let empty = empty.clone();
 			let deleting = deleting.clone();
-			verifiers.push(thread::Builder::new().name(format!("Verifier #{}", i)).spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal,  deleting))
+			verifiers.push(thread::Builder::new().name(format!("Verifier #{}", i)).spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal,  deleting, empty))
 				.expect("Error starting block verification thread"));
 		}
 		BlockQueue {
@@ -99,14 +102,20 @@ impl BlockQueue {
 			verifiers: verifiers,
 			deleting: deleting.clone(),
 			processing: HashSet::new(),
+			empty: empty.clone(),
 		}
 	}
 
-	fn verify(verification: Arc<Mutex<Verification>>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>) {
+	fn verify(verification: Arc<Mutex<Verification>>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
 		while !deleting.load(AtomicOrdering::Relaxed) {
-			
 			{
 				let mut lock = verification.lock().unwrap();
+
+				if lock.unverified.is_empty() && lock.verifying.is_empty() {
+					empty.notify_all();
+				}
+
+
 				while lock.unverified.is_empty() && !deleting.load(AtomicOrdering::Relaxed) {
 					lock = wait.wait(lock).unwrap();
 				}
@@ -174,6 +183,13 @@ impl BlockQueue {
 		let mut verification = self.verification.lock().unwrap();
 		verification.unverified.clear();
 		verification.verifying.clear();
+	}
+
+	/// Wait for queue to be empty
+	pub fn flush(&mut self) {
+		let mutex: Mutex<()> = Mutex::new(());
+		let lock = mutex.lock().unwrap();
+		let _ = self.empty.wait(lock).unwrap();
 	}
 
 	/// Add a block to the queue.

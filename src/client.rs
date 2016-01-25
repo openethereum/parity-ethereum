@@ -1,5 +1,3 @@
-use std::thread;
-use std::time;
 use util::*;
 use rocksdb::{Options, DB};
 use blockchain::{BlockChain, BlockProvider, CacheSize};
@@ -184,10 +182,7 @@ impl Client {
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
 		flushln!("Flushing queue {:?}", self.block_queue.read().unwrap().queue_info());
-		while self.block_queue.read().unwrap().queue_info().unverified_queue_size > 0 {
-			thread::sleep(time::Duration::from_millis(20));
-			flushln!("Flushing queue [waited] {:?}", self.block_queue.read().unwrap().queue_info());
-		}
+		self.block_queue.write().unwrap().flush();
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
