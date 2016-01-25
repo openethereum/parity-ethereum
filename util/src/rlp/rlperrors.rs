@@ -21,6 +21,8 @@ pub enum DecoderError {
 	RlpListLenWithZeroPrefix,
 	/// TODO [debris] Please document me
 	RlpInvalidIndirection,
+	/// Returned when declared length is inconsistent with data specified after
+	RlpInconsistentLengthAndData
 }
 
 impl StdError for DecoderError {
