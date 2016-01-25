@@ -138,7 +138,7 @@ impl<'a> Ext for Externalities<'a> {
 			gas: &U256, 
 			sender_address: &Address, 
 			receive_address: &Address, 
-			value: Option<&U256>,
+			value: Option<U256>,
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> MessageCallResult {
@@ -156,7 +156,7 @@ impl<'a> Ext for Externalities<'a> {
 		};
 
 		if let Some(value) = value {
-			params.value = ActionValue::Transfer(value.clone());
+			params.value = ActionValue::Transfer(value);
 		}
 
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);

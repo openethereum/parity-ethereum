@@ -57,7 +57,7 @@ pub trait Ext {
 			gas: &U256, 
 			sender_address: &Address, 
 			receive_address: &Address, 
-			value: Option<&U256>,
+			value: Option<U256>,
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> MessageCallResult;

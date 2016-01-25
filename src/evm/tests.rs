@@ -63,7 +63,7 @@ impl Ext for FakeExt {
 			_gas: &U256, 
 			_sender_address: &Address, 
 			_receive_address: &Address, 
-			_value: Option<&U256>,
+			_value: Option<U256>,
 			_data: &[u8], 
 			_code_address: &Address, 
 			_output: &mut [u8]) -> MessageCallResult {

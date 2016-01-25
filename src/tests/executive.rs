@@ -103,7 +103,7 @@ impl<'a> Ext for TestExt<'a> {
 			gas: &U256, 
 			_sender_address: &Address, 
 			receive_address: &Address, 
-			value: Option<&U256>,
+			value: Option<U256>,
 			data: &[u8], 
 			_code_address: &Address, 
 			_output: &mut [u8]) -> MessageCallResult {
@@ -111,7 +111,7 @@ impl<'a> Ext for TestExt<'a> {
 			data: data.to_vec(),
 			destination: Some(receive_address.clone()),
 			gas_limit: *gas,
-			value: *value.unwrap()
+			value: value.unwrap()
 		});
 		MessageCallResult::Success(*gas)
 	}

@@ -566,66 +566,43 @@ impl Interpreter {
 					}
 				};
 			},
-			instructions::DELEGATECALL => {
-				let call_gas = stack.pop_back();
-				let code_address = stack.pop_back();
-				let code_address = u256_to_address(&code_address);
-
-				let in_off = stack.pop_back();
-				let in_size = stack.pop_back();
-				let out_off = stack.pop_back();
-				let out_size = stack.pop_back();
-
-				let can_call = ext.depth() < ext.schedule().max_depth;
-				if !can_call {
-					stack.push(U256::zero());
-					return Ok(InstructionResult::UnusedGas(call_gas));
-				}
-
-				let call_result = {
-					// we need to write and read from memory in the same time
-					// and we don't want to copy
-					let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
-					let output = mem.writeable_slice(out_off, out_size);
-					ext.call(&call_gas, &params.sender, &params.address, None, input, &code_address, output)
-				};
-
-				return match call_result {
-					MessageCallResult::Success(gas_left) => {
-						stack.push(U256::one());
-						Ok(InstructionResult::UnusedGas(gas_left))
-					},
-					MessageCallResult::Failed  => {
-						stack.push(U256::zero());
-						Ok(InstructionResult::Ok)
-					}
-				};
-			},
-			instructions::CALL | instructions::CALLCODE => {
+			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL => {
 				assert!(ext.schedule().call_value_transfer_gas > ext.schedule().call_stipend, "overflow possible");
 				let call_gas = stack.pop_back();
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
 
-				let value = stack.pop_back();
+				let value = match instruction == instructions::DELEGATECALL {
+					true => None,
+					false => Some(stack.pop_back())
+				};
 
 				let in_off = stack.pop_back();
 				let in_size = stack.pop_back();
 				let out_off = stack.pop_back();
 				let out_size = stack.pop_back();
 
-				let call_gas = call_gas + match value > U256::zero() {
+				// Add stipend (only CALL|CALLCODE when value > 0)
+				let call_gas = call_gas + value.map_or_else(U256::zero, |val| match val > U256::zero() {
 					true => U256::from(ext.schedule().call_stipend),
 					false => U256::zero()
+				});
+
+				// Get sender & receive addresses, check if we have balance
+				let (sender_address, receive_address, has_balance) = match instruction {
+					instructions::CALL => {
+						let has_balance = ext.balance(&params.address) >= value.unwrap();
+						(&params.address, &code_address, has_balance)
+					},
+					instructions::CALLCODE => {
+						let has_balance = ext.balance(&params.address) >= value.unwrap();
+						(&params.address, &params.address, has_balance)
+					},
+					instructions::DELEGATECALL => (&params.sender, &params.address, true),
+					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
 				};
 
-				let (sender_address, receive_address) = match instruction == instructions::CALL {
-					true => (&params.address, &code_address),
-					false => (&params.address, &params.address)
-				};
-
-				let can_call = ext.balance(&params.address) >= value && ext.depth() < ext.schedule().max_depth;
-
+				let can_call = has_balance && ext.depth() < ext.schedule().max_depth;
 				if !can_call {
 					stack.push(U256::zero());
 					return Ok(InstructionResult::UnusedGas(call_gas));
@@ -636,7 +613,7 @@ impl Interpreter {
 					// and we don't want to copy
 					let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
 					let output = mem.writeable_slice(out_off, out_size);
-					ext.call(&call_gas, sender_address, receive_address, Some(&value), input, &code_address, output)
+					ext.call(&call_gas, sender_address, receive_address, value, input, &code_address, output)
 				};
 
 				return match call_result {
