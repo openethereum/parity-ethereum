@@ -21,6 +21,7 @@ evmjit = { path = "rust-evmjit", optional = true }
 ethash = { path = "ethash" }
 num_cpus = "0.2"
 docopt = "0.6"
+docopt_macros = "0.6"
 ctrlc = "1.0"
 clippy = "0.0.37"
 
