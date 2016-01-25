@@ -3,7 +3,7 @@ use engine::Engine;
 use executive::Executive;
 use pod_account::*;
 use pod_state::*;
-use state_diff::*;
+//use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
 /// TODO [Gav Wood] Please document me
 pub type ApplyResult = Result<Receipt, Error>;
@@ -145,12 +145,12 @@ impl State {
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
-
 //		let old = self.to_pod();
 
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
 		//println!("Executed: {:?}", e);
 
+		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
