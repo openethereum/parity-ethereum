@@ -221,7 +221,7 @@ impl State {
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
 		// TODO: handle database rather than just the cache.
-		PodState::new(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
+		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = *opt {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}
