@@ -283,13 +283,6 @@ impl BlockChain {
 		bc
 	}
 
-	/// Ensure that the best block does indeed have a state_root in the state DB.
-	/// If it doesn't, then rewind down until we find one that does and delete data to ensure that
-	/// later blocks will be reimported. 
-	pub fn ensure_good(&mut self, _state: &JournalDB) {
-		unimplemented!();
-	}
-
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
 	///
 	/// - a vector of hashes of all blocks, ordered from `from` to `to`.
@@ -391,7 +384,6 @@ impl BlockChain {
 			index: index
 		}
 	}
-
 
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.

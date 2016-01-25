@@ -21,6 +21,11 @@ pub struct BlockQueueInfo {
 	pub verified_queue_size: usize,
 }
 
+impl BlockQueueInfo {
+	/// The total size of the queues.
+	pub fn total_queue_size(&self) -> usize { self.unverified_queue_size + self.verified_queue_size }
+}
+
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
@@ -99,6 +104,7 @@ impl BlockQueue {
 
 	fn verify(verification: Arc<Mutex<Verification>>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>) {
 		while !deleting.load(AtomicOrdering::Relaxed) {
+			
 			{
 				let mut lock = verification.lock().unwrap();
 				while lock.unverified.is_empty() && !deleting.load(AtomicOrdering::Relaxed) {
@@ -139,6 +145,7 @@ impl BlockQueue {
 				},
 				Err(err) => {
 					let mut v = verification.lock().unwrap();
+					flushln!("Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					warn!(target: "client", "Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					v.bad.insert(block_hash.clone());
 					v.verifying.retain(|e| e.hash != block_hash);
