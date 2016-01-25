@@ -361,4 +361,3 @@ fn test_rlp_data_length_check()
 	let as_val: Result<String, DecoderError> = rlp.as_val();
 	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), as_val);
 }
-
