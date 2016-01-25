@@ -59,7 +59,7 @@ pub trait EthFilter: Sized + Send + Sync + 'static {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_method("eth_newBlockFilter", EthFilter::new_block_filter);
 		delegate.add_method("eth_newPendingTransactionFilter", EthFilter::new_pending_transaction_filter);
-		delegate.add_method("eth_getFilterChanges", EthFilter::new_block_filter);
+		delegate.add_method("eth_getFilterChanges", EthFilter::filter_changes);
 		delegate
 	}
 }

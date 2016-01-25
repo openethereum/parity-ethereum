@@ -13,8 +13,8 @@ pub trait Net: Sized + Send + Sync + 'static {
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
-		delegate.add_method("peer_count", Net::version);
 		delegate.add_method("net_version", Net::version);
+		delegate.add_method("net_peerCount", Net::peer_count);
 		delegate
 	}
 }

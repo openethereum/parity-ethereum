@@ -269,7 +269,7 @@ impl Client {
 
 	/// Tick the client.
 	pub fn tick(&self) {
-		self.chain.read().unwrap().collect_garbage(false);
+		//self.chain.read().unwrap().collect_garbage(false);
 	}
 }
 

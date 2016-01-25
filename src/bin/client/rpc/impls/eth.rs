@@ -83,6 +83,7 @@ impl EthFilter for EthFilterClient {
 	}
 
 	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::String(self.client.chain_info().best_block_hash.to_hex()))
+		println!("filter changes: {:?}", self.client.chain_info().best_block_hash.to_hex());
+		Ok(Value::Array(vec![Value::String(self.client.chain_info().best_block_hash.to_hex())]))
 	}
 }
