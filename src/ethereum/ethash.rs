@@ -32,13 +32,13 @@ impl Ethash {
 	}
 
 	fn u64_param(&self, name: &str) -> u64 {
-		*self.u64_params.write().unwrap().entry(name.to_string()).or_insert_with(||
-			self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(0u64))
+		*self.u64_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
+			self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a)))
 	}
 
 	fn u256_param(&self, name: &str) -> U256 {
-		*self.u256_params.write().unwrap().entry(name.to_string()).or_insert_with(||
-			self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(x!(0)))
+		*self.u256_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
+			self.spec().engine_params.get(name).map_or(x!(0), |a| decode(&a)))
 	}
 }
 
@@ -84,7 +84,7 @@ impl Engine for Ethash {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut Block) {
-		let reward = self.spec().engine_params.get("blockReward").map(|a| decode(&a)).unwrap_or(U256::from(0u64));
+		let reward = self.spec().engine_params.get("blockReward").map_or(U256::from(0u64), |a| decode(&a));
 		let fields = block.fields();
 
 		// Bestow block reward
@@ -153,6 +153,7 @@ impl Engine for Ethash {
 	}
 }
 
+#[allow(wrong_self_convention)] // to_ethash should take self
 impl Ethash {
 	fn calculate_difficuty(&self, header: &Header, parent: &Header) -> U256 {
 		const EXP_DIFF_PERIOD: u64 = 100000;

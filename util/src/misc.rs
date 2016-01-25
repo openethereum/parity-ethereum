@@ -18,13 +18,13 @@ impl<T> Diff<T> where T: Eq {
 	pub fn new(pre: T, post: T) -> Self { if pre == post { Diff::Same } else { Diff::Changed(pre, post) } }
 
 	/// Get the before value, if there is one.
-	pub fn pre(&self) -> Option<&T> { match self { &Diff::Died(ref x) | &Diff::Changed(ref x, _) => Some(x), _ => None } }
+	pub fn pre(&self) -> Option<&T> { match *self { Diff::Died(ref x) | Diff::Changed(ref x, _) => Some(x), _ => None } }
 
 	/// Get the after value, if there is one.
-	pub fn post(&self) -> Option<&T> { match self { &Diff::Born(ref x) | &Diff::Changed(_, ref x) => Some(x), _ => None } }
+	pub fn post(&self) -> Option<&T> { match *self { Diff::Born(ref x) | Diff::Changed(_, ref x) => Some(x), _ => None } }
 
 	/// Determine whether there was a change or not.
-	pub fn is_same(&self) -> bool { match self { &Diff::Same => true, _ => false }}
+	pub fn is_same(&self) -> bool { match *self { Diff::Same => true, _ => false }}
 }
 
 #[derive(PartialEq,Eq,Clone,Copy)]

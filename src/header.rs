@@ -2,7 +2,7 @@ use util::*;
 use basic_types::*;
 use time::now_utc;
 
-/// TODO [Gav Wood] Please document me
+/// Type for Block number
 pub type BlockNumber = u64;
 
 /// A block header.
@@ -171,9 +171,10 @@ impl Header {
 		s.append(&self.gas_used);
 		s.append(&self.timestamp);
 		s.append(&self.extra_data);
-		match with_seal {
-			Seal::With => for b in self.seal.iter() { s.append_raw(&b, 1); },
-			_ => {}
+		if let Seal::With = with_seal {
+			for b in &self.seal { 
+				s.append_raw(&b, 1); 
+			}
 		}
 	}
 
@@ -236,7 +237,7 @@ impl Encodable for Header {
 			self.timestamp.encode(e);
 			self.extra_data.encode(e);
 
-			for b in self.seal.iter() {
+			for b in &self.seal {
 				e.emit_raw(&b);
 			}
 		})

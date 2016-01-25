@@ -25,8 +25,14 @@ pub struct EnvInfo {
 }
 
 impl EnvInfo {
-	/// TODO [debris] Please document me
+	/// Create empty env_info initialized with zeros
 	pub fn new() -> EnvInfo {
+		EnvInfo::default()
+	}
+}
+
+impl Default for EnvInfo {
+	fn default() -> Self {
 		EnvInfo {
 			number: 0,
 			author: Address::new(),
@@ -51,13 +57,5 @@ impl FromJson for EnvInfo {
 			last_hashes: (1..cmp::min(current_number + 1, 257)).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
 			gas_used: x!(0),
 		}
-	}
-}
-
-/// TODO: it should be the other way around.
-/// `new` should call `default`.
-impl Default for EnvInfo {
-	fn default() -> Self {
-		EnvInfo::new()
 	}
 }

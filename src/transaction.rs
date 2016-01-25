@@ -117,9 +117,8 @@ impl Transaction {
 		};
 		s.append(&self.value);
 		s.append(&self.data);
-		match with_seal {
-			Seal::With => { s.append(&(self.v as u16)).append(&self.r).append(&self.s); },
-			_ => {}
+		if let Seal::With = with_seal {
+			s.append(&(self.v as u16)).append(&self.r).append(&self.s);
 		}
 	}
 
@@ -138,7 +137,7 @@ impl FromJson for Transaction {
 			gas_price: xjson!(&json["gasPrice"]),
 			gas: xjson!(&json["gasLimit"]),
 			action: match Bytes::from_json(&json["to"]) {
-				ref x if x.len() == 0 => Action::Create,
+				ref x if x.is_empty() => Action::Create,
 				ref x => Action::Call(Address::from_slice(x)),
 			},
 			value: xjson!(&json["value"]),

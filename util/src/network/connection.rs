@@ -1,5 +1,6 @@
+use std::sync::Arc;
 use std::collections::VecDeque;
-use mio::{Handler, Token, EventSet, EventLoop, Timeout, PollOpt, TryRead, TryWrite};
+use mio::{Handler, Token, EventSet, EventLoop, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
 use hash::*;
 use sha3::*;
@@ -7,8 +8,10 @@ use bytes::*;
 use rlp::*;
 use std::io::{self, Cursor, Read};
 use error::*;
+use io::{IoContext, StreamToken};
 use network::error::NetworkError;
 use network::handshake::Handshake;
+use network::stats::NetworkStats;
 use crypto;
 use rcrypto::blockmodes::*;
 use rcrypto::aessafe::*;
@@ -17,11 +20,12 @@ use rcrypto::buffer::*;
 use tiny_keccak::Keccak;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
+const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;
 
 /// Low level tcp connection
 pub struct Connection {
 	/// Connection id (token)
-	pub token: Token,
+	pub token: StreamToken,
 	/// Network socket
 	pub socket: TcpStream,
 	/// Receive buffer
@@ -32,6 +36,8 @@ pub struct Connection {
 	send_queue: VecDeque<Cursor<Bytes>>,
 	/// Event flags this connection expects
 	interest: EventSet,
+	/// Shared network staistics
+	stats: Arc<NetworkStats>,
 }
 
 /// Connection write status.
@@ -45,14 +51,15 @@ pub enum WriteStatus {
 
 impl Connection {
 	/// Create a new connection with given id and socket.
-	pub fn new(token: Token, socket: TcpStream) -> Connection {
+	pub fn new(token: StreamToken, socket: TcpStream, stats: Arc<NetworkStats>) -> Connection {
 		Connection {
 			token: token,
 			socket: socket,
 			send_queue: VecDeque::new(),
 			rec_buf: Bytes::new(),
 			rec_size: 0,
-			interest: EventSet::hup(),
+			interest: EventSet::hup() | EventSet::readable(),
+			stats: stats,
 		}
 	}
 
@@ -66,7 +73,6 @@ impl Connection {
 	}
 
 	/// Readable IO handler. Called when there is some data to be read.
-	//TODO: return a slice
 	pub fn readable(&mut self) -> io::Result<Option<Bytes>> {
 		if self.rec_size == 0 || self.rec_buf.len() >= self.rec_size {
 			warn!(target:"net", "Unexpected connection read");
@@ -75,9 +81,12 @@ impl Connection {
 		// resolve "multiple applicable items in scope [E0034]" error
 		let sock_ref = <TcpStream as Read>::by_ref(&mut self.socket);
 		match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
-			Ok(Some(_)) if self.rec_buf.len() == self.rec_size => {
-				self.rec_size = 0;
-				Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
+			Ok(Some(size)) if size != 0  => {
+				self.stats.inc_recv(size);
+				if self.rec_size != 0 && self.rec_buf.len() == self.rec_size {
+					self.rec_size = 0;
+					Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
+				} else { Ok(None) }
 			},
 			Ok(_) => Ok(None),
 			Err(e) => Err(e),
@@ -86,7 +95,7 @@ impl Connection {
 
 	/// Add a packet to send queue.
 	pub fn send(&mut self, data: Bytes) {
-		if data.len() != 0 {
+		if !data.is_empty() {
 			self.send_queue.push_back(Cursor::new(data));
 		}
 		if !self.interest.is_writable() {
@@ -107,14 +116,17 @@ impl Connection {
 				return Ok(WriteStatus::Complete)
 			}
 			match self.socket.try_write_buf(buf) {
-				Ok(_) if (buf.position() as usize) < send_size => {
+				Ok(Some(size)) if (buf.position() as usize) < send_size => {
 					self.interest.insert(EventSet::writable());
+					self.stats.inc_send(size);
 					Ok(WriteStatus::Ongoing)
 				},
-				Ok(_) if (buf.position() as usize) == send_size => {
+				Ok(Some(size)) if (buf.position() as usize) == send_size => {
+					self.stats.inc_send(size);
 					Ok(WriteStatus::Complete)
 				},
-				Ok(_) => { panic!("Wrote past buffer");},
+				Ok(Some(_)) => { panic!("Wrote past buffer");},
+				Ok(None) => Ok(WriteStatus::Ongoing),
 				Err(e) => Err(e)
 			}
 		}.and_then(|r| {
@@ -132,22 +144,28 @@ impl Connection {
 	}
 
 	/// Register this connection with the IO event loop.
-	pub fn register<Host: Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-		trace!(target: "net", "connection register; token={:?}", self.token);
-		self.interest.insert(EventSet::readable());
-		event_loop.register(&self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-			error!("Failed to register {:?}, {:?}", self.token, e);
-			Err(e)
+	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
+		trace!(target: "net", "connection register; token={:?}", reg);
+		event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
+			debug!("Failed to register {:?}, {:?}", reg, e);
+			Ok(())
 		})
 	}
 
 	/// Update connection registration. Should be called at the end of the IO handler.
-	pub fn reregister<Host: Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-		trace!(target: "net", "connection reregister; token={:?}", self.token);
-		event_loop.reregister( &self.socket, self.token, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-			error!("Failed to reregister {:?}, {:?}", self.token, e);
-			Err(e)
+	pub fn update_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
+		trace!(target: "net", "connection reregister; token={:?}", reg);
+		event_loop.reregister( &self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
+			debug!("Failed to reregister {:?}, {:?}", reg, e);
+			Ok(())
 		})
+	}
+
+	/// Delete connection registration. Should be called at the end of the IO handler.
+	pub fn deregister_socket<Host: Handler>(&self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
+		trace!(target: "net", "connection deregister; token={:?}", self.token);
+		event_loop.deregister(&self.socket).ok(); // ignore errors here
+		Ok(())
 	}
 }
 
@@ -182,8 +200,6 @@ pub struct EncryptedConnection {
 	ingress_mac: Keccak,
 	/// Read state
 	read_state: EncryptedConnectionState,
-	/// Disconnect timeout
-	idle_timeout: Option<Timeout>,
 	/// Protocol id for the last received packet
 	protocol_id: u16,
 	/// Payload expected to be received for the last header.
@@ -192,7 +208,7 @@ pub struct EncryptedConnection {
 
 impl EncryptedConnection {
 	/// Create an encrypted connection out of the handshake. Consumes a handshake object.
-	pub fn new(handshake: Handshake) -> Result<EncryptedConnection, UtilError> {
+	pub fn new(mut handshake: Handshake) -> Result<EncryptedConnection, UtilError> {
 		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_public));
 		let mut nonce_material = H512::new();
 		if handshake.originated {
@@ -227,6 +243,7 @@ impl EncryptedConnection {
 		ingress_mac.update(&mac_material);
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
 
+		handshake.connection.expect(ENCRYPTED_HEADER_LEN);
 		Ok(EncryptedConnection {
 			connection: handshake.connection,
 			encoder: encoder,
@@ -235,7 +252,6 @@ impl EncryptedConnection {
 			egress_mac: egress_mac,
 			ingress_mac: ingress_mac,
 			read_state: EncryptedConnectionState::Header,
-			idle_timeout: None,
 			protocol_id: 0,
 			payload_len: 0
 		})
@@ -337,16 +353,14 @@ impl EncryptedConnection {
 	}
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
-	pub fn readable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<Option<Packet>, UtilError> {
-		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, UtilError> where Message: Send + Clone{
+		io.clear_timer(self.connection.token).unwrap();
 		match self.read_state {
 			EncryptedConnectionState::Header => {
-				match try!(self.connection.readable()) {
-					Some(data)  => {
-						try!(self.read_header(&data));
-					},
-					None => {}
-				};
+				if let Some(data) = try!(self.connection.readable()) {
+					try!(self.read_header(&data));
+					try!(io.register_timer(self.connection.token, RECIEVE_PAYLOAD_TIMEOUT));
+				}
 				Ok(None)
 			},
 			EncryptedConnectionState::Payload => {
@@ -363,24 +377,21 @@ impl EncryptedConnection {
 	}
 
 	/// Writable IO handler. Processes send queeue.
-	pub fn writable<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
+		io.clear_timer(self.connection.token).unwrap();
 		try!(self.connection.writable());
 		Ok(())
 	}
 
-	/// Register this connection with the event handler.
-	pub fn register<Host:Handler<Timeout=Token>>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		self.connection.expect(ENCRYPTED_HEADER_LEN);
-		self.idle_timeout.map(|t| event_loop.clear_timeout(t));
-		self.idle_timeout = event_loop.timeout_ms(self.connection.token, 1800).ok();
-		try!(self.connection.reregister(event_loop));
+	/// Update connection registration. This should be called at the end of the event loop.
+	pub fn update_socket<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		try!(self.connection.update_socket(reg, event_loop));
 		Ok(())
 	}
 
-	/// Update connection registration. This should be called at the end of the event loop.
-	pub fn reregister<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		try!(self.connection.reregister(event_loop));
+	/// Delete connection registration. This should be called at the end of the event loop.
+	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		try!(self.connection.deregister_socket(event_loop));
 		Ok(())
 	}
 }

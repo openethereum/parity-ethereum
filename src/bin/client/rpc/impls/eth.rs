@@ -6,11 +6,11 @@ use rpc::jsonrpc_core::*;
 use rpc::{Eth, EthFilter};
 
 pub struct EthClient {
-	client: Arc<RwLock<Client>>,
+	client: Arc<Client>,
 }
 
 impl EthClient {
-	pub fn new(client: Arc<RwLock<Client>>) -> Self {
+	pub fn new(client: Arc<Client>) -> Self {
 		EthClient {
 			client: client
 		}
@@ -41,7 +41,7 @@ impl Eth for EthClient {
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::U64(self.client.read().unwrap().chain_info().best_block_number)),
+			Params::None => Ok(Value::U64(self.client.chain_info().best_block_number)),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -62,11 +62,11 @@ impl Eth for EthClient {
 }
 
 pub struct EthFilterClient {
-	client: Arc<RwLock<Client>>
+	client: Arc<Client>
 }
 
 impl EthFilterClient {
-	pub fn new(client: Arc<RwLock<Client>>) -> Self {
+	pub fn new(client: Arc<Client>) -> Self {
 		EthFilterClient {
 			client: client
 		}
@@ -83,6 +83,6 @@ impl EthFilter for EthFilterClient {
 	}
 
 	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::String(self.client.read().unwrap().chain_info().best_block_hash.to_hex()))
+		Ok(Value::String(self.client.chain_info().best_block_hash.to_hex()))
 	}
 }

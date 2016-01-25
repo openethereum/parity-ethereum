@@ -34,6 +34,16 @@ impl JournalDB {
 		}
 	}
 
+	/// Create a new instance given a shared `backing` database.
+	pub fn new_with_arc(backing: Arc<DB>) -> JournalDB {
+		JournalDB {
+			forward: OverlayDB::new_with_arc(backing.clone()),
+			backing: backing,
+			inserts: vec![],
+			removes: vec![],
+		}
+	}
+
 	/// Create a new instance with an anonymous temporary database.
 	pub fn new_temp() -> JournalDB {
 		let mut dir = env::temp_dir();
@@ -96,7 +106,7 @@ impl JournalDB {
 			})) {
 				let rlp = Rlp::new(&rlp_data);
 				let to_remove: Vec<H256> = rlp.val_at(if canon_id == rlp.val_at(0) {2} else {1});
-				for i in to_remove.iter() {
+				for i in &to_remove {
 					self.forward.remove(i);
 				}
 				try!(self.backing.delete(&last));

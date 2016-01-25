@@ -68,10 +68,11 @@ impl Factory {
 	fn jit() -> Box<Evm> {
 		unimplemented!()
 	}
-
+}
+impl Default for Factory {
 	/// Returns jitvm factory
 	#[cfg(feature = "jit")]
-	pub fn default() -> Factory {
+	fn default() -> Factory {
 		Factory {
 			evm: VMType::Jit
 		}
@@ -79,7 +80,7 @@ impl Factory {
 
 	/// Returns native rust evm factory
 	#[cfg(not(feature = "jit"))]
-	pub fn default() -> Factory {
+	fn default() -> Factory {
 		Factory {
 			evm: VMType::Interpreter
 		}
