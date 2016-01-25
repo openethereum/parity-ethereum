@@ -47,7 +47,6 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
-
 declare_test!{ignore => BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}			// FAILS
 declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
 declare_test!{ignore => BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}				// FAILS
