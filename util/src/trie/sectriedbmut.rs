@@ -25,6 +25,12 @@ impl<'db> SecTrieDBMut<'db> {
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
 		SecTrieDBMut { raw: TrieDBMut::from_existing(db, root) }
 	}
+
+	/// Get the backing database.
+	pub fn db(&'db self) -> &'db HashDB { self.raw.db() }
+
+	/// Get the backing database.
+	pub fn db_mut(&'db mut self) -> &'db mut HashDB { self.raw.db_mut() }
 }
 
 impl<'db> Trie for SecTrieDBMut<'db> {

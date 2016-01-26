@@ -158,6 +158,7 @@ impl BlockQueue {
 				},
 				Err(err) => {
 					let mut v = verification.lock().unwrap();
+					flushln!("Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					warn!(target: "client", "Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					v.bad.insert(block_hash.clone());
 					v.verifying.retain(|e| e.hash != block_hash);
@@ -191,7 +192,7 @@ impl BlockQueue {
 	/// Wait for queue to be empty
 	pub fn flush(&mut self) {
 		let mut verification = self.verification.lock().unwrap();
-		while !verification.unverified.is_empty() && !verification.verifying.is_empty() {
+		while !verification.unverified.is_empty() || !verification.verifying.is_empty() {
 			verification = self.empty.wait(verification).unwrap();
 		}
 	}
@@ -221,6 +222,7 @@ impl BlockQueue {
 				self.more_to_verify.notify_all();
 			},
 			Err(err) => {
+				flushln!("Stage 1 block verification failed for {}\nError: {:?}", BlockView::new(&bytes).header_view().sha3(), err);
 				warn!(target: "client", "Stage 1 block verification failed for {}\nError: {:?}", BlockView::new(&bytes).header_view().sha3(), err);
 				self.verification.lock().unwrap().bad.insert(header.hash());
 			}

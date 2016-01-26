@@ -261,7 +261,6 @@ impl Spec {
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good(&self, db: &mut HashDB) -> bool {
 		if !db.contains(&self.state_root()) {
-			info!("Populating genesis state...");
 			let mut root = H256::new(); 
 			{
 				let mut t = SecTrieDBMut::new(db, &mut root);
@@ -269,8 +268,10 @@ impl Spec {
 					t.insert(address.as_slice(), &account.rlp());
 				}
 			}
+			for (_, account) in self.genesis_state.get().iter() {
+				account.insert_additional(db);
+			}
 			assert!(db.contains(&self.state_root()));
-			info!("Genesis state is ready");
 			true
 		} else { false }
 	}
