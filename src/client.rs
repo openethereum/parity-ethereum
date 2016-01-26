@@ -176,7 +176,6 @@ impl Client {
 		if engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
-		trace!("Client::new: commiting. Best root now: {}. contains: {}", chain.read().unwrap().genesis_header().state_root, state_db.contains(&chain.read().unwrap().genesis_header().state_root));
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
