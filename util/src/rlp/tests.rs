@@ -4,7 +4,7 @@ use self::json_tests::rlp as rlptest;
 use std::{fmt, cmp};
 use std::str::FromStr;
 use rlp;
-use rlp::{UntrustedRlp, RlpStream, View, Stream};
+use rlp::{UntrustedRlp, RlpStream, View, Stream, DecoderError};
 use uint::U256;
 
 #[test]
@@ -351,3 +351,56 @@ fn test_decoding_array() {
 	assert_eq!(arr[0], 5);
 	assert_eq!(arr[1], 2);
 }
+
+#[test]
+fn test_rlp_data_length_check()
+{
+	let data = vec![0x84, b'c', b'a', b't'];
+	let rlp = UntrustedRlp::new(&data);
+
+	let as_val: Result<String, DecoderError> = rlp.as_val();
+	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), as_val);
+}
+
+#[test]
+fn test_rlp_long_data_length_check()
+{
+	let mut data: Vec<u8> = vec![0xb8, 255];
+	for _ in 0..253 {
+		data.push(b'c');
+	}
+
+	let rlp = UntrustedRlp::new(&data);
+
+	let as_val: Result<String, DecoderError> = rlp.as_val();
+	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), as_val);
+}
+
+#[test]
+fn test_the_exact_long_string()
+{
+	let mut data: Vec<u8> = vec![0xb8, 255];
+	for _ in 0..255 {
+		data.push(b'c');
+	}
+
+	let rlp = UntrustedRlp::new(&data);
+
+	let as_val: Result<String, DecoderError> = rlp.as_val();
+	assert!(as_val.is_ok());
+}
+
+#[test]
+fn test_rlp_2bytes_data_length_check()
+{
+	let mut data: Vec<u8> = vec![0xb9, 2, 255]; // 512+255
+	for _ in 0..700 {
+		data.push(b'c');
+	}
+
+	let rlp = UntrustedRlp::new(&data);
+
+	let as_val: Result<String, DecoderError> = rlp.as_val();
+	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), as_val);
+}
+
