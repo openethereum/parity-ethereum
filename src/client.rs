@@ -145,7 +145,6 @@ impl Client {
 	/// Create a new client with given spec and DB path.
 	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
 		let gb = spec.genesis_block();
-		flushln!("Spec says genesis block is {}", gb.pretty());
 		let chain = Arc::new(RwLock::new(BlockChain::new(&gb, path)));
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
@@ -177,7 +176,7 @@ impl Client {
 		if engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
-		flushln!("Client::new: commiting. Best root now: {}. contains: {}", chain.read().unwrap().genesis_header().state_root, state_db.contains(&chain.read().unwrap().genesis_header().state_root));
+		trace!("Client::new: commiting. Best root now: {}. contains: {}", chain.read().unwrap().genesis_header().state_root, state_db.contains(&chain.read().unwrap().genesis_header().state_root));
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),

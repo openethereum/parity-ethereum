@@ -173,7 +173,7 @@ impl<'a> Executive<'a> {
 		if let ActionValue::Transfer(val) = params.value {
 			self.state.transfer_balance(&params.sender, &params.address, &val);
 		}
-		flushln!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
+		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
 		if self.engine.is_builtin(&params.code_address) {
 			// if destination is builtin, try to execute it
@@ -260,17 +260,16 @@ impl<'a> Executive<'a> {
 		let refund_value = gas_left * t.gas_price;
 		let fees_value = gas_used * t.gas_price;
 
-		flushln!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
+		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
-		flushln!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
+		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
 		self.state.add_balance(&t.sender().unwrap(), &refund_value);
-		flushln!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
+		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value);
 
 		// perform suicides
 		for address in &substate.suicides {
-			flushln!("Killing {}", address);
 			self.state.kill_account(address);
 		}
 

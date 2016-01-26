@@ -103,7 +103,6 @@ impl State {
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
-		flushln!("Getting code at {}", a);
 		self.get(a, true).as_ref().map_or(None, |a|a.code().map(|x|x.to_vec()))
 	}
 
