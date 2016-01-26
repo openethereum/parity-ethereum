@@ -99,6 +99,10 @@ impl Engine for Ethash {
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		// check the seal fields.
+		try!(UntrustedRlp::new(&header.seal[0]).as_val::<H256>());
+		try!(UntrustedRlp::new(&header.seal[1]).as_val::<u64>());
+
 		let min_difficulty = decode(self.spec().engine_params.get("minimumDifficulty").unwrap());
 		if header.difficulty < min_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: min_difficulty, found: header.difficulty })))
