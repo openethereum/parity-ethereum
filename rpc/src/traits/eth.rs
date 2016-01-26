@@ -35,6 +35,7 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_coinbase", Eth::author);
 		delegate.add_method("eth_gasPrice", Eth::gas_price);
 		delegate.add_method("eth_blockNumber", Eth::block_number);
+		delegate.add_method("eth_getBlockByHash", Eth::block);
 		delegate.add_method("eth_getBlockByNumber", Eth::block);
 		delegate.add_method("eth_mining", Eth::is_mining);
 		delegate.add_method("eth_hashrate", Eth::hashrate);

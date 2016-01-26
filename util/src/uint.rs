@@ -23,6 +23,8 @@
 
 use standard::*;
 use from_json::*;
+use rustc_serialize::hex::ToHex;
+use serde;
 
 macro_rules! impl_map_from {
 	($thing:ident, $from:ty, $to:ty) => {
@@ -433,6 +435,17 @@ macro_rules! construct_uint {
 		impl Default for $name {
 			fn default() -> Self {
 				$name::zero()
+			}
+		}
+
+		impl serde::Serialize for $name {
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			where S: serde::Serializer {
+				let mut hex = "0x".to_owned();
+				let mut bytes = [0u8; 8 * $n_words];
+				self.to_bytes(&mut bytes);
+				hex.push_str(bytes.to_hex().as_ref());
+				serializer.visit_str(hex.as_ref())
 			}
 		}
 

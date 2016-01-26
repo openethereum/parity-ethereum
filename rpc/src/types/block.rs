@@ -1,7 +1,7 @@
 use util::hash::*;
 use util::uint::*;
 
-#[derive(Default)]
+#[derive(Default, Serialize)]
 pub struct Block {
 	hash: H256,
 	#[serde(rename="parentHash")]
@@ -35,7 +35,7 @@ fn test_block_serialize() {
 	use serde_json;
 
 	let block = Block::default();
-	//let serialized = serde_json::to_string(&block).unwrap();
-	//println!("s: {:?}", serialized);
+	let serialized = serde_json::to_string(&block).unwrap();
+	println!("s: {:?}", serialized);
 	//assert!(false);
 }

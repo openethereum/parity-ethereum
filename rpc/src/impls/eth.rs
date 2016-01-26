@@ -1,9 +1,10 @@
 use std::sync::Arc;
-use rustc_serialize::hex::ToHex;
+use serde_json;
+use jsonrpc_core::*;
 use util::hash::*;
 use ethcore::client::*;
-use jsonrpc_core::*;
 use traits::{Eth, EthFilter};
+use types::{Block, as_value, from_value};
 
 pub struct EthClient {
 	client: Arc<Client>,
@@ -27,7 +28,7 @@ impl Eth for EthClient {
 
 	fn author(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::String(Address::new().to_hex())),
+			Params::None => Ok(as_value(&Address::new())),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -64,8 +65,15 @@ impl Eth for EthClient {
 		Ok(Value::U64(0))
 	}
 
-	fn block(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::Null)
+	fn block(&self, params: Params) -> Result<Value, Error> {
+		if let Params::Array(ref arr) = params {
+			if let [ref h, Value::Bool(ref include_transactions)] = arr as &[Value] {
+				if let Ok(hash) = from_value::<H256>(h.clone()) {
+					return Ok(as_value(&Block::default()))
+				}
+			}
+		}
+		Err(Error::invalid_params())
 	}
 }
 
@@ -91,6 +99,6 @@ impl EthFilter for EthFilterClient {
 	}
 
 	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::Array(vec![Value::String(self.client.chain_info().best_block_hash.to_hex())]))
+		Ok(Value::Array(vec![as_value(&self.client.chain_info().best_block_hash)]))
 	}
 }

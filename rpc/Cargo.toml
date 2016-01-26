@@ -8,7 +8,6 @@ authors = ["Marek Kotewicz <marek.kotewicz@gmail.com"]
 [lib]
 
 [dependencies]
-rustc-serialize = "0.3"
 serde = "0.6.7"
 serde_macros = "0.6.10"
 serde_json = "0.6.0"

@@ -1,8 +1,9 @@
 #![feature(custom_derive, custom_attribute, plugin)]
+#![feature(slice_patterns)]
 #![plugin(serde_macros)]
 
-extern crate rustc_serialize;
 extern crate serde;
+extern crate serde_json;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate ethcore_util as util;
