@@ -48,7 +48,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
-declare_test!{ignore => BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}			// FAILS
+declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
 declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
 declare_test!{ignore => BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}				// FAILS
 declare_test!{ignore => BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}							// FAILS
@@ -57,7 +57,7 @@ declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHea
 declare_test!{ignore => BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}				// FAILS
 declare_test!{ignore => BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}				// FAILS
 declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
-declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}							// FAILS (Suicides, GasUsed)
+declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
 declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
 declare_test!{ignore => BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}	// FAILS
 declare_test!{ignore => BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}							// FAILS
