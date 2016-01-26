@@ -1,16 +1,24 @@
 use util::*;
 use pod_account::*;
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug,Clone,PartialEq,Eq,Default)]
 /// TODO [Gav Wood] Please document me
 pub struct PodState (BTreeMap<Address, PodAccount>);
 
 impl PodState {
 	/// Contruct a new object from the `m`.
-	pub fn new(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
+	pub fn new() -> PodState { Default::default() }
+
+	/// Contruct a new object from the `m`.
+	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
 
 	/// Get the underlying map.
 	pub fn get(&self) -> &BTreeMap<Address, PodAccount> { &self.0 }
+
+	/// Get the root hash of the trie of the RLP of this.
+	pub fn root(&self) -> H256 {
+		sec_trie_root(self.0.iter().map(|(k, v)| (k.to_vec(), v.rlp())).collect())
+	}
 
 	/// Drain object to get the underlying map.
 	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }

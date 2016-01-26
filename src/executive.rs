@@ -5,6 +5,12 @@ use engine::*;
 use evm::{self, Ext};
 use externalities::*;
 use substate::*;
+use crossbeam;
+
+/// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)
+/// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
+/// Maybe something like here: https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp
+const MAX_VM_DEPTH_FOR_THREAD: usize = 128;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -133,7 +139,7 @@ impl<'a> Executive<'a> {
 					origin: sender.clone(),
 					gas: init_gas,
 					gas_price: t.gas_price,
-					value: t.value,
+					value: ActionValue::Transfer(t.value),
 					code: Some(t.data.clone()),
 					data: None,
 				};
@@ -147,7 +153,7 @@ impl<'a> Executive<'a> {
 					origin: sender.clone(),
 					gas: init_gas,
 					gas_price: t.gas_price,
-					value: t.value,
+					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address),
 					data: Some(t.data.clone()),
 				};
@@ -161,6 +167,27 @@ impl<'a> Executive<'a> {
 		Ok(try!(self.finalize(t, substate, res)))
 	}
 
+	fn exec_vm(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy) -> evm::Result {
+		// Ordinary execution - keep VM in same thread
+		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy);
+			let vm_factory = self.engine.vm_factory();
+			return vm_factory.create().exec(params, &mut ext);
+		}
+
+		// Start in new thread to reset stack
+		// TODO [todr] No thread builder yet, so we need to reset once for a while
+		// https://github.com/aturon/crossbeam/issues/16
+		crossbeam::scope(|scope| {
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy);
+			let vm_factory = self.engine.vm_factory();
+
+			scope.spawn(move || {
+				vm_factory.create().exec(params, &mut ext)
+			})
+		}).join()
+	}
+
 	/// Calls contract function with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
@@ -170,7 +197,9 @@ impl<'a> Executive<'a> {
 		let backup = self.state.clone();
 
 		// at first, transfer value to destination
-		self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		if let ActionValue::Transfer(val) = params.value {
+			self.state.transfer_balance(&params.sender, &params.address, &val);
+		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
 		if self.engine.is_builtin(&params.code_address) {
@@ -198,8 +227,7 @@ impl<'a> Executive<'a> {
 			let mut unconfirmed_substate = Substate::new();
 
 			let res = {
-				let mut ext = self.as_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return(output));
-				self.engine.vm_factory().create().exec(params, &mut ext)
+				self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output))
 			};
 
 			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
@@ -227,11 +255,12 @@ impl<'a> Executive<'a> {
 		self.state.new_contract(&params.address);
 
 		// then transfer value to it
-		self.state.transfer_balance(&params.sender, &params.address, &params.value);
+		if let ActionValue::Transfer(val) = params.value {
+			self.state.transfer_balance(&params.sender, &params.address, &val);
+		}
 
 		let res = {
-			let mut ext = self.as_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract);
-			self.engine.vm_factory().create().exec(params, &mut ext)
+			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract)
 		};
 		self.enact_result(&res, substate, unconfirmed_substate, backup);
 		res
@@ -272,7 +301,6 @@ impl<'a> Executive<'a> {
 
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
-			// TODO [ToDr] BadJumpDestination @debris - how to handle that?
 			Err(_) => {
 				Ok(Executed {
 					gas: t.gas,
@@ -297,7 +325,6 @@ impl<'a> Executive<'a> {
 	}
 
 	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
-		// TODO: handle other evm::Errors same as OutOfGas once they are implemented
 		match *result {
 			Err(evm::Error::OutOfGas)
 				| Err(evm::Error::BadJumpDestination {..}) 
@@ -363,12 +390,12 @@ mod tests {
 	fn test_sender_balance(factory: Factory) {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(&sender, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some("3331600055".from_hex().unwrap());
-		params.value = U256::from(0x7);
+		params.value = ActionValue::Transfer(U256::from(0x7));
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
@@ -420,13 +447,13 @@ mod tests {
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
-		params.value = U256::from(100);
+		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
@@ -473,13 +500,13 @@ mod tests {
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
-		params.value = U256::from(100);
+		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
@@ -524,13 +551,13 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		let next_address = contract_address(&address, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
-		params.value = U256::from(100);
+		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
@@ -580,12 +607,12 @@ mod tests {
 		let address_b = Address::from_str("945304eb96065b2a98b57a48a06ae28d285a71b5" ).unwrap();
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address_a.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code_a.clone());
-		params.value = U256::from(100_000);
+		params.value = ActionValue::Transfer(U256::from(100_000));
 
 		let mut state = State::new_temp();
 		state.init_code(&address_a, code_a.clone());
@@ -629,7 +656,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let code = "600160005401600055600060006000600060003060e05a03f1600155".from_hex().unwrap();
 		let address = contract_address(&sender, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
@@ -785,13 +812,13 @@ mod tests {
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(0x0186a0);
 		params.code = Some(code.clone());
-		params.value = U256::from_str("0de0b6b3a7640000").unwrap();
+		params.value = ActionValue::Transfer(U256::from_str("0de0b6b3a7640000").unwrap());
 		let mut state = State::new_temp();
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
 		let info = EnvInfo::new();
