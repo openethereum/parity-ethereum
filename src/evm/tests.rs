@@ -215,6 +215,7 @@ fn test_origin(factory: super::Factory) {
 	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("000000000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681").unwrap());
 }
 
+// TODO [todr] Fails with Signal 11 on JIT
 evm_test!{test_sender: test_sender_jit, test_sender_int}
 fn test_sender(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();

@@ -5,6 +5,12 @@ use engine::*;
 use evm::{self, Ext};
 use externalities::*;
 use substate::*;
+use crossbeam;
+
+/// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)
+/// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
+/// Maybe something like here: https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp
+const MAX_VM_DEPTH_FOR_THREAD: usize = 128;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -161,12 +167,32 @@ impl<'a> Executive<'a> {
 		Ok(try!(self.finalize(t, substate, res)))
 	}
 
+	fn exec_vm(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy) -> evm::Result {
+		// Ordinary execution - keep VM in same thread
+		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy);
+			let vm_factory = self.engine.vm_factory();
+			return vm_factory.create().exec(params, &mut ext);
+		}
+
+		// Start in new thread to reset stack
+		// TODO [todr] No thread builder yet, so we need to reset once for a while
+		// https://github.com/aturon/crossbeam/issues/16
+		crossbeam::scope(|scope| {
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy);
+			let vm_factory = self.engine.vm_factory();
+
+			scope.spawn(move || {
+				vm_factory.create().exec(params, &mut ext)
+			})
+		}).join()
+	}
+
 	/// Calls contract function with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
 	pub fn call(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
-    println!("Calling executive. Sender: {}", params.sender);
 		// backup used in case of running out of gas
 		let backup = self.state.clone();
 
@@ -201,8 +227,7 @@ impl<'a> Executive<'a> {
 			let mut unconfirmed_substate = Substate::new();
 
 			let res = {
-				let mut ext = self.as_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::Return(output));
-				self.engine.vm_factory().create().exec(params, &mut ext)
+				self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output))
 			};
 
 			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
@@ -235,8 +260,7 @@ impl<'a> Executive<'a> {
 		}
 
 		let res = {
-			let mut ext = self.as_externalities(OriginInfo::from(&params), &mut unconfirmed_substate, OutputPolicy::InitContract);
-			self.engine.vm_factory().create().exec(params, &mut ext)
+			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract)
 		};
 		self.enact_result(&res, substate, unconfirmed_substate, backup);
 		res
@@ -277,7 +301,6 @@ impl<'a> Executive<'a> {
 
 		match result { 
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
-			// TODO [ToDr] BadJumpDestination @debris - how to handle that?
 			Err(_) => {
 				Ok(Executed {
 					gas: t.gas,
@@ -302,7 +325,6 @@ impl<'a> Executive<'a> {
 	}
 
 	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
-		// TODO: handle other evm::Errors same as OutOfGas once they are implemented
 		match *result {
 			Err(evm::Error::OutOfGas)
 				| Err(evm::Error::BadJumpDestination {..}) 
