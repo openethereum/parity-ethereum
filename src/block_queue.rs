@@ -191,7 +191,7 @@ impl BlockQueue {
 	/// Wait for queue to be empty
 	pub fn flush(&mut self) {
 		let mut verification = self.verification.lock().unwrap();
-		while !verification.unverified.is_empty() && !verification.verifying.is_empty() {
+		while !verification.unverified.is_empty() || !verification.verifying.is_empty() {
 			verification = self.empty.wait(verification).unwrap();
 		}
 	}
