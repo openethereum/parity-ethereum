@@ -2,6 +2,7 @@ use ethereum;
 use client::{BlockChainClient,Client};
 use std::env;
 use pod_state::*;
+use super::test_common::*;
 
 
 #[test]
