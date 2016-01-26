@@ -1,4 +1,4 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use rustc_serialize::hex::ToHex;
 use util::hash::*;
 use ethcore::client::*;
@@ -62,6 +62,10 @@ impl Eth for EthClient {
 
 	fn block_transaction_count(&self, _: Params) -> Result<Value, Error> {
 		Ok(Value::U64(0))
+	}
+
+	fn block(&self, _: Params) -> Result<Value, Error> {
+		Ok(Value::Null)
 	}
 }
 

@@ -8,7 +8,8 @@ macro_rules! rpcerr {
 }
 
 pub mod traits;
-pub mod impls;
+mod impls;
+mod types;
 
 pub use self::traits::{Web3, Eth, EthFilter, Net};
 pub use self::impls::*;
