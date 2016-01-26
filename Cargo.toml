@@ -21,6 +21,7 @@ evmjit = { path = "rust-evmjit", optional = true }
 ethash = { path = "ethash" }
 num_cpus = "0.2"
 clippy = "0.0.37"
+crossbeam = "0.1.5"
 
 [features]
 jit = ["evmjit"]

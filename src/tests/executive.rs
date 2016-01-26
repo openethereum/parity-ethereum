@@ -271,8 +271,8 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 
 declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
 declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperationTest"}
-// this one crashes with some vm internal error. Separately they pass.
-declare_test!{ignore => ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
+declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
+ // TODO [todr] Fails with Signal 11 when using JIT
 declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfoTest"}
 declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperationsTest"}
 declare_test!{heavy => ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}

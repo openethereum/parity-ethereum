@@ -121,6 +121,7 @@ impl ClientReport {
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
+/// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
@@ -140,7 +141,8 @@ impl Client {
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
-		/*opts.set_use_fsync(false);
+		opts.set_use_fsync(false);
+		/*
 		opts.set_bytes_per_sync(8388608);
 		opts.set_disable_data_sync(false);
 		opts.set_block_cache_size_mb(1024);
@@ -177,15 +179,16 @@ impl Client {
 		}))
 	}
 
+	/// Flush the block import queue.
+	pub fn flush_queue(&self) {
+		self.block_queue.write().unwrap().flush();
+	}
+
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) {
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
-		let blocks = self.block_queue.write().unwrap().drain(128); 
-		if blocks.is_empty() {
-			return;
-		}
-
+		let blocks = self.block_queue.write().unwrap().drain(128);
 		for block in blocks {
 			if bad.contains(&block.header.parent_hash) {
 				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
@@ -233,6 +236,7 @@ impl Client {
 				}
 			};
 			if let Err(e) = verify_block_final(&header, result.block().header()) {
+				flushln!("Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 				return;

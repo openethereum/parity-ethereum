@@ -9,13 +9,13 @@
 /// extern crate ethcore;
 /// use std::env;
 /// use std::sync::Arc;
-/// use util::network::NetworkService;
+/// use util::network::{NetworkService, NetworkConfiguration};
 /// use ethcore::client::Client;
 /// use ethcore::sync::EthSync;
 /// use ethcore::ethereum;
 ///
 /// fn main() {
-/// 	let mut service = NetworkService::start().unwrap();
+/// 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
 /// 	let dir = env::temp_dir();
 /// 	let client = Client::new(ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
 /// 	EthSync::register(&mut service, client);
