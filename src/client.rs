@@ -4,8 +4,10 @@ use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
 use error::*;
 use header::BlockNumber;
+use state::State;
 use spec::Spec;
 use engine::Engine;
+use views::HeaderView;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use service::NetSyncMessage;
 use env_info::LastHashes;
@@ -98,6 +100,11 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Get the best block header.
+	fn best_block_header(&self) -> Bytes {
+		self.block_header(&self.chain_info().best_block_hash).unwrap()
+	}
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -137,7 +144,9 @@ const HISTORY: u64 = 1000;
 impl Client {
 	/// Create a new client with given spec and DB path.
 	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
-		let chain = Arc::new(RwLock::new(BlockChain::new(&spec.genesis_block(), path)));
+		let gb = spec.genesis_block();
+		flushln!("Spec says genesis block is {}", gb.pretty());
+		let chain = Arc::new(RwLock::new(BlockChain::new(&gb, path)));
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
@@ -168,6 +177,7 @@ impl Client {
 		if engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
+		flushln!("Client::new: commiting. Best root now: {}. contains: {}", chain.read().unwrap().genesis_header().state_root, state_db.contains(&chain.read().unwrap().genesis_header().state_root));
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
@@ -259,6 +269,11 @@ impl Client {
 	/// Clear cached state overlay 
 	pub fn clear_state(&self, hash: &H256) {
 		self.uncommited_states.write().unwrap().remove(hash);
+	}
+
+	/// Get a copy of the best block's state.
+	pub fn state(&self) -> State {
+		State::from_existing(self.state_db.clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
 	}
 
 	/// Get info on the cache.

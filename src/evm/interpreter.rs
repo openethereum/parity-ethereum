@@ -275,6 +275,8 @@ impl evm::Evm for Interpreter {
 			code: &code
 		};
 
+		flushln!("Executing: {:?}", params);
+
 		while reader.position < code.len() {
 			let instruction = code[reader.position];
 			reader.position += 1;
@@ -640,6 +642,7 @@ impl Interpreter {
 				return Ok(InstructionResult::StopExecution);
 			},
 			instructions::SUICIDE => {
+				flushln!("SUICIDE!");
 				let address = stack.pop_back();
 				ext.suicide(&u256_to_address(&address));
 				return Ok(InstructionResult::StopExecution);

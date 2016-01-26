@@ -22,7 +22,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 			let blocks: Vec<Bytes> = test["blocks"].as_array().unwrap().iter().map(|e| xjson!(&e["rlp"])).collect();
 			let mut spec = ethereum::new_frontier_like_test();
-			spec.set_genesis_state(PodState::from_json(test.find("pre").unwrap()));
+			let s = PodState::from_json(test.find("pre").unwrap());
+			spec.set_genesis_state(s);
 			spec.overwrite_genesis(test.find("genesisBlockHeader").unwrap());
 			assert!(spec.is_state_root_valid());
 
@@ -56,7 +57,7 @@ declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHea
 declare_test!{ignore => BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}				// FAILS
 declare_test!{ignore => BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}				// FAILS
 declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
-declare_test!{ignore => BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}							// FAILS (Suicides, GasUsed)
+declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}							// FAILS (Suicides, GasUsed)
 declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
 declare_test!{ignore => BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}	// FAILS
 declare_test!{ignore => BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}							// FAILS

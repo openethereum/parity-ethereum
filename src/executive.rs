@@ -166,7 +166,6 @@ impl<'a> Executive<'a> {
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
 	pub fn call(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
-    println!("Calling executive. Sender: {}", params.sender);
 		// backup used in case of running out of gas
 		let backup = self.state.clone();
 
@@ -174,7 +173,7 @@ impl<'a> Executive<'a> {
 		if let ActionValue::Transfer(val) = params.value {
 			self.state.transfer_balance(&params.sender, &params.address, &val);
 		}
-		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
+		flushln!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
 		if self.engine.is_builtin(&params.code_address) {
 			// if destination is builtin, try to execute it
@@ -261,17 +260,17 @@ impl<'a> Executive<'a> {
 		let refund_value = gas_left * t.gas_price;
 		let fees_value = gas_used * t.gas_price;
 
-		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
+		flushln!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
-		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
+		flushln!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
 		self.state.add_balance(&t.sender().unwrap(), &refund_value);
-		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
+		flushln!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value);
 
 		// perform suicides
 		for address in &substate.suicides {
-			trace!("Killing {}", address);
+			flushln!("Killing {}", address);
 			self.state.kill_account(address);
 		}
 
