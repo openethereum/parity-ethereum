@@ -1,4 +1,4 @@
-	use client::{BlockChainClient,Client};
+use client::{BlockChainClient,Client};
 use std::env;
 use super::test_common::*;
 use std::path::PathBuf;
@@ -88,9 +88,6 @@ fn imports_from_empty() {
 
 #[test]
 fn imports_good_block() {
-
-	::env_logger::init().ok();
-
 	let client = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected()).unwrap();
 
 	let good_block = get_good_dummy_block();
@@ -122,4 +119,13 @@ fn query_bad_block() {
 	let bad_block:Option<Bytes> = client.block_header_at(1);
 
 	assert!(bad_block.is_none());
+}
+
+#[test]
+fn returns_chain_info() {
+	let dummy_block = get_good_dummy_block();
+	let client = get_test_client_with_blocks(vec![dummy_block.clone()]);
+	let block = BlockView::new(&dummy_block);
+	let info = client.chain_info();
+	assert_eq!(info.best_block_hash, block.header().hash());
 }
