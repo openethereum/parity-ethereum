@@ -85,7 +85,7 @@ impl IsBlock for Block {
 ///
 /// It's a bit like a Vec<Transaction>, eccept that whenever a transaction is pushed, we execute it and
 /// maintain the system `state()`. We also archive execution receipts in preparation for later block creation.
-	pub struct OpenBlock<'x, 'y> {
+pub struct OpenBlock<'x, 'y> {
 	block: Block,
 	engine: &'x Engine,
 	last_hashes: &'y LastHashes,
