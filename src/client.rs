@@ -199,6 +199,7 @@ impl Client {
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.write().unwrap().drain(128);
 		for block in blocks {
+			flushln!("Importing {}...", block.header.hash());
 			if bad.contains(&block.header.parent_hash) {
 				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
 				bad.insert(block.header.hash());
@@ -207,6 +208,7 @@ impl Client {
 
 			let header = &block.header;
 			if let Err(e) = verify_block_family(&header, &block.bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
+				flushln!("Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 				bad.insert(block.header.hash());
@@ -215,6 +217,7 @@ impl Client {
 			let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
 				Some(p) => p,
 				None => {
+					flushln!("Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
 					warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
 					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 					bad.insert(block.header.hash());
@@ -238,8 +241,9 @@ impl Client {
 			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
+					flushln!("Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 					warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				bad.insert(block.header.hash());
+					bad.insert(block.header.hash());
 					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 					return;
 				}
