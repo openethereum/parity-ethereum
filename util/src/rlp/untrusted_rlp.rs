@@ -331,7 +331,7 @@ impl<'a> Decoder for BasicDecoder<'a> {
 			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
 			// 0-55 bytes
 			Some(l @ 0x80...0xb7) => {
-			    let last_index_of = 1 + l as usize - 0x80;
+				let last_index_of = 1 + l as usize - 0x80;
 				if bytes.len() < last_index_of {
 					return Err(DecoderError::RlpInconsistentLengthAndData);
 				}
