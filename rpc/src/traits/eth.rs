@@ -1,6 +1,6 @@
 //! Eth rpc interface.
 use std::sync::Arc;
-use rpc::jsonrpc_core::*;
+use jsonrpc_core::*;
 
 /// Eth rpc interface.
 pub trait Eth: Sized + Send + Sync + 'static {

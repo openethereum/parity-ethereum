@@ -1,6 +1,6 @@
 //! Net rpc implementation.
-use rpc::jsonrpc_core::*;
-use rpc::Net;
+use jsonrpc_core::*;
+use traits::Net;
 
 pub struct NetClient;
 

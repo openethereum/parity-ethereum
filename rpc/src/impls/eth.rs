@@ -2,8 +2,8 @@ use std::sync::Arc;
 use rustc_serialize::hex::ToHex;
 use util::hash::*;
 use ethcore::client::*;
-use rpc::jsonrpc_core::*;
-use rpc::{Eth, EthFilter};
+use jsonrpc_core::*;
+use traits::{Eth, EthFilter};
 
 pub struct EthClient {
 	client: Arc<Client>,

@@ -1,6 +1,6 @@
 //! Net rpc interface.
 use std::sync::Arc;
-use rpc::jsonrpc_core::*;
+use jsonrpc_core::*;
 
 /// Net rpc interface.
 pub trait Net: Sized + Send + Sync + 'static {

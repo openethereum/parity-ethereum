@@ -1,5 +1,12 @@
+#![feature(custom_derive, custom_attribute, plugin)]
+#![plugin(serde_macros)]
+
+extern crate rustc_serialize;
+extern crate serde;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
+extern crate ethcore_util as util;
+extern crate ethcore;
 
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 
@@ -13,7 +20,6 @@ mod types;
 
 pub use self::traits::{Web3, Eth, EthFilter, Net};
 pub use self::impls::*;
-
 
 pub struct HttpServer {
 	handler: IoHandler,

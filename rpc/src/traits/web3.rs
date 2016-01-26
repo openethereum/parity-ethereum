@@ -1,6 +1,6 @@
 //! Web3 rpc interface.
 use std::sync::Arc;
-use rpc::jsonrpc_core::*;
+use jsonrpc_core::*;
 
 /// Web3 rpc interface.
 pub trait Web3: Sized + Send + Sync + 'static {

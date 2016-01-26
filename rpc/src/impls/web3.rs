@@ -1,5 +1,5 @@
-use rpc::jsonrpc_core::*;
-use rpc::Web3;
+use jsonrpc_core::*;
+use traits::Web3;
 
 pub struct Web3Client;
 

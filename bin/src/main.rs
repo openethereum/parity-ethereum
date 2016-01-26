@@ -1,7 +1,6 @@
 #![feature(plugin)]
 #![plugin(docopt_macros)]
 // required for serde, move it to a separate library
-#![feature(custom_derive, custom_attribute)]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -11,7 +10,7 @@ extern crate env_logger;
 extern crate ctrlc;
 
 #[cfg(feature = "rpc")]
-mod rpc;
+extern crate ethcore_rpc as rpc;
 
 use std::env;
 use log::{LogLevelFilter};
@@ -52,7 +51,7 @@ fn setup_log(init: &String) {
 
 #[cfg(feature = "rpc")]
 fn setup_rpc_server(client: Arc<Client>) {
-	use self::rpc::*;
+	use rpc::*;
 	
 	let mut server = HttpServer::new(1);
 	server.add_delegate(Web3Client::new().to_delegate());
