@@ -166,7 +166,6 @@ impl<'a> Executive<'a> {
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
 	pub fn call(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
-    println!("Calling executive. Sender: {}", params.sender);
 		// backup used in case of running out of gas
 		let backup = self.state.clone();
 
