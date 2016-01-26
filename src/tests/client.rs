@@ -32,12 +32,44 @@ fn get_good_dummy_block() -> Bytes {
 }
 
 #[cfg(test)]
+fn get_bad_state_dummy_block() -> Bytes {
+	let mut block_header = Header::new();
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	block_header.gas_limit = decode(test_engine.spec().engine_params.get("minGasLimit").unwrap());
+	block_header.difficulty = decode(test_engine.spec().engine_params.get("minimumDifficulty").unwrap());
+	block_header.timestamp = 40;
+	block_header.number = 1;
+	block_header.parent_hash = test_engine.spec().genesis_header().hash();
+	block_header.state_root = x!(0xbad);
+
+	create_test_block(&block_header)
+}
+
+#[cfg(test)]
 fn create_test_block(header: &Header) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
 	rlp.append(header);
 	rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
 	rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
 	rlp.out()
+}
+
+#[cfg(test)]
+fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
+	let client = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected()).unwrap();
+
+	for block in &blocks {
+		if let Err(_) = client.import_block(block.clone()) {
+			panic!("panic importing block which is well-formed");
+		}
+	}
+
+	client.flush_queue();
+
+	client.import_verified_blocks(&IoChannel::disconnected());
+
+	client
 }
 
 
@@ -81,5 +113,13 @@ fn query_none_block() {
 
     let non_existant = client.block_header_at(188);
 
-	assert!(non_existant == Option::None);
+	assert!(non_existant.is_none());
+}
+
+#[test]
+fn query_bad_block() {
+	let client = get_test_client_with_blocks(vec![get_bad_state_dummy_block()]);
+	let bad_block:Option<Bytes> = client.block_header_at(1);
+
+	assert!(bad_block.is_none());
 }
