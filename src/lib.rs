@@ -90,6 +90,7 @@ extern crate num_cpus;
 extern crate evmjit;
 #[macro_use]
 extern crate ethcore_util as util;
+extern crate crossbeam;
 
 // NOTE: Add doc parser exception for these pub declarations.
 
