@@ -46,6 +46,9 @@ impl PayloadInfo {
 			value_len: value_len,
 		}
 	}
+
+	/// Total size of the RLP.
+	pub fn total(&self) -> usize { self.header_len + self.value_len }
 }
 
 /// Data-oriented view onto rlp-slice.

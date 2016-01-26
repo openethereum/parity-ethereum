@@ -1,5 +1,5 @@
 use common::*;
-use block::Block;
+use block::ExecutedBlock;
 use spec::Spec;
 use evm::Schedule;
 use evm::Factory;
@@ -37,9 +37,9 @@ pub trait Engine : Sync + Send {
 	fn account_start_nonce(&self) -> U256 { decode(&self.spec().engine_params.get("accountStartNonce").unwrap()) }
 
 	/// Block transformation functions, before and after the transactions.
-	fn on_new_block(&self, _block: &mut Block) {}
+	fn on_new_block(&self, _block: &mut ExecutedBlock) {}
 	/// TODO [Gav Wood] Please document me
-	fn on_close_block(&self, _block: &mut Block) {}
+	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
 	// TODO: consider including State in the params for verification functions.
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block) 

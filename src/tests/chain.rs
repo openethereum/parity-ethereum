@@ -2,6 +2,7 @@ use std::env;
 use super::test_common::*;
 use client::{BlockChainClient,Client};
 use pod_state::*;
+use block::Block;
 use ethereum;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
@@ -31,20 +32,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			dir.push(H32::random().hex());
 			{
 				let client = Client::new(spec, &dir, IoChannel::disconnected()).unwrap();
-				for b in blocks.into_iter() {
-					{
-						let urlp = UntrustedRlp::new(&b);
-						if !urlp.is_list() || urlp.item_count() != 3 || urlp.size() != b.len() { continue; }
-						if urlp.val_at::<Header>(0).is_err() { continue; }
-						if !urlp.at(1).unwrap().is_list() { continue; }
-						if urlp.at(1).unwrap().iter().find(|i| i.as_val::<Transaction>().is_err()).is_some() {
-							continue;
-						}
-						if !urlp.at(2).unwrap().is_list() { continue; }
-						if urlp.at(2).unwrap().iter().find(|i| i.as_val::<Header>().is_err()).is_some() {
-							continue;
-						}
-					}
+				for b in blocks.into_iter().filter(|ref b| Block::is_good(b)) {
 					client.import_block(b).unwrap();
 				}
 				client.flush_queue();

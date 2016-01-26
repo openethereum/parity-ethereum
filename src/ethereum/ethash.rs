@@ -83,7 +83,7 @@ impl Engine for Ethash {
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, block: &mut Block) {
+	fn on_close_block(&self, block: &mut ExecutedBlock) {
 		let reward = self.spec().engine_params.get("blockReward").map_or(U256::from(0u64), |a| decode(&a));
 		let fields = block.fields();
 
