@@ -58,17 +58,13 @@ fn create_test_block(header: &Header) -> Bytes {
 #[cfg(test)]
 fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	let client = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected()).unwrap();
-
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
 			panic!("panic importing block which is well-formed");
 		}
 	}
-
 	client.flush_queue();
-
 	client.import_verified_blocks(&IoChannel::disconnected());
-
 	client
 }
 
@@ -89,18 +85,14 @@ fn imports_from_empty() {
 #[test]
 fn imports_good_block() {
 	let client = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected()).unwrap();
-
 	let good_block = get_good_dummy_block();
 	if let Err(_) = client.import_block(good_block) {
 		panic!("error importing block being good by definition");
 	}
-
 	client.flush_queue();
-
 	client.import_verified_blocks(&IoChannel::disconnected());
 
 	let block = client.block_header_at(1).unwrap();
-
 	assert!(!block.is_empty());
 }
 
@@ -109,7 +101,6 @@ fn query_none_block() {
 	let client = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected()).unwrap();
 
     let non_existant = client.block_header_at(188);
-
 	assert!(non_existant.is_none());
 }
 
