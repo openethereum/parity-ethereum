@@ -199,7 +199,7 @@ impl Client {
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.write().unwrap().drain(128);
 		for block in blocks {
-			flushln!("Importing {}...", block.header.hash());
+//			flushln!("Importing {}...", block.header.hash());
 			if bad.contains(&block.header.parent_hash) {
 				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
 				bad.insert(block.header.hash());
