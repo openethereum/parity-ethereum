@@ -765,8 +765,8 @@ mod tests {
 	}
 
 	#[test]
-	fn can_consist_of_random_blocks() {
-		let bc = generate_dummy_blockchain(100);
-		assert_eq!(bc.best_block_hash(), 0);
+	fn can_contain_arbitrary_block_sequence() {
+		let bc = generate_dummy_blockchain(50);
+		assert_eq!(bc.best_block_number(), 49);
 	}
 }

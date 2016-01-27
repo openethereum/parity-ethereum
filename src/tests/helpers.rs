@@ -45,6 +45,18 @@ pub fn create_test_block(header: &Header) -> Bytes {
 	rlp.out()
 }
 
+fn create_unverifiable_block(order: usize, parent_hash: H256) -> Bytes {
+	let mut header = Header::new();
+	header.gas_limit = x!(0);
+	header.difficulty = x!(order * 100);
+	header.timestamp = (order * 10) as u64;
+	header.number = order as u64;
+	header.parent_hash = parent_hash;
+	header.state_root = H256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+
+	create_test_block(&header)
+}
+
 pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
 	let dir = RandomTempPath::new();
 
@@ -82,7 +94,14 @@ pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
 
 pub fn generate_dummy_blockchain(block_number: usize) -> BlockChain {
 	let temp = RandomTempPath::new();
-	let genesis = "fffffff".from_hex().unwrap();
-	let bc = BlockChain::new(&genesis, temp.as_path());
+	let bc = BlockChain::new(
+		&create_unverifiable_block(
+			0,
+			H256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap()),
+		temp.as_path());
+
+	for block_order in 1..block_number {
+		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()));
+	}
 	bc
 }
