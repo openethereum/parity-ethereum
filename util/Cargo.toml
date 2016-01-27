@@ -25,6 +25,7 @@ itertools = "0.4"
 crossbeam = "0.2"
 slab = { git = "https://github.com/arkpar/slab.git" }
 sha3 = { path = "sha3" }
+serde = "0.6.7"
 clippy = "*" # Always newest, since we use nightly
 
 [dev-dependencies]
