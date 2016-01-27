@@ -5,11 +5,10 @@ use std::path::PathBuf;
 use spec::*;
 use std::fs::{create_dir_all};
 
-#[cfg(test)]
+
 const FIXED_TEMP_DIR_NAME: &'static str = "parity-temp";
 
 
-#[cfg(test)]
 pub fn get_tests_temp_dir() -> PathBuf {
 	let mut dir = env::temp_dir();
 	dir.push(FIXED_TEMP_DIR_NAME);
@@ -19,7 +18,6 @@ pub fn get_tests_temp_dir() -> PathBuf {
 	dir
 }
 
-#[cfg(test)]
 pub fn get_random_path() -> PathBuf {
 	let mut dir = get_tests_temp_dir();
 	dir.push(H32::random().hex());
@@ -27,13 +25,11 @@ pub fn get_random_path() -> PathBuf {
 }
 
 
-#[cfg(test)]
 pub fn get_test_spec() -> Spec {
 	Spec::new_test()
 }
 
 
-#[cfg(test)]
 pub fn create_test_block(header: &Header) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
 	rlp.append(header);
@@ -42,7 +38,6 @@ pub fn create_test_block(header: &Header) -> Bytes {
 	rlp.out()
 }
 
-#[cfg(test)]
 pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
 	let client = Client::new(get_test_spec(), &get_random_path(), IoChannel::disconnected()).unwrap();
 

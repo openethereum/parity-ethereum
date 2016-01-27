@@ -2,7 +2,6 @@ use client::{BlockChainClient,Client};
 use super::test_common::*;
 use super::helpers::*;
 
-#[cfg(test)]
 fn get_good_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
@@ -17,7 +16,6 @@ fn get_good_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
-#[cfg(test)]
 fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
@@ -33,7 +31,6 @@ fn get_bad_state_dummy_block() -> Bytes {
 }
 
 
-#[cfg(test)]
 fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	let client = Client::new(get_test_spec(), &get_random_path(), IoChannel::disconnected()).unwrap();
 	for block in &blocks {
