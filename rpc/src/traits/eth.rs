@@ -44,7 +44,7 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	}
 }
 
-// TODO: do filters api properly if we commit outselves to polling again...
+// TODO: do filters api properly
 pub trait EthFilter: Sized + Send + Sync + 'static {
 	/// Returns id of new block filter
 	fn new_block_filter(&self, _: Params) -> Result<Value, Error> { rpcerr!() }
