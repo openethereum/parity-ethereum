@@ -32,11 +32,9 @@ impl Drop for RandomTempPath {
 	}
 }
 
-
 pub fn get_test_spec() -> Spec {
 	Spec::new_test()
 }
-
 
 pub fn create_test_block(header: &Header) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
@@ -50,7 +48,6 @@ pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
 	let dir = RandomTempPath::new();
 
 	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
-
 	let test_spec = get_test_spec();
 	let test_engine = test_spec.to_engine().unwrap();
 	let state_root = test_engine.spec().genesis_header().state_root;
@@ -77,10 +74,7 @@ pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
 		}
 
 	}
-
 	client.flush_queue();
 	client.import_verified_blocks(&IoChannel::disconnected());
-
 	client
-
 }

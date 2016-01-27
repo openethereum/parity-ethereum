@@ -292,7 +292,6 @@ impl Client {
 	pub fn tick(&self) {
 		self.chain.read().unwrap().collect_garbage(false);
 	}
-
 }
 
 impl BlockChainClient for Client {
