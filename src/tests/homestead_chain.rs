@@ -22,7 +22,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			flush(format!("   - {}...", name));
 
 			let blocks: Vec<(Bytes, bool)> = test["blocks"].as_array().unwrap().iter().map(|e| (xjson!(&e["rlp"]), e.find("blockHeader").is_some())).collect();
-			let mut spec = ethereum::new_frontier_like_test();
+			let mut spec = ethereum::new_homestead_test();
 			let s = PodState::from_json(test.find("pre").unwrap());
 			spec.set_genesis_state(s);
 			spec.overwrite_genesis(test.find("genesisBlockHeader").unwrap());
@@ -52,21 +52,16 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
-declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
-declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
-declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}
-declare_test!{BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}
-declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
-declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
-declare_test!{BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}
-declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
-declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
-declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
-declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
-declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}
-declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
-declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
-declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
-
-declare_test!{BlockchainTests_RandomTests_bl10251623GO, "BlockchainTests/RandomTests/bl10251623GO"}
-declare_test!{BlockchainTests_RandomTests_bl201507071825GO, "BlockchainTests/RandomTests/bl201507071825GO"}
+declare_test!{BlockchainTests_Homestead_bcBlockGasLimitTest, "BlockchainTests/Homestead/bcBlockGasLimitTest"}
+declare_test!{BlockchainTests_Homestead_bcForkStressTest, "BlockchainTests/Homestead/bcForkStressTest"}
+declare_test!{BlockchainTests_Homestead_bcGasPricerTest, "BlockchainTests/Homestead/bcGasPricerTest"}
+declare_test!{BlockchainTests_Homestead_bcInvalidHeaderTest, "BlockchainTests/Homestead/bcInvalidHeaderTest"}
+declare_test!{BlockchainTests_Homestead_bcInvalidRLPTest, "BlockchainTests/Homestead/bcInvalidRLPTest"}
+declare_test!{BlockchainTests_Homestead_bcMultiChainTest, "BlockchainTests/Homestead/bcMultiChainTest"}
+declare_test!{BlockchainTests_Homestead_bcRPC_API_Test, "BlockchainTests/Homestead/bcRPC_API_Test"}
+declare_test!{BlockchainTests_Homestead_bcStateTest, "BlockchainTests/Homestead/bcStateTest"}
+declare_test!{BlockchainTests_Homestead_bcTotalDifficultyTest, "BlockchainTests/Homestead/bcTotalDifficultyTest"}
+declare_test!{BlockchainTests_Homestead_bcUncleHeaderValiditiy, "BlockchainTests/Homestead/bcUncleHeaderValiditiy"}
+declare_test!{BlockchainTests_Homestead_bcUncleTest, "BlockchainTests/Homestead/bcUncleTest"}
+declare_test!{BlockchainTests_Homestead_bcValidBlockTest, "BlockchainTests/Homestead/bcValidBlockTest"}
+declare_test!{BlockchainTests_Homestead_bcWalletTest, "BlockchainTests/Homestead/bcWalletTest"}
