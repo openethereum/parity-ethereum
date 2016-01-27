@@ -193,7 +193,8 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) {
+	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) -> usize {
+		let mut ret = 0;
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.write().unwrap().drain(128);
@@ -211,7 +212,7 @@ impl Client {
 				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 				bad.insert(block.header.hash());
-				return;
+				break;
 			};
 			let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
 				Some(p) => p,
@@ -220,7 +221,7 @@ impl Client {
 					warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
 					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 					bad.insert(block.header.hash());
-					return;
+					break;
 				},
 			};
 			// build last hashes
@@ -244,14 +245,14 @@ impl Client {
 					warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 					bad.insert(block.header.hash());
 					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
-					return;
+					break;
 				}
 			};
 			if let Err(e) = verify_block_final(&header, result.block().header()) {
 				flushln!("Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
-				return;
+				break;
 			}
 
 			self.chain.write().unwrap().insert_block(&block.bytes); //TODO: err here?
@@ -260,12 +261,14 @@ impl Client {
 				Ok(_) => (),
 				Err(e) => {
 					warn!(target: "client", "State DB commit failed: {:?}", e);
-					return;
+					break;
 				}
 			}
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
+			ret += 1;
 		}
+		ret
 	}
 
 	/// Clear cached state overlay 
