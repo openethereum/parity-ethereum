@@ -3,25 +3,33 @@ use std::env;
 use super::test_common::*;
 use std::path::PathBuf;
 use spec::*;
-use std::fs::{create_dir_all};
+use std::fs::{remove_dir_all};
 
 
-const FIXED_TEMP_DIR_NAME: &'static str = "parity-temp";
-
-
-pub fn get_tests_temp_dir() -> PathBuf {
-	let mut dir = env::temp_dir();
-	dir.push(FIXED_TEMP_DIR_NAME);
-	if let Err(_) = create_dir_all(&dir) {
-		panic!("failed to create test dir!");
-	}
-	dir
+pub struct RandomTempPath {
+	path: PathBuf
 }
 
-pub fn get_random_path() -> PathBuf {
-	let mut dir = get_tests_temp_dir();
-	dir.push(H32::random().hex());
-	dir
+impl RandomTempPath {
+	pub fn new() -> RandomTempPath {
+		let mut dir = env::temp_dir();
+		dir.push(H32::random().hex());
+		RandomTempPath {
+			path: dir.clone()
+		}
+	}
+
+	pub fn as_path(&self) -> &PathBuf {
+		&self.path
+	}
+}
+
+impl Drop for RandomTempPath {
+	fn drop(&mut self) {
+		if let Err(e) = remove_dir_all(self.as_path()) {
+			panic!("failed to remove temp directory, probably something failed to destroyed ({})", e);
+		}
+	}
 }
 
 
@@ -39,7 +47,9 @@ pub fn create_test_block(header: &Header) -> Bytes {
 }
 
 pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
-	let client = Client::new(get_test_spec(), &get_random_path(), IoChannel::disconnected()).unwrap();
+	let dir = RandomTempPath::new();
+
+	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 
 	let test_spec = get_test_spec();
 	let test_engine = test_spec.to_engine().unwrap();
