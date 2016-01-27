@@ -20,17 +20,30 @@ pub struct JournalDB {
 	backing: Arc<DB>,
 	inserts: Vec<H256>,
 	removes: Vec<H256>,
+	path: Option<String>
+}
+
+#[cfg(test)]
+impl Drop for JournalDB {
+	fn drop(&mut self) {
+		use rocksdb::Options;
+		if let Some(path) = self.path {
+			let opts = Options::new();
+			DB::destroy(&opts, path).unwrap();
+		}
+	}
 }
 
 impl JournalDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(backing: DB) -> JournalDB {
+	pub fn new(backing: DB, path: Option<String>) -> JournalDB {
 		let db = Arc::new(backing);
 		JournalDB {
 			forward: OverlayDB::new_with_arc(db.clone()),
 			backing: db,
 			inserts: vec![],
 			removes: vec![],
+			path: path
 		}
 	}
 
@@ -41,14 +54,16 @@ impl JournalDB {
 			backing: backing,
 			inserts: vec![],
 			removes: vec![],
+			path: None
 		}
 	}
 
 	/// Create a new instance with an anonymous temporary database.
 	pub fn new_temp() -> JournalDB {
 		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-		Self::new(DB::open_default(dir.to_str().unwrap()).unwrap())
+		let path = H32::random().hex(); 
+		dir.push(path.clone());
+		Self::new(DB::open_default(dir.to_str().unwrap()).unwrap(), Some(path))
 	}
 
 	/// Get a clone of the overlay db portion of this.
