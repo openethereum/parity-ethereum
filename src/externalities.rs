@@ -215,8 +215,13 @@ impl<'a> Ext for Externalities<'a> {
 	fn suicide(&mut self, refund_address: &Address) {
 		let address = self.origin_info.address.clone();
 		let balance = self.balance(&address);
-		trace!("Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
-		self.state.transfer_balance(&address, refund_address, &balance);
+		if &address == refund_address {
+			// TODO [todr] To be consisted with CPP client we set balance to 0 in that case.
+			self.state.sub_balance(&address, &balance);
+		} else {
+			trace!("Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
+			self.state.transfer_balance(&address, refund_address, &balance);
+		}
 		self.substate.suicides.insert(address);
 	}
 
