@@ -233,15 +233,12 @@ mod tests {
 	fn create_test_block_with_data(header: &Header, transactions: &[&Transaction], uncles: &[Header]) -> Bytes {
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(header);
-		rlp.append_list(transactions.len());
+		rlp.begin_list(transactions.len());
 		for t in transactions {
 			rlp.append_raw(&t.rlp_bytes_opt(Seal::With), 1);
 		}
-		rlp.append_list(uncles.len());
-		for h in uncles {
-			rlp.append(h);
-		}
-		rlp.out()
+		rlp.append_list(&uncles);
+		rlp.out().to_vec()
 	}
 
 	fn check_ok(result: Result<(), Error>) {
@@ -365,7 +362,7 @@ mod tests {
 
 		let good_uncles = vec![ good_uncle1.clone(), good_uncle2.clone() ];
 		let mut uncles_rlp = RlpStream::new();
-		uncles_rlp.append(&good_uncles);
+		uncles_rlp.append_list(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
 		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| t.rlp_bytes_opt(Seal::With)).collect());
 

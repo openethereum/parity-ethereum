@@ -145,13 +145,12 @@ impl Decodable for BlockDetails {
 }
 
 impl Encodable for BlockDetails {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
-		encoder.emit_list(| e | {
-			self.number.encode(e);
-			self.total_difficulty.encode(e);
-			self.parent.encode(e);
-			self.children.encode(e);
-		})
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
+		s.append(&self.number);
+		s.append(&self.total_difficulty);
+		s.append(&self.parent);
+		s.append_list(&self.children);
 	}
 }
 
@@ -185,8 +184,8 @@ impl Decodable for BlockLogBlooms {
 }
 
 impl Encodable for BlockLogBlooms {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
-		self.blooms.encode(encoder);
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append_list(&self.blooms);
 	}
 }
 
@@ -231,9 +230,9 @@ impl Decodable for BlocksBlooms {
 }
 
 impl Encodable for BlocksBlooms {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
+	fn rlp_append(&self, s: &mut RlpStream) {
 		let blooms_ref: &[H2048] = &self.blooms;
-		blooms_ref.encode(encoder);
+		s.append_list(&blooms_ref);
 	}
 }
 
@@ -269,10 +268,9 @@ impl Decodable for TransactionAddress {
 }
 
 impl Encodable for TransactionAddress {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
-		encoder.emit_list(| e | {
-			self.block_hash.encode(e);
-			self.index.encode(e);
-		})
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		s.append(&self.block_hash);
+		s.append(&self.index);
 	}
 }

@@ -107,7 +107,7 @@ impl Transaction {
 
 	/// Append object into RLP stream, optionally with or without the signature.
 	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
-		s.append_list(6 + match with_seal { Seal::With => 3, _ => 0 });
+		s.begin_list(6 + match with_seal { Seal::With => 3, _ => 0 });
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
@@ -158,7 +158,7 @@ impl FromJson for Transaction {
 	}
 }
 
-impl RlpStandard for Transaction {
+impl Encodable for Transaction {
 	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_opt(s, Seal::With) }
 }
 

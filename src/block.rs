@@ -200,11 +200,11 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	pub fn close(self) -> ClosedBlock<'x, 'y> {
 		let mut s = self;
 		s.engine.on_close_block(&mut s.block);
-		s.block.header.transactions_root = ordered_trie_root(s.block.archive.iter().map(|ref e| e.transaction.rlp_bytes()).collect());
+		s.block.header.transactions_root = ordered_trie_root(s.block.archive.iter().map(|ref e| e.transaction.rlp_bytes().to_vec()).collect());
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append(&u.rlp(Seal::With)); s} ).out();
 		s.block.header.uncles_hash = uncle_bytes.sha3();
 		s.block.header.state_root = s.block.state.root().clone();
-		s.block.header.receipts_root = ordered_trie_root(s.block.archive.iter().map(|ref e| e.receipt.rlp_bytes()).collect());
+		s.block.header.receipts_root = ordered_trie_root(s.block.archive.iter().map(|ref e| e.receipt.rlp_bytes().to_vec()).collect());
 		s.block.header.log_bloom = s.block.archive.iter().fold(LogBloom::zero(), |mut b, e| {b |= &e.receipt.log_bloom; b});
 		s.block.header.gas_used = s.block.archive.last().map_or(U256::zero(), |t| t.receipt.gas_used);
 		s.block.header.note_dirty();
@@ -256,7 +256,7 @@ impl SealedBlock {
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.block.header.stream_rlp(&mut block_rlp, Seal::With);
-		block_rlp.append_list(self.block.archive.len());
+		block_rlp.begin_list(self.block.archive.len());
 		for e in &self.block.archive { e.transaction.rlp_append(&mut block_rlp); }
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()

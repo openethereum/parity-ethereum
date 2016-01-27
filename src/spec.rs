@@ -19,14 +19,14 @@ pub fn gzip64res_to_json(source: &[u8]) -> Json {
 // TODO: handle container types.
 fn json_to_rlp(json: &Json) -> Bytes {
 	match *json {
-		Json::Boolean(o) => encode(&(if o {1u64} else {0})),
-		Json::I64(o) => encode(&(o as u64)),
-		Json::U64(o) => encode(&o),
+		Json::Boolean(o) => encode(&(if o {1u64} else {0})).to_vec(),
+		Json::I64(o) => encode(&(o as u64)).to_vec(),
+		Json::U64(o) => encode(&o).to_vec(),
 		Json::String(ref s) if s.len() >= 2 && &s[0..2] == "0x" && U256::from_str(&s[2..]).is_ok() => {
-			encode(&U256::from_str(&s[2..]).unwrap())
+			encode(&U256::from_str(&s[2..]).unwrap()).to_vec()
 		},
 		Json::String(ref s) => {
-			encode(s)
+			encode(s).to_vec()
 		},
 		_ => panic!()
 	}

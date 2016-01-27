@@ -157,7 +157,7 @@ impl Header {
 	// TODO: make these functions traity 
 	/// TODO [Gav Wood] Please document me
 	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: Seal) {
-		s.append_list(13 + match with_seal { Seal::With => self.seal.len(), _ => 0 });
+		s.begin_list(13 + match with_seal { Seal::With => self.seal.len(), _ => 0 });
 		s.append(&self.parent_hash);
 		s.append(&self.uncles_hash);
 		s.append(&self.author);
@@ -221,26 +221,8 @@ impl Decodable for Header {
 }
 
 impl Encodable for Header {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
-		encoder.emit_list(| e | {
-			self.parent_hash.encode(e);
-			self.uncles_hash.encode(e);
-			self.author.encode(e);
-			self.state_root.encode(e);
-			self.transactions_root.encode(e);
-			self.receipts_root.encode(e);
-			self.log_bloom.encode(e);
-			self.difficulty.encode(e);
-			self.number.encode(e);
-			self.gas_limit.encode(e);
-			self.gas_used.encode(e);
-			self.timestamp.encode(e);
-			self.extra_data.encode(e);
-
-			for b in &self.seal {
-				e.emit_raw(&b);
-			}
-		})
+	fn rlp_append(&self, s: &mut RlpStream) {
+		self.stream_rlp(s, Seal::With);
 	}
 }
 
