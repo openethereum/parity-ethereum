@@ -42,6 +42,9 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 					client.flush_queue();
 					let imported_ok = client.import_verified_blocks(&IoChannel::disconnected()) > 0;
 					assert_eq!(imported_ok, is_valid);
+					if imported_ok {
+						flushln!("Imported {}; best block {}", hash, client.chain_info().best_block_hash);
+					}
 				}
 				fail_unless(client.chain_info().best_block_hash == H256::from_json(&test["lastblockhash"]));
 			}
@@ -60,13 +63,13 @@ declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"
 declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}				// STILL FAILS
 declare_test!{BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}						// STILL FAILS
 declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
-declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
+declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}		// FAILS AGAIN?
 declare_test!{BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}
 declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
 declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
 declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
-declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
-declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}	// FAILS
-declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}						// FAILS
-declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}				// FAILS
-declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}						// FAILS
+declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}	// FAILS AGAIN?
+declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}
+declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
+declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}				// STILL FAILS
+declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}

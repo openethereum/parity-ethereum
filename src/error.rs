@@ -120,7 +120,9 @@ pub enum BlockError {
 	/// TODO [arkpar] Please document me
 	InvalidParentHash(Mismatch<H256>),
 	/// TODO [arkpar] Please document me
-	InvalidNumber(OutOfBounds<BlockNumber>),
+	InvalidNumber(Mismatch<BlockNumber>),
+	/// Block number isn't sensible.
+	RidiculousNumber(OutOfBounds<BlockNumber>),
 	/// TODO [arkpar] Please document me
 	UnknownParent(H256),
 	/// TODO [Gav Wood] Please document me
