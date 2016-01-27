@@ -1,22 +1,7 @@
 use client::{BlockChainClient,Client};
-use std::env;
 use super::test_common::*;
-use std::path::PathBuf;
-use spec::*;
+use super::helpers::*;
 
-#[cfg(test)]
-fn get_random_temp_dir() -> PathBuf {
-	let mut dir = env::temp_dir();
-	dir.push(H32::random().hex());
-	dir
-}
-
-#[cfg(test)]
-fn get_test_spec() -> Spec {
-	Spec::new_test()
-}
-
-#[cfg(test)]
 fn get_good_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
@@ -31,7 +16,6 @@ fn get_good_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
-#[cfg(test)]
 fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
@@ -46,18 +30,10 @@ fn get_bad_state_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
-#[cfg(test)]
-fn create_test_block(header: &Header) -> Bytes {
-	let mut rlp = RlpStream::new_list(3);
-	rlp.append(header);
-	rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-	rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-	rlp.out()
-}
 
-#[cfg(test)]
 fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
-	let client = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected()).unwrap();
+	let dir = RandomTempPath::new();
+	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
 			panic!("panic importing block which is well-formed");
@@ -71,20 +47,23 @@ fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 
 #[test]
 fn created() {
-	let client_result = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected());
+	let dir = RandomTempPath::new();
+	let client_result = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected());
 	assert!(client_result.is_ok());
 }
 
 #[test]
 fn imports_from_empty() {
-	let client = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected()).unwrap();
+	let dir = RandomTempPath::new();
+	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	client.import_verified_blocks(&IoChannel::disconnected());
 	client.flush_queue();
 }
 
 #[test]
 fn imports_good_block() {
-	let client = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected()).unwrap();
+	let dir = RandomTempPath::new();
+	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	let good_block = get_good_dummy_block();
 	if let Err(_) = client.import_block(good_block) {
 		panic!("error importing block being good by definition");
@@ -98,7 +77,8 @@ fn imports_good_block() {
 
 #[test]
 fn query_none_block() {
-	let client = Client::new(get_test_spec(), &get_random_temp_dir(), IoChannel::disconnected()).unwrap();
+	let dir = RandomTempPath::new();
+	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 
     let non_existant = client.block_header_at(188);
 	assert!(non_existant.is_none());
@@ -119,4 +99,19 @@ fn returns_chain_info() {
 	let block = BlockView::new(&dummy_block);
 	let info = client.chain_info();
 	assert_eq!(info.best_block_hash, block.header().hash());
+}
+
+#[test]
+fn imports_block_sequence() {
+	let client = generate_dummy_client(6);
+	let block = client.block_header_at(5).unwrap();
+
+	assert!(!block.is_empty());
+}
+
+#[test]
+fn can_collect_garbage() {
+	let client = generate_dummy_client(100);
+	client.tick();
+	assert!(client.cache_info().blocks < 100 * 1024);
 }
