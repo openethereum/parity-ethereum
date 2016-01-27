@@ -42,9 +42,11 @@ impl Stream for RlpStream {
 	}
 
 	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable {
+		let depth = self.unfinished_lists.len();
 		value.rlp_append(self);
-		// if list is finished, prepend the length
-		self.note_appended(1);
+		if depth == self.unfinished_lists.len() {
+			self.note_appended(1);
+		}
 		self
 	}
 
