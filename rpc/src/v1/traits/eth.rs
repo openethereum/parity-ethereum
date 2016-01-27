@@ -131,21 +131,33 @@ pub trait Eth: Sized + Send + Sync + 'static {
 /// Eth filters rpc api (polling).
 // TODO: do filters api properly
 pub trait EthFilter: Sized + Send + Sync + 'static {
-	/// Returns id of new block filter
+	/// Returns id of new filter.
+	fn new_filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns id of new block filter.
 	fn new_block_filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns id of new block filter
+	/// Returns id of new block filter.
 	fn new_pending_transaction_filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns filter changes since last poll
+	/// Returns filter changes since last poll.
 	fn filter_changes(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns filter logs.
+	fn filter_logs(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Uninstalls filter.
+	fn uninstall_filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
+		delegate.add_method("eth_newFilter", EthFilter::new_filter);
 		delegate.add_method("eth_newBlockFilter", EthFilter::new_block_filter);
 		delegate.add_method("eth_newPendingTransactionFilter", EthFilter::new_pending_transaction_filter);
 		delegate.add_method("eth_getFilterChanges", EthFilter::filter_changes);
+		delegate.add_method("eth_getFilterLogs", EthFilter::filter_logs);
+		delegate.add_method("eth_uninstallFilter", EthFilter::uninstall_filter);
 		delegate
 	}
 }
