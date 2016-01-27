@@ -51,6 +51,10 @@ impl TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
+	fn block_total_difficulty(&self, _h: &H256) -> Option<U256> {
+		unimplemented!();
+	}
+
 	fn block_header(&self, h: &H256) -> Option<Bytes> {
 		self.blocks.read().unwrap().get(h).map(|r| Rlp::new(r).at(0).as_raw().to_vec())
 
@@ -74,6 +78,10 @@ impl BlockChainClient for TestBlockChainClient {
 			Some(_) => BlockStatus::InChain,
 			None => BlockStatus::Unknown
 		}
+	}
+
+	fn block_total_difficulty_at(&self, _number: BlockNumber) -> Option<U256> {
+		unimplemented!();
 	}
 
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
