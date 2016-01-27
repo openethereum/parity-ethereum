@@ -25,6 +25,7 @@ impl ListInfo {
 pub struct RlpStream {
 	unfinished_lists: ElasticArray16<ListInfo>,
 	encoder: BasicEncoder,
+	finished_list: bool,
 }
 
 impl Stream for RlpStream {
@@ -32,6 +33,7 @@ impl Stream for RlpStream {
 		RlpStream {
 			unfinished_lists: ElasticArray16::new(),
 			encoder: BasicEncoder::new(),
+			finished_list: false,
 		}
 	}
 
@@ -42,15 +44,16 @@ impl Stream for RlpStream {
 	}
 
 	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable {
-		let depth = self.unfinished_lists.len();
+		self.finished_list = false;
 		value.rlp_append(self);
-		if depth == self.unfinished_lists.len() {
+		if !self.finished_list {
 			self.note_appended(1);
 		}
 		self
 	}
 
 	fn begin_list(&mut self, len: usize) -> &mut RlpStream {
+		self.finished_list = false;
 		match len {
 			0 => {
 				// we may finish, if the appended list len is equal 0
@@ -155,6 +158,7 @@ impl RlpStream {
 			self.encoder.insert_list_len_at_pos(len, x.position);
 			self.note_appended(1);
 		}
+		self.finished_list = should_finish;
 	}
 
 	/// Drain the object and return the underlying ElasticArray.
