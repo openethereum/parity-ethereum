@@ -4,8 +4,10 @@ use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
 use error::*;
 use header::BlockNumber;
+use state::State;
 use spec::Spec;
 use engine::Engine;
+use views::HeaderView;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use service::NetSyncMessage;
 use env_info::LastHashes;
@@ -102,6 +104,11 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Get the best block header.
+	fn best_block_header(&self) -> Bytes {
+		self.block_header(&self.chain_info().best_block_hash).unwrap()
+	}
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -141,7 +148,8 @@ const HISTORY: u64 = 1000;
 impl Client {
 	/// Create a new client with given spec and DB path.
 	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
-		let chain = Arc::new(RwLock::new(BlockChain::new(&spec.genesis_block(), path)));
+		let gb = spec.genesis_block();
+		let chain = Arc::new(RwLock::new(BlockChain::new(&gb, path)));
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
@@ -194,6 +202,7 @@ impl Client {
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.write().unwrap().drain(128);
 		for block in blocks {
+//			flushln!("Importing {}...", block.header.hash());
 			if bad.contains(&block.header.parent_hash) {
 				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
 				bad.insert(block.header.hash());
@@ -202,6 +211,7 @@ impl Client {
 
 			let header = &block.header;
 			if let Err(e) = verify_block_family(&header, &block.bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
+				flushln!("Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 				bad.insert(block.header.hash());
@@ -210,6 +220,7 @@ impl Client {
 			let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
 				Some(p) => p,
 				None => {
+					flushln!("Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
 					warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
 					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 					bad.insert(block.header.hash());
@@ -233,8 +244,9 @@ impl Client {
 			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
+					flushln!("Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 					warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				bad.insert(block.header.hash());
+					bad.insert(block.header.hash());
 					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 					return;
 				}
@@ -263,6 +275,11 @@ impl Client {
 	/// Clear cached state overlay 
 	pub fn clear_state(&self, hash: &H256) {
 		self.uncommited_states.write().unwrap().remove(hash);
+	}
+
+	/// Get a copy of the best block's state.
+	pub fn state(&self) -> State {
+		State::from_existing(self.state_db.clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
 	}
 
 	/// Get info on the cache.
