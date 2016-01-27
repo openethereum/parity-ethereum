@@ -42,9 +42,6 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 					client.flush_queue();
 					let imported_ok = client.import_verified_blocks(&IoChannel::disconnected()) > 0;
 					assert_eq!(imported_ok, is_valid);
-					if imported_ok {
-						flushln!("Imported {}; best block {}", hash, client.chain_info().best_block_hash);
-					}
 				}
 				fail_unless(client.chain_info().best_block_hash == H256::from_json(&test["lastblockhash"]));
 			}
@@ -60,7 +57,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
 declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
-declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}				// STILL FAILS
+declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}
 declare_test!{BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}
 declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
 declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
