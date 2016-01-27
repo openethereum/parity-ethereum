@@ -571,16 +571,10 @@ impl Interpreter {
 				let call_gas = stack.pop_back();
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
-				let is_delegatecall = instruction == instructions::DELEGATECALL;
 
-				let value = match is_delegatecall {
-					true => params.value,
-					false => stack.pop_back()
-				};
-
-				let address = match instruction == instructions::CALL {
-					true => &code_address,
-					false => &params.address
+				let value = match instruction == instructions::DELEGATECALL {
+					true => None,
+					false => Some(stack.pop_back())
 				};
 
 				let in_off = stack.pop_back();
@@ -588,13 +582,27 @@ impl Interpreter {
 				let out_off = stack.pop_back();
 				let out_size = stack.pop_back();
 
-				let call_gas = call_gas + match !is_delegatecall && value > U256::zero() {
+				// Add stipend (only CALL|CALLCODE when value > 0)
+				let call_gas = call_gas + value.map_or_else(U256::zero, |val| match val > U256::zero() {
 					true => U256::from(ext.schedule().call_stipend),
 					false => U256::zero()
+				});
+
+				// Get sender & receive addresses, check if we have balance
+				let (sender_address, receive_address, has_balance) = match instruction {
+					instructions::CALL => {
+						let has_balance = ext.balance(&params.address) >= value.unwrap();
+						(&params.address, &code_address, has_balance)
+					},
+					instructions::CALLCODE => {
+						let has_balance = ext.balance(&params.address) >= value.unwrap();
+						(&params.address, &params.address, has_balance)
+					},
+					instructions::DELEGATECALL => (&params.sender, &params.address, true),
+					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
 				};
 
-				let can_call = (is_delegatecall || ext.balance(&params.address) >= value) && ext.depth() < ext.schedule().max_depth;
-
+				let can_call = has_balance && ext.depth() < ext.schedule().max_depth;
 				if !can_call {
 					stack.push(U256::zero());
 					return Ok(InstructionResult::UnusedGas(call_gas));
@@ -605,7 +613,7 @@ impl Interpreter {
 					// and we don't want to copy
 					let input = unsafe { ::std::mem::transmute(mem.read_slice(in_off, in_size)) };
 					let output = mem.writeable_slice(out_off, out_size);
-					ext.call(&call_gas, address, &value, input, &code_address, output)
+					ext.call(&call_gas, sender_address, receive_address, value, input, &code_address, output)
 				};
 
 				return match call_result {
@@ -712,7 +720,10 @@ impl Interpreter {
 				stack.push(address_to_u256(params.sender.clone()));
 			},
 			instructions::CALLVALUE => {
-				stack.push(params.value.clone());
+				stack.push(match params.value {
+					ActionValue::Transfer(val) => val,
+					ActionValue::Apparent(val) => val,
+				});
 			},
 			instructions::CALLDATALOAD => {
 				let big_id = stack.pop_back();

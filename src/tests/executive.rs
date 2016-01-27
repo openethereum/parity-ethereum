@@ -101,8 +101,9 @@ impl<'a> Ext for TestExt<'a> {
 
 	fn call(&mut self, 
 			gas: &U256, 
+			_sender_address: &Address, 
 			receive_address: &Address, 
-			value: &U256, 
+			value: Option<U256>,
 			data: &[u8], 
 			_code_address: &Address, 
 			_output: &mut [u8]) -> MessageCallResult {
@@ -110,7 +111,7 @@ impl<'a> Ext for TestExt<'a> {
 			data: data.to_vec(),
 			destination: Some(receive_address.clone()),
 			gas_limit: *gas,
-			value: *value
+			value: value.unwrap()
 		});
 		MessageCallResult::Success(*gas)
 	}
@@ -194,7 +195,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		let engine = TestEngine::new(1, vm.clone());
 
 		// params
-		let mut params = ActionParams::new();
+		let mut params = ActionParams::default();
 		test.find("exec").map(|exec| {
 			params.address = xjson!(&exec["address"]);
 			params.sender = xjson!(&exec["caller"]);
@@ -203,7 +204,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 			params.data = xjson!(&exec["data"]);
 			params.gas = xjson!(&exec["gas"]);
 			params.gas_price = xjson!(&exec["gasPrice"]);
-			params.value = xjson!(&exec["value"]);
+			params.value = ActionValue::Transfer(xjson!(&exec["value"]));
 		});
 
 		let out_of_gas = test.find("callcreates").map(|_calls| {
@@ -270,8 +271,8 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 
 declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
 declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperationTest"}
-// this one crashes with some vm internal error. Separately they pass.
-declare_test!{ignore => ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
+declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
+ // TODO [todr] Fails with Signal 11 when using JIT
 declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfoTest"}
 declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperationsTest"}
 declare_test!{heavy => ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}

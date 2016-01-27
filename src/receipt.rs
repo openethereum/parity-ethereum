@@ -3,7 +3,7 @@ use basic_types::LogBloom;
 use log_entry::LogEntry;
 
 /// Information describing execution of a transaction.
-#[derive(Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Receipt {
 	/// TODO [Gav Wood] Please document me
 	pub state_root: H256,

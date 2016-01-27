@@ -162,7 +162,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 /// Check basic header parameters.
 fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.number >= From::from(BlockNumber::max_value()) {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number })))
+		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number })))
 	}
 	if header.gas_used > header.gas_limit {
 		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used })));
@@ -186,8 +186,8 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 	if header.timestamp <= parent.timestamp {
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp + 1), found: header.timestamp })))
 	}
-	if header.number <= parent.number {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number })));
+	if header.number != parent.number + 1 {
+		return Err(From::from(BlockError::InvalidNumber(Mismatch { expected: parent.number + 1, found: header.number })));
 	}
 	Ok(())
 }
@@ -397,7 +397,7 @@ mod tests {
 		header = good.clone();
 		header.number = BlockNumber::max_value();
 		check_fail(basic_test(&create_test_block(&header), engine.deref()),
-			InvalidNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number }));
+			RidiculousNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number }));
 
 		header = good.clone();
 		header.gas_used = header.gas_limit + From::from(1);
@@ -440,7 +440,7 @@ mod tests {
 		header = good.clone();
 		header.number = 9;
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
-			InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number }));
+			InvalidNumber(Mismatch { expected: parent.number + 1, found: header.number }));
 		
 		header = good.clone();
 		let mut bad_uncles = good_uncles.clone();

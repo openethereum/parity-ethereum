@@ -51,6 +51,10 @@ impl TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
+	fn block_total_difficulty(&self, _h: &H256) -> Option<U256> {
+		unimplemented!();
+	}
+
 	fn block_header(&self, h: &H256) -> Option<Bytes> {
 		self.blocks.read().unwrap().get(h).map(|r| Rlp::new(r).at(0).as_raw().to_vec())
 
@@ -74,6 +78,10 @@ impl BlockChainClient for TestBlockChainClient {
 			Some(_) => BlockStatus::InChain,
 			None => BlockStatus::Unknown
 		}
+	}
+
+	fn block_total_difficulty_at(&self, _number: BlockNumber) -> Option<U256> {
+		unimplemented!();
 	}
 
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
@@ -114,6 +122,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn import_block(&self, b: Bytes) -> ImportResult {
 		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
+		let h = header.hash();
 		let number: usize = header.number as usize;
 		if number > self.blocks.read().unwrap().len() {
 			panic!("Unexpected block number. Expected {}, got {}", self.blocks.read().unwrap().len(), number);
@@ -134,9 +143,9 @@ impl BlockChainClient for TestBlockChainClient {
 		let len = self.numbers.read().unwrap().len();
 		if number == len {
 			*self.difficulty.write().unwrap().deref_mut() += header.difficulty;
-			mem::replace(self.last_hash.write().unwrap().deref_mut(), header.hash());
-			self.blocks.write().unwrap().insert(header.hash(), b);
-			self.numbers.write().unwrap().insert(number, header.hash());
+			mem::replace(self.last_hash.write().unwrap().deref_mut(), h.clone());
+			self.blocks.write().unwrap().insert(h.clone(), b);
+			self.numbers.write().unwrap().insert(number, h.clone());
 			let mut parent_hash = header.parent_hash;
 			if number > 0 {
 				let mut n = number - 1;
@@ -148,9 +157,9 @@ impl BlockChainClient for TestBlockChainClient {
 			}
 		}
 		else {
-			self.blocks.write().unwrap().insert(header.hash(), b.to_vec());
+			self.blocks.write().unwrap().insert(h.clone(), b.to_vec());
 		}
-		Ok(())
+		Ok(h)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
@@ -158,6 +167,7 @@ impl BlockChainClient for TestBlockChainClient {
 			full: false,
 			verified_queue_size: 0,
 			unverified_queue_size: 0,
+			verifying_queue_size: 0,
 		}
 	}
 

@@ -26,7 +26,8 @@ crossbeam = "0.2"
 smallvec = "0.1"
 slab = { git = "https://github.com/arkpar/slab.git" }
 sha3 = { path = "sha3" }
-clippy = "*" # Always newest, since we use nightly
+serde = "0.6.7"
+clippy = "0.0.37"
 
 [dev-dependencies]
 json-tests = { path = "json-tests" }

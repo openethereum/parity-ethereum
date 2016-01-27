@@ -31,7 +31,7 @@ impl PodAccount {
 		}
 	}
 
-	/// TODO [Gav Wood] Please document me
+	/// Returns the RLP for this account.
 	pub fn rlp(&self) -> Bytes {
 		let mut stream = RlpStream::new_list(4);
 		stream.append(&self.nonce);
@@ -39,6 +39,18 @@ impl PodAccount {
 		stream.append(&sec_trie_root(self.storage.iter().map(|(k, v)| (k.to_vec(), encode(&U256::from(v.as_slice())).to_vec())).collect()));
 		stream.append(&self.code.sha3());
 		stream.out()
+	}
+
+	/// Place additional data into given hash DB.
+	pub fn insert_additional(&self, db: &mut HashDB) {
+		if !self.code.is_empty() {
+			db.insert(&self.code);
+		}
+		let mut r = H256::new();
+		let mut t = SecTrieDBMut::new(db, &mut r);
+		for (k, v) in &self.storage {
+			t.insert(k, &encode(&U256::from(v.as_slice())));
+		}
 	}
 }
 

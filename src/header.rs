@@ -11,7 +11,7 @@ pub type BlockNumber = u64;
 /// which is non-specific.
 ///
 /// Doesn't do all that much on its own.
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Header {
 	// TODO: make all private.
 	/// TODO [Gav Wood] Please document me

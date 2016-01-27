@@ -46,6 +46,9 @@ impl PayloadInfo {
 			value_len: value_len,
 		}
 	}
+
+	/// Total size of the RLP.
+	pub fn total(&self) -> usize { self.header_len + self.value_len }
 }
 
 /// Data-oriented view onto rlp-slice.
@@ -331,18 +334,31 @@ impl<'a> Decoder for BasicDecoder<'a> {
 			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
 			// 0-55 bytes
 			Some(l @ 0x80...0xb7) => {
-				let d = &bytes[1..(1 + l as usize - 0x80)];
+				let last_index_of = 1 + l as usize - 0x80;
+				if bytes.len() < last_index_of {
+					return Err(DecoderError::RlpInconsistentLengthAndData);
+				}
+				let d = &bytes[1..last_index_of];
 				if l == 0x81 && d[0] < 0x80 {
 					return Err(DecoderError::RlpInvalidIndirection);
 				}
+
 				Ok(try!(f(d)))
 			},
 			// longer than 55 bytes
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
 				let begin_of_value = 1 as usize + len_of_len;
+				if bytes.len() < begin_of_value {
+					return Err(DecoderError::RlpInconsistentLengthAndData);
+				}
 				let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
-				Ok(try!(f(&bytes[begin_of_value..begin_of_value + len])))
+
+				let last_index_of_value = begin_of_value + len;
+				if bytes.len() < last_index_of_value {
+					return Err(DecoderError::RlpInconsistentLengthAndData);
+				}
+				Ok(try!(f(&bytes[begin_of_value..last_index_of_value])))
 			}
 			// we are reading value, not a list!
 			_ => Err(DecoderError::RlpExpectedToBeData)

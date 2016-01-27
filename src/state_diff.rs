@@ -32,8 +32,8 @@ mod test {
 
 	#[test]
 	fn create_delete() {
-		let a = PodState::new(map![ x!(1) => PodAccount::new(x!(69), x!(0), vec![], map![]) ]);
-		assert_eq!(StateDiff::diff_pod(&a, &PodState::new(map![])), StateDiff(map![
+		let a = PodState::from(map![ x!(1) => PodAccount::new(x!(69), x!(0), vec![], map![]) ]);
+		assert_eq!(StateDiff::diff_pod(&a, &PodState::new()), StateDiff(map![
 			x!(1) => AccountDiff{
 				balance: Diff::Died(x!(69)),
 				nonce: Diff::Died(x!(0)),
@@ -41,7 +41,7 @@ mod test {
 				storage: map![],
 			}
 		]));
-		assert_eq!(StateDiff::diff_pod(&PodState::new(map![]), &a), StateDiff(map![
+		assert_eq!(StateDiff::diff_pod(&PodState::new(), &a), StateDiff(map![
 			x!(1) => AccountDiff{
 				balance: Diff::Born(x!(69)),
 				nonce: Diff::Born(x!(0)),
@@ -53,8 +53,8 @@ mod test {
 
 	#[test]
 	fn create_delete_with_unchanged() {
-		let a = PodState::new(map![ x!(1) => PodAccount::new(x!(69), x!(0), vec![], map![]) ]);
-		let b = PodState::new(map![
+		let a = PodState::from(map![ x!(1) => PodAccount::new(x!(69), x!(0), vec![], map![]) ]);
+		let b = PodState::from(map![
 			x!(1) => PodAccount::new(x!(69), x!(0), vec![], map![]),
 			x!(2) => PodAccount::new(x!(69), x!(0), vec![], map![])
 		]);
@@ -78,11 +78,11 @@ mod test {
 
 	#[test]
 	fn change_with_unchanged() {
-		let a = PodState::new(map![
+		let a = PodState::from(map![
 			x!(1) => PodAccount::new(x!(69), x!(0), vec![], map![]),
 			x!(2) => PodAccount::new(x!(69), x!(0), vec![], map![])
 		]);
-		let b = PodState::new(map![
+		let b = PodState::from(map![
 			x!(1) => PodAccount::new(x!(69), x!(1), vec![], map![]),
 			x!(2) => PodAccount::new(x!(69), x!(0), vec![], map![])
 		]);

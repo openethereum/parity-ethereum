@@ -3,7 +3,7 @@ use basic_types::*;
 use error::*;
 use evm::Schedule;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 /// TODO [Gav Wood] Please document me
 pub enum Action {
 	/// TODO [Gav Wood] Please document me
@@ -12,9 +12,13 @@ pub enum Action {
 	Call(Address),
 }
 
+impl Default for Action {
+	fn default() -> Action { Action::Create }
+}
+
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Debug,Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Transaction {
 	/// TODO [debris] Please document me
 	pub nonce: U256,

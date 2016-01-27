@@ -303,7 +303,9 @@ pub enum FromBytesError {
 	/// TODO [debris] Please document me
 	DataIsTooShort,
 	/// TODO [debris] Please document me
-	DataIsTooLong
+	DataIsTooLong,
+	/// Integer-representation is non-canonically prefixed with zero byte(s).
+	ZeroPrefixedInt,
 }
 
 impl StdError for FromBytesError {
@@ -340,6 +342,9 @@ macro_rules! impl_uint_from_bytes {
 				match bytes.len() {
 					0 => Ok(0),
 					l if l <= mem::size_of::<$to>() => {
+						if bytes[0] == 0 {
+							return Err(FromBytesError::ZeroPrefixedInt)
+						}
 						let mut res = 0 as $to;
 						for i in 0..l {
 							let shift = (l - 1 - i) * 8;
@@ -374,7 +379,9 @@ macro_rules! impl_uint_from_bytes {
 	($name: ident) => {
 		impl FromBytes for $name {
 			fn from_bytes(bytes: &[u8]) -> FromBytesResult<$name> {
-				if bytes.len() <= $name::SIZE {
+				if !bytes.is_empty() && bytes[0] == 0 {
+					Err(FromBytesError::ZeroPrefixedInt)
+				} else if bytes.len() <= $name::SIZE {
 					Ok($name::from(bytes))
 				} else {
 					Err(FromBytesError::DataIsTooLong)

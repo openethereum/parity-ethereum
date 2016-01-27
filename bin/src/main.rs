@@ -1,7 +1,9 @@
-#![feature(plugin)]
-// TODO: uncomment once this can be made to work.
-//#![plugin(docopt_macros)]
+//! Ethcore client application.
 
+#![warn(missing_docs)]
+#![feature(plugin)]
+#![plugin(docopt_macros)]
+#![plugin(clippy)]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -9,6 +11,9 @@ extern crate ethcore;
 extern crate log;
 extern crate env_logger;
 extern crate ctrlc;
+
+#[cfg(feature = "rpc")]
+extern crate ethcore_rpc as rpc;
 
 use std::env;
 use log::{LogLevelFilter};
@@ -20,9 +25,8 @@ use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethcore::sync::EthSync;
-use docopt::Docopt;
 
-const USAGE: &'static str = "
+docopt!(Args derive Debug, "
 Parity. Ethereum Client.
 
 Usage:
@@ -32,15 +36,9 @@ Usage:
 Options:
   -l --logging LOGGING  Specify the logging level
   -h --help             Show this screen.
-";
+");
 
-#[derive(Debug, RustcDecodable)]
-struct Args {
-    arg_enode: Option<Vec<String>>,
-    flag_logging: Option<String>,
-}
-
-fn setup_log(init: &Option<String>) {
+fn setup_log(init: &str) {
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
@@ -48,26 +46,42 @@ fn setup_log(init: &Option<String>) {
 		builder.parse(&env::var("RUST_LOG").unwrap());
 	}
 
-	if let &Some(ref x) = init {
-		builder.parse(x);
-	}
+	builder.parse(init);
 
 	builder.init().unwrap();
 }
 
+
+#[cfg(feature = "rpc")]
+fn setup_rpc_server(client: Arc<Client>) {
+	use rpc::v1::*;
+	
+	let mut server = rpc::HttpServer::new(1);
+	server.add_delegate(Web3Client::new().to_delegate());
+	server.add_delegate(EthClient::new(client.clone()).to_delegate());
+	server.add_delegate(EthFilterClient::new(client).to_delegate());
+	server.add_delegate(NetClient::new().to_delegate());
+	server.start_async("127.0.0.1:3030");
+}
+
+#[cfg(not(feature = "rpc"))]
+fn setup_rpc_server(_client: Arc<Client>) {
+}
+
 fn main() {
-	let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
+	let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
 
 	setup_log(&args.flag_logging);
 
 	let spec = ethereum::new_frontier();
-	let init_nodes = match &args.arg_enode {
-		&None => spec.nodes().clone(),
-		&Some(ref enodes) => enodes.clone(),
+	let init_nodes = match args.arg_enode.len() {
+		0 => spec.nodes().clone(),
+		_ => args.arg_enode.clone(),
 	};
 	let mut net_settings = NetworkConfiguration::new();
 	net_settings.boot_nodes = init_nodes;
 	let mut service = ClientService::start(spec, net_settings).unwrap();
+	setup_rpc_server(service.client());
 	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: service.sync() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 

@@ -55,7 +55,7 @@ extern crate secp256k1;
 extern crate arrayvec;
 extern crate elastic_array;
 extern crate crossbeam;
-extern crate smallvec;
+extern crate serde;
 
 /// TODO [Gav Wood] Please document me
 pub mod standard;

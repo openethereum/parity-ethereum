@@ -1,13 +1,14 @@
 pub use std::io;
+pub use std::fs;
 pub use std::str;
 pub use std::fmt;
-pub use std::slice;
 pub use std::cmp;
 pub use std::ptr;
-pub use std::result;
-pub use std::option;
 pub use std::mem;
 pub use std::ops;
+pub use std::slice;
+pub use std::result;
+pub use std::option;
 
 pub use std::path::Path;
 pub use std::str::{FromStr};
@@ -15,9 +16,9 @@ pub use std::io::{Read,Write};
 pub use std::hash::{Hash, Hasher};
 pub use std::error::Error as StdError;
 
-pub use std::sync::*;
 pub use std::ops::*;
 pub use std::cmp::*;
+pub use std::sync::*;
 pub use std::cell::*;
 pub use std::collections::*;
 

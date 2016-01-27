@@ -8,6 +8,8 @@ use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
 use from_json::*;
 use uint::{Uint, U256};
+use rustc_serialize::hex::ToHex;
+use serde;
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
 ///
@@ -41,6 +43,8 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
 	/// TODO [debris] Please document me
 	fn is_zero(&self) -> bool;
+	/// Return the lowest 8 bytes interpreted as a BigEndian integer.
+	fn low_u64(&self) -> u64;
 }
 
 fn clean_0x(s: &str) -> &str {
@@ -71,8 +75,8 @@ macro_rules! impl_hash {
 				&self.0
 			}
 		}
-		impl DerefMut for $from {
 
+		impl DerefMut for $from {
 			#[inline]
 			fn deref_mut(&mut self) -> &mut [u8] {
 				&mut self.0
@@ -190,6 +194,14 @@ macro_rules! impl_hash {
 			fn is_zero(&self) -> bool {
 				self.eq(&Self::new())
 			}
+
+			fn low_u64(&self) -> u64 {
+				let mut ret = 0u64;
+				for i in 0..min($size, 8) {
+					ret |= (self.0[$size - 1 - i] as u64) << (i * 8);
+				}
+				ret
+			}
 		}
 
 		impl FromStr for $from {
@@ -202,6 +214,41 @@ macro_rules! impl_hash {
 					ret.0[i] = a[i];
 				}
 				Ok(ret)
+			}
+		}
+
+		impl serde::Serialize for $from {
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			where S: serde::Serializer {
+				let mut hex = "0x".to_owned();
+				hex.push_str(self.to_hex().as_ref());
+				serializer.visit_str(hex.as_ref())
+			}
+		}
+
+		impl serde::Deserialize for $from {
+			fn deserialize<D>(deserializer: &mut D) -> Result<$from, D::Error>
+			where D: serde::Deserializer {
+				struct HashVisitor;
+
+				impl serde::de::Visitor for HashVisitor {
+					type Value = $from;
+					
+					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
+						// 0x + len
+						if value.len() != 2 + $size * 2 {
+							return Err(serde::Error::syntax("Invalid length."));
+						}
+
+						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::syntax("Invalid valid hex."))
+					}
+
+					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
+						self.visit_str(value.as_ref())
+					}
+				}
+
+				deserializer.visit(HashVisitor)
 			}
 		}
 

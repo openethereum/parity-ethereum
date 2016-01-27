@@ -2,7 +2,7 @@ use util::*;
 use basic_types::LogBloom;
 
 /// A single log's entry.
-#[derive(Debug,PartialEq,Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct LogEntry {
 	/// TODO [Gav Wood] Please document me
 	pub address: Address,

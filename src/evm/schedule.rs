@@ -2,67 +2,67 @@
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
 pub struct Schedule {
-	/// TODO [Gav Wood] Please document me
+	/// Does it support exceptional failed code deposit
 	pub exceptional_failed_code_deposit: bool,
-	/// TODO [Gav Wood] Please document me
+	/// Does it have a delegate cal
 	pub have_delegate_call: bool,
-	/// TODO [Tomusdrw] Please document me
+	/// VM stack limit
 	pub stack_limit: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Max number of nested calls/creates
 	pub max_depth: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas prices for instructions in all tiers
 	pub tier_step_gas: [usize; 8],
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for `EXP` opcode
 	pub exp_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Additional gas for `EXP` opcode for each byte of exponent
 	pub exp_byte_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for `SHA3` opcode
 	pub sha3_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Additional gas for `SHA3` opcode for each word of hashed memory
 	pub sha3_word_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for loading from storage
 	pub sload_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for setting new value to storage (`storage==0`, `new!=0`)
 	pub sstore_set_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for altering value in storage
 	pub sstore_reset_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas refund for `SSTORE` clearing (when `storage!=0`, `new==0`)
 	pub sstore_refund_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for `JUMPDEST` opcode
 	pub jumpdest_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for `LOG*`
 	pub log_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Additional gas for data in `LOG*`
 	pub log_data_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Additional gas for each topic in `LOG*`
 	pub log_topic_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for `CREATE` opcode
 	pub create_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for `*CALL*` opcodes
 	pub call_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Stipend for transfer for `CALL|CALLCODE` opcode when `value>0`
 	pub call_stipend: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Additional gas required for value transfer (`CALL|CALLCODE`)
 	pub call_value_transfer_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Additional gas for creating new account (`CALL|CALLCODE`)
 	pub call_new_account_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Refund for SUICIDE
 	pub suicide_refund_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas for used memory
 	pub memory_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Coefficient used to convert memory size to gas price for memory
 	pub quad_coeff_div: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Cost for contract length when executing `CREATE`
 	pub create_data_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Transaction cost
 	pub tx_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// `CREATE` transaction cost
 	pub tx_create_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Additional cost for empty data transaction
 	pub tx_data_zero_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Aditional cost for non-empty data transaction
 	pub tx_data_non_zero_gas: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Gas price for copying memory
 	pub copy_gas: usize,
 }
 

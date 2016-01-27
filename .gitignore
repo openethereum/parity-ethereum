@@ -23,4 +23,5 @@ Cargo.lock
 
 /json-tests/target/
 
-
+# jetbrains ide stuff
+.idea

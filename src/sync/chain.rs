@@ -415,7 +415,7 @@ impl ChainSync {
 				Err(ImportError::AlreadyQueued) => {
 					trace!(target: "sync", "New block already queued {:?}", h);
 				},
-				Ok(()) => {
+				Ok(_) => {
 					trace!(target: "sync", "New block queued {:?}", h);
 				},
 				Err(e) => {
@@ -680,7 +680,7 @@ impl ChainSync {
 						self.last_imported_block = headers.0 + i as BlockNumber;
 						self.last_imported_hash = h.clone();
 					},
-					Ok(()) => {
+					Ok(_) => {
 						trace!(target: "sync", "Block queued {:?}", h);
 						self.last_imported_block = headers.0 + i as BlockNumber;
 						self.last_imported_hash = h.clone();
