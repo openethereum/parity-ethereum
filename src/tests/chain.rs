@@ -1,9 +1,9 @@
-use std::env;
 use super::test_common::*;
 use client::{BlockChainClient,Client};
 use pod_state::*;
 use block::Block;
 use ethereum;
+use super::helpers::*;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
@@ -28,10 +28,9 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			spec.overwrite_genesis(test.find("genesisBlockHeader").unwrap());
 			assert!(spec.is_state_root_valid());
 
-			let mut dir = env::temp_dir();
-			dir.push(H32::random().hex());
+			let temp = RandomTempPath::new();
 			{
-				let client = Client::new(spec, &dir, IoChannel::disconnected()).unwrap();
+				let client = Client::new(spec, temp.as_path(), IoChannel::disconnected()).unwrap();
 				for (b, is_valid) in blocks.into_iter() {
 					if Block::is_good(&b) {
 						let _ = client.import_block(b.clone());
@@ -42,7 +41,6 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 				}
 				fail_unless(client.chain_info().best_block_hash == H256::from_json(&test["lastblockhash"]));
 			}
-			fs::remove_dir_all(&dir).unwrap();
 		}
 		if !fail {
 			flush(format!("ok\n"));
