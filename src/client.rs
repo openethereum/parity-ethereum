@@ -292,6 +292,18 @@ impl Client {
 	pub fn tick(&self) {
 		self.chain.read().unwrap().collect_garbage(false);
 	}
+
+	/// Minimizes cache used by the client.
+	pub fn minimize_cache(&self) {
+		self.chain.read().unwrap().squeeze_to_fit(
+			CacheSize {
+				blocks: 0,
+				block_logs: 0,
+				transaction_addresses: 0,
+				block_details: 0,
+				blocks_blooms: 0
+			});
+	}
 }
 
 impl BlockChainClient for Client {

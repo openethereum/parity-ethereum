@@ -1,8 +1,5 @@
 use client::{BlockChainClient,Client};
-use std::env;
 use super::test_common::*;
-use std::path::PathBuf;
-use spec::*;
 use super::helpers::*;
 
 #[cfg(test)]
@@ -35,14 +32,6 @@ fn get_bad_state_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
-#[cfg(test)]
-fn create_test_block(header: &Header) -> Bytes {
-	let mut rlp = RlpStream::new_list(3);
-	rlp.append(header);
-	rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-	rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-	rlp.out()
-}
 
 #[cfg(test)]
 fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
@@ -108,4 +97,30 @@ fn returns_chain_info() {
 	let block = BlockView::new(&dummy_block);
 	let info = client.chain_info();
 	assert_eq!(info.best_block_hash, block.header().hash());
+}
+
+#[test]
+fn imports_block_sequence() {
+	let client = generate_dummy_client(6);
+	let block = client.block_header_at(5).unwrap();
+
+	assert!(!block.is_empty());
+}
+
+
+#[test]
+fn can_have_cash_minimized() {
+	let client = generate_dummy_client(20);
+	client.minimize_cache();
+	assert!(client.cache_info().blocks < 2048);
+	assert!(client.cache_info().block_details < 4096);
+	assert_eq!(client.cache_info().block_logs, 0);
+	assert_eq!(client.cache_info().blocks_blooms, 0);
+}
+
+#[test]
+fn can_collect_garbage() {
+	let client = generate_dummy_client(100);
+	client.tick();
+	assert!(client.cache_info().blocks < 100 * 1024);
 }
