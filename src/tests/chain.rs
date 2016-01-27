@@ -33,11 +33,8 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			{
 				let client = Client::new(spec, &dir, IoChannel::disconnected()).unwrap();
 				for (b, is_valid) in blocks.into_iter() {
-					let mut hash = H256::new();
 					if Block::is_good(&b) {
-						if let Ok(h) = client.import_block(b.clone()) {
-							hash = h;
-						}
+						let _ = client.import_block(b.clone());
 					}
 					client.flush_queue();
 					let imported_ok = client.import_verified_blocks(&IoChannel::disconnected()) > 0;
