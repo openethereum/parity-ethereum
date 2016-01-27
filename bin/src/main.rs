@@ -1,5 +1,9 @@
+//! Ethcore client application.
+
+#![warn(missing_docs)]
 #![feature(plugin)]
 #![plugin(docopt_macros)]
+#![plugin(clippy)]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -7,6 +11,9 @@ extern crate ethcore;
 extern crate log;
 extern crate env_logger;
 extern crate ctrlc;
+
+#[cfg(feature = "rpc")]
+extern crate ethcore_rpc as rpc;
 
 use std::env;
 use log::{LogLevelFilter};
@@ -31,7 +38,7 @@ Options:
   -h --help             Show this screen.
 ");
 
-fn setup_log(init: &String) {
+fn setup_log(init: &str) {
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
@@ -42,6 +49,23 @@ fn setup_log(init: &String) {
 	builder.parse(init);
 
 	builder.init().unwrap();
+}
+
+
+#[cfg(feature = "rpc")]
+fn setup_rpc_server(client: Arc<Client>) {
+	use rpc::v1::*;
+	
+	let mut server = rpc::HttpServer::new(1);
+	server.add_delegate(Web3Client::new().to_delegate());
+	server.add_delegate(EthClient::new(client.clone()).to_delegate());
+	server.add_delegate(EthFilterClient::new(client).to_delegate());
+	server.add_delegate(NetClient::new().to_delegate());
+	server.start_async("127.0.0.1:3030");
+}
+
+#[cfg(not(feature = "rpc"))]
+fn setup_rpc_server(_client: Arc<Client>) {
 }
 
 fn main() {
@@ -57,6 +81,7 @@ fn main() {
 	let mut net_settings = NetworkConfiguration::new();
 	net_settings.boot_nodes = init_nodes;
 	let mut service = ClientService::start(spec, net_settings).unwrap();
+	setup_rpc_server(service.client());
 	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: service.sync() });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 

@@ -66,6 +66,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block status by block header hash.
 	fn block_status(&self, hash: &H256) -> BlockStatus;
 
+	/// Get block total difficulty.
+	fn block_total_difficulty(&self, hash: &H256) -> Option<U256>;
+
 	/// Get raw block header data by block number.
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes>;
 
@@ -78,6 +81,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get block status by block number.
 	fn block_status_at(&self, n: BlockNumber) -> BlockStatus;
+
+	/// Get block total difficulty.
+	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
@@ -193,12 +199,12 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) {
+	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) -> usize {
+		let mut ret = 0;
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.write().unwrap().drain(128);
 		for block in blocks {
-//			flushln!("Importing {}...", block.header.hash());
 			if bad.contains(&block.header.parent_hash) {
 				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
 				bad.insert(block.header.hash());
@@ -207,20 +213,18 @@ impl Client {
 
 			let header = &block.header;
 			if let Err(e) = verify_block_family(&header, &block.bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
-				flushln!("Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 				bad.insert(block.header.hash());
-				return;
+				break;
 			};
 			let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
 				Some(p) => p,
 				None => {
-					flushln!("Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
 					warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
 					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 					bad.insert(block.header.hash());
-					return;
+					break;
 				},
 			};
 			// build last hashes
@@ -240,18 +244,16 @@ impl Client {
 			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
-					flushln!("Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 					warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 					bad.insert(block.header.hash());
 					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
-					return;
+					break;
 				}
 			};
 			if let Err(e) = verify_block_final(&header, result.block().header()) {
-				flushln!("Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
-				return;
+				break;
 			}
 
 			self.chain.write().unwrap().insert_block(&block.bytes); //TODO: err here?
@@ -260,12 +262,14 @@ impl Client {
 				Ok(_) => (),
 				Err(e) => {
 					warn!(target: "client", "State DB commit failed: {:?}", e);
-					return;
+					break;
 				}
 			}
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
+			ret += 1;
 		}
+		ret
 	}
 
 	/// Clear cached state overlay 
@@ -316,6 +320,10 @@ impl BlockChainClient for Client {
 	fn block_status(&self, hash: &H256) -> BlockStatus {
 		if self.chain.read().unwrap().is_known(&hash) { BlockStatus::InChain } else { BlockStatus::Unknown }
 	}
+	
+	fn block_total_difficulty(&self, hash: &H256) -> Option<U256> {
+		self.chain.read().unwrap().block_details(hash).map(|d| d.total_difficulty)
+	}
 
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
 		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_header(&h))
@@ -334,6 +342,10 @@ impl BlockChainClient for Client {
 			Some(h) => self.block_status(&h),
 			None => BlockStatus::Unknown
 		}
+	}
+
+	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256> {
+		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_total_difficulty(&h))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {

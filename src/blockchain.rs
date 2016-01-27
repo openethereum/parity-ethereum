@@ -565,15 +565,6 @@ impl BlockChain {
 		}
 	}
 
-	/// Tries to squeeze the cache if its too big.
-	pub fn squeeze_to_fit(&self, size: CacheSize) {
-		self.blocks.write().unwrap().squeeze(size.blocks);
-		self.block_details.write().unwrap().squeeze(size.block_details);
-		self.transaction_addresses.write().unwrap().squeeze(size.transaction_addresses);
-		self.block_logs.write().unwrap().squeeze(size.block_logs);
-		self.blocks_blooms.write().unwrap().squeeze(size.blocks_blooms);
-	}
-
 	/// Let the cache system know that a cacheable item has been used.
 	fn note_used(&self, id: CacheID) {
 		let mut cache_man = self.cache_man.write().unwrap();

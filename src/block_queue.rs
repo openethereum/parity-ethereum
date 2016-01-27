@@ -158,7 +158,6 @@ impl BlockQueue {
 				},
 				Err(err) => {
 					let mut v = verification.lock().unwrap();
-					flushln!("Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					warn!(target: "client", "Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					v.bad.insert(block_hash.clone());
 					v.verifying.retain(|e| e.hash != block_hash);
@@ -200,34 +199,35 @@ impl BlockQueue {
 	/// Add a block to the queue.
 	pub fn import_block(&mut self, bytes: Bytes) -> ImportResult {
 		let header = BlockView::new(&bytes).header();
-		if self.processing.contains(&header.hash()) {
+		let h = header.hash();
+		if self.processing.contains(&h) {
 			return Err(ImportError::AlreadyQueued);
 		}
 		{
 			let mut verification = self.verification.lock().unwrap();
-			if verification.bad.contains(&header.hash()) {
+			if verification.bad.contains(&h) {
 				return Err(ImportError::Bad(None));
 			}
 
 			if verification.bad.contains(&header.parent_hash) {
-				verification.bad.insert(header.hash());
+				verification.bad.insert(h.clone());
 				return Err(ImportError::Bad(None));
 			}
 		}
 
 		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
 			Ok(()) => {
-				self.processing.insert(header.hash());
+				self.processing.insert(h.clone());
 				self.verification.lock().unwrap().unverified.push_back(UnVerifiedBlock { header: header, bytes: bytes });
 				self.more_to_verify.notify_all();
+				Ok(h)
 			},
 			Err(err) => {
-				flushln!("Stage 1 block verification failed for {}\nError: {:?}", BlockView::new(&bytes).header_view().sha3(), err);
 				warn!(target: "client", "Stage 1 block verification failed for {}\nError: {:?}", BlockView::new(&bytes).header_view().sha3(), err);
-				self.verification.lock().unwrap().bad.insert(header.hash());
+				self.verification.lock().unwrap().bad.insert(h.clone());
+				Err(From::from(err))
 			}
 		}
-		Ok(())
 	}
 
 	/// Mark given block and all its children as bad. Stops verification.
