@@ -1,5 +1,9 @@
+//! Ethcore client application.
+
+#![warn(missing_docs)]
 #![feature(plugin)]
 #![plugin(docopt_macros)]
+#![plugin(clippy)]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -34,7 +38,7 @@ Options:
   -h --help             Show this screen.
 ");
 
-fn setup_log(init: &String) {
+fn setup_log(init: &str) {
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
@@ -52,7 +56,7 @@ fn setup_log(init: &String) {
 fn setup_rpc_server(client: Arc<Client>) {
 	use rpc::v1::*;
 	
-	let mut server = HttpServer::new(1);
+	let mut server = rpc::HttpServer::new(1);
 	server.add_delegate(Web3Client::new().to_delegate());
 	server.add_delegate(EthClient::new(client.clone()).to_delegate());
 	server.add_delegate(EthFilterClient::new(client).to_delegate());
