@@ -14,9 +14,10 @@
 //! fn to_bytes() {
 //! 	use util::bytes::ToBytes;
 //!
-//! 	let a: Vec<u8> = "hello_world".to_bytes();
-//! 	let b: Vec<u8> = 400u32.to_bytes();
-//! 	let c: Vec<u8> = 0xffffffffffffffffu64.to_bytes();
+//! 	let mut out: Vec<u8> = Vec::new();
+//! 	"hello_world".to_bytes(&mut out);
+//! 	400u32.to_bytes(&mut out);
+//! 	0xffffffffffffffffu64.to_bytes(&mut out);
 //! }
 //!
 //! fn from_bytes() {
@@ -47,20 +48,29 @@ use elastic_array::*;
 /// Vector like object
 pub trait VecLike<T> {
 	/// Add an element to the collection
-    fn push(&mut self, value: T);
+    fn vec_push(&mut self, value: T);
 
 	/// Add a slice to the collection
-    fn extend(&mut self, slice: &[T]);
+    fn vec_extend(&mut self, slice: &[T]);
 }
 
+impl<T> VecLike<T> for Vec<T> where T: Copy {
+	fn vec_push(&mut self, value: T) {
+		Vec::<T>::push(self, value)
+	}
+
+	fn vec_extend(&mut self, slice: &[T]) {
+		Vec::<T>::extend_from_slice(self, slice)
+	}
+}
 
 macro_rules! impl_veclike_for_elastic_array {
 	($from: ident) => {
 		impl<T> VecLike<T> for $from<T> where T: Copy {
-			fn push(&mut self, value: T) {
+			fn vec_push(&mut self, value: T) {
 				$from::<T>::push(self, value)
 			}
-			fn extend(&mut self, slice: &[T]) {
+			fn vec_extend(&mut self, slice: &[T]) {
 				$from::<T>::append_slice(self, slice)
 
 			}
@@ -207,7 +217,7 @@ pub trait ToBytes {
 
 impl <'a> ToBytes for &'a str {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.extend(self.as_bytes());
+		out.vec_extend(self.as_bytes());
 	}
 
 	fn to_bytes_len(&self) -> usize {
@@ -217,7 +227,7 @@ impl <'a> ToBytes for &'a str {
 
 impl ToBytes for String {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.extend(self.as_bytes());
+		out.vec_extend(self.as_bytes());
 	}
 
 	fn to_bytes_len(&self) -> usize {
@@ -230,7 +240,7 @@ impl ToBytes for u64 {
 		let count = self.to_bytes_len();
 		for i in 0..count {
 			let j = count - 1 - i;
-			out.push((*self >> (j * 8)) as u8);
+			out.vec_push((*self >> (j * 8)) as u8);
 		}
 	}
 
@@ -239,7 +249,7 @@ impl ToBytes for u64 {
 
 impl ToBytes for bool {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.push(if *self { 1u8 } else { 0u8 })
+		out.vec_push(if *self { 1u8 } else { 0u8 })
 	}
 
 	fn to_bytes_len(&self) -> usize { 1 }
@@ -269,7 +279,7 @@ macro_rules! impl_uint_to_bytes {
 				let count = self.to_bytes_len();
 				for i in 0..count {
 					let j = count - 1 - i;
-					out.push(self.byte(j));
+					out.vec_push(self.byte(j));
 				}
 			}
 			fn to_bytes_len(&self) -> usize { (self.bits() + 7) / 8 }
@@ -282,7 +292,7 @@ impl_uint_to_bytes!(U128);
 
 impl <T>ToBytes for T where T: FixedHash {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.extend(self.bytes());
+		out.vec_extend(self.bytes());
 	}
 	fn to_bytes_len(&self) -> usize { self.bytes().len() }
 }

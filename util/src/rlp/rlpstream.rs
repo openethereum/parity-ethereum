@@ -69,8 +69,9 @@ impl Stream for RlpStream {
 		let items = list.deref();
 		self.begin_list(items.len());
 		for el in items.iter() {
-			self.append(el);
+			el.rlp_append(self);
 		}
+		self.note_appended(items.len());
 		self
 	}
 
@@ -240,7 +241,7 @@ impl<T> ByteEncodable for T where T: ToBytes {
 
 impl<'a> ByteEncodable for &'a[u8] {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.extend(self)
+		out.vec_extend(self)
 	}
 
 	fn bytes_len(&self) -> usize {
@@ -250,7 +251,7 @@ impl<'a> ByteEncodable for &'a[u8] {
 
 impl ByteEncodable for Vec<u8> {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.extend(self.deref())
+		out.vec_extend(self.deref())
 	}
 
 	fn bytes_len(&self) -> usize {

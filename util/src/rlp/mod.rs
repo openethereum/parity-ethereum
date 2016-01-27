@@ -87,7 +87,7 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 ///
 /// fn main () {
 /// 	let animal = "cat";
-/// 	let out = encode(&animal);
+/// 	let out = encode(&animal).to_vec();
 /// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```
@@ -105,7 +105,7 @@ pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: Encodable {
 ///
 /// fn main () {
 /// 	let animals = vec!["cat", "dog"];
-/// 	let out = encode_list(&animals);
+/// 	let out = encode_list(&animals).to_vec();
 /// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 /// }
 /// ```

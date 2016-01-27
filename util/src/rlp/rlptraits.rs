@@ -286,10 +286,10 @@ pub trait Stream: Sized {
 	/// use util::rlp::*;
 	///
 	/// fn main () {
-	/// 	let mut stream = RlpStream::new_list(2);
-	/// 	stream.begin_list([&"cat", &"dog"]);
-	/// 	let out = stream.out();
-	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
+	/// 	let mut stream = RlpStream::new_list(1);
+	/// 	stream.append_list(&vec!["cat", "dog"]);
+	/// 	let out = stream.out().to_vec();
+	/// 	assert_eq!(out, vec![0xc9, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
 	fn append_list<I, E>(&mut self, list: &I) -> &mut Self where I: Deref<Target = [E]>, E: Encodable;
