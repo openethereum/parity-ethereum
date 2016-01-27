@@ -36,7 +36,7 @@ impl Drop for JournalDB {
 
 impl JournalDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(backing: DB, path: Option<String>) -> JournalDB {
+	fn new(backing: DB, path: Option<String>) -> JournalDB {
 		let db = Arc::new(backing);
 		JournalDB {
 			forward: OverlayDB::new_with_arc(db.clone()),
