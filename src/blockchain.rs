@@ -778,5 +778,4 @@ mod tests {
 			assert_eq!(bc.best_block_hash(), b1_hash);
 		}
 	}
-
 }

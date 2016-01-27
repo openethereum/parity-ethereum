@@ -109,17 +109,6 @@ fn imports_block_sequence() {
 	assert!(!block.is_empty());
 }
 
-
-#[test]
-fn can_have_cash_minimized() {
-	let client = generate_dummy_client(20);
-	client.minimize_cache();
-	assert!(client.cache_info().blocks < 2048);
-	assert!(client.cache_info().block_details < 4096);
-	assert_eq!(client.cache_info().block_logs, 0);
-	assert_eq!(client.cache_info().blocks_blooms, 0);
-}
-
 #[test]
 fn can_collect_garbage() {
 	let client = generate_dummy_client(100);
