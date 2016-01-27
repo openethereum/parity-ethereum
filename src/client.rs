@@ -13,7 +13,6 @@ use service::NetSyncMessage;
 use env_info::LastHashes;
 use verification::*;
 use block::*;
-use extras::BlockDetails;
 
 /// General block status
 #[derive(Debug)]
@@ -67,8 +66,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block status by block header hash.
 	fn block_status(&self, hash: &H256) -> BlockStatus;
 
-	/// Get familial details concerning a block.
-	fn block_details(&self, hash: &H256) -> Option<BlockDetails>;
+	/// Get block total difficulty.
+	fn block_total_difficulty(&self, hash: &H256) -> Option<U256>;
 
 	/// Get raw block header data by block number.
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes>;
@@ -82,6 +81,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get block status by block number.
 	fn block_status_at(&self, n: BlockNumber) -> BlockStatus;
+
+	/// Get block total difficulty.
+	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
@@ -321,8 +323,8 @@ impl BlockChainClient for Client {
 		if self.chain.read().unwrap().is_known(&hash) { BlockStatus::InChain } else { BlockStatus::Unknown }
 	}
 	
-	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
-		self.chain.read().unwrap().block_details(hash)
+	fn block_total_difficulty(&self, hash: &H256) -> Option<U256> {
+		self.chain.read().unwrap().block_details(hash).map(|d| d.total_difficulty)
 	}
 
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
@@ -342,6 +344,10 @@ impl BlockChainClient for Client {
 			Some(h) => self.block_status(&h),
 			None => BlockStatus::Unknown
 		}
+	}
+
+	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256> {
+		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_total_difficulty(&h))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {

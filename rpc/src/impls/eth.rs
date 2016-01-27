@@ -69,8 +69,8 @@ impl Eth for EthClient {
 
 	fn block(&self, params: Params) -> Result<Value, Error> {
 		match from_params::<(H256, bool)>(params) {
-			Ok((hash, _include_txs)) => match (self.client.block_header(&hash), self.client.block_details(&hash)) {
-				(Some(bytes), Some(details)) => {
+			Ok((hash, _include_txs)) => match (self.client.block_header(&hash), self.client.block_total_difficulty(&hash)) {
+				(Some(bytes), Some(total_difficulty)) => {
 					let view = HeaderView::new(&bytes);
 					let block = Block {
 						hash: view.sha3(),
@@ -87,7 +87,7 @@ impl Eth for EthClient {
 						logs_bloom: view.log_bloom(),
 						timestamp: U256::from(view.timestamp()),
 						difficulty: view.difficulty(),
-						total_difficulty: details.total_difficulty,
+						total_difficulty: total_difficulty,
 						uncles: vec![],
 						transactions: vec![]
 					};
