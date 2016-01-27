@@ -1,10 +1,12 @@
 use std::sync::Arc;
-use serde_json;
 use jsonrpc_core::*;
 use util::hash::*;
+use util::uint::*;
+use util::sha3::*;
 use ethcore::client::*;
+use ethcore::views::*;
 use traits::{Eth, EthFilter};
-use types::{Block, as_value, from_value};
+use types::{Block, to_value, from_value};
 
 pub struct EthClient {
 	client: Arc<Client>,
@@ -28,7 +30,7 @@ impl Eth for EthClient {
 
 	fn author(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(as_value(&Address::new())),
+			Params::None => Ok(to_value(&Address::new())),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -67,9 +69,34 @@ impl Eth for EthClient {
 
 	fn block(&self, params: Params) -> Result<Value, Error> {
 		if let Params::Array(ref arr) = params {
-			if let [ref h, Value::Bool(ref include_transactions)] = arr as &[Value] {
+			if let [ref h, Value::Bool(ref _include_txs)] = arr as &[Value] {
 				if let Ok(hash) = from_value::<H256>(h.clone()) {
-					return Ok(as_value(&Block::default()))
+					return match (self.client.block_header(&hash), self.client.block_details(&hash)) {
+						(Some(bytes), Some(details)) => {
+							let view = HeaderView::new(&bytes);
+							let block = Block {
+								hash: view.sha3(),
+								parent_hash: view.parent_hash(),
+								uncles_hash: view.uncles_hash(),
+								author: view.author(),
+								miner: view.author(),
+								state_root: view.state_root(),
+								transactions_root: view.transactions_root(),
+								receipts_root: view.receipts_root(),
+								number: U256::from(view.number()),
+								gas_used: view.gas_used(),
+								gas_limit: view.gas_limit(),
+								logs_bloom: view.log_bloom(),
+								timestamp: U256::from(view.timestamp()),
+								difficulty: view.difficulty(),
+								total_difficulty: details.total_difficulty,
+								uncles: vec![],
+								transactions: vec![]
+							};
+							Ok(to_value(&block))
+						},
+						_ => Ok(Value::Null),
+					}
 				}
 			}
 		}
@@ -99,6 +126,6 @@ impl EthFilter for EthFilterClient {
 	}
 
 	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::Array(vec![as_value(&self.client.chain_info().best_block_hash)]))
+		Ok(Value::Array(vec![to_value(&self.client.chain_info().best_block_hash)]))
 	}
 }

@@ -11,6 +11,7 @@ use service::NetSyncMessage;
 use env_info::LastHashes;
 use verification::*;
 use block::*;
+use extras::BlockDetails;
 
 /// General block status
 #[derive(Debug)]
@@ -63,6 +64,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get block status by block header hash.
 	fn block_status(&self, hash: &H256) -> BlockStatus;
+
+	/// Get familial details concerning a block.
+	fn block_details(&self, hash: &H256) -> Option<BlockDetails>;
 
 	/// Get raw block header data by block number.
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes>;
@@ -298,6 +302,10 @@ impl BlockChainClient for Client {
 
 	fn block_status(&self, hash: &H256) -> BlockStatus {
 		if self.chain.read().unwrap().is_known(&hash) { BlockStatus::InChain } else { BlockStatus::Unknown }
+	}
+	
+	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
+		self.chain.read().unwrap().block_details(hash)
 	}
 
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {

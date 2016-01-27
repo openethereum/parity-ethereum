@@ -1,33 +1,38 @@
 use util::hash::*;
 use util::uint::*;
 
-#[derive(Default, Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct Block {
-	hash: H256,
+	pub hash: H256,
 	#[serde(rename="parentHash")]
-	parent_hash: H256,
+	pub parent_hash: H256,
 	#[serde(rename="sha3Uncles")]
-	uncles_hash: H256,
-	author: Address,
+	pub uncles_hash: H256,
+	pub author: Address,
 	// TODO: get rid of this one
-	miner: Address,
+	pub miner: Address,
 	#[serde(rename="stateRoot")]
-	state_root: H256,
+	pub state_root: H256,
 	#[serde(rename="transactionsRoot")]
-	transactions_root: H256,
+	pub transactions_root: H256,
 	#[serde(rename="receiptsRoot")]
-	receipts_root: H256,
-	number: u64,
+	pub receipts_root: H256,
+	pub number: U256,
 	#[serde(rename="gasUsed")]
-	gas_used: U256,
+	pub gas_used: U256,
 	#[serde(rename="gasLimit")]
-	gas_limit: U256,
+	pub gas_limit: U256,
 	// TODO: figure out how to properly serialize bytes
 	//#[serde(rename="extraData")]
 	//extra_data: Vec<u8>,
 	#[serde(rename="logsBloom")]
-	logs_bloom: H2048,
-	timestamp: u64
+	pub logs_bloom: H2048,
+	pub timestamp: U256,
+	pub difficulty: U256,
+	#[serde(rename="totalDifficulty")]
+	pub total_difficulty: U256,
+	pub uncles: Vec<U256>,
+	pub transactions: Vec<U256>
 }
 
 #[test]

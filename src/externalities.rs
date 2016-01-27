@@ -19,8 +19,7 @@ pub enum OutputPolicy<'a> {
 pub struct OriginInfo {
 	address: Address,
 	origin: Address,
-	gas_price: U256,
-	value: U256
+	gas_price: U256
 }
 
 impl OriginInfo {
@@ -29,11 +28,7 @@ impl OriginInfo {
 		OriginInfo {
 			address: params.address.clone(),
 			origin: params.origin.clone(),
-			gas_price: params.gas_price.clone(),
-			value: match params.value {
-				ActionValue::Transfer(val) => val,
-				ActionValue::Apparent(val) => val,
-			}
+			gas_price: params.gas_price.clone()
 		}
 	}
 }
@@ -116,7 +111,7 @@ impl<'a> Ext for Externalities<'a> {
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price.clone(),
-			value: ActionValue::Transfer(value.clone()),
+			value: value.clone(),
 			code: Some(code.to_vec()),
 			data: None,
 		};
@@ -136,28 +131,23 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn call(&mut self, 
 			gas: &U256, 
-			sender_address: &Address, 
-			receive_address: &Address, 
-			value: Option<U256>,
+			address: &Address, 
+			value: &U256, 
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> MessageCallResult {
 
-		let mut params = ActionParams {
-			sender: sender_address.clone(),
-			address: receive_address.clone(), 
-			value: ActionValue::Apparent(self.origin_info.value.clone()),
+		let params = ActionParams {
 			code_address: code_address.clone(),
+			address: address.clone(), 
+			sender: self.origin_info.address.clone(),
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
 			gas_price: self.origin_info.gas_price.clone(),
+			value: value.clone(),
 			code: self.state.code(code_address),
 			data: Some(data.to_vec()),
 		};
-
-		if let Some(value) = value {
-			params.value = ActionValue::Transfer(value);
-		}
 
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
 
@@ -168,10 +158,9 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn extcode(&self, address: &Address) -> Bytes {
-		self.state.code(address).unwrap_or_else(|| vec![])
+		self.state.code(address).unwrap_or(vec![])
 	}
 
-	#[allow(match_ref_pats)]
 	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		match &mut self.output {
 			&mut OutputPolicy::Return(BytesRef::Fixed(ref mut slice)) => unsafe {

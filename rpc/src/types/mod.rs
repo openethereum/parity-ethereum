@@ -3,7 +3,7 @@ use serde_json::value::{Value, Serializer, Deserializer};
 
 mod block;
 
-pub fn as_value<S>(s: &S) -> Value where S: Serialize {
+pub fn to_value<S>(s: &S) -> Value where S: Serialize {
 	let mut serializer = Serializer::new();
 	// should never panic!
 	s.serialize(&mut serializer).unwrap();
