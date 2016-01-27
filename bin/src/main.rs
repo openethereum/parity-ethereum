@@ -1,6 +1,5 @@
 #![feature(plugin)]
 #![plugin(docopt_macros)]
-// required for serde, move it to a separate library
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;

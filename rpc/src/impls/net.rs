@@ -2,9 +2,11 @@
 use jsonrpc_core::*;
 use traits::Net;
 
+/// Net rpc implementation.
 pub struct NetClient;
 
 impl NetClient {
+	/// Creates new NetClient.
 	pub fn new() -> Self { NetClient }
 }
 

@@ -15,4 +15,5 @@ jsonrpc-core = "1.1"
 jsonrpc-http-server = "1.1"
 ethcore-util = { path = "../util" }
 ethcore = { path = ".." }
+clippy = "0.0.37"
 

@@ -1,3 +1,4 @@
+//! Eth rpc implementation.
 use std::sync::Arc;
 use jsonrpc_core::*;
 use util::hash::*;
@@ -8,11 +9,13 @@ use ethcore::views::*;
 use traits::{Eth, EthFilter};
 use types::Block;
 
+/// Eth rpc implementation.
 pub struct EthClient {
 	client: Arc<Client>,
 }
 
 impl EthClient {
+	/// Creates new EthClient.
 	pub fn new(client: Arc<Client>) -> Self {
 		EthClient {
 			client: client
@@ -100,11 +103,13 @@ impl Eth for EthClient {
 	}
 }
 
+/// Eth filter rpc implementation.
 pub struct EthFilterClient {
 	client: Arc<Client>
 }
 
 impl EthFilterClient {
+	/// Creates new Eth filter client.
 	pub fn new(client: Arc<Client>) -> Self {
 		EthFilterClient {
 			client: client

@@ -44,6 +44,7 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	}
 }
 
+/// Eth filters rpc api (polling).
 // TODO: do filters api properly
 pub trait EthFilter: Sized + Send + Sync + 'static {
 	/// Returns id of new block filter

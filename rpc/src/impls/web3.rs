@@ -1,9 +1,12 @@
+//! Web3 rpc implementation.
 use jsonrpc_core::*;
 use traits::Web3;
 
+/// Web3 rpc implementation.
 pub struct Web3Client;
 
 impl Web3Client {
+	/// Creates new Web3Client.
 	pub fn new() -> Self { Web3Client }
 }
 
