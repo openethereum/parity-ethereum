@@ -41,7 +41,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 					}
 					client.flush_queue();
 					let imported_ok = client.import_verified_blocks(&IoChannel::disconnected()) > 0;
-					assert_eq!(imported_ok, is_valid);	// may yet be invalid for the later stages, so can't do a hard check.
+					assert_eq!(imported_ok, is_valid);
 				}
 				fail_unless(client.chain_info().best_block_hash == H256::from_json(&test["lastblockhash"]));
 			}
