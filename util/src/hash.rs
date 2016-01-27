@@ -41,6 +41,8 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
 	/// TODO [debris] Please document me
 	fn is_zero(&self) -> bool;
+	/// Return the lowest 8 bytes interpreted as a BigEndian integer.
+	fn low_u64(&self) -> u64;
 }
 
 fn clean_0x(s: &str) -> &str {
@@ -71,8 +73,8 @@ macro_rules! impl_hash {
 				&self.0
 			}
 		}
-		impl DerefMut for $from {
 
+		impl DerefMut for $from {
 			#[inline]
 			fn deref_mut(&mut self) -> &mut [u8] {
 				&mut self.0
@@ -189,6 +191,14 @@ macro_rules! impl_hash {
 
 			fn is_zero(&self) -> bool {
 				self.eq(&Self::new())
+			}
+
+			fn low_u64(&self) -> u64 {
+				let mut ret = 0u64;
+				for i in 0..min($size, 8) {
+					ret |= (self.0[$size - 1 - i] as u64) << (i * 8);
+				}
+				ret
 			}
 		}
 

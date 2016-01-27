@@ -101,7 +101,7 @@ impl Engine for Ethash {
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the seal fields.
 		try!(UntrustedRlp::new(&header.seal[0]).as_val::<H256>());
-		try!(UntrustedRlp::new(&header.seal[1]).as_val::<u64>());
+		try!(UntrustedRlp::new(&header.seal[1]).as_val::<H64>());
 
 		let min_difficulty = decode(self.spec().engine_params.get("minimumDifficulty").unwrap());
 		if header.difficulty < min_difficulty {
@@ -109,7 +109,7 @@ impl Engine for Ethash {
 		}
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
 				&Ethash::to_ethash(header.bare_hash()), 
-				header.nonce(),
+				header.nonce().low_u64(),
 				&Ethash::to_ethash(header.mix_hash()))));
 		if difficulty < header.difficulty {
 			return Err(From::from(BlockError::InvalidEthashDifficulty(Mismatch { expected: header.difficulty, found: difficulty })));
@@ -118,7 +118,7 @@ impl Engine for Ethash {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		let result = self.pow.compute_light(header.number as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce());
+		let result = self.pow.compute_light(header.number as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
 		if mix != header.mix_hash() {
@@ -208,7 +208,7 @@ impl Ethash {
 }
 
 impl Header {
-	fn nonce(&self) -> u64 {
+	fn nonce(&self) -> H64 {
 		decode(&self.seal()[1])
 	}
 	fn mix_hash(&self) -> H256 {

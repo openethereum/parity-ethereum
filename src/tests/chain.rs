@@ -68,8 +68,8 @@ declare_test!{BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTes
 declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
 declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
 declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
-declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}	// FAILS AGAIN?
+declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}	// FAILS: ZeroPrefixed Int.
 declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}
 declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
-declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}				// STILL FAILS
+declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
 declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
