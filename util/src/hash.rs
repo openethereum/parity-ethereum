@@ -8,6 +8,8 @@ use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
 use from_json::*;
 use uint::{Uint, U256};
+use rustc_serialize::hex::ToHex;
+use serde;
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
 ///
@@ -212,6 +214,41 @@ macro_rules! impl_hash {
 					ret.0[i] = a[i];
 				}
 				Ok(ret)
+			}
+		}
+
+		impl serde::Serialize for $from {
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			where S: serde::Serializer {
+				let mut hex = "0x".to_owned();
+				hex.push_str(self.to_hex().as_ref());
+				serializer.visit_str(hex.as_ref())
+			}
+		}
+
+		impl serde::Deserialize for $from {
+			fn deserialize<D>(deserializer: &mut D) -> Result<$from, D::Error>
+			where D: serde::Deserializer {
+				struct HashVisitor;
+
+				impl serde::de::Visitor for HashVisitor {
+					type Value = $from;
+					
+					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
+						// 0x + len
+						if value.len() != 2 + $size * 2 {
+							return Err(serde::Error::syntax("Invalid length."));
+						}
+
+						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::syntax("Invalid valid hex."))
+					}
+
+					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
+						self.visit_str(value.as_ref())
+					}
+				}
+
+				deserializer.visit(HashVisitor)
 			}
 		}
 
@@ -479,6 +516,18 @@ impl<'_> From<&'_ U256> for H256 {
 	}
 }
 
+impl From<H256> for U256 {
+	fn from(value: H256) -> U256 {
+		U256::from(value.bytes())
+	}
+}
+
+impl<'_> From<&'_ H256> for U256 {
+	fn from(value: &'_ H256) -> U256 {
+		U256::from(value.bytes())
+	}
+}
+
 impl From<H256> for Address {
 	fn from(value: H256) -> Address {
 		unsafe {
@@ -572,6 +621,7 @@ pub static ZERO_H256: H256 = H256([0x00; 32]);
 #[cfg(test)]
 mod tests {
 	use hash::*;
+	use uint::*;
 	use std::str::FromStr;
 
 	#[test]
@@ -644,6 +694,19 @@ mod tests {
 		assert_eq!(H64::from(0x234567890abcdef), H64::from("0x234567890abcdef"));
 		// too short.
 		assert_eq!(H64::from(0), H64::from("0x34567890abcdef"));
+	}
+
+	#[test]
+	fn from_and_to_u256() {
+		let u: U256 = x!(0x123456789abcdef0u64);
+		let h = H256::from(u);
+		assert_eq!(H256::from(u), H256::from("000000000000000000000000000000000000000000000000123456789abcdef0"));
+		let h_ref = H256::from(&u);
+		assert_eq!(h, h_ref);
+		let r_ref: U256 = From::from(&h);
+		assert_eq!(r_ref, u);
+		let r: U256 = From::from(h);
+		assert_eq!(r, u);
 	}
 }
 

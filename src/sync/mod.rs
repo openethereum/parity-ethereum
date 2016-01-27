@@ -9,7 +9,7 @@
 /// extern crate ethcore;
 /// use std::env;
 /// use std::sync::Arc;
-/// use util::network::{NetworkService,NetworkConfiguration};
+/// use util::network::{NetworkService, NetworkConfiguration};
 /// use ethcore::client::Client;
 /// use ethcore::sync::EthSync;
 /// use ethcore::ethereum;
