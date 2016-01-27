@@ -4,7 +4,7 @@ use super::test_common::*;
 use std::path::PathBuf;
 use spec::*;
 use std::fs::{remove_dir_all};
-use blockchain:{BlockChain};
+use blockchain::{BlockChain};
 
 
 pub struct RandomTempPath {
@@ -82,6 +82,7 @@ pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
 
 pub fn generate_dummy_blockchain(block_number: usize) -> BlockChain {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(&("fffffff".from_hex().unwrap()), temp.as_path());
+	let genesis = "fffffff".from_hex().unwrap();
+	let bc = BlockChain::new(&genesis, temp.as_path());
 	bc
 }
