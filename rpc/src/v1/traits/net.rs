@@ -5,10 +5,10 @@ use jsonrpc_core::*;
 /// Net rpc interface.
 pub trait Net: Sized + Send + Sync + 'static {
 	/// Returns protocol version.
-	fn version(&self, _: Params) -> Result<Value, Error> { rpcerr!() }
+	fn version(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Returns number of peers connected to node.
-	fn peer_count(&self, _: Params) -> Result<Value, Error> { rpcerr!() }
+	fn peer_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
