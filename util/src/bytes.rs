@@ -42,8 +42,37 @@ use std::error::Error as StdError;
 use std::ops::{Deref, DerefMut};
 use uint::{Uint, U128, U256};
 use hash::FixedHash;
+use elastic_array::*;
 
-/// TODO [Gav Wood] Please document me
+/// Vector like object
+pub trait VecLike<T> {
+	/// Add an element to the collection
+    fn push(&mut self, value: T);
+
+	/// Add a slice to the collection
+    fn extend(&mut self, slice: &[T]);
+}
+
+
+macro_rules! impl_veclike_for_elastic_array {
+	($from: ident) => {
+		impl<T> VecLike<T> for $from<T> where T: Copy {
+			fn push(&mut self, value: T) {
+				$from::<T>::push(self, value)
+			}
+			fn extend(&mut self, slice: &[T]) {
+				$from::<T>::append_slice(self, slice)
+
+			}
+		}
+	}
+}
+
+impl_veclike_for_elastic_array!(ElasticArray16);
+impl_veclike_for_elastic_array!(ElasticArray32);
+impl_veclike_for_elastic_array!(ElasticArray1024);
+
+/// Slie pretty print helper
 pub struct PrettySlice<'a> (&'a [u8]);
 
 impl<'a> fmt::Debug for PrettySlice<'a> {
@@ -170,49 +199,47 @@ fn bytes_convertable() {
 ///
 /// TODO: optimise some conversations
 pub trait ToBytes {
-	/// TODO [Gav Wood] Please document me
-	fn to_bytes(&self) -> Vec<u8>;
-	/// TODO [Gav Wood] Please document me
-	fn to_bytes_len(&self) -> usize { self.to_bytes().len() }
-	/// TODO [debris] Please document me
-	fn first_byte(&self) -> Option<u8> { self.to_bytes().first().map(|&x| { x })}
+	/// Serialize self to byte array
+	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V);
+	/// Get length of serialized data in bytes
+	fn to_bytes_len(&self) -> usize;
 }
 
 impl <'a> ToBytes for &'a str {
-	fn to_bytes(&self) -> Vec<u8> {
-		From::from(*self)
+	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+		out.extend(self.as_bytes());
 	}
 
-	fn to_bytes_len(&self) -> usize { self.len() }
+	fn to_bytes_len(&self) -> usize {
+		self.as_bytes().len()
+	}
 }
 
 impl ToBytes for String {
-	fn to_bytes(&self) -> Vec<u8> {
-		let s: &str = self.as_ref();
-		From::from(s)
+	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+		out.extend(self.as_bytes());
 	}
 
-	fn to_bytes_len(&self) -> usize { self.len() }
+	fn to_bytes_len(&self) -> usize {
+		self.len()
+	}
 }
 
 impl ToBytes for u64 {
-	fn to_bytes(&self) -> Vec<u8> {
-		let mut res= vec![];
+	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
 		let count = self.to_bytes_len();
-		res.reserve(count);
 		for i in 0..count {
 			let j = count - 1 - i;
-			res.push((*self >> (j * 8)) as u8);
+			out.push((*self >> (j * 8)) as u8);
 		}
-		res
 	}
 
 	fn to_bytes_len(&self) -> usize { 8 - self.leading_zeros() as usize / 8 }
 }
 
 impl ToBytes for bool {
-	fn to_bytes(&self) -> Vec<u8> {
-		vec![ if *self { 1u8 } else { 0u8 } ]
+	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+		out.push(if *self { 1u8 } else { 0u8 })
 	}
 
 	fn to_bytes_len(&self) -> usize { 1 }
@@ -221,28 +248,29 @@ impl ToBytes for bool {
 macro_rules! impl_map_to_bytes {
 	($from: ident, $to: ty) => {
 		impl ToBytes for $from {
-			fn to_bytes(&self) -> Vec<u8> { (*self as $to).to_bytes() }
+			fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+				(*self as $to).to_bytes(out)
+			}
+
 			fn to_bytes_len(&self) -> usize { (*self as $to).to_bytes_len() }
 		}
 	}
 }
 
 impl_map_to_bytes!(usize, u64);
+impl_map_to_bytes!(u8, u64);
 impl_map_to_bytes!(u16, u64);
 impl_map_to_bytes!(u32, u64);
 
 macro_rules! impl_uint_to_bytes {
 	($name: ident) => {
 		impl ToBytes for $name {
-			fn to_bytes(&self) -> Vec<u8> {
-				let mut res= vec![];
+			fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
 				let count = self.to_bytes_len();
-				res.reserve(count);
 				for i in 0..count {
 					let j = count - 1 - i;
-					res.push(self.byte(j));
+					out.push(self.byte(j));
 				}
-				res
 			}
 			fn to_bytes_len(&self) -> usize { (self.bits() + 7) / 8 }
 		}
@@ -253,18 +281,10 @@ impl_uint_to_bytes!(U256);
 impl_uint_to_bytes!(U128);
 
 impl <T>ToBytes for T where T: FixedHash {
-	fn to_bytes(&self) -> Vec<u8> {
-		let mut res: Vec<u8> = vec![];
-		res.reserve(T::size());
-
-		unsafe {
-			use std::ptr;
-			ptr::copy(self.bytes().as_ptr(), res.as_mut_ptr(), T::size());
-			res.set_len(T::size());
-		}
-
-		res
+	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
+		out.extend(self.bytes());
 	}
+	fn to_bytes_len(&self) -> usize { self.bytes().len() }
 }
 
 /// Error returned when FromBytes conversation goes wrong

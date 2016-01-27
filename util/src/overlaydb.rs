@@ -143,7 +143,6 @@ impl OverlayDB {
 			self.backing.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
 			true
 		}
-
 	}
 }
 

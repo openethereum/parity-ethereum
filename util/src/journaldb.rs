@@ -86,8 +86,8 @@ impl JournalDB {
 
 			let mut r = RlpStream::new_list(3);
 			r.append(id);
-			r.append(&self.inserts);
-			r.append(&self.removes);
+			r.append_list(&self.inserts);
+			r.append_list(&self.removes);
 			try!(self.backing.put(&last, r.as_raw()));
 			self.inserts.clear();
 			self.removes.clear();

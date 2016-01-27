@@ -684,11 +684,11 @@ mod tests {
 	
 	fn random_value_indexed(j: usize) -> Bytes {
 		match random::<usize>() % 2 {
-			0 => encode(&j),
+			0 => encode(&j).to_vec(),
 			_ => {
 				let mut h = H256::new();
 				h.as_slice_mut()[31] = j as u8;
-				encode(&h)
+				encode(&h).to_vec()
 			},
 		}
 	}
@@ -1035,7 +1035,7 @@ mod tests {
 			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
 			for j in 0..4u32 {
 				let key = random_key(alphabet, 5, 1);
-				x.push((key, encode(&j)));
+				x.push((key, encode(&j).to_vec()));
 			}
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::new();

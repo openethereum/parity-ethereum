@@ -199,10 +199,10 @@ impl Session {
 	fn write_hello(&mut self, host: &HostInfo) -> Result<(), UtilError> {
 		let mut rlp = RlpStream::new();
 		rlp.append_raw(&[PACKET_HELLO as u8], 0);
-		rlp.append_list(5)
+		rlp.begin_list(5)
 			.append(&host.protocol_version)
 			.append(&host.client_version)
-			.append(&host.capabilities)
+			.append_list(&host.capabilities)
 			.append(&host.listen_port)
 			.append(host.id());
 		self.connection.send_packet(&rlp.out())
@@ -267,7 +267,7 @@ impl Session {
 	fn disconnect(&mut self, reason: DisconnectReason) -> NetworkError {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(PACKET_DISCONNECT as u32));
-		rlp.append_list(1);
+		rlp.begin_list(1);
 		rlp.append(&(reason.clone() as u32));
 		self.connection.send_packet(&rlp.out()).ok();
 		NetworkError::Disconnect(reason)
@@ -276,7 +276,7 @@ impl Session {
 	fn prepare(packet_id: u8) -> Result<RlpStream, UtilError> {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(packet_id as u32));
-		rlp.append_list(0);
+		rlp.begin_list(0);
 		Ok(rlp)
 	}
 

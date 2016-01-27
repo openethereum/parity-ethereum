@@ -30,6 +30,7 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 
+use std::ops::Deref;
 /// TODO [Gav Wood] Please document me
 pub mod rlptraits;
 /// TODO [Gav Wood] Please document me
@@ -48,7 +49,8 @@ pub use self::rlperrors::DecoderError;
 pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use self::rlpin::{Rlp, RlpIterator};
-pub use self::rlpstream::{RlpStream,RlpStandard};
+pub use self::rlpstream::{RlpStream};
+pub use elastic_array::ElasticArray1024;
 use super::hash::H256;
 
 /// TODO [arkpar] Please document me
@@ -84,13 +86,31 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 /// use util::rlp::*;
 ///
 /// fn main () {
+/// 	let animal = "cat";
+/// 	let out = encode(&animal);
+/// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
+/// }
+/// ```
+pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: Encodable {
+	let mut stream = RlpStream::new();
+	stream.append(object);
+	stream.drain()
+}
+
+/// Shortcut function to encode a list to rlp.
+///
+/// ```rust
+/// extern crate ethcore_util as util;
+/// use util::rlp::*;
+///
+/// fn main () {
 /// 	let animals = vec!["cat", "dog"];
-/// 	let out = encode(&animals);
+/// 	let out = encode_list(&animals);
 /// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 /// }
 /// ```
-pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable {
+pub fn encode_list<I, E>(list: &I) -> ElasticArray1024<u8> where I: Deref<Target = [E]>, E: Encodable {
 	let mut stream = RlpStream::new();
-	stream.append(object);
-	stream.out()
+	stream.append_list(list);
+	stream.drain()
 }

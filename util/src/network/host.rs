@@ -124,11 +124,10 @@ pub struct CapabilityInfo {
 }
 
 impl Encodable for CapabilityInfo {
-	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder {
-		encoder.emit_list(|e| {
-			self.protocol.encode(e);
-			(self.version as u32).encode(e);
-		});
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		s.append(&self.protocol);
+		s.append(&self.version);
 	}
 }
 
