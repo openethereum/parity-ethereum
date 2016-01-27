@@ -803,5 +803,8 @@ mod tests {
 		let bc = get_populated_bc();
 		bc.squeeze_to_fit(CacheSize { blocks: 0, block_logs: 0, transaction_addresses: 0, block_details: 0, blocks_blooms: 0 } );
 		assert_eq!(bc.cache_size().blocks, 0);
+		assert_eq!(bc.cache_size().block_details, 0);
+		assert_eq!(bc.cache_size().block_logs, 0);
+		assert_eq!(bc.cache_size().blocks_blooms, 0);
 	}
 }
