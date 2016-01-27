@@ -107,6 +107,11 @@ pub trait BlockProvider {
 	fn genesis_hash(&self) -> H256 {
 		self.block_hash(0).expect("Genesis hash should always exist")
 	}
+
+	/// Returns the header of the genesis block.
+	fn genesis_header(&self) -> Header {
+		self.block_header(&self.genesis_hash()).unwrap()
+	}
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]

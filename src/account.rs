@@ -149,11 +149,15 @@ impl Account {
 	/// Provide a database to lookup `code_hash`. Should not be called if it is a contract without code.
 	pub fn cache_code(&mut self, db: &HashDB) -> bool {
 		// TODO: fill out self.code_cache;
+		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.is_cached() ||
 			match self.code_hash {
 				Some(ref h) => match db.lookup(h) {
 					Some(x) => { self.code_cache = x.to_vec(); true },
-					_ => false,
+					_ => {
+						warn!("Failed reverse lookup of {}", h);
+						false
+					},
 				},
 				_ => false,
 			}
