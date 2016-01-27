@@ -63,7 +63,7 @@ declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"
 declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}				// STILL FAILS
 declare_test!{BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}						// STILL FAILS
 declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
-declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}		// FAILS AGAIN?
+declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
 declare_test!{BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}
 declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
 declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
