@@ -799,12 +799,20 @@ mod tests {
 	}
 
 	#[test]
-	fn blocks_get_garbage_collected() {
+	fn can_be_squeezed() {
 		let bc = get_populated_bc();
 		bc.squeeze_to_fit(CacheSize { blocks: 0, block_logs: 0, transaction_addresses: 0, block_details: 0, blocks_blooms: 0 } );
-		assert_eq!(bc.cache_size().blocks, 0);
-		assert_eq!(bc.cache_size().block_details, 0);
+		assert_eq!(bc.cache_size().blocks, 1624);
+		assert_eq!(bc.cache_size().block_details, 3712);
 		assert_eq!(bc.cache_size().block_logs, 0);
 		assert_eq!(bc.cache_size().blocks_blooms, 0);
+	}
+
+	#[test]
+	fn can_collect_garbage() {
+		let bc = get_populated_bc();
+		bc.collect_garbage(false);
+		assert_eq!(bc.cache_size().blocks, 1624);
+
 	}
 }
