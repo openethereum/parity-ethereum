@@ -769,4 +769,10 @@ mod tests {
 			assert_eq!(bc.best_block_hash(), b1_hash);
 		}
 	}
+
+	#[test]
+	fn can_consist_of_random_blocks() {
+		let bc = generate_dummy_blockchain(100);
+		assert_eq!(bc.best_block_hash(), 0);
+	}
 }
