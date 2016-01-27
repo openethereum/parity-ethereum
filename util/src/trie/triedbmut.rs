@@ -87,6 +87,11 @@ impl<'db> TrieDBMut<'db> {
 		self.db 
 	}
 
+	/// Get the backing database.
+	pub fn db_mut(&'db mut self) -> &'db mut HashDB { 
+		self.db 
+	}
+
 	/// Determine all the keys in the backing database that belong to the trie.
 	pub fn keys(&self) -> Vec<H256> {
 		let mut ret: Vec<H256> = Vec::new();

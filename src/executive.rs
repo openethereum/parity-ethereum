@@ -295,7 +295,6 @@ impl<'a> Executive<'a> {
 
 		// perform suicides
 		for address in &substate.suicides {
-			trace!("Killing {}", address);
 			self.state.kill_account(address);
 		}
 

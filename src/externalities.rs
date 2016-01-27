@@ -215,6 +215,7 @@ impl<'a> Ext for Externalities<'a> {
 	fn suicide(&mut self, refund_address: &Address) {
 		let address = self.origin_info.address.clone();
 		let balance = self.balance(&address);
+		trace!("Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
 		self.state.transfer_balance(&address, refund_address, &balance);
 		self.substate.suicides.insert(address);
 	}
