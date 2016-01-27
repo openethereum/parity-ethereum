@@ -114,6 +114,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn import_block(&self, b: Bytes) -> ImportResult {
 		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
+		let h = header.hash();
 		let number: usize = header.number as usize;
 		if number > self.blocks.read().unwrap().len() {
 			panic!("Unexpected block number. Expected {}, got {}", self.blocks.read().unwrap().len(), number);
@@ -134,9 +135,9 @@ impl BlockChainClient for TestBlockChainClient {
 		let len = self.numbers.read().unwrap().len();
 		if number == len {
 			*self.difficulty.write().unwrap().deref_mut() += header.difficulty;
-			mem::replace(self.last_hash.write().unwrap().deref_mut(), header.hash());
-			self.blocks.write().unwrap().insert(header.hash(), b);
-			self.numbers.write().unwrap().insert(number, header.hash());
+			mem::replace(self.last_hash.write().unwrap().deref_mut(), h.clone());
+			self.blocks.write().unwrap().insert(h.clone(), b);
+			self.numbers.write().unwrap().insert(number, h.clone());
 			let mut parent_hash = header.parent_hash;
 			if number > 0 {
 				let mut n = number - 1;
@@ -148,9 +149,9 @@ impl BlockChainClient for TestBlockChainClient {
 			}
 		}
 		else {
-			self.blocks.write().unwrap().insert(header.hash(), b.to_vec());
+			self.blocks.write().unwrap().insert(h.clone(), b.to_vec());
 		}
-		Ok(())
+		Ok(h)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {

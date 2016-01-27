@@ -21,7 +21,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 			flush(format!("   - {}...", name));
 
-			let blocks: Vec<Bytes> = test["blocks"].as_array().unwrap().iter().map(|e| xjson!(&e["rlp"])).collect();
+			let blocks: Vec<(Bytes, bool)> = test["blocks"].as_array().unwrap().iter().map(|e| (xjson!(&e["rlp"]), e.find("blockHeader").is_some())).collect();
 			let mut spec = ethereum::new_frontier_like_test();
 			let s = PodState::from_json(test.find("pre").unwrap());
 			spec.set_genesis_state(s);
@@ -32,11 +32,17 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			dir.push(H32::random().hex());
 			{
 				let client = Client::new(spec, &dir, IoChannel::disconnected()).unwrap();
-				for b in blocks.into_iter().filter(|ref b| Block::is_good(b)) {
-					client.import_block(b).unwrap();
+				for (b, is_valid) in blocks.into_iter() {
+					let mut hash = H256::new();
+					if Block::is_good(&b) {
+						if let Ok(h) = client.import_block(b.clone()) {
+							hash = h;
+						}
+					}
+					client.flush_queue();
+					let imported_ok = client.import_verified_blocks(&IoChannel::disconnected()) > 0;
+					assert_eq!(imported_ok, is_valid);	// may yet be invalid for the later stages, so can't do a hard check.
 				}
-				client.flush_queue();
-				client.import_verified_blocks(&IoChannel::disconnected());
 				fail_unless(client.chain_info().best_block_hash == H256::from_json(&test["lastblockhash"]));
 			}
 			fs::remove_dir_all(&dir).unwrap();
@@ -55,8 +61,8 @@ declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTes
 declare_test!{BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}						// STILL FAILS
 declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
 declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
-declare_test!{BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}				// FAILS
-declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}				// FAILS
+declare_test!{BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}
+declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
 declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
 declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
 declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}

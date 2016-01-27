@@ -145,7 +145,7 @@ impl From<Error> for ImportError {
 }
 
 /// Result of import block operation.
-pub type ImportResult = Result<(), ImportError>;
+pub type ImportResult = Result<H256, ImportError>;
 
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
