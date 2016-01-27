@@ -50,7 +50,7 @@ fn setup_log(init: &String) {
 
 #[cfg(feature = "rpc")]
 fn setup_rpc_server(client: Arc<Client>) {
-	use rpc::*;
+	use rpc::v1::*;
 	
 	let mut server = HttpServer::new(1);
 	server.add_delegate(Web3Client::new().to_delegate());

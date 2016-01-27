@@ -17,12 +17,7 @@ macro_rules! rpcerr {
 	() => (Err(Error::internal_error()))
 }
 
-pub mod traits;
-mod impls;
-mod types;
-
-pub use self::traits::{Web3, Eth, EthFilter, Net};
-pub use self::impls::*;
+pub mod v1;
 
 /// Http server.
 pub struct HttpServer {

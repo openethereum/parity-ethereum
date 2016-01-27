@@ -6,8 +6,8 @@ use util::uint::*;
 use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
-use traits::{Eth, EthFilter};
-use types::Block;
+use v1::traits::{Eth, EthFilter};
+use v1::types::Block;
 
 /// Eth rpc implementation.
 pub struct EthClient {

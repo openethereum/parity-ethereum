@@ -1,6 +1,6 @@
 //! Web3 rpc implementation.
 use jsonrpc_core::*;
-use traits::Web3;
+use v1::traits::Web3;
 
 /// Web3 rpc implementation.
 pub struct Web3Client;
