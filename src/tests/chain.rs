@@ -5,7 +5,12 @@ use block::Block;
 use ethereum;
 use super::helpers::*;
 
-fn do_json_test(json_data: &[u8]) -> Vec<String> {
+pub enum ChainEra {
+	Frontier,
+	Homestead,
+}
+
+pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 
@@ -22,7 +27,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			flush(format!("   - {}...", name));
 
 			let blocks: Vec<(Bytes, bool)> = test["blocks"].as_array().unwrap().iter().map(|e| (xjson!(&e["rlp"]), e.find("blockHeader").is_some())).collect();
-			let mut spec = ethereum::new_frontier_like_test();
+			let mut spec = match era {
+				ChainEra::Frontier => ethereum::new_frontier_test(),
+				ChainEra::Homestead => ethereum::new_homestead_test(),
+			};
 			let s = PodState::from_json(test.find("pre").unwrap());
 			spec.set_genesis_state(s);
 			spec.overwrite_genesis(test.find("genesisBlockHeader").unwrap());
@@ -50,6 +58,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
+fn do_json_test(json_data: &[u8]) -> Vec<String> {
+	json_chain_test(json_data, ChainEra::Frontier)
+}
+
 declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
 declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
 declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}
@@ -65,3 +77,6 @@ declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHe
 declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
 declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
 declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
+
+declare_test!{BlockchainTests_RandomTests_bl10251623GO, "BlockchainTests/RandomTests/bl10251623GO"}
+declare_test!{BlockchainTests_RandomTests_bl201507071825GO, "BlockchainTests/RandomTests/bl201507071825GO"}
