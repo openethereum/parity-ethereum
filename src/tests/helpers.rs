@@ -177,3 +177,31 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 		result: bc
 	}
 }
+
+pub fn get_good_dummy_block() -> Bytes {
+	let mut block_header = Header::new();
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	block_header.gas_limit = decode(test_engine.spec().engine_params.get("minGasLimit").unwrap());
+	block_header.difficulty = decode(test_engine.spec().engine_params.get("minimumDifficulty").unwrap());
+	block_header.timestamp = 40;
+	block_header.number = 1;
+	block_header.parent_hash = test_engine.spec().genesis_header().hash();
+	block_header.state_root = test_engine.spec().genesis_header().state_root;
+
+	create_test_block(&block_header)
+}
+
+pub fn get_bad_state_dummy_block() -> Bytes {
+	let mut block_header = Header::new();
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	block_header.gas_limit = decode(test_engine.spec().engine_params.get("minGasLimit").unwrap());
+	block_header.difficulty = decode(test_engine.spec().engine_params.get("minimumDifficulty").unwrap());
+	block_header.timestamp = 40;
+	block_header.number = 1;
+	block_header.parent_hash = test_engine.spec().genesis_header().hash();
+	block_header.state_root = x!(0xbad);
+
+	create_test_block(&block_header)
+}

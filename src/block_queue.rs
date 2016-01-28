@@ -292,12 +292,47 @@ mod tests {
 	use util::*;
 	use spec::*;
 	use block_queue::*;
+	use tests::helpers::*;
+	use error::*;
+
+	fn get_test_queue() -> BlockQueue {
+		let spec = get_test_spec();
+		let engine = spec.to_engine().unwrap();
+		BlockQueue::new(Arc::new(engine), IoChannel::disconnected())
+	}
 
 	#[test]
-	fn test_block_queue() {
+	fn can_be_created() {
 		// TODO better test
 		let spec = Spec::new_test();
 		let engine = spec.to_engine().unwrap();
 		let _ = BlockQueue::new(Arc::new(engine), IoChannel::disconnected());
+	}
+
+	#[test]
+	fn can_verify_blocks() {
+		let mut queue = get_test_queue();
+		if let Err(e) = queue.import_block(get_good_dummy_block()) {
+			panic!("error importing block that is valid by definition({:?})", e);
+		}
+	}
+
+	#[test]
+	fn returns_error_for_duplicates() {
+		let mut queue = get_test_queue();
+		if let Err(e) = queue.import_block(get_good_dummy_block()) {
+			panic!("error importing block that is valid by definition({:?})", e);
+		}
+		let duplicate_import = queue.import_block(get_good_dummy_block());
+
+		match duplicate_import {
+			Err(e) => {
+				match e {
+					ImportError::AlreadyQueued => {},
+					_ => { panic!("must return AlreadyQueued error"); }
+				}
+			}
+			Ok(_) => { panic!("must produce error"); }
+		}
 	}
 }
