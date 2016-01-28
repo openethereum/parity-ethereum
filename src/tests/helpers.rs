@@ -45,7 +45,7 @@ pub fn create_test_block(header: &Header) -> Bytes {
 	rlp.out()
 }
 
-fn create_unverifiable_block(order: usize, parent_hash: H256) -> Bytes {
+fn create_unverifiable_block_header(order: usize, parent_hash: H256) -> Header {
 	let mut header = Header::new();
 	header.gas_limit = x!(0);
 	header.difficulty = x!(order * 100);
@@ -53,6 +53,23 @@ fn create_unverifiable_block(order: usize, parent_hash: H256) -> Bytes {
 	header.number = order as u64;
 	header.parent_hash = parent_hash;
 	header.state_root = H256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+
+	header
+}
+
+fn create_unverifiable_block(order: usize, parent_hash: H256) -> Bytes {
+	create_test_block_header(&create_unverifiable_block_header(order, parent_hash))
+}
+
+fn create_unverifiable_block_with_extra(order: usize, parent_hash: H256, Option<Bytes> extra) -> Bytes {
+	let mut header = create_test_block_header(order, parent_hash);
+	header.extra_data = match extra {
+		Some(extra_data) => extra_data,
+		None => {
+			let base = order as u8;
+		    vec!([1, 2, 3])
+		}
+	}
 
 	create_test_block(&header)
 }
@@ -105,3 +122,5 @@ pub fn generate_dummy_blockchain(block_number: usize) -> BlockChain {
 	}
 	bc
 }
+
+pub fn generate_dummy_blockchain_with_extra(block_number: uszie
