@@ -86,7 +86,9 @@ declare_test!{StateTests_stRecursiveCreate, "StateTests/stRecursiveCreate"}
 declare_test!{StateTests_stRefundTest, "StateTests/stRefundTest"}
 declare_test!{StateTests_stSolidityTest, "StateTests/stSolidityTest"}
 declare_test!{StateTests_stSpecialTest, "StateTests/stSpecialTest"}
-declare_test!{StateTests_stSystemOperationsTest, "StateTests/stSystemOperationsTest"}
+// TODO [todr] createJS_ExampleCode has incorrect initial state
+// (during test it tries to create a contract that already exists)
+declare_test!{ignore => StateTests_stSystemOperationsTest, "StateTests/stSystemOperationsTest"}
 declare_test!{StateTests_stTransactionTest, "StateTests/stTransactionTest"}
 declare_test!{StateTests_stTransitionTest, "StateTests/stTransitionTest"}
 declare_test!{StateTests_stWalletTest, "StateTests/stWalletTest"}

@@ -81,27 +81,11 @@ impl Account {
 		}
 	}
 
-	/// Reset this account to the status of a not-yet-initialised contract.
-	/// NOTE: Account should have `init_code()` called on it later.
-	pub fn reset_code(&mut self) {
-		self.code_hash = None;
-		self.code_cache = vec![];
-	}
-
 	/// Set this account's code to the given code.
-	/// NOTE: Account should have been created with `new_contract()` or have `reset_code()` called on it.
+	/// NOTE: Account should have been created with `new_contract()`.
 	pub fn init_code(&mut self, code: Bytes) {
 		assert!(self.code_hash.is_none());
 		self.code_cache = code;
-	}
-
-	/// Clears storage of this account
-	pub fn clear_storage(&mut self) {
-		info!("Clearing storage");
-		for (_k, &mut (ref mut f, ref mut v)) in self.storage_overlay.borrow_mut().iter_mut() {
-			*f = Filth::Dirty;
-			*v = H256::from(U256::zero());
-		}
 	}
 
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
