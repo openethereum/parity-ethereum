@@ -185,13 +185,11 @@ impl Ethash {
 		else {
 			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty, header.timestamp, parent.timestamp);
 			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
-			if header.timestamp >= parent.timestamp + 10 {
-				let diff_inc = (header.timestamp - parent.timestamp) / 10;
+			let diff_inc = (header.timestamp - parent.timestamp) / 10;
+			if diff_inc <= 1 {
+				parent.difficulty + parent.difficulty / From::from(2048) * From::from(1 - diff_inc)
+			} else {
 				parent.difficulty - parent.difficulty / From::from(2048) * From::from(min(diff_inc - 1, 99))
-			}
-			else {
-				let minus_diff_inc = if parent.timestamp > header.timestamp {(parent.timestamp - header.timestamp) / 10} else {0};
-				parent.difficulty + parent.difficulty / From::from(2048) * From::from(minus_diff_inc + 1)
 			}
 		};
 		target = max(min_difficulty, target);
