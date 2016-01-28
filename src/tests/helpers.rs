@@ -79,8 +79,8 @@ fn create_unverifiable_block_with_extra(order: u32, parent_hash: H256, extra: Op
 		Some(extra_data) => extra_data,
 		None => {
 			let base = (order & 0x000000ff) as u8;
-		    let generated: Vec<u8> = vec![base + 1, base + 2, base + 3];
-		    generated
+			let generated: Vec<u8> = vec![base + 1, base + 2, base + 3];
+			generated
 		}
 	};
 	create_test_block(&header)
