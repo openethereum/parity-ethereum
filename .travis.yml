@@ -10,6 +10,7 @@ cache:
   directories:
   - target/debug/deps
   - target/debug/build
+  - rocksdb-3.13.1
 addons:
   apt:
     packages:
@@ -17,6 +18,7 @@ addons:
     - libelf-dev
     - libdw-dev
 before_script: |
+  [ -d "rocksdb-3.13.1" ] &&
   wget https://github.com/facebook/rocksdb/archive/rocksdb-3.13.1.tar.gz &&
   tar -zxvf rocksdb-3.13.1.tar.gz &&
   cd rocksdb-rocksdb-3.13.1 &&
