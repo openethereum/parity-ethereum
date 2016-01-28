@@ -1,4 +1,6 @@
 use std::env;
+use log::{LogLevelFilter};
+use env_logger::LogBuilder;
 use super::test_common::*;
 use client::{BlockChainClient,Client};
 use pod_state::*;
@@ -10,7 +12,19 @@ pub enum ChainEra {
 	Homestead,
 }
 
+fn setup_log() {
+	let mut builder = LogBuilder::new();
+	builder.filter(None, LogLevelFilter::Info);
+
+	if env::var("RUST_LOG").is_ok() {
+		builder.parse(&env::var("RUST_LOG").unwrap());
+	}
+
+	builder.init().unwrap();
+}
+
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
+	setup_log();
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 

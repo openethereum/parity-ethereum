@@ -59,9 +59,14 @@ impl Engine for Ethash {
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
+		trace!(target: "client", "Creating schedule. param={:?}, fCML={}", self.spec().engine_params.get("frontierCompatibilityModeLimit"), self.u64_param("frontierCompatibilityModeLimit"));
 		match env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
-			true => Schedule::new_frontier(),
-			_ => Schedule::new_homestead(),
+			true => {
+				Schedule::new_frontier()
+			},
+			_ => {
+				Schedule::new_homestead()
+			},
 		}
 	}
 
@@ -178,12 +183,15 @@ impl Ethash {
 			}
 		}
 		else {
-			let diff_inc = (header.timestamp - parent.timestamp) / 10;
-			if diff_inc <= 1 {
-				parent.difficulty + parent.difficulty / From::from(2048) * From::from(1 - diff_inc)
+			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty, header.timestamp, parent.timestamp);
+			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
+			if header.timestamp >= parent.timestamp + 10 {
+				let diff_inc = (header.timestamp - parent.timestamp) / 10;
+				parent.difficulty - parent.difficulty / From::from(2048) * From::from(min(diff_inc - 1, 99))
 			}
 			else {
-				parent.difficulty - parent.difficulty / From::from(2048) * From::from(max(diff_inc - 1, 99))
+				let minus_diff_inc = if parent.timestamp > header.timestamp {(parent.timestamp - header.timestamp) / 10} else {0};
+				parent.difficulty + parent.difficulty / From::from(2048) * From::from(minus_diff_inc + 1)
 			}
 		};
 		target = max(min_difficulty, target);
