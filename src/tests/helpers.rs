@@ -171,11 +171,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 
 pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(
-		&create_unverifiable_block(
-			0,
-			H256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap()),
-		temp.as_path());
+	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
 
 	GuardedTempResult::<BlockChain> {
 		temp: temp,
