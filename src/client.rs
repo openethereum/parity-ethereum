@@ -4,10 +4,12 @@ use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
 use error::*;
 use header::BlockNumber;
+use state::State;
 use spec::Spec;
 use engine::Engine;
-use queue::BlockQueue;
-use sync::NetSyncMessage;
+use views::HeaderView;
+use block_queue::{BlockQueue, BlockQueueInfo};
+use service::NetSyncMessage;
 use env_info::LastHashes;
 use verification::*;
 use block::*;
@@ -46,13 +48,6 @@ impl fmt::Display for BlockChainInfo {
 	}
 }
 
-/// Block queue status
-#[derive(Debug)]
-pub struct BlockQueueStatus {
-	/// TODO [arkpar] Please document me
-	pub full: bool,
-}
-
 /// TODO [arkpar] Please document me
 pub type TreeRoute = ::blockchain::TreeRoute;
 
@@ -71,6 +66,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block status by block header hash.
 	fn block_status(&self, hash: &H256) -> BlockStatus;
 
+	/// Get block total difficulty.
+	fn block_total_difficulty(&self, hash: &H256) -> Option<U256>;
+
 	/// Get raw block header data by block number.
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes>;
 
@@ -84,6 +82,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block status by block number.
 	fn block_status_at(&self, n: BlockNumber) -> BlockStatus;
 
+	/// Get block total difficulty.
+	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256>;
+
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute>;
@@ -95,16 +96,21 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
 
 	/// Import a block into the blockchain.
-	fn import_block(&mut self, bytes: Bytes) -> ImportResult;
+	fn import_block(&self, bytes: Bytes) -> ImportResult;
 
 	/// Get block queue information.
-	fn queue_status(&self) -> BlockQueueStatus;
+	fn queue_info(&self) -> BlockQueueInfo;
 
 	/// Clear block queue and abort all import activity.
-	fn clear_queue(&mut self);
+	fn clear_queue(&self);
 
 	/// Get blockchain information.
 	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Get the best block header.
+	fn best_block_header(&self) -> Bytes {
+		self.block_header(&self.chain_info().best_block_hash).unwrap()
+	}
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -128,24 +134,29 @@ impl ClientReport {
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
+/// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: JournalDB,
-	queue: BlockQueue,
-	report: ClientReport,
+	block_queue: RwLock<BlockQueue>,
+	report: RwLock<ClientReport>,
+	uncommited_states: RwLock<HashMap<H256, JournalDB>>,
+	import_lock: Mutex<()>
 }
 
 const HISTORY: u64 = 1000;
 
 impl Client {
 	/// Create a new client with given spec and DB path.
-	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Client, Error> {
-		let chain = Arc::new(RwLock::new(BlockChain::new(&spec.genesis_block(), path)));
+	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+		let gb = spec.genesis_block();
+		let chain = Arc::new(RwLock::new(BlockChain::new(&gb, path)));
 		let mut opts = Options::new();
-		opts.create_if_missing(true);
 		opts.set_max_open_files(256);
-		/*opts.set_use_fsync(false);
+		opts.create_if_missing(true);
+		opts.set_use_fsync(false);
+		/*
 		opts.set_bytes_per_sync(8388608);
 		opts.set_disable_data_sync(false);
 		opts.set_block_cache_size_mb(1024);
@@ -164,37 +175,38 @@ impl Client {
 
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
-		let db = DB::open(&opts, state_path.to_str().unwrap()).unwrap();
-		let mut state_db = JournalDB::new(db);
+		let db = Arc::new(DB::open(&opts, state_path.to_str().unwrap()).unwrap());
 		
 		let engine = Arc::new(try!(spec.to_engine()));
+		let mut state_db = JournalDB::new_with_arc(db.clone());
 		if engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
-
-//		chain.write().unwrap().ensure_good(&state_db);
-
-		Ok(Client {
+		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
 			state_db: state_db,
-			queue: BlockQueue::new(engine, message_channel),
-			report: Default::default(),
-		})
+			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
+			report: RwLock::new(Default::default()),
+			uncommited_states: RwLock::new(HashMap::new()),
+			import_lock: Mutex::new(()),
+		}))
+	}
+
+	/// Flush the block import queue.
+	pub fn flush_queue(&self) {
+		self.block_queue.write().unwrap().flush();
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&mut self) {
-		
+	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) -> usize {
+		let mut ret = 0;
 		let mut bad = HashSet::new();
-		let blocks = self.queue.drain(128); 
-		if blocks.is_empty() {
-			return;
-		}
-
+		let _import_lock = self.import_lock.lock();
+		let blocks = self.block_queue.write().unwrap().drain(128);
 		for block in blocks {
 			if bad.contains(&block.header.parent_hash) {
-				self.queue.mark_as_bad(&block.header.hash());
+				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
 				bad.insert(block.header.hash());
 				continue;
 			}
@@ -202,17 +214,17 @@ impl Client {
 			let header = &block.header;
 			if let Err(e) = verify_block_family(&header, &block.bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
 				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				self.queue.mark_as_bad(&header.hash());
+				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 				bad.insert(block.header.hash());
-				return;
+				break;
 			};
 			let parent = match self.chain.read().unwrap().block_header(&header.parent_hash) {
 				Some(p) => p,
 				None => {
 					warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
-					self.queue.mark_as_bad(&header.hash());
+					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
 					bad.insert(block.header.hash());
-					return;
+					break;
 				},
 			};
 			// build last hashes
@@ -228,19 +240,20 @@ impl Client {
 				}
 			}
 
-			let result = match enact_verified(&block, self.engine.deref().deref(), self.state_db.clone(), &parent, &last_hashes) {
+			let db = self.state_db.clone();
+			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
 					warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				bad.insert(block.header.hash());
-					self.queue.mark_as_bad(&header.hash());
-					return;
+					bad.insert(block.header.hash());
+					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
+					break;
 				}
 			};
 			if let Err(e) = verify_block_final(&header, result.block().header()) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				self.queue.mark_as_bad(&header.hash());
-				return;
+				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
+				break;
 			}
 
 			self.chain.write().unwrap().insert_block(&block.bytes); //TODO: err here?
@@ -249,13 +262,24 @@ impl Client {
 				Ok(_) => (),
 				Err(e) => {
 					warn!(target: "client", "State DB commit failed: {:?}", e);
-					return;
+					break;
 				}
 			}
-			self.report.accrue_block(&block);
-
+			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
+			ret += 1;
 		}
+		ret
+	}
+
+	/// Clear cached state overlay 
+	pub fn clear_state(&self, hash: &H256) {
+		self.uncommited_states.write().unwrap().remove(hash);
+	}
+
+	/// Get a copy of the best block's state.
+	pub fn state(&self) -> State {
+		State::from_existing(self.state_db.clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
 	}
 
 	/// Get info on the cache.
@@ -265,7 +289,7 @@ impl Client {
 
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
-		self.report.clone()
+		self.report.read().unwrap().clone()
 	}
 
 	/// Tick the client.
@@ -296,6 +320,10 @@ impl BlockChainClient for Client {
 	fn block_status(&self, hash: &H256) -> BlockStatus {
 		if self.chain.read().unwrap().is_known(&hash) { BlockStatus::InChain } else { BlockStatus::Unknown }
 	}
+	
+	fn block_total_difficulty(&self, hash: &H256) -> Option<U256> {
+		self.chain.read().unwrap().block_details(hash).map(|d| d.total_difficulty)
+	}
 
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
 		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_header(&h))
@@ -316,6 +344,10 @@ impl BlockChainClient for Client {
 		}
 	}
 
+	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256> {
+		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_total_difficulty(&h))
+	}
+
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
 		self.chain.read().unwrap().tree_route(from.clone(), to.clone())
 	}
@@ -328,21 +360,20 @@ impl BlockChainClient for Client {
 		unimplemented!();
 	}
 
-	fn import_block(&mut self, bytes: Bytes) -> ImportResult {
+	fn import_block(&self, bytes: Bytes) -> ImportResult {
 		let header = BlockView::new(&bytes).header();
 		if self.chain.read().unwrap().is_known(&header.hash()) {
 			return Err(ImportError::AlreadyInChain);
 		}
-		self.queue.import_block(bytes)
+		self.block_queue.write().unwrap().import_block(bytes)
 	}
 
-	fn queue_status(&self) -> BlockQueueStatus {
-		BlockQueueStatus {
-			full: false
-		}
+	fn queue_info(&self) -> BlockQueueInfo {
+		self.block_queue.read().unwrap().queue_info()
 	}
 
-	fn clear_queue(&mut self) {
+	fn clear_queue(&self) {
+		self.block_queue.write().unwrap().clear();
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {

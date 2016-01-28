@@ -64,7 +64,7 @@ impl IntoJit<evmjit::I256> for H256 {
 		for i in 0..self.bytes().len() {
 			let rev = self.bytes().len() - 1 - i;
 			let pos = rev / 8;
-			ret[pos] += (self.bytes()[i] as u64) << (rev % 8) * 8;
+			ret[pos] += (self.bytes()[i] as u64) << ((rev % 8) * 8);
 		}
 		evmjit::I256 { words: ret }
 	}
@@ -218,9 +218,11 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			}
 		}
 
-		match self.ext.call(&call_gas, 
+		match self.ext.call(
+					  &call_gas, 
+					  &self.address,
 					  &receive_address, 
-					  &value, 
+					  Some(value),
 					  unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
 					  &code_address,
 					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) }) {
@@ -262,7 +264,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			}
 		
 			let bytes_ref: &[u8] = slice::from_raw_parts(beg, size as usize);
-			self.ext.log(topics, bytes_ref.to_vec());
+			self.ext.log(topics, bytes_ref);
 		}
 	}
 
@@ -287,8 +289,8 @@ impl evm::Evm for JitEvm {
 		assert!(params.gas <= U256::from(i64::max_value() as u64), "evmjit max gas is 2 ^ 63");
 		assert!(params.gas_price <= U256::from(i64::max_value() as u64), "evmjit max gas is 2 ^ 63");
 
-		let call_data = params.data.unwrap_or(vec![]);
-		let code = params.code.unwrap_or(vec![]);
+		let call_data = params.data.unwrap_or_else(Vec::new);
+		let code = params.code.unwrap_or_else(Vec::new);
 
 		let mut data = evmjit::RuntimeDataHandle::new();
 		data.gas = params.gas.low_u64() as i64;
@@ -303,7 +305,10 @@ impl evm::Evm for JitEvm {
 		data.address = params.address.into_jit();
 		data.caller = params.sender.into_jit();
 		data.origin = params.origin.into_jit();
-		data.call_value = params.value.into_jit();
+		data.call_value = match params.value {
+			ActionValue::Transfer(val) => val.into_jit(),
+			ActionValue::Apparent(val) => val.into_jit()
+		};
 
 		data.author = ext.env_info().author.clone().into_jit();
 		data.difficulty = ext.env_info().difficulty.into_jit();

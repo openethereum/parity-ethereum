@@ -1,0 +1,19 @@
+[package]
+description = "Ethcore jsonrpc"
+name = "ethcore-rpc"
+version = "0.1.0"
+license = "GPL-3.0"
+authors = ["Ethcore <admin@ethcore.io"]
+
+[lib]
+
+[dependencies]
+serde = "0.6.7"
+serde_macros = "0.6.10"
+serde_json = "0.6.0"
+jsonrpc-core = "1.1"
+jsonrpc-http-server = "1.1"
+ethcore-util = { path = "../util" }
+ethcore = { path = ".." }
+clippy = "0.0.37"
+

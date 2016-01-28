@@ -1,12 +1,35 @@
+//! A queue of blocks. Sits between network or other I/O and the BlockChain.
+//! Sorts them ready for blockchain insertion.
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use util::*;
 use verification::*;
 use error::*;
 use engine::Engine;
-use sync::*;
 use views::*;
 use header::*;
+use service::*;
+
+/// Block queue status
+#[derive(Debug)]
+pub struct BlockQueueInfo {
+	/// Indicates that queue is full
+	pub full: bool,
+	/// Number of queued blocks pending verification
+	pub unverified_queue_size: usize,
+	/// Number of verified queued blocks pending import
+	pub verified_queue_size: usize,
+	/// Number of blocks being verified
+	pub verifying_queue_size: usize,
+}
+
+impl BlockQueueInfo {
+	/// The total size of the queues.
+	pub fn total_queue_size(&self) -> usize { self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size }
+
+	/// The size of the unverified and verifying queues.
+	pub fn incomplete_queue_size(&self) -> usize { self.unverified_queue_size + self.verifying_queue_size }
+}
 
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
 /// Sorts them ready for blockchain insertion.
@@ -17,6 +40,7 @@ pub struct BlockQueue {
 	verifiers: Vec<JoinHandle<()>>,
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
+	empty: Arc<Condvar>,
 	processing: HashSet<H256>
 }
 
@@ -61,16 +85,19 @@ impl BlockQueue {
 		let more_to_verify = Arc::new(Condvar::new());
 		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
 		let deleting = Arc::new(AtomicBool::new(false));
+		let empty = Arc::new(Condvar::new());
 
 		let mut verifiers: Vec<JoinHandle<()>> = Vec::new();
-		let thread_count = max(::num_cpus::get(), 2) - 1;
-		for _ in 0..thread_count {
+		let thread_count = max(::num_cpus::get(), 3) - 2;
+		for i in 0..thread_count {
 			let verification = verification.clone();
 			let engine = engine.clone();
 			let more_to_verify = more_to_verify.clone();
 			let ready_signal = ready_signal.clone();
+			let empty = empty.clone();
 			let deleting = deleting.clone();
-			verifiers.push(thread::spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal,  deleting)));
+			verifiers.push(thread::Builder::new().name(format!("Verifier #{}", i)).spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty))
+				.expect("Error starting block verification thread"));
 		}
 		BlockQueue {
 			engine: engine,
@@ -80,13 +107,19 @@ impl BlockQueue {
 			verifiers: verifiers,
 			deleting: deleting.clone(),
 			processing: HashSet::new(),
+			empty: empty.clone(),
 		}
 	}
 
-	fn verify(verification: Arc<Mutex<Verification>>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>) {
+	fn verify(verification: Arc<Mutex<Verification>>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
 		while !deleting.load(AtomicOrdering::Relaxed) {
 			{
 				let mut lock = verification.lock().unwrap();
+
+				if lock.unverified.is_empty() && lock.verifying.is_empty() {
+					empty.notify_all();
+				}
+
 				while lock.unverified.is_empty() && !deleting.load(AtomicOrdering::Relaxed) {
 					lock = wait.wait(lock).unwrap();
 				}
@@ -155,36 +188,46 @@ impl BlockQueue {
 		verification.verifying.clear();
 	}
 
+	/// Wait for queue to be empty
+	pub fn flush(&mut self) {
+		let mut verification = self.verification.lock().unwrap();
+		while !verification.unverified.is_empty() || !verification.verifying.is_empty() {
+			verification = self.empty.wait(verification).unwrap();
+		}
+	}
+
 	/// Add a block to the queue.
 	pub fn import_block(&mut self, bytes: Bytes) -> ImportResult {
 		let header = BlockView::new(&bytes).header();
-		if self.processing.contains(&header.hash()) {
+		let h = header.hash();
+		if self.processing.contains(&h) {
 			return Err(ImportError::AlreadyQueued);
 		}
 		{
 			let mut verification = self.verification.lock().unwrap();
-			if verification.bad.contains(&header.hash()) {
+			if verification.bad.contains(&h) {
 				return Err(ImportError::Bad(None));
 			}
 
 			if verification.bad.contains(&header.parent_hash) {
-				verification.bad.insert(header.hash());
+				verification.bad.insert(h.clone());
 				return Err(ImportError::Bad(None));
 			}
 		}
 
 		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
 			Ok(()) => {
-				self.processing.insert(header.hash());
+				self.processing.insert(h.clone());
 				self.verification.lock().unwrap().unverified.push_back(UnVerifiedBlock { header: header, bytes: bytes });
 				self.more_to_verify.notify_all();
+				Ok(h)
 			},
 			Err(err) => {
 				warn!(target: "client", "Stage 1 block verification failed for {}\nError: {:?}", BlockView::new(&bytes).header_view().sha3(), err);
-				self.verification.lock().unwrap().bad.insert(header.hash());
+				self.verification.lock().unwrap().bad.insert(h.clone());
+				Err(From::from(err))
 			}
 		}
-		Ok(())
 	}
 
 	/// Mark given block and all its children as bad. Stops verification.
@@ -204,7 +247,7 @@ impl BlockQueue {
 		verification.verified = new_verified;
 	}
 
-	/// TODO [arkpar] Please document me
+	/// Removes up to `max` verified blocks from the queue
 	pub fn drain(&mut self, max: usize) -> Vec<PreVerifiedBlock> {
 		let mut verification = self.verification.lock().unwrap();
 		let count = min(max, verification.verified.len());
@@ -215,7 +258,21 @@ impl BlockQueue {
 			result.push(block);
 		}
 		self.ready_signal.reset();
+		if !verification.verified.is_empty() {
+			self.ready_signal.set();
+		}
 		result
+	}
+
+	/// Get queue status.
+	pub fn queue_info(&self) -> BlockQueueInfo {
+		let verification = self.verification.lock().unwrap();
+		BlockQueueInfo {
+			full: false,
+			verified_queue_size: verification.verified.len(),
+			unverified_queue_size: verification.unverified.len(),
+			verifying_queue_size: verification.verifying.len(),
+		}
 	}
 }
 
@@ -234,7 +291,7 @@ impl Drop for BlockQueue {
 mod tests {
 	use util::*;
 	use spec::*;
-	use queue::*;
+	use block_queue::*;
 
 	#[test]
 	fn test_block_queue() {

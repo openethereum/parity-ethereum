@@ -30,11 +30,13 @@ impl EthashManager {
 	/// `nonce` - The nonce to pack into the mix
 	pub fn compute_light(&self, block_number: u64, header_hash: &H256, nonce: u64) -> ProofOfWork {
 		let epoch = block_number / ETHASH_EPOCH_LENGTH;
-		if !self.lights.read().unwrap().contains_key(&epoch) {
-			let mut lights = self.lights.write().unwrap(); // obtain write lock
-			if !lights.contains_key(&epoch) {
-				let light = Light::new(block_number);
-				lights.insert(epoch, light);
+		while !self.lights.read().unwrap().contains_key(&epoch) {
+			if let Ok(mut lights) = self.lights.try_write()
+			{
+				if !lights.contains_key(&epoch) {
+					let light = Light::new(block_number);
+					lights.insert(epoch, light);
+				}
 			}
 		}
 		self.lights.read().unwrap().get(&epoch).unwrap().compute(header_hash, nonce)

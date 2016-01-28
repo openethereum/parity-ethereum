@@ -32,13 +32,13 @@ impl Ethash {
 	}
 
 	fn u64_param(&self, name: &str) -> u64 {
-		*self.u64_params.write().unwrap().entry(name.to_string()).or_insert_with(||
-			self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(0u64))
+		*self.u64_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
+			self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a)))
 	}
 
 	fn u256_param(&self, name: &str) -> U256 {
-		*self.u256_params.write().unwrap().entry(name.to_string()).or_insert_with(||
-			self.spec().engine_params.get(name).map(|a| decode(&a)).unwrap_or(x!(0)))
+		*self.u256_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
+			self.spec().engine_params.get(name).map_or(x!(0), |a| decode(&a)))
 	}
 }
 
@@ -83,8 +83,8 @@ impl Engine for Ethash {
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, block: &mut Block) {
-		let reward = self.spec().engine_params.get("blockReward").map(|a| decode(&a)).unwrap_or(U256::from(0u64));
+	fn on_close_block(&self, block: &mut ExecutedBlock) {
+		let reward = self.spec().engine_params.get("blockReward").map_or(U256::from(0u64), |a| decode(&a));
 		let fields = block.fields();
 
 		// Bestow block reward
@@ -99,13 +99,17 @@ impl Engine for Ethash {
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		// check the seal fields.
+		try!(UntrustedRlp::new(&header.seal[0]).as_val::<H256>());
+		try!(UntrustedRlp::new(&header.seal[1]).as_val::<H64>());
+
 		let min_difficulty = decode(self.spec().engine_params.get("minimumDifficulty").unwrap());
 		if header.difficulty < min_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: min_difficulty, found: header.difficulty })))
 		}
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
 				&Ethash::to_ethash(header.bare_hash()), 
-				header.nonce(),
+				header.nonce().low_u64(),
 				&Ethash::to_ethash(header.mix_hash()))));
 		if difficulty < header.difficulty {
 			return Err(From::from(BlockError::InvalidEthashDifficulty(Mismatch { expected: header.difficulty, found: difficulty })));
@@ -114,7 +118,7 @@ impl Engine for Ethash {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		let result = self.pow.compute_light(header.number as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce());
+		let result = self.pow.compute_light(header.number as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
 		if mix != header.mix_hash() {
@@ -153,6 +157,7 @@ impl Engine for Ethash {
 	}
 }
 
+#[allow(wrong_self_convention)] // to_ethash should take self
 impl Ethash {
 	fn calculate_difficuty(&self, header: &Header, parent: &Header) -> U256 {
 		const EXP_DIFF_PERIOD: u64 = 100000;
@@ -203,7 +208,7 @@ impl Ethash {
 }
 
 impl Header {
-	fn nonce(&self) -> u64 {
+	fn nonce(&self) -> H64 {
 		decode(&self.seal()[1])
 	}
 	fn mix_hash(&self) -> H256 {

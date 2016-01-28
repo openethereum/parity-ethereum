@@ -26,7 +26,7 @@ pub enum MessageCallResult {
 	Failed
 }
 
-/// TODO [debris] Please document me
+/// Externalities interface for EVMs
 pub trait Ext {
 	/// Returns a value for given key.
 	fn storage_at(&self, key: &H256) -> H256;
@@ -55,8 +55,9 @@ pub trait Ext {
 	/// and true if subcall was successfull.
 	fn call(&mut self, 
 			gas: &U256, 
-			address: &Address, 
-			value: &U256, 
+			sender_address: &Address, 
+			receive_address: &Address, 
+			value: Option<U256>,
 			data: &[u8], 
 			code_address: &Address, 
 			output: &mut [u8]) -> MessageCallResult;

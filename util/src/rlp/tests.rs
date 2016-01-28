@@ -4,7 +4,7 @@ use self::json_tests::rlp as rlptest;
 use std::{fmt, cmp};
 use std::str::FromStr;
 use rlp;
-use rlp::{UntrustedRlp, RlpStream, View, Stream};
+use rlp::{UntrustedRlp, RlpStream, View, Stream, DecoderError};
 use uint::U256;
 
 #[test]
@@ -15,25 +15,25 @@ fn rlp_at() {
 		assert!(rlp.is_list());
 		//let animals = <Vec<String> as rlp::Decodable>::decode_untrusted(&rlp).unwrap();
 		let animals: Vec<String> = rlp.as_val().unwrap();
-		assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
+		assert_eq!(animals, vec!["cat".to_owned(), "dog".to_owned()]);
 
 		let cat = rlp.at(0).unwrap();
 		assert!(cat.is_data());
 		assert_eq!(cat.as_raw(), &[0x83, b'c', b'a', b't']);
-		//assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_string());
-		assert_eq!(cat.as_val::<String>().unwrap(), "cat".to_string());
+		//assert_eq!(String::decode_untrusted(&cat).unwrap(), "cat".to_owned());
+		assert_eq!(cat.as_val::<String>().unwrap(), "cat".to_owned());
 
 		let dog = rlp.at(1).unwrap();
 		assert!(dog.is_data());
 		assert_eq!(dog.as_raw(), &[0x83, b'd', b'o', b'g']);
-		//assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_string());
-		assert_eq!(dog.as_val::<String>().unwrap(), "dog".to_string());
+		//assert_eq!(String::decode_untrusted(&dog).unwrap(), "dog".to_owned());
+		assert_eq!(dog.as_val::<String>().unwrap(), "dog".to_owned());
 
 		let cat_again = rlp.at(0).unwrap();
 		assert!(cat_again.is_data());
 		assert_eq!(cat_again.as_raw(), &[0x83, b'c', b'a', b't']);
-		//assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_string());
-		assert_eq!(cat_again.as_val::<String>().unwrap(), "cat".to_string());
+		//assert_eq!(String::decode_untrusted(&cat_again).unwrap(), "cat".to_owned());
+		assert_eq!(cat_again.as_val::<String>().unwrap(), "cat".to_owned());
 	}
 }
 
@@ -268,13 +268,13 @@ fn decode_untrusted_u256() {
 
 #[test]
 fn decode_untrusted_str() {
-	let tests = vec![DTestPair("cat".to_string(), vec![0x83, b'c', b'a', b't']),
-					 DTestPair("dog".to_string(), vec![0x83, b'd', b'o', b'g']),
-					 DTestPair("Marek".to_string(),
+	let tests = vec![DTestPair("cat".to_owned(), vec![0x83, b'c', b'a', b't']),
+					 DTestPair("dog".to_owned(), vec![0x83, b'd', b'o', b'g']),
+					 DTestPair("Marek".to_owned(),
 							   vec![0x85, b'M', b'a', b'r', b'e', b'k']),
-					 DTestPair("".to_string(), vec![0x80]),
+					 DTestPair("".to_owned(), vec![0x80]),
 					 DTestPair("Lorem ipsum dolor sit amet, consectetur adipisicing elit"
-								   .to_string(),
+								   .to_owned(),
 							   vec![0xb8, 0x38, b'L', b'o', b'r', b'e', b'm', b' ', b'i',
 									b'p', b's', b'u', b'm', b' ', b'd', b'o', b'l', b'o',
 									b'r', b' ', b's', b'i', b't', b' ', b'a', b'm', b'e',
@@ -311,14 +311,14 @@ fn decode_untrusted_vector_u64() {
 
 #[test]
 fn decode_untrusted_vector_str() {
-	let tests = vec![DTestPair(vec!["cat".to_string(), "dog".to_string()],
+	let tests = vec![DTestPair(vec!["cat".to_owned(), "dog".to_owned()],
 							   vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'])];
 	run_decode_tests(tests);
 }
 
 #[test]
 fn decode_untrusted_vector_of_vectors_str() {
-	let tests = vec![DTestPair(vec![vec!["cat".to_string()]],
+	let tests = vec![DTestPair(vec![vec!["cat".to_owned()]],
 							   vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
 	run_decode_tests(tests);
 }
@@ -351,3 +351,56 @@ fn test_decoding_array() {
 	assert_eq!(arr[0], 5);
 	assert_eq!(arr[1], 2);
 }
+
+#[test]
+fn test_rlp_data_length_check()
+{
+	let data = vec![0x84, b'c', b'a', b't'];
+	let rlp = UntrustedRlp::new(&data);
+
+	let as_val: Result<String, DecoderError> = rlp.as_val();
+	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), as_val);
+}
+
+#[test]
+fn test_rlp_long_data_length_check()
+{
+	let mut data: Vec<u8> = vec![0xb8, 255];
+	for _ in 0..253 {
+		data.push(b'c');
+	}
+
+	let rlp = UntrustedRlp::new(&data);
+
+	let as_val: Result<String, DecoderError> = rlp.as_val();
+	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), as_val);
+}
+
+#[test]
+fn test_the_exact_long_string()
+{
+	let mut data: Vec<u8> = vec![0xb8, 255];
+	for _ in 0..255 {
+		data.push(b'c');
+	}
+
+	let rlp = UntrustedRlp::new(&data);
+
+	let as_val: Result<String, DecoderError> = rlp.as_val();
+	assert!(as_val.is_ok());
+}
+
+#[test]
+fn test_rlp_2bytes_data_length_check()
+{
+	let mut data: Vec<u8> = vec![0xb9, 2, 255]; // 512+255
+	for _ in 0..700 {
+		data.push(b'c');
+	}
+
+	let rlp = UntrustedRlp::new(&data);
+
+	let as_val: Result<String, DecoderError> = rlp.as_val();
+	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), as_val);
+}
+

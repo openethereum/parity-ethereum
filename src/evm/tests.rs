@@ -19,7 +19,7 @@ struct FakeExt {
 	logs: Vec<FakeLogEntry>,
 	_suicides: HashSet<Address>,
 	info: EnvInfo,
-	_schedule: Schedule
+	schedule: Schedule
 }
 
 impl FakeExt {
@@ -61,8 +61,9 @@ impl Ext for FakeExt {
 
 	fn call(&mut self, 
 			_gas: &U256, 
-			_address: &Address, 
-			_value: &U256, 
+			_sender_address: &Address, 
+			_receive_address: &Address, 
+			_value: Option<U256>,
 			_data: &[u8], 
 			_code_address: &Address, 
 			_output: &mut [u8]) -> MessageCallResult {
@@ -89,7 +90,7 @@ impl Ext for FakeExt {
 	}
 
 	fn schedule(&self) -> &Schedule {
-		&self._schedule
+		&self.schedule
 	}
 
 	fn env_info(&self) -> &EnvInfo {
@@ -110,7 +111,7 @@ fn test_stack_underflow() {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "01600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
@@ -122,7 +123,7 @@ fn test_stack_underflow() {
 	};
 	
 	match err {
-		evm::Error::StackUnderflow {instruction: _, wanted, on_stack} => {
+		evm::Error::StackUnderflow {wanted, on_stack, ..} => {
 			assert_eq!(wanted, 2);
 			assert_eq!(on_stack, 0);
 		}
@@ -137,7 +138,7 @@ fn test_add(factory: super::Factory) {
   let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
@@ -157,7 +158,7 @@ fn test_sha3(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "6000600020600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
@@ -177,7 +178,7 @@ fn test_address(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "30600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
@@ -198,7 +199,7 @@ fn test_origin(factory: super::Factory) {
 	let origin = Address::from_str("cd1722f2947def4cf144679da39c4c32bdc35681").unwrap();
 	let code = "32600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.origin = origin.clone();
 	params.gas = U256::from(100_000);
@@ -214,13 +215,14 @@ fn test_origin(factory: super::Factory) {
 	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("000000000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681").unwrap());
 }
 
+// TODO [todr] Fails with Signal 11 on JIT
 evm_test!{test_sender: test_sender_jit, test_sender_int}
 fn test_sender(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let sender = Address::from_str("cd1722f2947def4cf144679da39c4c32bdc35681").unwrap();
 	let code = "33600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
@@ -254,7 +256,7 @@ fn test_extcodecopy(factory: super::Factory) {
 	let code = "333b60006000333c600051600055".from_hex().unwrap();
 	let sender_code = "6005600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
@@ -276,7 +278,7 @@ fn test_log_empty(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "60006000a0".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
@@ -307,7 +309,7 @@ fn test_log_sender(factory: super::Factory) {
 	let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 	let code = "60ff6000533360206000a1".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
@@ -332,7 +334,7 @@ fn test_blockhash(factory: super::Factory) {
 	let code = "600040600055".from_hex().unwrap();
 	let blockhash = H256::from_str("123400000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681").unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
@@ -354,7 +356,7 @@ fn test_calldataload(factory: super::Factory) {
 	let code = "600135600055".from_hex().unwrap();
 	let data = "0123ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
@@ -376,7 +378,7 @@ fn test_author(factory: super::Factory) {
 	let author = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "41600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
 	let mut ext = FakeExt::new();
@@ -396,7 +398,7 @@ fn test_timestamp(factory: super::Factory) {
 	let timestamp = 0x1234; 
 	let code = "42600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
 	let mut ext = FakeExt::new();
@@ -416,7 +418,7 @@ fn test_number(factory: super::Factory) {
 	let number = 0x1234; 
 	let code = "43600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
 	let mut ext = FakeExt::new();
@@ -436,7 +438,7 @@ fn test_difficulty(factory: super::Factory) {
 	let difficulty = U256::from(0x1234);
 	let code = "44600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
 	let mut ext = FakeExt::new();
@@ -456,7 +458,7 @@ fn test_gas_limit(factory: super::Factory) {
 	let gas_limit = U256::from(0x1234);
 	let code = "45600055".from_hex().unwrap();
 
-	let mut params = ActionParams::new();
+	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(code);
 	let mut ext = FakeExt::new();

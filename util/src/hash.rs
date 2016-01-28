@@ -8,6 +8,8 @@ use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
 use from_json::*;
 use uint::{Uint, U256};
+use rustc_serialize::hex::ToHex;
+use serde;
 
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
 ///
@@ -41,6 +43,8 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
 	/// TODO [debris] Please document me
 	fn is_zero(&self) -> bool;
+	/// Return the lowest 8 bytes interpreted as a BigEndian integer.
+	fn low_u64(&self) -> u64;
 }
 
 fn clean_0x(s: &str) -> &str {
@@ -71,8 +75,8 @@ macro_rules! impl_hash {
 				&self.0
 			}
 		}
-		impl DerefMut for $from {
 
+		impl DerefMut for $from {
 			#[inline]
 			fn deref_mut(&mut self) -> &mut [u8] {
 				&mut self.0
@@ -190,6 +194,14 @@ macro_rules! impl_hash {
 			fn is_zero(&self) -> bool {
 				self.eq(&Self::new())
 			}
+
+			fn low_u64(&self) -> u64 {
+				let mut ret = 0u64;
+				for i in 0..min($size, 8) {
+					ret |= (self.0[$size - 1 - i] as u64) << (i * 8);
+				}
+				ret
+			}
 		}
 
 		impl FromStr for $from {
@@ -205,13 +217,48 @@ macro_rules! impl_hash {
 			}
 		}
 
+		impl serde::Serialize for $from {
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			where S: serde::Serializer {
+				let mut hex = "0x".to_owned();
+				hex.push_str(self.to_hex().as_ref());
+				serializer.visit_str(hex.as_ref())
+			}
+		}
+
+		impl serde::Deserialize for $from {
+			fn deserialize<D>(deserializer: &mut D) -> Result<$from, D::Error>
+			where D: serde::Deserializer {
+				struct HashVisitor;
+
+				impl serde::de::Visitor for HashVisitor {
+					type Value = $from;
+					
+					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
+						// 0x + len
+						if value.len() != 2 + $size * 2 {
+							return Err(serde::Error::syntax("Invalid length."));
+						}
+
+						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::syntax("Invalid valid hex."))
+					}
+
+					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
+						self.visit_str(value.as_ref())
+					}
+				}
+
+				deserializer.visit(HashVisitor)
+			}
+		}
+
 		impl FromJson for $from {
 			fn from_json(json: &Json) -> Self {
-				match json {
-					&Json::String(ref s) => {
+				match *json {
+					Json::String(ref s) => {
 						match s.len() % 2 {
 							0 => FromStr::from_str(clean_0x(s)).unwrap(),
-							_ => FromStr::from_str(&("0".to_string() + &(clean_0x(s).to_string()))[..]).unwrap()
+							_ => FromStr::from_str(&("0".to_owned() + &(clean_0x(s).to_owned()))[..]).unwrap()
 						}
 					},
 					_ => Default::default(),
@@ -221,7 +268,7 @@ macro_rules! impl_hash {
 
 		impl fmt::Debug for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				for i in self.0.iter() {
+				for i in &self.0[..] {
 					try!(write!(f, "{:02x}", i));
 				}
 				Ok(())
@@ -229,11 +276,11 @@ macro_rules! impl_hash {
 		}
 		impl fmt::Display for $from {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-				for i in self.0[0..2].iter() {
+				for i in &self.0[0..2] {
 					try!(write!(f, "{:02x}", i));
 				}
 				try!(write!(f, "…"));
-				for i in self.0[$size - 4..$size].iter() {
+				for i in &self.0[$size - 4..$size] {
 					try!(write!(f, "{:02x}", i));
 				}
 				Ok(())
@@ -291,36 +338,36 @@ macro_rules! impl_hash {
 		impl Index<usize> for $from {
 			type Output = u8;
 
-			fn index<'a>(&'a self, index: usize) -> &'a u8 {
+			fn index(&self, index: usize) -> &u8 {
 				&self.0[index]
 			}
 		}
 		impl IndexMut<usize> for $from {
-			fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut u8 {
+			fn index_mut(&mut self, index: usize) -> &mut u8 {
 				&mut self.0[index]
 			}
 		}
 		impl Index<ops::Range<usize>> for $from {
 			type Output = [u8];
 
-			fn index<'a>(&'a self, index: ops::Range<usize>) -> &'a [u8] {
+			fn index(&self, index: ops::Range<usize>) -> &[u8] {
 				&self.0[index]
 			}
 		}
 		impl IndexMut<ops::Range<usize>> for $from {
-			fn index_mut<'a>(&'a mut self, index: ops::Range<usize>) -> &'a mut [u8] {
+			fn index_mut(&mut self, index: ops::Range<usize>) -> &mut [u8] {
 				&mut self.0[index]
 			}
 		}
 		impl Index<ops::RangeFull> for $from {
 			type Output = [u8];
 
-			fn index<'a>(&'a self, _index: ops::RangeFull) -> &'a [u8] {
+			fn index(&self, _index: ops::RangeFull) -> &[u8] {
 				&self.0
 			}
 		}
 		impl IndexMut<ops::RangeFull> for $from {
-			fn index_mut<'a>(&'a mut self, _index: ops::RangeFull) -> &'a mut [u8] {
+			fn index_mut(&mut self, _index: ops::RangeFull) -> &mut [u8] {
 				&mut self.0
 			}
 		}
@@ -440,9 +487,9 @@ macro_rules! impl_hash {
 			fn from(s: &'_ str) -> $from {
 				use std::str::FromStr;
 				if s.len() % 2 == 1 {
-					$from::from_str(&("0".to_string() + &(clean_0x(s).to_string()))[..]).unwrap_or($from::new())
+					$from::from_str(&("0".to_owned() + &(clean_0x(s).to_owned()))[..]).unwrap_or_else(|_| $from::new())
 				} else {
-					$from::from_str(clean_0x(s)).unwrap_or($from::new())
+					$from::from_str(clean_0x(s)).unwrap_or_else(|_| $from::new())
 				}
 			}
 		}
@@ -466,6 +513,18 @@ impl<'_> From<&'_ U256> for H256 {
 			value.to_bytes(&mut ret);
 			ret
 		}
+	}
+}
+
+impl From<H256> for U256 {
+	fn from(value: H256) -> U256 {
+		U256::from(value.bytes())
+	}
+}
+
+impl<'_> From<&'_ H256> for U256 {
+	fn from(value: &'_ H256) -> U256 {
+		U256::from(value.bytes())
 	}
 }
 
@@ -562,9 +621,11 @@ pub static ZERO_H256: H256 = H256([0x00; 32]);
 #[cfg(test)]
 mod tests {
 	use hash::*;
+	use uint::*;
 	use std::str::FromStr;
 
 	#[test]
+	#[allow(eq_op)]
 	fn hash() {
 		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
@@ -633,6 +694,19 @@ mod tests {
 		assert_eq!(H64::from(0x234567890abcdef), H64::from("0x234567890abcdef"));
 		// too short.
 		assert_eq!(H64::from(0), H64::from("0x34567890abcdef"));
+	}
+
+	#[test]
+	fn from_and_to_u256() {
+		let u: U256 = x!(0x123456789abcdef0u64);
+		let h = H256::from(u);
+		assert_eq!(H256::from(u), H256::from("000000000000000000000000000000000000000000000000123456789abcdef0"));
+		let h_ref = H256::from(&u);
+		assert_eq!(h, h_ref);
+		let r_ref: U256 = From::from(&h);
+		assert_eq!(r_ref, u);
+		let r: U256 = From::from(h);
+		assert_eq!(r, u);
 	}
 }
 

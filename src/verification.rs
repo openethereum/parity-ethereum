@@ -64,7 +64,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> 
 /// Phase 3 verification. Check block information against parent and uncles.
 pub fn verify_block_family<BC>(header: &Header, bytes: &[u8], engine: &Engine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
 	// TODO: verify timestamp
-	let parent = try!(bc.block_header(&header.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownParent(header.parent_hash.clone()))));
+	let parent = try!(bc.block_header(&header.parent_hash).ok_or_else(|| Error::from(BlockError::UnknownParent(header.parent_hash.clone()))));
 	try!(verify_parent(&header, &parent));
 	try!(engine.verify_block_family(&header, &parent, Some(bytes)));
 
@@ -122,7 +122,7 @@ pub fn verify_block_family<BC>(header: &Header, bytes: &[u8], engine: &Engine, b
 			// cB.p^7	-------------/
 			// cB.p^8
 			let mut expected_uncle_parent = header.parent_hash.clone();
-			let uncle_parent = try!(bc.block_header(&uncle.parent_hash).ok_or::<Error>(From::from(BlockError::UnknownUncleParent(uncle.parent_hash.clone()))));
+			let uncle_parent = try!(bc.block_header(&uncle.parent_hash).ok_or_else(|| Error::from(BlockError::UnknownUncleParent(uncle.parent_hash.clone()))));
 			for _ in 0..depth {
 				match bc.block_details(&expected_uncle_parent) {
 					Some(details) => { 
@@ -162,7 +162,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 /// Check basic header parameters.
 fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.number >= From::from(BlockNumber::max_value()) {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number })))
+		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number })))
 	}
 	if header.gas_used > header.gas_limit {
 		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used })));
@@ -186,8 +186,8 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 	if header.timestamp <= parent.timestamp {
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp + 1), found: header.timestamp })))
 	}
-	if header.number <= parent.number {
-		return Err(From::from(BlockError::InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number })));
+	if header.number != parent.number + 1 {
+		return Err(From::from(BlockError::InvalidNumber(Mismatch { expected: parent.number + 1, found: header.number })));
 	}
 	Ok(())
 }
@@ -284,7 +284,7 @@ mod tests {
 
 		/// Get raw block data
 		fn block(&self, hash: &H256) -> Option<Bytes> {
-			self.blocks.get(hash).map(|b| b.clone())
+			self.blocks.get(hash).cloned()
 		}
 
 		/// Get the familial details concerning a block.
@@ -302,7 +302,7 @@ mod tests {
 
 		/// Get the hash of given block's number.
 		fn block_hash(&self, index: BlockNumber) -> Option<H256> {
-			self.numbers.get(&index).map(|h| h.clone())
+			self.numbers.get(&index).cloned()
 		}
 	}
 
@@ -400,7 +400,7 @@ mod tests {
 		header = good.clone();
 		header.number = BlockNumber::max_value();
 		check_fail(basic_test(&create_test_block(&header), engine.deref()),
-			InvalidNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number }));
+			RidiculousNumber(OutOfBounds { max: Some(BlockNumber::max_value()), min: None, found: header.number }));
 
 		header = good.clone();
 		header.gas_used = header.gas_limit + From::from(1);
@@ -443,7 +443,7 @@ mod tests {
 		header = good.clone();
 		header.number = 9;
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
-			InvalidNumber(OutOfBounds { max: None, min: Some(parent.number + 1), found: header.number }));
+			InvalidNumber(Mismatch { expected: parent.number + 1, found: header.number }));
 		
 		header = good.clone();
 		let mut bad_uncles = good_uncles.clone();

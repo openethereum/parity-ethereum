@@ -3,7 +3,7 @@ use basic_types::LogBloom;
 use log_entry::LogEntry;
 
 /// Information describing execution of a transaction.
-#[derive(Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Receipt {
 	/// TODO [Gav Wood] Please document me
 	pub state_root: H256,
@@ -36,7 +36,7 @@ impl RlpStandard for Receipt {
 		// TODO: make work:
 		//s.append(&self.logs);
 		s.append_list(self.logs.len());
-		for l in self.logs.iter() {
+		for l in &self.logs {
 			l.rlp_append(s);
 		}
 	}

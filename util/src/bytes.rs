@@ -106,18 +106,18 @@ impl<'a> Deref for BytesRef<'a> {
 	type Target = [u8];
 
 	fn deref(&self) -> &[u8] {
-		match self {
-			&BytesRef::Flexible(ref bytes) => bytes,
-			&BytesRef::Fixed(ref bytes) => bytes
+		match *self {
+			BytesRef::Flexible(ref bytes) => bytes,
+			BytesRef::Fixed(ref bytes) => bytes
 		}
 	}
 }
 
 impl <'a> DerefMut for BytesRef<'a> {
 	fn deref_mut(&mut self) -> &mut [u8] {
-		match self {
-			&mut BytesRef::Flexible(ref mut bytes) => bytes,
-			&mut BytesRef::Fixed(ref mut bytes) => bytes
+		match *self {
+			BytesRef::Flexible(ref mut bytes) => bytes,
+			BytesRef::Fixed(ref mut bytes) => bytes
 		}
 	}
 }
@@ -273,7 +273,9 @@ pub enum FromBytesError {
 	/// TODO [debris] Please document me
 	DataIsTooShort,
 	/// TODO [debris] Please document me
-	DataIsTooLong
+	DataIsTooLong,
+	/// Integer-representation is non-canonically prefixed with zero byte(s).
+	ZeroPrefixedInt,
 }
 
 impl StdError for FromBytesError {
@@ -299,7 +301,7 @@ pub trait FromBytes: Sized {
 
 impl FromBytes for String {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<String> {
-		Ok(::std::str::from_utf8(bytes).unwrap().to_string())
+		Ok(::std::str::from_utf8(bytes).unwrap().to_owned())
 	}
 }
 
@@ -310,6 +312,9 @@ macro_rules! impl_uint_from_bytes {
 				match bytes.len() {
 					0 => Ok(0),
 					l if l <= mem::size_of::<$to>() => {
+						if bytes[0] == 0 {
+							return Err(FromBytesError::ZeroPrefixedInt)
+						}
 						let mut res = 0 as $to;
 						for i in 0..l {
 							let shift = (l - 1 - i) * 8;
@@ -344,7 +349,9 @@ macro_rules! impl_uint_from_bytes {
 	($name: ident) => {
 		impl FromBytes for $name {
 			fn from_bytes(bytes: &[u8]) -> FromBytesResult<$name> {
-				if bytes.len() <= $name::SIZE {
+				if !bytes.is_empty() && bytes[0] == 0 {
+					Err(FromBytesError::ZeroPrefixedInt)
+				} else if bytes.len() <= $name::SIZE {
 					Ok($name::from(bytes))
 				} else {
 					Err(FromBytesError::DataIsTooLong)

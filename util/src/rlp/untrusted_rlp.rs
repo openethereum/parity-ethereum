@@ -46,6 +46,9 @@ impl PayloadInfo {
 			value_len: value_len,
 		}
 	}
+
+	/// Total size of the RLP.
+	pub fn total(&self) -> usize { self.header_len + self.value_len }
 }
 
 /// Data-oriented view onto rlp-slice.
@@ -288,7 +291,7 @@ impl<'a> BasicDecoder<'a> {
 
 	/// Return first item info
 	fn payload_info(bytes: &[u8]) -> Result<PayloadInfo, DecoderError> {
-		let item = match bytes.first().map(|&x| x) {
+		let item = match bytes.first().cloned() {
 			None => return Err(DecoderError::RlpIsTooShort),
 			Some(0...0x7f) => PayloadInfo::new(0, 1),
 			Some(l @ 0x80...0xb7) => PayloadInfo::new(1, l as usize - 0x80),
@@ -324,25 +327,38 @@ impl<'a> Decoder for BasicDecoder<'a> {
 
 		let bytes = self.rlp.as_raw();
 
-		match bytes.first().map(|&x| x) {
+		match bytes.first().cloned() {
 			// rlp is too short
 			None => Err(DecoderError::RlpIsTooShort),
 			// single byt value
 			Some(l @ 0...0x7f) => Ok(try!(f(&[l]))),
 			// 0-55 bytes
 			Some(l @ 0x80...0xb7) => {
-				let d = &bytes[1..(1 + l as usize - 0x80)];
+				let last_index_of = 1 + l as usize - 0x80;
+				if bytes.len() < last_index_of {
+					return Err(DecoderError::RlpInconsistentLengthAndData);
+				}
+				let d = &bytes[1..last_index_of];
 				if l == 0x81 && d[0] < 0x80 {
 					return Err(DecoderError::RlpInvalidIndirection);
 				}
+
 				Ok(try!(f(d)))
 			},
 			// longer than 55 bytes
 			Some(l @ 0xb8...0xbf) => {
 				let len_of_len = l as usize - 0xb7;
 				let begin_of_value = 1 as usize + len_of_len;
+				if bytes.len() < begin_of_value {
+					return Err(DecoderError::RlpInconsistentLengthAndData);
+				}
 				let len = try!(usize::from_bytes(&bytes[1..begin_of_value]));
-				Ok(try!(f(&bytes[begin_of_value..begin_of_value + len])))
+
+				let last_index_of_value = begin_of_value + len;
+				if bytes.len() < last_index_of_value {
+					return Err(DecoderError::RlpInconsistentLengthAndData);
+				}
+				Ok(try!(f(&bytes[begin_of_value..last_index_of_value])))
 			}
 			// we are reading value, not a list!
 			_ => Err(DecoderError::RlpExpectedToBeData)
@@ -355,12 +371,12 @@ impl<'a> Decoder for BasicDecoder<'a> {
 
 	fn as_list(&self) -> Result<Vec<Self>, DecoderError> {
 		let v: Vec<BasicDecoder<'a>> = self.rlp.iter()
-			.map(| i | BasicDecoder::new(i))
+			.map(BasicDecoder::new)
 			.collect();
 		Ok(v)
 	}
 
-	fn as_rlp<'s>(&'s self) -> &'s UntrustedRlp<'s> {
+	fn as_rlp(&self) -> &UntrustedRlp {
 		&self.rlp
 	}
 }
@@ -405,6 +421,7 @@ impl<T> Decodable for Option<T> where T: Decodable {
 macro_rules! impl_array_decodable {
 	($index_type:ty, $len:expr ) => (
 		impl<T> Decodable for [T; $len] where T: Decodable {
+			#[allow(len_zero)]
 			fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
 				let decoders = try!(decoder.as_list());
 

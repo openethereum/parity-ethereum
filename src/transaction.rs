@@ -3,7 +3,7 @@ use basic_types::*;
 use error::*;
 use evm::Schedule;
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 /// TODO [Gav Wood] Please document me
 pub enum Action {
 	/// TODO [Gav Wood] Please document me
@@ -12,9 +12,13 @@ pub enum Action {
 	Call(Address),
 }
 
+impl Default for Action {
+	fn default() -> Action { Action::Create }
+}
+
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Debug,Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Transaction {
 	/// TODO [debris] Please document me
 	pub nonce: U256,
@@ -117,9 +121,8 @@ impl Transaction {
 		};
 		s.append(&self.value);
 		s.append(&self.data);
-		match with_seal {
-			Seal::With => { s.append(&(self.v as u16)).append(&self.r).append(&self.s); },
-			_ => {}
+		if let Seal::With = with_seal {
+			s.append(&(self.v as u16)).append(&self.r).append(&self.s);
 		}
 	}
 
@@ -138,7 +141,7 @@ impl FromJson for Transaction {
 			gas_price: xjson!(&json["gasPrice"]),
 			gas: xjson!(&json["gasLimit"]),
 			action: match Bytes::from_json(&json["to"]) {
-				ref x if x.len() == 0 => Action::Create,
+				ref x if x.is_empty() => Action::Create,
 				ref x => Action::Call(Address::from_slice(x)),
 			},
 			value: xjson!(&json["value"]),

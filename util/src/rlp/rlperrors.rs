@@ -7,6 +7,8 @@ use bytes::FromBytesError;
 pub enum DecoderError {
 	/// TODO [debris] Please document me
 	FromBytesError(FromBytesError),
+	/// Given data has additional bytes at the end of the valid RLP fragment.
+	RlpIsTooBig,
 	/// TODO [debris] Please document me
 	RlpIsTooShort,
 	/// TODO [debris] Please document me
@@ -21,6 +23,8 @@ pub enum DecoderError {
 	RlpListLenWithZeroPrefix,
 	/// TODO [debris] Please document me
 	RlpInvalidIndirection,
+	/// Returned when declared length is inconsistent with data specified after
+	RlpInconsistentLengthAndData
 }
 
 impl StdError for DecoderError {

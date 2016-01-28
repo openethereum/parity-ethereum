@@ -2,6 +2,9 @@
 #![feature(op_assign_traits)]
 #![feature(augmented_assignments)]
 #![feature(associated_consts)]
+#![feature(plugin)]
+#![plugin(clippy)]
+#![allow(needless_range_loop, match_bool)]
 //! Ethcore-util library
 //!
 //! ### Rust version:
@@ -51,6 +54,8 @@ extern crate crypto as rcrypto;
 extern crate secp256k1;
 extern crate arrayvec;
 extern crate elastic_array;
+extern crate crossbeam;
+extern crate serde;
 
 /// TODO [Gav Wood] Please document me
 pub mod standard;

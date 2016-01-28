@@ -1,6 +1,7 @@
 use common::*;
 use flate2::read::GzDecoder;
 use engine::*;
+use pod_state::*;
 use null_engine::*;
 
 /// Converts file from base64 gzipped bytes to json
@@ -10,7 +11,7 @@ pub fn gzip64res_to_json(source: &[u8]) -> Json {
 	let data = source.from_base64().expect("Genesis block is malformed!");
 	let data_ref: &[u8] = &data;
 	let mut decoder = GzDecoder::new(data_ref).expect("Gzip is invalid");
-	let mut s: String = "".to_string();
+	let mut s: String = "".to_owned();
 	decoder.read_to_string(&mut s).expect("Gzip is invalid");
 	Json::from_str(&s).expect("Json is invalid")
 }
@@ -18,14 +19,14 @@ pub fn gzip64res_to_json(source: &[u8]) -> Json {
 /// Convert JSON value to equivlaent RLP representation.
 // TODO: handle container types.
 fn json_to_rlp(json: &Json) -> Bytes {
-	match json {
-		&Json::Boolean(o) => encode(&(if o {1u64} else {0})),
-		&Json::I64(o) => encode(&(o as u64)),
-		&Json::U64(o) => encode(&o),
-		&Json::String(ref s) if s.len() >= 2 && &s[0..2] == "0x" && U256::from_str(&s[2..]).is_ok() => {
+	match *json {
+		Json::Boolean(o) => encode(&(if o {1u64} else {0})),
+		Json::I64(o) => encode(&(o as u64)),
+		Json::U64(o) => encode(&o),
+		Json::String(ref s) if s.len() >= 2 && &s[0..2] == "0x" && U256::from_str(&s[2..]).is_ok() => {
 			encode(&U256::from_str(&s[2..]).unwrap())
 		},
-		&Json::String(ref s) => {
+		Json::String(ref s) => {
 			encode(s)
 		},
 		_ => panic!()
@@ -40,28 +41,6 @@ fn json_to_rlp_map(json: &Json) -> HashMap<String, Bytes> {
 	})
 }
 
-//TODO: add code and data
-#[derive(Debug)]
-/// Genesis account data. Does no thave a DB overlay cache
-pub struct GenesisAccount {
-	// Balance of the account.
-	balance: U256,
-	// Nonce of the account.
-	nonce: U256,
-}
-
-impl GenesisAccount {
-	/// TODO [arkpar] Please document me
-	pub fn rlp(&self) -> Bytes {
-		let mut stream = RlpStream::new_list(4);
-		stream.append(&self.nonce);
-		stream.append(&self.balance);
-		stream.append(&SHA3_NULL_RLP);
-		stream.append(&SHA3_EMPTY);
-		stream.out()
-	}
-}
-
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
 #[derive(Debug)]
@@ -73,6 +52,9 @@ pub struct Spec {
 	/// TODO [Gav Wood] Please document me
 	pub engine_name: String,
 
+	/// Known nodes on the network in enode format.
+	pub nodes: Vec<String>,
+
 	// Parameters concerning operation of the specific engine we're using.
 	// Name -> RLP-encoded value
 	/// TODO [Gav Wood] Please document me
@@ -80,7 +62,7 @@ pub struct Spec {
 
 	// Builtin-contracts are here for now but would like to abstract into Engine API eventually.
 	/// TODO [Gav Wood] Please document me
-	pub builtins: HashMap<Address, Builtin>,
+	pub builtins: BTreeMap<Address, Builtin>,
 
 	// Genesis params.
 	/// TODO [Gav Wood] Please document me
@@ -98,7 +80,7 @@ pub struct Spec {
 	/// TODO [arkpar] Please document me
 	pub extra_data: Bytes,
 	/// TODO [Gav Wood] Please document me
-	pub genesis_state: HashMap<Address, GenesisAccount>,
+	genesis_state: PodState,
 	/// TODO [Gav Wood] Please document me
 	pub seal_fields: usize,
 	/// TODO [Gav Wood] Please document me
@@ -108,6 +90,7 @@ pub struct Spec {
 	state_root_memo: RwLock<Option<H256>>,
 }
 
+#[allow(wrong_self_convention)] // because to_engine(self) should be to_engine(&self)
 impl Spec {
 	/// Convert this object into a boxed Engine of the right underlying type.
 	// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
@@ -122,10 +105,13 @@ impl Spec {
 	/// Return the state root for the genesis state, memoising accordingly.
 	pub fn state_root(&self) -> H256 {
 		if self.state_root_memo.read().unwrap().is_none() {
-			*self.state_root_memo.write().unwrap() = Some(sec_trie_root(self.genesis_state.iter().map(|(k, v)| (k.to_vec(), v.rlp())).collect()));
+			*self.state_root_memo.write().unwrap() = Some(self.genesis_state.root());
 		}
 		self.state_root_memo.read().unwrap().as_ref().unwrap().clone()
 	}
+
+	/// Get the known knodes of the network in enode format.
+	pub fn nodes(&self) -> &Vec<String> { &self.nodes }
 
 	/// TODO [Gav Wood] Please document me
 	pub fn genesis_header(&self) -> Header {
@@ -167,6 +153,46 @@ impl Spec {
 		ret.append_raw(&empty_list, 1);
 		ret.out()
 	}
+
+	/// Overwrite the genesis components with the given JSON, assuming standard Ethereum test format.
+	pub fn overwrite_genesis(&mut self, genesis: &Json) {
+		let (seal_fields, seal_rlp) = {
+			if genesis.find("mixHash").is_some() && genesis.find("nonce").is_some() {
+				let mut s = RlpStream::new();
+				s.append(&H256::from_json(&genesis["mixHash"]));
+				s.append(&H64::from_json(&genesis["nonce"]));
+				(2, s.out())
+			} else {
+				// backup algo that will work with sealFields/sealRlp (and without).
+				(
+					u64::from_json(&genesis["sealFields"]) as usize,
+					Bytes::from_json(&genesis["sealRlp"])
+				)
+			}
+		};
+		
+		self.parent_hash = H256::from_json(&genesis["parentHash"]);
+		self.author = Address::from_json(&genesis["coinbase"]);
+		self.difficulty = U256::from_json(&genesis["difficulty"]);
+		self.gas_limit = U256::from_json(&genesis["gasLimit"]);
+		self.gas_used = U256::from_json(&genesis["gasUsed"]);
+		self.timestamp = u64::from_json(&genesis["timestamp"]);
+		self.extra_data = Bytes::from_json(&genesis["extraData"]);
+		self.seal_fields = seal_fields;
+		self.seal_rlp = seal_rlp;
+		self.state_root_memo = RwLock::new(genesis.find("stateRoot").and_then(|_| Some(H256::from_json(&genesis["stateRoot"]))));
+	}
+
+	/// Alter the value of the genesis state.
+	pub fn set_genesis_state(&mut self, s: PodState) {
+		self.genesis_state = s;
+		*self.state_root_memo.write().unwrap() = None;
+	}
+
+	/// Returns `false` if the memoized state root is invalid. `true` otherwise.
+	pub fn is_state_root_valid(&self) -> bool {
+		self.state_root_memo.read().unwrap().clone().map_or(true, |sr| sr == self.genesis_state.root())
+	}
 }
 
 impl FromJson for Spec {
@@ -174,8 +200,8 @@ impl FromJson for Spec {
 	fn from_json(json: &Json) -> Spec {
 		// once we commit ourselves to some json parsing library (serde?)
 		// move it to proper data structure
-		let mut state = HashMap::new();
-		let mut builtins = HashMap::new();
+		let mut builtins = BTreeMap::new();
+		let mut state = PodState::new();
 
 		if let Some(&Json::Object(ref accounts)) = json.find("accounts") {
 			for (address, acc) in accounts.iter() {
@@ -185,16 +211,13 @@ impl FromJson for Spec {
 						builtins.insert(addr.clone(), builtin);
 					}
 				}
-				let balance = acc.find("balance").and_then(|x| match x { &Json::String(ref b) => U256::from_dec_str(b).ok(), _ => None });
-				let nonce = acc.find("nonce").and_then(|x| match x { &Json::String(ref b) => U256::from_dec_str(b).ok(), _ => None });
-//				let balance = if let Some(&Json::String(ref b)) = acc.find("balance") {U256::from_dec_str(b).unwrap_or(U256::from(0))} else {U256::from(0)};
-//				let nonce = if let Some(&Json::String(ref n)) = acc.find("nonce") {U256::from_dec_str(n).unwrap_or(U256::from(0))} else {U256::from(0)};
-				// TODO: handle code & data if they exist.
-				if balance.is_some() || nonce.is_some() {
-					state.insert(addr, GenesisAccount { balance: balance.unwrap_or(U256::from(0)), nonce: nonce.unwrap_or(U256::from(0)) });
-				}
 			}
+			state = xjson!(&json["accounts"]);
 		}
+
+		let nodes = if let Some(&Json::Array(ref ns)) = json.find("nodes") {
+			ns.iter().filter_map(|n| if let Json::String(ref s) = *n { Some(s.clone()) } else {None}).collect()
+		} else { Vec::new() };
 
 		let genesis = &json["genesis"];//.as_object().expect("No genesis object in JSON");
 
@@ -212,12 +235,12 @@ impl FromJson for Spec {
 				)
 			}
 		};
-
 		
 		Spec {
-			name: json.find("name").map(|j| j.as_string().unwrap()).unwrap_or("unknown").to_string(),
-			engine_name: json["engineName"].as_string().unwrap().to_string(),
+			name: json.find("name").map_or("unknown", |j| j.as_string().unwrap()).to_owned(),
+			engine_name: json["engineName"].as_string().unwrap().to_owned(),
 			engine_params: json_to_rlp_map(&json["params"]),
+			nodes: nodes,
 			builtins: builtins,
 			parent_hash: H256::from_str(&genesis["parentHash"].as_string().unwrap()[2..]).unwrap(),
 			author: Address::from_str(&genesis["author"].as_string().unwrap()[2..]).unwrap(),
@@ -238,16 +261,17 @@ impl Spec {
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good(&self, db: &mut HashDB) -> bool {
 		if !db.contains(&self.state_root()) {
-			info!("Populating genesis state...");
 			let mut root = H256::new(); 
 			{
 				let mut t = SecTrieDBMut::new(db, &mut root);
-				for (address, account) in self.genesis_state.iter() {
+				for (address, account) in self.genesis_state.get().iter() {
 					t.insert(address.as_slice(), &account.rlp());
 				}
 			}
+			for (_, account) in self.genesis_state.get().iter() {
+				account.insert_additional(db);
+			}
 			assert!(db.contains(&self.state_root()));
-			info!("Genesis state is ready");
 			true
 		} else { false }
 	}

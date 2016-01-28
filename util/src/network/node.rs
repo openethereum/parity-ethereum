@@ -20,14 +20,16 @@ pub struct NodeEndpoint {
 	pub udp_port: u16
 }
 
-impl NodeEndpoint {
+impl FromStr for NodeEndpoint {
+	type Err = UtilError;
+
 	/// Create endpoint from string. Performs name resolution if given a host name.
 	fn from_str(s: &str) -> Result<NodeEndpoint, UtilError> {
 		let address = s.to_socket_addrs().map(|mut i| i.next());
 		match address {
 			Ok(Some(a)) => Ok(NodeEndpoint {
 				address: a,
-				address_str: s.to_string(),
+				address_str: s.to_owned(),
 				udp_port: a.port()
 			}),
 			Ok(_) => Err(UtilError::AddressResolve(None)),

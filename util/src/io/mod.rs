@@ -8,27 +8,28 @@
 ///
 /// struct MyHandler;
 ///
+/// #[derive(Clone)]
 /// struct MyMessage {
 /// 	data: u32
 /// }
 ///
 ///	impl IoHandler<MyMessage> for MyHandler {
-///		fn initialize(&mut self, io: &mut IoContext<MyMessage>) {
-///			io.register_timer(1000).unwrap();
+///		fn initialize(&self, io: &IoContext<MyMessage>) {
+///			io.register_timer(0, 1000).unwrap();
 ///		}
 ///
-///		fn timeout(&mut self, _io: &mut IoContext<MyMessage>, timer: TimerToken) {
+///		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
 ///			println!("Timeout {}", timer);
 ///		}
 ///
-///		fn message(&mut self, _io: &mut IoContext<MyMessage>, message: &mut MyMessage) {
+///		fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
 ///			println!("Message {}", message.data);
 ///		}
 ///	}
 ///
 /// fn main () {
 /// 	let mut service = IoService::<MyMessage>::start().expect("Error creating network service");
-/// 	service.register_handler(Box::new(MyHandler)).unwrap();
+/// 	service.register_handler(Arc::new(MyHandler)).unwrap();
 ///
 /// 	// Wait for quit condition
 /// 	// ...
@@ -36,6 +37,9 @@
 /// }
 /// ```
 mod service;
+mod worker;
+
+use mio::{EventLoop, Token};
 
 #[derive(Debug)]
 /// TODO [arkpar] Please document me
@@ -44,7 +48,7 @@ pub enum IoError {
 	Mio(::std::io::Error),
 }
 
-impl<Message> From<::mio::NotifyError<service::IoMessage<Message>>> for IoError where Message: Send {
+impl<Message> From<::mio::NotifyError<service::IoMessage<Message>>> for IoError where Message: Send + Clone {
 	fn from(_err: ::mio::NotifyError<service::IoMessage<Message>>) -> IoError {
 		IoError::Mio(::std::io::Error::new(::std::io::ErrorKind::ConnectionAborted, "Network IO notification error"))
 	}
@@ -53,54 +57,65 @@ impl<Message> From<::mio::NotifyError<service::IoMessage<Message>>> for IoError 
 /// Generic IO handler. 
 /// All the handler function are called from within IO event loop.
 /// `Message` type is used as notification data
-pub trait IoHandler<Message>: Send where Message: Send + 'static {
+pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + Clone + 'static {
 	/// Initialize the handler
-	fn initialize<'s>(&'s mut self, _io: &mut IoContext<'s, Message>) {}
+	fn initialize(&self, _io: &IoContext<Message>) {}
 	/// Timer function called after a timeout created with `HandlerIo::timeout`.
-	fn timeout<'s>(&'s mut self, _io: &mut IoContext<'s, Message>, _timer: TimerToken) {}
+	fn timeout(&self, _io: &IoContext<Message>, _timer: TimerToken) {}
 	/// Called when a broadcasted message is received. The message can only be sent from a different IO handler.
-	fn message<'s>(&'s mut self, _io: &mut IoContext<'s, Message>, _message: &'s mut Message) {} // TODO: make message immutable and provide internal channel for adding network handler
+	fn message(&self, _io: &IoContext<Message>, _message: &Message) {}
 	/// Called when an IO stream gets closed
-	fn stream_hup<'s>(&'s mut self, _io: &mut IoContext<'s, Message>, _stream: StreamToken) {}
+	fn stream_hup(&self, _io: &IoContext<Message>, _stream: StreamToken) {}
 	/// Called when an IO stream can be read from 
-	fn stream_readable<'s>(&'s mut self, _io: &mut IoContext<'s, Message>, _stream: StreamToken) {}
+	fn stream_readable(&self, _io: &IoContext<Message>, _stream: StreamToken) {}
 	/// Called when an IO stream can be written to
-	fn stream_writable<'s>(&'s mut self, _io: &mut IoContext<'s, Message>, _stream: StreamToken) {}
+	fn stream_writable(&self, _io: &IoContext<Message>, _stream: StreamToken) {}
+	/// Register a new stream with the event loop
+	fn register_stream(&self, _stream: StreamToken, _reg: Token, _event_loop: &mut EventLoop<IoManager<Message>>) {}
+	/// Re-register a stream with the event loop
+	fn update_stream(&self, _stream: StreamToken, _reg: Token, _event_loop: &mut EventLoop<IoManager<Message>>) {}
+	/// Deregister a stream. Called whenstream is removed from event loop
+	fn deregister_stream(&self, _stream: StreamToken, _event_loop: &mut EventLoop<IoManager<Message>>) {}
 }
 
 /// TODO [arkpar] Please document me
-pub type TimerToken = service::TimerToken;
+pub use io::service::TimerToken;
 /// TODO [arkpar] Please document me
-pub type StreamToken = service::StreamToken;
+pub use io::service::StreamToken;
 /// TODO [arkpar] Please document me
-pub type IoContext<'s, M> = service::IoContext<'s, M>;
+pub use io::service::IoContext;
 /// TODO [arkpar] Please document me
-pub type IoService<M> = service::IoService<M>;
+pub use io::service::IoService;
 /// TODO [arkpar] Please document me
-pub type IoChannel<M> = service::IoChannel<M>;
-//pub const USER_TOKEN_START: usize = service::USER_TOKEN; // TODO: ICE in rustc 1.7.0-nightly (49c382779 2016-01-12)
+pub use io::service::IoChannel;
+/// TODO [arkpar] Please document me
+pub use io::service::IoManager;
+/// TODO [arkpar] Please document me
+pub use io::service::TOKENS_PER_HANDLER;
 
 #[cfg(test)]
 mod tests {
 
+	use std::sync::Arc;
 	use io::*;
 
 	struct MyHandler;
 
+	#[derive(Clone)]
 	struct MyMessage {
 		data: u32
 	}
 
 	impl IoHandler<MyMessage> for MyHandler {
-		fn initialize(&mut self, io: &mut IoContext<MyMessage>) {
-			io.register_timer(1000).unwrap();
+		fn initialize(&self, io: &IoContext<MyMessage>) {
+			io.register_timer(0, 1000).unwrap();
 		}
 
-		fn timeout(&mut self, _io: &mut IoContext<MyMessage>, timer: TimerToken) {
+		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
 			println!("Timeout {}", timer);
 		}
 
-		fn message(&mut self, _io: &mut IoContext<MyMessage>, message: &mut MyMessage) {
+		fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
 			println!("Message {}", message.data);
 		}
 	}
@@ -108,7 +123,7 @@ mod tests {
 	#[test]
 	fn test_service_register_handler () {
 		let mut service = IoService::<MyMessage>::start().expect("Error creating network service");
-		service.register_handler(Box::new(MyHandler)).unwrap();
+		service.register_handler(Arc::new(MyHandler)).unwrap();
 	}
 
 }
