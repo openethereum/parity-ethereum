@@ -310,7 +310,7 @@ mod tests {
 	}
 
 	#[test]
-	fn can_verify_blocks() {
+	fn can_import_blocks() {
 		let mut queue = get_test_queue();
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that is valid by definition({:?})", e);
@@ -323,8 +323,29 @@ mod tests {
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
-		let duplicate_import = queue.import_block(get_good_dummy_block());
 
+		let duplicate_import = queue.import_block(get_good_dummy_block());
+		match duplicate_import {
+			Err(e) => {
+				match e {
+					ImportError::AlreadyQueued => {},
+					_ => { panic!("must return AlreadyQueued error"); }
+				}
+			}
+			Ok(_) => { panic!("must produce error"); }
+		}
+	}
+
+	#[test]
+	fn returns_error_for_verified_duplicates() {
+		let mut queue = get_test_queue();
+		if let Err(e) = queue.import_block(get_good_dummy_block()) {
+			panic!("error importing block that is valid by definition({:?})", e);
+		}
+		queue.drain(10);
+		queue.flush();
+
+		let duplicate_import = queue.import_block(get_good_dummy_block());
 		match duplicate_import {
 			Err(e) => {
 				match e {
