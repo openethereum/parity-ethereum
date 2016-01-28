@@ -16,7 +16,7 @@ pub fn gzip64res_to_json(source: &[u8]) -> Json {
 	Json::from_str(&s).expect("Json is invalid")
 }
 
-/// Convert JSON value to equivlaent RLP representation.
+/// Convert JSON value to equivalent RLP representation.
 // TODO: handle container types.
 fn json_to_rlp(json: &Json) -> Bytes {
 	match *json {
