@@ -33,6 +33,18 @@ impl Drop for RandomTempPath {
 	}
 }
 
+#[allow(dead_code)]
+pub struct GuardedTempResult<T> {
+	result: T,
+	temp: RandomTempPath
+}
+
+impl<T> GuardedTempResult<T> {
+    pub fn reference(&self) -> &T {
+        &self.result
+    }
+}
+
 pub fn get_test_spec() -> Spec {
 	Spec::new_test()
 }
@@ -45,7 +57,7 @@ pub fn create_test_block(header: &Header) -> Bytes {
 	rlp.out()
 }
 
-fn create_unverifiable_block_header(order: usize, parent_hash: H256) -> Header {
+fn create_unverifiable_block_header(order: u32, parent_hash: H256) -> Header {
 	let mut header = Header::new();
 	header.gas_limit = x!(0);
 	header.difficulty = x!(order * 100);
@@ -57,24 +69,24 @@ fn create_unverifiable_block_header(order: usize, parent_hash: H256) -> Header {
 	header
 }
 
-fn create_unverifiable_block(order: usize, parent_hash: H256) -> Bytes {
-	create_test_block_header(&create_unverifiable_block_header(order, parent_hash))
+fn create_unverifiable_block(order: u32, parent_hash: H256) -> Bytes {
+	create_test_block(&create_unverifiable_block_header(order, parent_hash))
 }
 
-fn create_unverifiable_block_with_extra(order: usize, parent_hash: H256, Option<Bytes> extra) -> Bytes {
-	let mut header = create_test_block_header(order, parent_hash);
+fn create_unverifiable_block_with_extra(order: u32, parent_hash: H256, extra: Option<Bytes>) -> Bytes {
+	let mut header = create_unverifiable_block_header(order, parent_hash);
 	header.extra_data = match extra {
 		Some(extra_data) => extra_data,
 		None => {
-			let base = order as u8;
-		    vec!([1, 2, 3])
+			let base = (order & 0x000000ff) as u8;
+		    let generated: Vec<u8> = vec![base + 1, base + 2, base + 3];
+		    generated
 		}
-	}
-
+	};
 	create_test_block(&header)
 }
 
-pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
+pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 
 	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
@@ -106,10 +118,32 @@ pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
 	}
 	client.flush_queue();
 	client.import_verified_blocks(&IoChannel::disconnected());
-	client
+
+	GuardedTempResult::<Arc<Client>> {
+		temp: dir,
+		result: client
+	}
 }
 
-pub fn generate_dummy_blockchain(block_number: usize) -> BlockChain {
+
+pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
+	let dir = RandomTempPath::new();
+	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	for block in &blocks {
+		if let Err(_) = client.import_block(block.clone()) {
+			panic!("panic importing block which is well-formed");
+		}
+	}
+	client.flush_queue();
+	client.import_verified_blocks(&IoChannel::disconnected());
+
+	GuardedTempResult::<Arc<Client>> {
+		temp: dir,
+		result: client
+	}
+}
+
+pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let bc = BlockChain::new(
 		&create_unverifiable_block(
@@ -120,7 +154,41 @@ pub fn generate_dummy_blockchain(block_number: usize) -> BlockChain {
 	for block_order in 1..block_number {
 		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()));
 	}
-	bc
+
+	GuardedTempResult::<BlockChain> {
+		temp: temp,
+		result: bc
+	}
 }
 
-pub fn generate_dummy_blockchain_with_extra(block_number: uszie
+pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
+	let temp = RandomTempPath::new();
+	let bc = BlockChain::new(
+		&create_unverifiable_block(
+			0,
+			H256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap()),
+		temp.as_path());
+
+	for block_order in 1..block_number {
+		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None));
+	}
+
+	GuardedTempResult::<BlockChain> {
+		temp: temp,
+		result: bc
+	}
+}
+
+pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
+	let temp = RandomTempPath::new();
+	let bc = BlockChain::new(
+		&create_unverifiable_block(
+			0,
+			H256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap()),
+		temp.as_path());
+
+	GuardedTempResult::<BlockChain> {
+		temp: temp,
+		result: bc
+	}
+}
