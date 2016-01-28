@@ -13,10 +13,6 @@ extern crate ethcore;
 
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 
-macro_rules! rpcerr {
-	() => (Err(Error::internal_error()))
-}
-
 pub mod v1;
 
 /// Http server.

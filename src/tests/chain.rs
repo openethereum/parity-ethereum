@@ -1,11 +1,16 @@
-use std::env;
 use super::test_common::*;
 use client::{BlockChainClient,Client};
 use pod_state::*;
 use block::Block;
 use ethereum;
+use super::helpers::*;
 
-fn do_json_test(json_data: &[u8]) -> Vec<String> {
+pub enum ChainEra {
+	Frontier,
+	Homestead,
+}
+
+pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 
@@ -22,16 +27,18 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			flush(format!("   - {}...", name));
 
 			let blocks: Vec<(Bytes, bool)> = test["blocks"].as_array().unwrap().iter().map(|e| (xjson!(&e["rlp"]), e.find("blockHeader").is_some())).collect();
-			let mut spec = ethereum::new_frontier_like_test();
+			let mut spec = match era {
+				ChainEra::Frontier => ethereum::new_frontier_test(),
+				ChainEra::Homestead => ethereum::new_homestead_test(),
+			};
 			let s = PodState::from_json(test.find("pre").unwrap());
 			spec.set_genesis_state(s);
 			spec.overwrite_genesis(test.find("genesisBlockHeader").unwrap());
 			assert!(spec.is_state_root_valid());
 
-			let mut dir = env::temp_dir();
-			dir.push(H32::random().hex());
+			let temp = RandomTempPath::new();
 			{
-				let client = Client::new(spec, &dir, IoChannel::disconnected()).unwrap();
+				let client = Client::new(spec, temp.as_path(), IoChannel::disconnected()).unwrap();
 				for (b, is_valid) in blocks.into_iter() {
 					if Block::is_good(&b) {
 						let _ = client.import_block(b.clone());
@@ -42,7 +49,6 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 				}
 				fail_unless(client.chain_info().best_block_hash == H256::from_json(&test["lastblockhash"]));
 			}
-			fs::remove_dir_all(&dir).unwrap();
 		}
 		if !fail {
 			flush(format!("ok\n"));
@@ -50,6 +56,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	}
 	println!("!!! {:?} tests from failed.", failed.len());
 	failed
+}
+
+fn do_json_test(json_data: &[u8]) -> Vec<String> {
+	json_chain_test(json_data, ChainEra::Frontier)
 }
 
 declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
@@ -67,3 +77,6 @@ declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHe
 declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
 declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
 declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
+
+declare_test!{BlockchainTests_RandomTests_bl10251623GO, "BlockchainTests/RandomTests/bl10251623GO"}
+declare_test!{BlockchainTests_RandomTests_bl201507071825GO, "BlockchainTests/RandomTests/bl201507071825GO"}

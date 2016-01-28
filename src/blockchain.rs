@@ -618,20 +618,18 @@ impl BlockChain {
 
 #[cfg(test)]
 mod tests {
-	use std::env;
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use util::hash::*;
 	use blockchain::*;
+	use tests::helpers::*;
 
 	#[test]
 	fn valid_tests_extra32() {
 		let genesis = "f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0925002c3260b44e44c3edebad1cc442142b03020209df1ab8bb86752edbd2cd7a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302000080832fefd8808454c98c8142a0363659b251bf8b819179874c8cce7b9b983d7f3704cbb58a3b334431f7032871889032d09c281e1236c0c0".from_hex().unwrap();
 
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-
-		let bc = BlockChain::new(&genesis, &dir);
+		let temp = RandomTempPath::new();
+		let bc = BlockChain::new(&genesis, temp.as_path());
 
 		let genesis_hash = H256::from_str("3caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942").unwrap();
 
@@ -674,10 +672,8 @@ mod tests {
 		// b3a is a part of canon chain, whereas b3b is part of sidechain
 		let best_block_hash = H256::from_str("c208f88c9f5bf7e00840439742c12e5226d9752981f3ec0521bdcb6dd08af277").unwrap();
 
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-
-		let bc = BlockChain::new(&genesis, &dir);
+		let temp = RandomTempPath::new();
+		let bc = BlockChain::new(&genesis, temp.as_path());
 		bc.insert_block(&b1);
 		bc.insert_block(&b2);
 		bc.insert_block(&b3a);
@@ -754,18 +750,16 @@ mod tests {
 		let genesis_hash = H256::from_str("5716670833ec874362d65fea27a7cd35af5897d275b31a44944113111e4e96d2").unwrap();
 		let b1_hash = H256::from_str("437e51676ff10756fcfee5edd9159fa41dbcb1b2c592850450371cbecd54ee4f").unwrap();
 
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-
+		let temp = RandomTempPath::new();
 		{
-			let bc = BlockChain::new(&genesis, &dir);
+			let bc = BlockChain::new(&genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			bc.insert_block(&b1);
 			assert_eq!(bc.best_block_hash(), b1_hash);
 		}
 
 		{
-			let bc = BlockChain::new(&genesis, &dir);
+			let bc = BlockChain::new(&genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), b1_hash);
 		}
 	}
