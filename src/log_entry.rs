@@ -16,7 +16,7 @@ impl Encodable for LogEntry {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(3);
 		s.append(&self.address);
-		s.append_list(&self.topics);
+		s.append(&self.topics);
 		s.append(&self.data);
 	}
 }

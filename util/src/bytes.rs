@@ -268,7 +268,6 @@ macro_rules! impl_map_to_bytes {
 }
 
 impl_map_to_bytes!(usize, u64);
-impl_map_to_bytes!(u8, u64);
 impl_map_to_bytes!(u16, u64);
 impl_map_to_bytes!(u32, u64);
 

@@ -33,6 +33,6 @@ impl Encodable for Receipt {
 		s.append(&self.state_root);
 		s.append(&self.gas_used);
 		s.append(&self.log_bloom);
-		s.append_list(&self.logs);
+		s.append(&self.logs);
 	}
 }

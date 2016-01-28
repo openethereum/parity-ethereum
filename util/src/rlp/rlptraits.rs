@@ -223,7 +223,7 @@ pub trait ByteEncodable {
 	fn bytes_len(&self) -> usize;
 }
 
-/// Structure encodable to RLP
+/// Structure encodable to RLP. Implement this trait for 
 pub trait Encodable {
 	/// Append a value to the stream
 	fn rlp_append(&self, s: &mut RlpStream);
@@ -237,6 +237,12 @@ pub trait Encodable {
 
 	/// Get the hash or RLP encoded representation
 	fn rlp_sha3(&self) -> H256 { self.rlp_bytes().deref().sha3() }
+}
+
+/// Encodable wrapper trait required to handle special case of encoding a &[u8] as string and not as list
+pub trait RlpEncodable {
+	/// Append a value to the stream
+	fn rlp_append(&self, s: &mut RlpStream);
 }
 
 /// TODO [debris] Please document me
@@ -261,7 +267,7 @@ pub trait Stream: Sized {
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable;
+	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: RlpEncodable;
 
 	/// Declare appending the list of given size, chainable.
 	///
@@ -278,21 +284,6 @@ pub trait Stream: Sized {
 	/// }
 	/// ```
 	fn begin_list(&mut self, len: usize) -> &mut Self;
-
-	/// Append the given list, chainable.
-	///
-	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
-	///
-	/// fn main () {
-	/// 	let mut stream = RlpStream::new_list(1);
-	/// 	stream.append_list(&vec!["cat", "dog"]);
-	/// 	let out = stream.out().to_vec();
-	/// 	assert_eq!(out, vec![0xc9, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
-	/// }
-	/// ```
-	fn append_list<I, E>(&mut self, list: &I) -> &mut Self where I: Deref<Target = [E]>, E: Encodable;
 
 	/// Apends null to the end of stream, chainable.
 	///

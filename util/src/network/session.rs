@@ -202,7 +202,7 @@ impl Session {
 		rlp.begin_list(5)
 			.append(&host.protocol_version)
 			.append(&host.client_version)
-			.append_list(&host.capabilities)
+			.append(&host.capabilities)
 			.append(&host.listen_port)
 			.append(host.id());
 		self.connection.send_packet(&rlp.out())

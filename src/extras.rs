@@ -150,7 +150,7 @@ impl Encodable for BlockDetails {
 		s.append(&self.number);
 		s.append(&self.total_difficulty);
 		s.append(&self.parent);
-		s.append_list(&self.children);
+		s.append(&self.children);
 	}
 }
 
@@ -185,7 +185,7 @@ impl Decodable for BlockLogBlooms {
 
 impl Encodable for BlockLogBlooms {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(&self.blooms);
+		s.append(&self.blooms);
 	}
 }
 
@@ -232,7 +232,7 @@ impl Decodable for BlocksBlooms {
 impl Encodable for BlocksBlooms {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		let blooms_ref: &[H2048] = &self.blooms;
-		s.append_list(&blooms_ref);
+		s.append(&blooms_ref);
 	}
 }
 
