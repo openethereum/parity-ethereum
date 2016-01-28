@@ -69,10 +69,6 @@ fn create_unverifiable_block_header(order: u32, parent_hash: H256) -> Header {
 	header
 }
 
-fn create_unverifiable_block(order: u32, parent_hash: H256) -> Bytes {
-	create_test_block(&create_unverifiable_block_header(order, parent_hash))
-}
-
 fn create_unverifiable_block_with_extra(order: u32, parent_hash: H256, extra: Option<Bytes>) -> Bytes {
 	let mut header = create_unverifiable_block_header(order, parent_hash);
 	header.extra_data = match extra {
@@ -84,6 +80,10 @@ fn create_unverifiable_block_with_extra(order: u32, parent_hash: H256, extra: Op
 		}
 	};
 	create_test_block(&header)
+}
+
+fn create_unverifiable_block(order: u32, parent_hash: H256) -> Bytes {
+	create_test_block(&create_unverifiable_block_header(order, parent_hash))
 }
 
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
