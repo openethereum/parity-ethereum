@@ -769,4 +769,21 @@ mod tests {
 		let bc = generate_dummy_blockchain(50);
 		assert_eq!(bc.best_block_number(), 49);
 	}
+
+	#[test]
+	fn can_collect_garbage() {
+		let bc = generate_dummy_blockchain(3000);
+		assert_eq!(bc.best_block_number(), 2999);
+		let best_hash = bc.best_block_hash();
+		let mut block_header = bc.block_header(&best_hash);
+
+		while !block_header.is_none() {
+			block_header = bc.block_header(&block_header.unwrap().parent_hash);
+		}
+		assert!(bc.cache_size().blocks > 1024 * 1024);
+
+		bc.collect_garbage(true);
+
+		assert!(bc.cache_size().blocks < 1024 * 1024);
+	}
 }
