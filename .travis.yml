@@ -1,16 +1,45 @@
+sudo: required
+dist: trusty
 language: rust
-
-rust:
-    - nightly
-
-os:
-    - osx
-
-before_script:
-    - brew update
-    - brew install rocksdb
-
+matrix:
+  fast_finish: true
+  include:
+  - rust: nightly
 cache:
+  apt: true
   directories:
-  - $TRAVIS_BUILD_DIR/target
-  - $HOME/.cargo
+  - target/debug/deps
+  - target/debug/build
+addons:
+  apt:
+    packages:
+    - libcurl4-openssl-dev
+    - libelf-dev
+    - libdw-dev
+before_script: |
+  wget https://github.com/facebook/rocksdb/archive/rocksdb-3.13.1.tar.gz &&
+  tar -zxvf rocksdb-3.13.1.tar.gz &&
+  cd rocksdb-rocksdb-3.13.1 &&
+  make shared_lib && make install && cd
+script:
+- cargo build --verbose $FEATURES
+- cargo test --verbose $FEATURES
+- cargo bench --no-run
+after_success: |
+  [ $TRAVIS_RUST_VERSION = stable ] &&
+  wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+  tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
+  ls target/debug &&
+  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=$TRAVIS_JOB_ID --exclude-pattern=/.cargo target/kcov target/debug/ethcore* &&
+  [ $TRAVIS_BRANCH = master ] &&
+  [ $TRAVIS_PULL_REQUEST = false ] &&
+  [ $TRAVIS_RUST_VERSION = stable ]
+  #&&
+  #cargo doc --no-deps &&
+  #echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html &&
+  #pip install --user ghp-import &&
+  #/home/travis/.local/bin/ghp-import -n target/doc &&
+  #git push -fq https://${TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+env:
+  global:
+    secure: HLwg9SKpccmkMtAWpuhjbKki7wWwdDH+qN0jUxIEJmhpZTQfJLEGgNc9g+uPH/dd5G/S/T08fPCgkoBx3OJ4C1mL36FNQi/E82/+sMtVGQ55iZg2Ysrn76VzdGgujNR2AiVoFNcphR8J/O/2UQbg1gaevRLhn8VUhA18e38PlUCRMPpjFi0B4WGCj2ey749aBK0sYEhuaEEnF3Sc1z013Ev2fG17+OA5cYc8RCUX7nNqpr4K3omzWKLUk96C58OUj76cZgRa/qA0TKLRrO4Smlzz0OFNcKN98cYmAsqRBE5IJIZO9YczSaizVFptI37KT9i1JYGc/7zWCqFeSFGgGgNmGEBjkzlN3xt3SuUSu7YuRowl37s44sgpZID+d9eeDWDeePEwDU6GMNNHRSmNjszUyYjcWuNu2te5UALHpjBVozzf4m36yvyVfMbrziTjcCqsAMnrLeaNznZ6pJB8b21PkLloFNWJkOENwZGL5ti6TX/ZlBw0Q1va/JcGYKCEQqzPvD+Zl6BdLZmZpJlIXb+cFcgAIzkbs73knRKMBBgVffHBIYzkNLOwz732UK6MkJBIAuJwZOZ5f6ME9VyhsTcZ/MlMHM5KTbc5L4bO/F+qgK3l5rUR/Kch6WOgIIy9OVbm737qG/41iQnkIYOspbm9QWs+YrUOclDwPrFCCh4=
