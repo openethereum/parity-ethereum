@@ -17,9 +17,9 @@ addons:
     - libelf-dev
     - libdw-dev
 before_script: |
-  add-apt-repository "deb http://ppa.launchpad.net/giskou/librocksdb/ubuntu trusty main" &&
-  apt-get update &&
-  apt-get install -y librocksdb
+  sudo add-apt-repository "deb http://ppa.launchpad.net/giskou/librocksdb/ubuntu trusty main" &&
+  sudo apt-get update &&
+  sudo apt-get install -y librocksdb
 script:
 - cargo build --verbose $FEATURES
 - cargo test --verbose $FEATURES
