@@ -22,7 +22,7 @@ before_script: |
   wget https://github.com/facebook/rocksdb/archive/rocksdb-3.13.1.tar.gz &&
   tar -zxvf rocksdb-3.13.1.tar.gz &&
   cd rocksdb-rocksdb-3.13.1 &&
-  make shared_lib && make install && cd
+  make shared_lib && sudo make install && cd
 script:
 - cargo build --verbose $FEATURES
 - cargo test --verbose $FEATURES
