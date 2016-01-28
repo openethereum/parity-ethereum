@@ -8,8 +8,8 @@ matrix:
 cache:
   apt: true
   directories:
-  - target/debug/deps
-  - target/debug/build
+  - target/release/deps
+  - target/release/build
 addons:
   apt:
     packages:
@@ -21,14 +21,14 @@ before_script: |
   sudo apt-get update &&
   sudo apt-get install -y --force-yes librocksdb
 script:
-- cargo build --verbose $FEATURES
-- cargo test --verbose $FEATURES
-- cargo bench --no-run
+- cargo build --release --verbose $FEATURES
+- cargo test --release --verbose $FEATURES
+- cargo bench --release --no-run
 after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
-  ls target/debug &&
-  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern=/.cargo target/kcov target/debug/ethcore* &&
+  ls target/release &&
+  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern=/.cargo target/kcov target/release/ethcore* &&
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = nightly ] &&
