@@ -6,5 +6,5 @@ mod executive;
 mod state;
 mod client;
 mod chain;
+pub mod helpers;
 mod homestead_chain;
-mod helpers;
