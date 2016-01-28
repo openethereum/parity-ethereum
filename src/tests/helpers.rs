@@ -64,7 +64,7 @@ fn create_unverifiable_block_header(order: u32, parent_hash: H256) -> Header {
 	header.timestamp = (order * 10) as u64;
 	header.number = order as u64;
 	header.parent_hash = parent_hash;
-	header.state_root = H256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+	header.state_root = H256::zero();
 
 	header
 }
@@ -145,12 +145,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(
-		&create_unverifiable_block(
-			0,
-			H256::zero()),
-		temp.as_path());
-
+	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
 	for block_order in 1..block_number {
 		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()));
 	}
@@ -163,12 +158,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 
 pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(
-		&create_unverifiable_block(
-			0,
-			H256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap()),
-		temp.as_path());
-
+	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
 	for block_order in 1..block_number {
 		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None));
 	}
