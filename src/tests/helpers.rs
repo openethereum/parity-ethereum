@@ -125,7 +125,6 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 	}
 }
 
-
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
