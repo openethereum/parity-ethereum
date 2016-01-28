@@ -148,7 +148,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 	let bc = BlockChain::new(
 		&create_unverifiable_block(
 			0,
-			H256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap()),
+			H256::zero()),
 		temp.as_path());
 
 	for block_order in 1..block_number {
