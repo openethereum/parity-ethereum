@@ -95,6 +95,15 @@ impl Account {
 		self.code_cache = code;
 	}
 
+	/// Clears storage of this account
+	pub fn clear_storage(&mut self) {
+		info!("Clearing storage");
+		for (_k, &mut (ref mut f, ref mut v)) in self.storage_overlay.borrow_mut().iter_mut() {
+			*f = Filth::Dirty;
+			*v = H256::from(U256::zero());
+		}
+	}
+
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
 		self.storage_overlay.borrow_mut().insert(key, (Filth::Dirty, value));

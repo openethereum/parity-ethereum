@@ -73,7 +73,10 @@ impl State {
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
 	pub fn new_contract(&mut self, contract: &Address) {
-		self.require_or_from(contract, false, || Account::new_contract(U256::from(0u8)), |r| r.reset_code());
+		self.require_or_from(contract, false, || Account::new_contract(U256::from(0u8)), |r| {
+			r.reset_code();
+			r.clear_storage();
+		});
 	}
 
 	/// Remove an existing account.
