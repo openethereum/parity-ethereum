@@ -19,7 +19,7 @@ addons:
 before_script: |
   sudo add-apt-repository "deb http://ppa.launchpad.net/giskou/librocksdb/ubuntu trusty main" &&
   sudo apt-get update &&
-  sudo apt-get install -y librocksdb
+  sudo apt-get install -y --force-yes librocksdb
 script:
 - cargo build --verbose $FEATURES
 - cargo test --verbose $FEATURES
