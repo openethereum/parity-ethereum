@@ -251,12 +251,13 @@ impl<'a> Executive<'a> {
 		// part of substate that may be reverted
 		let mut unconfirmed_substate = Substate::new();
 
-		// at first create new contract
-		self.state.new_contract(&params.address);
-
-		// then transfer value to it
+		// create contract and transfer value to it if necessary
+		let prev_bal = self.state.balance(&params.address);
 		if let ActionValue::Transfer(val) = params.value {
-			self.state.transfer_balance(&params.sender, &params.address, &val);
+			self.state.sub_balance(&params.sender, &val);
+			self.state.new_contract(&params.address, val + prev_bal);
+		} else {
+			self.state.new_contract(&params.address, prev_bal);
 		}
 
 		let res = {

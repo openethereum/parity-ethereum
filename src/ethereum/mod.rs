@@ -26,7 +26,7 @@ pub fn new_frontier_test() -> Spec { Spec::from_json_utf8(include_bytes!("../../
 pub fn new_homestead_test() -> Spec { Spec::from_json_utf8(include_bytes!("../../res/ethereum/homestead_test.json")) }
 
 /// Create a new Frontier main net chain spec without genesis accounts.
-pub fn new_frontier_like_test() -> Spec { Spec::from_json_utf8(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
+pub fn new_mainnet_like() -> Spec { Spec::from_json_utf8(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
 
 /// Create a new Morden chain spec.
 pub fn new_morden() -> Spec { Spec::from_json_utf8(include_bytes!("../../res/ethereum/morden.json")) }
