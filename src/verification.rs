@@ -221,25 +221,7 @@ mod tests {
 	use spec::*;
 	use transaction::*;
 	use basic_types::*;
-
-	fn create_test_block(header: &Header) -> Bytes {
-		let mut rlp = RlpStream::new_list(3);
-		rlp.append(header);
-		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
-		rlp.out()
-	}
-
-	fn create_test_block_with_data(header: &Header, transactions: &[&Transaction], uncles: &[Header]) -> Bytes {
-		let mut rlp = RlpStream::new_list(3);
-		rlp.append(header);
-		rlp.begin_list(transactions.len());
-		for t in transactions {
-			rlp.append_raw(&t.rlp_bytes_opt(Seal::With), 1);
-		}
-		rlp.append(&uncles);
-		rlp.out().to_vec()
-	}
+	use tests::helpers::*;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
