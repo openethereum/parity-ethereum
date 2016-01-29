@@ -59,3 +59,36 @@ impl FromJson for EnvInfo {
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	extern crate rustc_serialize;
+
+	use super::*;
+	use rustc_serialize::*;
+	use util::from_json::FromJson;
+
+	#[test]
+	fn it_serializes_form_json() {
+		let env_info = EnvInfo::from_json(&json::Json::from_str(
+r#"
+	{
+		"currentCoinbase": "0x0000000000000000000000000000000000000000",
+		"currentNumber": 0,
+		"currentDifficulty": 0,
+		"currentGasLimit" : 0,
+		"currentTimestamp" : 0
+	}
+"#
+		).unwrap());
+
+		assert_eq!(env_info.number, 0);
+	}
+
+	#[test]
+	fn it_can_be_created_as_default() {
+		let default_env_info = EnvInfo::default();
+
+		assert_eq!(default_env_info.difficulty, x!(0));
+	}
+}
