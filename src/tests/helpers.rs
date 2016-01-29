@@ -6,6 +6,10 @@ use spec::*;
 use std::fs::{remove_dir_all};
 use blockchain::{BlockChain};
 
+pub enum ChainEra {
+	Frontier,
+	Homestead,
+}
 
 pub struct RandomTempPath {
 	path: PathBuf

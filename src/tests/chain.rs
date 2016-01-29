@@ -5,11 +5,6 @@ use block::Block;
 use ethereum;
 use super::helpers::*;
 
-pub enum ChainEra {
-	Frontier,
-	Homestead,
-}
-
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	init_log();
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
