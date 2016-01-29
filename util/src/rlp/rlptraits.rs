@@ -1,7 +1,8 @@
+//! Common RLP traits
 use std::ops::Deref;
-use bytes::VecLike;
+use rlp::bytes::VecLike;
 use rlp::{DecoderError, UntrustedRlp};
-use rlpstream::RlpStream;
+use rlp::rlpstream::RlpStream;
 use elastic_array::ElasticArray1024;
 use hash::H256;
 use sha3::*;
@@ -12,17 +13,21 @@ pub trait Decoder: Sized {
 	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
 		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 
-	/// TODO [arkpar] Please document me
-	fn as_list(&self) -> Result<Vec<Self>, DecoderError>;
 	/// TODO [Gav Wood] Please document me
 	fn as_rlp(&self) -> &UntrustedRlp;
 	/// TODO [debris] Please document me
 	fn as_raw(&self) -> &[u8];
 }
 
-/// TODO [debris] Please document me
+/// RLP decodable trait
 pub trait Decodable: Sized {
-	/// TODO [debris] Please document me
+	/// Decode a value from RLP bytes
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
+}
+
+/// Internal helper trait. Implement `Decodable` for custom types.
+pub trait RlpDecodable: Sized {
+	/// Decode a value from RLP bytes
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
 }
 
@@ -201,10 +206,10 @@ pub trait View<'a, 'view>: Sized {
 	fn iter(&'view self) -> Self::Iter;
 
 	/// TODO [debris] Please document me
-	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable;
+	fn as_val<T>(&self) -> Result<T, DecoderError> where T: RlpDecodable;
 
 	/// TODO [debris] Please document me
-	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable;
+	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable;
 }
 
 /// TODO [debris] Please document me

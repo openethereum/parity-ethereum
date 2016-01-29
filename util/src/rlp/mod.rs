@@ -30,22 +30,18 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 
-/// TODO [Gav Wood] Please document me
 pub mod rlptraits;
-/// TODO [Gav Wood] Please document me
-pub mod rlperrors;
-/// TODO [debris] Please document me
-pub mod rlpin;
-/// TODO [debris] Please document me
-pub mod untrusted_rlp;
-/// TODO [debris] Please document me
-pub mod rlpstream;
+mod rlperrors;
+mod rlpin;
+mod untrusted_rlp;
+mod rlpstream;
+mod bytes;
 
 #[cfg(test)]
 mod tests;
 
 pub use self::rlperrors::DecoderError;
-pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable};
+pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable, RlpDecodable};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use self::rlpin::{Rlp, RlpIterator};
 pub use self::rlpstream::{RlpStream};
@@ -73,7 +69,7 @@ pub const SHA3_EMPTY_LIST_RLP: H256 = H256( [0x1d, 0xcc, 0x4d, 0xe8, 0xde, 0xc7,
 /// 	assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
 /// }
 /// ```
-pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
+pub fn decode<T>(bytes: &[u8]) -> T where T: RlpDecodable {
 	let rlp = Rlp::new(bytes);
 	rlp.as_val()
 }

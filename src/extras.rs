@@ -133,12 +133,12 @@ impl HeapSizeOf for BlockDetails {
 
 impl Decodable for BlockDetails {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = try!(decoder.as_list());
+		let d = decoder.as_rlp();
 		let details = BlockDetails {
-			number: try!(Decodable::decode(&d[0])),
-			total_difficulty: try!(Decodable::decode(&d[1])),
-			parent: try!(Decodable::decode(&d[2])),
-			children: try!(Decodable::decode(&d[3]))
+			number: try!(d.val_at(0)),
+			total_difficulty: try!(d.val_at(1)),
+			parent: try!(d.val_at(2)),
+			children: try!(d.val_at(3)),
 		};
 		Ok(details)
 	}
@@ -257,10 +257,10 @@ impl HeapSizeOf for TransactionAddress {
 
 impl Decodable for TransactionAddress {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = try!(decoder.as_list());
+		let d = decoder.as_rlp();
 		let tx_address = TransactionAddress {
-			block_hash: try!(Decodable::decode(&d[0])),
-			index: try!(Decodable::decode(&d[1]))
+			block_hash: try!(d.val_at(0)),
+			index: try!(d.val_at(1)),
 		};
 
 		Ok(tx_address)

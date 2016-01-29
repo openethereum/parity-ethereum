@@ -1,6 +1,6 @@
 use std::ops::Deref;
 use elastic_array::*;
-use bytes::{ToBytes, VecLike};
+use rlp::bytes::{ToBytes, VecLike};
 use rlp::{Stream, Encoder, Encodable};
 use rlp::rlptraits::{ByteEncodable, RlpEncodable};
 

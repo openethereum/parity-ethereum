@@ -13,7 +13,7 @@ fn rlp_at() {
 	{
 		let rlp = UntrustedRlp::new(&data);
 		assert!(rlp.is_list());
-		//let animals = <Vec<String> as rlp::Decodable>::decode_untrusted(&rlp).unwrap();
+		//let animals = <Vec<String> as rlp::RlpDecodable>::decode_untrusted(&rlp).unwrap();
 		let animals: Vec<String> = rlp.as_val().unwrap();
 		assert_eq!(animals, vec!["cat".to_owned(), "dog".to_owned()]);
 
@@ -193,9 +193,9 @@ fn encode_vector_str() {
 	run_encode_tests(tests);
 }
 
-struct DTestPair<T>(T, Vec<u8>) where T: rlp::Decodable + fmt::Debug + cmp::Eq;
+struct DTestPair<T>(T, Vec<u8>) where T: rlp::RlpDecodable + fmt::Debug + cmp::Eq;
 
-fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: rlp::Decodable + fmt::Debug + cmp::Eq {
+fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: rlp::RlpDecodable + fmt::Debug + cmp::Eq {
 	for t in &tests {
 		let res: T = rlp::decode(&t.1);
 		assert_eq!(res, t.0);
@@ -210,6 +210,16 @@ fn decode_vector_u8() {
 		DTestPair(vec![0u8], vec![0]),
 		DTestPair(vec![0x15], vec![0x15]),
 		DTestPair(vec![0x40, 0x00], vec![0x82, 0x40, 0x00]),
+	];
+	run_decode_tests(tests);
+}
+
+#[test]
+fn decode_untrusted_u8() {
+	let tests = vec![
+		DTestPair(0x0u8, vec![0x80]),
+		DTestPair(0x77u8, vec![0x77]),
+		DTestPair(0xccu8, vec![0x81, 0xcc]),
 	];
 	run_decode_tests(tests);
 }

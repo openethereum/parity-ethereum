@@ -45,14 +45,14 @@ impl Decodable for Block {
 		if decoder.as_raw().len() != try!(decoder.as_rlp().payload_info()).total() {
 			return Err(DecoderError::RlpIsTooBig);	
 		}
-		let d = try!(decoder.as_list());
-		if d.len() != 3 {
+		let d = decoder.as_rlp();
+		if d.item_count() != 3 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
 		Ok(Block {
-			header: try!(Decodable::decode(&d[0])),
-			transactions: try!(Decodable::decode(&d[1])),
-			uncles: try!(Decodable::decode(&d[2])),
+			header: try!(d.val_at(0)),
+			transactions: try!(d.val_at(1)),
+			uncles: try!(d.val_at(2)),
 		})
 	}
 }
