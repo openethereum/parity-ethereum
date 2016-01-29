@@ -18,11 +18,13 @@ lazy_static! {
 		let mut builder = LogBuilder::new();
 		builder.filter(None, LogLevelFilter::Info);
 
-		if env::var("RUST_LOG").is_ok() {
-			builder.parse(&env::var("RUST_LOG").unwrap());
+		if let Ok(log) = env::var("RUST_LOG") {
+			builder.parse(&log);
 		}
 
-		builder.init().unwrap();
+		if let Ok(_) = builder.init() {
+			println!("logger initialized");
+		}
 		true
 	};
 }
