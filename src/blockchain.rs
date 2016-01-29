@@ -788,7 +788,6 @@ mod tests {
 		for _ in 0..2 {
 			bc.collect_garbage(true);
 		}
-
 		assert!(bc.cache_size().blocks < 1024 * 1024);
 	}
 
