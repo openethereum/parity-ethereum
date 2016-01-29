@@ -4,7 +4,7 @@ use block_queue::BlockQueueInfo;
 use header::{Header as BlockHeader, BlockNumber};
 use error::*;
 use sync::io::SyncIo;
-use sync::chain::ChainSync;
+use sync::chain::{ChainSync, SyncState};
 
 struct TestBlockChainClient {
 	blocks: RwLock<HashMap<H256, Bytes>>,
@@ -241,13 +241,15 @@ struct TestPeer {
 }
 
 struct TestNet {
-	peers: Vec<TestPeer>
+	peers: Vec<TestPeer>,
+	started: bool
 }
 
 impl TestNet {
 	pub fn new(n: usize) -> TestNet {
 		let mut net = TestNet {
 			peers: Vec::new(),
+			started: false
 		};
 		for _ in 0..n {
 			net.peers.push(TestPeer {
@@ -291,10 +293,28 @@ impl TestNet {
 		}
 	}
 
-	pub fn sync(&mut self) {
+	pub fn restart_peer(&mut self, i: usize) {
+		let peer = self.peer_mut(i);
+		peer.sync.restart(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+	}
+
+	pub fn sync(&mut self) -> u32 {
 		self.start();
+		let mut total_steps = 0;
 		while !self.done() {
-			self.sync_step()
+			self.sync_step();
+			total_steps = total_steps + 1;
+		}
+		total_steps
+	}
+
+	pub fn sync_steps(&mut self, count: usize) {
+		if !self.started {
+			self.start();
+			self.started = true;
+		}
+		for _ in 0..count {
+			self.sync_step();
 		}
 	}
 
@@ -303,9 +323,8 @@ impl TestNet {
 	}
 }
 
-
 #[test]
-fn full_sync_two_peers() {
+fn chain_two_peers() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, false);
@@ -316,7 +335,27 @@ fn full_sync_two_peers() {
 }
 
 #[test]
-fn full_sync_empty_blocks() {
+fn chain_status_after_sync() {
+	::env_logger::init().ok();
+	let mut net = TestNet::new(3);
+	net.peer_mut(1).chain.add_blocks(1000, false);
+	net.peer_mut(2).chain.add_blocks(1000, false);
+	net.sync();
+	let status = net.peer(0).sync.status();
+	assert_eq!(status.state, SyncState::Idle);
+}
+
+#[test]
+fn chain_takes_few_steps() {
+	let mut net = TestNet::new(3);
+	net.peer_mut(1).chain.add_blocks(100, false);
+	net.peer_mut(2).chain.add_blocks(100, false);
+	let total_steps = net.sync();
+	assert!(total_steps < 7);
+}
+
+#[test]
+fn chain_empty_blocks() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	for n in 0..200 {
@@ -329,7 +368,7 @@ fn full_sync_empty_blocks() {
 }
 
 #[test]
-fn forked_sync() {
+fn chain_forged() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(0).chain.add_blocks(300, false);
@@ -346,4 +385,26 @@ fn forked_sync() {
 	assert_eq!(net.peer(0).chain.numbers.read().unwrap().deref(), &peer1_chain);
 	assert_eq!(net.peer(1).chain.numbers.read().unwrap().deref(), &peer1_chain);
 	assert_eq!(net.peer(2).chain.numbers.read().unwrap().deref(), &peer1_chain);
+}
+
+#[test]
+fn chain_restart() {
+	let mut net = TestNet::new(3);
+	net.peer_mut(1).chain.add_blocks(1000, false);
+	net.peer_mut(2).chain.add_blocks(1000, false);
+
+	net.sync_steps(8);
+
+	// make sure that sync has actually happened
+	assert!(net.peer(0).chain.chain_info().best_block_number > 100);
+	net.restart_peer(0);
+
+	let status = net.peer(0).sync.status();
+	assert_eq!(status.state, SyncState::NotSynced);
+}
+
+#[test]
+fn chain_status_empty() {
+	let net = TestNet::new(2);
+	assert_eq!(net.peer(0).sync.status().state, SyncState::NotSynced);
 }

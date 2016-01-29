@@ -43,8 +43,6 @@ extern crate tiny_keccak;
 #[macro_use]
 extern crate heapsize;
 #[macro_use]
-extern crate log;
-#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate itertools;
@@ -56,6 +54,8 @@ extern crate arrayvec;
 extern crate elastic_array;
 extern crate crossbeam;
 extern crate serde;
+#[macro_use]
+extern crate log as rlog;
 
 /// TODO [Gav Wood] Please document me
 pub mod standard;
@@ -98,6 +98,7 @@ pub mod semantic_version;
 pub mod io;
 /// TODO [Gav Wood] Please document me
 pub mod network;
+pub mod log;
 
 pub use common::*;
 pub use misc::*;
@@ -118,3 +119,4 @@ pub use squeeze::*;
 pub use semantic_version::*;
 pub use network::*;
 pub use io::*;
+pub use log::*;
