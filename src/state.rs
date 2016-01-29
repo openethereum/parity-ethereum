@@ -70,10 +70,12 @@ impl State {
 		&mut self.db
 	}
 
-	/// Create a new contract at address `contract`. If there is already an account at the address
-	/// it will have its code reset, ready for `init_code()`.
+	/// Create a new contract at address `contract`.
+	/// Panics if there is already an account at the address.
 	pub fn new_contract(&mut self, contract: &Address) {
-		self.require_or_from(contract, false, || Account::new_contract(U256::from(0u8)), |r| r.reset_code());
+		self.require_or_from(contract, false, || Account::new_contract(U256::from(0u8)), || {
+			panic!("Tried to create a contract that already exists at {}", contract);
+		});
 	}
 
 	/// Remove an existing account.
@@ -139,7 +141,7 @@ impl State {
 	/// Initialise the code of account `a` so that it is `value` for `key`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) {
-		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8)), |_|{}).init_code(code);
+		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8)), ||{}).init_code(code);
 	}
 
 	/// Execute a given transaction.
@@ -245,19 +247,19 @@ impl State {
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	fn require(&self, a: &Address, require_code: bool) -> RefMut<Account> {
-		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce), |_|{})
+		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce), ||{})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// If it doesn't exist, make account equal the evaluation of `default`.
-	fn require_or_from<F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> RefMut<Account> {
+	fn require_or_from<F: FnOnce() -> Account, G: FnOnce()>(&self, a: &Address, require_code: bool, default: F, already_exists: G) -> RefMut<Account> {
 		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
 			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
 		let preexists = self.cache.borrow().get(a).unwrap().is_none();
 		if preexists {
 			self.cache.borrow_mut().insert(a.clone(), Some(default()));
 		} else {
-			not_default(self.cache.borrow_mut().get_mut(a).unwrap().as_mut().unwrap());
+			already_exists();
 		}
 
 		let b = self.cache.borrow_mut();
@@ -291,7 +293,7 @@ fn code_from_database() {
 	let a = Address::zero();
 	let (r, db) = {
 		let mut s = State::new_temp();
-		s.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)), |_|{});
+		s.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)), ||{});
 		s.init_code(&a, vec![1, 2, 3]);
 		assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
 		s.commit();
