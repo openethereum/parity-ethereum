@@ -763,4 +763,44 @@ mod tests {
 			assert_eq!(bc.best_block_hash(), b1_hash);
 		}
 	}
+
+	#[test]
+	fn can_contain_arbitrary_block_sequence() {
+		let bc_result = generate_dummy_blockchain(50);
+		let bc = bc_result.reference();
+		assert_eq!(bc.best_block_number(), 49);
+	}
+
+	#[test]
+	fn can_collect_garbage() {
+		let bc_result = generate_dummy_blockchain(3000);
+		let bc = bc_result.reference();
+
+		assert_eq!(bc.best_block_number(), 2999);
+		let best_hash = bc.best_block_hash();
+		let mut block_header = bc.block_header(&best_hash);
+
+		while !block_header.is_none() {
+			block_header = bc.block_header(&block_header.unwrap().parent_hash);
+		}
+		assert!(bc.cache_size().blocks > 1024 * 1024);
+
+		bc.collect_garbage(true);
+
+		assert!(bc.cache_size().blocks < 1024 * 1024);
+	}
+
+	#[test]
+	fn can_contain_arbitrary_block_sequence_with_extra() {
+		let bc_result = generate_dummy_blockchain_with_extra(25);
+		let bc = bc_result.reference();
+		assert_eq!(bc.best_block_number(), 24);
+	}
+
+	#[test]
+	fn can_contain_only_genesis_block() {
+		let bc_result = generate_dummy_empty_blockchain();
+		let bc = bc_result.reference();
+		assert_eq!(bc.best_block_number(), 0);
+	}
 }
