@@ -325,7 +325,6 @@ impl TestNet {
 
 #[test]
 fn chain_two_peers() {
-	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, false);
 	net.peer_mut(2).chain.add_blocks(1000, false);
@@ -336,7 +335,6 @@ fn chain_two_peers() {
 
 #[test]
 fn chain_status_after_sync() {
-	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, false);
 	net.peer_mut(2).chain.add_blocks(1000, false);
@@ -356,7 +354,6 @@ fn chain_takes_few_steps() {
 
 #[test]
 fn chain_empty_blocks() {
-	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	for n in 0..200 {
 		net.peer_mut(1).chain.add_blocks(5, n % 2 == 0);
@@ -368,8 +365,7 @@ fn chain_empty_blocks() {
 }
 
 #[test]
-fn chain_forged() {
-	::env_logger::init().ok();
+fn chain_forked() {
 	let mut net = TestNet::new(3);
 	net.peer_mut(0).chain.add_blocks(300, false);
 	net.peer_mut(1).chain.add_blocks(300, false);

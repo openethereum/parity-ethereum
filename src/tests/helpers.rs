@@ -89,14 +89,11 @@ fn create_unverifiable_block(order: u32, parent_hash: H256) -> Bytes {
 pub fn create_test_block_with_data(header: &Header, transactions: &[&Transaction], uncles: &[Header]) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
 	rlp.append(header);
-	rlp.append_list(transactions.len());
+	rlp.begin_list(transactions.len());
 	for t in transactions {
 		rlp.append_raw(&t.rlp_bytes_opt(Seal::With), 1);
 	}
-	rlp.append_list(uncles.len());
-	for h in uncles {
-		rlp.append(h);
-	}
+	rlp.append(&uncles);
 	rlp.out()
 }
 
