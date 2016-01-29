@@ -4,6 +4,7 @@ use super::test_common::*;
 use std::path::PathBuf;
 use spec::*;
 use std::fs::{remove_dir_all};
+use blockchain::{BlockChain};
 
 
 pub struct RandomTempPath {
@@ -32,6 +33,18 @@ impl Drop for RandomTempPath {
 	}
 }
 
+#[allow(dead_code)]
+pub struct GuardedTempResult<T> {
+	result: T,
+	temp: RandomTempPath
+}
+
+impl<T> GuardedTempResult<T> {
+    pub fn reference(&self) -> &T {
+        &self.result
+    }
+}
+
 pub fn get_test_spec() -> Spec {
 	Spec::new_test()
 }
@@ -44,7 +57,36 @@ pub fn create_test_block(header: &Header) -> Bytes {
 	rlp.out()
 }
 
-pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
+fn create_unverifiable_block_header(order: u32, parent_hash: H256) -> Header {
+	let mut header = Header::new();
+	header.gas_limit = x!(0);
+	header.difficulty = x!(order * 100);
+	header.timestamp = (order * 10) as u64;
+	header.number = order as u64;
+	header.parent_hash = parent_hash;
+	header.state_root = H256::zero();
+
+	header
+}
+
+fn create_unverifiable_block_with_extra(order: u32, parent_hash: H256, extra: Option<Bytes>) -> Bytes {
+	let mut header = create_unverifiable_block_header(order, parent_hash);
+	header.extra_data = match extra {
+		Some(extra_data) => extra_data,
+		None => {
+			let base = (order & 0x000000ff) as u8;
+			let generated: Vec<u8> = vec![base + 1, base + 2, base + 3];
+			generated
+		}
+	};
+	create_test_block(&header)
+}
+
+fn create_unverifiable_block(order: u32, parent_hash: H256) -> Bytes {
+	create_test_block(&create_unverifiable_block_header(order, parent_hash))
+}
+
+pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 
 	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
@@ -76,5 +118,90 @@ pub fn generate_dummy_client(block_number: usize) -> Arc<Client> {
 	}
 	client.flush_queue();
 	client.import_verified_blocks(&IoChannel::disconnected());
-	client
+
+	GuardedTempResult::<Arc<Client>> {
+		temp: dir,
+		result: client
+	}
+}
+
+pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
+	let dir = RandomTempPath::new();
+	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	for block in &blocks {
+		if let Err(_) = client.import_block(block.clone()) {
+			panic!("panic importing block which is well-formed");
+		}
+	}
+	client.flush_queue();
+	client.import_verified_blocks(&IoChannel::disconnected());
+
+	GuardedTempResult::<Arc<Client>> {
+		temp: dir,
+		result: client
+	}
+}
+
+pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
+	let temp = RandomTempPath::new();
+	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
+	for block_order in 1..block_number {
+		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()));
+	}
+
+	GuardedTempResult::<BlockChain> {
+		temp: temp,
+		result: bc
+	}
+}
+
+pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
+	let temp = RandomTempPath::new();
+	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
+	for block_order in 1..block_number {
+		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None));
+	}
+
+	GuardedTempResult::<BlockChain> {
+		temp: temp,
+		result: bc
+	}
+}
+
+pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
+	let temp = RandomTempPath::new();
+	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
+
+	GuardedTempResult::<BlockChain> {
+		temp: temp,
+		result: bc
+	}
+}
+
+pub fn get_good_dummy_block() -> Bytes {
+	let mut block_header = Header::new();
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	block_header.gas_limit = decode(test_engine.spec().engine_params.get("minGasLimit").unwrap());
+	block_header.difficulty = decode(test_engine.spec().engine_params.get("minimumDifficulty").unwrap());
+	block_header.timestamp = 40;
+	block_header.number = 1;
+	block_header.parent_hash = test_engine.spec().genesis_header().hash();
+	block_header.state_root = test_engine.spec().genesis_header().state_root;
+
+	create_test_block(&block_header)
+}
+
+pub fn get_bad_state_dummy_block() -> Bytes {
+	let mut block_header = Header::new();
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	block_header.gas_limit = decode(test_engine.spec().engine_params.get("minGasLimit").unwrap());
+	block_header.difficulty = decode(test_engine.spec().engine_params.get("minimumDifficulty").unwrap());
+	block_header.timestamp = 40;
+	block_header.number = 1;
+	block_header.parent_hash = test_engine.spec().genesis_header().hash();
+	block_header.state_root = x!(0xbad);
+
+	create_test_block(&block_header)
 }
