@@ -13,7 +13,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let schedule = match test.find("blocknumber")
 			.and_then(|j| j.as_string())
 			.and_then(|s| BlockNumber::from_str(s).ok())
-			.unwrap_or(0) { x if x < 900000 => &old_schedule, _ => &new_schedule };
+			.unwrap_or(0) { x if x < 1_000_000 => &old_schedule, _ => &new_schedule };
 		let rlp = Bytes::from_json(&test["rlp"]);
 		let res = UntrustedRlp::new(&rlp).as_val().map_err(From::from).and_then(|t: Transaction| t.validate(schedule, schedule.have_delegate_call));
 		fail_unless(test.find("transaction").is_none() == res.is_err());
