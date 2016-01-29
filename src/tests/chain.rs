@@ -1,3 +1,6 @@
+use std::env;
+use log::{LogLevelFilter};
+use env_logger::LogBuilder;
 use super::test_common::*;
 use client::{BlockChainClient,Client};
 use pod_state::*;
@@ -10,7 +13,24 @@ pub enum ChainEra {
 	Homestead,
 }
 
+lazy_static! {
+	static ref LOG_DUMMY: bool = {
+		let mut builder = LogBuilder::new();
+		builder.filter(None, LogLevelFilter::Info);
+
+		if let Ok(log) = env::var("RUST_LOG") {
+			builder.parse(&log);
+		}
+
+		if let Ok(_) = builder.init() {
+			println!("logger initialized");
+		}
+		true
+	};
+}
+
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
+	let _ = LOG_DUMMY.deref();
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 
@@ -35,10 +55,13 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 			spec.set_genesis_state(s);
 			spec.overwrite_genesis(test.find("genesisBlockHeader").unwrap());
 			assert!(spec.is_state_root_valid());
+			let genesis_hash = spec.genesis_header().hash();
+			assert_eq!(genesis_hash, H256::from_json(&test.find("genesisBlockHeader").unwrap()["hash"]));
 
 			let temp = RandomTempPath::new();
 			{
 				let client = Client::new(spec, temp.as_path(), IoChannel::disconnected()).unwrap();
+				assert_eq!(client.chain_info().best_block_hash, genesis_hash);
 				for (b, is_valid) in blocks.into_iter() {
 					if Block::is_good(&b) {
 						let _ = client.import_block(b.clone());
