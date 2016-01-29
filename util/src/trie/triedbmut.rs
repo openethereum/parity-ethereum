@@ -671,7 +671,6 @@ mod tests {
 	use super::*;
 	use nibbleslice::*;
 	use rlp::*;
-	use env_logger;
 	use rand::random;
 	use std::collections::HashSet;
 	use bytes::{ToPretty,Bytes,Populatable};
@@ -727,7 +726,6 @@ mod tests {
 
 	#[test]
 	fn playpen() {
-		env_logger::init().ok();
 
 		/*let maps = map!{
 			"six-low" => StandardMap{alphabet: Alphabet::Low, min_key: 6, journal_key: 0, count: 1000},

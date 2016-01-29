@@ -306,7 +306,6 @@ impl TestNet {
 
 #[test]
 fn full_sync_two_peers() {
-	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, false);
 	net.peer_mut(2).chain.add_blocks(1000, false);
@@ -317,7 +316,6 @@ fn full_sync_two_peers() {
 
 #[test]
 fn full_sync_empty_blocks() {
-	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	for n in 0..200 {
 		net.peer_mut(1).chain.add_blocks(5, n % 2 == 0);
@@ -330,7 +328,6 @@ fn full_sync_empty_blocks() {
 
 #[test]
 fn forked_sync() {
-	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(0).chain.add_blocks(300, false);
 	net.peer_mut(1).chain.add_blocks(300, false);

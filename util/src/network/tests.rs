@@ -75,7 +75,6 @@ fn test_net_service() {
 
 #[test]
 fn test_net_connect() {
-	::env_logger::init().ok();
 	let key1 = KeyPair::create().unwrap();
 	let mut config1 = NetworkConfiguration::new_with_port(30344);
 	config1.use_secret = Some(key1.secret().clone());
