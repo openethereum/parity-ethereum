@@ -1,6 +1,3 @@
-use std::env;
-use log::{LogLevelFilter};
-use env_logger::LogBuilder;
 use super::test_common::*;
 use client::{BlockChainClient,Client};
 use pod_state::*;
