@@ -1,5 +1,5 @@
 use std::fmt;
-use rlp::{View, Decodable, DecoderError, UntrustedRlp, PayloadInfo, Prototype};
+use rlp::{View, DecoderError, UntrustedRlp, PayloadInfo, Prototype, RlpDecodable};
 
 impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
 	fn from(rlp: UntrustedRlp<'a>) -> Rlp<'a> {
@@ -88,28 +88,28 @@ impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
 		self.into_iter()
 	}
 
-	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable {
+	fn as_val<T>(&self) -> Result<T, DecoderError> where T: RlpDecodable {
 		self.rlp.as_val()
 	}
 
-	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable {
+	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable {
 		self.at(index).rlp.as_val()
 	}
 }
 
 impl <'a, 'view> Rlp<'a> where 'a: 'view {
-	fn view_as_val<T, R>(r: &R) -> T where R: View<'a, 'view>, T: Decodable {
+	fn view_as_val<T, R>(r: &R) -> T where R: View<'a, 'view>, T: RlpDecodable {
 		let res: Result<T, DecoderError> = r.as_val();
 		res.unwrap_or_else(|_| panic!())
 	}
 
 	/// TODO [debris] Please document me
-	pub fn as_val<T>(&self) -> T where T: Decodable {
+	pub fn as_val<T>(&self) -> T where T: RlpDecodable {
 		Self::view_as_val(self)
 	}
 
 	/// TODO [debris] Please document me
-	pub fn val_at<T>(&self, index: usize) -> T where T: Decodable {
+	pub fn val_at<T>(&self, index: usize) -> T where T: RlpDecodable {
 		Self::view_as_val(&self.at(index))
 	}
 }

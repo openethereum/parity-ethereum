@@ -27,17 +27,12 @@ impl Receipt {
 	}
 }
 
-impl RlpStandard for Receipt {
+impl Encodable for Receipt {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(4);
+		s.begin_list(4);
 		s.append(&self.state_root);
 		s.append(&self.gas_used);
 		s.append(&self.log_bloom);
-		// TODO: make work:
-		//s.append(&self.logs);
-		s.append_list(self.logs.len());
-		for l in &self.logs {
-			l.rlp_append(s);
-		}
+		s.append(&self.logs);
 	}
 }

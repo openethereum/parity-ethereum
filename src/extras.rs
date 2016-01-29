@@ -133,25 +133,24 @@ impl HeapSizeOf for BlockDetails {
 
 impl Decodable for BlockDetails {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = try!(decoder.as_list());
+		let d = decoder.as_rlp();
 		let details = BlockDetails {
-			number: try!(Decodable::decode(&d[0])),
-			total_difficulty: try!(Decodable::decode(&d[1])),
-			parent: try!(Decodable::decode(&d[2])),
-			children: try!(Decodable::decode(&d[3]))
+			number: try!(d.val_at(0)),
+			total_difficulty: try!(d.val_at(1)),
+			parent: try!(d.val_at(2)),
+			children: try!(d.val_at(3)),
 		};
 		Ok(details)
 	}
 }
 
 impl Encodable for BlockDetails {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
-		encoder.emit_list(| e | {
-			self.number.encode(e);
-			self.total_difficulty.encode(e);
-			self.parent.encode(e);
-			self.children.encode(e);
-		})
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
+		s.append(&self.number);
+		s.append(&self.total_difficulty);
+		s.append(&self.parent);
+		s.append(&self.children);
 	}
 }
 
@@ -185,8 +184,8 @@ impl Decodable for BlockLogBlooms {
 }
 
 impl Encodable for BlockLogBlooms {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
-		self.blooms.encode(encoder);
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.blooms);
 	}
 }
 
@@ -231,9 +230,9 @@ impl Decodable for BlocksBlooms {
 }
 
 impl Encodable for BlocksBlooms {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
+	fn rlp_append(&self, s: &mut RlpStream) {
 		let blooms_ref: &[H2048] = &self.blooms;
-		blooms_ref.encode(encoder);
+		s.append(&blooms_ref);
 	}
 }
 
@@ -258,10 +257,10 @@ impl HeapSizeOf for TransactionAddress {
 
 impl Decodable for TransactionAddress {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = try!(decoder.as_list());
+		let d = decoder.as_rlp();
 		let tx_address = TransactionAddress {
-			block_hash: try!(Decodable::decode(&d[0])),
-			index: try!(Decodable::decode(&d[1]))
+			block_hash: try!(d.val_at(0)),
+			index: try!(d.val_at(1)),
 		};
 
 		Ok(tx_address)
@@ -269,10 +268,9 @@ impl Decodable for TransactionAddress {
 }
 
 impl Encodable for TransactionAddress {
-	fn encode<E>(&self, encoder: &mut E) where E: Encoder {
-		encoder.emit_list(| e | {
-			self.block_hash.encode(e);
-			self.index.encode(e);
-		})
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
+		s.append(&self.block_hash);
+		s.append(&self.index);
 	}
 }

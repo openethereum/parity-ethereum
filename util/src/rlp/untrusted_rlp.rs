@@ -1,8 +1,8 @@
 use std::cell::Cell;
 use std::fmt;
 use rustc_serialize::hex::ToHex;
-use bytes::{FromBytes};
-use rlp::{View, Decoder, Decodable, DecoderError};
+use rlp::bytes::{FromBytes, FromBytesResult, FromBytesError};
+use rlp::{View, Decoder, Decodable, DecoderError, RlpDecodable};
 
 /// rlp offset
 #[derive(Copy, Clone, Debug)]
@@ -211,12 +211,12 @@ impl<'a, 'view> View<'a, 'view> for UntrustedRlp<'a> where 'a: 'view {
 		self.into_iter()
 	}
 
-	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable {
+	fn as_val<T>(&self) -> Result<T, DecoderError> where T: RlpDecodable {
 		// optimize, so it doesn't use clone (although This clone is cheap)
 		T::decode(&BasicDecoder::new(self.clone()))
 	}
 
-	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable {
+	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable {
 		try!(self.at(index)).as_val()
 	}
 }
@@ -369,13 +369,6 @@ impl<'a> Decoder for BasicDecoder<'a> {
 		self.rlp.as_raw()
 	}
 
-	fn as_list(&self) -> Result<Vec<Self>, DecoderError> {
-		let v: Vec<BasicDecoder<'a>> = self.rlp.iter()
-			.map(BasicDecoder::new)
-			.collect();
-		Ok(v)
-	}
-
 	fn as_rlp(&self) -> &UntrustedRlp {
 		&self.rlp
 	}
@@ -391,8 +384,7 @@ impl<T> Decodable for T where T: FromBytes {
 
 impl<T> Decodable for Vec<T> where T: Decodable {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
-		let decoders = try!(decoder.as_list());
-		decoders.iter().map(|d| T::decode(d)).collect()
+		decoder.as_rlp().iter().map(|d| T::decode(&BasicDecoder::new(d))).collect()
 	}
 }
 
@@ -423,15 +415,15 @@ macro_rules! impl_array_decodable {
 		impl<T> Decodable for [T; $len] where T: Decodable {
 			#[allow(len_zero)]
 			fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
-				let decoders = try!(decoder.as_list());
+				let decoders = decoder.as_rlp();
 
 				let mut result: [T; $len] = unsafe { ::std::mem::uninitialized() };
-				if decoders.len() != $len {
+				if decoders.item_count() != $len {
 					return Err(DecoderError::RlpIncorrectListLen);
 				}
 
-				for i in 0..decoders.len() {
-					result[i] = try!(T::decode(&decoders[i]));
+				for i in 0..decoders.item_count() {
+					result[i] = try!(T::decode(&BasicDecoder::new(try!(decoders.at(i)))));
 				}
 
 				Ok(result)
@@ -453,6 +445,36 @@ impl_array_decodable_recursive!(
 	16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 	32, 40, 48, 56, 64, 72, 96, 128, 160, 192, 224,
 );
+
+impl<T> RlpDecodable for T where T: Decodable {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+		Decodable::decode(decoder)
+	}
+}
+
+struct DecodableU8 (u8);
+
+impl FromBytes for DecodableU8 {
+	fn from_bytes(bytes: &[u8]) -> FromBytesResult<DecodableU8> {
+		match bytes.len() {
+			0 => Ok(DecodableU8(0u8)),
+			1 => {
+				if bytes[0] == 0 {
+					return Err(FromBytesError::ZeroPrefixedInt)
+				}
+				Ok(DecodableU8(bytes[0]))
+			}
+			_ => Err(FromBytesError::DataIsTooLong)
+		}
+	}
+}
+
+impl RlpDecodable for u8 {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
+		let u: DecodableU8 = try!(Decodable::decode(decoder));
+		Ok(u.0)
+	}
+}
 
 #[test]
 fn test_rlp_display() {

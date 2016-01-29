@@ -1,4 +1,11 @@
+//! Common RLP traits
+use std::ops::Deref;
+use rlp::bytes::VecLike;
 use rlp::{DecoderError, UntrustedRlp};
+use rlp::rlpstream::RlpStream;
+use elastic_array::ElasticArray1024;
+use hash::H256;
+use sha3::*;
 
 /// TODO [debris] Please document me
 pub trait Decoder: Sized {
@@ -6,17 +13,21 @@ pub trait Decoder: Sized {
 	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
 		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 
-	/// TODO [arkpar] Please document me
-	fn as_list(&self) -> Result<Vec<Self>, DecoderError>;
 	/// TODO [Gav Wood] Please document me
 	fn as_rlp(&self) -> &UntrustedRlp;
 	/// TODO [debris] Please document me
 	fn as_raw(&self) -> &[u8];
 }
 
-/// TODO [debris] Please document me
+/// RLP decodable trait
 pub trait Decodable: Sized {
-	/// TODO [debris] Please document me
+	/// Decode a value from RLP bytes
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
+}
+
+/// Internal helper trait. Implement `Decodable` for custom types.
+pub trait RlpDecodable: Sized {
+	/// Decode a value from RLP bytes
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
 }
 
@@ -195,26 +206,48 @@ pub trait View<'a, 'view>: Sized {
 	fn iter(&'view self) -> Self::Iter;
 
 	/// TODO [debris] Please document me
-	fn as_val<T>(&self) -> Result<T, DecoderError> where T: Decodable;
+	fn as_val<T>(&self) -> Result<T, DecoderError> where T: RlpDecodable;
 
 	/// TODO [debris] Please document me
-	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: Decodable;
+	fn val_at<T>(&self, index: usize) -> Result<T, DecoderError> where T: RlpDecodable;
 }
 
 /// TODO [debris] Please document me
 pub trait Encoder {
 	/// TODO [debris] Please document me
-	fn emit_value(&mut self, bytes: &[u8]) -> ();
-	/// TODO [Gav Wood] Please document me
-	fn emit_list<F>(&mut self, f: F) -> () where F: FnOnce(&mut Self) -> ();
+	fn emit_value<E: ByteEncodable>(&mut self, value: &E);
 	/// TODO [debris] Please document me
 	fn emit_raw(&mut self, bytes: &[u8]) -> ();
 }
 
-/// TODO [debris] Please document me
+/// Primitive data type encodable to RLP
+pub trait ByteEncodable {
+	/// Serialize this object to given byte container
+	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V);
+	/// Get size of serialised data in bytes
+	fn bytes_len(&self) -> usize;
+}
+
+/// Structure encodable to RLP. Implement this trait for 
 pub trait Encodable {
-	/// TODO [debris] Please document me
-	fn encode<E>(&self, encoder: &mut E) -> () where E: Encoder;
+	/// Append a value to the stream
+	fn rlp_append(&self, s: &mut RlpStream);
+
+	/// Get rlp-encoded bytes for this instance
+	fn rlp_bytes(&self) -> ElasticArray1024<u8> {
+		let mut s = RlpStream::new();
+		self.rlp_append(&mut s);
+		s.drain()
+	}
+
+	/// Get the hash or RLP encoded representation
+	fn rlp_sha3(&self) -> H256 { self.rlp_bytes().deref().sha3() }
+}
+
+/// Encodable wrapper trait required to handle special case of encoding a &[u8] as string and not as list
+pub trait RlpEncodable {
+	/// Append a value to the stream
+	fn rlp_append(&self, s: &mut RlpStream);
 }
 
 /// TODO [debris] Please document me
@@ -239,7 +272,7 @@ pub trait Stream: Sized {
 	/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
 	/// }
 	/// ```
-	fn append<'a, E>(&'a mut self, object: &E) -> &'a mut Self where E: Encodable;
+	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: RlpEncodable;
 
 	/// Declare appending the list of given size, chainable.
 	///
@@ -249,13 +282,13 @@ pub trait Stream: Sized {
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
-	/// 	stream.append_list(2).append(&"cat").append(&"dog");
+	/// 	stream.begin_list(2).append(&"cat").append(&"dog");
 	/// 	stream.append(&"");
 	/// 	let out = stream.out();
 	/// 	assert_eq!(out, vec![0xca, 0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g', 0x80]);
 	/// }
 	/// ```
-	fn append_list(&mut self, len: usize) -> &mut Self;
+	fn begin_list(&mut self, len: usize) -> &mut Self;
 
 	/// Apends null to the end of stream, chainable.
 	///

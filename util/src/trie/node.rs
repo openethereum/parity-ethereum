@@ -89,17 +89,17 @@ impl<'a> Node<'a> {
 		let mut stream = RlpStream::new();
 		match *self {
 			Node::Leaf(ref slice, ref value) => {
-				stream.append_list(2);
+				stream.begin_list(2);
 				stream.append(&slice.encoded(true));
 				stream.append(value);
 			},
 			Node::Extension(ref slice, ref raw_rlp) => {
-				stream.append_list(2);
+				stream.begin_list(2);
 				stream.append(&slice.encoded(false));
 				stream.append_raw(raw_rlp, 1);
 			},
 			Node::Branch(ref nodes, ref value) => {
-				stream.append_list(17);
+				stream.begin_list(17);
 				for i in 0..16 {
 					stream.append_raw(nodes[i], 1);
 				}

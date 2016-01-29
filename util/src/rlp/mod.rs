@@ -30,25 +30,22 @@
 //! * You want to get view onto rlp-slice.
 //! * You don't want to decode whole rlp at once.
 
-/// TODO [Gav Wood] Please document me
 pub mod rlptraits;
-/// TODO [Gav Wood] Please document me
-pub mod rlperrors;
-/// TODO [debris] Please document me
-pub mod rlpin;
-/// TODO [debris] Please document me
-pub mod untrusted_rlp;
-/// TODO [debris] Please document me
-pub mod rlpstream;
+mod rlperrors;
+mod rlpin;
+mod untrusted_rlp;
+mod rlpstream;
+mod bytes;
 
 #[cfg(test)]
 mod tests;
 
 pub use self::rlperrors::DecoderError;
-pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder};
+pub use self::rlptraits::{Decoder, Decodable, View, Stream, Encodable, Encoder, RlpEncodable, RlpDecodable};
 pub use self::untrusted_rlp::{UntrustedRlp, UntrustedRlpIterator, PayloadInfo, Prototype};
 pub use self::rlpin::{Rlp, RlpIterator};
-pub use self::rlpstream::{RlpStream,RlpStandard};
+pub use self::rlpstream::{RlpStream};
+pub use elastic_array::ElasticArray1024;
 use super::hash::H256;
 
 /// TODO [arkpar] Please document me
@@ -72,7 +69,7 @@ pub const SHA3_EMPTY_LIST_RLP: H256 = H256( [0x1d, 0xcc, 0x4d, 0xe8, 0xde, 0xc7,
 /// 	assert_eq!(animals, vec!["cat".to_string(), "dog".to_string()]);
 /// }
 /// ```
-pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
+pub fn decode<T>(bytes: &[u8]) -> T where T: RlpDecodable {
 	let rlp = Rlp::new(bytes);
 	rlp.as_val()
 }
@@ -84,13 +81,13 @@ pub fn decode<T>(bytes: &[u8]) -> T where T: Decodable {
 /// use util::rlp::*;
 ///
 /// fn main () {
-/// 	let animals = vec!["cat", "dog"];
-/// 	let out = encode(&animals);
-/// 	assert_eq!(out, vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g']);
+/// 	let animal = "cat";
+/// 	let out = encode(&animal).to_vec();
+/// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```
-pub fn encode<E>(object: &E) -> Vec<u8> where E: Encodable {
+pub fn encode<E>(object: &E) -> ElasticArray1024<u8> where E: RlpEncodable {
 	let mut stream = RlpStream::new();
 	stream.append(object);
-	stream.out()
+	stream.drain()
 }

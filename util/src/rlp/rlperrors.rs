@@ -1,6 +1,6 @@
 use std::fmt;
 use std::error::Error as StdError;
-use bytes::FromBytesError;
+use rlp::bytes::FromBytesError;
 
 #[derive(Debug, PartialEq, Eq)]
 /// TODO [debris] Please document me
