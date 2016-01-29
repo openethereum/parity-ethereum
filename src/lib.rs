@@ -151,8 +151,6 @@ mod tests;
 /// TODO [arkpar] Please document me
 pub mod client;
 /// TODO [arkpar] Please document me
-pub mod sync;
-/// TODO [arkpar] Please document me
 pub mod block;
 /// TODO [arkpar] Please document me
 pub mod verification;

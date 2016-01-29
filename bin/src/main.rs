@@ -8,6 +8,7 @@ extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
+extern crate ethsync;
 extern crate log;
 extern crate env_logger;
 extern crate ctrlc;
@@ -24,7 +25,7 @@ use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
-use ethcore::sync::EthSync;
+use ethsync::EthSync;
 
 docopt!(Args derive Debug, "
 Parity. Ethereum Client.
@@ -81,8 +82,10 @@ fn main() {
 	let mut net_settings = NetworkConfiguration::new();
 	net_settings.boot_nodes = init_nodes;
 	let mut service = ClientService::start(spec, net_settings).unwrap();
-	setup_rpc_server(service.client(), service.sync());
-	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: service.sync() });
+	let client = service.client().clone();
+	let sync = EthSync::register(service.network(), client);
+	setup_rpc_server(service.client(), sync.clone());
+	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: sync });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 	let exit = Arc::new(Condvar::new());
