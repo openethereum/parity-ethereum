@@ -16,7 +16,7 @@ pub fn gzip64res_to_json(source: &[u8]) -> Json {
 	Json::from_str(&s).expect("Json is invalid")
 }
 
-/// Convert JSON value to equivlaent RLP representation.
+/// Convert JSON value to equivalent RLP representation.
 // TODO: handle container types.
 fn json_to_rlp(json: &Json) -> Bytes {
 	match *json {
@@ -77,6 +77,10 @@ pub struct Spec {
 	pub gas_used: U256,
 	/// TODO [Gav Wood] Please document me
 	pub timestamp: u64,
+	/// Transactions root of the genesis block. Should be SHA3_NULL_RLP.
+	pub transactions_root: H256,
+	/// Receipts root of the genesis block. Should be SHA3_NULL_RLP.
+	pub receipts_root: H256,
 	/// TODO [arkpar] Please document me
 	pub extra_data: Bytes,
 	/// TODO [Gav Wood] Please document me
@@ -120,11 +124,11 @@ impl Spec {
 			timestamp: self.timestamp,
 			number: 0,
 			author: self.author.clone(),
-			transactions_root: SHA3_NULL_RLP.clone(),
+			transactions_root: self.transactions_root.clone(),
 			uncles_hash: RlpStream::new_list(0).out().sha3(),
 			extra_data: self.extra_data.clone(),
 			state_root: self.state_root().clone(),
-			receipts_root: SHA3_NULL_RLP.clone(),
+			receipts_root: self.receipts_root.clone(),	
 			log_bloom: H2048::new().clone(),
 			gas_used: self.gas_used.clone(),
 			gas_limit: self.gas_limit.clone(),
@@ -172,6 +176,8 @@ impl Spec {
 		};
 		
 		self.parent_hash = H256::from_json(&genesis["parentHash"]);
+		self.transactions_root = genesis.find("transactionsTrie").and_then(|_| Some(H256::from_json(&genesis["transactionsTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
+		self.receipts_root = genesis.find("receiptTrie").and_then(|_| Some(H256::from_json(&genesis["receiptTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
 		self.author = Address::from_json(&genesis["coinbase"]);
 		self.difficulty = U256::from_json(&genesis["difficulty"]);
 		self.gas_limit = U256::from_json(&genesis["gasLimit"]);
@@ -248,6 +254,8 @@ impl FromJson for Spec {
 			gas_limit: U256::from_str(&genesis["gasLimit"].as_string().unwrap()[2..]).unwrap(),
 			gas_used: U256::from(0u8),
 			timestamp: u64::from_str(&genesis["timestamp"].as_string().unwrap()[2..]).unwrap(),
+			transactions_root: SHA3_NULL_RLP.clone(),
+			receipts_root: SHA3_NULL_RLP.clone(),
 			extra_data: genesis["extraData"].as_string().unwrap()[2..].from_hex().unwrap(),
 			genesis_state: state,
 			seal_fields: seal_fields,

@@ -22,6 +22,7 @@ ethash = { path = "ethash" }
 num_cpus = "0.2"
 clippy = "0.0.37"
 crossbeam = "0.1.5"
+lazy_static = "0.1"
 
 [features]
 jit = ["evmjit"]
