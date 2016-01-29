@@ -38,7 +38,11 @@ impl TestBlockChainClient {
 			header.number = n as BlockNumber;
 			let mut uncles = RlpStream::new_list(if empty {0} else {1});
 			if !empty {
-				uncles.append(&H256::from(&U256::from(n)));
+				let mut uncle_header = BlockHeader::new();
+				uncle_header.difficulty = From::from(n);
+				uncle_header.parent_hash = self.last_hash.read().unwrap().clone();
+				uncle_header.number = n as BlockNumber;
+				uncles.append(&uncle_header);
 				header.uncles_hash = uncles.as_raw().sha3();
 			}
 			let mut rlp = RlpStream::new_list(3);

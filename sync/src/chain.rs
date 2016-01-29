@@ -20,6 +20,7 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus};
 use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
+use ethcore::block::Block;
 use io::SyncIo;
 
 impl ToUsize for BlockNumber {
@@ -669,6 +670,12 @@ impl ChainSync {
 				block_rlp.append_raw(body.at(0).as_raw(), 1);
 				block_rlp.append_raw(body.at(1).as_raw(), 1);
 				let h = &headers.1[i].hash;
+				// Perform basic block verification 
+				if !Block::is_good(block_rlp.as_raw()) {
+					debug!(target: "sync", "Bad block rlp {:?} : {:?}", h, block_rlp.as_raw());
+					restart = true;
+					break;
+				}
 				match io.chain().import_block(block_rlp.out()) {
 					Err(ImportError::AlreadyInChain) => {
 						trace!(target: "sync", "Block already in chain {:?}", h);
