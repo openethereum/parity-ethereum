@@ -9,7 +9,7 @@ extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
-extern crate log;
+extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
 
@@ -17,7 +17,7 @@ extern crate ctrlc;
 extern crate ethcore_rpc as rpc;
 
 use std::env;
-use log::{LogLevelFilter};
+use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
