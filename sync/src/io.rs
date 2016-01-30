@@ -1,7 +1,7 @@
-use client::BlockChainClient;
+use ethcore::client::BlockChainClient;
 use util::{NetworkContext, PeerId, PacketId,};
 use util::error::UtilError;
-use service::SyncMessage;
+use ethcore::service::SyncMessage;
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.

@@ -45,14 +45,14 @@ impl Decodable for Block {
 		if decoder.as_raw().len() != try!(decoder.as_rlp().payload_info()).total() {
 			return Err(DecoderError::RlpIsTooBig);	
 		}
-		let d = try!(decoder.as_list());
-		if d.len() != 3 {
+		let d = decoder.as_rlp();
+		if d.item_count() != 3 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
 		Ok(Block {
-			header: try!(Decodable::decode(&d[0])),
-			transactions: try!(Decodable::decode(&d[1])),
-			uncles: try!(Decodable::decode(&d[2])),
+			header: try!(d.val_at(0)),
+			transactions: try!(d.val_at(1)),
+			uncles: try!(d.val_at(2)),
 		})
 	}
 }
@@ -245,11 +245,11 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	pub fn close(self) -> ClosedBlock<'x, 'y> {
 		let mut s = self;
 		s.engine.on_close_block(&mut s.block);
-		s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes()).collect());
+		s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes().to_vec()).collect());
 		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append(&u.rlp(Seal::With)); s} ).out();
 		s.block.base.header.uncles_hash = uncle_bytes.sha3();
 		s.block.base.header.state_root = s.block.state.root().clone();
-		s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes()).collect());
+		s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes().to_vec()).collect());
 		s.block.base.header.log_bloom = s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b |= &r.log_bloom; b});
 		s.block.base.header.gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
 		s.block.base.header.note_dirty();
@@ -301,8 +301,7 @@ impl SealedBlock {
 	pub fn rlp_bytes(&self) -> Bytes {
 		let mut block_rlp = RlpStream::new_list(3);
 		self.block.base.header.stream_rlp(&mut block_rlp, Seal::With);
-		block_rlp.append_list(self.block.receipts.len());
-		for t in &self.block.base.transactions { t.rlp_append(&mut block_rlp); }
+		block_rlp.append(&self.block.base.transactions);
 		block_rlp.append_raw(&self.uncle_bytes, 1);
 		block_rlp.out()
 	}

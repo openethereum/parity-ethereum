@@ -1,34 +1,46 @@
-/// Blockchain sync module
-/// Implements ethereum protocol version 63 as specified here:
-/// https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
-///
-/// Usage example:
-///
-/// ```rust
-/// extern crate ethcore_util as util;
-/// extern crate ethcore;
-/// use std::env;
-/// use std::sync::Arc;
-/// use util::network::{NetworkService, NetworkConfiguration};
-/// use ethcore::client::Client;
-/// use ethcore::sync::EthSync;
-/// use ethcore::ethereum;
-///
-/// fn main() {
-/// 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
-/// 	let dir = env::temp_dir();
-/// 	let client = Client::new(ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
-/// 	EthSync::register(&mut service, client);
-/// }
-/// ```
+#![warn(missing_docs)]
+#![feature(plugin)]
+#![plugin(clippy)]
+#![feature(augmented_assignments)]
+//! Blockchain sync module
+//! Implements ethereum protocol version 63 as specified here:
+//! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
+//!
+//! Usage example:
+//!
+//! ```rust
+//! extern crate ethcore_util as util;
+//! extern crate ethcore;
+//! extern crate ethsync;
+//! use std::env;
+//! use std::sync::Arc;
+//! use util::network::{NetworkService, NetworkConfiguration};
+//! use ethcore::client::Client;
+//! use ethsync::EthSync;
+//! use ethcore::ethereum;
+//!
+//! fn main() {
+//! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
+//! 	let dir = env::temp_dir();
+//! 	let client = Client::new(ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
+//! 	EthSync::register(&mut service, client);
+//! }
+//! ```
+
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate ethcore_util as util;
+extern crate ethcore;
+extern crate env_logger;
 
 use std::ops::*;
 use std::sync::*;
-use client::Client;
+use ethcore::client::Client;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
-use sync::chain::ChainSync;
-use service::SyncMessage;
-use sync::io::NetSyncIo;
+use chain::ChainSync;
+use ethcore::service::SyncMessage;
+use io::NetSyncIo;
 
 mod chain;
 mod io;

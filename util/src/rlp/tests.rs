@@ -13,7 +13,7 @@ fn rlp_at() {
 	{
 		let rlp = UntrustedRlp::new(&data);
 		assert!(rlp.is_list());
-		//let animals = <Vec<String> as rlp::Decodable>::decode_untrusted(&rlp).unwrap();
+		//let animals = <Vec<String> as rlp::RlpDecodable>::decode_untrusted(&rlp).unwrap();
 		let animals: Vec<String> = rlp.as_val().unwrap();
 		assert_eq!(animals, vec!["cat".to_owned(), "dog".to_owned()]);
 
@@ -83,7 +83,7 @@ fn run_encode_tests<T>(tests: Vec<ETestPair<T>>)
 {
 	for t in &tests {
 		let res = rlp::encode(&t.0);
-		assert_eq!(res, &t.1[..]);
+		assert_eq!(&res[..], &t.1[..]);
 	}
 }
 
@@ -193,15 +193,9 @@ fn encode_vector_str() {
 	run_encode_tests(tests);
 }
 
-#[test]
-fn encode_vector_of_vectors_str() {
-	let tests = vec![ETestPair(vec![vec!["cat"]], vec![0xc5, 0xc4, 0x83, b'c', b'a', b't'])];
-	run_encode_tests(tests);
-}
+struct DTestPair<T>(T, Vec<u8>) where T: rlp::RlpDecodable + fmt::Debug + cmp::Eq;
 
-struct DTestPair<T>(T, Vec<u8>) where T: rlp::Decodable + fmt::Debug + cmp::Eq;
-
-fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: rlp::Decodable + fmt::Debug + cmp::Eq {
+fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: rlp::RlpDecodable + fmt::Debug + cmp::Eq {
 	for t in &tests {
 		let res: T = rlp::decode(&t.1);
 		assert_eq!(res, t.0);
@@ -221,11 +215,20 @@ fn decode_vector_u8() {
 }
 
 #[test]
+fn decode_untrusted_u8() {
+	let tests = vec![
+		DTestPair(0x0u8, vec![0x80]),
+		DTestPair(0x77u8, vec![0x77]),
+		DTestPair(0xccu8, vec![0x81, 0xcc]),
+	];
+	run_decode_tests(tests);
+}
+
+#[test]
 fn decode_untrusted_u16() {
 	let tests = vec![
-		DTestPair(0u16, vec![0u8]),
-		DTestPair(0x100, vec![0x82, 0x01, 0x00]),
-		DTestPair(0xffff, vec![0x82, 0xff, 0xff]),
+		DTestPair(0x100u16, vec![0x82, 0x01, 0x00]),
+		DTestPair(0xffffu16, vec![0x82, 0xff, 0xff]),
 	];
 	run_decode_tests(tests);
 }
@@ -233,9 +236,8 @@ fn decode_untrusted_u16() {
 #[test]
 fn decode_untrusted_u32() {
 	let tests = vec![
-		DTestPair(0u32, vec![0u8]),
-		DTestPair(0x10000, vec![0x83, 0x01, 0x00, 0x00]),
-		DTestPair(0xffffff, vec![0x83, 0xff, 0xff, 0xff]),
+		DTestPair(0x10000u32, vec![0x83, 0x01, 0x00, 0x00]),
+		DTestPair(0xffffffu32, vec![0x83, 0xff, 0xff, 0xff]),
 	];
 	run_decode_tests(tests);
 }
@@ -243,9 +245,8 @@ fn decode_untrusted_u32() {
 #[test]
 fn decode_untrusted_u64() {
 	let tests = vec![
-		DTestPair(0u64, vec![0u8]),
-		DTestPair(0x1000000, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
-		DTestPair(0xFFFFFFFF, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
+		DTestPair(0x1000000u64, vec![0x84, 0x01, 0x00, 0x00, 0x00]),
+		DTestPair(0xFFFFFFFFu64, vec![0x84, 0xff, 0xff, 0xff, 0xff]),
 	];
 	run_decode_tests(tests);
 }
@@ -333,7 +334,7 @@ fn test_rlp_json() {
 		for operation in input.into_iter() {
 			match operation {
 				rlptest::Operation::Append(ref v) => stream.append(v),
-				rlptest::Operation::AppendList(len) => stream.append_list(len),
+				rlptest::Operation::AppendList(len) => stream.begin_list(len),
 				rlptest::Operation::AppendRaw(ref raw, len) => stream.append_raw(raw, len),
 				rlptest::Operation::AppendEmpty => stream.append_empty_data()
 			};

@@ -48,7 +48,7 @@ impl Engine for Ethash {
 	// Two fields - mix
 	fn seal_fields(&self) -> usize { 2 }
 	// Two empty data items in RLP.
-	fn seal_rlp(&self) -> Bytes { encode(&H64::new()) }
+	fn seal_rlp(&self) -> Bytes { encode(&H64::new()).to_vec() }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }

@@ -30,7 +30,7 @@ pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
 		// optimize it later
 		.into_iter()
 		.enumerate()
-		.fold(BTreeMap::new(), | mut acc, (i, vec) | { acc.insert(rlp::encode(&i), vec); acc })
+		.fold(BTreeMap::new(), | mut acc, (i, vec) | { acc.insert(rlp::encode(&i).to_vec(), vec); acc })
 		// then move them to a vector
 		.into_iter()
 		.map(|(k, v)| (as_nibbles(&k), v) )
@@ -189,7 +189,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	// if the slice contains just one item, append the suffix of the key
 	// and then append value
 	if inlen == 1 {
-		stream.append_list(2);
+		stream.begin_list(2);
 		stream.append(&hex_prefix_encode(&key[pre_len..], true));
 		stream.append(&value);
 		return;
@@ -208,7 +208,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	// new part of the key to the stream
 	// then recursively append suffixes of all items who had this key
 	if shared_prefix > pre_len {
-		stream.append_list(2);
+		stream.begin_list(2);
 		stream.append(&hex_prefix_encode(&key[pre_len..shared_prefix], false));
 		hash256aux(input, shared_prefix, stream);
 		return;
@@ -216,7 +216,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 
 	// an item for every possible nibble/suffix
 	// + 1 for data
-	stream.append_list(17);
+	stream.begin_list(17);
 
 	// if first key len is equal to prefix_len, move to next element
 	let mut begin = match pre_len == key.len() {

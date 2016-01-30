@@ -1,4 +1,5 @@
 use util::*;
+use sync::*;
 use spec::Spec;
 use error::*;
 use std::env;
@@ -20,6 +21,7 @@ pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 pub struct ClientService {
 	net_service: NetworkService<SyncMessage>,
 	client: Arc<Client>,
+	sync: Arc<EthSync>,
 }
 
 impl ClientService {
@@ -32,6 +34,7 @@ impl ClientService {
 		dir.push(".parity");
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		let client = try!(Client::new(spec, &dir, net_service.io().channel()));
+		let sync = EthSync::register(&mut net_service, client.clone());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
 		});
@@ -40,28 +43,29 @@ impl ClientService {
 		Ok(ClientService {
 			net_service: net_service,
 			client: client,
+			sync: sync,
 		})
 	}
 
-	/// Add a node to network
+	/// Get the network service.
 	pub fn add_node(&mut self, _enode: &str) {
 		unimplemented!();
 	}
 
-	/// Get general IO interface
+	/// TODO [arkpar] Please document me
 	pub fn io(&mut self) -> &mut IoService<NetSyncMessage> {
 		self.net_service.io()
 	}
 
-	/// Get client interface
+	/// TODO [arkpar] Please document me
 	pub fn client(&self) -> Arc<Client> {
 		self.client.clone()
 	
 	}
-
-	/// Get network service component
-	pub fn network(&mut self) -> &mut NetworkService<SyncMessage> {
-		&mut self.net_service
+	
+	/// Get shared sync handler
+	pub fn sync(&self) -> Arc<EthSync> {
+		self.sync.clone()
 	}
 }
 

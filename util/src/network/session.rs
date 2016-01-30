@@ -57,11 +57,10 @@ pub struct PeerCapabilityInfo {
 
 impl Decodable for PeerCapabilityInfo {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let c = try!(decoder.as_list());
-		let v: u32 = try!(Decodable::decode(&c[1]));
+		let c = decoder.as_rlp();
 		Ok(PeerCapabilityInfo {
-			protocol: try!(Decodable::decode(&c[0])),
-			version: v as u8,
+			protocol: try!(c.val_at(0)),
+			version: try!(c.val_at(1))
 		})
 	}
 }
@@ -199,7 +198,7 @@ impl Session {
 	fn write_hello(&mut self, host: &HostInfo) -> Result<(), UtilError> {
 		let mut rlp = RlpStream::new();
 		rlp.append_raw(&[PACKET_HELLO as u8], 0);
-		rlp.append_list(5)
+		rlp.begin_list(5)
 			.append(&host.protocol_version)
 			.append(&host.client_version)
 			.append(&host.capabilities)
@@ -267,7 +266,7 @@ impl Session {
 	fn disconnect(&mut self, reason: DisconnectReason) -> NetworkError {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(PACKET_DISCONNECT as u32));
-		rlp.append_list(1);
+		rlp.begin_list(1);
 		rlp.append(&(reason.clone() as u32));
 		self.connection.send_packet(&rlp.out()).ok();
 		NetworkError::Disconnect(reason)
@@ -276,7 +275,7 @@ impl Session {
 	fn prepare(packet_id: u8) -> Result<RlpStream, UtilError> {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(packet_id as u32));
-		rlp.append_list(0);
+		rlp.begin_list(0);
 		Ok(rlp)
 	}
 

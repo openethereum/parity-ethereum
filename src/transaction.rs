@@ -111,7 +111,7 @@ impl Transaction {
 
 	/// Append object into RLP stream, optionally with or without the signature.
 	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
-		s.append_list(6 + match with_seal { Seal::With => 3, _ => 0 });
+		s.begin_list(6 + match with_seal { Seal::With => 3, _ => 0 });
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
@@ -162,7 +162,7 @@ impl FromJson for Transaction {
 	}
 }
 
-impl RlpStandard for Transaction {
+impl Encodable for Transaction {
 	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_opt(s, Seal::With) }
 }
 
@@ -267,20 +267,20 @@ impl Decodable for Action {
 
 impl Decodable for Transaction {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let d = try!(decoder.as_list());
-		if d.len() != 9 {
+		let d = decoder.as_rlp();
+		if d.item_count() != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
 		Ok(Transaction {
-			nonce: try!(Decodable::decode(&d[0])),
-			gas_price: try!(Decodable::decode(&d[1])),
-			gas: try!(Decodable::decode(&d[2])),
-			action: try!(Decodable::decode(&d[3])),
-			value: try!(Decodable::decode(&d[4])),
-			data: try!(Decodable::decode(&d[5])),
-			v: try!(u16::decode(&d[6])) as u8,
-			r: try!(Decodable::decode(&d[7])),
-			s: try!(Decodable::decode(&d[8])),
+			nonce: try!(d.val_at(0)),
+			gas_price: try!(d.val_at(1)),
+			gas: try!(d.val_at(2)),
+			action: try!(d.val_at(3)),
+			value: try!(d.val_at(4)),
+			data: try!(d.val_at(5)),
+			v: try!(d.val_at(6)),
+			r: try!(d.val_at(7)),
+			s: try!(d.val_at(8)),
 			hash: RefCell::new(None),
 			sender: RefCell::new(None),
 		})

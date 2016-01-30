@@ -1,6 +1,3 @@
-use std::env;
-use log::{LogLevelFilter};
-use env_logger::LogBuilder;
 use super::test_common::*;
 use client::{BlockChainClient,Client};
 use pod_state::*;
@@ -8,29 +5,8 @@ use block::Block;
 use ethereum;
 use super::helpers::*;
 
-pub enum ChainEra {
-	Frontier,
-	Homestead,
-}
-
-lazy_static! {
-	static ref LOG_DUMMY: bool = {
-		let mut builder = LogBuilder::new();
-		builder.filter(None, LogLevelFilter::Info);
-
-		if let Ok(log) = env::var("RUST_LOG") {
-			builder.parse(&log);
-		}
-
-		if let Ok(_) = builder.init() {
-			println!("logger initialized");
-		}
-		true
-	};
-}
-
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
-	let _ = LOG_DUMMY.deref();
+	init_log();
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
 	let mut failed = Vec::new();
 
