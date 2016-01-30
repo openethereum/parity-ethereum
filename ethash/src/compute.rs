@@ -6,7 +6,11 @@
 use std::mem;
 use std::ptr;
 use sizes::{CACHE_SIZES, DAG_SIZES};
-use sha3::{self};
+use sha3;
+use std::slice;
+use std::path::PathBuf;
+use std::io::{Read, Write, self};
+use std::fs::{self, File};
 
 pub const ETHASH_EPOCH_LENGTH: u64 = 30000;
 pub const ETHASH_CACHE_ROUNDS: usize = 3;
@@ -75,6 +79,45 @@ impl Light {
 	/// `nonce` - The nonce to pack into the mix
 	pub fn compute(&self, header_hash: &H256, nonce: u64) -> ProofOfWork {
 		light_compute(self, header_hash, nonce)
+	}
+
+	pub fn file_path(block_number: u64) -> PathBuf {
+		let mut home = ::std::env::home_dir().unwrap();
+		home.push(".ethash");
+		home.push("light");
+		let seed_hash = get_seedhash(block_number);
+		home.push(to_hex(&seed_hash));
+		home
+	}
+
+	pub fn from_file(block_number: u64) -> io::Result<Light> {
+		let path = Light::file_path(block_number);
+		let mut file = try!(File::open(path));
+		
+		let cache_size = get_cache_size(block_number);
+		if try!(file.metadata()).len() != cache_size as u64 {
+			return Err(io::Error::new(io::ErrorKind::Other, "Cache file size mismatch"));
+		}
+		let num_nodes = cache_size / NODE_BYTES;
+		let mut nodes: Vec<Node> = Vec::new();
+		nodes.resize(num_nodes, unsafe { mem::uninitialized() });
+		let buf = unsafe { slice::from_raw_parts_mut(nodes.as_mut_ptr() as *mut u8, cache_size) };
+		try!(file.read_exact(buf));
+		Ok(Light {
+			cache: nodes,
+			block_number: block_number,
+		})
+	}
+
+	pub fn to_file(&self) -> io::Result<()> {
+		let path = Light::file_path(self.block_number);
+		try!(fs::create_dir_all(path.parent().unwrap()));
+		let mut file = try!(File::create(path));
+		
+		let cache_size = self.cache.len() * NODE_BYTES;
+		let buf = unsafe { slice::from_raw_parts(self.cache.as_ptr() as *const u8, cache_size) };
+		try!(file.write(buf)); 
+		Ok(())
 	}
 }
 
@@ -246,6 +289,19 @@ fn light_new(block_number: u64) -> Light {
 	Light {
 		cache: nodes,
 		block_number: block_number,
+	}
+}
+
+static CHARS: &'static[u8] = b"0123456789abcdef";
+fn to_hex(bytes: &[u8]) -> String {
+	let mut v = Vec::with_capacity(bytes.len() * 2);
+	for &byte in bytes.iter() {
+		v.push(CHARS[(byte >> 4) as usize]);
+		v.push(CHARS[(byte & 0xf) as usize]);
+	}
+
+	unsafe {
+		String::from_utf8_unchecked(v)
 	}
 }
 
