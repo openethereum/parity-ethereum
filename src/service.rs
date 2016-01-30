@@ -102,7 +102,7 @@ mod tests {
 	use super::*;
 	use tests::helpers::*;
 	use util::network::*;
-	
+
 	#[test]
 	fn it_can_be_started() {
 		let spec = get_test_spec();

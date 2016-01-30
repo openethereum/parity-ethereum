@@ -33,3 +33,15 @@ impl Substate {
 		self.contracts_created.extend(s.contracts_created.into_iter());
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn accrue() {
+		let mut sub_state = Substate::new();
+		let sub_state_2 = Substate::new();
+		sub_state.accrue(sub_state_2);
+	}
+}
