@@ -36,3 +36,19 @@ impl Encodable for Receipt {
 		s.append(&self.logs);
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use util::*;
+
+	#[test]
+	fn it_can_be_encoded() {
+		let mut rlp_stream = RlpStream::new();
+		let receipt = Receipt::new(H256::zero(), U256::zero(), vec![]);
+		rlp_stream.append(&receipt);
+
+		let out = rlp_stream.out();
+		assert_eq!(out.len(), 297);
+	}
+}

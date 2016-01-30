@@ -56,7 +56,6 @@ impl ClientService {
 	/// Get client interface
 	pub fn client(&self) -> Arc<Client> {
 		self.client.clone()
-	
 	}
 
 	/// Get network service component
@@ -98,3 +97,16 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use tests::helpers::*;
+	use util::network::*;
+	
+	#[test]
+	fn it_can_be_started() {
+		let spec = get_test_spec();
+		let service = ClientService::start(spec, NetworkConfiguration::new());
+		assert!(service.is_ok());
+	}
+}
