@@ -351,7 +351,7 @@ fn remove() {
 fn remove_from_database() {
 	let a = Address::zero();
 	let temp = RandomTempPath::new();
-	{
+	let (root, db) = {
 		let mut state = get_temp_state_in(temp.as_path());
 		state.inc_nonce(&a);
 		state.commit();
@@ -361,7 +361,7 @@ fn remove_from_database() {
 	};
 
 	let (root, db) = {
-		let mut state = get_temp_state_in(temp.as_path());
+		let mut state = State::from_existing(db, root, U256::from(0u8));
 		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
 		state.kill_account(&a);
