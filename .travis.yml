@@ -21,8 +21,12 @@ before_script: |
   sudo apt-get update &&
   sudo apt-get install -y --force-yes librocksdb
 script:
-- cargo build --release --verbose $FEATURES
-- cargo test --release --verbose $FEATURES
+- cargo build --release --verbose
+- cargo test --release -p ethash --verbose
+- cargo test --release -p ethcore-util --verbose
+- cargo test --release -p ethcore --verbose
+- cargo test --release -p ethcore-rpc --verbose
+- cargo test --release --verbose
 - cargo bench --no-run
 after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
