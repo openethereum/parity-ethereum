@@ -8,6 +8,11 @@ use blockchain::{BlockChain};
 use state::*;
 use rocksdb::*;
 
+pub enum ChainEra {
+	Frontier,
+	Homestead,
+}
+
 pub struct RandomTempPath {
 	path: PathBuf
 }

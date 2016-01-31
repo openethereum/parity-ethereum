@@ -184,8 +184,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 			let code = xjson!(&s["code"]);
 			let _nonce: U256 = xjson!(&s["nonce"]);
 
-			state.new_contract(&address);
-			state.add_balance(&address, &balance);
+			state.new_contract(&address, balance);
 			state.init_code(&address, code);
 			BTreeMap::from_json(&s["storage"]).into_iter().foreach(|(k, v)| state.set_storage(&address, k, v));
 		});

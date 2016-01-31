@@ -1,5 +1,6 @@
 use super::test_common::*;
-use super::chain::{ChainEra, json_chain_test};
+use super::helpers::*;
+use super::chain::json_chain_test;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	json_chain_test(json_data, ChainEra::Homestead)
