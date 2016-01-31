@@ -222,11 +222,4 @@ mod tests {
 		assert!(!jdb.exists(&baz));
 		assert!(!jdb.exists(&bar));
 	}
-
-	#[test]
-	fn old_commits_applied() {
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-
-	}
 }
