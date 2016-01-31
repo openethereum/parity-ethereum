@@ -1,25 +1,28 @@
 //! Ethash implementation
 //! See https://github.com/ethereum/wiki/wiki/Ethash
 extern crate sha3;
+extern crate lru_cache;
+#[macro_use]
+extern crate log;
 mod sizes;
 mod compute;
 
+use lru_cache::LruCache;
 use compute::Light;
 pub use compute::{quick_get_difficulty, H256, ProofOfWork, ETHASH_EPOCH_LENGTH};
 
-use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{Arc, Mutex};
 
 /// Lighy/Full cache manager
 pub struct EthashManager {
-	lights: RwLock<HashMap<u64, Light>>,
+	lights: Mutex<LruCache<u64, Arc<Light>>>
 }
 
 impl EthashManager {
 	/// Create a new new instance of ethash manager
 	pub fn new() -> EthashManager {
 		EthashManager { 
-			lights: RwLock::new(HashMap::new())
+			lights: Mutex::new(LruCache::new(2))
 		}
 	}
 
@@ -30,15 +33,27 @@ impl EthashManager {
 	/// `nonce` - The nonce to pack into the mix
 	pub fn compute_light(&self, block_number: u64, header_hash: &H256, nonce: u64) -> ProofOfWork {
 		let epoch = block_number / ETHASH_EPOCH_LENGTH;
-		while !self.lights.read().unwrap().contains_key(&epoch) {
-			if let Ok(mut lights) = self.lights.try_write()
-			{
-				if !lights.contains_key(&epoch) {
-					let light = Light::new(block_number);
-					lights.insert(epoch, light);
+		let light = {
+			let mut lights = self.lights.lock().unwrap();
+			match lights.get_mut(&epoch).map(|l| l.clone()) {
+				None => {
+					let light = match Light::from_file(block_number) {
+						Ok(light) => Arc::new(light),
+						Err(e) => { 
+							debug!("Light cache file not found for {}:{}", block_number, e);
+							let light = Light::new(block_number);
+							if let Err(e) = light.to_file() {
+								warn!("Light cache file write error: {}", e);
+							}
+							Arc::new(light)
+						}
+					};
+					lights.insert(epoch, light.clone());
+					light
 				}
+				Some(light) => light
 			}
-		}
-		self.lights.read().unwrap().get(&epoch).unwrap().compute(header_hash, nonce)
+		};
+		light.compute(header_hash, nonce)
 	}
 }
