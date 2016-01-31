@@ -39,7 +39,7 @@ after_success: |
   cargo test --no-run -p ethcore --no-default-features &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore-* &&
   cargo test --no-run &&
-  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/parity-* --coveralls-id=${COVERALLS_TOKEN}
+  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/parity-* 
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = nightly ] &&
