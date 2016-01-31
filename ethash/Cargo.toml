@@ -6,4 +6,6 @@ authors = ["arkpar <arkadiy@ethcore.io"]
 [lib]
 
 [dependencies]
+log = "0.3"
+lru-cache = "0.0"
 sha3 = { path = "../util/sha3" }
