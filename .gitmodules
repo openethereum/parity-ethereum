@@ -1,4 +1,4 @@
 [submodule "ethcore/res/ethereum/tests"]
 	path = ethcore/res/ethereum/tests
 	url = git@github.com:ethereum/tests
- 	branch = develop
+	branch = develop
