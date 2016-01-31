@@ -5,6 +5,8 @@ use rlp::*;
 use hashdb::*;
 use overlaydb::*;
 use rocksdb::{DB, Writable};
+#[cfg(test)]
+use std::env;
 
 #[derive(Clone)]
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay
@@ -137,7 +139,6 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::*;
-	use tests::helpers::*;
 
 	#[test]
 	fn long_history() {
