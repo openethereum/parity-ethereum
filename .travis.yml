@@ -34,7 +34,7 @@ after_success: |
   tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
   cargo test --no-run -p ethcore-util &&
   cargo test --no-run -p ethash &&
-  cargo test --no-run -p ethcore &&
+  cargo test --no-run -p ethcore --no-default-features &&
   cargo test --no-run &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore_util-* &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethash-* &&
