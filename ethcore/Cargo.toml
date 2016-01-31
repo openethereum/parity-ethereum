@@ -26,5 +26,5 @@ lazy_static = "0.1"
 
 [features]
 jit = ["evmjit"]
-evm_debug = []
+evm-debug = []
 test-heavy = []

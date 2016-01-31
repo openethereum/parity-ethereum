@@ -791,23 +791,30 @@ impl Interpreter {
 		Ok(InstructionResult::Ok)
 	}
 
-	fn copy_data_to_memory(&self,
-						   mem: &mut Memory,
-						   stack: &mut Stack<U256>,
-						   data: &[u8]) {
-		let offset = stack.pop_back();
-		let index = stack.pop_back();
+	fn copy_data_to_memory(&self, mem: &mut Memory, stack: &mut Stack<U256>, data: &[u8]) {
+		let dest_offset = stack.pop_back();
+		let source_offset = stack.pop_back();
 		let size = stack.pop_back();
-		let data_size = data.len();
+		let source_size = U256::from(data.len());
 
-		if index < U256::from(data_size) {
-			let u_index = index.low_u64() as usize;
-			let bound_size = match size + index > U256::from(data_size) {
-				true => data_size,
-				false => size.low_u64() as usize + u_index
-			};
+		let output_end = match source_offset > source_size || size > source_size || source_offset + size > source_size {
+			true => {
+				let zero_slice = if source_offset > source_size {
+					mem.writeable_slice(dest_offset, size)
+				} else {
+					mem.writeable_slice(dest_offset + source_size - source_offset, source_offset + size - source_size)
+				};
+				for i in zero_slice.iter_mut() {
+					*i = 0;
+				}
+				data.len()
+			},
+			false => (size.low_u64() + source_offset.low_u64()) as usize
+		};
 
-			mem.write_slice(offset, &data[u_index..bound_size]);
+		if source_offset < source_size {
+			let output_begin = source_offset.low_u64() as usize;
+			mem.write_slice(dest_offset, &data[output_begin..output_end]);
 		}
 	}
 
