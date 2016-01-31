@@ -25,6 +25,8 @@ crossbeam = "0.1.5"
 lazy_static = "0.1"
 
 [features]
+default = ["json-tests"]
 jit = ["evmjit"]
 evm_debug = []
+json-tests = []
 test-heavy = []

@@ -8,6 +8,8 @@ matrix:
 cache:
   apt: true
   directories:
+  - target/debug/deps
+  - target/debug/build
   - target/release/deps
   - target/release/build
 addons:
@@ -30,8 +32,14 @@ script:
 after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
-  ls target/release &&
-  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern=/.cargo --include-pattern=ethcore/src target/kcov target/release/deps/ethcore-* &&
+  cargo test --no-run -p ethcore-util &&
+  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore_util-* &&
+  cargo test --no-run -p ethash &&
+  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethash-* &&
+  cargo test --no-run -p ethcore --no-default-features &&
+  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore-* &&
+  cargo test --no-run &&
+  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/parity-* 
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = nightly ] &&
