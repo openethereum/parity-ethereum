@@ -1,6 +1,5 @@
 //! Disk-backed HashDB implementation.
 
-use std::env;
 use common::*;
 use rlp::*;
 use hashdb::*;

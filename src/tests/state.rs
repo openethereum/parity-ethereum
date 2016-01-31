@@ -3,7 +3,6 @@ use super::helpers::*;
 use pod_state::*;
 use state_diff::*;
 use ethereum;
-use tests::helpers::*;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	json_chain_test(json_data, ChainEra::Frontier)
