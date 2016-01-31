@@ -33,12 +33,12 @@ after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
   cargo test --no-run -p ethcore-util &&
-  cargo test --no-run -p ethash &&
-  cargo test --no-run -p ethcore --no-default-features &&
-  cargo test --no-run &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore_util-* &&
+  cargo test --no-run -p ethash &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethash-* &&
+  cargo test --no-run -p ethcore --no-default-features &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore-* &&
+  cargo test --no-run &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/parity-* --coveralls-id=${COVERALLS_TOKEN}
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
