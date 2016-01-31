@@ -8,6 +8,7 @@ use evm::{Schedule, Ext, Factory, VMType, ContractCreateResult, MessageCallResul
 use ethereum;
 use externalities::*;
 use substate::*;
+use tests::helpers::*;
 
 struct TestEngine {
 	vm_factory: Factory,
@@ -174,7 +175,8 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		};
 	
 		// test env
-		let mut state = State::new_temp();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
 
 		test.find("pre").map(|pre| for (addr, s) in pre.as_object().unwrap() {
 			let address = Address::from(addr.as_ref());

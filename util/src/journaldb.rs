@@ -19,7 +19,7 @@ pub struct JournalDB {
 	forward: OverlayDB,
 	backing: Arc<DB>,
 	inserts: Vec<H256>,
-	removes: Vec<H256>,
+	removes: Vec<H256>
 }
 
 impl JournalDB {
@@ -45,6 +45,7 @@ impl JournalDB {
 	}
 
 	/// Create a new instance with an anonymous temporary database.
+	#[cfg(test)]
 	pub fn new_temp() -> JournalDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
@@ -137,6 +138,7 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::*;
+	use tests::helpers::*;
 
 	#[test]
 	fn long_history() {
@@ -220,5 +222,12 @@ mod tests {
 		assert!(jdb.exists(&foo));
 		assert!(!jdb.exists(&baz));
 		assert!(!jdb.exists(&bar));
+	}
+
+	#[test]
+	fn old_commits_applied() {
+		let mut dir = env::temp_dir();
+		dir.push(H32::random().hex());
+
 	}
 }

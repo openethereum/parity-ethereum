@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use spec::*;
 use std::fs::{remove_dir_all};
 use blockchain::{BlockChain};
-
+use state::*;
+use rocksdb::*;
 
 pub struct RandomTempPath {
 	path: PathBuf
@@ -22,6 +23,10 @@ impl RandomTempPath {
 
 	pub fn as_path(&self) -> &PathBuf {
 		&self.path
+	}
+
+	pub fn as_str(&self) -> &str {
+		self.path.to_str().unwrap()
 	}
 }
 
@@ -42,6 +47,10 @@ pub struct GuardedTempResult<T> {
 impl<T> GuardedTempResult<T> {
     pub fn reference(&self) -> &T {
         &self.result
+    }
+
+    pub fn reference_mut(&mut self) -> &mut T {
+    	&mut self.result
     }
 }
 
@@ -187,6 +196,35 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 		temp: temp,
 		result: bc
 	}
+}
+
+pub fn get_temp_journal_db() -> GuardedTempResult<JournalDB> {
+	let temp = RandomTempPath::new();
+	let db = DB::open_default(temp.as_str()).unwrap();
+	let journal_db = JournalDB::new(db);
+	GuardedTempResult {
+		temp: temp,
+		result: journal_db
+	}
+}
+
+pub fn get_temp_state() -> GuardedTempResult<State> {
+	let temp = RandomTempPath::new();
+	let journal_db = get_temp_journal_db_in(temp.as_path());
+	GuardedTempResult {
+	    temp: temp,
+		result: State::new(journal_db, U256::from(0u8))
+	}
+}
+
+pub fn get_temp_journal_db_in(path: &Path) -> JournalDB {
+	let db = DB::open_default(path.to_str().unwrap()).unwrap();
+	JournalDB::new(db)
+}
+
+pub fn get_temp_state_in(path: &Path) -> State {
+	let journal_db = get_temp_journal_db_in(path);
+	State::new(journal_db, U256::from(0u8))
 }
 
 pub fn get_good_dummy_block() -> Bytes {

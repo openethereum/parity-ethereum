@@ -1,8 +1,8 @@
 use super::test_common::*;
-use state::*;
 use pod_state::*;
 use state_diff::*;
 use ethereum;
+use tests::helpers::*;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
@@ -39,14 +39,15 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 				println!("!!! {}: Trie root mismatch (got: {}, expect: {}):", name, calc_post, post_state_root);
 				println!("!!! Post:\n{}", post);
 			} else {
-				let mut s = State::new_temp();
-				s.populate_from(pre);
-				s.commit();
-				let res = s.apply(&env, engine.deref(), &t);
+				let mut state_result = get_temp_state();
+				let mut state = state_result.reference_mut();
+				state.populate_from(pre);
+				state.commit();
+				let res = state.apply(&env, engine.deref(), &t);
 
-				if fail_unless(s.root() == &post_state_root) {
-					println!("!!! {}: State mismatch (got: {}, expect: {}):", name, s.root(), post_state_root);
-					let our_post = s.to_pod();
+				if fail_unless(state.root() == &post_state_root) {
+					println!("!!! {}: State mismatch (got: {}, expect: {}):", name, state.root(), post_state_root);
+					let our_post = state.to_pod();
 					println!("Got:\n{}", our_post);
 					println!("Expect:\n{}", post);
 					println!("Diff ---expect -> +++got:\n{}", StateDiff::diff_pod(&post, &our_post));

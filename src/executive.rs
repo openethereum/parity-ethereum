@@ -341,12 +341,12 @@ impl<'a> Executive<'a> {
 mod tests {
 	use super::*;
 	use common::*;
-	use state::*;
 	use ethereum;
 	use engine::*;
 	use spec::*;
 	use evm::{Schedule, Factory, VMType};
 	use substate::*;
+	use tests::helpers::*;
 
 	struct TestEngine {
 		factory: Factory,
@@ -395,7 +395,8 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some("3331600055".from_hex().unwrap());
 		params.value = ActionValue::Transfer(U256::from(0x7));
-		let mut state = State::new_temp();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::new();
 		let engine = TestEngine::new(0, factory);
@@ -453,7 +454,8 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
 		params.value = ActionValue::Transfer(U256::from(100));
-		let mut state = State::new_temp();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
 		let engine = TestEngine::new(0, factory);
@@ -506,7 +508,8 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
 		params.value = ActionValue::Transfer(U256::from(100));
-		let mut state = State::new_temp();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
 		let engine = TestEngine::new(0, factory);
@@ -557,7 +560,8 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
 		params.value = ActionValue::Transfer(U256::from(100));
-		let mut state = State::new_temp();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::new();
 		let engine = TestEngine::new(1024, factory);
@@ -613,7 +617,8 @@ mod tests {
 		params.code = Some(code_a.clone());
 		params.value = ActionValue::Transfer(U256::from(100_000));
 
-		let mut state = State::new_temp();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
 		state.init_code(&address_a, code_a.clone());
 		state.init_code(&address_b, code_b.clone());
 		state.add_balance(&sender, &U256::from(100_000));
@@ -659,7 +664,8 @@ mod tests {
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
 		params.code = Some(code.clone());
-		let mut state = State::new_temp();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::new();
 		let engine = TestEngine::new(0, factory);
@@ -684,8 +690,9 @@ mod tests {
 		let sender = t.sender().unwrap();
 		let contract = contract_address(&sender, &U256::zero());
 
-		let mut state = State::new_temp();
-		state.add_balance(&sender, &U256::from(18));	
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		state.add_balance(&sender, &U256::from(18));
 		let mut info = EnvInfo::new();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0, factory);
@@ -711,7 +718,8 @@ mod tests {
 	fn test_transact_invalid_sender(factory: Factory) {
 		let t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
 
-		let mut state = State::new_temp();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
 		let mut info = EnvInfo::new();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0, factory);
@@ -734,8 +742,9 @@ mod tests {
 		t.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 		
-		let mut state = State::new_temp();
-		state.add_balance(&sender, &U256::from(17));	
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		state.add_balance(&sender, &U256::from(17));
 		let mut info = EnvInfo::new();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0, factory);
@@ -759,8 +768,9 @@ mod tests {
 		t.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
-		let mut state = State::new_temp();
-		state.add_balance(&sender, &U256::from(17));	
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		state.add_balance(&sender, &U256::from(17));
 		let mut info = EnvInfo::new();
 		info.gas_used = U256::from(20_000);
 		info.gas_limit = U256::from(100_000);
@@ -785,8 +795,9 @@ mod tests {
 		t.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
-		let mut state = State::new_temp();
-		state.add_balance(&sender, &U256::from(100_017));	
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		state.add_balance(&sender, &U256::from(100_017));
 		let mut info = EnvInfo::new();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0, factory);
@@ -818,7 +829,8 @@ mod tests {
 		params.gas = U256::from(0x0186a0);
 		params.code = Some(code.clone());
 		params.value = ActionValue::Transfer(U256::from_str("0de0b6b3a7640000").unwrap());
-		let mut state = State::new_temp();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
 		let info = EnvInfo::new();
 		let engine = TestEngine::new(0, factory);
