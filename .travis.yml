@@ -34,8 +34,8 @@ after_success: |
   tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
   cargo test --no-run -p ethcore-util &&
   cargo test --no-run &&
-  kcov --exclude-pattern /.cargo,/root/.multirust --include-pattern util/src target/kcov target/debug/deps/ethcore_util-* &&
-  kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern /.cargo,/root/.multirust --include-pattern parity target/kcov target/debug/parity-*
+  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust --include-pattern util/src target/kcov target/debug/deps/ethcore_util-* &&
+  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern /.cargo,/root/.multirust --include-pattern parity target/kcov target/debug/parity-*
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = nightly ] &&
