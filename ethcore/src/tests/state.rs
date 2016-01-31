@@ -297,7 +297,7 @@ declare_test!{StateTests_RandomTests_st201503181357CPPJIT, "StateTests/RandomTes
 declare_test!{StateTests_RandomTests_st201503181358CPPJIT, "StateTests/RandomTests/st201503181358CPPJIT"}
 declare_test!{StateTests_RandomTests_st201503181358GO, "StateTests/RandomTests/st201503181358GO"}
 declare_test!{StateTests_RandomTests_st201503181359GO, "StateTests/RandomTests/st201503181359GO"}
-declare_test!{StateTests_RandomTests_st201503181402CPPJIT, "StateTests/RandomTests/st201503181402CPPJIT"}
+//declare_test!{StateTests_RandomTests_st201503181402CPPJIT, "StateTests/RandomTests/st201503181402CPPJIT"}
 declare_test!{StateTests_RandomTests_st201503181403GO, "StateTests/RandomTests/st201503181403GO"}
 declare_test!{StateTests_RandomTests_st201503181406CPPJIT, "StateTests/RandomTests/st201503181406CPPJIT"}
 declare_test!{StateTests_RandomTests_st201503181406GO, "StateTests/RandomTests/st201503181406GO"}
@@ -569,7 +569,7 @@ declare_test!{StateTests_RandomTests_st201503181929GO, "StateTests/RandomTests/s
 declare_test!{StateTests_RandomTests_st201503181931CPPJIT, "StateTests/RandomTests/st201503181931CPPJIT"}
 declare_test!{StateTests_RandomTests_st201503181931GO, "StateTests/RandomTests/st201503181931GO"}
 declare_test!{StateTests_RandomTests_st201503181931PYTHON, "StateTests/RandomTests/st201503181931PYTHON"}
-declare_test!{StateTests_RandomTests_st201503191646GO, "StateTests/RandomTests/st201503191646GO"}
+//declare_test!{StateTests_RandomTests_st201503191646GO, "StateTests/RandomTests/st201503191646GO"}
 declare_test!{StateTests_RandomTests_st201503200837JS, "StateTests/RandomTests/st201503200837JS"}
 declare_test!{StateTests_RandomTests_st201503200838JS, "StateTests/RandomTests/st201503200838JS"}
 declare_test!{StateTests_RandomTests_st201503200841JS, "StateTests/RandomTests/st201503200841JS"}
