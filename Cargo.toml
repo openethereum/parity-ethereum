@@ -1,30 +1,26 @@
 [package]
-description = "Ethcore library"
-homepage = "http://ethcore.io"
+description = "Ethcore client."
+name = "parity"
+version = "0.9.0"
 license = "GPL-3.0"
-name = "ethcore"
-version = "0.1.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
 log = "0.3"
 env_logger = "0.3"
-ethcore-util = { path = "util" }
 rustc-serialize = "0.3"
-flate2 = "0.2"
-rocksdb = "0.3"
-heapsize = "0.2.0"
-rust-crypto = "0.2.34"
-time = "0.1"
-#interpolate_idents = { git = "https://github.com/SkylerLipthay/interpolate_idents" }
-evmjit = { path = "evmjit", optional = true }
-ethash = { path = "ethash" }
-num_cpus = "0.2"
+docopt = "0.6"
+docopt_macros = "0.6"
+ctrlc = "1.0"
 clippy = "0.0.37"
-crossbeam = "0.1.5"
-lazy_static = "0.1"
+ethcore-util = { path = "util" }
+ethcore = { path = "ethcore" }
+ethsync = { path = "sync" }
+ethcore-rpc = { path = "rpc", optional = true }
 
 [features]
-jit = ["evmjit"]
-evm_debug = []
-test-heavy = []
+rpc = ["ethcore-rpc"]
+
+[[bin]]
+path = "parity/main.rs"
+name = "parity"
