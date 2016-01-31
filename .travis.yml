@@ -25,7 +25,6 @@ script:
 - cargo test --release -p ethash --verbose
 - cargo test --release -p ethcore-util --verbose
 - cargo test --release -p ethcore --verbose
-- cargo test --release -p ethcore-rpc --verbose
 - cargo test --release --verbose
 - cargo bench --no-run
 after_success: |

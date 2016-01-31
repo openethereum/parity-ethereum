@@ -1217,6 +1217,8 @@ mod tests {
 
 	#[test]
 	#[should_panic]
+	// overflows panic only in debug builds. Running this test with `--release` flag, always fails
+	#[ignore]
 	pub fn uint128_add_overflow_panic() {
 		U128::from_str("ffffffffffffffffffffffffffffffff").unwrap()
 		+
