@@ -1,7 +1,7 @@
 [package]
 description = "Ethcore client."
-name = "ethcore-client"
-version = "0.1.0"
+name = "parity"
+version = "0.9.0"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
