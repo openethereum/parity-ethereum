@@ -36,12 +36,10 @@ cargo build --release
 ##### OSX
 
 ```bash
-# install rocksdb
+# install rocksdb && multirust
 brew update
 brew install rocksdb
-
-# install multirust
-curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
+brew install multirust
 
 # install nightly and make it default
 multirust update nightly && multirust default nightly
