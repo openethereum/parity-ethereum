@@ -8,6 +8,7 @@ matrix:
   fast_finish: true
   include:
   - rust: nightly
+    env: FEATURES="--features rpc"
 cache:
   apt: true
   directories:
@@ -30,9 +31,9 @@ script:
 - cargo test --release -p ethash --verbose
 - cargo test --release -p ethcore-util --verbose
 - cargo test --release -p ethcore --verbose
-- cargo test --release -p ethcore-rpc --verbose --features rpc
-- cargo test --release --verbose
-- cargo bench --no-run
+- cargo test --release -p ethcore-rpc --verbose ${FEATURES}
+- cargo test --release --verbose ${FEATURES}
+- cargo bench --no-run ${FEATURES}
 after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
@@ -42,14 +43,14 @@ after_success: |
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethash-* &&
   cargo test --no-run -p ethcore --no-default-features &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore-* &&
-  cargo test --no-run -p ethcore-rpc --features rpc
+  cargo test --no-run -p ethcore-rpc ${FEATURES} &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore_rpc-* &&
-  cargo test --no-run &&
-  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/parity-* 
+  cargo test --no-run ${FEATURES} &&
+  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/parity-* &&
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = nightly ] &&
-  cargo doc --no-deps &&
+  cargo doc ${FEATURES} --no-deps --verbose -p ethcore -p ethcore-util -p ethcore-rpc -p parity -p ethash -p ethsync &&
   echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html &&
   pip install --user ghp-import &&
   /home/travis/.local/bin/ghp-import -n target/doc 
