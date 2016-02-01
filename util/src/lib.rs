@@ -82,13 +82,10 @@ extern crate serde;
 #[macro_use]
 extern crate log as rlog;
 
-/// TODO [Gav Wood] Please document me
 pub mod standard;
 #[macro_use]
-/// TODO [Gav Wood] Please document me
 pub mod from_json;
 #[macro_use]
-/// TODO [Gav Wood] Please document me
 pub mod common;
 pub mod error;
 pub mod hash;
