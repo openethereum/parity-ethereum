@@ -25,7 +25,7 @@ curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | 
 multirust update nightly && multirust default nightly
 
 # export rust LIBRARY_PATH
-LIBRARY_PATH /usr/local/lib
+export LIBRARY_PATH=/usr/local/lib
 
 # download and build parity
 git clone https://github.com/ethcore/parity
@@ -45,7 +45,7 @@ brew install multirust
 multirust update nightly && multirust default nightly
 
 # export rust LIBRARY_PATH
-LIBRARY_PATH /usr/local/lib
+export LIBRARY_PATH=/usr/local/lib
 
 # download and build parity
 git clone https://github.com/ethcore/parity
