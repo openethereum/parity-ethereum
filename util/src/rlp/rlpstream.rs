@@ -59,6 +59,7 @@ impl Stream for RlpStream {
 				// we may finish, if the appended list len is equal 0
 				self.encoder.bytes.push(0xc0u8);
 				self.note_appended(1);
+				self.finished_list = true;
 			},
 			_ => {
 				let position = self.encoder.bytes.len();
