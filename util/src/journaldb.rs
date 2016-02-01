@@ -20,7 +20,7 @@ pub struct JournalDB {
 	forward: OverlayDB,
 	backing: Arc<DB>,
 	inserts: Vec<H256>,
-	removes: Vec<H256>
+	removes: Vec<H256>,
 }
 
 impl JournalDB {
