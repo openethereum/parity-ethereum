@@ -59,6 +59,7 @@
 //!   cargo build --release
 //!   ```
 
+extern crate target_info;
 extern crate slab;
 extern crate rustc_serialize;
 extern crate mio;

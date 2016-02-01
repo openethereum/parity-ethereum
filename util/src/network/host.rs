@@ -7,6 +7,7 @@ use std::ops::*;
 use mio::*;
 use mio::tcp::*;
 use mio::udp::*;
+use target_info::Target;
 use hash::*;
 use crypto::*;
 use sha3::Hashable;
@@ -280,7 +281,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				config: config,
 				nonce: H256::random(),
 				protocol_version: 4,
-				client_version: "parity".to_owned(),
+				client_version: format!("Parity/{}/{}-{}-{}", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os()),
 				listen_port: 0,
 				capabilities: Vec::new(),
 			}),
