@@ -14,6 +14,7 @@ serde_json = "0.6.0"
 jsonrpc-core = "1.1"
 jsonrpc-http-server = "1.1"
 ethcore-util = { path = "../util" }
-ethcore = { path = ".." }
+ethcore = { path = "../ethcore" }
+ethsync = { path = "../sync" }
 clippy = "0.0.37"
 
