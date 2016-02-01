@@ -337,23 +337,16 @@ mod tests {
 	}
 
 	#[test]
-	fn returns_error_for_verified_duplicates() {
+	fn returns_ok_for_drained_duplicates() {
 		let mut queue = get_test_queue();
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
-		queue.drain(10);
 		queue.flush();
+		queue.drain(10);
 
-		let duplicate_import = queue.import_block(get_good_dummy_block());
-		match duplicate_import {
-			Err(e) => {
-				match e {
-					ImportError::AlreadyQueued => {},
-					_ => { panic!("must return AlreadyQueued error"); }
-				}
-			}
-			Ok(_) => { panic!("must produce error"); }
+		if let Err(e) = queue.import_block(get_good_dummy_block()) {
+			panic!("error importing block that has already been drained ({:?})", e);
 		}
 	}
 }
