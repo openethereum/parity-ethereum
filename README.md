@@ -10,7 +10,7 @@
 
 ### Building from source
 
-##### 14.04 Trusty
+##### Ubuntu 14.04 and later
 
 ```bash
 # install rocksdb
