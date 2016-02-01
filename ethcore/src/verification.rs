@@ -147,14 +147,14 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 	if expected.gas_used != got.gas_used {
 		return Err(From::from(BlockError::InvalidGasUsed(Mismatch { expected: expected.gas_used, found: got.gas_used })))
 	}
-	if expected.receipts_root != got.receipts_root {
-		return Err(From::from(BlockError::InvalidReceiptsStateRoot(Mismatch { expected: expected.receipts_root.clone(), found: got.receipts_root.clone() })))
+	if expected.log_bloom != got.log_bloom {
+		return Err(From::from(BlockError::InvalidLogBloom(Mismatch { expected: expected.log_bloom.clone(), found: got.log_bloom.clone() })))
 	}
 	if expected.state_root != got.state_root {
 		return Err(From::from(BlockError::InvalidStateRoot(Mismatch { expected: expected.state_root.clone(), found: got.state_root.clone() })))
 	}
-	if expected.log_bloom != got.log_bloom {
-		return Err(From::from(BlockError::InvalidLogBloom(Mismatch { expected: expected.log_bloom.clone(), found: got.log_bloom.clone() })))
+	if expected.receipts_root != got.receipts_root {
+		return Err(From::from(BlockError::InvalidReceiptsStateRoot(Mismatch { expected: expected.receipts_root.clone(), found: got.receipts_root.clone() })))
 	}
 	Ok(())
 }
