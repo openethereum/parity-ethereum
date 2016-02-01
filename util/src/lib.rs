@@ -8,30 +8,55 @@
 //! Ethcore-util library
 //!
 //! ### Rust version:
-//! - beta
 //! - nightly
 //!
 //! ### Supported platforms:
 //! - OSX
 //! - Linux
 //!
-//! ### Dependencies:
-//! - RocksDB 3.13
+//! ### Building:
 //!
-//! ### Dependencies Installation:
+//! - Ubuntu 14.04 and later:
 //!
+//!   ```bash
+//!   # install rocksdb
+//!   add-apt-repository "deb http://ppa.launchpad.net/giskou/librocksdb/ubuntu trusty main"
+//!   apt-get update
+//!   apt-get install -y --force-yes librocksdb
+//!
+//!   # install multirust
+//!   curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
+//!
+//!   # install nightly and make it default
+//!   multirust update nightly && multirust default nightly
+//!
+//!   # export rust LIBRARY_PATH
+//!   export LIBRARY_PATH=/usr/local/lib
+//!
+//!   # download and build parity
+//!   git clone https://github.com/ethcore/parity
+//!   cd parity
+//!   cargo build --release
+//!   ```
+//!   
 //! - OSX:
 //!
 //!   ```bash
+//!   # install rocksdb && multirust
+//!   brew update
 //!   brew install rocksdb
-//!   ```
+//!   brew install multirust
 //!
-//! - From source:
+//!   # install nightly and make it default
+//!   multirust update nightly && multirust default nightly
 //!
-//!   ```bash
-//!   wget https://github.com/facebook/rocksdb/archive/rocksdb-3.13.tar.gz
-//!   tar xvf rocksdb-3.13.tar.gz && cd rocksdb-rocksdb-3.13 && make shared_lib
-//!   sudo make install
+//!   # export rust LIBRARY_PATH
+//!   export LIBRARY_PATH=/usr/local/lib
+//!
+//!   # download and build parity
+//!   git clone https://github.com/ethcore/parity
+//!   cd parity
+//!   cargo build --release
 //!   ```
 
 extern crate slab;
@@ -89,8 +114,7 @@ pub mod triehash;
 /// TODO [Gav Wood] Please document me
 pub mod trie;
 pub mod nibbleslice;
-/// TODO [Gav Wood] Please document me
-pub mod heapsizeof;
+mod heapsizeof;
 pub mod squeeze;
 /// TODO [Gav Wood] Please document me
 pub mod semantic_version;
@@ -114,7 +138,6 @@ pub use crypto::*;
 pub use triehash::*;
 pub use trie::*;
 pub use nibbleslice::*;
-pub use heapsizeof::*;
 pub use squeeze::*;
 pub use semantic_version::*;
 pub use network::*;
