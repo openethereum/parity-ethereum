@@ -53,3 +53,31 @@ impl fmt::Display for PodState {
 		Ok(())
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	extern crate rustc_serialize;
+
+	use super::*;
+	use rustc_serialize::*;
+	use util::from_json::FromJson;
+	use util::hash::*;
+
+	#[test]
+	fn it_serializes_form_json() {
+		let pod_state = PodState::from_json(&json::Json::from_str(
+r#"
+	{
+		"0000000000000000000000000000000000000000": {
+			"balance": "1000",
+			"nonce": "100",
+			"storage": {},
+			"code" : []
+		}
+	}
+"#
+		).unwrap());
+
+		assert!(pod_state.get().get(&ZERO_ADDRESS).is_some());
+	}
+}

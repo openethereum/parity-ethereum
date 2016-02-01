@@ -7,6 +7,8 @@ use spec::*;
 use engine::*;
 use evm::Schedule;
 use evm::Factory;
+#[cfg(test)]
+use tests::helpers::*;
 
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
@@ -227,10 +229,11 @@ fn on_close_block() {
 	use super::*;
 	let engine = new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
-	let mut db = JournalDB::new_temp();
-	engine.spec().ensure_db_good(&mut db);
+	let mut db_result = get_temp_journal_db();
+	let mut db = db_result.reference_mut();
+	engine.spec().ensure_db_good(db);
 	let last_hashes = vec![genesis_header.hash()];
-	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
+	let b = OpenBlock::new(engine.deref(), db.clone(), &genesis_header, &last_hashes, Address::zero(), vec![]);
 	let b = b.close();
 	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 }
@@ -240,10 +243,11 @@ fn on_close_block_with_uncle() {
 	use super::*;
 	let engine = new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
-	let mut db = JournalDB::new_temp();
-	engine.spec().ensure_db_good(&mut db);
+	let mut db_result = get_temp_journal_db();
+	let mut db = db_result.reference_mut();
+	engine.spec().ensure_db_good(db);
 	let last_hashes = vec![genesis_header.hash()];
-	let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
+	let mut b = OpenBlock::new(engine.deref(), db.clone(), &genesis_header, &last_hashes, Address::zero(), vec![]);
 	let mut uncle = Header::new();
 	let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 	uncle.author = uncle_author.clone();

@@ -1,11 +1,12 @@
 //! Disk-backed HashDB implementation.
 
-use std::env;
 use common::*;
 use rlp::*;
 use hashdb::*;
 use overlaydb::*;
 use rocksdb::{DB, Writable};
+#[cfg(test)]
+use std::env;
 
 #[derive(Clone)]
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay
@@ -45,6 +46,7 @@ impl JournalDB {
 	}
 
 	/// Create a new instance with an anonymous temporary database.
+	#[cfg(test)]
 	pub fn new_temp() -> JournalDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());

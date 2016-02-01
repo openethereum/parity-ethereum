@@ -50,11 +50,6 @@ impl State {
 		}
 	}
 
-	/// Create temporary state object
-	pub fn new_temp() -> State {
-		Self::new(JournalDB::new_temp(), U256::from(0u8))
-	}
-
 	/// Destroy the current object and return root and database.
 	pub fn drop(self) -> (H256, JournalDB) {
 		(self.root, self.db)
@@ -285,158 +280,169 @@ use util::trie::*;
 use util::rlp::*;
 use util::uint::*;
 use account::*;
+use tests::helpers::*;
 
 #[test]
 fn code_from_database() {
 	let a = Address::zero();
-	let (r, db) = {
-		let mut s = State::new_temp();
-		s.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)), |_|{});
-		s.init_code(&a, vec![1, 2, 3]);
-		assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
-		s.commit();
-		assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
-		s.drop()
+	let temp = RandomTempPath::new();
+	let (root, db) = {
+		let mut state = get_temp_state_in(temp.as_path());
+		state.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)), |_|{});
+		state.init_code(&a, vec![1, 2, 3]);
+		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+		state.commit();
+		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+		state.drop()
 	};
 
-	let s = State::from_existing(db, r, U256::from(0u8));
-	assert_eq!(s.code(&a), Some([1u8, 2, 3].to_vec()));
+	let state = State::from_existing(db, root, U256::from(0u8));
+	assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
 }
 
 #[test]
 fn storage_at_from_database() {
 	let a = Address::zero();
-	let (r, db) = {
-		let mut s = State::new_temp();
-		s.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
-		s.commit();
-		s.drop()
+	let temp = RandomTempPath::new();
+	let (root, db) = {
+		let mut state = get_temp_state_in(temp.as_path());
+		state.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
+		state.commit();
+		state.drop()
 	};
 
-	let s = State::from_existing(db, r, U256::from(0u8));
+	let s = State::from_existing(db, root, U256::from(0u8));
 	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
 }
 
 #[test]
 fn get_from_database() {
 	let a = Address::zero();
-	let (r, db) = {
-		let mut s = State::new_temp();
-		s.inc_nonce(&a);
-		s.add_balance(&a, &U256::from(69u64));
-		s.commit();
-		assert_eq!(s.balance(&a), U256::from(69u64));
-		s.drop()
+	let temp = RandomTempPath::new();
+	let (root, db) = {
+		let mut state = get_temp_state_in(temp.as_path());
+		state.inc_nonce(&a);
+		state.add_balance(&a, &U256::from(69u64));
+		state.commit();
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.drop()
 	};
 
-	let s = State::from_existing(db, r, U256::from(0u8));
-	assert_eq!(s.balance(&a), U256::from(69u64));
-	assert_eq!(s.nonce(&a), U256::from(1u64));
+	let state = State::from_existing(db, root, U256::from(0u8));
+	assert_eq!(state.balance(&a), U256::from(69u64));
+	assert_eq!(state.nonce(&a), U256::from(1u64));
 }
 
 #[test]
 fn remove() {
 	let a = Address::zero();
-	let mut s = State::new_temp();
-	assert_eq!(s.exists(&a), false);
-	s.inc_nonce(&a);
-	assert_eq!(s.exists(&a), true);
-	assert_eq!(s.nonce(&a), U256::from(1u64));
-	s.kill_account(&a);
-	assert_eq!(s.exists(&a), false);
-	assert_eq!(s.nonce(&a), U256::from(0u64));
+	let mut state_result = get_temp_state();
+	let mut state = state_result.reference_mut();
+	assert_eq!(state.exists(&a), false);
+	state.inc_nonce(&a);
+	assert_eq!(state.exists(&a), true);
+	assert_eq!(state.nonce(&a), U256::from(1u64));
+	state.kill_account(&a);
+	assert_eq!(state.exists(&a), false);
+	assert_eq!(state.nonce(&a), U256::from(0u64));
 }
 
 #[test]
 fn remove_from_database() {
 	let a = Address::zero();
-	let (r, db) = {
-		let mut s = State::new_temp();
-		s.inc_nonce(&a);
-		s.commit();
-		assert_eq!(s.exists(&a), true);
-		assert_eq!(s.nonce(&a), U256::from(1u64));
-		s.drop()
+	let temp = RandomTempPath::new();
+	let (root, db) = {
+		let mut state = get_temp_state_in(temp.as_path());
+		state.inc_nonce(&a);
+		state.commit();
+		assert_eq!(state.exists(&a), true);
+		assert_eq!(state.nonce(&a), U256::from(1u64));
+		state.drop()
 	};
 
-	let (r, db) = {
-		let mut s = State::from_existing(db, r, U256::from(0u8));
-		assert_eq!(s.exists(&a), true);
-		assert_eq!(s.nonce(&a), U256::from(1u64));
-		s.kill_account(&a);
-		s.commit();
-		assert_eq!(s.exists(&a), false);
-		assert_eq!(s.nonce(&a), U256::from(0u64));
-		s.drop()
+	let (root, db) = {
+		let mut state = State::from_existing(db, root, U256::from(0u8));
+		assert_eq!(state.exists(&a), true);
+		assert_eq!(state.nonce(&a), U256::from(1u64));
+		state.kill_account(&a);
+		state.commit();
+		assert_eq!(state.exists(&a), false);
+		assert_eq!(state.nonce(&a), U256::from(0u64));
+		state.drop()
 	};
 
-	let s = State::from_existing(db, r, U256::from(0u8));
-	assert_eq!(s.exists(&a), false);
-	assert_eq!(s.nonce(&a), U256::from(0u64));
+	let state = State::from_existing(db, root, U256::from(0u8));
+	assert_eq!(state.exists(&a), false);
+	assert_eq!(state.nonce(&a), U256::from(0u64));
 }
 
 #[test]
 fn alter_balance() {
-	let mut s = State::new_temp();
+	let mut state_result = get_temp_state();
+	let mut state = state_result.reference_mut();
 	let a = Address::zero();
 	let b = address_from_u64(1u64);
-	s.add_balance(&a, &U256::from(69u64));
-	assert_eq!(s.balance(&a), U256::from(69u64));
-	s.commit();
-	assert_eq!(s.balance(&a), U256::from(69u64));
-	s.sub_balance(&a, &U256::from(42u64));
-	assert_eq!(s.balance(&a), U256::from(27u64));
-	s.commit();
-	assert_eq!(s.balance(&a), U256::from(27u64));
-	s.transfer_balance(&a, &b, &U256::from(18u64));
-	assert_eq!(s.balance(&a), U256::from(9u64));
-	assert_eq!(s.balance(&b), U256::from(18u64));
-	s.commit();
-	assert_eq!(s.balance(&a), U256::from(9u64));
-	assert_eq!(s.balance(&b), U256::from(18u64));
+	state.add_balance(&a, &U256::from(69u64));
+	assert_eq!(state.balance(&a), U256::from(69u64));
+	state.commit();
+	assert_eq!(state.balance(&a), U256::from(69u64));
+	state.sub_balance(&a, &U256::from(42u64));
+	assert_eq!(state.balance(&a), U256::from(27u64));
+	state.commit();
+	assert_eq!(state.balance(&a), U256::from(27u64));
+	state.transfer_balance(&a, &b, &U256::from(18u64));
+	assert_eq!(state.balance(&a), U256::from(9u64));
+	assert_eq!(state.balance(&b), U256::from(18u64));
+	state.commit();
+	assert_eq!(state.balance(&a), U256::from(9u64));
+	assert_eq!(state.balance(&b), U256::from(18u64));
 }
 
 #[test]
 fn alter_nonce() {
-	let mut s = State::new_temp();
+	let mut state_result = get_temp_state();
+	let mut state = state_result.reference_mut();
 	let a = Address::zero();
-	s.inc_nonce(&a);
-	assert_eq!(s.nonce(&a), U256::from(1u64));
-	s.inc_nonce(&a);
-	assert_eq!(s.nonce(&a), U256::from(2u64));
-	s.commit();
-	assert_eq!(s.nonce(&a), U256::from(2u64));
-	s.inc_nonce(&a);
-	assert_eq!(s.nonce(&a), U256::from(3u64));
-	s.commit();
-	assert_eq!(s.nonce(&a), U256::from(3u64));
+	state.inc_nonce(&a);
+	assert_eq!(state.nonce(&a), U256::from(1u64));
+	state.inc_nonce(&a);
+	assert_eq!(state.nonce(&a), U256::from(2u64));
+	state.commit();
+	assert_eq!(state.nonce(&a), U256::from(2u64));
+	state.inc_nonce(&a);
+	assert_eq!(state.nonce(&a), U256::from(3u64));
+	state.commit();
+	assert_eq!(state.nonce(&a), U256::from(3u64));
 }
 
 #[test]
 fn balance_nonce() {
-	let mut s = State::new_temp();
+	let mut state_result = get_temp_state();
+	let mut state = state_result.reference_mut();
 	let a = Address::zero();
-	assert_eq!(s.balance(&a), U256::from(0u64));
-	assert_eq!(s.nonce(&a), U256::from(0u64));
-	s.commit();
-	assert_eq!(s.balance(&a), U256::from(0u64));
-	assert_eq!(s.nonce(&a), U256::from(0u64));
+	assert_eq!(state.balance(&a), U256::from(0u64));
+	assert_eq!(state.nonce(&a), U256::from(0u64));
+	state.commit();
+	assert_eq!(state.balance(&a), U256::from(0u64));
+	assert_eq!(state.nonce(&a), U256::from(0u64));
 }
 
 #[test]
 fn ensure_cached() {
-	let mut s = State::new_temp();
+	let mut state_result = get_temp_state();
+	let mut state = state_result.reference_mut();
 	let a = Address::zero();
-	s.require(&a, false);
-	s.commit();
-	assert_eq!(s.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
+	state.require(&a, false);
+	state.commit();
+	assert_eq!(state.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
 }
 
 #[test]
 fn create_empty() {
-	let mut s = State::new_temp();
-	s.commit();
-	assert_eq!(s.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
+	let mut state_result = get_temp_state();
+	let mut state = state_result.reference_mut();
+	state.commit();
+	assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
 }
 
 }
