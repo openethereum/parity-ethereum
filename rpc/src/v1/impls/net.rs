@@ -1,7 +1,7 @@
 //! Net rpc implementation.
 use std::sync::Arc;
 use jsonrpc_core::*;
-use ethcore::sync::EthSync;
+use ethsync::EthSync;
 use v1::traits::Net;
 
 /// Net rpc implementation.
