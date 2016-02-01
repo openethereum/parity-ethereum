@@ -1,3 +1,5 @@
+//! Trie interface and implementation.
+
 /// TODO [Gav Wood] Please document me
 pub mod trietraits;
 pub mod standardmap;

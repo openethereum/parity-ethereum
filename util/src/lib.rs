@@ -92,32 +92,24 @@ pub mod hash;
 pub mod uint;
 pub mod bytes;
 pub mod rlp;
-/// TODO [Gav Wood] Please document me
 pub mod misc;
-/// TODO [Gav Wood] Please document me
-pub mod json_aid;
+mod json_aid;
 pub mod vector;
 pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
 pub mod overlaydb;
 pub mod journaldb;
-/// TODO [Gav Wood] Please document me
-pub mod math;
+mod math;
 pub mod chainfilter;
-/// TODO [Gav Wood] Please document me
 pub mod crypto;
 pub mod triehash;
-/// TODO [Gav Wood] Please document me
 pub mod trie;
 pub mod nibbleslice;
 mod heapsizeof;
 pub mod squeeze;
-/// TODO [Gav Wood] Please document me
 pub mod semantic_version;
-/// TODO [Gav Wood] Please document me
 pub mod io;
-/// TODO [Gav Wood] Please document me
 pub mod network;
 pub mod log;
 
