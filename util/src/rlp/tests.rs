@@ -405,3 +405,11 @@ fn test_rlp_2bytes_data_length_check()
 	assert_eq!(Err(DecoderError::RlpInconsistentLengthAndData), as_val);
 }
 
+#[test]
+fn test_rlp_nested_empty_list_encode() {
+	let mut stream = RlpStream::new_list(2);
+	stream.append(&(Vec::new() as Vec<u32>));
+	stream.append(&40u32);
+	assert_eq!(stream.drain()[..], [0xc2u8, 0xc0u8, 40u8][..]);
+}
+
