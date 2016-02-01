@@ -1,41 +1,41 @@
-/// General IO module.
-///
-/// Example usage for craeting a network service and adding an IO handler:
-///
-/// ```rust
-/// extern crate ethcore_util;
-/// use ethcore_util::*;
-///
-/// struct MyHandler;
-///
-/// #[derive(Clone)]
-/// struct MyMessage {
-/// 	data: u32
-/// }
-///
-///	impl IoHandler<MyMessage> for MyHandler {
-///		fn initialize(&self, io: &IoContext<MyMessage>) {
-///			io.register_timer(0, 1000).unwrap();
-///		}
-///
-///		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
-///			println!("Timeout {}", timer);
-///		}
-///
-///		fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
-///			println!("Message {}", message.data);
-///		}
-///	}
-///
-/// fn main () {
-/// 	let mut service = IoService::<MyMessage>::start().expect("Error creating network service");
-/// 	service.register_handler(Arc::new(MyHandler)).unwrap();
-///
-/// 	// Wait for quit condition
-/// 	// ...
-/// 	// Drop the service
-/// }
-/// ```
+//! General IO module.
+//!
+//! Example usage for creating a network service and adding an IO handler:
+//!
+//! ```rust
+//! extern crate ethcore_util;
+//! use ethcore_util::*;
+//!
+//! struct MyHandler;
+//!
+//! #[derive(Clone)]
+//! struct MyMessage {
+//! 	data: u32
+//! }
+//!
+//! impl IoHandler<MyMessage> for MyHandler {
+//! 	fn initialize(&self, io: &IoContext<MyMessage>) {
+//!		io.register_timer(0, 1000).unwrap();
+//!	}
+//!
+//!	fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
+//!		println!("Timeout {}", timer);
+//!	}
+//!
+//!	fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
+//!		println!("Message {}", message.data);
+//!	}
+//! }
+//!
+//! fn main () {
+//! 	let mut service = IoService::<MyMessage>::start().expect("Error creating network service");
+//! 	service.register_handler(Arc::new(MyHandler)).unwrap();
+//!
+//! 	// Wait for quit condition
+//! 	// ...
+//! 	// Drop the service
+//! }
+//! ```
 mod service;
 mod worker;
 

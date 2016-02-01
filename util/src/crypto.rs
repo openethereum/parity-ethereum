@@ -1,3 +1,5 @@
+//! Ethcore crypto.
+
 use hash::*;
 use bytes::*;
 use uint::*;

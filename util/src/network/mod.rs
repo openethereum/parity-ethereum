@@ -1,52 +1,53 @@
-/// Network and general IO module. 
-/// Example usage for craeting a network service and adding an IO handler:
-///
-/// ```rust
-/// extern crate ethcore_util as util;
-/// use util::*;
-///
-/// struct MyHandler;
-///
-/// #[derive(Clone)]
-/// struct MyMessage {
-/// 	data: u32
-/// }
-///
-/// impl NetworkProtocolHandler<MyMessage> for MyHandler {
-///		fn initialize(&self, io: &NetworkContext<MyMessage>) {
-///			io.register_timer(0, 1000);
-///		}
-///
-///		fn read(&self, io: &NetworkContext<MyMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
-///			println!("Received {} ({} bytes) from {}", packet_id, data.len(), peer);
-///		}
-///
-///		fn connected(&self, io: &NetworkContext<MyMessage>, peer: &PeerId) {
-///			println!("Connected {}", peer);
-///		}
-///
-///		fn disconnected(&self, io: &NetworkContext<MyMessage>, peer: &PeerId) {
-///			println!("Disconnected {}", peer);
-///		}
-///
-///		fn timeout(&self, io: &NetworkContext<MyMessage>, timer: TimerToken) {
-///			println!("Timeout {}", timer);
-///		}
-///
-///		fn message(&self, io: &NetworkContext<MyMessage>, message: &MyMessage) {
-///			println!("Message {}", message.data);
-///		}
-/// }
-///
-/// fn main () {
-/// 	let mut service = NetworkService::<MyMessage>::start(NetworkConfiguration::new()).expect("Error creating network service");
-/// 	service.register_protocol(Arc::new(MyHandler), "myproto", &[1u8]);
-///
-/// 	// Wait for quit condition
-/// 	// ...
-/// 	// Drop the service
-/// }
-/// ```
+//! Network and general IO module. 
+//! 
+//! Example usage for craeting a network service and adding an IO handler:
+//!
+//! ```rust
+//! extern crate ethcore_util as util;
+//! use util::*;
+//!
+//! struct MyHandler;
+//!
+//! #[derive(Clone)]
+//! struct MyMessage {
+//! 	data: u32
+//! }
+//!
+//! impl NetworkProtocolHandler<MyMessage> for MyHandler {
+//!		fn initialize(&self, io: &NetworkContext<MyMessage>) {
+//!			io.register_timer(0, 1000);
+//!		}
+//!
+//!		fn read(&self, io: &NetworkContext<MyMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
+//!			println!("Received {} ({} bytes) from {}", packet_id, data.len(), peer);
+//!		}
+//!
+//!		fn connected(&self, io: &NetworkContext<MyMessage>, peer: &PeerId) {
+//!			println!("Connected {}", peer);
+//!		}
+//!
+//!		fn disconnected(&self, io: &NetworkContext<MyMessage>, peer: &PeerId) {
+//!			println!("Disconnected {}", peer);
+//!		}
+//!
+//!		fn timeout(&self, io: &NetworkContext<MyMessage>, timer: TimerToken) {
+//!			println!("Timeout {}", timer);
+//!		}
+//!
+//!		fn message(&self, io: &NetworkContext<MyMessage>, message: &MyMessage) {
+//!			println!("Message {}", message.data);
+//!		}
+//! }
+//!
+//! fn main () {
+//! 	let mut service = NetworkService::<MyMessage>::start(NetworkConfiguration::new()).expect("Error creating network service");
+//! 	service.register_protocol(Arc::new(MyHandler), "myproto", &[1u8]);
+//!
+//! 	// Wait for quit condition
+//! 	// ...
+//! 	// Drop the service
+//! }
+//! ```
 mod host;
 mod connection;
 mod handshake;
