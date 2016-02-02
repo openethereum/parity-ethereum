@@ -28,3 +28,4 @@ sha3 = { path = "sha3" }
 serde = "0.6.7"
 clippy = "0.0.37"
 json-tests = { path = "json-tests" }
+target_info = "0.1.0"

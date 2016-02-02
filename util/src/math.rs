@@ -1,4 +1,6 @@
-/// log2
+//! Common math functions.
+
+/// Returns log2.
 pub fn log2(x: usize) -> u32 {
 	if x <= 1 {
 		return 0;

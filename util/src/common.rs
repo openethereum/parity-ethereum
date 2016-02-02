@@ -1,3 +1,5 @@
+//! Utils common types and macros global reexport.
+
 pub use standard::*;
 pub use from_json::*;
 pub use error::*;

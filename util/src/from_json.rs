@@ -1,3 +1,5 @@
+//! Coversion from json.
+
 use standard::*;
 
 #[macro_export]

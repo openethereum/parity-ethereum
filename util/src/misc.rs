@@ -1,3 +1,5 @@
+//! Diff misc.
+
 use common::*;
 
 #[derive(Debug,Clone,PartialEq,Eq)]

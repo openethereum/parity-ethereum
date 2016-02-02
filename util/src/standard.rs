@@ -1,3 +1,5 @@
+//! Std lib global reexports.
+
 pub use std::io;
 pub use std::fs;
 pub use std::str;
