@@ -1,3 +1,5 @@
+//! Parameters for a block chain.
+
 use common::*;
 use flate2::read::GzDecoder;
 use engine::*;

@@ -1,4 +1,4 @@
-//! Fast access to blockchain data.
+//! Blockchain database.
 
 use util::*;
 use rocksdb::{DB, WriteBatch, Writable};

@@ -1,3 +1,5 @@
+//! Blockchain database client.
+
 use util::*;
 use rocksdb::{Options, DB};
 use blockchain::{BlockChain, BlockProvider, CacheSize};

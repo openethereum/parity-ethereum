@@ -93,7 +93,6 @@ fn test_create_vm() {
 }
 
 /// Create tests by injecting different VM factories
-#[macro_export]
 macro_rules! evm_test(
 	($name_test: ident: $name_jit: ident, $name_int: ident) => {
 		#[test]
@@ -109,7 +108,6 @@ macro_rules! evm_test(
 );
 
 /// Create ignored tests by injecting different VM factories
-#[macro_export]
 macro_rules! evm_test_ignore(
 	($name_test: ident: $name_jit: ident, $name_int: ident) => {
 		#[test]

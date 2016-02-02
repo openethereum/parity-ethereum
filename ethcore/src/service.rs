@@ -1,3 +1,5 @@
+//! Creates and registers client and network services.
+
 use util::*;
 use spec::Spec;
 use error::*;

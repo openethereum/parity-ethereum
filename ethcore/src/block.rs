@@ -1,3 +1,5 @@
+//! Blockchain block.
+
 #![allow(ptr_arg)] // Because of &LastHashes -> &Vec<_>
 
 use common::*;

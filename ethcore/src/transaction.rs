@@ -1,3 +1,5 @@
+//! Transaction data structure.
+
 use util::*;
 use basic_types::*;
 use error::*;

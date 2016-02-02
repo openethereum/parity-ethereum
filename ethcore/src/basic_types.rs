@@ -1,3 +1,5 @@
+//! Ethcore basic typenames.
+
 use util::*;
 
 /// Type for a 2048-bit log-bloom, as used by our blocks.
