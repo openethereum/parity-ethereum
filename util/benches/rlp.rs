@@ -3,7 +3,7 @@
 //! ```bash
 //! multirust run nightly cargo bench
 //! ```
-/*
+
 #![feature(test)]
 
 extern crate test;
@@ -94,4 +94,3 @@ fn bench_stream_1000_empty_lists(b: &mut Bencher) {
 		let _ = stream.out();
 	});
 }
-*/
