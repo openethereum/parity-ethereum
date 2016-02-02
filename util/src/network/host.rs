@@ -110,10 +110,7 @@ pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
 		delay: u64,
 	},
 	/// Disconnect a peer
-	Disconnect {
-		/// Peer Id
-		peer: PeerId,
-	},
+	Disconnect(PeerId),
 	/// User message
 	User(Message),
 }
@@ -194,9 +191,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 
 	/// Disconnect peer. Reconnect can be attempted later.
 	pub fn disconnect_peer(&self, peer: PeerId) {
-		self.io.message(NetworkIoMessage::Disconnect {
-			peer: peer,
-		});
+		self.io.message(NetworkIoMessage::Disconnect(peer));
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
@@ -714,9 +709,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				self.timers.write().unwrap().insert(handler_token, ProtocolTimer { protocol: protocol, token: *token });
 				io.register_timer(handler_token, *delay).expect("Error registering timer");
 			},
-			NetworkIoMessage::Disconnect {
-				ref peer,
-			} => {
+			NetworkIoMessage::Disconnect(ref peer) => {
 				if let Some(connection) = self.connections.read().unwrap().get(*peer).cloned() {
 					match *connection.lock().unwrap().deref_mut() {
 						ConnectionEntry::Handshake(_) => {},
