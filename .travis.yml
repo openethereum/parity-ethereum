@@ -8,7 +8,7 @@ matrix:
   fast_finish: true
   include:
   - rust: nightly
-    env: FEATURES="--features ethcore/json-tests" KCOV_FEATURES=""
+    env: FEATURES="--features ethcore/json-tests" KCOV_FEATURES="" TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity"
 cache:
   apt: true
   directories:
@@ -28,22 +28,12 @@ before_script: |
   sudo apt-get install -y --force-yes librocksdb
 script:
 - cargo build --release --verbose ${FEATURES}
-- cargo test --release -p ethash --verbose ${FEATURES}
-- cargo test --release -p ethcore-util --verbose ${FEATURES}
-- cargo test --release -p ethcore --verbose ${FEATURES}
-- cargo test --release -p ethsync --verbose ${FEATURES}
-- cargo test --release -p ethcore-rpc --verbose ${FEATURES}
-- cargo test --release -p parity --verbose ${FEATURES}
-- cargo bench --no-run ${FEATURES}
+- cargo test --release --verbose ${FEATURES} ${TARGETS}
+- cargo bench --no-run ${FEATURES} ${TARGETS}
 after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
-  cargo test --no-run -p ethcore-util ${KCOV_FEATURES} &&
-  cargo test --no-run -p ethash ${KCOV_FEATURES} &&
-  cargo test --no-run -p ethcore ${KCOV_FEATURES} &&
-  cargo test --no-run -p ethsync ${KCOV_FEATURES} &&
-  cargo test --no-run -p ethcore-rpc ${KCOV_FEATURES} &&
-  cargo test --no-run -p parity ${KCOV_FEATURES} &&
+  cargo test --no-run ${KCOV_FEATURES} ${TARGETS} &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore_util-* &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethash-* &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore-* &&
@@ -53,7 +43,7 @@ after_success: |
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = nightly ] &&
-  cargo doc ${KCOV_FEATURES} --no-deps --verbose -p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity &&
+  cargo doc --no-deps --verbose ${KCOV_FEATURES} ${TARGETS} &&
   echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html &&
   pip install --user ghp-import &&
   /home/travis/.local/bin/ghp-import -n target/doc 

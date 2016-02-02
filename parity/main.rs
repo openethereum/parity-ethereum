@@ -178,3 +178,7 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	}
 }
 
+/// Parity needs at least 1 test to generate coverage reports correctly.
+#[test]
+fn if_works() {
+}

@@ -3,7 +3,7 @@
 //! ```bash
 //! multirust run nightly cargo bench
 //! ```
-/*
+
 #![feature(test)]
 
 extern crate test;
@@ -63,9 +63,9 @@ fn bench_stream_nested_empty_lists(b: &mut Bencher) {
 	b.iter(|| {
 		// [ [], [[]], [ [], [[]] ] ]
 		let mut stream = RlpStream::new_list(3);
-		stream.append_list(0);
-		stream.append_list(1).append_list(0);
-		stream.append_list(2).append_list(0).append_list(1).append_list(0);
+		stream.begin_list(0);
+		stream.begin_list(1).begin_list(0);
+		stream.begin_list(2).begin_list(0).begin_list(1).begin_list(0);
 		let _ = stream.out();
 	});
 }
@@ -89,9 +89,8 @@ fn bench_stream_1000_empty_lists(b: &mut Bencher) {
 	b.iter(|| {
 		let mut stream = RlpStream::new_list(1000);
 		for _ in 0..1000 {
-			stream.append_list(0);
+			stream.begin_list(0);
 		}
 		let _ = stream.out();
 	});
 }
-*/
