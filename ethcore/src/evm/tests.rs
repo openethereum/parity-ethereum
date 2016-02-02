@@ -746,6 +746,44 @@ fn test_signextend(factory: super::Factory) {
 	assert_eq!(gas_left, U256::from(59_972));
 }
 
+
+evm_test!{test_badinstruction: test_badinstruction_jit, test_badinstruction_int}
+fn test_badinstruction(factory: super::Factory) {
+	let code = "af".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let err = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap_err()
+	};
+
+	match err {
+		evm::Error::BadInstruction { instruction: 0xaf } => (),
+		_ => assert!(false, "Expected bad instruction")
+	}
+}
+evm_test!{test_pop: test_pop_jit, test_pop_int}
+fn test_pop(factory: super::Factory) {
+	let code = "60f060aa50600055".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "00000000000000000000000000000000000000000000000000000000000000f0");
+	assert_eq!(gas_left, U256::from(79_989));
+}
+
 fn assert_store(ext: &FakeExt, pos: u64, val: &str) {
 	assert_eq!(ext.store.get(&H256::from(pos)).unwrap(), &H256::from_str(val).unwrap());
 }
