@@ -9,6 +9,8 @@ use ethcore::service::SyncMessage;
 pub trait SyncIo {
 	/// Disable a peer
 	fn disable_peer(&mut self, peer_id: PeerId);
+	/// Disconnect peer
+	fn disconnect_peer(&mut self, peer_id: PeerId);
 	/// Respond to current request with a packet. Can be called from an IO handler for incoming packet.
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>;
 	/// Send a packet to a peer.
@@ -40,6 +42,10 @@ impl<'s, 'h> NetSyncIo<'s, 'h> {
 impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 	fn disable_peer(&mut self, peer_id: PeerId) {
 		self.network.disable_peer(peer_id);
+	}
+
+	fn disconnect_peer(&mut self, peer_id: PeerId) {
+		self.network.disconnect_peer(peer_id);
 	}
 
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>{

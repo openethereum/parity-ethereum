@@ -19,6 +19,7 @@ use io::*;
 use network::NetworkProtocolHandler;
 use network::node::*;
 use network::stats::NetworkStats;
+use network::error::DisconnectReason;
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -108,6 +109,8 @@ pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
 		/// Timer delay in milliseconds.
 		delay: u64,
 	},
+	/// Disconnect a peer
+	Disconnect(PeerId),
 	/// User message
 	User(Message),
 }
@@ -181,8 +184,14 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 	}
 
 	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
-	pub fn disable_peer(&self, _peer: PeerId) {
+	pub fn disable_peer(&self, peer: PeerId) {
 		//TODO: remove capability, disconnect if no capabilities left
+		self.disconnect_peer(peer);
+	}
+
+	/// Disconnect peer. Reconnect can be attempted later.
+	pub fn disconnect_peer(&self, peer: PeerId) {
+		self.io.message(NetworkIoMessage::Disconnect(peer));
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
@@ -332,6 +341,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn maintain_network(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+		self.keep_alive(io);
 		self.connect_peers(io);
 	}
 
@@ -341,6 +351,21 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
 		self.connections.read().unwrap().iter().any(|e| match *e.lock().unwrap().deref() { ConnectionEntry::Handshake(ref h) => h.id.eq(&id), _ => false  })
+	}
+
+	fn keep_alive(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+		let mut to_kill = Vec::new();
+		for e in self.connections.write().unwrap().iter_mut() {
+			if let ConnectionEntry::Session(ref mut s) = *e.lock().unwrap().deref_mut() {
+				if !s.keep_alive() {
+					s.disconnect(DisconnectReason::PingTimeout);
+					to_kill.push(s.token());
+				}
+			}
+		}
+		for p in to_kill {
+			self.kill_connection(p, io);
+		}
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -683,6 +708,15 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				};
 				self.timers.write().unwrap().insert(handler_token, ProtocolTimer { protocol: protocol, token: *token });
 				io.register_timer(handler_token, *delay).expect("Error registering timer");
+			},
+			NetworkIoMessage::Disconnect(ref peer) => {
+				if let Some(connection) = self.connections.read().unwrap().get(*peer).cloned() {
+					match *connection.lock().unwrap().deref_mut() {
+						ConnectionEntry::Handshake(_) => {},
+						ConnectionEntry::Session(ref mut s) => { s.disconnect(DisconnectReason::DisconnectRequested); } 
+					}
+				} 
+				self.kill_connection(*peer, io);
 			},
 			NetworkIoMessage::User(ref message) => {
 				for (p, h) in self.handlers.read().unwrap().iter() {
