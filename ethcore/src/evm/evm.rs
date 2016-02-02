@@ -44,6 +44,7 @@ pub enum Error {
 	},
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
+	#[allow(dead_code)] // created only by jit
 	Internal,
 }
 

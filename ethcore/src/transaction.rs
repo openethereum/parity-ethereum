@@ -1,3 +1,5 @@
+//! Transaction data structure.
+
 use util::*;
 use basic_types::*;
 use error::*;
@@ -20,17 +22,17 @@ impl Default for Action {
 /// or contract creation operation.
 #[derive(Default, Debug, Clone)]
 pub struct Transaction {
-	/// TODO [debris] Please document me
+	/// Nonce.
 	pub nonce: U256,
-	/// TODO [debris] Please document me
+	/// Gas price.
 	pub gas_price: U256,
-	/// TODO [debris] Please document me
+	/// Gas paid up front for transaction execution.
 	pub gas: U256,
-	/// TODO [debris] Please document me
+	/// Action, can be either call or contract create.
 	pub action: Action,
-	/// TODO [debris] Please document me
+	/// Transfered value.
 	pub value: U256,
-	/// TODO [Gav Wood] Please document me
+	/// Transaction data.
 	pub data: Bytes,
 
 	// signature
@@ -95,19 +97,6 @@ impl Transaction {
 			sender: RefCell::new(None),
 		}
 	}
-
-	/// Get the nonce of the transaction.
-	pub fn nonce(&self) -> &U256 { &self.nonce }
-	/// Get the gas price of the transaction.
-	pub fn gas_price(&self) -> &U256 { &self.gas_price }
-	/// Get the gas of the transaction.
-	pub fn gas(&self) -> &U256 { &self.gas }
-	/// Get the action of the transaction (Create or Call).
-	pub fn action(&self) -> &Action { &self.action }
-	/// Get the value of the transaction.
-	pub fn value(&self) -> &U256 { &self.value }
-	/// Get the data of the transaction.
-	pub fn data(&self) -> &Bytes { &self.data }
 
 	/// Append object into RLP stream, optionally with or without the signature.
 	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {

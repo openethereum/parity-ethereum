@@ -1,3 +1,5 @@
+//! Blockchain block.
+
 #![allow(ptr_arg)] // Because of &LastHashes -> &Vec<_>
 
 use common::*;
@@ -18,7 +20,7 @@ pub struct Block {
 }
 
 impl Block {
-	/// Returns true iff the given bytes form a valid encoding of a block in RLP.
+	/// Returns true if the given bytes form a valid encoding of a block in RLP.
 	// TODO: implement Decoder for this and have this use that.
 	pub fn is_good(b: &[u8]) -> bool {
 		/*
@@ -71,16 +73,15 @@ pub struct ExecutedBlock {
 
 /// A set of references to `ExecutedBlock` fields that are publicly accessible. 
 pub struct BlockRefMut<'a> {
-	/// TODO [Gav Wood] Please document me
+	/// Block header.
 	pub header: &'a Header,
-	/// TODO [Gav Wood] Please document me
+	/// Block transactions.
 	pub transactions: &'a Vec<Transaction>,
-	/// TODO [Gav Wood] Please document me
+	/// Block uncles.
 	pub uncles: &'a Vec<Header>,
-
-	/// TODO [Gav Wood] Please document me
+	/// Transaction receipts.
 	pub receipts: &'a Vec<Receipt>,
-	/// TODO [Gav Wood] Please document me
+	/// State.
 	pub state: &'a mut State,
 }
 

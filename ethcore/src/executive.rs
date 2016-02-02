@@ -129,7 +129,7 @@ impl<'a> Executive<'a> {
 
 		let mut substate = Substate::new();
 
-		let res = match *t.action() {
+		let res = match t.action {
 			Action::Create => {
 				let new_address = contract_address(&sender, &nonce);
 				let params = ActionParams {

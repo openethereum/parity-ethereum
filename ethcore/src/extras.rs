@@ -1,3 +1,5 @@
+//! Blockchain DB extras.
+
 use util::*;
 use header::BlockNumber;
 use rocksdb::{DB, Writable};

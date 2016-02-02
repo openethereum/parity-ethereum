@@ -1,4 +1,4 @@
-//! Fast access to blockchain data.
+//! Blockchain database.
 
 use util::*;
 use rocksdb::{DB, WriteBatch, Writable};
@@ -8,33 +8,27 @@ use transaction::*;
 use views::*;
 
 /// Represents a tree route between `from` block and `to` block:
-///
-/// - `blocks` - a vector of hashes of all blocks, ordered from `from` to `to`.
-///
-/// - `ancestor` - best common ancestor of these blocks.
-///
-/// - `index` - an index where best common ancestor would be.
 pub struct TreeRoute {
-	/// TODO [debris] Please document me
+	/// A vector of hashes of all blocks, ordered from `from` to `to`.
 	pub blocks: Vec<H256>,
-	/// TODO [debris] Please document me
+	/// Best common ancestor of these blocks.
 	pub ancestor: H256,
-	/// TODO [debris] Please document me
+	/// An index where best common ancestor would be.
 	pub index: usize
 }
 
 /// Represents blockchain's in-memory cache size in bytes.
 #[derive(Debug)]
 pub struct CacheSize {
-	/// TODO [debris] Please document me
+	/// Blocks cache size.
 	pub blocks: usize,
-	/// TODO [debris] Please document me
+	/// BlockDetails cache size.
 	pub block_details: usize,
-	/// TODO [debris] Please document me
+	/// Transaction addresses cache size.
 	pub transaction_addresses: usize,
-	/// TODO [debris] Please document me
+	/// Logs cache size.
 	pub block_logs: usize,
-	/// TODO [debris] Please document me
+	/// Blooms cache size.
 	pub blocks_blooms: usize
 }
 

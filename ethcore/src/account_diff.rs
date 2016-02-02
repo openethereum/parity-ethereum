@@ -1,3 +1,5 @@
+//! Diff between two accounts.
+
 use util::*;
 use pod_account::*;
 
