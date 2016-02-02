@@ -263,7 +263,8 @@ impl Session {
 		self.send(try!(Session::prepare(PACKET_PONG)))
 	}
 
-	fn disconnect(&mut self, reason: DisconnectReason) -> NetworkError {
+	/// Disconnect this session
+	pub fn disconnect(&mut self, reason: DisconnectReason) -> NetworkError {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(PACKET_DISCONNECT as u32));
 		rlp.begin_list(1);

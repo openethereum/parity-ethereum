@@ -5,17 +5,17 @@ use rlp::*;
 pub enum DisconnectReason
 {
 	DisconnectRequested,
-	//TCPError,
-	//BadProtocol,
+	_TCPError,
+	_BadProtocol,
 	UselessPeer,
-	//TooManyPeers,
-	//DuplicatePeer,
-	//IncompatibleProtocol,
-	//NullIdentity,
-	//ClientQuit,
-	//UnexpectedIdentity,
-	//LocalIdentity,
-	//PingTimeout,
+	_TooManyPeers,
+	_DuplicatePeer,
+	_IncompatibleProtocol,
+	_NullIdentity,
+	_ClientQuit,
+	_UnexpectedIdentity,
+	_LocalIdentity,
+	_PingTimeout,
 }
 
 #[derive(Debug)]

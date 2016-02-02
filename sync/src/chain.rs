@@ -22,6 +22,7 @@ use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::block::Block;
 use io::SyncIo;
+use time;
 
 impl ToUsize for BlockNumber {
 	fn to_usize(&self) -> usize {
@@ -60,6 +61,8 @@ const GET_RECEIPTS_PACKET: u8 = 0x0f;
 const RECEIPTS_PACKET: u8 = 0x10;
 
 const NETWORK_ID: U256 = ONE_U256; //TODO: get this from parent
+
+const CONNECTION_TIMEOUT_SEC: f64 = 30f64;
 
 struct Header {
 	/// Header data
@@ -138,6 +141,8 @@ struct PeerInfo {
 	asking: PeerAsking,
 	/// A set of block numbers being requested
 	asking_blocks: Vec<BlockNumber>,
+	/// Request timestamp
+	ask_time: f64,
 }
 
 /// Blockchain sync handler.
@@ -250,6 +255,7 @@ impl ChainSync {
 			genesis: try!(r.val_at(4)),
 			asking: PeerAsking::Nothing,
 			asking_blocks: Vec::new(),
+			ask_time: 0f64,
 		};
 
 		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest, peer.genesis);
@@ -803,6 +809,7 @@ impl ChainSync {
 			Ok(_) => {
 				let mut peer = self.peers.get_mut(&peer_id).unwrap();
 				peer.asking = asking;
+				peer.ask_time = time::precise_time_s();
 			}
 		}
 	}
@@ -975,6 +982,16 @@ impl ChainSync {
 		result.unwrap_or_else(|e| {
 			debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e);
 		})
+	}
+
+	/// Handle peer timeouts
+	pub fn maintain_peers(&self, io: &mut SyncIo) {
+		let tick = time::precise_time_s();
+		for (peer_id, peer) in &self.peers {
+			if peer.asking != PeerAsking::Nothing && (tick - peer.ask_time) > CONNECTION_TIMEOUT_SEC {
+				io.disconnect_peer(*peer_id);
+			}
+		}
 	}
 
 	/// Maintain other peers. Send out any new blocks and transactions
