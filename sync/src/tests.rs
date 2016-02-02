@@ -209,6 +209,9 @@ impl<'p> SyncIo for TestIo<'p> {
 	fn disable_peer(&mut self, _peer_id: PeerId) {
 	}
 
+	fn disconnect_peer(&mut self, _peer_id: PeerId) {
+	}
+
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		self.queue.push_back(TestPacket {
 			data: data,

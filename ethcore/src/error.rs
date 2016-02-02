@@ -130,14 +130,16 @@ pub enum BlockError {
 }
 
 #[derive(Debug)]
-/// TODO [arkpar] Please document me
+/// Import to the block queue result
 pub enum ImportError {
-	/// TODO [arkpar] Please document me
+	/// Bad block detected
 	Bad(Option<Error>),
-	/// TODO [arkpar] Please document me
+	/// Already in the block chain
 	AlreadyInChain,
-	/// TODO [arkpar] Please document me
+	/// Already in the block queue
 	AlreadyQueued,
+	/// Unknown parent
+	UnknownParent,
 }
 
 impl From<Error> for ImportError {

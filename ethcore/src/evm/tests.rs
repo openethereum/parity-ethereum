@@ -150,7 +150,7 @@ fn test_add(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_988));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").unwrap());
+	assert_store(&ext, 0, "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe");
 }
 
 evm_test!{test_sha3: test_sha3_jit, test_sha3_int}
@@ -170,7 +170,7 @@ fn test_sha3(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_961));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470").unwrap());
+	assert_store(&ext, 0, "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 }
 
 evm_test!{test_address: test_address_jit, test_address_int}
@@ -190,7 +190,7 @@ fn test_address(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap());
+	assert_store(&ext, 0, "0000000000000000000000000f572e5295c57f15886f9b263e2f6d2d6c7b5ec6");
 }
 
 evm_test!{test_origin: test_origin_jit, test_origin_int}
@@ -212,7 +212,7 @@ fn test_origin(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("000000000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681").unwrap());
+	assert_store(&ext, 0, "000000000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681");
 }
 
 // TODO [todr] Fails with Signal 11 on JIT
@@ -235,7 +235,7 @@ fn test_sender(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("000000000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681").unwrap());
+	assert_store(&ext, 0, "000000000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681");
 }
 
 evm_test!{test_extcodecopy: test_extcodecopy_jit, test_extcodecopy_int}
@@ -270,7 +270,7 @@ fn test_extcodecopy(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_935));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("6005600055000000000000000000000000000000000000000000000000000000").unwrap());
+	assert_store(&ext, 0, "6005600055000000000000000000000000000000000000000000000000000000");
 }
 
 evm_test!{test_log_empty: test_log_empty_jit, test_log_empty_int}
@@ -369,7 +369,7 @@ fn test_calldataload(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_991));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("23ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23").unwrap());
+	assert_store(&ext, 0, "23ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff23");
 
 }
 
@@ -390,7 +390,7 @@ fn test_author(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap());
+	assert_store(&ext, 0, "0000000000000000000000000f572e5295c57f15886f9b263e2f6d2d6c7b5ec6");
 }
 
 evm_test!{test_timestamp: test_timestamp_jit, test_timestamp_int}
@@ -410,7 +410,7 @@ fn test_timestamp(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000000000000000000000000000000000000001234").unwrap());
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000001234");
 }
 
 evm_test!{test_number: test_number_jit, test_number_int}
@@ -430,7 +430,7 @@ fn test_number(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000000000000000000000000000000000000001234").unwrap());
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000001234");
 }
 
 evm_test!{test_difficulty: test_difficulty_jit, test_difficulty_int}
@@ -450,7 +450,7 @@ fn test_difficulty(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000000000000000000000000000000000000001234").unwrap());
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000001234");
 }
 
 evm_test!{test_gas_limit: test_gas_limit_jit, test_gas_limit_int}
@@ -470,6 +470,321 @@ fn test_gas_limit(factory: super::Factory) {
 	};
 
 	assert_eq!(gas_left, U256::from(79_995));
-	assert_eq!(ext.store.get(&H256::new()).unwrap(), &H256::from_str("0000000000000000000000000000000000000000000000000000000000001234").unwrap());
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000001234");
+}
+
+evm_test!{test_mul: test_mul_jit, test_mul_int}
+fn test_mul(factory: super::Factory) {
+	let code = "65012365124623626543219002600055".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "000000000000000000000000000000000000000000000000734349397b853383");
+	assert_eq!(gas_left, U256::from(79_983));
+}
+
+evm_test!{test_sub: test_sub_jit, test_sub_int}
+fn test_sub(factory: super::Factory) {
+	let code = "65012365124623626543219003600055".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000012364ad0302");
+	assert_eq!(gas_left, U256::from(79_985));
+}
+
+evm_test!{test_div: test_div_jit, test_div_int}
+fn test_div(factory: super::Factory) {
+	let code = "65012365124623626543219004600055".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "000000000000000000000000000000000000000000000000000000000002e0ac");
+	assert_eq!(gas_left, U256::from(79_983));
+}
+
+evm_test!{test_div_zero: test_div_zero_jit, test_div_zero_int}
+fn test_div_zero(factory: super::Factory) {
+	let code = "6501236512462360009004600055".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_eq!(gas_left, U256::from(94_983));
+}
+
+evm_test!{test_mod: test_mod_jit, test_mod_int}
+fn test_mod(factory: super::Factory) {
+	let code = "650123651246236265432290066000556501236512462360009006600155".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000076b4b");
+	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_eq!(gas_left, U256::from(74_966));
+}
+
+evm_test!{test_smod: test_smod_jit, test_smod_int}
+fn test_smod(factory: super::Factory) {
+	let code = "650123651246236265432290076000556501236512462360009007600155".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000076b4b");
+	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_eq!(gas_left, U256::from(74_966));
+}
+
+evm_test!{test_sdiv: test_sdiv_jit, test_sdiv_int}
+fn test_sdiv(factory: super::Factory) {
+	let code = "650123651246236265432290056000556501236512462360009005600155".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "000000000000000000000000000000000000000000000000000000000002e0ac");
+	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_eq!(gas_left, U256::from(74_966));
+}
+
+evm_test!{test_exp: test_exp_jit, test_exp_int}
+fn test_exp(factory: super::Factory) {
+	let code = "6016650123651246230a6000556001650123651246230a6001556000650123651246230a600255".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "90fd23767b60204c3d6fc8aec9e70a42a3f127140879c133a20129a597ed0c59");
+	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000012365124623");
+	assert_store(&ext, 2, "0000000000000000000000000000000000000000000000000000000000000001");
+	assert_eq!(gas_left, U256::from(39_923));
+}
+
+evm_test!{test_comparison: test_comparison_jit, test_comparison_int}
+fn test_comparison(factory: super::Factory) {
+	let code = "601665012365124623818181811060005511600155146002556415235412358014600355".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000000000000001");
+	assert_store(&ext, 2, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_store(&ext, 3, "0000000000000000000000000000000000000000000000000000000000000001");
+	assert_eq!(gas_left, U256::from(49_952));
+}
+
+evm_test!{test_signed_comparison: test_signed_comparison_jit, test_signed_comparison_int}
+fn test_signed_comparison(factory: super::Factory) {
+	let code = "60106000036010818112600055136001556010601060000381811260025513600355".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000000000000001");
+	assert_store(&ext, 2, "0000000000000000000000000000000000000000000000000000000000000001");
+	assert_store(&ext, 3, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_eq!(gas_left, U256::from(49_940));
+}
+
+evm_test!{test_bitops: test_bitops_jit, test_bitops_int}
+fn test_bitops(factory: super::Factory) {
+	let code = "60ff610ff08181818116600055176001551860025560008015600355198015600455600555".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(150_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "00000000000000000000000000000000000000000000000000000000000000f0");
+	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000000000000fff");
+	assert_store(&ext, 2, "0000000000000000000000000000000000000000000000000000000000000f0f");
+	assert_store(&ext, 3, "0000000000000000000000000000000000000000000000000000000000000001");
+	assert_store(&ext, 4, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_store(&ext, 5, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+	assert_eq!(gas_left, U256::from(44_937));
+}
+
+evm_test!{test_addmod_mulmod: test_addmod_mulmod_jit, test_addmod_mulmod_int}
+fn test_addmod_mulmod(factory: super::Factory) {
+	let code = "60ff60f060108282820860005509600155600060f0601082828208196002550919600355".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000001");
+	assert_store(&ext, 1, "000000000000000000000000000000000000000000000000000000000000000f");
+	assert_store(&ext, 2, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+	assert_store(&ext, 3, "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+	assert_eq!(gas_left, U256::from(19_914));
+}
+
+evm_test!{test_byte: test_byte_jit, test_byte_int}
+fn test_byte(factory: super::Factory) {
+	let code = "60f061ffff1a600055610fff601f1a600155".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000000");
+	assert_store(&ext, 1, "00000000000000000000000000000000000000000000000000000000000000ff");
+	assert_eq!(gas_left, U256::from(74_976));
+}
+
+evm_test!{test_signextend: test_signextend_jit, test_signextend_int}
+fn test_signextend(factory: super::Factory) {
+	let code = "610fff60020b60005560ff60200b600155".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000fff");
+	assert_store(&ext, 1, "00000000000000000000000000000000000000000000000000000000000000ff");
+	assert_eq!(gas_left, U256::from(59_972));
+}
+
+
+evm_test!{test_badinstruction: test_badinstruction_jit, test_badinstruction_int}
+fn test_badinstruction(factory: super::Factory) {
+	let code = "af".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let err = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap_err()
+	};
+
+	match err {
+		evm::Error::BadInstruction { instruction: 0xaf } => (),
+		_ => assert!(false, "Expected bad instruction")
+	}
+}
+evm_test!{test_pop: test_pop_jit, test_pop_int}
+fn test_pop(factory: super::Factory) {
+	let code = "60f060aa50600055".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "00000000000000000000000000000000000000000000000000000000000000f0");
+	assert_eq!(gas_left, U256::from(79_989));
+}
+
+fn assert_store(ext: &FakeExt, pos: u64, val: &str) {
+	assert_eq!(ext.store.get(&H256::from(pos)).unwrap(), &H256::from_str(val).unwrap());
 }
 
