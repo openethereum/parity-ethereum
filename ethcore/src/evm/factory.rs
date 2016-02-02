@@ -3,11 +3,11 @@ use std::fmt;
 use evm::Evm;
 
 #[derive(Clone)]
-/// TODO [Tomusdrw] Please document me
+/// Type of EVM to use.
 pub enum VMType {
-	/// TODO [Tomusdrw] Please document me
+	/// JIT EVM
 	Jit,
-	/// TODO [Tomusdrw] Please document me
+	/// RUST EVM
 	Interpreter
 }
 
