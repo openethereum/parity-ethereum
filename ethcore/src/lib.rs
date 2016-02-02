@@ -108,4 +108,8 @@ mod executive;
 mod externalities;
 mod verification;
 
-#[cfg(test)] mod tests;
+#[cfg(test)] 
+mod tests;
+#[cfg(test)]
+#[cfg(feature="json-tests")] 
+mod json_tests;

@@ -1,6 +1,6 @@
 use client::{BlockChainClient,Client};
 use super::test_common::*;
-use super::helpers::*;
+use tests::helpers::*;
 
 #[test]
 fn created() {

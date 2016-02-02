@@ -64,6 +64,7 @@ impl Transaction {
 			sender: RefCell::new(None),
 		}
 	}
+
 	/// Create a new message-call transaction.
 	pub fn new_call(to: Address, value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
 		Transaction {
