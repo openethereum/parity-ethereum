@@ -1,3 +1,4 @@
+//! Execution environment substate.
 use common::*;
 
 /// State changes which should be applied in finalize,

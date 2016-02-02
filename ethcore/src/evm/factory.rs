@@ -1,10 +1,13 @@
 //! Evm factory.
+//!
+//! TODO: consider spliting it into two separate files.
 use std::fmt;
 use evm::Evm;
 
 #[derive(Clone)]
 /// Type of EVM to use.
 pub enum VMType {
+	#[allow(dead_code)] // crated only by jit
 	/// JIT EVM
 	Jit,
 	/// RUST EVM
@@ -20,6 +23,7 @@ impl fmt::Display for VMType {
 	}
 }
 
+#[cfg(test)]
 impl VMType {
 	/// Return all possible VMs (JIT, Interpreter)
 	#[cfg(feature="jit")]
@@ -53,6 +57,7 @@ impl Factory {
 	}
 
 	/// Create new instance of specific `VMType` factory
+	#[cfg(test)]
 	pub fn new(evm: VMType) -> Factory {
 		Factory {
 			evm: evm
