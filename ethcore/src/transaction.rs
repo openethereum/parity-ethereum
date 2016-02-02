@@ -169,11 +169,6 @@ impl Transaction {
 		}
 	}
 
-	/// Note that some fields have changed. Resets the memoised hash.
-	pub fn note_dirty(&self) {
- 		*self.hash.borrow_mut() = None;
-	}
-
 	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
 	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
 

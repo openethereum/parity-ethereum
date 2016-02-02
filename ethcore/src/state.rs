@@ -143,7 +143,6 @@ impl State {
 //		let old = self.to_pod();
 
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
-		//println!("Executed: {:?}", e);
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
@@ -153,14 +152,9 @@ impl State {
 		Ok(receipt)
 	}
 
-	/// TODO [debris] Please document me
+	/// Reverts uncommited changed.
 	pub fn revert(&mut self, backup: State) {
 		self.cache = backup.cache;
-	}
-
-	/// Convert into a JSON representation.
-	pub fn as_json(&self) -> String {
-		unimplemented!();
 	}
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.

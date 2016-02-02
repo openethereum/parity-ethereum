@@ -1,22 +1,9 @@
 //! Parameters for a block chain.
 
 use common::*;
-use flate2::read::GzDecoder;
 use engine::*;
 use pod_state::*;
 use null_engine::*;
-
-/// Converts file from base64 gzipped bytes to json
-fn gzip64res_to_json(source: &[u8]) -> Json {
-	// there is probably no need to store genesis in based64 gzip,
-	// but that's what go does, and it was easy to load it this way
-	let data = source.from_base64().expect("Genesis block is malformed!");
-	let data_ref: &[u8] = &data;
-	let mut decoder = GzDecoder::new(data_ref).expect("Gzip is invalid");
-	let mut s: String = "".to_owned();
-	decoder.read_to_string(&mut s).expect("Gzip is invalid");
-	Json::from_str(&s).expect("Json is invalid")
-}
 
 /// Convert JSON value to equivalent RLP representation.
 // TODO: handle container types.
