@@ -1,3 +1,5 @@
+//! Single account in the system.
+
 use util::*;
 use pod_account::*;
 

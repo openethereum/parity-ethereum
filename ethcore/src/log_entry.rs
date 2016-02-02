@@ -31,21 +31,6 @@ impl LogEntry {
 		}
 	}
 
-	/// Returns reference to address.
-	pub fn address(&self) -> &Address {
-		&self.address
-	}
-
-	/// Returns reference to topics.
-	pub fn topics(&self) -> &Vec<H256> {
-		&self.topics
-	}
-
-	/// Returns reference to data.
-	pub fn data(&self) -> &Bytes {
-		&self.data
-	}
-
 	/// Calculates the bloom of this log entry.
 	pub fn bloom(&self) -> LogBloom {
 		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))

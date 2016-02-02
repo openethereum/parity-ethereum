@@ -1,3 +1,5 @@
+//! Block header.
+
 use util::*;
 use basic_types::*;
 use time::now_utc;

@@ -1,4 +1,6 @@
 //! Evm factory.
+//!
+//! TODO: consider spliting it into two separate files.
 use std::fmt;
 use evm::Evm;
 
@@ -6,6 +8,7 @@ use evm::Evm;
 /// TODO [Tomusdrw] Please document me
 pub enum VMType {
 	/// TODO [Tomusdrw] Please document me
+	#[allow(dead_code)] // crated only by jit
 	Jit,
 	/// TODO [Tomusdrw] Please document me
 	Interpreter
@@ -20,6 +23,7 @@ impl fmt::Display for VMType {
 	}
 }
 
+#[cfg(test)]
 impl VMType {
 	/// Return all possible VMs (JIT, Interpreter)
 	#[cfg(feature="jit")]
@@ -53,6 +57,7 @@ impl Factory {
 	}
 
 	/// Create new instance of specific `VMType` factory
+	#[cfg(test)]
 	pub fn new(evm: VMType) -> Factory {
 		Factory {
 			evm: evm
