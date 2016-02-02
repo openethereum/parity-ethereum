@@ -7,10 +7,9 @@
 [coveralls-image]: https://coveralls.io/repos/github/ethcore/parity/badge.svg?branch=master&t=Fk0OuQ
 [coveralls-url]: https://coveralls.io/r/ethcore/parity?branch=master
 
-
 ### Building from source
 
-##### Ubuntu 14.04 and later
+##### Ubuntu 14.04
 
 ```bash
 # install rocksdb
@@ -22,10 +21,8 @@ apt-get install -y --force-yes librocksdb
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
 
 # install nightly and make it default
-multirust update nightly && multirust default nightly
-
-# export rust LIBRARY_PATH
-export LIBRARY_PATH=/usr/local/lib
+multirust update nightly
+multirust default nightly
 
 # download and build parity
 git clone https://github.com/ethcore/parity
@@ -33,7 +30,31 @@ cd parity
 cargo build --release
 ```
 
-##### OSX
+##### Linux
+
+```bash
+# install rocksdb
+git clone --tag v4.1 --depth=1 https://github.com/facebook/rocksdb.git
+cd rocksdb
+make shared_lib 
+sudo cp -a librocksdb.so* /usr/lib 
+sudo ldconfig 
+cd ..
+
+# install rust nightly
+curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
+
+# install nightly and make it default
+sudo multirust update nightly
+sudo multirust default nightly
+
+# download and build parity
+git clone https://github.com/ethcore/parity
+cd parity
+cargo build --release
+```
+
+##### OSX with Homebrew
 
 ```bash
 # install rocksdb && multirust
@@ -43,9 +64,6 @@ brew install multirust
 
 # install nightly and make it default
 multirust update nightly && multirust default nightly
-
-# export rust LIBRARY_PATH
-export LIBRARY_PATH=/usr/local/lib
 
 # download and build parity
 git clone https://github.com/ethcore/parity
