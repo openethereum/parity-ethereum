@@ -42,3 +42,8 @@ impl HttpServer {
 		server.start_async(addr)
 	}
 }
+
+/// Lib needs at least 1 test to generate coverage reports correctly.
+#[test]
+fn if_works() {
+}
