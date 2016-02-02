@@ -76,6 +76,7 @@ extern crate crossbeam;
 
 pub mod block;
 pub mod blockchain;
+pub mod block_queue;
 pub mod client;
 pub mod error;
 pub mod ethereum;
@@ -106,6 +107,5 @@ mod substate;
 mod executive;
 mod externalities;
 mod verification;
-mod block_queue;
 
 #[cfg(test)] mod tests;
