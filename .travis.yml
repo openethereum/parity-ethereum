@@ -8,8 +8,7 @@ matrix:
   fast_finish: true
   include:
   - rust: nightly
-  - env: FEATURES="--features ethcore/json-tests"
-  - env: KCOV_FEATURES=""
+    env: FEATURES="--features ethcore/json-tests" KCOV_FEATURES=""
 cache:
   apt: true
   directories:
