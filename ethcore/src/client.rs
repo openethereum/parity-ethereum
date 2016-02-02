@@ -15,7 +15,7 @@ use verification::*;
 use block::*;
 
 /// General block status
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum BlockStatus {
 	/// Part of the blockchain.
 	InChain,
@@ -204,6 +204,7 @@ impl Client {
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.write().unwrap().drain(128);
+		let mut good_blocks = Vec::with_capacity(128);
 		for block in blocks {
 			if bad.contains(&block.header.parent_hash) {
 				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
@@ -256,6 +257,8 @@ impl Client {
 				break;
 			}
 
+			good_blocks.push(header.hash().clone());
+
 			self.chain.write().unwrap().insert_block(&block.bytes); //TODO: err here?
 			let ancient = if header.number() >= HISTORY { Some(header.number() - HISTORY) } else { None };
 			match result.drain().commit(header.number(), &header.hash(), ancient.map(|n|(n, self.chain.read().unwrap().block_hash(n).unwrap()))) {
@@ -269,6 +272,7 @@ impl Client {
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 			ret += 1;
 		}
+		self.block_queue.write().unwrap().mark_as_good(&good_blocks);
 		ret
 	}
 
@@ -318,7 +322,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_status(&self, hash: &H256) -> BlockStatus {
-		if self.chain.read().unwrap().is_known(&hash) { BlockStatus::InChain } else { BlockStatus::Unknown }
+		if self.chain.read().unwrap().is_known(&hash) {
+			BlockStatus::InChain 
+		} else { 
+			self.block_queue.read().unwrap().block_status(hash) 
+		}
 	}
 	
 	fn block_total_difficulty(&self, hash: &H256) -> Option<U256> {
@@ -364,6 +372,9 @@ impl BlockChainClient for Client {
 		let header = BlockView::new(&bytes).header();
 		if self.chain.read().unwrap().is_known(&header.hash()) {
 			return Err(ImportError::AlreadyInChain);
+		}
+		if self.block_status(&header.parent_hash) == BlockStatus::Unknown {
+			return Err(ImportError::UnknownParent);
 		}
 		self.block_queue.write().unwrap().import_block(bytes)
 	}

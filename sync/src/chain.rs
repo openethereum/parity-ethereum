@@ -408,6 +408,7 @@ impl ChainSync {
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
 		let header_view = HeaderView::new(header_rlp.as_raw());
 		// TODO: Decompose block and add to self.headers and self.bodies instead
+		let mut unknown = false;
 		if header_view.number() == From::from(self.last_imported_block + 1) {
 			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
 				Err(ImportError::AlreadyInChain) => {
@@ -415,6 +416,10 @@ impl ChainSync {
 				},
 				Err(ImportError::AlreadyQueued) => {
 					trace!(target: "sync", "New block already queued {:?}", h);
+				},
+				Err(ImportError::UnknownParent) => {
+					unknown = true;
+					trace!(target: "sync", "New block with unknown parent {:?}", h);
 				},
 				Ok(_) => {
 					trace!(target: "sync", "New block queued {:?}", h);
@@ -426,6 +431,9 @@ impl ChainSync {
 			};
 		} 
 		else {
+			unknown = true;
+		}
+		if unknown {
 			trace!(target: "sync", "New block unknown {:?}", h);
 			//TODO: handle too many unknown blocks
 			let difficulty: U256 = try!(r.val_at(1));
