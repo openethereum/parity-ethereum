@@ -86,7 +86,7 @@ pub mod views;
 
 mod common;
 mod basic_types;
-mod evm;
+#[macro_use] mod evm;
 mod log_entry;
 mod env_info;
 mod pod_account;
