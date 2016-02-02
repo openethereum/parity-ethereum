@@ -316,6 +316,7 @@ mod tests {
 	use block_queue::*;
 	use tests::helpers::*;
 	use error::*;
+	use views::*;
 
 	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
@@ -361,11 +362,14 @@ mod tests {
 	#[test]
 	fn returns_ok_for_drained_duplicates() {
 		let mut queue = get_test_queue();
-		if let Err(e) = queue.import_block(get_good_dummy_block()) {
+		let block = get_good_dummy_block();
+		let hash = BlockView::new(&block).header().hash().clone();
+		if let Err(e) = queue.import_block(block) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
 		queue.flush();
 		queue.drain(10);
+		queue.mark_as_good(&[ hash ]);
 
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that has already been drained ({:?})", e);
