@@ -6,11 +6,11 @@ use error::*;
 use evm::Schedule;
 
 #[derive(Debug, Clone)]
-/// TODO [Gav Wood] Please document me
+/// Transaction action type.
 pub enum Action {
-	/// TODO [Gav Wood] Please document me
+	/// Create creates new contract.
 	Create,
-	/// TODO [debris] Please document me
+	/// Calls contract at given address.
 	Call(Address),
 }
 
@@ -49,6 +49,7 @@ pub struct Transaction {
 
 impl Transaction {
 	/// TODO [Gav Wood] Please document me
+	#[cfg(test)]
 	pub fn new() -> Self {
 		Transaction {
 			nonce: x!(0),
@@ -66,6 +67,7 @@ impl Transaction {
 	}
 
 	/// Create a new message-call transaction.
+	#[cfg(test)]
 	pub fn new_call(to: Address, value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
 		Transaction {
 			nonce: nonce,
@@ -83,6 +85,7 @@ impl Transaction {
 	}
 
 	/// Create a new contract-creation transaction.
+	#[cfg(test)]
 	pub fn new_create(value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
 		Transaction {
 			nonce: nonce,
@@ -201,6 +204,7 @@ impl Transaction {
 	}
 
 	/// Signs the transaction as coming from `sender`.
+	#[cfg(test)]
 	pub fn signed(self, secret: &Secret) -> Transaction { let mut r = self; r.sign(secret); r }
 
 	/// Get the transaction cost in gas for the given params.

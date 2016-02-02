@@ -21,6 +21,7 @@ pub struct Account {
 }
 
 impl Account {
+	#[cfg(test)]
 	/// General constructor.
 	pub fn new(balance: U256, nonce: U256, storage: HashMap<H256, H256>, code: Bytes) -> Account {
 		Account {
