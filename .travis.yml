@@ -4,6 +4,8 @@ language: rust
 branches:
   only:
   - master
+  - /^beta-.*$/
+  - /^stable-.*$/
 matrix:
   fast_finish: true
   include:
