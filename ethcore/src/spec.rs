@@ -7,7 +7,7 @@ use pod_state::*;
 use null_engine::*;
 
 /// Converts file from base64 gzipped bytes to json
-pub fn gzip64res_to_json(source: &[u8]) -> Json {
+fn gzip64res_to_json(source: &[u8]) -> Json {
 	// there is probably no need to store genesis in based64 gzip,
 	// but that's what go does, and it was easy to load it this way
 	let data = source.from_base64().expect("Genesis block is malformed!");
