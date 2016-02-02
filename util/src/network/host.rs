@@ -346,6 +346,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn maintain_network(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+		self.keep_alive(io);
 		self.connect_peers(io);
 	}
 
@@ -355,6 +356,21 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
 		self.connections.read().unwrap().iter().any(|e| match *e.lock().unwrap().deref() { ConnectionEntry::Handshake(ref h) => h.id.eq(&id), _ => false  })
+	}
+
+	fn keep_alive(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+		let mut to_kill = Vec::new();
+		for e in self.connections.write().unwrap().iter_mut() {
+			if let ConnectionEntry::Session(ref mut s) = *e.lock().unwrap().deref_mut() {
+				if !s.keep_alive() {
+					s.disconnect(DisconnectReason::PingTimeout);
+					to_kill.push(s.token());
+				}
+			}
+		}
+		for p in to_kill {
+			self.kill_connection(p, io);
+		}
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage<Message>>) {

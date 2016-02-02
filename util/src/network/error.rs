@@ -15,7 +15,7 @@ pub enum DisconnectReason
 	_ClientQuit,
 	_UnexpectedIdentity,
 	_LocalIdentity,
-	_PingTimeout,
+	PingTimeout,
 }
 
 #[derive(Debug)]
