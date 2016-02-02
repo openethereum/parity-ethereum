@@ -43,7 +43,7 @@ after_success: |
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = nightly ] &&
-  cargo doc --no-deps --verbose ${KCOV_FEATURES} ${RARGETS} &&
+  cargo doc --no-deps --verbose ${KCOV_FEATURES} ${TARGETS} &&
   echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html &&
   pip install --user ghp-import &&
   /home/travis/.local/bin/ghp-import -n target/doc 
