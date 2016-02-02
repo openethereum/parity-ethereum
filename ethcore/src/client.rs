@@ -294,7 +294,12 @@ impl Client {
 
 	/// Tick the client.
 	pub fn tick(&self) {
-		self.chain.read().unwrap().collect_garbage(false);
+		self.chain.read().unwrap().collect_garbage();
+	}
+
+	/// Set up the cache behaviour.
+	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
+		self.chain.write().unwrap().configure_cache(pref_cache_size, max_cache_size);
 	}
 }
 

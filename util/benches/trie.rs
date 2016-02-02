@@ -43,6 +43,84 @@ fn random_value(seed: &mut H256) -> Bytes {
 }
 
 #[bench]
+fn trie_insertions_32_mir_1k(b: &mut Bencher) {
+	let st = StandardMap {
+		alphabet: Alphabet::All,
+		min_key: 32,
+		journal_key: 0,
+		value_mode: ValueMode::Mirror,
+		count: 1000,
+	};
+	let d = st.make();
+	let mut hash_count = 0usize;
+	b.iter(&mut ||{
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		for i in d.iter() {
+			t.insert(&i.0, &i.1);
+		}
+		hash_count = t.hash_count;
+	});
+//	println!("hash_count: {}", hash_count);
+}
+
+#[bench]
+fn triehash_insertions_32_mir_1k(b: &mut Bencher) {
+	let st = StandardMap {
+		alphabet: Alphabet::All,
+		min_key: 32,
+		journal_key: 0,
+		value_mode: ValueMode::Mirror,
+		count: 1000,
+	};
+	let d = st.make();
+	b.iter(&mut ||{
+		trie_root(d.clone()).clone();
+	});
+}
+
+#[bench]
+fn trie_insertions_32_ran_1k(b: &mut Bencher) {
+	let st = StandardMap {
+		alphabet: Alphabet::All,
+		min_key: 32,
+		journal_key: 0,
+		value_mode: ValueMode::Random,
+		count: 1000,
+	};
+	let d = st.make();
+	let mut hash_count = 0usize;
+	let mut r = H256::new();
+	b.iter(&mut ||{
+		let mut memdb = MemoryDB::new();
+		let mut root = H256::new();
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		for i in d.iter() {
+			t.insert(&i.0, &i.1);
+		}
+		hash_count = t.hash_count;
+		r = t.root().clone();
+	});
+//	println!("result: {}", hash_count);
+}
+
+#[bench]
+fn triehash_insertions_32_ran_1k(b: &mut Bencher) {
+	let st = StandardMap {
+		alphabet: Alphabet::All,
+		min_key: 32,
+		journal_key: 0,
+		value_mode: ValueMode::Random,
+		count: 1000,
+	};
+	let d = st.make();
+	b.iter(&mut ||{
+		trie_root(d.clone()).clone();
+	});
+}
+
+#[bench]
 fn trie_insertions_six_high(b: &mut Bencher) {
 	let mut d: Vec<(Bytes, Bytes)> = Vec::new();
 	let mut seed = H256::new();
