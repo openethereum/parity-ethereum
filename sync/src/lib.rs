@@ -33,11 +33,13 @@ extern crate log;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate env_logger;
+extern crate time;
 
 use std::ops::*;
 use std::sync::*;
 use ethcore::client::Client;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
+use util::io::TimerToken;
 use chain::ChainSync;
 use ethcore::service::SyncMessage;
 use io::NetSyncIo;
@@ -87,7 +89,8 @@ impl EthSync {
 }
 
 impl NetworkProtocolHandler<SyncMessage> for EthSync {
-	fn initialize(&self, _io: &NetworkContext<SyncMessage>) {
+	fn initialize(&self, io: &NetworkContext<SyncMessage>) {
+		io.register_timer(0, 1000).expect("Error registering sync timer");
 	}
 
 	fn read(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -100,6 +103,10 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 
 	fn disconnected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
 		self.sync.write().unwrap().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
+	}
+
+	fn timeout(&self, io: &NetworkContext<SyncMessage>, _timer: TimerToken) {
+		self.sync.write().unwrap().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 }
 
