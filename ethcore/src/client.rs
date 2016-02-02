@@ -116,18 +116,18 @@ pub trait BlockChainClient : Sync + Send {
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
-/// TODO [Gav Wood] Please document me
+/// Report on the status of a client.
 pub struct ClientReport {
-	/// TODO [Gav Wood] Please document me
+	/// How many blocks have been imported so far.
 	pub blocks_imported: usize,
-	/// TODO [Gav Wood] Please document me
+	/// How many transactions have been applied so far.
 	pub transactions_applied: usize,
-	/// TODO [Gav Wood] Please document me
+	/// How much gas has been processed so far.
 	pub gas_processed: U256,
 }
 
 impl ClientReport {
-	/// TODO [Gav Wood] Please document me
+	/// Alter internal reporting to reflect the additional `block` has been processed.
 	pub fn accrue_block(&mut self, block: &PreVerifiedBlock) {
 		self.blocks_imported += 1;
 		self.transactions_applied += block.transactions.len();
