@@ -1,3 +1,5 @@
+//! Calculates heapsize of util types.
+
 use uint::*;
 use hash::*;
 

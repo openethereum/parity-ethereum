@@ -3,7 +3,7 @@ description = "Ethcore library"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethcore"
-version = "0.1.0"
+version = "0.9.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
@@ -25,7 +25,6 @@ crossbeam = "0.1.5"
 lazy_static = "0.1"
 
 [features]
-default = ["json-tests"]
 jit = ["evmjit"]
 evm-debug = []
 json-tests = []

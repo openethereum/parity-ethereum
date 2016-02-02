@@ -17,12 +17,26 @@ pub enum Alphabet {
 	Custom(Bytes),
 }
 
+/// Means of determining the value.
+pub enum ValueMode {
+	/// Same as the key.
+	Mirror,
+	/// Randomly (50:50) 1 or 32 byte randomly string.
+	Random,
+}
+
 /// Standard test map for profiling tries.
 pub struct StandardMap {
-	alphabet: Alphabet,
-	min_key: usize,
-	journal_key: usize,
-	count: usize,
+	/// The alphabet to use for keys.
+	pub alphabet: Alphabet,
+	/// Minimum size of key.
+	pub min_key: usize,
+	/// Delta size of key.
+	pub journal_key: usize,
+	/// Mode of value generation.
+	pub value_mode: ValueMode,
+	/// Number of keys.
+	pub count: usize,
 }
 
 impl StandardMap {
@@ -71,7 +85,7 @@ impl StandardMap {
 				Alphabet::Mid => Self::random_word(mid, self.min_key, self.journal_key, &mut seed),
 				Alphabet::Custom(ref a) => Self::random_word(&a, self.min_key, self.journal_key, &mut seed),
 			};
-			let v = Self::random_value(&mut seed);
+			let v = match self.value_mode { ValueMode::Mirror => k.clone(), ValueMode::Random => Self::random_value(&mut seed) };
 			d.push((k, v))
 		}
 		d

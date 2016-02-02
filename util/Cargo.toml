@@ -3,7 +3,7 @@ description = "Ethcore utility library"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethcore-util"
-version = "0.1.0"
+version = "0.9.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
@@ -28,3 +28,4 @@ sha3 = { path = "sha3" }
 serde = "0.6.7"
 clippy = "0.0.37"
 json-tests = { path = "json-tests" }
+target_info = "0.1.0"

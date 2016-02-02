@@ -35,9 +35,15 @@ Usage:
   parity [options] <enode>...
 
 Options:
-  -l --logging LOGGING  Specify the logging level
-  -h --help             Show this screen.
-");
+  -l --logging LOGGING     Specify the logging level.
+  -j --jsonrpc             Enable the JSON-RPC API sever.
+  --jsonrpc-url URL        Specify URL for JSON-RPC API server (default: 127.0.0.1:8545).
+
+  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes (default: 16384).
+  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes (default: 262144).
+
+  -h --help                Show this screen.
+", flag_cache_pref_size: usize, flag_cache_max_size: usize);
 
 fn setup_log(init: &str) {
 	let mut builder = LogBuilder::new();
@@ -54,7 +60,7 @@ fn setup_log(init: &str) {
 
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>) {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str) {
 	use rpc::v1::*;
 	
 	let mut server = rpc::HttpServer::new(1);
@@ -62,11 +68,11 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>) {
 	server.add_delegate(EthClient::new(client.clone()).to_delegate());
 	server.add_delegate(EthFilterClient::new(client).to_delegate());
 	server.add_delegate(NetClient::new(sync).to_delegate());
-	server.start_async("127.0.0.1:3030");
+	server.start_async(url);
 }
 
 #[cfg(not(feature = "rpc"))]
-fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>) {
+fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
 }
 
 fn main() {
@@ -83,8 +89,11 @@ fn main() {
 	net_settings.boot_nodes = init_nodes;
 	let mut service = ClientService::start(spec, net_settings).unwrap();
 	let client = service.client().clone();
+	client.configure_cache(args.flag_cache_pref_size, args.flag_cache_max_size);
 	let sync = EthSync::register(service.network(), client);
-	setup_rpc_server(service.client(), sync.clone());
+	if args.flag_jsonrpc {
+		setup_rpc_server(service.client(), sync.clone(), &args.flag_jsonrpc_url);
+	}
 	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: sync });
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
@@ -169,3 +178,7 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	}
 }
 
+/// Parity needs at least 1 test to generate coverage reports correctly.
+#[test]
+fn if_works() {
+}

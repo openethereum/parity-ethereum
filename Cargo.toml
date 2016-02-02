@@ -19,6 +19,7 @@ ethsync = { path = "sync" }
 ethcore-rpc = { path = "rpc", optional = true }
 
 [features]
+default = ["rpc"]
 rpc = ["ethcore-rpc"]
 
 [[bin]]
