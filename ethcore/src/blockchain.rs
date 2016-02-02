@@ -129,6 +129,9 @@ struct CacheManager {
 ///
 /// **Does not do input data verification.**
 pub struct BlockChain {
+	pref_cache_size: usize,
+	max_cache_size: usize,
+
 	best_block: RwLock<BestBlock>,
 
 	// block cache
@@ -190,9 +193,7 @@ impl BlockProvider for BlockChain {
 	}
 }
 
-const COLLECTION_QUEUE_SIZE: usize = 2;
-const MIN_CACHE_SIZE: usize = 1;
-const MAX_CACHE_SIZE: usize = 1024 * 1024;
+const COLLECTION_QUEUE_SIZE: usize = 8;
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
@@ -237,6 +238,8 @@ impl BlockChain {
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
 
 		let bc = BlockChain {
+			pref_cache_size: 1 << 14,
+			max_cache_size: 1 << 20,
 			best_block: RwLock::new(BestBlock::new()),
 			blocks: RwLock::new(HashMap::new()),
 			block_details: RwLock::new(HashMap::new()),
@@ -286,6 +289,12 @@ impl BlockChain {
 		}
 
 		bc
+	}
+
+	/// Set the cache configuration.
+	pub fn configure_cache(&mut self, pref_cache_size: usize, max_cache_size: usize) {
+		self.pref_cache_size = pref_cache_size;
+		self.max_cache_size = max_cache_size;
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
@@ -339,12 +348,12 @@ impl BlockChain {
 			Some(h) => h,
 			None => return None,
 		};
-		Some(self._tree_route((&from_details, &from), (&to_details, &to)))
+		Some(self.tree_route_aux((&from_details, &from), (&to_details, &to)))
 	}
 
 	/// Similar to `tree_route` function, but can be used to return a route
 	/// between blocks which may not be in database yet.
-	fn _tree_route(&self, from: (&BlockDetails, &H256), to: (&BlockDetails, &H256)) -> TreeRoute {
+	fn tree_route_aux(&self, from: (&BlockDetails, &H256), to: (&BlockDetails, &H256)) -> TreeRoute {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
@@ -465,7 +474,7 @@ impl BlockChain {
 		// find the route between old best block and the new one
 		let best_hash = self.best_block_hash();
 		let best_details = self.block_details(&best_hash).expect("best block hash is invalid!");
-		let route = self._tree_route((&best_details, &best_hash), (&details, &hash));
+		let route = self.tree_route_aux((&best_details, &best_hash), (&details, &hash));
 
 		match route.blocks.len() {
 			// its our parent
@@ -581,36 +590,37 @@ impl BlockChain {
 	}
 
 	/// Ticks our cache system and throws out any old data.
-	pub fn collect_garbage(&self, force: bool) {
-		// TODO: check time.
-		let timeout = true;
+	pub fn collect_garbage(&self) {
+		if self.cache_size().total() < self.pref_cache_size { return; }
 
-		let t = self.cache_size().total();
-		if t < MIN_CACHE_SIZE || (!timeout && (!force || t < MAX_CACHE_SIZE)) { return; }
+		for _ in 0..COLLECTION_QUEUE_SIZE {
+			{
+				let mut cache_man = self.cache_man.write().unwrap();
+				let mut blocks = self.blocks.write().unwrap();
+				let mut block_details = self.block_details.write().unwrap();
+				let mut block_hashes = self.block_hashes.write().unwrap();
+				let mut transaction_addresses = self.transaction_addresses.write().unwrap();
+				let mut block_logs = self.block_logs.write().unwrap();
+				let mut blocks_blooms = self.blocks_blooms.write().unwrap();
 
-		let mut cache_man = self.cache_man.write().unwrap();
-		let mut blocks = self.blocks.write().unwrap();
-		let mut block_details = self.block_details.write().unwrap();
-		let mut block_hashes = self.block_hashes.write().unwrap();
-		let mut transaction_addresses = self.transaction_addresses.write().unwrap();
-		let mut block_logs = self.block_logs.write().unwrap();
-		let mut blocks_blooms = self.blocks_blooms.write().unwrap();
+				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
+					cache_man.in_use.remove(&id);
+					match id {
+						CacheID::Block(h) => { blocks.remove(&h); },
+						CacheID::Extras(ExtrasIndex::BlockDetails, h) => { block_details.remove(&h); },
+						CacheID::Extras(ExtrasIndex::TransactionAddress, h) => { transaction_addresses.remove(&h); },
+						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
+						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => { blocks_blooms.remove(&h); },
+						_ => panic!(),
+					}
+				}
+				cache_man.cache_usage.push_front(HashSet::new());
 
-		for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
-			cache_man.in_use.remove(&id);
-			match id {
-				CacheID::Block(h) => { blocks.remove(&h); },
-				CacheID::Extras(ExtrasIndex::BlockDetails, h) => { block_details.remove(&h); },
-				CacheID::Extras(ExtrasIndex::TransactionAddress, h) => { transaction_addresses.remove(&h); },
-				CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
-				CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => { blocks_blooms.remove(&h); },
-				_ => panic!(),
+				// TODO: handle block_hashes properly.
+				block_hashes.clear();
 			}
+			if self.cache_size().total() < self.max_cache_size { break; }
 		}
-		cache_man.cache_usage.push_front(HashSet::new());
-
-		// TODO: handle block_hashes properly.
-		block_hashes.clear();
 
 		// TODO: m_lastCollection = chrono::system_clock::now();
 	}
@@ -786,7 +796,7 @@ mod tests {
 		assert!(bc.cache_size().blocks > 1024 * 1024);
 
 		for _ in 0..2 {
-			bc.collect_garbage(true);
+			bc.collect_garbage();
 		}
 		assert!(bc.cache_size().blocks < 1024 * 1024);
 	}
