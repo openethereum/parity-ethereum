@@ -15,31 +15,30 @@ pub enum Error {
 	/// `BadJumpDestination` is returned when execution tried to move
 	/// to position that wasn't marked with JUMPDEST instruction
 	BadJumpDestination {
-		/// TODO [Tomusdrw] Please document me
+		/// Position the code tried to jump to.
 		destination: usize
 	},
 	/// `BadInstructions` is returned when given instruction is not supported
 	BadInstruction {
-		/// TODO [Tomusdrw] Please document me
+		/// Unrecognized opcode
 		instruction: u8,
 	},
 	/// `StackUnderflow` when there is not enough stack elements to execute instruction
-	/// First parameter says how many elements were needed and the second how many were actually on Stack
 	StackUnderflow {
-		/// TODO [Tomusdrw] Please document me
+		/// Invoked instruction
 		instruction: &'static str,
-		/// TODO [Tomusdrw] Please document me
+		/// How many stack elements was requested by instruction
 		wanted: usize, 
-		/// TODO [Tomusdrw] Please document me
+		/// How many elements were on stack
 		on_stack: usize
 	},
 	/// When execution would exceed defined Stack Limit
 	OutOfStack {
-		/// TODO [Tomusdrw] Please document me
+		/// Invoked instruction
 		instruction: &'static str,
-		/// TODO [Tomusdrw] Please document me
-		wanted: usize, 
-		/// TODO [Tomusdrw] Please document me
+		/// How many stack elements instruction wanted to push
+		wanted: usize,
+		/// What was the stack limit
 		limit: usize
 	},
 	/// Returned on evm internal error. Should never be ignored during development.
