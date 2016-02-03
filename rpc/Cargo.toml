@@ -17,4 +17,5 @@ ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
 clippy = "0.0.37"
+target_info = "0.1.0"
 
