@@ -603,7 +603,7 @@ mod tests {
 	}
 
 	#[test]
-	fn connection_write_to_broken_socket() {
+	fn connection_write_to_broken() {
 		let mut connection = TestBrokenConnection::new();
 		let data = Cursor::new(vec![0; 10240]);
 		connection.send_queue.push_back(data);
@@ -612,5 +612,51 @@ mod tests {
 
 		assert!(!status.is_ok());
 		assert_eq!(1, connection.send_queue.len());
+	}
+
+	#[test]
+	fn connection_read() {
+		let mut connection = TestConnection::new();
+		connection.rec_size = 2048;
+		connection.rec_buf = vec![10; 1024];
+		connection.socket.read_buffer = vec![99; 2048];
+
+		let status = connection.readable();
+
+		assert!(status.is_ok());
+		assert_eq!(1024, connection.socket.cursor);
+	}
+
+	#[test]
+	fn connection_read_from_broken() {
+		let mut connection = TestBrokenConnection::new();
+		connection.rec_size = 2048;
+
+		let status = connection.readable();
+		assert!(!status.is_ok());
+		assert_eq!(0, connection.rec_buf.len());
+	}
+
+	#[test]
+	fn connection_read_nothing() {
+		let mut connection = TestConnection::new();
+		connection.rec_size = 2048;
+
+		let status = connection.readable();
+
+		assert!(status.is_ok());
+		assert_eq!(0, connection.rec_buf.len());
+	}
+
+	#[test]
+	fn connection_read_full() {
+		let mut connection = TestConnection::new();
+		connection.rec_size = 1024;
+		connection.rec_buf = vec![76;1024];
+
+		let status = connection.readable();
+
+		assert!(status.is_ok());
+		assert_eq!(0, connection.socket.cursor);
 	}
 }
