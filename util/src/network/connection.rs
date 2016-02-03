@@ -432,7 +432,7 @@ mod tests {
 	use super::*;
 	use std::sync::*;
 	use super::super::stats::*;
-	use std::io::{Read, Write, Error};
+	use std::io::{Read, Write, Error, Cursor};
 	use std::cmp;
 	use mio::{EventSet};
 	use std::collections::VecDeque;
@@ -442,6 +442,7 @@ mod tests {
 		read_buffer: Vec<u8>,
 		write_buffer: Vec<u8>,
 		cursor: usize,
+		buf_size: usize,
 	}
 
 	impl TestSocket {
@@ -450,6 +451,16 @@ mod tests {
 				read_buffer: vec![],
 				write_buffer: vec![],
 				cursor: 0,
+				buf_size: 0,
+			}
+		}
+
+		fn new_buf(buf_size: usize) -> TestSocket {
+			TestSocket {
+				read_buffer: vec![],
+				write_buffer: vec![],
+				cursor: 0,
+				buf_size: buf_size,
 			}
 		}
 	}
@@ -473,8 +484,14 @@ mod tests {
 
 	impl Write for TestSocket {
 		fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-			self.write_buffer.extend(buf.iter().cloned());
-			Ok(buf.len())
+			if self.buf_size == 0 || buf.len() < self.buf_size {
+				self.write_buffer.extend(buf.iter().cloned());
+				Ok(buf.len())
+			}
+			else {
+				self.write_buffer.extend(buf.iter().take(self.buf_size).cloned());
+				Ok(self.buf_size)
+			}
 		}
 
 		fn flush(&mut self) -> Result<(), Error> {
@@ -504,6 +521,40 @@ mod tests {
 	fn connection_expect() {
 		let mut connection = TestConnection::new();
 		connection.expect(1024);
-		assert_eq!(connection.rec_size, 1024);
+		assert_eq!(1024, connection.rec_size);
+	}
+
+	#[test]
+	fn connection_write_empty() {
+		let mut connection = TestConnection::new();
+		let status = connection.writable();
+		assert!(status.is_ok());
+		assert!(WriteStatus::Complete == status.unwrap());
+	}
+
+	#[test]
+	fn connection_write() {
+		let mut connection = TestConnection::new();
+		let data = Cursor::new(vec![0; 10240]);
+		connection.send_queue.push_back(data);
+
+		let status = connection.writable();
+		assert!(status.is_ok());
+		assert!(WriteStatus::Complete == status.unwrap());
+		assert_eq!(10240, connection.socket.write_buffer.len());
+	}
+
+	#[test]
+	fn connection_write_is_buffered() {
+		let mut connection = TestConnection::new();
+		connection.socket = TestSocket::new_buf(1024);
+		let data = Cursor::new(vec![0; 10240]);
+		connection.send_queue.push_back(data);
+
+		let status = connection.writable();
+
+		assert!(status.is_ok());
+		assert!(WriteStatus::Ongoing == status.unwrap());
+		assert_eq!(1024, connection.socket.write_buffer.len());
 	}
 }
