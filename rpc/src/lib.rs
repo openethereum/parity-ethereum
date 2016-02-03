@@ -4,6 +4,7 @@
 #![plugin(serde_macros)]
 #![plugin(clippy)]
 
+extern crate target_info;
 extern crate serde;
 extern crate serde_json;
 extern crate jsonrpc_core;
