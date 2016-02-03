@@ -23,6 +23,7 @@ impl PodState {
 
 	/// Drain object to get the underlying map.
 	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
 }
 

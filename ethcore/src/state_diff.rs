@@ -1,4 +1,5 @@
 use util::*;
+#[cfg(test)]
 use pod_state::*;
 use account_diff::*;
 
@@ -8,6 +9,7 @@ use account_diff::*;
 pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
 impl StateDiff {
+	#[cfg(test)]
 	/// Calculate and return diff between `pre` state and `post` state.
 	#[allow(dead_code)]	// Used only in test code for now.
 	pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {

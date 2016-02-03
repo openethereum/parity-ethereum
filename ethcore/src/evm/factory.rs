@@ -24,6 +24,7 @@ impl fmt::Display for VMType {
 }
 
 #[cfg(test)]
+#[cfg(feature = "json-tests")]
 impl VMType {
 	/// Return all possible VMs (JIT, Interpreter)
 	#[cfg(feature="jit")]

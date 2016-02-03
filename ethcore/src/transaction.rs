@@ -50,6 +50,7 @@ pub struct Transaction {
 impl Transaction {
 	/// Create a new transaction.
 	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	pub fn new() -> Self {
 		Transaction {
 			nonce: x!(0),
@@ -58,24 +59,6 @@ impl Transaction {
 			action: Action::Create,
 			value: x!(0),
 			data: vec![],
-			v: 0,
-			r: x!(0),
-			s: x!(0),
-			hash: RefCell::new(None),
-			sender: RefCell::new(None),
-		}
-	}
-
-	/// Create a new message-call transaction.
-	#[cfg(test)]
-	pub fn new_call(to: Address, value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
-		Transaction {
-			nonce: nonce,
-			gas_price: gas_price,
-			gas: gas,
-			action: Action::Call(to),
-			value: value,
-			data: data,
 			v: 0,
 			r: x!(0),
 			s: x!(0),
@@ -230,7 +213,9 @@ impl Transaction {
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
-	#[allow(dead_code)]	// Used only in tests. TODO: consider use in block validation.
+	// TODO: consider use in block validation.
+	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	pub fn validate(self, schedule: &Schedule, require_low: bool) -> Result<Transaction, Error> {
 		if require_low && !ec::is_low_s(&self.s) {
 			return Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)));

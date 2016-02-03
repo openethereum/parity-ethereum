@@ -34,8 +34,9 @@ impl Account {
 		}
 	}
 
+	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	/// General constructor.
-	#[allow(dead_code)]	// Used only in test code for now.
 	pub fn from_pod(pod: PodAccount) -> Account {
 		Account {
 			balance: pod.balance,
@@ -110,8 +111,8 @@ impl Account {
 	/// return the nonce associated with this account.
 	pub fn nonce(&self) -> &U256 { &self.nonce }
 
+	#[cfg(test)]
 	/// return the code hash associated with this account.
-	#[allow(dead_code)]	// Used only in test code for now.
 	pub fn code_hash(&self) -> H256 {
 		self.code_hash.clone().unwrap_or(SHA3_EMPTY)
 	}
@@ -127,8 +128,8 @@ impl Account {
 		}
 	}
 
+	#[cfg(test)]
 	/// Provide a byte array which hashes to the `code_hash`. returns the hash as a result.
-	#[allow(dead_code)]	// Used only in test code for now.
 	pub fn note_code(&mut self, code: Bytes) -> Result<(), H256> {
 		let h = code.sha3();
 		match self.code_hash {
@@ -162,12 +163,12 @@ impl Account {
 			}
 	}
 
+	#[cfg(test)]
 	/// Determine whether there are any un-`commit()`-ed storage-setting operations.
-	#[allow(dead_code)]
 	pub fn storage_is_clean(&self) -> bool { self.storage_overlay.borrow().iter().find(|&(_, &(f, _))| f == Filth::Dirty).is_none() }
 	
+	#[cfg(test)]
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
-	#[allow(dead_code)]
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
 	
 	/// return the storage overlay.
