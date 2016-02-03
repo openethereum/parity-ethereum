@@ -1,19 +1,20 @@
 //! Trie interface and implementation.
 
-/// TODO [Gav Wood] Please document me
+/// Export the trietraits module.
 pub mod trietraits;
+/// Export the standardmap module.
 pub mod standardmap;
-/// TODO [Gav Wood] Please document me
+/// Export the journal module.
 pub mod journal;
-/// TODO [Gav Wood] Please document me
+/// Export the node module.
 pub mod node;
-/// TODO [Gav Wood] Please document me
+/// Export the triedb module.
 pub mod triedb;
-/// TODO [Gav Wood] Please document me
+/// Export the triedbmut module.
 pub mod triedbmut;
-/// TODO [Gav Wood] Please document me
+/// Export the sectriedb module.
 pub mod sectriedb;
-/// TODO [Gav Wood] Please document me
+/// Export the sectriedbmut module.
 pub mod sectriedbmut;
 
 pub use self::trietraits::*;

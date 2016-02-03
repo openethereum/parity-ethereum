@@ -230,6 +230,7 @@ impl Transaction {
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
+	#[allow(dead_code)]	// Used only in tests. TODO: consider use in block validation.
 	pub fn validate(self, schedule: &Schedule, require_low: bool) -> Result<Transaction, Error> {
 		if require_low && !ec::is_low_s(&self.s) {
 			return Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)));

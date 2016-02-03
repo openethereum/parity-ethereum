@@ -2,6 +2,7 @@ use common::*;
 use engine::Engine;
 use executive::Executive;
 use pod_account::*;
+#[cfg(test)]
 use pod_state::PodState;
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
@@ -194,6 +195,7 @@ impl State {
 	}
 
 	/// Populate a PodAccount map from this state.
+	#[allow(dead_code)]	// Used only in test code for now.
 	pub fn to_hashmap_pod(&self) -> HashMap<Address, PodAccount> {
 		// TODO: handle database rather than just the cache.
 		self.cache.borrow().iter().fold(HashMap::new(), |mut m, (add, opt)| {

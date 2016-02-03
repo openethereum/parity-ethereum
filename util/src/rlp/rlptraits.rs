@@ -7,15 +7,15 @@ use elastic_array::ElasticArray1024;
 use hash::H256;
 use sha3::*;
 
-/// TODO [debris] Please document me
+/// Type is able to decode RLP.
 pub trait Decoder: Sized {
-	/// TODO [debris] Please document me
+	/// Read a value from the RLP into a given type.
 	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
 		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 
-	/// TODO [Gav Wood] Please document me
+	/// Get underlying `UntrustedRLP` object.
 	fn as_rlp(&self) -> &UntrustedRlp;
-	/// TODO [debris] Please document me
+	/// Get underlying raw bytes slice.
 	fn as_raw(&self) -> &[u8];
 }
 

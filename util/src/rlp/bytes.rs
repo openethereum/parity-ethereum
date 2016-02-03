@@ -236,7 +236,7 @@ impl_uint_from_bytes!(U128);
 
 impl <T>FromBytes for T where T: FixedHash {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<T> {
-		match bytes.len().cmp(&T::size()) {
+		match bytes.len().cmp(&T::len()) {
 			Ordering::Less => return Err(FromBytesError::DataIsTooShort),
 			Ordering::Greater => return Err(FromBytesError::DataIsTooLong),
 			Ordering::Equal => ()
@@ -246,7 +246,7 @@ impl <T>FromBytes for T where T: FixedHash {
 			use std::{mem, ptr};
 
 			let mut res: T = mem::uninitialized();
-			ptr::copy(bytes.as_ptr(), res.as_slice_mut().as_mut_ptr(), T::size());
+			ptr::copy(bytes.as_ptr(), res.as_slice_mut().as_mut_ptr(), T::len());
 
 			Ok(res)
 		}

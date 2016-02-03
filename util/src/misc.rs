@@ -5,13 +5,13 @@ use common::*;
 #[derive(Debug,Clone,PartialEq,Eq)]
 /// Diff type for specifying a change (or not).
 pub enum Diff<T> where T: Eq {
-	/// TODO [Gav Wood] Please document me
+	/// Both sides are the same.
 	Same,
-	/// TODO [Gav Wood] Please document me
+	/// Left (pre, source) side doesn't include value, right side (post, destination) does.
 	Born(T),
-	/// TODO [Gav Wood] Please document me
+	/// Both sides include data; it chaged value between them.
 	Changed(T, T),
-	/// TODO [Gav Wood] Please document me
+	/// Left (pre, source) side does include value, right side (post, destination) does not.
 	Died(T),
 }
 
@@ -32,8 +32,8 @@ impl<T> Diff<T> where T: Eq {
 #[derive(PartialEq,Eq,Clone,Copy)]
 /// Boolean type for clean/dirty status.
 pub enum Filth {
-	/// TODO [Gav Wood] Please document me
+	/// Data has not been changed.
 	Clean,
-	/// TODO [Gav Wood] Please document me
+	/// Data has been changed.
 	Dirty,
 }

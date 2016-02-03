@@ -6,36 +6,36 @@ use rlp::DecoderError;
 use io;
 
 #[derive(Debug)]
-/// TODO [Gav Wood] Please document me
+/// Error in database subsystem.
 pub enum BaseDataError {
-	/// TODO [Gav Wood] Please document me
+	/// An entry was removed more times than inserted.
 	NegativelyReferencedHash,
 }
 
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
 pub enum UtilError {
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning the crypto utility subsystem.
 	Crypto(::crypto::CryptoError),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning the Rust standard library's IO subsystem.
 	StdIo(::std::io::Error),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning our IO utility subsystem.
 	Io(io::IoError),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning the network address parsing subsystem.
 	AddressParse(::std::net::AddrParseError),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning the network address resolution subsystem.
 	AddressResolve(Option<::std::io::Error>),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning the hex conversion logic.
 	FromHex(FromHexError),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning the database abstraction logic.
 	BaseData(BaseDataError),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning the network subsystem.
 	Network(NetworkError),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning the RLP decoder.
 	Decoder(DecoderError),
-	/// TODO [Gav Wood] Please document me
+	/// Miscellaneous error described by a string.
 	SimpleString(String),
-	/// TODO [Gav Wood] Please document me
+	/// Error from a bad input size being given for the needed output.
 	BadSize,
 }
 

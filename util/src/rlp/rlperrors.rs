@@ -3,27 +3,27 @@ use std::error::Error as StdError;
 use rlp::bytes::FromBytesError;
 
 #[derive(Debug, PartialEq, Eq)]
-/// TODO [debris] Please document me
+/// Error concerning the RLP decoder.
 pub enum DecoderError {
-	/// TODO [debris] Please document me
+	/// Couldn't convert given bytes to an instance of required type.
 	FromBytesError(FromBytesError),
-	/// Given data has additional bytes at the end of the valid RLP fragment.
+	/// Data has additional bytes at the end of the valid RLP fragment.
 	RlpIsTooBig,
-	/// TODO [debris] Please document me
+	/// Data has too few bytes for valid RLP.
 	RlpIsTooShort,
-	/// TODO [debris] Please document me
+	/// Expect an encoded list, RLP was something else.
 	RlpExpectedToBeList,
-	/// TODO [Gav Wood] Please document me
+	/// Expect encoded data, RLP was something else.
 	RlpExpectedToBeData,
-	/// TODO [Gav Wood] Please document me
+	/// Expected a different size list.
 	RlpIncorrectListLen,
-	/// TODO [Gav Wood] Please document me
+	/// Data length number has a prefixed zero byte, invalid for numbers.
 	RlpDataLenWithZeroPrefix,
-	/// TODO [Gav Wood] Please document me
+	/// List length number has a prefixed zero byte, invalid for numbers.
 	RlpListLenWithZeroPrefix,
-	/// TODO [debris] Please document me
+	/// Non-canonical (longer than necessary) representation used for data or list.
 	RlpInvalidIndirection,
-	/// Returned when declared length is inconsistent with data specified after
+	/// Declared length is inconsistent with data specified after.
 	RlpInconsistentLengthAndData
 }
 

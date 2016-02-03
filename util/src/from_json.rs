@@ -9,8 +9,8 @@ macro_rules! xjson {
 	}
 }
 
-/// TODO [Gav Wood] Please document me
+/// Trait allowing conversion from a JSON value.
 pub trait FromJson {
-	/// TODO [Gav Wood] Please document me
+	/// Convert a JSON value to an instance of this type.
 	fn from_json(json: &Json) -> Self;
 }

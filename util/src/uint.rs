@@ -60,20 +60,20 @@ macro_rules! panic_on_overflow {
 	}
 }
 
-/// Generic Uint of unspecified size
+/// Large, fixed-length unsigned integer type.
 pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + fmt::Display + PartialOrd + Ord + PartialEq + Eq + Hash {
 
 	/// Size of this type.
 	const SIZE: usize;
 
-	/// Returns `Uint(0)`
+	/// Returns new instance equalling zero.
 	fn zero() -> Self;
-	/// Returns `Uint(1)`
+	/// Returns new instance equalling one.
 	fn one() -> Self;
 
-	/// Error returned when `from_dec_str` method fails
+	/// Error type for converting from a decimal string.
 	type FromDecStrErr;
-	/// Create `Uint` from specified decimal represented by string
+	/// Convert from a decimal string.
 	fn from_dec_str(value: &str) -> Result<Self, Self::FromDecStrErr>;
 
 	/// Conversion to u32
@@ -103,7 +103,6 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 	fn pow(self, other: Self) -> Self;
 	/// Return wrapped eponentation `self**other` and flag if there was an overflow
 	fn overflowing_pow(self, other: Self) -> (Self, bool);
-
 
 	/// Add this `Uint` to other returning result and possible overflow
 	fn overflowing_add(self, other: Self) -> (Self, bool);
@@ -939,12 +938,10 @@ impl From<U256> for u32 {
 	}
 }
 
-/// TODO [Gav Wood] Please document me
+/// Constant value of `U256::zero()` that can be used for a reference saving an additional instance creation.
 pub const ZERO_U256: U256 = U256([0x00u64; 4]);
-/// TODO [Gav Wood] Please document me
+/// Constant value of `U256::one()` that can be used for a reference saving an additional instance creation.
 pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
-/// TODO [Gav Wood] Please document me
-pub const BAD_U256: U256 = U256([0xffffffffffffffffu64; 4]);
 
 #[cfg(test)]
 mod tests {
