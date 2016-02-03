@@ -432,7 +432,7 @@ mod tests {
 	use super::*;
 	use std::sync::*;
 	use super::super::stats::*;
-	use std::io::{Read, Write, Error, Cursor};
+	use std::io::{Read, Write, Error, Cursor, ErrorKind};
 	use std::cmp;
 	use mio::{EventSet};
 	use std::collections::VecDeque;
@@ -501,6 +501,28 @@ mod tests {
 
 	impl GenericSocket for TestSocket {}
 
+	struct TestBrokenSocket {
+		error: String
+	}
+
+	impl Read for TestBrokenSocket {
+		fn read(&mut self, _: &mut [u8]) -> Result<usize, Error> {
+			Err(Error::new(ErrorKind::Other, self.error.clone()))
+		}
+	}
+
+	impl Write for TestBrokenSocket {
+		fn write(&mut self, _: &[u8]) -> Result<usize, Error> {
+			Err(Error::new(ErrorKind::Other, self.error.clone()))
+		}
+
+		fn flush(&mut self) -> Result<(), Error> {
+			unimplemented!();
+		}
+	}
+
+	impl GenericSocket for TestBrokenSocket {}
+
 	type TestConnection = GenericConnection<TestSocket>;
 
 	impl TestConnection {
@@ -508,6 +530,22 @@ mod tests {
 			TestConnection {
 				token: 999998888usize,
 				socket: TestSocket::new(),
+				send_queue: VecDeque::new(),
+				rec_buf: Bytes::new(),
+				rec_size: 0,
+				interest: EventSet::hup() | EventSet::readable(),
+				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
+			}
+		}
+	}
+
+	type TestBrokenConnection = GenericConnection<TestBrokenSocket>;
+
+	impl TestBrokenConnection {
+		pub fn new() -> TestBrokenConnection {
+			TestBrokenConnection {
+				token: 999998888usize,
+				socket: TestBrokenSocket { error: "test broken socket".to_owned() },
 				send_queue: VecDeque::new(),
 				rec_buf: Bytes::new(),
 				rec_size: 0,
@@ -556,5 +594,17 @@ mod tests {
 		assert!(status.is_ok());
 		assert!(WriteStatus::Ongoing == status.unwrap());
 		assert_eq!(1024, connection.socket.write_buffer.len());
+	}
+
+	#[test]
+	fn connection_write_to_broken_socket() {
+		let mut connection = TestBrokenConnection::new();
+		let data = Cursor::new(vec![0; 10240]);
+		connection.send_queue.push_back(data);
+
+		let status = connection.writable();
+
+		assert!(!status.is_ok());
+		assert_eq!(1, connection.send_queue.len());
 	}
 }
