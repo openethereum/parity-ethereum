@@ -766,6 +766,7 @@ fn test_badinstruction(factory: super::Factory) {
 		_ => assert!(false, "Expected bad instruction")
 	}
 }
+
 evm_test!{test_pop: test_pop_jit, test_pop_int}
 fn test_pop(factory: super::Factory) {
 	let code = "60f060aa50600055".from_hex().unwrap();
@@ -782,6 +783,31 @@ fn test_pop(factory: super::Factory) {
 
 	assert_store(&ext, 0, "00000000000000000000000000000000000000000000000000000000000000f0");
 	assert_eq!(gas_left, U256::from(79_989));
+}
+
+evm_test!{test_extops: test_extops_jit, test_extops_int}
+fn test_extops(factory: super::Factory) {
+	let code = "5a6001555836553a600255386003553460045560016001526016590454600555".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(150_000);
+	params.gas_price = U256::from(0x32);
+	params.value = ActionValue::Transfer(U256::from(0x99));
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000004"); // PC / CALLDATASIZE
+	assert_store(&ext, 1, "00000000000000000000000000000000000000000000000000000000000249ee"); // GAS
+	assert_store(&ext, 2, "0000000000000000000000000000000000000000000000000000000000000032"); // GASPRICE
+	assert_store(&ext, 3, "0000000000000000000000000000000000000000000000000000000000000020"); // CODESIZE
+	assert_store(&ext, 4, "0000000000000000000000000000000000000000000000000000000000000099"); // CALLVALUE
+	assert_store(&ext, 5, "0000000000000000000000000000000000000000000000000000000000000032");
+	assert_eq!(gas_left, U256::from(29_898));
 }
 
 fn assert_store(ext: &FakeExt, pos: u64, val: &str) {
