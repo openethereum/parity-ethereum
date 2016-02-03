@@ -22,7 +22,7 @@ use tiny_keccak::Keccak;
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;
 
-pub trait GenericSocket : Sized + Read + Write {
+pub trait GenericSocket : Read + Write {
 }
 
 impl GenericSocket for TcpStream {
