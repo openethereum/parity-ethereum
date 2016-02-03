@@ -21,6 +21,7 @@ pub struct Account {
 }
 
 impl Account {
+	#[cfg(test)]
 	/// General constructor.
 	pub fn new(balance: U256, nonce: U256, storage: HashMap<H256, H256>, code: Bytes) -> Account {
 		Account {
@@ -83,15 +84,8 @@ impl Account {
 		}
 	}
 
-	/// Reset this account to the status of a not-yet-initialised contract.
-	/// NOTE: Account should have `init_code()` called on it later.
-	pub fn reset_code(&mut self) {
-		self.code_hash = None;
-		self.code_cache = vec![];
-	}
-
 	/// Set this account's code to the given code.
-	/// NOTE: Account should have been created with `new_contract()` or have `reset_code()` called on it.
+	/// NOTE: Account should have been created with `new_contract()`
 	pub fn init_code(&mut self, code: Bytes) {
 		assert!(self.code_hash.is_none());
 		self.code_cache = code;

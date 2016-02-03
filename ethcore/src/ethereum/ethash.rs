@@ -110,16 +110,18 @@ impl Engine for Ethash {
 		try!(UntrustedRlp::new(&header.seal[0]).as_val::<H256>());
 		try!(UntrustedRlp::new(&header.seal[1]).as_val::<H64>());
 
+		// TODO: consider removing these lines.
 		let min_difficulty = decode(self.spec().engine_params.get("minimumDifficulty").unwrap());
 		if header.difficulty < min_difficulty {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: min_difficulty, found: header.difficulty })))
+			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty })))
 		}
+
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
 				&Ethash::to_ethash(header.bare_hash()), 
 				header.nonce().low_u64(),
 				&Ethash::to_ethash(header.mix_hash()))));
 		if difficulty < header.difficulty {
-			return Err(From::from(BlockError::InvalidEthashDifficulty(Mismatch { expected: header.difficulty, found: difficulty })));
+			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
 		}
 		Ok(())
 	}
@@ -129,10 +131,10 @@ impl Engine for Ethash {
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
 		if mix != header.mix_hash() {
-			return Err(From::from(BlockError::InvalidBlockNonce(Mismatch { expected: mix, found: header.mix_hash() })));
+			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
 		}
 		if difficulty < header.difficulty {
-			return Err(From::from(BlockError::InvalidEthashDifficulty(Mismatch { expected: header.difficulty, found: difficulty })));
+			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
 		}
 		Ok(())
 	}

@@ -2,7 +2,7 @@ use common::*;
 use engine::Engine;
 use executive::Executive;
 use pod_account::*;
-use pod_state::*;
+use pod_state::PodState;
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
 /// TODO [Gav Wood] Please document me
@@ -20,6 +20,7 @@ pub struct State {
 
 impl State {
 	/// Creates new state with empty state root
+	#[cfg(test)]
 	pub fn new(mut db: JournalDB, account_start_nonce: U256) -> State {
 		let mut root = H256::new();
 		{
@@ -58,11 +59,6 @@ impl State {
 	/// Return reference to root
 	pub fn root(&self) -> &H256 {
 		&self.root
-	}
-
-	/// Expose the underlying database; good to use for calling `state.db().commit()`.
-	pub fn db(&mut self) -> &mut JournalDB {
-		&mut self.db
 	}
 
 	/// Create a new contract at address `contract`. If there is already an account at the address
@@ -143,7 +139,6 @@ impl State {
 //		let old = self.to_pod();
 
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
-		//println!("Executed: {:?}", e);
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
@@ -153,14 +148,9 @@ impl State {
 		Ok(receipt)
 	}
 
-	/// TODO [debris] Please document me
+	/// Reverts uncommited changed.
 	pub fn revert(&mut self, backup: State) {
 		self.cache = backup.cache;
-	}
-
-	/// Convert into a JSON representation.
-	pub fn as_json(&self) -> String {
-		unimplemented!();
 	}
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
@@ -196,6 +186,7 @@ impl State {
 	}
 
 	/// Populate the state from `accounts`.
+	#[cfg(test)]
 	pub fn populate_from(&mut self, accounts: PodState) {
 		for (add, acc) in accounts.drain().into_iter() {
 			self.cache.borrow_mut().insert(add, Some(Account::from_pod(acc)));
@@ -213,6 +204,7 @@ impl State {
 		})
 	}
 
+	#[cfg(test)]
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
 		// TODO: handle database rather than just the cache.
