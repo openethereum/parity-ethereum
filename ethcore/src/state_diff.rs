@@ -11,7 +11,6 @@ pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 impl StateDiff {
 	#[cfg(test)]
 	/// Calculate and return diff between `pre` state and `post` state.
-	#[allow(dead_code)]	// Used only in test code for now.
 	pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 		StateDiff(pre.get().keys().merge(post.get().keys()).filter_map(|acc| AccountDiff::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d|(acc.clone(), d))).collect())
 	}
