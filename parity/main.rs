@@ -78,8 +78,6 @@ fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
 fn main() {
 	let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
 
-	println!("{:?}", args);
-
 	setup_log(&args.flag_logging);
 
 	let spec = ethereum::new_frontier();
