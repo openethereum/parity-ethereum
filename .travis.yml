@@ -49,9 +49,8 @@ after_success: |
   cargo doc --no-deps --verbose ${KCOV_FEATURES} ${TARGETS} &&
   echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html &&
   pip install --user ghp-import &&
-  /home/travis/.local/bin/ghp-import -n target/doc 
-  #&&
-  #git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+  /home/travis/.local/bin/ghp-import -n target/doc &&
+  git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
 env:
   global:
   - secure: 3sUjNi9mhdL5h1GTm8LONnDN/SYvUHT+WSkMl93h3nYiLCQXk8eZaPS98AS7oOaTsfW4UvnwckVFCFl49ttInsv4cd/TkAxmrJHe6kPyS9/4NWUdmP8BjicbBvL/ioSdXMECMEYzPDLV+I3KhtC2LcB6ceDEl/XwMOJlzbGf7RbtcXGVQgMLqSYY1YKjQA4vbT5nFgIS/sZu3Z9yFgN0GafnihKcizqoHhdJjs/zxmX+qJepnC6o3V6KcFnS7QHhM1JOr85twE6S422UlvNaEb5ovwLPqmOl5+fA+6shbx4AxFTY6E9Iors+OVY/JliFhrqOdCt0i2P1FUHN4kbGZQkf0rphN/ZOI2uKNFTOyXiPvppfo/ZemKmcqkwkqP9+lf5QqYmtE6hsAYagxn49xJZILl8tAYbdqxF5gxa+TEVrfsBFtz/Sv3q8QhKQNPAmjEcKyMatyEreLUIFEpFTGIco8jN4eXeSoLRdJ+Z75ihttfQWhNfUDgNL30iQLy0AgFSsh/cyb5M8y9lxrGDzDTogvaiKGwr/V45sPkcXWCkmOgMdINqBB6ZtdL3bGHdyjmYj+y3btjf3aP11k++BL0fXIaKn25aS/p/9iyGb1FyGCM03o4ZRQ3YhTOvfMRfRGf6nWbaMx9upv8o5ShSdysewhrnh3082r7u896ny1Ho=
