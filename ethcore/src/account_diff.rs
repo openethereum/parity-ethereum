@@ -1,6 +1,7 @@
 //! Diff between two accounts.
 
 use util::*;
+#[cfg(test)]
 use pod_account::*;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
@@ -49,9 +50,9 @@ impl AccountDiff {
 		}
 	}
 
+	#[cfg(test)]
 	/// Determine difference between two optionally existant `Account`s. Returns None
 	/// if they are the same.
-	#[allow(dead_code)]	// Used only in test code for now.
 	pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
 		match (pre, post) {
 			(None, Some(x)) => Some(AccountDiff {
