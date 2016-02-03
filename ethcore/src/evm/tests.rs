@@ -12,6 +12,8 @@ struct FakeLogEntry {
 /// Can't do recursive calls.
 #[derive(Default)]
 struct FakeExt {
+	sstore_clears: usize,
+	depth: usize,
 	store: HashMap<H256, H256>,
 	_balances: HashMap<Address, U256>,
 	blockhashes: HashMap<U256, H256>,
@@ -98,11 +100,11 @@ impl Ext for FakeExt {
 	}
 
 	fn depth(&self) -> usize {
-		unimplemented!();
+		self.depth
 	}
 
 	fn inc_sstore_clears(&mut self) {
-		unimplemented!();
+		self.sstore_clears += 1;
 	}
 }
 
@@ -809,6 +811,28 @@ fn test_extops(factory: super::Factory) {
 	assert_store(&ext, 5, "0000000000000000000000000000000000000000000000000000000000000032");
 	assert_eq!(gas_left, U256::from(29_898));
 }
+
+evm_test!{test_jumps: test_jumps_jit, test_jumps_int}
+fn test_jumps(factory: super::Factory) {
+	let code = "600160015560066000555b60016000540380806000551560245760015402600155600a565b".from_hex().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(150_000);
+	params.code = Some(code);
+	let mut ext = FakeExt::new();
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_eq!(ext.sstore_clears, 1);
+	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000000"); // 5!
+	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000000000000078"); // 5!
+	assert_eq!(gas_left, U256::from(54_117));
+}
+
+
 
 fn assert_store(ext: &FakeExt, pos: u64, val: &str) {
 	assert_eq!(ext.store.get(&H256::from(pos)).unwrap(), &H256::from_str(val).unwrap());
