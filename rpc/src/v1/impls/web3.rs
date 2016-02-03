@@ -14,7 +14,7 @@ impl Web3Client {
 impl Web3 for Web3Client {
 	fn client_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::String(format!("parity/0.9.0/{}/rust1.8-nightly", Target::os()).to_owned())),
+			Params::None => Ok(Value::String(format!("parity/{}/{}/rust1.8-nightly", env!("CARGO_PKG_VERSION"), Target::os()).to_owned())),
 			_ => Err(Error::invalid_params())
 		}
 	}
