@@ -68,13 +68,13 @@ impl NetworkProtocolHandler<TestProtocolMessage> for TestProtocol {
 
 
 #[test]
-fn test_net_service() {
+fn net_service() {
 	let mut service = NetworkService::<TestProtocolMessage>::start(NetworkConfiguration::new()).expect("Error creating network service");
 	service.register_protocol(Arc::new(TestProtocol::default()), "myproto", &[1u8]).unwrap();
 }
 
 #[test]
-fn test_net_connect() {
+fn net_connect() {
 	let key1 = KeyPair::create().unwrap();
 	let mut config1 = NetworkConfiguration::new_with_port(30344);
 	config1.use_secret = Some(key1.secret().clone());
@@ -93,7 +93,7 @@ fn test_net_connect() {
 }
 
 #[test]
-fn test_net_timeout() {
+fn net_timeout() {
 	let config = NetworkConfiguration::new_with_port(30346);
 	let mut service = NetworkService::<TestProtocolMessage>::start(config).unwrap();
 	let handler = TestProtocol::register(&mut service);
