@@ -1,10 +1,27 @@
 use common::*;
 use evm;
 use evm::{Ext, Schedule, Factory, VMType, ContractCreateResult, MessageCallResult};
+use std::fmt::Debug;
 
 struct FakeLogEntry {
 	topics: Vec<H256>,
 	data: Bytes
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+enum FakeCallType {
+	CALL, CREATE
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+struct FakeCall {
+	call_type: FakeCallType,
+	gas: U256,
+	sender_address: Option<Address>,
+	receive_address: Option<Address>,
+	value: Option<U256>,
+	data: Bytes,
+	code_address: Option<Address>
 }
 
 /// Fake externalities test structure.
@@ -15,13 +32,14 @@ struct FakeExt {
 	sstore_clears: usize,
 	depth: usize,
 	store: HashMap<H256, H256>,
-	_balances: HashMap<Address, U256>,
 	blockhashes: HashMap<U256, H256>,
 	codes: HashMap<Address, Bytes>,
 	logs: Vec<FakeLogEntry>,
 	_suicides: HashSet<Address>,
 	info: EnvInfo,
-	schedule: Schedule
+	schedule: Schedule,
+	balances: HashMap<Address, U256>,
+	calls: HashSet<FakeCall>
 }
 
 impl FakeExt {
@@ -45,31 +63,50 @@ impl Ext for FakeExt {
 		self.store.insert(key, value);
 	}
 
-	fn exists(&self, _address: &Address) -> bool {
-		unimplemented!();
+	fn exists(&self, address: &Address) -> bool {
+		self.balances.contains_key(address)
 	}
 
-	fn balance(&self, _address: &Address) -> U256 {
-		unimplemented!();
+	fn balance(&self, address: &Address) -> U256 {
+		self.balances.get(address).unwrap().clone()
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
 		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
 	}
 
-	fn create(&mut self, _gas: &U256, _value: &U256, _code: &[u8]) -> ContractCreateResult {
-		unimplemented!();
+	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
+		self.calls.insert(FakeCall {
+			call_type: FakeCallType::CREATE,
+			gas: gas.clone(),
+			sender_address: None,
+			receive_address: None,
+			value: Some(value.clone()),
+			data: code.to_vec(),
+			code_address: None
+		});
+		ContractCreateResult::Failed
 	}
 
 	fn call(&mut self, 
-			_gas: &U256, 
-			_sender_address: &Address, 
-			_receive_address: &Address, 
-			_value: Option<U256>,
-			_data: &[u8], 
-			_code_address: &Address, 
-			_output: &mut [u8]) -> MessageCallResult {
-		unimplemented!();
+			gas: &U256, 
+			sender_address: &Address, 
+			receive_address: &Address, 
+			value: Option<U256>,
+			data: &[u8], 
+			code_address: &Address, 
+			output: &mut [u8]) -> MessageCallResult {
+
+		self.calls.insert(FakeCall {
+			call_type: FakeCallType::CALL,
+			gas: gas.clone(),
+			sender_address: Some(sender_address.clone()),
+			receive_address: Some(receive_address.clone()),
+			value: value,
+			data: data.to_vec(),
+			code_address: Some(code_address.clone())
+		});
+		MessageCallResult::Success(gas.clone())
 	}
 
 	fn extcode(&self, address: &Address) -> Bytes {
@@ -833,6 +870,58 @@ fn test_jumps(factory: super::Factory) {
 }
 
 
+evm_test!{test_calls: test_calls_jit, test_calls_int}
+fn test_calls(factory: super::Factory) {
+	let code = "600054602d57600160005560006000600060006050610998610100f160006000600060006050610998610100f25b".from_hex().unwrap();
+
+	let address = Address::from(0x155);
+	let code_address = Address::from(0x998);
+	let mut params = ActionParams::default();
+	params.gas = U256::from(150_000);
+	params.code = Some(code);
+	params.address = address.clone();
+	let mut ext = FakeExt::new();
+	ext.balances = {
+		let mut s = HashMap::new();
+		s.insert(params.address.clone(), params.gas.clone());
+		s
+	};
+
+	let gas_left = {
+		let vm = factory.create();
+		vm.exec(params, &mut ext).unwrap()
+	};
+
+	assert_set_contains(&ext.calls, &FakeCall {
+		call_type: FakeCallType::CALL,
+		gas: U256::from(2556),
+		sender_address: Some(address.clone()),
+		receive_address: Some(code_address.clone()),
+		value: Some(U256::from(0x50)),
+		data: vec!(),
+		code_address: Some(code_address.clone())
+	});
+	assert_set_contains(&ext.calls, &FakeCall {
+		call_type: FakeCallType::CALL,
+		gas: U256::from(2556),
+		sender_address: Some(address.clone()),
+		receive_address: Some(address.clone()),
+		value: Some(U256::from(0x50)),
+		data: vec!(),
+		code_address: Some(code_address.clone())
+	});
+	assert_eq!(gas_left, U256::from(91_405));
+	assert_eq!(ext.calls.len(), 2);
+}
+
+fn assert_set_contains<T : Debug + Eq + PartialEq + Hash>(set: &HashSet<T>, val: &T) {
+	let contains = set.contains(val);
+	if !contains {
+		println!("Set: {:?}", set);
+		println!("Elem: {:?}", val);
+	}
+	assert!(contains, "Element not found in HashSet");
+}
 
 fn assert_store(ext: &FakeExt, pos: u64, val: &str) {
 	assert_eq!(ext.store.get(&H256::from(pos)).unwrap(), &H256::from_str(val).unwrap());
