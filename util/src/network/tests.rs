@@ -20,61 +20,6 @@ impl Default for TestProtocol {
 	}
 }
 
-struct TestSocket {
-	read_buffer: Vec<u8>,
-	write_buffer: Vec<u8>,
-	cursor: usize,
-}
-
-impl TestSocket {
-	fn new() -> TestSocket {
-		TestSocket {
-			read_buffer: vec![],
-			write_buffer: vec![]
-		}
-	}
-}
-
-impl Read for TestSocket {
-	fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-		let end_position = cmp::min(self.read_buffer.len(), self.cursor+buf.len());
-		let len = cmp::max(self.end_position - self.cursor, 0);
-		match len {
-			0 => Ok(0),
-			_ => {
-				bytes::copy_memory(buf, &mut self.read_buffer[cursor..len]);
-				self.cursor = self.cursor + buf.len();
-				Ok(len);
-			}
-		}
-	}
-}
-
-impl Write for TestSocket {
-	fn write(&mut self, buf: &mut [u8]) -> Result<u8> {
-		self.write_buffer.extend(buf.iter().cloned());
-		Ok(buf.len());
-	}
-}
-
-impl GenericSocket for TestSocket {}
-
-type TestConnection = GenericConnection<TestSocket>;
-
-impl TestConnection {
-	pub fn new() -> Connection {
-		Connection {
-			token: 999998888usize,
-			socket: TestSocket::new(),
-			send_queue: VecDeque::new(),
-			rec_buf: Bytes::new(),
-			rec_size: 0,
-			interest: EventSet::hup() | EventSet::readable(),
-			stats: Arc::<NetworkStats>::new(),
-		}
-	}
-}
-
 #[derive(Clone)]
 pub struct TestProtocolMessage {
 	payload: u32,
@@ -155,9 +100,4 @@ fn net_timeout() {
 	while !handler.got_timeout() {
 		thread::sleep(Duration::from_millis(50));
 	}
-}
-
-#[test]
-fn connection_expect() {
-	let connection = TestConnection::new();
 }

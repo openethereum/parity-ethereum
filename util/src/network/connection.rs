@@ -426,3 +426,84 @@ pub fn test_encryption() {
 	encoder.reset();
 	assert_eq!(got, after2);
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::sync::*;
+	use super::super::stats::*;
+	use std::io::{Read, Write, Error};
+	use std::cmp;
+	use mio::{EventSet};
+	use std::collections::VecDeque;
+	use bytes::*;
+
+	struct TestSocket {
+		read_buffer: Vec<u8>,
+		write_buffer: Vec<u8>,
+		cursor: usize,
+	}
+
+	impl TestSocket {
+		fn new() -> TestSocket {
+			TestSocket {
+				read_buffer: vec![],
+				write_buffer: vec![],
+				cursor: 0,
+			}
+		}
+	}
+
+	impl Read for TestSocket {
+		fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+			let end_position = cmp::min(self.read_buffer.len(), self.cursor+buf.len());
+			let len = cmp::max(end_position - self.cursor, 0);
+			match len {
+				0 => Ok(0),
+				_ => {
+					for i in self.cursor..end_position {
+						buf[i-self.cursor] = self.read_buffer[i];
+					}
+					self.cursor = self.cursor + buf.len();
+					Ok(len)
+				}
+			}
+		}
+	}
+
+	impl Write for TestSocket {
+		fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
+			self.write_buffer.extend(buf.iter().cloned());
+			Ok(buf.len())
+		}
+
+		fn flush(&mut self) -> Result<(), Error> {
+			unimplemented!();
+		}
+	}
+
+	impl GenericSocket for TestSocket {}
+
+	type TestConnection = GenericConnection<TestSocket>;
+
+	impl TestConnection {
+		pub fn new() -> TestConnection {
+			TestConnection {
+				token: 999998888usize,
+				socket: TestSocket::new(),
+				send_queue: VecDeque::new(),
+				rec_buf: Bytes::new(),
+				rec_size: 0,
+				interest: EventSet::hup() | EventSet::readable(),
+				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
+			}
+		}
+	}
+
+	#[test]
+	fn connection_expect() {
+		let mut connection = TestConnection::new();
+		connection.expect(1024);
+		assert_eq!(connection.rec_size, 1024);
+	}
+}
