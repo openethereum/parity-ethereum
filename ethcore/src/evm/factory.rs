@@ -55,7 +55,6 @@ pub struct Factory {
 
 impl Factory {
 	/// Create fresh instance of VM
-	#[cfg(test)]
 	#[cfg(feature="jit")]
 	pub fn create(&self) -> Box<Evm> {
 		match self.evm {
