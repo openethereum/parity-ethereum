@@ -6,7 +6,7 @@ use hash::*;
 use sha3::*;
 use bytes::*;
 use rlp::*;
-use std::io::{self, Cursor, Read};
+use std::io::{self, Cursor, Read, Write};
 use error::*;
 use io::{IoContext, StreamToken};
 use network::error::NetworkError;
@@ -22,12 +22,17 @@ use tiny_keccak::Keccak;
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;
 
-/// Low level tcp connection
-pub struct Connection {
+pub trait GenericSocket : Sized + Read + Write {
+}
+
+impl GenericSocket for TcpStream {
+}
+
+pub struct GenericConnection<Socket: GenericSocket> {
 	/// Connection id (token)
 	pub token: StreamToken,
 	/// Network socket
-	pub socket: TcpStream,
+	pub socket: Socket,
 	/// Receive buffer
 	rec_buf: Bytes,
 	/// Expected size
@@ -36,34 +41,11 @@ pub struct Connection {
 	send_queue: VecDeque<Cursor<Bytes>>,
 	/// Event flags this connection expects
 	interest: EventSet,
-	/// Shared network staistics
+	/// Shared network statistics
 	stats: Arc<NetworkStats>,
 }
 
-/// Connection write status.
-#[derive(PartialEq, Eq)]
-pub enum WriteStatus {
-	/// Some data is still pending for current packet
-	Ongoing,
-	/// All data sent.
-	Complete
-}
-
-impl Connection {
-	/// Create a new connection with given id and socket.
-	pub fn new(token: StreamToken, socket: TcpStream, stats: Arc<NetworkStats>) -> Connection {
-		Connection {
-			token: token,
-			socket: socket,
-			send_queue: VecDeque::new(),
-			rec_buf: Bytes::new(),
-			rec_size: 0,
-			interest: EventSet::hup() | EventSet::readable(),
-			stats: stats,
-		}
-	}
-
-	/// Put a connection into read mode. Receiving up `size` bytes of data.
+impl<Socket: GenericSocket> GenericConnection<Socket> {
 	pub fn expect(&mut self, size: usize) {
 		if self.rec_size != self.rec_buf.len() {
 			warn!(target:"net", "Unexpected connection read start");
@@ -79,7 +61,7 @@ impl Connection {
 		}
 		let max = self.rec_size - self.rec_buf.len();
 		// resolve "multiple applicable items in scope [E0034]" error
-		let sock_ref = <TcpStream as Read>::by_ref(&mut self.socket);
+		let sock_ref = <Socket as Read>::by_ref(&mut self.socket);
 		match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
 			Ok(Some(size)) if size != 0  => {
 				self.stats.inc_recv(size);
@@ -142,6 +124,24 @@ impl Connection {
 			Ok(r)
 		})
 	}
+}
+
+/// Low level tcp connection
+pub type Connection = GenericConnection<TcpStream>;
+
+impl Connection {
+	/// Create a new connection with given id and socket.
+	pub fn new(token: StreamToken, socket: TcpStream, stats: Arc<NetworkStats>) -> Connection {
+		Connection {
+			token: token,
+			socket: socket,
+			send_queue: VecDeque::new(),
+			rec_buf: Bytes::new(),
+			rec_size: 0,
+			interest: EventSet::hup() | EventSet::readable(),
+			stats: stats,
+		}
+	}
 
 	/// Register this connection with the IO event loop.
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
@@ -167,6 +167,15 @@ impl Connection {
 		event_loop.deregister(&self.socket).ok(); // ignore errors here
 		Ok(())
 	}
+}
+
+/// Connection write status.
+#[derive(PartialEq, Eq)]
+pub enum WriteStatus {
+	/// Some data is still pending for current packet
+	Ongoing,
+	/// All data sent.
+	Complete
 }
 
 /// RLPx packet
@@ -417,5 +426,3 @@ pub fn test_encryption() {
 	encoder.reset();
 	assert_eq!(got, after2);
 }
-
-
