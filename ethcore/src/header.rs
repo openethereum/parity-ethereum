@@ -13,39 +13,39 @@ pub type BlockNumber = u64;
 /// which is non-specific.
 ///
 /// Doesn't do all that much on its own.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Header {
 	// TODO: make all private.
-	/// TODO [Gav Wood] Please document me
+	/// Parent hash.
 	pub parent_hash: H256,
-	/// TODO [arkpar] Please document me
+	/// Block timestamp.
 	pub timestamp: u64,
-	/// TODO [debris] Please document me
+	/// Block number.
 	pub number: BlockNumber,
-	/// TODO [Gav Wood] Please document me
+	/// Block author.
 	pub author: Address,
 
-	/// TODO [debris] Please document me
+	/// Transactions root.
 	pub transactions_root: H256,
-	/// TODO [debris] Please document me
+	/// Block uncles hash.
 	pub uncles_hash: H256,
-	/// TODO [Gav Wood] Please document me
+	/// Block extra data.
 	pub extra_data: Bytes,
 
-	/// TODO [debris] Please document me
+	/// State root.
 	pub state_root: H256,
-	/// TODO [debris] Please document me
+	/// Block receipts root.
 	pub receipts_root: H256,
-	/// TODO [debris] Please document me
+	/// Block bloom.
 	pub log_bloom: LogBloom,
-	/// TODO [debris] Please document me
+	/// Gas used for contracts execution.
 	pub gas_used: U256,
-	/// TODO [Gav Wood] Please document me
+	/// Block gas limit.
 	pub gas_limit: U256,
 
-	/// TODO [debris] Please document me
+	/// Block difficulty.
 	pub difficulty: U256,
-	/// TODO [arkpar] Please document me
+	/// Block seal.
 	pub seal: Vec<Bytes>,
 
 	/// TODO [arkpar] Please document me
@@ -54,9 +54,8 @@ pub struct Header {
 	pub bare_hash: RefCell<Option<H256>>,
 }
 
-impl Header {
-	/// Create a new, default-valued, header.
-	pub fn new() -> Header {
+impl Default for Header {
+	fn default() -> Self {
 		Header {
 			parent_hash: ZERO_H256.clone(),
 			timestamp: 0,
@@ -78,6 +77,13 @@ impl Header {
 			hash: RefCell::new(None),
 			bare_hash: RefCell::new(None),
 		}
+	}
+}
+
+impl Header {
+	/// Create a new, default-valued, header.
+	pub fn new() -> Self {
+		Self::default()
 	}
 
 	/// TODO [Gav Wood] Please document me

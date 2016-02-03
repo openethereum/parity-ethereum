@@ -24,13 +24,6 @@ pub struct EnvInfo {
 	pub gas_used: U256,
 }
 
-impl EnvInfo {
-	/// Create empty env_info initialized with zeros
-	pub fn new() -> EnvInfo {
-		EnvInfo::default()
-	}
-}
-
 impl Default for EnvInfo {
 	fn default() -> Self {
 		EnvInfo {

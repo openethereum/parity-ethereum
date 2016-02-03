@@ -63,7 +63,6 @@
 #[macro_use] extern crate ethcore_util as util;
 #[macro_use] extern crate lazy_static;
 extern crate rustc_serialize;
-extern crate flate2;
 extern crate rocksdb;
 extern crate heapsize;
 extern crate crypto;
@@ -108,4 +107,8 @@ mod executive;
 mod externalities;
 mod verification;
 
-#[cfg(test)] mod tests;
+#[cfg(test)] 
+mod tests;
+#[cfg(test)]
+#[cfg(feature="json-tests")] 
+mod json_tests;
