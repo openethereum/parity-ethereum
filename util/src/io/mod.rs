@@ -42,9 +42,9 @@ mod worker;
 use mio::{EventLoop, Token};
 
 #[derive(Debug)]
-/// TODO [arkpar] Please document me
+/// IO Error
 pub enum IoError {
-	/// TODO [arkpar] Please document me
+	/// Low level error from mio crate
 	Mio(::std::io::Error),
 }
 
@@ -78,19 +78,12 @@ pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + Clone + '
 	fn deregister_stream(&self, _stream: StreamToken, _event_loop: &mut EventLoop<IoManager<Message>>) {}
 }
 
-/// TODO [arkpar] Please document me
 pub use io::service::TimerToken;
-/// TODO [arkpar] Please document me
 pub use io::service::StreamToken;
-/// TODO [arkpar] Please document me
 pub use io::service::IoContext;
-/// TODO [arkpar] Please document me
 pub use io::service::IoService;
-/// TODO [arkpar] Please document me
 pub use io::service::IoChannel;
-/// TODO [arkpar] Please document me
 pub use io::service::IoManager;
-/// TODO [arkpar] Please document me
 pub use io::service::TOKENS_PER_HANDLER;
 
 #[cfg(test)]

@@ -103,12 +103,12 @@ impl <'a, 'view> Rlp<'a> where 'a: 'view {
 		res.unwrap_or_else(|_| panic!())
 	}
 
-	/// TODO [debris] Please document me
+	/// Decode into an object
 	pub fn as_val<T>(&self) -> T where T: RlpDecodable {
 		Self::view_as_val(self)
 	}
 
-	/// TODO [debris] Please document me
+	/// Decode list item at given index into an object
 	pub fn val_at<T>(&self, index: usize) -> T where T: RlpDecodable {
 		Self::view_as_val(&self.at(index))
 	}
