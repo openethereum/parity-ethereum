@@ -15,35 +15,35 @@ use serde;
 ///
 /// Note: types implementing `FixedHash` must be also `BytesConvertable`.
 pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default {
-	/// TODO [Gav Wood] Please document me
+	/// Create a new, zero-initialised, instance.
 	fn new() -> Self;
 	/// Synonym for `new()`. Prefer to new as it's more readable.
 	fn zero() -> Self;
-	/// TODO [debris] Please document me
+	/// Create a new, cryptographically random, instance.
 	fn random() -> Self;
-	/// TODO [debris] Please document me
+	/// Assign self have a cryptographically random value.
 	fn randomize(&mut self);
-	/// TODO [arkpar] Please document me
-	fn size() -> usize;
-	/// TODO [arkpar] Please document me
+	/// Get the size of this object in bytes.
+	fn len() -> usize;
+	/// Convert a slice of bytes of length `len()` to an instance of this type.
 	fn from_slice(src: &[u8]) -> Self;
-	/// TODO [arkpar] Please document me
+	/// Assign self to be of the same value as a slice of bytes of length `len()`.
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
-	/// TODO [Gav Wood] Please document me
+	/// Copy the data of this object into some mutable slice of length `len()`.
 	fn copy_to(&self, dest: &mut [u8]);
-	/// TODO [Gav Wood] Please document me
+	/// When interpreting self as a bloom output, augment (bit-wise OR) with the a bloomed version of `b`.
 	fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
-	/// TODO [debris] Please document me
+	/// Same as `shift_bloomed` except that `self` is consumed and a new value returned.
 	fn with_bloomed<T>(mut self, b: &T) -> Self where T: FixedHash { self.shift_bloomed(b); self }
-	/// TODO [Gav Wood] Please document me
+	/// Bloom the current value using the bloom parameter `m`.
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
-	/// TODO [debris] Please document me
+	/// Check to see whether this hash, interpreted as a bloom, contains the value `b` when bloomed.
 	fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash;
-	/// TODO [arkpar] Please document me
+	/// Returns `true` if all bits set in `b` are also set in `self`.
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
-	/// TODO [debris] Please document me
+	/// Returns `true` if no bits are set.
 	fn is_zero(&self) -> bool;
-	/// Return the lowest 8 bytes interpreted as a BigEndian integer.
+	/// Returns the lowest 8 bytes interpreted as a BigEndian integer.
 	fn low_u64(&self) -> u64;
 }
 
@@ -58,7 +58,7 @@ fn clean_0x(s: &str) -> &str {
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
 		#[derive(Eq)]
-		/// TODO [Gav Wood] Please document me
+		/// Unformatted binary data of fixed length.
 		pub struct $from (pub [u8; $size]);
 
 		impl BytesConvertable for $from {
@@ -103,7 +103,7 @@ macro_rules! impl_hash {
 				rng.fill_bytes(&mut self.0);
 			}
 
-			fn size() -> usize {
+			fn len() -> usize {
 				$size
 			}
 
@@ -457,12 +457,12 @@ macro_rules! impl_hash {
 		}
 
 		impl $from {
-			/// TODO [Gav Wood] Please document me
+			/// Get a hex representation.
 			pub fn hex(&self) -> String {
 				format!("{:?}", self)
 			}
 
-			/// TODO [Gav Wood] Please document me
+			/// Construct new instance equal to the bloomed value of `b`.
 			pub fn from_bloomed<T>(b: &T) -> Self where T: FixedHash { b.bloom_part($size) }
 		}
 
@@ -578,25 +578,27 @@ impl<'_> From<&'_ Address> for H256 {
 	}
 }
 
-/// TODO [Gav Wood] Please document me
+/// Convert string `s` to an `H256`. Will panic if `s` is not 64 characters long or if any of
+/// those characters are not 0-9, a-z or A-Z.
 pub fn h256_from_hex(s: &str) -> H256 {
 	use std::str::FromStr;
 	H256::from_str(s).unwrap()
 }
 
-/// TODO [Gav Wood] Please document me
+/// Convert `n` to an `H256`, setting the rightmost 8 bytes.
 pub fn h256_from_u64(n: u64) -> H256 {
 	use uint::U256;
 	H256::from(&U256::from(n))
 }
 
-/// TODO [Gav Wood] Please document me
+/// Convert string `s` to an `Address`. Will panic if `s` is not 40 characters long or if any of
+/// those characters are not 0-9, a-z or A-Z.
 pub fn address_from_hex(s: &str) -> Address {
 	use std::str::FromStr;
 	Address::from_str(s).unwrap()
 }
 
-/// TODO [Gav Wood] Please document me
+/// Convert `n` to an `Address`, setting the rightmost 8 bytes.
 pub fn address_from_u64(n: u64) -> Address {
 	let h256 = h256_from_u64(n);
 	From::from(h256)

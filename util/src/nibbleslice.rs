@@ -34,7 +34,7 @@ pub struct NibbleSlice<'a> {
 	offset_encode_suffix: usize,
 }
 
-/// TODO [Gav Wood] Please document me
+/// Iterator type for a nibble slice.
 pub struct NibbleSliceIterator<'a> {
 	p: &'a NibbleSlice<'a>,
 	i: usize,
@@ -77,7 +77,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		(r, a.len() + b.len())
 	}*/
 
-	/// TODO [Gav Wood] Please document me
+	/// Get an iterator for the series of nibbles.
 	pub fn iter(&'a self) -> NibbleSliceIterator<'a> {
 		NibbleSliceIterator { p: self, i: 0 }
 	}
@@ -132,7 +132,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		i
 	}
 
-	/// TODO [Gav Wood] Please document me
+	/// Encode while nibble slice in prefixed hex notation, noting whether it `is_leaf`.
 	pub fn encoded(&self, is_leaf: bool) -> Bytes {
 		let l = self.len();
 		let mut r = Bytes::with_capacity(l / 2 + 1);
@@ -145,7 +145,8 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		r
 	}
 
-	/// TODO [Gav Wood] Please document me
+	/// Encode only the leftmost `n` bytes of the nibble slice in prefixed hex notation,
+	/// noting whether it `is_leaf`.
 	pub fn encoded_leftmost(&self, n: usize, is_leaf: bool) -> Bytes {
 		let l = min(self.len(), n);
 		let mut r = Bytes::with_capacity(l / 2 + 1);

@@ -107,14 +107,17 @@ impl MemoryDB {
 		self.data.get(key)
 	}
 
-	/// TODO [Gav Wood] Please document me
+	/// Return the internal map of hashes to data, clearing the current state.
 	pub fn drain(&mut self) -> HashMap<H256, (Bytes, i32)> {
 		let mut data = HashMap::new();
 		mem::swap(&mut self.data, &mut data);
 		data
 	}
 
-	/// TODO [Gav Wood] Please document me
+	/// Denote than an existing value has the given key. Used when a key gets removed without
+	/// a prior insert and thus has a negative reference with no value.
+	/// 
+	/// May safely be called even if the key's value is known, in which case it will be a no-op.
 	pub fn denote(&self, key: &H256, value: Bytes) -> &(Bytes, i32) {
 		if self.raw(key) == None {
 			unsafe {

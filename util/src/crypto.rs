@@ -6,11 +6,12 @@ use uint::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
 
-/// TODO [Gav Wood] Please document me
+/// Secret key for secp256k1 EC operations. 256 bit generic "hash" data.
 pub type Secret = H256;
-/// TODO [Gav Wood] Please document me
+/// Public key for secp256k1 EC operations. 512 bit generic "hash" data.
 pub type Public = H512;
-/// TODO [Gav Wood] Please document me
+/// Signature for secp256k1 EC operations; encodes two 256-bit curve points
+/// and a third sign bit. 520 bit generic "hash" data.
 pub type Signature = H520;
 
 lazy_static! {

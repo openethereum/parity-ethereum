@@ -2,6 +2,8 @@ use common::*;
 use engine::Engine;
 use executive::Executive;
 use pod_account::*;
+#[cfg(test)]
+use pod_state::PodState;
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
 /// Result type for the execution ("application") of a transaction.
@@ -273,7 +275,6 @@ use util::rlp::*;
 use util::uint::*;
 use account::*;
 use tests::helpers::*;
-use pod_state::PodState;
 
 #[test]
 fn code_from_database() {
