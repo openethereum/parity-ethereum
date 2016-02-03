@@ -15,12 +15,14 @@
 
 use util::*;
 use std::mem::{replace};
-use views::{HeaderView};
-use header::{BlockNumber, Header as BlockHeader};
-use client::{BlockChainClient, BlockStatus};
-use sync::range_collection::{RangeCollection, ToUsize, FromUsize};
-use error::*;
-use sync::io::SyncIo;
+use ethcore::views::{HeaderView};
+use ethcore::header::{BlockNumber, Header as BlockHeader};
+use ethcore::client::{BlockChainClient, BlockStatus};
+use range_collection::{RangeCollection, ToUsize, FromUsize};
+use ethcore::error::*;
+use ethcore::block::Block;
+use io::SyncIo;
+use time;
 use std::option::Option;
 
 impl ToUsize for BlockNumber {
@@ -60,6 +62,8 @@ const GET_RECEIPTS_PACKET: u8 = 0x0f;
 const RECEIPTS_PACKET: u8 = 0x10;
 
 const NETWORK_ID: U256 = ONE_U256; //TODO: get this from parent
+
+const CONNECTION_TIMEOUT_SEC: f64 = 30f64;
 
 struct Header {
 	/// Header data
@@ -138,6 +142,8 @@ struct PeerInfo {
 	asking: PeerAsking,
 	/// A set of block numbers being requested
 	asking_blocks: Vec<BlockNumber>,
+	/// Request timestamp
+	ask_time: f64,
 }
 
 /// Blockchain sync handler.
@@ -250,6 +256,7 @@ impl ChainSync {
 			genesis: try!(r.val_at(4)),
 			asking: PeerAsking::Nothing,
 			asking_blocks: Vec::new(),
+			ask_time: 0f64,
 		};
 
 		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest, peer.genesis);
@@ -409,6 +416,7 @@ impl ChainSync {
 
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
 		let header_view = HeaderView::new(header_rlp.as_raw());
+ 		let mut unknown = false;
 		// TODO: Decompose block and add to self.headers and self.bodies instead
 		if header_view.number() == From::from(self.current_base_block() + 1) {
 			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
@@ -421,13 +429,20 @@ impl ChainSync {
 				Ok(_) => {
 					trace!(target: "sync", "New block queued {:?}", h);
 				},
+				Err(ImportError::UnknownParent) => {
+					unknown = true;
+					trace!(target: "sync", "New block with unknown parent {:?}", h);
+				},
 				Err(e) => {
 					debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
 					io.disable_peer(peer_id);
 				}
 			};
 		}
-		else {
+  		else {
+			unknown = true;
+		}
+		if unknown {
 			trace!(target: "sync", "New block unknown {:?}", h);
 			//TODO: handle too many unknown blocks
 			let difficulty: U256 = try!(r.val_at(1));
@@ -676,6 +691,14 @@ impl ChainSync {
 				block_rlp.append_raw(body.at(0).as_raw(), 1);
 				block_rlp.append_raw(body.at(1).as_raw(), 1);
 				let h = &headers.1[i].hash;
+
+				// Perform basic block verification
+				if !Block::is_good(block_rlp.as_raw()) {
+					debug!(target: "sync", "Bad block rlp {:?} : {:?}", h, block_rlp.as_raw());
+					restart = true;
+					break;
+				}
+
 				match io.chain().import_block(block_rlp.out()) {
 					Err(ImportError::AlreadyInChain) => {
 						trace!(target: "sync", "Block already in chain {:?}", h);
@@ -795,6 +818,7 @@ impl ChainSync {
 			Ok(_) => {
 				let mut peer = self.peers.get_mut(&peer_id).unwrap();
 				peer.asking = asking;
+				peer.ask_time = time::precise_time_s();
 			}
 		}
 	}
@@ -971,5 +995,14 @@ impl ChainSync {
 
 	/// Maintain other peers. Send out any new blocks and transactions
 	pub fn _maintain_sync(&mut self, _io: &mut SyncIo) {
+	}
+
+	pub fn maintain_peers(&self, io: &mut SyncIo) {
+		let tick = time::precise_time_s();
+		for (peer_id, peer) in &self.peers {
+			if peer.asking != PeerAsking::Nothing && (tick - peer.ask_time) > CONNECTION_TIMEOUT_SEC {
+				io.disconnect_peer(*peer_id);
+			}
+		}
 	}
 }
