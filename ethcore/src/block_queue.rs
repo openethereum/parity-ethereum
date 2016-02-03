@@ -9,6 +9,7 @@ use engine::Engine;
 use views::*;
 use header::*;
 use service::*;
+use client::BlockStatus;
 
 /// Block queue status
 #[derive(Debug)]
@@ -41,7 +42,7 @@ pub struct BlockQueue {
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
 	empty: Arc<Condvar>,
-	processing: HashSet<H256>
+	processing: RwLock<HashSet<H256>>
 }
 
 struct UnVerifiedBlock {
@@ -106,7 +107,7 @@ impl BlockQueue {
 			verification: verification.clone(),
 			verifiers: verifiers,
 			deleting: deleting.clone(),
-			processing: HashSet::new(),
+			processing: RwLock::new(HashSet::new()),
 			empty: empty.clone(),
 		}
 	}
@@ -196,11 +197,22 @@ impl BlockQueue {
 		}
 	}
 
+	/// Check if the block is currently in the queue
+	pub fn block_status(&self, hash: &H256) -> BlockStatus {
+		if self.processing.read().unwrap().contains(&hash) {
+			return BlockStatus::Queued;
+		}
+		if self.verification.lock().unwrap().bad.contains(&hash) {
+			return BlockStatus::Bad;
+		}
+		BlockStatus::Unknown
+	}
+
 	/// Add a block to the queue.
 	pub fn import_block(&mut self, bytes: Bytes) -> ImportResult {
 		let header = BlockView::new(&bytes).header();
 		let h = header.hash();
-		if self.processing.contains(&h) {
+		if self.processing.read().unwrap().contains(&h) {
 			return Err(ImportError::AlreadyQueued);
 		}
 		{
@@ -217,7 +229,7 @@ impl BlockQueue {
 
 		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
 			Ok(()) => {
-				self.processing.insert(h.clone());
+				self.processing.write().unwrap().insert(h.clone());
 				self.verification.lock().unwrap().unverified.push_back(UnVerifiedBlock { header: header, bytes: bytes });
 				self.more_to_verify.notify_all();
 				Ok(h)
@@ -235,16 +247,27 @@ impl BlockQueue {
 		let mut verification_lock = self.verification.lock().unwrap();
 		let mut verification = verification_lock.deref_mut();
 		verification.bad.insert(hash.clone());
+		self.processing.write().unwrap().remove(&hash);
 		let mut new_verified = VecDeque::new();
 		for block in verification.verified.drain(..) {
 			if verification.bad.contains(&block.header.parent_hash) {
 				verification.bad.insert(block.header.hash());
+				self.processing.write().unwrap().remove(&block.header.hash());
 			}
 			else {
 				new_verified.push_back(block);
 			}
 		}
 		verification.verified = new_verified;
+	}
+
+	/// Mark given block as processed
+	pub fn mark_as_good(&mut self, hashes: &[H256]) {
+		let mut processing = self.processing.write().unwrap();
+		for h in hashes {
+			processing.remove(&h);
+		}
+		//TODO: reward peers
 	}
 
 	/// Removes up to `max` verified blocks from the queue
@@ -254,7 +277,6 @@ impl BlockQueue {
 		let mut result = Vec::with_capacity(count);
 		for _ in 0..count {
 			let block = verification.verified.pop_front().unwrap();
-			self.processing.remove(&block.header.hash());
 			result.push(block);
 		}
 		self.ready_signal.reset();
@@ -294,6 +316,7 @@ mod tests {
 	use block_queue::*;
 	use tests::helpers::*;
 	use error::*;
+	use views::*;
 
 	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
@@ -339,11 +362,14 @@ mod tests {
 	#[test]
 	fn returns_ok_for_drained_duplicates() {
 		let mut queue = get_test_queue();
-		if let Err(e) = queue.import_block(get_good_dummy_block()) {
+		let block = get_good_dummy_block();
+		let hash = BlockView::new(&block).header().hash().clone();
+		if let Err(e) = queue.import_block(block) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
 		queue.flush();
 		queue.drain(10);
+		queue.mark_as_good(&[ hash ]);
 
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that has already been drained ({:?})", e);

@@ -1,5 +1,5 @@
 use super::test_common::*;
-use super::helpers::*;
+use tests::helpers::*;
 use pod_state::*;
 use state_diff::*;
 use ethereum;
@@ -19,19 +19,19 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 		ChainEra::Homestead => ethereum::new_homestead_test(),
 	}.to_engine().unwrap();
 
-	flush(format!("\n"));
+	flushln!("");
 
 	for (name, test) in json.as_object().unwrap() {
 		let mut fail = false;
 		{
 			let mut fail_unless = |cond: bool| if !cond && !fail {
 				failed.push(name.clone());
-				flush(format!("FAIL\n"));
+				flushln!("FAIL");
 				fail = true;
 				true
 			} else {false};
 
-			flush(format!("   - {}...", name));
+			flush!("   - {}...", name);
 
 			let t = Transaction::from_json(&test["transaction"]);
 			let env = EnvInfo::from_json(&test["env"]);
@@ -73,7 +73,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 			}
 		}
 		if !fail {
-			flush(format!("ok\n"));
+			flushln!("ok");
 		}
 		// TODO: Add extra APIs for output
 		//if fail_unless(out == r.)

@@ -1,11 +1,10 @@
 ///! Rust VM implementation
 
 use common::*;
-use evm;
 use super::instructions as instructions;
 use super::instructions::Instruction;
 use std::marker::Copy;
-use evm::{MessageCallResult, ContractCreateResult};
+use evm::{self, MessageCallResult, ContractCreateResult};
 
 #[cfg(not(feature = "evm-debug"))]
 macro_rules! evm_debug {

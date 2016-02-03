@@ -7,13 +7,13 @@ use super::journal::*;
 /// Type of node in the trie and essential information thereof.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Node<'a> {
-	/// TODO [Gav Wood] Please document me
+	/// Null trie node; could be an empty root or an empty branch entry.
 	Empty,
-	/// TODO [Gav Wood] Please document me
+	/// Leaf node; has key slice and value. Value may not be empty.
 	Leaf(NibbleSlice<'a>, &'a[u8]),
-	/// TODO [Gav Wood] Please document me
+	/// Extension node; has key slice and node data. Data may not be null.
 	Extension(NibbleSlice<'a>, &'a[u8]),
-	/// TODO [Gav Wood] Please document me
+	/// Branch node; has array of 16 child nodes (each possibly null) and an optional immediate node data.
 	Branch([&'a[u8]; 16], Option<&'a [u8]>)
 }
 

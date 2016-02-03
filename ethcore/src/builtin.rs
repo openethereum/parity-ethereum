@@ -63,7 +63,8 @@ impl Builtin {
 	}
 }
 
-/// TODO [Gav Wood] Please document me
+/// Copy a bunch of bytes to a destination; if the `src` is too small to fill `dest`,
+/// leave the rest unchanged.
 pub fn copy_to(src: &[u8], dest: &mut[u8]) {
 	// NICE: optimise
 	for i in 0..min(src.len(), dest.len()) {

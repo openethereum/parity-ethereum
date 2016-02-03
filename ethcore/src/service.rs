@@ -1,3 +1,5 @@
+//! Creates and registers client and network services.
+
 use util::*;
 use spec::Spec;
 use error::*;
@@ -13,7 +15,7 @@ pub enum SyncMessage {
 	BlockVerified,
 }
 
-/// TODO [arkpar] Please document me
+/// IO Message type used for Network service
 pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.

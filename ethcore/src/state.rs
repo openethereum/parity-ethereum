@@ -1,11 +1,15 @@
 use common::*;
 use engine::Engine;
 use executive::Executive;
+#[cfg(test)]
+#[cfg(feature = "json-tests")]
 use pod_account::*;
-use pod_state::*;
+#[cfg(test)]
+#[cfg(feature = "json-tests")]
+use pod_state::PodState;
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
-/// TODO [Gav Wood] Please document me
+/// Result type for the execution ("application") of a transaction.
 pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
@@ -20,6 +24,7 @@ pub struct State {
 
 impl State {
 	/// Creates new state with empty state root
+	#[cfg(test)]
 	pub fn new(mut db: JournalDB, account_start_nonce: U256) -> State {
 		let mut root = H256::new();
 		{
@@ -58,11 +63,6 @@ impl State {
 	/// Return reference to root
 	pub fn root(&self) -> &H256 {
 		&self.root
-	}
-
-	/// Expose the underlying database; good to use for calling `state.db().commit()`.
-	pub fn db(&mut self) -> &mut JournalDB {
-		&mut self.db
 	}
 
 	/// Create a new contract at address `contract`. If there is already an account at the address
@@ -143,7 +143,6 @@ impl State {
 //		let old = self.to_pod();
 
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
-		//println!("Executed: {:?}", e);
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
@@ -153,14 +152,9 @@ impl State {
 		Ok(receipt)
 	}
 
-	/// TODO [debris] Please document me
+	/// Reverts uncommited changed.
 	pub fn revert(&mut self, backup: State) {
 		self.cache = backup.cache;
-	}
-
-	/// Convert into a JSON representation.
-	pub fn as_json(&self) -> String {
-		unimplemented!();
 	}
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
@@ -195,6 +189,8 @@ impl State {
 		Self::commit_into(&mut self.db, &mut self.root, self.cache.borrow_mut().deref_mut());
 	}
 
+	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	/// Populate the state from `accounts`.
 	pub fn populate_from(&mut self, accounts: PodState) {
 		for (add, acc) in accounts.drain().into_iter() {
@@ -202,17 +198,8 @@ impl State {
 		}
 	}
 
-	/// Populate a PodAccount map from this state.
-	pub fn to_hashmap_pod(&self) -> HashMap<Address, PodAccount> {
-		// TODO: handle database rather than just the cache.
-		self.cache.borrow().iter().fold(HashMap::new(), |mut m, (add, opt)| {
-			if let Some(ref acc) = *opt {
-				m.insert(add.clone(), PodAccount::from_account(acc));
-			}
-			m
-		})
-	}
-
+	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
 		// TODO: handle database rather than just the cache.

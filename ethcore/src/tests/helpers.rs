@@ -1,6 +1,7 @@
-use client::{BlockChainClient,Client};
+#[cfg(feature = "json-tests")]
+use client::{BlockChainClient, Client};
 use std::env;
-use super::test_common::*;
+use common::*;
 use std::path::PathBuf;
 use spec::*;
 use std::fs::{remove_dir_all};
@@ -8,6 +9,8 @@ use blockchain::{BlockChain};
 use state::*;
 use rocksdb::*;
 
+
+#[cfg(feature = "json-tests")]
 pub enum ChainEra {
 	Frontier,
 	Homestead,
@@ -43,10 +46,10 @@ impl Drop for RandomTempPath {
 	}
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub struct GuardedTempResult<T> {
 	result: T,
-	temp: RandomTempPath
+	_temp: RandomTempPath
 }
 
 impl<T> GuardedTempResult<T> {
@@ -111,6 +114,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[&Transaction
 	rlp.out()
 }
 
+#[cfg(feature = "json-tests")]
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 
@@ -145,11 +149,12 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 	client.import_verified_blocks(&IoChannel::disconnected());
 
 	GuardedTempResult::<Arc<Client>> {
-		temp: dir,
+		_temp: dir,
 		result: client
 	}
 }
 
+#[cfg(feature = "json-tests")]
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
@@ -162,7 +167,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	client.import_verified_blocks(&IoChannel::disconnected());
 
 	GuardedTempResult::<Arc<Client>> {
-		temp: dir,
+		_temp: dir,
 		result: client
 	}
 }
@@ -175,7 +180,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 	}
 
 	GuardedTempResult::<BlockChain> {
-		temp: temp,
+		_temp: temp,
 		result: bc
 	}
 }
@@ -188,7 +193,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 	}
 
 	GuardedTempResult::<BlockChain> {
-		temp: temp,
+		_temp: temp,
 		result: bc
 	}
 }
@@ -198,7 +203,7 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
 
 	GuardedTempResult::<BlockChain> {
-		temp: temp,
+		_temp: temp,
 		result: bc
 	}
 }
@@ -208,7 +213,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<JournalDB> {
 	let db = DB::open_default(temp.as_str()).unwrap();
 	let journal_db = JournalDB::new(db);
 	GuardedTempResult {
-		temp: temp,
+		_temp: temp,
 		result: journal_db
 	}
 }
@@ -217,7 +222,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	let temp = RandomTempPath::new();
 	let journal_db = get_temp_journal_db_in(temp.as_path());
 	GuardedTempResult {
-	    temp: temp,
+	    _temp: temp,
 		result: State::new(journal_db, U256::from(0u8))
 	}
 }
@@ -246,6 +251,7 @@ pub fn get_good_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
+#[cfg(feature = "json-tests")]
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();

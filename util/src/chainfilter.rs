@@ -49,9 +49,9 @@ use sha3::*;
 /// index. Their `BloomIndex` can be created from block number and given level.
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub struct BloomIndex {
-	/// TODO [debris] Please document me
+	/// Bloom level
 	pub level: u8,
-	/// TODO [debris] Please document me
+	///  Filter Index
 	pub index: usize,
 }
 

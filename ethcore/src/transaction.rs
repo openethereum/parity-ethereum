@@ -1,14 +1,16 @@
+//! Transaction data structure.
+
 use util::*;
 use basic_types::*;
 use error::*;
 use evm::Schedule;
 
 #[derive(Debug, Clone)]
-/// TODO [Gav Wood] Please document me
+/// Transaction action type.
 pub enum Action {
-	/// TODO [Gav Wood] Please document me
+	/// Create creates new contract.
 	Create,
-	/// TODO [debris] Please document me
+	/// Calls contract at given address.
 	Call(Address),
 }
 
@@ -20,25 +22,25 @@ impl Default for Action {
 /// or contract creation operation.
 #[derive(Default, Debug, Clone)]
 pub struct Transaction {
-	/// TODO [debris] Please document me
+	/// Nonce.
 	pub nonce: U256,
-	/// TODO [debris] Please document me
+	/// Gas price.
 	pub gas_price: U256,
-	/// TODO [debris] Please document me
+	/// Gas paid up front for transaction execution.
 	pub gas: U256,
-	/// TODO [debris] Please document me
+	/// Action, can be either call or contract create.
 	pub action: Action,
-	/// TODO [debris] Please document me
+	/// Transfered value.
 	pub value: U256,
-	/// TODO [Gav Wood] Please document me
+	/// Transaction data.
 	pub data: Bytes,
 
 	// signature
-	/// TODO [Gav Wood] Please document me
+	/// The V field of the signature, either 27 or 28; helps describe the point on the curve.
 	pub v: u8,
-	/// TODO [Gav Wood] Please document me
+	/// The R field of the signature; helps describe the point on the curve.
 	pub r: U256,
-	/// TODO [debris] Please document me
+	/// The S field of the signature; helps describe the point on the curve.
 	pub s: U256,
 
 	hash: RefCell<Option<H256>>,
@@ -46,7 +48,9 @@ pub struct Transaction {
 }
 
 impl Transaction {
-	/// TODO [Gav Wood] Please document me
+	/// Create a new transaction.
+	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	pub fn new() -> Self {
 		Transaction {
 			nonce: x!(0),
@@ -62,24 +66,9 @@ impl Transaction {
 			sender: RefCell::new(None),
 		}
 	}
-	/// Create a new message-call transaction.
-	pub fn new_call(to: Address, value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
-		Transaction {
-			nonce: nonce,
-			gas_price: gas_price,
-			gas: gas,
-			action: Action::Call(to),
-			value: value,
-			data: data,
-			v: 0,
-			r: x!(0),
-			s: x!(0),
-			hash: RefCell::new(None),
-			sender: RefCell::new(None),
-		}
-	}
 
 	/// Create a new contract-creation transaction.
+	#[cfg(test)]
 	pub fn new_create(value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
 		Transaction {
 			nonce: nonce,
@@ -95,19 +84,6 @@ impl Transaction {
 			sender: RefCell::new(None),
 		}
 	}
-
-	/// Get the nonce of the transaction.
-	pub fn nonce(&self) -> &U256 { &self.nonce }
-	/// Get the gas price of the transaction.
-	pub fn gas_price(&self) -> &U256 { &self.gas_price }
-	/// Get the gas of the transaction.
-	pub fn gas(&self) -> &U256 { &self.gas }
-	/// Get the action of the transaction (Create or Call).
-	pub fn action(&self) -> &Action { &self.action }
-	/// Get the value of the transaction.
-	pub fn value(&self) -> &U256 { &self.value }
-	/// Get the data of the transaction.
-	pub fn data(&self) -> &Bytes { &self.data }
 
 	/// Append object into RLP stream, optionally with or without the signature.
 	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
@@ -179,11 +155,6 @@ impl Transaction {
 		}
 	}
 
-	/// Note that some fields have changed. Resets the memoised hash.
-	pub fn note_dirty(&self) {
- 		*self.hash.borrow_mut() = None;
-	}
-
 	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
 	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
 
@@ -216,6 +187,7 @@ impl Transaction {
 	}
 
 	/// Signs the transaction as coming from `sender`.
+	#[cfg(test)]
 	pub fn signed(self, secret: &Secret) -> Transaction { let mut r = self; r.sign(secret); r }
 
 	/// Get the transaction cost in gas for the given params.
@@ -241,6 +213,9 @@ impl Transaction {
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
+	// TODO: consider use in block validation.
+	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	pub fn validate(self, schedule: &Schedule, require_low: bool) -> Result<Transaction, Error> {
 		if require_low && !ec::is_low_s(&self.s) {
 			return Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)));

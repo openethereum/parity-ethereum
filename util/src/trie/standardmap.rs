@@ -7,13 +7,13 @@ use hash::*;
 
 /// Alphabet to use when creating words for insertion into tries.
 pub enum Alphabet {
-	/// TODO [Gav Wood] Please document me
+	/// All values are allowed in each bytes of the key.
 	All,
-	/// TODO [Gav Wood] Please document me
+	/// Only a 6 values ('a' - 'f') are chosen to compose the key.
 	Low,
-	/// TODO [Gav Wood] Please document me
+	/// Quite a few values (around 32) are chosen to compose the key.
 	Mid,
-	/// TODO [Gav Wood] Please document me
+	/// A set of bytes given is used to compose the key.
 	Custom(Bytes),
 }
 

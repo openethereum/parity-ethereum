@@ -216,6 +216,12 @@ pub struct EncryptedConnection {
 }
 
 impl EncryptedConnection {
+	
+	/// Get socket token 
+	pub fn token(&self) -> StreamToken {
+		self.connection.token
+	}
+
 	/// Create an encrypted connection out of the handshake. Consumes a handshake object.
 	pub fn new(mut handshake: Handshake) -> Result<EncryptedConnection, UtilError> {
 		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_public));

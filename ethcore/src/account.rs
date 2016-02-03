@@ -1,3 +1,5 @@
+//! Single account in the system.
+
 use util::*;
 use pod_account::*;
 
@@ -19,6 +21,7 @@ pub struct Account {
 }
 
 impl Account {
+	#[cfg(test)]
 	/// General constructor.
 	pub fn new(balance: U256, nonce: U256, storage: HashMap<H256, H256>, code: Bytes) -> Account {
 		Account {
@@ -31,6 +34,8 @@ impl Account {
 		}
 	}
 
+	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	/// General constructor.
 	pub fn from_pod(pod: PodAccount) -> Account {
 		Account {
@@ -81,15 +86,8 @@ impl Account {
 		}
 	}
 
-	/// Reset this account to the status of a not-yet-initialised contract.
-	/// NOTE: Account should have `init_code()` called on it later.
-	pub fn reset_code(&mut self) {
-		self.code_hash = None;
-		self.code_cache = vec![];
-	}
-
 	/// Set this account's code to the given code.
-	/// NOTE: Account should have been created with `new_contract()` or have `reset_code()` called on it.
+	/// NOTE: Account should have been created with `new_contract()`
 	pub fn init_code(&mut self, code: Bytes) {
 		assert!(self.code_hash.is_none());
 		self.code_cache = code;
@@ -113,6 +111,7 @@ impl Account {
 	/// return the nonce associated with this account.
 	pub fn nonce(&self) -> &U256 { &self.nonce }
 
+	#[cfg(test)]
 	/// return the code hash associated with this account.
 	pub fn code_hash(&self) -> H256 {
 		self.code_hash.clone().unwrap_or(SHA3_EMPTY)
@@ -129,6 +128,7 @@ impl Account {
 		}
 	}
 
+	#[cfg(test)]
 	/// Provide a byte array which hashes to the `code_hash`. returns the hash as a result.
 	pub fn note_code(&mut self, code: Bytes) -> Result<(), H256> {
 		let h = code.sha3();
@@ -163,17 +163,13 @@ impl Account {
 			}
 	}
 
-	/// return the storage root associated with this account.
-	pub fn base_root(&self) -> &H256 { &self.storage_root }
-
+	#[cfg(test)]
 	/// Determine whether there are any un-`commit()`-ed storage-setting operations.
 	pub fn storage_is_clean(&self) -> bool { self.storage_overlay.borrow().iter().find(|&(_, &(f, _))| f == Filth::Dirty).is_none() }
 	
+	#[cfg(test)]
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
-	
-	/// return the storage root associated with this account or None if it has been altered via the overlay.
-	pub fn recent_storage_root(&self) -> &H256 { &self.storage_root }
 	
 	/// return the storage overlay.
 	pub fn storage_overlay(&self) -> Ref<HashMap<H256, (Filth, H256)>> { self.storage_overlay.borrow() }

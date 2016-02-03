@@ -2,7 +2,7 @@ use util::*;
 use pod_account::*;
 
 #[derive(Debug,Clone,PartialEq,Eq,Default)]
-/// TODO [Gav Wood] Please document me
+/// State of all accounts in the system expressed in Plain Old Data.
 pub struct PodState (BTreeMap<Address, PodAccount>);
 
 impl PodState {
@@ -10,6 +10,7 @@ impl PodState {
 	pub fn new() -> PodState { Default::default() }
 
 	/// Contruct a new object from the `m`.
+	#[cfg(test)]
 	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
 
 	/// Get the underlying map.
@@ -21,6 +22,8 @@ impl PodState {
 	}
 
 	/// Drain object to get the underlying map.
+	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
 }
 

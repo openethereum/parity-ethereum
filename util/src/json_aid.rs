@@ -1,6 +1,6 @@
 use common::*;
 
-/// TODO [Gav Wood] Please document me
+/// Remove the `"0x"`, if present, from the left of `s`, returning the remaining slice.
 pub fn clean(s: &str) -> &str {
 	if s.len() >= 2 && &s[0..2] == "0x" {
 		&s[2..]

@@ -1,5 +1,5 @@
 use super::test_common::*;
-use super::helpers::*;
+use tests::helpers::*;
 use super::state::json_chain_test;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {

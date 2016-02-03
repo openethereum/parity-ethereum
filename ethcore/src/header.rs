@@ -1,3 +1,5 @@
+//! Block header.
+
 use util::*;
 use basic_types::*;
 use time::now_utc;
@@ -11,50 +13,49 @@ pub type BlockNumber = u64;
 /// which is non-specific.
 ///
 /// Doesn't do all that much on its own.
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Header {
 	// TODO: make all private.
-	/// TODO [Gav Wood] Please document me
+	/// Parent hash.
 	pub parent_hash: H256,
-	/// TODO [arkpar] Please document me
+	/// Block timestamp.
 	pub timestamp: u64,
-	/// TODO [debris] Please document me
+	/// Block number.
 	pub number: BlockNumber,
-	/// TODO [Gav Wood] Please document me
+	/// Block author.
 	pub author: Address,
 
-	/// TODO [debris] Please document me
+	/// Transactions root.
 	pub transactions_root: H256,
-	/// TODO [debris] Please document me
+	/// Block uncles hash.
 	pub uncles_hash: H256,
-	/// TODO [Gav Wood] Please document me
+	/// Block extra data.
 	pub extra_data: Bytes,
 
-	/// TODO [debris] Please document me
+	/// State root.
 	pub state_root: H256,
-	/// TODO [debris] Please document me
+	/// Block receipts root.
 	pub receipts_root: H256,
-	/// TODO [debris] Please document me
+	/// Block bloom.
 	pub log_bloom: LogBloom,
-	/// TODO [debris] Please document me
+	/// Gas used for contracts execution.
 	pub gas_used: U256,
-	/// TODO [Gav Wood] Please document me
+	/// Block gas limit.
 	pub gas_limit: U256,
 
-	/// TODO [debris] Please document me
+	/// Block difficulty.
 	pub difficulty: U256,
-	/// TODO [arkpar] Please document me
+	/// Block seal.
 	pub seal: Vec<Bytes>,
 
-	/// TODO [arkpar] Please document me
+	/// The memoized hash of the RLP representation *including* the seal fields.
 	pub hash: RefCell<Option<H256>>,
-	/// TODO [Gav Wood] Please document me
+	/// The memoized hash of the RLP representation *without* the seal fields.
 	pub bare_hash: RefCell<Option<H256>>,
 }
 
-impl Header {
-	/// Create a new, default-valued, header.
-	pub fn new() -> Header {
+impl Default for Header {
+	fn default() -> Self {
 		Header {
 			parent_hash: ZERO_H256.clone(),
 			timestamp: 0,
@@ -77,51 +78,58 @@ impl Header {
 			bare_hash: RefCell::new(None),
 		}
 	}
+}
 
-	/// TODO [Gav Wood] Please document me
+impl Header {
+	/// Create a new, default-valued, header.
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// Get the number field of the header.
 	pub fn number(&self) -> BlockNumber { self.number }
-	/// TODO [Gav Wood] Please document me
+	/// Get the timestamp field of the header.
 	pub fn timestamp(&self) -> u64 { self.timestamp }
-	/// TODO [Gav Wood] Please document me
+	/// Get the author field of the header.
 	pub fn author(&self) -> &Address { &self.author }
 
-	/// TODO [Gav Wood] Please document me
+	/// Get the extra data field of the header.
 	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
 
-	/// TODO [Gav Wood] Please document me
+	/// Get the state root field of the header.
 	pub fn state_root(&self) -> &H256 { &self.state_root }
-	/// TODO [Gav Wood] Please document me
+	/// Get the receipts root field of the header.
 	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
-	/// TODO [Gav Wood] Please document me
+	/// Get the gas limit field of the header.
 	pub fn gas_limit(&self) -> &U256 { &self.gas_limit }
 
-	/// TODO [Gav Wood] Please document me
+	/// Get the difficulty field of the header.
 	pub fn difficulty(&self) -> &U256 { &self.difficulty }
-	/// TODO [Gav Wood] Please document me
+	/// Get the seal field of the header.
 	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
 
 	// TODO: seal_at, set_seal_at &c.
 
-	/// TODO [Gav Wood] Please document me
+	/// Set the number field of the header.
 	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
-	/// TODO [Gav Wood] Please document me
+	/// Set the timestamp field of the header.
 	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
-	/// TODO [Gav Wood] Please document me
+	/// Set the timestamp field of the header to the current time.
 	pub fn set_timestamp_now(&mut self) { self.timestamp = now_utc().to_timespec().sec as u64; self.note_dirty(); }
-	/// TODO [Gav Wood] Please document me
+	/// Set the author field of the header.
 	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
 
-	/// TODO [Gav Wood] Please document me
+	/// Set the extra data field of the header.
 	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.extra_data { self.extra_data = a; self.note_dirty(); } }
 
-	/// TODO [Gav Wood] Please document me
+	/// Set the gas used field of the header.
 	pub fn set_gas_used(&mut self, a: U256) { self.gas_used = a; self.note_dirty(); }
-	/// TODO [Gav Wood] Please document me
+	/// Set the gas limit field of the header.
 	pub fn set_gas_limit(&mut self, a: U256) { self.gas_limit = a; self.note_dirty(); }
 
-	/// TODO [Gav Wood] Please document me
+	/// Set the difficulty field of the header.
 	pub fn set_difficulty(&mut self, a: U256) { self.difficulty = a; self.note_dirty(); }
-	/// TODO [Gav Wood] Please document me
+	/// Set the seal field of the header.
 	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
 
 	/// Get the hash of this header (sha3 of the RLP).
@@ -155,7 +163,7 @@ impl Header {
 	}
 
 	// TODO: make these functions traity 
-	/// TODO [Gav Wood] Please document me
+	/// Place this header into an RLP stream `s`, optionally `with_seal`.
 	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: Seal) {
 		s.begin_list(13 + match with_seal { Seal::With => self.seal.len(), _ => 0 });
 		s.append(&self.parent_hash);
@@ -178,14 +186,14 @@ impl Header {
 		}
 	}
 
-	/// TODO [Gav Wood] Please document me
+	/// Get the RLP of this header, optionally `with_seal`.
 	pub fn rlp(&self, with_seal: Seal) -> Bytes {
 		let mut s = RlpStream::new();
 		self.stream_rlp(&mut s, with_seal);
 		s.out()
 	}
 
-	/// TODO [debris] Please document me
+	/// Get the SHA3 (Keccak) of this header, optionally `with_seal`.
 	pub fn rlp_sha3(&self, with_seal: Seal) -> H256 { self.rlp(with_seal).sha3() }
 }
 

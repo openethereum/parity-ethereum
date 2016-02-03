@@ -5,22 +5,22 @@ use header::BlockNumber;
 use basic_types::LogBloom;
 
 #[derive(Debug, PartialEq, Eq)]
-/// TODO [Gav Wood] Please document me
+/// Error indicating an expected value was not found.
 pub struct Mismatch<T: fmt::Debug> {
-	/// TODO [Gav Wood] Please document me
+	/// Value expected.
 	pub expected: T,
-	/// TODO [Gav Wood] Please document me
+	/// Value found.
 	pub found: T,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-/// TODO [Gav Wood] Please document me
+/// Error indicating value found is outside of a valid range.
 pub struct OutOfBounds<T: fmt::Debug> {
-	/// TODO [Gav Wood] Please document me
+	/// Minimum allowed value.
 	pub min: Option<T>,
-	/// TODO [Gav Wood] Please document me
+	/// Maximum allowed value.
 	pub max: Option<T>,
-	/// TODO [Gav Wood] Please document me
+	/// Value found.
 	pub found: T,
 }
 
@@ -29,11 +29,10 @@ pub struct OutOfBounds<T: fmt::Debug> {
 pub enum ExecutionError {
 	/// Returned when there gas paid for transaction execution is
 	/// lower than base gas required.
-	/// TODO [Gav Wood] Please document me
 	NotEnoughBaseGas { 
-		/// TODO [Gav Wood] Please document me
+		/// Absolute minimum gas required.
 		required: U256, 
-		/// TODO [Gav Wood] Please document me
+		/// Gas provided.
 		got: U256
 	},
 	/// Returned when block (gas_used + gas) > gas_limit.
@@ -41,26 +40,26 @@ pub enum ExecutionError {
 	/// If gas =< gas_limit, upstream may try to execute the transaction
 	/// in next block.
 	BlockGasLimitReached { 
-		/// TODO [Gav Wood] Please document me
+		/// Gas limit of block for transaction.
 		gas_limit: U256,
-		/// TODO [Gav Wood] Please document me
+		/// Gas used in block prior to transaction.
 		gas_used: U256,
-		/// TODO [Gav Wood] Please document me
+		/// Amount of gas in block.
 		gas: U256 
 	},
 	/// Returned when transaction nonce does not match state nonce.
 	InvalidNonce { 
-		/// TODO [Gav Wood] Please document me
+		/// Nonce expected.
 		expected: U256,
-		/// TODO [Gav Wood] Please document me
+		/// Nonce found.
 		got: U256
 	},
 	/// Returned when cost of transaction (value + gas_price * gas) exceeds 
 	/// current sender balance.
 	NotEnoughCash { 
-		/// TODO [Gav Wood] Please document me
+		/// Minimum required balance.
 		required: U512,
-		/// TODO [Gav Wood] Please document me
+		/// Actual balance.
 		got: U512
 	},
 	/// Returned when internal evm error occurs.
@@ -68,76 +67,82 @@ pub enum ExecutionError {
 }
 
 #[derive(Debug)]
-/// TODO [Gav Wood] Please document me
+/// Errors concerning transaction proessing.
 pub enum TransactionError {
-	/// TODO [Gav Wood] Please document me
+	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
 }
 
 #[derive(Debug, PartialEq, Eq)]
-/// TODO [arkpar] Please document me
+/// Errors concerning block processing.
 pub enum BlockError {
-	/// TODO [Gav Wood] Please document me
+	/// Block has too many uncles.
 	TooManyUncles(OutOfBounds<usize>),
-	/// TODO [Gav Wood] Please document me
-	UncleWrongGeneration,
-	/// TODO [Gav Wood] Please document me
+	/// Extra data is of an invalid length.
 	ExtraDataOutOfBounds(OutOfBounds<usize>),
-	/// TODO [arkpar] Please document me
+	/// Seal is incorrect format.
 	InvalidSealArity(Mismatch<usize>),
-	/// TODO [arkpar] Please document me
+	/// Block has too much gas used.
 	TooMuchGasUsed(OutOfBounds<U256>),
-	/// TODO [arkpar] Please document me
+	/// Uncles hash in header is invalid.
 	InvalidUnclesHash(Mismatch<H256>),
-	/// TODO [arkpar] Please document me
+	/// An uncle is from a generation too old.
 	UncleTooOld(OutOfBounds<BlockNumber>),
-	/// TODO [arkpar] Please document me
+	/// An uncle is from the same generation as the block.
 	UncleIsBrother(OutOfBounds<BlockNumber>),
-	/// TODO [arkpar] Please document me
+	/// An uncle is already in the chain.
 	UncleInChain(H256),
-	/// TODO [arkpar] Please document me
+	/// An uncle has a parent not in the chain.
 	UncleParentNotInChain(H256),
-	/// TODO [arkpar] Please document me
+	/// State root header field is invalid.
 	InvalidStateRoot(Mismatch<H256>),
-	/// TODO [arkpar] Please document me
+	/// Gas used header field is invalid.
 	InvalidGasUsed(Mismatch<U256>),
-	/// TODO [arkpar] Please document me
+	/// Transactions root header field is invalid.
 	InvalidTransactionsRoot(Mismatch<H256>),
-	/// TODO [arkpar] Please document me
+	/// Difficulty is out of range; this can be used as an looser error prior to getting a definitive
+	/// value for difficulty. This error needs only provide bounds of which it is out.
+	DifficultyOutOfBounds(OutOfBounds<U256>),
+	/// Difficulty header field is invalid; this is a strong error used after getting a definitive
+	/// value for difficulty (which is provided).
 	InvalidDifficulty(Mismatch<U256>),
-	/// TODO [arkpar] Please document me
+	/// Seal element of type H256 (max_hash for Ethash, but could be something else for
+	/// other seal engines) is out of bounds.
+	MismatchedH256SealElement(Mismatch<H256>),
+	/// Proof-of-work aspect of seal, which we assume is a 256-bit value, is invalid.
+	InvalidProofOfWork(OutOfBounds<U256>),
+	/// Gas limit header field is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
-	/// TODO [arkpar] Please document me
-	InvalidReceiptsStateRoot(Mismatch<H256>),
-	/// TODO [arkpar] Please document me
+	/// Receipts trie root header field is invalid.
+	InvalidReceiptsRoot(Mismatch<H256>),
+	/// Timestamp header field is invalid.
 	InvalidTimestamp(OutOfBounds<u64>),
-	/// TODO [arkpar] Please document me
+	/// Log bloom header field is invalid.
 	InvalidLogBloom(Mismatch<LogBloom>),
-	/// TODO [arkpar] Please document me
-	InvalidEthashDifficulty(Mismatch<U256>),
-	/// TODO [arkpar] Please document me
-	InvalidBlockNonce(Mismatch<H256>),
-	/// TODO [arkpar] Please document me
+	/// Parent hash field of header is invalid; this is an invalid error indicating a logic flaw in the codebase.
+	/// TODO: remove and favour an assert!/panic!.
 	InvalidParentHash(Mismatch<H256>),
-	/// TODO [arkpar] Please document me
+	/// Number field of header is invalid.
 	InvalidNumber(Mismatch<BlockNumber>),
 	/// Block number isn't sensible.
 	RidiculousNumber(OutOfBounds<BlockNumber>),
-	/// TODO [arkpar] Please document me
+	/// Parent given is unknown.
 	UnknownParent(H256),
-	/// TODO [Gav Wood] Please document me
+	/// Uncle parent given is unknown.
 	UnknownUncleParent(H256),
 }
 
 #[derive(Debug)]
-/// TODO [arkpar] Please document me
+/// Import to the block queue result
 pub enum ImportError {
-	/// TODO [arkpar] Please document me
+	/// Bad block detected
 	Bad(Option<Error>),
-	/// TODO [arkpar] Please document me
+	/// Already in the block chain
 	AlreadyInChain,
-	/// TODO [arkpar] Please document me
+	/// Already in the block queue
 	AlreadyQueued,
+	/// Unknown parent
+	UnknownParent,
 }
 
 impl From<Error> for ImportError {
@@ -152,15 +157,15 @@ pub type ImportResult = Result<H256, ImportError>;
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
 pub enum Error {
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning a utility.
 	Util(UtilError),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning block processing.
 	Block(BlockError),
-	/// TODO [Gav Wood] Please document me
+	/// Unknown engine given.
 	UnknownEngineName(String),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning EVM code execution.
 	Execution(ExecutionError),
-	/// TODO [Gav Wood] Please document me
+	/// Error concerning transaction processing.
 	Transaction(TransactionError),
 }
 

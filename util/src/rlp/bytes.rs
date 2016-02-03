@@ -140,9 +140,9 @@ impl <T>ToBytes for T where T: FixedHash {
 /// Error returned when FromBytes conversation goes wrong
 #[derive(Debug, PartialEq, Eq)]
 pub enum FromBytesError {
-	/// TODO [debris] Please document me
+	/// Expected more RLP data
 	DataIsTooShort,
-	/// TODO [debris] Please document me
+	/// Extra bytes after the end of the last item
 	DataIsTooLong,
 	/// Integer-representation is non-canonically prefixed with zero byte(s).
 	ZeroPrefixedInt,
@@ -165,7 +165,7 @@ pub type FromBytesResult<T> = Result<T, FromBytesError>;
 ///
 /// TODO: check size of bytes before conversation and return appropriate error
 pub trait FromBytes: Sized {
-	/// TODO [debris] Please document me
+	/// Create a value from bytes
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<Self>;
 }
 
@@ -236,7 +236,7 @@ impl_uint_from_bytes!(U128);
 
 impl <T>FromBytes for T where T: FixedHash {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<T> {
-		match bytes.len().cmp(&T::size()) {
+		match bytes.len().cmp(&T::len()) {
 			Ordering::Less => return Err(FromBytesError::DataIsTooShort),
 			Ordering::Greater => return Err(FromBytesError::DataIsTooLong),
 			Ordering::Equal => ()
@@ -246,7 +246,7 @@ impl <T>FromBytes for T where T: FixedHash {
 			use std::{mem, ptr};
 
 			let mut res: T = mem::uninitialized();
-			ptr::copy(bytes.as_ptr(), res.as_slice_mut().as_mut_ptr(), T::size());
+			ptr::copy(bytes.as_ptr(), res.as_slice_mut().as_mut_ptr(), T::len());
 
 			Ok(res)
 		}

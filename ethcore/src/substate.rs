@@ -1,3 +1,4 @@
+//! Execution environment substate.
 use common::*;
 
 /// State changes which should be applied in finalize,
@@ -25,7 +26,7 @@ impl Substate {
 		}
 	}
 
-	/// TODO [Gav Wood] Please document me
+	/// Merge secondary substate `s` into self, accruing each element correspondingly.
 	pub fn accrue(&mut self, s: Substate) {
 		self.suicides.extend(s.suicides.into_iter());
 		self.logs.extend(s.logs.into_iter());

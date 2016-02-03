@@ -21,21 +21,21 @@ impl OffsetCache {
 }
 
 #[derive(Debug)]
-/// TODO [debris] Please document me
+/// RLP prototype
 pub enum Prototype {
-	/// TODO [debris] Please document me
+	/// Empty
 	Null,
-	/// TODO [debris] Please document me
+	/// Value
 	Data(usize),
-	/// TODO [debris] Please document me
+	/// List
 	List(usize),
 }
 
 /// Stores basic information about item
 pub struct PayloadInfo {
-	/// TODO [debris] Please document me
+	/// Header length in bytes
 	pub header_len: usize,
-	/// TODO [debris] Please document me
+	/// Value length in bytes
 	pub value_len: usize,
 }
 

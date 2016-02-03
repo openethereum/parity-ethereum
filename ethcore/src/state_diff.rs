@@ -1,12 +1,15 @@
 use util::*;
+#[cfg(test)]
 use pod_state::*;
 use account_diff::*;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
-/// TODO [Gav Wood] Please document me
+/// Expression for the delta between two system states. Encoded the 
+/// delta of every altered account.
 pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
 impl StateDiff {
+	#[cfg(test)]
 	/// Calculate and return diff between `pre` state and `post` state.
 	pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 		StateDiff(pre.get().keys().merge(post.get().keys()).filter_map(|acc| AccountDiff::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d|(acc.clone(), d))).collect())

@@ -129,7 +129,7 @@ impl<'a> Executive<'a> {
 
 		let mut substate = Substate::new();
 
-		let res = match *t.action() {
+		let res = match t.action {
 			Action::Create => {
 				let new_address = contract_address(&sender, &nonce);
 				let params = ActionParams {
@@ -399,7 +399,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(0x100u64));
-		let info = EnvInfo::new();
+		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
@@ -458,7 +458,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
-		let info = EnvInfo::new();
+		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
@@ -512,7 +512,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
-		let info = EnvInfo::new();
+		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
@@ -564,7 +564,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100));
-		let info = EnvInfo::new();
+		let info = EnvInfo::default();
 		let engine = TestEngine::new(1024, factory);
 		let mut substate = Substate::new();
 
@@ -624,7 +624,7 @@ mod tests {
 		state.init_code(&address_b, code_b.clone());
 		state.add_balance(&sender, &U256::from(100_000));
 
-		let info = EnvInfo::new();
+		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
@@ -668,7 +668,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.init_code(&address, code.clone());
-		let info = EnvInfo::new();
+		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
@@ -694,7 +694,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(18));
-		let mut info = EnvInfo::new();
+		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0, factory);
 
@@ -721,7 +721,7 @@ mod tests {
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		let mut info = EnvInfo::new();
+		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0, factory);
 
@@ -746,7 +746,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(17));
-		let mut info = EnvInfo::new();
+		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0, factory);
 
@@ -772,7 +772,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(17));
-		let mut info = EnvInfo::new();
+		let mut info = EnvInfo::default();
 		info.gas_used = U256::from(20_000);
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0, factory);
@@ -799,7 +799,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(100_017));
-		let mut info = EnvInfo::new();
+		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0, factory);
 
@@ -833,7 +833,7 @@ mod tests {
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
-		let info = EnvInfo::new();
+		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
 		let mut substate = Substate::new();
 
