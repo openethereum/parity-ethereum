@@ -194,7 +194,7 @@ impl<'a> Executive<'a> {
 	/// Returns either gas_left or `evm::Error`.
 	pub fn call(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
 		// backup used in case of running out of gas
-		let backup = self.state.clone();
+		self.state.snapshot();
 
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
@@ -212,11 +212,12 @@ impl<'a> Executive<'a> {
 			match cost <= params.gas {
 				true => {
 					self.engine.execute_builtin(&params.code_address, data, &mut output);
+					self.state.clear_snapshot();
 					Ok(params.gas - cost)
 				},
 				// just drain the whole gas
 				false => {
-					self.state.revert(backup);
+					self.state.revert_snapshot();
 					Err(evm::Error::OutOfGas)
 				}
 			}
@@ -232,11 +233,12 @@ impl<'a> Executive<'a> {
 
 			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
 			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
-			self.enact_result(&res, substate, unconfirmed_substate, backup);
+			self.enact_result(&res, substate, unconfirmed_substate);
 			trace!("exec: new substate={:?}\n", substate);
 			res
 		} else {
 			// otherwise, nothing
+			self.state.clear_snapshot();
 			Ok(params.gas)
 		}
 	}
@@ -246,7 +248,7 @@ impl<'a> Executive<'a> {
 	/// Modifies the substate.
 	pub fn create(&mut self, params: ActionParams, substate: &mut Substate) -> evm::Result {
 		// backup used in case of running out of gas
-		let backup = self.state.clone();
+		self.state.snapshot();
 
 		// part of substate that may be reverted
 		let mut unconfirmed_substate = Substate::new();
@@ -263,7 +265,7 @@ impl<'a> Executive<'a> {
 		let res = {
 			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract)
 		};
-		self.enact_result(&res, substate, unconfirmed_substate, backup);
+		self.enact_result(&res, substate, unconfirmed_substate);
 		res
 	}
 
@@ -324,16 +326,19 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
+	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate) {
 		match *result {
 			Err(evm::Error::OutOfGas)
 				| Err(evm::Error::BadJumpDestination {..}) 
 				| Err(evm::Error::BadInstruction {.. }) 
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
-				self.state.revert(backup);
+				self.state.revert_snapshot();
 			},
-			Ok(_) | Err(evm::Error::Internal) => substate.accrue(un_substate)
+			Ok(_) | Err(evm::Error::Internal) => {
+				self.state.clear_snapshot();
+				substate.accrue(un_substate)
+			}
 		}
 	}
 }

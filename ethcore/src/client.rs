@@ -139,7 +139,7 @@ impl ClientReport {
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
-	state_db: JournalDB,
+	state_db: Arc<DB>,
 	block_queue: RwLock<BlockQueue>,
 	report: RwLock<ClientReport>,
 	uncommited_states: RwLock<HashMap<H256, JournalDB>>,
@@ -186,7 +186,7 @@ impl Client {
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
-			state_db: state_db,
+			state_db: db,
 			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
 			report: RwLock::new(Default::default()),
 			uncommited_states: RwLock::new(HashMap::new()),
@@ -242,7 +242,7 @@ impl Client {
 				}
 			}
 
-			let db = self.state_db.clone();
+			let db = JournalDB::new_with_arc(self.state_db.clone());
 			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
@@ -284,7 +284,7 @@ impl Client {
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
-		State::from_existing(self.state_db.clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+		State::from_existing(JournalDB::new_with_arc(self.state_db.clone()), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
 	}
 
 	/// Get info on the cache.

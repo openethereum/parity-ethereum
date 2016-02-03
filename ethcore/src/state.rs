@@ -13,12 +13,11 @@ use pod_state::PodState;
 pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
-#[derive(Clone)]
 pub struct State {
 	db: JournalDB,
 	root: H256,
 	cache: RefCell<HashMap<Address, Option<Account>>>,
-
+	snapshots: RefCell<Vec<HashMap<Address, Option<Option<Account>>>>>,
 	account_start_nonce: U256,
 }
 
@@ -36,6 +35,7 @@ impl State {
 			db: db,
 			root: root,
 			cache: RefCell::new(HashMap::new()),
+			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
 		}
 	}
@@ -51,7 +51,59 @@ impl State {
 			db: db,
 			root: root,
 			cache: RefCell::new(HashMap::new()),
+			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
+		}
+	}
+
+	/// Create a recoverable snaphot of this state
+	pub fn snapshot(&mut self) {
+		self.snapshots.borrow_mut().push(HashMap::new());
+	}
+
+	pub fn clear_snapshot(&mut self) {
+		// merge with previous snapshot
+		let last = self.snapshots.borrow_mut().pop();
+		if let Some(mut snapshot) = last {
+			if let Some(ref mut prev) = self.snapshots.borrow_mut().last_mut() {
+				for (k, v) in snapshot.drain() {
+					prev.entry(k).or_insert(v);
+				}
+			}
+		}
+	}
+
+	pub fn revert_snapshot(&mut self) {
+		if let Some(mut snapshot) = self.snapshots.borrow_mut().pop() {
+			for (k, v) in snapshot.drain() {
+				match v {
+					Some(v) => {
+						self.cache.borrow_mut().insert(k, v);
+					},
+					None => {
+						self.cache.borrow_mut().remove(&k);
+					}
+				}
+			}
+		}
+	}
+
+
+	fn insert_cache(&self, address: &Address, account: Option<Account>) {
+		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
+			if !snapshot.contains_key(&address) {
+				snapshot.insert(address.clone(), self.cache.borrow_mut().insert(address.clone(), account));
+				return;
+			}
+		}
+		self.cache.borrow_mut().insert(address.clone(), account);
+	}
+
+	fn note_cache(&self, address: &Address) {
+		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
+			if !snapshot.contains_key(&address) {
+				snapshot.insert(address.clone(), self.cache.borrow().get(address).cloned());
+			}
 		}
 	}
 
@@ -68,12 +120,12 @@ impl State {
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
 	pub fn new_contract(&mut self, contract: &Address, balance: U256) {
-		self.cache.borrow_mut().insert(contract.clone(), Some(Account::new_contract(balance)));
+		self.insert_cache(&contract, Some(Account::new_contract(balance)));
 	}
 
 	/// Remove an existing account.
 	pub fn kill_account(&mut self, account: &Address) {
-		self.cache.borrow_mut().insert(account.clone(), None);
+		self.insert_cache(account, None);
 	}
 
 	/// Determine whether an account exists.
@@ -152,11 +204,6 @@ impl State {
 		Ok(receipt)
 	}
 
-	/// Reverts uncommited changed.
-	pub fn revert(&mut self, backup: State) {
-		self.cache = backup.cache;
-	}
-
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	#[allow(match_ref_pats)]
@@ -186,6 +233,7 @@ impl State {
 
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) {
+		assert!(self.snapshots.borrow().is_empty());
 		Self::commit_into(&mut self.db, &mut self.root, self.cache.borrow_mut().deref_mut());
 	}
 
@@ -193,6 +241,7 @@ impl State {
 	#[cfg(feature = "json-tests")]
 	/// Populate the state from `accounts`.
 	pub fn populate_from(&mut self, accounts: PodState) {
+		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
 			self.cache.borrow_mut().insert(add, Some(Account::from_pod(acc)));
 		}
@@ -202,6 +251,7 @@ impl State {
 	#[cfg(feature = "json-tests")]
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
+		assert!(self.snapshots.borrow().is_empty());
 		// TODO: handle database rather than just the cache.
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
 			if let Some(ref acc) = *opt {
@@ -214,9 +264,10 @@ impl State {
 	/// Pull account `a` in our cache from the trie DB and return it.
 	/// `require_code` requires that the code be cached, too.
 	fn get(&self, a: &Address, require_code: bool) -> Ref<Option<Account>> {
-		self.cache.borrow_mut().entry(a.clone()).or_insert_with(|| {
-			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp))
-		});
+		let have_key = self.cache.borrow().contains_key(a);
+		if !have_key {
+			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)))
+		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
 				account.cache_code(&self.db);
@@ -233,8 +284,12 @@ impl State {
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// If it doesn't exist, make account equal the evaluation of `default`.
 	fn require_or_from<F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> RefMut<Account> {
-		self.cache.borrow_mut().entry(a.clone()).or_insert_with(||
-			SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)));
+		let have_key = self.cache.borrow().contains_key(a);
+		if !have_key {
+			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)))
+		} else {
+			self.note_cache(a);
+		}
 		let preexists = self.cache.borrow().get(a).unwrap().is_none();
 		if preexists {
 			self.cache.borrow_mut().insert(a.clone(), Some(default()));

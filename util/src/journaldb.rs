@@ -8,7 +8,6 @@ use rocksdb::{DB, Writable};
 #[cfg(test)]
 use std::env;
 
-#[derive(Clone)]
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
 ///
@@ -53,8 +52,6 @@ impl JournalDB {
 		Self::new(DB::open_default(dir.to_str().unwrap()).unwrap())
 	}
 
-	/// Get a clone of the overlay db portion of this.
-	pub fn to_overlaydb(&self) -> OverlayDB { self.forward.clone() }
 
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
@@ -119,10 +116,6 @@ impl JournalDB {
 
 		self.forward.commit()
 	}
-
-	/// Revert all operations on this object (i.e. `insert()`s and `removes()`s) since the
-	/// last `commit()`.
-	pub fn revert(&mut self) { self.forward.revert(); self.removes.clear(); }
 }
 
 impl HashDB for JournalDB {
