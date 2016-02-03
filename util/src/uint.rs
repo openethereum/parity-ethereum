@@ -60,20 +60,20 @@ macro_rules! panic_on_overflow {
 	}
 }
 
-/// TODO [Gav Wood] Please document me
+/// Generic Uint of unspecified size
 pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + fmt::Display + PartialOrd + Ord + PartialEq + Eq + Hash {
 
 	/// Size of this type.
 	const SIZE: usize;
 
-	/// TODO [Gav Wood] Please document me
+	/// Returns `Uint(0)`
 	fn zero() -> Self;
-	/// TODO [Gav Wood] Please document me
+	/// Returns `Uint(1)`
 	fn one() -> Self;
 
-	/// TODO [Gav Wood] Please document me
+	/// Error returned when `from_dec_str` method fails
 	type FromDecStrErr;
-	/// TODO [Gav Wood] Please document me
+	/// Create `Uint` from specified decimal represented by string
 	fn from_dec_str(value: &str) -> Result<Self, Self::FromDecStrErr>;
 
 	/// Conversion to u32
@@ -105,25 +105,25 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 	fn overflowing_pow(self, other: Self) -> (Self, bool);
 
 
-	/// TODO [debris] Please document me
+	/// Add this `Uint` to other returning result and possible overflow
 	fn overflowing_add(self, other: Self) -> (Self, bool);
 
-	/// TODO [debris] Please document me
+	/// Subtract another `Uint` from this returning result and possible overflow
 	fn overflowing_sub(self, other: Self) -> (Self, bool);
 
-	/// TODO [debris] Please document me
+	/// Multiple this `Uint` with other returning result and possible overflow
 	fn overflowing_mul(self, other: Self) -> (Self, bool);
 	
-	/// TODO [debris] Please document me
+	/// Divide this `Uint` by other returning result and possible overflow
 	fn overflowing_div(self, other: Self) -> (Self, bool);
 
-	/// TODO [debris] Please document me
+	/// Returns reminder of division of this `Uint` by other and possible overflow
 	fn overflowing_rem(self, other: Self) -> (Self, bool);
 
-	/// TODO [debris] Please document me
+	/// Returns negation of this `Uint` and overflow (always true)
 	fn overflowing_neg(self) -> (Self, bool);
 	
-	/// TODO [Gav Wood] Please document me
+	/// Shifts this `Uint` and returns overflow
 	fn overflowing_shl(self, shift: u32) -> (Self, bool);
 }
 
