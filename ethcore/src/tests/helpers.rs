@@ -1,6 +1,6 @@
 use client::{BlockChainClient,Client};
 use std::env;
-use super::test_common::*;
+use common::*;
 use std::path::PathBuf;
 use spec::*;
 use std::fs::{remove_dir_all};

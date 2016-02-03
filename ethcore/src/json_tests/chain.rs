@@ -3,7 +3,7 @@ use client::{BlockChainClient,Client};
 use pod_state::*;
 use block::Block;
 use ethereum;
-use super::helpers::*;
+use tests::helpers::*;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	init_log();

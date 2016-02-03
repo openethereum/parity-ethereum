@@ -10,6 +10,7 @@ impl PodState {
 	pub fn new() -> PodState { Default::default() }
 
 	/// Contruct a new object from the `m`.
+	#[cfg(test)]
 	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
 
 	/// Get the underlying map.
@@ -21,6 +22,7 @@ impl PodState {
 	}
 
 	/// Drain object to get the underlying map.
+	#[cfg(test)]
 	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
 }
 

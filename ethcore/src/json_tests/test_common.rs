@@ -12,7 +12,6 @@ macro_rules! declare_test {
 		#[ignore]
 		#[test]
 		#[allow(non_snake_case)]
-		#[cfg(feature="json-tests")]
 		fn $id() {
 			test!($name);
 		}
@@ -21,7 +20,6 @@ macro_rules! declare_test {
 		#[cfg(feature = "test-heavy")]
 		#[test]
 		#[allow(non_snake_case)]
-		#[cfg(feature="json-tests")]
 		fn $id() {
 			test!($name);
 		}
@@ -29,7 +27,6 @@ macro_rules! declare_test {
 	($id: ident, $name: expr) => {
 		#[test]
 		#[allow(non_snake_case)]
-		#[cfg(feature="json-tests")]
 		fn $id() {
 			test!($name);
 		}

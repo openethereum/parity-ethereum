@@ -10,12 +10,10 @@ authors = ["Ethcore <admin@ethcore.io>"]
 log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
-flate2 = "0.2"
 rocksdb = "0.3"
 heapsize = "0.2.0"
 rust-crypto = "0.2.34"
 time = "0.1"
-#interpolate_idents = { git = "https://github.com/SkylerLipthay/interpolate_idents" }
 ethcore-util = { path = "../util" }
 evmjit = { path = "../evmjit", optional = true }
 ethash = { path = "../ethash" }
