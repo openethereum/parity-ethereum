@@ -95,7 +95,7 @@ impl Ext for FakeExt {
 			value: Option<U256>,
 			data: &[u8], 
 			code_address: &Address, 
-			output: &mut [u8]) -> MessageCallResult {
+			_output: &mut [u8]) -> MessageCallResult {
 
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::CALL,
