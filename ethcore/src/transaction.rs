@@ -67,6 +67,24 @@ impl Transaction {
 		}
 	}
 
+	/// Create a new message-call transaction.
+	#[cfg(test)]
+	pub fn new_call(to: Address, value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
+		Transaction {
+			nonce: nonce,
+			gas_price: gas_price,
+			gas: gas,
+			action: Action::Call(to),
+			value: value,
+			data: data,
+			v: 0,
+			r: x!(0),
+			s: x!(0),
+			hash: RefCell::new(None),
+			sender: RefCell::new(None),
+		}
+	}
+
 	/// Create a new contract-creation transaction.
 	#[cfg(test)]
 	pub fn new_create(value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
