@@ -4,6 +4,7 @@ use util::*;
 /// 1 Ether in Wei
 pub fn ether() -> U256 { U256::exp10(18) }
 
+#[inline]
 /// 1 Finney in Wei
 pub fn finney() -> U256 { U256::exp10(15) }
 
