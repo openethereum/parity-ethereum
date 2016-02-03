@@ -5,18 +5,18 @@ use log_entry::LogEntry;
 /// Information describing execution of a transaction.
 #[derive(Default, Debug, Clone)]
 pub struct Receipt {
-	/// TODO [Gav Wood] Please document me
+	/// The state root after executing the transaction.
 	pub state_root: H256,
-	/// TODO [Gav Wood] Please document me
+	/// The total gas used in the block following execution of the transaction.
 	pub gas_used: U256,
-	/// TODO [Gav Wood] Please document me
+	/// The OR-wide combination of all logs' blooms for this transaction.
 	pub log_bloom: LogBloom,
-	/// TODO [Gav Wood] Please document me
+	/// The logs stemming from this transaction.
 	pub logs: Vec<LogEntry>,
 }
 
 impl Receipt {
-	/// TODO [Gav Wood] Please document me
+	/// Create a new receipt.
 	pub fn new(state_root: H256, gas_used: U256, logs: Vec<LogEntry>) -> Receipt {
 		Receipt {
 			state_root: state_root,

@@ -3,7 +3,8 @@ use pod_state::*;
 use account_diff::*;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
-/// TODO [Gav Wood] Please document me
+/// Expression for the delta between two system states. Encoded the 
+/// delta of every altered account.
 pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
 impl StateDiff {

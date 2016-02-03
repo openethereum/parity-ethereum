@@ -5,7 +5,7 @@ use pod_account::*;
 use pod_state::PodState;
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
-/// TODO [Gav Wood] Please document me
+/// Result type for the execution ("application") of a transaction.
 pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
