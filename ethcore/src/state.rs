@@ -2,7 +2,6 @@ use common::*;
 use engine::Engine;
 use executive::Executive;
 use pod_account::*;
-use pod_state::PodState;
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
 /// Result type for the execution ("application") of a transaction.
@@ -194,6 +193,7 @@ impl State {
 	}
 
 	/// Populate a PodAccount map from this state.
+	#[allow(dead_code)]	// Used only in test code for now.
 	pub fn to_hashmap_pod(&self) -> HashMap<Address, PodAccount> {
 		// TODO: handle database rather than just the cache.
 		self.cache.borrow().iter().fold(HashMap::new(), |mut m, (add, opt)| {
@@ -273,6 +273,7 @@ use util::rlp::*;
 use util::uint::*;
 use account::*;
 use tests::helpers::*;
+use pod_state::PodState;
 
 #[test]
 fn code_from_database() {

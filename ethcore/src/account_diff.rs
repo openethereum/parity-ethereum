@@ -49,8 +49,9 @@ impl AccountDiff {
 		}
 	}
 
-	/// Determine difference between two optionally existance `Account`s. Returns None
+	/// Determine difference between two optionally existant `Account`s. Returns None
 	/// if they are the same.
+	#[allow(dead_code)]	// Used only in test code for now.
 	pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
 		match (pre, post) {
 			(None, Some(x)) => Some(AccountDiff {
