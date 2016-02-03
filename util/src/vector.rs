@@ -13,7 +13,7 @@
 ///	}
 /// ```
 pub trait SharedPrefix <T> {
-	/// TODO [debris] Please document me
+	/// Get common prefix length
 	fn shared_prefix_len(&self, elem: &[T]) -> usize;
 }
 

@@ -36,7 +36,7 @@ use heapsize::HeapSizeOf;
 
 /// Should be used to squeeze collections to certain size in bytes
 pub trait Squeeze {
-	/// TODO [debris] Please document me
+	/// Try to reduce collection size to `size` bytes
 	fn squeeze(&mut self, size: usize);
 }
 

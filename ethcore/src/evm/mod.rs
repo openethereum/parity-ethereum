@@ -2,7 +2,6 @@
 
 pub mod ext;
 pub mod evm;
-/// TODO [Tomusdrw] Please document me
 pub mod interpreter;
 #[macro_use]
 pub mod factory;

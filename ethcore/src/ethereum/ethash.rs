@@ -21,7 +21,7 @@ pub struct Ethash {
 }
 
 impl Ethash {
-	/// TODO [arkpar] Please document me
+	/// Create a new boxed instance of Ethash engine
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
 		Box::new(Ethash {
 			spec: spec,
