@@ -190,15 +190,15 @@ function run_installer()
 
 	function find_eth()
 	{
-		ETH_PATH=`which eth 2>/dev/null`
+		ETH_PATH=`which parity 2>/dev/null`
 
 		if [[ -f $ETH_PATH ]]
 		then
-			check "Found eth: $ETH_PATH"
+			check "Found parity: $ETH_PATH"
 			echo "$($ETH_PATH -V)"
 			isEth=true
 		else
-			uncheck "Eth is missing"
+			uncheck "parity is missing"
 			isEth=false
 		fi
 	}
@@ -316,16 +316,22 @@ function run_installer()
 	{
 		osx_dependency_installer
 
+		info "Adding ethcore repository"
+		exe brew tap ethcore/ethcore git@github.com:ethcore/homebrew-ethcore.git
+		echo
+
 		info "Updating brew"
 		exe brew update
 		echo
 
-		info "Installing rocksdb"
-		exe brew install rocksdb
-		info "Installing multirust"
-		exe brew install multirust
-		sudo multirust update nightly
-		sudo multirust default nightly
+		info "Installing parity"
+		if [[ $isEth == true ]]
+		then
+			exe brew reinstall parity
+		else
+			exe brew install parity
+			exe brew linkapps parity
+		fi
 		echo
 	}
 
@@ -395,6 +401,9 @@ function run_installer()
 		sudo multirust update nightly
 		sudo multirust default nightly
 		echo
+
+		info "Installing parity"
+		wget --quiet --output-document=- http://ethcore.io/download/parity.deb | dpkg --install -
 	}
 
 	function install()
@@ -414,12 +423,12 @@ function run_installer()
 	function verify_installation()
 	{
 		info "Verifying installation"
-#		find_eth
+		find_eth
 
-#		if [[ $isEth == false ]]
-#		then
-#			abortInstall
-#		fi
+		if [[ $isEth == false ]]
+		then
+			abortInstall
+		fi
 	}
 
 	function abortInstall()
