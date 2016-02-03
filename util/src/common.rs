@@ -48,7 +48,7 @@ macro_rules! flushln {
 	($fmt:expr, $($arg:tt)*) => (flush!(concat!($fmt, "\n"), $($arg)*));
 }
 
-/// TODO [Gav Wood] Please document me
+#[doc(hidden)]
 pub fn flush(s: String) {
 	::std::io::stdout().write(s.as_bytes()).unwrap();
 	::std::io::stdout().flush().unwrap();

@@ -34,53 +34,50 @@ fn json_to_rlp_map(json: &Json) -> HashMap<String, Bytes> {
 /// chain and those to be interpreted by the active chain engine.
 #[derive(Debug)]
 pub struct Spec {
-	// User friendly spec name
-	/// TODO [Gav Wood] Please document me
+	/// User friendly spec name
 	pub name: String,
-	// What engine are we using for this?
-	/// TODO [Gav Wood] Please document me
+	/// What engine are we using for this?
 	pub engine_name: String,
 
 	/// Known nodes on the network in enode format.
 	pub nodes: Vec<String>,
 
-	// Parameters concerning operation of the specific engine we're using.
-	// Name -> RLP-encoded value
-	/// TODO [Gav Wood] Please document me
+	/// Parameters concerning operation of the specific engine we're using.
+	/// Maps the parameter name to an RLP-encoded value.
 	pub engine_params: HashMap<String, Bytes>,
 
-	// Builtin-contracts are here for now but would like to abstract into Engine API eventually.
-	/// TODO [Gav Wood] Please document me
+	/// Builtin-contracts we would like to see in the chain.
+	/// (In principle these are just hints for the engine since that has the last word on them.)
 	pub builtins: BTreeMap<Address, Builtin>,
 
-	// Genesis params.
-	/// TODO [Gav Wood] Please document me
+	/// The genesis block's parent hash field.
 	pub parent_hash: H256,
-	/// TODO [Gav Wood] Please document me
+	/// The genesis block's author field.
 	pub author: Address,
-	/// TODO [Gav Wood] Please document me
+	/// The genesis block's difficulty field.
 	pub difficulty: U256,
-	/// TODO [Gav Wood] Please document me
+	/// The genesis block's gas limit field.
 	pub gas_limit: U256,
-	/// TODO [Gav Wood] Please document me
+	/// The genesis block's gas used field.
 	pub gas_used: U256,
-	/// TODO [Gav Wood] Please document me
+	/// The genesis block's timestamp field.
 	pub timestamp: u64,
 	/// Transactions root of the genesis block. Should be SHA3_NULL_RLP.
 	pub transactions_root: H256,
 	/// Receipts root of the genesis block. Should be SHA3_NULL_RLP.
 	pub receipts_root: H256,
-	/// TODO [arkpar] Please document me
+	/// The genesis block's extra data field.
 	pub extra_data: Bytes,
-	/// TODO [Gav Wood] Please document me
-	genesis_state: PodState,
-	/// TODO [Gav Wood] Please document me
+	/// The number of seal fields in the genesis block.
 	pub seal_fields: usize,
-	/// TODO [Gav Wood] Please document me
+	/// Each seal field, expressed as RLP, concatenated.
 	pub seal_rlp: Bytes,
 
 	// May be prepopulated if we know this in advance.
 	state_root_memo: RwLock<Option<H256>>,
+
+	// Genesis state as plain old data.
+	genesis_state: PodState,
 }
 
 #[allow(wrong_self_convention)] // because to_engine(self) should be to_engine(&self)
@@ -106,7 +103,7 @@ impl Spec {
 	/// Get the known knodes of the network in enode format.
 	pub fn nodes(&self) -> &Vec<String> { &self.nodes }
 
-	/// TODO [Gav Wood] Please document me
+	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {
 		Header {
 			parent_hash: self.parent_hash.clone(),

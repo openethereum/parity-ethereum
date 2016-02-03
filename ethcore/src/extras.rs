@@ -68,9 +68,9 @@ impl ExtrasReadable for DB {
 
 /// Implementations should convert arbitrary type to database key slice
 pub trait ExtrasSliceConvertable {
-	/// TODO [Gav Wood] Please document me
+	/// Convert self, with `i` (the index), to a 264-bit extras DB key.
 	fn to_extras_slice(&self, i: ExtrasIndex) -> H264;
-	/// TODO [debris] Please document me
+	/// Interpret self as a 256-bit hash, if natively `H256`.
 	fn as_h256(&self) -> Option<&H256> { None }
 }
 

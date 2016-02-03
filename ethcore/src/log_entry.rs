@@ -1,14 +1,14 @@
 use util::*;
 use basic_types::LogBloom;
 
-/// A single log's entry.
+/// A record of execution for a `LOG` operation.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct LogEntry {
-	/// TODO [Gav Wood] Please document me
+	/// The address of the contract executing at the point of the `LOG` operation.
 	pub address: Address,
-	/// TODO [Gav Wood] Please document me
+	/// The topics associated with the `LOG` operation.
 	pub topics: Vec<H256>,
-	/// TODO [Gav Wood] Please document me
+	/// The data associated with the `LOG` operation.
 	pub data: Bytes,
 }
 

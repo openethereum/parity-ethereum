@@ -83,11 +83,12 @@ impl<'a> fmt::Display for PrettySlice<'a> {
 	}
 }
 
-/// TODO [Gav Wood] Please document me
+/// Trait to allow a type to be pretty-printed in `format!`, where unoverridable
+/// defaults cannot otherwise be avoided.
 pub trait ToPretty {
-	/// TODO [Gav Wood] Please document me
+	/// Convert a type into a derivative form in order to make `format!` print it prettily.
 	fn pretty(&self) -> PrettySlice;
-	/// TODO [Gav Wood] Please document me
+	/// Express the object as a hex string.
 	fn to_hex(&self) -> String {
 		format!("{}", self.pretty())
 	}
@@ -144,11 +145,12 @@ pub type Bytes = Vec<u8>;
 /// Slice of bytes to underlying memory
 pub trait BytesConvertable {
 	// TODO: rename to as_slice
-	/// TODO [Gav Wood] Please document me
+	/// Get the underlying byte-wise representation of the value.
+	/// Deprecated - use `as_slice` instead.
 	fn bytes(&self) -> &[u8];
-	/// TODO [Gav Wood] Please document me
+	/// Get the underlying byte-wise representation of the value.
 	fn as_slice(&self) -> &[u8] { self.bytes() }
-	/// TODO [Gav Wood] Please document me
+	/// Get a copy of the underlying byte-wise representation.
 	fn to_bytes(&self) -> Bytes { self.as_slice().to_vec() }
 }
 

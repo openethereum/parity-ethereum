@@ -15,12 +15,12 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 		{
 			let mut fail_unless = |cond: bool| if !cond && !fail {
 				failed.push(name.clone());
-				flush(format!("FAIL\n"));
+				flushln!("FAIL");
 				fail = true;
 				true
 			} else {false};
 
-			flush(format!("   - {}...", name));
+			flush!("   - {}...", name);
 
 			let blocks: Vec<(Bytes, bool)> = test["blocks"].as_array().unwrap().iter().map(|e| (xjson!(&e["rlp"]), e.find("blockHeader").is_some())).collect();
 			let mut spec = match era {
@@ -50,7 +50,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 			}
 		}
 		if !fail {
-			flush(format!("ok\n"));
+			flushln!("ok");
 		}
 	}
 	println!("!!! {:?} tests from failed.", failed.len());
