@@ -68,7 +68,7 @@ impl Transaction {
 	}
 
 	/// Create a new message-call transaction.
-	#[cfg(test)]
+	#[allow(dead_code)]
 	pub fn new_call(to: Address, value: U256, data: Bytes, gas: U256, gas_price: U256, nonce: U256) -> Transaction {
 		Transaction {
 			nonce: nonce,
