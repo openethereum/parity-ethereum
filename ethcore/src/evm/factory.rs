@@ -100,6 +100,18 @@ fn test_create_vm() {
 /// Create tests by injecting different VM factories
 #[macro_export]
 macro_rules! evm_test(
+	(ignorejit => $name_test: ident: $name_jit: ident, $name_int: ident) => {
+		#[test]
+		#[ignore]
+		#[cfg(feature = "jit")]
+		fn $name_jit() {
+			$name_test(Factory::new(VMType::Jit));
+		}
+		#[test]
+		fn $name_int() {
+			$name_test(Factory::new(VMType::Interpreter));
+		}
+	};
 	($name_test: ident: $name_jit: ident, $name_int: ident) => {
 		#[test]
 		#[cfg(feature = "jit")]
