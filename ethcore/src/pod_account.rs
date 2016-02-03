@@ -2,15 +2,16 @@ use util::*;
 use account::*;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
-/// Genesis account data. Does not have a DB overlay cache.
+/// An account, expressed as Plain-Old-Data (hence the name).
+/// Does not have a DB overlay cache, code hash or anything like that.
 pub struct PodAccount {
-	/// TODO [Gav Wood] Please document me
+	/// The balance of the account.
 	pub balance: U256,
-	/// TODO [Gav Wood] Please document me
+	/// The nonce of the account.
 	pub nonce: U256,
-	/// TODO [Gav Wood] Please document me
+	/// The code of the account.
 	pub code: Bytes,
-	/// TODO [Gav Wood] Please document me
+	/// The storage of the account.
 	pub storage: BTreeMap<H256, H256>,
 }
 

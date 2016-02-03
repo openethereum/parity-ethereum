@@ -72,7 +72,7 @@ impl<'db> TrieDBMut<'db> {
 	// TODO: return Result<Self, TrieError>
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
 		if !db.exists(root) {
-			flush(format!("Trie root not found {}", root));
+			flushln!("Trie root not found {}", root);
 			panic!("Trie root not found!");
 		}
 		TrieDBMut { 

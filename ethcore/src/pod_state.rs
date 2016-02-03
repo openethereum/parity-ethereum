@@ -2,7 +2,7 @@ use util::*;
 use pod_account::*;
 
 #[derive(Debug,Clone,PartialEq,Eq,Default)]
-/// TODO [Gav Wood] Please document me
+/// State of all accounts in the system expressed in Plain Old Data.
 pub struct PodState (BTreeMap<Address, PodAccount>);
 
 impl PodState {

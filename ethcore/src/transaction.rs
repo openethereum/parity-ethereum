@@ -36,11 +36,11 @@ pub struct Transaction {
 	pub data: Bytes,
 
 	// signature
-	/// TODO [Gav Wood] Please document me
+	/// The V field of the signature, either 27 or 28; helps describe the point on the curve.
 	pub v: u8,
-	/// TODO [Gav Wood] Please document me
+	/// The R field of the signature; helps describe the point on the curve.
 	pub r: U256,
-	/// TODO [debris] Please document me
+	/// The S field of the signature; helps describe the point on the curve.
 	pub s: U256,
 
 	hash: RefCell<Option<H256>>,
@@ -48,7 +48,7 @@ pub struct Transaction {
 }
 
 impl Transaction {
-	/// TODO [Gav Wood] Please document me
+	/// Create a new transaction.
 	#[cfg(test)]
 	pub fn new() -> Self {
 		Transaction {
