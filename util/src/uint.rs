@@ -104,26 +104,25 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 	/// Return wrapped eponentation `self**other` and flag if there was an overflow
 	fn overflowing_pow(self, other: Self) -> (Self, bool);
 
-
-	/// Overflowing addition operation.
+	/// Add this `Uint` to other returning result and possible overflow
 	fn overflowing_add(self, other: Self) -> (Self, bool);
 
-	/// Overflowing subtract operation.
+	/// Subtract another `Uint` from this returning result and possible overflow
 	fn overflowing_sub(self, other: Self) -> (Self, bool);
 
-	/// Overflowing multiply operation.
+	/// Multiple this `Uint` with other returning result and possible overflow
 	fn overflowing_mul(self, other: Self) -> (Self, bool);
 	
-	/// Overflowing divide operation.
+	/// Divide this `Uint` by other returning result and possible overflow
 	fn overflowing_div(self, other: Self) -> (Self, bool);
 
-	/// Overflowing remainder operation.
+	/// Returns reminder of division of this `Uint` by other and possible overflow
 	fn overflowing_rem(self, other: Self) -> (Self, bool);
 
-	/// Overflowing negative operation.
+	/// Returns negation of this `Uint` and overflow (always true)
 	fn overflowing_neg(self) -> (Self, bool);
 	
-	/// Overflowing left bit shift.
+	/// Shifts this `Uint` and returns overflow
 	fn overflowing_shl(self, shift: u32) -> (Self, bool);
 }
 
