@@ -985,11 +985,12 @@ impl ChainSync {
 	}
 
 	/// Handle peer timeouts
-	pub fn maintain_peers(&self, io: &mut SyncIo) {
+	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
 		let tick = time::precise_time_s();
 
-		if !io.chain().queue_info().full {
-			self.state == SyncState::Idle;
+		if !io.chain().queue_info().full && self.state == SyncState::Waiting {
+			self.state = SyncState::Idle;
+			self.continue_sync(io);
 		}
 
 		for (peer_id, peer) in &self.peers {
