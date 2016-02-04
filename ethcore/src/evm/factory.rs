@@ -1,29 +1,39 @@
 //! Evm factory.
 //!
 //! TODO: consider spliting it into two separate files.
+#[cfg(test)]
 use std::fmt;
 use evm::Evm;
 
 #[derive(Clone)]
 /// Type of EVM to use.
 pub enum VMType {
-	#[allow(dead_code)] // crated only by jit
 	/// JIT EVM
+	#[cfg(feature="jit")]
 	Jit,
 	/// RUST EVM
 	Interpreter
 }
 
+#[cfg(test)]
 impl fmt::Display for VMType {
+	#[cfg(feature="jit")]
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{}", match *self {
 			VMType::Jit => "JIT",
 			VMType::Interpreter => "INT"
 		})
 	}
+	#[cfg(not(feature="jit"))]
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", match *self {
+			VMType::Interpreter => "INT"
+		})
+	}
 }
 
 #[cfg(test)]
+#[cfg(feature = "json-tests")]
 impl VMType {
 	/// Return all possible VMs (JIT, Interpreter)
 	#[cfg(feature="jit")]
@@ -45,11 +55,22 @@ pub struct Factory {
 
 impl Factory {
 	/// Create fresh instance of VM
+	#[cfg(feature="jit")]
 	pub fn create(&self) -> Box<Evm> {
 		match self.evm {
 			VMType::Jit => {
-				Factory::jit()
+				Box::new(super::jit::JitEvm)
 			},
+			VMType::Interpreter => {
+				Box::new(super::interpreter::Interpreter)
+			}
+		}	
+	}
+
+	/// Create fresh instance of VM
+	#[cfg(not(feature="jit"))]
+	pub fn create(&self) -> Box<Evm> {
+		match self.evm {
 			VMType::Interpreter => {
 				Box::new(super::interpreter::Interpreter)
 			}
@@ -62,16 +83,6 @@ impl Factory {
 		Factory {
 			evm: evm
 		}
-	}
-
-	#[cfg(feature = "jit")]
-	fn jit() -> Box<Evm> {
-		Box::new(super::jit::JitEvm)
-	}
-
-	#[cfg(not(feature = "jit"))]
-	fn jit() -> Box<Evm> {
-		unimplemented!()
 	}
 }
 impl Default for Factory {
@@ -100,6 +111,18 @@ fn test_create_vm() {
 /// Create tests by injecting different VM factories
 #[macro_export]
 macro_rules! evm_test(
+	(ignorejit => $name_test: ident: $name_jit: ident, $name_int: ident) => {
+		#[test]
+		#[ignore]
+		#[cfg(feature = "jit")]
+		fn $name_jit() {
+			$name_test(Factory::new(VMType::Jit));
+		}
+		#[test]
+		fn $name_int() {
+			$name_test(Factory::new(VMType::Interpreter));
+		}
+	};
 	($name_test: ident: $name_jit: ident, $name_int: ident) => {
 		#[test]
 		#[cfg(feature = "jit")]

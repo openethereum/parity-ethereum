@@ -37,10 +37,10 @@ Usage:
 Options:
   -l --logging LOGGING     Specify the logging level.
   -j --jsonrpc             Enable the JSON-RPC API sever.
-  --jsonrpc-url URL        Specify URL for JSON-RPC API server (default: 127.0.0.1:8545).
+  --jsonrpc-url URL        Specify URL for JSON-RPC API server [default: 127.0.0.1:8545].
 
-  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes (default: 16384).
-  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes (default: 262144).
+  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
+  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
 
   -h --help                Show this screen.
 ", flag_cache_pref_size: usize, flag_cache_max_size: usize);

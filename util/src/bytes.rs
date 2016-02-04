@@ -111,11 +111,11 @@ impl ToPretty for Bytes {
 	}
 }
 
-/// TODO [debris] Please document me
+/// A byte collection reference that can either be a slice or a vector
 pub enum BytesRef<'a> {
-	/// TODO [debris] Please document me
+	/// This is a reference to a vector
 	Flexible(&'a mut Bytes),
-	/// TODO [debris] Please document me
+	/// This is a reference to a slice
 	Fixed(&'a mut [u8])
 }
 

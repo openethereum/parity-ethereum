@@ -1,8 +1,11 @@
 use common::*;
 use engine::Engine;
 use executive::Executive;
+#[cfg(test)]
+#[cfg(feature = "json-tests")]
 use pod_account::*;
 #[cfg(test)]
+#[cfg(feature = "json-tests")]
 use pod_state::PodState;
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
@@ -186,27 +189,17 @@ impl State {
 		Self::commit_into(&mut self.db, &mut self.root, self.cache.borrow_mut().deref_mut());
 	}
 
-	/// Populate the state from `accounts`.
 	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
+	/// Populate the state from `accounts`.
 	pub fn populate_from(&mut self, accounts: PodState) {
 		for (add, acc) in accounts.drain().into_iter() {
 			self.cache.borrow_mut().insert(add, Some(Account::from_pod(acc)));
 		}
 	}
 
-	/// Populate a PodAccount map from this state.
-	#[allow(dead_code)]	// Used only in test code for now.
-	pub fn to_hashmap_pod(&self) -> HashMap<Address, PodAccount> {
-		// TODO: handle database rather than just the cache.
-		self.cache.borrow().iter().fold(HashMap::new(), |mut m, (add, opt)| {
-			if let Some(ref acc) = *opt {
-				m.insert(add.clone(), PodAccount::from_account(acc));
-			}
-			m
-		})
-	}
-
 	#[cfg(test)]
+	#[cfg(feature = "json-tests")]
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
 		// TODO: handle database rather than just the cache.

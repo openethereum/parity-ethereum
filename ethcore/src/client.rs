@@ -15,6 +15,7 @@ use service::NetSyncMessage;
 use env_info::LastHashes;
 use verification::*;
 use block::*;
+pub use blockchain::TreeRoute;
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -50,8 +51,6 @@ impl fmt::Display for BlockChainInfo {
 	}
 }
 
-/// TODO [arkpar] Please document me
-pub type TreeRoute = ::blockchain::TreeRoute;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {

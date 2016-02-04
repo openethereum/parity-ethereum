@@ -140,9 +140,9 @@ impl <T>ToBytes for T where T: FixedHash {
 /// Error returned when FromBytes conversation goes wrong
 #[derive(Debug, PartialEq, Eq)]
 pub enum FromBytesError {
-	/// TODO [debris] Please document me
+	/// Expected more RLP data
 	DataIsTooShort,
-	/// TODO [debris] Please document me
+	/// Extra bytes after the end of the last item
 	DataIsTooLong,
 	/// Integer-representation is non-canonically prefixed with zero byte(s).
 	ZeroPrefixedInt,
@@ -165,7 +165,7 @@ pub type FromBytesResult<T> = Result<T, FromBytesError>;
 ///
 /// TODO: check size of bytes before conversation and return appropriate error
 pub trait FromBytes: Sized {
-	/// TODO [debris] Please document me
+	/// Create a value from bytes
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<Self>;
 }
 

@@ -349,23 +349,106 @@ function run_installer()
 
 	function get_linux_dependencies()
 	{
+		find_curl
+		find_git
+		find_make
+		find_gcc
+
 		find_apt
 	}
 
 	function find_apt()
 	{
+		depCount=$((depCount+1))
+
 		APT_PATH=`which apt-get 2>/dev/null`
 
 		if [[ -f $APT_PATH ]]
 		then
+			depFound=$((depFound+1))
 			check "apt-get"
 			echo "$($APT_PATH -v)"
 			isApt=true
 		else
 			uncheck "apt-get is missing"
 			isApt=false
+
+			if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
+				canContinue=false
+				errorMessages+="${red}==>${reset} ${b}Couldn't find apt-get:${reset} We can only use apt-get in order to grab our dependencies.\n"
+				errorMessages+="    Please switch to a distribution such as Debian or Ubuntu or manually install the missing packages.\n"
+			fi
 		fi
 	}
+
+	function find_gcc()
+	{
+		depCount=$((depCount+1))
+		GCC_PATH=`which g++ 2>/dev/null`
+
+		if [[ -f $GCC_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "g++"
+			isGCC=true
+		else
+			uncheck "g++ is missing"
+			isGCC=false
+			INSTALL_FILES+="${blue}${dim}==> g++:${reset}\n"
+		fi
+	}
+
+	function find_git()
+	{
+		depCount=$((depCount+1))
+		GIT_PATH=`which git 2>/dev/null`
+
+		if [[ -f $GIT_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "git"
+			isGit=true
+		else
+			uncheck "git is missing"
+			isGit=false
+			INSTALL_FILES+="${blue}${dim}==> git:${reset}\n"
+		fi
+	}
+
+	function find_make()
+	{
+		depCount=$((depCount+1))
+		MAKE_PATH=`which make 2>/dev/null`
+
+		if [[ -f $MAKE_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "make"
+			isMake=true
+		else
+			uncheck "make is missing"
+			isMake=false
+			INSTALL_FILES+="${blue}${dim}==> make:${reset}\n"
+		fi
+	}
+
+	function find_curl()
+	{
+		depCount=$((depCount+1))
+		MAKE_PATH=`which curl 2>/dev/null`
+
+		if [[ -f $CURL_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "curl"
+			isCurl=true
+		else
+			uncheck "curl is missing"
+			isCurl=false
+			INSTALL_FILES+="${blue}${dim}==> curl:${reset}\n"
+		fi
+	}
+
 	function linux_rocksdb_installer()
 	{
 		oldpwd=`pwd`
@@ -382,15 +465,29 @@ function run_installer()
 
 	function linux_installer()
 	{
-		info "Installing git"
-		sudo apt-get install -q -y git
-		echo
+		if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
+			info "Installing build dependencies..."
+			sudo apt-get update
+			if [[ $isGit == false ]]; then
+				sudo apt-get install -q -y git
+			fi
+			if [[ $isGCC == false ]]; then
+				sudo apt-get install -q -y g++ gcc
+			fi
+			if [[ $isMake == false ]]; then
+				sudo apt-get install -q -y make
+			fi
+			if [[ $isCurl == false ]]; then
+				sudo apt-get install -q -y curl
+			fi
+			echo
+		fi
 
-		info "Installing rocksdb"
+		info "Installing rocksdb..."
 		linux_rocksdb_installer
 		echo
 
-		info "Installing multirust"
+		info "Installing multirust..."
 		curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
 		sudo multirust update nightly
 		sudo multirust default nightly
@@ -445,13 +542,15 @@ function run_installer()
 	head "Checking OS dependencies"
 	detectOS
 
-	echo
-	head "In addition to the parity build dependencies, this script will install:"
-	echo "$INSTALL_FILES"
-	echo
+	if [[ $INSTALL_FILES != "" ]]; then
+		echo
+		head "In addition to the parity build dependencies, this script will install:"
+		echo "$INSTALL_FILES"
+		echo
+	fi
 
 	# Prompt user to continue or abort
-	wait_for_user "${b}OK,${reset} let's go!"
+	wait_for_user "${b}Last chance!${reset} Sure you want to install this software?"
 
 	# Install dependencies and eth
 	install
