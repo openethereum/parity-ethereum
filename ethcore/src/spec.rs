@@ -262,8 +262,8 @@ impl Spec {
 					t.insert(address.as_slice(), &account.rlp());
 				}
 			}
-			for (_, account) in self.genesis_state.get().iter() {
-				account.insert_additional(db);
+			for (address, account) in self.genesis_state.get().iter() {
+				account.insert_additional(&mut AccountDBMut::new(db, address));
 			}
 			assert!(db.contains(&self.state_root()));
 			true

@@ -196,7 +196,7 @@ impl<'db> TrieDB<'db> {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
-			true => self.db.lookup(&r.as_val::<H256>()).expect("Not found!"),
+			true => self.db.lookup(&r.as_val::<H256>()).unwrap_or_else(|| panic!("Not found! {:?}", r.as_val::<H256>())),
 			false => node
 		}
 	}

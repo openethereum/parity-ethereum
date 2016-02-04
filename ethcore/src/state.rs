@@ -144,8 +144,8 @@ impl State {
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
-	pub fn storage_at(&self, a: &Address, key: &H256) -> H256 {
-		self.get(a, false).as_ref().map_or(H256::new(), |a|a.storage_at(&self.db, key))	
+	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
+		self.get(address, false).as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(&self.db, address), key))	
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
@@ -210,11 +210,12 @@ impl State {
 	pub fn commit_into(db: &mut HashDB, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>) {
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
-		for (_, ref mut a) in accounts.iter_mut() {
+		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
 				&mut&mut Some(ref mut account) => {
-					account.commit_storage(db);
-					account.commit_code(db);
+					let mut account_db = AccountDBMut::new(db, address);
+					account.commit_storage(&mut account_db);
+					account.commit_code(&mut account_db);
 				}
 				&mut&mut None => {}
 			}
@@ -270,7 +271,7 @@ impl State {
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
-				account.cache_code(&self.db);
+				account.cache_code(&AccountDB::new(&self.db, a));
 			}
 		}
 		Ref::map(self.cache.borrow(), |m| m.get(a).unwrap())
@@ -300,7 +301,7 @@ impl State {
 		let b = self.cache.borrow_mut();
 		RefMut::map(b, |m| m.get_mut(a).unwrap().as_mut().map(|account| {
 			if require_code {
-				account.cache_code(&self.db);
+				account.cache_code(&AccountDB::new(&self.db, a));
 			}
 			account
 		}).unwrap())

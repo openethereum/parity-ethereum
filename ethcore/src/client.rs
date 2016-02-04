@@ -146,7 +146,7 @@ pub struct Client {
 	import_lock: Mutex<()>
 }
 
-const HISTORY: u64 = 1000;
+const HISTORY: u64 = 1;
 
 impl Client {
 	/// Create a new client with given spec and DB path.
@@ -180,8 +180,7 @@ impl Client {
 		
 		let engine = Arc::new(try!(spec.to_engine()));
 		let mut state_db = JournalDB::new_with_arc(db.clone());
-		if engine.spec().ensure_db_good(&mut state_db) {
-			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+		if engine.spec().ensure_db_good(&mut state_db) { state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 		Ok(Arc::new(Client {
 			chain: chain,

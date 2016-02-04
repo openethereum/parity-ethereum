@@ -3,8 +3,8 @@
 use common::*;
 use rlp::*;
 use hashdb::*;
-use overlaydb::*;
-use rocksdb::{DB, Writable};
+use memorydb::*;
+use rocksdb::{DB, Writable, IteratorMode};
 #[cfg(test)]
 use std::env;
 
@@ -16,10 +16,8 @@ use std::env;
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
 pub struct JournalDB {
-	forward: OverlayDB,
+	overlay: MemoryDB,
 	backing: Arc<DB>,
-	inserts: Vec<H256>,
-	removes: Vec<H256>,
 }
 
 impl JournalDB {
@@ -27,20 +25,16 @@ impl JournalDB {
 	pub fn new(backing: DB) -> JournalDB {
 		let db = Arc::new(backing);
 		JournalDB {
-			forward: OverlayDB::new_with_arc(db.clone()),
+			overlay: MemoryDB::new(),
 			backing: db,
-			inserts: vec![],
-			removes: vec![],
 		}
 	}
 
 	/// Create a new instance given a shared `backing` database.
 	pub fn new_with_arc(backing: Arc<DB>) -> JournalDB {
 		JournalDB {
-			forward: OverlayDB::new_with_arc(backing.clone()),
+			overlay: MemoryDB::new(),
 			backing: backing,
-			inserts: vec![],
-			removes: vec![],
 		}
 	}
 
@@ -84,12 +78,12 @@ impl JournalDB {
 			}
 
 			let mut r = RlpStream::new_list(3);
+			let inserts: Vec<H256> = self.overlay.keys().iter().filter(|&(_, &c)| c > 0).map(|(key, _)| key.clone()).collect();
+			let removes: Vec<H256> = self.overlay.keys().iter().filter(|&(_, &c)| c < 0).map(|(key, _)| key.clone()).collect();
 			r.append(id);
-			r.append(&self.inserts);
-			r.append(&self.removes);
+			r.append(&inserts);
+			r.append(&removes);
 			try!(self.backing.put(&last, r.as_raw()));
-			self.inserts.clear();
-			self.removes.clear();
 		}
 
 		// apply old commits' details
@@ -106,7 +100,7 @@ impl JournalDB {
 				let rlp = Rlp::new(&rlp_data);
 				let to_remove: Vec<H256> = rlp.val_at(if canon_id == rlp.val_at(0) {2} else {1});
 				for i in &to_remove {
-					self.forward.remove(i);
+					self.backing.delete(&i).expect("Low-level database error. Some issue with your hard disk?");
 				}
 				try!(self.backing.delete(&last));
 				trace!("JournalDB: delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, to_remove.len());
@@ -114,17 +108,88 @@ impl JournalDB {
 			}
 		}
 
-		self.forward.commit()
+		let mut ret = 0u32;
+		let mut deletes = 0usize;
+		for i in self.overlay.drain().into_iter() {
+			let (key, (value, rc)) = i;
+			if rc > 0 {
+				assert!(rc == 1);
+				if !self.backing.get(&key.bytes()).unwrap().is_none() {
+					info!("Exist: {:?}", key);
+					key.clone();
+				}
+				self.backing.put(&key.bytes(), &value).expect("Low-level database error. Some issue with your hard disk?");
+				ret += 1;
+			}
+			if rc < 0 {
+				assert!(rc == -1);
+				ret += 1;
+				deletes += 1;
+			}
+		}
+		trace!("JournalDB::commit() deleted {} nodes", deletes);
+		Ok(ret)
+	}
+
+	fn payload(&self, key: &H256) -> Option<Bytes> {
+		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 }
 
 impl HashDB for JournalDB {
-	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
-	fn lookup(&self, key: &H256) -> Option<&[u8]> { self.forward.lookup(key) }
-	fn exists(&self, key: &H256) -> bool { self.forward.exists(key) }
-	fn insert(&mut self, value: &[u8]) -> H256 { let r = self.forward.insert(value); self.inserts.push(r.clone()); r }
-	fn emplace(&mut self, key: H256, value: Bytes) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }
-	fn kill(&mut self, key: &H256) { self.removes.push(key.clone()); }
+	fn keys(&self) -> HashMap<H256, i32> { 
+		let mut ret: HashMap<H256, i32> = HashMap::new();
+		for (key, _) in self.backing.iterator(IteratorMode::Start) {
+			let h = H256::from_slice(key.deref());
+			ret.insert(h, 1);
+		}
+
+		for (key, refs) in self.overlay.keys().into_iter() {
+			let refs = *ret.get(&key).unwrap_or(&0) + refs;
+			ret.insert(key, refs);
+		}
+		ret
+	}
+
+	fn lookup(&self, key: &H256) -> Option<&[u8]> { 
+		let k = self.overlay.raw(key);
+		match k {
+			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			_ => {
+				if let Some(x) = self.payload(key) {
+					Some(&self.overlay.denote(key, x).0)
+				}
+				else {
+					None
+				}
+			}
+		}
+	}
+
+	fn exists(&self, key: &H256) -> bool { 
+		self.lookup(key).is_some()
+	}
+
+	fn insert(&mut self, value: &[u8]) -> H256 { 
+		if value.sha3() == h256_from_hex("3567da57862169b0dc409933ec10da8113ef3810fd225ad81d4fc23c36ffa5d4") {
+			info!("GOTCHA");
+			value.to_vec();
+		}
+		self.overlay.insert(value) 
+	}
+	fn emplace(&mut self, key: H256, value: Bytes) {
+		if key == h256_from_hex("3567da57862169b0dc409933ec10da8113ef3810fd225ad81d4fc23c36ffa5d4") {
+			info!("GOTCHA");
+			value.to_vec();
+		}
+		self.overlay.emplace(key, value); 
+	}
+	fn kill(&mut self, key: &H256) { 
+			if key == &h256_from_hex("3567da57862169b0dc409933ec10da8113ef3810fd225ad81d4fc23c36ffa5d4") {
+			info!("DELETING");
+			key.clone();
+		}
+		self.overlay.kill(key); }
 }
 
 #[cfg(test)]
