@@ -347,14 +347,78 @@ function run_installer()
 		fi
 	}
 
+	function linux_version()
+	{
+		source /etc/lsb-release
+		
+		if [[ $DISTRIB_ID == "Ubuntu" ]]; then
+			if [[ $DISTRIB_RELEASE == "14.04" ]]; then
+				check "Ubuntu-14.04"
+				isUbuntu1404=true
+			else
+				check "Ubuntu, but not 14.04"
+				isUbuntu1404=false
+			fi
+		else
+			check "Ubuntu not found"
+			isUbuntu1404=false
+		fi
+	}
+
 	function get_linux_dependencies()
 	{
+		linux_version
+
+		find_multirust
+		find_rocksdb
+
 		find_curl
 		find_git
 		find_make
 		find_gcc
 
 		find_apt
+	}
+
+	function find_rocksdb()
+	{
+		depCount=$((depCount+1))
+		if [[ $(ldconfig -v 2>/dev/null | grep rocksdb | wc -l) == 1 ]]; then
+			depFound=$((depFound+1))
+			check "apt-get"
+			echo "$($APT_PATH -v)"
+			isRocksDB=true
+		else
+			uncheck "librocksdb is missing"
+			isRocksDB=false
+			INSTALL_FILES+="${blue}${dim}==> librocksdb:${reset}\n"
+		fi
+	}
+
+	function find_multirust()
+	{
+		depCount=$((depCount+2))
+		MULTIRUST_PATH=`which multirust 2>/dev/null`
+		if [[ -f $MULTIRUST_PATH ]]; then
+			depFound=$((depFound+1))
+			check "multirust"
+			isMultirust=true
+			if [[ $(multirust show-default 2>/dev/null | grep nightly | wc -l) == 4 ]]; then
+				depFound=$((depFound+1))
+				check "rust nightly"
+				isMultirustNightly=true
+			else
+				uncheck "rust is not nightly"
+				isMultirustNightly=false
+				INSTALL_FILES+="${blue}${dim}==> multirust -> rust nightly:${reset}\n"
+			fi
+		else
+			uncheck "multirust is missing"
+			uncheck "rust nightly is missing"
+			isMultirust=false
+			isMultirustNightly=false
+			INSTALL_FILES+="${blue}${dim}==> multirust:${reset}\n"
+		fi
 	}
 
 	function find_apt()
@@ -449,25 +513,37 @@ function run_installer()
 		fi
 	}
 
+	function ubuntu1404_rocksdb_installer()
+	{
+		sudo add-apt-repository -y ppa:giskou/librocksdb
+		sudo apt-get -f -y install
+		sudo apt-get update -qq
+		sudo apt-get install -y librocksdb
+	}
+
 	function linux_rocksdb_installer()
 	{
-		oldpwd=`pwd`
-		cd /tmp
-		exe git clone --branch v4.1 --depth=1 https://github.com/facebook/rocksdb.git
-		cd rocksdb
-		exe make shared_lib
-		sudo cp -a librocksdb.so* /usr/lib
-		sudo ldconfig
-		cd /tmp
-		rm -rf /tmp/rocksdb
-		cd $oldpwd
+		if [[ $isUbuntu1404 ]]; then
+			ubuntu1404_rocksdb_installer
+		else
+			oldpwd=`pwd`
+			cd /tmp
+			exe git clone --branch v4.1 --depth=1 https://github.com/facebook/rocksdb.git
+			cd rocksdb
+			exe make shared_lib
+			sudo cp -a librocksdb.so* /usr/lib
+			sudo ldconfig
+			cd /tmp
+			rm -rf /tmp/rocksdb
+			cd $oldpwd
+		fi
 	}
 
 	function linux_installer()
 	{
 		if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
 			info "Installing build dependencies..."
-			sudo apt-get update
+			sudo apt-get update -qq
 			if [[ $isGit == false ]]; then
 				sudo apt-get install -q -y git
 			fi
@@ -483,15 +559,24 @@ function run_installer()
 			echo
 		fi
 
-		info "Installing rocksdb..."
-		linux_rocksdb_installer
-		echo
+		if [[ $isRocksDB == false ]]; then
+			info "Installing rocksdb..."
+			linux_rocksdb_installer
+			echo
+		fi
 
-		info "Installing multirust..."
-		curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-		sudo multirust update nightly
-		sudo multirust default nightly
-		echo
+		if [[ $isMultirust == false ]]; then
+			info "Installing multirust..."
+			curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
+			echo
+		fi
+
+		if [[ $isMultirustNightly == false ]]; then
+			info "Installing rust nightly..."
+			sudo multirust update nightly
+			sudo multirust default nightly
+			echo
+		fi
 	}
 
 	function install()
@@ -511,12 +596,19 @@ function run_installer()
 	function verify_installation()
 	{
 		info "Verifying installation"
-#		find_eth
 
-#		if [[ $isEth == false ]]
-#		then
-#			abortInstall
-#		fi
+		if [[ $OS_TYPE == "linux" ]]; then
+			find_curl
+			find_git
+			find_make
+			find_gcc
+			find_rocksdb
+			find_multirust
+
+			if [[ $isCurl == false || $isGit == false || $isMake == false || $isGCC == false || $isRocksDB == false || $isMultirustNightly == false ]]; then
+				abortInstall
+			fi
+		fi
 	}
 
 	function abortInstall()
@@ -530,11 +622,9 @@ function run_installer()
 
 	function finish()
 	{
-#		echo
-#		successHeading "Installation successful!"
-#		head "Next steps"
-#		info "Run ${cyan}\`\`${reset} to get started.${reset}"
-#		echo
+		echo
+		successHeading "Installation successful!"
+		echo
 		exit 0
 	}
 
