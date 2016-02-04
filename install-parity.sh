@@ -8,23 +8,6 @@ function run_installer()
 	####### Init vars
 	
 	declare OS_TYPE
-	declare OSX_VERSION
-	declare GIT_PATH
-	declare RUBY_PATH
-	declare BREW_PATH
-	declare INSTALL_FILES=""
-
-	errorMessages=""
-	isOsVersion=false
-	isGit=false
-	isRuby=false
-	isBrew=false
-	isDocker=false
-	canContinue=true
-	depCount=0
-	depFound=0
-
-
 
 	####### Setup colors
 
