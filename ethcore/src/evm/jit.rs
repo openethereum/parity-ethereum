@@ -195,10 +195,6 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 
 		// receive address and code address are the same in normal calls
 		let is_callcode = receive_address != code_address;
-		if !is_callcode {
-			// it's a delegatecall... fix it better.
-			value = None;
-		}
 
 		if !is_callcode && !self.ext.exists(&code_address) {
 			gas_cost = gas_cost + U256::from(self.ext.schedule().call_new_account_gas);
@@ -314,16 +310,11 @@ impl evm::Evm for JitEvm {
 		data.address = params.address.into_jit();
 		data.caller = params.sender.into_jit();
 		data.origin = params.origin.into_jit();
-		match params.value {
-			ActionValue::Transfer(val) => {
-				data.transfer_value = val.into_jit();
-				data.apparent_value = U256::zero().into_jit();
-			},
-			ActionValue::Apparent(val) => {
-				data.transfer_value = U256::zero().into_jit();
-				data.apparent_value = val.into_jit();
-			}
+		data.transfer_value = match params.value {
+			ActionValue::Transfer(val) => val.into_jit(),
+			ActionValue::Apparent(val) => val.into_jit()
 		};
+		data.apparent_value = data.transfer_value;
 
 		let mut schedule = evmjit::ScheduleHandle::new();
 		schedule.have_delegate_call = ext.schedule().have_delegate_call;
