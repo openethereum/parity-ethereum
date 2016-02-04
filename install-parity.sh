@@ -402,18 +402,18 @@ function run_installer()
   function linux_installer()
   {
     info "Installing git"
-    sudo apt-get update && sudo apt-get install -q -y git curl g++
+    sudo apt-get update && sudo apt-get install -q -y git curl g++ wget
     echo
 
     info "Installing rocksdb"
     linux_rocksdb_installer
     echo
 
-    info "Installing multirust"
-    curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-    sudo multirust update nightly
-    sudo multirust default nightly
-    echo
+    # info "Installing multirust"
+    # curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
+    # sudo multirust update nightly
+    # sudo multirust default nightly
+    # echo
 
     info "Installing parity"
     file=/tmp/parity.deb
