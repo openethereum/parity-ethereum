@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 
-#TODO: replace with the main repo url
-PARITY_DEB_URL=https://github.com/jesuscript/scripts/raw/master/parity.deb
+
+PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_0.9.0-0_amd64.deb
 
 function run_installer()
 {
@@ -325,7 +325,7 @@ function run_installer()
 		osx_dependency_installer
 
 		info "Adding ethcore repository"
-		brew tap ethcore/ethcore git@github.com:ethcore/homebrew-ethcore.git
+		brew tap ethcore/ethcore https://github.com/ethcore/homebrew-ethcore.git
 		echo
 
 		info "Updating brew"
