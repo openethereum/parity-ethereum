@@ -1016,4 +1016,22 @@ impl ChainSync {
 
 #[cfg(test)]
 mod tests {
+	use tests::helpers::*;
+	use super::*;
+	use util::*;
+
+	#[test]
+	fn return_receipts() {
+		let mut client = TestBlockChainClient::new();
+		let mut queue:VecDeque<TestPacket> = VecDeque::new();
+		let mut io = TestIo::new(& mut client, & mut queue, None);
+
+		let sync = ChainSync::new();
+		let data = vec![0xc0];
+		let rlp = UntrustedRlp::new(&data);
+
+		let result = sync.return_receipts(& mut io, &rlp);
+
+		assert!(result.is_ok());
+	}
 }

@@ -15,7 +15,7 @@ pub struct TestBlockChainClient {
 }
 
 impl TestBlockChainClient {
-	fn new() -> TestBlockChainClient {
+	pub fn new() -> TestBlockChainClient {
 
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
@@ -196,7 +196,7 @@ pub struct TestIo<'p> {
 }
 
 impl<'p> TestIo<'p> {
-	fn new(chain: &'p mut TestBlockChainClient, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
+	pub fn new(chain: &'p mut TestBlockChainClient, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
 		TestIo {
 			chain: chain,
 			queue: queue,
