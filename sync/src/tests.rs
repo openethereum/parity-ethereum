@@ -375,7 +375,7 @@ fn chain_empty_blocks() {
 }
 
 #[test]
-fn chain_forged() {
+fn chain_forked() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(0).chain.add_blocks(300, false);
