@@ -386,7 +386,6 @@ function run_installer()
 		if [[ $(ldconfig -v 2>/dev/null | grep rocksdb | wc -l) == 1 ]]; then
 			depFound=$((depFound+1))
 			check "apt-get"
-			echo "$($APT_PATH -v)"
 			isRocksDB=true
 		else
 			uncheck "librocksdb is missing"
@@ -431,7 +430,6 @@ function run_installer()
 		then
 			depFound=$((depFound+1))
 			check "apt-get"
-			echo "$($APT_PATH -v)"
 			isApt=true
 		else
 			uncheck "apt-get is missing"
@@ -499,7 +497,7 @@ function run_installer()
 	function find_curl()
 	{
 		depCount=$((depCount+1))
-		MAKE_PATH=`which curl 2>/dev/null`
+		CURL_PATH=`which curl 2>/dev/null`
 
 		if [[ -f $CURL_PATH ]]
 		then
@@ -515,10 +513,12 @@ function run_installer()
 
 	function ubuntu1404_rocksdb_installer()
 	{
-		sudo add-apt-repository -y ppa:giskou/librocksdb
+		sudo apt-get update -qq
+		sudo apt-get install -qq -y software-properties-common
+		sudo apt-add-repository -y ppa:giskou/librocksdb
 		sudo apt-get -f -y install
 		sudo apt-get update -qq
-		sudo apt-get install -y librocksdb
+		sudo apt-get install -qq -y librocksdb
 	}
 
 	function linux_rocksdb_installer()
