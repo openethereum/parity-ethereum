@@ -105,7 +105,14 @@ function run_installer()
 		done
 	}
 
-
+	function prompt_for_input() {
+		while :
+		do
+			read -p "$1 " imp
+			echo $imp
+			return
+		done
+	}
 
 	function exe() {
 		echo "\$ $@"; "$@"
@@ -378,6 +385,7 @@ function run_installer()
 		find_gcc
 
 		find_apt
+		find_docker
 	}
 
 	function find_rocksdb()
@@ -511,6 +519,23 @@ function run_installer()
 		fi
 	}
 
+	function find_docker()
+	{
+		depCount=$((depCount+1))
+		DOCKER_PATH=`which docker 2>/dev/null`
+
+		if [[ -f $DOCKER_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "docker"
+			echo "$($DOCKER_PATH -v)"
+			isDocker=true
+		else
+			isDocker=false
+			uncheck "docker is missing"
+		fi
+	}
+
 	function ubuntu1404_rocksdb_installer()
 	{
 		sudo apt-get update -qq
@@ -523,7 +548,7 @@ function run_installer()
 
 	function linux_rocksdb_installer()
 	{
-		if [[ $isUbuntu1404 ]]; then
+		if [[ $isUbuntu1404 == true ]]; then
 			ubuntu1404_rocksdb_installer
 		else
 			oldpwd=`pwd`
@@ -611,6 +636,90 @@ function run_installer()
 		fi
 	}
 
+	function build_parity()
+	{
+		info "Downloading Parity..."
+		git clone git@github.com:ethcore/parity
+		cd parity
+		git submodule init
+		git submodule update
+		
+		info "Building & testing Parity..."
+		cargo test --release -p ethcore-util
+
+		info "Running consensus tests..."
+		cargo test --release --features ethcore/json-tests -p ethcore
+
+		echo
+		info "Parity source code is in $(pwd)/parity"
+		info "Run a client with: ${b}cargo run --release${reset}"
+	}
+
+	function install_netstats()
+	{
+		echo "Installing netstats"
+
+		secret=$(prompt_for_input "Please enter the netstats secret:")
+		instance_name=$(prompt_for_input "Please enter your instance name:")
+		contact_details=$(prompt_for_input "Please enter your contact details (optional):")
+		
+		# install ethereum & install dependencies
+		sudo apt-get install -y -qq build-essential git unzip wget nodejs npm ntp cloud-utils
+
+		# add node symlink if it doesn't exist
+		[[ ! -f /usr/bin/node ]] && sudo ln -s /usr/bin/nodejs /usr/bin/node
+
+		# set up time update cronjob
+		sudo bash -c "cat > /etc/cron.hourly/ntpdate << EOF
+		#!/bin/sh
+		pm2 flush
+		sudo service ntp stop
+		sudo ntpdate -s ntp.ubuntu.com
+		sudo service ntp start
+		EOF"
+
+		sudo chmod 755 /etc/cron.hourly/ntpdate
+
+		[ ! -d "www" ] && git clone https://github.com/cubedro/eth-net-intelligence-api netstats
+		cd netstats
+		git pull
+		git checkout 95d595258239a0fdf56b97dedcfb2be62f6170e6
+
+		sudo npm install
+		sudo npm install pm2 -g
+
+		cat > app.json << EOL
+[
+	{
+		"name"							: "node-app",
+		"script"						: "app.js",
+		"log_date_format"		: "YYYY-MM-DD HH:mm Z",
+		"merge_logs"				: false,
+		"watch"							: false,
+		"max_restarts"			: 10,
+		"exec_interpreter"	: "node",
+		"exec_mode"					: "fork_mode",
+		"env":
+		{
+			"NODE_ENV"				: "production",
+			"RPC_HOST"				: "localhost",
+			"RPC_PORT"				: "8545",
+			"LISTENING_PORT"	: "30303",
+			"INSTANCE_NAME"		: "${instance_name}",
+			"CONTACT_DETAILS" : "${contact_details}",
+			"WS_SERVER"				: "wss://rpc.ethstats.net",
+			"WS_SECRET"				: "${secret}",
+			"VERBOSITY"				: 2
+		
+		}
+	}
+]
+EOL
+
+		pm2 start app.json
+		cd ..
+	}
+
 	function abortInstall()
 	{
 		echo
@@ -628,13 +737,22 @@ function run_installer()
 		exit 0
 	}
 
+
+	####### Run the script
+	tput clear
+	echo
+	echo
+	echo " ${blue}∷ ${b}${green} WELCOME TO PARITY ${reset} ${blue}∷${reset}"
+	echo
+	echo
+
 	# Check dependencies
 	head "Checking OS dependencies"
 	detectOS
 
 	if [[ $INSTALL_FILES != "" ]]; then
 		echo
-		head "In addition to the parity build dependencies, this script will install:"
+		head "In addition to the Parity build dependencies, this script will install:"
 		echo "$INSTALL_FILES"
 		echo
 	fi
@@ -647,6 +765,20 @@ function run_installer()
 
 	# Check installation
 	verify_installation
+
+	if [[ ! -e parity ]]; then
+		# Maybe install parity
+		if wait_for_user "${b}Build dependencies installed B-)!${reset} Would you like to download and build parity?"; then
+			# Do get parity.
+			build_parity
+		fi
+	fi
+
+	if [[ $OS_TYPE == "linux" && $DISTRIB_ID == "Ubuntu" ]]; then
+		if wait_for_user "${b}Netstats:${reset} Would you like to install and configure a netstats client?"; then
+			install_netstats
+		fi
+	fi
 
 	# Display goodby message
 	finish
