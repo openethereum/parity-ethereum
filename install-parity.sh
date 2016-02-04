@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+
+#TODO: replace with the main repo url
+PARITY_DEB_URL=https://github.com/jesuscript/scripts/raw/master/parity.deb
+
 function run_installer()
 {
   ####### Init vars
@@ -412,8 +416,8 @@ function run_installer()
     info "Installing parity"
     file=/tmp/parity.deb
 
-    #TODO: replace with the main repo's url
-    wget https://github.com/jesuscript/scripts/raw/master/parity.deb -qO $file
+    
+    wget $PARITY_DEB_URL -qO $file
     sudo dpkg -i $file
     rm $file
   }
