@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-GET_DEPS_URL=https://get-deps.ethcore.io
+GET_DEPS_URL=http://get-deps.ethcore.io
 
 function run_installer()
 {
@@ -184,14 +184,6 @@ function run_installer()
 
 	function linux_installer()
 	{
-		info "Installing dependencies"
-		sudo apt-get update && sudo apt-get install -q -y git curl g++ wget
-		echo
-
-		info "Installing rocksdb"
-		linux_rocksdb_installer
-		echo
-
 		build_parity
 	}
 
