@@ -349,6 +349,7 @@ function run_installer()
 
 	function get_linux_dependencies()
 	{
+		find_curl
 		find_git
 		find_make
 		find_gcc
@@ -372,10 +373,10 @@ function run_installer()
 			uncheck "apt-get is missing"
 			isApt=false
 
-			if [[ $isGCC == false || $isGit == false || $isMake == false ]]; then
+			if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
 				canContinue=false
 				errorMessages+="${red}==>${reset} ${b}Couldn't find apt-get:${reset} We can only use apt-get in order to grab our dependencies.\n"
-				errorMessages+="    Please switch to a distribution such as Debian or Ubuntu or manually install the required packages, git, make and g++/gcc.\n"
+				errorMessages+="    Please switch to a distribution such as Debian or Ubuntu or manually install the missing packages.\n"
 			fi
 		fi
 	}
@@ -431,6 +432,23 @@ function run_installer()
 		fi
 	}
 
+	function find_curl()
+	{
+		depCount=$((depCount+1))
+		MAKE_PATH=`which curl 2>/dev/null`
+
+		if [[ -f $CURL_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "curl"
+			isCurl=true
+		else
+			uncheck "curl is missing"
+			isCurl=false
+			INSTALL_FILES+="${blue}${dim}==> curl:${reset}\n"
+		fi
+	}
+
 	function linux_rocksdb_installer()
 	{
 		oldpwd=`pwd`
@@ -447,7 +465,7 @@ function run_installer()
 
 	function linux_installer()
 	{
-		if [[ $isGCC == false || $isGit == false || $isMake == false ]]; then
+		if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
 			info "Installing build dependencies..."
 			sudo apt-get update
 			if [[ $isGit == false ]]; then
@@ -458,6 +476,9 @@ function run_installer()
 			fi
 			if [[ $isMake == false ]]; then
 				sudo apt-get install -q -y make
+			fi
+			if [[ $isCurl == false ]]; then
+				sudo apt-get install -q -y curl
 			fi
 			echo
 		fi
