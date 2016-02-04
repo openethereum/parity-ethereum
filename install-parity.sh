@@ -388,9 +388,7 @@ function run_installer()
       echo "$($DOCKER_PATH -v)"
       isDocker=true
     else
-      uncheck "docker is missing"
       isDocker=false
-      #INSTALL_FILES+="==> Docker"
     fi
   }
   function linux_rocksdb_installer()
