@@ -379,7 +379,7 @@ impl ChainSync {
 			trace!(target: "sync", "Ignored unexpected block bodies");
 			return Ok(());
 		}
-		if self.state  == SyncState::Waiting {
+		if self.state == SyncState::Waiting {
 			trace!(target: "sync", "Ignored block bodies while waiting");
 			return Ok(());
 		}
@@ -1003,6 +1003,13 @@ impl ChainSync {
 			if peer.asking != PeerAsking::Nothing && (tick - peer.ask_time) > CONNECTION_TIMEOUT_SEC {
 				io.disconnect_peer(*peer_id);
 			}
+		}
+	}
+	/// Maintain other peers. Send out any new blocks and transactions
+	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
+		if !io.chain().queue_info().full && self.state == SyncState::Waiting {
+			self.state = SyncState::Idle;
+			self.continue_sync(io);
 		}
 	}
 }

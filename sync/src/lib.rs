@@ -107,6 +107,7 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 
 	fn timeout(&self, io: &NetworkContext<SyncMessage>, _timer: TimerToken) {
 		self.sync.write().unwrap().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 }
 
