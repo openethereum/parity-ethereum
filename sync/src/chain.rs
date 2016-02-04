@@ -292,7 +292,7 @@ impl ChainSync {
 			trace!(target: "sync", "Ignored unexpected block headers");
 			return Ok(());
 		}
-		if io.chain().queue_info().full {
+		if self.state == SyncState::Waiting {
 			trace!(target: "sync", "Ignored block headers while waiting");
 			return Ok(());
 		}
@@ -376,7 +376,7 @@ impl ChainSync {
 			trace!(target: "sync", "Ignored unexpected block bodies");
 			return Ok(());
 		}
-		if io.chain().queue_info().full {
+		if self.state == SyncState::Waiting {
 			trace!(target: "sync", "Ignored block bodies while waiting");
 			return Ok(());
 		}
@@ -987,6 +987,11 @@ impl ChainSync {
 	/// Handle peer timeouts
 	pub fn maintain_peers(&self, io: &mut SyncIo) {
 		let tick = time::precise_time_s();
+
+		if !io.chain().queue_info().full {
+			self.state == SyncState::Idle;
+		}
+
 		for (peer_id, peer) in &self.peers {
 			if peer.asking != PeerAsking::Nothing && (tick - peer.ask_time) > CONNECTION_TIMEOUT_SEC {
 				io.disconnect_peer(*peer_id);
