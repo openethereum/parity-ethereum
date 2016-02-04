@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 
+
+
+PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_0.9.0-0_amd64.deb
+
 function run_installer()
 {
 	####### Init vars
-
+	
 	HOMEBREW_PREFIX=/usr/local
 	HOMEBREW_CACHE=/Library/Caches/Homebrew
 	HOMEBREW_REPO=https://github.com/Homebrew/homebrew
@@ -22,6 +26,7 @@ function run_installer()
 	isGit=false
 	isRuby=false
 	isBrew=false
+	isDocker=false
 	canContinue=true
 	depCount=0
 	depFound=0
@@ -81,11 +86,11 @@ function run_installer()
 	}
 
 	function check() {
-		echo "${green}${bold} ✓${reset}  $1${reset}"
+		echo "${green}${bold} ✓${reset}	 $1${reset}"
 	}
 
 	function uncheck() {
-		echo "${red}${bold} ✘${reset}  $1${reset}"
+		echo "${red}${bold} ✘${reset}	 $1${reset}"
 	}
 
 
@@ -97,19 +102,23 @@ function run_installer()
 		do
 			read -p "${blue}==>${reset} $1 [Y/n] " imp
 			case $imp in
-				[yY] ) echo; break ;;
+				[yY] ) return 0; break ;;
 				'' ) echo; break ;;
-				[nN] ) abortInstall "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again." ;;
+				[nN] ) return 1 ;;
 				* ) echo "Unrecognized option provided. Please provide either 'Y' or 'N'";
 			esac
 		done
 	}
 
-
-
-	function exe() {
-		echo "\$ $@"; "$@"
+	function prompt_for_input() {
+		while :
+		do
+			read -p "$1 " imp
+			echo $imp
+			return
+		done
 	}
+	
 
 	function detectOS() {
 		if [[ "$OSTYPE" == "linux-gnu" ]]
@@ -185,7 +194,7 @@ function run_installer()
 		fi
 
 		errorMessages+="${red}==>${reset} ${b}Mac OS version too old:${reset} eth requires OS X version ${red}$OSX_REQUIERED_VERSION${reset} at least in order to run.\n"
-		errorMessages+="    Please update the OS and reload the install process.\n"
+		errorMessages+="		Please update the OS and reload the install process.\n"
 	}
 
 	function find_eth()
@@ -195,7 +204,6 @@ function run_installer()
 		if [[ -f $ETH_PATH ]]
 		then
 			check "Found parity: $ETH_PATH"
-			echo "$($ETH_PATH -V)"
 			isEth=true
 		else
 			uncheck "parity is missing"
@@ -237,7 +245,7 @@ function run_installer()
 			isRuby=false
 			canContinue=false
 			errorMessages+="${red}==>${reset} ${b}Couldn't find Ruby:${reset} Brew requires Ruby which could not be found.\n"
-			errorMessages+="    Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.\n"
+			errorMessages+="		Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.\n"
 		fi
 	}
 
@@ -255,9 +263,9 @@ function run_installer()
 			isBrew=false
 
 			INSTALL_FILES+="${blue}${dim}==> Homebrew:${reset}\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/bin/brew\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/Library\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/share/man/man1/brew.1\n"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/bin/brew\n"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/Library\n"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/share/man/man1/brew.1\n"
 		fi
 
 		depCount=$((depCount+1))
@@ -317,20 +325,20 @@ function run_installer()
 		osx_dependency_installer
 
 		info "Adding ethcore repository"
-		exe brew tap ethcore/ethcore git@github.com:ethcore/homebrew-ethcore.git
+		brew tap ethcore/ethcore https://github.com/ethcore/homebrew-ethcore.git
 		echo
 
 		info "Updating brew"
-		exe brew update
+		brew update
 		echo
 
 		info "Installing parity"
 		if [[ $isEth == true ]]
 		then
-			exe brew reinstall parity
+			brew reinstall parity
 		else
-			exe brew install parity
-			exe brew linkapps parity
+			brew install parity
+			brew linkapps parity
 		fi
 		echo
 	}
@@ -356,6 +364,7 @@ function run_installer()
 	function get_linux_dependencies()
 	{
 		find_apt
+		find_docker
 	}
 
 	function find_apt()
@@ -372,38 +381,96 @@ function run_installer()
 			isApt=false
 		fi
 	}
+
+	function find_docker()
+	{
+		DOCKER_PATH=`which docker 2>/dev/null`
+
+		if [[ -f $DOCKER_PATH ]]
+		then
+			check "docker"
+			echo "$($DOCKER_PATH -v)"
+			isDocker=true
+		else
+			isDocker=false
+		fi
+	}
 	function linux_rocksdb_installer()
 	{
-		oldpwd=`pwd`
-		cd /tmp
-		exe git clone --branch v4.1 --depth=1 https://github.com/facebook/rocksdb.git
-		cd rocksdb
-		exe make shared_lib
-		sudo cp -a librocksdb.so* /usr/lib
-		sudo ldconfig
-		cd /tmp
-		rm -rf /tmp/rocksdb
-		cd $oldpwd
+		sudo add-apt-repository -y ppa:giskou/librocksdb
+		sudo apt-get -f -y install
+		sudo apt-get update
+		sudo apt-get install -y librocksdb
 	}
 
 	function linux_installer()
 	{
-		info "Installing git"
-		sudo apt-get install -q -y git
+		info "Installing dependencies"
+		sudo apt-get update && sudo apt-get install -q -y git curl g++ wget
 		echo
 
 		info "Installing rocksdb"
 		linux_rocksdb_installer
 		echo
 
-		info "Installing multirust"
-		curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-		sudo multirust update nightly
-		sudo multirust default nightly
-		echo
-
 		info "Installing parity"
-		wget --quiet --output-document=- http://ethcore.io/download/parity.deb | dpkg --install -
+		file=/tmp/parity.deb
+
+		
+		wget $PARITY_DEB_URL -qO $file
+		sudo dpkg -i $file
+		rm $file
+	}
+
+	function install_netstats()
+	{
+		echo "install netstats"
+
+		if [[ $isDocker == false ]]
+		then
+			info "installing docker"
+			curl -sSL https://get.docker.com/ | sh
+		fi
+
+		dir=$HOME/.netstats
+
+		secret=$(prompt_for_input "Please enter the netstats secret:")
+		instance_name=$(prompt_for_input "Please enter your instance name:")
+		contact_details=$(prompt_for_input "Please enter your contact details (optional):")
+		
+
+		mkdir -p $dir
+		cat > $dir/app.json << EOL
+[
+	{
+		"name"							: "node-app",
+		"script"						: "app.js",
+		"log_date_format"		: "YYYY-MM-DD HH:mm Z",
+		"merge_logs"				: false,
+		"watch"							: false,
+		"max_restarts"			: 10,
+		"exec_interpreter"	: "node",
+		"exec_mode"					: "fork_mode",
+		"env":
+		{
+			"NODE_ENV"				: "production",
+			"RPC_HOST"				: "localhost",
+			"RPC_PORT"				: "8545",
+			"LISTENING_PORT"	: "30303",
+			"INSTANCE_NAME"		: "${instance_name}",
+			"CONTACT_DETAILS" : "${contact_details}",
+			"WS_SERVER"				: "wss://rpc.ethstats.net",
+			"WS_SECRET"				: "${secret}",
+			"VERBOSITY"				: 2
+		
+		}
+	}
+]
+EOL
+
+		sudo docker rm --force netstats-client 2> /dev/null
+		sudo docker pull ethcore/netstats-client
+		sudo docker run -d --net=host --name netstats-client -v $dir/app.json:/home/ethnetintel/eth-net-intelligence-api/app.json	 ethcore/netstats-client 
 	}
 
 	function install()
@@ -442,11 +509,11 @@ function run_installer()
 
 	function finish()
 	{
-#		echo
-#		successHeading "Installation successful!"
-#		head "Next steps"
-#		info "Run ${cyan}\`\`${reset} to get started.${reset}"
-#		echo
+		echo
+		successHeading "Installation successful!"
+		#		head "Next steps"
+		#		info "Run ${cyan}\`\`${reset} to get started.${reset}"
+		echo
 		exit 0
 	}
 
@@ -460,10 +527,25 @@ function run_installer()
 	echo
 
 	# Prompt user to continue or abort
-	wait_for_user "${b}OK,${reset} let's go!"
+	if wait_for_user "${b}OK,${reset} let's go!"
+	then
+		echo "Installing..."
+	else
+		abortInstall "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again."
+	fi
 
 	# Install dependencies and eth
 	install
+
+	if [[ $OS_TYPE == "linux" ]]
+	then
+		echo "Netstats:"
+		head "Would you like to install and configure a netstats client?"
+		if wait_for_user "${b}OK,${reset} let's go!"
+		then
+			install_netstats
+		fi
+	fi
 
 	# Check installation
 	verify_installation
