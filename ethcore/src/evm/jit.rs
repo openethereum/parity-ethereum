@@ -174,28 +174,37 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 	fn call(&mut self,
 				io_gas: *mut u64,
 				call_gas: u64,
+				sender_address: *const evmjit::H256,
 				receive_address: *const evmjit::H256,
-				value: *const evmjit::I256,
+				code_address: *const evmjit::H256,
+				transfer_value: *const evmjit::I256,
+				_apparent_value: *const evmjit::I256,
 				in_beg: *const u8,
 				in_size: u64,
 				out_beg: *mut u8,
-				out_size: u64,
-				code_address: *const evmjit::H256) -> bool {
+				out_size: u64) -> bool {
 
 		let mut gas = unsafe { U256::from(*io_gas) };
 		let mut call_gas = U256::from(call_gas);
 		let mut gas_cost = call_gas;
+		let sender_address = unsafe { Address::from_jit(&*sender_address) };
 		let receive_address = unsafe { Address::from_jit(&*receive_address) };
 		let code_address = unsafe { Address::from_jit(&*code_address) };
-		let value = unsafe { U256::from_jit(&*value) };
+		let transfer_value = unsafe { U256::from_jit(&*transfer_value) };
+		let mut value = Some(transfer_value);
 
 		// receive address and code address are the same in normal calls
 		let is_callcode = receive_address != code_address;
+		if !is_callcode {
+			// it's a delegatecall... fix it better.
+			value = None;
+		}
+
 		if !is_callcode && !self.ext.exists(&code_address) {
 			gas_cost = gas_cost + U256::from(self.ext.schedule().call_new_account_gas);
 		}
 
-		if value > U256::zero() {
+		if transfer_value > U256::zero() {
 			assert!(self.ext.schedule().call_value_transfer_gas > self.ext.schedule().call_stipend, "overflow possible");
 			gas_cost = gas_cost + U256::from(self.ext.schedule().call_value_transfer_gas);
 			call_gas = call_gas + U256::from(self.ext.schedule().call_stipend);
@@ -211,7 +220,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		gas = gas - gas_cost;
 
 		// check if balance is sufficient and we are not too deep
-		if self.ext.balance(&self.address) < value || self.ext.depth() >= self.ext.schedule().max_depth {
+		if self.ext.balance(&self.address) < transfer_value || self.ext.depth() >= self.ext.schedule().max_depth {
 			unsafe {
 				*io_gas = (gas + call_gas).low_u64();
 				return false;
@@ -220,9 +229,9 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 
 		match self.ext.call(
 					  &call_gas, 
-					  &self.address,
+					  &sender_address,
 					  &receive_address, 
-					  Some(value),
+					  value,
 					  unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
 					  &code_address,
 					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) }) {
@@ -305,10 +314,19 @@ impl evm::Evm for JitEvm {
 		data.address = params.address.into_jit();
 		data.caller = params.sender.into_jit();
 		data.origin = params.origin.into_jit();
-		data.call_value = match params.value {
-			ActionValue::Transfer(val) => val.into_jit(),
-			ActionValue::Apparent(val) => val.into_jit()
+		match params.value {
+			ActionValue::Transfer(val) => {
+				data.transfer_value = val.into_jit();
+				data.apparent_value = U256::zero().into_jit();
+			},
+			ActionValue::Apparent(val) => {
+				data.transfer_value = U256::zero().into_jit();
+				data.apparent_value = val.into_jit();
+			}
 		};
+
+		let mut schedule = evmjit::ScheduleHandle::new();
+		schedule.have_delegate_call = ext.schedule().have_delegate_call;
 
 		data.author = ext.env_info().author.clone().into_jit();
 		data.difficulty = ext.env_info().difficulty.into_jit();
@@ -317,7 +335,7 @@ impl evm::Evm for JitEvm {
 		// don't really know why jit timestamp is int..
 		data.timestamp = ext.env_info().timestamp as i64;
 
-		let mut context = unsafe { evmjit::ContextHandle::new(data, &mut ext_handle) };
+		let mut context = unsafe { evmjit::ContextHandle::new(data, schedule, &mut ext_handle) };
 		let res = context.exec();
 		
 		match res {

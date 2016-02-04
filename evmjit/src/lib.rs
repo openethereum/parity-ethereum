@@ -42,10 +42,10 @@ pub use self::ffi::JitReturnCode as ReturnCode;
 pub use self::ffi::JitI256 as I256;
 pub use self::ffi::JitH256 as H256;
 
-/// Takes care of  proper initialization and destruction of `RuntimeData`.
+/// Takes care of proper initialization and destruction of `RuntimeData`.
 ///
 /// This handle must be used to create runtime data,
-/// cause underneath it's a `C++` structure. Incombatible with rust
+/// cause underneath it's a `C++` structure. Incompatible with rust
 /// structs.
 pub struct RuntimeDataHandle {
 	runtime_data: *mut JitRuntimeData
@@ -57,16 +57,6 @@ impl RuntimeDataHandle {
 		RuntimeDataHandle {
 			runtime_data: unsafe { evmjit_create_runtime_data() }
 		}
-	}
-
-	/// Returns immutable reference to runtime data.
-	pub fn runtime_data(&self) -> &JitRuntimeData {
-		unsafe { &*self.runtime_data }
-	}
-
-	/// Returns mutable reference to runtime data.
-	pub fn mut_runtime_data(&mut self) -> &mut JitRuntimeData {
-		unsafe { &mut *self.runtime_data }
 	}
 }
 
@@ -80,13 +70,51 @@ impl Deref for RuntimeDataHandle {
 	type Target = JitRuntimeData;
 
 	fn deref(&self) -> &Self::Target {
-		self.runtime_data()
+		unsafe { &*self.runtime_data }
 	}
 }
 
 impl DerefMut for RuntimeDataHandle {
 	fn deref_mut(&mut self) -> &mut Self::Target {
-		self.mut_runtime_data()
+		unsafe { &mut *self.runtime_data }
+	}
+}
+
+/// Takes care of proper initilization and destruction of `JitSchedule`.
+/// 
+/// This handle must be used to jit schedule,
+/// cause underneath it's a `C++` structure. Incompatible with rust
+/// structs.
+pub struct ScheduleHandle {
+	schedule: *mut JitSchedule
+}
+
+impl ScheduleHandle {
+	/// Creates new `Schedule` handle.
+	pub fn new() -> Self {
+		ScheduleHandle {
+			schedule: unsafe { evmjit_create_schedule() }
+		}
+	}
+}
+
+impl Drop for ScheduleHandle {
+	fn drop(&mut self) {
+		unsafe { evmjit_destroy_schedule(self.schedule) }
+	}
+}
+
+impl Deref for ScheduleHandle {
+	type Target = JitSchedule;
+
+	fn deref(&self) -> &Self::Target {
+		unsafe { &*self.schedule }
+	}
+}
+
+impl DerefMut for ScheduleHandle {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		unsafe { &mut *self.schedule }
 	}
 }
 
@@ -98,6 +126,7 @@ impl DerefMut for RuntimeDataHandle {
 pub struct ContextHandle {
 	context: *mut JitContext,
 	data_handle: RuntimeDataHandle,
+	schedule_handle: ScheduleHandle
 }
 
 impl ContextHandle {
@@ -107,19 +136,20 @@ impl ContextHandle {
 	/// We also can't make ExtHandle a member of `ContextHandle` structure,
 	/// cause this would be a move operation or it would require a template 
 	/// lifetime to a reference. Both solutions are not possible.
-	pub unsafe fn new(data_handle: RuntimeDataHandle, ext: &mut ExtHandle) -> Self {
+	pub unsafe fn new(data_handle: RuntimeDataHandle, schedule_handle: ScheduleHandle, ext: &mut ExtHandle) -> Self {
 		let mut handle = ContextHandle {
 			context: std::mem::uninitialized(),
+			schedule_handle: schedule_handle,
 			data_handle: data_handle,
 		};
 
-		handle.context = evmjit_create_context(handle.data_handle.mut_runtime_data(), ext);
+		handle.context = evmjit_create_context(handle.data_handle.deref_mut(), ext);
 		handle
 	}
 
 	/// Executes context.
 	pub fn exec(&mut self) -> JitReturnCode {
-		unsafe { evmjit_exec(self.context) }
+		unsafe { evmjit_exec(self.context, self.schedule_handle.deref_mut()) }
 	}
 
 	/// Returns output data.
@@ -162,13 +192,15 @@ pub trait Ext {
 	fn call(&mut self,
 				io_gas: *mut u64,
 				call_gas: u64,
+				sender_address: *const JitH256,
 				receive_address: *const JitH256,
-				value: *const JitI256,
+				code_address: *const JitH256,
+				transfer_value: *const JitI256,
+				apparent_value: *const JitI256,
 				in_beg: *const u8,
 				in_size: u64,
 				out_beg: *mut u8,
-				out_size: u64,
-				code_address: *const JitH256) -> bool;
+				out_size: u64) -> bool;
 
 	fn log(&mut self,
 		   beg: *const u8,
@@ -292,7 +324,8 @@ pub mod ffi {
 		pub address: JitI256,
 		pub caller: JitI256,
 		pub origin: JitI256,
-		pub call_value: JitI256,
+		pub transfer_value: JitI256,
+		pub apparent_value: JitI256,
 		pub author: JitI256,
 		pub difficulty: JitI256,
 		pub gas_limit: JitI256,
@@ -301,6 +334,13 @@ pub mod ffi {
 		pub code: *const u8,
 		pub code_size: u64,
 		pub code_hash: JitI256
+	}
+
+	#[repr(C)]
+	#[derive(Debug)]
+	/// Configurable properties of git schedule.
+	pub struct JitSchedule {
+		pub have_delegate_call: bool
 	}
 
 	#[no_mangle]
@@ -342,15 +382,17 @@ pub mod ffi {
 	pub unsafe extern "C" fn env_call(ext: *mut ExtHandle, 
 						   io_gas: *mut u64,
 						   call_gas: u64,
+						   sender_address: *const JitH256,
 						   receive_address: *const JitH256,
-						   value: *const JitI256,
+						   code_address: *const JitH256,
+						   transfer_value: *const JitI256,
+						   apparent_value: *const JitI256,
 						   in_beg: *const u8,
 						   in_size: u64,
 						   out_beg: *mut u8,
-						   out_size: u64,
-						   code_address: *const JitH256) -> bool {
+						   out_size: u64) -> bool {
 		let ext = &mut *ext;
-		ext.call(io_gas, call_gas, receive_address, value, in_beg, in_size, out_beg, out_size, code_address)
+		ext.call(io_gas, call_gas, sender_address, receive_address, code_address, transfer_value, apparent_value, in_beg, in_size, out_beg, out_size)
 	}
 
 	#[no_mangle]
@@ -385,10 +427,12 @@ pub mod ffi {
 
 	#[link(name="evmjit")]
 	extern "C" {
+		pub fn evmjit_create_schedule() -> *mut JitSchedule;
+		pub fn evmjit_destroy_schedule(schedule: *mut JitSchedule);
 		pub fn evmjit_create_runtime_data() -> *mut JitRuntimeData;
 		pub fn evmjit_destroy_runtime_data(data: *mut JitRuntimeData);
 		pub fn evmjit_destroy_context(context: *mut JitContext);
-		pub fn evmjit_exec(context: *mut JitContext) -> JitReturnCode;
+		pub fn evmjit_exec(context: *mut JitContext, schedule: *mut JitSchedule) -> JitReturnCode;
 	}
 
 	// ExtHandle is not a C type, so we need to allow "improper_ctypes" 
@@ -403,11 +447,13 @@ pub mod ffi {
 fn ffi_test() {
 	unsafe {
 		let data = evmjit_create_runtime_data();
+		let schedule = evmjit_create_schedule();
 		let context = evmjit_create_context(data, &mut ExtHandle::empty());
 
-		let code = evmjit_exec(context);
+		let code = evmjit_exec(context, schedule);
 		assert_eq!(code, JitReturnCode::Stop);
 
+		evmjit_destroy_schedule(schedule);
 		evmjit_destroy_runtime_data(data);
 		evmjit_destroy_context(context);
 	}
@@ -416,7 +462,8 @@ fn ffi_test() {
 #[test]
 fn handle_test() {
 	unsafe {
-		let mut context = ContextHandle::new(RuntimeDataHandle::new(), &mut ExtHandle::empty());
+		let mut ext = ExtHandle::empty();
+		let mut context = ContextHandle::new(RuntimeDataHandle::new(), ScheduleHandle::new(), &mut ext);
 		assert_eq!(context.exec(), ReturnCode::Stop);
 	}
 }
