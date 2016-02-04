@@ -1055,7 +1055,7 @@ mod tests {
 	fn return_receipts() {
 		let mut client = TestBlockChainClient::new();
 		let mut queue = VecDeque::new();
-		let io = TestIo::new(&mut client, &mut queue, None);
+		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		let mut receipt_list = RlpStream::new_list(4);
 		receipt_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
@@ -1063,8 +1063,9 @@ mod tests {
 		receipt_list.append(&H256::from("fff0000000000000000000000000000000000000000000000000000000000000"));
 		receipt_list.append(&H256::from("aff0000000000000000000000000000000000000000000000000000000000000"));
 
+		let receipts_request = receipt_list.out();
 		// it returns rlp ONLY for hashes started with "f"
-		let result = ChainSync::return_receipts(&io, &UntrustedRlp::new(&receipt_list.out()));
+		let result = ChainSync::return_receipts(&io, &UntrustedRlp::new(&receipts_request.clone()));
 
 		assert!(result.is_ok());
 		let rlp_result = result.unwrap();
@@ -1072,5 +1073,11 @@ mod tests {
 
 		// the length of two rlp-encoded receipts
 		assert_eq!(597, rlp_result.unwrap().1.out().len());
+
+		let mut sync = ChainSync::new();
+		io.sender = Some(2usize);
+		sync.on_packet(&mut io, 1usize, super::GET_RECEIPTS_PACKET, &receipts_request);
 	}
+
+
 }
