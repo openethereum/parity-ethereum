@@ -435,7 +435,9 @@ function run_installer()
     dir=$HOME/.netstats
 
     secret=$(prompt_for_input "Please enter the netstats secret:")
+    instance_name=$(prompt_for_input "Please enter your instance name:")
     contact_details=$(prompt_for_input "Please enter your contact details (optional):")
+    
 
     mkdir -p $dir
     cat > $dir/app.json << EOL
@@ -455,7 +457,7 @@ function run_installer()
       "RPC_HOST"        : "localhost",
       "RPC_PORT"        : "8545",
       "LISTENING_PORT"  : "30303",
-      "INSTANCE_NAME"   : "Secrety",
+      "INSTANCE_NAME"   : "${instance_name}",
       "CONTACT_DETAILS" : "${contact_details}",
       "WS_SERVER"       : "wss://rpc.ethstats.net",
       "WS_SECRET"       : "${secret}",
