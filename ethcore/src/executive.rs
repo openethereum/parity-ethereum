@@ -86,7 +86,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// This funtion should be used to execute transaction.
-	pub fn transact(&'a mut self, t: &Transaction) -> Result<Executed, Error> {
+	pub fn transact(&'a mut self, t: &SignedTransaction) -> Result<Executed, Error> {
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
@@ -268,7 +268,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &Transaction, substate: Substate, result: evm::Result) -> ExecutionResult {
+	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result) -> ExecutionResult {
 		let schedule = self.engine.schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
@@ -685,9 +685,15 @@ mod tests {
 	// test is incorrect, mk
 	evm_test_ignore!{test_transact_simple: test_transact_simple_jit, test_transact_simple_int}
 	fn test_transact_simple(factory: Factory) {
-		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
-		t.sign(&keypair.secret());
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(17),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::zero()
+		}.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 		let contract = contract_address(&sender, &U256::zero());
 
@@ -717,8 +723,14 @@ mod tests {
 
 	evm_test!{test_transact_invalid_sender: test_transact_invalid_sender_jit, test_transact_invalid_sender_int}
 	fn test_transact_invalid_sender(factory: Factory) {
-		let t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
-
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(17),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::zero()
+		}.fake_sign();
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let mut info = EnvInfo::default();
@@ -738,11 +750,17 @@ mod tests {
 
 	evm_test!{test_transact_invalid_nonce: test_transact_invalid_nonce_jit, test_transact_invalid_nonce_int}
 	fn test_transact_invalid_nonce(factory: Factory) {
-		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::one());
 		let keypair = KeyPair::create().unwrap();
-		t.sign(&keypair.secret());
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(17),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::one()
+		}.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
-		
+
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(17));
@@ -764,9 +782,15 @@ mod tests {
 
 	evm_test!{test_transact_gas_limit_reached: test_transact_gas_limit_reached_jit, test_transact_gas_limit_reached_int}
 	fn test_transact_gas_limit_reached(factory: Factory) {
-		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(80_001), U256::zero(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
-		t.sign(&keypair.secret());
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(17),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(80_001),
+			gas_price: U256::zero(),
+			nonce: U256::zero()
+		}.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -791,9 +815,16 @@ mod tests {
 
 	evm_test!{test_not_enough_cash: test_not_enough_cash_jit, test_not_enough_cash_int}
 	fn test_not_enough_cash(factory: Factory) {
-		let mut t = Transaction::new_create(U256::from(18), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::one(), U256::zero());
+
 		let keypair = KeyPair::create().unwrap();
-		t.sign(&keypair.secret());
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(18),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::one(),
+			nonce: U256::zero()
+		}.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();

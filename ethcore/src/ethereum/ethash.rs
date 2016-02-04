@@ -154,7 +154,7 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &Transaction, header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
 		if header.number() >= self.u64_param("frontierCompatibilityModeLimit") {
 			try!(t.check_low_s());
 		}

@@ -139,7 +139,7 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &Transaction) -> ApplyResult {
+	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction) -> ApplyResult {
 //		let old = self.to_pod();
 
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
