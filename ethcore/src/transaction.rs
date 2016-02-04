@@ -35,19 +35,34 @@ pub struct Transaction {
 	/// Transaction data.
 	pub data: Bytes,
 
-	// signature
-	/// The V field of the signature, either 27 or 28; helps describe the point on the curve.
-	pub v: u8,
-	/// The R field of the signature; helps describe the point on the curve.
-	pub r: U256,
-	/// The S field of the signature; helps describe the point on the curve.
-	pub s: U256,
 
-	hash: RefCell<Option<H256>>,
-	sender: RefCell<Option<Address>>,
+	//// signature
+	///// The V field of the signature, either 27 or 28; helps describe the point on the curve.
+	//pub v: u8,
+	///// The R field of the signature; helps describe the point on the curve.
+	//pub r: U256,
+	///// The S field of the signature; helps describe the point on the curve.
+	//pub s: U256,
+
+	//hash: RefCell<Option<H256>>,
+	//sender: RefCell<Option<Address>>,
 }
 
 impl Transaction {
+	/// Append object with a without signature into RLP stream
+	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream) {
+		s.begin_list(6);
+		s.append(&self.nonce);
+		s.append(&self.gas_price);
+		s.append(&self.gas);
+		match self.action {
+			Action::Create => s.append_empty_data(),
+			Action::Call(ref to) => s.append(to)
+		};
+		s.append(&self.value);
+		s.append(&self.data);
+	}
+
 	/// Create a new transaction.
 	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
@@ -59,11 +74,11 @@ impl Transaction {
 			action: Action::Create,
 			value: x!(0),
 			data: vec![],
-			v: 0,
-			r: x!(0),
-			s: x!(0),
-			hash: RefCell::new(None),
-			sender: RefCell::new(None),
+			//v: 0,
+			//r: x!(0),
+			//s: x!(0),
+			//hash: RefCell::new(None),
+			//sender: RefCell::new(None),
 		}
 	}
 
@@ -77,11 +92,11 @@ impl Transaction {
 			action: Action::Call(to),
 			value: value,
 			data: data,
-			v: 0,
-			r: x!(0),
-			s: x!(0),
-			hash: RefCell::new(None),
-			sender: RefCell::new(None),
+			//v: 0,
+			//r: x!(0),
+			//s: x!(0),
+			//hash: RefCell::new(None),
+			//sender: RefCell::new(None),
 		}
 	}
 
@@ -95,37 +110,37 @@ impl Transaction {
 			action: Action::Create,
 			value: value,
 			data: data,
-			v: 0,
-			r: x!(0),
-			s: x!(0),
-			hash: RefCell::new(None),
-			sender: RefCell::new(None),
+			//v: 0,
+			//r: x!(0),
+			//s: x!(0),
+			//hash: RefCell::new(None),
+			//sender: RefCell::new(None),
 		}
 	}
 
-	/// Append object into RLP stream, optionally with or without the signature.
-	pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
-		s.begin_list(6 + match with_seal { Seal::With => 3, _ => 0 });
-		s.append(&self.nonce);
-		s.append(&self.gas_price);
-		s.append(&self.gas);
-		match self.action {
-			Action::Create => s.append_empty_data(),
-			Action::Call(ref to) => s.append(to),
-		};
-		s.append(&self.value);
-		s.append(&self.data);
-		if let Seal::With = with_seal {
-			s.append(&(self.v as u16)).append(&self.r).append(&self.s);
-		}
-	}
+	///// Append object into RLP stream, optionally with or without the signature.
+	//pub fn rlp_append_opt(&self, s: &mut RlpStream, with_seal: Seal) {
+		//s.begin_list(6 + match with_seal { Seal::With => 3, _ => 0 });
+		//s.append(&self.nonce);
+		//s.append(&self.gas_price);
+		//s.append(&self.gas);
+		//match self.action {
+			//Action::Create => s.append_empty_data(),
+			//Action::Call(ref to) => s.append(to),
+		//};
+		//s.append(&self.value);
+		//s.append(&self.data);
+		//if let Seal::With = with_seal {
+			//s.append(&(self.v as u16)).append(&self.r).append(&self.s);
+		//}
+	//}
 
-	/// Get the RLP serialisation of the object, optionally with or without the signature.
-	pub fn rlp_bytes_opt(&self, with_seal: Seal) -> Bytes {
-		let mut s = RlpStream::new();
-		self.rlp_append_opt(&mut s, with_seal);
-		s.out()
-	}
+	///// Get the RLP serialisation of the object, optionally with or without the signature.
+	//pub fn rlp_bytes_opt(&self, with_seal: Seal) -> Bytes {
+		//let mut s = RlpStream::new();
+		//self.rlp_append_opt(&mut s, with_seal);
+		//s.out()
+	//}
 }
 
 impl FromJson for Transaction {
@@ -140,73 +155,41 @@ impl FromJson for Transaction {
 			},
 			value: xjson!(&json["value"]),
 			data: xjson!(&json["data"]),
-			v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
-			r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
-			s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
-			hash: RefCell::new(None),
-			sender: match json.find("sender") {
-				Some(&Json::String(ref sender)) => RefCell::new(Some(address_from_hex(clean(sender)))),
-				_ => RefCell::new(None),
-			},
+			//v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
+			//r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
+			//s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
+			//hash: RefCell::new(None),
+			//sender: match json.find("sender") {
+				//Some(&Json::String(ref sender)) => RefCell::new(Some(address_from_hex(clean(sender)))),
+				//_ => RefCell::new(None),
+			//},
 		};
-		if let Some(&Json::String(ref secret_key)) = json.find("secretKey") {
-			r.sign(&h256_from_hex(clean(secret_key)));
-		}
+		//if let Some(&Json::String(ref secret_key)) = json.find("secretKey") {
+			//r.sign(&h256_from_hex(clean(secret_key)));
+		//}
 		r
 	}
 }
 
-impl Encodable for Transaction {
-	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_opt(s, Seal::With) }
-}
+//impl Encodable for Transaction {
+	//fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_opt(s, Seal::With) }
+//}
 
 impl Transaction {
-	/// Get the hash of this header (sha3 of the RLP).
-	pub fn hash(&self) -> H256 {
- 		let mut hash = self.hash.borrow_mut();
- 		match &mut *hash {
- 			&mut Some(ref h) => h.clone(),
- 			hash @ &mut None => {
- 				*hash = Some(self.rlp_sha3());
- 				hash.as_ref().unwrap().clone()
- 			}
-		}
-	}
-
-	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
-	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
-
-	/// Construct a signature object from the sig.
-	pub fn signature(&self) -> Signature { Signature::from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v()) }
-
-	/// The message hash of the transaction.
-	pub fn message_hash(&self) -> H256 { self.rlp_bytes_opt(Seal::Without).sha3() }
-
-	/// Returns transaction sender.
-	pub fn sender(&self) -> Result<Address, Error> {
- 		let mut sender = self.sender.borrow_mut();
- 		match &mut *sender {
- 			&mut Some(ref h) => Ok(h.clone()),
- 			sender @ &mut None => {
- 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3()));
- 				Ok(sender.as_ref().unwrap().clone())
- 			}
-		}
-	}
 
 	/// Signs the transaction as coming from `sender`.
-	pub fn sign(&mut self, secret: &Secret) {
+	//pub fn sign(&mut self, secret: &Secret) {
 		// TODO: make always low.
-		let sig = ec::sign(secret, &self.message_hash());
-		let (r, s, v) = sig.unwrap().to_rsv();
-		self.r = r;
-		self.s = s;
-		self.v = v + 27;
-	}
+		//let sig = ec::sign(secret, &self.message_hash());
+		//let (r, s, v) = sig.unwrap().to_rsv();
+		//self.r = r;
+		//self.s = s;
+		//self.v = v + 27;
+	//}
 
 	/// Signs the transaction as coming from `sender`.
-	#[cfg(test)]
-	pub fn signed(self, secret: &Secret) -> Transaction { let mut r = self; r.sign(secret); r }
+	//#[cfg(test)]
+	//pub fn signed(self, secret: &Secret) -> Transaction { let mut r = self; r.sign(secret); r }
 
 	/// Get the transaction cost in gas for the given params.
 	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule) -> u64 {
@@ -216,19 +199,32 @@ impl Transaction {
 		)
 	}
 
+	/// The message hash of the transaction.
+	pub fn message_hash(&self) -> H256 { 
+		let mut stream = RlpStream::new();
+		self.rlp_append_unsigned_transaction(&mut stream);
+		stream.out().sha3()
+	}
+
+	pub fn sign(self, secret: &Secret) -> SignedTransaction {
+		let sig = ec::sign(secret, &self.message_hash());
+		let (r, s, v) = sig.unwrap().to_rsv();
+		SignedTransaction {
+			transaction: self,
+			r: r,
+			s: s,
+			v: v,
+			hash: RefCell::new(None),
+			sender: RefCell::new(None)
+		}
+	}
+
 	/// Get the transaction cost in gas for this transaction.
 	pub fn gas_required(&self, schedule: &Schedule) -> u64 {
 		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
 	}
 
-	/// Checks whether the signature has a low 's' value.
-	pub fn check_low_s(&self) -> Result<(), Error> {
-		if !ec::is_low_s(&self.s) {
-			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)))
-		} else {
-			Ok(())
-		}
-	}
+
 
 	/// Do basic validation, checking for valid signature and minimum gas,
 	// TODO: consider use in block validation.
@@ -258,25 +254,137 @@ impl Decodable for Action {
 	}
 }
 
-impl Decodable for Transaction {
+//impl Decodable for Transaction {
+	//fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		//let d = decoder.as_rlp();
+		//if d.item_count() != 9 {
+			//return Err(DecoderError::RlpIncorrectListLen);
+		//}
+		//Ok(Transaction {
+			//nonce: try!(d.val_at(0)),
+			//gas_price: try!(d.val_at(1)),
+			//gas: try!(d.val_at(2)),
+			//action: try!(d.val_at(3)),
+			//value: try!(d.val_at(4)),
+			//data: try!(d.val_at(5)),
+			//v: try!(d.val_at(6)),
+			//r: try!(d.val_at(7)),
+			//s: try!(d.val_at(8)),
+			//hash: RefCell::new(None),
+			//sender: RefCell::new(None),
+		//})
+	//}
+//}
+
+#[derive(Debug, Clone)]
+pub struct SignedTransaction {
+	transaction: Transaction,
+	v: u8,
+	r: U256,
+	s: U256,
+
+	hash: RefCell<Option<H256>>,
+	sender: RefCell<Option<Address>>
+}
+
+impl Deref for SignedTransaction {
+	type Target = Transaction;
+
+	fn deref(&self) -> &Self::Target {
+		&self.transaction
+	}
+}
+
+impl Decodable for SignedTransaction {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		if d.item_count() != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
-		Ok(Transaction {
-			nonce: try!(d.val_at(0)),
-			gas_price: try!(d.val_at(1)),
-			gas: try!(d.val_at(2)),
-			action: try!(d.val_at(3)),
-			value: try!(d.val_at(4)),
-			data: try!(d.val_at(5)),
+		Ok(SignedTransaction {
+			transaction: Transaction {
+				nonce: try!(d.val_at(0)),
+				gas_price: try!(d.val_at(1)),
+				gas: try!(d.val_at(2)),
+				action: try!(d.val_at(3)),
+				value: try!(d.val_at(4)),
+				data: try!(d.val_at(5)),
+
+				// to remove
+				v: 0,
+				r: From::from(0),
+				s: From::from(0),
+				hash: RefCell::new(None),
+				sender: RefCell::new(None)
+			},
 			v: try!(d.val_at(6)),
 			r: try!(d.val_at(7)),
 			s: try!(d.val_at(8)),
 			hash: RefCell::new(None),
 			sender: RefCell::new(None),
 		})
+	}
+}
+
+impl Encodable for SignedTransaction {
+	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_sealed_transaction(s) }
+}
+
+impl SignedTransaction {
+	/// Append object with a signature into RLP stream
+	pub fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
+		s.begin_list(9);
+		s.append(&self.nonce);
+		s.appned(&self.gas_price);
+		s.append(&self.gas);
+		match self.action {
+			Action::Create => s.append_empty_data(),
+			Action::Call(ref to) => s.append(to)
+		};
+		s.append(&self.value);
+		s.append(&self.data);
+		s.append(&self.v);
+		s.append(&self.r);
+		s.append(&self.s);
+	}
+
+	/// Get the hash of this header (sha3 of the RLP).
+	pub fn hash(&self) -> H256 {
+ 		let mut hash = self.hash.borrow_mut();
+ 		match &mut *hash {
+ 			&mut Some(ref h) => h.clone(),
+ 			hash @ &mut None => {
+ 				*hash = Some(self.rlp_sha3());
+ 				hash.as_ref().unwrap().clone()
+ 			}
+		}
+	}
+
+	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
+	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
+
+	/// Construct a signature object from the sig.
+	pub fn signature(&self) -> Signature { Signature::from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v()) }
+
+	/// Checks whether the signature has a low 's' value.
+	pub fn check_low_s(&self) -> Result<(), Error> {
+		if !ec::is_low_s(&self.s) {
+			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)))
+		} else {
+			Ok(())
+		}
+	}
+
+	/// Returns transaction sender.
+	pub fn sender(&self) -> Result<Address, Error> {
+ 		let mut sender = self.sender.borrow_mut();
+ 		match &mut *sender {
+ 			&mut Some(ref h) => Ok(h.clone()),
+ 			sender @ &mut None => {
+ 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3()));
+ 				Ok(sender.as_ref().unwrap().clone())
+ 			}
+		}
 	}
 }
 

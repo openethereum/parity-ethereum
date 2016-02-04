@@ -14,7 +14,7 @@ pub struct PreVerifiedBlock {
 	/// Populated block header
 	pub header: Header,
 	/// Populated block transactions
-	pub transactions: Vec<Transaction>,
+	pub transactions: Vec<SignedTransaction>,
 	/// Block bytes
 	pub bytes: Bytes,
 }

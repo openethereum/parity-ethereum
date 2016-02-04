@@ -135,7 +135,7 @@ impl<'a> BlockView<'a> {
 	}
 
 	/// Return List of transactions in given block.
-	pub fn transactions(&self) -> Vec<Transaction> {
+	pub fn transactions(&self) -> Vec<SignedTransaction> {
 		self.rlp.val_at(1)
 	}
 
