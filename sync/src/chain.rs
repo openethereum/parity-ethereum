@@ -292,7 +292,7 @@ impl ChainSync {
 			trace!(target: "sync", "Ignored unexpected block headers");
 			return Ok(());
 		}
-		if self.state == SyncState::Waiting {
+		if io.chain().queue_info().full {
 			trace!(target: "sync", "Ignored block headers while waiting");
 			return Ok(());
 		}
@@ -376,7 +376,7 @@ impl ChainSync {
 			trace!(target: "sync", "Ignored unexpected block bodies");
 			return Ok(());
 		}
-		if self.state  == SyncState::Waiting {
+		if io.chain().queue_info().full {
 			trace!(target: "sync", "Ignored block bodies while waiting");
 			return Ok(());
 		}
@@ -532,7 +532,7 @@ impl ChainSync {
 	/// Enter waiting state
 	fn pause_sync(&mut self) {
 		trace!(target: "sync", "Block queue full, pausing sync");
-		self.state = SyncState::Waiting;
+		//self.state = SyncState::Waiting;
 	}
 
 	/// Find something to do for a peer. Called for a new peer or when a peer is done with it's task.
