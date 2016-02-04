@@ -548,7 +548,7 @@ function run_installer()
 
 	function linux_rocksdb_installer()
 	{
-		if [[ $isUbuntu1404 ]]; then
+		if [[ $isUbuntu1404 == true ]]; then
 			ubuntu1404_rocksdb_installer
 		else
 			oldpwd=`pwd`
