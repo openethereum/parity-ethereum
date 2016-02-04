@@ -1013,3 +1013,7 @@ impl ChainSync {
 		}
 	}
 }
+
+#[cfg(test)]
+mod tests {
+}

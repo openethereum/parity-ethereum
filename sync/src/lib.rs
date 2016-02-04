@@ -110,5 +110,3 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 		self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 }
-
-
