@@ -83,3 +83,36 @@ impl Hash for Node {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::str::FromStr;
+	use std::net::*;
+	use hash::*;
+
+	#[test]
+	fn endpoint_parse() {
+		let endpoint = NodeEndpoint::from_str("123.99.55.44:7770");
+		assert!(endpoint.is_ok());
+		let v4 = match endpoint.unwrap().address {
+			SocketAddr::V4(v4address) => v4address,
+			_ => panic!("should ve v4 address")
+		};
+		assert_eq!(SocketAddrV4::new(Ipv4Addr::new(123, 99, 55, 44), 7770), v4);
+	}
+
+	#[test]
+	fn node_parse() {
+		let node = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770");
+		assert!(node.is_ok());
+		let node = node.unwrap();
+		let v4 = match node.endpoint.address {
+			SocketAddr::V4(v4address) => v4address,
+			_ => panic!("should ve v4 address")
+		};
+		assert_eq!(SocketAddrV4::new(Ipv4Addr::new(22, 99, 55, 44), 7770), v4);
+		assert_eq!(
+			H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap(),
+			node.id);
+	}
+}

@@ -48,4 +48,13 @@ impl NetworkStats {
 	pub fn sessions(&self) -> usize {
 		self.sessions.load(Ordering::Relaxed)
 	}
+
+	#[cfg(test)]
+	pub fn new() -> NetworkStats {
+		NetworkStats {
+			recv: AtomicUsize::new(0),
+			send: AtomicUsize::new(0),
+			sessions: AtomicUsize::new(0),
+		}
+	}
 }

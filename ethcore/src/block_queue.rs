@@ -79,6 +79,8 @@ struct Verification {
 	bad: HashSet<H256>,
 }
 
+const MAX_UNVERIFIED_QUEUE_SIZE: usize = 50000;
+
 impl BlockQueue {
 	/// Creates a new queue instance.
 	pub fn new(engine: Arc<Box<Engine>>, message_channel: IoChannel<NetSyncMessage>) -> BlockQueue {
@@ -290,7 +292,7 @@ impl BlockQueue {
 	pub fn queue_info(&self) -> BlockQueueInfo {
 		let verification = self.verification.lock().unwrap();
 		BlockQueueInfo {
-			full: false,
+			full: verification.unverified.len() + verification.verifying.len() + verification.verified.len() >= MAX_UNVERIFIED_QUEUE_SIZE,
 			verified_queue_size: verification.verified.len(),
 			unverified_queue_size: verification.unverified.len(),
 			verifying_queue_size: verification.verifying.len(),
