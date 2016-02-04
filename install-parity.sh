@@ -462,9 +462,9 @@ function run_installer()
 ]
 EOL
 
-    docker rm --force netstats-client 2> /dev/null
-    docker pull ethcore/netstats-client
-    docker run -d --net=host --name netstats-client -v $dir/app.json:/home/ethnetintel/eth-net-intelligence-api/app.json  ethcore/netstats-client 
+    sudo docker rm --force netstats-client 2> /dev/null
+    sudo docker pull ethcore/netstats-client
+    sudo docker run -d --net=host --name netstats-client -v $dir/app.json:/home/ethnetintel/eth-net-intelligence-api/app.json  ethcore/netstats-client 
   }
 
   function install()
