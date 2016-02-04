@@ -254,7 +254,7 @@ fn test_origin(factory: super::Factory) {
 	assert_store(&ext, 0, "000000000000000000000000cd1722f2947def4cf144679da39c4c32bdc35681");
 }
 
-evm_test!{ignorejit => test_sender: test_sender_jit, test_sender_int}
+evm_test!{test_sender: test_sender_jit, test_sender_int}
 fn test_sender(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let sender = Address::from_str("cd1722f2947def4cf144679da39c4c32bdc35681").unwrap();
@@ -366,7 +366,7 @@ fn test_log_sender(factory: super::Factory) {
 	assert_eq!(ext.logs[0].data, "ff00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap());
 }
 
-evm_test!{ignorejit => test_blockhash: test_blockhash_jit, test_blockhash_int}
+evm_test!{test_blockhash: test_blockhash_jit, test_blockhash_int}
 fn test_blockhash(factory: super::Factory) {
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "600040600055".from_hex().unwrap();
