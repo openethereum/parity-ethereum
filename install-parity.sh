@@ -200,7 +200,6 @@ function run_installer()
     if [[ -f $ETH_PATH ]]
     then
       check "Found parity: $ETH_PATH"
-      echo "$($ETH_PATH -v)"
       isEth=true
     else
       uncheck "parity is missing"
@@ -398,6 +397,7 @@ function run_installer()
   {
     sudo add-apt-repository -y ppa:giskou/librocksdb
     sudo apt-get -f -y install
+    sudo apt-get update
     sudo apt-get install librocksdb
   }
 
@@ -418,9 +418,6 @@ function run_installer()
     echo
 
     info "Installing parity"
-    change the url to http://parity-deb.ethcore.io
-    wget --quiet --output-document=-  https://github.com/jesuscript/scripts/raw/master/parity_0.9.0-0_amd64.deb | sudo dpkg --install -
-
     file=/tmp/parity.deb
 
     #TODO: replace with parity-deb.ethcore.io
@@ -443,7 +440,7 @@ function run_installer()
 
     #TODO: uncomment
     #secret=$(prompt_for_input "Please enter the netstats secret:")
-    secret= "a38e1e50b1b82fa"
+    secret="a38e1e50b1b82fa"
 
     mkdir -p $dir
     cat > $dir/app.json << EOL
@@ -474,7 +471,9 @@ function run_installer()
 ]
 EOL
 
-    
+    docker rm --force netstats-client 2> /dev/null
+    docker pull ethcore/netstats-client
+    docker run -d --net=host --name netstats-client -v $dir/app.json:/home/ethnetintel/eth-net-intelligence-api/app.json  ethcore/netstats-client 
   }
 
   function install()
@@ -530,16 +529,16 @@ EOL
   echo "$INSTALL_FILES"
   echo
 
-  # # Prompt user to continue or abort
-  # if wait_for_user "${b}OK,${reset} let's go!"
-  # then
-  #   echo "Installing..."
-  # else
-  #   abortInstall "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again."
-  # fi
+  # Prompt user to continue or abort
+  if wait_for_user "${b}OK,${reset} let's go!"
+  then
+    echo "Installing..."
+  else
+    abortInstall "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again."
+  fi
 
-  # # Install dependencies and eth
-  # install
+  # Install dependencies and eth
+  #install
 
   if [[ $OS_TYPE == "linux" ]]
   then
