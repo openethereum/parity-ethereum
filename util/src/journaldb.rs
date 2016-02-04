@@ -4,7 +4,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use rocksdb::{DB, Writable, IteratorMode};
+use rocksdb::{DB, Writable, IteratorMode, WriteBatch};
 #[cfg(test)]
 use std::env;
 
@@ -18,23 +18,35 @@ use std::env;
 pub struct JournalDB {
 	overlay: MemoryDB,
 	backing: Arc<DB>,
+	counters: Arc<RwLock<HashMap<H256, i32>>>,
 }
+
+impl Clone for JournalDB {
+	fn clone(&self) -> JournalDB {
+		JournalDB {
+			overlay: MemoryDB::new(),
+			backing: self.backing.clone(),
+			counters: self.counters.clone(),
+		}
+	}
+}
+
+const LAST_ERA_KEY : [u8; 4] = [ b'l', b'a', b's', b't' ]; 
 
 impl JournalDB {
 	/// Create a new instance given a `backing` database.
 	pub fn new(backing: DB) -> JournalDB {
 		let db = Arc::new(backing);
-		JournalDB {
-			overlay: MemoryDB::new(),
-			backing: db,
-		}
+		JournalDB::new_with_arc(db)
 	}
 
 	/// Create a new instance given a shared `backing` database.
 	pub fn new_with_arc(backing: Arc<DB>) -> JournalDB {
+		let counters = JournalDB::read_counters(&backing);
 		JournalDB {
 			overlay: MemoryDB::new(),
 			backing: backing,
+			counters: Arc::new(RwLock::new(counters)),
 		}
 	}
 
@@ -49,6 +61,7 @@ impl JournalDB {
 
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
+	#[allow(cyclomatic_complexity)]
 	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format: 
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -63,6 +76,8 @@ impl JournalDB {
 		// of its inserts otherwise.
 
 		// record new commit's details.
+		let batch = WriteBatch::new();
+		let mut counters = self.counters.write().unwrap();
 		{
 			let mut index = 0usize;
 			let mut last;
@@ -79,11 +94,14 @@ impl JournalDB {
 
 			let mut r = RlpStream::new_list(3);
 			let inserts: Vec<H256> = self.overlay.keys().iter().filter(|&(_, &c)| c > 0).map(|(key, _)| key.clone()).collect();
+			for i in &inserts {
+				*counters.entry(i.clone()).or_insert(0) += 1;
+			}
 			let removes: Vec<H256> = self.overlay.keys().iter().filter(|&(_, &c)| c < 0).map(|(key, _)| key.clone()).collect();
 			r.append(id);
 			r.append(&inserts);
 			r.append(&removes);
-			try!(self.backing.put(&last, r.as_raw()));
+			try!(batch.put(&last, r.as_raw()));
 		}
 
 		// apply old commits' details
@@ -98,14 +116,35 @@ impl JournalDB {
 				&last
 			})) {
 				let rlp = Rlp::new(&rlp_data);
+				{
+					let to_add: Vec<H256> = rlp.val_at(1);
+					for i in &to_add {
+						let delete_counter = {
+							if let Some(mut cnt) = counters.get_mut(i) {
+								*cnt -= 1;
+								*cnt == 0 
+							}
+							else { false }
+								 
+						};
+						if delete_counter { 
+							counters.remove(i); 
+						}
+					}
+				}
 				let to_remove: Vec<H256> = rlp.val_at(if canon_id == rlp.val_at(0) {2} else {1});
 				for i in &to_remove {
-					self.backing.delete(&i).expect("Low-level database error. Some issue with your hard disk?");
+					if !counters.contains_key(i) {
+						batch.delete(&i).expect("Low-level database error. Some issue with your hard disk?");
+					}
 				}
-				try!(self.backing.delete(&last));
+
+				try!(batch.delete(&last));
 				trace!("JournalDB: delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, to_remove.len());
 				index += 1;
 			}
+
+			try!(batch.put(&LAST_ERA_KEY, &encode(&end_era)));
 		}
 
 		let mut ret = 0u32;
@@ -114,11 +153,7 @@ impl JournalDB {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
 				assert!(rc == 1);
-				if !self.backing.get(&key.bytes()).unwrap().is_none() {
-					info!("Exist: {:?}", key);
-					key.clone();
-				}
-				self.backing.put(&key.bytes(), &value).expect("Low-level database error. Some issue with your hard disk?");
+				batch.put(&key.bytes(), &value).expect("Low-level database error. Some issue with your hard disk?");
 				ret += 1;
 			}
 			if rc < 0 {
@@ -127,12 +162,43 @@ impl JournalDB {
 				deletes += 1;
 			}
 		}
+
+		try!(self.backing.write(batch));
 		trace!("JournalDB::commit() deleted {} nodes", deletes);
 		Ok(ret)
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
 		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+	}
+
+	fn read_counters(db: &DB) -> HashMap<H256, i32> {
+		let mut res = HashMap::new();
+		if let Some(val) = db.get(&LAST_ERA_KEY).expect("Low-level database error.") {
+			let mut era = decode::<u64>(&val) + 1;
+			loop {
+				let mut index = 0usize;
+				while let Some(rlp_data) = db.get({
+					let mut r = RlpStream::new_list(2);
+					r.append(&era);
+					r.append(&index);
+					&r.drain()
+				}).expect("Low-level database error.") {
+					let rlp = Rlp::new(&rlp_data);
+					let to_add: Vec<H256> = rlp.val_at(1);
+					for h in to_add {
+						*res.entry(h).or_insert(0) += 1;
+					}
+					index += 1;
+				};
+				if index == 0 {
+					break;
+				}
+				era += 1;
+			}
+		}
+		info!("Recovered {} counters", res.len());
+		res
 	}
 }
 
@@ -171,25 +237,14 @@ impl HashDB for JournalDB {
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 { 
-		if value.sha3() == h256_from_hex("3567da57862169b0dc409933ec10da8113ef3810fd225ad81d4fc23c36ffa5d4") {
-			info!("GOTCHA");
-			value.to_vec();
-		}
-		self.overlay.insert(value) 
+		self.overlay.insert(value)
 	}
 	fn emplace(&mut self, key: H256, value: Bytes) {
-		if key == h256_from_hex("3567da57862169b0dc409933ec10da8113ef3810fd225ad81d4fc23c36ffa5d4") {
-			info!("GOTCHA");
-			value.to_vec();
-		}
 		self.overlay.emplace(key, value); 
 	}
 	fn kill(&mut self, key: &H256) { 
-			if key == &h256_from_hex("3567da57862169b0dc409933ec10da8113ef3810fd225ad81d4fc23c36ffa5d4") {
-			info!("DELETING");
-			key.clone();
-		}
-		self.overlay.kill(key); }
+		self.overlay.kill(key); 
+	}
 }
 
 #[cfg(test)]
@@ -280,5 +335,24 @@ mod tests {
 		assert!(jdb.exists(&foo));
 		assert!(!jdb.exists(&baz));
 		assert!(!jdb.exists(&bar));
+	}
+
+	#[test]
+	fn overwrite() {
+		// history is 1
+		let mut jdb = JournalDB::new_temp();
+
+		let foo = jdb.insert(b"foo");
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.exists(&foo));
+
+		jdb.remove(&foo);
+		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.insert(b"foo");
+		assert!(jdb.exists(&foo));
+		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.exists(&foo));
+		jdb.commit(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
+		assert!(jdb.exists(&foo));
 	}
 }

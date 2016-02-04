@@ -140,13 +140,13 @@ pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: Arc<DB>,
+	state_journal: Mutex<JournalDB>,
 	block_queue: RwLock<BlockQueue>,
 	report: RwLock<ClientReport>,
-	uncommited_states: RwLock<HashMap<H256, JournalDB>>,
 	import_lock: Mutex<()>
 }
 
-const HISTORY: u64 = 1;
+const HISTORY: u64 = 1000;
 
 impl Client {
 	/// Create a new client with given spec and DB path.
@@ -185,10 +185,10 @@ impl Client {
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
-			state_db: db,
+			state_db: db.clone(),
+			state_journal: Mutex::new(JournalDB::new_with_arc(db)),
 			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
 			report: RwLock::new(Default::default()),
-			uncommited_states: RwLock::new(HashMap::new()),
 			import_lock: Mutex::new(()),
 		}))
 	}
@@ -241,7 +241,7 @@ impl Client {
 				}
 			}
 
-			let db = JournalDB::new_with_arc(self.state_db.clone());
+			let db = self.state_journal.lock().unwrap().clone();
 			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
@@ -274,11 +274,6 @@ impl Client {
 		}
 		self.block_queue.write().unwrap().mark_as_good(&good_blocks);
 		ret
-	}
-
-	/// Clear cached state overlay 
-	pub fn clear_state(&self, hash: &H256) {
-		self.uncommited_states.write().unwrap().remove(hash);
 	}
 
 	/// Get a copy of the best block's state.
