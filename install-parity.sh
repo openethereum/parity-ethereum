@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-GET_DEPS_URL=https://raw.githubusercontent.com/ethcore/parity/install-parity/install-deps.sh?token=ABG4GdRAtO16t1U9l7JJgMDhf92CzHBWks5WvP6qwA%3D%3D
+GET_DEPS_URL=https://raw.githubusercontent.com/ethcore/parity/install-parity/install-deps.sh?token=ABG4GbR8ozeZ4u9VPNK-_fUaWS4l-l6Xks5WvQ7ywA%3D%3D
 
 function run_installer()
 {
