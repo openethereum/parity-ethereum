@@ -641,6 +641,8 @@ function run_installer()
 		info "Downloading Parity..."
 		git clone git@github.com:ethcore/parity
 		cd parity
+		git submodule init
+		git submodule update
 		
 		info "Building & testing Parity..."
 		cargo test --release -p ethcore-util
