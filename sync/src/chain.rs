@@ -322,13 +322,13 @@ impl ChainSync {
 						//validate chain
 						let base_hash = self.last_imported_hash.clone().unwrap();
 						if self.have_common_block && number == self.current_base_block() + 1 && info.parent_hash != base_hash {
-							// TODO: lower peer rating
-							debug!(target: "sync", "Mismatched block header {} {}", number, hash);
-							continue;
+							// Part of the forked chain. Restart to find common block again
+							debug!(target: "sync", "Mismatched block header {} {}, restarting sync", number, hash);
+							self.restart(io);
+							return Ok(());
 						}
 						if self.headers.find_item(&(number - 1)).map_or(false, |p| p.hash != info.parent_hash) {
 							// mismatching parent id, delete the previous block and don't add this one
-							// TODO: lower peer rating
 							debug!(target: "sync", "Mismatched block header {} {}", number, hash);
 							self.remove_downloaded_blocks(number - 1);
 							continue;
