@@ -105,7 +105,14 @@ function run_installer()
 		done
 	}
 
-
+	function prompt_for_input() {
+		while :
+		do
+			read -p "$1 " imp
+			echo $imp
+			return
+		done
+	}
 
 	function exe() {
 		echo "\$ $@"; "$@"
@@ -378,6 +385,7 @@ function run_installer()
 		find_gcc
 
 		find_apt
+		find_docker
 	}
 
 	function find_rocksdb()
@@ -511,6 +519,23 @@ function run_installer()
 		fi
 	}
 
+	function find_docker()
+	{
+		depCount=$((depCount+1))
+		DOCKER_PATH=`which docker 2>/dev/null`
+
+		if [[ -f $DOCKER_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "docker"
+			echo "$($DOCKER_PATH -v)"
+			isDocker=true
+		else
+			isDocker=false
+			uncheck "docker is missing"
+		fi
+	}
+
 	function ubuntu1404_rocksdb_installer()
 	{
 		sudo apt-get update -qq
@@ -611,6 +636,72 @@ function run_installer()
 		fi
 	}
 
+	function build_parity()
+	{
+		info "Downloading Parity..."
+		git clone git@github.com:ethcore/parity
+		cd parity
+		
+		info "Building & testing Parity..."
+		cargo test --release -p ethcore-util
+
+		info "Running consensus tests..."
+		cargo test --release --features ethcore/json-tests -p ethcore
+
+		echo
+		info "Parity source code is in $(pwd)/parity"
+		info "Run a client with: ${b}cargo run --release${reset}"
+	}
+
+	function install_netstats()
+	{
+		echo "Installing netstats"
+
+		if [[ $isDocker == false ]]; then
+			info "Installing docker"
+			curl -sSL https://get.docker.com/ | sh
+		fi
+
+		dir=$HOME/.netstats
+
+		secret=$(prompt_for_input "Please enter the netstats secret:")
+		instance_name=$(prompt_for_input "Please enter your instance name:")
+		contact_details=$(prompt_for_input "Please enter your contact details (optional):")
+		
+		mkdir -p $dir
+		cat > $dir/app.json << EOL
+[
+	{
+		"name"							: "node-app",
+		"script"						: "app.js",
+		"log_date_format"		: "YYYY-MM-DD HH:mm Z",
+		"merge_logs"				: false,
+		"watch"							: false,
+		"max_restarts"			: 10,
+		"exec_interpreter"	: "node",
+		"exec_mode"					: "fork_mode",
+		"env":
+		{
+			"NODE_ENV"				: "production",
+			"RPC_HOST"				: "localhost",
+			"RPC_PORT"				: "8545",
+			"LISTENING_PORT"	: "30303",
+			"INSTANCE_NAME"		: "${instance_name}",
+			"CONTACT_DETAILS" : "${contact_details}",
+			"WS_SERVER"				: "wss://rpc.ethstats.net",
+			"WS_SECRET"				: "${secret}",
+			"VERBOSITY"				: 2
+		
+		}
+	}
+]
+EOL
+
+		sudo docker rm --force netstats-client 2> /dev/null
+		sudo docker pull ethcore/netstats-client
+		sudo docker run -d --net=host --name netstats-client -v $dir/app.json:/home/ethnetintel/eth-net-intelligence-api/app.json	 ethcore/netstats-client 
+	}
+
 	function abortInstall()
 	{
 		echo
@@ -647,6 +738,20 @@ function run_installer()
 
 	# Check installation
 	verify_installation
+
+	if [[ ! -e parity ]]; then
+		# Maybe install parity
+		if wait_for_user "${b}Build dependencies installed B-)!${reset} Would you like to download and build parity?"; then
+			# Do get parity.
+			build_parity
+		fi
+	fi
+
+	if [[ $OS_TYPE == "linux" ]];	 then
+		if wait_for_user "${b}Netstats:${reset} Would you like to install and configure a netstats client?"; then
+			install_netstats
+		fi
+	fi
 
 	# Display goodby message
 	finish
