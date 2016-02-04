@@ -681,6 +681,7 @@ function run_installer()
 		[ ! -d "www" ] && git clone https://github.com/cubedro/eth-net-intelligence-api netstats
 		cd netstats
 		git pull
+		git checkout 95d595258239a0fdf56b97dedcfb2be62f6170e6
 
 		sudo npm install
 		sudo npm install pm2 -g
