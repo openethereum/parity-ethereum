@@ -7,12 +7,6 @@ function run_installer()
 {
 	####### Init vars
 	
-	HOMEBREW_PREFIX=/usr/local
-	HOMEBREW_CACHE=/Library/Caches/Homebrew
-	HOMEBREW_REPO=https://github.com/Homebrew/homebrew
-	OSX_REQUIERED_VERSION="10.7.0"
-
-
 	declare OS_TYPE
 	declare OSX_VERSION
 	declare GIT_PATH
@@ -198,9 +192,11 @@ function run_installer()
 		info "Building Parity..."
 		cargo build --release
 
+		sudo cp target/release/parity /usr/bin/
+
 		echo
 		info "Parity source code is in $(pwd)/parity"
-		info "Run a client with: ${b}cargo run --release${reset}"
+		info "Run a client with: ${b}cargo run --release${reset} or just ${b}parity${reset}"
 	}
 
 	function linux_installer()
@@ -223,7 +219,9 @@ function run_installer()
 		secret=$(prompt_for_input "Please enter the netstats secret:")
 		instance_name=$(prompt_for_input "Please enter your instance name:")
 		contact_details=$(prompt_for_input "Please enter your contact details (optional):")
-		
+
+		curl -sL https://deb.nodesource.com/setup_0.12 | bash -
+		sudo apt-get update
 		# install ethereum & install dependencies
 		sudo apt-get install -y -qq build-essential git unzip wget nodejs npm ntp cloud-utils
 
