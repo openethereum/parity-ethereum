@@ -195,12 +195,8 @@ function run_installer()
 		git submodule init
 		git submodule update
 		
-		info "Building & testing Parity..."
-		cargo test --release -p ethcore-util
-
-		info "Running consensus tests..."
-		git submodule update -i
-		cargo test --release --features ethcore/json-tests -p ethcore
+		info "Building Parity..."
+		cargo build --release
 
 		echo
 		info "Parity source code is in $(pwd)/parity"
@@ -297,16 +293,6 @@ EOL
 		fi
 	}
 
-	function verify_installation()
-	{
-		info "Verifying installation"
-		find_eth
-
-		if [[ $isEth == false ]]
-		then
-			abortInstall
-		fi
-	}
 
 	function abortInstall()
 	{
@@ -340,7 +326,6 @@ EOL
 	fi
 
 	install
-	verify_installation
 	
 	if [[ $OS_TYPE == "linux" ]]
 	then

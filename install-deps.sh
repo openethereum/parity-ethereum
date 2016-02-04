@@ -385,7 +385,6 @@ function run_installer()
 		find_gcc
 
 		find_apt
-		find_docker
 	}
 
 	function find_rocksdb()
@@ -519,22 +518,6 @@ function run_installer()
 		fi
 	}
 
-	function find_docker()
-	{
-		depCount=$((depCount+1))
-		DOCKER_PATH=`which docker 2>/dev/null`
-
-		if [[ -f $DOCKER_PATH ]]
-		then
-			depFound=$((depFound+1))
-			check "docker"
-			echo "$($DOCKER_PATH -v)"
-			isDocker=true
-		else
-			isDocker=false
-			uncheck "docker is missing"
-		fi
-	}
 
 	function ubuntu1404_rocksdb_installer()
 	{
