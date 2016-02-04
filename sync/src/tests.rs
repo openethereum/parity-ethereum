@@ -296,7 +296,7 @@ impl TestNet {
 				trace!("----------------");
 			}
 			let mut p = self.peers.get_mut(peer).unwrap();
-			p.sync._maintain_sync(&mut TestIo::new(&mut p.chain, &mut p.queue, None));
+			p.sync.maintain_sync(&mut TestIo::new(&mut p.chain, &mut p.queue, None));
 		}
 	}
 
