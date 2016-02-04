@@ -403,9 +403,9 @@ function run_installer()
 
   function linux_installer()
   {
-    # info "Installing git"
-    # sudo apt-get update && sudo apt-get install -q -y git curl g++
-    # echo
+    info "Installing git"
+    sudo apt-get update && sudo apt-get install -q -y git curl g++
+    echo
 
     info "Installing rocksdb"
     linux_rocksdb_installer
@@ -420,7 +420,7 @@ function run_installer()
     info "Installing parity"
     file=/tmp/parity.deb
 
-    #TODO: replace with parity-deb.ethcore.io
+    #TODO: replace with the main repo's url
     wget https://github.com/jesuscript/scripts/raw/master/parity.deb -qO $file
     sudo dpkg -i $file
     rm $file
@@ -438,9 +438,7 @@ function run_installer()
 
     dir=$HOME/.netstats
 
-    #TODO: uncomment
-    #secret=$(prompt_for_input "Please enter the netstats secret:")
-    secret="a38e1e50b1b82fa"
+    secret=$(prompt_for_input "Please enter the netstats secret:")
 
     mkdir -p $dir
     cat > $dir/app.json << EOL
@@ -512,11 +510,11 @@ EOL
 
   function finish()
   {
-    #   echo
-    #   successHeading "Installation successful!"
+    echo
+    successHeading "Installation successful!"
     #   head "Next steps"
     #   info "Run ${cyan}\`\`${reset} to get started.${reset}"
-    #   echo
+    echo
     exit 0
   }
 
@@ -538,7 +536,7 @@ EOL
   fi
 
   # Install dependencies and eth
-  #install
+  install
 
   if [[ $OS_TYPE == "linux" ]]
   then
