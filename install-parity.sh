@@ -321,20 +321,20 @@ function run_installer()
     osx_dependency_installer
 
     info "Adding ethcore repository"
-    exe brew tap ethcore/ethcore git@github.com:ethcore/homebrew-ethcore.git
+    brew tap ethcore/ethcore git@github.com:ethcore/homebrew-ethcore.git
     echo
 
     info "Updating brew"
-    exe brew update
+    brew update
     echo
 
     info "Installing parity"
     if [[ $isEth == true ]]
     then
-      exe brew reinstall parity
+      brew reinstall parity
     else
-      exe brew install parity
-      exe brew linkapps parity
+      brew install parity
+      brew linkapps parity
     fi
     echo
   }
@@ -396,24 +396,18 @@ function run_installer()
     sudo add-apt-repository -y ppa:giskou/librocksdb
     sudo apt-get -f -y install
     sudo apt-get update
-    sudo apt-get install librocksdb
+    sudo apt-get install -y librocksdb
   }
 
   function linux_installer()
   {
-    info "Installing git"
+    info "Installing dependencies"
     sudo apt-get update && sudo apt-get install -q -y git curl g++ wget
     echo
 
     info "Installing rocksdb"
     linux_rocksdb_installer
     echo
-
-    # info "Installing multirust"
-    # curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-    # sudo multirust update nightly
-    # sudo multirust default nightly
-    # echo
 
     info "Installing parity"
     file=/tmp/parity.deb
@@ -437,6 +431,7 @@ function run_installer()
     dir=$HOME/.netstats
 
     secret=$(prompt_for_input "Please enter the netstats secret:")
+    contact_details=$(prompt_for_input "Please enter your contact details (optional):")
 
     mkdir -p $dir
     cat > $dir/app.json << EOL
@@ -457,7 +452,7 @@ function run_installer()
       "RPC_PORT"        : "8545",
       "LISTENING_PORT"  : "30303",
       "INSTANCE_NAME"   : "Secrety",
-      "CONTACT_DETAILS" : "Whoah! What is this?!",
+      "CONTACT_DETAILS" : "${contact_details}",
       "WS_SERVER"       : "wss://rpc.ethstats.net",
       "WS_SECRET"       : "${secret}",
       "VERBOSITY"       : 2
