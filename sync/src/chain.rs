@@ -985,14 +985,8 @@ impl ChainSync {
 	}
 
 	/// Handle peer timeouts
-	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
+	pub fn maintain_peers(&self, io: &mut SyncIo) {
 		let tick = time::precise_time_s();
-
-		if !io.chain().queue_info().full && self.state == SyncState::Waiting {
-			self.state = SyncState::Idle;
-			self.continue_sync(io);
-		}
-
 		for (peer_id, peer) in &self.peers {
 			if peer.asking != PeerAsking::Nothing && (tick - peer.ask_time) > CONNECTION_TIMEOUT_SEC {
 				io.disconnect_peer(*peer_id);
@@ -1001,7 +995,11 @@ impl ChainSync {
 	}
 
 	/// Maintain other peers. Send out any new blocks and transactions
-	pub fn _maintain_sync(&mut self, _io: &mut SyncIo) {
+	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
+		if !io.chain().queue_info().full && self.state == SyncState::Waiting {
+			self.state = SyncState::Idle;
+			self.continue_sync(io);
+		}
 	}
 }
 
