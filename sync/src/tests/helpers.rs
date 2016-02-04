@@ -5,6 +5,7 @@ use ethcore::header::{Header as BlockHeader, BlockNumber};
 use ethcore::error::*;
 use io::SyncIo;
 use chain::{ChainSync};
+use ethcore::receipt::Receipt;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
@@ -120,7 +121,17 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn block_receipts(&self, _h: &H256) -> Option<Bytes> {
+	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+		// starts with 'f' ?
+		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
+			let receipt = Receipt::new(
+				H256::zero(),
+				U256::zero(),
+				vec![]);
+			let mut rlp = RlpStream::new();
+			rlp.append(&receipt);
+			return Some(rlp.out());
+		}
 		None
 	}
 
