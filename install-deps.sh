@@ -657,19 +657,35 @@ function run_installer()
 	{
 		echo "Installing netstats"
 
-		if [[ $isDocker == false ]]; then
-			info "Installing docker"
-			curl -sSL https://get.docker.com/ | sh
-		fi
-
-		dir=$HOME/.netstats
-
 		secret=$(prompt_for_input "Please enter the netstats secret:")
 		instance_name=$(prompt_for_input "Please enter your instance name:")
 		contact_details=$(prompt_for_input "Please enter your contact details (optional):")
 		
-		mkdir -p $dir
-		cat > $dir/app.json << EOL
+		# install ethereum & install dependencies
+		sudo apt-get install -y -qq build-essential git unzip wget nodejs npm ntp cloud-utils
+
+		# add node symlink if it doesn't exist
+		[[ ! -f /usr/bin/node ]] && sudo ln -s /usr/bin/nodejs /usr/bin/node
+
+		# set up time update cronjob
+		sudo bash -c "cat > /etc/cron.hourly/ntpdate << EOF
+		#!/bin/sh
+		pm2 flush
+		sudo service ntp stop
+		sudo ntpdate -s ntp.ubuntu.com
+		sudo service ntp start
+		EOF"
+
+		sudo chmod 755 /etc/cron.hourly/ntpdate
+
+		[ ! -d "www" ] && git clone https://github.com/cubedro/eth-net-intelligence-api netstats
+		cd netstats
+		git pull
+
+		sudo npm install
+		sudo npm install pm2 -g
+
+		cat > app.json << EOL
 [
 	{
 		"name"							: "node-app",
@@ -697,9 +713,8 @@ function run_installer()
 ]
 EOL
 
-		sudo docker rm --force netstats-client 2> /dev/null
-		sudo docker pull ethcore/netstats-client
-		sudo docker run -d --net=host --name netstats-client -v $dir/app.json:/home/ethnetintel/eth-net-intelligence-api/app.json	 ethcore/netstats-client 
+		pm2 start app.json
+		cd ..
 	}
 
 	function abortInstall()
@@ -719,13 +734,22 @@ EOL
 		exit 0
 	}
 
+
+	####### Run the script
+	tput clear
+	echo
+	echo
+	echo " ${blue}∷ ${b}${green} WELCOME TO PARITY ${reset} ${blue}∷${reset}"
+	echo
+	echo
+
 	# Check dependencies
 	head "Checking OS dependencies"
 	detectOS
 
 	if [[ $INSTALL_FILES != "" ]]; then
 		echo
-		head "In addition to the parity build dependencies, this script will install:"
+		head "In addition to the Parity build dependencies, this script will install:"
 		echo "$INSTALL_FILES"
 		echo
 	fi
@@ -747,7 +771,7 @@ EOL
 		fi
 	fi
 
-	if [[ $OS_TYPE == "linux" ]];	 then
+	if [[ $OS_TYPE == "linux" && $DISTRIB_ID == "Ubuntu" ]]; then
 		if wait_for_user "${b}Netstats:${reset} Would you like to install and configure a netstats client?"; then
 			install_netstats
 		fi
