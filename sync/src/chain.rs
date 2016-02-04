@@ -1077,7 +1077,34 @@ mod tests {
 		let mut sync = ChainSync::new();
 		io.sender = Some(2usize);
 		sync.on_packet(&mut io, 1usize, super::GET_RECEIPTS_PACKET, &receipts_request);
+		assert_eq!(1, io.queue.len());
 	}
 
+	#[test]
+	fn return_nodes() {
+		let mut client = TestBlockChainClient::new();
+		let mut queue = VecDeque::new();
+		let mut io = TestIo::new(&mut client, &mut queue, None);
 
+		let mut node_list = RlpStream::new_list(3);
+		node_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
+		node_list.append(&H256::from("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa"));
+		node_list.append(&H256::from("aff0000000000000000000000000000000000000000000000000000000000000"));
+
+		let node_request = node_list.out();
+		// it returns rlp ONLY for hashes started with "f"
+		let result = ChainSync::return_node_data(&io, &UntrustedRlp::new(&node_request.clone()));
+
+		assert!(result.is_ok());
+		let rlp_result = result.unwrap();
+		assert!(rlp_result.is_some());
+
+		// the length of one rlp-encoded hashe
+		assert_eq!(34, rlp_result.unwrap().1.out().len());
+
+		let mut sync = ChainSync::new();
+		io.sender = Some(2usize);
+		sync.on_packet(&mut io, 1usize, super::GET_NODE_DATA_PACKET, &node_request);
+		assert_eq!(1, io.queue.len());
+	}
 }
