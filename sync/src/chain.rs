@@ -532,7 +532,7 @@ impl ChainSync {
 	/// Enter waiting state
 	fn pause_sync(&mut self) {
 		trace!(target: "sync", "Block queue full, pausing sync");
-		//self.state = SyncState::Waiting;
+		self.state = SyncState::Waiting;
 	}
 
 	/// Find something to do for a peer. Called for a new peer or when a peer is done with it's task.
