@@ -1,0 +1,10 @@
+[package]
+description = "Utility function to raise file descriptor limit on OS X"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "fdlimit"
+version = "0.1.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+libc = "0.2"

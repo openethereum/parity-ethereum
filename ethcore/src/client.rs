@@ -1,7 +1,23 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 //! Blockchain database client.
 
 use util::*;
-use rocksdb::{Options, DB};
+use rocksdb::{Options, DB, DBCompactionStyle};
 use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
 use error::*;
@@ -139,24 +155,31 @@ impl ClientReport {
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
-	state_db: JournalDB,
+	state_db: Arc<DB>,
+	state_journal: Mutex<JournalDB>,
 	block_queue: RwLock<BlockQueue>,
 	report: RwLock<ClientReport>,
-	uncommited_states: RwLock<HashMap<H256, JournalDB>>,
 	import_lock: Mutex<()>
 }
 
 const HISTORY: u64 = 1000;
+const CLIENT_DB_VER_STR: &'static str = "1.0";
 
 impl Client {
 	/// Create a new client with given spec and DB path.
 	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+		let mut dir = path.to_path_buf();
+		dir.push(H64::from(spec.genesis_header().hash()).hex());
+		//TODO: sec/fat: pruned/full versioning
+		dir.push(format!("v{}-sec-pruned", CLIENT_DB_VER_STR));
+		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(RwLock::new(BlockChain::new(&gb, path)));
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
+		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
 		/*
 		opts.set_bytes_per_sync(8388608);
 		opts.set_disable_data_sync(false);
@@ -180,16 +203,16 @@ impl Client {
 		
 		let engine = Arc::new(try!(spec.to_engine()));
 		let mut state_db = JournalDB::new_with_arc(db.clone());
-		if engine.spec().ensure_db_good(&mut state_db) {
+		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
-			state_db: state_db,
+			state_db: db.clone(),
+			state_journal: Mutex::new(JournalDB::new_with_arc(db)),
 			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
 			report: RwLock::new(Default::default()),
-			uncommited_states: RwLock::new(HashMap::new()),
 			import_lock: Mutex::new(()),
 		}))
 	}
@@ -242,7 +265,7 @@ impl Client {
 				}
 			}
 
-			let db = self.state_db.clone();
+			let db = self.state_journal.lock().unwrap().clone();
 			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
@@ -277,14 +300,9 @@ impl Client {
 		ret
 	}
 
-	/// Clear cached state overlay 
-	pub fn clear_state(&self, hash: &H256) {
-		self.uncommited_states.write().unwrap().remove(hash);
-	}
-
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
-		State::from_existing(self.state_db.clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+		State::from_existing(JournalDB::new_with_arc(self.state_db.clone()), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
 	}
 
 	/// Get info on the cache.

@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 #[cfg(feature = "json-tests")]
 use client::{BlockChainClient, Client};
 use std::env;
@@ -48,18 +64,22 @@ impl Drop for RandomTempPath {
 
 #[cfg(test)]
 pub struct GuardedTempResult<T> {
-	result: T,
+	result: Option<T>,
 	_temp: RandomTempPath
 }
 
 impl<T> GuardedTempResult<T> {
     pub fn reference(&self) -> &T {
-        &self.result
+        self.result.as_ref().unwrap()
     }
 
     pub fn reference_mut(&mut self) -> &mut T {
-    	&mut self.result
+    	self.result.as_mut().unwrap()
     }
+
+	pub fn take(&mut self) -> T {
+		self.result.take().unwrap()
+	}
 }
 
 pub fn get_test_spec() -> Spec {
@@ -103,12 +123,12 @@ fn create_unverifiable_block(order: u32, parent_hash: H256) -> Bytes {
 	create_test_block(&create_unverifiable_block_header(order, parent_hash))
 }
 
-pub fn create_test_block_with_data(header: &Header, transactions: &[&Transaction], uncles: &[Header]) -> Bytes {
+pub fn create_test_block_with_data(header: &Header, transactions: &[&SignedTransaction], uncles: &[Header]) -> Bytes {
 	let mut rlp = RlpStream::new_list(3);
 	rlp.append(header);
 	rlp.begin_list(transactions.len());
 	for t in transactions {
-		rlp.append_raw(&t.rlp_bytes_opt(Seal::With), 1);
+		rlp.append_raw(&encode::<SignedTransaction>(t).to_vec(), 1);
 	}
 	rlp.append(&uncles);
 	rlp.out()
@@ -150,7 +170,7 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
-		result: client
+		result: Some(client)
 	}
 }
 
@@ -168,7 +188,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
-		result: client
+		result: Some(client)
 	}
 }
 
@@ -181,7 +201,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: bc
+		result: Some(bc)
 	}
 }
 
@@ -194,7 +214,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: bc
+		result: Some(bc)
 	}
 }
 
@@ -204,7 +224,7 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: bc
+		result: Some(bc)
 	}
 }
 
@@ -214,7 +234,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<JournalDB> {
 	let journal_db = JournalDB::new(db);
 	GuardedTempResult {
 		_temp: temp,
-		result: journal_db
+		result: Some(journal_db)
 	}
 }
 
@@ -223,7 +243,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	let journal_db = get_temp_journal_db_in(temp.as_path());
 	GuardedTempResult {
 	    _temp: temp,
-		result: State::new(journal_db, U256::from(0u8))
+		result: Some(State::new(journal_db, U256::from(0u8)))
 	}
 }
 

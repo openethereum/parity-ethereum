@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use common::*;
 use hashdb::*;
 use nibbleslice::*;
@@ -196,7 +212,7 @@ impl<'db> TrieDB<'db> {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
-			true => self.db.lookup(&r.as_val::<H256>()).expect("Not found!"),
+			true => self.db.lookup(&r.as_val::<H256>()).unwrap_or_else(|| panic!("Not found! {:?}", r.as_val::<H256>())),
 			false => node
 		}
 	}
