@@ -205,6 +205,8 @@ impl BlockQueue {
 		let mut verification = self.verification.lock().unwrap();
 		verification.unverified.clear();
 		verification.verifying.clear();
+		verification.verified.clear();
+		self.processing.write().unwrap().clear();
 	}
 
 	/// Wait for queue to be empty
