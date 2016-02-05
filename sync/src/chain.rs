@@ -177,6 +177,7 @@ pub struct ChainSync {
 	have_common_block: bool,
 }
 
+type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
@@ -845,7 +846,7 @@ impl ChainSync {
 	}
 
 	/// Respond to GetBlockHeaders request
-	fn return_block_headers(&self, io: &mut SyncIo, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn return_block_headers(io: &SyncIo, r: &UntrustedRlp) -> RlpResponseResult {
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
 		let max_headers: usize = try!(r.val_at(1));
@@ -892,18 +893,16 @@ impl ChainSync {
 		}
 		let mut rlp = RlpStream::new_list(count as usize);
 		rlp.append_raw(&data, count as usize);
-		io.respond(BLOCK_HEADERS_PACKET, rlp.out()).unwrap_or_else(|e|
-			debug!(target: "sync", "Error sending headers: {:?}", e));
 		trace!(target: "sync", "-> GetBlockHeaders: returned {} entries", count);
-		Ok(())
+		Ok(Some((BLOCK_HEADERS_PACKET, rlp)))
 	}
 
 	/// Respond to GetBlockBodies request
-	fn return_block_bodies(&self, io: &mut SyncIo, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn return_block_bodies(io: &SyncIo, r: &UntrustedRlp) -> RlpResponseResult {
 		let mut count = r.item_count();
 		if count == 0 {
 			debug!(target: "sync", "Empty GetBlockBodies request, ignoring.");
-			return Ok(());
+			return Ok(None);
 		}
 		trace!(target: "sync", "-> GetBlockBodies: {} entries", count);
 		count = min(count, MAX_BODIES_TO_SEND);
@@ -917,18 +916,16 @@ impl ChainSync {
 		}
 		let mut rlp = RlpStream::new_list(added);
 		rlp.append_raw(&data, added);
-		io.respond(BLOCK_BODIES_PACKET, rlp.out()).unwrap_or_else(|e|
-			debug!(target: "sync", "Error sending headers: {:?}", e));
 		trace!(target: "sync", "-> GetBlockBodies: returned {} entries", added);
-		Ok(())
+		Ok(Some((BLOCK_BODIES_PACKET, rlp)))
 	}
 
 	/// Respond to GetNodeData request
-	fn return_node_data(&self, io: &mut SyncIo, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn return_node_data(io: &SyncIo, r: &UntrustedRlp) -> RlpResponseResult {
 		let mut count = r.item_count();
 		if count == 0 {
 			debug!(target: "sync", "Empty GetNodeData request, ignoring.");
-			return Ok(());
+			return Ok(None);
 		}
 		count = min(count, MAX_NODE_DATA_TO_SEND);
 		let mut added = 0usize;
@@ -941,32 +938,43 @@ impl ChainSync {
 		}
 		let mut rlp = RlpStream::new_list(added);
 		rlp.append_raw(&data, added);
-		io.respond(NODE_DATA_PACKET, rlp.out()).unwrap_or_else(|e|
-			debug!(target: "sync", "Error sending headers: {:?}", e));
-		Ok(())
+		Ok(Some((NODE_DATA_PACKET, rlp)))
 	}
 
-	/// Respond to GetReceipts request
-	fn return_receipts(&self, io: &mut SyncIo, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
-		let mut count = r.item_count();
+	fn return_receipts(io: &SyncIo, rlp: &UntrustedRlp) -> RlpResponseResult {
+		let mut count = rlp.item_count();
 		if count == 0 {
 			debug!(target: "sync", "Empty GetReceipts request, ignoring.");
-			return Ok(());
+			return Ok(None);
 		}
 		count = min(count, MAX_RECEIPTS_TO_SEND);
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			if let Some(mut hdr) = io.chain().block_receipts(&try!(r.val_at::<H256>(i))) {
+			if let Some(mut hdr) = io.chain().block_receipts(&try!(rlp.val_at::<H256>(i))) {
 				data.append(&mut hdr);
 				added += 1;
 			}
 		}
-		let mut rlp = RlpStream::new_list(added);
-		rlp.append_raw(&data, added);
-		io.respond(RECEIPTS_PACKET, rlp.out()).unwrap_or_else(|e|
-			debug!(target: "sync", "Error sending headers: {:?}", e));
-		Ok(())
+		let mut rlp_result = RlpStream::new_list(added);
+		rlp_result.append_raw(&data, added);
+		Ok(Some((RECEIPTS_PACKET, rlp_result)))
+	}
+
+	fn return_rlp<FRlp, FError>(&self, io: &mut SyncIo, rlp: &UntrustedRlp, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
+		where FRlp : Fn(&SyncIo, &UntrustedRlp) -> RlpResponseResult,
+			FError : FnOnce(UtilError) -> String
+	{
+		let response = rlp_func(io, rlp);
+		match response {
+			Err(e) => Err(e),
+			Ok(Some((packet_id, rlp_stream))) => {
+				io.respond(packet_id, rlp_stream.out()).unwrap_or_else(
+					|e| debug!(target: "sync", "{:?}", error_func(e)));
+				Ok(())
+			}
+			_ => Ok(())
+		}
 	}
 
 	/// Dispatch incoming requests and responses
@@ -975,14 +983,27 @@ impl ChainSync {
 		let result = match packet_id {
 			STATUS_PACKET => self.on_peer_status(io, peer, &rlp),
 			TRANSACTIONS_PACKET => self.on_peer_transactions(io, peer, &rlp),
-			GET_BLOCK_HEADERS_PACKET => self.return_block_headers(io, &rlp),
 			BLOCK_HEADERS_PACKET => self.on_peer_block_headers(io, peer, &rlp),
-			GET_BLOCK_BODIES_PACKET => self.return_block_bodies(io, &rlp),
 			BLOCK_BODIES_PACKET => self.on_peer_block_bodies(io, peer, &rlp),
 			NEW_BLOCK_PACKET => self.on_peer_new_block(io, peer, &rlp),
 			NEW_BLOCK_HASHES_PACKET => self.on_peer_new_hashes(io, peer, &rlp),
-			GET_NODE_DATA_PACKET => self.return_node_data(io, &rlp),
-			GET_RECEIPTS_PACKET => self.return_receipts(io, &rlp),
+
+			GET_BLOCK_BODIES_PACKET => self.return_rlp(io, &rlp,
+				ChainSync::return_block_bodies,
+				|e| format!("Error sending block bodies: {:?}", e)),
+
+			GET_BLOCK_HEADERS_PACKET => self.return_rlp(io, &rlp,
+				ChainSync::return_block_headers,
+				|e| format!("Error sending block headers: {:?}", e)),
+
+			GET_RECEIPTS_PACKET => self.return_rlp(io, &rlp,
+				ChainSync::return_receipts,
+				|e| format!("Error sending receipts: {:?}", e)),
+
+			GET_NODE_DATA_PACKET => self.return_rlp(io, &rlp,
+				ChainSync::return_node_data,
+				|e| format!("Error sending nodes: {:?}", e)),
+				
 			_ => {
 				debug!(target: "sync", "Unknown packet {}", packet_id);
 				Ok(())
@@ -1016,4 +1037,75 @@ impl ChainSync {
 
 #[cfg(test)]
 mod tests {
+	use tests::helpers::*;
+	use super::*;
+	use util::*;
+
+	#[test]
+	fn return_receipts_empty() {
+		let mut client = TestBlockChainClient::new();
+		let mut queue = VecDeque::new();
+		let io = TestIo::new(&mut client, &mut queue, None);
+
+		let result = ChainSync::return_receipts(&io, &UntrustedRlp::new(&[0xc0]));
+
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn return_receipts() {
+		let mut client = TestBlockChainClient::new();
+		let mut queue = VecDeque::new();
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let mut receipt_list = RlpStream::new_list(4);
+		receipt_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
+		receipt_list.append(&H256::from("ff00000000000000000000000000000000000000000000000000000000000000"));
+		receipt_list.append(&H256::from("fff0000000000000000000000000000000000000000000000000000000000000"));
+		receipt_list.append(&H256::from("aff0000000000000000000000000000000000000000000000000000000000000"));
+
+		let receipts_request = receipt_list.out();
+		// it returns rlp ONLY for hashes started with "f"
+		let result = ChainSync::return_receipts(&io, &UntrustedRlp::new(&receipts_request.clone()));
+
+		assert!(result.is_ok());
+		let rlp_result = result.unwrap();
+		assert!(rlp_result.is_some());
+
+		// the length of two rlp-encoded receipts
+		assert_eq!(597, rlp_result.unwrap().1.out().len());
+
+		let mut sync = ChainSync::new();
+		io.sender = Some(2usize);
+		sync.on_packet(&mut io, 1usize, super::GET_RECEIPTS_PACKET, &receipts_request);
+		assert_eq!(1, io.queue.len());
+	}
+
+	#[test]
+	fn return_nodes() {
+		let mut client = TestBlockChainClient::new();
+		let mut queue = VecDeque::new();
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let mut node_list = RlpStream::new_list(3);
+		node_list.append(&H256::from("0000000000000000000000000000000000000000000000005555555555555555"));
+		node_list.append(&H256::from("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa"));
+		node_list.append(&H256::from("aff0000000000000000000000000000000000000000000000000000000000000"));
+
+		let node_request = node_list.out();
+		// it returns rlp ONLY for hashes started with "f"
+		let result = ChainSync::return_node_data(&io, &UntrustedRlp::new(&node_request.clone()));
+
+		assert!(result.is_ok());
+		let rlp_result = result.unwrap();
+		assert!(rlp_result.is_some());
+
+		// the length of one rlp-encoded hashe
+		assert_eq!(34, rlp_result.unwrap().1.out().len());
+
+		let mut sync = ChainSync::new();
+		io.sender = Some(2usize);
+		sync.on_packet(&mut io, 1usize, super::GET_NODE_DATA_PACKET, &node_request);
+		assert_eq!(1, io.queue.len());
+	}
 }

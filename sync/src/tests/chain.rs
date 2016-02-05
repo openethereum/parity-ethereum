@@ -5,7 +5,7 @@ use chain::{SyncState};
 use super::helpers::*;
 
 #[test]
-fn chain_two_peers() {
+fn two_peers() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, false);
@@ -16,7 +16,7 @@ fn chain_two_peers() {
 }
 
 #[test]
-fn chain_status_after_sync() {
+fn status_after_sync() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, false);
@@ -27,7 +27,7 @@ fn chain_status_after_sync() {
 }
 
 #[test]
-fn chain_takes_few_steps() {
+fn takes_few_steps() {
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(100, false);
 	net.peer_mut(2).chain.add_blocks(100, false);
@@ -36,7 +36,7 @@ fn chain_takes_few_steps() {
 }
 
 #[test]
-fn chain_empty_blocks() {
+fn empty_blocks() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	for n in 0..200 {
@@ -49,7 +49,7 @@ fn chain_empty_blocks() {
 }
 
 #[test]
-fn chain_forked() {
+fn forked() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(0).chain.add_blocks(300, false);
@@ -69,7 +69,7 @@ fn chain_forked() {
 }
 
 #[test]
-fn chain_restart() {
+fn restart() {
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, false);
 	net.peer_mut(2).chain.add_blocks(1000, false);
@@ -85,7 +85,7 @@ fn chain_restart() {
 }
 
 #[test]
-fn chain_status_empty() {
+fn status_empty() {
 	let net = TestNet::new(2);
 	assert_eq!(net.peer(0).sync.status().state, SyncState::NotSynced);
 }

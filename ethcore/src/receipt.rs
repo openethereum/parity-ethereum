@@ -1,3 +1,5 @@
+//! Receipt
+
 use util::*;
 use basic_types::LogBloom;
 use log_entry::LogEntry;

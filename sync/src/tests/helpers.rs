@@ -5,6 +5,7 @@ use ethcore::header::{Header as BlockHeader, BlockNumber};
 use ethcore::error::*;
 use io::SyncIo;
 use chain::{ChainSync};
+use ethcore::receipt::Receipt;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
@@ -15,7 +16,7 @@ pub struct TestBlockChainClient {
 }
 
 impl TestBlockChainClient {
-	fn new() -> TestBlockChainClient {
+	pub fn new() -> TestBlockChainClient {
 
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
@@ -116,11 +117,28 @@ impl BlockChainClient for TestBlockChainClient {
 		})
 	}
 
-	fn state_data(&self, _h: &H256) -> Option<Bytes> {
+	// TODO: returns just hashes instead of node state rlp(?)
+	fn state_data(&self, hash: &H256) -> Option<Bytes> {
+		// starts with 'f' ?
+		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
+			let mut rlp = RlpStream::new();
+			rlp.append(&hash.clone());
+			return Some(rlp.out());
+		}
 		None
 	}
 
-	fn block_receipts(&self, _h: &H256) -> Option<Bytes> {
+	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+		// starts with 'f' ?
+		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
+			let receipt = Receipt::new(
+				H256::zero(),
+				U256::zero(),
+				vec![]);
+			let mut rlp = RlpStream::new();
+			rlp.append(&receipt);
+			return Some(rlp.out());
+		}
 		None
 	}
 
@@ -196,7 +214,7 @@ pub struct TestIo<'p> {
 }
 
 impl<'p> TestIo<'p> {
-	fn new(chain: &'p mut TestBlockChainClient, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
+	pub fn new(chain: &'p mut TestBlockChainClient, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
 		TestIo {
 			chain: chain,
 			queue: queue,
