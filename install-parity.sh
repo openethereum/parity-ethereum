@@ -295,6 +295,8 @@ EOL
 	detectOS
 
 	head "${b}OK,${reset} let's install Parity now!"
+	echo
+	echo
 	install
 	
 	if [[ $OS_TYPE == "linux" ]]
