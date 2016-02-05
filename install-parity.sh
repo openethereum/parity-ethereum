@@ -156,6 +156,48 @@ function run_installer()
     fi
   }
 
+	function macos_version()
+	{
+		declare -a reqVersion
+		declare -a localVersion
+
+		depCount=$((depCount+1))
+		OSX_VERSION=`/usr/bin/sw_vers -productVersion 2>/dev/null`
+
+		if [ -z "$OSX_VERSION" ]
+		then
+			uncheck "OS X version not supported 🔥"
+			isOsVersion=false
+			canContinue=false
+		else
+			IFS='.' read -a localVersion <<< "$OSX_VERSION"
+			IFS='.' read -a reqVersion <<< "$OSX_REQUIERED_VERSION"
+
+			if (( ${reqVersion[0]} <= ${localVersion[0]} )) && (( ${reqVersion[1]} <= ${localVersion[1]} ))
+			then
+				check "OS X Version ${OSX_VERSION}"
+				isOsVersion=true
+				depFound=$((depFound+1))
+				return
+			else
+				uncheck "OS X version not supported"
+				isOsVersion=false
+				canContinue=false
+			fi
+		fi
+
+		errorMessages+="${red}==>${reset} ${b}Mac OS version too old:${reset} eth requires OS X version ${red}$OSX_REQUIERED_VERSION${reset} at least in order to run.\n"
+		errorMessages+="    Please update the OS and reload the install process.\n"
+	}
+	
+	function get_osx_dependencies()
+	{
+		macos_version
+		find_git
+		find_ruby
+		find_brew
+	}
+	
   function linux_version()
   {
     source /etc/lsb-release
@@ -189,12 +231,55 @@ function run_installer()
     find_apt
   }
 
+	function find_brew()
+	{
+		BREW_PATH=`which brew 2>/dev/null`
+
+		if [[ -f $BREW_PATH ]]
+		then
+			check "$($BREW_PATH -v)"
+			isBrew=true
+			depFound=$((depFound+1))
+		else
+			uncheck "Homebrew is missing"
+			isBrew=false
+
+			INSTALL_FILES+="${blue}${dim}==> Homebrew:${reset}\n"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/bin/brew\n"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/Library\n"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/share/man/man1/brew.1\n"
+		fi
+
+		depCount=$((depCount+1))
+	}
+	
+	function find_ruby()
+	{
+		depCount=$((depCount+1))
+
+		RUBY_PATH=`which ruby 2>/dev/null`
+
+		if [[ -f $RUBY_PATH ]]
+		then
+			RUBY_VERSION=`ruby -e "print RUBY_VERSION"`
+			check "Ruby ${RUBY_VERSION}"
+			isRuby=true
+			depFound=$((depFound+1))
+		else
+			uncheck "Ruby is missing 🔥"
+			isRuby=false
+			canContinue=false
+			errorMessages+="${red}==>${reset} ${b}Couldn't find Ruby:${reset} Brew requires Ruby which could not be found.\n"
+			errorMessages+="    Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.\n"
+		fi
+	}
+	
   function find_rocksdb()
   {
     depCount=$((depCount+1))
     if [[ $(ldconfig -v 2>/dev/null | grep rocksdb | wc -l) == 1 ]]; then
       depFound=$((depFound+1))
-      check "apt-get"
+      check "librocksdb"
       isRocksDB=true
     else
       uncheck "librocksdb is missing"
@@ -435,6 +520,7 @@ function run_installer()
 		rm $file
   }
 
+	
   function osx_installer()
   {
     info "Adding ethcore repository"
