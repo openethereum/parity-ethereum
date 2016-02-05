@@ -664,11 +664,16 @@ EOL
 
   
   head "${b}OK,${reset} let's install Parity now!"
-	wait_for_user "${b}Last chance!${reset} Sure you want to install this software?"
+	if wait_for_user "${b}Last chance!${reset} Sure you want to install this software?"
+	then
+		install	
+		echo
+		echo
+	else
+		finish
+	fi
 
-  echo
-  echo
-  install
+  
 
   if [[ $OS_TYPE == "linux" ]]
   then
