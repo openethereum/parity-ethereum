@@ -139,6 +139,11 @@ impl<'a> BlockView<'a> {
 		self.rlp.val_at(1)
 	}
 
+	/// Return number of transactions in given block, without deserializing them.
+	pub fn transactions_count(&self) -> usize {
+		self.rlp.at(1).iter().count()
+	}
+
 	/// Return List of transactions in given block.
 	pub fn transaction_views(&self) -> Vec<TransactionView> {
 		self.rlp.at(1).iter().map(TransactionView::new_from_rlp).collect()
@@ -152,6 +157,11 @@ impl<'a> BlockView<'a> {
 	/// Return list of uncles of given block.
 	pub fn uncles(&self) -> Vec<Header> {
 		self.rlp.val_at(2)
+	}
+
+	/// Return number of uncles in given block, without deserializing them.
+	pub fn uncles_count(&self) -> usize {
+		self.rlp.at(2).iter().count()
 	}
 
 	/// Return List of transactions in given block.

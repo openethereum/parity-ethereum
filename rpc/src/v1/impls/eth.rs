@@ -7,7 +7,7 @@ use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
 use v1::traits::{Eth, EthFilter};
-use v1::types::Block;
+use v1::types::{Block, SyncStatus};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -24,6 +24,7 @@ impl EthClient {
 }
 
 impl Eth for EthClient {
+	// TODO: do not hardcode protocol version
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => Ok(Value::U64(63)),
@@ -31,6 +32,15 @@ impl Eth for EthClient {
 		}
 	}
 
+	// TODO: do no hardcode default sync status
+	fn syncing(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => to_value(&SyncStatus::default()),
+			_ => Err(Error::invalid_params())
+		}
+	}
+
+	// TODO: do not hardcode author.
 	fn author(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&Address::new()),
@@ -38,6 +48,23 @@ impl Eth for EthClient {
 		}
 	}
 
+	// TODO: return real value of mining once it's implemented.
+	fn is_mining(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => Ok(Value::Bool(false)),
+			_ => Err(Error::invalid_params())
+		}
+	}
+
+	// TODO: return real hashrate once we have mining
+	fn hashrate(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => Ok(Value::U64(0)),
+			_ => Err(Error::invalid_params())
+		}
+	}
+
+	// TODO: do not hardode gas_price
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => Ok(Value::U64(0)),
@@ -52,22 +79,24 @@ impl Eth for EthClient {
 		}
 	}
 
-	fn is_mining(&self, params: Params) -> Result<Value, Error> {
-		match params {
-			Params::None => Ok(Value::Bool(false)),
-			_ => Err(Error::invalid_params())
+	fn block_transaction_count(&self, params: Params) -> Result<Value, Error> {
+		match from_params::<H256>(params) {
+			Ok(hash) => match self.client.block(&hash) {
+				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
+				None => Ok(Value::Null)
+			},
+			Err(err) => Err(err)
 		}
 	}
 
-	fn hashrate(&self, params: Params) -> Result<Value, Error> {
-		match params {
-			Params::None => Ok(Value::U64(0)),
-			_ => Err(Error::invalid_params())
+	fn block_uncles_count(&self, params: Params) -> Result<Value, Error> {
+		match from_params::<H256>(params) {
+			Ok(hash) => match self.client.block(&hash) {
+				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
+				None => Ok(Value::Null)
+			},
+			Err(err) => Err(err)
 		}
-	}
-
-	fn block_transaction_count(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::U64(0))
 	}
 
 	fn block(&self, params: Params) -> Result<Value, Error> {
