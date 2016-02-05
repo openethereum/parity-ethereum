@@ -997,12 +997,13 @@ impl ChainSync {
 				|e| format!("Error sending block headers: {:?}", e)),
 
 			GET_RECEIPTS_PACKET => self.return_rlp(io, &rlp,
-					ChainSync::return_receipts,
-					|e| format!("Error sending receipts: {:?}", e)),
+				ChainSync::return_receipts,
+				|e| format!("Error sending receipts: {:?}", e)),
 
 			GET_NODE_DATA_PACKET => self.return_rlp(io, &rlp,
-					ChainSync::return_node_data,
-					|e| format!("Error sending nodes: {:?}", e)),
+				ChainSync::return_node_data,
+				|e| format!("Error sending nodes: {:?}", e)),
+				
 			_ => {
 				debug!(target: "sync", "Unknown packet {}", packet_id);
 				Ok(())
