@@ -48,7 +48,6 @@ impl ClientService {
 		info!("Configured for {} using {} engine", spec.name, spec.engine_name);
 		let mut dir = env::home_dir().unwrap();
 		dir.push(".parity");
-		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		let client = try!(Client::new(spec, &dir, net_service.io().channel()));
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()

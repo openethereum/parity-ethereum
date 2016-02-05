@@ -17,7 +17,7 @@
 //! Blockchain database client.
 
 use util::*;
-use rocksdb::{Options, DB};
+use rocksdb::{Options, DB, DBCompactionStyle};
 use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
 use error::*;
@@ -163,16 +163,23 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1000;
+const CLIENT_DB_VER_STR: &'static str = "1.0";
 
 impl Client {
 	/// Create a new client with given spec and DB path.
 	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+		let mut dir = path.to_path_buf();
+		dir.push(H64::from(spec.genesis_header().hash()).hex());
+		//TODO: sec/fat: pruned/full versioning
+		dir.push(format!("v{}-sec-pruned", CLIENT_DB_VER_STR));
+		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(RwLock::new(BlockChain::new(&gb, path)));
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
+		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
 		/*
 		opts.set_bytes_per_sync(8388608);
 		opts.set_disable_data_sync(false);
