@@ -69,6 +69,12 @@ impl TestBlockChainClient {
 			self.import_block(rlp.as_raw().to_vec()).unwrap();
 		}
 	}
+
+	pub fn block_hash_delta_minus(&mut self, delta: usize) -> H256 {
+		let blocks_read = self.numbers.read().unwrap();
+		let index = blocks_read.len() - delta;
+		blocks_read[&index].clone()
+	}
 }
 
 impl BlockChainClient for TestBlockChainClient {
@@ -125,11 +131,33 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn tree_route(&self, _from: &H256, _to: &H256) -> Option<TreeRoute> {
+	// works only if blocks are one after another 1 -> 2 -> 3
+	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
 		Some(TreeRoute {
-			blocks: Vec::new(),
 			ancestor: H256::new(),
-			index: 0
+			index: 0,
+			blocks: {
+				let numbers_read = self.numbers.read().unwrap();
+				let mut adding = false;
+
+				let mut blocks = Vec::new();
+				for (_, hash) in numbers_read.iter().sort_by(|tuple1, tuple2| tuple1.0.cmp(tuple2.0)) {
+					if hash == to {
+						if adding {
+							blocks.push(hash.clone());
+						}
+						adding = false;
+						break;
+					}
+					if hash == from {
+						adding = true;
+					}
+					if adding {
+						blocks.push(hash.clone());
+					}
+				}
+				if adding { Vec::new() } else { blocks }
+			}
 		})
 	}
 

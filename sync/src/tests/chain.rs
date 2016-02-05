@@ -122,14 +122,18 @@ fn status_packet() {
 
 #[test]
 fn propagade() {
-	let mut net = TestNet::new(2);
-	net.peer_mut(0).chain.add_blocks(100, false);
-	net.peer_mut(1).chain.add_blocks(100, false);
+	let mut net = TestNet::new(3);
+	net.peer_mut(1).chain.add_blocks(1000, false);
+	net.peer_mut(2).chain.add_blocks(1000, false);
 	net.sync();
+	let status = net.peer(0).sync.status();
+	assert_eq!(status.state, SyncState::Idle);
 
 	net.peer_mut(0).chain.add_blocks(10, false);
 	net.sync_step_peer(0);
 
-	assert_eq!(1, net.peer(0).queue.len());
+	// 2 peers to sync
+	assert_eq!(2, net.peer(0).queue.len());
+	// NEW_BLOCK_HASHES_PACKET
 	assert_eq!(0x01, net.peer(0).queue[0].packet_id);
 }
