@@ -13,7 +13,10 @@ pub struct AccountDB<'db> {
 
 #[inline]
 fn combine_key<'a>(address: &'a H256, key: &'a H256) -> H256 {
-	address ^ key
+	let mut addr_hash = address.sha3();
+	// preserve 96 bits of original key for db lookup
+	addr_hash[0..12].clone_from_slice(&[0u8; 12]); 
+	&addr_hash ^ key
 }
 
 impl<'db> AccountDB<'db> {

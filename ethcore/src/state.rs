@@ -483,6 +483,38 @@ fn ensure_cached() {
 }
 
 #[test]
+fn snapshot_basic() {
+	let mut state_result = get_temp_state();
+	let mut state = state_result.reference_mut();
+	let a = Address::zero();
+	state.snapshot();
+	state.add_balance(&a, &U256::from(69u64));
+	assert_eq!(state.balance(&a), U256::from(69u64));
+	state.clear_snapshot();
+	assert_eq!(state.balance(&a), U256::from(69u64));
+	state.snapshot();
+	state.add_balance(&a, &U256::from(1u64));
+	assert_eq!(state.balance(&a), U256::from(70u64));
+	state.revert_snapshot();
+	assert_eq!(state.balance(&a), U256::from(69u64));
+}
+
+#[test]
+fn snapshot_nested() {
+	let mut state_result = get_temp_state();
+	let mut state = state_result.reference_mut();
+	let a = Address::zero();
+	state.snapshot();
+	state.snapshot();
+	state.add_balance(&a, &U256::from(69u64));
+	assert_eq!(state.balance(&a), U256::from(69u64));
+	state.clear_snapshot();
+	assert_eq!(state.balance(&a), U256::from(69u64));
+	state.revert_snapshot();
+	assert_eq!(state.balance(&a), U256::from(0));
+}
+
+#[test]
 fn create_empty() {
 	let mut state_result = get_temp_state();
 	let mut state = state_result.reference_mut();
