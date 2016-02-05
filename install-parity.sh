@@ -567,7 +567,7 @@ function run_installer()
 
     curl -sL https://deb.nodesource.com/setup_0.12 | bash -
     sudo apt-get update
-		#sudo apt-get -f -y install
+		
     # install ethereum & install dependencies
     sudo apt-get install -y -qq build-essential git unzip wget nodejs ntp cloud-utils
 
