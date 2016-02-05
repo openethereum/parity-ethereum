@@ -77,7 +77,7 @@ impl FromJson for SignedTransaction {
 		match json.find("secretKey") {
 			Some(&Json::String(ref secret_key)) => t.sign(&h256_from_hex(clean(secret_key))),
 			_ => SignedTransaction {
-				transaction: t,
+				unsigned: t,
 				v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
 				r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
 				s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
@@ -104,7 +104,7 @@ impl Transaction {
 		let sig = ec::sign(secret, &self.hash());
 		let (r, s, v) = sig.unwrap().to_rsv();
 		SignedTransaction {
-			transaction: self,
+			unsigned: self,
 			r: r,
 			s: s,
 			v: v + 27,
@@ -117,7 +117,7 @@ impl Transaction {
 	#[cfg(test)]
 	pub fn fake_sign(self) -> SignedTransaction {
 		SignedTransaction {
-			transaction: self,
+			unsigned: self,
 			r: U256::zero(),
 			s: U256::zero(),
 			v: 0,
@@ -145,7 +145,7 @@ impl Transaction {
 #[derive(Debug, Clone)]
 pub struct SignedTransaction {
 	/// Plain Transaction.
-	transaction: Transaction,
+	unsigned: Transaction,
 	/// The V field of the signature, either 27 or 28; helps describe the point on the curve.
 	v: u8,
 	/// The R field of the signature; helps describe the point on the curve.
@@ -162,7 +162,7 @@ impl Deref for SignedTransaction {
 	type Target = Transaction;
 
 	fn deref(&self) -> &Self::Target {
-		&self.transaction
+		&self.unsigned
 	}
 }
 
@@ -173,7 +173,7 @@ impl Decodable for SignedTransaction {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
 		Ok(SignedTransaction {
-			transaction: Transaction {
+			unsigned: Transaction {
 				nonce: try!(d.val_at(0)),
 				gas_price: try!(d.val_at(1)),
 				gas: try!(d.val_at(2)),
@@ -245,7 +245,7 @@ impl SignedTransaction {
  		match &mut *sender {
  			&mut Some(ref h) => Ok(h.clone()),
  			sender @ &mut None => {
- 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.transaction.hash())).sha3()));
+ 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3()));
  				Ok(sender.as_ref().unwrap().clone())
  			}
 		}
