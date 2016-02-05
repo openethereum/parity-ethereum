@@ -12,6 +12,7 @@ extern crate ethsync;
 extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
+extern crate fdlimit;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -79,6 +80,7 @@ fn main() {
 	let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
 
 	setup_log(&args.flag_logging);
+	unsafe { ::fdlimit::raise_fd_limit(); }
 
 	let spec = ethereum::new_frontier();
 	let init_nodes = match args.arg_enode.len() {
