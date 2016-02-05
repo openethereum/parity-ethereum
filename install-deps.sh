@@ -626,15 +626,23 @@ function run_installer()
 		git submodule init
 		git submodule update
 		
-		info "Building & testing Parity..."
-		cargo test --release -p ethcore-util
+		info "Building..."
+		cargo build --release
 
-		info "Running consensus tests..."
-		cargo test --release --features ethcore/json-tests -p ethcore
+		cd ..
 
 		echo
-		info "Parity source code is in $(pwd)/parity"
-		info "Run a client with: ${b}cargo run --release${reset}"
+		head "Parity is built!"
+		info "Parity source code is in ${b}$(pwd)/parity${reset}. From that path, you can:"
+		info "- Run a client & sync the chain with:"
+		info "    ${b}cargo run --release${reset}"
+		info "- Run a JSONRPC-capable client (for use with netstats) with:"
+		info "    ${b}cargo run --release -- -j --jsonrpc-url 127.0.0.1:8545${reset}"
+		info "- Run tests with:"
+		info "    ${b}cargo test --release --features ethcore/json-tests -p ethcore${reset}"
+		info "- Install the client with:"
+		info "    ${b}sudo cp target/release/parity /usr/bin${reset}"
+		echo
 	}
 
 	function install_netstats()
