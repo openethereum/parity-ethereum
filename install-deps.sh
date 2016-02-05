@@ -535,7 +535,7 @@ function run_installer()
 		else
 			oldpwd=`pwd`
 			cd /tmp
-			exe git clone --branch v4.1 --depth=1 https://github.com/facebook/rocksdb.git
+			exe git clone --branch v4.2 --depth=1 https://github.com/facebook/rocksdb.git
 			cd rocksdb
 			exe make shared_lib
 			sudo cp -a librocksdb.so* /usr/lib
