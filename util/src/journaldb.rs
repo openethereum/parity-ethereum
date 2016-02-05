@@ -130,9 +130,10 @@ impl JournalDB {
 				last = r.drain();
 				&last
 			})) {
+				let to_add;
 				let rlp = Rlp::new(&rlp_data);
 				{
-					let to_add: Vec<H256> = rlp.val_at(1);
+					to_add = rlp.val_at(1);
 					for i in &to_add {
 						let delete_counter = {
 							if let Some(mut cnt) = counters.get_mut(i) {
@@ -147,7 +148,7 @@ impl JournalDB {
 						}
 					}
 				}
-				let to_remove: Vec<H256> = rlp.val_at(if canon_id == rlp.val_at(0) {2} else {1});
+				let to_remove: Vec<H256> = if canon_id == rlp.val_at(0) {rlp.val_at(2)} else {to_add};
 				for i in &to_remove {
 					if !counters.contains_key(i) {
 						batch.delete(&i).expect("Low-level database error. Some issue with your hard disk?");

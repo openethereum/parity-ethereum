@@ -62,6 +62,7 @@ impl State {
 		self.snapshots.borrow_mut().push(HashMap::new());
 	}
 
+	/// Merge last snapshot with previous
 	pub fn clear_snapshot(&mut self) {
 		// merge with previous snapshot
 		let last = self.snapshots.borrow_mut().pop();
@@ -74,6 +75,7 @@ impl State {
 		}
 	}
 
+	/// Revert to snapshot
 	pub fn revert_snapshot(&mut self) {
 		if let Some(mut snapshot) = self.snapshots.borrow_mut().pop() {
 			for (k, v) in snapshot.drain() {
@@ -88,7 +90,6 @@ impl State {
 			}
 		}
 	}
-
 
 	fn insert_cache(&self, address: &Address, account: Option<Account>) {
 		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
