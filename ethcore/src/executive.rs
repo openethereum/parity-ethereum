@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 //! Transaction Execution environment.
 use common::*;
 use state::*;
@@ -86,7 +102,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// This funtion should be used to execute transaction.
-	pub fn transact(&'a mut self, t: &Transaction) -> Result<Executed, Error> {
+	pub fn transact(&'a mut self, t: &SignedTransaction) -> Result<Executed, Error> {
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
@@ -194,7 +210,7 @@ impl<'a> Executive<'a> {
 	/// Returns either gas_left or `evm::Error`.
 	pub fn call(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
 		// backup used in case of running out of gas
-		let backup = self.state.clone();
+		self.state.snapshot();
 
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
@@ -212,11 +228,12 @@ impl<'a> Executive<'a> {
 			match cost <= params.gas {
 				true => {
 					self.engine.execute_builtin(&params.code_address, data, &mut output);
+					self.state.clear_snapshot();
 					Ok(params.gas - cost)
 				},
 				// just drain the whole gas
 				false => {
-					self.state.revert(backup);
+					self.state.revert_snapshot();
 					Err(evm::Error::OutOfGas)
 				}
 			}
@@ -232,11 +249,12 @@ impl<'a> Executive<'a> {
 
 			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
 			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
-			self.enact_result(&res, substate, unconfirmed_substate, backup);
+			self.enact_result(&res, substate, unconfirmed_substate);
 			trace!("exec: new substate={:?}\n", substate);
 			res
 		} else {
 			// otherwise, nothing
+			self.state.clear_snapshot();
 			Ok(params.gas)
 		}
 	}
@@ -246,7 +264,7 @@ impl<'a> Executive<'a> {
 	/// Modifies the substate.
 	pub fn create(&mut self, params: ActionParams, substate: &mut Substate) -> evm::Result {
 		// backup used in case of running out of gas
-		let backup = self.state.clone();
+		self.state.snapshot();
 
 		// part of substate that may be reverted
 		let mut unconfirmed_substate = Substate::new();
@@ -263,12 +281,12 @@ impl<'a> Executive<'a> {
 		let res = {
 			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract)
 		};
-		self.enact_result(&res, substate, unconfirmed_substate, backup);
+		self.enact_result(&res, substate, unconfirmed_substate);
 		res
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &Transaction, substate: Substate, result: evm::Result) -> ExecutionResult {
+	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result) -> ExecutionResult {
 		let schedule = self.engine.schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
@@ -324,16 +342,19 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, backup: State) {
+	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate) {
 		match *result {
 			Err(evm::Error::OutOfGas)
 				| Err(evm::Error::BadJumpDestination {..}) 
 				| Err(evm::Error::BadInstruction {.. }) 
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
-				self.state.revert(backup);
+				self.state.revert_snapshot();
 			},
-			Ok(_) | Err(evm::Error::Internal) => substate.accrue(un_substate)
+			Ok(_) | Err(evm::Error::Internal) => {
+				self.state.clear_snapshot();
+				substate.accrue(un_substate)
+			}
 		}
 	}
 }
@@ -685,9 +706,15 @@ mod tests {
 	// test is incorrect, mk
 	evm_test_ignore!{test_transact_simple: test_transact_simple_jit, test_transact_simple_int}
 	fn test_transact_simple(factory: Factory) {
-		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
-		t.sign(&keypair.secret());
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(17),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::zero()
+		}.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 		let contract = contract_address(&sender, &U256::zero());
 
@@ -717,8 +744,14 @@ mod tests {
 
 	evm_test!{test_transact_invalid_sender: test_transact_invalid_sender_jit, test_transact_invalid_sender_int}
 	fn test_transact_invalid_sender(factory: Factory) {
-		let t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::zero());
-
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(17),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::zero()
+		}.fake_sign();
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let mut info = EnvInfo::default();
@@ -738,11 +771,17 @@ mod tests {
 
 	evm_test!{test_transact_invalid_nonce: test_transact_invalid_nonce_jit, test_transact_invalid_nonce_int}
 	fn test_transact_invalid_nonce(factory: Factory) {
-		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::zero(), U256::one());
 		let keypair = KeyPair::create().unwrap();
-		t.sign(&keypair.secret());
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(17),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::one()
+		}.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
-		
+
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		state.add_balance(&sender, &U256::from(17));
@@ -764,9 +803,15 @@ mod tests {
 
 	evm_test!{test_transact_gas_limit_reached: test_transact_gas_limit_reached_jit, test_transact_gas_limit_reached_int}
 	fn test_transact_gas_limit_reached(factory: Factory) {
-		let mut t = Transaction::new_create(U256::from(17), "3331600055".from_hex().unwrap(), U256::from(80_001), U256::zero(), U256::zero());
 		let keypair = KeyPair::create().unwrap();
-		t.sign(&keypair.secret());
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(17),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(80_001),
+			gas_price: U256::zero(),
+			nonce: U256::zero()
+		}.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -791,9 +836,16 @@ mod tests {
 
 	evm_test!{test_not_enough_cash: test_not_enough_cash_jit, test_not_enough_cash_int}
 	fn test_not_enough_cash(factory: Factory) {
-		let mut t = Transaction::new_create(U256::from(18), "3331600055".from_hex().unwrap(), U256::from(100_000), U256::one(), U256::zero());
+
 		let keypair = KeyPair::create().unwrap();
-		t.sign(&keypair.secret());
+		let t = Transaction {
+			action: Action::Create,
+			value: U256::from(18),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::one(),
+			nonce: U256::zero()
+		}.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
