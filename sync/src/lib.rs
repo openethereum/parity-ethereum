@@ -34,6 +34,7 @@ extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate env_logger;
 extern crate time;
+extern crate rand;
 
 use std::ops::*;
 use std::sync::*;

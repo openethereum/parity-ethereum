@@ -318,6 +318,11 @@ impl TestNet {
 		}
 	}
 
+	pub fn sync_step_peer(&mut self, peer_num: usize) {
+		let mut peer = self.peer_mut(peer_num);
+		peer.sync.maintain_sync(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+	}
+
 	pub fn restart_peer(&mut self, i: usize) {
 		let peer = self.peer_mut(i);
 		peer.sync.restart(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));

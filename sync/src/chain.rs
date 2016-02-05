@@ -46,6 +46,8 @@ const MAX_NODE_DATA_TO_SEND: usize = 1024;
 const MAX_RECEIPTS_TO_SEND: usize = 1024;
 const MAX_HEADERS_TO_REQUEST: usize = 512;
 const MAX_BODIES_TO_REQUEST: usize = 256;
+const MIN_PEERS_PROPAGATION: usize = 4;
+const MAX_PEERS_PROPAGATION: usize = 128;
 
 const STATUS_PACKET: u8 = 0x00;
 const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
@@ -1026,11 +1028,80 @@ impl ChainSync {
 			}
 		}
 	}
-	/// Maintain other peers. Send out any new blocks and transactions
-	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
+
+	fn check_resume(&mut self, io: &mut SyncIo) {
 		if !io.chain().queue_info().full && self.state == SyncState::Waiting {
 			self.state = SyncState::Idle;
 			self.continue_sync(io);
+		}
+	}
+
+	fn create_new_hashes_rlp(chain: &BlockChainClient, from: &H256, to: &H256) -> Option<Bytes> {
+		match chain.tree_route(from, to) {
+			Some(route) => {
+				match route.blocks.len() {
+					0 => None,
+					_ => {
+						let mut rlp_stream = RlpStream::new_list(route.blocks.len());
+						for hash in route.blocks {
+							rlp_stream.append(&hash);
+						}
+						Some(rlp_stream.out())
+					}
+				}
+			},
+			None => None
+		}
+	}
+
+	fn query_peer_latest_blocks(&self) -> Vec<(usize, H256)> {
+		self.peers.iter().map(|peer| (peer.0.clone(), peer.1.latest.clone())).collect()
+	}
+
+	fn propagade_blocks(&mut self, io: &mut SyncIo) -> usize {
+		let updated_peers = {
+			let chain = io.chain();
+			let chain_info = chain.chain_info();
+			let latest_hash = chain_info.best_block_hash;
+
+			let lagging_peers = self.query_peer_latest_blocks().iter().filter(|peer|
+				match io.chain().block_status(&peer.1)
+					{
+						BlockStatus::InChain => peer.1 != latest_hash,
+						_ => false
+					}).cloned().collect::<Vec<(usize, H256)>>();
+
+			let lucky_peers = match lagging_peers.len() {
+				0 ... MIN_PEERS_PROPAGATION => lagging_peers,
+				_ => lagging_peers.iter().filter(|_| ::rand::random::<u8>() < 64u8).cloned().collect::<Vec<(usize, H256)>>()
+			};
+
+			match lucky_peers.len() {
+				0 ... MAX_PEERS_PROPAGATION => lucky_peers,
+				_ => lucky_peers.iter().take(MAX_PEERS_PROPAGATION).cloned().collect::<Vec<(usize, H256)>>()
+			}
+		};
+
+		let mut sent = 0;
+		for (peer_id, peer_hash) in updated_peers {
+			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(), &peer_hash, &io.chain().chain_info().best_block_hash) {
+				Some(rlp) => {
+					self.send_request(io, peer_id, PeerAsking::Nothing, NEW_BLOCK_HASHES_PACKET, rlp);
+					1
+				},
+				None => 0
+			}
+		}
+		sent
+	}
+
+	/// Maintain other peers. Send out any new blocks and transactions
+	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
+		self.check_resume(io);
+
+		if self.state == SyncState::Idle {
+			let blocks_propagaded = self.propagade_blocks(io);
+			debug!(target: "sync", "Sent new blocks to peers: {:?}", blocks_propagaded);
 		}
 	}
 }

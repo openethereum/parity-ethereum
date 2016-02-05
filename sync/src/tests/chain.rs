@@ -89,3 +89,31 @@ fn status_empty() {
 	let net = TestNet::new(2);
 	assert_eq!(net.peer(0).sync.status().state, SyncState::NotSynced);
 }
+
+#[test]
+fn status_packet() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(0).chain.add_blocks(1000, false);
+	net.peer_mut(1).chain.add_blocks(1, false);
+
+	net.start();
+
+	net.sync_step_peer(0);
+
+	assert_eq!(1, net.peer(0).queue.len());
+	assert_eq!(0x00, net.peer(0).queue[0].packet_id);
+}
+
+#[test]
+fn propagade() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(0).chain.add_blocks(100, false);
+	net.peer_mut(1).chain.add_blocks(100, false);
+	net.sync();
+
+	net.peer_mut(0).chain.add_blocks(10, false);
+	net.sync_step_peer(0);
+
+	assert_eq!(1, net.peer(0).queue.len());
+	assert_eq!(0x01, net.peer(0).queue[0].packet_id);
+}
