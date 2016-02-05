@@ -577,6 +577,8 @@ EOL
 
   
   head "${b}OK,${reset} let's install Parity now!"
+	wait_for_user "${b}Last chance!${reset} Sure you want to install this software?"
+
   echo
   echo
   install
