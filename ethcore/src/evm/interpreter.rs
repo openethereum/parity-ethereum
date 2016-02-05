@@ -263,7 +263,7 @@ pub struct Interpreter;
 
 impl evm::Evm for Interpreter {
 	fn exec(&self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result {
-		let code = &params.code.clone().unwrap();
+		let code = &params.code.as_ref().unwrap();
 		let valid_jump_destinations = self.find_jump_destinations(&code);
 
 		let mut current_gas = params.gas.clone();
@@ -728,12 +728,15 @@ impl Interpreter {
 				let big_id = stack.pop_back();
 				let id = big_id.low_u64() as usize;
 				let max = id.wrapping_add(32);
-				let data = params.data.clone().unwrap_or_else(|| vec![]);
-				let bound = cmp::min(data.len(), max);
-				if id < bound && big_id < U256::from(data.len()) {
-					let mut v = data[id..bound].to_vec();
-					v.resize(32, 0);
-					stack.push(U256::from(&v[..]))
+				if let Some(data) = params.data.as_ref() {
+					let bound = cmp::min(data.len(), max);
+					if id < bound && big_id < U256::from(data.len()) {
+						let mut v = [0u8; 32];
+						v[0..bound-id].clone_from_slice(&data[id..bound]);
+						stack.push(U256::from(&v[..]))
+					} else {
+						stack.push(U256::zero())
+					}
 				} else {
 					stack.push(U256::zero())
 				}
