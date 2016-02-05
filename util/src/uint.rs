@@ -1,5 +1,4 @@
-// taken from Rust Bitcoin Library (https://github.com/apoelstra/rust-bitcoin)
-// original author: Andrew Poelstra <apoelstra@wpsoftware.net>
+// Code derived from original work by Andrew Poelstra <apoelstra@wpsoftware.net>
 
 // Rust Bitcoin Library
 // Written in 2014 by
@@ -16,10 +15,10 @@
 //
 
 //! Big unsigned integer types
-///!
-///! Implementation of a various large-but-fixed sized unsigned integer types.
-///! The functions here are designed to be fast.
-///!
+//! 
+//! Implementation of a various large-but-fixed sized unsigned integer types.
+//! The functions here are designed to be fast.
+//!
 
 use standard::*;
 use from_json::*;
