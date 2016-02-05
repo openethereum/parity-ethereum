@@ -93,7 +93,7 @@ impl FromJson for SignedTransaction {
 
 impl Transaction {
 	/// The message hash of the transaction.
-	pub fn message_hash(&self) -> H256 { 
+	pub fn hash(&self) -> H256 { 
 		let mut stream = RlpStream::new();
 		self.rlp_append_unsigned_transaction(&mut stream);
 		stream.out().sha3()
@@ -101,7 +101,7 @@ impl Transaction {
 
 	/// Signs the transaction as coming from `sender`.
 	pub fn sign(self, secret: &Secret) -> SignedTransaction {
-		let sig = ec::sign(secret, &self.message_hash());
+		let sig = ec::sign(secret, &self.hash());
 		let (r, s, v) = sig.unwrap().to_rsv();
 		SignedTransaction {
 			transaction: self,
@@ -245,7 +245,7 @@ impl SignedTransaction {
  		match &mut *sender {
  			&mut Some(ref h) => Ok(h.clone()),
  			sender @ &mut None => {
- 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.message_hash())).sha3()));
+ 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.transaction.hash())).sha3()));
  				Ok(sender.as_ref().unwrap().clone())
  			}
 		}
