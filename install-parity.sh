@@ -294,14 +294,7 @@ EOL
 
 	detectOS
 
-	# Prompt user to continue or abort
-	if wait_for_user "${b}OK,${reset} let's install Parity now!"
-	then
-		echo "Installing..."
-	else
-		abortInstall "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again."
-	fi
-
+	head "${b}OK,${reset} let's install Parity now!"
 	install
 	
 	if [[ $OS_TYPE == "linux" ]]
