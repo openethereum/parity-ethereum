@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-
-GET_DEPS_URL=http://get-deps.ethcore.io
 #PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_0.9.0-0_amd64.deb
 PARITY_DEB_URL=https://github.com/jesuscript/scripts/raw/master/parity_0.9.0-0_amd64.deb
 
@@ -571,6 +569,9 @@ function run_installer()
     sudo apt-get update
     # install ethereum & install dependencies
     sudo apt-get install -y -qq build-essential git unzip wget nodejs ntp cloud-utils
+
+		sudo apt-get -f install
+		sudo apt-get install -y -qq npm
 
     # add node symlink if it doesn't exist
     [[ ! -f /usr/bin/node ]] && sudo ln -s /usr/bin/nodejs /usr/bin/node
