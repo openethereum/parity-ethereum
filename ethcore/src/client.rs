@@ -139,10 +139,10 @@ impl ClientReport {
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
-	state_db: JournalDB,
+	state_db: Arc<DB>,
+	state_journal: Mutex<JournalDB>,
 	block_queue: RwLock<BlockQueue>,
 	report: RwLock<ClientReport>,
-	uncommited_states: RwLock<HashMap<H256, JournalDB>>,
 	import_lock: Mutex<()>
 }
 
@@ -180,16 +180,16 @@ impl Client {
 		
 		let engine = Arc::new(try!(spec.to_engine()));
 		let mut state_db = JournalDB::new_with_arc(db.clone());
-		if engine.spec().ensure_db_good(&mut state_db) {
+		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
-			state_db: state_db,
+			state_db: db.clone(),
+			state_journal: Mutex::new(JournalDB::new_with_arc(db)),
 			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
 			report: RwLock::new(Default::default()),
-			uncommited_states: RwLock::new(HashMap::new()),
 			import_lock: Mutex::new(()),
 		}))
 	}
@@ -242,7 +242,7 @@ impl Client {
 				}
 			}
 
-			let db = self.state_db.clone();
+			let db = self.state_journal.lock().unwrap().clone();
 			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
@@ -277,14 +277,9 @@ impl Client {
 		ret
 	}
 
-	/// Clear cached state overlay 
-	pub fn clear_state(&self, hash: &H256) {
-		self.uncommited_states.write().unwrap().remove(hash);
-	}
-
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
-		State::from_existing(self.state_db.clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+		State::from_existing(JournalDB::new_with_arc(self.state_db.clone()), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
 	}
 
 	/// Get info on the cache.

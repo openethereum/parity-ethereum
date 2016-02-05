@@ -4,6 +4,7 @@ use common::*;
 use engine::*;
 use pod_state::*;
 use null_engine::*;
+use account_db::*;
 
 /// Convert JSON value to equivalent RLP representation.
 // TODO: handle container types.
@@ -262,8 +263,8 @@ impl Spec {
 					t.insert(address.as_slice(), &account.rlp());
 				}
 			}
-			for (_, account) in self.genesis_state.get().iter() {
-				account.insert_additional(db);
+			for (address, account) in self.genesis_state.get().iter() {
+				account.insert_additional(&mut AccountDBMut::new(db, address));
 			}
 			assert!(db.contains(&self.state_root()));
 			true

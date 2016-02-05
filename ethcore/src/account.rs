@@ -2,6 +2,7 @@
 
 use util::*;
 use pod_account::*;
+use account_db::*;
 
 /// Single account in the system.
 #[derive(Clone)]
@@ -99,7 +100,7 @@ impl Account {
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
-	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
+	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
 		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
 			(Filth::Clean, H256::from(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).map_or(U256::zero(), |v| -> U256 {decode(v)})))
 		}).1.clone()
@@ -147,7 +148,7 @@ impl Account {
 	}
 
 	/// Provide a database to lookup `code_hash`. Should not be called if it is a contract without code.
-	pub fn cache_code(&mut self, db: &HashDB) -> bool {
+	pub fn cache_code(&mut self, db: &AccountDB) -> bool {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.is_cached() ||
@@ -184,7 +185,7 @@ impl Account {
 	pub fn sub_balance(&mut self, x: &U256) { self.balance = self.balance - *x; }
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
-	pub fn commit_storage(&mut self, db: &mut HashDB) {
+	pub fn commit_storage(&mut self, db: &mut AccountDBMut) {
 		let mut t = SecTrieDBMut::from_existing(db, &mut self.storage_root);
 		for (k, &mut (ref mut f, ref mut v)) in self.storage_overlay.borrow_mut().iter_mut() {
 			if f == &Filth::Dirty {
@@ -200,7 +201,7 @@ impl Account {
 	}
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
-	pub fn commit_code(&mut self, db: &mut HashDB) {
+	pub fn commit_code(&mut self, db: &mut AccountDBMut) {
 		trace!("Commiting code of {:?} - {:?}, {:?}", self, self.code_hash.is_none(), self.code_cache.is_empty());
 		match (self.code_hash.is_none(), self.code_cache.is_empty()) {
 			(true, true) => self.code_hash = Some(SHA3_EMPTY),
@@ -233,10 +234,12 @@ mod tests {
 
 	use util::*;
 	use super::*;
+	use account_db::*;
 
 	#[test]
 	fn storage_at() {
 		let mut db = MemoryDB::new();
+		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		let rlp = {
 			let mut a = Account::new_contract(U256::from(69u8));
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
@@ -248,13 +251,14 @@ mod tests {
 
 		let a = Account::from_rlp(&rlp);
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
-		assert_eq!(a.storage_at(&db, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
-		assert_eq!(a.storage_at(&db, &H256::from(&U256::from(0x01u64))), H256::new());
+		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
+		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x01u64))), H256::new());
 	}
 
 	#[test]
 	fn note_code() {
 		let mut db = MemoryDB::new();
+		let mut db = AccountDBMut::new(&mut db, &Address::new());
 
 		let rlp = {
 			let mut a = Account::new_contract(U256::from(69u8));
@@ -264,7 +268,7 @@ mod tests {
 		};
 
 		let mut a = Account::from_rlp(&rlp);
-		assert!(a.cache_code(&db));
+		assert!(a.cache_code(&db.immutable()));
 
 		let mut a = Account::from_rlp(&rlp);
 		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));
@@ -274,6 +278,7 @@ mod tests {
 	fn commit_storage() {
 		let mut a = Account::new_contract(U256::from(69u8));
 		let mut db = MemoryDB::new();
+		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(x!(0), x!(0x1234));
 		assert_eq!(a.storage_root(), None);
 		a.commit_storage(&mut db);
@@ -284,6 +289,7 @@ mod tests {
 	fn commit_remove_commit_storage() {
 		let mut a = Account::new_contract(U256::from(69u8));
 		let mut db = MemoryDB::new();
+		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(x!(0), x!(0x1234));
 		a.commit_storage(&mut db);
 		a.set_storage(x!(1), x!(0x1234));
@@ -297,6 +303,7 @@ mod tests {
 	fn commit_code() {
 		let mut a = Account::new_contract(U256::from(69u8));
 		let mut db = MemoryDB::new();
+		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_hash(), SHA3_EMPTY);
 		a.commit_code(&mut db);

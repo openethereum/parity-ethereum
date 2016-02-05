@@ -12,7 +12,6 @@ use std::env;
 use std::collections::HashMap;
 use rocksdb::{DB, Writable, IteratorMode};
 
-#[derive(Clone)]
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
 ///
 /// The operations `insert()` and `remove()` take place on the memory overlay; batches of

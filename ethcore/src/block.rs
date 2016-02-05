@@ -62,7 +62,7 @@ impl Decodable for Block {
 /// Internal type for a block's common elements.
 // TODO: rename to ExecutedBlock
 // TODO: use BareBlock
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExecutedBlock {
 	base: Block,
 
@@ -318,8 +318,10 @@ impl IsBlock for SealedBlock {
 /// Enact the block given by block header, transactions and uncles
 pub fn enact<'x, 'y>(header: &Header, transactions: &[Transaction], uncles: &[Header], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
 	{
-		let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
-		trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
+		if ::log::max_log_level() >= ::log::LogLevel::Trace {
+			let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
+			trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
+		}
 	}
 
 	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author().clone(), header.extra_data().clone());
@@ -363,10 +365,10 @@ mod tests {
 		let engine = Spec::new_test().to_engine().unwrap();
 		let genesis_header = engine.spec().genesis_header();
 		let mut db_result = get_temp_journal_db();
-		let db = db_result.reference_mut();
-		engine.spec().ensure_db_good(db);
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(&mut db);
 		let last_hashes = vec![genesis_header.hash()];
-		let b = OpenBlock::new(engine.deref(), db.clone(), &genesis_header, &last_hashes, Address::zero(), vec![]);
+		let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
 		let b = b.close();
 		let _ = b.seal(vec![]);
 	}
@@ -378,16 +380,16 @@ mod tests {
 		let genesis_header = engine.spec().genesis_header();
 
 		let mut db_result = get_temp_journal_db();
-		let db = db_result.reference_mut();
-		engine.spec().ensure_db_good(db);
-		let b = OpenBlock::new(engine.deref(), db.clone(), &genesis_header, &vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(vec![]).unwrap();
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(&mut db);
+		let b = OpenBlock::new(engine.deref(), db, &genesis_header, &vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 
 		let mut db_result = get_temp_journal_db();
-		let db = db_result.reference_mut();
-		engine.spec().ensure_db_good(db);
-		let e = enact_and_seal(&orig_bytes, engine.deref(), db.clone(), &genesis_header, &vec![genesis_header.hash()]).unwrap();
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(&mut db);
+		let e = enact_and_seal(&orig_bytes, engine.deref(), db, &genesis_header, &vec![genesis_header.hash()]).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 

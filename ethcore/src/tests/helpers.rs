@@ -48,18 +48,22 @@ impl Drop for RandomTempPath {
 
 #[cfg(test)]
 pub struct GuardedTempResult<T> {
-	result: T,
+	result: Option<T>,
 	_temp: RandomTempPath
 }
 
 impl<T> GuardedTempResult<T> {
     pub fn reference(&self) -> &T {
-        &self.result
+        self.result.as_ref().unwrap()
     }
 
     pub fn reference_mut(&mut self) -> &mut T {
-    	&mut self.result
+    	self.result.as_mut().unwrap()
     }
+
+	pub fn take(&mut self) -> T {
+		self.result.take().unwrap()
+	}
 }
 
 pub fn get_test_spec() -> Spec {
@@ -150,7 +154,7 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
-		result: client
+		result: Some(client)
 	}
 }
 
@@ -168,7 +172,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
-		result: client
+		result: Some(client)
 	}
 }
 
@@ -181,7 +185,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: bc
+		result: Some(bc)
 	}
 }
 
@@ -194,7 +198,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: bc
+		result: Some(bc)
 	}
 }
 
@@ -204,7 +208,7 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: bc
+		result: Some(bc)
 	}
 }
 
@@ -214,7 +218,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<JournalDB> {
 	let journal_db = JournalDB::new(db);
 	GuardedTempResult {
 		_temp: temp,
-		result: journal_db
+		result: Some(journal_db)
 	}
 }
 
@@ -223,7 +227,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	let journal_db = get_temp_journal_db_in(temp.as_path());
 	GuardedTempResult {
 	    _temp: temp,
-		result: State::new(journal_db, U256::from(0u8))
+		result: Some(State::new(journal_db, U256::from(0u8)))
 	}
 }
 

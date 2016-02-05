@@ -1,5 +1,6 @@
 use util::*;
 use account::*;
+use account_db::*;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
 /// An account, expressed as Plain-Old-Data (hence the name).
@@ -44,7 +45,7 @@ impl PodAccount {
 	}
 
 	/// Place additional data into given hash DB.
-	pub fn insert_additional(&self, db: &mut HashDB) {
+	pub fn insert_additional(&self, db: &mut AccountDBMut) {
 		if !self.code.is_empty() {
 			db.insert(&self.code);
 		}
