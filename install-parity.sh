@@ -290,10 +290,16 @@ EOL
 		exit 0
 	}
 
-	bash <(curl $GET_DEPS_URL -L)
-
+	head "Checking OS dependencies"
 	detectOS
 
+	if [[ $INSTALL_FILES != "" ]]; then
+		echo
+		head "In addition to the Parity build dependencies, this script will install:"
+		echo "$INSTALL_FILES"
+		echo
+	fi
+	
 	head "${b}OK,${reset} let's install Parity now!"
 	echo
 	echo
