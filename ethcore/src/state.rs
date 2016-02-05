@@ -145,7 +145,7 @@ impl State {
 		self.get(a, false).as_ref().map_or(U256::zero(), |account| account.nonce().clone())
 	}
 
-	/// Mutate storage of account `a` so that it is `value` for `key`.
+	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
 		self.get(address, false).as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(&self.db, address), key))	
 	}
@@ -269,7 +269,7 @@ impl State {
 	fn get(&self, a: &Address, require_code: bool) -> Ref<Option<Account>> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)))
+			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(Account::from_rlp))
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
@@ -289,7 +289,7 @@ impl State {
 	fn require_or_from<F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> RefMut<Account> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(|rlp| Account::from_rlp(rlp)))
+			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(Account::from_rlp))
 		} else {
 			self.note_cache(a);
 		}
