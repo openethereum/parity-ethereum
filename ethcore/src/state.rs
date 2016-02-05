@@ -1,6 +1,7 @@
 use common::*;
 use engine::Engine;
 use executive::Executive;
+use account_db::*;
 #[cfg(test)]
 #[cfg(feature = "json-tests")]
 use pod_account::*;

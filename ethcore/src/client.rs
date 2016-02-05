@@ -180,7 +180,8 @@ impl Client {
 		
 		let engine = Arc::new(try!(spec.to_engine()));
 		let mut state_db = JournalDB::new_with_arc(db.clone());
-		if engine.spec().ensure_db_good(&mut state_db) { state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
+			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 		Ok(Arc::new(Client {
 			chain: chain,

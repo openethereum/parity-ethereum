@@ -4,6 +4,7 @@ use common::*;
 use engine::*;
 use pod_state::*;
 use null_engine::*;
+use account_db::*;
 
 /// Convert JSON value to equivalent RLP representation.
 // TODO: handle container types.

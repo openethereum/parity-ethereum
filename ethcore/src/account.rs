@@ -2,113 +2,7 @@
 
 use util::*;
 use pod_account::*;
-
-
-pub struct AccountDB<'db> {
-	db: &'db HashDB,
-	address: H256,
-}
-
-impl<'db> AccountDB<'db> {
-
-	pub fn new(db: &'db HashDB, address: &Address) -> AccountDB<'db> {
-		AccountDB {
-			db: db,
-			address: x!(address.clone()),
-		}
-	}
-
-	#[inline]
-	fn key(&self, k: &H256) -> H256 {
-		k.clone() ^ self.address.clone()
-	}
-}
-
-impl<'db> HashDB for AccountDB<'db>{
-	fn keys(&self) -> HashMap<H256, i32> {
-		unimplemented!()
-	}
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
-		if key == &SHA3_NULL_RLP {
-			return self.db.lookup(key);
-		}
-		self.db.lookup(&self.key(key))
-	}
-	fn exists(&self, key: &H256) -> bool {
-		if key == &SHA3_NULL_RLP {
-			return true;
-		}
-		self.db.exists(&self.key(key))
-	}
-	fn insert(&mut self, _value: &[u8]) -> H256 {
-		unimplemented!()
-	}
-
-	fn emplace(&mut self, _key: H256, _value: Bytes) {
-		unimplemented!()
-	}
-	fn kill(&mut self, _key: &H256) {
-		unimplemented!()
-	}
-}
-
-pub struct AccountDBMut<'db> {
-	db: &'db mut HashDB,
-	address: H256,
-}
-
-impl<'db> AccountDBMut<'db> {
-
-	pub fn new(db: &'db mut HashDB, address: &Address) -> AccountDBMut<'db> {
-		AccountDBMut {
-			db: db,
-			address: x!(address.clone()),
-		}
-	}
-
-	#[allow(dead_code)]
-	pub fn immutable(&'db self) -> AccountDB<'db> {
-		AccountDB { db: self.db, address: self.address.clone() }
-	}
-
-	#[inline]
-	fn key(&self, k: &H256) -> H256 {
-		k.clone() ^ self.address.clone()
-	}
-}
-
-impl<'db> HashDB for AccountDBMut<'db>{
-	fn keys(&self) -> HashMap<H256, i32> {
-		unimplemented!()
-	}
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
-		if key == &SHA3_NULL_RLP {
-			return self.db.lookup(key);
-		}
-		self.db.lookup(&self.key(key))
-	}
-	fn exists(&self, key: &H256) -> bool {
-		if key == &SHA3_NULL_RLP {
-			return true;
-		}
-		self.db.exists(&self.key(key))
-	}
-	fn insert(&mut self, value: &[u8]) -> H256 {
-		let k = value.sha3();
-		let ak = self.key(&k);
-		self.db.emplace(ak, value.to_vec());
-		k
-	}
-
-	fn emplace(&mut self, key: H256, value: Bytes) {
-		let key = self.key(&key);
-		self.db.emplace(key, value.to_vec())
-	}
-	fn kill(&mut self, key: &H256) {
-		let key = self.key(&key);
-		self.db.kill(&key)
-	}
-}
+use account_db::*;
 
 /// Single account in the system.
 #[derive(Clone)]
@@ -340,6 +234,7 @@ mod tests {
 
 	use util::*;
 	use super::*;
+	use account_db::*;
 
 	#[test]
 	fn storage_at() {

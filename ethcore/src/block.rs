@@ -318,8 +318,10 @@ impl IsBlock for SealedBlock {
 /// Enact the block given by block header, transactions and uncles
 pub fn enact<'x, 'y>(header: &Header, transactions: &[Transaction], uncles: &[Header], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
 	{
-		//let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
-		//trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
+		if ::log::max_log_level() >= ::log::LogLevel::Trace {
+			let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
+			trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
+		}
 	}
 
 	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author().clone(), header.extra_data().clone());

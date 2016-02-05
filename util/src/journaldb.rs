@@ -4,7 +4,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use rocksdb::{DB, Writable, IteratorMode, WriteBatch};
+use rocksdb::{DB, Writable, WriteBatch, IteratorMode};
 #[cfg(test)]
 use std::env;
 
@@ -32,6 +32,9 @@ impl Clone for JournalDB {
 }
 
 const LAST_ERA_KEY : [u8; 4] = [ b'l', b'a', b's', b't' ]; 
+const VERSION_KEY : [u8; 4] = [ b'j', b'v', b'e', b'r' ]; 
+
+const DB_VERSION: u32 = 1;
 
 impl JournalDB {
 	/// Create a new instance given a `backing` database.
@@ -42,6 +45,14 @@ impl JournalDB {
 
 	/// Create a new instance given a shared `backing` database.
 	pub fn new_with_arc(backing: Arc<DB>) -> JournalDB {
+		if backing.iterator(IteratorMode::Start).next().is_some() {
+			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
+				Ok(Some(DB_VERSION)) => {},
+				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v)
+			}
+		} else {
+			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
+		}
 		let counters = JournalDB::read_counters(&backing);
 		JournalDB {
 			overlay: MemoryDB::new(),
@@ -58,6 +69,10 @@ impl JournalDB {
 		Self::new(DB::open_default(dir.to_str().unwrap()).unwrap())
 	}
 
+	/// Check if this database has any commits
+	pub fn is_empty(&self) -> bool {
+		self.backing.get(&LAST_ERA_KEY).expect("Low level database error").is_none()
+	}
 
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
@@ -68,7 +83,7 @@ impl JournalDB {
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, n] => [ ... ]
 
-		// TODO: store last_era, reclaim_period.
+		// TODO: store reclaim_period.
 
 		// when we make a new commit, we journal the inserts and removes.
 		// for each end_era that we journaled that we are no passing by, 
@@ -197,7 +212,7 @@ impl JournalDB {
 				era += 1;
 			}
 		}
-		info!("Recovered {} counters", res.len());
+		trace!("Recovered {} counters", res.len());
 		res
 	}
 }

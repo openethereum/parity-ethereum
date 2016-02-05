@@ -96,6 +96,7 @@ mod state_diff;
 mod engine;
 mod state;
 mod account;
+mod account_db;
 mod action_params;
 mod transaction;
 mod receipt;
