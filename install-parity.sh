@@ -1,37 +1,13 @@
 #!/usr/bin/env bash
 
 
-
-PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_0.9.0-0_amd64.deb
+GET_DEPS_URL=http://get-deps.ethcore.io
 
 function run_installer()
 {
 	####### Init vars
 	
-	HOMEBREW_PREFIX=/usr/local
-	HOMEBREW_CACHE=/Library/Caches/Homebrew
-	HOMEBREW_REPO=https://github.com/Homebrew/homebrew
-	OSX_REQUIERED_VERSION="10.7.0"
-
-
 	declare OS_TYPE
-	declare OSX_VERSION
-	declare GIT_PATH
-	declare RUBY_PATH
-	declare BREW_PATH
-	declare INSTALL_FILES=""
-
-	errorMessages=""
-	isOsVersion=false
-	isGit=false
-	isRuby=false
-	isBrew=false
-	isDocker=false
-	canContinue=true
-	depCount=0
-	depFound=0
-
-
 
 	####### Setup colors
 
@@ -119,82 +95,38 @@ function run_installer()
 		done
 	}
 	
+	function linux_version()
+	{
+		source /etc/lsb-release
+		
+		if [[ $DISTRIB_ID == "Ubuntu" ]]; then
+			if [[ $DISTRIB_RELEASE == "14.04" ]]; then
+				check "Ubuntu-14.04"
+				isUbuntu1404=true
+			else
+				check "Ubuntu, but not 14.04"
+				isUbuntu1404=false
+			fi
+		else
+			check "Ubuntu not found"
+			isUbuntu1404=false
+		fi
+	}
 
 	function detectOS() {
 		if [[ "$OSTYPE" == "linux-gnu" ]]
 		then
 			OS_TYPE="linux"
-			get_linux_dependencies
+			linux_version
 		elif [[ "$OSTYPE" == "darwin"* ]]
 		then
 			OS_TYPE="osx"
-			get_osx_dependencies
 		else
 			OS_TYPE="win"
 			abortInstall "${red}==>${reset} ${b}OS not supported:${reset} parity one-liner currently support OS X and Linux.\nFor instructions on installing parity on other platforms please visit ${u}${blue}http://ethcore.io/${reset}"
 		fi
 
 		echo
-
-		if [[ $depCount == $depFound ]]
-		then
-			green "Found all dependencies ($depFound/$depCount)"
-		else
-			if [[ $canContinue == true ]]
-			then
-				red "Some dependencies are missing ($depFound/$depCount)"
-			elif [[ $canContinue == false && $depFound == 0 ]]
-			then
-				red "All dependencies are missing and cannot be auto-installed ($depFound/$depCount)"
-				abortInstall "$errorMessages";
-			elif [[ $canContinue == false ]]
-			then
-				red "Some dependencies which cannot be auto-installed are missing ($depFound/$depCount)"
-				abortInstall "$errorMessages";
-			fi
-		fi
-	}
-
-	function get_osx_dependencies()
-	{
-		macos_version
-		find_git
-		find_ruby
-		find_brew
-	}
-
-	function macos_version()
-	{
-		declare -a reqVersion
-		declare -a localVersion
-
-		depCount=$((depCount+1))
-		OSX_VERSION=`/usr/bin/sw_vers -productVersion 2>/dev/null`
-
-		if [ -z "$OSX_VERSION" ]
-		then
-			uncheck "OS X version not supported 🔥"
-			isOsVersion=false
-			canContinue=false
-		else
-			IFS='.' read -a localVersion <<< "$OSX_VERSION"
-			IFS='.' read -a reqVersion <<< "$OSX_REQUIERED_VERSION"
-
-			if (( ${reqVersion[0]} <= ${localVersion[0]} )) && (( ${reqVersion[1]} <= ${localVersion[1]} ))
-			then
-				check "OS X Version ${OSX_VERSION}"
-				isOsVersion=true
-				depFound=$((depFound+1))
-				return
-			else
-				uncheck "OS X version not supported"
-				isOsVersion=false
-				canContinue=false
-			fi
-		fi
-
-		errorMessages+="${red}==>${reset} ${b}Mac OS version too old:${reset} eth requires OS X version ${red}$OSX_REQUIERED_VERSION${reset} at least in order to run.\n"
-		errorMessages+="		Please update the OS and reload the install process.\n"
 	}
 
 	function find_eth()
@@ -211,119 +143,8 @@ function run_installer()
 		fi
 	}
 
-	function find_git()
-	{
-		depCount=$((depCount+1))
-
-		GIT_PATH=`which git 2>/dev/null`
-
-		if [[ -f $GIT_PATH ]]
-		then
-			check "$($GIT_PATH --version)"
-			isGit=true
-			depFound=$((depFound+1))
-		else
-			uncheck "Git is missing"
-			isGit=false
-		fi
-	}
-
-	function find_ruby()
-	{
-		depCount=$((depCount+1))
-
-		RUBY_PATH=`which ruby 2>/dev/null`
-
-		if [[ -f $RUBY_PATH ]]
-		then
-			RUBY_VERSION=`ruby -e "print RUBY_VERSION"`
-			check "Ruby ${RUBY_VERSION}"
-			isRuby=true
-			depFound=$((depFound+1))
-		else
-			uncheck "Ruby is missing 🔥"
-			isRuby=false
-			canContinue=false
-			errorMessages+="${red}==>${reset} ${b}Couldn't find Ruby:${reset} Brew requires Ruby which could not be found.\n"
-			errorMessages+="		Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.\n"
-		fi
-	}
-
-	function find_brew()
-	{
-		BREW_PATH=`which brew 2>/dev/null`
-
-		if [[ -f $BREW_PATH ]]
-		then
-			check "$($BREW_PATH -v)"
-			isBrew=true
-			depFound=$((depFound+1))
-		else
-			uncheck "Homebrew is missing"
-			isBrew=false
-
-			INSTALL_FILES+="${blue}${dim}==> Homebrew:${reset}\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/bin/brew\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/Library\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/share/man/man1/brew.1\n"
-		fi
-
-		depCount=$((depCount+1))
-	}
-
-	function install_brew()
-	{
-		if [[ $isBrew == false ]]
-		then
-			head "Installing Homebrew"
-
-			if [[ $isRuby == true ]]
-			then
-				ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
-			else
-				cd /usr
-
-				if [[ ! -d $HOMEBREW_PREFIX ]]
-				then
-					sudo mkdir $HOMEBREW_PREFIX
-					sudo chmod g+rwx $HOMEBREW_PREFIX
-				fi
-
-				if [[ ! -d $HOMEBREW_CACHE ]]
-				then
-					sudo mkdir $HOMEBREW_CACHE
-					sudo chmod g+rwx $HOMEBREW_CACHE
-				fi
-
-				DEVELOPER_DIR=`/usr/bin/xcode-select -print-path 2>/dev/null`
-
-				if [[ ! $(ls -A $DEVELOPER_DIR) || ! -f $DEVELOPER_DIR/usr/bin/git ]]
-				then
-					info "Installing the Command Line Tools (expect a GUI popup):"
-					sudo /usr/bin/xcode-select --install
-
-					echo "Press any key when the installation has completed"
-				fi
-
-				cd $HOMEBREW_PREFIX
-
-				bash -o pipefail -c "curl -fsSL ${HOMEBREW_REPO}/tarball/master | tar xz -m --strip 1"
-			fi
-
-			find_brew
-			echo
-
-			if [[ $isBrew == false ]]
-			then
-				abortInstall "Couldn't install brew"
-			fi
-		fi
-	}
-
 	function osx_installer()
 	{
-		osx_dependency_installer
-
 		info "Adding ethcore repository"
 		brew tap ethcore/ethcore https://github.com/ethcore/homebrew-ethcore.git
 		echo
@@ -343,104 +164,69 @@ function run_installer()
 		echo
 	}
 
-	function osx_dependency_installer()
+	function build_parity()
 	{
-		if [[ $isGit == false ]];
-		then
-			echo "Installing Git"
-		fi
+		oldpwd= $(pwd)
+		info "Downloading Parity..."
+		git clone git@github.com:ethcore/parity $HOME/parity
+		cd $HOME/parity
+		git submodule init
+		git submodule update
+		
+		info "Building Parity..."
+		cargo build --release
 
-		if [[ $isRuby == false ]];
-		then
-			echo "Installing Ruby"
-		fi
+		sudo cp target/release/parity /usr/bin/
 
-		if [[ $isBrew == false ]];
-		then
-			install_brew
-		fi
-	}
+		cd $oldpwd
 
-	function get_linux_dependencies()
-	{
-		find_apt
-		find_docker
-	}
-
-	function find_apt()
-	{
-		APT_PATH=`which apt-get 2>/dev/null`
-
-		if [[ -f $APT_PATH ]]
-		then
-			check "apt-get"
-			echo "$($APT_PATH -v)"
-			isApt=true
-		else
-			uncheck "apt-get is missing"
-			isApt=false
-		fi
-	}
-
-	function find_docker()
-	{
-		DOCKER_PATH=`which docker 2>/dev/null`
-
-		if [[ -f $DOCKER_PATH ]]
-		then
-			check "docker"
-			echo "$($DOCKER_PATH -v)"
-			isDocker=true
-		else
-			isDocker=false
-		fi
-	}
-	function linux_rocksdb_installer()
-	{
-		sudo add-apt-repository -y ppa:giskou/librocksdb
-		sudo apt-get -f -y install
-		sudo apt-get update
-		sudo apt-get install -y librocksdb
+		echo
+		info "Parity source code is in $(pwd)/parity"
+		info "Run a client with: ${b}cargo run --release${reset} or just ${b}parity${reset}"
 	}
 
 	function linux_installer()
 	{
-		info "Installing dependencies"
-		sudo apt-get update && sudo apt-get install -q -y git curl g++ wget
-		echo
-
-		info "Installing rocksdb"
-		linux_rocksdb_installer
-		echo
-
-		info "Installing parity"
-		file=/tmp/parity.deb
-
-		
-		wget $PARITY_DEB_URL -qO $file
-		sudo dpkg -i $file
-		rm $file
+		build_parity
 	}
 
 	function install_netstats()
 	{
-		echo "install netstats"
-
-		if [[ $isDocker == false ]]
-		then
-			info "installing docker"
-			curl -sSL https://get.docker.com/ | sh
-		fi
-
-		dir=$HOME/.netstats
+		echo "Installing netstats"
 
 		secret=$(prompt_for_input "Please enter the netstats secret:")
 		instance_name=$(prompt_for_input "Please enter your instance name:")
 		contact_details=$(prompt_for_input "Please enter your contact details (optional):")
-		
 
-		mkdir -p $dir
-		cat > $dir/app.json << EOL
+		curl -sL https://deb.nodesource.com/setup_0.12 | bash -
+		sudo apt-get update
+		# install ethereum & install dependencies
+		sudo apt-get install -y -qq build-essential git unzip wget nodejs ntp cloud-utils
+
+		# add node symlink if it doesn't exist
+		[[ ! -f /usr/bin/node ]] && sudo ln -s /usr/bin/nodejs /usr/bin/node
+
+		# set up time update cronjob
+		sudo bash -c "cat > /etc/cron.hourly/ntpdate << EOF
+		#!/bin/sh
+		pm2 flush
+		sudo service ntp stop
+		sudo ntpdate -s ntp.ubuntu.com
+		sudo service ntp start
+		EOF"
+
+		sudo chmod 755 /etc/cron.hourly/ntpdate
+
+		[ ! -d "www" ] && git clone https://github.com/cubedro/eth-net-intelligence-api netstats
+		oldpwd= $(pwd)
+		cd netstats
+		git pull
+		git checkout 95d595258239a0fdf56b97dedcfb2be62f6170e6
+
+		sudo npm install
+		sudo npm install pm2 -g
+
+		cat > app.json << EOL
 [
 	{
 		"name"							: "node-app",
@@ -468,16 +254,13 @@ function run_installer()
 ]
 EOL
 
-		sudo docker rm --force netstats-client 2> /dev/null
-		sudo docker pull ethcore/netstats-client
-		sudo docker run -d --net=host --name netstats-client -v $dir/app.json:/home/ethnetintel/eth-net-intelligence-api/app.json	 ethcore/netstats-client 
+		pm2 start app.json
+		cd $oldpwd
 	}
+	
 
 	function install()
 	{
-		echo
-		head "Installing Parity build dependencies"
-
 		if [[ $OS_TYPE == "osx" ]]
 		then
 			osx_installer
@@ -487,16 +270,6 @@ EOL
 		fi
 	}
 
-	function verify_installation()
-	{
-		info "Verifying installation"
-		find_eth
-
-		if [[ $isEth == false ]]
-		then
-			abortInstall
-		fi
-	}
 
 	function abortInstall()
 	{
@@ -517,26 +290,21 @@ EOL
 		exit 0
 	}
 
-	# Check dependencies
 	head "Checking OS dependencies"
 	detectOS
 
-	echo
-	head "In addition to the parity build dependencies, this script will install:"
-	echo "$INSTALL_FILES"
-	echo
-
-	# Prompt user to continue or abort
-	if wait_for_user "${b}OK,${reset} let's go!"
-	then
-		echo "Installing..."
-	else
-		abortInstall "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again."
+	if [[ $INSTALL_FILES != "" ]]; then
+		echo
+		head "In addition to the Parity build dependencies, this script will install:"
+		echo "$INSTALL_FILES"
+		echo
 	fi
-
-	# Install dependencies and eth
+	
+	head "${b}OK,${reset} let's install Parity now!"
+	echo
+	echo
 	install
-
+	
 	if [[ $OS_TYPE == "linux" ]]
 	then
 		echo "Netstats:"
@@ -547,10 +315,8 @@ EOL
 		fi
 	fi
 
-	# Check installation
-	verify_installation
 
-	# Display goodby message
+	# Display goodbye message
 	finish
 }
 
