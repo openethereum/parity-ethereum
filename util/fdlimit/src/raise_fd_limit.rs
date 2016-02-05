@@ -13,7 +13,6 @@
 /// ends up being far too low for our multithreaded scheduler testing, depending
 /// on the number of cores available.
 ///
-/// This fixes issue #7772.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 #[allow(non_camel_case_types)]
 pub unsafe fn raise_fd_limit() {
