@@ -109,7 +109,7 @@ pub trait BlockProvider {
 
 	/// Get a list of transactions for a given block.
 	/// Returns None if block deos not exist.
-	fn transactions(&self, hash: &H256) -> Option<Vec<Transaction>> {
+	fn transactions(&self, hash: &H256) -> Option<Vec<SignedTransaction>> {
 		self.block(hash).map(|bytes| BlockView::new(&bytes).transactions())
 	}
 

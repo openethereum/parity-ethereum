@@ -30,7 +30,7 @@ pub struct Block {
 	/// The header of this block.
 	pub header: Header,
 	/// The transactions in this block.
-	pub transactions: Vec<Transaction>,
+	pub transactions: Vec<SignedTransaction>,
 	/// The uncles of this block.
 	pub uncles: Vec<Header>,
 }
@@ -92,7 +92,7 @@ pub struct BlockRefMut<'a> {
 	/// Block header.
 	pub header: &'a Header,
 	/// Block transactions.
-	pub transactions: &'a Vec<Transaction>,
+	pub transactions: &'a Vec<SignedTransaction>,
 	/// Block uncles.
 	pub uncles: &'a Vec<Header>,
 	/// Transaction receipts.
@@ -129,7 +129,7 @@ pub trait IsBlock {
 	fn state(&self) -> &State { &self.block().state }
 
 	/// Get all information on transactions in this block.
-	fn transactions(&self) -> &Vec<Transaction> { &self.block().base.transactions }
+	fn transactions(&self) -> &Vec<SignedTransaction> { &self.block().base.transactions }
 
 	/// Get all information on receipts in this block.
 	fn receipts(&self) -> &Vec<Receipt> { &self.block().receipts }
@@ -244,7 +244,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
-	pub fn push_transaction(&mut self, t: Transaction, h: Option<H256>) -> Result<&Receipt, Error> {
+	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
 		let env_info = self.env_info();
 //		info!("env_info says gas_used={}", env_info.gas_used);
 		match self.block.state.apply(&env_info, self.engine, &t) {
@@ -332,7 +332,7 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-pub fn enact<'x, 'y>(header: &Header, transactions: &[Transaction], uncles: &[Header], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
+pub fn enact<'x, 'y>(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
 			let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());

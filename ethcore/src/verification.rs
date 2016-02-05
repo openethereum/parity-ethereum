@@ -30,7 +30,7 @@ pub struct PreVerifiedBlock {
 	/// Populated block header
 	pub header: Header,
 	/// Populated block transactions
-	pub transactions: Vec<Transaction>,
+	pub transactions: Vec<SignedTransaction>,
 	/// Block bytes
 	pub bytes: Bytes,
 }
@@ -236,7 +236,6 @@ mod tests {
 	use engine::*;
 	use spec::*;
 	use transaction::*;
-	use basic_types::*;
 	use tests::helpers::*;
 
 	fn check_ok(result: Result<(), Error>) {
@@ -325,8 +324,26 @@ mod tests {
 		good.timestamp = 40;
 		good.number = 10;
 
-		let tr1 = Transaction::new_create(x!(0), Bytes::new(), x!(30000), x!(40000), x!(1));
-		let tr2 = Transaction::new_create(x!(0), Bytes::new(), x!(30000), x!(40000), x!(2));
+		let keypair = KeyPair::create().unwrap();
+
+		let tr1 = Transaction {
+			action: Action::Create,
+			value: U256::from(0),
+			data: Bytes::new(),
+			gas: U256::from(30_000),
+			gas_price: U256::from(40_000),
+			nonce: U256::one()
+		}.sign(&keypair.secret());
+
+		let tr2 = Transaction {
+			action: Action::Create,
+			value: U256::from(0),
+			data: Bytes::new(),
+			gas: U256::from(30_000),
+			gas_price: U256::from(40_000),
+			nonce: U256::from(2)
+		}.sign(&keypair.secret());
+
 		let good_transactions = [ &tr1, &tr2 ];
 
 		let diff_inc = U256::from(0x40);
@@ -362,7 +379,7 @@ mod tests {
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
-		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| t.rlp_bytes_opt(Seal::With)).collect());
+		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| encode::<SignedTransaction>(t).to_vec()).collect());
 
 		let mut parent = good.clone();
 		parent.number = 9;

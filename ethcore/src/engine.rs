@@ -72,9 +72,9 @@ pub trait Engine : Sync + Send {
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
-	fn verify_transaction_basic(&self, _t: &Transaction, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_transaction_basic(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
 	/// Verify a particular transaction is valid.
-	fn verify_transaction(&self, _t: &Transaction, _header: &Header) -> Result<(), Error> { Ok(()) }
+	fn verify_transaction(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
 	// TODO: consider including State in the params.

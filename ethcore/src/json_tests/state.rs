@@ -49,7 +49,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 			flush!("   - {}...", name);
 
-			let t = Transaction::from_json(&test["transaction"]);
+			let t = SignedTransaction::from_json(&test["transaction"]);
 			let env = EnvInfo::from_json(&test["env"]);
 			let _out = Bytes::from_json(&test["out"]);
 			let post_state_root = xjson!(&test["postStateRoot"]);

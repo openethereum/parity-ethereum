@@ -170,14 +170,14 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &Transaction, header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
 		if header.number() >= self.u64_param("frontierCompatibilityModeLimit") {
 			try!(t.check_low_s());
 		}
 		Ok(())
 	}
 
-	fn verify_transaction(&self, t: &Transaction, _header: &Header) -> Result<(), Error> {
+	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
 }
