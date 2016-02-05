@@ -14,13 +14,3 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc v1.
-//! 
-//! Compliant with ethereum rpc.
-
-pub mod traits;
-mod impls;
-mod types;
-
-pub use self::traits::{Web3, Eth, EthFilter, Net};
-pub use self::impls::*;
