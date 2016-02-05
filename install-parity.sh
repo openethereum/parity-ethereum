@@ -166,6 +166,7 @@ function run_installer()
 
 	function build_parity()
 	{
+		oldpwd= $(pwd)
 		info "Downloading Parity..."
 		git clone git@github.com:ethcore/parity $HOME/parity
 		cd $HOME/parity
@@ -176,6 +177,8 @@ function run_installer()
 		cargo build --release
 
 		sudo cp target/release/parity /usr/bin/
+
+		cd $oldpwd
 
 		echo
 		info "Parity source code is in $(pwd)/parity"
@@ -198,7 +201,7 @@ function run_installer()
 		curl -sL https://deb.nodesource.com/setup_0.12 | bash -
 		sudo apt-get update
 		# install ethereum & install dependencies
-		sudo apt-get install -y -qq build-essential git unzip wget nodejs npm ntp cloud-utils
+		sudo apt-get install -y -qq build-essential git unzip wget nodejs ntp cloud-utils
 
 		# add node symlink if it doesn't exist
 		[[ ! -f /usr/bin/node ]] && sudo ln -s /usr/bin/nodejs /usr/bin/node
@@ -215,6 +218,7 @@ function run_installer()
 		sudo chmod 755 /etc/cron.hourly/ntpdate
 
 		[ ! -d "www" ] && git clone https://github.com/cubedro/eth-net-intelligence-api netstats
+		oldpwd= $(pwd)
 		cd netstats
 		git pull
 		git checkout 95d595258239a0fdf56b97dedcfb2be62f6170e6
@@ -251,7 +255,7 @@ function run_installer()
 EOL
 
 		pm2 start app.json
-		cd ..
+		cd $oldpwd
 	}
 	
 
