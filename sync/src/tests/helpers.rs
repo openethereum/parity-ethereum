@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use util::*;
 use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo};
 use ethcore::block_queue::BlockQueueInfo;
@@ -5,6 +21,7 @@ use ethcore::header::{Header as BlockHeader, BlockNumber};
 use ethcore::error::*;
 use io::SyncIo;
 use chain::{ChainSync};
+use ethcore::receipt::Receipt;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
@@ -15,7 +32,7 @@ pub struct TestBlockChainClient {
 }
 
 impl TestBlockChainClient {
-	fn new() -> TestBlockChainClient {
+	pub fn new() -> TestBlockChainClient {
 
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
@@ -116,11 +133,28 @@ impl BlockChainClient for TestBlockChainClient {
 		})
 	}
 
-	fn state_data(&self, _h: &H256) -> Option<Bytes> {
+	// TODO: returns just hashes instead of node state rlp(?)
+	fn state_data(&self, hash: &H256) -> Option<Bytes> {
+		// starts with 'f' ?
+		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
+			let mut rlp = RlpStream::new();
+			rlp.append(&hash.clone());
+			return Some(rlp.out());
+		}
 		None
 	}
 
-	fn block_receipts(&self, _h: &H256) -> Option<Bytes> {
+	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+		// starts with 'f' ?
+		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
+			let receipt = Receipt::new(
+				H256::zero(),
+				U256::zero(),
+				vec![]);
+			let mut rlp = RlpStream::new();
+			rlp.append(&receipt);
+			return Some(rlp.out());
+		}
 		None
 	}
 
@@ -196,7 +230,7 @@ pub struct TestIo<'p> {
 }
 
 impl<'p> TestIo<'p> {
-	fn new(chain: &'p mut TestBlockChainClient, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
+	pub fn new(chain: &'p mut TestBlockChainClient, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
 		TestIo {
 			chain: chain,
 			queue: queue,

@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 //! Blockchain block.
 
 #![allow(ptr_arg)] // Because of &LastHashes -> &Vec<_>
@@ -14,7 +30,7 @@ pub struct Block {
 	/// The header of this block.
 	pub header: Header,
 	/// The transactions in this block.
-	pub transactions: Vec<Transaction>,
+	pub transactions: Vec<SignedTransaction>,
 	/// The uncles of this block.
 	pub uncles: Vec<Header>,
 }
@@ -62,7 +78,7 @@ impl Decodable for Block {
 /// Internal type for a block's common elements.
 // TODO: rename to ExecutedBlock
 // TODO: use BareBlock
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ExecutedBlock {
 	base: Block,
 
@@ -76,7 +92,7 @@ pub struct BlockRefMut<'a> {
 	/// Block header.
 	pub header: &'a Header,
 	/// Block transactions.
-	pub transactions: &'a Vec<Transaction>,
+	pub transactions: &'a Vec<SignedTransaction>,
 	/// Block uncles.
 	pub uncles: &'a Vec<Header>,
 	/// Transaction receipts.
@@ -113,7 +129,7 @@ pub trait IsBlock {
 	fn state(&self) -> &State { &self.block().state }
 
 	/// Get all information on transactions in this block.
-	fn transactions(&self) -> &Vec<Transaction> { &self.block().base.transactions }
+	fn transactions(&self) -> &Vec<SignedTransaction> { &self.block().base.transactions }
 
 	/// Get all information on receipts in this block.
 	fn receipts(&self) -> &Vec<Receipt> { &self.block().receipts }
@@ -228,7 +244,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
-	pub fn push_transaction(&mut self, t: Transaction, h: Option<H256>) -> Result<&Receipt, Error> {
+	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
 		let env_info = self.env_info();
 //		info!("env_info says gas_used={}", env_info.gas_used);
 		match self.block.state.apply(&env_info, self.engine, &t) {
@@ -316,10 +332,12 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-pub fn enact<'x, 'y>(header: &Header, transactions: &[Transaction], uncles: &[Header], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
+pub fn enact<'x, 'y>(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes) -> Result<ClosedBlock<'x, 'y>, Error> {
 	{
-		let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
-		trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
+		if ::log::max_log_level() >= ::log::LogLevel::Trace {
+			let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
+			trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
+		}
 	}
 
 	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author().clone(), header.extra_data().clone());
@@ -363,10 +381,10 @@ mod tests {
 		let engine = Spec::new_test().to_engine().unwrap();
 		let genesis_header = engine.spec().genesis_header();
 		let mut db_result = get_temp_journal_db();
-		let db = db_result.reference_mut();
-		engine.spec().ensure_db_good(db);
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(&mut db);
 		let last_hashes = vec![genesis_header.hash()];
-		let b = OpenBlock::new(engine.deref(), db.clone(), &genesis_header, &last_hashes, Address::zero(), vec![]);
+		let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
 		let b = b.close();
 		let _ = b.seal(vec![]);
 	}
@@ -378,16 +396,16 @@ mod tests {
 		let genesis_header = engine.spec().genesis_header();
 
 		let mut db_result = get_temp_journal_db();
-		let db = db_result.reference_mut();
-		engine.spec().ensure_db_good(db);
-		let b = OpenBlock::new(engine.deref(), db.clone(), &genesis_header, &vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(vec![]).unwrap();
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(&mut db);
+		let b = OpenBlock::new(engine.deref(), db, &genesis_header, &vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 
 		let mut db_result = get_temp_journal_db();
-		let db = db_result.reference_mut();
-		engine.spec().ensure_db_good(db);
-		let e = enact_and_seal(&orig_bytes, engine.deref(), db.clone(), &genesis_header, &vec![genesis_header.hash()]).unwrap();
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(&mut db);
+		let e = enact_and_seal(&orig_bytes, engine.deref(), db, &genesis_header, &vec![genesis_header.hash()]).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 

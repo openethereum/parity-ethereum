@@ -1,9 +1,26 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 //! Parameters for a block chain.
 
 use common::*;
 use engine::*;
 use pod_state::*;
 use null_engine::*;
+use account_db::*;
 
 /// Convert JSON value to equivalent RLP representation.
 // TODO: handle container types.
@@ -262,8 +279,8 @@ impl Spec {
 					t.insert(address.as_slice(), &account.rlp());
 				}
 			}
-			for (_, account) in self.genesis_state.get().iter() {
-				account.insert_additional(db);
+			for (address, account) in self.genesis_state.get().iter() {
+				account.insert_additional(&mut AccountDBMut::new(db, address));
 			}
 			assert!(db.contains(&self.state_root()));
 			true

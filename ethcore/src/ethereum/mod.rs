@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 //! Ethereum protocol module.
 //!
 //! Contains all Ethereum network specific stuff, such as denominations and
@@ -44,9 +60,9 @@ mod tests {
 		let engine = new_morden().to_engine().unwrap();
 		let genesis_header = engine.spec().genesis_header();
 		let mut db_result = get_temp_journal_db();
-		let mut db = db_result.reference_mut();
-		engine.spec().ensure_db_good(db);
-		let s = State::from_existing(db.clone(), genesis_header.state_root.clone(), engine.account_start_nonce());
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(&mut db);
+		let s = State::from_existing(db, genesis_header.state_root.clone(), engine.account_start_nonce());
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000001")), U256::from(1u64));
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000002")), U256::from(1u64));
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000003")), U256::from(1u64));

@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use super::test_common::*;
 use evm;
 
@@ -6,7 +22,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let mut failed = Vec::new();
 	let old_schedule = evm::Schedule::new_frontier();
 	let new_schedule = evm::Schedule::new_homestead();
-	let ot = RefCell::new(Transaction::new());
+	let ot = RefCell::new(None);
 	for (name, test) in json.as_object().unwrap() {
 		let mut fail = false;
 		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.clone()); println!("Transaction: {:?}", ot.borrow()); fail = true };
@@ -15,7 +31,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			.and_then(|s| BlockNumber::from_str(s).ok())
 			.unwrap_or(0) { x if x < 1_000_000 => &old_schedule, _ => &new_schedule };
 		let rlp = Bytes::from_json(&test["rlp"]);
-		let res = UntrustedRlp::new(&rlp).as_val().map_err(From::from).and_then(|t: Transaction| t.validate(schedule, schedule.have_delegate_call));
+		let res = UntrustedRlp::new(&rlp).as_val().map_err(From::from).and_then(|t: SignedTransaction| t.validate(schedule, schedule.have_delegate_call));
 		fail_unless(test.find("transaction").is_none() == res.is_err());
 		if let (Some(&Json::Object(ref tx)), Some(&Json::String(ref expect_sender))) = (test.find("transaction"), test.find("sender")) {
 			let t = res.unwrap();
@@ -26,10 +42,10 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			fail_unless(t.nonce == xjson!(&tx["nonce"]));
 			fail_unless(t.value == xjson!(&tx["value"]));
 			if let Action::Call(ref to) = t.action {
-				*ot.borrow_mut() = t.clone();
+				*ot.borrow_mut() = Some(t.clone());
 				fail_unless(to == &xjson!(&tx["to"]));
 			} else {
-				*ot.borrow_mut() = t.clone();
+				*ot.borrow_mut() = Some(t.clone());
 				fail_unless(Bytes::from_json(&tx["to"]).is_empty());
 			}
 		}

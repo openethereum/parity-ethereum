@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 extern crate ethash;
 
 use self::ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
@@ -154,14 +170,14 @@ impl Engine for Ethash {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &Transaction, header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
 		if header.number() >= self.u64_param("frontierCompatibilityModeLimit") {
 			try!(t.check_low_s());
 		}
 		Ok(())
 	}
 
-	fn verify_transaction(&self, t: &Transaction, _header: &Header) -> Result<(), Error> {
+	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
 }
@@ -232,10 +248,10 @@ fn on_close_block() {
 	let engine = new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
 	let mut db_result = get_temp_journal_db();
-	let mut db = db_result.reference_mut();
-	engine.spec().ensure_db_good(db);
+	let mut db = db_result.take();
+	engine.spec().ensure_db_good(&mut db);
 	let last_hashes = vec![genesis_header.hash()];
-	let b = OpenBlock::new(engine.deref(), db.clone(), &genesis_header, &last_hashes, Address::zero(), vec![]);
+	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
 	let b = b.close();
 	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 }
@@ -246,10 +262,10 @@ fn on_close_block_with_uncle() {
 	let engine = new_morden().to_engine().unwrap();
 	let genesis_header = engine.spec().genesis_header();
 	let mut db_result = get_temp_journal_db();
-	let mut db = db_result.reference_mut();
-	engine.spec().ensure_db_good(db);
+	let mut db = db_result.take();
+	engine.spec().ensure_db_good(&mut db);
 	let last_hashes = vec![genesis_header.hash()];
-	let mut b = OpenBlock::new(engine.deref(), db.clone(), &genesis_header, &last_hashes, Address::zero(), vec![]);
+	let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
 	let mut uncle = Header::new();
 	let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 	uncle.author = uncle_author.clone();
