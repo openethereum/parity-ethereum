@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-
-
 PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_0.9.0-0_amd64.deb
+
 
 function run_installer()
 {
@@ -12,8 +11,7 @@ function run_installer()
 	HOMEBREW_CACHE=/Library/Caches/Homebrew
 	HOMEBREW_REPO=https://github.com/Homebrew/homebrew
 	OSX_REQUIERED_VERSION="10.7.0"
-
-
+	
 	declare OS_TYPE
 	declare OSX_VERSION
 	declare GIT_PATH
@@ -26,13 +24,11 @@ function run_installer()
 	isGit=false
 	isRuby=false
 	isBrew=false
-	isDocker=false
 	canContinue=true
 	depCount=0
 	depFound=0
 
-
-
+	
 	####### Setup colors
 
 	red=`tput setaf 1`
@@ -119,7 +115,10 @@ function run_installer()
 		done
 	}
 	
-
+	function exe() {
+		echo "\$ $@"; "$@"
+	}
+	
 	function detectOS() {
 		if [[ "$OSTYPE" == "linux-gnu" ]]
 		then
@@ -155,14 +154,6 @@ function run_installer()
 		fi
 	}
 
-	function get_osx_dependencies()
-	{
-		macos_version
-		find_git
-		find_ruby
-		find_brew
-	}
-
 	function macos_version()
 	{
 		declare -a reqVersion
@@ -196,57 +187,46 @@ function run_installer()
 		errorMessages+="${red}==>${reset} ${b}Mac OS version too old:${reset} eth requires OS X version ${red}$OSX_REQUIERED_VERSION${reset} at least in order to run.\n"
 		errorMessages+="		Please update the OS and reload the install process.\n"
 	}
-
-	function find_eth()
+	
+	function get_osx_dependencies()
 	{
-		ETH_PATH=`which parity 2>/dev/null`
-
-		if [[ -f $ETH_PATH ]]
-		then
-			check "Found parity: $ETH_PATH"
-			isEth=true
+		macos_version
+		find_git
+		find_ruby
+		find_brew
+	}
+	
+	function linux_version()
+	{
+		source /etc/lsb-release
+		
+		if [[ $DISTRIB_ID == "Ubuntu" ]]; then
+			if [[ $DISTRIB_RELEASE == "14.04" ]]; then
+				check "Ubuntu-14.04"
+				isUbuntu1404=true
+			else
+				check "Ubuntu, but not 14.04"
+				isUbuntu1404=false
+			fi
 		else
-			uncheck "parity is missing"
-			isEth=false
+			check "Ubuntu not found"
+			isUbuntu1404=false
 		fi
 	}
 
-	function find_git()
+	function get_linux_dependencies()
 	{
-		depCount=$((depCount+1))
+		linux_version
 
-		GIT_PATH=`which git 2>/dev/null`
+		find_multirust
+		find_rocksdb
 
-		if [[ -f $GIT_PATH ]]
-		then
-			check "$($GIT_PATH --version)"
-			isGit=true
-			depFound=$((depFound+1))
-		else
-			uncheck "Git is missing"
-			isGit=false
-		fi
-	}
+		find_curl
+		find_git
+		find_make
+		find_gcc
 
-	function find_ruby()
-	{
-		depCount=$((depCount+1))
-
-		RUBY_PATH=`which ruby 2>/dev/null`
-
-		if [[ -f $RUBY_PATH ]]
-		then
-			RUBY_VERSION=`ruby -e "print RUBY_VERSION"`
-			check "Ruby ${RUBY_VERSION}"
-			isRuby=true
-			depFound=$((depFound+1))
-		else
-			uncheck "Ruby is missing 🔥"
-			isRuby=false
-			canContinue=false
-			errorMessages+="${red}==>${reset} ${b}Couldn't find Ruby:${reset} Brew requires Ruby which could not be found.\n"
-			errorMessages+="		Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.\n"
-		fi
+		find_apt
 	}
 
 	function find_brew()
@@ -270,60 +250,277 @@ function run_installer()
 
 		depCount=$((depCount+1))
 	}
-
-	function install_brew()
+	
+	function find_ruby()
 	{
-		if [[ $isBrew == false ]]
+		depCount=$((depCount+1))
+
+		RUBY_PATH=`which ruby 2>/dev/null`
+
+		if [[ -f $RUBY_PATH ]]
 		then
-			head "Installing Homebrew"
+			RUBY_VERSION=`ruby -e "print RUBY_VERSION"`
+			check "Ruby ${RUBY_VERSION}"
+			isRuby=true
+			depFound=$((depFound+1))
+		else
+			uncheck "Ruby is missing 🔥"
+			isRuby=false
+			canContinue=false
+			errorMessages+="${red}==>${reset} ${b}Couldn't find Ruby:${reset} Brew requires Ruby which could not be found.\n"
+			errorMessages+="		Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.\n"
+		fi
+	}
+	
+	function find_rocksdb()
+	{
+		depCount=$((depCount+1))
+		if [[ $(ldconfig -v 2>/dev/null | grep rocksdb | wc -l) == 1 ]]; then
+			depFound=$((depFound+1))
+			check "librocksdb"
+			isRocksDB=true
+		else
+			uncheck "librocksdb is missing"
+			isRocksDB=false
+			INSTALL_FILES+="${blue}${dim}==>${reset}\tlibrocksdb\n"
+		fi
+	}
 
-			if [[ $isRuby == true ]]
-			then
-				ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+	function find_multirust()
+	{
+		depCount=$((depCount+2))
+		MULTIRUST_PATH=`which multirust 2>/dev/null`
+		if [[ -f $MULTIRUST_PATH ]]; then
+			depFound=$((depFound+1))
+			check "multirust"
+			isMultirust=true
+			if [[ $(multirust show-default 2>/dev/null | grep nightly | wc -l) == 4 ]]; then
+				depFound=$((depFound+1))
+				check "rust nightly"
+				isMultirustNightly=true
 			else
-				cd /usr
-
-				if [[ ! -d $HOMEBREW_PREFIX ]]
-				then
-					sudo mkdir $HOMEBREW_PREFIX
-					sudo chmod g+rwx $HOMEBREW_PREFIX
-				fi
-
-				if [[ ! -d $HOMEBREW_CACHE ]]
-				then
-					sudo mkdir $HOMEBREW_CACHE
-					sudo chmod g+rwx $HOMEBREW_CACHE
-				fi
-
-				DEVELOPER_DIR=`/usr/bin/xcode-select -print-path 2>/dev/null`
-
-				if [[ ! $(ls -A $DEVELOPER_DIR) || ! -f $DEVELOPER_DIR/usr/bin/git ]]
-				then
-					info "Installing the Command Line Tools (expect a GUI popup):"
-					sudo /usr/bin/xcode-select --install
-
-					echo "Press any key when the installation has completed"
-				fi
-
-				cd $HOMEBREW_PREFIX
-
-				bash -o pipefail -c "curl -fsSL ${HOMEBREW_REPO}/tarball/master | tar xz -m --strip 1"
+				uncheck "rust is not nightly"
+				isMultirustNightly=false
+				INSTALL_FILES+="${blue}${dim}==>${reset}\tmultirust -> rust nightly\n"
 			fi
+		else
+			uncheck "multirust is missing"
+			uncheck "rust nightly is missing"
+			isMultirust=false
+			isMultirustNightly=false
+			INSTALL_FILES+="${blue}${dim}==>${reset}\tmultirust\n"
+		fi
+	}
 
-			find_brew
-			echo
+	function find_apt()
+	{
+		depCount=$((depCount+1))
 
-			if [[ $isBrew == false ]]
-			then
-				abortInstall "Couldn't install brew"
+		APT_PATH=`which apt-get 2>/dev/null`
+
+		if [[ -f $APT_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "apt-get"
+			isApt=true
+		else
+			uncheck "apt-get is missing"
+			isApt=false
+
+			if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
+				canContinue=false
+				errorMessages+="${red}==>${reset} ${b}Couldn't find apt-get:${reset} We can only use apt-get in order to grab our dependencies.\n"
+				errorMessages+="		Please switch to a distribution such as Debian or Ubuntu or manually install the missing packages.\n"
 			fi
 		fi
 	}
 
+	function find_gcc()
+	{
+		depCount=$((depCount+1))
+		GCC_PATH=`which g++ 2>/dev/null`
+
+		if [[ -f $GCC_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "g++"
+			isGCC=true
+		else
+			uncheck "g++ is missing"
+			isGCC=false
+			INSTALL_FILES+="${blue}${dim}==>${reset}\tg++\n"
+		fi
+	}
+
+	function find_git()
+	{
+		depCount=$((depCount+1))
+		GIT_PATH=`which git 2>/dev/null`
+
+		if [[ -f $GIT_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "git"
+			isGit=true
+		else
+			uncheck "git is missing"
+			isGit=false
+			INSTALL_FILES+="${blue}${dim}==>${reset}\tgit\n"
+		fi
+	}
+
+	function find_make()
+	{
+		depCount=$((depCount+1))
+		MAKE_PATH=`which make 2>/dev/null`
+
+		if [[ -f $MAKE_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "make"
+			isMake=true
+		else
+			uncheck "make is missing"
+			isMake=false
+			INSTALL_FILES+="${blue}${dim}==>${reset}\tmake\n"
+		fi
+	}
+
+	function find_curl()
+	{
+		depCount=$((depCount+1))
+		CURL_PATH=`which curl 2>/dev/null`
+
+		if [[ -f $CURL_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "curl"
+			isCurl=true
+		else
+			uncheck "curl is missing"
+			isCurl=false
+			INSTALL_FILES+="${blue}${dim}==>${reset}\tcurl\n"
+		fi
+	}
+
+	function ubuntu1404_rocksdb_installer()
+	{
+		sudo apt-get update -qq
+		sudo apt-get install -qq -y software-properties-common
+		sudo apt-add-repository -y ppa:giskou/librocksdb
+		sudo apt-get -f -y install
+		sudo apt-get update -qq
+		sudo apt-get install -qq -y librocksdb
+	}
+
+	function linux_rocksdb_installer()
+	{
+		if [[ $isUbuntu1404 == true ]]; then
+			ubuntu1404_rocksdb_installer
+		else
+			oldpwd=`pwd`
+			cd /tmp
+			exe git clone --branch v4.2 --depth=1 https://github.com/facebook/rocksdb.git
+			cd rocksdb
+			exe make shared_lib
+			sudo cp -a librocksdb.so* /usr/lib
+			sudo ldconfig
+			cd /tmp
+			rm -rf /tmp/rocksdb
+			cd $oldpwd
+		fi
+	}
+
+
+
+	function verify_installation()
+	{
+		ETH_PATH=`which parity 2>/dev/null`
+
+		if [[ -f $ETH_PATH ]]
+		then
+			success "Parity has been installed"
+		else
+			error "Parity is missing"
+			abortInstall
+		fi
+	}
+	
+	function verify_dep_installation()
+	{
+		info "Verifying installation"
+
+		if [[ $OS_TYPE == "linux" ]]; then
+			find_curl
+			find_git
+			find_make
+			find_gcc
+			find_rocksdb
+			find_multirust
+
+			if [[ $isCurl == false || $isGit == false || $isMake == false || $isGCC == false || $isRocksDB == false || $isMultirustNightly == false ]]; then
+				abortInstall
+			fi
+		fi
+	}
+	
+	function linux_deps_installer()
+	{
+		if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
+			info "Installing build dependencies..."
+			sudo apt-get update -qq
+			if [[ $isGit == false ]]; then
+				sudo apt-get install -q -y git
+			fi
+			if [[ $isGCC == false ]]; then
+				sudo apt-get install -q -y g++ gcc
+			fi
+			if [[ $isMake == false ]]; then
+				sudo apt-get install -q -y make
+			fi
+			if [[ $isCurl == false ]]; then
+				sudo apt-get install -q -y curl
+			fi
+			echo
+		fi
+
+		if [[ $isRocksDB == false ]]; then
+			info "Installing rocksdb..."
+			linux_rocksdb_installer
+			echo
+		fi
+
+		if [[ $isMultirust == false ]]; then
+			info "Installing multirust..."
+			curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
+			echo
+		fi
+
+		if [[ $isMultirustNightly == false ]]; then
+			info "Installing rust nightly..."
+			sudo multirust update nightly
+			sudo multirust default nightly
+			echo
+		fi
+
+	}
+	
+	function linux_installer()
+	{
+		linux_deps_installer
+		verify_dep_installation
+
+		info "Installing parity"
+		file=/tmp/parity.deb
+
+		wget $PARITY_DEB_URL -qO $file
+		sudo dpkg -i $file
+		rm $file
+	}
+
+	
 	function osx_installer()
 	{
-		osx_dependency_installer
-
 		info "Adding ethcore repository"
 		brew tap ethcore/ethcore https://github.com/ethcore/homebrew-ethcore.git
 		echo
@@ -342,105 +539,66 @@ function run_installer()
 		fi
 		echo
 	}
-
-	function osx_dependency_installer()
+	
+	function install()
 	{
-		if [[ $isGit == false ]];
-		then
-			echo "Installing Git"
-		fi
-
-		if [[ $isRuby == false ]];
-		then
-			echo "Installing Ruby"
-		fi
-
-		if [[ $isBrew == false ]];
-		then
-			install_brew
-		fi
-	}
-
-	function get_linux_dependencies()
-	{
-		find_apt
-		find_docker
-	}
-
-	function find_apt()
-	{
-		APT_PATH=`which apt-get 2>/dev/null`
-
-		if [[ -f $APT_PATH ]]
-		then
-			check "apt-get"
-			echo "$($APT_PATH -v)"
-			isApt=true
-		else
-			uncheck "apt-get is missing"
-			isApt=false
-		fi
-	}
-
-	function find_docker()
-	{
-		DOCKER_PATH=`which docker 2>/dev/null`
-
-		if [[ -f $DOCKER_PATH ]]
-		then
-			check "docker"
-			echo "$($DOCKER_PATH -v)"
-			isDocker=true
-		else
-			isDocker=false
-		fi
-	}
-	function linux_rocksdb_installer()
-	{
-		sudo add-apt-repository -y ppa:giskou/librocksdb
-		sudo apt-get -f -y install
-		sudo apt-get update
-		sudo apt-get install -y librocksdb
-	}
-
-	function linux_installer()
-	{
-		info "Installing dependencies"
-		sudo apt-get update && sudo apt-get install -q -y git curl g++ wget
 		echo
+		head "Installing Parity build dependencies"
 
-		info "Installing rocksdb"
-		linux_rocksdb_installer
-		echo
+		if [[ $OS_TYPE == "osx" ]]
+		then
+			osx_installer
+		elif [[ $OS_TYPE == "linux" ]]
+		then
+			linux_installer
+		fi
 
-		info "Installing parity"
-		file=/tmp/parity.deb
-
-		
-		wget $PARITY_DEB_URL -qO $file
-		sudo dpkg -i $file
-		rm $file
+		verify_installation
 	}
 
+	
 	function install_netstats()
 	{
-		echo "install netstats"
-
-		if [[ $isDocker == false ]]
-		then
-			info "installing docker"
-			curl -sSL https://get.docker.com/ | sh
-		fi
-
-		dir=$HOME/.netstats
+		echo "Installing netstats"
 
 		secret=$(prompt_for_input "Please enter the netstats secret:")
 		instance_name=$(prompt_for_input "Please enter your instance name:")
 		contact_details=$(prompt_for_input "Please enter your contact details (optional):")
-		
 
-		mkdir -p $dir
-		cat > $dir/app.json << EOL
+		curl -sL https://deb.nodesource.com/setup_0.12 | bash -
+		sudo apt-get update
+		
+		# install ethereum & install dependencies
+		sudo apt-get install -y -qq build-essential git unzip wget nodejs ntp cloud-utils
+
+		sudo apt-get install -y -qq npm
+
+		# add node symlink if it doesn't exist
+		[[ ! -f /usr/bin/node ]] && sudo ln -s /usr/bin/nodejs /usr/bin/node
+
+		# set up time update cronjob
+		sudo bash -c "cat > /etc/cron.hourly/ntpdate << EOF
+		#!/bin/sh
+		pm2 flush
+		sudo service ntp stop
+		sudo ntpdate -s ntp.ubuntu.com
+		sudo service ntp start
+		EOF"
+
+		sudo chmod 755 /etc/cron.hourly/ntpdate
+
+		cd $HOME
+
+		[ ! -d "www" ] && git clone https://github.com/cubedro/eth-net-intelligence-api netstats
+		oldpwd= $(pwd)
+		cd netstats
+		git pull
+		git checkout 95d595258239a0fdf56b97dedcfb2be62f6170e6
+
+		sudo npm install
+		sudo npm install pm2 -g
+
+		cat > app.json << EOL
 [
 	{
 		"name"							: "node-app",
@@ -468,35 +626,10 @@ function run_installer()
 ]
 EOL
 
-		sudo docker rm --force netstats-client 2> /dev/null
-		sudo docker pull ethcore/netstats-client
-		sudo docker run -d --net=host --name netstats-client -v $dir/app.json:/home/ethnetintel/eth-net-intelligence-api/app.json	 ethcore/netstats-client 
+		pm2 startOrRestart app.json
+		cd $oldpwd
 	}
-
-	function install()
-	{
-		echo
-		head "Installing Parity build dependencies"
-
-		if [[ $OS_TYPE == "osx" ]]
-		then
-			osx_installer
-		elif [[ $OS_TYPE == "linux" ]]
-		then
-			linux_installer
-		fi
-	}
-
-	function verify_installation()
-	{
-		info "Verifying installation"
-		find_eth
-
-		if [[ $isEth == false ]]
-		then
-			abortInstall
-		fi
-	}
+	
 
 	function abortInstall()
 	{
@@ -510,32 +643,37 @@ EOL
 	function finish()
 	{
 		echo
-		successHeading "Installation successful!"
+		successHeading "All done"
 		#		head "Next steps"
 		#		info "Run ${cyan}\`\`${reset} to get started.${reset}"
 		echo
 		exit 0
 	}
 
-	# Check dependencies
 	head "Checking OS dependencies"
 	detectOS
 
-	echo
-	head "In addition to the parity build dependencies, this script will install:"
-	echo "$INSTALL_FILES"
-	echo
-
-	# Prompt user to continue or abort
-	if wait_for_user "${b}OK,${reset} let's go!"
-	then
-		echo "Installing..."
-	else
-		abortInstall "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again."
+	if [[ $INSTALL_FILES != "" ]]; then
+		echo
+		head "In addition to the Parity build dependencies, this script will install:"
+		printf "$INSTALL_FILES"
+		echo
 	fi
 
-	# Install dependencies and eth
-	install
+	#DEBUG
+
+	
+	head "${b}OK,${reset} let's install Parity now!"
+	if wait_for_user "${b}Last chance!${reset} Sure you want to install this software?"
+	then
+		install	
+		echo
+		echo
+	else
+		finish
+	fi
+
+	
 
 	if [[ $OS_TYPE == "linux" ]]
 	then
@@ -547,10 +685,8 @@ EOL
 		fi
 	fi
 
-	# Check installation
-	verify_installation
 
-	# Display goodby message
+	# Display goodbye message
 	finish
 }
 
