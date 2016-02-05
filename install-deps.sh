@@ -385,7 +385,6 @@ function run_installer()
 		find_gcc
 
 		find_apt
-		find_docker
 	}
 
 	function find_rocksdb()
@@ -516,23 +515,6 @@ function run_installer()
 			uncheck "curl is missing"
 			isCurl=false
 			INSTALL_FILES+="${blue}${dim}==> curl:${reset}\n"
-		fi
-	}
-
-	function find_docker()
-	{
-		depCount=$((depCount+1))
-		DOCKER_PATH=`which docker 2>/dev/null`
-
-		if [[ -f $DOCKER_PATH ]]
-		then
-			depFound=$((depFound+1))
-			check "docker"
-			echo "$($DOCKER_PATH -v)"
-			isDocker=true
-		else
-			isDocker=false
-			uncheck "docker is missing"
 		fi
 	}
 
