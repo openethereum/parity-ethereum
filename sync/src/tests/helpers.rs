@@ -4,18 +4,19 @@ use ethcore::block_queue::BlockQueueInfo;
 use ethcore::header::{Header as BlockHeader, BlockNumber};
 use ethcore::error::*;
 use io::SyncIo;
-use chain::{ChainSync, SyncState};
+use chain::{ChainSync};
+use ethcore::receipt::Receipt;
 
-struct TestBlockChainClient {
-	blocks: RwLock<HashMap<H256, Bytes>>,
- 	numbers: RwLock<HashMap<usize, H256>>,
-	genesis_hash: H256,
-	last_hash: RwLock<H256>,
-	difficulty: RwLock<U256>,
+pub struct TestBlockChainClient {
+	pub blocks: RwLock<HashMap<H256, Bytes>>,
+ 	pub numbers: RwLock<HashMap<usize, H256>>,
+	pub genesis_hash: H256,
+	pub last_hash: RwLock<H256>,
+	pub difficulty: RwLock<U256>,
 }
 
 impl TestBlockChainClient {
-	fn new() -> TestBlockChainClient {
+	pub fn new() -> TestBlockChainClient {
 
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
@@ -116,11 +117,28 @@ impl BlockChainClient for TestBlockChainClient {
 		})
 	}
 
-	fn state_data(&self, _h: &H256) -> Option<Bytes> {
+	// TODO: returns just hashes instead of node state rlp(?)
+	fn state_data(&self, hash: &H256) -> Option<Bytes> {
+		// starts with 'f' ?
+		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
+			let mut rlp = RlpStream::new();
+			rlp.append(&hash.clone());
+			return Some(rlp.out());
+		}
 		None
 	}
 
-	fn block_receipts(&self, _h: &H256) -> Option<Bytes> {
+	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+		// starts with 'f' ?
+		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
+			let receipt = Receipt::new(
+				H256::zero(),
+				U256::zero(),
+				vec![]);
+			let mut rlp = RlpStream::new();
+			rlp.append(&receipt);
+			return Some(rlp.out());
+		}
 		None
 	}
 
@@ -189,14 +207,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 }
 
-struct TestIo<'p> {
-	chain: &'p mut TestBlockChainClient,
-	queue: &'p mut VecDeque<TestPacket>,
-	sender: Option<PeerId>,
+pub struct TestIo<'p> {
+	pub chain: &'p mut TestBlockChainClient,
+	pub queue: &'p mut VecDeque<TestPacket>,
+	pub sender: Option<PeerId>,
 }
 
 impl<'p> TestIo<'p> {
-	fn new(chain: &'p mut TestBlockChainClient, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
+	pub fn new(chain: &'p mut TestBlockChainClient, queue: &'p mut VecDeque<TestPacket>, sender: Option<PeerId>) -> TestIo<'p> {
 		TestIo {
 			chain: chain,
 			queue: queue,
@@ -235,21 +253,21 @@ impl<'p> SyncIo for TestIo<'p> {
 	}
 }
 
-struct TestPacket {
-	data: Bytes,
-	packet_id: PacketId,
-	recipient: PeerId,
+pub struct TestPacket {
+	pub data: Bytes,
+	pub packet_id: PacketId,
+	pub recipient: PeerId,
 }
 
-struct TestPeer {
-	chain: TestBlockChainClient,
-	sync: ChainSync,
-	queue: VecDeque<TestPacket>,
+pub struct TestPeer {
+	pub chain: TestBlockChainClient,
+	pub sync: ChainSync,
+	pub queue: VecDeque<TestPacket>,
 }
 
-struct TestNet {
-	peers: Vec<TestPeer>,
-	started: bool,
+pub struct TestNet {
+	pub peers: Vec<TestPeer>,
+	pub started: bool,
 }
 
 impl TestNet {
@@ -328,90 +346,4 @@ impl TestNet {
 	pub fn done(&self) -> bool {
 		self.peers.iter().all(|p| p.queue.is_empty())
 	}
-}
-
-#[test]
-fn chain_two_peers() {
-	::env_logger::init().ok();
-	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(1000, false);
-	net.peer_mut(2).chain.add_blocks(1000, false);
-	net.sync();
-	assert!(net.peer(0).chain.block_at(1000).is_some());
-	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
-}
-
-#[test]
-fn chain_status_after_sync() {
-	::env_logger::init().ok();
-	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(1000, false);
-	net.peer_mut(2).chain.add_blocks(1000, false);
-	net.sync();
-	let status = net.peer(0).sync.status();
-	assert_eq!(status.state, SyncState::Idle);
-}
-
-#[test]
-fn chain_takes_few_steps() {
-	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(100, false);
-	net.peer_mut(2).chain.add_blocks(100, false);
-	let total_steps = net.sync();
-	assert!(total_steps < 7);
-}
-
-#[test]
-fn chain_empty_blocks() {
-	::env_logger::init().ok();
-	let mut net = TestNet::new(3);
-	for n in 0..200 {
-		net.peer_mut(1).chain.add_blocks(5, n % 2 == 0);
-		net.peer_mut(2).chain.add_blocks(5, n % 2 == 0);
-	}
-	net.sync();
-	assert!(net.peer(0).chain.block_at(1000).is_some());
-	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
-}
-
-#[test]
-fn chain_forked() {
-	::env_logger::init().ok();
-	let mut net = TestNet::new(3);
-	net.peer_mut(0).chain.add_blocks(300, false);
-	net.peer_mut(1).chain.add_blocks(300, false);
-	net.peer_mut(2).chain.add_blocks(300, false);
-	net.peer_mut(0).chain.add_blocks(100, true); //fork
-	net.peer_mut(1).chain.add_blocks(200, false);
-	net.peer_mut(2).chain.add_blocks(200, false);
-	net.peer_mut(1).chain.add_blocks(100, false); //fork between 1 and 2
-	net.peer_mut(2).chain.add_blocks(10, true);
-	// peer 1 has the best chain of 601 blocks
-	let peer1_chain = net.peer(1).chain.numbers.read().unwrap().clone();
-	net.sync();
-	assert_eq!(net.peer(0).chain.numbers.read().unwrap().deref(), &peer1_chain);
-	assert_eq!(net.peer(1).chain.numbers.read().unwrap().deref(), &peer1_chain);
-	assert_eq!(net.peer(2).chain.numbers.read().unwrap().deref(), &peer1_chain);
-}
-
-#[test]
-fn chain_restart() {
-	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(1000, false);
-	net.peer_mut(2).chain.add_blocks(1000, false);
-
-	net.sync_steps(8);
-
-	// make sure that sync has actually happened
-	assert!(net.peer(0).chain.chain_info().best_block_number > 100);
-	net.restart_peer(0);
-
-	let status = net.peer(0).sync.status();
-	assert_eq!(status.state, SyncState::NotSynced);
-}
-
-#[test]
-fn chain_status_empty() {
-	let net = TestNet::new(2);
-	assert_eq!(net.peer(0).sync.status().state, SyncState::NotSynced);
 }

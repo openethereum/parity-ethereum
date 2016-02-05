@@ -105,7 +105,14 @@ function run_installer()
 		done
 	}
 
-
+	function prompt_for_input() {
+		while :
+		do
+			read -p "$1 " imp
+			echo $imp
+			return
+		done
+	}
 
 	function exe() {
 		echo "\$ $@"; "$@"
@@ -347,14 +354,77 @@ function run_installer()
 		fi
 	}
 
+	function linux_version()
+	{
+		source /etc/lsb-release
+		
+		if [[ $DISTRIB_ID == "Ubuntu" ]]; then
+			if [[ $DISTRIB_RELEASE == "14.04" ]]; then
+				check "Ubuntu-14.04"
+				isUbuntu1404=true
+			else
+				check "Ubuntu, but not 14.04"
+				isUbuntu1404=false
+			fi
+		else
+			check "Ubuntu not found"
+			isUbuntu1404=false
+		fi
+	}
+
 	function get_linux_dependencies()
 	{
+		linux_version
+
+		find_multirust
+		find_rocksdb
+
 		find_curl
 		find_git
 		find_make
 		find_gcc
 
 		find_apt
+	}
+
+	function find_rocksdb()
+	{
+		depCount=$((depCount+1))
+		if [[ $(ldconfig -v 2>/dev/null | grep rocksdb | wc -l) == 1 ]]; then
+			depFound=$((depFound+1))
+			check "apt-get"
+			isRocksDB=true
+		else
+			uncheck "librocksdb is missing"
+			isRocksDB=false
+			INSTALL_FILES+="${blue}${dim}==> librocksdb:${reset}\n"
+		fi
+	}
+
+	function find_multirust()
+	{
+		depCount=$((depCount+2))
+		MULTIRUST_PATH=`which multirust 2>/dev/null`
+		if [[ -f $MULTIRUST_PATH ]]; then
+			depFound=$((depFound+1))
+			check "multirust"
+			isMultirust=true
+			if [[ $(multirust show-default 2>/dev/null | grep nightly | wc -l) == 4 ]]; then
+				depFound=$((depFound+1))
+				check "rust nightly"
+				isMultirustNightly=true
+			else
+				uncheck "rust is not nightly"
+				isMultirustNightly=false
+				INSTALL_FILES+="${blue}${dim}==> multirust -> rust nightly:${reset}\n"
+			fi
+		else
+			uncheck "multirust is missing"
+			uncheck "rust nightly is missing"
+			isMultirust=false
+			isMultirustNightly=false
+			INSTALL_FILES+="${blue}${dim}==> multirust:${reset}\n"
+		fi
 	}
 
 	function find_apt()
@@ -367,7 +437,6 @@ function run_installer()
 		then
 			depFound=$((depFound+1))
 			check "apt-get"
-			echo "$($APT_PATH -v)"
 			isApt=true
 		else
 			uncheck "apt-get is missing"
@@ -435,7 +504,7 @@ function run_installer()
 	function find_curl()
 	{
 		depCount=$((depCount+1))
-		MAKE_PATH=`which curl 2>/dev/null`
+		CURL_PATH=`which curl 2>/dev/null`
 
 		if [[ -f $CURL_PATH ]]
 		then
@@ -449,25 +518,39 @@ function run_installer()
 		fi
 	}
 
+	function ubuntu1404_rocksdb_installer()
+	{
+		sudo apt-get update -qq
+		sudo apt-get install -qq -y software-properties-common
+		sudo apt-add-repository -y ppa:giskou/librocksdb
+		sudo apt-get -f -y install
+		sudo apt-get update -qq
+		sudo apt-get install -qq -y librocksdb
+	}
+
 	function linux_rocksdb_installer()
 	{
-		oldpwd=`pwd`
-		cd /tmp
-		exe git clone --branch v4.1 --depth=1 https://github.com/facebook/rocksdb.git
-		cd rocksdb
-		exe make shared_lib
-		sudo cp -a librocksdb.so* /usr/lib
-		sudo ldconfig
-		cd /tmp
-		rm -rf /tmp/rocksdb
-		cd $oldpwd
+		if [[ $isUbuntu1404 == true ]]; then
+			ubuntu1404_rocksdb_installer
+		else
+			oldpwd=`pwd`
+			cd /tmp
+			exe git clone --branch v4.1 --depth=1 https://github.com/facebook/rocksdb.git
+			cd rocksdb
+			exe make shared_lib
+			sudo cp -a librocksdb.so* /usr/lib
+			sudo ldconfig
+			cd /tmp
+			rm -rf /tmp/rocksdb
+			cd $oldpwd
+		fi
 	}
 
 	function linux_installer()
 	{
 		if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
 			info "Installing build dependencies..."
-			sudo apt-get update
+			sudo apt-get update -qq
 			if [[ $isGit == false ]]; then
 				sudo apt-get install -q -y git
 			fi
@@ -483,15 +566,24 @@ function run_installer()
 			echo
 		fi
 
-		info "Installing rocksdb..."
-		linux_rocksdb_installer
-		echo
+		if [[ $isRocksDB == false ]]; then
+			info "Installing rocksdb..."
+			linux_rocksdb_installer
+			echo
+		fi
 
-		info "Installing multirust..."
-		curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-		sudo multirust update nightly
-		sudo multirust default nightly
-		echo
+		if [[ $isMultirust == false ]]; then
+			info "Installing multirust..."
+			curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
+			echo
+		fi
+
+		if [[ $isMultirustNightly == false ]]; then
+			info "Installing rust nightly..."
+			sudo multirust update nightly
+			sudo multirust default nightly
+			echo
+		fi
 	}
 
 	function install()
@@ -511,12 +603,111 @@ function run_installer()
 	function verify_installation()
 	{
 		info "Verifying installation"
-#		find_eth
 
-#		if [[ $isEth == false ]]
-#		then
-#			abortInstall
-#		fi
+		if [[ $OS_TYPE == "linux" ]]; then
+			find_curl
+			find_git
+			find_make
+			find_gcc
+			find_rocksdb
+			find_multirust
+
+			if [[ $isCurl == false || $isGit == false || $isMake == false || $isGCC == false || $isRocksDB == false || $isMultirustNightly == false ]]; then
+				abortInstall
+			fi
+		fi
+	}
+
+	function build_parity()
+	{
+		info "Downloading Parity..."
+		git clone git@github.com:ethcore/parity
+		cd parity
+		git submodule init
+		git submodule update
+		
+		info "Building..."
+		cargo build --release
+
+		cd ..
+
+		echo
+		head "Parity is built!"
+		info "Parity source code is in ${b}$(pwd)/parity${reset}. From that path, you can:"
+		info "- Run a client & sync the chain with:"
+		info "    ${b}cargo run --release${reset}"
+		info "- Run a JSONRPC-capable client (for use with netstats) with:"
+		info "    ${b}cargo run --release -- -j --jsonrpc-url 127.0.0.1:8545${reset}"
+		info "- Run tests with:"
+		info "    ${b}cargo test --release --features ethcore/json-tests -p ethcore${reset}"
+		info "- Install the client with:"
+		info "    ${b}sudo cp target/release/parity /usr/bin${reset}"
+		echo
+	}
+
+	function install_netstats()
+	{
+		echo "Installing netstats"
+
+		secret=$(prompt_for_input "Please enter the netstats secret:")
+		instance_name=$(prompt_for_input "Please enter your instance name:")
+		contact_details=$(prompt_for_input "Please enter your contact details (optional):")
+		
+		# install ethereum & install dependencies
+		sudo apt-get install -y -qq build-essential git unzip wget nodejs npm ntp cloud-utils
+
+		# add node symlink if it doesn't exist
+		[[ ! -f /usr/bin/node ]] && sudo ln -s /usr/bin/nodejs /usr/bin/node
+
+		# set up time update cronjob
+		sudo bash -c "cat > /etc/cron.hourly/ntpdate << EOF
+		#!/bin/sh
+		pm2 flush
+		sudo service ntp stop
+		sudo ntpdate -s ntp.ubuntu.com
+		sudo service ntp start
+		EOF"
+
+		sudo chmod 755 /etc/cron.hourly/ntpdate
+
+		[ ! -d "www" ] && git clone https://github.com/cubedro/eth-net-intelligence-api netstats
+		cd netstats
+		git pull
+		git checkout 95d595258239a0fdf56b97dedcfb2be62f6170e6
+
+		sudo npm install
+		sudo npm install pm2 -g
+
+		cat > app.json << EOL
+[
+	{
+		"name"							: "node-app",
+		"script"						: "app.js",
+		"log_date_format"		: "YYYY-MM-DD HH:mm Z",
+		"merge_logs"				: false,
+		"watch"							: false,
+		"max_restarts"			: 10,
+		"exec_interpreter"	: "node",
+		"exec_mode"					: "fork_mode",
+		"env":
+		{
+			"NODE_ENV"				: "production",
+			"RPC_HOST"				: "localhost",
+			"RPC_PORT"				: "8545",
+			"LISTENING_PORT"	: "30303",
+			"INSTANCE_NAME"		: "${instance_name}",
+			"CONTACT_DETAILS" : "${contact_details}",
+			"WS_SERVER"				: "wss://rpc.ethstats.net",
+			"WS_SECRET"				: "${secret}",
+			"VERBOSITY"				: 2
+		
+		}
+	}
+]
+EOL
+
+		pm2 start app.json
+		cd ..
 	}
 
 	function abortInstall()
@@ -530,13 +721,20 @@ function run_installer()
 
 	function finish()
 	{
-#		echo
-#		successHeading "Installation successful!"
-#		head "Next steps"
-#		info "Run ${cyan}\`\`${reset} to get started.${reset}"
-#		echo
+		echo
+		successHeading "Installation successful!"
+		echo
 		exit 0
 	}
+
+
+	####### Run the script
+	tput clear
+	echo
+	echo
+	echo " ${blue}∷ ${b}${green} WELCOME TO PARITY ${reset} ${blue}∷${reset}"
+	echo
+	echo
 
 	# Check dependencies
 	head "Checking OS dependencies"
@@ -544,7 +742,7 @@ function run_installer()
 
 	if [[ $INSTALL_FILES != "" ]]; then
 		echo
-		head "In addition to the parity build dependencies, this script will install:"
+		head "In addition to the Parity build dependencies, this script will install:"
 		echo "$INSTALL_FILES"
 		echo
 	fi
@@ -557,6 +755,20 @@ function run_installer()
 
 	# Check installation
 	verify_installation
+
+	if [[ ! -e parity ]]; then
+		# Maybe install parity
+		if wait_for_user "${b}Build dependencies installed B-)!${reset} Would you like to download and build parity?"; then
+			# Do get parity.
+			build_parity
+		fi
+	fi
+
+	if [[ $OS_TYPE == "linux" && $DISTRIB_ID == "Ubuntu" ]]; then
+		if wait_for_user "${b}Netstats:${reset} Would you like to install and configure a netstats client?"; then
+			install_netstats
+		fi
+	fi
 
 	# Display goodby message
 	finish

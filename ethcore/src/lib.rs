@@ -83,6 +83,7 @@ pub mod header;
 pub mod service;
 pub mod spec;
 pub mod views;
+pub mod receipt;
 
 mod common;
 mod basic_types;
@@ -98,7 +99,6 @@ mod state;
 mod account;
 mod action_params;
 mod transaction;
-mod receipt;
 mod null_engine;
 mod builtin;
 mod extras;
