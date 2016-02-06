@@ -140,6 +140,6 @@ fn propagade() {
 
 	// 2 peers to sync
 	assert_eq!(2, net.peer(0).queue.len());
-	// NEW_BLOCK_HASHES_PACKET
-	assert_eq!(0x01, net.peer(0).queue[0].packet_id);
+	// NEW_BLOCK_PACKET
+	assert_eq!(0x07, net.peer(0).queue[0].packet_id);
 }
