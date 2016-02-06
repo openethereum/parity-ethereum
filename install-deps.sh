@@ -137,7 +137,7 @@ function run_installer()
 			get_osx_dependencies
 		else
 			OS_TYPE="win"
-			abortInstall "${red}==>${reset} ${b}OS not supported:${reset} parity one-liner currently support OS X and Linux.\nFor instructions on installing parity on other platforms please visit ${u}${blue}http://ethcore.io/${reset}"
+			abortInstall "${red}==>${reset} ${b}OS not supported:${reset} Parity one-liner currently support OS X and Linux.\nFor instructions on installing parity on other platforms please visit ${u}${blue}http://ethcore.io/${reset}"
 		fi
 
 		echo
@@ -392,8 +392,8 @@ function run_installer()
 		find_make
 		find_gcc
 
-		find_sudo
 		find_apt
+		find_sudo
 	}
 
 	function find_rocksdb()
@@ -478,19 +478,25 @@ function run_installer()
 
 	function find_sudo()
 	{
-		if [[ `whoami` == "root" ]]; then
-			isSudo=false
-		else
-			depCount=$((depCount+1))
-			SUDO_PATH=`which sudo 2>/dev/null`
+		depCount=$((depCount+1))
+		SUDO_PATH=`which sudo 2>/dev/null`
 
-			if [[ -f $SUDO_PATH ]]
-			then
-				depFound=$((depFound+1))
-				check "sudo"
-				isSudo=true
+		if [[ -f $SUDO_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "sudo"
+			isSudo=true
+		else
+			uncheck "sudo is missing"
+			if [[ `whoami` == "root" ]]; then
+				if [[ $isApt == false && $isMultirust == false ]]; then
+					canContinue=false
+					errorMessages+="${red}==>${reset} ${b}Couldn't find sudo:${reset} Sudo is needed for the installation of multirust.\n"
+					errorMessages+="    Please ensure you have sudo installed or alternatively install multirust manually.\n"
+				fi
+
+				isSudo=false
 			else
-				uncheck "sudo is missing"
 				canContinue=false
 				errorMessages+="${red}==>${reset} ${b}Couldn't find sudo:${reset} Root access is needed for parts of this installation.\n"
 				errorMessages+="    Please ensure you have sudo installed or alternatively run this script as root.\n"
@@ -605,6 +611,9 @@ function run_installer()
 
 		if [[ $isMultirust == false ]]; then
 			info "Installing multirust..."
+			if [[ $isSudo == false ]]; then
+				apt-get install -q -y sudo
+			fi
 			curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
 			echo
 		fi
