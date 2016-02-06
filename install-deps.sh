@@ -118,6 +118,14 @@ function run_installer()
 		echo "\$ $@"; "$@"
 	}
 
+	function sudo() {
+		if $isSudo; then
+			`which sudo` "$@"
+		else
+			"$@"
+		fi
+	}
+
 	function detectOS() {
 		if [[ "$OSTYPE" == "linux-gnu" ]]
 		then
@@ -359,16 +367,16 @@ function run_installer()
 		source /etc/lsb-release
 		
 		if [[ $DISTRIB_ID == "Ubuntu" ]]; then
-			if [[ $DISTRIB_RELEASE == "14.04" ]]; then
-				check "Ubuntu-14.04"
-				isUbuntu1404=true
+			if [[ $DISTRIB_RELEASE == "14.04" || $DISTRIB_RELEASE == "15.04" || $DISTRIB_RELEASE == "15.10" ]]; then
+				check "Ubuntu"
+				isUbuntu=true
 			else
-				check "Ubuntu, but not 14.04"
-				isUbuntu1404=false
+				check "Ubuntu, but version not supported"
+				isUbuntu=false
 			fi
 		else
 			check "Ubuntu not found"
-			isUbuntu1404=false
+			isUbuntu=false
 		fi
 	}
 
@@ -384,6 +392,7 @@ function run_installer()
 		find_make
 		find_gcc
 
+		find_sudo
 		find_apt
 	}
 
@@ -467,6 +476,28 @@ function run_installer()
 		fi
 	}
 
+	function find_sudo()
+	{
+		if [[ `whoami` == "root" ]]; then
+			isSudo=false
+		else
+			depCount=$((depCount+1))
+			SUDO_PATH=`which sudo 2>/dev/null`
+
+			if [[ -f $SUDO_PATH ]]
+			then
+				depFound=$((depFound+1))
+				check "sudo"
+				isSudo=true
+			else
+				uncheck "sudo is missing"
+				canContinue=false
+				errorMessages+="${red}==>${reset} ${b}Couldn't find sudo:${reset} Root access is needed for parts of this installation.\n"
+				errorMessages+="    Please ensure you have sudo installed or alternatively run this script as root.\n"
+			fi
+		fi
+	}
+
 	function find_git()
 	{
 		depCount=$((depCount+1))
@@ -518,11 +549,11 @@ function run_installer()
 		fi
 	}
 
-	function ubuntu1404_rocksdb_installer()
+	function ubuntu_rocksdb_installer()
 	{
 		sudo apt-get update -qq
 		sudo apt-get install -qq -y software-properties-common
-		sudo apt-add-repository -y ppa:giskou/librocksdb
+		sudo apt-add-repository -y ppa:ethcore/ethcore
 		sudo apt-get -f -y install
 		sudo apt-get update -qq
 		sudo apt-get install -qq -y librocksdb
@@ -530,8 +561,8 @@ function run_installer()
 
 	function linux_rocksdb_installer()
 	{
-		if [[ $isUbuntu1404 == true ]]; then
-			ubuntu1404_rocksdb_installer
+		if [[ $isUbuntu == true ]]; then
+			ubuntu_rocksdb_installer
 		else
 			oldpwd=`pwd`
 			cd /tmp
