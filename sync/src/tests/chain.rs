@@ -126,10 +126,18 @@ fn propagade() {
 	net.peer_mut(1).chain.add_blocks(1000, false);
 	net.peer_mut(2).chain.add_blocks(1000, false);
 	net.sync();
+
+
 	let status = net.peer(0).sync.status();
 	assert_eq!(status.state, SyncState::Idle);
 
 	net.peer_mut(0).chain.add_blocks(10, false);
+	assert_eq!(1010, net.peer(0).chain.chain_info().best_block_number);
+	assert_eq!(1000, net.peer(1).chain.chain_info().best_block_number);
+	assert_eq!(1000, net.peer(2).chain.chain_info().best_block_number);
+
+	assert_eq!(net.peer(0).sync.get_peer_latest_number(1), 1000);
+
 	net.sync_step_peer(0);
 
 	// 2 peers to sync
