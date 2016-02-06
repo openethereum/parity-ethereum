@@ -38,6 +38,8 @@ pub struct BlockQueueInfo {
 	pub verified_queue_size: usize,
 	/// Number of blocks being verified
 	pub verifying_queue_size: usize,
+	/// Indicates queue is empty
+	pub empty: bool
 }
 
 impl BlockQueueInfo {
@@ -285,7 +287,6 @@ impl BlockQueue {
 		for h in hashes {
 			processing.remove(&h);
 		}
-		//TODO: reward peers
 	}
 
 	/// Removes up to `max` verified blocks from the queue
@@ -312,6 +313,7 @@ impl BlockQueue {
 			verified_queue_size: verification.verified.len(),
 			unverified_queue_size: verification.unverified.len(),
 			verifying_queue_size: verification.verifying.len(),
+			empty: verification.verified.is_empty() && verification.unverified.is_empty() && verification.verifying.is_empty(),
 		}
 	}
 }
@@ -392,5 +394,15 @@ mod tests {
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that has already been drained ({:?})", e);
 		}
+	}
+
+	#[test]
+	fn returns_empty_once_finished() {
+		let mut queue = get_test_queue();
+		queue.import_block(get_good_dummy_block()).expect("error importing block that is valid by definition");
+		queue.flush();
+		queue.drain(1);
+
+		assert!(queue.queue_info().empty);
 	}
 }
