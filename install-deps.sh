@@ -805,14 +805,14 @@ EOL
 
 	if [[ ! -e parity ]]; then
 		# Maybe install parity
-		if [[ $(ask_user "${b}Build dependencies installed B-)!${reset} Would you like to download and build parity?") == true ]]; then
+		if [[ $(ask_user "${b}Parity${reset} Would you like to download and build parity?") == true ]]; then
 			# Do get parity.
 			build_parity
 		fi
 	fi
 
 	if [[ $OS_TYPE == "linux" && $DISTRIB_ID == "Ubuntu" ]]; then
-		if [[ $(ask_user "${b}Netstats:${reset} Would you like to install and configure a netstats client?") == true ]]; then
+		if [[ $(ask_user "${b}Netstats${reset} Would you like to download, install and configure a Netstats client?${n}${b}${red}WARNING: ${reset}${red}This will need a secret and reconfigure any existing node/NPM installation you have.${reset} ") == true ]]; then
 			install_netstats
 		fi
 	fi
