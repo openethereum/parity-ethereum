@@ -46,6 +46,7 @@ function run_installer()
 	dim=`tput dim`
 	reverse=`tput rev`
 	reset=`tput sgr0`
+	n=$'\n'
 
 
 	function head() {
@@ -143,7 +144,7 @@ function run_installer()
 			get_osx_dependencies
 		else
 			OS_TYPE="win"
-			abort_install "${red}==>${reset} ${b}OS not supported:${reset} Parity one-liner currently support OS X and Linux.\nFor instructions on installing parity on other platforms please visit ${u}${blue}http://ethcore.io/${reset}"
+			abort_install "${red}==>${reset} ${b}OS not supported:${reset} Parity one-liner currently support OS X and Linux.${n}For instructions on installing parity on other platforms please visit ${u}${blue}http://ethcore.io/${reset}"
 		fi
 
 		echo
@@ -205,8 +206,8 @@ function run_installer()
 			fi
 		fi
 
-		errorMessages+="${red}==>${reset} ${b}Mac OS version too old:${reset} eth requires OS X version ${red}$OSX_REQUIERED_VERSION${reset} at least in order to run.\n"
-		errorMessages+="    Please update the OS and reload the install process.\n"
+		errorMessages+="${red}==>${reset} ${b}Mac OS version too old:${reset} eth requires OS X version ${red}$OSX_REQUIERED_VERSION${reset} at least in order to run.${n}"
+		errorMessages+="    Please update the OS and reload the install process.${n}"
 	}
 
 	function find_eth()
@@ -257,8 +258,8 @@ function run_installer()
 			uncheck "Ruby is missing 🔥"
 			isRuby=false
 			canContinue=false
-			errorMessages+="${red}==>${reset} ${b}Couldn't find Ruby:${reset} Brew requires Ruby which could not be found.\n"
-			errorMessages+="    Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.\n"
+			errorMessages+="${red}==>${reset} ${b}Couldn't find Ruby:${reset} Brew requires Ruby which could not be found.${n}"
+			errorMessages+="    Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.${n}"
 		fi
 	}
 
@@ -275,10 +276,10 @@ function run_installer()
 			uncheck "Homebrew is missing"
 			isBrew=false
 
-			INSTALL_FILES+="${blue}${dim}==> Homebrew:${reset}\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/bin/brew\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/Library\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/share/man/man1/brew.1\n"
+			INSTALL_FILES+="${blue}${dim}==> Homebrew:${reset}${n}"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/bin/brew${n}"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/Library${n}"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}  $HOMEBREW_PREFIX/share/man/man1/brew.1${n}"
 		fi
 
 		depCount=$((depCount+1))
@@ -409,10 +410,11 @@ function run_installer()
 			depFound=$((depFound+1))
 			check "apt-get"
 			isRocksDB=true
+			INSTALL_FILES+="${blue}${dim}==> librocksdb:${reset}$n"
 		else
 			uncheck "librocksdb is missing"
 			isRocksDB=false
-			INSTALL_FILES+="${blue}${dim}==> librocksdb:${reset}\n"
+			INSTALL_FILES+="${blue}${dim}==> librocksdb:${reset}$n"
 		fi
 	}
 
@@ -431,14 +433,14 @@ function run_installer()
 			else
 				uncheck "rust is not nightly"
 				isMultirustNightly=false
-				INSTALL_FILES+="${blue}${dim}==> multirust -> rust nightly:${reset}\n"
+				INSTALL_FILES+="${blue}${dim}==> multirust -> rust nightly:${reset}${n}"
 			fi
 		else
 			uncheck "multirust is missing"
 			uncheck "rust nightly is missing"
 			isMultirust=false
 			isMultirustNightly=false
-			INSTALL_FILES+="${blue}${dim}==> multirust:${reset}\n"
+			INSTALL_FILES+="${blue}${dim}==> multirust:${reset}${n}"
 		fi
 	}
 
@@ -459,8 +461,8 @@ function run_installer()
 
 			if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
 				canContinue=false
-				errorMessages+="${red}==>${reset} ${b}Couldn't find apt-get:${reset} We can only use apt-get in order to grab our dependencies.\n"
-				errorMessages+="    Please switch to a distribution such as Debian or Ubuntu or manually install the missing packages.\n"
+				errorMessages+="${red}==>${reset} ${b}Couldn't find apt-get:${reset} We can only use apt-get in order to grab our dependencies.${n}"
+				errorMessages+="    Please switch to a distribution such as Debian or Ubuntu or manually install the missing packages.${n}"
 			fi
 		fi
 	}
@@ -478,7 +480,7 @@ function run_installer()
 		else
 			uncheck "g++ is missing"
 			isGCC=false
-			INSTALL_FILES+="${blue}${dim}==> g++:${reset}\n"
+			INSTALL_FILES+="${blue}${dim}==> g++:${reset}${n}"
 		fi
 	}
 
@@ -497,15 +499,15 @@ function run_installer()
 			if [[ `whoami` == "root" ]]; then
 				if [[ $isApt == false && $isMultirust == false ]]; then
 					canContinue=false
-					errorMessages+="${red}==>${reset} ${b}Couldn't find sudo:${reset} Sudo is needed for the installation of multirust.\n"
-					errorMessages+="    Please ensure you have sudo installed or alternatively install multirust manually.\n"
+					errorMessages+="${red}==>${reset} ${b}Couldn't find sudo:${reset} Sudo is needed for the installation of multirust.${n}"
+					errorMessages+="    Please ensure you have sudo installed or alternatively install multirust manually.${n}"
 				fi
 
 				isSudo=false
 			else
 				canContinue=false
-				errorMessages+="${red}==>${reset} ${b}Couldn't find sudo:${reset} Root access is needed for parts of this installation.\n"
-				errorMessages+="    Please ensure you have sudo installed or alternatively run this script as root.\n"
+				errorMessages+="${red}==>${reset} ${b}Couldn't find sudo:${reset} Root access is needed for parts of this installation.${n}"
+				errorMessages+="    Please ensure you have sudo installed or alternatively run this script as root.${n}"
 			fi
 		fi
 	}
@@ -523,7 +525,7 @@ function run_installer()
 		else
 			uncheck "git is missing"
 			isGit=false
-			INSTALL_FILES+="${blue}${dim}==> git:${reset}\n"
+			INSTALL_FILES+="${blue}${dim}==> git:${reset}${n}"
 		fi
 	}
 
@@ -540,7 +542,7 @@ function run_installer()
 		else
 			uncheck "make is missing"
 			isMake=false
-			INSTALL_FILES+="${blue}${dim}==> make:${reset}\n"
+			INSTALL_FILES+="${blue}${dim}==> make:${reset}${n}"
 		fi
 	}
 
@@ -557,7 +559,7 @@ function run_installer()
 		else
 			uncheck "curl is missing"
 			isCurl=false
-			INSTALL_FILES+="${blue}${dim}==> curl:${reset}\n"
+			INSTALL_FILES+="${blue}${dim}==> curl:${reset}${n}"
 		fi
 	}
 
