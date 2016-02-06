@@ -1075,6 +1075,10 @@ impl ChainSync {
 		}
 	}
 
+	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
+		chain.block(&chain.chain_info().best_block_hash).unwrap()
+	}
+
 	fn get_lagging_peers(&self, io: &SyncIo) -> Vec<usize> {
 		let chain = io.chain();
 		let chain_info = chain.chain_info();
@@ -1111,6 +1115,19 @@ impl ChainSync {
 		let mut sent = 0;
 		let local_best = io.chain().chain_info().best_block_hash;
 		for peer_id in updated_peers {
+			let rlp = ChainSync::create_latest_block_rlp(io.chain());
+			self.send_request(io, peer_id, PeerAsking::Nothing, NEW_BLOCK_PACKET, rlp);
+			self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer").latest = local_best.clone();
+			sent = sent + 1;
+		}
+		sent
+	}
+
+	fn propagade_new_hashes(&mut self, io: &mut SyncIo) -> usize {
+		let updated_peers = self.get_lagging_peers(io);
+		let mut sent = 0;
+		let local_best = io.chain().chain_info().best_block_hash;
+		for peer_id in updated_peers {
 			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(),
 																 &self.peers.get(&peer_id).expect("ChainSync: unknown peer").latest,
 																 &local_best) {
@@ -1133,8 +1150,11 @@ impl ChainSync {
 		self.check_resume(io);
 
 		if self.state == SyncState::Idle {
-			let blocks_propagaded = self.propagade_blocks(io);
-			trace!(target: "sync", "Sent new blocks to peers: {:?}", blocks_propagaded);
+			let peers = self.propagade_new_hashes(io);
+			trace!(target: "sync", "Sent new hashes to peers: {:?}", peers);
+
+			let peers = self.propagade_blocks(io);
+			trace!(target: "sync", "Sent latest block to peers: {:?}", peers);
 		}
 	}
 }
@@ -1263,7 +1283,25 @@ mod tests {
 	}
 
 	#[test]
-	fn sends_packet_to_lagging_peer() {
+	fn sends_new_hashes_to_lagging_peer() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let peer_count = sync.propagade_new_hashes(&mut io);
+
+		// 1 message should be send
+		assert_eq!(1, io.queue.len());
+		// 1 peer should be updated
+		assert_eq!(1, peer_count);
+		// NEW_BLOCK_HASHES_PACKET
+		assert_eq!(0x01, io.queue[0].packet_id);
+	}
+
+	#[test]
+	fn sends_latest_block_to_lagging_peer() {
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(100, false);
 		let mut queue = VecDeque::new();
@@ -1276,7 +1314,7 @@ mod tests {
 		assert_eq!(1, io.queue.len());
 		// 1 peer should be updated
 		assert_eq!(1, peer_count);
-		// NEW_BLOCK_HASHES_PACKET
-		assert_eq!(0x01, io.queue[0].packet_id);
+		// NEW_BLOCK_PACKET
+		assert_eq!(0x07, io.queue[0].packet_id);
 	}
 }
