@@ -1066,7 +1066,7 @@ impl ChainSync {
 	}
 
 	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
-		chain.block(&chain.chain_info().best_block_hash).unwrap()
+		chain.block(&chain.chain_info().best_block_hash).expect("Creating latest block when there is none")
 	}
 
 	fn get_lagging_peers(&self, io: &SyncIo) -> Vec<usize> {
