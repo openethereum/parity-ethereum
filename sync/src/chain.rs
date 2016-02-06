@@ -1113,9 +1113,16 @@ impl ChainSync {
 		};
 
 		let mut sent = 0;
+		let local_best = io.chain().chain_info().best_block_hash;
 		for peer_id in updated_peers {
-			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(), &self.peers[&peer_id].latest, &io.chain().chain_info().best_block_hash) {
+			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(),
+																 &self.peers.get(&peer_id).expect("ChainSync: unknown peer").latest,
+																 &local_best) {
 				Some(rlp) => {
+					{
+						let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
+						peer.latest = local_best.clone();
+					}
 					self.send_request(io, peer_id, PeerAsking::Nothing, NEW_BLOCK_HASHES_PACKET, rlp);
 					1
 				},
