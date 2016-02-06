@@ -1067,11 +1067,7 @@ impl ChainSync {
 				match route.blocks.len() {
 					0 => None,
 					_ => {
-						let mut rlp_stream = RlpStream::new_list(route.blocks.len());
-						for hash in route.blocks {
-							rlp_stream.append(&hash);
-						}
-						Some(rlp_stream.out())
+						Some(rlp::encode(&route.blocks).to_vec())
 					}
 				}
 			},
