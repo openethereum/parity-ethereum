@@ -1084,13 +1084,16 @@ impl ChainSync {
 		let chain_info = chain.chain_info();
 		let latest_hash = chain_info.best_block_hash;
 		let latest_number = chain_info.best_block_number;
-		self.peers.iter().filter(|&(peer_id, peer_info)|
+		self.peers.iter().filter(|&(_, peer_info)|
 			match io.chain().block_status(&peer_info.latest)
 			{
-				BlockStatus::InChain => peer_info.latest != latest_hash && latest_number - peer_info.latest_number < MAX_PEER_LAG_PROPAGATION,
+				BlockStatus::InChain => {
+					let peer_number = HeaderView::new(&io.chain().block_header(&peer_info.latest).unwrap()).number();
+					peer_info.latest != latest_hash && latest_number > peer_number && latest_number - peer_number < MAX_PEER_LAG_PROPAGATION
+				},
 				_ => false
 			})
-			.map(|(peer_id, peer_info)| peer_id)
+			.map(|(peer_id, _)| peer_id)
 			.cloned().collect::<Vec<usize>>()
 	}
 
@@ -1100,7 +1103,7 @@ impl ChainSync {
 
 			// sqrt(x)/x scaled to max u32
 			let fraction = (self.peers.len() as f64).powf(-0.5).mul(u32::max_value() as f64).round() as u32;
-			let mut lucky_peers = match lagging_peers.len() {
+			let lucky_peers = match lagging_peers.len() {
 				0 ... MIN_PEERS_PROPAGATION => lagging_peers,
 				_ => lagging_peers.iter().filter(|_| ::rand::random::<u32>() < fraction).cloned().collect::<Vec<usize>>()
 			};
@@ -1130,16 +1133,6 @@ impl ChainSync {
 			let blocks_propagaded = self.propagade_blocks(io);
 			trace!(target: "sync", "Sent new blocks to peers: {:?}", blocks_propagaded);
 		}
-	}
-
-	#[cfg(test)]
-	pub fn get_peer_latet(&self, peer_id: usize) -> H256 {
-		self.peers[&peer_id].latest.clone()
-	}
-
-	#[cfg(test)]
-	pub fn get_peer_latest_number(&self, peer_id: usize) -> BlockNumber {
-		self.peers[&peer_id].latest_number
 	}
 }
 

@@ -136,8 +136,6 @@ fn propagade() {
 	assert_eq!(1000, net.peer(1).chain.chain_info().best_block_number);
 	assert_eq!(1000, net.peer(2).chain.chain_info().best_block_number);
 
-	assert_eq!(net.peer(0).sync.get_peer_latest_number(1), 1000);
-
 	net.sync_step_peer(0);
 
 	// 2 peers to sync
