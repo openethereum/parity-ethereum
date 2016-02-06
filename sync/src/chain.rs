@@ -164,8 +164,6 @@ struct PeerInfo {
 	asking_blocks: Vec<BlockNumber>,
 	/// Request timestamp
 	ask_time: f64,
-	/// Latest block number
-	latest_number: BlockNumber
 }
 
 /// Blockchain sync handler.
@@ -271,7 +269,7 @@ impl ChainSync {
 
 	/// Called by peer to report status
 	fn on_peer_status(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
-		let mut peer = PeerInfo {
+		let peer = PeerInfo {
 			protocol_version: try!(r.val_at(0)),
 			network_id: try!(r.val_at(1)),
 			difficulty: try!(r.val_at(2)),
@@ -280,12 +278,7 @@ impl ChainSync {
 			asking: PeerAsking::Nothing,
 			asking_blocks: Vec::new(),
 			ask_time: 0f64,
-			latest_number: 0,
 		};
-
-		if io.chain().block_status(&peer.latest) == BlockStatus::InChain {
-			peer.latest_number = HeaderView::new(&io.chain().block_header(&peer.latest).unwrap()).number();
-		}
 
 		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest, peer.genesis);
 
@@ -450,8 +443,6 @@ impl ChainSync {
 			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
 				Err(ImportError::AlreadyInChain) => {
 					trace!(target: "sync", "New block already in chain {:?}", h);
-					let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
-					peer.latest_number = max(peer.latest_number, header_view.number());
 				},
 				Err(ImportError::AlreadyQueued) => {
 					trace!(target: "sync", "New block already queued {:?}", h);
@@ -482,7 +473,6 @@ impl ChainSync {
 				{
 					let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
 					peer.latest = header_view.sha3();
-					peer.latest_number = header_view.number();
 				}
 				self.sync_peer(io, peer_id, true);
 			}
@@ -1243,7 +1233,6 @@ mod tests {
 				genesis: H256::zero(),
 				network_id: U256::zero(),
 				latest: peer_latest_hash,
-				latest_number: 90,
 				difficulty: U256::zero(),
 				asking: PeerAsking::Nothing,
 				asking_blocks: Vec::<BlockNumber>::new(),
