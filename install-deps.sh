@@ -93,13 +93,19 @@ function run_installer()
 	####### Setup methods
 
 	function wait_for_user() {
+		if [[ $( ask_user "$1" ) == false ]]; then
+			abort_install "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again."
+		fi
+	}
+
+	function ask_user() {
 		while :
 		do
 			read -p "${blue}==>${reset} $1 [Y/n] " imp
 			case $imp in
-				[yY] ) echo; break ;;
-				'' ) echo; break ;;
-				[nN] ) abortInstall "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again." ;;
+				[yY] ) echo true; break ;;
+				'' ) echo true; break ;;
+				[nN] ) echo false; break ;;
 				* ) echo "Unrecognized option provided. Please provide either 'Y' or 'N'";
 			esac
 		done
@@ -126,7 +132,7 @@ function run_installer()
 		fi
 	}
 
-	function detectOS() {
+	function detect_os() {
 		if [[ "$OSTYPE" == "linux-gnu" ]]
 		then
 			OS_TYPE="linux"
@@ -137,7 +143,7 @@ function run_installer()
 			get_osx_dependencies
 		else
 			OS_TYPE="win"
-			abortInstall "${red}==>${reset} ${b}OS not supported:${reset} Parity one-liner currently support OS X and Linux.\nFor instructions on installing parity on other platforms please visit ${u}${blue}http://ethcore.io/${reset}"
+			abort_install "${red}==>${reset} ${b}OS not supported:${reset} Parity one-liner currently support OS X and Linux.\nFor instructions on installing parity on other platforms please visit ${u}${blue}http://ethcore.io/${reset}"
 		fi
 
 		echo
@@ -152,11 +158,11 @@ function run_installer()
 			elif [[ $canContinue == false && $depFound == 0 ]]
 			then
 				red "All dependencies are missing and cannot be auto-installed ($depFound/$depCount)"
-				abortInstall "$errorMessages";
+				abort_install "$errorMessages";
 			elif [[ $canContinue == false ]]
 			then
 				red "Some dependencies which cannot be auto-installed are missing ($depFound/$depCount)"
-				abortInstall "$errorMessages";
+				abort_install "$errorMessages";
 			fi
 		fi
 	}
@@ -322,7 +328,7 @@ function run_installer()
 
 			if [[ $isBrew == false ]]
 			then
-				abortInstall "Couldn't install brew"
+				abort_install "Couldn't install brew"
 			fi
 		fi
 	}
@@ -653,7 +659,7 @@ function run_installer()
 			find_multirust
 
 			if [[ $isCurl == false || $isGit == false || $isMake == false || $isGCC == false || $isRocksDB == false || $isMultirustNightly == false ]]; then
-				abortInstall
+				abort_install
 			fi
 		fi
 	}
@@ -749,10 +755,10 @@ EOL
 		cd ..
 	}
 
-	function abortInstall()
+	function abort_install()
 	{
 		echo
-		error "Installation failed"
+		error "Installation aborted"
 		echo -e "$1"
 		echo
 		exit 0
@@ -777,7 +783,7 @@ EOL
 
 	# Check dependencies
 	head "Checking OS dependencies"
-	detectOS
+	detect_os
 
 	if [[ $INSTALL_FILES != "" ]]; then
 		echo
@@ -797,14 +803,14 @@ EOL
 
 	if [[ ! -e parity ]]; then
 		# Maybe install parity
-		if wait_for_user "${b}Build dependencies installed B-)!${reset} Would you like to download and build parity?"; then
+		if [[ $(ask_user "${b}Build dependencies installed B-)!${reset} Would you like to download and build parity?") == true ]]; then
 			# Do get parity.
 			build_parity
 		fi
 	fi
 
 	if [[ $OS_TYPE == "linux" && $DISTRIB_ID == "Ubuntu" ]]; then
-		if wait_for_user "${b}Netstats:${reset} Would you like to install and configure a netstats client?"; then
+		if [[ $(ask_user "${b}Netstats:${reset} Would you like to install and configure a netstats client?") == true ]]; then
 			install_netstats
 		fi
 	fi
