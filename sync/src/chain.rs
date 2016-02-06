@@ -1069,7 +1069,7 @@ impl ChainSync {
 		chain.block(&chain.chain_info().best_block_hash).expect("Creating latest block when there is none")
 	}
 
-	fn get_lagging_peers(&self, io: &SyncIo) -> Vec<usize> {
+	fn get_lagging_peers(&self, io: &SyncIo) -> Vec<PeerId> {
 		let chain = io.chain();
 		let chain_info = chain.chain_info();
 		let latest_hash = chain_info.best_block_hash;
@@ -1084,7 +1084,7 @@ impl ChainSync {
 				_ => false
 			})
 			.map(|(peer_id, _)| peer_id)
-			.cloned().collect::<Vec<usize>>()
+			.cloned().collect::<Vec<PeerId>>()
 	}
 
 	fn propagade_blocks(&mut self, io: &mut SyncIo) -> usize {
@@ -1095,11 +1095,11 @@ impl ChainSync {
 			let fraction = (self.peers.len() as f64).powf(-0.5).mul(u32::max_value() as f64).round() as u32;
 			let lucky_peers = match lagging_peers.len() {
 				0 ... MIN_PEERS_PROPAGATION => lagging_peers,
-				_ => lagging_peers.iter().filter(|_| ::rand::random::<u32>() < fraction).cloned().collect::<Vec<usize>>()
+				_ => lagging_peers.iter().filter(|_| ::rand::random::<u32>() < fraction).cloned().collect::<Vec<PeerId>>()
 			};
 
 			// taking at max of MAX_PEERS_PROPAGATION
-			lucky_peers.iter().take(min(lucky_peers.len(), MAX_PEERS_PROPAGATION)).cloned().collect::<Vec<usize>>()
+			lucky_peers.iter().take(min(lucky_peers.len(), MAX_PEERS_PROPAGATION)).cloned().collect::<Vec<PeerId>>()
 		};
 
 		let mut sent = 0;
@@ -1118,9 +1118,7 @@ impl ChainSync {
 		let mut sent = 0;
 		let local_best = io.chain().chain_info().best_block_hash;
 		for peer_id in updated_peers {
-			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(),
-																 &self.peers.get(&peer_id).expect("ChainSync: unknown peer").latest,
-																 &local_best) {
+			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(), &self.peers.get(&peer_id).expect("ChainSync: unknown peer").latest, &local_best) {
 				Some(rlp) => {
 					{
 						let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
