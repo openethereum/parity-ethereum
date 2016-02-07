@@ -92,7 +92,6 @@ impl JournalDB {
 
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
-	#[allow(cyclomatic_complexity)]
 	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format: 
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
