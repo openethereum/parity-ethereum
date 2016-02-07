@@ -11,11 +11,11 @@
 
 ### Building from source
 
-##### Ubuntu 14.04
+##### Ubuntu 14.04, 15.04, 15.10
 
 ```bash
 # install rocksdb
-add-apt-repository "deb http://ppa.launchpad.net/giskou/librocksdb/ubuntu trusty main"
+add-apt-repository ppa:ethcore/ethcore
 apt-get update
 apt-get install -y --force-yes librocksdb
 
@@ -32,7 +32,7 @@ cd parity
 cargo build --release
 ```
 
-##### Linux
+##### Other Linux
 
 ```bash
 # install rocksdb
