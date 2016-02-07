@@ -1051,6 +1051,7 @@ impl ChainSync {
 		}
 	}
 
+	/// creates rlp to send for the tree defined by 'from' and 'to' hashes
 	fn create_new_hashes_rlp(chain: &BlockChainClient, from: &H256, to: &H256) -> Option<Bytes> {
 		match chain.tree_route(from, to) {
 			Some(route) => {
@@ -1065,10 +1066,12 @@ impl ChainSync {
 		}
 	}
 
+	/// creates latest block rlp for the given client
 	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
 		chain.block(&chain.chain_info().best_block_hash).expect("Creating latest block when there is none")
 	}
 
+	/// returns peer ids that have less blocks than our chain
 	fn get_lagging_peers(&self, io: &SyncIo) -> Vec<PeerId> {
 		let chain = io.chain();
 		let chain_info = chain.chain_info();
@@ -1087,6 +1090,7 @@ impl ChainSync {
 			.cloned().collect::<Vec<PeerId>>()
 	}
 
+	/// propagades latest block to lagging peers
 	fn propagade_blocks(&mut self, io: &mut SyncIo) -> usize {
 		let updated_peers = {
 			let lagging_peers = self.get_lagging_peers(io);
@@ -1113,6 +1117,7 @@ impl ChainSync {
 		sent
 	}
 
+	/// propagades new known hashes to all peers
 	fn propagade_new_hashes(&mut self, io: &mut SyncIo) -> usize {
 		let updated_peers = self.get_lagging_peers(io);
 		let mut sent = 0;
@@ -1141,6 +1146,7 @@ impl ChainSync {
 		trace!(target: "sync", "Sent new hashes to peers: {:?}", peers);
 	}
 
+	/// should be called once chain has new block, triggers the latest block propagation
 	pub fn chain_blocks_verified(&mut self, io: &mut SyncIo) {
 		let peers = self.propagade_blocks(io);
 		trace!(target: "sync", "Sent latest block to peers: {:?}", peers);
