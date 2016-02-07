@@ -50,6 +50,7 @@ extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate env_logger;
 extern crate time;
+extern crate rand;
 
 use std::ops::*;
 use std::sync::*;
@@ -124,5 +125,11 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	fn timeout(&self, io: &NetworkContext<SyncMessage>, _timer: TimerToken) {
 		self.sync.write().unwrap().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
 		self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
+	}
+
+	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
+		if let SyncMessage::BlockVerified = *message {
+			self.sync.write().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
+		}
 	}
 }
