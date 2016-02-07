@@ -1056,7 +1056,15 @@ impl ChainSync {
 				match route.blocks.len() {
 					0 => None,
 					_ => {
-						Some(rlp::encode(&route.blocks).to_vec())
+						let mut rlp_stream = RlpStream::new_list(route.blocks.len());
+						for block_hash in route.blocks {
+							let mut hash_rlp = RlpStream::new_list(2);
+							let difficulty = chain.block_total_difficulty(&block_hash).expect("Mallformed block without a difficulty on the chain!");
+							hash_rlp.append(&block_hash);
+							hash_rlp.append(&difficulty);
+							rlp_stream.append_raw(&hash_rlp.out(), 1);
+						}
+						Some(rlp_stream.out())
 					}
 				}
 			},
@@ -1065,7 +1073,10 @@ impl ChainSync {
 	}
 
 	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
-		chain.block(&chain.chain_info().best_block_hash).expect("Creating latest block when there is none")
+		let mut rlp_stream = RlpStream::new_list(2);
+		rlp_stream.append_raw(&chain.block(&chain.chain_info().best_block_hash).expect("Creating latest block when there is none"), 1);
+		rlp_stream.append(&chain.chain_info().total_difficulty);
+		rlp_stream.out()
 	}
 
 	fn get_lagging_peers(&self, io: &SyncIo) -> Vec<PeerId> {
@@ -1304,8 +1315,8 @@ mod tests {
 		assert!(rlp.is_none());
 
 		let rlp = ChainSync::create_new_hashes_rlp(&client, &start, &end).unwrap();
-		// size of three rlp encoded hash
-		assert_eq!(101, rlp.len());
+		// size of three rlp encoded hash-difficulty
+		assert_eq!(107, rlp.len());
 	}
 
 	#[test]
@@ -1425,6 +1436,36 @@ mod tests {
 
 		let result = sync.on_peer_new_hashes(&mut io, 0, &hashes_rlp);
 
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn hashes_rlp_mutually_acceptable() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		sync.propagade_new_hashes(&mut io);
+
+		let data = &io.queue[0].data.clone();
+		let result = sync.on_peer_new_hashes(&mut io, 0, &UntrustedRlp::new(&data));
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn block_rlp_mutually_acceptable() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		sync.propagade_blocks(&mut io);
+
+		let data = &io.queue[0].data.clone();
+		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(&data));
 		assert!(result.is_ok());
 	}
 }
