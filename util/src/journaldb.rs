@@ -106,10 +106,12 @@ impl JournalDB {
 		// we remove all of its removes assuming it is canonical and all
 		// of its inserts otherwise.
 		//
-		// we also keep track of the counters for each key inserted in the journal to handle the following cases:
-		// key K is removed in block A(N) and re-inserted in block B(N + C) (where C < H). K must not be deleted from the DB.
-		// key K is added in block A(N) and reverted in block B(N + C) (where C < H). K must be deleted
-		// key K is added in blocks A(N) and A'(N) and is reverted in block B(N + C ) (where C < H). K must not be deleted
+		// we also keep track of the counters for each key inserted in the journal to handle 
+		// the following cases where key K must not be deleted from the DB:
+		// Given H is the journal size in eras, 0 <= C <= H.
+		// Key K is removed in era A(N) and re-inserted in canonical era B(N + C).
+		// Key K is removed in era A(N) and re-inserted in non-canonical era B`(N + C).
+		// Key K is added in canonical era A(N) and non-canonicnal B'(N + C).
 
 		// record new commit's details.
 		let batch = WriteBatch::new();
