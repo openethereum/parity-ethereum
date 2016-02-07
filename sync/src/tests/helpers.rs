@@ -395,4 +395,9 @@ impl TestNet {
 	pub fn done(&self) -> bool {
 		self.peers.iter().all(|p| p.queue.is_empty())
 	}
+
+	pub fn trigger_block_verified(&mut self, peer_id: usize) {
+		let mut peer = self.peer_mut(peer_id);
+		peer.sync.chain_blocks_verified(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+	}
 }

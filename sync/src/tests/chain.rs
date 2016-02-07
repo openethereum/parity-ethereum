@@ -121,25 +121,31 @@ fn status_packet() {
 }
 
 #[test]
-fn propagade() {
+fn propagade_hashes() {
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, false);
 	net.peer_mut(2).chain.add_blocks(1000, false);
 	net.sync();
 
-
-	let status = net.peer(0).sync.status();
-	assert_eq!(status.state, SyncState::Idle);
-
 	net.peer_mut(0).chain.add_blocks(10, false);
-	assert_eq!(1010, net.peer(0).chain.chain_info().best_block_number);
-	assert_eq!(1000, net.peer(1).chain.chain_info().best_block_number);
-	assert_eq!(1000, net.peer(2).chain.chain_info().best_block_number);
-
 	net.sync_step_peer(0);
 
 	// 2 peers to sync
 	assert_eq!(2, net.peer(0).queue.len());
+	// NEW_BLOCK_HASHES_PACKET
+	assert_eq!(0x01, net.peer(0).queue[0].packet_id);
+}
+
+#[test]
+fn propagade_blocks() {
+	let mut net = TestNet::new(10);
+	net.peer_mut(1).chain.add_blocks(10, false);
+	net.sync();
+
+	net.peer_mut(0).chain.add_blocks(10, false);
+	net.trigger_block_verified(0);
+
+	assert!(!net.peer(0).queue.is_empty());
 	// NEW_BLOCK_PACKET
 	assert_eq!(0x07, net.peer(0).queue[0].packet_id);
 }

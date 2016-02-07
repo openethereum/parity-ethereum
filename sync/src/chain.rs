@@ -1137,13 +1137,13 @@ impl ChainSync {
 	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
 		self.check_resume(io);
 
-		if self.state == SyncState::Idle {
-			let peers = self.propagade_blocks(io);
-			trace!(target: "sync", "Sent latest block to peers: {:?}", peers);
+		let peers = self.propagade_new_hashes(io);
+		trace!(target: "sync", "Sent new hashes to peers: {:?}", peers);
+	}
 
-			let peers = self.propagade_new_hashes(io);
-			trace!(target: "sync", "Sent new hashes to peers: {:?}", peers);
-		}
+	pub fn chain_blocks_verified(&mut self, io: &mut SyncIo) {
+		let peers = self.propagade_blocks(io);
+		trace!(target: "sync", "Sent latest block to peers: {:?}", peers);
 	}
 }
 
