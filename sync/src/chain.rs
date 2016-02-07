@@ -1179,6 +1179,21 @@ mod tests {
 		rlp.out()
 	}
 
+	fn get_dummy_hashes() -> Bytes {
+		let mut rlp = RlpStream::new_list(5);
+		for _ in 0..5 {
+			let mut hash_d_rlp = RlpStream::new_list(2);
+			let hash: H256 = H256::from(0u64);
+			let diff: U256 = U256::from(1u64);
+			hash_d_rlp.append(&hash);
+			hash_d_rlp.append(&diff);
+
+			rlp.append_raw(&hash_d_rlp.out(), 1);
+		}
+
+		rlp.out()
+	}
+
 	#[test]
 	fn return_receipts_empty() {
 		let mut client = TestBlockChainClient::new();
@@ -1379,5 +1394,37 @@ mod tests {
 		let result = sync.on_peer_new_block(&mut io, 0, &block);
 
 		assert!(result.is_err());
+	}
+
+	#[test]
+	fn handles_peer_new_hashes() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let hashes_data = get_dummy_hashes();
+		let hashes_rlp = UntrustedRlp::new(&hashes_data);
+
+		let result = sync.on_peer_new_hashes(&mut io, 0, &hashes_rlp);
+
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn handles_peer_new_hashes_empty() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let empty_hashes_data = vec![];
+		let hashes_rlp = UntrustedRlp::new(&empty_hashes_data);
+
+		let result = sync.on_peer_new_hashes(&mut io, 0, &hashes_rlp);
+
+		assert!(result.is_ok());
 	}
 }
