@@ -138,7 +138,7 @@ fn propagade_hashes() {
 
 #[test]
 fn propagade_blocks() {
-	let mut net = TestNet::new(10);
+	let mut net = TestNet::new(2);
 	net.peer_mut(1).chain.add_blocks(10, false);
 	net.sync();
 

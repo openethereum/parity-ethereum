@@ -434,12 +434,11 @@ impl ChainSync {
 		let block_rlp = try!(r.at(0));
 		let header_rlp = try!(block_rlp.at(0));
 		let h = header_rlp.as_raw().sha3();
-
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
-		let header_view = HeaderView::new(header_rlp.as_raw());
+		let header: BlockHeader = try!(header_rlp.as_val());
  		let mut unknown = false;
 		// TODO: Decompose block and add to self.headers and self.bodies instead
-		if header_view.number() == From::from(self.current_base_block() + 1) {
+		if header.number == From::from(self.current_base_block() + 1) {
 			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
 				Err(ImportError::AlreadyInChain) => {
 					trace!(target: "sync", "New block already in chain {:?}", h);
@@ -472,7 +471,7 @@ impl ChainSync {
 				trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
 				{
 					let peer = self.peers.get_mut(&peer_id).expect("ChainSync: unknown peer");
-					peer.latest = header_view.sha3();
+					peer.latest = header.hash();
 				}
 				self.sync_peer(io, peer_id, true);
 			}
@@ -1058,7 +1057,15 @@ impl ChainSync {
 				match route.blocks.len() {
 					0 => None,
 					_ => {
-						Some(rlp::encode(&route.blocks).to_vec())
+						let mut rlp_stream = RlpStream::new_list(route.blocks.len());
+						for block_hash in route.blocks {
+							let mut hash_rlp = RlpStream::new_list(2);
+							let difficulty = chain.block_total_difficulty(&block_hash).expect("Mallformed block without a difficulty on the chain!");
+							hash_rlp.append(&block_hash);
+							hash_rlp.append(&difficulty);
+							rlp_stream.append_raw(&hash_rlp.out(), 1);
+						}
+						Some(rlp_stream.out())
 					}
 				}
 			},
@@ -1068,7 +1075,10 @@ impl ChainSync {
 
 	/// creates latest block rlp for the given client
 	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
-		chain.block(&chain.chain_info().best_block_hash).expect("Creating latest block when there is none")
+		let mut rlp_stream = RlpStream::new_list(2);
+		rlp_stream.append_raw(&chain.block(&chain.chain_info().best_block_hash).expect("Creating latest block when there is none"), 1);
+		rlp_stream.append(&chain.chain_info().total_difficulty);
+		rlp_stream.out()
 	}
 
 	/// returns peer ids that have less blocks than our chain
@@ -1159,7 +1169,47 @@ mod tests {
 	use super::*;
 	use util::*;
 	use super::{PeerInfo, PeerAsking};
-	use ethcore::header::{BlockNumber};
+	use ethcore::header::*;
+	use ethcore::client::*;
+
+	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
+		let mut header = Header::new();
+		header.gas_limit = x!(0);
+		header.difficulty = x!(order * 100);
+		header.timestamp = (order * 10) as u64;
+		header.number = order as u64;
+		header.parent_hash = parent_hash;
+		header.state_root = H256::zero();
+
+		let mut rlp = RlpStream::new_list(3);
+		rlp.append(&header);
+		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
+		rlp.append_raw(&rlp::EMPTY_LIST_RLP, 1);
+		rlp.out()
+	}
+
+	fn get_dummy_blocks(order: u32, parent_hash: H256) -> Bytes {
+		let mut rlp = RlpStream::new_list(1);
+		rlp.append_raw(&get_dummy_block(order, parent_hash), 1);
+		let difficulty: U256 = x!(100 * order);
+		rlp.append(&difficulty);
+		rlp.out()
+	}
+
+	fn get_dummy_hashes() -> Bytes {
+		let mut rlp = RlpStream::new_list(5);
+		for _ in 0..5 {
+			let mut hash_d_rlp = RlpStream::new_list(2);
+			let hash: H256 = H256::from(0u64);
+			let diff: U256 = U256::from(1u64);
+			hash_d_rlp.append(&hash);
+			hash_d_rlp.append(&diff);
+
+			rlp.append_raw(&hash_d_rlp.out(), 1);
+		}
+
+		rlp.out()
+	}
 
 	#[test]
 	fn return_receipts_empty() {
@@ -1271,8 +1321,8 @@ mod tests {
 		assert!(rlp.is_none());
 
 		let rlp = ChainSync::create_new_hashes_rlp(&client, &start, &end).unwrap();
-		// size of three rlp encoded hash
-		assert_eq!(101, rlp.len());
+		// size of three rlp encoded hash-difficulty
+		assert_eq!(107, rlp.len());
 	}
 
 	#[test]
@@ -1309,5 +1359,119 @@ mod tests {
 		assert_eq!(1, peer_count);
 		// NEW_BLOCK_PACKET
 		assert_eq!(0x07, io.queue[0].packet_id);
+	}
+
+	#[test]
+	fn handles_peer_new_block_mallformed() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, false);
+
+		let block_data = get_dummy_block(11, client.chain_info().best_block_hash);
+
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let block = UntrustedRlp::new(&block_data);
+
+		let result = sync.on_peer_new_block(&mut io, 0, &block);
+
+		assert!(result.is_err());
+	}
+
+	#[test]
+	fn handles_peer_new_block() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, false);
+
+		let block_data = get_dummy_blocks(11, client.chain_info().best_block_hash);
+
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let block = UntrustedRlp::new(&block_data);
+
+		let result = sync.on_peer_new_block(&mut io, 0, &block);
+
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn handles_peer_new_block_empty() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let empty_data = vec![];
+		let block = UntrustedRlp::new(&empty_data);
+
+		let result = sync.on_peer_new_block(&mut io, 0, &block);
+
+		assert!(result.is_err());
+	}
+
+	#[test]
+	fn handles_peer_new_hashes() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let hashes_data = get_dummy_hashes();
+		let hashes_rlp = UntrustedRlp::new(&hashes_data);
+
+		let result = sync.on_peer_new_hashes(&mut io, 0, &hashes_rlp);
+
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn handles_peer_new_hashes_empty() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let empty_hashes_data = vec![];
+		let hashes_rlp = UntrustedRlp::new(&empty_hashes_data);
+
+		let result = sync.on_peer_new_hashes(&mut io, 0, &hashes_rlp);
+
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn hashes_rlp_mutually_acceptable() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		sync.propagade_new_hashes(&mut io);
+
+		let data = &io.queue[0].data.clone();
+		let result = sync.on_peer_new_hashes(&mut io, 0, &UntrustedRlp::new(&data));
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn block_rlp_mutually_acceptable() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		sync.propagade_blocks(&mut io);
+
+		let data = &io.queue[0].data.clone();
+		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(&data));
+		assert!(result.is_ok());
 	}
 }

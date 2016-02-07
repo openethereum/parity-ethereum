@@ -79,7 +79,7 @@ impl TestBlockChainClient {
 
 impl BlockChainClient for TestBlockChainClient {
 	fn block_total_difficulty(&self, _h: &H256) -> Option<U256> {
-		unimplemented!();
+		Some(U256::zero())
 	}
 
 	fn block_header(&self, h: &H256) -> Option<Bytes> {
