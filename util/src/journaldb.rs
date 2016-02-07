@@ -110,7 +110,7 @@ impl JournalDB {
 		// Given H is the journal size in eras, 0 <= C <= H.
 		// Key K is removed in era A(N) and re-inserted in canonical era B(N + C).
 		// Key K is removed in era A(N) and re-inserted in non-canonical era B`(N + C).
-		// Key K is added in canonical era A(N) and non-canonicnal B'(N + C).
+		// Key K is added in non-canonical era A'(N) canonical B(N + C).
 
 		// record new commit's details.
 		let batch = WriteBatch::new();
