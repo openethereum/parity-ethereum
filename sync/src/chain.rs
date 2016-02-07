@@ -1304,4 +1304,20 @@ mod tests {
 		// NEW_BLOCK_PACKET
 		assert_eq!(0x07, io.queue[0].packet_id);
 	}
+
+	#[test]
+	fn handles_empty_peer_new_block() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(10, false);
+		let mut queue = VecDeque::new();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		let empty_data = vec![];
+		let block = UntrustedRlp::new(&empty_data);
+
+		let result = sync.on_peer_new_block(&mut io, 0, &block);
+
+		assert!(result.is_err());
+	}
 }
