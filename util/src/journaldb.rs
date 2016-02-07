@@ -176,10 +176,13 @@ impl JournalDB {
 
 			let canon_inserts = canon_inserts.drain(..).collect::<HashSet<_>>();
 			// Purge removed keys if they are not referenced and not re-inserted in the canon commit
+			let mut deletes = 0;
 			for h in to_remove.iter().filter(|h| !counters.contains_key(h) && !canon_inserts.contains(h)) {
 				try!(batch.delete(&h));
+				deletes += 1;
 			}
 			try!(batch.put(&LAST_ERA_KEY, &encode(&end_era)));
+			trace!("JournalDB: delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, deletes);
 		}
 
 		// Commit overlay insertions
