@@ -67,7 +67,6 @@ impl fmt::Display for BlockChainInfo {
 	}
 }
 
-
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
 	/// Get raw block header data by block header hash.
