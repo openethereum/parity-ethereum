@@ -33,6 +33,7 @@ extern crate fdlimit;
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
+use std::net::{SocketAddr};
 use std::env;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
@@ -56,11 +57,15 @@ Options:
   -j --jsonrpc             Enable the JSON-RPC API sever.
   --jsonrpc-url URL        Specify URL for JSON-RPC API server [default: 127.0.0.1:8545].
 
+  --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
+  --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
+  --address URL            Equivalent to --listen-address URL --public-address URL.
+
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
 
   -h --help                Show this screen.
-", flag_cache_pref_size: usize, flag_cache_max_size: usize);
+", flag_cache_pref_size: usize, flag_cache_max_size: usize, flag_address: Option<String>);
 
 fn setup_log(init: &str) {
 	let mut builder = LogBuilder::new();
@@ -105,6 +110,16 @@ fn main() {
 	};
 	let mut net_settings = NetworkConfiguration::new();
 	net_settings.boot_nodes = init_nodes;
+	match args.flag_address {
+		None => {
+			net_settings.listen_address = SocketAddr::from_str(args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address");
+			net_settings.public_address = SocketAddr::from_str(args.flag_public_address.as_ref()).expect("Invalid public address given with --public-address");
+		}
+		Some(ref a) => {
+			net_settings.public_address = SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address");
+			net_settings.listen_address = net_settings.public_address.clone();
+		}
+	}
 	let mut service = ClientService::start(spec, net_settings).unwrap();
 	let client = service.client().clone();
 	client.configure_cache(args.flag_cache_pref_size, args.flag_cache_max_size);
