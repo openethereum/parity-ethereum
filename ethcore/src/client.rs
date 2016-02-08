@@ -296,7 +296,7 @@ impl Client {
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 			ret += 1;
 
-			if self.block_queue.read().unwrap().queue_info().empty {
+			if self.block_queue.read().unwrap().queue_info().is_empty() {
 				io.send(NetworkIoMessage::User(SyncMessage::BlockVerified)).unwrap();
 			}
 		}
