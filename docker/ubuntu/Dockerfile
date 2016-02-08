@@ -3,7 +3,7 @@ FROM ubuntu:14.04
 # install tools and dependencies
 RUN apt-get update && \
 	apt-get install -y \
-  gcc \
+	gcc \
 	curl \
 	git \
 	# add-apt-repository

@@ -10,7 +10,7 @@ RUN apt-get update && \
 	curl \
 	wget \ 
 	git \
-  gcc \
+	gcc \
 	# evmjit dependencies
 	zlib1g-dev \
 	libedit-dev
