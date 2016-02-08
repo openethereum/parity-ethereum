@@ -409,6 +409,6 @@ mod tests {
 		queue.flush();
 		queue.drain(1);
 
-		assert!(queue.queue_info().empty);
+		assert!(queue.queue_info().is_empty());
 	}
 }
