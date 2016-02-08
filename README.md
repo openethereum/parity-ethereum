@@ -2,12 +2,14 @@
 
 [![Build Status][travis-image]][travis-url] [![Coverage Status][coveralls-image]][coveralls-url] [![Join the chat at https://gitter.im/trogdoro/xiki][gitter-image]][gitter-url]
 
-[travis-image]: https://travis-ci.com/ethcore/parity.svg?token=DMFvZu71iaTbUYx9UypX&branch=master
-[travis-url]: https://travis-ci.com/ethcore/parity
+[travis-image]: https://travis-ci.org/ethcore/parity.svg?branch=master
+[travis-url]: https://travis-ci.org/ethcore/parity
 [coveralls-image]: https://coveralls.io/repos/github/ethcore/parity/badge.svg?branch=master&t=Fk0OuQ
 [coveralls-url]: https://coveralls.io/r/ethcore/parity?branch=master
 [gitter-image]: https://badges.gitter.im/Join%20Chat.svg
 [gitter-url]: https://gitter.im/ethcore/parity?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+
+[Documentation](http://ethcore.github.io/parity/ethcore/index.html)
 
 ### Building from source
 
