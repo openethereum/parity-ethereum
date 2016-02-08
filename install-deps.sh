@@ -628,8 +628,8 @@ function run_installer()
 
 		if [[ $isMultirustNightly == false ]]; then
 			info "Installing rust nightly..."
-			sudo multirust update nightly
-			sudo multirust default nightly
+			multirust update nightly
+			multirust default nightly
 			echo
 		fi
 	}
