@@ -20,7 +20,7 @@ mod bytes;
 mod sync;
 mod transaction;
 
-pub use self::block::Block;
+pub use self::block::{Block, BlockTransactions};
 pub use self::block_number::BlockNumber;
 pub use self::bytes::Bytes;
 pub use self::sync::SyncStatus;

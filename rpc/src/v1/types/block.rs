@@ -14,10 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use serde::{Serialize, Serializer};
 use util::hash::*;
 use util::uint::*;
+use v1::types::{Bytes, Transaction};
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug)]
+pub enum BlockTransactions {
+	Hashes(Vec<U256>),
+	Full(Vec<Transaction>)
+}
+
+impl Serialize for BlockTransactions {
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	where S: Serializer {
+		match *self {
+			BlockTransactions::Hashes(ref hashes) => hashes.serialize(serializer),
+			BlockTransactions::Full(ref ts) => ts.serialize(serializer)
+		}
+	}
+}
+
+#[derive(Debug, Serialize)]
 pub struct Block {
 	pub hash: H256,
 	#[serde(rename="parentHash")]
@@ -38,9 +56,8 @@ pub struct Block {
 	pub gas_used: U256,
 	#[serde(rename="gasLimit")]
 	pub gas_limit: U256,
-	// TODO: figure out how to properly serialize bytes
-	//#[serde(rename="extraData")]
-	//extra_data: Vec<u8>,
+	#[serde(rename="extraData")]
+	pub extra_data: Bytes,
 	#[serde(rename="logsBloom")]
 	pub logs_bloom: H2048,
 	pub timestamp: U256,
@@ -48,5 +65,5 @@ pub struct Block {
 	#[serde(rename="totalDifficulty")]
 	pub total_difficulty: U256,
 	pub uncles: Vec<U256>,
-	pub transactions: Vec<U256>
+	pub transactions: BlockTransactions
 }

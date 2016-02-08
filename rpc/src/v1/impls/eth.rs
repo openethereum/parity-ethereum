@@ -23,7 +23,7 @@ use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockNumber, Bytes, SyncStatus};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -125,7 +125,7 @@ impl Eth for EthClient {
 
 	fn block(&self, params: Params) -> Result<Value, Error> {
 		match from_params::<(H256, bool)>(params) {
-			Ok((hash, _include_txs)) => match (self.client.block_header(&hash), self.client.block_total_difficulty(&hash)) {
+			Ok((hash, include_txs)) => match (self.client.block_header(&hash), self.client.block_total_difficulty(&hash)) {
 				(Some(bytes), Some(total_difficulty)) => {
 					let view = HeaderView::new(&bytes);
 					let block = Block {
@@ -145,7 +145,14 @@ impl Eth for EthClient {
 						difficulty: view.difficulty(),
 						total_difficulty: total_difficulty,
 						uncles: vec![],
-						transactions: vec![]
+						transactions: {
+							if include_txs {
+								BlockTransactions::Hashes(vec![])
+							} else {
+								BlockTransactions::Full(vec![])
+							}
+						},
+						extra_data: Bytes::default()
 					};
 					to_value(&block)
 				},
