@@ -599,6 +599,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	fn start_session(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
 		let mut connections = self.connections.write().unwrap();
+		if connections.get(token).is_none() {
+			return; // handshake expired
+		}
 		connections.replace_with(token, |c| {
 			match Arc::try_unwrap(c).ok().unwrap().into_inner().unwrap() {
 				ConnectionEntry::Handshake(h) => {

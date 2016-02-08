@@ -6,6 +6,8 @@ branches:
   - master
   - /^beta-.*$/
   - /^stable-.*$/
+  - /^beta$/
+  - /^stable$/
 matrix:
   fast_finish: true
   include:
