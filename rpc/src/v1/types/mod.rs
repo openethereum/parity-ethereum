@@ -15,7 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 mod block;
+mod block_number;
+mod bytes;
 mod sync;
 
 pub use self::block::Block;
+pub use self::block_number::BlockNumber;
+pub use self::bytes::Bytes;
 pub use self::sync::SyncStatus;

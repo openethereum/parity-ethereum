@@ -23,7 +23,7 @@ use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, SyncStatus};
+use v1::types::{Block, BlockNumber, Bytes, SyncStatus};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -111,6 +111,14 @@ impl Eth for EthClient {
 				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
 				None => Ok(Value::Null)
 			},
+			Err(err) => Err(err)
+		}
+	}
+
+	// TODO: do not ignore block number param
+	fn code_at(&self, params: Params) -> Result<Value, Error> {
+		match from_params::<(Address, BlockNumber)>(params) {
+			Ok((address, _block_number)) => to_value(&Bytes::new(self.client.code(&address).unwrap_or_else(|| vec![]))),
 			Err(err) => Err(err)
 		}
 	}
