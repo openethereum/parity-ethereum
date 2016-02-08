@@ -360,6 +360,7 @@ impl<'a> Executive<'a> {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 mod tests {
 	use super::*;
 	use common::*;
@@ -599,6 +600,7 @@ mod tests {
 	}
 
 	// test is incorrect, mk
+	// TODO: fix (preferred) or remove
 	evm_test_ignore!{test_aba_calls: test_aba_calls_jit, test_aba_calls_int}
 	fn test_aba_calls(factory: Factory) {
 		// 60 00 - push 0
@@ -659,6 +661,7 @@ mod tests {
 	}
 
 	// test is incorrect, mk
+	// TODO: fix (preferred) or remove
 	evm_test_ignore!{test_recursive_bomb1: test_recursive_bomb1_jit, test_recursive_bomb1_int}
 	fn test_recursive_bomb1(factory: Factory) {
 		// 60 01 - push 1
@@ -704,6 +707,7 @@ mod tests {
 	}
 
 	// test is incorrect, mk
+	// TODO: fix (preferred) or remove
 	evm_test_ignore!{test_transact_simple: test_transact_simple_jit, test_transact_simple_int}
 	fn test_transact_simple(factory: Factory) {
 		let keypair = KeyPair::create().unwrap();
@@ -902,5 +906,4 @@ mod tests {
 			}
 		}
 	}
-
 }

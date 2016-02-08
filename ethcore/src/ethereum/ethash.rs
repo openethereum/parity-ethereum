@@ -262,10 +262,7 @@ mod tests {
 
 	use common::*;
 	use block::*;
-	use spec::*;
 	use engine::*;
-	use evm::Schedule;
-	use evm::Factory;
 	use tests::helpers::*;
 	use super::*;
 	use super::super::new_morden;
@@ -319,7 +316,7 @@ mod tests {
 	#[test]
 	fn can_return_factory() {
 		let engine = Ethash::new_test(new_morden());
-		let factory = engine.vm_factory();
+		engine.vm_factory();
 	}
 
 	#[test]
@@ -359,7 +356,7 @@ mod tests {
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
-			_ => { panic!("should be block difficulty error"); }
+			_ => { panic!("should be block seal mismatch error"); }
 		}
 	}
 
@@ -375,6 +372,22 @@ mod tests {
 			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
 			_ => { panic!("should be block difficulty error"); }
 		}
+	}
+
+	#[test]
+	fn can_do_proof_of_work_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
+
+		let verify_result = engine.verify_block_basic(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
+			_ => { panic!("should be invalid proof of work error"); }
+		}
+
 	}
 
 	// TODO: difficulty test

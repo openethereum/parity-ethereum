@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[cfg(feature = "json-tests")]
 use client::{BlockChainClient, Client};
 use std::env;
 use common::*;
@@ -134,7 +133,6 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[&SignedTrans
 	rlp.out()
 }
 
-#[cfg(feature = "json-tests")]
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 
@@ -174,7 +172,6 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 	}
 }
 
-#[cfg(feature = "json-tests")]
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
@@ -271,7 +268,6 @@ pub fn get_good_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
-#[cfg(feature = "json-tests")]
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
