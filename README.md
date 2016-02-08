@@ -9,6 +9,8 @@
 [gitter-image]: https://badges.gitter.im/Join%20Chat.svg
 [gitter-url]: https://gitter.im/ethcore/parity?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
+[Documentation](http://ethcore.github.io/parity/ethcore/index.html)
+
 ### Building from source
 
 ##### Ubuntu 14.04, 15.04, 15.10
