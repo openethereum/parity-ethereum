@@ -229,11 +229,9 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn queue_info(&self) -> BlockQueueInfo {
 		BlockQueueInfo {
-			full: false,
 			verified_queue_size: 0,
 			unverified_queue_size: 0,
 			verifying_queue_size: 0,
-			empty: false,
 		}
 	}
 

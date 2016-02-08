@@ -596,7 +596,7 @@ impl ChainSync {
 	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: PeerId) {
 		self.clear_peer_download(peer_id);
 
-		if io.chain().queue_info().full {
+		if io.chain().queue_info().is_full() {
 			self.pause_sync();
 			return;
 		}
@@ -1044,7 +1044,7 @@ impl ChainSync {
 	}
 
 	fn check_resume(&mut self, io: &mut SyncIo) {
-		if !io.chain().queue_info().full && self.state == SyncState::Waiting {
+		if !io.chain().queue_info().is_full() && self.state == SyncState::Waiting {
 			self.state = SyncState::Idle;
 			self.continue_sync(io);
 		}
@@ -1445,6 +1445,8 @@ mod tests {
 		assert!(result.is_ok());
 	}
 
+	// idea is that what we produce when propagading latest hashes should be accepted in
+	// on_peer_new_hashes in our code as well
 	#[test]
 	fn hashes_rlp_mutually_acceptable() {
 		let mut client = TestBlockChainClient::new();
@@ -1460,6 +1462,8 @@ mod tests {
 		assert!(result.is_ok());
 	}
 
+	// idea is that what we produce when propagading latest block should be accepted in
+	// on_peer_new_block  in our code as well
 	#[test]
 	fn block_rlp_mutually_acceptable() {
 		let mut client = TestBlockChainClient::new();
