@@ -42,7 +42,7 @@ after_success: |
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore-* &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethsync-* &&
   ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/deps/ethcore_rpc-* &&
-  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${COVERALLS_TOKEN} --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/parity-* &&
+  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${TRAVIS_JOB_ID} --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/parity-* &&
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = nightly ] &&

@@ -74,3 +74,4 @@ git clone https://github.com/ethcore/parity
 cd parity
 cargo build --release
 ```
+
