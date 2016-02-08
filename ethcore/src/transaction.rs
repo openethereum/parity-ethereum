@@ -20,7 +20,7 @@ use util::*;
 use error::*;
 use evm::Schedule;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// Transaction action type.
 pub enum Action {
 	/// Create creates new contract.
@@ -45,7 +45,7 @@ impl Decodable for Action {
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Transaction {
 	/// Nonce.
 	pub nonce: U256,
@@ -158,7 +158,7 @@ impl Transaction {
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
@@ -172,6 +172,12 @@ pub struct SignedTransaction {
 	hash: RefCell<Option<H256>>,
 	/// Cached sender.
 	sender: RefCell<Option<Address>>
+}
+
+impl PartialEq for SignedTransaction {
+	fn eq(&self, other: &SignedTransaction) -> bool {
+		self.unsigned == other.unsigned && self.v == other.v && self.r == other.r && self.s == other.s
+	}
 }
 
 impl Deref for SignedTransaction {

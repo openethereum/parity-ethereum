@@ -294,6 +294,10 @@ mod tests {
 			})
 		}
 
+		fn transaction_address(&self, _hash: &H256) -> Option<TransactionAddress> {
+			unimplemented!()
+		}
+
 		/// Get the hash of given block's number.
 		fn block_hash(&self, index: BlockNumber) -> Option<H256> {
 			self.numbers.get(&index).cloned()
