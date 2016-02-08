@@ -15,7 +15,7 @@ if ! type kcov > /dev/null; then
 	exit 1
 fi
 
-cargo test --features ethcore/json-tests -p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity --no-run || exit $?
+cargo test -p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity --no-run || exit $?
 mkdir -p target/coverage
 kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1 --include-pattern src --verify target/coverage target/debug/deps/ethcore-*
 kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1 --include-pattern src --verify target/coverage target/debug/deps/ethash-*
