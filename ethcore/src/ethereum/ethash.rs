@@ -351,13 +351,30 @@ mod tests {
 	}
 
 	#[test]
-	fn can_do_basic_verification_fail() {
+	fn can_do_seal_verification_fail() {
 		let engine = Ethash::new_test(new_morden());
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
 
-		assert!(!verify_result.is_ok());
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
+			_ => { panic!("should be block difficulty error"); }
+		}
+	}
+
+	#[test]
+	fn can_do_difficulty_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+
+		let verify_result = engine.verify_block_basic(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
+			_ => { panic!("should be block difficulty error"); }
+		}
 	}
 
 	// TODO: difficulty test
