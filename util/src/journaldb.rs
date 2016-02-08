@@ -212,11 +212,9 @@ impl JournalDB {
 	fn decrease_counters(keys: &[H256], counters: &mut HashMap<H256, i32>) {
 		for i in keys.iter() {
 			let delete_counter = {
-				if let Some(mut cnt) = counters.get_mut(i) {
-					*cnt -= 1;
-					*cnt == 0
-				}
-				else { false }
+				let cnt = counters.get_mut(i).expect("Missing key counter");
+				*cnt -= 1;
+				*cnt == 0
 			};
 			if delete_counter {
 				counters.remove(i);
