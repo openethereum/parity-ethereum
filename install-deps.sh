@@ -570,7 +570,7 @@ function run_installer()
 		sudo apt-add-repository -y ppa:ethcore/ethcore
 		sudo apt-get -f -y install
 		sudo apt-get update -qq
-		sudo apt-get install -qq -y librocksdb
+		sudo apt-get install -qq -y librocksdb-dev
 	}
 
 	function linux_rocksdb_installer()
@@ -628,8 +628,8 @@ function run_installer()
 
 		if [[ $isMultirustNightly == false ]]; then
 			info "Installing rust nightly..."
-			sudo multirust update nightly
-			sudo multirust default nightly
+			multirust update nightly
+			multirust default nightly
 			echo
 		fi
 	}

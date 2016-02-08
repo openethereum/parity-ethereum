@@ -27,7 +27,7 @@ use spec::Spec;
 use engine::Engine;
 use views::HeaderView;
 use block_queue::{BlockQueue, BlockQueueInfo};
-use service::NetSyncMessage;
+use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
@@ -66,7 +66,6 @@ impl fmt::Display for BlockChainInfo {
 		write!(f, "#{}.{}", self.best_block_number, self.best_block_hash)
 	}
 }
-
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -155,8 +154,7 @@ impl ClientReport {
 pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
-	state_db: Arc<DB>,
-	state_journal: Mutex<JournalDB>,
+	state_db: Mutex<JournalDB>,
 	block_queue: RwLock<BlockQueue>,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>
@@ -209,8 +207,7 @@ impl Client {
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine.clone(),
-			state_db: db.clone(),
-			state_journal: Mutex::new(JournalDB::new_with_arc(db)),
+			state_db: Mutex::new(state_db),
 			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
@@ -223,7 +220,7 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) -> usize {
+	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
 		let mut ret = 0;
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
@@ -265,7 +262,7 @@ impl Client {
 				}
 			}
 
-			let db = self.state_journal.lock().unwrap().clone();
+			let db = self.state_db.lock().unwrap().clone();
 			let result = match enact_verified(&block, self.engine.deref().deref(), db, &parent, &last_hashes) {
 				Ok(b) => b,
 				Err(e) => {
@@ -295,6 +292,10 @@ impl Client {
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 			ret += 1;
+
+			if self.block_queue.read().unwrap().queue_info().is_empty() {
+				io.send(NetworkIoMessage::User(SyncMessage::BlockVerified)).unwrap();
+			}
 		}
 		self.block_queue.write().unwrap().mark_as_good(&good_blocks);
 		ret
@@ -302,7 +303,7 @@ impl Client {
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
-		State::from_existing(JournalDB::new_with_arc(self.state_db.clone()), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+		State::from_existing(self.state_db.lock().unwrap().clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
 	}
 
 	/// Get info on the cache.
