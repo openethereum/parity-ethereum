@@ -2,12 +2,20 @@ use rustc_serialize::hex::ToHex;
 use serde::{Serialize, Serializer};
 
 /// Wrapper structure around vector of bytes.
+#[derive(Debug)]
 pub struct Bytes(Vec<u8>);
 
 impl Bytes {
 	/// Simple constructor.
 	pub fn new(bytes: Vec<u8>) -> Bytes {
 		Bytes(bytes)
+	}
+}
+
+impl Default for Bytes {
+	fn default() -> Self {
+		// default serialized value is 0x00
+		Bytes(vec![0])
 	}
 }
 

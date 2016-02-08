@@ -18,8 +18,10 @@ mod block;
 mod block_number;
 mod bytes;
 mod sync;
+mod transaction;
 
 pub use self::block::Block;
 pub use self::block_number::BlockNumber;
 pub use self::bytes::Bytes;
 pub use self::sync::SyncStatus;
+pub use self::transaction::Transaction;

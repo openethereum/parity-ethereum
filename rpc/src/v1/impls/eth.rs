@@ -118,7 +118,7 @@ impl Eth for EthClient {
 	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
 		match from_params::<(Address, BlockNumber)>(params) {
-			Ok((address, _block_number)) => to_value(&Bytes::new(self.client.code(&address).unwrap_or_else(|| vec![]))),
+			Ok((address, _block_number)) => to_value(&self.client.code(&address).map_or_else(Bytes::default, Bytes::new)),
 			Err(err) => Err(err)
 		}
 	}

@@ -458,7 +458,8 @@ macro_rules! construct_uint {
 				let mut hex = "0x".to_owned();
 				let mut bytes = [0u8; 8 * $n_words];
 				self.to_bytes(&mut bytes);
-				hex.push_str(bytes.to_hex().as_ref());
+				let len = cmp::max((self.bits() + 7) / 8, 1);
+				hex.push_str(bytes[bytes.len() - len..].to_hex().as_ref());
 				serializer.visit_str(hex.as_ref())
 			}
 		}
