@@ -8,6 +8,7 @@ RUN apt-get update && \
 	# add-apt-repository
 	software-properties-common \
 	curl \
+  gcc \
 	wget \ 
 	git \
 	# evmjit dependencies
