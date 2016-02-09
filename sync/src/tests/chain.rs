@@ -105,3 +105,47 @@ fn status_empty() {
 	let net = TestNet::new(2);
 	assert_eq!(net.peer(0).sync.status().state, SyncState::NotSynced);
 }
+
+#[test]
+fn status_packet() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(0).chain.add_blocks(1000, false);
+	net.peer_mut(1).chain.add_blocks(1, false);
+
+	net.start();
+
+	net.sync_step_peer(0);
+
+	assert_eq!(1, net.peer(0).queue.len());
+	assert_eq!(0x00, net.peer(0).queue[0].packet_id);
+}
+
+#[test]
+fn propagade_hashes() {
+	let mut net = TestNet::new(3);
+	net.peer_mut(1).chain.add_blocks(1000, false);
+	net.peer_mut(2).chain.add_blocks(1000, false);
+	net.sync();
+
+	net.peer_mut(0).chain.add_blocks(10, false);
+	net.sync_step_peer(0);
+
+	// 2 peers to sync
+	assert_eq!(2, net.peer(0).queue.len());
+	// NEW_BLOCK_HASHES_PACKET
+	assert_eq!(0x01, net.peer(0).queue[0].packet_id);
+}
+
+#[test]
+fn propagade_blocks() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(1).chain.add_blocks(10, false);
+	net.sync();
+
+	net.peer_mut(0).chain.add_blocks(10, false);
+	net.trigger_block_verified(0);
+
+	assert!(!net.peer(0).queue.is_empty());
+	// NEW_BLOCK_PACKET
+	assert_eq!(0x07, net.peer(0).queue[0].packet_id);
+}
