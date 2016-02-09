@@ -265,12 +265,10 @@ mod tests {
 	use common::*;
 	use state::*;
 	use engine::*;
-	use executive::*;
-	use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult};
+	use evm::{Ext};
 	use substate::*;
 	use tests::helpers::*;
 	use super::*;
-	use spec::*;
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {
@@ -295,7 +293,6 @@ mod tests {
 
 	struct TestSetup {
 		state: GuardedTempResult<State>,
-		spec: Spec,
 		engine: Box<Engine>,
 		sub_state: Substate,
 		env_info: EnvInfo
@@ -303,11 +300,9 @@ mod tests {
 
 	impl TestSetup {
 		fn new() -> TestSetup {
-			let spec = get_test_spec();
 			TestSetup {
 				state: get_temp_state(),
-				spec: get_test_spec(),
-				engine: spec.to_engine().unwrap(),
+				engine: get_test_spec().to_engine().unwrap(),
 				sub_state: Substate::new(),
 				env_info: get_test_env_info()
 			}

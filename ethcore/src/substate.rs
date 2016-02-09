@@ -58,7 +58,7 @@ mod tests {
 
 	#[test]
 	fn created() {
-		let mut sub_state = Substate::new();
+		let sub_state = Substate::new();
 		assert_eq!(sub_state.suicides.len(), 0);
 	}
 
