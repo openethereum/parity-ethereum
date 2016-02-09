@@ -42,14 +42,14 @@ impl Deserialize for Topic {
 	}
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize)]
 pub struct Filter {
 	#[serde(rename="fromBlock")]
-	pub from_block: BlockNumber,
+	pub from_block: Option<BlockNumber>,
 	#[serde(rename="toBlock")]
-	pub to_block: BlockNumber,
-	pub address: Address,
-	pub topics: Vec<Topic>
+	pub to_block: Option<BlockNumber>,
+	pub address: Option<Address>,
+	pub topics: Option<Vec<Topic>>
 }
 
 #[cfg(test)]
@@ -58,9 +58,10 @@ mod tests {
 	use std::str::FromStr;
 	use util::hash::*;
 	use super::*;
+	use v1::types::BlockNumber;
 
 	#[test]
-	fn filter_deserialization() {
+	fn topic_deserialization() {
 		let s = r#"["0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b", null, ["0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b", "0x0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc"]]"#;
 		let deserialized: Vec<Topic> = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, vec![
@@ -71,5 +72,17 @@ mod tests {
 								   H256::from_str("0000000000000000000000000aff3454fce5edbc8cca8697c15331677e6ebccc").unwrap()
 				   ])
 		]);
+	}
+
+	#[test]
+	fn filter_deserialization() {
+		let s = r#"{"fromBlock":"earliest","toBlock":"latest"}"#;
+		let deserialized: Filter = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized, Filter {
+			from_block: Some(BlockNumber::Earliest),
+			to_block: Some(BlockNumber::Latest),
+			address: None,
+			topics: None
+		});
 	}
 }
