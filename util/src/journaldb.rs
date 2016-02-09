@@ -50,7 +50,7 @@ impl Clone for JournalDB {
 const LAST_ERA_KEY : [u8; 4] = [ b'l', b'a', b's', b't' ]; 
 const VERSION_KEY : [u8; 4] = [ b'j', b'v', b'e', b'r' ]; 
 
-const DB_VERSION: u32 = 2;
+const DB_VERSION: u32 = 1;
 
 impl JournalDB {
 	/// Create a new instance given a `backing` database.
