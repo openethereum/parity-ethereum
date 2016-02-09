@@ -155,6 +155,22 @@ impl<'a> BlockView<'a> {
 		self.rlp.val_at(1)
 	}
 
+	/// Return List of transactions with additional localization info.
+	pub fn localized_transactions(&self) -> Vec<LocalizedTransaction> {
+		let header = self.header_view();
+		let block_hash = header.sha3();
+		let block_number = header.number();
+		self.rlp.val_at::<Vec<SignedTransaction>>(1)
+			.into_iter()
+			.enumerate()
+			.map(|(i, t)| LocalizedTransaction {
+				signed: t,
+				block_hash: block_hash.clone(),
+				block_number: block_number,
+				transaction_index: i
+			}).collect()
+	}
+
 	/// Return number of transactions in given block, without deserializing them.
 	pub fn transactions_count(&self) -> usize {
 		self.rlp.at(1).iter().count()

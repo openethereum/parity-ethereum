@@ -111,19 +111,19 @@ pub trait BlockProvider {
 	}
 
 	/// Get transaction with given transaction hash.
-	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+	fn transaction(&self, hash: &H256) -> Option<LocalizedTransaction> {
 		self.transaction_address(hash).and_then(|address| self.transaction_at(&address))
 	}
 
 	/// Get transaction at given address.
-	fn transaction_at(&self, address: &TransactionAddress) -> Option<SignedTransaction> {
-		self.block(&address.block_hash).map(|bytes| BlockView::new(&bytes).transactions()).and_then(|t| t.into_iter().nth(address.index))
+	fn transaction_at(&self, address: &TransactionAddress) -> Option<LocalizedTransaction> {
+		self.block(&address.block_hash).map(|bytes| BlockView::new(&bytes).localized_transactions()).and_then(|t| t.into_iter().nth(address.index))
 	}
 
 	/// Get a list of transactions for a given block.
 	/// Returns None if block deos not exist.
-	fn transactions(&self, hash: &H256) -> Option<Vec<SignedTransaction>> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).transactions())
+	fn transactions(&self, hash: &H256) -> Option<Vec<LocalizedTransaction>> {
+		self.block(hash).map(|bytes| BlockView::new(&bytes).localized_transactions())
 	}
 
 	/// Returns reference to genesis hash.

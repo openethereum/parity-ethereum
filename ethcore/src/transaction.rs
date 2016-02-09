@@ -19,6 +19,7 @@
 use util::*;
 use error::*;
 use evm::Schedule;
+use header::BlockNumber;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Transaction action type.
@@ -286,6 +287,26 @@ impl SignedTransaction {
 		} else {
 			Ok(self)
 		}
+	}
+}
+
+/// Signed Transaction that is a part of canon blockchain.
+pub struct LocalizedTransaction {
+	/// Signed part.
+	pub signed: SignedTransaction,
+	/// Block number.
+	pub block_number: BlockNumber,
+	/// Block hash.
+	pub block_hash: H256,
+	/// Transaction index within block.
+	pub transaction_index: usize
+}
+
+impl Deref for LocalizedTransaction {
+	type Target = SignedTransaction;
+
+	fn deref(&self) -> &Self::Target {
+		&self.signed
 	}
 }
 

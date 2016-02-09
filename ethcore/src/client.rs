@@ -31,7 +31,7 @@ use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
-use transaction::SignedTransaction;
+use transaction::LocalizedTransaction;
 pub use blockchain::TreeRoute;
 
 /// General block status
@@ -106,7 +106,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256>;
 
 	/// Get transaction with given hash.
-	fn transaction(&self, hash: &H256) -> Option<SignedTransaction>;
+	fn transaction(&self, hash: &H256) -> Option<LocalizedTransaction>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
@@ -392,7 +392,7 @@ impl BlockChainClient for Client {
 		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_total_difficulty(&h))
 	}
 
-	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+	fn transaction(&self, hash: &H256) -> Option<LocalizedTransaction> {
 		self.chain.read().unwrap().transaction(hash)
 	}
 

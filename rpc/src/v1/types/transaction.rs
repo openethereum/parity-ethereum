@@ -27,7 +27,7 @@ pub struct Transaction {
 	#[serde(rename="blockNumber")]
 	pub block_number: OptionalValue<U256>,
 	#[serde(rename="transactionIndex")]
-	pub transaction_index: U256,
+	pub transaction_index: OptionalValue<U256>,
 	pub from: Address,
 	pub to: OptionalValue<Address>,
 	pub value: U256,
@@ -46,7 +46,7 @@ mod tests {
 	fn test_transaction_serialize() {
 		let t = Transaction::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":"0x00","from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x00"}"#);
+		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x00"}"#);
 	}
 }
 

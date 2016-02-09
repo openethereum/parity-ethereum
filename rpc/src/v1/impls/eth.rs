@@ -97,8 +97,8 @@ impl Eth for EthClient {
 	}
 
 	fn block_transaction_count(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<H256>(params) {
-			Ok(hash) => match self.client.block(&hash) {
+		match from_params::<(H256,)>(params) {
+			Ok((hash,)) => match self.client.block(&hash) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 				None => Ok(Value::Null)
 			},
@@ -107,8 +107,8 @@ impl Eth for EthClient {
 	}
 
 	fn block_uncles_count(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<H256>(params) {
-			Ok(hash) => match self.client.block(&hash) {
+		match from_params::<(H256,)>(params) {
+			Ok((hash,)) => match self.client.block(&hash) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
 				None => Ok(Value::Null)
 			},
@@ -164,14 +164,14 @@ impl Eth for EthClient {
 	}
 
 	fn transaction_at(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<H256>(params) {
-			Ok(hash) => match self.client.transaction(&hash) {
+		match from_params::<(H256,)>(params) {
+			Ok((hash,)) => match self.client.transaction(&hash) {
 				Some(t) => to_value(&Transaction {
 					hash: t.hash(),
 					nonce: t.nonce,
-					block_hash: OptionalValue::Value(H256::default()), // todo
-					block_number: OptionalValue::Value(U256::default()), // todo
-					transaction_index: U256::default(), // todo
+					block_hash: OptionalValue::Value(t.block_hash.clone()),
+					block_number: OptionalValue::Value(U256::from(t.block_number)),
+					transaction_index: OptionalValue::Value(U256::from(t.transaction_index)),
 					from: t.sender().unwrap(),
 					to: match t.action {
 						Action::Create => OptionalValue::Null,
