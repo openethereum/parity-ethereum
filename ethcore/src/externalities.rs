@@ -68,12 +68,12 @@ pub struct Externalities<'a> {
 
 impl<'a> Externalities<'a> {
 	/// Basic `Externalities` constructor.
-	pub fn new(state: &'a mut State, 
-			   env_info: &'a EnvInfo, 
-			   engine: &'a Engine, 
+	pub fn new(state: &'a mut State,
+			   env_info: &'a EnvInfo,
+			   engine: &'a Engine,
 			   depth: usize,
 			   origin_info: OriginInfo,
-			   substate: &'a mut Substate, 
+			   substate: &'a mut Substate,
 			   output: OutputPolicy<'a>) -> Self {
 		Externalities {
 			state: state,
@@ -139,7 +139,7 @@ impl<'a> Ext for Externalities<'a> {
 
 		self.state.inc_nonce(&self.origin_info.address);
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
-		
+
 		// TODO: handle internal error separately
 		match ex.create(params, self.substate) {
 			Ok(gas_left) => {
@@ -150,18 +150,18 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn call(&mut self, 
-			gas: &U256, 
-			sender_address: &Address, 
-			receive_address: &Address, 
+	fn call(&mut self,
+			gas: &U256,
+			sender_address: &Address,
+			receive_address: &Address,
 			value: Option<U256>,
-			data: &[u8], 
-			code_address: &Address, 
+			data: &[u8],
+			code_address: &Address,
 			output: &mut [u8]) -> MessageCallResult {
 
 		let mut params = ActionParams {
 			sender: sender_address.clone(),
-			address: receive_address.clone(), 
+			address: receive_address.clone(),
 			value: ActionValue::Apparent(self.origin_info.value.clone()),
 			code_address: code_address.clone(),
 			origin: self.origin_info.origin.clone(),
@@ -256,4 +256,50 @@ impl<'a> Ext for Externalities<'a> {
 	fn inc_sstore_clears(&mut self) {
 		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
 	}
+}
+
+#[cfg(test)]
+mod tests {
+	use common::*;
+	use state::*;
+	use engine::*;
+	use executive::*;
+	use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult};
+	use substate::*;
+	use tests::helpers::*;
+	use super::*;
+
+	fn get_test_origin() -> OriginInfo {
+		OriginInfo {
+			address: Address::zero(),
+			origin: Address::zero(),
+			gas_price: U256::zero(),
+			value: U256::zero()
+		}
+	}
+
+	fn get_test_env_info() -> EnvInfo {
+		EnvInfo {
+			number: 100,
+			author: x!(0),
+			timestamp: 0,
+			difficulty: x!(0),
+			last_hashes: vec![],
+			gas_used: x!(0),
+			gas_limit: x!(0)
+		}
+	}
+
+	#[test]
+	fn can_be_created() {
+		let mut state_result = get_temp_state();
+		let state = state_result.reference_mut();
+		let test_spec = get_test_spec();
+		let test_engine: &Engine = &*test_spec.to_engine().unwrap();
+		let mut test_sub_state = Substate::new();
+		let env_info = get_test_env_info();
+
+		let ext = Externalities::new(state, &env_info, test_engine, 0, get_test_origin(), &mut test_sub_state, OutputPolicy::InitContract);
+	}
+
 }
