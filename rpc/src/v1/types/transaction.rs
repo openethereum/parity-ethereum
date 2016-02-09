@@ -16,6 +16,7 @@
 
 use util::hash::*;
 use util::uint::*;
+use ethcore::transaction::{LocalizedTransaction, Action};
 use v1::types::{Bytes, OptionalValue};
 
 #[derive(Debug, Default, Serialize)]
@@ -35,6 +36,27 @@ pub struct Transaction {
 	pub gas_price: U256,
 	pub gas: U256,
 	pub input: Bytes
+}
+
+impl From<LocalizedTransaction> for Transaction {
+	fn from(t: LocalizedTransaction) -> Transaction {
+		Transaction {
+			hash: t.hash(),
+			nonce: t.nonce,
+			block_hash: OptionalValue::Value(t.block_hash.clone()),
+			block_number: OptionalValue::Value(U256::from(t.block_number)),
+			transaction_index: OptionalValue::Value(U256::from(t.transaction_index)),
+			from: t.sender().unwrap(),
+			to: match t.action {
+				Action::Create => OptionalValue::Null,
+				Action::Call(ref address) => OptionalValue::Value(address.clone())
+			},
+			value: t.value,
+			gas_price: t.gas_price,
+			gas: t.gas,
+			input: Bytes::new(t.data.clone())
+		}
+	}
 }
 
 #[cfg(test)]

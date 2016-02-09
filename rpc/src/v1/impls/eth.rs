@@ -22,7 +22,6 @@ use util::uint::*;
 use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
-use ethcore::transaction::Action;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, Transaction, OptionalValue};
 
@@ -126,9 +125,10 @@ impl Eth for EthClient {
 
 	fn block(&self, params: Params) -> Result<Value, Error> {
 		match from_params::<(H256, bool)>(params) {
-			Ok((hash, include_txs)) => match (self.client.block_header(&hash), self.client.block_total_difficulty(&hash)) {
+			Ok((hash, include_txs)) => match (self.client.block(&hash), self.client.block_total_difficulty(&hash)) {
 				(Some(bytes), Some(total_difficulty)) => {
-					let view = HeaderView::new(&bytes);
+					let block_view = BlockView::new(&bytes);
+					let view = block_view.header_view();
 					let block = Block {
 						hash: OptionalValue::Value(view.sha3()),
 						parent_hash: view.parent_hash(),
@@ -148,9 +148,9 @@ impl Eth for EthClient {
 						uncles: vec![],
 						transactions: {
 							if include_txs {
-								BlockTransactions::Hashes(vec![])
+								BlockTransactions::Full(block_view.localized_transactions().into_iter().map(From::from).collect())
 							} else {
-								BlockTransactions::Full(vec![])
+								BlockTransactions::Hashes(block_view.transaction_hashes())
 							}
 						},
 						extra_data: Bytes::default()
@@ -166,22 +166,7 @@ impl Eth for EthClient {
 	fn transaction_at(&self, params: Params) -> Result<Value, Error> {
 		match from_params::<(H256,)>(params) {
 			Ok((hash,)) => match self.client.transaction(&hash) {
-				Some(t) => to_value(&Transaction {
-					hash: t.hash(),
-					nonce: t.nonce,
-					block_hash: OptionalValue::Value(t.block_hash.clone()),
-					block_number: OptionalValue::Value(U256::from(t.block_number)),
-					transaction_index: OptionalValue::Value(U256::from(t.transaction_index)),
-					from: t.sender().unwrap(),
-					to: match t.action {
-						Action::Create => OptionalValue::Null,
-						Action::Call(ref address) => OptionalValue::Value(address.clone())
-					},
-					value: t.value,
-					gas_price: t.gas_price,
-					gas: t.gas,
-					input: Bytes::new(t.data.clone())
-				}),
+				Some(t) => to_value(&Transaction::from(t)),
 				None => Ok(Value::Null)
 			},
 			Err(err) => Err(err)
