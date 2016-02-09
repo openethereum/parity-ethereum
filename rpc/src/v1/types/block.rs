@@ -14,10 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use serde::{Serialize, Serializer};
 use util::hash::*;
 use util::uint::*;
+use v1::types::{Bytes, Transaction};
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug)]
+pub enum BlockTransactions {
+	Hashes(Vec<H256>),
+	Full(Vec<Transaction>)
+}
+
+impl Serialize for BlockTransactions {
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	where S: Serializer {
+		match *self {
+			BlockTransactions::Hashes(ref hashes) => hashes.serialize(serializer),
+			BlockTransactions::Full(ref ts) => ts.serialize(serializer)
+		}
+	}
+}
+
+#[derive(Debug, Serialize)]
 pub struct Block {
 	pub hash: H256,
 	#[serde(rename="parentHash")]
@@ -38,9 +56,8 @@ pub struct Block {
 	pub gas_used: U256,
 	#[serde(rename="gasLimit")]
 	pub gas_limit: U256,
-	// TODO: figure out how to properly serialize bytes
-	//#[serde(rename="extraData")]
-	//extra_data: Vec<u8>,
+	#[serde(rename="extraData")]
+	pub extra_data: Bytes,
 	#[serde(rename="logsBloom")]
 	pub logs_bloom: H2048,
 	pub timestamp: U256,
@@ -48,5 +65,52 @@ pub struct Block {
 	#[serde(rename="totalDifficulty")]
 	pub total_difficulty: U256,
 	pub uncles: Vec<U256>,
-	pub transactions: Vec<U256>
+	pub transactions: BlockTransactions
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use util::hash::*;
+	use util::uint::*;
+	use v1::types::{Transaction, Bytes};
+	use super::*;
+
+	#[test]
+	fn test_serialize_block_transactions() {
+		let t = BlockTransactions::Full(vec![Transaction::default()]);
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","blockNumber":"0x00","transactionIndex":"0x00","from":"0x0000000000000000000000000000000000000000","to":"0x0000000000000000000000000000000000000000","value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x00"}]"#);
+
+		let t = BlockTransactions::Hashes(vec![H256::default()]);
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"["0x0000000000000000000000000000000000000000000000000000000000000000"]"#);
+	}
+
+	#[test]
+	fn test_serialize_block() {
+		let block = Block {
+			hash: H256::default(),
+			parent_hash: H256::default(),
+			uncles_hash: H256::default(),
+			author: Address::default(),
+			miner: Address::default(),
+			state_root: H256::default(),
+			transactions_root: H256::default(),
+			receipts_root: H256::default(),
+			number: U256::default(),
+			gas_used: U256::default(),
+			gas_limit: U256::default(),
+			extra_data: Bytes::default(),
+			logs_bloom: H2048::default(),
+			timestamp: U256::default(),
+			difficulty: U256::default(),
+			total_difficulty: U256::default(),
+			uncles: vec![],
+			transactions: BlockTransactions::Hashes(vec![])
+		};
+
+		let serialized = serde_json::to_string(&block).unwrap();
+		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","sha3Uncles":"0x0000000000000000000000000000000000000000000000000000000000000000","author":"0x0000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","number":"0x00","gasUsed":"0x00","gasLimit":"0x00","extraData":"0x00","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x00","difficulty":"0x00","totalDifficulty":"0x00","uncles":[],"transactions":[]}"#);
+	}
 }

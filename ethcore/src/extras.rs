@@ -260,7 +260,7 @@ pub struct TransactionAddress {
 	/// Block hash
 	pub block_hash: H256,
 	/// Transaction index within the block
-	pub index: u64
+	pub index: usize
 }
 
 impl ExtrasIndexable for TransactionAddress {

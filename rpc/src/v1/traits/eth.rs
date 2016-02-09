@@ -23,6 +23,9 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Returns protocol version.
 	fn protocol_version(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
+	/// Returns an object with data about the sync status or false. (wtf?)
+	fn syncing(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Returns the number of hashes per second that the node is mining with.
 	fn hashrate(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
@@ -108,6 +111,7 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_method("eth_protocolVersion", Eth::protocol_version);
+		delegate.add_method("eth_syncing", Eth::syncing);
 		delegate.add_method("eth_hashrate", Eth::hashrate);
 		delegate.add_method("eth_coinbase", Eth::author);
 		delegate.add_method("eth_mining", Eth::is_mining);

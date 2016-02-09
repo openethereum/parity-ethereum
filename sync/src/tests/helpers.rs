@@ -82,6 +82,10 @@ impl BlockChainClient for TestBlockChainClient {
 		Some(U256::zero())
 	}
 
+	fn code(&self, _address: &Address) -> Option<Bytes> {
+		unimplemented!();
+	}
+
 	fn block_header(&self, h: &H256) -> Option<Bytes> {
 		self.blocks.read().unwrap().get(h).map(|r| Rlp::new(r).at(0).as_raw().to_vec())
 	}

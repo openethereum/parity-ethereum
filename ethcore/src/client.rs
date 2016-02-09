@@ -85,6 +85,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block total difficulty.
 	fn block_total_difficulty(&self, hash: &H256) -> Option<U256>;
 
+	/// Get address code.
+	fn code(&self, address: &Address) -> Option<Bytes>;
+
 	/// Get raw block header data by block number.
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes>;
 
@@ -161,7 +164,7 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "1.0";
+const CLIENT_DB_VER_STR: &'static str = "2.0";
 
 impl Client {
 	/// Create a new client with given spec and DB path.
@@ -356,6 +359,10 @@ impl BlockChainClient for Client {
 	
 	fn block_total_difficulty(&self, hash: &H256) -> Option<U256> {
 		self.chain.read().unwrap().block_details(hash).map(|d| d.total_difficulty)
+	}
+
+	fn code(&self, address: &Address) -> Option<Bytes> {
+		self.state().code(address)
 	}
 
 	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {

@@ -14,15 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc v1.
-//! 
-//! Compliant with ethereum rpc.
+use util::hash::*;
 
-pub mod traits;
-mod impls;
-mod types;
-#[cfg(test)]
-mod tests;
-
-pub use self::traits::{Web3, Eth, EthFilter, Net};
-pub use self::impls::*;
+#[derive(Default, Debug, Serialize)]
+pub struct SyncStatus {
+	#[serde(rename="startingBlock")]
+	pub starting_block: H256,
+	#[serde(rename="currentBlock")]
+	pub current_block: H256,
+	#[serde(rename="highestBlock")]
+	pub highest_block: H256,
+}
