@@ -397,13 +397,12 @@ function run_installer()
 	
 	function linux_deps_installer()
 	{
-		sudo apt-get update -qq
-		
-		if [[ $isSudo == false ]]; then
-			info "Installing sudo..."
-			apt-get install -q -y sudo
+		if [[ $isRocksDB == false || $isCurl == false ]]; then
+			info "Preparing apt..."
+			sudo apt-get update -qq
 			echo
 		fi
+		
 		if [[ $isRocksDB == false ]]; then
 			info "Installing rocksdb..."
 
@@ -415,6 +414,7 @@ function run_installer()
 
 			echo
 		fi
+
 		if [[ $isCurl == false ]]; then
 			info "Installing curl..."
 			sudo apt-get install -q -y curl
@@ -561,8 +561,8 @@ EOL
 	{
 		echo
 		successHeading "All done"
-		#		head "Next steps"
-		#		info "Run ${cyan}\`\`${reset} to get started.${reset}"
+		head "Next steps"
+		info "Run ${cyan}\`parity -j\`${reset} to start the Parity Ethereum client.${reset}"
 		echo
 		exit 0
 	}
