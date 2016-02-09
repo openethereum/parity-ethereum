@@ -669,7 +669,7 @@ function run_installer()
 	function build_parity()
 	{
 		info "Downloading Parity..."
-		git clone git@github.com:ethcore/parity
+		git clone https://github.com/ethcore/parity
 		cd parity
 		git submodule init
 		git submodule update
