@@ -157,6 +157,11 @@ impl Engine for Ethash {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		if header.seal.len() != self.seal_fields() {
+			return Err(From::from(BlockError::InvalidSealArity(
+				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
+			)));
+		}
 		let result = self.pow.compute_light(header.number as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
@@ -387,7 +392,32 @@ mod tests {
 			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
 			_ => { panic!("should be invalid proof of work error"); }
 		}
+	}
 
+	#[test]
+	fn can_do_seal_unordered_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let header: Header = Header::default();
+
+		let verify_result = engine.verify_block_unordered(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
+			_ => { panic!("should be block seal mismatch error"); }
+		}
+	}
+
+	#[test]
+	fn can_do_seal256_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		let verify_result = engine.verify_block_unordered(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
+			_ => { panic!("should be invalid proof of work error"); }
+		}
 	}
 
 	// TODO: difficulty test
