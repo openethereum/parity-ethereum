@@ -355,6 +355,7 @@ mod tests {
 	}
 
 	#[test]
+	#[should_panic]
 	fn can_call_fail_empty() {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
