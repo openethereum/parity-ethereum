@@ -363,24 +363,21 @@ mod tests {
 
 		let mut output = vec![];
 
-		let result = ext.call(
+		// this should panic because we have no balance on any account
+		ext.call(
 			&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap(),
 			&Address::new(),
 			&Address::new(),
-			Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap()),
+			Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000150000").unwrap()),
 			&vec![],
 			&Address::new(),
 			&mut output);
-
-		if let MessageCallResult::Success(_) = result {
-			panic!("Call should have failed because no data was provided");
-		}
 	}
 
 	#[test]
 	fn can_log() {
 		let log_data = vec![120u8, 110u8];
-		let log_topics = vec![H256::from("afafafafafafafafafafafbcbcbcbcbcbcbcbcbcbeeeeeeeeeeeeedddddddddd")];
+		let log_topics = vec![H256::from("af0fa234a6af46afa23faf23bcbc1c1cb4bcb7bcbe7e7e7ee3ee2edddddddddd")];
 
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
@@ -391,5 +388,20 @@ mod tests {
 		}
 
 		assert_eq!(setup.sub_state.logs.len(), 1);
+	}
+
+	#[test]
+	fn can_suicide() {
+		let refund_account = &Address::new();
+
+		let mut setup = TestSetup::new();
+		let state = setup.state.reference_mut();
+
+		{
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+			ext.suicide(&refund_account);
+		}
+
+		assert_eq!(setup.sub_state.suicides.len(), 1);
 	}
 }
