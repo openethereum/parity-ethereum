@@ -175,6 +175,11 @@ impl Engine for Ethash {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		// we should not calculate difficulty for genesis blocks
+		if header.number() == 0 {
+			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+		}
+
 		// Check difficulty is correct given the two timestamps.
 		let expected_difficulty = self.calculate_difficuty(header, parent);
 		if header.difficulty != expected_difficulty {
@@ -439,7 +444,56 @@ mod tests {
 			Err(_) => { panic!("should be invalid proof-of-work fail (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
+	}
 
+	#[test]
+	fn can_verify_block_family_genesis_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let header: Header = Header::default();
+		let parent_header: Header = Header::default();
+
+		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::RidiculousNumber(_))) => {},
+			Err(_) => { panic!("should be invalid block number fail (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+	}
+
+	#[test]
+	fn can_verify_block_family_difficulty_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_number(2);
+		let mut parent_header: Header = Header::default();
+		parent_header.set_number(1);
+
+		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {},
+			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+	}
+
+	#[test]
+	fn can_verify_block_family_gas_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_number(2);
+		header.set_difficulty(U256::from_str("0000000000000000000000000000000000000000000000000000000000020000").unwrap());
+		let mut parent_header: Header = Header::default();
+		parent_header.set_number(1);
+
+		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidGasLimit(_))) => {},
+			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
 	}
 
 	// TODO: difficulty test
