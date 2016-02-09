@@ -159,11 +159,13 @@ macro_rules! evm_test_ignore(
 		#[test]
 		#[ignore]
 		#[cfg(feature = "jit")]
+		#[cfg(feature = "ignored-tests")]
 		fn $name_jit() {
 			$name_test(Factory::new(VMType::Jit));
 		}
 		#[test]
 		#[ignore]
+		#[cfg(feature = "ignored-tests")]
 		fn $name_int() {
 			$name_test(Factory::new(VMType::Interpreter));
 		}

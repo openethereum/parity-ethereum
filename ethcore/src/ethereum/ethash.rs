@@ -23,8 +23,6 @@ use spec::*;
 use engine::*;
 use evm::Schedule;
 use evm::Factory;
-#[cfg(test)]
-use tests::helpers::*;
 
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
@@ -47,6 +45,17 @@ impl Ethash {
 			u64_params: RwLock::new(HashMap::new()),
 			u256_params: RwLock::new(HashMap::new())
 		})
+	}
+
+	#[cfg(test)]
+	fn new_test(spec: Spec) -> Ethash {
+		Ethash {
+			spec: spec,
+			pow: EthashManager::new(),
+			factory: Factory::default(),
+			u64_params: RwLock::new(HashMap::new()),
+			u256_params: RwLock::new(HashMap::new())
+		}
 	}
 
 	fn u64_param(&self, name: &str) -> u64 {
@@ -123,6 +132,11 @@ impl Engine for Ethash {
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the seal fields.
+		if header.seal.len() != self.seal_fields() {
+			return Err(From::from(BlockError::InvalidSealArity(
+				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
+			)));
+		}
 		try!(UntrustedRlp::new(&header.seal[0]).as_val::<H256>());
 		try!(UntrustedRlp::new(&header.seal[1]).as_val::<H64>());
 
@@ -143,6 +157,11 @@ impl Engine for Ethash {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		if header.seal.len() != self.seal_fields() {
+			return Err(From::from(BlockError::InvalidSealArity(
+				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
+			)));
+		}
 		let result = self.pow.compute_light(header.number as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
@@ -242,38 +261,187 @@ impl Header {
 	}
 }
 
-#[test]
-fn on_close_block() {
+#[cfg(test)]
+mod tests {
+	extern crate ethash;
+
+	use common::*;
+	use block::*;
+	use engine::*;
+	use tests::helpers::*;
 	use super::*;
-	let engine = new_morden().to_engine().unwrap();
-	let genesis_header = engine.spec().genesis_header();
-	let mut db_result = get_temp_journal_db();
-	let mut db = db_result.take();
-	engine.spec().ensure_db_good(&mut db);
-	let last_hashes = vec![genesis_header.hash()];
-	let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
-	let b = b.close();
-	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
+	use super::super::new_morden;
+
+	#[test]
+	fn on_close_block() {
+		let engine = new_morden().to_engine().unwrap();
+		let genesis_header = engine.spec().genesis_header();
+		let mut db_result = get_temp_journal_db();
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(&mut db);
+		let last_hashes = vec![genesis_header.hash()];
+		let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
+		let b = b.close();
+		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
+	}
+
+	#[test]
+	fn on_close_block_with_uncle() {
+		let engine = new_morden().to_engine().unwrap();
+		let genesis_header = engine.spec().genesis_header();
+		let mut db_result = get_temp_journal_db();
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(&mut db);
+		let last_hashes = vec![genesis_header.hash()];
+		let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
+		let mut uncle = Header::new();
+		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
+		uncle.author = uncle_author.clone();
+		b.push_uncle(uncle).unwrap();
+
+		let b = b.close();
+		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("478eae0e571ba000").unwrap());
+		assert_eq!(b.state().balance(&uncle_author), U256::from_str("3cb71f51fc558000").unwrap());
+	}
+
+	#[test]
+	fn has_valid_metadata() {
+		let engine = Ethash::new_boxed(new_morden());
+		assert!(!engine.name().is_empty());
+		assert!(engine.version().major >= 1);
+	}
+
+	#[test]
+	fn can_return_params() {
+		let engine = Ethash::new_test(new_morden());
+		assert!(engine.u64_param("durationLimit") > 0);
+		assert!(engine.u256_param("minimumDifficulty") > U256::zero());
+	}
+
+	#[test]
+	fn can_return_factory() {
+		let engine = Ethash::new_test(new_morden());
+		engine.vm_factory();
+	}
+
+	#[test]
+	fn can_return_schedule() {
+		let engine = Ethash::new_test(new_morden());
+		let schedule = engine.schedule(&EnvInfo {
+			number: 10000000,
+			author: x!(0),
+			timestamp: 0,
+			difficulty: x!(0),
+			last_hashes: vec![],
+			gas_used: x!(0),
+			gas_limit: x!(0)
+		});
+
+		assert!(schedule.stack_limit > 0);
+
+		let schedule = engine.schedule(&EnvInfo {
+			number: 100,
+			author: x!(0),
+			timestamp: 0,
+			difficulty: x!(0),
+			last_hashes: vec![],
+			gas_used: x!(0),
+			gas_limit: x!(0)
+		});
+
+		assert!(!schedule.have_delegate_call);
+	}
+
+	#[test]
+	fn can_do_seal_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let header: Header = Header::default();
+
+		let verify_result = engine.verify_block_basic(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
+			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+	}
+
+	#[test]
+	fn can_do_difficulty_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+
+		let verify_result = engine.verify_block_basic(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
+			Err(_) => { panic!("should be block difficulty error (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+	}
+
+	#[test]
+	fn can_do_proof_of_work_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
+
+		let verify_result = engine.verify_block_basic(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
+			Err(_) => { panic!("should be invalid proof of work error (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+	}
+
+	#[test]
+	fn can_do_seal_unordered_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let header: Header = Header::default();
+
+		let verify_result = engine.verify_block_unordered(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
+			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+	}
+
+	#[test]
+	fn can_do_seal256_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		let verify_result = engine.verify_block_unordered(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
+			Err(_) => { panic!("should be invalid 256-bit seal fail (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+	}
+
+	#[test]
+	fn can_do_proof_of_work_unordered_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
+
+		let verify_result = engine.verify_block_unordered(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
+			Err(_) => { panic!("should be invalid proof-of-work fail (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+
+	}
+
+	// TODO: difficulty test
 }
 
-#[test]
-fn on_close_block_with_uncle() {
-	use super::*;
-	let engine = new_morden().to_engine().unwrap();
-	let genesis_header = engine.spec().genesis_header();
-	let mut db_result = get_temp_journal_db();
-	let mut db = db_result.take();
-	engine.spec().ensure_db_good(&mut db);
-	let last_hashes = vec![genesis_header.hash()];
-	let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
-	let mut uncle = Header::new();
-	let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
-	uncle.author = uncle_author.clone();
-	b.push_uncle(uncle).unwrap();
-	
-	let b = b.close();
-	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("478eae0e571ba000").unwrap());
-	assert_eq!(b.state().balance(&uncle_author), U256::from_str("3cb71f51fc558000").unwrap());
-}
-
-// TODO: difficulty test
