@@ -69,11 +69,17 @@ impl TestBlockChainClient {
 			self.import_block(rlp.as_raw().to_vec()).unwrap();
 		}
 	}
+
+	pub fn block_hash_delta_minus(&mut self, delta: usize) -> H256 {
+		let blocks_read = self.numbers.read().unwrap();
+		let index = blocks_read.len() - delta;
+		blocks_read[&index].clone()
+	}
 }
 
 impl BlockChainClient for TestBlockChainClient {
 	fn block_total_difficulty(&self, _h: &H256) -> Option<U256> {
-		unimplemented!();
+		Some(U256::zero())
 	}
 
 	fn code(&self, _address: &Address) -> Option<Bytes> {
@@ -82,7 +88,6 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn block_header(&self, h: &H256) -> Option<Bytes> {
 		self.blocks.read().unwrap().get(h).map(|r| Rlp::new(r).at(0).as_raw().to_vec())
-
 	}
 
 	fn block_body(&self, h: &H256) -> Option<Bytes> {
@@ -129,11 +134,33 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn tree_route(&self, _from: &H256, _to: &H256) -> Option<TreeRoute> {
+	// works only if blocks are one after another 1 -> 2 -> 3
+	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
 		Some(TreeRoute {
-			blocks: Vec::new(),
 			ancestor: H256::new(),
-			index: 0
+			index: 0,
+			blocks: {
+				let numbers_read = self.numbers.read().unwrap();
+				let mut adding = false;
+
+				let mut blocks = Vec::new();
+				for (_, hash) in numbers_read.iter().sort_by(|tuple1, tuple2| tuple1.0.cmp(tuple2.0)) {
+					if hash == to {
+						if adding {
+							blocks.push(hash.clone());
+						}
+						adding = false;
+						break;
+					}
+					if hash == from {
+						adding = true;
+					}
+					if adding {
+						blocks.push(hash.clone());
+					}
+				}
+				if adding { Vec::new() } else { blocks }
+			}
 		})
 	}
 
@@ -206,7 +233,6 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn queue_info(&self) -> BlockQueueInfo {
 		BlockQueueInfo {
-			full: false,
 			verified_queue_size: 0,
 			unverified_queue_size: 0,
 			verifying_queue_size: 0,
@@ -338,6 +364,11 @@ impl TestNet {
 		}
 	}
 
+	pub fn sync_step_peer(&mut self, peer_num: usize) {
+		let mut peer = self.peer_mut(peer_num);
+		peer.sync.maintain_sync(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+	}
+
 	pub fn restart_peer(&mut self, i: usize) {
 		let peer = self.peer_mut(i);
 		peer.sync.restart(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
@@ -365,5 +396,10 @@ impl TestNet {
 
 	pub fn done(&self) -> bool {
 		self.peers.iter().all(|p| p.queue.is_empty())
+	}
+
+	pub fn trigger_block_verified(&mut self, peer_id: usize) {
+		let mut peer = self.peer_mut(peer_id);
+		peer.sync.chain_blocks_verified(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
 	}
 }

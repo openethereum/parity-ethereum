@@ -4,8 +4,8 @@
 
 [travis-image]: https://travis-ci.org/ethcore/parity.svg?branch=master
 [travis-url]: https://travis-ci.org/ethcore/parity
-[coveralls-image]: https://coveralls.io/repos/github/ethcore/parity/badge.svg?branch=master&t=Fk0OuQ
-[coveralls-url]: https://coveralls.io/r/ethcore/parity?branch=master
+[coveralls-image]: https://coveralls.io/repos/github/ethcore/parity/badge.svg?branch=master
+[coveralls-url]: https://coveralls.io/github/ethcore/parity?branch=master
 [gitter-image]: https://badges.gitter.im/Join%20Chat.svg
 [gitter-url]: https://gitter.im/ethcore/parity?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 

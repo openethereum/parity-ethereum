@@ -27,7 +27,7 @@ use spec::Spec;
 use engine::Engine;
 use views::HeaderView;
 use block_queue::{BlockQueue, BlockQueueInfo};
-use service::NetSyncMessage;
+use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
@@ -223,7 +223,7 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) -> usize {
+	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
 		let mut ret = 0;
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
@@ -295,6 +295,10 @@ impl Client {
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 			ret += 1;
+
+			if self.block_queue.read().unwrap().queue_info().is_empty() {
+				io.send(NetworkIoMessage::User(SyncMessage::BlockVerified)).unwrap();
+			}
 		}
 		self.block_queue.write().unwrap().mark_as_good(&good_blocks);
 		ret
