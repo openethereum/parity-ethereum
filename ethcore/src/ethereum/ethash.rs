@@ -361,7 +361,8 @@ mod tests {
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
-			_ => { panic!("should be block seal mismatch error"); }
+			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
 		}
 	}
 
@@ -375,7 +376,8 @@ mod tests {
 
 		match verify_result {
 			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
-			_ => { panic!("should be block difficulty error"); }
+			Err(_) => { panic!("should be block difficulty error (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
 		}
 	}
 
@@ -390,7 +392,8 @@ mod tests {
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
-			_ => { panic!("should be invalid proof of work error"); }
+			Err(_) => { panic!("should be invalid proof of work error (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
 		}
 	}
 
@@ -403,7 +406,8 @@ mod tests {
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
-			_ => { panic!("should be block seal mismatch error"); }
+			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
 		}
 	}
 
@@ -416,8 +420,26 @@ mod tests {
 
 		match verify_result {
 			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
-			_ => { panic!("should be invalid proof of work error"); }
+			Err(_) => { panic!("should be invalid 256-bit seal fail (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
 		}
+	}
+
+	#[test]
+	fn can_do_proof_of_work_unordered_verification_fail() {
+		let engine = Ethash::new_test(new_morden());
+		let mut header: Header = Header::default();
+		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
+
+		let verify_result = engine.verify_block_unordered(&header, None);
+
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
+			Err(_) => { panic!("should be invalid proof-of-work fail (got {:?})", verify_result); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+
 	}
 
 	// TODO: difficulty test
