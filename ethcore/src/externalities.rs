@@ -106,16 +106,18 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
+		// TODO: comment out what this function expects from env_info, since it will produce panics if the latter is inconsistent
 		match *number < U256::from(self.env_info.number) && number.low_u64() >= cmp::max(256, self.env_info.number) - 256 {
 			true => {
 				let index = self.env_info.number - number.low_u64() - 1;
+				assert!(index < self.env_info.last_hashes.len() as u64, format!("Inconsistent env_info, should contain at least {:?} last hashes", index+1));
 				let r = self.env_info.last_hashes[index as usize].clone();
 				trace!("ext: blockhash({}) -> {} self.env_info.number={}\n", number, r, self.env_info.number);
 				r
 			},
 			false => {
 				trace!("ext: blockhash({}) -> null self.env_info.number={}\n", number, self.env_info.number);
-				H256::from(&U256::zero())
+				H256::zero()
 			},
 		}
 	}
@@ -305,7 +307,7 @@ mod tests {
 	}
 
 	#[test]
-	fn can_return_block_hash() {
+	fn can_return_block_hash_no_env() {
 		let mut state_result = get_temp_state();
 		let state = state_result.reference_mut();
 		let test_spec = get_test_spec();
@@ -317,6 +319,24 @@ mod tests {
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 		assert_eq!(hash, H256::zero());
+	}
+
+	#[test]
+	fn can_return_block_hash() {
+		let mut state_result = get_temp_state();
+		let state = state_result.reference_mut();
+		let test_spec = get_test_spec();
+		let test_engine: &Engine = &*test_spec.to_engine().unwrap();
+		let mut test_sub_state = Substate::new();
+		let mut env_info = get_test_env_info();
+		env_info.number = 0x120001;
+		let test_hash = H256::from("afafafafafafafafafafafbcbcbcbcbcbcbcbcbcbeeeeeeeeeeeeedddddddddd");
+		env_info.last_hashes.push(test_hash.clone());
+
+		let ext = Externalities::new(state, &env_info, test_engine, 0, get_test_origin(), &mut test_sub_state, OutputPolicy::InitContract);
+
+		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
+		assert_eq!(test_hash, hash);
 	}
 
 }
