@@ -355,10 +355,24 @@ mod tests {
 	}
 
 	#[test]
-	fn can_call_fail() {
-		let setup = TestSetup::new();
+	fn can_call_fail_empty() {
+		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
-	}
+		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
 
+		let mut output = vec![];
+
+		let result = ext.call(
+			&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap(),
+			&Address::new(),
+			&Address::new(),
+			Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap()),
+			&vec![],
+			&Address::new(),
+			&mut output);
+
+		if let MessageCallResult::Success(_) = result {
+			panic!("Call should have failed because no data was provided");
+		}
+	}
 }
