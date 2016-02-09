@@ -376,4 +376,20 @@ mod tests {
 			panic!("Call should have failed because no data was provided");
 		}
 	}
+
+	#[test]
+	fn can_log() {
+		let log_data = vec![120u8, 110u8];
+		let log_topics = vec![H256::from("afafafafafafafafafafafbcbcbcbcbcbcbcbcbcbeeeeeeeeeeeeedddddddddd")];
+
+		let mut setup = TestSetup::new();
+		let state = setup.state.reference_mut();
+
+		{
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+			ext.log(log_topics, &log_data);
+		}
+
+		assert_eq!(setup.sub_state.logs.len(), 1);
+	}
 }
