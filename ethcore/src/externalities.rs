@@ -300,6 +300,23 @@ mod tests {
 		let env_info = get_test_env_info();
 
 		let ext = Externalities::new(state, &env_info, test_engine, 0, get_test_origin(), &mut test_sub_state, OutputPolicy::InitContract);
+
+		assert_eq!(ext.env_info().number, 100);
+	}
+
+	#[test]
+	fn can_return_block_hash() {
+		let mut state_result = get_temp_state();
+		let state = state_result.reference_mut();
+		let test_spec = get_test_spec();
+		let test_engine: &Engine = &*test_spec.to_engine().unwrap();
+		let mut test_sub_state = Substate::new();
+		let env_info = get_test_env_info();
+
+		let ext = Externalities::new(state, &env_info, test_engine, 0, get_test_origin(), &mut test_sub_state, OutputPolicy::InitContract);
+
+		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
+		assert_eq!(hash, H256::zero());
 	}
 
 }
