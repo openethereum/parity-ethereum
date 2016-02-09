@@ -29,6 +29,7 @@ extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
+extern crate target_info;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -39,23 +40,25 @@ use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
+use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethsync::EthSync;
+use target_info::Target;
 
 docopt!(Args derive Debug, "
 Parity. Ethereum Client.
+  By Wood/Paronyan/Kotewicz/Drwięga/Volf.
+  Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
-  parity [options]
-  parity [options] <enode>...
+  parity [options] [ <enode>... ]
 
 Options:
-  -l --logging LOGGING     Specify the logging level.
-  -j --jsonrpc             Enable the JSON-RPC API sever.
-  --jsonrpc-url URL        Specify URL for JSON-RPC API server [default: 127.0.0.1:8545].
+  --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
+                           or frontier, mainnet, morden, or testnet [default: frontier].
 
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
@@ -64,6 +67,11 @@ Options:
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
 
+  -j --jsonrpc             Enable the JSON-RPC API sever.
+  --jsonrpc-url URL        Specify URL for JSON-RPC API server [default: 127.0.0.1:8545].
+
+  -l --logging LOGGING     Specify the logging level.
+  -v --version             Show information about version.
   -h --help                Show this screen.
 ", flag_cache_pref_size: usize, flag_cache_max_size: usize, flag_address: Option<String>);
 
@@ -100,10 +108,28 @@ fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
 fn main() {
 	let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
 
+	if args.flag_version {
+		println!("
+Parity version {} ({}-{}-{})
+Copyright 2015, 2016 Ethcore (UK) Limited
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+By Wood/Paronyan/Kotewicz/Drwięga/Volf.
+", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
+		return;
+	}
+
 	setup_log(&args.flag_logging);
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
-	let spec = ethereum::new_frontier();
+	let spec = match args.flag_chain.as_ref() {
+		"frontier" | "mainnet" => ethereum::new_frontier(),
+		"morden" | "testnet" => ethereum::new_morden(),
+		"olympic" => ethereum::new_olympic(),
+		f => Spec::from_json_utf8(contents(f).expect("Couldn't read chain specification file. Sure it exists?").as_ref()),
+	};
 	let init_nodes = match args.arg_enode.len() {
 		0 => spec.nodes().clone(),
 		_ => args.arg_enode.clone(),
