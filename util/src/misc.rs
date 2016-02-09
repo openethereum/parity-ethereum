@@ -58,7 +58,7 @@ pub enum Filth {
 /// Read the whole contents of a file `name`.
 pub fn contents(name: &str) -> Result<Bytes, UtilError> {
 	let mut file = try!(File::open(name));
-    let mut ret: Vec<u8> = Vec::new();
-    try!(file.read_to_end(&mut ret));
-    Ok(ret)
+	let mut ret: Vec<u8> = Vec::new();
+	try!(file.read_to_end(&mut ret));
+	Ok(ret)
 }
