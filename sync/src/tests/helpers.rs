@@ -22,6 +22,7 @@ use ethcore::error::*;
 use io::SyncIo;
 use chain::{ChainSync};
 use ethcore::receipt::Receipt;
+use ethcore::transaction::LocalizedTransaction;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
@@ -83,6 +84,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn code(&self, _address: &Address) -> Option<Bytes> {
+		unimplemented!();
+	}
+
+	fn transaction(&self, hash: &H256) -> Option<LocalizedTransaction> {
 		unimplemented!();
 	}
 
