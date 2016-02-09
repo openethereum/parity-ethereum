@@ -357,6 +357,8 @@ mod tests {
 	#[test]
 	fn can_call_fail() {
 		let setup = TestSetup::new();
+		let state = setup.state.reference_mut();
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
 	}
 
 }
