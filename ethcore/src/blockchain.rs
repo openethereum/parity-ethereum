@@ -117,7 +117,7 @@ pub trait BlockProvider {
 
 	/// Get transaction at given address.
 	fn transaction_at(&self, address: &TransactionAddress) -> Option<LocalizedTransaction> {
-		self.block(&address.block_hash).map(|bytes| BlockView::new(&bytes).localized_transactions()).and_then(|t| t.into_iter().nth(address.index))
+		self.block(&address.block_hash).and_then(|bytes| BlockView::new(&bytes).localized_transaction_at(address.index))
 	}
 
 	/// Get a list of transactions for a given block.

@@ -160,7 +160,7 @@ impl<'a> BlockView<'a> {
 		let header = self.header_view();
 		let block_hash = header.sha3();
 		let block_number = header.number();
-		self.rlp.val_at::<Vec<SignedTransaction>>(1)
+		self.transactions()
 			.into_iter()
 			.enumerate()
 			.map(|(i, t)| LocalizedTransaction {
@@ -184,6 +184,24 @@ impl<'a> BlockView<'a> {
 	/// Return transaction hashes.
 	pub fn transaction_hashes(&self) -> Vec<H256> {
 		self.rlp.at(1).iter().map(|rlp| rlp.as_raw().sha3()).collect()
+	}
+
+	/// Returns transaction at given index without deserializing unnecessary data.
+	pub fn transaction_at(&self, index: usize) -> Option<SignedTransaction> {
+		self.rlp.at(1).iter().nth(index).map(|rlp| rlp.as_val())
+	}
+
+	/// Returns localized transaction at given index.
+	pub fn localized_transaction_at(&self, index: usize) -> Option<LocalizedTransaction> {
+		let header = self.header_view();
+		let block_hash = header.sha3();
+		let block_number = header.number();
+		self.transaction_at(index).map(|t| LocalizedTransaction {
+			signed: t,
+			block_hash: block_hash,
+			block_number: block_number,
+			transaction_index: index
+		})
 	}
 
 	/// Return list of uncles of given block.
