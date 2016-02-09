@@ -131,6 +131,7 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_estimateGas", Eth::estimate_gas);
 		delegate.add_method("eth_getBlockByHash", Eth::block);
 		delegate.add_method("eth_getBlockByNumber", Eth::block);
+		delegate.add_method("eth_getTransactionByHash", Eth::transaction_at);
 		delegate.add_method("eth_getTransactionByBlockHashAndIndex", Eth::transaction_at);
 		delegate.add_method("eth_getTransactionByBlockNumberAndIndex", Eth::transaction_at);
 		delegate.add_method("eth_getTransactionReceipt", Eth::transaction_receipt);

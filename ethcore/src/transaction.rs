@@ -156,8 +156,7 @@ impl Transaction {
 	}
 }
 
-
-
+/// Signed transaction information.
 #[derive(Debug, Clone, Eq)]
 pub struct SignedTransaction {
 	/// Plain Transaction.

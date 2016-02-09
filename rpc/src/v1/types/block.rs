@@ -17,7 +17,7 @@
 use serde::{Serialize, Serializer};
 use util::hash::*;
 use util::uint::*;
-use v1::types::{Bytes, Transaction};
+use v1::types::{Bytes, Transaction, OptionalValue};
 
 #[derive(Debug)]
 pub enum BlockTransactions {
@@ -37,7 +37,7 @@ impl Serialize for BlockTransactions {
 
 #[derive(Debug, Serialize)]
 pub struct Block {
-	pub hash: H256,
+	pub hash: OptionalValue<H256>,
 	#[serde(rename="parentHash")]
 	pub parent_hash: H256,
 	#[serde(rename="sha3Uncles")]
@@ -51,7 +51,7 @@ pub struct Block {
 	pub transactions_root: H256,
 	#[serde(rename="receiptsRoot")]
 	pub receipts_root: H256,
-	pub number: U256,
+	pub number: OptionalValue<U256>,
 	#[serde(rename="gasUsed")]
 	pub gas_used: U256,
 	#[serde(rename="gasLimit")]
@@ -73,14 +73,14 @@ mod tests {
 	use serde_json;
 	use util::hash::*;
 	use util::uint::*;
-	use v1::types::{Transaction, Bytes};
+	use v1::types::{Transaction, Bytes, OptionalValue};
 	use super::*;
 
 	#[test]
 	fn test_serialize_block_transactions() {
 		let t = BlockTransactions::Full(vec![Transaction::default()]);
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","blockNumber":"0x00","transactionIndex":"0x00","from":"0x0000000000000000000000000000000000000000","to":"0x0000000000000000000000000000000000000000","value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x00"}]"#);
+		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":"0x00","from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x00"}]"#);
 
 		let t = BlockTransactions::Hashes(vec![H256::default()]);
 		let serialized = serde_json::to_string(&t).unwrap();
@@ -90,7 +90,7 @@ mod tests {
 	#[test]
 	fn test_serialize_block() {
 		let block = Block {
-			hash: H256::default(),
+			hash: OptionalValue::Value(H256::default()),
 			parent_hash: H256::default(),
 			uncles_hash: H256::default(),
 			author: Address::default(),
@@ -98,7 +98,7 @@ mod tests {
 			state_root: H256::default(),
 			transactions_root: H256::default(),
 			receipts_root: H256::default(),
-			number: U256::default(),
+			number: OptionalValue::Value(U256::default()),
 			gas_used: U256::default(),
 			gas_limit: U256::default(),
 			extra_data: Bytes::default(),

@@ -98,6 +98,7 @@ pub mod ethereum;
 pub mod header;
 pub mod service;
 pub mod spec;
+pub mod transaction;
 pub mod views;
 pub mod receipt;
 
@@ -115,7 +116,6 @@ mod state;
 mod account;
 mod account_db;
 mod action_params;
-mod transaction;
 mod null_engine;
 mod builtin;
 mod extras;

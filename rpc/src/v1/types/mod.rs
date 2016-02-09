@@ -17,11 +17,13 @@
 mod block;
 mod block_number;
 mod bytes;
+mod optionals;
 mod sync;
 mod transaction;
 
 pub use self::block::{Block, BlockTransactions};
 pub use self::block_number::BlockNumber;
 pub use self::bytes::Bytes;
+pub use self::optionals::OptionalValue;
 pub use self::sync::SyncStatus;
 pub use self::transaction::Transaction;

@@ -22,8 +22,9 @@ use util::uint::*;
 use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
+use ethcore::transaction::Action;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, Transaction, OptionalValue};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -129,7 +130,7 @@ impl Eth for EthClient {
 				(Some(bytes), Some(total_difficulty)) => {
 					let view = HeaderView::new(&bytes);
 					let block = Block {
-						hash: view.sha3(),
+						hash: OptionalValue::Value(view.sha3()),
 						parent_hash: view.parent_hash(),
 						uncles_hash: view.uncles_hash(),
 						author: view.author(),
@@ -137,7 +138,7 @@ impl Eth for EthClient {
 						state_root: view.state_root(),
 						transactions_root: view.transactions_root(),
 						receipts_root: view.receipts_root(),
-						number: U256::from(view.number()),
+						number: OptionalValue::Value(U256::from(view.number())),
 						gas_used: view.gas_used(),
 						gas_limit: view.gas_limit(),
 						logs_bloom: view.log_bloom(),
@@ -161,7 +162,33 @@ impl Eth for EthClient {
 			Err(err) => Err(err)
 		}
 	}
+
+	fn transaction_at(&self, params: Params) -> Result<Value, Error> {
+		match from_params::<H256>(params) {
+			Ok(hash) => match self.client.transaction(&hash) {
+				Some(t) => to_value(&Transaction {
+					hash: t.hash(),
+					nonce: t.nonce,
+					block_hash: OptionalValue::Value(H256::default()), // todo
+					block_number: OptionalValue::Value(U256::default()), // todo
+					transaction_index: U256::default(), // todo
+					from: t.sender().unwrap(),
+					to: match t.action {
+						Action::Create => OptionalValue::Null,
+						Action::Call(ref address) => OptionalValue::Value(address.clone())
+					},
+					value: t.value,
+					gas_price: t.gas_price,
+					gas: t.gas,
+					input: Bytes::new(t.data.clone())
+				}),
+				None => Ok(Value::Null)
+			},
+			Err(err) => Err(err)
+		}
+	}
 }
+
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
