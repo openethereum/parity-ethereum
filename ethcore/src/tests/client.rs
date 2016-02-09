@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use client::{BlockChainClient,Client};
-use super::test_common::*;
 use tests::helpers::*;
+use common::*;
 
 #[test]
 fn created() {
