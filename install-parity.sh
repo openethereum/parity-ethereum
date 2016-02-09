@@ -201,16 +201,16 @@ function run_installer()
 		source /etc/lsb-release
 		
 		if [[ $DISTRIB_ID == "Ubuntu" ]]; then
-			if [[ $DISTRIB_RELEASE == "14.04" ]]; then
-				check "Ubuntu-14.04"
-				isUbuntu1404=true
+			if [[ $DISTRIB_RELEASE == "14.04" || $DISTRIB_RELEASE == "15.04" || $DISTRIB_RELEASE == "15.10" ]]; then
+				check "Ubuntu"
+				isUbuntu=true
 			else
-				check "Ubuntu, but not 14.04"
-				isUbuntu1404=false
+				check "Ubuntu, but version not supported"
+				isUbuntu=false
 			fi
 		else
 			check "Ubuntu not found"
-			isUbuntu1404=false
+			isUbuntu=false
 		fi
 	}
 
@@ -286,32 +286,6 @@ function run_installer()
 		fi
 	}
 
-	function find_multirust()
-	{
-		depCount=$((depCount+2))
-		MULTIRUST_PATH=`which multirust 2>/dev/null`
-		if [[ -f $MULTIRUST_PATH ]]; then
-			depFound=$((depFound+1))
-			check "multirust"
-			isMultirust=true
-			if [[ $(multirust show-default 2>/dev/null | grep nightly | wc -l) == 4 ]]; then
-				depFound=$((depFound+1))
-				check "rust nightly"
-				isMultirustNightly=true
-			else
-				uncheck "rust is not nightly"
-				isMultirustNightly=false
-				INSTALL_FILES+="${blue}${dim}==>${reset}\tmultirust -> rust nightly\n"
-			fi
-		else
-			uncheck "multirust is missing"
-			uncheck "rust nightly is missing"
-			isMultirust=false
-			isMultirustNightly=false
-			INSTALL_FILES+="${blue}${dim}==>${reset}\tmultirust\n"
-		fi
-	}
-
 	function find_apt()
 	{
 		depCount=$((depCount+1))
@@ -327,111 +301,11 @@ function run_installer()
 			uncheck "apt-get is missing"
 			isApt=false
 
-			if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
-				canContinue=false
-				errorMessages+="${red}==>${reset} ${b}Couldn't find apt-get:${reset} We can only use apt-get in order to grab our dependencies.\n"
-				errorMessages+="		Please switch to a distribution such as Debian or Ubuntu or manually install the missing packages.\n"
-			fi
+			canContinue=false
+			errorMessages+="${red}==>${reset} ${b}Couldn't find apt-get:${reset} We can only use apt-get in order to grab our dependencies.\n"
+			errorMessages+="		Please switch to a distribution such as Debian or Ubuntu or manually install the missing packages.\n"
 		fi
 	}
-
-	function find_gcc()
-	{
-		depCount=$((depCount+1))
-		GCC_PATH=`which g++ 2>/dev/null`
-
-		if [[ -f $GCC_PATH ]]
-		then
-			depFound=$((depFound+1))
-			check "g++"
-			isGCC=true
-		else
-			uncheck "g++ is missing"
-			isGCC=false
-			INSTALL_FILES+="${blue}${dim}==>${reset}\tg++\n"
-		fi
-	}
-
-	function find_git()
-	{
-		depCount=$((depCount+1))
-		GIT_PATH=`which git 2>/dev/null`
-
-		if [[ -f $GIT_PATH ]]
-		then
-			depFound=$((depFound+1))
-			check "git"
-			isGit=true
-		else
-			uncheck "git is missing"
-			isGit=false
-			INSTALL_FILES+="${blue}${dim}==>${reset}\tgit\n"
-		fi
-	}
-
-	function find_make()
-	{
-		depCount=$((depCount+1))
-		MAKE_PATH=`which make 2>/dev/null`
-
-		if [[ -f $MAKE_PATH ]]
-		then
-			depFound=$((depFound+1))
-			check "make"
-			isMake=true
-		else
-			uncheck "make is missing"
-			isMake=false
-			INSTALL_FILES+="${blue}${dim}==>${reset}\tmake\n"
-		fi
-	}
-
-	function find_curl()
-	{
-		depCount=$((depCount+1))
-		CURL_PATH=`which curl 2>/dev/null`
-
-		if [[ -f $CURL_PATH ]]
-		then
-			depFound=$((depFound+1))
-			check "curl"
-			isCurl=true
-		else
-			uncheck "curl is missing"
-			isCurl=false
-			INSTALL_FILES+="${blue}${dim}==>${reset}\tcurl\n"
-		fi
-	}
-
-	function ubuntu1404_rocksdb_installer()
-	{
-		sudo apt-get update -qq
-		sudo apt-get install -qq -y software-properties-common
-		sudo apt-add-repository -y ppa:giskou/librocksdb
-		sudo apt-get -f -y install
-		sudo apt-get update -qq
-		sudo apt-get install -qq -y librocksdb
-	}
-
-	function linux_rocksdb_installer()
-	{
-		if [[ $isUbuntu1404 == true ]]; then
-			ubuntu1404_rocksdb_installer
-		else
-			oldpwd=`pwd`
-			cd /tmp
-			exe git clone --branch v4.2 --depth=1 https://github.com/facebook/rocksdb.git
-			cd rocksdb
-			exe make shared_lib
-			sudo cp -a librocksdb.so* /usr/lib
-			sudo ldconfig
-			cd /tmp
-			rm -rf /tmp/rocksdb
-			cd $oldpwd
-		fi
-	}
-
-
 
 	function verify_installation()
 	{
@@ -451,58 +325,32 @@ function run_installer()
 		info "Verifying installation"
 
 		if [[ $OS_TYPE == "linux" ]]; then
-			find_curl
-			find_git
-			find_make
-			find_gcc
 			find_rocksdb
-			find_multirust
+			find_apt
 
-			if [[ $isCurl == false || $isGit == false || $isMake == false || $isGCC == false || $isRocksDB == false || $isMultirustNightly == false ]]; then
+			if [[ $isRocksDB == false || $isApt == false ]]; then
 				abortInstall
 			fi
 		fi
 	}
 	
+	function ubuntu_rocksdb_bin_installer()
+	{
+		sudo apt-get update -qq
+		sudo apt-get install -qq -y software-properties-common
+		sudo apt-add-repository -y ppa:ethcore/ethcore
+		sudo apt-get -f -y install
+		sudo apt-get update -qq
+		sudo apt-get install -qq -y librocksdb
+	}
+
 	function linux_deps_installer()
 	{
-		if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
-			info "Installing build dependencies..."
-			sudo apt-get update -qq
-			if [[ $isGit == false ]]; then
-				sudo apt-get install -q -y git
-			fi
-			if [[ $isGCC == false ]]; then
-				sudo apt-get install -q -y g++ gcc
-			fi
-			if [[ $isMake == false ]]; then
-				sudo apt-get install -q -y make
-			fi
-			if [[ $isCurl == false ]]; then
-				sudo apt-get install -q -y curl
-			fi
-			echo
-		fi
-
 		if [[ $isRocksDB == false ]]; then
-			info "Installing rocksdb..."
-			linux_rocksdb_installer
+			info "Installing rocksdb binaries..."
+			ubuntu_rocksdb_bin_installer
 			echo
 		fi
-
-		if [[ $isMultirust == false ]]; then
-			info "Installing multirust..."
-			curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-			echo
-		fi
-
-		if [[ $isMultirustNightly == false ]]; then
-			info "Installing rust nightly..."
-			sudo multirust update nightly
-			sudo multirust default nightly
-			echo
-		fi
-
 	}
 	
 	function linux_installer()
