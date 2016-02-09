@@ -397,6 +397,8 @@ function run_installer()
 	
 	function linux_deps_installer()
 	{
+		sudo apt-get update -qq
+		
 		if [[ $isSudo == false ]]; then
 			info "Installing sudo..."
 			apt-get install -q -y sudo
@@ -405,7 +407,6 @@ function run_installer()
 		if [[ $isRocksDB == false ]]; then
 			info "Installing rocksdb..."
 
-			sudo apt-get update -qq
 			sudo apt-get install -qq -y software-properties-common
 			sudo apt-add-repository -y ppa:ethcore/ethcore
 			sudo apt-get -f -y install
