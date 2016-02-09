@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_0.9.0-0_amd64.deb
+PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_linux_0.9.0-0_amd64.deb
 
 
 function run_installer()
@@ -47,6 +47,7 @@ function run_installer()
 	dim=`tput dim`
 	reverse=`tput rev`
 	reset=`tput sgr0`
+	n=$'\n'
 
 
 	function head() {
@@ -94,13 +95,19 @@ function run_installer()
 	####### Setup methods
 
 	function wait_for_user() {
+		if [[ $( ask_user "$1" ) == false ]]; then
+			abort_install "${red}==>${reset} Process stopped by user. To resume the install run the one-liner command again."
+		fi
+	}
+
+	function ask_user() {
 		while :
 		do
 			read -p "${blue}==>${reset} $1 [Y/n] " imp
 			case $imp in
-				[yY] ) return 0; break ;;
-				'' ) echo; break ;;
-				[nN] ) return 1 ;;
+				[yY] ) echo true; break ;;
+				'' ) echo true; break ;;
+				[nN] ) echo false; break ;;
 				* ) echo "Unrecognized option provided. Please provide either 'Y' or 'N'";
 			esac
 		done
@@ -114,11 +121,19 @@ function run_installer()
 			return
 		done
 	}
-	
+
 	function exe() {
 		echo "\$ $@"; "$@"
 	}
-	
+
+	function sudo() {
+		if $isSudo; then
+			`which sudo` "$@"
+		else
+			"$@"
+		fi
+	}
+
 	function detectOS() {
 		if [[ "$OSTYPE" == "linux-gnu" ]]
 		then
@@ -130,7 +145,7 @@ function run_installer()
 			get_osx_dependencies
 		else
 			OS_TYPE="win"
-			abortInstall "${red}==>${reset} ${b}OS not supported:${reset} parity one-liner currently support OS X and Linux.\nFor instructions on installing parity on other platforms please visit ${u}${blue}http://ethcore.io/${reset}"
+			abortInstall "${red}==>${reset} ${b}OS not supported:${reset} parity one-liner currently support OS X and Linux.${n}For instructions on installing parity on other platforms please visit ${u}${blue}http://ethcore.io/${reset}"
 		fi
 
 		echo
@@ -184,8 +199,8 @@ function run_installer()
 			fi
 		fi
 
-		errorMessages+="${red}==>${reset} ${b}Mac OS version too old:${reset} eth requires OS X version ${red}$OSX_REQUIERED_VERSION${reset} at least in order to run.\n"
-		errorMessages+="		Please update the OS and reload the install process.\n"
+		errorMessages+="${red}==>${reset} ${b}Mac OS version too old:${reset} eth requires OS X version ${red}$OSX_REQUIERED_VERSION${reset} at least in order to run.${n}"
+		errorMessages+="		Please update the OS and reload the install process.${n}"
 	}
 	
 	function get_osx_dependencies()
@@ -206,11 +221,14 @@ function run_installer()
 				isUbuntu=true
 			else
 				check "Ubuntu, but version not supported"
-				isUbuntu=false
+
+				errorMessages+="${red}==>${reset} ${b}Ubuntu version not supported:${reset} This script requires Ubuntu version 14.04, 15.04 or 15.10.${n}"
+				errorMessages+="		Please either upgrade your Ubuntu installation or using the get-deps.ethcore.io script instead, which can help you build Parity.${n}"
 			fi
 		else
 			check "Ubuntu not found"
-			isUbuntu=false
+			errorMessages+="${red}==>${reset} ${b}Linux distribution not supported:${reset} This script requires Ubuntu version 14.04, 15.04 or 15.10.${n}"
+			errorMessages+="		Please either use this on an Ubuntu installation or instead use the get-deps.ethcore.io script, which can help you build Parity.${n}"
 		fi
 	}
 
@@ -218,15 +236,12 @@ function run_installer()
 	{
 		linux_version
 
-		find_multirust
 		find_rocksdb
 
 		find_curl
-		find_git
-		find_make
-		find_gcc
 
 		find_apt
+		find_sudo
 	}
 
 	function find_brew()
@@ -242,10 +257,10 @@ function run_installer()
 			uncheck "Homebrew is missing"
 			isBrew=false
 
-			INSTALL_FILES+="${blue}${dim}==> Homebrew:${reset}\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/bin/brew\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/Library\n"
-			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/share/man/man1/brew.1\n"
+			INSTALL_FILES+="${blue}${dim}==> Homebrew:${reset}${n}"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/bin/brew${n}"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/Library${n}"
+			INSTALL_FILES+=" ${blue}${dim}➜${reset}	 $HOMEBREW_PREFIX/share/man/man1/brew.1${n}"
 		fi
 
 		depCount=$((depCount+1))
@@ -267,11 +282,57 @@ function run_installer()
 			uncheck "Ruby is missing 🔥"
 			isRuby=false
 			canContinue=false
-			errorMessages+="${red}==>${reset} ${b}Couldn't find Ruby:${reset} Brew requires Ruby which could not be found.\n"
-			errorMessages+="		Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.\n"
+			errorMessages+="${red}==>${reset} ${b}Couldn't find Ruby:${reset} Brew requires Ruby which could not be found.${n}"
+			errorMessages+="		Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.${n}"
 		fi
 	}
 	
+	function find_sudo()
+	{
+		depCount=$((depCount+1))
+		SUDO_PATH=`which sudo 2>/dev/null`
+
+		if [[ -f $SUDO_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "sudo"
+			isSudo=true
+		else
+			uncheck "sudo is missing"
+			if [[ `whoami` == "root" ]]; then
+				if [[ $isApt == false && $isMultirust == false ]]; then
+					canContinue=false
+					errorMessages+="${red}==>${reset} ${b}Couldn't find sudo:${reset} Sudo is needed for the installation of multirust.${n}"
+					errorMessages+="    Please ensure you have sudo installed or alternatively install multirust manually.${n}"
+				fi
+
+				isSudo=false
+				INSTALL_FILES+="${blue}${dim}==>${reset}\tsudo${n}"
+			else
+				canContinue=false
+				errorMessages+="${red}==>${reset} ${b}Couldn't find sudo:${reset} Root access is needed for parts of this installation.${n}"
+				errorMessages+="    Please ensure you have sudo installed or alternatively run this script as root.${n}"
+			fi
+		fi
+	}
+
+	function find_curl()
+	{
+		depCount=$((depCount+1))
+		CURL_PATH=`which curl 2>/dev/null`
+
+		if [[ -f $CURL_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "curl"
+			isCurl=true
+		else
+			uncheck "curl is missing"
+			isCurl=false
+			INSTALL_FILES+="${blue}${dim}==>${reset}\tcurl${n}"
+		fi
+	}
+
 	function find_rocksdb()
 	{
 		depCount=$((depCount+1))
@@ -282,7 +343,7 @@ function run_installer()
 		else
 			uncheck "librocksdb is missing"
 			isRocksDB=false
-			INSTALL_FILES+="${blue}${dim}==>${reset}\tlibrocksdb\n"
+			INSTALL_FILES+="${blue}${dim}==>${reset}\tlibrocksdb${n}"
 		fi
 	}
 
@@ -302,8 +363,8 @@ function run_installer()
 			isApt=false
 
 			canContinue=false
-			errorMessages+="${red}==>${reset} ${b}Couldn't find apt-get:${reset} We can only use apt-get in order to grab our dependencies.\n"
-			errorMessages+="		Please switch to a distribution such as Debian or Ubuntu or manually install the missing packages.\n"
+			errorMessages+="${red}==>${reset} ${b}Couldn't find apt-get:${reset} We can only use apt-get in order to grab our dependencies.${n}"
+			errorMessages+="		Please switch to a distribution such as Debian or Ubuntu or manually install the missing packages.${n}"
 		fi
 	}
 
@@ -334,21 +395,28 @@ function run_installer()
 		fi
 	}
 	
-	function ubuntu_rocksdb_bin_installer()
-	{
-		sudo apt-get update -qq
-		sudo apt-get install -qq -y software-properties-common
-		sudo apt-add-repository -y ppa:ethcore/ethcore
-		sudo apt-get -f -y install
-		sudo apt-get update -qq
-		sudo apt-get install -qq -y librocksdb
-	}
-
 	function linux_deps_installer()
 	{
+		if [[ $isSudo == false ]]; then
+			info "Installing sudo..."
+			apt-get install -q -y sudo
+			echo
+		fi
 		if [[ $isRocksDB == false ]]; then
-			info "Installing rocksdb binaries..."
-			ubuntu_rocksdb_bin_installer
+			info "Installing rocksdb..."
+
+			sudo apt-get update -qq
+			sudo apt-get install -qq -y software-properties-common
+			sudo apt-add-repository -y ppa:ethcore/ethcore
+			sudo apt-get -f -y install
+			sudo apt-get update -qq
+			sudo apt-get install -qq -y librocksdb
+
+			echo
+		fi
+		if [[ $isCurl == false ]]; then
+			info "Installing curl..."
+			sudo apt-get install -q -y curl
 			echo
 		fi
 	}
@@ -361,7 +429,7 @@ function run_installer()
 		info "Installing parity"
 		file=/tmp/parity.deb
 
-		wget $PARITY_DEB_URL -qO $file
+		curl -L $PARITY_DEB_URL > $file
 		sudo dpkg -i $file
 		rm $file
 	}
@@ -509,11 +577,9 @@ EOL
 	fi
 
 	#DEBUG
-
 	
 	head "${b}OK,${reset} let's install Parity now!"
-	if wait_for_user "${b}Last chance!${reset} Sure you want to install this software?"
-	then
+	if [[ $(ask_user "${b}Last chance!${reset} Sure you want to install this software?") == true ]]; then
 		install	
 		echo
 		echo
@@ -521,18 +587,11 @@ EOL
 		finish
 	fi
 
-	
-
-	if [[ $OS_TYPE == "linux" ]]
-	then
-		echo "Netstats:"
-		head "Would you like to install and configure a netstats client?"
-		if wait_for_user "${b}OK,${reset} let's go!"
-		then
+	if [[ $OS_TYPE == "linux" && $DISTRIB_ID == "Ubuntu" ]]; then
+		if [[ $(ask_user "${b}Netstats${reset} Would you like to download, install and configure a Netstats client?${n}${b}${red}WARNING: ${reset}${red}This will need a secret and reconfigure any existing node/NPM installation you have.${reset} ") == true ]]; then
 			install_netstats
 		fi
 	fi
-
 
 	# Display goodbye message
 	finish
