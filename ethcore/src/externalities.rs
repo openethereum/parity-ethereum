@@ -270,6 +270,7 @@ mod tests {
 	use substate::*;
 	use tests::helpers::*;
 	use super::*;
+	use spec::*;
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {
@@ -292,51 +293,70 @@ mod tests {
 		}
 	}
 
+	struct TestSetup {
+		state: GuardedTempResult<State>,
+		spec: Spec,
+		engine: Box<Engine>,
+		sub_state: Substate,
+		env_info: EnvInfo
+	}
+
+	impl TestSetup {
+		fn new() -> TestSetup {
+			let spec = get_test_spec();
+			TestSetup {
+				state: get_temp_state(),
+				spec: get_test_spec(),
+				engine: spec.to_engine().unwrap(),
+				sub_state: Substate::new(),
+				env_info: get_test_env_info()
+			}
+		}
+	}
+
 	#[test]
 	fn can_be_created() {
-		let mut state_result = get_temp_state();
-		let state = state_result.reference_mut();
-		let test_spec = get_test_spec();
-		let test_engine: &Engine = &*test_spec.to_engine().unwrap();
-		let mut test_sub_state = Substate::new();
-		let env_info = get_test_env_info();
+		let mut setup = TestSetup::new();
+		let state = setup.state.reference_mut();
 
-		let ext = Externalities::new(state, &env_info, test_engine, 0, get_test_origin(), &mut test_sub_state, OutputPolicy::InitContract);
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
 
 		assert_eq!(ext.env_info().number, 100);
 	}
 
 	#[test]
 	fn can_return_block_hash_no_env() {
-		let mut state_result = get_temp_state();
-		let state = state_result.reference_mut();
-		let test_spec = get_test_spec();
-		let test_engine: &Engine = &*test_spec.to_engine().unwrap();
-		let mut test_sub_state = Substate::new();
-		let env_info = get_test_env_info();
-
-		let ext = Externalities::new(state, &env_info, test_engine, 0, get_test_origin(), &mut test_sub_state, OutputPolicy::InitContract);
+		let mut setup = TestSetup::new();
+		let state = setup.state.reference_mut();
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
+
 		assert_eq!(hash, H256::zero());
 	}
 
 	#[test]
 	fn can_return_block_hash() {
-		let mut state_result = get_temp_state();
-		let state = state_result.reference_mut();
-		let test_spec = get_test_spec();
-		let test_engine: &Engine = &*test_spec.to_engine().unwrap();
-		let mut test_sub_state = Substate::new();
-		let mut env_info = get_test_env_info();
-		env_info.number = 0x120001;
 		let test_hash = H256::from("afafafafafafafafafafafbcbcbcbcbcbcbcbcbcbeeeeeeeeeeeeedddddddddd");
-		env_info.last_hashes.push(test_hash.clone());
+		let test_env_number = 0x120001;
 
-		let ext = Externalities::new(state, &env_info, test_engine, 0, get_test_origin(), &mut test_sub_state, OutputPolicy::InitContract);
+		let mut setup = TestSetup::new();
+		{
+			let env_info = &mut setup.env_info;
+			env_info.number = test_env_number;
+			env_info.last_hashes.push(test_hash.clone());
+		}
+		let state = setup.state.reference_mut();
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
+
 		assert_eq!(test_hash, hash);
+	}
+
+	#[test]
+	fn can_call_fail() {
+		let setup = TestSetup::new();
 	}
 
 }
