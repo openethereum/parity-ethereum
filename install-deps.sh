@@ -570,7 +570,7 @@ function run_installer()
 		sudo apt-add-repository -y ppa:ethcore/ethcore
 		sudo apt-get -f -y install
 		sudo apt-get update -qq
-		sudo apt-get install -qq -y librocksdb-dev
+		sudo apt-get install -qq -y librocksdb-dev librocksdb
 	}
 
 	function linux_rocksdb_installer()
