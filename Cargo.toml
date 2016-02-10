@@ -11,7 +11,7 @@ env_logger = "0.3"
 rustc-serialize = "0.3"
 docopt = "0.6"
 docopt_macros = "0.6"
-ctrlc = "1.0"
+ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
 clippy = "0.0.37"
 ethcore-util = { path = "util" }
 ethcore = { path = "ethcore" }
