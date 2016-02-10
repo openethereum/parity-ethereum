@@ -21,6 +21,7 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use crossbeam::sync::chase_lev;
 use io::service::{HandlerId, IoChannel, IoContext};
 use io::{IoHandler};
+use panics::*;
 
 pub enum WorkType<Message> {
 	Readable,
@@ -47,12 +48,14 @@ pub struct Worker {
 
 impl Worker {
 	/// Creates a new worker instance.
-	pub fn new<Message>(index: usize, 
-						stealer: chase_lev::Stealer<Work<Message>>, 
+	pub fn new<Message>(index: usize,
+						stealer: chase_lev::Stealer<Work<Message>>,
 						channel: IoChannel<Message>,
 						wait: Arc<Condvar>,
-						wait_mutex: Arc<Mutex<()>>) -> Worker 
-						where Message: Send + Sync + Clone + 'static {
+						wait_mutex: Arc<Mutex<()>>,
+						panic_handler: Arc<PanicHandler>
+					   ) -> Worker
+					where Message: Send + Sync + Clone + 'static {
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
 			thread: None,
@@ -60,15 +63,19 @@ impl Worker {
 			deleting: deleting.clone(),
 		};
 		worker.thread = Some(thread::Builder::new().name(format!("IO Worker #{}", index)).spawn(
-			move || Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting))
+			move || {
+				panic_handler.catch_panic(move || {
+					Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting)
+				}).unwrap()
+			})
 			.expect("Error creating worker thread"));
 		worker
 	}
 
 	fn work_loop<Message>(stealer: chase_lev::Stealer<Work<Message>>,
-						channel: IoChannel<Message>, wait: Arc<Condvar>, 
-						wait_mutex: Arc<Mutex<()>>, 
-						deleting: Arc<AtomicBool>) 
+						channel: IoChannel<Message>, wait: Arc<Condvar>,
+						wait_mutex: Arc<Mutex<()>>,
+						deleting: Arc<AtomicBool>)
 						where Message: Send + Sync + Clone + 'static {
 		while !deleting.load(AtomicOrdering::Relaxed) {
 			{

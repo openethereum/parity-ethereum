@@ -16,6 +16,7 @@
 
 use std::sync::*;
 use error::*;
+use panics::*;
 use network::{NetworkProtocolHandler, NetworkConfiguration};
 use network::error::{NetworkError};
 use network::host::{Host, NetworkIoMessage, ProtocolId};
@@ -27,13 +28,17 @@ use io::*;
 pub struct NetworkService<Message> where Message: Send + Sync + Clone + 'static {
 	io_service: IoService<NetworkIoMessage<Message>>,
 	host_info: String,
-	stats: Arc<NetworkStats>
+	stats: Arc<NetworkStats>,
+	panic_handler: Arc<PanicHandler>
 }
 
 impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start(config: NetworkConfiguration) -> Result<NetworkService<Message>, UtilError> {
+		let panic_handler = PanicHandler::new_in_arc();
 		let mut io_service = try!(IoService::<NetworkIoMessage<Message>>::start());
+		panic_handler.forward_from(&io_service);
+
 		let host = Arc::new(Host::new(config));
 		let stats = host.stats().clone();
 		let host_info = host.client_version();
@@ -43,6 +48,7 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 			io_service: io_service,
 			host_info: host_info,
 			stats: stats,
+			panic_handler: panic_handler
 		})
 	}
 
@@ -72,3 +78,9 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 	}
 }
 
+
+impl<Message> MayPanic for NetworkService<Message> where Message: Send + Sync + Clone + 'static {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+		self.panic_handler.on_panic(closure);
+	}
+}

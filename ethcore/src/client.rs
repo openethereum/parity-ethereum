@@ -17,6 +17,7 @@
 //! Blockchain database client.
 
 use util::*;
+use util::panics::*;
 use rocksdb::{Options, DB, DBCompactionStyle};
 use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
@@ -167,7 +168,8 @@ pub struct Client {
 	state_db: Mutex<JournalDB>,
 	block_queue: RwLock<BlockQueue>,
 	report: RwLock<ClientReport>,
-	import_lock: Mutex<()>
+	import_lock: Mutex<()>,
+	panic_handler: Arc<PanicHandler>,
 }
 
 const HISTORY: u64 = 1000;
@@ -208,19 +210,25 @@ impl Client {
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
 		let db = Arc::new(DB::open(&opts, state_path.to_str().unwrap()).unwrap());
-		
+
 		let engine = Arc::new(try!(spec.to_engine()));
 		let mut state_db = JournalDB::new_with_arc(db.clone());
 		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
+
+		let block_queue = BlockQueue::new(engine.clone(), message_channel);
+		let panic_handler = PanicHandler::new_in_arc();
+		panic_handler.forward_from(&block_queue);
+
 		Ok(Arc::new(Client {
 			chain: chain,
-			engine: engine.clone(),
+			engine: engine,
 			state_db: Mutex::new(state_db),
-			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
+			block_queue: RwLock::new(block_queue),
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
+			panic_handler: panic_handler
 		}))
 	}
 
@@ -433,5 +441,11 @@ impl BlockChainClient for Client {
 			best_block_hash: chain.best_block_hash(),
 			best_block_number: From::from(chain.best_block_number())
 		}
+	}
+}
+
+impl MayPanic for Client {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+		self.panic_handler.on_panic(closure);
 	}
 }
