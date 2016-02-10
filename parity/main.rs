@@ -251,7 +251,7 @@ impl Informant {
 		let sync_info = sync.status();
 
 		if let (_, &Some(ref last_cache_info), &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
-			println!("[ {} {} ]---[ {} blk/s | {} tx/s | {} gas/s  ··· {}/{} peers, {} downloaded, {}+{} queued ···  {} ({}) bl  {} ({}) ex | {} i/c ]",
+			println!("[ {} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, {} downloaded, {}+{} queued ···//  {} ({}) bl  {} ({}) ex ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
 				(report.blocks_imported - last_report.blocks_imported) / dur,
@@ -267,9 +267,7 @@ impl Informant {
 				cache_info.blocks,
 				cache_info.blocks as isize - last_cache_info.blocks as isize,
 				cache_info.block_details,
-				cache_info.block_details as isize - last_cache_info.block_details as isize,
-
-				updates_per_commit()
+				cache_info.block_details as isize - last_cache_info.block_details as isize
 			);
 		}
 
