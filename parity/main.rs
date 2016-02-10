@@ -45,7 +45,6 @@ use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
-use ethcore::spec;
 use ethcore::blockchain::CacheSize;
 use ethsync::EthSync;
 use target_info::Target;
@@ -117,7 +116,7 @@ impl Configuration {
 		}
 	}
 
-	fn print_version() {
+	fn print_version(&self) {
 		println!("\
 Parity version {} ({}-{}-{})
 Copyright 2015, 2016 Ethcore (UK) Limited
@@ -129,8 +128,8 @@ By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 ", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
 	}
 
-	fn get_spec() -> Spec {
-		match args.flag_chain.as_ref() {
+	fn get_spec(&self) -> Spec {
+		match self.args.flag_chain.as_ref() {
 			"frontier" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
