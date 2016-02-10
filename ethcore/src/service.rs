@@ -20,7 +20,6 @@ use util::*;
 use util::panics::*;
 use spec::Spec;
 use error::*;
-use std::env;
 use client::Client;
 
 /// Message type for external and internal events
@@ -44,16 +43,14 @@ pub struct ClientService {
 
 impl ClientService {
 	/// Start the service in a separate thread.
-	pub fn start(spec: Spec, net_config: NetworkConfiguration) -> Result<ClientService, Error> {
+	pub fn start(spec: Spec, net_config: NetworkConfiguration, db_path: &Path) -> Result<ClientService, Error> {
 		let panic_handler = PanicHandler::new_in_arc();
 		let mut net_service = try!(NetworkService::start(net_config));
 		panic_handler.forward_from(&net_service);
 
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {} engine", spec.name, spec.engine_name);
-		let mut dir = env::home_dir().unwrap();
-		dir.push(".parity");
-		let client = try!(Client::new(spec, &dir, net_service.io().channel()));
+		let client = try!(Client::new(spec, db_path, net_service.io().channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
