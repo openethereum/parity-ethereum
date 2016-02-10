@@ -96,7 +96,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str) {
 
 	let mut server = rpc::HttpServer::new(1);
 	server.add_delegate(Web3Client::new().to_delegate());
-	server.add_delegate(EthClient::new(client.clone()).to_delegate());
+	server.add_delegate(EthClient::new(client.clone(), sync.clone()).to_delegate());
 	server.add_delegate(EthFilterClient::new(client).to_delegate());
 	server.add_delegate(NetClient::new(sync).to_delegate());
 	server.start_async(url);

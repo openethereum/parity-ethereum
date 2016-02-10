@@ -16,6 +16,7 @@
 
 //! Eth rpc implementation.
 use std::sync::Arc;
+use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
 use util::hash::*;
 use util::uint::*;
@@ -23,36 +24,48 @@ use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
 use ethcore::blockchain::{BlockId, TransactionId};
+use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, Transaction, OptionalValue, Index};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index};
 
 /// Eth rpc implementation.
 pub struct EthClient {
 	client: Arc<Client>,
+	sync: Arc<EthSync>
 }
 
 impl EthClient {
 	/// Creates new EthClient.
-	pub fn new(client: Arc<Client>) -> Self {
+	pub fn new(client: Arc<Client>, sync: Arc<EthSync>) -> Self {
 		EthClient {
-			client: client
+			client: client,
+			sync: sync
 		}
 	}
 }
 
 impl Eth for EthClient {
-	// TODO: do not hardcode protocol version
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::U64(63)),
+			Params::None => to_value(&U256::from(self.sync.status().protocol_version)),
 			_ => Err(Error::invalid_params())
 		}
 	}
 
-	// TODO: do no hardcode default sync status
 	fn syncing(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&SyncStatus::default()),
+			Params::None => {
+				let status = self.sync.status();
+				let res = match status.state {
+					SyncState::NotSynced | SyncState::Idle => SyncStatus::None,
+					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks => SyncStatus::Info(SyncInfo {
+						starting_block: U256::from(status.start_block_number),
+						current_block: U256::from(self.client.chain_info().best_block_number),
+						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
+					})
+				};
+				to_value(&res)
+			}
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -76,22 +89,21 @@ impl Eth for EthClient {
 	// TODO: return real hashrate once we have mining
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::U64(0)),
+			Params::None => to_value(&U256::zero()),
 			_ => Err(Error::invalid_params())
 		}
 	}
 
-	// TODO: do not hardode gas_price
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::U64(0)),
+			Params::None => to_value(&(shannon() * U256::from(50))),
 			_ => Err(Error::invalid_params())
 		}
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::U64(self.client.chain_info().best_block_number)),
+			Params::None => to_value(&U256::from(self.client.chain_info().best_block_number)),
 			_ => Err(Error::invalid_params())
 		}
 	}
