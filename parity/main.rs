@@ -169,7 +169,7 @@ fn wait_for_exit(client: Arc<Client>) {
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.notify_all(); });
 	let e = exit.clone();
-	client.on_panic(move |_t: &String| { e.notify_all(); });
+	client.on_panic(move |_reason| { e.notify_all(); });
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();

@@ -307,13 +307,13 @@ impl<Message> IoChannel<Message> where Message: Send + Clone {
 /// General IO Service. Starts an event loop and dispatches IO requests.
 /// 'Message' is a notification message type
 pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
-	panic_handler: Arc<StringPanicHandler>,
+	panic_handler: Arc<PanicHandler>,
 	thread: Option<JoinHandle<()>>,
 	host_channel: Sender<IoMessage<Message>>,
 }
 
-impl<Message> MayPanic<String> for IoService<Message> where Message: Send + Sync + Clone + 'static {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener<String> {
+impl<Message> MayPanic for IoService<Message> where Message: Send + Sync + Clone + 'static {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}
 }
@@ -321,7 +321,7 @@ impl<Message> MayPanic<String> for IoService<Message> where Message: Send + Sync
 impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, UtilError> {
-		let panic_handler = StringPanicHandler::new_arc();
+		let panic_handler = PanicHandler::new_arc();
 		let mut event_loop = EventLoop::new().unwrap();
         let channel = event_loop.channel();
 		let panic = panic_handler.clone();

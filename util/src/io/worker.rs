@@ -44,7 +44,7 @@ pub struct Worker {
 	thread: Option<JoinHandle<()>>,
 	wait: Arc<Condvar>,
 	deleting: Arc<AtomicBool>,
-	panic_handler: Arc<StringPanicHandler>,
+	panic_handler: Arc<PanicHandler>,
 }
 
 impl Worker {
@@ -55,7 +55,7 @@ impl Worker {
 						wait: Arc<Condvar>,
 						wait_mutex: Arc<Mutex<()>>) -> Worker
 						where Message: Send + Sync + Clone + 'static {
-		let panic_handler = StringPanicHandler::new_arc();
+		let panic_handler = PanicHandler::new_arc();
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
 			panic_handler: panic_handler.clone(),
@@ -114,8 +114,8 @@ impl Worker {
 	}
 }
 
-impl MayPanic<String> for Worker {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener<String> {
+impl MayPanic for Worker {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}
 }
