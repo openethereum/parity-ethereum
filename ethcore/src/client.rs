@@ -37,7 +37,7 @@ use extras::TransactionAddress;
 pub use blockchain::TreeRoute;
 
 /// Uniquely identifies block.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum BlockId {
 	/// Block's sha3.
 	/// Querying by hash is always faster.
@@ -51,7 +51,7 @@ pub enum BlockId {
 }
 
 /// Uniquely identifies transaction.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TransactionId {
 	/// Transaction's sha3.
 	Hash(H256),

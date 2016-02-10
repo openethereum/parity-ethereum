@@ -41,6 +41,50 @@ impl EthClient {
 			sync: sync
 		}
 	}
+
+	fn block(&self, id: BlockId, include_txs: bool) -> Result<Value, Error> {
+		match (self.client.block(id.clone()), self.client.block_total_difficulty(id)) {
+			(Some(bytes), Some(total_difficulty)) => {
+				let block_view = BlockView::new(&bytes);
+				let view = block_view.header_view();
+				let block = Block {
+					hash: OptionalValue::Value(view.sha3()),
+					parent_hash: view.parent_hash(),
+					uncles_hash: view.uncles_hash(),
+					author: view.author(),
+					miner: view.author(),
+					state_root: view.state_root(),
+					transactions_root: view.transactions_root(),
+					receipts_root: view.receipts_root(),
+					number: OptionalValue::Value(U256::from(view.number())),
+					gas_used: view.gas_used(),
+					gas_limit: view.gas_limit(),
+					logs_bloom: view.log_bloom(),
+					timestamp: U256::from(view.timestamp()),
+					difficulty: view.difficulty(),
+					total_difficulty: total_difficulty,
+					uncles: vec![],
+					transactions: {
+						if include_txs {
+							BlockTransactions::Full(block_view.localized_transactions().into_iter().map(From::from).collect())
+						} else {
+							BlockTransactions::Hashes(block_view.transaction_hashes())
+						}
+					},
+					extra_data: Bytes::default()
+				};
+				to_value(&block)
+			},
+			_ => Ok(Value::Null)
+		}
+	}
+	
+	fn transaction(&self, id: TransactionId) -> Result<Value, Error> {
+		match self.client.transaction(id) {
+			Some(t) => to_value(&Transaction::from(t)),
+			None => Ok(Value::Null)
+		}
+	}
 }
 
 impl Eth for EthClient {
@@ -129,66 +173,29 @@ impl Eth for EthClient {
 			.and_then(|(address, _block_number)| to_value(&self.client.code(&address).map_or_else(Bytes::default, Bytes::new)))
 	}
 
-	fn block(&self, params: Params) -> Result<Value, Error> {
+	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, bool)>(params)
-			.and_then(|(hash, include_txs)| match (self.client.block(BlockId::Hash(hash.clone())), self.client.block_total_difficulty(BlockId::Hash(hash))) {
-				(Some(bytes), Some(total_difficulty)) => {
-					let block_view = BlockView::new(&bytes);
-					let view = block_view.header_view();
-					let block = Block {
-						hash: OptionalValue::Value(view.sha3()),
-						parent_hash: view.parent_hash(),
-						uncles_hash: view.uncles_hash(),
-						author: view.author(),
-						miner: view.author(),
-						state_root: view.state_root(),
-						transactions_root: view.transactions_root(),
-						receipts_root: view.receipts_root(),
-						number: OptionalValue::Value(U256::from(view.number())),
-						gas_used: view.gas_used(),
-						gas_limit: view.gas_limit(),
-						logs_bloom: view.log_bloom(),
-						timestamp: U256::from(view.timestamp()),
-						difficulty: view.difficulty(),
-						total_difficulty: total_difficulty,
-						uncles: vec![],
-						transactions: {
-							if include_txs {
-								BlockTransactions::Full(block_view.localized_transactions().into_iter().map(From::from).collect())
-							} else {
-								BlockTransactions::Hashes(block_view.transaction_hashes())
-							}
-						},
-						extra_data: Bytes::default()
-					};
-					to_value(&block)
-				},
-				_ => Ok(Value::Null)
-			})
+			.and_then(|(hash, include_txs)| self.block(BlockId::Hash(hash), include_txs))
+	}
+
+	fn block_by_number(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(BlockNumber, bool)>(params)
+			.and_then(|(number, include_txs)| self.block(number.into(), include_txs))
 	}
 
 	fn transaction_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.transaction(TransactionId::Hash(hash)) {
-				Some(t) => to_value(&Transaction::from(t)),
-				None => Ok(Value::Null)
-			})
+			.and_then(|(hash,)| self.transaction(TransactionId::Hash(hash)))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| match self.client.transaction(TransactionId::Location(BlockId::Hash(hash), index.value())) {
-				Some(t) => to_value(&Transaction::from(t)),
-				None => Ok(Value::Null)
-			})
+			.and_then(|(hash, index)| self.transaction(TransactionId::Location(BlockId::Hash(hash), index.value())))
 	}
 
 	fn transaction_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
-			.and_then(|(number, index)| match self.client.transaction(TransactionId::Location(number.into(), index.value())) {
-				Some(t) => to_value(&Transaction::from(t)),
-				None => Ok(Value::Null)
-			})
+			.and_then(|(number, index)| self.transaction(TransactionId::Location(number.into(), index.value())))
 	}
 }
 
