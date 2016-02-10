@@ -110,14 +110,14 @@ fn main() {
 	let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
 
 	if args.flag_version {
-		println!("
+		println!("\
 Parity version {} ({}-{}-{})
 Copyright 2015, 2016 Ethcore (UK) Limited
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
-By Wood/Paronyan/Kotewicz/Drwięga/Volf.
+By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 ", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
 		return;
 	}

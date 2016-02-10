@@ -23,7 +23,9 @@ use std::fs::{remove_dir_all};
 use blockchain::{BlockChain};
 use state::*;
 use rocksdb::*;
-
+use evm::{Schedule, Factory};
+use engine::*;
+use ethereum;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -78,6 +80,35 @@ impl<T> GuardedTempResult<T> {
 
 	pub fn take(&mut self) -> T {
 		self.result.take().unwrap()
+	}
+}
+
+pub struct TestEngine {
+	factory: Factory,
+	spec: Spec,
+	max_depth: usize
+}
+
+impl TestEngine {
+	pub fn new(max_depth: usize, factory: Factory) -> TestEngine {
+		TestEngine {
+			factory: factory,
+			spec: ethereum::new_frontier_test(),
+			max_depth: max_depth
+		}
+	}
+}
+
+impl Engine for TestEngine {
+	fn name(&self) -> &str { "TestEngine" }
+	fn spec(&self) -> &Spec { &self.spec }
+	fn vm_factory(&self) -> &Factory {
+		&self.factory
+	}
+	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
+		let mut schedule = Schedule::new_frontier();
+		schedule.max_depth = self.max_depth;
+		schedule
 	}
 }
 

@@ -68,12 +68,12 @@ pub struct Externalities<'a> {
 
 impl<'a> Externalities<'a> {
 	/// Basic `Externalities` constructor.
-	pub fn new(state: &'a mut State, 
-			   env_info: &'a EnvInfo, 
-			   engine: &'a Engine, 
+	pub fn new(state: &'a mut State,
+			   env_info: &'a EnvInfo,
+			   engine: &'a Engine,
 			   depth: usize,
 			   origin_info: OriginInfo,
-			   substate: &'a mut Substate, 
+			   substate: &'a mut Substate,
 			   output: OutputPolicy<'a>) -> Self {
 		Externalities {
 			state: state,
@@ -106,16 +106,18 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
+		// TODO: comment out what this function expects from env_info, since it will produce panics if the latter is inconsistent
 		match *number < U256::from(self.env_info.number) && number.low_u64() >= cmp::max(256, self.env_info.number) - 256 {
 			true => {
 				let index = self.env_info.number - number.low_u64() - 1;
+				assert!(index < self.env_info.last_hashes.len() as u64, format!("Inconsistent env_info, should contain at least {:?} last hashes", index+1));
 				let r = self.env_info.last_hashes[index as usize].clone();
 				trace!("ext: blockhash({}) -> {} self.env_info.number={}\n", number, r, self.env_info.number);
 				r
 			},
 			false => {
 				trace!("ext: blockhash({}) -> null self.env_info.number={}\n", number, self.env_info.number);
-				H256::from(&U256::zero())
+				H256::zero()
 			},
 		}
 	}
@@ -139,7 +141,7 @@ impl<'a> Ext for Externalities<'a> {
 
 		self.state.inc_nonce(&self.origin_info.address);
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
-		
+
 		// TODO: handle internal error separately
 		match ex.create(params, self.substate) {
 			Ok(gas_left) => {
@@ -150,18 +152,18 @@ impl<'a> Ext for Externalities<'a> {
 		}
 	}
 
-	fn call(&mut self, 
-			gas: &U256, 
-			sender_address: &Address, 
-			receive_address: &Address, 
+	fn call(&mut self,
+			gas: &U256,
+			sender_address: &Address,
+			receive_address: &Address,
 			value: Option<U256>,
-			data: &[u8], 
-			code_address: &Address, 
+			data: &[u8],
+			code_address: &Address,
 			output: &mut [u8]) -> MessageCallResult {
 
 		let mut params = ActionParams {
 			sender: sender_address.clone(),
-			address: receive_address.clone(), 
+			address: receive_address.clone(),
 			value: ActionValue::Apparent(self.origin_info.value.clone()),
 			code_address: code_address.clone(),
 			origin: self.origin_info.origin.clone(),
@@ -255,5 +257,146 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn inc_sstore_clears(&mut self) {
 		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use common::*;
+	use state::*;
+	use engine::*;
+	use evm::{Ext};
+	use substate::*;
+	use tests::helpers::*;
+	use super::*;
+
+	fn get_test_origin() -> OriginInfo {
+		OriginInfo {
+			address: Address::zero(),
+			origin: Address::zero(),
+			gas_price: U256::zero(),
+			value: U256::zero()
+		}
+	}
+
+	fn get_test_env_info() -> EnvInfo {
+		EnvInfo {
+			number: 100,
+			author: x!(0),
+			timestamp: 0,
+			difficulty: x!(0),
+			last_hashes: vec![],
+			gas_used: x!(0),
+			gas_limit: x!(0)
+		}
+	}
+
+	struct TestSetup {
+		state: GuardedTempResult<State>,
+		engine: Box<Engine>,
+		sub_state: Substate,
+		env_info: EnvInfo
+	}
+
+	impl TestSetup {
+		fn new() -> TestSetup {
+			TestSetup {
+				state: get_temp_state(),
+				engine: get_test_spec().to_engine().unwrap(),
+				sub_state: Substate::new(),
+				env_info: get_test_env_info()
+			}
+		}
+	}
+
+	#[test]
+	fn can_be_created() {
+		let mut setup = TestSetup::new();
+		let state = setup.state.reference_mut();
+
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+
+		assert_eq!(ext.env_info().number, 100);
+	}
+
+	#[test]
+	fn can_return_block_hash_no_env() {
+		let mut setup = TestSetup::new();
+		let state = setup.state.reference_mut();
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+
+		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
+
+		assert_eq!(hash, H256::zero());
+	}
+
+	#[test]
+	fn can_return_block_hash() {
+		let test_hash = H256::from("afafafafafafafafafafafbcbcbcbcbcbcbcbcbcbeeeeeeeeeeeeedddddddddd");
+		let test_env_number = 0x120001;
+
+		let mut setup = TestSetup::new();
+		{
+			let env_info = &mut setup.env_info;
+			env_info.number = test_env_number;
+			env_info.last_hashes.push(test_hash.clone());
+		}
+		let state = setup.state.reference_mut();
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+
+		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
+
+		assert_eq!(test_hash, hash);
+	}
+
+	#[test]
+	#[should_panic]
+	fn can_call_fail_empty() {
+		let mut setup = TestSetup::new();
+		let state = setup.state.reference_mut();
+		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+
+		let mut output = vec![];
+
+		// this should panic because we have no balance on any account
+		ext.call(
+			&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap(),
+			&Address::new(),
+			&Address::new(),
+			Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000150000").unwrap()),
+			&vec![],
+			&Address::new(),
+			&mut output);
+	}
+
+	#[test]
+	fn can_log() {
+		let log_data = vec![120u8, 110u8];
+		let log_topics = vec![H256::from("af0fa234a6af46afa23faf23bcbc1c1cb4bcb7bcbe7e7e7ee3ee2edddddddddd")];
+
+		let mut setup = TestSetup::new();
+		let state = setup.state.reference_mut();
+
+		{
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+			ext.log(log_topics, &log_data);
+		}
+
+		assert_eq!(setup.sub_state.logs.len(), 1);
+	}
+
+	#[test]
+	fn can_suicide() {
+		let refund_account = &Address::new();
+
+		let mut setup = TestSetup::new();
+		let state = setup.state.reference_mut();
+
+		{
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+			ext.suicide(&refund_account);
+		}
+
+		assert_eq!(setup.sub_state.suicides.len(), 1);
 	}
 }

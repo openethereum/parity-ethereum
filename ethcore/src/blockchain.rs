@@ -23,6 +23,24 @@ use extras::*;
 use transaction::*;
 use views::*;
 
+/// Uniquely identifies block.
+pub enum BlockId {
+	/// Block's sha3.
+	/// Querying by hash is always faster.
+	Hash(H256),
+	/// Block number within canon blockchain.
+	Number(BlockNumber)
+}
+
+/// Uniquely identifies transaction.
+pub enum TransactionId {
+	/// Transaction's sha3.
+	Hash(H256),
+	/// Block id and transaction index within this block.
+	/// Querying by block position is always faster.
+	Location(BlockId, usize)
+}
+
 /// Represents a tree route between `from` block and `to` block:
 pub struct TreeRoute {
 	/// A vector of hashes of all blocks, ordered from `from` to `to`.
@@ -111,19 +129,24 @@ pub trait BlockProvider {
 	}
 
 	/// Get transaction with given transaction hash.
-	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
-		self.transaction_address(hash).and_then(|address| self.transaction_at(&address))
-	}
-
-	/// Get transaction at given address.
-	fn transaction_at(&self, address: &TransactionAddress) -> Option<SignedTransaction> {
-		self.block(&address.block_hash).map(|bytes| BlockView::new(&bytes).transactions()).and_then(|t| t.into_iter().nth(address.index))
+	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
+		match id {
+			TransactionId::Hash(ref hash) => self.transaction_address(hash),
+			TransactionId::Location(BlockId::Hash(hash), index) => Some(TransactionAddress {
+				block_hash: hash,
+				index: index
+			}),
+			TransactionId::Location(BlockId::Number(number), index) => self.block_hash(number).map(|hash| TransactionAddress {
+				block_hash: hash,
+				index: index
+			})
+		}.and_then(|address| self.block(&address.block_hash).and_then(|bytes| BlockView::new(&bytes).localized_transaction_at(address.index)))
 	}
 
 	/// Get a list of transactions for a given block.
-	/// Returns None if block deos not exist.
-	fn transactions(&self, hash: &H256) -> Option<Vec<SignedTransaction>> {
-		self.block(hash).map(|bytes| BlockView::new(&bytes).transactions())
+	/// Returns None if block does not exist.
+	fn transactions(&self, hash: &H256) -> Option<Vec<LocalizedTransaction>> {
+		self.block(hash).map(|bytes| BlockView::new(&bytes).localized_transactions())
 	}
 
 	/// Returns reference to genesis hash.
@@ -864,7 +887,7 @@ mod tests {
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
 		for t in transactions {
-			assert_eq!(bc.transaction(&t.hash()).unwrap(), t);
+			assert_eq!(bc.transaction(TransactionId::Hash(t.hash())).unwrap(), t);
 		}
 	}
 }

@@ -22,8 +22,9 @@ use util::uint::*;
 use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
+use ethcore::blockchain::{BlockId, TransactionId};
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, Transaction, OptionalValue, Index};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -96,40 +97,35 @@ impl Eth for EthClient {
 	}
 
 	fn block_transaction_count(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<H256>(params) {
-			Ok(hash) => match self.client.block(&hash) {
+		from_params::<(H256,)>(params)
+			.and_then(|(hash,)| match self.client.block(&hash) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 				None => Ok(Value::Null)
-			},
-			Err(err) => Err(err)
-		}
+			})
 	}
 
 	fn block_uncles_count(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<H256>(params) {
-			Ok(hash) => match self.client.block(&hash) {
+		from_params::<(H256,)>(params)
+			.and_then(|(hash,)| match self.client.block(&hash) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
 				None => Ok(Value::Null)
-			},
-			Err(err) => Err(err)
-		}
+			})
 	}
 
 	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<(Address, BlockNumber)>(params) {
-			Ok((address, _block_number)) => to_value(&self.client.code(&address).map_or_else(Bytes::default, Bytes::new)),
-			Err(err) => Err(err)
-		}
+		from_params::<(Address, BlockNumber)>(params)
+			.and_then(|(address, _block_number)| to_value(&self.client.code(&address).map_or_else(Bytes::default, Bytes::new)))
 	}
 
 	fn block(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<(H256, bool)>(params) {
-			Ok((hash, include_txs)) => match (self.client.block_header(&hash), self.client.block_total_difficulty(&hash)) {
+		from_params::<(H256, bool)>(params)
+			.and_then(|(hash, include_txs)| match (self.client.block(&hash), self.client.block_total_difficulty(&hash)) {
 				(Some(bytes), Some(total_difficulty)) => {
-					let view = HeaderView::new(&bytes);
+					let block_view = BlockView::new(&bytes);
+					let view = block_view.header_view();
 					let block = Block {
-						hash: view.sha3(),
+						hash: OptionalValue::Value(view.sha3()),
 						parent_hash: view.parent_hash(),
 						uncles_hash: view.uncles_hash(),
 						author: view.author(),
@@ -137,7 +133,7 @@ impl Eth for EthClient {
 						state_root: view.state_root(),
 						transactions_root: view.transactions_root(),
 						receipts_root: view.receipts_root(),
-						number: U256::from(view.number()),
+						number: OptionalValue::Value(U256::from(view.number())),
 						gas_used: view.gas_used(),
 						gas_limit: view.gas_limit(),
 						logs_bloom: view.log_bloom(),
@@ -147,9 +143,9 @@ impl Eth for EthClient {
 						uncles: vec![],
 						transactions: {
 							if include_txs {
-								BlockTransactions::Hashes(vec![])
+								BlockTransactions::Full(block_view.localized_transactions().into_iter().map(From::from).collect())
 							} else {
-								BlockTransactions::Full(vec![])
+								BlockTransactions::Hashes(block_view.transaction_hashes())
 							}
 						},
 						extra_data: Bytes::default()
@@ -157,11 +153,30 @@ impl Eth for EthClient {
 					to_value(&block)
 				},
 				_ => Ok(Value::Null)
-			},
-			Err(err) => Err(err)
-		}
+			})
+	}
+
+	fn transaction_by_hash(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H256,)>(params)
+			.and_then(|(hash,)| match self.client.transaction(TransactionId::Hash(hash)) {
+				Some(t) => to_value(&Transaction::from(t)),
+				None => Ok(Value::Null)
+			})
+	}
+
+	fn transaction_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H256, Index)>(params)
+			.and_then(|(hash, index)| match self.client.transaction(TransactionId::Location(BlockId::Hash(hash), index.value())) {
+				Some(t) => to_value(&Transaction::from(t)),
+				None => Ok(Value::Null)
+			})
+	}
+
+	fn transaction_by_block_number_and_index(&self, _params: Params) -> Result<Value, Error> {
+		unimplemented!()
 	}
 }
+
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
