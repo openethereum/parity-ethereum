@@ -1061,6 +1061,7 @@ impl ChainSync {
 						for block_hash in route.blocks {
 							let mut hash_rlp = RlpStream::new_list(2);
 							let difficulty = chain.block_total_difficulty(BlockId::Hash(block_hash.clone())).expect("Mallformed block without a difficulty on the chain!");
+		
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&difficulty);
 							rlp_stream.append_raw(&hash_rlp.out(), 1);

@@ -859,7 +859,7 @@ mod tests {
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
 		for t in transactions {
-			assert_eq!(bc.transaction(&t.hash()).unwrap(), t);
+			assert_eq!(bc.transaction(&bc.transaction_address(&t.hash()).unwrap()).unwrap(), t);
 		}
 	}
 }
