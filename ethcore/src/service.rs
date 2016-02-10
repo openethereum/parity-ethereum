@@ -133,7 +133,9 @@ mod tests {
 	#[test]
 	fn it_can_be_started() {
 		let spec = get_test_spec();
-		let service = ClientService::start(spec, NetworkConfiguration::new());
+		let mut p = env::home_dir();
+		p.push(".parity");
+		let service = ClientService::start(spec, NetworkConfiguration::new(), &p);
 		assert!(service.is_ok());
 	}
 }
