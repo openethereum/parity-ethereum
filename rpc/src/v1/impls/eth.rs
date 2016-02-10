@@ -24,6 +24,7 @@ use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
 use ethcore::blockchain::{BlockId, TransactionId};
+use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index};
 
@@ -44,10 +45,9 @@ impl EthClient {
 }
 
 impl Eth for EthClient {
-	// TODO: do not hardcode protocol version
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::U64(63)),
+			Params::None => to_value(&U256::from(self.sync.status().protocol_version)),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -89,22 +89,21 @@ impl Eth for EthClient {
 	// TODO: return real hashrate once we have mining
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::U64(0)),
+			Params::None => to_value(&U256::zero()),
 			_ => Err(Error::invalid_params())
 		}
 	}
 
-	// TODO: do not hardode gas_price
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::U64(0)),
+			Params::None => to_value(&(shannon() * U256::from(50))),
 			_ => Err(Error::invalid_params())
 		}
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::U64(self.client.chain_info().best_block_number)),
+			Params::None => to_value(&U256::from(self.client.chain_info().best_block_number)),
 			_ => Err(Error::invalid_params())
 		}
 	}
