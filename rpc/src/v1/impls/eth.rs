@@ -166,7 +166,7 @@ impl Eth for EthClient {
 
 	fn transaction_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| match self.client.transaction(TransactionId::BlockPosition(BlockId::Hash(hash), index.value())) {
+			.and_then(|(hash, index)| match self.client.transaction(TransactionId::Location(BlockId::Hash(hash), index.value())) {
 				Some(t) => to_value(&Transaction::from(t)),
 				None => Ok(Value::Null)
 			})

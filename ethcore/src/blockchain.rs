@@ -38,7 +38,7 @@ pub enum TransactionId {
 	Hash(H256),
 	/// Block id and transaction index within this block.
 	/// Querying by block position is always faster.
-	BlockPosition(BlockId, usize)
+	Location(BlockId, usize)
 }
 
 /// Represents a tree route between `from` block and `to` block:
@@ -132,11 +132,11 @@ pub trait BlockProvider {
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
 		match id {
 			TransactionId::Hash(ref hash) => self.transaction_address(hash),
-			TransactionId::BlockPosition(BlockId::Hash(hash), index) => Some(TransactionAddress {
+			TransactionId::Location(BlockId::Hash(hash), index) => Some(TransactionAddress {
 				block_hash: hash,
 				index: index
 			}),
-			TransactionId::BlockPosition(BlockId::Number(number), index) => self.block_hash(number).map(|hash| TransactionAddress {
+			TransactionId::Location(BlockId::Number(number), index) => self.block_hash(number).map(|hash| TransactionAddress {
 				block_hash: hash,
 				index: index
 			})
