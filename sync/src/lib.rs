@@ -76,7 +76,7 @@ pub struct EthSync {
 	sync: RwLock<ChainSync>
 }
 
-pub use self::chain::SyncStatus;
+pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service

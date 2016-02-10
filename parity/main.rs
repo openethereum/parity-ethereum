@@ -64,6 +64,7 @@ Options:
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
   --address URL            Equivalent to --listen-address URL --public-address URL.
+  --upnp                   Use UPnP to try to figure out the correct network settings.
 
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
@@ -89,14 +90,13 @@ fn setup_log(init: &str) {
 	builder.init().unwrap();
 }
 
-
 #[cfg(feature = "rpc")]
 fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str) {
 	use rpc::v1::*;
 
 	let mut server = rpc::HttpServer::new(1);
 	server.add_delegate(Web3Client::new().to_delegate());
-	server.add_delegate(EthClient::new(client.clone()).to_delegate());
+	server.add_delegate(EthClient::new(client.clone(), sync.clone()).to_delegate());
 	server.add_delegate(EthFilterClient::new(client).to_delegate());
 	server.add_delegate(NetClient::new(sync).to_delegate());
 	server.start_async(url);
@@ -106,18 +106,8 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str) {
 fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
 }
 
-struct Configuration {
-	args: Args
-}
-impl Configuration {
-	fn parse() -> Self {
-		Configuration {
-			args: Args::docopt().decode().unwrap_or_else(|e| e.exit())
-		}
-	}
-
-	fn print_version(&self) {
-		println!("\
+fn print_version() {
+	println!("\
 Parity version {} ({}-{}-{})
 Copyright 2015, 2016 Ethcore (UK) Limited
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
@@ -126,6 +116,17 @@ There is NO WARRANTY, to the extent permitted by law.
 
 By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 ", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
+}
+
+struct Configuration {
+	args: Args
+}
+
+impl Configuration {
+	fn parse() -> Self {
+		Configuration {
+			args: Args::docopt().decode().unwrap_or_else(|e| e.exit())
+		}
 	}
 
 	fn get_spec(&self) -> Spec {
@@ -178,7 +179,7 @@ fn wait_for_exit(client_service: &ClientService) {
 fn main() {
 	let conf = Configuration::parse();
 	if conf.args.flag_version {
-		conf.print_version();
+		print_version();
 		return;
 	}
 
@@ -190,10 +191,10 @@ fn main() {
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
 	// Configure network
-	let init_nodes = conf.get_init_nodes(&spec);
-	let (listen, public) = conf.get_net_addresses();
 	let mut net_settings = NetworkConfiguration::new();
-	net_settings.boot_nodes = init_nodes;
+	net_settings.nat_enabled = conf.args.flag_upnp;
+	net_settings.boot_nodes = conf.get_init_nodes(&spec);
+	let (listen, public) = conf.get_net_addresses();
 	net_settings.listen_address = listen;
 	net_settings.public_address = public;
 
