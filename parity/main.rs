@@ -60,6 +60,7 @@ Usage:
 Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
                            or frontier, mainnet, morden, or testnet [default: frontier].
+  -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
 
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
@@ -128,7 +129,11 @@ By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 ", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
 	}
 
-	fn get_spec(&self) -> Spec {
+	fn path(&self) -> String {
+		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+	}
+
+	fn spec(&self) -> Spec {
 		match self.args.flag_chain.as_ref() {
 			"frontier" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
@@ -137,14 +142,14 @@ By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 		}
 	}
 
-	fn get_init_nodes(&self, spec: &Spec) -> Vec<String> {
+	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
 		match self.args.arg_enode.len() {
 			0 => spec.nodes().clone(),
 			_ => self.args.arg_enode.clone(),
 		}
 	}
 
-	fn get_net_addresses(&self) -> (SocketAddr, SocketAddr) {
+	fn net_addresses(&self) -> (SocketAddr, SocketAddr) {
 		let listen_address;
 		let public_address;
 
@@ -182,7 +187,7 @@ fn main() {
 		return;
 	}
 
-	let spec = conf.get_spec();
+	let spec = conf.spec();
 
 	// Setup logging
 	setup_log(&conf.args.flag_logging);
@@ -190,15 +195,15 @@ fn main() {
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
 	// Configure network
-	let init_nodes = conf.get_init_nodes(&spec);
-	let (listen, public) = conf.get_net_addresses();
+	let init_nodes = conf.init_nodes(&spec);
+	let (listen, public) = conf.net_addresses();
 	let mut net_settings = NetworkConfiguration::new();
 	net_settings.boot_nodes = init_nodes;
 	net_settings.listen_address = listen;
 	net_settings.public_address = public;
 
 	// Build client
-	let mut service = ClientService::start(spec, net_settings).unwrap();
+	let mut service = ClientService::start(spec, net_settings, &Path::new(&conf.path())).unwrap();
 	let client = service.client().clone();
 	client.configure_cache(conf.args.flag_cache_pref_size, conf.args.flag_cache_max_size);
 
