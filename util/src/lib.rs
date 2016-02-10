@@ -21,6 +21,8 @@
 #![feature(plugin)]
 #![plugin(clippy)]
 #![allow(needless_range_loop, match_bool)]
+#![feature(catch_panic)]
+
 //! Ethcore-util library
 //!
 //! ### Rust version:
@@ -54,7 +56,7 @@
 //!   cd parity
 //!   cargo build --release
 //!   ```
-//!   
+//!
 //! - OSX:
 //!
 //!   ```bash
@@ -129,6 +131,7 @@ pub mod semantic_version;
 pub mod io;
 pub mod network;
 pub mod log;
+pub mod panics;
 
 pub use common::*;
 pub use misc::*;

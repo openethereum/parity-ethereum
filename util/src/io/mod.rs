@@ -31,16 +31,16 @@
 //!
 //! impl IoHandler<MyMessage> for MyHandler {
 //! 	fn initialize(&self, io: &IoContext<MyMessage>) {
-//!		io.register_timer(0, 1000).unwrap();
-//!	}
+//!			io.register_timer(0, 1000).unwrap();
+//!		}
 //!
-//!	fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
-//!		println!("Timeout {}", timer);
-//!	}
+//!		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
+//!			println!("Timeout {}", timer);
+//!		}
 //!
-//!	fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
-//!		println!("Message {}", message.data);
-//!	}
+//!		fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
+//!			println!("Message {}", message.data);
+//!		}
 //! }
 //!
 //! fn main () {
@@ -70,7 +70,7 @@ impl<Message> From<::mio::NotifyError<service::IoMessage<Message>>> for IoError 
 	}
 }
 
-/// Generic IO handler. 
+/// Generic IO handler.
 /// All the handler function are called from within IO event loop.
 /// `Message` type is used as notification data
 pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + Clone + 'static {
@@ -82,7 +82,7 @@ pub trait IoHandler<Message>: Send + Sync where Message: Send + Sync + Clone + '
 	fn message(&self, _io: &IoContext<Message>, _message: &Message) {}
 	/// Called when an IO stream gets closed
 	fn stream_hup(&self, _io: &IoContext<Message>, _stream: StreamToken) {}
-	/// Called when an IO stream can be read from 
+	/// Called when an IO stream can be read from
 	fn stream_readable(&self, _io: &IoContext<Message>, _stream: StreamToken) {}
 	/// Called when an IO stream can be written to
 	fn stream_writable(&self, _io: &IoContext<Message>, _stream: StreamToken) {}
