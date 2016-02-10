@@ -18,8 +18,8 @@
 
 use util::*;
 use rocksdb::{Options, DB, DBCompactionStyle};
-use blockchain::{BlockChain, BlockProvider, CacheSize};
-use views::{BlockView, TransactionId};
+use blockchain::{BlockChain, BlockProvider, CacheSize, TransactionId};
+use views::BlockView;
 use error::*;
 use header::BlockNumber;
 use state::State;

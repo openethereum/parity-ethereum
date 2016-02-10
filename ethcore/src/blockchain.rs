@@ -23,6 +23,24 @@ use extras::*;
 use transaction::*;
 use views::*;
 
+/// Uniquely identifies block.
+pub enum BlockId {
+	/// Block's sha3.
+	/// Querying by hash is always faster.
+	Hash(H256),
+	/// Block number within canon blockchain.
+	Number(BlockNumber)
+}
+
+/// Uniquely identifies transaction.
+pub enum TransactionId {
+	/// Transaction's sha3.
+	Hash(H256),
+	/// Block id and transaction index within this block.
+	/// Querying by block position is always faster.
+	BlockPosition(BlockId, usize)
+}
+
 /// Represents a tree route between `from` block and `to` block:
 pub struct TreeRoute {
 	/// A vector of hashes of all blocks, ordered from `from` to `to`.
@@ -674,7 +692,6 @@ mod tests {
 	use util::hash::*;
 	use blockchain::*;
 	use tests::helpers::*;
-	use views::TransactionId;
 
 	#[test]
 	fn valid_tests_extra32() {

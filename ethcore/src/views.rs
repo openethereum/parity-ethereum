@@ -19,22 +19,6 @@ use util::*;
 use header::*;
 use transaction::*;
 
-/// Uniquely identifies block.
-pub enum BlockId {
-	/// Block's sha3.
-	Hash(H256),
-	/// Block number within canon blockchain.
-	Number(BlockNumber)
-}
-
-/// Uniquely identifies transaction.
-pub enum TransactionId {
-	/// Transaction's sha3.
-	Hash(H256),
-	/// Block id and transaction index within this block.
-	BlockPosition(BlockId, usize)
-}
-
 /// View onto transaction rlp.
 pub struct TransactionView<'a> {
 	rlp: Rlp<'a>

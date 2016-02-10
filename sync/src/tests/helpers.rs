@@ -23,7 +23,7 @@ use io::SyncIo;
 use chain::{ChainSync};
 use ethcore::receipt::Receipt;
 use ethcore::transaction::LocalizedTransaction;
-use ethcore::views::TransactionId;
+use ethcore::blockchain::TransactionId;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,

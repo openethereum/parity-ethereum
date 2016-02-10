@@ -22,6 +22,7 @@ use util::uint::*;
 use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
+use ethcore::blockchain::{BlockId, TransactionId};
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, Transaction, OptionalValue, Index};
 
