@@ -60,7 +60,7 @@ impl Eth for EthClient {
 					SyncState::NotSynced | SyncState::Idle => SyncStatus::None,
 					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks => SyncStatus::Info(SyncInfo {
 						starting_block: U256::from(status.start_block_number),
-						current_block: U256::from(status.last_imported_block_number.unwrap_or(status.start_block_number)),
+						current_block: U256::from(self.client.chain_info().best_block_number),
 						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
 					})
 				};
