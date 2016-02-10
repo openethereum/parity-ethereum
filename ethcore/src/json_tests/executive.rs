@@ -26,29 +26,29 @@ use externalities::*;
 use substate::*;
 use tests::helpers::*;
 
-struct TestEngine {
+struct TestEngineFrontier {
 	vm_factory: Factory,
 	spec: Spec,
 	max_depth: usize
 }
 
-impl TestEngine {
-	fn new(max_depth: usize, vm_type: VMType) -> TestEngine {
-		TestEngine {
+impl TestEngineFrontier {
+	fn new(max_depth: usize, vm_type: VMType) -> TestEngineFrontier {
+		TestEngineFrontier {
 			vm_factory: Factory::new(vm_type),
 			spec: ethereum::new_frontier_test(),
-			max_depth: max_depth 
+			max_depth: max_depth
 		}
 	}
 }
 
-impl Engine for TestEngine {
+impl Engine for TestEngineFrontier {
 	fn name(&self) -> &str { "TestEngine" }
 	fn spec(&self) -> &Spec { &self.spec }
 	fn vm_factory(&self) -> &Factory { &self.vm_factory }
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
+	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
 		let mut schedule = Schedule::new_frontier();
-		schedule.max_depth = self.max_depth; 
+		schedule.max_depth = self.max_depth;
 		schedule
 	}
 }
@@ -69,12 +69,12 @@ struct TestExt<'a> {
 }
 
 impl<'a> TestExt<'a> {
-	fn new(state: &'a mut State, 
-			   info: &'a EnvInfo, 
-			   engine: &'a Engine, 
+	fn new(state: &'a mut State,
+			   info: &'a EnvInfo,
+			   engine: &'a Engine,
 			   depth: usize,
 			   origin_info: OriginInfo,
-			   substate: &'a mut Substate, 
+			   substate: &'a mut Substate,
 			   output: OutputPolicy<'a>,
 			   address: Address) -> Self {
 		TestExt {
@@ -116,13 +116,13 @@ impl<'a> Ext for TestExt<'a> {
 		ContractCreateResult::Created(self.contract_address.clone(), *gas)
 	}
 
-	fn call(&mut self, 
-			gas: &U256, 
-			_sender_address: &Address, 
-			receive_address: &Address, 
+	fn call(&mut self,
+			gas: &U256,
+			_sender_address: &Address,
+			receive_address: &Address,
 			value: Option<U256>,
-			data: &[u8], 
-			_code_address: &Address, 
+			data: &[u8],
+			_code_address: &Address,
 			_output: &mut [u8]) -> MessageCallResult {
 		self.callcreates.push(CallCreate {
 			data: data.to_vec(),
@@ -136,7 +136,7 @@ impl<'a> Ext for TestExt<'a> {
 	fn extcode(&self, address: &Address) -> Bytes  {
 		self.ext.extcode(address)
 	}
-	
+
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		self.ext.log(topics, data)
 	}
@@ -185,11 +185,11 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		// ::std::io::stdout().flush();
 		let mut fail = false;
 		//let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true };
-		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail { 
-			failed.push(format!("[{}] {}: {}", vm, name, s)); 
-			fail = true 
+		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail {
+			failed.push(format!("[{}] {}: {}", vm, name, s));
+			fail = true
 		};
-	
+
 		// test env
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -209,7 +209,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 			EnvInfo::from_json(env)
 		}).unwrap_or_default();
 
-		let engine = TestEngine::new(1, vm.clone());
+		let engine = TestEngineFrontier::new(1, vm.clone());
 
 		// params
 		let mut params = ActionParams::default();
@@ -226,18 +226,18 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 
 		let out_of_gas = test.find("callcreates").map(|_calls| {
 		}).is_none();
-		
+
 		let mut substate = Substate::new();
 		let mut output = vec![];
 
 		// execute
 		let (res, callcreates) = {
-			let mut ex = TestExt::new(&mut state, 
-									  &info, 
-									  &engine, 
-									  0, 
-									  OriginInfo::from(&params), 
-									  &mut substate, 
+			let mut ex = TestExt::new(&mut state,
+									  &info,
+									  &engine,
+									  0,
+									  OriginInfo::from(&params),
+									  &mut substate,
 									  OutputPolicy::Return(BytesRef::Flexible(&mut output)),
 									  params.address.clone());
 			let evm = engine.vm_factory().create();

@@ -183,11 +183,11 @@ impl Account {
 	#[cfg(test)]
 	/// Determine whether there are any un-`commit()`-ed storage-setting operations.
 	pub fn storage_is_clean(&self) -> bool { self.storage_overlay.borrow().iter().find(|&(_, &(f, _))| f == Filth::Dirty).is_none() }
-	
+
 	#[cfg(test)]
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
-	
+
 	/// return the storage overlay.
 	pub fn storage_overlay(&self) -> Ref<HashMap<H256, (Filth, H256)>> { self.storage_overlay.borrow() }
 
@@ -198,7 +198,11 @@ impl Account {
 	pub fn add_balance(&mut self, x: &U256) { self.balance = self.balance + *x; }
 
 	/// Increment the nonce of the account by one.
-	pub fn sub_balance(&mut self, x: &U256) { self.balance = self.balance - *x; }
+	/// Panics if balance is less than `x`
+	pub fn sub_balance(&mut self, x: &U256) {
+		assert!(self.balance >= *x);
+		self.balance = self.balance - *x;
+	}
 
 	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, db: &mut AccountDBMut) {
