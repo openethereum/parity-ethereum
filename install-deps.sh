@@ -570,7 +570,7 @@ function run_installer()
 		sudo apt-add-repository -y ppa:ethcore/ethcore
 		sudo apt-get -f -y install
 		sudo apt-get update -qq
-		sudo apt-get install -qq -y librocksdb-dev
+		sudo apt-get install -qq -y librocksdb-dev librocksdb
 	}
 
 	function linux_rocksdb_installer()
@@ -669,7 +669,7 @@ function run_installer()
 	function build_parity()
 	{
 		info "Downloading Parity..."
-		git clone git@github.com:ethcore/parity
+		git clone https://github.com/ethcore/parity
 		cd parity
 		git submodule init
 		git submodule update
