@@ -60,7 +60,7 @@ impl BlockQueueInfo {
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
-	panic_handler: SafeStringPanicHandler,
+	panic_handler: Arc<StringPanicHandler>,
 	engine: Arc<Box<Engine>>,
 	more_to_verify: Arc<Condvar>,
 	verification: Arc<Mutex<Verification>>,
@@ -115,7 +115,7 @@ impl BlockQueue {
 		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
 		let deleting = Arc::new(AtomicBool::new(false));
 		let empty = Arc::new(Condvar::new());
-		let panic_handler = StringPanicHandler::new_thread_safe();
+		let panic_handler = StringPanicHandler::new_arc();
 
 		let mut verifiers: Vec<JoinHandle<()>> = Vec::new();
 		let thread_count = max(::num_cpus::get(), 3) - 2;
@@ -131,8 +131,7 @@ impl BlockQueue {
 				thread::Builder::new()
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
-					let mut panic = panic_handler.lock().unwrap();
-					panic.catch_panic(move || {
+					panic_handler.catch_panic(move || {
 					  BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
 					}).unwrap()
 				})

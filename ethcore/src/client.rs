@@ -162,7 +162,7 @@ pub struct Client {
 	block_queue: RwLock<BlockQueue>,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
-	panic_handler: SafeStringPanicHandler,
+	panic_handler: Arc<StringPanicHandler>,
 }
 
 const HISTORY: u64 = 1000;
@@ -211,9 +211,9 @@ impl Client {
 		}
 
 		let block_queue = BlockQueue::new(engine.clone(), message_channel);
-		let panic_handler = StringPanicHandler::new_thread_safe();
+		let panic_handler = StringPanicHandler::new_arc();
 		let panic = panic_handler.clone();
-		block_queue.on_panic(move |t: &String| panic.lock().unwrap().notify_all(t));
+		block_queue.on_panic(move |t: &String| panic.notify_all(t));
 
 		Ok(Arc::new(Client {
 			chain: chain,

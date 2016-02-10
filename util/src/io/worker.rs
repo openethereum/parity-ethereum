@@ -44,7 +44,7 @@ pub struct Worker {
 	thread: Option<JoinHandle<()>>,
 	wait: Arc<Condvar>,
 	deleting: Arc<AtomicBool>,
-	panic_handler: SafeStringPanicHandler,
+	panic_handler: Arc<StringPanicHandler>,
 }
 
 impl Worker {
@@ -55,7 +55,7 @@ impl Worker {
 						wait: Arc<Condvar>,
 						wait_mutex: Arc<Mutex<()>>) -> Worker
 						where Message: Send + Sync + Clone + 'static {
-		let panic_handler = StringPanicHandler::new_thread_safe();
+		let panic_handler = StringPanicHandler::new_arc();
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
 			panic_handler: panic_handler.clone(),
@@ -66,8 +66,7 @@ impl Worker {
 		let panic_handler = panic_handler.clone();
 		worker.thread = Some(thread::Builder::new().name(format!("IO Worker #{}", index)).spawn(
 			move || {
-				let mut panic = panic_handler.lock().unwrap();
-				panic.catch_panic(move || {
+				panic_handler.catch_panic(move || {
 					Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting)
 				}).unwrap()
 			})
