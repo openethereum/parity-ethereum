@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[cfg(feature = "json-tests")]
 use client::{BlockChainClient, Client};
 use std::env;
 use common::*;
@@ -24,7 +23,9 @@ use std::fs::{remove_dir_all};
 use blockchain::{BlockChain};
 use state::*;
 use rocksdb::*;
-
+use evm::{Schedule, Factory};
+use engine::*;
+use ethereum;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -82,6 +83,35 @@ impl<T> GuardedTempResult<T> {
 	}
 }
 
+pub struct TestEngine {
+	factory: Factory,
+	spec: Spec,
+	max_depth: usize
+}
+
+impl TestEngine {
+	pub fn new(max_depth: usize, factory: Factory) -> TestEngine {
+		TestEngine {
+			factory: factory,
+			spec: ethereum::new_frontier_test(),
+			max_depth: max_depth
+		}
+	}
+}
+
+impl Engine for TestEngine {
+	fn name(&self) -> &str { "TestEngine" }
+	fn spec(&self) -> &Spec { &self.spec }
+	fn vm_factory(&self) -> &Factory {
+		&self.factory
+	}
+	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
+		let mut schedule = Schedule::new_frontier();
+		schedule.max_depth = self.max_depth;
+		schedule
+	}
+}
+
 pub fn get_test_spec() -> Spec {
 	Spec::new_test()
 }
@@ -134,7 +164,6 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[&SignedTrans
 	rlp.out()
 }
 
-#[cfg(feature = "json-tests")]
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 
@@ -174,7 +203,6 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 	}
 }
 
-#[cfg(feature = "json-tests")]
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
@@ -271,7 +299,6 @@ pub fn get_good_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
-#[cfg(feature = "json-tests")]
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();

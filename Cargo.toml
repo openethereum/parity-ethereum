@@ -18,6 +18,7 @@ ethcore = { path = "ethcore" }
 ethsync = { path = "sync" }
 ethcore-rpc = { path = "rpc", optional = true }
 fdlimit = { path = "util/fdlimit" }
+target_info = "0.1"
 
 [features]
 default = ["rpc"]
