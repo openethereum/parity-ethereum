@@ -40,6 +40,7 @@ use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
+use util::panics::MayPanic;
 use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
@@ -93,7 +94,7 @@ fn setup_log(init: &str) {
 #[cfg(feature = "rpc")]
 fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str) {
 	use rpc::v1::*;
-	
+
 	let mut server = rpc::HttpServer::new(1);
 	server.add_delegate(Web3Client::new().to_delegate());
 	server.add_delegate(EthClient::new(client.clone()).to_delegate());
@@ -106,10 +107,17 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str) {
 fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
 }
 
-fn main() {
-	let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
+struct Configuration {
+	args: Args
+}
+impl Configuration {
+	fn parse() -> Self {
+		Configuration {
+			args: Args::docopt().decode().unwrap_or_else(|e| e.exit())
+		}
+	}
 
-	if args.flag_version {
+	fn print_version(&self) {
 		println!("\
 Parity version {} ({}-{}-{})
 Copyright 2015, 2016 Ethcore (UK) Limited
@@ -119,49 +127,100 @@ There is NO WARRANTY, to the extent permitted by law.
 
 By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 ", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
+	}
+
+	fn get_spec(&self) -> Spec {
+		match self.args.flag_chain.as_ref() {
+			"frontier" | "mainnet" => ethereum::new_frontier(),
+			"morden" | "testnet" => ethereum::new_morden(),
+			"olympic" => ethereum::new_olympic(),
+			f => Spec::from_json_utf8(contents(f).expect("Couldn't read chain specification file. Sure it exists?").as_ref()),
+		}
+	}
+
+	fn get_init_nodes(&self, spec: &Spec) -> Vec<String> {
+		match self.args.arg_enode.len() {
+			0 => spec.nodes().clone(),
+			_ => self.args.arg_enode.clone(),
+		}
+	}
+
+	fn get_net_addresses(&self) -> (SocketAddr, SocketAddr) {
+		let listen_address;
+		let public_address;
+
+		match self.args.flag_address {
+			None => {
+				listen_address = SocketAddr::from_str(self.args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address");
+				public_address = SocketAddr::from_str(self.args.flag_public_address.as_ref()).expect("Invalid public address given with --public-address");
+			}
+			Some(ref a) => {
+				public_address = SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address");
+				listen_address = public_address.clone();
+			}
+		};
+
+		(listen_address, public_address)
+	}
+}
+
+fn wait_for_exit(client_service: &ClientService) {
+	let exit = Arc::new(Condvar::new());
+	// Handle possible exits
+	let e = exit.clone();
+	CtrlC::set_handler(move || { e.notify_all(); });
+	let e = exit.clone();
+	client_service.on_panic(move |_reason| { e.notify_all(); });
+	// Wait for signal
+	let mutex = Mutex::new(());
+	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+}
+
+fn main() {
+	let conf = Configuration::parse();
+	if conf.args.flag_version {
+		conf.print_version();
 		return;
 	}
 
-	setup_log(&args.flag_logging);
+	let spec = conf.get_spec();
+
+	// Setup logging
+	setup_log(&conf.args.flag_logging);
+	// Raise fdlimit
 	unsafe { ::fdlimit::raise_fd_limit(); }
 
-	let spec = match args.flag_chain.as_ref() {
-		"frontier" | "mainnet" => ethereum::new_frontier(),
-		"morden" | "testnet" => ethereum::new_morden(),
-		"olympic" => ethereum::new_olympic(),
-		f => Spec::from_json_utf8(contents(f).expect("Couldn't read chain specification file. Sure it exists?").as_ref()),
-	};
-	let init_nodes = match args.arg_enode.len() {
-		0 => spec.nodes().clone(),
-		_ => args.arg_enode.clone(),
-	};
+	// Configure network
+	let init_nodes = conf.get_init_nodes(&spec);
+	let (listen, public) = conf.get_net_addresses();
 	let mut net_settings = NetworkConfiguration::new();
 	net_settings.boot_nodes = init_nodes;
-	match args.flag_address {
-		None => {
-			net_settings.listen_address = SocketAddr::from_str(args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address");
-			net_settings.public_address = SocketAddr::from_str(args.flag_public_address.as_ref()).expect("Invalid public address given with --public-address");
-		}
-		Some(ref a) => {
-			net_settings.public_address = SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address");
-			net_settings.listen_address = net_settings.public_address.clone();
-		}
-	}
+	net_settings.listen_address = listen;
+	net_settings.public_address = public;
+
+	// Build client
 	let mut service = ClientService::start(spec, net_settings).unwrap();
 	let client = service.client().clone();
-	client.configure_cache(args.flag_cache_pref_size, args.flag_cache_max_size);
+	client.configure_cache(conf.args.flag_cache_pref_size, conf.args.flag_cache_max_size);
+
+	// Sync
 	let sync = EthSync::register(service.network(), client);
-	if args.flag_jsonrpc {
-		setup_rpc_server(service.client(), sync.clone(), &args.flag_jsonrpc_url);
+
+	// Setup rpc
+	if conf.args.flag_jsonrpc {
+		setup_rpc_server(service.client(), sync.clone(), &conf.args.flag_jsonrpc_url);
 	}
-	let io_handler  = Arc::new(ClientIoHandler { client: service.client(), info: Default::default(), sync: sync });
+
+	// Register IO handler
+	let io_handler  = Arc::new(ClientIoHandler {
+		client: service.client(),
+		info: Default::default(),
+		sync: sync
+	});
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
-	let exit = Arc::new(Condvar::new());
-	let e = exit.clone();
-	CtrlC::set_handler(move || { e.notify_all(); });
-	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+	// Handle exit
+	wait_for_exit(&service);
 }
 
 struct Informant {
@@ -229,7 +288,7 @@ struct ClientIoHandler {
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize(&self, io: &IoContext<NetSyncMessage>) { 
+	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
 		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
 	}
 

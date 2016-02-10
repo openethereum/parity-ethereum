@@ -26,6 +26,7 @@ use views::*;
 use header::*;
 use service::*;
 use client::BlockStatus;
+use util::panics::*;
 
 /// Block queue status
 #[derive(Debug)]
@@ -59,6 +60,7 @@ impl BlockQueueInfo {
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
+	panic_handler: Arc<PanicHandler>,
 	engine: Arc<Box<Engine>>,
 	more_to_verify: Arc<Condvar>,
 	verification: Arc<Mutex<Verification>>,
@@ -113,6 +115,7 @@ impl BlockQueue {
 		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
 		let deleting = Arc::new(AtomicBool::new(false));
 		let empty = Arc::new(Condvar::new());
+		let panic_handler = PanicHandler::new_in_arc();
 
 		let mut verifiers: Vec<JoinHandle<()>> = Vec::new();
 		let thread_count = max(::num_cpus::get(), 3) - 2;
@@ -123,11 +126,21 @@ impl BlockQueue {
 			let ready_signal = ready_signal.clone();
 			let empty = empty.clone();
 			let deleting = deleting.clone();
-			verifiers.push(thread::Builder::new().name(format!("Verifier #{}", i)).spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty))
-				.expect("Error starting block verification thread"));
+			let panic_handler = panic_handler.clone();
+			verifiers.push(
+				thread::Builder::new()
+				.name(format!("Verifier #{}", i))
+				.spawn(move || {
+					panic_handler.catch_panic(move || {
+					  BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
+					}).unwrap()
+				})
+				.expect("Error starting block verification thread")
+			);
 		}
 		BlockQueue {
 			engine: engine,
+			panic_handler: panic_handler,
 			ready_signal: ready_signal.clone(),
 			more_to_verify: more_to_verify.clone(),
 			verification: verification.clone(),
@@ -150,7 +163,7 @@ impl BlockQueue {
 				while lock.unverified.is_empty() && !deleting.load(AtomicOrdering::Relaxed) {
 					lock = wait.wait(lock).unwrap();
 				}
-				
+
 				if deleting.load(AtomicOrdering::Relaxed) {
 					return;
 				}
@@ -321,6 +334,12 @@ impl BlockQueue {
 			unverified_queue_size: verification.unverified.len(),
 			verifying_queue_size: verification.verifying.len(),
 		}
+	}
+}
+
+impl MayPanic for BlockQueue {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+		self.panic_handler.on_panic(closure);
 	}
 }
 
