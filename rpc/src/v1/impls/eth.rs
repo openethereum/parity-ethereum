@@ -23,7 +23,6 @@ use util::uint::*;
 use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
-use ethcore::blockchain::{BlockId, TransactionId};
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index};
@@ -110,7 +109,7 @@ impl Eth for EthClient {
 
 	fn block_transaction_count(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.block(&hash) {
+			.and_then(|(hash,)| match self.client.block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 				None => Ok(Value::Null)
 			})
@@ -118,7 +117,7 @@ impl Eth for EthClient {
 
 	fn block_uncles_count(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.block(&hash) {
+			.and_then(|(hash,)| match self.client.block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
 				None => Ok(Value::Null)
 			})
@@ -132,7 +131,7 @@ impl Eth for EthClient {
 
 	fn block(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, bool)>(params)
-			.and_then(|(hash, include_txs)| match (self.client.block(&hash), self.client.block_total_difficulty(&hash)) {
+			.and_then(|(hash, include_txs)| match (self.client.block(BlockId::Hash(hash.clone())), self.client.block_total_difficulty(BlockId::Hash(hash))) {
 				(Some(bytes), Some(total_difficulty)) => {
 					let block_view = BlockView::new(&bytes);
 					let view = block_view.header_view();

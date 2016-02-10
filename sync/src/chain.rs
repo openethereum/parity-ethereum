@@ -33,7 +33,7 @@ use util::*;
 use std::mem::{replace};
 use ethcore::views::{HeaderView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockChainClient, BlockStatus};
+use ethcore::client::{BlockChainClient, BlockStatus, BlockId};
 use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::block::Block;
@@ -331,7 +331,7 @@ impl ChainSync {
 				self.highest_block = Some(number);
 			}
 			let hash = info.hash();
-			match io.chain().block_status(&hash) {
+			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain => {
 					self.have_common_block = true;
 					self.last_imported_block = Some(number);
@@ -491,7 +491,7 @@ impl ChainSync {
 		for (rh, rd) in hashes {
 			let h = try!(rh);
 			let d = try!(rd);
-			match io.chain().block_status(&h) {
+			match io.chain().block_status(BlockId::Hash(h.clone())) {
 				BlockStatus::InChain  => {
 					trace!(target: "sync", "New block hash already in chain {:?}", h);
 				},
@@ -877,7 +877,7 @@ impl ChainSync {
 			// id is a hash
 			let hash: H256 = try!(r.val_at(0));
 			trace!(target: "sync", "-> GetBlockHeaders (hash: {}, max: {}, skip: {}, reverse:{})", hash, max_headers, skip, reverse);
-			match io.chain().block_header(&hash) {
+			match io.chain().block_header(BlockId::Hash(hash)) {
 				Some(hdr) => From::from(HeaderView::new(&hdr).number()),
 				None => last
 			}
@@ -897,7 +897,7 @@ impl ChainSync {
 		let mut data = Bytes::new();
 		let inc = (skip + 1) as BlockNumber;
 		while number <= last && number > 0 && count < max_count {
-			if let Some(mut hdr) = io.chain().block_header_at(number) {
+			if let Some(mut hdr) = io.chain().block_header(BlockId::Number(number)) {
 				data.append(&mut hdr);
 				count += 1;
 			}
@@ -929,7 +929,7 @@ impl ChainSync {
 		let mut added = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			if let Some(mut hdr) = io.chain().block_body(&try!(r.val_at::<H256>(i))) {
+			if let Some(mut hdr) = io.chain().block_body(BlockId::Hash(try!(r.val_at::<H256>(i)))) {
 				data.append(&mut hdr);
 				added += 1;
 			}
@@ -1060,7 +1060,7 @@ impl ChainSync {
 						let mut rlp_stream = RlpStream::new_list(route.blocks.len());
 						for block_hash in route.blocks {
 							let mut hash_rlp = RlpStream::new_list(2);
-							let difficulty = chain.block_total_difficulty(&block_hash).expect("Mallformed block without a difficulty on the chain!");
+							let difficulty = chain.block_total_difficulty(BlockId::Hash(block_hash.clone())).expect("Mallformed block without a difficulty on the chain!");
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&difficulty);
 							rlp_stream.append_raw(&hash_rlp.out(), 1);
@@ -1076,7 +1076,7 @@ impl ChainSync {
 	/// creates latest block rlp for the given client
 	fn create_latest_block_rlp(chain: &BlockChainClient) -> Bytes {
 		let mut rlp_stream = RlpStream::new_list(2);
-		rlp_stream.append_raw(&chain.block(&chain.chain_info().best_block_hash).expect("Creating latest block when there is none"), 1);
+		rlp_stream.append_raw(&chain.block(BlockId::Hash(chain.chain_info().best_block_hash)).expect("Creating latest block when there is none"), 1);
 		rlp_stream.append(&chain.chain_info().total_difficulty);
 		rlp_stream.out()
 	}
@@ -1088,10 +1088,10 @@ impl ChainSync {
 		let latest_hash = chain_info.best_block_hash;
 		let latest_number = chain_info.best_block_number;
 		self.peers.iter().filter(|&(_, peer_info)|
-			match io.chain().block_status(&peer_info.latest)
+			match io.chain().block_status(BlockId::Hash(peer_info.latest.clone()))
 			{
 				BlockStatus::InChain => {
-					let peer_number = HeaderView::new(&io.chain().block_header(&peer_info.latest).unwrap()).number();
+					let peer_number = HeaderView::new(&io.chain().block_header(BlockId::Hash(peer_info.latest.clone())).unwrap()).number();
 					peer_info.latest != latest_hash && latest_number > peer_number && latest_number - peer_number < MAX_PEER_LAG_PROPAGATION
 				},
 				_ => false
