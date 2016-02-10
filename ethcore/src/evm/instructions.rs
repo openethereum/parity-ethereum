@@ -279,7 +279,7 @@ pub fn get_info (instruction: Instruction) -> InstructionInfo {
 pub const STOP: Instruction = 0x00;
 /// addition operation
 pub const ADD: Instruction = 0x01;
-/// mulitplication operation
+/// multiplication operation
 pub const MUL: Instruction = 0x02;
 /// subtraction operation
 pub const SUB: Instruction = 0x03;
@@ -300,15 +300,15 @@ pub const EXP: Instruction = 0x0a;
 /// extend length of signed integer
 pub const SIGNEXTEND: Instruction = 0x0b;
 
-/// less-than comparision
+/// less-than comparison
 pub const LT: Instruction = 0x10;		
-/// greater-than comparision
+/// greater-than comparison
 pub const GT: Instruction = 0x11;
-/// signed less-than comparision
+/// signed less-than comparison
 pub const SLT: Instruction = 0x12;
-/// signed greater-than comparision
+/// signed greater-than comparison
 pub const SGT: Instruction = 0x13;
-/// equality comparision
+/// equality comparison
 pub const EQ: Instruction = 0x14;
 /// simple not operator
 pub const ISZERO: Instruction = 0x15;
@@ -318,7 +318,7 @@ pub const AND: Instruction = 0x16;
 pub const OR: Instruction = 0x17;
 /// bitwise XOR operation
 pub const XOR: Instruction = 0x18;
-/// bitwise NOT opertation
+/// bitwise NOT operation
 pub const NOT: Instruction = 0x19;
 /// retrieve single byte from word
 pub const BYTE: Instruction = 0x1a;
