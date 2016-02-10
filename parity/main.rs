@@ -63,6 +63,7 @@ Options:
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
   --address URL            Equivalent to --listen-address URL --public-address URL.
+  --upnp                   Use UPnP to try to figure out the correct network settings.
 
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
@@ -191,7 +192,7 @@ impl Informant {
 		let sync_info = sync.status();
 
 		if let (_, &Some(ref last_cache_info), &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
-			println!("[ {} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, {} downloaded, {}+{} queued ···//  {} ({}) bl  {} ({}) ex ]",
+			println!("[ {} {} ]---[ {} blk/s | {} tx/s | {} gas/s  ··· {}/{} peers, {} downloaded, {}+{} queued ···  {} ({}) bl  {} ({}) ex | {} i/c ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
 				(report.blocks_imported - last_report.blocks_imported) / dur,
@@ -207,7 +208,9 @@ impl Informant {
 				cache_info.blocks,
 				cache_info.blocks as isize - last_cache_info.blocks as isize,
 				cache_info.block_details,
-				cache_info.block_details as isize - last_cache_info.block_details as isize
+				cache_info.block_details as isize - last_cache_info.block_details as isize,
+
+				updates_per_commit()
 			);
 		}
 

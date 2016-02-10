@@ -86,6 +86,26 @@ impl NetworkConfiguration {
 		config.public_address = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap();
 		config
 	}
+
+	/// Conduct NAT if needed.
+	pub fn prepared(self) -> Self {
+		let listen = self.listen_address;
+		let public = self.public_address;
+
+		if self.nat_enabled {
+			info!("Enabling NAT");
+		}
+
+		NetworkConfiguration {
+			listen_address: listen,
+			public_address: public,
+			nat_enabled: false,
+			discovery_enabled: self.discovery_enabled,
+			pin: self.pin,
+			boot_nodes: self.boot_nodes,
+			use_secret: self.use_secret,
+		}
+	}
 }
 
 // Tokens
@@ -296,6 +316,8 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	/// Create a new instance
 	pub fn new(config: NetworkConfiguration) -> Host<Message> {
+		let config = config.prepared();
+
 		let addr = config.listen_address;
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&addr).unwrap();

@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::RwLock;
+use std::cell::RefCell;
 use hash::*;
 use sha3::*;
 use hashdb::*;
@@ -21,11 +23,26 @@ use rlp::*;
 use super::triedbmut::*;
 use super::trietraits::*;
 
+lazy_static! {
+	static ref COMMIT_COUNT: RwLock<usize> = RwLock::new(0);
+	static ref UPDATE_COUNT: RwLock<usize> = RwLock::new(0);
+}
+
+/// Get mean number of updates per commit so far.
+pub fn updates_per_commit() -> f64 {
+	let cc = *COMMIT_COUNT.read().unwrap();
+	if cc > 0 {
+		(*UPDATE_COUNT.read().unwrap() as f64) / (cc as f64)
+	} else { 0.0 }
+}
+
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// 
 /// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing TrieDBMut object.
 pub struct SecTrieDBMut<'db> {
-	raw: TrieDBMut<'db>
+	raw: TrieDBMut<'db>,
+	/// Get number of updates done on this trie so far.
+	pub update_count: RefCell<usize>,
 }
 
 impl<'db> SecTrieDBMut<'db> {
@@ -33,13 +50,13 @@ impl<'db> SecTrieDBMut<'db> {
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
 	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self { 
-		SecTrieDBMut { raw: TrieDBMut::new(db, root) }
+		SecTrieDBMut { raw: TrieDBMut::new(db, root), update_count: RefCell::new(0) }
 	}
 
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
 	pub fn from_existing(db: &'db mut HashDB, root: &'db mut H256) -> Self {
-		SecTrieDBMut { raw: TrieDBMut::from_existing(db, root) }
+		SecTrieDBMut { raw: TrieDBMut::from_existing(db, root), update_count: RefCell::new(0) }
 	}
 
 	/// Get the backing database.
@@ -50,7 +67,9 @@ impl<'db> SecTrieDBMut<'db> {
 }
 
 impl<'db> Trie for SecTrieDBMut<'db> {
-	fn root(&self) -> &H256 { self.raw.root() }
+	fn root(&self) -> &H256 {
+		self.raw.root()
+	}
 
 	fn contains(&self, key: &[u8]) -> bool {
 		self.raw.contains(&key.sha3())
@@ -63,11 +82,24 @@ impl<'db> Trie for SecTrieDBMut<'db> {
 
 impl<'db> TrieMut for SecTrieDBMut<'db> {
 	fn insert(&mut self, key: &[u8], value: &[u8]) {
+		*self.update_count.borrow_mut() += 1;
 		self.raw.insert(&key.sha3(), value);
 	}
 
 	fn remove(&mut self, key: &[u8]) {
+		*self.update_count.borrow_mut() += 1;
 		self.raw.remove(&key.sha3());
+	}
+}
+
+impl<'db> Drop for SecTrieDBMut<'db> {
+	fn drop(&mut self) {
+		let uc = *self.update_count.borrow();
+		if uc > 0 {
+			*COMMIT_COUNT.write().unwrap() += 1;
+			*UPDATE_COUNT.write().unwrap() += uc;
+			*self.update_count.borrow_mut() = 0;
+		}
 	}
 }
 
