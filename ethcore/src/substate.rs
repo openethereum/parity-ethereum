@@ -57,6 +57,12 @@ mod tests {
 	use common::*;
 
 	#[test]
+	fn created() {
+		let sub_state = Substate::new();
+		assert_eq!(sub_state.suicides.len(), 0);
+	}
+
+	#[test]
 	fn accrue() {
 		let mut sub_state = Substate::new();
 		sub_state.contracts_created.push(address_from_u64(1u64));
