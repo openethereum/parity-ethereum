@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::{SocketAddr};
+use std::net::{SocketAddr, SocketAddrV4};
 use std::collections::{HashMap};
 use std::hash::{Hasher};
 use std::str::{FromStr};
@@ -36,6 +36,7 @@ use network::NetworkProtocolHandler;
 use network::node::*;
 use network::stats::NetworkStats;
 use network::error::DisconnectReason;
+use igd::{PortMappingProtocol,search_gateway};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -89,11 +90,27 @@ impl NetworkConfiguration {
 
 	/// Conduct NAT if needed.
 	pub fn prepared(self) -> Self {
-		let listen = self.listen_address;
-		let public = self.public_address;
+		let mut listen = self.listen_address;
+		let mut public = self.public_address;
 
 		if self.nat_enabled {
-			info!("Enabling NAT");
+			info!("Enabling NAT...");
+			match search_gateway() {
+				Err(ref err) => info!("Error: {}", err),
+				Ok(gateway) => {
+					let int_addr = SocketAddrV4::from_str("127.0.0.1:30304").unwrap();
+					match gateway.get_any_address(PortMappingProtocol::TCP, int_addr, 0, "Parity Node/TCP") {
+						Err(ref err) => {
+							info!("There was an error! {}", err);
+						},
+						Ok(ext_addr) => {
+							info!("Local gateway: {}, External ip address: {}", gateway, ext_addr);
+							public = SocketAddr::V4(ext_addr);
+							listen = SocketAddr::V4(int_addr);
+						},
+					}
+				},
+			}
 		}
 
 		NetworkConfiguration {
