@@ -96,36 +96,30 @@ impl Eth for EthClient {
 	}
 
 	fn block_transaction_count(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<(H256,)>(params) {
-			Ok((hash,)) => match self.client.block(&hash) {
+		from_params::<(H256,)>(params)
+			.and_then(|(hash,)| match self.client.block(&hash) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 				None => Ok(Value::Null)
-			},
-			Err(err) => Err(err)
-		}
+			})
 	}
 
 	fn block_uncles_count(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<(H256,)>(params) {
-			Ok((hash,)) => match self.client.block(&hash) {
+		from_params::<(H256,)>(params)
+			.and_then(|(hash,)| match self.client.block(&hash) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
 				None => Ok(Value::Null)
-			},
-			Err(err) => Err(err)
-		}
+			})
 	}
 
 	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<(Address, BlockNumber)>(params) {
-			Ok((address, _block_number)) => to_value(&self.client.code(&address).map_or_else(Bytes::default, Bytes::new)),
-			Err(err) => Err(err)
-		}
+		from_params::<(Address, BlockNumber)>(params)
+			.and_then(|(address, _block_number)| to_value(&self.client.code(&address).map_or_else(Bytes::default, Bytes::new)))
 	}
 
 	fn block(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<(H256, bool)>(params) {
-			Ok((hash, include_txs)) => match (self.client.block(&hash), self.client.block_total_difficulty(&hash)) {
+		from_params::<(H256, bool)>(params)
+			.and_then(|(hash, include_txs)| match (self.client.block(&hash), self.client.block_total_difficulty(&hash)) {
 				(Some(bytes), Some(total_difficulty)) => {
 					let block_view = BlockView::new(&bytes);
 					let view = block_view.header_view();
@@ -158,19 +152,15 @@ impl Eth for EthClient {
 					to_value(&block)
 				},
 				_ => Ok(Value::Null)
-			},
-			Err(err) => Err(err)
-		}
+		})
 	}
 
-	fn transaction_at(&self, params: Params) -> Result<Value, Error> {
-		match from_params::<(H256,)>(params) {
-			Ok((hash,)) => match self.client.transaction(&hash) {
+	fn transaction_by_hash(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H256,)>(params)
+			.and_then(|(hash,)| match self.client.transaction(&hash) {
 				Some(t) => to_value(&Transaction::from(t)),
 				None => Ok(Value::Null)
-			},
-			Err(err) => Err(err)
-		}
+		})
 	}
 }
 
