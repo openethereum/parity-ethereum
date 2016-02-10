@@ -19,7 +19,7 @@ use util::*;
 use header::*;
 use transaction::*;
 
-/// Uniqly identifies block in canon blockchain.
+/// Uniquely identifies block in canon blockchain.
 pub enum BlockId {
 	/// Block's sha3.
 	Hash(H256),
@@ -27,7 +27,7 @@ pub enum BlockId {
 	Number(BlockNumber)
 }
 
-/// Uniqly identifies transaction in canon blockchain.
+/// Uniquely identifies transaction in canon blockchain.
 pub enum TransactionId {
 	/// Transaction's sha3.
 	Hash(H256),
