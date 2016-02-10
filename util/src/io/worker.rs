@@ -21,6 +21,7 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use crossbeam::sync::chase_lev;
 use io::service::{HandlerId, IoChannel, IoContext};
 use io::{IoHandler};
+use panics::*;
 
 pub enum WorkType<Message> {
 	Readable,
@@ -43,32 +44,41 @@ pub struct Worker {
 	thread: Option<JoinHandle<()>>,
 	wait: Arc<Condvar>,
 	deleting: Arc<AtomicBool>,
+	panic_handler: SafeStringPanicHandler,
 }
 
 impl Worker {
 	/// Creates a new worker instance.
-	pub fn new<Message>(index: usize, 
-						stealer: chase_lev::Stealer<Work<Message>>, 
+	pub fn new<Message>(index: usize,
+						stealer: chase_lev::Stealer<Work<Message>>,
 						channel: IoChannel<Message>,
 						wait: Arc<Condvar>,
-						wait_mutex: Arc<Mutex<()>>) -> Worker 
+						wait_mutex: Arc<Mutex<()>>) -> Worker
 						where Message: Send + Sync + Clone + 'static {
+		let panic_handler = StringPanicHandler::new_thread_safe();
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
+			panic_handler: panic_handler.clone(),
 			thread: None,
 			wait: wait.clone(),
 			deleting: deleting.clone(),
 		};
+		let panic_handler = panic_handler.clone();
 		worker.thread = Some(thread::Builder::new().name(format!("IO Worker #{}", index)).spawn(
-			move || Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting))
+			move || {
+				let mut panic = panic_handler.lock().unwrap();
+				panic.catch_panic(move || {
+					Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting)
+				}).unwrap()
+			})
 			.expect("Error creating worker thread"));
 		worker
 	}
 
 	fn work_loop<Message>(stealer: chase_lev::Stealer<Work<Message>>,
-						channel: IoChannel<Message>, wait: Arc<Condvar>, 
-						wait_mutex: Arc<Mutex<()>>, 
-						deleting: Arc<AtomicBool>) 
+						channel: IoChannel<Message>, wait: Arc<Condvar>,
+						wait_mutex: Arc<Mutex<()>>,
+						deleting: Arc<AtomicBool>)
 						where Message: Send + Sync + Clone + 'static {
 		while !deleting.load(AtomicOrdering::Relaxed) {
 			{
@@ -102,6 +112,12 @@ impl Worker {
 				work.handler.message(&IoContext::new(channel, work.handler_id), &message);
 			}
 		}
+	}
+}
+
+impl MayPanic<String> for Worker {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener<String> {
+		self.panic_handler.on_panic(closure);
 	}
 }
 

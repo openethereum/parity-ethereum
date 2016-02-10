@@ -17,10 +17,9 @@
 //! Panic utilities
 
 use std::thread;
-use std::panic;
-use std::sync::Mutex;
-use std::any::Any;
 use std::ops::DerefMut;
+use std::any::Any;
+use std::sync::{Arc, Mutex};
 
 pub trait OnPanicListener<T>: Send + Sync + 'static {
 	fn call(&mut self, arg: &T);
@@ -33,26 +32,37 @@ impl<F, T> OnPanicListener<T> for F
 	}
 }
 
-pub trait ArgsConverter<T> {
+pub trait ArgsConverter<T> : Send + Sync {
 	fn convert(&self, t: &Box<Any + Send>) -> Option<T>;
 }
 
 pub trait MayPanic<T> {
-	fn on_panic<F>(&mut self, closure: F)
+	fn on_panic<F>(&self, closure: F)
 		where F: OnPanicListener<T>;
 }
 
 pub trait PanicHandler<T, C: ArgsConverter<T>> : MayPanic<T>{
-	fn new(converter: C) -> Self;
+	fn with_converter(converter: C) -> Self;
 	fn catch_panic<G, R>(&mut self, g: G) -> thread::Result<R>
-		where G: FnOnce() -> R + panic::RecoverSafe;
+		where G: FnOnce() -> R + Send + 'static;
+	fn notify_all(&mut self, &T);
 }
 
+pub type SafeStringPanicHandler = Arc<Mutex<StringPanicHandler>>;
+
+impl MayPanic<String> for SafeStringPanicHandler {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener<String> {
+		self.lock().unwrap().on_panic(closure);
+	}
+}
 
 pub struct StringConverter;
 impl ArgsConverter<String> for StringConverter {
 	fn convert(&self, t: &Box<Any + Send>) -> Option<String> {
-		t.downcast_ref::<&'static str>().map(|t| t.clone().to_owned())
+		let as_str = t.downcast_ref::<&'static str>().map(|t| t.clone().to_owned());
+		let as_string = t.downcast_ref::<String>().cloned();
+
+		as_str.or(as_string)
 	}
 }
 
@@ -62,86 +72,152 @@ pub struct BasePanicHandler<T, C>
 	listeners: Mutex<Vec<Box<OnPanicListener<T>>>>
 }
 
-impl<T, C> BasePanicHandler<T, C>
-	where C: ArgsConverter<T>, T: 'static {
-	fn notify_all(&mut self, res: Option<T>) {
-		if let None = res {
-			return;
-		}
-		let r = res.unwrap();
-		let mut listeners = self.listeners.lock().unwrap();
-		for listener in listeners.deref_mut() {
-			listener.call(&r);
-		}
-	}
-}
-
 impl<T, C> PanicHandler<T, C> for BasePanicHandler<T, C>
 	where C: ArgsConverter<T>, T: 'static {
 
-	fn new(converter: C) -> Self {
+	fn with_converter(converter: C) -> Self {
 		BasePanicHandler {
 			converter: converter,
 			listeners: Mutex::new(vec![])
 		}
 	}
 
-	fn catch_panic<G, R>(&mut self, g: G) -> thread::Result<R>
-		where G: FnOnce() -> R + panic::RecoverSafe {
-			let result = panic::recover(g);
+	#[allow(deprecated)]
+	// TODO [todr] catch_panic is deprecated but panic::recover has different bounds (not allowing mutex)
+	fn catch_panic<G, R>(&mut self, g: G) -> thread::Result<R> where G: FnOnce() -> R + Send + 'static {
+		let result = thread::catch_panic(g);
 
-			println!("After calling function");
-			if let Err(ref e) = result {
-				let res = self.converter.convert(e);
-				println!("Got error. Notifying");
-				self.notify_all(res);
+		if let Err(ref e) = result {
+			let res = self.converter.convert(e);
+			if let Some(r) = res {
+				self.notify_all(&r);
 			}
-
-			result
 		}
+
+		result
+	}
+
+	fn notify_all(&mut self, r: &T) {
+		let mut listeners = self.listeners.lock().unwrap();
+		for listener in listeners.deref_mut() {
+			listener.call(r);
+		}
+	}
 }
 
 impl<T, C> MayPanic<T> for BasePanicHandler<T, C>
 	where C: ArgsConverter<T>, T: 'static {
-	fn on_panic<F>(&mut self, closure: F)
+	fn on_panic<F>(&self, closure: F)
 		where F: OnPanicListener<T> {
 		self.listeners.lock().unwrap().push(Box::new(closure));
 	}
 }
 
+pub struct StringPanicHandler {
+	handler: BasePanicHandler<String, StringConverter>
+}
+
+impl StringPanicHandler {
+	pub fn new_thread_safe() -> SafeStringPanicHandler {
+		Arc::new(Mutex::new(Self::new()))
+	}
+
+	pub fn new () -> Self {
+		Self::with_converter(StringConverter)
+	}
+}
+
+impl PanicHandler<String, StringConverter> for StringPanicHandler {
+
+	fn with_converter(converter: StringConverter) -> Self {
+		StringPanicHandler {
+			handler: BasePanicHandler::with_converter(converter)
+		}
+	}
+
+	fn catch_panic<G, R>(&mut self, g: G) -> thread::Result<R> where G: FnOnce() -> R + Send + 'static {
+		self.handler.catch_panic(g)
+	}
+
+	fn notify_all(&mut self, r: &String) {
+		self.handler.notify_all(r);
+	}
+}
+
+impl MayPanic<String> for StringPanicHandler {
+	fn on_panic<F>(&self, closure: F)
+		where F: OnPanicListener<String> {
+			self.handler.on_panic(closure)
+		}
+}
+
 #[test]
 fn should_notify_listeners_about_panic () {
-	use std::sync::{Arc, RwLock};
-
+	use std::sync::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
-	let mut p = BasePanicHandler::new(StringConverter);
+	let mut p = StringPanicHandler::new();
 	p.on_panic(move |t: &String| i.write().unwrap().push(t.clone()));
 
 	// when
-	p.catch_panic(|| panic!("Panic!"));
+	p.catch_panic(|| panic!("Panic!")).unwrap_err();
 
 	// then
 	assert!(invocations.read().unwrap()[0] == "Panic!");
 }
 
 #[test]
+fn should_notify_listeners_about_panic_when_string_is_dynamic () {
+	use std::sync::RwLock;
+	// given
+	let invocations = Arc::new(RwLock::new(vec![]));
+	let i = invocations.clone();
+	let mut p = StringPanicHandler::new();
+	p.on_panic(move |t: &String| i.write().unwrap().push(t.clone()));
+
+	// when
+	p.catch_panic(|| panic!("Panic: {}", 1)).unwrap_err();
+
+	// then
+	assert!(invocations.read().unwrap()[0] == "Panic: 1");
+}
+
+#[test]
 fn should_notify_listeners_about_panic_in_other_thread () {
 	use std::thread;
-	use std::sync::{Arc, RwLock};
+	use std::sync::RwLock;
 
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
-	let mut p = BasePanicHandler::new(StringConverter);
+	let mut p = StringPanicHandler::new();
 	p.on_panic(move |t: &String| i.write().unwrap().push(t.clone()));
 
 	// when
 	let t = thread::spawn(move ||
-		p.catch_panic(|| panic!("Panic!"))
+		p.catch_panic(|| panic!("Panic!")).unwrap()
 	);
-	t.join();
+	t.join().unwrap_err();
+
+	// then
+	assert!(invocations.read().unwrap()[0] == "Panic!");
+}
+
+#[test]
+fn should_forward_panics () {
+use std::sync::RwLock;
+	// given
+	let invocations = Arc::new(RwLock::new(vec![]));
+	let i = invocations.clone();
+	let mut p = StringPanicHandler::new();
+	p.on_panic(move |t: &String| i.write().unwrap().push(t.clone()));
+
+	let mut p2 = StringPanicHandler::new();
+	p2.on_panic(move |t: &String| p.notify_all(t));
+
+	// when
+	p2.catch_panic(|| panic!("Panic!")).unwrap_err();
 
 	// then
 	assert!(invocations.read().unwrap()[0] == "Panic!");

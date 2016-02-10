@@ -21,7 +21,8 @@
 #![feature(plugin)]
 #![plugin(clippy)]
 #![allow(needless_range_loop, match_bool)]
-#![feature(std_panic, recover)]
+#![feature(catch_panic)]
+
 //! Ethcore-util library
 //!
 //! ### Rust version:
