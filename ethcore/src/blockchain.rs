@@ -111,17 +111,22 @@ pub trait BlockProvider {
 	}
 
 	/// Get transaction with given transaction hash.
-	fn transaction(&self, hash: &H256) -> Option<LocalizedTransaction> {
-		self.transaction_address(hash).and_then(|address| self.transaction_at(&address))
-	}
-
-	/// Get transaction at given address.
-	fn transaction_at(&self, address: &TransactionAddress) -> Option<LocalizedTransaction> {
-		self.block(&address.block_hash).and_then(|bytes| BlockView::new(&bytes).localized_transaction_at(address.index))
+	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
+		match id {
+			TransactionId::Hash(ref hash) => self.transaction_address(hash),
+			TransactionId::BlockPosition(BlockId::Hash(hash), index) => Some(TransactionAddress {
+				block_hash: hash,
+				index: index
+			}),
+			TransactionId::BlockPosition(BlockId::Number(number), index) => self.block_hash(number).map(|hash| TransactionAddress {
+				block_hash: hash,
+				index: index
+			})
+		}.and_then(|address| self.block(&address.block_hash).and_then(|bytes| BlockView::new(&bytes).localized_transaction_at(address.index)))
 	}
 
 	/// Get a list of transactions for a given block.
-	/// Returns None if block deos not exist.
+	/// Returns None if block does not exist.
 	fn transactions(&self, hash: &H256) -> Option<Vec<LocalizedTransaction>> {
 		self.block(hash).map(|bytes| BlockView::new(&bytes).localized_transactions())
 	}
@@ -669,6 +674,7 @@ mod tests {
 	use util::hash::*;
 	use blockchain::*;
 	use tests::helpers::*;
+	use views::TransactionId;
 
 	#[test]
 	fn valid_tests_extra32() {
@@ -864,7 +870,7 @@ mod tests {
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
 		for t in transactions {
-			assert_eq!(bc.transaction(&t.hash()).unwrap(), t);
+			assert_eq!(bc.transaction(TransactionId::Hash(t.hash())).unwrap(), t);
 		}
 	}
 }

@@ -23,7 +23,7 @@ use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, Transaction, OptionalValue};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, Transaction, OptionalValue, Index};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -152,15 +152,27 @@ impl Eth for EthClient {
 					to_value(&block)
 				},
 				_ => Ok(Value::Null)
-		})
+			})
 	}
 
 	fn transaction_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.transaction(&hash) {
+			.and_then(|(hash,)| match self.client.transaction(TransactionId::Hash(hash)) {
 				Some(t) => to_value(&Transaction::from(t)),
 				None => Ok(Value::Null)
-		})
+			})
+	}
+
+	fn transaction_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H256, Index)>(params)
+			.and_then(|(hash, index)| match self.client.transaction(TransactionId::BlockPosition(BlockId::Hash(hash), index.value())) {
+				Some(t) => to_value(&Transaction::from(t)),
+				None => Ok(Value::Null)
+			})
+	}
+
+	fn transaction_by_block_number_and_index(&self, _params: Params) -> Result<Value, Error> {
+		unimplemented!()
 	}
 }
 

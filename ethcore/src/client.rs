@@ -19,7 +19,7 @@
 use util::*;
 use rocksdb::{Options, DB, DBCompactionStyle};
 use blockchain::{BlockChain, BlockProvider, CacheSize};
-use views::BlockView;
+use views::{BlockView, TransactionId};
 use error::*;
 use header::BlockNumber;
 use state::State;
@@ -106,7 +106,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256>;
 
 	/// Get transaction with given hash.
-	fn transaction(&self, hash: &H256) -> Option<LocalizedTransaction>;
+	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
@@ -392,8 +392,8 @@ impl BlockChainClient for Client {
 		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_total_difficulty(&h))
 	}
 
-	fn transaction(&self, hash: &H256) -> Option<LocalizedTransaction> {
-		self.chain.read().unwrap().transaction(hash)
+	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
+		self.chain.read().unwrap().transaction(id)
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
