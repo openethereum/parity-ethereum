@@ -54,7 +54,7 @@
 //!   cd parity
 //!   cargo build --release
 //!   ```
-//!   
+//!
 //! - OSX:
 //!
 //!   ```bash
@@ -123,9 +123,10 @@ mod substate;
 mod executive;
 mod externalities;
 mod verification;
+mod secret_store;
 
-#[cfg(test)] 
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
-#[cfg(feature="json-tests")] 
+#[cfg(feature="json-tests")]
 mod json_tests;
