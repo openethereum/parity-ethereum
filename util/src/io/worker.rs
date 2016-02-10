@@ -44,7 +44,6 @@ pub struct Worker {
 	thread: Option<JoinHandle<()>>,
 	wait: Arc<Condvar>,
 	deleting: Arc<AtomicBool>,
-	panic_handler: Arc<PanicHandler>,
 }
 
 impl Worker {
@@ -53,17 +52,16 @@ impl Worker {
 						stealer: chase_lev::Stealer<Work<Message>>,
 						channel: IoChannel<Message>,
 						wait: Arc<Condvar>,
-						wait_mutex: Arc<Mutex<()>>) -> Worker
-						where Message: Send + Sync + Clone + 'static {
-		let panic_handler = PanicHandler::new_arc();
+						wait_mutex: Arc<Mutex<()>>,
+						panic_handler: Arc<PanicHandler>
+					   ) -> Worker
+					where Message: Send + Sync + Clone + 'static {
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
-			panic_handler: panic_handler.clone(),
 			thread: None,
 			wait: wait.clone(),
 			deleting: deleting.clone(),
 		};
-		let panic_handler = panic_handler.clone();
 		worker.thread = Some(thread::Builder::new().name(format!("IO Worker #{}", index)).spawn(
 			move || {
 				panic_handler.catch_panic(move || {
@@ -111,12 +109,6 @@ impl Worker {
 				work.handler.message(&IoContext::new(channel, work.handler_id), &message);
 			}
 		}
-	}
-}
-
-impl MayPanic for Worker {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
 	}
 }
 

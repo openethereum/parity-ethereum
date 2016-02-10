@@ -27,12 +27,17 @@ pub trait OnPanicListener: Send + Sync + 'static {
 	fn call(&mut self, arg: &str);
 }
 
+/// Forwards panics from child
+pub trait ForwardPanic {
+	/// Attach `on_panic` listener to `child` and rethrow all panics
+	fn forward_from<S>(&self, child: &S) where S : MayPanic;
+}
+
 /// Trait indicating that the structure catches some of the panics (most probably from spawned threads)
 /// and it's possbile to be notified when one of the threads panics.
 pub trait MayPanic {
 	/// `closure` will be invoked whenever panic in thread is caught
-	fn on_panic<F>(&self, closure: F)
-		where F: OnPanicListener;
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener;
 }
 
 /// Structure that allows to catch panics and notify listeners
@@ -42,7 +47,7 @@ pub struct PanicHandler {
 
 impl PanicHandler {
 	/// Creates new `PanicHandler` wrapped in `Arc`
-	pub fn new_arc() -> Arc<PanicHandler> {
+	pub fn new_in_arc() -> Arc<PanicHandler> {
 		Arc::new(Self::new())
 	}
 
@@ -70,8 +75,7 @@ impl PanicHandler {
 		result
 	}
 
-	/// Notify listeners about panic
-	pub fn notify_all(&self, r: String) {
+	fn notify_all(&self, r: String) {
 		let mut listeners = self.listeners.lock().unwrap();
 		for listener in listeners.deref_mut() {
 			listener.call(&r);
@@ -80,9 +84,15 @@ impl PanicHandler {
 }
 
 impl MayPanic for PanicHandler {
-	fn on_panic<F>(&self, closure: F)
-		where F: OnPanicListener {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.listeners.lock().unwrap().push(Box::new(closure));
+	}
+}
+
+impl ForwardPanic for Arc<PanicHandler> {
+	fn forward_from<S>(&self, child: &S) where S : MayPanic {
+		let p = self.clone();
+		child.on_panic(move |t| p.notify_all(t));
 	}
 }
 
@@ -159,11 +169,11 @@ use std::sync::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();
-	let p = PanicHandler::new();
+	let p = PanicHandler::new_in_arc();
 	p.on_panic(move |t| i.write().unwrap().push(t));
 
 	let p2 = PanicHandler::new();
-	p2.on_panic(move |t| p.notify_all(t));
+	p.forward_from(&p2);
 
 	// when
 	p2.catch_panic(|| panic!("Panic!")).unwrap_err();

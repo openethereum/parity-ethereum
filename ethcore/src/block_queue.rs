@@ -115,7 +115,7 @@ impl BlockQueue {
 		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
 		let deleting = Arc::new(AtomicBool::new(false));
 		let empty = Arc::new(Condvar::new());
-		let panic_handler = PanicHandler::new_arc();
+		let panic_handler = PanicHandler::new_in_arc();
 
 		let mut verifiers: Vec<JoinHandle<()>> = Vec::new();
 		let thread_count = max(::num_cpus::get(), 3) - 2;

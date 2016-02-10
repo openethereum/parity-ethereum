@@ -163,13 +163,13 @@ By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 	}
 }
 
-fn wait_for_exit(client: Arc<Client>) {
+fn wait_for_exit(client_service: &ClientService) {
 	let exit = Arc::new(Condvar::new());
 	// Handle possible exits
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.notify_all(); });
 	let e = exit.clone();
-	client.on_panic(move |_reason| { e.notify_all(); });
+	client_service.on_panic(move |_reason| { e.notify_all(); });
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
@@ -219,7 +219,7 @@ fn main() {
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 	// Handle exit
-	wait_for_exit(service.client());
+	wait_for_exit(&service);
 }
 
 struct Informant {

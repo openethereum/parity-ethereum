@@ -211,9 +211,8 @@ impl Client {
 		}
 
 		let block_queue = BlockQueue::new(engine.clone(), message_channel);
-		let panic_handler = PanicHandler::new_arc();
-		let panic = panic_handler.clone();
-		block_queue.on_panic(move |t| panic.notify_all(t));
+		let panic_handler = PanicHandler::new_in_arc();
+		panic_handler.forward_from(&block_queue);
 
 		Ok(Arc::new(Client {
 			chain: chain,
