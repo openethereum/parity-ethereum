@@ -183,8 +183,12 @@ impl Eth for EthClient {
 			})
 	}
 
-	fn transaction_by_block_number_and_index(&self, _params: Params) -> Result<Value, Error> {
-		unimplemented!()
+	fn transaction_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(BlockNumber, Index)>(params)
+			.and_then(|(number, index)| match self.client.transaction(TransactionId::Location(number.into(), index.value())) {
+				Some(t) => to_value(&Transaction::from(t)),
+				None => Ok(Value::Null)
+			})
 	}
 }
 

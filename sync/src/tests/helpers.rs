@@ -80,7 +80,9 @@ impl TestBlockChainClient {
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		match id {
 			BlockId::Hash(hash) => Some(hash),
-			BlockId::Number(n) => self.numbers.read().unwrap().get(&(n as usize)).cloned()
+			BlockId::Number(n) => self.numbers.read().unwrap().get(&(n as usize)).cloned(),
+			BlockId::Earliest => self.numbers.read().unwrap().get(&0).cloned(),
+			BlockId::Latest => self.numbers.read().unwrap().get(&(self.numbers.read().unwrap().len() - 1)).cloned()
 		}
 	}
 }

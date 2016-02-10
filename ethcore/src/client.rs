@@ -37,15 +37,21 @@ use extras::TransactionAddress;
 pub use blockchain::TreeRoute;
 
 /// Uniquely identifies block.
+#[derive(Debug, PartialEq)]
 pub enum BlockId {
 	/// Block's sha3.
 	/// Querying by hash is always faster.
 	Hash(H256),
 	/// Block number within canon blockchain.
-	Number(BlockNumber)
+	Number(BlockNumber),
+	/// Earliest block (genesis).
+	Earliest,
+	/// Latest mined block.
+	Latest
 }
 
 /// Uniquely identifies transaction.
+#[derive(Debug, PartialEq)]
 pub enum TransactionId {
 	/// Transaction's sha3.
 	Hash(H256),
@@ -347,7 +353,9 @@ impl Client {
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		match id {
 			BlockId::Hash(hash) => Some(hash),
-			BlockId::Number(number) => self.chain.read().unwrap().block_hash(number)
+			BlockId::Number(number) => self.chain.read().unwrap().block_hash(number),
+			BlockId::Earliest => self.chain.read().unwrap().block_hash(0),
+			BlockId::Latest => Some(self.chain.read().unwrap().best_block_hash())
 		}
 	}
 }
