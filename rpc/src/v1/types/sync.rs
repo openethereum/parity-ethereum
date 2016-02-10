@@ -14,14 +14,55 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::hash::*;
+use serde::{Serialize, Serializer};
+use util::uint::*;
 
-#[derive(Default, Debug, Serialize)]
-pub struct SyncStatus {
+#[derive(Default, Debug, Serialize, PartialEq)]
+pub struct SyncInfo {
 	#[serde(rename="startingBlock")]
-	pub starting_block: H256,
+	pub starting_block: U256,
 	#[serde(rename="currentBlock")]
-	pub current_block: H256,
+	pub current_block: U256,
 	#[serde(rename="highestBlock")]
-	pub highest_block: H256,
+	pub highest_block: U256,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum SyncStatus {
+	Info(SyncInfo),
+	None
+}
+
+impl Serialize for SyncStatus {
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+	where S: Serializer {
+		match *self {
+			SyncStatus::Info(ref info) => info.serialize(serializer),
+			SyncStatus::None => false.serialize(serializer)
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use super::*;
+
+	#[test]
+	fn test_serialize_sync_info() {
+		let t = SyncInfo::default();
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"startingBlock":"0x00","currentBlock":"0x00","highestBlock":"0x00"}"#);
+	}
+
+	#[test]
+	fn test_serialize_sync_status() {
+		let t = SyncStatus::None;
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, "false");
+
+		let t = SyncStatus::Info(SyncInfo::default());
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"startingBlock":"0x00","currentBlock":"0x00","highestBlock":"0x00"}"#);
+	}
 }
