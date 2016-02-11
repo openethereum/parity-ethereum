@@ -18,6 +18,7 @@
 //! module for managing key files, decrypting and encrypting arbitrary data
 
 use common::*;
+use std::path::{PathBuf};
 
 const CURRENT_DECLARED_VERSION: u64 = 3;
 
@@ -240,47 +241,83 @@ struct KeyFileContent {
 
 struct KeyDirectory {
 	cache: HashMap<Uuid, KeyFileContent>,
-	path: Path
+	path: Path,
 }
 
 #[derive(Debug)]
 enum KeyLoadError {
 	NotFound,
-	FileTooBig(OutOfBounds<u64>),
-	FileParseError(KeyFileParseError)
+	InvalidEncoding,
+	FileTooLarge(OutOfBounds<u64>),
+	FileParseError(KeyFileParseError),
+	FileReadError(::std::io::Error)
 }
 
-use std::fs;
-
 impl KeyDirectory {
-	fn get(&mut self, id: Uuid) -> &KeyFileContent {
-		match cache.get(id) {
-			Ok(content) => content,
-			None => {
-				match self.load(id) {
+	fn key_path(&self, id: &Uuid) -> PathBuf {
+		let mut path = self.path.to_path_buf();
+		path.push(&id);
+		path
+	}
 
-				}
-				cache.insert(loaded_key);
-				loaded_key
+	fn save(&mut self, key_file: KeyFileContent) -> Result<(), ::std::io::Error> {
+		{
+			let mut file = try!(fs::File::create(self.key_path(&key_file.id)));
+			let json = key_file.to_json();
+			let json_text = format!("{}", json.pretty());
+			let json_bytes = json_text.into_bytes();
+			try!(file.write(&json_bytes));
+		}
+		self.cache.insert(key_file.id.clone(), key_file);
+		Ok(())
+	}
+
+	fn get(&mut self, id: &Uuid) -> Option<&KeyFileContent> {
+		let path = {
+			let mut path = self.path.to_path_buf();
+			path.push(&id);
+			path
+		};
+
+		Some(self.cache.entry(id.to_owned()).or_insert(
+			match KeyDirectory::load_key(&path, id) {
+				Ok(loaded_key) => loaded_key,
+				Err(error) => { return None; }
 			}
+		))
+	}
+
+	fn load_key(path: &PathBuf, id: &Uuid) -> Result<KeyFileContent, KeyLoadError> {
+		match fs::File::open(path.clone()) {
+			Ok(mut open_file) => {
+				match open_file.metadata() {
+					Ok(metadata) =>
+						if metadata.len() > MAX_KEY_FILE_LEN { Err(KeyLoadError::FileTooLarge(OutOfBounds { min: Some(2), max: Some(MAX_KEY_FILE_LEN), found: metadata.len() })) }
+						else { KeyDirectory::load_from_file(&mut open_file, metadata.len()) },
+					Err(read_error) => Err(KeyLoadError::FileReadError(read_error))
+				}
+			},
+			Err(read_error) => Err(KeyLoadError::FileReadError(read_error))
 		}
 	}
 
-	fn load(&mut self, id: Uuid) -> Result<KeyFileContent, KeyLoadError> {
-		let mut path = self.path.clone();
-		path.push(id);
-		match ::std::fs::File::open(path.clone()) {
-			Ok(open_file) => {
-				match open_file.metadata().len() {
-					0...MAX_KEY_FILE_LEN =>
-				}
-			}
+	fn load_from_file(file: &mut fs::File, size: u64) -> Result<KeyFileContent, KeyLoadError> {
+		let mut json_data = vec![0u8; size as usize];
+
+		match file.read_to_end(&mut json_data) {
+			Ok(_) => {},
+			Err(read_error) => { return Err(KeyLoadError::FileReadError(read_error)); }
 		}
-	}
 
-	fn load_from_file(file: fs::File) -> Result<KeyFileContent, KeyLoadError> {
-		match Json::from_str(::std::str::from_utf8(json_data)) {
-
+		match ::std::str::from_utf8(&json_data) {
+			Ok(ut8_string) => match Json::from_str(ut8_string) {
+				Ok(json) => match KeyFileContent::new(&json) {
+					Ok(key_file_content) => Ok(key_file_content),
+					Err(parse_error) => Err(KeyLoadError::FileParseError(parse_error))
+				},
+				Err(json_error) => Err(KeyLoadError::FileParseError(KeyFileParseError::InvalidJsonFormat))
+			},
+			Err(error) => Err(KeyLoadError::InvalidEncoding)
 		}
 	}
 }
