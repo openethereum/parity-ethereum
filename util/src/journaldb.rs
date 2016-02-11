@@ -47,10 +47,10 @@ impl Clone for JournalDB {
 	}
 }
 
-const LAST_ERA_KEY : [u8; 4] = [ b'l', b'a', b's', b't' ]; 
+const LATEST_ERA_KEY : [u8; 4] = [ b'l', b'a', b's', b't' ]; 
 const VERSION_KEY : [u8; 4] = [ b'j', b'v', b'e', b'r' ]; 
 
-const DB_VERSION: u32 = 1;
+const DB_VERSION: u32 = 2;
 
 impl JournalDB {
 	/// Create a new instance given a `backing` database.
@@ -87,7 +87,7 @@ impl JournalDB {
 
 	/// Check if this database has any commits
 	pub fn is_empty(&self) -> bool {
-		self.backing.get(&LAST_ERA_KEY).expect("Low level database error").is_none()
+		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
 	/// Commit all recent insert operations and historical removals from the old era
@@ -144,6 +144,7 @@ impl JournalDB {
 			r.append(&inserts);
 			r.append(&removes);
 			try!(batch.put(&last, r.as_raw()));
+			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
 		}
 
 		// apply old commits' details
@@ -181,7 +182,6 @@ impl JournalDB {
 				try!(batch.delete(&h));
 				deletes += 1;
 			}
-			try!(batch.put(&LAST_ERA_KEY, &encode(&end_era)));
 			trace!("JournalDB: delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, deletes);
 		}
 
@@ -228,8 +228,8 @@ impl JournalDB {
 
 	fn read_counters(db: &DB) -> HashMap<H256, i32> {
 		let mut res = HashMap::new();
-		if let Some(val) = db.get(&LAST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val) + 1;
+		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
+			let mut era = decode::<u64>(&val);
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
@@ -245,10 +245,10 @@ impl JournalDB {
 					}
 					index += 1;
 				};
-				if index == 0 {
+				if index == 0 || era == 0 {
 					break;
 				}
-				era += 1;
+				era -= 1;
 			}
 		}
 		trace!("Recovered {} counters", res.len());
@@ -425,5 +425,33 @@ mod tests {
 
 		jdb.commit(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
 		assert!(jdb.exists(&foo));
+	}
+
+	#[test]
+	fn reopen() {
+		use rocksdb::DB;
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+
+		let foo = {
+			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			foo
+		};
+
+		{
+			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
+			jdb.remove(&foo);
+			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		}
+
+		{
+			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
+			assert!(jdb.exists(&foo));
+			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			assert!(!jdb.exists(&foo));
+		}
 	}
 }
