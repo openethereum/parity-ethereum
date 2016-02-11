@@ -21,6 +21,8 @@ use common::*;
 
 const CURRENT_DECLARED_VERSION: u64 = 3;
 
+const MAX_KEY_FILE_LEN: u64 = 1024 * 80;
+
 #[derive(PartialEq, Debug)]
 enum CryptoCipherType {
 	// aes-128-ctr with 128-bit initialisation vector(iv)
@@ -234,6 +236,53 @@ struct KeyFileContent {
 	version: KeyFileVersion,
 	crypto: KeyFileCrypto,
 	id: Uuid
+}
+
+struct KeyDirectory {
+	cache: HashMap<Uuid, KeyFileContent>,
+	path: Path
+}
+
+#[derive(Debug)]
+enum KeyLoadError {
+	NotFound,
+	FileTooBig(OutOfBounds<u64>),
+	FileParseError(KeyFileParseError)
+}
+
+use std::fs;
+
+impl KeyDirectory {
+	fn get(&mut self, id: Uuid) -> &KeyFileContent {
+		match cache.get(id) {
+			Ok(content) => content,
+			None => {
+				match self.load(id) {
+
+				}
+				cache.insert(loaded_key);
+				loaded_key
+			}
+		}
+	}
+
+	fn load(&mut self, id: Uuid) -> Result<KeyFileContent, KeyLoadError> {
+		let mut path = self.path.clone();
+		path.push(id);
+		match ::std::fs::File::open(path.clone()) {
+			Ok(open_file) => {
+				match open_file.metadata().len() {
+					0...MAX_KEY_FILE_LEN =>
+				}
+			}
+		}
+	}
+
+	fn load_from_file(file: fs::File) -> Result<KeyFileContent, KeyLoadError> {
+		match Json::from_str(::std::str::from_utf8(json_data)) {
+
+		}
+	}
 }
 
 #[derive(Debug)]
@@ -506,6 +555,4 @@ mod tests {
 			Err(other_error) => { panic!("should be error of invalid initial vector, got {:?}", other_error); }
 		}
 	}
-
-
 }
