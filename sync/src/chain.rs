@@ -607,7 +607,7 @@ impl ChainSync {
 
 		if self.have_common_block && !self.headers.is_empty() && self.headers.range_iter().next().unwrap().0 == self.current_base_block() + 1 {
 			for (start, ref items) in self.headers.range_iter() {
-				if needed_bodies.len() > MAX_BODIES_TO_REQUEST {
+				if needed_bodies.len() >= MAX_BODIES_TO_REQUEST {
 					break;
 				}
 				let mut index: BlockNumber = 0;
@@ -654,7 +654,7 @@ impl ChainSync {
 						continue;
 					}
 					let mut block = prev;
-					while block < next && headers.len() <= MAX_HEADERS_TO_REQUEST {
+					while block < next && headers.len() < MAX_HEADERS_TO_REQUEST {
 						if !self.downloading_headers.contains(&(block as BlockNumber)) {
 							headers.push(block as BlockNumber);
 							self.downloading_headers.insert(block as BlockNumber);
