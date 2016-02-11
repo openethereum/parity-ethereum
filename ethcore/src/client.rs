@@ -316,12 +316,11 @@ impl Client {
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 			ret += 1;
-
-			if self.block_queue.read().unwrap().queue_info().is_empty() {
-				io.send(NetworkIoMessage::User(SyncMessage::BlockVerified)).unwrap();
-			}
 		}
 		self.block_queue.write().unwrap().mark_as_good(&good_blocks);
+		if !good_blocks.is_empty() && self.block_queue.read().unwrap().queue_info().is_empty() {
+			io.send(NetworkIoMessage::User(SyncMessage::BlockVerified)).unwrap();
+		}
 		ret
 	}
 
