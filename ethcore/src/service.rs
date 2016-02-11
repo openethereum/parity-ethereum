@@ -133,7 +133,8 @@ mod tests {
 	#[test]
 	fn it_can_be_started() {
 		let spec = get_test_spec();
-		let service = ClientService::start(spec, NetworkConfiguration::new());
+		let temp_path = RandomTempPath::new();
+		let service = ClientService::start(spec, NetworkConfiguration::new(), &temp_path.as_path());
 		assert!(service.is_ok());
 	}
 }
