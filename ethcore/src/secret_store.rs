@@ -19,6 +19,8 @@
 
 use common::*;
 
+const CURRENT_DECLARED_VERSION: u64 = 3;
+
 #[derive(PartialEq, Debug)]
 enum CryptoCipherType {
 	// aes-128-ctr with 128-bit initialisation vector(iv)
@@ -76,6 +78,16 @@ impl KdfPbkdf2Params {
 			c: try!(try!(json.get("c").ok_or(Pbkdf2ParseError::MissingParameter("c"))).as_u64().ok_or(Pbkdf2ParseError::InvalidParameter("c"))) as u32,
 		})
 	}
+
+	fn to_json(&self) -> Json {
+		let mut map = BTreeMap::new();
+		map.insert("dklen".to_owned(), json_from_u32(self.dkLen));
+		map.insert("salt".to_owned(), Json::String(format!("{:?}", self.salt)));
+		map.insert("prf".to_owned(), Json::String("hmac-sha256".to_owned()));
+		map.insert("c".to_owned(), json_from_u32(self.c));
+
+		Json::Object(map)
+	}
 }
 
 #[allow(non_snake_case)]
@@ -102,6 +114,8 @@ enum ScryptParseError {
 	MissingParameter(&'static str),
 }
 
+fn json_from_u32(number: u32) -> Json { Json::U64(number as u64) }
+
 impl KdfScryptParams {
 	fn new(json: &BTreeMap<String, Json>) -> Result<KdfScryptParams, ScryptParseError> {
 		Ok(KdfScryptParams{
@@ -117,6 +131,17 @@ impl KdfScryptParams {
 			n: try!(try!(json.get("n").ok_or(ScryptParseError::MissingParameter("n"))).as_u64().ok_or(ScryptParseError::InvalidParameter("n"))) as u32,
 			r: try!(try!(json.get("r").ok_or(ScryptParseError::MissingParameter("r"))).as_u64().ok_or(ScryptParseError::InvalidParameter("r"))) as u32,
 		})
+	}
+
+	fn to_json(&self) -> Json {
+		let mut map = BTreeMap::new();
+		map.insert("dklen".to_owned(), json_from_u32(self.dkLen));
+		map.insert("salt".to_owned(), Json::String(format!("{:?}", self.salt)));
+		map.insert("p".to_owned(), json_from_u32(self.p));
+		map.insert("n".to_owned(), json_from_u32(self.n));
+		map.insert("r".to_owned(), json_from_u32(self.r));
+
+		Json::Object(map)
 	}
 }
 
@@ -168,8 +193,8 @@ impl KeyFileCrypto {
 				},
 			(Some("pbkdf2"), Some(kdf_params)) =>
 				match KdfPbkdf2Params::new(kdf_params) {
-					Err(kdfPbkdf2_params_error) => { return Err(CryptoParseError::KdfPbkdf2(kdfPbkdf2_params_error)); },
-					Ok(kdfPbkdf2_params) => KeyFileKdf::Pbkdf2(kdfPbkdf2_params)
+					Err(pbkdf2_params_error) => { return Err(CryptoParseError::KdfPbkdf2(pbkdf2_params_error)); },
+					Ok(pbkdf2_params) => KeyFileKdf::Pbkdf2(pbkdf2_params)
 				},
 			(Some(other_kdf), _) => {
 				return Err(CryptoParseError::InvalidKdfType(
@@ -187,6 +212,19 @@ impl KeyFileCrypto {
 			cipher_type: cipher_type,
 			kdf: kdf,
 		})
+	}
+
+	fn to_json(&self) -> Json {
+		let mut map = BTreeMap::new();
+		map.insert("cipher_type".to_owned(), Json::String("aes-128-ctr".to_owned()));
+		map.insert("cipher_text".to_owned(), Json::String(
+			self.cipher_text.iter().map(|b| format!("{:02x}", b)).collect::<Vec<String>>().join("")));
+		map.insert("kdf".to_owned(), match self.kdf {
+			KeyFileKdf::Pbkdf2(ref pbkdf2_params) => pbkdf2_params.to_json(),
+			KeyFileKdf::Scrypt(ref scrypt_params) => scrypt_params.to_json()
+		});
+
+		Json::Object(map)
 	}
 }
 
@@ -259,11 +297,20 @@ impl KeyFileContent {
 			crypto: crypto
 		})
 	}
+
+	fn to_json(&self) -> Json {
+		let mut map = BTreeMap::new();
+		map.insert("id".to_owned(), Json::String(self.id.to_owned()));
+		map.insert("version".to_owned(), Json::U64(CURRENT_DECLARED_VERSION));
+		map.insert("crypto".to_owned(), self.crypto.to_json());
+
+		Json::Object(map)
+	}
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError};
+	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError, CryptoParseError};
 	use common::*;
 
 	#[test]
@@ -362,7 +409,7 @@ mod tests {
 			"#).unwrap();
 
 		match KeyFileContent::new(&json) {
-			Ok(key_file) => {
+			Ok(_) => {
 				panic!("Should be error of no crypto section, got ok");
 			},
 			Err(KeyFileParseError::InvalidIdentifier) => { },
@@ -381,7 +428,7 @@ mod tests {
 			"#).unwrap();
 
 		match KeyFileContent::new(&json) {
-			Ok(key_file) => {
+			Ok(_) => {
 				panic!("Should be error of no identifier, got ok");
 			},
 			Err(KeyFileParseError::NoCryptoSection) => { },
@@ -410,16 +457,55 @@ mod tests {
 						},
 						"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
 					},
+					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
 					"version" : 1
 				}
 			"#).unwrap();
 
 		match KeyFileContent::new(&json) {
-			Ok(key_file) => {
+			Ok(_) => {
 				panic!("should be error of unsupported version, got ok");
 			},
 			Err(KeyFileParseError::UnsupportedVersion(_)) => { },
 			Err(other_error) => { panic!("should be error of unsupported version, got {:?}", other_error); }
 		}
 	}
+
+
+	#[test]
+	fn can_return_error_initial_vector() {
+		let json = Json::from_str(
+			r#"
+				{
+					"crypto" : {
+						"cipher" : "aes-128-ctr",
+						"cipherparams" : {
+							"iv" : "83dbcc02d8ccb40e4______66191a123791e0e"
+						},
+						"ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+						"kdf" : "scrypt",
+						"kdfparams" : {
+							"dklen" : 32,
+							"n" : 262144,
+							"r" : 1,
+							"p" : 8,
+							"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+						},
+						"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+					},
+					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+					"version" : 3
+				}
+			"#).unwrap();
+
+		match KeyFileContent::new(&json) {
+			Ok(_) => {
+				panic!("should be error of invalid initial vector, got ok");
+			},
+			Err(KeyFileParseError::Crypto(CryptoParseError::InvalidInitialVector(_))) => { },
+			Err(other_error) => { panic!("should be error of invalid initial vector, got {:?}", other_error); }
+		}
+	}
+
+
 }
