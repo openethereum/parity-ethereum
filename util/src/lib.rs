@@ -133,6 +133,7 @@ pub mod io;
 pub mod network;
 pub mod log;
 pub mod panics;
+pub mod executor;
 
 pub use common::*;
 pub use misc::*;

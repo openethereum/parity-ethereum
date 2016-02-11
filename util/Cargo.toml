@@ -30,3 +30,4 @@ clippy = "0.0.37"
 json-tests = { path = "json-tests" }
 target_info = "0.1.0"
 igd = "0.4.2"
+eventual = "0.1.5"
