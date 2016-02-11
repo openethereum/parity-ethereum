@@ -412,7 +412,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut to_kill = Vec::new();
 		for e in self.connections.write().unwrap().iter_mut() {
 			if let ConnectionEntry::Session(ref mut s) = *e.lock().unwrap().deref_mut() {
-				if !s.keep_alive() {
+				if !s.keep_alive(io) {
 					s.disconnect(DisconnectReason::PingTimeout);
 					to_kill.push(s.token());
 				}

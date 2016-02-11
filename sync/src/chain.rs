@@ -583,7 +583,7 @@ impl ChainSync {
 			trace!(target: "sync", "Starting sync with better chain");
 			self.request_headers_by_hash(io, peer_id, &peer_latest, 1, 0, false);
 		}
-		else if self.state == SyncState::Blocks {
+		else if self.state == SyncState::Blocks && io.chain().block_status(BlockId::Hash(peer_latest)) == BlockStatus::Unknown {
 			self.request_blocks(io, peer_id);
 		}
 	}
@@ -1045,7 +1045,7 @@ impl ChainSync {
 
 	fn check_resume(&mut self, io: &mut SyncIo) {
 		if !io.chain().queue_info().is_full() && self.state == SyncState::Waiting {
-			self.state = SyncState::Idle;
+			self.state = SyncState::Blocks;
 			self.continue_sync(io);
 		}
 	}

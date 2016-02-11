@@ -105,7 +105,7 @@ struct Verification {
 	bad: HashSet<H256>,
 }
 
-const MAX_UNVERIFIED_QUEUE_SIZE: usize = 50000;
+const MAX_UNVERIFIED_QUEUE_SIZE: usize = 2000;
 
 impl BlockQueue {
 	/// Creates a new queue instance.
