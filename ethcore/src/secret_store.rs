@@ -19,15 +19,18 @@
 
 use common::*;
 
+#[derive(PartialEq, Debug)]
 enum CryptoCipherType {
 	// aes-128-ctr with 128-bit initialisation vector(iv)
 	Aes128Ctr(U128)
 }
 
+#[derive(PartialEq, Debug)]
 enum KeyFileVersion {
 	V3(u64)
 }
 
+#[derive(PartialEq, Debug)]
 enum Pbkdf2CryptoFunction {
 	HMacSha256
 }
@@ -48,16 +51,29 @@ struct KdfPbkdf2Params {
 
 #[derive(Debug)]
 enum Pbkdf2ParseError {
-	InvalidParameter(String)
+	InvalidParameter(&'static str),
+	InvalidPrf(Mismatch<String>),
+	InvalidSaltFormat(UtilError),
+	MissingParameter(&'static str),
 }
 
 impl KdfPbkdf2Params {
-	fn new(_json: &BTreeMap<String, Json>) -> Result<KdfPbkdf2Params, Pbkdf2ParseError> {
+	fn new(json: &BTreeMap<String, Json>) -> Result<KdfPbkdf2Params, Pbkdf2ParseError> {
 		Ok(KdfPbkdf2Params{
-			dkLen: 0,
-			salt: H256::zero(),
-			c: 0,
-			prf: Pbkdf2CryptoFunction::HMacSha256
+			salt: match try!(json.get("salt").ok_or(Pbkdf2ParseError::MissingParameter("salt"))).as_string() {
+				None => { return Err(Pbkdf2ParseError::InvalidParameter("salt")) },
+				Some(salt_value) => match H256::from_str(salt_value) {
+					Ok(salt_hex_value) => salt_hex_value,
+					Err(from_hex_error) => { return Err(Pbkdf2ParseError::InvalidSaltFormat(from_hex_error)); },
+				}
+			},
+			prf: match try!(json.get("prf").ok_or(Pbkdf2ParseError::MissingParameter("prf"))).as_string() {
+				Some("hmac-sha256") => Pbkdf2CryptoFunction::HMacSha256,
+				Some(unexpected_prf) => { return Err(Pbkdf2ParseError::InvalidPrf(Mismatch { expected: "hmac-sha256".to_owned(), found: unexpected_prf.to_owned() })); },
+				None => { return Err(Pbkdf2ParseError::InvalidParameter("prf")); },
+			},
+			dkLen: try!(try!(json.get("dklen").ok_or(Pbkdf2ParseError::MissingParameter("dklen"))).as_u64().ok_or(Pbkdf2ParseError::InvalidParameter("dkLen"))) as u32,
+			c: try!(try!(json.get("c").ok_or(Pbkdf2ParseError::MissingParameter("c"))).as_u64().ok_or(Pbkdf2ParseError::InvalidParameter("c"))) as u32,
 		})
 	}
 }
@@ -74,27 +90,34 @@ struct KdfScryptParams {
 	n: u32,
 	// TODO: comment
 	r: u32,
+	// cryptographic salt
+	salt: H256,
 }
 
 #[derive(Debug)]
 enum ScryptParseError {
-	InvalidParameter(String)
+	InvalidParameter(&'static str),
+	InvalidPrf(Mismatch<String>),
+	InvalidSaltFormat(UtilError),
+	MissingParameter(&'static str),
 }
 
 impl KdfScryptParams {
-	fn new(_json: &BTreeMap<String, Json>) -> Result<KdfScryptParams, ScryptParseError> {
+	fn new(json: &BTreeMap<String, Json>) -> Result<KdfScryptParams, ScryptParseError> {
 		Ok(KdfScryptParams{
-			dkLen: 0,
-			p: 0,
-			n: 0,
-			r: 0
+			salt: match try!(json.get("salt").ok_or(ScryptParseError::MissingParameter("salt"))).as_string() {
+				None => { return Err(ScryptParseError::InvalidParameter("salt")) },
+				Some(salt_value) => match H256::from_str(salt_value) {
+					Ok(salt_hex_value) => salt_hex_value,
+					Err(from_hex_error) => { return Err(ScryptParseError::InvalidSaltFormat(from_hex_error)); },
+				}
+			},
+			dkLen: try!(try!(json.get("dklen").ok_or(ScryptParseError::MissingParameter("dklen"))).as_u64().ok_or(ScryptParseError::InvalidParameter("dkLen"))) as u32,
+			p: try!(try!(json.get("p").ok_or(ScryptParseError::MissingParameter("p"))).as_u64().ok_or(ScryptParseError::InvalidParameter("p"))) as u32,
+			n: try!(try!(json.get("n").ok_or(ScryptParseError::MissingParameter("n"))).as_u64().ok_or(ScryptParseError::InvalidParameter("n"))) as u32,
+			r: try!(try!(json.get("r").ok_or(ScryptParseError::MissingParameter("r"))).as_u64().ok_or(ScryptParseError::InvalidParameter("r"))) as u32,
 		})
 	}
-}
-
-enum Kdf {
-	Pbkdf2(KdfPbkdf2Params),
-	Scrypt(KdfScryptParams)
 }
 
 enum KeyFileKdf {
@@ -198,7 +221,7 @@ enum KeyFileParseError {
 	InvalidVersion,
 	UnsupportedVersion(OutOfBounds<u64>),
 	InvalidJsonFormat,
-	NoIdentifier,
+	InvalidIdentifier,
 	NoCryptoSection,
 	Crypto(CryptoParseError),
 }
@@ -220,10 +243,7 @@ impl KeyFileContent {
 			}
 		};
 
-		let id = match as_object["id"].as_string() {
-			None => { return Err(KeyFileParseError::NoIdentifier); },
-			Some(id) => id
-		};
+		let id = try!(as_object.get("id").and_then(|json| json.as_string()).ok_or(KeyFileParseError::InvalidIdentifier));
 
 		let crypto = match as_object.get("crypto") {
 			None => { return Err(KeyFileParseError::NoCryptoSection); }
@@ -238,5 +258,168 @@ impl KeyFileContent {
 			id: id.to_owned(),
 			crypto: crypto
 		})
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError};
+	use common::*;
+
+	#[test]
+	fn can_read_keyfile() {
+		let json = Json::from_str(
+			r#"
+				{
+					"crypto" : {
+						"cipher" : "aes-128-ctr",
+						"cipherparams" : {
+							"iv" : "6087dab2f9fdbbfaddc31a909735c1e6"
+						},
+						"ciphertext" : "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46",
+						"kdf" : "pbkdf2",
+						"kdfparams" : {
+							"c" : 262144,
+							"dklen" : 32,
+							"prf" : "hmac-sha256",
+							"salt" : "ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd"
+						},
+						"mac" : "517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2"
+					},
+					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+					"version" : 3
+				}
+			"#).unwrap();
+
+		match KeyFileContent::new(&json) {
+			Ok(key_file) => {
+				assert_eq!(KeyFileVersion::V3(3), key_file.version)
+			},
+			Err(e) => panic!("Error parsing valid file: {:?}", e)
+		}
+	}
+
+	#[test]
+	fn can_read_scrypt_krf() {
+		let json = Json::from_str(
+			r#"
+				{
+					"crypto" : {
+						"cipher" : "aes-128-ctr",
+						"cipherparams" : {
+							"iv" : "83dbcc02d8ccb40e466191a123791e0e"
+						},
+						"ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+						"kdf" : "scrypt",
+						"kdfparams" : {
+							"dklen" : 32,
+							"n" : 262144,
+							"r" : 1,
+							"p" : 8,
+							"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+						},
+						"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+					},
+					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+					"version" : 3
+				}
+			"#).unwrap();
+
+		match KeyFileContent::new(&json) {
+			Ok(key_file) => {
+				match key_file.crypto.kdf {
+					KeyFileKdf::Scrypt(scrypt_params) => {},
+					_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
+				}
+			},
+			Err(e) => panic!("Error parsing valid file: {:?}", e)
+		}
+	}
+
+	#[test]
+	fn can_return_error_no_id() {
+		let json = Json::from_str(
+			r#"
+				{
+					"crypto" : {
+						"cipher" : "aes-128-ctr",
+						"cipherparams" : {
+							"iv" : "83dbcc02d8ccb40e466191a123791e0e"
+						},
+						"ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+						"kdf" : "scrypt",
+						"kdfparams" : {
+							"dklen" : 32,
+							"n" : 262144,
+							"r" : 1,
+							"p" : 8,
+							"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+						},
+						"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+					},
+					"version" : 3
+				}
+			"#).unwrap();
+
+		match KeyFileContent::new(&json) {
+			Ok(key_file) => {
+				panic!("Should be error of no crypto section, got ok");
+			},
+			Err(KeyFileParseError::InvalidIdentifier) => { },
+			Err(other_error) => { panic!("should be error of no crypto section, got {:?}", other_error); }
+		}
+	}
+
+	#[test]
+	fn can_return_error_no_crypto() {
+		let json = Json::from_str(
+			r#"
+				{
+					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+					"version" : 3
+				}
+			"#).unwrap();
+
+		match KeyFileContent::new(&json) {
+			Ok(key_file) => {
+				panic!("Should be error of no identifier, got ok");
+			},
+			Err(KeyFileParseError::NoCryptoSection) => { },
+			Err(other_error) => { panic!("should be error of no identifier, got {:?}", other_error); }
+		}
+	}
+
+	#[test]
+	fn can_return_error_unsupported_version() {
+		let json = Json::from_str(
+			r#"
+				{
+					"crypto" : {
+						"cipher" : "aes-128-ctr",
+						"cipherparams" : {
+							"iv" : "83dbcc02d8ccb40e466191a123791e0e"
+						},
+						"ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+						"kdf" : "scrypt",
+						"kdfparams" : {
+							"dklen" : 32,
+							"n" : 262144,
+							"r" : 1,
+							"p" : 8,
+							"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+						},
+						"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+					},
+					"version" : 1
+				}
+			"#).unwrap();
+
+		match KeyFileContent::new(&json) {
+			Ok(key_file) => {
+				panic!("should be error of unsupported version, got ok");
+			},
+			Err(KeyFileParseError::UnsupportedVersion(_)) => { },
+			Err(other_error) => { panic!("should be error of unsupported version, got {:?}", other_error); }
+		}
 	}
 }
