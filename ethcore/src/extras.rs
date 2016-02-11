@@ -213,6 +213,12 @@ pub struct BlocksBlooms {
 	pub blooms: [H2048; 16]
 }
 
+impl BlocksBlooms {
+	pub fn new() -> Self {
+		BlocksBlooms { blooms: unsafe { ::std::mem::zeroed() }}
+	}
+}
+
 impl ExtrasIndexable for BlocksBlooms {
 	fn extras_index() -> ExtrasIndex {
 		ExtrasIndex::BlocksBlooms
@@ -252,6 +258,14 @@ impl Encodable for BlocksBlooms {
 		let blooms_ref: &[H2048] = &self.blooms;
 		s.append(&blooms_ref);
 	}
+}
+
+/// Represents location of bloom in database.
+pub struct BlocksBloomLocation {
+	/// Unique hash of BlocksBloom
+	pub hash: H256,
+	/// Index within BlocksBloom
+	pub index: usize
 }
 
 /// Represents address of certain transaction within block

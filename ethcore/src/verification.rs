@@ -302,6 +302,10 @@ mod tests {
 		fn block_hash(&self, index: BlockNumber) -> Option<H256> {
 			self.numbers.get(&index).cloned()
 		}
+
+		fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
+			unimplemented!()
+		}
 	}
 
 	fn basic_test(bytes: &[u8], engine: &Engine) -> Result<(), Error> {

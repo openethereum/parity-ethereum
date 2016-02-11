@@ -85,7 +85,7 @@ impl BloomIndex {
 /// Types implementing this trait should provide read access for bloom filters database.
 pub trait FilterDataSource {
 	/// returns reference to log at given position if it exists
-	fn bloom_at_index(&self, index: &BloomIndex) -> Option<&H2048>;
+	fn bloom_at_index(&self, index: &BloomIndex) -> Option<H2048>;
 }
 
 /// In memory cache for blooms.
@@ -110,8 +110,8 @@ impl MemoryCache {
 }
 
 impl FilterDataSource for MemoryCache {
-	fn bloom_at_index(&self, index: &BloomIndex) -> Option<&H2048> {
-		self.blooms.get(index)
+	fn bloom_at_index(&self, index: &BloomIndex) -> Option<H2048> {
+		self.blooms.get(index).cloned()
 	}
 }
 
@@ -238,7 +238,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 		for level in 0..self.levels() {
 			let bloom_index = self.bloom_index(block_number, level);
 			let new_bloom = match self.data_source.bloom_at_index(&bloom_index) {
-				Some(old_bloom) => old_bloom | bloom,
+				Some(old_bloom) => old_bloom | bloom.clone(),
 				None => bloom.clone(),
 			};
 
@@ -268,7 +268,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 				// it hasn't been modified yet
 				if is_new_bloom {
 					let new_bloom = match self.data_source.bloom_at_index(&bloom_index) {
-						Some(old_bloom) => old_bloom | &blooms[i],
+						Some(ref old_bloom) => old_bloom | &blooms[i],
 						None => blooms[i].clone(),
 					};
 					result.insert(bloom_index, new_bloom);
@@ -298,7 +298,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 				// filter existing ones
 				.filter_map(|b| b)
 				// BitOr all of them
-				.fold(H2048::new(), |acc, bloom| &acc | bloom);
+				.fold(H2048::new(), |acc, bloom| acc | bloom);
 
 			reset_index = index.clone();
 			result.insert(index, &new_bloom | bloom);

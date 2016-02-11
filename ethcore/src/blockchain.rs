@@ -23,6 +23,10 @@ use extras::*;
 use transaction::*;
 use views::*;
 use receipt::Receipt;
+use chainfilter::{ChainFilter, BloomIndex, FilterDataSource};
+
+const BLOOM_INDEX_SIZE: usize = 16;
+const BLOOM_LEVELS: u8 = 3;
 
 /// Represents a tree route between `from` block and `to` block:
 pub struct TreeRoute {
@@ -131,6 +135,9 @@ pub trait BlockProvider {
 	fn genesis_header(&self) -> Header {
 		self.block_header(&self.genesis_hash()).unwrap()
 	}
+
+	/// Returns numbers of blocks containing given bloom.
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>;
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -167,6 +174,17 @@ pub struct BlockChain {
 	blocks_db: DB,
 
 	cache_man: RwLock<CacheManager>,
+
+	// blooms config
+	bloom_index_size: usize,
+	bloom_levels: u8
+}
+
+impl FilterDataSource for BlockChain {
+	fn bloom_at_index(&self, bloom_index: &BloomIndex) -> Option<H2048> {
+		let location = self.blocks_bloom_location(bloom_index);
+		self.blocks_blooms(&location.hash).and_then(|blooms| blooms.blooms.into_iter().nth(location.index).cloned())
+	}
 }
 
 impl BlockProvider for BlockChain {
@@ -214,6 +232,12 @@ impl BlockProvider for BlockChain {
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
 		self.query_extras(hash, &self.transaction_addresses)
+	}
+
+	/// Returns numbers of blocks containing given bloom.
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
+		let filter = ChainFilter::new(self, self.bloom_index_size, self.bloom_levels);
+		filter.blocks_with_bloom(bloom, from_block as usize, to_block as usize).into_iter().map(|b| b as BlockNumber).collect()
 	}
 }
 
@@ -274,6 +298,8 @@ impl BlockChain {
 			extras_db: extras_db,
 			blocks_db: blocks_db,
 			cache_man: RwLock::new(cache_man),
+			bloom_index_size: BLOOM_INDEX_SIZE,
+			bloom_levels: BLOOM_LEVELS
 		};
 
 		// load best block
@@ -497,8 +523,23 @@ impl BlockChain {
 		}
 
 		// update block blooms
+		let blooms: Vec<H2048> = receipts.iter().map(|r| r.log_bloom.clone()).collect();
+
+		let modified_blooms = {
+			let filter = ChainFilter::new(self, self.bloom_index_size, self.bloom_levels);
+			let bloom = blooms.iter().fold(H2048::new(), | ref acc, b | acc | b);
+			filter.add_bloom(&bloom, header.number() as usize)
+		};
+
+		for (bloom_index, bloom) in modified_blooms.into_iter() {
+			let location = self.blocks_bloom_location(&bloom_index);
+			let mut blocks_blooms = self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new);
+			blocks_blooms.blooms[location.index] = bloom;
+			batch.put_extras(&location.hash, &blocks_blooms);
+		}
+
 		batch.put_extras(&hash, &BlockLogBlooms {
-			blooms: receipts.iter().map(|r| r.log_bloom.clone()).collect()
+			blooms: blooms
 		});
 
 		// if it's not new best block, just return
@@ -541,11 +582,6 @@ impl BlockChain {
 		(batch, Some(best_block), details)
 	}
 
-	/// Returns true if transaction is known.
-	pub fn is_known_transaction(&self, hash: &H256) -> bool {
-		self.query_extras_exist(hash, &self.transaction_addresses)
-	}
-
 	/// Get best block hash.
 	pub fn best_block_hash(&self) -> H256 {
 		self.best_block.read().unwrap().hash.clone()
@@ -562,8 +598,30 @@ impl BlockChain {
 	}
 
 	/// Get the transactions' log blooms of a block.
-	pub fn log_blooms(&self, hash: &H256) -> Option<BlockLogBlooms> {
+	fn log_blooms(&self, hash: &H256) -> Option<BlockLogBlooms> {
 		self.query_extras(hash, &self.block_logs)
+	}
+
+	/// Get block blooms.
+	fn blocks_blooms(&self, hash: &H256) -> Option<BlocksBlooms> {
+		self.query_extras(hash, &self.blocks_blooms)
+	}
+
+	/// Calculates bloom's position in database.
+	fn blocks_bloom_location(&self, bloom_index: &BloomIndex) -> BlocksBloomLocation {
+		use std::{mem, ptr};
+		
+		let hash = unsafe {
+			let mut hash: H256 = mem::zeroed();
+			ptr::copy(&[bloom_index.index / self.bloom_index_size] as *const usize as *const u8, hash.as_mut_ptr(), 8);
+			hash[8] = bloom_index.level;
+			hash
+		};
+
+		BlocksBloomLocation {
+			hash: hash,
+			index: bloom_index.index % self.bloom_index_size
+		}
 	}
 
 	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
@@ -685,6 +743,7 @@ mod tests {
 		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
 		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
 		assert_eq!(bc.block_hash(1), None);
+		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
 		
 		let first = "f90285f90219a03caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0bac6177a79e910c98d86ec31a09ae37ac2de15b754fd7bed1ba52362c49416bfa0d45893a296c1490a978e0bd321b5f2635d8280365c1fe9f693d65f233e791344a0c7778a7376099ee2e5c455791c1885b5c361b95713fddcbe32d97fd01334d296b90100000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000400000000000000000000000000000000000000000000000000000008302000001832fefd882560b845627cb99a00102030405060708091011121314151617181920212223242526272829303132a08ccb2837fb2923bd97e8f2d08ea32012d6e34be018c73e49a0f98843e8f47d5d88e53be49fec01012ef866f864800a82c35094095e7baea6a6c7c4c2dfeb977efac326af552d8785012a05f200801ba0cb088b8d2ff76a7b2c6616c9d02fb6b7a501afbf8b69d7180b09928a1b80b5e4a06448fe7476c606582039bb72a9f6f4b4fad18507b8dfbd00eebbe151cc573cd2c0".from_hex().unwrap();
 
