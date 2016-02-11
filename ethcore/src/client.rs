@@ -304,7 +304,7 @@ impl Client {
 
 			good_blocks.push(header.hash().clone());
 
-			self.chain.write().unwrap().insert_block(&block.bytes); //TODO: err here?
+			self.chain.write().unwrap().insert_block(&block.bytes, result.block().receipts()); //TODO: err here?
 			let ancient = if header.number() >= HISTORY { Some(header.number() - HISTORY) } else { None };
 			match result.drain().commit(header.number(), &header.hash(), ancient.map(|n|(n, self.chain.read().unwrap().block_hash(n).unwrap()))) {
 				Ok(_) => (),

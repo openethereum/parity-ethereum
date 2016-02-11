@@ -16,12 +16,13 @@
 
 //! Multilevel blockchain bloom filter.
 //! 
-//! ```
+//! ```not_run
 //! extern crate ethcore_util as util;
+//! extern crate ethcore;
 //! use std::str::FromStr;
-//! use util::chainfilter::*;
 //! use util::sha3::*;
 //! use util::hash::*;
+//! use ethcore::chainfilter::*;
 //! 
 //! fn main() {
 //!		let (index_size, bloom_levels) = (16, 3);
@@ -55,8 +56,8 @@
 //! ```
 //!
 use std::collections::{HashMap};
-use hash::*;
-use sha3::*;
+use util::hash::*;
+use util::sha3::*;
 
 /// Represents bloom index in cache
 /// 
@@ -350,10 +351,10 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 
 #[cfg(test)]
 mod tests {
-	use hash::*;
-	use chainfilter::*;
-	use sha3::*;
 	use std::str::FromStr;
+	use util::hash::*;
+	use chainfilter::*;
+	use util::sha3::*;
 
 	#[test]
 	fn test_level_size() {

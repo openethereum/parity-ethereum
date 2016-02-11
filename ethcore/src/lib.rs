@@ -118,6 +118,7 @@ mod account_db;
 mod action_params;
 mod null_engine;
 mod builtin;
+mod chainfilter;
 mod extras;
 mod substate;
 mod executive;

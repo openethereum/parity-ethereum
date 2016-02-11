@@ -22,6 +22,7 @@ use header::*;
 use extras::*;
 use transaction::*;
 use views::*;
+use receipt::Receipt;
 
 /// Represents a tree route between `from` block and `to` block:
 pub struct TreeRoute {
@@ -425,7 +426,7 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, bytes: &[u8]) {
+	pub fn insert_block(&self, bytes: &[u8], receipts: &[Receipt]) {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -437,7 +438,7 @@ impl BlockChain {
 
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
-		let (batch, new_best, details) = self.block_to_extras_insert_batch(bytes);
+		let (batch, new_best, details) = self.block_to_extras_insert_batch(bytes, receipts);
 
 		// update best block
 		let mut best_block = self.best_block.write().unwrap();
@@ -457,7 +458,7 @@ impl BlockChain {
 
 	/// Transforms block into WriteBatch that may be written into database
 	/// Additionally, if it's new best block it returns new best block object.
-	fn block_to_extras_insert_batch(&self, bytes: &[u8]) -> (WriteBatch, Option<BestBlock>, BlockDetails) {
+	fn block_to_extras_insert_batch(&self, bytes: &[u8], receipts: &[Receipt]) -> (WriteBatch, Option<BestBlock>, BlockDetails) {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -494,6 +495,11 @@ impl BlockChain {
 				index: i
 			});
 		}
+
+		// update block blooms
+		batch.put_extras(&hash, &BlockLogBlooms {
+			blooms: receipts.iter().map(|r| r.log_bloom.clone()).collect()
+		});
 
 		// if it's not new best block, just return
 		if !is_new_best {
@@ -682,7 +688,7 @@ mod tests {
 		
 		let first = "f90285f90219a03caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0bac6177a79e910c98d86ec31a09ae37ac2de15b754fd7bed1ba52362c49416bfa0d45893a296c1490a978e0bd321b5f2635d8280365c1fe9f693d65f233e791344a0c7778a7376099ee2e5c455791c1885b5c361b95713fddcbe32d97fd01334d296b90100000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000400000000000000000000000000000000000000000000000000000008302000001832fefd882560b845627cb99a00102030405060708091011121314151617181920212223242526272829303132a08ccb2837fb2923bd97e8f2d08ea32012d6e34be018c73e49a0f98843e8f47d5d88e53be49fec01012ef866f864800a82c35094095e7baea6a6c7c4c2dfeb977efac326af552d8785012a05f200801ba0cb088b8d2ff76a7b2c6616c9d02fb6b7a501afbf8b69d7180b09928a1b80b5e4a06448fe7476c606582039bb72a9f6f4b4fad18507b8dfbd00eebbe151cc573cd2c0".from_hex().unwrap();
 
-		bc.insert_block(&first);
+		bc.insert_block(&first, &[]);
 
 		let first_hash = H256::from_str("a940e5af7d146b3b917c953a82e1966b906dace3a4e355b5b0a4560190357ea1").unwrap();
 
@@ -715,10 +721,10 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let bc = BlockChain::new(&genesis, temp.as_path());
-		bc.insert_block(&b1);
-		bc.insert_block(&b2);
-		bc.insert_block(&b3a);
-		bc.insert_block(&b3b);
+		bc.insert_block(&b1, &[]);
+		bc.insert_block(&b2, &[]);
+		bc.insert_block(&b3a, &[]);
+		bc.insert_block(&b3b, &[]);
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);
 		assert_eq!(bc.block_number(&genesis_hash).unwrap(), 0);
@@ -795,7 +801,7 @@ mod tests {
 		{
 			let bc = BlockChain::new(&genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
-			bc.insert_block(&b1);
+			bc.insert_block(&b1, &[]);
 			assert_eq!(bc.best_block_hash(), b1_hash);
 		}
 
@@ -854,7 +860,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let bc = BlockChain::new(&genesis, temp.as_path());
-		bc.insert_block(&b1);
+		bc.insert_block(&b1, &[]);
 	
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
