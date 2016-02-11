@@ -170,7 +170,7 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "2.0";
+const CLIENT_DB_VER_STR: &'static str = "2.1";
 
 impl Client {
 	/// Create a new client with given spec and DB path.
