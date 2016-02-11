@@ -55,13 +55,14 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
-  parity [options] [ <enode>... ]
+  parity [options] [ --no-bootstrap | <enode>... ]
 
 Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
                            or frontier, mainnet, morden, or testnet [default: frontier].
   -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
 
+  --no-bootstrap           Don't bother trying to connect to any nodes initially.
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
   --address URL            Equivalent to --listen-address URL --public-address URL.
@@ -145,9 +146,11 @@ impl Configuration {
 	}
 
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
-		match self.args.arg_enode.len() {
-			0 => spec.nodes().clone(),
-			_ => self.args.arg_enode.clone(),
+		if self.args.flag_no_bootstrap { Vec::new() } else {
+			match self.args.arg_enode.len() {
+				0 => spec.nodes().clone(),
+				_ => self.args.arg_enode.clone(),
+			}
 		}
 	}
 
