@@ -77,6 +77,19 @@ fn returns_chain_info() {
 }
 
 #[test]
+fn returns_block_body() {
+	let dummy_block = get_good_dummy_block();
+	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
+	let client = client_result.reference();
+	let block = BlockView::new(&dummy_block);
+	let body = client.block_body(&block.header().hash()).unwrap();
+	let body = Rlp::new(&body);
+	assert_eq!(body.item_count(), 2);
+	assert_eq!(body.at(0).as_raw()[..], block.rlp().at(1).as_raw()[..]);
+	assert_eq!(body.at(1).as_raw()[..], block.rlp().at(2).as_raw()[..]);
+}
+
+#[test]
 fn imports_block_sequence() {
 	let client_result = generate_dummy_client(6);
 	let client = client_result.reference();

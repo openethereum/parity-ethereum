@@ -350,7 +350,7 @@ impl BlockChainClient for Client {
 	fn block_body(&self, hash: &H256) -> Option<Bytes> {
 		self.chain.read().unwrap().block(hash).map(|bytes| {
 			let rlp = Rlp::new(&bytes);
-			let mut body = RlpStream::new();
+			let mut body = RlpStream::new_list(2);
 			body.append_raw(rlp.at(1).as_raw(), 1);
 			body.append_raw(rlp.at(2).as_raw(), 1);
 			body.out()
