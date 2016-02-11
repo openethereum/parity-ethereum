@@ -50,8 +50,11 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Returns content of the storage at given address.
 	fn storage_at(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns block with given index / hash.
-	fn block(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	/// Returns block with given hash.
+	fn block_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns block with given number.
+	fn block_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 	
 	/// Returns the number of transactions sent from given address at given time (block number).
 	fn transaction_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
@@ -135,8 +138,8 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_sendTransaction", Eth::send_transaction);
 		delegate.add_method("eth_call", Eth::call);
 		delegate.add_method("eth_estimateGas", Eth::estimate_gas);
-		delegate.add_method("eth_getBlockByHash", Eth::block);
-		delegate.add_method("eth_getBlockByNumber", Eth::block);
+		delegate.add_method("eth_getBlockByHash", Eth::block_by_hash);
+		delegate.add_method("eth_getBlockByNumber", Eth::block_by_number);
 		delegate.add_method("eth_getTransactionByHash", Eth::transaction_by_hash);
 		delegate.add_method("eth_getTransactionByBlockHashAndIndex", Eth::transaction_by_block_hash_and_index);
 		delegate.add_method("eth_getTransactionByBlockNumberAndIndex", Eth::transaction_by_block_number_and_index);
