@@ -47,18 +47,18 @@ struct KdfPbkdf2Params {
 }
 
 #[derive(Debug)]
-enum KdfPbkdf2ParseError {
+enum Pbkdf2ParseError {
 	InvalidParameter(String)
 }
 
 impl KdfPbkdf2Params {
-	fn new(_json: &Json) -> Result<KdfPbkdf2Params, KdfPbkdf2ParseError> {
-		KdfPbkdf2Params{
+	fn new(_json: &BTreeMap<String, Json>) -> Result<KdfPbkdf2Params, Pbkdf2ParseError> {
+		Ok(KdfPbkdf2Params{
 			dkLen: 0,
 			salt: H256::zero(),
 			c: 0,
 			prf: Pbkdf2CryptoFunction::HMacSha256
-		}
+		})
 	}
 }
 
@@ -82,7 +82,7 @@ enum ScryptParseError {
 }
 
 impl KdfScryptParams {
-	fn new(_json: &Json) -> Result<KdfScryptParams, KdfPbkdf2ParseError> {
+	fn new(_json: &BTreeMap<String, Json>) -> Result<KdfScryptParams, ScryptParseError> {
 		Ok(KdfScryptParams{
 			dkLen: 0,
 			p: 0,
@@ -118,33 +118,39 @@ impl KeyFileCrypto {
 		let cipher_type = match as_object["cipher"].as_string() {
 			None => { return Err(CryptoParseError::NoCipherType); }
 			Some("aes-128-ctr") => CryptoCipherType::Aes128Ctr(
-				match as_object["cipherparams"].as_string() {
+				match as_object["cipherparams"].as_object() {
 					None => { return Err(CryptoParseError::NoCipherParameters); },
-					Some(cipher_param) => H128::from(cipher_param)
+					Some(cipher_param) => match U128::from_str(match cipher_param["iv"].as_string() {
+							None => { return Err(CryptoParseError::NoInitialVector); },
+							Some(iv_hex_string) => iv_hex_string
+						})
+					{
+						Ok(iv_value) => iv_value,
+						Err(hex_error) => { return Err(CryptoParseError::InvalidInitialVector(hex_error)); }
+					}
 				}
 			),
-			Some(oter_cipher_type) => {
+			Some(other_cipher_type) => {
 				return Err(CryptoParseError::InvalidCipherType(
 					Mismatch { expected: "aes-128-ctr".to_owned(), found: other_cipher_type.to_owned() }));
 			}
 		};
 
-		let kdf = match (as_object["kdf"].as_string(), as_object["kdfparams"]) {
+		let kdf = match (as_object["kdf"].as_string(), as_object["kdfparams"].as_object()) {
 			(None, _) => { return Err(CryptoParseError::NoKdfType); },
-			(_, None) => { return Err(CryptoParseError::NoKdfParams); },
 			(Some("scrypt"), Some(kdf_params)) =>
 				match KdfScryptParams::new(kdf_params) {
-					Err(scrypt_params_error) => return Err(CryptoParseError::Scrypt(scrypt_params_error)),
-					Ok(scrypt_params) => scrypt_params
+					Err(scrypt_params_error) => { return Err(CryptoParseError::Scrypt(scrypt_params_error)); },
+					Ok(scrypt_params) => KeyFileKdf::Scrypt(scrypt_params)
 				},
 			(Some("pbkdf2"), Some(kdf_params)) =>
 				match KdfPbkdf2Params::new(kdf_params) {
-					Err(kdfPbkdf2_params_error) => return Err(CryptoParseError::Scrypt(scrypt_params_error)),
-					Ok(kdfPbkdf2_params) => kdfPbkdf2_params
+					Err(kdfPbkdf2_params_error) => { return Err(CryptoParseError::KdfPbkdf2(kdfPbkdf2_params_error)); },
+					Ok(kdfPbkdf2_params) => KeyFileKdf::Pbkdf2(kdfPbkdf2_params)
 				},
 			(Some(other_kdf), _) => {
 				return Err(CryptoParseError::InvalidKdfType(
-					Mismatch { expected: "pbkdf2/scrypt".to_owned(), found: other_kdf.to_ownded()}));
+					Mismatch { expected: "pbkdf2/scrypt".to_owned(), found: other_kdf.to_owned()}));
 			}
 		};
 
@@ -171,16 +177,20 @@ struct KeyFileContent {
 
 #[derive(Debug)]
 enum CryptoParseError {
+	NoCryptoVersion,
+	NoCipherText,
+	NoCipherType,
 	InvalidJsonFormat,
 	InvalidCryptoVersion,
-	NoCryptoVersion,
 	InvalidKdfType(Mismatch<String>),
 	InvalidCipherType(Mismatch<String>),
-	NoCipherText,
+	NoInitialVector,
+	NoCipherParameters,
+	InvalidInitialVector(FromHexError),
 	NoKdfType,
 	NoKdfParams,
 	Scrypt(ScryptParseError),
-	KdfPbkdf2(KdfPbkdf2ParseError)
+	KdfPbkdf2(Pbkdf2ParseError)
 }
 
 #[derive(Debug)]
