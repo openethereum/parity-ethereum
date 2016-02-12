@@ -542,22 +542,16 @@ impl BlockChain {
 		let best_details = self.block_details(&best_hash).expect("best block hash is invalid!");
 		let route = self.tree_route_aux((&best_details, &best_hash), (&details, &hash));
 
+		let modified_blooms;
+
 		match route.blocks.len() {
 			// its our parent
 			1 => { 
+				batch.put_extras(&header.number(), &hash);
 
 				// update block blooms
-				let modified_blooms = ChainFilter::new(self, self.bloom_index_size, self.bloom_levels)
+				modified_blooms = ChainFilter::new(self, self.bloom_index_size, self.bloom_levels)
 					.add_bloom(&header.log_bloom(), header.number() as usize);
-
-				for (bloom_index, bloom) in modified_blooms.into_iter() {
-					let location = self.blocks_bloom_location(&bloom_index);
-					let mut blocks_blooms = self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new);
-					blocks_blooms.blooms[location.index] = bloom;
-					batch.put_extras(&location.hash, &blocks_blooms);
-				}
-
-				batch.put_extras(&header.number(), &hash)
 			},
 			// it is a fork
 			i if i > 1 => {
@@ -567,12 +561,33 @@ impl BlockChain {
 					batch.put_extras(&(start_number + index as BlockNumber), hash);
 				}
 
-				// TODO: replace blooms from start_number to current
+				// get all blocks that are not part of canon chain (TODO: optimize it to one query)
+				let blooms: Vec<H2048> = route.blocks.iter()
+					.skip(route.index)
+					.map(|hash| self.block(hash).unwrap())
+					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
+					.collect();
+
+				// reset blooms chain head
+				modified_blooms = ChainFilter::new(self, self.bloom_index_size, self.bloom_levels)
+					.reset_chain_head(&blooms, start_number as usize, self.best_block_number() as usize);
 			},
 			// route.blocks.len() could be 0 only if inserted block is best block,
 			// and this is not possible at this stage
 			_ => { unreachable!(); }
 		};
+
+		for (hash, blocks_blooms) in modified_blooms.into_iter()
+			.fold(HashMap::new(), | mut acc, (bloom_index, bloom) | {
+			{
+				let location = self.blocks_bloom_location(&bloom_index);
+				let mut blocks_blooms = acc.entry(location.hash).or_insert_with(BlocksBlooms::new);
+				blocks_blooms.blooms[location.index] = bloom;
+			}
+			acc
+		}) {
+			batch.put_extras(&hash, &blocks_blooms);
+		}
 
 		// this is new best block
 		batch.put(b"best", &hash).unwrap();
