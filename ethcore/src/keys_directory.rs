@@ -21,6 +21,7 @@ use std::path::{PathBuf};
 
 const CURRENT_DECLARED_VERSION: u64 = 3;
 const MAX_KEY_FILE_LEN: u64 = 1024 * 80;
+const MAX_CACHE_USAGE_TRACK: usize = 128;
 
 /// Cipher type (currently only aes-128-ctr)
 #[derive(PartialEq, Debug, Clone)]
@@ -461,6 +462,7 @@ impl KeyDirectory {
 	/// warns if any error occured during the key loading
 	pub fn get(&mut self, id: &Uuid) -> Option<&KeyFileContent> {
 		let path = self.key_path(id);
+		self.cache_usage.push_back(id.clone());
 		Some(self.cache.entry(id.to_owned()).or_insert(
 			match KeyDirectory::load_key(&path) {
 				Ok(loaded_key) => loaded_key,
@@ -475,6 +477,33 @@ impl KeyDirectory {
 	/// returns current path to the directory with keys
 	pub fn path(&self) -> &str {
 		&self.path
+	}
+
+	/// removes keys that never been requested during last `MAX_USAGE_TRACK` times
+	pub fn collect_garbage(&mut self) {
+		let total_usages = self.cache_usage.len();
+		let untracked_usages = max(total_usages as i64 - MAX_CACHE_USAGE_TRACK as i64, 0) as usize;
+		if untracked_usages > 0 {
+			self.cache_usage.drain(..untracked_usages);
+		}
+
+		if self.cache.len() <= MAX_CACHE_USAGE_TRACK { return; }
+
+		let uniqs: HashSet<&Uuid> = self.cache_usage.iter().collect();
+		let mut removes = HashSet::new();
+
+		for key in self.cache.keys() {
+			if !uniqs.contains(key) {
+				removes.insert(key.clone());
+			}
+		}
+
+		for removed_key in removes { self.cache.remove(&removed_key); }
+	}
+
+	/// reports how much keys is currently cached
+	pub fn cache_size(&self) -> usize {
+		self.cache.len()
 	}
 
 	fn key_path(&self, id: &Uuid) -> PathBuf {
@@ -748,7 +777,7 @@ mod file_tests {
 
 #[cfg(test)]
 mod directory_tests {
-	use super::{KeyDirectory, new_uuid, uuid_to_string, KeyFileContent, KeyFileCrypto};
+	use super::{KeyDirectory, new_uuid, uuid_to_string, KeyFileContent, KeyFileCrypto, MAX_CACHE_USAGE_TRACK};
 	use common::*;
 	use tests::helpers::*;
 
@@ -774,6 +803,47 @@ mod directory_tests {
 		let key = KeyDirectory::load_key(&path).unwrap();
 
 		assert_eq!(key.id, uuid);
+	}
+
+	#[test]
+	fn caches_keys() {
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+
+		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
+		let mut keys = Vec::new();
+		for _ in 0..1000 {
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32));
+			keys.push(directory.save(key).unwrap());
+		}
+
+		for key_id in keys {
+			directory.get(&key_id).unwrap();
+		}
+
+		assert_eq!(1000, directory.cache_size())
+
+	}
+
+	#[test]
+	fn collects_garbage() {
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+
+		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
+		let mut keys = Vec::new();
+		for _ in 0..1000 {
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32));
+			keys.push(directory.save(key).unwrap());
+		}
+
+		for key_id in keys {
+			directory.get(&key_id).unwrap();
+		}
+
+		directory.collect_garbage();
+		// since all keys are different, should be exactly MAX_CACHE_USAGE_TRACK
+		assert_eq!(MAX_CACHE_USAGE_TRACK, directory.cache_size())
 	}
 }
 
