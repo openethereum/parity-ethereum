@@ -307,6 +307,45 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 		result
 	}
 
+	/// Resets blooms at level 0 and forces rebuild on higher levels.
+	pub fn reset_chain_head(&self, blooms: &[H2048], block_number: usize, old_highest_block: usize) -> HashMap<BloomIndex, H2048> {
+		let mut result: HashMap<BloomIndex, H2048> = HashMap::new();
+
+		// insert all new blooms at level 0
+		for (i, bloom) in blooms.iter().enumerate() {
+			result.insert(self.bloom_index(block_number + i, 0), bloom.clone());
+		}
+
+		// reset the rest of blooms
+		for reset_number in block_number + blooms.len()..old_highest_block {
+			result.insert(self.bloom_index(reset_number, 0), H2048::new());
+		}
+
+		for level in 1..self.levels() {
+			for i in 0..blooms.len() {
+
+				let index = self.bloom_index(block_number + i, level);
+				let new_bloom = {	
+					// use new blooms before db blooms where necessary
+					let bloom_at = | index | { result.get(&index).cloned().or_else(|| self.data_source.bloom_at_index(&index)) };
+
+					self.lower_level_bloom_indexes(&index)
+						.into_iter()
+						// get blooms
+						.map(bloom_at)
+						// filter existing ones
+						.filter_map(|b| b)
+						// BitOr all of them
+						.fold(H2048::new(), |acc, bloom| acc | bloom)
+				};
+
+				result.insert(index, new_bloom);
+			}
+		}
+
+		result
+	}
+
 	/// Sets lowest level bloom to 0 and forces rebuild on higher levels.
 	pub fn clear_bloom(&self, block_number: usize) -> HashMap<BloomIndex, H2048> {
 		self.reset_bloom(&H2048::new(), block_number)

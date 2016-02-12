@@ -522,25 +522,13 @@ impl BlockChain {
 			});
 		}
 
-		// update block blooms
-		let blooms: Vec<H2048> = receipts.iter().map(|r| r.log_bloom.clone()).collect();
 
-		let modified_blooms = {
-			let filter = ChainFilter::new(self, self.bloom_index_size, self.bloom_levels);
-			let bloom = blooms.iter().fold(H2048::new(), | ref acc, b | acc | b);
-			filter.add_bloom(&bloom, header.number() as usize)
-		};
 
-		for (bloom_index, bloom) in modified_blooms.into_iter() {
-			let location = self.blocks_bloom_location(&bloom_index);
-			let mut blocks_blooms = self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new);
-			blocks_blooms.blooms[location.index] = bloom;
-			batch.put_extras(&location.hash, &blocks_blooms);
-		}
-
-		batch.put_extras(&hash, &BlockLogBlooms {
-			blooms: blooms
-		});
+		// save blooms (is it really required?). maybe store receipt whole instead?
+		//let blooms: Vec<H2048> = receipts.iter().map(|r| r.log_bloom.clone()).collect();
+		//batch.put_extras(&hash, &BlockLogBlooms {
+			//blooms: blooms
+		//});
 
 		// if it's not new best block, just return
 		if !is_new_best {
@@ -556,7 +544,21 @@ impl BlockChain {
 
 		match route.blocks.len() {
 			// its our parent
-			1 => batch.put_extras(&header.number(), &hash),
+			1 => { 
+
+				// update block blooms
+				let modified_blooms = ChainFilter::new(self, self.bloom_index_size, self.bloom_levels)
+					.add_bloom(&header.log_bloom(), header.number() as usize);
+
+				for (bloom_index, bloom) in modified_blooms.into_iter() {
+					let location = self.blocks_bloom_location(&bloom_index);
+					let mut blocks_blooms = self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new);
+					blocks_blooms.blooms[location.index] = bloom;
+					batch.put_extras(&location.hash, &blocks_blooms);
+				}
+
+				batch.put_extras(&header.number(), &hash)
+			},
 			// it is a fork
 			i if i > 1 => {
 				let ancestor_number = self.block_number(&route.ancestor).unwrap();
@@ -564,6 +566,8 @@ impl BlockChain {
 				for (index, hash) in route.blocks.iter().skip(route.index).enumerate() {
 					batch.put_extras(&(start_number + index as BlockNumber), hash);
 				}
+
+				// TODO: replace blooms from start_number to current
 			},
 			// route.blocks.len() could be 0 only if inserted block is best block,
 			// and this is not possible at this stage
