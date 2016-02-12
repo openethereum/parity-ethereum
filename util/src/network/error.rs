@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use io::IoError;
+use crypto::CryptoError;
 use rlp::*;
 
 #[derive(Debug, Copy, Clone)]
@@ -58,6 +59,12 @@ impl From<DecoderError> for NetworkError {
 impl From<IoError> for NetworkError {
 	fn from(err: IoError) -> NetworkError {
 		NetworkError::Io(err)
+	}
+}
+
+impl From<CryptoError> for NetworkError {
+	fn from(_err: CryptoError) -> NetworkError {
+		NetworkError::Auth
 	}
 }
 

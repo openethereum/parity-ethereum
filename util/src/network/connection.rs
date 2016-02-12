@@ -159,6 +159,11 @@ impl Connection {
 		}
 	}
 
+	/// Get socket token 
+	pub fn token(&self) -> StreamToken {
+		self.token
+	}
+
 	/// Register this connection with the IO event loop.
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection register; token={:?}", reg);

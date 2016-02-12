@@ -87,6 +87,16 @@ impl Handshake {
 		})
 	}
 
+	/// Get id of the remote node if known
+	pub fn id(&self) -> &NodeId {
+		&self.id
+	}
+
+	/// Get stream token id
+	pub fn token(&self) -> StreamToken {
+		self.connection.token()
+	}
+
 	/// Start a handhsake
 	pub fn start<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo, originated: bool) -> Result<(), UtilError> where Message: Send + Clone{
 		self.originated = originated;

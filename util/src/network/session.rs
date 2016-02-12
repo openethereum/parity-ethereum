@@ -129,6 +129,11 @@ impl Session {
 		Ok(session)
 	}
 
+	/// Get id of the remote peer
+	pub fn id(&self) -> &NodeId {
+		&self.info.id
+	}
+
 	/// Check if session is ready to send/receive data
 	pub fn is_ready(&self) -> bool {
 		self.had_hello

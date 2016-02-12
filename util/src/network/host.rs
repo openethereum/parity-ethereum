@@ -22,7 +22,6 @@ use std::sync::*;
 use std::ops::*;
 use mio::*;
 use mio::tcp::*;
-use mio::udp::*;
 use target_info::Target;
 use hash::*;
 use crypto::*;
@@ -37,6 +36,8 @@ use network::node::*;
 use network::stats::NetworkStats;
 use network::error::DisconnectReason;
 use igd::{PortMappingProtocol,search_gateway};
+use network::discovery::{Discovery, TableUpdates};
+use network::node_table::NodeTable;
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -50,6 +51,8 @@ const MAINTENANCE_TIMEOUT: u64 = 1000;
 #[derive(Debug)]
 /// Network service configuration
 pub struct NetworkConfiguration {
+	/// Directory path to store network configuration. None means nothing will be saved
+	pub config_path: Option<String>,
 	/// IP address to listen for incoming connections
 	pub listen_address: SocketAddr,
 	/// IP address to advertise
@@ -70,6 +73,7 @@ impl NetworkConfiguration {
 	/// Create a new instance of default settings.
 	pub fn new() -> NetworkConfiguration {
 		NetworkConfiguration {
+			config_path: None,
 			listen_address: SocketAddr::from_str("0.0.0.0:30304").unwrap(),
 			public_address: SocketAddr::from_str("0.0.0.0:30304").unwrap(),
 			nat_enabled: true,
@@ -114,6 +118,7 @@ impl NetworkConfiguration {
 		}
 
 		NetworkConfiguration {
+			config_path: self.config_path,
 			listen_address: listen,
 			public_address: public,
 			nat_enabled: false,
@@ -126,14 +131,12 @@ impl NetworkConfiguration {
 }
 
 // Tokens
-//const TOKEN_BEGIN: usize = USER_TOKEN_START; // TODO: ICE in rustc 1.7.0-nightly (49c382779 2016-01-12)
-const TOKEN_BEGIN: usize = 32;
-const TCP_ACCEPT: usize = TOKEN_BEGIN + 1;
-const IDLE: usize = TOKEN_BEGIN + 2;
-const NODETABLE_RECEIVE: usize = TOKEN_BEGIN + 3;
-const NODETABLE_MAINTAIN: usize = TOKEN_BEGIN + 4;
-const NODETABLE_DISCOVERY: usize = TOKEN_BEGIN + 5;
-const FIRST_CONNECTION: usize = TOKEN_BEGIN + 16;
+const TCP_ACCEPT: usize = MAX_CONNECTIONS + 1;
+const IDLE: usize = MAX_CONNECTIONS + 2;
+const DISCOVERY: usize = MAX_CONNECTIONS + 3;
+const DISCOVERY_REFRESH: usize = MAX_CONNECTIONS + 4;
+const DISCOVERY_ROUND: usize = MAX_CONNECTIONS + 5;
+const FIRST_CONNECTION: usize = 0;
 const LAST_CONNECTION: usize = FIRST_CONNECTION + MAX_CONNECTIONS - 1;
 
 /// Protocol handler level packet id
@@ -320,10 +323,10 @@ struct ProtocolTimer {
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
 pub struct Host<Message> where Message: Send + Sync + Clone {
 	pub info: RwLock<HostInfo>,
-	udp_socket: Mutex<UdpSocket>,
 	tcp_listener: Mutex<TcpListener>,
 	connections: Arc<RwLock<Slab<SharedConnectionEntry>>>,
-	nodes: RwLock<HashMap<NodeId, Node>>,
+	discovery: Mutex<Discovery>,
+	nodes: RwLock<NodeTable>,
 	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler<Message>>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
@@ -338,10 +341,12 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let addr = config.listen_address;
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&addr).unwrap();
-		let udp_socket = UdpSocket::bound(&addr).unwrap();
+		let keys = if let Some(ref secret) = config.use_secret { KeyPair::from_secret(secret.clone()).unwrap() } else { KeyPair::create().unwrap() };
+		let public = keys.public().clone();
+		let path = config.config_path.clone();
 		let mut host = Host::<Message> {
 			info: RwLock::new(HostInfo {
-				keys: if let Some(ref secret) = config.use_secret { KeyPair::from_secret(secret.clone()).unwrap() } else { KeyPair::create().unwrap() },
+				keys: keys,
 				config: config,
 				nonce: H256::random(),
 				protocol_version: 4,
@@ -349,10 +354,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				listen_port: 0,
 				capabilities: Vec::new(),
 			}),
-			udp_socket: Mutex::new(udp_socket),
+			discovery: Mutex::new(Discovery::new(&public, &addr, DISCOVERY)),
 			tcp_listener: Mutex::new(tcp_listener),
 			connections: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_CONNECTION, MAX_CONNECTIONS))),
-			nodes: RwLock::new(HashMap::new()),
+			nodes: RwLock::new(NodeTable::new(path)),
 			handlers: RwLock::new(HashMap::new()),
 			timers: RwLock::new(HashMap::new()),
 			timer_counter: RwLock::new(LAST_CONNECTION + 1),
@@ -360,12 +365,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		};
 		let port = host.info.read().unwrap().config.listen_address.port();
 		host.info.write().unwrap().deref_mut().listen_port = port;
-
-		/*
-		match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {
-		Some(iface) => config.public_address = iface.addr.unwrap(),
-		None => warn!("No public network interface"),
-		*/
 
 		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
 		for n in boot_nodes {
@@ -382,7 +381,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		match Node::from_str(id) {
 			Err(e) => { warn!("Could not add node: {:?}", e); },
 			Ok(n) => {
-				self.nodes.write().unwrap().insert(n.id.clone(), n);
+				self.nodes.write().unwrap().add_node(n);
 			}
 		}
 	}
@@ -430,12 +429,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 
 		let mut to_connect: Vec<NodeInfo> = Vec::new();
-
 		let mut req_conn = 0;
-		//TODO: use nodes from discovery here
-		//for n in self.node_buckets.iter().flat_map(|n| &n.nodes).map(|id| NodeInfo { id: id.clone(), peer_type: self.nodes.get(id).unwrap().peer_type}) {
 		let pin = self.info.read().unwrap().deref().config.pin;
-		for n in self.nodes.read().unwrap().values().map(|n| NodeInfo { id: n.id.clone(), peer_type: n.peer_type }) {
+		for n in self.nodes.read().unwrap().nodes().map(|n| NodeInfo { id: n.id.clone(), peer_type: n.peer_type }) {
 			let connected = self.have_session(&n.id) || self.connecting_to(&n.id);
 			let required = n.peer_type == PeerType::Required;
 			if connected && required {
@@ -685,15 +681,39 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			h.disconnected(&NetworkContext::new(io, p, Some(token), self.connections.clone()), &token);
 		}
 	}
+
+	fn update_nodes(&self, io: &IoContext<NetworkIoMessage<Message>>, node_changes: TableUpdates) {
+		let connections = self.connections.write().unwrap();
+		let mut to_remove: Vec<PeerId> = Vec::new();
+		for c in connections.iter() {
+			match *c.lock().unwrap().deref_mut() {
+				ConnectionEntry::Handshake(ref h) => {
+					if node_changes.removed.contains(&h.id) {
+						to_remove.push(h.token());
+					}
+				}
+				ConnectionEntry::Session(ref s) => {
+					if node_changes.removed.contains(&s.id()) {
+						to_remove.push(s.token());
+					}
+				}
+			}
+		}
+		for i in to_remove {
+			self.kill_connection(i, io);
+		}
+		self.nodes.write().unwrap().update(node_changes);
+	}
 }
 
 impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Message: Send + Sync + Clone + 'static {
 	/// Initialize networking
 	fn initialize(&self, io: &IoContext<NetworkIoMessage<Message>>) {
 		io.register_stream(TCP_ACCEPT).expect("Error registering TCP listener");
-		io.register_stream(NODETABLE_RECEIVE).expect("Error registering UDP listener");
+		io.register_stream(DISCOVERY).expect("Error registering UDP listener");
 		io.register_timer(IDLE, MAINTENANCE_TIMEOUT).expect("Error registering Network idle timer");
-		//io.register_timer(NODETABLE_MAINTAIN, 7200);
+		io.register_timer(DISCOVERY_REFRESH, 7200).expect("Error registering discovery timer");
+		io.register_timer(DISCOVERY_ROUND, 300).expect("Error registering discovery timer");
 	}
 
 	fn stream_hup(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
@@ -707,7 +727,11 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn stream_readable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
 			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_readable(stream, io),
-			NODETABLE_RECEIVE => {},
+			DISCOVERY => {
+				if let Some(node_changes) = self.discovery.lock().unwrap().readable() {
+					self.update_nodes(io, node_changes);
+				}
+			},
 			TCP_ACCEPT => self.accept(io), 
 			_ => panic!("Received unknown readable token"),
 		}
@@ -716,7 +740,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn stream_writable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
 			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_writable(stream, io),
-			NODETABLE_RECEIVE => {},
+			DISCOVERY => self.discovery.lock().unwrap().writable(),
 			_ => panic!("Received unknown writable token"),
 		}
 	}
@@ -725,8 +749,12 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 		match token {
 			IDLE => self.maintain_network(io),
 			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, io),
-			NODETABLE_DISCOVERY => {},
-			NODETABLE_MAINTAIN => {},
+			DISCOVERY_REFRESH => {
+				self.discovery.lock().unwrap().refresh();
+			},
+			DISCOVERY_ROUND => {
+				self.discovery.lock().unwrap().round();
+			},
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {
 						None => { warn!(target: "net", "No handler found for protocol: {:?}", timer.protocol) },
@@ -794,7 +822,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					}
 				} else {} // expired
 			}
-			NODETABLE_RECEIVE => event_loop.register(self.udp_socket.lock().unwrap().deref(), Token(NODETABLE_RECEIVE), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
+			DISCOVERY => self.discovery.lock().unwrap().register_socket(event_loop).expect("Error registering discovery socket"),
 			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
 			_ => warn!("Unexpected stream registration")
 		}
@@ -812,7 +840,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					connections.remove(stream);
 				} 
 			},
-			NODETABLE_RECEIVE => event_loop.deregister(self.udp_socket.lock().unwrap().deref()).unwrap(),
+			DISCOVERY => (),
 			TCP_ACCEPT => event_loop.deregister(self.tcp_listener.lock().unwrap().deref()).unwrap(),
 			_ => warn!("Unexpected stream deregistration")
 		}
@@ -828,7 +856,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					}
 				} else {} // expired
 			}
-			NODETABLE_RECEIVE => event_loop.reregister(self.udp_socket.lock().unwrap().deref(), Token(NODETABLE_RECEIVE), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
+			DISCOVERY => self.discovery.lock().unwrap().update_registration(event_loop).expect("Error reregistering discovery socket"),
 			TCP_ACCEPT => event_loop.reregister(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
 			_ => warn!("Unexpected stream update")
 		}
