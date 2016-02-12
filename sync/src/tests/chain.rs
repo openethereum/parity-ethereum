@@ -143,8 +143,7 @@ fn propagade_hashes() {
 			blocks += 1;
 		}
 	}
-	assert!(blocks > 0);
-	assert!(hashes > 0);
+	assert!(blocks + hashes == 5);
 }
 
 #[test]
