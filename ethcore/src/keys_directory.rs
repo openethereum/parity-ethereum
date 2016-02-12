@@ -756,6 +756,73 @@ mod file_tests {
 	}
 
 	#[test]
+	fn can_return_error_for_invalid_scrypt_kdf() {
+		let json = Json::from_str(
+			r#"
+				{
+					"crypto" : {
+						"cipher" : "aes-128-ctr",
+						"cipherparams" : {
+							"iv" : "83dbcc02d8ccb40e466191a123791e0e"
+						},
+						"ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+						"kdf" : "scrypt",
+						"kdfparams" : {
+							"dklen2" : 32,
+							"n5" : "xx",
+							"r" : 1,
+							"p" : 8,
+							"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+						},
+						"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+					},
+					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+					"version" : 3
+				}
+			"#).unwrap();
+
+		match KeyFileContent::from_json(&json) {
+			Ok(_) => {
+				panic!("Should be error of no identifier, got ok");
+			},
+			Err(KeyFileParseError::Crypto(CryptoParseError::Scrypt(_))) => { },
+			Err(other_error) => { panic!("should be error of no identifier, got {:?}", other_error); }
+		}
+	}
+
+	#[test]
+	fn can_serialize_scrypt_back() {
+		let json = Json::from_str(
+			r#"
+				{
+					"crypto" : {
+						"cipher" : "aes-128-ctr",
+						"cipherparams" : {
+							"iv" : "83dbcc02d8ccb40e466191a123791e0e"
+						},
+						"ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+						"kdf" : "scrypt",
+						"kdfparams" : {
+							"dklen" : 32,
+							"n" : 262144,
+							"r" : 1,
+							"p" : 8,
+							"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+						},
+						"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+					},
+					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+					"version" : 3
+				}
+			"#).unwrap();
+
+		let key = KeyFileContent::from_json(&json).unwrap();
+		let serialized = key.to_json();
+
+		assert!(serialized.as_object().is_some());
+	}
+
+	#[test]
 	fn can_create_key_with_new_id() {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32));
