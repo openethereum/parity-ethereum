@@ -583,7 +583,7 @@ impl ChainSync {
 			trace!(target: "sync", "Starting sync with better chain");
 			self.request_headers_by_hash(io, peer_id, &peer_latest, 1, 0, false);
 		}
-		else if self.state == SyncState::Blocks {
+		else if self.state == SyncState::Blocks && io.chain().block_status(BlockId::Hash(peer_latest)) == BlockStatus::Unknown {
 			self.request_blocks(io, peer_id);
 		}
 	}
@@ -607,7 +607,7 @@ impl ChainSync {
 
 		if self.have_common_block && !self.headers.is_empty() && self.headers.range_iter().next().unwrap().0 == self.current_base_block() + 1 {
 			for (start, ref items) in self.headers.range_iter() {
-				if needed_bodies.len() > MAX_BODIES_TO_REQUEST {
+				if needed_bodies.len() >= MAX_BODIES_TO_REQUEST {
 					break;
 				}
 				let mut index: BlockNumber = 0;
@@ -654,7 +654,7 @@ impl ChainSync {
 						continue;
 					}
 					let mut block = prev;
-					while block < next && headers.len() <= MAX_HEADERS_TO_REQUEST {
+					while block < next && headers.len() < MAX_HEADERS_TO_REQUEST {
 						if !self.downloading_headers.contains(&(block as BlockNumber)) {
 							headers.push(block as BlockNumber);
 							self.downloading_headers.insert(block as BlockNumber);
@@ -1045,7 +1045,7 @@ impl ChainSync {
 
 	fn check_resume(&mut self, io: &mut SyncIo) {
 		if !io.chain().queue_info().is_full() && self.state == SyncState::Waiting {
-			self.state = SyncState::Idle;
+			self.state = SyncState::Blocks;
 			self.continue_sync(io);
 		}
 	}

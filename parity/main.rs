@@ -67,6 +67,7 @@ Options:
   --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
   --address URL            Equivalent to --listen-address URL --public-address URL.
   --upnp                   Use UPnP to try to figure out the correct network settings.
+  --node-key KEY           Specify node secret key as hex string.
 
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
@@ -77,7 +78,7 @@ Options:
   -l --logging LOGGING     Specify the logging level.
   -v --version             Show information about version.
   -h --help                Show this screen.
-", flag_cache_pref_size: usize, flag_cache_max_size: usize, flag_address: Option<String>);
+", flag_cache_pref_size: usize, flag_cache_max_size: usize, flag_address: Option<String>, flag_node_key: Option<String>);
 
 fn setup_log(init: &str) {
 	let mut builder = LogBuilder::new();
@@ -205,6 +206,7 @@ fn main() {
 	let (listen, public) = conf.net_addresses();
 	net_settings.listen_address = listen;
 	net_settings.public_address = public;
+	net_settings.use_secret = conf.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
 
 	// Build client
 	let mut service = ClientService::start(spec, net_settings, &Path::new(&conf.path())).unwrap();
@@ -259,7 +261,7 @@ impl Informant {
 		let sync_info = sync.status();
 
 		if let (_, &Some(ref last_cache_info), &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
-			println!("[ {} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, {} downloaded, {}+{} queued ···//  {} ({}) bl  {} ({}) ex ]",
+			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···//  {} ({}) bl  {} ({}) ex ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
 				(report.blocks_imported - last_report.blocks_imported) / dur,
@@ -268,7 +270,7 @@ impl Informant {
 
 				sync_info.num_active_peers,
 				sync_info.num_peers,
-				sync_info.blocks_received,
+				sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number),
 				queue_info.unverified_queue_size,
 				queue_info.verified_queue_size,
 
