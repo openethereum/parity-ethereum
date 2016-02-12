@@ -19,7 +19,7 @@
 #![warn(missing_docs)]
 #![feature(plugin)]
 #![plugin(docopt_macros)]
-#![plugin(clippy)]
+#![cfg_attr(feature="dev", plugin(clippy))]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;

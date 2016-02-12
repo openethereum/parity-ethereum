@@ -18,7 +18,7 @@
 #![warn(missing_docs)]
 #![feature(custom_derive, custom_attribute, plugin)]
 #![plugin(serde_macros)]
-#![plugin(clippy)]
+#![cfg_attr(feature="dev", plugin(clippy))]
 
 extern crate rustc_serialize;
 extern crate target_info;

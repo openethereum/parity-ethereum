@@ -18,10 +18,10 @@
 #![feature(op_assign_traits)]
 #![feature(augmented_assignments)]
 #![feature(associated_consts)]
-#![feature(plugin)]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 #![feature(catch_panic)]
 // Clippy settings
-#![plugin(clippy)]
 // TODO [todr] not really sure
 #![allow(needless_range_loop)]
 // Shorter than if-else

@@ -17,9 +17,8 @@
 #![warn(missing_docs)]
 #![feature(cell_extras)]
 #![feature(augmented_assignments)]
-#![feature(plugin)]
-// Clippy
-#![plugin(clippy)]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 // TODO [todr] not really sure
 #![allow(needless_range_loop)]
 // Shorter than if-else
