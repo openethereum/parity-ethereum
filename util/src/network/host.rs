@@ -220,6 +220,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 					s.send_packet(self.protocol, packet_id as u8, &data).unwrap_or_else(|e| {
 						warn!(target: "net", "Send error: {:?}", e);
 					}); //TODO: don't copy vector data
+					try!(self.io.update_registration(peer));
 				},
 				_ => warn!(target: "net", "Send: Peer is not connected yet")
 			}
