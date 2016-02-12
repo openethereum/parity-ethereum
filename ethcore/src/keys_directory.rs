@@ -23,24 +23,25 @@ const CURRENT_DECLARED_VERSION: u64 = 3;
 const MAX_KEY_FILE_LEN: u64 = 1024 * 80;
 
 /// Cipher type (currently only aes-128-ctr)
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum CryptoCipherType {
 	/// aes-128-ctr with 128-bit initialisation vector(iv)
 	Aes128Ctr(U128)
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 enum KeyFileVersion {
 	V3(u64)
 }
 
 /// key generator function
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Pbkdf2CryptoFunction {
 	/// keyed-hash generator (HMAC-256)
 	HMacSha256
 }
 
+#[derive(Clone)]
 #[allow(non_snake_case)]
 /// Kdf of type `Pbkdf2`
 /// https://en.wikipedia.org/wiki/PBKDF2
@@ -94,6 +95,7 @@ impl KdfPbkdf2Params {
 	}
 }
 
+#[derive(Clone)]
 #[allow(non_snake_case)]
 /// Kdf of type `Scrypt`
 /// https://en.wikipedia.org/wiki/Scrypt
@@ -148,6 +150,7 @@ impl KdfScryptParams {
 	}
 }
 
+#[derive(Clone)]
 /// Settings for password derived key geberator function
 pub enum KeyFileKdf {
 	/// Password-Based Key Derivation Function 2 (PBKDF2) type
@@ -158,6 +161,7 @@ pub enum KeyFileKdf {
 	Scrypt(KdfScryptParams)
 }
 
+#[derive(Clone)]
 /// Encrypted password or other arbitrary message
 /// with settings for password derived key generator for decrypting content
 pub struct KeyFileCrypto {
@@ -309,6 +313,8 @@ fn uuid_from_string(s: &str) -> Result<Uuid, UtilError> {
 	Ok(uuid)
 }
 
+
+#[derive(Clone)]
 /// Stored key file struct with encrypted message (cipher_text)
 /// also contains password derivation function settings (PBKDF2/Scrypt)
 pub struct KeyFileContent {
@@ -340,6 +346,7 @@ enum KeyFileParseError {
 	InvalidVersion,
 	UnsupportedVersion(OutOfBounds<u64>),
 	InvalidJsonFormat,
+	InvalidJson,
 	InvalidIdentifier,
 	NoCryptoSection,
 	Crypto(CryptoParseError),
@@ -413,7 +420,6 @@ impl KeyFileContent {
 
 #[derive(Debug)]
 enum KeyLoadError {
-	InvalidEncoding,
 	FileTooLarge(OutOfBounds<u64>),
 	FileParseError(KeyFileParseError),
 	FileReadError(::std::io::Error),
@@ -483,8 +489,8 @@ impl KeyDirectory {
 			Ok(mut open_file) => {
 				match open_file.metadata() {
 					Ok(metadata) =>
-					if metadata.len() > MAX_KEY_FILE_LEN { Err(KeyLoadError::FileTooLarge(OutOfBounds { min: Some(2), max: Some(MAX_KEY_FILE_LEN), found: metadata.len() })) }
-					else { KeyDirectory::load_from_file(&mut open_file, metadata.len()) },
+						if metadata.len() > MAX_KEY_FILE_LEN { Err(KeyLoadError::FileTooLarge(OutOfBounds { min: Some(2), max: Some(MAX_KEY_FILE_LEN), found: metadata.len() })) }
+						else { KeyDirectory::load_from_file(&mut open_file) },
 					Err(read_error) => Err(KeyLoadError::FileReadError(read_error))
 				}
 			},
@@ -492,30 +498,25 @@ impl KeyDirectory {
 		}
 	}
 
-	fn load_from_file(file: &mut fs::File, size: u64) -> Result<KeyFileContent, KeyLoadError> {
-		let mut json_data = vec![0u8; size as usize];
-
-		match file.read_to_end(&mut json_data) {
+	fn load_from_file(file: &mut fs::File) -> Result<KeyFileContent, KeyLoadError> {
+		let mut buf = String::new();
+		match file.read_to_string(&mut buf) {
 			Ok(_) => {},
 			Err(read_error) => { return Err(KeyLoadError::FileReadError(read_error)); }
 		}
-
-		match ::std::str::from_utf8(&json_data) {
-			Ok(ut8_string) => match Json::from_str(ut8_string) {
-				Ok(json) => match KeyFileContent::from_json(&json) {
-					Ok(key_file_content) => Ok(key_file_content),
-					Err(parse_error) => Err(KeyLoadError::FileParseError(parse_error))
-				},
-				Err(_) => Err(KeyLoadError::FileParseError(KeyFileParseError::InvalidJsonFormat))
+		match Json::from_str(&buf) {
+			Ok(json) => match KeyFileContent::from_json(&json) {
+				Ok(key_file_content) => Ok(key_file_content),
+				Err(parse_error) => Err(KeyLoadError::FileParseError(parse_error))
 			},
-			Err(_) => Err(KeyLoadError::InvalidEncoding)
+			Err(_) => Err(KeyLoadError::FileParseError(KeyFileParseError::InvalidJson))
 		}
 	}
 }
 
 
 #[cfg(test)]
-mod tests {
+mod file_tests {
 	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError, CryptoParseError, uuid_from_string, uuid_to_string, KeyFileCrypto};
 	use common::*;
 
@@ -742,6 +743,38 @@ mod tests {
 
 		assert_eq!(loaded_key.id, key.id);
 	}
+
+}
+
+#[cfg(test)]
+mod directory_tests {
+	use super::{KeyDirectory, new_uuid, uuid_to_string, KeyFileContent, KeyFileCrypto};
+	use common::*;
+	use tests::helpers::*;
+
+	#[test]
+	fn key_directory_locates_keys() {
+		let temp_path = RandomTempPath::create_dir();
+		let directory = KeyDirectory::new(temp_path.as_path());
+		let uuid = new_uuid();
+
+		let path = directory.key_path(&uuid);
+
+		assert!(path.to_str().unwrap().contains(&uuid_to_string(&uuid)));
+	}
+
+	#[test]
+	fn loads_key() {
+		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32))).unwrap();
+		let path = directory.key_path(&uuid);
+
+		let key = KeyDirectory::load_key(&path).unwrap();
+
+		assert_eq!(key.id, uuid);
+	}
 }
 
 #[cfg(test)]
@@ -766,5 +799,32 @@ mod specs {
 		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32)));
 
 		assert!(uuid.is_ok());
+	}
+
+	#[test]
+	fn can_load_key() {
+		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32))).unwrap();
+
+		let key = directory.get(&uuid).unwrap();
+
+		assert_eq!(key.crypto.cipher_text, cipher_text);
+	}
+
+	#[test]
+	fn csn_store_10_keys() {
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+
+		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
+		let mut keys = Vec::new();
+		for _ in 0..10 {
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32));
+			keys.push(directory.save(key).unwrap());
+		}
+
+		assert_eq!(10, keys.len())
 	}
 }
