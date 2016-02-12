@@ -161,8 +161,11 @@ pub enum KeyFileKdf {
 /// Encrypted password or other arbitrary message
 /// with settings for password derived key generator for decrypting content
 pub struct KeyFileCrypto {
+	/// Cipher type
 	pub cipher_type: CryptoCipherType,
+	/// Cipher text (encrypted message)
 	pub cipher_text: Bytes,
+	/// password derived key geberator function settings
 	pub kdf: KeyFileKdf,
 }
 
@@ -173,10 +176,10 @@ impl KeyFileCrypto {
 			Some(obj) => obj
 		};
 
-		let cipher_type = match as_object["cipher"].as_string() {
-			None => { return Err(CryptoParseError::NoCipherType); }
+		let cipher_type = match try!(as_object.get("cipher").ok_or(CryptoParseError::NoCipherType)).as_string() {
+			None => { return Err(CryptoParseError::InvalidCipherType(Mismatch { expected: "aes-128-ctr".to_owned(), found: "not a json string".to_owned() })); }
 			Some("aes-128-ctr") => CryptoCipherType::Aes128Ctr(
-				match as_object["cipherparams"].as_object() {
+				match try!(as_object.get("cipherparams").ok_or(CryptoParseError::NoCipherParameters)).as_object() {
 					None => { return Err(CryptoParseError::NoCipherParameters); },
 					Some(cipher_param) => match U128::from_str(match cipher_param["iv"].as_string() {
 							None => { return Err(CryptoParseError::NoInitialVector); },
@@ -194,7 +197,7 @@ impl KeyFileCrypto {
 			}
 		};
 
-		let kdf = match (as_object["kdf"].as_string(), as_object["kdfparams"].as_object()) {
+		let kdf = match (try!(as_object.get("kdf").ok_or(CryptoParseError::NoKdf)).as_string(), try!(as_object.get("kdfparams").ok_or(CryptoParseError::NoKdfType)).as_object()) {
 			(None, _) => { return Err(CryptoParseError::NoKdfType); },
 			(Some("scrypt"), Some(kdf_params)) =>
 				match KdfScryptParams::from_json(kdf_params) {
@@ -226,10 +229,23 @@ impl KeyFileCrypto {
 
 	fn to_json(&self) -> Json {
 		let mut map = BTreeMap::new();
-		map.insert("cipher_type".to_owned(), Json::String("aes-128-ctr".to_owned()));
-		map.insert("cipher_text".to_owned(), Json::String(
+		match self.cipher_type {
+			CryptoCipherType::Aes128Ctr(iv) => {
+				map.insert("cipher".to_owned(), Json::String("aes-128-ctr".to_owned()));
+				let mut cipher_params = BTreeMap::new();
+				cipher_params.insert("iv".to_owned(), Json::String(format!("{:?}", iv)));
+				map.insert("cipherparams".to_owned(), Json::Object(cipher_params));
+			}
+		}
+		map.insert("ciphertext".to_owned(), Json::String(
 			self.cipher_text.iter().map(|b| format!("{:02x}", b)).collect::<Vec<String>>().join("")));
-		map.insert("kdf".to_owned(), match self.kdf {
+
+		map.insert("kdf".to_owned(), Json::String(match self.kdf {
+			KeyFileKdf::Pbkdf2(_) => "pbkdf2".to_owned(),
+			KeyFileKdf::Scrypt(_) => "scrypt".to_owned()
+		}));
+
+		map.insert("kdfparams".to_owned(), match self.kdf {
 			KeyFileKdf::Pbkdf2(ref pbkdf2_params) => pbkdf2_params.to_json(),
 			KeyFileKdf::Scrypt(ref scrypt_params) => scrypt_params.to_json()
 		});
@@ -313,6 +329,7 @@ enum CryptoParseError {
 	NoInitialVector,
 	NoCipherParameters,
 	InvalidInitialVector(FromHexError),
+	NoKdf,
 	NoKdfType,
 	Scrypt(ScryptParseError),
 	KdfPbkdf2(Pbkdf2ParseError)
@@ -337,6 +354,13 @@ impl KeyFileContent {
 			id: new_uuid(),
 			version: KeyFileVersion::V3(3),
 			crypto: crypto
+		}
+	}
+
+	/// returns key file version if it is known
+	pub fn version(&self) -> Option<u64> {
+		match self.version {
+			KeyFileVersion::V3(declared) => Some(declared)
 		}
 	}
 
@@ -414,7 +438,7 @@ impl KeyDirectory {
 	}
 
 	/// saves (inserts or updates) given key
-	pub fn save(&mut self, key_file: KeyFileContent) -> Result<(), ::std::io::Error> {
+	pub fn save(&mut self, key_file: KeyFileContent) -> Result<(Uuid), ::std::io::Error> {
 		{
 			let mut file = try!(fs::File::create(self.key_path(&key_file.id)));
 			let json = key_file.to_json();
@@ -422,8 +446,9 @@ impl KeyDirectory {
 			let json_bytes = json_text.into_bytes();
 			try!(file.write(&json_bytes));
 		}
-		self.cache.insert(key_file.id.clone(), key_file);
-		Ok(())
+		let id = key_file.id.clone();
+		self.cache.insert(id.clone(), key_file);
+		Ok(id.clone())
 	}
 
 	/// returns key given by id if corresponding file exists and no load error occured
@@ -491,7 +516,7 @@ impl KeyDirectory {
 
 #[cfg(test)]
 mod tests {
-	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError, CryptoParseError, uuid_from_string, uuid_to_string};
+	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError, CryptoParseError, uuid_from_string, uuid_to_string, KeyFileCrypto};
 	use common::*;
 
 	#[test]
@@ -699,6 +724,24 @@ mod tests {
 			Err(other_error) => { panic!("should be error of invalid initial vector, got {:?}", other_error); }
 		}
 	}
+
+	#[test]
+	fn can_create_key_with_new_id() {
+		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
+		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32));
+		assert!(!uuid_to_string(&key.id).is_empty());
+	}
+
+	#[test]
+	fn can_load_json_from_itself() {
+		let cipher_text: Bytes = FromHex::from_hex("aaaaaaaaaaaaaaaaaaaaaaaaaaa22222222222222222222222").unwrap();
+		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32));
+		let json = key.to_json();
+
+		let loaded_key = KeyFileContent::from_json(&json).unwrap();
+
+		assert_eq!(loaded_key.id, key.id);
+	}
 }
 
 #[cfg(test)]
@@ -710,9 +753,18 @@ mod specs {
 	#[test]
 	fn can_initiate_key_directory() {
 		let temp_path = RandomTempPath::create_dir();
-
 		let directory = KeyDirectory::new(&temp_path.as_path());
-
 		assert!(directory.path().len() > 0);
+	}
+
+	#[test]
+	fn can_save_key() {
+		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+
+		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32)));
+
+		assert!(uuid.is_ok());
 	}
 }
