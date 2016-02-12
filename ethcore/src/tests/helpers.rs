@@ -46,6 +46,15 @@ impl RandomTempPath {
 		}
 	}
 
+	pub fn create_dir() -> RandomTempPath {
+		let mut dir = env::temp_dir();
+		dir.push(H32::random().hex());
+		fs::create_dir_all(dir.as_path()).unwrap();
+		RandomTempPath {
+			path: dir.clone()
+		}
+	}
+
 	pub fn as_path(&self) -> &PathBuf {
 		&self.path
 	}

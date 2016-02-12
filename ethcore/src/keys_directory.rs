@@ -14,19 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! SecretStore
-//! module for managing key files, decrypting and encrypting arbitrary data
+//! Keys Directory
 
 use common::*;
 use std::path::{PathBuf};
 
 const CURRENT_DECLARED_VERSION: u64 = 3;
-
 const MAX_KEY_FILE_LEN: u64 = 1024 * 80;
 
+/// Cipher type (currently only aes-128-ctr)
 #[derive(PartialEq, Debug)]
-enum CryptoCipherType {
-	// aes-128-ctr with 128-bit initialisation vector(iv)
+pub enum CryptoCipherType {
+	/// aes-128-ctr with 128-bit initialisation vector(iv)
 	Aes128Ctr(U128)
 }
 
@@ -35,23 +34,25 @@ enum KeyFileVersion {
 	V3(u64)
 }
 
+/// key generator function
 #[derive(PartialEq, Debug)]
-enum Pbkdf2CryptoFunction {
+pub enum Pbkdf2CryptoFunction {
+	/// keyed-hash generator (HMAC-256)
 	HMacSha256
 }
 
 #[allow(non_snake_case)]
-// Kdf of type `Pbkdf2`
-// https://en.wikipedia.org/wiki/PBKDF2
-struct KdfPbkdf2Params {
-	// desired length of the derived key, in octets
-	dkLen: u32,
-	// cryptographic salt
-	salt: H256,
-	// number of iterations for derived key
-	c: u32,
-	// pseudo-random 2-parameters function
-	prf: Pbkdf2CryptoFunction
+/// Kdf of type `Pbkdf2`
+/// https://en.wikipedia.org/wiki/PBKDF2
+pub struct KdfPbkdf2Params {
+	/// desired length of the derived key, in octets
+	pub dkLen: u32,
+	/// cryptographic salt
+	pub salt: H256,
+	/// number of iterations for derived key
+	pub c: u32,
+	/// pseudo-random 2-parameters function
+	pub prf: Pbkdf2CryptoFunction
 }
 
 #[derive(Debug)]
@@ -94,25 +95,24 @@ impl KdfPbkdf2Params {
 }
 
 #[allow(non_snake_case)]
-// Kdf of type `Scrypt`
-// https://en.wikipedia.org/wiki/Scrypt
-struct KdfScryptParams {
-	// desired length of the derived key, in octets
-	dkLen: u32,
-	// parallelization
-	p: u32,
-	// cpu cost
-	n: u32,
-	// TODO: comment
-	r: u32,
-	// cryptographic salt
-	salt: H256,
+/// Kdf of type `Scrypt`
+/// https://en.wikipedia.org/wiki/Scrypt
+pub struct KdfScryptParams {
+	/// desired length of the derived key, in octets
+	pub dkLen: u32,
+	/// parallelization
+	pub p: u32,
+	/// cpu cost
+	pub n: u32,
+	/// TODO: comment
+	pub r: u32,
+	/// cryptographic salt
+	pub salt: H256,
 }
 
 #[derive(Debug)]
 enum ScryptParseError {
 	InvalidParameter(&'static str),
-	InvalidPrf(Mismatch<String>),
 	InvalidSaltFormat(UtilError),
 	MissingParameter(&'static str),
 }
@@ -148,15 +148,22 @@ impl KdfScryptParams {
 	}
 }
 
-enum KeyFileKdf {
+/// Settings for password derived key geberator function
+pub enum KeyFileKdf {
+	/// Password-Based Key Derivation Function 2 (PBKDF2) type
+	/// https://en.wikipedia.org/wiki/PBKDF2
 	Pbkdf2(KdfPbkdf2Params),
+	/// Scrypt password-based key derivation function
+	/// https://en.wikipedia.org/wiki/Scrypt
 	Scrypt(KdfScryptParams)
 }
 
-struct KeyFileCrypto {
-	cipher_type: CryptoCipherType,
-	cipher_text: Bytes,
-	kdf: KeyFileKdf,
+/// Encrypted password or other arbitrary message
+/// with settings for password derived key generator for decrypting content
+pub struct KeyFileCrypto {
+	pub cipher_type: CryptoCipherType,
+	pub cipher_text: Bytes,
+	pub kdf: KeyFileKdf,
 }
 
 impl KeyFileCrypto {
@@ -229,38 +236,185 @@ impl KeyFileCrypto {
 
 		Json::Object(map)
 	}
+
+	/// New pbkdf2-type secret
+	/// `cipher-text` - encrypted cipher text
+	/// `dk-len` - desired length of the derived key, in octets
+	/// `c` - number of iterations for derived key
+	/// `salt` - cryptographic site, random 256-bit hash (ensure it's crypto-random)
+	/// `iv` - ini
+	pub fn new_pbkdf2(cipher_text: Bytes, iv: U128, salt: H256, c: u32, dk_len: u32) -> KeyFileCrypto {
+		KeyFileCrypto {
+			cipher_type: CryptoCipherType::Aes128Ctr(iv),
+			cipher_text: cipher_text,
+			kdf: KeyFileKdf::Pbkdf2(KdfPbkdf2Params {
+				dkLen: dk_len,
+				salt: salt,
+				c: c,
+				prf: Pbkdf2CryptoFunction::HMacSha256
+			}),
+		}
+	}
 }
 
-type Uuid = String;
+/// Universally unique identifier
+pub type Uuid = H128;
 
-struct KeyFileContent {
+fn new_uuid() -> Uuid {
+	H128::random()
+}
+
+fn uuid_to_string(uuid: &Uuid) -> String {
+	let d1 = &uuid.as_slice()[0..4];
+	let d2 = &uuid.as_slice()[4..6];
+	let d3 = &uuid.as_slice()[6..8];
+	let d4 = &uuid.as_slice()[8..10];
+	let d5 = &uuid.as_slice()[10..16];
+	format!("{}-{}-{}-{}-{}", d1.to_hex(), d2.to_hex(), d3.to_hex(), d4.to_hex(), d5.to_hex())
+}
+
+fn uuid_from_string(s: &str) -> Result<Uuid, UtilError> {
+	let parts: Vec<&str> = s.split("-").collect();
+	if parts.len() != 5 { return Err(UtilError::BadSize); }
+
+	let mut uuid = H128::zero();
+
+	if parts[0].len() != 8 { return Err(UtilError::BadSize); }
+	uuid[0..4].clone_from_slice(&try!(FromHex::from_hex(parts[0])));
+	if parts[1].len() != 4 { return Err(UtilError::BadSize); }
+	uuid[4..6].clone_from_slice(&try!(FromHex::from_hex(parts[1])));
+	if parts[2].len() != 4 { return Err(UtilError::BadSize); }
+	uuid[6..8].clone_from_slice(&try!(FromHex::from_hex(parts[2])));
+	if parts[3].len() != 4 { return Err(UtilError::BadSize); }
+	uuid[8..10].clone_from_slice(&try!(FromHex::from_hex(parts[3])));
+	if parts[4].len() != 12 { return Err(UtilError::BadSize); }
+	uuid[10..16].clone_from_slice(&try!(FromHex::from_hex(parts[4])));
+
+	Ok(uuid)
+}
+
+/// Stored key file struct with encrypted message (cipher_text)
+/// also contains password derivation function settings (PBKDF2/Scrypt)
+pub struct KeyFileContent {
 	version: KeyFileVersion,
-	crypto: KeyFileCrypto,
-	id: Uuid
+	/// holds cypher and decrypt function settings
+	pub crypto: KeyFileCrypto,
+	/// identifier
+	pub id: Uuid
 }
 
-struct KeyDirectory {
-	cache: HashMap<Uuid, KeyFileContent>,
-	path: Path,
+#[derive(Debug)]
+enum CryptoParseError {
+	NoCipherText,
+	NoCipherType,
+	InvalidJsonFormat,
+	InvalidKdfType(Mismatch<String>),
+	InvalidCipherType(Mismatch<String>),
+	NoInitialVector,
+	NoCipherParameters,
+	InvalidInitialVector(FromHexError),
+	NoKdfType,
+	Scrypt(ScryptParseError),
+	KdfPbkdf2(Pbkdf2ParseError)
+}
+
+#[derive(Debug)]
+enum KeyFileParseError {
+	InvalidVersion,
+	UnsupportedVersion(OutOfBounds<u64>),
+	InvalidJsonFormat,
+	InvalidIdentifier,
+	NoCryptoSection,
+	Crypto(CryptoParseError),
+}
+
+impl KeyFileContent {
+	/// new stored key file struct with encrypted message (cipher_text)
+	/// also contains password derivation function settings (PBKDF2/Scrypt)
+	/// to decrypt cipher_text given the password is provided
+	pub fn new(crypto: KeyFileCrypto) -> KeyFileContent {
+		KeyFileContent {
+			id: new_uuid(),
+			version: KeyFileVersion::V3(3),
+			crypto: crypto
+		}
+	}
+
+	fn from_json(json: &Json) -> Result<KeyFileContent, KeyFileParseError> {
+		let as_object = match json.as_object() {
+			None => { return Err(KeyFileParseError::InvalidJsonFormat); },
+			Some(obj) => obj
+		};
+
+		let version = match as_object["version"].as_u64() {
+			None => { return Err(KeyFileParseError::InvalidVersion); },
+			Some(json_version) => {
+				if json_version <= 2 {
+					return Err(KeyFileParseError::UnsupportedVersion(OutOfBounds { min: Some(3), max: None, found: json_version }))
+				};
+				KeyFileVersion::V3(json_version)
+			}
+		};
+
+		let id_text = try!(as_object.get("id").and_then(|json| json.as_string()).ok_or(KeyFileParseError::InvalidIdentifier));
+		let id = match uuid_from_string(&id_text) {
+			Err(_) => { return Err(KeyFileParseError::InvalidIdentifier); },
+			Ok(id) => id
+		};
+
+		let crypto = match as_object.get("crypto") {
+			None => { return Err(KeyFileParseError::NoCryptoSection); }
+			Some(crypto_json) => match KeyFileCrypto::from_json(crypto_json) {
+					Ok(crypto) => crypto,
+					Err(crypto_error) => { return Err(KeyFileParseError::Crypto(crypto_error)); }
+				}
+		};
+
+		Ok(KeyFileContent {
+			version: version,
+			id: id.clone(),
+			crypto: crypto
+		})
+	}
+
+	fn to_json(&self) -> Json {
+		let mut map = BTreeMap::new();
+		map.insert("id".to_owned(), Json::String(uuid_to_string(&self.id)));
+		map.insert("version".to_owned(), Json::U64(CURRENT_DECLARED_VERSION));
+		map.insert("crypto".to_owned(), self.crypto.to_json());
+
+		Json::Object(map)
+	}
 }
 
 #[derive(Debug)]
 enum KeyLoadError {
-	NotFound,
 	InvalidEncoding,
 	FileTooLarge(OutOfBounds<u64>),
 	FileParseError(KeyFileParseError),
-	FileReadError(::std::io::Error)
+	FileReadError(::std::io::Error),
+}
+
+/// represents directory for saving/loading key files
+pub struct KeyDirectory {
+	/// directory path for key management
+	path: String,
+	cache: HashMap<Uuid, KeyFileContent>,
+	cache_usage: VecDeque<Uuid>,
 }
 
 impl KeyDirectory {
-	fn key_path(&self, id: &Uuid) -> PathBuf {
-		let mut path = self.path.to_path_buf();
-		path.push(&id);
-		path
+	/// Initializes new cache directory context with a given `path`
+	pub fn new(path: &Path) -> KeyDirectory {
+		KeyDirectory {
+			cache: HashMap::new(),
+			path: path.to_str().expect("Initialized key directory with empty path").to_owned(),
+			cache_usage: VecDeque::new(),
+		}
 	}
 
-	fn save(&mut self, key_file: KeyFileContent) -> Result<(), ::std::io::Error> {
+	/// saves (inserts or updates) given key
+	pub fn save(&mut self, key_file: KeyFileContent) -> Result<(), ::std::io::Error> {
 		{
 			let mut file = try!(fs::File::create(self.key_path(&key_file.id)));
 			let json = key_file.to_json();
@@ -272,28 +426,40 @@ impl KeyDirectory {
 		Ok(())
 	}
 
-	fn get(&mut self, id: &Uuid) -> Option<&KeyFileContent> {
-		let path = {
-			let mut path = self.path.to_path_buf();
-			path.push(&id);
-			path
-		};
-
+	/// returns key given by id if corresponding file exists and no load error occured
+	/// warns if any error occured during the key loading
+	pub fn get(&mut self, id: &Uuid) -> Option<&KeyFileContent> {
+		let path = self.key_path(id);
 		Some(self.cache.entry(id.to_owned()).or_insert(
-			match KeyDirectory::load_key(&path, id) {
+			match KeyDirectory::load_key(&path) {
 				Ok(loaded_key) => loaded_key,
-				Err(error) => { return None; }
+				Err(error) => {
+					warn!(target: "sstore", "error loading key {:?}: {:?}", id, error);
+					return None;
+				}
 			}
 		))
 	}
 
-	fn load_key(path: &PathBuf, id: &Uuid) -> Result<KeyFileContent, KeyLoadError> {
+	/// returns current path to the directory with keys
+	pub fn path(&self) -> &str {
+		&self.path
+	}
+
+	fn key_path(&self, id: &Uuid) -> PathBuf {
+		let mut path = PathBuf::new();
+		path.push(self.path.clone());
+		path.push(uuid_to_string(&id));
+		path
+	}
+
+	fn load_key(path: &PathBuf) -> Result<KeyFileContent, KeyLoadError> {
 		match fs::File::open(path.clone()) {
 			Ok(mut open_file) => {
 				match open_file.metadata() {
 					Ok(metadata) =>
-						if metadata.len() > MAX_KEY_FILE_LEN { Err(KeyLoadError::FileTooLarge(OutOfBounds { min: Some(2), max: Some(MAX_KEY_FILE_LEN), found: metadata.len() })) }
-						else { KeyDirectory::load_from_file(&mut open_file, metadata.len()) },
+					if metadata.len() > MAX_KEY_FILE_LEN { Err(KeyLoadError::FileTooLarge(OutOfBounds { min: Some(2), max: Some(MAX_KEY_FILE_LEN), found: metadata.len() })) }
+					else { KeyDirectory::load_from_file(&mut open_file, metadata.len()) },
 					Err(read_error) => Err(KeyLoadError::FileReadError(read_error))
 				}
 			},
@@ -315,89 +481,30 @@ impl KeyDirectory {
 					Ok(key_file_content) => Ok(key_file_content),
 					Err(parse_error) => Err(KeyLoadError::FileParseError(parse_error))
 				},
-				Err(json_error) => Err(KeyLoadError::FileParseError(KeyFileParseError::InvalidJsonFormat))
+				Err(_) => Err(KeyLoadError::FileParseError(KeyFileParseError::InvalidJsonFormat))
 			},
-			Err(error) => Err(KeyLoadError::InvalidEncoding)
+			Err(_) => Err(KeyLoadError::InvalidEncoding)
 		}
 	}
 }
 
-#[derive(Debug)]
-enum CryptoParseError {
-	NoCryptoVersion,
-	NoCipherText,
-	NoCipherType,
-	InvalidJsonFormat,
-	InvalidCryptoVersion,
-	InvalidKdfType(Mismatch<String>),
-	InvalidCipherType(Mismatch<String>),
-	NoInitialVector,
-	NoCipherParameters,
-	InvalidInitialVector(FromHexError),
-	NoKdfType,
-	NoKdfParams,
-	Scrypt(ScryptParseError),
-	KdfPbkdf2(Pbkdf2ParseError)
-}
-
-#[derive(Debug)]
-enum KeyFileParseError {
-	InvalidVersion,
-	UnsupportedVersion(OutOfBounds<u64>),
-	InvalidJsonFormat,
-	InvalidIdentifier,
-	NoCryptoSection,
-	Crypto(CryptoParseError),
-}
-
-impl KeyFileContent {
-	fn from_json(json: &Json) -> Result<KeyFileContent, KeyFileParseError> {
-		let as_object = match json.as_object() {
-			None => { return Err(KeyFileParseError::InvalidJsonFormat); },
-			Some(obj) => obj
-		};
-
-		let version = match as_object["version"].as_u64() {
-			None => { return Err(KeyFileParseError::InvalidVersion); },
-			Some(json_version) => {
-				if json_version <= 2 {
-					return Err(KeyFileParseError::UnsupportedVersion(OutOfBounds { min: Some(3), max: None, found: json_version }))
-				};
-				KeyFileVersion::V3(json_version)
-			}
-		};
-
-		let id = try!(as_object.get("id").and_then(|json| json.as_string()).ok_or(KeyFileParseError::InvalidIdentifier));
-
-		let crypto = match as_object.get("crypto") {
-			None => { return Err(KeyFileParseError::NoCryptoSection); }
-			Some(crypto_json) => match KeyFileCrypto::from_json(crypto_json) {
-					Ok(crypto) => crypto,
-					Err(crypto_error) => { return Err(KeyFileParseError::Crypto(crypto_error)); }
-				}
-		};
-
-		Ok(KeyFileContent {
-			version: version,
-			id: id.to_owned(),
-			crypto: crypto
-		})
-	}
-
-	fn to_json(&self) -> Json {
-		let mut map = BTreeMap::new();
-		map.insert("id".to_owned(), Json::String(self.id.to_owned()));
-		map.insert("version".to_owned(), Json::U64(CURRENT_DECLARED_VERSION));
-		map.insert("crypto".to_owned(), self.crypto.to_json());
-
-		Json::Object(map)
-	}
-}
 
 #[cfg(test)]
 mod tests {
-	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError, CryptoParseError};
+	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError, CryptoParseError, uuid_from_string, uuid_to_string};
 	use common::*;
+
+	#[test]
+	fn uuid_parses() {
+		let uuid = uuid_from_string("3198bc9c-6672-5ab3-d995-4942343ae5b6").unwrap();
+		assert!(uuid > H128::zero());
+	}
+
+	#[test]
+	fn uuid_serializes() {
+		let uuid = uuid_from_string("3198bc9c-6fff-5ab3-d995-4942343ae5b6").unwrap();
+		assert_eq!(uuid_to_string(&uuid), "3198bc9c-6fff-5ab3-d995-4942343ae5b6");
+	}
 
 	#[test]
 	fn can_read_keyfile() {
@@ -461,7 +568,7 @@ mod tests {
 		match KeyFileContent::from_json(&json) {
 			Ok(key_file) => {
 				match key_file.crypto.kdf {
-					KeyFileKdf::Scrypt(scrypt_params) => {},
+					KeyFileKdf::Scrypt(_) => {},
 					_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
 				}
 			},
@@ -591,5 +698,21 @@ mod tests {
 			Err(KeyFileParseError::Crypto(CryptoParseError::InvalidInitialVector(_))) => { },
 			Err(other_error) => { panic!("should be error of invalid initial vector, got {:?}", other_error); }
 		}
+	}
+}
+
+#[cfg(test)]
+mod specs {
+	use super::*;
+	use common::*;
+	use tests::helpers::*;
+
+	#[test]
+	fn can_initiate_key_directory() {
+		let temp_path = RandomTempPath::create_dir();
+
+		let directory = KeyDirectory::new(&temp_path.as_path());
+
+		assert!(directory.path().len() > 0);
 	}
 }
