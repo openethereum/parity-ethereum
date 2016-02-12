@@ -63,7 +63,7 @@ enum Pbkdf2ParseError {
 }
 
 impl KdfPbkdf2Params {
-	fn new(json: &BTreeMap<String, Json>) -> Result<KdfPbkdf2Params, Pbkdf2ParseError> {
+	fn from_json(json: &BTreeMap<String, Json>) -> Result<KdfPbkdf2Params, Pbkdf2ParseError> {
 		Ok(KdfPbkdf2Params{
 			salt: match try!(json.get("salt").ok_or(Pbkdf2ParseError::MissingParameter("salt"))).as_string() {
 				None => { return Err(Pbkdf2ParseError::InvalidParameter("salt")) },
@@ -120,7 +120,7 @@ enum ScryptParseError {
 fn json_from_u32(number: u32) -> Json { Json::U64(number as u64) }
 
 impl KdfScryptParams {
-	fn new(json: &BTreeMap<String, Json>) -> Result<KdfScryptParams, ScryptParseError> {
+	fn from_json(json: &BTreeMap<String, Json>) -> Result<KdfScryptParams, ScryptParseError> {
 		Ok(KdfScryptParams{
 			salt: match try!(json.get("salt").ok_or(ScryptParseError::MissingParameter("salt"))).as_string() {
 				None => { return Err(ScryptParseError::InvalidParameter("salt")) },
@@ -160,7 +160,7 @@ struct KeyFileCrypto {
 }
 
 impl KeyFileCrypto {
-	fn new(json: &Json) -> Result<KeyFileCrypto, CryptoParseError> {
+	fn from_json(json: &Json) -> Result<KeyFileCrypto, CryptoParseError> {
 		let as_object = match json.as_object() {
 			None => { return Err(CryptoParseError::InvalidJsonFormat); }
 			Some(obj) => obj
@@ -190,12 +190,12 @@ impl KeyFileCrypto {
 		let kdf = match (as_object["kdf"].as_string(), as_object["kdfparams"].as_object()) {
 			(None, _) => { return Err(CryptoParseError::NoKdfType); },
 			(Some("scrypt"), Some(kdf_params)) =>
-				match KdfScryptParams::new(kdf_params) {
+				match KdfScryptParams::from_json(kdf_params) {
 					Err(scrypt_params_error) => { return Err(CryptoParseError::Scrypt(scrypt_params_error)); },
 					Ok(scrypt_params) => KeyFileKdf::Scrypt(scrypt_params)
 				},
 			(Some("pbkdf2"), Some(kdf_params)) =>
-				match KdfPbkdf2Params::new(kdf_params) {
+				match KdfPbkdf2Params::from_json(kdf_params) {
 					Err(pbkdf2_params_error) => { return Err(CryptoParseError::KdfPbkdf2(pbkdf2_params_error)); },
 					Ok(pbkdf2_params) => KeyFileKdf::Pbkdf2(pbkdf2_params)
 				},
@@ -311,7 +311,7 @@ impl KeyDirectory {
 
 		match ::std::str::from_utf8(&json_data) {
 			Ok(ut8_string) => match Json::from_str(ut8_string) {
-				Ok(json) => match KeyFileContent::new(&json) {
+				Ok(json) => match KeyFileContent::from_json(&json) {
 					Ok(key_file_content) => Ok(key_file_content),
 					Err(parse_error) => Err(KeyLoadError::FileParseError(parse_error))
 				},
@@ -351,7 +351,7 @@ enum KeyFileParseError {
 }
 
 impl KeyFileContent {
-	fn new(json: &Json) -> Result<KeyFileContent, KeyFileParseError> {
+	fn from_json(json: &Json) -> Result<KeyFileContent, KeyFileParseError> {
 		let as_object = match json.as_object() {
 			None => { return Err(KeyFileParseError::InvalidJsonFormat); },
 			Some(obj) => obj
@@ -371,7 +371,7 @@ impl KeyFileContent {
 
 		let crypto = match as_object.get("crypto") {
 			None => { return Err(KeyFileParseError::NoCryptoSection); }
-			Some(crypto_json) => match KeyFileCrypto::new(crypto_json) {
+			Some(crypto_json) => match KeyFileCrypto::from_json(crypto_json) {
 					Ok(crypto) => crypto,
 					Err(crypto_error) => { return Err(KeyFileParseError::Crypto(crypto_error)); }
 				}
@@ -424,7 +424,7 @@ mod tests {
 				}
 			"#).unwrap();
 
-		match KeyFileContent::new(&json) {
+		match KeyFileContent::from_json(&json) {
 			Ok(key_file) => {
 				assert_eq!(KeyFileVersion::V3(3), key_file.version)
 			},
@@ -458,7 +458,7 @@ mod tests {
 				}
 			"#).unwrap();
 
-		match KeyFileContent::new(&json) {
+		match KeyFileContent::from_json(&json) {
 			Ok(key_file) => {
 				match key_file.crypto.kdf {
 					KeyFileKdf::Scrypt(scrypt_params) => {},
@@ -494,7 +494,7 @@ mod tests {
 				}
 			"#).unwrap();
 
-		match KeyFileContent::new(&json) {
+		match KeyFileContent::from_json(&json) {
 			Ok(_) => {
 				panic!("Should be error of no crypto section, got ok");
 			},
@@ -513,7 +513,7 @@ mod tests {
 				}
 			"#).unwrap();
 
-		match KeyFileContent::new(&json) {
+		match KeyFileContent::from_json(&json) {
 			Ok(_) => {
 				panic!("Should be error of no identifier, got ok");
 			},
@@ -548,7 +548,7 @@ mod tests {
 				}
 			"#).unwrap();
 
-		match KeyFileContent::new(&json) {
+		match KeyFileContent::from_json(&json) {
 			Ok(_) => {
 				panic!("should be error of unsupported version, got ok");
 			},
@@ -584,7 +584,7 @@ mod tests {
 				}
 			"#).unwrap();
 
-		match KeyFileContent::new(&json) {
+		match KeyFileContent::from_json(&json) {
 			Ok(_) => {
 				panic!("should be error of invalid initial vector, got ok");
 			},
