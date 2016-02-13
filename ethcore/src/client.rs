@@ -144,6 +144,9 @@ pub trait BlockChainClient : Sync + Send {
 	fn best_block_header(&self) -> Bytes {
 		self.block_header(BlockId::Hash(self.chain_info().best_block_hash)).unwrap()
 	}
+
+	/// Returns numbers of blocks containing given bloom.
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -358,6 +361,15 @@ impl Client {
 			BlockId::Latest => Some(self.chain.read().unwrap().best_block_hash())
 		}
 	}
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		match id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().unwrap().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(self.chain.read().unwrap().best_block_number())
+		}
+	}
 }
 
 impl BlockChainClient for Client {
@@ -448,6 +460,13 @@ impl BlockChainClient for Client {
 			genesis_hash: chain.genesis_hash(),
 			best_block_hash: chain.best_block_hash(),
 			best_block_number: From::from(chain.best_block_number())
+		}
+	}
+
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
+		match (self.block_number(from_block), self.block_number(to_block)) {
+			(Some(from), Some(to)) => Some(self.chain.read().unwrap().blocks_with_bloom(bloom, from, to)),
+			_ => None
 		}
 	}
 }
