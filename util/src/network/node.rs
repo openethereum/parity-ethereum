@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::mem;
+use std::slice::from_raw_parts;
+use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, SocketAddrV6, Ipv4Addr, Ipv6Addr};
 use std::hash::{Hash, Hasher};
 use std::str::{FromStr};
 use hash::*;
@@ -25,15 +27,67 @@ use error::*;
 /// Node public key
 pub type NodeId = H512;
 
-#[derive(Debug)]
-/// Noe address info
+#[derive(Debug, Clone)]
+/// Node address info
 pub struct NodeEndpoint {
 	/// IP(V4 or V6) address
 	pub address: SocketAddr,
-	/// Address as string (can be host name).
-	pub address_str: String,
 	/// Conneciton port.
 	pub udp_port: u16
+}
+
+impl NodeEndpoint {
+	pub fn udp_address(&self) -> SocketAddr {
+		match self.address {
+			SocketAddr::V4(a) => SocketAddr::V4(SocketAddrV4::new(a.ip().clone(), self.udp_port)),
+			SocketAddr::V6(a) => SocketAddr::V6(SocketAddrV6::new(a.ip().clone(), self.udp_port, a.flowinfo(), a.scope_id())),
+		}
+	}
+}
+
+impl NodeEndpoint {
+	pub fn from_rlp(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let tcp_port = try!(rlp.val_at::<u16>(2));
+		let udp_port = try!(rlp.val_at::<u16>(1));
+		let addr_bytes = try!(try!(rlp.at(0)).data());
+		let address = try!(match addr_bytes.len() {
+			4 => Ok(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3]), tcp_port))),
+			16 => unsafe {
+				let o: *const u16 = mem::transmute(addr_bytes.as_ptr());
+				let o = from_raw_parts(o, 8);
+				Ok(SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::new(o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7]), tcp_port, 0, 0)))
+			},
+			_ => Err(DecoderError::RlpInconsistentLengthAndData)
+		});
+		Ok(NodeEndpoint { address: address, udp_port: udp_port })
+	}
+
+	pub fn to_rlp(&self, rlp: &mut RlpStream) {
+		match self.address {
+			SocketAddr::V4(a) => {
+				rlp.append(&(&a.ip().octets()[..]));
+			}
+			SocketAddr::V6(a) => unsafe {
+				let o: *const u8 = mem::transmute(a.ip().segments().as_ptr());
+				rlp.append(&from_raw_parts(o, 16));
+			}
+		};
+		rlp.append(&self.udp_port);
+		rlp.append(&self.address.port());
+	}
+
+	pub fn to_rlp_list(&self, rlp: &mut RlpStream) {
+		rlp.begin_list(3);
+		self.to_rlp(rlp);
+	}
+
+	pub fn is_valid(&self) -> bool {
+		self.udp_port != 0 && self.address.port() != 0 &&
+		match self.address {
+			SocketAddr::V4(a) => !a.ip().is_unspecified(),
+			SocketAddr::V6(a) => !a.ip().is_unspecified()
+		}
+	}
 }
 
 impl FromStr for NodeEndpoint {
@@ -45,7 +99,6 @@ impl FromStr for NodeEndpoint {
 		match address {
 			Ok(Some(a)) => Ok(NodeEndpoint {
 				address: a,
-				address_str: s.to_owned(),
 				udp_port: a.port()
 			}),
 			Ok(_) => Err(UtilError::AddressResolve(None)),
@@ -65,6 +118,17 @@ pub struct Node {
 	pub endpoint: NodeEndpoint,
 	pub peer_type: PeerType,
 	pub last_attempted: Option<Tm>,
+}
+
+impl Node {
+	pub fn new(id: NodeId, endpoint: NodeEndpoint) -> Node {
+		Node {
+			id: id,
+			endpoint: endpoint,
+			peer_type: PeerType::Optional,
+			last_attempted: None,
+		}
+	}
 }
 
 impl FromStr for Node {
@@ -91,7 +155,7 @@ impl PartialEq for Node {
 		self.id == other.id
 	}
 }
-impl Eq for Node { }
+impl Eq for Node {}
 
 impl Hash for Node {
 	fn hash<H>(&self, state: &mut H) where H: Hasher {

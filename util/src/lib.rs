@@ -19,6 +19,7 @@
 #![feature(augmented_assignments)]
 #![feature(associated_consts)]
 #![feature(plugin)]
+#![feature(ip)]
 #![plugin(clippy)]
 #![allow(needless_range_loop, match_bool)]
 #![feature(catch_panic)]

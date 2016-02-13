@@ -43,7 +43,10 @@ impl NodeTable {
 	}
 
 	pub fn update(&mut self, mut update: TableUpdates) {
-		self.nodes.extend(update.added.drain());
+		for (_, node) in update.added.drain() {
+			let mut entry = self.nodes.entry(node.id.clone()).or_insert_with(|| Node::new(node.id.clone(), node.endpoint.clone()));
+			entry.endpoint = node.endpoint;
+		}
 		for r in update.removed {
 			self.nodes.remove(&r);
 		}

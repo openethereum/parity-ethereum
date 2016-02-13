@@ -42,6 +42,8 @@ pub enum NetworkError {
 	Auth,
 	/// Unrecognised protocol.
 	BadProtocol,
+	/// Message expired.
+	Expired,
 	/// Peer not found.
 	PeerNotFound,
 	/// Peer is diconnected.

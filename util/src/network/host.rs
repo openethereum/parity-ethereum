@@ -31,21 +31,18 @@ use network::handshake::Handshake;
 use network::session::{Session, SessionData};
 use error::*;
 use io::*;
-use network::NetworkProtocolHandler;
+use network::{NetworkProtocolHandler, PROTOCOL_VERSION};
 use network::node::*;
 use network::stats::NetworkStats;
 use network::error::DisconnectReason;
 use igd::{PortMappingProtocol,search_gateway};
-use network::discovery::{Discovery, TableUpdates};
+use network::discovery::{Discovery, TableUpdates, NodeEntry};
 use network::node_table::NodeTable;
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
 const _DEFAULT_PORT: u16 = 30304;
-
 const MAX_CONNECTIONS: usize = 1024;
-const IDEAL_PEERS: u32 = 10;
-
 const MAINTENANCE_TIMEOUT: u64 = 1000;
 
 #[derive(Debug)]
@@ -67,6 +64,8 @@ pub struct NetworkConfiguration {
 	pub boot_nodes: Vec<String>,
 	/// Use provided node key instead of default
 	pub use_secret: Option<Secret>,
+	/// Number of connected peers to maintain
+	pub ideal_peers: u32,
 }
 
 impl NetworkConfiguration {
@@ -81,6 +80,7 @@ impl NetworkConfiguration {
 			pin: false,
 			boot_nodes: Vec::new(),
 			use_secret: None,
+			ideal_peers: 10,
 		}
 	}
 
@@ -126,6 +126,7 @@ impl NetworkConfiguration {
 			pin: self.pin,
 			boot_nodes: self.boot_nodes,
 			use_secret: self.use_secret,
+			ideal_peers: self.ideal_peers,
 		}
 	}
 }
@@ -343,19 +344,20 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&addr).unwrap();
 		let keys = if let Some(ref secret) = config.use_secret { KeyPair::from_secret(secret.clone()).unwrap() } else { KeyPair::create().unwrap() };
-		let public = keys.public().clone();
+		let endpoint = NodeEndpoint { address: addr.clone(), udp_port: addr.port() };
+		let discovery = Discovery::new(&keys, endpoint, DISCOVERY);
 		let path = config.config_path.clone();
 		let mut host = Host::<Message> {
 			info: RwLock::new(HostInfo {
 				keys: keys,
 				config: config,
 				nonce: H256::random(),
-				protocol_version: 4,
+				protocol_version: PROTOCOL_VERSION,
 				client_version: format!("Parity/{}/{}-{}-{}", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os()),
 				listen_port: 0,
 				capabilities: Vec::new(),
 			}),
-			discovery: Mutex::new(Discovery::new(&public, &addr, DISCOVERY)),
+			discovery: Mutex::new(discovery),
 			tcp_listener: Mutex::new(tcp_listener),
 			connections: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_CONNECTION, MAX_CONNECTIONS))),
 			nodes: RwLock::new(NodeTable::new(path)),
@@ -382,7 +384,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		match Node::from_str(id) {
 			Err(e) => { warn!("Could not add node: {:?}", e); },
 			Ok(n) => {
+				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
 				self.nodes.write().unwrap().add_node(n);
+				self.discovery.lock().unwrap().add_node(entry);
 			}
 		}
 	}
@@ -432,6 +436,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut to_connect: Vec<NodeInfo> = Vec::new();
 		let mut req_conn = 0;
 		let pin = self.info.read().unwrap().deref().config.pin;
+		let ideal_peers = self.info.read().unwrap().deref().config.ideal_peers;
 		for n in self.nodes.read().unwrap().nodes().map(|n| NodeInfo { id: n.id.clone(), peer_type: n.peer_type }) {
 			let connected = self.have_session(&n.id) || self.connecting_to(&n.id);
 			let required = n.peer_type == PeerType::Required;
@@ -445,7 +450,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 		for n in &to_connect {
 			if n.peer_type == PeerType::Required {
-				if req_conn < IDEAL_PEERS {
+				if req_conn < ideal_peers {
 					self.connect_peer(&n.id, io);
 				}
 				req_conn += 1;
@@ -455,7 +460,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if !pin {
 			let pending_count = 0; //TODO:
 			let peer_count = 0;
-			let mut open_slots = IDEAL_PEERS - peer_count  - pending_count + req_conn;
+			let mut open_slots = ideal_peers - peer_count  - pending_count + req_conn;
 			if open_slots > 0 {
 				for n in &to_connect {
 					if n.peer_type == PeerType::Optional && open_slots > 0 {
@@ -471,11 +476,11 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage<Message>>) {
 		if self.have_session(id)
 		{
-			warn!("Aborted connect. Node already connected.");
+			debug!("Aborted connect. Node already connected.");
 			return;
 		}
 		if self.connecting_to(id) {
-			warn!("Aborted connect. Node already connecting.");
+			debug!("Aborted connect. Node already connecting.");
 			return;
 		}
 
@@ -689,7 +694,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		for c in connections.iter() {
 			match *c.lock().unwrap().deref_mut() {
 				ConnectionEntry::Handshake(ref h) => {
-					if node_changes.removed.contains(&h.id) {
+					if node_changes.removed.contains(&h.id()) {
 						to_remove.push(h.token());
 					}
 				}
@@ -732,6 +737,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				if let Some(node_changes) = self.discovery.lock().unwrap().readable() {
 					self.update_nodes(io, node_changes);
 				}
+				io.update_registration(DISCOVERY).expect("Error updating disicovery registration");
 			},
 			TCP_ACCEPT => self.accept(io), 
 			_ => panic!("Received unknown readable token"),
@@ -741,7 +747,10 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn stream_writable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
 			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_writable(stream, io),
-			DISCOVERY => self.discovery.lock().unwrap().writable(),
+			DISCOVERY => {
+				self.discovery.lock().unwrap().writable();
+				io.update_registration(DISCOVERY).expect("Error updating disicovery registration");
+			}
 			_ => panic!("Received unknown writable token"),
 		}
 	}
@@ -752,9 +761,13 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
 				self.discovery.lock().unwrap().refresh();
+				io.update_registration(DISCOVERY).expect("Error updating disicovery registration");
 			},
 			DISCOVERY_ROUND => {
-				self.discovery.lock().unwrap().round();
+				if let Some(node_changes) = self.discovery.lock().unwrap().round() {
+					self.update_nodes(io, node_changes);
+				}
+				io.update_registration(DISCOVERY).expect("Error updating disicovery registration");
 			},
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {

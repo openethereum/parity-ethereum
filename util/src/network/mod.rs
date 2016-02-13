@@ -90,6 +90,8 @@ pub use network::stats::NetworkStats;
 
 use io::TimerToken;
 
+const PROTOCOL_VERSION: u32 = 4;
+
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
 /// All the handler function are called from within IO event loop.
 /// `Message` is the type for message data.
