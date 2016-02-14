@@ -82,7 +82,7 @@ impl NetworkConfiguration {
 			pin: false,
 			boot_nodes: Vec::new(),
 			use_secret: None,
-			ideal_peers: 10,
+			ideal_peers: 25,
 		}
 	}
 
@@ -467,9 +467,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let socket = {
 			let address = {
 				let mut nodes = self.nodes.write().unwrap();
-				let node = nodes.get_mut(id).unwrap();
-				node.last_attempted = Some(::time::now());
-				node.endpoint.address
+				if let Some(node) = nodes.get_mut(id) {
+					node.last_attempted = Some(::time::now());
+					node.endpoint.address
+				}
 			};
 			match TcpStream::connect(&address) {
 				Ok(socket) => socket,
