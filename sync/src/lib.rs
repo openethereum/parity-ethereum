@@ -16,8 +16,11 @@
 
 #![warn(missing_docs)]
 #![feature(plugin)]
-#![plugin(clippy)]
 #![feature(augmented_assignments)]
+#![plugin(clippy)]
+// Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
+#![allow(clone_on_copy)]
+
 //! Blockchain sync module
 //! Implements ethereum protocol version 63 as specified here:
 //! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol

@@ -19,9 +19,17 @@
 #![feature(augmented_assignments)]
 #![feature(associated_consts)]
 #![feature(plugin)]
-#![plugin(clippy)]
-#![allow(needless_range_loop, match_bool)]
 #![feature(catch_panic)]
+// Clippy settings
+#![plugin(clippy)]
+// TODO [todr] not really sure
+#![allow(needless_range_loop)]
+// Shorter than if-else
+#![allow(match_bool)]
+// We use that to be more explicit about handled cases
+#![allow(match_same_arms)]
+// Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
+#![allow(clone_on_copy)]
 
 //! Ethcore-util library
 //!
