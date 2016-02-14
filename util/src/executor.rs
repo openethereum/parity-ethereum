@@ -50,18 +50,18 @@ macro_rules! ordering_for {
 /// Some work to be done in a thread pool
 pub trait Task: Ord + Send + 'static {
 	/// Task result
-	type TResult: Send + 'static;
+	type Result: Send + 'static;
 	/// Task error
-	type TError: Send + 'static;
+	type Error: Send + 'static;
 
 	/// Actual computation to be done
-	fn call(&mut self) -> Result<Self::TResult, Self::TError>;
+	fn call(&mut self) -> Result<Self::Result, Self::Error>;
 }
 
 /// Abstraction over task execution
 pub trait Executor<T : Task> {
 	/// Add new task to be executed. Returns a `Future` result.
-	fn execute(&mut self, task: T) -> Future<T::TResult, T::TError>;
+	fn execute(&mut self, task: T) -> Future<T::Result, T::Error>;
 }
 
 /// PriorityQueue of tasks waiting for execution
@@ -78,7 +78,7 @@ pub struct TaskQueueElement<T: Task> {
 	/// Task
 	task: T,
 	/// Task fulfillment or rejection handler
-	complete: Complete<T::TResult, T::TError>
+	complete: Complete<T::Result, T::Error>
 }
 
 // Implementations
@@ -88,26 +88,26 @@ impl Executors {
 		SameThreadExecutor
 	}
 
-	pub fn thread_pool<TTask, TQueue>(threads: usize, queue: TQueue) -> ThreadPoolExecutor<TTask, TQueue>
-		where TTask: Task, TQueue : TaskQueue<TTask> {
+	pub fn thread_pool<T, Queue>(threads: usize, queue: Queue) -> ThreadPoolExecutor<T, Queue>
+		where T: Task, Queue : TaskQueue<T> {
 			ThreadPoolExecutor::new(threads, queue)
 		}
 }
 
-pub struct ThreadPoolExecutor<TTask, TQueue>
-	where TTask: Task, TQueue: TaskQueue<TTask> {
+pub struct ThreadPoolExecutor<T, Queue>
+	where T: Task, Queue: TaskQueue<T> {
 
 	wait: Arc<Condvar>,
 	finished: Arc<atomic::AtomicBool>,
-	queue: Arc<Mutex<TQueue>>,
+	queue: Arc<Mutex<Queue>>,
 	threads: Vec<JoinHandle<()>>,
-	_task: PhantomData<TTask>
+	_task: PhantomData<T>
 }
 
-impl<TTask, TQueue> ThreadPoolExecutor<TTask, TQueue>
-	where TTask: Task, TQueue: TaskQueue<TTask> {
+impl<T, Queue> ThreadPoolExecutor<T, Queue>
+	where T: Task, Queue: TaskQueue<T> {
 
-	pub fn new(threads_num: usize, queue: TQueue) -> ThreadPoolExecutor<TTask, TQueue> {
+	pub fn new(threads_num: usize, queue: Queue) -> ThreadPoolExecutor<T, Queue> {
 		assert!(threads_num > 0);
 
 		let wait = Arc::new(Condvar::new());
@@ -131,7 +131,7 @@ impl<TTask, TQueue> ThreadPoolExecutor<TTask, TQueue>
 		}
 	}
 
-	fn worker(wait: Arc<Condvar>, finished: Arc<atomic::AtomicBool>, queue: Arc<Mutex<TQueue>>) {
+	fn worker(wait: Arc<Condvar>, finished: Arc<atomic::AtomicBool>, queue: Arc<Mutex<Queue>>) {
 		loop {
 			// Initial check if not finished
 			if finished.load(atomic::Ordering::Relaxed) {
@@ -159,8 +159,8 @@ impl<TTask, TQueue> ThreadPoolExecutor<TTask, TQueue>
 	}
 }
 
-impl<TTask, TQueue> Drop for ThreadPoolExecutor<TTask, TQueue>
-	where TTask: Task, TQueue: TaskQueue<TTask> {
+impl<T, Queue> Drop for ThreadPoolExecutor<T, Queue>
+	where T: Task, Queue: TaskQueue<T> {
 	fn drop(&mut self) {
 		self.finished.store(true, atomic::Ordering::Relaxed);
 		self.wait.notify_all();
@@ -171,10 +171,10 @@ impl<TTask, TQueue> Drop for ThreadPoolExecutor<TTask, TQueue>
 	}
 }
 
-impl<TTask, TQueue> Executor<TTask> for ThreadPoolExecutor<TTask, TQueue>
-	where TTask: Task, TQueue: TaskQueue<TTask> {
+impl<T, Queue> Executor<T> for ThreadPoolExecutor<T, Queue>
+	where T: Task, Queue: TaskQueue<T> {
 
-	fn execute(&mut self, task: TTask) -> Future<TTask::TResult, TTask::TError> {
+	fn execute(&mut self, task: T) -> Future<T::Result, T::Error> {
 		let (complete, future) = Future::pair();
 		let mut q = self.queue.lock().unwrap();
 		q.push(TaskQueueElement {
@@ -187,9 +187,9 @@ impl<TTask, TQueue> Executor<TTask> for ThreadPoolExecutor<TTask, TQueue>
 }
 
 pub struct SameThreadExecutor;
-impl<TTask: Task> Executor<TTask> for SameThreadExecutor {
+impl<T: Task> Executor<T> for SameThreadExecutor {
 
-	fn execute(&mut self, mut task: TTask) -> Future<TTask::TResult, TTask::TError> {
+	fn execute(&mut self, mut task: T) -> Future<T::Result, T::Error> {
 		task.call()
 			.map(Future::of)
 			.unwrap_or_else(Future::error)
@@ -198,7 +198,7 @@ impl<TTask: Task> Executor<TTask> for SameThreadExecutor {
 
 // TaskQueueElement ordering
 impl<T: Task> TaskQueueElement<T> {
-	fn consume(self) -> (Complete<T::TResult, T::TError>, Result<T::TResult, T::TError>) {
+	fn consume(self) -> (Complete<T::Result, T::Error>, Result<T::Result, T::Error>) {
 		let mut task = self.task;
 		(self.complete, task.call())
 	}
@@ -254,10 +254,10 @@ mod test {
 	}
 
 	impl Task for TestTask {
-		type TResult = usize;
-		type TError = ();
+		type Result = usize;
+		type Error = ();
 
-		fn call(&mut self) -> Result<Self::TResult, Self::TError>{
+		fn call(&mut self) -> Result<Self::Result, Self::Error>{
 			(self.closure)()
 		}
 	}
