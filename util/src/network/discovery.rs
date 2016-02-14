@@ -26,7 +26,7 @@ use time;
 use hash::*;
 use crypto::*;
 use rlp::*;
-use network::node::*;
+use network::node_table::*;
 use network::error::NetworkError;
 use io::StreamToken;
 
@@ -227,8 +227,7 @@ impl Discovery {
 	}
 
 	#[allow(map_clone)]
-	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry>
-	{
+	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry> {
 		let mut found: BTreeMap<u32, Vec<&NodeEntry>> = BTreeMap::new();
 		let mut count = 0;
 
@@ -425,6 +424,7 @@ impl Discovery {
 			let node_id: NodeId = try!(r.val_at(3));
 			let entry = NodeEntry { id: node_id.clone(), endpoint: endpoint };
 			added.insert(node_id, entry.clone());
+			self.ping(&entry.endpoint);
 			self.update_node(entry);
 		}
 		Ok(Some(TableUpdates { added: added, removed: HashSet::new() }))

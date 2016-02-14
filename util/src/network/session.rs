@@ -23,7 +23,7 @@ use error::*;
 use io::{IoContext, StreamToken};
 use network::error::{NetworkError, DisconnectReason};
 use network::host::*;
-use network::node::NodeId;
+use network::node_table::NodeId;
 use time;
 
 const PING_TIMEOUT_SEC: u64 = 30;

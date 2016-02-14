@@ -24,7 +24,7 @@ use crypto::*;
 use crypto;
 use network::connection::{Connection};
 use network::host::{HostInfo};
-use network::node::NodeId;
+use network::node_table::NodeId;
 use error::*;
 use network::error::NetworkError;
 use network::stats::NetworkStats;

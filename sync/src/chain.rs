@@ -82,7 +82,7 @@ const RECEIPTS_PACKET: u8 = 0x10;
 
 const NETWORK_ID: U256 = ONE_U256; //TODO: get this from parent
 
-const CONNECTION_TIMEOUT_SEC: f64 = 30f64;
+const CONNECTION_TIMEOUT_SEC: f64 = 10f64;
 
 struct Header {
 	/// Header data
@@ -309,7 +309,7 @@ impl ChainSync {
 		}
 
 		self.peers.insert(peer_id.clone(), peer);
-		info!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
+		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
 		self.sync_peer(io, peer_id, false);
 		Ok(())
 	}
@@ -537,7 +537,7 @@ impl ChainSync {
 	pub fn on_peer_aborting(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Disconnecting {}", peer);
 		if self.peers.contains_key(&peer) {
-			info!(target: "sync", "Disconnected {}", peer);
+			debug!(target: "sync", "Disconnected {}", peer);
 			self.clear_peer_download(peer);
 			self.peers.remove(&peer);
 			self.continue_sync(io);

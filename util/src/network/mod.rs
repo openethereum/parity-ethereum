@@ -71,7 +71,6 @@ mod session;
 mod discovery;
 mod service;
 mod error;
-mod node;
 mod node_table;
 mod stats;
 
