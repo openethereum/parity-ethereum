@@ -16,6 +16,7 @@
 
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
+use ethcore::client::BlockId;
 
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq)]
@@ -53,8 +54,20 @@ impl Visitor for BlockNumberVisitor {
 	}
 }
 
+impl Into<BlockId> for BlockNumber {
+	fn into(self) -> BlockId {
+		match self {
+			BlockNumber::Num(n) => BlockId::Number(n),
+			BlockNumber::Earliest => BlockId::Earliest,
+			BlockNumber::Latest => BlockId::Latest,
+			BlockNumber::Pending => BlockId::Latest // TODO: change this once blockid support pending
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
+	use ethcore::client::BlockId;
 	use super::*;
 	use serde_json;
 
@@ -63,6 +76,14 @@ mod tests {
 		let s = r#"["0xa", "10", "latest", "earliest", "pending"]"#;
 		let deserialized: Vec<BlockNumber> = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, vec![BlockNumber::Num(10), BlockNumber::Num(10), BlockNumber::Latest, BlockNumber::Earliest, BlockNumber::Pending])
+	}
+
+	#[test]
+	fn block_number_into() {
+		assert_eq!(BlockId::Number(100), BlockNumber::Num(100).into());
+		assert_eq!(BlockId::Earliest, BlockNumber::Earliest.into());
+		assert_eq!(BlockId::Latest, BlockNumber::Latest.into());
+		assert_eq!(BlockId::Latest, BlockNumber::Pending.into());
 	}
 }
 

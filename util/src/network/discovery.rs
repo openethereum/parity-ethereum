@@ -211,7 +211,7 @@ impl Discovery {
 		}
 
 		let mut ret:Vec<&NodeId> = Vec::new();
-		for (_, nodes) in found {
+		for nodes in found.values() {
 			for n in nodes {
 				if ret.len() < BUCKET_SIZE as usize /* && n->endpoint && n->endpoint.isAllowed() */ {
 					ret.push(n);

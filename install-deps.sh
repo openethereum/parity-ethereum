@@ -688,7 +688,7 @@ function run_installer()
 		info "- Run tests with:"
 		info "    ${b}cargo test --release --features ethcore/json-tests -p ethcore${reset}"
 		info "- Install the client with:"
-		info "    ${b}sudo cp parity/target/release/parity${reset}"
+		info "    ${b}sudo cp parity/target/release/parity${reset} /usr/local/bin"
 		echo
 	}
 

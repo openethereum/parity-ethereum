@@ -153,12 +153,12 @@ impl State {
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> U256 {
-		self.get(a, false).as_ref().map_or(U256::zero(), |account| account.balance().clone())
+		self.get(a, false).as_ref().map_or(U256::zero(), |account| *account.balance())
 	}
 
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> U256 {
-		self.get(a, false).as_ref().map_or(U256::zero(), |account| account.nonce().clone())
+		self.get(a, false).as_ref().map_or(U256::zero(), |account| *account.nonce())
 	}
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
