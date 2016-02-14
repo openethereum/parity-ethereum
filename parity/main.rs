@@ -55,16 +55,19 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
-  parity [options] [ <enode>... ]
+  parity [options] [ --no-bootstrap | <enode>... ]
 
 Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
                            or frontier, mainnet, morden, or testnet [default: frontier].
+  -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
 
+  --no-bootstrap           Don't bother trying to connect to any nodes initially.
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
   --address URL            Equivalent to --listen-address URL --public-address URL.
   --upnp                   Use UPnP to try to figure out the correct network settings.
+  --node-key KEY           Specify node secret key as hex string.
 
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
@@ -75,7 +78,7 @@ Options:
   -l --logging LOGGING     Specify the logging level.
   -v --version             Show information about version.
   -h --help                Show this screen.
-", flag_cache_pref_size: usize, flag_cache_max_size: usize, flag_address: Option<String>);
+", flag_cache_pref_size: usize, flag_cache_max_size: usize, flag_address: Option<String>, flag_node_key: Option<String>);
 
 fn setup_log(init: &str) {
 	let mut builder = LogBuilder::new();
@@ -129,7 +132,11 @@ impl Configuration {
 		}
 	}
 
-	fn get_spec(&self) -> Spec {
+	fn path(&self) -> String {
+		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+	}
+
+	fn spec(&self) -> Spec {
 		match self.args.flag_chain.as_ref() {
 			"frontier" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
@@ -138,14 +145,16 @@ impl Configuration {
 		}
 	}
 
-	fn get_init_nodes(&self, spec: &Spec) -> Vec<String> {
-		match self.args.arg_enode.len() {
-			0 => spec.nodes().clone(),
-			_ => self.args.arg_enode.clone(),
+	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
+		if self.args.flag_no_bootstrap { Vec::new() } else {
+			match self.args.arg_enode.len() {
+				0 => spec.nodes().clone(),
+				_ => self.args.arg_enode.clone(),
+			}
 		}
 	}
 
-	fn get_net_addresses(&self) -> (SocketAddr, SocketAddr) {
+	fn net_addresses(&self) -> (SocketAddr, SocketAddr) {
 		let listen_address;
 		let public_address;
 
@@ -183,7 +192,7 @@ fn main() {
 		return;
 	}
 
-	let spec = conf.get_spec();
+	let spec = conf.spec();
 
 	// Setup logging
 	setup_log(&conf.args.flag_logging);
@@ -193,13 +202,14 @@ fn main() {
 	// Configure network
 	let mut net_settings = NetworkConfiguration::new();
 	net_settings.nat_enabled = conf.args.flag_upnp;
-	net_settings.boot_nodes = conf.get_init_nodes(&spec);
-	let (listen, public) = conf.get_net_addresses();
+	net_settings.boot_nodes = conf.init_nodes(&spec);
+	let (listen, public) = conf.net_addresses();
 	net_settings.listen_address = listen;
 	net_settings.public_address = public;
+	net_settings.use_secret = conf.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
 
 	// Build client
-	let mut service = ClientService::start(spec, net_settings).unwrap();
+	let mut service = ClientService::start(spec, net_settings, &Path::new(&conf.path())).unwrap();
 	let client = service.client().clone();
 	client.configure_cache(conf.args.flag_cache_pref_size, conf.args.flag_cache_max_size);
 
@@ -251,7 +261,7 @@ impl Informant {
 		let sync_info = sync.status();
 
 		if let (_, &Some(ref last_cache_info), &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
-			println!("[ {} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, {} downloaded, {}+{} queued ···//  {} ({}) bl  {} ({}) ex ]",
+			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···//  {} ({}) bl  {} ({}) ex ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
 				(report.blocks_imported - last_report.blocks_imported) / dur,
@@ -260,7 +270,7 @@ impl Informant {
 
 				sync_info.num_active_peers,
 				sync_info.num_peers,
-				sync_info.blocks_received,
+				sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number),
 				queue_info.unverified_queue_size,
 				queue_info.verified_queue_size,
 

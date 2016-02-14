@@ -17,7 +17,6 @@
 #![feature(test)]
 
 extern crate test;
-extern crate rand;
 extern crate ethcore_util;
 #[macro_use]
 extern crate log;
