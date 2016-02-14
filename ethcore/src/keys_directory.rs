@@ -546,7 +546,7 @@ impl KeyDirectory {
 
 #[cfg(test)]
 mod file_tests {
-	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError, CryptoParseError, uuid_from_string, uuid_to_string, KeyFileCrypto};
+	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError, CryptoParseError, uuid_from_string, uuid_to_string, KeyFileCrypto, KdfPbkdf2Params};
 	use common::*;
 
 	#[test]
@@ -838,6 +838,88 @@ mod file_tests {
 		let loaded_key = KeyFileContent::from_json(&json).unwrap();
 
 		assert_eq!(loaded_key.id, key.id);
+	}
+
+	#[test]
+	fn can_parse_kdf_params_fail() {
+		let json = Json::from_str(
+			r#"
+			{
+				"dklen" : 32,
+				"n" : 262144,
+				"r" : 1,
+				"p" : 8,
+				"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+			}
+			"#).unwrap();
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.remove("dklen");
+			let kdf = KdfPbkdf2Params::from_json(&invalid_json);
+			assert!(!kdf.is_ok());
+		}
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.remove("n");
+			let kdf = KdfPbkdf2Params::from_json(&invalid_json);
+			assert!(!kdf.is_ok());
+		}
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.remove("r");
+			let kdf = KdfPbkdf2Params::from_json(&invalid_json);
+			assert!(!kdf.is_ok());
+		}
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.remove("p");
+			let kdf = KdfPbkdf2Params::from_json(&invalid_json);
+			assert!(!kdf.is_ok());
+		}
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.remove("salt");
+			let kdf = KdfPbkdf2Params::from_json(&invalid_json);
+			assert!(!kdf.is_ok());
+		}
+
+	}
+
+	#[test]
+	fn can_parse_kdf_params_scrypt_fail() {
+		let json = Json::from_str(
+			r#"
+			{
+				"dklen" : 32,
+				"r" : 1,
+				"p" : 8,
+				"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+			}
+			"#).unwrap();
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.remove("dklen");
+			let kdf = KdfPbkdf2Params::from_json(&invalid_json);
+			assert!(!kdf.is_ok());
+		}
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.remove("r");
+			let kdf = KdfPbkdf2Params::from_json(&invalid_json);
+			assert!(!kdf.is_ok());
+		}
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.remove("p");
+			let kdf = KdfPbkdf2Params::from_json(&invalid_json);
+			assert!(!kdf.is_ok());
+		}
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.remove("salt");
+			let kdf = KdfPbkdf2Params::from_json(&invalid_json);
+			assert!(!kdf.is_ok());
+		}
 	}
 
 }
