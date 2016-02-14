@@ -45,10 +45,9 @@ impl OriginInfo {
 		OriginInfo {
 			address: params.address.clone(),
 			origin: params.origin.clone(),
-			gas_price: params.gas_price.clone(),
+			gas_price: params.gas_price,
 			value: match params.value {
-				ActionValue::Transfer(val) => val,
-				ActionValue::Apparent(val) => val,
+				ActionValue::Transfer(val) | ActionValue::Apparent(val) => val
 			}
 		}
 	}
@@ -133,8 +132,8 @@ impl<'a> Ext for Externalities<'a> {
 			sender: self.origin_info.address.clone(),
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
-			gas_price: self.origin_info.gas_price.clone(),
-			value: ActionValue::Transfer(value.clone()),
+			gas_price: self.origin_info.gas_price,
+			value: ActionValue::Transfer(*value),
 			code: Some(code.to_vec()),
 			data: None,
 		};
@@ -164,11 +163,11 @@ impl<'a> Ext for Externalities<'a> {
 		let mut params = ActionParams {
 			sender: sender_address.clone(),
 			address: receive_address.clone(),
-			value: ActionValue::Apparent(self.origin_info.value.clone()),
+			value: ActionValue::Apparent(self.origin_info.value),
 			code_address: code_address.clone(),
 			origin: self.origin_info.origin.clone(),
 			gas: *gas,
-			gas_price: self.origin_info.gas_price.clone(),
+			gas_price: self.origin_info.gas_price,
 			code: self.state.code(code_address),
 			data: Some(data.to_vec()),
 		};
