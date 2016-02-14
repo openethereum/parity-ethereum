@@ -466,6 +466,7 @@ impl ChainSync {
 					trace!(target: "sync", "New block already queued {:?}", h);
 				},
 				Ok(_) => {
+					self.last_imported_block = Some(header.number);
 					trace!(target: "sync", "New block queued {:?}", h);
 				},
 				Err(ImportError::UnknownParent) => {
