@@ -180,7 +180,7 @@ impl Session {
 	}
 
 	/// Keep this session alive. Returns false if ping timeout happened
-	pub fn keep_alive(&mut self) -> bool {
+	pub fn keep_alive<Message>(&mut self, io: &IoContext<Message>) -> bool where Message: Send + Sync + Clone {
 		let timed_out = if let Some(pong) = self.pong_time_ns {
 			pong - self.ping_time_ns > PING_TIMEOUT_SEC * 1000_000_000
 		} else {
@@ -191,6 +191,7 @@ impl Session {
 			if let Err(e) = self.send_ping() {
 				debug!("Error sending ping message: {:?}", e);
 			}
+			io.update_registration(self.token()).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
 		}
 		!timed_out
 	}
