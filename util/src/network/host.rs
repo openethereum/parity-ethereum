@@ -471,6 +471,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					node.last_attempted = Some(::time::now());
 					node.endpoint.address
 				}
+				else {
+					debug!("Connection to expired node aborted");
+					return;
+				}
 			};
 			match TcpStream::connect(&address) {
 				Ok(socket) => socket,
@@ -647,7 +651,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut session = match Session::new(h, &self.info.read().unwrap()) {
 			Ok(s) => s,
 			Err(e) => {
-				warn!("Session creation error: {:?}", e);
+				debug!("Session creation error: {:?}", e);
 				return;
 			}
 		};
