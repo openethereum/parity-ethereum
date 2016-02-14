@@ -408,7 +408,7 @@ impl Decodable for Vec<u8> {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
 		decoder.read_value(| bytes | {
 			let mut res = vec![];
-			res.extend(bytes);
+			res.extend_from_slice(bytes);
 			Ok(res)
 		})
 	}
