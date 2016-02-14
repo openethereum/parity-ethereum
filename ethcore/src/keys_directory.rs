@@ -922,6 +922,50 @@ mod file_tests {
 		}
 	}
 
+	#[test]
+	fn can_parse_crypto_fails() {
+		let json = Json::from_str(
+			r#"
+			{
+				"cipher" : "aes-128-ctr",
+				"cipherparams" : {
+					"iv" : "83dbcc02d8ccb40e466191a123791e0e"
+				},
+				"ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+				"kdf" : "scrypt",
+				"kdfparams" : {
+					"dklen" : 32,
+					"n" : 262144,
+					"r" : 1,
+					"p" : 8,
+					"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+				},
+				"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+			}"#).unwrap();
+
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.insert("cipher".to_owned(), Json::String("unknown".to_owned()));
+			let crypto = KeyFileCrypto::from_json(&Json::Object(invalid_json));
+			assert!(!crypto.is_ok());
+		}
+
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.insert("kdfparams".to_owned(), Json::String("122".to_owned()));
+			let crypto = KeyFileCrypto::from_json(&Json::Object(invalid_json));
+			assert!(!crypto.is_ok());
+		}
+
+		{
+			let mut invalid_json = json.as_object().unwrap().clone();
+			invalid_json.insert("kdf".to_owned(), Json::String("15522".to_owned()));
+			let crypto = KeyFileCrypto::from_json(&Json::Object(invalid_json));
+			assert!(!crypto.is_ok());
+		}
+
+	}
+
 }
 
 #[cfg(test)]
