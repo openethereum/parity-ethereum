@@ -108,7 +108,7 @@ const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
 	/// Create a new session out of comepleted handshake. Consumes handshake object.
-	pub fn new(h: Handshake, token: StreamToken, host: &HostInfo) -> Result<Session, UtilError> {
+	pub fn new(h: Handshake, host: &HostInfo) -> Result<Session, UtilError> {
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
 		let mut session = Session {
@@ -124,7 +124,6 @@ impl Session {
 			ping_time_ns: 0,
 			pong_time_ns: None,
 		};
-		session.connection.set_token(token);
 		try!(session.write_hello(host));
 		try!(session.send_ping());
 		Ok(session)
@@ -138,6 +137,11 @@ impl Session {
 	/// Check if session is ready to send/receive data
 	pub fn is_ready(&self) -> bool {
 		self.had_hello
+	}
+
+	/// Replace socket token 
+	pub fn set_token(&mut self, token: StreamToken) {
+		self.connection.set_token(token);
 	}
 
 	/// Readable IO handler. Returns packet data if available.

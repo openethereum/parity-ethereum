@@ -643,8 +643,15 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 		}
 		let h = Arc::try_unwrap(h).ok().unwrap().into_inner().unwrap();
+		let mut session = match Session::new(h, &self.info.read().unwrap()) {
+			Ok(s) => s,
+			Err(e) => {
+				warn!("Session creation error: {:?}", e);
+				return;
+			}
+		};
 		let result = sessions.insert_with(move |session_token| {
-			let session = Session::new(h, session_token, &self.info.read().unwrap()).expect("Session creation error");
+			session.set_token(session_token);
 			io.update_registration(session_token).expect("Error updating session registration");
 			self.stats.inc_sessions();
 			Arc::new(Mutex::new(session))
