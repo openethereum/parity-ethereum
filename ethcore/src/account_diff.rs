@@ -72,14 +72,14 @@ impl AccountDiff {
 	pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
 		match (pre, post) {
 			(None, Some(x)) => Some(AccountDiff {
-				balance: Diff::Born(x.balance.clone()),
-				nonce: Diff::Born(x.nonce.clone()),
+				balance: Diff::Born(x.balance),
+				nonce: Diff::Born(x.nonce),
 				code: Diff::Born(x.code.clone()),
 				storage: x.storage.iter().map(|(k, v)| (k.clone(), Diff::Born(v.clone()))).collect(),
 			}),
 			(Some(x), None) => Some(AccountDiff {
-				balance: Diff::Died(x.balance.clone()),
-				nonce: Diff::Died(x.nonce.clone()),
+				balance: Diff::Died(x.balance),
+				nonce: Diff::Died(x.nonce),
 				code: Diff::Died(x.code.clone()),
 				storage: x.storage.iter().map(|(k, v)| (k.clone(), Diff::Died(v.clone()))).collect(),
 			}),
@@ -88,8 +88,8 @@ impl AccountDiff {
 					.filter(|k| pre.storage.get(k).unwrap_or(&H256::new()) != post.storage.get(k).unwrap_or(&H256::new()))
 					.collect();
 				let r = AccountDiff {
-					balance: Diff::new(pre.balance.clone(), post.balance.clone()),
-					nonce: Diff::new(pre.nonce.clone(), post.nonce.clone()),
+					balance: Diff::new(pre.balance, post.balance),
+					nonce: Diff::new(pre.nonce, post.nonce),
 					code: Diff::new(pre.code.clone(), post.code.clone()),
 					storage: storage.into_iter().map(|k|
 						(k.clone(), Diff::new(
