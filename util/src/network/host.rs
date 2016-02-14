@@ -635,7 +635,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		
 		// turn a handshake into a session
 		let mut sessions = self.sessions.write().unwrap();
-		let h = handshakes.remove(token).unwrap();
+		let mut h = handshakes.remove(token).unwrap();
+		// wait for other threads to stop using it
+		{
+			while Arc::get_mut(&mut h).is_none() {
+				h.lock().ok();
+			}
+		}
 		let h = Arc::try_unwrap(h).ok().unwrap().into_inner().unwrap();
 		let result = sessions.insert_with(move |session_token| {
 			let session = Session::new(h, session_token, &self.info.read().unwrap()).expect("Session creation error");
