@@ -24,7 +24,7 @@ pub mod ethash;
 /// Export the denominations module.
 pub mod denominations;
 
-pub use self::ethash::*;
+pub use self::ethash::{Ethash};
 pub use self::denominations::*;
 
 use super::spec::*;

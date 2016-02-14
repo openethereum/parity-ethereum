@@ -325,7 +325,7 @@ impl Session {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(PACKET_DISCONNECT as u32));
 		rlp.begin_list(1);
-		rlp.append(&(reason.clone() as u32));
+		rlp.append(&(reason as u32));
 		self.connection.send_packet(&rlp.out()).ok();
 		NetworkError::Disconnect(reason)
 	}

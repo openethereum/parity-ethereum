@@ -9,13 +9,13 @@ authors = ["Ethcore <admin@ethcore.io"]
 
 [dependencies]
 serde = "0.6.7"
-serde_macros = "0.6.10"
+serde_macros = { git = "https://github.com/debris/serde", path = "serde_macros" }
 serde_json = "0.6.0"
-jsonrpc-core = "1.1"
-jsonrpc-http-server = "1.1"
+jsonrpc-core = { git = "https://github.com/debris/jsonrpc-core" }
+jsonrpc-http-server = { git = "https://github.com/debris/jsonrpc-http-server" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
-clippy = "0.0.37"
+clippy = "0.0.41"
 target_info = "0.1.0"
 rustc-serialize = "0.3"
