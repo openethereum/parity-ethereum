@@ -43,8 +43,8 @@ impl PodAccount {
 	/// NOTE: This will silently fail unless the account is fully cached.
 	pub fn from_account(acc: &Account) -> PodAccount {
 		PodAccount {
-			balance: acc.balance().clone(),
-			nonce: acc.nonce().clone(),
+			balance: *acc.balance(),
+			nonce: *acc.nonce(),
 			storage: acc.storage_overlay().iter().fold(BTreeMap::new(), |mut m, (k, &(_, ref v))| {m.insert(k.clone(), v.clone()); m}),
 			code: acc.code().unwrap().to_vec(),
 		}

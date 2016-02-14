@@ -84,7 +84,7 @@ impl Ext for FakeExt {
 	}
 
 	fn balance(&self, address: &Address) -> U256 {
-		self.balances.get(address).unwrap().clone()
+		*self.balances.get(address).unwrap()
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
@@ -94,10 +94,10 @@ impl Ext for FakeExt {
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::CREATE,
-			gas: gas.clone(),
+			gas: *gas,
 			sender_address: None,
 			receive_address: None,
-			value: Some(value.clone()),
+			value: Some(*value),
 			data: code.to_vec(),
 			code_address: None
 		});
@@ -115,14 +115,14 @@ impl Ext for FakeExt {
 
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::CALL,
-			gas: gas.clone(),
+			gas: *gas,
 			sender_address: Some(sender_address.clone()),
 			receive_address: Some(receive_address.clone()),
 			value: value,
 			data: data.to_vec(),
 			code_address: Some(code_address.clone())
 		});
-		MessageCallResult::Success(gas.clone())
+		MessageCallResult::Success(*gas)
 	}
 
 	fn extcode(&self, address: &Address) -> Bytes {
@@ -898,7 +898,7 @@ fn test_calls(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 	ext.balances = {
 		let mut s = HashMap::new();
-		s.insert(params.address.clone(), params.gas.clone());
+		s.insert(params.address.clone(), params.gas);
 		s
 	};
 
