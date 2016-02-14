@@ -26,7 +26,7 @@ crossbeam = "0.2"
 slab = { git = "https://github.com/arkpar/slab.git" }
 sha3 = { path = "sha3" }
 serde = "0.6.7"
-clippy = "0.0.39"
+clippy = "0.0.41"
 json-tests = { path = "json-tests" }
 target_info = "0.1.0"
 igd = "0.4.2"
