@@ -9,10 +9,10 @@ authors = ["Ethcore <admin@ethcore.io"]
 
 [dependencies]
 serde = "0.6.7"
-serde_macros = { git = "https://github.com/debris/serde", path = "serde_macros" }
+serde_macros = "0.6.13"
 serde_json = "0.6.0"
-jsonrpc-core = { git = "https://github.com/debris/jsonrpc-core" }
-jsonrpc-http-server = { git = "https://github.com/debris/jsonrpc-http-server" }
+jsonrpc-core = "1.1.2"
+jsonrpc-http-server = "1.1.2"
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
