@@ -19,7 +19,7 @@
 # install rocksdb
 add-apt-repository ppa:ethcore/ethcore
 apt-get update
-apt-get install -y --force-yes librocksdb
+apt-get install -y --force-yes librocksdb-dev
 
 # install multirust
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
