@@ -170,8 +170,7 @@ impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq +
 
 		// todo: fix warning
 		let lower = match self.binary_search_by(|&(k, _)| k.cmp(&key).reverse()) {
-			Ok(index) => index,
-			Err(index) => index,
+			Ok(index) | Err(index) => index
 		};
 
 		let mut to_remove: Option<usize> = None;

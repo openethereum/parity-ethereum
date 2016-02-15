@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// 
+///
 /// BlockChain synchronization strategy.
-/// Syncs to peers and keeps up to date. 
+/// Syncs to peers and keeps up to date.
 /// This implementation uses ethereum protocol v63
 ///
 /// Syncing strategy.
 ///
 /// 1. A peer arrives with a total difficulty better than ours
-/// 2. Find a common best block between our an peer chain. 
+/// 2. Find a common best block between our an peer chain.
 /// Start with out best block and request headers from peer backwards until a common block is found
-/// 3. Download headers and block bodies from peers in parallel. 
+/// 3. Download headers and block bodies from peers in parallel.
 /// As soon as a set of the blocks is fully downloaded at the head of the queue it is fed to the blockchain
 /// 4. Maintain sync by handling NewBlocks/NewHashes messages
 ///
@@ -250,6 +250,8 @@ impl ChainSync {
 		self.peers.clear();
 	}
 
+
+	#[allow(for_kv_map)] // Because it's not possible to get `values_mut()`
 	/// Rest sync. Clear all downloaded data but keep the queue
 	fn reset(&mut self) {
 		self.downloading_headers.clear();
@@ -1063,7 +1065,7 @@ impl ChainSync {
 			GET_NODE_DATA_PACKET => self.return_rlp(io, &rlp,
 				ChainSync::return_node_data,
 				|e| format!("Error sending nodes: {:?}", e)),
-				
+
 			_ => {
 				debug!(target: "sync", "Unknown packet {}", packet_id);
 				Ok(())
@@ -1100,8 +1102,7 @@ impl ChainSync {
 						let mut rlp_stream = RlpStream::new_list(route.blocks.len());
 						for block_hash in route.blocks {
 							let mut hash_rlp = RlpStream::new_list(2);
-							let difficulty = chain.block_total_difficulty(BlockId::Hash(block_hash.clone())).unwrap();
-		
+							let difficulty = chain.block_total_difficulty(BlockId::Hash(block_hash.clone())).expect("Mallformed block without a difficulty on the chain!");
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&difficulty);
 							rlp_stream.append_raw(&hash_rlp.out(), 1);
