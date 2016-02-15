@@ -20,6 +20,7 @@
 #![feature(associated_consts)]
 #![feature(plugin)]
 #![feature(catch_panic)]
+#![feature(cell_extras)]
 // Clippy settings
 #![plugin(clippy)]
 // TODO [todr] not really sure

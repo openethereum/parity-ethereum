@@ -17,3 +17,5 @@
 //! Key management module
 
 pub mod directory;
+
+mod encryptor;
