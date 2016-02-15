@@ -86,6 +86,13 @@ macro_rules! impl_hash {
 			}
 		}
 
+		impl AsRef<[u8]> for $from {
+			#[inline]
+			fn as_ref(&self) -> &[u8] {
+				&self.0
+			}
+		}
+
 		impl DerefMut for $from {
 			#[inline]
 			fn deref_mut(&mut self) -> &mut [u8] {

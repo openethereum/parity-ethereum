@@ -20,11 +20,17 @@ use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, SocketAddrV6, Ipv4Addr, 
 use std::hash::{Hash, Hasher};
 use std::str::{FromStr};
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
+use std::path::{PathBuf, Path};
+use std::fmt;
+use std::fs;
+use std::io::{Read, Write};
 use hash::*;
 use rlp::*;
 use time::Tm;
 use error::*;
 use network::discovery::TableUpdates;
+pub use rustc_serialize::json::Json;
 
 /// Node public key
 pub type NodeId = H512;
@@ -135,6 +141,17 @@ impl Node {
 	}
 }
 
+impl Display for Node {
+	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+		if self.endpoint.udp_port != self.endpoint.address.port() {
+			write!(f, "enode://{}@{}+{}", self.id.hex(), self.endpoint.address, self.endpoint.udp_port);
+		} else {
+			write!(f, "enode://{}@{}", self.id.hex(), self.endpoint.address);
+		}
+		Ok(())
+	}
+}
+	
 impl FromStr for Node {
 	type Err = UtilError;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -170,13 +187,15 @@ impl Hash for Node {
 
 /// Node table backed by disk file.
 pub struct NodeTable {
-	nodes: HashMap<NodeId, Node>
+	nodes: HashMap<NodeId, Node>,
+	path: Option<String>,
 }
 
 impl NodeTable {
-	pub fn new(_path: Option<String>) -> NodeTable {
+	pub fn new(path: Option<String>) -> NodeTable {
 		NodeTable {
-			nodes: HashMap::new()
+			path: path.clone(),
+			nodes: NodeTable::load(path),
 		}
 	}
 
@@ -208,10 +227,85 @@ impl NodeTable {
 		}
 	}
 
+	/// Increase failure counte for a node
 	pub fn note_failure(&mut self, id: &NodeId) {
 		if let Some(node) = self.nodes.get_mut(id) {
 			node.failures += 1;
 		}
+	}
+
+	fn save(&self) {
+		if let Some(ref path) = self.path {
+			let mut path_buf = PathBuf::from(path);
+			path_buf.push("nodes.json");
+			let mut json = String::new();
+			json.push_str("{\n");
+			json.push_str("nodes: [\n");
+			let node_ids = self.nodes();
+			for i in 0 .. node_ids.len() {
+				let node = self.nodes.get(&node_ids[i]).unwrap();
+				json.push_str(&format!("\t{{ url: \"{}\", failures: {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","})) 
+			}
+			json.push_str("]\n");
+			json.push_str("}");
+			let mut file = match fs::File::create(path_buf.as_path()) {
+				Ok(file) => file,
+				Err(e) => {
+					warn!("Error creating node table file: {:?}", e);
+					return;
+				}
+			};
+			if let Err(e) = file.write(&json.into_bytes()) {
+					warn!("Error writing node table file: {:?}", e);
+			}
+		}
+	}
+
+	fn load(path: Option<String>) -> HashMap<NodeId, Node> {
+		let mut nodes: HashMap<NodeId, Node> = HashMap::new();
+		if let Some(path) = path {
+			let mut file = match fs::File::open(path.clone()) {
+				Ok(file) => file,
+				Err(e) => {
+					warn!("Error opening node table file: {:?}", e);
+					return nodes;
+				}
+			};
+			let mut buf = String::new();
+			match file.read_to_string(&mut buf) {
+				Ok(_) => {},
+				Err(e) => { 
+					warn!("Error reading node table file: {:?}", e);
+					return nodes;
+				}
+			}
+			let json = match Json::from_str(&buf) {
+				Ok(json) => json,
+				Err(e) => { 
+					warn!("Error parsing node table file: {:?}", e);
+					return nodes;
+				}
+			};
+			if let Some(list) = json.as_object().and_then(|o| o.get("nodes")).and_then(|n| n.as_array()) {
+				for n in list.iter().filter_map(|n| n.as_object()) {
+					if let Some(url) = n.get("url").and_then(|u| u.as_string()) {
+						if let Ok(mut node) = Node::from_str(url) {
+							if let Some(failures) = n.get("failures").and_then(|f| f.as_u64()) {
+								node.failures = failures as u32;
+							}
+							nodes.insert(node.id.clone(), node);
+						}
+					}
+				}
+			}
+		}
+		nodes
+	}
+}
+
+impl Drop for NodeTable {
+	fn drop(&mut self) {
+		self.save();
 	}
 }
 
@@ -246,5 +340,16 @@ mod tests {
 		assert_eq!(
 			H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap(),
 			node.id);
+	}
+
+	#[test]
+	fn table_failure_order() {
+		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770");
+		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770");
+		let node3 = Node::from_str("enode://c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770");
+		let id1 = H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		let id2 = H512::from_str("b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		let id3 = H512::from_str("3979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		let mut table = NodeTable::new(None);
 	}
 }

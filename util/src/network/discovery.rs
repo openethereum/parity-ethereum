@@ -209,7 +209,7 @@ impl Discovery {
 		rlp.append(&timestamp);
 
 		let bytes = rlp.drain();
-		let hash = bytes.sha3();
+		let hash = bytes.as_ref().sha3();
 		let signature = match ec::sign(&self.secret, &hash) {
 			Ok(s) => s,
 			Err(_) => {
