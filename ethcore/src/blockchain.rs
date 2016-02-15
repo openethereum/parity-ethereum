@@ -484,7 +484,7 @@ impl BlockChain {
 
 	/// Transforms block into WriteBatch that may be written into database
 	/// Additionally, if it's new best block it returns new best block object.
-	fn block_to_extras_insert_batch(&self, bytes: &[u8], receipts: &[Receipt]) -> (WriteBatch, Option<BestBlock>, BlockDetails) {
+	fn block_to_extras_insert_batch(&self, bytes: &[u8], _receipts: &[Receipt]) -> (WriteBatch, Option<BestBlock>, BlockDetails) {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -614,11 +614,6 @@ impl BlockChain {
 	/// Get best block total difficulty.
 	pub fn best_block_total_difficulty(&self) -> U256 {
 		self.best_block.read().unwrap().total_difficulty
-	}
-
-	/// Get the transactions' log blooms of a block.
-	fn log_blooms(&self, hash: &H256) -> Option<BlockLogBlooms> {
-		self.query_extras(hash, &self.block_logs)
 	}
 
 	/// Get block blooms.

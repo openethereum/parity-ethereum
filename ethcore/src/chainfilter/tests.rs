@@ -47,6 +47,12 @@ impl FilterDataSource for MemoryCache {
 	}
 }
 
+fn topic_to_bloom(topic: &H256) -> H2048 {
+	let mut bloom = H2048::new();
+	bloom.shift_bloomed(&topic.sha3());
+	bloom
+}
+
 #[test]
 fn test_topic_basic_search() {
 	let index_size = 16;
@@ -58,9 +64,7 @@ fn test_topic_basic_search() {
 	let modified_blooms = {
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 		let block_number = 23;
-		let mut bloom = H2048::new();
-		bloom.shift_bloomed(&topic.sha3());
-		filter.add_bloom(&bloom, block_number)
+		filter.add_bloom(&topic_to_bloom(&topic), block_number)
 	};
 
 	// number of modified blooms should always be equal number of levels
@@ -69,27 +73,27 @@ fn test_topic_basic_search() {
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_topic(&topic, 0, 100);
+		let blocks = filter.blocks_with_bloom(&topic_to_bloom(&topic), 0, 100);
 		assert_eq!(blocks.len(), 1);
 		assert_eq!(blocks[0], 23);
 	}
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_topic(&topic, 0, 23);
+		let blocks = filter.blocks_with_bloom(&topic_to_bloom(&topic), 0, 23);
 		assert_eq!(blocks.len(), 0);
 	}
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_topic(&topic, 23, 24);
+		let blocks = filter.blocks_with_bloom(&topic_to_bloom(&topic), 23, 24);
 		assert_eq!(blocks.len(), 1);
 		assert_eq!(blocks[0], 23);
 	}
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_topic(&topic, 24, 100);
+		let blocks = filter.blocks_with_bloom(&topic_to_bloom(&topic), 24, 100);
 		assert_eq!(blocks.len(), 0);
 	}
 }
