@@ -24,13 +24,15 @@ apt-get install -y --force-yes librocksdb-dev
 # install multirust
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
 
-# install nightly and make it default
+# install rust nightly version
 multirust update nightly
-multirust default nightly
 
-# download and build parity
+# Clone parity
 git clone https://github.com/ethcore/parity
 cd parity
+# Set nightly as the default toolchain for the parity directory
+multirust override nightly
+# Build parity
 cargo build --release
 ```
 
@@ -48,13 +50,15 @@ cd ..
 # install rust nightly
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
 
-# install nightly and make it default
+# install rust nightly version
 sudo multirust update nightly
-sudo multirust default nightly
 
-# download and build parity
+# Clone parity
 git clone https://github.com/ethcore/parity
 cd parity
+# Set nightly as the default toolchain for the parity directory
+multirust override nightly
+# Build parity
 cargo build --release
 ```
 
@@ -66,12 +70,15 @@ brew update
 brew install rocksdb
 brew install multirust
 
-# install nightly and make it default
-multirust update nightly && multirust default nightly
+# install rust nightly
+multirust update nightly
 
-# download and build parity
+# Clone parity
 git clone https://github.com/ethcore/parity
 cd parity
+# Set nightly as the default toolchain for the parity directory
+multirust override nightly
+# Build parity
 cargo build --release
 ```
 
