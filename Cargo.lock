@@ -190,12 +190,12 @@ dependencies = [
  "ethcore 0.9.0",
  "ethcore-util 0.9.0",
  "ethsync 0.1.0",
- "jsonrpc-core 1.1.1 (git+https://github.com/debris/jsonrpc-core)",
- "jsonrpc-http-server 1.1.0 (git+https://github.com/debris/jsonrpc-http-server)",
+ "jsonrpc-core 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-http-server 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_macros 0.6.13 (git+https://github.com/debris/serde)",
+ "serde_macros 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -346,21 +346,21 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-core"
-version = "1.1.1"
-source = "git+https://github.com/debris/jsonrpc-core#f59f462d29f75849d1af1958500730349c93d239"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "serde 0.6.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_macros 0.6.13 (git+https://github.com/debris/serde)",
+ "serde_macros 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "jsonrpc-http-server"
-version = "1.1.0"
-source = "git+https://github.com/debris/jsonrpc-http-server#23ee2d14331a1fcfe9b9d58cbfa3f49a15ad2326"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "hyper 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-core 1.1.1 (git+https://github.com/debris/jsonrpc-core)",
+ "jsonrpc-core 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -626,7 +626,7 @@ dependencies = [
 [[package]]
 name = "serde_codegen"
 version = "0.6.13"
-source = "git+https://github.com/debris/serde#f1fcd7ed1f3f610c7df0ede2a6928fbc05cf4efb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "aster 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quasi 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -645,9 +645,9 @@ dependencies = [
 [[package]]
 name = "serde_macros"
 version = "0.6.13"
-source = "git+https://github.com/debris/serde#f1fcd7ed1f3f610c7df0ede2a6928fbc05cf4efb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "serde_codegen 0.6.13 (git+https://github.com/debris/serde)",
+ "serde_codegen 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
