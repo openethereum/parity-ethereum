@@ -29,7 +29,7 @@ use hash::*;
 use rlp::*;
 use time::Tm;
 use error::*;
-use network::discovery::TableUpdates;
+use network::discovery::{TableUpdates, NodeEntry};
 pub use rustc_serialize::json::Json;
 
 /// Node public key
@@ -212,6 +212,12 @@ impl NodeTable {
 		let mut refs: Vec<&Node> = self.nodes.values().collect();
 		refs.sort_by(|a, b| a.failures.cmp(&b.failures));
 		refs.iter().map(|n| n.id.clone()).collect()
+	}
+
+	/// Unordered list of all entries
+	pub fn unordered_entries(&self) -> Vec<NodeEntry> {
+		// preserve failure counter
+		self.nodes.values().map(|n| NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() }).collect()
 	}
 
 	/// Get particular node

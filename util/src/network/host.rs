@@ -386,6 +386,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		for n in boot_nodes {
 			host.add_node(&n);
 		}
+		host.discovery.lock().unwrap().init_node_list(host.nodes.read().unwrap().unordered_entries());
 		host
 	}
 

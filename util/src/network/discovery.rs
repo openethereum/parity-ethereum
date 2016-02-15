@@ -110,10 +110,18 @@ impl Discovery {
 		}
 	}
 
-	pub fn add_node(&mut self, e: NodeEntry) {
+	/// Add a new node to discovery table. Pings the node.
+	pub fn add_node(&mut self, e: NodeEntry) { 
 		let endpoint = e.endpoint.clone();
 		self.update_node(e);
 		self.ping(&endpoint);
+	}
+
+	/// Add a list of known nodes to the table.
+	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) { 
+		for n in nodes.drain(..) {
+			self.update_node(n);
+		}
 	}
 
 	fn update_node(&mut self, e: NodeEntry) {
