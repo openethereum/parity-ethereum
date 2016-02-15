@@ -108,7 +108,6 @@ pub mod spec;
 pub mod transaction;
 pub mod views;
 pub mod receipt;
-pub mod keys_directory;
 
 mod common;
 mod basic_types;

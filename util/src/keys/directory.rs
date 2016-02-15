@@ -43,12 +43,11 @@ pub enum Pbkdf2CryptoFunction {
 }
 
 #[derive(Clone)]
-#[allow(non_snake_case)]
 /// Kdf of type `Pbkdf2`
 /// https://en.wikipedia.org/wiki/PBKDF2
 pub struct KdfPbkdf2Params {
 	/// desired length of the derived key, in octets
-	pub dkLen: u32,
+	pub dk_len: u32,
 	/// cryptographic salt
 	pub salt: H256,
 	/// number of iterations for derived key
@@ -80,14 +79,14 @@ impl KdfPbkdf2Params {
 				Some(unexpected_prf) => { return Err(Pbkdf2ParseError::InvalidPrf(Mismatch { expected: "hmac-sha256".to_owned(), found: unexpected_prf.to_owned() })); },
 				None => { return Err(Pbkdf2ParseError::InvalidParameter("prf")); },
 			},
-			dkLen: try!(try!(json.get("dklen").ok_or(Pbkdf2ParseError::MissingParameter("dklen"))).as_u64().ok_or(Pbkdf2ParseError::InvalidParameter("dkLen"))) as u32,
+			dk_len: try!(try!(json.get("dklen").ok_or(Pbkdf2ParseError::MissingParameter("dklen"))).as_u64().ok_or(Pbkdf2ParseError::InvalidParameter("dkLen"))) as u32,
 			c: try!(try!(json.get("c").ok_or(Pbkdf2ParseError::MissingParameter("c"))).as_u64().ok_or(Pbkdf2ParseError::InvalidParameter("c"))) as u32,
 		})
 	}
 
 	fn to_json(&self) -> Json {
 		let mut map = BTreeMap::new();
-		map.insert("dklen".to_owned(), json_from_u32(self.dkLen));
+		map.insert("dklen".to_owned(), json_from_u32(self.dk_len));
 		map.insert("salt".to_owned(), Json::String(format!("{:?}", self.salt)));
 		map.insert("prf".to_owned(), Json::String("hmac-sha256".to_owned()));
 		map.insert("c".to_owned(), json_from_u32(self.c));
@@ -96,12 +95,11 @@ impl KdfPbkdf2Params {
 }
 
 #[derive(Clone)]
-#[allow(non_snake_case)]
 /// Kdf of type `Scrypt`.
 /// https://en.wikipedia.org/wiki/Scrypt
 pub struct KdfScryptParams {
 	/// Desired length of the derived key, in octets.
-	pub dkLen: u32,
+	pub dk_len: u32,
 	/// Parallelization parameter.
 	pub p: u32,
 	/// CPU/memory cost parameter.
@@ -131,7 +129,7 @@ impl KdfScryptParams {
 					Err(from_hex_error) => { return Err(ScryptParseError::InvalidSaltFormat(from_hex_error)); },
 				}
 			},
-			dkLen: try!(try!(json.get("dklen").ok_or(ScryptParseError::MissingParameter("dklen"))).as_u64().ok_or(ScryptParseError::InvalidParameter("dkLen"))) as u32,
+			dk_len: try!(try!(json.get("dklen").ok_or(ScryptParseError::MissingParameter("dklen"))).as_u64().ok_or(ScryptParseError::InvalidParameter("dkLen"))) as u32,
 			p: try!(try!(json.get("p").ok_or(ScryptParseError::MissingParameter("p"))).as_u64().ok_or(ScryptParseError::InvalidParameter("p"))) as u32,
 			n: try!(try!(json.get("n").ok_or(ScryptParseError::MissingParameter("n"))).as_u64().ok_or(ScryptParseError::InvalidParameter("n"))) as u32,
 			r: try!(try!(json.get("r").ok_or(ScryptParseError::MissingParameter("r"))).as_u64().ok_or(ScryptParseError::InvalidParameter("r"))) as u32,
@@ -140,7 +138,7 @@ impl KdfScryptParams {
 
 	fn to_json(&self) -> Json {
 		let mut map = BTreeMap::new();
-		map.insert("dklen".to_owned(), json_from_u32(self.dkLen));
+		map.insert("dklen".to_owned(), json_from_u32(self.dk_len));
 		map.insert("salt".to_owned(), Json::String(format!("{:?}", self.salt)));
 		map.insert("p".to_owned(), json_from_u32(self.p));
 		map.insert("n".to_owned(), json_from_u32(self.n));
@@ -267,7 +265,7 @@ impl KeyFileCrypto {
 			cipher_type: CryptoCipherType::Aes128Ctr(iv),
 			cipher_text: cipher_text,
 			kdf: KeyFileKdf::Pbkdf2(KdfPbkdf2Params {
-				dkLen: dk_len,
+				dk_len: dk_len,
 				salt: salt,
 				c: c,
 				prf: Pbkdf2CryptoFunction::HMacSha256
@@ -417,10 +415,10 @@ impl KeyFileContent {
 }
 
 #[derive(Debug)]
-enum KeyLoadError {
-	FileTooLarge(OutOfBounds<u64>),
-	FileParseError(KeyFileParseError),
-	FileReadError(::std::io::Error),
+enum KeyFileLoadError {
+	TooLarge(OutOfBounds<u64>),
+	ParseError(KeyFileParseError),
+	ReadError(::std::io::Error),
 }
 
 /// Represents directory for saving/loading key files.
@@ -510,32 +508,32 @@ impl KeyDirectory {
 		path
 	}
 
-	fn load_key(path: &PathBuf) -> Result<KeyFileContent, KeyLoadError> {
+	fn load_key(path: &PathBuf) -> Result<KeyFileContent, KeyFileLoadError> {
 		match fs::File::open(path.clone()) {
 			Ok(mut open_file) => {
 				match open_file.metadata() {
 					Ok(metadata) =>
-						if metadata.len() > MAX_KEY_FILE_LEN { Err(KeyLoadError::FileTooLarge(OutOfBounds { min: Some(2), max: Some(MAX_KEY_FILE_LEN), found: metadata.len() })) }
+						if metadata.len() > MAX_KEY_FILE_LEN { Err(KeyFileLoadError::TooLarge(OutOfBounds { min: Some(2), max: Some(MAX_KEY_FILE_LEN), found: metadata.len() })) }
 						else { KeyDirectory::load_from_file(&mut open_file) },
-					Err(read_error) => Err(KeyLoadError::FileReadError(read_error))
+					Err(read_error) => Err(KeyFileLoadError::ReadError(read_error))
 				}
 			},
-			Err(read_error) => Err(KeyLoadError::FileReadError(read_error))
+			Err(read_error) => Err(KeyFileLoadError::ReadError(read_error))
 		}
 	}
 
-	fn load_from_file(file: &mut fs::File) -> Result<KeyFileContent, KeyLoadError> {
+	fn load_from_file(file: &mut fs::File) -> Result<KeyFileContent, KeyFileLoadError> {
 		let mut buf = String::new();
 		match file.read_to_string(&mut buf) {
 			Ok(_) => {},
-			Err(read_error) => { return Err(KeyLoadError::FileReadError(read_error)); }
+			Err(read_error) => { return Err(KeyFileLoadError::ReadError(read_error)); }
 		}
 		match Json::from_str(&buf) {
 			Ok(json) => match KeyFileContent::from_json(&json) {
 				Ok(key_file_content) => Ok(key_file_content),
-				Err(parse_error) => Err(KeyLoadError::FileParseError(parse_error))
+				Err(parse_error) => Err(KeyFileLoadError::ParseError(parse_error))
 			},
-			Err(_) => Err(KeyLoadError::FileParseError(KeyFileParseError::InvalidJson))
+			Err(_) => Err(KeyFileLoadError::ParseError(KeyFileParseError::InvalidJson))
 		}
 	}
 }
@@ -1074,7 +1072,7 @@ mod specs {
 	}
 
 	#[test]
-	fn csn_store_10_keys() {
+	fn can_store_10_keys() {
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
 
