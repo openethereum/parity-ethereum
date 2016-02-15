@@ -165,7 +165,7 @@ impl Configuration {
 			}
 			Some(ref a) => {
 				public_address = SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address");
-				listen_address = public_address.clone();
+				listen_address = public_address;
 			}
 		};
 

@@ -212,7 +212,7 @@ impl Memory for Vec<u8> {
 	fn write(&mut self, offset: U256, value: U256) {
 		let off = offset.low_u64() as usize;
 		let mut val = value;
-	
+
 		let end = off + 32;
 		for pos in 0..32 {
 			self[end - pos - 1] = val.low_u64() as u8;
@@ -229,7 +229,7 @@ impl Memory for Vec<u8> {
 	fn resize(&mut self, new_size: usize) {
 		self.resize(new_size, 0);
 	}
-	
+
 	fn expand(&mut self, size: usize) {
 		if size > self.len() {
 			Memory::resize(self, size)
@@ -258,6 +258,7 @@ impl<'a> CodeReader<'a> {
 	}
 }
 
+#[allow(enum_variant_names)]
 enum InstructionCost {
 	Gas(U256),
 	GasMem(U256, U256),
@@ -282,7 +283,7 @@ impl evm::Evm for Interpreter {
 		let code = &params.code.as_ref().unwrap();
 		let valid_jump_destinations = self.find_jump_destinations(&code);
 
-		let mut current_gas = params.gas.clone();
+		let mut current_gas = params.gas;
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
 		let mut mem = vec![];
 		let mut reader = CodeReader {
@@ -331,7 +332,7 @@ impl evm::Evm for Interpreter {
 					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
 					reader.position = pos;
 				},
-				InstructionResult::StopExecutionWithGasLeft(gas_left) => { 
+				InstructionResult::StopExecutionWithGasLeft(gas_left) => {
 					current_gas = gas_left;
 					reader.position = code.len();
 				},
@@ -380,10 +381,9 @@ impl Interpreter {
 
 				let gas = if self.is_zero(&val) && !self.is_zero(newval) {
 					schedule.sstore_set_gas
-				} else if !self.is_zero(&val) && self.is_zero(newval) {
-					// Refund is added when actually executing sstore
-					schedule.sstore_reset_gas
 				} else {
+					// Refund for below case is added when actually executing sstore
+					// !self.is_zero(&val) && self.is_zero(newval)
 					schedule.sstore_reset_gas
 				};
 				InstructionCost::Gas(U256::from(gas))
@@ -406,10 +406,7 @@ impl Interpreter {
 				let gas = U256::from(schedule.sha3_gas) + (U256::from(schedule.sha3_word_gas) * words);
 				InstructionCost::GasMem(gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
 			},
-			instructions::CALLDATACOPY => {
-				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(2))), stack.peek(2).clone())
-			},
-			instructions::CODECOPY => {
+			instructions::CALLDATACOPY | instructions::CODECOPY => {
 				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(2))), stack.peek(2).clone())
 			},
 			instructions::EXTCODECOPY => {
@@ -432,7 +429,7 @@ impl Interpreter {
 					try!(self.mem_needed(stack.peek(5), stack.peek(6))),
 					try!(self.mem_needed(stack.peek(3), stack.peek(4)))
 				);
-				
+
 				let address = u256_to_address(stack.peek(1));
 
 				if instruction == instructions::CALL && !ext.exists(&address) {
@@ -529,8 +526,8 @@ impl Interpreter {
 						params: &ActionParams,
 						ext: &mut evm::Ext,
 						instruction: Instruction,
-						code: &mut CodeReader, 
-						mem: &mut Memory, 
+						code: &mut CodeReader,
+						mem: &mut Memory,
 						stack: &mut Stack<U256>
 					   ) -> Result<InstructionResult, evm::Error> {
 		match instruction {
@@ -559,7 +556,7 @@ impl Interpreter {
 
 				let contract_code = mem.read_slice(init_off, init_size);
 				let can_create = ext.balance(&params.address) >= endowment && ext.depth() < ext.schedule().max_depth;
-				
+
 				if !can_create {
 					stack.push(U256::zero());
 					return Ok(InstructionResult::Ok);
@@ -638,7 +635,7 @@ impl Interpreter {
 						Ok(InstructionResult::Ok)
 					}
 				};
-			}, 
+			},
 			instructions::RETURN => {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
@@ -832,20 +829,20 @@ impl Interpreter {
 		}
 	}
 
-	fn verify_instructions_requirements(&self, 
-										info: &instructions::InstructionInfo, 
-										stack_limit: usize, 
+	fn verify_instructions_requirements(&self,
+										info: &instructions::InstructionInfo,
+										stack_limit: usize,
 										stack: &Stack<U256>) -> Result<(), evm::Error> {
 		if !stack.has(info.args) {
 			Err(evm::Error::StackUnderflow {
 				instruction: info.name,
-				wanted: info.args, 
+				wanted: info.args,
 				on_stack: stack.size()
 			})
 		} else if stack.size() - info.args + info.ret > stack_limit {
 			Err(evm::Error::OutOfStack {
 				instruction: info.name,
-				wanted: info.ret - info.args, 
+				wanted: info.ret - info.args,
 				limit: stack_limit
 			})
 		} else {
@@ -919,7 +916,7 @@ impl Interpreter {
 				stack.push(if !self.is_zero(&b) {
 					a.overflowing_div(b).0
 				} else {
-					U256::zero() 
+					U256::zero()
 				});
 			},
 			instructions::MOD => {
@@ -978,9 +975,9 @@ impl Interpreter {
 				let (a, neg_a) = get_and_reset_sign(stack.pop_back());
 				let (b, neg_b) = get_and_reset_sign(stack.pop_back());
 
-				let is_positive_lt = a < b && (neg_a | neg_b) == false;
-				let is_negative_lt = a > b && (neg_a & neg_b) == true;
-				let has_different_signs = neg_a == true && neg_b == false;
+				let is_positive_lt = a < b && !(neg_a | neg_b);
+				let is_negative_lt = a > b && (neg_a & neg_b);
+				let has_different_signs = neg_a && !neg_b;
 
 				stack.push(self.bool_to_u256(is_positive_lt | is_negative_lt | has_different_signs));
 			},
@@ -993,9 +990,9 @@ impl Interpreter {
 				let (a, neg_a) = get_and_reset_sign(stack.pop_back());
 				let (b, neg_b) = get_and_reset_sign(stack.pop_back());
 
-				let is_positive_gt = a > b && (neg_a | neg_b) == false;
-				let is_negative_gt = a < b && (neg_a & neg_b) == true;
-				let has_different_signs = neg_a == false && neg_b == true;
+				let is_positive_gt = a > b && !(neg_a | neg_b);
+				let is_negative_gt = a < b && (neg_a & neg_b);
+				let has_different_signs = !neg_a && neg_b;
 
 				stack.push(self.bool_to_u256(is_positive_gt | is_negative_gt | has_different_signs));
 			},
@@ -1175,7 +1172,7 @@ mod tests {
 		let schedule = evm::Schedule::default();
 		let current_mem_size = 0;
 		let mem_size = U256::from(5);
-	
+
 		// when
 		let (mem_cost, mem_size) = interpreter.mem_gas_cost(&schedule, current_mem_size, &mem_size).unwrap();
 

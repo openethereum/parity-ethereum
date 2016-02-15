@@ -363,7 +363,7 @@ mod tests {
 			&Address::new(),
 			&Address::new(),
 			Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000150000").unwrap()),
-			&vec![],
+			&[],
 			&Address::new(),
 			&mut output);
 	}
