@@ -663,6 +663,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 		}
 		let h = Arc::try_unwrap(h).ok().unwrap().into_inner().unwrap();
+		let originated = h.originated;
 		let mut session = match Session::new(h, &self.info.read().unwrap()) {
 			Ok(s) => s,
 			Err(e) => {
@@ -674,6 +675,14 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			session.set_token(session_token);
 			io.update_registration(session_token).expect("Error updating session registration");
 			self.stats.inc_sessions();
+			if !originated {
+				// Add it no node table
+				if let Ok(address) = session.remote_addr() {
+					let entry = NodeEntry { id: session.id().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
+					self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+					self.discovery.lock().unwrap().add_node(entry);
+				}
+			}
 			Arc::new(Mutex::new(session))
 		});
 		if result.is_none() {

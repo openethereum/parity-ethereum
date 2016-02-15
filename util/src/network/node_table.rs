@@ -200,7 +200,10 @@ impl NodeTable {
 	}
 
 	/// Add a node to table
-	pub fn add_node(&mut self, node: Node) {
+	pub fn add_node(&mut self, mut node: Node) {
+		// preserve failure counter
+		let failures = self.nodes.get(&node.id).map_or(0, |n| n.failures);
+		node.failures = failures;
 		self.nodes.insert(node.id.clone(), node);
 	}
 
