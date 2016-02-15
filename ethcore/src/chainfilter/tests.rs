@@ -153,7 +153,7 @@ fn for_each_log<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &Address, &[H25
 
 // tests chain filter on real data between blocks 300_000 and 400_000
 #[test]
-fn test_chainfilter_real_data() {
+fn test_chainfilter_real_data_short_searches() {
 	let index_size = 16;
 	let bloom_levels = 3;
 
@@ -181,4 +181,33 @@ fn test_chainfilter_real_data() {
 			assert_eq!(blocks.len(), 1);
 		}
 	});
+}
+
+// tests chain filter on real data between blocks 300_000 and 400_000
+#[test]
+fn test_chainfilter_real_data_single_search() {
+	let index_size = 16;
+	let bloom_levels = 3;
+
+	let mut cache = MemoryCache::new();
+
+	for_each_bloom(include_bytes!("blooms.txt"), | block_number, bloom | {
+		let modified_blooms = {
+			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+			filter.add_bloom(bloom, block_number)
+		};
+
+		// number of modified blooms should always be equal number of levels
+		assert_eq!(modified_blooms.len(), bloom_levels as usize);
+		cache.insert_blooms(modified_blooms);
+	});
+
+	let address = Address::from_str("c4395759e26469baa0e6421bdc1d0232c6f4b6c3").unwrap();
+	let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+	let blocks = filter.blocks_with_bloom(&to_bloom(&address), 300_000, 400_000);
+	// bloom may return more blocks, but our log density is low, so it should be fine
+	assert_eq!(blocks.len(), 3);
+	assert_eq!(blocks[0], 392697);
+	assert_eq!(blocks[1], 396348);
+	assert_eq!(blocks[2], 399804);
 }
