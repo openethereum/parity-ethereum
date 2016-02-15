@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Read};
 use std::str::FromStr;
 use util::hash::*;
 use util::sha3::*;
@@ -47,9 +48,9 @@ impl FilterDataSource for MemoryCache {
 	}
 }
 
-fn topic_to_bloom(topic: &H256) -> H2048 {
+fn to_bloom<T>(hashable: &T) -> H2048 where T: Hashable {
 	let mut bloom = H2048::new();
-	bloom.shift_bloomed(&topic.sha3());
+	bloom.shift_bloomed(&hashable.sha3());
 	bloom
 }
 
@@ -64,7 +65,7 @@ fn test_topic_basic_search() {
 	let modified_blooms = {
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 		let block_number = 23;
-		filter.add_bloom(&topic_to_bloom(&topic), block_number)
+		filter.add_bloom(&to_bloom(&topic), block_number)
 	};
 
 	// number of modified blooms should always be equal number of levels
@@ -73,27 +74,111 @@ fn test_topic_basic_search() {
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_bloom(&topic_to_bloom(&topic), 0, 100);
+		let blocks = filter.blocks_with_bloom(&to_bloom(&topic), 0, 100);
 		assert_eq!(blocks.len(), 1);
 		assert_eq!(blocks[0], 23);
 	}
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_bloom(&topic_to_bloom(&topic), 0, 23);
+		let blocks = filter.blocks_with_bloom(&to_bloom(&topic), 0, 23);
 		assert_eq!(blocks.len(), 0);
 	}
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_bloom(&topic_to_bloom(&topic), 23, 24);
+		let blocks = filter.blocks_with_bloom(&to_bloom(&topic), 23, 24);
 		assert_eq!(blocks.len(), 1);
 		assert_eq!(blocks[0], 23);
 	}
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_bloom(&topic_to_bloom(&topic), 24, 100);
+		let blocks = filter.blocks_with_bloom(&to_bloom(&topic), 24, 100);
 		assert_eq!(blocks.len(), 0);
 	}
+}
+
+fn for_each_bloom<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &H2048) {
+	let mut reader = BufReader::new(bytes);
+	let mut line = String::new();
+	while reader.read_line(&mut line).unwrap() > 0 {
+		{
+			let mut number_bytes = vec![];
+			let mut bloom_bytes = [0; 512];
+
+			let mut line_reader = BufReader::new(line.as_ref() as &[u8]);
+			line_reader.read_until(b' ', &mut number_bytes).unwrap();
+			line_reader.consume(2);
+			line_reader.read_exact(&mut bloom_bytes).unwrap();
+
+			let number = String::from_utf8(number_bytes).map(|s| s[..s.len() -1].to_owned()).unwrap().parse::<usize>().unwrap();
+			let bloom = H2048::from_str(&String::from_utf8(bloom_bytes.to_vec()).unwrap()).unwrap();
+			f(number, &bloom);
+		}
+		line.clear();
+	}
+}
+
+fn for_each_log<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &Address, &[H256]) {
+	let mut reader = BufReader::new(bytes);	
+	let mut line = String::new();
+	while reader.read_line(&mut line).unwrap() > 0 {
+		{
+			let mut number_bytes = vec![];
+			let mut address_bytes = [0;42];
+			let mut topic = [0;66];
+			let mut topics_bytes = vec![];
+
+			let mut line_reader = BufReader::new(line.as_ref() as &[u8]);
+			line_reader.read_until(b' ', &mut number_bytes).unwrap();
+			line_reader.read_exact(&mut address_bytes).unwrap();
+			line_reader.consume(1);
+			while let Ok(_) = line_reader.read_exact(&mut topic) {
+				line_reader.consume(1);
+				topics_bytes.push(topic.to_vec());
+			}
+
+			let number = String::from_utf8(number_bytes).map(|s| s[..s.len() -1].to_owned()).unwrap().parse::<usize>().unwrap();
+			let address = Address::from_str(&String::from_utf8(address_bytes.to_vec()).map(|a| a[2..].to_owned()).unwrap()).unwrap();
+			let topics: Vec<H256> = topics_bytes
+				.into_iter()
+				.map(|t| H256::from_str(&String::from_utf8(t).map(|t| t[2..].to_owned()).unwrap()).unwrap())
+				.collect();
+			f(number, &address, &topics);
+		}
+		line.clear();
+	}
+}
+
+// tests chain filter on real data between blocks 300_000 and 400_000
+#[test]
+fn test_chainfilter_real_data() {
+	let index_size = 16;
+	let bloom_levels = 3;
+
+	let mut cache = MemoryCache::new();
+
+	for_each_bloom(include_bytes!("blooms.txt"), | block_number, bloom | {
+		let modified_blooms = {
+			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+			filter.add_bloom(bloom, block_number)
+		};
+
+		// number of modified blooms should always be equal number of levels
+		assert_eq!(modified_blooms.len(), bloom_levels as usize);
+		cache.insert_blooms(modified_blooms);
+	});
+
+	for_each_log(include_bytes!("logs.txt"), | block_number, address, topics | {
+		println!("block_number: {:?}", block_number);
+		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+		let blocks = filter.blocks_with_bloom(&to_bloom(address), block_number, block_number + 1);
+		assert_eq!(blocks.len(), 1);
+		for (i, topic) in topics.iter().enumerate() {
+			println!("topic: {:?}", i);
+			let blocks = filter.blocks_with_bloom(&to_bloom(topic), block_number, block_number + 1);
+			assert_eq!(blocks.len(), 1);
+		}
+	});
 }
