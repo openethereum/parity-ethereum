@@ -91,25 +91,24 @@ impl KdfPbkdf2Params {
 		map.insert("salt".to_owned(), Json::String(format!("{:?}", self.salt)));
 		map.insert("prf".to_owned(), Json::String("hmac-sha256".to_owned()));
 		map.insert("c".to_owned(), json_from_u32(self.c));
-
 		Json::Object(map)
 	}
 }
 
 #[derive(Clone)]
 #[allow(non_snake_case)]
-/// Kdf of type `Scrypt`
+/// Kdf of type `Scrypt`.
 /// https://en.wikipedia.org/wiki/Scrypt
 pub struct KdfScryptParams {
-	/// desired length of the derived key, in octets
+	/// Desired length of the derived key, in octets.
 	pub dkLen: u32,
-	/// parallelization
+	/// Parallelization parameter.
 	pub p: u32,
-	/// cpu cost
+	/// CPU/memory cost parameter.
 	pub n: u32,
 	/// TODO: comment
 	pub r: u32,
-	/// cryptographic salt
+	/// Cryptographic salt.
 	pub salt: H256,
 }
 
@@ -146,31 +145,30 @@ impl KdfScryptParams {
 		map.insert("p".to_owned(), json_from_u32(self.p));
 		map.insert("n".to_owned(), json_from_u32(self.n));
 		map.insert("r".to_owned(), json_from_u32(self.r));
-
 		Json::Object(map)
 	}
 }
 
 #[derive(Clone)]
-/// Settings for password derived key geberator function
+/// Settings for password derived key geberator function.
 pub enum KeyFileKdf {
-	/// Password-Based Key Derivation Function 2 (PBKDF2) type
+	/// Password-Based Key Derivation Function 2 (PBKDF2) type.
 	/// https://en.wikipedia.org/wiki/PBKDF2
 	Pbkdf2(KdfPbkdf2Params),
-	/// Scrypt password-based key derivation function
+	/// Scrypt password-based key derivation function.
 	/// https://en.wikipedia.org/wiki/Scrypt
 	Scrypt(KdfScryptParams)
 }
 
 #[derive(Clone)]
 /// Encrypted password or other arbitrary message
-/// with settings for password derived key generator for decrypting content
+/// with settings for password derived key generator for decrypting content.
 pub struct KeyFileCrypto {
-	/// Cipher type
+	/// Cipher type.
 	pub cipher_type: CryptoCipherType,
-	/// Cipher text (encrypted message)
+	/// Cipher text (encrypted message).
 	pub cipher_text: Bytes,
-	/// password derived key geberator function settings
+	/// Password derived key generator function settings.
 	pub kdf: KeyFileKdf,
 }
 
@@ -258,12 +256,12 @@ impl KeyFileCrypto {
 		Json::Object(map)
 	}
 
-	/// New pbkdf2-type secret
-	/// `cipher-text` - encrypted cipher text
-	/// `dk-len` - desired length of the derived key, in octets
-	/// `c` - number of iterations for derived key
-	/// `salt` - cryptographic site, random 256-bit hash (ensure it's crypto-random)
-	/// `iv` - ini
+	/// New pbkdf2-type secret.
+	/// `cipher-text` - encrypted cipher text.
+	/// `dk-len` - desired length of the derived key, in octets.
+	/// `c` - number of iterations for derived key.
+	/// `salt` - cryptographic site, random 256-bit hash (ensure it's crypto-random).
+	/// `iv` - initialisation vector.
 	pub fn new_pbkdf2(cipher_text: Bytes, iv: U128, salt: H256, c: u32, dk_len: u32) -> KeyFileCrypto {
 		KeyFileCrypto {
 			cipher_type: CryptoCipherType::Aes128Ctr(iv),
@@ -320,9 +318,9 @@ fn uuid_from_string(s: &str) -> Result<Uuid, UtilError> {
 /// also contains password derivation function settings (PBKDF2/Scrypt)
 pub struct KeyFileContent {
 	version: KeyFileVersion,
-	/// holds cypher and decrypt function settings
+	/// Holds cypher and decrypt function settings.
 	pub crypto: KeyFileCrypto,
-	/// identifier
+	/// The identifier.
 	pub id: Uuid
 }
 
@@ -354,9 +352,9 @@ enum KeyFileParseError {
 }
 
 impl KeyFileContent {
-	/// new stored key file struct with encrypted message (cipher_text)
+	/// New stored key file struct with encrypted message (cipher_text)
 	/// also contains password derivation function settings (PBKDF2/Scrypt)
-	/// to decrypt cipher_text given the password is provided
+	/// to decrypt cipher_text given the password is provided.
 	pub fn new(crypto: KeyFileCrypto) -> KeyFileContent {
 		KeyFileContent {
 			id: new_uuid(),
@@ -365,7 +363,7 @@ impl KeyFileContent {
 		}
 	}
 
-	/// returns key file version if it is known
+	/// Returns key file version if it is known.
 	pub fn version(&self) -> Option<u64> {
 		match self.version {
 			KeyFileVersion::V3(declared) => Some(declared)
@@ -414,7 +412,6 @@ impl KeyFileContent {
 		map.insert("id".to_owned(), Json::String(uuid_to_string(&self.id)));
 		map.insert("version".to_owned(), Json::U64(CURRENT_DECLARED_VERSION));
 		map.insert("crypto".to_owned(), self.crypto.to_json());
-
 		Json::Object(map)
 	}
 }
@@ -426,9 +423,9 @@ enum KeyLoadError {
 	FileReadError(::std::io::Error),
 }
 
-/// represents directory for saving/loading key files
+/// Represents directory for saving/loading key files.
 pub struct KeyDirectory {
-	/// directory path for key management
+	/// Directory path for key management.
 	path: String,
 	cache: HashMap<Uuid, KeyFileContent>,
 	cache_usage: VecDeque<Uuid>,
@@ -458,8 +455,8 @@ impl KeyDirectory {
 		Ok(id.clone())
 	}
 
-	/// returns key given by id if corresponding file exists and no load error occured
-	/// warns if any error occured during the key loading
+	/// Returns key given by id if corresponding file exists and no load error occured.
+	/// Warns if any error occured during the key loading
 	pub fn get(&mut self, id: &Uuid) -> Option<&KeyFileContent> {
 		let path = self.key_path(id);
 		self.cache_usage.push_back(id.clone());
@@ -474,12 +471,12 @@ impl KeyDirectory {
 		))
 	}
 
-	/// returns current path to the directory with keys
+	/// Returns current path to the directory with keys
 	pub fn path(&self) -> &str {
 		&self.path
 	}
 
-	/// removes keys that never been requested during last `MAX_USAGE_TRACK` times
+	/// Removes keys that never been requested during last `MAX_USAGE_TRACK` times
 	pub fn collect_garbage(&mut self) {
 		let total_usages = self.cache_usage.len();
 		let untracked_usages = max(total_usages as i64 - MAX_CACHE_USAGE_TRACK as i64, 0) as usize;
@@ -501,7 +498,7 @@ impl KeyDirectory {
 		for removed_key in removes { self.cache.remove(&removed_key); }
 	}
 
-	/// reports how much keys is currently cached
+	/// Reports how many keys are currently cached.
 	pub fn cache_size(&self) -> usize {
 		self.cache.len()
 	}
