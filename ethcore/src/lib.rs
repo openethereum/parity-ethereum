@@ -18,8 +18,15 @@
 #![feature(cell_extras)]
 #![feature(augmented_assignments)]
 #![feature(plugin)]
+// Clippy
 #![plugin(clippy)]
-#![allow(needless_range_loop, match_bool)]
+// TODO [todr] not really sure
+#![allow(needless_range_loop)]
+// Shorter than if-else
+#![allow(match_bool)]
+// Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
+#![allow(clone_on_copy)]
+
 
 //! Ethcore library
 //!
