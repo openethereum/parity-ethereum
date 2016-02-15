@@ -254,7 +254,7 @@ impl Discovery {
 		}
 
 		let mut ret:Vec<NodeEntry> = Vec::new();
-		for (_, nodes) in found {
+		for nodes in found.values() {
 			ret.extend(nodes.iter().map(|&n| n.clone()));
 		}
 		ret

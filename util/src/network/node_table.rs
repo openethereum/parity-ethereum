@@ -21,7 +21,7 @@ use std::hash::{Hash, Hasher};
 use std::str::{FromStr};
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::path::{PathBuf, Path};
+use std::path::{PathBuf};
 use std::fmt;
 use std::fs;
 use std::io::{Read, Write};
@@ -144,9 +144,9 @@ impl Node {
 impl Display for Node {
 	fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 		if self.endpoint.udp_port != self.endpoint.address.port() {
-			write!(f, "enode://{}@{}+{}", self.id.hex(), self.endpoint.address, self.endpoint.udp_port);
+			try!(write!(f, "enode://{}@{}+{}", self.id.hex(), self.endpoint.address, self.endpoint.udp_port));
 		} else {
-			write!(f, "enode://{}@{}", self.id.hex(), self.endpoint.address);
+			try!(write!(f, "enode://{}@{}", self.id.hex(), self.endpoint.address));
 		}
 		Ok(())
 	}
@@ -237,14 +237,18 @@ impl NodeTable {
 	fn save(&self) {
 		if let Some(ref path) = self.path {
 			let mut path_buf = PathBuf::from(path);
+			if let Err(e) = fs::create_dir_all(path_buf.as_path()) {
+				warn!("Error creating node table directory: {:?}", e);
+				return;
+			};
 			path_buf.push("nodes.json");
 			let mut json = String::new();
 			json.push_str("{\n");
-			json.push_str("nodes: [\n");
+			json.push_str("\"nodes\": [\n");
 			let node_ids = self.nodes();
 			for i in 0 .. node_ids.len() {
 				let node = self.nodes.get(&node_ids[i]).unwrap();
-				json.push_str(&format!("\t{{ url: \"{}\", failures: {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","})) 
+				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","})) 
 			}
 			json.push_str("]\n");
 			json.push_str("}");
@@ -264,7 +268,9 @@ impl NodeTable {
 	fn load(path: Option<String>) -> HashMap<NodeId, Node> {
 		let mut nodes: HashMap<NodeId, Node> = HashMap::new();
 		if let Some(path) = path {
-			let mut file = match fs::File::open(path.clone()) {
+			let mut path_buf = PathBuf::from(path);
+			path_buf.push("nodes.json");
+			let mut file = match fs::File::open(path_buf.as_path()) {
 				Ok(file) => file,
 				Err(e) => {
 					warn!("Error opening node table file: {:?}", e);
@@ -344,12 +350,81 @@ mod tests {
 
 	#[test]
 	fn table_failure_order() {
-		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770");
-		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770");
-		let node3 = Node::from_str("enode://c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770");
+		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
+		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
+		let node3 = Node::from_str("enode://c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let id1 = H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id2 = H512::from_str("b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
-		let id3 = H512::from_str("3979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		let id3 = H512::from_str("c979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let mut table = NodeTable::new(None);
+		table.add_node(node3);
+		table.add_node(node1);
+		table.add_node(node2);
+
+		table.note_failure(&id1);
+		table.note_failure(&id1);
+		table.note_failure(&id2);
+
+		let r = table.nodes();
+		assert_eq!(r[0][..], id3[..]);
+		assert_eq!(r[1][..], id2[..]);
+		assert_eq!(r[2][..], id1[..]);
+	}
+
+	use std::path::PathBuf;
+	use std::env;
+	use std::fs::{remove_dir_all};
+	// TODO: use common impl
+	pub struct RandomTempPath {
+		path: PathBuf
+	}
+
+	impl RandomTempPath {
+		pub fn new() -> RandomTempPath {
+			let mut dir = env::temp_dir();
+			dir.push(H32::random().hex());
+			RandomTempPath {
+				path: dir.clone()
+			}
+		}
+
+		pub fn as_path(&self) -> &PathBuf {
+			&self.path
+		}
+
+		pub fn as_str(&self) -> &str {
+			self.path.to_str().unwrap()
+		}
+	}
+
+	impl Drop for RandomTempPath {
+		fn drop(&mut self) {
+			if let Err(e) = remove_dir_all(self.as_path()) {
+				panic!("failed to remove temp directory, probably something failed to destroyed ({})", e);
+			}
+		}
+	}
+
+
+	#[test]
+	fn table_save_load() {
+		let temp_path = RandomTempPath::new();
+		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
+		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
+		let id1 = H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		let id2 = H512::from_str("b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
+		{
+			let mut table = NodeTable::new(Some(temp_path.as_str().to_owned()));
+			table.add_node(node1);
+			table.add_node(node2);
+			table.note_failure(&id2);
+		}
+
+		{
+			let table = NodeTable::new(Some(temp_path.as_str().to_owned()));
+			let r = table.nodes();
+			assert_eq!(r[0][..], id1[..]);
+			assert_eq!(r[1][..], id2[..]);
+		}
 	}
 }
