@@ -273,7 +273,7 @@ impl NodeTable {
 			let mut file = match fs::File::open(path_buf.as_path()) {
 				Ok(file) => file,
 				Err(e) => {
-					warn!("Error opening node table file: {:?}", e);
+					debug!("Error opening node table file: {:?}", e);
 					return nodes;
 				}
 			};

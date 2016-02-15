@@ -36,6 +36,7 @@ extern crate ethcore_rpc as rpc;
 
 use std::net::{SocketAddr};
 use std::env;
+use std::path::PathBuf;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
@@ -207,6 +208,9 @@ fn main() {
 	net_settings.listen_address = listen;
 	net_settings.public_address = public;
 	net_settings.use_secret = conf.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+	let mut net_path = PathBuf::from(&conf.path());
+	net_path.push("network");
+	net_settings.config_path = Some(net_path.to_str().unwrap().to_owned());
 
 	// Build client
 	let mut service = ClientService::start(spec, net_settings, &Path::new(&conf.path())).unwrap();
