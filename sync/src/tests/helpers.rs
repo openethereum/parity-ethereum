@@ -111,6 +111,10 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
+	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
+		unimplemented!();
+	}
+
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().unwrap().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
 	}
