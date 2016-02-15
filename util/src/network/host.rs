@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::{SocketAddr};
+use std::net::{SocketAddr, SocketAddrV4};
 use std::collections::{HashMap};
 use std::hash::{Hasher};
 use std::str::{FromStr};
@@ -36,6 +36,7 @@ use network::NetworkProtocolHandler;
 use network::node::*;
 use network::stats::NetworkStats;
 use network::error::DisconnectReason;
+use igd::{PortMappingProtocol,search_gateway};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -85,6 +86,42 @@ impl NetworkConfiguration {
 		config.listen_address = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap();
 		config.public_address = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap();
 		config
+	}
+
+	/// Conduct NAT if needed.
+	pub fn prepared(self) -> Self {
+		let mut listen = self.listen_address;
+		let mut public = self.public_address;
+
+		if self.nat_enabled {
+			info!("Enabling NAT...");
+			match search_gateway() {
+				Err(ref err) => info!("Error: {}", err),
+				Ok(gateway) => {
+					let int_addr = SocketAddrV4::from_str("127.0.0.1:30304").unwrap();
+					match gateway.get_any_address(PortMappingProtocol::TCP, int_addr, 0, "Parity Node/TCP") {
+						Err(ref err) => {
+							info!("There was an error! {}", err);
+						},
+						Ok(ext_addr) => {
+							info!("Local gateway: {}, External ip address: {}", gateway, ext_addr);
+							public = SocketAddr::V4(ext_addr);
+							listen = SocketAddr::V4(int_addr);
+						},
+					}
+				},
+			}
+		}
+
+		NetworkConfiguration {
+			listen_address: listen,
+			public_address: public,
+			nat_enabled: false,
+			discovery_enabled: self.discovery_enabled,
+			pin: self.pin,
+			boot_nodes: self.boot_nodes,
+			use_secret: self.use_secret,
+		}
 	}
 }
 
@@ -180,6 +217,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 					s.send_packet(self.protocol, packet_id as u8, &data).unwrap_or_else(|e| {
 						warn!(target: "net", "Send error: {:?}", e);
 					}); //TODO: don't copy vector data
+					try!(self.io.update_registration(peer));
 				},
 				_ => warn!(target: "net", "Send: Peer is not connected yet")
 			}
@@ -296,6 +334,8 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	/// Create a new instance
 	pub fn new(config: NetworkConfiguration) -> Host<Message> {
+		let config = config.prepared();
+
 		let addr = config.listen_address;
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&addr).unwrap();
@@ -373,7 +413,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut to_kill = Vec::new();
 		for e in self.connections.write().unwrap().iter_mut() {
 			if let ConnectionEntry::Session(ref mut s) = *e.lock().unwrap().deref_mut() {
-				if !s.keep_alive() {
+				if !s.keep_alive(io) {
 					s.disconnect(DisconnectReason::PingTimeout);
 					to_kill.push(s.token());
 				}

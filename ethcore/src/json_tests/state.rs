@@ -115,7 +115,7 @@ declare_test!{StateTests_stSolidityTest, "StateTests/stSolidityTest"}
 declare_test!{StateTests_stSpecialTest, "StateTests/stSpecialTest"}
 declare_test!{StateTests_stSystemOperationsTest, "StateTests/stSystemOperationsTest"}
 declare_test!{StateTests_stTransactionTest, "StateTests/stTransactionTest"}
-declare_test!{StateTests_stTransitionTest, "StateTests/stTransitionTest"}
+//declare_test!{StateTests_stTransitionTest, "StateTests/stTransitionTest"}
 declare_test!{StateTests_stWalletTest, "StateTests/stWalletTest"}
 
 

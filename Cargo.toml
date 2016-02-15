@@ -11,13 +11,14 @@ env_logger = "0.3"
 rustc-serialize = "0.3"
 docopt = "0.6"
 docopt_macros = "0.6"
-ctrlc = "1.0"
-clippy = "0.0.37"
+ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
+clippy = "0.0.41"
 ethcore-util = { path = "util" }
 ethcore = { path = "ethcore" }
 ethsync = { path = "sync" }
 ethcore-rpc = { path = "rpc", optional = true }
 fdlimit = { path = "util/fdlimit" }
+target_info = "0.1"
 
 [features]
 default = ["rpc"]

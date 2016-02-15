@@ -23,6 +23,9 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Returns protocol version.
 	fn protocol_version(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
+	/// Returns an object with data about the sync status or false. (wtf?)
+	fn syncing(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Returns the number of hashes per second that the node is mining with.
 	fn hashrate(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
@@ -47,8 +50,11 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Returns content of the storage at given address.
 	fn storage_at(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns block with given index / hash.
-	fn block(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	/// Returns block with given hash.
+	fn block_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns block with given number.
+	fn block_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 	
 	/// Returns the number of transactions sent from given address at given time (block number).
 	fn transaction_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
@@ -71,8 +77,14 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Estimate gas needed for execution of given contract.
 	fn estimate_gas(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns transaction at given block and index.
-	fn transaction_at(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	/// Get transaction by it's hash.
+	fn transaction_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns transaction at given block hash and index.
+	fn transaction_by_block_hash_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns transaction by given block number and index.
+	fn transaction_by_block_number_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Returns transaction receipt.
 	fn transaction_receipt(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
@@ -108,6 +120,7 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_method("eth_protocolVersion", Eth::protocol_version);
+		delegate.add_method("eth_syncing", Eth::syncing);
 		delegate.add_method("eth_hashrate", Eth::hashrate);
 		delegate.add_method("eth_coinbase", Eth::author);
 		delegate.add_method("eth_mining", Eth::is_mining);
@@ -125,10 +138,11 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_sendTransaction", Eth::send_transaction);
 		delegate.add_method("eth_call", Eth::call);
 		delegate.add_method("eth_estimateGas", Eth::estimate_gas);
-		delegate.add_method("eth_getBlockByHash", Eth::block);
-		delegate.add_method("eth_getBlockByNumber", Eth::block);
-		delegate.add_method("eth_getTransactionByBlockHashAndIndex", Eth::transaction_at);
-		delegate.add_method("eth_getTransactionByBlockNumberAndIndex", Eth::transaction_at);
+		delegate.add_method("eth_getBlockByHash", Eth::block_by_hash);
+		delegate.add_method("eth_getBlockByNumber", Eth::block_by_number);
+		delegate.add_method("eth_getTransactionByHash", Eth::transaction_by_hash);
+		delegate.add_method("eth_getTransactionByBlockHashAndIndex", Eth::transaction_by_block_hash_and_index);
+		delegate.add_method("eth_getTransactionByBlockNumberAndIndex", Eth::transaction_by_block_number_and_index);
 		delegate.add_method("eth_getTransactionReceipt", Eth::transaction_receipt);
 		delegate.add_method("eth_getUncleByBlockHashAndIndex", Eth::uncle_at);
 		delegate.add_method("eth_getUncleByBlockNumberAndIndex", Eth::uncle_at);

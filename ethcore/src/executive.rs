@@ -43,11 +43,11 @@ pub struct Executed {
 	pub gas: U256,
 	/// Gas used during execution of transaction.
 	pub gas_used: U256,
-	/// Gas refunded after the execution of transaction. 
+	/// Gas refunded after the execution of transaction.
 	/// To get gas that was required up front, add `refunded` and `gas_used`.
 	pub refunded: U256,
 	/// Cumulative gas used in current block so far.
-	/// 
+	///
 	/// `cumulative_gas_used = gas_used(t0) + gas_used(t1) + ... gas_used(tn)`
 	///
 	/// where `tn` is current transaction.
@@ -56,9 +56,9 @@ pub struct Executed {
 	pub logs: Vec<LogEntry>,
 	/// Addresses of contracts created during execution of transaction.
 	/// Ordered from earliest creation.
-	/// 
-	/// eg. sender creates contract A and A in constructor creates contract B 
-	/// 
+	///
+	/// eg. sender creates contract A and A in constructor creates contract B
+	///
 	/// B creation ends first, and it will be the first element of the vector.
 	pub contracts_created: Vec<Address>
 }
@@ -119,13 +119,13 @@ impl<'a> Executive<'a> {
 		if t.nonce != nonce {
 			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
 		}
-		
+
 		// validate if transaction fits into given block
 		if self.info.gas_used + t.gas > self.info.gas_limit {
-			return Err(From::from(ExecutionError::BlockGasLimitReached { 
-				gas_limit: self.info.gas_limit, 
-				gas_used: self.info.gas_used, 
-				gas: t.gas 
+			return Err(From::from(ExecutionError::BlockGasLimitReached {
+				gas_limit: self.info.gas_limit,
+				gas_used: self.info.gas_used,
+				gas: t.gas
 			}));
 		}
 
@@ -220,7 +220,7 @@ impl<'a> Executive<'a> {
 
 		if self.engine.is_builtin(&params.code_address) {
 			// if destination is builtin, try to execute it
-			
+
 			let default = [];
 			let data = if let Some(ref d) = params.data { d as &[u8] } else { &default as &[u8] };
 
@@ -239,7 +239,7 @@ impl<'a> Executive<'a> {
 			}
 		} else if params.code.is_some() {
 			// if destination is a contract, do normal message call
-			
+
 			// part of substate that may be reverted
 			let mut unconfirmed_substate = Substate::new();
 
@@ -258,7 +258,7 @@ impl<'a> Executive<'a> {
 			Ok(params.gas)
 		}
 	}
-	
+
 	/// Creates contract with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
@@ -317,7 +317,7 @@ impl<'a> Executive<'a> {
 			self.state.kill_account(address);
 		}
 
-		match result { 
+		match result {
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
 			Err(_) => {
 				Ok(Executed {
@@ -345,8 +345,8 @@ impl<'a> Executive<'a> {
 	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate) {
 		match *result {
 			Err(evm::Error::OutOfGas)
-				| Err(evm::Error::BadJumpDestination {..}) 
-				| Err(evm::Error::BadInstruction {.. }) 
+				| Err(evm::Error::BadJumpDestination {..})
+				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
 				self.state.revert_snapshot();
@@ -360,44 +360,13 @@ impl<'a> Executive<'a> {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 mod tests {
 	use super::*;
 	use common::*;
-	use ethereum;
-	use engine::*;
-	use spec::*;
-	use evm::{Schedule, Factory, VMType};
+	use evm::{Factory, VMType};
 	use substate::*;
 	use tests::helpers::*;
-
-	struct TestEngine {
-		factory: Factory,
-		spec: Spec,
-		max_depth: usize
-	}
-
-	impl TestEngine {
-		fn new(max_depth: usize, factory: Factory) -> TestEngine {
-			TestEngine {
-				factory: factory,
-				spec: ethereum::new_frontier_test(),
-				max_depth: max_depth 
-			}
-		}
-	}
-
-	impl Engine for TestEngine {
-		fn name(&self) -> &str { "TestEngine" }
-		fn spec(&self) -> &Spec { &self.spec }
-		fn vm_factory(&self) -> &Factory {
-			&self.factory
-		}
-		fn schedule(&self, _env_info: &EnvInfo) -> Schedule { 
-			let mut schedule = Schedule::new_frontier();
-			schedule.max_depth = self.max_depth;
-			schedule
-		}
-	}
 
 	#[test]
 	fn test_contract_address() {
@@ -487,7 +456,7 @@ mod tests {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate).unwrap()
 		};
-		
+
 		assert_eq!(gas_left, U256::from(62_976));
 		// ended with max depth
 		assert_eq!(substate.contracts_created.len(), 0);
@@ -541,7 +510,7 @@ mod tests {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate).unwrap()
 		};
-		
+
 		assert_eq!(gas_left, U256::from(62_976));
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
@@ -593,12 +562,13 @@ mod tests {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate).unwrap();
 		}
-		
+
 		assert_eq!(substate.contracts_created.len(), 1);
 		assert_eq!(substate.contracts_created[0], next_address);
 	}
 
 	// test is incorrect, mk
+	// TODO: fix (preferred) or remove
 	evm_test_ignore!{test_aba_calls: test_aba_calls_jit, test_aba_calls_int}
 	fn test_aba_calls(factory: Factory) {
 		// 60 00 - push 0
@@ -659,11 +629,12 @@ mod tests {
 	}
 
 	// test is incorrect, mk
+	// TODO: fix (preferred) or remove
 	evm_test_ignore!{test_recursive_bomb1: test_recursive_bomb1_jit, test_recursive_bomb1_int}
 	fn test_recursive_bomb1(factory: Factory) {
 		// 60 01 - push 1
 		// 60 00 - push 0
-		// 54 - sload 
+		// 54 - sload
 		// 01 - add
 		// 60 00 - push 0
 		// 55 - sstore
@@ -704,6 +675,7 @@ mod tests {
 	}
 
 	// test is incorrect, mk
+	// TODO: fix (preferred) or remove
 	evm_test_ignore!{test_transact_simple: test_transact_simple_jit, test_transact_simple_int}
 	fn test_transact_simple(factory: Factory) {
 		let keypair = KeyPair::create().unwrap();
@@ -762,7 +734,7 @@ mod tests {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.transact(&t)
 		};
-		
+
 		match res {
 			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => (),
 			_ => assert!(false, "Expected invalid signature error.")
@@ -793,10 +765,10 @@ mod tests {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.transact(&t)
 		};
-		
+
 		match res {
-			Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) 
-				if expected == U256::zero() && got == U256::one() => (), 
+			Err(Error::Execution(ExecutionError::InvalidNonce { expected, got }))
+				if expected == U256::zero() && got == U256::one() => (),
 			_ => assert!(false, "Expected invalid nonce error.")
 		}
 	}
@@ -828,8 +800,8 @@ mod tests {
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) 
-				if gas_limit == U256::from(100_000) && gas_used == U256::from(20_000) && gas == U256::from(80_001) => (), 
+			Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas }))
+				if gas_limit == U256::from(100_000) && gas_used == U256::from(20_000) && gas == U256::from(80_001) => (),
 			_ => assert!(false, "Expected block gas limit error.")
 		}
 	}
@@ -859,10 +831,10 @@ mod tests {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.transact(&t)
 		};
-		
+
 		match res {
-			Err(Error::Execution(ExecutionError::NotEnoughCash { required , got })) 
-				if required == U512::from(100_018) && got == U512::from(100_017) => (), 
+			Err(Error::Execution(ExecutionError::NotEnoughCash { required , got }))
+				if required == U512::from(100_018) && got == U512::from(100_017) => (),
 			_ => assert!(false, "Expected not enough cash error. {:?}", res)
 		}
 	}
@@ -902,5 +874,4 @@ mod tests {
 			}
 		}
 	}
-
 }

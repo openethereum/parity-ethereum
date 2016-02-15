@@ -25,6 +25,7 @@ struct FakeLogEntry {
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[allow(enum_variant_names)] // Common prefix is C ;)
 enum FakeCallType {
 	CALL, CREATE
 }
@@ -59,7 +60,7 @@ struct FakeExt {
 }
 
 impl FakeExt {
-	fn new() -> Self { 
+	fn new() -> Self {
 		FakeExt::default()
 	}
 }
@@ -84,7 +85,7 @@ impl Ext for FakeExt {
 	}
 
 	fn balance(&self, address: &Address) -> U256 {
-		self.balances.get(address).unwrap().clone()
+		*self.balances.get(address).unwrap()
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
@@ -94,35 +95,35 @@ impl Ext for FakeExt {
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::CREATE,
-			gas: gas.clone(),
+			gas: *gas,
 			sender_address: None,
 			receive_address: None,
-			value: Some(value.clone()),
+			value: Some(*value),
 			data: code.to_vec(),
 			code_address: None
 		});
 		ContractCreateResult::Failed
 	}
 
-	fn call(&mut self, 
-			gas: &U256, 
-			sender_address: &Address, 
-			receive_address: &Address, 
+	fn call(&mut self,
+			gas: &U256,
+			sender_address: &Address,
+			receive_address: &Address,
 			value: Option<U256>,
-			data: &[u8], 
-			code_address: &Address, 
+			data: &[u8],
+			code_address: &Address,
 			_output: &mut [u8]) -> MessageCallResult {
 
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::CALL,
-			gas: gas.clone(),
+			gas: *gas,
 			sender_address: Some(sender_address.clone()),
 			receive_address: Some(receive_address.clone()),
 			value: value,
 			data: data.to_vec(),
 			code_address: Some(code_address.clone())
 		});
-		MessageCallResult::Success(gas.clone())
+		MessageCallResult::Success(*gas)
 	}
 
 	fn extcode(&self, address: &Address) -> Bytes {
@@ -176,7 +177,7 @@ fn test_stack_underflow() {
 		let vm : Box<evm::Evm> = Box::new(super::interpreter::Interpreter);
 		vm.exec(params, &mut ext).unwrap_err()
 	};
-	
+
 	match err {
 		evm::Error::StackUnderflow {wanted, on_stack, ..} => {
 			assert_eq!(wanted, 2);
@@ -353,7 +354,7 @@ evm_test!{test_log_sender: test_log_sender_jit, test_log_sender_int}
 fn test_log_sender(factory: super::Factory) {
 	// 60 ff - push ff
 	// 60 00 - push 00
-	// 53 - mstore 
+	// 53 - mstore
 	// 33 - sender
 	// 60 20 - push 20
 	// 60 00 - push 0
@@ -449,7 +450,7 @@ fn test_author(factory: super::Factory) {
 
 evm_test!{test_timestamp: test_timestamp_jit, test_timestamp_int}
 fn test_timestamp(factory: super::Factory) {
-	let timestamp = 0x1234; 
+	let timestamp = 0x1234;
 	let code = "42600055".from_hex().unwrap();
 
 	let mut params = ActionParams::default();
@@ -469,7 +470,7 @@ fn test_timestamp(factory: super::Factory) {
 
 evm_test!{test_number: test_number_jit, test_number_int}
 fn test_number(factory: super::Factory) {
-	let number = 0x1234; 
+	let number = 0x1234;
 	let code = "43600055".from_hex().unwrap();
 
 	let mut params = ActionParams::default();
@@ -898,7 +899,7 @@ fn test_calls(factory: super::Factory) {
 	let mut ext = FakeExt::new();
 	ext.balances = {
 		let mut s = HashMap::new();
-		s.insert(params.address.clone(), params.gas.clone());
+		s.insert(params.address.clone(), params.gas);
 		s
 	};
 

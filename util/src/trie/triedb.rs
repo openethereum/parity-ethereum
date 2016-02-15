@@ -293,7 +293,7 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let b = match self.trail.last_mut() {
-			Some(ref mut b) => { b.increment(); b.clone() },
+			Some(mut b) => { b.increment(); b.clone() },
 			None => return None
 		};
 		match (b.status, b.node) {
@@ -309,9 +309,8 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 				self.trail.pop();
 				self.next()
 			},
-			(Status::At, Node::Leaf(_, v)) => Some((self.key(), v)),
+			(Status::At, Node::Leaf(_, v)) | (Status::At, Node::Branch(_, Some(v))) => Some((self.key(), v)),
 			(Status::At, Node::Extension(_, d)) => self.descend_next(d),
-			(Status::At, Node::Branch(_, Some(v))) => Some((self.key(), v)),
 			(Status::At, Node::Branch(_, _)) => self.next(),
 			(Status::AtChild(i), Node::Branch(children, _)) if children[i].len() > 0 => {
 				match i {

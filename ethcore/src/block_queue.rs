@@ -26,12 +26,11 @@ use views::*;
 use header::*;
 use service::*;
 use client::BlockStatus;
+use util::panics::*;
 
 /// Block queue status
 #[derive(Debug)]
 pub struct BlockQueueInfo {
-	/// Indicates that queue is full
-	pub full: bool,
 	/// Number of queued blocks pending verification
 	pub unverified_queue_size: usize,
 	/// Number of verified queued blocks pending import
@@ -46,11 +45,22 @@ impl BlockQueueInfo {
 
 	/// The size of the unverified and verifying queues.
 	pub fn incomplete_queue_size(&self) -> usize { self.unverified_queue_size + self.verifying_queue_size }
+
+	/// Indicates that queue is full
+	pub fn is_full(&self) -> bool {
+		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size > MAX_UNVERIFIED_QUEUE_SIZE
+	}
+
+	/// Indicates that queue is empty
+	pub fn is_empty(&self) -> bool {
+		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size == 0
+	}
 }
 
 /// A queue of blocks. Sits between network or other I/O and the BlockChain.
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
+	panic_handler: Arc<PanicHandler>,
 	engine: Arc<Box<Engine>>,
 	more_to_verify: Arc<Condvar>,
 	verification: Arc<Mutex<Verification>>,
@@ -77,6 +87,7 @@ struct QueueSignal {
 }
 
 impl QueueSignal {
+	#[allow(bool_comparison)]
 	fn set(&self) {
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
 			self.message_channel.send(UserMessage(SyncMessage::BlockVerified)).expect("Error sending BlockVerified message");
@@ -105,6 +116,7 @@ impl BlockQueue {
 		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
 		let deleting = Arc::new(AtomicBool::new(false));
 		let empty = Arc::new(Condvar::new());
+		let panic_handler = PanicHandler::new_in_arc();
 
 		let mut verifiers: Vec<JoinHandle<()>> = Vec::new();
 		let thread_count = max(::num_cpus::get(), 3) - 2;
@@ -115,11 +127,21 @@ impl BlockQueue {
 			let ready_signal = ready_signal.clone();
 			let empty = empty.clone();
 			let deleting = deleting.clone();
-			verifiers.push(thread::Builder::new().name(format!("Verifier #{}", i)).spawn(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty))
-				.expect("Error starting block verification thread"));
+			let panic_handler = panic_handler.clone();
+			verifiers.push(
+				thread::Builder::new()
+				.name(format!("Verifier #{}", i))
+				.spawn(move || {
+					panic_handler.catch_panic(move || {
+					  BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
+					}).unwrap()
+				})
+				.expect("Error starting block verification thread")
+			);
 		}
 		BlockQueue {
 			engine: engine,
+			panic_handler: panic_handler,
 			ready_signal: ready_signal.clone(),
 			more_to_verify: more_to_verify.clone(),
 			verification: verification.clone(),
@@ -142,7 +164,7 @@ impl BlockQueue {
 				while lock.unverified.is_empty() && !deleting.load(AtomicOrdering::Relaxed) {
 					lock = wait.wait(lock).unwrap();
 				}
-				
+
 				if deleting.load(AtomicOrdering::Relaxed) {
 					return;
 				}
@@ -287,7 +309,6 @@ impl BlockQueue {
 		for h in hashes {
 			processing.remove(&h);
 		}
-		//TODO: reward peers
 	}
 
 	/// Removes up to `max` verified blocks from the queue
@@ -310,11 +331,16 @@ impl BlockQueue {
 	pub fn queue_info(&self) -> BlockQueueInfo {
 		let verification = self.verification.lock().unwrap();
 		BlockQueueInfo {
-			full: verification.unverified.len() + verification.verifying.len() + verification.verified.len() >= MAX_UNVERIFIED_QUEUE_SIZE,
 			verified_queue_size: verification.verified.len(),
 			unverified_queue_size: verification.unverified.len(),
 			verifying_queue_size: verification.verifying.len(),
 		}
+	}
+}
+
+impl MayPanic for BlockQueue {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+		self.panic_handler.on_panic(closure);
 	}
 }
 
@@ -394,5 +420,15 @@ mod tests {
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that has already been drained ({:?})", e);
 		}
+	}
+
+	#[test]
+	fn returns_empty_once_finished() {
+		let mut queue = get_test_queue();
+		queue.import_block(get_good_dummy_block()).expect("error importing block that is valid by definition");
+		queue.flush();
+		queue.drain(1);
+
+		assert!(queue.queue_info().is_empty());
 	}
 }

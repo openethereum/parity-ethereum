@@ -18,8 +18,15 @@
 #![feature(cell_extras)]
 #![feature(augmented_assignments)]
 #![feature(plugin)]
+// Clippy
 #![plugin(clippy)]
-#![allow(needless_range_loop, match_bool)]
+// TODO [todr] not really sure
+#![allow(needless_range_loop)]
+// Shorter than if-else
+#![allow(match_bool)]
+// Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
+#![allow(clone_on_copy)]
+
 
 //! Ethcore library
 //!
@@ -54,7 +61,7 @@
 //!   cd parity
 //!   cargo build --release
 //!   ```
-//!   
+//!
 //! - OSX:
 //!
 //!   ```bash
@@ -98,6 +105,7 @@ pub mod ethereum;
 pub mod header;
 pub mod service;
 pub mod spec;
+pub mod transaction;
 pub mod views;
 pub mod receipt;
 
@@ -115,7 +123,6 @@ mod state;
 mod account;
 mod account_db;
 mod action_params;
-mod transaction;
 mod null_engine;
 mod builtin;
 mod extras;
@@ -124,8 +131,8 @@ mod executive;
 mod externalities;
 mod verification;
 
-#[cfg(test)] 
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
-#[cfg(feature="json-tests")] 
+#[cfg(feature="json-tests")]
 mod json_tests;

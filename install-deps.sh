@@ -570,7 +570,7 @@ function run_installer()
 		sudo apt-add-repository -y ppa:ethcore/ethcore
 		sudo apt-get -f -y install
 		sudo apt-get update -qq
-		sudo apt-get install -qq -y librocksdb-dev
+		sudo apt-get install -qq -y librocksdb-dev librocksdb
 	}
 
 	function linux_rocksdb_installer()
@@ -688,7 +688,7 @@ function run_installer()
 		info "- Run tests with:"
 		info "    ${b}cargo test --release --features ethcore/json-tests -p ethcore${reset}"
 		info "- Install the client with:"
-		info "    ${b}sudo cp parity/target/release/parity${reset}"
+		info "    ${b}sudo cp parity/target/release/parity${reset} /usr/local/bin"
 		echo
 	}
 

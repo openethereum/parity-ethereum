@@ -21,6 +21,8 @@
 pub mod traits;
 mod impls;
 mod types;
+#[cfg(test)]
+mod tests;
 
 pub use self::traits::{Web3, Eth, EthFilter, Net};
 pub use self::impls::*;

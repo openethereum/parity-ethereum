@@ -19,8 +19,18 @@
 #![feature(augmented_assignments)]
 #![feature(associated_consts)]
 #![feature(plugin)]
+#![feature(catch_panic)]
+// Clippy settings
 #![plugin(clippy)]
-#![allow(needless_range_loop, match_bool)]
+// TODO [todr] not really sure
+#![allow(needless_range_loop)]
+// Shorter than if-else
+#![allow(match_bool)]
+// We use that to be more explicit about handled cases
+#![allow(match_same_arms)]
+// Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
+#![allow(clone_on_copy)]
+
 //! Ethcore-util library
 //!
 //! ### Rust version:
@@ -54,7 +64,7 @@
 //!   cd parity
 //!   cargo build --release
 //!   ```
-//!   
+//!
 //! - OSX:
 //!
 //!   ```bash
@@ -98,6 +108,7 @@ extern crate crossbeam;
 extern crate serde;
 #[macro_use]
 extern crate log as rlog;
+extern crate igd;
 
 pub mod standard;
 #[macro_use]
@@ -129,6 +140,8 @@ pub mod semantic_version;
 pub mod io;
 pub mod network;
 pub mod log;
+pub mod panics;
+pub mod keys;
 
 pub use common::*;
 pub use misc::*;
@@ -149,3 +162,6 @@ pub use semantic_version::*;
 pub use network::*;
 pub use io::*;
 pub use log::*;
+
+#[cfg(test)]
+mod tests;

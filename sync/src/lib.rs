@@ -16,8 +16,11 @@
 
 #![warn(missing_docs)]
 #![feature(plugin)]
-#![plugin(clippy)]
 #![feature(augmented_assignments)]
+#![plugin(clippy)]
+// Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
+#![allow(clone_on_copy)]
+
 //! Blockchain sync module
 //! Implements ethereum protocol version 63 as specified here:
 //! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
@@ -50,6 +53,7 @@ extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate env_logger;
 extern crate time;
+extern crate rand;
 
 use std::ops::*;
 use std::sync::*;
@@ -75,7 +79,7 @@ pub struct EthSync {
 	sync: RwLock<ChainSync>
 }
 
-pub use self::chain::SyncStatus;
+pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
@@ -124,5 +128,11 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	fn timeout(&self, io: &NetworkContext<SyncMessage>, _timer: TimerToken) {
 		self.sync.write().unwrap().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
 		self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
+	}
+
+	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
+		if let SyncMessage::BlockVerified = *message {
+			self.sync.write().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
+		}
 	}
 }
