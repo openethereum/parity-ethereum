@@ -4,8 +4,6 @@ language: rust
 branches:
   only:
   - master
-  - /^beta-.*$/
-  - /^stable-.*$/
   - /^beta$/
   - /^stable$/
 matrix:
