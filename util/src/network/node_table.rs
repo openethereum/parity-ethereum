@@ -96,6 +96,13 @@ impl NodeEndpoint {
 			SocketAddr::V6(a) => !a.ip().is_unspecified()
 		}
 	}
+
+	pub fn is_global(&self) -> bool {
+		match self.address {
+			SocketAddr::V4(a) => a.ip().is_global(),
+			SocketAddr::V6(a) => a.ip().is_global()
+		}
+	}
 }
 
 impl FromStr for NodeEndpoint {

@@ -356,7 +356,11 @@ impl Discovery {
 		}
 		let mut entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
 		if !entry.endpoint.is_valid() {
-			debug!(target: "discovery", "Bad address: {:?}", entry);
+			debug!(target: "discovery", "Got bad address: {:?}, using {:?} instead", entry, from);
+			entry.endpoint.address = from.clone();
+		}
+		if !entry.endpoint.is_global() {
+			debug!(target: "discovery", "Got local address: {:?}, using {:?} instead", entry, from);
 			entry.endpoint.address = from.clone();
 		}
 		self.update_node(entry.clone());

@@ -39,7 +39,7 @@ use network::{NetworkProtocolHandler, PROTOCOL_VERSION};
 use network::node_table::*;
 use network::stats::NetworkStats;
 use network::error::DisconnectReason;
-use igd::{PortMappingProtocol,search_gateway};
+use igd::{PortMappingProtocol, search_gateway};
 use network::discovery::{Discovery, TableUpdates, NodeEntry};
 
 type Slab<T> = ::slab::Slab<T, usize>;
@@ -105,12 +105,12 @@ impl NetworkConfiguration {
 		if self.nat_enabled {
 			info!("Enabling NAT...");
 			match search_gateway() {
-				Err(ref err) => info!("Error: {}", err),
+				Err(ref err) => warn!("Port mapping error: {}", err),
 				Ok(gateway) => {
 					let int_addr = SocketAddrV4::from_str("127.0.0.1:30304").unwrap();
 					match gateway.get_any_address(PortMappingProtocol::TCP, int_addr, 0, "Parity Node/TCP") {
 						Err(ref err) => {
-							info!("There was an error! {}", err);
+							warn!("Port mapping error: {}", err);
 						},
 						Ok(ext_addr) => {
 							info!("Local gateway: {}, External ip address: {}", gateway, ext_addr);
@@ -356,7 +356,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			},
 			|s| KeyPair::from_secret(s).expect("Error creating node secret key"))
 		};
-		let endpoint = NodeEndpoint { address: addr.clone(), udp_port: addr.port() };
+		let endpoint = NodeEndpoint { address: config.public_address.clone(), udp_port: addr.port() };
 		let discovery = Discovery::new(&keys, endpoint, DISCOVERY);
 		let path = config.config_path.clone();
 		let mut host = Host::<Message> {
