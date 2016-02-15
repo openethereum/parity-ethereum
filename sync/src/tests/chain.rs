@@ -160,3 +160,14 @@ fn propagade_blocks() {
 	// NEW_BLOCK_PACKET
 	assert_eq!(0x07, net.peer(0).queue[0].packet_id);
 }
+
+#[test]
+fn restart_on_malformed_block() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(1).chain.add_blocks(10, false);
+	net.peer_mut(1).chain.corrupt_block(6);
+	net.sync_steps(10);
+
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 4);
+}
+

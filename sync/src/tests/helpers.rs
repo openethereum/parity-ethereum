@@ -71,6 +71,17 @@ impl TestBlockChainClient {
 		}
 	}
 
+	pub fn corrupt_block(&mut self, n: BlockNumber) {
+		let hash = self.block_hash(BlockId::Number(n)).unwrap();
+		let mut header: BlockHeader = decode(&self.block_header(BlockId::Number(n)).unwrap());
+		header.parent_hash = H256::new();
+		let mut rlp = RlpStream::new_list(3);
+		rlp.append(&header);
+		rlp.append_raw(&rlp::NULL_RLP, 1);
+		rlp.append_raw(&rlp::NULL_RLP, 1);
+		self.blocks.write().unwrap().insert(hash, rlp.out());
+	}
+
 	pub fn block_hash_delta_minus(&mut self, delta: usize) -> H256 {
 		let blocks_read = self.numbers.read().unwrap();
 		let index = blocks_read.len() - delta;
