@@ -18,4 +18,4 @@
 
 pub mod directory;
 
-mod encryptor;
+mod store;

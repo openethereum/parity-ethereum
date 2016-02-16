@@ -168,6 +168,8 @@ pub struct KeyFileCrypto {
 	pub cipher_text: Bytes,
 	/// Password derived key generator function settings.
 	pub kdf: KeyFileKdf,
+	/// Mac
+	pub mac: H256
 }
 
 impl KeyFileCrypto {
@@ -216,15 +218,24 @@ impl KeyFileCrypto {
 			}
 		};
 
-		let cipher_text = match as_object["ciphertext"].as_string() {
-			None => { return Err(CryptoParseError::NoCipherText); }
+		let cipher_text = match try!(as_object.get("ciphertext").ok_or(CryptoParseError::NoCipherText)).as_string() {
+			None => { return Err(CryptoParseError::InvalidCipherText); }
 			Some(text) => text
+		};
+
+		let mac: H256 = match try!(as_object.get("mac").ok_or(CryptoParseError::NoMac)).as_string() {
+			None => { return Err(CryptoParseError::InvalidMacFormat(None)) },
+			Some(salt_value) => match H256::from_str(salt_value) {
+				Ok(salt_hex_value) => salt_hex_value,
+				Err(from_hex_error) => { return Err(CryptoParseError::InvalidMacFormat(Some(from_hex_error))); },
+			}
 		};
 
 		Ok(KeyFileCrypto {
 			cipher_text: Bytes::from(cipher_text),
 			cipher_type: cipher_type,
 			kdf: kdf,
+			mac: mac,
 		})
 	}
 
@@ -251,6 +262,8 @@ impl KeyFileCrypto {
 			KeyFileKdf::Scrypt(ref scrypt_params) => scrypt_params.to_json()
 		});
 
+		map.insert("mac".to_owned(), Json::String(format!("{:?}", self.mac)));
+
 		Json::Object(map)
 	}
 
@@ -270,6 +283,7 @@ impl KeyFileCrypto {
 				c: c,
 				prf: Pbkdf2CryptoFunction::HMacSha256
 			}),
+			mac: H256::random(),
 		}
 	}
 }
@@ -324,7 +338,10 @@ pub struct KeyFileContent {
 
 #[derive(Debug)]
 enum CryptoParseError {
+	InvalidMacFormat(Option<UtilError>),
+	NoMac,
 	NoCipherText,
+	InvalidCipherText,
 	NoCipherType,
 	InvalidJsonFormat,
 	InvalidKdfType(Mismatch<String>),
