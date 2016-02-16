@@ -64,9 +64,11 @@ Options:
   -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
 
   --no-bootstrap           Don't bother trying to connect to any nodes initially.
-  --listen-address URL     Specify the IP/port on which to listen for peers.
+  --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect.
   --address URL            Equivalent to --listen-address URL --public-address URL.
+  --peers NUM  	           Try to manintain that many peers [default: 25].
+  --no-discovery   	       Disable new peer discovery.
   --upnp                   Use UPnP to try to figure out the correct network settings.
   --node-key KEY           Specify node secret key as hex string.
 
@@ -81,8 +83,8 @@ Options:
   -h --help                Show this screen.
 ", 	flag_cache_pref_size: usize,
 	flag_cache_max_size: usize, 
+	flag_peers: u32, 
 	flag_address: Option<String>, 
-	flag_listen_address: Option<String>, 
 	flag_public_address: Option<String>, 
 	flag_node_key: Option<String>);
 
@@ -168,11 +170,8 @@ impl Configuration {
 			public_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address"));
 			listen_address = public_address;
 		}
-		if let Some(ref a) = self.args.flag_listen_address {
-			if listen_address.is_some() {
-				panic!("Conflicting flags: --address and --listen-address");
-			}
-			listen_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen address given with --listen-address"));
+		if listen_address.is_none() {
+			listen_address = Some(SocketAddr::from_str(self.args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address"));
 		}
 		if let Some(ref a) = self.args.flag_public_address {
 			if public_address.is_some() {
@@ -218,6 +217,8 @@ fn main() {
 	net_settings.listen_address = listen;
 	net_settings.public_address = public;
 	net_settings.use_secret = conf.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+	net_settings.discovery_enabled = !conf.args.flag_no_discovery;
+	net_settings.ideal_peers = conf.args.flag_peers;
 	let mut net_path = PathBuf::from(&conf.path());
 	net_path.push("network");
 	net_settings.config_path = Some(net_path.to_str().unwrap().to_owned());
