@@ -31,7 +31,7 @@
 //
 
 //! Big unsigned integer types
-//! 
+//!
 //! Implementation of a various large-but-fixed sized unsigned integer types.
 //! The functions here are designed to be fast.
 //!
@@ -102,7 +102,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 
 	/// Conversion to u64 with overflow checking
 	fn as_u64(&self) -> u64;
-	
+
 	/// Return the least number of bits needed to represent the number
 	fn bits(&self) -> usize;
 	/// Return if specific bit is set
@@ -127,7 +127,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 
 	/// Multiple this `Uint` with other returning result and possible overflow
 	fn overflowing_mul(self, other: Self) -> (Self, bool);
-	
+
 	/// Divide this `Uint` by other returning result and possible overflow
 	fn overflowing_div(self, other: Self) -> (Self, bool);
 
@@ -136,7 +136,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 
 	/// Returns negation of this `Uint` and overflow (always true)
 	fn overflowing_neg(self) -> (Self, bool);
-	
+
 	/// Shifts this `Uint` and returns overflow
 	fn overflowing_shl(self, shift: u32) -> (Self, bool);
 }
@@ -180,7 +180,7 @@ macro_rules! construct_uint {
 			fn as_u32(&self) -> u32 {
 				let &$name(ref arr) = self;
 				if (arr[0] & (0xffffffffu64 << 32)) != 0 {
-					panic!("Integer overflow when casting U256") 
+					panic!("Integer overflow when casting U256")
 				}
 				self.as_u64() as u32
 			}
@@ -191,7 +191,7 @@ macro_rules! construct_uint {
 				let &$name(ref arr) = self;
 				for i in 1..$n_words {
 					if arr[i] != 0 {
-						panic!("Integer overflow when casting U256") 
+						panic!("Integer overflow when casting U256")
 					}
 				}
 				arr[0]
@@ -325,7 +325,7 @@ macro_rules! construct_uint {
 				if b_carry {
 					let ret = overflowing!($name(ret).overflowing_add($name(carry)), overflow);
 					(ret, overflow)
-				} else { 
+				} else {
 					($name(ret), overflow)
 				}
 			}
@@ -453,7 +453,7 @@ macro_rules! construct_uint {
 		}
 
 		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				let mut bytes = [0u8; 8 * $n_words];
@@ -1129,7 +1129,7 @@ mod tests {
 		assert_eq!(U256::from(105u8) / U256::from(5u8), U256::from(21u8));
 		let div = mult / U256::from(300u16);
 		assert_eq!(div, U256([0x9F30411021524112u64, 0x0001BD5B7DDFBD5A, 0, 0]));
-		//// TODO: bit inversion
+		// TODO: bit inversion
 	}
 
 	#[test]

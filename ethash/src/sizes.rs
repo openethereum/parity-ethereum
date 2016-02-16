@@ -29,6 +29,7 @@
 //             Floor[(CacheSizeBytesInit + CacheGrowth * j) / HashBytes]},
 //             While[! PrimeQ[i], i--];
 //             Sow[i*HashBytes]; j++]]]][[2]][[1]]
+#[cfg_attr(rustfmt, rustfmt_skip)]
 pub const DAG_SIZES: [u64; 2048] = [
 	1073739904u64, 1082130304u64, 1090514816u64, 1098906752u64, 1107293056u64,
 	1115684224u64, 1124070016u64, 1132461952u64, 1140849536u64, 1149232768u64,
@@ -456,6 +457,7 @@ pub const DAG_SIZES: [u64; 2048] = [
 //        Module[{i = Floor[(DataSetSizeBytesInit + DataSetGrowth * j) / (CacheMultiplier * HashBytes)]},
 //         While[! PrimeQ[i], i--];
 //         Sow[i*HashBytes]; j++]]]][[2]][[1]]
+#[cfg_attr(rustfmt, rustfmt_skip)]
 pub const CACHE_SIZES: [u64; 2048] = [
 	16776896u64, 16907456u64, 17039296u64, 17170112u64, 17301056u64, 17432512u64, 17563072u64,
 	17693888u64, 17824192u64, 17955904u64, 18087488u64, 18218176u64, 18349504u64, 18481088u64,
