@@ -17,5 +17,4 @@
 //! Key management module
 
 pub mod directory;
-
-mod store;
+pub mod store;
