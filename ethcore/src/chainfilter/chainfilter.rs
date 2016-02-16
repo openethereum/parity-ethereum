@@ -90,9 +90,9 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 				// if we are on the lowest level
 				0 => return match offset < to_block {
 					// take the value if its smaller than to_block
-					true => Some(vec![offset]),
+					true if level_bloom.contains(bloom) => Some(vec![offset]),
 					// return None if it is is equal to to_block
-					false => None
+					_ => None
 				},
 				// return None if current level doesnt contain given bloom
 				_ if !level_bloom.contains(bloom) => return None,

@@ -261,6 +261,7 @@ impl Encodable for BlocksBlooms {
 }
 
 /// Represents location of bloom in database.
+#[derive(Debug)]
 pub struct BlocksBloomLocation {
 	/// Unique hash of BlocksBloom
 	pub hash: H256,
