@@ -11,7 +11,7 @@
 **/target/
 
 # libs cargo lock
-**/Cargo.lock
+/*/Cargo.lock
 
 # vim stuff
 *.swp
