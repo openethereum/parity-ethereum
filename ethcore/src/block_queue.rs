@@ -153,7 +153,7 @@ impl BlockQueue {
 	}
 
 	fn verify(verification: Arc<Mutex<Verification>>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
-		while !deleting.load(AtomicOrdering::Relaxed) {
+		while !deleting.load(AtomicOrdering::Acquire) {
 			{
 				let mut lock = verification.lock().unwrap();
 
@@ -161,11 +161,11 @@ impl BlockQueue {
 					empty.notify_all();
 				}
 
-				while lock.unverified.is_empty() && !deleting.load(AtomicOrdering::Relaxed) {
+				while lock.unverified.is_empty() && !deleting.load(AtomicOrdering::Acquire) {
 					lock = wait.wait(lock).unwrap();
 				}
 
-				if deleting.load(AtomicOrdering::Relaxed) {
+				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}
 			}
@@ -347,7 +347,7 @@ impl MayPanic for BlockQueue {
 impl Drop for BlockQueue {
 	fn drop(&mut self) {
 		self.clear();
-		self.deleting.store(true, AtomicOrdering::Relaxed);
+		self.deleting.store(true, AtomicOrdering::Release);
 		self.more_to_verify.notify_all();
 		for t in self.verifiers.drain(..) {
 			t.join().unwrap();
