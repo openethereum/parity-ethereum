@@ -57,5 +57,28 @@ pub unsafe fn raise_fd_limit() {
     }
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+#[cfg(any(target_os = "linux"))]
+#[allow(non_camel_case_types)]
+pub unsafe fn raise_fd_limit() {
+    use libc;
+    use std::io;
+
+    // Fetch the current resource limits
+    let mut rlim = libc::rlimit{rlim_cur: 0, rlim_max: 0};
+    if libc::getrlimit(libc::RLIMIT_NOFILE, &mut rlim) != 0 {
+        let err = io::Error::last_os_error();
+        panic!("raise_fd_limit: error calling getrlimit: {}", err);
+    }
+
+    // Set soft limit to hard imit
+    rlim.rlim_cur = rlim.rlim_max;
+
+    // Set our newly-increased resource limit
+    if libc::setrlimit(libc::RLIMIT_NOFILE, &rlim) != 0 {
+        let err = io::Error::last_os_error();
+        panic!("raise_fd_limit: error calling setrlimit: {}", err);
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "linux")))]
 pub unsafe fn raise_fd_limit() {}
