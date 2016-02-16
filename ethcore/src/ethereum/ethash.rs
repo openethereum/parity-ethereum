@@ -49,6 +49,17 @@ impl Ethash {
 		})
 	}
 
+	#[cfg(test)]
+	fn new_test(spec: Spec) -> Ethash {
+		Ethash {
+			spec: spec,
+			pow: EthashManager::new(),
+			factory: Factory::default(),
+			u64_params: RwLock::new(HashMap::new()),
+			u256_params: RwLock::new(HashMap::new())
+		}
+	}
+
 	fn u64_param(&self, name: &str) -> u64 {
 		*self.u64_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
 			self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a)))
@@ -332,165 +343,4 @@ mod tests {
 
 		assert!(!schedule.have_delegate_call);
 	}
-
-	#[test]
-	fn can_do_seal_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
-		let header: Header = Header::default();
-
-		let verify_result = engine.verify_block_basic(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
-			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_do_difficulty_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
-		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
-
-		let verify_result = engine.verify_block_basic(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
-			Err(_) => { panic!("should be block difficulty error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_do_proof_of_work_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
-		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
-		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
-
-		let verify_result = engine.verify_block_basic(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
-			Err(_) => { panic!("should be invalid proof of work error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_do_seal_unordered_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
-		let header: Header = Header::default();
-
-		let verify_result = engine.verify_block_unordered(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
-			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_do_seal256_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
-		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
-		let verify_result = engine.verify_block_unordered(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
-			Err(_) => { panic!("should be invalid 256-bit seal fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_do_proof_of_work_unordered_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
-		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
-		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
-
-		let verify_result = engine.verify_block_unordered(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
-			Err(_) => { panic!("should be invalid proof-of-work fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_verify_block_family_genesis_fail() {
-		let engine = Ethash::new_test(new_morden());
-		let header: Header = Header::default();
-		let parent_header: Header = Header::default();
-
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::RidiculousNumber(_))) => {},
-			Err(_) => { panic!("should be invalid block number fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_verify_block_family_difficulty_fail() {
-		let engine = Ethash::new_test(new_morden());
-		let mut header: Header = Header::default();
-		header.set_number(2);
-		let mut parent_header: Header = Header::default();
-		parent_header.set_number(1);
-
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {},
-			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_verify_block_family_gas_fail() {
-		let engine = Ethash::new_test(new_morden());
-		let mut header: Header = Header::default();
-		header.set_number(2);
-		header.set_difficulty(U256::from_str("0000000000000000000000000000000000000000000000000000000000020000").unwrap());
-		let mut parent_header: Header = Header::default();
-		parent_header.set_number(1);
-
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidGasLimit(_))) => {},
-			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
->>>>>>> f1b39ee... nightly fixes
-
-#[test]
-fn on_close_block_with_uncle() {
-	use super::*;
-	let engine = new_morden().to_engine().unwrap();
-	let genesis_header = engine.spec().genesis_header();
-	let mut db_result = get_temp_journal_db();
-	let mut db = db_result.take();
-	engine.spec().ensure_db_good(&mut db);
-	let last_hashes = vec![genesis_header.hash()];
-	let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
-	let mut uncle = Header::new();
-	let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
-	uncle.author = uncle_author.clone();
-	b.push_uncle(uncle).unwrap();
-	
-	let b = b.close();
-	assert_eq!(b.state().balance(&Address::zero()), U256::from_str("478eae0e571ba000").unwrap());
-	assert_eq!(b.state().balance(&uncle_author), U256::from_str("3cb71f51fc558000").unwrap());
 }
-
-// TODO: difficulty test
