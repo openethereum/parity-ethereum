@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
-PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_linux_0.9.0-0_amd64.deb
+PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9.1/parity_linux_0.9.1-0_amd64.deb
 
 
 function run_installer()
 {
 	####### Init vars
-	
+
 	HOMEBREW_PREFIX=/usr/local
 	HOMEBREW_CACHE=/Library/Caches/Homebrew
 	HOMEBREW_REPO=https://github.com/Homebrew/homebrew
 	OSX_REQUIERED_VERSION="10.7.0"
-	
+
 	declare OS_TYPE
 	declare OSX_VERSION
 	declare GIT_PATH
@@ -28,7 +28,7 @@ function run_installer()
 	depCount=0
 	depFound=0
 
-	
+
 	####### Setup colors
 
 	red=`tput setaf 1`
@@ -202,7 +202,7 @@ function run_installer()
 		errorMessages+="${red}==>${reset} ${b}Mac OS version too old:${reset} eth requires OS X version ${red}$OSX_REQUIERED_VERSION${reset} at least in order to run.${n}"
 		errorMessages+="		Please update the OS and reload the install process.${n}"
 	}
-	
+
 	function get_osx_dependencies()
 	{
 		macos_version
@@ -210,11 +210,11 @@ function run_installer()
 		find_ruby
 		find_brew
 	}
-	
+
 	function linux_version()
 	{
 		source /etc/lsb-release
-		
+
 		if [[ $DISTRIB_ID == "Ubuntu" ]]; then
 			if [[ $DISTRIB_RELEASE == "14.04" || $DISTRIB_RELEASE == "15.04" || $DISTRIB_RELEASE == "15.10" ]]; then
 				check "Ubuntu"
@@ -265,7 +265,7 @@ function run_installer()
 
 		depCount=$((depCount+1))
 	}
-	
+
 	function find_ruby()
 	{
 		depCount=$((depCount+1))
@@ -286,7 +286,7 @@ function run_installer()
 			errorMessages+="		Please install Ruby using these instructions ${u}${blue}https://www.ruby-lang.org/en/documentation/installation/${reset}.${n}"
 		fi
 	}
-	
+
 	function find_sudo()
 	{
 		depCount=$((depCount+1))
@@ -380,7 +380,7 @@ function run_installer()
 			abortInstall
 		fi
 	}
-	
+
 	function verify_dep_installation()
 	{
 		info "Verifying installation"
@@ -394,7 +394,7 @@ function run_installer()
 			fi
 		fi
 	}
-	
+
 	function linux_deps_installer()
 	{
 		if [[ $isRocksDB == false || $isCurl == false ]]; then
@@ -402,7 +402,7 @@ function run_installer()
 			sudo apt-get update -qq
 			echo
 		fi
-		
+
 		if [[ $isRocksDB == false ]]; then
 			info "Installing rocksdb..."
 
@@ -421,7 +421,7 @@ function run_installer()
 			echo
 		fi
 	}
-	
+
 	function linux_installer()
 	{
 		linux_deps_installer
@@ -435,7 +435,7 @@ function run_installer()
 		rm $file
 	}
 
-	
+
 	function osx_installer()
 	{
 		info "Adding ethcore repository"
@@ -456,7 +456,7 @@ function run_installer()
 		fi
 		echo
 	}
-	
+
 	function install()
 	{
 		echo
@@ -473,7 +473,7 @@ function run_installer()
 		verify_installation
 	}
 
-	
+
 	function install_netstats()
 	{
 		echo "Installing netstats"
@@ -484,7 +484,7 @@ function run_installer()
 
 		curl -sL https://deb.nodesource.com/setup_0.12 | bash -
 		sudo apt-get update
-		
+
 		# install ethereum & install dependencies
 		sudo apt-get install -y -qq build-essential git unzip wget nodejs ntp cloud-utils
 
@@ -537,7 +537,7 @@ function run_installer()
 			"WS_SERVER"				: "wss://rpc.ethstats.net",
 			"WS_SECRET"				: "${secret}",
 			"VERBOSITY"				: 2
-		
+
 		}
 	}
 ]
@@ -546,7 +546,7 @@ EOL
 		pm2 startOrRestart app.json
 		cd $oldpwd
 	}
-	
+
 
 	function abortInstall()
 	{
@@ -578,10 +578,10 @@ EOL
 	fi
 
 	#DEBUG
-	
+
 	head "${b}OK,${reset} let's install Parity now!"
 	if [[ $(ask_user "${b}Last chance!${reset} Sure you want to install this software?") == true ]]; then
-		install	
+		install
 		echo
 		echo
 	else
