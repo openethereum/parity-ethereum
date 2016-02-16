@@ -445,13 +445,13 @@ impl Discovery {
 		Ok(Some(TableUpdates { added: added, removed: HashSet::new() }))
 	}
 
-	fn check_expired(&mut self) -> HashSet<NodeId> {
+	fn check_expired(&mut self, force: bool) -> HashSet<NodeId> {
 		let now = time::precise_time_ns();
 		let mut removed: HashSet<NodeId> = HashSet::new();
 		for bucket in &mut self.node_buckets {
 			bucket.nodes.retain(|node| {
 				if let Some(timeout) = node.timeout {
-					if now - timeout < PING_TIMEOUT_MS * 1000_0000 {
+					if !force && now - timeout < PING_TIMEOUT_MS * 1000_0000 {
 						true
 					}
 					else {
@@ -466,7 +466,7 @@ impl Discovery {
 	}
 
 	pub fn round(&mut self) -> Option<TableUpdates> {
-		let removed = self.check_expired();
+		let removed = self.check_expired(false);
 		self.discover();
 		if !removed.is_empty() { 
 			Some(TableUpdates { added: HashMap::new(), removed: removed }) 
@@ -512,8 +512,8 @@ mod tests {
 
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7771").unwrap();
-		discovery1.add_node(NodeEntry { id: node1.id.clone(), endpoint: node1. endpoint.clone() });
-		discovery1.add_node(NodeEntry { id: node2.id.clone(), endpoint: node2. endpoint.clone() });
+		discovery1.add_node(NodeEntry { id: node1.id.clone(), endpoint: node1.endpoint.clone() });
+		discovery1.add_node(NodeEntry { id: node2.id.clone(), endpoint: node2.endpoint.clone() });
 
 		discovery2.add_node(NodeEntry { id: key1.public().clone(), endpoint: ep1.clone() });
 		discovery2.refresh();
@@ -534,5 +534,17 @@ mod tests {
 			discovery2.round();
 		}
 		assert_eq!(Discovery::nearest_node_entries(&NodeId::new(), &discovery2.node_buckets).len(), 3)
+	}
+
+	#[test]
+	fn removes_expired() {
+		let key = KeyPair::create().unwrap();
+		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40444 };
+		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
+		for _ in 0..1200 {
+			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
+		}
+		let removed = discovery.check_expired(true).len();
+		assert!(removed > 0);
 	}
 }

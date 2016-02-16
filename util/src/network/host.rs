@@ -987,3 +987,13 @@ fn load_key(path: &Path) -> Option<Secret> {
 		}
 	}
 }
+
+#[test]
+fn key_save_load() {
+	use tests::helpers::RandomTempPath;
+	let temp_path = RandomTempPath::create_dir();
+	let key = H256::random();
+	save_key(temp_path.as_path(), &key);
+	let r = load_key(temp_path.as_path());
+	assert_eq!(key, r.unwrap());
+}
