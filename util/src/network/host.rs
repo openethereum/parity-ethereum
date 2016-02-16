@@ -513,7 +513,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			});
 			Arc::new(Mutex::new(handshake))
 		}).is_none() {
-			warn!("Max handshakes reached");
+			debug!("Max handshakes reached");
 		}
 	}
 
