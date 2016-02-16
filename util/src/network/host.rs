@@ -46,8 +46,8 @@ type Slab<T> = ::slab::Slab<T, usize>;
 
 const _DEFAULT_PORT: u16 = 30304;
 const MAX_SESSIONS: usize = 1024;
-const MAX_HANDSHAKES: usize = 256;
-const MAX_HANDSHAKES_PER_ROUND: usize = 64;
+const MAX_HANDSHAKES: usize = 64;
+const MAX_HANDSHAKES_PER_ROUND: usize = 8;
 const MAINTENANCE_TIMEOUT: u64 = 1000;
 
 #[derive(Debug)]
