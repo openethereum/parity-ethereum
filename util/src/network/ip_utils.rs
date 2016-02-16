@@ -43,34 +43,28 @@ mod getinterfaces {
 				let sa: *const sockaddr_in = unsafe { mem::transmute(sa) };
 				let sa = & unsafe { *sa };
 				let (addr, port) = (sa.sin_addr.s_addr, sa.sin_port);
-				(
-					IpAddr::V4(Ipv4Addr::new(
-							(addr & 0x000000FF) as u8,
-							((addr & 0x0000FF00) >>  8) as u8,
-							((addr & 0x00FF0000) >> 16) as u8,
-							((addr & 0xFF000000) >> 24) as u8,
-							)),
-							port
-				)
+				(IpAddr::V4(Ipv4Addr::new(
+					(addr & 0x000000FF) as u8,
+					((addr & 0x0000FF00) >>  8) as u8,
+					((addr & 0x00FF0000) >> 16) as u8,
+					((addr & 0xFF000000) >> 24) as u8)),
+					port)
 			},
 			AF_INET6 => {
 				let sa: *const sockaddr_in6 = unsafe { mem::transmute(sa) };
 				let sa = & unsafe { *sa };
 				let (addr, port) = (sa.sin6_addr.s6_addr, sa.sin6_port);
 				let addr: [u16; 8] = unsafe { mem::transmute(addr) };
-				(
-					IpAddr::V6(Ipv6Addr::new(
-							addr[0],
-							addr[1],
-							addr[2],
-							addr[3],
-							addr[4],
-							addr[5],
-							addr[6],
-							addr[7],
-							)),
-							port
-				)
+				(IpAddr::V6(Ipv6Addr::new(
+					addr[0],
+					addr[1],
+					addr[2],
+					addr[3],
+					addr[4],
+					addr[5],
+					addr[6],
+					addr[7])),
+					port)
 			},
 			_ => return None,
 		};
@@ -172,5 +166,17 @@ pub fn map_external_address(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 		}
 	}
 	None
+}
+
+#[test]
+fn can_select_public_address() {
+	let pub_address = select_public_address(40477);
+	assert!(pub_address.port() == 40477);
+}
+
+#[test]
+fn can_map_external_address_or_fail() {
+	let pub_address = select_public_address(40478);
+	let _ = map_external_address(&NodeEndpoint { address: pub_address, udp_port: 40478 });
 }
 
