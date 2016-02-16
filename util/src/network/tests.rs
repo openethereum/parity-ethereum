@@ -92,16 +92,18 @@ fn net_service() {
 #[test]
 fn net_connect() {
 	let key1 = KeyPair::create().unwrap();
-	let mut config1 = NetworkConfiguration::new_with_port(30344);
+	let mut config1 = NetworkConfiguration::new_with_port(30354);
 	config1.use_secret = Some(key1.secret().clone());
+	config1.nat_enabled = false;
 	config1.boot_nodes = vec![ ];
-	let mut config2 = NetworkConfiguration::new_with_port(30345);
-	config2.boot_nodes = vec![ format!("enode://{}@127.0.0.1:30344", key1.public().hex()) ];
+	let mut config2 = NetworkConfiguration::new_with_port(30355);
+	config2.boot_nodes = vec![ format!("enode://{}@127.0.0.1:30354", key1.public().hex()) ];
+	config2.nat_enabled = false;
 	let mut service1 = NetworkService::<TestProtocolMessage>::start(config1).unwrap();
 	let mut service2 = NetworkService::<TestProtocolMessage>::start(config2).unwrap();
 	let handler1 = TestProtocol::register(&mut service1);
 	let handler2 = TestProtocol::register(&mut service2);
-	while !handler1.got_packet() && !handler2.got_packet() {
+	while !handler1.got_packet() && !handler2.got_packet() && (service1.stats().sessions() == 0 || service2.stats().sessions() == 0) {
 		thread::sleep(Duration::from_millis(50));
 	}
 	assert!(service1.stats().sessions() >= 1);

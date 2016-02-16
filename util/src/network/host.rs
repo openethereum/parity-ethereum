@@ -493,8 +493,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			};
 			match TcpStream::connect(&address) {
 				Ok(socket) => socket,
-				Err(_) => {
-					warn!("Cannot connect to node");
+				Err(e) => {
+					warn!("Can't connect to node: {:?}", e);
 					return;
 				}
 			}
@@ -769,9 +769,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	/// Initialize networking
 	fn initialize(&self, io: &IoContext<NetworkIoMessage<Message>>) {
 		io.register_stream(TCP_ACCEPT).expect("Error registering TCP listener");
-		io.register_stream(DISCOVERY).expect("Error registering UDP listener");
 		io.register_timer(IDLE, MAINTENANCE_TIMEOUT).expect("Error registering Network idle timer");
 		if self.discovery.is_some() {
+			io.register_stream(DISCOVERY).expect("Error registering UDP listener");
 			io.register_timer(DISCOVERY_REFRESH, 7200).expect("Error registering discovery timer");
 			io.register_timer(DISCOVERY_ROUND, 300).expect("Error registering discovery timer");
 		}
