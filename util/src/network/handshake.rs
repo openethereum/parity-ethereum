@@ -22,8 +22,8 @@ use sha3::Hashable;
 use bytes::Bytes;
 use crypto::*;
 use crypto;
-use network::connection::{Connection};
-use network::host::{HostInfo};
+use network::connection::Connection;
+use network::host::HostInfo;
 use network::node::NodeId;
 use error::*;
 use network::error::NetworkError;
@@ -63,7 +63,7 @@ pub struct Handshake {
 	/// A copy of received encryped auth packet 
 	pub auth_cipher: Bytes,
 	/// A copy of received encryped ack packet 
-	pub ack_cipher: Bytes
+	pub ack_cipher: Bytes,
 }
 
 const AUTH_PACKET_SIZE: usize = 307;
@@ -74,7 +74,7 @@ impl Handshake {
 	/// Create a new handshake object
 	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256, stats: Arc<NetworkStats>) -> Result<Handshake, UtilError> {
 		Ok(Handshake {
-			id: if let Some(id) = id { id.clone()} else { NodeId::new() },
+			id: if let Some(id) = id { id.clone() } else { NodeId::new() },
 			connection: Connection::new(token, socket, stats),
 			originated: false,
 			state: HandshakeState::New,
@@ -88,13 +88,14 @@ impl Handshake {
 	}
 
 	/// Start a handhsake
-	pub fn start<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo, originated: bool) -> Result<(), UtilError> where Message: Send + Clone{
+	pub fn start<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo, originated: bool) -> Result<(), UtilError>
+		where Message: Send + Clone,
+	{
 		self.originated = originated;
 		io.register_timer(self.connection.token, HANDSHAKE_TIMEOUT).ok();
 		if originated {
 			try!(self.write_auth(host));
-		}
-		else {
+		} else {
 			self.state = HandshakeState::ReadingAuth;
 			self.connection.expect(AUTH_PACKET_SIZE);
 		};
@@ -107,7 +108,9 @@ impl Handshake {
 	}
 
 	/// Readable IO handler. Drives the state change.
-	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), UtilError>
+		where Message: Send + Clone,
+	{
 		io.clear_timer(self.connection.token).unwrap();
 		match self.state {
 			HandshakeState::ReadingAuth => {
@@ -115,15 +118,17 @@ impl Handshake {
 					try!(self.read_auth(host, &data));
 					try!(self.write_ack());
 				};
-			},
+			}
 			HandshakeState::ReadingAck => {
 				if let Some(data) = try!(self.connection.readable()) {
 					try!(self.read_ack(host, &data));
 					self.state = HandshakeState::StartSession;
 				};
-			},
-			HandshakeState::StartSession => {},
-			_ => { panic!("Unexpected state"); }
+			}
+			HandshakeState::StartSession => {}
+			_ => {
+				panic!("Unexpected state");
+			}
 		}
 		if self.state != HandshakeState::StartSession {
 			try!(io.update_registration(self.connection.token));
@@ -132,7 +137,9 @@ impl Handshake {
 	}
 
 	/// Writabe IO handler.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError>
+		where Message: Send + Clone,
+	{
 		io.clear_timer(self.connection.token).unwrap();
 		try!(self.connection.writable());
 		if self.state != HandshakeState::StartSession {
@@ -142,18 +149,18 @@ impl Handshake {
 	}
 
 	/// Register the socket with the event loop
-	pub fn register_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn register_socket<Host: Handler<Timeout = Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.register_socket(reg, event_loop));
 		Ok(())
 	}
 
-	pub fn update_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn update_socket<Host: Handler<Timeout = Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.update_socket(reg, event_loop));
 		Ok(())
 	}
 
 	/// Delete registration
-	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn deregister_socket<Host: Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.deregister_socket(event_loop));
 		Ok(())
 	}
@@ -194,7 +201,7 @@ impl Handshake {
 		self.ack_cipher = data.to_vec();
 		let ack = try!(ecies::decrypt(host.secret(), data));
 		self.remote_public.clone_from_slice(&ack[0..64]);
-		self.remote_nonce.clone_from_slice(&ack[64..(64+32)]);
+		self.remote_nonce.clone_from_slice(&ack[64..(64 + 32)]);
 		Ok(())
 	}
 

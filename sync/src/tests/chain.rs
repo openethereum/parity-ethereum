@@ -17,7 +17,7 @@
 use util::*;
 use ethcore::client::{BlockChainClient, BlockId};
 use io::SyncIo;
-use chain::{SyncState};
+use chain::SyncState;
 use super::helpers::*;
 
 #[test]
@@ -170,4 +170,3 @@ fn restart_on_malformed_block() {
 
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 4);
 }
-

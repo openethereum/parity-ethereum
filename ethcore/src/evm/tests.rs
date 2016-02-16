@@ -16,18 +16,19 @@
 
 use common::*;
 use evm;
-use evm::{Ext, Schedule, Factory, VMType, ContractCreateResult, MessageCallResult};
+use evm::{ContractCreateResult, Ext, Factory, MessageCallResult, Schedule, VMType};
 use std::fmt::Debug;
 
 struct FakeLogEntry {
 	topics: Vec<H256>,
-	data: Bytes
+	data: Bytes,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[allow(enum_variant_names)] // Common prefix is C ;)
 enum FakeCallType {
-	CALL, CREATE
+	CALL,
+	CREATE,
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
@@ -38,7 +39,7 @@ struct FakeCall {
 	receive_address: Option<Address>,
 	value: Option<U256>,
 	data: Bytes,
-	code_address: Option<Address>
+	code_address: Option<Address>,
 }
 
 /// Fake externalities test structure.
@@ -56,7 +57,7 @@ struct FakeExt {
 	info: EnvInfo,
 	schedule: Schedule,
 	balances: HashMap<Address, U256>,
-	calls: HashSet<FakeCall>
+	calls: HashSet<FakeCall>,
 }
 
 impl FakeExt {
@@ -100,19 +101,20 @@ impl Ext for FakeExt {
 			receive_address: None,
 			value: Some(*value),
 			data: code.to_vec(),
-			code_address: None
+			code_address: None,
 		});
 		ContractCreateResult::Failed
 	}
 
 	fn call(&mut self,
-			gas: &U256,
-			sender_address: &Address,
-			receive_address: &Address,
-			value: Option<U256>,
-			data: &[u8],
-			code_address: &Address,
-			_output: &mut [u8]) -> MessageCallResult {
+	        gas: &U256,
+	        sender_address: &Address,
+	        receive_address: &Address,
+	        value: Option<U256>,
+	        data: &[u8],
+	        code_address: &Address,
+	        _output: &mut [u8])
+	        -> MessageCallResult {
 
 		self.calls.insert(FakeCall {
 			call_type: FakeCallType::CALL,
@@ -121,7 +123,7 @@ impl Ext for FakeExt {
 			receive_address: Some(receive_address.clone()),
 			value: value,
 			data: data.to_vec(),
-			code_address: Some(code_address.clone())
+			code_address: Some(code_address.clone()),
 		});
 		MessageCallResult::Success(*gas)
 	}
@@ -133,7 +135,7 @@ impl Ext for FakeExt {
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		self.logs.push(FakeLogEntry {
 			topics: topics,
-			data: data.to_vec()
+			data: data.to_vec(),
 		});
 	}
 
@@ -174,7 +176,7 @@ fn test_stack_underflow() {
 	let mut ext = FakeExt::new();
 
 	let err = {
-		let vm : Box<evm::Evm> = Box::new(super::interpreter::Interpreter);
+		let vm: Box<evm::Evm> = Box::new(super::interpreter::Interpreter);
 		vm.exec(params, &mut ext).unwrap_err()
 	};
 
@@ -191,8 +193,11 @@ fn test_stack_underflow() {
 
 evm_test!{test_add: test_add_jit, test_add_int}
 fn test_add(factory: super::Factory) {
-  let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
+	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+	let code =
+		"7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055"
+			.from_hex()
+			.unwrap();
 
 	let mut params = ActionParams::default();
 	params.address = address.clone();
@@ -295,16 +300,16 @@ fn test_sender(factory: super::Factory) {
 
 evm_test!{test_extcodecopy: test_extcodecopy_jit, test_extcodecopy_int}
 fn test_extcodecopy(factory: super::Factory) {
-		// 33 - sender
-		// 3b - extcodesize
-		// 60 00 - push 0
-		// 60 00 - push 0
-		// 33 - sender
-		// 3c - extcodecopy
-		// 60 00 - push 0
-		// 51 - load word from memory
-		// 60 00 - push 0
-		// 55 - sstore
+	// 33 - sender
+	// 3b - extcodesize
+	// 60 00 - push 0
+	// 60 00 - push 0
+	// 33 - sender
+	// 3c - extcodecopy
+	// 60 00 - push 0
+	// 51 - load word from memory
+	// 60 00 - push 0
+	// 55 - sstore
 
 	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let sender = Address::from_str("cd1722f2947def4cf144679da39c4c32bdc35681").unwrap();
@@ -379,8 +384,10 @@ fn test_log_sender(factory: super::Factory) {
 	assert_eq!(gas_left, U256::from(98_974));
 	assert_eq!(ext.logs.len(), 1);
 	assert_eq!(ext.logs[0].topics.len(), 1);
-	assert_eq!(ext.logs[0].topics[0], H256::from_str("000000000000000000000000cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
-	assert_eq!(ext.logs[0].data, "ff00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap());
+	assert_eq!(ext.logs[0].topics[0],
+	           H256::from_str("000000000000000000000000cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
+	assert_eq!(ext.logs[0].data,
+	           "ff00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap());
 }
 
 evm_test!{test_blockhash: test_blockhash_jit, test_blockhash_int}
@@ -818,7 +825,7 @@ fn test_badinstruction_int() {
 
 	match err {
 		evm::Error::BadInstruction { instruction: 0xaf } => (),
-		_ => assert!(false, "Expected bad instruction")
+		_ => assert!(false, "Expected bad instruction"),
 	}
 }
 
@@ -908,29 +915,31 @@ fn test_calls(factory: super::Factory) {
 		vm.exec(params, &mut ext).unwrap()
 	};
 
-	assert_set_contains(&ext.calls, &FakeCall {
-		call_type: FakeCallType::CALL,
-		gas: U256::from(2556),
-		sender_address: Some(address.clone()),
-		receive_address: Some(code_address.clone()),
-		value: Some(U256::from(0x50)),
-		data: vec!(),
-		code_address: Some(code_address.clone())
-	});
-	assert_set_contains(&ext.calls, &FakeCall {
-		call_type: FakeCallType::CALL,
-		gas: U256::from(2556),
-		sender_address: Some(address.clone()),
-		receive_address: Some(address.clone()),
-		value: Some(U256::from(0x50)),
-		data: vec!(),
-		code_address: Some(code_address.clone())
-	});
+	assert_set_contains(&ext.calls,
+	                    &FakeCall {
+		                    call_type: FakeCallType::CALL,
+		                    gas: U256::from(2556),
+		                    sender_address: Some(address.clone()),
+		                    receive_address: Some(code_address.clone()),
+		                    value: Some(U256::from(0x50)),
+		                    data: vec![],
+		                    code_address: Some(code_address.clone()),
+	                    });
+	assert_set_contains(&ext.calls,
+	                    &FakeCall {
+		                    call_type: FakeCallType::CALL,
+		                    gas: U256::from(2556),
+		                    sender_address: Some(address.clone()),
+		                    receive_address: Some(address.clone()),
+		                    value: Some(U256::from(0x50)),
+		                    data: vec![],
+		                    code_address: Some(code_address.clone()),
+	                    });
 	assert_eq!(gas_left, U256::from(91_405));
 	assert_eq!(ext.calls.len(), 2);
 }
 
-fn assert_set_contains<T : Debug + Eq + PartialEq + Hash>(set: &HashSet<T>, val: &T) {
+fn assert_set_contains<T: Debug + Eq + PartialEq + Hash>(set: &HashSet<T>, val: &T) {
 	let contains = set.contains(val);
 	if !contains {
 		println!("Set: {:?}", set);
@@ -942,4 +951,3 @@ fn assert_set_contains<T : Debug + Eq + PartialEq + Hash>(set: &HashSet<T>, val:
 fn assert_store(ext: &FakeExt, pos: u64, val: &str) {
 	assert_eq!(ext.store.get(&H256::from(pos)).unwrap(), &H256::from_str(val).unwrap());
 }
-

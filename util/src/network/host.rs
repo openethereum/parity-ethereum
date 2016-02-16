@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::net::{SocketAddr, SocketAddrV4};
-use std::collections::{HashMap};
-use std::hash::{Hasher};
-use std::str::{FromStr};
+use std::collections::HashMap;
+use std::hash::Hasher;
+use std::str::FromStr;
 use std::sync::*;
 use std::ops::*;
 use mio::*;
@@ -36,7 +36,7 @@ use network::NetworkProtocolHandler;
 use network::node::*;
 use network::stats::NetworkStats;
 use network::error::DisconnectReason;
-use igd::{PortMappingProtocol,search_gateway};
+use igd::{PortMappingProtocol, search_gateway};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -102,14 +102,14 @@ impl NetworkConfiguration {
 					match gateway.get_any_address(PortMappingProtocol::TCP, int_addr, 0, "Parity Node/TCP") {
 						Err(ref err) => {
 							info!("There was an error! {}", err);
-						},
+						}
 						Ok(ext_addr) => {
 							info!("Local gateway: {}, External ip address: {}", gateway, ext_addr);
 							public = SocketAddr::V4(ext_addr);
 							listen = SocketAddr::V4(int_addr);
-						},
+						}
 					}
-				},
+				}
 			}
 		}
 
@@ -126,7 +126,7 @@ impl NetworkConfiguration {
 }
 
 // Tokens
-//const TOKEN_BEGIN: usize = USER_TOKEN_START; // TODO: ICE in rustc 1.7.0-nightly (49c382779 2016-01-12)
+// const TOKEN_BEGIN: usize = USER_TOKEN_START; // TODO: ICE in rustc 1.7.0-nightly (49c382779 2016-01-12)
 const TOKEN_BEGIN: usize = 32;
 const TCP_ACCEPT: usize = TOKEN_BEGIN + 1;
 const IDLE: usize = TOKEN_BEGIN + 2;
@@ -143,7 +143,9 @@ pub type ProtocolId = &'static str;
 
 /// Messages used to communitate with the event loop from other threads.
 #[derive(Clone)]
-pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
+pub enum NetworkIoMessage<Message>
+	where Message: Send + Sync + Clone,
+{
 	/// Register a new protocol handler.
 	AddHandler {
 		/// Handler shared instance.
@@ -189,18 +191,25 @@ impl Encodable for CapabilityInfo {
 }
 
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
-pub struct NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'static, 's {
+pub struct NetworkContext<'s, Message>
+	where Message: Send + Sync + Clone + 'static,
+	      's,
+{
 	io: &'s IoContext<NetworkIoMessage<Message>>,
 	protocol: ProtocolId,
 	connections: Arc<RwLock<Slab<SharedConnectionEntry>>>,
 	session: Option<StreamToken>,
 }
 
-impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'static, {
+impl<'s, Message> NetworkContext<'s, Message>
+    where Message: Send + Sync + Clone + 'static,
+{
 	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(io: &'s IoContext<NetworkIoMessage<Message>>, 
-		protocol: ProtocolId, 
-		session: Option<StreamToken>, connections: Arc<RwLock<Slab<SharedConnectionEntry>>>) -> NetworkContext<'s, Message> {
+	fn new(io: &'s IoContext<NetworkIoMessage<Message>>,
+	       protocol: ProtocolId,
+	       session: Option<StreamToken>,
+	       connections: Arc<RwLock<Slab<SharedConnectionEntry>>>)
+	       -> NetworkContext<'s, Message> {
 		NetworkContext {
 			io: io,
 			protocol: protocol,
@@ -218,10 +227,10 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 						warn!(target: "net", "Send error: {:?}", e);
 					}); //TODO: don't copy vector data
 					try!(self.io.update_registration(peer));
-				},
-				_ => warn!(target: "net", "Send: Peer is not connected yet")
+				}
+				_ => warn!(target: "net", "Send: Peer is not connected yet"),
 			}
-		} else  {
+		} else {
 			warn!(target: "net", "Send: Peer does not exist")
 		}
 		Ok(())
@@ -239,7 +248,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 
 	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
 	pub fn disable_peer(&self, peer: PeerId) {
-		//TODO: remove capability, disconnect if no capabilities left
+		// TODO: remove capability, disconnect if no capabilities left
 		self.disconnect_peer(peer);
 	}
 
@@ -262,7 +271,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 	pub fn peer_info(&self, peer: PeerId) -> String {
 		if let Some(connection) = self.connections.read().unwrap().get(peer).cloned() {
 			if let ConnectionEntry::Session(ref s) = *connection.lock().unwrap().deref() {
-				return s.info.client_version.clone()
+				return s.info.client_version.clone();
 			}
 		}
 		"unknown".to_owned()
@@ -284,7 +293,7 @@ pub struct HostInfo {
 	/// TCP connection port.
 	pub listen_port: u16,
 	/// Registered capabilities (handlers)
-	pub capabilities: Vec<CapabilityInfo>
+	pub capabilities: Vec<CapabilityInfo>,
 }
 
 impl HostInfo {
@@ -307,7 +316,7 @@ impl HostInfo {
 
 enum ConnectionEntry {
 	Handshake(Handshake),
-	Session(Session)
+	Session(Session),
 }
 
 type SharedConnectionEntry = Arc<Mutex<ConnectionEntry>>;
@@ -319,7 +328,9 @@ struct ProtocolTimer {
 }
 
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
-pub struct Host<Message> where Message: Send + Sync + Clone {
+pub struct Host<Message>
+	where Message: Send + Sync + Clone,
+{
 	pub info: RwLock<HostInfo>,
 	udp_socket: Mutex<UdpSocket>,
 	tcp_listener: Mutex<TcpListener>,
@@ -331,7 +342,9 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	stats: Arc<NetworkStats>,
 }
 
-impl<Message> Host<Message> where Message: Send + Sync + Clone {
+impl<Message> Host<Message>
+    where Message: Send + Sync + Clone,
+{
 	/// Create a new instance
 	pub fn new(config: NetworkConfiguration) -> Host<Message> {
 		let config = config.prepared();
@@ -342,7 +355,11 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let udp_socket = UdpSocket::bound(&addr).unwrap();
 		let mut host = Host::<Message> {
 			info: RwLock::new(HostInfo {
-				keys: if let Some(ref secret) = config.use_secret { KeyPair::from_secret(secret.clone()).unwrap() } else { KeyPair::create().unwrap() },
+				keys: if let Some(ref secret) = config.use_secret {
+					KeyPair::from_secret(secret.clone()).unwrap()
+				} else {
+					KeyPair::create().unwrap()
+				},
 				config: config,
 				nonce: H256::random(),
 				protocol_version: 4,
@@ -362,11 +379,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let port = host.info.read().unwrap().config.listen_address.port();
 		host.info.write().unwrap().deref_mut().listen_port = port;
 
-		/*
-		match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {
-		Some(iface) => config.public_address = iface.addr.unwrap(),
-		None => warn!("No public network interface"),
-		*/
+		// match ::ifaces::Interface::get_all().unwrap().into_iter().filter(|x| x.kind == ::ifaces::Kind::Packet && x.addr.is_some()).next() {
+		// Some(iface) => config.public_address = iface.addr.unwrap(),
+		// None => warn!("No public network interface"),
+		//
 
 		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
 		for n in boot_nodes {
@@ -381,7 +397,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	pub fn add_node(&mut self, id: &str) {
 		match Node::from_str(id) {
-			Err(e) => { warn!("Could not add node: {:?}", e); },
+			Err(e) => {
+				warn!("Could not add node: {:?}", e);
+			}
 			Ok(n) => {
 				self.nodes.write().unwrap().insert(n.id.clone(), n);
 			}
@@ -402,11 +420,21 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.connections.read().unwrap().iter().any(|e| match *e.lock().unwrap().deref() { ConnectionEntry::Session(ref s) => s.info.id.eq(&id), _ => false  })
+		self.connections.read().unwrap().iter().any(|e| {
+			match *e.lock().unwrap().deref() {
+				ConnectionEntry::Session(ref s) => s.info.id.eq(&id),
+				_ => false,
+			}
+		})
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
-		self.connections.read().unwrap().iter().any(|e| match *e.lock().unwrap().deref() { ConnectionEntry::Handshake(ref h) => h.id.eq(&id), _ => false  })
+		self.connections.read().unwrap().iter().any(|e| {
+			match *e.lock().unwrap().deref() {
+				ConnectionEntry::Handshake(ref h) => h.id.eq(&id),
+				_ => false,
+			}
+		})
 	}
 
 	fn keep_alive(&self, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -427,22 +455,26 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage<Message>>) {
 		struct NodeInfo {
 			id: NodeId,
-			peer_type: PeerType
+			peer_type: PeerType,
 		}
 
 		let mut to_connect: Vec<NodeInfo> = Vec::new();
 
 		let mut req_conn = 0;
-		//TODO: use nodes from discovery here
-		//for n in self.node_buckets.iter().flat_map(|n| &n.nodes).map(|id| NodeInfo { id: id.clone(), peer_type: self.nodes.get(id).unwrap().peer_type}) {
+		// TODO: use nodes from discovery here
+		// for n in self.node_buckets.iter().flat_map(|n| &n.nodes).map(|id| NodeInfo { id: id.clone(), peer_type: self.nodes.get(id).unwrap().peer_type}) {
 		let pin = self.info.read().unwrap().deref().config.pin;
-		for n in self.nodes.read().unwrap().values().map(|n| NodeInfo { id: n.id.clone(), peer_type: n.peer_type }) {
+		for n in self.nodes.read().unwrap().values().map(|n| {
+			NodeInfo {
+				id: n.id.clone(),
+				peer_type: n.peer_type,
+			}
+		}) {
 			let connected = self.have_session(&n.id) || self.connecting_to(&n.id);
 			let required = n.peer_type == PeerType::Required;
 			if connected && required {
 				req_conn += 1;
-			}
-			else if !connected && (!pin || required) {
+			} else if !connected && (!pin || required) {
 				to_connect.push(n);
 			}
 		}
@@ -459,7 +491,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if !pin {
 			let pending_count = 0; //TODO:
 			let peer_count = 0;
-			let mut open_slots = IDEAL_PEERS - peer_count  - pending_count + req_conn;
+			let mut open_slots = IDEAL_PEERS - peer_count - pending_count + req_conn;
 			if open_slots > 0 {
 				for n in &to_connect {
 					if n.peer_type == PeerType::Optional && open_slots > 0 {
@@ -473,8 +505,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	#[allow(single_match)]
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage<Message>>) {
-		if self.have_session(id)
-		{
+		if self.have_session(id) {
 			warn!("Aborted connect. Node already connected.");
 			return;
 		}
@@ -506,12 +537,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let nonce = self.info.write().unwrap().next_nonce();
 		let mut connections = self.connections.write().unwrap();
 		if connections.insert_with(|token| {
-			let mut handshake = Handshake::new(token, id, socket, &nonce, self.stats.clone()).expect("Can't create handshake");
-			handshake.start(io, &self.info.read().unwrap(), id.is_some()).and_then(|_| io.register_stream(token)).unwrap_or_else (|e| {
-				debug!(target: "net", "Handshake create error: {:?}", e);
-			});
-			Arc::new(Mutex::new(ConnectionEntry::Handshake(handshake)))
-		}).is_none() {
+			              let mut handshake = Handshake::new(token, id, socket, &nonce, self.stats.clone()).expect("Can't create handshake");
+			              handshake.start(io, &self.info.read().unwrap(), id.is_some()).and_then(|_| io.register_stream(token)).unwrap_or_else(|e| {
+				              debug!(target: "net", "Handshake create error: {:?}", e);
+				             });
+			              Arc::new(Mutex::new(ConnectionEntry::Handshake(handshake)))
+			             })
+		              .is_none() {
 			warn!("Max connections reached");
 		}
 	}
@@ -524,8 +556,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				Ok(Some((sock, _addr))) => sock,
 				Err(e) => {
 					warn!("Error accepting connection: {:?}", e);
-					break
-				},
+					break;
+				}
 			};
 			self.create_connection(socket, None, io);
 		}
@@ -543,25 +575,25 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						Err(e) => {
 							debug!(target: "net", "Handshake write error: {:?}", e);
 							kill = true;
-						},
-						Ok(_) => ()
+						}
+						Ok(_) => (),
 					}
 					if h.done() {
 						create_session = true;
 					}
-				},
+				}
 				ConnectionEntry::Session(ref mut s) => {
 					match s.writable(io, &self.info.read().unwrap()) {
 						Err(e) => {
 							debug!(target: "net", "Session write error: {:?}", e);
 							kill = true;
-						},
-						Ok(_) => ()
+						}
+						Ok(_) => (),
 					}
 					io.update_registration(token).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
 				}
 			}
-		} 
+		}
 		if kill {
 			self.kill_connection(token, io); //TODO: mark connection as dead an check in kill_connection
 			return;
@@ -590,35 +622,37 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					if h.done() {
 						create_session = true;
 					}
-				},
+				}
 				ConnectionEntry::Session(ref mut s) => {
 					match s.readable(io, &self.info.read().unwrap()) {
 						Err(e) => {
 							debug!(target: "net", "Handshake read error: {:?}", e);
 							kill = true;
-						},
+						}
 						Ok(SessionData::Ready) => {
 							for (p, _) in self.handlers.read().unwrap().iter() {
-								if s.have_capability(p)  {
+								if s.have_capability(p) {
 									ready_data.push(p);
 								}
 							}
-						},
+						}
 						Ok(SessionData::Packet {
 							data,
 							protocol,
 							packet_id,
 						}) => {
 							match self.handlers.read().unwrap().get(protocol) {
-								None => { warn!(target: "net", "No handler found for protocol: {:?}", protocol) },
+								None => {
+									warn!(target: "net", "No handler found for protocol: {:?}", protocol)
+								}
 								Some(_) => packet_data = Some((protocol, packet_id, data)),
 							}
-						},
-						Ok(SessionData::None) => {},
+						}
+						Ok(SessionData::None) => {}
 					}
 				}
 			}
-		} 
+		}
 		if kill {
 			self.kill_connection(token, io); //TODO: mark connection as dead an check in kill_connection
 			return;
@@ -643,16 +677,19 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			return; // handshake expired
 		}
 		connections.replace_with(token, |c| {
-			match Arc::try_unwrap(c).ok().unwrap().into_inner().unwrap() {
-				ConnectionEntry::Handshake(h) => {
-					let session = Session::new(h, io, &self.info.read().unwrap()).expect("Session creation error");
-					io.update_registration(token).expect("Error updating session registration");
-					self.stats.inc_sessions();
-					Some(Arc::new(Mutex::new(ConnectionEntry::Session(session))))
-				},
-				_ => { None } // handshake expired
-			}
-		}).ok();
+			           match Arc::try_unwrap(c).ok().unwrap().into_inner().unwrap() {
+				           ConnectionEntry::Handshake(h) => {
+					           let session = Session::new(h, io, &self.info.read().unwrap()).expect("Session creation error");
+					           io.update_registration(token).expect("Error updating session registration");
+					           self.stats.inc_sessions();
+					           Some(Arc::new(Mutex::new(ConnectionEntry::Session(session))))
+					          }
+				           _ => {
+					           None
+					          } // handshake expired
+			           }
+			          })
+		           .ok();
 	}
 
 	fn connection_timeout(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -667,16 +704,16 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				match *connection.lock().unwrap().deref_mut() {
 					ConnectionEntry::Handshake(_) => {
 						connections.remove(token);
-					},
+					}
 					ConnectionEntry::Session(ref mut s) if s.is_ready() => {
 						for (p, _) in self.handlers.read().unwrap().iter() {
-							if s.have_capability(p)  {
+							if s.have_capability(p) {
 								to_disconnect.push(p);
 							}
 						}
 						connections.remove(token);
-					},
-					_ => {},
+					}
+					_ => {}
 				}
 			}
 			io.deregister_stream(token).expect("Error deregistering stream");
@@ -688,27 +725,29 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 }
 
-impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Message: Send + Sync + Clone + 'static {
+impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message>
+    where Message: Send + Sync + Clone + 'static,
+{
 	/// Initialize networking
 	fn initialize(&self, io: &IoContext<NetworkIoMessage<Message>>) {
 		io.register_stream(TCP_ACCEPT).expect("Error registering TCP listener");
 		io.register_stream(NODETABLE_RECEIVE).expect("Error registering UDP listener");
 		io.register_timer(IDLE, MAINTENANCE_TIMEOUT).expect("Error registering Network idle timer");
-		//io.register_timer(NODETABLE_MAINTAIN, 7200);
+		// io.register_timer(NODETABLE_MAINTAIN, 7200);
 	}
 
 	fn stream_hup(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		trace!(target: "net", "Hup: {}", stream);
 		match stream {
-			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_closed(stream, io),
+			FIRST_CONNECTION...LAST_CONNECTION => self.connection_closed(stream, io),
 			_ => warn!(target: "net", "Unexpected hup"),
 		};
 	}
 
 	fn stream_readable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
-			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_readable(stream, io),
-			NODETABLE_RECEIVE => {},
+			FIRST_CONNECTION...LAST_CONNECTION => self.connection_readable(stream, io),
+			NODETABLE_RECEIVE => {}
 			TCP_ACCEPT => self.accept(io), 
 			_ => panic!("Received unknown readable token"),
 		}
@@ -716,8 +755,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 
 	fn stream_writable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
-			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_writable(stream, io),
-			NODETABLE_RECEIVE => {},
+			FIRST_CONNECTION...LAST_CONNECTION => self.connection_writable(stream, io),
+			NODETABLE_RECEIVE => {}
 			_ => panic!("Received unknown writable token"),
 		}
 	}
@@ -725,16 +764,22 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn timeout(&self, io: &IoContext<NetworkIoMessage<Message>>, token: TimerToken) {
 		match token {
 			IDLE => self.maintain_network(io),
-			FIRST_CONNECTION ... LAST_CONNECTION => self.connection_timeout(token, io),
-			NODETABLE_DISCOVERY => {},
-			NODETABLE_MAINTAIN => {},
+			FIRST_CONNECTION...LAST_CONNECTION => self.connection_timeout(token, io),
+			NODETABLE_DISCOVERY => {}
+			NODETABLE_MAINTAIN => {}
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {
-						None => { warn!(target: "net", "No handler found for protocol: {:?}", timer.protocol) },
-						Some(h) => { h.timeout(&NetworkContext::new(io, timer.protocol, None, self.connections.clone()), timer.token); }
+					None => {
+						warn!(target: "net", "No handler found for protocol: {:?}", timer.protocol)
+					}
+					Some(h) => {
+						h.timeout(&NetworkContext::new(io, timer.protocol, None, self.connections.clone()), timer.token);
+					}
 				},
-				None => { warn!("Unknown timer token: {}", token); } // timer is not registerd through us
-			}
+				None => {
+					warn!("Unknown timer token: {}", token);
+				} // timer is not registerd through us
+			},
 		}
 	}
 
@@ -750,9 +795,13 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				self.handlers.write().unwrap().insert(protocol, h);
 				let mut info = self.info.write().unwrap();
 				for v in versions {
-					info.capabilities.push(CapabilityInfo { protocol: protocol, version: *v, packet_count:0 });
+					info.capabilities.push(CapabilityInfo {
+						protocol: protocol,
+						version: *v,
+						packet_count: 0,
+					});
 				}
-			},
+			}
 			NetworkIoMessage::AddTimer {
 				ref protocol,
 				ref delay,
@@ -765,18 +814,24 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					*counter += 1;
 					handler_token
 				};
-				self.timers.write().unwrap().insert(handler_token, ProtocolTimer { protocol: protocol, token: *token });
+				self.timers.write().unwrap().insert(handler_token,
+				                                    ProtocolTimer {
+					                                    protocol: protocol,
+					                                    token: *token,
+				                                    });
 				io.register_timer(handler_token, *delay).expect("Error registering timer");
-			},
+			}
 			NetworkIoMessage::Disconnect(ref peer) => {
 				if let Some(connection) = self.connections.read().unwrap().get(*peer).cloned() {
 					match *connection.lock().unwrap().deref_mut() {
-						ConnectionEntry::Handshake(_) => {},
-						ConnectionEntry::Session(ref mut s) => { s.disconnect(DisconnectReason::DisconnectRequested); } 
+						ConnectionEntry::Handshake(_) => {}
+						ConnectionEntry::Session(ref mut s) => {
+							s.disconnect(DisconnectReason::DisconnectRequested);
+						} 
 					}
-				} 
+				}
 				self.kill_connection(*peer, io);
-			},
+			}
 			NetworkIoMessage::User(ref message) => {
 				for (p, h) in self.handlers.read().unwrap().iter() {
 					h.message(&NetworkContext::new(io, p, None, self.connections.clone()), &message);
@@ -787,23 +842,28 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 
 	fn register_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
 		match stream {
-			FIRST_CONNECTION ... LAST_CONNECTION => {
+			FIRST_CONNECTION...LAST_CONNECTION => {
 				if let Some(connection) = self.connections.read().unwrap().get(stream).cloned() {
 					match *connection.lock().unwrap().deref() {
 						ConnectionEntry::Handshake(ref h) => h.register_socket(reg, event_loop).expect("Error registering socket"),
-						ConnectionEntry::Session(_) => warn!("Unexpected session stream registration")
+						ConnectionEntry::Session(_) => warn!("Unexpected session stream registration"),
 					}
 				} else {} // expired
 			}
-			NODETABLE_RECEIVE => event_loop.register(self.udp_socket.lock().unwrap().deref(), Token(NODETABLE_RECEIVE), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
-			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
-			_ => warn!("Unexpected stream registration")
+			NODETABLE_RECEIVE => event_loop.register(self.udp_socket.lock().unwrap().deref(),
+			                                         Token(NODETABLE_RECEIVE),
+			                                         EventSet::all(),
+			                                         PollOpt::edge())
+			                               .expect("Error registering stream"),
+			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge())
+			                        .expect("Error registering stream"),
+			_ => warn!("Unexpected stream registration"),
 		}
 	}
 
 	fn deregister_stream(&self, stream: StreamToken, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
 		match stream {
-			FIRST_CONNECTION ... LAST_CONNECTION => {
+			FIRST_CONNECTION...LAST_CONNECTION => {
 				let mut connections = self.connections.write().unwrap();
 				if let Some(connection) = connections.get(stream).cloned() {
 					match *connection.lock().unwrap().deref() {
@@ -811,17 +871,17 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 						ConnectionEntry::Session(ref s) => s.deregister_socket(event_loop).expect("Error deregistering session socket"),
 					}
 					connections.remove(stream);
-				} 
-			},
+				}
+			}
 			NODETABLE_RECEIVE => event_loop.deregister(self.udp_socket.lock().unwrap().deref()).unwrap(),
 			TCP_ACCEPT => event_loop.deregister(self.tcp_listener.lock().unwrap().deref()).unwrap(),
-			_ => warn!("Unexpected stream deregistration")
+			_ => warn!("Unexpected stream deregistration"),
 		}
 	}
 
 	fn update_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
 		match stream {
-			FIRST_CONNECTION ... LAST_CONNECTION => {
+			FIRST_CONNECTION...LAST_CONNECTION => {
 				if let Some(connection) = self.connections.read().unwrap().get(stream).cloned() {
 					match *connection.lock().unwrap().deref() {
 						ConnectionEntry::Handshake(ref h) => h.update_socket(reg, event_loop).expect("Error updating socket"),
@@ -829,9 +889,14 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					}
 				} else {} // expired
 			}
-			NODETABLE_RECEIVE => event_loop.reregister(self.udp_socket.lock().unwrap().deref(), Token(NODETABLE_RECEIVE), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
-			TCP_ACCEPT => event_loop.reregister(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
-			_ => warn!("Unexpected stream update")
+			NODETABLE_RECEIVE => event_loop.reregister(self.udp_socket.lock().unwrap().deref(),
+			                                           Token(NODETABLE_RECEIVE),
+			                                           EventSet::all(),
+			                                           PollOpt::edge())
+			                               .expect("Error reregistering stream"),
+			TCP_ACCEPT => event_loop.reregister(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge())
+			                        .expect("Error reregistering stream"),
+			_ => warn!("Unexpected stream update"),
 		}
 	}
 }

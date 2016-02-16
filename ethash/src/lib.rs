@@ -25,21 +25,19 @@ mod compute;
 
 use lru_cache::LruCache;
 use compute::Light;
-pub use compute::{quick_get_difficulty, H256, ProofOfWork, ETHASH_EPOCH_LENGTH};
+pub use compute::{ETHASH_EPOCH_LENGTH, H256, ProofOfWork, quick_get_difficulty};
 
 use std::sync::{Arc, Mutex};
 
 /// Lighy/Full cache manager
 pub struct EthashManager {
-	lights: Mutex<LruCache<u64, Arc<Light>>>
+	lights: Mutex<LruCache<u64, Arc<Light>>>,
 }
 
 impl EthashManager {
 	/// Create a new new instance of ethash manager
 	pub fn new() -> EthashManager {
-		EthashManager { 
-			lights: Mutex::new(LruCache::new(2))
-		}
+		EthashManager { lights: Mutex::new(LruCache::new(2)) }
 	}
 
 	/// Calculate the light client data
@@ -55,7 +53,7 @@ impl EthashManager {
 				None => {
 					let light = match Light::from_file(block_number) {
 						Ok(light) => Arc::new(light),
-						Err(e) => { 
+						Err(e) => {
 							debug!("Light cache file not found for {}:{}", block_number, e);
 							let light = Light::new(block_number);
 							if let Err(e) = light.to_file() {
@@ -67,7 +65,7 @@ impl EthashManager {
 					lights.insert(epoch, light.clone());
 					light
 				}
-				Some(light) => light
+				Some(light) => light,
 			}
 		};
 		light.compute(header_hash, nonce)

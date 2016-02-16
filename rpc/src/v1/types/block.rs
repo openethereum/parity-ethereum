@@ -17,20 +17,21 @@
 use serde::{Serialize, Serializer};
 use util::hash::*;
 use util::uint::*;
-use v1::types::{Bytes, Transaction, OptionalValue};
+use v1::types::{Bytes, OptionalValue, Transaction};
 
 #[derive(Debug)]
 pub enum BlockTransactions {
 	Hashes(Vec<H256>),
-	Full(Vec<Transaction>)
+	Full(Vec<Transaction>),
 }
 
 impl Serialize for BlockTransactions {
 	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
-	where S: Serializer {
+		where S: Serializer,
+	{
 		match *self {
 			BlockTransactions::Hashes(ref hashes) => hashes.serialize(serializer),
-			BlockTransactions::Full(ref ts) => ts.serialize(serializer)
+			BlockTransactions::Full(ref ts) => ts.serialize(serializer),
 		}
 	}
 }
@@ -65,7 +66,7 @@ pub struct Block {
 	#[serde(rename="totalDifficulty")]
 	pub total_difficulty: U256,
 	pub uncles: Vec<U256>,
-	pub transactions: BlockTransactions
+	pub transactions: BlockTransactions,
 }
 
 #[cfg(test)]
@@ -73,7 +74,7 @@ mod tests {
 	use serde_json;
 	use util::hash::*;
 	use util::uint::*;
-	use v1::types::{Transaction, Bytes, OptionalValue};
+	use v1::types::{Bytes, OptionalValue, Transaction};
 	use super::*;
 
 	#[test]
@@ -107,7 +108,7 @@ mod tests {
 			difficulty: U256::default(),
 			total_difficulty: U256::default(),
 			uncles: vec![],
-			transactions: BlockTransactions::Hashes(vec![])
+			transactions: BlockTransactions::Hashes(vec![]),
 		};
 
 		let serialized = serde_json::to_string(&block).unwrap();

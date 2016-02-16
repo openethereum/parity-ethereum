@@ -18,8 +18,7 @@ use io::IoError;
 use rlp::*;
 
 #[derive(Debug, Copy, Clone)]
-pub enum DisconnectReason
-{
+pub enum DisconnectReason {
 	DisconnectRequested,
 	_TCPError,
 	_BadProtocol,
@@ -60,4 +59,3 @@ impl From<IoError> for NetworkError {
 		NetworkError::Io(err)
 	}
 }
-

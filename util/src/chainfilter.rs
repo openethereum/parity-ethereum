@@ -15,46 +15,46 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Multilevel blockchain bloom filter.
-//! 
+//!
 //! ```
 //! extern crate ethcore_util as util;
 //! use std::str::FromStr;
 //! use util::chainfilter::*;
 //! use util::sha3::*;
 //! use util::hash::*;
-//! 
-//! fn main() {
-//!		let (index_size, bloom_levels) = (16, 3);
-//!		let mut cache = MemoryCache::new();
-//!		
-//!		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
-//!		
-//!		// borrow cache for reading inside the scope
-//!		let modified_blooms = {
-//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);	
-//!			let block_number = 39;
-//!			let mut bloom = H2048::new();
-//!			bloom.shift_bloomed(&address.sha3());
-//!			filter.add_bloom(&bloom, block_number)
-//!		};
-//!		
-//!		// number of updated blooms is equal number of levels
-//!		assert_eq!(modified_blooms.len(), bloom_levels as usize);
 //!
-//!		// lets inserts modified blooms into the cache
-//!		cache.insert_blooms(modified_blooms);
-//!		
-//!		// borrow cache for another reading operations
-//!		{
-//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);	
-//!			let blocks = filter.blocks_with_address(&address, 10, 40);
-//!			assert_eq!(blocks.len(), 1);	
-//!			assert_eq!(blocks[0], 39);
-//!		}
+//! fn main() {
+//! 		let (index_size, bloom_levels) = (16, 3);
+//! 		let mut cache = MemoryCache::new();
+//!
+//! 		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
+//!
+//! 		// borrow cache for reading inside the scope
+//! 		let modified_blooms = {
+//! 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+//! 			let block_number = 39;
+//! 			let mut bloom = H2048::new();
+//! 			bloom.shift_bloomed(&address.sha3());
+//! 			filter.add_bloom(&bloom, block_number)
+//! 		};
+//!
+//! 		// number of updated blooms is equal number of levels
+//! 		assert_eq!(modified_blooms.len(), bloom_levels as usize);
+//!
+//! 		// lets inserts modified blooms into the cache
+//! 		cache.insert_blooms(modified_blooms);
+//!
+//! 		// borrow cache for another reading operations
+//! 		{
+//! 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+//! 			let blocks = filter.blocks_with_address(&address, 10, 40);
+//! 			assert_eq!(blocks.len(), 1);
+//! 			assert_eq!(blocks[0], 39);
+//! 		}
 //! }
 //! ```
 //!
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use hash::*;
 use sha3::*;
 
@@ -116,14 +116,15 @@ impl FilterDataSource for MemoryCache {
 
 /// Should be used for search operations on blockchain.
 pub struct ChainFilter<'a, D>
-	where D: FilterDataSource + 'a
+	where D: FilterDataSource + 'a,
 {
 	data_source: &'a D,
 	index_size: usize,
 	level_sizes: Vec<usize>,
 }
 
-impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
+impl<'a, D> ChainFilter<'a, D>
+    where D: FilterDataSource,
 {
 	/// Creates new filter instance.
 	/// 
@@ -137,15 +138,16 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 			data_source: data_source,
 			index_size: index_size,
 			// 0 level has always a size of 1
-			level_sizes: vec![1]
+			level_sizes: vec![1],
 		};
 
 		// cache level sizes, so we do not have to calculate them all the time
 		// eg. if levels == 3, index_size = 16
 		// level_sizes = [1, 16, 256]
-		let additional: Vec<usize> = (1..).into_iter()
+		let additional: Vec<usize> = (1..)
+			.into_iter()
 			.scan(1, |acc, _| {
-				*acc = *acc * index_size; 
+				*acc = *acc * index_size;
 				Some(*acc)
 			})
 			.take(levels as usize - 1)
@@ -208,8 +210,8 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 				// return None if current level doesnt contain given bloom
 				_ if !level_bloom.contains(bloom) => return None,
 				// continue processing && go down
-				_ => ()
-			}
+				_ => (),
+			},
 		};
 
 		let level_size = self.level_size(level - 1);

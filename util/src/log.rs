@@ -17,7 +17,7 @@
 //! Common log helper functions
 
 use std::env;
-use rlog::{LogLevelFilter};
+use rlog::LogLevelFilter;
 use env_logger::LogBuilder;
 
 lazy_static! {

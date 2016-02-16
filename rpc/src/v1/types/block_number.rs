@@ -24,12 +24,13 @@ pub enum BlockNumber {
 	Num(u64),
 	Latest,
 	Earliest,
-	Pending
+	Pending,
 }
 
 impl Deserialize for BlockNumber {
 	fn deserialize<D>(deserializer: &mut D) -> Result<BlockNumber, D::Error>
-	where D: Deserializer {
+		where D: Deserializer,
+	{
 		deserializer.visit(BlockNumberVisitor)
 	}
 }
@@ -39,17 +40,23 @@ struct BlockNumberVisitor;
 impl Visitor for BlockNumberVisitor {
 	type Value = BlockNumber;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E>
+		where E: Error,
+	{
 		match value {
 			"latest" => Ok(BlockNumber::Latest),
 			"earliest" => Ok(BlockNumber::Earliest),
 			"pending" => Ok(BlockNumber::Pending),
-			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|_| Error::syntax("invalid block number")),
-			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|_| Error::syntax("invalid block number"))
+			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16)
+				.map(BlockNumber::Num)
+				.map_err(|_| Error::syntax("invalid block number")),
+			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|_| Error::syntax("invalid block number")),
 		}
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E>
+		where E: Error,
+	{
 		self.visit_str(value.as_ref())
 	}
 }
@@ -61,7 +68,7 @@ impl Into<BlockId> for BlockNumber {
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
 			BlockNumber::Latest => BlockId::Latest,
-			BlockNumber::Pending => BlockId::Latest // TODO: change this once blockid support pending
+			BlockNumber::Pending => BlockId::Latest, // TODO: change this once blockid support pending
 		}
 	}
 }
@@ -76,7 +83,8 @@ mod tests {
 	fn block_number_deserialization() {
 		let s = r#"["0xa", "10", "latest", "earliest", "pending"]"#;
 		let deserialized: Vec<BlockNumber> = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized, vec![BlockNumber::Num(10), BlockNumber::Num(10), BlockNumber::Latest, BlockNumber::Earliest, BlockNumber::Pending])
+		assert_eq!(deserialized,
+		           vec![BlockNumber::Num(10), BlockNumber::Num(10), BlockNumber::Latest, BlockNumber::Earliest, BlockNumber::Pending])
 	}
 
 	#[test]
@@ -87,4 +95,3 @@ mod tests {
 		assert_eq!(BlockId::Latest, BlockNumber::Pending.into());
 	}
 }
-

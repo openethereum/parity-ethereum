@@ -24,7 +24,7 @@ use pod_account::*;
 #[cfg(test)]
 #[cfg(feature = "json-tests")]
 use pod_state::PodState;
-//use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
+// use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
 /// Result type for the execution ("application") of a transaction.
 pub type ApplyResult = Result<Receipt, Error>;
@@ -98,7 +98,7 @@ impl State {
 				match v {
 					Some(v) => {
 						self.cache.borrow_mut().insert(k, v);
-					},
+					}
 					None => {
 						self.cache.borrow_mut().remove(&k);
 					}
@@ -163,12 +163,12 @@ impl State {
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.get(address, false).as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(&self.db, address), key))	
+		self.get(address, false).as_ref().map_or(H256::new(), |a| a.storage_at(&AccountDB::new(&self.db, address), key))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
-		self.get(a, true).as_ref().map_or(None, |a|a.code().map(|x|x.to_vec()))
+		self.get(a, true).as_ref().map_or(None, |a| a.code().map(|x| x.to_vec()))
 	}
 
 	/// Add `incr` to the balance of account `a`.
@@ -204,21 +204,21 @@ impl State {
 	/// Initialise the code of account `a` so that it is `value` for `key`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) {
-		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8)), |_|{}).init_code(code);
+		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8)), |_| {}).init_code(code);
 	}
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction) -> ApplyResult {
-//		let old = self.to_pod();
+		// let old = self.to_pod();
 
 		let e = try!(Executive::new(self, env_info, engine).transact(t));
 
 		// TODO uncomment once to_pod() works correctly.
-//		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
+		// 		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
-//		trace!("Transaction receipt: {:?}", receipt);
+		// trace!("Transaction receipt: {:?}", receipt);
 		Ok(receipt)
 	}
 
@@ -230,12 +230,12 @@ impl State {
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
-				&mut&mut Some(ref mut account) => {
+				&mut &mut Some(ref mut account) => {
 					let mut account_db = AccountDBMut::new(db, address);
 					account.commit_storage(&mut account_db);
 					account.commit_code(&mut account_db);
 				}
-				&mut&mut None => {}
+				&mut &mut None => {}
 			}
 		}
 
@@ -297,12 +297,17 @@ impl State {
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	fn require(&self, a: &Address, require_code: bool) -> RefMut<Account> {
-		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce), |_|{})
+		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce), |_| {})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// If it doesn't exist, make account equal the evaluation of `default`.
-	fn require_or_from<F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> RefMut<Account> {
+	fn require_or_from<F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self,
+	                                                                    a: &Address,
+	                                                                    require_code: bool,
+	                                                                    default: F,
+	                                                                    not_default: G)
+	                                                                    -> RefMut<Account> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
 			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(Account::from_rlp))
@@ -317,12 +322,18 @@ impl State {
 		}
 
 		let b = self.cache.borrow_mut();
-		RefMut::map(b, |m| m.get_mut(a).unwrap().as_mut().map(|account| {
-			if require_code {
-				account.cache_code(&AccountDB::new(&self.db, a));
-			}
-			account
-		}).unwrap())
+		RefMut::map(b, |m| {
+			m.get_mut(a)
+			 .unwrap()
+			 .as_mut()
+			 .map(|account| {
+				 if require_code {
+					 account.cache_code(&AccountDB::new(&self.db, a));
+					}
+				 account
+				})
+			 .unwrap()
+		})
 	}
 }
 
@@ -335,207 +346,207 @@ impl fmt::Debug for State {
 #[cfg(test)]
 mod tests {
 
-use super::*;
-use util::hash::*;
-use util::trie::*;
-use util::rlp::*;
-use util::uint::*;
-use account::*;
-use tests::helpers::*;
+	use super::*;
+	use util::hash::*;
+	use util::trie::*;
+	use util::rlp::*;
+	use util::uint::*;
+	use account::*;
+	use tests::helpers::*;
 
-#[test]
-fn code_from_database() {
-	let a = Address::zero();
-	let temp = RandomTempPath::new();
-	let (root, db) = {
-		let mut state = get_temp_state_in(temp.as_path());
-		state.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)), |_|{});
-		state.init_code(&a, vec![1, 2, 3]);
+	#[test]
+	fn code_from_database() {
+		let a = Address::zero();
+		let temp = RandomTempPath::new();
+		let (root, db) = {
+			let mut state = get_temp_state_in(temp.as_path());
+			state.require_or_from(&a, false, || Account::new_contract(U256::from(42u32)), |_| {});
+			state.init_code(&a, vec![1, 2, 3]);
+			assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+			state.commit();
+			assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+			state.drop()
+		};
+
+		let state = State::from_existing(db, root, U256::from(0u8));
 		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
-		state.commit();
-		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
-		state.drop()
-	};
+	}
 
-	let state = State::from_existing(db, root, U256::from(0u8));
-	assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
-}
+	#[test]
+	fn storage_at_from_database() {
+		let a = Address::zero();
+		let temp = RandomTempPath::new();
+		let (root, db) = {
+			let mut state = get_temp_state_in(temp.as_path());
+			state.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
+			state.commit();
+			state.drop()
+		};
 
-#[test]
-fn storage_at_from_database() {
-	let a = Address::zero();
-	let temp = RandomTempPath::new();
-	let (root, db) = {
-		let mut state = get_temp_state_in(temp.as_path());
-		state.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
-		state.commit();
-		state.drop()
-	};
+		let s = State::from_existing(db, root, U256::from(0u8));
+		assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
+	}
 
-	let s = State::from_existing(db, root, U256::from(0u8));
-	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
-}
+	#[test]
+	fn get_from_database() {
+		let a = Address::zero();
+		let temp = RandomTempPath::new();
+		let (root, db) = {
+			let mut state = get_temp_state_in(temp.as_path());
+			state.inc_nonce(&a);
+			state.add_balance(&a, &U256::from(69u64));
+			state.commit();
+			assert_eq!(state.balance(&a), U256::from(69u64));
+			state.drop()
+		};
 
-#[test]
-fn get_from_database() {
-	let a = Address::zero();
-	let temp = RandomTempPath::new();
-	let (root, db) = {
-		let mut state = get_temp_state_in(temp.as_path());
-		state.inc_nonce(&a);
-		state.add_balance(&a, &U256::from(69u64));
-		state.commit();
+		let state = State::from_existing(db, root, U256::from(0u8));
 		assert_eq!(state.balance(&a), U256::from(69u64));
-		state.drop()
-	};
-
-	let state = State::from_existing(db, root, U256::from(0u8));
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	assert_eq!(state.nonce(&a), U256::from(1u64));
-}
-
-#[test]
-fn remove() {
-	let a = Address::zero();
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	assert_eq!(state.exists(&a), false);
-	state.inc_nonce(&a);
-	assert_eq!(state.exists(&a), true);
-	assert_eq!(state.nonce(&a), U256::from(1u64));
-	state.kill_account(&a);
-	assert_eq!(state.exists(&a), false);
-	assert_eq!(state.nonce(&a), U256::from(0u64));
-}
-
-#[test]
-fn remove_from_database() {
-	let a = Address::zero();
-	let temp = RandomTempPath::new();
-	let (root, db) = {
-		let mut state = get_temp_state_in(temp.as_path());
-		state.inc_nonce(&a);
-		state.commit();
-		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
-		state.drop()
-	};
+	}
 
-	let (root, db) = {
-		let mut state = State::from_existing(db, root, U256::from(0u8));
+	#[test]
+	fn remove() {
+		let a = Address::zero();
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		assert_eq!(state.exists(&a), false);
+		state.inc_nonce(&a);
 		assert_eq!(state.exists(&a), true);
 		assert_eq!(state.nonce(&a), U256::from(1u64));
 		state.kill_account(&a);
-		state.commit();
 		assert_eq!(state.exists(&a), false);
 		assert_eq!(state.nonce(&a), U256::from(0u64));
-		state.drop()
-	};
+	}
 
-	let state = State::from_existing(db, root, U256::from(0u8));
-	assert_eq!(state.exists(&a), false);
-	assert_eq!(state.nonce(&a), U256::from(0u64));
-}
+	#[test]
+	fn remove_from_database() {
+		let a = Address::zero();
+		let temp = RandomTempPath::new();
+		let (root, db) = {
+			let mut state = get_temp_state_in(temp.as_path());
+			state.inc_nonce(&a);
+			state.commit();
+			assert_eq!(state.exists(&a), true);
+			assert_eq!(state.nonce(&a), U256::from(1u64));
+			state.drop()
+		};
 
-#[test]
-fn alter_balance() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	let b = address_from_u64(1u64);
-	state.add_balance(&a, &U256::from(69u64));
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.commit();
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.sub_balance(&a, &U256::from(42u64));
-	assert_eq!(state.balance(&a), U256::from(27u64));
-	state.commit();
-	assert_eq!(state.balance(&a), U256::from(27u64));
-	state.transfer_balance(&a, &b, &U256::from(18u64));
-	assert_eq!(state.balance(&a), U256::from(9u64));
-	assert_eq!(state.balance(&b), U256::from(18u64));
-	state.commit();
-	assert_eq!(state.balance(&a), U256::from(9u64));
-	assert_eq!(state.balance(&b), U256::from(18u64));
-}
+		let (root, db) = {
+			let mut state = State::from_existing(db, root, U256::from(0u8));
+			assert_eq!(state.exists(&a), true);
+			assert_eq!(state.nonce(&a), U256::from(1u64));
+			state.kill_account(&a);
+			state.commit();
+			assert_eq!(state.exists(&a), false);
+			assert_eq!(state.nonce(&a), U256::from(0u64));
+			state.drop()
+		};
 
-#[test]
-fn alter_nonce() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	state.inc_nonce(&a);
-	assert_eq!(state.nonce(&a), U256::from(1u64));
-	state.inc_nonce(&a);
-	assert_eq!(state.nonce(&a), U256::from(2u64));
-	state.commit();
-	assert_eq!(state.nonce(&a), U256::from(2u64));
-	state.inc_nonce(&a);
-	assert_eq!(state.nonce(&a), U256::from(3u64));
-	state.commit();
-	assert_eq!(state.nonce(&a), U256::from(3u64));
-}
+		let state = State::from_existing(db, root, U256::from(0u8));
+		assert_eq!(state.exists(&a), false);
+		assert_eq!(state.nonce(&a), U256::from(0u64));
+	}
 
-#[test]
-fn balance_nonce() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	assert_eq!(state.balance(&a), U256::from(0u64));
-	assert_eq!(state.nonce(&a), U256::from(0u64));
-	state.commit();
-	assert_eq!(state.balance(&a), U256::from(0u64));
-	assert_eq!(state.nonce(&a), U256::from(0u64));
-}
+	#[test]
+	fn alter_balance() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		let b = address_from_u64(1u64);
+		state.add_balance(&a, &U256::from(69u64));
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.commit();
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.sub_balance(&a, &U256::from(42u64));
+		assert_eq!(state.balance(&a), U256::from(27u64));
+		state.commit();
+		assert_eq!(state.balance(&a), U256::from(27u64));
+		state.transfer_balance(&a, &b, &U256::from(18u64));
+		assert_eq!(state.balance(&a), U256::from(9u64));
+		assert_eq!(state.balance(&b), U256::from(18u64));
+		state.commit();
+		assert_eq!(state.balance(&a), U256::from(9u64));
+		assert_eq!(state.balance(&b), U256::from(18u64));
+	}
 
-#[test]
-fn ensure_cached() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	state.require(&a, false);
-	state.commit();
-	assert_eq!(state.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
-}
+	#[test]
+	fn alter_nonce() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		state.inc_nonce(&a);
+		assert_eq!(state.nonce(&a), U256::from(1u64));
+		state.inc_nonce(&a);
+		assert_eq!(state.nonce(&a), U256::from(2u64));
+		state.commit();
+		assert_eq!(state.nonce(&a), U256::from(2u64));
+		state.inc_nonce(&a);
+		assert_eq!(state.nonce(&a), U256::from(3u64));
+		state.commit();
+		assert_eq!(state.nonce(&a), U256::from(3u64));
+	}
 
-#[test]
-fn snapshot_basic() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	state.snapshot();
-	state.add_balance(&a, &U256::from(69u64));
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.clear_snapshot();
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.snapshot();
-	state.add_balance(&a, &U256::from(1u64));
-	assert_eq!(state.balance(&a), U256::from(70u64));
-	state.revert_snapshot();
-	assert_eq!(state.balance(&a), U256::from(69u64));
-}
+	#[test]
+	fn balance_nonce() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		assert_eq!(state.balance(&a), U256::from(0u64));
+		assert_eq!(state.nonce(&a), U256::from(0u64));
+		state.commit();
+		assert_eq!(state.balance(&a), U256::from(0u64));
+		assert_eq!(state.nonce(&a), U256::from(0u64));
+	}
 
-#[test]
-fn snapshot_nested() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	let a = Address::zero();
-	state.snapshot();
-	state.snapshot();
-	state.add_balance(&a, &U256::from(69u64));
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.clear_snapshot();
-	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.revert_snapshot();
-	assert_eq!(state.balance(&a), U256::from(0));
-}
+	#[test]
+	fn ensure_cached() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		state.require(&a, false);
+		state.commit();
+		assert_eq!(state.root().hex(), "0ce23f3c809de377b008a4a3ee94a0834aac8bec1f86e28ffe4fdb5a15b0c785");
+	}
 
-#[test]
-fn create_empty() {
-	let mut state_result = get_temp_state();
-	let mut state = state_result.reference_mut();
-	state.commit();
-	assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
-}
+	#[test]
+	fn snapshot_basic() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		state.snapshot();
+		state.add_balance(&a, &U256::from(69u64));
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.clear_snapshot();
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.snapshot();
+		state.add_balance(&a, &U256::from(1u64));
+		assert_eq!(state.balance(&a), U256::from(70u64));
+		state.revert_snapshot();
+		assert_eq!(state.balance(&a), U256::from(69u64));
+	}
+
+	#[test]
+	fn snapshot_nested() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		let a = Address::zero();
+		state.snapshot();
+		state.snapshot();
+		state.add_balance(&a, &U256::from(69u64));
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.clear_snapshot();
+		assert_eq!(state.balance(&a), U256::from(69u64));
+		state.revert_snapshot();
+		assert_eq!(state.balance(&a), U256::from(0));
+	}
+
+	#[test]
+	fn create_empty() {
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		state.commit();
+		assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
+	}
 
 }

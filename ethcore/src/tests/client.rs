@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use client::{BlockChainClient, Client, BlockId};
+use client::{BlockChainClient, BlockId, Client};
 use tests::helpers::*;
 use common::*;
 
@@ -53,7 +53,7 @@ fn query_none_block() {
 	let dir = RandomTempPath::new();
 	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 
-    let non_existant = client.block_header(BlockId::Number(188));
+	let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
 }
 
@@ -61,7 +61,7 @@ fn query_none_block() {
 fn query_bad_block() {
 	let client_result = get_test_client_with_blocks(vec![get_bad_state_dummy_block()]);
 	let client = client_result.reference();
-	let bad_block:Option<Bytes> = client.block_header(BlockId::Number(1));
+	let bad_block: Option<Bytes> = client.block_header(BlockId::Number(1));
 
 	assert!(bad_block.is_none());
 }

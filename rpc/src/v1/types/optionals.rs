@@ -18,23 +18,30 @@ use serde::{Serialize, Serializer};
 use serde_json::Value;
 
 #[derive(Debug)]
-pub enum OptionalValue<T> where T: Serialize {
+pub enum OptionalValue<T>
+	where T: Serialize,
+{
 	Value(T),
-	Null
+	Null,
 }
 
-impl<T> Default for OptionalValue<T> where T: Serialize {
+impl<T> Default for OptionalValue<T>
+    where T: Serialize,
+{
 	fn default() -> Self {
 		OptionalValue::Null
 	}
 }
 
-impl<T> Serialize for OptionalValue<T> where T: Serialize {
+impl<T> Serialize for OptionalValue<T>
+    where T: Serialize,
+{
 	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
-	where S: Serializer {
+		where S: Serializer,
+	{
 		match *self {
 			OptionalValue::Value(ref value) => value.serialize(serializer),
-			OptionalValue::Null => Value::Null.serialize(serializer)
+			OptionalValue::Null => Value::Null.serialize(serializer),
 		}
 	}
 }

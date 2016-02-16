@@ -29,9 +29,9 @@ pub struct TestProtocol {
 
 impl Default for TestProtocol {
 	fn default() -> Self {
-		TestProtocol { 
-			packet: Mutex::new(Vec::new()), 
-			got_timeout: AtomicBool::new(false), 
+		TestProtocol {
+			packet: Mutex::new(Vec::new()),
+			got_timeout: AtomicBool::new(false),
 		}
 	}
 }
@@ -72,8 +72,7 @@ impl NetworkProtocolHandler<TestProtocolMessage> for TestProtocol {
 		io.respond(33, "hello".to_owned().into_bytes()).unwrap();
 	}
 
-	fn disconnected(&self, _io: &NetworkContext<TestProtocolMessage>, _peer: &PeerId) {
-	}
+	fn disconnected(&self, _io: &NetworkContext<TestProtocolMessage>, _peer: &PeerId) {}
 
 	/// Timer function called after a timeout created with `NetworkContext::timeout`.
 	fn timeout(&self, _io: &NetworkContext<TestProtocolMessage>, timer: TimerToken) {
@@ -94,9 +93,9 @@ fn net_connect() {
 	let key1 = KeyPair::create().unwrap();
 	let mut config1 = NetworkConfiguration::new_with_port(30344);
 	config1.use_secret = Some(key1.secret().clone());
-	config1.boot_nodes = vec![ ];
+	config1.boot_nodes = vec![];
 	let mut config2 = NetworkConfiguration::new_with_port(30345);
-	config2.boot_nodes = vec![ format!("enode://{}@127.0.0.1:30344", key1.public().hex()) ];
+	config2.boot_nodes = vec![format!("enode://{}@127.0.0.1:30344", key1.public().hex())];
 	let mut service1 = NetworkService::<TestProtocolMessage>::start(config1).unwrap();
 	let mut service2 = NetworkService::<TestProtocolMessage>::start(config2).unwrap();
 	let handler1 = TestProtocol::register(&mut service1);

@@ -43,7 +43,7 @@ impl LogEntry {
 		LogEntry {
 			address: address,
 			topics: topics,
-			data: data
+			data: data,
 		}
 	}
 

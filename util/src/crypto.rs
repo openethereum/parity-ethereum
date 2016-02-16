@@ -19,7 +19,7 @@
 use hash::*;
 use bytes::*;
 use uint::*;
-use secp256k1::{key, Secp256k1};
+use secp256k1::{Secp256k1, key};
 use rand::os::OsRng;
 
 /// Secret key for secp256k1 EC operations. 256 bit generic "hash" data.
@@ -146,7 +146,9 @@ impl KeyPair {
 	}
 
 	/// Sign a message with our secret key.
-	pub fn sign(&self, message: &H256) -> Result<Signature, CryptoError> { ec::sign(&self.secret, message) }
+	pub fn sign(&self, message: &H256) -> Result<Signature, CryptoError> {
+		ec::sign(&self.secret, message)
+	}
 }
 
 /// EC functions
@@ -155,7 +157,7 @@ pub mod ec {
 	use uint::*;
 	use standard::*;
 	use crypto::*;
-	use crypto::{self};
+	use crypto;
 
 	/// Recovers Public key from signed message hash.
 	pub fn recover(signature: &Signature, message: &H256) -> Result<Public, CryptoError> {
@@ -165,7 +167,7 @@ pub mod ec {
 		let publ = try!(context.recover(&try!(Message::from_slice(&message)), &rsig));
 		let serialized = publ.serialize_vec(context, false);
 		let p: Public = Public::from_slice(&serialized[1..65]);
-		//TODO: check if it's the zero key and fail if so.
+		// TODO: check if it's the zero key and fail if so.
 		Ok(p)
 	}
 	/// Returns siganture of message hash.
@@ -202,7 +204,7 @@ pub mod ec {
 		match context.verify(&try!(Message::from_slice(&message)), &sig, &publ) {
 			Ok(_) => Ok(true),
 			Err(Error::IncorrectSignature) => Ok(false),
-			Err(x) => Err(CryptoError::from(x))
+			Err(x) => Err(CryptoError::from(x)),
 		}
 	}
 
@@ -218,21 +220,19 @@ pub mod ec {
 
 	/// Check if each component of the signature is in range.
 	pub fn is_valid(sig: &Signature) -> bool {
-		sig[64] <= 1 &&
-			H256::from_slice(&sig[0..32]) < h256_from_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141") &&
-			H256::from_slice(&sig[32..64]) < h256_from_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141") &&
-			H256::from_slice(&sig[32..64]) >= h256_from_u64(1) &&
-			H256::from_slice(&sig[0..32]) >= h256_from_u64(1)
+		sig[64] <= 1 && H256::from_slice(&sig[0..32]) < h256_from_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141") &&
+		H256::from_slice(&sig[32..64]) < h256_from_hex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141") &&
+		H256::from_slice(&sig[32..64]) >= h256_from_u64(1) && H256::from_slice(&sig[0..32]) >= h256_from_u64(1)
 	}
 }
 
 /// ECDH functions
 pub mod ecdh {
 	use crypto::*;
-	use crypto::{self};
+	use crypto;
 
 	/// Agree on a shared secret
-	pub fn agree(secret: &Secret, public: &Public, ) -> Result<Secret, CryptoError> {
+	pub fn agree(secret: &Secret, public: &Public) -> Result<Secret, CryptoError> {
 		use secp256k1::*;
 		let context = &crypto::SECP256K1;
 		let mut pdata: [u8; 65] = [4u8; 65];
@@ -255,10 +255,10 @@ pub mod ecies {
 
 	/// Encrypt a message with a public key
 	pub fn encrypt(public: &Public, plain: &[u8]) -> Result<Bytes, CryptoError> {
-		use ::rcrypto::digest::Digest;
-		use ::rcrypto::sha2::Sha256;
-		use ::rcrypto::hmac::Hmac;
-		use ::rcrypto::mac::Mac;
+		use rcrypto::digest::Digest;
+		use rcrypto::sha2::Sha256;
+		use rcrypto::hmac::Hmac;
+		use rcrypto::mac::Mac;
 		let r = try!(KeyPair::create());
 		let z = try!(ecdh::agree(r.secret(), public));
 		let mut key = [0u8; 32];
@@ -291,13 +291,13 @@ pub mod ecies {
 
 	/// Decrypt a message with a secret key
 	pub fn decrypt(secret: &Secret, encrypted: &[u8]) -> Result<Bytes, CryptoError> {
-		use ::rcrypto::digest::Digest;
-		use ::rcrypto::sha2::Sha256;
-		use ::rcrypto::hmac::Hmac;
-		use ::rcrypto::mac::Mac;
+		use rcrypto::digest::Digest;
+		use rcrypto::sha2::Sha256;
+		use rcrypto::hmac::Hmac;
+		use rcrypto::mac::Mac;
 
 		let meta_len = 1 + 64 + 16 + 32;
-		if encrypted.len() < meta_len  || encrypted[0] < 2 || encrypted[0] > 4 {
+		if encrypted.len() < meta_len || encrypted[0] < 2 || encrypted[0] > 4 {
 			return Err(CryptoError::InvalidMessage); //invalid message: publickey
 		}
 
@@ -314,10 +314,10 @@ pub mod ecies {
 		hasher.result(&mut mkey);
 
 		let clen = encrypted.len() - meta_len;
-		let cipher_with_iv = &e[64..(64+16+clen)];
+		let cipher_with_iv = &e[64..(64 + 16 + clen)];
 		let cipher_iv = &cipher_with_iv[0..16];
 		let cipher_no_iv = &cipher_with_iv[16..];
-		let msg_mac = &e[(64+16+clen)..];
+		let msg_mac = &e[(64 + 16 + clen)..];
 
 		// Verify tag
 		let mut hmac = Hmac::new(Sha256::new(), &mkey);
@@ -334,8 +334,8 @@ pub mod ecies {
 	}
 
 	fn kdf(secret: &Secret, s1: &[u8], dest: &mut [u8]) {
-		use ::rcrypto::digest::Digest;
-		use ::rcrypto::sha2::Sha256;
+		use rcrypto::digest::Digest;
+		use rcrypto::sha2::Sha256;
 		let mut hasher = Sha256::new();
 		// SEC/ISO/Shoup specify counter size SHOULD be equivalent
 		// to size of hash output, however, it also notes that
@@ -403,6 +403,7 @@ mod tests {
 	#[test]
 	fn test_key() {
 		let pair = KeyPair::from_secret(h256_from_hex("6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2")).unwrap();
-		assert_eq!(pair.public().hex(), "101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c");
+		assert_eq!(pair.public().hex(),
+		           "101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c");
 	}
 }

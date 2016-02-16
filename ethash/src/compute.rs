@@ -25,27 +25,27 @@ use sizes::{CACHE_SIZES, DAG_SIZES};
 use sha3;
 use std::slice;
 use std::path::PathBuf;
-use std::io::{Read, Write, self};
+use std::io::{self, Read, Write};
 use std::fs::{self, File};
 
 pub const ETHASH_EPOCH_LENGTH: u64 = 30000;
 pub const ETHASH_CACHE_ROUNDS: usize = 3;
 pub const ETHASH_MIX_BYTES: usize = 128;
-pub const ETHASH_ACCESSES:usize =  64;
-pub const ETHASH_DATASET_PARENTS:u32 = 256;
+pub const ETHASH_ACCESSES: usize = 64;
+pub const ETHASH_DATASET_PARENTS: u32 = 256;
 
 const NODE_WORDS: usize = 64 / 4;
 const NODE_BYTES: usize = 64;
 const MIX_WORDS: usize = ETHASH_MIX_BYTES / 4;
 const MIX_NODES: usize = MIX_WORDS / NODE_WORDS;
-const FNV_PRIME: u32 =  0x01000193;
+const FNV_PRIME: u32 = 0x01000193;
 
 /// Computation result
 pub struct ProofOfWork {
 	/// Difficulty boundary
 	pub value: H256,
 	/// Mix
-	pub mix_hash: H256
+	pub mix_hash: H256,
 }
 
 struct Node {
@@ -53,7 +53,7 @@ struct Node {
 }
 
 impl Default for Node {
-	fn default() -> Self { 
+	fn default() -> Self {
 		Node { bytes: [0u8; NODE_BYTES] }
 	}
 }
@@ -109,7 +109,7 @@ impl Light {
 	pub fn from_file(block_number: u64) -> io::Result<Light> {
 		let path = Light::file_path(block_number);
 		let mut file = try!(File::open(path));
-		
+
 		let cache_size = get_cache_size(block_number);
 		if try!(file.metadata()).len() != cache_size as u64 {
 			return Err(io::Error::new(io::ErrorKind::Other, "Cache file size mismatch"));
@@ -129,10 +129,10 @@ impl Light {
 		let path = Light::file_path(self.block_number);
 		try!(fs::create_dir_all(path.parent().unwrap()));
 		let mut file = try!(File::create(path));
-		
+
 		let cache_size = self.cache.len() * NODE_BYTES;
 		let buf = unsafe { slice::from_raw_parts(self.cache.as_ptr() as *const u8, cache_size) };
-		try!(file.write(buf)); 
+		try!(file.write(buf));
 		Ok(())
 	}
 }
@@ -198,12 +198,12 @@ pub fn light_compute(light: &Light, header_hash: &H256, nonce: u64) -> ProofOfWo
 	hash_compute(light, full_size, header_hash, nonce)
 }
 
-fn hash_compute(light: &Light, full_size: usize,  header_hash: &H256, nonce: u64) -> ProofOfWork {
+fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64) -> ProofOfWork {
 	if full_size % MIX_WORDS != 0 {
 		panic!("Unaligned full size");
 	}
 	// pack hash and nonce together into first 40 bytes of s_mix
-	let mut s_mix: [Node; MIX_NODES + 1] = [ Node::default(), Node::default(), Node::default() ];
+	let mut s_mix: [Node; MIX_NODES + 1] = [Node::default(), Node::default(), Node::default()];
 	unsafe { ptr::copy_nonoverlapping(header_hash.as_ptr(), s_mix.get_unchecked_mut(0).bytes.as_mut_ptr(), 32) };
 	unsafe { ptr::copy_nonoverlapping(mem::transmute(&nonce), s_mix.get_unchecked_mut(0).bytes[32..].as_mut_ptr(), 8) };
 
@@ -219,11 +219,13 @@ fn hash_compute(light: &Light, full_size: usize,  header_hash: &H256, nonce: u64
 		let num_full_pages = (full_size / page_size) as u32;
 
 		for i in 0..(ETHASH_ACCESSES as u32) {
-			let index = fnv_hash(f_mix.get_unchecked(0).as_words().get_unchecked(0) ^ i, *mix.get_unchecked(0).as_words().get_unchecked((i as usize) % MIX_WORDS)) % num_full_pages;
+			let index = fnv_hash(f_mix.get_unchecked(0).as_words().get_unchecked(0) ^ i,
+			                     *mix.get_unchecked(0).as_words().get_unchecked((i as usize) % MIX_WORDS)) % num_full_pages;
 			for n in 0..MIX_NODES {
 				let tmp_node = calculate_dag_item(index * MIX_NODES as u32 + n as u32, light);
 				for w in 0..NODE_WORDS {
-					*mix.get_unchecked_mut(n).as_words_mut().get_unchecked_mut(w) = fnv_hash(*mix.get_unchecked(n).as_words().get_unchecked(w), *tmp_node.as_words().get_unchecked(w));
+					*mix.get_unchecked_mut(n).as_words_mut().get_unchecked_mut(w) = fnv_hash(*mix.get_unchecked(n).as_words().get_unchecked(w),
+					                                                                         *tmp_node.as_words().get_unchecked(w));
 				}
 			}
 		}
@@ -244,7 +246,7 @@ fn hash_compute(light: &Light, full_size: usize,  header_hash: &H256, nonce: u64
 		ptr::copy_nonoverlapping(mix.get_unchecked_mut(0).bytes.as_ptr(), buf[64..].as_mut_ptr(), 32);
 		ptr::copy_nonoverlapping(mix.get_unchecked_mut(0).bytes.as_ptr(), mix_hash.as_mut_ptr(), 32);
 		let mut value: H256 = [0u8; 32];
-		sha3::sha3_256(value.as_mut_ptr(), value.len(),  buf.as_ptr(), buf.len());
+		sha3::sha3_256(value.as_mut_ptr(), value.len(), buf.as_ptr(), buf.len());
 		ProofOfWork {
 			mix_hash: mix_hash,
 			value: value,
@@ -287,15 +289,18 @@ fn light_new(block_number: u64) -> Light {
 	unsafe {
 		sha3_512(&seedhash[0..32], &mut nodes.get_unchecked_mut(0).bytes);
 		for i in 1..num_nodes {
-			sha3::sha3_512(nodes.get_unchecked_mut(i).bytes.as_mut_ptr(), NODE_BYTES, nodes.get_unchecked(i - 1).bytes.as_ptr(), NODE_BYTES);
+			sha3::sha3_512(nodes.get_unchecked_mut(i).bytes.as_mut_ptr(),
+			               NODE_BYTES,
+			               nodes.get_unchecked(i - 1).bytes.as_ptr(),
+			               NODE_BYTES);
 		}
-		
+
 		for _ in 0..ETHASH_CACHE_ROUNDS {
 			for i in 0..num_nodes {
 				let idx = *nodes.get_unchecked_mut(i).as_words().get_unchecked(0) as usize % num_nodes;
 				let mut data = nodes.get_unchecked((num_nodes - 1 + i) % num_nodes).clone();
 				for w in 0..NODE_WORDS {
-					*data.as_words_mut().get_unchecked_mut(w) ^= *nodes.get_unchecked(idx).as_words().get_unchecked(w) ;
+					*data.as_words_mut().get_unchecked_mut(w) ^= *nodes.get_unchecked(idx).as_words().get_unchecked(w);
 				}
 				sha3_512(&data.bytes, &mut nodes.get_unchecked_mut(i).bytes);
 			}
@@ -308,7 +313,7 @@ fn light_new(block_number: u64) -> Light {
 	}
 }
 
-static CHARS: &'static[u8] = b"0123456789abcdef";
+static CHARS: &'static [u8] = b"0123456789abcdef";
 fn to_hex(bytes: &[u8]) -> String {
 	let mut v = Vec::with_capacity(bytes.len() * 2);
 	for &byte in bytes.iter() {
@@ -316,27 +321,32 @@ fn to_hex(bytes: &[u8]) -> String {
 		v.push(CHARS[(byte & 0xf) as usize]);
 	}
 
-	unsafe {
-		String::from_utf8_unchecked(v)
-	}
+	unsafe { String::from_utf8_unchecked(v) }
 }
 
 #[test]
 fn test_difficulty_test() {
-	let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f, 0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05,  0x52, 0x7d, 0x72];
-	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d ]; 
+	let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f,
+	            0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05, 0x52, 0x7d, 0x72];
+	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c,
+	                0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d];
 	let nonce = 0xd7b3ac70a301a249;
-	let boundary_good = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
+	let boundary_good = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7,
+	                     0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
 	assert_eq!(quick_get_difficulty(&hash, nonce, &mix_hash)[..], boundary_good[..]);
-	let boundary_bad = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3a, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
+	let boundary_bad = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3a, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7,
+	                    0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
 	assert!(quick_get_difficulty(&hash, nonce, &mix_hash)[..] != boundary_bad[..]);
 }
 
 #[test]
 fn test_light_compute() {
-	let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f, 0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05,  0x52, 0x7d, 0x72];
-	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d ]; 
-	let boundary = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
+	let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f,
+	            0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05, 0x52, 0x7d, 0x72];
+	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c,
+	                0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d];
+	let boundary = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7,
+	                0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
 	let nonce = 0xd7b3ac70a301a249;
 	// difficulty = 0x085657254bd9u64;
 	let light = Light::new(486382);

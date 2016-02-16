@@ -15,18 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, TransactionId, BlockId};
+use ethcore::client::{BlockChainClient, BlockChainInfo, BlockId, BlockStatus, TransactionId, TreeRoute};
 use ethcore::block_queue::BlockQueueInfo;
-use ethcore::header::{Header as BlockHeader, BlockNumber};
+use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::error::*;
 use io::SyncIo;
-use chain::{ChainSync};
+use chain::ChainSync;
 use ethcore::receipt::Receipt;
 use ethcore::transaction::LocalizedTransaction;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
- 	pub numbers: RwLock<HashMap<usize, H256>>,
+	pub numbers: RwLock<HashMap<usize, H256>>,
 	pub genesis_hash: H256,
 	pub last_hash: RwLock<H256>,
 	pub difficulty: RwLock<U256>,
@@ -54,7 +54,7 @@ impl TestBlockChainClient {
 			header.difficulty = From::from(n);
 			header.parent_hash = self.last_hash.read().unwrap().clone();
 			header.number = n as BlockNumber;
-			let mut uncles = RlpStream::new_list(if empty {0} else {1});
+			let mut uncles = RlpStream::new_list(if empty { 0 } else { 1 });
 			if !empty {
 				let mut uncle_header = BlockHeader::new();
 				uncle_header.difficulty = From::from(n);
@@ -93,7 +93,7 @@ impl TestBlockChainClient {
 			BlockId::Hash(hash) => Some(hash),
 			BlockId::Number(n) => self.numbers.read().unwrap().get(&(n as usize)).cloned(),
 			BlockId::Earliest => self.numbers.read().unwrap().get(&0).cloned(),
-			BlockId::Latest => self.numbers.read().unwrap().get(&(self.numbers.read().unwrap().len() - 1)).cloned()
+			BlockId::Latest => self.numbers.read().unwrap().get(&(self.numbers.read().unwrap().len() - 1)).cloned(),
 		}
 	}
 }
@@ -116,12 +116,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<Bytes> {
-		self.block_hash(id).and_then(|hash| self.blocks.read().unwrap().get(&hash).map(|r| {
-			let mut stream = RlpStream::new_list(2);
-			stream.append_raw(Rlp::new(&r).at(1).as_raw(), 1);
-			stream.append_raw(Rlp::new(&r).at(2).as_raw(), 1);
-			stream.out()
-		}))
+		self.block_hash(id).and_then(|hash| {
+			self.blocks.read().unwrap().get(&hash).map(|r| {
+				let mut stream = RlpStream::new_list(2);
+				stream.append_raw(Rlp::new(&r).at(1).as_raw(), 1);
+				stream.append_raw(Rlp::new(&r).at(2).as_raw(), 1);
+				stream.out()
+			})
+		})
 	}
 
 	fn block(&self, id: BlockId) -> Option<Bytes> {
@@ -132,7 +134,7 @@ impl BlockChainClient for TestBlockChainClient {
 		match id {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().unwrap().len() => BlockStatus::InChain,
 			BlockId::Hash(ref hash) if self.blocks.read().unwrap().get(hash).is_some() => BlockStatus::InChain,
-			_ => BlockStatus::Unknown
+			_ => BlockStatus::Unknown,
 		}
 	}
 
@@ -162,7 +164,7 @@ impl BlockChainClient for TestBlockChainClient {
 					}
 				}
 				if adding { Vec::new() } else { blocks }
-			}
+			},
 		})
 	}
 
@@ -180,10 +182,7 @@ impl BlockChainClient for TestBlockChainClient {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
-			let receipt = Receipt::new(
-				H256::zero(),
-				U256::zero(),
-				vec![]);
+			let receipt = Receipt::new(H256::zero(), U256::zero(), vec![]);
 			let mut rlp = RlpStream::new();
 			rlp.append(&receipt);
 			return Some(rlp.out());
@@ -205,7 +204,7 @@ impl BlockChainClient for TestBlockChainClient {
 					if parent.number != (header.number - 1) {
 						panic!("Unexpected block parent");
 					}
-				},
+				}
 				None => {
 					panic!("Unknown block parent {:?} for block {}", header.parent_hash, number);
 				}
@@ -226,8 +225,7 @@ impl BlockChainClient for TestBlockChainClient {
 					parent_hash = Rlp::new(&self.blocks.read().unwrap()[&parent_hash]).val_at::<BlockHeader>(0).parent_hash;
 				}
 			}
-		}
-		else {
+		} else {
 			self.blocks.write().unwrap().insert(h.clone(), b.to_vec());
 		}
 		Ok(h)
@@ -241,8 +239,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn clear_queue(&self) {
-	}
+	fn clear_queue(&self) {}
 
 	fn chain_info(&self) -> BlockChainInfo {
 		BlockChainInfo {
@@ -266,23 +263,21 @@ impl<'p> TestIo<'p> {
 		TestIo {
 			chain: chain,
 			queue: queue,
-			sender: sender
+			sender: sender,
 		}
 	}
 }
 
 impl<'p> SyncIo for TestIo<'p> {
-	fn disable_peer(&mut self, _peer_id: PeerId) {
-	}
+	fn disable_peer(&mut self, _peer_id: PeerId) {}
 
-	fn disconnect_peer(&mut self, _peer_id: PeerId) {
-	}
+	fn disconnect_peer(&mut self, _peer_id: PeerId) {}
 
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		self.queue.push_back(TestPacket {
 			data: data,
 			packet_id: packet_id,
-			recipient: self.sender.unwrap()
+			recipient: self.sender.unwrap(),
 		});
 		Ok(())
 	}
@@ -358,7 +353,10 @@ impl TestNet {
 			if let Some(packet) = self.peers[peer].queue.pop_front() {
 				let mut p = self.peers.get_mut(packet.recipient).unwrap();
 				trace!("--- {} -> {} ---", peer, packet.recipient);
-				p.sync.on_packet(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)), peer as PeerId, packet.packet_id, &packet.data);
+				p.sync.on_packet(&mut TestIo::new(&mut p.chain, &mut p.queue, Some(peer as PeerId)),
+				                 peer as PeerId,
+				                 packet.packet_id,
+				                 &packet.data);
 				trace!("----------------");
 			}
 			let mut p = self.peers.get_mut(peer).unwrap();

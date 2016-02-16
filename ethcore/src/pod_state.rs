@@ -19,18 +19,24 @@ use pod_account::*;
 
 #[derive(Debug,Clone,PartialEq,Eq,Default)]
 /// State of all accounts in the system expressed in Plain Old Data.
-pub struct PodState (BTreeMap<Address, PodAccount>);
+pub struct PodState(BTreeMap<Address, PodAccount>);
 
 impl PodState {
 	/// Contruct a new object from the `m`.
-	pub fn new() -> PodState { Default::default() }
+	pub fn new() -> PodState {
+		Default::default()
+	}
 
 	/// Contruct a new object from the `m`.
 	#[cfg(test)]
-	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
+	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState {
+		PodState(m)
+	}
 
 	/// Get the underlying map.
-	pub fn get(&self) -> &BTreeMap<Address, PodAccount> { &self.0 }
+	pub fn get(&self) -> &BTreeMap<Address, PodAccount> {
+		&self.0
+	}
 
 	/// Get the root hash of the trie of the RLP of this.
 	pub fn root(&self) -> H256 {
@@ -40,7 +46,9 @@ impl PodState {
 	/// Drain object to get the underlying map.
 	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
-	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
+	pub fn drain(self) -> BTreeMap<Address, PodAccount> {
+		self.0
+	}
 }
 
 impl FromJson for PodState {
@@ -52,12 +60,13 @@ impl FromJson for PodState {
 			let storage = acc.find("storage").map(&BTreeMap::from_json);
 			let code = acc.find("code").map(&Bytes::from_json);
 			if balance.is_some() || nonce.is_some() || storage.is_some() || code.is_some() {
-				state.insert(address_from_hex(address), PodAccount{
-					balance: balance.unwrap_or_else(U256::zero),
-					nonce: nonce.unwrap_or_else(U256::zero),
-					storage: storage.unwrap_or_else(BTreeMap::new),
-					code: code.unwrap_or_else(Vec::new)
-				});
+				state.insert(address_from_hex(address),
+				             PodAccount {
+					             balance: balance.unwrap_or_else(U256::zero),
+					             nonce: nonce.unwrap_or_else(U256::zero),
+					             storage: storage.unwrap_or_else(BTreeMap::new),
+					             code: code.unwrap_or_else(Vec::new),
+				             });
 			}
 			state
 		}))
@@ -84,8 +93,7 @@ mod tests {
 
 	#[test]
 	fn it_serializes_form_json() {
-		let pod_state = PodState::from_json(&json::Json::from_str(
-r#"
+		let pod_state = PodState::from_json(&json::Json::from_str(r#"
 	{
 		"0000000000000000000000000000000000000000": {
 			"balance": "1000",
@@ -94,8 +102,8 @@ r#"
 			"code" : []
 		}
 	}
-"#
-		).unwrap());
+"#)
+			.unwrap());
 
 		assert!(pod_state.get().get(&ZERO_ADDRESS).is_some());
 	}

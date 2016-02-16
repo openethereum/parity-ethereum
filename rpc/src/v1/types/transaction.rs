@@ -16,7 +16,7 @@
 
 use util::hash::*;
 use util::uint::*;
-use ethcore::transaction::{LocalizedTransaction, Action};
+use ethcore::transaction::{Action, LocalizedTransaction};
 use v1::types::{Bytes, OptionalValue};
 
 #[derive(Debug, Default, Serialize)]
@@ -35,7 +35,7 @@ pub struct Transaction {
 	#[serde(rename="gasPrice")]
 	pub gas_price: U256,
 	pub gas: U256,
-	pub input: Bytes
+	pub input: Bytes,
 }
 
 impl From<LocalizedTransaction> for Transaction {
@@ -49,12 +49,12 @@ impl From<LocalizedTransaction> for Transaction {
 			from: t.sender().unwrap(),
 			to: match t.action {
 				Action::Create => OptionalValue::Null,
-				Action::Call(ref address) => OptionalValue::Value(address.clone())
+				Action::Call(ref address) => OptionalValue::Value(address.clone()),
 			},
 			value: t.value,
 			gas_price: t.gas_price,
 			gas: t.gas,
-			input: Bytes::new(t.data.clone())
+			input: Bytes::new(t.data.clone()),
 		}
 	}
 }
@@ -71,4 +71,3 @@ mod tests {
 		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x00","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x00","gasPrice":"0x00","gas":"0x00","input":"0x00"}"#);
 	}
 }
-

@@ -82,9 +82,12 @@
 //!   cargo build --release
 //!   ```
 
-#[macro_use] extern crate log;
-#[macro_use] extern crate ethcore_util as util;
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate ethcore_util as util;
+#[macro_use]
+extern crate lazy_static;
 extern crate rustc_serialize;
 extern crate rocksdb;
 extern crate heapsize;
@@ -94,7 +97,8 @@ extern crate env_logger;
 extern crate num_cpus;
 extern crate crossbeam;
 
-#[cfg(feature = "jit" )] extern crate evmjit;
+#[cfg(feature = "jit" )]
+extern crate evmjit;
 
 pub mod block;
 pub mod blockchain;
@@ -111,7 +115,7 @@ pub mod receipt;
 
 mod common;
 mod basic_types;
-#[macro_use] mod evm;
+#[macro_use]mod evm;
 mod log_entry;
 mod env_info;
 mod pod_account;
