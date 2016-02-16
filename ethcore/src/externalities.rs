@@ -226,7 +226,11 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		let address = self.origin_info.address.clone();
-		self.substate.logs.push(LogEntry::new(address, topics, data.to_vec()));
+		self.substate.logs.push(LogEntry { 
+			address: address,
+			topics: topics, 
+			data: data.to_vec()
+		});
 	}
 
 	fn suicide(&mut self, refund_address: &Address) {
