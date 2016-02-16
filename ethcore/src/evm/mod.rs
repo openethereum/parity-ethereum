@@ -29,8 +29,8 @@ mod jit;
 #[cfg(test)]
 mod tests;
 
-pub use self::evm::{Evm, Error, Result};
-pub use self::ext::{Ext, ContractCreateResult, MessageCallResult};
+pub use self::evm::{Error, Evm, Result};
+pub use self::ext::{ContractCreateResult, Ext, MessageCallResult};
 pub use self::factory::Factory;
 pub use self::schedule::Schedule;
 pub use self::factory::VMType;

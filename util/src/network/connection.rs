@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::VecDeque;
-use mio::{Handler, Token, EventSet, EventLoop, PollOpt, TryRead, TryWrite};
+use mio::{EventLoop, EventSet, Handler, PollOpt, Token, TryRead, TryWrite};
 use mio::tcp::*;
 use hash::*;
 use sha3::*;
@@ -41,8 +41,7 @@ const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;
 pub trait GenericSocket : Read + Write {
 }
 
-impl GenericSocket for TcpStream {
-}
+impl GenericSocket for TcpStream {}
 
 pub struct GenericConnection<Socket: GenericSocket> {
 	/// Connection id (token)
@@ -79,13 +78,15 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 		// resolve "multiple applicable items in scope [E0034]" error
 		let sock_ref = <Socket as Read>::by_ref(&mut self.socket);
 		match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
-			Ok(Some(size)) if size != 0  => {
+			Ok(Some(size)) if size != 0 => {
 				self.stats.inc_recv(size);
 				if self.rec_size != 0 && self.rec_buf.len() == self.rec_size {
 					self.rec_size = 0;
 					Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
-				} else { Ok(None) }
-			},
+				} else {
+					Ok(None)
+				}
+			}
 			Ok(_) => Ok(None),
 			Err(e) => Err(e),
 		}
@@ -104,37 +105,39 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 	/// Writable IO handler. Called when the socket is ready to send.
 	pub fn writable(&mut self) -> io::Result<WriteStatus> {
 		if self.send_queue.is_empty() {
-			return Ok(WriteStatus::Complete)
+			return Ok(WriteStatus::Complete);
 		}
 		{
 			let buf = self.send_queue.front_mut().unwrap();
 			let send_size = buf.get_ref().len();
 			if (buf.position() as usize) >= send_size {
 				warn!(target:"net", "Unexpected connection data");
-				return Ok(WriteStatus::Complete)
+				return Ok(WriteStatus::Complete);
 			}
 			match self.socket.try_write_buf(buf) {
 				Ok(Some(size)) if (buf.position() as usize) < send_size => {
 					self.interest.insert(EventSet::writable());
 					self.stats.inc_send(size);
 					Ok(WriteStatus::Ongoing)
-				},
+				}
 				Ok(Some(size)) if (buf.position() as usize) == send_size => {
 					self.stats.inc_send(size);
 					Ok(WriteStatus::Complete)
-				},
-				Ok(Some(_)) => { panic!("Wrote past buffer");},
+				}
+				Ok(Some(_)) => {
+					panic!("Wrote past buffer");
+				}
 				Ok(None) => Ok(WriteStatus::Ongoing),
-				Err(e) => Err(e)
+				Err(e) => Err(e),
 			}
-		}.and_then(|r| {
+		}
+		.and_then(|r| {
 			if r == WriteStatus::Complete {
 				self.send_queue.pop_front();
 			}
 			if self.send_queue.is_empty() {
 				self.interest.remove(EventSet::writable());
-			}
-			else {
+			} else {
 				self.interest.insert(EventSet::writable());
 			}
 			Ok(r)
@@ -171,7 +174,7 @@ impl Connection {
 	/// Update connection registration. Should be called at the end of the IO handler.
 	pub fn update_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection reregister; token={:?}", reg);
-		event_loop.reregister( &self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
+		event_loop.reregister(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
 			debug!("Failed to reregister {:?}, {:?}", reg, e);
 			Ok(())
 		})
@@ -191,7 +194,7 @@ pub enum WriteStatus {
 	/// Some data is still pending for current packet
 	Ongoing,
 	/// All data sent.
-	Complete
+	Complete,
 }
 
 /// RLPx packet
@@ -232,7 +235,6 @@ pub struct EncryptedConnection {
 }
 
 impl EncryptedConnection {
-	
 	/// Get socket token 
 	pub fn token(&self) -> StreamToken {
 		self.connection.token
@@ -245,8 +247,7 @@ impl EncryptedConnection {
 		if handshake.originated {
 			handshake.remote_nonce.copy_to(&mut nonce_material[0..32]);
 			handshake.nonce.copy_to(&mut nonce_material[32..64]);
-		}
-		else {
+		} else {
 			handshake.nonce.copy_to(&mut nonce_material[0..32]);
 			handshake.remote_nonce.copy_to(&mut nonce_material[32..64]);
 		}
@@ -284,7 +285,7 @@ impl EncryptedConnection {
 			ingress_mac: ingress_mac,
 			read_state: EncryptedConnectionState::Header,
 			protocol_id: 0,
-			payload_len: 0
+			payload_len: 0,
 		})
 	}
 
@@ -294,19 +295,27 @@ impl EncryptedConnection {
 		let len = payload.len() as usize;
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
 		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);
-		//TODO: ger rid of vectors here
+		// TODO: ger rid of vectors here
 		let mut header = header.out();
 		let padding = (16 - (payload.len() % 16)) % 16;
 		header.resize(16, 0u8);
 
 		let mut packet = vec![0u8; (32 + payload.len() + padding + 16)];
 		self.encoder.encrypt(&mut RefReadBuffer::new(&header), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
-		EncryptedConnection::update_mac(&mut self.egress_mac, &mut self.mac_encoder,  &packet[0..16]);
+		EncryptedConnection::update_mac(&mut self.egress_mac, &mut self.mac_encoder, &packet[0..16]);
 		self.egress_mac.clone().finalize(&mut packet[16..32]);
-		self.encoder.encrypt(&mut RefReadBuffer::new(&payload), &mut RefWriteBuffer::new(&mut packet[32..(32 + len)]), padding == 0).expect("Invalid length or padding");
+		self.encoder
+		    .encrypt(&mut RefReadBuffer::new(&payload),
+		             &mut RefWriteBuffer::new(&mut packet[32..(32 + len)]),
+		             padding == 0)
+		    .expect("Invalid length or padding");
 		if padding != 0 {
 			let pad = [0u8; 16];
-			self.encoder.encrypt(&mut RefReadBuffer::new(&pad[0..padding]), &mut RefWriteBuffer::new(&mut packet[(32 + len)..(32 + len + padding)]), true).expect("Invalid length or padding");
+			self.encoder
+			    .encrypt(&mut RefReadBuffer::new(&pad[0..padding]),
+			             &mut RefWriteBuffer::new(&mut packet[(32 + len)..(32 + len + padding)]),
+			             true)
+			    .expect("Invalid length or padding");
 		}
 		self.egress_mac.update(&packet[32..(32 + len + padding)]);
 		EncryptedConnection::update_mac(&mut self.egress_mac, &mut self.mac_encoder, &[0u8; 0]);
@@ -347,7 +356,7 @@ impl EncryptedConnection {
 
 	/// Decrypt and authenticate packet payload.
 	fn read_payload(&mut self, payload: &[u8]) -> Result<Packet, UtilError> {
-		let padding = (16 - (self.payload_len  % 16)) % 16;
+		let padding = (16 - (self.payload_len % 16)) % 16;
 		let full_length = self.payload_len + padding + 16;
 		if payload.len() != full_length {
 			return Err(From::from(NetworkError::Auth));
@@ -362,12 +371,18 @@ impl EncryptedConnection {
 		}
 
 		let mut packet = vec![0u8; self.payload_len];
-		self.decoder.decrypt(&mut RefReadBuffer::new(&payload[0..self.payload_len]), &mut RefWriteBuffer::new(&mut packet), false).expect("Invalid length or padding");
+		self.decoder
+		    .decrypt(&mut RefReadBuffer::new(&payload[0..self.payload_len]), &mut RefWriteBuffer::new(&mut packet), false)
+		    .expect("Invalid length or padding");
 		let mut pad_buf = [0u8; 16];
-		self.decoder.decrypt(&mut RefReadBuffer::new(&payload[self.payload_len..(payload.len() - 16)]), &mut RefWriteBuffer::new(&mut pad_buf), false).expect("Invalid length or padding");
+		self.decoder
+		    .decrypt(&mut RefReadBuffer::new(&payload[self.payload_len..(payload.len() - 16)]),
+		             &mut RefWriteBuffer::new(&mut pad_buf),
+		             false)
+		    .expect("Invalid length or padding");
 		Ok(Packet {
 			protocol: self.protocol_id,
-			data: packet
+			data: packet,
 		})
 	}
 
@@ -384,7 +399,9 @@ impl EncryptedConnection {
 	}
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
-	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, UtilError> where Message: Send + Clone{
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, UtilError>
+		where Message: Send + Clone,
+	{
 		io.clear_timer(self.connection.token).unwrap();
 		match self.read_state {
 			EncryptedConnectionState::Header => {
@@ -393,35 +410,37 @@ impl EncryptedConnection {
 					try!(io.register_timer(self.connection.token, RECIEVE_PAYLOAD_TIMEOUT));
 				}
 				Ok(None)
-			},
+			}
 			EncryptedConnectionState::Payload => {
 				match try!(self.connection.readable()) {
-					Some(data)  => {
+					Some(data) => {
 						self.read_state = EncryptedConnectionState::Header;
 						self.connection.expect(ENCRYPTED_HEADER_LEN);
 						Ok(Some(try!(self.read_payload(&data))))
-					},
-					None => Ok(None)
+					}
+					None => Ok(None),
 				}
 			}
 		}
 	}
 
 	/// Writable IO handler. Processes send queeue.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError>
+		where Message: Send + Clone,
+	{
 		io.clear_timer(self.connection.token).unwrap();
 		try!(self.connection.writable());
 		Ok(())
 	}
 
 	/// Update connection registration. This should be called at the end of the event loop.
-	pub fn update_socket<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn update_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.update_socket(reg, event_loop));
 		Ok(())
 	}
 
 	/// Delete connection registration. This should be called at the end of the event loop.
-	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn deregister_socket<Host: Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.deregister_socket(event_loop));
 		Ok(())
 	}
@@ -454,9 +473,9 @@ mod tests {
 	use super::*;
 	use std::sync::*;
 	use super::super::stats::*;
-	use std::io::{Read, Write, Error, Cursor, ErrorKind};
+	use std::io::{Cursor, Error, ErrorKind, Read, Write};
 	use std::cmp;
-	use mio::{EventSet};
+	use mio::EventSet;
 	use std::collections::VecDeque;
 	use bytes::*;
 
@@ -489,13 +508,13 @@ mod tests {
 
 	impl Read for TestSocket {
 		fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-			let end_position = cmp::min(self.read_buffer.len(), self.cursor+buf.len());
+			let end_position = cmp::min(self.read_buffer.len(), self.cursor + buf.len());
 			let len = cmp::max(end_position - self.cursor, 0);
 			match len {
 				0 => Ok(0),
 				_ => {
 					for i in self.cursor..end_position {
-						buf[i-self.cursor] = self.read_buffer[i];
+						buf[i - self.cursor] = self.read_buffer[i];
 					}
 					self.cursor = self.cursor + buf.len();
 					Ok(len)
@@ -509,8 +528,7 @@ mod tests {
 			if self.buf_size == 0 || buf.len() < self.buf_size {
 				self.write_buffer.extend(buf.iter().cloned());
 				Ok(buf.len())
-			}
-			else {
+			} else {
 				self.write_buffer.extend(buf.iter().take(self.buf_size).cloned());
 				Ok(self.buf_size)
 			}
@@ -524,7 +542,7 @@ mod tests {
 	impl GenericSocket for TestSocket {}
 
 	struct TestBrokenSocket {
-		error: String
+		error: String,
 	}
 
 	impl Read for TestBrokenSocket {

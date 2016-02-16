@@ -17,7 +17,7 @@
 //! Blockchain database.
 
 use util::*;
-use rocksdb::{DB, WriteBatch, Writable};
+use rocksdb::{DB, Writable, WriteBatch};
 use header::*;
 use extras::*;
 use transaction::*;
@@ -30,7 +30,7 @@ pub struct TreeRoute {
 	/// Best common ancestor of these blocks.
 	pub ancestor: H256,
 	/// An index where best common ancestor would be.
-	pub index: usize
+	pub index: usize,
 }
 
 /// Represents blockchain's in-memory cache size in bytes.
@@ -45,19 +45,21 @@ pub struct CacheSize {
 	/// Logs cache size.
 	pub block_logs: usize,
 	/// Blooms cache size.
-	pub blocks_blooms: usize
+	pub blocks_blooms: usize,
 }
 
 impl CacheSize {
 	/// Total amount used by the cache.
-	fn total(&self) -> usize { self.blocks + self.block_details + self.transaction_addresses + self.block_logs + self.blocks_blooms }
+	fn total(&self) -> usize {
+		self.blocks + self.block_details + self.transaction_addresses + self.block_logs + self.blocks_blooms
+	}
 }
 
 /// Information about best block gathered together
 struct BestBlock {
 	pub hash: H256,
 	pub number: BlockNumber,
-	pub total_difficulty: U256
+	pub total_difficulty: U256,
 }
 
 impl BestBlock {
@@ -65,7 +67,7 @@ impl BestBlock {
 		BestBlock {
 			hash: H256::new(),
 			number: 0,
-			total_difficulty: U256::from(0)
+			total_difficulty: U256::from(0),
 		}
 	}
 }
@@ -184,8 +186,9 @@ impl BlockProvider for BlockChain {
 			}
 		}
 
-		let opt = self.blocks_db.get(hash)
-			.expect("Low level database error. Some issue with disk?");
+		let opt = self.blocks_db
+		              .get(hash)
+		              .expect("Low level database error. Some issue with disk?");
 
 		self.note_used(CacheID::Block(hash.clone()));
 
@@ -195,8 +198,8 @@ impl BlockProvider for BlockChain {
 				let mut write = self.blocks.write().unwrap();
 				write.insert(hash.clone(), bytes.clone());
 				Some(bytes)
-			},
-			None => None
+			}
+			None => None,
 		}
 	}
 
@@ -257,7 +260,10 @@ impl BlockChain {
 		blocks_path.push("blocks");
 		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
 
-		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
+		let mut cache_man = CacheManager {
+			cache_usage: VecDeque::new(),
+			in_use: HashSet::new(),
+		};
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
 
 		let bc = BlockChain {
@@ -289,7 +295,7 @@ impl BlockChain {
 					number: header.number(),
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
-					children: vec![]
+					children: vec![],
 				};
 
 				bc.blocks_db.put(&hash, genesis).unwrap();
@@ -418,7 +424,7 @@ impl BlockChain {
 		TreeRoute {
 			blocks: from_branch,
 			ancestor: current_from,
-			index: index
+			index: index,
 		}
 	}
 
@@ -474,7 +480,7 @@ impl BlockChain {
 			number: header.number(),
 			total_difficulty: total_difficulty,
 			parent: parent_hash.clone(),
-			children: vec![]
+			children: vec![],
 		};
 
 		// prepare the batch
@@ -489,10 +495,11 @@ impl BlockChain {
 
 		// update transaction addresses
 		for (i, tx_hash) in block.transaction_hashes().iter().enumerate() {
-			batch.put_extras(tx_hash, &TransactionAddress {
-				block_hash: hash.clone(),
-				index: i
-			});
+			batch.put_extras(tx_hash,
+			                 &TransactionAddress {
+				                 block_hash: hash.clone(),
+				                 index: i,
+			                 });
 		}
 
 		// if it's not new best block, just return
@@ -517,10 +524,12 @@ impl BlockChain {
 				for (index, hash) in route.blocks.iter().skip(route.index).enumerate() {
 					batch.put_extras(&(start_number + index as BlockNumber), hash);
 				}
-			},
+			}
 			// route.blocks.len() could be 0 only if inserted block is best block,
 			// and this is not possible at this stage
-			_ => { unreachable!(); }
+			_ => {
+				unreachable!();
+			}
 		};
 
 		// this is new best block
@@ -529,7 +538,7 @@ impl BlockChain {
 		let best_block = BestBlock {
 			hash: hash,
 			number: header.number(),
-			total_difficulty: total_difficulty
+			total_difficulty: total_difficulty,
 		};
 
 		(batch, Some(best_block), details)
@@ -560,9 +569,10 @@ impl BlockChain {
 		self.query_extras(hash, &self.block_logs)
 	}
 
-	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
-		T: Clone + Decodable + ExtrasIndexable,
-		K: ExtrasSliceConvertable + Eq + Hash + Clone {
+	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T>
+		where T: Clone + Decodable + ExtrasIndexable,
+		      K: ExtrasSliceConvertable + Eq + Hash + Clone,
+	{
 		{
 			let read = cache.read().unwrap();
 			if let Some(v) = read.get(hash) {
@@ -574,16 +584,17 @@ impl BlockChain {
 			self.note_used(CacheID::Extras(T::extras_index(), h.clone()));
 		}
 
-		self.extras_db.get_extras(hash).map(| t: T | {
+		self.extras_db.get_extras(hash).map(|t: T| {
 			let mut write = cache.write().unwrap();
 			write.insert(hash.clone(), t.clone());
 			t
 		})
 	}
 
-	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> bool where
-		K: ExtrasSliceConvertable + Eq + Hash + Clone,
-		T: ExtrasIndexable {
+	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> bool
+		where K: ExtrasSliceConvertable + Eq + Hash + Clone,
+		      T: ExtrasIndexable,
+	{
 		{
 			let read = cache.read().unwrap();
 			if let Some(_) = read.get(hash) {
@@ -601,7 +612,7 @@ impl BlockChain {
 			block_details: self.block_details.read().unwrap().heap_size_of_children(),
 			transaction_addresses: self.transaction_addresses.read().unwrap().heap_size_of_children(),
 			block_logs: self.block_logs.read().unwrap().heap_size_of_children(),
-			blocks_blooms: self.blocks_blooms.read().unwrap().heap_size_of_children()
+			blocks_blooms: self.blocks_blooms.read().unwrap().heap_size_of_children(),
 		}
 	}
 
@@ -611,7 +622,7 @@ impl BlockChain {
 		if !cache_man.cache_usage[0].contains(&id) {
 			cache_man.cache_usage[0].insert(id.clone());
 			if cache_man.in_use.contains(&id) {
-				if let Some(c) = cache_man.cache_usage.iter_mut().skip(1).find(|e|e.contains(&id)) {
+				if let Some(c) = cache_man.cache_usage.iter_mut().skip(1).find(|e| e.contains(&id)) {
 					c.remove(&id);
 				}
 			} else {
@@ -622,7 +633,9 @@ impl BlockChain {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		if self.cache_size().total() < self.pref_cache_size { return; }
+		if self.cache_size().total() < self.pref_cache_size {
+			return;
+		}
 
 		for _ in 0..COLLECTION_QUEUE_SIZE {
 			{
@@ -637,11 +650,21 @@ impl BlockChain {
 				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
 					cache_man.in_use.remove(&id);
 					match id {
-						CacheID::Block(h) => { blocks.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlockDetails, h) => { block_details.remove(&h); },
-						CacheID::Extras(ExtrasIndex::TransactionAddress, h) => { transaction_addresses.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => { blocks_blooms.remove(&h); },
+						CacheID::Block(h) => {
+							blocks.remove(&h);
+						}
+						CacheID::Extras(ExtrasIndex::BlockDetails, h) => {
+							block_details.remove(&h);
+						}
+						CacheID::Extras(ExtrasIndex::TransactionAddress, h) => {
+							transaction_addresses.remove(&h);
+						}
+						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => {
+							block_logs.remove(&h);
+						}
+						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => {
+							blocks_blooms.remove(&h);
+						}
 						_ => panic!(),
 					}
 				}
@@ -650,7 +673,9 @@ impl BlockChain {
 				// TODO: handle block_hashes properly.
 				block_hashes.clear();
 			}
-			if self.cache_size().total() < self.max_cache_size { break; }
+			if self.cache_size().total() < self.max_cache_size {
+				break;
+			}
 		}
 
 		// TODO: m_lastCollection = chrono::system_clock::now();
@@ -679,7 +704,7 @@ mod tests {
 		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
 		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
 		assert_eq!(bc.block_hash(1), None);
-		
+
 		let first = "f90285f90219a03caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0bac6177a79e910c98d86ec31a09ae37ac2de15b754fd7bed1ba52362c49416bfa0d45893a296c1490a978e0bd321b5f2635d8280365c1fe9f693d65f233e791344a0c7778a7376099ee2e5c455791c1885b5c361b95713fddcbe32d97fd01334d296b90100000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000400000000000000000000000000000000000000000000000000000008302000001832fefd882560b845627cb99a00102030405060708091011121314151617181920212223242526272829303132a08ccb2837fb2923bd97e8f2d08ea32012d6e34be018c73e49a0f98843e8f47d5d88e53be49fec01012ef866f864800a82c35094095e7baea6a6c7c4c2dfeb977efac326af552d8785012a05f200801ba0cb088b8d2ff76a7b2c6616c9d02fb6b7a501afbf8b69d7180b09928a1b80b5e4a06448fe7476c606582039bb72a9f6f4b4fad18507b8dfbd00eebbe151cc573cd2c0".from_hex().unwrap();
 
 		bc.insert_block(&first);
@@ -855,7 +880,7 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let bc = BlockChain::new(&genesis, temp.as_path());
 		bc.insert_block(&b1);
-	
+
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
 		for t in transactions {

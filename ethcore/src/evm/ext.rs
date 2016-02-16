@@ -19,7 +19,7 @@
 use common::Bytes;
 use util::hash::*;
 use util::uint::*;
-use evm::{Schedule, Error};
+use evm::{Error, Schedule};
 use env_info::*;
 
 /// Result of externalities create function.
@@ -29,7 +29,7 @@ pub enum ContractCreateResult {
 	Created(Address, U256),
 	/// Returned when contract creation failed.
 	/// VM doesn't have to know the reason.
-	Failed
+	Failed,
 }
 
 /// Result of externalities call function.
@@ -39,7 +39,7 @@ pub enum MessageCallResult {
 	Success(U256),
 	/// Returned when message call failed.
 	/// VM doesn't have to know the reason.
-	Failed
+	Failed,
 }
 
 /// Externalities interface for EVMs
@@ -69,14 +69,15 @@ pub trait Ext {
 	/// Returns Err, if we run out of gas.
 	/// Otherwise returns call_result which contains gas left 
 	/// and true if subcall was successfull.
-	fn call(&mut self, 
-			gas: &U256, 
-			sender_address: &Address, 
-			receive_address: &Address, 
-			value: Option<U256>,
-			data: &[u8], 
-			code_address: &Address, 
-			output: &mut [u8]) -> MessageCallResult;
+	fn call(&mut self,
+	        gas: &U256,
+	        sender_address: &Address,
+	        receive_address: &Address,
+	        value: Option<U256>,
+	        data: &[u8],
+	        code_address: &Address,
+	        output: &mut [u8])
+	        -> MessageCallResult;
 
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Bytes;

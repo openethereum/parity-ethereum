@@ -1,10 +1,10 @@
 use common::*;
 use std::path::PathBuf;
-use std::fs::{remove_dir_all};
+use std::fs::remove_dir_all;
 use std::env;
 
 pub struct RandomTempPath {
-	path: PathBuf
+	path: PathBuf,
 }
 
 impl RandomTempPath {
@@ -12,9 +12,7 @@ impl RandomTempPath {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		fs::create_dir_all(dir.as_path()).unwrap();
-		RandomTempPath {
-			path: dir.clone()
-		}
+		RandomTempPath { path: dir.clone() }
 	}
 
 	pub fn as_path(&self) -> &PathBuf {

@@ -28,7 +28,7 @@ pub struct Substate {
 	/// Refund counter of SSTORE nonzero -> zero.
 	pub sstore_clears_count: U256,
 	/// Created contracts.
-	pub contracts_created: Vec<Address>
+	pub contracts_created: Vec<Address>,
 }
 
 impl Substate {
@@ -38,7 +38,7 @@ impl Substate {
 			suicides: HashSet::new(),
 			logs: vec![],
 			sstore_clears_count: U256::zero(),
-			contracts_created: vec![]
+			contracts_created: vec![],
 		}
 	}
 

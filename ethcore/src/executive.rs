@@ -60,7 +60,7 @@ pub struct Executed {
 	/// eg. sender creates contract A and A in constructor creates contract B
 	///
 	/// B creation ends first, and it will be the first element of the vector.
-	pub contracts_created: Vec<Address>
+	pub contracts_created: Vec<Address>,
 }
 
 /// Transaction execution result.
@@ -71,7 +71,7 @@ pub struct Executive<'a> {
 	state: &'a mut State,
 	info: &'a EnvInfo,
 	engine: &'a Engine,
-	depth: usize
+	depth: usize,
 }
 
 impl<'a> Executive<'a> {
@@ -92,7 +92,7 @@ impl<'a> Executive<'a> {
 			state: state,
 			info: info,
 			engine: engine,
-			depth: depth
+			depth: depth,
 		}
 	}
 
@@ -110,14 +110,20 @@ impl<'a> Executive<'a> {
 		let base_gas_required = U256::from(t.gas_required(&schedule));
 
 		if t.gas < base_gas_required {
-			return Err(From::from(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas }));
+			return Err(From::from(ExecutionError::NotEnoughBaseGas {
+				required: base_gas_required,
+				got: t.gas,
+			}));
 		}
 
 		let init_gas = t.gas - base_gas_required;
 
 		// validate transaction nonce
 		if t.nonce != nonce {
-			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
+			return Err(From::from(ExecutionError::InvalidNonce {
+				expected: nonce,
+				got: t.nonce,
+			}));
 		}
 
 		// validate if transaction fits into given block
@@ -125,7 +131,7 @@ impl<'a> Executive<'a> {
 			return Err(From::from(ExecutionError::BlockGasLimitReached {
 				gas_limit: self.info.gas_limit,
 				gas_used: self.info.gas_used,
-				gas: t.gas
+				gas: t.gas,
 			}));
 		}
 
@@ -136,7 +142,10 @@ impl<'a> Executive<'a> {
 
 		// avoid unaffordable transactions
 		if U512::from(balance) < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: U512::from(balance) }));
+			return Err(From::from(ExecutionError::NotEnoughCash {
+				required: total_cost,
+				got: U512::from(balance),
+			}));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
@@ -160,7 +169,7 @@ impl<'a> Executive<'a> {
 					data: None,
 				};
 				self.create(params, &mut substate)
-			},
+			}
 			Action::Call(ref address) => {
 				let params = ActionParams {
 					code_address: address.clone(),
@@ -198,10 +207,9 @@ impl<'a> Executive<'a> {
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy);
 			let vm_factory = self.engine.vm_factory();
 
-			scope.spawn(move || {
-				vm_factory.create().exec(params, &mut ext)
-			})
-		}).join()
+			scope.spawn(move || vm_factory.create().exec(params, &mut ext))
+		})
+			.join()
 	}
 
 	/// Calls contract function with given contract params.
@@ -230,7 +238,7 @@ impl<'a> Executive<'a> {
 					self.engine.execute_builtin(&params.code_address, data, &mut output);
 					self.state.clear_snapshot();
 					Ok(params.gas - cost)
-				},
+				}
 				// just drain the whole gas
 				false => {
 					self.state.revert_snapshot();
@@ -296,7 +304,10 @@ impl<'a> Executive<'a> {
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left_prerefund = match result { Ok(x) => x, _ => x!(0) };
+		let gas_left_prerefund = match result {
+			Ok(x) => x,
+			_ => x!(0),
+		};
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
 		let gas_left = gas_left_prerefund + refunded;
 
@@ -305,7 +316,16 @@ impl<'a> Executive<'a> {
 		let fees_value = gas_used * t.gas_price;
 
 		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
-			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
+		       t.gas,
+		       sstore_refunds,
+		       suicide_refunds,
+		       refunds_bound,
+		       gas_left_prerefund,
+		       refunded,
+		       gas_left,
+		       gas_used,
+		       refund_value,
+		       fees_value);
 
 		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
 		self.state.add_balance(&t.sender().unwrap(), &refund_value);
@@ -326,9 +346,9 @@ impl<'a> Executive<'a> {
 					refunded: U256::zero(),
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
-					contracts_created: vec![]
+					contracts_created: vec![],
 				})
-			},
+			}
 			_ => {
 				Ok(Executed {
 					gas: t.gas,
@@ -338,19 +358,19 @@ impl<'a> Executive<'a> {
 					logs: substate.logs,
 					contracts_created: substate.contracts_created,
 				})
-			},
+			}
 		}
 	}
 
 	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate) {
 		match *result {
-			Err(evm::Error::OutOfGas)
-				| Err(evm::Error::BadJumpDestination {..})
-				| Err(evm::Error::BadInstruction {.. })
-				| Err(evm::Error::StackUnderflow {..})
-				| Err(evm::Error::OutOfStack {..}) => {
+			Err(evm::Error::OutOfGas) |
+			Err(evm::Error::BadJumpDestination {..}) |
+			Err(evm::Error::BadInstruction {.. }) |
+			Err(evm::Error::StackUnderflow {..}) |
+			Err(evm::Error::OutOfStack {..}) => {
 				self.state.revert_snapshot();
-			},
+			}
 			Ok(_) | Err(evm::Error::Internal) => {
 				self.state.clear_snapshot();
 				substate.accrue(un_substate)
@@ -437,7 +457,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
-		//let next_address = contract_address(&address, &U256::zero());
+		// let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -491,7 +511,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
-		//let next_address = contract_address(&address, &U256::zero());
+		// let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -599,7 +619,7 @@ mod tests {
 		let code_b = "60006000600060006017730f572e5295c57f15886f9b263e2f6d2d6c7b5ec66101f4f16001015855".from_hex().unwrap();
 
 		let address_a = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let address_b = Address::from_str("945304eb96065b2a98b57a48a06ae28d285a71b5" ).unwrap();
+		let address_b = Address::from_str("945304eb96065b2a98b57a48a06ae28d285a71b5").unwrap();
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 
 		let mut params = ActionParams::default();
@@ -685,8 +705,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
-			nonce: U256::zero()
-		}.sign(&keypair.secret());
+			nonce: U256::zero(),
+		}
+		.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 		let contract = contract_address(&sender, &U256::zero());
 
@@ -722,8 +743,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
-			nonce: U256::zero()
-		}.fake_sign();
+			nonce: U256::zero(),
+		}
+		.fake_sign();
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let mut info = EnvInfo::default();
@@ -737,7 +759,7 @@ mod tests {
 
 		match res {
 			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => (),
-			_ => assert!(false, "Expected invalid signature error.")
+			_ => assert!(false, "Expected invalid signature error."),
 		}
 	}
 
@@ -750,8 +772,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
-			nonce: U256::one()
-		}.sign(&keypair.secret());
+			nonce: U256::one(),
+		}
+		.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -767,9 +790,8 @@ mod tests {
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::InvalidNonce { expected, got }))
-				if expected == U256::zero() && got == U256::one() => (),
-			_ => assert!(false, "Expected invalid nonce error.")
+			Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) if expected == U256::zero() && got == U256::one() => (),
+			_ => assert!(false, "Expected invalid nonce error."),
 		}
 	}
 
@@ -782,8 +804,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(80_001),
 			gas_price: U256::zero(),
-			nonce: U256::zero()
-		}.sign(&keypair.secret());
+			nonce: U256::zero(),
+		}
+		.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -800,9 +823,10 @@ mod tests {
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas }))
-				if gas_limit == U256::from(100_000) && gas_used == U256::from(20_000) && gas == U256::from(80_001) => (),
-			_ => assert!(false, "Expected block gas limit error.")
+			Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) if gas_limit == U256::from(100_000) &&
+			                                                                                            gas_used == U256::from(20_000) &&
+			                                                                                            gas == U256::from(80_001) => (),
+			_ => assert!(false, "Expected block gas limit error."),
 		}
 	}
 
@@ -816,8 +840,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
 			gas_price: U256::one(),
-			nonce: U256::zero()
-		}.sign(&keypair.secret());
+			nonce: U256::zero(),
+		}
+		.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -833,9 +858,9 @@ mod tests {
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::NotEnoughCash { required , got }))
-				if required == U512::from(100_018) && got == U512::from(100_017) => (),
-			_ => assert!(false, "Expected not enough cash error. {:?}", res)
+			Err(Error::Execution(ExecutionError::NotEnoughCash { required , got })) if required == U512::from(100_018) &&
+			                                                                           got == U512::from(100_017) => (),
+			_ => assert!(false, "Expected not enough cash error. {:?}", res),
 		}
 	}
 
@@ -846,7 +871,7 @@ mod tests {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
-		//let next_address = contract_address(&address, &U256::zero());
+		// let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -867,8 +892,7 @@ mod tests {
 		};
 
 		match result {
-			Err(_) => {
-			},
+			Err(_) => {}
 			_ => {
 				panic!("Expected OutOfGas");
 			}

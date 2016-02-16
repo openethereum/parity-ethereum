@@ -29,7 +29,8 @@ impl Index {
 
 impl Deserialize for Index {
 	fn deserialize<D>(deserializer: &mut D) -> Result<Index, D::Error>
-	where D: Deserializer {
+		where D: Deserializer,
+	{
 		deserializer.visit(IndexVisitor)
 	}
 }
@@ -39,14 +40,18 @@ struct IndexVisitor;
 impl Visitor for IndexVisitor {
 	type Value = Index;
 
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
+	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E>
+		where E: Error,
+	{
 		match value {
 			_ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16).map(Index).map_err(|_| Error::syntax("invalid index")),
-			_ => value.parse::<usize>().map(Index).map_err(|_| Error::syntax("invalid index"))
+			_ => value.parse::<usize>().map(Index).map_err(|_| Error::syntax("invalid index")),
 		}
 	}
 
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
+	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E>
+		where E: Error,
+	{
 		self.visit_str(value.as_ref())
 	}
 }
@@ -63,4 +68,3 @@ mod tests {
 		assert_eq!(deserialized, vec![Index(10), Index(10)]);
 	}
 }
-

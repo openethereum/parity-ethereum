@@ -34,9 +34,9 @@ extern crate target_info;
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
-use std::net::{SocketAddr};
+use std::net::SocketAddr;
 use std::env;
-use rlog::{LogLevelFilter};
+use rlog::LogLevelFilter;
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
@@ -106,8 +106,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str) {
 }
 
 #[cfg(not(feature = "rpc"))]
-fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
-}
+fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {}
 
 fn print_version() {
 	println!("\
@@ -118,18 +117,20 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
-", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
+",
+	         env!("CARGO_PKG_VERSION"),
+	         Target::arch(),
+	         Target::env(),
+	         Target::os());
 }
 
 struct Configuration {
-	args: Args
+	args: Args,
 }
 
 impl Configuration {
 	fn parse() -> Self {
-		Configuration {
-			args: Args::docopt().decode().unwrap_or_else(|e| e.exit())
-		}
+		Configuration { args: Args::docopt().decode().unwrap_or_else(|e| e.exit()) }
 	}
 
 	fn path(&self) -> String {
@@ -146,7 +147,9 @@ impl Configuration {
 	}
 
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
-		if self.args.flag_no_bootstrap { Vec::new() } else {
+		if self.args.flag_no_bootstrap {
+			Vec::new()
+		} else {
 			match self.args.arg_enode.len() {
 				0 => spec.nodes().clone(),
 				_ => self.args.arg_enode.clone(),
@@ -160,8 +163,10 @@ impl Configuration {
 
 		match self.args.flag_address {
 			None => {
-				listen_address = SocketAddr::from_str(self.args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address");
-				public_address = SocketAddr::from_str(self.args.flag_public_address.as_ref()).expect("Invalid public address given with --public-address");
+				listen_address = SocketAddr::from_str(self.args.flag_listen_address.as_ref())
+					.expect("Invalid listen address given with --listen-address");
+				public_address = SocketAddr::from_str(self.args.flag_public_address.as_ref())
+					.expect("Invalid public address given with --public-address");
 			}
 			Some(ref a) => {
 				public_address = SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address");
@@ -177,9 +182,13 @@ fn wait_for_exit(client_service: &ClientService) {
 	let exit = Arc::new(Condvar::new());
 	// Handle possible exits
 	let e = exit.clone();
-	CtrlC::set_handler(move || { e.notify_all(); });
+	CtrlC::set_handler(move || {
+		e.notify_all();
+	});
 	let e = exit.clone();
-	client_service.on_panic(move |_reason| { e.notify_all(); });
+	client_service.on_panic(move |_reason| {
+		e.notify_all();
+	});
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
@@ -197,7 +206,9 @@ fn main() {
 	// Setup logging
 	setup_log(&conf.args.flag_logging);
 	// Raise fdlimit
-	unsafe { ::fdlimit::raise_fd_limit(); }
+	unsafe {
+		::fdlimit::raise_fd_limit();
+	}
 
 	// Configure network
 	let mut net_settings = NetworkConfiguration::new();
@@ -222,10 +233,10 @@ fn main() {
 	}
 
 	// Register IO handler
-	let io_handler  = Arc::new(ClientIoHandler {
+	let io_handler = Arc::new(ClientIoHandler {
 		client: service.client(),
 		info: Default::default(),
-		sync: sync
+		sync: sync,
 	});
 	service.io().register_handler(io_handler).expect("Error registering IO handler");
 
@@ -260,25 +271,26 @@ impl Informant {
 		let report = client.report();
 		let sync_info = sync.status();
 
-		if let (_, &Some(ref last_cache_info), &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
+		if let (_, &Some(ref last_cache_info), &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(),
+		                                                                  self.cache_info.read().unwrap().deref(),
+		                                                                  self.report.read().unwrap().deref()) {
 			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···//  {} ({}) bl  {} ({}) ex ]",
-				chain_info.best_block_number,
-				chain_info.best_block_hash,
-				(report.blocks_imported - last_report.blocks_imported) / dur,
-				(report.transactions_applied - last_report.transactions_applied) / dur,
-				(report.gas_processed - last_report.gas_processed) / From::from(dur),
+			         chain_info.best_block_number,
+			         chain_info.best_block_hash,
+			         (report.blocks_imported - last_report.blocks_imported) / dur,
+			         (report.transactions_applied - last_report.transactions_applied) / dur,
+			         (report.gas_processed - last_report.gas_processed) / From::from(dur),
 
-				sync_info.num_active_peers,
-				sync_info.num_peers,
-				sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number),
-				queue_info.unverified_queue_size,
-				queue_info.verified_queue_size,
+			         sync_info.num_active_peers,
+			         sync_info.num_peers,
+			         sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number),
+			         queue_info.unverified_queue_size,
+			         queue_info.verified_queue_size,
 
-				cache_info.blocks,
-				cache_info.blocks as isize - last_cache_info.blocks as isize,
-				cache_info.block_details,
-				cache_info.block_details as isize - last_cache_info.block_details as isize
-			);
+			         cache_info.blocks,
+			         cache_info.blocks as isize - last_cache_info.blocks as isize,
+			         cache_info.block_details,
+			         cache_info.block_details as isize - last_cache_info.block_details as isize);
 		}
 
 		*self.chain_info.write().unwrap().deref_mut() = Some(chain_info);
@@ -309,5 +321,4 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 /// Parity needs at least 1 test to generate coverage reports correctly.
 #[test]
-fn if_works() {
-}
+fn if_works() {}

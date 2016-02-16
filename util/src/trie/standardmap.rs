@@ -101,7 +101,10 @@ impl StandardMap {
 				Alphabet::Mid => Self::random_word(mid, self.min_key, self.journal_key, &mut seed),
 				Alphabet::Custom(ref a) => Self::random_word(&a, self.min_key, self.journal_key, &mut seed),
 			};
-			let v = match self.value_mode { ValueMode::Mirror => k.clone(), ValueMode::Random => Self::random_value(&mut seed) };
+			let v = match self.value_mode {
+				ValueMode::Mirror => k.clone(),
+				ValueMode::Random => Self::random_value(&mut seed),
+			};
 			d.push((k, v))
 		}
 		d

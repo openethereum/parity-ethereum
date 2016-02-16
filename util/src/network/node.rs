@@ -16,7 +16,7 @@
 
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::hash::{Hash, Hasher};
-use std::str::{FromStr};
+use std::str::FromStr;
 use hash::*;
 use rlp::*;
 use time::Tm;
@@ -33,7 +33,7 @@ pub struct NodeEndpoint {
 	/// Address as string (can be host name).
 	pub address_str: String,
 	/// Conneciton port.
-	pub udp_port: u16
+	pub udp_port: u16,
 }
 
 impl FromStr for NodeEndpoint {
@@ -46,10 +46,10 @@ impl FromStr for NodeEndpoint {
 			Ok(Some(a)) => Ok(NodeEndpoint {
 				address: a,
 				address_str: s.to_owned(),
-				udp_port: a.port()
+				udp_port: a.port(),
 			}),
 			Ok(_) => Err(UtilError::AddressResolve(None)),
-			Err(e) => Err(UtilError::AddressResolve(Some(e)))
+			Err(e) => Err(UtilError::AddressResolve(Some(e))),
 		}
 	}
 }
@@ -57,7 +57,7 @@ impl FromStr for NodeEndpoint {
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub enum PeerType {
 	Required,
-	Optional
+	Optional,
 }
 
 pub struct Node {
@@ -72,8 +72,7 @@ impl FromStr for Node {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if &s[0..8] == "enode://" && s.len() > 136 && &s[136..137] == "@" {
 			(try!(NodeId::from_str(&s[8..136])), try!(NodeEndpoint::from_str(&s[137..])))
-		}
-		else {
+		} else {
 			(NodeId::new(), try!(NodeEndpoint::from_str(s)))
 		};
 
@@ -91,10 +90,12 @@ impl PartialEq for Node {
 		self.id == other.id
 	}
 }
-impl Eq for Node { }
+impl Eq for Node {}
 
 impl Hash for Node {
-	fn hash<H>(&self, state: &mut H) where H: Hasher {
+	fn hash<H>(&self, state: &mut H)
+		where H: Hasher,
+	{
 		self.id.hash(state)
 	}
 }
@@ -112,7 +113,7 @@ mod tests {
 		assert!(endpoint.is_ok());
 		let v4 = match endpoint.unwrap().address {
 			SocketAddr::V4(v4address) => v4address,
-			_ => panic!("should ve v4 address")
+			_ => panic!("should ve v4 address"),
 		};
 		assert_eq!(SocketAddrV4::new(Ipv4Addr::new(123, 99, 55, 44), 7770), v4);
 	}
@@ -124,7 +125,7 @@ mod tests {
 		let node = node.unwrap();
 		let v4 = match node.endpoint.address {
 			SocketAddr::V4(v4address) => v4address,
-			_ => panic!("should ve v4 address")
+			_ => panic!("should ve v4 address"),
 		};
 		assert_eq!(SocketAddrV4::new(Ipv4Addr::new(22, 99, 55, 44), 7770), v4);
 		assert_eq!(

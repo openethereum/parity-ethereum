@@ -25,12 +25,12 @@ use ethcore::client::*;
 use ethcore::views::*;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index};
+use v1::types::{Block, BlockNumber, BlockTransactions, Bytes, Index, OptionalValue, SyncInfo, SyncStatus, Transaction};
 
 /// Eth rpc implementation.
 pub struct EthClient {
 	client: Arc<Client>,
-	sync: Arc<EthSync>
+	sync: Arc<EthSync>,
 }
 
 impl EthClient {
@@ -38,7 +38,7 @@ impl EthClient {
 	pub fn new(client: Arc<Client>, sync: Arc<EthSync>) -> Self {
 		EthClient {
 			client: client,
-			sync: sync
+			sync: sync,
 		}
 	}
 
@@ -71,18 +71,18 @@ impl EthClient {
 							BlockTransactions::Hashes(block_view.transaction_hashes())
 						}
 					},
-					extra_data: Bytes::default()
+					extra_data: Bytes::default(),
 				};
 				to_value(&block)
-			},
-			_ => Ok(Value::Null)
+			}
+			_ => Ok(Value::Null),
 		}
 	}
-	
+
 	fn transaction(&self, id: TransactionId) -> Result<Value, Error> {
 		match self.client.transaction(id) {
 			Some(t) => to_value(&Transaction::from(t)),
-			None => Ok(Value::Null)
+			None => Ok(Value::Null),
 		}
 	}
 }
@@ -91,7 +91,7 @@ impl Eth for EthClient {
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&U256::from(self.sync.status().protocol_version)),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -104,12 +104,12 @@ impl Eth for EthClient {
 					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks => SyncStatus::Info(SyncInfo {
 						starting_block: U256::from(status.start_block_number),
 						current_block: U256::from(self.client.chain_info().best_block_number),
-						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
-					})
+						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number)),
+					}),
 				};
 				to_value(&res)
 			}
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -117,7 +117,7 @@ impl Eth for EthClient {
 	fn author(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&Address::new()),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -125,7 +125,7 @@ impl Eth for EthClient {
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => Ok(Value::Bool(false)),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -133,38 +133,40 @@ impl Eth for EthClient {
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&U256::zero()),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&(shannon() * U256::from(50))),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&U256::from(self.client.chain_info().best_block_number)),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
 	fn block_transaction_count(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.block(BlockId::Hash(hash)) {
+		from_params::<(H256,)>(params).and_then(|(hash,)| {
+			match self.client.block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
-				None => Ok(Value::Null)
-			})
+				None => Ok(Value::Null),
+			}
+		})
 	}
 
 	fn block_uncles_count(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.block(BlockId::Hash(hash)) {
+		from_params::<(H256,)>(params).and_then(|(hash,)| {
+			match self.client.block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
-				None => Ok(Value::Null)
-			})
+				None => Ok(Value::Null),
+			}
+		})
 	}
 
 	// TODO: do not ignore block number param
@@ -174,23 +176,19 @@ impl Eth for EthClient {
 	}
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256, bool)>(params)
-			.and_then(|(hash, include_txs)| self.block(BlockId::Hash(hash), include_txs))
+		from_params::<(H256, bool)>(params).and_then(|(hash, include_txs)| self.block(BlockId::Hash(hash), include_txs))
 	}
 
 	fn block_by_number(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(BlockNumber, bool)>(params)
-			.and_then(|(number, include_txs)| self.block(number.into(), include_txs))
+		from_params::<(BlockNumber, bool)>(params).and_then(|(number, include_txs)| self.block(number.into(), include_txs))
 	}
 
 	fn transaction_by_hash(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| self.transaction(TransactionId::Hash(hash)))
+		from_params::<(H256,)>(params).and_then(|(hash,)| self.transaction(TransactionId::Hash(hash)))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| self.transaction(TransactionId::Location(BlockId::Hash(hash), index.value())))
+		from_params::<(H256, Index)>(params).and_then(|(hash, index)| self.transaction(TransactionId::Location(BlockId::Hash(hash), index.value())))
 	}
 
 	fn transaction_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
@@ -202,15 +200,13 @@ impl Eth for EthClient {
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
-	client: Arc<Client>
+	client: Arc<Client>,
 }
 
 impl EthFilterClient {
 	/// Creates new Eth filter client.
 	pub fn new(client: Arc<Client>) -> Self {
-		EthFilterClient {
-			client: client
-		}
+		EthFilterClient { client: client }
 	}
 }
 

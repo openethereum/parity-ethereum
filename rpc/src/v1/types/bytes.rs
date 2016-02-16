@@ -36,8 +36,9 @@ impl Default for Bytes {
 }
 
 impl Serialize for Bytes {
-	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
-	where S: Serializer {
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+		where S: Serializer,
+	{
 		let mut serialized = "0x".to_owned();
 		serialized.push_str(self.0.to_hex().as_ref());
 		serializer.visit_str(serialized.as_ref())
@@ -57,5 +58,3 @@ mod tests {
 		assert_eq!(serialized, r#""0x0123456789abcdef""#);
 	}
 }
-
-

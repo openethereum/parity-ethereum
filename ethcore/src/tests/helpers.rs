@@ -19,11 +19,11 @@ use std::env;
 use common::*;
 use std::path::PathBuf;
 use spec::*;
-use std::fs::{remove_dir_all};
-use blockchain::{BlockChain};
+use std::fs::remove_dir_all;
+use blockchain::BlockChain;
 use state::*;
 use rocksdb::*;
-use evm::{Schedule, Factory};
+use evm::{Factory, Schedule};
 use engine::*;
 use ethereum;
 
@@ -34,16 +34,14 @@ pub enum ChainEra {
 }
 
 pub struct RandomTempPath {
-	path: PathBuf
+	path: PathBuf,
 }
 
 impl RandomTempPath {
 	pub fn new() -> RandomTempPath {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		RandomTempPath {
-			path: dir.clone()
-		}
+		RandomTempPath { path: dir.clone() }
 	}
 
 	pub fn as_path(&self) -> &PathBuf {
@@ -66,17 +64,17 @@ impl Drop for RandomTempPath {
 #[cfg(test)]
 pub struct GuardedTempResult<T> {
 	result: Option<T>,
-	_temp: RandomTempPath
+	_temp: RandomTempPath,
 }
 
 impl<T> GuardedTempResult<T> {
-    pub fn reference(&self) -> &T {
-        self.result.as_ref().unwrap()
-    }
+	pub fn reference(&self) -> &T {
+		self.result.as_ref().unwrap()
+	}
 
-    pub fn reference_mut(&mut self) -> &mut T {
-    	self.result.as_mut().unwrap()
-    }
+	pub fn reference_mut(&mut self) -> &mut T {
+		self.result.as_mut().unwrap()
+	}
 
 	pub fn take(&mut self) -> T {
 		self.result.take().unwrap()
@@ -86,7 +84,7 @@ impl<T> GuardedTempResult<T> {
 pub struct TestEngine {
 	factory: Factory,
 	spec: Spec,
-	max_depth: usize
+	max_depth: usize,
 }
 
 impl TestEngine {
@@ -94,14 +92,18 @@ impl TestEngine {
 		TestEngine {
 			factory: factory,
 			spec: ethereum::new_frontier_test(),
-			max_depth: max_depth
+			max_depth: max_depth,
 		}
 	}
 }
 
 impl Engine for TestEngine {
-	fn name(&self) -> &str { "TestEngine" }
-	fn spec(&self) -> &Spec { &self.spec }
+	fn name(&self) -> &str {
+		"TestEngine"
+	}
+	fn spec(&self) -> &Spec {
+		&self.spec
+	}
 	fn vm_factory(&self) -> &Factory {
 		&self.factory
 	}
@@ -199,7 +201,7 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
-		result: Some(client)
+		result: Some(client),
 	}
 }
 
@@ -216,7 +218,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
-		result: Some(client)
+		result: Some(client),
 	}
 }
 
@@ -229,7 +231,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: Some(bc)
+		result: Some(bc),
 	}
 }
 
@@ -242,7 +244,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: Some(bc)
+		result: Some(bc),
 	}
 }
 
@@ -252,7 +254,7 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: Some(bc)
+		result: Some(bc),
 	}
 }
 
@@ -262,7 +264,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<JournalDB> {
 	let journal_db = JournalDB::new(db);
 	GuardedTempResult {
 		_temp: temp,
-		result: Some(journal_db)
+		result: Some(journal_db),
 	}
 }
 
@@ -270,8 +272,8 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	let temp = RandomTempPath::new();
 	let journal_db = get_temp_journal_db_in(temp.as_path());
 	GuardedTempResult {
-	    _temp: temp,
-		result: Some(State::new(journal_db, U256::from(0u8)))
+		_temp: temp,
+		result: Some(State::new(journal_db, U256::from(0u8))),
 	}
 }
 

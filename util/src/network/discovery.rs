@@ -18,9 +18,9 @@
 
 #![allow(dead_code)] //TODO: remove this after everything is done
 
-use std::collections::{HashSet, BTreeMap};
-use std::cell::{RefCell};
-use std::ops::{DerefMut};
+use std::collections::{BTreeMap, HashSet};
+use std::cell::RefCell;
+use std::ops::DerefMut;
 use mio::*;
 use mio::udp::*;
 use hash::*;
@@ -28,23 +28,29 @@ use sha3::Hashable;
 use crypto::*;
 use network::node::*;
 
-const ADDRESS_BYTES_SIZE: u32 = 32;							///< Size of address type in bytes.
-const ADDRESS_BITS: u32 = 8 * ADDRESS_BYTES_SIZE;			///< Denoted by n in [Kademlia].
-const NODE_BINS: u32 = ADDRESS_BITS - 1;					///< Size of m_state (excludes root, which is us).
-const DISCOVERY_MAX_STEPS: u16 = 8;							///< Max iterations of discovery. (discover)
-const BUCKET_SIZE: u32 = 16;		///< Denoted by k in [Kademlia]. Number of nodes stored in each bucket.
-const ALPHA: usize = 3;				///< Denoted by \alpha in [Kademlia]. Number of concurrent FindNode requests.
+const ADDRESS_BYTES_SIZE: u32 = 32;
+///< Size of address type in bytes.
+const ADDRESS_BITS: u32 = 8 * ADDRESS_BYTES_SIZE;
+///< Denoted by n in [Kademlia].
+const NODE_BINS: u32 = ADDRESS_BITS - 1;
+///< Size of m_state (excludes root, which is us).
+const DISCOVERY_MAX_STEPS: u16 = 8;
+///< Max iterations of discovery. (discover)
+const BUCKET_SIZE: u32 = 16;
+///< Denoted by k in [Kademlia]. Number of nodes stored in each bucket.
+const ALPHA: usize = 3;
+///< Denoted by \alpha in [Kademlia]. Number of concurrent FindNode requests.
 
 struct NodeBucket {
 	distance: u32,
-	nodes: Vec<NodeId>
+	nodes: Vec<NodeId>,
 }
 
 impl NodeBucket {
 	fn new(distance: u32) -> NodeBucket {
 		NodeBucket {
 			distance: distance,
-			nodes: Vec::new()
+			nodes: Vec::new(),
 		}
 	}
 }
@@ -64,11 +70,9 @@ impl FindNodePacket {
 		FindNodePacket
 	}
 
-	fn sign(&mut self, _secret: &Secret) {
-	}
+	fn sign(&mut self, _secret: &Secret) {}
 
-	fn send(& self, _socket: &mut UdpSocket) {
-	}
+	fn send(&self, _socket: &mut UdpSocket) {}
 }
 
 impl Discovery {
@@ -86,16 +90,15 @@ impl Discovery {
 		self.node_buckets[Discovery::distance(&self.id, &id) as usize].nodes.push(id.clone());
 	}
 
-	fn start_node_discovery<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) {
+	fn start_node_discovery<Host: Handler>(&mut self, event_loop: &mut EventLoop<Host>) {
 		self.discovery_round = 0;
 		self.discovery_id.randomize();
 		self.discovery_nodes.clear();
 		self.discover(event_loop);
 	}
 
-	fn discover<Host:Handler>(&mut self, event_loop: &mut EventLoop<Host>) {
-		if self.discovery_round == DISCOVERY_MAX_STEPS
-		{
+	fn discover<Host: Handler>(&mut self, event_loop: &mut EventLoop<Host>) {
+		if self.discovery_round == DISCOVERY_MAX_STEPS {
 			debug!("Restarting discovery");
 			self.start_node_discovery(event_loop);
 			return;
@@ -106,28 +109,27 @@ impl Discovery {
 			let nodes = RefCell::new(&mut self.discovery_nodes);
 			let nearest = nearest.filter(|x| nodes.borrow().contains(&x)).take(ALPHA);
 			for r in nearest {
-				//let mut p = FindNodePacket::new(&r.endpoint, &self.discovery_id);
-				//p.sign(&self.secret);
-				//p.send(&mut self.udp_socket);
+				// let mut p = FindNodePacket::new(&r.endpoint, &self.discovery_id);
+				// p.sign(&self.secret);
+				// p.send(&mut self.udp_socket);
 				let mut borrowed = nodes.borrow_mut();
 				borrowed.deref_mut().insert(r.clone());
 				tried_count += 1;
 			}
 		}
 
-		if tried_count == 0
-		{
+		if tried_count == 0 {
 			debug!("Restarting discovery");
 			self.start_node_discovery(event_loop);
 			return;
 		}
 		self.discovery_round += 1;
-		//event_loop.timeout_ms(Token(NODETABLE_DISCOVERY), 1200).unwrap();
+		// event_loop.timeout_ms(Token(NODETABLE_DISCOVERY), 1200).unwrap();
 	}
 
 	fn distance(a: &NodeId, b: &NodeId) -> u32 {
 		let d = a.sha3() ^ b.sha3();
-		let mut ret:u32 = 0;
+		let mut ret: u32 = 0;
 		for i in 0..32 {
 			let mut v: u8 = d[i];
 			while v != 0 {
@@ -139,37 +141,32 @@ impl Discovery {
 	}
 
 	#[allow(cyclomatic_complexity)]
-	fn nearest_node_entries<'b>(source: &NodeId, target: &NodeId, buckets: &'b [NodeBucket]) -> Vec<&'b NodeId>
-	{
+	fn nearest_node_entries<'b>(source: &NodeId, target: &NodeId, buckets: &'b [NodeBucket]) -> Vec<&'b NodeId> {
 		// send ALPHA FindNode packets to nodes we know, closest to target
 		const LAST_BIN: u32 = NODE_BINS - 1;
 		let mut head = Discovery::distance(source, target);
-		let mut tail = if head == 0  { LAST_BIN } else { (head - 1) % NODE_BINS };
+		let mut tail = if head == 0 { LAST_BIN } else { (head - 1) % NODE_BINS };
 
 		let mut found: BTreeMap<u32, Vec<&'b NodeId>> = BTreeMap::new();
 		let mut count = 0;
 
 		// if d is 0, then we roll look forward, if last, we reverse, else, spread from d
 		if head > 1 && tail != LAST_BIN {
-			while head != tail && head < NODE_BINS && count < BUCKET_SIZE
-			{
-				for n in &buckets[head as usize].nodes
-				{
-						if count < BUCKET_SIZE {
-							count += 1;
-							found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
-						}
-						else {
-							break;
-						}
+			while head != tail && head < NODE_BINS && count < BUCKET_SIZE {
+				for n in &buckets[head as usize].nodes {
+					if count < BUCKET_SIZE {
+						count += 1;
+						found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
+					} else {
+						break;
+					}
 				}
 				if count < BUCKET_SIZE && tail != 0 {
 					for n in &buckets[tail as usize].nodes {
 						if count < BUCKET_SIZE {
 							count += 1;
 							found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
-						}
-						else {
+						} else {
 							break;
 						}
 					}
@@ -180,40 +177,38 @@ impl Discovery {
 					tail -= 1;
 				}
 			}
-		}
-		else if head < 2 {
+		} else if head < 2 {
 			while head < NODE_BINS && count < BUCKET_SIZE {
 				for n in &buckets[head as usize].nodes {
-						if count < BUCKET_SIZE {
-							count += 1;
-							found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
-						}
-						else {
-							break;
-						}
+					if count < BUCKET_SIZE {
+						count += 1;
+						found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
+					} else {
+						break;
+					}
 				}
 				head += 1;
 			}
-		}
-		else {
+		} else {
 			while tail > 0 && count < BUCKET_SIZE {
 				for n in &buckets[tail as usize].nodes {
-						if count < BUCKET_SIZE {
-							count += 1;
-							found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
-						}
-						else {
-							break;
-						}
+					if count < BUCKET_SIZE {
+						count += 1;
+						found.entry(Discovery::distance(target, &n)).or_insert_with(Vec::new).push(n);
+					} else {
+						break;
+					}
 				}
 				tail -= 1;
 			}
 		}
 
-		let mut ret:Vec<&NodeId> = Vec::new();
+		let mut ret: Vec<&NodeId> = Vec::new();
 		for nodes in found.values() {
 			for n in nodes {
-				if ret.len() < BUCKET_SIZE as usize /* && n->endpoint && n->endpoint.isAllowed() */ {
+				if ret.len() < BUCKET_SIZE as usize
+				// && n->endpoint && n->endpoint.isAllowed()
+				{
 					ret.push(n);
 				}
 			}

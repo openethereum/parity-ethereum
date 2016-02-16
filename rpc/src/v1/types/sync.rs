@@ -30,15 +30,16 @@ pub struct SyncInfo {
 #[derive(Debug, PartialEq)]
 pub enum SyncStatus {
 	Info(SyncInfo),
-	None
+	None,
 }
 
 impl Serialize for SyncStatus {
 	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
-	where S: Serializer {
+		where S: Serializer,
+	{
 		match *self {
 			SyncStatus::Info(ref info) => info.serialize(serializer),
-			SyncStatus::None => false.serialize(serializer)
+			SyncStatus::None => false.serialize(serializer),
 		}
 	}
 }

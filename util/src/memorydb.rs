@@ -78,7 +78,7 @@ impl MemoryDB {
 	pub fn new() -> MemoryDB {
 		MemoryDB {
 			data: HashMap::new(),
- 			static_null_rlp: (vec![0x80u8; 1], 1),
+			static_null_rlp: (vec![0x80u8; 1], 1),
 		}
 	}
 
@@ -104,11 +104,14 @@ impl MemoryDB {
 
 	/// Purge all zero-referenced data from the database.
 	pub fn purge(&mut self) {
-		let empties: Vec<_> = self.data.iter()
-			.filter(|&(_, &(_, rc))| rc == 0)
-			.map(|(k, _)| k.clone())
-			.collect();
-		for empty in empties { self.data.remove(&empty); }
+		let empties: Vec<_> = self.data
+		                          .iter()
+		                          .filter(|&(_, &(_, rc))| rc == 0)
+		                          .map(|(k, _)| k.clone())
+		                          .collect();
+		for empty in empties {
+			self.data.remove(&empty);
+		}
 	}
 
 	/// Grab the raw information associated with a key. Returns None if the key
@@ -154,12 +157,12 @@ impl HashDB for MemoryDB {
 		}
 		match self.data.get(key) {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
-			_ => None
+			_ => None,
 		}
 	}
 
 	fn keys(&self) -> HashMap<H256, i32> {
-		self.data.iter().filter_map(|(k, v)| if v.1 != 0 {Some((k.clone(), v.1))} else {None}).collect()
+		self.data.iter().filter_map(|(k, v)| if v.1 != 0 { Some((k.clone(), v.1)) } else { None }).collect()
 	}
 
 	fn exists(&self, key: &H256) -> bool {
@@ -168,7 +171,7 @@ impl HashDB for MemoryDB {
 		}
 		match self.data.get(key) {
 			Some(&(_, x)) if x > 0 => true,
-			_ => false
+			_ => false,
 		}
 	}
 
@@ -182,10 +185,14 @@ impl HashDB for MemoryDB {
 				*old_value = From::from(value.bytes());
 				*rc += 1;
 				false
-			},
-			Some(&mut (_, ref mut x)) => { *x += 1; false } ,
+			}
+			Some(&mut (_, ref mut x)) => {
+				*x += 1;
+				false
+			}
 			None => true,
-		}{	// ... None falls through into...
+		} {
+			// ... None falls through into...
 			self.data.insert(key.clone(), (From::from(value.bytes()), 1));
 		}
 		key
@@ -200,9 +207,12 @@ impl HashDB for MemoryDB {
 				*old_value = value;
 				*rc += 1;
 				return;
-			},
-			Some(&mut (_, ref mut x)) => { *x += 1; return; } ,
-			None => {},
+			}
+			Some(&mut (_, ref mut x)) => {
+				*x += 1;
+				return;
+			}
+			None => {}
 		}
 		// ... None falls through into...
 		self.data.insert(key, (value, 1));
@@ -213,9 +223,13 @@ impl HashDB for MemoryDB {
 			return;
 		}
 		if match self.data.get_mut(key) {
-			Some(&mut (_, ref mut x)) => { *x -= 1; false }
-			None => true
-		}{	// ... None falls through into...
+			Some(&mut (_, ref mut x)) => {
+				*x -= 1;
+				false
+			}
+			None => true,
+		} {
+			// ... None falls through into...
 			self.data.insert(key.clone(), (Bytes::new(), -1));
 		}
 	}

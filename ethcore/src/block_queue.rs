@@ -16,7 +16,7 @@
 
 //! A queue of blocks. Sits between network or other I/O and the BlockChain.
 //! Sorts them ready for blockchain insertion.
-use std::thread::{JoinHandle, self};
+use std::thread::{self, JoinHandle};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use util::*;
 use verification::*;
@@ -41,10 +41,14 @@ pub struct BlockQueueInfo {
 
 impl BlockQueueInfo {
 	/// The total size of the queues.
-	pub fn total_queue_size(&self) -> usize { self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size }
+	pub fn total_queue_size(&self) -> usize {
+		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size
+	}
 
 	/// The size of the unverified and verifying queues.
-	pub fn incomplete_queue_size(&self) -> usize { self.unverified_queue_size + self.verifying_queue_size }
+	pub fn incomplete_queue_size(&self) -> usize {
+		self.unverified_queue_size + self.verifying_queue_size
+	}
 
 	/// Indicates that queue is full
 	pub fn is_full(&self) -> bool {
@@ -68,7 +72,7 @@ pub struct BlockQueue {
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
 	empty: Arc<Condvar>,
-	processing: RwLock<HashSet<H256>>
+	processing: RwLock<HashSet<H256>>,
 }
 
 struct UnVerifiedBlock {
@@ -113,7 +117,10 @@ impl BlockQueue {
 	pub fn new(engine: Arc<Box<Engine>>, message_channel: IoChannel<NetSyncMessage>) -> BlockQueue {
 		let verification = Arc::new(Mutex::new(Verification::default()));
 		let more_to_verify = Arc::new(Condvar::new());
-		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
+		let ready_signal = Arc::new(QueueSignal {
+			signalled: AtomicBool::new(false),
+			message_channel: message_channel,
+		});
 		let deleting = Arc::new(AtomicBool::new(false));
 		let empty = Arc::new(Condvar::new());
 		let panic_handler = PanicHandler::new_in_arc();
@@ -128,16 +135,13 @@ impl BlockQueue {
 			let empty = empty.clone();
 			let deleting = deleting.clone();
 			let panic_handler = panic_handler.clone();
-			verifiers.push(
-				thread::Builder::new()
+			verifiers.push(thread::Builder::new()
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
-					panic_handler.catch_panic(move || {
-					  BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
-					}).unwrap()
+					panic_handler.catch_panic(move || BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty))
+					             .unwrap()
 				})
-				.expect("Error starting block verification thread")
-			);
+				.expect("Error starting block verification thread"));
 		}
 		BlockQueue {
 			engine: engine,
@@ -152,7 +156,12 @@ impl BlockQueue {
 		}
 	}
 
-	fn verify(verification: Arc<Mutex<Verification>>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
+	fn verify(verification: Arc<Mutex<Verification>>,
+	          engine: Arc<Box<Engine>>,
+	          wait: Arc<Condvar>,
+	          ready: Arc<QueueSignal>,
+	          deleting: Arc<AtomicBool>,
+	          empty: Arc<Condvar>) {
 		while !deleting.load(AtomicOrdering::Relaxed) {
 			{
 				let mut lock = verification.lock().unwrap();
@@ -176,7 +185,10 @@ impl BlockQueue {
 					continue;
 				}
 				let block = v.unverified.pop_front().unwrap();
-				v.verifying.push_back(VerifyingBlock{ hash: block.header.hash(), block: None });
+				v.verifying.push_back(VerifyingBlock {
+					hash: block.header.hash(),
+					block: None,
+				});
 				block
 			};
 
@@ -196,7 +208,7 @@ impl BlockQueue {
 						BlockQueue::drain_verifying(&mut vref.verifying, &mut vref.verified, &mut vref.bad);
 						ready.set();
 					}
-				},
+				}
 				Err(err) => {
 					let mut v = verification.lock().unwrap();
 					warn!(target: "client", "Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
@@ -215,8 +227,7 @@ impl BlockQueue {
 			let block = verifying.pop_front().unwrap().block.unwrap();
 			if bad.contains(&block.header.parent_hash) {
 				bad.insert(block.header.hash());
-			}
-			else {
+			} else {
 				verified.push_back(block);
 			}
 		}
@@ -272,10 +283,13 @@ impl BlockQueue {
 		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
 			Ok(()) => {
 				self.processing.write().unwrap().insert(h.clone());
-				self.verification.lock().unwrap().unverified.push_back(UnVerifiedBlock { header: header, bytes: bytes });
+				self.verification.lock().unwrap().unverified.push_back(UnVerifiedBlock {
+					header: header,
+					bytes: bytes,
+				});
 				self.more_to_verify.notify_all();
 				Ok(h)
-			},
+			}
 			Err(err) => {
 				warn!(target: "client", "Stage 1 block verification failed for {}\nError: {:?}", BlockView::new(&bytes).header_view().sha3(), err);
 				self.verification.lock().unwrap().bad.insert(h.clone());
@@ -295,8 +309,7 @@ impl BlockQueue {
 			if verification.bad.contains(&block.header.parent_hash) {
 				verification.bad.insert(block.header.hash());
 				self.processing.write().unwrap().remove(&block.header.hash());
-			}
-			else {
+			} else {
 				new_verified.push_back(block);
 			}
 		}
@@ -339,7 +352,9 @@ impl BlockQueue {
 }
 
 impl MayPanic for BlockQueue {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+	fn on_panic<F>(&self, closure: F)
+		where F: OnPanicListener,
+	{
 		self.panic_handler.on_panic(closure);
 	}
 }
@@ -397,11 +412,15 @@ mod tests {
 		match duplicate_import {
 			Err(e) => {
 				match e {
-					ImportError::AlreadyQueued => {},
-					_ => { panic!("must return AlreadyQueued error"); }
+					ImportError::AlreadyQueued => {}
+					_ => {
+						panic!("must return AlreadyQueued error");
+					}
 				}
 			}
-			Ok(_) => { panic!("must produce error"); }
+			Ok(_) => {
+				panic!("must produce error");
+			}
 		}
 	}
 
@@ -415,7 +434,7 @@ mod tests {
 		}
 		queue.flush();
 		queue.drain(10);
-		queue.mark_as_good(&[ hash ]);
+		queue.mark_as_good(&[hash]);
 
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that has already been drained ({:?})", e);

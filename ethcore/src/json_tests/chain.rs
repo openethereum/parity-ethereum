@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::test_common::*;
-use client::{BlockChainClient,Client};
+use client::{BlockChainClient, Client};
 use pod_state::*;
 use block::Block;
 use ethereum;
@@ -29,16 +29,25 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	for (name, test) in json.as_object().unwrap() {
 		let mut fail = false;
 		{
-			let mut fail_unless = |cond: bool| if !cond && !fail {
-				failed.push(name.clone());
-				flushln!("FAIL");
-				fail = true;
-				true
-			} else {false};
+			let mut fail_unless = |cond: bool| {
+				if !cond && !fail {
+					failed.push(name.clone());
+					flushln!("FAIL");
+					fail = true;
+					true
+				} else {
+					false
+				}
+			};
 
 			flush!("   - {}...", name);
 
-			let blocks: Vec<(Bytes, bool)> = test["blocks"].as_array().unwrap().iter().map(|e| (xjson!(&e["rlp"]), e.find("blockHeader").is_some())).collect();
+			let blocks: Vec<(Bytes, bool)> = test["blocks"]
+				.as_array()
+				.unwrap()
+				.iter()
+				.map(|e| (xjson!(&e["rlp"]), e.find("blockHeader").is_some()))
+				.collect();
 			let mut spec = match era {
 				ChainEra::Frontier => ethereum::new_frontier_test(),
 				ChainEra::Homestead => ethereum::new_homestead_test(),

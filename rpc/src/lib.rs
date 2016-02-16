@@ -30,14 +30,14 @@ extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
 
-use self::jsonrpc_core::{IoHandler, IoDelegate};
+use self::jsonrpc_core::{IoDelegate, IoHandler};
 
 pub mod v1;
 
 /// Http server.
 pub struct HttpServer {
 	handler: IoHandler,
-	threads: usize
+	threads: usize,
 }
 
 impl HttpServer {
@@ -45,12 +45,14 @@ impl HttpServer {
 	pub fn new(threads: usize) -> HttpServer {
 		HttpServer {
 			handler: IoHandler::new(),
-			threads: threads
+			threads: threads,
 		}
 	}
 
 	/// Add io delegate.
-	pub fn add_delegate<D>(&mut self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
+	pub fn add_delegate<D>(&mut self, delegate: IoDelegate<D>)
+		where D: Send + Sync + 'static,
+	{
 		self.handler.add_delegate(delegate);
 	}
 
@@ -63,5 +65,4 @@ impl HttpServer {
 
 /// Lib needs at least 1 test to generate coverage reports correctly.
 #[test]
-fn if_works() {
-}
+fn if_works() {}

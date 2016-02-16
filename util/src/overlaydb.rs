@@ -26,7 +26,7 @@ use std::ops::*;
 use std::sync::*;
 use std::env;
 use std::collections::HashMap;
-use rocksdb::{DB, Writable, IteratorMode};
+use rocksdb::{DB, IteratorMode, Writable};
 
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
 ///
@@ -43,11 +43,16 @@ pub struct OverlayDB {
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new(backing: DB) -> OverlayDB { Self::new_with_arc(Arc::new(backing)) }
+	pub fn new(backing: DB) -> OverlayDB {
+		Self::new_with_arc(Arc::new(backing))
+	}
 
 	/// Create a new instance of OverlayDB given a `backing` database.
 	pub fn new_with_arc(backing: Arc<DB>) -> OverlayDB {
-		OverlayDB{ overlay: MemoryDB::new(), backing: backing }
+		OverlayDB {
+			overlay: MemoryDB::new(),
+			backing: backing,
+		}
 	}
 
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
@@ -97,7 +102,7 @@ impl OverlayDB {
 						if total_rc < 0 {
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
-						deletes += if self.put_payload(&key, (back_value, total_rc as u32)) {1} else {0};
+						deletes += if self.put_payload(&key, (back_value, total_rc as u32)) { 1 } else { 0 };
 					}
 					None => {
 						if rc < 0 {
@@ -134,16 +139,19 @@ impl OverlayDB {
 	///   assert!(!m.exists(&bar));		// bar is gone.
 	/// }
 	/// ```
-	pub fn revert(&mut self) { self.overlay.clear(); }
+	pub fn revert(&mut self) {
+		self.overlay.clear();
+	}
 
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(Bytes, u32)> {
-		self.backing.get(&key.bytes())
-			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(|d| {
-				let r = Rlp::new(d.deref());
-				(r.at(1).as_val(), r.at(0).as_val())
-			})
+		self.backing
+		    .get(&key.bytes())
+		    .expect("Low-level database error. Some issue with your hard disk?")
+		    .map(|d| {
+			    let r = Rlp::new(d.deref());
+			    (r.at(1).as_val(), r.at(0).as_val())
+			   })
 	}
 
 	/// Get the refs and value of the given key.
@@ -187,15 +195,10 @@ impl HashDB for OverlayDB {
 				match self.payload(key) {
 					Some(x) => {
 						let (d, rc) = x;
-						if rc as i32 + memrc > 0 {
-							Some(&self.overlay.denote(key, d).0)
-						}
-						else {
-							None
-						}
+						if rc as i32 + memrc > 0 { Some(&self.overlay.denote(key, d).0) } else { None }
 					}
 					// Replace above match arm with this once https://github.com/rust-lang/rust/issues/15287 is done.
-					//Some((d, rc)) if rc + memrc > 0 => Some(d),
+					// Some((d, rc)) if rc + memrc > 0 => Some(d),
 					_ => None,
 				}
 			}
@@ -215,15 +218,21 @@ impl HashDB for OverlayDB {
 						rc as i32 + memrc > 0
 					}
 					// Replace above match arm with this once https://github.com/rust-lang/rust/issues/15287 is done.
-					//Some((d, rc)) if rc + memrc > 0 => true,
+					// Some((d, rc)) if rc + memrc > 0 => true,
 					_ => false,
 				}
 			}
 		}
 	}
-	fn insert(&mut self, value: &[u8]) -> H256 { self.overlay.insert(value) }
-	fn emplace(&mut self, key: H256, value: Bytes) { self.overlay.emplace(key, value); }
-	fn kill(&mut self, key: &H256) { self.overlay.kill(key); }
+	fn insert(&mut self, value: &[u8]) -> H256 {
+		self.overlay.insert(value)
+	}
+	fn emplace(&mut self, key: H256, value: Bytes) {
+		self.overlay.emplace(key, value);
+	}
+	fn kill(&mut self, key: &H256) {
+		self.overlay.kill(key);
+	}
 }
 
 #[test]
@@ -310,7 +319,7 @@ fn overlaydb_complex() {
 	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
 	trie.kill(&hfoo);		// zero ref - delete
 	assert_eq!(trie.lookup(&hfoo), None);
-	trie.commit().unwrap();	// 
+	trie.commit().unwrap();	//
 	assert_eq!(trie.lookup(&hfoo), None);
 }
 

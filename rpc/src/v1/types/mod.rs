@@ -29,5 +29,5 @@ pub use self::bytes::Bytes;
 pub use self::filter::Filter;
 pub use self::index::Index;
 pub use self::optionals::OptionalValue;
-pub use self::sync::{SyncStatus, SyncInfo};
+pub use self::sync::{SyncInfo, SyncStatus};
 pub use self::transaction::Transaction;

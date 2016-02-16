@@ -22,15 +22,13 @@ use v1::traits::Net;
 
 /// Net rpc implementation.
 pub struct NetClient {
-	sync: Arc<EthSync>
+	sync: Arc<EthSync>,
 }
 
 impl NetClient {
 	/// Creates new NetClient.
-	pub fn new(sync: Arc<EthSync>) -> Self { 
-		NetClient {
-			sync: sync
-		}
+	pub fn new(sync: Arc<EthSync>) -> Self {
+		NetClient { sync: sync }
 	}
 }
 

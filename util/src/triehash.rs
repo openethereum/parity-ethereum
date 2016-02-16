@@ -237,32 +237,39 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	// if first key len is equal to prefix_len, move to next element
 	let mut begin = match pre_len == key.len() {
 		true => 1,
-		false => 0
+		false => 0,
 	};
 
 	// iterate over all possible nibbles
 	for i in 0..16 {
 		// cout how many successive elements have same next nibble
 		let len = match begin < input.len() {
-			true => input[begin..].iter()
-				.take_while(| pair | pair.0[pre_len] == i )
+			true => input[begin..]
+				.iter()
+				.take_while(|pair| pair.0[pre_len] == i)
 				.count(),
-			false => 0
+			false => 0,
 		};
 
 		// if at least 1 successive element has the same nibble
 		// append their suffixes
 		match len {
-			0 => { stream.append_empty_data(); },
-			_ => hash256aux(&input[begin..(begin + len)], pre_len + 1, stream)
+			0 => {
+				stream.append_empty_data();
+			}
+			_ => hash256aux(&input[begin..(begin + len)], pre_len + 1, stream),
 		}
 		begin += len;
 	}
 
 	// if fist key len is equal prefix, append it's value
 	match pre_len == key.len() {
-		true => { stream.append(&value); },
-		false => { stream.append_empty_data(); }
+		true => {
+			stream.append(&value);
+		}
+		false => {
+			stream.append_empty_data();
+		}
 	};
 }
 
@@ -272,7 +279,7 @@ fn hash256aux(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	let out = s.out();
 	match out.len() {
 		0...31 => stream.append_raw(&out, 1),
-		_ => stream.append(&out.sha3())
+		_ => stream.append(&out.sha3()),
 	};
 }
 
@@ -336,7 +343,7 @@ mod tests {
 			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
 			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
 		]) ==
-		trie_root(vec![
+		        trie_root(vec![
 			(vec![0x01u8, 0x23], vec![0x01u8, 0x23]),
 			(vec![0xf1u8, 0x23], vec![0xf1u8, 0x23]),
 			(vec![0x81u8, 0x23], vec![0x81u8, 0x23]),
@@ -345,9 +352,10 @@ mod tests {
 
 	#[test]
 	fn test_triehash_json() {
-		execute_tests_from_directory::<trie::TriehashTest, _>("json-tests/json/trie/*.json", &mut | file, input, output | {
-			println!("file: {}, output: {:?}", file, output);
-			assert_eq!(trie_root(input), H256::from_slice(&output));
-		});
+		execute_tests_from_directory::<trie::TriehashTest, _>("json-tests/json/trie/*.json",
+		                                                      &mut |file, input, output| {
+			                                                      println!("file: {}, output: {:?}", file, output);
+			                                                      assert_eq!(trie_root(input), H256::from_slice(&output));
+			                                                     });
 	}
 }

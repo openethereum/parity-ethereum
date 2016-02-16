@@ -31,7 +31,7 @@
 //
 
 //! Big unsigned integer types
-//! 
+//!
 //! Implementation of a various large-but-fixed sized unsigned integer types.
 //! The functions here are designed to be fast.
 //!
@@ -102,7 +102,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 
 	/// Conversion to u64 with overflow checking
 	fn as_u64(&self) -> u64;
-	
+
 	/// Return the least number of bits needed to represent the number
 	fn bits(&self) -> usize;
 	/// Return if specific bit is set
@@ -110,7 +110,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 	/// Return single byte
 	fn byte(&self, index: usize) -> u8;
 	/// Get this Uint as slice of bytes
-	fn to_bytes(&self, bytes: &mut[u8]);
+	fn to_bytes(&self, bytes: &mut [u8]);
 
 	/// Create `Uint(10**n)`
 	fn exp10(n: usize) -> Self;
@@ -127,7 +127,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 
 	/// Multiple this `Uint` with other returning result and possible overflow
 	fn overflowing_mul(self, other: Self) -> (Self, bool);
-	
+
 	/// Divide this `Uint` by other returning result and possible overflow
 	fn overflowing_div(self, other: Self) -> (Self, bool);
 
@@ -136,7 +136,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 
 	/// Returns negation of this `Uint` and overflow (always true)
 	fn overflowing_neg(self) -> (Self, bool);
-	
+
 	/// Shifts this `Uint` and returns overflow
 	fn overflowing_shl(self, shift: u32) -> (Self, bool);
 }
@@ -180,7 +180,7 @@ macro_rules! construct_uint {
 			fn as_u32(&self) -> u32 {
 				let &$name(ref arr) = self;
 				if (arr[0] & (0xffffffffu64 << 32)) != 0 {
-					panic!("Integer overflow when casting U256") 
+					panic!("Integer overflow when casting U256")
 				}
 				self.as_u64() as u32
 			}
@@ -191,7 +191,7 @@ macro_rules! construct_uint {
 				let &$name(ref arr) = self;
 				for i in 1..$n_words {
 					if arr[i] != 0 {
-						panic!("Integer overflow when casting U256") 
+						panic!("Integer overflow when casting U256")
 					}
 				}
 				arr[0]
@@ -325,7 +325,7 @@ macro_rules! construct_uint {
 				if b_carry {
 					let ret = overflowing!($name(ret).overflowing_add($name(carry)), overflow);
 					(ret, overflow)
-				} else { 
+				} else {
 					($name(ret), overflow)
 				}
 			}
@@ -453,7 +453,7 @@ macro_rules! construct_uint {
 		}
 
 		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				let mut bytes = [0u8; 8 * $n_words];
@@ -961,7 +961,7 @@ pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
 
 #[cfg(test)]
 mod tests {
-	use uint::{Uint, U128, U256, U512};
+	use uint::{U128, U256, U512, Uint};
 	use std::str::FromStr;
 
 	#[test]
@@ -1002,7 +1002,7 @@ mod tests {
 		// test unsigned initialization
 		let ua = U256::from(10u8);
 		let ub = U256::from(10u16);
-		let uc =  U256::from(10u32);
+		let uc = U256::from(10u32);
 		let ud = U256::from(10u64);
 		assert_eq!(e, ua);
 		assert_eq!(e, ub);
@@ -1017,16 +1017,13 @@ mod tests {
 		assert_eq!(U256([0x1010, 0, 0, 0]), U256::from(&[0x10u8, 0x10][..]));
 		assert_eq!(U256([0x12f0, 0, 0, 0]), U256::from(&[0x12u8, 0xf0][..]));
 		assert_eq!(U256([0x12f0, 0, 0, 0]), U256::from(&[0, 0x12u8, 0xf0][..]));
-		assert_eq!(U256([0x12f0, 0 , 0, 0]), U256::from(&[0, 0, 0, 0, 0, 0, 0, 0x12u8, 0xf0][..]));
-		assert_eq!(U256([0x12f0, 1 , 0, 0]), U256::from(&[1, 0, 0, 0, 0, 0, 0, 0x12u8, 0xf0][..]));
-		assert_eq!(U256([0x12f0, 1 , 0x0910203040506077, 0x8090a0b0c0d0e0f0]), U256::from(&[
-																						  0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0,
-																						  0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77,
-																						  0, 0, 0, 0, 0, 0, 0, 1,
-																						  0, 0, 0, 0, 0, 0, 0x12u8, 0xf0][..]));
-		assert_eq!(U256([0x00192437100019fa, 0x243710, 0, 0]), U256::from(&[
-																		  0x24u8, 0x37, 0x10,
-																		  0, 0x19, 0x24, 0x37, 0x10, 0, 0x19, 0xfa][..]));
+		assert_eq!(U256([0x12f0, 0, 0, 0]), U256::from(&[0, 0, 0, 0, 0, 0, 0, 0x12u8, 0xf0][..]));
+		assert_eq!(U256([0x12f0, 1, 0, 0]), U256::from(&[1, 0, 0, 0, 0, 0, 0, 0x12u8, 0xf0][..]));
+		assert_eq!(U256([0x12f0, 1, 0x0910203040506077, 0x8090a0b0c0d0e0f0]),
+		           U256::from(&[0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0, 0x09, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x77, 0, 0, 0, 0, 0,
+		                        0, 0, 1, 0, 0, 0, 0, 0, 0, 0x12u8, 0xf0][..]));
+		assert_eq!(U256([0x00192437100019fa, 0x243710, 0, 0]),
+		           U256::from(&[0x24u8, 0x37, 0x10, 0, 0x19, 0x24, 0x37, 0x10, 0, 0x19, 0xfa][..]));
 
 		// test initializtion from string
 		let sa = U256::from_str("0a").unwrap();
@@ -1034,9 +1031,10 @@ mod tests {
 		assert_eq!(U256([0x1010, 0, 0, 0]), U256::from_str("1010").unwrap());
 		assert_eq!(U256([0x12f0, 0, 0, 0]), U256::from_str("12f0").unwrap());
 		assert_eq!(U256([0x12f0, 0, 0, 0]), U256::from_str("12f0").unwrap());
-		assert_eq!(U256([0x12f0, 0 , 0, 0]), U256::from_str("0000000012f0").unwrap());
-		assert_eq!(U256([0x12f0, 1 , 0, 0]), U256::from_str("0100000000000012f0").unwrap());
-		assert_eq!(U256([0x12f0, 1 , 0x0910203040506077, 0x8090a0b0c0d0e0f0]), U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000000100000000000012f0").unwrap());
+		assert_eq!(U256([0x12f0, 0, 0, 0]), U256::from_str("0000000012f0").unwrap());
+		assert_eq!(U256([0x12f0, 1, 0, 0]), U256::from_str("0100000000000012f0").unwrap());
+		assert_eq!(U256([0x12f0, 1, 0x0910203040506077, 0x8090a0b0c0d0e0f0]),
+		           U256::from_str("8090a0b0c0d0e0f00910203040506077000000000000000100000000000012f0").unwrap());
 	}
 
 	#[test]
@@ -1058,7 +1056,7 @@ mod tests {
 		assert_eq!(U256::from(60000u64).bits(), 16);
 		assert_eq!(U256::from(70000u64).bits(), 17);
 
-		//// Try to read the following lines out loud quickly
+		/// / Try to read the following lines out loud quickly
 		let mut shl = U256::from(70000u64);
 		shl = shl << 100;
 		assert_eq!(shl.bits(), 117);
@@ -1067,15 +1065,15 @@ mod tests {
 		shl = shl << 100;
 		assert_eq!(shl.bits(), 0);
 
-		//// Bit set check
-		//// 01010
+		/// / Bit set check
+		/// / 01010
 		assert!(!U256::from(10u8).bit(0));
 		assert!(U256::from(10u8).bit(1));
 		assert!(!U256::from(10u8).bit(2));
 		assert!(U256::from(10u8).bit(3));
 		assert!(!U256::from(10u8).bit(4));
 
-		//// byte check
+		/// / byte check
 		assert_eq!(U256::from(10u8).byte(0), 10);
 		assert_eq!(U256::from(0xffu64).byte(0), 0xff);
 		assert_eq!(U256::from(0xffu64).byte(1), 0);
@@ -1129,13 +1127,13 @@ mod tests {
 		assert_eq!(U256::from(105u8) / U256::from(5u8), U256::from(21u8));
 		let div = mult / U256::from(300u16);
 		assert_eq!(div, U256([0x9F30411021524112u64, 0x0001BD5B7DDFBD5A, 0, 0]));
-		//// TODO: bit inversion
+		// TODO: bit inversion
 	}
 
 	#[test]
 	pub fn uint256_extreme_bitshift_test() {
-		//// Shifting a u64 by 64 bits gives an undefined value, so make sure that
-		//// we're doing the Right Thing here
+		/// / Shifting a u64 by 64 bits gives an undefined value, so make sure that
+		/// / we're doing the Right Thing here
 		let init = U256::from(0xDEADBEEFDEADBEEFu64);
 
 		assert_eq!(init << 64, U256([0, 0xDEADBEEFDEADBEEF, 0, 0]));
@@ -1168,7 +1166,7 @@ mod tests {
 	}
 
 	#[test]
-	fn uint256_pow () {
+	fn uint256_pow() {
 		assert_eq!(U256::from(10).pow(U256::from(0)), U256::from(1));
 		assert_eq!(U256::from(10).pow(U256::from(1)), U256::from(10));
 		assert_eq!(U256::from(10).pow(U256::from(2)), U256::from(100));
@@ -1178,20 +1176,17 @@ mod tests {
 
 	#[test]
 	#[should_panic]
-	fn uint256_pow_overflow_panic () {
+	fn uint256_pow_overflow_panic() {
 		U256::from(2).pow(U256::from(0x100));
 	}
 
 	#[test]
-	fn uint256_overflowing_pow () {
+	fn uint256_overflowing_pow() {
 		// assert_eq!(
 		// 	U256::from(2).overflowing_pow(U256::from(0xff)),
 		// 	(U256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap(), false)
 		// );
-		assert_eq!(
-			U256::from(2).overflowing_pow(U256::from(0x100)),
-			(U256::zero(), true)
-		);
+		assert_eq!(U256::from(2).overflowing_pow(U256::from(0x100)), (U256::zero(), true));
 	}
 
 	#[test]
@@ -1201,31 +1196,24 @@ mod tests {
 
 	#[test]
 	pub fn uint256_overflowing_mul() {
-		assert_eq!(
-			U256::from_str("100000000000000000000000000000000").unwrap().overflowing_mul(
-				U256::from_str("100000000000000000000000000000000").unwrap()
-			),
-			(U256::zero(), true)
-		);
+		assert_eq!(U256::from_str("100000000000000000000000000000000")
+			           .unwrap()
+			           .overflowing_mul(U256::from_str("100000000000000000000000000000000").unwrap()),
+		           (U256::zero(), true));
 	}
 
 	#[test]
 	pub fn uint128_add() {
-		assert_eq!(
-			U128::from_str("fffffffffffffffff").unwrap() + U128::from_str("fffffffffffffffff").unwrap(),
-			U128::from_str("1ffffffffffffffffe").unwrap()
-		);
+		assert_eq!(U128::from_str("fffffffffffffffff").unwrap() + U128::from_str("fffffffffffffffff").unwrap(),
+		           U128::from_str("1ffffffffffffffffe").unwrap());
 	}
 
 	#[test]
 	pub fn uint128_add_overflow() {
-		assert_eq!(
-			U128::from_str("ffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_add(
-				U128::from_str("ffffffffffffffffffffffffffffffff").unwrap()
-			),
-			(U128::from_str("fffffffffffffffffffffffffffffffe").unwrap(), true)
-		);
+		assert_eq!(U128::from_str("ffffffffffffffffffffffffffffffff")
+			           .unwrap()
+			           .overflowing_add(U128::from_str("ffffffffffffffffffffffffffffffff").unwrap()),
+		           (U128::from_str("fffffffffffffffffffffffffffffffe").unwrap(), true));
 	}
 
 	#[test]
@@ -1233,16 +1221,13 @@ mod tests {
 	// overflows panic only in debug builds. Running this test with `--release` flag, always fails
 	#[ignore]
 	pub fn uint128_add_overflow_panic() {
-		U128::from_str("ffffffffffffffffffffffffffffffff").unwrap()
-		+
-		U128::from_str("ffffffffffffffffffffffffffffffff").unwrap();
+		U128::from_str("ffffffffffffffffffffffffffffffff").unwrap() + U128::from_str("ffffffffffffffffffffffffffffffff").unwrap();
 	}
 
 	#[test]
 	pub fn uint128_mul() {
-		assert_eq!(
-			U128::from_str("fffffffff").unwrap() * U128::from_str("fffffffff").unwrap(),
-			U128::from_str("ffffffffe000000001").unwrap());
+		assert_eq!(U128::from_str("fffffffff").unwrap() * U128::from_str("fffffffff").unwrap(),
+		           U128::from_str("ffffffffe000000001").unwrap());
 	}
 
 	#[test]
@@ -1257,13 +1242,10 @@ mod tests {
 
 	#[test]
 	pub fn uint256_mul_overflow() {
-		assert_eq!(
-			U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_mul(
-				U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			),
-			(U256::from_str("1").unwrap(), true)
-		);
+		assert_eq!(U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+			           .unwrap()
+			           .overflowing_mul(U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()),
+		           (U256::from_str("1").unwrap(), true));
 	}
 
 
@@ -1271,97 +1253,80 @@ mod tests {
 	#[test]
 	#[should_panic]
 	pub fn uint256_mul_overflow_panic() {
-		U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-		*
+		U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap() *
 		U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
 	}
 
 	#[test]
 	pub fn uint256_sub_overflow() {
-		assert_eq!(
-			U256::from_str("0").unwrap()
-			.overflowing_sub(
-				U256::from_str("1").unwrap()
-			),
-			(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap(), true)
-			);
+		assert_eq!(U256::from_str("0")
+			           .unwrap()
+			           .overflowing_sub(U256::from_str("1").unwrap()),
+		           (U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap(), true));
 	}
 
 	#[test]
 	#[should_panic]
 	pub fn uint256_sub_overflow_panic() {
-		U256::from_str("0").unwrap()
-		-
-		U256::from_str("1").unwrap();
+		U256::from_str("0").unwrap() - U256::from_str("1").unwrap();
 	}
 
 	#[test]
 	pub fn uint256_shl_overflow() {
-		assert_eq!(
-			U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(4),
-			(U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap(), true)
-		);
+		assert_eq!(U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+			           .unwrap()
+			           .overflowing_shl(4),
+		           (U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap(), true));
 	}
 
 	#[test]
 	pub fn uint256_shl_overflow_words() {
-		assert_eq!(
-			U256::from_str("0000000000000001ffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(64),
-			(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000").unwrap(), true)
-		);
-		assert_eq!(
-			U256::from_str("0000000000000000ffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(64),
-			(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000").unwrap(), false)
-		);
+		assert_eq!(U256::from_str("0000000000000001ffffffffffffffffffffffffffffffffffffffffffffffff")
+			           .unwrap()
+			           .overflowing_shl(64),
+		           (U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000").unwrap(), true));
+		assert_eq!(U256::from_str("0000000000000000ffffffffffffffffffffffffffffffffffffffffffffffff")
+			           .unwrap()
+			           .overflowing_shl(64),
+		           (U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000").unwrap(), false));
 	}
 
 	#[test]
 	pub fn uint256_shl_overflow_words2() {
-		assert_eq!(
-			U256::from_str("00000000000000000000000000000001ffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(128),
-			(U256::from_str("ffffffffffffffffffffffffffffffff00000000000000000000000000000000").unwrap(), true)
-		);
-		assert_eq!(
-			U256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(128),
-			(U256::from_str("ffffffffffffffffffffffffffffffff00000000000000000000000000000000").unwrap(), false)
-		);
-		assert_eq!(
-			U256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(129),
-			(U256::from_str("fffffffffffffffffffffffffffffffe00000000000000000000000000000000").unwrap(), true)
-		);
+		assert_eq!(U256::from_str("00000000000000000000000000000001ffffffffffffffffffffffffffffffff")
+			           .unwrap()
+			           .overflowing_shl(128),
+		           (U256::from_str("ffffffffffffffffffffffffffffffff00000000000000000000000000000000").unwrap(), true));
+		assert_eq!(U256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff")
+			           .unwrap()
+			           .overflowing_shl(128),
+		           (U256::from_str("ffffffffffffffffffffffffffffffff00000000000000000000000000000000").unwrap(), false));
+		assert_eq!(U256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff")
+			           .unwrap()
+			           .overflowing_shl(129),
+		           (U256::from_str("fffffffffffffffffffffffffffffffe00000000000000000000000000000000").unwrap(), true));
 	}
 
 
 	#[test]
 	pub fn uint256_shl_overflow2() {
-		assert_eq!(
-			U256::from_str("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(4),
-			(U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap(), false)
-		);
+		assert_eq!(U256::from_str("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+			           .unwrap()
+			           .overflowing_shl(4),
+		           (U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap(), false));
 	}
 
 	#[test]
 	pub fn uint256_mul() {
-		assert_eq!(
-			U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			*
-			U256::from_str("2").unwrap(),
-			U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").unwrap()
-			);
+		assert_eq!(U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap() * U256::from_str("2").unwrap(),
+		           U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").unwrap());
 	}
 
 	#[test]
 	fn uint256_div() {
-		assert_eq!(U256::from(10u64) /  U256::from(1u64), U256::from(10u64));
-		assert_eq!(U256::from(10u64) /  U256::from(2u64), U256::from(5u64));
-		assert_eq!(U256::from(10u64) /  U256::from(3u64), U256::from(3u64));
+		assert_eq!(U256::from(10u64) / U256::from(1u64), U256::from(10u64));
+		assert_eq!(U256::from(10u64) / U256::from(2u64), U256::from(5u64));
+		assert_eq!(U256::from(10u64) / U256::from(3u64), U256::from(3u64));
 	}
 
 	#[test]
@@ -1387,4 +1352,3 @@ mod tests {
 		assert_eq!(format!("{}", U256::from(0)), "0");
 	}
 }
-

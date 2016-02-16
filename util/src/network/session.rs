@@ -21,7 +21,7 @@ use network::connection::{EncryptedConnection, Packet};
 use network::handshake::Handshake;
 use error::*;
 use io::{IoContext, StreamToken};
-use network::error::{NetworkError, DisconnectReason};
+use network::error::{DisconnectReason, NetworkError};
 use network::host::*;
 use network::node::NodeId;
 use time;
@@ -80,11 +80,13 @@ pub struct PeerCapabilityInfo {
 }
 
 impl Decodable for PeerCapabilityInfo {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
 		let c = decoder.as_rlp();
 		Ok(PeerCapabilityInfo {
 			protocol: try!(c.val_at(0)),
-			version: try!(c.val_at(1))
+			version: try!(c.val_at(1)),
 		})
 	}
 }
@@ -108,7 +110,9 @@ const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
 	/// Create a new session out of comepleted handshake. Consumes handshake object.
-	pub fn new<Message>(h: Handshake, _io: &IoContext<Message>, host: &HostInfo) -> Result<Session, UtilError> where Message: Send + Sync + Clone {
+	pub fn new<Message>(h: Handshake, _io: &IoContext<Message>, host: &HostInfo) -> Result<Session, UtilError>
+		where Message: Send + Sync + Clone,
+	{
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
 		let mut session = Session {
@@ -135,15 +139,19 @@ impl Session {
 	}
 
 	/// Readable IO handler. Returns packet data if available.
-	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<SessionData, UtilError>  where Message: Send + Sync + Clone {
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<SessionData, UtilError>
+		where Message: Send + Sync + Clone,
+	{
 		match try!(self.connection.readable(io)) {
 			Some(data) => Ok(try!(self.read_packet(data, host))),
-			None => Ok(SessionData::None)
+			None => Ok(SessionData::None),
 		}
 	}
 
 	/// Writable IO handler. Sends pending packets.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Sync + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError>
+		where Message: Send + Sync + Clone,
+	{
 		self.connection.writable(io)
 	}
 
@@ -153,12 +161,12 @@ impl Session {
 	}
 
 	/// Update registration with the event loop. Should be called at the end of the IO handler.
-	pub fn update_socket<Host:Handler>(&self, reg:Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn update_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.connection.update_socket(reg, event_loop)
 	}
 
 	/// Delete registration
-	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn deregister_socket<Host: Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		self.connection.deregister_socket(event_loop)
 	}
 
@@ -169,7 +177,7 @@ impl Session {
 			i += 1;
 			if i == self.info.capabilities.len() {
 				debug!(target: "net", "Unknown protocol: {:?}", protocol);
-				return Ok(())
+				return Ok(());
 			}
 		}
 		let pid = self.info.capabilities[i].id_offset + packet_id;
@@ -180,7 +188,9 @@ impl Session {
 	}
 
 	/// Keep this session alive. Returns false if ping timeout happened
-	pub fn keep_alive<Message>(&mut self, io: &IoContext<Message>) -> bool where Message: Send + Sync + Clone {
+	pub fn keep_alive<Message>(&mut self, io: &IoContext<Message>) -> bool
+		where Message: Send + Sync + Clone,
+	{
 		let timed_out = if let Some(pong) = self.pong_time_ns {
 			pong - self.ping_time_ns > PING_TIMEOUT_SEC * 1000_000_000
 		} else {
@@ -213,34 +223,38 @@ impl Session {
 				let rlp = UntrustedRlp::new(&packet.data[1..]); //TODO: validate rlp expected size
 				try!(self.read_hello(&rlp, host));
 				Ok(SessionData::Ready)
-			},
+			}
 			PACKET_DISCONNECT => Err(From::from(NetworkError::Disconnect(DisconnectReason::DisconnectRequested))),
 			PACKET_PING => {
 				try!(self.send_pong());
 				Ok(SessionData::None)
-			},
+			}
 			PACKET_PONG => {
 				self.pong_time_ns = Some(time::precise_time_ns());
 				self.info.ping_ms = Some((self.pong_time_ns.unwrap() - self.ping_time_ns) / 1000_000);
 				Ok(SessionData::None)
-			},
+			}
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
 			PACKET_PEERS => Ok(SessionData::None),
-			PACKET_USER ... PACKET_LAST => {
+			PACKET_USER...PACKET_LAST => {
 				let mut i = 0usize;
 				while packet_id < self.info.capabilities[i].id_offset {
 					i += 1;
 					if i == self.info.capabilities.len() {
 						debug!(target: "net", "Unknown packet: {:?}", packet_id);
-						return Ok(SessionData::None)
+						return Ok(SessionData::None);
 					}
 				}
 
 				// map to protocol
 				let protocol = self.info.capabilities[i].protocol;
 				let pid = packet_id - self.info.capabilities[i].id_offset;
-				Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: pid } )
-			},
+				Ok(SessionData::Packet {
+					data: packet.data,
+					protocol: protocol,
+					packet_id: pid,
+				})
+			}
 			_ => {
 				debug!(target: "net", "Unknown packet: {:?}", packet_id);
 				Ok(SessionData::None)
@@ -252,11 +266,11 @@ impl Session {
 		let mut rlp = RlpStream::new();
 		rlp.append_raw(&[PACKET_HELLO as u8], 0);
 		rlp.begin_list(5)
-			.append(&host.protocol_version)
-			.append(&host.client_version)
-			.append(&host.capabilities)
-			.append(&host.listen_port)
-			.append(host.id());
+		   .append(&host.protocol_version)
+		   .append(&host.client_version)
+		   .append(&host.capabilities)
+		   .append(&host.listen_port)
+		   .append(host.id());
 		self.connection.send_packet(&rlp.out())
 	}
 
@@ -285,8 +299,7 @@ impl Session {
 		while i < caps.len() {
 			if caps.iter().any(|c| c.protocol == caps[i].protocol && c.version > caps[i].version) {
 				caps.remove(i);
-			}
-			else {
+			} else {
 				i += 1;
 			}
 		}
@@ -309,14 +322,14 @@ impl Session {
 	}
 
 	/// Senf ping packet
-	pub fn send_ping(&mut self) -> Result<(), UtilError>  {
+	pub fn send_ping(&mut self) -> Result<(), UtilError> {
 		try!(self.send(try!(Session::prepare(PACKET_PING))));
 		self.ping_time_ns = time::precise_time_ns();
 		self.pong_time_ns = None;
 		Ok(())
 	}
 
-	fn send_pong(&mut self) -> Result<(), UtilError>  {
+	fn send_pong(&mut self) -> Result<(), UtilError> {
 		self.send(try!(Session::prepare(PACKET_PONG)))
 	}
 
@@ -341,4 +354,3 @@ impl Session {
 		self.connection.send_packet(&rlp.out())
 	}
 }
-

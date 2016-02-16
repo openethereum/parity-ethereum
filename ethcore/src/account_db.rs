@@ -15,7 +15,7 @@ pub struct AccountDB<'db> {
 fn combine_key<'a>(address: &'a H256, key: &'a H256) -> H256 {
 	let mut addr_hash = address.sha3();
 	// preserve 96 bits of original key for db lookup
-	addr_hash[0..12].clone_from_slice(&[0u8; 12]); 
+	addr_hash[0..12].clone_from_slice(&[0u8; 12]);
 	&addr_hash ^ key
 }
 
@@ -28,7 +28,7 @@ impl<'db> AccountDB<'db> {
 	}
 }
 
-impl<'db> HashDB for AccountDB<'db>{
+impl<'db> HashDB for AccountDB<'db> {
 	fn keys(&self) -> HashMap<H256, i32> {
 		unimplemented!()
 	}
@@ -76,11 +76,14 @@ impl<'db> AccountDBMut<'db> {
 
 	#[allow(dead_code)]
 	pub fn immutable(&'db self) -> AccountDB<'db> {
-		AccountDB { db: self.db, address: self.address.clone() }
+		AccountDB {
+			db: self.db,
+			address: self.address.clone(),
+		}
 	}
 }
 
-impl<'db> HashDB for AccountDBMut<'db>{
+impl<'db> HashDB for AccountDBMut<'db> {
 	fn keys(&self) -> HashMap<H256, i32> {
 		unimplemented!()
 	}
@@ -116,5 +119,3 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		self.db.kill(&key)
 	}
 }
-
-
