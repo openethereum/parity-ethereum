@@ -1,7 +1,7 @@
 [package]
 description = "Ethcore blockchain sync"
 name = "ethsync"
-version = "0.1.0"
+version = "0.9.1"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io"]
 
@@ -10,7 +10,7 @@ authors = ["Ethcore <admin@ethcore.io"]
 [dependencies]
 ethcore-util = { path = "../util" }
 ethcore = { path = ".." }
-clippy = "0.0.37"
+clippy = "0.0.41"
 log = "0.3"
 env_logger = "0.3"
 time = "0.1.34"
