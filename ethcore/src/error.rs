@@ -20,59 +20,39 @@ use util::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 
-#[derive(Debug, PartialEq, Eq)]
-/// Error indicating an expected value was not found.
-pub struct Mismatch<T: fmt::Debug> {
-	/// Value expected.
-	pub expected: T,
-	/// Value found.
-	pub found: T,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-/// Error indicating value found is outside of a valid range.
-pub struct OutOfBounds<T: fmt::Debug> {
-	/// Minimum allowed value.
-	pub min: Option<T>,
-	/// Maximum allowed value.
-	pub max: Option<T>,
-	/// Value found.
-	pub found: T,
-}
-
 /// Result of executing the transaction.
 #[derive(PartialEq, Debug)]
 pub enum ExecutionError {
 	/// Returned when there gas paid for transaction execution is
 	/// lower than base gas required.
-	NotEnoughBaseGas { 
+	NotEnoughBaseGas {
 		/// Absolute minimum gas required.
-		required: U256, 
+		required: U256,
 		/// Gas provided.
 		got: U256
 	},
 	/// Returned when block (gas_used + gas) > gas_limit.
-	/// 
+	///
 	/// If gas =< gas_limit, upstream may try to execute the transaction
 	/// in next block.
-	BlockGasLimitReached { 
+	BlockGasLimitReached {
 		/// Gas limit of block for transaction.
 		gas_limit: U256,
 		/// Gas used in block prior to transaction.
 		gas_used: U256,
 		/// Amount of gas in block.
-		gas: U256 
+		gas: U256
 	},
 	/// Returned when transaction nonce does not match state nonce.
-	InvalidNonce { 
+	InvalidNonce {
 		/// Nonce expected.
 		expected: U256,
 		/// Nonce found.
 		got: U256
 	},
-	/// Returned when cost of transaction (value + gas_price * gas) exceeds 
+	/// Returned when cost of transaction (value + gas_price * gas) exceeds
 	/// current sender balance.
-	NotEnoughCash { 
+	NotEnoughCash {
 		/// Minimum required balance.
 		required: U512,
 		/// Actual balance.
