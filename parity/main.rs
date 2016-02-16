@@ -64,8 +64,8 @@ Options:
   -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
 
   --no-bootstrap           Don't bother trying to connect to any nodes initially.
-  --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
-  --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
+  --listen-address URL     Specify the IP/port on which to listen for peers.
+  --public-address URL     Specify the IP/port on which peers may connect.
   --address URL            Equivalent to --listen-address URL --public-address URL.
   --upnp                   Use UPnP to try to figure out the correct network settings.
   --node-key KEY           Specify node secret key as hex string.
@@ -79,7 +79,12 @@ Options:
   -l --logging LOGGING     Specify the logging level.
   -v --version             Show information about version.
   -h --help                Show this screen.
-", flag_cache_pref_size: usize, flag_cache_max_size: usize, flag_address: Option<String>, flag_node_key: Option<String>);
+", 	flag_cache_pref_size: usize,
+	flag_cache_max_size: usize, 
+	flag_address: Option<String>, 
+	flag_listen_address: Option<String>, 
+	flag_public_address: Option<String>, 
+	flag_node_key: Option<String>);
 
 fn setup_log(init: &str) {
 	let mut builder = LogBuilder::new();
@@ -155,21 +160,26 @@ impl Configuration {
 		}
 	}
 
-	fn net_addresses(&self) -> (SocketAddr, SocketAddr) {
-		let listen_address;
-		let public_address;
+	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
+		let mut listen_address = None;
+		let mut public_address = None;
 
-		match self.args.flag_address {
-			None => {
-				listen_address = SocketAddr::from_str(self.args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address");
-				public_address = SocketAddr::from_str(self.args.flag_public_address.as_ref()).expect("Invalid public address given with --public-address");
+		if let Some(ref a) = self.args.flag_address {
+			public_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address"));
+			listen_address = public_address;
+		}
+		if let Some(ref a) = self.args.flag_listen_address {
+			if listen_address.is_some() {
+				panic!("Conflicting flags: --address and --listen-address");
 			}
-			Some(ref a) => {
-				public_address = SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address");
-				listen_address = public_address;
+			listen_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen address given with --listen-address"));
+		}
+		if let Some(ref a) = self.args.flag_public_address {
+			if public_address.is_some() {
+				panic!("Conflicting flags: --address and --public-address");
 			}
-		};
-
+			public_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen address given with --public-address"));
+		}
 		(listen_address, public_address)
 	}
 }

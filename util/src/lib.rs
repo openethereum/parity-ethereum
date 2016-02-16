@@ -110,6 +110,7 @@ extern crate serde;
 #[macro_use]
 extern crate log as rlog;
 extern crate igd;
+extern crate libc;
 
 pub mod standard;
 #[macro_use]

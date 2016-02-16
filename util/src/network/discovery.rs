@@ -78,7 +78,7 @@ struct Datagramm {
 pub struct Discovery {
 	id: NodeId,
 	secret: Secret,
-	address: NodeEndpoint,
+	public_endpoint: NodeEndpoint,
 	udp_socket: UdpSocket,
 	token: StreamToken,
 	discovery_round: u16,
@@ -94,12 +94,12 @@ pub struct TableUpdates {
 }
 
 impl Discovery {
-	pub fn new(key: &KeyPair, address: NodeEndpoint, token: StreamToken) -> Discovery {
-		let socket = UdpSocket::bound(&address.udp_address()).expect("Error binding UDP socket");
+	pub fn new(key: &KeyPair, listen: SocketAddr, public: NodeEndpoint, token: StreamToken) -> Discovery {
+		let socket = UdpSocket::bound(&listen).expect("Error binding UDP socket");
 		Discovery {
 			id: key.public().clone(),
 			secret: key.secret().clone(),
-			address: address,
+			public_endpoint: public,
 			token: token,
 			discovery_round: 0,
 			discovery_id: NodeId::new(),
@@ -199,7 +199,7 @@ impl Discovery {
 	fn ping(&mut self, node: &NodeEndpoint) {
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&PROTOCOL_VERSION);
-		self.address.to_rlp_list(&mut rlp);
+		self.public_endpoint.to_rlp_list(&mut rlp);
 		node.to_rlp_list(&mut rlp);
 		trace!(target: "discovery", "Sent Ping to {:?}", &node);
 		self.send_packet(PACKET_PING, &node.udp_address(), &rlp.drain());
@@ -507,8 +507,8 @@ mod tests {
 		let key2 = KeyPair::create().unwrap();
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40444").unwrap(), udp_port: 40444 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
-		let mut discovery1 = Discovery::new(&key1, ep1.clone(), 0);
-		let mut discovery2 = Discovery::new(&key2, ep2.clone(), 0);
+		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0);
+		let mut discovery2 = Discovery::new(&key2, ep2.address.clone(), ep2.clone(), 0);
 
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7771").unwrap();

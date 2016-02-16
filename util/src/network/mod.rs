@@ -73,6 +73,7 @@ mod service;
 mod error;
 mod node_table;
 mod stats;
+mod ip_utils;
 
 #[cfg(test)]
 mod tests;

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::{SocketAddr, SocketAddrV4};
+use std::net::{SocketAddr};
 use std::collections::{HashMap};
 use std::hash::{Hasher};
 use std::str::{FromStr};
@@ -39,8 +39,8 @@ use network::{NetworkProtocolHandler, PROTOCOL_VERSION};
 use network::node_table::*;
 use network::stats::NetworkStats;
 use network::error::DisconnectReason;
-use igd::{PortMappingProtocol, search_gateway};
 use network::discovery::{Discovery, TableUpdates, NodeEntry};
+use network::ip_utils::{map_external_address, select_public_address};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -55,10 +55,12 @@ const MAINTENANCE_TIMEOUT: u64 = 1000;
 pub struct NetworkConfiguration {
 	/// Directory path to store network configuration. None means nothing will be saved
 	pub config_path: Option<String>,
-	/// IP address to listen for incoming connections
-	pub listen_address: SocketAddr,
-	/// IP address to advertise
-	pub public_address: SocketAddr,
+	/// IP address to listen for incoming connections. Listen to all connections by default
+	pub listen_address: Option<SocketAddr>,
+	/// IP address to advertise. Detected automatically if none.
+	pub public_address: Option<SocketAddr>,
+	/// Port for UDP connections, same as TCP by default
+	pub udp_port: Option<u16>,
 	/// Enable NAT configuration
 	pub nat_enabled: bool,
 	/// Enable discovery
@@ -78,8 +80,9 @@ impl NetworkConfiguration {
 	pub fn new() -> NetworkConfiguration {
 		NetworkConfiguration {
 			config_path: None,
-			listen_address: SocketAddr::from_str("0.0.0.0:30304").unwrap(),
-			public_address: SocketAddr::from_str("0.0.0.0:30304").unwrap(),
+			listen_address: None,
+			public_address: None,
+			udp_port: None,
 			nat_enabled: true,
 			discovery_enabled: true,
 			pin: false,
@@ -92,47 +95,8 @@ impl NetworkConfiguration {
 	/// Create new default configuration with sepcified listen port.
 	pub fn new_with_port(port: u16) -> NetworkConfiguration {
 		let mut config = NetworkConfiguration::new();
-		config.listen_address = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap();
-		config.public_address = SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap();
+		config.listen_address = Some(SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap());
 		config
-	}
-
-	/// Conduct NAT if needed.
-	pub fn prepared(self) -> Self {
-		let mut listen = self.listen_address;
-		let mut public = self.public_address;
-
-		if self.nat_enabled {
-			info!("Enabling NAT...");
-			match search_gateway() {
-				Err(ref err) => warn!("Port mapping error: {}", err),
-				Ok(gateway) => {
-					let int_addr = SocketAddrV4::from_str("127.0.0.1:30304").unwrap();
-					match gateway.get_any_address(PortMappingProtocol::TCP, int_addr, 0, "Parity Node/TCP") {
-						Err(ref err) => {
-							warn!("Port mapping error: {}", err);
-						},
-						Ok(ext_addr) => {
-							info!("Local gateway: {}, External ip address: {}", gateway, ext_addr);
-							public = SocketAddr::V4(ext_addr);
-							listen = SocketAddr::V4(int_addr);
-						},
-					}
-				},
-			}
-		}
-
-		NetworkConfiguration {
-			config_path: self.config_path,
-			listen_address: listen,
-			public_address: public,
-			nat_enabled: false,
-			discovery_enabled: self.discovery_enabled,
-			pin: self.pin,
-			boot_nodes: self.boot_nodes,
-			use_secret: self.use_secret,
-			ideal_peers: self.ideal_peers,
-		}
 	}
 }
 
@@ -333,16 +297,39 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
 	stats: Arc<NetworkStats>,
+	public_endpoint: NodeEndpoint,
 }
 
 impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	/// Create a new instance
 	pub fn new(config: NetworkConfiguration) -> Host<Message> {
-		let config = config.prepared();
+		let listen_address = match config.listen_address {
+			None => SocketAddr::from_str("0.0.0.0:30304").unwrap(),
+			Some(addr) => addr,
+		};
 
-		let addr = config.listen_address;
+		let udp_port = config.udp_port.unwrap_or(listen_address.port());
+		let public_endpoint = match config.public_address {
+			None => {
+				let public_address = select_public_address(listen_address.port());
+				let local_endpoint = NodeEndpoint { address: public_address, udp_port: udp_port };
+				if config.nat_enabled {
+					match map_external_address(&local_endpoint) {
+						Some(endpoint) => {
+							info!("NAT Mappped to external address {}", endpoint.address);
+							endpoint
+						},
+						None => local_endpoint
+					}
+				} else {
+					local_endpoint
+				}
+			}
+			Some(addr) => NodeEndpoint { address: addr, udp_port: udp_port }
+		};
+
 		// Setup the server socket
-		let tcp_listener = TcpListener::bind(&addr).unwrap();
+		let tcp_listener = TcpListener::bind(&listen_address).unwrap();
 		let keys = if let Some(ref secret) = config.use_secret { 
 			KeyPair::from_secret(secret.clone()).unwrap() 
 		} else { 
@@ -356,8 +343,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			},
 			|s| KeyPair::from_secret(s).expect("Error creating node secret key"))
 		};
-		let endpoint = NodeEndpoint { address: config.public_address.clone(), udp_port: addr.port() };
-		let discovery = Discovery::new(&keys, endpoint, DISCOVERY);
+		let discovery = Discovery::new(&keys, listen_address.clone(), public_endpoint.clone(), DISCOVERY);
 		let path = config.config_path.clone();
 		let mut host = Host::<Message> {
 			info: RwLock::new(HostInfo {
@@ -378,8 +364,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			timers: RwLock::new(HashMap::new()),
 			timer_counter: RwLock::new(USER_TIMER),
 			stats: Arc::new(NetworkStats::default()),
+			public_endpoint: public_endpoint,
 		};
-		let port = host.info.read().unwrap().config.listen_address.port();
+		let port = listen_address.port();
 		host.info.write().unwrap().deref_mut().listen_port = port;
 
 		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
@@ -409,8 +396,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		self.info.read().unwrap().client_version.clone()
 	}
 
-	pub fn client_id(&self) -> NodeId {
-		self.info.read().unwrap().id().clone()
+	pub fn client_url(&self) -> String {
+		format!("{}", Node::new(self.info.read().unwrap().id().clone(), self.public_endpoint.clone()))
 	}
 
 	fn maintain_network(&self, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -456,13 +443,15 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 
 		let handshake_count = self.handshake_count();
-		if handshake_count >= MAX_HANDSHAKES {
+		// allow 16 slots for incoming connections
+		let handshake_limit = MAX_HANDSHAKES - 16;
+		if handshake_count >= handshake_limit {
 			return;
 		}
 
 		let nodes = { self.nodes.read().unwrap().nodes() };
 		for id in nodes.iter().filter(|ref id| !self.have_session(id) && !self.connecting_to(id))
-			.take(min(MAX_HANDSHAKES_PER_ROUND, MAX_HANDSHAKES - handshake_count)) {
+			.take(min(MAX_HANDSHAKES_PER_ROUND, handshake_limit - handshake_count)) {
 			self.connect_peer(&id, io);
 		}
 		debug!(target: "net", "Connecting peers: {} sessions, {} pending", self.session_count(), self.handshake_count());
