@@ -534,42 +534,24 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn handshake_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
-		let mut create_session = false;
-		let mut kill = false;
 		let handshake = { self.handshakes.read().unwrap().get(token).cloned() };
 		if let Some(handshake) = handshake {
 			let mut h = handshake.lock().unwrap();
 			if let Err(e) = h.writable(io, &self.info.read().unwrap()) {
 				debug!(target: "net", "Handshake write error: {}:{:?}", token, e);
-				kill = true;
-			}
-			if h.done() {
-				create_session = true;
 			}
 		} 
-		if kill {
-			self.kill_connection(token, io, true); //TODO: mark connection as dead an check in kill_connection
-			return;
-		} else if create_session {
-			self.start_session(token, io);
-			io.update_registration(token).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
-		}
 	}
 
 	fn session_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
-		let mut kill = false;
 		let session = { self.sessions.read().unwrap().get(token).cloned() };
 		if let Some(session) = session {
 			let mut s = session.lock().unwrap();
 			if let Err(e) = s.writable(io, &self.info.read().unwrap()) {
 				debug!(target: "net", "Session write error: {}:{:?}", token, e);
-				kill = true;
 			}
 			io.update_registration(token).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
 		} 
-		if kill {
-			self.kill_connection(token, io, true); //TODO: mark connection as dead an check in kill_connection
-		}
 	}
 
 	fn connection_closed(&self, token: TimerToken, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -793,7 +775,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				if let Some(node_changes) = self.discovery.as_ref().unwrap().lock().unwrap().readable() {
 					self.update_nodes(io, node_changes);
 				}
-				io.update_registration(DISCOVERY).expect("Error updating disicovery registration");
+				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
 			TCP_ACCEPT => self.accept(io), 
 			_ => panic!("Received unknown readable token"),
@@ -806,7 +788,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_writable(stream, io),
 			DISCOVERY => {
 				self.discovery.as_ref().unwrap().lock().unwrap().writable();
-				io.update_registration(DISCOVERY).expect("Error updating disicovery registration");
+				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			}
 			_ => panic!("Received unknown writable token"),
 		}
@@ -819,13 +801,13 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
 				self.discovery.as_ref().unwrap().lock().unwrap().refresh();
-				io.update_registration(DISCOVERY).expect("Error updating disicovery registration");
+				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
 			DISCOVERY_ROUND => {
 				if let Some(node_changes) = self.discovery.as_ref().unwrap().lock().unwrap().round() {
 					self.update_nodes(io, node_changes);
 				}
-				io.update_registration(DISCOVERY).expect("Error updating disicovery registration");
+				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {

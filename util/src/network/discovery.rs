@@ -544,6 +544,7 @@ mod tests {
 		for _ in 0..1200 {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
 		}
+		assert!(Discovery::nearest_node_entries(&NodeId::new(), &discovery.node_buckets).len() <= 16);
 		let removed = discovery.check_expired(true).len();
 		assert!(removed > 0);
 	}
