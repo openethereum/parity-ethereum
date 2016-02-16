@@ -104,8 +104,6 @@ impl EncryptedHashMap<H128> for SecretStore {
 				let decrypted_bytes = match key_file.crypto.kdf {
 					KeyFileKdf::Pbkdf2(ref params) => {
 						let (derived_left_bits, derived_right_bits) = derive_key_iterations(password, &params.salt, params.c);
-						//assert_eq!(derive_mac(&derived_right_bits, &key_file.crypto.cipher_text).to_hex(), "");
-						assert_eq!(&key_file.crypto.cipher_text.to_hex(), "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46");
 						if derive_mac(&derived_right_bits, &key_file.crypto.cipher_text)
 							.sha3() != key_file.crypto.mac { return Err(EncryptedHashMapError::InvalidPassword); }
 
