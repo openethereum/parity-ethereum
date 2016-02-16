@@ -1,16 +1,16 @@
 [root]
 name = "parity"
-version = "0.9.0"
+version = "0.9.99"
 dependencies = [
  "clippy 0.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.0.1 (git+https://github.com/tomusdrw/rust-ctrlc.git)",
  "docopt 0.6.78 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt_macros 0.6.81 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 0.9.0",
- "ethcore-rpc 0.9.0",
- "ethcore-util 0.9.0",
- "ethsync 0.1.0",
+ "ethcore 0.9.99",
+ "ethcore-rpc 0.9.99",
+ "ethcore-util 0.9.99",
+ "ethsync 0.9.99",
  "fdlimit 0.1.0",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "ethash"
-version = "0.1.0"
+version = "0.9.99"
 dependencies = [
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -165,13 +165,13 @@ dependencies = [
 
 [[package]]
 name = "ethcore"
-version = "0.9.0"
+version = "0.9.99"
 dependencies = [
  "clippy 0.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethash 0.1.0",
- "ethcore-util 0.9.0",
+ "ethash 0.9.99",
+ "ethcore-util 0.9.99",
  "heapsize 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -184,12 +184,12 @@ dependencies = [
 
 [[package]]
 name = "ethcore-rpc"
-version = "0.9.0"
+version = "0.9.99"
 dependencies = [
  "clippy 0.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 0.9.0",
- "ethcore-util 0.9.0",
- "ethsync 0.1.0",
+ "ethcore 0.9.99",
+ "ethcore-util 0.9.99",
+ "ethsync 0.9.99",
  "jsonrpc-core 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -201,7 +201,7 @@ dependencies = [
 
 [[package]]
 name = "ethcore-util"
-version = "0.9.0"
+version = "0.9.99"
 dependencies = [
  "arrayvec 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -230,12 +230,12 @@ dependencies = [
 
 [[package]]
 name = "ethsync"
-version = "0.1.0"
+version = "0.9.99"
 dependencies = [
  "clippy 0.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 0.9.0",
- "ethcore-util 0.9.0",
+ "ethcore 0.9.99",
+ "ethcore-util 0.9.99",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
