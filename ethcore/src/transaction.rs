@@ -19,8 +19,9 @@
 use util::*;
 use error::*;
 use evm::Schedule;
+use header::BlockNumber;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// Transaction action type.
 pub enum Action {
 	/// Create creates new contract.
@@ -45,7 +46,7 @@ impl Decodable for Action {
 
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Transaction {
 	/// Nonce.
 	pub nonce: U256,
@@ -156,9 +157,8 @@ impl Transaction {
 	}
 }
 
-
-
-#[derive(Debug, Clone)]
+/// Signed transaction information.
+#[derive(Debug, Clone, Eq)]
 pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
@@ -172,6 +172,12 @@ pub struct SignedTransaction {
 	hash: RefCell<Option<H256>>,
 	/// Cached sender.
 	sender: RefCell<Option<Address>>
+}
+
+impl PartialEq for SignedTransaction {
+	fn eq(&self, other: &SignedTransaction) -> bool {
+		self.unsigned == other.unsigned && self.v == other.v && self.r == other.r && self.s == other.s
+	}
 }
 
 impl Deref for SignedTransaction {
@@ -281,6 +287,27 @@ impl SignedTransaction {
 		} else {
 			Ok(self)
 		}
+	}
+}
+
+/// Signed Transaction that is a part of canon blockchain.
+#[derive(Debug, PartialEq, Eq)]
+pub struct LocalizedTransaction {
+	/// Signed part.
+	pub signed: SignedTransaction,
+	/// Block number.
+	pub block_number: BlockNumber,
+	/// Block hash.
+	pub block_hash: H256,
+	/// Transaction index within block.
+	pub transaction_index: usize
+}
+
+impl Deref for LocalizedTransaction {
+	type Target = SignedTransaction;
+
+	fn deref(&self) -> &Self::Target {
+		&self.signed
 	}
 }
 

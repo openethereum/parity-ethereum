@@ -25,6 +25,7 @@ use io::{IoError, IoHandler};
 use arrayvec::*;
 use crossbeam::sync::chase_lev;
 use io::worker::{Worker, Work, WorkType};
+use panics::*;
 
 /// Timer ID
 pub type TimerToken = usize;
@@ -159,13 +160,21 @@ pub struct IoManager<Message> where Message: Send + Sync {
 
 impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	/// Creates a new instance and registers it with the event loop.
-	pub fn start(event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), UtilError> {
+	pub fn start(panic_handler: Arc<PanicHandler>, event_loop: &mut EventLoop<IoManager<Message>>) -> Result<(), UtilError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
 		let work_ready_mutex =  Arc::new(Mutex::new(()));
 		let work_ready = Arc::new(Condvar::new());
-		let workers = (0..num_workers).map(|i| 
-			Worker::new(i, stealer.clone(), IoChannel::new(event_loop.channel()), work_ready.clone(), work_ready_mutex.clone())).collect();
+		let workers = (0..num_workers).map(|i|
+			Worker::new(
+				i,
+				stealer.clone(),
+				IoChannel::new(event_loop.channel()),
+				work_ready.clone(),
+				work_ready_mutex.clone(),
+				panic_handler.clone()
+			)
+		).collect();
 
 		let mut io = IoManager {
 			timers: Arc::new(RwLock::new(HashMap::new())),
@@ -306,19 +315,32 @@ impl<Message> IoChannel<Message> where Message: Send + Clone {
 /// General IO Service. Starts an event loop and dispatches IO requests.
 /// 'Message' is a notification message type
 pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
+	panic_handler: Arc<PanicHandler>,
 	thread: Option<JoinHandle<()>>,
 	host_channel: Sender<IoMessage<Message>>,
+}
+
+impl<Message> MayPanic for IoService<Message> where Message: Send + Sync + Clone + 'static {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+		self.panic_handler.on_panic(closure);
+	}
 }
 
 impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, UtilError> {
+		let panic_handler = PanicHandler::new_in_arc();
 		let mut event_loop = EventLoop::new().unwrap();
         let channel = event_loop.channel();
+		let panic = panic_handler.clone();
 		let thread = thread::spawn(move || {
-			IoManager::<Message>::start(&mut event_loop).unwrap(); //TODO:
+			let p = panic.clone();
+			panic.catch_panic(move || {
+				IoManager::<Message>::start(p, &mut event_loop).unwrap();
+			}).unwrap()
 		});
 		Ok(IoService {
+			panic_handler: panic_handler,
 			thread: Some(thread),
 			host_channel: channel
 		})

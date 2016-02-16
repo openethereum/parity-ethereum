@@ -15,5 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 mod block;
+mod block_number;
+mod bytes;
+mod filter;
+mod index;
+mod optionals;
+mod sync;
+mod transaction;
 
-pub use self::block::Block;
+pub use self::block::{Block, BlockTransactions};
+pub use self::block_number::BlockNumber;
+pub use self::bytes::Bytes;
+pub use self::filter::Filter;
+pub use self::index::Index;
+pub use self::optionals::OptionalValue;
+pub use self::sync::{SyncStatus, SyncInfo};
+pub use self::transaction::Transaction;

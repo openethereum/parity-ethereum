@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{BlockChainClient};
+use ethcore::client::{BlockChainClient, BlockId};
 use io::SyncIo;
 use chain::{SyncState};
 use super::helpers::*;
@@ -27,7 +27,7 @@ fn two_peers() {
 	net.peer_mut(1).chain.add_blocks(1000, false);
 	net.peer_mut(2).chain.add_blocks(1000, false);
 	net.sync();
-	assert!(net.peer(0).chain.block_at(1000).is_some());
+	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
 	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
 }
 
@@ -60,7 +60,7 @@ fn empty_blocks() {
 		net.peer_mut(2).chain.add_blocks(5, n % 2 == 0);
 	}
 	net.sync();
-	assert!(net.peer(0).chain.block_at(1000).is_some());
+	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
 	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
 }
 
@@ -105,3 +105,69 @@ fn status_empty() {
 	let net = TestNet::new(2);
 	assert_eq!(net.peer(0).sync.status().state, SyncState::NotSynced);
 }
+
+#[test]
+fn status_packet() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(0).chain.add_blocks(100, false);
+	net.peer_mut(1).chain.add_blocks(1, false);
+
+	net.start();
+
+	net.sync_step_peer(0);
+
+	assert_eq!(1, net.peer(0).queue.len());
+	assert_eq!(0x00, net.peer(0).queue[0].packet_id);
+}
+
+#[test]
+fn propagade_hashes() {
+	let mut net = TestNet::new(6);
+	net.peer_mut(1).chain.add_blocks(10, false);
+	net.sync();
+
+	net.peer_mut(0).chain.add_blocks(10, false);
+	net.sync();
+	net.trigger_block_verified(0); //first event just sets the marker
+	net.trigger_block_verified(0);
+
+	// 5 peers to sync
+	assert_eq!(5, net.peer(0).queue.len());
+	let mut hashes = 0;
+	let mut blocks = 0;
+	for i in 0..5 {
+		if net.peer(0).queue[i].packet_id == 0x1 {
+			hashes += 1;
+		}
+		if net.peer(0).queue[i].packet_id == 0x7 {
+			blocks += 1;
+		}
+	}
+	assert!(blocks + hashes == 5);
+}
+
+#[test]
+fn propagade_blocks() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(1).chain.add_blocks(10, false);
+	net.sync();
+
+	net.peer_mut(0).chain.add_blocks(10, false);
+	net.trigger_block_verified(0); //first event just sets the marker
+	net.trigger_block_verified(0);
+
+	assert!(!net.peer(0).queue.is_empty());
+	// NEW_BLOCK_PACKET
+	assert_eq!(0x07, net.peer(0).queue[0].packet_id);
+}
+
+#[test]
+fn restart_on_malformed_block() {
+	let mut net = TestNet::new(2);
+	net.peer_mut(1).chain.add_blocks(10, false);
+	net.peer_mut(1).chain.corrupt_block(6);
+	net.sync_steps(10);
+
+	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 4);
+}
+

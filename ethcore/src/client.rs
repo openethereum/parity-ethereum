@@ -17,6 +17,7 @@
 //! Blockchain database client.
 
 use util::*;
+use util::panics::*;
 use rocksdb::{Options, DB, DBCompactionStyle};
 use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
@@ -27,11 +28,37 @@ use spec::Spec;
 use engine::Engine;
 use views::HeaderView;
 use block_queue::{BlockQueue, BlockQueueInfo};
-use service::NetSyncMessage;
+use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
+use transaction::LocalizedTransaction;
+use extras::TransactionAddress;
 pub use blockchain::TreeRoute;
+
+/// Uniquely identifies block.
+#[derive(Debug, PartialEq, Clone)]
+pub enum BlockId {
+	/// Block's sha3.
+	/// Querying by hash is always faster.
+	Hash(H256),
+	/// Block number within canon blockchain.
+	Number(BlockNumber),
+	/// Earliest block (genesis).
+	Earliest,
+	/// Latest mined block.
+	Latest
+}
+
+/// Uniquely identifies transaction.
+#[derive(Debug, PartialEq, Clone)]
+pub enum TransactionId {
+	/// Transaction's sha3.
+	Hash(H256),
+	/// Block id and transaction index within this block.
+	/// Querying by block position is always faster.
+	Location(BlockId, usize)
+}
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -69,37 +96,27 @@ impl fmt::Display for BlockChainInfo {
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
-	/// Get raw block header data by block header hash.
-	fn block_header(&self, hash: &H256) -> Option<Bytes>;
+	/// Get raw block header data by block id.
+	fn block_header(&self, id: BlockId) -> Option<Bytes>;
 
-	/// Get raw block body data by block header hash.
+	/// Get raw block body data by block id.
 	/// Block body is an RLP list of two items: uncles and transactions.
-	fn block_body(&self, hash: &H256) -> Option<Bytes>;
+	fn block_body(&self, id: BlockId) -> Option<Bytes>;
 
 	/// Get raw block data by block header hash.
-	fn block(&self, hash: &H256) -> Option<Bytes>;
+	fn block(&self, id: BlockId) -> Option<Bytes>;
 
 	/// Get block status by block header hash.
-	fn block_status(&self, hash: &H256) -> BlockStatus;
+	fn block_status(&self, id: BlockId) -> BlockStatus;
 
 	/// Get block total difficulty.
-	fn block_total_difficulty(&self, hash: &H256) -> Option<U256>;
+	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
 
-	/// Get raw block header data by block number.
-	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes>;
+	/// Get address code.
+	fn code(&self, address: &Address) -> Option<Bytes>;
 
-	/// Get raw block body data by block number.
-	/// Block body is an RLP list of two items: uncles and transactions.
-	fn block_body_at(&self, n: BlockNumber) -> Option<Bytes>;
-
-	/// Get raw block data by block number.
-	fn block_at(&self, n: BlockNumber) -> Option<Bytes>;
-
-	/// Get block status by block number.
-	fn block_status_at(&self, n: BlockNumber) -> BlockStatus;
-
-	/// Get block total difficulty.
-	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256>;
+	/// Get transaction with given hash.
+	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
@@ -125,7 +142,7 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> Bytes {
-		self.block_header(&self.chain_info().best_block_hash).unwrap()
+		self.block_header(BlockId::Hash(self.chain_info().best_block_hash)).unwrap()
 	}
 }
 
@@ -157,11 +174,12 @@ pub struct Client {
 	state_db: Mutex<JournalDB>,
 	block_queue: RwLock<BlockQueue>,
 	report: RwLock<ClientReport>,
-	import_lock: Mutex<()>
+	import_lock: Mutex<()>,
+	panic_handler: Arc<PanicHandler>,
 }
 
 const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "1.0";
+const CLIENT_DB_VER_STR: &'static str = "2.1";
 
 impl Client {
 	/// Create a new client with given spec and DB path.
@@ -198,19 +216,25 @@ impl Client {
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
 		let db = Arc::new(DB::open(&opts, state_path.to_str().unwrap()).unwrap());
-		
+
 		let engine = Arc::new(try!(spec.to_engine()));
 		let mut state_db = JournalDB::new_with_arc(db.clone());
 		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
+
+		let block_queue = BlockQueue::new(engine.clone(), message_channel);
+		let panic_handler = PanicHandler::new_in_arc();
+		panic_handler.forward_from(&block_queue);
+
 		Ok(Arc::new(Client {
 			chain: chain,
-			engine: engine.clone(),
+			engine: engine,
 			state_db: Mutex::new(state_db),
-			block_queue: RwLock::new(BlockQueue::new(engine, message_channel)),
+			block_queue: RwLock::new(block_queue),
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
+			panic_handler: panic_handler
 		}))
 	}
 
@@ -220,7 +244,7 @@ impl Client {
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
-	pub fn import_verified_blocks(&self, _io: &IoChannel<NetSyncMessage>) -> usize {
+	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
 		let mut ret = 0;
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
@@ -294,6 +318,9 @@ impl Client {
 			ret += 1;
 		}
 		self.block_queue.write().unwrap().mark_as_good(&good_blocks);
+		if !good_blocks.is_empty() && self.block_queue.read().unwrap().queue_info().is_empty() {
+			io.send(NetworkIoMessage::User(SyncMessage::BlockVerified)).unwrap();
+		}
 		ret
 	}
 
@@ -321,60 +348,70 @@ impl Client {
 	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
 		self.chain.write().unwrap().configure_cache(pref_cache_size, max_cache_size);
 	}
+
+	fn block_hash(chain: &BlockChain, id: BlockId) -> Option<H256> {
+		match id {
+			BlockId::Hash(hash) => Some(hash),
+			BlockId::Number(number) => chain.block_hash(number),
+			BlockId::Earliest => chain.block_hash(0),
+			BlockId::Latest => Some(chain.best_block_hash())
+		}
+	}
 }
 
 impl BlockChainClient for Client {
-	fn block_header(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.read().unwrap().block(hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec())
+	fn block_header(&self, id: BlockId) -> Option<Bytes> {
+		let chain = self.chain.read().unwrap();
+		Self::block_hash(&chain, id).and_then(|hash| chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
 	}
 
-	fn block_body(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.read().unwrap().block(hash).map(|bytes| {
-			let rlp = Rlp::new(&bytes);
-			let mut body = RlpStream::new();
-			body.append_raw(rlp.at(1).as_raw(), 1);
-			body.append_raw(rlp.at(2).as_raw(), 1);
-			body.out()
+	fn block_body(&self, id: BlockId) -> Option<Bytes> {
+		let chain = self.chain.read().unwrap();
+		Self::block_hash(&chain, id).and_then(|hash| {
+			chain.block(&hash).map(|bytes| {
+				let rlp = Rlp::new(&bytes);
+				let mut body = RlpStream::new_list(2);
+				body.append_raw(rlp.at(1).as_raw(), 1);
+				body.append_raw(rlp.at(2).as_raw(), 1);
+				body.out()
+			})
 		})
 	}
 
-	fn block(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.read().unwrap().block(hash)
+	fn block(&self, id: BlockId) -> Option<Bytes> {
+		let chain = self.chain.read().unwrap();
+		Self::block_hash(&chain, id).and_then(|hash| {
+			chain.block(&hash)
+		})
 	}
 
-	fn block_status(&self, hash: &H256) -> BlockStatus {
-		if self.chain.read().unwrap().is_known(&hash) {
-			BlockStatus::InChain 
-		} else { 
-			self.block_queue.read().unwrap().block_status(hash) 
-		}
-	}
-	
-	fn block_total_difficulty(&self, hash: &H256) -> Option<U256> {
-		self.chain.read().unwrap().block_details(hash).map(|d| d.total_difficulty)
-	}
-
-	fn block_header_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_header(&h))
-	}
-
-	fn block_body_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_body(&h))
-	}
-
-	fn block_at(&self, n: BlockNumber) -> Option<Bytes> {
-		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block(&h))
-	}
-
-	fn block_status_at(&self, n: BlockNumber) -> BlockStatus {
-		match self.chain.read().unwrap().block_hash(n) {
-			Some(h) => self.block_status(&h),
+	fn block_status(&self, id: BlockId) -> BlockStatus {
+		let chain = self.chain.read().unwrap();
+		match Self::block_hash(&chain, id) {
+			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
+			Some(hash) => self.block_queue.read().unwrap().block_status(&hash),
 			None => BlockStatus::Unknown
 		}
 	}
+	
+	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
+		let chain = self.chain.read().unwrap();
+		Self::block_hash(&chain, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
+	}
 
-	fn block_total_difficulty_at(&self, n: BlockNumber) -> Option<U256> {
-		self.chain.read().unwrap().block_hash(n).and_then(|h| self.block_total_difficulty(&h))
+	fn code(&self, address: &Address) -> Option<Bytes> {
+		self.state().code(address)
+	}
+
+	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
+		let chain = self.chain.read().unwrap();
+		match id {
+			TransactionId::Hash(ref hash) => chain.transaction_address(hash),
+			TransactionId::Location(id, index) => Self::block_hash(&chain, id).map(|hash| TransactionAddress {
+				block_hash: hash,
+				index: index
+			})
+		}.and_then(|address| chain.transaction(&address))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
@@ -394,7 +431,7 @@ impl BlockChainClient for Client {
 		if self.chain.read().unwrap().is_known(&header.hash()) {
 			return Err(ImportError::AlreadyInChain);
 		}
-		if self.block_status(&header.parent_hash) == BlockStatus::Unknown {
+		if self.block_status(BlockId::Hash(header.parent_hash)) == BlockStatus::Unknown {
 			return Err(ImportError::UnknownParent);
 		}
 		self.block_queue.write().unwrap().import_block(bytes)
@@ -417,5 +454,11 @@ impl BlockChainClient for Client {
 			best_block_hash: chain.best_block_hash(),
 			best_block_number: From::from(chain.best_block_number())
 		}
+	}
+}
+
+impl MayPanic for Client {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+		self.panic_handler.on_panic(closure);
 	}
 }

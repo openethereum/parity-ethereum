@@ -17,9 +17,9 @@
 //! Creates and registers client and network services.
 
 use util::*;
+use util::panics::*;
 use spec::Spec;
 use error::*;
-use std::env;
 use client::Client;
 
 /// Message type for external and internal events
@@ -27,7 +27,7 @@ use client::Client;
 pub enum SyncMessage {
 	/// New block has been imported into the blockchain
 	NewChainBlock(Bytes), //TODO: use Cow
-	/// A block is ready 
+	/// A block is ready
 	BlockVerified,
 }
 
@@ -38,17 +38,20 @@ pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 pub struct ClientService {
 	net_service: NetworkService<SyncMessage>,
 	client: Arc<Client>,
+	panic_handler: Arc<PanicHandler>
 }
 
 impl ClientService {
 	/// Start the service in a separate thread.
-	pub fn start(spec: Spec, net_config: NetworkConfiguration) -> Result<ClientService, Error> {
+	pub fn start(spec: Spec, net_config: NetworkConfiguration, db_path: &Path) -> Result<ClientService, Error> {
+		let panic_handler = PanicHandler::new_in_arc();
 		let mut net_service = try!(NetworkService::start(net_config));
+		panic_handler.forward_from(&net_service);
+
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {} engine", spec.name, spec.engine_name);
-		let mut dir = env::home_dir().unwrap();
-		dir.push(".parity");
-		let client = try!(Client::new(spec, &dir, net_service.io().channel()));
+		let client = try!(Client::new(spec, db_path, net_service.io().channel()));
+		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
 		});
@@ -57,6 +60,7 @@ impl ClientService {
 		Ok(ClientService {
 			net_service: net_service,
 			client: client,
+			panic_handler: panic_handler,
 		})
 	}
 
@@ -78,6 +82,12 @@ impl ClientService {
 	/// Get network service component
 	pub fn network(&mut self) -> &mut NetworkService<SyncMessage> {
 		&mut self.net_service
+	}
+}
+
+impl MayPanic for ClientService {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+		self.panic_handler.on_panic(closure);
 	}
 }
 
@@ -123,7 +133,8 @@ mod tests {
 	#[test]
 	fn it_can_be_started() {
 		let spec = get_test_spec();
-		let service = ClientService::start(spec, NetworkConfiguration::new());
+		let temp_path = RandomTempPath::new();
+		let service = ClientService::start(spec, NetworkConfiguration::new(), &temp_path.as_path());
 		assert!(service.is_ok());
 	}
 }

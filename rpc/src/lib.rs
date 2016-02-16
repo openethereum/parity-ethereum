@@ -20,6 +20,7 @@
 #![plugin(serde_macros)]
 #![plugin(clippy)]
 
+extern crate rustc_serialize;
 extern crate target_info;
 extern crate serde;
 extern crate serde_json;
