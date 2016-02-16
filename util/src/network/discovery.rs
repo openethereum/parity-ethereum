@@ -110,10 +110,18 @@ impl Discovery {
 		}
 	}
 
-	pub fn add_node(&mut self, e: NodeEntry) {
+	/// Add a new node to discovery table. Pings the node.
+	pub fn add_node(&mut self, e: NodeEntry) { 
 		let endpoint = e.endpoint.clone();
 		self.update_node(e);
 		self.ping(&endpoint);
+	}
+
+	/// Add a list of known nodes to the table.
+	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) { 
+		for n in nodes.drain(..) {
+			self.update_node(n);
+		}
 	}
 
 	fn update_node(&mut self, e: NodeEntry) {
@@ -209,7 +217,7 @@ impl Discovery {
 		rlp.append(&timestamp);
 
 		let bytes = rlp.drain();
-		let hash = bytes.sha3();
+		let hash = bytes.as_ref().sha3();
 		let signature = match ec::sign(&self.secret, &hash) {
 			Ok(s) => s,
 			Err(_) => {
@@ -254,7 +262,7 @@ impl Discovery {
 		}
 
 		let mut ret:Vec<NodeEntry> = Vec::new();
-		for (_, nodes) in found {
+		for nodes in found.values() {
 			ret.extend(nodes.iter().map(|&n| n.clone()));
 		}
 		ret
@@ -368,7 +376,7 @@ impl Discovery {
 		// TODO: validate pong packet
 		let dest = try!(NodeEndpoint::from_rlp(&try!(rlp.at(0))));
 		let timestamp: u64 = try!(rlp.val_at(2));
-		if timestamp > time::get_time().sec as u64 {
+		if timestamp < time::get_time().sec as u64 {
 			return Err(NetworkError::Expired);
 		}
 		let mut entry = NodeEntry { id: node.clone(), endpoint: dest };
@@ -386,7 +394,7 @@ impl Discovery {
 		trace!(target: "discovery", "Got FindNode from {:?}", &from);
 		let target: NodeId = try!(rlp.val_at(0));
 		let timestamp: u64 = try!(rlp.val_at(1));
-		if timestamp > time::get_time().sec as u64 {
+		if timestamp < time::get_time().sec as u64 {
 			return Err(NetworkError::Expired);
 		}
 
@@ -395,8 +403,8 @@ impl Discovery {
 		if nearest.is_empty() {
 			return Ok(None);
 		}
-		let mut rlp = RlpStream::new_list(cmp::min(limit, nearest.len()));
-		rlp.begin_list(1);
+		let mut rlp = RlpStream::new_list(1);
+		rlp.begin_list(cmp::min(limit, nearest.len()));
 		for n in 0 .. nearest.len() {
 			rlp.begin_list(4);
 			nearest[n].endpoint.to_rlp(&mut rlp);
@@ -404,8 +412,8 @@ impl Discovery {
 			if (n + 1) % limit == 0 || n == nearest.len() - 1 {
 				self.send_packet(PACKET_NEIGHBOURS, &from, &rlp.drain());
 				trace!(target: "discovery", "Sent {} Neighbours to {:?}", n, &from);
-				rlp = RlpStream::new_list(cmp::min(limit, nearest.len() - n));
-				rlp.begin_list(1);
+				rlp = RlpStream::new_list(1);
+				rlp.begin_list(cmp::min(limit, nearest.len() - n));
 			}
 		}
 		Ok(None)
@@ -422,6 +430,9 @@ impl Discovery {
 				continue;
 			}
 			let node_id: NodeId = try!(r.val_at(3));
+			if node_id == self.id {
+				continue;
+			}
 			let entry = NodeEntry { id: node_id.clone(), endpoint: endpoint };
 			added.insert(node_id, entry.clone());
 			self.ping(&entry.endpoint);
@@ -474,5 +485,50 @@ impl Discovery {
 		}
 		event_loop.reregister(&self.udp_socket, Token(self.token), registration, PollOpt::edge()).expect("Error reregistering UDP socket");
 		Ok(())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use hash::*;
+	use std::net::*;
+	use network::node_table::*;
+	use crypto::KeyPair;
+	use std::str::FromStr;
+
+	#[test]
+	fn discovery() {
+		let key1 = KeyPair::create().unwrap();
+		let key2 = KeyPair::create().unwrap();
+		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40444").unwrap(), udp_port: 40444 };
+		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
+		let mut discovery1 = Discovery::new(&key1, ep1.clone(), 0);
+		let mut discovery2 = Discovery::new(&key2, ep2.clone(), 0);
+
+		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
+		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7771").unwrap();
+		discovery1.add_node(NodeEntry { id: node1.id.clone(), endpoint: node1. endpoint.clone() });
+		discovery1.add_node(NodeEntry { id: node2.id.clone(), endpoint: node2. endpoint.clone() });
+
+		discovery2.add_node(NodeEntry { id: key1.public().clone(), endpoint: ep1.clone() });
+		discovery2.refresh();
+
+		for _ in 0 .. 10 {
+			while !discovery1.send_queue.is_empty() {
+				let datagramm = discovery1.send_queue.pop_front().unwrap();
+				if datagramm.address == ep2.address {
+					discovery2.on_packet(&datagramm.payload, ep1.address.clone()).ok();
+				}
+			}
+			while !discovery2.send_queue.is_empty() {
+				let datagramm = discovery2.send_queue.pop_front().unwrap();
+				if datagramm.address == ep1.address {
+					discovery1.on_packet(&datagramm.payload, ep2.address.clone()).ok();
+				}
+			}
+			discovery2.round();
+		}
+		assert_eq!(Discovery::nearest_node_entries(&NodeId::new(), &discovery2.node_buckets).len(), 3)
 	}
 }

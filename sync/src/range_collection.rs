@@ -40,7 +40,7 @@ pub trait RangeCollection<K, V> {
 	fn get_tail(&mut self, key: &K) -> Range<K>;
 	/// Remove all elements < `start` in the range that contains `start` - 1
 	fn remove_head(&mut self, start: &K);
-	/// Remove all elements >= `start` in the range that contains `start` 
+	/// Remove all elements >= `start` in the range that contains `start`
 	fn remove_tail(&mut self, start: &K);
 	/// Remove all elements >= `tail`
 	fn insert_item(&mut self, key: K, value: V);
@@ -168,9 +168,9 @@ impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq +
 	fn insert_item(&mut self, key: K, value: V) {
 		assert!(!self.have_item(&key));
 
+		// todo: fix warning
 		let lower = match self.binary_search_by(|&(k, _)| k.cmp(&key).reverse()) {
-			Ok(index) => index,
-			Err(index) => index,
+			Ok(index) | Err(index) => index
 		};
 
 		let mut to_remove: Option<usize> = None;

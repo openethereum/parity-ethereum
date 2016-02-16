@@ -21,6 +21,9 @@ use std::str::{FromStr};
 use std::sync::*;
 use std::ops::*;
 use std::cmp::min;
+use std::path::{Path, PathBuf};
+use std::io::{Read, Write};
+use std::fs;
 use mio::*;
 use mio::tcp::*;
 use target_info::Target;
@@ -340,7 +343,19 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let addr = config.listen_address;
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&addr).unwrap();
-		let keys = if let Some(ref secret) = config.use_secret { KeyPair::from_secret(secret.clone()).unwrap() } else { KeyPair::create().unwrap() };
+		let keys = if let Some(ref secret) = config.use_secret { 
+			KeyPair::from_secret(secret.clone()).unwrap() 
+		} else { 
+			config.config_path.clone().and_then(|ref p| load_key(&Path::new(&p)))
+				.map_or_else(|| {
+				let key = KeyPair::create().unwrap();
+				if let Some(path) = config.config_path.clone() {
+					save_key(&Path::new(&path), &key.secret());
+				}
+				key
+			},
+			|s| KeyPair::from_secret(s).expect("Error creating node secret key"))
+		};
 		let endpoint = NodeEndpoint { address: addr.clone(), udp_port: addr.port() };
 		let discovery = Discovery::new(&keys, endpoint, DISCOVERY);
 		let path = config.config_path.clone();
@@ -371,6 +386,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		for n in boot_nodes {
 			host.add_node(&n);
 		}
+		host.discovery.lock().unwrap().init_node_list(host.nodes.read().unwrap().unordered_entries());
 		host
 	}
 
@@ -648,6 +664,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 		}
 		let h = Arc::try_unwrap(h).ok().unwrap().into_inner().unwrap();
+		let originated = h.originated;
 		let mut session = match Session::new(h, &self.info.read().unwrap()) {
 			Ok(s) => s,
 			Err(e) => {
@@ -659,6 +676,14 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			session.set_token(session_token);
 			io.update_registration(session_token).expect("Error updating session registration");
 			self.stats.inc_sessions();
+			if !originated {
+				// Add it no node table
+				if let Ok(address) = session.remote_addr() {
+					let entry = NodeEntry { id: session.id().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
+					self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+					self.discovery.lock().unwrap().add_node(entry);
+				}
+			}
 			Arc::new(Mutex::new(session))
 		});
 		if result.is_none() {
@@ -911,6 +936,52 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			DISCOVERY => self.discovery.lock().unwrap().update_registration(event_loop).expect("Error reregistering discovery socket"),
 			TCP_ACCEPT => event_loop.reregister(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
 			_ => warn!("Unexpected stream update")
+		}
+	}
+}
+
+fn save_key(path: &Path, key: &Secret) {
+	let mut path_buf = PathBuf::from(path);
+	if let Err(e) = fs::create_dir_all(path_buf.as_path()) {
+		warn!("Error creating key directory: {:?}", e);
+		return;
+	};
+	path_buf.push("key");
+	let mut file = match fs::File::create(path_buf.as_path()) {
+		Ok(file) => file,
+		Err(e) => {
+			warn!("Error creating key file: {:?}", e);
+			return;
+		}
+	};
+	if let Err(e) = file.write(&key.hex().into_bytes()) {
+		warn!("Error writing key file: {:?}", e);
+	}
+}
+
+fn load_key(path: &Path) -> Option<Secret> {
+	let mut path_buf = PathBuf::from(path);
+	path_buf.push("key");
+	let mut file = match fs::File::open(path_buf.as_path()) {
+		Ok(file) => file,
+		Err(e) => {
+			debug!("Error opening key file: {:?}", e);
+			return None;
+		}
+	};
+	let mut buf = String::new();
+	match file.read_to_string(&mut buf) {
+		Ok(_) => {},
+		Err(e) => { 
+			warn!("Error reading key file: {:?}", e);
+			return None;
+		}
+	}
+	match Secret::from_str(&buf) {
+		Ok(key) => Some(key),
+		Err(e) => { 
+			warn!("Error parsing key file: {:?}", e);
+			None
 		}
 	}
 }

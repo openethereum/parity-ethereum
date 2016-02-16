@@ -85,7 +85,7 @@ impl NetworkProtocolHandler<TestProtocolMessage> for TestProtocol {
 
 #[test]
 fn net_service() {
-	let mut service = NetworkService::<TestProtocolMessage>::start(NetworkConfiguration::new()).expect("Error creating network service");
+	let mut service = NetworkService::<TestProtocolMessage>::start(NetworkConfiguration::new_with_port(40414)).expect("Error creating network service");
 	service.register_protocol(Arc::new(TestProtocol::default()), "myproto", &[1u8]).unwrap();
 }
 

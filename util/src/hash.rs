@@ -86,6 +86,13 @@ macro_rules! impl_hash {
 			}
 		}
 
+		impl AsRef<[u8]> for $from {
+			#[inline]
+			fn as_ref(&self) -> &[u8] {
+				&self.0
+			}
+		}
+
 		impl DerefMut for $from {
 			#[inline]
 			fn deref_mut(&mut self) -> &mut [u8] {
@@ -290,7 +297,7 @@ macro_rules! impl_hash {
 					try!(write!(f, "{:02x}", i));
 				}
 				try!(write!(f, "…"));
-				for i in &self.0[$size - 4..$size] {
+				for i in &self.0[$size - 2..$size] {
 					try!(write!(f, "{:02x}", i));
 				}
 				Ok(())
@@ -641,7 +648,7 @@ mod tests {
 	fn hash() {
 		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
-		assert_eq!(format!("{}", h), "0123…89abcdef");
+		assert_eq!(format!("{}", h), "0123…cdef");
 		assert_eq!(format!("{:?}", h), "0123456789abcdef");
 		assert_eq!(h.hex(), "0123456789abcdef");
 		assert!(h == h);

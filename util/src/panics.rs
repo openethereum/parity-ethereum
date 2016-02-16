@@ -104,7 +104,7 @@ impl<F> OnPanicListener for F
 }
 
 fn convert_to_string(t: &Box<Any + Send>) -> Option<String> {
-	let as_str = t.downcast_ref::<&'static str>().map(|t| t.clone().to_owned());
+	let as_str = t.downcast_ref::<&'static str>().cloned().map(|t| t.to_owned());
 	let as_string = t.downcast_ref::<String>().cloned();
 
 	as_str.or(as_string)

@@ -170,8 +170,8 @@ pub trait BytesConvertable {
 	fn to_bytes(&self) -> Bytes { self.as_slice().to_vec() }
 }
 
-impl<T> BytesConvertable for T where T: Deref<Target = [u8]> {
-	fn bytes(&self) -> &[u8] { self.deref() }
+impl<T> BytesConvertable for T where T: AsRef<[u8]> {
+	fn bytes(&self) -> &[u8] { self.as_ref() }
 }
 
 #[test]
