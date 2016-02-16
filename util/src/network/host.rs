@@ -634,7 +634,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		} 
 		if kill {
 			self.kill_connection(token, io, true); //TODO: mark connection as dead an check in kill_connection
-			return;
 		}
 		for p in ready_data {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();

@@ -318,7 +318,12 @@ impl Session {
 		trace!(target: "net", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;
+		if self.info.capabilities.is_empty() {
+			trace!("No common capabilities with peer.");
+			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
+		}
 		if protocol != host.protocol_version {
+			trace!("Peer protocol version mismatch: {}", protocol);
 			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
 		}
 		self.had_hello = true;
