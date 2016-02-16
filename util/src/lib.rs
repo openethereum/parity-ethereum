@@ -141,6 +141,7 @@ pub mod io;
 pub mod network;
 pub mod log;
 pub mod panics;
+pub mod keys;
 
 pub use common::*;
 pub use misc::*;
@@ -161,3 +162,6 @@ pub use semantic_version::*;
 pub use network::*;
 pub use io::*;
 pub use log::*;
+
+#[cfg(test)]
+mod tests;

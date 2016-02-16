@@ -20,6 +20,7 @@ use rustc_serialize::hex::FromHexError;
 use network::NetworkError;
 use rlp::DecoderError;
 use io;
+use std::fmt;
 
 #[derive(Debug)]
 /// Error in database subsystem.
@@ -53,6 +54,27 @@ pub enum UtilError {
 	SimpleString(String),
 	/// Error from a bad input size being given for the needed output.
 	BadSize,
+}
+
+
+#[derive(Debug, PartialEq, Eq)]
+/// Error indicating an expected value was not found.
+pub struct Mismatch<T: fmt::Debug> {
+	/// Value expected.
+	pub expected: T,
+	/// Value found.
+	pub found: T,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+/// Error indicating value found is outside of a valid range.
+pub struct OutOfBounds<T: fmt::Debug> {
+	/// Minimum allowed value.
+	pub min: Option<T>,
+	/// Maximum allowed value.
+	pub max: Option<T>,
+	/// Value found.
+	pub found: T,
 }
 
 impl From<FromHexError> for UtilError {
