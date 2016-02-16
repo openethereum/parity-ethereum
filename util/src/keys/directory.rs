@@ -232,7 +232,7 @@ impl KeyFileCrypto {
 		};
 
 		Ok(KeyFileCrypto {
-			cipher_text: Bytes::from(cipher_text),
+			cipher_text: match FromHex::from_hex(cipher_text) { Ok(bytes) => bytes, Err(_) => { return Err(CryptoParseError::InvalidCipherText); } },
 			cipher_type: cipher_type,
 			kdf: kdf,
 			mac: mac,

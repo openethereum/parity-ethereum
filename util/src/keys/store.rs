@@ -32,14 +32,14 @@ const KEY_LENGTH_AES_USIZE: usize = KEY_LENGTH_AES as usize;
 /// Encrypted hash-map, each request should contain password
 pub trait EncryptedHashMap<Key: Hash + Eq> {
 	/// Returns existing value for the key, if any
-	fn get<Value: Populatable + Default + BytesConvertable>(&self, key: &Key, password: &str) ->  Result<Value, EncryptedHashMapError>;
+	fn get<Value: FromRawBytes + BytesConvertable>(&self, key: &Key, password: &str) ->  Result<Value, EncryptedHashMapError>;
 	/// Insert new encrypted key-value and returns previous if there was any
-	fn insert<Value: Populatable + Default + BytesConvertable>(&mut self, key: Key, value: Value, password: &str) -> Option<Value>;
+	fn insert<Value: FromRawBytes + BytesConvertable>(&mut self, key: Key, value: Value, password: &str) -> Option<Value>;
 	/// Removes key-value by key and returns the removed one, if any exists and password was provided
-	fn remove<Value: Populatable + Default + BytesConvertable> (&mut self, key: &Key, password: Option<&str>) -> Option<Value>;
+	fn remove<Value: FromRawBytes + BytesConvertable> (&mut self, key: &Key, password: Option<&str>) -> Option<Value>;
 	/// Deletes key-value by key and returns if the key-value existed
 	fn delete(&mut self, key: &Key) -> bool {
-		self.remove::<&[u8]>(key, None).is_some()
+		self.remove::<Bytes>(key, None).is_some()
 	}
 }
 
@@ -49,7 +49,9 @@ pub enum EncryptedHashMapError {
 	/// Encryption failed
 	InvalidPassword,
 	/// No key in the hashmap
-	UnknownIdentifier
+	UnknownIdentifier,
+	/// Stored value is not well formed for the requested type
+	InvalidValueFormat(FromBytesError),
 }
 
 /// Represent service for storing encrypted arbitrary data
@@ -96,14 +98,16 @@ fn derive_mac(derived_left_bits: &[u8], cipher_text: &[u8]) -> Bytes {
 }
 
 impl EncryptedHashMap<H128> for SecretStore {
-	fn get<Value: Populatable + Default + BytesConvertable>(&self, key: &H128, password: &str) -> Result<Value, EncryptedHashMapError> {
+	fn get<Value: FromRawBytes + BytesConvertable>(&self, key: &H128, password: &str) -> Result<Value, EncryptedHashMapError> {
 		match self.directory.get(key) {
 			Some(key_file) => {
 				let decrypted_bytes = match key_file.crypto.kdf {
 					KeyFileKdf::Pbkdf2(ref params) => {
-						let (derived_left_bits, derived_right_bits) = derive_key(password, &params.salt);
-						let expected_mac = derive_mac(&derived_right_bits, &key_file.crypto.cipher_text).sha3();
-						if expected_mac != key_file.crypto.mac { return Err(EncryptedHashMapError::InvalidPassword); }
+						let (derived_left_bits, derived_right_bits) = derive_key_iterations(password, &params.salt, params.c);
+						//assert_eq!(derive_mac(&derived_right_bits, &key_file.crypto.cipher_text).to_hex(), "");
+						assert_eq!(&key_file.crypto.cipher_text.to_hex(), "5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46");
+						if derive_mac(&derived_right_bits, &key_file.crypto.cipher_text)
+							.sha3() != key_file.crypto.mac { return Err(EncryptedHashMapError::InvalidPassword); }
 
 						let mut val = vec![0u8; key_file.crypto.cipher_text.len()];
 						match key_file.crypto.cipher_type {
@@ -116,15 +120,16 @@ impl EncryptedHashMap<H128> for SecretStore {
 					_ => { unimplemented!(); }
 				};
 
-				let mut instance = Value::default();
-				instance.populate_raw(&decrypted_bytes);
-				Ok(instance)
+				match Value::from_bytes(&decrypted_bytes) {
+					Ok(value) => Ok(value),
+					Err(bytes_error) => Err(EncryptedHashMapError::InvalidValueFormat(bytes_error))
+				}
 			},
 			None => Err(EncryptedHashMapError::UnknownIdentifier)
 		}
 	}
 
-	fn insert<Value: Populatable + Default + BytesConvertable>(&mut self, key: H128, value: Value, password: &str) -> Option<Value> {
+	fn insert<Value: FromRawBytes + BytesConvertable>(&mut self, key: H128, value: Value, password: &str) -> Option<Value> {
 		let previous = if let Ok(previous_value) = self.get(&key, password) { Some(previous_value) } else { None };
 
 		// crypto random initiators
@@ -156,7 +161,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 		previous
 	}
 
-	fn remove<Value: Populatable + Default + BytesConvertable>(&mut self, key: &H128, password: Option<&str>) -> Option<Value> {
+	fn remove<Value: FromRawBytes + BytesConvertable>(&mut self, key: &H128, password: Option<&str>) -> Option<Value> {
 		let previous = if let Some(pass) = password {
 			if let Ok(previous_value) = self.get(&key, pass) { Some(previous_value) } else { None }
 		}
@@ -229,7 +234,7 @@ mod tests {
 		}
 		let sstore = SecretStore::new_test(&temp);
 		if let Ok(_) = sstore.get::<Bytes>(&H128::from_str("3198bc9c66725ab3d9954942343ae5b6").unwrap(), "testpassword") {
-			panic!("shoud be error loading key,  we requested the wrong key");
+			panic!("should be error loading key,  we requested the wrong key");
 		}
 	}
 
