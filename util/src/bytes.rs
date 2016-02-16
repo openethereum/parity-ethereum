@@ -178,6 +178,10 @@ impl BytesConvertable for Vec<u8> {
 	fn bytes(&self) -> &[u8] { self }
 }
 
+impl BytesConvertable for String {
+	fn bytes(&self) -> &[u8] { &self.as_bytes() }
+}
+
 macro_rules! impl_bytes_convertable_for_array {
 	($zero: expr) => ();
 	($len: expr, $($idx: expr),*) => {

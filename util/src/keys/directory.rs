@@ -27,7 +27,7 @@ const MAX_CACHE_USAGE_TRACK: usize = 128;
 #[derive(PartialEq, Debug, Clone)]
 pub enum CryptoCipherType {
 	/// aes-128-ctr with 128-bit initialisation vector(iv)
-	Aes128Ctr(U128)
+	Aes128Ctr(H128)
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -182,7 +182,7 @@ impl KeyFileCrypto {
 			Some("aes-128-ctr") => CryptoCipherType::Aes128Ctr(
 				match try!(as_object.get("cipherparams").ok_or(CryptoParseError::NoCipherParameters)).as_object() {
 					None => { return Err(CryptoParseError::NoCipherParameters); },
-					Some(cipher_param) => match U128::from_str(match cipher_param["iv"].as_string() {
+					Some(cipher_param) => match H128::from_str(match cipher_param["iv"].as_string() {
 							None => { return Err(CryptoParseError::NoInitialVector); },
 							Some(iv_hex_string) => iv_hex_string
 						})
@@ -231,7 +231,7 @@ impl KeyFileCrypto {
 	fn to_json(&self) -> Json {
 		let mut map = BTreeMap::new();
 		match self.cipher_type {
-			CryptoCipherType::Aes128Ctr(iv) => {
+			CryptoCipherType::Aes128Ctr(ref iv) => {
 				map.insert("cipher".to_owned(), Json::String("aes-128-ctr".to_owned()));
 				let mut cipher_params = BTreeMap::new();
 				cipher_params.insert("iv".to_owned(), Json::String(format!("{:?}", iv)));
@@ -260,7 +260,7 @@ impl KeyFileCrypto {
 	/// `c` - number of iterations for derived key.
 	/// `salt` - cryptographic site, random 256-bit hash (ensure it's crypto-random).
 	/// `iv` - initialisation vector.
-	pub fn new_pbkdf2(cipher_text: Bytes, iv: U128, salt: H256, c: u32, dk_len: u32) -> KeyFileCrypto {
+	pub fn new_pbkdf2(cipher_text: Bytes, iv: H128, salt: H256, c: u32, dk_len: u32) -> KeyFileCrypto {
 		KeyFileCrypto {
 			cipher_type: CryptoCipherType::Aes128Ctr(iv),
 			cipher_text: cipher_text,
@@ -331,7 +331,7 @@ enum CryptoParseError {
 	InvalidCipherType(Mismatch<String>),
 	NoInitialVector,
 	NoCipherParameters,
-	InvalidInitialVector(FromHexError),
+	InvalidInitialVector(UtilError),
 	NoKdf,
 	NoKdfType,
 	Scrypt(ScryptParseError),
@@ -832,14 +832,14 @@ mod file_tests {
 	#[test]
 	fn can_create_key_with_new_id() {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
-		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32));
+		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), 32, 32));
 		assert!(!uuid_to_string(&key.id).is_empty());
 	}
 
 	#[test]
 	fn can_load_json_from_itself() {
 		let cipher_text: Bytes = FromHex::from_hex("aaaaaaaaaaaaaaaaaaaaaaaaaaa22222222222222222222222").unwrap();
-		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32));
+		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), 32, 32));
 		let json = key.to_json();
 
 		let loaded_key = KeyFileContent::from_json(&json).unwrap();
@@ -997,7 +997,7 @@ mod directory_tests {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
-		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32))).unwrap();
+		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), 32, 32))).unwrap();
 		let path = directory.key_path(&uuid);
 
 		let key = KeyDirectory::load_key(&path).unwrap();
@@ -1013,7 +1013,7 @@ mod directory_tests {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let mut keys = Vec::new();
 		for _ in 0..1000 {
-			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32));
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), 32, 32));
 			keys.push(directory.save(key).unwrap());
 		}
 
@@ -1033,7 +1033,7 @@ mod directory_tests {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let mut keys = Vec::new();
 		for _ in 0..1000 {
-			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32));
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), 32, 32));
 			keys.push(directory.save(key).unwrap());
 		}
 
@@ -1066,7 +1066,7 @@ mod specs {
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
 
-		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32)));
+		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), 32, 32)));
 
 		assert!(uuid.is_ok());
 	}
@@ -1076,7 +1076,7 @@ mod specs {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
-		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32))).unwrap();
+		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), 32, 32))).unwrap();
 
 		let key = directory.get(&uuid).unwrap();
 
@@ -1091,7 +1091,7 @@ mod specs {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let mut keys = Vec::new();
 		for _ in 0..10 {
-			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32));
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), 32, 32));
 			keys.push(directory.save(key).unwrap());
 		}
 
