@@ -1150,6 +1150,7 @@ mod specs {
 	}
 
 	#[test]
+	#[no_debug]
 	fn can_list_keys() {
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
