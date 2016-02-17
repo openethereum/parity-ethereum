@@ -517,7 +517,7 @@ impl KeyDirectory {
 			let cache = self.cache.borrow();
 			cache.keys().cloned().filter(|key| !uniqs.contains(key)).collect()
 		};
-		if removes.is_empty() { return }
+		if removes.is_empty() { return; }
 		let mut cache = self.cache.borrow_mut();
 		for key in removes { cache.remove(&key); }
 	}
@@ -1092,6 +1092,14 @@ mod directory_tests {
 		directory.collect_garbage();
 		// since all keys are different, should be exactly MAX_CACHE_USAGE_TRACK
 		assert_eq!(MAX_CACHE_USAGE_TRACK, directory.cache_size())
+	}
+
+	#[test]
+	fn collects_garbage_on_empty() {
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+		directory.collect_garbage();
+		assert_eq!(0, directory.cache_size())
 	}
 }
 
