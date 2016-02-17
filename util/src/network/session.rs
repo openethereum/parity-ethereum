@@ -231,7 +231,11 @@ impl Session {
 				try!(self.read_hello(&rlp, host));
 				Ok(SessionData::Ready)
 			},
-			PACKET_DISCONNECT => Err(From::from(NetworkError::Disconnect(DisconnectReason::DisconnectRequested))),
+			PACKET_DISCONNECT => {
+				let rlp = UntrustedRlp::new(&packet.data[1..]);
+				let reason: u8 = try!(rlp.val_at(0));
+				Err(From::from(NetworkError::Disconnect(DisconnectReason::from_u8(reason))))
+			}
 			PACKET_PING => {
 				try!(self.send_pong());
 				Ok(SessionData::None)
