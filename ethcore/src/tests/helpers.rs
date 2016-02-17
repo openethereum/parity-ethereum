@@ -224,7 +224,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 	let temp = RandomTempPath::new();
 	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
 	for block_order in 1..block_number {
-		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()), &[]);
+		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()), vec![]);
 	}
 
 	GuardedTempResult::<BlockChain> {
@@ -237,7 +237,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 	let temp = RandomTempPath::new();
 	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
 	for block_order in 1..block_number {
-		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), &[]);
+		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None), vec![]);
 	}
 
 	GuardedTempResult::<BlockChain> {

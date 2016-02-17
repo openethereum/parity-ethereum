@@ -33,7 +33,9 @@ use env_info::LastHashes;
 use verification::*;
 use block::*;
 use transaction::LocalizedTransaction;
-use extras::TransactionAddress;
+use extras::{TransactionAddress, BlockReceipts};
+use filter::Filter;
+use log_entry::LocalizedLogEntry;
 pub use blockchain::TreeRoute;
 
 /// Uniquely identifies block.
@@ -147,6 +149,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
+
+	/// Returns logs matching given filter.
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -307,7 +312,7 @@ impl Client {
 
 			good_blocks.push(header.hash().clone());
 
-			self.chain.write().unwrap().insert_block(&block.bytes, result.block().receipts()); //TODO: err here?
+			self.chain.write().unwrap().insert_block(&block.bytes, result.block().receipts().clone()); //TODO: err here?
 			let ancient = if header.number() >= HISTORY { Some(header.number() - HISTORY) } else { None };
 			match result.drain().commit(header.number(), &header.hash(), ancient.map(|n|(n, self.chain.read().unwrap().block_hash(n).unwrap()))) {
 				Ok(_) => (),
@@ -473,6 +478,50 @@ impl BlockChainClient for Client {
 			(Some(from), Some(to)) => Some(self.chain.read().unwrap().blocks_with_bloom(bloom, from, to)),
 			_ => None
 		}
+	}
+
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let mut blocks = filter.bloom_possibilities().iter()
+			.map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
+			.filter_map(|m| m)
+			.flat_map(|m| m)
+			// remove duplicate elements
+			.collect::<HashSet<u64>>()
+			.into_iter()
+			.collect::<Vec<u64>>();
+
+		blocks.sort();
+
+		blocks.into_iter()
+			.map(|number| self.chain.read().unwrap().block_hash(number).map(|hash| (number, hash)))
+			.filter_map(|m| m)
+			.map(|(number, hash)| self.chain.read().unwrap().block_receipts(&hash).map(|r| (number, hash, r.receipts)))
+			.filter_map(|m| m)
+			.map(|(number, hash, receipts)| {
+				let mut log_index = 0;
+				receipts.into_iter()
+					.enumerate()
+					.map(|(index, receipt)| {
+						log_index += receipt.logs.len();
+						receipt.logs.into_iter()
+							.enumerate()
+							.filter(|tuple| filter.matches(&tuple.1))
+						 	.map(|(i, log)| LocalizedLogEntry {
+							 	entry: log,
+								block_hash: hash.clone(),
+								block_number: number as usize,
+								transaction_hash: H256::new(),
+								transaction_index: index,
+								log_index: log_index
+							})
+							.collect::<Vec<LocalizedLogEntry>>()
+					})
+					.flat_map(|m| m)
+					.collect::<Vec<LocalizedLogEntry>>()
+					
+			})
+			.flat_map(|m| m)
+			.collect()
 	}
 }
 

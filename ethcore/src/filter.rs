@@ -17,26 +17,27 @@
 use util::hash::*;
 use util::sha3::*;
 use client::BlockId;
+use log_entry::LogEntry;
 
 /// Blockchain log filter data.
 pub struct Filter {
 	/// Blockchain will be searched from this block.
-	from_block: BlockId,
+	pub from_block: BlockId,
 
 	/// Till this block.
-	to_block: BlockId,
+	pub to_block: BlockId,
 
 	/// Search addresses. 
 	/// 
 	/// If None, match all.
 	/// If specified, log must be produced by one of these addresses.
-	address: Option<Vec<Address>>,
+	pub address: Option<Vec<Address>>,
 
 	/// Search topics.
 	/// 
 	/// If None, match all.
 	/// If specified, log must contain one of these topics.
-	topics: [Option<Vec<H256>>; 4]
+	pub topics: [Option<Vec<H256>>; 4]
 }
 
 impl Filter {
@@ -63,6 +64,23 @@ impl Filter {
 			}).flat_map(|m| m).collect()
 		})
 	}
+
+	/// Returns true if given log entry matches filter.
+	pub fn matches(&self, log: &LogEntry) -> bool {
+		let matches = match self.address {
+			Some(ref addresses) if !addresses.is_empty() =>	addresses.iter().fold(false, |res, address| {
+				res || &log.address == address
+			}),
+			_ => true
+		};
+
+		matches && self.topics.iter().enumerate().fold(true, |res, (i, topic)| match *topic {
+			Some(ref topics) if !topics.is_empty() => res && topics.iter().fold(false, | acc, topic | {
+				acc || log.topics.get(i) == Some(topic)
+			}),
+			_ => res,
+		})
+	}
 }
 
 #[cfg(test)]
@@ -71,6 +89,7 @@ mod tests {
 	use util::hash::*;
 	use filter::Filter;
 	use client::BlockId;
+	use log_entry::LogEntry;
 
 	#[test]
 	fn test_bloom_possibilities_none() {
@@ -149,4 +168,49 @@ mod tests {
 		assert_eq!(possibilities[0], H2048::from_str("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000004000000004000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000").unwrap());
 	}
 
+	#[test]
+	fn test_filter_matches() {
+		let filter = Filter {
+			from_block: BlockId::Earliest,
+			to_block: BlockId::Latest,
+			address: Some(vec![Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap()]),
+			topics: [
+				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap()]),
+				Some(vec![H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23fa").unwrap()]),
+				None, None
+			]
+		};
+
+		let entry0 = LogEntry {
+			address: Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap(),
+			topics: vec![
+				H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap(),
+				H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23fa").unwrap(),
+				H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap(),
+			],
+			data: vec![]
+		};
+
+		let entry1 = LogEntry {
+			address: Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5e").unwrap(),
+			topics: vec![
+				H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap(),
+				H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23fa").unwrap(),
+				H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap(),
+			],
+			data: vec![]
+		};
+
+		let entry2 = LogEntry {
+			address: Address::from_str("b372018f3be9e171df0581136b59d2faf73a7d5d").unwrap(),
+			topics: vec![
+				H256::from_str("ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9").unwrap(),
+			],
+			data: vec![]
+		};
+
+		assert_eq!(filter.matches(&entry0), true);
+		assert_eq!(filter.matches(&entry1), false);
+		assert_eq!(filter.matches(&entry2), false);
+	}
 }
