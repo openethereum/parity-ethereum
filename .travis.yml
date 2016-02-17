@@ -11,7 +11,7 @@ branches:
 matrix:
   fast_finish: true
   include:
-  - rust: nightly-2016-02-12
+  - rust: nightly-2016-02-14
     env: FEATURES="--features ethcore/json-tests" KCOV_FEATURES="" TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity" ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
 cache:
   apt: true
