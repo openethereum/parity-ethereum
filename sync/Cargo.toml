@@ -7,6 +7,9 @@ authors = ["Ethcore <admin@ethcore.io"]
 
 [lib]
 
+[features]
+coverage = []
+
 [dependencies]
 ethcore-util = { path = "../util" }
 ethcore = { path = ".." }

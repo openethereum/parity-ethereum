@@ -23,6 +23,7 @@ target_info = "0.1"
 [features]
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
+coverage = ["ethcore-util/coverage", "ethcore/coverage", "ethsync/coverage", "ethcore-rpc/coverage"]
 
 [[bin]]
 path = "parity/main.rs"
