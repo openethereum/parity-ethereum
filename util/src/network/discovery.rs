@@ -361,24 +361,21 @@ impl Discovery {
 			debug!(target: "discovery", "Expired ping");
 			return Err(NetworkError::Expired);
 		}
-		let mut entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
-		if !entry.endpoint.is_valid() {
-			debug!(target: "discovery", "Got bad address: {:?}, using {:?} instead", entry, from);
-			entry.endpoint.address = from.clone();
+		let mut added_map = HashMap::new();
+		let entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
+		if !entry.endpoint.is_valid() || !entry.endpoint.is_global() {
+			debug!(target: "discovery", "Got bad address: {:?}", entry);
 		}
-		if !entry.endpoint.is_global() {
-			debug!(target: "discovery", "Got local address: {:?}, using {:?} instead", entry, from);
-			entry.endpoint.address = from.clone();
+		else {
+			self.update_node(entry.clone());
+			added_map.insert(node.clone(), entry); 
 		}
-		self.update_node(entry.clone());
 		let hash = rlp.as_raw().sha3();
 		let mut response = RlpStream::new_list(2);
 		dest.to_rlp_list(&mut response);
 		response.append(&hash);
-		self.send_packet(PACKET_PONG, &entry.endpoint.udp_address(), &response.drain());
+		self.send_packet(PACKET_PONG, from, &response.drain());
 		
-		let mut added_map = HashMap::new();
-		added_map.insert(node.clone(), entry); 
 		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
 	}
 
