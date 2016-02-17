@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
-use std::collections::HashSet;
 use std::sync::Arc;
 use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
@@ -26,7 +25,7 @@ use ethcore::client::*;
 use ethcore::views::*;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -202,18 +201,11 @@ impl Eth for EthClient {
 	fn logs(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
-				let possibilities = filter.bloom_possibilities();
-				let from = filter.from_block.map_or_else(|| BlockId::Earliest, Into::into);
-				let to = filter.to_block.map_or_else(|| BlockId::Latest, Into::into);
-				let mut blocks: Vec<u64> = possibilities.iter()
-					.map(|bloom| self.client.blocks_with_bloom(bloom, from.clone(), to.clone()))
-					.filter_map(|m| m)
-					.flat_map(|m| m)
-					.collect::<HashSet<u64>>()
+				let logs = self.client.logs(filter.into())
 					.into_iter()
-					.collect();
-				blocks.sort();
-				to_value(&blocks)
+					.map(From::from)
+					.collect::<Vec<Log>>();
+				to_value(&logs)
 			})
 	}
 }

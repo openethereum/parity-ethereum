@@ -14,12 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Blockchain filter
+
 use util::hash::*;
 use util::sha3::*;
 use client::BlockId;
 use log_entry::LogEntry;
 
-/// Blockchain log filter data.
+/// Blockchain Filter.
 pub struct Filter {
 	/// Blockchain will be searched from this block.
 	pub from_block: BlockId,

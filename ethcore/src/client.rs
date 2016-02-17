@@ -33,7 +33,7 @@ use env_info::LastHashes;
 use verification::*;
 use block::*;
 use transaction::LocalizedTransaction;
-use extras::{TransactionAddress, BlockReceipts};
+use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 pub use blockchain::TreeRoute;
@@ -512,7 +512,7 @@ impl BlockChainClient for Client {
 								block_number: number as usize,
 								transaction_hash: H256::new(),
 								transaction_index: index,
-								log_index: log_index
+								log_index: log_index + i
 							})
 							.collect::<Vec<LocalizedLogEntry>>()
 					})

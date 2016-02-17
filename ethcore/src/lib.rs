@@ -102,8 +102,10 @@ pub mod block_queue;
 pub mod client;
 pub mod error;
 pub mod ethereum;
+pub mod filter;
 pub mod header;
 pub mod service;
+pub mod log_entry;
 pub mod spec;
 pub mod transaction;
 pub mod views;
@@ -112,7 +114,6 @@ pub mod receipt;
 mod common;
 mod basic_types;
 #[macro_use] mod evm;
-mod log_entry;
 mod env_info;
 mod pod_account;
 mod pod_state;
@@ -131,7 +132,6 @@ mod substate;
 mod executive;
 mod externalities;
 mod verification;
-mod filter;
 
 #[cfg(test)]
 mod tests;
