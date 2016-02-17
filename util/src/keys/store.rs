@@ -145,7 +145,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 		// KECCAK(DK[16..31] ++ <ciphertext>), where DK[16..31] - derived_right_bits
 		let mac = derive_mac(&derived_right_bits, &cipher_text.clone()).sha3();
 
-		let key_file = KeyFileContent::new(
+		let mut key_file = KeyFileContent::new(
 			KeyFileCrypto::new_pbkdf2(
 				cipher_text,
 				iv,
@@ -153,6 +153,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 				mac,
 				KEY_ITERATIONS,
 				KEY_LENGTH));
+		key_file.id = key;
 		if let Err(io_error) = self.directory.save(key_file) {
 			warn!("Error saving key file: {:?}", io_error);
 		}
@@ -210,7 +211,10 @@ mod tests {
 		let temp = RandomTempPath::create_dir();
 		let mut sstore = SecretStore::new_test(&temp);
 
-		sstore.insert(H128::random(), "Cat".to_owned(), "pass");
+		let id = H128::random();
+		sstore.insert(id.clone(), "Cat".to_owned(), "pass");
+
+		assert!(sstore.get::<String>(&id, "pass").is_ok());
 	}
 
 	#[test]
@@ -236,6 +240,25 @@ mod tests {
 		}
 	}
 
+	fn pregenerate_keys(temp: &RandomTempPath, count: usize) -> Vec<H128> {
+		use keys::directory::{KeyFileContent, KeyFileCrypto};
+		let mut write_sstore = SecretStore::new_test(&temp);
+		let mut result = Vec::new();
+		for _ in 0..count {
+			result.push(write_sstore.directory.save(
+				KeyFileContent::new(
+					KeyFileCrypto::new_pbkdf2(
+						FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46").unwrap(),
+						H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
+						H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap(),
+						H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
+						262144,
+						32)))
+				.unwrap());
+		}
+		result
+	}
+
 	#[test]
 	fn secret_store_get() {
 		let temp = RandomTempPath::create_dir();
@@ -257,6 +280,17 @@ mod tests {
 		if let Err(e) = sstore.get::<Bytes>(&key_id, "testpassword") {
 			panic!("got no key: {:?}", e);
 		}
+	}
+
+	#[test]
+	fn secret_store_delete() {
+		let temp = RandomTempPath::create_dir();
+		let keys = pregenerate_keys(&temp, 5);
+
+		let mut sstore = SecretStore::new_test(&temp);
+		sstore.delete(&keys[2]);
+
+		assert_eq!(4, sstore.directory.list().unwrap().len())
 	}
 
 

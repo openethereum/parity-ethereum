@@ -546,6 +546,24 @@ impl KeyDirectory {
 		Ok(())
 	}
 
+	/// Enumerates all keys in the directory
+	pub fn list(&self) -> Result<Vec<Uuid>, ::std::io::Error> {
+		let mut result = Vec::new();
+		for entry in try!(fs::read_dir(&self.path)) {
+			let entry = try!(entry);
+			if !try!(fs::metadata(entry.path())).is_dir() {
+				match entry.file_name().to_str() {
+					Some(ref name) => {
+						if let Ok(uuid) = uuid_from_string(name) { result.push(uuid); }
+					},
+					None => { continue; }
+				};
+
+			}
+		}
+		Ok(result)
+	}
+
 	fn key_path(&self, id: &Uuid) -> PathBuf {
 		let mut path = PathBuf::new();
 		path.push(self.path.clone());
@@ -1129,5 +1147,20 @@ mod specs {
 		}
 
 		assert_eq!(10, keys.len())
+	}
+
+	#[test]
+	fn can_list_keys() {
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+
+		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
+		let mut keys = Vec::new();
+		for _ in 0..33 {
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), H256::random(), 32, 32));
+			keys.push(directory.save(key).unwrap());
+		}
+
+		assert_eq!(33, directory.list().unwrap().len());
 	}
 }
