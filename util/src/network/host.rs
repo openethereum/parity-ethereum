@@ -46,8 +46,8 @@ type Slab<T> = ::slab::Slab<T, usize>;
 
 const _DEFAULT_PORT: u16 = 30304;
 const MAX_SESSIONS: usize = 1024;
-const MAX_HANDSHAKES: usize = 64;
-const MAX_HANDSHAKES_PER_ROUND: usize = 8;
+const MAX_HANDSHAKES: usize = 80;
+const MAX_HANDSHAKES_PER_ROUND: usize = 32;
 const MAINTENANCE_TIMEOUT: u64 = 1000;
 
 #[derive(Debug)]
@@ -976,4 +976,14 @@ fn key_save_load() {
 	save_key(temp_path.as_path(), &key);
 	let r = load_key(temp_path.as_path());
 	assert_eq!(key, r.unwrap());
+}
+
+
+#[test]
+fn host_client_url() {
+	let mut config = NetworkConfiguration::new();
+	let key = h256_from_hex("6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2");
+	config.use_secret = Some(key);
+	let host: Host<u32> = Host::new(config);
+	assert!(host.client_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
 }

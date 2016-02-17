@@ -68,7 +68,7 @@ pub struct Handshake {
 
 const AUTH_PACKET_SIZE: usize = 307;
 const ACK_PACKET_SIZE: usize = 210;
-const HANDSHAKE_TIMEOUT: u64 = 30000;
+const HANDSHAKE_TIMEOUT: u64 = 5000;
 
 impl Handshake {
 	/// Create a new handshake object
