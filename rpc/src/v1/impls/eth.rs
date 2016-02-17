@@ -210,7 +210,6 @@ impl Eth for EthClient {
 	}
 }
 
-
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
 	client: Arc<Client>
