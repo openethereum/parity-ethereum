@@ -80,7 +80,7 @@ impl Factory {
 			VMType::Interpreter => {
 				Box::new(super::interpreter::Interpreter)
 			}
-		}	
+		}
 	}
 
 	/// Create fresh instance of VM
@@ -90,7 +90,7 @@ impl Factory {
 			VMType::Interpreter => {
 				Box::new(super::interpreter::Interpreter)
 			}
-		}	
+		}
 	}
 
 	/// Create new instance of specific `VMType` factory
@@ -131,6 +131,7 @@ macro_rules! evm_test(
 		#[test]
 		#[ignore]
 		#[cfg(feature = "jit")]
+		#[cfg_attr(feature = "coverage", no_debug)]
 		fn $name_jit() {
 			$name_test(Factory::new(VMType::Jit));
 		}
@@ -142,6 +143,7 @@ macro_rules! evm_test(
 	($name_test: ident: $name_jit: ident, $name_int: ident) => {
 		#[test]
 		#[cfg(feature = "jit")]
+		#[cfg_attr(feature = "coverage", no_debug)]
 		fn $name_jit() {
 			$name_test(Factory::new(VMType::Jit));
 		}
@@ -160,12 +162,14 @@ macro_rules! evm_test_ignore(
 		#[ignore]
 		#[cfg(feature = "jit")]
 		#[cfg(feature = "ignored-tests")]
+		#[cfg_attr(feature = "coverage", no_debug)]
 		fn $name_jit() {
 			$name_test(Factory::new(VMType::Jit));
 		}
 		#[test]
 		#[ignore]
 		#[cfg(feature = "ignored-tests")]
+		#[cfg_attr(feature = "coverage", no_debug)]
 		fn $name_int() {
 			$name_test(Factory::new(VMType::Interpreter));
 		}
