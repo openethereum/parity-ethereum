@@ -300,6 +300,7 @@ impl FromRawBytes for Vec<u8> {
 }
 
 #[test]
+#[cfg_attr(feature = "coverage", no_debug)]
 fn fax_raw() {
 	let mut x = [255u8; 4];
 	x.copy_raw(&[1u8; 2][..]);
@@ -310,6 +311,7 @@ fn fax_raw() {
 }
 
 #[test]
+#[cfg_attr(feature = "coverage", no_debug)]
 fn populate_raw() {
 	let mut x = [255u8; 4];
 	x.populate_raw(&[1u8; 2][..]);
@@ -320,6 +322,7 @@ fn populate_raw() {
 }
 
 #[test]
+#[cfg_attr(feature = "coverage", no_debug)]
 fn populate_raw_dyn() {
 	let mut x = [255u8; 4];
 	x.populate_raw(&[1u8; 2][..]);
@@ -330,6 +333,7 @@ fn populate_raw_dyn() {
 }
 
 #[test]
+#[cfg_attr(feature = "coverage", no_debug)]
 fn fax_raw_dyn() {
 	let mut x = [255u8; 4];
 	x.copy_raw(&[1u8; 2][..]);
@@ -340,6 +344,7 @@ fn fax_raw_dyn() {
 }
 
 #[test]
+#[cfg_attr(feature = "coverage", no_debug)]
 fn populate_big_types() {
 	use hash::*;
 	let a = address_from_hex("ffffffffffffffffffffffffffffffffffffffff");

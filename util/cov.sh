@@ -1,9 +1,10 @@
+#!/usr/bin/env bash
 if ! type kcov > /dev/null; then
    	echo "Install kcov first (details inside this file). Aborting."
 	exit 1
 fi
 
-cargo test --no-run || exit $?
+cargo test --features="coverage" --no-run || exit $?
 mkdir -p target/coverage
-kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1 --include-pattern src --verify target/coverage target/debug/ethcore_util*
+kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1,src/tests,src/error,src/network/tests,src/rlp/tests,json-tests/src --include-pattern src --verify target/coverage target/debug/ethcore_util*
 xdg-open target/coverage/index.html
