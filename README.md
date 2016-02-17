@@ -2,10 +2,10 @@
 
 [![Build Status][travis-image]][travis-url] [![Coverage Status][coveralls-image]][coveralls-url] [![Join the chat at https://gitter.im/trogdoro/xiki][gitter-image]][gitter-url]
 
-[travis-image]: https://travis-ci.org/ethcore/parity.svg?branch=master
+[travis-image]: https://travis-ci.org/ethcore/parity.svg?branch=beta
 [travis-url]: https://travis-ci.org/ethcore/parity
-[coveralls-image]: https://coveralls.io/repos/github/ethcore/parity/badge.svg?branch=master
-[coveralls-url]: https://coveralls.io/github/ethcore/parity?branch=master
+[coveralls-image]: https://coveralls.io/repos/github/ethcore/parity/badge.svg?branch=beta
+[coveralls-url]: https://coveralls.io/github/ethcore/parity?branch=beta
 [gitter-image]: https://badges.gitter.im/Join%20Chat.svg
 [gitter-url]: https://gitter.im/ethcore/parity?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 
@@ -25,11 +25,11 @@ apt-get install -y --force-yes librocksdb-dev
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
 
 # install nightly and make it default
-multirust update nightly
-multirust default nightly
+multirust update nightly-2016-02-14
+multirust default nightly-2016-02-14
 
 # download and build parity
-git clone https://github.com/ethcore/parity
+git clone -b beta https://github.com/ethcore/parity
 cd parity
 cargo build --release
 ```
@@ -49,11 +49,11 @@ cd ..
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
 
 # install nightly and make it default
-sudo multirust update nightly
-sudo multirust default nightly
+sudo multirust update nightly-2016-02-14
+sudo multirust default nightly-2016-02-14
 
 # download and build parity
-git clone https://github.com/ethcore/parity
+git clone -b beta https://github.com/ethcore/parity
 cd parity
 cargo build --release
 ```
@@ -67,10 +67,10 @@ brew install rocksdb
 brew install multirust
 
 # install nightly and make it default
-multirust update nightly && multirust default nightly
+multirust update nightly-2016-02-14 && multirust default nightly-2016-02-14
 
 # download and build parity
-git clone https://github.com/ethcore/parity
+git clone -b beta https://github.com/ethcore/parity
 cd parity
 cargo build --release
 ```
