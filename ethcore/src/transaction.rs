@@ -40,7 +40,7 @@ impl Decodable for Action {
 		match rlp.is_empty() {
 			true => Ok(Action::Create),
 			false => Ok(Action::Call(try!(rlp.as_val())))
-		} 
+		}
 	}
 }
 
@@ -98,10 +98,10 @@ impl FromJson for SignedTransaction {
 				v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
 				r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
 				s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
-				hash: RefCell::new(None),
+				hash: RwLock::new(None),
 				sender: match json.find("sender") {
-					Some(&Json::String(ref sender)) => RefCell::new(Some(address_from_hex(clean(sender)))),
-					_ => RefCell::new(None),
+					Some(&Json::String(ref sender)) => RwLock::new(Some(address_from_hex(clean(sender)))),
+					_ => RwLock::new(None),
 				}
 			}
 		}
@@ -110,7 +110,7 @@ impl FromJson for SignedTransaction {
 
 impl Transaction {
 	/// The message hash of the transaction.
-	pub fn hash(&self) -> H256 { 
+	pub fn hash(&self) -> H256 {
 		let mut stream = RlpStream::new();
 		self.rlp_append_unsigned_transaction(&mut stream);
 		stream.out().sha3()
@@ -125,8 +125,8 @@ impl Transaction {
 			r: r,
 			s: s,
 			v: v + 27,
-			hash: RefCell::new(None),
-			sender: RefCell::new(None)
+			hash: RwLock::new(None),
+			sender: RwLock::new(None)
 		}
 	}
 
@@ -138,8 +138,8 @@ impl Transaction {
 			r: U256::zero(),
 			s: U256::zero(),
 			v: 0,
-			hash: RefCell::new(None),
-			sender: RefCell::new(None)
+			hash: RwLock::new(None),
+			sender: RwLock::new(None)
 		}
 	}
 
@@ -158,7 +158,7 @@ impl Transaction {
 }
 
 /// Signed transaction information.
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug)]
 pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
@@ -169,14 +169,33 @@ pub struct SignedTransaction {
 	/// The S field of the signature; helps describe the point on the curve.
 	s: U256,
 	/// Cached hash.
-	hash: RefCell<Option<H256>>,
+	hash: RwLock<Option<H256>>,
 	/// Cached sender.
-	sender: RefCell<Option<Address>>
+	sender: RwLock<Option<Address>>
 }
 
+impl Eq for SignedTransaction {}
 impl PartialEq for SignedTransaction {
 	fn eq(&self, other: &SignedTransaction) -> bool {
 		self.unsigned == other.unsigned && self.v == other.v && self.r == other.r && self.s == other.s
+	}
+}
+impl Clone for SignedTransaction {
+	fn clone(&self) -> Self {
+		let hash = self.hash.try_read()
+			.map(|g| g.deref().clone())
+			.unwrap_or_else(|_e| None);
+		let sender = self.sender.try_read()
+			.map(|g| g.deref().clone())
+			.unwrap_or_else(|_e| None);
+		SignedTransaction {
+			unsigned: self.unsigned.clone(),
+			v: self.v,
+			r: self.r,
+			s: self.s,
+			hash: RwLock::new(hash),
+			sender: RwLock::new(sender)
+		}
 	}
 }
 
@@ -206,8 +225,8 @@ impl Decodable for SignedTransaction {
 			v: try!(d.val_at(6)),
 			r: try!(d.val_at(7)),
 			s: try!(d.val_at(8)),
-			hash: RefCell::new(None),
-			sender: RefCell::new(None),
+			hash: RwLock::new(None),
+			sender: RwLock::new(None),
 		})
 	}
 }
@@ -236,14 +255,21 @@ impl SignedTransaction {
 
 	/// Get the hash of this header (sha3 of the RLP).
 	pub fn hash(&self) -> H256 {
- 		let mut hash = self.hash.borrow_mut();
- 		match &mut *hash {
- 			&mut Some(ref h) => h.clone(),
- 			hash @ &mut None => {
- 				*hash = Some(self.rlp_sha3());
- 				hash.as_ref().unwrap().clone()
- 			}
+		{
+			let hash = self.hash.read().unwrap();
+			if let Some(ref h) = *hash.deref() {
+				return h.clone();
+			}
 		}
+
+		let mut hash = self.hash.write().unwrap();
+		// To make sure we calculate only once
+		if let Some(ref h) = *hash.deref() {
+			return h.clone();
+		}
+		let hash_val = self.rlp_sha3();
+		*hash = Some(hash_val.clone());
+		hash_val
 	}
 
 	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
@@ -263,14 +289,20 @@ impl SignedTransaction {
 
 	/// Returns transaction sender.
 	pub fn sender(&self) -> Result<Address, Error> {
- 		let mut sender = self.sender.borrow_mut();
- 		match &mut *sender {
- 			&mut Some(ref h) => Ok(h.clone()),
- 			sender @ &mut None => {
- 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3()));
- 				Ok(sender.as_ref().unwrap().clone())
- 			}
+		{
+			let sender = self.sender.read().unwrap();
+			if let Some(ref res) = *sender.deref() {
+				return Ok(res.clone());
+			}
 		}
+		let mut sender = self.sender.write().unwrap();
+		// To make sure we calculate only once
+		if let Some(ref res) = *sender.deref() {
+			return Ok(res.clone());
+		}
+		let sender_val = Address::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3());
+		*sender = Some(sender_val.clone());
+		Ok(sender_val)
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,

@@ -67,6 +67,7 @@ use io::NetSyncIo;
 mod chain;
 mod io;
 mod range_collection;
+mod transaction_queue;
 
 #[cfg(test)]
 mod tests;

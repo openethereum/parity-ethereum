@@ -48,7 +48,7 @@ impl Block {
 		if urlp.at(1).unwrap().iter().find(|i| i.as_val::<Transaction>().is_err()).is_some() {
 			return false;
 		}
-		
+
 		if !urlp.at(2).unwrap().is_list() { return false; }
 		if urlp.at(2).unwrap().iter().find(|i| i.as_val::<Header>().is_err()).is_some() {
 			return false;
@@ -61,7 +61,7 @@ impl Block {
 impl Decodable for Block {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		if decoder.as_raw().len() != try!(decoder.as_rlp().payload_info()).total() {
-			return Err(DecoderError::RlpIsTooBig);	
+			return Err(DecoderError::RlpIsTooBig);
 		}
 		let d = decoder.as_rlp();
 		if d.item_count() != 3 {
@@ -87,7 +87,7 @@ pub struct ExecutedBlock {
 	state: State,
 }
 
-/// A set of references to `ExecutedBlock` fields that are publicly accessible. 
+/// A set of references to `ExecutedBlock` fields that are publicly accessible.
 pub struct BlockRefMut<'a> {
 	/// Block header.
 	pub header: &'a Header,

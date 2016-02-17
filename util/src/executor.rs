@@ -19,6 +19,7 @@
 extern crate eventual;
 pub use self::eventual::*;
 
+use std::boxed::FnBox;
 use std::cmp::{Ord, Ordering};
 use std::collections::binary_heap::BinaryHeap;
 use std::marker::PhantomData;
@@ -26,42 +27,48 @@ use std::sync::{atomic, Arc, Condvar, Mutex};
 use std::thread::{JoinHandle, spawn};
 
 #[macro_export]
-macro_rules! ordering_for {
-	($type_: ident using $field_: ident) => {
-		impl Ord for $type_ {
-			fn cmp(&self, other: &$type_) -> Ordering {
-				self.$field_.cmp(&other.$field_)
+macro_rules! trivial_ordering {
+	($t:ident by $cmp:expr) => {
+		impl Eq for $t {}
+		impl PartialEq for $t {
+			fn eq(&self, other: &$t) -> bool {
+				self.cmp(other) == Ordering::Equal
 			}
 		}
-		impl PartialOrd for $type_ {
-			fn partial_cmp(&self, other: &$type_) -> Option<Ordering> {
-				self.$field_.partial_cmp(&other.$field_)
+		impl Ord for $t {
+			fn cmp(&self, other: &$t) -> Ordering {
+				$cmp(self, other)
 			}
 		}
-		impl Eq for $type_ {}
-		impl PartialEq for $type_ {
-			fn eq(&self, other: &$type_) -> bool {
-				self.$field_.eq(&other.$field_)
+		impl PartialOrd for $t {
+			fn partial_cmp(&self, other: &$t) -> Option<Ordering> {
+				Some(self.cmp(other))
 			}
 		}
 	}
 }
 
 /// Some work to be done in a thread pool
-pub trait Task: Ord + Send + 'static {
+pub trait Task: Send + 'static {
 	/// Task result
 	type Result: Send + 'static;
 	/// Task error
 	type Error: Send + 'static;
 
 	/// Actual computation to be done
-	fn call(&mut self) -> Result<Self::Result, Self::Error>;
+	fn call(self) -> Result<Self::Result, Self::Error>;
 }
 
 /// Abstraction over task execution
 pub trait Executor<T : Task> {
+	/// Returns number of elements waiting in queue
+	fn queued(&self) -> usize;
 	/// Add new task to be executed. Returns a `Future` result.
-	fn execute(&mut self, task: T) -> Future<T::Result, T::Error>;
+	fn execute_with_priority(&self, task: T, priority: usize) -> Future<T::Result, T::Error>;
+	/// Add new task to be executed with default priority
+	fn execute(&self, task: T) -> Future<T::Result, T::Error> {
+		self.execute_with_priority(task, 1)
+	}
 }
 
 /// PriorityQueue of tasks waiting for execution
@@ -71,29 +78,70 @@ pub trait TaskQueue<T: Task>: Send + 'static {
 	/// Try to get `Task` that should be executed next.
 	/// Returns `None` if no more work is waiting in queue.
 	fn try_next(&mut self) -> Option<TaskQueueElement<T>>;
+	/// Returns the size of the queue
+	fn len(&self) -> usize;
+	/// Returns true if there are no items in queue
+	fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
 }
 
 /// Single element inside a `TaskQueue`. Represents
 pub struct TaskQueueElement<T: Task> {
 	/// Task
 	task: T,
+	/// Priority
+	priority: usize,
 	/// Task fulfillment or rejection handler
 	complete: Complete<T::Result, T::Error>
 }
 
+/// Type for tasks that are just closures
+pub struct ClosureTask<R, E>
+	where R: Send + 'static,
+		  E: Send + 'static {
+	closure: Box<FnBox() -> Result<R, E> + Send>,
+}
+
 // Implementations
+/// Utility structure to create possible executors.
 pub struct Executors;
 impl Executors {
+
+	/// Creates new `Task` from a closure.
+	///
+	/// Essential to have type correctness without implementing `Task` trait on ones own.
+	pub fn task<R, E, F>(closure: F) -> ClosureTask<R, E>
+		where F: FnBox() -> Result<R, E> + Send + 'static,
+			  R: Send + 'static,
+			  E: Send + 'static {
+		ClosureTask {
+			closure: Box::new(closure)
+		}
+	}
+
+	/// Create executor that runs tasks synchronously.
 	pub fn same_thread() -> SameThreadExecutor {
 		SameThreadExecutor
 	}
 
-	pub fn thread_pool<T, Queue>(threads: usize, queue: Queue) -> ThreadPoolExecutor<T, Queue>
-		where T: Task, Queue : TaskQueue<T> {
+	/// Create executor that uses thread pool and priority queue to run tasks
+	pub fn thread_pool<T>(threads: usize) -> ThreadPoolExecutor<T, BinaryHeap<TaskQueueElement<T>>>
+		where T: Task {
+			let queue = BinaryHeap::new();
 			ThreadPoolExecutor::new(threads, queue)
 		}
+
+	/// Create executor with manual control over when the tasks are executed
+	pub fn manual<T>() -> ManualExecutor<T, BinaryHeap<TaskQueueElement<T>>>
+		where T: Task {
+			let queue = BinaryHeap::new();
+			ManualExecutor::new(queue)
+		}
+
 }
 
+/// Executor with thread pool
 pub struct ThreadPoolExecutor<T, Queue>
 	where T: Task, Queue: TaskQueue<T> {
 
@@ -107,6 +155,7 @@ pub struct ThreadPoolExecutor<T, Queue>
 impl<T, Queue> ThreadPoolExecutor<T, Queue>
 	where T: Task, Queue: TaskQueue<T> {
 
+	/// Creates new `ThreadPoolExecutor` with specified number of threads in pool and custom `Queue` implementation.
 	pub fn new(threads_num: usize, queue: Queue) -> ThreadPoolExecutor<T, Queue> {
 		assert!(threads_num > 0);
 
@@ -174,11 +223,17 @@ impl<T, Queue> Drop for ThreadPoolExecutor<T, Queue>
 impl<T, Queue> Executor<T> for ThreadPoolExecutor<T, Queue>
 	where T: Task, Queue: TaskQueue<T> {
 
-	fn execute(&mut self, task: T) -> Future<T::Result, T::Error> {
+	fn queued(&self) -> usize {
+		let q = self.queue.lock().unwrap();
+		q.len()
+	}
+
+	fn execute_with_priority(&self, task: T, priority: usize) -> Future<T::Result, T::Error> {
 		let (complete, future) = Future::pair();
 		let mut q = self.queue.lock().unwrap();
 		q.push(TaskQueueElement {
 			task: task,
+			priority: priority,
 			complete: complete,
 		});
 		self.wait.notify_one();
@@ -186,37 +241,107 @@ impl<T, Queue> Executor<T> for ThreadPoolExecutor<T, Queue>
 	}
 }
 
+/// Synchronous executor implementation
 pub struct SameThreadExecutor;
 impl<T: Task> Executor<T> for SameThreadExecutor {
 
-	fn execute(&mut self, mut task: T) -> Future<T::Result, T::Error> {
+	fn queued(&self) -> usize {
+		// Everything is run synchronously
+		0
+	}
+
+	fn execute_with_priority(&self, task: T, _priority: usize) -> Future<T::Result, T::Error> {
 		task.call()
 			.map(Future::of)
 			.unwrap_or_else(Future::error)
 	}
 }
 
+/// Manual executor. You can add tasks to it but you need to manually specify when the tasks should be invoked.
+pub struct ManualExecutor<T, Queue>
+	where T: Task, Queue: TaskQueue<T> {
+	queue: Mutex<Queue>,
+	_task: PhantomData<T>
+}
+
+impl<T, Queue> ManualExecutor<T, Queue>
+	where T: Task, Queue: TaskQueue<T> {
+
+	/// Returns new `ManualExecutor` with custom `Queue` implementation
+	pub fn new(queue: Queue) -> ManualExecutor<T, Queue> {
+		ManualExecutor {
+			queue: Mutex::new(queue),
+			_task: PhantomData
+		}
+	}
+
+	/// Execute specified number of tasks from queue.
+	///
+	/// Panics when requested to consume more than there is in queue.
+	pub fn consume(&self, amount: usize) {
+		let mut queue = self.queue.lock().unwrap();
+		for _i in 0..amount {
+			let work = queue.try_next().expect("Not enough items to consume.");
+			let result = work.consume();
+			match result {
+				(complete, Ok(res)) => complete.complete(res),
+				(complete, Err(err)) => complete.fail(err)
+			}
+		}
+	}
+}
+impl<T, Queue> Executor<T> for ManualExecutor<T, Queue>
+	where T: Task, Queue: TaskQueue<T> {
+
+	fn queued(&self) -> usize {
+		let q = self.queue.lock().unwrap();
+		q.len()
+	}
+
+	fn execute_with_priority(&self, task: T, priority: usize) -> Future<T::Result, T::Error> {
+		let (complete, future) = Future::pair();
+		let mut q = self.queue.lock().unwrap();
+		q.push(TaskQueueElement {
+			task: task,
+			priority: priority,
+			complete: complete,
+		});
+		future
+	}
+}
+
+// ClosureTask
+impl<R, E> Task for ClosureTask<R, E>
+	where R: Send + 'static,
+		  E: Send + 'static {
+	type Result = R;
+	type Error = E;
+
+	fn call(self) -> Result<Self::Result, Self::Error> {
+		(self.closure)()
+	}
+}
+
 // TaskQueueElement ordering
 impl<T: Task> TaskQueueElement<T> {
 	fn consume(self) -> (Complete<T::Result, T::Error>, Result<T::Result, T::Error>) {
-		let mut task = self.task;
-		(self.complete, task.call())
+		(self.complete, self.task.call())
 	}
 }
 impl<T: Task> Ord for TaskQueueElement<T> {
 	fn cmp(&self, other: &TaskQueueElement<T>) -> Ordering {
-		self.task.cmp(&other.task)
+		self.priority.cmp(&other.priority)
 	}
 }
 impl<T: Task> PartialOrd for TaskQueueElement<T> {
 	fn partial_cmp(&self, other: &TaskQueueElement<T>) -> Option<Ordering> {
-		self.task.partial_cmp(&other.task)
+		self.priority.partial_cmp(&other.priority)
 	}
 }
 impl<T: Task> Eq for TaskQueueElement<T> {}
 impl<T: Task> PartialEq for TaskQueueElement<T> {
 	fn eq(&self, other: &TaskQueueElement<T>) -> bool {
-		self.task.eq(&other.task)
+		self.priority.eq(&other.priority)
 	}
 }
 
@@ -229,46 +354,23 @@ impl<T: Task> TaskQueue<T> for BinaryHeap<TaskQueueElement<T>> {
 	fn try_next(&mut self) -> Option<TaskQueueElement<T>> {
 		self.pop()
 	}
+
+	fn len(&self) -> usize {
+		BinaryHeap::len(self)
+	}
 }
 
 #[cfg(test)]
 mod test {
 	use super::*;
-	use std::cmp::Ordering;
-	use std::collections::binary_heap::BinaryHeap;
-
-	pub struct TestTask {
-		priority: usize,
-		closure: Box<FnMut() -> Result<usize, ()> + Send + Sync>,
-	}
-
-	ordering_for!(TestTask using priority);
-
-	impl TestTask {
-		fn new<T>(closure: T) -> TestTask where T: FnMut() -> Result<usize, ()> + Send + Sync + 'static {
-			TestTask {
-				priority: 1,
-				closure: Box::new(closure)
-			}
-		}
-	}
-
-	impl Task for TestTask {
-		type Result = usize;
-		type Error = ();
-
-		fn call(&mut self) -> Result<Self::Result, Self::Error>{
-			(self.closure)()
-		}
-	}
 
 	#[test]
 	fn should_execute_task() {
 		// given
-		let mut e = Executors::same_thread();
+		let e = Executors::same_thread();
 
 		// when
-		let future = e.execute(TestTask::new(|| Ok(4)));
+		let future: Future<usize, ()> = e.execute(Executors::task(|| Ok(4)));
 
 		// then
 		assert_eq!(4, future.await().unwrap());
@@ -277,13 +379,30 @@ mod test {
 	#[test]
 	fn should_execute_task_in_thread_pool() {
 		// given
-		let queue = BinaryHeap::new();
-		let mut e = Executors::thread_pool(1, queue);
+		let e = Executors::thread_pool(1);
 
 		// when
-		let future = e.execute(TestTask::new(|| Ok(4)));
+		let future: Future<usize, ()> = e.execute(Executors::task(|| Ok(4)));
 
 		// then
 		assert_eq!(4, future.await().unwrap());
+	}
+
+	#[test]
+	fn should_execute_task_in_test_executor() {
+		// given
+		let e = Executors::test_executor();
+
+		// when
+		let future = e.execute(Executors::task(|| Ok(4)));
+		let future2 = e.execute(Executors::task(|| Ok(5)));
+		let future3 = e.execute(Executors::task(|| Err(6)));
+		assert_eq!(3, e.queued());
+		e.consume(3);
+
+		// then
+		assert_eq!(4, future.await().unwrap());
+		assert_eq!(5, future2.await().unwrap());
+		assert_eq!(6, future3.await().unwrap_err().unwrap());
 	}
 }
