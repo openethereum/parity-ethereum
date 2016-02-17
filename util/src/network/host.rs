@@ -374,11 +374,11 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		host.info.write().unwrap().deref_mut().listen_port = port;
 
 		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
-		for n in boot_nodes {
-			host.add_node(&n);
-		}
 		if let Some(ref mut discovery) = host.discovery {
 			discovery.lock().unwrap().init_node_list(host.nodes.read().unwrap().unordered_entries());
+		}
+		for n in boot_nodes {
+			host.add_node(&n);
 		}
 		host
 	}

@@ -149,6 +149,13 @@ impl Discovery {
 		}
 	}
 
+	fn clear_ping(&mut self, id: &NodeId) {
+		let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id, &id) as usize).unwrap();
+		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
+			node.timeout = None;
+		}
+	}
+
 	fn start(&mut self) {
 		trace!(target: "discovery", "Starting discovery");
 		self.discovery_round = 0;
@@ -388,10 +395,10 @@ impl Discovery {
 			debug!(target: "discovery", "Bad address: {:?}", entry);
 			entry.endpoint.address = from.clone();
 		}
-		self.update_node(entry.clone());
+		self.clear_ping(node);
 		let mut added_map = HashMap::new();
 		added_map.insert(node.clone(), entry); 
-		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
+		Ok(None)
 	}
 
 	fn on_find_node(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
