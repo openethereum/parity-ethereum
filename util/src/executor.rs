@@ -17,7 +17,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate eventual;
-pub use self::eventual::*;
+use self::eventual::Complete;
+pub use self::eventual::{Future, Async};
 
 use std::boxed::FnBox;
 use std::cmp::{Ord, Ordering};
