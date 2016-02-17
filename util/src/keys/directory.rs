@@ -510,19 +510,16 @@ impl KeyDirectory {
 			cache_usage.drain(..untracked_usages);
 		}
 
-		let mut cache = self.cache.borrow_mut();
-		if cache.len() <= MAX_CACHE_USAGE_TRACK { return; }
+		if self.cache.borrow().len() <= MAX_CACHE_USAGE_TRACK { return; }
 
 		let uniqs: HashSet<&Uuid> = cache_usage.iter().collect();
-		let mut removes = HashSet::new();
-
-		for key in cache.keys() {
-			if !uniqs.contains(key) {
-				removes.insert(key.clone());
-			}
+		let removes: Vec<Uuid> = {
+			let cache = self.cache.borrow();
+			cache.keys().cloned().filter(|key| !uniqs.contains(key)).collect()
+		};
+		for key in removes {
+			self.cache.borrow_mut().remove(&key);
 		}
-
-		for removed_key in removes { cache.remove(&removed_key); }
 	}
 
 	/// Reports how many keys are currently cached.
