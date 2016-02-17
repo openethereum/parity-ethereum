@@ -497,7 +497,9 @@ impl BlockChainClient for Client {
 			.filter_map(|m| m)
 			.map(|(number, hash)| self.chain.read().unwrap().block_receipts(&hash).map(|r| (number, hash, r.receipts)))
 			.filter_map(|m| m)
-			.map(|(number, hash, receipts)| {
+			.map(|(number, hash, receipts)| self.chain.read().unwrap().block(&hash).map(|ref b| (number, hash, receipts, BlockView::new(b).transaction_hashes())))
+			.filter_map(|m| m)
+			.map(|(number, hash, receipts, hashes)| {
 				let mut log_index = 0;
 				receipts.into_iter()
 					.enumerate()
@@ -510,7 +512,7 @@ impl BlockChainClient for Client {
 							 	entry: log,
 								block_hash: hash.clone(),
 								block_number: number as usize,
-								transaction_hash: H256::new(),
+								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
 								transaction_index: index,
 								log_index: log_index + i
 							})
