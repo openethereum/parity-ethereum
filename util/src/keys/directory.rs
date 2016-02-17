@@ -513,13 +513,13 @@ impl KeyDirectory {
 		if self.cache.borrow().len() <= MAX_CACHE_USAGE_TRACK { return; }
 
 		let uniqs: HashSet<&Uuid> = cache_usage.iter().collect();
-		let removes: Vec<Uuid> = {
+		let removes:Vec<Uuid> = {
 			let cache = self.cache.borrow();
 			cache.keys().cloned().filter(|key| !uniqs.contains(key)).collect()
 		};
-		for key in removes {
-			self.cache.borrow_mut().remove(&key);
-		}
+		if removes.is_empty() { return }
+		let mut cache = self.cache.borrow_mut();
+		for key in removes { cache.remove(&key); }
 	}
 
 	/// Reports how many keys are currently cached.
