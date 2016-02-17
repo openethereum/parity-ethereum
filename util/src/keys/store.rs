@@ -207,7 +207,7 @@ mod tests {
 	use common::*;
 
 	#[test]
-	fn secret_store_insert() {
+	fn can_insert() {
 		let temp = RandomTempPath::create_dir();
 		let mut sstore = SecretStore::new_test(&temp);
 
@@ -218,7 +218,7 @@ mod tests {
 	}
 
 	#[test]
-	fn secret_store_get_fail() {
+	fn can_get_fail() {
 		let temp = RandomTempPath::create_dir();
 		{
 			use keys::directory::{KeyFileContent, KeyFileCrypto};
@@ -260,7 +260,7 @@ mod tests {
 	}
 
 	#[test]
-	fn secret_store_get() {
+	fn can_get() {
 		let temp = RandomTempPath::create_dir();
 		let key_id = {
 			use keys::directory::{KeyFileContent, KeyFileCrypto};
@@ -283,7 +283,7 @@ mod tests {
 	}
 
 	#[test]
-	fn secret_store_delete() {
+	fn can_delete() {
 		let temp = RandomTempPath::create_dir();
 		let keys = pregenerate_keys(&temp, 5);
 
