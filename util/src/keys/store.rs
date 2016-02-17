@@ -202,6 +202,8 @@ mod vector_tests {
 
 #[cfg(test)]
 mod tests {
+	#![cfg_attr(feature = "coverage", no_debug)]
+
 	use super::*;
 	use tests::helpers::*;
 	use common::*;

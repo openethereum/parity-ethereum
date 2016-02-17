@@ -1100,6 +1100,8 @@ mod directory_tests {
 
 #[cfg(test)]
 mod specs {
+	#![cfg_attr(feature = "coverage", no_debug)]
+
 	use super::*;
 	use common::*;
 	use tests::helpers::*;
