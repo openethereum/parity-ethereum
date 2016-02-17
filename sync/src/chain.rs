@@ -1179,7 +1179,7 @@ impl ChainSync {
 		for (peer_id, peer_number) in updated_peers {
 			let mut peer_best = self.peers.get(&peer_id).unwrap().latest_hash.clone();
 			if best_number - peer_number > MAX_PEERS_PROPAGATION as BlockNumber {
-				// If we think peer is too far behind just end one latest hash
+				// If we think peer is too far behind just send one latest hash
 				peer_best = last_parent.clone();
 			}
 			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(), &peer_best, &local_best) {

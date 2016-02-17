@@ -91,7 +91,7 @@ impl Decodable for PeerCapabilityInfo {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 struct SessionCapabilityInfo {
 	pub protocol: &'static str,
 	pub version: u8,

@@ -682,14 +682,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut failure_id = None;
 		match token {
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
-				let mut handshakes = self.handshakes.write().unwrap();
+				let handshakes = self.handshakes.write().unwrap();
 				if let Some(handshake) = handshakes.get(token).cloned() {
 					failure_id = Some(handshake.lock().unwrap().id().clone());
-					handshakes.remove(token);
 				}
 			},
 			FIRST_SESSION ... LAST_SESSION => {
-				let mut sessions = self.sessions.write().unwrap();
+				let sessions = self.sessions.write().unwrap();
 				if let Some(session) = sessions.get(token).cloned() {
 					let s = session.lock().unwrap();
 					if s.is_ready() {
@@ -700,7 +699,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						}
 					}
 					failure_id = Some(s.id().clone());
-					sessions.remove(token);
 				}
 			},
 			_ => {},
