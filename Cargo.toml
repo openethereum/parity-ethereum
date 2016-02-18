@@ -19,7 +19,6 @@ ethsync = { path = "sync" }
 ethcore-rpc = { path = "rpc", optional = true }
 fdlimit = { path = "util/fdlimit" }
 target_info = "0.1"
-daemonize = "0.2"
 
 [features]
 default = ["rpc"]
