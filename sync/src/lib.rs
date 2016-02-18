@@ -17,7 +17,6 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
-//#![feature(augmented_assignments)]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![allow(clone_on_copy)]
 
