@@ -299,7 +299,7 @@ impl evm::Evm for Interpreter {
 			let (gas_cost, mem_size) = try!(self.get_gas_cost_mem(ext, instruction, &mut mem, &stack));
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			mem.expand(mem_size);
-			current_gas -= gas_cost;
+			current_gas = current_gas - gas_cost;
 
 			evm_debug!({
 				println!("[0x{:x}][{}(0x{:x}) Gas: {:x}\n  Gas Before: {:x}",
@@ -320,7 +320,7 @@ impl evm::Evm for Interpreter {
 			match result {
 				InstructionResult::Ok => {},
 				InstructionResult::UnusedGas(gas) => {
-					current_gas += gas;
+					current_gas = current_gas + gas;
 				},
 				InstructionResult::UseAllGas => {
 					current_gas = U256::zero();

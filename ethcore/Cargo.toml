@@ -11,7 +11,7 @@ log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
 rocksdb = "0.3"
-heapsize = { git = "https://github.com/nikvolf/heapsize" }
+heapsize = "0.3"
 rust-crypto = "0.2.34"
 time = "0.1"
 ethcore-util = { path = "../util" }
@@ -25,7 +25,7 @@ lazy_static = "0.1"
 [features]
 jit = ["evmjit"]
 evm-debug = []
-json-tests = [ "heapsize/nightly" ]
+json-tests = []
 test-heavy = []
 dev = ["clippy"]
-default = [ "heapsize/nightly" ]
+default = []

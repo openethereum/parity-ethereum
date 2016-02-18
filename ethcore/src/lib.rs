@@ -24,7 +24,6 @@
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![allow(clone_on_copy)]
 
-
 //! Ethcore library
 //!
 //! ### Rust version:
