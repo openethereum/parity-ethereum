@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Key-Value store abstraction with rocksb backend.
+//! Key-Value store abstraction with RocksDB backend.
 
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
@@ -30,7 +30,7 @@ impl DBTransaction {
 		DBTransaction { batch: WriteBatch::new() }
 	}
 
-	/// Insert a ket-value pair in the transaction. Any existing value value will be overwritten upon write.
+	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
     pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), String> {
 		self.batch.put(key, value)
 	}
@@ -106,7 +106,7 @@ impl Database {
 		Ok(Database { db: db })
 	}
 
-	/// Insert a ket-value pair in the transaction. Any existing value value will be overwritten.
+	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
     pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), String> {
 		self.db.put(key, value)
 	}
