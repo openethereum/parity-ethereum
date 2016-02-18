@@ -4,18 +4,28 @@ name = "ethcore-rpc"
 version = "0.9.99"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io"]
+build = "build.rs"
 
 [lib]
 
 [dependencies]
 serde = "0.6.7"
-serde_macros = "0.6.13"
 serde_json = "0.6.0"
-jsonrpc-core = "1.1.2"
-jsonrpc-http-server = "1.1.2"
+jsonrpc-core = "1.1"
+jsonrpc-http-server = "1.1"
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
-clippy = "0.0.41"
+clippy = "0.0.42"
 target_info = "0.1.0"
 rustc-serialize = "0.3"
+serde_macros = { version = "0.6.13", optional = true }
+
+[build-dependencies]
+serde_codegen = { "version" = "0.6.13", "optional" = true }
+syntex = "0.28.0"
+
+[features]
+default = ["serde_codegen"]
+nightly = ["serde_macros"]
+
