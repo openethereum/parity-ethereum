@@ -31,6 +31,7 @@ extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
 extern crate target_info;
+extern crate daemonize;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -49,6 +50,7 @@ use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethsync::EthSync;
 use target_info::Target;
+use daemonize::{Daemonize};
 
 docopt!(Args derive Debug, "
 Parity. Ethereum Client.
@@ -56,6 +58,7 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
+  parity daemon [options] [ --no-bootstrap | <enode>... ]
   parity [options] [ --no-bootstrap | <enode>... ]
 
 Options:
@@ -182,6 +185,21 @@ impl Configuration {
 		if self.args.flag_version {
 			print_version();
 			return;
+		}
+		if self.args.cmd_daemon {
+			let daemonize = Daemonize::new()
+				.pid_file("/tmp/parity.pid")	// Every method except `new` and `start`
+				.chown_pid_file(true)			// is optional, see `Daemonize` documentation
+				.working_directory("/tmp")		// for default behaviour.
+				.user("nobody")
+				.group("daemon")				// Group name
+				.group(2)						// Or group id
+				.privileged_action(|| "Executed before drop privileges");
+
+			 match daemonize.start() {
+				 Ok(_) => info!("Success, daemonized"),
+				 Err(e) => { error!("{}", e); return; },
+			 }				
 		}
 		self.execute_client();
 	}
