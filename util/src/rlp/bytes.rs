@@ -232,12 +232,12 @@ impl_uint_from_bytes!(u64);
 impl_uint_from_bytes!(usize);
 
 macro_rules! impl_uint_from_bytes {
-	($name: ident) => {
+	($name: ident, $size: expr) => {
 		impl FromBytes for $name {
 			fn from_bytes(bytes: &[u8]) -> FromBytesResult<$name> {
 				if !bytes.is_empty() && bytes[0] == 0 {
 					Err(FromBytesError::ZeroPrefixedInt)
-				} else if bytes.len() <= $name::SIZE {
+				} else if bytes.len() <= $size {
 					Ok($name::from(bytes))
 				} else {
 					Err(FromBytesError::DataIsTooLong)
@@ -247,8 +247,8 @@ macro_rules! impl_uint_from_bytes {
 	}
 }
 
-impl_uint_from_bytes!(U256);
-impl_uint_from_bytes!(U128);
+impl_uint_from_bytes!(U256, 256);
+impl_uint_from_bytes!(U128, 128);
 
 impl <T>FromBytes for T where T: FixedHash {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<T> {
