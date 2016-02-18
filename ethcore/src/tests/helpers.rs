@@ -22,7 +22,6 @@ use spec::*;
 use std::fs::{remove_dir_all};
 use blockchain::{BlockChain};
 use state::*;
-use rocksdb::*;
 use evm::{Schedule, Factory};
 use engine::*;
 use ethereum;
@@ -258,8 +257,7 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 
 pub fn get_temp_journal_db() -> GuardedTempResult<JournalDB> {
 	let temp = RandomTempPath::new();
-	let db = DB::open_default(temp.as_str()).unwrap();
-	let journal_db = JournalDB::new(db);
+	let journal_db = JournalDB::new(temp.as_str());
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(journal_db)
@@ -276,8 +274,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 }
 
 pub fn get_temp_journal_db_in(path: &Path) -> JournalDB {
-	let db = DB::open_default(path.to_str().unwrap()).unwrap();
-	JournalDB::new(db)
+	JournalDB::new(path.to_str().unwrap())
 }
 
 pub fn get_temp_state_in(path: &Path) -> State {

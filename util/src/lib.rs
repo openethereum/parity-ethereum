@@ -128,6 +128,7 @@ pub mod hashdb;
 pub mod memorydb;
 pub mod overlaydb;
 pub mod journaldb;
+pub mod kvdb;
 mod math;
 pub mod chainfilter;
 pub mod crypto;
@@ -162,6 +163,7 @@ pub use semantic_version::*;
 pub use network::*;
 pub use io::*;
 pub use log::*;
+pub use kvdb::*;
 
 #[cfg(test)]
 mod tests;

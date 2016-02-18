@@ -20,7 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use rocksdb::{DB, Writable, WriteBatch, IteratorMode};
+use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 
@@ -33,7 +33,7 @@ use std::env;
 /// the removals actually take effect.
 pub struct JournalDB {
 	overlay: MemoryDB,
-	backing: Arc<DB>,
+	backing: Arc<Database>,
 	counters: Arc<RwLock<HashMap<H256, i32>>>,
 }
 
@@ -47,21 +47,25 @@ impl Clone for JournalDB {
 	}
 }
 
-const LATEST_ERA_KEY : [u8; 4] = [ b'l', b'a', b's', b't' ]; 
-const VERSION_KEY : [u8; 4] = [ b'j', b'v', b'e', b'r' ]; 
+// all keys must be at least 12 bytes
+const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ]; 
+const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ]; 
 
-const DB_VERSION: u32 = 2;
+const DB_VERSION: u32 = 3;
+
+const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl JournalDB {
-	/// Create a new instance given a `backing` database.
-	pub fn new(backing: DB) -> JournalDB {
-		let db = Arc::new(backing);
-		JournalDB::new_with_arc(db)
-	}
 
-	/// Create a new instance given a shared `backing` database.
-	pub fn new_with_arc(backing: Arc<DB>) -> JournalDB {
-		if backing.iterator(IteratorMode::Start).next().is_some() {
+	/// Create a new instance from file
+	pub fn new(path: &str) -> JournalDB {
+		let opts = DatabaseConfig {
+			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
+		};
+		let backing = Database::open(opts, path).unwrap_or_else(|e| {
+			panic!("Error opening state db: {}", e);
+		});
+		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
 				Ok(Some(DB_VERSION)) => {},
 				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v)
@@ -72,7 +76,7 @@ impl JournalDB {
 		let counters = JournalDB::read_counters(&backing);
 		JournalDB {
 			overlay: MemoryDB::new(),
-			backing: backing,
+			backing: Arc::new(backing),
 			counters: Arc::new(RwLock::new(counters)),
 		}
 	}
@@ -82,7 +86,7 @@ impl JournalDB {
 	pub fn new_temp() -> JournalDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(DB::open_default(dir.to_str().unwrap()).unwrap())
+		Self::new(dir.to_str().unwrap())
 	}
 
 	/// Check if this database has any commits
@@ -117,16 +121,17 @@ impl JournalDB {
 		// and the key is safe to delete.
 
 		// record new commit's details.
-		let batch = WriteBatch::new();
+		let batch = DBTransaction::new();
 		let mut counters = self.counters.write().unwrap();
 		{
 			let mut index = 0usize;
 			let mut last;
 
 			while try!(self.backing.get({
-				let mut r = RlpStream::new_list(2);
+				let mut r = RlpStream::new_list(3);
 				r.append(&now);
 				r.append(&index);
+				r.append(&&PADDING[..]);
 				last = r.drain();
 				&last
 			})).is_some() {
@@ -154,9 +159,10 @@ impl JournalDB {
 			let mut to_remove: Vec<H256> = Vec::new();
 			let mut canon_inserts: Vec<H256> = Vec::new();
 			while let Some(rlp_data) = try!(self.backing.get({
-				let mut r = RlpStream::new_list(2);
+				let mut r = RlpStream::new_list(3);
 				r.append(&end_era);
 				r.append(&index);
+				r.append(&&PADDING[..]);
 				last = r.drain();
 				&last
 			})) {
@@ -226,16 +232,17 @@ impl JournalDB {
 		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 
-	fn read_counters(db: &DB) -> HashMap<H256, i32> {
+	fn read_counters(db: &Database) -> HashMap<H256, i32> {
 		let mut res = HashMap::new();
 		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
 			let mut era = decode::<u64>(&val);
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
-					let mut r = RlpStream::new_list(2);
+					let mut r = RlpStream::new_list(3);
 					r.append(&era);
 					r.append(&index);
+					r.append(&&PADDING[..]);
 					&r.drain()
 				}).expect("Low-level database error.") {
 					let rlp = Rlp::new(&rlp_data);
@@ -259,7 +266,7 @@ impl JournalDB {
 impl HashDB for JournalDB {
 	fn keys(&self) -> HashMap<H256, i32> { 
 		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iterator(IteratorMode::Start) {
+		for (key, _) in self.backing.iter() {
 			let h = H256::from_slice(key.deref());
 			ret.insert(h, 1);
 		}
@@ -429,12 +436,11 @@ mod tests {
 
 	#[test]
 	fn reopen() {
-		use rocksdb::DB;
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
 		let foo = {
-			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -442,13 +448,13 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		}
 
 		{
-			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
 			assert!(jdb.exists(&foo));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 			assert!(!jdb.exists(&foo));
