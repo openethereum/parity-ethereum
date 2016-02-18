@@ -162,7 +162,7 @@ impl<T, Queue> ThreadPoolExecutor<T, Queue>
 	where T: Task, Queue: TaskQueue<T> {
 
 	/// Creates new `ThreadPoolExecutor` with specified number of threads in pool and custom `Queue` implementation.
-	pub fn new(threads_num: usize, queue: Queue) -> ThreadPoolExecutor<T, Queue> {
+	fn new(threads_num: usize, queue: Queue) -> ThreadPoolExecutor<T, Queue> {
 		assert!(threads_num > 0);
 
 		let wait = Arc::new(Condvar::new());
@@ -283,7 +283,7 @@ impl<T, Queue> ManualExecutor<T, Queue>
 	where T: Task, Queue: TaskQueue<T> {
 
 	/// Returns new `ManualExecutor` with custom `Queue` implementation
-	pub fn new(queue: Queue) -> ManualExecutor<T, Queue> {
+	fn new(queue: Queue) -> ManualExecutor<T, Queue> {
 		ManualExecutor {
 			queue: Mutex::new(queue),
 			_task: PhantomData
@@ -343,6 +343,8 @@ impl<R, E> Task for ClosureTask<R, E>
 }
 
 // TaskQueueElement ordering
+// TODO [todr] This implementation is only valid for structures that allows duplicated elements.
+// T1=T2 if T1.priority = T2.priority
 impl<T: Task> TaskQueueElement<T> {
 	fn consume(self) -> (Complete<T::Result, T::Error>, Result<T::Result, T::Error>) {
 		(self.complete, self.task.call())

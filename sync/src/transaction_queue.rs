@@ -23,9 +23,10 @@ use std::sync::{RwLock, Arc};
 use std::hash::Hash;
 use util::executor::*;
 use util::uint::{Uint, U256};
-use util::hash::Address;
+use util::hash::{Address, H256};
 use ethcore::transaction::*;
 
+#[derive(Clone, Debug)]
 struct VerifiedTransaction {
 	tx: SignedTransaction,
 	nonce_height: U256
@@ -69,6 +70,32 @@ trivial_ordering!(VerifiedTransaction by |a: &VerifiedTransaction, b: &VerifiedT
 	a_sender.cmp(&b_sender)
 });
 
+struct CurrentByPriorityAndAddress {
+	priority: BTreeSet<VerifiedTransaction>,
+	address: Table<Address, U256, VerifiedTransaction>
+}
+impl CurrentByPriorityAndAddress {
+
+	fn remove_by_address(&mut self, sender: &Address, nonce: &U256) -> Option<VerifiedTransaction> {
+		if let Some(verified_tx) = self.address.remove(sender, nonce) {
+			self.priority.remove(&verified_tx);
+			return Some(verified_tx);
+		}
+		None
+	}
+
+	fn remove(&mut self, tx: &SignedTransaction) -> Option<VerifiedTransaction> {
+		// First find the transaction by address
+		let address = tx.sender().unwrap();
+		let verified_tx = self.address.remove(&address, &tx.nonce);
+		if let Some(verified_tx) = verified_tx {
+			self.priority.remove(&verified_tx);
+			return Some(verified_tx)
+		}
+		None
+	}
+}
+
 #[derive(Debug)]
 pub struct TxQueueStats {
 	pub pending: usize,
@@ -79,17 +106,22 @@ pub struct TxQueueStats {
 pub struct TxQueue<'a> {
 	executor: &'a Executor<ImportTxTask>,
 	limit: usize,
-	current: Arc<RwLock<BTreeSet<VerifiedTransaction>>>,
-	last_nonces: Arc<RwLock<HashMap<Address, U256>>>,
+	current: Arc<RwLock<CurrentByPriorityAndAddress>>,
 	future: Arc<RwLock<Table<Address, U256, SignedTransaction>>>,
+	avoid: Arc<RwLock<HashMap<H256, SignedTransaction>>>,
+	last_nonces: Arc<RwLock<HashMap<Address, U256>>>,
 }
 
 impl<'a> TxQueue<'a> {
 	/// Creates new instance of this Queue
 	pub fn new(executor: &'a Executor<ImportTxTask>) -> Self {
 		let limit = 1024;
-		let current = BTreeSet::new();
+		let current = CurrentByPriorityAndAddress {
+			address: Table::new(),
+			priority: BTreeSet::new()
+		};
 		let future = Table::new();
+		let avoid = HashMap::new();
 		let nonces = HashMap::new();
 
 		TxQueue {
@@ -97,6 +129,7 @@ impl<'a> TxQueue<'a> {
 			limit: limit,
 			current: Arc::new(RwLock::new(current)),
 			future: Arc::new(RwLock::new(future)),
+			avoid: Arc::new(RwLock::new(avoid)),
 			last_nonces: Arc::new(RwLock::new(nonces)),
 		}
 	}
@@ -106,7 +139,7 @@ impl<'a> TxQueue<'a> {
 		let current = self.current.read().unwrap();
 		let future = self.future.read().unwrap();
 		TxQueueStats {
-			pending: current.len(),
+			pending: current.priority.len(),
 			future: future.len(),
 			queued: self.executor.queued()
 		}
@@ -116,20 +149,78 @@ impl<'a> TxQueue<'a> {
 	pub fn add(&mut self, tx: SignedTransaction) {
 		let current = self.current.clone();
 		let future = self.future.clone();
+		let avoid = self.avoid.clone();
 		let last_nonces = self.last_nonces.clone();
 
 		self.executor.execute(ImportTxTask {
 			tx: tx,
 			current: current,
 			future: future,
+			avoid: avoid,
 			last_nonces: last_nonces,
 		}).fire();
+	}
+
+	/// Removes transaction from queue.
+	///
+	/// If gap is introduced marks subsequent transactions as future
+	pub fn remove(&mut self, tx: &SignedTransaction) {
+		// Remove from current
+		{
+			let mut current = self.current.write().unwrap();
+			let removed = current.remove(tx);
+			if let Some(verified_tx) = removed {
+				let sender = verified_tx.sender();
+				// Are there any other transactions from this sender?
+				if !current.address.has_row(&sender) {
+					return;
+				}
+
+				// Let's find those with higher nonce
+				let to_move_to_future : Vec<U256> = {
+					let row_map = current.address.get_row(&sender).unwrap();
+					let tx_nonce = verified_tx.tx.nonce;
+					row_map
+						.iter()
+						.filter_map(|(nonce, _)| {
+							if nonce > &tx_nonce {
+								Some(nonce.clone())
+							} else {
+								None
+							}
+						})
+						.collect()
+				};
+				let mut future = self.future.write().unwrap();
+				for  k in to_move_to_future {
+					if let Some(v) = current.remove_by_address(&sender, &k) {
+						future.insert(sender.clone(), v.tx.nonce, v.tx.clone());
+					}
+				}
+				return;
+			}
+		}
+
+		// Remove from future
+		{
+			let mut future = self.future.write().unwrap();
+			let sender = tx.sender().unwrap();
+			if let Some(_) = future.remove(&sender, &tx.nonce) {
+				return;
+			}
+		}
+
+		// Avoid transaction - do not verify (happens only if it's in queue)
+		{
+			let mut avoid = self.avoid.write().unwrap();
+			avoid.insert(tx.hash(), tx.clone());
+		}
 	}
 
 	/// Returns top transactions from the queue
 	pub fn top_transactions(&self, size: usize) -> Vec<SignedTransaction> {
 		let current = self.current.read().unwrap();
-		current.iter().take(size).map(|t| t.tx.clone()).collect()
+		current.priority.iter().take(size).map(|t| t.tx.clone()).collect()
 	}
 
 	/// Removes all elements (in any state) from the queue
@@ -138,75 +229,26 @@ impl<'a> TxQueue<'a> {
 		let mut future = self.future.write().unwrap();
 		let mut nonces = self.last_nonces.write().unwrap();
 
-		current.clear();
+		current.priority.clear();
+		current.address.clear();
 		future.clear();
 		nonces.clear();
 		self.executor.clear();
 	}
 }
-struct Table<Row, Col, Val>
-	where Row: Eq + Hash + Clone,
-		  Col: Eq + Hash {
-	map: HashMap<Row, HashMap<Col, Val>>,
-	len: usize,
-}
-impl<Row, Col, Val> Table<Row, Col, Val>
-	where Row: Eq + Hash + Clone,
-		  Col: Eq + Hash {
-	fn new() -> Table<Row, Col, Val> {
-		Table {
-			map: HashMap::new(),
-			len: 0,
-		}
-	}
 
-	fn clear(&mut self) {
-		self.map.clear();
-	}
-
-	fn len(&self) -> usize {
-		self.map.iter().fold(0, |acc, (_k, v)| acc + v.len())
-	}
-
-	fn is_empty(&self) -> bool {
-		self.len() == 0
-	}
-
-	fn get_row_mut(&mut self, row: &Row) -> Option<&mut HashMap<Col, Val>> {
-		self.map.get_mut(row)
-	}
-
-	fn clear_if_empty(&mut self, row: &Row) {
-		let is_empty = self.map.get(row).map_or(false, |m| m.is_empty());
-		if is_empty {
-			self.map.remove(row);
-		}
-	}
-
-	fn insert(&mut self, row: Row, col: Col, val: Val) {
-		if !self.map.contains_key(&row) {
-			let m = HashMap::new();
-			self.map.insert(row.clone(), m);
-		}
-
-		let mut columns = self.map.get_mut(&row).unwrap();
-		let result = columns.insert(col, val);
-
-		if let None = result {
-			self.len += 1;
-		}
-	}
-}
 
 pub struct ImportTxTask {
 	tx: SignedTransaction,
 	last_nonces: Arc<RwLock<HashMap<Address, U256>>>,
-	current: Arc<RwLock<BTreeSet<VerifiedTransaction>>>,
+	current: Arc<RwLock<CurrentByPriorityAndAddress>>,
 	future: Arc<RwLock<Table<Address, U256, SignedTransaction>>>,
+	avoid: Arc<RwLock<HashMap<H256, SignedTransaction>>>,
 }
 
 impl ImportTxTask {
 	fn move_future_txs(&self, address: Address, nonce: U256) {
+		let mut queue = self.current.write().unwrap();
 		let mut future = self.future.write().unwrap();
 		{
 			let txs_by_nonce = future.get_row_mut(&address);
@@ -216,11 +258,12 @@ impl ImportTxTask {
 			let mut txs_by_nonce = txs_by_nonce.unwrap();
 
 			let mut current_nonce = nonce + U256::one();
-			let mut queue = self.current.write().unwrap();
 
 			while let Some(tx) = txs_by_nonce.remove(&current_nonce) {
 				let height = current_nonce - nonce;
-				queue.insert(VerifiedTransaction::new(tx, U256::from(height)));
+				let verified_tx = VerifiedTransaction::new(tx, U256::from(height));
+				queue.priority.insert(verified_tx.clone());
+				queue.address.insert(address.clone(), nonce,verified_tx);
 				current_nonce = current_nonce + U256::one();
 			}
 		}
@@ -260,7 +303,16 @@ impl Task for ImportTxTask {
 		{
 			// We have a gap safe to insert
 			let mut queue = self.current.write().unwrap();
-			queue.insert(VerifiedTransaction::new(tx, height));
+			let mut avoid = self.avoid.write().unwrap();
+			// This transaction should not be inserted
+			if let Some(_tx) = avoid.remove(&tx.hash()) {
+				return Ok(())
+			}
+			// We can insert the transaction
+			let verified_tx = VerifiedTransaction::new(tx, height);
+			queue.priority.insert(verified_tx.clone());
+			queue.address.insert(address.clone(), nonce, verified_tx.clone());
+
 			// Update last_nonce
 			if nonce > last_nonce || is_new {
 				let mut nonces = self.last_nonces.write().unwrap();
@@ -271,6 +323,89 @@ impl Task for ImportTxTask {
 		// But maybe there are some more items waiting in future?
 		self.move_future_txs(address, nonce);
 		Ok(())
+	}
+}
+
+struct Table<Row, Col, Val>
+	where Row: Eq + Hash + Clone,
+		  Col: Eq + Hash {
+	map: HashMap<Row, HashMap<Col, Val>>,
+	len: usize,
+}
+impl<Row, Col, Val> Table<Row, Col, Val>
+	where Row: Eq + Hash + Clone,
+		  Col: Eq + Hash {
+	fn new() -> Table<Row, Col, Val> {
+		Table {
+			map: HashMap::new(),
+			len: 0,
+		}
+	}
+
+	fn clear(&mut self) {
+		self.map.clear();
+	}
+
+	fn len(&self) -> usize {
+		self.map.iter().fold(0, |acc, (_k, v)| acc + v.len())
+	}
+
+	fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
+
+	fn get_row_mut(&mut self, row: &Row) -> Option<&mut HashMap<Col, Val>> {
+		self.map.get_mut(row)
+	}
+
+	fn has_row(&self, row: &Row) -> bool {
+		self.map.contains_key(row)
+	}
+
+	fn get_row(&self, row: &Row) -> Option<&HashMap<Col, Val>> {
+		self.map.get(row)
+	}
+
+	fn get(&self, row: &Row, col: &Col) -> Option<&Val> {
+		self.map.get(row).and_then(|r| r.get(col))
+	}
+
+	fn remove(&mut self, row: &Row, col: &Col) -> Option<Val> {
+		let (val, is_empty) = {
+			let row_map = self.map.get_mut(row);
+			if let None = row_map {
+				return None;
+			}
+			let mut row_map = row_map.unwrap();
+			let val = row_map.remove(col);
+			(val, row_map.is_empty())
+		};
+		// Clean row
+		if is_empty {
+			self.map.remove(row);
+		}
+		val
+	}
+
+	fn clear_if_empty(&mut self, row: &Row) {
+		let is_empty = self.map.get(row).map_or(false, |m| m.is_empty());
+		if is_empty {
+			self.map.remove(row);
+		}
+	}
+
+	fn insert(&mut self, row: Row, col: Col, val: Val) {
+		if !self.map.contains_key(&row) {
+			let m = HashMap::new();
+			self.map.insert(row.clone(), m);
+		}
+
+		let mut columns = self.map.get_mut(&row).unwrap();
+		let result = columns.insert(col, val);
+
+		if let None = result {
+			self.len += 1;
+		}
 	}
 }
 
@@ -304,8 +439,9 @@ mod test {
 	fn new_txs(second_nonce: U256) -> (SignedTransaction, SignedTransaction) {
 		let keypair = KeyPair::create().unwrap();
 		let secret = &keypair.secret();
-		let tx = new_unsigned_tx(U256::zero());
-		let tx2 = new_unsigned_tx(second_nonce);
+		let nonce = U256::from(123);
+		let tx = new_unsigned_tx(nonce);
+		let tx2 = new_unsigned_tx(nonce + second_nonce);
 
 		(tx.sign(secret), tx2.sign(secret))
 	}
@@ -409,6 +545,95 @@ mod test {
 		assert_eq!(stats.pending, 3);
 		assert_eq!(stats.queued, 0);
 		assert_eq!(stats.future, 0);
+	}
+
+	#[test]
+	fn should_remove_transaction() {
+		// given
+		let exec2 = Executors::same_thread();
+		let mut txq2 = TxQueue::new(&exec2);
+		let (tx, tx2) = new_txs(U256::from(3));
+		txq2.add(tx.clone());
+		txq2.add(tx2.clone());
+		assert_eq!(txq2.stats().pending, 1);
+		assert_eq!(txq2.stats().future, 1);
+
+		// when
+		txq2.remove(&tx);
+		txq2.remove(&tx2);
+
+
+		// then
+		let stats = txq2.stats();
+		assert_eq!(stats.pending, 0);
+		assert_eq!(stats.future, 0);
+	}
+
+	#[test]
+	fn should_not_import_transaction_if_removed() {
+		// given
+		let exec = Executors::manual();
+		let mut txq = TxQueue::new(&exec);
+		let tx = new_tx();
+		txq.add(tx.clone());
+		assert_eq!(txq.stats().queued, 1);
+
+		// when
+		txq.remove(&tx);
+		exec.consume(1);
+
+		// then
+		let stats = txq.stats();
+		assert_eq!(stats.pending, 0);
+		assert_eq!(stats.future, 0);
+		assert_eq!(stats.queued, 0);
+	}
+
+
+	// TODO [todr] Not sure if this test is actually valid
+	#[test]
+	#[ignore]
+	fn should_put_transaction_to_future_if_older_is_removed() {
+		// given
+		let exec = Executors::manual();
+		let mut txq = TxQueue::new(&exec);
+		let (tx, tx2) = new_txs(U256::from(1));
+		txq.add(tx.clone());
+		txq.add(tx2.clone());
+
+		// when
+		exec.consume(1);
+		txq.remove(&tx);
+		exec.consume(1);
+
+		// then
+		let stats = txq.stats();
+		assert_eq!(stats.future, 1);
+		assert_eq!(stats.pending, 0);
+		assert_eq!(stats.queued, 0);
+
+	}
+
+	#[test]
+	fn should_move_transactions_to_future_if_gap_introduced() {
+		// given
+		let exec = Executors::same_thread();
+		let mut txq = TxQueue::new(&exec);
+		let (tx, tx2) = new_txs(U256::from(1));
+		let tx3 = new_tx();
+		txq.add(tx2.clone());
+		txq.add(tx3.clone());
+		txq.add(tx.clone());
+		assert_eq!(txq.stats().pending, 3);
+
+		// when
+		txq.remove(&tx);
+
+		// then
+		let stats = txq.stats();
+		assert_eq!(stats.future, 1);
+		assert_eq!(stats.pending, 1);
+		assert_eq!(stats.queued, 0);
 	}
 
 	#[test]
