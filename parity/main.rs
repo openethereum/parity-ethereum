@@ -25,11 +25,13 @@ extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
+#[macro_use]
 extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
 extern crate target_info;
+extern crate daemonize;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -48,6 +50,7 @@ use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethsync::EthSync;
 use target_info::Target;
+use daemonize::{Daemonize};
 
 docopt!(Args derive Debug, "
 Parity. Ethereum Client.
@@ -55,12 +58,14 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
+  parity daemon [options] [ --no-bootstrap | <enode>... ]
   parity [options] [ --no-bootstrap | <enode>... ]
 
 Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
-                           or frontier, mainnet, morden, or testnet [default: frontier].
+						   or frontier, mainnet, morden, or testnet [default: frontier].
   -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
+  --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
 
   --no-bootstrap           Don't bother trying to connect to any nodes initially.
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
@@ -136,6 +141,10 @@ impl Configuration {
 		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
+	fn keys_path(&self) -> String {
+		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())	
+	}
+
 	fn spec(&self) -> Spec {
 		match self.args.flag_chain.as_ref() {
 			"frontier" | "mainnet" => ethereum::new_frontier(),
@@ -171,6 +180,71 @@ impl Configuration {
 
 		(listen_address, public_address)
 	}
+
+	fn execute(&self) {
+		if self.args.flag_version {
+			print_version();
+			return;
+		}
+		if self.args.cmd_daemon {
+			let daemonize = Daemonize::new()
+				.pid_file("/tmp/parity.pid")	// Every method except `new` and `start`
+				.chown_pid_file(true)			// is optional, see `Daemonize` documentation
+				.working_directory("/tmp")		// for default behaviour.
+				.user("nobody")
+				.group("daemon")				// Group name
+				.group(2)						// Or group id
+				.privileged_action(|| "Executed before drop privileges");
+
+			 match daemonize.start() {
+				 Ok(_) => info!("Success, daemonized"),
+				 Err(e) => { error!("{}", e); return; },
+			 }				
+		}
+		self.execute_client();
+	}
+
+	fn execute_client(&self) {
+		// Setup logging
+		setup_log(&self.args.flag_logging);
+		// Raise fdlimit
+		unsafe { ::fdlimit::raise_fd_limit(); }
+
+		let spec = self.spec();
+
+		// Configure network
+		let mut net_settings = NetworkConfiguration::new();
+		net_settings.nat_enabled = self.args.flag_upnp;
+		net_settings.boot_nodes = self.init_nodes(&spec);
+		let (listen, public) = self.net_addresses();
+		net_settings.listen_address = listen;
+		net_settings.public_address = public;
+		net_settings.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+
+		// Build client
+		let mut service = ClientService::start(spec, net_settings, &Path::new(&self.path())).unwrap();
+		let client = service.client().clone();
+		client.configure_cache(self.args.flag_cache_pref_size, self.args.flag_cache_max_size);
+
+		// Sync
+		let sync = EthSync::register(service.network(), client);
+
+		// Setup rpc
+		if self.args.flag_jsonrpc {
+			setup_rpc_server(service.client(), sync.clone(), &self.args.flag_jsonrpc_url);
+		}
+
+		// Register IO handler
+		let io_handler  = Arc::new(ClientIoHandler {
+			client: service.client(),
+			info: Default::default(),
+			sync: sync
+		});
+		service.io().register_handler(io_handler).expect("Error registering IO handler");
+
+		// Handle exit
+		wait_for_exit(&service);
+	}
 }
 
 fn wait_for_exit(client_service: &ClientService) {
@@ -186,51 +260,7 @@ fn wait_for_exit(client_service: &ClientService) {
 }
 
 fn main() {
-	let conf = Configuration::parse();
-	if conf.args.flag_version {
-		print_version();
-		return;
-	}
-
-	let spec = conf.spec();
-
-	// Setup logging
-	setup_log(&conf.args.flag_logging);
-	// Raise fdlimit
-	unsafe { ::fdlimit::raise_fd_limit(); }
-
-	// Configure network
-	let mut net_settings = NetworkConfiguration::new();
-	net_settings.nat_enabled = conf.args.flag_upnp;
-	net_settings.boot_nodes = conf.init_nodes(&spec);
-	let (listen, public) = conf.net_addresses();
-	net_settings.listen_address = listen;
-	net_settings.public_address = public;
-	net_settings.use_secret = conf.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
-
-	// Build client
-	let mut service = ClientService::start(spec, net_settings, &Path::new(&conf.path())).unwrap();
-	let client = service.client().clone();
-	client.configure_cache(conf.args.flag_cache_pref_size, conf.args.flag_cache_max_size);
-
-	// Sync
-	let sync = EthSync::register(service.network(), client);
-
-	// Setup rpc
-	if conf.args.flag_jsonrpc {
-		setup_rpc_server(service.client(), sync.clone(), &conf.args.flag_jsonrpc_url);
-	}
-
-	// Register IO handler
-	let io_handler  = Arc::new(ClientIoHandler {
-		client: service.client(),
-		info: Default::default(),
-		sync: sync
-	});
-	service.io().register_handler(io_handler).expect("Error registering IO handler");
-
-	// Handle exit
-	wait_for_exit(&service);
+	Configuration::parse().execute();
 }
 
 struct Informant {
