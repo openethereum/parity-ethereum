@@ -265,7 +265,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "heapsize"
 version = "0.3.2"
-source = "git+https://github.com/nikvolf/heapsize#7913872a4f928a49659df52e48dea69d8a2376bf"
+source = "git+https://github.com/nikvolf/heapsize#a2d682fd4dcf11e2deeeb229ef2375354c15668b"
 
 [[package]]
 name = "hpack"
