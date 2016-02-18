@@ -267,7 +267,7 @@ impl<'x, 'y> OpenBlock<'x, 'y> {
 		s.block.base.header.uncles_hash = uncle_bytes.sha3();
 		s.block.base.header.state_root = s.block.state.root().clone();
 		s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes().to_vec()).collect());
-		s.block.base.header.log_bloom = s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b |= &r.log_bloom; b});
+		s.block.base.header.log_bloom = s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b});
 		s.block.base.header.gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
 		s.block.base.header.note_dirty();
 
