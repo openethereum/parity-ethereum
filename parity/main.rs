@@ -58,7 +58,7 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
-  parity daemon [options] [ --no-bootstrap | <enode>... ]
+  parity daemon <pid_file> [options] [ --no-bootstrap | <enode>... ]
   parity [options] [ --no-bootstrap | <enode>... ]
 
 Options:
@@ -187,19 +187,11 @@ impl Configuration {
 			return;
 		}
 		if self.args.cmd_daemon {
-			let daemonize = Daemonize::new()
-				.pid_file("/tmp/parity.pid")	// Every method except `new` and `start`
-				.chown_pid_file(true)			// is optional, see `Daemonize` documentation
-				.working_directory("/tmp")		// for default behaviour.
-				.user("nobody")
-				.group("daemon")				// Group name
-				.group(2)						// Or group id
-				.privileged_action(|| "Executed before drop privileges");
-
-			 match daemonize.start() {
-				 Ok(_) => info!("Success, daemonized"),
-				 Err(e) => { error!("{}", e); return; },
-			 }				
+			let daemonize = Daemonize::new().pid_file(self.args.arg_pid_file.clone()).chown_pid_file(true);
+			match daemonize.start() {
+				Ok(_) => info!("Daemonized"),
+				Err(e) => { error!("{}", e); return; },
+			}				
 		}
 		self.execute_client();
 	}
