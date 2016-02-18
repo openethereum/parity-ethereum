@@ -18,18 +18,19 @@
 
 #![warn(missing_docs)]
 #![feature(plugin)]
-#![plugin(docopt_macros)]
 #![plugin(clippy)]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
+#[macro_use]
 extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
 extern crate target_info;
+extern crate daemonize;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -48,20 +49,24 @@ use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethsync::EthSync;
+use docopt::Docopt;
 use target_info::Target;
+use daemonize::Daemonize;
 
-docopt!(Args derive Debug, "
+const USAGE: &'static str = "
 Parity. Ethereum Client.
   By Wood/Paronyan/Kotewicz/Drwięga/Volf.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
+  parity daemon <pid-file> [options] [ --no-bootstrap | <enode>... ]
   parity [options] [ --no-bootstrap | <enode>... ]
 
 Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
                            or frontier, mainnet, morden, or testnet [default: frontier].
   -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
+  --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
 
   --no-bootstrap           Don't bother trying to connect to any nodes initially.
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
@@ -81,14 +86,33 @@ Options:
   -l --logging LOGGING     Specify the logging level.
   -v --version             Show information about version.
   -h --help                Show this screen.
-", 	flag_cache_pref_size: usize,
-	flag_cache_max_size: usize, 
-	flag_peers: u32, 
-	flag_address: Option<String>, 
-	flag_public_address: Option<String>, 
-	flag_node_key: Option<String>);
+";
 
-fn setup_log(init: &str) {
+#[derive(Debug, RustcDecodable)]
+struct Args {
+	cmd_daemon: bool,
+	arg_pid_file: String,
+	arg_enode: Vec<String>,
+	flag_chain: String,
+	flag_db_path: String,
+	flag_keys_path: String,
+	flag_no_bootstrap: bool,
+	flag_listen_address: String,
+	flag_public_address: Option<String>,
+	flag_address: Option<String>,
+	flag_peers: u32,
+	flag_no_discovery: bool,
+	flag_upnp: bool,
+	flag_node_key: Option<String>,
+	flag_cache_pref_size: usize,
+	flag_cache_max_size: usize,
+	flag_jsonrpc: bool,
+	flag_jsonrpc_url: String,
+	flag_logging: Option<String>,
+	flag_version: bool,
+}
+
+fn setup_log(init: &Option<String>) {
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
@@ -96,7 +120,9 @@ fn setup_log(init: &str) {
 		builder.parse(&env::var("RUST_LOG").unwrap());
 	}
 
-	builder.parse(init);
+	if let Some(ref s) = *init {
+		builder.parse(s);
+	}
 
 	builder.init().unwrap();
 }
@@ -136,12 +162,16 @@ struct Configuration {
 impl Configuration {
 	fn parse() -> Self {
 		Configuration {
-			args: Args::docopt().decode().unwrap_or_else(|e| e.exit())
+			args: Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit()),
 		}
 	}
 
 	fn path(&self) -> String {
 		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+	}
+
+	fn _keys_path(&self) -> String {
+		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())	
 	}
 
 	fn spec(&self) -> Spec {
@@ -157,7 +187,7 @@ impl Configuration {
 		if self.args.flag_no_bootstrap { Vec::new() } else {
 			match self.args.arg_enode.len() {
 				0 => spec.nodes().clone(),
-				_ => self.args.arg_enode.clone(),
+				_ => self.args.arg_enode.clone(),	// TODO check format first.
 			}
 		}
 	}
@@ -181,6 +211,68 @@ impl Configuration {
 		}
 		(listen_address, public_address)
 	}
+
+	fn execute(&self) {
+		if self.args.flag_version {
+			print_version();
+			return;
+		}
+		if self.args.cmd_daemon {
+			let daemonize = Daemonize::new().pid_file(self.args.arg_pid_file.clone()).chown_pid_file(true);
+			match daemonize.start() {
+				Ok(_) => info!("Daemonized"),
+				Err(e) => { error!("{}", e); return; },
+			}				
+		}
+		self.execute_client();
+	}
+
+	fn execute_client(&self) {
+		// Setup logging
+		setup_log(&self.args.flag_logging);
+		// Raise fdlimit
+		unsafe { ::fdlimit::raise_fd_limit(); }
+
+		let spec = self.spec();
+
+		// Configure network
+		let mut net_settings = NetworkConfiguration::new();
+		net_settings.nat_enabled = self.args.flag_upnp;
+		net_settings.boot_nodes = self.init_nodes(&spec);
+		let (listen, public) = self.net_addresses();
+		net_settings.listen_address = listen;
+		net_settings.public_address = public;
+		net_settings.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+		net_settings.discovery_enabled = !self.args.flag_no_discovery;
+		net_settings.ideal_peers = self.args.flag_peers;
+		let mut net_path = PathBuf::from(&self.path());
+		net_path.push("network");
+		net_settings.config_path = Some(net_path.to_str().unwrap().to_owned());
+
+		// Build client
+		let mut service = ClientService::start(spec, net_settings, &Path::new(&self.path())).unwrap();
+		let client = service.client().clone();
+		client.configure_cache(self.args.flag_cache_pref_size, self.args.flag_cache_max_size);
+
+		// Sync
+		let sync = EthSync::register(service.network(), client);
+
+		// Setup rpc
+		if self.args.flag_jsonrpc {
+			setup_rpc_server(service.client(), sync.clone(), &self.args.flag_jsonrpc_url);
+		}
+
+		// Register IO handler
+		let io_handler  = Arc::new(ClientIoHandler {
+			client: service.client(),
+			info: Default::default(),
+			sync: sync
+		});
+		service.io().register_handler(io_handler).expect("Error registering IO handler");
+
+		// Handle exit
+		wait_for_exit(&service);
+	}
 }
 
 fn wait_for_exit(client_service: &ClientService) {
@@ -196,56 +288,7 @@ fn wait_for_exit(client_service: &ClientService) {
 }
 
 fn main() {
-	let conf = Configuration::parse();
-	if conf.args.flag_version {
-		print_version();
-		return;
-	}
-
-	let spec = conf.spec();
-
-	// Setup logging
-	setup_log(&conf.args.flag_logging);
-	// Raise fdlimit
-	unsafe { ::fdlimit::raise_fd_limit(); }
-
-	// Configure network
-	let mut net_settings = NetworkConfiguration::new();
-	net_settings.nat_enabled = conf.args.flag_upnp;
-	net_settings.boot_nodes = conf.init_nodes(&spec);
-	let (listen, public) = conf.net_addresses();
-	net_settings.listen_address = listen;
-	net_settings.public_address = public;
-	net_settings.use_secret = conf.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
-	net_settings.discovery_enabled = !conf.args.flag_no_discovery;
-	net_settings.ideal_peers = conf.args.flag_peers;
-	let mut net_path = PathBuf::from(&conf.path());
-	net_path.push("network");
-	net_settings.config_path = Some(net_path.to_str().unwrap().to_owned());
-
-	// Build client
-	let mut service = ClientService::start(spec, net_settings, &Path::new(&conf.path())).unwrap();
-	let client = service.client().clone();
-	client.configure_cache(conf.args.flag_cache_pref_size, conf.args.flag_cache_max_size);
-
-	// Sync
-	let sync = EthSync::register(service.network(), client);
-
-	// Setup rpc
-	if conf.args.flag_jsonrpc {
-		setup_rpc_server(service.client(), sync.clone(), &conf.args.flag_jsonrpc_url);
-	}
-
-	// Register IO handler
-	let io_handler  = Arc::new(ClientIoHandler {
-		client: service.client(),
-		info: Default::default(),
-		sync: sync
-	});
-	service.io().register_handler(io_handler).expect("Error registering IO handler");
-
-	// Handle exit
-	wait_for_exit(&service);
+	Configuration::parse().execute();
 }
 
 struct Informant {
