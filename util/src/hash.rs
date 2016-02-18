@@ -304,6 +304,8 @@ macro_rules! impl_hash {
 			}
 		}
 
+		impl Copy for $from {}
+		#[cfg_attr(feature="dev", allow(expl_impl_clone_on_copy))]
 		impl Clone for $from {
 			fn clone(&self) -> $from {
 				unsafe {
