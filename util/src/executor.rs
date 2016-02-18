@@ -64,12 +64,15 @@ pub trait Task: Send + 'static {
 pub trait Executor<T : Task> {
 	/// Returns number of elements waiting in queue
 	fn queued(&self) -> usize;
-	/// Add new task to be executed. Returns a `Future` result.
+	/// Add new task to be executed. Lower value in `priority` means faster execution. Returns a `Future` result.
 	fn execute_with_priority(&self, task: T, priority: usize) -> Future<T::Result, T::Error>;
-	/// Add new task to be executed with default priority
+	/// Add new task to be executed with default priority `std::usize::MAX / 2`
 	fn execute(&self, task: T) -> Future<T::Result, T::Error> {
-		self.execute_with_priority(task, 1)
+		self.execute_with_priority(task, (!0 as usize) / 2)
 	}
+
+	/// Clear any pending tasks
+	fn clear(&self);
 }
 
 /// PriorityQueue of tasks waiting for execution
@@ -81,6 +84,8 @@ pub trait TaskQueue<T: Task>: Send + 'static {
 	fn try_next(&mut self) -> Option<TaskQueueElement<T>>;
 	/// Returns the size of the queue
 	fn len(&self) -> usize;
+	/// Removes all elements from the queue
+	fn clear(&mut self);
 	/// Returns true if there are no items in queue
 	fn is_empty(&self) -> bool {
 		self.len() == 0
@@ -229,6 +234,11 @@ impl<T, Queue> Executor<T> for ThreadPoolExecutor<T, Queue>
 		q.len()
 	}
 
+	fn clear(&self) {
+		let mut q = self.queue.lock().unwrap();
+		q.clear();
+	}
+
 	fn execute_with_priority(&self, task: T, priority: usize) -> Future<T::Result, T::Error> {
 		let (complete, future) = Future::pair();
 		let mut q = self.queue.lock().unwrap();
@@ -249,6 +259,10 @@ impl<T: Task> Executor<T> for SameThreadExecutor {
 	fn queued(&self) -> usize {
 		// Everything is run synchronously
 		0
+	}
+
+	fn clear(&self) {
+		// There is no queue
 	}
 
 	fn execute_with_priority(&self, task: T, _priority: usize) -> Future<T::Result, T::Error> {
@@ -297,6 +311,11 @@ impl<T, Queue> Executor<T> for ManualExecutor<T, Queue>
 	fn queued(&self) -> usize {
 		let q = self.queue.lock().unwrap();
 		q.len()
+	}
+
+	fn clear(&self) {
+		let mut q = self.queue.lock().unwrap();
+		q.clear();
 	}
 
 	fn execute_with_priority(&self, task: T, priority: usize) -> Future<T::Result, T::Error> {
@@ -354,6 +373,10 @@ impl<T: Task> TaskQueue<T> for BinaryHeap<TaskQueueElement<T>> {
 
 	fn try_next(&mut self) -> Option<TaskQueueElement<T>> {
 		self.pop()
+	}
+
+	fn clear(&mut self) {
+		BinaryHeap::clear(self)
 	}
 
 	fn len(&self) -> usize {

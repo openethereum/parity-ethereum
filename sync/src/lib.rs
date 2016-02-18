@@ -67,7 +67,8 @@ use io::NetSyncIo;
 mod chain;
 mod io;
 mod range_collection;
-mod transaction_queue;
+// TODO [todr] Change to private!
+pub mod transaction_queue;
 
 #[cfg(test)]
 mod tests;
