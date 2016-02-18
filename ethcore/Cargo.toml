@@ -25,6 +25,6 @@ lazy_static = "0.1"
 [features]
 jit = ["evmjit"]
 evm-debug = []
-json-tests = []
+json-tests = [ "heapsize/nightly" ]
 test-heavy = []
 default = [ "heapsize/nightly" ]
