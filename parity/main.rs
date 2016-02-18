@@ -18,7 +18,6 @@
 
 #![warn(missing_docs)]
 #![feature(plugin)]
-#![plugin(docopt_macros)]
 #![plugin(clippy)]
 extern crate docopt;
 extern crate rustc_serialize;
@@ -49,10 +48,11 @@ use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethsync::EthSync;
+use docopt::Docopt;
 use target_info::Target;
-use daemonize::{Daemonize};
+use daemonize::Daemonize;
 
-docopt!(Args derive Debug, "
+const USAGE: &'static str = "
 Parity. Ethereum Client.
   By Wood/Paronyan/Kotewicz/Drwięga/Volf.
   Copyright 2015, 2016 Ethcore (UK) Limited
@@ -83,9 +83,31 @@ Options:
   -l --logging LOGGING     Specify the logging level.
   -v --version             Show information about version.
   -h --help                Show this screen.
-", flag_cache_pref_size: usize, flag_cache_max_size: usize, flag_address: Option<String>, flag_node_key: Option<String>);
+";
 
-fn setup_log(init: &str) {
+#[derive(Debug, RustcDecodable)]
+struct Args {
+	cmd_daemon: bool,
+	arg_pid_file: String,
+	arg_enode: Vec<String>,
+	flag_chain: String,
+	flag_db_path: String,
+	flag_keys_path: String,
+	flag_no_bootstrap: bool,
+	flag_listen_address: String,
+	flag_public_address: String,
+	flag_address: Option<String>,
+	flag_upnp: bool,
+	flag_node_key: Option<String>,
+	flag_cache_pref_size: usize,
+	flag_cache_max_size: usize,
+	flag_jsonrpc: bool,
+	flag_jsonrpc_url: String,
+	flag_logging: Option<String>,
+	flag_version: bool,
+}
+
+fn setup_log(init: &Option<String>) {
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
@@ -93,7 +115,9 @@ fn setup_log(init: &str) {
 		builder.parse(&env::var("RUST_LOG").unwrap());
 	}
 
-	builder.parse(init);
+	if let Some(ref s) = *init {
+		builder.parse(s);
+	}
 
 	builder.init().unwrap();
 }
@@ -133,7 +157,7 @@ struct Configuration {
 impl Configuration {
 	fn parse() -> Self {
 		Configuration {
-			args: Args::docopt().decode().unwrap_or_else(|e| e.exit())
+			args: Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit()),
 		}
 	}
 
