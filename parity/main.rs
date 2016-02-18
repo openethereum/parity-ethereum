@@ -58,7 +58,7 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
-  parity daemon <pid_file> [options] [ --no-bootstrap | <enode>... ]
+  parity daemon <pid-file> [options] [ --no-bootstrap | <enode>... ]
   parity [options] [ --no-bootstrap | <enode>... ]
 
 Options:
@@ -182,7 +182,7 @@ impl Configuration {
 		if self.args.flag_no_bootstrap { Vec::new() } else {
 			match self.args.arg_enode.len() {
 				0 => spec.nodes().clone(),
-				_ => self.args.arg_enode.clone(),
+				_ => self.args.arg_enode.clone(),	// TODO check format first.
 			}
 		}
 	}
