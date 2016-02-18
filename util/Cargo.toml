@@ -6,9 +6,6 @@ name = "ethcore-util"
 version = "0.9.99"
 authors = ["Ethcore <admin@ethcore.io>"]
 
-[features]
-default = [ "heapsize/nightly" ]
-
 [dependencies]
 log = "0.3"
 env_logger = "0.3"

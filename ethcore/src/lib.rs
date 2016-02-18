@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![feature(cell_extras)]
-#![feature(augmented_assignments)]
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 // TODO [todr] not really sure
