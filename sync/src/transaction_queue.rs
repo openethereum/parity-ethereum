@@ -24,6 +24,7 @@ use std::hash::Hash;
 use util::executor::*;
 use util::uint::{Uint, U256};
 use util::hash::{Address, H256};
+use util::table::*;
 use ethcore::transaction::*;
 
 #[derive(Clone, Debug)]
@@ -75,6 +76,11 @@ struct CurrentByPriorityAndAddress {
 	address: Table<Address, U256, VerifiedTransaction>
 }
 impl CurrentByPriorityAndAddress {
+
+	fn insert(&mut self, address: Address, nonce: U256, verified_tx: VerifiedTransaction) {
+		self.priority.insert(verified_tx.clone());
+		self.address.insert(address, nonce, verified_tx);
+	}
 
 	fn remove_by_address(&mut self, sender: &Address, nonce: &U256) -> Option<VerifiedTransaction> {
 		if let Some(verified_tx) = self.address.remove(sender, nonce) {
@@ -262,8 +268,7 @@ impl ImportTxTask {
 			while let Some(tx) = txs_by_nonce.remove(&current_nonce) {
 				let height = current_nonce - nonce;
 				let verified_tx = VerifiedTransaction::new(tx, U256::from(height));
-				queue.priority.insert(verified_tx.clone());
-				queue.address.insert(address.clone(), nonce,verified_tx);
+				queue.insert(address.clone(), nonce, verified_tx);
 				current_nonce = current_nonce + U256::one();
 			}
 		}
@@ -301,17 +306,17 @@ impl Task for ImportTxTask {
 
 		// Insert to queue
 		{
-			// We have a gap safe to insert
 			let mut queue = self.current.write().unwrap();
 			let mut avoid = self.avoid.write().unwrap();
 			// This transaction should not be inserted
+			// because it has been removed before that task run
 			if let Some(_tx) = avoid.remove(&tx.hash()) {
 				return Ok(())
 			}
+
 			// We can insert the transaction
 			let verified_tx = VerifiedTransaction::new(tx, height);
-			queue.priority.insert(verified_tx.clone());
-			queue.address.insert(address.clone(), nonce, verified_tx.clone());
+			queue.insert(address.clone(), nonce, verified_tx);
 
 			// Update last_nonce
 			if nonce > last_nonce || is_new {
@@ -323,89 +328,6 @@ impl Task for ImportTxTask {
 		// But maybe there are some more items waiting in future?
 		self.move_future_txs(address, nonce);
 		Ok(())
-	}
-}
-
-struct Table<Row, Col, Val>
-	where Row: Eq + Hash + Clone,
-		  Col: Eq + Hash {
-	map: HashMap<Row, HashMap<Col, Val>>,
-	len: usize,
-}
-impl<Row, Col, Val> Table<Row, Col, Val>
-	where Row: Eq + Hash + Clone,
-		  Col: Eq + Hash {
-	fn new() -> Table<Row, Col, Val> {
-		Table {
-			map: HashMap::new(),
-			len: 0,
-		}
-	}
-
-	fn clear(&mut self) {
-		self.map.clear();
-	}
-
-	fn len(&self) -> usize {
-		self.map.iter().fold(0, |acc, (_k, v)| acc + v.len())
-	}
-
-	fn is_empty(&self) -> bool {
-		self.len() == 0
-	}
-
-	fn get_row_mut(&mut self, row: &Row) -> Option<&mut HashMap<Col, Val>> {
-		self.map.get_mut(row)
-	}
-
-	fn has_row(&self, row: &Row) -> bool {
-		self.map.contains_key(row)
-	}
-
-	fn get_row(&self, row: &Row) -> Option<&HashMap<Col, Val>> {
-		self.map.get(row)
-	}
-
-	fn get(&self, row: &Row, col: &Col) -> Option<&Val> {
-		self.map.get(row).and_then(|r| r.get(col))
-	}
-
-	fn remove(&mut self, row: &Row, col: &Col) -> Option<Val> {
-		let (val, is_empty) = {
-			let row_map = self.map.get_mut(row);
-			if let None = row_map {
-				return None;
-			}
-			let mut row_map = row_map.unwrap();
-			let val = row_map.remove(col);
-			(val, row_map.is_empty())
-		};
-		// Clean row
-		if is_empty {
-			self.map.remove(row);
-		}
-		val
-	}
-
-	fn clear_if_empty(&mut self, row: &Row) {
-		let is_empty = self.map.get(row).map_or(false, |m| m.is_empty());
-		if is_empty {
-			self.map.remove(row);
-		}
-	}
-
-	fn insert(&mut self, row: Row, col: Col, val: Val) {
-		if !self.map.contains_key(&row) {
-			let m = HashMap::new();
-			self.map.insert(row.clone(), m);
-		}
-
-		let mut columns = self.map.get_mut(&row).unwrap();
-		let result = columns.insert(col, val);
-
-		if let None = result {
-			self.len += 1;
-		}
 	}
 }
 
@@ -475,9 +397,9 @@ mod test {
 		exec.consume(1);
 
 		// then
-		// let stats = txq.stats();
-		// assert_eq!(stats.pending, 1);
-		// assert_eq!(stats.queued, 0);
+		let stats = txq.stats();
+		assert_eq!(stats.pending, 1);
+		assert_eq!(stats.queued, 0);
 	}
 
 	#[test]

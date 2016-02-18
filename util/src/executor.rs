@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! A set of utilities to abstract tasks execution.
+//!
+//! Tasks can be executed in the same thread, multiple threads (pool) or you can
+//! control when and in which thread the tasks are consumed.
+
 extern crate eventual;
 use self::eventual::Complete;
 pub use self::eventual::{Future, Async};
