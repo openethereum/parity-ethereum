@@ -6,6 +6,9 @@ name = "ethcore-util"
 version = "0.9.99"
 authors = ["Ethcore <admin@ethcore.io>"]
 
+[features]
+default = [ "heapsize/nightly" ]
+
 [dependencies]
 log = "0.3"
 env_logger = "0.3"
@@ -20,13 +23,13 @@ lazy_static = "0.1"
 eth-secp256k1 = { git = "https://github.com/arkpar/rust-secp256k1.git" }
 rust-crypto = "0.2.34"
 elastic-array = "0.4"
-heapsize = "0.2"
+heapsize = { git = "https://github.com/nikvolf/heapsize" }
 itertools = "0.4"
 crossbeam = "0.2"
 slab = { git = "https://github.com/arkpar/slab.git" }
 sha3 = { path = "sha3" }
 serde = "0.6.7"
-clippy = { version = "0.0.41", optional = true }
+clippy = { version = "0.0.42", optional = true }
 json-tests = { path = "json-tests" }
 target_info = "0.1.0"
 igd = "0.4.2"

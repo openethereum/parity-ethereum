@@ -11,20 +11,21 @@ log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
 rocksdb = "0.3"
-heapsize = "0.2.0"
+heapsize = { git = "https://github.com/nikvolf/heapsize" }
 rust-crypto = "0.2.34"
 time = "0.1"
 ethcore-util = { path = "../util" }
 evmjit = { path = "../evmjit", optional = true }
 ethash = { path = "../ethash" }
 num_cpus = "0.2"
-clippy = { version = "0.0.41", optional = true }
+clippy = { version = "0.0.42", optional = true }
 crossbeam = "0.1.5"
 lazy_static = "0.1"
 
 [features]
 jit = ["evmjit"]
 evm-debug = []
-json-tests = []
+json-tests = [ "heapsize/nightly" ]
 test-heavy = []
 dev = ["clippy"]
+default = [ "heapsize/nightly" ]
