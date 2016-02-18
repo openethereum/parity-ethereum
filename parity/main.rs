@@ -63,7 +63,7 @@ Usage:
 
 Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
-						   or frontier, mainnet, morden, or testnet [default: frontier].
+                           or frontier, mainnet, morden, or testnet [default: frontier].
   -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
 
