@@ -69,11 +69,11 @@ pub struct Database {
 impl Database {
 	/// Open database with default settings.
 	pub fn open_default(path: &str) -> Result<Database, String> {
-		Database::open(DatabaseConfig { prefix_size: None }, path) 
+		Database::open(&DatabaseConfig { prefix_size: None }, path) 
 	}
 
 	/// Open database file. Creates if it does not exist.
-	pub fn open(config: DatabaseConfig, path: &str) -> Result<Database, String> {
+	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database, String> {
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
@@ -147,4 +147,60 @@ impl Database {
 	}
 }
 
+
+#[cfg(test)]
+mod tests {
+	use hash::*;
+	use super::*;
+	use tests::helpers::RandomTempPath;
+	use std::str::FromStr;
+	use std::ops::Deref;
+
+	fn test_db(config: &DatabaseConfig) {
+		let path = RandomTempPath::create_dir();
+		let db = Database::open(config, path.as_path().to_str().unwrap()).unwrap();
+		let key1 = H256::from_str("02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
+		let key2 = H256::from_str("03c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
+		let key3 = H256::from_str("01c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
+
+		db.put(&key1, b"cat").unwrap();
+		db.put(&key2, b"dog").unwrap();
+
+		assert_eq!(db.get(&key1).unwrap().unwrap().deref(), b"cat");
+
+		let contents: Vec<_> = db.iter().collect();
+		assert_eq!(contents.len(), 2);
+		assert_eq!(&*contents[0].0, key1.deref());
+		assert_eq!(&*contents[0].1, b"cat");
+		assert_eq!(&*contents[1].0, key2.deref());
+		assert_eq!(&*contents[1].1, b"dog");
+
+		db.delete(&key1).unwrap();
+		assert!(db.get(&key1).unwrap().is_none());
+		db.put(&key1, b"cat").unwrap();
+
+		let transaction = DBTransaction::new();
+		transaction.put(&key3, b"elephant").unwrap();
+		transaction.delete(&key1).unwrap();
+		db.write(transaction).unwrap();
+		assert!(db.get(&key1).unwrap().is_none());
+		assert_eq!(db.get(&key3).unwrap().unwrap().deref(), b"elephant");
+		
+		if config.prefix_size.is_some() {
+			assert_eq!(db.get_by_prefix(&key3).unwrap().deref(), b"elephant");
+			assert_eq!(db.get_by_prefix(&key2).unwrap().deref(), b"dog");
+		}
+	}
+
+	#[test]
+	fn kvdb() {
+		let path = RandomTempPath::create_dir();
+		let smoke = Database::open_default(path.as_path().to_str().unwrap()).unwrap();
+		assert!(smoke.is_empty());
+		test_db(&DatabaseConfig { prefix_size: None });
+		test_db(&DatabaseConfig { prefix_size: Some(1) });
+		test_db(&DatabaseConfig { prefix_size: Some(8) });
+		test_db(&DatabaseConfig { prefix_size: Some(32) });
+	}
+}
 

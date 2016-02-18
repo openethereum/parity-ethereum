@@ -62,7 +62,7 @@ impl JournalDB {
 		let opts = DatabaseConfig {
 			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
 		};
-		let backing = Database::open(opts, path).unwrap_or_else(|e| {
+		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {
