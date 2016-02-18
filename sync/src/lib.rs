@@ -17,7 +17,6 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
-#![feature(augmented_assignments)]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![allow(clone_on_copy)]
 
@@ -59,7 +58,7 @@ use std::ops::*;
 use std::sync::*;
 use ethcore::client::Client;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
-use util::io::TimerToken;
+use util::TimerToken;
 use chain::ChainSync;
 use ethcore::service::SyncMessage;
 use io::NetSyncIo;

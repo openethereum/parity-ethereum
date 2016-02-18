@@ -23,7 +23,7 @@ serde_macros = { version = "0.6.13", optional = true }
 
 [build-dependencies]
 serde_codegen = { "version" = "0.6.13", "optional" = true }
-syntex = "0.28.0"
+syntex = "0.29.0"
 
 [features]
 default = ["serde_codegen"]
