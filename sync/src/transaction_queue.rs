@@ -75,8 +75,9 @@ impl<'a> TxQueue<'a> {
 
 	/// Returns current stats for this queue
 	pub fn stats(&self) -> TxQueueStats {
+		let current = self.current.read().unwrap();
 		TxQueueStats {
-			pending: 0,
+			pending: current.len(),
 			queued: self.executor.queued()
 		}
 	}
@@ -144,6 +145,24 @@ mod test {
 		let stats = txq.stats();
 		assert_eq!(stats.pending, 0);
 		assert_eq!(stats.queued, 1);
+	}
+
+	#[test]
+	fn should_return_no_of_pending_txs() {
+		// given
+		let exec = Executors::manual();
+		let mut txq = TxQueue::new(&exec);
+		let tx = new_tx();
+		txq.add(tx);
+		assert_eq!(txq.stats().pending, 0);
+
+		// when
+		exec.consume(1);
+
+		// then
+		let stats = txq.stats();
+		assert_eq!(stats.pending, 1);
+		assert_eq!(stats.queued, 0);
 	}
 
 	#[test]
