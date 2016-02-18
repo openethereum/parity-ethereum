@@ -16,6 +16,10 @@ jsonrpc-http-server = "1.1.2"
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
-clippy = "0.0.41"
+clippy = { version = "0.0.41", optional = true }
 target_info = "0.1.0"
 rustc-serialize = "0.3"
+
+[features]
+default = []
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]
