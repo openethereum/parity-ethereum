@@ -20,7 +20,7 @@ lazy_static = "0.1"
 eth-secp256k1 = { git = "https://github.com/arkpar/rust-secp256k1.git" }
 rust-crypto = "0.2.34"
 elastic-array = "0.4"
-heapsize = "0.3"
+heapsize = { git = "https://github.com/nikvolf/heapsize" }
 itertools = "0.4"
 crossbeam = "0.2"
 slab = { git = "https://github.com/arkpar/slab.git" }
