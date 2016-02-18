@@ -19,7 +19,7 @@
 use std::vec::Vec;
 use std::cmp::{Ordering};
 use std::collections::{HashMap, BTreeSet};
-use std::sync::{RwLock, Arc};
+use std::sync::{RwLock, Arc, Mutex};
 use std::hash::Hash;
 use util::executor::*;
 use util::uint::{Uint, U256};
@@ -109,18 +109,17 @@ pub struct TxQueueStats {
 	pub future: usize,
 }
 
-pub struct TxQueue<'a> {
-	executor: &'a Executor<ImportTxTask>,
+pub struct TxQueue {
 	limit: usize,
-	current: Arc<RwLock<CurrentByPriorityAndAddress>>,
-	future: Arc<RwLock<Table<Address, U256, SignedTransaction>>>,
-	avoid: Arc<RwLock<HashMap<H256, SignedTransaction>>>,
-	last_nonces: Arc<RwLock<HashMap<Address, U256>>>,
+	current: CurrentByPriorityAndAddress,
+	future: Table<Address, U256, SignedTransaction>,
+	avoid: HashMap<H256, SignedTransaction>,
+	last_nonces: HashMap<Address, U256>,
 }
 
-impl<'a> TxQueue<'a> {
+impl TxQueue {
 	/// Creates new instance of this Queue
-	pub fn new(executor: &'a Executor<ImportTxTask>) -> Self {
+	pub fn new<T>(_exec: &Executor<T>) -> Self where T: Task<Result=(), Error=()> {
 		let limit = 1024;
 		let current = CurrentByPriorityAndAddress {
 			address: Table::new(),
@@ -131,40 +130,32 @@ impl<'a> TxQueue<'a> {
 		let nonces = HashMap::new();
 
 		TxQueue {
-			executor: executor,
 			limit: limit,
-			current: Arc::new(RwLock::new(current)),
-			future: Arc::new(RwLock::new(future)),
-			avoid: Arc::new(RwLock::new(avoid)),
-			last_nonces: Arc::new(RwLock::new(nonces)),
+			current: current,
+			future: future,
+			avoid: avoid,
+			last_nonces: nonces,
 		}
 	}
 
 	/// Returns current stats for this queue
 	pub fn stats(&self) -> TxQueueStats {
-		let current = self.current.read().unwrap();
-		let future = self.future.read().unwrap();
 		TxQueueStats {
-			pending: current.priority.len(),
-			future: future.len(),
-			queued: self.executor.queued()
+			pending: self.current.priority.len(),
+			future: self.future.len(),
+			queued: 0
 		}
 	}
 
 	/// Add signed transaction to queue to be verified and imported
 	pub fn add(&mut self, tx: SignedTransaction) {
-		let current = self.current.clone();
-		let future = self.future.clone();
-		let avoid = self.avoid.clone();
-		let last_nonces = self.last_nonces.clone();
-
-		self.executor.execute(ImportTxTask {
+		(ImportTxTask {
 			tx: tx,
-			current: current,
-			future: future,
-			avoid: avoid,
-			last_nonces: last_nonces,
-		}).fire();
+			current: self.current,
+			future: self.future,
+			avoid: self.avoid,
+			last_nonces: self.last_nonces,
+		}).call();
 	}
 
 	/// Removes transaction from queue.
@@ -172,44 +163,42 @@ impl<'a> TxQueue<'a> {
 	/// If gap is introduced marks subsequent transactions as future
 	pub fn remove(&mut self, tx: &SignedTransaction) {
 		// Remove from current
-		{
-			let mut current = self.current.write().unwrap();
-			let removed = current.remove(tx);
-			if let Some(verified_tx) = removed {
-				let sender = verified_tx.sender();
-				// Are there any other transactions from this sender?
-				if !current.address.has_row(&sender) {
-					return;
-				}
-
-				// Let's find those with higher nonce
-				let to_move_to_future : Vec<U256> = {
-					let row_map = current.address.get_row(&sender).unwrap();
-					let tx_nonce = verified_tx.tx.nonce;
-					row_map
-						.iter()
-						.filter_map(|(nonce, _)| {
-							if nonce > &tx_nonce {
-								Some(nonce.clone())
-							} else {
-								None
-							}
-						})
-						.collect()
-				};
-				let mut future = self.future.write().unwrap();
-				for  k in to_move_to_future {
-					if let Some(v) = current.remove_by_address(&sender, &k) {
-						future.insert(sender.clone(), v.tx.nonce, v.tx.clone());
-					}
-				}
+		let mut current = self.current;
+		let removed = current.remove(tx);
+		if let Some(verified_tx) = removed {
+			let sender = verified_tx.sender();
+			// Are there any other transactions from this sender?
+			if !current.address.has_row(&sender) {
 				return;
 			}
+
+			// Let's find those with higher nonce
+			let to_move_to_future : Vec<U256> = {
+				let row_map = current.address.get_row(&sender).unwrap();
+				let tx_nonce = verified_tx.tx.nonce;
+				row_map
+					.iter()
+					.filter_map(|(nonce, _)| {
+						if nonce > &tx_nonce {
+							Some(nonce.clone())
+						} else {
+							None
+						}
+					})
+					.collect()
+			};
+			let mut future = self.future;
+			for  k in to_move_to_future {
+				if let Some(v) = current.remove_by_address(&sender, &k) {
+					future.insert(sender.clone(), v.tx.nonce, v.tx.clone());
+				}
+			}
+			return;
 		}
 
 		// Remove from future
 		{
-			let mut future = self.future.write().unwrap();
+			let mut future = self.future;
 			let sender = tx.sender().unwrap();
 			if let Some(_) = future.remove(&sender, &tx.nonce) {
 				return;
@@ -217,78 +206,63 @@ impl<'a> TxQueue<'a> {
 		}
 
 		// Avoid transaction - do not verify (happens only if it's in queue)
-		{
-			let mut avoid = self.avoid.write().unwrap();
-			avoid.insert(tx.hash(), tx.clone());
-		}
+		self.avoid.insert(tx.hash(), tx.clone());
 	}
 
 	/// Returns top transactions from the queue
 	pub fn top_transactions(&self, size: usize) -> Vec<SignedTransaction> {
-		let current = self.current.read().unwrap();
-		current.priority.iter().take(size).map(|t| t.tx.clone()).collect()
+		self.current.priority
+			.iter()
+			.take(size)
+			.map(|t| t.tx.clone()).collect()
 	}
 
 	/// Removes all elements (in any state) from the queue
 	pub fn clear(&self) {
-		let mut current = self.current.write().unwrap();
-		let mut future = self.future.write().unwrap();
-		let mut nonces = self.last_nonces.write().unwrap();
-
-		current.priority.clear();
-		current.address.clear();
-		future.clear();
-		nonces.clear();
-		self.executor.clear();
+		self.current.priority.clear();
+		self.current.address.clear();
+		self.future.clear();
+		self.last_nonces.clear();
+		// self.executor.clear();
 	}
 }
 
 
 pub struct ImportTxTask {
 	tx: SignedTransaction,
-	last_nonces: Arc<RwLock<HashMap<Address, U256>>>,
-	current: Arc<RwLock<CurrentByPriorityAndAddress>>,
-	future: Arc<RwLock<Table<Address, U256, SignedTransaction>>>,
-	avoid: Arc<RwLock<HashMap<H256, SignedTransaction>>>,
+	last_nonces: HashMap<Address, U256>,
+	current: CurrentByPriorityAndAddress,
+	future: Table<Address, U256, SignedTransaction>,
+	avoid: HashMap<H256, SignedTransaction>,
 }
 
 impl ImportTxTask {
-	fn move_future_txs(&self, address: Address, nonce: U256) {
-		let mut queue = self.current.write().unwrap();
-		let mut future = self.future.write().unwrap();
-		{
-			let txs_by_nonce = future.get_row_mut(&address);
-			if let None = txs_by_nonce {
-				return;
-			}
-			let mut txs_by_nonce = txs_by_nonce.unwrap();
-
-			let mut current_nonce = nonce + U256::one();
-
-			while let Some(tx) = txs_by_nonce.remove(&current_nonce) {
-				let height = current_nonce - nonce;
-				let verified_tx = VerifiedTransaction::new(tx, U256::from(height));
-				queue.insert(address.clone(), nonce, verified_tx);
-				current_nonce = current_nonce + U256::one();
-			}
+	fn move_future_txs(&mut self, address: Address, nonce: U256) {
+		let txs_by_nonce = self.future.get_row_mut(&address);
+		if let None = txs_by_nonce {
+			return;
 		}
-		future.clear_if_empty(&address)
+		let mut txs_by_nonce = txs_by_nonce.unwrap();
+
+		let mut current_nonce = nonce + U256::one();
+
+		while let Some(tx) = txs_by_nonce.remove(&current_nonce) {
+			let height = current_nonce - nonce;
+			let verified_tx = VerifiedTransaction::new(tx, U256::from(height));
+			self.current.insert(address.clone(), nonce, verified_tx);
+			current_nonce = current_nonce + U256::one();
+		}
+		self.future.clear_if_empty(&address)
 	}
-}
 
-impl Task for ImportTxTask {
-	type Result = ();
-	type Error = ();
-
-	fn call(self) -> Result<Self::Result, Self::Error> {
+	fn call(self) {
 		let tx = self.tx.clone();
 
 		let nonce = tx.nonce;
 		let address = tx.sender().unwrap();
 
 		let (height, last_nonce, is_new) = {
-			let nonces = self.last_nonces.read().unwrap();
-			let (is_new, last_nonce) = nonces
+			let (is_new, last_nonce) = self.last_nonces
 				.get(&address)
 				.map_or_else(|| (true, nonce), |last_nonce| (false, last_nonce.clone()));
 
@@ -299,35 +273,30 @@ impl Task for ImportTxTask {
 		// Check height
 		if height > U256::from(1) {
 			// We have a gap - we put to future
-			let mut future = self.future.write().unwrap();
-			future.insert(address, nonce, tx);
-			return Ok(())
+			self.future.insert(address, nonce, tx);
+			return;
 		}
 
 		// Insert to queue
 		{
-			let mut queue = self.current.write().unwrap();
-			let mut avoid = self.avoid.write().unwrap();
 			// This transaction should not be inserted
 			// because it has been removed before that task run
-			if let Some(_tx) = avoid.remove(&tx.hash()) {
-				return Ok(())
+			if let Some(_tx) = self.avoid.remove(&tx.hash()) {
+				return;
 			}
 
 			// We can insert the transaction
 			let verified_tx = VerifiedTransaction::new(tx, height);
-			queue.insert(address.clone(), nonce, verified_tx);
+			self.current.insert(address.clone(), nonce, verified_tx);
 
 			// Update last_nonce
 			if nonce > last_nonce || is_new {
-				let mut nonces = self.last_nonces.write().unwrap();
-				nonces.insert(address.clone(), nonce);
+				self.last_nonces.insert(address.clone(), nonce);
 			}
 		}
 
 		// But maybe there are some more items waiting in future?
 		self.move_future_txs(address, nonce);
-		Ok(())
 	}
 }
 
@@ -336,8 +305,8 @@ mod test {
 	extern crate rustc_serialize;
 	use self::rustc_serialize::hex::FromHex;
 
-	use util::crypto::KeyPair;
 	use util::executor::Executors;
+	use util::crypto::KeyPair;
 	use util::uint::{U256, Uint};
 	use ethcore::transaction::*;
 	use super::*;

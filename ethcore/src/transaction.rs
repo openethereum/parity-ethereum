@@ -98,10 +98,10 @@ impl FromJson for SignedTransaction {
 				v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
 				r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
 				s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
-				hash: RwLock::new(None),
+				hash: Cell::new(None),
 				sender: match json.find("sender") {
-					Some(&Json::String(ref sender)) => RwLock::new(Some(address_from_hex(clean(sender)))),
-					_ => RwLock::new(None),
+					Some(&Json::String(ref sender)) => Cell::new(Some(address_from_hex(clean(sender)))),
+					_ => Cell::new(None),
 				}
 			}
 		}
@@ -125,8 +125,8 @@ impl Transaction {
 			r: r,
 			s: s,
 			v: v + 27,
-			hash: RwLock::new(None),
-			sender: RwLock::new(None)
+			hash: Cell::new(None),
+			sender: Cell::new(None)
 		}
 	}
 
@@ -138,8 +138,8 @@ impl Transaction {
 			r: U256::zero(),
 			s: U256::zero(),
 			v: 0,
-			hash: RwLock::new(None),
-			sender: RwLock::new(None)
+			hash: Cell::new(None),
+			sender: Cell::new(None)
 		}
 	}
 
@@ -169,9 +169,9 @@ pub struct SignedTransaction {
 	/// The S field of the signature; helps describe the point on the curve.
 	s: U256,
 	/// Cached hash.
-	hash: RwLock<Option<H256>>,
+	hash: Cell<Option<H256>>,
 	/// Cached sender.
-	sender: RwLock<Option<Address>>
+	sender: Cell<Option<Address>>
 }
 
 impl Eq for SignedTransaction {}
@@ -182,19 +182,13 @@ impl PartialEq for SignedTransaction {
 }
 impl Clone for SignedTransaction {
 	fn clone(&self) -> Self {
-		let hash = self.hash.try_read()
-			.map(|g| g.deref().clone())
-			.unwrap_or_else(|_e| None);
-		let sender = self.sender.try_read()
-			.map(|g| g.deref().clone())
-			.unwrap_or_else(|_e| None);
 		SignedTransaction {
 			unsigned: self.unsigned.clone(),
 			v: self.v,
 			r: self.r,
 			s: self.s,
-			hash: RwLock::new(hash),
-			sender: RwLock::new(sender)
+			hash: self.hash.clone(),
+			sender: self.sender.clone(),
 		}
 	}
 }
@@ -225,8 +219,8 @@ impl Decodable for SignedTransaction {
 			v: try!(d.val_at(6)),
 			r: try!(d.val_at(7)),
 			s: try!(d.val_at(8)),
-			hash: RwLock::new(None),
-			sender: RwLock::new(None),
+			hash: Cell::new(None),
+			sender: Cell::new(None),
 		})
 	}
 }
@@ -255,21 +249,15 @@ impl SignedTransaction {
 
 	/// Get the hash of this header (sha3 of the RLP).
 	pub fn hash(&self) -> H256 {
-		{
-			let hash = self.hash.read().unwrap();
-			if let Some(ref h) = *hash.deref() {
-				return h.clone();
+		let hash = self.hash.get();
+		match hash {
+			Some(h) => h,
+			None => {
+				let h = self.rlp_sha3();
+				self.hash.set(Some(h));
+				h
 			}
 		}
-
-		let mut hash = self.hash.write().unwrap();
-		// To make sure we calculate only once
-		if let Some(ref h) = *hash.deref() {
-			return h.clone();
-		}
-		let hash_val = self.rlp_sha3();
-		*hash = Some(hash_val.clone());
-		hash_val
 	}
 
 	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
@@ -289,20 +277,15 @@ impl SignedTransaction {
 
 	/// Returns transaction sender.
 	pub fn sender(&self) -> Result<Address, Error> {
-		{
-			let sender = self.sender.read().unwrap();
-			if let Some(ref res) = *sender.deref() {
-				return Ok(res.clone());
+		let sender = self.sender.get();
+		match sender {
+			Some(s) => Ok(s),
+			None => {
+				let s = Address::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3());
+				self.sender.set(Some(s));
+				Ok(s)
 			}
 		}
-		let mut sender = self.sender.write().unwrap();
-		// To make sure we calculate only once
-		if let Some(ref res) = *sender.deref() {
-			return Ok(res.clone());
-		}
-		let sender_val = Address::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3());
-		*sender = Some(sender_val.clone());
-		Ok(sender_val)
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,

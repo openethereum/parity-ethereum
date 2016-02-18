@@ -234,7 +234,7 @@ macro_rules! impl_hash {
 		}
 
 		impl serde::Serialize for $from {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				hex.push_str(self.to_hex().as_ref());
@@ -249,7 +249,7 @@ macro_rules! impl_hash {
 
 				impl serde::de::Visitor for HashVisitor {
 					type Value = $from;
-					
+
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
 						// 0x + len
 						if value.len() != 2 + $size * 2 {
@@ -303,6 +303,7 @@ macro_rules! impl_hash {
 			}
 		}
 
+		impl Copy for $from {}
 		impl Clone for $from {
 			fn clone(&self) -> $from {
 				unsafe {
