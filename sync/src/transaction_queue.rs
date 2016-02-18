@@ -75,8 +75,8 @@ struct CurrentByPriorityAndAddress {
 	priority: BTreeSet<VerifiedTransaction>,
 	address: Table<Address, U256, VerifiedTransaction>
 }
-impl CurrentByPriorityAndAddress {
 
+impl CurrentByPriorityAndAddress {
 	fn insert(&mut self, address: Address, nonce: U256, verified_tx: VerifiedTransaction) {
 		self.priority.insert(verified_tx.clone());
 		self.address.insert(address, nonce, verified_tx);
