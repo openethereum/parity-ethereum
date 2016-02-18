@@ -39,7 +39,7 @@ impl Receipt {
 		Receipt {
 			state_root: state_root,
 			gas_used: gas_used,
-			log_bloom: logs.iter().fold(LogBloom::new(), |mut b, l| { b = b | l.bloom(); b }),
+			log_bloom: logs.iter().fold(LogBloom::new(), |mut b, l| { b = &b | &l.bloom(); b }), //TODO: use |= operator
 			logs: logs,
 		}
 	}
