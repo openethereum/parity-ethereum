@@ -110,8 +110,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 		}
 	}
 
-	#[allow(match_ref_pats)]
-	#[allow(single_match)]
+	#[cfg_attr(feature="dev", allow(match_ref_pats))]
+	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
 		if let &UserMessage(ref message) = net_message {
 			match message {
@@ -124,6 +124,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	}
 }
 
+// TODO: rewrite into something that doesn't dependent on the testing environment having a particular port ready for use.
+/*
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -138,3 +140,4 @@ mod tests {
 		assert!(service.is_ok());
 	}
 }
+*/

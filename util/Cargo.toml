@@ -20,13 +20,17 @@ lazy_static = "0.1"
 eth-secp256k1 = { git = "https://github.com/arkpar/rust-secp256k1.git" }
 rust-crypto = "0.2.34"
 elastic-array = "0.4"
-heapsize = "0.2"
+heapsize = "0.3"
 itertools = "0.4"
 crossbeam = "0.2"
 slab = { git = "https://github.com/arkpar/slab.git" }
 sha3 = { path = "sha3" }
 serde = "0.6.7"
-clippy = "0.0.41"
+clippy = { version = "0.0.42", optional = true }
 json-tests = { path = "json-tests" }
 target_info = "0.1.0"
 igd = "0.4.2"
+
+[features]
+default = []
+dev = ["clippy"]

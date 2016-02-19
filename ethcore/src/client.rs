@@ -161,7 +161,7 @@ impl ClientReport {
 	pub fn accrue_block(&mut self, block: &PreVerifiedBlock) {
 		self.blocks_imported += 1;
 		self.transactions_applied += block.transactions.len();
-		self.gas_processed += block.header.gas_used;
+		self.gas_processed = self.gas_processed + block.header.gas_used;
 	}
 }
 

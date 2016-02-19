@@ -413,15 +413,6 @@ macro_rules! impl_hash {
 			}
 		}
 
-		/// Moving BitOrAssign
-		impl<'a> BitOrAssign<&'a $from> for $from {
-			fn bitor_assign(&mut self, rhs: &'a Self) {
-				for i in 0..$size {
-					self.0[i] = self.0[i] | rhs.0[i];
-				}
-			}
-		}
-
 		/// BitAnd on references
 		impl <'a> BitAnd for &'a $from {
 			type Output = $from;

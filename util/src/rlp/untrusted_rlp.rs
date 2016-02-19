@@ -429,7 +429,6 @@ impl<T> Decodable for Option<T> where T: Decodable {
 macro_rules! impl_array_decodable {
 	($index_type:ty, $len:expr ) => (
 		impl<T> Decodable for [T; $len] where T: Decodable {
-			#[allow(len_zero)]
 			fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder {
 				let decoders = decoder.as_rlp();
 
