@@ -226,7 +226,7 @@ dependencies = [
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.6.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha3 0.1.0",
- "slab 0.1.4 (git+https://github.com/arkpar/slab.git)",
+ "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -642,11 +642,6 @@ dependencies = [
 name = "slab"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "slab"
-version = "0.1.4"
-source = "git+https://github.com/arkpar/slab.git#3c9284e1f010e394c9d0359b27464e8fb5c87bf0"
 
 [[package]]
 name = "solicit"
