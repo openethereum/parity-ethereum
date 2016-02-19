@@ -26,9 +26,8 @@ apt-get install -y --force-yes librocksdb-dev
 # install multirust
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
 
-# install nightly and make it default
-multirust update nightly
-multirust default nightly
+# install beta and make it default
+multirust default beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity
@@ -47,12 +46,11 @@ sudo cp -a librocksdb.so* /usr/lib
 sudo ldconfig 
 cd ..
 
-# install rust nightly
+# install rust beta
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
 
-# install nightly and make it default
-sudo multirust update nightly
-sudo multirust default nightly
+# install beta and make it default
+sudo multirust default beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity
@@ -68,8 +66,8 @@ brew update
 brew install rocksdb
 brew install multirust
 
-# install nightly and make it default
-multirust update nightly && multirust default nightly
+# install beta and make it default
+multirust default beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity
