@@ -473,7 +473,7 @@ impl KeyDirectory {
 
 	/// Returns key given by id if corresponding file exists and no load error occured.
 	/// Warns if any error occured during the key loading
-	pub fn get(&self, id: &Uuid) -> Option<Ref<KeyFileContent>> {
+	pub fn get(&self, id: &Uuid) -> Option<KeyFileContent> {
 		let path = self.key_path(id);
 		{
 			let mut usage = self.cache_usage.borrow_mut();
@@ -492,7 +492,10 @@ impl KeyDirectory {
 			}
 		}
 
-		Some(Ref::map(self.cache.borrow(), |c| c.get(id).expect("should be they key, we have just inserted or checked it")))
+		// todo: replace with Ref::map when it stabilized to avoid copies
+		Some(self.cache.borrow().get(id)
+			.expect("should be they key, we have just inserted or checked it")
+			.clone())
 	}
 
 	/// Returns current path to the directory with keys
