@@ -141,7 +141,7 @@ impl<'a> Deref for BytesRef<'a> {
 	fn deref(&self) -> &[u8] {
 		match *self {
 			BytesRef::Flexible(ref bytes) => bytes,
-			BytesRef::Fixed(ref bytes) => bytes
+			BytesRef::Fixed(ref bytes) => bytes,
 		}
 	}
 }
@@ -150,7 +150,7 @@ impl <'a> DerefMut for BytesRef<'a> {
 	fn deref_mut(&mut self) -> &mut [u8] {
 		match *self {
 			BytesRef::Flexible(ref mut bytes) => bytes,
-			BytesRef::Fixed(ref mut bytes) => bytes
+			BytesRef::Fixed(ref mut bytes) => bytes,
 		}
 	}
 }
