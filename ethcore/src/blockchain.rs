@@ -35,7 +35,7 @@ pub struct TreeRoute {
 	/// Best common ancestor of these blocks.
 	pub ancestor: H256,
 	/// An index where best common ancestor would be.
-	pub index: usize
+	pub index: usize,
 }
 
 /// Represents blockchain's in-memory cache size in bytes.
