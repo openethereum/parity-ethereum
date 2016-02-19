@@ -188,7 +188,7 @@ impl<'a> Ext for Externalities<'a> {
 		self.state.code(address).unwrap_or_else(|| vec![])
 	}
 
-	#[allow(match_ref_pats)]
+	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		match &mut self.output {
 			&mut OutputPolicy::Return(BytesRef::Fixed(ref mut slice)) => unsafe {

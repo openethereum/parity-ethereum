@@ -16,13 +16,13 @@
 
 //! Semantic version formatting and comparing.
 
-/// A version value with strict meaning. Use `to_u32` to convert to a simple integer.
-/// 
+/// A version value with strict meaning. Use `as_u32` to convert to a simple integer.
+///
 /// # Example
 /// ```
 /// extern crate ethcore_util as util;
 /// use util::semantic_version::*;
-/// 
+///
 /// fn main() {
 ///   assert_eq!(SemanticVersion::new(1, 2, 3).as_u32(), 0x010203);
 /// }
