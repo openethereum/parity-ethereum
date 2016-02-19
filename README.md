@@ -50,7 +50,7 @@ cd ..
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
 
 # install beta and make it default
-sudo multirust default beta
+multirust default beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity

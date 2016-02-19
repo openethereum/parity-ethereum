@@ -26,17 +26,21 @@ extern crate ethcore;
 extern crate ethsync;
 #[macro_use]
 extern crate log as rlog;
+#[macro_use]
+extern crate lazy_static;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
 extern crate target_info;
 extern crate daemonize;
+extern crate regex;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
 use std::net::{SocketAddr};
 use std::env;
+use std::process::exit;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
@@ -51,6 +55,7 @@ use ethsync::EthSync;
 use docopt::Docopt;
 use target_info::Target;
 use daemonize::Daemonize;
+use regex::Regex;
 
 const USAGE: &'static str = "
 Parity. Ethereum Client.
@@ -150,6 +155,16 @@ By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 ", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
 }
 
+fn die_with_message(msg: &str) -> ! {
+	println!("ERROR: {}", msg);
+	exit(1);
+}
+
+#[macro_export]
+macro_rules! die {
+	($($arg:tt)*) => (die_with_message(&format!("{}", format_args!($($arg)*))));
+}
+
 struct Configuration {
 	args: Args
 }
@@ -174,7 +189,17 @@ impl Configuration {
 			"frontier" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
-			f => Spec::from_json_utf8(contents(f).expect("Couldn't read chain specification file. Sure it exists?").as_ref()),
+			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| die!("{}: Couldn't read chain specification file. Sure it exists?", f)).as_ref()),
+		}
+	}
+
+	fn normalize_enode(e: &str) -> Option<String> {
+		lazy_static! {
+			static ref RE: Regex = Regex::new(r"^enode://([0-9a-fA-F]{64})@(\d+\.\d+\.\d+\.\d+):(\d+)$").unwrap();
+		}
+		match RE.is_match(e) {
+			true => Some(e.to_owned()),
+			false => None,
 		}
 	}
 
@@ -182,7 +207,7 @@ impl Configuration {
 		if self.args.flag_no_bootstrap { Vec::new() } else {
 			match self.args.arg_enode.len() {
 				0 => spec.nodes().clone(),
-				_ => self.args.arg_enode.clone(),	// TODO check format first.
+				_ => self.args.arg_enode.iter().map(|s| Self::normalize_enode(s).unwrap_or_else(||die!("{}: Invalid node address format given for a boot node.", s))).collect(),
 			}
 		}
 	}
@@ -197,12 +222,23 @@ impl Configuration {
 				public_address = SocketAddr::from_str(self.args.flag_public_address.as_ref()).expect("Invalid public address given with --public-address");
 			}
 			Some(ref a) => {
-				public_address = SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address");
+				public_address = SocketAddr::from_str(a.as_ref()).unwrap_or_else(|_|die!("{}: Invalid listen/public address given with --address", a));
 				listen_address = public_address;
 			}
 		};
 
 		(listen_address, public_address)
+	}
+
+	fn net_settings(&self, spec: &Spec) -> NetworkConfiguration {
+		let mut ret = NetworkConfiguration::new();
+		ret.nat_enabled = self.args.flag_upnp;
+		ret.boot_nodes = self.init_nodes(spec);
+		let (listen, public) = self.net_addresses();
+		ret.listen_address = listen;
+		ret.public_address = public;
+		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).unwrap_or_else(|_| s.as_bytes().sha3()));
+		ret
 	}
 
 	fn execute(&self) {
@@ -211,11 +247,11 @@ impl Configuration {
 			return;
 		}
 		if self.args.cmd_daemon {
-			let daemonize = Daemonize::new().pid_file(self.args.arg_pid_file.clone()).chown_pid_file(true);
-			match daemonize.start() {
-				Ok(_) => info!("Daemonized"),
-				Err(e) => { error!("{}", e); return; },
-			}				
+			Daemonize::new()
+				.pid_file(self.args.arg_pid_file.clone())
+				.chown_pid_file(true)
+				.start()
+				.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
 		}
 		self.execute_client();
 	}
@@ -227,15 +263,7 @@ impl Configuration {
 		unsafe { ::fdlimit::raise_fd_limit(); }
 
 		let spec = self.spec();
-
-		// Configure network
-		let mut net_settings = NetworkConfiguration::new();
-		net_settings.nat_enabled = self.args.flag_upnp;
-		net_settings.boot_nodes = self.init_nodes(&spec);
-		let (listen, public) = self.net_addresses();
-		net_settings.listen_address = listen;
-		net_settings.public_address = public;
-		net_settings.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+		let net_settings = self.net_settings(&spec);
 
 		// Build client
 		let mut service = ClientService::start(spec, net_settings, &Path::new(&self.path())).unwrap();
@@ -265,11 +293,13 @@ impl Configuration {
 
 fn wait_for_exit(client_service: &ClientService) {
 	let exit = Arc::new(Condvar::new());
+
 	// Handle possible exits
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.notify_all(); });
 	let e = exit.clone();
 	client_service.on_panic(move |_reason| { e.notify_all(); });
+
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
