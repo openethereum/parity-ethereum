@@ -605,18 +605,21 @@ mod file_tests {
 	use common::*;
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn uuid_parses() {
 		let uuid = uuid_from_string("3198bc9c-6672-5ab3-d995-4942343ae5b6").unwrap();
 		assert!(uuid > H128::zero());
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn uuid_serializes() {
 		let uuid = uuid_from_string("3198bc9c-6fff-5ab3-d995-4942343ae5b6").unwrap();
 		assert_eq!(uuid_to_string(&uuid), "3198bc9c-6fff-5ab3-d995-4942343ae5b6");
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_read_keyfile() {
 		let json = Json::from_str(
 			r#"
@@ -650,6 +653,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_read_scrypt_krf() {
 		let json = Json::from_str(
 			r#"
@@ -687,6 +691,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_return_error_no_id() {
 		let json = Json::from_str(
 			r#"
@@ -721,6 +726,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_return_error_no_crypto() {
 		let json = Json::from_str(
 			r#"
@@ -740,6 +746,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_return_error_unsupported_version() {
 		let json = Json::from_str(
 			r#"
@@ -776,6 +783,7 @@ mod file_tests {
 
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_return_error_initial_vector() {
 		let json = Json::from_str(
 			r#"
@@ -811,6 +819,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_return_error_for_invalid_scrypt_kdf() {
 		let json = Json::from_str(
 			r#"
@@ -846,6 +855,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_serialize_scrypt_back() {
 		let json = Json::from_str(
 			r#"
@@ -878,6 +888,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_create_key_with_new_id() {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), H256::random(), 32, 32));
@@ -885,6 +896,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_load_json_from_itself() {
 		let cipher_text: Bytes = FromHex::from_hex("aaaaaaaaaaaaaaaaaaaaaaaaaaa22222222222222222222222").unwrap();
 		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), H256::random(), 32, 32));
@@ -896,6 +908,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_parse_kdf_params_fail() {
 		let json = Json::from_str(
 			r#"
@@ -941,6 +954,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_parse_kdf_params_scrypt_fail() {
 		let json = Json::from_str(
 			r#"
@@ -978,6 +992,7 @@ mod file_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_parse_crypto_fails() {
 		let json = Json::from_str(
 			r#"
@@ -1030,6 +1045,7 @@ mod directory_tests {
 	use tests::helpers::*;
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn key_directory_locates_keys() {
 		let temp_path = RandomTempPath::create_dir();
 		let directory = KeyDirectory::new(temp_path.as_path());
@@ -1041,6 +1057,7 @@ mod directory_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn loads_key() {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let temp_path = RandomTempPath::create_dir();
@@ -1054,6 +1071,7 @@ mod directory_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn caches_keys() {
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
@@ -1074,6 +1092,7 @@ mod directory_tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn collects_garbage() {
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
@@ -1110,6 +1129,7 @@ mod specs {
 	use tests::helpers::*;
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_initiate_key_directory() {
 		let temp_path = RandomTempPath::create_dir();
 		let directory = KeyDirectory::new(&temp_path.as_path());
@@ -1117,6 +1137,7 @@ mod specs {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_save_key() {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let temp_path = RandomTempPath::create_dir();
@@ -1128,6 +1149,7 @@ mod specs {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_load_key() {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let temp_path = RandomTempPath::create_dir();
@@ -1140,6 +1162,7 @@ mod specs {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_store_10_keys() {
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
@@ -1155,6 +1178,7 @@ mod specs {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_list_keys() {
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());

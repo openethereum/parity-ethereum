@@ -7,6 +7,10 @@ authors = ["Ethcore <admin@ethcore.io"]
 
 [lib]
 
+
+[features]
+coverage = []
+
 [dependencies]
 serde = "0.6.7"
 serde_macros = "0.6.13"

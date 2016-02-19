@@ -202,11 +202,13 @@ mod vector_tests {
 
 #[cfg(test)]
 mod tests {
+
 	use super::*;
 	use tests::helpers::*;
 	use common::*;
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_insert() {
 		let temp = RandomTempPath::create_dir();
 		let mut sstore = SecretStore::new_test(&temp);
@@ -218,6 +220,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_get_fail() {
 		let temp = RandomTempPath::create_dir();
 		{
@@ -240,6 +243,7 @@ mod tests {
 		}
 	}
 
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn pregenerate_keys(temp: &RandomTempPath, count: usize) -> Vec<H128> {
 		use keys::directory::{KeyFileContent, KeyFileCrypto};
 		let mut write_sstore = SecretStore::new_test(&temp);
@@ -260,6 +264,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_get() {
 		let temp = RandomTempPath::create_dir();
 		let key_id = {
@@ -283,6 +288,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn can_delete() {
 		let temp = RandomTempPath::create_dir();
 		let keys = pregenerate_keys(&temp, 5);

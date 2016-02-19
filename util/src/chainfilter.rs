@@ -15,40 +15,40 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Multilevel blockchain bloom filter.
-//! 
+//!
 //! ```
 //! extern crate ethcore_util as util;
 //! use std::str::FromStr;
 //! use util::chainfilter::*;
 //! use util::sha3::*;
 //! use util::hash::*;
-//! 
+//!
 //! fn main() {
 //!		let (index_size, bloom_levels) = (16, 3);
 //!		let mut cache = MemoryCache::new();
-//!		
+//!
 //!		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
-//!		
+//!
 //!		// borrow cache for reading inside the scope
 //!		let modified_blooms = {
-//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);	
+//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 //!			let block_number = 39;
 //!			let mut bloom = H2048::new();
 //!			bloom.shift_bloomed(&address.sha3());
 //!			filter.add_bloom(&bloom, block_number)
 //!		};
-//!		
+//!
 //!		// number of updated blooms is equal number of levels
 //!		assert_eq!(modified_blooms.len(), bloom_levels as usize);
 //!
 //!		// lets inserts modified blooms into the cache
 //!		cache.insert_blooms(modified_blooms);
-//!		
+//!
 //!		// borrow cache for another reading operations
 //!		{
-//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);	
+//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 //!			let blocks = filter.blocks_with_address(&address, 10, 40);
-//!			assert_eq!(blocks.len(), 1);	
+//!			assert_eq!(blocks.len(), 1);
 //!			assert_eq!(blocks[0], 39);
 //!		}
 //! }
@@ -59,7 +59,7 @@ use hash::*;
 use sha3::*;
 
 /// Represents bloom index in cache
-/// 
+///
 /// On cache level 0, every block bloom is represented by different index.
 /// On higher cache levels, multiple block blooms are represented by one
 /// index. Their `BloomIndex` can be created from block number and given level.
@@ -88,7 +88,7 @@ pub trait FilterDataSource {
 }
 
 /// In memory cache for blooms.
-/// 
+///
 /// Stores all blooms in HashMap, which indexes them by `BloomIndex`.
 pub struct MemoryCache {
 	blooms: HashMap<BloomIndex, H2048>,
@@ -101,7 +101,7 @@ impl MemoryCache {
 	}
 
 	/// inserts all blooms into cache
-	/// 
+	///
 	/// if bloom at given index already exists, overwrites it
 	pub fn insert_blooms(&mut self, blooms: HashMap<BloomIndex, H2048>) {
 		self.blooms.extend(blooms);
@@ -126,7 +126,7 @@ pub struct ChainFilter<'a, D>
 impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 {
 	/// Creates new filter instance.
-	/// 
+	///
 	/// Borrows `FilterDataSource` for reading.
 	pub fn new(data_source: &'a D, index_size: usize, levels: u8) -> Self {
 		if levels == 0 {
@@ -145,7 +145,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 		// level_sizes = [1, 16, 256]
 		let additional: Vec<usize> = (1..).into_iter()
 			.scan(1, |acc, _| {
-				*acc = *acc * index_size; 
+				*acc = *acc * index_size;
 				Some(*acc)
 			})
 			.take(levels as usize - 1)
@@ -169,7 +169,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	}
 
 	/// return bloom which are dependencies for given index
-	/// 
+	///
 	/// bloom indexes are ordered from lowest to highest
 	fn lower_level_bloom_indexes(&self, index: &BloomIndex) -> Vec<BloomIndex> {
 		// this is the lowest level
@@ -356,6 +356,7 @@ mod tests {
 	use std::str::FromStr;
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn test_level_size() {
 		let cache = MemoryCache::new();
 		let filter = ChainFilter::new(&cache, 16, 3);
@@ -365,6 +366,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn test_bloom_index() {
 		let cache = MemoryCache::new();
 		let filter = ChainFilter::new(&cache, 16, 3);
@@ -403,6 +405,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn test_lower_level_bloom_indexes() {
 		let cache = MemoryCache::new();
 		let filter = ChainFilter::new(&cache, 16, 3);
@@ -421,6 +424,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature = "coverage", no_debug)]
 	fn test_topic_basic_search() {
 		let index_size = 16;
 		let bloom_levels = 3;
