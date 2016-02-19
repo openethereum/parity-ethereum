@@ -31,21 +31,18 @@ extern crate ctrlc;
 extern crate fdlimit;
 extern crate target_info;
 extern crate daemonize;
-extern crate regex;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
 use std::net::{SocketAddr};
 use std::env;
-use std::from_str::FromStr;
 use std::process::exit;
 use std::path::PathBuf;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
-use util::network::node::Node;
 use util::panics::MayPanic;
 use ethcore::spec::*;
 use ethcore::client::*;
@@ -56,7 +53,6 @@ use ethsync::EthSync;
 use docopt::Docopt;
 use target_info::Target;
 use daemonize::Daemonize;
-use regex::Regex;
 
 const USAGE: &'static str = "
 Parity. Ethereum Client.
@@ -199,7 +195,10 @@ impl Configuration {
 	}
 
 	fn normalize_enode(e: &str) -> Option<String> {
-		Node::from_str(e).ok().map(|_| e.to_owned())
+		match is_valid_node_url(e) {
+			true => Some(e.to_owned()),
+			false => None,
+		}
 	}
 
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
@@ -244,6 +243,7 @@ impl Configuration {
 		let mut net_path = PathBuf::from(&self.path());
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
+		ret
 	}
 
 	fn execute(&self) {
