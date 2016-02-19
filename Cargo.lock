@@ -8,6 +8,7 @@ dependencies = [
  "docopt 0.6.78 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 0.9.99",
+ "ethcore-devtools 0.9.99",
  "ethcore-rpc 0.9.99",
  "ethcore-util 0.9.99",
  "ethsync 0.9.99",
@@ -185,6 +186,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-devtools"
+version = "0.9.99"
+dependencies = [
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethcore-rpc"
 version = "0.9.99"
 dependencies = [
@@ -212,6 +220,7 @@ dependencies = [
  "elastic-array 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/arkpar/rust-secp256k1.git)",
+ "ethcore-devtools 0.9.99",
  "heapsize 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "igd 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
