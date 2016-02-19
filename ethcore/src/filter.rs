@@ -39,7 +39,7 @@ pub struct Filter {
 	/// 
 	/// If None, match all.
 	/// If specified, log must contain one of these topics.
-	pub topics: [Option<Vec<H256>>; 4]
+	pub topics: [Option<Vec<H256>>; 4],
 }
 
 impl Filter {

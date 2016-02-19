@@ -35,7 +35,7 @@ pub enum ExtrasIndex {
 	/// Block blooms index
 	BlocksBlooms = 4,
 	/// Block receipts index
-	BlockReceipts
+	BlockReceipts = 5,
 } 
 
 /// trait used to write Extras data to db
@@ -213,7 +213,7 @@ impl Encodable for BlockLogBlooms {
 /// Neighboring log blooms on certain level
 pub struct BlocksBlooms {
 	/// List of block blooms.
-	pub blooms: [H2048; 16]
+	pub blooms: [H2048; 16],
 }
 
 impl BlocksBlooms {
@@ -269,7 +269,7 @@ pub struct BlocksBloomLocation {
 	/// Unique hash of BlocksBloom
 	pub hash: H256,
 	/// Index within BlocksBloom
-	pub index: usize
+	pub index: usize,
 }
 
 /// Represents address of certain transaction within block
