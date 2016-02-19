@@ -10,9 +10,8 @@ log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
 docopt = "0.6"
-docopt_macros = "0.6"
 ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
-clippy = "0.0.41"
+clippy = { version = "0.0.42", optional = true }
 ethcore-util = { path = "util" }
 ethcore = { path = "ethcore" }
 ethsync = { path = "sync" }
@@ -24,6 +23,9 @@ daemonize = "0.2"
 [features]
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev"]
+travis-beta = ["ethcore/json-tests"]
+travis-nightly = ["ethcore/json-tests", "dev"]
 
 [[bin]]
 path = "parity/main.rs"

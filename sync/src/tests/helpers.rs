@@ -213,7 +213,10 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 		let len = self.numbers.read().unwrap().len();
 		if number == len {
-			*self.difficulty.write().unwrap().deref_mut() += header.difficulty;
+			{
+				let mut difficulty = self.difficulty.write().unwrap();
+				*difficulty.deref_mut() = *difficulty.deref() + header.difficulty;
+			}
 			mem::replace(self.last_hash.write().unwrap().deref_mut(), h.clone());
 			self.blocks.write().unwrap().insert(h.clone(), b);
 			self.numbers.write().unwrap().insert(number, h.clone());

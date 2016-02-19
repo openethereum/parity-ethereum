@@ -16,9 +16,8 @@
 
 //! Ethcore rpc.
 #![warn(missing_docs)]
-#![feature(custom_derive, custom_attribute, plugin)]
-#![plugin(serde_macros)]
-#![plugin(clippy)]
+#![cfg_attr(nightly, feature(custom_derive, custom_attribute, plugin))]
+#![cfg_attr(nightly, plugin(serde_macros, clippy))]
 
 extern crate rustc_serialize;
 extern crate target_info;
@@ -30,38 +29,8 @@ extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
 
-use self::jsonrpc_core::{IoHandler, IoDelegate};
+#[cfg(feature = "serde_macros")]
+include!("lib.rs.in");
 
-pub mod v1;
-
-/// Http server.
-pub struct HttpServer {
-	handler: IoHandler,
-	threads: usize
-}
-
-impl HttpServer {
-	/// Construct new http server object with given number of threads.
-	pub fn new(threads: usize) -> HttpServer {
-		HttpServer {
-			handler: IoHandler::new(),
-			threads: threads
-		}
-	}
-
-	/// Add io delegate.
-	pub fn add_delegate<D>(&mut self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
-		self.handler.add_delegate(delegate);
-	}
-
-	/// Start server asynchronously in new thread
-	pub fn start_async(self, addr: &str) {
-		let server = jsonrpc_http_server::Server::new(self.handler, self.threads);
-		server.start_async(addr)
-	}
-}
-
-/// Lib needs at least 1 test to generate coverage reports correctly.
-#[test]
-fn if_works() {
-}
+#[cfg(not(feature = "serde_macros"))]
+include!(concat!(env!("OUT_DIR"), "/lib.rs"));
