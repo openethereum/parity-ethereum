@@ -23,6 +23,8 @@ use io::SyncIo;
 use chain::{ChainSync};
 use ethcore::receipt::Receipt;
 use ethcore::transaction::LocalizedTransaction;
+use ethcore::filter::Filter;
+use ethcore::log_entry::LocalizedLogEntry;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
@@ -112,6 +114,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
+		unimplemented!();
+	}
+
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
 		unimplemented!();
 	}
 
