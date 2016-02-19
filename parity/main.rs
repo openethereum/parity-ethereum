@@ -37,6 +37,7 @@ extern crate ethcore_rpc as rpc;
 
 use std::net::{SocketAddr};
 use std::env;
+use std::path::PathBuf;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
@@ -69,8 +70,10 @@ Options:
 
   --no-bootstrap           Don't bother trying to connect to any nodes initially.
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
-  --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
+  --public-address URL     Specify the IP/port on which peers may connect.
   --address URL            Equivalent to --listen-address URL --public-address URL.
+  --peers NUM  	           Try to manintain that many peers [default: 25].
+  --no-discovery   	       Disable new peer discovery.
   --upnp                   Use UPnP to try to figure out the correct network settings.
   --node-key KEY           Specify node secret key as hex string.
 
@@ -95,8 +98,10 @@ struct Args {
 	flag_keys_path: String,
 	flag_no_bootstrap: bool,
 	flag_listen_address: String,
-	flag_public_address: String,
+	flag_public_address: Option<String>,
 	flag_address: Option<String>,
+	flag_peers: u32,
+	flag_no_discovery: bool,
 	flag_upnp: bool,
 	flag_node_key: Option<String>,
 	flag_cache_pref_size: usize,
@@ -165,7 +170,7 @@ impl Configuration {
 		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
-	fn keys_path(&self) -> String {
+	fn _keys_path(&self) -> String {
 		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())	
 	}
 
@@ -187,21 +192,23 @@ impl Configuration {
 		}
 	}
 
-	fn net_addresses(&self) -> (SocketAddr, SocketAddr) {
-		let listen_address;
-		let public_address;
+	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
+		let mut listen_address = None;
+		let mut public_address = None;
 
-		match self.args.flag_address {
-			None => {
-				listen_address = SocketAddr::from_str(self.args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address");
-				public_address = SocketAddr::from_str(self.args.flag_public_address.as_ref()).expect("Invalid public address given with --public-address");
+		if let Some(ref a) = self.args.flag_address {
+			public_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address"));
+			listen_address = public_address;
+		}
+		if listen_address.is_none() {
+			listen_address = Some(SocketAddr::from_str(self.args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address"));
+		}
+		if let Some(ref a) = self.args.flag_public_address {
+			if public_address.is_some() {
+				panic!("Conflicting flags: --address and --public-address");
 			}
-			Some(ref a) => {
-				public_address = SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address");
-				listen_address = public_address;
-			}
-		};
-
+			public_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen address given with --public-address"));
+		}
 		(listen_address, public_address)
 	}
 
@@ -236,6 +243,11 @@ impl Configuration {
 		net_settings.listen_address = listen;
 		net_settings.public_address = public;
 		net_settings.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+		net_settings.discovery_enabled = !self.args.flag_no_discovery;
+		net_settings.ideal_peers = self.args.flag_peers;
+		let mut net_path = PathBuf::from(&self.path());
+		net_path.push("network");
+		net_settings.config_path = Some(net_path.to_str().unwrap().to_owned());
 
 		// Build client
 		let mut service = ClientService::start(spec, net_settings, &Path::new(&self.path())).unwrap();

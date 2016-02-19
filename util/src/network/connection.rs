@@ -16,6 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::VecDeque;
+use std::net::SocketAddr;
 use mio::{Handler, Token, EventSet, EventLoop, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
 use hash::*;
@@ -159,6 +160,21 @@ impl Connection {
 		}
 	}
 
+	/// Get socket token 
+	pub fn token(&self) -> StreamToken {
+		self.token
+	}
+
+	/// Replace socket token 
+	pub fn set_token(&mut self, token: StreamToken) {
+		self.token = token;
+	}
+
+	/// Get remote peer address
+	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
+		self.socket.peer_addr()
+	}
+
 	/// Register this connection with the IO event loop.
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection register; token={:?}", reg);
@@ -236,6 +252,16 @@ impl EncryptedConnection {
 	/// Get socket token 
 	pub fn token(&self) -> StreamToken {
 		self.connection.token
+	}
+
+	/// Replace socket token 
+	pub fn set_token(&mut self, token: StreamToken) {
+		self.connection.set_token(token);
+	}
+
+	/// Get remote peer address
+	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
+		self.connection.remote_addr()
 	}
 
 	/// Create an encrypted connection out of the handshake. Consumes a handshake object.

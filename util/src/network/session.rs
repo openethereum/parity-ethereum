@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::net::SocketAddr;
+use std::io;
 use mio::*;
 use hash::*;
 use rlp::*;
@@ -23,7 +25,7 @@ use error::*;
 use io::{IoContext, StreamToken};
 use network::error::{NetworkError, DisconnectReason};
 use network::host::*;
-use network::node::NodeId;
+use network::node_table::NodeId;
 use time;
 
 const PING_TIMEOUT_SEC: u64 = 30;
@@ -89,7 +91,7 @@ impl Decodable for PeerCapabilityInfo {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 struct SessionCapabilityInfo {
 	pub protocol: &'static str,
 	pub version: u8,
@@ -108,7 +110,7 @@ const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
 	/// Create a new session out of comepleted handshake. Consumes handshake object.
-	pub fn new<Message>(h: Handshake, _io: &IoContext<Message>, host: &HostInfo) -> Result<Session, UtilError> where Message: Send + Sync + Clone {
+	pub fn new(h: Handshake, host: &HostInfo) -> Result<Session, UtilError> {
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
 		let mut session = Session {
@@ -129,9 +131,24 @@ impl Session {
 		Ok(session)
 	}
 
+	/// Get id of the remote peer
+	pub fn id(&self) -> &NodeId {
+		&self.info.id
+	}
+
 	/// Check if session is ready to send/receive data
 	pub fn is_ready(&self) -> bool {
 		self.had_hello
+	}
+
+	/// Replace socket token 
+	pub fn set_token(&mut self, token: StreamToken) {
+		self.connection.set_token(token);
+	}
+
+	/// Get remote peer address
+	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
+		self.connection.remote_addr()
 	}
 
 	/// Readable IO handler. Returns packet data if available.
@@ -214,7 +231,11 @@ impl Session {
 				try!(self.read_hello(&rlp, host));
 				Ok(SessionData::Ready)
 			},
-			PACKET_DISCONNECT => Err(From::from(NetworkError::Disconnect(DisconnectReason::DisconnectRequested))),
+			PACKET_DISCONNECT => {
+				let rlp = UntrustedRlp::new(&packet.data[1..]);
+				let reason: u8 = try!(rlp.val_at(0));
+				Err(From::from(NetworkError::Disconnect(DisconnectReason::from_u8(reason))))
+			}
 			PACKET_PING => {
 				try!(self.send_pong());
 				Ok(SessionData::None)
@@ -301,7 +322,12 @@ impl Session {
 		trace!(target: "net", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;
+		if self.info.capabilities.is_empty() {
+			trace!("No common capabilities with peer.");
+			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
+		}
 		if protocol != host.protocol_version {
+			trace!("Peer protocol version mismatch: {}", protocol);
 			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
 		}
 		self.had_hello = true;
