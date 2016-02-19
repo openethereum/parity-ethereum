@@ -24,7 +24,7 @@ use crypto::*;
 use crypto;
 use network::connection::{Connection};
 use network::host::{HostInfo};
-use network::node::NodeId;
+use network::node_table::NodeId;
 use error::*;
 use network::error::NetworkError;
 use network::stats::NetworkStats;
@@ -68,7 +68,7 @@ pub struct Handshake {
 
 const AUTH_PACKET_SIZE: usize = 307;
 const ACK_PACKET_SIZE: usize = 210;
-const HANDSHAKE_TIMEOUT: u64 = 30000;
+const HANDSHAKE_TIMEOUT: u64 = 5000;
 
 impl Handshake {
 	/// Create a new handshake object
@@ -85,6 +85,16 @@ impl Handshake {
 			auth_cipher: Bytes::new(),
 			ack_cipher: Bytes::new(),
 		})
+	}
+
+	/// Get id of the remote node if known
+	pub fn id(&self) -> &NodeId {
+		&self.id
+	}
+
+	/// Get stream token id
+	pub fn token(&self) -> StreamToken {
+		self.connection.token()
 	}
 
 	/// Start a handhsake

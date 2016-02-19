@@ -419,11 +419,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn state_data(&self, _hash: &H256) -> Option<Bytes> {
-		unimplemented!();
+		None
 	}
 
 	fn block_receipts(&self, _hash: &H256) -> Option<Bytes> {
-		unimplemented!();
+		None
 	}
 
 	fn import_block(&self, bytes: Bytes) -> ImportResult {
