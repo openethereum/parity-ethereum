@@ -138,7 +138,7 @@ impl Discovery {
 		ret
 	}
 
-	#[allow(cyclomatic_complexity)]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn nearest_node_entries<'b>(source: &NodeId, target: &NodeId, buckets: &'b [NodeBucket]) -> Vec<&'b NodeId>
 	{
 		// send ALPHA FindNode packets to nodes we know, closest to target
