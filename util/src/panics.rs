@@ -116,6 +116,7 @@ fn convert_to_string(t: &Box<Any + Send>) -> Option<String> {
 }
 
 #[test]
+#[ignore] // panic forwarding doesnt work on the same thread in beta
 fn should_notify_listeners_about_panic () {
 	use std::sync::RwLock;
 	// given
@@ -132,6 +133,7 @@ fn should_notify_listeners_about_panic () {
 }
 
 #[test]
+#[ignore] // panic forwarding doesnt work on the same thread in beta
 fn should_notify_listeners_about_panic_when_string_is_dynamic () {
 	use std::sync::RwLock;
 	// given
@@ -169,6 +171,7 @@ fn should_notify_listeners_about_panic_in_other_thread () {
 }
 
 #[test]
+#[ignore] // panic forwarding doesnt work on the same thread in beta
 fn should_forward_panics () {
 use std::sync::RwLock;
 	// given
