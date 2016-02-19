@@ -31,6 +31,10 @@ json-tests = { path = "json-tests" }
 target_info = "0.1.0"
 igd = "0.4.2"
 
+[dev-dependencies]
+ethcore-devtools = { path = "../devtools" }
+
 [features]
 default = []
 dev = ["clippy"]
+test = []

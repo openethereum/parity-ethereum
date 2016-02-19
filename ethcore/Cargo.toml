@@ -22,6 +22,9 @@ clippy = { version = "0.0.42", optional = true }
 crossbeam = "0.1.5"
 lazy_static = "0.1"
 
+[dev-dependencies]
+ethcore-devtools = { path = "../devtools" }
+
 [features]
 jit = ["evmjit"]
 evm-debug = []
