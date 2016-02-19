@@ -332,6 +332,7 @@ impl Drop for NodeTable {
 	}
 }
 
+/// Check if node url is valid
 pub fn is_valid_node_url(url: &str) -> bool {
 	use std::str::FromStr;
 	Node::from_str(url).is_ok()

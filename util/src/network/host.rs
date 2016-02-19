@@ -209,6 +209,12 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 		}
 	}
 
+	/// Send an IO message
+	pub fn message(&self, msg: Message) {
+		self.io.message(NetworkIoMessage::User(msg));
+	}
+
+
 	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
 	pub fn disable_peer(&self, peer: PeerId) {
 		//TODO: remove capability, disconnect if no capabilities left
@@ -754,6 +760,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			io.register_timer(DISCOVERY_REFRESH, 7200).expect("Error registering discovery timer");
 			io.register_timer(DISCOVERY_ROUND, 300).expect("Error registering discovery timer");
 		}
+		self.maintain_network(io)
 	}
 
 	fn stream_hup(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {

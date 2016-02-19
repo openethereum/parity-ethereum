@@ -74,6 +74,7 @@ impl NetworkProtocolHandler<TestProtocolMessage> for TestProtocol {
 	}
 
 	fn connected(&self, io: &NetworkContext<TestProtocolMessage>, peer: &PeerId) {
+		assert!(io.peer_info(*peer).contains("parity"));
 		if self.drop_session {
 			io.disconnect_peer(*peer)
 		} else {
@@ -86,7 +87,8 @@ impl NetworkProtocolHandler<TestProtocolMessage> for TestProtocol {
 	}
 
 	/// Timer function called after a timeout created with `NetworkContext::timeout`.
-	fn timeout(&self, _io: &NetworkContext<TestProtocolMessage>, timer: TimerToken) {
+	fn timeout(&self, io: &NetworkContext<TestProtocolMessage>, timer: TimerToken) {
+		io.message(TestProtocolMessage { payload: 22 });
 		assert_eq!(timer, 0);
 		self.got_timeout.store(true, AtomicOrdering::Relaxed);
 	}
