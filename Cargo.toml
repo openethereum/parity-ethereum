@@ -24,6 +24,8 @@ daemonize = "0.2"
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev"]
+travis-beta = ["ethcore/json-tests"]
+travis-nightly = ["ethcore/json-tests", "dev"]
 
 [[bin]]
 path = "parity/main.rs"
