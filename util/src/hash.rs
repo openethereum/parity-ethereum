@@ -77,17 +77,18 @@ macro_rules! impl_hash {
 		/// Unformatted binary data of fixed length.
 		pub struct $from (pub [u8; $size]);
 
-		impl BytesConvertable for $from {
-			fn bytes(&self) -> &[u8] {
-				&self.0
-			}
-		}
-
 		impl Deref for $from {
 			type Target = [u8];
 
 			#[inline]
 			fn deref(&self) -> &[u8] {
+				&self.0
+			}
+		}
+
+		impl AsRef<[u8]> for $from {
+			#[inline]
+			fn as_ref(&self) -> &[u8] {
 				&self.0
 			}
 		}

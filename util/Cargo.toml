@@ -31,6 +31,8 @@ json-tests = { path = "json-tests" }
 target_info = "0.1.0"
 igd = "0.4.2"
 ethcore-devtools = { path = "../devtools" }
+libc = "0.2.7"
+
 [features]
 default = []
 dev = ["clippy"]

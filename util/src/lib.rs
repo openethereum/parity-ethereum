@@ -106,8 +106,8 @@ extern crate serde;
 #[macro_use]
 extern crate log as rlog;
 extern crate igd;
-#[cfg(test)]
 extern crate ethcore_devtools as devtools;
+extern crate libc;
 
 pub mod standard;
 #[macro_use]
