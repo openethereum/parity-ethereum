@@ -89,6 +89,7 @@ pub use network::host::NetworkConfiguration;
 pub use network::stats::NetworkStats;
 
 use io::TimerToken;
+pub use network::node_table::is_valid_node_url;
 
 const PROTOCOL_VERSION: u32 = 4;
 
