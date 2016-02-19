@@ -15,14 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![feature(op_assign_traits)]
-#![feature(augmented_assignments)]
-#![feature(associated_consts)]
-#![feature(plugin)]
-#![feature(catch_panic)]
-#![feature(cell_extras)]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 // Clippy settings
-#![plugin(clippy)]
 // TODO [todr] not really sure
 #![allow(needless_range_loop)]
 // Shorter than if-else

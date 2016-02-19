@@ -282,7 +282,7 @@ impl State {
 
 	/// Pull account `a` in our cache from the trie DB and return it.
 	/// `require_code` requires that the code be cached, too.
-	fn get(&self, a: &Address, require_code: bool) -> Ref<Option<Account>> {
+	fn get<'a>(&'a self, a: &Address, require_code: bool) -> &'a Option<Account> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
 			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(Account::from_rlp))
@@ -292,17 +292,17 @@ impl State {
 				account.cache_code(&AccountDB::new(&self.db, a));
 			}
 		}
-		Ref::map(self.cache.borrow(), |m| m.get(a).unwrap())
+		unsafe { ::std::mem::transmute(self.cache.borrow().get(a).unwrap()) }
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
-	fn require(&self, a: &Address, require_code: bool) -> RefMut<Account> {
+	fn require<'a>(&'a self, a: &Address, require_code: bool) -> &'a mut Account {
 		self.require_or_from(a, require_code, || Account::new_basic(U256::from(0u8), self.account_start_nonce), |_|{})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// If it doesn't exist, make account equal the evaluation of `default`.
-	fn require_or_from<F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> RefMut<Account> {
+	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> &'a mut Account {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
 			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(Account::from_rlp))
@@ -316,13 +316,12 @@ impl State {
 			not_default(self.cache.borrow_mut().get_mut(a).unwrap().as_mut().unwrap());
 		}
 
-		let b = self.cache.borrow_mut();
-		RefMut::map(b, |m| m.get_mut(a).unwrap().as_mut().map(|account| {
+		unsafe { ::std::mem::transmute(self.cache.borrow_mut().get_mut(a).unwrap().as_mut().map(|account| {
 			if require_code {
 				account.cache_code(&AccountDB::new(&self.db, a));
 			}
 			account
-		}).unwrap())
+		}).unwrap()) }
 	}
 }
 
