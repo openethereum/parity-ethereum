@@ -494,7 +494,7 @@ impl KeyDirectory {
 
 		// todo: replace with Ref::map when it stabilized to avoid copies
 		Some(self.cache.borrow().get(id)
-			.expect("should be they key, we have just inserted or checked it")
+			.expect("Key should be there, we have just inserted or checked it.")
 			.clone())
 	}
 
