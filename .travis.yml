@@ -38,7 +38,7 @@ before_script: |
 script:
 - cargo build --release --verbose ${FEATURES}
 - cargo test --release --verbose ${FEATURES} ${TARGETS}
-- cargo bench --no-run ${FEATURES} ${TARGETS}
+#- cargo bench --no-run ${FEATURES} ${TARGETS}
 - tar cvzf parity${ARCHIVE_SUFFIX}.tar.gz -C target/release parity
 after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
