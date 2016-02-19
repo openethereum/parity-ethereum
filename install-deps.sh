@@ -346,8 +346,7 @@ function run_installer()
 		exe brew install rocksdb
 		info "Installing multirust"
 		exe brew install multirust
-		sudo multirust update nightly
-		sudo multirust default nightly
+		sudo multirust default beta
 		echo
 	}
 
@@ -426,20 +425,20 @@ function run_installer()
 			depFound=$((depFound+1))
 			check "multirust"
 			isMultirust=true
-			if [[ $(multirust show-default 2>/dev/null | grep nightly | wc -l) == 4 ]]; then
+			if [[ $(multirust show-default 2>/dev/null | grep beta | wc -l) == 4 ]]; then
 				depFound=$((depFound+1))
-				check "rust nightly"
-				isMultirustNightly=true
+				check "rust beta"
+				isMultirustBeta=true
 			else
-				uncheck "rust is not nightly"
-				isMultirustNightly=false
-				INSTALL_FILES+="${blue}${dim}==> multirust -> rust nightly:${reset}${n}"
+				uncheck "rust is not beta"
+				isMultirustBeta=false
+				INSTALL_FILES+="${blue}${dim}==> multirust -> rust beta:${reset}${n}"
 			fi
 		else
 			uncheck "multirust is missing"
-			uncheck "rust nightly is missing"
+			uncheck "rust beta is missing"
 			isMultirust=false
-			isMultirustNightly=false
+			isMultirustBeta=false
 			INSTALL_FILES+="${blue}${dim}==> multirust:${reset}${n}"
 		fi
 	}
@@ -626,10 +625,9 @@ function run_installer()
 			echo
 		fi
 
-		if [[ $isMultirustNightly == false ]]; then
-			info "Installing rust nightly..."
-			multirust update nightly
-			multirust default nightly
+		if [[ $isMultirustBeta == false ]]; then
+			info "Installing rust beta..."
+			multirust default beta
 			echo
 		fi
 	}
@@ -660,7 +658,7 @@ function run_installer()
 			find_rocksdb
 			find_multirust
 
-			if [[ $isCurl == false || $isGit == false || $isMake == false || $isGCC == false || $isRocksDB == false || $isMultirustNightly == false ]]; then
+			if [[ $isCurl == false || $isGit == false || $isMake == false || $isGCC == false || $isRocksDB == false || $isMultirustBeta == false ]]; then
 				abort_install
 			fi
 		fi
