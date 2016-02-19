@@ -247,8 +247,8 @@ macro_rules! impl_uint_from_bytes {
 	}
 }
 
-impl_uint_from_bytes!(U256, 256);
-impl_uint_from_bytes!(U128, 128);
+impl_uint_from_bytes!(U256, 32);
+impl_uint_from_bytes!(U128, 16);
 
 impl <T>FromBytes for T where T: FixedHash {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<T> {
