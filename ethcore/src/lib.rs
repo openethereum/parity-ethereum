@@ -15,18 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![feature(cell_extras)]
-#![feature(augmented_assignments)]
-#![feature(plugin)]
-// Clippy
-#![plugin(clippy)]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 // TODO [todr] not really sure
 #![allow(needless_range_loop)]
 // Shorter than if-else
 #![allow(match_bool)]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![allow(clone_on_copy)]
-
 
 //! Ethcore library
 //!

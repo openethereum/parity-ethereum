@@ -9,10 +9,14 @@ branches:
   - /^beta$/
   - /^stable$/
 matrix:
-  fast_finish: true
-  include:
+  fast_finish: false
+  allow_failures:
   - rust: nightly
-    env: FEATURES="--features ethcore/json-tests" KCOV_FEATURES="" TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity" ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
+  include:
+  - rust: beta
+    env: FEATURES="--features travis-beta" KCOV_FEATURES="" TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity" ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
+  - rust: nightly
+    env: FEATURES="--features travis-nightly" KCOV_FEATURES="" TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity" ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
 cache:
   apt: true
   directories:
@@ -20,6 +24,7 @@ cache:
   - target/debug/build
   - target/release/deps
   - target/release/build
+  - $HOME/.cargo
 addons:
   apt:
     packages:
@@ -33,7 +38,7 @@ before_script: |
 script:
 - cargo build --release --verbose ${FEATURES}
 - cargo test --release --verbose ${FEATURES} ${TARGETS}
-- cargo bench --no-run ${FEATURES} ${TARGETS}
+#- cargo bench --no-run ${FEATURES} ${TARGETS}
 - tar cvzf parity${ARCHIVE_SUFFIX}.tar.gz -C target/release parity
 after_success: |
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
@@ -47,7 +52,7 @@ after_success: |
   ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${TRAVIS_JOB_ID} --exclude-pattern /.cargo,/root/.multirust target/kcov target/debug/parity-* &&
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
-  [ $TRAVIS_RUST_VERSION = nightly ] &&
+  [ $TRAVIS_RUST_VERSION = beta ] &&
   cargo doc --no-deps --verbose ${KCOV_FEATURES} ${TARGETS} &&
   echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html &&
   pip install --user ghp-import &&

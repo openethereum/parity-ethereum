@@ -30,6 +30,7 @@ use rlp::*;
 use time::Tm;
 use error::*;
 use network::discovery::{TableUpdates, NodeEntry};
+use network::ip_utils::*;
 pub use rustc_serialize::json::Json;
 
 /// Node public key
@@ -92,15 +93,15 @@ impl NodeEndpoint {
 	pub fn is_valid(&self) -> bool {
 		self.udp_port != 0 && self.address.port() != 0 &&
 		match self.address {
-			SocketAddr::V4(a) => !a.ip().is_unspecified(),
-			SocketAddr::V6(a) => !a.ip().is_unspecified()
+			SocketAddr::V4(a) => !a.ip().is_unspecified_s(),
+			SocketAddr::V6(a) => !a.ip().is_unspecified_s()
 		}
 	}
 
 	pub fn is_global(&self) -> bool {
 		match self.address {
-			SocketAddr::V4(a) => a.ip().is_global(),
-			SocketAddr::V6(a) => a.ip().is_global()
+			SocketAddr::V4(a) => a.ip().is_global_s(),
+			SocketAddr::V6(a) => a.ip().is_global_s()
 		}
 	}
 }

@@ -27,6 +27,40 @@ pub enum IpAddr{
 	V6(Ipv6Addr),
 }
 
+/// Socket address extension for rustc beta. To be replaces with now unstable API
+pub trait SocketAddrExt {
+	/// Returns true for the special 'unspecified' address 0.0.0.0.
+	fn is_unspecified_s(&self) -> bool;
+	/// Returns true if the address appears to be globally routable.
+	fn is_global_s(&self) -> bool;
+}
+
+impl SocketAddrExt for Ipv4Addr {
+	fn is_unspecified_s(&self) -> bool {
+		self.octets() == [0, 0, 0, 0]
+	}
+
+	fn is_global_s(&self) -> bool {
+		!self.is_private() && !self.is_loopback() && !self.is_link_local() &&
+			!self.is_broadcast() && !self.is_documentation() 
+	}
+}
+
+impl SocketAddrExt for Ipv6Addr {
+	fn is_unspecified_s(&self) -> bool {
+		self.segments() == [0, 0, 0, 0, 0, 0, 0, 0]
+	}
+
+	fn is_global_s(&self) -> bool {
+		if self.is_multicast() {
+			self.segments()[0] & 0x000f == 14
+		} else {
+			!self.is_loopback() && !((self.segments()[0] & 0xffc0) == 0xfe80) &&
+            	!((self.segments()[0] & 0xffc0) == 0xfec0) && !((self.segments()[0] & 0xfe00) == 0xfc00)
+		}
+	}
+}
+
 #[cfg(not(windows))]
 mod getinterfaces {
 	use std::{mem, io, ptr};
@@ -115,7 +149,7 @@ pub fn select_public_address(port: u16) -> SocketAddr {
 			//prefer IPV4 bindings
 			for addr in &list { //TODO: use better criteria than just the first in the list
 				match *addr {
-					IpAddr::V4(a) if !a.is_unspecified() && !a.is_loopback() && !a.is_link_local() => {
+					IpAddr::V4(a) if !a.is_unspecified_s() && !a.is_loopback() && !a.is_link_local() => {
 						return SocketAddr::V4(SocketAddrV4::new(a, port));
 					},
 					_ => {},
@@ -123,7 +157,7 @@ pub fn select_public_address(port: u16) -> SocketAddr {
 			}
 			for addr in list {
 				match addr {
-					IpAddr::V6(a) if !a.is_unspecified() && !a.is_loopback() => {
+					IpAddr::V6(a) if !a.is_unspecified_s() && !a.is_loopback() => {
 						return SocketAddr::V6(SocketAddrV6::new(a, port, 0, 0));
 					},
 					_ => {},
@@ -180,3 +214,55 @@ fn can_map_external_address_or_fail() {
 	let _ = map_external_address(&NodeEndpoint { address: pub_address, udp_port: 40478 });
 }
 
+#[test]
+fn ipv4_properties() {
+	fn check(octets: &[u8; 4], unspec: bool, loopback: bool,
+			 private: bool, link_local: bool, global: bool,
+			 multicast: bool, broadcast: bool, documentation: bool) {
+		let ip = Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3]);
+		assert_eq!(octets, &ip.octets());
+
+		assert_eq!(ip.is_unspecified_s(), unspec);
+		assert_eq!(ip.is_loopback(), loopback);
+		assert_eq!(ip.is_private(), private);
+		assert_eq!(ip.is_link_local(), link_local);
+		assert_eq!(ip.is_global_s(), global);
+		assert_eq!(ip.is_multicast(), multicast);
+		assert_eq!(ip.is_broadcast(), broadcast);
+		assert_eq!(ip.is_documentation(), documentation);
+	}
+
+	//    address                unspec loopbk privt  linloc global multicast brdcast doc
+	check(&[0, 0, 0, 0],         true,  false, false, false, true,  false,    false,  false);
+	check(&[0, 0, 0, 1],         false, false, false, false, true,  false,    false,  false);
+	check(&[1, 0, 0, 0],         false, false, false, false, true,  false,    false,  false);
+	check(&[10, 9, 8, 7],        false, false, true,  false, false, false,    false,  false);
+	check(&[127, 1, 2, 3],       false, true,  false, false, false, false,    false,  false);
+	check(&[172, 31, 254, 253],  false, false, true,  false, false, false,    false,  false);
+	check(&[169, 254, 253, 242], false, false, false, true,  false, false,    false,  false);
+	check(&[192, 0, 2, 183],     false, false, false, false, false, false,    false,  true);
+	check(&[192, 1, 2, 183],     false, false, false, false, true,  false,    false,  false);
+	check(&[192, 168, 254, 253], false, false, true,  false, false, false,    false,  false);
+	check(&[198, 51, 100, 0],    false, false, false, false, false, false,    false,  true);
+	check(&[203, 0, 113, 0],     false, false, false, false, false, false,    false,  true);
+	check(&[203, 2, 113, 0],     false, false, false, false, true,  false,    false,  false);
+	check(&[224, 0, 0, 0],       false, false, false, false, true,  true,     false,  false);
+	check(&[239, 255, 255, 255], false, false, false, false, true,  true,     false,  false);
+	check(&[255, 255, 255, 255], false, false, false, false, false, false,    true,   false);
+}
+
+#[test]
+fn ipv6_properties() {
+	fn check(str_addr: &str, unspec: bool, loopback: bool, global: bool) {
+		let ip: Ipv6Addr = str_addr.parse().unwrap();
+		assert_eq!(str_addr, ip.to_string());
+
+		assert_eq!(ip.is_unspecified_s(), unspec);
+		assert_eq!(ip.is_loopback(), loopback);
+		assert_eq!(ip.is_global_s(), global);
+	}
+
+	//    unspec loopbk global 
+	check("::", true,  false, true);
+	check("::1", false, true, false);
+}

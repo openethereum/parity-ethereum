@@ -124,6 +124,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	}
 }
 
+// TODO: rewrite into something that doesn't dependent on the testing environment having a particular port ready for use.
+/*
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -138,3 +140,4 @@ mod tests {
 		assert!(service.is_ok());
 	}
 }
+*/
