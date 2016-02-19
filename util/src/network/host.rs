@@ -467,7 +467,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		debug!(target: "net", "Connecting peers: {} sessions, {} pending", self.session_count(), self.handshake_count());
 	}
 
-	#[allow(single_match)]
+	#[cfg_attr(feature="dev", allow(single_match))]
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage<Message>>) {
 		if self.have_session(id)
 		{
@@ -502,7 +502,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		self.create_connection(socket, Some(id), io);
 	}
 
-	#[allow(block_in_if_condition_stmt)]
+	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
 	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage<Message>>) {
 		let nonce = self.info.write().unwrap().next_nonce();
 		let mut handshakes = self.handshakes.write().unwrap();

@@ -110,8 +110,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 		}
 	}
 
-	#[allow(match_ref_pats)]
-	#[allow(single_match)]
+	#[cfg_attr(feature="dev", allow(match_ref_pats))]
+	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
 		if let &UserMessage(ref message) = net_message {
 			match message {
