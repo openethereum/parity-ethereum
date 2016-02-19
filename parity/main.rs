@@ -37,6 +37,7 @@ extern crate ethcore_rpc as rpc;
 
 use std::net::{SocketAddr};
 use std::env;
+use std::process::exit;
 use std::path::PathBuf;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
@@ -155,6 +156,16 @@ By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 ", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
 }
 
+fn die_with_message(msg: &str) -> ! {
+	println!("ERROR: {}", msg);
+	exit(1);
+}
+
+#[macro_export]
+macro_rules! die {
+	($($arg:tt)*) => (die_with_message(&format!("{}", format_args!($($arg)*))));
+}
+
 struct Configuration {
 	args: Args
 }
@@ -179,7 +190,14 @@ impl Configuration {
 			"frontier" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
-			f => Spec::from_json_utf8(contents(f).expect("Couldn't read chain specification file. Sure it exists?").as_ref()),
+			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| die!("{}: Couldn't read chain specification file. Sure it exists?", f)).as_ref()),
+		}
+	}
+
+	fn normalize_enode(e: &str) -> Option<String> {
+		match is_valid_node_url(e) {
+			true => Some(e.to_owned()),
+			false => None,
 		}
 	}
 
@@ -187,7 +205,7 @@ impl Configuration {
 		if self.args.flag_no_bootstrap { Vec::new() } else {
 			match self.args.arg_enode.len() {
 				0 => spec.nodes().clone(),
-				_ => self.args.arg_enode.clone(),	// TODO check format first.
+				_ => self.args.arg_enode.iter().map(|s| Self::normalize_enode(s).unwrap_or_else(||die!("{}: Invalid node address format given for a boot node.", s))).collect(),
 			}
 		}
 	}
@@ -212,17 +230,33 @@ impl Configuration {
 		(listen_address, public_address)
 	}
 
+	fn net_settings(&self, spec: &Spec) -> NetworkConfiguration {
+		let mut ret = NetworkConfiguration::new();
+		ret.nat_enabled = self.args.flag_upnp;
+		ret.boot_nodes = self.init_nodes(spec);
+		let (listen, public) = self.net_addresses();
+		ret.listen_address = listen;
+		ret.public_address = public;
+		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+		ret.discovery_enabled = !self.args.flag_no_discovery;
+		ret.ideal_peers = self.args.flag_peers;
+		let mut net_path = PathBuf::from(&self.path());
+		net_path.push("network");
+		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
+		ret
+	}
+
 	fn execute(&self) {
 		if self.args.flag_version {
 			print_version();
 			return;
 		}
 		if self.args.cmd_daemon {
-			let daemonize = Daemonize::new().pid_file(self.args.arg_pid_file.clone()).chown_pid_file(true);
-			match daemonize.start() {
-				Ok(_) => info!("Daemonized"),
-				Err(e) => { error!("{}", e); return; },
-			}				
+			Daemonize::new()
+				.pid_file(self.args.arg_pid_file.clone())
+				.chown_pid_file(true)
+				.start()
+				.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
 		}
 		self.execute_client();
 	}
@@ -234,20 +268,7 @@ impl Configuration {
 		unsafe { ::fdlimit::raise_fd_limit(); }
 
 		let spec = self.spec();
-
-		// Configure network
-		let mut net_settings = NetworkConfiguration::new();
-		net_settings.nat_enabled = self.args.flag_upnp;
-		net_settings.boot_nodes = self.init_nodes(&spec);
-		let (listen, public) = self.net_addresses();
-		net_settings.listen_address = listen;
-		net_settings.public_address = public;
-		net_settings.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
-		net_settings.discovery_enabled = !self.args.flag_no_discovery;
-		net_settings.ideal_peers = self.args.flag_peers;
-		let mut net_path = PathBuf::from(&self.path());
-		net_path.push("network");
-		net_settings.config_path = Some(net_path.to_str().unwrap().to_owned());
+		let net_settings = self.net_settings(&spec);
 
 		// Build client
 		let mut service = ClientService::start(spec, net_settings, &Path::new(&self.path())).unwrap();
@@ -277,11 +298,13 @@ impl Configuration {
 
 fn wait_for_exit(client_service: &ClientService) {
 	let exit = Arc::new(Condvar::new());
+
 	// Handle possible exits
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.notify_all(); });
 	let e = exit.clone();
 	client_service.on_panic(move |_reason| { e.notify_all(); });
+
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
