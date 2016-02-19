@@ -251,7 +251,7 @@ impl ChainSync {
 	}
 
 
-	#[allow(for_kv_map)] // Because it's not possible to get `values_mut()`
+	#[cfg_attr(feature="dev", allow(for_kv_map))] // Because it's not possible to get `values_mut()`
 	/// Rest sync. Clear all downloaded data but keep the queue
 	fn reset(&mut self) {
 		self.downloading_headers.clear();
@@ -319,7 +319,7 @@ impl ChainSync {
 		Ok(())
 	}
 
-	#[allow(cyclomatic_complexity)]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		self.reset_peer_asking(peer_id, PeerAsking::BlockHeaders);

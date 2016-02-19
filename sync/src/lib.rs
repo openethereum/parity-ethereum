@@ -17,8 +17,9 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
+
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
-#![allow(clone_on_copy)]
+#![cfg_attr(feature="dev", allow(clone_on_copy))]
 
 //! Blockchain sync module
 //! Implements ethereum protocol version 63 as specified here:
