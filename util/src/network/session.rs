@@ -109,8 +109,8 @@ const PACKET_USER: u8 = 0x10;
 const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
-	/// Create a new session out of comepleted handshake. Consumes handshake object.
-	pub fn new(h: Handshake, host: &HostInfo) -> Result<Session, UtilError> {
+	/// Create a new session out of comepleted handshake.
+	pub fn new(h: &mut Handshake, host: &HostInfo) -> Result<Session, UtilError> {
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
 		let mut session = Session {
@@ -167,6 +167,12 @@ impl Session {
 	/// Checks if peer supports given capability
 	pub fn have_capability(&self, protocol: &str) -> bool {
 		self.info.capabilities.iter().any(|c| c.protocol == protocol)
+	}
+
+	/// Register the session socket with the event loop
+	pub fn register_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		try!(self.connection.register_socket(reg, event_loop));
+		Ok(())
 	}
 
 	/// Update registration with the event loop. Should be called at the end of the IO handler.

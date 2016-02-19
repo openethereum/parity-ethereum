@@ -544,7 +544,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if let Some(handshake) = handshake {
 			let mut h = handshake.lock().unwrap();
 			if let Err(e) = h.writable(io, &self.info.read().unwrap()) {
-				debug!(target: "net", "Handshake write error: {}:{:?}", token, e);
+				trace!(target: "net", "Handshake write error: {}: {:?}", token, e);
 			}
 		} 
 	}
@@ -554,7 +554,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if let Some(session) = session {
 			let mut s = session.lock().unwrap();
 			if let Err(e) = s.writable(io, &self.info.read().unwrap()) {
-				debug!(target: "net", "Session write error: {}:{:?}", token, e);
+				trace!(target: "net", "Session write error: {}: {:?}", token, e);
 			}
 			io.update_registration(token).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
 		} 
@@ -571,7 +571,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if let Some(handshake) = handshake {
 			let mut h = handshake.lock().unwrap();
 			if let Err(e) = h.readable(io, &self.info.read().unwrap()) {
-				debug!(target: "net", "Handshake read error: {}:{:?}", token, e);
+				debug!(target: "net", "Handshake read error: {}: {:?}", token, e);
 				kill = true;
 			}
 			if h.done() {
@@ -583,7 +583,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			return;
 		} else if create_session {
 			self.start_session(token, io);
-			io.update_registration(token).unwrap_or_else(|e| debug!(target: "net", "Session registration error: {:?}", e));
+			return;
 		}
 		io.update_registration(token).unwrap_or_else(|e| debug!(target: "net", "Token registration error: {:?}", e));
 	}
@@ -597,7 +597,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			let mut s = session.lock().unwrap();
 			match s.readable(io, &self.info.read().unwrap()) {
 				Err(e) => {
-					debug!(target: "net", "Session read error: {}:{:?}", token, e);
+					debug!(target: "net", "Session read error: {}: {:?}", token, e);
 					kill = true;
 				},
 				Ok(SessionData::Ready) => {
@@ -642,16 +642,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		
 		// turn a handshake into a session
 		let mut sessions = self.sessions.write().unwrap();
-		let mut h = handshakes.remove(token).unwrap();
-		// wait for other threads to stop using it
-		{
-			while Arc::get_mut(&mut h).is_none() {
-				h.lock().ok();
-			}
-		}
-		let h = Arc::try_unwrap(h).ok().unwrap().into_inner().unwrap();
+		let mut h = handshakes.get_mut(token).unwrap().lock().unwrap();
 		let originated = h.originated;
-		let mut session = match Session::new(h, &self.info.read().unwrap()) {
+		let mut session = match Session::new(&mut h, &self.info.read().unwrap()) {
 			Ok(s) => s,
 			Err(e) => {
 				debug!("Session creation error: {:?}", e);
@@ -660,7 +653,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		};
 		let result = sessions.insert_with(move |session_token| {
 			session.set_token(session_token);
-			io.update_registration(session_token).expect("Error updating session registration");
+			io.deregister_stream(token).expect("Error deleting handshake registration");
+			io.register_stream(session_token).expect("Error creating session registration");
 			self.stats.inc_sessions();
 			if !originated {
 				// Add it no node table
@@ -872,7 +866,10 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn register_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => {
-				warn!("Unexpected session stream registration");
+				let session = { self.sessions.read().unwrap().get(stream).cloned() };
+				if let Some(session) = session {
+					session.lock().unwrap().register_socket(reg, event_loop).expect("Error registering socket");
+				}
 			}
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
 				let connection = { self.handshakes.read().unwrap().get(stream).cloned() };
