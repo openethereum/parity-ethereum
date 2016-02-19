@@ -26,12 +26,17 @@ apt-get install -y --force-yes librocksdb-dev
 # install multirust
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
 
-# install beta and make it default
-multirust default beta
+# install beta
+multirust update beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity
 cd parity
+
+# parity should be build with rust beta
+multirust override beta
+
+# build in release
 cargo build --release
 ```
 
@@ -49,12 +54,17 @@ cd ..
 # install rust beta
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
 
-# install beta and make it default
-multirust default beta
+# install beta
+multirust update beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity
 cd parity
+
+# parity should be build with rust beta
+multirust override beta
+
+# build in release
 cargo build --release
 ```
 
@@ -66,12 +76,16 @@ brew update
 brew install rocksdb
 brew install multirust
 
-# install beta and make it default
-multirust default beta
+# install beta
+multirust update beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity
 cd parity
+
+# use rust beta for building parity
+multirust override beta
+
 cargo build --release
 ```
 

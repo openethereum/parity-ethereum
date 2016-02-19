@@ -97,7 +97,7 @@ pub struct Spec {
 	genesis_state: PodState,
 }
 
-#[allow(wrong_self_convention)] // because to_engine(self) should be to_engine(&self)
+#[cfg_attr(feature="dev", allow(wrong_self_convention))] // because to_engine(self) should be to_engine(&self)
 impl Spec {
 	/// Convert this object into a boxed Engine of the right underlying type.
 	// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.

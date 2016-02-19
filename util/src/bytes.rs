@@ -141,7 +141,7 @@ impl<'a> Deref for BytesRef<'a> {
 	fn deref(&self) -> &[u8] {
 		match *self {
 			BytesRef::Flexible(ref bytes) => bytes,
-			BytesRef::Fixed(ref bytes) => bytes
+			BytesRef::Fixed(ref bytes) => bytes,
 		}
 	}
 }
@@ -150,7 +150,7 @@ impl <'a> DerefMut for BytesRef<'a> {
 	fn deref_mut(&mut self) -> &mut [u8] {
 		match *self {
 			BytesRef::Flexible(ref mut bytes) => bytes,
-			BytesRef::Fixed(ref mut bytes) => bytes
+			BytesRef::Fixed(ref mut bytes) => bytes,
 		}
 	}
 }
@@ -176,6 +176,10 @@ impl<'a> BytesConvertable for &'a [u8] {
 
 impl BytesConvertable for Vec<u8> {
 	fn bytes(&self) -> &[u8] { self }
+}
+
+impl BytesConvertable for String {
+	fn bytes(&self) -> &[u8] { &self.as_bytes() }
 }
 
 macro_rules! impl_bytes_convertable_for_array {
@@ -249,6 +253,49 @@ impl<T> Populatable for [T] where T: Sized {
 		unsafe {
 			slice::from_raw_parts_mut(self.as_mut_ptr() as *mut u8, mem::size_of::<T>() * self.len())
 		}
+	}
+}
+
+#[derive(Debug)]
+/// Bytes array deserialization error
+pub enum FromBytesError {
+	/// Not enough bytes for the requested type
+	NotLongEnough,
+	/// Too many bytes for the requested type
+	TooLong,
+}
+
+/// Value that can be serialized from bytes array
+pub trait FromRawBytes : Sized {
+	/// function that will instantiate and initialize object from slice
+	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError>;
+}
+
+impl<T> FromRawBytes for T where T: Sized + FixedHash {
+	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
+		use std::mem;
+		use std::cmp::Ordering;
+		match bytes.len().cmp(&mem::size_of::<T>()) {
+			Ordering::Less => return Err(FromBytesError::NotLongEnough),
+			Ordering::Greater => return Err(FromBytesError::TooLong),
+			Ordering::Equal => ()
+		};
+
+		let mut res: Self = unsafe { mem::uninitialized() };
+		res.copy_raw(bytes);
+		Ok(res)
+	}
+}
+
+impl FromRawBytes for String {
+	fn from_bytes(bytes: &[u8]) -> Result<String, FromBytesError> {
+		Ok(::std::str::from_utf8(bytes).unwrap().to_owned())
+	}
+}
+
+impl FromRawBytes for Vec<u8> {
+	fn from_bytes(bytes: &[u8]) -> Result<Vec<u8>, FromBytesError> {
+		Ok(bytes.clone().to_vec())
 	}
 }
 

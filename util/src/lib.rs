@@ -17,15 +17,16 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
+
 // Clippy settings
 // TODO [todr] not really sure
-#![allow(needless_range_loop)]
+#![cfg_attr(feature="dev", allow(needless_range_loop))]
 // Shorter than if-else
-#![allow(match_bool)]
+#![cfg_attr(feature="dev", allow(match_bool))]
 // We use that to be more explicit about handled cases
-#![allow(match_same_arms)]
+#![cfg_attr(feature="dev", allow(match_same_arms))]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
-#![allow(clone_on_copy)]
+#![cfg_attr(feature="dev", allow(clone_on_copy))]
 
 //! Ethcore-util library
 //!
