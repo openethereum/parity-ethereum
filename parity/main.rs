@@ -26,8 +26,6 @@ extern crate ethcore;
 extern crate ethsync;
 #[macro_use]
 extern crate log as rlog;
-#[macro_use]
-extern crate lazy_static;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
@@ -40,11 +38,13 @@ extern crate ethcore_rpc as rpc;
 
 use std::net::{SocketAddr};
 use std::env;
+use std::from_str::FromStr;
 use std::process::exit;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
+use util::network::node::Node;
 use util::panics::MayPanic;
 use ethcore::spec::*;
 use ethcore::client::*;
@@ -194,13 +194,7 @@ impl Configuration {
 	}
 
 	fn normalize_enode(e: &str) -> Option<String> {
-		lazy_static! {
-			static ref RE: Regex = Regex::new(r"^enode://([0-9a-fA-F]{64})@(\d+\.\d+\.\d+\.\d+):(\d+)$").unwrap();
-		}
-		match RE.is_match(e) {
-			true => Some(e.to_owned()),
-			false => None,
-		}
+		Node::from_str(e).ok().map(|_| e.to_owned())
 	}
 
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
