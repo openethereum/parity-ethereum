@@ -129,6 +129,7 @@ mod tests {
 	use super::*;
 	use tests::helpers::*;
 	use util::network::*;
+	use devtools::*;
 
 	#[test]
 	fn it_can_be_started() {

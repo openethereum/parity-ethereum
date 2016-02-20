@@ -1,0 +1,16 @@
+[package]
+description = "Ethcore development/test/build tools"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "ethcore-devtools"
+version = "0.9.99"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+rand = "0.3"
+
+[features]
+
+[lib]
+path = "src/lib.rs"
+test = true
