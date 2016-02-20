@@ -181,7 +181,7 @@ impl Connection {
 			socket: try!(self.socket.try_clone()),
 			rec_buf: Vec::new(),
 			rec_size: 0,
-			send_queue: VecDeque::new(),
+			send_queue: self.send_queue.clone(),
 			interest: EventSet::hup() | EventSet::readable(),
 			stats: self.stats.clone(),
 		})
@@ -190,10 +190,10 @@ impl Connection {
 	/// Register this connection with the IO event loop.
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection register; token={:?}", reg);
-		event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
+		if let Err(e) = event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()) {
 			debug!("Failed to register {:?}, {:?}", reg, e);
-			Ok(())
-		})
+		}
+		Ok(())
 	}
 
 	/// Update connection registration. Should be called at the end of the IO handler.

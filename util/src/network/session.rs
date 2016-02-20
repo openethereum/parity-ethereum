@@ -41,6 +41,8 @@ pub struct Session {
 	connection: EncryptedConnection,
 	/// Session ready flag. Set after successfull Hello packet exchange
 	had_hello: bool,
+	/// Session is no longer active flag.
+	expired: bool,
 	ping_time_ns: u64,
 	pong_time_ns: Option<u64>,
 }
@@ -125,6 +127,7 @@ impl Session {
 			},
 			ping_time_ns: 0,
 			pong_time_ns: None,
+			expired: false,
 		};
 		try!(session.write_hello(host));
 		try!(session.send_ping());
@@ -141,6 +144,16 @@ impl Session {
 		self.had_hello
 	}
 
+	/// Mark this session as inactive to be deleted lated.
+	pub fn set_expired(&mut self) {
+		self.expired = true;
+	}
+
+	/// Check if this session is expired.
+	pub fn expired(&self) -> bool {
+		self.expired
+	}
+
 	/// Replace socket token 
 	pub fn set_token(&mut self, token: StreamToken) {
 		self.connection.set_token(token);
@@ -153,6 +166,9 @@ impl Session {
 
 	/// Readable IO handler. Returns packet data if available.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<SessionData, UtilError>  where Message: Send + Sync + Clone {
+		if self.expired() {
+			return Ok(SessionData::None) 
+		}
 		match try!(self.connection.readable(io)) {
 			Some(data) => Ok(try!(self.read_packet(data, host))),
 			None => Ok(SessionData::None)
@@ -161,6 +177,9 @@ impl Session {
 
 	/// Writable IO handler. Sends pending packets.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Sync + Clone {
+		if self.expired() {
+			return Ok(()) 
+		}
 		self.connection.writable(io)
 	}
 
@@ -171,12 +190,18 @@ impl Session {
 
 	/// Register the session socket with the event loop
 	pub fn register_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		if self.expired() {
+			return Ok(());
+		}
 		try!(self.connection.register_socket(reg, event_loop));
 		Ok(())
 	}
 
 	/// Update registration with the event loop. Should be called at the end of the IO handler.
 	pub fn update_socket<Host:Handler>(&self, reg:Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		if self.expired() {
+			return Ok(());
+		}
 		self.connection.update_socket(reg, event_loop)
 	}
 
