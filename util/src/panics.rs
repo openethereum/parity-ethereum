@@ -72,7 +72,6 @@ impl PanicHandler {
 	/// Invoke closure and catch any possible panics.
 	/// In case of panic notifies all listeners about it.
 	#[cfg_attr(feature="dev", allow(deprecated))]
-	// TODO [todr] catch_panic is deprecated but panic::recover has different bounds (not allowing mutex)
 	pub fn catch_panic<G, R>(&self, g: G) -> thread::Result<R> where G: FnOnce() -> R + Send + 'static {
 		let _guard = PanicGuard { handler: self };
 		let result = g();
