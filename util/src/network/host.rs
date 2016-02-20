@@ -174,8 +174,8 @@ pub struct NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'sta
 
 impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'static, {
 	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
-	fn new(io: &'s IoContext<NetworkIoMessage<Message>>, 
-		protocol: ProtocolId, 
+	fn new(io: &'s IoContext<NetworkIoMessage<Message>>,
+		protocol: ProtocolId,
 		session: Option<StreamToken>, sessions: Arc<RwLock<Slab<SharedSession>>>) -> NetworkContext<'s, Message> {
 		NetworkContext {
 			io: io,
@@ -337,9 +337,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&listen_address).unwrap();
-		let keys = if let Some(ref secret) = config.use_secret { 
-			KeyPair::from_secret(secret.clone()).unwrap() 
-		} else { 
+		let keys = if let Some(ref secret) = config.use_secret {
+			KeyPair::from_secret(secret.clone()).unwrap()
+		} else {
 			config.config_path.clone().and_then(|ref p| load_key(&Path::new(&p)))
 				.map_or_else(|| {
 				let key = KeyPair::create().unwrap();
@@ -351,7 +351,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			|s| KeyPair::from_secret(s).expect("Error creating node secret key"))
 		};
 		let discovery = if config.discovery_enabled && !config.pin {
-			Some(Discovery::new(&keys, listen_address.clone(), public_endpoint.clone(), DISCOVERY)) 
+			Some(Discovery::new(&keys, listen_address.clone(), public_endpoint.clone(), DISCOVERY))
 		} else { None };
 		let path = config.config_path.clone();
 		let mut host = Host::<Message> {
@@ -546,7 +546,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			if let Err(e) = h.writable(io, &self.info.read().unwrap()) {
 				trace!(target: "network", "Handshake write error: {}: {:?}", token, e);
 			}
-		} 
+		}
 	}
 
 	fn session_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -557,7 +557,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				trace!(target: "network", "Session write error: {}: {:?}", token, e);
 			}
 			io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Session registration error: {:?}", e));
-		} 
+		}
 	}
 
 	fn connection_closed(&self, token: TimerToken, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -619,7 +619,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				},
 				Ok(SessionData::None) => {},
 			}
-		} 
+		}
 		if kill {
 			self.kill_connection(token, io, true); //TODO: mark connection as dead an check in kill_connection
 		}
@@ -639,7 +639,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if handshakes.get(token).is_none() {
 			return;
 		}
-		
+
 		// turn a handshake into a session
 		let mut sessions = self.sessions.write().unwrap();
 		let mut h = handshakes.get_mut(token).unwrap().lock().unwrap();
@@ -789,7 +789,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				}
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
-			TCP_ACCEPT => self.accept(io), 
+			TCP_ACCEPT => self.accept(io),
 			_ => panic!("Received unknown readable token"),
 		}
 	}
@@ -865,7 +865,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				let session = { self.sessions.read().unwrap().get(*peer).cloned() };
 				if let Some(session) = session {
 					session.lock().unwrap().disconnect(DisconnectReason::DisconnectRequested);
-				} 
+				}
 				self.kill_connection(*peer, io, false);
 			},
 			NetworkIoMessage::User(ref message) => {
@@ -971,14 +971,14 @@ fn load_key(path: &Path) -> Option<Secret> {
 	let mut buf = String::new();
 	match file.read_to_string(&mut buf) {
 		Ok(_) => {},
-		Err(e) => { 
+		Err(e) => {
 			warn!("Error reading key file: {:?}", e);
 			return None;
 		}
 	}
 	match Secret::from_str(&buf) {
 		Ok(key) => Some(key),
-		Err(e) => { 
+		Err(e) => {
 			warn!("Error parsing key file: {:?}", e);
 			None
 		}
@@ -987,7 +987,7 @@ fn load_key(path: &Path) -> Option<Secret> {
 
 #[test]
 fn key_save_load() {
-	use tests::helpers::RandomTempPath;
+	use ::devtools::RandomTempPath;
 	let temp_path = RandomTempPath::create_dir();
 	let key = H256::random();
 	save_key(temp_path.as_path(), &key);

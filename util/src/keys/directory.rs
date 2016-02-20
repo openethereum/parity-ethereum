@@ -1030,7 +1030,7 @@ mod file_tests {
 mod directory_tests {
 	use super::{KeyDirectory, new_uuid, uuid_to_string, KeyFileContent, KeyFileCrypto, MAX_CACHE_USAGE_TRACK};
 	use common::*;
-	use tests::helpers::*;
+	use devtools::*;
 
 	#[test]
 	fn key_directory_locates_keys() {
@@ -1110,7 +1110,7 @@ mod directory_tests {
 mod specs {
 	use super::*;
 	use common::*;
-	use tests::helpers::*;
+	use devtools::*;
 
 	#[test]
 	fn can_initiate_key_directory() {

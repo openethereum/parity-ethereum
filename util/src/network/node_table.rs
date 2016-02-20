@@ -159,7 +159,7 @@ impl Display for Node {
 		Ok(())
 	}
 }
-	
+
 impl FromStr for Node {
 	type Err = UtilError;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -265,7 +265,7 @@ impl NodeTable {
 			let node_ids = self.nodes();
 			for i in 0 .. node_ids.len() {
 				let node = self.nodes.get(&node_ids[i]).unwrap();
-				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","})) 
+				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","}))
 			}
 			json.push_str("]\n");
 			json.push_str("}");
@@ -297,14 +297,14 @@ impl NodeTable {
 			let mut buf = String::new();
 			match file.read_to_string(&mut buf) {
 				Ok(_) => {},
-				Err(e) => { 
+				Err(e) => {
 					warn!("Error reading node table file: {:?}", e);
 					return nodes;
 				}
 			}
 			let json = match Json::from_str(&buf) {
 				Ok(json) => json,
-				Err(e) => { 
+				Err(e) => {
 					warn!("Error parsing node table file: {:?}", e);
 					return nodes;
 				}
@@ -344,7 +344,7 @@ mod tests {
 	use std::str::FromStr;
 	use std::net::*;
 	use hash::*;
-	use tests::helpers::*;
+	use devtools::*;
 
 	#[test]
 	fn endpoint_parse() {
