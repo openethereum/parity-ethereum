@@ -18,7 +18,6 @@
 
 use std::thread;
 use std::ops::DerefMut;
-use std::any::Any;
 use std::sync::{Arc, Mutex};
 
 /// Thread-safe closure for handling possible panics
@@ -75,7 +74,7 @@ impl PanicHandler {
 	#[cfg_attr(feature="dev", allow(deprecated))]
 	// TODO [todr] catch_panic is deprecated but panic::recover has different bounds (not allowing mutex)
 	pub fn catch_panic<G, R>(&self, g: G) -> thread::Result<R> where G: FnOnce() -> R + Send + 'static {
-		let guard = PanicGuard { handler: self };
+		let _guard = PanicGuard { handler: self };
 		let result = g();
 		Ok(result)
 	}
@@ -106,13 +105,6 @@ impl<F> OnPanicListener for F
 	fn call(&mut self, arg: &str) {
 		self(arg.to_owned())
 	}
-}
-
-fn convert_to_string(t: &Box<Any + Send>) -> Option<String> {
-	let as_str = t.downcast_ref::<&'static str>().cloned().map(|t| t.to_owned());
-	let as_string = t.downcast_ref::<String>().cloned();
-
-	as_str.or(as_string)
 }
 
 #[test]
