@@ -69,6 +69,7 @@ impl SecretStore {
 		}
 	}
 
+	/// Lists all accounts and corresponding key ids
 	pub fn accounts(&self) -> Result<Vec<(Address, H128)>, ::std::io::Error> {
 		let accounts = try!(self.directory.list()).iter().map(|key_id| self.directory.get(key_id))
 			.filter(|key| key.is_some())
@@ -77,6 +78,21 @@ impl SecretStore {
 			.map(|(account, id)| (account.unwrap(), id))
 			.collect::<Vec<(Address, H128)>>();
 		Ok(accounts)
+	}
+
+	/// Resolves key_id by account address
+	pub fn account(&self, account: &Address) -> Option<H128> {
+		let mut accounts = match self.accounts() {
+			Ok(accounts) => accounts,
+			Err(e) => { warn!(target: "sstore", "Failed to load accounts: {}", e); return None; }
+		};
+		accounts.retain(|&(ref store_account, _)| account == store_account);
+		accounts.first().and_then(|&(_, ref key_id)| Some(key_id.clone()))
+	}
+
+	pub fn import_key(&mut self, key_file: KeyFileContent) -> Result<(), ::std::io::Error> {
+		try!(self.directory.save(key_file));
+		Ok(())
 	}
 
 	#[cfg(test)]
