@@ -15,7 +15,6 @@ dependencies = [
  "fdlimit 0.1.0",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
- "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -204,12 +203,10 @@ dependencies = [
  "jsonrpc-core 1.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.6.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.6.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.29.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

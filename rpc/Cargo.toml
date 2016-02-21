@@ -17,10 +17,8 @@ ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
 clippy = { version = "0.0.42", optional = true }
-target_info = "0.1.0"
 rustc-serialize = "0.3"
 serde_macros = { version = "0.6.13", optional = true }
-rustc_version = "0.1.0"
 
 [build-dependencies]
 serde_codegen = { version = "0.6.13", optional = true }
