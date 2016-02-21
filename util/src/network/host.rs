@@ -777,7 +777,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_readable(stream, io),
 			DISCOVERY => {
-				if let Some(node_changes) = self.discovery.as_ref().unwrap().lock().unwrap().readable() {
+				let node_changes = { self.discovery.as_ref().unwrap().lock().unwrap().readable() };
+				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
@@ -809,7 +810,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
 			DISCOVERY_ROUND => {
-				if let Some(node_changes) = self.discovery.as_ref().unwrap().lock().unwrap().round() {
+				let node_changes = { self.discovery.as_ref().unwrap().lock().unwrap().round() };
+				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
