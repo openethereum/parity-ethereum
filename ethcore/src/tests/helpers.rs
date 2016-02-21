@@ -15,51 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use client::{BlockChainClient, Client};
-use std::env;
 use common::*;
-use std::path::PathBuf;
 use spec::*;
-use std::fs::{remove_dir_all};
 use blockchain::{BlockChain};
 use state::*;
 use evm::{Schedule, Factory};
 use engine::*;
 use ethereum;
+use devtools::*;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
 	Frontier,
 	Homestead,
-}
-
-pub struct RandomTempPath {
-	path: PathBuf
-}
-
-impl RandomTempPath {
-	pub fn new() -> RandomTempPath {
-		let mut dir = env::temp_dir();
-		dir.push(H32::random().hex());
-		RandomTempPath {
-			path: dir.clone()
-		}
-	}
-
-	pub fn as_path(&self) -> &PathBuf {
-		&self.path
-	}
-
-	pub fn as_str(&self) -> &str {
-		self.path.to_str().unwrap()
-	}
-}
-
-impl Drop for RandomTempPath {
-	fn drop(&mut self) {
-		if let Err(e) = remove_dir_all(self.as_path()) {
-			panic!("failed to remove temp directory, probably something failed to destroyed ({})", e);
-		}
-	}
 }
 
 #[cfg(test)]

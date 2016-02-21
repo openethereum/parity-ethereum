@@ -163,7 +163,7 @@ impl State {
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.get(address, false).as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(&self.db, address), key))	
+		self.get(address, false).as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(&self.db, address), key))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
@@ -341,6 +341,7 @@ use util::rlp::*;
 use util::uint::*;
 use account::*;
 use tests::helpers::*;
+use devtools::*;
 
 #[test]
 fn code_from_database() {
