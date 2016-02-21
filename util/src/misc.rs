@@ -68,5 +68,5 @@ pub fn contents(name: &str) -> Result<Bytes, UtilError> {
 
 /// Get the standard version string for this software.
 pub fn version() -> String {
-	format!("Parity/{}/{}-{}/{}/rustc{}", env!("CARGO_PKG_VERSION"), short_sha(), commit_date(), target(), rustc_version::version())
+	format!("Parity//{}/{}-{}/{}/rustc{}", env!("CARGO_PKG_VERSION"), short_sha(), commit_date(), target(), rustc_version::version())
 }
