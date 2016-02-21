@@ -20,7 +20,6 @@
 #![cfg_attr(nightly, plugin(serde_macros, clippy))]
 
 extern crate rustc_serialize;
-extern crate target_info;
 extern crate serde;
 extern crate serde_json;
 extern crate jsonrpc_core;

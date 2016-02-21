@@ -5,6 +5,7 @@ license = "GPL-3.0"
 name = "ethcore-util"
 version = "0.9.99"
 authors = ["Ethcore <admin@ethcore.io>"]
+build = "build.rs"
 
 [dependencies]
 log = "0.3"
@@ -28,11 +29,15 @@ sha3 = { path = "sha3" }
 serde = "0.6.7"
 clippy = { version = "0.0.42", optional = true }
 json-tests = { path = "json-tests" }
-target_info = "0.1.0"
+rustc_version = "0.1.0"
 igd = "0.4.2"
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
+vergen = "0.1"
 
 [features]
 default = []
 dev = ["clippy"]
+
+[build-dependencies]
+vergen = "*"

@@ -18,6 +18,9 @@
 
 use std::fs::File;
 use common::*;
+use rustc_version;
+
+include!(concat!(env!("OUT_DIR"), "/version.rs"));
 
 #[derive(Debug,Clone,PartialEq,Eq)]
 /// Diff type for specifying a change (or not).
@@ -61,4 +64,9 @@ pub fn contents(name: &str) -> Result<Bytes, UtilError> {
 	let mut ret: Vec<u8> = Vec::new();
 	try!(file.read_to_end(&mut ret));
 	Ok(ret)
+}
+
+/// Get the standard version string for this software.
+pub fn version() -> String {
+	format!("Parity/{}/{}-{}/{}/rustc{}", env!("CARGO_PKG_VERSION"), short_sha(), commit_date(), target(), rustc_version::version())
 }
