@@ -111,7 +111,8 @@ const PACKET_USER: u8 = 0x10;
 const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
-	/// Create a new session out of comepleted handshake.
+	/// Create a new session out of comepleted handshake. This clones the handshake connection object 
+	/// and leaves the handhsake in limbo to be deregistered from the event loop.
 	pub fn new(h: &mut Handshake, host: &HostInfo) -> Result<Session, UtilError> {
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
@@ -189,7 +190,7 @@ impl Session {
 	}
 
 	/// Register the session socket with the event loop
-	pub fn register_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+	pub fn register_socket<Host:Handler<Timeout = Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		if self.expired() {
 			return Ok(());
 		}

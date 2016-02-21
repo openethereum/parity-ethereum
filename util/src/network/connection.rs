@@ -175,6 +175,7 @@ impl Connection {
 		self.socket.peer_addr()
 	}
 
+	/// Clone this connection. Clears the receiving buffer of the returned connection.
 	pub fn try_clone(&self) -> io::Result<Self> {
 		Ok(Connection {
 			token: self.token,

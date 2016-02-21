@@ -176,6 +176,7 @@ impl Handshake {
 		Ok(())
 	}
 
+	/// Update socket registration with the event loop.
 	pub fn update_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		if !self.expired() {
 			try!(self.connection.update_socket(reg, event_loop));
