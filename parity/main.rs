@@ -29,7 +29,6 @@ extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
-extern crate target_info;
 extern crate daemonize;
 
 #[cfg(feature = "rpc")]
@@ -51,7 +50,6 @@ use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethsync::EthSync;
 use docopt::Docopt;
-use target_info::Target;
 use daemonize::Daemonize;
 
 const USAGE: &'static str = "
@@ -146,14 +144,15 @@ fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
 
 fn print_version() {
 	println!("\
-Parity version {} ({}-{}-{})
+Parity
+  version {}
 Copyright 2015, 2016 Ethcore (UK) Limited
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
-", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
+", version());
 }
 
 fn die_with_message(msg: &str) -> ! {
