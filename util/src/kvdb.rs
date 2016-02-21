@@ -31,12 +31,12 @@ impl DBTransaction {
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten upon write.
-    pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), String> {
+	pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), String> {
 		self.batch.put(key, value)
 	}
 
 	/// Delete value by key.
-    pub fn delete(&self, key: &[u8]) -> Result<(), String> {
+	pub fn delete(&self, key: &[u8]) -> Result<(), String> {
 		self.batch.delete(key)
 	}
 }
@@ -49,14 +49,14 @@ pub struct DatabaseConfig {
 
 /// Database iterator
 pub struct DatabaseIterator<'a> {
-    iter: DBIterator<'a>,
+	iter: DBIterator<'a>,
 }
 
 impl<'a> Iterator for DatabaseIterator<'a> {
-    type Item = (Box<[u8]>, Box<[u8]>);
+	type Item = (Box<[u8]>, Box<[u8]>);
 
 	#[allow(type_complexity)]
-    fn next(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
+	fn next(&mut self) -> Option<(Box<[u8]>, Box<[u8]>)> {
 		self.iter.next()
 	}
 }
@@ -94,7 +94,8 @@ impl Database {
 		opts.set_max_background_compactions(4);
 		opts.set_max_background_flushes(4);
 		opts.set_filter_deletes(false);
-		opts.set_disable_auto_compactions(false);*/
+		opts.set_disable_auto_compactions(false);
+		*/
 
 		if let Some(size) = config.prefix_size {
 			let mut block_opts = BlockBasedOptions::new();
@@ -107,27 +108,27 @@ impl Database {
 	}
 
 	/// Insert a key-value pair in the transaction. Any existing value value will be overwritten.
-    pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), String> {
+	pub fn put(&self, key: &[u8], value: &[u8]) -> Result<(), String> {
 		self.db.put(key, value)
 	}
 
 	/// Delete value by key.
-    pub fn delete(&self, key: &[u8]) -> Result<(), String> {
+	pub fn delete(&self, key: &[u8]) -> Result<(), String> {
 		self.db.delete(key)
 	}
 
 	/// Commit transaction to database.
-    pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
+	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
 		self.db.write(tr.batch)
 	}
 
 	/// Get value by key.
-    pub fn get(&self, key: &[u8]) -> Result<Option<DBVector>, String> {
+	pub fn get(&self, key: &[u8]) -> Result<Option<DBVector>, String> {
 		self.db.get(key)
 	}
 
 	/// Get value by partial key. Prefix size should match configured prefix size.
-    pub fn get_by_prefix(&self, prefix: &[u8]) -> Option<Box<[u8]>> {
+	pub fn get_by_prefix(&self, prefix: &[u8]) -> Option<Box<[u8]>> {
 		let mut iter = self.db.iterator(IteratorMode::From(prefix, Direction::forward));
 		match iter.next() {
 			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
@@ -146,7 +147,6 @@ impl Database {
 		DatabaseIterator { iter: self.db.iterator(IteratorMode::Start) }
 	}
 }
-
 
 #[cfg(test)]
 mod tests {
