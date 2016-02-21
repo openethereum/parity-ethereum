@@ -10,7 +10,6 @@ authors = ["Ethcore <admin@ethcore.io>"]
 log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
-rocksdb = "0.3"
 heapsize = "0.3"
 rust-crypto = "0.2.34"
 time = "0.1"

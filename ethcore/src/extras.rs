@@ -18,7 +18,6 @@
 
 use util::*;
 use header::BlockNumber;
-use rocksdb::{DB, Writable};
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -56,7 +55,7 @@ pub trait ExtrasReadable {
 		K: ExtrasSliceConvertable;
 }
 
-impl<W> ExtrasWritable for W where W: Writable {
+impl ExtrasWritable for DBTransaction {
 	fn put_extras<K, T>(&self, hash: &K, value: &T) where
 		T: ExtrasIndexable + Encodable, 
 		K: ExtrasSliceConvertable {
@@ -65,7 +64,7 @@ impl<W> ExtrasWritable for W where W: Writable {
 	}
 }
 
-impl ExtrasReadable for DB {
+impl ExtrasReadable for Database {
 	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
 		T: ExtrasIndexable + Decodable,
 		K: ExtrasSliceConvertable {
