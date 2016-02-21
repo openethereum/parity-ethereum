@@ -69,7 +69,7 @@ pub struct Database {
 impl Database {
 	/// Open database with default settings.
 	pub fn open_default(path: &str) -> Result<Database, String> {
-		Database::open(&DatabaseConfig { prefix_size: None }, path) 
+		Database::open(&DatabaseConfig { prefix_size: None }, path)
 	}
 
 	/// Open database file. Creates if it does not exist.
@@ -120,7 +120,7 @@ impl Database {
     pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
 		self.db.write(tr.batch)
 	}
-	
+
 	/// Get value by key.
     pub fn get(&self, key: &[u8]) -> Result<Option<DBVector>, String> {
 		self.db.get(key)
@@ -152,7 +152,7 @@ impl Database {
 mod tests {
 	use hash::*;
 	use super::*;
-	use tests::helpers::RandomTempPath;
+	use devtools::*;
 	use std::str::FromStr;
 	use std::ops::Deref;
 
@@ -185,7 +185,7 @@ mod tests {
 		db.write(transaction).unwrap();
 		assert!(db.get(&key1).unwrap().is_none());
 		assert_eq!(db.get(&key3).unwrap().unwrap().deref(), b"elephant");
-		
+
 		if config.prefix_size.is_some() {
 			assert_eq!(db.get_by_prefix(&key3).unwrap().deref(), b"elephant");
 			assert_eq!(db.get_by_prefix(&key2).unwrap().deref(), b"dog");
