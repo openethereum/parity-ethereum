@@ -26,8 +26,8 @@ use std::io::{Read, Write};
 use std::fs;
 use mio::*;
 use mio::tcp::*;
-use target_info::Target;
 use hash::*;
+use misc::version;
 use crypto::*;
 use sha3::Hashable;
 use rlp::*;
@@ -360,7 +360,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				config: config,
 				nonce: H256::random(),
 				protocol_version: PROTOCOL_VERSION,
-				client_version: format!("Parity/{}/{}-{}-{}", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os()),
+				client_version: version(),
 				listen_port: 0,
 				capabilities: Vec::new(),
 			}),

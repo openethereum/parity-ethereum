@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Web3 rpc implementation.
-use target_info::Target;
 use jsonrpc_core::*;
+use util::version;
 use v1::traits::Web3;
 
 /// Web3 rpc implementation.
@@ -30,7 +30,9 @@ impl Web3Client {
 impl Web3 for Web3Client {
 	fn client_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::String(format!("Parity/-/{}/{}-{}-{}/rust1.8-nightly", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os()))),
+			Params::None => {
+				Ok(Value::String(version())),
+			}
 			_ => Err(Error::invalid_params())
 		}
 	}
