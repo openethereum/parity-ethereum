@@ -172,7 +172,7 @@ pub struct Client {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<JournalDB>,
-	block_queue: RwLock<BlockQueue>,
+	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
@@ -231,7 +231,7 @@ impl Client {
 			chain: chain,
 			engine: engine,
 			state_db: Mutex::new(state_db),
-			block_queue: RwLock::new(block_queue),
+			block_queue: block_queue,
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler
@@ -240,7 +240,7 @@ impl Client {
 
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
-		self.block_queue.write().unwrap().flush();
+		self.block_queue.flush();
 	}
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
@@ -248,11 +248,11 @@ impl Client {
 		let mut ret = 0;
 		let mut bad = HashSet::new();
 		let _import_lock = self.import_lock.lock();
-		let blocks = self.block_queue.write().unwrap().drain(128);
+		let blocks = self.block_queue.drain(128);
 		let mut good_blocks = Vec::with_capacity(128);
 		for block in blocks {
 			if bad.contains(&block.header.parent_hash) {
-				self.block_queue.write().unwrap().mark_as_bad(&block.header.hash());
+				self.block_queue.mark_as_bad(&block.header.hash());
 				bad.insert(block.header.hash());
 				continue;
 			}
@@ -260,7 +260,7 @@ impl Client {
 			let header = &block.header;
 			if let Err(e) = verify_block_family(&header, &block.bytes, self.engine.deref().deref(), self.chain.read().unwrap().deref()) {
 				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
+				self.block_queue.mark_as_bad(&header.hash());
 				bad.insert(block.header.hash());
 				break;
 			};
@@ -268,7 +268,7 @@ impl Client {
 				Some(p) => p,
 				None => {
 					warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
-					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
+					self.block_queue.mark_as_bad(&header.hash());
 					bad.insert(block.header.hash());
 					break;
 				},
@@ -292,13 +292,13 @@ impl Client {
 				Err(e) => {
 					warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 					bad.insert(block.header.hash());
-					self.block_queue.write().unwrap().mark_as_bad(&header.hash());
+					self.block_queue.mark_as_bad(&header.hash());
 					break;
 				}
 			};
 			if let Err(e) = verify_block_final(&header, result.block().header()) {
 				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				self.block_queue.write().unwrap().mark_as_bad(&header.hash());
+				self.block_queue.mark_as_bad(&header.hash());
 				break;
 			}
 
@@ -317,8 +317,8 @@ impl Client {
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 			ret += 1;
 		}
-		self.block_queue.write().unwrap().mark_as_good(&good_blocks);
-		if !good_blocks.is_empty() && self.block_queue.read().unwrap().queue_info().is_empty() {
+		self.block_queue.mark_as_good(&good_blocks);
+		if !good_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
 			io.send(NetworkIoMessage::User(SyncMessage::BlockVerified)).unwrap();
 		}
 		ret
@@ -389,7 +389,7 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read().unwrap();
 		match Self::block_hash(&chain, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
-			Some(hash) => self.block_queue.read().unwrap().block_status(&hash),
+			Some(hash) => self.block_queue.block_status(&hash),
 			None => BlockStatus::Unknown
 		}
 	}
@@ -434,15 +434,15 @@ impl BlockChainClient for Client {
 		if self.block_status(BlockId::Hash(header.parent_hash)) == BlockStatus::Unknown {
 			return Err(ImportError::UnknownParent);
 		}
-		self.block_queue.write().unwrap().import_block(bytes)
+		self.block_queue.import_block(bytes)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
-		self.block_queue.read().unwrap().queue_info()
+		self.block_queue.queue_info()
 	}
 
 	fn clear_queue(&self) {
-		self.block_queue.write().unwrap().clear();
+		self.block_queue.clear();
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {

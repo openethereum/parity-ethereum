@@ -151,7 +151,6 @@ dependencies = [
 [[package]]
 name = "eth-secp256k1"
 version = "0.5.4"
-source = "git+https://github.com/arkpar/rust-secp256k1.git#45503e1de68d909b1862e3f2bdb9e1cdfdff3f1e"
 dependencies = [
  "arrayvec 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -223,7 +222,7 @@ dependencies = [
  "crossbeam 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "eth-secp256k1 0.5.4 (git+https://github.com/arkpar/rust-secp256k1.git)",
+ "eth-secp256k1 0.5.4",
  "ethcore-devtools 0.9.99",
  "heapsize 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "igd 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",

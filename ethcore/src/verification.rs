@@ -57,18 +57,12 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 /// Still operates on a individual block
 /// Returns a PreVerifiedBlock structure populated with transactions
 pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreVerifiedBlock, Error> {
-	try!(engine.verify_block_unordered(&header, Some(&bytes)));
-	for u in Rlp::new(&bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
-		try!(engine.verify_block_unordered(&u, None));
-	}
 	// Verify transactions. 
 	let mut transactions = Vec::new();
-	{
-		let v = BlockView::new(&bytes);
-		for t in v.transactions() {
-			try!(engine.verify_transaction(&t, &header));
-			transactions.push(t);
-		}
+	let v = BlockView::new(&bytes);
+	for t in v.transactions() {
+		try!(engine.verify_transaction(&t, &header));
+		transactions.push(t);
 	}
 	Ok(PreVerifiedBlock {
 		header: header,
