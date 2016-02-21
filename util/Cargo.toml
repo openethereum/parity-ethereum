@@ -33,7 +33,7 @@ rustc_version = "0.1.0"
 igd = "0.4.2"
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
-vergen = "*"
+vergen = "0.1"
 
 [features]
 default = []
