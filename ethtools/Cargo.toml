@@ -1,0 +1,10 @@
+[package]
+description = "Ethcore Ethereum tools"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "ethtools"
+version = "0.9.99"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+ethcore-util = { path = "../util" }

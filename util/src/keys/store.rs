@@ -63,10 +63,20 @@ impl SecretStore {
 	/// new instance of Secret Store
 	pub fn new() -> SecretStore {
 		let mut path = ::std::env::home_dir().expect("Failed to get home dir");
-		path.push(".keys");
+		path.push("keystore");
 		SecretStore {
 			directory: KeyDirectory::new(&path)
 		}
+	}
+
+	pub fn accounts(&self) -> Result<Vec<(Address, H128)>, ::std::io::Error> {
+		let accounts = try!(self.directory.list()).iter().map(|key_id| self.directory.get(key_id))
+			.filter(|key| key.is_some())
+			.map(|key| { let some_key = key.unwrap(); (some_key.account, some_key.id) })
+			.filter(|&(ref account, _)| account.is_some())
+			.map(|(account, id)| (account.unwrap(), id))
+			.collect::<Vec<(Address, H128)>>();
+		Ok(accounts)
 	}
 
 	#[cfg(test)]

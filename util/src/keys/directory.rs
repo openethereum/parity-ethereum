@@ -333,7 +333,9 @@ pub struct KeyFileContent {
 	/// Holds cypher and decrypt function settings.
 	pub crypto: KeyFileCrypto,
 	/// The identifier.
-	pub id: Uuid
+	pub id: Uuid,
+	/// Account (if present)
+	pub account: Option<Address>,
 }
 
 #[derive(Debug)]
@@ -374,7 +376,8 @@ impl KeyFileContent {
 		KeyFileContent {
 			id: new_uuid(),
 			version: KeyFileVersion::V3(3),
-			crypto: crypto
+			crypto: crypto,
+			account: None
 		}
 	}
 
@@ -407,6 +410,9 @@ impl KeyFileContent {
 			Ok(id) => id
 		};
 
+		let account = as_object.get("account").and_then(|json| json.as_string()).and_then(
+			|account_text| match Address::from_str(account_text) { Ok(account) => Some(account), Err(_) => None });
+
 		let crypto = match as_object.get("crypto") {
 			None => { return Err(KeyFileParseError::NoCryptoSection); }
 			Some(crypto_json) => match KeyFileCrypto::from_json(crypto_json) {
@@ -418,7 +424,8 @@ impl KeyFileContent {
 		Ok(KeyFileContent {
 			version: version,
 			id: id.clone(),
-			crypto: crypto
+			crypto: crypto,
+			account: account
 		})
 	}
 
