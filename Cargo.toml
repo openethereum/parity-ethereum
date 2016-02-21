@@ -32,4 +32,4 @@ path = "parity/main.rs"
 name = "parity"
 
 [profile.release]
-debug = true
+debug = false

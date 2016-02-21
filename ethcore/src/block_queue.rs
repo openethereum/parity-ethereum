@@ -99,6 +99,7 @@ impl QueueSignal {
 }
 
 struct Verification {
+	// All locks must be captured in the order declared here.
 	unverified: Mutex<VecDeque<UnVerifiedBlock>>,
 	verified: Mutex<VecDeque<PreVerifiedBlock>>,
 	verifying: Mutex<VecDeque<VerifyingBlock>>,
@@ -123,7 +124,7 @@ impl BlockQueue {
 		let panic_handler = PanicHandler::new_in_arc();
 
 		let mut verifiers: Vec<JoinHandle<()>> = Vec::new();
-		let thread_count = max(::num_cpus::get(), 5) - 0;
+		let thread_count = max(::num_cpus::get(), 3) - 2;
 		for i in 0..thread_count {
 			let verification = verification.clone();
 			let engine = engine.clone();
@@ -137,7 +138,6 @@ impl BlockQueue {
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
 					panic_handler.catch_panic(move || {
-						lower_thread_priority();
 						BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
 					}).unwrap()
 				})
@@ -392,7 +392,7 @@ mod tests {
 
 	#[test]
 	fn can_import_blocks() {
-		let mut queue = get_test_queue();
+		let queue = get_test_queue();
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
@@ -400,7 +400,7 @@ mod tests {
 
 	#[test]
 	fn returns_error_for_duplicates() {
-		let mut queue = get_test_queue();
+		let queue = get_test_queue();
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
@@ -419,7 +419,7 @@ mod tests {
 
 	#[test]
 	fn returns_ok_for_drained_duplicates() {
-		let mut queue = get_test_queue();
+		let queue = get_test_queue();
 		let block = get_good_dummy_block();
 		let hash = BlockView::new(&block).header().hash().clone();
 		if let Err(e) = queue.import_block(block) {
@@ -436,7 +436,7 @@ mod tests {
 
 	#[test]
 	fn returns_empty_once_finished() {
-		let mut queue = get_test_queue();
+		let queue = get_test_queue();
 		queue.import_block(get_good_dummy_block()).expect("error importing block that is valid by definition");
 		queue.flush();
 		queue.drain(1);

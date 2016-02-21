@@ -16,6 +16,7 @@
 
 //! Blockchain database.
 
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use rocksdb::{DB, WriteBatch, Writable};
 use header::*;
@@ -147,8 +148,9 @@ struct CacheManager {
 ///
 /// **Does not do input data verification.**
 pub struct BlockChain {
-	pref_cache_size: usize,
-	max_cache_size: usize,
+	// All locks must be captured in the order declared here.
+	pref_cache_size: AtomicUsize,
+	max_cache_size: AtomicUsize,
 
 	best_block: RwLock<BestBlock>,
 
@@ -166,6 +168,7 @@ pub struct BlockChain {
 	blocks_db: DB,
 
 	cache_man: RwLock<CacheManager>,
+	insert_lock: Mutex<()>
 }
 
 impl BlockProvider for BlockChain {
@@ -261,8 +264,8 @@ impl BlockChain {
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
 
 		let bc = BlockChain {
-			pref_cache_size: 1 << 14,
-			max_cache_size: 1 << 20,
+			pref_cache_size: AtomicUsize::new(1 << 14),
+			max_cache_size: AtomicUsize::new(1 << 20),
 			best_block: RwLock::new(BestBlock::new()),
 			blocks: RwLock::new(HashMap::new()),
 			block_details: RwLock::new(HashMap::new()),
@@ -273,6 +276,7 @@ impl BlockChain {
 			extras_db: extras_db,
 			blocks_db: blocks_db,
 			cache_man: RwLock::new(cache_man),
+			insert_lock: Mutex::new(()),
 		};
 
 		// load best block
@@ -315,9 +319,9 @@ impl BlockChain {
 	}
 
 	/// Set the cache configuration.
-	pub fn configure_cache(&mut self, pref_cache_size: usize, max_cache_size: usize) {
-		self.pref_cache_size = pref_cache_size;
-		self.max_cache_size = max_cache_size;
+	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
+		self.pref_cache_size.store(pref_cache_size, AtomicOrder::Relaxed);
+		self.max_cache_size.store(max_cache_size, AtomicOrder::Relaxed);
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
@@ -435,22 +439,26 @@ impl BlockChain {
 			return;
 		}
 
+		let _lock = self.insert_lock.lock();
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
 		let (batch, new_best, details) = self.block_to_extras_insert_batch(bytes);
 
-		// update best block
-		let mut best_block = self.best_block.write().unwrap();
-		if let Some(b) = new_best {
-			*best_block = b;
+		{
+			// update best block
+			let mut best_block = self.best_block.write().unwrap();
+			if let Some(b) = new_best {
+				*best_block = b;
+			}
 		}
 
-		// update caches
-		let mut write = self.block_details.write().unwrap();
-		write.remove(&header.parent_hash());
-		write.insert(hash.clone(), details);
-		self.note_used(CacheID::Block(hash));
-
+		{
+			// update caches
+			let mut write = self.block_details.write().unwrap();
+			write.remove(&header.parent_hash());
+			write.insert(hash.clone(), details);
+			self.note_used(CacheID::Block(hash));
+		}
 		// update extras database
 		self.extras_db.write(batch).unwrap();
 	}
@@ -622,17 +630,17 @@ impl BlockChain {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		if self.cache_size().total() < self.pref_cache_size { return; }
+		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) { return; }
 
 		for _ in 0..COLLECTION_QUEUE_SIZE {
 			{
-				let mut cache_man = self.cache_man.write().unwrap();
 				let mut blocks = self.blocks.write().unwrap();
 				let mut block_details = self.block_details.write().unwrap();
 				let mut block_hashes = self.block_hashes.write().unwrap();
 				let mut transaction_addresses = self.transaction_addresses.write().unwrap();
 				let mut block_logs = self.block_logs.write().unwrap();
 				let mut blocks_blooms = self.blocks_blooms.write().unwrap();
+				let mut cache_man = self.cache_man.write().unwrap();
 
 				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
 					cache_man.in_use.remove(&id);
@@ -650,7 +658,7 @@ impl BlockChain {
 				// TODO: handle block_hashes properly.
 				block_hashes.clear();
 			}
-			if self.cache_size().total() < self.max_cache_size { break; }
+			if self.cache_size().total() < self.max_cache_size.load(AtomicOrder::Relaxed) { break; }
 		}
 
 		// TODO: m_lastCollection = chrono::system_clock::now();
