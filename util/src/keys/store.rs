@@ -64,8 +64,12 @@ impl SecretStore {
 	pub fn new() -> SecretStore {
 		let mut path = ::std::env::home_dir().expect("Failed to get home dir");
 		path.push("keystore");
+		Self::new_in(&path)
+	}
+
+	pub fn new_in(path: &Path) -> SecretStore {
 		SecretStore {
-			directory: KeyDirectory::new(&path)
+			directory: KeyDirectory::new(path)
 		}
 	}
 
@@ -285,6 +289,25 @@ mod tests {
 		result
 	}
 
+	fn pregenerate_accounts(temp: &RandomTempPath, count: usize) -> Vec<H128> {
+		use keys::directory::{KeyFileContent, KeyFileCrypto};
+		let mut write_sstore = SecretStore::new_test(&temp);
+		let mut result = Vec::new();
+		for i in 0..count {
+			let mut key_file =
+				KeyFileContent::new(
+					KeyFileCrypto::new_pbkdf2(
+						FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46").unwrap(),
+						H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
+						H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap(),
+						H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
+						262144,
+						32));
+			key_file.account = Some(x!(i as u64));
+		}
+		result
+	}
+
 	#[test]
 	fn can_get() {
 		let temp = RandomTempPath::create_dir();
@@ -319,5 +342,26 @@ mod tests {
 		assert_eq!(4, sstore.directory.list().unwrap().len())
 	}
 
+	#[test]
+	fn can_import_account() {
+		let temp = RandomTempPath::create_dir();
+		use keys::directory::{KeyFileContent, KeyFileCrypto};
+		let mut key_file =
+			KeyFileContent::new(
+				KeyFileCrypto::new_pbkdf2(
+					FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46").unwrap(),
+					H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
+					H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap(),
+					H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
+					262144,
+					32));
+		key_file.account = Some(Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
 
+		let mut sstore = SecretStore::new_test(&temp);
+
+		sstore.import_key(key_file);
+
+		assert_eq!(1, sstore.accounts().unwrap().len());
+		assert!(sstore.account(&Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap()).is_some());
+	}
 }

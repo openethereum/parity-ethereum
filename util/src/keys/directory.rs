@@ -381,6 +381,16 @@ impl KeyFileContent {
 		}
 	}
 
+	pub fn load(json: &Json) -> Result<KeyFileContent, ()> {
+		match Self::from_json(json) {
+			Ok(key_file) => Ok(key_file),
+			Err(e) => {
+				warn!(target: "sstore", "Error parsing json for key: {:?}", e);
+				Err(())
+			}
+		}
+	}
+
 	/// Returns key file version if it is known.
 	pub fn version(&self) -> Option<u64> {
 		match self.version {
@@ -410,7 +420,7 @@ impl KeyFileContent {
 			Ok(id) => id
 		};
 
-		let account = as_object.get("account").and_then(|json| json.as_string()).and_then(
+		let account = as_object.get("address").and_then(|json| json.as_string()).and_then(
 			|account_text| match Address::from_str(account_text) { Ok(account) => Some(account), Err(_) => None });
 
 		let crypto = match as_object.get("crypto") {
