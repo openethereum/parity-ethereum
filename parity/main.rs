@@ -74,7 +74,7 @@ Options:
   --peers NUM  	           Try to manintain that many peers [default: 25].
   --no-discovery   	       Disable new peer discovery.
   --upnp                   Use UPnP to try to figure out the correct network settings.
-  --node-key KEY           Specify node secret key as hex string.
+  --node-key KEY           Specify node secret key, either as 64-character hex string or input to SHA3 operation.
 
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
