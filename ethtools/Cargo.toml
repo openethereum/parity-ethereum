@@ -10,3 +10,4 @@ authors = ["Ethcore <admin@ethcore.io>"]
 ethcore-util = { path = "../util" }
 rustc-serialize = "0.3"
 ethcore-devtools = { path = "../devtools" }
+log = "0.3"

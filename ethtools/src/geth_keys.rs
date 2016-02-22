@@ -19,7 +19,7 @@
 use util::hash::*;
 use util::keys::store::SecretStore;
 use util::keys::directory::KeyFileContent;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::result::*;
 use std::fs;
 use std::str::FromStr;
@@ -61,6 +61,7 @@ impl From<io::Error> for ImportError {
 	}
 }
 
+/// Imports one geth key to the store
 pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path) -> Result<(), ImportError> {
 	let mut file = try!(fs::File::open(geth_keyfile_path));
 	let mut buf = String::new();
@@ -80,6 +81,19 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 	Ok(())
 }
 
+pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory: &Path) -> Result<(), ImportError> {
+	let geth_files = try!(enumerate_geth_keys(geth_keyfiles_directory));
+	for &(ref address, ref file_path) in geth_files.iter() {
+		let mut path = PathBuf::new();
+		path.push(geth_keyfiles_directory);
+		path.push(file_path);
+		if let Err(e) = import_geth_key(secret_store, Path::new(&path)) {
+			warn!("Skipped geth address {}, error importing: {:?}", address, e)
+		}
+	}
+	Ok(())
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -96,10 +110,23 @@ mod tests {
 
 	#[test]
 	fn can_import() {
-		let temp = ::devtools::RandomTempPath::new();
+		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());
 		import_geth_key(&mut secret_store, Path::new("res/geth_keystore/UTC--2016-02-17T09-20-45.721400158Z--3f49624084b67849c7b4e805c5988c21a430f9d9")).unwrap();
 		let key = secret_store.account(&Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
+		assert!(key.is_some());
+	}
+
+	#[test]
+	fn can_import_directory() {
+		let temp = ::devtools::RandomTempPath::create_dir();
+		let mut secret_store = SecretStore::new_in(temp.as_path());
+		import_geth_keys(&mut secret_store, Path::new("res/geth_keystore")).unwrap();
+
+		let key = secret_store.account(&Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
+		assert!(key.is_some());
+
+		let key = secret_store.account(&Address::from_str("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf").unwrap());
 		assert!(key.is_some());
 	}
 }
