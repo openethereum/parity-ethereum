@@ -146,7 +146,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 		}
 
 		// reset the rest of blooms
-		for reset_number in block_number + blooms.len()..old_highest_block {
+		for reset_number in block_number + blooms.len()..(old_highest_block + 1) {
 			result.insert(self.indexer.bloom_index(reset_number, 0), H2048::new());
 		}
 

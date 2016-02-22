@@ -99,6 +99,68 @@ fn test_topic_basic_search() {
 	}
 }
 
+#[test]
+fn test_reset_chain_head_simple() {
+	let index_size = 16;
+	let bloom_levels = 3;
+
+	let mut cache = MemoryCache::new();
+	let topic_0 = H256::from_str("8d936b1bd3fc635710969ccfba471fb17d598d9d1971b538dd712e1e4b4f4dba").unwrap();
+	let topic_1 = H256::from_str("8d936b1bd3fc635710969ccfba471fb17d598d9d1971b538dd712e1e4b4f4dbb").unwrap();
+	let topic_2 = H256::from_str("8d936b1bd3fc635710969ccfba471fb17d598d9d1971b538dd712e1e4b4f4dbc").unwrap();
+	let topic_3 = H256::from_str("8d936b1bd3fc635710969ccfba471fb17d598d9d1971b538dd712e1e4b4f4dbd").unwrap();
+	let topic_4 = H256::from_str("8d936b1bd3fc635710969ccfba471fb17d598d9d1971b538dd712e1e4b4f4dbe").unwrap();
+	let topic_5 = H256::from_str("8d936b1bd3fc635710969ccfba471fb17d598d9d1971b538dd712e1e4b4f4dbf").unwrap();
+
+	let modified_blooms_0 = {
+		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+		let block_number = 14;
+		filter.add_bloom(&to_bloom(&topic_0), block_number)
+	};
+
+	cache.insert_blooms(modified_blooms_0);
+
+	let modified_blooms_1 = {
+		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+		let block_number = 15;
+		filter.add_bloom(&to_bloom(&topic_1), block_number)
+	};
+
+	cache.insert_blooms(modified_blooms_1);
+
+	let modified_blooms_2 = {
+		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+		let block_number = 16;
+		filter.add_bloom(&to_bloom(&topic_2), block_number)
+	};
+
+	cache.insert_blooms(modified_blooms_2);
+
+	let modified_blooms_3 = {
+		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+		let block_number = 17;
+		filter.add_bloom(&to_bloom(&topic_3), block_number)
+	};
+
+	cache.insert_blooms(modified_blooms_3);
+
+	
+	let reset_modified_blooms = {
+		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+		filter.reset_chain_head(&[to_bloom(&topic_4), to_bloom(&topic_5)], 15, 17)
+	};
+
+	cache.insert_blooms(reset_modified_blooms);
+
+	let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+	assert_eq!(filter.blocks_with_bloom(&to_bloom(&topic_0), 0, 100), vec![14]);
+	assert_eq!(filter.blocks_with_bloom(&to_bloom(&topic_1), 0, 100), vec![]);
+	assert_eq!(filter.blocks_with_bloom(&to_bloom(&topic_2), 0, 100), vec![]);
+	assert_eq!(filter.blocks_with_bloom(&to_bloom(&topic_3), 0, 100), vec![]);
+	assert_eq!(filter.blocks_with_bloom(&to_bloom(&topic_4), 0, 100), vec![15]);
+	assert_eq!(filter.blocks_with_bloom(&to_bloom(&topic_5), 0, 100), vec![16]);
+}
+
 fn for_each_bloom<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &H2048) {
 	let mut reader = BufReader::new(bytes);
 	let mut line = String::new();
@@ -211,3 +273,5 @@ fn test_chainfilter_real_data_single_search() {
 	assert_eq!(blocks[1], 396348);
 	assert_eq!(blocks[2], 399804);
 }
+
+
