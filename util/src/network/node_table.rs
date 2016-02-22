@@ -163,7 +163,7 @@ impl Display for Node {
 impl FromStr for Node {
 	type Err = UtilError;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let (id, endpoint) = if &s[0..8] == "enode://" && s.len() > 136 && &s[136..137] == "@" {
+		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
 			(try!(NodeId::from_str(&s[8..136])), try!(NodeEndpoint::from_str(&s[137..])))
 		}
 		else {
