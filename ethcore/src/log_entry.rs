@@ -90,7 +90,7 @@ pub struct LocalizedLogEntry {
 	/// Index of transaction within block.
 	pub transaction_index: usize,
 	/// Log position in the block.
-	pub log_index: usize
+	pub log_index: usize,
 }
 
 impl Deref for LocalizedLogEntry {

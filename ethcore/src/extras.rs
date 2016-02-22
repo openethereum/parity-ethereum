@@ -314,7 +314,7 @@ impl Encodable for TransactionAddress {
 /// Contains all block receipts.
 #[derive(Clone)]
 pub struct BlockReceipts {
-	pub receipts: Vec<Receipt>
+	pub receipts: Vec<Receipt>,
 }
 
 impl BlockReceipts {

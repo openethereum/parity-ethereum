@@ -57,7 +57,7 @@ pub struct CacheSize {
 
 struct BloomIndexer {
 	index_size: usize,
-	levels: u8
+	levels: u8,
 }
 
 impl BloomIndexer {
@@ -236,7 +236,7 @@ pub struct BlockChain {
 	cache_man: RwLock<CacheManager>,
 
 	// blooms indexing
-	bloom_indexer: BloomIndexer	
+	bloom_indexer: BloomIndexer,
 }
 
 impl FilterDataSource for BlockChain {

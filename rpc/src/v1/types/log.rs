@@ -33,7 +33,7 @@ pub struct Log {
 	#[serde(rename="transactionIndex")]
 	transaction_index: U256,
 	#[serde(rename="logIndex")]
-	log_index: U256
+	log_index: U256,
 }
 
 impl From<LocalizedLogEntry> for Log {
