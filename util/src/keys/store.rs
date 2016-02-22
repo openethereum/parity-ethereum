@@ -70,7 +70,7 @@ impl SecretStore {
 	}
 
 	#[cfg(test)]
-	fn new_test(path: &::tests::helpers::RandomTempPath) -> SecretStore {
+	fn new_test(path: &::devtools::RandomTempPath) -> SecretStore {
 		SecretStore {
 			directory: KeyDirectory::new(path.as_path())
 		}
@@ -203,7 +203,7 @@ mod vector_tests {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use tests::helpers::*;
+	use devtools::*;
 	use common::*;
 
 	#[test]

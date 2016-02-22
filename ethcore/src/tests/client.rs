@@ -17,6 +17,7 @@
 use client::{BlockChainClient, Client, BlockId};
 use tests::helpers::*;
 use common::*;
+use devtools::*;
 
 #[test]
 fn created() {

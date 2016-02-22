@@ -991,7 +991,7 @@ mod tests {
 	}
 
 	#[test]
-	#[allow(eq_op)]
+	#[cfg_attr(feature="dev", allow(eq_op))]
 	pub fn uint256_comp_test() {
 		let small = U256([10u64, 0, 0, 0]);
 		let big = U256([0x8C8C3EE70C644118u64, 0x0209E7378231E632, 0, 0]);
