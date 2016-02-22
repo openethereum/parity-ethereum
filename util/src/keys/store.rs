@@ -356,8 +356,8 @@ mod tests {
 
 	#[test]
 	fn can_import_account() {
-		let temp = RandomTempPath::create_dir();
 		use keys::directory::{KeyFileContent, KeyFileCrypto};
+		let temp = RandomTempPath::create_dir();
 		let mut key_file =
 			KeyFileContent::new(
 				KeyFileCrypto::new_pbkdf2(
