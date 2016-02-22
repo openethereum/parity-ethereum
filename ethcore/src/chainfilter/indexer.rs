@@ -21,7 +21,7 @@ use chainfilter::BloomIndex;
 /// Simplifies working with bloom indexes.
 pub struct Indexer {
 	index_size: usize,
-	level_sizes: Vec<usize>
+	level_sizes: Vec<usize>,
 }
 
 impl Indexer {

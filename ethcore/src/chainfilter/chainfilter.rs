@@ -65,7 +65,7 @@ pub struct ChainFilter<'a, D>
 	where D: FilterDataSource + 'a
 {
 	data_source: &'a D,
-	indexer: Indexer
+	indexer: Indexer,
 }
 
 impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource

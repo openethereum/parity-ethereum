@@ -52,7 +52,7 @@ pub struct CacheSize {
 	/// Blooms cache size.
 	pub blocks_blooms: usize,
 	/// Block receipts size.
-	pub block_receipts: usize
+	pub block_receipts: usize,
 }
 
 struct BloomIndexer {
@@ -106,7 +106,7 @@ struct ExtrasUpdate {
 	/// New best block (if it has changed).
 	new_best: Option<BestBlock>,
 	/// Changed blocks bloom location hashes.
-	bloom_hashes: HashSet<H256>
+	bloom_hashes: HashSet<H256>,
 }
 
 impl CacheSize {

@@ -26,7 +26,7 @@ use ethcore::client::BlockId;
 pub enum VariadicValue<T> where T: Deserialize {
 	Single(T),
 	Multiple(Vec<T>),
-	Null
+	Null,
 }
 
 impl<T> Deserialize for VariadicValue<T> where T: Deserialize {
@@ -54,7 +54,7 @@ pub struct Filter {
 	#[serde(rename="toBlock")]
 	pub to_block: Option<BlockNumber>,
 	pub address: Option<FilterAddress>,
-	pub topics: Option<Vec<Topic>>
+	pub topics: Option<Vec<Topic>>,
 }
 
 impl Into<EthFilter> for Filter {
