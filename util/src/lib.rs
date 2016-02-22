@@ -108,6 +108,7 @@ extern crate igd;
 extern crate ethcore_devtools as devtools;
 extern crate libc;
 extern crate rustc_version;
+extern crate target_info;
 extern crate vergen;
 
 pub mod standard;
