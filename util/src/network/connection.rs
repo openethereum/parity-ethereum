@@ -16,6 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::VecDeque;
+use std::net::SocketAddr;
 use mio::{Handler, Token, EventSet, EventLoop, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
 use hash::*;
@@ -159,13 +160,41 @@ impl Connection {
 		}
 	}
 
+	/// Get socket token 
+	pub fn token(&self) -> StreamToken {
+		self.token
+	}
+
+	/// Replace socket token 
+	pub fn set_token(&mut self, token: StreamToken) {
+		self.token = token;
+	}
+
+	/// Get remote peer address
+	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
+		self.socket.peer_addr()
+	}
+
+	/// Clone this connection. Clears the receiving buffer of the returned connection.
+	pub fn try_clone(&self) -> io::Result<Self> {
+		Ok(Connection {
+			token: self.token,
+			socket: try!(self.socket.try_clone()),
+			rec_buf: Vec::new(),
+			rec_size: 0,
+			send_queue: self.send_queue.clone(),
+			interest: EventSet::hup() | EventSet::readable(),
+			stats: self.stats.clone(),
+		})
+	}
+
 	/// Register this connection with the IO event loop.
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		trace!(target: "net", "connection register; token={:?}", reg);
-		event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
+		if let Err(e) = event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()) {
 			debug!("Failed to register {:?}, {:?}", reg, e);
-			Ok(())
-		})
+		}
+		Ok(())
 	}
 
 	/// Update connection registration. Should be called at the end of the IO handler.
@@ -238,8 +267,18 @@ impl EncryptedConnection {
 		self.connection.token
 	}
 
+	/// Replace socket token 
+	pub fn set_token(&mut self, token: StreamToken) {
+		self.connection.set_token(token);
+	}
+
+	/// Get remote peer address
+	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
+		self.connection.remote_addr()
+	}
+
 	/// Create an encrypted connection out of the handshake. Consumes a handshake object.
-	pub fn new(mut handshake: Handshake) -> Result<EncryptedConnection, UtilError> {
+	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, UtilError> {
 		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_public));
 		let mut nonce_material = H512::new();
 		if handshake.originated {
@@ -274,9 +313,8 @@ impl EncryptedConnection {
 		ingress_mac.update(&mac_material);
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
 
-		handshake.connection.expect(ENCRYPTED_HEADER_LEN);
-		Ok(EncryptedConnection {
-			connection: handshake.connection,
+		let mut enc = EncryptedConnection {
+			connection: try!(handshake.connection.try_clone()),
 			encoder: encoder,
 			decoder: decoder,
 			mac_encoder: mac_encoder,
@@ -285,7 +323,9 @@ impl EncryptedConnection {
 			read_state: EncryptedConnectionState::Header,
 			protocol_id: 0,
 			payload_len: 0
-		})
+		};
+		enc.connection.expect(ENCRYPTED_HEADER_LEN);
+		Ok(enc)
 	}
 
 	/// Send a packet
@@ -411,6 +451,12 @@ impl EncryptedConnection {
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), UtilError> where Message: Send + Clone {
 		io.clear_timer(self.connection.token).unwrap();
 		try!(self.connection.writable());
+		Ok(())
+	}
+
+	/// Register socket with the event lpop. This should be called at the end of the event loop.
+	pub fn register_socket<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		try!(self.connection.register_socket(reg, event_loop));
 		Ok(())
 	}
 

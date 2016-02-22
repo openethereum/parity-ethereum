@@ -15,11 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![feature(plugin)]
-#![feature(augmented_assignments)]
-#![plugin(clippy)]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
+
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
-#![allow(clone_on_copy)]
+#![cfg_attr(feature="dev", allow(clone_on_copy))]
 
 //! Blockchain sync module
 //! Implements ethereum protocol version 63 as specified here:
@@ -59,7 +59,7 @@ use std::ops::*;
 use std::sync::*;
 use ethcore::client::Client;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
-use util::io::TimerToken;
+use util::TimerToken;
 use chain::ChainSync;
 use ethcore::service::SyncMessage;
 use io::NetSyncIo;

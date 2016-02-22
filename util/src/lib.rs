@@ -15,22 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![feature(op_assign_traits)]
-#![feature(augmented_assignments)]
-#![feature(associated_consts)]
-#![feature(plugin)]
-#![feature(catch_panic)]
-#![feature(fnbox)]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 // Clippy settings
-#![plugin(clippy)]
 // TODO [todr] not really sure
-#![allow(needless_range_loop)]
+#![cfg_attr(feature="dev", allow(needless_range_loop))]
 // Shorter than if-else
-#![allow(match_bool)]
+#![cfg_attr(feature="dev", allow(match_bool))]
 // We use that to be more explicit about handled cases
-#![allow(match_same_arms)]
+#![cfg_attr(feature="dev", allow(match_same_arms))]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
-#![allow(clone_on_copy)]
+#![cfg_attr(feature="dev", allow(clone_on_copy))]
 
 //! Ethcore-util library
 //!
@@ -86,7 +81,6 @@
 //!   cargo build --release
 //!   ```
 
-extern crate target_info;
 extern crate slab;
 extern crate rustc_serialize;
 extern crate mio;
@@ -110,6 +104,11 @@ extern crate serde;
 #[macro_use]
 extern crate log as rlog;
 extern crate igd;
+extern crate ethcore_devtools as devtools;
+extern crate libc;
+extern crate rustc_version;
+extern crate target_info;
+extern crate vergen;
 
 pub mod standard;
 #[macro_use]
@@ -166,5 +165,3 @@ pub use network::*;
 pub use io::*;
 pub use log::*;
 
-#[cfg(test)]
-mod tests;

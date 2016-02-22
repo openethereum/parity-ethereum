@@ -110,8 +110,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 		}
 	}
 
-	#[allow(match_ref_pats)]
-	#[allow(single_match)]
+	#[cfg_attr(feature="dev", allow(match_ref_pats))]
+	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
 		if let &UserMessage(ref message) = net_message {
 			match message {
@@ -129,12 +129,13 @@ mod tests {
 	use super::*;
 	use tests::helpers::*;
 	use util::network::*;
+	use devtools::*;
 
 	#[test]
 	fn it_can_be_started() {
 		let spec = get_test_spec();
 		let temp_path = RandomTempPath::new();
-		let service = ClientService::start(spec, NetworkConfiguration::new(), &temp_path.as_path());
+		let service = ClientService::start(spec, NetworkConfiguration::new_with_port(40456), &temp_path.as_path());
 		assert!(service.is_ok());
 	}
 }

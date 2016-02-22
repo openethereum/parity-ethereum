@@ -256,6 +256,11 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			IoMessage::DeregisterStream { handler_id, token } => {
 				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
 				handler.deregister_stream(token, event_loop);
+				// unregister a timer associated with the token (if any)
+				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
+				if let Some(timer) = self.timers.write().unwrap().remove(&timer_id) {
+					event_loop.clear_timeout(timer.timeout);
+				}
 			},
 			IoMessage::UpdateStreamRegistration { handler_id, token } => {
 				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();

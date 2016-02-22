@@ -82,7 +82,7 @@ const RECEIPTS_PACKET: u8 = 0x10;
 
 const NETWORK_ID: U256 = ONE_U256; //TODO: get this from parent
 
-const CONNECTION_TIMEOUT_SEC: f64 = 30f64;
+const CONNECTION_TIMEOUT_SEC: f64 = 10f64;
 
 struct Header {
 	/// Header data
@@ -251,7 +251,7 @@ impl ChainSync {
 	}
 
 
-	#[allow(for_kv_map)] // Because it's not possible to get `values_mut()`
+	#[cfg_attr(feature="dev", allow(for_kv_map))] // Because it's not possible to get `values_mut()`
 	/// Rest sync. Clear all downloaded data but keep the queue
 	fn reset(&mut self) {
 		self.downloading_headers.clear();
@@ -314,12 +314,12 @@ impl ChainSync {
 		}
 
 		self.peers.insert(peer_id.clone(), peer);
-		info!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
+		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
 		self.sync_peer(io, peer_id, false);
 		Ok(())
 	}
 
-	#[allow(cyclomatic_complexity)]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		self.reset_peer_asking(peer_id, PeerAsking::BlockHeaders);
@@ -545,7 +545,7 @@ impl ChainSync {
 	pub fn on_peer_aborting(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Disconnecting {}", peer);
 		if self.peers.contains_key(&peer) {
-			info!(target: "sync", "Disconnected {}", peer);
+			debug!(target: "sync", "Disconnected {}", peer);
 			self.clear_peer_download(peer);
 			self.peers.remove(&peer);
 			self.continue_sync(io);
@@ -1179,7 +1179,7 @@ impl ChainSync {
 		for (peer_id, peer_number) in updated_peers {
 			let mut peer_best = self.peers.get(&peer_id).unwrap().latest_hash.clone();
 			if best_number - peer_number > MAX_PEERS_PROPAGATION as BlockNumber {
-				// If we think peer is too far behind just end one latest hash
+				// If we think peer is too far behind just send one latest hash
 				peer_best = last_parent.clone();
 			}
 			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(), &peer_best, &local_best) {

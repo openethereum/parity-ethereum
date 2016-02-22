@@ -162,7 +162,7 @@ impl ClientReport {
 	pub fn accrue_block(&mut self, block: &PreVerifiedBlock) {
 		self.blocks_imported += 1;
 		self.transactions_applied += block.transactions.len();
-		self.gas_processed += block.header.gas_used;
+		self.gas_processed = self.gas_processed + block.header.gas_used;
 	}
 }
 
@@ -419,11 +419,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn state_data(&self, _hash: &H256) -> Option<Bytes> {
-		unimplemented!();
+		None
 	}
 
 	fn block_receipts(&self, _hash: &H256) -> Option<Bytes> {
-		unimplemented!();
+		None
 	}
 
 	fn import_block(&self, bytes: Bytes) -> ImportResult {

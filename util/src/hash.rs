@@ -77,17 +77,18 @@ macro_rules! impl_hash {
 		/// Unformatted binary data of fixed length.
 		pub struct $from (pub [u8; $size]);
 
-		impl BytesConvertable for $from {
-			fn bytes(&self) -> &[u8] {
-				&self.0
-			}
-		}
-
 		impl Deref for $from {
 			type Target = [u8];
 
 			#[inline]
 			fn deref(&self) -> &[u8] {
+				&self.0
+			}
+		}
+
+		impl AsRef<[u8]> for $from {
+			#[inline]
+			fn as_ref(&self) -> &[u8] {
 				&self.0
 			}
 		}
@@ -414,15 +415,6 @@ macro_rules! impl_hash {
 			}
 		}
 
-		/// Moving BitOrAssign
-		impl<'a> BitOrAssign<&'a $from> for $from {
-			fn bitor_assign(&mut self, rhs: &'a Self) {
-				for i in 0..$size {
-					self.0[i] = self.0[i] | rhs.0[i];
-				}
-			}
-		}
-
 		/// BitAnd on references
 		impl <'a> BitAnd for &'a $from {
 			type Output = $from;
@@ -644,7 +636,7 @@ mod tests {
 	use std::str::FromStr;
 
 	#[test]
-	#[allow(eq_op)]
+	#[cfg_attr(feature="dev", allow(eq_op))]
 	fn hash() {
 		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);

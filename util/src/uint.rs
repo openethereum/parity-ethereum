@@ -78,9 +78,6 @@ macro_rules! panic_on_overflow {
 /// Large, fixed-length unsigned integer type.
 pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + fmt::Display + PartialOrd + Ord + PartialEq + Eq + Hash {
 
-	/// Size of this type.
-	const SIZE: usize;
-
 	/// Returns new instance equalling zero.
 	fn zero() -> Self;
 	/// Returns new instance equalling one.
@@ -148,8 +145,6 @@ macro_rules! construct_uint {
 		pub struct $name(pub [u64; $n_words]);
 
 		impl Uint for $name {
-			const SIZE: usize = $n_words * 8;
-
 			type FromDecStrErr = FromHexError;
 
 			/// TODO: optimize, throw appropriate err
@@ -634,66 +629,6 @@ macro_rules! construct_uint {
 
 		// TODO: optimise and traitify.
 
-		impl<'a> AddAssign<&'a $name> for $name {
-			fn add_assign(&mut self, other: &'a Self) {
-				*self = self.add(*other);
-			}
-		}
-
-		impl<'a> SubAssign<&'a $name> for $name {
-			fn sub_assign(&mut self, other: &'a Self) {
-				*self = self.sub(*other);
-			}
-		}
-
-		impl<'a> MulAssign<&'a $name> for $name {
-			fn mul_assign(&mut self, other: &'a Self) {
-				*self = self.mul(*other);
-			}
-		}
-
-		impl<'a> DivAssign<&'a $name> for $name {
-			fn div_assign(&mut self, other: &'a Self) {
-				*self = self.div(*other);
-			}
-		}
-
-		impl<'a> RemAssign<&'a $name> for $name {
-			fn rem_assign(&mut self, other: &'a Self) {
-				*self = self.rem(*other);
-			}
-		}
-
-		impl AddAssign<$name> for $name {
-			fn add_assign(&mut self, other: Self) {
-				*self = self.add(other);
-			}
-		}
-
-		impl SubAssign<$name> for $name {
-			fn sub_assign(&mut self, other: Self) {
-				*self = self.sub(other);
-			}
-		}
-
-		impl MulAssign<$name> for $name {
-			fn mul_assign(&mut self, other: Self) {
-				*self = self.mul(other);
-			}
-		}
-
-		impl DivAssign<$name> for $name {
-			fn div_assign(&mut self, other: Self) {
-				*self = self.div(other);
-			}
-		}
-
-		impl RemAssign<$name> for $name {
-			fn rem_assign(&mut self, other: Self) {
-				*self = self.rem(other);
-			}
-		}
-
 		impl BitAnd<$name> for $name {
 			type Output = $name;
 
@@ -965,37 +900,6 @@ mod tests {
 	use std::str::FromStr;
 
 	#[test]
-	pub fn assign_ops() {
-		let x: U256 = x!(69);
-		let y: U256 = x!(42);
-		{
-			let mut z = x;
-			z += y;
-			assert_eq!(z, x + y);
-		}
-		{
-			let mut z = x;
-			z -= y;
-			assert_eq!(z, x - y);
-		}
-		{
-			let mut z = x;
-			z *= y;
-			assert_eq!(z, x * y);
-		}
-		{
-			let mut z = x;
-			z /= y;
-			assert_eq!(z, x / y);
-		}
-		{
-			let mut z = x;
-			z %= y;
-			assert_eq!(z, x % y);
-		}
-	}
-
-	#[test]
 	pub fn uint256_from() {
 		let e = U256([10, 0, 0, 0]);
 
@@ -1087,7 +991,7 @@ mod tests {
 	}
 
 	#[test]
-	#[allow(eq_op)]
+	#[cfg_attr(feature="dev", allow(eq_op))]
 	pub fn uint256_comp_test() {
 		let small = U256([10u64, 0, 0, 0]);
 		let big = U256([0x8C8C3EE70C644118u64, 0x0209E7378231E632, 0, 0]);

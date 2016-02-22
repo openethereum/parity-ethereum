@@ -243,7 +243,7 @@ struct CodeReader<'a> {
 	code: &'a Bytes
 }
 
-#[allow(len_without_is_empty)]
+#[cfg_attr(feature="dev", allow(len_without_is_empty))]
 impl<'a> CodeReader<'a> {
 	/// Get `no_of_bytes` from code and convert to U256. Move PC
 	fn read(&mut self, no_of_bytes: usize) -> U256 {
@@ -258,7 +258,7 @@ impl<'a> CodeReader<'a> {
 	}
 }
 
-#[allow(enum_variant_names)]
+#[cfg_attr(feature="dev", allow(enum_variant_names))]
 enum InstructionCost {
 	Gas(U256),
 	GasMem(U256, U256),
@@ -299,7 +299,7 @@ impl evm::Evm for Interpreter {
 			let (gas_cost, mem_size) = try!(self.get_gas_cost_mem(ext, instruction, &mut mem, &stack));
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			mem.expand(mem_size);
-			current_gas -= gas_cost;
+			current_gas = current_gas - gas_cost; //TODO: use operator -=
 
 			evm_debug!({
 				println!("[0x{:x}][{}(0x{:x}) Gas: {:x}\n  Gas Before: {:x}",
@@ -320,7 +320,7 @@ impl evm::Evm for Interpreter {
 			match result {
 				InstructionResult::Ok => {},
 				InstructionResult::UnusedGas(gas) => {
-					current_gas += gas;
+					current_gas = current_gas + gas; //TODO: use operator +=
 				},
 				InstructionResult::UseAllGas => {
 					current_gas = U256::zero();
@@ -347,7 +347,7 @@ impl evm::Evm for Interpreter {
 }
 
 impl Interpreter {
-	#[allow(cyclomatic_complexity)]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn get_gas_cost_mem(&self,
 						ext: &evm::Ext,
 						instruction: Instruction,

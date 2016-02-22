@@ -55,13 +55,12 @@ impl Visitor for BlockNumberVisitor {
 }
 
 impl Into<BlockId> for BlockNumber {
-	#[allow(match_same_arms)]
 	fn into(self) -> BlockId {
 		match self {
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
-			BlockNumber::Pending => BlockId::Latest // TODO: change this once blockid support pending
+			// TODO: change this once blockid support pendingst,
+			BlockNumber::Pending | BlockNumber::Latest => BlockId::Latest,
 		}
 	}
 }

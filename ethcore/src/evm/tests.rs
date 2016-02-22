@@ -25,7 +25,7 @@ struct FakeLogEntry {
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[allow(enum_variant_names)] // Common prefix is C ;)
+#[cfg_attr(feature="dev", allow(enum_variant_names))] // Common prefix is C ;)
 enum FakeCallType {
 	CALL, CREATE
 }
