@@ -663,6 +663,7 @@ impl BlockChain {
 				let mut blocks_blooms = acc
 					.entry(location.hash.clone())
 					.or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
+				assert_eq!(self.bloom_indexer.index_size, blocks_blooms.blooms.len());
 				blocks_blooms.blooms[location.index] = bloom;
 			}
 			acc
