@@ -18,6 +18,7 @@
 
 use std::fs::File;
 use common::*;
+use target_info::Target;
 use rustc_version;
 
 include!(concat!(env!("OUT_DIR"), "/version.rs"));
@@ -68,5 +69,5 @@ pub fn contents(name: &str) -> Result<Bytes, UtilError> {
 
 /// Get the standard version string for this software.
 pub fn version() -> String {
-	format!("Parity/{}/{}-{}/{}/rustc{}", env!("CARGO_PKG_VERSION"), short_sha(), commit_date(), target(), rustc_version::version())
+	format!("Parity//{}-{}-{}/{}-{}-{}/rustc{}", env!("CARGO_PKG_VERSION"), short_sha(), commit_date().replace("-", ""), Target::arch(), Target::os(), Target::env(), rustc_version::version())
 }

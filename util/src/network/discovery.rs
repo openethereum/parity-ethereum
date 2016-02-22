@@ -276,9 +276,6 @@ impl Discovery {
 	}
 
 	pub fn writable(&mut self) {
-		if self.send_queue.is_empty() {
-			return;
-		}
 		while !self.send_queue.is_empty() {
 			let data = self.send_queue.pop_front().unwrap();
 			match self.udp_socket.send_to(&data.payload, &data.address) {
