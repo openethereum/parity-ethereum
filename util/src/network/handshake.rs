@@ -24,7 +24,7 @@ use crypto::*;
 use crypto;
 use network::connection::{Connection};
 use network::host::{HostInfo};
-use network::node::NodeId;
+use network::node_table::NodeId;
 use error::*;
 use network::error::NetworkError;
 use network::stats::NetworkStats;
@@ -63,12 +63,14 @@ pub struct Handshake {
 	/// A copy of received encryped auth packet 
 	pub auth_cipher: Bytes,
 	/// A copy of received encryped ack packet 
-	pub ack_cipher: Bytes
+	pub ack_cipher: Bytes,
+	/// This Handshake is marked for deleteion flag
+	pub expired: bool,
 }
 
 const AUTH_PACKET_SIZE: usize = 307;
 const ACK_PACKET_SIZE: usize = 210;
-const HANDSHAKE_TIMEOUT: u64 = 30000;
+const HANDSHAKE_TIMEOUT: u64 = 5000;
 
 impl Handshake {
 	/// Create a new handshake object
@@ -84,7 +86,28 @@ impl Handshake {
 			remote_nonce: H256::new(),
 			auth_cipher: Bytes::new(),
 			ack_cipher: Bytes::new(),
+			expired: false,
 		})
+	}
+
+	/// Get id of the remote node if known
+	pub fn id(&self) -> &NodeId {
+		&self.id
+	}
+
+	/// Get stream token id
+	pub fn token(&self) -> StreamToken {
+		self.connection.token()
+	}
+
+	/// Mark this handshake as inactive to be deleted lated.
+	pub fn set_expired(&mut self) {
+		self.expired = true;
+	}
+
+	/// Check if this handshake is expired.
+	pub fn expired(&self) -> bool {
+		self.expired
 	}
 
 	/// Start a handhsake
@@ -108,47 +131,56 @@ impl Handshake {
 
 	/// Readable IO handler. Drives the state change.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
-		io.clear_timer(self.connection.token).unwrap();
-		match self.state {
-			HandshakeState::ReadingAuth => {
-				if let Some(data) = try!(self.connection.readable()) {
-					try!(self.read_auth(host, &data));
-					try!(self.write_ack());
-				};
-			},
-			HandshakeState::ReadingAck => {
-				if let Some(data) = try!(self.connection.readable()) {
-					try!(self.read_ack(host, &data));
-					self.state = HandshakeState::StartSession;
-				};
-			},
-			HandshakeState::StartSession => {},
-			_ => { panic!("Unexpected state"); }
-		}
-		if self.state != HandshakeState::StartSession {
-			try!(io.update_registration(self.connection.token));
+		if !self.expired() {
+			io.clear_timer(self.connection.token).unwrap();
+			match self.state {
+				HandshakeState::ReadingAuth => {
+					if let Some(data) = try!(self.connection.readable()) {
+						try!(self.read_auth(host, &data));
+						try!(self.write_ack());
+					};
+				},
+				HandshakeState::ReadingAck => {
+					if let Some(data) = try!(self.connection.readable()) {
+						try!(self.read_ack(host, &data));
+						self.state = HandshakeState::StartSession;
+					};
+				},
+				HandshakeState::StartSession => {},
+				_ => { panic!("Unexpected state"); }
+			}
+			if self.state != HandshakeState::StartSession {
+				try!(io.update_registration(self.connection.token));
+			}
 		}
 		Ok(())
 	}
 
 	/// Writabe IO handler.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Clone {
-		io.clear_timer(self.connection.token).unwrap();
-		try!(self.connection.writable());
-		if self.state != HandshakeState::StartSession {
-			io.update_registration(self.connection.token).unwrap();
+		if !self.expired() {
+			io.clear_timer(self.connection.token).unwrap();
+			try!(self.connection.writable());
+			if self.state != HandshakeState::StartSession {
+				io.update_registration(self.connection.token).unwrap();
+			}
 		}
 		Ok(())
 	}
 
 	/// Register the socket with the event loop
 	pub fn register_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		try!(self.connection.register_socket(reg, event_loop));
+		if !self.expired() {
+			try!(self.connection.register_socket(reg, event_loop));
+		}
 		Ok(())
 	}
 
+	/// Update socket registration with the event loop.
 	pub fn update_socket<Host:Handler<Timeout=Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		try!(self.connection.update_socket(reg, event_loop));
+		if !self.expired() {
+			try!(self.connection.update_socket(reg, event_loop));
+		}
 		Ok(())
 	}
 

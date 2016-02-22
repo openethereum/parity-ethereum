@@ -56,7 +56,7 @@
 //! }
 //!
 //! fn main () {
-//! 	let mut service = NetworkService::<MyMessage>::start(NetworkConfiguration::new()).expect("Error creating network service");
+//! 	let mut service = NetworkService::<MyMessage>::start(NetworkConfiguration::new_with_port(40412)).expect("Error creating network service");
 //! 	service.register_protocol(Arc::new(MyHandler), "myproto", &[1u8]);
 //!
 //! 	// Wait for quit condition
@@ -71,8 +71,9 @@ mod session;
 mod discovery;
 mod service;
 mod error;
-mod node;
+mod node_table;
 mod stats;
+mod ip_utils;
 
 #[cfg(test)]
 mod tests;
@@ -88,6 +89,9 @@ pub use network::host::NetworkConfiguration;
 pub use network::stats::NetworkStats;
 
 use io::TimerToken;
+pub use network::node_table::is_valid_node_url;
+
+const PROTOCOL_VERSION: u32 = 4;
 
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
 /// All the handler function are called from within IO event loop.

@@ -54,15 +54,15 @@ cd ..
 # install rust beta
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
 
-# install rust beta
-sudo multirust update beta
+# install beta
+multirust update beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity
 cd parity
 
 # parity should be build with rust beta
-sudo multirust override beta
+multirust override beta
 
 # build in release
 cargo build --release

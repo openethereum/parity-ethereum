@@ -82,7 +82,6 @@
 //!   cargo build --release
 //!   ```
 
-extern crate target_info;
 extern crate slab;
 extern crate rustc_serialize;
 extern crate mio;
@@ -106,6 +105,10 @@ extern crate serde;
 #[macro_use]
 extern crate log as rlog;
 extern crate igd;
+extern crate ethcore_devtools as devtools;
+extern crate libc;
+extern crate rustc_version;
+extern crate vergen;
 
 pub mod standard;
 #[macro_use]
@@ -158,5 +161,3 @@ pub use network::*;
 pub use io::*;
 pub use log::*;
 
-#[cfg(test)]
-mod tests;

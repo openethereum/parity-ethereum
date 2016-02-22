@@ -29,7 +29,6 @@ extern crate log as rlog;
 extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
-extern crate target_info;
 extern crate daemonize;
 
 #[cfg(feature = "rpc")]
@@ -37,6 +36,8 @@ extern crate ethcore_rpc as rpc;
 
 use std::net::{SocketAddr};
 use std::env;
+use std::process::exit;
+use std::path::PathBuf;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
@@ -49,7 +50,6 @@ use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
 use ethsync::EthSync;
 use docopt::Docopt;
-use target_info::Target;
 use daemonize::Daemonize;
 
 const USAGE: &'static str = "
@@ -69,8 +69,10 @@ Options:
 
   --no-bootstrap           Don't bother trying to connect to any nodes initially.
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
-  --public-address URL     Specify the IP/port on which peers may connect [default: 0.0.0.0:30304].
+  --public-address URL     Specify the IP/port on which peers may connect.
   --address URL            Equivalent to --listen-address URL --public-address URL.
+  --peers NUM  	           Try to manintain that many peers [default: 25].
+  --no-discovery   	       Disable new peer discovery.
   --upnp                   Use UPnP to try to figure out the correct network settings.
   --node-key KEY           Specify node secret key as hex string.
 
@@ -95,8 +97,10 @@ struct Args {
 	flag_keys_path: String,
 	flag_no_bootstrap: bool,
 	flag_listen_address: String,
-	flag_public_address: String,
+	flag_public_address: Option<String>,
 	flag_address: Option<String>,
+	flag_peers: u32,
+	flag_no_discovery: bool,
 	flag_upnp: bool,
 	flag_node_key: Option<String>,
 	flag_cache_pref_size: usize,
@@ -140,14 +144,25 @@ fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
 
 fn print_version() {
 	println!("\
-Parity version {} ({}-{}-{})
+Parity
+  version {}
 Copyright 2015, 2016 Ethcore (UK) Limited
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
 This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
-", env!("CARGO_PKG_VERSION"), Target::arch(), Target::env(), Target::os());
+", version());
+}
+
+fn die_with_message(msg: &str) -> ! {
+	println!("ERROR: {}", msg);
+	exit(1);
+}
+
+#[macro_export]
+macro_rules! die {
+	($($arg:tt)*) => (die_with_message(&format!("{}", format_args!($($arg)*))));
 }
 
 struct Configuration {
@@ -165,7 +180,7 @@ impl Configuration {
 		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
-	fn keys_path(&self) -> String {
+	fn _keys_path(&self) -> String {
 		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())	
 	}
 
@@ -174,7 +189,14 @@ impl Configuration {
 			"frontier" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
-			f => Spec::from_json_utf8(contents(f).expect("Couldn't read chain specification file. Sure it exists?").as_ref()),
+			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| die!("{}: Couldn't read chain specification file. Sure it exists?", f)).as_ref()),
+		}
+	}
+
+	fn normalize_enode(e: &str) -> Option<String> {
+		match is_valid_node_url(e) {
+			true => Some(e.to_owned()),
+			false => None,
 		}
 	}
 
@@ -182,27 +204,45 @@ impl Configuration {
 		if self.args.flag_no_bootstrap { Vec::new() } else {
 			match self.args.arg_enode.len() {
 				0 => spec.nodes().clone(),
-				_ => self.args.arg_enode.clone(),	// TODO check format first.
+				_ => self.args.arg_enode.iter().map(|s| Self::normalize_enode(s).unwrap_or_else(||die!("{}: Invalid node address format given for a boot node.", s))).collect(),
 			}
 		}
 	}
 
-	fn net_addresses(&self) -> (SocketAddr, SocketAddr) {
-		let listen_address;
-		let public_address;
+	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
+		let mut listen_address = None;
+		let mut public_address = None;
 
-		match self.args.flag_address {
-			None => {
-				listen_address = SocketAddr::from_str(self.args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address");
-				public_address = SocketAddr::from_str(self.args.flag_public_address.as_ref()).expect("Invalid public address given with --public-address");
+		if let Some(ref a) = self.args.flag_address {
+			public_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address"));
+			listen_address = public_address;
+		}
+		if listen_address.is_none() {
+			listen_address = Some(SocketAddr::from_str(self.args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address"));
+		}
+		if let Some(ref a) = self.args.flag_public_address {
+			if public_address.is_some() {
+				panic!("Conflicting flags: --address and --public-address");
 			}
-			Some(ref a) => {
-				public_address = SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address");
-				listen_address = public_address;
-			}
-		};
-
+			public_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen address given with --public-address"));
+		}
 		(listen_address, public_address)
+	}
+
+	fn net_settings(&self, spec: &Spec) -> NetworkConfiguration {
+		let mut ret = NetworkConfiguration::new();
+		ret.nat_enabled = self.args.flag_upnp;
+		ret.boot_nodes = self.init_nodes(spec);
+		let (listen, public) = self.net_addresses();
+		ret.listen_address = listen;
+		ret.public_address = public;
+		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+		ret.discovery_enabled = !self.args.flag_no_discovery;
+		ret.ideal_peers = self.args.flag_peers;
+		let mut net_path = PathBuf::from(&self.path());
+		net_path.push("network");
+		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
+		ret
 	}
 
 	fn execute(&self) {
@@ -211,11 +251,11 @@ impl Configuration {
 			return;
 		}
 		if self.args.cmd_daemon {
-			let daemonize = Daemonize::new().pid_file(self.args.arg_pid_file.clone()).chown_pid_file(true);
-			match daemonize.start() {
-				Ok(_) => info!("Daemonized"),
-				Err(e) => { error!("{}", e); return; },
-			}				
+			Daemonize::new()
+				.pid_file(self.args.arg_pid_file.clone())
+				.chown_pid_file(true)
+				.start()
+				.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
 		}
 		self.execute_client();
 	}
@@ -227,15 +267,7 @@ impl Configuration {
 		unsafe { ::fdlimit::raise_fd_limit(); }
 
 		let spec = self.spec();
-
-		// Configure network
-		let mut net_settings = NetworkConfiguration::new();
-		net_settings.nat_enabled = self.args.flag_upnp;
-		net_settings.boot_nodes = self.init_nodes(&spec);
-		let (listen, public) = self.net_addresses();
-		net_settings.listen_address = listen;
-		net_settings.public_address = public;
-		net_settings.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+		let net_settings = self.net_settings(&spec);
 
 		// Build client
 		let mut service = ClientService::start(spec, net_settings, &Path::new(&self.path())).unwrap();
@@ -265,11 +297,13 @@ impl Configuration {
 
 fn wait_for_exit(client_service: &ClientService) {
 	let exit = Arc::new(Condvar::new());
+
 	// Handle possible exits
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.notify_all(); });
 	let e = exit.clone();
 	client_service.on_panic(move |_reason| { e.notify_all(); });
+
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
