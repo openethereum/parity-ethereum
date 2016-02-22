@@ -214,17 +214,17 @@ impl Configuration {
 		let mut public_address = None;
 
 		if let Some(ref a) = self.args.flag_address {
-			public_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen/public address given with --address"));
+			public_address = Some(SocketAddr::from_str(a.as_ref()).unwrap_or_else(|_| die!("{}: Invalid listen/public address given with --address", a)));
 			listen_address = public_address;
 		}
 		if listen_address.is_none() {
-			listen_address = Some(SocketAddr::from_str(self.args.flag_listen_address.as_ref()).expect("Invalid listen address given with --listen-address"));
+			listen_address = Some(SocketAddr::from_str(self.args.flag_listen_address.as_ref()).unwrap_or_else(|_| die!("{}: Invalid listen/public address given with --listen-address", self.args.flag_listen_address)));
 		}
 		if let Some(ref a) = self.args.flag_public_address {
 			if public_address.is_some() {
-				panic!("Conflicting flags: --address and --public-address");
+				die!("Conflicting flags provided: --address and --public-address");
 			}
-			public_address = Some(SocketAddr::from_str(a.as_ref()).expect("Invalid listen address given with --public-address"));
+			public_address = Some(SocketAddr::from_str(a.as_ref()).unwrap_or_else(|_| die!("{}: Invalid listen/public address given with --public-address", a)));
 		}
 		(listen_address, public_address)
 	}
@@ -236,7 +236,7 @@ impl Configuration {
 		let (listen, public) = self.net_addresses();
 		ret.listen_address = listen;
 		ret.public_address = public;
-		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).expect("Invalid key string"));
+		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery;
 		ret.ideal_peers = self.args.flag_peers;
 		let mut net_path = PathBuf::from(&self.path());
@@ -279,6 +279,7 @@ impl Configuration {
 
 		// Setup rpc
 		if self.args.flag_jsonrpc {
+			SocketAddr::from_str(&self.args.flag_jsonrpc_url).unwrap_or_else(|_|die!("{}: Invalid JSONRPC listen address given with --jsonrpc-url. Should be of the form 'IP:port'.", self.args.flag_jsonrpc_url));
 			setup_rpc_server(service.client(), sync.clone(), &self.args.flag_jsonrpc_url);
 		}
 
