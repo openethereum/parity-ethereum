@@ -125,7 +125,7 @@ fn derive_key(password: &str, salt: &H256) -> (Bytes, Bytes) {
 
 fn derive_key_scrypt(password: &str, salt: &H256, n: u32, p: u32, r: u32) -> (Bytes, Bytes) {
 	let mut derived_key = vec![0u8; KEY_LENGTH_USIZE];
-	let scrypt_params = ScryptParams::new(n as u8, r, p);
+	let scrypt_params = ScryptParams::new(n.trailing_zeros() as u8, r, p);
 	scrypt(password.as_bytes(), &salt.as_slice(), &scrypt_params, &mut derived_key);
 	let derived_right_bits = &derived_key[0..KEY_LENGTH_AES_USIZE];
 	let derived_left_bits = &derived_key[KEY_LENGTH_AES_USIZE..KEY_LENGTH_USIZE];

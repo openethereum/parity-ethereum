@@ -135,6 +135,28 @@ mod tests {
 	}
 
 	#[test]
+	fn imports_as_scrypt_keys() {
+		use util::keys::directory::{KeyDirectory, KeyFileKdf};
+		let temp = ::devtools::RandomTempPath::create_dir();
+		{
+			let mut secret_store = SecretStore::new_in(temp.as_path());
+			import_geth_keys(&mut secret_store, Path::new("res/geth_keystore")).unwrap();
+		}
+
+		let key_directory = KeyDirectory::new(&temp.as_path());
+		let key_file = key_directory.get(&H128::from_str("62a0ad73556d496a8e1c0783d30d3ace").unwrap()).unwrap();
+
+		match key_file.crypto.kdf {
+			KeyFileKdf::Scrypt(scrypt_params) => {
+				assert_eq!(262144, scrypt_params.n);
+				assert_eq!(8, scrypt_params.r);
+				assert_eq!(1, scrypt_params.p);
+			},
+			_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
+		}
+	}
+
+	#[test]
 	fn can_decrypt_with_imported() {
 		use util::keys::store::EncryptedHashMap;
 		use util::bytes::*;
@@ -145,6 +167,6 @@ mod tests {
 
 		let val = secret_store.get::<Bytes>(&H128::from_str("62a0ad73556d496a8e1c0783d30d3ace").unwrap(), "123");
 		assert!(val.is_ok());
-		assert_eq!(vec![0u8, 10], val.unwrap());
+		assert_eq!(32, val.unwrap().len());
 	}
 }
