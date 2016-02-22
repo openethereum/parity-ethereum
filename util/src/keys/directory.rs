@@ -381,6 +381,7 @@ impl KeyFileContent {
 		}
 	}
 
+	/// Loads key from valid json, returns error and records warning if key is mallformed
 	pub fn load(json: &Json) -> Result<KeyFileContent, ()> {
 		match Self::from_json(json) {
 			Ok(key_file) => Ok(key_file),
@@ -444,6 +445,7 @@ impl KeyFileContent {
 		map.insert("id".to_owned(), Json::String(uuid_to_string(&self.id)));
 		map.insert("version".to_owned(), Json::U64(CURRENT_DECLARED_VERSION));
 		map.insert("crypto".to_owned(), self.crypto.to_json());
+		if let Some(ref address) = self.account { map.insert("address".to_owned(), Json::String(format!("{:?}", address))); }
 		Json::Object(map)
 	}
 }
@@ -670,7 +672,7 @@ mod file_tests {
 	}
 
 	#[test]
-	fn can_read_scrypt_krf() {
+	fn can_read_scrypt_kdf() {
 		let json = Json::from_str(
 			r#"
 				{
@@ -699,6 +701,47 @@ mod file_tests {
 			Ok(key_file) => {
 				match key_file.crypto.kdf {
 					KeyFileKdf::Scrypt(_) => {},
+					_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
+				}
+			},
+			Err(e) => panic!("Error parsing valid file: {:?}", e)
+		}
+	}
+
+	#[test]
+	fn can_read_scrypt_kdf_params() {
+		let json = Json::from_str(
+			r#"
+				{
+					"crypto" : {
+						"cipher" : "aes-128-ctr",
+						"cipherparams" : {
+							"iv" : "83dbcc02d8ccb40e466191a123791e0e"
+						},
+						"ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+						"kdf" : "scrypt",
+						"kdfparams" : {
+							"dklen" : 32,
+							"n" : 262144,
+							"r" : 1,
+							"p" : 8,
+							"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+						},
+						"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+					},
+					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+					"version" : 3
+				}
+			"#).unwrap();
+
+		match KeyFileContent::from_json(&json) {
+			Ok(key_file) => {
+				match key_file.crypto.kdf {
+					KeyFileKdf::Scrypt(scrypt_params) => {
+						assert_eq!(262144, scrypt_params.n);
+						assert_eq!(1, scrypt_params.r);
+						assert_eq!(8, scrypt_params.p);
+					},
 					_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
 				}
 			},
@@ -861,7 +904,7 @@ mod file_tests {
 				panic!("Should be error of no identifier, got ok");
 			},
 			Err(KeyFileParseError::Crypto(CryptoParseError::Scrypt(_))) => { },
-			Err(other_error) => { panic!("should be error of no identifier, got {:?}", other_error); }
+			Err(other_error) => { panic!("should be scrypt parse error, got {:?}", other_error); }
 		}
 	}
 

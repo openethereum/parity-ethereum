@@ -49,9 +49,12 @@ pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, io::Er
 	Ok(entries)
 }
 
+/// Geth import error
 #[derive(Debug)]
 pub enum ImportError {
+	/// Io error reading geth file
 	IoError(io::Error),
+	/// format error
 	FormatError,
 }
 
@@ -81,6 +84,7 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 	Ok(())
 }
 
+/// Imports all geth keys in the directory
 pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory: &Path) -> Result<(), ImportError> {
 	let geth_files = try!(enumerate_geth_keys(geth_keyfiles_directory));
 	for &(ref address, ref file_path) in geth_files.iter() {
@@ -128,5 +132,19 @@ mod tests {
 
 		let key = secret_store.account(&Address::from_str("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf").unwrap());
 		assert!(key.is_some());
+	}
+
+	#[test]
+	fn can_decrypt_with_imported() {
+		use util::keys::store::EncryptedHashMap;
+		use util::bytes::*;
+
+		let temp = ::devtools::RandomTempPath::create_dir();
+		let mut secret_store = SecretStore::new_in(temp.as_path());
+		import_geth_keys(&mut secret_store, Path::new("res/geth_keystore")).unwrap();
+
+		let val = secret_store.get::<Bytes>(&H128::from_str("62a0ad73556d496a8e1c0783d30d3ace").unwrap(), "123");
+		assert!(val.is_ok());
+		assert_eq!(vec![0u8, 10], val.unwrap());
 	}
 }
