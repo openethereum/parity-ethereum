@@ -8,3 +8,5 @@ authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
 ethcore-util = { path = "../util" }
+rustc-serialize = "0.3"
+ethcore-devtools = { path = "../devtools" }

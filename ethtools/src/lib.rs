@@ -17,5 +17,7 @@
 //! Ethereum Tools Library
 
 extern crate ethcore_util as util;
+extern crate rustc_serialize;
+extern crate ethcore_devtools as devtools;
 
 pub mod geth_keys;
