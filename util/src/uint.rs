@@ -141,7 +141,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 macro_rules! construct_uint {
 	($name:ident, $n_words:expr) => (
 		/// Little-endian large integer type
-		#[derive(Copy, Clone, Eq)]
+		#[derive(Copy, Clone, Eq, PartialEq)]
 		pub struct $name(pub [u64; $n_words]);
 
 		impl Uint for $name {
@@ -791,17 +791,7 @@ macro_rules! construct_uint {
 			}
 		}
 
-		impl PartialEq for $name {
-			fn eq(&self, other: &$name) -> bool {
-				let &$name(ref me) = self;
-				let &$name(ref you) = other;
-				for i in 0..$n_words {
-					if me[$n_words - 1 - i] != you[$n_words - 1 - i] { return false; }
-				}
-				true
-			}
-		}
-
+		#[cfg_attr(feature="dev", allow(derive_hash_xor_eq))] // We are pretty sure it's ok.
 		impl Hash for $name {
 			fn hash<H>(&self, state: &mut H) where H: Hasher {
 				unsafe { state.write(::std::slice::from_raw_parts(self.0.as_ptr() as *mut u8, self.0.len() * 8)); }
