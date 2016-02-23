@@ -30,6 +30,7 @@ extern crate env_logger;
 extern crate ctrlc;
 extern crate fdlimit;
 extern crate daemonize;
+extern crate time;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -38,7 +39,6 @@ use std::net::{SocketAddr};
 use std::env;
 use std::process::exit;
 use std::path::PathBuf;
-use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
@@ -112,6 +112,8 @@ struct Args {
 }
 
 fn setup_log(init: &Option<String>) {
+	use rlog::*;
+
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
@@ -123,6 +125,15 @@ fn setup_log(init: &Option<String>) {
 		builder.parse(s);
 	}
 
+	let format = |record: &LogRecord| {
+		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
+		if max_log_level() <= LogLevelFilter::Info {
+			format!("{}{}", timestamp, record.args())
+		} else {
+			format!("{}{}:{}: {}", timestamp, record.level(), record.target(), record.args())
+		}
+    };
+	builder.format(format);
 	builder.init().unwrap();
 }
 
