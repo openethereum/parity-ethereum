@@ -48,7 +48,7 @@ impl Block {
 		if urlp.at(1).unwrap().iter().find(|i| i.as_val::<Transaction>().is_err()).is_some() {
 			return false;
 		}
-		
+
 		if !urlp.at(2).unwrap().is_list() { return false; }
 		if urlp.at(2).unwrap().iter().find(|i| i.as_val::<Header>().is_err()).is_some() {
 			return false;
@@ -61,7 +61,7 @@ impl Block {
 impl Decodable for Block {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		if decoder.as_raw().len() != try!(decoder.as_rlp().payload_info()).total() {
-			return Err(DecoderError::RlpIsTooBig);	
+			return Err(DecoderError::RlpIsTooBig);
 		}
 		let d = decoder.as_rlp();
 		if d.item_count() != 3 {
@@ -87,7 +87,7 @@ pub struct ExecutedBlock {
 	state: State,
 }
 
-/// A set of references to `ExecutedBlock` fields that are publicly accessible. 
+/// A set of references to `ExecutedBlock` fields that are publicly accessible.
 pub struct BlockRefMut<'a> {
 	/// Block header.
 	pub header: &'a Header,
@@ -171,7 +171,7 @@ pub struct SealedBlock {
 
 impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// Create a new OpenBlock ready for transaction pushing.
-	pub fn new<'a, 'b>(engine: &'a Engine, db: JournalDB, parent: &Header, last_hashes: &'b LastHashes, author: Address, extra_data: Bytes) -> OpenBlock<'a, 'b> {
+	pub fn new(engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes, author: Address, extra_data: Bytes) -> Self {
 		let mut r = OpenBlock {
 			block: ExecutedBlock::new(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce())),
 			engine: engine,
@@ -284,7 +284,7 @@ impl<'x, 'y> IsBlock for ClosedBlock<'x, 'y> {
 }
 
 impl<'x, 'y> ClosedBlock<'x, 'y> {
-	fn new<'a, 'b>(open_block: OpenBlock<'a, 'b>, uncle_bytes: Bytes) -> ClosedBlock<'a, 'b> {
+	fn new(open_block: OpenBlock<'x, 'y>, uncle_bytes: Bytes) -> Self {
 		ClosedBlock {
 			open_block: open_block,
 			uncle_bytes: uncle_bytes,

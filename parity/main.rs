@@ -181,7 +181,7 @@ impl Configuration {
 	}
 
 	fn _keys_path(&self) -> String {
-		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())	
+		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
 	fn spec(&self) -> Spec {
@@ -194,9 +194,10 @@ impl Configuration {
 	}
 
 	fn normalize_enode(e: &str) -> Option<String> {
-		match is_valid_node_url(e) {
-			true => Some(e.to_owned()),
-			false => None,
+		if is_valid_node_url(e) {
+			Some(e.to_owned())
+		} else {
+			None
 		}
 	}
 
@@ -209,6 +210,7 @@ impl Configuration {
 		}
 	}
 
+	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
 		let mut listen_address = None;
 		let mut public_address = None;
