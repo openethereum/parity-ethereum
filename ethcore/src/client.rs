@@ -467,7 +467,6 @@ impl BlockChainClient for Client {
 			return Err(ImportError::UnknownParent);
 		}
 		self.block_queue.write().unwrap().import_block(bytes)
-		// TODO [ToDr] remove transactions
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
