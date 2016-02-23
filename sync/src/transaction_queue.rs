@@ -93,6 +93,25 @@ impl CurrentByPriorityAndAddress {
 		self.address.insert(address, nonce, verified_tx);
 	}
 
+	fn enforce_limit(&mut self, limit: usize) {
+		let len = self.priority.len();
+		if len <= limit {
+			return;
+		}
+
+		let to_remove : Vec<SignedTransaction> = {
+			self.priority
+				.iter()
+				.skip(limit)
+				.map(|v_tx| v_tx.tx.clone())
+				.collect()
+		};
+
+		for tx in to_remove {
+			self.remove(&tx);
+		}
+	}
+
 	fn remove_by_address(&mut self, sender: &Address, nonce: &U256) -> Option<VerifiedTransaction> {
 		if let Some(verified_tx) = self.address.remove(sender, nonce) {
 			self.priority.remove(&verified_tx);
@@ -128,8 +147,12 @@ pub struct TxQueue {
 
 impl TxQueue {
 	/// Creates new instance of this Queue
-	pub fn new() -> Self{
-		let limit = 1024;
+	pub fn new() -> Self {
+		Self::with_limits(1024, 1024)
+	}
+
+	/// Create new instance of this Queue with specified limits
+	pub fn with_limits(current_limit: usize, future_limit: usize) -> Self {
 		let current = CurrentByPriorityAndAddress {
 			address: Table::new(),
 			priority: BTreeSet::new()
@@ -138,7 +161,7 @@ impl TxQueue {
 		let nonces = HashMap::new();
 
 		TxQueue {
-			limit: limit,
+			limit: current_limit,
 			current: current,
 			future: future,
 			last_nonces: nonces,
@@ -186,7 +209,7 @@ impl TxQueue {
 					})
 					.collect()
 			};
-			for  k in to_move_to_future {
+			for k in to_move_to_future {
 				if let Some(v) = self.current.remove_by_address(&sender, &k) {
 					self.future.insert(sender.clone(), v.tx.nonce, v.tx.clone());
 				}
@@ -239,6 +262,10 @@ impl TxQueue {
 		self.future.clear_if_empty(&address)
 	}
 
+	fn enforce_future_limit(&mut self) {
+		// TODO [todr] Implement limiting future
+	}
+
 	fn import_tx(&mut self, tx: SignedTransaction) {
 		let nonce = tx.nonce;
 		let address = tx.sender().unwrap();
@@ -256,6 +283,7 @@ impl TxQueue {
 		if height > U256::from(1) {
 			// We have a gap - we put to future
 			self.future.insert(address, nonce, tx);
+			self.enforce_future_limit();
 			return;
 		}
 
@@ -273,6 +301,8 @@ impl TxQueue {
 
 		// But maybe there are some more items waiting in future?
 		self.move_future_txs(address, nonce);
+		// Enforce limit
+		self.current.enforce_limit(self.limit);
 	}
 }
 
@@ -447,6 +477,24 @@ mod test {
 		// then
 		let stats = txq.stats();
 		assert_eq!(stats.pending, 0);
+	}
+
+	#[test]
+	fn should_drop_old_transactions_when_hitting_the_limit() {
+		// given
+		let mut txq = TxQueue::with_limits(1, 1);
+		let (tx, tx2) = new_txs(U256::one());
+		txq.add(tx.clone());
+		assert_eq!(txq.stats().pending, 1);
+
+		// when
+		txq.add(tx2.clone());
+
+		// then
+		let t = txq.top_transactions(2);
+		assert_eq!(txq.stats().pending, 1);
+		assert_eq!(t.len(), 1);
+		assert_eq!(t[0], tx);
 	}
 
 }

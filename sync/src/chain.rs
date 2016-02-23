@@ -37,7 +37,9 @@ use ethcore::client::{BlockChainClient, BlockStatus, BlockId};
 use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::block::Block;
+use ethcore::transaction::SignedTransaction;
 use io::SyncIo;
+use transaction_queue::TxQueue;
 use time;
 use std::option::Option;
 
@@ -203,6 +205,8 @@ pub struct ChainSync {
 	have_common_block: bool,
 	/// Last propagated block number
 	last_send_block_number: BlockNumber,
+	/// Transactions queue
+	tx_queue: TxQueue,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -226,6 +230,7 @@ impl ChainSync {
 			syncing_difficulty: U256::from(0u64),
 			have_common_block: false,
 			last_send_block_number: 0,
+			tx_queue: TxQueue::new(),
 		}
 	}
 
@@ -276,6 +281,7 @@ impl ChainSync {
 		self.highest_block = None;
 		self.have_common_block = false;
 		io.chain().clear_queue();
+		self.tx_queue.clear();
 		self.starting_block = io.chain().chain_info().best_block_number;
 		self.state = SyncState::NotSynced;
 	}
@@ -882,7 +888,13 @@ impl ChainSync {
 		}
 	}
 	/// Called when peer sends us new transactions
-	fn on_peer_transactions(&mut self, _io: &mut SyncIo, _peer_id: PeerId, _r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_transactions(&mut self, _io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		let item_count = r.item_count();
+		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
+		for i in 0..item_count {
+			let tx: SignedTransaction = try!(r.val_at(i));
+			self.tx_queue.add(tx);
+		}
 		Ok(())
 	}
 
@@ -1144,8 +1156,8 @@ impl ChainSync {
 			.collect::<Vec<_>>()
 	}
 
-	/// propagades latest block to lagging peers
-	fn propagade_blocks(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
+	/// propagates latest block to lagging peers
+	fn propagate_blocks(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
 		let updated_peers = {
 			let lagging_peers = self.get_lagging_peers(io);
 
@@ -1171,8 +1183,8 @@ impl ChainSync {
 		sent
 	}
 
-	/// propagades new known hashes to all peers
-	fn propagade_new_hashes(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
+	/// propagates new known hashes to all peers
+	fn propagate_new_hashes(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
 		let updated_peers = self.get_lagging_peers(io);
 		let mut sent = 0;
 		let last_parent = HeaderView::new(&io.chain().block_header(BlockId::Hash(local_best.clone())).unwrap()).parent_hash();
@@ -1207,13 +1219,19 @@ impl ChainSync {
 	pub fn chain_blocks_verified(&mut self, io: &mut SyncIo) {
 		let chain = io.chain().chain_info();
 		if (((chain.best_block_number as i64) - (self.last_send_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
-			let blocks = self.propagade_blocks(&chain.best_block_hash, chain.best_block_number, io);
-			let hashes = self.propagade_new_hashes(&chain.best_block_hash, chain.best_block_number, io);
+			let blocks = self.propagate_blocks(&chain.best_block_hash, chain.best_block_number, io);
+			let hashes = self.propagate_new_hashes(&chain.best_block_hash, chain.best_block_number, io);
 			if blocks != 0 || hashes != 0 {
 				trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
 			}
 		}
 		self.last_send_block_number = chain.best_block_number;
+	}
+
+	/// called when block is imported to chain, updates transactions queue
+	pub fn chain_new_block(&mut self, block: &Bytes) {
+		trace!(target: "sync", "Chain New Block: {:?}", block);
+
 	}
 }
 
@@ -1391,7 +1409,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		let peer_count = sync.propagade_new_hashes(&best_hash, best_number, &mut io);
+		let peer_count = sync.propagate_new_hashes(&best_hash, best_number, &mut io);
 
 		// 1 message should be send
 		assert_eq!(1, io.queue.len());
@@ -1411,7 +1429,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		let peer_count = sync.propagade_blocks(&best_hash, best_number, &mut io);
+		let peer_count = sync.propagate_blocks(&best_hash, best_number, &mut io);
 
 		// 1 message should be send
 		assert_eq!(1, io.queue.len());
@@ -1505,7 +1523,7 @@ mod tests {
 		assert!(result.is_ok());
 	}
 
-	// idea is that what we produce when propagading latest hashes should be accepted in
+	// idea is that what we produce when propagating latest hashes should be accepted in
 	// on_peer_new_hashes in our code as well
 	#[test]
 	fn hashes_rlp_mutually_acceptable() {
@@ -1517,14 +1535,14 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		sync.propagade_new_hashes(&best_hash, best_number, &mut io);
+		sync.propagate_new_hashes(&best_hash, best_number, &mut io);
 
 		let data = &io.queue[0].data.clone();
 		let result = sync.on_peer_new_hashes(&mut io, 0, &UntrustedRlp::new(&data));
 		assert!(result.is_ok());
 	}
 
-	// idea is that what we produce when propagading latest block should be accepted in
+	// idea is that what we produce when propagating latest block should be accepted in
 	// on_peer_new_block  in our code as well
 	#[test]
 	fn block_rlp_mutually_acceptable() {
@@ -1536,7 +1554,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		sync.propagade_blocks(&best_hash, best_number, &mut io);
+		sync.propagate_blocks(&best_hash, best_number, &mut io);
 
 		let data = &io.queue[0].data.clone();
 		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(&data));
