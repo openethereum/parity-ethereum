@@ -171,7 +171,7 @@ pub struct SealedBlock {
 
 impl<'x, 'y> OpenBlock<'x, 'y> {
 	/// Create a new OpenBlock ready for transaction pushing.
-	pub fn new<'a, 'b>(engine: &'a Engine, db: JournalDB, parent: &Header, last_hashes: &'b LastHashes, author: Address, extra_data: Bytes) -> OpenBlock<'a, 'b> {
+	pub fn new(engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: &'y LastHashes, author: Address, extra_data: Bytes) -> Self {
 		let mut r = OpenBlock {
 			block: ExecutedBlock::new(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce())),
 			engine: engine,
@@ -284,7 +284,7 @@ impl<'x, 'y> IsBlock for ClosedBlock<'x, 'y> {
 }
 
 impl<'x, 'y> ClosedBlock<'x, 'y> {
-	fn new<'a, 'b>(open_block: OpenBlock<'a, 'b>, uncle_bytes: Bytes) -> ClosedBlock<'a, 'b> {
+	fn new(open_block: OpenBlock<'x, 'y>, uncle_bytes: Bytes) -> Self {
 		ClosedBlock {
 			open_block: open_block,
 			uncle_bytes: uncle_bytes,

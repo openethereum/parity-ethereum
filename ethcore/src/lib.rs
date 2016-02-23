@@ -22,7 +22,7 @@
 // TODO [todr] not really sure
 #![cfg_attr(feature="dev", allow(needless_range_loop))]
 // Shorter than if-else
-#![cfg_attr(feautre="dev", allow(match_bool))]
+#![cfg_attr(feature="dev", allow(match_bool))]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
 

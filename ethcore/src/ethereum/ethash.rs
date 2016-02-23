@@ -87,13 +87,10 @@ impl Engine for Ethash {
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
 		trace!(target: "client", "Creating schedule. param={:?}, fCML={}", self.spec().engine_params.get("frontierCompatibilityModeLimit"), self.u64_param("frontierCompatibilityModeLimit"));
-		match env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
-			true => {
-				Schedule::new_frontier()
-			},
-			_ => {
-				Schedule::new_homestead()
-			},
+		if env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
+			Schedule::new_frontier()
+		} else {
+			Schedule::new_homestead()
 		}
 	}
 
@@ -147,7 +144,7 @@ impl Engine for Ethash {
 		}
 
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
-				&Ethash::to_ethash(header.bare_hash()), 
+				&Ethash::to_ethash(header.bare_hash()),
 				header.nonce().low_u64(),
 				&Ethash::to_ethash(header.mix_hash()))));
 		if difficulty < header.difficulty {
@@ -189,7 +186,7 @@ impl Engine for Ethash {
 		let min_gas = parent.gas_limit - parent.gas_limit / gas_limit_divisor;
 		let max_gas = parent.gas_limit + parent.gas_limit / gas_limit_divisor;
 		if header.gas_limit <= min_gas || header.gas_limit >= max_gas {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit }))); 
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit })));
 		}
 		Ok(())
 	}
@@ -220,8 +217,8 @@ impl Ethash {
 		let frontier_limit = self.u64_param("frontierCompatibilityModeLimit");
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {
-				parent.difficulty - (parent.difficulty / difficulty_bound_divisor) 
-			} 
+				parent.difficulty - (parent.difficulty / difficulty_bound_divisor)
+			}
 			else {
 				parent.difficulty + (parent.difficulty / difficulty_bound_divisor)
 			}
@@ -243,7 +240,7 @@ impl Ethash {
 		}
 		target
 	}
-	
+
 	fn boundary_to_difficulty(boundary: &H256) -> U256 {
 		U256::from((U512::one() << 256) / x!(U256::from(boundary.as_slice())))
 	}
