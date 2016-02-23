@@ -19,11 +19,8 @@
 use std::vec::Vec;
 use std::cmp::{Ordering};
 use std::collections::{HashMap, BTreeSet};
-use std::sync::{RwLock, Arc, Mutex};
-use std::hash::Hash;
-use util::executor::*;
 use util::uint::{Uint, U256};
-use util::hash::{Address, H256};
+use util::hash::{Address};
 use util::table::*;
 use ethcore::transaction::*;
 
@@ -45,31 +42,45 @@ impl VerifiedTransaction {
 		self.tx.sender().unwrap()
 	}
 }
-trivial_ordering!(VerifiedTransaction by |a: &VerifiedTransaction, b: &VerifiedTransaction| {
-	// First check nonce_height
-	if a.nonce_height != b.nonce_height {
-		return a.nonce_height.cmp(&b.nonce_height);
-	}
 
-	// Then compare gas_prices
-	let a_gas = a.tx.gas_price;
-	let b_gas = b.tx.gas_price;
-	if a_gas != b_gas {
-		return a_gas.cmp(&b_gas);
+impl Eq for VerifiedTransaction {}
+impl PartialEq for VerifiedTransaction {
+	fn eq(&self, other: &VerifiedTransaction) -> bool {
+		self.cmp(other) == Ordering::Equal
 	}
-
-	// Compare nonce
-	let a_nonce = a.tx.nonce;
-	let b_nonce = b.tx.nonce;
-	if a_nonce != b_nonce {
-		return a_nonce.cmp(&b_nonce);
+}
+impl PartialOrd for VerifiedTransaction {
+	fn partial_cmp(&self, other: &VerifiedTransaction) -> Option<Ordering> {
+		Some(self.cmp(other))
 	}
+}
+impl Ord for VerifiedTransaction {
+	fn cmp(&self, b: &VerifiedTransaction) -> Ordering {
+		// First check nonce_height
+		if self.nonce_height != b.nonce_height {
+			return self.nonce_height.cmp(&b.nonce_height);
+		}
 
-	// and senders
-	let a_sender = a.sender();
-	let b_sender = b.sender();
-	a_sender.cmp(&b_sender)
-});
+		// Then compare gas_prices
+		let a_gas = self.tx.gas_price;
+		let b_gas = b.tx.gas_price;
+		if a_gas != b_gas {
+			return a_gas.cmp(&b_gas);
+		}
+
+		// Compare nonce
+		let a_nonce = self.tx.nonce;
+		let b_nonce = b.tx.nonce;
+		if a_nonce != b_nonce {
+			return a_nonce.cmp(&b_nonce);
+		}
+
+		// and senders
+		let a_sender = self.sender();
+		let b_sender = b.sender();
+		a_sender.cmp(&b_sender)
+	}
+}
 
 struct CurrentByPriorityAndAddress {
 	priority: BTreeSet<VerifiedTransaction>,
@@ -105,7 +116,6 @@ impl CurrentByPriorityAndAddress {
 #[derive(Debug)]
 pub struct TxQueueStats {
 	pub pending: usize,
-	pub queued: usize,
 	pub future: usize,
 }
 
@@ -113,27 +123,24 @@ pub struct TxQueue {
 	limit: usize,
 	current: CurrentByPriorityAndAddress,
 	future: Table<Address, U256, SignedTransaction>,
-	avoid: HashMap<H256, SignedTransaction>,
 	last_nonces: HashMap<Address, U256>,
 }
 
 impl TxQueue {
 	/// Creates new instance of this Queue
-	pub fn new<T>(_exec: &Executor<T>) -> Self where T: Task<Result=(), Error=()> {
+	pub fn new() -> Self{
 		let limit = 1024;
 		let current = CurrentByPriorityAndAddress {
 			address: Table::new(),
 			priority: BTreeSet::new()
 		};
 		let future = Table::new();
-		let avoid = HashMap::new();
 		let nonces = HashMap::new();
 
 		TxQueue {
 			limit: limit,
 			current: current,
 			future: future,
-			avoid: avoid,
 			last_nonces: nonces,
 		}
 	}
@@ -143,7 +150,6 @@ impl TxQueue {
 		TxQueueStats {
 			pending: self.current.priority.len(),
 			future: self.future.len(),
-			queued: 0
 		}
 	}
 
@@ -195,9 +201,6 @@ impl TxQueue {
 				return;
 			}
 		}
-
-		// Avoid transaction - do not verify (happens only if it's in queue)
-		self.avoid.insert(tx.hash(), tx.clone());
 	}
 
 	/// Returns top transactions from the queue
@@ -214,7 +217,6 @@ impl TxQueue {
 		self.current.address.clear();
 		self.future.clear();
 		self.last_nonces.clear();
-		// self.executor.clear();
 	}
 
 	fn move_future_txs(&mut self, address: Address, nonce: U256) {
@@ -259,12 +261,6 @@ impl TxQueue {
 
 		// Insert to queue
 		{
-			// This transaction should not be inserted
-			// because it has been removed before that task run
-			if let Some(_tx) = self.avoid.remove(&tx.hash()) {
-				return;
-			}
-
 			// We can insert the transaction
 			let verified_tx = VerifiedTransaction::new(tx, height);
 			self.current.insert(address.clone(), nonce, verified_tx);
@@ -285,7 +281,6 @@ mod test {
 	extern crate rustc_serialize;
 	use self::rustc_serialize::hex::FromHex;
 
-	use util::executor::Executors;
 	use util::crypto::KeyPair;
 	use util::uint::{U256, Uint};
 	use ethcore::transaction::*;
@@ -318,44 +313,23 @@ mod test {
 	}
 
 	#[test]
-	fn should_enqueue_tx() {
+	fn should_import_tx() {
 		// given
-		let exec = Executors::manual();
-		let mut txq = TxQueue::new(&exec);
+		let mut txq = TxQueue::new();
 		let tx = new_tx();
 
 		// when
 		txq.add(tx);
-
-		// then
-		let stats = txq.stats();
-		assert_eq!(stats.pending, 0);
-		assert_eq!(stats.queued, 1);
-	}
-
-	#[test]
-	fn should_return_no_of_pending_txs() {
-		// given
-		let exec = Executors::manual();
-		let mut txq = TxQueue::new(&exec);
-		let tx = new_tx();
-		txq.add(tx);
-		assert_eq!(txq.stats().pending, 0);
-
-		// when
-		exec.consume(1);
 
 		// then
 		let stats = txq.stats();
 		assert_eq!(stats.pending, 1);
-		assert_eq!(stats.queued, 0);
 	}
 
 	#[test]
 	fn should_import_txs_from_same_sender() {
 		// given
-		let exec = Executors::same_thread();
-		let mut txq = TxQueue::new(&exec);
+		let mut txq = TxQueue::new();
 
 		let (tx, tx2) = new_txs(U256::from(1));
 
@@ -373,8 +347,7 @@ mod test {
 	#[test]
 	fn should_put_transaction_to_futures_if_gap_detected() {
 		// given
-		let exec = Executors::same_thread();
-		let mut txq = TxQueue::new(&exec);
+		let mut txq = TxQueue::new();
 
 		let (tx, tx2) = new_txs(U256::from(2));
 
@@ -385,7 +358,6 @@ mod test {
 		// then
 		let stats = txq.stats();
 		assert_eq!(stats.pending, 1);
-		assert_eq!(stats.queued, 0);
 		assert_eq!(stats.future, 1);
 		let top = txq.top_transactions(5);
 		assert_eq!(top.len(), 1);
@@ -395,8 +367,7 @@ mod test {
 	#[test]
 	fn should_move_transactions_if_gap_filled() {
 		// given
-		let exec = Executors::same_thread();
-		let mut txq = TxQueue::new(&exec);
+		let mut txq = TxQueue::new();
 		let kp = KeyPair::create().unwrap();
 		let secret = kp.secret();
 		let tx = new_unsigned_tx(U256::from(3)).sign(&secret);
@@ -414,15 +385,13 @@ mod test {
 		// then
 		let stats = txq.stats();
 		assert_eq!(stats.pending, 3);
-		assert_eq!(stats.queued, 0);
 		assert_eq!(stats.future, 0);
 	}
 
 	#[test]
 	fn should_remove_transaction() {
 		// given
-		let exec2 = Executors::same_thread();
-		let mut txq2 = TxQueue::new(&exec2);
+		let mut txq2 = TxQueue::new();
 		let (tx, tx2) = new_txs(U256::from(3));
 		txq2.add(tx.clone());
 		txq2.add(tx2.clone());
@@ -441,55 +410,9 @@ mod test {
 	}
 
 	#[test]
-	fn should_not_import_transaction_if_removed() {
-		// given
-		let exec = Executors::manual();
-		let mut txq = TxQueue::new(&exec);
-		let tx = new_tx();
-		txq.add(tx.clone());
-		assert_eq!(txq.stats().queued, 1);
-
-		// when
-		txq.remove(&tx);
-		exec.consume(1);
-
-		// then
-		let stats = txq.stats();
-		assert_eq!(stats.pending, 0);
-		assert_eq!(stats.future, 0);
-		assert_eq!(stats.queued, 0);
-	}
-
-
-	// TODO [todr] Not sure if this test is actually valid
-	#[test]
-	#[ignore]
-	fn should_put_transaction_to_future_if_older_is_removed() {
-		// given
-		let exec = Executors::manual();
-		let mut txq = TxQueue::new(&exec);
-		let (tx, tx2) = new_txs(U256::from(1));
-		txq.add(tx.clone());
-		txq.add(tx2.clone());
-
-		// when
-		exec.consume(1);
-		txq.remove(&tx);
-		exec.consume(1);
-
-		// then
-		let stats = txq.stats();
-		assert_eq!(stats.future, 1);
-		assert_eq!(stats.pending, 0);
-		assert_eq!(stats.queued, 0);
-
-	}
-
-	#[test]
 	fn should_move_transactions_to_future_if_gap_introduced() {
 		// given
-		let exec = Executors::same_thread();
-		let mut txq = TxQueue::new(&exec);
+		let mut txq = TxQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
 		let tx3 = new_tx();
 		txq.add(tx2.clone());
@@ -504,23 +427,19 @@ mod test {
 		let stats = txq.stats();
 		assert_eq!(stats.future, 1);
 		assert_eq!(stats.pending, 1);
-		assert_eq!(stats.queued, 0);
 	}
 
 	#[test]
 	fn should_clear_queue() {
 		// given
-		let exec = Executors::manual();
-		let mut txq = TxQueue::new(&exec);
+		let mut txq = TxQueue::new();
 		let (tx, tx2) = new_txs(U256::one());
 
 		// add
 		txq.add(tx2.clone());
 		txq.add(tx.clone());
-		exec.consume(1);
 		let stats = txq.stats();
-		assert_eq!(stats.pending, 1);
-		assert_eq!(stats.queued, 1);
+		assert_eq!(stats.pending, 2);
 
 		// when
 		txq.clear();
@@ -528,7 +447,6 @@ mod test {
 		// then
 		let stats = txq.stats();
 		assert_eq!(stats.pending, 0);
-		assert_eq!(stats.queued, 0);
 	}
 
 }

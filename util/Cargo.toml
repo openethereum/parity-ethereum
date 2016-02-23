@@ -31,7 +31,6 @@ clippy = { version = "0.0.44", optional = true }
 json-tests = { path = "json-tests" }
 rustc_version = "0.1.0"
 igd = "0.4.2"
-eventual = "0.1.5"
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
 vergen = "0.1"
