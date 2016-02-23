@@ -14,16 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc v1.
-//! 
-//! Compliant with ethereum rpc.
+mod poll_indexer;
+mod poll_filter;
 
-pub mod traits;
-mod impls;
-mod types;
-#[cfg(test)]
-mod tests;
-mod helpers;
-
-pub use self::traits::{Web3, Eth, EthFilter, Net};
-pub use self::impls::*;
+pub use self::poll_indexer::PollIndexer;
+pub use self::poll_filter::PollFilter;

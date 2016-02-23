@@ -27,6 +27,7 @@ extern crate jsonrpc_http_server;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
+extern crate transient_hashmap;
 
 #[cfg(feature = "serde_macros")]
 include!("lib.rs.in");

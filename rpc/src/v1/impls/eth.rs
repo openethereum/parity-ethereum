@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
-use std::sync::Arc;
+use std::sync::{Mutex, Arc};
 use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
 use util::hash::*;
@@ -26,6 +26,7 @@ use ethcore::views::*;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
+use v1::helpers::{PollFilter, PollIndexer};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -212,28 +213,82 @@ impl Eth for EthClient {
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
-	client: Arc<Client>
+	client: Arc<Client>,
+	polls: Mutex<PollIndexer<PollFilter>>
 }
 
 impl EthFilterClient {
 	/// Creates new Eth filter client.
 	pub fn new(client: Arc<Client>) -> Self {
 		EthFilterClient {
-			client: client
+			client: client,
+			polls: Mutex::new(PollIndexer::new())
 		}
 	}
 }
 
 impl EthFilter for EthFilterClient {
-	fn new_block_filter(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(0))
+	fn new_filter(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Filter,)>(params)
+			.and_then(|(filter,)| {
+				let mut polls = self.polls.lock().unwrap();
+				let id = polls.create_poll(PollFilter::Logs(filter.into()), self.client.chain_info().best_block_number);
+				to_value(&U256::from(id))
+			})
 	}
 
-	fn new_pending_transaction_filter(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(1))
+	fn new_block_filter(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => {
+				let mut polls = self.polls.lock().unwrap();
+				let id = polls.create_poll(PollFilter::Block, self.client.chain_info().best_block_number);
+				to_value(&U256::from(id))
+			},
+			_ => Err(Error::invalid_params())
+		}
 	}
 
-	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
-		to_value(&self.client.chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
+	fn new_pending_transaction_filter(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => {
+				let mut polls = self.polls.lock().unwrap();
+				let id = polls.create_poll(PollFilter::PendingTransaction, self.client.chain_info().best_block_number);
+				to_value(&U256::from(id))
+			},
+			_ => Err(Error::invalid_params())
+		}
+	}
+
+	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Index,)>(params)
+			.and_then(|(index,)| {
+				let info = self.polls.lock().unwrap().get_poll(&index.value()).cloned();
+				match info {
+					None => Ok(Value::Array(vec![] as Vec<Value>)),
+					Some(info) => match info.filter {
+						PollFilter::Block => {
+							//unimplemented!()
+							to_value(&self.client.chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
+						},
+						PollFilter::PendingTransaction => {
+							//unimplemented!()
+							to_value(&self.client.chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
+						},
+						PollFilter::Logs(mut filter) => {
+							filter.from_block = BlockId::Number(info.block_number);
+							filter.to_block = BlockId::Latest;
+							let logs = self.client.logs(filter)
+								.into_iter()
+								.map(From::from)
+								.collect::<Vec<Log>>();
+							
+							let current_number = self.client.chain_info().best_block_number;
+							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
+
+							to_value(&logs)
+						}
+					}
+				}
+			})
 	}
 }

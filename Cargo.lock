@@ -211,6 +211,7 @@ dependencies = [
  "serde_codegen 0.6.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.29.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "transient-hashmap 0.1.0 (git+https://github.com/debris/transient-hashmap)",
 ]
 
 [[package]]
@@ -727,6 +728,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "traitobject"
 version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "transient-hashmap"
+version = "0.1.0"
+source = "git+https://github.com/debris/transient-hashmap#e21bf844277785504ddc30ee22d2a709103d4992"
+dependencies = [
+ "time 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "typeable"
