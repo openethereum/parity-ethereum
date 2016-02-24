@@ -267,11 +267,18 @@ impl EthFilter for EthFilterClient {
 					None => Ok(Value::Array(vec![] as Vec<Value>)),
 					Some(info) => match info.filter {
 						PollFilter::Block => {
-							//unimplemented!()
-							to_value(&self.client.chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
+							let current_number = self.client.chain_info().best_block_number;
+							let hashes = (info.block_number..current_number).into_iter()
+								.map(BlockId::Number)
+								.filter_map(|id| self.client.block_hash(id))
+								.collect::<Vec<H256>>();
+
+							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
+
+							to_value(&hashes)
 						},
 						PollFilter::PendingTransaction => {
-							//unimplemented!()
+							// TODO: fix implementation
 							to_value(&self.client.chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
 						},
 						PollFilter::Logs(mut filter) => {
@@ -289,6 +296,14 @@ impl EthFilter for EthFilterClient {
 						}
 					}
 				}
+			})
+	}
+
+	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Index,)>(params)
+			.and_then(|(index,)| {
+				self.polls.lock().unwrap().remove_poll(&index.value());
+				to_value(&true)
 			})
 	}
 }
