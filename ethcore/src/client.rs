@@ -262,7 +262,6 @@ impl Client {
 	fn check_and_close_block(&self, block: &PreVerifiedBlock) -> Result<ClosedBlock, ()> {
 		let engine = self.engine.deref().deref();
 		let header = &block.header;
-		let header_hash = block.header.hash();
 
 		// Verify Block Family
 		let verify_family_result = verify_block_family(&header, &block.bytes, engine, self.chain.read().unwrap().deref());
@@ -310,13 +309,12 @@ impl Client {
 		let blocks = self.block_queue.write().unwrap().drain(max_blocks_to_import);
 
 		for block in blocks {
-			let header = block.header;
+			let header = &block.header;
 
 			if bad_blocks.contains(&header.parent_hash) {
 				bad_blocks.insert(header.hash());
 				continue;
 			}
-
 
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
@@ -350,7 +348,7 @@ impl Client {
 		let bad_blocks = bad_blocks.into_iter().collect::<Vec<H256>>();
 
 		{
-			let block_queue = self.block_queue.write().unwrap();
+			let mut block_queue = self.block_queue.write().unwrap();
 			block_queue.mark_as_bad(&bad_blocks);
 			block_queue.mark_as_good(&good_blocks);
 		}
