@@ -26,7 +26,12 @@ use client::Client;
 #[derive(Clone)]
 pub enum SyncMessage {
 	/// New block has been imported into the blockchain
-	NewChainBlock(Bytes), //TODO: use Cow
+	NewChainBlocks {
+		/// Hashes of blocks imported to blockchain
+		good: Vec<H256>,
+		/// Hashes of blocks not imported to blockchain
+		bad: Vec<H256>,
+	},
 	/// A block is ready
 	BlockVerified,
 }
