@@ -110,9 +110,8 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 			// map them to offsets
 			.map(|li| li.index * level_size)
 			// get all blocks that may contain our bloom
-			.map(|off| self.blocks(bloom, from_block, to_block, level - 1, off))
 			// filter existing ones
-			.filter_map(|x| x)
+			.filter_map(|off| self.blocks(bloom, from_block, to_block, level - 1, off))
 			// flatten nested structures
 			.flat_map(|v| v)
 			.collect();
@@ -161,9 +160,8 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 					self.indexer.lower_level_bloom_indexes(&index)
 						.into_iter()
 						// get blooms
-						.map(bloom_at)
 						// filter existing ones
-						.filter_map(|b| b)
+						.filter_map(bloom_at)
 						// BitOr all of them
 						.fold(H2048::new(), |acc, bloom| acc | bloom)
 				};
