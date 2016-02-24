@@ -927,13 +927,13 @@ impl ChainSync {
 		if reverse {
 			number = min(last, number);
 		} else {
-			number = max(1, number);
+			number = max(0, number);
 		}
 		let max_count = min(MAX_HEADERS_TO_SEND, max_headers);
 		let mut count = 0;
 		let mut data = Bytes::new();
 		let inc = (skip + 1) as BlockNumber;
-		while number <= last && number > 0 && count < max_count {
+		while number <= last && number >= 0 && count < max_count {
 			if let Some(mut hdr) = io.chain().block_header(BlockId::Number(number)) {
 				data.append(&mut hdr);
 				count += 1;
