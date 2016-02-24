@@ -933,13 +933,13 @@ impl ChainSync {
 		let mut count = 0;
 		let mut data = Bytes::new();
 		let inc = (skip + 1) as BlockNumber;
-		while number <= last && number >= 0 && count < max_count {
+		while number <= last && count < max_count {
 			if let Some(mut hdr) = io.chain().block_header(BlockId::Number(number)) {
 				data.append(&mut hdr);
 				count += 1;
 			}
 			if reverse {
-				if number <= inc {
+				if number <= inc || number == 0 {
 					break;
 				}
 				number -= inc;
@@ -1541,5 +1541,54 @@ mod tests {
 		let data = &io.queue[0].data.clone();
 		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(&data));
 		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn returns_requested_block_headers() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, false);
+		let mut queue = VecDeque::new();
+		let io = TestIo::new(&mut client, &mut queue, None);
+
+		let mut rlp = RlpStream::new_list(4);
+		rlp.append(&0u64);
+		rlp.append(&10u64);
+		rlp.append(&0u64);
+		rlp.append(&0u64);
+		let data = rlp.out();
+
+		let response = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&data));
+
+		assert!(response.is_ok());
+		let (_, rlp_stream) = response.unwrap().unwrap();
+		let response_data = rlp_stream.out();
+		let rlp = UntrustedRlp::new(&response_data);
+		assert!(rlp.at(0).is_ok());
+		assert!(rlp.at(9).is_ok());
+	}
+
+	#[test]
+	fn returns_requested_block_headers_reverse() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, false);
+		let mut queue = VecDeque::new();
+		let io = TestIo::new(&mut client, &mut queue, None);
+
+		let mut rlp = RlpStream::new_list(4);
+		rlp.append(&15u64);
+		rlp.append(&15u64);
+		rlp.append(&0u64);
+		rlp.append(&1u64);
+		let data = rlp.out();
+
+		let response = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&data));
+
+		assert!(response.is_ok());
+		let (_, rlp_stream) = response.unwrap().unwrap();
+		let response_data = rlp_stream.out();
+		let rlp = UntrustedRlp::new(&response_data);
+		assert!(rlp.at(0).is_ok());
+		assert!(rlp.at(14).is_ok());
+		assert!(!rlp.at(15).is_ok());
 	}
 }
