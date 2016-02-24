@@ -180,9 +180,25 @@ impl TxQueue {
 		}
 	}
 
+	/// Adds all signed transactions to queue to be verified and imported
+	pub fn add_all(&mut self, txs: Vec<SignedTransaction>) {
+		for tx in txs.into_iter() {
+			self.add(tx);
+		}
+	}
+
 	/// Add signed transaction to queue to be verified and imported
 	pub fn add(&mut self, tx: SignedTransaction) {
 		self.import_tx(tx);
+	}
+
+	/// Removes all transactions in given slice
+	///
+	/// If gap is introduced marks subsequent transactions as future
+	pub fn remove_all(&mut self, txs: &[SignedTransaction]) {
+		for tx in txs {
+			self.remove(&tx);
+		}
 	}
 
 	/// Removes transaction from queue.

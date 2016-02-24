@@ -54,6 +54,7 @@ extern crate ethcore;
 extern crate env_logger;
 extern crate time;
 extern crate rand;
+extern crate rayon;
 
 use std::ops::*;
 use std::sync::*;
@@ -137,7 +138,8 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 				self.sync.write().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
 			},
 			SyncMessage::NewChainBlocks { ref good, ref bad } => {
-				self.sync.write().unwrap().chain_new_blocks(good, bad);
+				let sync_io = NetSyncIo::new(io, self.chain.deref());
+				self.sync.write().unwrap().chain_new_blocks(&sync_io, good, bad);
 			}
 		}
 	}

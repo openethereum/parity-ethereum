@@ -30,8 +30,9 @@
 ///
 
 use util::*;
+use rayon::prelude::*;
 use std::mem::{replace};
-use ethcore::views::{HeaderView};
+use ethcore::views::{HeaderView, BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId};
 use range_collection::{RangeCollection, ToUsize, FromUsize};
@@ -1229,9 +1230,31 @@ impl ChainSync {
 	}
 
 	/// called when block is imported to chain, updates transactions queue
-	pub fn chain_new_blocks(&mut self, good: &[H256], bad: &[H256]) {
-		trace!(target: "sync", "Chain New Good Blocks: {:?}", good);
-		trace!(target: "sync", "Chain New Bad Blocks: {:?}", bad);
+	pub fn chain_new_blocks(&mut self, io: &SyncIo, good: &[H256], bad: &[H256]) {
+		let chain = io.chain();
+		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
+			let block = chain
+				.block(BlockId::Hash(hash.clone()))
+				.expect("Expected in-chain blocks.");
+			let block = BlockView::new(&block);
+			block.transactions()
+		};
+
+		let good = good.par_iter().map(|h| fetch_transactions(chain, h));
+		let bad = bad.par_iter().map(|h| fetch_transactions(chain, h));
+
+		good.for_each(|txs| {
+			let mut tx_queue = self.tx_queue.lock().unwrap();
+			tx_queue.remove_all(&txs);
+		});
+		bad.for_each(|txs| {
+			// populate sender
+			for tx in &txs {
+				let _sender = tx.sender();
+			}
+			let mut tx_queue = self.tx_queue.lock().unwrap();
+			tx_queue.add_all(txs);
+		});
 	}
 }
 
