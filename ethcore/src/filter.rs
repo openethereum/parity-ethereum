@@ -57,30 +57,26 @@ impl Filter {
 
 		self.topics.iter().fold(blooms, | bs, topic | match *topic {
 			None => bs,
-			Some(ref topics) => bs.into_iter().map(|bloom| {
+			Some(ref topics) => bs.into_iter().flat_map(|bloom| {
 				topics.into_iter().map(|topic| {
 					let mut b = bloom.clone();
 					b.shift_bloomed(&topic.sha3());
 					b
 				}).collect::<Vec<H2048>>()
-			}).flat_map(|m| m).collect()
+			}).collect()
 		})
 	}
 
 	/// Returns true if given log entry matches filter.
 	pub fn matches(&self, log: &LogEntry) -> bool {
 		let matches = match self.address {
-			Some(ref addresses) if !addresses.is_empty() =>	addresses.iter().fold(false, |res, address| {
-				res || &log.address == address
-			}),
+			Some(ref addresses) if !addresses.is_empty() =>	addresses.iter().any(|address| &log.address == address),
 			_ => true
 		};
 
-		matches && self.topics.iter().enumerate().fold(true, |res, (i, topic)| match *topic {
-			Some(ref topics) if !topics.is_empty() => res && topics.iter().fold(false, | acc, topic | {
-				acc || log.topics.get(i) == Some(topic)
-			}),
-			_ => res,
+		matches && self.topics.iter().enumerate().all(|(i, topic)| match *topic {
+			Some(ref topics) if !topics.is_empty() => topics.iter().any(|topic| log.topics.get(i) == Some(topic)),
+			_ => true
 		})
 	}
 }
