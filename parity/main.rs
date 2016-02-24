@@ -48,7 +48,7 @@ use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethcore::blockchain::CacheSize;
-use ethsync::EthSync;
+use ethsync::{EthSync, SyncConfig};
 use docopt::Docopt;
 use daemonize::Daemonize;
 
@@ -281,6 +281,8 @@ impl Configuration {
 
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
+		let mut sync_config = SyncConfig::default();
+		sync_config.network_id = spec.network_id();
 
 		// Build client
 		let mut service = ClientService::start(spec, net_settings, &Path::new(&self.path())).unwrap();
@@ -288,7 +290,7 @@ impl Configuration {
 		client.configure_cache(self.args.flag_cache_pref_size, self.args.flag_cache_max_size);
 
 		// Sync
-		let sync = EthSync::register(service.network(), client);
+		let sync = EthSync::register(service.network(), sync_config, client);
 
 		// Setup rpc
 		if self.args.flag_jsonrpc {

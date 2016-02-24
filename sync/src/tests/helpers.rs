@@ -20,7 +20,8 @@ use ethcore::block_queue::BlockQueueInfo;
 use ethcore::header::{Header as BlockHeader, BlockNumber};
 use ethcore::error::*;
 use io::SyncIo;
-use chain::{ChainSync};
+use chain::ChainSync;
+use ::SyncConfig;
 use ethcore::receipt::Receipt;
 use ethcore::transaction::LocalizedTransaction;
 
@@ -330,7 +331,7 @@ impl TestNet {
 		for _ in 0..n {
 			net.peers.push(TestPeer {
 				chain: TestBlockChainClient::new(),
-				sync: ChainSync::new(),
+				sync: ChainSync::new(SyncConfig::default()),
 				queue: VecDeque::new(),
 			});
 		}
