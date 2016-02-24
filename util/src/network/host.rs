@@ -500,7 +500,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			match TcpStream::connect(&address) {
 				Ok(socket) => socket,
 				Err(e) => {
-					warn!("Can't connect to node: {:?}", e);
+					warn!("Can't connect to address {:?}: {:?}", address, e);
 					return;
 				}
 			}
