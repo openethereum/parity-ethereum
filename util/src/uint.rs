@@ -54,6 +54,12 @@ macro_rules! impl_map_from {
 #[cfg(not(all(feature="dev", target_arch = "x86_64")))]
 macro_rules! uint_overflowing_add {
 	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => ({
+		uint_overflowing_add_reg!($name, $n_words, $self_expr, $other)
+	})
+}
+
+macro_rules! uint_overflowing_add_reg {
+	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => ({
 		let $name(ref me) = $self_expr;
 		let $name(ref you) = $other;
 		let mut ret = [0u64; $n_words];
@@ -82,6 +88,7 @@ macro_rules! uint_overflowing_add {
 	})
 }
 
+
 #[cfg(all(feature="dev", target_arch = "x86_64"))]
 macro_rules! uint_overflowing_add {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
@@ -106,7 +113,7 @@ macro_rules! uint_overflowing_add {
 		(U256(result), overflow != 0)
 	});
 	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => (
-		overflowing_add_regular!($name, $n_words, $self_expr, $other)
+		uint_overflowing_add_reg!($name, $n_words, $self_expr, $other)
 	)
 }
 
@@ -142,9 +149,11 @@ macro_rules! uint_overflowing_sub {
 		}
 		(U256(result), overflow != 0)
 	});
-	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => (
-		overflowing_add_regular!($name, $n_words, $self_expr, $other)
-	)
+	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		let res = overflowing!((!$other).overflowing_add(From::from(1u64)));
+		let res = overflowing!($self_expr.overflowing_add(res));
+		(res, $self_expr < $other)
+	})
 }
 
 #[cfg(all(feature="dev", target_arch = "x86_64"))]
@@ -241,12 +250,18 @@ macro_rules! uint_overflowing_mul {
 		(U256(result), overflow > 0)
 	});
 	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => (
-		overflowing_mul_regular!($name, $n_words, $self_expr, $other)
+		uint_overflowing_mul_reg!($name, $n_words, $self_expr, $other)
 	)
 }
 
 #[cfg(not(all(feature="dev", target_arch = "x86_64")))]
 macro_rules! uint_overflowing_mul {
+	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		uint_overflowing_mul_reg!($name, $n_words, $self_expr, $other)
+	})
+}
+
+macro_rules! uint_overflowing_mul_reg {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut res = $name::from(0u64);
 		let mut overflow = false;
