@@ -29,9 +29,18 @@ use test::{Bencher, black_box};
 use ethcore_util::uint::*;
 
 #[bench]
-fn u256_first_degree(b: &mut test::Bencher) {
+fn u256_add(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
 		(0..n).fold(U256::zero(), |old, new| { old.overflowing_add(U256::from(new)).0 })
 	});
 }
+
+#[bench]
+fn u256_sub(b: &mut Bencher) {
+	b.iter(|| {
+		let n = black_box(10000);
+		(0..n).fold(U256::zero(), |old, new| { old.overflowing_add(U256::from(new)).0 })
+	});
+}
+

@@ -41,6 +41,8 @@ use from_json::*;
 use rustc_serialize::hex::ToHex;
 use serde;
 
+#[cfg_attr(x64_asm_optimizations, all(feature = "dev", target_arch = "x86_64"))]
+
 macro_rules! impl_map_from {
 	($thing:ident, $from:ty, $to:ty) => {
 		impl From<$from> for $thing {
@@ -81,7 +83,7 @@ macro_rules! overflowing_add_regular {
 	})
 }
 
-macro_rules! overflowing_add_u256_asm {
+macro_rules! add_64x_optimized {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
 		let self_t: &[u64; 4] = unsafe { &mem::transmute($self_expr) };
@@ -90,12 +92,38 @@ macro_rules! overflowing_add_u256_asm {
 		let overflow: u8;
 		unsafe {
 			asm!("
-				xor %al, %al
                 adc $9, $0
                 adc $10, $1
                 adc $11, $2
                 adc $12, $3
-                adc $$0, %al"
+                setc %al"
+             	: "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]), "={al}"(overflow)
+				: "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]), "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3])
+				:
+				:
+			);
+		}
+		(U256(result), overflow != 0)
+	});
+	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => (
+		overflowing_add_regular!($name, $n_words, $self_expr, $other)
+	)
+}
+
+macro_rules! sub_64x_optimized {
+	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
+		let self_t: &[u64; 4] = unsafe { &mem::transmute($self_expr) };
+		let other_t: &[u64; 4] = unsafe { &mem::transmute($other) };
+
+		let overflow: u8;
+		unsafe {
+			asm!("
+                sbb $9, %r8
+                sbb $10, %r9
+                sbb $11, %r10
+                sbb $12, %r11
+                setb %al"
              	: "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]), "={al}"(overflow)
 				: "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]), "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3])
 				:
@@ -355,16 +383,23 @@ macro_rules! construct_uint {
 				(res, overflow)
 			}
 
-			#[cfg(all(feature = "dev", target_arch = "x86_64"))]
+			/// Optimized instructions
+			#[cfg(x64_asm_optimizations)]
+			#[inline]
 			fn overflowing_add(self, other: $name) -> ($name, bool) {
-				overflowing_add_u256_asm!($name, $n_words, self, other)
+				add_64x_optimized!($name, $n_words, self, other)
 			}
-
-			#[cfg(not(all(feature = "dev", target_arch = "x86_64")))]
+			#[cfg(not(x64_asm_optimizations))]
 			fn overflowing_add(self, other: $name) -> ($name, bool) {
 				overflowing_add_regular!($name, $n_words, self, other)
 			}
 
+			#[cfg(x64_asm_optimizations)]
+			#[inline]
+			fn overflowing_sub(self, other: $name) -> ($name, bool) {
+				sub_64x_optimized!($name, $n_words, self, other)
+			}
+			#[cfg(not(x64_asm_optimizations))]
 			fn overflowing_sub(self, other: $name) -> ($name, bool) {
 				let res = overflowing!((!other).overflowing_add(From::from(1u64)));
 				let res = overflowing!(self.overflowing_add(res));
