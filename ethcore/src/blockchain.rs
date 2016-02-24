@@ -817,8 +817,6 @@ mod tests {
 	use blockchain::{BlockProvider, BlockChain};
 	use tests::helpers::*;
 	use devtools::*;
-	use views::BlockView;
-	use util::uint::U256;
 
 	#[test]
 	fn valid_tests_extra32() {
