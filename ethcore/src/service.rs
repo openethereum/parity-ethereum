@@ -117,7 +117,7 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
-		if let &UserMessage(ref message) = net_message {
+		if let UserMessage(ref message) = *net_message {
 			match *message {
 				SyncMessage::BlockVerified => {
 					self.client.import_verified_blocks(&io.channel());

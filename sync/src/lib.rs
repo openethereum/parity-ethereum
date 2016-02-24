@@ -77,7 +77,7 @@ pub struct EthSync {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
 	chain: Arc<Client>,
 	/// Sync strategy
-	sync: Mutex<ChainSync>
+	sync: RwLock<ChainSync>
 }
 
 pub use self::chain::{SyncStatus, SyncState};
@@ -87,7 +87,7 @@ impl EthSync {
 	pub fn register(service: &mut NetworkService<SyncMessage>, chain: Arc<Client>) -> Arc<EthSync> {
 		let sync = Arc::new(EthSync {
 			chain: chain,
-			sync: Mutex::new(ChainSync::new()),
+			sync: RwLock::new(ChainSync::new()),
 		});
 		service.register_protocol(sync.clone(), "eth", &[62u8, 63u8]).expect("Error registering eth protocol handler");
 		sync
@@ -95,17 +95,17 @@ impl EthSync {
 
 	/// Get sync status
 	pub fn status(&self) -> SyncStatus {
-		self.sync.lock().unwrap().status()
+		self.sync.read().unwrap().status()
 	}
 
 	/// Stop sync
 	pub fn stop(&mut self, io: &mut NetworkContext<SyncMessage>) {
-		self.sync.lock().unwrap().abort(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.write().unwrap().abort(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
-		self.sync.lock().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 }
 
@@ -115,29 +115,29 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	}
 
 	fn read(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		self.sync.lock().unwrap().on_packet(&mut NetSyncIo::new(io, self.chain.deref()) , *peer, packet_id, data);
+		self.sync.write().unwrap().on_packet(&mut NetSyncIo::new(io, self.chain.deref()) , *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
-		self.sync.lock().unwrap().on_peer_connected(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
+		self.sync.write().unwrap().on_peer_connected(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
 	}
 
 	fn disconnected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
-		self.sync.lock().unwrap().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
+		self.sync.write().unwrap().on_peer_aborting(&mut NetSyncIo::new(io, self.chain.deref()), *peer);
 	}
 
 	fn timeout(&self, io: &NetworkContext<SyncMessage>, _timer: TimerToken) {
-		self.sync.lock().unwrap().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
-		self.sync.lock().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.write().unwrap().maintain_peers(&mut NetSyncIo::new(io, self.chain.deref()));
+		self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 
 	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
 		match *message {
 			SyncMessage::BlockVerified => {
-				self.sync.lock().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
+				self.sync.write().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
 			},
-			SyncMessage::NewChainBlock(ref block) => {
-				self.sync.lock().unwrap().chain_new_block(block);
+			SyncMessage::NewChainBlocks { ref good, ref bad } => {
+				self.sync.write().unwrap().chain_new_blocks(good, bad);
 			}
 		}
 	}

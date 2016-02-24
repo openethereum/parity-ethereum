@@ -206,7 +206,7 @@ pub struct ChainSync {
 	/// Last propagated block number
 	last_send_block_number: BlockNumber,
 	/// Transactions queue
-	tx_queue: TxQueue,
+	tx_queue: Mutex<TxQueue>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -230,7 +230,7 @@ impl ChainSync {
 			syncing_difficulty: U256::from(0u64),
 			have_common_block: false,
 			last_send_block_number: 0,
-			tx_queue: TxQueue::new(),
+			tx_queue: Mutex::new(TxQueue::new()),
 		}
 	}
 
@@ -281,7 +281,7 @@ impl ChainSync {
 		self.highest_block = None;
 		self.have_common_block = false;
 		io.chain().clear_queue();
-		self.tx_queue.clear();
+		self.tx_queue.lock().unwrap().clear();
 		self.starting_block = io.chain().chain_info().best_block_number;
 		self.state = SyncState::NotSynced;
 	}
@@ -893,7 +893,7 @@ impl ChainSync {
 		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
 		for i in 0..item_count {
 			let tx: SignedTransaction = try!(r.val_at(i));
-			self.tx_queue.add(tx);
+			self.tx_queue.lock().unwrap().add(tx);
 		}
 		Ok(())
 	}
@@ -1229,9 +1229,9 @@ impl ChainSync {
 	}
 
 	/// called when block is imported to chain, updates transactions queue
-	pub fn chain_new_block(&mut self, block: &Bytes) {
-		trace!(target: "sync", "Chain New Block: {:?}", block);
-
+	pub fn chain_new_blocks(&mut self, good: &[H256], bad: &[H256]) {
+		trace!(target: "sync", "Chain New Good Blocks: {:?}", good);
+		trace!(target: "sync", "Chain New Bad Blocks: {:?}", bad);
 	}
 }
 

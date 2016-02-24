@@ -82,27 +82,28 @@ impl Ord for VerifiedTransaction {
 	}
 }
 
-struct CurrentByPriorityAndAddress {
+struct TxsByPriorityAndAddress {
 	priority: BTreeSet<VerifiedTransaction>,
-	address: Table<Address, U256, VerifiedTransaction>
+	address: Table<Address, U256, VerifiedTransaction>,
+	limit: usize,
 }
 
-impl CurrentByPriorityAndAddress {
+impl TxsByPriorityAndAddress {
 	fn insert(&mut self, address: Address, nonce: U256, verified_tx: VerifiedTransaction) {
 		self.priority.insert(verified_tx.clone());
 		self.address.insert(address, nonce, verified_tx);
 	}
 
-	fn enforce_limit(&mut self, limit: usize) {
+	fn enforce_limit(&mut self) {
 		let len = self.priority.len();
-		if len <= limit {
+		if len <= self.limit {
 			return;
 		}
 
 		let to_remove : Vec<SignedTransaction> = {
 			self.priority
 				.iter()
-				.skip(limit)
+				.skip(self.limit)
 				.map(|v_tx| v_tx.tx.clone())
 				.collect()
 		};
@@ -123,12 +124,12 @@ impl CurrentByPriorityAndAddress {
 	fn remove(&mut self, tx: &SignedTransaction) -> Option<VerifiedTransaction> {
 		// First find the transaction by address
 		let address = tx.sender().unwrap();
-		let verified_tx = self.address.remove(&address, &tx.nonce);
-		if let Some(verified_tx) = verified_tx {
-			self.priority.remove(&verified_tx);
-			return Some(verified_tx)
-		}
-		None
+		self.remove_by_address(&address, &tx.nonce)
+	}
+
+	fn clear(&mut self) {
+		self.priority.clear();
+		self.address.clear();
 	}
 }
 
@@ -139,9 +140,8 @@ pub struct TxQueueStats {
 }
 
 pub struct TxQueue {
-	limit: usize,
-	current: CurrentByPriorityAndAddress,
-	future: Table<Address, U256, SignedTransaction>,
+	current: TxsByPriorityAndAddress,
+	future: TxsByPriorityAndAddress,
 	last_nonces: HashMap<Address, U256>,
 }
 
@@ -153,15 +153,19 @@ impl TxQueue {
 
 	/// Create new instance of this Queue with specified limits
 	pub fn with_limits(current_limit: usize, future_limit: usize) -> Self {
-		let current = CurrentByPriorityAndAddress {
+		let current = TxsByPriorityAndAddress {
 			address: Table::new(),
-			priority: BTreeSet::new()
+			priority: BTreeSet::new(),
+			limit: current_limit,
 		};
-		let future = Table::new();
+		let future = TxsByPriorityAndAddress {
+			address: Table::new(),
+			priority: BTreeSet::new(),
+			limit: future_limit,
+		};
 		let nonces = HashMap::new();
 
 		TxQueue {
-			limit: current_limit,
 			current: current,
 			future: future,
 			last_nonces: nonces,
@@ -172,7 +176,7 @@ impl TxQueue {
 	pub fn stats(&self) -> TxQueueStats {
 		TxQueueStats {
 			pending: self.current.priority.len(),
-			future: self.future.len(),
+			future: self.future.priority.len(),
 		}
 	}
 
@@ -211,16 +215,17 @@ impl TxQueue {
 			};
 			for k in to_move_to_future {
 				if let Some(v) = self.current.remove_by_address(&sender, &k) {
-					self.future.insert(sender.clone(), v.tx.nonce, v.tx.clone());
+					self.future.insert(sender.clone(), v.tx.nonce, v);
 				}
 			}
+			self.future.enforce_limit();
 			return;
 		}
 
 		// Remove from future
 		{
 			let sender = tx.sender().unwrap();
-			if let Some(_) = self.future.remove(&sender, &tx.nonce) {
+			if let Some(_) = self.future.remove_by_address(&sender, &tx.nonce) {
 				return;
 			}
 		}
@@ -236,15 +241,14 @@ impl TxQueue {
 
 	/// Removes all elements (in any state) from the queue
 	pub fn clear(&mut self) {
-		self.current.priority.clear();
-		self.current.address.clear();
+		self.current.clear();
 		self.future.clear();
 		self.last_nonces.clear();
 	}
 
 	fn move_future_txs(&mut self, address: Address, nonce: U256) {
 		{
-			let txs_by_nonce = self.future.get_row_mut(&address);
+			let txs_by_nonce = self.future.address.get_row_mut(&address);
 			if let None = txs_by_nonce {
 				return;
 			}
@@ -253,17 +257,16 @@ impl TxQueue {
 			let mut current_nonce = nonce + U256::one();
 
 			while let Some(tx) = txs_by_nonce.remove(&current_nonce) {
+				// remove also from priority
+				self.future.priority.remove(&tx);
+				// Put to current
 				let height = current_nonce - nonce;
-				let verified_tx = VerifiedTransaction::new(tx, U256::from(height));
+				let verified_tx = VerifiedTransaction::new(tx.tx, U256::from(height));
 				self.current.insert(address.clone(), nonce, verified_tx);
 				current_nonce = current_nonce + U256::one();
 			}
 		}
-		self.future.clear_if_empty(&address)
-	}
-
-	fn enforce_future_limit(&mut self) {
-		// TODO [todr] Implement limiting future
+		self.future.address.clear_if_empty(&address)
 	}
 
 	fn import_tx(&mut self, tx: SignedTransaction) {
@@ -279,18 +282,19 @@ impl TxQueue {
 			(height, last_nonce, is_new)
 		};
 
+		// We can insert the transaction
+		let verified_tx = VerifiedTransaction::new(tx, height);
+
 		// Check height
 		if height > U256::from(1) {
-			// We have a gap - we put to future
-			self.future.insert(address, nonce, tx);
-			self.enforce_future_limit();
+			// We have a gap - put to future
+			self.future.insert(address, nonce, verified_tx);
+			self.future.enforce_limit();
 			return;
 		}
 
-		// Insert to queue
 		{
-			// We can insert the transaction
-			let verified_tx = VerifiedTransaction::new(tx, height);
+			// Insert to current
 			self.current.insert(address.clone(), nonce, verified_tx);
 
 			// Update last_nonce
@@ -302,7 +306,7 @@ impl TxQueue {
 		// But maybe there are some more items waiting in future?
 		self.move_future_txs(address, nonce);
 		// Enforce limit
-		self.current.enforce_limit(self.limit);
+		self.current.enforce_limit();
 	}
 }
 
@@ -495,6 +499,24 @@ mod test {
 		assert_eq!(txq.stats().pending, 1);
 		assert_eq!(t.len(), 1);
 		assert_eq!(t[0], tx);
+	}
+
+	#[test]
+	fn should_limit_future_transactions() {
+		let mut txq = TxQueue::with_limits(10, 1);
+		let (tx1, tx2) = new_txs(U256::from(4));
+		let (tx3, tx4) = new_txs(U256::from(4));
+		txq.add(tx1.clone());
+		txq.add(tx3.clone());
+		assert_eq!(txq.stats().pending, 2);
+
+		// when
+		txq.add(tx2.clone());
+		assert_eq!(txq.stats().future, 1);
+		txq.add(tx4.clone());
+
+		// then
+		assert_eq!(txq.stats().future, 1);
 	}
 
 }
