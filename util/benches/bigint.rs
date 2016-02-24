@@ -21,6 +21,7 @@
 //! ```
 
 #![feature(test)]
+#![feature(asm)]
 
 extern crate test;
 extern crate ethcore_util;
@@ -40,7 +41,24 @@ fn u256_add(b: &mut Bencher) {
 fn u256_sub(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256::zero(), |old, new| { old.overflowing_add(U256::from(new)).0 })
+		(0..n).fold(U256::zero(), |old, new| { old.overflowing_sub(U256::from(new)).0 })
+	});
+}
+
+#[bench]
+fn u256_mul(b: &mut Bencher) {
+	b.iter(|| {
+		let n = black_box(10000);
+		(0..n).fold(U256([12345u64, 0u64, 0u64, 0u64]), |old, new| { old.overflowing_mul(U256::from(new)).0 })
+	});
+}
+
+
+#[bench]
+fn u128_mul(b: &mut Bencher) {
+	b.iter(|| {
+		let n = black_box(10000);
+		(0..n).fold(U128([12345u64, 0u64]), |old, new| { old.overflowing_mul(U128::from(new)).0 })
 	});
 }
 

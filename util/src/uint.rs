@@ -41,8 +41,6 @@ use from_json::*;
 use rustc_serialize::hex::ToHex;
 use serde;
 
-#[cfg_attr(x64_asm_optimizations, all(feature = "dev", target_arch = "x86_64"))]
-
 macro_rules! impl_map_from {
 	($thing:ident, $from:ty, $to:ty) => {
 		impl From<$from> for $thing {
@@ -53,7 +51,8 @@ macro_rules! impl_map_from {
 	}
 }
 
-macro_rules! overflowing_add_regular {
+#[cfg(not(all(feature="dev", target_arch = "x86_64")))]
+macro_rules! uint_overflowing_add {
 	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => ({
 		let $name(ref me) = $self_expr;
 		let $name(ref you) = $other;
@@ -83,7 +82,8 @@ macro_rules! overflowing_add_regular {
 	})
 }
 
-macro_rules! add_64x_optimized {
+#[cfg(all(feature="dev", target_arch = "x86_64"))]
+macro_rules! uint_overflowing_add {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
 		let self_t: &[u64; 4] = unsafe { &mem::transmute($self_expr) };
@@ -110,7 +110,17 @@ macro_rules! add_64x_optimized {
 	)
 }
 
-macro_rules! sub_64x_optimized {
+#[cfg(not(all(feature="dev", target_arch = "x86_64")))]
+macro_rules! uint_overflowing_sub {
+	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		let res = overflowing!((!$other).overflowing_add(From::from(1u64)));
+		let res = overflowing!($self_expr.overflowing_add(res));
+		(res, $self_expr < $other)
+	})
+}
+
+#[cfg(all(feature="dev", target_arch = "x86_64"))]
+macro_rules! uint_overflowing_sub {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
 		let self_t: &[u64; 4] = unsafe { &mem::transmute($self_expr) };
@@ -135,6 +145,119 @@ macro_rules! sub_64x_optimized {
 	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => (
 		overflowing_add_regular!($name, $n_words, $self_expr, $other)
 	)
+}
+
+#[cfg(all(feature="dev", target_arch = "x86_64"))]
+macro_rules! uint_overflowing_mul {
+	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
+		let self_t: &[u64; 4] = unsafe { &mem::transmute($self_expr) };
+		let other_t: &[u64; 4] = unsafe { &mem::transmute($other) };
+
+		let overflow: u8;
+		unsafe {
+			asm!("
+				mov $5, %rax
+				mulq $9
+				mov %rax, %r8
+				adc $6, %rdx
+				pushf
+
+				mov %rdx, %rax
+				mulq $9
+				popf
+				adc $$0, %rax
+				adc $7, %rdx
+				pushf
+				mov %rax, %r9
+
+
+				mov %rdx, %rax
+				mulq $9
+				popf
+				adc $$0, %rax
+				adc $8, %rdx
+				pushf
+				mov %rax, %r10
+
+				mov %rdx, %rax
+				mulq $9
+				popf
+				adc $$0, %rax
+				mov %rax, %r11
+				mov %rdx, %rcx
+
+				mov $5, %rax
+				mulq $10
+				adc %rax, %r9
+				adc $6, %rdx
+				pushf
+
+				mov %rdx, %rax
+				mulq $10
+				popf
+				adc %rax, %r10
+				adc $7, %rdx
+				pushf
+
+				mov %rdx, %rax
+				mulq $10
+				popf
+				adc %rax, %r11
+				pushf
+				or %rax, %rcx
+
+				mov $5, %rax
+				mulq $11
+				popf
+				adc %rax, %r10
+				adc $6, %rdx
+				pushf
+
+				mov %rdx, %rax
+				mulq $11
+				popf
+				adc %rax, %r11
+				pushf
+				or %rdx, %rcx
+
+				mov $5, %rax
+				mulq $12
+				popf
+				adc %rax, %r11
+			    or %rdx, %rcx
+                "
+				: /* $0 */ "={r8}"(result[0]), /* $1 */ "={r9}"(result[1]), /* $2 */ "={r10}"(result[2]),
+				  /* $3 */ "={r11}"(result[3]), /* $4 */  "={rcx}"(overflow)
+
+				: /* $5 */ "m"(self_t[0]), /* $6 */ "m"(self_t[1]), /* $7 */  "m"(self_t[2]),
+				  /* $8 */ "m"(self_t[3]), /* $9 */ "m"(other_t[0]), /* $10 */ "m"(other_t[1]),
+				  /* $11 */ "m"(other_t[2]), /* $12 */ "m"(other_t[3])
+				: "rax", "rdx"
+				:
+
+			);
+		}
+		(U256(result), overflow > 0)
+	});
+	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => (
+		overflowing_mul_regular!($name, $n_words, $self_expr, $other)
+	)
+}
+
+#[cfg(not(all(feature="dev", target_arch = "x86_64")))]
+macro_rules! uint_overflowing_mul {
+	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		let mut res = $name::from(0u64);
+		let mut overflow = false;
+		// TODO: be more efficient about this
+		for i in 0..(2 * $n_words) {
+			let v = overflowing!($self_expr.overflowing_mul_u32(($other >> (32 * i)).low_u32()), overflow);
+			let res2 = overflowing!(v.overflowing_shl(32 * i as u32), overflow);
+			res = overflowing!(res.overflowing_add(res2), overflow);
+		}
+		(res, overflow)
+	})
 }
 
 macro_rules! overflowing {
@@ -384,38 +507,16 @@ macro_rules! construct_uint {
 			}
 
 			/// Optimized instructions
-			#[cfg(x64_asm_optimizations)]
-			#[inline]
 			fn overflowing_add(self, other: $name) -> ($name, bool) {
-				add_64x_optimized!($name, $n_words, self, other)
-			}
-			#[cfg(not(x64_asm_optimizations))]
-			fn overflowing_add(self, other: $name) -> ($name, bool) {
-				overflowing_add_regular!($name, $n_words, self, other)
+				uint_overflowing_add!($name, $n_words, self, other)
 			}
 
-			#[cfg(x64_asm_optimizations)]
-			#[inline]
 			fn overflowing_sub(self, other: $name) -> ($name, bool) {
-				sub_64x_optimized!($name, $n_words, self, other)
-			}
-			#[cfg(not(x64_asm_optimizations))]
-			fn overflowing_sub(self, other: $name) -> ($name, bool) {
-				let res = overflowing!((!other).overflowing_add(From::from(1u64)));
-				let res = overflowing!(self.overflowing_add(res));
-				(res, self < other)
+				uint_overflowing_sub!($name, $n_words, self, other)
 			}
 
 			fn overflowing_mul(self, other: $name) -> ($name, bool) {
-				let mut res = $name::from(0u64);
-				let mut overflow = false;
-				// TODO: be more efficient about this
-				for i in 0..(2 * $n_words) {
-					let v = overflowing!(self.overflowing_mul_u32((other >> (32 * i)).low_u32()), overflow);
-					let res2 = overflowing!(v.overflowing_shl(32 * i as u32), overflow);
-					res = overflowing!(res.overflowing_add(res2), overflow);
-				}
-				(res, overflow)
+				uint_overflowing_mul!($name, $n_words, self, other)
 			}
 
 			fn overflowing_div(self, other: $name) -> ($name, bool) {
