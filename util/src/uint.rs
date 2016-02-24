@@ -51,6 +51,64 @@ macro_rules! impl_map_from {
 	}
 }
 
+macro_rules! overflowing_add_regular {
+	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => ({
+		let $name(ref me) = $self_expr;
+		let $name(ref you) = $other;
+		let mut ret = [0u64; $n_words];
+		let mut carry = [0u64; $n_words];
+		let mut b_carry = false;
+		let mut overflow = false;
+
+		for i in 0..$n_words {
+			ret[i] = me[i].wrapping_add(you[i]);
+
+			if ret[i] < me[i] {
+				if i < $n_words - 1 {
+					carry[i + 1] = 1;
+					b_carry = true;
+				} else {
+					overflow = true;
+				}
+			}
+		}
+		if b_carry {
+			let ret = overflowing!($name(ret).overflowing_add($name(carry)), overflow);
+			(ret, overflow)
+		} else {
+			($name(ret), overflow)
+		}
+	})
+}
+
+macro_rules! overflowing_add_u256_asm {
+	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
+		let self_t: &[u64; 4] = unsafe { &mem::transmute($self_expr) };
+		let other_t: &[u64; 4] = unsafe { &mem::transmute($other) };
+
+		let overflow: u8;
+		unsafe {
+			asm!("
+				xor %al, %al
+				adc $9, %r8
+				adc $10, %r9
+				adc $11, %r10
+				adc $12, %r11
+				adc $$0, %al"
+				: "={r8}"(result[0]), "={r9}"(result[1]), "={r10}"(result[2]), "={r11}"(result[3]), "={al}"(overflow)
+				: "{r8}"(self_t[0]), "{r9}"(self_t[1]), "{r10}"(self_t[2]), "{r11}"(self_t[3]), "m"(other_t[0]), "m"(other_t[1]), "m"(other_t[2]), "m"(other_t[3])
+				:
+				:
+			);
+		}
+		(U256(result), overflow != 0)
+	});
+	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => (
+		overflowing_add_regular!($name, $n_words, $self_expr, $other)
+	)
+}
+
 macro_rules! overflowing {
 	($op: expr, $overflow: expr) => (
 		{
@@ -297,32 +355,14 @@ macro_rules! construct_uint {
 				(res, overflow)
 			}
 
+			#[cfg(all(feature = "dev", target_arch = "x86_64"))]
 			fn overflowing_add(self, other: $name) -> ($name, bool) {
-				let $name(ref me) = self;
-				let $name(ref you) = other;
-				let mut ret = [0u64; $n_words];
-				let mut carry = [0u64; $n_words];
-				let mut b_carry = false;
-				let mut overflow = false;
+				overflowing_add_u256_asm!($name, $n_words, self, other)
+			}
 
-				for i in 0..$n_words {
-					ret[i] = me[i].wrapping_add(you[i]);
-
-					if ret[i] < me[i] {
-						if i < $n_words - 1 {
-							carry[i + 1] = 1;
-							b_carry = true;
-						} else {
-							overflow = true;
-						}
-					}
-				}
-				if b_carry {
-					let ret = overflowing!($name(ret).overflowing_add($name(carry)), overflow);
-					(ret, overflow)
-				} else {
-					($name(ret), overflow)
-				}
+			#[cfg(not(all(feature = "dev", target_arch = "x86_64")))]
+			fn overflowing_add(self, other: $name) -> ($name, bool) {
+				overflowing_add_regular!($name, $n_words, self, other)
 			}
 
 			fn overflowing_sub(self, other: $name) -> ($name, bool) {
@@ -1170,8 +1210,6 @@ mod tests {
 			(U256::from_str("1").unwrap(), true)
 		);
 	}
-
-
 
 	#[test]
 	#[should_panic]
