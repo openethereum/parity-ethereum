@@ -39,8 +39,9 @@ use ethcore::error::*;
 use ethcore::block::Block;
 use io::SyncIo;
 use time;
-use std::option::Option;
 use super::SyncConfig;
+
+known_heap_size!(0, PeerInfo, Header, HeaderId);
 
 impl ToUsize for BlockNumber {
 	fn to_usize(&self) -> usize {
@@ -134,6 +135,8 @@ pub struct SyncStatus {
 	pub num_peers: usize,
 	/// Total number of active peers
 	pub num_active_peers: usize,
+	/// Heap memory used in bytes
+	pub mem_used: usize,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -246,6 +249,15 @@ impl ChainSync {
 			blocks_total: match self.highest_block { None => 0, Some(x) => x - self.starting_block },
 			num_peers: self.peers.len(),
 			num_active_peers: self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count(),
+			mem_used: 
+				//  TODO: https://github.com/servo/heapsize/pull/50
+				//  self.downloading_hashes.heap_size_of_children() 
+				//+ self.downloading_bodies.heap_size_of_children() 
+				//+ self.downloading_hashes.heap_size_of_children() 
+				self.headers.heap_size_of_children() 
+				+ self.bodies.heap_size_of_children() 
+				+ self.peers.heap_size_of_children() 
+				+ self.header_ids.heap_size_of_children(),
 		}
 	}
 

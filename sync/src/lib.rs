@@ -54,6 +54,8 @@ extern crate ethcore;
 extern crate env_logger;
 extern crate time;
 extern crate rand;
+#[macro_use]
+extern crate heapsize;
 
 use std::ops::*;
 use std::sync::*;
