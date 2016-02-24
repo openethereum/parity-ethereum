@@ -16,16 +16,9 @@
 
 //! Geth keys import/export tool
 
-use util::hash::*;
-use util::keys::store::SecretStore;
-use util::keys::directory::KeyFileContent;
-use std::path::{Path, PathBuf};
-use std::result::*;
-use std::fs;
-use std::str::FromStr;
-use std::io;
-use std::io::Read;
-use rustc_serialize::json::Json;
+use common::*;
+use keys::store::SecretStore;
+use keys::directory::KeyFileContent;
 
 /// Enumerates all geth keys in the directory and returns collection of tuples `(accountId, filename)`
 pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, io::Error> {
@@ -86,6 +79,7 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 
 /// Imports all geth keys in the directory
 pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory: &Path) -> Result<(), ImportError> {
+	use std::path::PathBuf;
 	let geth_files = try!(enumerate_geth_keys(geth_keyfiles_directory));
 	for &(ref address, ref file_path) in geth_files.iter() {
 		let mut path = PathBuf::new();
@@ -101,10 +95,9 @@ pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory:
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::path::Path;
-	use util::hash::*;
-	use util::keys::store::SecretStore;
-	use std::str::FromStr;
+	use common::*;
+	use keys::store::SecretStore;
+
 
 	#[test]
 	fn can_enumerate() {
@@ -136,7 +129,7 @@ mod tests {
 
 	#[test]
 	fn imports_as_scrypt_keys() {
-		use util::keys::directory::{KeyDirectory, KeyFileKdf};
+		use keys::directory::{KeyDirectory, KeyFileKdf};
 		let temp = ::devtools::RandomTempPath::create_dir();
 		{
 			let mut secret_store = SecretStore::new_in(temp.as_path());
@@ -158,8 +151,7 @@ mod tests {
 
 	#[test]
 	fn can_decrypt_with_imported() {
-		use util::keys::store::EncryptedHashMap;
-		use util::bytes::*;
+		use keys::store::EncryptedHashMap;
 
 		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());

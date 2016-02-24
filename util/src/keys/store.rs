@@ -75,6 +75,20 @@ impl SecretStore {
 		}
 	}
 
+	/// trys to import keys in the known locations
+	pub fn try_import_existing(&mut self) {
+		use std::path::PathBuf;
+		use keys::geth_import;
+
+		let mut import_path = PathBuf::new();
+		import_path.push(::std::env::home_dir().expect("Failed to get home dir"));
+		import_path.push(".ethereum");
+		import_path.push("keystore");
+		if let Err(e) = geth_import::import_geth_keys(self, &import_path) {
+			warn!(target: "sstore", "Error retrieving geth keys: {:?}", e)
+		}
+	}
+
 	/// Lists all accounts and corresponding key ids
 	pub fn accounts(&self) -> Result<Vec<(Address, H128)>, ::std::io::Error> {
 		let accounts = try!(self.directory.list()).iter().map(|key_id| self.directory.get(key_id))
