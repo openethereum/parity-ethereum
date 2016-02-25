@@ -152,11 +152,22 @@ impl Eth for EthClient {
 		}
 	}
 
-	fn block_transaction_count(&self, params: Params) -> Result<Value, Error> {
+	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)| match take_weak!(self.client).block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 				None => Ok(Value::Null)
+			})
+	}
+
+	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(BlockNumber,)>(params)
+			.and_then(|(block_number,)| match block_number {
+				BlockNumber::Pending => to_value(&take_weak!(self.sync).status().transaction_queue_pending),
+				_ => match take_weak!(self.client).block(block_number.into()) {
+					Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
+					None => Ok(Value::Null)
+				}
 			})
 	}
 
