@@ -33,7 +33,15 @@ use ethcore_util::uint::*;
 fn u256_add(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256::zero(), |old, new| { old.overflowing_add(U256::from(new)).0 })
+		(0..n).fold(U256::from(1234599u64), |old, new| { old.overflowing_add(U256::from(new)).0 })
+	});
+}
+
+#[bench]
+fn u256_uber_add(b: &mut Bencher) {
+	b.iter(|| {
+		let n = black_box(10000);
+		(0..n).fold(U256::from(1234599u64), |old, new| { old.uber_add(U256::from(new)).0 })
 	});
 }
 
@@ -41,7 +49,7 @@ fn u256_add(b: &mut Bencher) {
 fn u256_sub(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256::zero(), |old, new| { old.overflowing_sub(U256::from(new)).0 })
+		(0..n).fold(U256::from(::std::u64::MAX), |old, new| { old.overflowing_sub(U256::from(new)).0 })
 	});
 }
 

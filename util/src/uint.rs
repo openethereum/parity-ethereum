@@ -97,17 +97,19 @@ macro_rules! uint_overflowing_add {
 		let other_t: &[u64; 4] = unsafe { &mem::transmute($other) };
 
 		let overflow: u8;
-		unsafe {
-			asm!("
-                adc $9, $0
-                adc $10, $1
-                adc $11, $2
-                adc $12, $3
-                setc %al"
-             	: "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]), "={al}"(overflow)
-				: "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]), "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3])
-				:
-				:
+        unsafe {
+            asm!("
+                adc $9, %r8
+                adc $10, %r9
+                adc $11, %r10
+                adc $12, %r11
+                setc %al
+                "
+            : "={r8}"(result[0]), "={r9}"(result[1]), "={r10}"(result[2]), "={r11}"(result[3]), "={al}"(overflow)
+            : "{r8}"(self_t[0]), "{r9}"(self_t[1]), "{r10}"(self_t[2]), "{r11}"(self_t[3]),
+			  "m"(other_t[0]), "m"(other_t[1]), "m"(other_t[2]), "m"(other_t[3])
+            :
+            :
 			);
 		}
 		(U256(result), overflow != 0)
@@ -522,14 +524,17 @@ macro_rules! construct_uint {
 			}
 
 			/// Optimized instructions
+			#[inline(always)]
 			fn overflowing_add(self, other: $name) -> ($name, bool) {
 				uint_overflowing_add!($name, $n_words, self, other)
 			}
 
+			#[inline(always)]
 			fn overflowing_sub(self, other: $name) -> ($name, bool) {
 				uint_overflowing_sub!($name, $n_words, self, other)
 			}
 
+			#[inline(always)]
 			fn overflowing_mul(self, other: $name) -> ($name, bool) {
 				uint_overflowing_mul!($name, $n_words, self, other)
 			}
