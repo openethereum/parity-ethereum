@@ -23,8 +23,8 @@ impl HttpServer {
 	}
 
 	/// Start server asynchronously in new thread
-	pub fn start_async(self, addr: &str) {
+	pub fn start_async(self, addr: &str, cors_domain: &str) {
 		let server = jsonrpc_http_server::Server::new(self.handler, self.threads);
-		server.start_async(addr)
+		server.start_async(addr, jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain.to_owned()))
 	}
 }
