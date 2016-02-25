@@ -99,15 +99,15 @@ macro_rules! uint_overflowing_add {
 		let overflow: u8;
         unsafe {
             asm!("
-                adc $9, %r8
-                adc $10, %r9
-                adc $11, %r10
-                adc $12, %r11
+                adc $9, $0
+                adc $10, $1
+                adc $11, $2
+                adc $12, $3
                 setc %al
                 "
-            : "={r8}"(result[0]), "={r9}"(result[1]), "={r10}"(result[2]), "={r11}"(result[3]), "={al}"(overflow)
-            : "{r8}"(self_t[0]), "{r9}"(self_t[1]), "{r10}"(self_t[2]), "{r11}"(self_t[3]),
-			  "m"(other_t[0]), "m"(other_t[1]), "m"(other_t[2]), "m"(other_t[3])
+            : "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]), "={al}"(overflow)
+            : "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]),
+			  "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3])
             :
             :
 			);
@@ -138,10 +138,10 @@ macro_rules! uint_overflowing_sub {
 		let overflow: u8;
 		unsafe {
 			asm!("
-                sbb $9, %r8
-                sbb $10, %r9
-                sbb $11, %r10
-                sbb $12, %r11
+                sbb $9, $0
+                sbb $10, $1
+                sbb $11, $2
+                sbb $12, $3
                 setb %al"
              	: "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]), "={al}"(overflow)
 				: "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]), "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3])
@@ -168,76 +168,103 @@ macro_rules! uint_overflowing_mul {
 		let overflow: u8;
 		unsafe {
 			asm!("
+                clc
 				mov $5, %rax
 				mulq $9
-				mov %rax, %r8
-				adc $6, %rdx
-				pushf
+				mov %rax, $0
+				mov %rdx, $1
 
-				mov %rdx, %rax
+				mov $6, %rax
+				mulq $9
+				clc
+				adc %rax, $1
+				mov %rdx, $2
+
+				mov $5, %rax
+				pushf
+				mulq $10
+				popf
+				adc %rax, $1
+				adc %rdx, $2
+
+				mov $6, %rax
+				mulq $10
+				clc
+				adc %rax, $2
+				mov %rdx, $3
+
+				mov $7, %rax
+				mulq $9
+				clc
+				adc %rax, $2
+				adc %rdx, $3
+
+				mov $5, %rax
+				mulq $11
+				clc
+    			adc %rax, $2
+				adc %rdx, $3
+
+				mov $8, %rax
+				pushf
 				mulq $9
 				popf
-				adc $$0, %rax
-				adc $7, %rdx
-				pushf
-				mov %rax, %r9
-
-
-				mov %rdx, %rax
-				mulq $9
-				popf
-				adc $$0, %rax
-				adc $8, %rdx
-				pushf
-				mov %rax, %r10
-
-				mov %rdx, %rax
-				mulq $9
-				popf
-				adc $$0, %rax
-				mov %rax, %r11
+				adc %rax, $3
+				adc $$0, %rdx
 				mov %rdx, %rcx
+				clc
 
-				mov $5, %rax
-				mulq $10
-				adc %rax, %r9
-				adc $6, %rdx
+				mov $7, %rax
 				pushf
-
-				mov %rdx, %rax
 				mulq $10
 				popf
-				adc %rax, %r10
-				adc $7, %rdx
-				pushf
-
-				mov %rdx, %rax
-				mulq $10
-				popf
-				adc %rax, %r11
-				pushf
-				or %rax, %rcx
-
-				mov $5, %rax
-				mulq $11
-				popf
-				adc %rax, %r10
-				adc $6, %rdx
-				pushf
-
-				mov %rdx, %rax
-				mulq $11
-				popf
-				adc %rax, %r11
-				pushf
+				adc %rax, $3
+				adc $$0, %rdx
 				or %rdx, %rcx
+				clc
+
+				mov $6, %rax
+				pushf
+				mulq $11
+				popf
+				adc %rax, $3
+				adc $$0, %rdx
+				or %rdx, %rcx
+				clc
 
 				mov $5, %rax
+				pushf
 				mulq $12
 				popf
-				adc %rax, %r11
-			    or %rdx, %rcx
-                "
+				adc %rax, $3
+				adc $$0, %rdx
+				or %rdx, %rcx
+				clc
+
+				cmpq $$0, %rcx
+				jne 2f
+
+				mov $8, %rax
+				cmpq $$0, %rax
+				setz %cl
+
+				mov $7, %rax
+				cmpq $$0, %rax
+				sete %dl
+				or %dl, %cl
+
+				mov $3, %rax
+				cmpq $$0, %rax
+				sete %dl
+
+				mov $2, %rax
+				cmpq $$0, %rax
+			    sete %bl
+			    or %bl, %dl
+
+			    and %dl, %cl
+
+			    2:              "
 				: /* $0 */ "={r8}"(result[0]), /* $1 */ "={r9}"(result[1]), /* $2 */ "={r10}"(result[2]),
 				  /* $3 */ "={r11}"(result[3]), /* $4 */  "={rcx}"(overflow)
 
