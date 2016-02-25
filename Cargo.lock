@@ -154,7 +154,7 @@ version = "0.5.4"
 source = "git+https://github.com/arkpar/rust-secp256k1.git#45503e1de68d909b1862e3f2bdb9e1cdfdff3f1e"
 dependencies = [
  "arrayvec 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "gcc 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.3.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -233,7 +233,7 @@ dependencies = [
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb 0.3.0 (git+https://github.com/arkpar/rust-rocksdb.git)",
+ "rocksdb 0.4.0 (git+https://github.com/arkpar/rust-rocksdb.git)",
  "rust-crypto 0.2.34 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -268,7 +268,7 @@ dependencies = [
 
 [[package]]
 name = "gcc"
-version = "0.3.24"
+version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -419,8 +419,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "librocksdb-sys"
-version = "0.1.0"
-source = "git+https://github.com/arkpar/rust-rocksdb.git#4986bcec0d2907ebd2cae64c6753cf9291b08e86"
+version = "0.2.0"
+source = "git+https://github.com/arkpar/rust-rocksdb.git#bf61c18ca933850f68b730ce13d592fba6e88039"
 dependencies = [
  "libc 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "pkg-config 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -588,11 +588,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rocksdb"
-version = "0.3.0"
-source = "git+https://github.com/arkpar/rust-rocksdb.git#4986bcec0d2907ebd2cae64c6753cf9291b08e86"
+version = "0.4.0"
+source = "git+https://github.com/arkpar/rust-rocksdb.git#bf61c18ca933850f68b730ce13d592fba6e88039"
 dependencies = [
  "libc 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "librocksdb-sys 0.1.0 (git+https://github.com/arkpar/rust-rocksdb.git)",
+ "librocksdb-sys 0.2.0 (git+https://github.com/arkpar/rust-rocksdb.git)",
 ]
 
 [[package]]
@@ -600,7 +600,7 @@ name = "rust-crypto"
 version = "0.2.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "gcc 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.3.25 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -666,7 +666,7 @@ dependencies = [
 name = "sha3"
 version = "0.1.0"
 dependencies = [
- "gcc 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gcc 0.3.25 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
