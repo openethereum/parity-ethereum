@@ -346,6 +346,7 @@ impl TransactionQueue {
 			return;
 		} else if next_nonce > nonce {
 			// Droping transaction
+			trace!(target: "sync", "Dropping transaction with nonce: {} - expecting: {}", nonce, next_nonce);
 			return;
 		}
 
