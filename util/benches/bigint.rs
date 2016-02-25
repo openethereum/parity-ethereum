@@ -37,13 +37,6 @@ fn u256_add(b: &mut Bencher) {
 	});
 }
 
-#[bench]
-fn u256_uber_add(b: &mut Bencher) {
-	b.iter(|| {
-		let n = black_box(10000);
-		(0..n).fold(U256::from(1234599u64), |old, new| { old.uber_add(U256::from(new)).0 })
-	});
-}
 
 #[bench]
 fn u256_sub(b: &mut Bencher) {
