@@ -168,7 +168,6 @@ macro_rules! uint_overflowing_mul {
 		let overflow: u8;
 		unsafe {
 			asm!("
-                clc
 				mov $5, %rax
 				mulq $9
 				mov %rax, $0
@@ -176,77 +175,59 @@ macro_rules! uint_overflowing_mul {
 
 				mov $6, %rax
 				mulq $9
-				clc
-				adc %rax, $1
+				add %rax, $1
 				mov %rdx, $2
 
 				mov $5, %rax
-				pushf
 				mulq $10
-				popf
-				adc %rax, $1
+				add %rax, $1
 				adc %rdx, $2
 
 				mov $6, %rax
 				mulq $10
-				clc
-				adc %rax, $2
+				add %rax, $2
 				mov %rdx, $3
 
 				mov $7, %rax
 				mulq $9
-				clc
-				adc %rax, $2
+				add %rax, $2
 				adc %rdx, $3
 
 				mov $5, %rax
 				mulq $11
-				clc
-    			adc %rax, $2
+    			add %rax, $2
 				adc %rdx, $3
 
 				mov $8, %rax
-				pushf
 				mulq $9
-				popf
 				adc %rax, $3
 				adc $$0, %rdx
 				mov %rdx, %rcx
-				clc
 
 				mov $7, %rax
-				pushf
 				mulq $10
-				popf
-				adc %rax, $3
+				add %rax, $3
 				adc $$0, %rdx
 				or %rdx, %rcx
-				clc
 
 				mov $6, %rax
-				pushf
 				mulq $11
-				popf
-				adc %rax, $3
+				add %rax, $3
 				adc $$0, %rdx
 				or %rdx, %rcx
-				clc
 
 				mov $5, %rax
-				pushf
 				mulq $12
-				popf
-				adc %rax, $3
+				add %rax, $3
 				adc $$0, %rdx
 				or %rdx, %rcx
-				clc
 
 				cmpq $$0, %rcx
 				jne 2f
 
 				mov $8, %rax
 				cmpq $$0, %rax
-				setz %cl
+				sete %cl
 
 				mov $7, %rax
 				cmpq $$0, %rax
@@ -264,7 +245,8 @@ macro_rules! uint_overflowing_mul {
 
 			    and %dl, %cl
 
-			    2:              "
+			    2:
+			    "
 				: /* $0 */ "={r8}"(result[0]), /* $1 */ "={r9}"(result[1]), /* $2 */ "={r10}"(result[2]),
 				  /* $3 */ "={r11}"(result[3]), /* $4 */  "={rcx}"(overflow)
 
