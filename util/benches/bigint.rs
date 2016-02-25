@@ -25,6 +25,7 @@
 
 extern crate test;
 extern crate ethcore_util;
+extern crate rand;
 
 use test::{Bencher, black_box};
 use ethcore_util::uint::*;
@@ -33,7 +34,7 @@ use ethcore_util::uint::*;
 fn u256_add(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256([12345u64, 0u64, 0u64, 0u64]), |old, new| { old.overflowing_add(U256::from(new)).0 })
+		(0..n).fold(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]), |old, new| { old.overflowing_add(U256::from(new)).0 })
 	});
 }
 
@@ -42,7 +43,7 @@ fn u256_add(b: &mut Bencher) {
 fn u256_sub(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256([::std::u64::MAX, 0u64, 0u64, 0u64]), |old, new| { old.overflowing_sub(U256::from(new)).0 })
+		(0..n).fold(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]), |old, new| { old.overflowing_sub(U256::from(new)).0 })
 	});
 }
 
@@ -50,7 +51,7 @@ fn u256_sub(b: &mut Bencher) {
 fn u256_mul(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U256([12345u64, 0u64, 0u64, 0u64]), |old, new| { old.overflowing_mul(U256::from(new)).0 })
+		(0..n).fold(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]), |old, new| { old.overflowing_mul(U256::from(new)).0 })
 	});
 }
 
