@@ -34,14 +34,14 @@
 //! use std::env;
 //! use std::sync::Arc;
 //! use util::network::{NetworkService, NetworkConfiguration};
-//! use ethcore::client::Client;
+//! use ethcore::client::{Client, ClientConfig};
 //! use ethsync::{EthSync, SyncConfig};
 //! use ethcore::ethereum;
 //!
 //! fn main() {
 //! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
 //! 	let dir = env::temp_dir();
-//! 	let client = Client::new(ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
+//! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
 //! 	EthSync::register(&mut service, SyncConfig::default(), client);
 //! }
 //! ```
