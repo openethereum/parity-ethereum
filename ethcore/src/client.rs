@@ -19,7 +19,7 @@
 use util::*;
 use util::panics::*;
 use rocksdb::{Options, DB, DBCompactionStyle};
-use blockchain::{BlockChain, BlockProvider, CacheSize};
+use blockchain::{BlockChain, BlockProvider};
 use views::BlockView;
 use error::*;
 use header::BlockNumber;
@@ -27,14 +27,16 @@ use state::State;
 use spec::Spec;
 use engine::Engine;
 use views::HeaderView;
-use block_queue::{BlockQueue, BlockQueueInfo};
+use block_queue::BlockQueue;
 use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
 use transaction::LocalizedTransaction;
 use extras::TransactionAddress;
-pub use blockchain::TreeRoute;
+pub use block_queue::{BlockQueueConfig, BlockQueueInfo};
+pub use blockchain::{TreeRoute, BlockChainConfig, CacheSize as BlockChainCacheSize};
+
 
 /// Uniquely identifies block.
 #[derive(Debug, PartialEq, Clone)]
@@ -73,7 +75,16 @@ pub enum BlockStatus {
 	Unknown,
 }
 
-/// Information about the blockchain gthered together.
+/// Client configuration. Includes configs for all sub-systems.
+#[derive(Debug, Default)]
+pub struct ClientConfig {
+	/// Block queue configuration.
+	pub queue: BlockQueueConfig,
+	/// Blockchain configuration.
+	pub blockchain: BlockChainConfig,
+}
+
+/// Information about the blockchain gathered together.
 #[derive(Debug)]
 pub struct BlockChainInfo {
 	/// Blockchain difficulty.
@@ -183,14 +194,14 @@ const CLIENT_DB_VER_STR: &'static str = "2.1";
 
 impl Client {
 	/// Create a new client with given spec and DB path.
-	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
 		dir.push(format!("v{}-sec-pruned", CLIENT_DB_VER_STR));
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
-		let chain = Arc::new(RwLock::new(BlockChain::new(&gb, path)));
+		let chain = Arc::new(RwLock::new(BlockChain::new(config.blockchain, &gb, path)));
 		let mut opts = Options::new();
 		opts.set_max_open_files(256);
 		opts.create_if_missing(true);
@@ -223,7 +234,7 @@ impl Client {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
-		let block_queue = BlockQueue::new(engine.clone(), message_channel);
+		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel);
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
@@ -330,7 +341,7 @@ impl Client {
 	}
 
 	/// Get info on the cache.
-	pub fn cache_info(&self) -> CacheSize {
+	pub fn blockchain_cache_info(&self) -> BlockChainCacheSize {
 		self.chain.read().unwrap().cache_size()
 	}
 
@@ -342,6 +353,7 @@ impl Client {
 	/// Tick the client.
 	pub fn tick(&self) {
 		self.chain.read().unwrap().collect_garbage();
+		self.block_queue.read().unwrap().collect_garbage();
 	}
 
 	/// Set up the cache behaviour.

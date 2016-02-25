@@ -16,7 +16,7 @@
 
 use util::*;
 use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, TransactionId, BlockId};
-use ethcore::block_queue::BlockQueueInfo;
+use ethcore::BlockQueueInfo;
 use ethcore::header::{Header as BlockHeader, BlockNumber};
 use ethcore::error::*;
 use io::SyncIo;
@@ -242,6 +242,8 @@ impl BlockChainClient for TestBlockChainClient {
 			verified_queue_size: 0,
 			unverified_queue_size: 0,
 			verifying_queue_size: 0,
+			max_unverified: 0,
+			mem_used: 0,
 		}
 	}
 

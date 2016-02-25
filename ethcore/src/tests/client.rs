@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use client::{BlockChainClient, Client, BlockId};
+use client::{BlockChainClient, Client, ClientConfig, BlockId};
 use tests::helpers::*;
 use common::*;
 use devtools::*;
@@ -22,14 +22,14 @@ use devtools::*;
 #[test]
 fn created() {
 	let dir = RandomTempPath::new();
-	let client_result = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected());
+	let client_result = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
 	assert!(client_result.is_ok());
 }
 
 #[test]
 fn imports_from_empty() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	client.import_verified_blocks(&IoChannel::disconnected());
 	client.flush_queue();
 }
@@ -37,7 +37,7 @@ fn imports_from_empty() {
 #[test]
 fn imports_good_block() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	let good_block = get_good_dummy_block();
 	if let Err(_) = client.import_block(good_block) {
 		panic!("error importing block being good by definition");
@@ -52,7 +52,7 @@ fn imports_good_block() {
 #[test]
 fn query_none_block() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 
     let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
@@ -104,5 +104,5 @@ fn can_collect_garbage() {
 	let client_result = generate_dummy_client(100);
 	let client = client_result.reference();
 	client.tick();
-	assert!(client.cache_info().blocks < 100 * 1024);
+	assert!(client.blockchain_cache_info().blocks < 100 * 1024);
 }

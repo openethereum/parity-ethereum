@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use client::{BlockChainClient, Client};
+use client::{BlockChainClient, Client, ClientConfig};
 use common::*;
 use spec::*;
-use blockchain::{BlockChain};
+use blockchain::{BlockChain, BlockChainConfig};
 use state::*;
 use rocksdb::*;
 use evm::{Schedule, Factory};
@@ -135,7 +135,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[&SignedTrans
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 
-	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	let test_spec = get_test_spec();
 	let test_engine = test_spec.to_engine().unwrap();
 	let state_root = test_engine.spec().genesis_header().state_root;
@@ -173,7 +173,7 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
-	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
 			panic!("panic importing block which is well-formed");
@@ -190,7 +190,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
 	for block_order in 1..block_number {
 		bc.insert_block(&create_unverifiable_block(block_order, bc.best_block_hash()));
 	}
@@ -203,7 +203,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 
 pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
 	for block_order in 1..block_number {
 		bc.insert_block(&create_unverifiable_block_with_extra(block_order, bc.best_block_hash(), None));
 	}
@@ -216,7 +216,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 
 pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
-	let bc = BlockChain::new(&create_unverifiable_block(0, H256::zero()), temp.as_path());
+	let bc = BlockChain::new(BlockChainConfig::default(), &create_unverifiable_block(0, H256::zero()), temp.as_path());
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,

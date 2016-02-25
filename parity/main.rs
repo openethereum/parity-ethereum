@@ -31,6 +31,7 @@ extern crate ctrlc;
 extern crate fdlimit;
 extern crate daemonize;
 extern crate time;
+extern crate number_prefix;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -47,10 +48,10 @@ use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
-use ethcore::blockchain::CacheSize;
 use ethsync::{EthSync, SyncConfig};
 use docopt::Docopt;
 use daemonize::Daemonize;
+use number_prefix::{binary_prefix, Standalone, Prefixed};
 
 const USAGE: &'static str = "
 Parity. Ethereum Client.
@@ -78,6 +79,7 @@ Options:
 
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
+  --queue-max-size BYTES   Specify the maximum size of memory to use for block queue [default: 52428800].
 
   -j --jsonrpc             Enable the JSON-RPC API sever.
   --jsonrpc-url URL        Specify URL for JSON-RPC API server [default: 127.0.0.1:8545].
@@ -105,6 +107,7 @@ struct Args {
 	flag_node_key: Option<String>,
 	flag_cache_pref_size: usize,
 	flag_cache_max_size: usize,
+	flag_queue_max_size: usize,
 	flag_jsonrpc: bool,
 	flag_jsonrpc_url: String,
 	flag_logging: Option<String>,
@@ -285,9 +288,12 @@ impl Configuration {
 		sync_config.network_id = spec.network_id();
 
 		// Build client
-		let mut service = ClientService::start(spec, net_settings, &Path::new(&self.path())).unwrap();
+		let mut client_config = ClientConfig::default();
+		client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
+		client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
+		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
+		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
 		let client = service.client().clone();
-		client.configure_cache(self.args.flag_cache_pref_size, self.args.flag_cache_max_size);
 
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client);
@@ -331,7 +337,7 @@ fn main() {
 
 struct Informant {
 	chain_info: RwLock<Option<BlockChainInfo>>,
-	cache_info: RwLock<Option<CacheSize>>,
+	cache_info: RwLock<Option<BlockChainCacheSize>>,
 	report: RwLock<Option<ClientReport>>,
 }
 
@@ -346,18 +352,26 @@ impl Default for Informant {
 }
 
 impl Informant {
+
+	fn format_bytes(b: usize) -> String {
+		match binary_prefix(b as f64) {
+			Standalone(bytes)   => format!("{} bytes", bytes),
+			Prefixed(prefix, n) => format!("{:.0} {}B", n, prefix),
+		}
+	}
+
 	pub fn tick(&self, client: &Client, sync: &EthSync) {
 		// 5 seconds betwen calls. TODO: calculate this properly.
 		let dur = 5usize;
 
 		let chain_info = client.chain_info();
 		let queue_info = client.queue_info();
-		let cache_info = client.cache_info();
+		let cache_info = client.blockchain_cache_info();
 		let report = client.report();
 		let sync_info = sync.status();
 
-		if let (_, &Some(ref last_cache_info), &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
-			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···//  {} ({}) bl  {} ({}) ex ]",
+		if let (_, _, &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
+			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···// mem: {} chain, {} queue, {} sync ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
 				(report.blocks_imported - last_report.blocks_imported) / dur,
@@ -370,10 +384,9 @@ impl Informant {
 				queue_info.unverified_queue_size,
 				queue_info.verified_queue_size,
 
-				cache_info.blocks,
-				cache_info.blocks as isize - last_cache_info.blocks as isize,
-				cache_info.block_details,
-				cache_info.block_details as isize - last_cache_info.block_details as isize
+				Informant::format_bytes(cache_info.total()),
+				Informant::format_bytes(queue_info.mem_used),
+				Informant::format_bytes(sync_info.mem_used),
 			);
 		}
 

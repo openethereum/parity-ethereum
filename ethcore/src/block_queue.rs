@@ -28,6 +28,28 @@ use service::*;
 use client::BlockStatus;
 use util::panics::*;
 
+known_heap_size!(0, UnVerifiedBlock, VerifyingBlock, PreVerifiedBlock);
+
+/// Block queue configuration
+#[derive(Debug)]
+pub struct BlockQueueConfig {
+	/// Maximum number of blocks to keep in unverified queue.
+	/// When the limit is reached, is_full returns true.
+	pub max_queue_size: usize,
+	/// Maximum heap memory to use.
+	/// When the limit is reached, is_full returns true.
+	pub max_mem_use: usize,
+}
+
+impl Default for BlockQueueConfig {
+	fn default() -> Self {
+		BlockQueueConfig {
+			max_queue_size: 30000,
+			max_mem_use: 50 * 1024 * 1024,
+		}
+	}
+}
+
 /// Block queue status
 #[derive(Debug)]
 pub struct BlockQueueInfo {
@@ -37,6 +59,12 @@ pub struct BlockQueueInfo {
 	pub verified_queue_size: usize,
 	/// Number of blocks being verified
 	pub verifying_queue_size: usize,
+	/// Configured maximum number of blocks in the queue
+	pub max_queue_size: usize,
+	/// Configured maximum number of bytes to use
+	pub max_mem_use: usize,
+	/// Heap memory used in bytes
+	pub mem_used: usize,
 }
 
 impl BlockQueueInfo {
@@ -48,7 +76,8 @@ impl BlockQueueInfo {
 
 	/// Indicates that queue is full
 	pub fn is_full(&self) -> bool {
-		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size > MAX_UNVERIFIED_QUEUE_SIZE
+		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size > self.max_queue_size ||
+			self.mem_used > self.max_mem_use
 	}
 
 	/// Indicates that queue is empty
@@ -68,7 +97,9 @@ pub struct BlockQueue {
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
 	empty: Arc<Condvar>,
-	processing: RwLock<HashSet<H256>>
+	processing: RwLock<HashSet<H256>>,
+	max_queue_size: usize,
+	max_mem_use: usize,
 }
 
 struct UnVerifiedBlock {
@@ -106,11 +137,9 @@ struct Verification {
 	bad: HashSet<H256>,
 }
 
-const MAX_UNVERIFIED_QUEUE_SIZE: usize = 50000;
-
 impl BlockQueue {
 	/// Creates a new queue instance.
-	pub fn new(engine: Arc<Box<Engine>>, message_channel: IoChannel<NetSyncMessage>) -> BlockQueue {
+	pub fn new(config: BlockQueueConfig, engine: Arc<Box<Engine>>, message_channel: IoChannel<NetSyncMessage>) -> BlockQueue {
 		let verification = Arc::new(Mutex::new(Verification::default()));
 		let more_to_verify = Arc::new(Condvar::new());
 		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
@@ -133,7 +162,7 @@ impl BlockQueue {
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
 					panic_handler.catch_panic(move || {
-					  BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
+						BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
 					}).unwrap()
 				})
 				.expect("Error starting block verification thread")
@@ -149,6 +178,8 @@ impl BlockQueue {
 			deleting: deleting.clone(),
 			processing: RwLock::new(HashSet::new()),
 			empty: empty.clone(),
+			max_queue_size: config.max_queue_size,
+			max_mem_use: config.max_mem_use,
 		}
 	}
 
@@ -334,7 +365,25 @@ impl BlockQueue {
 			verified_queue_size: verification.verified.len(),
 			unverified_queue_size: verification.unverified.len(),
 			verifying_queue_size: verification.verifying.len(),
+			max_queue_size: self.max_queue_size,
+			max_mem_use: self.max_mem_use,
+			mem_used:
+				verification.unverified.heap_size_of_children()
+				+ verification.verifying.heap_size_of_children()
+				+ verification.verified.heap_size_of_children(),
+				// TODO: https://github.com/servo/heapsize/pull/50
+				//+ self.processing.read().unwrap().heap_size_of_children(),
 		}
+	}
+
+	pub fn collect_garbage(&self) { 
+		{
+			let mut verification = self.verification.lock().unwrap();
+			verification.unverified.shrink_to_fit();
+			verification.verifying.shrink_to_fit();
+			verification.verified.shrink_to_fit();
+		}
+		self.processing.write().unwrap().shrink_to_fit();
 	}
 }
 
@@ -367,7 +416,7 @@ mod tests {
 	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
 		let engine = spec.to_engine().unwrap();
-		BlockQueue::new(Arc::new(engine), IoChannel::disconnected())
+		BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected())
 	}
 
 	#[test]
@@ -375,7 +424,7 @@ mod tests {
 		// TODO better test
 		let spec = Spec::new_test();
 		let engine = spec.to_engine().unwrap();
-		let _ = BlockQueue::new(Arc::new(engine), IoChannel::disconnected());
+		let _ = BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected());
 	}
 
 	#[test]
