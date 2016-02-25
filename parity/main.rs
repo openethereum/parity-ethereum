@@ -52,7 +52,7 @@ use ethsync::EthSync;
 use docopt::Docopt;
 use daemonize::Daemonize;
 
-const USAGE: &'static str = "
+const USAGE: &'static str = r#"
 Parity. Ethereum Client.
   By Wood/Paronyan/Kotewicz/Drwięga/Volf.
   Copyright 2015, 2016 Ethcore (UK) Limited
@@ -71,8 +71,8 @@ Options:
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect.
   --address URL            Equivalent to --listen-address URL --public-address URL.
-  --peers NUM  	           Try to manintain that many peers [default: 25].
-  --no-discovery   	       Disable new peer discovery.
+  --peers NUM              Try to manintain that many peers [default: 25].
+  --no-discovery           Disable new peer discovery.
   --upnp                   Use UPnP to try to figure out the correct network settings.
   --node-key KEY           Specify node secret key, either as 64-character hex string or input to SHA3 operation.
 
@@ -81,11 +81,12 @@ Options:
 
   -j --jsonrpc             Enable the JSON-RPC API sever.
   --jsonrpc-url URL        Specify URL for JSON-RPC API server [default: 127.0.0.1:8545].
+  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
 
   -l --logging LOGGING     Specify the logging level.
   -v --version             Show information about version.
   -h --help                Show this screen.
-";
+"#;
 
 #[derive(Debug, RustcDecodable)]
 struct Args {
@@ -107,6 +108,7 @@ struct Args {
 	flag_cache_max_size: usize,
 	flag_jsonrpc: bool,
 	flag_jsonrpc_url: String,
+	flag_jsonrpc_cors: String,
 	flag_logging: Option<String>,
 	flag_version: bool,
 }
@@ -138,7 +140,7 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str) {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str) {
 	use rpc::v1::*;
 
 	let mut server = rpc::HttpServer::new(1);
@@ -146,7 +148,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str) {
 	server.add_delegate(EthClient::new(client.clone(), sync.clone()).to_delegate());
 	server.add_delegate(EthFilterClient::new(client).to_delegate());
 	server.add_delegate(NetClient::new(sync).to_delegate());
-	server.start_async(url);
+	server.start_async(url, cors_domain);
 }
 
 #[cfg(not(feature = "rpc"))]
@@ -292,8 +294,8 @@ impl Configuration {
 
 		// Setup rpc
 		if self.args.flag_jsonrpc {
+			setup_rpc_server(service.client(), sync.clone(), &self.args.flag_jsonrpc_url, &self.args.flag_jsonrpc_cors);
 			SocketAddr::from_str(&self.args.flag_jsonrpc_url).unwrap_or_else(|_|die!("{}: Invalid JSONRPC listen address given with --jsonrpc-url. Should be of the form 'IP:port'.", self.args.flag_jsonrpc_url));
-			setup_rpc_server(service.client(), sync.clone(), &self.args.flag_jsonrpc_url);
 		}
 
 		// Register IO handler
