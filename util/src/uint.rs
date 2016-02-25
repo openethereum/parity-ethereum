@@ -765,9 +765,9 @@ macro_rules! construct_uint {
 
 			#[inline]
 			fn sub(self, other: $name) -> $name {
-				panic_on_overflow!(self < other);
-				let res = overflowing!((!other).overflowing_add(From::from(1u64)));
-				overflowing!(self.overflowing_add(res))
+				let (result, overflow) = self.overflowing_sub(other);
+				panic_on_overflow!(overflow);
+				result
 			}
 		}
 
