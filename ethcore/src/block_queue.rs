@@ -30,6 +30,9 @@ use util::panics::*;
 
 known_heap_size!(0, UnVerifiedBlock, VerifyingBlock, PreVerifiedBlock);
 
+const MIN_MEM_LIMIT: usize = 16384;
+const MIN_QUEUE_LIMIT: usize = 512;
+
 /// Block queue configuration
 #[derive(Debug)]
 pub struct BlockQueueConfig {
@@ -178,8 +181,8 @@ impl BlockQueue {
 			deleting: deleting.clone(),
 			processing: RwLock::new(HashSet::new()),
 			empty: empty.clone(),
-			max_queue_size: config.max_queue_size,
-			max_mem_use: config.max_mem_use,
+			max_queue_size: max(config.max_queue_size, MIN_QUEUE_LIMIT),
+			max_mem_use: max(config.max_mem_use, MIN_MEM_LIMIT),
 		}
 	}
 
@@ -479,5 +482,20 @@ mod tests {
 		queue.drain(1);
 
 		assert!(queue.queue_info().is_empty());
+	}
+
+	#[test]
+	fn test_mem_limit() {
+		let spec = get_test_spec();
+		let engine = spec.to_engine().unwrap();
+		let mut config = BlockQueueConfig::default();
+		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
+		let mut queue = BlockQueue::new(config, Arc::new(engine), IoChannel::disconnected());
+		assert!(!queue.queue_info().is_full());
+		let mut blocks = get_good_dummy_block_seq(50);
+		for b in blocks.drain(..) {
+			queue.import_block(b).unwrap();
+		}
+		assert!(queue.queue_info().is_full());
 	}
 }

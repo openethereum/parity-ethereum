@@ -253,6 +253,25 @@ pub fn get_temp_state_in(path: &Path) -> State {
 	State::new(journal_db, U256::from(0u8))
 }
 
+pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	let mut parent = test_engine.spec().genesis_header().hash();
+	let mut r = Vec::new();
+	for i in 1 .. count + 1 {
+		let mut block_header = Header::new();
+		block_header.gas_limit = decode(test_engine.spec().engine_params.get("minGasLimit").unwrap());
+		block_header.difficulty = decode(test_engine.spec().engine_params.get("minimumDifficulty").unwrap());
+		block_header.timestamp = i as u64;
+		block_header.number = i as u64;
+		block_header.parent_hash = parent;
+		block_header.state_root = test_engine.spec().genesis_header().state_root;
+		parent = block_header.hash();
+		r.push(create_test_block(&block_header));
+	}
+	r
+}
+
 pub fn get_good_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
