@@ -24,6 +24,7 @@ use util::hash::{Address};
 use util::table::*;
 use ethcore::transaction::*;
 
+
 #[derive(Clone, Debug)]
 struct VerifiedTransaction {
 	tx: SignedTransaction,
@@ -140,9 +141,14 @@ pub struct TxQueueStats {
 }
 
 pub struct TxQueue {
+	/// Priority queue for transactions that can go to block
 	current: TxsByPriorityAndAddress,
+	/// Priority queue for transactions that has been received but are not yet valid to go to block
 	future: TxsByPriorityAndAddress,
+	/// Last nonce of transaction in current
 	last_nonces: HashMap<Address, U256>,
+	/// First nonce of transaction in current (used to determine priority)
+	first_nonces: HashMap<Address, U256>,
 }
 
 impl TxQueue {
@@ -163,12 +169,12 @@ impl TxQueue {
 			priority: BTreeSet::new(),
 			limit: future_limit,
 		};
-		let nonces = HashMap::new();
 
 		TxQueue {
 			current: current,
 			future: future,
-			last_nonces: nonces,
+			last_nonces: HashMap::new(),
+			first_nonces: HashMap::new(),
 		}
 	}
 
@@ -181,15 +187,17 @@ impl TxQueue {
 	}
 
 	/// Adds all signed transactions to queue to be verified and imported
-	pub fn add_all(&mut self, txs: Vec<SignedTransaction>) {
+	pub fn add_all<T>(&mut self, txs: Vec<SignedTransaction>, fetch_nonce: T)
+		where T: Fn(&Address) -> U256 {
 		for tx in txs.into_iter() {
-			self.add(tx);
+			self.add(tx, &fetch_nonce);
 		}
 	}
 
 	/// Add signed transaction to queue to be verified and imported
-	pub fn add(&mut self, tx: SignedTransaction) {
-		self.import_tx(tx);
+	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_nonce: &T)
+		where T: Fn(&Address) -> U256 {
+		self.import_tx(tx, fetch_nonce);
 	}
 
 	/// Removes all transactions in given slice
@@ -209,26 +217,51 @@ impl TxQueue {
 		let removed = self.current.remove(tx);
 		if let Some(verified_tx) = removed {
 			let sender = verified_tx.sender();
+
 			// Are there any other transactions from this sender?
 			if !self.current.address.has_row(&sender) {
+				// Clear last & first nonces
+				self.last_nonces.remove(&sender);
+				self.first_nonces.remove(&sender);
 				return;
 			}
 
-			// Let's find those with higher nonce
-			let to_move_to_future : Vec<U256> = {
+			// Let's find those with higher nonce (TODO optimize?)
+			let to_move_to_future = {
 				let row_map = self.current.address.get_row(&sender).unwrap();
 				let tx_nonce = verified_tx.tx.nonce;
-				row_map
-					.iter()
-					.filter_map(|(nonce, _)| {
-						if nonce > &tx_nonce {
-							Some(nonce.clone())
-						} else {
-							None
-						}
-					})
-					.collect()
+				let mut to_future = Vec::new();
+				let mut highest = U256::zero();
+				let mut lowest = tx_nonce.clone();
+
+				// Search nonces to remove and track lowest and highest
+				for (nonce, _) in row_map.iter() {
+					if nonce > &tx_nonce {
+						to_future.push(nonce.clone());
+					} else if nonce > &highest {
+						highest = nonce.clone();
+					} else if nonce < &lowest {
+						lowest = nonce.clone();
+					}
+				}
+
+				// Update first_nonces and last_nonces
+				if highest == U256::zero() {
+					self.last_nonces.remove(&sender);
+				} else {
+					self.last_nonces.insert(sender.clone(), highest);
+				}
+
+				if lowest == tx_nonce {
+					self.first_nonces.remove(&sender);
+				} else {
+					self.first_nonces.insert(sender.clone(), lowest);
+				}
+
+				// return to future
+				to_future
 			};
+
 			for k in to_move_to_future {
 				if let Some(v) = self.current.remove_by_address(&sender, &k) {
 					self.future.insert(sender.clone(), v.tx.nonce, v);
@@ -260,67 +293,69 @@ impl TxQueue {
 		self.current.clear();
 		self.future.clear();
 		self.last_nonces.clear();
+		self.first_nonces.clear();
 	}
 
-	fn move_future_txs(&mut self, address: Address, nonce: U256) {
+	fn move_future_txs(&mut self, address: Address, current_nonce: U256, first_nonce: U256) -> Option<U256> {
+		let mut current_nonce = current_nonce + U256::one();
 		{
 			let txs_by_nonce = self.future.address.get_row_mut(&address);
 			if let None = txs_by_nonce {
-				return;
+				return None;
 			}
 			let mut txs_by_nonce = txs_by_nonce.unwrap();
-
-			let mut current_nonce = nonce + U256::one();
 
 			while let Some(tx) = txs_by_nonce.remove(&current_nonce) {
 				// remove also from priority
 				self.future.priority.remove(&tx);
 				// Put to current
-				let height = current_nonce - nonce;
+				let height = current_nonce - first_nonce;
 				let verified_tx = VerifiedTransaction::new(tx.tx, U256::from(height));
-				self.current.insert(address.clone(), nonce, verified_tx);
+				self.current.insert(address.clone(), verified_tx.tx.nonce, verified_tx);
 				current_nonce = current_nonce + U256::one();
 			}
 		}
-		self.future.address.clear_if_empty(&address)
+		self.future.address.clear_if_empty(&address);
+		// Returns last inserted nonce
+		Some(current_nonce - U256::one())
 	}
 
-	fn import_tx(&mut self, tx: SignedTransaction) {
+	fn import_tx<T>(&mut self, tx: SignedTransaction, fetch_nonce: &T)
+		where T: Fn(&Address) -> U256 {
 		let nonce = tx.nonce;
 		let address = tx.sender().unwrap();
 
-		let (height, last_nonce, is_new) = {
-			let (is_new, last_nonce) = self.last_nonces
-				.get(&address)
-				.map_or_else(|| (true, nonce), |last_nonce| (false, last_nonce.clone()));
-
-			let height = if nonce > last_nonce { nonce - last_nonce } else { U256::zero() };
-			(height, last_nonce, is_new)
-		};
-
-		// We can insert the transaction
-		let verified_tx = VerifiedTransaction::new(tx, height);
+		let next_nonce = U256::one() + self.last_nonces
+			.get(&address)
+			.cloned()
+			.unwrap_or_else(|| fetch_nonce(&address));
 
 		// Check height
-		if height > U256::from(1) {
+		if nonce > next_nonce {
+			let height = nonce - next_nonce;
+			let verified_tx = VerifiedTransaction::new(tx, height);
 			// We have a gap - put to future
 			self.future.insert(address, nonce, verified_tx);
 			self.future.enforce_limit();
 			return;
+		} else if next_nonce > nonce {
+			// Droping transaction
+			return;
 		}
 
-		{
-			// Insert to current
-			self.current.insert(address.clone(), nonce, verified_tx);
+		let first_nonce = self.first_nonces
+			.get(&address)
+			.cloned()
+			.unwrap_or_else(|| nonce.clone());
 
-			// Update last_nonce
-			if nonce > last_nonce || is_new {
-				self.last_nonces.insert(address.clone(), nonce);
-			}
-		}
-
+		let height = nonce - first_nonce;
+		let verified_tx = VerifiedTransaction::new(tx, height);
+		// Insert to current
+		self.current.insert(address.clone(), nonce, verified_tx);
 		// But maybe there are some more items waiting in future?
-		self.move_future_txs(address, nonce);
+		let new_last_nonce = self.move_future_txs(address, nonce, first_nonce);
+		self.first_nonces.insert(address.clone(), first_nonce);
+		self.last_nonces.insert(address.clone(), new_last_nonce.unwrap_or(nonce));
 		// Enforce limit
 		self.current.enforce_limit();
 	}
@@ -333,6 +368,7 @@ mod test {
 
 	use util::crypto::KeyPair;
 	use util::uint::{U256, Uint};
+	use util::hash::{Address};
 	use ethcore::transaction::*;
 	use super::*;
 
@@ -349,7 +385,11 @@ mod test {
 
 	fn new_tx() -> SignedTransaction {
 		let keypair = KeyPair::create().unwrap();
-		new_unsigned_tx(U256::zero()).sign(&keypair.secret())
+		new_unsigned_tx(U256::from(123)).sign(&keypair.secret())
+	}
+
+	fn default_nonce(_address: &Address) -> U256 {
+		U256::from(122)
 	}
 
 	fn new_txs(second_nonce: U256) -> (SignedTransaction, SignedTransaction) {
@@ -369,7 +409,7 @@ mod test {
 		let tx = new_tx();
 
 		// when
-		txq.add(tx);
+		txq.add(tx, &default_nonce);
 
 		// then
 		let stats = txq.stats();
@@ -384,8 +424,8 @@ mod test {
 		let (tx, tx2) = new_txs(U256::from(1));
 
 		// when
-		txq.add(tx.clone());
-		txq.add(tx2.clone());
+		txq.add(tx.clone(), &default_nonce);
+		txq.add(tx2.clone(), &default_nonce);
 
 		// then
 		let top = txq.top_transactions(5);
@@ -402,8 +442,8 @@ mod test {
 		let (tx, tx2) = new_txs(U256::from(2));
 
 		// when
-		txq.add(tx.clone());
-		txq.add(tx2.clone());
+		txq.add(tx.clone(), &default_nonce);
+		txq.add(tx2.clone(), &default_nonce);
 
 		// then
 		let stats = txq.stats();
@@ -420,17 +460,17 @@ mod test {
 		let mut txq = TxQueue::new();
 		let kp = KeyPair::create().unwrap();
 		let secret = kp.secret();
-		let tx = new_unsigned_tx(U256::from(3)).sign(&secret);
-		let tx1 = new_unsigned_tx(U256::from(4)).sign(&secret);
-		let tx2 = new_unsigned_tx(U256::from(5)).sign(&secret);
+		let tx = new_unsigned_tx(U256::from(123)).sign(&secret);
+		let tx1 = new_unsigned_tx(U256::from(124)).sign(&secret);
+		let tx2 = new_unsigned_tx(U256::from(125)).sign(&secret);
 
-		txq.add(tx);
+		txq.add(tx, &default_nonce);
 		assert_eq!(txq.stats().pending, 1);
-		txq.add(tx2);
+		txq.add(tx2, &default_nonce);
 		assert_eq!(txq.stats().future, 1);
 
 		// when
-		txq.add(tx1);
+		txq.add(tx1, &default_nonce);
 
 		// then
 		let stats = txq.stats();
@@ -443,8 +483,8 @@ mod test {
 		// given
 		let mut txq2 = TxQueue::new();
 		let (tx, tx2) = new_txs(U256::from(3));
-		txq2.add(tx.clone());
-		txq2.add(tx2.clone());
+		txq2.add(tx.clone(), &default_nonce);
+		txq2.add(tx2.clone(), &default_nonce);
 		assert_eq!(txq2.stats().pending, 1);
 		assert_eq!(txq2.stats().future, 1);
 
@@ -465,9 +505,10 @@ mod test {
 		let mut txq = TxQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
 		let tx3 = new_tx();
-		txq.add(tx2.clone());
-		txq.add(tx3.clone());
-		txq.add(tx.clone());
+		txq.add(tx2.clone(), &default_nonce);
+		assert_eq!(txq.stats().future, 1);
+		txq.add(tx3.clone(), &default_nonce);
+		txq.add(tx.clone(), &default_nonce);
 		assert_eq!(txq.stats().pending, 3);
 
 		// when
@@ -486,8 +527,8 @@ mod test {
 		let (tx, tx2) = new_txs(U256::one());
 
 		// add
-		txq.add(tx2.clone());
-		txq.add(tx.clone());
+		txq.add(tx2.clone(), &default_nonce);
+		txq.add(tx.clone(), &default_nonce);
 		let stats = txq.stats();
 		assert_eq!(stats.pending, 2);
 
@@ -504,11 +545,11 @@ mod test {
 		// given
 		let mut txq = TxQueue::with_limits(1, 1);
 		let (tx, tx2) = new_txs(U256::one());
-		txq.add(tx.clone());
+		txq.add(tx.clone(), &default_nonce);
 		assert_eq!(txq.stats().pending, 1);
 
 		// when
-		txq.add(tx2.clone());
+		txq.add(tx2.clone(), &default_nonce);
 
 		// then
 		let t = txq.top_transactions(2);
@@ -522,17 +563,54 @@ mod test {
 		let mut txq = TxQueue::with_limits(10, 1);
 		let (tx1, tx2) = new_txs(U256::from(4));
 		let (tx3, tx4) = new_txs(U256::from(4));
-		txq.add(tx1.clone());
-		txq.add(tx3.clone());
+		txq.add(tx1.clone(), &default_nonce);
+		txq.add(tx3.clone(), &default_nonce);
 		assert_eq!(txq.stats().pending, 2);
 
 		// when
-		txq.add(tx2.clone());
+		txq.add(tx2.clone(), &default_nonce);
 		assert_eq!(txq.stats().future, 1);
-		txq.add(tx4.clone());
+		txq.add(tx4.clone(), &default_nonce);
 
 		// then
 		assert_eq!(txq.stats().future, 1);
+	}
+
+	#[test]
+	fn should_drop_transactions_with_old_nonces() {
+		let mut txq = TxQueue::new();
+		let tx = new_tx();
+		let last_nonce = tx.nonce.clone();
+		let fetch_last_nonce = |_a: &Address| last_nonce;
+
+		// when
+		txq.add(tx, &fetch_last_nonce);
+
+		// then
+		let stats = txq.stats();
+		assert_eq!(stats.pending, 0);
+		assert_eq!(stats.future, 0);
+	}
+
+	#[test]
+	fn should_accept_same_transaction_twice() {
+		// given
+		let mut txq = TxQueue::new();
+		let (tx1, tx2) = new_txs(U256::from(1));
+		txq.add(tx1.clone(), &default_nonce);
+		txq.add(tx2.clone(), &default_nonce);
+		assert_eq!(txq.stats().pending, 2);
+
+		// when
+		txq.remove(&tx1);
+		assert_eq!(txq.stats().future, 1);
+		txq.add(tx1.clone(), &default_nonce);
+
+		// then
+		let stats = txq.stats();
+		assert_eq!(stats.pending, 2);
+		assert_eq!(stats.future, 0);
+
 	}
 
 }

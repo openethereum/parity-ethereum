@@ -888,13 +888,16 @@ impl ChainSync {
 			self.on_peer_aborting(sync, peer_id);
 		}
 	}
+
 	/// Called when peer sends us new transactions
-	fn on_peer_transactions(&mut self, _io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		let chain = io.chain();
 		let item_count = r.item_count();
 		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
+		let fetch_latest_nonce = |a : &Address| chain.nonce(a);
 		for i in 0..item_count {
 			let tx: SignedTransaction = try!(r.val_at(i));
-			self.tx_queue.lock().unwrap().add(tx);
+			self.tx_queue.lock().unwrap().add(tx, &fetch_latest_nonce);
 		}
 		Ok(())
 	}
@@ -1253,7 +1256,7 @@ impl ChainSync {
 				let _sender = tx.sender();
 			}
 			let mut tx_queue = self.tx_queue.lock().unwrap();
-			tx_queue.add_all(txs);
+			tx_queue.add_all(txs, |a| chain.nonce(a));
 		});
 	}
 }
