@@ -225,25 +225,17 @@ macro_rules! uint_overflowing_mul {
                 cmpq $$0, %rcx
 				jne 2f
 
-				mov $8, %rax
-				cmpq $$0, %rax
-				setne %cl
+				popcnt $8, %rcx
+				popcnt $7, %rax
+				add %rax, %rcx
+				jrcxz 2f
 
-				mov $7, %rax
-				cmpq $$0, %rax
-				setne %dl
-				or %dl, %cl
+				popcnt $12, %rcx
+				popcnt $11, %rax
+				add %rax, %rcx
+				jrcxz 2f
 
-				mov $3, %rax
-				cmpq $$0, %rax
-				setne %dl
-
-				mov $2, %rax
-				cmpq $$0, %rax
-			    setne %bl
-			    or %bl, %dl
-
-			    and %dl, %cl
+				mov $$1, %rcx
 
 			    2:
 			    "
@@ -740,7 +732,8 @@ macro_rules! construct_uint {
 			type Output = $name;
 
 			fn add(self, other: $name) -> $name {
-				let (result, _) = self.overflowing_add(other);
+				let (result, overflow) = self.overflowing_add(other);
+				panic_on_overflow!(overflow);
 				result
 			}
 		}
@@ -750,7 +743,8 @@ macro_rules! construct_uint {
 
 			#[inline]
 			fn sub(self, other: $name) -> $name {
-				let (result, _) = self.overflowing_sub(other);
+				let (result, overflow) = self.overflowing_sub(other);
+				panic_on_overflow!(overflow);
 				result
 			}
 		}
