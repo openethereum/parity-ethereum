@@ -222,7 +222,8 @@ macro_rules! uint_overflowing_mul {
 				adc $$0, %rdx
 				or %rdx, %rcx
 
-				jrcxz 2f
+				cmpq $$0, %rcx
+				jne 2f
 
 				mov $8, %rax
 				cmpq $$0, %rax
@@ -232,8 +233,6 @@ macro_rules! uint_overflowing_mul {
 				cmpq $$0, %rax
 				sete %dl
 				or %dl, %cl
-
-				jrcxz 2f
 
 				mov $3, %rax
 				cmpq $$0, %rax
