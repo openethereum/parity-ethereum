@@ -135,7 +135,7 @@ impl TxsByPriorityAndAddress {
 }
 
 #[derive(Debug)]
-pub struct TxQueueStats {
+pub struct TxQueueStatus {
 	pub pending: usize,
 	pub future: usize,
 }
@@ -178,9 +178,9 @@ impl TxQueue {
 		}
 	}
 
-	/// Returns current stats for this queue
-	pub fn stats(&self) -> TxQueueStats {
-		TxQueueStats {
+	/// Returns current status for this queue
+	pub fn status(&self) -> TxQueueStatus {
+		TxQueueStatus {
 			pending: self.current.priority.len(),
 			future: self.future.priority.len(),
 		}
@@ -412,7 +412,7 @@ mod test {
 		txq.add(tx, &default_nonce);
 
 		// then
-		let stats = txq.stats();
+		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
 	}
 
@@ -446,7 +446,7 @@ mod test {
 		txq.add(tx2.clone(), &default_nonce);
 
 		// then
-		let stats = txq.stats();
+		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
 		assert_eq!(stats.future, 1);
 		let top = txq.top_transactions(5);
@@ -465,15 +465,15 @@ mod test {
 		let tx2 = new_unsigned_tx(U256::from(125)).sign(&secret);
 
 		txq.add(tx, &default_nonce);
-		assert_eq!(txq.stats().pending, 1);
+		assert_eq!(txq.status().pending, 1);
 		txq.add(tx2, &default_nonce);
-		assert_eq!(txq.stats().future, 1);
+		assert_eq!(txq.status().future, 1);
 
 		// when
 		txq.add(tx1, &default_nonce);
 
 		// then
-		let stats = txq.stats();
+		let stats = txq.status();
 		assert_eq!(stats.pending, 3);
 		assert_eq!(stats.future, 0);
 	}
@@ -485,8 +485,8 @@ mod test {
 		let (tx, tx2) = new_txs(U256::from(3));
 		txq2.add(tx.clone(), &default_nonce);
 		txq2.add(tx2.clone(), &default_nonce);
-		assert_eq!(txq2.stats().pending, 1);
-		assert_eq!(txq2.stats().future, 1);
+		assert_eq!(txq2.status().pending, 1);
+		assert_eq!(txq2.status().future, 1);
 
 		// when
 		txq2.remove(&tx);
@@ -494,7 +494,7 @@ mod test {
 
 
 		// then
-		let stats = txq2.stats();
+		let stats = txq2.status();
 		assert_eq!(stats.pending, 0);
 		assert_eq!(stats.future, 0);
 	}
@@ -506,16 +506,16 @@ mod test {
 		let (tx, tx2) = new_txs(U256::from(1));
 		let tx3 = new_tx();
 		txq.add(tx2.clone(), &default_nonce);
-		assert_eq!(txq.stats().future, 1);
+		assert_eq!(txq.status().future, 1);
 		txq.add(tx3.clone(), &default_nonce);
 		txq.add(tx.clone(), &default_nonce);
-		assert_eq!(txq.stats().pending, 3);
+		assert_eq!(txq.status().pending, 3);
 
 		// when
 		txq.remove(&tx);
 
 		// then
-		let stats = txq.stats();
+		let stats = txq.status();
 		assert_eq!(stats.future, 1);
 		assert_eq!(stats.pending, 1);
 	}
@@ -529,14 +529,14 @@ mod test {
 		// add
 		txq.add(tx2.clone(), &default_nonce);
 		txq.add(tx.clone(), &default_nonce);
-		let stats = txq.stats();
+		let stats = txq.status();
 		assert_eq!(stats.pending, 2);
 
 		// when
 		txq.clear();
 
 		// then
-		let stats = txq.stats();
+		let stats = txq.status();
 		assert_eq!(stats.pending, 0);
 	}
 
@@ -546,14 +546,14 @@ mod test {
 		let mut txq = TxQueue::with_limits(1, 1);
 		let (tx, tx2) = new_txs(U256::one());
 		txq.add(tx.clone(), &default_nonce);
-		assert_eq!(txq.stats().pending, 1);
+		assert_eq!(txq.status().pending, 1);
 
 		// when
 		txq.add(tx2.clone(), &default_nonce);
 
 		// then
 		let t = txq.top_transactions(2);
-		assert_eq!(txq.stats().pending, 1);
+		assert_eq!(txq.status().pending, 1);
 		assert_eq!(t.len(), 1);
 		assert_eq!(t[0], tx);
 	}
@@ -565,15 +565,15 @@ mod test {
 		let (tx3, tx4) = new_txs(U256::from(4));
 		txq.add(tx1.clone(), &default_nonce);
 		txq.add(tx3.clone(), &default_nonce);
-		assert_eq!(txq.stats().pending, 2);
+		assert_eq!(txq.status().pending, 2);
 
 		// when
 		txq.add(tx2.clone(), &default_nonce);
-		assert_eq!(txq.stats().future, 1);
+		assert_eq!(txq.status().future, 1);
 		txq.add(tx4.clone(), &default_nonce);
 
 		// then
-		assert_eq!(txq.stats().future, 1);
+		assert_eq!(txq.status().future, 1);
 	}
 
 	#[test]
@@ -587,7 +587,7 @@ mod test {
 		txq.add(tx, &fetch_last_nonce);
 
 		// then
-		let stats = txq.stats();
+		let stats = txq.status();
 		assert_eq!(stats.pending, 0);
 		assert_eq!(stats.future, 0);
 	}
@@ -599,15 +599,15 @@ mod test {
 		let (tx1, tx2) = new_txs(U256::from(1));
 		txq.add(tx1.clone(), &default_nonce);
 		txq.add(tx2.clone(), &default_nonce);
-		assert_eq!(txq.stats().pending, 2);
+		assert_eq!(txq.status().pending, 2);
 
 		// when
 		txq.remove(&tx1);
-		assert_eq!(txq.stats().future, 1);
+		assert_eq!(txq.status().future, 1);
 		txq.add(tx1.clone(), &default_nonce);
 
 		// then
-		let stats = txq.stats();
+		let stats = txq.status();
 		assert_eq!(stats.pending, 2);
 		assert_eq!(stats.future, 0);
 

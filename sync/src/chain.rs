@@ -40,7 +40,7 @@ use ethcore::error::*;
 use ethcore::block::Block;
 use ethcore::transaction::SignedTransaction;
 use io::SyncIo;
-use transaction_queue::{TxQueue, TxQueueStats};
+use transaction_queue::TxQueue;
 use time;
 use std::option::Option;
 
@@ -138,6 +138,8 @@ pub struct SyncStatus {
 	pub num_peers: usize,
 	/// Total number of active peers
 	pub num_active_peers: usize,
+	/// Number of pending transactions in queue
+	pub tx_queue_pending: usize,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -247,6 +249,7 @@ impl ChainSync {
 			blocks_total: match self.highest_block { None => 0, Some(x) => x - self.starting_block },
 			num_peers: self.peers.len(),
 			num_active_peers: self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count(),
+			tx_queue_pending: self.tx_queue.lock().unwrap().status().pending
 		}
 	}
 
@@ -1259,10 +1262,6 @@ impl ChainSync {
 			tx_queue.add_all(txs, |a| chain.nonce(a));
 		});
 	}
-
-	pub fn tx_queue_stats(&self) -> TxQueueStats {
-		self.tx_queue.lock().unwrap().stats()
-	}
 }
 
 #[cfg(test)]
@@ -1608,13 +1607,13 @@ mod tests {
 
 		// when
 		sync.chain_new_blocks(&io, &[], &good_blocks);
-		assert_eq!(sync.tx_queue.lock().unwrap().stats().pending, 1);
+		assert_eq!(sync.tx_queue.lock().unwrap().status().pending, 1);
 		sync.chain_new_blocks(&io, &good_blocks, &bad_blocks);
 
 		// then
-		let stats = sync.tx_queue.lock().unwrap().stats();
-		assert_eq!(stats.pending, 1);
-		assert_eq!(stats.future, 0);
+		let status = sync.tx_queue.lock().unwrap().status();
+		assert_eq!(status.pending, 1);
+		assert_eq!(status.future, 0);
 	}
 
 	#[test]
