@@ -588,6 +588,7 @@ macro_rules! construct_uint {
 		}
 
 		impl $name {
+			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Multiplication by u32
 			fn mul_u32(self, other: u32) -> Self {
 				let $name(ref arr) = self;
@@ -609,6 +610,7 @@ macro_rules! construct_uint {
 				$name(ret) + $name(carry)
 			}
 
+			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Overflowing multiplication by u32
 			fn overflowing_mul_u32(self, other: u32) -> (Self, bool) {
 				let $name(ref arr) = self;
