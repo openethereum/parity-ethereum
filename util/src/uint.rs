@@ -1516,5 +1516,51 @@ mod tests {
         assert_eq!(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]), result);
     }
 
+
+	#[test]
+	fn u256_multi_muls() {
+        let (result, _) = U256([0, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, 0]));
+        assert_eq!(U256([0, 0, 0, 0]), result);
+
+        let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([1, 0, 0, 0]));
+        assert_eq!(U256([1, 0, 0, 0]), result);
+
+        let (result, _) = U256([5, 0, 0, 0]).overflowing_mul(U256([5, 0, 0, 0]));
+        assert_eq!(U256([25, 0, 0, 0]), result);
+
+        let (result, _) = U256([0, 5, 0, 0]).overflowing_mul(U256([0, 5, 0, 0]));
+        assert_eq!(U256([0, 0, 25, 0]), result);
+
+        let (result, _) = U256([0, 0, 0, 1]).overflowing_mul(U256([1, 0, 0, 0]));
+        assert_eq!(U256([0, 0, 0, 1]), result);
+
+        let (result, _) = U256([0, 0, 0, 5]).overflowing_mul(U256([2, 0, 0, 0]));
+        assert_eq!(U256([0, 0, 0, 10]), result);
+
+        let (result, _) = U256([0, 0, 1, 0]).overflowing_mul(U256([0, 5, 0, 0]));
+        assert_eq!(U256([0, 0, 0, 5]), result);
+
+        let (result, _) = U256([0, 0, 8, 0]).overflowing_mul(U256([0, 0, 7, 0]));
+        assert_eq!(U256([0, 0, 0, 0]), result);
+
+        let (result, _) = U256([2, 0, 0, 0]).overflowing_mul(U256([0, 5, 0, 0]));
+        assert_eq!(U256([0, 10, 0, 0]), result);
+
+        let (result, _) = U256([::std::u64::MAX, 0, 0, 0]).overflowing_mul(U256([::std::u64::MAX, 0, 0, 0]));
+        assert_eq!(U256([1, ::std::u64::MAX-1, 0, 0]), result);
+
+        let (result, _) = U256([0, 0, 0, ::std::u64::MAX]).overflowing_mul(U256([0, 0, 0, ::std::u64::MAX]));
+        assert_eq!(U256([0, 0, 0, 0]), result);
+
+        let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, ::std::u64::MAX]));
+        assert_eq!(U256([0, 0, 0, ::std::u64::MAX]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]));
+        assert_eq!(U256([1, 0, 0, 0]), result);
+	}
+
+
+
 }
 
