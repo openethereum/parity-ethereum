@@ -26,3 +26,4 @@
 
 # jetbrains ide stuff
 .idea
+*.iml

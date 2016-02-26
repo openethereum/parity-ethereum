@@ -18,16 +18,8 @@
 ##### Ubuntu 14.04, 15.04, 15.10
 
 ```bash
-# install rocksdb
-add-apt-repository ppa:ethcore/ethcore
-apt-get update
-apt-get install -y --force-yes librocksdb-dev
-
 # install multirust
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
-
-# install beta
-multirust update beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity
@@ -43,19 +35,8 @@ cargo build --release
 ##### Other Linux
 
 ```bash
-# install rocksdb
-git clone --tag v4.1 --depth=1 https://github.com/facebook/rocksdb.git
-cd rocksdb
-make shared_lib 
-sudo cp -a librocksdb.so* /usr/lib 
-sudo ldconfig 
-cd ..
-
 # install rust beta
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-
-# install beta
-multirust update beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity
@@ -71,13 +52,9 @@ cargo build --release
 ##### OSX with Homebrew
 
 ```bash
-# install rocksdb && multirust
+# install multirust
 brew update
-brew install rocksdb
 brew install multirust
-
-# install beta
-multirust update beta
 
 # download and build parity
 git clone https://github.com/ethcore/parity

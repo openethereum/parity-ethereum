@@ -16,7 +16,7 @@ mio = "0.5.0"
 rand = "0.3.12"
 time = "0.1.34"
 tiny-keccak = "1.0"
-rocksdb = "0.3"
+rocksdb = { git = "https://github.com/arkpar/rust-rocksdb.git" }
 lazy_static = "0.1"
 eth-secp256k1 = { git = "https://github.com/arkpar/rust-secp256k1.git" }
 rust-crypto = "0.2.34"
@@ -39,6 +39,7 @@ target_info = "0.1"
 [features]
 default = []
 dev = ["clippy"]
+x64asm = []
 
 [build-dependencies]
 vergen = "*"
