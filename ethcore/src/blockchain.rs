@@ -17,7 +17,6 @@
 //! Blockchain database.
 
 use util::*;
-use rocksdb::{DB, WriteBatch, Writable};
 use header::*;
 use extras::*;
 use transaction::*;
@@ -100,7 +99,7 @@ struct ExtrasUpdate {
 	/// Block hash.
 	hash: H256,
 	/// DB update batch.
-	batch: WriteBatch,
+	batch: DBTransaction,
 	/// Inserted block familial details.
 	details: BlockDetails,
 	/// New best block (if it has changed).
@@ -230,8 +229,8 @@ pub struct BlockChain {
 	blocks_blooms: RwLock<HashMap<H256, BlocksBlooms>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
-	extras_db: DB,
-	blocks_db: DB,
+	extras_db: Database,
+	blocks_db: Database,
 
 	cache_man: RwLock<CacheManager>,
 
@@ -339,12 +338,12 @@ impl BlockChain {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
-		let extras_db = DB::open_default(extras_path.to_str().unwrap()).unwrap();
+		let extras_db = Database::open_default(extras_path.to_str().unwrap()).unwrap();
 
 		// open blocks db
 		let mut blocks_path = path.to_path_buf();
 		blocks_path.push("blocks");
-		let blocks_db = DB::open_default(blocks_path.to_str().unwrap()).unwrap();
+		let blocks_db = Database::open_default(blocks_path.to_str().unwrap()).unwrap();
 
 		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
@@ -385,7 +384,7 @@ impl BlockChain {
 
 				bc.blocks_db.put(&hash, genesis).unwrap();
 
-				let batch = WriteBatch::new();
+				let batch = DBTransaction::new();
 				batch.put_extras(&hash, &details);
 				batch.put_extras(&header.number(), &hash);
 				batch.put(b"best", &hash).unwrap();
@@ -579,7 +578,7 @@ impl BlockChain {
 		};
 
 		// prepare the batch
-		let batch = WriteBatch::new();
+		let batch = DBTransaction::new();
 
 		// insert new block details
 		batch.put_extras(&hash, &details);

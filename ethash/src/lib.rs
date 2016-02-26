@@ -16,10 +16,10 @@
 
 //! Ethash implementation
 //! See https://github.com/ethereum/wiki/wiki/Ethash
+extern crate primal;
 extern crate sha3;
 #[macro_use]
 extern crate log;
-mod sizes;
 mod compute;
 
 use std::mem;
@@ -43,7 +43,7 @@ pub struct EthashManager {
 impl EthashManager {
 	/// Create a new new instance of ethash manager
 	pub fn new() -> EthashManager {
-		EthashManager { 
+		EthashManager {
 			cache: Mutex::new(LightCache {
 				recent_epoch: None,
 				recent: None,
@@ -82,7 +82,7 @@ impl EthashManager {
 				None => {
 					let light = match Light::from_file(block_number) {
 						Ok(light) => Arc::new(light),
-						Err(e) => { 
+						Err(e) => {
 							debug!("Light cache file not found for {}:{}", block_number, e);
 							let light = Light::new(block_number);
 							if let Err(e) = light.to_file() {
