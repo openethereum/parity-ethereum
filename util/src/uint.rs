@@ -226,16 +226,30 @@ macro_rules! uint_overflowing_mul {
 				jne 2f
 
 				popcnt $8, %rcx
-				popcnt $7, %rax
-				add %rax, %rcx
-				jrcxz 2f
+				jrcxz 12f
 
 				popcnt $12, %rcx
 				popcnt $11, %rax
 				add %rax, %rcx
-				jrcxz 2f
+				popcnt $10, %rax
+				add %rax, %rcx
+				jmp 2f
 
-				mov $$1, %rcx
+				12:
+				popcnt $12, %rcx
+				jrcxz 11f
+
+				popcnt $7, %rcx
+				popcnt $6, %rax
+				add %rax, %rcx
+
+				cmpq $$0, %rcx
+				jne 2f
+
+				11:
+				popcnt $11, %rcx
+				jrcxz 2f
+				popcnt $7, %rcx
 
 			    2:
 			    "
@@ -1569,7 +1583,7 @@ mod tests {
         assert!(!overflow);
 
         let (_, overflow) = U256([0, 1, 0, 0]).overflowing_mul(U256([0, 0, 0, ::std::u64::MAX]));
-        assert!(!overflow);
+        assert!(overflow);
 
         let (_, overflow) = U256([0, 1, 0, 0]).overflowing_mul(U256([0, 1, 0, 0]));
         assert!(!overflow);
