@@ -25,7 +25,7 @@ use ethcore::client::*;
 use ethcore::views::*;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -197,8 +197,18 @@ impl Eth for EthClient {
 		from_params::<(BlockNumber, Index)>(params)
 			.and_then(|(number, index)| self.transaction(TransactionId::Location(number.into(), index.value())))
 	}
-}
 
+	fn logs(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Filter,)>(params)
+			.and_then(|(filter,)| {
+				let logs = self.client.logs(filter.into())
+					.into_iter()
+					.map(From::from)
+					.collect::<Vec<Log>>();
+				to_value(&logs)
+			})
+	}
+}
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
