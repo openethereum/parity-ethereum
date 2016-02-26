@@ -285,18 +285,24 @@ impl BlockQueue {
 	}
 
 	/// Mark given block and all its children as bad. Stops verification.
-	pub fn mark_as_bad(&mut self, hash: &H256) {
+	pub fn mark_as_bad(&mut self, block_hashes: &[H256]) {
 		let mut verification_lock = self.verification.lock().unwrap();
+		let mut processing = self.processing.write().unwrap();
+
 		let mut verification = verification_lock.deref_mut();
-		verification.bad.insert(hash.clone());
-		self.processing.write().unwrap().remove(&hash);
+
+		verification.bad.reserve(block_hashes.len());
+		for hash in block_hashes {
+			verification.bad.insert(hash.clone());
+			processing.remove(&hash);
+		}
+
 		let mut new_verified = VecDeque::new();
 		for block in verification.verified.drain(..) {
 			if verification.bad.contains(&block.header.parent_hash) {
 				verification.bad.insert(block.header.hash());
-				self.processing.write().unwrap().remove(&block.header.hash());
-			}
-			else {
+				processing.remove(&block.header.hash());
+			} else {
 				new_verified.push_back(block);
 			}
 		}
@@ -304,10 +310,10 @@ impl BlockQueue {
 	}
 
 	/// Mark given block as processed
-	pub fn mark_as_good(&mut self, hashes: &[H256]) {
+	pub fn mark_as_good(&mut self, block_hashes: &[H256]) {
 		let mut processing = self.processing.write().unwrap();
-		for h in hashes {
-			processing.remove(&h);
+		for hash in block_hashes {
+			processing.remove(&hash);
 		}
 	}
 
