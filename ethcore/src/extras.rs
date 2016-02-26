@@ -16,7 +16,6 @@
 
 //! Blockchain DB extras.
 
-use rocksdb::{DB, Writable};
 use util::*;
 use header::BlockNumber;
 use receipt::Receipt;
@@ -59,7 +58,7 @@ pub trait ExtrasReadable {
 		K: ExtrasSliceConvertable;
 }
 
-impl<W> ExtrasWritable for W where W: Writable {
+impl ExtrasWritable for DBTransaction {
 	fn put_extras<K, T>(&self, hash: &K, value: &T) where
 		T: ExtrasIndexable + Encodable, 
 		K: ExtrasSliceConvertable {
@@ -68,7 +67,7 @@ impl<W> ExtrasWritable for W where W: Writable {
 	}
 }
 
-impl ExtrasReadable for DB {
+impl ExtrasReadable for Database {
 	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
 		T: ExtrasIndexable + Decodable,
 		K: ExtrasSliceConvertable {
