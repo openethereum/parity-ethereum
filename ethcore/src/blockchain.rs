@@ -22,6 +22,11 @@ use header::*;
 use extras::*;
 use transaction::*;
 use views::*;
+use receipt::Receipt;
+use chainfilter::{ChainFilter, BloomIndex, FilterDataSource};
+
+const BLOOM_INDEX_SIZE: usize = 16;
+const BLOOM_LEVELS: u8 = 3;
 
 /// Blockchain configuration.
 #[derive(Debug)]
@@ -48,7 +53,7 @@ pub struct TreeRoute {
 	/// Best common ancestor of these blocks.
 	pub ancestor: H256,
 	/// An index where best common ancestor would be.
-	pub index: usize
+	pub index: usize,
 }
 
 /// Represents blockchain's in-memory cache size in bytes.
@@ -63,7 +68,63 @@ pub struct CacheSize {
 	/// Logs cache size.
 	pub block_logs: usize,
 	/// Blooms cache size.
-	pub blocks_blooms: usize
+	pub blocks_blooms: usize,
+	/// Block receipts size.
+	pub block_receipts: usize,
+}
+
+struct BloomIndexer {
+	index_size: usize,
+	levels: u8,
+}
+
+impl BloomIndexer {
+	fn new(index_size: usize, levels: u8) -> Self {
+		BloomIndexer {
+			index_size: index_size,
+			levels: levels
+		}
+	}
+
+	/// Calculates bloom's position in database.
+	fn location(&self, bloom_index: &BloomIndex) -> BlocksBloomLocation {
+		use std::{mem, ptr};
+		
+		let hash = unsafe {
+			let mut hash: H256 = mem::zeroed();
+			ptr::copy(&[bloom_index.index / self.index_size] as *const usize as *const u8, hash.as_mut_ptr(), 8);
+			hash[8] = bloom_index.level;
+			hash.reverse();
+			hash
+		};
+
+		BlocksBloomLocation {
+			hash: hash,
+			index: bloom_index.index % self.index_size
+		}
+	}
+
+	fn index_size(&self) -> usize {
+		self.index_size
+	}
+
+	fn levels(&self) -> u8 {
+		self.levels
+	}
+}
+
+/// Blockchain update info.
+struct ExtrasUpdate {
+	/// Block hash.
+	hash: H256,
+	/// DB update batch.
+	batch: WriteBatch,
+	/// Inserted block familial details.
+	details: BlockDetails,
+	/// New best block (if it has changed).
+	new_best: Option<BestBlock>,
+	/// Changed blocks bloom location hashes.
+	bloom_hashes: HashSet<H256>,
 }
 
 impl CacheSize {
@@ -105,6 +166,9 @@ pub trait BlockProvider {
 
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress>;
+
+	/// Get receipts of block with given hash.
+	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
 
 	/// Get the partial-header of a block.
 	fn block_header(&self, hash: &H256) -> Option<Header> {
@@ -148,6 +212,9 @@ pub trait BlockProvider {
 	fn genesis_header(&self) -> Header {
 		self.block_header(&self.genesis_hash()).unwrap()
 	}
+
+	/// Returns numbers of blocks containing given bloom.
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>;
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -179,11 +246,22 @@ pub struct BlockChain {
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 	block_logs: RwLock<HashMap<H256, BlockLogBlooms>>,
 	blocks_blooms: RwLock<HashMap<H256, BlocksBlooms>>,
+	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
 	extras_db: DB,
 	blocks_db: DB,
 
 	cache_man: RwLock<CacheManager>,
+
+	// blooms indexing
+	bloom_indexer: BloomIndexer,
+}
+
+impl FilterDataSource for BlockChain {
+	fn bloom_at_index(&self, bloom_index: &BloomIndex) -> Option<H2048> {
+		let location = self.bloom_indexer.location(bloom_index);
+		self.blocks_blooms(&location.hash).and_then(|blooms| blooms.blooms.into_iter().nth(location.index).cloned())
+	}
 }
 
 impl BlockProvider for BlockChain {
@@ -232,6 +310,17 @@ impl BlockProvider for BlockChain {
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
 		self.query_extras(hash, &self.transaction_addresses)
 	}
+
+	/// Get receipts of block with given hash.
+	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
+		self.query_extras(hash, &self.block_receipts)
+	}
+
+	/// Returns numbers of blocks containing given bloom.
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
+		let filter = ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels());
+		filter.blocks_with_bloom(bloom, from_block as usize, to_block as usize).into_iter().map(|b| b as BlockNumber).collect()
+	}
 }
 
 const COLLECTION_QUEUE_SIZE: usize = 8;
@@ -262,9 +351,11 @@ impl BlockChain {
 			transaction_addresses: RwLock::new(HashMap::new()),
 			block_logs: RwLock::new(HashMap::new()),
 			blocks_blooms: RwLock::new(HashMap::new()),
+			block_receipts: RwLock::new(HashMap::new()),
 			extras_db: extras_db,
 			blocks_db: blocks_db,
 			cache_man: RwLock::new(cache_man),
+			bloom_indexer: BloomIndexer::new(BLOOM_INDEX_SIZE, BLOOM_LEVELS)
 		};
 
 		// load best block
@@ -381,13 +472,13 @@ impl BlockChain {
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).unwrap();
+			from_details = self.block_details(&from_details.parent).expect(&format!("1. Expected to find details for block {:?}", from_details.parent));
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).unwrap();
+			to_details = self.block_details(&to_details.parent).expect(&format!("2. Expected to find details for block {:?}", to_details.parent));
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -396,11 +487,11 @@ impl BlockChain {
 		while current_from != current_to {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).unwrap();
+			from_details = self.block_details(&from_details.parent).expect(&format!("3. Expected to find details for block {:?}", from_details.parent));
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).unwrap();
+			to_details = self.block_details(&to_details.parent).expect(&format!("4. Expected to find details for block {:?}", from_details.parent));
 		}
 
 		let index = from_branch.len();
@@ -417,7 +508,7 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, bytes: &[u8]) {
+	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
@@ -429,34 +520,44 @@ impl BlockChain {
 
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
-		let (batch, new_best, details) = self.block_to_extras_insert_batch(bytes);
+		let update = self.block_to_extras_update(bytes, receipts);
+		self.apply_update(update);
+	}
 
+	/// Applies extras update.
+	fn apply_update(&self, update: ExtrasUpdate) {
 		// update best block
 		let mut best_block = self.best_block.write().unwrap();
-		if let Some(b) = new_best {
+		if let Some(b) = update.new_best {
 			*best_block = b;
 		}
 
-		// update caches
-		let mut write = self.block_details.write().unwrap();
-		write.remove(&header.parent_hash());
-		write.insert(hash.clone(), details);
-		self.note_used(CacheID::Block(hash));
+		// update details cache
+		let mut write_details = self.block_details.write().unwrap();
+		write_details.remove(&update.details.parent);
+		write_details.insert(update.hash.clone(), update.details);
+		self.note_used(CacheID::Block(update.hash));
+
+		// update blocks blooms cache
+		let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
+		for bloom_hash in &update.bloom_hashes {
+			write_blocks_blooms.remove(bloom_hash);
+		}
 
 		// update extras database
-		self.extras_db.write(batch).unwrap();
+		self.extras_db.write(update.batch).unwrap();
 	}
 
 	/// Transforms block into WriteBatch that may be written into database
 	/// Additionally, if it's new best block it returns new best block object.
-	fn block_to_extras_insert_batch(&self, bytes: &[u8]) -> (WriteBatch, Option<BestBlock>, BlockDetails) {
+	fn block_to_extras_update(&self, bytes: &[u8], receipts: Vec<Receipt>) -> ExtrasUpdate {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 
 		// prepare variables
 		let hash = block.sha3();
-		let mut parent_details = self.block_details(&header.parent_hash()).expect("Invalid parent hash.");
+		let mut parent_details = self.block_details(&header.parent_hash()).expect(format!("Invalid parent hash: {:?}", header.parent_hash()).as_ref());
 		let total_difficulty = parent_details.total_difficulty + header.difficulty();
 		let is_new_best = total_difficulty > self.best_block_total_difficulty();
 		let parent_hash = header.parent_hash();
@@ -487,9 +588,18 @@ impl BlockChain {
 			});
 		}
 
+		// update block receipts
+		batch.put_extras(&hash, &BlockReceipts::new(receipts));
+
 		// if it's not new best block, just return
 		if !is_new_best {
-			return (batch, None, details);
+			return ExtrasUpdate {
+				hash: hash.clone(),
+				batch: batch,
+				details: details,
+				new_best: None,
+				bloom_hashes: HashSet::new()
+			};
 		}
 
 		// if its new best block we need to make sure that all ancestors
@@ -499,9 +609,17 @@ impl BlockChain {
 		let best_details = self.block_details(&best_hash).expect("best block hash is invalid!");
 		let route = self.tree_route_aux((&best_details, &best_hash), (&details, &hash));
 
+		let modified_blooms;
+
 		match route.blocks.len() {
 			// its our parent
-			1 => batch.put_extras(&header.number(), &hash),
+			1 => { 
+				batch.put_extras(&header.number(), &hash);
+
+				// update block blooms
+				modified_blooms = ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
+					.add_bloom(&header.log_bloom(), header.number() as usize);
+			},
 			// it is a fork
 			i if i > 1 => {
 				let ancestor_number = self.block_number(&route.ancestor).unwrap();
@@ -509,29 +627,58 @@ impl BlockChain {
 				for (index, hash) in route.blocks.iter().skip(route.index).enumerate() {
 					batch.put_extras(&(start_number + index as BlockNumber), hash);
 				}
+
+				// get all blocks that are not part of canon chain (TODO: optimize it to one query)
+				let blooms: Vec<H2048> = route.blocks.iter()
+					.skip(route.index)
+					.map(|hash| self.block(hash).unwrap())
+					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
+					.collect();
+
+				// reset blooms chain head
+				modified_blooms = ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
+					.reset_chain_head(&blooms, start_number as usize, self.best_block_number() as usize);
 			},
 			// route.blocks.len() could be 0 only if inserted block is best block,
 			// and this is not possible at this stage
 			_ => { unreachable!(); }
 		};
 
+		let bloom_hashes = modified_blooms.iter()
+			.map(|(bloom_index, _)| self.bloom_indexer.location(&bloom_index).hash)
+			.collect();
+
+		for (bloom_hash, blocks_blooms) in modified_blooms.into_iter()
+			.fold(HashMap::new(), | mut acc, (bloom_index, bloom) | {
+			{
+				let location = self.bloom_indexer.location(&bloom_index);
+				let mut blocks_blooms = acc
+					.entry(location.hash.clone())
+					.or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
+				assert_eq!(self.bloom_indexer.index_size, blocks_blooms.blooms.len());
+				blocks_blooms.blooms[location.index] = bloom;
+			}
+			acc
+		}) {
+			batch.put_extras(&bloom_hash, &blocks_blooms);
+		}
+
 		// this is new best block
 		batch.put(b"best", &hash).unwrap();
 
 		let best_block = BestBlock {
-			hash: hash,
+			hash: hash.clone(),
 			number: header.number(),
 			total_difficulty: total_difficulty
 		};
 
-		(batch, Some(best_block), details)
-	}
-
-	/// Returns true if transaction is known.
-	// TODO: Use me
-	#[allow(dead_code)]
-	pub fn is_known_transaction(&self, hash: &H256) -> bool {
-		self.query_extras_exist(hash, &self.transaction_addresses)
+		ExtrasUpdate {
+			hash: hash,
+			batch: batch,
+			new_best: Some(best_block),
+			details: details,
+			bloom_hashes: bloom_hashes
+		}
 	}
 
 	/// Get best block hash.
@@ -549,11 +696,9 @@ impl BlockChain {
 		self.best_block.read().unwrap().total_difficulty
 	}
 
-	/// Get the transactions' log blooms of a block.
-	// TODO: Use me
-	#[allow(dead_code)]
-	pub fn log_blooms(&self, hash: &H256) -> Option<BlockLogBlooms> {
-		self.query_extras(hash, &self.block_logs)
+	/// Get block blooms.
+	fn blocks_blooms(&self, hash: &H256) -> Option<BlocksBlooms> {
+		self.query_extras(hash, &self.blocks_blooms)
 	}
 
 	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
@@ -597,7 +742,8 @@ impl BlockChain {
 			block_details: self.block_details.read().unwrap().heap_size_of_children(),
 			transaction_addresses: self.transaction_addresses.read().unwrap().heap_size_of_children(),
 			block_logs: self.block_logs.read().unwrap().heap_size_of_children(),
-			blocks_blooms: self.blocks_blooms.read().unwrap().heap_size_of_children()
+			blocks_blooms: self.blocks_blooms.read().unwrap().heap_size_of_children(),
+			block_receipts: self.block_receipts.read().unwrap().heap_size_of_children()
 		}
 	}
 
@@ -629,6 +775,7 @@ impl BlockChain {
 				let mut transaction_addresses = self.transaction_addresses.write().unwrap();
 				let mut block_logs = self.block_logs.write().unwrap();
 				let mut blocks_blooms = self.blocks_blooms.write().unwrap();
+				let mut block_receipts = self.block_receipts.write().unwrap();
 
 				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
 					cache_man.in_use.remove(&id);
@@ -638,6 +785,7 @@ impl BlockChain {
 						CacheID::Extras(ExtrasIndex::TransactionAddress, h) => { transaction_addresses.remove(&h); },
 						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
 						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => { blocks_blooms.remove(&h); },
+						CacheID::Extras(ExtrasIndex::BlockReceipts, h) => { block_receipts.remove(&h); },
 						_ => panic!(),
 					}
 				}
@@ -658,7 +806,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use util::hash::*;
-	use blockchain::*;
+	use blockchain::{BlockProvider, BlockChain, BlockChainConfig};
 	use tests::helpers::*;
 	use devtools::*;
 
@@ -676,10 +824,11 @@ mod tests {
 		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
 		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
 		assert_eq!(bc.block_hash(1), None);
-
+		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
+		
 		let first = "f90285f90219a03caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0bac6177a79e910c98d86ec31a09ae37ac2de15b754fd7bed1ba52362c49416bfa0d45893a296c1490a978e0bd321b5f2635d8280365c1fe9f693d65f233e791344a0c7778a7376099ee2e5c455791c1885b5c361b95713fddcbe32d97fd01334d296b90100000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000400000000000000000000000000000000000000000000000000000008302000001832fefd882560b845627cb99a00102030405060708091011121314151617181920212223242526272829303132a08ccb2837fb2923bd97e8f2d08ea32012d6e34be018c73e49a0f98843e8f47d5d88e53be49fec01012ef866f864800a82c35094095e7baea6a6c7c4c2dfeb977efac326af552d8785012a05f200801ba0cb088b8d2ff76a7b2c6616c9d02fb6b7a501afbf8b69d7180b09928a1b80b5e4a06448fe7476c606582039bb72a9f6f4b4fad18507b8dfbd00eebbe151cc573cd2c0".from_hex().unwrap();
 
-		bc.insert_block(&first);
+		bc.insert_block(&first, vec![]);
 
 		let first_hash = H256::from_str("a940e5af7d146b3b917c953a82e1966b906dace3a4e355b5b0a4560190357ea1").unwrap();
 
@@ -712,10 +861,10 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
-		bc.insert_block(&b1);
-		bc.insert_block(&b2);
-		bc.insert_block(&b3a);
-		bc.insert_block(&b3b);
+		bc.insert_block(&b1, vec![]);
+		bc.insert_block(&b2, vec![]);
+		bc.insert_block(&b3a, vec![]);
+		bc.insert_block(&b3b, vec![]);
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);
 		assert_eq!(bc.block_number(&genesis_hash).unwrap(), 0);
@@ -792,7 +941,7 @@ mod tests {
 		{
 			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
-			bc.insert_block(&b1);
+			bc.insert_block(&b1, vec![]);
 			assert_eq!(bc.best_block_hash(), b1_hash);
 		}
 
@@ -851,12 +1000,112 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
-		bc.insert_block(&b1);
-
+		bc.insert_block(&b1, vec![]);
+	
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
 		for t in transactions {
 			assert_eq!(bc.transaction(&bc.transaction_address(&t.hash()).unwrap()).unwrap(), t);
 		}
+	}
+
+	#[test]
+	fn test_bloom_filter_simple() {
+		let genesis = "f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a07dba07d6b448a186e9612e5f737d1c909dce473e53199901a302c00646d523c1a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302000080832fefd8808454c98c8142a059262c330941f3fe2a34d16d6e3c7b30d2ceb37c6a0e9a994c494ee1a61d2410885aa4c8bf8e56e264c0c0".from_hex().unwrap();
+
+		// block b1 (child of genesis)
+		let b1 = "f90261f901f9a05716670833ec874362d65fea27a7cd35af5897d275b31a44944113111e4e96d2a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0cb52de543653d86ccd13ba3ddf8b052525b04231c6884a4db3188a184681d878a0e78628dd45a1f8dc495594d83b76c588a3ee67463260f8b7d4a42f574aeab29aa0e9244cf7503b79c03d3a099e07a80d2dbc77bb0b502d8a89d51ac0d68dd31313b90100000000200000000000000000000000000000000000000000020000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080004000000000000000000000020008302000001832fefd882520884562791e580a051b3ecba4e3f2b49c11d42dd0851ec514b1be3138080f72a2b6e83868275d98f8877671f479c414b47f862f86080018304cb2f94095e7baea6a6c7c4c2dfeb977efac326af552d870a801ca09e2709d7ec9bbe6b1bbbf0b2088828d14cd5e8642a1fee22dc74bfa89761a7f9a04bd8813dee4be989accdb708b1c2e325a7e9c695a8024e30e89d6c644e424747c0".from_hex().unwrap();
+
+		// block b2 (child of b1)
+		let b2 = "f902ccf901f9a04ef46c05763fffc5f7e59f92a7ef438ffccbb578e6e5d0f04e3df8a7fa6c02f6a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0c70a5dc56146e5ef025e4e5726a6373c6f12fd2f6784093a19ead0a7d17fb292a040645cbce4fd399e7bb9160b4c30c40d7ee616a030d4e18ef0ed3b02bdb65911a086e608555f63628417032a011d107b36427af37d153f0da02ce3f90fdd5e8c08b90100000000000000000000000000000000000000000000000200000010000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000080000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302004002832fefd882c0e384562791e880a0e3cc39ff775cc0a32f175995b92e84b729e5c9a3563ff899e3555b908bc21d75887c3cde283f4846a6f8cdf8cb01018304cb2f8080b87e6060604052606e8060106000396000f360606040526000357c010000000000000000000000000000000000000000000000000000000090048063c0406226146037576035565b005b60406004506056565b6040518082815260200191505060405180910390f35b6000600560006000508190555060059050606b565b90561ba05258615c63503c0a600d6994b12ea5750d45b3c69668e2a371b4fbfb9eeff6b8a0a11be762bc90491231274a2945be35a43f23c27775b1ff24dd521702fe15f73ec0".from_hex().unwrap();
+
+		// prepare for fork (b1a, child of genesis)
+		let b1a = "f902ccf901f9a05716670833ec874362d65fea27a7cd35af5897d275b31a44944113111e4e96d2a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0c70a5dc56146e5ef025e4e5726a6373c6f12fd2f6784093a19ead0a7d17fb292a040645cbce4fd399e7bb9160b4c30c40d7ee616a030d4e18ef0ed3b02bdb65911a086e608555f63628417032a011d107b36427af37d153f0da02ce3f90fdd5e8c08b90100000000000000000000000000000000000000000000000200000008000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000080000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302004001832fefd882c0e384562791e880a0e3cc39ff775cc0a32f175995b92e84b729e5c9a3563ff899e3555b908bc21d75887c3cde283f4846a6f8cdf8cb01018304cb2f8080b87e6060604052606e8060106000396000f360606040526000357c010000000000000000000000000000000000000000000000000000000090048063c0406226146037576035565b005b60406004506056565b6040518082815260200191505060405180910390f35b6000600560006000508190555060059050606b565b90561ba05258615c63503c0a600d6994b12ea5750d45b3c69668e2a371b4fbfb9eeff6b8a0a11be762bc90491231274a2945be35a43f23c27775b1ff24dd521702fe15f73ec0".from_hex().unwrap();
+		
+		// fork (b2a, child of b1a, with higher total difficulty)
+		let b2a = "f902ccf901f9a0626b0774a7cbdad7bdce07b87d74b6fa91c1c359d725076215d76348f8399f56a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0c70a5dc56146e5ef025e4e5726a6373c6f12fd2f6784093a19ead0a7d17fb292a040645cbce4fd399e7bb9160b4c30c40d7ee616a030d4e18ef0ed3b02bdb65911a086e608555f63628417032a011d107b36427af37d153f0da02ce3f90fdd5e8c08b90100000000000000000000000000000000000000000000000200000008000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000080000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302004002832fefd882c0e384562791e880a0e3cc39ff775cc0a32f175995b92e84b729e5c9a3563ff899e3555b908bc21d75887c3cde283f4846a6f8cdf8cb01018304cb2f8080b87e6060604052606e8060106000396000f360606040526000357c010000000000000000000000000000000000000000000000000000000090048063c0406226146037576035565b005b60406004506056565b6040518082815260200191505060405180910390f35b6000600560006000508190555060059050606b565b90561ba05258615c63503c0a600d6994b12ea5750d45b3c69668e2a371b4fbfb9eeff6b8a0a11be762bc90491231274a2945be35a43f23c27775b1ff24dd521702fe15f73ec0".from_hex().unwrap();
+
+		// fork back :)
+		let b3 = "f902ccf901f9a0e6cd7250e4c32b33c906aca30280911c560ac67bd0a05fbeb874f99ac7e7e47aa01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0c70a5dc56146e5ef025e4e5726a6373c6f12fd2f6784093a19ead0a7d17fb292a040645cbce4fd399e7bb9160b4c30c40d7ee616a030d4e18ef0ed3b02bdb65911a086e608555f63628417032a011d107b36427af37d153f0da02ce3f90fdd5e8c08b90100000000000000000000000000000000000000000000000200000008000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000080000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302004003832fefd882c0e384562791e880a0e3cc39ff775cc0a32f175995b92e84b729e5c9a3563ff899e3555b908bc21d75887c3cde283f4846a6f8cdf8cb01018304cb2f8080b87e6060604052606e8060106000396000f360606040526000357c010000000000000000000000000000000000000000000000000000000090048063c0406226146037576035565b005b60406004506056565b6040518082815260200191505060405180910390f35b6000600560006000508190555060059050606b565b90561ba05258615c63503c0a600d6994b12ea5750d45b3c69668e2a371b4fbfb9eeff6b8a0a11be762bc90491231274a2945be35a43f23c27775b1ff24dd521702fe15f73ec0".from_hex().unwrap();
+
+		let bloom_b1 = H2048::from_str("00000020000000000000000000000000000000000000000002000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000400000000000000000000002000").unwrap();
+
+		let bloom_b2 = H2048::from_str("00000000000000000000000000000000000000000000020000001000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
+
+		let bloom_ba = H2048::from_str("00000000000000000000000000000000000000000000020000000800000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
+
+		let temp = RandomTempPath::new();
+		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+
+		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		assert_eq!(blocks_b1, vec![]);
+		assert_eq!(blocks_b2, vec![]);
+		
+		bc.insert_block(&b1, vec![]);
+		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		assert_eq!(blocks_b1, vec![1]);
+		assert_eq!(blocks_b2, vec![]);
+
+		bc.insert_block(&b2, vec![]);
+		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		assert_eq!(blocks_b1, vec![1]);
+		assert_eq!(blocks_b2, vec![2]);
+
+		// hasn't been forked yet
+		bc.insert_block(&b1a, vec![]);
+		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+		assert_eq!(blocks_b1, vec![1]);
+		assert_eq!(blocks_b2, vec![2]);
+		assert_eq!(blocks_ba, vec![]);
+
+		// fork has happend
+		bc.insert_block(&b2a, vec![]);
+		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+		assert_eq!(blocks_b1, vec![]);
+		assert_eq!(blocks_b2, vec![]);
+		assert_eq!(blocks_ba, vec![1, 2]);
+
+		// fork back
+		bc.insert_block(&b3, vec![]);
+		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
+		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
+		let blocks_ba = bc.blocks_with_bloom(&bloom_ba, 0, 5);
+		assert_eq!(blocks_b1, vec![1]);
+		assert_eq!(blocks_b2, vec![2]);
+		assert_eq!(blocks_ba, vec![3]);
+	}
+
+	#[test]
+	fn test_bloom_indexer() {
+		use chainfilter::BloomIndex;
+		use blockchain::BloomIndexer;
+		use extras::BlocksBloomLocation;
+
+		let bi = BloomIndexer::new(16, 3);
+
+		let index = BloomIndex::new(0, 0);
+		assert_eq!(bi.location(&index), BlocksBloomLocation {
+			hash: H256::new(),
+			index: 0
+		});
+
+		let index = BloomIndex::new(1, 0);
+		assert_eq!(bi.location(&index), BlocksBloomLocation {
+			hash: H256::from_str("0000000000000000000000000000000000000000000000010000000000000000").unwrap(),
+			index: 0
+		});
+
+		let index = BloomIndex::new(0, 299_999);
+		assert_eq!(bi.location(&index), BlocksBloomLocation {
+			hash: H256::from_str("000000000000000000000000000000000000000000000000000000000000493d").unwrap(),
+			index: 15
+		});
 	}
 }

@@ -16,9 +16,10 @@
 
 //! Blockchain DB extras.
 
+use rocksdb::{DB, Writable};
 use util::*;
 use header::BlockNumber;
-use rocksdb::{DB, Writable};
+use receipt::Receipt;
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -32,7 +33,9 @@ pub enum ExtrasIndex {
 	/// Block log blooms index
 	BlockLogBlooms = 3,
 	/// Block blooms index
-	BlocksBlooms = 4
+	BlocksBlooms = 4,
+	/// Block receipts index
+	BlockReceipts = 5,
 } 
 
 /// trait used to write Extras data to db
@@ -210,7 +213,13 @@ impl Encodable for BlockLogBlooms {
 /// Neighboring log blooms on certain level
 pub struct BlocksBlooms {
 	/// List of block blooms.
-	pub blooms: [H2048; 16]
+	pub blooms: [H2048; 16],
+}
+
+impl BlocksBlooms {
+	pub fn new() -> Self {
+		BlocksBlooms { blooms: unsafe { ::std::mem::zeroed() }}
+	}
 }
 
 impl ExtrasIndexable for BlocksBlooms {
@@ -254,6 +263,15 @@ impl Encodable for BlocksBlooms {
 	}
 }
 
+/// Represents location of bloom in database.
+#[derive(Debug, PartialEq)]
+pub struct BlocksBloomLocation {
+	/// Unique hash of BlocksBloom
+	pub hash: H256,
+	/// Index within BlocksBloom
+	pub index: usize,
+}
+
 /// Represents address of certain transaction within block
 #[derive(Clone)]
 pub struct TransactionAddress {
@@ -290,5 +308,45 @@ impl Encodable for TransactionAddress {
 		s.begin_list(2);
 		s.append(&self.block_hash);
 		s.append(&self.index);
+	}
+}
+
+/// Contains all block receipts.
+#[derive(Clone)]
+pub struct BlockReceipts {
+	pub receipts: Vec<Receipt>,
+}
+
+impl BlockReceipts {
+	pub fn new(receipts: Vec<Receipt>) -> Self {
+		BlockReceipts {
+			receipts: receipts
+		}
+	}
+}
+
+impl Decodable for BlockReceipts {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		Ok(BlockReceipts {
+			receipts: try!(Decodable::decode(decoder))
+		})
+	}
+}
+
+impl Encodable for BlockReceipts {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.receipts);
+	}
+}
+
+impl HeapSizeOf for BlockReceipts {
+	fn heap_size_of_children(&self) -> usize {
+		self.receipts.heap_size_of_children()
+	}
+}
+
+impl ExtrasIndexable for BlockReceipts {
+	fn extras_index() -> ExtrasIndex {
+		ExtrasIndex::BlockReceipts
 	}
 }
