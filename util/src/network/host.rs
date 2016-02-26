@@ -106,6 +106,7 @@ const IDLE: usize = LAST_HANDSHAKE + 2;
 const DISCOVERY: usize = LAST_HANDSHAKE + 3;
 const DISCOVERY_REFRESH: usize = LAST_HANDSHAKE + 4;
 const DISCOVERY_ROUND: usize = LAST_HANDSHAKE + 5;
+const INIT_PUBLIC: usize = LAST_HANDSHAKE + 6;
 const FIRST_SESSION: usize = 0;
 const LAST_SESSION: usize = FIRST_SESSION + MAX_SESSIONS - 1;
 const FIRST_HANDSHAKE: usize = LAST_SESSION + 1;
@@ -261,7 +262,9 @@ pub struct HostInfo {
 	/// TCP connection port.
 	pub listen_port: u16,
 	/// Registered capabilities (handlers)
-	pub capabilities: Vec<CapabilityInfo>
+	pub capabilities: Vec<CapabilityInfo>,
+	/// Public address + discovery port
+	public_endpoint: NodeEndpoint,
 }
 
 impl HostInfo {
@@ -294,16 +297,15 @@ struct ProtocolTimer {
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
 pub struct Host<Message> where Message: Send + Sync + Clone {
 	pub info: RwLock<HostInfo>,
-	tcp_listener: Mutex<TcpListener>,
+	tcp_listener: Mutex<Option<TcpListener>>,
 	handshakes: Arc<RwLock<Slab<SharedHandshake>>>,
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
-	discovery: Option<Mutex<Discovery>>,
+	discovery: Mutex<Option<Discovery>>,
 	nodes: RwLock<NodeTable>,
 	handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler<Message>>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
 	timer_counter: RwLock<usize>,
 	stats: Arc<NetworkStats>,
-	public_endpoint: NodeEndpoint,
 	pinned_nodes: Vec<NodeId>,
 }
 
@@ -316,27 +318,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		};
 
 		let udp_port = config.udp_port.unwrap_or(listen_address.port());
-		let public_endpoint = match config.public_address {
-			None => {
-				let public_address = select_public_address(listen_address.port());
-				let local_endpoint = NodeEndpoint { address: public_address, udp_port: udp_port };
-				if config.nat_enabled {
-					match map_external_address(&local_endpoint) {
-						Some(endpoint) => {
-							info!("NAT Mappped to external address {}", endpoint.address);
-							endpoint
-						},
-						None => local_endpoint
-					}
-				} else {
-					local_endpoint
-				}
-			}
-			Some(addr) => NodeEndpoint { address: addr, udp_port: udp_port }
-		};
-
-		// Setup the server socket
-		let tcp_listener = TcpListener::bind(&listen_address).unwrap();
 		let keys = if let Some(ref secret) = config.use_secret {
 			KeyPair::from_secret(secret.clone()).unwrap()
 		} else {
@@ -350,10 +331,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			},
 			|s| KeyPair::from_secret(s).expect("Error creating node secret key"))
 		};
-		let discovery = if config.discovery_enabled && !config.pin {
-			Some(Discovery::new(&keys, listen_address.clone(), public_endpoint.clone(), DISCOVERY))
-		} else { None };
 		let path = config.config_path.clone();
+		let local_endpoint = NodeEndpoint { address: listen_address, udp_port: udp_port };
 		let mut host = Host::<Message> {
 			info: RwLock::new(HostInfo {
 				keys: keys,
@@ -363,9 +342,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				client_version: version(),
 				listen_port: 0,
 				capabilities: Vec::new(),
+				public_endpoint: local_endpoint, // will be replaced by public once it is resolved
 			}),
-			discovery: discovery.map(Mutex::new),
-			tcp_listener: Mutex::new(tcp_listener),
+			discovery: Mutex::new(None),
+			tcp_listener: Mutex::new(None),
 			handshakes: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_HANDSHAKE, MAX_HANDSHAKES))),
 			sessions: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_SESSION, MAX_SESSIONS))),
 			nodes: RwLock::new(NodeTable::new(path)),
@@ -373,16 +353,12 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			timers: RwLock::new(HashMap::new()),
 			timer_counter: RwLock::new(USER_TIMER),
 			stats: Arc::new(NetworkStats::default()),
-			public_endpoint: public_endpoint,
 			pinned_nodes: Vec::new(),
 		};
 		let port = listen_address.port();
 		host.info.write().unwrap().deref_mut().listen_port = port;
 
 		let boot_nodes = host.info.read().unwrap().config.boot_nodes.clone();
-		if let Some(ref mut discovery) = host.discovery {
-			discovery.lock().unwrap().init_node_list(host.nodes.read().unwrap().unordered_entries());
-		}
 		for n in boot_nodes {
 			host.add_node(&n);
 		}
@@ -400,8 +376,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
 				self.pinned_nodes.push(n.id.clone());
 				self.nodes.write().unwrap().add_node(n);
-				if let Some(ref mut discovery) = self.discovery {
-					discovery.lock().unwrap().add_node(entry);
+				if let &mut Some(ref mut discovery) = self.discovery.lock().unwrap().deref_mut() {
+					discovery.add_node(entry);
 				}
 			}
 		}
@@ -412,7 +388,61 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	pub fn client_url(&self) -> String {
-		format!("{}", Node::new(self.info.read().unwrap().id().clone(), self.public_endpoint.clone()))
+		format!("{}", Node::new(self.info.read().unwrap().id().clone(), self.info.read().unwrap().public_endpoint.clone()))
+	}
+
+	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage<Message>>) {
+		io.clear_timer(INIT_PUBLIC).unwrap();
+		let mut tcp_listener = self.tcp_listener.lock().unwrap();
+		if tcp_listener.is_some() {
+			return;
+		}
+		// public_endpoint in host info contains local adderss at this point
+		let listen_address = self.info.read().unwrap().public_endpoint.address.clone();
+		let udp_port = self.info.read().unwrap().config.udp_port.unwrap_or(listen_address.port());
+		let public_endpoint = match self.info.read().unwrap().config.public_address {
+			None => {
+				let public_address = select_public_address(listen_address.port());
+				let local_endpoint = NodeEndpoint { address: public_address, udp_port: udp_port };
+				if self.info.read().unwrap().config.nat_enabled {
+					match map_external_address(&local_endpoint) {
+						Some(endpoint) => {
+							info!("NAT mappped to external address {}", endpoint.address);
+							endpoint
+						},
+						None => local_endpoint
+					}
+				} else {
+					local_endpoint
+				}
+			}
+			Some(addr) => NodeEndpoint { address: addr, udp_port: udp_port }
+		};
+		
+		// Setup the server socket
+		*tcp_listener = Some(TcpListener::bind(&listen_address).unwrap());
+		self.info.write().unwrap().public_endpoint = public_endpoint.clone();
+		io.register_stream(TCP_ACCEPT).expect("Error registering TCP listener");
+		info!("Public node URL: {}", self.client_url());
+
+		// Initialize discovery.
+		let discovery = {
+			let info = self.info.read().unwrap();
+			if info.config.discovery_enabled && !info.config.pin {
+				Some(Discovery::new(&info.keys, listen_address.clone(), public_endpoint, DISCOVERY))
+			} else { None }
+		};
+
+		if let Some(mut discovery) = discovery {
+			discovery.init_node_list(self.nodes.read().unwrap().unordered_entries());
+			for n in self.nodes.read().unwrap().unordered_entries() {
+				discovery.add_node(n.clone());
+			}
+			io.register_stream(DISCOVERY).expect("Error registering UDP listener");
+			io.register_timer(DISCOVERY_REFRESH, 7200).expect("Error registering discovery timer");
+			io.register_timer(DISCOVERY_ROUND, 300).expect("Error registering discovery timer");
+			*self.discovery.lock().unwrap().deref_mut() = Some(discovery);
+		}
 	}
 
 	fn maintain_network(&self, io: &IoContext<NetworkIoMessage<Message>>) {
@@ -526,7 +556,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	fn accept(&self, io: &IoContext<NetworkIoMessage<Message>>) {
 		trace!(target: "network", "Accepting incoming connection");
 		loop {
-			let socket = match self.tcp_listener.lock().unwrap().accept() {
+			let socket = match self.tcp_listener.lock().unwrap().as_ref().unwrap().accept() {
 				Ok(None) => break,
 				Ok(Some((sock, _addr))) => sock,
 				Err(e) => {
@@ -666,8 +696,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				if let Ok(address) = session.remote_addr() {
 					let entry = NodeEntry { id: session.id().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
 					self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
-					if let Some(ref discovery) = self.discovery {
-						discovery.lock().unwrap().add_node(entry);
+					let mut discovery = self.discovery.lock().unwrap();
+					if let &mut Some(ref mut discovery) = discovery.deref_mut() {
+						discovery.add_node(entry);
 					}
 				}
 			}
@@ -764,13 +795,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Message: Send + Sync + Clone + 'static {
 	/// Initialize networking
 	fn initialize(&self, io: &IoContext<NetworkIoMessage<Message>>) {
-		io.register_stream(TCP_ACCEPT).expect("Error registering TCP listener");
 		io.register_timer(IDLE, MAINTENANCE_TIMEOUT).expect("Error registering Network idle timer");
-		if self.discovery.is_some() {
-			io.register_stream(DISCOVERY).expect("Error registering UDP listener");
-			io.register_timer(DISCOVERY_REFRESH, 7200).expect("Error registering discovery timer");
-			io.register_timer(DISCOVERY_ROUND, 300).expect("Error registering discovery timer");
-		}
+		io.register_timer(INIT_PUBLIC, 0).expect("Error registering initialization timer");
 		self.maintain_network(io)
 	}
 
@@ -788,7 +814,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_readable(stream, io),
 			DISCOVERY => {
-				let node_changes = { self.discovery.as_ref().unwrap().lock().unwrap().readable() };
+				let node_changes = { self.discovery.lock().unwrap().as_mut().unwrap().readable() };
 				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
@@ -804,7 +830,7 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_writable(stream, io),
 			DISCOVERY => {
-				self.discovery.as_ref().unwrap().lock().unwrap().writable();
+				self.discovery.lock().unwrap().as_mut().unwrap().writable();
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			}
 			_ => panic!("Received unknown writable token"),
@@ -814,14 +840,15 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn timeout(&self, io: &IoContext<NetworkIoMessage<Message>>, token: TimerToken) {
 		match token {
 			IDLE => self.maintain_network(io),
+			INIT_PUBLIC => self.init_public_interface(io),
 			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
-				self.discovery.as_ref().unwrap().lock().unwrap().refresh();
+				self.discovery.lock().unwrap().as_mut().unwrap().refresh();
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
 			DISCOVERY_ROUND => {
-				let node_changes = { self.discovery.as_ref().unwrap().lock().unwrap().round() };
+				let node_changes = { self.discovery.lock().unwrap().as_mut().unwrap().round() };
 				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
@@ -896,8 +923,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					connection.lock().unwrap().register_socket(reg, event_loop).expect("Error registering socket");
 				}
 			}
-			DISCOVERY => self.discovery.as_ref().unwrap().lock().unwrap().register_socket(event_loop).expect("Error registering discovery socket"),
-			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
+			DISCOVERY => self.discovery.lock().unwrap().as_ref().unwrap().register_socket(event_loop).expect("Error registering discovery socket"),
+			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().as_ref().unwrap(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
 			_ => warn!("Unexpected stream registration")
 		}
 	}
@@ -919,7 +946,6 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				}
 			}
 			DISCOVERY => (),
-			TCP_ACCEPT => event_loop.deregister(self.tcp_listener.lock().unwrap().deref()).unwrap(),
 			_ => warn!("Unexpected stream deregistration")
 		}
 	}
@@ -938,8 +964,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					connection.lock().unwrap().update_socket(reg, event_loop).expect("Error updating socket");
 				}
 			}
-			DISCOVERY => self.discovery.as_ref().unwrap().lock().unwrap().update_registration(event_loop).expect("Error reregistering discovery socket"),
-			TCP_ACCEPT => event_loop.reregister(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
+			DISCOVERY => self.discovery.lock().unwrap().as_ref().unwrap().update_registration(event_loop).expect("Error reregistering discovery socket"),
+			TCP_ACCEPT => event_loop.reregister(self.tcp_listener.lock().unwrap().as_ref().unwrap(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
 			_ => warn!("Unexpected stream update")
 		}
 	}
