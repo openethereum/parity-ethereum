@@ -18,7 +18,6 @@
 
 use util::*;
 use util::panics::*;
-use rocksdb::{Options, DB, DBCompactionStyle};
 use blockchain::{BlockChain, BlockProvider, CacheSize};
 use views::BlockView;
 use error::*;
@@ -187,7 +186,7 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "3";
+const CLIENT_DB_VER_STR: &'static str = "4.0";
 
 impl Client {
 	/// Create a new client with given spec and DB path.
@@ -199,34 +198,11 @@ impl Client {
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(RwLock::new(BlockChain::new(&gb, path)));
-		let mut opts = Options::new();
-		opts.set_max_open_files(256);
-		opts.create_if_missing(true);
-		opts.set_use_fsync(false);
-		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
-		/*
-		opts.set_bytes_per_sync(8388608);
-		opts.set_disable_data_sync(false);
-		opts.set_block_cache_size_mb(1024);
-		opts.set_table_cache_num_shard_bits(6);
-		opts.set_max_write_buffer_number(32);
-		opts.set_write_buffer_size(536870912);
-		opts.set_target_file_size_base(1073741824);
-		opts.set_min_write_buffer_number_to_merge(4);
-		opts.set_level_zero_stop_writes_trigger(2000);
-		opts.set_level_zero_slowdown_writes_trigger(0);
-		opts.set_compaction_style(DBUniversalCompaction);
-		opts.set_max_background_compactions(4);
-		opts.set_max_background_flushes(4);
-		opts.set_filter_deletes(false);
-		opts.set_disable_auto_compactions(false);*/
-
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
-		let db = Arc::new(DB::open(&opts, state_path.to_str().unwrap()).unwrap());
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = JournalDB::new_with_arc(db.clone());
+		let mut state_db = JournalDB::new(state_path.to_str().unwrap());
 		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
