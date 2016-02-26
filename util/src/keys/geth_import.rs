@@ -63,12 +63,13 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 	let mut buf = String::new();
 	try!(file.read_to_string(&mut buf));
 
-	let mut json = match Json::from_str(&buf) {
-		Ok(parsed_json) => try!(parsed_json.as_object().ok_or(ImportError::FormatError)).clone(),
+	let mut json_result = Json::from_str(&buf);
+	let mut json = match json_result {
+		Ok(ref mut parsed_json) => try!(parsed_json.as_object_mut().ok_or(ImportError::FormatError)),
 		Err(_) => { return Err(ImportError::FormatError); }
 	};
 	let crypto_object = try!(json.get("Crypto").and_then(|crypto| crypto.as_object()).ok_or(ImportError::FormatError)).clone();
-	json.insert("crypto".to_owned(), Json::Object(crypto_object.clone()));
+	json.insert("crypto".to_owned(), Json::Object(crypto_object));
 	json.remove("Crypto");
 	match KeyFileContent::load(&Json::Object(json.clone())) {
 		Ok(key_file) => try!(secret_store.import_key(key_file)),
