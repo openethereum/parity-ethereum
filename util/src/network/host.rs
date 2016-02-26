@@ -609,7 +609,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 		}
 		if kill {
-			self.kill_connection(token, io, true); //TODO: mark connection as dead an check in kill_connection
+			self.kill_connection(token, io, true);
 			return;
 		} else if create_session {
 			self.start_session(token, io);
@@ -651,7 +651,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 		}
 		if kill {
-			self.kill_connection(token, io, true); //TODO: mark connection as dead an check in kill_connection
+			self.kill_connection(token, io, true);
 		}
 		for p in ready_data {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
@@ -716,6 +716,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	fn kill_connection(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>, remote: bool) {
 		let mut to_disconnect: Vec<ProtocolId> = Vec::new();
 		let mut failure_id = None;
+		let mut deregister = false;
 		match token {
 			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
 				let handshakes = self.handshakes.write().unwrap();
@@ -724,7 +725,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					if !handshake.expired() {
 						handshake.set_expired();
 						failure_id = Some(handshake.id().clone());
-						io.deregister_stream(token).expect("Error deregistering stream");
+						deregister = true;
 					}
 				}
 			},
@@ -742,7 +743,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						}
 						s.set_expired();
 						failure_id = Some(s.id().clone());
-						io.deregister_stream(token).expect("Error deregistering stream");
+						deregister = true;
 					}
 				}
 			},
@@ -756,6 +757,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		for p in to_disconnect {
 			let h = self.handlers.read().unwrap().get(p).unwrap().clone();
 			h.disconnected(&NetworkContext::new(io, p, Some(token), self.sessions.clone()), &token);
+		}
+		if deregister {
+			io.deregister_stream(token).expect("Error deregistering stream");
 		}
 	}
 

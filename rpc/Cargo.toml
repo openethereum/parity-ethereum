@@ -12,7 +12,7 @@ build = "build.rs"
 serde = "0.6.7"
 serde_json = "0.6.0"
 jsonrpc-core = "1.1"
-jsonrpc-http-server = "1.1"
+jsonrpc-http-server = "2.0"
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
