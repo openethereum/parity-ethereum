@@ -31,7 +31,7 @@
 //
 
 //! Big unsigned integer types
-//! 
+//!
 //! Implementation of a various large-but-fixed sized unsigned integer types.
 //! The functions here are designed to be fast.
 //!
@@ -99,7 +99,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 
 	/// Conversion to u64 with overflow checking
 	fn as_u64(&self) -> u64;
-	
+
 	/// Return the least number of bits needed to represent the number
 	fn bits(&self) -> usize;
 	/// Return if specific bit is set
@@ -124,7 +124,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 
 	/// Multiple this `Uint` with other returning result and possible overflow
 	fn overflowing_mul(self, other: Self) -> (Self, bool);
-	
+
 	/// Divide this `Uint` by other returning result and possible overflow
 	fn overflowing_div(self, other: Self) -> (Self, bool);
 
@@ -133,7 +133,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + 
 
 	/// Returns negation of this `Uint` and overflow (always true)
 	fn overflowing_neg(self) -> (Self, bool);
-	
+
 	/// Shifts this `Uint` and returns overflow
 	fn overflowing_shl(self, shift: u32) -> (Self, bool);
 }
@@ -175,7 +175,7 @@ macro_rules! construct_uint {
 			fn as_u32(&self) -> u32 {
 				let &$name(ref arr) = self;
 				if (arr[0] & (0xffffffffu64 << 32)) != 0 {
-					panic!("Integer overflow when casting U256") 
+					panic!("Integer overflow when casting U256")
 				}
 				self.as_u64() as u32
 			}
@@ -186,7 +186,7 @@ macro_rules! construct_uint {
 				let &$name(ref arr) = self;
 				for i in 1..$n_words {
 					if arr[i] != 0 {
-						panic!("Integer overflow when casting U256") 
+						panic!("Integer overflow when casting U256")
 					}
 				}
 				arr[0]
@@ -320,7 +320,7 @@ macro_rules! construct_uint {
 				if b_carry {
 					let ret = overflowing!($name(ret).overflowing_add($name(carry)), overflow);
 					(ret, overflow)
-				} else { 
+				} else {
 					($name(ret), overflow)
 				}
 			}
@@ -448,7 +448,7 @@ macro_rules! construct_uint {
 		}
 
 		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				let mut bytes = [0u8; 8 * $n_words];
@@ -791,6 +791,7 @@ macro_rules! construct_uint {
 			}
 		}
 
+		#[cfg_attr(feature="dev", allow(derive_hash_xor_eq))] // We are pretty sure it's ok.
 		impl Hash for $name {
 			fn hash<H>(&self, state: &mut H) where H: Hasher {
 				unsafe { state.write(::std::slice::from_raw_parts(self.0.as_ptr() as *mut u8, self.0.len() * 8)); }

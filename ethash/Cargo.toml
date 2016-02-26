@@ -8,3 +8,4 @@ authors = ["arkpar <arkadiy@ethcore.io"]
 [dependencies]
 log = "0.3"
 sha3 = { path = "../util/sha3" }
+primal = "0.2.3"

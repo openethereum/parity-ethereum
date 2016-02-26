@@ -555,7 +555,10 @@ impl ChainSync {
 	/// Called when a new peer is connected
 	pub fn on_peer_connected(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Connected {}", peer);
-		self.send_status(io, peer);
+		if let Err(e) = self.send_status(io) {
+			warn!(target:"sync", "Error sending status request: {:?}", e);
+			io.disable_peer(peer);
+		}
 	}
 
 	/// Resume downloading
@@ -887,7 +890,7 @@ impl ChainSync {
 	}
 
 	/// Send Status message
-	fn send_status(&mut self, io: &mut SyncIo, peer_id: PeerId) {
+	fn send_status(&mut self, io: &mut SyncIo) -> Result<(), UtilError> {
 		let mut packet = RlpStream::new_list(5);
 		let chain = io.chain().chain_info();
 		packet.append(&(PROTOCOL_VERSION as u32));
@@ -895,11 +898,7 @@ impl ChainSync {
 		packet.append(&chain.total_difficulty);
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
-		//TODO: handle timeout for status request
-		if let Err(e) = io.send(peer_id, STATUS_PACKET, packet.out()) {
-			warn!(target:"sync", "Error sending status request: {:?}", e);
-			io.disable_peer(peer_id);
-		}
+		io.respond(STATUS_PACKET, packet.out())
 	}
 
 	/// Respond to GetBlockHeaders request
@@ -927,19 +926,19 @@ impl ChainSync {
 		if reverse {
 			number = min(last, number);
 		} else {
-			number = max(1, number);
+			number = max(0, number);
 		}
 		let max_count = min(MAX_HEADERS_TO_SEND, max_headers);
 		let mut count = 0;
 		let mut data = Bytes::new();
 		let inc = (skip + 1) as BlockNumber;
-		while number <= last && number > 0 && count < max_count {
+		while number <= last && count < max_count {
 			if let Some(mut hdr) = io.chain().block_header(BlockId::Number(number)) {
 				data.append(&mut hdr);
 				count += 1;
 			}
 			if reverse {
-				if number <= inc {
+				if number <= inc || number == 0 {
 					break;
 				}
 				number -= inc;
@@ -1541,5 +1540,54 @@ mod tests {
 		let data = &io.queue[0].data.clone();
 		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(&data));
 		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn returns_requested_block_headers() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, false);
+		let mut queue = VecDeque::new();
+		let io = TestIo::new(&mut client, &mut queue, None);
+
+		let mut rlp = RlpStream::new_list(4);
+		rlp.append(&0u64);
+		rlp.append(&10u64);
+		rlp.append(&0u64);
+		rlp.append(&0u64);
+		let data = rlp.out();
+
+		let response = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&data));
+
+		assert!(response.is_ok());
+		let (_, rlp_stream) = response.unwrap().unwrap();
+		let response_data = rlp_stream.out();
+		let rlp = UntrustedRlp::new(&response_data);
+		assert!(rlp.at(0).is_ok());
+		assert!(rlp.at(9).is_ok());
+	}
+
+	#[test]
+	fn returns_requested_block_headers_reverse() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, false);
+		let mut queue = VecDeque::new();
+		let io = TestIo::new(&mut client, &mut queue, None);
+
+		let mut rlp = RlpStream::new_list(4);
+		rlp.append(&15u64);
+		rlp.append(&15u64);
+		rlp.append(&0u64);
+		rlp.append(&1u64);
+		let data = rlp.out();
+
+		let response = ChainSync::return_block_headers(&io, &UntrustedRlp::new(&data));
+
+		assert!(response.is_ok());
+		let (_, rlp_stream) = response.unwrap().unwrap();
+		let response_data = rlp_stream.out();
+		let rlp = UntrustedRlp::new(&response_data);
+		assert!(rlp.at(0).is_ok());
+		assert!(rlp.at(14).is_ok());
+		assert!(!rlp.at(15).is_ok());
 	}
 }

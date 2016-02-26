@@ -34,6 +34,8 @@ use verification::*;
 use block::*;
 use transaction::LocalizedTransaction;
 use extras::TransactionAddress;
+use filter::Filter;
+use log_entry::LocalizedLogEntry;
 pub use blockchain::TreeRoute;
 
 /// Uniquely identifies block.
@@ -144,6 +146,12 @@ pub trait BlockChainClient : Sync + Send {
 	fn best_block_header(&self) -> Bytes {
 		self.block_header(BlockId::Hash(self.chain_info().best_block_hash)).unwrap()
 	}
+
+	/// Returns numbers of blocks containing given bloom.
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
+
+	/// Returns logs matching given filter.
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -179,7 +187,7 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "2.1";
+const CLIENT_DB_VER_STR: &'static str = "3";
 
 impl Client {
 	/// Create a new client with given spec and DB path.
@@ -304,7 +312,7 @@ impl Client {
 
 			good_blocks.push(header.hash().clone());
 
-			self.chain.insert_block(&block.bytes); //TODO: err here?
+			self.chain.insert_block(&block.bytes, result.block().receipts().clone()); //TODO: err here?
 			let ancient = if header.number() >= HISTORY { Some(header.number() - HISTORY) } else { None };
 			match result.drain().commit(header.number(), &header.hash(), ancient.map(|n|(n, self.chain.block_hash(n).unwrap()))) {
 				Ok(_) => (),
@@ -355,6 +363,15 @@ impl Client {
 			BlockId::Number(number) => chain.block_hash(number),
 			BlockId::Earliest => chain.block_hash(0),
 			BlockId::Latest => Some(chain.best_block_hash())
+		}
+	}
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		match id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(self.chain.best_block_number())
 		}
 	}
 }
@@ -447,6 +464,53 @@ impl BlockChainClient for Client {
 			best_block_hash: self.chain.best_block_hash(),
 			best_block_number: From::from(self.chain.best_block_number())
 		}
+	}
+
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
+		match (self.block_number(from_block), self.block_number(to_block)) {
+			(Some(from), Some(to)) => Some(self.chain.blocks_with_bloom(bloom, from, to)),
+			_ => None
+		}
+	}
+
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let mut blocks = filter.bloom_possibilities().iter()
+			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
+			.flat_map(|m| m)
+			// remove duplicate elements
+			.collect::<HashSet<u64>>()
+			.into_iter()
+			.collect::<Vec<u64>>();
+
+		blocks.sort();
+
+		blocks.into_iter()
+			.filter_map(|number| self.chain.block_hash(number).map(|hash| (number, hash)))
+			.filter_map(|(number, hash)| self.chain.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
+			.filter_map(|(number, hash, receipts)| self.chain.block(&hash).map(|ref b| (number, hash, receipts, BlockView::new(b).transaction_hashes())))
+			.flat_map(|(number, hash, receipts, hashes)| {
+				let mut log_index = 0;
+				receipts.into_iter()
+					.enumerate()
+					.flat_map(|(index, receipt)| {
+						log_index += receipt.logs.len();
+						receipt.logs.into_iter()
+							.enumerate()
+							.filter(|tuple| filter.matches(&tuple.1))
+						 	.map(|(i, log)| LocalizedLogEntry {
+							 	entry: log,
+								block_hash: hash.clone(),
+								block_number: number as usize,
+								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
+								transaction_index: index,
+								log_index: log_index + i
+							})
+							.collect::<Vec<LocalizedLogEntry>>()
+					})
+					.collect::<Vec<LocalizedLogEntry>>()
+					
+			})
+			.collect()
 	}
 }
 

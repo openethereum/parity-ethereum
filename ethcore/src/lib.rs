@@ -22,7 +22,7 @@
 // TODO [todr] not really sure
 #![cfg_attr(feature="dev", allow(needless_range_loop))]
 // Shorter than if-else
-#![cfg_attr(feautre="dev", allow(match_bool))]
+#![cfg_attr(feature="dev", allow(match_bool))]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
 
@@ -101,8 +101,10 @@ pub mod block_queue;
 pub mod client;
 pub mod error;
 pub mod ethereum;
+pub mod filter;
 pub mod header;
 pub mod service;
+pub mod log_entry;
 pub mod spec;
 pub mod transaction;
 pub mod views;
@@ -111,7 +113,6 @@ pub mod receipt;
 mod common;
 mod basic_types;
 #[macro_use] mod evm;
-mod log_entry;
 mod env_info;
 mod pod_account;
 mod pod_state;
@@ -124,6 +125,7 @@ mod account_db;
 mod action_params;
 mod null_engine;
 mod builtin;
+mod chainfilter;
 mod extras;
 mod substate;
 mod executive;
