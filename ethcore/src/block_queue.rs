@@ -285,14 +285,14 @@ impl BlockQueue {
 	}
 
 	/// Mark given block and all its children as bad. Stops verification.
-	pub fn mark_as_bad(&mut self, hashes: &[H256]) {
+	pub fn mark_as_bad(&mut self, block_hashes: &[H256]) {
 		let mut verification_lock = self.verification.lock().unwrap();
 		let mut processing = self.processing.write().unwrap();
 
 		let mut verification = verification_lock.deref_mut();
 
-		verification.bad.reserve(hashes.len());
-		for hash in hashes {
+		verification.bad.reserve(block_hashes.len());
+		for hash in block_hashes {
 			verification.bad.insert(hash.clone());
 			processing.remove(&hash);
 		}
@@ -310,10 +310,10 @@ impl BlockQueue {
 	}
 
 	/// Mark given block as processed
-	pub fn mark_as_good(&mut self, hashes: &[H256]) {
+	pub fn mark_as_good(&mut self, block_hashes: &[H256]) {
 		let mut processing = self.processing.write().unwrap();
-		for h in hashes {
-			processing.remove(&h);
+		for hash in block_hashes {
+			processing.remove(&hash);
 		}
 	}
 
