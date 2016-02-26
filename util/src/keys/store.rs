@@ -64,7 +64,8 @@ impl SecretStore {
 	/// new instance of Secret Store in default home directory
 	pub fn new() -> SecretStore {
 		let mut path = ::std::env::home_dir().expect("Failed to get home dir");
-		path.push("keystore");
+		path.push(".parity");
+		path.push("keys");
 		Self::new_in(&path)
 	}
 
