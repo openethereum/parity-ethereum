@@ -55,6 +55,24 @@ impl Encodable for Receipt {
 	}
 }
 
+impl Decodable for Receipt {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let receipt = Receipt {
+			state_root: try!(d.val_at(0)),
+			gas_used: try!(d.val_at(1)),
+			log_bloom: try!(d.val_at(2)),
+			logs: try!(d.val_at(3)),
+		};
+		Ok(receipt)
+	}
+}
+
+impl HeapSizeOf for Receipt {
+	fn heap_size_of_children(&self) -> usize {
+		self.logs.heap_size_of_children()
+	}
+}
 
 #[test]
 fn test_basic() {
@@ -62,11 +80,11 @@ fn test_basic() {
 	let r = Receipt::new(
 		x!("2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee"),
 		x!(0x40cae),
-		vec![LogEntry::new(
-			x!("dcf421d093428b096ca501a7cd1a740855a7976f"),
-			vec![],
-			vec![0u8; 32]
-		)]
+		vec![LogEntry {
+			address: x!("dcf421d093428b096ca501a7cd1a740855a7976f"),
+			topics: vec![],
+			data: vec![0u8; 32]
+		}]
 	);
 	assert_eq!(&encode(&r)[..], &expected[..]);
 }
