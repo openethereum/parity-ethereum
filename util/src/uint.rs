@@ -51,7 +51,7 @@ macro_rules! impl_map_from {
 	}
 }
 
-#[cfg(not(all(feature="x64asm", target_arch = "x86_64")))]
+#[cfg(not(all(feature="x64asm", target_arch="x86_64")))]
 macro_rules! uint_overflowing_add {
 	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => ({
 		uint_overflowing_add_reg!($name, $n_words, $self_expr, $other)
@@ -89,7 +89,7 @@ macro_rules! uint_overflowing_add_reg {
 }
 
 
-#[cfg(all(feature="x64asm", target_arch = "x86_64"))]
+#[cfg(all(feature="x64asm", target_arch="x86_64"))]
 macro_rules! uint_overflowing_add {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
@@ -119,7 +119,7 @@ macro_rules! uint_overflowing_add {
 	)
 }
 
-#[cfg(not(all(feature="x64asm", target_arch = "x86_64")))]
+#[cfg(not(all(feature="x64asm", target_arch="x86_64")))]
 macro_rules! uint_overflowing_sub {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let res = overflowing!((!$other).overflowing_add(From::from(1u64)));
@@ -128,7 +128,7 @@ macro_rules! uint_overflowing_sub {
 	})
 }
 
-#[cfg(all(feature="x64asm", target_arch = "x86_64"))]
+#[cfg(all(feature="x64asm", target_arch="x86_64"))]
 macro_rules! uint_overflowing_sub {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
@@ -158,7 +158,7 @@ macro_rules! uint_overflowing_sub {
 	})
 }
 
-#[cfg(all(feature="x64asm", target_arch = "x86_64"))]
+#[cfg(all(feature="x64asm", target_arch="x86_64"))]
 macro_rules! uint_overflowing_mul {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
@@ -222,7 +222,7 @@ macro_rules! uint_overflowing_mul {
 				adc $$0, %rdx
 				or %rdx, %rcx
 
-                cmpq $$0, %rcx
+				cmpq $$0, %rcx
 				jne 2f
 
 				popcnt $8, %rcx
@@ -257,7 +257,7 @@ macro_rules! uint_overflowing_mul {
 	)
 }
 
-#[cfg(not(all(feature="x64asm", target_arch = "x86_64")))]
+#[cfg(not(all(feature="x64asm", target_arch="x86_64")))]
 macro_rules! uint_overflowing_mul {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		uint_overflowing_mul_reg!($name, $n_words, $self_expr, $other)
@@ -1468,5 +1468,26 @@ mod tests {
 	fn display_uint_zero() {
 		assert_eq!(format!("{}", U256::from(0)), "0");
 	}
+
+
+    #[test]
+    fn u256_multi_adds() {
+        let (result, _) = U256([0, 0, 0, 0]).overflowing_add(U256([0, 0, 0, 0]));
+        assert_eq!(result, U256([0, 0, 0, 0]));
+
+        let (result, _) = U256([0, 0, 0, 1]).overflowing_add(U256([0, 0, 0, 1]));
+        assert_eq!(result, U256([0, 0, 0, 2]));
+
+        let (result, overflow) = U256([0, 0, 2, 1]).overflowing_add(U256([0, 0, 3, 1]));
+        assert_eq!(result, U256([0, 0, 5, 2]));
+        assert!(!overflow);
+
+        let (_, overflow) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX])
+			.overflowing_add(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]));
+        assert!(overflow);
+
+        let (_, overflow) = U256([0, 0, 0, ::std::u64::MAX]).overflowing_add(U256([0, 0, 0, ::std::u64::MAX]));
+        assert!(overflow);
+    }
 }
 
