@@ -38,12 +38,30 @@ fn u256_add(b: &mut Bencher) {
 	});
 }
 
-
 #[bench]
 fn u256_sub(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
 		(0..n).fold(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]), |old, new| { old.overflowing_sub(U256::from(new)).0 })
+	});
+}
+
+#[bench]
+fn u512_sub(b: &mut Bencher) {
+	b.iter(|| {
+		let n = black_box(10000);
+		(0..n).fold(U512([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(),
+				rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]),
+			|old, new| { old.overflowing_sub(U512([0, 0, 0, 0, 0, 0, 0, new])).0 })
+	});
+}
+
+#[bench]
+fn u512_add(b: &mut Bencher) {
+	b.iter(|| {
+		let n = black_box(10000);
+		(0..n).fold(U512([0, 0, 0, 0, 0, 0, 0, 0]),
+			|old, new| { old.overflowing_add(U512([new, new, new, new, new, new, new, new])).0 })
 	});
 }
 
