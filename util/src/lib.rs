@@ -16,6 +16,7 @@
 
 #![warn(missing_docs)]
 #![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="x64asm", feature(asm))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
 // Clippy settings
