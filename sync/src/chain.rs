@@ -555,7 +555,10 @@ impl ChainSync {
 	/// Called when a new peer is connected
 	pub fn on_peer_connected(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Connected {}", peer);
-		self.send_status(io, peer);
+		if let Err(e) = self.send_status(io) {
+			warn!(target:"sync", "Error sending status request: {:?}", e);
+			io.disable_peer(peer);
+		}
 	}
 
 	/// Resume downloading
@@ -887,7 +890,7 @@ impl ChainSync {
 	}
 
 	/// Send Status message
-	fn send_status(&mut self, io: &mut SyncIo, peer_id: PeerId) {
+	fn send_status(&mut self, io: &mut SyncIo) -> Result<(), UtilError> {
 		let mut packet = RlpStream::new_list(5);
 		let chain = io.chain().chain_info();
 		packet.append(&(PROTOCOL_VERSION as u32));
@@ -895,11 +898,7 @@ impl ChainSync {
 		packet.append(&chain.total_difficulty);
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
-		//TODO: handle timeout for status request
-		if let Err(e) = io.send(peer_id, STATUS_PACKET, packet.out()) {
-			warn!(target:"sync", "Error sending status request: {:?}", e);
-			io.disable_peer(peer_id);
-		}
+		io.respond(STATUS_PACKET, packet.out())
 	}
 
 	/// Respond to GetBlockHeaders request
