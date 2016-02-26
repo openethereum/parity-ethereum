@@ -581,9 +581,10 @@ impl Interpreter {
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
 
-				let value = match instruction == instructions::DELEGATECALL {
-					true => None,
-					false => Some(stack.pop_back())
+				let value = if instruction == instructions::DELEGATECALL {
+					None
+				} else {
+					Some(stack.pop_back())
 				};
 
 				let in_off = stack.pop_back();

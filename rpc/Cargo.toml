@@ -12,11 +12,11 @@ build = "build.rs"
 serde = "0.6.7"
 serde_json = "0.6.0"
 jsonrpc-core = "1.1"
-jsonrpc-http-server = "1.1"
+jsonrpc-http-server = "2.0"
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
-clippy = { version = "0.0.42", optional = true }
+clippy = { version = "0.0.44", optional = true }
 rustc-serialize = "0.3"
 serde_macros = { version = "0.6.13", optional = true }
 

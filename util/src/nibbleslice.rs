@@ -69,13 +69,13 @@ impl<'a> Iterator for NibbleSliceIterator<'a> {
 
 impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 	/// Create a new nibble slice with the given byte-slice.
-	pub fn new(data: &[u8]) -> NibbleSlice { NibbleSlice::new_offset(data, 0) }
+	pub fn new(data: &'a [u8]) -> Self { NibbleSlice::new_offset(data, 0) }
 
 	/// Create a new nibble slice with the given byte-slice with a nibble offset.
-	pub fn new_offset(data: &'a [u8], offset: usize) -> NibbleSlice { NibbleSlice{data: data, offset: offset, data_encode_suffix: &b""[..], offset_encode_suffix: 0} }
+	pub fn new_offset(data: &'a [u8], offset: usize) -> Self { NibbleSlice{data: data, offset: offset, data_encode_suffix: &b""[..], offset_encode_suffix: 0} }
 
 	/// Create a composed nibble slice; one followed by the other.
-	pub fn new_composed(a: &'a NibbleSlice, b: &'a NibbleSlice) -> NibbleSlice<'a> { NibbleSlice{data: a.data, offset: a.offset, data_encode_suffix: b.data, offset_encode_suffix: b.offset} }
+	pub fn new_composed(a: &'a NibbleSlice, b: &'a NibbleSlice) -> Self { NibbleSlice{data: a.data, offset: a.offset, data_encode_suffix: b.data, offset_encode_suffix: b.offset} }
 
 	/*pub fn new_composed_bytes_offset(a: &NibbleSlice, b: &NibbleSlice) -> (Bytes, usize) {
 		let r: Vec<u8>::with_capacity((a.len() + b.len() + 1) / 2);

@@ -14,22 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod block;
-mod block_number;
-mod bytes;
-mod filter;
-mod index;
-mod log;
-mod optionals;
-mod sync;
-mod transaction;
+//! Multilevel blockchain bloom filter.
 
-pub use self::block::{Block, BlockTransactions};
-pub use self::block_number::BlockNumber;
-pub use self::bytes::Bytes;
-pub use self::filter::Filter;
-pub use self::index::Index;
-pub use self::log::Log;
-pub use self::optionals::OptionalValue;
-pub use self::sync::{SyncStatus, SyncInfo};
-pub use self::transaction::Transaction;
+mod bloomindex;
+mod chainfilter;
+mod indexer;
+
+#[cfg(test)]
+mod tests;
+
+pub use self::bloomindex::BloomIndex;
+pub use self::chainfilter::ChainFilter;
+use util::hash::H2048;
+
+/// Types implementing this trait provide read access for bloom filters database.
+pub trait FilterDataSource {
+	/// returns reference to log at given position if it exists
+	fn bloom_at_index(&self, index: &BloomIndex) -> Option<H2048>;
+}
+

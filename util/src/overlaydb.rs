@@ -26,7 +26,7 @@ use std::ops::*;
 use std::sync::*;
 use std::env;
 use std::collections::HashMap;
-use rocksdb::{DB, Writable, IteratorMode};
+use kvdb::{Database};
 
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
 ///
@@ -38,15 +38,15 @@ use rocksdb::{DB, Writable, IteratorMode};
 /// queries have an immediate effect in terms of these functions.
 pub struct OverlayDB {
 	overlay: MemoryDB,
-	backing: Arc<DB>,
+	backing: Arc<Database>,
 }
 
 impl OverlayDB {
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new(backing: DB) -> OverlayDB { Self::new_with_arc(Arc::new(backing)) }
+	pub fn new(backing: Database) -> OverlayDB { Self::new_with_arc(Arc::new(backing)) }
 
 	/// Create a new instance of OverlayDB given a `backing` database.
-	pub fn new_with_arc(backing: Arc<DB>) -> OverlayDB {
+	pub fn new_with_arc(backing: Arc<Database>) -> OverlayDB {
 		OverlayDB{ overlay: MemoryDB::new(), backing: backing }
 	}
 
@@ -54,7 +54,7 @@ impl OverlayDB {
 	pub fn new_temp() -> OverlayDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(DB::open_default(dir.to_str().unwrap()).unwrap())
+		Self::new(Database::open_default(dir.to_str().unwrap()).unwrap())
 	}
 
 	/// Commit all memory operations to the backing database.
@@ -164,7 +164,7 @@ impl OverlayDB {
 impl HashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iterator(IteratorMode::Start) {
+		for (key, _) in self.backing.iter() {
 			let h = H256::from_slice(key.deref());
 			let r = self.payload(&h).unwrap().1;
 			ret.insert(h, r as i32);
@@ -318,7 +318,7 @@ fn overlaydb_complex() {
 fn playpen() {
 	use std::fs;
 	{
-		let db: DB = DB::open_default("/tmp/test").unwrap();
+		let db: Database = Database::open_default("/tmp/test").unwrap();
 		db.put(b"test", b"test2").unwrap();
 		match db.get(b"test") {
 			Ok(Some(value)) => println!("Got value {:?}", value.deref()),

@@ -37,10 +37,11 @@ impl Default for Action {
 impl Decodable for Action {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let rlp = decoder.as_rlp();
-		match rlp.is_empty() {
-			true => Ok(Action::Create),
-			false => Ok(Action::Call(try!(rlp.as_val())))
-		} 
+		if rlp.is_empty() {
+			Ok(Action::Create)
+		} else {
+			Ok(Action::Call(try!(rlp.as_val())))
+		}
 	}
 }
 
@@ -79,6 +80,7 @@ impl Transaction {
 }
 
 impl FromJson for SignedTransaction {
+	#[cfg_attr(feature="dev", allow(single_char_pattern))]
 	fn from_json(json: &Json) -> SignedTransaction {
 		let t = Transaction {
 			nonce: xjson!(&json["nonce"]),
@@ -110,7 +112,7 @@ impl FromJson for SignedTransaction {
 
 impl Transaction {
 	/// The message hash of the transaction.
-	pub fn hash(&self) -> H256 { 
+	pub fn hash(&self) -> H256 {
 		let mut stream = RlpStream::new();
 		self.rlp_append_unsigned_transaction(&mut stream);
 		stream.out().sha3()

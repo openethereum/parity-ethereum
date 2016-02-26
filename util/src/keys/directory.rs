@@ -305,7 +305,7 @@ fn uuid_to_string(uuid: &Uuid) -> String {
 }
 
 fn uuid_from_string(s: &str) -> Result<Uuid, UtilError> {
-	let parts: Vec<&str> = s.split("-").collect();
+	let parts: Vec<&str> = s.split('-').collect();
 	if parts.len() != 5 { return Err(UtilError::BadSize); }
 
 	let mut uuid = H128::zero();
