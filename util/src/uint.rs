@@ -760,7 +760,7 @@ macro_rules! construct_uint {
 				self.to_bytes(&mut bytes);
 				let len = cmp::max((self.bits() + 7) / 8, 1);
 				hex.push_str(bytes[bytes.len() - len..].to_hex().as_ref());
-				serializer.visit_str(hex.as_ref())
+				serializer.serialize_str(hex.as_ref())
 			}
 		}
 

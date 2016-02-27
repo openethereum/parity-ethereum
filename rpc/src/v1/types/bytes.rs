@@ -40,7 +40,7 @@ impl Serialize for Bytes {
 	where S: Serializer {
 		let mut serialized = "0x".to_owned();
 		serialized.push_str(self.0.to_hex().as_ref());
-		serializer.visit_str(serialized.as_ref())
+		serializer.serialize_str(serialized.as_ref())
 	}
 }
 
