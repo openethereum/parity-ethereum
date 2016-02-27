@@ -367,7 +367,7 @@ impl Handshake {
 
 		let encoded = rlp.drain();
 		let len = (encoded.len() + ECIES_OVERHEAD) as u16;
-		let prefix = [ (len & 0xff) as u8, (len >> 8) as u8 ];
+		let prefix = [ (len >> 8) as u8, (len & 0xff) as u8 ];
 		let message = try!(crypto::ecies::encrypt(&self.id, &prefix, &encoded));
 		self.ack_cipher.extend_from_slice(&prefix);
 		self.ack_cipher.extend_from_slice(&message);
