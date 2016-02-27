@@ -42,7 +42,6 @@ impl<Message> NetworkService<Message> where Message: Send + Sync + Clone + 'stat
 		let host = Arc::new(Host::new(config));
 		let stats = host.stats().clone();
 		let host_info = host.client_version();
-		info!("Node URL: {}", host.client_url());
 		try!(io_service.register_handler(host));
 		Ok(NetworkService {
 			io_service: io_service,

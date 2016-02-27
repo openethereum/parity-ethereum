@@ -71,9 +71,9 @@ Options:
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect.
   --address URL            Equivalent to --listen-address URL --public-address URL.
-  --peers NUM              Try to manintain that many peers [default: 25].
+  --peers NUM              Try to maintain that many peers [default: 25].
   --no-discovery           Disable new peer discovery.
-  --upnp                   Use UPnP to try to figure out the correct network settings.
+  --no-upnp                Disable trying to figure out the correct public adderss over UPnP.
   --node-key KEY           Specify node secret key, either as 64-character hex string or input to SHA3 operation.
 
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
@@ -102,7 +102,7 @@ struct Args {
 	flag_address: Option<String>,
 	flag_peers: u32,
 	flag_no_discovery: bool,
-	flag_upnp: bool,
+	flag_no_upnp: bool,
 	flag_node_key: Option<String>,
 	flag_cache_pref_size: usize,
 	flag_cache_max_size: usize,
@@ -246,7 +246,7 @@ impl Configuration {
 
 	fn net_settings(&self, spec: &Spec) -> NetworkConfiguration {
 		let mut ret = NetworkConfiguration::new();
-		ret.nat_enabled = self.args.flag_upnp;
+		ret.nat_enabled = !self.args.flag_no_upnp;
 		ret.boot_nodes = self.init_nodes(spec);
 		let (listen, public) = self.net_addresses();
 		ret.listen_address = listen;
