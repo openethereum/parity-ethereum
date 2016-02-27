@@ -8,14 +8,14 @@ use extras::{BlockDetails, BlockReceipts, TransactionAddress, BlocksBlooms};
 pub struct ExtrasUpdate {
 	/// Block info.
 	pub info: BlockInfo,
-	/// Numbers of blocks to update in block hashes cache.
+	/// Modified block hashes.
 	pub block_hashes: HashMap<BlockNumber, H256>,
-	/// Hashes of blocks to update in block details cache.
+	/// Modified block details.
 	pub block_details: HashMap<H256, BlockDetails>,
-	/// Hashes of receipts to update in block receipts cache.
+	/// Modified block receipts.
 	pub block_receipts: HashMap<H256, BlockReceipts>,
-	/// Hashes of transactions to update in transactions addresses cache.
+	/// Modified transaction addresses.
 	pub transactions_addresses: HashMap<H256, TransactionAddress>,
-	/// Changed blocks bloom location hashes.
+	/// Modified blocks blooms.
 	pub blocks_blooms: HashMap<H256, BlocksBlooms>,
 }
