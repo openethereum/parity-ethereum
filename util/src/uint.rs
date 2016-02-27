@@ -1639,18 +1639,8 @@ mod tests {
         let (result, _) = U256([2, 0, 0, 0]).overflowing_mul(U256([0, 5, 0, 0]));
         assert_eq!(U256([0, 10, 0, 0]), result);
 
-        let (result, _) = U256([::std::u64::MAX, 0, 0, 0]).overflowing_mul(U256([::std::u64::MAX, 0, 0, 0]));
-        assert_eq!(U256([1, ::std::u64::MAX-1, 0, 0]), result);
-
-        let (result, _) = U256([0, 0, 0, ::std::u64::MAX]).overflowing_mul(U256([0, 0, 0, ::std::u64::MAX]));
-        assert_eq!(U256([0, 0, 0, 0]), result);
-
         let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, ::std::u64::MAX]));
         assert_eq!(U256([0, 0, 0, ::std::u64::MAX]), result);
-
-        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX])
-			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]));
-        assert_eq!(U256([1, 0, 0, 0]), result);
 
 		let x1 = U256::from_str("0000000000000000000000000000000000000000000000000000012365124623").unwrap();
 		let x2sqr_right = U256::from_str("000000000000000000000000000000000000000000014baeef72e0378e2328c9").unwrap();
