@@ -28,7 +28,7 @@ use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
-use blockchain::CacheSize;
+use blockchain::{Error, FatalError, CacheSize};
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
@@ -347,12 +347,12 @@ impl BlockChain {
 	///   ```json
 	///   { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
 	///   ```
-	pub fn tree_route(&self, from: H256, to: H256) -> TreeRoute {
+	pub fn tree_route(&self, from: H256, to: H256) -> Result<TreeRoute, Error> {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = self.block_details(&from).expect(&format!("0. Expected to find details for block {:?}", from));
-		let mut to_details = self.block_details(&to).expect(&format!("1. Expected to find details for block {:?}", to));
+		let mut from_details = try!(self.block_details(&from).ok_or(Error::TreeRouteNotFound { unknown_hash: from.clone() }));
+		let mut to_details = try!(self.block_details(&to).ok_or(Error::TreeRouteNotFound { unknown_hash: to.clone() }));
 		let mut current_from = from;
 		let mut current_to = to;
 
@@ -360,13 +360,13 @@ impl BlockChain {
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).expect(&format!("2. Expected to find details for block {:?}", from_details.parent));
+			from_details = try!(self.block_details(&from_details.parent).ok_or(FatalError::MissingBlockDetails { hash: from_details.parent.clone() }));
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).expect(&format!("3. Expected to find details for block {:?}", to_details.parent));
+			to_details = try!(self.block_details(&to_details.parent).ok_or(FatalError::MissingBlockDetails { hash: to_details.parent.clone() }));
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -375,22 +375,22 @@ impl BlockChain {
 		while current_from != current_to {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).expect(&format!("4. Expected to find details for block {:?}", from_details.parent));
+			from_details = try!(self.block_details(&from_details.parent).ok_or(FatalError::MissingBlockDetails { hash: from_details.parent.clone() }));
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).expect(&format!("5. Expected to find details for block {:?}", from_details.parent));
+			to_details = try!(self.block_details(&to_details.parent).ok_or(FatalError::MissingBlockDetails { hash: to_details.parent.clone() }));
 		}
 
 		let index = from_branch.len();
 
 		from_branch.extend(to_branch.into_iter().rev());
 
-		TreeRoute {
+		Ok(TreeRoute {
 			blocks: from_branch,
 			ancestor: current_from,
 			index: index
-		}
+		})
 	}
 
 	/// Inserts the block into backing cache database.
@@ -493,7 +493,7 @@ impl BlockChain {
 				// are moved to "canon chain"
 				// find the route between old best block and the new one
 				let best_hash = self.best_block_hash();
-				let route = self.tree_route(best_hash, parent_hash);
+				let route = self.tree_route(best_hash, parent_hash).unwrap();
 
 				assert_eq!(number, parent_details.number + 1);
 
