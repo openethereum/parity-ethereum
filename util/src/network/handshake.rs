@@ -481,6 +481,9 @@ mod test {
 		h.read_auth_eip8(&secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::StartSession);
 		check_auth(&h, 56);
+		let ack = h.ack_cipher.clone(); 
+		let total = (((ack[0] as u16) << 8 | (ack[1] as u16)) as usize) + 2;
+		assert_eq!(ack.len(), total);
 	}
 
 	#[test]
