@@ -15,54 +15,28 @@
 
 ### Building from source
 
-##### Ubuntu 14.04, 15.04, 15.10
+First (if you don't already have it) get multirust:
 
+- Linux:
 ```bash
-# install multirust
-curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
-
-# download and build parity
-git clone https://github.com/ethcore/parity
-cd parity
-
-# parity should be build with rust beta
-multirust override beta
-
-# build in release
-cargo build --release
-```
-
-##### Other Linux
-
-```bash
-# install rust beta
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-
-# download and build parity
-git clone https://github.com/ethcore/parity
-cd parity
-
-# parity should be build with rust beta
-multirust override beta
-
-# build in release
-cargo build --release
 ```
 
-##### OSX with Homebrew
+- OSX with Homebrew:
+```bash
+brew update && brew install multirust
+```
+
+Then, download and build Parity:
 
 ```bash
-# install multirust
-brew update
-brew install multirust
-
-# download and build parity
+# download Parity code
 git clone https://github.com/ethcore/parity
 cd parity
 
-# use rust beta for building parity
+# parity should be built with rust beta
 multirust override beta
 
+# build in release mode
 cargo build --release
 ```
-

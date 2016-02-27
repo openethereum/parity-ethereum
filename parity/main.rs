@@ -71,7 +71,7 @@ Options:
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect.
   --address URL            Equivalent to --listen-address URL --public-address URL.
-  --peers NUM              Try to manintain that many peers [default: 25].
+  --peers NUM              Try to maintain that many peers [default: 25].
   --no-discovery           Disable new peer discovery.
   --no-upnp                Disable trying to figure out the correct public adderss over UPnP.
   --node-key KEY           Specify node secret key, either as 64-character hex string or input to SHA3 operation.
