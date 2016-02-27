@@ -417,23 +417,23 @@ impl BlockChain {
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
 
-		let batch = DBTransaction::new();
 		let info = self.block_info(bytes);
-		batch.put(b"best", &info.hash).unwrap();
 
 		self.apply_update(ExtrasUpdate {
-			block_numbers: self.prepare_block_hashes_update(bytes, &info, &batch),
-			block_details_hashes: self.prepare_block_details_update(bytes, &info, &batch),
-			block_receipts_hashes: self.prepare_block_receipts_update(receipts, &info, &batch),
-			transactions_addresses_hashes: self.prepare_transaction_addresses_update(bytes, &info, &batch),
-			bloom_hashes: self.prepare_block_blooms_update(bytes, &info, &batch),
-			batch: batch,
+			block_hashes: self.prepare_block_hashes_update(bytes, &info),
+			block_details: self.prepare_block_details_update(bytes, &info),
+			block_receipts: self.prepare_block_receipts_update(receipts, &info),
+			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
+			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
 			info: info
 		});
 	}
 
 	/// Applies extras update.
 	fn apply_update(&self, update: ExtrasUpdate) {
+		let batch = DBTransaction::new();
+		batch.put(b"best", &update.info.hash).unwrap();
+
 		// update best block
 		let mut best_block = self.best_block.write().unwrap();
 		match update.info.location {
@@ -448,32 +448,37 @@ impl BlockChain {
 		}
 
 		let mut write_hashes = self.block_hashes.write().unwrap();
-		for number in &update.block_numbers {
+		for (number, hash) in &update.block_hashes {
+			batch.put_extras(number, hash);
 			write_hashes.remove(number);
 		}
 
 		let mut write_details = self.block_details.write().unwrap();
-		for hash in &update.block_details_hashes {
-			write_details.remove(hash);
+		for (hash, details) in update.block_details.into_iter() {
+			batch.put_extras(&hash, &details);	
+			write_details.insert(hash, details);
 		}
 
 		let mut write_receipts = self.block_receipts.write().unwrap();
-		for hash in &update.block_receipts_hashes {
+		for (hash, receipt) in &update.block_receipts {
+			batch.put_extras(hash, receipt);
 			write_receipts.remove(hash);
 		}
 
 		let mut write_txs = self.transaction_addresses.write().unwrap();
-		for hash in &update.transactions_addresses_hashes {
+		for (hash, tx_address) in &update.transactions_addresses {
+			batch.put_extras(hash, tx_address);
 			write_txs.remove(hash);
 		}
 
 		let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
-		for bloom_hash in &update.bloom_hashes {
+		for (bloom_hash, blocks_bloom) in &update.blocks_blooms {
+			batch.put_extras(bloom_hash, blocks_bloom);
 			write_blocks_blooms.remove(bloom_hash);
 		}
 
-		//// update extras database
-		self.extras_db.write(update.batch).unwrap();
+		// update extras database
+		self.extras_db.write(batch).unwrap();
 	}
 
 	/// Get inserted block info which is critical to preapre extras updates.
@@ -514,40 +519,35 @@ impl BlockChain {
 		}
 	}
 
-	/// This function updates block number to block hash mappings and writes them to db batch.
-	/// 
-	/// Returns modified block numbers.
-	fn prepare_block_hashes_update(&self, block_bytes: &[u8], info: &BlockInfo, batch: &DBTransaction) -> HashSet<BlockNumber> {
+	/// This function returns modified block hashes.
+	fn prepare_block_hashes_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<BlockNumber, H256> {
+		let mut block_hashes = HashMap::new();
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 		let number = header.number();
 
 		match info.location {
-			BlockLocation::Branch => vec![],
+			BlockLocation::Branch => (),
 			BlockLocation::CanonChain => {
-				batch.put_extras(&number, &info.hash);
-				vec![number]
+				block_hashes.insert(number, info.hash.clone());
 			},
 			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route } => {
 				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				for (index, hash) in route.iter().enumerate() {
-					batch.put_extras(&(start_number + index as BlockNumber), hash);
+				for (index, hash) in route.iter().cloned().enumerate() {
+					block_hashes.insert(start_number + index as BlockNumber, hash);
 				}
 
-				batch.put_extras(&number, &info.hash);
-				let mut numbers: Vec<BlockNumber> = (start_number..start_number + route.len() as BlockNumber).into_iter().collect();
-				numbers.push(number);
-				numbers
+				block_hashes.insert(number, info.hash.clone());
 			}
-		}.into_iter().collect()
+		}
+
+		block_hashes
 	}
 
-	/// This function creates current block details, updates parent block details and writes them to db batch.
-	/// 
-	/// Returns hashes of modified block details.
-	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo, batch: &DBTransaction) -> HashSet<H256> {
+	/// This function returns modified block details.
+	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlockDetails> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 		let parent_hash = header.parent_hash();
@@ -565,39 +565,39 @@ impl BlockChain {
 		};
 
 		// write to batch
-		batch.put_extras(&parent_hash, &parent_details);
-		batch.put_extras(&info.hash, &details);
-		vec![parent_hash, info.hash.clone()].into_iter().collect()
+		let mut block_details = HashMap::new();
+		block_details.insert(parent_hash, parent_details);
+		block_details.insert(info.hash.clone(), details);
+		block_details
 	}
 
-	/// This function writes block receipts to db batch and returns hashes of modified receipts.
-	fn prepare_block_receipts_update(&self, receipts: Vec<Receipt>, info: &BlockInfo, batch: &DBTransaction) -> HashSet<H256> {
-		batch.put_extras(&info.hash, &BlockReceipts::new(receipts));
-		vec![info.hash.clone()].into_iter().collect()
+	/// This function returns modified block receipts.
+	fn prepare_block_receipts_update(&self, receipts: Vec<Receipt>, info: &BlockInfo) -> HashMap<H256, BlockReceipts> {
+		let mut block_receipts = HashMap::new();
+		block_receipts.insert(info.hash.clone(), BlockReceipts::new(receipts));
+		block_receipts
 	}
 
-	/// This function writes mapping from transaction hash to transaction address to database.
-	///
-	/// Returns hashes of modified mappings.
-	fn prepare_transaction_addresses_update(&self, block_bytes: &[u8], info: &BlockInfo, batch: &DBTransaction) -> HashSet<H256> {
+	/// This function returns modified transaction addresses.
+	fn prepare_transaction_addresses_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, TransactionAddress> {
 		let block = BlockView::new(block_bytes);
 		let transaction_hashes = block.transaction_hashes();	
 
-		// update transaction addresses
-		for (i, tx_hash) in transaction_hashes.iter().enumerate() {
-			batch.put_extras(tx_hash, &TransactionAddress {
-				block_hash: info.hash.clone(),
-				index: i
-			});
-		}
-
-		transaction_hashes.into_iter().collect()
+		transaction_hashes.into_iter()
+			.enumerate()
+			.fold(HashMap::new(), |mut acc, (i ,tx_hash)| {
+				acc.insert(tx_hash, TransactionAddress {
+					block_hash: info.hash.clone(),
+					index: i
+				});
+				acc
+			})
 	}
 
-	/// This functions update blcoks blooms and writes them to db batch.
+	/// This functions returns modified blocks blooms.
 	///
 	/// TODO: this function needs comprehensive description.
-	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo, batch: &DBTransaction) -> HashSet<H256> {
+	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlocksBlooms> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 
@@ -623,7 +623,7 @@ impl BlockChain {
 			}
 		};
 
-		let indexed_blocks_blooms = modified_blooms.into_iter()
+		modified_blooms.into_iter()
 			.fold(HashMap::new(), | mut acc, (bloom_index, bloom) | {
 			{
 				let location = self.bloom_indexer.location(&bloom_index);
@@ -634,13 +634,7 @@ impl BlockChain {
 				blocks_blooms.blooms[location.index] = bloom;
 			}
 			acc
-		});
-
-		for (bloom_hash, blocks_blooms) in &indexed_blocks_blooms {
-			batch.put_extras(bloom_hash, blocks_blooms);
-		}
-
-		indexed_blocks_blooms.into_iter().map(|(bloom_hash, _)| bloom_hash).collect()
+		})
 	}
 
 	/// Get best block hash.
