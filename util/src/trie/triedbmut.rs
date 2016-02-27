@@ -687,31 +687,10 @@ mod tests {
 	use super::*;
 	use nibbleslice::*;
 	use rlp::*;
-	use rand::random;
-	use std::collections::HashSet;
-	use bytes::{ToPretty,Bytes,Populatable};
+	use bytes::ToPretty;
 	use super::super::node::*;
 	use super::super::trietraits::*;
-
-	fn random_key(alphabet: &[u8], min_count: usize, journal_count: usize) -> Vec<u8> {
-		let mut ret: Vec<u8> = Vec::new();
-		let r = min_count + if journal_count > 0 {random::<usize>() % journal_count} else {0};
-		for _ in 0..r {
-			ret.push(alphabet[random::<usize>() % alphabet.len()]);
-		}
-		ret
-	}
-	
-	fn random_value_indexed(j: usize) -> Bytes {
-		match random::<usize>() % 2 {
-			0 => encode(&j).to_vec(),
-			_ => {
-				let mut h = H256::new();
-				h.as_slice_mut()[31] = j as u8;
-				encode(&h).to_vec()
-			},
-		}
-	}
+	use super::super::standardmap::*;
 
 	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db> {
 		let mut t = TrieDBMut::new(db, root);
@@ -756,20 +735,18 @@ mod tests {
 		};*/
 //		panic!();
 
+		let mut seed = H256::new();
 		for test_i in 0..1 {
 			if test_i % 50 == 0 {
 				debug!("{:?} of 10000 stress tests done", test_i);
 			}
-			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
-			let mut got: HashSet<Vec<u8>> = HashSet::new();
-			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
-			for j in 0..100usize {
-				let key = random_key(alphabet, 5, 0);
-				if !got.contains(&key) {
-					x.push((key.clone(), random_value_indexed(j)));
-					got.insert(key);
-				}
-			}
+			let x = StandardMap {
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				min_key: 5,
+				journal_key: 0,
+				value_mode: ValueMode::Index,
+				count: 100,
+			}.make_with(&mut seed);
 
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::new();
@@ -1049,13 +1026,16 @@ mod tests {
 
 	#[test]
 	fn stress() {
+		let mut seed = H256::new();
 		for _ in 0..50 {
-			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
-			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
-			for j in 0..4u32 {
-				let key = random_key(alphabet, 5, 1);
-				x.push((key, encode(&j).to_vec()));
-			}
+			let x = StandardMap {
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				min_key: 5,
+				journal_key: 0,
+				value_mode: ValueMode::Index,
+				count: 4,
+			}.make_with(&mut seed);
+
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::new();
 			let mut root = H256::new();
