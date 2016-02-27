@@ -349,7 +349,7 @@ impl Discovery {
 		}
 	}
 
-	fn check_timestamp(&self, timestamp: u64) -> Result<(), NetworkError>{
+	fn check_timestamp(&self, timestamp: u64) -> Result<(), NetworkError> {
 		if self.check_timestamps && timestamp < time::get_time().sec as u64{
 			debug!(target: "discovery", "Expired packet");
 			return Err(NetworkError::Expired);
