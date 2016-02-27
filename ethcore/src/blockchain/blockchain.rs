@@ -23,111 +23,31 @@ use transaction::*;
 use views::*;
 use receipt::Receipt;
 use chainfilter::{ChainFilter, BloomIndex, FilterDataSource};
+use blockchain::block_info::{BlockInfo, BlockLocation};
+use blockchain::best_block::BestBlock;
+use blockchain::bloom_indexer::BloomIndexer;
+use blockchain::tree_route::TreeRoute;
+use blockchain::CacheSize;
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
 
-/// Represents a tree route between `from` block and `to` block:
-pub struct TreeRoute {
-	/// A vector of hashes of all blocks, ordered from `from` to `to`.
-	pub blocks: Vec<H256>,
-	/// Best common ancestor of these blocks.
-	pub ancestor: H256,
-	/// An index where best common ancestor would be.
-	pub index: usize,
-}
-
-/// Represents blockchain's in-memory cache size in bytes.
-#[derive(Debug)]
-pub struct CacheSize {
-	/// Blocks cache size.
-	pub blocks: usize,
-	/// BlockDetails cache size.
-	pub block_details: usize,
-	/// Transaction addresses cache size.
-	pub transaction_addresses: usize,
-	/// Logs cache size.
-	pub block_logs: usize,
-	/// Blooms cache size.
-	pub blocks_blooms: usize,
-	/// Block receipts size.
-	pub block_receipts: usize,
-}
-
-struct BloomIndexer {
-	index_size: usize,
-	levels: u8,
-}
-
-impl BloomIndexer {
-	fn new(index_size: usize, levels: u8) -> Self {
-		BloomIndexer {
-			index_size: index_size,
-			levels: levels
-		}
-	}
-
-	/// Calculates bloom's position in database.
-	fn location(&self, bloom_index: &BloomIndex) -> BlocksBloomLocation {
-		use std::{mem, ptr};
-		
-		let hash = unsafe {
-			let mut hash: H256 = mem::zeroed();
-			ptr::copy(&[bloom_index.index / self.index_size] as *const usize as *const u8, hash.as_mut_ptr(), 8);
-			hash[8] = bloom_index.level;
-			hash.reverse();
-			hash
-		};
-
-		BlocksBloomLocation {
-			hash: hash,
-			index: bloom_index.index % self.index_size
-		}
-	}
-
-	fn index_size(&self) -> usize {
-		self.index_size
-	}
-
-	fn levels(&self) -> u8 {
-		self.levels
-	}
-}
-
 /// Blockchain update info.
 struct ExtrasUpdate {
-	/// Block hash.
-	hash: H256,
+	/// Block info.
+	info: BlockInfo,
 	/// DB update batch.
 	batch: DBTransaction,
-	/// Inserted block familial details.
-	details: BlockDetails,
-	/// New best block (if it has changed).
-	new_best: Option<BestBlock>,
+	/// Numbers of blocks to update in block hashes cache.
+	block_numbers: HashSet<BlockNumber>,
+	/// Hashes of blocks to update in block details cache.
+	block_details_hashes: HashSet<H256>,
+	/// Hashes of receipts to update in block receipts cache.
+	block_receipts_hashes: HashSet<H256>,
+	/// Hashes of transactions to update in transactions addresses cache.
+	transactions_addresses_hashes: HashSet<H256>,
 	/// Changed blocks bloom location hashes.
 	bloom_hashes: HashSet<H256>,
-}
-
-impl CacheSize {
-	/// Total amount used by the cache.
-	fn total(&self) -> usize { self.blocks + self.block_details + self.transaction_addresses + self.block_logs + self.blocks_blooms }
-}
-
-/// Information about best block gathered together
-struct BestBlock {
-	pub hash: H256,
-	pub number: BlockNumber,
-	pub total_difficulty: U256
-}
-
-impl BestBlock {
-	fn new() -> BestBlock {
-		BestBlock {
-			hash: H256::new(),
-			number: 0,
-			total_difficulty: U256::from(0)
-		}
-	}
 }
 
 /// Interface for querying blocks by hash and by number.
@@ -452,28 +372,14 @@ impl BlockChain {
 	///   ```json
 	///   { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
 	///   ```
-	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
-		let from_details = match self.block_details(&from) {
-			Some(h) => h,
-			None => return None,
-		};
-		let to_details = match self.block_details(&to) {
-			Some(h) => h,
-			None => return None,
-		};
-		Some(self.tree_route_aux((&from_details, &from), (&to_details, &to)))
-	}
-
-	/// Similar to `tree_route` function, but can be used to return a route
-	/// between blocks which may not be in database yet.
-	fn tree_route_aux(&self, from: (&BlockDetails, &H256), to: (&BlockDetails, &H256)) -> TreeRoute {
+	pub fn tree_route(&self, from: H256, to: H256) -> TreeRoute {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = from.0.clone();
-		let mut to_details = to.0.clone();
-		let mut current_from = from.1.clone();
-		let mut current_to = to.1.clone();
+		let mut from_details = self.block_details(&from).expect(&format!("Expected to find details for block {:?}", from));
+		let mut to_details = self.block_details(&to).expect(&format!("Expected to find details for block {:?}", to));
+		let mut current_from = from;
+		let mut current_to = to;
 
 		// reset from && to to the same level
 		while from_details.number > to_details.number {
@@ -527,165 +433,231 @@ impl BlockChain {
 
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
-		let update = self.block_to_extras_update(bytes, receipts);
-		self.apply_update(update);
+
+		let batch = DBTransaction::new();
+		let info = self.block_info(bytes);
+		batch.put(b"best", &info.hash).unwrap();
+
+		self.apply_update(ExtrasUpdate {
+			block_numbers: self.prepare_block_hashes_update(bytes, &info, &batch),
+			block_details_hashes: self.prepare_block_details_update(bytes, &info, &batch),
+			block_receipts_hashes: self.prepare_block_receipts_update(receipts, &info, &batch),
+			transactions_addresses_hashes: self.prepare_transaction_addresses_update(bytes, &info, &batch),
+			bloom_hashes: self.prepare_block_blooms_update(bytes, &info, &batch),
+			batch: batch,
+			info: info
+		});
 	}
 
 	/// Applies extras update.
 	fn apply_update(&self, update: ExtrasUpdate) {
 		// update best block
 		let mut best_block = self.best_block.write().unwrap();
-		if let Some(b) = update.new_best {
-			*best_block = b;
+		match update.info.location {
+			BlockLocation::Branch => (),
+			_ => {
+				*best_block = BestBlock {
+					hash: update.info.hash,
+					number: update.info.number,
+					total_difficulty: update.info.total_difficulty
+				};
+			}
 		}
 
-		// update details cache
-		let mut write_details = self.block_details.write().unwrap();
-		write_details.remove(&update.details.parent);
-		write_details.insert(update.hash.clone(), update.details);
-		self.note_used(CacheID::Block(update.hash));
+		let mut write_hashes = self.block_hashes.write().unwrap();
+		for number in &update.block_numbers {
+			write_hashes.remove(number);
+		}
 
-		// update blocks blooms cache
+		let mut write_details = self.block_details.write().unwrap();
+		for hash in &update.block_details_hashes {
+			write_details.remove(hash);
+		}
+
+		let mut write_receipts = self.block_receipts.write().unwrap();
+		for hash in &update.block_receipts_hashes {
+			write_receipts.remove(hash);
+		}
+
+		let mut write_txs = self.transaction_addresses.write().unwrap();
+		for hash in &update.transactions_addresses_hashes {
+			write_txs.remove(hash);
+		}
+
 		let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
 		for bloom_hash in &update.bloom_hashes {
 			write_blocks_blooms.remove(bloom_hash);
 		}
 
-		// update extras database
+		//// update extras database
 		self.extras_db.write(update.batch).unwrap();
 	}
 
-	/// Transforms block into WriteBatch that may be written into database
-	/// Additionally, if it's new best block it returns new best block object.
-	fn block_to_extras_update(&self, bytes: &[u8], receipts: Vec<Receipt>) -> ExtrasUpdate {
-		// create views onto rlp
-		let block = BlockView::new(bytes);
+	/// Get inserted block info which is critical to preapre extras updates.
+	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
+		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
-
-		// prepare variables
 		let hash = block.sha3();
-		let mut parent_details = self.block_details(&header.parent_hash()).expect(format!("Invalid parent hash: {:?}", header.parent_hash()).as_ref());
+		let number = header.number();
+		let parent_hash = header.parent_hash();
+		let parent_details = self.block_details(&parent_hash).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
 		let total_difficulty = parent_details.total_difficulty + header.difficulty();
 		let is_new_best = total_difficulty > self.best_block_total_difficulty();
+
+		BlockInfo {
+			hash: hash,
+			number: number,
+			total_difficulty: total_difficulty,
+			location: match is_new_best {
+				false => BlockLocation::Branch,
+				true => {
+					// on new best block we need to make sure that all ancestors
+					// are moved to "canon chain"
+					// find the route between old best block and the new one
+					let best_hash = self.best_block_hash();
+					let route = self.tree_route(best_hash, parent_hash);
+
+					assert_eq!(number, parent_details.number + 1);
+
+					match route.blocks.len() {
+						0 => BlockLocation::CanonChain,
+						_ => BlockLocation::BranchBecomingCanonChain {
+							ancestor: route.ancestor,
+							route: route.blocks.into_iter().skip(route.index).collect()
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/// This function updates block number to block hash mappings and writes them to db batch.
+	/// 
+	/// Returns modified block numbers.
+	fn prepare_block_hashes_update(&self, block_bytes: &[u8], info: &BlockInfo, batch: &DBTransaction) -> HashSet<BlockNumber> {
+		let block = BlockView::new(block_bytes);
+		let header = block.header_view();
+		let number = header.number();
+
+		match info.location {
+			BlockLocation::Branch => vec![],
+			BlockLocation::CanonChain => {
+				batch.put_extras(&number, &info.hash);
+				vec![number]
+			},
+			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route } => {
+				let ancestor_number = self.block_number(ancestor).unwrap();
+				let start_number = ancestor_number + 1;
+
+				for (index, hash) in route.iter().enumerate() {
+					batch.put_extras(&(start_number + index as BlockNumber), hash);
+				}
+
+				batch.put_extras(&number, &info.hash);
+				let mut numbers: Vec<BlockNumber> = (start_number..start_number + route.len() as BlockNumber).into_iter().collect();
+				numbers.push(number);
+				numbers
+			}
+		}.into_iter().collect()
+	}
+
+	/// This function creates current block details, updates parent block details and writes them to db batch.
+	/// 
+	/// Returns hashes of modified block details.
+	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo, batch: &DBTransaction) -> HashSet<H256> {
+		let block = BlockView::new(block_bytes);
+		let header = block.header_view();
 		let parent_hash = header.parent_hash();
+
+		// update parent
+		let mut parent_details = self.block_details(&parent_hash).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
+		parent_details.children.push(info.hash.clone());
 
 		// create current block details
 		let details = BlockDetails {
 			number: header.number(),
-			total_difficulty: total_difficulty,
+			total_difficulty: info.total_difficulty,
 			parent: parent_hash.clone(),
 			children: vec![]
 		};
 
-		// prepare the batch
-		let batch = DBTransaction::new();
-
-		// insert new block details
-		batch.put_extras(&hash, &details);
-
-		// update parent details
-		parent_details.children.push(hash.clone());
+		// write to batch
 		batch.put_extras(&parent_hash, &parent_details);
+		batch.put_extras(&info.hash, &details);
+		vec![parent_hash, info.hash.clone()].into_iter().collect()
+	}
+
+	/// This function writes block receipts to db batch and returns hashes of modified receipts.
+	fn prepare_block_receipts_update(&self, receipts: Vec<Receipt>, info: &BlockInfo, batch: &DBTransaction) -> HashSet<H256> {
+		batch.put_extras(&info.hash, &BlockReceipts::new(receipts));
+		vec![info.hash.clone()].into_iter().collect()
+	}
+
+	/// This function writes mapping from transaction hash to transaction address to database.
+	///
+	/// Returns hashes of modified mappings.
+	fn prepare_transaction_addresses_update(&self, block_bytes: &[u8], info: &BlockInfo, batch: &DBTransaction) -> HashSet<H256> {
+		let block = BlockView::new(block_bytes);
+		let transaction_hashes = block.transaction_hashes();	
 
 		// update transaction addresses
-		for (i, tx_hash) in block.transaction_hashes().iter().enumerate() {
+		for (i, tx_hash) in transaction_hashes.iter().enumerate() {
 			batch.put_extras(tx_hash, &TransactionAddress {
-				block_hash: hash.clone(),
+				block_hash: info.hash.clone(),
 				index: i
 			});
 		}
 
-		// update block receipts
-		batch.put_extras(&hash, &BlockReceipts::new(receipts));
+		transaction_hashes.into_iter().collect()
+	}
 
-		// if it's not new best block, just return
-		if !is_new_best {
-			return ExtrasUpdate {
-				hash: hash.clone(),
-				batch: batch,
-				details: details,
-				new_best: None,
-				bloom_hashes: HashSet::new()
-			};
-		}
+	/// This functions update blcoks blooms and writes them to db batch.
+	///
+	/// TODO: this function needs comprehensive description.
+	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo, batch: &DBTransaction) -> HashSet<H256> {
+		let block = BlockView::new(block_bytes);
+		let header = block.header_view();
 
-		// if its new best block we need to make sure that all ancestors
-		// are moved to "canon chain"
-		// find the route between old best block and the new one
-		let best_hash = self.best_block_hash();
-		let best_details = self.block_details(&best_hash).expect("best block hash is invalid!");
-		let route = self.tree_route_aux((&best_details, &best_hash), (&details, &hash));
-
-		let modified_blooms;
-
-		match route.blocks.len() {
-			// its our parent
-			1 => { 
-				batch.put_extras(&header.number(), &hash);
-
-				// update block blooms
-				modified_blooms = ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
-					.add_bloom(&header.log_bloom(), header.number() as usize);
+		let modified_blooms = match info.location {
+			BlockLocation::Branch => HashMap::new(),
+			BlockLocation::CanonChain => {
+				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
+					.add_bloom(&header.log_bloom(), header.number() as usize)
 			},
-			// it is a fork
-			i if i > 1 => {
-				let ancestor_number = self.block_number(&route.ancestor).unwrap();
+			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route } => {
+				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
-				for (index, hash) in route.blocks.iter().skip(route.index).enumerate() {
-					batch.put_extras(&(start_number + index as BlockNumber), hash);
-				}
 
-				// get all blocks that are not part of canon chain (TODO: optimize it to one query)
-				let blooms: Vec<H2048> = route.blocks.iter()
-					.skip(route.index)
+				let mut blooms: Vec<H2048> = route.iter()
 					.map(|hash| self.block(hash).unwrap())
 					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
 					.collect();
 
-				// reset blooms chain head
-				modified_blooms = ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
-					.reset_chain_head(&blooms, start_number as usize, self.best_block_number() as usize);
-			},
-			// route.blocks.len() could be 0 only if inserted block is best block,
-			// and this is not possible at this stage
-			_ => { unreachable!(); }
+				blooms.push(header.log_bloom());
+
+				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
+					.reset_chain_head(&blooms, start_number as usize, self.best_block_number() as usize)
+			}
 		};
 
-		let bloom_hashes = modified_blooms.iter()
-			.map(|(bloom_index, _)| self.bloom_indexer.location(&bloom_index).hash)
-			.collect();
-
-		for (bloom_hash, blocks_blooms) in modified_blooms.into_iter()
+		let indexed_blocks_blooms = modified_blooms.into_iter()
 			.fold(HashMap::new(), | mut acc, (bloom_index, bloom) | {
 			{
 				let location = self.bloom_indexer.location(&bloom_index);
 				let mut blocks_blooms = acc
 					.entry(location.hash.clone())
 					.or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
-				assert_eq!(self.bloom_indexer.index_size, blocks_blooms.blooms.len());
+				assert_eq!(self.bloom_indexer.index_size(), blocks_blooms.blooms.len());
 				blocks_blooms.blooms[location.index] = bloom;
 			}
 			acc
-		}) {
-			batch.put_extras(&bloom_hash, &blocks_blooms);
+		});
+
+		for (bloom_hash, blocks_blooms) in &indexed_blocks_blooms {
+			batch.put_extras(bloom_hash, blocks_blooms);
 		}
 
-		// this is new best block
-		batch.put(b"best", &hash).unwrap();
-
-		let best_block = BestBlock {
-			hash: hash.clone(),
-			number: header.number(),
-			total_difficulty: total_difficulty
-		};
-
-		ExtrasUpdate {
-			hash: hash,
-			batch: batch,
-			new_best: Some(best_block),
-			details: details,
-			bloom_hashes: bloom_hashes
-		}
+		indexed_blocks_blooms.into_iter().map(|(bloom_hash, _)| bloom_hash).collect()
 	}
 
 	/// Get best block hash.
@@ -886,52 +858,52 @@ mod tests {
 		assert_eq!(bc.block_hash(3).unwrap(), b3a_hash);
 
 		// test trie route
-		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone()).unwrap();
+		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone());
 		assert_eq!(r0_1.ancestor, genesis_hash);
 		assert_eq!(r0_1.blocks, [b1_hash.clone()]);
 		assert_eq!(r0_1.index, 0);
 
-		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone()).unwrap();
+		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone());
 		assert_eq!(r0_2.ancestor, genesis_hash);
 		assert_eq!(r0_2.blocks, [b1_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r0_2.index, 0);
 
-		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone()).unwrap();
+		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone());
 		assert_eq!(r1_3a.ancestor, b1_hash);
 		assert_eq!(r1_3a.blocks, [b2_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r1_3a.index, 0);
 
-		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone()).unwrap();
+		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone());
 		assert_eq!(r1_3b.ancestor, b1_hash);
 		assert_eq!(r1_3b.blocks, [b2_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r1_3b.index, 0);
 
-		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone()).unwrap();
+		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone());
 		assert_eq!(r3a_3b.ancestor, b2_hash);
 		assert_eq!(r3a_3b.blocks, [b3a_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r3a_3b.index, 1);
 
-		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone()).unwrap();
+		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone());
 		assert_eq!(r1_0.ancestor, genesis_hash);
 		assert_eq!(r1_0.blocks, [b1_hash.clone()]);
 		assert_eq!(r1_0.index, 1);
 
-		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone()).unwrap();
+		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone());
 		assert_eq!(r2_0.ancestor, genesis_hash);
 		assert_eq!(r2_0.blocks, [b2_hash.clone(), b1_hash.clone()]);
 		assert_eq!(r2_0.index, 2);
 
-		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone()).unwrap();
+		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone());
 		assert_eq!(r3a_1.ancestor, b1_hash);
 		assert_eq!(r3a_1.blocks, [b3a_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3a_1.index, 2);
 
-		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone()).unwrap();
+		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone());
 		assert_eq!(r3b_1.ancestor, b1_hash);
 		assert_eq!(r3b_1.blocks, [b3b_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3b_1.index, 2);
 
-		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone()).unwrap();
+		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone());
 		assert_eq!(r3b_3a.ancestor, b2_hash);
 		assert_eq!(r3b_3a.blocks, [b3b_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r3b_3a.index, 1);
@@ -1092,7 +1064,7 @@ mod tests {
 	#[test]
 	fn test_bloom_indexer() {
 		use chainfilter::BloomIndex;
-		use blockchain::BloomIndexer;
+		use blockchain::bloom_indexer::BloomIndexer;
 		use extras::BlocksBloomLocation;
 
 		let bi = BloomIndexer::new(16, 3);
