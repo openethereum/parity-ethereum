@@ -9,19 +9,19 @@ build = "build.rs"
 [lib]
 
 [dependencies]
-serde = "0.6.7"
-serde_json = "0.6.0"
-jsonrpc-core = "1.1"
-jsonrpc-http-server = "2.0"
+serde = "0.7.0"
+serde_json = "0.7.0"
+jsonrpc-core = "1.2"
+jsonrpc-http-server = "2.1"
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
 clippy = { version = "0.0.44", optional = true }
 rustc-serialize = "0.3"
-serde_macros = { version = "0.6.13", optional = true }
+serde_macros = { version = "0.7.0", optional = true }
 
 [build-dependencies]
-serde_codegen = { version = "0.6.13", optional = true }
+serde_codegen = { version = "0.7.0", optional = true }
 syntex = "0.29.0"
 
 [features]

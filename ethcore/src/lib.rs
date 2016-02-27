@@ -75,7 +75,7 @@
 #[macro_use] extern crate ethcore_util as util;
 #[macro_use] extern crate lazy_static;
 extern crate rustc_serialize;
-extern crate heapsize;
+#[macro_use] extern crate heapsize;
 extern crate crypto;
 extern crate time;
 extern crate env_logger;
@@ -86,8 +86,6 @@ extern crate crossbeam;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
 pub mod block;
-pub mod blockchain;
-pub mod block_queue;
 pub mod client;
 pub mod error;
 pub mod ethereum;
@@ -121,6 +119,8 @@ mod substate;
 mod executive;
 mod externalities;
 mod verification;
+mod block_queue;
+mod blockchain;
 
 #[cfg(test)]
 mod tests;
