@@ -279,7 +279,7 @@ impl EncryptedConnection {
 
 	/// Create an encrypted connection out of the handshake. Consumes a handshake object.
 	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, UtilError> {
-		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_public));
+		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral));
 		let mut nonce_material = H512::new();
 		if handshake.originated {
 			handshake.remote_nonce.copy_to(&mut nonce_material[0..32]);
