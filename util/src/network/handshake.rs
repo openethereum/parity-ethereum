@@ -239,12 +239,12 @@ impl Handshake {
 			}
 			Err(_) => {
 				// Try to interpret as EIP-8 packet
-				let size = ((data[0] as u16) << 8 | (data[1] as u16)) as usize;
-				if size < V4_AUTH_PACKET_SIZE - 2 {
+				let total = (((data[0] as u16) << 8 | (data[1] as u16)) as usize) + 2;
+				if total < V4_AUTH_PACKET_SIZE {
 					debug!(target:"net", "Wrong EIP8 auth packet size");
 					return Err(From::from(NetworkError::BadProtocol));
 				}
-				let rest = size - data.len() + 2;
+				let rest = total - data.len();
 				self.state = HandshakeState::ReadingAuthEip8;
 				self.connection.expect(rest);
 			}
@@ -284,7 +284,7 @@ impl Handshake {
 				// Try to interpret as EIP-8 packet
 				let total = (((data[0] as u16) << 8 | (data[1] as u16)) as usize) + 2;
 				if total < V4_ACK_PACKET_SIZE {
-					debug!(target: "net", "Wrong EIP8 ack packet size");
+					debug!(target:"net", "Wrong EIP8 ack packet size");
 					return Err(From::from(NetworkError::BadProtocol));
 				}
 				let rest = total - data.len();
