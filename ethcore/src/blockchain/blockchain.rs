@@ -488,25 +488,24 @@ impl BlockChain {
 			hash: hash,
 			number: number,
 			total_difficulty: total_difficulty,
-			location: match is_new_best {
-				false => BlockLocation::Branch,
-				true => {
-					// on new best block we need to make sure that all ancestors
-					// are moved to "canon chain"
-					// find the route between old best block and the new one
-					let best_hash = self.best_block_hash();
-					let route = self.tree_route(best_hash, parent_hash);
+			location: if is_new_best {
+				// on new best block we need to make sure that all ancestors
+				// are moved to "canon chain"
+				// find the route between old best block and the new one
+				let best_hash = self.best_block_hash();
+				let route = self.tree_route(best_hash, parent_hash);
 
-					assert_eq!(number, parent_details.number + 1);
+				assert_eq!(number, parent_details.number + 1);
 
-					match route.blocks.len() {
-						0 => BlockLocation::CanonChain,
-						_ => BlockLocation::BranchBecomingCanonChain {
-							ancestor: route.ancestor,
-							route: route.blocks.into_iter().skip(route.index).collect()
-						}
+				match route.blocks.len() {
+					0 => BlockLocation::CanonChain,
+					_ => BlockLocation::BranchBecomingCanonChain {
+						ancestor: route.ancestor,
+						route: route.blocks.into_iter().skip(route.index).collect()
 					}
 				}
+			} else {
+				BlockLocation::Branch
 			}
 		}
 	}
