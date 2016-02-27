@@ -27,28 +27,11 @@ use blockchain::block_info::{BlockInfo, BlockLocation};
 use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
+use blockchain::update::ExtrasUpdate;
 use blockchain::CacheSize;
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
-
-/// Blockchain update info.
-struct ExtrasUpdate {
-	/// Block info.
-	info: BlockInfo,
-	/// DB update batch.
-	batch: DBTransaction,
-	/// Numbers of blocks to update in block hashes cache.
-	block_numbers: HashSet<BlockNumber>,
-	/// Hashes of blocks to update in block details cache.
-	block_details_hashes: HashSet<H256>,
-	/// Hashes of receipts to update in block receipts cache.
-	block_receipts_hashes: HashSet<H256>,
-	/// Hashes of transactions to update in transactions addresses cache.
-	transactions_addresses_hashes: HashSet<H256>,
-	/// Changed blocks bloom location hashes.
-	bloom_hashes: HashSet<H256>,
-}
 
 /// Interface for querying blocks by hash and by number.
 pub trait BlockProvider {
@@ -271,7 +254,7 @@ impl BlockChain {
 		let bc = BlockChain {
 			pref_cache_size: 1 << 14,
 			max_cache_size: 1 << 20,
-			best_block: RwLock::new(BestBlock::new()),
+			best_block: RwLock::new(BestBlock::default()),
 			blocks: RwLock::new(HashMap::new()),
 			block_details: RwLock::new(HashMap::new()),
 			block_hashes: RwLock::new(HashMap::new()),
@@ -376,8 +359,8 @@ impl BlockChain {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = self.block_details(&from).expect(&format!("Expected to find details for block {:?}", from));
-		let mut to_details = self.block_details(&to).expect(&format!("Expected to find details for block {:?}", to));
+		let mut from_details = self.block_details(&from).expect(&format!("0. Expected to find details for block {:?}", from));
+		let mut to_details = self.block_details(&to).expect(&format!("1. Expected to find details for block {:?}", to));
 		let mut current_from = from;
 		let mut current_to = to;
 
@@ -385,13 +368,13 @@ impl BlockChain {
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).expect(&format!("1. Expected to find details for block {:?}", from_details.parent));
+			from_details = self.block_details(&from_details.parent).expect(&format!("2. Expected to find details for block {:?}", from_details.parent));
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).expect(&format!("2. Expected to find details for block {:?}", to_details.parent));
+			to_details = self.block_details(&to_details.parent).expect(&format!("3. Expected to find details for block {:?}", to_details.parent));
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -400,11 +383,11 @@ impl BlockChain {
 		while current_from != current_to {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).expect(&format!("3. Expected to find details for block {:?}", from_details.parent));
+			from_details = self.block_details(&from_details.parent).expect(&format!("4. Expected to find details for block {:?}", from_details.parent));
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).expect(&format!("4. Expected to find details for block {:?}", from_details.parent));
+			to_details = self.block_details(&to_details.parent).expect(&format!("5. Expected to find details for block {:?}", from_details.parent));
 		}
 
 		let index = from_branch.len();
@@ -1061,30 +1044,5 @@ mod tests {
 		assert_eq!(blocks_ba, vec![3]);
 	}
 
-	#[test]
-	fn test_bloom_indexer() {
-		use chainfilter::BloomIndex;
-		use blockchain::bloom_indexer::BloomIndexer;
-		use extras::BlocksBloomLocation;
 
-		let bi = BloomIndexer::new(16, 3);
-
-		let index = BloomIndex::new(0, 0);
-		assert_eq!(bi.location(&index), BlocksBloomLocation {
-			hash: H256::new(),
-			index: 0
-		});
-
-		let index = BloomIndex::new(1, 0);
-		assert_eq!(bi.location(&index), BlocksBloomLocation {
-			hash: H256::from_str("0000000000000000000000000000000000000000000000010000000000000000").unwrap(),
-			index: 0
-		});
-
-		let index = BloomIndex::new(0, 299_999);
-		assert_eq!(bi.location(&index), BlocksBloomLocation {
-			hash: H256::from_str("000000000000000000000000000000000000000000000000000000000000493d").unwrap(),
-			index: 15
-		});
-	}
 }
