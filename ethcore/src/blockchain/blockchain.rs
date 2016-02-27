@@ -588,7 +588,20 @@ impl BlockChain {
 
 	/// This functions returns modified blocks blooms.
 	///
-	/// TODO: this function needs comprehensive description.
+	/// To accelerate blooms lookups, blomms are stored in multiple 
+	/// layers (BLOOM_LEVELS, currently 3). 
+	/// ChainFilter is responsible for building and rebuilding these layers.
+	/// It returns them in HashMap, where values are Blooms and
+	/// keys are BloomIndexes. BloomIndex represents bloom location on one
+	/// of these layers.
+	/// 
+	/// To reduce number of queries to databse, block blooms are stored
+	/// in BlocksBlooms structure which contains info about several 
+	/// (BLOOM_INDEX_SIZE, currently 16) consecutive blocks blooms.
+	/// 
+	/// Later, BloomIndexer is used to map bloom location on filter layer (BloomIndex)
+	/// to bloom location in database (BlocksBloomLocation).
+	/// 
 	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlocksBlooms> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
