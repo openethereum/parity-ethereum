@@ -39,7 +39,9 @@ use ethcore::error::*;
 use ethcore::block::Block;
 use io::SyncIo;
 use time;
-use std::option::Option;
+use super::SyncConfig;
+
+known_heap_size!(0, PeerInfo, Header, HeaderId);
 
 impl ToUsize for BlockNumber {
 	fn to_usize(&self) -> usize {
@@ -80,9 +82,7 @@ const NODE_DATA_PACKET: u8 = 0x0e;
 const GET_RECEIPTS_PACKET: u8 = 0x0f;
 const RECEIPTS_PACKET: u8 = 0x10;
 
-const NETWORK_ID: U256 = ONE_U256; //TODO: get this from parent
-
-const CONNECTION_TIMEOUT_SEC: f64 = 10f64;
+const CONNECTION_TIMEOUT_SEC: f64 = 5f64;
 
 struct Header {
 	/// Header data
@@ -135,6 +135,8 @@ pub struct SyncStatus {
 	pub num_peers: usize,
 	/// Total number of active peers
 	pub num_active_peers: usize,
+	/// Heap memory used in bytes
+	pub mem_used: usize,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -203,13 +205,17 @@ pub struct ChainSync {
 	have_common_block: bool,
 	/// Last propagated block number
 	last_send_block_number: BlockNumber,
+	/// Max blocks to download ahead
+	max_download_ahead_blocks: usize,
+	/// Network ID
+	network_id: U256,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
-	pub fn new() -> ChainSync {
+	pub fn new(config: SyncConfig) -> ChainSync {
 		ChainSync {
 			state: SyncState::NotSynced,
 			starting_block: 0,
@@ -226,6 +232,8 @@ impl ChainSync {
 			syncing_difficulty: U256::from(0u64),
 			have_common_block: false,
 			last_send_block_number: 0,
+			max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
+			network_id: config.network_id,
 		}
 	}
 
@@ -241,6 +249,15 @@ impl ChainSync {
 			blocks_total: match self.highest_block { None => 0, Some(x) => x - self.starting_block },
 			num_peers: self.peers.len(),
 			num_active_peers: self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count(),
+			mem_used: 
+				//  TODO: https://github.com/servo/heapsize/pull/50
+				//  self.downloading_hashes.heap_size_of_children() 
+				//+ self.downloading_bodies.heap_size_of_children() 
+				//+ self.downloading_hashes.heap_size_of_children() 
+				self.headers.heap_size_of_children() 
+				+ self.bodies.heap_size_of_children() 
+				+ self.peers.heap_size_of_children() 
+				+ self.header_ids.heap_size_of_children(),
 		}
 	}
 
@@ -275,7 +292,6 @@ impl ChainSync {
 		self.starting_block = 0;
 		self.highest_block = None;
 		self.have_common_block = false;
-		io.chain().clear_queue();
 		self.starting_block = io.chain().chain_info().best_block_number;
 		self.state = SyncState::NotSynced;
 	}
@@ -307,7 +323,7 @@ impl ChainSync {
 			trace!(target: "sync", "Peer {} genesis hash not matched", peer_id);
 			return Ok(());
 		}
-		if peer.network_id != NETWORK_ID {
+		if peer.network_id != self.network_id {
 			io.disable_peer(peer_id);
 			trace!(target: "sync", "Peer {} network id not matched", peer_id);
 			return Ok(());
@@ -436,7 +452,7 @@ impl ChainSync {
 					trace!(target: "sync", "Got body {}", n);
 				}
 				None =>  {
-					debug!(target: "sync", "Ignored unknown block body");
+					trace!(target: "sync", "Ignored unknown/stale block body");
 				}
 			}
 		}
@@ -555,7 +571,10 @@ impl ChainSync {
 	/// Called when a new peer is connected
 	pub fn on_peer_connected(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Connected {}", peer);
-		self.send_status(io, peer);
+		if let Err(e) = self.send_status(io) {
+			warn!(target:"sync", "Error sending status request: {:?}", e);
+			io.disable_peer(peer);
+		}
 	}
 
 	/// Resume downloading
@@ -608,7 +627,7 @@ impl ChainSync {
 			self.request_headers_by_hash(io, peer_id, &peer_latest, 1, 0, false);
 		}
 		else if self.state == SyncState::Blocks && io.chain().block_status(BlockId::Hash(peer_latest)) == BlockStatus::Unknown {
-			self.request_blocks(io, peer_id);
+			self.request_blocks(io, peer_id, false);
 		}
 	}
 
@@ -617,7 +636,7 @@ impl ChainSync {
 	}
 
 	/// Find some headers or blocks to download for a peer.
-	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: PeerId) {
+	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: PeerId, ignore_others: bool) {
 		self.clear_peer_download(peer_id);
 
 		if io.chain().queue_info().is_full() {
@@ -637,28 +656,34 @@ impl ChainSync {
 				let mut index: BlockNumber = 0;
 				while index != items.len() as BlockNumber && needed_bodies.len() < MAX_BODIES_TO_REQUEST {
 					let block = start + index;
-					if !self.downloading_bodies.contains(&block) && !self.bodies.have_item(&block) {
+					if  ignore_others || (!self.downloading_bodies.contains(&block) && !self.bodies.have_item(&block)) {
 						needed_bodies.push(items[index as usize].hash.clone());
 						needed_numbers.push(block);
-						self.downloading_bodies.insert(block);
 					}
 					index += 1;
 				}
 			}
 		}
 		if !needed_bodies.is_empty() {
+			let (head, _) = self.headers.range_iter().next().unwrap();
+			if needed_numbers.first().unwrap() - head > self.max_download_ahead_blocks as BlockNumber {
+				trace!(target: "sync", "{}: Stalled download ({} vs {}), helping with downloading block bodies", peer_id, needed_numbers.first().unwrap(), head);
+				self.request_blocks(io, peer_id, true);
+				return;
+			}
+			self.downloading_bodies.extend(needed_numbers.iter());
 			replace(&mut self.peers.get_mut(&peer_id).unwrap().asking_blocks, needed_numbers);
 			self.request_bodies(io, peer_id, needed_bodies);
 		}
 		else {
 			// check if need to download headers
-			let mut start = 0usize;
+			let mut start = 0;
 			if !self.have_common_block {
 				// download backwards until common block is found 1 header at a time
 				let chain_info = io.chain().chain_info();
-				start = chain_info.best_block_number as usize;
+				start = chain_info.best_block_number;
 				if !self.headers.is_empty() {
-					start = min(start, self.headers.range_iter().next().unwrap().0 as usize - 1);
+					start = min(start, self.headers.range_iter().next().unwrap().0 - 1);
 				}
 				if start == 0 {
 					self.have_common_block = true; //reached genesis
@@ -669,6 +694,7 @@ impl ChainSync {
 			if self.have_common_block {
 				let mut headers: Vec<BlockNumber> = Vec::new();
 				let mut prev = self.current_base_block() + 1;
+				let head = self.headers.range_iter().next().map(|(h, _)| h);
 				for (next, ref items) in self.headers.range_iter() {
 					if !headers.is_empty() {
 						break;
@@ -679,9 +705,8 @@ impl ChainSync {
 					}
 					let mut block = prev;
 					while block < next && headers.len() < MAX_HEADERS_TO_REQUEST {
-						if !self.downloading_headers.contains(&(block as BlockNumber)) {
+						if ignore_others || !self.downloading_headers.contains(&(block as BlockNumber)) {
 							headers.push(block as BlockNumber);
-							self.downloading_headers.insert(block as BlockNumber);
 						}
 						block += 1;
 					}
@@ -689,17 +714,23 @@ impl ChainSync {
 				}
 
 				if !headers.is_empty() {
-					start = headers[0] as usize;
+					start = headers[0];
+					if head.is_some() && start > head.unwrap() && start - head.unwrap() > self.max_download_ahead_blocks as BlockNumber {
+						trace!(target: "sync", "{}: Stalled download ({} vs {}), helping with downloading headers", peer_id, start, head.unwrap());
+						self.request_blocks(io, peer_id, true);
+						return;
+					}
 					let count = headers.len();
+					self.downloading_headers.extend(headers.iter());
 					replace(&mut self.peers.get_mut(&peer_id).unwrap().asking_blocks, headers);
-					assert!(!self.headers.have_item(&(start as BlockNumber)));
-					self.request_headers_by_number(io, peer_id, start as BlockNumber, count, 0, false);
+					assert!(!self.headers.have_item(&start));
+					self.request_headers_by_number(io, peer_id, start, count, 0, false);
 				}
 			}
 			else {
 				// continue search for common block
-				self.downloading_headers.insert(start as BlockNumber);
-				self.request_headers_by_number(io, peer_id, start as BlockNumber, 1, 0, false);
+				self.downloading_headers.insert(start);
+				self.request_headers_by_number(io, peer_id, start, 1, 0, false);
 			}
 		}
 	}
@@ -887,19 +918,15 @@ impl ChainSync {
 	}
 
 	/// Send Status message
-	fn send_status(&mut self, io: &mut SyncIo, peer_id: PeerId) {
+	fn send_status(&mut self, io: &mut SyncIo) -> Result<(), UtilError> {
 		let mut packet = RlpStream::new_list(5);
 		let chain = io.chain().chain_info();
 		packet.append(&(PROTOCOL_VERSION as u32));
-		packet.append(&NETWORK_ID); //TODO: network id
+		packet.append(&self.network_id);
 		packet.append(&chain.total_difficulty);
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
-		//TODO: handle timeout for status request
-		if let Err(e) = io.send(peer_id, STATUS_PACKET, packet.out()) {
-			warn!(target:"sync", "Error sending status request: {:?}", e);
-			io.disable_peer(peer_id);
-		}
+		io.respond(STATUS_PACKET, packet.out())
 	}
 
 	/// Respond to GetBlockHeaders request
@@ -1221,6 +1248,7 @@ impl ChainSync {
 mod tests {
 	use tests::helpers::*;
 	use super::*;
+	use ::SyncConfig;
 	use util::*;
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
@@ -1334,7 +1362,7 @@ mod tests {
 	}
 
 	fn dummy_sync_with_peer(peer_latest_hash: H256) -> ChainSync {
-		let mut sync = ChainSync::new();
+		let mut sync = ChainSync::new(SyncConfig::default());
 		sync.peers.insert(0,
 		  	PeerInfo {
 				protocol_version: 0,

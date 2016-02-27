@@ -30,7 +30,7 @@ pub enum BlockNumber {
 impl Deserialize for BlockNumber {
 	fn deserialize<D>(deserializer: &mut D) -> Result<BlockNumber, D::Error>
 	where D: Deserializer {
-		deserializer.visit(BlockNumberVisitor)
+		deserializer.deserialize(BlockNumberVisitor)
 	}
 }
 
@@ -44,8 +44,8 @@ impl Visitor for BlockNumberVisitor {
 			"latest" => Ok(BlockNumber::Latest),
 			"earliest" => Ok(BlockNumber::Earliest),
 			"pending" => Ok(BlockNumber::Pending),
-			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|_| Error::syntax("invalid block number")),
-			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|_| Error::syntax("invalid block number"))
+			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|_| Error::custom("invalid block number")),
+			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|_| Error::custom("invalid block number"))
 		}
 	}
 

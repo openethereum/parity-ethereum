@@ -30,7 +30,7 @@ impl Index {
 impl Deserialize for Index {
 	fn deserialize<D>(deserializer: &mut D) -> Result<Index, D::Error>
 	where D: Deserializer {
-		deserializer.visit(IndexVisitor)
+		deserializer.deserialize(IndexVisitor)
 	}
 }
 
@@ -41,8 +41,8 @@ impl Visitor for IndexVisitor {
 
 	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
 		match value {
-			_ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16).map(Index).map_err(|_| Error::syntax("invalid index")),
-			_ => value.parse::<usize>().map(Index).map_err(|_| Error::syntax("invalid index"))
+			_ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16).map(Index).map_err(|_| Error::custom("invalid index")),
+			_ => value.parse::<usize>().map(Index).map_err(|_| Error::custom("invalid index"))
 		}
 	}
 

@@ -97,23 +97,69 @@ macro_rules! uint_overflowing_add {
 		let other_t: &[u64; 4] = unsafe { &mem::transmute($other) };
 
 		let overflow: u8;
-        unsafe {
-            asm!("
-                adc $9, $0
-                adc $10, $1
-                adc $11, $2
-                adc $12, $3
-                setc %al
-                "
-            : "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]), "={al}"(overflow)
-            : "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]),
+		unsafe {
+			asm!("
+				add $9, $0
+				adc $10, $1
+				adc $11, $2
+				adc $12, $3
+				setc %al
+				"
+			: "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]), "={al}"(overflow)
+			: "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]),
 			  "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3])
-            :
-            :
+			:
+			:
 			);
 		}
 		(U256(result), overflow != 0)
 	});
+	(U512, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		let mut result: [u64; 8] = unsafe { mem::uninitialized() };
+		let self_t: &[u64; 8] = unsafe { &mem::transmute($self_expr) };
+		let other_t: &[u64; 8] = unsafe { &mem::transmute($other) };
+
+		let overflow: u8;
+
+		unsafe {
+			asm!("
+				add $15, $0
+				adc $16, $1
+				adc $17, $2
+				adc $18, $3
+				lodsq
+				adc $11, %rax
+				stosq
+				lodsq
+				adc $12, %rax
+				stosq
+				lodsq
+				adc $13, %rax
+				stosq
+				lodsq
+				adc $14, %rax
+				stosq
+				setc %al
+
+				": "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]),
+
+			  "={al}"(overflow) /* $0 - $4 */
+
+            : "{rdi}"(&result[4] as *const u64) /* $5 */
+			  "{rsi}"(&other_t[4] as *const u64) /* $6 */
+			  "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]),
+		  	  "m"(self_t[4]), "m"(self_t[5]), "m"(self_t[6]), "m"(self_t[7]),
+			  /* $7 - $14 */
+
+			  "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3]),
+              "m"(other_t[4]), "m"(other_t[5]), "m"(other_t[6]), "m"(other_t[7]) /* $15 - $22 */
+			: "rdi", "rsi"
+			:
+			);
+		}
+		(U512(result), overflow != 0)
+	});
+
 	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => (
 		uint_overflowing_add_reg!($name, $n_words, $self_expr, $other)
 	)
@@ -138,18 +184,64 @@ macro_rules! uint_overflowing_sub {
 		let overflow: u8;
 		unsafe {
 			asm!("
-                sbb $9, $0
-                sbb $10, $1
-                sbb $11, $2
-                sbb $12, $3
-                setb %al"
-             	: "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]), "={al}"(overflow)
+				sub $9, $0
+				sbb $10, $1
+				sbb $11, $2
+				sbb $12, $3
+				setb %al
+				"
+				: "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]), "={al}"(overflow)
 				: "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]), "mr"(other_t[0]), "mr"(other_t[1]), "mr"(other_t[2]), "mr"(other_t[3])
 				:
 				:
 			);
 		}
 		(U256(result), overflow != 0)
+	});
+	(U512, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		let mut result: [u64; 8] = unsafe { mem::uninitialized() };
+		let self_t: &[u64; 8] = unsafe { &mem::transmute($self_expr) };
+		let other_t: &[u64; 8] = unsafe { &mem::transmute($other) };
+
+		let overflow: u8;
+
+		unsafe {
+			asm!("
+				sub $15, $0
+				sbb $16, $1
+				sbb $17, $2
+				sbb $18, $3
+				lodsq
+				sbb $19, %rax
+				stosq
+				lodsq
+				sbb $20, %rax
+				stosq
+				lodsq
+				sbb $21, %rax
+				stosq
+				lodsq
+				sbb $22, %rax
+				stosq
+				setb %al
+				"
+			: "=r"(result[0]), "=r"(result[1]), "=r"(result[2]), "=r"(result[3]),
+
+			  "={al}"(overflow) /* $0 - $4 */
+
+			: "{rdi}"(&result[4] as *const u64) /* $5 */
+		 	 "{rsi}"(&self_t[4] as *const u64) /* $6 */
+			  "0"(self_t[0]), "1"(self_t[1]), "2"(self_t[2]), "3"(self_t[3]),
+			  "m"(self_t[4]), "m"(self_t[5]), "m"(self_t[6]), "m"(self_t[7]),
+			  /* $7 - $14 */
+
+			  "m"(other_t[0]), "m"(other_t[1]), "m"(other_t[2]), "m"(other_t[3]),
+			  "m"(other_t[4]), "m"(other_t[5]), "m"(other_t[6]), "m"(other_t[7]) /* $15 - $22 */
+			: "rdi", "rsi"
+			:
+			);
+		}
+		(U512(result), overflow != 0)
 	});
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let res = overflowing!((!$other).overflowing_add(From::from(1u64)));
@@ -675,7 +767,7 @@ macro_rules! construct_uint {
 				self.to_bytes(&mut bytes);
 				let len = cmp::max((self.bits() + 7) / 8, 1);
 				hex.push_str(bytes[bytes.len() - len..].to_hex().as_ref());
-				serializer.visit_str(hex.as_ref())
+				serializer.serialize_str(hex.as_ref())
 			}
 		}
 
@@ -1490,6 +1582,38 @@ mod tests {
 		assert_eq!(format!("{}", U256::from(0)), "0");
 	}
 
+    #[test]
+    fn u512_multi_adds() {
+		let (result, _) = U512([0, 0, 0, 0, 0, 0, 0, 0]).overflowing_add(U512([0, 0, 0, 0, 0, 0, 0, 0]));
+		assert_eq!(result, U512([0, 0, 0, 0, 0, 0, 0, 0]));
+
+		let (result, _) = U512([1, 0, 0, 0, 0, 0, 0, 1]).overflowing_add(U512([1, 0, 0, 0, 0, 0, 0, 1]));
+		assert_eq!(result, U512([2, 0, 0, 0, 0, 0, 0, 2]));
+
+		let (result, _) = U512([0, 0, 0, 0, 0, 0, 0, 1]).overflowing_add(U512([0, 0, 0, 0, 0, 0, 0, 1]));
+		assert_eq!(result, U512([0, 0, 0, 0, 0, 0, 0, 2]));
+
+		let (result, _) = U512([0, 0, 0, 0, 0, 0, 2, 1]).overflowing_add(U512([0, 0, 0, 0, 0, 0, 3, 1]));
+		assert_eq!(result, U512([0, 0, 0, 0, 0, 0, 5, 2]));
+
+		let (result, _) = U512([1, 2, 3, 4, 5, 6, 7, 8]).overflowing_add(U512([9, 10, 11, 12, 13, 14, 15, 16]));
+		assert_eq!(result, U512([10, 12, 14, 16, 18, 20, 22, 24]));
+
+		let (_, overflow) = U512([0, 0, 0, 0, 0, 0, 2, 1]).overflowing_add(U512([0, 0, 0, 0, 0, 0, 3, 1]));
+		assert!(!overflow);
+
+		let (_, overflow) = U512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX])
+			.overflowing_add(U512([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]));
+		assert!(overflow);
+
+		let (_, overflow) = U512([0, 0, 0, 0, 0, 0, 0, ::std::u64::MAX])
+			.overflowing_add(U512([0, 0, 0, 0, 0, 0, 0, ::std::u64::MAX]));
+        assert!(overflow);
+
+		let (_, overflow) = U512([0, 0, 0, 0, 0, 0, 0, ::std::u64::MAX])
+			.overflowing_add(U512([0, 0, 0, 0, 0, 0, 0, 0]));
+		assert!(!overflow);
+	}
 
     #[test]
     fn u256_multi_adds() {
@@ -1535,6 +1659,21 @@ mod tests {
 		let (result, overflow) = U256([0, 0, 0, 1]).overflowing_sub(U256([1, 0, 0, 0]));
 		assert!(!overflow);
 		assert_eq!(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]), result);
+	}
+
+	#[test]
+	fn u512_multi_subs() {
+		let (result, _) = U512([0, 0, 0, 0, 0, 0, 0, 0]).overflowing_sub(U512([0, 0, 0, 0, 0, 0, 0, 0]));
+		assert_eq!(result, U512([0, 0, 0, 0, 0, 0, 0, 0]));
+
+		let (result, _) = U512([10, 9, 8, 7, 6, 5, 4, 3]).overflowing_sub(U512([9, 8, 7, 6, 5, 4, 3, 2]));
+		assert_eq!(result, U512([1, 1, 1, 1, 1, 1, 1, 1]));
+
+		let (_, overflow) = U512([10, 9, 8, 7, 6, 5, 4, 3]).overflowing_sub(U512([9, 8, 7, 6, 5, 4, 3, 2]));
+		assert!(!overflow);
+
+		let (_, overflow) = U512([9, 8, 7, 6, 5, 4, 3, 2]).overflowing_sub(U512([10, 9, 8, 7, 6, 5, 4, 3]));
+		assert!(overflow);
 	}
 
 	#[test]

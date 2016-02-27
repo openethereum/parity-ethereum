@@ -19,11 +19,12 @@
 use keys::directory::*;
 use common::*;
 use rcrypto::pbkdf2::*;
+use rcrypto::scrypt::*;
 use rcrypto::hmac::*;
 use crypto;
 
 const KEY_LENGTH: u32 = 32;
-const KEY_ITERATIONS: u32 = 4096;
+const KEY_ITERATIONS: u32 = 10240;
 const KEY_LENGTH_AES: u32 = KEY_LENGTH/2;
 
 const KEY_LENGTH_USIZE: usize = KEY_LENGTH as usize;
@@ -60,13 +61,60 @@ pub struct SecretStore {
 }
 
 impl SecretStore {
-	/// new instance of Secret Store
+	/// new instance of Secret Store in default home directory
 	pub fn new() -> SecretStore {
 		let mut path = ::std::env::home_dir().expect("Failed to get home dir");
-		path.push(".keys");
+		path.push(".parity");
+		path.push("keys");
+		Self::new_in(&path)
+	}
+
+	/// new instance of Secret Store in specific directory
+	pub fn new_in(path: &Path) -> SecretStore {
 		SecretStore {
-			directory: KeyDirectory::new(&path)
+			directory: KeyDirectory::new(path)
 		}
+	}
+
+	/// trys to import keys in the known locations
+	pub fn try_import_existing(&mut self) {
+		use std::path::PathBuf;
+		use keys::geth_import;
+
+		let mut import_path = PathBuf::new();
+		import_path.push(::std::env::home_dir().expect("Failed to get home dir"));
+		import_path.push(".ethereum");
+		import_path.push("keystore");
+		if let Err(e) = geth_import::import_geth_keys(self, &import_path) {
+			warn!(target: "sstore", "Error retrieving geth keys: {:?}", e)
+		}
+	}
+
+	/// Lists all accounts and corresponding key ids
+	pub fn accounts(&self) -> Result<Vec<(Address, H128)>, ::std::io::Error> {
+		let accounts = try!(self.directory.list()).iter().map(|key_id| self.directory.get(key_id))
+			.filter(|key| key.is_some())
+			.map(|key| { let some_key = key.unwrap(); (some_key.account, some_key.id) })
+			.filter(|&(ref account, _)| account.is_some())
+			.map(|(account, id)| (account.unwrap(), id))
+			.collect::<Vec<(Address, H128)>>();
+		Ok(accounts)
+	}
+
+	/// Resolves key_id by account address
+	pub fn account(&self, account: &Address) -> Option<H128> {
+		let mut accounts = match self.accounts() {
+			Ok(accounts) => accounts,
+			Err(e) => { warn!(target: "sstore", "Failed to load accounts: {}", e); return None; }
+		};
+		accounts.retain(|&(ref store_account, _)| account == store_account);
+		accounts.first().and_then(|&(_, ref key_id)| Some(key_id.clone()))
+	}
+
+	/// Imports pregenerated key, returns error if not saved correctly
+	pub fn import_key(&mut self, key_file: KeyFileContent) -> Result<(), ::std::io::Error> {
+		try!(self.directory.save(key_file));
+		Ok(())
 	}
 
 	#[cfg(test)]
@@ -90,6 +138,15 @@ fn derive_key(password: &str, salt: &H256) -> (Bytes, Bytes) {
 	derive_key_iterations(password, salt, KEY_ITERATIONS)
 }
 
+fn derive_key_scrypt(password: &str, salt: &H256, n: u32, p: u32, r: u32) -> (Bytes, Bytes) {
+	let mut derived_key = vec![0u8; KEY_LENGTH_USIZE];
+	let scrypt_params = ScryptParams::new(n.trailing_zeros() as u8, r, p);
+	scrypt(password.as_bytes(), &salt.as_slice(), &scrypt_params, &mut derived_key);
+	let derived_right_bits = &derived_key[0..KEY_LENGTH_AES_USIZE];
+	let derived_left_bits = &derived_key[KEY_LENGTH_AES_USIZE..KEY_LENGTH_USIZE];
+	(derived_right_bits.to_vec(), derived_left_bits.to_vec())
+}
+
 fn derive_mac(derived_left_bits: &[u8], cipher_text: &[u8]) -> Bytes {
 	let mut mac = vec![0u8; KEY_LENGTH_AES_USIZE + cipher_text.len()];
 	mac[0..KEY_LENGTH_AES_USIZE].clone_from_slice(derived_left_bits);
@@ -101,24 +158,22 @@ impl EncryptedHashMap<H128> for SecretStore {
 	fn get<Value: FromRawBytes + BytesConvertable>(&self, key: &H128, password: &str) -> Result<Value, EncryptedHashMapError> {
 		match self.directory.get(key) {
 			Some(key_file) => {
-				let decrypted_bytes = match key_file.crypto.kdf {
-					KeyFileKdf::Pbkdf2(ref params) => {
-						let (derived_left_bits, derived_right_bits) = derive_key_iterations(password, &params.salt, params.c);
-						if derive_mac(&derived_right_bits, &key_file.crypto.cipher_text)
-							.sha3() != key_file.crypto.mac { return Err(EncryptedHashMapError::InvalidPassword); }
-
-						let mut val = vec![0u8; key_file.crypto.cipher_text.len()];
-						match key_file.crypto.cipher_type {
-							CryptoCipherType::Aes128Ctr(ref iv) => {
-								crypto::aes::decrypt(&derived_left_bits, &iv.as_slice(), &key_file.crypto.cipher_text, &mut val);
-							}
-						}
-						val
-					}
-					_ => { unimplemented!(); }
+				let (derived_left_bits, derived_right_bits) = match key_file.crypto.kdf {
+					KeyFileKdf::Pbkdf2(ref params) => derive_key_iterations(password, &params.salt, params.c),
+					KeyFileKdf::Scrypt(ref params) => derive_key_scrypt(password, &params.salt, params.n, params.p, params.r)
 				};
 
-				match Value::from_bytes(&decrypted_bytes) {
+				if derive_mac(&derived_right_bits, &key_file.crypto.cipher_text)
+					.sha3() != key_file.crypto.mac { return Err(EncryptedHashMapError::InvalidPassword); }
+
+				let mut val = vec![0u8; key_file.crypto.cipher_text.len()];
+				match key_file.crypto.cipher_type {
+					CryptoCipherType::Aes128Ctr(ref iv) => {
+						crypto::aes::decrypt(&derived_left_bits, &iv.as_slice(), &key_file.crypto.cipher_text, &mut val);
+					}
+				};
+
+				match Value::from_bytes(&val) {
 					Ok(value) => Ok(value),
 					Err(bytes_error) => Err(EncryptedHashMapError::InvalidValueFormat(bytes_error))
 				}
@@ -259,6 +314,27 @@ mod tests {
 		result
 	}
 
+	fn pregenerate_accounts(temp: &RandomTempPath, count: usize) -> Vec<H128> {
+		use keys::directory::{KeyFileContent, KeyFileCrypto};
+		let mut write_sstore = SecretStore::new_test(&temp);
+		let mut result = Vec::new();
+		for i in 0..count {
+			let mut key_file =
+				KeyFileContent::new(
+					KeyFileCrypto::new_pbkdf2(
+						FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46").unwrap(),
+						H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
+						H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap(),
+						H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
+						262144,
+						32));
+			key_file.account = Some(x!(i as u64));
+			result.push(key_file.id.clone());
+			write_sstore.import_key(key_file).unwrap();
+		}
+		result
+	}
+
 	#[test]
 	fn can_get() {
 		let temp = RandomTempPath::create_dir();
@@ -293,5 +369,35 @@ mod tests {
 		assert_eq!(4, sstore.directory.list().unwrap().len())
 	}
 
+	#[test]
+	fn can_import_account() {
+		use keys::directory::{KeyFileContent, KeyFileCrypto};
+		let temp = RandomTempPath::create_dir();
+		let mut key_file =
+			KeyFileContent::new(
+				KeyFileCrypto::new_pbkdf2(
+					FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46").unwrap(),
+					H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
+					H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap(),
+					H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
+					262144,
+					32));
+		key_file.account = Some(Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
 
+		let mut sstore = SecretStore::new_test(&temp);
+
+		sstore.import_key(key_file).unwrap();
+
+		assert_eq!(1, sstore.accounts().unwrap().len());
+		assert!(sstore.account(&Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap()).is_some());
+	}
+
+	#[test]
+	fn can_list_accounts() {
+		let temp = RandomTempPath::create_dir();
+		pregenerate_accounts(&temp, 30);
+		let sstore = SecretStore::new_test(&temp);
+		let accounts = sstore.accounts().unwrap();
+		assert_eq!(30, accounts.len());
+	}
 }

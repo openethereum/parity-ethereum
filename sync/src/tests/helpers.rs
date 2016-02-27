@@ -15,14 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, TransactionId, BlockId};
-use ethcore::block_queue::BlockQueueInfo;
+use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, TransactionId, BlockId, BlockQueueInfo};
 use ethcore::header::{Header as BlockHeader, BlockNumber};
 use ethcore::error::*;
 use io::SyncIo;
-use chain::{ChainSync};
+use chain::ChainSync;
+use ::SyncConfig;
 use ethcore::receipt::Receipt;
 use ethcore::transaction::LocalizedTransaction;
+use ethcore::filter::Filter;
+use ethcore::log_entry::LocalizedLogEntry;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
@@ -108,6 +110,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
+		unimplemented!();
+	}
+
+	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
+		unimplemented!();
+	}
+
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
 		unimplemented!();
 	}
 
@@ -241,6 +251,9 @@ impl BlockChainClient for TestBlockChainClient {
 			verified_queue_size: 0,
 			unverified_queue_size: 0,
 			verifying_queue_size: 0,
+			max_queue_size: 0,
+			max_mem_use: 0,
+			mem_used: 0,
 		}
 	}
 
@@ -330,7 +343,7 @@ impl TestNet {
 		for _ in 0..n {
 			net.peers.push(TestPeer {
 				chain: TestBlockChainClient::new(),
-				sync: ChainSync::new(),
+				sync: ChainSync::new(SyncConfig::default()),
 				queue: VecDeque::new(),
 			});
 		}

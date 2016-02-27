@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::test_common::*;
-use client::{BlockChainClient,Client};
+use client::{BlockChainClient, Client, ClientConfig};
 use pod_state::*;
 use block::Block;
 use ethereum;
@@ -53,7 +53,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 			let temp = RandomTempPath::new();
 			{
-				let client = Client::new(spec, temp.as_path(), IoChannel::disconnected()).unwrap();
+				let client = Client::new(ClientConfig::default(), spec, temp.as_path(), IoChannel::disconnected()).unwrap();
 				assert_eq!(client.chain_info().best_block_hash, genesis_hash);
 				for (b, is_valid) in blocks.into_iter() {
 					if Block::is_good(&b) {

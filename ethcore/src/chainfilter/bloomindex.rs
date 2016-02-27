@@ -14,22 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod block;
-mod block_number;
-mod bytes;
-mod filter;
-mod index;
-mod log;
-mod optionals;
-mod sync;
-mod transaction;
+//! Represents bloom index in cache
 
-pub use self::block::{Block, BlockTransactions};
-pub use self::block_number::BlockNumber;
-pub use self::bytes::Bytes;
-pub use self::filter::Filter;
-pub use self::index::Index;
-pub use self::log::Log;
-pub use self::optionals::OptionalValue;
-pub use self::sync::{SyncStatus, SyncInfo};
-pub use self::transaction::Transaction;
+/// Represents bloom index in cache
+/// 
+/// On cache level 0, every block bloom is represented by different index.
+/// On higher cache levels, multiple block blooms are represented by one
+/// index. Their `BloomIndex` can be created from block number and given level.
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
+pub struct BloomIndex {
+	/// Bloom level
+	pub level: u8,
+	///  Filter Index
+	pub index: usize,
+}
+
+impl BloomIndex {
+	/// Default constructor for `BloomIndex`
+	pub fn new(level: u8, index: usize) -> BloomIndex {
+		BloomIndex {
+			level: level,
+			index: index,
+		}
+	}
+}
