@@ -40,16 +40,9 @@
 //! - Ubuntu 14.04 and later:
 //!
 //!   ```bash
-//!   # install rocksdb
-//!   add-apt-repository "deb http://ppa.launchpad.net/giskou/librocksdb/ubuntu trusty main"
-//!   apt-get update
-//!   apt-get install -y --force-yes librocksdb
 //!
 //!   # install multirust
 //!   curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
-//!
-//!   # install nightly and make it default
-//!   multirust update nightly && multirust default nightly
 //!
 //!   # export rust LIBRARY_PATH
 //!   export LIBRARY_PATH=/usr/local/lib
@@ -57,6 +50,7 @@
 //!   # download and build parity
 //!   git clone https://github.com/ethcore/parity
 //!   cd parity
+//!   multirust override beta
 //!   cargo build --release
 //!   ```
 //!
@@ -65,11 +59,7 @@
 //!   ```bash
 //!   # install rocksdb && multirust
 //!   brew update
-//!   brew install rocksdb
 //!   brew install multirust
-//!
-//!   # install nightly and make it default
-//!   multirust update nightly && multirust default nightly
 //!
 //!   # export rust LIBRARY_PATH
 //!   export LIBRARY_PATH=/usr/local/lib
@@ -77,6 +67,7 @@
 //!   # download and build parity
 //!   git clone https://github.com/ethcore/parity
 //!   cd parity
+//!   multirust override beta
 //!   cargo build --release
 //!   ```
 
