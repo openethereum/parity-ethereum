@@ -1537,6 +1537,76 @@ mod tests {
         assert_eq!(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]), result);
     }
 
+	#[test]
+	fn u256_multi_carry_all() {
+        let (result, _) = U256([::std::u64::MAX, 0, 0, 0]).overflowing_mul(U256([::std::u64::MAX, 0, 0, 0]));
+        assert_eq!(U256([1, ::std::u64::MAX-1, 0, 0]), result);
+
+        let (result, _) = U256([0, ::std::u64::MAX, 0, 0]).overflowing_mul(U256([::std::u64::MAX, 0, 0, 0]));
+        assert_eq!(U256([0, 1, ::std::u64::MAX-1, 0]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, 0, 0]).overflowing_mul(U256([::std::u64::MAX, 0, 0, 0]));
+        assert_eq!(U256([1, ::std::u64::MAX, ::std::u64::MAX-1, 0]), result);
+
+        let (result, _) = U256([::std::u64::MAX, 0, 0, 0]).overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, 0, 0]));
+        assert_eq!(U256([1, ::std::u64::MAX, ::std::u64::MAX-1, 0]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, 0, 0])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, 0, 0]));
+        assert_eq!(U256([1, 0, ::std::u64::MAX-1, ::std::u64::MAX]), result);
+
+        let (result, _) = U256([::std::u64::MAX, 0, 0, 0]).overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]));
+        assert_eq!(U256([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX-1]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]).overflowing_mul(U256([::std::u64::MAX, 0, 0, 0]));
+        assert_eq!(U256([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX-1]), result);
+
+        let (result, _) = U256([::std::u64::MAX, 0, 0, 0]).overflowing_mul(
+			U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]));
+        assert_eq!(U256([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX])
+			.overflowing_mul(U256([::std::u64::MAX, 0, 0, 0]));
+        assert_eq!(U256([1, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, 0, 0]));
+        assert_eq!(U256([1, 0, ::std::u64::MAX, ::std::u64::MAX-1]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, 0, 0])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]));
+        assert_eq!(U256([1, 0, ::std::u64::MAX, ::std::u64::MAX-1]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, 0, 0]));
+        assert_eq!(U256([1, 0, ::std::u64::MAX, ::std::u64::MAX]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, 0, 0])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]));
+        assert_eq!(U256([1, 0, ::std::u64::MAX, ::std::u64::MAX]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]));
+        assert_eq!(U256([1, 0, 0, ::std::u64::MAX-1]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]));
+        assert_eq!(U256([1, 0, 0, ::std::u64::MAX]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, 0]));
+        assert_eq!(U256([1, 0, 0, ::std::u64::MAX]), result);
+
+        let (result, _) = U256([0, 0, 0, ::std::u64::MAX]).overflowing_mul(U256([0, 0, 0, ::std::u64::MAX]));
+        assert_eq!(U256([0, 0, 0, 0]), result);
+
+        let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, ::std::u64::MAX]));
+        assert_eq!(U256([0, 0, 0, ::std::u64::MAX]), result);
+
+        let (result, _) = U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX])
+			.overflowing_mul(U256([::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX, ::std::u64::MAX]));
+        assert_eq!(U256([1, 0, 0, 0]), result);
+	}
 
 	#[test]
 	fn u256_multi_muls() {
