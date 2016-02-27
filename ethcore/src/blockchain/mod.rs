@@ -24,6 +24,6 @@ mod cache;
 mod tree_route;
 mod update;
 
-pub use self::blockchain::{BlockProvider, BlockChain};
+pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
 pub use self::cache::CacheSize;
 pub use self::tree_route::TreeRoute;

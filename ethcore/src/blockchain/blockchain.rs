@@ -33,6 +33,24 @@ use blockchain::CacheSize;
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
 
+/// Blockchain configuration.
+#[derive(Debug)]
+pub struct BlockChainConfig {
+	/// Preferred cache size in bytes.
+	pub pref_cache_size: usize,
+	/// Maximum cache size in bytes.
+	pub max_cache_size: usize,
+}
+
+impl Default for BlockChainConfig {
+	fn default() -> Self {
+		BlockChainConfig {
+			pref_cache_size: 1 << 14,
+			max_cache_size: 1 << 20,
+		}
+	}
+}
+
 /// Interface for querying blocks by hash and by number.
 pub trait BlockProvider {
 	/// Returns true if the given block is known
@@ -211,33 +229,7 @@ const COLLECTION_QUEUE_SIZE: usize = 8;
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
-	///
-	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// extern crate ethcore;
-	/// use std::env;
-	/// use std::str::FromStr;
-	/// use ethcore::spec::*;
-	/// use ethcore::blockchain::*;
-	/// use ethcore::ethereum;
-	/// use util::hash::*;
-	/// use util::uint::*;
-	///
-	/// fn main() {
-	/// 	let spec = ethereum::new_frontier();
-	///
-	/// 	let mut dir = env::temp_dir();
-	/// 	dir.push(H32::random().hex());
-	///
-	/// 	let bc = BlockChain::new(&spec.genesis_block(), &dir);
-	///
-	/// 	let genesis_hash = "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3";
-	/// 	assert_eq!(bc.genesis_hash(), H256::from_str(genesis_hash).unwrap());
-	/// 	assert!(bc.is_known(&bc.genesis_hash()));
-	/// 	assert_eq!(bc.genesis_hash(), bc.block_hash(0).unwrap());
-	/// }
-	/// ```
-	pub fn new(genesis: &[u8], path: &Path) -> BlockChain {
+	pub fn new(config: BlockChainConfig, genesis: &[u8], path: &Path) -> BlockChain {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
@@ -252,8 +244,8 @@ impl BlockChain {
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
 
 		let bc = BlockChain {
-			pref_cache_size: 1 << 14,
-			max_cache_size: 1 << 20,
+			pref_cache_size: config.pref_cache_size,
+			max_cache_size: config.max_cache_size,
 			best_block: RwLock::new(BestBlock::default()),
 			blocks: RwLock::new(HashMap::new()),
 			block_details: RwLock::new(HashMap::new()),
@@ -762,7 +754,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use util::hash::*;
-	use blockchain::{BlockProvider, BlockChain};
+	use blockchain::{BlockProvider, BlockChain, BlockChainConfig};
 	use tests::helpers::*;
 	use devtools::*;
 
@@ -771,7 +763,7 @@ mod tests {
 		let genesis = "f901fcf901f7a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0925002c3260b44e44c3edebad1cc442142b03020209df1ab8bb86752edbd2cd7a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b90100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302000080832fefd8808454c98c8142a0363659b251bf8b819179874c8cce7b9b983d7f3704cbb58a3b334431f7032871889032d09c281e1236c0c0".from_hex().unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(&genesis, temp.as_path());
+		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 
 		let genesis_hash = H256::from_str("3caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942").unwrap();
 
@@ -816,7 +808,7 @@ mod tests {
 		let best_block_hash = H256::from_str("c208f88c9f5bf7e00840439742c12e5226d9752981f3ec0521bdcb6dd08af277").unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(&genesis, temp.as_path());
+		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 		bc.insert_block(&b1, vec![]);
 		bc.insert_block(&b2, vec![]);
 		bc.insert_block(&b3a, vec![]);
@@ -895,14 +887,14 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		{
-			let bc = BlockChain::new(&genesis, temp.as_path());
+			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			bc.insert_block(&b1, vec![]);
 			assert_eq!(bc.best_block_hash(), b1_hash);
 		}
 
 		{
-			let bc = BlockChain::new(&genesis, temp.as_path());
+			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), b1_hash);
 		}
 	}
@@ -955,7 +947,7 @@ mod tests {
 		let b1_hash = H256::from_str("f53f268d23a71e85c7d6d83a9504298712b84c1a2ba220441c86eeda0bf0b6e3").unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(&genesis, temp.as_path());
+		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 		bc.insert_block(&b1, vec![]);
 	
 		let transactions = bc.transactions(&b1_hash).unwrap();
@@ -991,7 +983,7 @@ mod tests {
 		let bloom_ba = H2048::from_str("00000000000000000000000000000000000000000000020000000800000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000008000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000002000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(&genesis, temp.as_path());
+		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);

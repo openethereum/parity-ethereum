@@ -34,15 +34,15 @@
 //! use std::env;
 //! use std::sync::Arc;
 //! use util::network::{NetworkService, NetworkConfiguration};
-//! use ethcore::client::Client;
-//! use ethsync::EthSync;
+//! use ethcore::client::{Client, ClientConfig};
+//! use ethsync::{EthSync, SyncConfig};
 //! use ethcore::ethereum;
 //!
 //! fn main() {
 //! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
 //! 	let dir = env::temp_dir();
-//! 	let client = Client::new(ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
-//! 	EthSync::register(&mut service, client);
+//! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
+//! 	EthSync::register(&mut service, SyncConfig::default(), client);
 //! }
 //! ```
 
@@ -54,12 +54,15 @@ extern crate ethcore;
 extern crate env_logger;
 extern crate time;
 extern crate rand;
+#[macro_use]
+extern crate heapsize;
 
 use std::ops::*;
 use std::sync::*;
 use ethcore::client::Client;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
 use util::TimerToken;
+use util::{U256, ONE_U256};
 use chain::ChainSync;
 use ethcore::service::SyncMessage;
 use io::NetSyncIo;
@@ -70,6 +73,23 @@ mod range_collection;
 
 #[cfg(test)]
 mod tests;
+
+/// Sync configuration
+pub struct SyncConfig {
+	/// Max blocks to download ahead
+	pub max_download_ahead_blocks: usize,
+	/// Network ID
+	pub network_id: U256,
+}
+
+impl Default for SyncConfig {
+	fn default() -> SyncConfig {
+		SyncConfig {
+			max_download_ahead_blocks: 20000,
+			network_id: ONE_U256,
+		}
+	}
+}
 
 /// Ethereum network protocol handler
 pub struct EthSync {
@@ -83,10 +103,10 @@ pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, chain: Arc<Client>) -> Arc<EthSync> {
+	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
 		let sync = Arc::new(EthSync {
 			chain: chain,
-			sync: RwLock::new(ChainSync::new()),
+			sync: RwLock::new(ChainSync::new(config)),
 		});
 		service.register_protocol(sync.clone(), "eth", &[62u8, 63u8]).expect("Error registering eth protocol handler");
 		sync

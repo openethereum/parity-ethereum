@@ -58,6 +58,8 @@ pub struct Spec {
 
 	/// Known nodes on the network in enode format.
 	pub nodes: Vec<String>,
+	/// Network ID
+	pub network_id: U256,
 
 	/// Parameters concerning operation of the specific engine we're using.
 	/// Maps the parameter name to an RLP-encoded value.
@@ -119,6 +121,9 @@ impl Spec {
 
 	/// Get the known knodes of the network in enode format.
 	pub fn nodes(&self) -> &Vec<String> { &self.nodes }
+
+	/// Get the configured Network ID.
+	pub fn network_id(&self) -> U256 { self.network_id }
 
 	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {
@@ -250,6 +255,7 @@ impl FromJson for Spec {
 			engine_name: json["engineName"].as_string().unwrap().to_owned(),
 			engine_params: json_to_rlp_map(&json["params"]),
 			nodes: nodes,
+			network_id: U256::from_str(&json["params"]["networkID"].as_string().unwrap()[2..]).unwrap(),
 			builtins: builtins,
 			parent_hash: H256::from_str(&genesis["parentHash"].as_string().unwrap()[2..]).unwrap(),
 			author: Address::from_str(&genesis["author"].as_string().unwrap()[2..]).unwrap(),
