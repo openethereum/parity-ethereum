@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, TransactionId, BlockId};
-use ethcore::block_queue::BlockQueueInfo;
+use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, TransactionId, BlockId, BlockQueueInfo};
 use ethcore::header::{Header as BlockHeader, BlockNumber};
 use ethcore::error::*;
 use io::SyncIo;
-use chain::{ChainSync};
+use chain::ChainSync;
+use ::SyncConfig;
 use ethcore::receipt::Receipt;
 use ethcore::transaction::LocalizedTransaction;
 use ethcore::filter::Filter;
@@ -251,6 +251,9 @@ impl BlockChainClient for TestBlockChainClient {
 			verified_queue_size: 0,
 			unverified_queue_size: 0,
 			verifying_queue_size: 0,
+			max_queue_size: 0,
+			max_mem_use: 0,
+			mem_used: 0,
 		}
 	}
 
@@ -340,7 +343,7 @@ impl TestNet {
 		for _ in 0..n {
 			net.peers.push(TestPeer {
 				chain: TestBlockChainClient::new(),
-				sync: ChainSync::new(),
+				sync: ChainSync::new(SyncConfig::default()),
 				queue: VecDeque::new(),
 			});
 		}
