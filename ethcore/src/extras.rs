@@ -262,15 +262,6 @@ impl Encodable for BlocksBlooms {
 	}
 }
 
-/// Represents location of bloom in database.
-#[derive(Debug, PartialEq)]
-pub struct BlocksBloomLocation {
-	/// Unique hash of BlocksBloom
-	pub hash: H256,
-	/// Index within BlocksBloom
-	pub index: usize,
-}
-
 /// Represents address of certain transaction within block
 #[derive(Clone)]
 pub struct TransactionAddress {
