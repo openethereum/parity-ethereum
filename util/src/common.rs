@@ -24,7 +24,6 @@ pub use vector::*;
 pub use numbers::*;
 pub use sha3::*;
 
-
 #[macro_export]
 macro_rules! map {
 	( $( $x:expr => $y:expr ),* ) => {
