@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::common::H256;
+use util::numbers::H256;
 
 /// Represents a tree route between `from` block and `to` block:
 #[derive(Debug)]

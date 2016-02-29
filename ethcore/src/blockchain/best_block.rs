@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::common::{U256,H256};
+use util::numbers::{U256,H256};
 use header::BlockNumber;
 
 /// Best block info.
