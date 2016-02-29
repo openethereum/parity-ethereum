@@ -14,22 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc.
-#![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
-#![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
+use util::hash::H256;
 
-extern crate rustc_serialize;
-extern crate serde;
-extern crate serde_json;
-extern crate jsonrpc_core;
-extern crate jsonrpc_http_server;
-extern crate ethcore_util as util;
-extern crate ethcore;
-extern crate ethsync;
+/// Represents a tree route between `from` block and `to` block:
+#[derive(Debug)]
+pub struct TreeRoute {
+	/// A vector of hashes of all blocks, ordered from `from` to `to`.
+	pub blocks: Vec<H256>,
+	/// Best common ancestor of these blocks.
+	pub ancestor: H256,
+	/// An index where best common ancestor would be.
+	pub index: usize,
+}
 
-#[cfg(feature = "serde_macros")]
-include!("lib.rs.in");
-
-#[cfg(not(feature = "serde_macros"))]
-include!(concat!(env!("OUT_DIR"), "/lib.rs"));

@@ -14,22 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc.
-#![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
-#![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
+/// Represents blockchain's in-memory cache size in bytes.
+#[derive(Debug)]
+pub struct CacheSize {
+	/// Blocks cache size.
+	pub blocks: usize,
+	/// BlockDetails cache size.
+	pub block_details: usize,
+	/// Transaction addresses cache size.
+	pub transaction_addresses: usize,
+	/// Logs cache size.
+	pub block_logs: usize,
+	/// Blooms cache size.
+	pub blocks_blooms: usize,
+	/// Block receipts size.
+	pub block_receipts: usize,
+}
 
-extern crate rustc_serialize;
-extern crate serde;
-extern crate serde_json;
-extern crate jsonrpc_core;
-extern crate jsonrpc_http_server;
-extern crate ethcore_util as util;
-extern crate ethcore;
-extern crate ethsync;
-
-#[cfg(feature = "serde_macros")]
-include!("lib.rs.in");
-
-#[cfg(not(feature = "serde_macros"))]
-include!(concat!(env!("OUT_DIR"), "/lib.rs"));
+impl CacheSize {
+	/// Total amount used by the cache.
+	pub fn total(&self) -> usize { self.blocks + self.block_details + self.transaction_addresses + self.block_logs + self.blocks_blooms }
+}

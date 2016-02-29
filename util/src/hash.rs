@@ -235,11 +235,11 @@ macro_rules! impl_hash {
 		}
 
 		impl serde::Serialize for $from {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				hex.push_str(self.to_hex().as_ref());
-				serializer.visit_str(hex.as_ref())
+				serializer.serialize_str(hex.as_ref())
 			}
 		}
 
@@ -250,14 +250,14 @@ macro_rules! impl_hash {
 
 				impl serde::de::Visitor for HashVisitor {
 					type Value = $from;
-					
+
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
 						// 0x + len
 						if value.len() != 2 + $size * 2 {
-							return Err(serde::Error::syntax("Invalid length."));
+							return Err(serde::Error::custom("Invalid length."));
 						}
 
-						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::syntax("Invalid valid hex."))
+						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::custom("Invalid valid hex."))
 					}
 
 					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
@@ -265,7 +265,7 @@ macro_rules! impl_hash {
 					}
 				}
 
-				deserializer.visit(HashVisitor)
+				deserializer.deserialize(HashVisitor)
 			}
 		}
 
@@ -719,4 +719,3 @@ mod tests {
 		assert_eq!(r, u);
 	}
 }
-

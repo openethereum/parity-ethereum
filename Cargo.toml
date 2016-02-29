@@ -20,6 +20,7 @@ ethcore-rpc = { path = "rpc", optional = true }
 fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
 ethcore-devtools = { path = "devtools" }
+number_prefix = "0.2"
 
 [features]
 default = ["rpc"]

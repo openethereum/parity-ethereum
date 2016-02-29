@@ -342,8 +342,6 @@ function run_installer()
 		exe brew update
 		echo
 
-		info "Installing rocksdb"
-		exe brew install rocksdb
 		info "Installing multirust"
 		exe brew install multirust
 		sudo multirust default beta
@@ -391,7 +389,6 @@ function run_installer()
 		linux_version
 
 		find_multirust
-		find_rocksdb
 
 		find_curl
 		find_git
@@ -400,21 +397,6 @@ function run_installer()
 
 		find_apt
 		find_sudo
-	}
-
-	function find_rocksdb()
-	{
-		depCount=$((depCount+1))
-		if [[ $(ldconfig -v 2>/dev/null | grep rocksdb | wc -l) == 1 ]]; then
-			depFound=$((depFound+1))
-			check "apt-get"
-			isRocksDB=true
-			INSTALL_FILES+="${blue}${dim}==> librocksdb:${reset}$n"
-		else
-			uncheck "librocksdb is missing"
-			isRocksDB=false
-			INSTALL_FILES+="${blue}${dim}==> librocksdb:${reset}$n"
-		fi
 	}
 
 	function find_multirust()
@@ -562,34 +544,6 @@ function run_installer()
 		fi
 	}
 
-	function ubuntu_rocksdb_installer()
-	{
-		sudo apt-get update -qq
-		sudo apt-get install -qq -y software-properties-common
-		sudo apt-add-repository -y ppa:ethcore/ethcore
-		sudo apt-get -f -y install
-		sudo apt-get update -qq
-		sudo apt-get install -qq -y librocksdb-dev librocksdb
-	}
-
-	function linux_rocksdb_installer()
-	{
-		if [[ $isUbuntu == true ]]; then
-			ubuntu_rocksdb_installer
-		else
-			oldpwd=`pwd`
-			cd /tmp
-			exe git clone --branch v4.2 --depth=1 https://github.com/facebook/rocksdb.git
-			cd rocksdb
-			exe make shared_lib
-			sudo cp -a librocksdb.so* /usr/lib
-			sudo ldconfig
-			cd /tmp
-			rm -rf /tmp/rocksdb
-			cd $oldpwd
-		fi
-	}
-
 	function linux_installer()
 	{
 		if [[ $isGCC == false || $isGit == false || $isMake == false || $isCurl == false ]]; then
@@ -607,12 +561,6 @@ function run_installer()
 			if [[ $isCurl == false ]]; then
 				sudo apt-get install -q -y curl
 			fi
-			echo
-		fi
-
-		if [[ $isRocksDB == false ]]; then
-			info "Installing rocksdb..."
-			linux_rocksdb_installer
 			echo
 		fi
 
@@ -655,10 +603,9 @@ function run_installer()
 			find_git
 			find_make
 			find_gcc
-			find_rocksdb
 			find_multirust
 
-			if [[ $isCurl == false || $isGit == false || $isMake == false || $isGCC == false || $isRocksDB == false || $isMultirustBeta == false ]]; then
+			if [[ $isCurl == false || $isGit == false || $isMake == false || $isGCC == false || $isMultirustBeta == false ]]; then
 				abort_install
 			fi
 		fi

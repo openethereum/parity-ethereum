@@ -16,6 +16,7 @@
 
 #![warn(missing_docs)]
 #![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="x64asm", feature(asm))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
 // Clippy settings
@@ -129,6 +130,7 @@ pub mod hashdb;
 pub mod memorydb;
 pub mod overlaydb;
 pub mod journaldb;
+pub mod kvdb;
 mod math;
 pub mod crypto;
 pub mod triehash;
@@ -161,4 +163,5 @@ pub use semantic_version::*;
 pub use network::*;
 pub use io::*;
 pub use log::*;
+pub use kvdb::*;
 
