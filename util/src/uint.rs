@@ -1105,8 +1105,8 @@ impl U256 {
 		let self_t: &[u64; 4] = unsafe { &mem::transmute(self) };
 		let other_t: &[u64; 4] = unsafe { &mem::transmute(other) };
 		let mut result: [u64; 8] = unsafe { mem::uninitialized() };
-        unsafe {
-            asm!("
+		unsafe {
+			asm!("
 				mov $8, %rax
 				mulq $12
 				mov %rax, $0
@@ -1230,11 +1230,11 @@ impl U256 {
             : /* $8 */ "m"(self_t[0]), /* $9 */ "m"(self_t[1]), /* $10 */  "m"(self_t[2]),
 			  /* $11 */ "m"(self_t[3]), /* $12 */ "m"(other_t[0]), /* $13 */ "m"(other_t[1]),
 			  /* $14 */ "m"(other_t[2]), /* $15 */ "m"(other_t[3])
-            : "rax", "rdx"
-            :
-            );
-        }
-        U512(result)
+			: "rax", "rdx"
+			:
+			);
+		}
+		U512(result)
 	}
 
 	/// Multiplies two 256-bit integers to produce full 512-bit integer
