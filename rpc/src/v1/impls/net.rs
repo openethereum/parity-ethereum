@@ -15,31 +15,31 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Net rpc implementation.
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethsync::EthSync;
 use v1::traits::Net;
 
 /// Net rpc implementation.
 pub struct NetClient {
-	sync: Arc<EthSync>
+	sync: Weak<EthSync>
 }
 
 impl NetClient {
 	/// Creates new NetClient.
-	pub fn new(sync: Arc<EthSync>) -> Self { 
+	pub fn new(sync: &Arc<EthSync>) -> Self {
 		NetClient {
-			sync: sync
+			sync: Arc::downgrade(sync)
 		}
 	}
 }
 
 impl Net for NetClient {
 	fn version(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::U64(self.sync.status().protocol_version as u64))
+		Ok(Value::U64(take_weak!(self.sync).status().protocol_version as u64))
 	}
 
 	fn peer_count(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(self.sync.status().num_peers as u64))
+		Ok(Value::U64(take_weak!(self.sync).status().num_peers as u64))
 	}
 }
