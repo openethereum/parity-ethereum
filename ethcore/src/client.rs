@@ -21,7 +21,7 @@ use util::panics::*;
 use blockchain::{BlockChain, BlockProvider};
 use views::BlockView;
 use error::*;
-use header::{BlockNumber, Header};
+use header::{BlockNumber};
 use state::State;
 use spec::Spec;
 use engine::Engine;
@@ -421,15 +421,15 @@ impl Client {
 
 		info!("Preparing to seal.");
 		let b = OpenBlock::new(
-			&self.engine,
-			self.state_db.lock(),
-			self.chain.read().unwrap().block_header(&h).unwrap_or_else(|| {return;}),
+			self.engine.deref().deref(),
+			self.state_db.lock().unwrap().clone(),
+			match self.chain.read().unwrap().block_header(&h) { Some(ref x) => x, None => {return;} },
 			self.build_last_hashes(h.clone()),
 			x!("0037a6b811ffeb6e072da21179d11b1406371c63"),
-			b"Parity".to_owned()
+			b"Parity".to_vec()
 		);
 		let b = b.close();
-		info!("Sealed: hash={}, diff={}, number={}", b.hash(), b.block().difficulty(), b.block().number());
+		info!("Sealed: hash={}, diff={}, number={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
 		*self._sealing_block.lock().unwrap() = Some(b);
 	}
 }
