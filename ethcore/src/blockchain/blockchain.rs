@@ -433,48 +433,56 @@ impl BlockChain {
 		batch.put(b"best", &update.info.hash).unwrap();
 
 		// These cached values must be updated atomically
-		let mut best_block = self.best_block.write().unwrap();
-		let mut write_hashes = self.block_hashes.write().unwrap();
-		let mut write_txs = self.transaction_addresses.write().unwrap();
+		{
+			let mut best_block = self.best_block.write().unwrap();
+			let mut write_hashes = self.block_hashes.write().unwrap();
+			let mut write_txs = self.transaction_addresses.write().unwrap();
 
-		// update best block
-		match update.info.location {
-			BlockLocation::Branch => (),
-			_ => {
-				*best_block = BestBlock {
-					hash: update.info.hash,
-					number: update.info.number,
-					total_difficulty: update.info.total_difficulty
-				};
+			// update best block
+			match update.info.location {
+				BlockLocation::Branch => (),
+				_ => {
+					*best_block = BestBlock {
+						hash: update.info.hash,
+						number: update.info.number,
+						total_difficulty: update.info.total_difficulty
+					};
+				}
+			}
+
+			for (number, hash) in &update.block_hashes {
+				batch.put_extras(number, hash);
+				write_hashes.remove(number);
+			}
+
+			for (hash, tx_address) in &update.transactions_addresses {
+				batch.put_extras(hash, tx_address);
+				write_txs.remove(hash);
 			}
 		}
 
-		for (number, hash) in &update.block_hashes {
-			batch.put_extras(number, hash);
-			write_hashes.remove(number);
+		{
+			let mut write_details = self.block_details.write().unwrap();
+			for (hash, details) in update.block_details.into_iter() {
+				batch.put_extras(&hash, &details);
+				write_details.insert(hash, details);
+			}
 		}
 
-		let mut write_details = self.block_details.write().unwrap();
-		for (hash, details) in update.block_details.into_iter() {
-			batch.put_extras(&hash, &details);	
-			write_details.insert(hash, details);
+		{
+			let mut write_receipts = self.block_receipts.write().unwrap();
+			for (hash, receipt) in &update.block_receipts {
+				batch.put_extras(hash, receipt);
+				write_receipts.remove(hash);
+			}
 		}
 
-		let mut write_receipts = self.block_receipts.write().unwrap();
-		for (hash, receipt) in &update.block_receipts {
-			batch.put_extras(hash, receipt);
-			write_receipts.remove(hash);
-		}
-
-		for (hash, tx_address) in &update.transactions_addresses {
-			batch.put_extras(hash, tx_address);
-			write_txs.remove(hash);
-		}
-
-		let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
-		for (bloom_hash, blocks_bloom) in &update.blocks_blooms {
-			batch.put_extras(bloom_hash, blocks_bloom);
-			write_blocks_blooms.remove(bloom_hash);
+		{
+			let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
+			for (bloom_hash, blocks_bloom) in &update.blocks_blooms {
+				batch.put_extras(bloom_hash, blocks_bloom);
+				write_blocks_blooms.remove(bloom_hash);
+			}
 		}
 
 		// update extras database
@@ -580,7 +588,7 @@ impl BlockChain {
 	/// This function returns modified transaction addresses.
 	fn prepare_transaction_addresses_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, TransactionAddress> {
 		let block = BlockView::new(block_bytes);
-		let transaction_hashes = block.transaction_hashes();	
+		let transaction_hashes = block.transaction_hashes();
 
 		transaction_hashes.into_iter()
 			.enumerate()
