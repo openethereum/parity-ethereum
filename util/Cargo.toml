@@ -39,7 +39,7 @@ target_info = "0.1"
 [features]
 default = []
 dev = ["clippy"]
-x64asm = []
 
 [build-dependencies]
 vergen = "*"
+rustc_version = "0.1"
