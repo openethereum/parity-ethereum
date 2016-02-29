@@ -15,6 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethereum rpc interface implementation.
+
+macro_rules! take_weak {
+	($weak: expr) => {
+		match $weak.upgrade() {
+			Some(arc) => arc,
+			None => return Err(Error::internal_error())
+		}
+	}
+}
+
 mod web3;
 mod eth;
 mod net;
