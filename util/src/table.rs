@@ -56,7 +56,7 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 	}
 
 	/// Get mutable reference for single Table row.
-	pub fn get_row_mut(&mut self, row: &Row) -> Option<&mut HashMap<Col, Val>> {
+	pub fn row_mut(&mut self, row: &Row) -> Option<&mut HashMap<Col, Val>> {
 		self.map.get_mut(row)
 	}
 
@@ -66,7 +66,7 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 	}
 
 	/// Get immutable reference for single row in this Table
-	pub fn get_row(&self, row: &Row) -> Option<&HashMap<Col, Val>> {
+	pub fn row(&self, row: &Row) -> Option<&HashMap<Col, Val>> {
 		self.map.get(row)
 	}
 
@@ -97,7 +97,7 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 
 	/// Remove given row from Table if there are no values defined in it
 	///
-	/// When using `#get_row_mut` it may happen that all values from some row are drained.
+	/// When using `#row_mut` it may happen that all values from some row are drained.
 	/// Table however will not be aware that row is empty.
 	/// You can use this method to explicitly remove row entry from the Table.
 	pub fn clear_if_empty(&mut self, row: &Row) {
@@ -246,7 +246,7 @@ mod test {
 
 		// when
 		{
-			let mut row = table.get_row_mut(&1).unwrap();
+			let mut row = table.row_mut(&1).unwrap();
 			row.remove(&1);
 			row.remove(&2);
 		}
