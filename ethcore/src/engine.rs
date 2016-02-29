@@ -30,8 +30,6 @@ pub trait Engine : Sync + Send {
 
 	/// The number of additional header fields required for this engine.
 	fn seal_fields(&self) -> usize { 0 }
-	/// Default values of the additional fields RLP-encoded in a raw (non-list) harness.
-	fn seal_rlp(&self) -> Bytes { vec![] }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }

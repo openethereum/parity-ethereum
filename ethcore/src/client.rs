@@ -176,7 +176,7 @@ pub struct ClientReport {
 
 impl ClientReport {
 	/// Alter internal reporting to reflect the additional `block` has been processed.
-	pub fn accrue_block(&mut self, block: &PreVerifiedBlock) {
+	pub fn accrue_block(&mut self, block: &PreverifiedBlock) {
 		self.blocks_imported += 1;
 		self.transactions_applied += block.transactions.len();
 		self.gas_processed = self.gas_processed + block.header.gas_used;
@@ -257,7 +257,7 @@ impl Client {
 		last_hashes
 	}
 
-	fn check_and_close_block(&self, block: &PreVerifiedBlock) -> Result<ClosedBlock, ()> {
+	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<ClosedBlock, ()> {
 		let engine = self.engine.deref().deref();
 		let header = &block.header;
 
@@ -433,6 +433,28 @@ impl Client {
 
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
 	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> { &self.sealing_block }
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	pub fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+		let mut maybe_b = self.sealing_block.lock().unwrap();
+		match *maybe_b {
+			Some(ref b) if b.hash() == pow_hash => {}
+			_ => { return Err(Error::PowHashInvalid); }
+		}
+
+		let b = maybe_b.take();
+		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
+			Err(old) => {
+				*maybe_b = Some(old);
+				Err(Error::PowInvalid)
+			}
+			Ok(sealed) => {
+				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
+				try!(self.import_block(sealed.rlp_bytes()));
+				Ok(())
+			}
+		}
+	}
 }
 
 // TODO: need MinerService MinerIoHandler
@@ -509,12 +531,14 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&self, bytes: Bytes) -> ImportResult {
-		let header = BlockView::new(&bytes).header();
-		if self.chain.read().unwrap().is_known(&header.hash()) {
-			return Err(ImportError::AlreadyInChain);
-		}
-		if self.block_status(BlockId::Hash(header.parent_hash)) == BlockStatus::Unknown {
-			return Err(ImportError::UnknownParent);
+		{
+			let header = BlockView::new(&bytes).header_view();
+			if self.chain.read().unwrap().is_known(&header.sha3()) {
+				return Err(x!(ImportError::AlreadyInChain));
+			}
+			if self.block_status(BlockId::Hash(header.parent_hash())) == BlockStatus::Unknown {
+				return Err(x!(BlockError::UnknownParent(header.parent_hash())));
+			}
 		}
 		self.block_queue.write().unwrap().import_block(bytes)
 	}

@@ -21,6 +21,7 @@ use jsonrpc_core::*;
 use util::hash::*;
 use util::uint::*;
 use util::sha3::*;
+use util::rlp::encode;
 use ethcore::client::*;
 use ethcore::block::{IsBlock};
 use ethcore::views::*;
@@ -221,10 +222,10 @@ impl Eth for EthClient {
 				let u = c.sealing_block().lock().unwrap();
 				match *u {
 					Some(ref b) => {
-						let current_hash = b.hash();
+						let pow_hash = b.hash();
 						let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 						let seed_hash = get_seedhash(b.block().header().number());
-						to_value(&(current_hash, seed_hash, target))
+						to_value(&(pow_hash, seed_hash, target))
 					}
 					_ => Err(Error::invalid_params())
 				}
@@ -233,7 +234,13 @@ impl Eth for EthClient {
 		}
 	}
 
-//	fn submit_work(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn submit_work(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
+			let c = take_weak!(self.client);
+			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
+			to_value(&c.submit_seal(pow_hash, seal).is_ok())
+		})
+	}
 
 //	fn submit_hashrate(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 }

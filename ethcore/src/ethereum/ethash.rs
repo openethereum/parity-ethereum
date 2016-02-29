@@ -74,8 +74,6 @@ impl Engine for Ethash {
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	// Two fields - mix
 	fn seal_fields(&self) -> usize { 2 }
-	// Two empty data items in RLP.
-	fn seal_rlp(&self) -> Bytes { encode(&H64::new()).to_vec() }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
@@ -261,11 +259,14 @@ impl Ethash {
 }
 
 impl Header {
-	fn nonce(&self) -> H64 {
+	pub fn nonce(&self) -> H64 {
 		decode(&self.seal()[1])
 	}
-	fn mix_hash(&self) -> H256 {
+	pub fn mix_hash(&self) -> H256 {
 		decode(&self.seal()[0])
+	}
+	pub fn set_nonce_and_mix_hash(&mut self, nonce: &H64, mix_hash: &H256) {
+		self.seal = vec![encode(mix_hash).to_vec(), encode(nonce).to_vec()];
 	}
 }
 

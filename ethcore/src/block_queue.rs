@@ -28,7 +28,7 @@ use service::*;
 use client::BlockStatus;
 use util::panics::*;
 
-known_heap_size!(0, UnVerifiedBlock, VerifyingBlock, PreVerifiedBlock);
+known_heap_size!(0, UnverifiedBlock, VerifyingBlock, PreverifiedBlock);
 
 const MIN_MEM_LIMIT: usize = 16384;
 const MIN_QUEUE_LIMIT: usize = 512;
@@ -105,14 +105,14 @@ pub struct BlockQueue {
 	max_mem_use: usize,
 }
 
-struct UnVerifiedBlock {
+struct UnverifiedBlock {
 	header: Header,
 	bytes: Bytes,
 }
 
 struct VerifyingBlock {
 	hash: H256,
-	block: Option<PreVerifiedBlock>,
+	block: Option<PreverifiedBlock>,
 }
 
 struct QueueSignal {
@@ -134,8 +134,8 @@ impl QueueSignal {
 
 #[derive(Default)]
 struct Verification {
-	unverified: VecDeque<UnVerifiedBlock>,
-	verified: VecDeque<PreVerifiedBlock>,
+	unverified: VecDeque<UnverifiedBlock>,
+	verified: VecDeque<PreverifiedBlock>,
 	verifying: VecDeque<VerifyingBlock>,
 	bad: HashSet<H256>,
 }
@@ -244,7 +244,7 @@ impl BlockQueue {
 		}
 	}
 
-	fn drain_verifying(verifying: &mut VecDeque<VerifyingBlock>, verified: &mut VecDeque<PreVerifiedBlock>, bad: &mut HashSet<H256>) {
+	fn drain_verifying(verifying: &mut VecDeque<VerifyingBlock>, verified: &mut VecDeque<PreverifiedBlock>, bad: &mut HashSet<H256>) {
 		while !verifying.is_empty() && verifying.front().unwrap().block.is_some() {
 			let block = verifying.pop_front().unwrap().block.unwrap();
 			if bad.contains(&block.header.parent_hash) {
@@ -289,31 +289,31 @@ impl BlockQueue {
 		let header = BlockView::new(&bytes).header();
 		let h = header.hash();
 		if self.processing.read().unwrap().contains(&h) {
-			return Err(ImportError::AlreadyQueued);
+			return Err(x!(ImportError::AlreadyQueued));
 		}
 		{
 			let mut verification = self.verification.lock().unwrap();
 			if verification.bad.contains(&h) {
-				return Err(ImportError::Bad(None));
+				return Err(x!(ImportError::KnownBad));
 			}
 
 			if verification.bad.contains(&header.parent_hash) {
 				verification.bad.insert(h.clone());
-				return Err(ImportError::Bad(None));
+				return Err(x!(ImportError::KnownBad));
 			}
 		}
 
 		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
 			Ok(()) => {
 				self.processing.write().unwrap().insert(h.clone());
-				self.verification.lock().unwrap().unverified.push_back(UnVerifiedBlock { header: header, bytes: bytes });
+				self.verification.lock().unwrap().unverified.push_back(UnverifiedBlock { header: header, bytes: bytes });
 				self.more_to_verify.notify_all();
 				Ok(h)
 			},
 			Err(err) => {
 				warn!(target: "client", "Stage 1 block verification failed for {}\nError: {:?}", BlockView::new(&bytes).header_view().sha3(), err);
 				self.verification.lock().unwrap().bad.insert(h.clone());
-				Err(From::from(err))
+				Err(err)
 			}
 		}
 	}
@@ -352,7 +352,7 @@ impl BlockQueue {
 	}
 
 	/// Removes up to `max` verified blocks from the queue
-	pub fn drain(&mut self, max: usize) -> Vec<PreVerifiedBlock> {
+	pub fn drain(&mut self, max: usize) -> Vec<PreverifiedBlock> {
 		let mut verification = self.verification.lock().unwrap();
 		let count = min(max, verification.verified.len());
 		let mut result = Vec::with_capacity(count);

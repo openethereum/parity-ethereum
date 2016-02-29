@@ -477,19 +477,19 @@ impl ChainSync {
 		// TODO: Decompose block and add to self.headers and self.bodies instead
 		if header.number == From::from(self.current_base_block() + 1) {
 			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
-				Err(ImportError::AlreadyInChain) => {
+				Err(Error::Import(ImportError::AlreadyInChain)) => {
 					trace!(target: "sync", "New block already in chain {:?}", h);
 				},
-				Err(ImportError::AlreadyQueued) => {
+				Err(Error::Import(ImportError::AlreadyQueued)) => {
 					trace!(target: "sync", "New block already queued {:?}", h);
 				},
 				Ok(_) => {
 					self.last_imported_block = Some(header.number);
 					trace!(target: "sync", "New block queued {:?}", h);
 				},
-				Err(ImportError::UnknownParent) => {
+				Err(Error::Block(BlockError::UnknownParent(p))) => {
 					unknown = true;
-					trace!(target: "sync", "New block with unknown parent {:?}", h);
+					trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
 				},
 				Err(e) => {
 					debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
@@ -781,12 +781,12 @@ impl ChainSync {
 				}
 
 				match io.chain().import_block(block_rlp.out()) {
-					Err(ImportError::AlreadyInChain) => {
+					Err(Error::Import(ImportError::AlreadyInChain)) => {
 						trace!(target: "sync", "Block already in chain {:?}", h);
 						self.last_imported_block = Some(headers.0 + i as BlockNumber);
 						self.last_imported_hash = Some(h.clone());
 					},
-					Err(ImportError::AlreadyQueued) => {
+					Err(Error::Import(ImportError::AlreadyQueued)) => {
 						trace!(target: "sync", "Block already queued {:?}", h);
 						self.last_imported_block = Some(headers.0 + i as BlockNumber);
 						self.last_imported_hash = Some(h.clone());

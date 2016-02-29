@@ -21,7 +21,7 @@
 use common::*;
 use engine::*;
 use state::*;
-use verification::PreVerifiedBlock;
+use verification::PreverifiedBlock;
 
 /// A block, encoded as it is on the block chain.
 // TODO: rename to Block
@@ -302,6 +302,18 @@ impl ClosedBlock {
 		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })
 	}
 
+	/// Provide a valid seal in order to turn this into a `SealedBlock`.
+	/// This does check the validity of `seal` with the engine.
+	/// Returns the `ClosedBlock` back again if the seal is no good.
+	pub fn try_seal(self, engine: &Engine, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		let mut s = self;
+		s.block.base.header.set_seal(seal);
+		match engine.verify_block_basic(&s.block.base.header, None).is_err() || engine.verify_block_unordered(&s.block.base.header, None).is_err() {
+			false => Err(s),
+			true => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
+		}
+	}
+
 	/// Drop this object and return the underlieing database.
 	pub fn drain(self) -> JournalDB { self.block.state.drop().1 }
 }
@@ -350,7 +362,7 @@ pub fn enact_bytes(block_bytes: &[u8], engine: &Engine, db: JournalDB, parent: &
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_verified(block: &PreVerifiedBlock, engine: &Engine, db: JournalDB, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
+pub fn enact_verified(block: &PreverifiedBlock, engine: &Engine, db: JournalDB, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
 	let view = BlockView::new(&block.bytes);
 	enact(&block.header, &block.transactions, &view.uncles(), engine, db, parent, last_hashes)
 }
