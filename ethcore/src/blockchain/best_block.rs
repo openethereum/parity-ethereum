@@ -14,32 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Net rpc implementation.
-use std::sync::{Arc, Weak};
-use jsonrpc_core::*;
-use ethsync::EthSync;
-use v1::traits::Net;
+use util::hash::H256;
+use util::uint::U256;
+use header::BlockNumber;
 
-/// Net rpc implementation.
-pub struct NetClient {
-	sync: Weak<EthSync>
-}
-
-impl NetClient {
-	/// Creates new NetClient.
-	pub fn new(sync: &Arc<EthSync>) -> Self {
-		NetClient {
-			sync: Arc::downgrade(sync)
-		}
-	}
-}
-
-impl Net for NetClient {
-	fn version(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::U64(take_weak!(self.sync).status().protocol_version as u64))
-	}
-
-	fn peer_count(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(take_weak!(self.sync).status().num_peers as u64))
-	}
+/// Best block info.
+#[derive(Default)]
+pub struct BestBlock {
+	/// Best block hash.
+	pub hash: H256,
+	/// Best block number.
+	pub number: BlockNumber,
+	/// Best block total difficulty.
+	pub total_difficulty: U256
 }
