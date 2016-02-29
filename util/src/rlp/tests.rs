@@ -21,7 +21,7 @@ use std::{fmt, cmp};
 use std::str::FromStr;
 use rlp;
 use rlp::{UntrustedRlp, RlpStream, View, Stream, DecoderError};
-use uint::U256;
+use bigint::uint::U256;
 
 #[test]
 fn rlp_at() {

@@ -335,10 +335,9 @@ impl fmt::Debug for State {
 mod tests {
 
 use super::*;
-use util::hash::*;
+use util::common::*;
 use util::trie::*;
 use util::rlp::*;
-use util::uint::*;
 use account::*;
 use tests::helpers::*;
 use devtools::*;

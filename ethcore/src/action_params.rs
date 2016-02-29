@@ -15,9 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Evm input params.
-use util::hash::*;
-use util::uint::*;
-use util::bytes::*;
+use common::*;
 
 /// Transaction value
 #[derive(Clone, Debug)]

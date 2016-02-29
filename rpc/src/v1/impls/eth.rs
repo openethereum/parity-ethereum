@@ -18,8 +18,7 @@
 use std::sync::{Arc, Weak};
 use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
-use util::hash::*;
-use util::uint::*;
+use util::numbers::*;
 use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;

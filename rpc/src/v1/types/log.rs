@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::hash::*;
-use util::uint::*;
+use util::numbers::*;
 use ethcore::log_entry::LocalizedLogEntry;
 use v1::types::Bytes;
 
@@ -55,8 +54,7 @@ impl From<LocalizedLogEntry> for Log {
 mod tests {
 	use serde_json;
 	use std::str::FromStr;
-	use util::hash::*;
-	use util::uint::*;
+	use util::numbers::*;
 	use v1::types::{Bytes, Log};
 
 	#[test]
@@ -66,7 +64,7 @@ mod tests {
 		let log = Log {
 			address: Address::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),
 			topics: vec![
-				H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap(), 
+				H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap(),
 				H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap()
 			],
 			data: Bytes::new(vec![]),
