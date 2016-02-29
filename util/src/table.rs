@@ -47,7 +47,7 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 
 	/// Returns length of the Table (number of (row, col, val) tuples)
 	pub fn len(&self) -> usize {
-		self.map.iter().fold(0, |acc, (_k, v)| acc + v.len())
+		self.map.values().fold(0, |acc, v| acc + v.len())
 	}
 
 	/// Check if there is any element in this Table
@@ -111,13 +111,7 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 	///
 	/// Returns previous value (if any)
 	pub fn insert(&mut self, row: Row, col: Col, val: Val) -> Option<Val> {
-		if !self.map.contains_key(&row) {
-			let m = HashMap::new();
-			self.map.insert(row.clone(), m);
-		}
-
-		let mut columns = self.map.get_mut(&row).unwrap();
-		columns.insert(col, val)
+		self.map.entry(row).or_insert_with(|| HashMap::new()).insert(col, val)
 	}
 }
 
