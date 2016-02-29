@@ -14,32 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Net rpc implementation.
-use std::sync::{Arc, Weak};
-use jsonrpc_core::*;
-use ethsync::EthSync;
-use v1::traits::Net;
-
-/// Net rpc implementation.
-pub struct NetClient {
-	sync: Weak<EthSync>
+/// Represents blockchain's in-memory cache size in bytes.
+#[derive(Debug)]
+pub struct CacheSize {
+	/// Blocks cache size.
+	pub blocks: usize,
+	/// BlockDetails cache size.
+	pub block_details: usize,
+	/// Transaction addresses cache size.
+	pub transaction_addresses: usize,
+	/// Logs cache size.
+	pub block_logs: usize,
+	/// Blooms cache size.
+	pub blocks_blooms: usize,
+	/// Block receipts size.
+	pub block_receipts: usize,
 }
 
-impl NetClient {
-	/// Creates new NetClient.
-	pub fn new(sync: &Arc<EthSync>) -> Self {
-		NetClient {
-			sync: Arc::downgrade(sync)
-		}
-	}
-}
-
-impl Net for NetClient {
-	fn version(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::U64(take_weak!(self.sync).status().protocol_version as u64))
-	}
-
-	fn peer_count(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(take_weak!(self.sync).status().num_peers as u64))
-	}
+impl CacheSize {
+	/// Total amount used by the cache.
+	pub fn total(&self) -> usize { self.blocks + self.block_details + self.transaction_addresses + self.block_logs + self.blocks_blooms }
 }

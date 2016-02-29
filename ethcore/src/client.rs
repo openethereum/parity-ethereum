@@ -461,7 +461,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
-		self.chain.read().unwrap().tree_route(from.clone(), to.clone())
+		let chain = self.chain.read().unwrap();
+		match chain.is_known(from) && chain.is_known(to) {
+			true => Some(chain.tree_route(from.clone(), to.clone())),
+			false => None
+		}
 	}
 
 	fn state_data(&self, _hash: &H256) -> Option<Bytes> {

@@ -14,32 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Net rpc implementation.
-use std::sync::{Arc, Weak};
-use jsonrpc_core::*;
-use ethsync::EthSync;
-use v1::traits::Net;
+use util::hash::H256;
 
-/// Net rpc implementation.
-pub struct NetClient {
-	sync: Weak<EthSync>
+/// Represents a tree route between `from` block and `to` block:
+#[derive(Debug)]
+pub struct TreeRoute {
+	/// A vector of hashes of all blocks, ordered from `from` to `to`.
+	pub blocks: Vec<H256>,
+	/// Best common ancestor of these blocks.
+	pub ancestor: H256,
+	/// An index where best common ancestor would be.
+	pub index: usize,
 }
 
-impl NetClient {
-	/// Creates new NetClient.
-	pub fn new(sync: &Arc<EthSync>) -> Self {
-		NetClient {
-			sync: Arc::downgrade(sync)
-		}
-	}
-}
-
-impl Net for NetClient {
-	fn version(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::U64(take_weak!(self.sync).status().protocol_version as u64))
-	}
-
-	fn peer_count(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(take_weak!(self.sync).status().num_peers as u64))
-	}
-}

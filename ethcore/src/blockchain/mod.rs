@@ -14,32 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Net rpc implementation.
-use std::sync::{Arc, Weak};
-use jsonrpc_core::*;
-use ethsync::EthSync;
-use v1::traits::Net;
+//! Blockchain database.
 
-/// Net rpc implementation.
-pub struct NetClient {
-	sync: Weak<EthSync>
-}
+pub mod blockchain;
+mod best_block;
+mod block_info;
+mod bloom_indexer;
+mod cache;
+mod tree_route;
+mod update;
 
-impl NetClient {
-	/// Creates new NetClient.
-	pub fn new(sync: &Arc<EthSync>) -> Self {
-		NetClient {
-			sync: Arc::downgrade(sync)
-		}
-	}
-}
-
-impl Net for NetClient {
-	fn version(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::U64(take_weak!(self.sync).status().protocol_version as u64))
-	}
-
-	fn peer_count(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(take_weak!(self.sync).status().num_peers as u64))
-	}
-}
+pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
+pub use self::cache::CacheSize;
+pub use self::tree_route::TreeRoute;
