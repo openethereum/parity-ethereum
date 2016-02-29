@@ -195,7 +195,7 @@ pub struct Client {
 	panic_handler: Arc<PanicHandler>,
 
 	// for sealing...
-	_sealing_block: Mutex<Option<ClosedBlock>>,
+	sealing_block: Mutex<Option<ClosedBlock>>,
 }
 
 const HISTORY: u64 = 1000;
@@ -232,7 +232,7 @@ impl Client {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
-			_sealing_block: Mutex::new(None),
+			sealing_block: Mutex::new(None),
 		}))
 	}
 
@@ -417,9 +417,7 @@ impl Client {
 	/// New chain head event.
 	pub fn new_chain_head(&self) {
 		let h = self.chain.read().unwrap().best_block_hash();
-		info!("NEW CHAIN HEAD: #{}: {}", self.chain.read().unwrap().best_block_number(), h);
-
-		info!("Preparing to seal.");
+		info!("New best block: #{}: {}", self.chain.read().unwrap().best_block_number(), h);
 		let b = OpenBlock::new(
 			self.engine.deref().deref(),
 			self.state_db.lock().unwrap().clone(),
@@ -430,8 +428,11 @@ impl Client {
 		);
 		let b = b.close();
 		info!("Sealed: hash={}, diff={}, number={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
-		*self._sealing_block.lock().unwrap() = Some(b);
+		*self.sealing_block.lock().unwrap() = Some(b);
 	}
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> { &self.sealing_block }
 }
 
 // TODO: need MinerService MinerIoHandler

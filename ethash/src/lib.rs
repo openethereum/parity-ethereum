@@ -24,7 +24,7 @@ mod compute;
 
 use std::mem;
 use compute::Light;
-pub use compute::{quick_get_difficulty, H256, ProofOfWork, ETHASH_EPOCH_LENGTH};
+pub use compute::{get_seedhash, quick_get_difficulty, H256, ProofOfWork, ETHASH_EPOCH_LENGTH};
 
 use std::sync::{Arc, Mutex};
 
@@ -35,7 +35,7 @@ struct LightCache {
 	prev: Option<Arc<Light>>,
 }
 
-/// Lighy/Full cache manager
+/// Light/Full cache manager.
 pub struct EthashManager {
 	cache: Mutex<LightCache>,
 }

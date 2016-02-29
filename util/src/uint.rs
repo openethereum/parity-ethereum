@@ -1124,6 +1124,33 @@ impl From<U512> for U256 {
 	}
 }
 
+impl<'a> From<&'a U256> for U512 {
+	fn from(value: &'a U256) -> U512 {
+		let U256(ref arr) = *value;
+		let mut ret = [0; 8];
+		ret[0] = arr[0];
+		ret[1] = arr[1];
+		ret[2] = arr[2];
+		ret[3] = arr[3];
+		U512(ret)
+	}
+}
+
+impl<'a> From<&'a U512> for U256 {
+	fn from(value: &'a U512) -> U256 {
+		let U512(ref arr) = *value;
+		if arr[4] | arr[5] | arr[6] | arr[7] != 0 {
+			panic!("Overflow");
+		}
+		let mut ret = [0; 4];
+		ret[0] = arr[0];
+		ret[1] = arr[1];
+		ret[2] = arr[2];
+		ret[3] = arr[3];
+		U256(ret)
+	}
+}
+
 impl From<U256> for U128 {
 	fn from(value: U256) -> U128 {
 		let U256(ref arr) = value;

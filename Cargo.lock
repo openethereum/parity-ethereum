@@ -203,6 +203,7 @@ name = "ethcore-rpc"
 version = "0.9.99"
 dependencies = [
  "clippy 0.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethash 0.9.99",
  "ethcore 0.9.99",
  "ethcore-util 0.9.99",
  "ethsync 0.9.99",

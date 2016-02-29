@@ -144,9 +144,9 @@ impl Engine for Ethash {
 		}
 
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
-				&Ethash::to_ethash(header.bare_hash()),
-				header.nonce().low_u64(),
-				&Ethash::to_ethash(header.mix_hash()))));
+			&Ethash::to_ethash(header.bare_hash()),
+			header.nonce().low_u64(),
+			&Ethash::to_ethash(header.mix_hash()) )));
 		if difficulty < header.difficulty {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
 		}
@@ -241,8 +241,14 @@ impl Ethash {
 		target
 	}
 
-	fn boundary_to_difficulty(boundary: &H256) -> U256 {
+	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
+	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
 		U256::from((U512::one() << 256) / x!(U256::from(boundary.as_slice())))
+	}
+
+	/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
+	pub fn difficulty_to_boundary(difficulty: &U256) -> H256 {
+		x!(U256::from((U512::one() << 256) / x!(difficulty)))
 	}
 
 	fn to_ethash(hash: H256) -> EH256 {

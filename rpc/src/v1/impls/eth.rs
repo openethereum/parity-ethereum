@@ -22,7 +22,11 @@ use util::hash::*;
 use util::uint::*;
 use util::sha3::*;
 use ethcore::client::*;
+use ethcore::block::{IsBlock};
 use ethcore::views::*;
+extern crate ethash;
+use self::ethash::get_seedhash;
+use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
@@ -209,6 +213,29 @@ impl Eth for EthClient {
 				to_value(&logs)
 			})
 	}
+
+	fn work(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => {
+				let c = take_weak!(self.client);
+				let u = c.sealing_block().lock().unwrap();
+				match *u {
+					Some(ref b) => {
+						let current_hash = b.hash();
+						let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
+						let seed_hash = get_seedhash(b.block().header().number());
+						to_value(&(current_hash, seed_hash, target))
+					}
+					_ => Err(Error::invalid_params())
+				}
+			},
+			_ => Err(Error::invalid_params())
+		}
+	}
+
+//	fn submit_work(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+//	fn submit_hashrate(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 }
 
 /// Eth filter rpc implementation.
