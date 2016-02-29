@@ -15,77 +15,28 @@
 
 ### Building from source
 
-##### Ubuntu 14.04, 15.04, 15.10
+First (if you don't already have it) get multirust:
 
+- Linux:
 ```bash
-# install rocksdb
-add-apt-repository ppa:ethcore/ethcore
-apt-get update
-apt-get install -y --force-yes librocksdb-dev
-
-# install multirust
-curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
-
-# install beta
-multirust update beta
-
-# download and build parity
-git clone https://github.com/ethcore/parity
-cd parity
-
-# parity should be build with rust beta
-multirust override beta
-
-# build in release
-cargo build --release
-```
-
-##### Other Linux
-
-```bash
-# install rocksdb
-git clone --tag v4.1 --depth=1 https://github.com/facebook/rocksdb.git
-cd rocksdb
-make shared_lib 
-sudo cp -a librocksdb.so* /usr/lib 
-sudo ldconfig 
-cd ..
-
-# install rust beta
 curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-
-# install beta
-multirust update beta
-
-# download and build parity
-git clone https://github.com/ethcore/parity
-cd parity
-
-# parity should be build with rust beta
-multirust override beta
-
-# build in release
-cargo build --release
 ```
 
-##### OSX with Homebrew
+- OSX with Homebrew:
+```bash
+brew update && brew install multirust
+```
+
+Then, download and build Parity:
 
 ```bash
-# install rocksdb && multirust
-brew update
-brew install rocksdb
-brew install multirust
-
-# install beta
-multirust update beta
-
-# download and build parity
+# download Parity code
 git clone https://github.com/ethcore/parity
 cd parity
 
-# use rust beta for building parity
+# parity should be built with rust beta
 multirust override beta
 
+# build in release mode
 cargo build --release
 ```
-

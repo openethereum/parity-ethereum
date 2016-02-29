@@ -18,8 +18,7 @@
 
 use util::*;
 use util::panics::*;
-use rocksdb::{Options, DB, DBCompactionStyle};
-use blockchain::{BlockChain, BlockProvider, CacheSize};
+use blockchain::{BlockChain, BlockProvider};
 use views::BlockView;
 use error::*;
 use header::{BlockNumber, Header};
@@ -27,14 +26,17 @@ use state::State;
 use spec::Spec;
 use engine::Engine;
 use views::HeaderView;
-use block_queue::{BlockQueue, BlockQueueInfo};
+use block_queue::BlockQueue;
 use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
 use transaction::LocalizedTransaction;
 use extras::TransactionAddress;
-pub use blockchain::TreeRoute;
+use filter::Filter;
+use log_entry::LocalizedLogEntry;
+pub use block_queue::{BlockQueueConfig, BlockQueueInfo};
+pub use blockchain::{TreeRoute, BlockChainConfig, CacheSize as BlockChainCacheSize};
 
 /// Uniquely identifies block.
 #[derive(Debug, PartialEq, Clone)]
@@ -73,7 +75,16 @@ pub enum BlockStatus {
 	Unknown,
 }
 
-/// Information about the blockchain gthered together.
+/// Client configuration. Includes configs for all sub-systems.
+#[derive(Debug, Default)]
+pub struct ClientConfig {
+	/// Block queue configuration.
+	pub queue: BlockQueueConfig,
+	/// Blockchain configuration.
+	pub blockchain: BlockChainConfig,
+}
+
+/// Information about the blockchain gathered together.
 #[derive(Debug)]
 pub struct BlockChainInfo {
 	/// Blockchain difficulty.
@@ -147,6 +158,12 @@ pub trait BlockChainClient : Sync + Send {
 	fn best_block_header(&self) -> Bytes {
 		self.block_header(BlockId::Hash(self.chain_info().best_block_hash)).unwrap()
 	}
+
+	/// Returns numbers of blocks containing given bloom.
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
+
+	/// Returns logs matching given filter.
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -182,51 +199,28 @@ pub struct Client {
 }
 
 const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "2.1";
+const CLIENT_DB_VER_STR: &'static str = "4.0";
 
 impl Client {
 	/// Create a new client with given spec and DB path.
-	pub fn new(spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
 		dir.push(format!("v{}-sec-pruned", CLIENT_DB_VER_STR));
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
-		let chain = Arc::new(RwLock::new(BlockChain::new(&gb, path)));
-		let mut opts = Options::new();
-		opts.set_max_open_files(256);
-		opts.create_if_missing(true);
-		opts.set_use_fsync(false);
-		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
-		/*
-		opts.set_bytes_per_sync(8388608);
-		opts.set_disable_data_sync(false);
-		opts.set_block_cache_size_mb(1024);
-		opts.set_table_cache_num_shard_bits(6);
-		opts.set_max_write_buffer_number(32);
-		opts.set_write_buffer_size(536870912);
-		opts.set_target_file_size_base(1073741824);
-		opts.set_min_write_buffer_number_to_merge(4);
-		opts.set_level_zero_stop_writes_trigger(2000);
-		opts.set_level_zero_slowdown_writes_trigger(0);
-		opts.set_compaction_style(DBUniversalCompaction);
-		opts.set_max_background_compactions(4);
-		opts.set_max_background_flushes(4);
-		opts.set_filter_deletes(false);
-		opts.set_disable_auto_compactions(false);*/
-
+		let chain = Arc::new(RwLock::new(BlockChain::new(config.blockchain, &gb, path)));
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
-		let db = Arc::new(DB::open(&opts, state_path.to_str().unwrap()).unwrap());
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = JournalDB::new_with_arc(db.clone());
+		let mut state_db = JournalDB::new(state_path.to_str().unwrap());
 		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
-		let block_queue = BlockQueue::new(engine.clone(), message_channel);
+		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel);
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
@@ -327,7 +321,7 @@ impl Client {
 
 			// Insert block
 			let closed_block = closed_block.unwrap();
-			self.chain.write().unwrap().insert_block(&block.bytes);
+			self.chain.write().unwrap().insert_block(&block.bytes, closed_block.block().receipts().clone());
 			good_blocks.push(header.hash());
 
 			let ancient = if header.number() >= HISTORY {
@@ -375,7 +369,7 @@ impl Client {
 	}
 
 	/// Get info on the cache.
-	pub fn cache_info(&self) -> CacheSize {
+	pub fn blockchain_cache_info(&self) -> BlockChainCacheSize {
 		self.chain.read().unwrap().cache_size()
 	}
 
@@ -387,6 +381,7 @@ impl Client {
 	/// Tick the client.
 	pub fn tick(&self) {
 		self.chain.read().unwrap().collect_garbage();
+		self.block_queue.read().unwrap().collect_garbage();
 	}
 
 	/// Set up the cache behaviour.
@@ -400,6 +395,15 @@ impl Client {
 			BlockId::Number(number) => chain.block_hash(number),
 			BlockId::Earliest => chain.block_hash(0),
 			BlockId::Latest => Some(chain.best_block_hash())
+		}
+	}
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		match id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().unwrap().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(self.chain.read().unwrap().best_block_number())
 		}
 	}
 }
@@ -464,7 +468,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
-		self.chain.read().unwrap().tree_route(from.clone(), to.clone())
+		let chain = self.chain.read().unwrap();
+		match chain.is_known(from) && chain.is_known(to) {
+			true => Some(chain.tree_route(from.clone(), to.clone())),
+			false => None
+		}
 	}
 
 	fn state_data(&self, _hash: &H256) -> Option<Bytes> {
@@ -503,6 +511,53 @@ impl BlockChainClient for Client {
 			best_block_hash: chain.best_block_hash(),
 			best_block_number: From::from(chain.best_block_number())
 		}
+	}
+
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
+		match (self.block_number(from_block), self.block_number(to_block)) {
+			(Some(from), Some(to)) => Some(self.chain.read().unwrap().blocks_with_bloom(bloom, from, to)),
+			_ => None
+		}
+	}
+
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let mut blocks = filter.bloom_possibilities().iter()
+			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
+			.flat_map(|m| m)
+			// remove duplicate elements
+			.collect::<HashSet<u64>>()
+			.into_iter()
+			.collect::<Vec<u64>>();
+
+		blocks.sort();
+
+		blocks.into_iter()
+			.filter_map(|number| self.chain.read().unwrap().block_hash(number).map(|hash| (number, hash)))
+			.filter_map(|(number, hash)| self.chain.read().unwrap().block_receipts(&hash).map(|r| (number, hash, r.receipts)))
+			.filter_map(|(number, hash, receipts)| self.chain.read().unwrap().block(&hash).map(|ref b| (number, hash, receipts, BlockView::new(b).transaction_hashes())))
+			.flat_map(|(number, hash, receipts, hashes)| {
+				let mut log_index = 0;
+				receipts.into_iter()
+					.enumerate()
+					.flat_map(|(index, receipt)| {
+						log_index += receipt.logs.len();
+						receipt.logs.into_iter()
+							.enumerate()
+							.filter(|tuple| filter.matches(&tuple.1))
+						 	.map(|(i, log)| LocalizedLogEntry {
+							 	entry: log,
+								block_hash: hash.clone(),
+								block_number: number as usize,
+								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
+								transaction_index: index,
+								log_index: log_index + i
+							})
+							.collect::<Vec<LocalizedLogEntry>>()
+					})
+					.collect::<Vec<LocalizedLogEntry>>()
+
+			})
+			.collect()
 	}
 }
 

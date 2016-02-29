@@ -207,7 +207,7 @@ impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq +
 }
 
 #[test]
-#[allow(cyclomatic_complexity)]
+#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 fn test_range() {
 	use std::cmp::{Ordering};
 

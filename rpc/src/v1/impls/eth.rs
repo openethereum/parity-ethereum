@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
 use util::hash::*;
@@ -25,25 +25,26 @@ use ethcore::client::*;
 use ethcore::views::*;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
 
 /// Eth rpc implementation.
 pub struct EthClient {
-	client: Arc<Client>,
-	sync: Arc<EthSync>
+	client: Weak<Client>,
+	sync: Weak<EthSync>
 }
 
 impl EthClient {
 	/// Creates new EthClient.
-	pub fn new(client: Arc<Client>, sync: Arc<EthSync>) -> Self {
+	pub fn new(client: &Arc<Client>, sync: &Arc<EthSync>) -> Self {
 		EthClient {
-			client: client,
-			sync: sync
+			client: Arc::downgrade(client),
+			sync: Arc::downgrade(sync)
 		}
 	}
 
 	fn block(&self, id: BlockId, include_txs: bool) -> Result<Value, Error> {
-		match (self.client.block(id.clone()), self.client.block_total_difficulty(id)) {
+		let client = take_weak!(self.client);
+		match (client.block(id.clone()), client.block_total_difficulty(id)) {
 			(Some(bytes), Some(total_difficulty)) => {
 				let block_view = BlockView::new(&bytes);
 				let view = block_view.header_view();
@@ -80,7 +81,7 @@ impl EthClient {
 	}
 
 	fn transaction(&self, id: TransactionId) -> Result<Value, Error> {
-		match self.client.transaction(id) {
+		match take_weak!(self.client).transaction(id) {
 			Some(t) => to_value(&Transaction::from(t)),
 			None => Ok(Value::Null)
 		}
@@ -90,7 +91,7 @@ impl EthClient {
 impl Eth for EthClient {
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&U256::from(self.sync.status().protocol_version)),
+			Params::None => to_value(&U256::from(take_weak!(self.sync).status().protocol_version)),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -98,12 +99,12 @@ impl Eth for EthClient {
 	fn syncing(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => {
-				let status = self.sync.status();
+				let status = take_weak!(self.sync).status();
 				let res = match status.state {
 					SyncState::NotSynced | SyncState::Idle => SyncStatus::None,
 					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks => SyncStatus::Info(SyncInfo {
 						starting_block: U256::from(status.start_block_number),
-						current_block: U256::from(self.client.chain_info().best_block_number),
+						current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
 						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
 					})
 				};
@@ -146,14 +147,14 @@ impl Eth for EthClient {
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&U256::from(self.client.chain_info().best_block_number)),
+			Params::None => to_value(&U256::from(take_weak!(self.client).chain_info().best_block_number)),
 			_ => Err(Error::invalid_params())
 		}
 	}
 
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.block(BlockId::Hash(hash)) {
+			.and_then(|(hash,)| match take_weak!(self.client).block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 				None => Ok(Value::Null)
 			})
@@ -162,8 +163,8 @@ impl Eth for EthClient {
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&self.sync.status().tx_queue_pending),
-				_ => match self.client.block(block_number.into()) {
+				BlockNumber::Pending => to_value(&take_weak!(self.sync).status().tx_queue_pending),
+				_ => match take_weak!(self.client).block(block_number.into()) {
 					Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 					None => Ok(Value::Null)
 				}
@@ -172,7 +173,7 @@ impl Eth for EthClient {
 
 	fn block_uncles_count(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.block(BlockId::Hash(hash)) {
+			.and_then(|(hash,)| match take_weak!(self.client).block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
 				None => Ok(Value::Null)
 			})
@@ -181,7 +182,7 @@ impl Eth for EthClient {
 	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)| to_value(&self.client.code(&address).map_or_else(Bytes::default, Bytes::new)))
+			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
 	}
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
@@ -208,19 +209,29 @@ impl Eth for EthClient {
 		from_params::<(BlockNumber, Index)>(params)
 			.and_then(|(number, index)| self.transaction(TransactionId::Location(number.into(), index.value())))
 	}
-}
 
+	fn logs(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Filter,)>(params)
+			.and_then(|(filter,)| {
+				let logs = take_weak!(self.client).logs(filter.into())
+					.into_iter()
+					.map(From::from)
+					.collect::<Vec<Log>>();
+				to_value(&logs)
+			})
+	}
+}
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
-	client: Arc<Client>
+	client: Weak<Client>
 }
 
 impl EthFilterClient {
 	/// Creates new Eth filter client.
-	pub fn new(client: Arc<Client>) -> Self {
+	pub fn new(client: &Arc<Client>) -> Self {
 		EthFilterClient {
-			client: client
+			client: Arc::downgrade(client)
 		}
 	}
 }
@@ -235,6 +246,6 @@ impl EthFilter for EthFilterClient {
 	}
 
 	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
-		to_value(&self.client.chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
+		to_value(&take_weak!(self.client).chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
 	}
 }

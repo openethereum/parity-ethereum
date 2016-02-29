@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Block log.
+
 use util::*;
 use basic_types::LogBloom;
 
@@ -37,16 +39,25 @@ impl Encodable for LogEntry {
 	}
 }
 
-impl LogEntry {
-	/// Create a new log entry.
-	pub fn new(address: Address, topics: Vec<H256>, data: Bytes) -> LogEntry {
-		LogEntry {
-			address: address,
-			topics: topics,
-			data: data
-		}
+impl Decodable for LogEntry {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let entry = LogEntry {
+			address: try!(d.val_at(0)),
+			topics: try!(d.val_at(1)),
+			data: try!(d.val_at(2)),
+		};
+		Ok(entry)
 	}
+}
 
+impl HeapSizeOf for LogEntry {
+	fn heap_size_of_children(&self) -> usize {
+		self.topics.heap_size_of_children() + self.data.heap_size_of_children()
+	}
+}
+
+impl LogEntry {
 	/// Calculates the bloom of this log entry.
 	pub fn bloom(&self) -> LogBloom {
 		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))
@@ -65,6 +76,31 @@ impl FromJson for LogEntry {
 	}
 }
 
+/// Log localized in a blockchain.
+#[derive(Default, Debug, PartialEq)]
+pub struct LocalizedLogEntry {
+	/// Plain log entry.
+	pub entry: LogEntry,
+	/// Block in which this log was created.
+	pub block_hash: H256,
+	/// Block number.
+	pub block_number: usize,
+	/// Hash of transaction in which this log was created.
+	pub transaction_hash: H256,
+	/// Index of transaction within block.
+	pub transaction_index: usize,
+	/// Log position in the block.
+	pub log_index: usize,
+}
+
+impl Deref for LocalizedLogEntry {
+	type Target = LogEntry;
+
+	fn deref(&self) -> &Self::Target {
+		&self.entry
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use util::*;
@@ -74,7 +110,11 @@ mod tests {
 	fn test_empty_log_bloom() {
 		let bloom = H2048::from_str("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let log = LogEntry::new(address, vec![], vec![]);
+		let log = LogEntry {
+			address: address, 
+			topics: vec![],
+			data: vec![]
+		};
 		assert_eq!(log.bloom(), bloom);
 	}
 }
