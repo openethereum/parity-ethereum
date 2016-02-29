@@ -150,8 +150,7 @@ impl KeyPair {
 
 /// EC functions
 pub mod ec {
-	use hash::*;
-	use bigint::uint::*;
+	use numbers::*;
 	use standard::*;
 	use crypto::*;
 	use crypto::{self};
