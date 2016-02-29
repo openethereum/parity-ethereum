@@ -396,29 +396,35 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) {
+	/// Returns Option<H256> - newly inserted block hash if insert was successful
+	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) -> Result<Option<H256>, Error> {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 		let hash = header.sha3();
 
 		if self.is_known(&hash) {
-			return;
+			return Ok(None);
 		}
 
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
 
-		let info = self.block_info(bytes).unwrap();
+		let info = try!(self.block_info(bytes));
 
-		self.apply_update(ExtrasUpdate {
-			block_hashes: self.prepare_block_hashes_update(bytes, &info).unwrap(),
-			block_details: self.prepare_block_details_update(bytes, &info).unwrap(),
+		let new_block_hash = info.hash.clone();
+
+		let update = ExtrasUpdate {
+			block_hashes: try!(self.prepare_block_hashes_update(bytes, &info)),
+			block_details: try!(self.prepare_block_details_update(bytes, &info)),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
-			blocks_blooms: self.prepare_block_blooms_update(bytes, &info).unwrap(),
+			blocks_blooms: try!(self.prepare_block_blooms_update(bytes, &info)),
 			info: info
-		});
+		};
+
+		self.apply_update(update);
+		Ok(Some(new_block_hash))
 	}
 
 	/// Applies extras update.
@@ -635,17 +641,17 @@ impl BlockChain {
 		};
 
 		let result = modified_blooms.into_iter()
-		.fold(HashMap::new(), | mut acc, (bloom_index, bloom) | {
-			{
-				let location = self.bloom_indexer.location(&bloom_index);
-				let mut blocks_blooms = acc
-					.entry(location.hash.clone())
-					.or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
-				assert_eq!(self.bloom_indexer.index_size(), blocks_blooms.blooms.len());
-				blocks_blooms.blooms[location.index] = bloom;
-			}
-			acc
-		});
+			.fold(HashMap::new(), | mut acc, (bloom_index, bloom) | {
+				{
+					let location = self.bloom_indexer.location(&bloom_index);
+					let mut blocks_blooms = acc
+						.entry(location.hash.clone())
+						.or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
+					assert_eq!(self.bloom_indexer.index_size(), blocks_blooms.blooms.len());
+					blocks_blooms.blooms[location.index] = bloom;
+				}
+				acc
+			});
 		Ok(result)
 	}
 

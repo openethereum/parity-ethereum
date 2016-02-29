@@ -318,7 +318,7 @@ impl Client {
 
 			// Insert block
 			let closed_block = closed_block.unwrap();
-			self.chain.write().unwrap().insert_block(&block.bytes, closed_block.block().receipts().clone());
+			self.chain.write().unwrap().insert_block(&block.bytes, closed_block.block().receipts().clone()).expect("Failed to insert block");
 			good_blocks.push(header.hash());
 
 			let ancient = if header.number() >= HISTORY {
