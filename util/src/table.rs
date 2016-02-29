@@ -120,3 +120,141 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 		columns.insert(col, val)
 	}
 }
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	#[test]
+	fn should_create_empty_table() {
+		// when
+		let table : Table<usize, usize, bool> = Table::new();
+
+		// then
+		assert!(table.is_empty());
+		assert_eq!(table.len(), 0);
+	}
+
+	#[test]
+	fn should_insert_elements_and_return_previous_if_any() {
+		// given
+		let mut table = Table::new();
+
+		// when
+		let r1 = table.insert(5, 4, true);
+		let r2 = table.insert(10, 4, true);
+		let r3 = table.insert(10, 10, true);
+		let r4 = table.insert(10, 10, false);
+
+		// then
+		assert!(r1.is_none());
+		assert!(r2.is_none());
+		assert!(r3.is_none());
+		assert!(r4.is_some());
+		assert!(!table.is_empty());
+		assert_eq!(r4.unwrap(), true);
+		assert_eq!(table.len(), 3);
+	}
+
+	#[test]
+	fn should_remove_element() {
+		// given
+		let mut table = Table::new();
+		table.insert(5, 4, true);
+		assert!(!table.is_empty());
+		assert_eq!(table.len(), 1);
+
+		// when
+		let r = table.remove(&5, &4);
+
+		// then
+		assert!(table.is_empty());
+		assert_eq!(table.len() ,0);
+		assert_eq!(r.unwrap(), true);
+	}
+
+	#[test]
+	fn should_return_none_if_trying_to_remove_non_existing_element() {
+				// given
+		let mut table : Table<usize, usize, usize> = Table::new();
+		assert!(table.is_empty());
+
+		// when
+		let r = table.remove(&5, &4);
+
+		// then
+		assert!(r.is_none());
+	}
+
+	#[test]
+	fn should_clear_row_if_removing_last_element() {
+		// given
+		let mut table = Table::new();
+		table.insert(5, 4, true);
+		assert!(table.has_row(&5));
+
+		// when
+		let r = table.remove(&5, &4);
+
+		// then
+		assert!(r.is_some());
+		assert!(!table.has_row(&5));
+	}
+
+	#[test]
+	fn should_return_element_given_row_and_col() {
+		// given
+		let mut table = Table::new();
+		table.insert(1551, 1234, 123);
+
+		// when
+		let r1 = table.get(&1551, &1234);
+		let r2 = table.get(&5, &4);
+
+		// then
+		assert!(r1.is_some());
+		assert!(r2.is_none());
+		assert_eq!(r1.unwrap(), &123);
+	}
+
+	#[test]
+	fn should_clear_table() {
+		// given
+		let mut table = Table::new();
+		table.insert(1, 1, true);
+		table.insert(1, 2, false);
+		table.insert(2, 2, false);
+		assert_eq!(table.len(), 3);
+
+		// when
+		table.clear();
+
+		// then
+		assert!(table.is_empty());
+		assert_eq!(table.len(), 0);
+		assert_eq!(table.has_row(&1), false);
+		assert_eq!(table.has_row(&2), false);
+	}
+
+	#[test]
+	fn should_return_mutable_row() {
+		// given
+		let mut table = Table::new();
+		table.insert(1, 1, true);
+		table.insert(1, 2, false);
+		table.insert(2, 2, false);
+
+		// when
+		{
+			let mut row = table.get_row_mut(&1).unwrap();
+			row.remove(&1);
+			row.remove(&2);
+		}
+		assert!(table.has_row(&1));
+		table.clear_if_empty(&1);
+
+		// then
+		assert!(!table.has_row(&1));
+		assert_eq!(table.len(), 1);
+	}
+}
