@@ -52,7 +52,7 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 
 	/// Check if there is any element in this Table
 	pub fn is_empty(&self) -> bool {
-		self.len() == 0
+		self.map.is_empty() || self.map.values().all(|v| v.is_empty())
 	}
 
 	/// Get mutable reference for single Table row.
