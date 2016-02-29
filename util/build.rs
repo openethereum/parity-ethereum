@@ -1,7 +1,6 @@
 extern crate vergen;
 extern crate rustc_version;
 
-
 use vergen::*;
 use rustc_version::{version_meta, Channel};
 
