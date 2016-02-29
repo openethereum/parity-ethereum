@@ -354,7 +354,6 @@ impl Default for Informant {
 }
 
 impl Informant {
-
 	fn format_bytes(b: usize) -> String {
 		match binary_prefix(b as f64) {
 			Standalone(bytes)   => format!("{} bytes", bytes),

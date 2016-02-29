@@ -193,6 +193,9 @@ pub struct Client {
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
+
+	// for sealing...
+	_sealing_block: Mutex<Option<ClosedBlock>>,
 }
 
 const HISTORY: u64 = 1000;
@@ -228,7 +231,8 @@ impl Client {
 			block_queue: RwLock::new(block_queue),
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
-			panic_handler: panic_handler
+			panic_handler: panic_handler,
+			_sealing_block: Mutex::new(None),
 		}))
 	}
 
@@ -237,10 +241,10 @@ impl Client {
 		self.block_queue.write().unwrap().flush();
 	}
 
-	fn build_last_hashes(&self, header: &Header) -> LastHashes {
+	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {
 		let mut last_hashes = LastHashes::new();
 		last_hashes.resize(256, H256::new());
-		last_hashes[0] = header.parent_hash.clone();
+		last_hashes[0] = parent_hash;
 		let chain = self.chain.read().unwrap();
 		for i in 0..255 {
 			match chain.block_details(&last_hashes[i]) {
@@ -273,7 +277,7 @@ impl Client {
 
 		// Enact Verified Block
 		let parent = chain_has_parent.unwrap();
-		let last_hashes = self.build_last_hashes(header);
+		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().clone();
 
 		let enact_result = enact_verified(&block, engine, db, &parent, last_hashes);
@@ -301,6 +305,8 @@ impl Client {
 
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.write().unwrap().drain(max_blocks_to_import);
+
+		let original_best = self.chain_info().best_block_hash;
 
 		for block in blocks {
 			let header = &block.header;
@@ -357,6 +363,10 @@ impl Client {
 			}
 		}
 
+		if self.chain_info().best_block_hash != original_best {
+			self.new_chain_head();
+		}
+
 		imported
 	}
 
@@ -403,7 +413,28 @@ impl Client {
 			BlockId::Latest => Some(self.chain.read().unwrap().best_block_number())
 		}
 	}
+
+	/// New chain head event.
+	pub fn new_chain_head(&self) {
+		let h = self.chain.read().unwrap().best_block_hash();
+		info!("NEW CHAIN HEAD: #{}: {}", self.chain.read().unwrap().best_block_number(), h);
+
+		info!("Preparing to seal.");
+		let b = OpenBlock::new(
+			&self.engine,
+			self.state_db.lock(),
+			self.chain.read().unwrap().block_header(&h).unwrap_or_else(|| {return;}),
+			self.build_last_hashes(h.clone()),
+			x!("0037a6b811ffeb6e072da21179d11b1406371c63"),
+			b"Parity".to_owned()
+		);
+		let b = b.close();
+		info!("Sealed: hash={}, diff={}, number={}", b.hash(), b.block().difficulty(), b.block().number());
+		*self._sealing_block.lock().unwrap() = Some(b);
+	}
 }
+
+// TODO: need MinerService MinerIoHandler
 
 impl BlockChainClient for Client {
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
