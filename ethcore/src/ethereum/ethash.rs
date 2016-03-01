@@ -104,7 +104,7 @@ impl Engine for Ethash {
 				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1) + (header.gas_used * x!(6) / x!(5)) / bound_divisor)
 			}
 		};
-
+		header.note_dirty();
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
 

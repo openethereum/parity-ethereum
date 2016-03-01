@@ -84,10 +84,9 @@ pub trait Engine : Sync + Send {
 	/// Don't forget to call Super::populate_from_parent when subclassing & overriding.
 	// TODO: consider including State in the params.
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		header.parent_hash = parent.hash;
 		header.difficulty = parent.difficulty;
 		header.gas_limit = parent.gas_limit;
-		header.number = parent.number + 1;
+		header.note_dirty();
 	}
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic

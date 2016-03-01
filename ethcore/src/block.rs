@@ -178,11 +178,12 @@ impl<'x> OpenBlock<'x> {
 			last_hashes: last_hashes,
 		};
 
-		r.block.base.header.set_number(parent.number() + 1);
-		r.block.base.header.set_author(author);
-		r.block.base.header.set_extra_data(extra_data);
+		r.block.base.header.parent_hash = parent.hash();
+		r.block.base.header.number = parent.number + 1;
+		r.block.base.header.author = author;
 		r.block.base.header.set_timestamp_now(parent.timestamp());
-		r.block.base.header.set_parent_hash(parent.hash());
+		r.block.base.header.extra_data = extra_data;
+		r.block.base.header.note_dirty();
 
 		engine.populate_from_parent(&mut r.block.base.header, parent);
 		engine.on_new_block(&mut r.block);
