@@ -81,9 +81,14 @@ pub trait Engine : Sync + Send {
 		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
 	}
 
-	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
+	/// Don't forget to call Super::populate_from_parent when subclassing & overriding.
 	// TODO: consider including State in the params.
-	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) {}
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+		header.parent_hash = parent.hash;
+		header.difficulty = parent.difficulty;
+		header.gas_limit = parent.gas_limit;
+		header.number = parent.number + 1;
+	}
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.

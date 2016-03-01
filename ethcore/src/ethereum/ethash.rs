@@ -144,7 +144,8 @@ impl Engine for Ethash {
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
 			&Ethash::to_ethash(header.bare_hash()),
 			header.nonce().low_u64(),
-			&Ethash::to_ethash(header.mix_hash()) )));
+			&Ethash::to_ethash(header.mix_hash())
+		)));
 		if difficulty < header.difficulty {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
 		}
