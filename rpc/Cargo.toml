@@ -9,6 +9,7 @@ build = "build.rs"
 [lib]
 
 [dependencies]
+log = "0.3"
 serde = "0.7.0"
 serde_json = "0.7.0"
 jsonrpc-core = "1.2"

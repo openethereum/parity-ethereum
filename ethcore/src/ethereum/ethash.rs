@@ -249,6 +249,11 @@ impl Ethash {
 		x!(U256::from((U512::one() << 256) / x!(difficulty)))
 	}
 
+	/// Given the `block_number`, determine the seed hash for Ethash.
+	pub fn get_seedhash(number: BlockNumber) -> H256 {
+		Self::from_ethash(ethash::get_seedhash(number))
+	}
+
 	fn to_ethash(hash: H256) -> EH256 {
 		unsafe { mem::transmute(hash) }
 	}
@@ -259,12 +264,17 @@ impl Ethash {
 }
 
 impl Header {
+	/// Get the none field of the header.
 	pub fn nonce(&self) -> H64 {
 		decode(&self.seal()[1])
 	}
+
+	/// Get the mix hash field of the header.
 	pub fn mix_hash(&self) -> H256 {
 		decode(&self.seal()[0])
 	}
+
+	/// Set the nonce and mix hash fields of the header.
 	pub fn set_nonce_and_mix_hash(&mut self, nonce: &H64, mix_hash: &H256) {
 		self.seal = vec![encode(mix_hash).to_vec(), encode(nonce).to_vec()];
 	}

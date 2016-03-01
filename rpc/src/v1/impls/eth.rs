@@ -25,8 +25,7 @@ use util::rlp::encode;
 use ethcore::client::*;
 use ethcore::block::{IsBlock};
 use ethcore::views::*;
-extern crate ethash;
-use self::ethash::get_seedhash;
+//#[macro_use] extern crate log;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
@@ -216,6 +215,7 @@ impl Eth for EthClient {
 	}
 
 	fn work(&self, params: Params) -> Result<Value, Error> {
+		println!("Work wanted: {:?}", params);
 		match params {
 			Params::None => {
 				let c = take_weak!(self.client);
@@ -224,7 +224,7 @@ impl Eth for EthClient {
 					Some(ref b) => {
 						let pow_hash = b.hash();
 						let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-						let seed_hash = get_seedhash(b.block().header().number());
+						let seed_hash = Ethash::get_seedhash(b.block().header().number());
 						to_value(&(pow_hash, seed_hash, target))
 					}
 					_ => Err(Error::invalid_params())
@@ -235,6 +235,7 @@ impl Eth for EthClient {
 	}
 
 	fn submit_work(&self, params: Params) -> Result<Value, Error> {
+		println!("Work submission: {:?}", params);
 		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
 			let c = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
@@ -242,7 +243,13 @@ impl Eth for EthClient {
 		})
 	}
 
-//	fn submit_hashrate(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn submit_hashrate(&self, params: Params) -> Result<Value, Error> {
+		println!("Hashrate submission: {:?}", params);
+		from_params::<(Index, H256)>(params).and_then(|(rate, id)| {
+			println!("Miner {} reports a hash rate of {} H/s", id, rate.value());
+			to_value(&true)
+		})
+	}
 }
 
 /// Eth filter rpc implementation.
