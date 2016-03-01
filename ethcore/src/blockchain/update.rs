@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use util::hash::H256;
+use util::numbers::H256;
 use header::BlockNumber;
 use blockchain::block_info::BlockInfo;
 use extras::{BlockDetails, BlockReceipts, TransactionAddress, BlocksBlooms};

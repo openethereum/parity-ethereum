@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::hash::H256;
+use util::numbers::H256;
 use chainfilter::BloomIndex;
 
 /// Represents location of block bloom in extras database.
@@ -44,7 +44,7 @@ impl BloomIndexer {
 	/// Calculates bloom's position in database.
 	pub fn location(&self, bloom_index: &BloomIndex) -> BlocksBloomLocation {
 		use std::{mem, ptr};
-		
+
 		let hash = unsafe {
 			let mut hash: H256 = mem::zeroed();
 			ptr::copy(&[bloom_index.index / self.index_size] as *const usize as *const u8, hash.as_mut_ptr(), 8);

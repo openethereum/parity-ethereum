@@ -17,7 +17,7 @@
 use serde::{Deserialize, Deserializer, Error};
 use serde_json::value;
 use jsonrpc_core::Value;
-use util::hash::*;
+use util::numbers::*;
 use v1::types::BlockNumber;
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockId;

@@ -17,8 +17,7 @@
 //! Eth rpc implementation.
 use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
-use util::hash::*;
-use util::uint::*;
+use util::numbers::*;
 use util::sha3::*;
 use util::standard::{RwLock, HashMap, Arc, Weak};
 use util::rlp::encode;
