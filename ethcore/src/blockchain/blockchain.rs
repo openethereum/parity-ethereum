@@ -28,7 +28,7 @@ use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
-use blockchain::CacheSize;
+use blockchain::{Error, FatalError, CacheSize};
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
@@ -347,12 +347,12 @@ impl BlockChain {
 	///   ```json
 	///   { blocks: [B4, B3, A3, A4], ancestor: A2, index: 2 }
 	///   ```
-	pub fn tree_route(&self, from: H256, to: H256) -> TreeRoute {
+	pub fn tree_route(&self, from: H256, to: H256) -> Result<TreeRoute, Error> {
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
-		let mut from_details = self.block_details(&from).expect(&format!("0. Expected to find details for block {:?}", from));
-		let mut to_details = self.block_details(&to).expect(&format!("1. Expected to find details for block {:?}", to));
+		let mut from_details = try!(self.block_details(&from).ok_or(Error::TreeRouteNotFound { unknown_hash: from.clone() }));
+		let mut to_details = try!(self.block_details(&to).ok_or(Error::TreeRouteNotFound { unknown_hash: to.clone() }));
 		let mut current_from = from;
 		let mut current_to = to;
 
@@ -360,13 +360,13 @@ impl BlockChain {
 		while from_details.number > to_details.number {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).expect(&format!("2. Expected to find details for block {:?}", from_details.parent));
+			from_details = try!(self.block_details(&from_details.parent).ok_or(FatalError::MissingBlockDetails { hash: from_details.parent.clone() }));
 		}
 
 		while to_details.number > from_details.number {
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).expect(&format!("3. Expected to find details for block {:?}", to_details.parent));
+			to_details = try!(self.block_details(&to_details.parent).ok_or(FatalError::MissingBlockDetails { hash: to_details.parent.clone() }));
 		}
 
 		assert_eq!(from_details.number, to_details.number);
@@ -375,50 +375,56 @@ impl BlockChain {
 		while current_from != current_to {
 			from_branch.push(current_from);
 			current_from = from_details.parent.clone();
-			from_details = self.block_details(&from_details.parent).expect(&format!("4. Expected to find details for block {:?}", from_details.parent));
+			from_details = try!(self.block_details(&from_details.parent).ok_or(FatalError::MissingBlockDetails { hash: from_details.parent.clone() }));
 
 			to_branch.push(current_to);
 			current_to = to_details.parent.clone();
-			to_details = self.block_details(&to_details.parent).expect(&format!("5. Expected to find details for block {:?}", from_details.parent));
+			to_details = try!(self.block_details(&to_details.parent).ok_or(FatalError::MissingBlockDetails { hash: to_details.parent.clone() }));
 		}
 
 		let index = from_branch.len();
 
 		from_branch.extend(to_branch.into_iter().rev());
 
-		TreeRoute {
+		Ok(TreeRoute {
 			blocks: from_branch,
 			ancestor: current_from,
 			index: index
-		}
+		})
 	}
 
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) {
+	/// Returns Option<H256> - newly inserted block hash if insert was successful
+	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) -> Result<Option<H256>, Error> {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 		let hash = header.sha3();
 
 		if self.is_known(&hash) {
-			return;
+			return Ok(None);
 		}
 
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
 
-		let info = self.block_info(bytes);
+		let info = try!(self.block_info(bytes));
 
-		self.apply_update(ExtrasUpdate {
-			block_hashes: self.prepare_block_hashes_update(bytes, &info),
-			block_details: self.prepare_block_details_update(bytes, &info),
+		let new_block_hash = info.hash.clone();
+
+		let update = ExtrasUpdate {
+			block_hashes: try!(self.prepare_block_hashes_update(bytes, &info)),
+			block_details: try!(self.prepare_block_details_update(bytes, &info)),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
-			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
+			blocks_blooms: try!(self.prepare_block_blooms_update(bytes, &info)),
 			info: info
-		});
+		};
+
+		self.apply_update(update);
+		Ok(Some(new_block_hash))
 	}
 
 	/// Applies extras update.
@@ -447,7 +453,7 @@ impl BlockChain {
 
 		let mut write_details = self.block_details.write().unwrap();
 		for (hash, details) in update.block_details.into_iter() {
-			batch.put_extras(&hash, &details);	
+			batch.put_extras(&hash, &details);
 			write_details.insert(hash, details);
 		}
 
@@ -473,18 +479,18 @@ impl BlockChain {
 		self.extras_db.write(batch).unwrap();
 	}
 
-	/// Get inserted block info which is critical to preapre extras updates.
-	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
+	/// Get inserted block info which is critical to prepare extras updates.
+	fn block_info(&self, block_bytes: &[u8]) -> Result<BlockInfo, Error> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 		let hash = block.sha3();
 		let number = header.number();
 		let parent_hash = header.parent_hash();
-		let parent_details = self.block_details(&parent_hash).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
+		let parent_details = try!(self.block_details(&parent_hash).ok_or(FatalError::MissingBlockDetails { hash: parent_hash.clone() }));
 		let total_difficulty = parent_details.total_difficulty + header.difficulty();
 		let is_new_best = total_difficulty > self.best_block_total_difficulty();
 
-		BlockInfo {
+		Ok(BlockInfo {
 			hash: hash,
 			number: number,
 			total_difficulty: total_difficulty,
@@ -493,7 +499,7 @@ impl BlockChain {
 				// are moved to "canon chain"
 				// find the route between old best block and the new one
 				let best_hash = self.best_block_hash();
-				let route = self.tree_route(best_hash, parent_hash);
+				let route = try!(self.tree_route(best_hash, parent_hash));
 
 				assert_eq!(number, parent_details.number + 1);
 
@@ -507,15 +513,15 @@ impl BlockChain {
 			} else {
 				BlockLocation::Branch
 			}
-		}
+		})
 	}
 
 	/// This function returns modified block hashes.
-	fn prepare_block_hashes_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<BlockNumber, H256> {
-		let mut block_hashes = HashMap::new();
+	fn prepare_block_hashes_update(&self, block_bytes: &[u8], info: &BlockInfo) -> Result<HashMap<BlockNumber, H256>, Error> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 		let number = header.number();
+		let mut block_hashes = HashMap::new();
 
 		match info.location {
 			BlockLocation::Branch => (),
@@ -523,7 +529,7 @@ impl BlockChain {
 				block_hashes.insert(number, info.hash.clone());
 			},
 			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route } => {
-				let ancestor_number = self.block_number(ancestor).unwrap();
+				let ancestor_number = try!(self.block_number(ancestor).ok_or(FatalError::MissingBlockDetails { hash: ancestor.clone() }));
 				let start_number = ancestor_number + 1;
 
 				for (index, hash) in route.iter().cloned().enumerate() {
@@ -533,18 +539,17 @@ impl BlockChain {
 				block_hashes.insert(number, info.hash.clone());
 			}
 		}
-
-		block_hashes
+		Ok(block_hashes)
 	}
 
 	/// This function returns modified block details.
-	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlockDetails> {
+	fn prepare_block_details_update(&self, block_bytes: &[u8], info: &BlockInfo) -> Result<HashMap<H256, BlockDetails>, Error> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 		let parent_hash = header.parent_hash();
 
 		// update parent
-		let mut parent_details = self.block_details(&parent_hash).expect(format!("Invalid parent hash: {:?}", parent_hash).as_ref());
+		let mut parent_details = try!(self.block_details(&parent_hash).ok_or(FatalError::MissingBlockDetails { hash: parent_hash.clone() }));
 		parent_details.children.push(info.hash.clone());
 
 		// create current block details
@@ -559,7 +564,7 @@ impl BlockChain {
 		let mut block_details = HashMap::new();
 		block_details.insert(parent_hash, parent_details);
 		block_details.insert(info.hash.clone(), details);
-		block_details
+		Ok(block_details)
 	}
 
 	/// This function returns modified block receipts.
@@ -572,7 +577,7 @@ impl BlockChain {
 	/// This function returns modified transaction addresses.
 	fn prepare_transaction_addresses_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, TransactionAddress> {
 		let block = BlockView::new(block_bytes);
-		let transaction_hashes = block.transaction_hashes();	
+		let transaction_hashes = block.transaction_hashes();
 
 		transaction_hashes.into_iter()
 			.enumerate()
@@ -587,21 +592,21 @@ impl BlockChain {
 
 	/// This functions returns modified blocks blooms.
 	///
-	/// To accelerate blooms lookups, blomms are stored in multiple 
-	/// layers (BLOOM_LEVELS, currently 3). 
+	/// To accelerate blooms lookups, blooms are stored in multiple
+	/// layers (BLOOM_LEVELS, currently 3).
 	/// ChainFilter is responsible for building and rebuilding these layers.
 	/// It returns them in HashMap, where values are Blooms and
 	/// keys are BloomIndexes. BloomIndex represents bloom location on one
 	/// of these layers.
-	/// 
-	/// To reduce number of queries to databse, block blooms are stored
-	/// in BlocksBlooms structure which contains info about several 
+	///
+	/// To reduce number of queries to database, block blooms are stored
+	/// in BlocksBlooms structure which contains info about several
 	/// (BLOOM_INDEX_SIZE, currently 16) consecutive blocks blooms.
-	/// 
+	///
 	/// Later, BloomIndexer is used to map bloom location on filter layer (BloomIndex)
 	/// to bloom location in database (BlocksBloomLocation).
-	/// 
-	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlocksBlooms> {
+	///
+	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> Result<HashMap<H256, BlocksBlooms>, Error> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 
@@ -612,13 +617,21 @@ impl BlockChain {
 					.add_bloom(&header.log_bloom(), header.number() as usize)
 			},
 			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route } => {
-				let ancestor_number = self.block_number(ancestor).unwrap();
+				let ancestor_number = try!(self.block_number(ancestor).ok_or(FatalError::MissingBlockDetails { hash: ancestor.clone() }));
 				let start_number = ancestor_number + 1;
 
-				let mut blooms: Vec<H2048> = route.iter()
-					.map(|hash| self.block(hash).unwrap())
-					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
+				let blocks: Vec<(H256, Option<Bytes>)> = route.iter()
+					.map(|hash| (hash.clone(), self.block(hash)))
 					.collect();
+
+				let mut blooms: Vec<H2048> = Vec::new();
+
+				for block in blocks.into_iter() {
+					match block.1 {
+						None => return Err(Error::Fatal(FatalError::MissingBlockDetails{hash: block.0})),
+						Some(bytes) => blooms.push(BlockView::new(&bytes).header_view().log_bloom())
+					}
+				}
 
 				blooms.push(header.log_bloom());
 
@@ -627,18 +640,19 @@ impl BlockChain {
 			}
 		};
 
-		modified_blooms.into_iter()
+		let result = modified_blooms.into_iter()
 			.fold(HashMap::new(), | mut acc, (bloom_index, bloom) | {
-			{
-				let location = self.bloom_indexer.location(&bloom_index);
-				let mut blocks_blooms = acc
-					.entry(location.hash.clone())
-					.or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
-				assert_eq!(self.bloom_indexer.index_size(), blocks_blooms.blooms.len());
-				blocks_blooms.blooms[location.index] = bloom;
-			}
-			acc
-		})
+				{
+					let location = self.bloom_indexer.location(&bloom_index);
+					let mut blocks_blooms = acc
+						.entry(location.hash.clone())
+						.or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
+					assert_eq!(self.bloom_indexer.index_size(), blocks_blooms.blooms.len());
+					blocks_blooms.blooms[location.index] = bloom;
+				}
+				acc
+			});
+		Ok(result)
 	}
 
 	/// Get best block hash.
@@ -785,7 +799,7 @@ mod tests {
 		assert_eq!(bc.block_hash(0), Some(genesis_hash.clone()));
 		assert_eq!(bc.block_hash(1), None);
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![]);
-		
+
 		let first = "f90285f90219a03caa2203f3d7c136c0295ed128a7d31cea520b1ca5e27afe17d0853331798942a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0bac6177a79e910c98d86ec31a09ae37ac2de15b754fd7bed1ba52362c49416bfa0d45893a296c1490a978e0bd321b5f2635d8280365c1fe9f693d65f233e791344a0c7778a7376099ee2e5c455791c1885b5c361b95713fddcbe32d97fd01334d296b90100000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000400000000000000000000000000000000000000000000000000000008302000001832fefd882560b845627cb99a00102030405060708091011121314151617181920212223242526272829303132a08ccb2837fb2923bd97e8f2d08ea32012d6e34be018c73e49a0f98843e8f47d5d88e53be49fec01012ef866f864800a82c35094095e7baea6a6c7c4c2dfeb977efac326af552d8785012a05f200801ba0cb088b8d2ff76a7b2c6616c9d02fb6b7a501afbf8b69d7180b09928a1b80b5e4a06448fe7476c606582039bb72a9f6f4b4fad18507b8dfbd00eebbe151cc573cd2c0".from_hex().unwrap();
 
 		bc.insert_block(&first, vec![]);
@@ -839,52 +853,52 @@ mod tests {
 		assert_eq!(bc.block_hash(3).unwrap(), b3a_hash);
 
 		// test trie route
-		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone());
+		let r0_1 = bc.tree_route(genesis_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r0_1.ancestor, genesis_hash);
 		assert_eq!(r0_1.blocks, [b1_hash.clone()]);
 		assert_eq!(r0_1.index, 0);
 
-		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone());
+		let r0_2 = bc.tree_route(genesis_hash.clone(), b2_hash.clone()).unwrap();
 		assert_eq!(r0_2.ancestor, genesis_hash);
 		assert_eq!(r0_2.blocks, [b1_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r0_2.index, 0);
 
-		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone());
+		let r1_3a = bc.tree_route(b1_hash.clone(), b3a_hash.clone()).unwrap();
 		assert_eq!(r1_3a.ancestor, b1_hash);
 		assert_eq!(r1_3a.blocks, [b2_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r1_3a.index, 0);
 
-		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone());
+		let r1_3b = bc.tree_route(b1_hash.clone(), b3b_hash.clone()).unwrap();
 		assert_eq!(r1_3b.ancestor, b1_hash);
 		assert_eq!(r1_3b.blocks, [b2_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r1_3b.index, 0);
 
-		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone());
+		let r3a_3b = bc.tree_route(b3a_hash.clone(), b3b_hash.clone()).unwrap();
 		assert_eq!(r3a_3b.ancestor, b2_hash);
 		assert_eq!(r3a_3b.blocks, [b3a_hash.clone(), b3b_hash.clone()]);
 		assert_eq!(r3a_3b.index, 1);
 
-		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone());
+		let r1_0 = bc.tree_route(b1_hash.clone(), genesis_hash.clone()).unwrap();
 		assert_eq!(r1_0.ancestor, genesis_hash);
 		assert_eq!(r1_0.blocks, [b1_hash.clone()]);
 		assert_eq!(r1_0.index, 1);
 
-		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone());
+		let r2_0 = bc.tree_route(b2_hash.clone(), genesis_hash.clone()).unwrap();
 		assert_eq!(r2_0.ancestor, genesis_hash);
 		assert_eq!(r2_0.blocks, [b2_hash.clone(), b1_hash.clone()]);
 		assert_eq!(r2_0.index, 2);
 
-		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone());
+		let r3a_1 = bc.tree_route(b3a_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r3a_1.ancestor, b1_hash);
 		assert_eq!(r3a_1.blocks, [b3a_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3a_1.index, 2);
 
-		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone());
+		let r3b_1 = bc.tree_route(b3b_hash.clone(), b1_hash.clone()).unwrap();
 		assert_eq!(r3b_1.ancestor, b1_hash);
 		assert_eq!(r3b_1.blocks, [b3b_hash.clone(), b2_hash.clone()]);
 		assert_eq!(r3b_1.index, 2);
 
-		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone());
+		let r3b_3a = bc.tree_route(b3b_hash.clone(), b3a_hash.clone()).unwrap();
 		assert_eq!(r3b_3a.ancestor, b2_hash);
 		assert_eq!(r3b_3a.blocks, [b3b_hash.clone(), b3a_hash.clone()]);
 		assert_eq!(r3b_3a.index, 1);
@@ -961,7 +975,7 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
 		bc.insert_block(&b1, vec![]);
-	
+
 		let transactions = bc.transactions(&b1_hash).unwrap();
 		assert_eq!(transactions.len(), 7);
 		for t in transactions {
@@ -981,7 +995,7 @@ mod tests {
 
 		// prepare for fork (b1a, child of genesis)
 		let b1a = "f902ccf901f9a05716670833ec874362d65fea27a7cd35af5897d275b31a44944113111e4e96d2a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0c70a5dc56146e5ef025e4e5726a6373c6f12fd2f6784093a19ead0a7d17fb292a040645cbce4fd399e7bb9160b4c30c40d7ee616a030d4e18ef0ed3b02bdb65911a086e608555f63628417032a011d107b36427af37d153f0da02ce3f90fdd5e8c08b90100000000000000000000000000000000000000000000000200000008000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000080000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302004001832fefd882c0e384562791e880a0e3cc39ff775cc0a32f175995b92e84b729e5c9a3563ff899e3555b908bc21d75887c3cde283f4846a6f8cdf8cb01018304cb2f8080b87e6060604052606e8060106000396000f360606040526000357c010000000000000000000000000000000000000000000000000000000090048063c0406226146037576035565b005b60406004506056565b6040518082815260200191505060405180910390f35b6000600560006000508190555060059050606b565b90561ba05258615c63503c0a600d6994b12ea5750d45b3c69668e2a371b4fbfb9eeff6b8a0a11be762bc90491231274a2945be35a43f23c27775b1ff24dd521702fe15f73ec0".from_hex().unwrap();
-		
+
 		// fork (b2a, child of b1a, with higher total difficulty)
 		let b2a = "f902ccf901f9a0626b0774a7cbdad7bdce07b87d74b6fa91c1c359d725076215d76348f8399f56a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347948888f1f195afa192cfee860698584c030f4c9db1a0c70a5dc56146e5ef025e4e5726a6373c6f12fd2f6784093a19ead0a7d17fb292a040645cbce4fd399e7bb9160b4c30c40d7ee616a030d4e18ef0ed3b02bdb65911a086e608555f63628417032a011d107b36427af37d153f0da02ce3f90fdd5e8c08b90100000000000000000000000000000000000000000000000200000008000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000080000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000020000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000008302004002832fefd882c0e384562791e880a0e3cc39ff775cc0a32f175995b92e84b729e5c9a3563ff899e3555b908bc21d75887c3cde283f4846a6f8cdf8cb01018304cb2f8080b87e6060604052606e8060106000396000f360606040526000357c010000000000000000000000000000000000000000000000000000000090048063c0406226146037576035565b005b60406004506056565b6040518082815260200191505060405180910390f35b6000600560006000508190555060059050606b565b90561ba05258615c63503c0a600d6994b12ea5750d45b3c69668e2a371b4fbfb9eeff6b8a0a11be762bc90491231274a2945be35a43f23c27775b1ff24dd521702fe15f73ec0".from_hex().unwrap();
 
@@ -1001,7 +1015,7 @@ mod tests {
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
 		assert_eq!(blocks_b1, vec![]);
 		assert_eq!(blocks_b2, vec![]);
-		
+
 		bc.insert_block(&b1, vec![]);
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);

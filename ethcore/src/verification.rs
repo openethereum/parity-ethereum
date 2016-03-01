@@ -23,7 +23,7 @@
 
 use common::*;
 use engine::Engine;
-use blockchain::*;
+use blockchain::BlockProvider;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreVerifiedBlock {
@@ -232,7 +232,7 @@ mod tests {
 	use error::*;
 	use error::BlockError::*;
 	use views::*;
-	use blockchain::*;
+	use blockchain::BlockProvider;
 	use engine::*;
 	use spec::*;
 	use transaction::*;

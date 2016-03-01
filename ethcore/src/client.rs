@@ -318,7 +318,7 @@ impl Client {
 
 			// Insert block
 			let closed_block = closed_block.unwrap();
-			self.chain.write().unwrap().insert_block(&block.bytes, closed_block.block().receipts().clone());
+			self.chain.write().unwrap().insert_block(&block.bytes, closed_block.block().receipts().clone()).expect("Failed to insert block");
 			good_blocks.push(header.hash());
 
 			let ancient = if header.number() >= HISTORY {
@@ -461,11 +461,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
-		let chain = self.chain.read().unwrap();
-		match chain.is_known(from) && chain.is_known(to) {
-			true => Some(chain.tree_route(from.clone(), to.clone())),
-			false => None
-		}
+		self.chain.read().unwrap().tree_route(from.clone(), to.clone()).ok()
 	}
 
 	fn state_data(&self, _hash: &H256) -> Option<Bytes> {
