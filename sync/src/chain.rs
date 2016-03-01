@@ -30,14 +30,17 @@
 ///
 
 use util::*;
+use rayon::prelude::*;
 use std::mem::{replace};
-use ethcore::views::{HeaderView};
+use ethcore::views::{HeaderView, BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId};
 use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::block::Block;
+use ethcore::transaction::SignedTransaction;
 use io::SyncIo;
+use transaction_queue::TransactionQueue;
 use time;
 use super::SyncConfig;
 
@@ -209,6 +212,8 @@ pub struct ChainSync {
 	max_download_ahead_blocks: usize,
 	/// Network ID
 	network_id: U256,
+	/// Transactions Queue
+	transaction_queue: Mutex<TransactionQueue>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -234,6 +239,7 @@ impl ChainSync {
 			last_send_block_number: 0,
 			max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
+			transaction_queue: Mutex::new(TransactionQueue::new()),
 		}
 	}
 
@@ -249,14 +255,14 @@ impl ChainSync {
 			blocks_total: match self.highest_block { Some(x) if x > self.starting_block => x - self.starting_block, _ => 0 },
 			num_peers: self.peers.len(),
 			num_active_peers: self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count(),
-			mem_used: 
+			mem_used:
 				//  TODO: https://github.com/servo/heapsize/pull/50
-				//  self.downloading_hashes.heap_size_of_children() 
-				//+ self.downloading_bodies.heap_size_of_children() 
-				//+ self.downloading_hashes.heap_size_of_children() 
-				self.headers.heap_size_of_children() 
-				+ self.bodies.heap_size_of_children() 
-				+ self.peers.heap_size_of_children() 
+				//  self.downloading_hashes.heap_size_of_children()
+				//+ self.downloading_bodies.heap_size_of_children()
+				//+ self.downloading_hashes.heap_size_of_children()
+				self.headers.heap_size_of_children()
+				+ self.bodies.heap_size_of_children()
+				+ self.peers.heap_size_of_children()
 				+ self.header_ids.heap_size_of_children(),
 		}
 	}
@@ -292,6 +298,7 @@ impl ChainSync {
 		self.starting_block = 0;
 		self.highest_block = None;
 		self.have_common_block = false;
+		self.transaction_queue.lock().unwrap().clear();
 		self.starting_block = io.chain().chain_info().best_block_number;
 		self.state = SyncState::NotSynced;
 	}
@@ -913,8 +920,16 @@ impl ChainSync {
 		}
 	}
 	/// Called when peer sends us new transactions
-	fn on_peer_transactions(&mut self, _io: &mut SyncIo, _peer_id: PeerId, _r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
-		Ok(())
+	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		let chain = io.chain();
+		let item_count = r.item_count();
+		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
+		let fetch_latest_nonce = |a : &Address| chain.nonce(a);
+		for i in 0..item_count {
+			let tx: SignedTransaction = try!(r.val_at(i));
+			self.transaction_queue.lock().unwrap().add(tx, &fetch_latest_nonce);
+		}
+ 		Ok(())
 	}
 
 	/// Send Status message
@@ -1241,6 +1256,34 @@ impl ChainSync {
 			}
 		}
 		self.last_send_block_number = chain.best_block_number;
+	}
+
+	/// called when block is imported to chain, updates transactions queue
+	pub fn chain_new_blocks(&mut self, io: &SyncIo, good: &[H256], bad: &[H256]) {
+		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
+			let block = chain
+				.block(BlockId::Hash(hash.clone()))
+				.expect("Expected in-chain blocks.");
+			let block = BlockView::new(&block);
+			block.transactions()
+		};
+
+		let chain = io.chain();
+		let good = good.par_iter().map(|h| fetch_transactions(chain, h));
+		let bad = bad.par_iter().map(|h| fetch_transactions(chain, h));
+
+		good.for_each(|txs| {
+			let mut transaction_queue = self.transaction_queue.lock().unwrap();
+			transaction_queue.remove_all(&txs);
+		});
+		bad.for_each(|txs| {
+			// populate sender
+			for tx in &txs {
+				let _sender = tx.sender();
+			}
+			let mut transaction_queue = self.transaction_queue.lock().unwrap();
+			transaction_queue.add_all(txs, |a| chain.nonce(a));
+		});
 	}
 }
 
@@ -1569,6 +1612,32 @@ mod tests {
 		let data = &io.queue[0].data.clone();
 		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(&data));
 		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn should_add_transactions_to_queue() {
+		// given
+		let mut client = TestBlockChainClient::new();
+		// client.add_blocks(98, BlocksWith::Uncle);
+		// client.add_blocks(1, BlocksWith::UncleAndTransaction);
+		// client.add_blocks(1, BlocksWith::Transaction);
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+
+		let good_blocks = vec![client.block_hash_delta_minus(2)];
+		let bad_blocks = vec![client.block_hash_delta_minus(1)];
+
+		let mut queue = VecDeque::new();
+		let io = TestIo::new(&mut client, &mut queue, None);
+
+		// when
+		sync.chain_new_blocks(&io, &[], &good_blocks);
+		assert_eq!(sync.transaction_queue.lock().unwrap().status().pending, 1);
+		sync.chain_new_blocks(&io, &good_blocks, &bad_blocks);
+
+		// then
+		let status = sync.transaction_queue.lock().unwrap().status();
+		assert_eq!(status.pending, 1);
+		assert_eq!(status.future, 0);
 	}
 
 	#[test]
