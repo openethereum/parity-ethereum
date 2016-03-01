@@ -1042,8 +1042,4 @@ mod tests {
 		assert_eq!(blocks_b2, vec![2]);
 		assert_eq!(blocks_ba, vec![3]);
 	}
-
-
-
-
 }
