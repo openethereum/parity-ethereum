@@ -417,7 +417,7 @@ impl Client {
 	/// New chain head event.
 	pub fn new_chain_head(&self) {
 		let h = self.chain.read().unwrap().best_block_hash();
-		info!("New best block: #{}: {}", self.chain.read().unwrap().best_block_number(), h);
+		debug!("New best block: #{}: {}", self.chain.read().unwrap().best_block_number(), h);
 		let b = OpenBlock::new(
 			self.engine.deref().deref(),
 			self.state_db.lock().unwrap().clone(),
@@ -427,7 +427,7 @@ impl Client {
 			b"Parity".to_vec()
 		);
 		let b = b.close();
-		info!("Sealed: hash={}, diff={}, number={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
+		debug!("Sealing: hash={}, diff={}, number={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
 		*self.sealing_block.lock().unwrap() = Some(b);
 	}
 

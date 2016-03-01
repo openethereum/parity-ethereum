@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
-use std::sync::{Arc, Weak};
 use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
 use util::hash::*;
 use util::uint::*;
 use util::sha3::*;
+use util::standard::{RwLock, HashMap, Arc, Weak};
 use util::rlp::encode;
 use ethcore::client::*;
 use ethcore::block::{IsBlock};
@@ -34,7 +34,8 @@ use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncIn
 /// Eth rpc implementation.
 pub struct EthClient {
 	client: Weak<Client>,
-	sync: Weak<EthSync>
+	sync: Weak<EthSync>,
+	hashrates: RwLock<HashMap<H256, u64>>,
 }
 
 impl EthClient {
@@ -42,7 +43,8 @@ impl EthClient {
 	pub fn new(client: &Arc<Client>, sync: &Arc<EthSync>) -> Self {
 		EthClient {
 			client: Arc::downgrade(client),
-			sync: Arc::downgrade(sync)
+			sync: Arc::downgrade(sync),
+			hashrates: RwLock::new(HashMap::new()),
 		}
 	}
 
@@ -137,7 +139,7 @@ impl Eth for EthClient {
 	// TODO: return real hashrate once we have mining
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&U256::zero()),
+			Params::None => to_value(&self.hashrates.read().unwrap().iter().fold(0u64, |sum, (_, v)| sum + v)),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -215,7 +217,6 @@ impl Eth for EthClient {
 	}
 
 	fn work(&self, params: Params) -> Result<Value, Error> {
-		println!("Work wanted: {:?}", params);
 		match params {
 			Params::None => {
 				let c = take_weak!(self.client);
@@ -235,6 +236,7 @@ impl Eth for EthClient {
 	}
 
 	fn submit_work(&self, params: Params) -> Result<Value, Error> {
+		// TODO: println! should be debug!
 		println!("Work submission: {:?}", params);
 		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
 			let c = take_weak!(self.client);
@@ -244,9 +246,9 @@ impl Eth for EthClient {
 	}
 
 	fn submit_hashrate(&self, params: Params) -> Result<Value, Error> {
-		println!("Hashrate submission: {:?}", params);
+		// TODO: Index should be U256.
 		from_params::<(Index, H256)>(params).and_then(|(rate, id)| {
-			println!("Miner {} reports a hash rate of {} H/s", id, rate.value());
+			self.hashrates.write().unwrap().insert(id, rate.value() as u64);
 			to_value(&true)
 		})
 	}
