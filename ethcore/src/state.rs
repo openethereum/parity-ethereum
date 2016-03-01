@@ -138,7 +138,7 @@ impl State {
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
 	pub fn new_contract(&mut self, contract: &Address, balance: U256) {
-		self.insert_cache(&contract, Some(Account::new_contract(balance)));
+		self.insert_cache(&contract, Some(Account::new_contract(balance, self.account_start_nonce)));
 	}
 
 	/// Remove an existing account.
@@ -204,7 +204,7 @@ impl State {
 	/// Initialise the code of account `a` so that it is `value` for `key`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) {
-		self.require_or_from(a, true, || Account::new_contract(U256::from(0u8)), |_|{}).init_code(code);
+		self.require_or_from(a, true, || Account::new_contract(x!(0), self.account_start_nonce), |_|{}).init_code(code);
 	}
 
 	/// Execute a given transaction.
@@ -349,7 +349,7 @@ fn code_from_database() {
 	let temp = RandomTempPath::new();
 	let (root, db) = {
 		let mut state = get_temp_state_in(temp.as_path());
-		state.require_or_from(&a, false, ||Account::new_contract(U256::from(42u32)), |_|{});
+		state.require_or_from(&a, false, ||Account::new_contract(x!(42), x!(0)), |_|{});
 		state.init_code(&a, vec![1, 2, 3]);
 		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
 		state.commit();
