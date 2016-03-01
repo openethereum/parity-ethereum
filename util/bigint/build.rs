@@ -14,16 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::{U256,H256};
-use header::BlockNumber;
+extern crate rustc_version;
 
-/// Best block info.
-#[derive(Default)]
-pub struct BestBlock {
-	/// Best block hash.
-	pub hash: H256,
-	/// Best block number.
-	pub number: BlockNumber,
-	/// Best block total difficulty.
-	pub total_difficulty: U256
+use rustc_version::{version_meta, Channel};
+
+fn main() {
+	if let Channel::Nightly = version_meta().channel {
+		println!("cargo:rustc-cfg=asm_available");
+	}
 }

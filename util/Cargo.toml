@@ -35,6 +35,7 @@ ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
 vergen = "0.1"
 target_info = "0.1"
+bigint = { path = "bigint" }
 
 [features]
 default = []

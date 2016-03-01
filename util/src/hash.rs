@@ -23,7 +23,7 @@ use rand::Rng;
 use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
 use from_json::*;
-use uint::{Uint, U256};
+use bigint::uint::{Uint, U256};
 use rustc_serialize::hex::ToHex;
 use serde;
 
@@ -597,7 +597,7 @@ pub fn h256_from_hex(s: &str) -> H256 {
 
 /// Convert `n` to an `H256`, setting the rightmost 8 bytes.
 pub fn h256_from_u64(n: u64) -> H256 {
-	use uint::U256;
+	use bigint::uint::U256;
 	H256::from(&U256::from(n))
 }
 
@@ -633,7 +633,7 @@ pub static ZERO_H256: H256 = H256([0x00; 32]);
 #[cfg(test)]
 mod tests {
 	use hash::*;
-	use uint::*;
+	use bigint::uint::*;
 	use std::str::FromStr;
 
 	#[test]
