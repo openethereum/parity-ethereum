@@ -92,10 +92,10 @@ impl Account {
 
 	/// Create a new contract account.
 	/// NOTE: make sure you use `init_code` on this before `commit`ing.
-	pub fn new_contract(balance: U256) -> Account {
+	pub fn new_contract(balance: U256, nonce: U256) -> Account {
 		Account {
 			balance: balance,
-			nonce: U256::from(0u8),
+			nonce: nonce,
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: None,
@@ -261,7 +261,7 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		let rlp = {
-			let mut a = Account::new_contract(U256::from(69u8));
+			let mut a = Account::new_contract(x!(69), x!(0));
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
 			a.commit_storage(&mut db);
 			a.init_code(vec![]);
@@ -281,7 +281,7 @@ mod tests {
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 
 		let rlp = {
-			let mut a = Account::new_contract(U256::from(69u8));
+			let mut a = Account::new_contract(x!(69), x!(0));
 			a.init_code(vec![0x55, 0x44, 0xffu8]);
 			a.commit_code(&mut db);
 			a.rlp()
@@ -296,7 +296,7 @@ mod tests {
 
 	#[test]
 	fn commit_storage() {
-		let mut a = Account::new_contract(U256::from(69u8));
+		let mut a = Account::new_contract(x!(69), x!(0));
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(x!(0), x!(0x1234));
@@ -307,7 +307,7 @@ mod tests {
 
 	#[test]
 	fn commit_remove_commit_storage() {
-		let mut a = Account::new_contract(U256::from(69u8));
+		let mut a = Account::new_contract(x!(69), x!(0));
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.set_storage(x!(0), x!(0x1234));
@@ -321,7 +321,7 @@ mod tests {
 
 	#[test]
 	fn commit_code() {
-		let mut a = Account::new_contract(U256::from(69u8));
+		let mut a = Account::new_contract(x!(69), x!(0));
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
