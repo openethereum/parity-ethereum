@@ -473,6 +473,12 @@ impl BlockChain {
 		self.extras_db.write(batch).unwrap();
 	}
 
+	/// Given a block's `parent`, find every block header which represents a valid uncle.
+	pub fn find_uncle_headers(&self, _parent: &H256) -> Vec<Header> {
+		// TODO
+		Vec::new()
+	}
+
 	/// Get inserted block info which is critical to preapre extras updates.
 	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
 		let block = BlockView::new(block_bytes);

@@ -418,7 +418,7 @@ impl Client {
 		}
 	}
 
-	/// Set the author that we will seal blocks as.
+	/// Get the author that we will seal blocks as.
 	pub fn author(&self) -> Address {
 		self.author.read().unwrap().clone()
 	}
@@ -428,7 +428,7 @@ impl Client {
 		*self.author.write().unwrap() = author;
 	}
 
-	/// Set the extra_data that we will seal blocks wuth.
+	/// Get the extra_data that we will seal blocks wuth.
 	pub fn extra_data(&self) -> Bytes {
 		self.extra_data.read().unwrap().clone()
 	}
@@ -441,16 +441,19 @@ impl Client {
 	/// New chain head event. Restart mining operation.
 	pub fn prepare_sealing(&self) {
 		let h = self.chain.read().unwrap().best_block_hash();
-		let b = OpenBlock::new(
+		let mut b = OpenBlock::new(
 			self.engine.deref().deref(),
 			self.state_db.lock().unwrap().clone(),
 			match self.chain.read().unwrap().block_header(&h) { Some(ref x) => x, None => {return;} },
-			self.build_last_hashes(h),
+			self.build_last_hashes(h.clone()),
 			self.author(),
 			self.extra_data()
 		);
-		// TODO: push uncles.
+
+		self.chain.read().unwrap().find_uncle_headers(&h).into_iter().foreach(|h| { b.push_uncle(h).unwrap(); });
+
 		// TODO: push transactions.
+
 		let b = b.close();
 		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
 		*self.sealing_block.lock().unwrap() = Some(b);

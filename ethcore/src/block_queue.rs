@@ -455,7 +455,7 @@ mod tests {
 		match duplicate_import {
 			Err(e) => {
 				match e {
-					ImportError::AlreadyQueued => {},
+					Error::Import(ImportError::AlreadyQueued) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}

@@ -82,7 +82,7 @@ pub fn version_data() -> Bytes {
 		u32::from_str(env!("CARGO_PKG_VERSION_PATCH")).unwrap();
 	s.append(&v);
 	s.append(&"Parity");
-	s.append(&format!("rustc{}", rustc_version::version()));
-	s.append(&Target::os());
+	s.append(&format!("{}", rustc_version::version()));
+	s.append(&&Target::os()[0..2]);
 	s.out()
 }
