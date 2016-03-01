@@ -46,7 +46,7 @@ sudo ldconfig
 cd ..
 
 # install rust nightly
-curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
+curl -sf https://raw.githubusercontent.com/brson/multirust/master/quick-install.sh | sudo sh -s -- --yes
 
 # install nightly and make it default
 sudo multirust update nightly-2016-02-14
