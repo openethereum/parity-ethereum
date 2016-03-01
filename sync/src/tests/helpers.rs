@@ -117,7 +117,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
 		unimplemented!();
 	}
 
