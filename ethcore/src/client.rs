@@ -453,7 +453,6 @@ impl Client {
 		// TODO: push transactions.
 		let b = b.close();
 		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
-		debug!("Header: {:?}", b.block().header());
 		*self.sealing_block.lock().unwrap() = Some(b);
 	}
 
