@@ -27,3 +27,6 @@
 # jetbrains ide stuff
 .idea
 *.iml
+
+# Build artifacts
+out/
