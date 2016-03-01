@@ -74,6 +74,13 @@ pub trait Engine : Sync + Send {
 	/// Verify a particular transaction is valid.
 	fn verify_transaction(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
 
+	/// Verify the seal of a block. This is an auxilliary method that actually just calls other `verify_` methods
+	/// to get the job done. By default it must pass `verify_basic` and `verify_block_unordered`. If more or fewer
+	/// methods are needed for an Engine, this may be overridden.
+	fn verify_block_seal(&self, header: &Header) -> Result<(), Error> {
+		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
+	}
+
 	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
 	// TODO: consider including State in the params.
 	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) {}

@@ -309,15 +309,10 @@ impl ClosedBlock {
 	pub fn try_seal(self, engine: &Engine, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
 		let mut s = self;
 		s.block.base.header.set_seal(seal);
-		if let Err(e) = engine.verify_block_basic(&s.block.base.header, None) {
-			debug!("Failed to try_seal: {:?}", e);
-			return Err(s);
+		match engine.verify_block_seal(&s.block.base.header) {
+			Err(_) => Err(s),
+			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
 		}
-		if let Err(e) = engine.verify_block_unordered(&s.block.base.header, None) {
-			debug!("Failed to try_seal: {:?}", e);
-			return Err(s);
-		}
-		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })
 	}
 
 	/// Drop this object and return the underlieing database.
