@@ -131,7 +131,7 @@ impl Eth for EthClient {
 	// TODO: return real value of mining once it's implemented.
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::Bool(false)),
+			Params::None => to_value(&!self.hashrates.read().unwrap().is_empty()),
 			_ => Err(Error::invalid_params())
 		}
 	}
