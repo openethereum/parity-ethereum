@@ -54,6 +54,7 @@ extern crate ethcore;
 extern crate env_logger;
 extern crate time;
 extern crate rand;
+extern crate rayon;
 #[macro_use]
 extern crate heapsize;
 
@@ -70,6 +71,7 @@ use io::NetSyncIo;
 mod chain;
 mod io;
 mod range_collection;
+mod transaction_queue;
 
 #[cfg(test)]
 mod tests;
@@ -151,8 +153,14 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	}
 
 	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
-		if let SyncMessage::BlockVerified = *message {
-			self.sync.write().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
+		match *message {
+			SyncMessage::BlockVerified => {
+				self.sync.write().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
+			},
+			SyncMessage::NewChainBlocks { ref good, ref bad } => {
+				let sync_io = NetSyncIo::new(io, self.chain.deref());
+				self.sync.write().unwrap().chain_new_blocks(&sync_io, good, bad);
+			}
 		}
 	}
 }

@@ -18,7 +18,6 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(x64asm, feature(asm))]
 #![cfg_attr(feature="dev", plugin(clippy))]
-
 // Clippy settings
 // TODO [todr] not really sure
 #![cfg_attr(feature="dev", allow(needless_range_loop))]
@@ -144,6 +143,7 @@ pub mod network;
 pub mod log;
 pub mod panics;
 pub mod keys;
+pub mod table;
 
 pub use common::*;
 pub use misc::*;
