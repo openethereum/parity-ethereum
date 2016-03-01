@@ -196,6 +196,8 @@ pub struct Client {
 
 	// for sealing...
 	sealing_block: Mutex<Option<ClosedBlock>>,
+	author: RwLock<Address>,
+	extra_data: RwLock<Bytes>,
 }
 
 const HISTORY: u64 = 1000;
@@ -233,6 +235,8 @@ impl Client {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			sealing_block: Mutex::new(None),
+			author: RwLock::new(Address::new()),
+			extra_data: RwLock::new(Vec::new()),
 		}))
 	}
 
@@ -364,7 +368,7 @@ impl Client {
 		}
 
 		if self.chain_info().best_block_hash != original_best {
-			self.new_chain_head();
+			self.prepare_sealing();
 		}
 
 		imported
@@ -414,27 +418,55 @@ impl Client {
 		}
 	}
 
-	/// New chain head event.
-	pub fn new_chain_head(&self) {
+	/// Set the author that we will seal blocks as.
+	pub fn author(&self) -> Address {
+		self.author.read().unwrap().clone()
+	}
+
+	/// Set the author that we will seal blocks as.
+	pub fn set_author(&self, author: Address) {
+		*self.author.write().unwrap() = author;
+	}
+
+	/// Set the extra_data that we will seal blocks wuth.
+	pub fn extra_data(&self) -> Bytes {
+		self.extra_data.read().unwrap().clone()
+	}
+
+	/// Set the extra_data that we will seal blocks with.
+	pub fn set_extra_data(&self, extra_data: Bytes) {
+		*self.extra_data.write().unwrap() = extra_data;
+	}
+
+	/// New chain head event. Restart mining operation.
+	pub fn prepare_sealing(&self) {
 		let h = self.chain.read().unwrap().best_block_hash();
-		debug!("New best block: #{}: {}", self.chain.read().unwrap().best_block_number(), h);
 		let b = OpenBlock::new(
 			self.engine.deref().deref(),
 			self.state_db.lock().unwrap().clone(),
 			match self.chain.read().unwrap().block_header(&h) { Some(ref x) => x, None => {return;} },
-			self.build_last_hashes(h.clone()),
-			x!("0037a6b811ffeb6e072da21179d11b1406371c63"),
-			b"Parity".to_vec()
+			self.build_last_hashes(h),
+			self.author(),
+			self.extra_data()
 		);
+		// TODO: push uncles.
+		// TODO: push transactions.
 		let b = b.close();
-		debug!("Sealing: hash={}, diff={}, number={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
+		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
+		debug!("Header: {:?}", b.block().header());
 		*self.sealing_block.lock().unwrap() = Some(b);
 	}
 
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> { &self.sealing_block }
+	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
+		if self.sealing_block.lock().unwrap().is_none() {
+			self.prepare_sealing();
+		}
+		&self.sealing_block
+	}
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
 	pub fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		let mut maybe_b = self.sealing_block.lock().unwrap();
 		match *maybe_b {

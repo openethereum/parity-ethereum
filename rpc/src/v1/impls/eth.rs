@@ -236,12 +236,12 @@ impl Eth for EthClient {
 	}
 
 	fn submit_work(&self, params: Params) -> Result<Value, Error> {
-		// TODO: println! should be debug!
-		println!("Work submission: {:?}", params);
 		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
+//			trace!("Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 			let c = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
-			to_value(&c.submit_seal(pow_hash, seal).is_ok())
+			let r = c.submit_seal(pow_hash, seal);
+			to_value(&r.is_ok())
 		})
 	}
 

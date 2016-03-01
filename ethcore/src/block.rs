@@ -182,6 +182,7 @@ impl<'x> OpenBlock<'x> {
 		r.block.base.header.set_author(author);
 		r.block.base.header.set_extra_data(extra_data);
 		r.block.base.header.set_timestamp_now(parent.timestamp());
+		r.block.base.header.set_parent_hash(parent.hash());
 
 		engine.populate_from_parent(&mut r.block.base.header, parent);
 		engine.on_new_block(&mut r.block);
@@ -308,10 +309,15 @@ impl ClosedBlock {
 	pub fn try_seal(self, engine: &Engine, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
 		let mut s = self;
 		s.block.base.header.set_seal(seal);
-		match engine.verify_block_basic(&s.block.base.header, None).is_err() || engine.verify_block_unordered(&s.block.base.header, None).is_err() {
-			false => Err(s),
-			true => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
+		if let Err(e) = engine.verify_block_basic(&s.block.base.header, None) {
+			debug!("Failed to try_seal: {:?}", e);
+			return Err(s);
 		}
+		if let Err(e) = engine.verify_block_unordered(&s.block.base.header, None) {
+			debug!("Failed to try_seal: {:?}", e);
+			return Err(s);
+		}
+		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })
 	}
 
 	/// Drop this object and return the underlieing database.

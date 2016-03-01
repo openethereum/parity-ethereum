@@ -85,6 +85,10 @@ Options:
   --jsonrpc-url URL        Specify URL for JSON-RPC API server [default: 127.0.0.1:8545].
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
 
+  --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
+                           from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
+  --extra-data STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
+
   -l --logging LOGGING     Specify the logging level.
   -v --version             Show information about version.
   -h --help                Show this screen.
@@ -114,6 +118,8 @@ struct Args {
 	flag_jsonrpc_cors: String,
 	flag_logging: Option<String>,
 	flag_version: bool,
+	flag_author: String,
+	flag_extra_data: Option<String>,
 }
 
 fn setup_log(init: &Option<String>) {
@@ -194,6 +200,18 @@ impl Configuration {
 
 	fn path(&self) -> String {
 		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+	}
+
+	fn author(&self) -> Address {
+		Address::from_str(&self.args.flag_author).unwrap_or_else(|_| die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", self.args.flag_author))
+	}
+
+	fn extra_data(&self) -> Bytes {
+		match self.args.flag_extra_data {
+			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
+			None => version_data(),
+			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+		}
 	}
 
 	fn _keys_path(&self) -> String {
@@ -296,6 +314,8 @@ impl Configuration {
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
 		let client = service.client().clone();
+		client.set_author(self.author());
+		client.set_extra_data(self.extra_data());
 
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client);
