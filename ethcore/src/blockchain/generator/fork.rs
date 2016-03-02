@@ -14,18 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+pub trait Forkable {
+	fn fork(self, fork_number: usize) -> Self where Self: Sized;
+}
 
-pub mod blockchain;
-mod best_block;
-mod block_info;
-mod bloom_indexer;
-mod cache;
-mod tree_route;
-mod update;
-#[cfg(test)]
-mod generator;
+pub struct Fork<I> {
+	pub iter: I,
+	pub fork_number: usize,
+}
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
-pub use self::cache::CacheSize;
-pub use self::tree_route::TreeRoute;
+impl<I> Clone for Fork<I> where I: Iterator + Clone {
+	fn clone(&self) -> Self {
+		Fork {
+			iter: self.iter.clone(),
+			fork_number: self.fork_number
+		}
+	}
+}
+
+impl<I> Iterator for Fork<I> where I: Iterator, <I as Iterator>::Item: Forkable {
+	type Item = <I as Iterator>::Item;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.iter.next().map(|item| item.fork(self.fork_number))
+	}
+}

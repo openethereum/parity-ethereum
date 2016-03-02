@@ -14,18 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+use util::hash::H2048;
 
-pub mod blockchain;
-mod best_block;
-mod block_info;
-mod bloom_indexer;
-mod cache;
-mod tree_route;
-mod update;
-#[cfg(test)]
-mod generator;
+pub trait WithBloom {
+	fn with_bloom(self, bloom: H2048) -> Self where Self: Sized;
+}
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
-pub use self::cache::CacheSize;
-pub use self::tree_route::TreeRoute;
+pub struct Bloom<'a, I> where I: 'a {
+	pub iter: &'a mut I,
+	pub bloom: H2048,
+}
+
+impl<'a, I> Iterator for Bloom<'a, I> where I: Iterator, <I as Iterator>::Item: WithBloom {
+	type Item = <I as Iterator>::Item;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.iter.next().map(|item| item.with_bloom(self.bloom.clone()))
+	}
+}
