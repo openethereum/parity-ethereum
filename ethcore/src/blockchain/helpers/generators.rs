@@ -16,7 +16,7 @@
 
 use util::rlp::*;
 use util::hash::{H256, H2048};
-use util::uint::{U256};
+use util::numbers::{U256};
 use util::bytes::Bytes;
 use header::{BlockNumber, Header};
 use transaction::SignedTransaction;
