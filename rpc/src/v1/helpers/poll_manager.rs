@@ -124,21 +124,21 @@ mod tests {
 
 		*time.borrow_mut() = 10;
 		indexer.update_poll(&0, 21);
-		assert_eq!(indexer.get_poll(&0).unwrap().filter, false);
-		assert_eq!(indexer.get_poll(&0).unwrap().block_number, 21);
+		assert_eq!(indexer.get_poll_info(&0).unwrap().filter, false);
+		assert_eq!(indexer.get_poll_info(&0).unwrap().block_number, 21);
 
 		*time.borrow_mut() = 30;
 		indexer.update_poll(&1, 23);
-		assert_eq!(indexer.get_poll(&1).unwrap().filter, true);
-		assert_eq!(indexer.get_poll(&1).unwrap().block_number, 23);
+		assert_eq!(indexer.get_poll_info(&1).unwrap().filter, true);
+		assert_eq!(indexer.get_poll_info(&1).unwrap().block_number, 23);
 
 		*time.borrow_mut() = 75;
 		indexer.update_poll(&0, 30);
-		assert!(indexer.get_poll(&0).is_none());
-		assert_eq!(indexer.get_poll(&1).unwrap().filter, true);
-		assert_eq!(indexer.get_poll(&1).unwrap().block_number, 23);
+		assert!(indexer.get_poll_info(&0).is_none());
+		assert_eq!(indexer.get_poll_info(&1).unwrap().filter, true);
+		assert_eq!(indexer.get_poll_info(&1).unwrap().block_number, 23);
 
 		indexer.remove_poll(&1);
-		assert!(indexer.get_poll(&1).is_none());
+		assert!(indexer.get_poll_info(&1).is_none());
 	}
 }
