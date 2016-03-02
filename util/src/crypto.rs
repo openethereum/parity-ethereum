@@ -16,9 +16,8 @@
 
 //! Ethcore crypto.
 
-use hash::*;
+use numbers::*;
 use bytes::*;
-use uint::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
 
@@ -151,8 +150,7 @@ impl KeyPair {
 
 /// EC functions
 pub mod ec {
-	use hash::*;
-	use uint::*;
+	use numbers::*;
 	use standard::*;
 	use crypto::*;
 	use crypto::{self};

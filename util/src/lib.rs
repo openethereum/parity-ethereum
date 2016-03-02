@@ -16,7 +16,6 @@
 
 #![warn(missing_docs)]
 #![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(x64asm, feature(asm))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
 // Clippy settings
@@ -111,15 +110,16 @@ extern crate libc;
 extern crate rustc_version;
 extern crate target_info;
 extern crate vergen;
+extern crate bigint;
 
 pub mod standard;
 #[macro_use]
 pub mod from_json;
 #[macro_use]
 pub mod common;
+pub mod numbers;
 pub mod error;
 pub mod hash;
-pub mod uint;
 pub mod bytes;
 pub mod rlp;
 pub mod misc;
@@ -144,6 +144,7 @@ pub mod network;
 pub mod log;
 pub mod panics;
 pub mod keys;
+pub mod table;
 
 pub use common::*;
 pub use misc::*;

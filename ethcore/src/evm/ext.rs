@@ -16,9 +16,7 @@
 
 //! Interface for Evm externalities.
 
-use common::Bytes;
-use util::hash::*;
-use util::uint::*;
+use util::common::*;
 use evm::{Schedule, Error};
 use env_info::*;
 
@@ -60,22 +58,22 @@ pub trait Ext {
 	fn blockhash(&self, number: &U256) -> H256;
 
 	/// Creates new contract.
-	/// 
+	///
 	/// Returns gas_left and contract address if contract creation was succesfull.
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult;
 
 	/// Message call.
-	/// 
+	///
 	/// Returns Err, if we run out of gas.
-	/// Otherwise returns call_result which contains gas left 
+	/// Otherwise returns call_result which contains gas left
 	/// and true if subcall was successfull.
-	fn call(&mut self, 
-			gas: &U256, 
-			sender_address: &Address, 
-			receive_address: &Address, 
+	fn call(&mut self,
+			gas: &U256,
+			sender_address: &Address,
+			receive_address: &Address,
 			value: Option<U256>,
-			data: &[u8], 
-			code_address: &Address, 
+			data: &[u8],
+			code_address: &Address,
 			output: &mut [u8]) -> MessageCallResult;
 
 	/// Returns code at given address
@@ -99,7 +97,7 @@ pub trait Ext {
 	fn env_info(&self) -> &EnvInfo;
 
 	/// Returns current depth of execution.
-	/// 
+	///
 	/// If contract A calls contract B, and contract B calls C,
 	/// then A depth is 0, B is 1, C is 2 and so on.
 	fn depth(&self) -> usize;

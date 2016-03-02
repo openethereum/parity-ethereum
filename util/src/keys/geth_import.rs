@@ -46,14 +46,14 @@ pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, io::Er
 #[derive(Debug)]
 pub enum ImportError {
 	/// Io error reading geth file
-	IoError(io::Error),
+	Io(io::Error),
 	/// format error
-	FormatError,
+	Format,
 }
 
 impl From<io::Error> for ImportError {
 	fn from (err: io::Error) -> ImportError {
-		ImportError::IoError(err)
+		ImportError::Io(err)
 	}
 }
 
@@ -65,15 +65,15 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 
 	let mut json_result = Json::from_str(&buf);
 	let mut json = match json_result {
-		Ok(ref mut parsed_json) => try!(parsed_json.as_object_mut().ok_or(ImportError::FormatError)),
-		Err(_) => { return Err(ImportError::FormatError); }
+		Ok(ref mut parsed_json) => try!(parsed_json.as_object_mut().ok_or(ImportError::Format)),
+		Err(_) => { return Err(ImportError::Format); }
 	};
-	let crypto_object = try!(json.get("Crypto").and_then(|crypto| crypto.as_object()).ok_or(ImportError::FormatError)).clone();
+	let crypto_object = try!(json.get("Crypto").and_then(|crypto| crypto.as_object()).ok_or(ImportError::Format)).clone();
 	json.insert("crypto".to_owned(), Json::Object(crypto_object));
 	json.remove("Crypto");
 	match KeyFileContent::load(&Json::Object(json.clone())) {
 		Ok(key_file) => try!(secret_store.import_key(key_file)),
-		Err(_) => { return Err(ImportError::FormatError); }
+		Err(_) => { return Err(ImportError::Format); }
 	};
 	Ok(())
 }
@@ -82,7 +82,7 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory: &Path) -> Result<(), ImportError> {
 	use std::path::PathBuf;
 	let geth_files = try!(enumerate_geth_keys(geth_keyfiles_directory));
-	for &(ref address, ref file_path) in geth_files.iter() {
+	for &(ref address, ref file_path) in &geth_files {
 		let mut path = PathBuf::new();
 		path.push(geth_keyfiles_directory);
 		path.push(file_path);

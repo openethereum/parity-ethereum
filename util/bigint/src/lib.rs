@@ -14,16 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::{U256,H256};
-use header::BlockNumber;
+#![cfg_attr(asm_available, feature(asm))]
 
-/// Best block info.
-#[derive(Default)]
-pub struct BestBlock {
-	/// Best block hash.
-	pub hash: H256,
-	/// Best block number.
-	pub number: BlockNumber,
-	/// Best block total difficulty.
-	pub total_difficulty: U256
-}
+extern crate rustc_serialize;
+extern crate serde;
+#[macro_use] extern crate heapsize;
+
+pub mod uint;

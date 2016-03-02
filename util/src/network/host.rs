@@ -376,7 +376,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
 				self.pinned_nodes.push(n.id.clone());
 				self.nodes.write().unwrap().add_node(n);
-				if let &mut Some(ref mut discovery) = self.discovery.lock().unwrap().deref_mut() {
+				if let Some(ref mut discovery) = *self.discovery.lock().unwrap().deref_mut() {
 					discovery.add_node(entry);
 				}
 			}
@@ -418,7 +418,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 			Some(addr) => NodeEndpoint { address: addr, udp_port: udp_port }
 		};
-		
+
 		// Setup the server socket
 		*tcp_listener = Some(TcpListener::bind(&listen_address).unwrap());
 		self.info.write().unwrap().public_endpoint = public_endpoint.clone();
@@ -697,7 +697,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					let entry = NodeEntry { id: session.id().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
 					self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
 					let mut discovery = self.discovery.lock().unwrap();
-					if let &mut Some(ref mut discovery) = discovery.deref_mut() {
+					if let Some(ref mut discovery) = *discovery.deref_mut() {
 						discovery.add_node(entry);
 					}
 				}
