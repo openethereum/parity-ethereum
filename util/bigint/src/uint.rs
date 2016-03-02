@@ -2003,6 +2003,7 @@ mod tests {
 
 
 	#[test]
+	#[cfg_attr(feature = "dev", allow(cyclomatic_complexity))]
 	fn u256_multi_full_mul() {
 		let result = U256([0, 0, 0, 0]).full_mul(U256([0, 0, 0, 0]));
 		assert_eq!(U512([0, 0, 0, 0, 0, 0, 0, 0]), result);
