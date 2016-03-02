@@ -280,7 +280,7 @@ impl EthFilter for EthFilterClient {
 						},
 						PollFilter::PendingTransaction => {
 							// TODO: fix implementation
-							to_value(&client.chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
+							to_value(&vec![H256::default()])
 						},
 						PollFilter::Logs(mut filter) => {
 							filter.from_block = BlockId::Number(info.block_number);
