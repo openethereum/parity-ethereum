@@ -57,7 +57,7 @@ impl<F, T> PollManager<F, T> where T: Timer {
 	pub fn new_with_timer(timer: T) -> Self {
 		PollManager {
 			polls: TransientHashMap::new_with_timer(POLL_LIFETIME, timer),
-			next_available_id: 0
+			next_available_id: 0,
 		}
 	}
 
@@ -70,7 +70,7 @@ impl<F, T> PollManager<F, T> where T: Timer {
 		self.next_available_id += 1;
 		self.polls.insert(id, PollInfo {
 			filter: filter,
-			block_number: block
+			block_number: block,
 		});
 		id
 	}
@@ -102,7 +102,7 @@ mod tests {
 	use v1::helpers::PollManager;
 
 	struct TestTimer<'a> {
-		time: &'a RefCell<i64>
+		time: &'a RefCell<i64>,
 	}
 
 	impl<'a> Timer for TestTimer<'a> {
@@ -115,7 +115,7 @@ mod tests {
 	fn test_poll_indexer() {
 		let time = RefCell::new(0);
 		let timer = TestTimer {
-			time: &time
+			time: &time,
 		};
 
 		let mut indexer = PollManager::new_with_timer(timer);
