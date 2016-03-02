@@ -231,15 +231,16 @@ pub struct AncestryIter<'a> {
 	current: H256,
 	chain: &'a BlockChain,
 }
+
 impl<'a> Iterator for AncestryIter<'a> {
 	type Item = H256;
 	fn next(&mut self) -> Option<H256> {
 		if self.current.is_zero() {
 			Option::None
 		} else {
-			let n = self.chain.block_details(&self.current).unwrap().parent;
-			self.current = n;
-			Some(self.current.clone())
+			let mut n = self.chain.block_details(&self.current).unwrap().parent;
+			mem::swap(&mut self.current, &mut n);
+			Some(n)
 		}
 	}
 }
@@ -855,6 +856,28 @@ mod tests {
 		assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
 		assert_eq!(bc.block_hash(2), None);
+	}
+
+	#[test]
+	fn check_ancestry_iter() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
+
+		let temp = RandomTempPath::new();
+		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+
+		let mut block_hashes = vec![genesis_hash.clone()];
+		for _ in 0..10 {
+			let block = canon_chain.generate(&mut finalizer).unwrap();
+			block_hashes.push(BlockView::new(&block).header_view().sha3());
+			bc.insert_block(&block, vec![]);
+		}
+
+		block_hashes.reverse();
+
+		assert_eq!(bc.ancestry_iter(block_hashes[0].clone()).collect::<Vec<_>>(), block_hashes)
 	}
 
 	#[test]
