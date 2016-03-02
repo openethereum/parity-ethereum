@@ -22,7 +22,7 @@ use util::sha3::*;
 use chainfilter::{BloomIndex, FilterDataSource, ChainFilter};
 
 /// In memory cache for blooms.
-/// 
+///
 /// Stores all blooms in HashMap, which indexes them by `BloomIndex`.
 pub struct MemoryCache {
 	blooms: HashMap<BloomIndex, H2048>,
@@ -35,7 +35,7 @@ impl MemoryCache {
 	}
 
 	/// inserts all blooms into cache
-	/// 
+	///
 	/// if bloom at given index already exists, overwrites it
 	pub fn insert_blooms(&mut self, blooms: HashMap<BloomIndex, H2048>) {
 		self.blooms.extend(blooms);
@@ -81,13 +81,13 @@ fn test_topic_basic_search() {
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_bloom(&to_bloom(&topic), 0, 23);
+		let blocks = filter.blocks_with_bloom(&to_bloom(&topic), 0, 22);
 		assert_eq!(blocks.len(), 0);
 	}
 
 	{
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_bloom(&to_bloom(&topic), 23, 24);
+		let blocks = filter.blocks_with_bloom(&to_bloom(&topic), 23, 23);
 		assert_eq!(blocks.len(), 1);
 		assert_eq!(blocks[0], 23);
 	}
@@ -144,7 +144,7 @@ fn test_reset_chain_head_simple() {
 
 	cache.insert_blooms(modified_blooms_3);
 
-	
+
 	let reset_modified_blooms = {
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 		filter.reset_chain_head(&[to_bloom(&topic_4), to_bloom(&topic_5)], 15, 17)
@@ -183,7 +183,7 @@ fn for_each_bloom<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &H2048) {
 }
 
 fn for_each_log<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &Address, &[H256]) {
-	let mut reader = BufReader::new(bytes);	
+	let mut reader = BufReader::new(bytes);
 	let mut line = String::new();
 	while reader.read_line(&mut line).unwrap() > 0 {
 		{
@@ -235,11 +235,11 @@ fn test_chainfilter_real_data_short_searches() {
 	for_each_log(include_bytes!("logs.txt"), | block_number, address, topics | {
 		println!("block_number: {:?}", block_number);
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-		let blocks = filter.blocks_with_bloom(&to_bloom(address), block_number, block_number + 1);
+		let blocks = filter.blocks_with_bloom(&to_bloom(address), block_number, block_number);
 		assert_eq!(blocks.len(), 1);
 		for (i, topic) in topics.iter().enumerate() {
 			println!("topic: {:?}", i);
-			let blocks = filter.blocks_with_bloom(&to_bloom(topic), block_number, block_number + 1);
+			let blocks = filter.blocks_with_bloom(&to_bloom(topic), block_number, block_number);
 			assert_eq!(blocks.len(), 1);
 		}
 	});
