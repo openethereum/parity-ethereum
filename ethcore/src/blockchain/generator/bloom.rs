@@ -14,26 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Web3 rpc implementation.
-use jsonrpc_core::*;
-use util::version;
-use v1::traits::Web3;
+use util::hash::H2048;
 
-/// Web3 rpc implementation.
-pub struct Web3Client;
-
-impl Web3Client {
-	/// Creates new Web3Client.
-	pub fn new() -> Self { Web3Client }
+pub trait WithBloom {
+	fn with_bloom(self, bloom: H2048) -> Self where Self: Sized;
 }
 
-impl Web3 for Web3Client {
-	fn client_version(&self, params: Params) -> Result<Value, Error> {
-		match params {
-			Params::None => {
-				Ok(Value::String(version().to_owned().replace("Parity/", "Parity//"))),
-			}
-			_ => Err(Error::invalid_params())
-		}
+pub struct Bloom<'a, I> where I: 'a {
+	pub iter: &'a mut I,
+	pub bloom: H2048,
+}
+
+impl<'a, I> Iterator for Bloom<'a, I> where I: Iterator, <I as Iterator>::Item: WithBloom {
+	type Item = <I as Iterator>::Item;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.iter.next().map(|item| item.with_bloom(self.bloom.clone()))
 	}
 }
