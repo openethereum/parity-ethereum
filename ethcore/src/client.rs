@@ -200,7 +200,7 @@ pub struct Client {
 	extra_data: RwLock<Bytes>,
 }
 
-const HISTORY: u64 = 1000;
+const HISTORY: u64 = 2000000;
 const CLIENT_DB_VER_STR: &'static str = "4.0";
 
 impl Client {
@@ -457,7 +457,7 @@ impl Client {
 			self.extra_data()
 		);
 
-		self.chain.read().unwrap().find_uncle_headers(&h).into_iter().foreach(|h| { b.push_uncle(h).unwrap(); });
+		self.chain.read().unwrap().find_uncle_headers(&h).unwrap().into_iter().foreach(|h| { b.push_uncle(h).unwrap(); });
 
 		// TODO: push transactions.
 

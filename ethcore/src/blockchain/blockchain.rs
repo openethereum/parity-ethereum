@@ -491,15 +491,20 @@ impl BlockChain {
 		self.extras_db.write(batch).unwrap();
 	}
 
+	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
 	pub fn ancestry_iter(&self, first: H256) -> Option<AncestryIter> {
-		AncestryIter {
-			current: first,
-			chain: &self,
+		if self.is_known(&first) {
+			Some(AncestryIter {
+				current: first,
+				chain: &self,
+			})
+		} else {
+			None
 		}
 	}
 
 	/// Given a block's `parent`, find every block header which represents a valid uncle.
-	pub fn find_uncle_headers(&self, parent: &H256) -> Vec<Header> {
+	pub fn find_uncle_headers(&self, parent: &H256) -> Option<Vec<Header>> {
 		let uncle_generations = 6usize;
 /*
 	{
@@ -524,13 +529,15 @@ impl BlockChain {
 		}
 	}
 */		
-		let _excluded = self
-			.ancestry_iter(parent.clone())
-			.take(uncle_generations)
-			.flat_map(|h| self.uncle_hashes(&h).iter().chain(&[h]))
-			.collect::<HashSet<_>>();
-
-		Vec::new()
+		if !self.is_known(parent) { return None; }
+		let mut _excluded = HashSet::new();
+		for a in self.ancestry_iter(parent.clone()).unwrap().take(uncle_generations) {
+			for u in self.uncle_hashes(&a).unwrap().into_iter() {
+				_excluded.insert(u);
+			}
+			_excluded.insert(a);
+		}
+		None
 	}
 
 	/// Get inserted block info which is critical to preapre extras updates.
@@ -882,7 +889,7 @@ mod tests {
 
 		block_hashes.reverse();
 
-		assert_eq!(bc.ancestry_iter(block_hashes[0].clone()).collect::<Vec<_>>(), block_hashes)
+		assert_eq!(bc.ancestry_iter(block_hashes[0].clone()).unwrap().collect::<Vec<_>>(), block_hashes)
 	}
 
 	#[test]
