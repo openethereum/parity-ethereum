@@ -323,8 +323,8 @@ impl EthFilter for EthFilterClient {
 							to_value(&hashes)
 						},
 						PollFilter::PendingTransaction => {
-							// TODO: fix implementation
-							to_value(&vec![H256::default()])
+							// TODO: fix implementation once TransactionQueue is merged
+							to_value(&vec![] as &Vec<H256>)
 						},
 						PollFilter::Logs(mut filter) => {
 							filter.from_block = BlockId::Number(info.block_number);
