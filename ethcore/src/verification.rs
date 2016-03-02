@@ -26,7 +26,7 @@ use engine::Engine;
 use blockchain::*;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
-pub struct PreVerifiedBlock {
+pub struct PreverifiedBlock {
 	/// Populated block header
 	pub header: Header,
 	/// Populated block transactions
@@ -55,8 +55,8 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
-/// Returns a PreVerifiedBlock structure populated with transactions
-pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreVerifiedBlock, Error> {
+/// Returns a PreverifiedBlock structure populated with transactions
+pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreverifiedBlock, Error> {
 	try!(engine.verify_block_unordered(&header, Some(&bytes)));
 	for u in Rlp::new(&bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
 		try!(engine.verify_block_unordered(&u, None));
@@ -70,7 +70,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> 
 			transactions.push(t);
 		}
 	}
-	Ok(PreVerifiedBlock {
+	Ok(PreverifiedBlock {
 		header: header,
 		transactions: transactions,
 		bytes: bytes,

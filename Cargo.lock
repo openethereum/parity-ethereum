@@ -215,11 +215,13 @@ name = "ethcore-rpc"
 version = "0.9.99"
 dependencies = [
  "clippy 0.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethash 0.9.99",
  "ethcore 0.9.99",
  "ethcore-util 0.9.99",
  "ethsync 0.9.99",
  "jsonrpc-core 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
