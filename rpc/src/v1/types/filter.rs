@@ -17,7 +17,7 @@
 use serde::{Deserialize, Deserializer, Error};
 use serde_json::value;
 use jsonrpc_core::Value;
-use util::hash::*;
+use util::numbers::*;
 use v1::types::BlockNumber;
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockId;
@@ -40,7 +40,7 @@ impl<T> Deserialize for VariadicValue<T> where T: Deserialize {
 
 		Deserialize::deserialize(&mut value::Deserializer::new(v.clone())).map(VariadicValue::Single)
 			.or_else(|_| Deserialize::deserialize(&mut value::Deserializer::new(v.clone())).map(VariadicValue::Multiple))
-			.map_err(|_| Error::syntax("")) // unreachable, but types must match
+			.map_err(|_| Error::custom("")) // unreachable, but types must match
 	}
 }
 
@@ -48,6 +48,7 @@ pub type FilterAddress = VariadicValue<Address>;
 pub type Topic = VariadicValue<H256>;
 
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Filter {
 	#[serde(rename="fromBlock")]
 	pub from_block: Option<BlockNumber>,

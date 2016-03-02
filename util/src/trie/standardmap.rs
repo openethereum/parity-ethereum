@@ -20,6 +20,7 @@ extern crate rand;
 use bytes::*;
 use sha3::*;
 use hash::*;
+use rlp::encode;
 
 /// Alphabet to use when creating words for insertion into tries.
 pub enum Alphabet {
@@ -39,6 +40,8 @@ pub enum ValueMode {
 	Mirror,
 	/// Randomly (50:50) 1 or 32 byte randomly string.
 	Random,
+	/// RLP-encoded index.
+	Index,
 }
 
 /// Standard test map for profiling tries.
@@ -89,19 +92,27 @@ impl StandardMap {
 
 	/// Create the standard map (set of keys and values) for the object's fields.
 	pub fn make(&self) -> Vec<(Bytes, Bytes)> {
+		self.make_with(&mut H256::new())
+	}
+
+	/// Create the standard map (set of keys and values) for the object's fields, using the given seed.
+	pub fn make_with(&self, seed: &mut H256) -> Vec<(Bytes, Bytes)> {
 		let low = b"abcdef";
 		let mid = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
 
 		let mut d: Vec<(Bytes, Bytes)> = Vec::new();
-		let mut seed = H256::new();
-		for _ in 0..self.count {
+		for index in 0..self.count {
 			let k = match self.alphabet {
-				Alphabet::All => Self::random_bytes(self.min_key, self.journal_key, &mut seed),
-				Alphabet::Low => Self::random_word(low, self.min_key, self.journal_key, &mut seed),
-				Alphabet::Mid => Self::random_word(mid, self.min_key, self.journal_key, &mut seed),
-				Alphabet::Custom(ref a) => Self::random_word(&a, self.min_key, self.journal_key, &mut seed),
+				Alphabet::All => Self::random_bytes(self.min_key, self.journal_key, seed),
+				Alphabet::Low => Self::random_word(low, self.min_key, self.journal_key, seed),
+				Alphabet::Mid => Self::random_word(mid, self.min_key, self.journal_key, seed),
+				Alphabet::Custom(ref a) => Self::random_word(&a, self.min_key, self.journal_key, seed),
 			};
-			let v = match self.value_mode { ValueMode::Mirror => k.clone(), ValueMode::Random => Self::random_value(&mut seed) };
+			let v = match self.value_mode {
+				ValueMode::Mirror => k.clone(),
+				ValueMode::Random => Self::random_value(seed),
+				ValueMode::Index => encode(&index).to_vec(),
+			};
 			d.push((k, v))
 		}
 		d

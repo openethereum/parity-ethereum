@@ -16,8 +16,8 @@
 
 //! Ethcore rpc.
 #![warn(missing_docs)]
-#![cfg_attr(nightly, feature(custom_derive, custom_attribute, plugin))]
-#![cfg_attr(nightly, plugin(serde_macros, clippy))]
+#![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
+#![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
 
 extern crate rustc_serialize;
 extern crate serde;

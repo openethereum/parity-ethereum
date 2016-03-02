@@ -23,7 +23,7 @@ use rand::Rng;
 use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
 use from_json::*;
-use uint::{Uint, U256};
+use bigint::uint::{Uint, U256};
 use rustc_serialize::hex::ToHex;
 use serde;
 
@@ -239,7 +239,7 @@ macro_rules! impl_hash {
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				hex.push_str(self.to_hex().as_ref());
-				serializer.visit_str(hex.as_ref())
+				serializer.serialize_str(hex.as_ref())
 			}
 		}
 
@@ -254,10 +254,10 @@ macro_rules! impl_hash {
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
 						// 0x + len
 						if value.len() != 2 + $size * 2 {
-							return Err(serde::Error::syntax("Invalid length."));
+							return Err(serde::Error::custom("Invalid length."));
 						}
 
-						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::syntax("Invalid valid hex."))
+						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::custom("Invalid valid hex."))
 					}
 
 					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
@@ -265,7 +265,7 @@ macro_rules! impl_hash {
 					}
 				}
 
-				deserializer.visit(HashVisitor)
+				deserializer.deserialize(HashVisitor)
 			}
 		}
 
@@ -304,6 +304,8 @@ macro_rules! impl_hash {
 			}
 		}
 
+		impl Copy for $from {}
+		#[cfg_attr(feature="dev", allow(expl_impl_clone_on_copy))]
 		impl Clone for $from {
 			fn clone(&self) -> $from {
 				unsafe {
@@ -595,7 +597,7 @@ pub fn h256_from_hex(s: &str) -> H256 {
 
 /// Convert `n` to an `H256`, setting the rightmost 8 bytes.
 pub fn h256_from_u64(n: u64) -> H256 {
-	use uint::U256;
+	use bigint::uint::U256;
 	H256::from(&U256::from(n))
 }
 
@@ -631,7 +633,7 @@ pub static ZERO_H256: H256 = H256([0x00; 32]);
 #[cfg(test)]
 mod tests {
 	use hash::*;
-	use uint::*;
+	use bigint::uint::*;
 	use std::str::FromStr;
 
 	#[test]

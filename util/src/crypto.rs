@@ -16,9 +16,8 @@
 
 //! Ethcore crypto.
 
-use hash::*;
+use numbers::*;
 use bytes::*;
-use uint::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
 
@@ -151,8 +150,7 @@ impl KeyPair {
 
 /// EC functions
 pub mod ec {
-	use hash::*;
-	use uint::*;
+	use numbers::*;
 	use standard::*;
 	use crypto::*;
 	use crypto::{self};
@@ -254,7 +252,7 @@ pub mod ecies {
 	use crypto::*;
 
 	/// Encrypt a message with a public key
-	pub fn encrypt(public: &Public, plain: &[u8]) -> Result<Bytes, CryptoError> {
+	pub fn encrypt(public: &Public, shared_mac: &[u8], plain: &[u8]) -> Result<Bytes, CryptoError> {
 		use ::rcrypto::digest::Digest;
 		use ::rcrypto::sha2::Sha256;
 		use ::rcrypto::hmac::Hmac;
@@ -284,13 +282,14 @@ pub mod ecies {
 				let cipher_iv = &msgd[64..(64 + 16 + plain.len())];
 				hmac.input(cipher_iv);
 			}
+			hmac.input(shared_mac);
 			hmac.raw_result(&mut msgd[(64 + 16 + plain.len())..]);
 		}
 		Ok(msg)
 	}
 
 	/// Decrypt a message with a secret key
-	pub fn decrypt(secret: &Secret, encrypted: &[u8]) -> Result<Bytes, CryptoError> {
+	pub fn decrypt(secret: &Secret, shared_mac: &[u8], encrypted: &[u8]) -> Result<Bytes, CryptoError> {
 		use ::rcrypto::digest::Digest;
 		use ::rcrypto::sha2::Sha256;
 		use ::rcrypto::hmac::Hmac;
@@ -322,6 +321,7 @@ pub mod ecies {
 		// Verify tag
 		let mut hmac = Hmac::new(Sha256::new(), &mkey);
 		hmac.input(cipher_with_iv);
+		hmac.input(shared_mac);
 		let mut mac = H256::new();
 		hmac.raw_result(&mut mac);
 		if &mac[..] != msg_mac {
@@ -404,5 +404,21 @@ mod tests {
 	fn test_key() {
 		let pair = KeyPair::from_secret(h256_from_hex("6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2")).unwrap();
 		assert_eq!(pair.public().hex(), "101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c");
+	}
+
+	#[test]
+	fn ecies_shared() {
+		let kp = KeyPair::create().unwrap();
+		let message = b"So many books, so little time";
+
+		let shared = b"shared";
+		let wrong_shared = b"incorrect";
+		let encrypted = ecies::encrypt(kp.public(), shared, message).unwrap();
+		assert!(encrypted[..] != message[..]);
+		assert_eq!(encrypted[0], 0x04);
+
+		assert!(ecies::decrypt(kp.secret(), wrong_shared, &encrypted).is_err());
+		let decrypted = ecies::decrypt(kp.secret(), shared, &encrypted).unwrap();
+		assert_eq!(decrypted[..message.len()], message[..]);
 	}
 }

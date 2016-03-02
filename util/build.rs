@@ -1,4 +1,5 @@
 extern crate vergen;
+
 use vergen::*;
 
 fn main() {

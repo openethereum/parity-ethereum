@@ -15,11 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
-use std::sync::{Mutex, Arc};
+use std::sync::{Arc, Weak, Mutex};
 use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
-use util::hash::*;
-use util::uint::*;
+use util::numbers::*;
 use util::sha3::*;
 use ethcore::client::*;
 use ethcore::views::*;
@@ -30,21 +29,22 @@ use v1::helpers::{PollFilter, PollIndexer};
 
 /// Eth rpc implementation.
 pub struct EthClient {
-	client: Arc<Client>,
-	sync: Arc<EthSync>
+	client: Weak<Client>,
+	sync: Weak<EthSync>
 }
 
 impl EthClient {
 	/// Creates new EthClient.
-	pub fn new(client: Arc<Client>, sync: Arc<EthSync>) -> Self {
+	pub fn new(client: &Arc<Client>, sync: &Arc<EthSync>) -> Self {
 		EthClient {
-			client: client,
-			sync: sync
+			client: Arc::downgrade(client),
+			sync: Arc::downgrade(sync)
 		}
 	}
 
 	fn block(&self, id: BlockId, include_txs: bool) -> Result<Value, Error> {
-		match (self.client.block(id.clone()), self.client.block_total_difficulty(id)) {
+		let client = take_weak!(self.client);
+		match (client.block(id.clone()), client.block_total_difficulty(id)) {
 			(Some(bytes), Some(total_difficulty)) => {
 				let block_view = BlockView::new(&bytes);
 				let view = block_view.header_view();
@@ -79,9 +79,9 @@ impl EthClient {
 			_ => Ok(Value::Null)
 		}
 	}
-	
+
 	fn transaction(&self, id: TransactionId) -> Result<Value, Error> {
-		match self.client.transaction(id) {
+		match take_weak!(self.client).transaction(id) {
 			Some(t) => to_value(&Transaction::from(t)),
 			None => Ok(Value::Null)
 		}
@@ -91,7 +91,7 @@ impl EthClient {
 impl Eth for EthClient {
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&U256::from(self.sync.status().protocol_version)),
+			Params::None => to_value(&U256::from(take_weak!(self.sync).status().protocol_version)),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -99,12 +99,12 @@ impl Eth for EthClient {
 	fn syncing(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => {
-				let status = self.sync.status();
+				let status = take_weak!(self.sync).status();
 				let res = match status.state {
 					SyncState::NotSynced | SyncState::Idle => SyncStatus::None,
 					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks => SyncStatus::Info(SyncInfo {
 						starting_block: U256::from(status.start_block_number),
-						current_block: U256::from(self.client.chain_info().best_block_number),
+						current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
 						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
 					})
 				};
@@ -147,14 +147,14 @@ impl Eth for EthClient {
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&U256::from(self.client.chain_info().best_block_number)),
+			Params::None => to_value(&U256::from(take_weak!(self.client).chain_info().best_block_number)),
 			_ => Err(Error::invalid_params())
 		}
 	}
 
 	fn block_transaction_count(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.block(BlockId::Hash(hash)) {
+			.and_then(|(hash,)| match take_weak!(self.client).block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 				None => Ok(Value::Null)
 			})
@@ -162,7 +162,7 @@ impl Eth for EthClient {
 
 	fn block_uncles_count(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match self.client.block(BlockId::Hash(hash)) {
+			.and_then(|(hash,)| match take_weak!(self.client).block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
 				None => Ok(Value::Null)
 			})
@@ -171,7 +171,7 @@ impl Eth for EthClient {
 	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)| to_value(&self.client.code(&address).map_or_else(Bytes::default, Bytes::new)))
+			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
 	}
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
@@ -202,7 +202,7 @@ impl Eth for EthClient {
 	fn logs(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
-				let logs = self.client.logs(filter.into())
+				let logs = take_weak!(self.client).logs(filter.into())
 					.into_iter()
 					.map(From::from)
 					.collect::<Vec<Log>>();
@@ -213,15 +213,15 @@ impl Eth for EthClient {
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
-	client: Arc<Client>,
-	polls: Mutex<PollIndexer<PollFilter>>
+	client: Weak<Client>,
+	polls: Mutex<PollIndexer<PollFilter>>,
 }
 
 impl EthFilterClient {
 	/// Creates new Eth filter client.
-	pub fn new(client: Arc<Client>) -> Self {
+	pub fn new(client: &Arc<Client>) -> Self {
 		EthFilterClient {
-			client: client,
+			client: Arc::downgrade(client),
 			polls: Mutex::new(PollIndexer::new())
 		}
 	}
@@ -232,7 +232,7 @@ impl EthFilter for EthFilterClient {
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
 				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::Logs(filter.into()), self.client.chain_info().best_block_number);
+				let id = polls.create_poll(PollFilter::Logs(filter.into()), take_weak!(self.client).chain_info().best_block_number);
 				to_value(&U256::from(id))
 			})
 	}
@@ -241,7 +241,7 @@ impl EthFilter for EthFilterClient {
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::Block, self.client.chain_info().best_block_number);
+				let id = polls.create_poll(PollFilter::Block, take_weak!(self.client).chain_info().best_block_number);
 				to_value(&U256::from(id))
 			},
 			_ => Err(Error::invalid_params())
@@ -252,7 +252,7 @@ impl EthFilter for EthFilterClient {
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::PendingTransaction, self.client.chain_info().best_block_number);
+				let id = polls.create_poll(PollFilter::PendingTransaction, take_weak!(self.client).chain_info().best_block_number);
 				to_value(&U256::from(id))
 			},
 			_ => Err(Error::invalid_params())
@@ -260,6 +260,7 @@ impl EthFilter for EthFilterClient {
 	}
 
 	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
+		let client = take_weak!(self.client);
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
 				let info = self.polls.lock().unwrap().get_poll(&index.value()).cloned();
@@ -267,10 +268,10 @@ impl EthFilter for EthFilterClient {
 					None => Ok(Value::Array(vec![] as Vec<Value>)),
 					Some(info) => match info.filter {
 						PollFilter::Block => {
-							let current_number = self.client.chain_info().best_block_number;
+							let current_number = client.chain_info().best_block_number;
 							let hashes = (info.block_number..current_number).into_iter()
 								.map(BlockId::Number)
-								.filter_map(|id| self.client.block_hash(id))
+								.filter_map(|id| client.block_hash(id))
 								.collect::<Vec<H256>>();
 
 							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
@@ -279,17 +280,17 @@ impl EthFilter for EthFilterClient {
 						},
 						PollFilter::PendingTransaction => {
 							// TODO: fix implementation
-							to_value(&self.client.chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
+							to_value(&client.chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
 						},
 						PollFilter::Logs(mut filter) => {
 							filter.from_block = BlockId::Number(info.block_number);
 							filter.to_block = BlockId::Latest;
-							let logs = self.client.logs(filter)
+							let logs = client.logs(filter)
 								.into_iter()
 								.map(From::from)
 								.collect::<Vec<Log>>();
-							
-							let current_number = self.client.chain_info().best_block_number;
+
+							let current_number = client.chain_info().best_block_number;
 							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
 
 							to_value(&logs)
