@@ -265,6 +265,13 @@ impl Client {
 		let engine = self.engine.deref().deref();
 		let header = &block.header;
 
+		// Check the block isn't so old we won't be able to enact it.
+		let best_block_number = self.chain.read().unwrap().best_block_number();
+		if best_block_number >= HISTORY && header.number() <= best_block_number - HISTORY {
+			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
+			return Err(());
+		}
+
 		// Verify Block Family
 		let verify_family_result = verify_block_family(&header, &block.bytes, engine, self.chain.read().unwrap().deref());
 		if let Err(e) = verify_family_result {
