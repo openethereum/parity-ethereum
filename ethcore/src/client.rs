@@ -200,7 +200,7 @@ pub struct Client {
 	extra_data: RwLock<Bytes>,
 }
 
-const HISTORY: u64 = 1000;
+const HISTORY: u64 = 20;
 const CLIENT_DB_VER_STR: &'static str = "4.0";
 
 impl Client {
