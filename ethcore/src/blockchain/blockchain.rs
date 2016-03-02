@@ -78,7 +78,7 @@ pub trait BlockProvider {
 	}
 
 	/// Get a list of uncles for a given block.
-	/// Returns None if block deos not exist.
+	/// Returns None if block does not exist.
 	fn uncles(&self, hash: &H256) -> Option<Vec<Header>> {
 		self.block(hash).map(|bytes| BlockView::new(&bytes).uncles())
 	}
@@ -491,7 +491,7 @@ impl BlockChain {
 		self.extras_db.write(batch).unwrap();
 	}
 
-	pub fn ancestry_iter(&self, first: H256) -> AncestryIter {
+	pub fn ancestry_iter(&self, first: H256) -> Option<AncestryIter> {
 		AncestryIter {
 			current: first,
 			chain: &self,
@@ -503,7 +503,8 @@ impl BlockChain {
 		let uncle_generations = 6usize;
 /*
 	{
-		// Find great-uncles (or second-cousins or whatever they are) - children of great-grandparents, great-great-grandparents... that were not already uncles in previous generations.
+		// Find great-uncles (or second-cousins or whatever they are) -
+		// children of great-grandparents, great-great-grandparents... that were not already uncles in previous generations.
 		clog(StateDetail) << "Checking " << m_previousBlock.hash() << ", parent=" << m_previousBlock.parentHash();
 		h256Hash excluded = _bc.allKinFrom(m_currentBlock.parentHash(), 6);
 		auto p = m_previousBlock.parentHash();
@@ -523,7 +524,11 @@ impl BlockChain {
 		}
 	}
 */		
-		let _excluded = self.ancestry_iter(parent.clone()).take(uncle_generations).collect::<HashSet<_>>();
+		let _excluded = self
+			.ancestry_iter(parent.clone())
+			.take(uncle_generations)
+			.flat_map(|h| self.uncle_hashes(&h).iter().chain(&[h]))
+			.collect::<HashSet<_>>();
 
 		Vec::new()
 	}
