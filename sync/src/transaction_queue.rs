@@ -21,7 +21,7 @@
 use std::vec::Vec;
 use std::cmp::{Ordering};
 use std::collections::{HashMap, BTreeSet};
-use util::uint::{Uint, U256};
+use util::numbers::{Uint, U256};
 use util::hash::{Address};
 use util::table::*;
 use ethcore::transaction::*;
@@ -374,7 +374,7 @@ mod test {
 	use self::rustc_serialize::hex::FromHex;
 
 	use util::crypto::KeyPair;
-	use util::uint::{U256, Uint};
+	use util::numbers::{U256, Uint};
 	use util::hash::{Address};
 	use ethcore::transaction::*;
 	use super::*;

@@ -569,7 +569,7 @@ function run_installer()
 			if [[ $isSudo == false ]]; then
 				apt-get install -q -y sudo
 			fi
-			curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
+			curl -sf https://raw.githubusercontent.com/brson/multirust/master/quick-install.sh | sudo sh -s -- --yes
 			echo
 		fi
 

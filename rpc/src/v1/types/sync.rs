@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use serde::{Serialize, Serializer};
-use util::uint::*;
+use util::numbers::*;
 
 #[derive(Default, Debug, Serialize, PartialEq)]
 pub struct SyncInfo {

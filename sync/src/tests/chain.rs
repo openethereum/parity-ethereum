@@ -122,7 +122,7 @@ fn status_packet() {
 }
 
 #[test]
-fn propagade_hashes() {
+fn propagate_hashes() {
 	let mut net = TestNet::new(6);
 	net.peer_mut(1).chain.add_blocks(10, BlocksWith::Uncle);
 	net.sync();
@@ -148,7 +148,7 @@ fn propagade_hashes() {
 }
 
 #[test]
-fn propagade_blocks() {
+fn propagate_blocks() {
 	let mut net = TestNet::new(2);
 	net.peer_mut(1).chain.add_blocks(10, BlocksWith::Uncle);
 	net.sync();
