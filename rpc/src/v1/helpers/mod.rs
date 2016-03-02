@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod poll_indexer;
+mod poll_manager;
 mod poll_filter;
 
-pub use self::poll_indexer::PollIndexer;
+pub use self::poll_manager::PollManager;
 pub use self::poll_filter::PollFilter;

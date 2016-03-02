@@ -39,30 +39,30 @@ impl<F> Clone for PollInfo<F> where F: Clone {
 }
 
 /// Indexes all poll requests.
-/// 
+///
 /// Lazily garbage collects unused polls info.
-pub struct PollIndexer<F, T = StandardTimer> where T: Timer {
+pub struct PollManager<F, T = StandardTimer> where T: Timer {
 	polls: TransientHashMap<PollId, PollInfo<F>, T>,
 	next_available_id: PollId
 }
 
-impl<F> PollIndexer<F, StandardTimer> {
+impl<F> PollManager<F, StandardTimer> {
 	/// Creates new instance of indexer.
 	pub fn new() -> Self {
-		PollIndexer::new_with_timer(Default::default())
+		PollManager::new_with_timer(Default::default())
 	}
 }
 
-impl<F, T> PollIndexer<F, T> where T: Timer {
+impl<F, T> PollManager<F, T> where T: Timer {
 	pub fn new_with_timer(timer: T) -> Self {
-		PollIndexer {
+		PollManager {
 			polls: TransientHashMap::new_with_timer(POLL_LIFETIME, timer),
 			next_available_id: 0
 		}
 	}
 
-	/// Returns id which can be used for new poll. 
-	/// 
+	/// Returns id which can be used for new poll.
+	///
 	/// Stores information when last poll happend.
 	pub fn create_poll(&mut self, filter: F, block: BlockNumber) -> PollId {
 		self.polls.prune();
@@ -84,7 +84,7 @@ impl<F, T> PollIndexer<F, T> where T: Timer {
 	}
 
 	/// Returns number of block when last poll happend.
-	pub fn get_poll(&mut self, id: &PollId) -> Option<&PollInfo<F>> {
+	pub fn get_poll_info(&mut self, id: &PollId) -> Option<&PollInfo<F>> {
 		self.polls.prune();
 		self.polls.get(id)
 	}
@@ -99,7 +99,7 @@ impl<F, T> PollIndexer<F, T> where T: Timer {
 mod tests {
 	use std::cell::RefCell;
 	use transient_hashmap::Timer;
-	use v1::helpers::PollIndexer;
+	use v1::helpers::PollManager;
 
 	struct TestTimer<'a> {
 		time: &'a RefCell<i64>
@@ -118,7 +118,7 @@ mod tests {
 			time: &time
 		};
 
-		let mut indexer = PollIndexer::new_with_timer(timer);
+		let mut indexer = PollManager::new_with_timer(timer);
 		assert_eq!(indexer.create_poll(false, 20), 0);
 		assert_eq!(indexer.create_poll(true, 20), 1);
 

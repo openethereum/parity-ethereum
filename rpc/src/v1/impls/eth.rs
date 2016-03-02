@@ -25,7 +25,7 @@ use ethcore::views::*;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
-use v1::helpers::{PollFilter, PollIndexer};
+use v1::helpers::{PollFilter, PollManager};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -214,7 +214,7 @@ impl Eth for EthClient {
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
 	client: Weak<Client>,
-	polls: Mutex<PollIndexer<PollFilter>>,
+	polls: Mutex<PollManager<PollFilter>>,
 }
 
 impl EthFilterClient {
@@ -222,7 +222,7 @@ impl EthFilterClient {
 	pub fn new(client: &Arc<Client>) -> Self {
 		EthFilterClient {
 			client: Arc::downgrade(client),
-			polls: Mutex::new(PollIndexer::new())
+			polls: Mutex::new(PollManager::new())
 		}
 	}
 }
@@ -263,7 +263,7 @@ impl EthFilter for EthFilterClient {
 		let client = take_weak!(self.client);
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
-				let info = self.polls.lock().unwrap().get_poll(&index.value()).cloned();
+				let info = self.polls.lock().unwrap().get_poll_info(&index.value()).cloned();
 				match info {
 					None => Ok(Value::Array(vec![] as Vec<Value>)),
 					Some(info) => match info.filter {
