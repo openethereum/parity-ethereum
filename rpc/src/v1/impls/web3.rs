@@ -31,7 +31,7 @@ impl Web3 for Web3Client {
 	fn client_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => {
-				Ok(Value::String(version())),
+				Ok(Value::String(version().to_owned().replace("Parity/", "Parity//"))),
 			}
 			_ => Err(Error::invalid_params())
 		}

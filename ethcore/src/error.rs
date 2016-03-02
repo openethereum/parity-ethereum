@@ -131,24 +131,13 @@ pub enum BlockError {
 #[derive(Debug)]
 /// Import to the block queue result
 pub enum ImportError {
-	/// Bad block detected
-	Bad(Option<Error>),
-	/// Already in the block chain
+	/// Already in the block chain.
 	AlreadyInChain,
-	/// Already in the block queue
+	/// Already in the block queue.
 	AlreadyQueued,
-	/// Unknown parent
-	UnknownParent,
+	/// Already marked as bad from a previous import (could mean parent is bad).
+	KnownBad,
 }
-
-impl From<Error> for ImportError {
-	fn from(err: Error) -> ImportError {
-		ImportError::Bad(Some(err))
-	}
-}
-
-/// Result of import block operation.
-pub type ImportResult = Result<H256, ImportError>;
 
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
@@ -163,11 +152,26 @@ pub enum Error {
 	Execution(ExecutionError),
 	/// Error concerning transaction processing.
 	Transaction(TransactionError),
+	/// Error concerning block import.
+	Import(ImportError),
+	/// PoW hash is invalid or out of date.
+	PowHashInvalid,
+	/// The value of the nonce or mishash is invalid.
+	PowInvalid,
 }
+
+/// Result of import block operation.
+pub type ImportResult = Result<H256, Error>;
 
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Error {
 		Error::Transaction(err)
+	}
+}
+
+impl From<ImportError> for Error {
+	fn from(err: ImportError) -> Error {
+		Error::Import(err)
 	}
 }
 

@@ -172,7 +172,8 @@ fn get_data_size(block_number: u64) -> usize {
 }
 
 #[inline]
-fn get_seedhash(block_number: u64) -> H256 {
+/// Given the `block_number`, determine the seed hash for Ethash.
+pub fn get_seedhash(block_number: u64) -> H256 {
 	let epochs = block_number / ETHASH_EPOCH_LENGTH;
 	let mut ret: H256 = [0u8; 32];
 	for _ in 0..epochs {

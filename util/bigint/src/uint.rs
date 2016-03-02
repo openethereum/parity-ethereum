@@ -36,10 +36,19 @@
 //! The functions here are designed to be fast.
 //!
 
-use standard::*;
-use from_json::*;
-use rustc_serialize::hex::ToHex;
+use std::fmt;
+use std::cmp;
+
+use std::mem;
+use std::str::{FromStr};
+use std::convert::From;
+use std::hash::{Hash, Hasher};
+use std::ops::*;
+use std::cmp::*;
+
 use serde;
+use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
+
 
 macro_rules! impl_map_from {
 	($thing:ident, $from:ty, $to:ty) => {
@@ -51,7 +60,7 @@ macro_rules! impl_map_from {
 	}
 }
 
-#[cfg(not(all(x64asm, target_arch="x86_64")))]
+#[cfg(not(all(asm_available, target_arch="x86_64")))]
 macro_rules! uint_overflowing_add {
 	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => ({
 		uint_overflowing_add_reg!($name, $n_words, $self_expr, $other)
@@ -88,8 +97,7 @@ macro_rules! uint_overflowing_add_reg {
 	})
 }
 
-
-#[cfg(all(x64asm, target_arch="x86_64"))]
+#[cfg(all(asm_available, target_arch="x86_64"))]
 macro_rules! uint_overflowing_add {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
@@ -165,7 +173,7 @@ macro_rules! uint_overflowing_add {
 	)
 }
 
-#[cfg(not(all(x64asm, target_arch="x86_64")))]
+#[cfg(not(all(asm_available, target_arch="x86_64")))]
 macro_rules! uint_overflowing_sub {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let res = overflowing!((!$other).overflowing_add(From::from(1u64)));
@@ -174,7 +182,7 @@ macro_rules! uint_overflowing_sub {
 	})
 }
 
-#[cfg(all(x64asm, target_arch="x86_64"))]
+#[cfg(all(asm_available, target_arch="x86_64"))]
 macro_rules! uint_overflowing_sub {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
@@ -250,7 +258,7 @@ macro_rules! uint_overflowing_sub {
 	})
 }
 
-#[cfg(all(x64asm, target_arch="x86_64"))]
+#[cfg(all(asm_available, target_arch="x86_64"))]
 macro_rules! uint_overflowing_mul {
 	(U256, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut result: [u64; 4] = unsafe { mem::uninitialized() };
@@ -370,7 +378,7 @@ macro_rules! uint_overflowing_mul {
 	)
 }
 
-#[cfg(not(all(x64asm, target_arch="x86_64")))]
+#[cfg(not(all(asm_available, target_arch="x86_64")))]
 macro_rules! uint_overflowing_mul {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		uint_overflowing_mul_reg!($name, $n_words, $self_expr, $other)
@@ -381,7 +389,6 @@ macro_rules! uint_overflowing_mul_reg {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut res = $name::from(0u64);
 		let mut overflow = false;
-		// TODO: be more efficient about this
 		for i in 0..(2 * $n_words) {
 			let v = overflowing!($self_expr.overflowing_mul_u32(($other >> (32 * i)).low_u32()), overflow);
 			let res2 = overflowing!(v.overflowing_shl(32 * i as u32), overflow);
@@ -416,7 +423,7 @@ macro_rules! panic_on_overflow {
 }
 
 /// Large, fixed-length unsigned integer type.
-pub trait Uint: Sized + Default + FromStr + From<u64> + FromJson + fmt::Debug + fmt::Display + PartialOrd + Ord + PartialEq + Eq + Hash {
+pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Display + PartialOrd + Ord + PartialEq + Eq + Hash {
 
 	/// Returns new instance equalling zero.
 	fn zero() -> Self;
@@ -779,22 +786,6 @@ macro_rules! construct_uint {
 			}
 		}
 
-		impl FromJson for $name {
-			fn from_json(json: &Json) -> Self {
-				match *json {
-					Json::String(ref s) => {
-						if s.len() >= 2 && &s[0..2] == "0x" {
-							FromStr::from_str(&s[2..]).unwrap_or_else(|_| Default::default())
-						} else {
-							Uint::from_dec_str(s).unwrap_or_else(|_| Default::default())
-						}
-					},
-					Json::U64(u) => From::from(u),
-					Json::I64(i) => From::from(i as u64),
-					_ => Uint::zero(),
-				}
-			}
-		}
 
 		impl_map_from!($name, u8, u64);
 		impl_map_from!($name, u16, u64);
@@ -1100,7 +1091,7 @@ construct_uint!(U128, 2);
 impl U256 {
 	/// Multiplies two 256-bit integers to produce full 512-bit integer
 	/// No overflow possible
-	#[cfg(all(x64asm, target_arch="x86_64"))]
+	#[cfg(all(asm_available, target_arch="x86_64"))]
 	pub fn full_mul(self, other: U256) -> U512 {
 		let self_t: &[u64; 4] = unsafe { &mem::transmute(self) };
 		let other_t: &[u64; 4] = unsafe { &mem::transmute(other) };
@@ -1239,7 +1230,7 @@ impl U256 {
 
 	/// Multiplies two 256-bit integers to produce full 512-bit integer
 	/// No overflow possible
-	#[cfg(not(all(x64asm, target_arch="x86_64")))]
+	#[cfg(not(all(asm_available, target_arch="x86_64")))]
 	pub fn full_mul(self, other: U256) -> U512 {
 		let self_512 = U512::from(self);
 		let other_512 = U512::from(other);
@@ -1263,6 +1254,33 @@ impl From<U256> for U512 {
 impl From<U512> for U256 {
 	fn from(value: U512) -> U256 {
 		let U512(ref arr) = value;
+		if arr[4] | arr[5] | arr[6] | arr[7] != 0 {
+			panic!("Overflow");
+		}
+		let mut ret = [0; 4];
+		ret[0] = arr[0];
+		ret[1] = arr[1];
+		ret[2] = arr[2];
+		ret[3] = arr[3];
+		U256(ret)
+	}
+}
+
+impl<'a> From<&'a U256> for U512 {
+	fn from(value: &'a U256) -> U512 {
+		let U256(ref arr) = *value;
+		let mut ret = [0; 8];
+		ret[0] = arr[0];
+		ret[1] = arr[1];
+		ret[2] = arr[2];
+		ret[3] = arr[3];
+		U512(ret)
+	}
+}
+
+impl<'a> From<&'a U512> for U256 {
+	fn from(value: &'a U512) -> U256 {
+		let U512(ref arr) = *value;
 		if arr[4] | arr[5] | arr[6] | arr[7] != 0 {
 			panic!("Overflow");
 		}
@@ -1337,6 +1355,9 @@ impl From<U256> for u32 {
 pub const ZERO_U256: U256 = U256([0x00u64; 4]);
 /// Constant value of `U256::one()` that can be used for a reference saving an additional instance creation.
 pub const ONE_U256: U256 = U256([0x01u64, 0x00u64, 0x00u64, 0x00u64]);
+
+
+known_heap_size!(0, U128, U256);
 
 #[cfg(test)]
 mod tests {
