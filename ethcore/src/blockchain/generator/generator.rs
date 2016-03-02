@@ -30,7 +30,7 @@ pub trait ChainIterator: Iterator + Sized {
 	fn fork(&self, fork_number: usize) -> Fork<Self> where Self: Clone;
 	/// Should be called to make every consecutive block have given bloom.
 	fn with_bloom<'a>(&'a mut self, bloom: H2048) -> Bloom<'a, Self>;
-	/// Should be called to complete block. Without complete block may have incorrect hash.
+	/// Should be called to complete block. Without complete, block may have incorrect hash.
 	fn complete<'a>(&'a mut self, finalizer: &'a mut BlockFinalizer) -> Complete<'a, Self>;
 	/// Completes and generates block.
 	fn generate<'a>(&'a mut self, finalizer: &'a mut BlockFinalizer) -> Option<Bytes> where Self::Item: CompleteBlock;
