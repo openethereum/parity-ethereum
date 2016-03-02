@@ -40,20 +40,13 @@ use std::fmt;
 use std::cmp;
 
 use std::mem;
-use std::ops;
-use std::slice;
-use std::result;
-use std::option;
 use std::str::{FromStr};
 use std::convert::From;
 use std::hash::{Hash, Hasher};
 use std::ops::*;
 use std::cmp::*;
-use std::collections::*;
 
 use serde;
-use rustc_serialize::json::Json;
-use rustc_serialize::base64::FromBase64;
 use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
 
 
