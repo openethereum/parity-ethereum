@@ -18,6 +18,7 @@
 
 use std::fs::File;
 use common::*;
+use rlp::{Stream, RlpStream};
 use target_info::Target;
 use rustc_version;
 
@@ -69,5 +70,19 @@ pub fn contents(name: &str) -> Result<Bytes, UtilError> {
 
 /// Get the standard version string for this software.
 pub fn version() -> String {
-	format!("Parity//{}-{}-{}/{}-{}-{}/rustc{}", env!("CARGO_PKG_VERSION"), short_sha(), commit_date().replace("-", ""), Target::arch(), Target::os(), Target::env(), rustc_version::version())
+	format!("Parity/v{}-{}-{}/{}-{}-{}/rustc{}", env!("CARGO_PKG_VERSION"), short_sha(), commit_date().replace("-", ""), Target::arch(), Target::os(), Target::env(), rustc_version::version())
+}
+
+/// Get the standard version data for this software.
+pub fn version_data() -> Bytes {
+	let mut s = RlpStream::new_list(4);
+	let v =
+		(u32::from_str(env!("CARGO_PKG_VERSION_MAJOR")).unwrap() << 16) +
+		(u32::from_str(env!("CARGO_PKG_VERSION_MINOR")).unwrap() << 8) +
+		u32::from_str(env!("CARGO_PKG_VERSION_PATCH")).unwrap();
+	s.append(&v);
+	s.append(&"Parity");
+	s.append(&format!("{}", rustc_version::version()));
+	s.append(&&Target::os()[0..2]);
+	s.out()
 }

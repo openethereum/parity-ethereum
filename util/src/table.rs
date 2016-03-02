@@ -111,7 +111,7 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 	///
 	/// Returns previous value (if any)
 	pub fn insert(&mut self, row: Row, col: Col, val: Val) -> Option<Val> {
-		self.map.entry(row).or_insert_with(|| HashMap::new()).insert(col, val)
+		self.map.entry(row).or_insert_with(HashMap::new).insert(col, val)
 	}
 }
 

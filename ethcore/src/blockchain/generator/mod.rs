@@ -14,16 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::{U256,H256};
-use header::BlockNumber;
+mod bloom;
+mod block;
+mod complete;
+mod fork;
+pub mod generator;
 
-/// Best block info.
-#[derive(Default)]
-pub struct BestBlock {
-	/// Best block hash.
-	pub hash: H256,
-	/// Best block number.
-	pub number: BlockNumber,
-	/// Best block total difficulty.
-	pub total_difficulty: U256
-}
+pub use self::complete::BlockFinalizer;
+pub use self::generator::{ChainIterator, ChainGenerator};

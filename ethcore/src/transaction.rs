@@ -100,10 +100,10 @@ impl FromJson for SignedTransaction {
 				v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
 				r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
 				s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
-				hash: RefCell::new(None),
+				hash: Cell::new(None),
 				sender: match json.find("sender") {
-					Some(&Json::String(ref sender)) => RefCell::new(Some(address_from_hex(clean(sender)))),
-					_ => RefCell::new(None),
+					Some(&Json::String(ref sender)) => Cell::new(Some(address_from_hex(clean(sender)))),
+					_ => Cell::new(None),
 				}
 			}
 		}
@@ -127,8 +127,8 @@ impl Transaction {
 			r: r,
 			s: s,
 			v: v + 27,
-			hash: RefCell::new(None),
-			sender: RefCell::new(None)
+			hash: Cell::new(None),
+			sender: Cell::new(None),
 		}
 	}
 
@@ -140,8 +140,8 @@ impl Transaction {
 			r: U256::zero(),
 			s: U256::zero(),
 			v: 0,
-			hash: RefCell::new(None),
-			sender: RefCell::new(None)
+			hash: Cell::new(None),
+			sender: Cell::new(None),
 		}
 	}
 
@@ -171,9 +171,9 @@ pub struct SignedTransaction {
 	/// The S field of the signature; helps describe the point on the curve.
 	s: U256,
 	/// Cached hash.
-	hash: RefCell<Option<H256>>,
+	hash: Cell<Option<H256>>,
 	/// Cached sender.
-	sender: RefCell<Option<Address>>
+	sender: Cell<Option<Address>>,
 }
 
 impl PartialEq for SignedTransaction {
@@ -208,8 +208,8 @@ impl Decodable for SignedTransaction {
 			v: try!(d.val_at(6)),
 			r: try!(d.val_at(7)),
 			s: try!(d.val_at(8)),
-			hash: RefCell::new(None),
-			sender: RefCell::new(None),
+			hash: Cell::new(None),
+			sender: Cell::new(None),
 		})
 	}
 }
@@ -238,13 +238,14 @@ impl SignedTransaction {
 
 	/// Get the hash of this header (sha3 of the RLP).
 	pub fn hash(&self) -> H256 {
- 		let mut hash = self.hash.borrow_mut();
- 		match &mut *hash {
- 			&mut Some(ref h) => h.clone(),
- 			hash @ &mut None => {
- 				*hash = Some(self.rlp_sha3());
- 				hash.as_ref().unwrap().clone()
- 			}
+		let hash = self.hash.get();
+		match hash {
+			Some(h) => h,
+			None => {
+				let h = self.rlp_sha3();
+				self.hash.set(Some(h));
+				h
+			}
 		}
 	}
 
@@ -265,13 +266,14 @@ impl SignedTransaction {
 
 	/// Returns transaction sender.
 	pub fn sender(&self) -> Result<Address, Error> {
- 		let mut sender = self.sender.borrow_mut();
- 		match &mut *sender {
- 			&mut Some(ref h) => Ok(h.clone()),
- 			sender @ &mut None => {
- 				*sender = Some(From::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3()));
- 				Ok(sender.as_ref().unwrap().clone())
- 			}
+		let sender = self.sender.get();
+		match sender {
+			Some(s) => Ok(s),
+			None => {
+				let s = Address::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3());
+				self.sender.set(Some(s));
+				Ok(s)
+			}
 		}
 	}
 

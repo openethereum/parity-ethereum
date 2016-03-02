@@ -21,7 +21,7 @@
 use common::*;
 use engine::*;
 use state::*;
-use verification::PreVerifiedBlock;
+use verification::PreverifiedBlock;
 
 /// A block, encoded as it is on the block chain.
 // TODO: rename to Block
@@ -155,9 +155,9 @@ pub struct OpenBlock<'x> {
 /// Just like OpenBlock, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
 /// and collected the uncles.
 ///
-/// There is no function available to push a transaction. If you want that you'll need to `reopen()` it.
-pub struct ClosedBlock<'x> {
-	open_block: OpenBlock<'x>,
+/// There is no function available to push a transaction.
+pub struct ClosedBlock {
+	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 }
 
@@ -178,10 +178,12 @@ impl<'x> OpenBlock<'x> {
 			last_hashes: last_hashes,
 		};
 
-		r.block.base.header.set_number(parent.number() + 1);
-		r.block.base.header.set_author(author);
-		r.block.base.header.set_extra_data(extra_data);
-		r.block.base.header.set_timestamp_now();
+		r.block.base.header.parent_hash = parent.hash();
+		r.block.base.header.number = parent.number + 1;
+		r.block.base.header.author = author;
+		r.block.base.header.set_timestamp_now(parent.timestamp());
+		r.block.base.header.extra_data = extra_data;
+		r.block.base.header.note_dirty();
 
 		engine.populate_from_parent(&mut r.block.base.header, parent);
 		engine.on_new_block(&mut r.block);
@@ -259,7 +261,7 @@ impl<'x> OpenBlock<'x> {
 	}
 
 	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure out the uncles.
-	pub fn close(self) -> ClosedBlock<'x> {
+	pub fn close(self) -> ClosedBlock {
 		let mut s = self;
 		s.engine.on_close_block(&mut s.block);
 		s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes().to_vec()).collect());
@@ -271,7 +273,10 @@ impl<'x> OpenBlock<'x> {
 		s.block.base.header.gas_used = s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used);
 		s.block.base.header.note_dirty();
 
-		ClosedBlock::new(s, uncle_bytes)
+		ClosedBlock {
+			block: s.block, 
+			uncle_bytes: uncle_bytes,
+		}
 	}
 }
 
@@ -279,38 +284,40 @@ impl<'x> IsBlock for OpenBlock<'x> {
 	fn block(&self) -> &ExecutedBlock { &self.block }
 }
 
-impl<'x> IsBlock for ClosedBlock<'x> {
-	fn block(&self) -> &ExecutedBlock { &self.open_block.block }
+impl<'x> IsBlock for ClosedBlock {
+	fn block(&self) -> &ExecutedBlock { &self.block }
 }
 
-impl<'x> ClosedBlock<'x> {
-	fn new(open_block: OpenBlock<'x>, uncle_bytes: Bytes) -> Self {
-		ClosedBlock {
-			open_block: open_block,
-			uncle_bytes: uncle_bytes,
-		}
-	}
-
+impl ClosedBlock {
 	/// Get the hash of the header without seal arguments.
 	pub fn hash(&self) -> H256 { self.header().rlp_sha3(Seal::Without) }
 
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
 	/// NOTE: This does not check the validity of `seal` with the engine.
-	pub fn seal(self, seal: Vec<Bytes>) -> Result<SealedBlock, BlockError> {
+	pub fn seal(self, engine: &Engine, seal: Vec<Bytes>) -> Result<SealedBlock, BlockError> {
 		let mut s = self;
-		if seal.len() != s.open_block.engine.seal_fields() {
-			return Err(BlockError::InvalidSealArity(Mismatch{expected: s.open_block.engine.seal_fields(), found: seal.len()}));
+		if seal.len() != engine.seal_fields() {
+			return Err(BlockError::InvalidSealArity(Mismatch{expected: engine.seal_fields(), found: seal.len()}));
 		}
-		s.open_block.block.base.header.set_seal(seal);
-		Ok(SealedBlock { block: s.open_block.block, uncle_bytes: s.uncle_bytes })
+		s.block.base.header.set_seal(seal);
+		Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes })
 	}
 
-	/// Turn this back into an `OpenBlock`.
-	pub fn reopen(self) -> OpenBlock<'x> { self.open_block }
+	/// Provide a valid seal in order to turn this into a `SealedBlock`.
+	/// This does check the validity of `seal` with the engine.
+	/// Returns the `ClosedBlock` back again if the seal is no good.
+	pub fn try_seal(self, engine: &Engine, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		let mut s = self;
+		s.block.base.header.set_seal(seal);
+		match engine.verify_block_seal(&s.block.base.header) {
+			Err(_) => Err(s),
+			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
+		}
+	}
 
 	/// Drop this object and return the underlieing database.
-	pub fn drain(self) -> JournalDB { self.open_block.block.state.drop().1 }
+	pub fn drain(self) -> JournalDB { self.block.state.drop().1 }
 }
 
 impl SealedBlock {
@@ -332,7 +339,7 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-pub fn enact<'x>(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock<'x>, Error> {
+pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &Engine, db: JournalDB, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
 			let s = State::from_existing(db.clone(), parent.state_root().clone(), engine.account_start_nonce());
@@ -350,14 +357,14 @@ pub fn enact<'x>(header: &Header, transactions: &[SignedTransaction], uncles: &[
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_bytes<'x>(block_bytes: &[u8], engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock<'x>, Error> {
+pub fn enact_bytes(block_bytes: &[u8], engine: &Engine, db: JournalDB, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
 	let block = BlockView::new(block_bytes);
 	let header = block.header();
 	enact(&header, &block.transactions(), &block.uncles(), engine, db, parent, last_hashes)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_verified<'x>(block: &PreVerifiedBlock, engine: &'x Engine, db: JournalDB, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock<'x>, Error> {
+pub fn enact_verified(block: &PreverifiedBlock, engine: &Engine, db: JournalDB, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
 	let view = BlockView::new(&block.bytes);
 	enact(&block.header, &block.transactions, &view.uncles(), engine, db, parent, last_hashes)
 }
@@ -365,7 +372,7 @@ pub fn enact_verified<'x>(block: &PreVerifiedBlock, engine: &'x Engine, db: Jour
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
 pub fn enact_and_seal(block_bytes: &[u8], engine: &Engine, db: JournalDB, parent: &Header, last_hashes: LastHashes) -> Result<SealedBlock, Error> {
 	let header = BlockView::new(block_bytes).header_view();
-	Ok(try!(try!(enact_bytes(block_bytes, engine, db, parent, last_hashes)).seal(header.seal())))
+	Ok(try!(try!(enact_bytes(block_bytes, engine, db, parent, last_hashes)).seal(engine, header.seal())))
 }
 
 #[cfg(test)]
@@ -386,7 +393,7 @@ mod tests {
 		let last_hashes = vec![genesis_header.hash()];
 		let b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), vec![]);
 		let b = b.close();
-		let _ = b.seal(vec![]);
+		let _ = b.seal(engine.deref(), vec![]);
 	}
 
 	#[test]
@@ -398,7 +405,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		engine.spec().ensure_db_good(&mut db);
-		let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(vec![]).unwrap();
+		let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(engine.deref(), vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 

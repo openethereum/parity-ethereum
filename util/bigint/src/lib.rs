@@ -14,4 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod generators;
+#![cfg_attr(asm_available, feature(asm))]
+
+extern crate rustc_serialize;
+extern crate serde;
+#[macro_use] extern crate heapsize;
+
+pub mod uint;
