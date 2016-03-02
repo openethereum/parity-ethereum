@@ -227,6 +227,23 @@ impl BlockProvider for BlockChain {
 
 const COLLECTION_QUEUE_SIZE: usize = 8;
 
+pub struct AncestryIter<'a> {
+	current: H256,
+	chain: &'a BlockChain,
+}
+impl<'a> Iterator for AncestryIter<'a> {
+	type Item = H256;
+	fn next(&mut self) -> Option<H256> {
+		if self.current.is_zero() {
+			Option::None
+		} else {
+			let n = self.chain.block_details(&self.current).unwrap().parent;
+			self.current = n;
+			Some(self.current.clone())
+		}
+	}
+}
+
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
 	pub fn new(config: BlockChainConfig, genesis: &[u8], path: &Path) -> BlockChain {
@@ -473,9 +490,40 @@ impl BlockChain {
 		self.extras_db.write(batch).unwrap();
 	}
 
+	pub fn ancestry_iter(&self, first: H256) -> AncestryIter {
+		AncestryIter {
+			current: first,
+			chain: &self,
+		}
+	}
+
 	/// Given a block's `parent`, find every block header which represents a valid uncle.
-	pub fn find_uncle_headers(&self, _parent: &H256) -> Vec<Header> {
-		// TODO
+	pub fn find_uncle_headers(&self, parent: &H256) -> Vec<Header> {
+		let uncle_generations = 6usize;
+/*
+	{
+		// Find great-uncles (or second-cousins or whatever they are) - children of great-grandparents, great-great-grandparents... that were not already uncles in previous generations.
+		clog(StateDetail) << "Checking " << m_previousBlock.hash() << ", parent=" << m_previousBlock.parentHash();
+		h256Hash excluded = _bc.allKinFrom(m_currentBlock.parentHash(), 6);
+		auto p = m_previousBlock.parentHash();
+		for (unsigned gen = 0; gen < 6 && p != _bc.genesisHash() && unclesCount < 2; ++gen, p = _bc.details(p).parent)
+		{
+			auto us = _bc.details(p).children;
+			assert(us.size() >= 1);	// must be at least 1 child of our grandparent - it's our own parent!
+			for (auto const& u: us)
+				if (!excluded.count(u))	// ignore any uncles/mainline blocks that we know about.
+				{
+					uncleBlockHeaders.push_back(_bc.info(u));
+					unclesData.appendRaw(_bc.headerData(u));
+					++unclesCount;
+					if (unclesCount == 2)
+						break;
+				}
+		}
+	}
+*/		
+		let _excluded = self.ancestry_iter(parent.clone()).take(uncle_generations).collect::<HashSet<_>>();
+
 		Vec::new()
 	}
 
