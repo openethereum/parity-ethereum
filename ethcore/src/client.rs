@@ -457,7 +457,7 @@ impl Client {
 			self.extra_data()
 		);
 
-		self.chain.read().unwrap().find_uncle_headers(&h).unwrap().into_iter().foreach(|h| { b.push_uncle(h).unwrap(); });
+		self.chain.read().unwrap().find_uncle_headers(&h, self.engine.deref().deref().maximum_uncle_age()).unwrap().into_iter().foreach(|h| { b.push_uncle(h).unwrap(); });
 
 		// TODO: push transactions.
 

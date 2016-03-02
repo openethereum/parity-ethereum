@@ -47,6 +47,8 @@ pub trait Engine : Sync + Send {
 	fn maximum_extra_data_size(&self) -> usize { decode(&self.spec().engine_params.get("maximumExtraDataSize").unwrap()) }
 	/// Maximum number of uncles a block is allowed to declare.
 	fn maximum_uncle_count(&self) -> usize { 2 }
+	/// The number of generations back that uncles can be.
+	fn maximum_uncle_age(&self) -> usize { 6 }
 	/// The nonce with which accounts begin.
 	fn account_start_nonce(&self) -> U256 { decode(&self.spec().engine_params.get("accountStartNonce").unwrap()) }
 

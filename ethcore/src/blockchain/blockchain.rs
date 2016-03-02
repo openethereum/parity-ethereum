@@ -503,41 +503,23 @@ impl BlockChain {
 		}
 	}
 
-	/// Given a block's `parent`, find every block header which represents a valid uncle.
-	pub fn find_uncle_headers(&self, parent: &H256) -> Option<Vec<Header>> {
-		let uncle_generations = 6usize;
-/*
-	{
-		// Find great-uncles (or second-cousins or whatever they are) -
-		// children of great-grandparents, great-great-grandparents... that were not already uncles in previous generations.
-		clog(StateDetail) << "Checking " << m_previousBlock.hash() << ", parent=" << m_previousBlock.parentHash();
-		h256Hash excluded = _bc.allKinFrom(m_currentBlock.parentHash(), 6);
-		auto p = m_previousBlock.parentHash();
-		for (unsigned gen = 0; gen < 6 && p != _bc.genesisHash() && unclesCount < 2; ++gen, p = _bc.details(p).parent)
-		{
-			auto us = _bc.details(p).children;
-			assert(us.size() >= 1);	// must be at least 1 child of our grandparent - it's our own parent!
-			for (auto const& u: us)
-				if (!excluded.count(u))	// ignore any uncles/mainline blocks that we know about.
-				{
-					uncleBlockHeaders.push_back(_bc.info(u));
-					unclesData.appendRaw(_bc.headerData(u));
-					++unclesCount;
-					if (unclesCount == 2)
-						break;
-				}
-		}
-	}
-*/		
+	/// Given a block's `parent`, find every block header which represents a valid possible uncle.
+	pub fn find_uncle_headers(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<Header>> {
 		if !self.is_known(parent) { return None; }
-		let mut _excluded = HashSet::new();
+
+		let mut excluded = HashSet::new();
 		for a in self.ancestry_iter(parent.clone()).unwrap().take(uncle_generations) {
-			for u in self.uncle_hashes(&a).unwrap().into_iter() {
-				_excluded.insert(u);
-			}
-			_excluded.insert(a);
+			excluded.extend(self.uncle_hashes(&a).unwrap().into_iter());
+			excluded.insert(a);
 		}
-		None
+
+		let mut ret = Vec::new();
+		for a in self.ancestry_iter(parent.clone()).unwrap().skip(1).take(uncle_generations) {
+			ret.extend(self.block_details(&a).unwrap().children.iter()
+				.filter_map(|h| if excluded.contains(h) { None } else { self.block_header(h) })
+			);
+		}
+		Some(ret)
 	}
 
 	/// Get inserted block info which is critical to preapre extras updates.

@@ -94,7 +94,7 @@ pub fn verify_block_family<BC>(header: &Header, bytes: &[u8], engine: &Engine, b
 		excluded.insert(header.hash());
 		let mut hash = header.parent_hash.clone();
 		excluded.insert(hash.clone());
-		for _ in 0..6 {
+		for _ in 0..engine.maximum_uncle_age() {
 			match bc.block_details(&hash) {
 				Some(details) => {
 					excluded.insert(details.parent.clone());
@@ -121,7 +121,7 @@ pub fn verify_block_family<BC>(header: &Header, bytes: &[u8], engine: &Engine, b
 			//												(8 Invalid)
 
 			let depth = if header.number > uncle.number { header.number - uncle.number } else { 0 };
-			if depth > 6 {
+			if depth > engine.maximum_uncle_age() as u64 {
 				return Err(From::from(BlockError::UncleTooOld(OutOfBounds { min: Some(header.number - depth), max: Some(header.number - 1), found: uncle.number })));
 			}
 			else if depth < 1 {
