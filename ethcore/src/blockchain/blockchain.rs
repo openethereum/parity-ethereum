@@ -876,6 +876,44 @@ mod tests {
 
 	#[test]
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	fn test_find_uncles() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let b1b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b1a = canon_chain.generate(&mut finalizer).unwrap();
+		let b2b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b2a = canon_chain.generate(&mut finalizer).unwrap();
+		let b3b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b3a = canon_chain.generate(&mut finalizer).unwrap();
+		let b4b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b4a = canon_chain.generate(&mut finalizer).unwrap();
+		let b5b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b5a = canon_chain.generate(&mut finalizer).unwrap();
+
+		let temp = RandomTempPath::new();
+		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+		bc.insert_block(&b1a, vec![]);
+		bc.insert_block(&b1b, vec![]);
+		bc.insert_block(&b2a, vec![]);
+		bc.insert_block(&b2b, vec![]);
+		bc.insert_block(&b3a, vec![]);
+		bc.insert_block(&b3b, vec![]);
+		bc.insert_block(&b4a, vec![]);
+		bc.insert_block(&b4b, vec![]);
+		bc.insert_block(&b5a, vec![]);
+		bc.insert_block(&b5b, vec![]);
+
+		assert_eq!(
+			[&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(),
+			bc.find_uncle_headers(&BlockView::new(&b4a).header_view().sha3(), 3).unwrap()
+		);
+
+		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
+	}
+
+	#[test]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn test_small_fork() {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
