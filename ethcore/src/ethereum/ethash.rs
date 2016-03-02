@@ -74,8 +74,6 @@ impl Engine for Ethash {
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	// Two fields - mix
 	fn seal_fields(&self) -> usize { 2 }
-	// Two empty data items in RLP.
-	fn seal_rlp(&self) -> Bytes { encode(&H64::new()).to_vec() }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
@@ -106,7 +104,7 @@ impl Engine for Ethash {
 				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1) + (header.gas_used * x!(6) / x!(5)) / bound_divisor)
 			}
 		};
-
+		header.note_dirty();
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
 
@@ -144,9 +142,10 @@ impl Engine for Ethash {
 		}
 
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
-				&Ethash::to_ethash(header.bare_hash()),
-				header.nonce().low_u64(),
-				&Ethash::to_ethash(header.mix_hash()))));
+			&Ethash::to_ethash(header.bare_hash()),
+			header.nonce().low_u64(),
+			&Ethash::to_ethash(header.mix_hash())
+		)));
 		if difficulty < header.difficulty {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
 		}
@@ -241,8 +240,19 @@ impl Ethash {
 		target
 	}
 
-	fn boundary_to_difficulty(boundary: &H256) -> U256 {
+	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
+	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
 		U256::from((U512::one() << 256) / x!(U256::from(boundary.as_slice())))
+	}
+
+	/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
+	pub fn difficulty_to_boundary(difficulty: &U256) -> H256 {
+		x!(U256::from((U512::one() << 256) / x!(difficulty)))
+	}
+
+	/// Given the `block_number`, determine the seed hash for Ethash.
+	pub fn get_seedhash(number: BlockNumber) -> H256 {
+		Self::from_ethash(ethash::get_seedhash(number))
 	}
 
 	fn to_ethash(hash: H256) -> EH256 {
@@ -255,11 +265,19 @@ impl Ethash {
 }
 
 impl Header {
-	fn nonce(&self) -> H64 {
+	/// Get the none field of the header.
+	pub fn nonce(&self) -> H64 {
 		decode(&self.seal()[1])
 	}
-	fn mix_hash(&self) -> H256 {
+
+	/// Get the mix hash field of the header.
+	pub fn mix_hash(&self) -> H256 {
 		decode(&self.seal()[0])
+	}
+
+	/// Set the nonce and mix hash fields of the header.
+	pub fn set_nonce_and_mix_hash(&mut self, nonce: &H64, mix_hash: &H256) {
+		self.seal = vec![encode(mix_hash).to_vec(), encode(nonce).to_vec()];
 	}
 }
 

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use client::{BlockChainClient, Client, ClientConfig, BlockId};
+use block::IsBlock;
 use tests::helpers::*;
 use common::*;
 use devtools::*;
@@ -124,4 +125,23 @@ fn can_handle_long_fork() {
 		client.import_verified_blocks(&IoChannel::disconnected());
 	}
 	assert_eq!(2000, client.chain_info().best_block_number);
+}
+
+#[test]
+fn can_mine() {
+	let dummy_blocks = get_good_dummy_block_seq(2);
+	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
+	let client = client_result.reference();
+	let b = client.sealing_block();
+	let pow_hash = {
+		let u = b.lock().unwrap();
+		match *u {
+			Some(ref b) => {
+				assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
+				b.hash()
+			}
+			None => { panic!(); }
+		}
+	};
+	assert!(client.submit_seal(pow_hash, vec![]).is_ok());
 }
