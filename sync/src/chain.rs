@@ -249,14 +249,14 @@ impl ChainSync {
 			blocks_total: match self.highest_block { Some(x) if x > self.starting_block => x - self.starting_block, _ => 0 },
 			num_peers: self.peers.len(),
 			num_active_peers: self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count(),
-			mem_used: 
+			mem_used:
 				//  TODO: https://github.com/servo/heapsize/pull/50
-				//  self.downloading_hashes.heap_size_of_children() 
-				//+ self.downloading_bodies.heap_size_of_children() 
-				//+ self.downloading_hashes.heap_size_of_children() 
-				self.headers.heap_size_of_children() 
-				+ self.bodies.heap_size_of_children() 
-				+ self.peers.heap_size_of_children() 
+				//  self.downloading_hashes.heap_size_of_children()
+				//+ self.downloading_bodies.heap_size_of_children()
+				//+ self.downloading_hashes.heap_size_of_children()
+				self.headers.heap_size_of_children()
+				+ self.bodies.heap_size_of_children()
+				+ self.peers.heap_size_of_children()
 				+ self.header_ids.heap_size_of_children(),
 		}
 	}
@@ -1171,8 +1171,8 @@ impl ChainSync {
 			.collect::<Vec<_>>()
 	}
 
-	/// propagades latest block to lagging peers
-	fn propagade_blocks(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
+	/// propagates latest block to lagging peers
+	fn propagate_blocks(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
 		let updated_peers = {
 			let lagging_peers = self.get_lagging_peers(io);
 
@@ -1198,8 +1198,8 @@ impl ChainSync {
 		sent
 	}
 
-	/// propagades new known hashes to all peers
-	fn propagade_new_hashes(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
+	/// propagates new known hashes to all peers
+	fn propagate_new_hashes(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
 		let updated_peers = self.get_lagging_peers(io);
 		let mut sent = 0;
 		let last_parent = HeaderView::new(&io.chain().block_header(BlockId::Hash(local_best.clone())).unwrap()).parent_hash();
@@ -1234,8 +1234,8 @@ impl ChainSync {
 	pub fn chain_blocks_verified(&mut self, io: &mut SyncIo) {
 		let chain = io.chain().chain_info();
 		if (((chain.best_block_number as i64) - (self.last_send_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
-			let blocks = self.propagade_blocks(&chain.best_block_hash, chain.best_block_number, io);
-			let hashes = self.propagade_new_hashes(&chain.best_block_hash, chain.best_block_number, io);
+			let blocks = self.propagate_blocks(&chain.best_block_hash, chain.best_block_number, io);
+			let hashes = self.propagate_new_hashes(&chain.best_block_hash, chain.best_block_number, io);
 			if blocks != 0 || hashes != 0 {
 				trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
 			}
@@ -1419,7 +1419,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		let peer_count = sync.propagade_new_hashes(&best_hash, best_number, &mut io);
+		let peer_count = sync.propagate_new_hashes(&best_hash, best_number, &mut io);
 
 		// 1 message should be send
 		assert_eq!(1, io.queue.len());
@@ -1439,7 +1439,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		let peer_count = sync.propagade_blocks(&best_hash, best_number, &mut io);
+		let peer_count = sync.propagate_blocks(&best_hash, best_number, &mut io);
 
 		// 1 message should be send
 		assert_eq!(1, io.queue.len());
@@ -1545,7 +1545,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		sync.propagade_new_hashes(&best_hash, best_number, &mut io);
+		sync.propagate_new_hashes(&best_hash, best_number, &mut io);
 
 		let data = &io.queue[0].data.clone();
 		let result = sync.on_peer_new_hashes(&mut io, 0, &UntrustedRlp::new(&data));
@@ -1564,7 +1564,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		sync.propagade_blocks(&best_hash, best_number, &mut io);
+		sync.propagate_blocks(&best_hash, best_number, &mut io);
 
 		let data = &io.queue[0].data.clone();
 		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(&data));
