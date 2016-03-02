@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::hash::H2048;
-use util::uint::U256;
+use util::numbers::U256;
 use util::bytes::Bytes;
 use header::BlockNumber;
 use super::fork::Fork;
