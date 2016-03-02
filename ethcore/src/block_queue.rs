@@ -302,8 +302,7 @@ impl BlockQueue {
 			if self.processing.read().unwrap().contains(&h) {
 				return Err(ImportError::AlreadyQueued);
 			}
-			}
-		{
+
 			let mut bad = self.verification.bad.lock().unwrap();
 			if bad.contains(&h) {
 				return Err(ImportError::Bad(None));

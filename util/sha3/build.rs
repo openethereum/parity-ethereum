@@ -21,6 +21,6 @@
 extern crate gcc;
 
 fn main() {
-	gcc::Config::new().file("src/tinykeccak.c").flag("-O3").compile("libtinykeccak.a");
+    gcc::compile_library("libtinykeccak.a", &["src/tinykeccak.c"]);
 }
 
