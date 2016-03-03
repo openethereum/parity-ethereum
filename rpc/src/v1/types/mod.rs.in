@@ -14,24 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Web3 rpc implementation.
-use jsonrpc_core::*;
-use util::version;
-use v1::traits::Web3;
+mod block;
+mod block_number;
+mod bytes;
+mod filter;
+mod index;
+mod log;
+mod optionals;
+mod sync;
+mod transaction;
 
-/// Web3 rpc implementation.
-pub struct Web3Client;
-
-impl Web3Client {
-	/// Creates new Web3Client.
-	pub fn new() -> Self { Web3Client }
-}
-
-impl Web3 for Web3Client {
-	fn client_version(&self, params: Params) -> Result<Value, Error> {
-		match params {
-			Params::None => Ok(Value::String(version().to_owned().replace("Parity/", "Parity//"))),
-			_ => Err(Error::invalid_params())
-		}
-	}
-}
+pub use self::block::{Block, BlockTransactions};
+pub use self::block_number::BlockNumber;
+pub use self::bytes::Bytes;
+pub use self::filter::Filter;
+pub use self::index::Index;
+pub use self::log::Log;
+pub use self::optionals::OptionalValue;
+pub use self::sync::{SyncStatus, SyncInfo};
+pub use self::transaction::Transaction;
