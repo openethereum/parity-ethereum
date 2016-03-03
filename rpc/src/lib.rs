@@ -27,6 +27,7 @@ extern crate jsonrpc_http_server;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
+extern crate transient_hashmap;
 
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 

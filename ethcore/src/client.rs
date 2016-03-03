@@ -123,6 +123,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block total difficulty.
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
 
+	/// Get block hash.
+	fn block_hash(&self, id: BlockId) -> Option<H256>;
+
 	/// Get address code.
 	fn code(&self, address: &Address) -> Option<Bytes>;
 
@@ -538,6 +541,11 @@ impl BlockChainClient for Client {
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
 		let chain = self.chain.read().unwrap();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
+	}
+
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
+		let chain = self.chain.read().unwrap();
+		Self::block_hash(&chain, id)
 	}
 
 	fn code(&self, address: &Address) -> Option<Bytes> {
