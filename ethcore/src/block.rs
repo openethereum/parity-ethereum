@@ -220,7 +220,7 @@ impl<'x> OpenBlock<'x> {
 	/// NOTE Will check chain constraints and the uncle number but will NOT check
 	/// that the header itself is actually valid.
 	pub fn push_uncle(&mut self, valid_uncle_header: Header) -> Result<(), BlockError> {
-		if self.block.base.uncles.len() >= self.engine.maximum_uncle_count() {
+		if self.block.base.uncles.len() > self.engine.maximum_uncle_count() {
 			return Err(BlockError::TooManyUncles(OutOfBounds{min: None, max: Some(self.engine.maximum_uncle_count()), found: self.block.base.uncles.len()}));
 		}
 		// TODO: check number
