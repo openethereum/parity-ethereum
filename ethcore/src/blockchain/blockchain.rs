@@ -448,7 +448,8 @@ impl BlockChain {
 		let mut write_details = self.block_details.write().unwrap();
 		for (hash, details) in update.block_details.into_iter() {
 			batch.put_extras(&hash, &details);
-			write_details.insert(hash, details);
+			write_details.insert(hash.clone(), details);
+			self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash));
 		}
 
 		let mut write_receipts = self.block_receipts.write().unwrap();
