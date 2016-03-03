@@ -109,6 +109,25 @@ fn can_collect_garbage() {
 }
 
 #[test]
+fn can_handle_long_fork() {
+	let client_result = generate_dummy_client(1200);
+	let client = client_result.reference();
+	for _ in 0..10 {
+		client.import_verified_blocks(&IoChannel::disconnected());
+	}
+	assert_eq!(1200, client.chain_info().best_block_number);
+
+	push_blocks_to_client(client, 45, 1201, 800);
+	push_blocks_to_client(client, 49, 1201, 800);
+	push_blocks_to_client(client, 53, 1201, 600);
+
+	for _ in 0..20 {
+		client.import_verified_blocks(&IoChannel::disconnected());
+	}
+	assert_eq!(2000, client.chain_info().best_block_number);
+}
+
+#[test]
 fn can_mine() {
 	let dummy_blocks = get_good_dummy_block_seq(2);
 	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
@@ -122,7 +141,7 @@ fn can_mine() {
 				b.hash()
 			}
 			None => { panic!(); }
-		}	
+		}
 	};
 	assert!(client.submit_seal(pow_hash, vec![]).is_ok());
 }
