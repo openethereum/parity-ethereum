@@ -207,7 +207,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	secret_store: Arc<RwLock<SecretStore>>,
 }
 
-const HISTORY: u64 = 30;
+const HISTORY: u64 = 1000;
 const CLIENT_DB_VER_STR: &'static str = "4.0";
 
 impl Client<CanonVerifier> {
