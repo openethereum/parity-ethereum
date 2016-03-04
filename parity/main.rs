@@ -157,6 +157,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_dom
 	server.add_delegate(EthClient::new(&client, &sync).to_delegate());
 	server.add_delegate(EthFilterClient::new(&client).to_delegate());
 	server.add_delegate(NetClient::new(&sync).to_delegate());
+	server.add_delegate(PersonalClient::new(&client).to_delegate());
 	server.start_async(url, cors_domain);
 }
 

@@ -17,6 +17,7 @@
 use util::numbers::*;
 use ethcore::transaction::{LocalizedTransaction, Action};
 use v1::types::{Bytes, OptionalValue};
+use serde::{Deserializer, Error};
 
 #[derive(Debug, Default, Serialize)]
 pub struct Transaction {
@@ -35,6 +36,18 @@ pub struct Transaction {
 	pub gas_price: U256,
 	pub gas: U256,
 	pub input: Bytes
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct TransactionRequest {
+	pub from: Address,
+	pub to: Option<Address>,
+	#[serde(rename="gasPrice")]
+	pub gas_price: Option<U256>,
+	pub gas: Option<U256>,
+	pub value: Option<U256>,
+	pub data: Bytes,
+	pub nonce: Option<U256>,
 }
 
 impl From<LocalizedTransaction> for Transaction {
