@@ -61,7 +61,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> 
 	for u in Rlp::new(&bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
 		try!(engine.verify_block_unordered(&u, None));
 	}
-	// Verify transactions. 
+	// Verify transactions.
 	let mut transactions = Vec::new();
 	{
 		let v = BlockView::new(&bytes);
@@ -141,7 +141,7 @@ pub fn verify_block_family<BC>(header: &Header, bytes: &[u8], engine: &Engine, b
 			let uncle_parent = try!(bc.block_header(&uncle.parent_hash).ok_or_else(|| Error::from(BlockError::UnknownUncleParent(uncle.parent_hash.clone()))));
 			for _ in 0..depth {
 				match bc.block_details(&expected_uncle_parent) {
-					Some(details) => { 
+					Some(details) => {
 						expected_uncle_parent = details.parent;
 					},
 					None => break
@@ -468,7 +468,7 @@ mod tests {
 		header.number = 9;
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine.deref(), &bc),
 			InvalidNumber(Mismatch { expected: parent.number + 1, found: header.number }));
-		
+
 		header = good.clone();
 		let mut bad_uncles = good_uncles.clone();
 		bad_uncles.push(good_uncle1.clone());

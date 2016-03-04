@@ -16,6 +16,7 @@
 
 //! Blockchain database client.
 
+use std::marker::PhantomData;
 use util::*;
 use util::panics::*;
 use blockchain::{BlockChain, BlockProvider};
@@ -188,7 +189,7 @@ impl ClientReport {
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
-pub struct Client {
+pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<JournalDB>,
@@ -201,14 +202,22 @@ pub struct Client {
 	sealing_block: Mutex<Option<ClosedBlock>>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
+	verifier: PhantomData<V>
 }
 
 const HISTORY: u64 = 1000;
 const CLIENT_DB_VER_STR: &'static str = "4.0";
 
-impl Client {
+impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
 	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+		Client::<CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
+	}
+}
+
+impl<V> Client<V> where V: Verifier {
+	///  Create a new client with given spec and DB path and custom verifier.
+	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
@@ -240,6 +249,7 @@ impl Client {
 			sealing_block: Mutex::new(None),
 			author: RwLock::new(Address::new()),
 			extra_data: RwLock::new(Vec::new()),
+			verifier: PhantomData
 		}))
 	}
 
@@ -302,7 +312,7 @@ impl Client {
 
 		// Final Verification
 		let closed_block = enact_result.unwrap();
-		if let Err(e) = verify_block_final(&header, closed_block.block().header()) {
+		if let Err(e) = V::verify_block_final(&header, closed_block.block().header()) {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		}
@@ -503,7 +513,7 @@ impl Client {
 
 // TODO: need MinerService MinerIoHandler
 
-impl BlockChainClient for Client {
+impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		let chain = self.chain.read().unwrap();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
