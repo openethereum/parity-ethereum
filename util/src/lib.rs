@@ -111,6 +111,7 @@ extern crate rustc_version;
 extern crate target_info;
 extern crate vergen;
 extern crate bigint;
+extern crate chrono;
 
 pub mod standard;
 #[macro_use]
