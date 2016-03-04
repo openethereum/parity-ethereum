@@ -1279,7 +1279,8 @@ impl ChainSync {
 
 		good.for_each(|txs| {
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			transaction_queue.remove_all(&txs);
+			let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
+			transaction_queue.remove_all(&hashes);
 		});
 		bad.for_each(|txs| {
 			// populate sender
