@@ -16,6 +16,7 @@
 
 //! Blockchain database client.
 
+use std::marker::PhantomData;
 use util::*;
 use util::panics::*;
 use blockchain::{BlockChain, BlockProvider};
@@ -35,6 +36,7 @@ use transaction::LocalizedTransaction;
 use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
+use util::keys::store::SecretStore;
 pub use block_queue::{BlockQueueConfig, BlockQueueInfo};
 pub use blockchain::{TreeRoute, BlockChainConfig, CacheSize as BlockChainCacheSize};
 
@@ -76,12 +78,24 @@ pub enum BlockStatus {
 }
 
 /// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ClientConfig {
 	/// Block queue configuration.
 	pub queue: BlockQueueConfig,
 	/// Blockchain configuration.
 	pub blockchain: BlockChainConfig,
+	/// Prefer journal rather than archive.
+	pub prefer_journal: bool,
+}
+
+impl Default for ClientConfig {
+	fn default() -> ClientConfig {
+		ClientConfig {
+			queue: Default::default(),
+			blockchain: Default::default(),
+			prefer_journal: false,
+		}
+	}
 }
 
 /// Information about the blockchain gathered together.
@@ -125,6 +139,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get address nonce.
 	fn nonce(&self, address: &Address) -> U256;
+
+	/// Get block hash.
+	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// Get address code.
 	fn code(&self, address: &Address) -> Option<Bytes>;
@@ -188,7 +205,7 @@ impl ClientReport {
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
-pub struct Client {
+pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<RwLock<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<JournalDB>,
@@ -201,18 +218,27 @@ pub struct Client {
 	sealing_block: Mutex<Option<ClosedBlock>>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
+	verifier: PhantomData<V>,
+	secret_store: Arc<RwLock<SecretStore>>,
 }
 
 const HISTORY: u64 = 1000;
 const CLIENT_DB_VER_STR: &'static str = "4.0";
 
-impl Client {
+impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
 	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+		Client::<CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
+	}
+}
+
+impl<V> Client<V> where V: Verifier {
+	///  Create a new client with given spec and DB path and custom verifier.
+	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
-		dir.push(format!("v{}-sec-pruned", CLIENT_DB_VER_STR));
+		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, if config.prefer_journal { "pruned" } else { "archive" }));
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(RwLock::new(BlockChain::new(config.blockchain, &gb, path)));
@@ -220,7 +246,7 @@ impl Client {
 		state_path.push("state");
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = JournalDB::new(state_path.to_str().unwrap());
+		let mut state_db = JournalDB::from_prefs(state_path.to_str().unwrap(), config.prefer_journal);
 		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
@@ -228,6 +254,9 @@ impl Client {
 		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel);
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
+
+		let secret_store = Arc::new(RwLock::new(SecretStore::new()));
+		secret_store.write().unwrap().try_import_existing();
 
 		Ok(Arc::new(Client {
 			chain: chain,
@@ -240,6 +269,8 @@ impl Client {
 			sealing_block: Mutex::new(None),
 			author: RwLock::new(Address::new()),
 			extra_data: RwLock::new(Vec::new()),
+			verifier: PhantomData,
+			secret_store: secret_store,
 		}))
 	}
 
@@ -262,6 +293,11 @@ impl Client {
 			}
 		}
 		last_hashes
+	}
+
+	/// Secret store (key manager)
+	pub fn secret_store(&self) -> &Arc<RwLock<SecretStore>> {
+		&self.secret_store
 	}
 
 	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<ClosedBlock, ()> {
@@ -302,7 +338,7 @@ impl Client {
 
 		// Final Verification
 		let closed_block = enact_result.unwrap();
-		if let Err(e) = verify_block_final(&header, closed_block.block().header()) {
+		if let Err(e) = V::verify_block_final(&header, closed_block.block().header()) {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		}
@@ -505,7 +541,7 @@ impl Client {
 
 // TODO: need MinerService MinerIoHandler
 
-impl BlockChainClient for Client {
+impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		let chain = self.chain.read().unwrap();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
@@ -547,6 +583,11 @@ impl BlockChainClient for Client {
 
 	fn nonce(&self, address: &Address) -> U256 {
 		self.state().nonce(address)
+	}
+
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
+		let chain = self.chain.read().unwrap();
+		Self::block_hash(&chain, id)
 	}
 
 	fn code(&self, address: &Address) -> Option<Bytes> {

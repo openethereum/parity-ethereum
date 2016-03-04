@@ -14,18 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interfaces.
+pub mod verification;
+pub mod verifier;
+mod canon_verifier;
+mod noop_verifier;
 
-macro_rules! rpc_unimplemented {
-	() => (Err(Error::internal_error()))
-}
-
-pub mod web3;
-pub mod eth;
-pub mod net;
-pub mod personal;
-
-pub use self::web3::Web3;
-pub use self::eth::{Eth, EthFilter};
-pub use self::net::Net;
-pub use self::personal::Personal;
+pub use self::verification::*;
+pub use self::verifier::Verifier;
+pub use self::canon_verifier::CanonVerifier;
+pub use self::noop_verifier::NoopVerifier;

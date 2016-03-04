@@ -136,6 +136,10 @@ impl BlockChainClient for TestBlockChainClient {
 		Some(U256::zero())
 	}
 
+	fn block_hash(&self, _id: BlockId) -> Option<H256> {
+		unimplemented!();
+	}
+
 	fn nonce(&self, _address: &Address) -> U256 {
 		U256::zero()
 	}

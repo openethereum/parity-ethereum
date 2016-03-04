@@ -400,7 +400,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		// public_endpoint in host info contains local adderss at this point
 		let listen_address = self.info.read().unwrap().public_endpoint.address.clone();
 		let udp_port = self.info.read().unwrap().config.udp_port.unwrap_or(listen_address.port());
-		let public_endpoint = match self.info.read().unwrap().config.public_address {
+		let public_address = self.info.read().unwrap().config.public_address.clone();
+		let public_endpoint = match public_address {
 			None => {
 				let public_address = select_public_address(listen_address.port());
 				let local_endpoint = NodeEndpoint { address: public_address, udp_port: udp_port };

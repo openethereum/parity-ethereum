@@ -146,7 +146,7 @@ impl OverlayDB {
 			})
 	}
 
-	/// Get the refs and value of the given key.
+	/// Put the refs and value of the given key, possibly deleting it from the db.
 	fn put_payload(&self, key: &H256, payload: (Bytes, u32)) -> bool {
 		if payload.1 > 0 {
 			let mut s = RlpStream::new_list(2);

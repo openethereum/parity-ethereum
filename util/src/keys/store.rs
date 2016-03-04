@@ -22,6 +22,7 @@ use rcrypto::pbkdf2::*;
 use rcrypto::scrypt::*;
 use rcrypto::hmac::*;
 use crypto;
+use chrono::*;
 
 const KEY_LENGTH: u32 = 32;
 const KEY_ITERATIONS: u32 = 10240;
@@ -55,9 +56,26 @@ pub enum EncryptedHashMapError {
 	InvalidValueFormat(FromBytesError),
 }
 
+/// Error retrieving value from encrypted hashmap
+#[derive(Debug)]
+pub enum SigningError {
+	/// Account passed does not exist
+	NoAccount,
+	/// Account passed is not unlocked
+	AccountNotUnlocked,
+	/// Invalid secret in store
+	InvalidSecret
+}
+
 /// Represent service for storing encrypted arbitrary data
 pub struct SecretStore {
-	directory: KeyDirectory
+	directory: KeyDirectory,
+	unlocks: RwLock<HashMap<Address, AccountUnlock>>,
+}
+
+struct AccountUnlock {
+	secret: H256,
+	expires: DateTime<UTC>,
 }
 
 impl SecretStore {
@@ -72,7 +90,8 @@ impl SecretStore {
 	/// new instance of Secret Store in specific directory
 	pub fn new_in(path: &Path) -> SecretStore {
 		SecretStore {
-			directory: KeyDirectory::new(path)
+			directory: KeyDirectory::new(path),
+			unlocks: RwLock::new(HashMap::new()),
 		}
 	}
 
@@ -120,8 +139,56 @@ impl SecretStore {
 	#[cfg(test)]
 	fn new_test(path: &::devtools::RandomTempPath) -> SecretStore {
 		SecretStore {
-			directory: KeyDirectory::new(path.as_path())
+			directory: KeyDirectory::new(path.as_path()),
+			unlocks: RwLock::new(HashMap::new()),
 		}
+	}
+
+	/// Unlocks account for use
+	pub fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+		let secret_id = try!(self.account(&account).ok_or(EncryptedHashMapError::UnknownIdentifier));
+		let secret = try!(self.get(&secret_id, pass));
+		{
+			let mut write_lock = self.unlocks.write().unwrap();
+			let mut unlock = write_lock.entry(*account)
+				.or_insert_with(|| AccountUnlock { secret: secret, expires: UTC::now() });
+			unlock.secret = secret;
+			unlock.expires = UTC::now() + Duration::minutes(20);
+		}
+		Ok(())
+	}
+
+	/// Creates new account
+	pub fn new_account(&mut self, pass: &str) -> Result<Address, ::std::io::Error> {
+		let secret = H256::random();
+		let key_id = H128::random();
+		self.insert(key_id.clone(), secret, pass);
+
+		let mut key_file = self.directory.get(&key_id).expect("the key was just inserted");
+		let address = Address::random();
+		key_file.account = Some(address);
+		try!(self.directory.save(key_file));
+		Ok(address)
+	}
+
+	/// Signs message with unlocked account
+	pub fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
+		let read_lock = self.unlocks.read().unwrap();
+		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
+		match crypto::KeyPair::from_secret(unlock.secret) {
+			Ok(pair) => match pair.sign(message) {
+					Ok(signature) => Ok(signature),
+					Err(_) => Err(SigningError::InvalidSecret)
+				},
+			Err(_) => Err(SigningError::InvalidSecret)
+		}
+	}
+
+	/// Returns secret for unlocked account
+	pub fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError> {
+		let read_lock = self.unlocks.read().unwrap();
+		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
+		Ok(unlock.secret as crypto::Secret)
 	}
 }
 
@@ -367,6 +434,40 @@ mod tests {
 		sstore.delete(&keys[2]);
 
 		assert_eq!(4, sstore.directory.list().unwrap().len())
+	}
+
+	#[test]
+	fn can_create_account() {
+		let temp = RandomTempPath::create_dir();
+		let mut sstore = SecretStore::new_test(&temp);
+		sstore.new_account("123").unwrap();
+		assert_eq!(1, sstore.accounts().unwrap().len());
+	}
+
+	#[test]
+	fn can_unlock_account() {
+		let temp = RandomTempPath::create_dir();
+		let mut sstore = SecretStore::new_test(&temp);
+		let address = sstore.new_account("123").unwrap();
+
+		let secret = sstore.unlock_account(&address, "123");
+		assert!(secret.is_ok());
+	}
+
+	#[test]
+	fn can_sign_data() {
+		let temp = RandomTempPath::create_dir();
+		let address = {
+			let mut sstore = SecretStore::new_test(&temp);
+			sstore.new_account("334").unwrap()
+		};
+		let signature = {
+			let sstore = SecretStore::new_test(&temp);
+			sstore.unlock_account(&address, "334").unwrap();
+			sstore.sign(&address, &H256::random()).unwrap()
+		};
+
+		assert!(signature != x!(0));
 	}
 
 	#[test]
