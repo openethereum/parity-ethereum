@@ -14,18 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interfaces.
+use error::Error;
+use header::Header;
+use super::Verifier;
+use super::verification;
 
-macro_rules! rpc_unimplemented {
-	() => (Err(Error::internal_error()))
+pub struct CanonVerifier;
+
+impl Verifier for CanonVerifier {
+	fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> {
+		verification::verify_block_final(expected, got)
+	}
 }
-
-pub mod web3;
-pub mod eth;
-pub mod net;
-pub mod personal;
-
-pub use self::web3::Web3;
-pub use self::eth::{Eth, EthFilter};
-pub use self::net::Net;
-pub use self::personal::Personal;
