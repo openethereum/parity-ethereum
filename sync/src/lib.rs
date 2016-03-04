@@ -70,6 +70,8 @@ use io::NetSyncIo;
 mod chain;
 mod io;
 mod range_collection;
+// TODO [todr] Made public to suppress dead code warnings
+pub mod transaction_queue;
 
 #[cfg(test)]
 mod tests;
