@@ -59,7 +59,7 @@ pub enum EncryptedHashMapError {
 /// Represent service for storing encrypted arbitrary data
 pub struct SecretStore {
 	directory: KeyDirectory,
-	unlocks: RwLock<HashMap<Address, AccountUnlock>>
+	unlocks: RwLock<HashMap<Address, AccountUnlock>>,
 }
 
 struct AccountUnlock {
@@ -80,7 +80,7 @@ impl SecretStore {
 	pub fn new_in(path: &Path) -> SecretStore {
 		SecretStore {
 			directory: KeyDirectory::new(path),
-			unlocks: RwLock::new(HashMap::new())
+			unlocks: RwLock::new(HashMap::new()),
 		}
 	}
 
@@ -129,7 +129,7 @@ impl SecretStore {
 	fn new_test(path: &::devtools::RandomTempPath) -> SecretStore {
 		SecretStore {
 			directory: KeyDirectory::new(path.as_path()),
-			unlocks: RwLock::new(HashMap::new())
+			unlocks: RwLock::new(HashMap::new()),
 		}
 	}
 
