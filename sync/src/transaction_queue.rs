@@ -240,7 +240,6 @@ impl TransactionQueue {
 		let sender = transaction.sender();
 		let nonce = transaction.nonce();
 
-		println!("Removing tx: {:?}", transaction.transaction);
 		// Remove from future
 		self.future.drop(&sender, &nonce);
 
@@ -266,7 +265,6 @@ impl TransactionQueue {
 			// Goes to future or is removed
 			let order = self.current.drop(&sender, &k).unwrap();
 			if k >= current_nonce {
-				println!("Moving to future: {:?}", order);
 				self.future.insert(sender.clone(), k, order.update_height(k, current_nonce));
 			} else {
 				self.by_hash.remove(&order.hash);
@@ -310,7 +308,6 @@ impl TransactionQueue {
 				// remove also from priority and hash
 				self.future.by_priority.remove(&order);
 				// Put to current
-				println!("Moved: {:?}", order);
 				let order = order.update_height(current_nonce.clone(), first_nonce);
 				self.current.insert(address.clone(), current_nonce, order);
 				current_nonce = current_nonce + U256::one();
@@ -331,7 +328,6 @@ impl TransactionQueue {
 			.cloned()
 			.map_or_else(|| fetch_nonce(&address), |n| n + U256::one());
 
-		println!("Expected next: {:?}, got: {:?}", next_nonce, nonce);
 		// Check height
 		if nonce > next_nonce {
 			let order = TransactionOrder::for_transaction(&tx, next_nonce);

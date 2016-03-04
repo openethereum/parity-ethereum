@@ -329,18 +329,14 @@ impl Client {
 				bad_blocks.insert(header.hash());
 				continue;
 			}
-
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
 				bad_blocks.insert(header.hash());
 				break;
 			}
-
-			// Insert block
-			let closed_block = closed_block.unwrap();
-			self.chain.write().unwrap().insert_block(&block.bytes, closed_block.block().receipts().clone());
 			good_blocks.push(header.hash());
 
+			// Are we committing an era?
 			let ancient = if header.number() >= HISTORY {
 				let n = header.number() - HISTORY;
 				let chain = self.chain.read().unwrap();
@@ -350,9 +346,15 @@ impl Client {
 			};
 
 			// Commit results
+			let closed_block = closed_block.unwrap();
+			let receipts = closed_block.block().receipts().clone();
 			closed_block.drain()
 				.commit(header.number(), &header.hash(), ancient)
 				.expect("State DB commit failed.");
+
+			// And update the chain
+			self.chain.write().unwrap()
+				.insert_block(&block.bytes, receipts);
 
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
