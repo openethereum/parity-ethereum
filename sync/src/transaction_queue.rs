@@ -34,12 +34,17 @@ struct TransactionOrder {
 }
 
 impl TransactionOrder {
-	pub fn for_transaction(tx: &VerifiedTransaction, base_nonce: U256) -> Self {
+	fn for_transaction(tx: &VerifiedTransaction, base_nonce: U256) -> Self {
 		TransactionOrder {
 			nonce_height: tx.nonce() - base_nonce,
 			gas_price: tx.transaction.gas_price,
 			hash: tx.hash(),
 		}
+	}
+
+	fn update_height(mut self, nonce: U256, base_nonce: U256) -> Self {
+		self.nonce_height = nonce - base_nonce;
+		self
 	}
 }
 
@@ -158,10 +163,8 @@ pub struct TransactionQueue {
 	future: TransactionSet,
 	/// All transactions managed by queue indexed by hash
 	by_hash: HashMap<H256, VerifiedTransaction>,
-	/// Last nonce of transaction in current
+	/// Last nonce of transaction in current (to quickly check next expected transaction)
 	last_nonces: HashMap<Address, U256>,
-	/// First nonce of transaction in current (used to determine priority)
-	first_nonces: HashMap<Address, U256>,
 }
 
 impl TransactionQueue {
@@ -188,7 +191,6 @@ impl TransactionQueue {
 			future: future,
 			by_hash: HashMap::new(),
 			last_nonces: HashMap::new(),
-			first_nonces: HashMap::new(),
 		}
 	}
 
@@ -217,16 +219,18 @@ impl TransactionQueue {
 	/// Removes all transactions identified by hashes given in slice
 	///
 	/// If gap is introduced marks subsequent transactions as future
-	pub fn remove_all(&mut self, transaction_hashes: &[H256]) {
-		for transaction_hash in transaction_hashes {
-			self.remove(&transaction_hash);
+	pub fn remove_all<T>(&mut self, transaction_hashes: &[H256], fetch_nonce: T)
+		where T: Fn(&Address) -> U256 {
+		for hash in transaction_hashes {
+			self.remove(&hash, &fetch_nonce);
 		}
 	}
 
 	/// Removes transaction identified by hashes from queue.
 	///
 	/// If gap is introduced marks subsequent transactions as future
-	pub fn remove(&mut self, transaction_hash: &H256) {
+	pub fn remove<T>(&mut self, transaction_hash: &H256, fetch_nonce: &T)
+		where T: Fn(&Address) -> U256 {
 		let transaction = self.by_hash.remove(transaction_hash);
 		if transaction.is_none() {
 			// We don't know this transaction
@@ -245,56 +249,34 @@ impl TransactionQueue {
 			return;
 		}
 
-		// Are there any other transactions from this sender?
-		if !self.current.by_address.has_row(&sender) {
-			// Clear last & first nonces
-			self.last_nonces.remove(&sender);
-			self.first_nonces.remove(&sender);
-			return;
-		}
+		// Let's remove transactions where tx.nonce < current_nonce
+		// and if there are any future transactions matching current_nonce+1 - move to current
+		let current_nonce = fetch_nonce(&sender);
+		// We will either move transaction to future or remove it completely
+		// so there will be no transactions from this sender in current
+		self.last_nonces.remove(&sender);
 
-		// Let's find those with higher nonce (TODO [todr] optimize?)
-		let to_move_to_future = {
-			let row_map = self.current.by_address.row(&sender).unwrap();
-			let mut to_future = Vec::new();
-			let mut highest = U256::zero();
-			let mut lowest = nonce.clone();
-
-			// Search nonces to remove and track lowest and highest
-			for (current_nonce, _) in row_map.iter() {
-				if current_nonce > &nonce {
-					to_future.push(current_nonce.clone());
-				} else if current_nonce > &highest {
-					highest = current_nonce.clone();
-				} else if current_nonce < &lowest {
-					lowest = current_nonce.clone();
-				}
-			}
-
-			// Update first_nonces and last_nonces
-			if highest == U256::zero() {
-				self.last_nonces.remove(&sender);
-			} else {
-				self.last_nonces.insert(sender.clone(), highest);
-			}
-
-			if lowest == nonce {
-				self.first_nonces.remove(&sender);
-			} else {
-				self.first_nonces.insert(sender.clone(), lowest);
-			}
-
-			// return to future
-			to_future
+		let all_nonces_from_sender = match self.current.by_address.row(&sender) {
+			Some(row_map) => row_map.keys().cloned().collect::<Vec<U256>>(),
+			None => vec![],
 		};
 
-		for k in to_move_to_future {
-			if let Some(v) = self.current.drop(&sender, &k) {
-				// TODO [todr] Recalculate height?
-				self.future.insert(sender.clone(), k, v);
+		for k in all_nonces_from_sender {
+			// Goes to future or is removed
+			let order = self.current.drop(&sender, &k).unwrap();
+			if k >= current_nonce {
+				self.future.insert(sender.clone(), k, order.update_height(k, current_nonce));
+			} else {
+				self.by_hash.remove(&order.hash);
 			}
 		}
 		self.future.enforce_limit(&self.by_hash);
+
+		// And now lets check if there is some chain of transactions in future
+		// that should be placed in current
+		if let Some(new_current_top) = self.move_future_txs(sender.clone(), current_nonce, current_nonce) {
+			self.last_nonces.insert(sender, new_current_top);
+		}
 	}
 
 	/// Returns top transactions from the queue
@@ -313,11 +295,9 @@ impl TransactionQueue {
 		self.future.clear();
 		self.by_hash.clear();
 		self.last_nonces.clear();
-		self.first_nonces.clear();
 	}
 
-	fn move_future_txs(&mut self, address: Address, current_nonce: U256, first_nonce: U256) -> Option<U256> {
-		let mut current_nonce = current_nonce + U256::one();
+	fn move_future_txs(&mut self, address: Address, mut current_nonce: U256, first_nonce: U256) -> Option<U256> {
 		{
 			let by_nonce = self.future.by_address.row_mut(&address);
 			if let None = by_nonce {
@@ -328,9 +308,8 @@ impl TransactionQueue {
 				// remove also from priority and hash
 				self.future.by_priority.remove(&order);
 				// Put to current
-				let transaction = self.by_hash.get(&order.hash).expect("TransactionQueue Inconsistency");
-				let order = TransactionOrder::for_transaction(transaction, first_nonce);
-				self.current.insert(address.clone(), transaction.nonce(), order);
+				let order = order.update_height(current_nonce.clone(), first_nonce);
+				self.current.insert(address.clone(), current_nonce, order);
 				current_nonce = current_nonce + U256::one();
 			}
 		}
@@ -344,10 +323,10 @@ impl TransactionQueue {
 		let nonce = tx.nonce();
 		let address = tx.sender();
 
-		let next_nonce = U256::one() + self.last_nonces
+		let next_nonce = self.last_nonces
 			.get(&address)
 			.cloned()
-			.unwrap_or_else(|| fetch_nonce(&address));
+			.map_or_else(|| fetch_nonce(&address), |n| n + U256::one());
 
 		// Check height
 		if nonce > next_nonce {
@@ -364,20 +343,15 @@ impl TransactionQueue {
 			return;
 		}
 
-		let first_nonce = self.first_nonces
-			.get(&address)
-			.cloned()
-			.unwrap_or_else(|| nonce.clone());
-
-		let order = TransactionOrder::for_transaction(&tx, first_nonce);
+		let base_nonce = fetch_nonce(&address);
+		let order = TransactionOrder::for_transaction(&tx, base_nonce);
 		// Insert to by_hash
 		self.by_hash.insert(tx.hash(), tx);
 
 		// Insert to current
 		self.current.insert(address.clone(), nonce, order);
 		// But maybe there are some more items waiting in future?
-		let new_last_nonce = self.move_future_txs(address.clone(), nonce, first_nonce);
-		self.first_nonces.insert(address.clone(), first_nonce);
+		let new_last_nonce = self.move_future_txs(address.clone(), nonce + U256::one(), base_nonce);
 		self.last_nonces.insert(address.clone(), new_last_nonce.unwrap_or(nonce));
 		// Enforce limit
 		self.current.enforce_limit(&self.by_hash);
@@ -415,7 +389,7 @@ mod test {
 	}
 
 	fn default_nonce(_address: &Address) -> U256 {
-		U256::from(122)
+		U256::from(123)
 	}
 
 	fn new_txs(second_nonce: U256) -> (SignedTransaction, SignedTransaction) {
@@ -555,8 +529,8 @@ mod test {
 		assert_eq!(txq2.status().future, 1);
 
 		// when
-		txq2.remove(&tx.hash());
-		txq2.remove(&tx2.hash());
+		txq2.remove(&tx.hash(), &default_nonce);
+		txq2.remove(&tx2.hash(), &default_nonce);
 
 
 		// then
@@ -578,7 +552,7 @@ mod test {
 		assert_eq!(txq.status().pending, 3);
 
 		// when
-		txq.remove(&tx.hash());
+		txq.remove(&tx.hash(), &default_nonce);
 
 		// then
 		let stats = txq.status();
@@ -646,7 +620,7 @@ mod test {
 	fn should_drop_transactions_with_old_nonces() {
 		let mut txq = TransactionQueue::new();
 		let tx = new_tx();
-		let last_nonce = tx.nonce.clone();
+		let last_nonce = tx.nonce.clone() + U256::one();
 		let fetch_last_nonce = |_a: &Address| last_nonce;
 
 		// when
@@ -668,7 +642,7 @@ mod test {
 		assert_eq!(txq.status().pending, 2);
 
 		// when
-		txq.remove(&tx1.hash());
+		txq.remove(&tx1.hash(), &default_nonce);
 		assert_eq!(txq.status().pending, 0);
 		assert_eq!(txq.status().future, 1);
 		txq.add(tx1.clone(), &default_nonce);
@@ -677,7 +651,28 @@ mod test {
 		let stats = txq.status();
 		assert_eq!(stats.future, 0);
 		assert_eq!(stats.pending, 2);
+	}
 
+	#[test]
+	fn should_not_move_to_future_if_state_nonce_is_higher() {
+		// given
+		let next_nonce = |a: &Address| default_nonce(a) + U256::one();
+		let mut txq = TransactionQueue::new();
+		let (tx, tx2) = new_txs(U256::from(1));
+		let tx3 = new_tx();
+		txq.add(tx2.clone(), &default_nonce);
+		assert_eq!(txq.status().future, 1);
+		txq.add(tx3.clone(), &default_nonce);
+		txq.add(tx.clone(), &default_nonce);
+		assert_eq!(txq.status().pending, 3);
+
+		// when
+		txq.remove(&tx.hash(), &next_nonce);
+
+		// then
+		let stats = txq.status();
+		assert_eq!(stats.future, 0);
+		assert_eq!(stats.pending, 2);
 	}
 
 }
