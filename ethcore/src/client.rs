@@ -212,7 +212,7 @@ impl Client {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
-		dir.push(format!("v{}-sec-pruned-{}", CLIENT_DB_VER_STR, if config.blockchain.prefer_journal { "journal" } else { "archive" }));
+		dir.push(format!("v{}-sec-pruned{}", CLIENT_DB_VER_STR, if config.blockchain.prefer_journal { "" } else { "-archive" }));
 		let pj = config.blockchain.prefer_journal;
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
