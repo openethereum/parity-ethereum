@@ -40,6 +40,8 @@ pub struct BlockChainConfig {
 	pub pref_cache_size: usize,
 	/// Maximum cache size in bytes.
 	pub max_cache_size: usize,
+	/// Prefer journal rather than archive.
+	pub prefer_journal: bool,
 }
 
 impl Default for BlockChainConfig {
@@ -47,6 +49,7 @@ impl Default for BlockChainConfig {
 		BlockChainConfig {
 			pref_cache_size: 1 << 14,
 			max_cache_size: 1 << 20,
+			prefer_journal: false,
 		}
 	}
 }

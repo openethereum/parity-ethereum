@@ -212,7 +212,8 @@ impl Client {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
-		dir.push(format!("v{}-sec-pruned", CLIENT_DB_VER_STR));
+		dir.push(format!("v{}-sec-pruned-{}", CLIENT_DB_VER_STR, if config.blockchain.prefer_journal { "journal" } else { "archive" }));
+		let pj = config.blockchain.prefer_journal;
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(RwLock::new(BlockChain::new(config.blockchain, &gb, path)));
@@ -220,7 +221,7 @@ impl Client {
 		state_path.push("state");
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = JournalDB::new(state_path.to_str().unwrap());
+		let mut state_db = JournalDB::from_prefs(state_path.to_str().unwrap(), pj);
 		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
