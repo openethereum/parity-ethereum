@@ -313,7 +313,7 @@ impl Configuration {
 		let mut client_config = ClientConfig::default();
 		client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
 		client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
-		client_config.blockchain.prefer_journal = !self.args.flag_archive;
+		client_config.prefer_journal = !self.args.flag_archive;
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
 		let client = service.client().clone();

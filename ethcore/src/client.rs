@@ -76,12 +76,24 @@ pub enum BlockStatus {
 }
 
 /// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ClientConfig {
 	/// Block queue configuration.
 	pub queue: BlockQueueConfig,
 	/// Blockchain configuration.
 	pub blockchain: BlockChainConfig,
+	/// Prefer journal rather than archive.
+	pub prefer_journal: bool,
+}
+
+impl Default for ClientConfig {
+	fn default() -> ClientConfig {
+		ClientConfig {
+			queue: Default::default(),
+			blockchain: Default::default(),
+			prefer_journal: false,
+		}
+	}
 }
 
 /// Information about the blockchain gathered together.
@@ -212,8 +224,7 @@ impl Client {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
-		dir.push(format!("v{}-sec-pruned{}", CLIENT_DB_VER_STR, if config.blockchain.prefer_journal { "" } else { "-archive" }));
-		let pj = config.blockchain.prefer_journal;
+		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, if config.prefer_journal { "pruned" } else { "archive" }));
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(RwLock::new(BlockChain::new(config.blockchain, &gb, path)));
@@ -221,7 +232,7 @@ impl Client {
 		state_path.push("state");
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = JournalDB::from_prefs(state_path.to_str().unwrap(), pj);
+		let mut state_db = JournalDB::from_prefs(state_path.to_str().unwrap(), config.prefer_journal);
 		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}

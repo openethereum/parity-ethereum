@@ -147,7 +147,6 @@ impl JournalDB {
 		let (ret, _) = Self::batch_overlay_insertions(&mut self.overlay, &batch);
 		try!(self.backing.write(batch));
 		Ok(ret as u32)
-
 	}
 
 	/// Commit all recent insert operations and historical removals from the old era
@@ -177,7 +176,7 @@ impl JournalDB {
 		// and the key is safe to delete.
 
 		// record new commit's details.
-		debug!("commit: #{} ({}), end era: {:?}", now, id, end);
+		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
 		let mut counters = self.counters.as_ref().unwrap().write().unwrap();
 		let batch = DBTransaction::new();
 		{
@@ -248,14 +247,14 @@ impl JournalDB {
 				try!(batch.delete(&h));
 				deletes += 1;
 			}
-			debug!("commit: Delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, deletes);
+			trace!("commit: Delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, deletes);
 		}
 
 		// Commit overlay insertions
 		let (ret, deletes) = Self::batch_overlay_insertions(&mut self.overlay, &batch);
 
 		try!(self.backing.write(batch));
-		debug!("commit: Deleted {} nodes", deletes);
+		trace!("commit: Deleted {} nodes", deletes);
 		Ok(ret as u32)
 	}
 
@@ -304,7 +303,7 @@ impl JournalDB {
 				era -= 1;
 			}
 		}
-		debug!("Recovered {} counters", res.len());
+		trace!("Recovered {} counters", res.len());
 		res
 	}
 }
