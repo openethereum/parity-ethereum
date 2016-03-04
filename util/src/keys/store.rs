@@ -56,6 +56,17 @@ pub enum EncryptedHashMapError {
 	InvalidValueFormat(FromBytesError),
 }
 
+/// Error retrieving value from encrypted hashmap
+#[derive(Debug)]
+pub enum SigningError {
+	/// Account passed does not exist
+	NoAccount,
+	/// Account passed is not unlocked
+	AccountNotUnlocked,
+	/// Invalid secret in store
+	InvalidSecret
+}
+
 /// Represent service for storing encrypted arbitrary data
 pub struct SecretStore {
 	directory: KeyDirectory,
@@ -158,6 +169,26 @@ impl SecretStore {
 		key_file.account = Some(address);
 		try!(self.directory.save(key_file));
 		Ok(address)
+	}
+
+	/// Signs message with unlocked account
+	pub fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
+		let read_lock = self.unlocks.read().unwrap();
+		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
+		match crypto::KeyPair::from_secret(unlock.secret) {
+			Ok(pair) => match pair.sign(message) {
+					Ok(signature) => Ok(signature),
+					Err(_) => Err(SigningError::InvalidSecret)
+				},
+			Err(_) => Err(SigningError::InvalidSecret)
+		}
+	}
+
+	/// Returns secret for unlocked account
+	pub fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError> {
+		let read_lock = self.unlocks.read().unwrap();
+		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
+		Ok(unlock.secret as crypto::Secret)
 	}
 }
 
@@ -421,6 +452,22 @@ mod tests {
 
 		let secret = sstore.unlock_account(&address, "123");
 		assert!(secret.is_ok());
+	}
+
+	#[test]
+	fn can_sign_data() {
+		let temp = RandomTempPath::create_dir();
+		let address = {
+			let mut sstore = SecretStore::new_test(&temp);
+			sstore.new_account("334").unwrap()
+		};
+		let signature = {
+			let sstore = SecretStore::new_test(&temp);
+			sstore.unlock_account(&address, "334").unwrap();
+			sstore.sign(&address, &H256::random()).unwrap()
+		};
+
+		assert!(signature != x!(0));
 	}
 
 	#[test]
