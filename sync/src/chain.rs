@@ -1271,7 +1271,8 @@ impl ChainSync {
 				.expect("Expected in-chain blocks.");
 			let block = BlockView::new(&block);
 			block.transactions()
-		};
+		}
+
 
 		let chain = io.chain();
 		let good = good.par_iter().map(|h| fetch_transactions(chain, h));
@@ -1280,7 +1281,7 @@ impl ChainSync {
 		good.for_each(|txs| {
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
 			let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
-			transaction_queue.remove_all(&hashes);
+			transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
 		});
 		bad.for_each(|txs| {
 			// populate sender

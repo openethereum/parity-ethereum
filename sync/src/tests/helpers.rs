@@ -87,7 +87,7 @@ impl TestBlockChainClient {
 						data: "3331600055".from_hex().unwrap(),
 						gas: U256::from(100_000),
 						gas_price: U256::one(),
-						nonce: U256::one()
+						nonce: U256::zero()
 					};
 					let signed_tx = tx.sign(&keypair.secret());
 					txs.append(&signed_tx);
