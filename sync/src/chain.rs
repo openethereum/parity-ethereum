@@ -475,7 +475,7 @@ impl ChainSync {
 			peer.latest_number = Some(header.number());
 		}
 		// TODO: Decompose block and add to self.headers and self.bodies instead
-		if header.number == From::from(self.current_base_block() + 1) {
+		if header.number <= From::from(self.current_base_block() + 1) {
 			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
 				Err(Error::Import(ImportError::AlreadyInChain)) => {
 					trace!(target: "sync", "New block already in chain {:?}", h);
@@ -484,7 +484,10 @@ impl ChainSync {
 					trace!(target: "sync", "New block already queued {:?}", h);
 				},
 				Ok(_) => {
-					self.last_imported_block = Some(header.number);
+					if self.current_base_block() < header.number { 
+						self.last_imported_block = Some(header.number);
+						self.remove_downloaded_blocks(header.number);
+					}
 					trace!(target: "sync", "New block queued {:?}", h);
 				},
 				Err(Error::Block(BlockError::UnknownParent(p))) => {
