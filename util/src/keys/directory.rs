@@ -461,17 +461,17 @@ enum KeyFileLoadError {
 pub struct KeyDirectory {
 	/// Directory path for key management.
 	path: String,
-	cache: RefCell<HashMap<Uuid, KeyFileContent>>,
-	cache_usage: RefCell<VecDeque<Uuid>>,
+	cache: RwLock<HashMap<Uuid, KeyFileContent>>,
+	cache_usage: RwLock<VecDeque<Uuid>>,
 }
 
 impl KeyDirectory {
 	/// Initializes new cache directory context with a given `path`
 	pub fn new(path: &Path) -> KeyDirectory {
 		KeyDirectory {
-			cache: RefCell::new(HashMap::new()),
+			cache: RwLock::new(HashMap::new()),
 			path: path.to_str().expect("Initialized key directory with empty path").to_owned(),
-			cache_usage: RefCell::new(VecDeque::new()),
+			cache_usage: RwLock::new(VecDeque::new()),
 		}
 	}
 
@@ -484,7 +484,7 @@ impl KeyDirectory {
 			let json_bytes = json_text.into_bytes();
 			try!(file.write(&json_bytes));
 		}
-		let mut cache = self.cache.borrow_mut();
+		let mut cache = self.cache.write().unwrap();
 		let id = key_file.id.clone();
 		cache.insert(id.clone(), key_file);
 		Ok(id.clone())
@@ -495,14 +495,14 @@ impl KeyDirectory {
 	pub fn get(&self, id: &Uuid) -> Option<KeyFileContent> {
 		let path = self.key_path(id);
 		{
-			let mut usage = self.cache_usage.borrow_mut();
+			let mut usage = self.cache_usage.write().unwrap();
 			usage.push_back(id.clone());
 		}
 
-		if !self.cache.borrow().contains_key(id) {
+		if !self.cache.read().unwrap().contains_key(id) {
 			match KeyDirectory::load_key(&path) {
 				Ok(loaded_key) => {
-					self.cache.borrow_mut().insert(id.to_owned(), loaded_key);
+					self.cache.write().unwrap().insert(id.to_owned(), loaded_key);
 				}
 				Err(error) => {
 					warn!(target: "sstore", "error loading key {:?}: {:?}", id, error);
@@ -512,7 +512,7 @@ impl KeyDirectory {
 		}
 
 		// todo: replace with Ref::map when it stabilized to avoid copies
-		Some(self.cache.borrow().get(id)
+		Some(self.cache.read().unwrap().get(id)
 			.expect("Key should be there, we have just inserted or checked it.")
 			.clone())
 	}
@@ -524,7 +524,7 @@ impl KeyDirectory {
 
 	/// Removes keys that never been requested during last `MAX_USAGE_TRACK` times
 	pub fn collect_garbage(&mut self) {
-		let mut cache_usage = self.cache_usage.borrow_mut();
+		let mut cache_usage = self.cache_usage.write().unwrap();
 
 		let total_usages = cache_usage.len();
 		let untracked_usages = max(total_usages as i64 - MAX_CACHE_USAGE_TRACK as i64, 0) as usize;
@@ -532,31 +532,31 @@ impl KeyDirectory {
 			cache_usage.drain(..untracked_usages);
 		}
 
-		if self.cache.borrow().len() <= MAX_CACHE_USAGE_TRACK { return; }
+		if self.cache.read().unwrap().len() <= MAX_CACHE_USAGE_TRACK { return; }
 
 		let uniqs: HashSet<&Uuid> = cache_usage.iter().collect();
 		let removes:Vec<Uuid> = {
-			let cache = self.cache.borrow();
+			let cache = self.cache.read().unwrap();
 			cache.keys().cloned().filter(|key| !uniqs.contains(key)).collect()
 		};
 		if removes.is_empty() { return; }
-		let mut cache = self.cache.borrow_mut();
+		let mut cache = self.cache.write().unwrap();
 		for key in removes { cache.remove(&key); }
 	}
 
 	/// Reports how many keys are currently cached.
 	pub fn cache_size(&self) -> usize {
-		self.cache.borrow().len()
+		self.cache.read().unwrap().len()
 	}
 
 	/// Removes key file from key directory
 	pub fn delete(&mut self, id: &Uuid) -> Result<(), ::std::io::Error> {
 		let path = self.key_path(id);
 
-		if !self.cache.borrow().contains_key(id) {
+		if !self.cache.read().unwrap().contains_key(id) {
 			return match fs::remove_file(&path) {
 				Ok(_) => {
-					self.cache.borrow_mut().remove(&id);
+					self.cache.write().unwrap().remove(&id);
 					Ok(())
 				},
 				Err(e) => Err(e)
