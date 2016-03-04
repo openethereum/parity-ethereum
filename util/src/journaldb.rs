@@ -253,7 +253,7 @@ impl JournalDB {
 			let canon_inserts = canon_inserts.drain(..).collect::<HashSet<_>>();
 			// Purge removed keys if they are not referenced and not re-inserted in the canon commit
 			let mut deletes = 0;
-			trace!("Purging filtered notes: {:?}", to_remove.iter().filter(|h| !counters.contains_key(h) && !canon_inserts.contains(h)).collect::<Vec<_>>());
+			trace!("Purging filtered nodes: {:?}", to_remove.iter().filter(|h| !counters.contains_key(h) && !canon_inserts.contains(h)).collect::<Vec<_>>());
 			for h in to_remove.iter().filter(|h| !counters.contains_key(h) && !canon_inserts.contains(h)) {
 				try!(batch.delete(&h));
 				deletes += 1;
