@@ -21,7 +21,7 @@ use std::mem;
 use std::fmt;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
-use uint::{Uint, U128, U256};
+use bigint::uint::{Uint, U128, U256};
 use hash::FixedHash;
 use elastic_array::*;
 

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use client::{BlockChainClient, Client, ClientConfig, BlockId};
+use block::IsBlock;
 use tests::helpers::*;
 use common::*;
 use devtools::*;
@@ -105,4 +106,23 @@ fn can_collect_garbage() {
 	let client = client_result.reference();
 	client.tick();
 	assert!(client.blockchain_cache_info().blocks < 100 * 1024);
+}
+
+#[test]
+fn can_mine() {
+	let dummy_blocks = get_good_dummy_block_seq(2);
+	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
+	let client = client_result.reference();
+	let b = client.sealing_block();
+	let pow_hash = {
+		let u = b.lock().unwrap();
+		match *u {
+			Some(ref b) => {
+				assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
+				b.hash()
+			}
+			None => { panic!(); }
+		}	
+	};
+	assert!(client.submit_seal(pow_hash, vec![]).is_ok());
 }

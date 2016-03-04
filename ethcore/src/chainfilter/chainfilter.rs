@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Multilevel blockchain bloom filter.
-//! 
+//!
 //! ```not_run
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
@@ -23,33 +23,33 @@
 //! use util::sha3::*;
 //! use util::hash::*;
 //! use ethcore::chainfilter::*;
-//! 
+//!
 //! fn main() {
 //!		let (index_size, bloom_levels) = (16, 3);
 //!		let mut cache = MemoryCache::new();
-//!		
+//!
 //!		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
-//!		
+//!
 //!		// borrow cache for reading inside the scope
 //!		let modified_blooms = {
-//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);	
+//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 //!			let block_number = 39;
 //!			let mut bloom = H2048::new();
 //!			bloom.shift_bloomed(&address.sha3());
 //!			filter.add_bloom(&bloom, block_number)
 //!		};
-//!		
+//!
 //!		// number of updated blooms is equal number of levels
 //!		assert_eq!(modified_blooms.len(), bloom_levels as usize);
 //!
 //!		// lets inserts modified blooms into the cache
 //!		cache.insert_blooms(modified_blooms);
-//!		
+//!
 //!		// borrow cache for another reading operations
 //!		{
-//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);	
+//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 //!			let blocks = filter.blocks_with_address(&address, 10, 40);
-//!			assert_eq!(blocks.len(), 1);	
+//!			assert_eq!(blocks.len(), 1);
 //!			assert_eq!(blocks[0], 39);
 //!		}
 //! }
@@ -71,7 +71,7 @@ pub struct ChainFilter<'a, D>
 impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 {
 	/// Creates new filter instance.
-	/// 
+	///
 	/// Borrows `FilterDataSource` for reading.
 	pub fn new(data_source: &'a D, index_size: usize, levels: u8) -> Self {
 		ChainFilter {
@@ -88,7 +88,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 			None => return None,
 			Some(level_bloom) => match level {
 				// if we are on the lowest level
-				0 => return match offset < to_block {
+				0 => return match offset <= to_block {
 					// take the value if its smaller than to_block
 					true if level_bloom.contains(bloom) => Some(vec![offset]),
 					// return None if it is is equal to to_block
@@ -153,7 +153,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 			for i in 0..blooms.len() {
 
 				let index = self.indexer.bloom_index(block_number + i, level);
-				let new_bloom = {	
+				let new_bloom = {
 					// use new blooms before db blooms where necessary
 					let bloom_at = | index | { result.get(&index).cloned().or_else(|| self.data_source.bloom_at_index(&index)) };
 

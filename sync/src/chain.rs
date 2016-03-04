@@ -487,19 +487,19 @@ impl ChainSync {
 		// TODO: Decompose block and add to self.headers and self.bodies instead
 		if header.number == From::from(self.current_base_block() + 1) {
 			match io.chain().import_block(block_rlp.as_raw().to_vec()) {
-				Err(ImportError::AlreadyInChain) => {
+				Err(Error::Import(ImportError::AlreadyInChain)) => {
 					trace!(target: "sync", "New block already in chain {:?}", h);
 				},
-				Err(ImportError::AlreadyQueued) => {
+				Err(Error::Import(ImportError::AlreadyQueued)) => {
 					trace!(target: "sync", "New block already queued {:?}", h);
 				},
 				Ok(_) => {
 					self.last_imported_block = Some(header.number);
 					trace!(target: "sync", "New block queued {:?}", h);
 				},
-				Err(ImportError::UnknownParent) => {
+				Err(Error::Block(BlockError::UnknownParent(p))) => {
 					unknown = true;
-					trace!(target: "sync", "New block with unknown parent {:?}", h);
+					trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, h);
 				},
 				Err(e) => {
 					debug!(target: "sync", "Bad new block {:?} : {:?}", h, e);
@@ -645,16 +645,7 @@ impl ChainSync {
 		match self.last_imported_block { None => 0, Some(x) => x }
 	}
 
-	/// Find some headers or blocks to download for a peer.
-	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: PeerId, ignore_others: bool) {
-		self.clear_peer_download(peer_id);
-
-		if io.chain().queue_info().is_full() {
-			self.pause_sync();
-			return;
-		}
-
-		// check to see if we need to download any block bodies first
+	fn find_block_bodies_hashes_to_request(&self, ignore_others: bool) -> (Vec<H256>, Vec<BlockNumber>) {
 		let mut needed_bodies: Vec<H256> = Vec::new();
 		let mut needed_numbers: Vec<BlockNumber> = Vec::new();
 
@@ -674,74 +665,88 @@ impl ChainSync {
 				}
 			}
 		}
+		(needed_bodies, needed_numbers)
+	}
+
+	/// Find some headers or blocks to download for a peer.
+	fn request_blocks(&mut self, io: &mut SyncIo, peer_id: PeerId, ignore_others: bool) {
+		self.clear_peer_download(peer_id);
+
+		if io.chain().queue_info().is_full() {
+			self.pause_sync();
+			return;
+		}
+
+		// check to see if we need to download any block bodies first
+		let (needed_bodies, needed_numbers) = self.find_block_bodies_hashes_to_request(ignore_others);
 		if !needed_bodies.is_empty() {
 			let (head, _) = self.headers.range_iter().next().unwrap();
 			if needed_numbers.first().unwrap() - head > self.max_download_ahead_blocks as BlockNumber {
 				trace!(target: "sync", "{}: Stalled download ({} vs {}), helping with downloading block bodies", peer_id, needed_numbers.first().unwrap(), head);
 				self.request_blocks(io, peer_id, true);
-				return;
+			} else {
+				self.downloading_bodies.extend(needed_numbers.iter());
+				replace(&mut self.peers.get_mut(&peer_id).unwrap().asking_blocks, needed_numbers);
+				self.request_bodies(io, peer_id, needed_bodies);
 			}
-			self.downloading_bodies.extend(needed_numbers.iter());
-			replace(&mut self.peers.get_mut(&peer_id).unwrap().asking_blocks, needed_numbers);
-			self.request_bodies(io, peer_id, needed_bodies);
+			return;
+		}
+
+		// check if need to download headers
+		let mut start = 0;
+		if !self.have_common_block {
+			// download backwards until common block is found 1 header at a time
+			let chain_info = io.chain().chain_info();
+			start = chain_info.best_block_number;
+			if !self.headers.is_empty() {
+				start = min(start, self.headers.range_iter().next().unwrap().0 - 1);
+			}
+			if start == 0 {
+				self.have_common_block = true; //reached genesis
+				self.last_imported_hash = Some(chain_info.genesis_hash);
+				self.last_imported_block = Some(0);
+			}
+		}
+		if self.have_common_block {
+			let mut headers: Vec<BlockNumber> = Vec::new();
+			let mut prev = self.current_base_block() + 1;
+			let head = self.headers.range_iter().next().map(|(h, _)| h);
+			for (next, ref items) in self.headers.range_iter() {
+				if !headers.is_empty() {
+					break;
+				}
+				if next <= prev {
+					prev = next + items.len() as BlockNumber;
+					continue;
+				}
+				let mut block = prev;
+				while block < next && headers.len() < MAX_HEADERS_TO_REQUEST {
+					if ignore_others || !self.downloading_headers.contains(&(block as BlockNumber)) {
+						headers.push(block as BlockNumber);
+					}
+					block += 1;
+				}
+				prev = next + items.len() as BlockNumber;
+			}
+
+			if !headers.is_empty() {
+				start = headers[0];
+				if head.is_some() && start > head.unwrap() && start - head.unwrap() > self.max_download_ahead_blocks as BlockNumber {
+					trace!(target: "sync", "{}: Stalled download ({} vs {}), helping with downloading headers", peer_id, start, head.unwrap());
+					self.request_blocks(io, peer_id, true);
+					return;
+				}
+				let count = headers.len();
+				self.downloading_headers.extend(headers.iter());
+				replace(&mut self.peers.get_mut(&peer_id).unwrap().asking_blocks, headers);
+				assert!(!self.headers.have_item(&start));
+				self.request_headers_by_number(io, peer_id, start, count, 0, false);
+			}
 		}
 		else {
-			// check if need to download headers
-			let mut start = 0;
-			if !self.have_common_block {
-				// download backwards until common block is found 1 header at a time
-				let chain_info = io.chain().chain_info();
-				start = chain_info.best_block_number;
-				if !self.headers.is_empty() {
-					start = min(start, self.headers.range_iter().next().unwrap().0 - 1);
-				}
-				if start == 0 {
-					self.have_common_block = true; //reached genesis
-					self.last_imported_hash = Some(chain_info.genesis_hash);
-					self.last_imported_block = Some(0);
-				}
-			}
-			if self.have_common_block {
-				let mut headers: Vec<BlockNumber> = Vec::new();
-				let mut prev = self.current_base_block() + 1;
-				let head = self.headers.range_iter().next().map(|(h, _)| h);
-				for (next, ref items) in self.headers.range_iter() {
-					if !headers.is_empty() {
-						break;
-					}
-					if next <= prev {
-						prev = next + items.len() as BlockNumber;
-						continue;
-					}
-					let mut block = prev;
-					while block < next && headers.len() < MAX_HEADERS_TO_REQUEST {
-						if ignore_others || !self.downloading_headers.contains(&(block as BlockNumber)) {
-							headers.push(block as BlockNumber);
-						}
-						block += 1;
-					}
-					prev = next + items.len() as BlockNumber;
-				}
-
-				if !headers.is_empty() {
-					start = headers[0];
-					if head.is_some() && start > head.unwrap() && start - head.unwrap() > self.max_download_ahead_blocks as BlockNumber {
-						trace!(target: "sync", "{}: Stalled download ({} vs {}), helping with downloading headers", peer_id, start, head.unwrap());
-						self.request_blocks(io, peer_id, true);
-						return;
-					}
-					let count = headers.len();
-					self.downloading_headers.extend(headers.iter());
-					replace(&mut self.peers.get_mut(&peer_id).unwrap().asking_blocks, headers);
-					assert!(!self.headers.have_item(&start));
-					self.request_headers_by_number(io, peer_id, start, count, 0, false);
-				}
-			}
-			else {
-				// continue search for common block
-				self.downloading_headers.insert(start);
-				self.request_headers_by_number(io, peer_id, start, 1, 0, false);
-			}
+			// continue search for common block
+			self.downloading_headers.insert(start);
+			self.request_headers_by_number(io, peer_id, start, 1, 0, false);
 		}
 	}
 
@@ -791,12 +796,12 @@ impl ChainSync {
 				}
 
 				match io.chain().import_block(block_rlp.out()) {
-					Err(ImportError::AlreadyInChain) => {
+					Err(Error::Import(ImportError::AlreadyInChain)) => {
 						trace!(target: "sync", "Block already in chain {:?}", h);
 						self.last_imported_block = Some(headers.0 + i as BlockNumber);
 						self.last_imported_hash = Some(h.clone());
 					},
-					Err(ImportError::AlreadyQueued) => {
+					Err(Error::Import(ImportError::AlreadyQueued)) => {
 						trace!(target: "sync", "Block already queued {:?}", h);
 						self.last_imported_block = Some(headers.0 + i as BlockNumber);
 						self.last_imported_hash = Some(h.clone());
@@ -1189,8 +1194,8 @@ impl ChainSync {
 			.collect::<Vec<_>>()
 	}
 
-	/// propagades latest block to lagging peers
-	fn propagade_blocks(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
+	/// propagates latest block to lagging peers
+	fn propagate_blocks(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
 		let updated_peers = {
 			let lagging_peers = self.get_lagging_peers(io);
 
@@ -1216,8 +1221,8 @@ impl ChainSync {
 		sent
 	}
 
-	/// propagades new known hashes to all peers
-	fn propagade_new_hashes(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
+	/// propagates new known hashes to all peers
+	fn propagate_new_hashes(&mut self, local_best: &H256, best_number: BlockNumber, io: &mut SyncIo) -> usize {
 		let updated_peers = self.get_lagging_peers(io);
 		let mut sent = 0;
 		let last_parent = HeaderView::new(&io.chain().block_header(BlockId::Hash(local_best.clone())).unwrap()).parent_hash();
@@ -1252,8 +1257,8 @@ impl ChainSync {
 	pub fn chain_blocks_verified(&mut self, io: &mut SyncIo) {
 		let chain = io.chain().chain_info();
 		if (((chain.best_block_number as i64) - (self.last_send_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
-			let blocks = self.propagade_blocks(&chain.best_block_hash, chain.best_block_number, io);
-			let hashes = self.propagade_new_hashes(&chain.best_block_hash, chain.best_block_number, io);
+			let blocks = self.propagate_blocks(&chain.best_block_hash, chain.best_block_number, io);
+			let hashes = self.propagate_new_hashes(&chain.best_block_hash, chain.best_block_number, io);
 			if blocks != 0 || hashes != 0 {
 				trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
 			}
@@ -1277,7 +1282,8 @@ impl ChainSync {
 
 		good.for_each(|txs| {
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			transaction_queue.remove_all(&txs);
+			let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
+			transaction_queue.remove_all(&hashes);
 		});
 		bad.for_each(|txs| {
 			// populate sender
@@ -1465,7 +1471,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		let peer_count = sync.propagade_new_hashes(&best_hash, best_number, &mut io);
+		let peer_count = sync.propagate_new_hashes(&best_hash, best_number, &mut io);
 
 		// 1 message should be send
 		assert_eq!(1, io.queue.len());
@@ -1485,7 +1491,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		let peer_count = sync.propagade_blocks(&best_hash, best_number, &mut io);
+		let peer_count = sync.propagate_blocks(&best_hash, best_number, &mut io);
 
 		// 1 message should be send
 		assert_eq!(1, io.queue.len());
@@ -1591,7 +1597,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		sync.propagade_new_hashes(&best_hash, best_number, &mut io);
+		sync.propagate_new_hashes(&best_hash, best_number, &mut io);
 
 		let data = &io.queue[0].data.clone();
 		let result = sync.on_peer_new_hashes(&mut io, 0, &UntrustedRlp::new(&data));
@@ -1610,7 +1616,7 @@ mod tests {
 		let best_number = client.chain_info().best_block_number;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
-		sync.propagade_blocks(&best_hash, best_number, &mut io);
+		sync.propagate_blocks(&best_hash, best_number, &mut io);
 
 		let data = &io.queue[0].data.clone();
 		let result = sync.on_peer_new_block(&mut io, 0, &UntrustedRlp::new(&data));

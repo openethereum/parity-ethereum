@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use serde::{Serialize, Serializer};
-use util::hash::*;
-use util::uint::*;
+use util::numbers::*;
 use v1::types::{Bytes, Transaction, OptionalValue};
 
 #[derive(Debug)]
@@ -71,8 +70,7 @@ pub struct Block {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use util::hash::*;
-	use util::uint::*;
+	use util::numbers::*;
 	use v1::types::{Transaction, Bytes, OptionalValue};
 	use super::*;
 

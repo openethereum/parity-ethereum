@@ -14,16 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::{U256,H256};
-use header::BlockNumber;
+use util::hash::H2048;
 
-/// Best block info.
-#[derive(Default)]
-pub struct BestBlock {
-	/// Best block hash.
-	pub hash: H256,
-	/// Best block number.
-	pub number: BlockNumber,
-	/// Best block total difficulty.
-	pub total_difficulty: U256
+pub trait WithBloom {
+	fn with_bloom(self, bloom: H2048) -> Self where Self: Sized;
+}
+
+pub struct Bloom<'a, I> where I: 'a {
+	pub iter: &'a mut I,
+	pub bloom: H2048,
+}
+
+impl<'a, I> Iterator for Bloom<'a, I> where I: Iterator, <I as Iterator>::Item: WithBloom {
+	type Item = <I as Iterator>::Item;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.iter.next().map(|item| item.with_bloom(self.bloom.clone()))
+	}
 }

@@ -121,6 +121,7 @@ impl JournalDB {
 		// and the key is safe to delete.
 
 		// record new commit's details.
+		debug!("commit: #{} ({}), end era: {:?}", now, id, end);
 		let batch = DBTransaction::new();
 		let mut counters = self.counters.write().unwrap();
 		{
@@ -167,15 +168,18 @@ impl JournalDB {
 				&last
 			})) {
 				let rlp = Rlp::new(&rlp_data);
-				let inserts: Vec<H256> = rlp.val_at(1);
+				let mut inserts: Vec<H256> = rlp.val_at(1);
 				JournalDB::decrease_counters(&inserts, &mut counters);
 				// Collect keys to be removed. These are removed keys for canonical block, inserted for non-canonical
 				if canon_id == rlp.val_at(0) {
-					to_remove.extend(rlp.at(2).iter().map(|r| r.as_val::<H256>()));
+					let mut canon_deletes: Vec<H256> = rlp.val_at(2);
+					trace!("Purging nodes deleted from canon: {:?}", canon_deletes);
+					to_remove.append(&mut canon_deletes);
 					canon_inserts = inserts;
 				}
 				else {
-					to_remove.extend(inserts);
+					trace!("Purging nodes inserted in non-canon: {:?}", inserts);
+					to_remove.append(&mut inserts);
 				}
 				try!(batch.delete(&last));
 				index += 1;
@@ -188,7 +192,7 @@ impl JournalDB {
 				try!(batch.delete(&h));
 				deletes += 1;
 			}
-			trace!("JournalDB: delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, deletes);
+			debug!("commit: Delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, deletes);
 		}
 
 		// Commit overlay insertions
@@ -209,7 +213,7 @@ impl JournalDB {
 		}
 
 		try!(self.backing.write(batch));
-		trace!("JournalDB::commit() deleted {} nodes", deletes);
+		debug!("commit: Deleted {} nodes", deletes);
 		Ok(ret)
 	}
 
@@ -258,7 +262,7 @@ impl JournalDB {
 				era -= 1;
 			}
 		}
-		trace!("Recovered {} counters", res.len());
+		debug!("Recovered {} counters", res.len());
 		res
 	}
 }
