@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Net rpc implementation.
+//! Account management (personal) rpc implementation
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use v1::traits::Personal;
@@ -22,7 +22,7 @@ use util::keys::store::*;
 use util::{Bytes, Address};
 use std::sync::RwLock;
 
-/// Net rpc implementation.
+/// Account management (personal) rpc implementation.
 pub struct PersonalClient {
 	secret_store: Weak<SecretStore>,
 	unlocked_account: Arc<RwLock<Option<Address>>>,
