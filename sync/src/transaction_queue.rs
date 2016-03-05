@@ -129,7 +129,7 @@ impl TransactionSet {
 		};
 
 		for (sender, nonce) in to_drop {
-			let order = self.drop(&sender, &nonce).expect("Droping transaction failed.");
+			let order = self.drop(&sender, &nonce).expect("Dropping transaction failed.");
 			by_hash.remove(&order.hash).expect("Inconsistency in queue.");
 		}
 	}
@@ -322,6 +322,12 @@ impl TransactionQueue {
 
 	fn import_tx<T>(&mut self, tx: VerifiedTransaction, fetch_nonce: &T)
 		where T: Fn(&Address) -> U256 {
+
+		if self.by_hash.get(&tx.hash()).is_some() {
+			// Transaction is already imported.
+			return;
+		}
+
 		let nonce = tx.nonce();
 		let address = tx.sender();
 
@@ -355,7 +361,6 @@ impl TransactionQueue {
 		// But maybe there are some more items waiting in future?
 		let new_last_nonce = self.move_future_txs(address.clone(), nonce + U256::one(), base_nonce);
 		self.last_nonces.insert(address.clone(), new_last_nonce.unwrap_or(nonce));
-		// Enforce limit
 		self.current.enforce_limit(&mut self.by_hash);
 	}
 }
@@ -636,7 +641,26 @@ mod test {
 	}
 
 	#[test]
-	fn should_accept_same_transaction_twice() {
+	fn should_not_insert_same_transaction_twice() {
+		// given
+		let nonce = |a: &Address| default_nonce(a) + U256::one();
+		let mut txq = TransactionQueue::new();
+		let (_tx1, tx2) = new_txs(U256::from(1));
+		txq.add(tx2.clone(), &default_nonce);
+		assert_eq!(txq.status().future, 1);
+		assert_eq!(txq.status().pending, 0);
+
+		// when
+		txq.add(tx2.clone(), &nonce);
+
+		// then
+		let stats = txq.status();
+		assert_eq!(stats.future, 1);
+		assert_eq!(stats.pending, 0);
+	}
+
+	#[test]
+	fn should_accept_same_transaction_twice_if_removed() {
 		// given
 		let mut txq = TransactionQueue::new();
 		let (tx1, tx2) = new_txs(U256::from(1));
