@@ -17,6 +17,7 @@
 //! Blockchain database client.
 
 use std::marker::PhantomData;
+use std::sync::atomic::AtomicBool;
 use util::*;
 use util::panics::*;
 use blockchain::{BlockChain, BlockProvider};
@@ -212,6 +213,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	panic_handler: Arc<PanicHandler>,
 
 	// for sealing...
+	sealing_enabled: AtomicBool,
 	sealing_block: Mutex<Option<ClosedBlock>>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
@@ -263,6 +265,7 @@ impl<V> Client<V> where V: Verifier {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
+			sealing_enabled: AtomicBool::new(false),
 			sealing_block: Mutex::new(None),
 			author: RwLock::new(Address::new()),
 			extra_data: RwLock::new(Vec::new()),
@@ -410,7 +413,7 @@ impl<V> Client<V> where V: Verifier {
 			}
 		}
 
-		if self.chain_info().best_block_hash != original_best {
+		if self.chain_info().best_block_hash != original_best && self.sealing_enabled.load(atomic::Ordering::Relaxed) {
 			self.prepare_sealing();
 		}
 
@@ -493,7 +496,7 @@ impl<V> Client<V> where V: Verifier {
 			self.extra_data()
 		);
 
-		self.chain.read().unwrap().find_uncle_headers(&h).into_iter().foreach(|h| { b.push_uncle(h).unwrap(); });
+		self.chain.read().unwrap().find_uncle_headers(&h, self.engine.deref().deref().maximum_uncle_age()).unwrap().into_iter().take(self.engine.deref().deref().maximum_uncle_count()).foreach(|h| { b.push_uncle(h).unwrap(); });
 
 		// TODO: push transactions.
 
@@ -505,6 +508,8 @@ impl<V> Client<V> where V: Verifier {
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
 	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
 		if self.sealing_block.lock().unwrap().is_none() {
+			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
+			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
 			self.prepare_sealing();
 		}
 		&self.sealing_block
