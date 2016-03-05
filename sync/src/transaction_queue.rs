@@ -247,10 +247,10 @@ impl TransactionQueue {
 		// Remove from future
 		let order = self.future.drop(&sender, &nonce);
 		if order.is_some() {
-			self.recalculate_future_for_sender(&sender, current_nonce);
+			self.update_future(&sender, current_nonce);
 			// And now lets check if there is some chain of transactions in future
 			// that should be placed in current
-			self.move_future_txs(sender.clone(), current_nonce, current_nonce);
+			self.move_matching_future_to_current(sender.clone(), current_nonce, current_nonce);
 			return;
 		}
 
@@ -264,12 +264,12 @@ impl TransactionQueue {
 			self.move_all_to_future(&sender, current_nonce);
 			// And now lets check if there is some chain of transactions in future
 			// that should be placed in current. It should also update last_nonces.
-			self.move_future_txs(sender.clone(), current_nonce, current_nonce);
+			self.move_matching_future_to_current(sender.clone(), current_nonce, current_nonce);
 			return;
 		}
 	}
 
-	fn recalculate_future_for_sender(&mut self, sender: &Address, current_nonce: U256) {
+	fn update_future(&mut self, sender: &Address, current_nonce: U256) {
 		// We need to drain all transactions for current sender from future and reinsert them with updated height
 		let all_nonces_from_sender = match self.future.by_address.row(&sender) {
 			Some(row_map) => row_map.keys().cloned().collect::<Vec<U256>>(),
@@ -318,7 +318,7 @@ impl TransactionQueue {
 		self.last_nonces.clear();
 	}
 
-	fn move_future_txs(&mut self, address: Address, mut current_nonce: U256, first_nonce: U256) {
+	fn move_matching_future_to_current(&mut self, address: Address, mut current_nonce: U256, first_nonce: U256) {
 		{
 			let by_nonce = self.future.by_address.row_mut(&address);
 			if let None = by_nonce {
@@ -374,7 +374,7 @@ impl TransactionQueue {
 		Self::replace_transaction(tx, base_nonce.clone(), &mut self.current, &mut self.by_hash);
 		self.last_nonces.insert(address.clone(), nonce);
 		// But maybe there are some more items waiting in future?
-		self.move_future_txs(address.clone(), nonce + U256::one(), base_nonce);
+		self.move_matching_future_to_current(address.clone(), nonce + U256::one(), base_nonce);
 		self.current.enforce_limit(&mut self.by_hash);
 	}
 
