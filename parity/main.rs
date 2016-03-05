@@ -65,6 +65,7 @@ Usage:
 Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
                            or frontier, mainnet, morden, or testnet [default: frontier].
+  --archive                Client should not prune the state/storage trie.
   -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
 
@@ -102,6 +103,7 @@ struct Args {
 	flag_chain: String,
 	flag_db_path: String,
 	flag_keys_path: String,
+	flag_archive: bool,
 	flag_no_bootstrap: bool,
 	flag_listen_address: String,
 	flag_public_address: Option<String>,
@@ -312,6 +314,7 @@ impl Configuration {
 		let mut client_config = ClientConfig::default();
 		client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
 		client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
+		client_config.prefer_journal = !self.args.flag_archive;
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
 		let client = service.client().clone();

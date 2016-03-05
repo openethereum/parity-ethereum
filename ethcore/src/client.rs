@@ -17,6 +17,7 @@
 //! Blockchain database client.
 
 use std::marker::PhantomData;
+use std::sync::atomic::AtomicBool;
 use util::*;
 use util::panics::*;
 use blockchain::{BlockChain, BlockProvider};
@@ -78,12 +79,24 @@ pub enum BlockStatus {
 }
 
 /// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ClientConfig {
 	/// Block queue configuration.
 	pub queue: BlockQueueConfig,
 	/// Blockchain configuration.
 	pub blockchain: BlockChainConfig,
+	/// Prefer journal rather than archive.
+	pub prefer_journal: bool,
+}
+
+impl Default for ClientConfig {
+	fn default() -> ClientConfig {
+		ClientConfig {
+			queue: Default::default(),
+			blockchain: Default::default(),
+			prefer_journal: false,
+		}
+	}
 }
 
 /// Information about the blockchain gathered together.
@@ -124,6 +137,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get block total difficulty.
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
+
+	/// Get address nonce.
+	fn nonce(&self, address: &Address) -> U256;
 
 	/// Get block hash.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
@@ -200,6 +216,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	panic_handler: Arc<PanicHandler>,
 
 	// for sealing...
+	sealing_enabled: AtomicBool,
 	sealing_block: Mutex<Option<ClosedBlock>>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
@@ -219,11 +236,11 @@ impl Client<CanonVerifier> {
 
 impl<V> Client<V> where V: Verifier {
 	///  Create a new client with given spec and DB path and custom verifier.
-	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, Error> {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
-		dir.push(format!("v{}-sec-pruned", CLIENT_DB_VER_STR));
+		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, if config.prefer_journal { "pruned" } else { "archive" }));
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(RwLock::new(BlockChain::new(config.blockchain, &gb, path)));
@@ -231,7 +248,7 @@ impl<V> Client<V> where V: Verifier {
 		state_path.push("state");
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = JournalDB::new(state_path.to_str().unwrap());
+		let mut state_db = JournalDB::from_prefs(state_path.to_str().unwrap(), config.prefer_journal);
 		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
@@ -251,6 +268,7 @@ impl<V> Client<V> where V: Verifier {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
+			sealing_enabled: AtomicBool::new(false),
 			sealing_block: Mutex::new(None),
 			author: RwLock::new(Address::new()),
 			extra_data: RwLock::new(Vec::new()),
@@ -297,7 +315,7 @@ impl<V> Client<V> where V: Verifier {
 		}
 
 		// Verify Block Family
-		let verify_family_result = verify_block_family(&header, &block.bytes, engine, self.chain.read().unwrap().deref());
+		let verify_family_result = V::verify_block_family(&header, &block.bytes, engine, self.chain.read().unwrap().deref());
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -350,18 +368,14 @@ impl<V> Client<V> where V: Verifier {
 				bad_blocks.insert(header.hash());
 				continue;
 			}
-
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
 				bad_blocks.insert(header.hash());
 				break;
 			}
-
-			// Insert block
-			let closed_block = closed_block.unwrap();
-			self.chain.write().unwrap().insert_block(&block.bytes, closed_block.block().receipts().clone());
 			good_blocks.push(header.hash());
 
+			// Are we committing an era?
 			let ancient = if header.number() >= HISTORY {
 				let n = header.number() - HISTORY;
 				let chain = self.chain.read().unwrap();
@@ -371,9 +385,15 @@ impl<V> Client<V> where V: Verifier {
 			};
 
 			// Commit results
+			let closed_block = closed_block.unwrap();
+			let receipts = closed_block.block().receipts().clone();
 			closed_block.drain()
 				.commit(header.number(), &header.hash(), ancient)
 				.expect("State DB commit failed.");
+
+			// And update the chain
+			self.chain.write().unwrap()
+				.insert_block(&block.bytes, receipts);
 
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
@@ -393,12 +413,12 @@ impl<V> Client<V> where V: Verifier {
 			if !good_blocks.is_empty() && block_queue.queue_info().is_empty() {
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
 					good: good_blocks,
-					bad: bad_blocks,
+					retracted: bad_blocks,
 				})).unwrap();
 			}
 		}
 
-		if self.chain_info().best_block_hash != original_best {
+		if self.chain_info().best_block_hash != original_best && self.sealing_enabled.load(atomic::Ordering::Relaxed) {
 			self.prepare_sealing();
 		}
 
@@ -481,7 +501,7 @@ impl<V> Client<V> where V: Verifier {
 			self.extra_data()
 		);
 
-		self.chain.read().unwrap().find_uncle_headers(&h).into_iter().foreach(|h| { b.push_uncle(h).unwrap(); });
+		self.chain.read().unwrap().find_uncle_headers(&h, self.engine.deref().deref().maximum_uncle_age()).unwrap().into_iter().take(self.engine.deref().deref().maximum_uncle_count()).foreach(|h| { b.push_uncle(h).unwrap(); });
 
 		// TODO: push transactions.
 
@@ -493,6 +513,8 @@ impl<V> Client<V> where V: Verifier {
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
 	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
 		if self.sealing_block.lock().unwrap().is_none() {
+			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
+			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
 			self.prepare_sealing();
 		}
 		&self.sealing_block
@@ -562,6 +584,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
 		let chain = self.chain.read().unwrap();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
+	}
+
+	fn nonce(&self, address: &Address) -> U256 {
+		self.state().nonce(address)
 	}
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
