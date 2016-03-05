@@ -813,6 +813,4 @@ mod test {
 		assert_eq!(stats.future, 0);
 		assert_eq!(stats.pending, 1);
 	}
-
-
 }
