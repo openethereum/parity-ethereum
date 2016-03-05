@@ -18,6 +18,8 @@ use util::numbers::*;
 use ethcore::transaction::{LocalizedTransaction, Action};
 use v1::types::{Bytes, OptionalValue};
 use serde::{Deserializer, Error};
+use ethcore;
+use util;
 
 #[derive(Debug, Default, Serialize)]
 pub struct Transaction {
@@ -48,6 +50,22 @@ pub struct TransactionRequest {
 	pub value: Option<U256>,
 	pub data: Bytes,
 	pub nonce: Option<U256>,
+}
+
+impl TransactionRequest {
+	fn to_eth(self) -> (ethcore::transaction::Transaction, Address) {
+		(ethcore::transaction::Transaction {
+			nonce: self.nonce.unwrap_or(U256::zero()),
+			action: match self.to {
+				None => ethcore::transaction::Action::Create,
+				Some(addr) => ethcore::transaction::Action::Call(addr)
+			},
+			gas: self.gas.unwrap_or(U256::zero()),
+			gas_price: self.gas_price.unwrap_or(U256::zero()),
+			value: self.value.unwrap_or(U256::zero()),
+			data: { let (ref x) = self.data; x }
+		}, self.from)
+	}
 }
 
 impl From<LocalizedTransaction> for Transaction {
