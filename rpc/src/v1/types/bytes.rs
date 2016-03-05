@@ -28,6 +28,7 @@ impl Bytes {
 	pub fn new(bytes: Vec<u8>) -> Bytes {
 		Bytes(bytes)
 	}
+	pub fn to_vec(self) -> Vec<u8> { let Bytes(x) = self; x }
 }
 
 impl Default for Bytes {

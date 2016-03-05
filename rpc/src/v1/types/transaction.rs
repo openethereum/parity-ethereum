@@ -19,7 +19,6 @@ use ethcore::transaction::{LocalizedTransaction, Action};
 use v1::types::{Bytes, OptionalValue};
 use serde::{Deserializer, Error};
 use ethcore;
-use util;
 
 #[derive(Debug, Default, Serialize)]
 pub struct Transaction {
@@ -53,7 +52,8 @@ pub struct TransactionRequest {
 }
 
 impl TransactionRequest {
-	fn to_eth(self) -> (ethcore::transaction::Transaction, Address) {
+	/// maps transaction request to the transaction that can be signed and inserted
+	pub fn to_eth(self) -> (ethcore::transaction::Transaction, Address) {
 		(ethcore::transaction::Transaction {
 			nonce: self.nonce.unwrap_or(U256::zero()),
 			action: match self.to {
@@ -63,7 +63,7 @@ impl TransactionRequest {
 			gas: self.gas.unwrap_or(U256::zero()),
 			gas_price: self.gas_price.unwrap_or(U256::zero()),
 			value: self.value.unwrap_or(U256::zero()),
-			data: { let (ref x) = self.data; x }
+			data: self.data.to_vec()
 		}, self.from)
 	}
 }

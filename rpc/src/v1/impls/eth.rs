@@ -260,11 +260,15 @@ impl Eth for EthClient {
 				let client = take_weak!(self.client);
 				let store = client.secret_store().read().unwrap();
 				match store.account_secret(&transaction_request.from) {
-					Ok(_) => {
-						// todo: actually sign and push to queue transaction here
-						Ok(Value::Bool(true))
+					Ok(secret) => {
+						let sync = take_weak!(self.sync);
+						let (transaction, _) = transaction_request.to_eth();
+						let signed_transaction = transaction.sign(&secret);
+						let hash = signed_transaction.hash();
+						sync.insert_transaction(signed_transaction);
+						to_value(&hash)
 					},
-					Err(_) => { Ok(Value::Bool(false ))}
+					Err(_) => { to_value(&U256::zero()) }
 				}
 		})
 	}
