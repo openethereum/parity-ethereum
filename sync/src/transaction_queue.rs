@@ -108,9 +108,9 @@ struct TransactionSet {
 }
 
 impl TransactionSet {
-	fn insert(&mut self, sender: Address, nonce: U256, order: TransactionOrder) {
+	fn insert(&mut self, sender: Address, nonce: U256, order: TransactionOrder) -> Option<TransactionOrder> {
 		self.by_priority.insert(order.clone());
-		self.by_address.insert(sender, nonce, order);
+		self.by_address.insert(sender, nonce, order)
 	}
 
 	fn enforce_limit(&mut self, by_hash: &mut HashMap<H256, VerifiedTransaction>) {
@@ -332,37 +332,53 @@ impl TransactionQueue {
 		let nonce = tx.nonce();
 		let address = tx.sender();
 
+		let state_nonce = fetch_nonce(&address);
 		let next_nonce = self.last_nonces
 			.get(&address)
 			.cloned()
-			.map_or_else(|| fetch_nonce(&address), |n| n + U256::one());
+			.map_or(state_nonce, |n| n + U256::one());
 
 		// Check height
 		if nonce > next_nonce {
-			let order = TransactionOrder::for_transaction(&tx, next_nonce);
-			// Insert to by_hash
-			self.by_hash.insert(tx.hash(), tx);
 			// We have a gap - put to future
-			self.future.insert(address, nonce, order);
+			Self::replace_transaction(tx, next_nonce, &mut self.future, &mut self.by_hash);
 			self.future.enforce_limit(&mut self.by_hash);
 			return;
-		} else if next_nonce > nonce {
+		} else if nonce < state_nonce {
 			// Droping transaction
 			trace!(target: "sync", "Dropping transaction with nonce: {} - expecting: {}", nonce, next_nonce);
 			return;
 		}
 
 		let base_nonce = fetch_nonce(&address);
-		let order = TransactionOrder::for_transaction(&tx, base_nonce);
-		// Insert to by_hash
-		self.by_hash.insert(tx.hash(), tx);
 
-		// Insert to current
-		self.current.insert(address.clone(), nonce, order);
+		Self::replace_transaction(tx, base_nonce.clone(), &mut self.current, &mut self.by_hash);
 		// But maybe there are some more items waiting in future?
 		let new_last_nonce = self.move_future_txs(address.clone(), nonce + U256::one(), base_nonce);
 		self.last_nonces.insert(address.clone(), new_last_nonce.unwrap_or(nonce));
 		self.current.enforce_limit(&mut self.by_hash);
+	}
+
+	fn replace_transaction(tx: VerifiedTransaction, base_nonce: U256, set: &mut TransactionSet, by_hash: &mut HashMap<H256, VerifiedTransaction>) {
+		let order = TransactionOrder::for_transaction(&tx, base_nonce);
+		let hash = tx.hash();
+		let address = tx.sender();
+		let nonce = tx.nonce();
+
+		by_hash.insert(hash.clone(), tx);
+		if let Some(old) = set.insert(address, nonce, order.clone()) {
+			// There was already transaction in queue. Let's check which one should stay
+			if old.cmp(&order) == Ordering::Greater {
+				assert!(old.nonce_height == order.nonce_height, "Both transactions should have the same height.");
+				// Put back old transaction since it has greater priority (higher gas_price)
+				set.insert(address, nonce, old);
+				by_hash.remove(&hash);
+			} else {
+				// Make sure we remove old transaction entirely
+				set.by_priority.remove(&old);
+				by_hash.remove(&old.hash);
+			}
+		}
 	}
 }
 
