@@ -24,8 +24,8 @@ use super::helpers::*;
 fn two_peers() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(1000, false);
+	net.peer_mut(2).chain.add_blocks(1000, false);
 	net.sync();
 	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
 	assert_eq!(net.peer(0).chain.blocks.read().unwrap().deref(), net.peer(1).chain.blocks.read().unwrap().deref());
@@ -35,8 +35,8 @@ fn two_peers() {
 fn status_after_sync() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(1000, false);
+	net.peer_mut(2).chain.add_blocks(1000, false);
 	net.sync();
 	let status = net.peer(0).sync.status();
 	assert_eq!(status.state, SyncState::Idle);
@@ -45,8 +45,8 @@ fn status_after_sync() {
 #[test]
 fn takes_few_steps() {
 	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(100, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(100, false);
+	net.peer_mut(2).chain.add_blocks(100, false);
 	let total_steps = net.sync();
 	assert!(total_steps < 7);
 }
@@ -56,9 +56,8 @@ fn empty_blocks() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	for n in 0..200 {
-		let with = if n % 2 == 0 { EachBlockWith::Nothing } else { EachBlockWith::Uncle };
-		net.peer_mut(1).chain.add_blocks(5, with.clone());
-		net.peer_mut(2).chain.add_blocks(5, with);
+		net.peer_mut(1).chain.add_blocks(5, n % 2 == 0);
+		net.peer_mut(2).chain.add_blocks(5, n % 2 == 0);
 	}
 	net.sync();
 	assert!(net.peer(0).chain.block(BlockId::Number(1000)).is_some());
@@ -69,14 +68,14 @@ fn empty_blocks() {
 fn forked() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
-	net.peer_mut(0).chain.add_blocks(300, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.add_blocks(300, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(300, EachBlockWith::Uncle);
-	net.peer_mut(0).chain.add_blocks(100, EachBlockWith::Nothing); //fork
-	net.peer_mut(1).chain.add_blocks(200, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(200, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Uncle); //fork between 1 and 2
-	net.peer_mut(2).chain.add_blocks(10, EachBlockWith::Nothing);
+	net.peer_mut(0).chain.add_blocks(300, false);
+	net.peer_mut(1).chain.add_blocks(300, false);
+	net.peer_mut(2).chain.add_blocks(300, false);
+	net.peer_mut(0).chain.add_blocks(100, true); //fork
+	net.peer_mut(1).chain.add_blocks(200, false);
+	net.peer_mut(2).chain.add_blocks(200, false);
+	net.peer_mut(1).chain.add_blocks(100, false); //fork between 1 and 2
+	net.peer_mut(2).chain.add_blocks(10, true);
 	// peer 1 has the best chain of 601 blocks
 	let peer1_chain = net.peer(1).chain.numbers.read().unwrap().clone();
 	net.sync();
@@ -88,8 +87,8 @@ fn forked() {
 #[test]
 fn restart() {
 	let mut net = TestNet::new(3);
-	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
-	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(1000, false);
+	net.peer_mut(2).chain.add_blocks(1000, false);
 
 	net.sync_steps(8);
 
@@ -110,8 +109,8 @@ fn status_empty() {
 #[test]
 fn status_packet() {
 	let mut net = TestNet::new(2);
-	net.peer_mut(0).chain.add_blocks(100, EachBlockWith::Uncle);
-	net.peer_mut(1).chain.add_blocks(1, EachBlockWith::Uncle);
+	net.peer_mut(0).chain.add_blocks(100, false);
+	net.peer_mut(1).chain.add_blocks(1, false);
 
 	net.start();
 
@@ -124,10 +123,10 @@ fn status_packet() {
 #[test]
 fn propagate_hashes() {
 	let mut net = TestNet::new(6);
-	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(10, false);
 	net.sync();
 
-	net.peer_mut(0).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer_mut(0).chain.add_blocks(10, false);
 	net.sync();
 	net.trigger_block_verified(0); //first event just sets the marker
 	net.trigger_block_verified(0);
@@ -150,10 +149,10 @@ fn propagate_hashes() {
 #[test]
 fn propagate_blocks() {
 	let mut net = TestNet::new(2);
-	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(10, false);
 	net.sync();
 
-	net.peer_mut(0).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer_mut(0).chain.add_blocks(10, false);
 	net.trigger_block_verified(0); //first event just sets the marker
 	net.trigger_block_verified(0);
 
@@ -165,7 +164,7 @@ fn propagate_blocks() {
 #[test]
 fn restart_on_malformed_block() {
 	let mut net = TestNet::new(2);
-	net.peer_mut(1).chain.add_blocks(10, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(10, false);
 	net.peer_mut(1).chain.corrupt_block(6);
 	net.sync_steps(10);
 
