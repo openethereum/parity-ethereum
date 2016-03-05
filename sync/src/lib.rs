@@ -130,7 +130,7 @@ impl EthSync {
 	}
 
 	/// Insert transaction in transaction queue
-	pub fn insert_transaction(&self, transaction: SignedTransaction) {
+	pub fn insert_transaction(&self, transaction: ethcore::transaction::SignedTransaction) {
 		use util::numbers::*;
 
 		let nonce_fn = |a: &Address| self.chain.state().nonce(a) + U256::one();
