@@ -13,6 +13,8 @@ matrix:
   allow_failures:
   - rust: nightly
   include:
+  - rust: stable
+    env: FEATURES="--features travis-beta" KCOV_FEATURES="" TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity" ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
   - rust: beta
     env: FEATURES="--features travis-beta" KCOV_FEATURES="" TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity" ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
   - rust: nightly
@@ -52,7 +54,7 @@ after_success: |
   ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${TRAVIS_JOB_ID} --exclude-pattern /usr/,/.cargo,/root/.multirust target/kcov target/debug/parity-* &&
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
-  [ $TRAVIS_RUST_VERSION = beta ] &&
+  [ $TRAVIS_RUST_VERSION = stable ] &&
   cargo doc --no-deps --verbose ${KCOV_FEATURES} ${TARGETS} &&
   echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html &&
   pip install --user ghp-import &&
