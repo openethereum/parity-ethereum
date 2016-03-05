@@ -122,29 +122,29 @@ impl JournalDB {
 	}
 
 	/// Drain the overlay and place it into a batch for the DB.
-	fn batch_overlay_insertions(overlay: &mut MemoryDB, batch: &DBTransaction) -> (usize, usize) {
-		let mut ret = 0usize;
+	fn batch_overlay_insertions(overlay: &mut MemoryDB, batch: &DBTransaction) -> usize {
+		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 		for i in overlay.drain().into_iter() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
 				assert!(rc == 1);
 				batch.put(&key.bytes(), &value).expect("Low-level database error. Some issue with your hard disk?");
-				ret += 1;
+				inserts += 1;
 			}
 			if rc < 0 {
 				assert!(rc == -1);
-				ret += 1;
 				deletes += 1;
 			}
 		}
-		(ret, deletes)
+		trace!("commit: Inserted {}, Deleted {} nodes", inserts, deletes);
+		inserts + deletes
 	}
 
 	/// Just commit the overlay into the backing DB.
 	fn commit_without_counters(&mut self) -> Result<u32, UtilError> {
 		let batch = DBTransaction::new();
-		let (ret, _) = Self::batch_overlay_insertions(&mut self.overlay, &batch);
+		let ret = Self::batch_overlay_insertions(&mut self.overlay, &batch);
 		try!(self.backing.write(batch));
 		Ok(ret as u32)
 	}
@@ -183,14 +183,23 @@ impl JournalDB {
 			let mut index = 0usize;
 			let mut last;
 
-			while try!(self.backing.get({
-				let mut r = RlpStream::new_list(3);
-				r.append(&now);
-				r.append(&index);
-				r.append(&&PADDING[..]);
-				last = r.drain();
-				&last
-			})).is_some() {
+			while {
+				let record = try!(self.backing.get({
+					let mut r = RlpStream::new_list(3);
+					r.append(&now);
+					r.append(&index);
+					r.append(&&PADDING[..]);
+					last = r.drain();
+					&last
+				}));
+				match record {
+					Some(r) => {
+						assert!(&Rlp::new(&r).val_at::<H256>(0) != id);
+						true
+					},
+					None => false,
+				}
+			} {
 				index += 1;
 			}
 
@@ -236,6 +245,7 @@ impl JournalDB {
 					trace!("Purging nodes inserted in non-canon: {:?}", inserts);
 					to_remove.append(&mut inserts);
 				}
+				trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): {} entries", end_era, index, rlp.val_at::<H256>(0), canon_id, to_remove.len());
 				try!(batch.delete(&last));
 				index += 1;
 			}
@@ -243,18 +253,17 @@ impl JournalDB {
 			let canon_inserts = canon_inserts.drain(..).collect::<HashSet<_>>();
 			// Purge removed keys if they are not referenced and not re-inserted in the canon commit
 			let mut deletes = 0;
+			trace!("Purging filtered nodes: {:?}", to_remove.iter().filter(|h| !counters.contains_key(h) && !canon_inserts.contains(h)).collect::<Vec<_>>());
 			for h in to_remove.iter().filter(|h| !counters.contains_key(h) && !canon_inserts.contains(h)) {
 				try!(batch.delete(&h));
 				deletes += 1;
 			}
-			trace!("commit: Delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, deletes);
+			trace!("Total nodes purged: {}", deletes);
 		}
 
 		// Commit overlay insertions
-		let (ret, deletes) = Self::batch_overlay_insertions(&mut self.overlay, &batch);
-
+		let ret = Self::batch_overlay_insertions(&mut self.overlay, &batch);
 		try!(self.backing.write(batch));
-		trace!("commit: Deleted {} nodes", deletes);
 		Ok(ret as u32)
 	}
 
