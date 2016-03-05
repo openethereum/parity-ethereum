@@ -1294,6 +1294,10 @@ impl ChainSync {
 			transaction_queue.add_all(txs, |a| chain.nonce(a));
 		});
 	}
+
+	pub fn transaction_queue(&self) -> &Mutex<TransactionQueue> {
+		return &self.transaction_queue;
+	}
 }
 
 #[cfg(test)]
