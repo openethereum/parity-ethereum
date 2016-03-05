@@ -129,7 +129,7 @@ impl TransactionSet {
 		};
 
 		for (sender, nonce) in to_drop {
-			let order = self.drop(&sender, &nonce).expect("Dropping transaction failed.");
+			let order = self.drop(&sender, &nonce).expect("Dropping transaction found in priority queue failed.");
 			by_hash.remove(&order.hash).expect("Inconsistency in queue.");
 		}
 	}
@@ -325,6 +325,7 @@ impl TransactionQueue {
 
 		if self.by_hash.get(&tx.hash()).is_some() {
 			// Transaction is already imported.
+			trace!(target: "sync", "Dropping already imported transaction with hash: {:?}", tx.hash());
 			return;
 		}
 
@@ -370,6 +371,7 @@ impl TransactionQueue {
 mod test {
 	extern crate rustc_serialize;
 	use self::rustc_serialize::hex::FromHex;
+	use std::ops::Deref;
 	use std::collections::{HashMap, BTreeSet};
 	use util::crypto::KeyPair;
 	use util::numbers::{U256, Uint};
@@ -701,5 +703,78 @@ mod test {
 		assert_eq!(stats.future, 0);
 		assert_eq!(stats.pending, 2);
 	}
+
+	#[test]
+	fn should_replace_same_transaction_when_has_higher_fee() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let keypair = KeyPair::create().unwrap();
+		let tx = new_unsigned_tx(U256::from(123)).sign(&keypair.secret());
+		let tx2 = {
+			let mut tx2 = tx.deref().clone();
+			tx2.gas_price = U256::from(200);
+			tx2.sign(&keypair.secret())
+		};
+
+		// when
+		txq.add(tx, &default_nonce);
+		txq.add(tx2, &default_nonce);
+
+		// then
+		let stats = txq.status();
+		assert_eq!(stats.pending, 1);
+		assert_eq!(stats.future, 0);
+		assert_eq!(txq.top_transactions(1)[0].gas_price, U256::from(200));
+	}
+
+	#[test]
+	fn should_replace_same_transaction_when_importing_to_futures() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let keypair = KeyPair::create().unwrap();
+		let tx0 = new_unsigned_tx(U256::from(123)).sign(&keypair.secret());
+		let tx1 = {
+			let mut tx1 = tx0.deref().clone();
+			tx1.nonce = U256::from(124);
+			tx1.sign(&keypair.secret())
+		};
+		let tx2 = {
+			let mut tx2 = tx1.deref().clone();
+			tx2.gas_price = U256::from(200);
+			tx2.sign(&keypair.secret())
+		};
+
+		// when
+		txq.add(tx1, &default_nonce);
+		txq.add(tx2, &default_nonce);
+		assert_eq!(txq.status().future, 1);
+		txq.add(tx0, &default_nonce);
+
+		// then
+		let stats = txq.status();
+		assert_eq!(stats.future, 0);
+		assert_eq!(stats.pending, 2);
+		assert_eq!(txq.top_transactions(2)[1].gas_price, U256::from(200));
+	}
+
+	#[test]
+	fn should_recalculate_height_when_removing_from_future() {
+		// given
+		let previous_nonce = |a: &Address| default_nonce(a) - U256::one();
+		let mut txq = TransactionQueue::new();
+		let (tx1, tx2) = new_txs(U256::one());
+		txq.add(tx1.clone(), &previous_nonce);
+		txq.add(tx2, &previous_nonce);
+		assert_eq!(txq.status().future, 2);
+
+		// when
+		txq.remove(&tx1.hash(), &default_nonce);
+
+		// then
+		let stats = txq.status();
+		assert_eq!(stats.future, 0);
+		assert_eq!(stats.pending, 1);
+	}
+
 
 }
