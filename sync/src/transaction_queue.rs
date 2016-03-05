@@ -297,12 +297,6 @@ impl TransactionQueue {
 			}
 		}
 		self.future.enforce_limit(&mut self.by_hash);
-
-		// And now lets check if there is some chain of transactions in future
-		// that should be placed in current
-		if let Some(new_current_top) = self.move_future_txs(sender.clone(), current_nonce, current_nonce) {
-			self.last_nonces.insert(sender, new_current_top);
-		}
 	}
 
 
