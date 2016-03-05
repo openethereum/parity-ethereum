@@ -138,6 +138,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block total difficulty.
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
 
+	/// Get address nonce.
+	fn nonce(&self, address: &Address) -> U256;
+
 	/// Get block hash.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
@@ -365,18 +368,14 @@ impl<V> Client<V> where V: Verifier {
 				bad_blocks.insert(header.hash());
 				continue;
 			}
-
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
 				bad_blocks.insert(header.hash());
 				break;
 			}
-
-			// Insert block
-			let closed_block = closed_block.unwrap();
-			self.chain.write().unwrap().insert_block(&block.bytes, closed_block.block().receipts().clone());
 			good_blocks.push(header.hash());
 
+			// Are we committing an era?
 			let ancient = if header.number() >= HISTORY {
 				let n = header.number() - HISTORY;
 				let chain = self.chain.read().unwrap();
@@ -386,9 +385,15 @@ impl<V> Client<V> where V: Verifier {
 			};
 
 			// Commit results
+			let closed_block = closed_block.unwrap();
+			let receipts = closed_block.block().receipts().clone();
 			closed_block.drain()
 				.commit(header.number(), &header.hash(), ancient)
 				.expect("State DB commit failed.");
+
+			// And update the chain
+			self.chain.write().unwrap()
+				.insert_block(&block.bytes, receipts);
 
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
@@ -408,7 +413,7 @@ impl<V> Client<V> where V: Verifier {
 			if !good_blocks.is_empty() && block_queue.queue_info().is_empty() {
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
 					good: good_blocks,
-					bad: bad_blocks,
+					retracted: bad_blocks,
 				})).unwrap();
 			}
 		}
@@ -579,6 +584,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
 		let chain = self.chain.read().unwrap();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
+	}
+
+	fn nonce(&self, address: &Address) -> U256 {
+		self.state().nonce(address)
 	}
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {

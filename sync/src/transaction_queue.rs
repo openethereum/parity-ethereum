@@ -221,19 +221,19 @@ impl TransactionQueue {
 	/// Removes all transactions identified by hashes given in slice
 	///
 	/// If gap is introduced marks subsequent transactions as future
-	pub fn remove_all<T>(&mut self, txs: &[H256], fetch_nonce: T)
+	pub fn remove_all<T>(&mut self, transaction_hashes: &[H256], fetch_nonce: T)
 		where T: Fn(&Address) -> U256 {
-		for tx in txs {
-			self.remove(&tx, &fetch_nonce);
+		for hash in transaction_hashes {
+			self.remove(&hash, &fetch_nonce);
 		}
 	}
 
 	/// Removes transaction identified by hashes from queue.
 	///
 	/// If gap is introduced marks subsequent transactions as future
-	pub fn remove<T>(&mut self, hash: &H256, fetch_nonce: &T)
+	pub fn remove<T>(&mut self, transaction_hash: &H256, fetch_nonce: &T)
 		where T: Fn(&Address) -> U256 {
-		let transaction = self.by_hash.remove(hash);
+		let transaction = self.by_hash.remove(transaction_hash);
 		if transaction.is_none() {
 			// We don't know this transaction
 			return;
@@ -244,7 +244,6 @@ impl TransactionQueue {
 		let nonce = transaction.nonce();
 		let current_nonce = fetch_nonce(&sender);
 
-		println!("Removing tx: {:?}", transaction.transaction);
 		// Remove from future
 		let order = self.future.drop(&sender, &nonce);
 		if order.is_some() {
@@ -292,7 +291,6 @@ impl TransactionQueue {
 			// Goes to future or is removed
 			let order = self.current.drop(&sender, &k).unwrap();
 			if k >= current_nonce {
-				println!("Moving to future: {:?}", order);
 				self.future.insert(sender.clone(), k, order.update_height(k, current_nonce));
 			} else {
 				self.by_hash.remove(&order.hash);
@@ -302,7 +300,7 @@ impl TransactionQueue {
 
 		// And now lets check if there is some chain of transactions in future
 		// that should be placed in current
-		if let Some(new_current_top) = self.move_future_txs(sender.clone(), current_nonce - U256::one(), current_nonce) {
+		if let Some(new_current_top) = self.move_future_txs(sender.clone(), current_nonce, current_nonce) {
 			self.last_nonces.insert(sender, new_current_top);
 		}
 	}
@@ -337,7 +335,6 @@ impl TransactionQueue {
 				// remove also from priority and hash
 				self.future.by_priority.remove(&order);
 				// Put to current
-				println!("Moved: {:?}", order);
 				let order = order.update_height(current_nonce.clone(), first_nonce);
 				self.current.insert(address.clone(), current_nonce, order);
 				current_nonce = current_nonce + U256::one();
@@ -366,7 +363,6 @@ impl TransactionQueue {
 			.cloned()
 			.map_or(state_nonce, |n| n + U256::one());
 
-		println!("Expected next: {:?}, got: {:?}", next_nonce, nonce);
 		// Check height
 		if nonce > next_nonce {
 			// We have a gap - put to future
@@ -375,6 +371,7 @@ impl TransactionQueue {
 			return;
 		} else if nonce < state_nonce {
 			// Droping transaction
+			trace!(target: "sync", "Dropping transaction with nonce: {} - expecting: {}", nonce, next_nonce);
 			return;
 		}
 
