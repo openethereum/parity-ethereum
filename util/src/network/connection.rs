@@ -190,25 +190,25 @@ impl Connection {
 
 	/// Register this connection with the IO event loop.
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-		trace!(target: "net", "connection register; token={:?}", reg);
+		trace!(target: "network", "connection register; token={:?}", reg);
 		if let Err(e) = event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()) {
-			debug!("Failed to register {:?}, {:?}", reg, e);
+			trace!(target: "network", "Failed to register {:?}, {:?}", reg, e);
 		}
 		Ok(())
 	}
 
 	/// Update connection registration. Should be called at the end of the IO handler.
 	pub fn update_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-		trace!(target: "net", "connection reregister; token={:?}", reg);
+		trace!(target: "network", "connection reregister; token={:?}", reg);
 		event_loop.reregister( &self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-			debug!("Failed to reregister {:?}, {:?}", reg, e);
+			trace!(target: "network", "Failed to reregister {:?}, {:?}", reg, e);
 			Ok(())
 		})
 	}
 
 	/// Delete connection registration. Should be called at the end of the IO handler.
 	pub fn deregister_socket<Host: Handler>(&self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-		trace!(target: "net", "connection deregister; token={:?}", self.token);
+		trace!(target: "network", "connection deregister; token={:?}", self.token);
 		event_loop.deregister(&self.socket).ok(); // ignore errors here
 		Ok(())
 	}

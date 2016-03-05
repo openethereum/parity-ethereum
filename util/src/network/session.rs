@@ -213,6 +213,9 @@ impl Session {
 
 	/// Send a protocol packet to peer.
 	pub fn send_packet(&mut self, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), UtilError> {
+		if self.expired() {
+			return Err(From::from(NetworkError::Expired));
+		}
 		let mut i = 0usize;
 		while protocol != self.info.capabilities[i].protocol {
 			i += 1;
@@ -351,15 +354,15 @@ impl Session {
 			offset += caps[i].packet_count;
 			i += 1;
 		}
-		trace!(target: "net", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		trace!(target: "network", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;
 		if self.info.capabilities.is_empty() {
-			trace!("No common capabilities with peer.");
+			trace!(target: "network", "No common capabilities with peer.");
 			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
 		}
 		if protocol != host.protocol_version {
-			trace!("Peer protocol version mismatch: {}", protocol);
+			trace!(target: "network", "Peer protocol version mismatch: {}", protocol);
 			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
 		}
 		self.had_hello = true;
