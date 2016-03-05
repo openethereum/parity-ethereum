@@ -233,7 +233,7 @@ impl Client<CanonVerifier> {
 
 impl<V> Client<V> where V: Verifier {
 	///  Create a new client with given spec and DB path and custom verifier.
-	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, Error> {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
@@ -312,7 +312,7 @@ impl<V> Client<V> where V: Verifier {
 		}
 
 		// Verify Block Family
-		let verify_family_result = verify_block_family(&header, &block.bytes, engine, self.chain.read().unwrap().deref());
+		let verify_family_result = V::verify_block_family(&header, &block.bytes, engine, self.chain.read().unwrap().deref());
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());

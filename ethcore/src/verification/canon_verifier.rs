@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use blockchain::BlockProvider;
+use engine::Engine;
 use error::Error;
 use header::Header;
 use super::Verifier;
@@ -22,6 +24,10 @@ use super::verification;
 pub struct CanonVerifier;
 
 impl Verifier for CanonVerifier {
+	fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error> {
+		verification::verify_block_family(header, bytes, engine, bc)
+	}
+
 	fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> {
 		verification::verify_block_final(expected, got)
 	}
