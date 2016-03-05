@@ -391,10 +391,7 @@ impl Interpreter {
 			instructions::SLOAD => {
 				InstructionCost::Gas(U256::from(schedule.sload_gas))
 			},
-			instructions::MSTORE => {
-				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 32)))
-			},
-			instructions::MLOAD => {
+			instructions::MSTORE | instructions::MLOAD => {
 				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 32)))
 			},
 			instructions::MSTORE8 => {
@@ -736,8 +733,7 @@ impl Interpreter {
 			},
 			instructions::CALLVALUE => {
 				stack.push(match params.value {
-					ActionValue::Transfer(val) => val,
-					ActionValue::Apparent(val) => val,
+					ActionValue::Transfer(val) | ActionValue::Apparent(val) => val
 				});
 			},
 			instructions::CALLDATALOAD => {
