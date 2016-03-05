@@ -308,6 +308,28 @@ mod tests {
 	use hashdb::*;
 
 	#[test]
+	fn insert_same_in_fork() {
+		// history is 1
+		let mut jdb = JournalDB::new_temp();
+
+		let x = jdb.insert(b"X");
+		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		jdb.commit(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.remove(&x);
+		jdb.commit(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		let x = jdb.insert(b"X");
+		jdb.commit(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.commit(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
+		jdb.commit(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
+
+		assert!(jdb.exists(&x));
+	}
+
+	#[test]
 	fn long_history() {
 		// history is 3
 		let mut jdb = JournalDB::new_temp();
