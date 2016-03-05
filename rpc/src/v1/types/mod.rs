@@ -14,22 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod block;
-mod block_number;
-mod bytes;
-mod filter;
-mod index;
-mod log;
-mod optionals;
-mod sync;
-mod transaction;
+#[cfg(feature = "serde_macros")]
+include!("mod.rs.in");
 
-pub use self::block::{Block, BlockTransactions};
-pub use self::block_number::BlockNumber;
-pub use self::bytes::Bytes;
-pub use self::filter::Filter;
-pub use self::index::Index;
-pub use self::log::Log;
-pub use self::optionals::OptionalValue;
-pub use self::sync::{SyncStatus, SyncInfo};
-pub use self::transaction::Transaction;
+#[cfg(not(feature = "serde_macros"))]
+include!(concat!(env!("OUT_DIR"), "/mod.rs"));

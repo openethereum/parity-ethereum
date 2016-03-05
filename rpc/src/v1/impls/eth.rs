@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
+use std::collections::HashMap;
+use std::sync::{Arc, Weak, Mutex, RwLock};
 use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
-use util::standard::{RwLock, HashMap, Arc, Weak};
 use util::rlp::encode;
 use ethcore::client::*;
 use ethcore::block::{IsBlock};
@@ -29,6 +30,7 @@ use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
+use v1::helpers::{PollFilter, PollManager};
 
 /// Eth rpc implementation.
 pub struct EthClient {
@@ -266,28 +268,98 @@ impl Eth for EthClient {
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
-	client: Weak<Client>
+	client: Weak<Client>,
+	polls: Mutex<PollManager<PollFilter>>,
 }
 
 impl EthFilterClient {
 	/// Creates new Eth filter client.
 	pub fn new(client: &Arc<Client>) -> Self {
 		EthFilterClient {
-			client: Arc::downgrade(client)
+			client: Arc::downgrade(client),
+			polls: Mutex::new(PollManager::new())
 		}
 	}
 }
 
 impl EthFilter for EthFilterClient {
-	fn new_block_filter(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(0))
+	fn new_filter(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Filter,)>(params)
+			.and_then(|(filter,)| {
+				let mut polls = self.polls.lock().unwrap();
+				let id = polls.create_poll(PollFilter::Logs(filter.into()), take_weak!(self.client).chain_info().best_block_number);
+				to_value(&U256::from(id))
+			})
 	}
 
-	fn new_pending_transaction_filter(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(1))
+	fn new_block_filter(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => {
+				let mut polls = self.polls.lock().unwrap();
+				let id = polls.create_poll(PollFilter::Block, take_weak!(self.client).chain_info().best_block_number);
+				to_value(&U256::from(id))
+			},
+			_ => Err(Error::invalid_params())
+		}
 	}
 
-	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
-		to_value(&take_weak!(self.client).chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
+	fn new_pending_transaction_filter(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => {
+				let mut polls = self.polls.lock().unwrap();
+				let id = polls.create_poll(PollFilter::PendingTransaction, take_weak!(self.client).chain_info().best_block_number);
+				to_value(&U256::from(id))
+			},
+			_ => Err(Error::invalid_params())
+		}
+	}
+
+	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
+		let client = take_weak!(self.client);
+		from_params::<(Index,)>(params)
+			.and_then(|(index,)| {
+				let info = self.polls.lock().unwrap().get_poll_info(&index.value()).cloned();
+				match info {
+					None => Ok(Value::Array(vec![] as Vec<Value>)),
+					Some(info) => match info.filter {
+						PollFilter::Block => {
+							let current_number = client.chain_info().best_block_number;
+							let hashes = (info.block_number..current_number).into_iter()
+								.map(BlockId::Number)
+								.filter_map(|id| client.block_hash(id))
+								.collect::<Vec<H256>>();
+
+							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
+
+							to_value(&hashes)
+						},
+						PollFilter::PendingTransaction => {
+							// TODO: fix implementation once TransactionQueue is merged
+							to_value(&vec![] as &Vec<H256>)
+						},
+						PollFilter::Logs(mut filter) => {
+							filter.from_block = BlockId::Number(info.block_number);
+							filter.to_block = BlockId::Latest;
+							let logs = client.logs(filter)
+								.into_iter()
+								.map(From::from)
+								.collect::<Vec<Log>>();
+
+							let current_number = client.chain_info().best_block_number;
+							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
+
+							to_value(&logs)
+						}
+					}
+				}
+			})
+	}
+
+	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Index,)>(params)
+			.and_then(|(index,)| {
+				self.polls.lock().unwrap().remove_poll(&index.value());
+				to_value(&true)
+			})
 	}
 }

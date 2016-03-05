@@ -82,6 +82,15 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "chrono"
+version = "0.2.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "num 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "clippy"
 version = "0.0.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -235,6 +244,7 @@ dependencies = [
  "serde_codegen 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.29.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "transient-hashmap 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -243,6 +253,7 @@ version = "0.9.99"
 dependencies = [
  "arrayvec 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "bigint 0.1.0",
+ "chrono 0.2.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -840,6 +851,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "traitobject"
 version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "transient-hashmap"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "time 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "typeable"

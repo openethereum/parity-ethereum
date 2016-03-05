@@ -157,9 +157,9 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 			SyncMessage::BlockVerified => {
 				self.sync.write().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
 			},
-			SyncMessage::NewChainBlocks { ref good, ref bad } => {
+			SyncMessage::NewChainBlocks { ref good, ref retracted } => {
 				let sync_io = NetSyncIo::new(io, self.chain.deref());
-				self.sync.write().unwrap().chain_new_blocks(&sync_io, good, bad);
+				self.sync.write().unwrap().chain_new_blocks(&sync_io, good, retracted);
 			}
 		}
 	}

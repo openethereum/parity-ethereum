@@ -28,7 +28,7 @@ extern crate ethcore_util;
 extern crate rand;
 
 use test::{Bencher, black_box};
-use ethcore_util::uint::*;
+use ethcore_util::numbers::*;
 
 #[bench]
 fn u256_add(b: &mut Bencher) {

@@ -35,7 +35,7 @@ pub struct TestBlockChainClient {
 }
 
 #[derive(Clone)]
-pub enum BlocksWith {
+pub enum EachBlockWith {
 	Nothing,
 	Uncle,
 	Transaction,
@@ -52,12 +52,12 @@ impl TestBlockChainClient {
 			last_hash: RwLock::new(H256::new()),
 			difficulty: RwLock::new(From::from(0)),
 		};
-		client.add_blocks(1, BlocksWith::Nothing); // add genesis block
+		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
 		client
 	}
 
-	pub fn add_blocks(&mut self, count: usize, with: BlocksWith) {
+	pub fn add_blocks(&mut self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().unwrap().len();
 		for n in len..(len + count) {
 			let mut header = BlockHeader::new();
@@ -65,7 +65,7 @@ impl TestBlockChainClient {
 			header.parent_hash = self.last_hash.read().unwrap().clone();
 			header.number = n as BlockNumber;
 			let uncles = match with {
-				BlocksWith::Uncle | BlocksWith::UncleAndTransaction => {
+				EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
 					let mut uncles = RlpStream::new_list(1);
 					let mut uncle_header = BlockHeader::new();
 					uncle_header.difficulty = From::from(n);
@@ -78,7 +78,7 @@ impl TestBlockChainClient {
 				_ => RlpStream::new_list(0)
 			};
 			let txs = match with {
-				BlocksWith::Transaction | BlocksWith::UncleAndTransaction => {
+				EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction => {
 					let mut txs = RlpStream::new_list(1);
 					let keypair = KeyPair::create().unwrap();
 					let tx = Transaction {
@@ -134,6 +134,10 @@ impl TestBlockChainClient {
 impl BlockChainClient for TestBlockChainClient {
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
 		Some(U256::zero())
+	}
+
+	fn block_hash(&self, _id: BlockId) -> Option<H256> {
+		unimplemented!();
 	}
 
 	fn nonce(&self, _address: &Address) -> U256 {

@@ -778,6 +778,35 @@ macro_rules! construct_uint {
 			}
 		}
 
+		impl serde::Deserialize for $name {
+			fn deserialize<D>(deserializer: &mut D) -> Result<$name, D::Error>
+			where D: serde::Deserializer {
+				struct UintVisitor;
+
+				impl serde::de::Visitor for UintVisitor {
+					type Value = $name;
+
+					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
+						// 0x + len
+						if value.len() != 2 + $n_words / 8 {
+							return Err(serde::Error::custom("Invalid length."));
+						}
+
+						match $name::from_str(&value[2..]) {
+							Ok(val) => Ok(val),
+							Err(_) => { return Err(serde::Error::custom("Invalid length.")); }
+						}
+					}
+
+					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
+						self.visit_str(value.as_ref())
+					}
+				}
+
+				deserializer.deserialize(UintVisitor)
+			}
+		}
+
 		impl From<u64> for $name {
 			fn from(value: u64) -> $name {
 				let mut ret = [0; $n_words];

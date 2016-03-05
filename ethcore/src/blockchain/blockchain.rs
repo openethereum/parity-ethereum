@@ -78,7 +78,7 @@ pub trait BlockProvider {
 	}
 
 	/// Get a list of uncles for a given block.
-	/// Returns None if block deos not exist.
+	/// Returns None if block does not exist.
 	fn uncles(&self, hash: &H256) -> Option<Vec<Header>> {
 		self.block(hash).map(|bytes| BlockView::new(&bytes).uncles())
 	}
@@ -226,6 +226,24 @@ impl BlockProvider for BlockChain {
 }
 
 const COLLECTION_QUEUE_SIZE: usize = 8;
+
+pub struct AncestryIter<'a> {
+	current: H256,
+	chain: &'a BlockChain,
+}
+
+impl<'a> Iterator for AncestryIter<'a> {
+	type Item = H256;
+	fn next(&mut self) -> Option<H256> {
+		if self.current.is_zero() {
+			Option::None
+		} else {
+			let mut n = self.chain.block_details(&self.current).unwrap().parent;
+			mem::swap(&mut self.current, &mut n);
+			Some(n)
+		}
+	}
+}
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
@@ -448,7 +466,8 @@ impl BlockChain {
 		let mut write_details = self.block_details.write().unwrap();
 		for (hash, details) in update.block_details.into_iter() {
 			batch.put_extras(&hash, &details);
-			write_details.insert(hash, details);
+			write_details.insert(hash.clone(), details);
+			self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash));
 		}
 
 		let mut write_receipts = self.block_receipts.write().unwrap();
@@ -473,10 +492,35 @@ impl BlockChain {
 		self.extras_db.write(batch).unwrap();
 	}
 
-	/// Given a block's `parent`, find every block header which represents a valid uncle.
-	pub fn find_uncle_headers(&self, _parent: &H256) -> Vec<Header> {
-		// TODO
-		Vec::new()
+	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
+	pub fn ancestry_iter(&self, first: H256) -> Option<AncestryIter> {
+		if self.is_known(&first) {
+			Some(AncestryIter {
+				current: first,
+				chain: &self,
+			})
+		} else {
+			None
+		}
+	}
+
+	/// Given a block's `parent`, find every block header which represents a valid possible uncle.
+	pub fn find_uncle_headers(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<Header>> {
+		if !self.is_known(parent) { return None; }
+
+		let mut excluded = HashSet::new();
+		for a in self.ancestry_iter(parent.clone()).unwrap().take(uncle_generations) {
+			excluded.extend(self.uncle_hashes(&a).unwrap().into_iter());
+			excluded.insert(a);
+		}
+
+		let mut ret = Vec::new();
+		for a in self.ancestry_iter(parent.clone()).unwrap().skip(1).take(uncle_generations) {
+			ret.extend(self.block_details(&a).unwrap().children.iter()
+				.filter_map(|h| if excluded.contains(h) { None } else { self.block_header(h) })
+			);
+		}
+		Some(ret)
 	}
 
 	/// Get inserted block info which is critical to preapre extras updates.
@@ -759,6 +803,14 @@ impl BlockChain {
 
 				// TODO: handle block_hashes properly.
 				block_hashes.clear();
+
+				blocks.shrink_to_fit();
+				block_details.shrink_to_fit();
+ 				block_hashes.shrink_to_fit();
+ 				transaction_addresses.shrink_to_fit();
+ 				block_logs.shrink_to_fit();
+ 				blocks_blooms.shrink_to_fit();
+ 				block_receipts.shrink_to_fit();
 			}
 			if self.cache_size().total() < self.max_cache_size { break; }
 		}
@@ -807,6 +859,66 @@ mod tests {
 		assert_eq!(bc.block_details(&first_hash).unwrap().parent, genesis_hash.clone());
 		assert_eq!(bc.block_details(&genesis_hash).unwrap().children, vec![first_hash.clone()]);
 		assert_eq!(bc.block_hash(2), None);
+	}
+
+	#[test]
+	fn check_ancestry_iter() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
+
+		let temp = RandomTempPath::new();
+		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+
+		let mut block_hashes = vec![genesis_hash.clone()];
+		for _ in 0..10 {
+			let block = canon_chain.generate(&mut finalizer).unwrap();
+			block_hashes.push(BlockView::new(&block).header_view().sha3());
+			bc.insert_block(&block, vec![]);
+		}
+
+		block_hashes.reverse();
+
+		assert_eq!(bc.ancestry_iter(block_hashes[0].clone()).unwrap().collect::<Vec<_>>(), block_hashes)
+	}
+
+	#[test]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	fn test_find_uncles() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let b1b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b1a = canon_chain.generate(&mut finalizer).unwrap();
+		let b2b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b2a = canon_chain.generate(&mut finalizer).unwrap();
+		let b3b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b3a = canon_chain.generate(&mut finalizer).unwrap();
+		let b4b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b4a = canon_chain.generate(&mut finalizer).unwrap();
+		let b5b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
+		let b5a = canon_chain.generate(&mut finalizer).unwrap();
+
+		let temp = RandomTempPath::new();
+		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+		bc.insert_block(&b1a, vec![]);
+		bc.insert_block(&b1b, vec![]);
+		bc.insert_block(&b2a, vec![]);
+		bc.insert_block(&b2b, vec![]);
+		bc.insert_block(&b3a, vec![]);
+		bc.insert_block(&b3b, vec![]);
+		bc.insert_block(&b4a, vec![]);
+		bc.insert_block(&b4b, vec![]);
+		bc.insert_block(&b5a, vec![]);
+		bc.insert_block(&b5b, vec![]);
+
+		assert_eq!(
+			[&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(),
+			bc.find_uncle_headers(&BlockView::new(&b4a).header_view().sha3(), 3).unwrap()
+		);
+
+		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
 	}
 
 	#[test]

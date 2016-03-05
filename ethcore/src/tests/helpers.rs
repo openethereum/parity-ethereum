@@ -156,10 +156,9 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 		rolling_block_number = rolling_block_number + 1;
 		rolling_timestamp = rolling_timestamp + 10;
 
-		if let Err(_) = client.import_block(create_test_block(&header)) {
-			panic!("error importing block which is valid by definition");
+		if let Err(e) = client.import_block(create_test_block(&header)) {
+			panic!("error importing block which is valid by definition: {:?}", e);
 		}
-
 	}
 	client.flush_queue();
 	client.import_verified_blocks(&IoChannel::disconnected());
@@ -167,6 +166,34 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
 		result: Some(client)
+	}
+}
+
+pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	let state_root = test_engine.spec().genesis_header().state_root;
+	let mut rolling_hash = client.chain_info().best_block_hash;
+	let mut rolling_block_number = starting_number as u64;
+	let mut rolling_timestamp = timestamp_salt + starting_number as u64 * 10;
+
+	for _ in 0..block_number {
+		let mut header = Header::new();
+
+		header.gas_limit = decode(test_engine.spec().engine_params.get("minGasLimit").unwrap());
+		header.difficulty = decode(test_engine.spec().engine_params.get("minimumDifficulty").unwrap());
+		header.timestamp = rolling_timestamp;
+		header.number = rolling_block_number;
+		header.parent_hash = rolling_hash;
+		header.state_root = state_root.clone();
+
+		rolling_hash = header.hash();
+		rolling_block_number = rolling_block_number + 1;
+		rolling_timestamp = rolling_timestamp + 10;
+
+		if let Err(e) = client.import_block(create_test_block(&header)) {
+			panic!("error importing block which is valid by definition: {:?}", e);
+		}
 	}
 }
 
@@ -253,18 +280,29 @@ pub fn get_temp_state_in(path: &Path) -> State {
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
 	let test_spec = get_test_spec();
 	let test_engine = test_spec.to_engine().unwrap();
-	let mut parent = test_engine.spec().genesis_header().hash();
+  	get_good_dummy_block_fork_seq(1, count, &test_engine.spec().genesis_header().hash())
+}
+
+pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	let mut rolling_timestamp = start_number as u64 * 10;
+	let mut parent = *parent_hash;
 	let mut r = Vec::new();
-	for i in 1 .. count + 1 {
+	for i in start_number .. start_number + count + 1 {
 		let mut block_header = Header::new();
 		block_header.gas_limit = decode(test_engine.spec().engine_params.get("minGasLimit").unwrap());
-		block_header.difficulty = decode(test_engine.spec().engine_params.get("minimumDifficulty").unwrap());
-		block_header.timestamp = i as u64;
+		block_header.difficulty = U256::from(i).mul(U256([0, 1, 0, 0]));
+		block_header.timestamp = rolling_timestamp;
 		block_header.number = i as u64;
 		block_header.parent_hash = parent;
 		block_header.state_root = test_engine.spec().genesis_header().state_root;
+
 		parent = block_header.hash();
+		rolling_timestamp = rolling_timestamp + 10;
+
 		r.push(create_test_block(&block_header));
+
 	}
 	r
 }

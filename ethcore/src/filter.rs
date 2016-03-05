@@ -42,6 +42,22 @@ pub struct Filter {
 	pub topics: [Option<Vec<H256>>; 4],
 }
 
+impl Clone for Filter {
+	fn clone(&self) -> Self {
+		let mut topics = [None, None, None, None];
+		for i in 0..4 {
+			topics[i] = self.topics[i].clone();
+		}
+
+		Filter {
+			from_block: self.from_block.clone(),
+			to_block: self.to_block.clone(),
+			address: self.address.clone(),
+			topics: topics
+		}
+	}
+}
+
 impl Filter {
 	/// Returns combinations of each address and topic.	
 	pub fn bloom_possibilities(&self) -> Vec<H2048> {

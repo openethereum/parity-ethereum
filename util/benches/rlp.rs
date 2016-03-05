@@ -28,7 +28,7 @@ extern crate ethcore_util;
 use test::Bencher;
 use std::str::FromStr;
 use ethcore_util::rlp::*;
-use ethcore_util::uint::U256;
+use ethcore_util::numbers::U256;
 
 #[bench]
 fn bench_stream_u64_value(b: &mut Bencher) {

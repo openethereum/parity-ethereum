@@ -20,6 +20,7 @@ ethash = { path = "../ethash" }
 ethsync = { path = "../sync" }
 clippy = { version = "0.0.44", optional = true }
 rustc-serialize = "0.3"
+transient-hashmap = "0.1"
 serde_macros = { version = "0.7.0", optional = true }
 
 [build-dependencies]
