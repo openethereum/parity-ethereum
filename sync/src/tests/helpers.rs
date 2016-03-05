@@ -22,7 +22,7 @@ use io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
 use ethcore::receipt::Receipt;
-use ethcore::transaction::{LocalizedTransaction, Transaction, Action};
+use ethcore::transaction::LocalizedTransaction;
 use ethcore::filter::Filter;
 use ethcore::log_entry::LocalizedLogEntry;
 
@@ -32,14 +32,6 @@ pub struct TestBlockChainClient {
 	pub genesis_hash: H256,
 	pub last_hash: RwLock<H256>,
 	pub difficulty: RwLock<U256>,
-}
-
-#[derive(Clone)]
-pub enum EachBlockWith {
-	Nothing,
-	Uncle,
-	Transaction,
-	UncleAndTransaction
 }
 
 impl TestBlockChainClient {
@@ -52,53 +44,30 @@ impl TestBlockChainClient {
 			last_hash: RwLock::new(H256::new()),
 			difficulty: RwLock::new(From::from(0)),
 		};
-		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
+		client.add_blocks(1, true); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
 		client
 	}
 
-	pub fn add_blocks(&mut self, count: usize, with: EachBlockWith) {
+	pub fn add_blocks(&mut self, count: usize, empty: bool) {
 		let len = self.numbers.read().unwrap().len();
 		for n in len..(len + count) {
 			let mut header = BlockHeader::new();
 			header.difficulty = From::from(n);
 			header.parent_hash = self.last_hash.read().unwrap().clone();
 			header.number = n as BlockNumber;
-			let uncles = match with {
-				EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
-					let mut uncles = RlpStream::new_list(1);
-					let mut uncle_header = BlockHeader::new();
-					uncle_header.difficulty = From::from(n);
-					uncle_header.parent_hash = self.last_hash.read().unwrap().clone();
-					uncle_header.number = n as BlockNumber;
-					uncles.append(&uncle_header);
-					header.uncles_hash = uncles.as_raw().sha3();
-					uncles
-				},
-				_ => RlpStream::new_list(0)
-			};
-			let txs = match with {
-				EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction => {
-					let mut txs = RlpStream::new_list(1);
-					let keypair = KeyPair::create().unwrap();
-					let tx = Transaction {
-						action: Action::Create,
-						value: U256::from(100),
-						data: "3331600055".from_hex().unwrap(),
-						gas: U256::from(100_000),
-						gas_price: U256::one(),
-						nonce: U256::zero()
-					};
-					let signed_tx = tx.sign(&keypair.secret());
-					txs.append(&signed_tx);
-					txs.out()
-				},
-				_ => rlp::NULL_RLP.to_vec()
-			};
-
+			let mut uncles = RlpStream::new_list(if empty {0} else {1});
+			if !empty {
+				let mut uncle_header = BlockHeader::new();
+				uncle_header.difficulty = From::from(n);
+				uncle_header.parent_hash = self.last_hash.read().unwrap().clone();
+				uncle_header.number = n as BlockNumber;
+				uncles.append(&uncle_header);
+				header.uncles_hash = uncles.as_raw().sha3();
+			}
 			let mut rlp = RlpStream::new_list(3);
 			rlp.append(&header);
-			rlp.append_raw(&txs, 1);
+			rlp.append_raw(&rlp::NULL_RLP, 1);
 			rlp.append_raw(uncles.as_raw(), 1);
 			self.import_block(rlp.as_raw().to_vec()).unwrap();
 		}
@@ -138,10 +107,6 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn block_hash(&self, _id: BlockId) -> Option<H256> {
 		unimplemented!();
-	}
-
-	fn nonce(&self, _address: &Address) -> U256 {
-		U256::zero()
 	}
 
 	fn code(&self, _address: &Address) -> Option<Bytes> {

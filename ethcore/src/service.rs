@@ -30,7 +30,7 @@ pub enum SyncMessage {
 		/// Hashes of blocks imported to blockchain
 		good: Vec<H256>,
 		/// Hashes of blocks not imported to blockchain
-		retracted: Vec<H256>,
+		bad: Vec<H256>,
 	},
 	/// A block is ready
 	BlockVerified,
