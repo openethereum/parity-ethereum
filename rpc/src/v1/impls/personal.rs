@@ -18,28 +18,27 @@
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use v1::traits::Personal;
-use util::keys::store::*;
 use util::Address;
-use std::sync::RwLock;
+use ethcore::client::Client;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient {
-	secret_store: Weak<RwLock<SecretStore>>,
+	client: Weak<Client>,
 }
 
 impl PersonalClient {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<RwLock<SecretStore>>) -> Self {
+	pub fn new(client: &Arc<Client>) -> Self {
 		PersonalClient {
-			secret_store: Arc::downgrade(store),
+			client: Arc::downgrade(client),
 		}
 	}
 }
 
 impl Personal for PersonalClient {
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
-		let store_wk = take_weak!(self.secret_store);
-		let store = store_wk.read().unwrap();
+		let client = take_weak!(self.client);
+		let store = client.secret_store().read().unwrap();
 		match store.accounts() {
 			Ok(account_list) => {
 				Ok(Value::Array(account_list.iter()
@@ -54,8 +53,8 @@ impl Personal for PersonalClient {
 	fn new_account(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(String, )>(params).and_then(
 			|(pass, )| {
-				let store_wk = take_weak!(self.secret_store);
-				let mut store = store_wk.write().unwrap();
+				let client = take_weak!(self.client);
+				let mut store = client.secret_store().write().unwrap();
 				match store.new_account(&pass) {
 					Ok(address) => Ok(Value::String(format!("{:?}", address))),
 					Err(_) => Err(Error::internal_error())
@@ -67,8 +66,8 @@ impl Personal for PersonalClient {
 	fn unlock_account(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, String, u64)>(params).and_then(
 			|(account, account_pass, _)|{
-				let store_wk = take_weak!(self.secret_store);
-				let store = store_wk.read().unwrap();
+				let client = take_weak!(self.client);
+				let store = client.secret_store().read().unwrap();
 				match store.unlock_account(&account, &account_pass) {
 					Ok(_) => Ok(Value::Bool(true)),
 					Err(_) => Ok(Value::Bool(false)),

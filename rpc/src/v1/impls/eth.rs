@@ -29,7 +29,7 @@ use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, OptionalValue, Index, Filter, Log};
 use v1::helpers::{PollFilter, PollManager};
 
 /// Eth rpc implementation.
@@ -251,6 +251,21 @@ impl Eth for EthClient {
 		from_params::<(Index, H256)>(params).and_then(|(rate, id)| {
 			self.hashrates.write().unwrap().insert(id, rate.value() as u64);
 			to_value(&true)
+		})
+	}
+
+	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, )>(params)
+			.and_then(|(transaction_request, )| {
+				let client = take_weak!(self.client);
+				let store = client.secret_store().read().unwrap();
+				match store.account_secret(&transaction_request.from) {
+					Ok(_) => {
+						// todo: actually sign and push to queue transaction here
+						Ok(Value::Bool(true))
+					},
+					Err(_) => { Ok(Value::Bool(false ))}
+				}
 		})
 	}
 }
