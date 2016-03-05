@@ -348,8 +348,8 @@ impl TransactionQueue {
 			return;
 		}
 
-		let nonce = tx.nonce();
 		let address = tx.sender();
+		let nonce = tx.nonce();
 
 		let state_nonce = fetch_nonce(&address);
 		let next_nonce = self.last_nonces
@@ -370,7 +370,6 @@ impl TransactionQueue {
 		}
 
 		let base_nonce = fetch_nonce(&address);
-
 		Self::replace_transaction(tx, base_nonce.clone(), &mut self.current, &mut self.by_hash);
 		self.last_nonces.insert(address.clone(), nonce);
 		// But maybe there are some more items waiting in future?
@@ -391,7 +390,9 @@ impl TransactionQueue {
 			let new_fee = order.gas_price;
 			if old_fee.cmp(&new_fee) == Ordering::Greater {
 				// Put back old transaction since it has greater priority (higher gas_price)
-				set.insert(address, nonce, old);
+				set.by_address.insert(address, nonce, old);
+				// and remove new one
+				set.by_priority.remove(&order);
 				by_hash.remove(&hash);
 			} else {
 				// Make sure we remove old transaction entirely
