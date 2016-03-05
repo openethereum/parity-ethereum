@@ -387,8 +387,9 @@ impl TransactionQueue {
 		by_hash.insert(hash.clone(), tx);
 		if let Some(old) = set.insert(address, nonce, order.clone()) {
 			// There was already transaction in queue. Let's check which one should stay
-			if old.cmp(&order) == Ordering::Greater {
-				assert!(old.nonce_height == order.nonce_height, "Both transactions should have the same height.");
+			let old_fee = old.gas_price;
+			let new_fee = order.gas_price;
+			if old_fee.cmp(&new_fee) == Ordering::Greater {
 				// Put back old transaction since it has greater priority (higher gas_price)
 				set.insert(address, nonce, old);
 				by_hash.remove(&hash);
