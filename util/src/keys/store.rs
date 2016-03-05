@@ -105,7 +105,7 @@ impl SecretStore {
 		import_path.push(".ethereum");
 		import_path.push("keystore");
 		if let Err(e) = geth_import::import_geth_keys(self, &import_path) {
-			warn!(target: "sstore", "Error retrieving geth keys: {:?}", e)
+			trace!(target: "sstore", "Geth key not imported: {:?}", e);
 		}
 	}
 
