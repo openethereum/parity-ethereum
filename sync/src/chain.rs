@@ -1267,7 +1267,7 @@ impl ChainSync {
 	}
 
 	/// called when block is imported to chain, updates transactions queue
-	pub fn chain_new_blocks(&mut self, io: &SyncIo, good: &[H256], retracted: &[H256]) {
+	pub fn chain_new_blocks(&mut self, io: &SyncIo, good: &[H256], bad: &[H256], _retracted: &[H256]) {
 		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
 				.block(BlockId::Hash(hash.clone()))
@@ -1280,14 +1280,14 @@ impl ChainSync {
 
 		let chain = io.chain();
 		let good = good.par_iter().map(|h| fetch_transactions(chain, h));
-		let retracted = retracted.par_iter().map(|h| fetch_transactions(chain, h));
+		let bad = bad.par_iter().map(|h| fetch_transactions(chain, h));
 
 		good.for_each(|txs| {
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
 			let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
 			transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
 		});
-		retracted.for_each(|txs| {
+		bad.for_each(|txs| {
 			// populate sender
 			for tx in &txs {
 				let _sender = tx.sender();
@@ -1637,10 +1637,10 @@ mod tests {
 		let io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&io, &[], &good_blocks);
+		sync.chain_new_blocks(&io, &[], &good_blocks, &[]);
 		assert_eq!(sync.transaction_queue.lock().unwrap().status().future, 0);
 		assert_eq!(sync.transaction_queue.lock().unwrap().status().pending, 1);
-		sync.chain_new_blocks(&io, &good_blocks, &retracted_blocks);
+		sync.chain_new_blocks(&io, &good_blocks, &retracted_blocks, &[]);
 
 		// then
 		let status = sync.transaction_queue.lock().unwrap().status();

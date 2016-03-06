@@ -30,6 +30,8 @@ pub enum SyncMessage {
 		/// Hashes of blocks imported to blockchain
 		good: Vec<H256>,
 		/// Hashes of blocks not imported to blockchain
+		bad: Vec<H256>,
+		/// Hashes of blocks that were removed from canonical chain
 		retracted: Vec<H256>,
 	},
 	/// A block is ready
