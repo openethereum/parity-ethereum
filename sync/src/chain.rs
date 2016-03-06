@@ -933,9 +933,11 @@ impl ChainSync {
 		let item_count = r.item_count();
 		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
 		let fetch_latest_nonce = |a : &Address| chain.nonce(a);
+
+		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		for i in 0..item_count {
 			let tx: SignedTransaction = try!(r.val_at(i));
-			self.transaction_queue.lock().unwrap().add(tx, &fetch_latest_nonce);
+			transaction_queue.add(tx, &fetch_latest_nonce);
 		}
  		Ok(())
 	}
