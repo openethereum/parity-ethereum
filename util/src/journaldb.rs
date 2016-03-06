@@ -99,7 +99,7 @@ impl JournalDB {
 	pub fn new_temp() -> JournalDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
-		Self::new(DB::open_default(dir.to_str().unwrap()).unwrap())
+		Self::new(dir.to_str().unwrap())
 	}
 
 	/// Check if this database has any commits
@@ -269,14 +269,15 @@ impl JournalDB {
 		//
 
 		// record new commit's details.
-		let batch = DBTransaction::new();
+		trace!("commit: #{} ({}), end era: {:?}", now, id, end);		
 		let mut counters = self.counters.as_ref().unwrap().write().unwrap();
+		let batch = DBTransaction::new();
 		{
 			let mut index = 0usize;
 			let mut last;
 
 			while try!(self.backing.get({
-				let mut r = RlpStream::new_list(2);
+				let mut r = RlpStream::new_list(3);
 				r.append(&now);
 				r.append(&index);
 				r.append(&&PADDING[..]);
@@ -310,6 +311,7 @@ impl JournalDB {
 			r.append(&removes);
 			Self::insert_keys(&inserts, &self.backing, &mut counters, &batch);
 			try!(batch.put(&last, r.as_raw()));
+			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
 		}
 
 		// apply old commits' details
@@ -317,7 +319,7 @@ impl JournalDB {
 			let mut index = 0usize;
 			let mut last;
 			while let Some(rlp_data) = try!(self.backing.get({
-				let mut r = RlpStream::new_list(2);
+				let mut r = RlpStream::new_list(3);
 				r.append(&end_era);
 				r.append(&index);
 				r.append(&&PADDING[..]);
@@ -352,7 +354,7 @@ impl JournalDB {
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
-					let mut r = RlpStream::new_list(2);
+					let mut r = RlpStream::new_list(3);
 					r.append(&era);
 					r.append(&index);
 					r.append(&&PADDING[..]);
