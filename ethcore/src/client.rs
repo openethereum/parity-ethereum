@@ -413,7 +413,9 @@ impl<V> Client<V> where V: Verifier {
 			if !good_blocks.is_empty() && block_queue.queue_info().is_empty() {
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
 					good: good_blocks,
-					retracted: bad_blocks,
+					bad: bad_blocks,
+					// TODO [todr] were to take those from?
+					retracted: vec![],
 				})).unwrap();
 			}
 		}
