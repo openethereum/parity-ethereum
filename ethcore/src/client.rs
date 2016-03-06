@@ -190,6 +190,8 @@ pub struct ClientReport {
 	pub transactions_applied: usize,
 	/// How much gas has been processed so far.
 	pub gas_processed: U256,
+	/// Memory used by state DB
+	pub state_db_mem: usize,
 }
 
 impl ClientReport {
@@ -222,7 +224,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 }
 
 const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "4.0";
+const CLIENT_DB_VER_STR: &'static str = "5.0";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
@@ -432,7 +434,9 @@ impl<V> Client<V> where V: Verifier {
 
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
-		self.report.read().unwrap().clone()
+		let mut report = self.report.read().unwrap().clone();
+		report.state_db_mem = self.state_db.lock().unwrap().mem_used();
+		report
 	}
 
 	/// Tick the client.
