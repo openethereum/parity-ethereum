@@ -97,8 +97,8 @@ impl JournalDB {
 	}
 
 	// The next three are valid only as long as there is an insert operation of `key` in the journal.
-	fn set_already_in(batch: &WriteBatch, key: &H256) { batch.put(&Self::morph_key(key, 0), &[1u8]); }
-	fn reset_already_in(batch: &WriteBatch, key: &H256) { batch.delete(&Self::morph_key(key, 0)); }
+	fn set_already_in(batch: &WriteBatch, key: &H256) { batch.put(&Self::morph_key(key, 0), &[1u8]).expect("Low-level database error. Some issue with your hard disk?"); }
+	fn reset_already_in(batch: &WriteBatch, key: &H256) { batch.delete(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?"); }
 	fn is_already_in(backing: &DB, key: &H256) -> bool {
 		backing.get(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
@@ -122,7 +122,7 @@ impl JournalDB {
 			// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
 			//Self::reset_already_in(&h);
 			assert!(!Self::is_already_in(backing, &h));
-			batch.put(&h.bytes(), d);
+			batch.put(&h.bytes(), d).expect("Low-level database error. Some issue with your hard disk?");
 		}
 	}
 
@@ -159,7 +159,7 @@ impl JournalDB {
 				&None => {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
 					//assert!(!Self::is_already_in(db, &h));
-					batch.delete(&h.bytes());
+					batch.delete(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?");
 				}
 				_ => panic!("Invalid value in counters: {:?}", n),
 			}
@@ -260,7 +260,6 @@ impl JournalDB {
 		if let Some((end_era, canon_id)) = end {
 			let mut index = 0usize;
 			let mut last;
-			let mut to_remove: Vec<H256> = Vec::new();
 			while let Some(rlp_data) = try!(self.backing.get({
 				let mut r = RlpStream::new_list(2);
 				r.append(&end_era);
