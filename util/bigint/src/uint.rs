@@ -40,20 +40,13 @@ use std::fmt;
 use std::cmp;
 
 use std::mem;
-use std::ops;
-use std::slice;
-use std::result;
-use std::option;
 use std::str::{FromStr};
 use std::convert::From;
 use std::hash::{Hash, Hasher};
 use std::ops::*;
 use std::cmp::*;
-use std::collections::*;
 
 use serde;
-use rustc_serialize::json::Json;
-use rustc_serialize::base64::FromBase64;
 use rustc_serialize::hex::{FromHex, FromHexError, ToHex};
 
 
@@ -785,6 +778,35 @@ macro_rules! construct_uint {
 			}
 		}
 
+		impl serde::Deserialize for $name {
+			fn deserialize<D>(deserializer: &mut D) -> Result<$name, D::Error>
+			where D: serde::Deserializer {
+				struct UintVisitor;
+
+				impl serde::de::Visitor for UintVisitor {
+					type Value = $name;
+
+					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
+						// 0x + len
+						if value.len() != 2 + $n_words / 8 {
+							return Err(serde::Error::custom("Invalid length."));
+						}
+
+						match $name::from_str(&value[2..]) {
+							Ok(val) => Ok(val),
+							Err(_) => { return Err(serde::Error::custom("Invalid length.")); }
+						}
+					}
+
+					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
+						self.visit_str(value.as_ref())
+					}
+				}
+
+				deserializer.deserialize(UintVisitor)
+			}
+		}
+
 		impl From<u64> for $name {
 			fn from(value: u64) -> $name {
 				let mut ret = [0; $n_words];
@@ -1261,6 +1283,33 @@ impl From<U256> for U512 {
 impl From<U512> for U256 {
 	fn from(value: U512) -> U256 {
 		let U512(ref arr) = value;
+		if arr[4] | arr[5] | arr[6] | arr[7] != 0 {
+			panic!("Overflow");
+		}
+		let mut ret = [0; 4];
+		ret[0] = arr[0];
+		ret[1] = arr[1];
+		ret[2] = arr[2];
+		ret[3] = arr[3];
+		U256(ret)
+	}
+}
+
+impl<'a> From<&'a U256> for U512 {
+	fn from(value: &'a U256) -> U512 {
+		let U256(ref arr) = *value;
+		let mut ret = [0; 8];
+		ret[0] = arr[0];
+		ret[1] = arr[1];
+		ret[2] = arr[2];
+		ret[3] = arr[3];
+		U512(ret)
+	}
+}
+
+impl<'a> From<&'a U512> for U256 {
+	fn from(value: &'a U512) -> U256 {
+		let U512(ref arr) = *value;
 		if arr[4] | arr[5] | arr[6] | arr[7] != 0 {
 			panic!("Overflow");
 		}
@@ -1983,6 +2032,7 @@ mod tests {
 
 
 	#[test]
+	#[cfg_attr(feature = "dev", allow(cyclomatic_complexity))]
 	fn u256_multi_full_mul() {
 		let result = U256([0, 0, 0, 0]).full_mul(U256([0, 0, 0, 0]));
 		assert_eq!(U512([0, 0, 0, 0, 0, 0, 0, 0]), result);

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore rpc v1.
-//! 
+//!
 //! Compliant with ethereum rpc.
 
 pub mod traits;
@@ -23,6 +23,7 @@ mod impls;
 mod types;
 #[cfg(test)]
 mod tests;
+mod helpers;
 
-pub use self::traits::{Web3, Eth, EthFilter, Net};
+pub use self::traits::{Web3, Eth, EthFilter, Personal, Net};
 pub use self::impls::*;

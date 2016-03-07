@@ -9,8 +9,8 @@ mod inner {
     pub fn main() {
         let out_dir = env::var_os("OUT_DIR").unwrap();
 
-        let src = Path::new("src/lib.rs.in");
-        let dst = Path::new(&out_dir).join("lib.rs");
+        let src = Path::new("src/v1/types/mod.rs.in");
+        let dst = Path::new(&out_dir).join("mod.rs");
 
         let mut registry = syntex::Registry::new();
 

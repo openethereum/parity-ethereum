@@ -65,6 +65,7 @@ Usage:
 Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
                            or frontier, mainnet, morden, or testnet [default: frontier].
+  --archive                Client should not prune the state/storage trie.
   -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
 
@@ -85,6 +86,10 @@ Options:
   --jsonrpc-url URL        Specify URL for JSON-RPC API server [default: 127.0.0.1:8545].
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
 
+  --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
+                           from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
+  --extra-data STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
+
   -l --logging LOGGING     Specify the logging level.
   -v --version             Show information about version.
   -h --help                Show this screen.
@@ -98,6 +103,7 @@ struct Args {
 	flag_chain: String,
 	flag_db_path: String,
 	flag_keys_path: String,
+	flag_archive: bool,
 	flag_no_bootstrap: bool,
 	flag_listen_address: String,
 	flag_public_address: Option<String>,
@@ -114,6 +120,8 @@ struct Args {
 	flag_jsonrpc_cors: String,
 	flag_logging: Option<String>,
 	flag_version: bool,
+	flag_author: String,
+	flag_extra_data: Option<String>,
 }
 
 fn setup_log(init: &Option<String>) {
@@ -194,6 +202,18 @@ impl Configuration {
 
 	fn path(&self) -> String {
 		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+	}
+
+	fn author(&self) -> Address {
+		Address::from_str(&self.args.flag_author).unwrap_or_else(|_| die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", self.args.flag_author))
+	}
+
+	fn extra_data(&self) -> Bytes {
+		match self.args.flag_extra_data {
+			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
+			None => version_data(),
+			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+		}
 	}
 
 	fn _keys_path(&self) -> String {
@@ -293,9 +313,12 @@ impl Configuration {
 		let mut client_config = ClientConfig::default();
 		client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
 		client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
+		client_config.prefer_journal = !self.args.flag_archive;
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
 		let client = service.client().clone();
+		client.set_author(self.author());
+		client.set_extra_data(self.extra_data());
 
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client);
@@ -354,7 +377,6 @@ impl Default for Informant {
 }
 
 impl Informant {
-
 	fn format_bytes(b: usize) -> String {
 		match binary_prefix(b as f64) {
 			Standalone(bytes)   => format!("{} bytes", bytes),

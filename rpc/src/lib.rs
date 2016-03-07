@@ -27,9 +27,35 @@ extern crate jsonrpc_http_server;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
+extern crate transient_hashmap;
 
-#[cfg(feature = "serde_macros")]
-include!("lib.rs.in");
+use self::jsonrpc_core::{IoHandler, IoDelegate};
 
-#[cfg(not(feature = "serde_macros"))]
-include!(concat!(env!("OUT_DIR"), "/lib.rs"));
+pub mod v1;
+
+/// Http server.
+pub struct HttpServer {
+	handler: IoHandler,
+	threads: usize
+}
+
+impl HttpServer {
+	/// Construct new http server object with given number of threads.
+	pub fn new(threads: usize) -> HttpServer {
+		HttpServer {
+			handler: IoHandler::new(),
+			threads: threads
+		}
+	}
+
+	/// Add io delegate.
+	pub fn add_delegate<D>(&mut self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
+		self.handler.add_delegate(delegate);
+	}
+
+	/// Start server asynchronously in new thread
+	pub fn start_async(self, addr: &str, cors_domain: &str) {
+		let server = jsonrpc_http_server::Server::new(self.handler, self.threads);
+		server.start_async(addr, jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain.to_owned()))
+	}
+}

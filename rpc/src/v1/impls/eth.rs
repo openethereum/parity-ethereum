@@ -15,21 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
-use std::sync::{Arc, Weak};
+use std::collections::HashMap;
+use std::sync::{Arc, Weak, Mutex, RwLock};
 use ethsync::{EthSync, SyncState};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
+use util::rlp::encode;
 use ethcore::client::*;
+use ethcore::block::{IsBlock};
 use ethcore::views::*;
+//#[macro_use] extern crate log;
+use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
+use v1::helpers::{PollFilter, PollManager};
 
 /// Eth rpc implementation.
 pub struct EthClient {
 	client: Weak<Client>,
-	sync: Weak<EthSync>
+	sync: Weak<EthSync>,
+	hashrates: RwLock<HashMap<H256, u64>>,
 }
 
 impl EthClient {
@@ -37,7 +44,8 @@ impl EthClient {
 	pub fn new(client: &Arc<Client>, sync: &Arc<EthSync>) -> Self {
 		EthClient {
 			client: Arc::downgrade(client),
-			sync: Arc::downgrade(sync)
+			sync: Arc::downgrade(sync),
+			hashrates: RwLock::new(HashMap::new()),
 		}
 	}
 
@@ -124,7 +132,7 @@ impl Eth for EthClient {
 	// TODO: return real value of mining once it's implemented.
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => Ok(Value::Bool(false)),
+			Params::None => to_value(&!self.hashrates.read().unwrap().is_empty()),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -132,7 +140,7 @@ impl Eth for EthClient {
 	// TODO: return real hashrate once we have mining
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&U256::zero()),
+			Params::None => to_value(&self.hashrates.read().unwrap().iter().fold(0u64, |sum, (_, v)| sum + v)),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -208,32 +216,139 @@ impl Eth for EthClient {
 				to_value(&logs)
 			})
 	}
+
+	fn work(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => {
+				let c = take_weak!(self.client);
+				let u = c.sealing_block().lock().unwrap();
+				match *u {
+					Some(ref b) => {
+						let pow_hash = b.hash();
+						let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
+						let seed_hash = Ethash::get_seedhash(b.block().header().number());
+						to_value(&(pow_hash, seed_hash, target))
+					}
+					_ => Err(Error::invalid_params())
+				}
+			},
+			_ => Err(Error::invalid_params())
+		}
+	}
+
+	fn submit_work(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
+//			trace!("Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
+			let c = take_weak!(self.client);
+			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
+			let r = c.submit_seal(pow_hash, seal);
+			to_value(&r.is_ok())
+		})
+	}
+
+	fn submit_hashrate(&self, params: Params) -> Result<Value, Error> {
+		// TODO: Index should be U256.
+		from_params::<(Index, H256)>(params).and_then(|(rate, id)| {
+			self.hashrates.write().unwrap().insert(id, rate.value() as u64);
+			to_value(&true)
+		})
+	}
 }
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
-	client: Weak<Client>
+	client: Weak<Client>,
+	polls: Mutex<PollManager<PollFilter>>,
 }
 
 impl EthFilterClient {
 	/// Creates new Eth filter client.
 	pub fn new(client: &Arc<Client>) -> Self {
 		EthFilterClient {
-			client: Arc::downgrade(client)
+			client: Arc::downgrade(client),
+			polls: Mutex::new(PollManager::new())
 		}
 	}
 }
 
 impl EthFilter for EthFilterClient {
-	fn new_block_filter(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(0))
+	fn new_filter(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Filter,)>(params)
+			.and_then(|(filter,)| {
+				let mut polls = self.polls.lock().unwrap();
+				let id = polls.create_poll(PollFilter::Logs(filter.into()), take_weak!(self.client).chain_info().best_block_number);
+				to_value(&U256::from(id))
+			})
 	}
 
-	fn new_pending_transaction_filter(&self, _params: Params) -> Result<Value, Error> {
-		Ok(Value::U64(1))
+	fn new_block_filter(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => {
+				let mut polls = self.polls.lock().unwrap();
+				let id = polls.create_poll(PollFilter::Block, take_weak!(self.client).chain_info().best_block_number);
+				to_value(&U256::from(id))
+			},
+			_ => Err(Error::invalid_params())
+		}
 	}
 
-	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
-		to_value(&take_weak!(self.client).chain_info().best_block_hash).map(|v| Value::Array(vec![v]))
+	fn new_pending_transaction_filter(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => {
+				let mut polls = self.polls.lock().unwrap();
+				let id = polls.create_poll(PollFilter::PendingTransaction, take_weak!(self.client).chain_info().best_block_number);
+				to_value(&U256::from(id))
+			},
+			_ => Err(Error::invalid_params())
+		}
+	}
+
+	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
+		let client = take_weak!(self.client);
+		from_params::<(Index,)>(params)
+			.and_then(|(index,)| {
+				let info = self.polls.lock().unwrap().get_poll_info(&index.value()).cloned();
+				match info {
+					None => Ok(Value::Array(vec![] as Vec<Value>)),
+					Some(info) => match info.filter {
+						PollFilter::Block => {
+							let current_number = client.chain_info().best_block_number;
+							let hashes = (info.block_number..current_number).into_iter()
+								.map(BlockId::Number)
+								.filter_map(|id| client.block_hash(id))
+								.collect::<Vec<H256>>();
+
+							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
+
+							to_value(&hashes)
+						},
+						PollFilter::PendingTransaction => {
+							// TODO: fix implementation once TransactionQueue is merged
+							to_value(&vec![] as &Vec<H256>)
+						},
+						PollFilter::Logs(mut filter) => {
+							filter.from_block = BlockId::Number(info.block_number);
+							filter.to_block = BlockId::Latest;
+							let logs = client.logs(filter)
+								.into_iter()
+								.map(From::from)
+								.collect::<Vec<Log>>();
+
+							let current_number = client.chain_info().best_block_number;
+							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
+
+							to_value(&logs)
+						}
+					}
+				}
+			})
+	}
+
+	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Index,)>(params)
+			.and_then(|(index,)| {
+				self.polls.lock().unwrap().remove_poll(&index.value());
+				to_value(&true)
+			})
 	}
 }

@@ -16,12 +16,14 @@
 
 //! Blockchain database client.
 
+use std::marker::PhantomData;
+use std::sync::atomic::AtomicBool;
 use util::*;
 use util::panics::*;
 use blockchain::{BlockChain, BlockProvider};
 use views::BlockView;
 use error::*;
-use header::{BlockNumber, Header};
+use header::{BlockNumber};
 use state::State;
 use spec::Spec;
 use engine::Engine;
@@ -35,6 +37,7 @@ use transaction::LocalizedTransaction;
 use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
+use util::keys::store::SecretStore;
 pub use block_queue::{BlockQueueConfig, BlockQueueInfo};
 pub use blockchain::{TreeRoute, BlockChainConfig, CacheSize as BlockChainCacheSize};
 
@@ -76,12 +79,24 @@ pub enum BlockStatus {
 }
 
 /// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ClientConfig {
 	/// Block queue configuration.
 	pub queue: BlockQueueConfig,
 	/// Blockchain configuration.
 	pub blockchain: BlockChainConfig,
+	/// Prefer journal rather than archive.
+	pub prefer_journal: bool,
+}
+
+impl Default for ClientConfig {
+	fn default() -> ClientConfig {
+		ClientConfig {
+			queue: Default::default(),
+			blockchain: Default::default(),
+			prefer_journal: false,
+		}
+	}
 }
 
 /// Information about the blockchain gathered together.
@@ -122,6 +137,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get block total difficulty.
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
+
+	/// Get block hash.
+	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
 	/// Get address code.
 	fn code(&self, address: &Address) -> Option<Bytes>;
@@ -176,7 +194,7 @@ pub struct ClientReport {
 
 impl ClientReport {
 	/// Alter internal reporting to reflect the additional `block` has been processed.
-	pub fn accrue_block(&mut self, block: &PreVerifiedBlock) {
+	pub fn accrue_block(&mut self, block: &PreverifiedBlock) {
 		self.blocks_imported += 1;
 		self.transactions_applied += block.transactions.len();
 		self.gas_processed = self.gas_processed + block.header.gas_used;
@@ -185,7 +203,7 @@ impl ClientReport {
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
-pub struct Client {
+pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<JournalDB>,
@@ -193,18 +211,33 @@ pub struct Client {
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
+
+	// for sealing...
+	sealing_enabled: AtomicBool,
+	sealing_block: Mutex<Option<ClosedBlock>>,
+	author: RwLock<Address>,
+	extra_data: RwLock<Bytes>,
+	verifier: PhantomData<V>,
+	secret_store: Arc<RwLock<SecretStore>>,
 }
 
 const HISTORY: u64 = 1000;
 const CLIENT_DB_VER_STR: &'static str = "4.0";
 
-impl Client {
+impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
 	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+		Client::<CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
+	}
+}
+
+impl<V> Client<V> where V: Verifier {
+	///  Create a new client with given spec and DB path and custom verifier.
+	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, Error> {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
-		dir.push(format!("v{}-sec-pruned", CLIENT_DB_VER_STR));
+		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, if config.prefer_journal { "pruned" } else { "archive" }));
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, path));
@@ -212,7 +245,7 @@ impl Client {
 		state_path.push("state");
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = JournalDB::new(state_path.to_str().unwrap());
+		let mut state_db = JournalDB::from_prefs(state_path.to_str().unwrap(), config.prefer_journal);
 		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
@@ -221,6 +254,9 @@ impl Client {
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
+		let secret_store = Arc::new(RwLock::new(SecretStore::new()));
+		secret_store.write().unwrap().try_import_existing();
+
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine,
@@ -228,7 +264,13 @@ impl Client {
 			block_queue: block_queue,
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
-			panic_handler: panic_handler
+			panic_handler: panic_handler,
+			sealing_enabled: AtomicBool::new(false),
+			sealing_block: Mutex::new(None),
+			author: RwLock::new(Address::new()),
+			extra_data: RwLock::new(Vec::new()),
+			verifier: PhantomData,
+			secret_store: secret_store,
 		}))
 	}
 
@@ -237,10 +279,10 @@ impl Client {
 		self.block_queue.flush();
 	}
 
-	fn build_last_hashes(&self, header: &Header) -> LastHashes {
+	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {
 		let mut last_hashes = LastHashes::new();
 		last_hashes.resize(256, H256::new());
-		last_hashes[0] = header.parent_hash.clone();
+		last_hashes[0] = parent_hash;
 		for i in 0..255 {
 			match self.chain.block_details(&last_hashes[i]) {
 				Some(details) => {
@@ -252,12 +294,24 @@ impl Client {
 		last_hashes
 	}
 
-	fn check_and_close_block(&self, block: &PreVerifiedBlock) -> Result<ClosedBlock, ()> {
+	/// Secret store (key manager)
+	pub fn secret_store(&self) -> &Arc<RwLock<SecretStore>> {
+		&self.secret_store
+	}
+
+	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<ClosedBlock, ()> {
 		let engine = self.engine.deref().deref();
 		let header = &block.header;
 
+		// Check the block isn't so old we won't be able to enact it.
+		let best_block_number = self.chain.best_block_number();
+		if best_block_number >= HISTORY && header.number() <= best_block_number - HISTORY {
+			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
+			return Err(());
+		}
+
 		// Verify Block Family
-		let verify_family_result = verify_block_family(&header, &block.bytes, engine, self.chain.deref());
+		let verify_family_result = V::verify_block_family(&header, &block.bytes, engine, self.chain.deref());
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -272,7 +326,7 @@ impl Client {
 
 		// Enact Verified Block
 		let parent = chain_has_parent.unwrap();
-		let last_hashes = self.build_last_hashes(header);
+		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().clone();
 
 		let enact_result = enact_verified(&block, engine, db, &parent, last_hashes);
@@ -283,7 +337,7 @@ impl Client {
 
 		// Final Verification
 		let closed_block = enact_result.unwrap();
-		if let Err(e) = verify_block_final(&header, closed_block.block().header()) {
+		if let Err(e) = V::verify_block_final(&header, closed_block.block().header()) {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		}
@@ -300,6 +354,8 @@ impl Client {
 
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.drain(max_blocks_to_import);
+
+		let original_best = self.chain_info().best_block_hash;
 
 		for block in blocks {
 			let header = &block.header;
@@ -353,6 +409,10 @@ impl Client {
 			}
 		}
 
+		if self.chain_info().best_block_hash != original_best && self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			self.prepare_sealing();
+		}
+
 		imported
 	}
 
@@ -399,9 +459,85 @@ impl Client {
 			BlockId::Latest => Some(self.chain.best_block_number())
 		}
 	}
+
+	/// Get the author that we will seal blocks as.
+	pub fn author(&self) -> Address {
+		self.author.read().unwrap().clone()
+	}
+
+	/// Set the author that we will seal blocks as.
+	pub fn set_author(&self, author: Address) {
+		*self.author.write().unwrap() = author;
+	}
+
+	/// Get the extra_data that we will seal blocks wuth.
+	pub fn extra_data(&self) -> Bytes {
+		self.extra_data.read().unwrap().clone()
+	}
+
+	/// Set the extra_data that we will seal blocks with.
+	pub fn set_extra_data(&self, extra_data: Bytes) {
+		*self.extra_data.write().unwrap() = extra_data;
+	}
+
+	/// New chain head event. Restart mining operation.
+	pub fn prepare_sealing(&self) {
+		let h = self.chain.best_block_hash();
+		let mut b = OpenBlock::new(
+			self.engine.deref().deref(),
+			self.state_db.lock().unwrap().clone(),
+			match self.chain.block_header(&h) { Some(ref x) => x, None => {return;} },
+			self.build_last_hashes(h.clone()),
+			self.author(),
+			self.extra_data()
+		);
+
+		self.chain.find_uncle_headers(&h, self.engine.deref().deref().maximum_uncle_age()).unwrap().into_iter().take(self.engine.deref().deref().maximum_uncle_count()).foreach(|h| { b.push_uncle(h).unwrap(); });
+
+		// TODO: push transactions.
+
+		let b = b.close();
+		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
+		*self.sealing_block.lock().unwrap() = Some(b);
+	}
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
+		if self.sealing_block.lock().unwrap().is_none() {
+			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
+			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
+			self.prepare_sealing();
+		}
+		&self.sealing_block
+	}
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	pub fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+		let mut maybe_b = self.sealing_block.lock().unwrap();
+		match *maybe_b {
+			Some(ref b) if b.hash() == pow_hash => {}
+			_ => { return Err(Error::PowHashInvalid); }
+		}
+
+		let b = maybe_b.take();
+		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
+			Err(old) => {
+				*maybe_b = Some(old);
+				Err(Error::PowInvalid)
+			}
+			Ok(sealed) => {
+				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
+				try!(self.import_block(sealed.rlp_bytes()));
+				Ok(())
+			}
+		}
+	}
 }
 
-impl BlockChainClient for Client {
+// TODO: need MinerService MinerIoHandler
+
+impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
 	}
@@ -436,6 +572,10 @@ impl BlockChainClient for Client {
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
+		Self::block_hash(&self.chain, id)
+	}
+
 	fn code(&self, address: &Address) -> Option<Bytes> {
 		self.state().code(address)
 	}
@@ -466,12 +606,14 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&self, bytes: Bytes) -> ImportResult {
-		let header = BlockView::new(&bytes).header();
-		if self.chain.is_known(&header.hash()) {
-			return Err(ImportError::AlreadyInChain);
-		}
-		if self.block_status(BlockId::Hash(header.parent_hash)) == BlockStatus::Unknown {
-			return Err(ImportError::UnknownParent);
+		{
+			let header = BlockView::new(&bytes).header_view();
+			if self.chain.is_known(&header.sha3()) {
+				return Err(x!(ImportError::AlreadyInChain));
+			}
+			if self.block_status(BlockId::Hash(header.parent_hash())) == BlockStatus::Unknown {
+				return Err(x!(BlockError::UnknownParent(header.parent_hash())));
+			}
 		}
 		self.block_queue.import_block(bytes)
 	}

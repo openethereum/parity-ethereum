@@ -14,18 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interfaces.
+mod bloom;
+mod block;
+mod complete;
+mod fork;
+pub mod generator;
 
-macro_rules! rpc_unimplemented {
-	() => (Err(Error::internal_error()))
-}
-
-pub mod web3;
-pub mod eth;
-pub mod net;
-pub mod personal;
-
-pub use self::web3::Web3;
-pub use self::eth::{Eth, EthFilter};
-pub use self::net::Net;
-pub use self::personal::Personal;
+pub use self::complete::BlockFinalizer;
+pub use self::generator::{ChainIterator, ChainGenerator};

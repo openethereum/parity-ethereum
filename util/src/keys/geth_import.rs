@@ -99,10 +99,20 @@ mod tests {
 	use common::*;
 	use keys::store::SecretStore;
 
+	fn test_path() -> &'static str {
+		match ::std::fs::metadata("res") {
+			Ok(_) => "res/geth_keystore",
+			Err(_) => "util/res/geth_keystore"
+		}
+	}
+
+	fn test_path_param(param_val: &'static str) -> String {
+		test_path().to_owned() + param_val
+	}
 
 	#[test]
 	fn can_enumerate() {
-		let keys = enumerate_geth_keys(Path::new("res/geth_keystore")).unwrap();
+		let keys = enumerate_geth_keys(Path::new(test_path())).unwrap();
 		assert_eq!(2, keys.len());
 	}
 
@@ -110,7 +120,7 @@ mod tests {
 	fn can_import() {
 		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());
-		import_geth_key(&mut secret_store, Path::new("res/geth_keystore/UTC--2016-02-17T09-20-45.721400158Z--3f49624084b67849c7b4e805c5988c21a430f9d9")).unwrap();
+		import_geth_key(&mut secret_store, Path::new(&test_path_param("/UTC--2016-02-17T09-20-45.721400158Z--3f49624084b67849c7b4e805c5988c21a430f9d9"))).unwrap();
 		let key = secret_store.account(&Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
 		assert!(key.is_some());
 	}
@@ -119,7 +129,7 @@ mod tests {
 	fn can_import_directory() {
 		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());
-		import_geth_keys(&mut secret_store, Path::new("res/geth_keystore")).unwrap();
+		import_geth_keys(&mut secret_store, Path::new(test_path())).unwrap();
 
 		let key = secret_store.account(&Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
 		assert!(key.is_some());
@@ -134,7 +144,7 @@ mod tests {
 		let temp = ::devtools::RandomTempPath::create_dir();
 		{
 			let mut secret_store = SecretStore::new_in(temp.as_path());
-			import_geth_keys(&mut secret_store, Path::new("res/geth_keystore")).unwrap();
+			import_geth_keys(&mut secret_store, Path::new(test_path())).unwrap();
 		}
 
 		let key_directory = KeyDirectory::new(&temp.as_path());
@@ -156,7 +166,7 @@ mod tests {
 
 		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());
-		import_geth_keys(&mut secret_store, Path::new("res/geth_keystore")).unwrap();
+		import_geth_keys(&mut secret_store, Path::new(test_path())).unwrap();
 
 		let val = secret_store.get::<Bytes>(&H128::from_str("62a0ad73556d496a8e1c0783d30d3ace").unwrap(), "123");
 		assert!(val.is_ok());

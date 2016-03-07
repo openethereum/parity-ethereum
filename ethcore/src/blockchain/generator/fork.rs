@@ -14,18 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interfaces.
-
-macro_rules! rpc_unimplemented {
-	() => (Err(Error::internal_error()))
+pub trait Forkable {
+	fn fork(self, fork_number: usize) -> Self where Self: Sized;
 }
 
-pub mod web3;
-pub mod eth;
-pub mod net;
-pub mod personal;
+pub struct Fork<I> {
+	pub iter: I,
+	pub fork_number: usize,
+}
 
-pub use self::web3::Web3;
-pub use self::eth::{Eth, EthFilter};
-pub use self::net::Net;
-pub use self::personal::Personal;
+impl<I> Clone for Fork<I> where I: Iterator + Clone {
+	fn clone(&self) -> Self {
+		Fork {
+			iter: self.iter.clone(),
+			fork_number: self.fork_number
+		}
+	}
+}
+
+impl<I> Iterator for Fork<I> where I: Iterator, <I as Iterator>::Item: Forkable {
+	type Item = <I as Iterator>::Item;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.iter.next().map(|item| item.fork(self.fork_number))
+	}
+}

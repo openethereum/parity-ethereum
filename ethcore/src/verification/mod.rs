@@ -14,4 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod generators;
+pub mod verification;
+pub mod verifier;
+mod canon_verifier;
+mod noop_verifier;
+
+pub use self::verification::*;
+pub use self::verifier::Verifier;
+pub use self::canon_verifier::CanonVerifier;
+pub use self::noop_verifier::NoopVerifier;

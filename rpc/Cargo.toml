@@ -9,15 +9,18 @@ build = "build.rs"
 [lib]
 
 [dependencies]
+log = "0.3"
 serde = "0.7.0"
 serde_json = "0.7.0"
 jsonrpc-core = "1.2"
 jsonrpc-http-server = "2.1"
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
+ethash = { path = "../ethash" }
 ethsync = { path = "../sync" }
 clippy = { version = "0.0.44", optional = true }
 rustc-serialize = "0.3"
+transient-hashmap = "0.1"
 serde_macros = { version = "0.7.0", optional = true }
 
 [build-dependencies]

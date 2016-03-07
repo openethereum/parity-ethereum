@@ -29,7 +29,7 @@ pub type BlockNumber = u64;
 /// which is non-specific.
 ///
 /// Doesn't do all that much on its own.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub struct Header {
 	// TODO: make all private.
 	/// Parent hash.
@@ -70,6 +70,25 @@ pub struct Header {
 	pub bare_hash: RefCell<Option<H256>>,
 }
 
+impl PartialEq for Header {
+	fn eq(&self, c: &Header) -> bool {
+		self.parent_hash == c.parent_hash &&
+		self.timestamp == c.timestamp &&
+		self.number == c.number &&
+		self.author == c.author &&
+		self.transactions_root == c.transactions_root &&
+		self.uncles_hash == c.uncles_hash &&
+		self.extra_data == c.extra_data &&
+		self.state_root == c.state_root &&
+		self.receipts_root == c.receipts_root &&
+		self.log_bloom == c.log_bloom &&
+		self.gas_used == c.gas_used &&
+		self.gas_limit == c.gas_limit &&
+		self.difficulty == c.difficulty &&
+		self.seal == c.seal
+	}
+}
+
 impl Default for Header {
 	fn default() -> Self {
 		Header {
@@ -102,10 +121,12 @@ impl Header {
 		Self::default()
 	}
 
-	/// Get the number field of the header.
-	pub fn number(&self) -> BlockNumber { self.number }
+	/// Get the parent_hash field of the header.
+	pub fn parent_hash(&self) -> &H256 { &self.parent_hash }
 	/// Get the timestamp field of the header.
 	pub fn timestamp(&self) -> u64 { self.timestamp }
+	/// Get the number field of the header.
+	pub fn number(&self) -> BlockNumber { self.number }
 	/// Get the author field of the header.
 	pub fn author(&self) -> &Address { &self.author }
 
@@ -127,11 +148,13 @@ impl Header {
 	// TODO: seal_at, set_seal_at &c.
 
 	/// Set the number field of the header.
-	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
+	pub fn set_parent_hash(&mut self, a: H256) { self.parent_hash = a; self.note_dirty(); }
 	/// Set the timestamp field of the header.
 	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
 	/// Set the timestamp field of the header to the current time.
-	pub fn set_timestamp_now(&mut self) { self.timestamp = now_utc().to_timespec().sec as u64; self.note_dirty(); }
+	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = max(now_utc().to_timespec().sec as u64, but_later_than + 1); self.note_dirty(); }
+	/// Set the number field of the header.
+	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
 	/// Set the author field of the header.
 	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
 
