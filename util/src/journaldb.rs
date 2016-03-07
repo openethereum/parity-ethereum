@@ -351,7 +351,7 @@ impl JournalDB {
 	fn read_counters(db: &Database) -> HashMap<H256, i32> {
 		let mut counters = HashMap::new();
 		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val) + 1;
+			let mut era = decode::<u64>(&val);
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
@@ -366,10 +366,10 @@ impl JournalDB {
 					Self::replay_keys(&inserts, db, &mut counters);
 					index += 1;
 				};
-				if index == 0 {
+				if index == 0 || era == 0 {
 					break;
 				}
-				era += 1;
+				era -= 1;
 			}
 		}
 		trace!("Recovered {} counters", counters.len());
