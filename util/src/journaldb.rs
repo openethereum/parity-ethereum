@@ -182,7 +182,7 @@ impl JournalDB {
 	}
 
 	fn replay_keys(inserts: &Vec<H256>, backing: &Database, counters: &mut HashMap<H256, i32>) {
-		println!("replay_keys: inserts={:?}, counters={:?}", inserts, counters);
+		trace!("replay_keys: inserts={:?}, counters={:?}", inserts, counters);
 		for h in inserts {
 			if let Some(c) = counters.get_mut(h) {
 				// already counting. increment.
@@ -193,11 +193,11 @@ impl JournalDB {
 			// this is the first entry for this node in the journal.
 			// it is initialised to 1 if it was already in.
 			if Self::is_already_in(backing, h) {
-				println!("replace_keys: Key {} was already in!", h);
+				trace!("replace_keys: Key {} was already in!", h);
 				counters.insert(h.clone(), 1);
 			}
 		}
-		println!("replay_keys: (end) counters={:?}", counters);
+		trace!("replay_keys: (end) counters={:?}", counters);
 	}
 
 	fn kill_keys(deletes: Vec<H256>, counters: &mut HashMap<H256, i32>, batch: &DBTransaction) {
@@ -364,7 +364,7 @@ impl JournalDB {
 					r.append(&&PADDING[..]);
 					&r.drain()
 				}).expect("Low-level database error.") {
-					println!("read_counters: era={}, index={}", era, index);
+					trace!("read_counters: era={}, index={}", era, index);
 					let rlp = Rlp::new(&rlp_data);
 					let inserts: Vec<H256> = rlp.val_at(1);
 					Self::replay_keys(&inserts, db, &mut counters);
