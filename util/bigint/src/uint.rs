@@ -73,17 +73,17 @@ macro_rules! uint_overflowing_add_reg {
 		let $name(ref you) = $other;
 
 		let mut ret = [0u64; $n_words];
-		let mut carry = [0u64; $n_words + 1];
+		let mut carry = 0u64;
 
 		for i in 0..$n_words {
 			let (res1, overflow1) = me[i].overflowing_add(you[i]);
-			let (res2, overflow2) = res1.overflowing_add(carry[i]);
+			let (res2, overflow2) = res1.overflowing_add(carry);
 
 			ret[i] = res2;
-			carry[i+1] = overflow1 as u64 + overflow2 as u64;
+			carry = overflow1 as u64 + overflow2 as u64;
 		}
 
-		($name(ret), carry[$n_words] > 0)
+		($name(ret), carry > 0)
 	})
 }
 
@@ -684,21 +684,21 @@ macro_rules! construct_uint {
 			fn overflowing_mul_u32(self, other: u32) -> (Self, bool) {
 				let $name(ref arr) = self;
 				let o = other as u64;
-				let mut carry = [0u64; $n_words + 1];
 				let mut ret = [0u64; $n_words];
+				let mut carry = 0;
 
 				for i in 0..$n_words {
 					let upper = o * (arr[i] >> 32);
 					let lower = o * (arr[i] & 0xFFFFFFFF);
 
 					let (res1, overflow1) = lower.overflowing_add(upper << 32);
-					let (res2, overflow2) = res1.overflowing_add(carry[i]);
+					let (res2, overflow2) = res1.overflowing_add(carry);
 
 					ret[i] = res2;
-					carry[i + 1] = (upper >> 32) + overflow1 as u64 + overflow2 as u64;
+					carry = (upper >> 32) + overflow1 as u64 + overflow2 as u64;
 				}
 
-				($name(ret), carry[$n_words] > 0)
+				($name(ret), carry > 0)
 			}
 		}
 
