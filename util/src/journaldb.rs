@@ -495,6 +495,59 @@ mod tests {
 	}
 
 	#[test]
+	fn reopen_remove() {
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+		let bar = H256::random();
+
+		let foo = {
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.insert(b"foo");
+			jdb.commit(1, &b"1".sha3(), None).unwrap();
+			foo
+		};
+
+		{
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			jdb.remove(&foo);
+			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			assert!(jdb.exists(&foo));
+			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+			assert!(!jdb.exists(&foo));
+		}
+	}
+	#[test]
+	fn reopen_fork() {
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+		let (foo, bar, baz) = {
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			let bar = jdb.insert(b"bar");
+			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.remove(&foo);
+			let baz = jdb.insert(b"baz");
+			jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			jdb.remove(&bar);
+			jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+			(foo, bar, baz)
+		};
+
+		{
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+			assert!(jdb.exists(&foo));
+			assert!(!jdb.exists(&baz));
+			assert!(!jdb.exists(&bar));
+		}
+	}
+
+	#[test]
 	fn fork_same_key() {
 		// history is 1
 		let mut jdb = JournalDB::new_temp();
