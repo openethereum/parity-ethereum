@@ -90,6 +90,84 @@ impl JournalDB {
 		self.backing.get(&LAST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
+	fn morph_key(key: &H256, index: u8) -> Bytes {
+		let mut ret = key.bytes().to_owned();
+		ret.push(index);
+		ret
+	}
+
+	// The next three are valid only as long as there is an insert operation of `key` in the journal.
+	fn set_already_in(batch: &WriteBatch, key: &H256) { batch.put(&Self::morph_key(key, 0), &[1u8]).expect("Low-level database error. Some issue with your hard disk?"); }
+	fn reset_already_in(batch: &WriteBatch, key: &H256) { batch.delete(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?"); }
+	fn is_already_in(backing: &DB, key: &H256) -> bool {
+		backing.get(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
+	}
+
+	fn insert_keys(inserts: &Vec<(H256, Bytes)>, backing: &DB, counters: &mut HashMap<H256, i32>, batch: &WriteBatch) {
+		for &(ref h, ref d) in inserts {
+			if let Some(c) = counters.get_mut(h) {
+				// already counting. increment.
+				*c += 1;
+				continue;
+			}
+
+			// this is the first entry for this node in the journal.
+			if backing.get(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?").is_some() {
+				// already in the backing DB. start counting, and remember it was already in.
+				Self::set_already_in(batch, &h);
+				counters.insert(h.clone(), 1);
+				continue;
+			}
+
+			// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
+			//Self::reset_already_in(&h);
+			assert!(!Self::is_already_in(backing, &h));
+			batch.put(&h.bytes(), d).expect("Low-level database error. Some issue with your hard disk?");
+		}
+	}
+
+	fn replay_keys(inserts: &Vec<H256>, backing: &DB, counters: &mut HashMap<H256, i32>) {
+		for h in inserts {
+			if let Some(c) = counters.get_mut(h) {
+				// already counting. increment.
+				*c += 1;
+				continue;
+			}
+
+			// this is the first entry for this node in the journal.
+			// it is initialised to 1 if it was already in.
+			if Self::is_already_in(backing, h) {
+				counters.insert(h.clone(), 1);
+			}
+		}
+	}
+
+	fn kill_keys(deletes: Vec<H256>, counters: &mut HashMap<H256, i32>, batch: &WriteBatch) {
+		for h in deletes.into_iter() {
+			let mut n: Option<i32> = None;
+			if let Some(c) = counters.get_mut(&h) {
+				if *c > 1 {
+					*c -= 1;
+					continue;
+				} else {
+					n = Some(*c);
+				}
+			}
+			match &n {
+				&Some(i) if i == 1 => {
+					counters.remove(&h);
+					Self::reset_already_in(batch, &h);
+				}
+				&None => {
+					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
+					//assert!(!Self::is_already_in(db, &h));
+					batch.delete(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+				}
+				_ => panic!("Invalid value in counters: {:?}", n),
+			}
+		}
+	}
+
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
 	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
@@ -100,21 +178,42 @@ impl JournalDB {
 
 		// TODO: store reclaim_period.
 
-		// when we make a new commit, we journal the inserts and removes.
-		// for each end_era that we journaled that we are no passing by, 
-		// we remove all of its removes assuming it is canonical and all
-		// of its inserts otherwise.
+		// When we make a new commit, we make a journal of all blocks in the recent history and record
+		// all keys that were inserted and deleted. The journal is ordered by era; multiple commits can
+		// share the same era. This forms a data structure similar to a queue but whose items are tuples.
+		// By the time comes to remove a tuple from the queue (i.e. then the era passes from recent history
+		// into ancient history) then only one commit from the tuple is considered canonical. This commit
+		// is kept in the main backing database, whereas any others from the same era are reverted.
+		// 
+		// It is possible that a key, properly available in the backing database be deleted and re-inserted
+		// in the recent history queue, yet have both operations in commits that are eventually non-canonical.
+		// To avoid the original, and still required, key from being deleted, we maintain a reference count
+		// which includes an original key, if any.
+		// 
+		// The semantics of the `counter` are:
+		// insert key k:
+		//   counter already contains k: count += 1
+		//   counter doesn't contain k:
+		//     backing db contains k: count = 1
+		//     backing db doesn't contain k: insert into backing db, count = 0
+		// delete key k:
+		//   counter contains k (count is asserted to be non-zero): 
+		//     count > 1: counter -= 1
+		//     count == 1: remove counter
+		//     count == 0: remove key from backing db
+		//   counter doesn't contain k: remove key from backing db
 		//
-		// We also keep reference counters for each key inserted in the journal to handle 
-		// the following cases where key K must not be deleted from the DB when processing removals :
-		// Given H is the journal size in eras, 0 <= C <= H.
-		// Key K is removed in era A(N) and re-inserted in canonical era B(N + C).
-		// Key K is removed in era A(N) and re-inserted in non-canonical era B`(N + C).
-		// Key K is added in non-canonical era A'(N) canonical B(N + C).
+		// Practically, this means that for each commit block turning from recent to ancient we do the
+		// following:
+		// is_canonical:
+		//   inserts: Ignored (left alone in the backing database).
+		//   deletes: Enacted; however, recent history queue is checked for ongoing references. This is
+		//            reduced as a preference to deletion from the backing database.
+		// !is_canonical:
+		//   inserts: Reverted; however, recent history queue is checked for ongoing references. This is
+		//            reduced as a preference to deletion from the backing database.
+		//   deletes: Ignored (they were never inserted).
 		//
-		// The counter is encreased each time a key is inserted in the journal in the commit. The list of insertions
-		// is saved with the era record. When the era becomes end_era and goes out of journal the counter is decreased
-		// and the key is safe to delete.
 
 		// record new commit's details.
 		let batch = WriteBatch::new();
@@ -133,16 +232,29 @@ impl JournalDB {
 				index += 1;
 			}
 
+			let drained = self.overlay.drain();
+			let removes: Vec<H256> = drained
+				.iter()
+				.filter_map(|(ref k, &(_, ref c))| if *c < 0 {Some(k.clone())} else {None}).cloned()
+				.collect();
+			let inserts: Vec<(H256, Bytes)> = drained
+				.into_iter()
+				.filter_map(|(k, (v, r))| if r > 0 { assert!(r == 1); Some((k, v)) } else { assert!(r >= -1); None })
+				.collect();
+
 			let mut r = RlpStream::new_list(3);
-			let inserts: Vec<H256> = self.overlay.keys().iter().filter(|&(_, &c)| c > 0).map(|(key, _)| key.clone()).collect();
-			// Increase counter for each inserted key no matter if the block is canonical or not. 
-			for i in &inserts {
-				*counters.entry(i.clone()).or_insert(0) += 1;
-			}
-			let removes: Vec<H256> = self.overlay.keys().iter().filter(|&(_, &c)| c < 0).map(|(key, _)| key.clone()).collect();
 			r.append(id);
-			r.append(&inserts);
+
+			// Process the new inserts.
+			// We use the inserts for three things. For each:
+			// - we place into the backing DB or increment the counter if already in;
+			// - we note in the backing db that it was already in;
+			// - we write the key into our journal for this block;
+
+			r.begin_list(inserts.len());
+			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
 			r.append(&removes);
+			Self::insert_keys(&inserts, &self.backing, &mut counters, &batch);
 			try!(batch.put(&last, r.as_raw()));
 		}
 
@@ -150,8 +262,6 @@ impl JournalDB {
 		if let Some((end_era, canon_id)) = end {
 			let mut index = 0usize;
 			let mut last;
-			let mut to_remove: Vec<H256> = Vec::new();
-			let mut canon_inserts: Vec<H256> = Vec::new();
 			while let Some(rlp_data) = try!(self.backing.get({
 				let mut r = RlpStream::new_list(2);
 				r.append(&end_era);
@@ -161,65 +271,19 @@ impl JournalDB {
 			})) {
 				let rlp = Rlp::new(&rlp_data);
 				let inserts: Vec<H256> = rlp.val_at(1);
-				JournalDB::decrease_counters(&inserts, &mut counters);
+				let deletes: Vec<H256> = rlp.val_at(2);
 				// Collect keys to be removed. These are removed keys for canonical block, inserted for non-canonical
-				if canon_id == rlp.val_at(0) {
-					to_remove.extend(rlp.at(2).iter().map(|r| r.as_val::<H256>()));
-					canon_inserts = inserts;
-				}
-				else {
-					to_remove.extend(inserts);
-				}
+				Self::kill_keys(if canon_id == rlp.val_at(0) {deletes} else {inserts}, &mut counters, &batch);
 				try!(batch.delete(&last));
 				index += 1;
 			}
-
-			let canon_inserts = canon_inserts.drain(..).collect::<HashSet<_>>();
-			// Purge removed keys if they are not referenced and not re-inserted in the canon commit
-			let mut deletes = 0;
-			for h in to_remove.iter().filter(|h| !counters.contains_key(h) && !canon_inserts.contains(h)) {
-				try!(batch.delete(&h));
-				deletes += 1;
-			}
 			try!(batch.put(&LAST_ERA_KEY, &encode(&end_era)));
-			trace!("JournalDB: delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, deletes);
-		}
-
-		// Commit overlay insertions
-		let mut ret = 0u32;
-		let mut deletes = 0usize;
-		for i in self.overlay.drain().into_iter() {
-			let (key, (value, rc)) = i;
-			if rc > 0 {
-				assert!(rc == 1);
-				batch.put(&key.bytes(), &value).expect("Low-level database error. Some issue with your hard disk?");
-				ret += 1;
-			}
-			if rc < 0 {
-				assert!(rc == -1);
-				ret += 1;
-				deletes += 1;
-			}
+			trace!("JournalDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
 		}
 
 		try!(self.backing.write(batch));
-		trace!("JournalDB::commit() deleted {} nodes", deletes);
-		Ok(ret)
-	}
-
-
-	// Decrease counters for given keys. Deletes obsolete counters
-	fn decrease_counters(keys: &[H256], counters: &mut HashMap<H256, i32>) {
-		for i in keys.iter() {
-			let delete_counter = {
-				let cnt = counters.get_mut(i).expect("Missing key counter");
-				*cnt -= 1;
-				*cnt == 0
-			};
-			if delete_counter {
-				counters.remove(i);
-			}
-		}
+//		trace!("JournalDB::commit() deleted {} nodes", deletes);
+		Ok(0)
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
@@ -227,7 +291,7 @@ impl JournalDB {
 	}
 
 	fn read_counters(db: &DB) -> HashMap<H256, i32> {
-		let mut res = HashMap::new();
+		let mut counters = HashMap::new();
 		if let Some(val) = db.get(&LAST_ERA_KEY).expect("Low-level database error.") {
 			let mut era = decode::<u64>(&val) + 1;
 			loop {
@@ -239,10 +303,8 @@ impl JournalDB {
 					&r.drain()
 				}).expect("Low-level database error.") {
 					let rlp = Rlp::new(&rlp_data);
-					let to_add: Vec<H256> = rlp.val_at(1);
-					for h in to_add {
-						*res.entry(h).or_insert(0) += 1;
-					}
+					let inserts: Vec<H256> = rlp.val_at(1);
+					Self::replay_keys(&inserts, db, &mut counters);
 					index += 1;
 				};
 				if index == 0 {
@@ -251,8 +313,8 @@ impl JournalDB {
 				era += 1;
 			}
 		}
-		trace!("Recovered {} counters", res.len());
-		res
+		trace!("Recovered {} counters", counters.len());
+		counters
 	}
 }
 
