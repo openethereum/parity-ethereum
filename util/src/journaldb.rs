@@ -506,20 +506,27 @@ mod tests {
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			// foo is ancient history.
+
 			jdb.insert(b"foo");
-			jdb.commit(1, &b"1".sha3(), None).unwrap();
+			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 			foo
 		};
 
 		{
 			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
 			jdb.remove(&foo);
-			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
-			assert!(jdb.exists(&foo));
 			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+			assert!(jdb.exists(&foo));
+			jdb.remove(&foo);
+			jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(!jdb.exists(&foo));
 		}
 	}
+
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
