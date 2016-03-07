@@ -166,9 +166,22 @@ macro_rules! uint_overflowing_add {
 #[cfg(not(all(asm_available, target_arch="x86_64")))]
 macro_rules! uint_overflowing_sub {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
-		let res = overflowing!((!$other).overflowing_add(From::from(1u64)));
-		let res = overflowing!($self_expr.overflowing_add(res));
-		(res, $self_expr < $other)
+		let $name(ref me) = $self_expr;
+		let $name(ref you) = $other;
+
+		let mut ret = [0u64; $n_words];
+		let mut carry = 0u64;
+
+		for i in 0..$n_words {
+			let (res1, overflow1) = me[i].overflowing_sub(you[i]);
+			let (res2, overflow2) = res1.overflowing_sub(carry);
+
+			ret[i] = res2;
+			carry = overflow1 as u64 + overflow2 as u64;
+		}
+
+		($name(ret), carry > 0)
+
 	})
 }
 
