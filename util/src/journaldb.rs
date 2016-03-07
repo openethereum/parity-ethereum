@@ -182,6 +182,7 @@ impl JournalDB {
 	}
 
 	fn replay_keys(inserts: &Vec<H256>, backing: &Database, counters: &mut HashMap<H256, i32>) {
+		println!("replay_keys: inserts={:?}, counters={:?}", inserts, counters);
 		for h in inserts {
 			if let Some(c) = counters.get_mut(h) {
 				// already counting. increment.
@@ -192,9 +193,11 @@ impl JournalDB {
 			// this is the first entry for this node in the journal.
 			// it is initialised to 1 if it was already in.
 			if Self::is_already_in(backing, h) {
+				println!("replace_keys: Key {} was already in!", h);
 				counters.insert(h.clone(), 1);
 			}
 		}
+		println!("replay_keys: (end) counters={:?}", counters);
 	}
 
 	fn kill_keys(deletes: Vec<H256>, counters: &mut HashMap<H256, i32>, batch: &DBTransaction) {
@@ -361,6 +364,7 @@ impl JournalDB {
 					r.append(&&PADDING[..]);
 					&r.drain()
 				}).expect("Low-level database error.") {
+					println!("read_counters: era={}, index={}", era, index);
 					let rlp = Rlp::new(&rlp_data);
 					let inserts: Vec<H256> = rlp.val_at(1);
 					Self::replay_keys(&inserts, db, &mut counters);
@@ -617,17 +621,23 @@ mod tests {
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			// foo is ancient history.
+
 			jdb.insert(b"foo");
-			jdb.commit(1, &b"1".sha3(), None).unwrap();
+			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 			foo
 		};
 
 		{
 			let mut jdb = JournalDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
-			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
-			assert!(jdb.exists(&foo));
 			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+			assert!(jdb.exists(&foo));
+			jdb.remove(&foo);
+			jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(!jdb.exists(&foo));
 		}
 	}
