@@ -379,11 +379,24 @@ macro_rules! uint_overflowing_mul_reg {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let mut res = $name::from(0u64);
 		let mut overflow = false;
-		for i in 0..(2 * $n_words) {
-			let v = overflowing!($self_expr.overflowing_mul_u32(($other >> (32 * i)).low_u32()), overflow);
-			let res2 = overflowing!(v.overflowing_shl(32 * i as u32), overflow);
-			res = overflowing!(res.overflowing_add(res2), overflow);
+
+		let mut current = $other;
+		let mut current_shift = 0;
+		let mut current_u32;
+		let mut i = 0;
+
+		while i < 2*$n_words {
+			current_u32 = current.low_u32();
+
+			let v = overflowing!($self_expr.overflowing_mul_u32(current_u32), overflow);
+			let v_shifted = overflowing!(v.overflowing_shl(current_shift), overflow);
+			res = overflowing!(res.overflowing_add(v_shifted), overflow);
+
+			current = current >> 32;
+			current_shift += 32;
+			i += 1;
 		}
+
 		(res, overflow)
 	})
 }
@@ -973,6 +986,7 @@ macro_rules! construct_uint {
 				let mut ret = [0u64; $n_words];
 				let word_shift = shift / 64;
 				let bit_shift = shift % 64;
+
 				for i in word_shift..$n_words {
 					// Shift
 					ret[i - word_shift] += original[i] >> bit_shift;
@@ -989,9 +1003,11 @@ macro_rules! construct_uint {
 			fn cmp(&self, other: &$name) -> Ordering {
 				let &$name(ref me) = self;
 				let &$name(ref you) = other;
-				for i in 0..$n_words {
-					if me[$n_words - 1 - i] < you[$n_words - 1 - i] { return Ordering::Less; }
-					if me[$n_words - 1 - i] > you[$n_words - 1 - i] { return Ordering::Greater; }
+				let mut i = $n_words;
+				while i > 0 {
+					i -= 1;
+					if me[i] < you[i] { return Ordering::Less; }
+					if me[i] > you[i] { return Ordering::Greater; }
 				}
 				Ordering::Equal
 			}
