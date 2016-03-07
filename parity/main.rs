@@ -395,7 +395,7 @@ impl Informant {
 		let sync_info = sync.status();
 
 		if let (_, _, &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
-			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···// mem: {} chain, {} queue, {} sync ]",
+			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···// mem: {} db, {} chain, {} queue, {} sync ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
 				(report.blocks_imported - last_report.blocks_imported) / dur,
@@ -408,6 +408,7 @@ impl Informant {
 				queue_info.unverified_queue_size,
 				queue_info.verified_queue_size,
 
+				Informant::format_bytes(report.state_db_mem),
 				Informant::format_bytes(cache_info.total()),
 				Informant::format_bytes(queue_info.mem_used),
 				Informant::format_bytes(sync_info.mem_used),
