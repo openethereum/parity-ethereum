@@ -87,6 +87,8 @@ pub struct ClientConfig {
 	pub blockchain: BlockChainConfig,
 	/// Prefer journal rather than archive.
 	pub prefer_journal: bool,
+	/// The name of the client instance.
+	pub name: String,
 }
 
 impl Default for ClientConfig {
@@ -95,6 +97,7 @@ impl Default for ClientConfig {
 			queue: Default::default(),
 			blockchain: Default::default(),
 			prefer_journal: false,
+			name: Default::default(),
 		}
 	}
 }
