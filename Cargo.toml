@@ -12,15 +12,22 @@ rustc-serialize = "0.3"
 docopt = "0.6"
 time = "0.1"
 ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
-clippy = { version = "0.0.44", optional = true }
-ethcore-util = { path = "util" }
-ethcore = { path = "ethcore" }
-ethsync = { path = "sync" }
-ethcore-rpc = { path = "rpc", optional = true }
 fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
-ethcore-devtools = { path = "devtools" }
 number_prefix = "0.2"
+clippy = { version = "0.0.44", optional = true }
+
+ethcore = { path = "ethcore" }
+ethcore-util = { path = "util" }
+ethsync = { path = "sync" }
+ethcore-devtools = { path = "devtools" }
+ethcore-rpc = { path = "rpc", optional = true }
+
+[dev-dependencies]
+ethcore = { path = "ethcore", features = ["dev"]}
+ethcore-util = { path = "util", features = ["dev"] }
+ethsync = { path = "sync", features = ["dev"] }
+ethcore-rpc = { path = "rpc", features = ["dev"]}
 
 [features]
 default = ["rpc"]
