@@ -711,52 +711,31 @@ macro_rules! construct_uint {
 			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Multiplication by u32
 			fn mul_u32(self, other: u32) -> Self {
-				let $name(ref arr) = self;
-				let mut carry = [0u64; $n_words];
-				let mut ret = [0u64; $n_words];
-				for i in 0..$n_words {
-					let upper = other as u64 * (arr[i] >> 32);
-					let lower = other as u64 * (arr[i] & 0xFFFFFFFF);
-
-					ret[i] = lower.wrapping_add(upper << 32);
-
-					if i < $n_words - 1 {
-						carry[i + 1] = upper >> 32;
-						if ret[i] < lower {
-							carry[i + 1] += 1;
-						}
-					}
-				}
-				$name(ret) + $name(carry)
+				let (ret, overflow) = self.overflowing_mul_u32(other);
+				panic_on_overflow!(overflow);
+				ret
 			}
 
 			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Overflowing multiplication by u32
 			fn overflowing_mul_u32(self, other: u32) -> (Self, bool) {
 				let $name(ref arr) = self;
-				let mut carry = [0u64; $n_words];
+				let o = other as u64;
+				let mut carry = [0u64; $n_words + 1];
 				let mut ret = [0u64; $n_words];
-				let mut overflow = false;
+
 				for i in 0..$n_words {
-					let upper = other as u64 * (arr[i] >> 32);
-					let lower = other as u64 * (arr[i] & 0xFFFFFFFF);
+					let upper = o * (arr[i] >> 32);
+					let lower = o * (arr[i] & 0xFFFFFFFF);
 
-					ret[i] = lower.wrapping_add(upper << 32);
+					let (res1, overflow1) = lower.overflowing_add(upper << 32);
+					let (res2, overflow2) = res1.overflowing_add(carry[i]);
 
-					if i < $n_words - 1 {
-						carry[i + 1] = upper >> 32;
-						if ret[i] < lower {
-							carry[i + 1] += 1;
-						}
-					} else if (upper >> 32) > 0 || ret[i] < lower {
-						overflow = true
-					}
+					ret[i] = res2;
+					carry[i + 1] = (upper >> 32) + overflow1 as u64 + overflow2 as u64;
 				}
-				let result = overflowing!(
-					$name(ret).overflowing_add($name(carry)),
-					overflow
-					);
-				(result, overflow)
+
+				($name(ret), carry[$n_words] > 0)
 			}
 		}
 

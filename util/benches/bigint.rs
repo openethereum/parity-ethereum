@@ -79,7 +79,7 @@ fn u256_full_mul(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
 		(0..n).fold(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]),
-			|old, new| {
+			|old, _new| {
 				let U512(ref u512words) = old.full_mul(U256([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]));
 				U256([u512words[0], u512words[2], u512words[2], u512words[3]])
 			})
