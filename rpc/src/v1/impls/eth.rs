@@ -312,7 +312,8 @@ impl EthFilter for EthFilterClient {
 					None => Ok(Value::Array(vec![] as Vec<Value>)),
 					Some(info) => match info.filter {
 						PollFilter::Block => {
-							let current_number = client.chain_info().best_block_number;
+							// + 1, cause we want to return hashes including current block hash.
+							let current_number = client.chain_info().best_block_number + 1;
 							let hashes = (info.block_number..current_number).into_iter()
 								.map(BlockId::Number)
 								.filter_map(|id| client.block_hash(id))
