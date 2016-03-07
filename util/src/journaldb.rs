@@ -252,7 +252,7 @@ impl JournalDB {
 			// - we write the key into our journal for this block;
 
 			r.begin_list(inserts.len());
-			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
+			inserts.iter().foreach(|&(ref k, _)| {r.append(k);});
 			r.append(&removes);
 			Self::insert_keys(&inserts, &self.backing, &mut counters, &batch);
 			try!(batch.put(&last, r.as_raw()));
@@ -368,6 +368,7 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::*;
+	use rocksdb::DB;
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -501,7 +502,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -511,7 +512,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
 			jdb.remove(&foo);
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
@@ -524,7 +525,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -539,7 +540,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalDB::new(DB::open_default(dir.to_str().unwrap()).unwrap());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
 			assert!(!jdb.exists(&baz));
