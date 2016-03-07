@@ -27,13 +27,37 @@ use std::env;
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.
 ///
-/// If `counters` is `None`, then it behaves exactly like OverlayDB. If not it behaves
+/// If `journal_overlay` is `None`, then it behaves exactly like OverlayDB. If not it behaves
 /// differently:
 ///
 /// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to 
 /// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
+///
+/// There are two memory overlays: 
+/// - Transaction overlay contains current transaction data. It is merged with with history 
+/// overlay on each `commit()`
+/// - History overlay contains all data inserted during the history period. When the node 
+/// in the overlay becomes ancient it is written to disk on `commit()`
+///
+/// There is also a journal maintained in memory and on the disk as well which lists insertions 
+/// and removals for each commit during the history period. This is used to track 
+/// data nodes that go out of history scope and must be written to disk.
+///
+/// Commit workflow:
+/// Create a new journal record from the transaction overlay.
+/// Inseart each node from the transaction overlay into the History overlay increasing reference
+/// count if it is already there. Note that the reference counting is managed by `MemoryDB`
+/// Clear the transaction overlay.
+/// For a canonical journal record that becomes ancient inserts its insertions into the disk DB
+/// For each journal record that goes out of the history scope (becomes ancient) remove its
+/// insertions from the history overlay, decreasing the reference counter and removing entry if 
+/// if reaches zero.
+/// For a canonical journal record that becomes ancient delete its removals from the disk only if 
+/// the removed key is not present in the history overlay.
+/// Delete ancient record from memory and disk.
+/// 
 pub struct JournalDB {
 	transaction_overlay: MemoryDB,
 	backing: Arc<Database>,
@@ -220,7 +244,6 @@ impl JournalDB {
 		}
 
 		// apply old commits' details
-		
 		if let Some((end_era, canon_id)) = end {
 			let mut canon_insertions: Vec<(H256, Bytes)> = Vec::new();
 			let mut canon_deletions: Vec<H256> = Vec::new();
