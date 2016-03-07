@@ -27,7 +27,7 @@ use std::env;
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
 ///
-/// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to 
+/// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to
 /// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
@@ -158,7 +158,7 @@ impl JournalDB {
 		backing.get(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
 
-	fn insert_keys(inserts: &Vec<(H256, Bytes)>, backing: &Database, counters: &mut HashMap<H256, i32>, batch: &DBTransaction) {
+	fn insert_keys(inserts: &[(H256, Bytes)], backing: &Database, counters: &mut HashMap<H256, i32>, batch: &DBTransaction) {
 		for &(ref h, ref d) in inserts {
 			if let Some(c) = counters.get_mut(h) {
 				// already counting. increment.
@@ -181,7 +181,7 @@ impl JournalDB {
 		}
 	}
 
-	fn replay_keys(inserts: &Vec<H256>, backing: &Database, counters: &mut HashMap<H256, i32>) {
+	fn replay_keys(inserts: &[H256], backing: &Database, counters: &mut HashMap<H256, i32>) {
 		println!("replay_keys: inserts={:?}, counters={:?}", inserts, counters);
 		for h in inserts {
 			if let Some(c) = counters.get_mut(h) {
@@ -211,12 +211,12 @@ impl JournalDB {
 					n = Some(*c);
 				}
 			}
-			match &n {
-				&Some(i) if i == 1 => {
+			match n {
+				Some(i) if i == 1 => {
 					counters.remove(&h);
 					Self::reset_already_in(batch, &h);
 				}
-				&None => {
+				None => {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
 					//assert!(!Self::is_already_in(db, &h));
 					batch.delete(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?");
@@ -229,7 +229,7 @@ impl JournalDB {
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
 	fn commit_with_counters(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		// journal format: 
+		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, n] => [ ... ]
@@ -242,12 +242,12 @@ impl JournalDB {
 		// By the time comes to remove a tuple from the queue (i.e. then the era passes from recent history
 		// into ancient history) then only one commit from the tuple is considered canonical. This commit
 		// is kept in the main backing database, whereas any others from the same era are reverted.
-		// 
+		//
 		// It is possible that a key, properly available in the backing database be deleted and re-inserted
 		// in the recent history queue, yet have both operations in commits that are eventually non-canonical.
 		// To avoid the original, and still required, key from being deleted, we maintain a reference count
 		// which includes an original key, if any.
-		// 
+		//
 		// The semantics of the `counter` are:
 		// insert key k:
 		//   counter already contains k: count += 1
@@ -255,7 +255,7 @@ impl JournalDB {
 		//     backing db contains k: count = 1
 		//     backing db doesn't contain k: insert into backing db, count = 0
 		// delete key k:
-		//   counter contains k (count is asserted to be non-zero): 
+		//   counter contains k (count is asserted to be non-zero):
 		//     count > 1: counter -= 1
 		//     count == 1: remove counter
 		//     count == 0: remove key from backing db
@@ -274,7 +274,7 @@ impl JournalDB {
 		//
 
 		// record new commit's details.
-		trace!("commit: #{} ({}), end era: {:?}", now, id, end);		
+		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
 		let mut counters = self.counters.as_ref().unwrap().write().unwrap();
 		let batch = DBTransaction::new();
 		{
@@ -295,7 +295,7 @@ impl JournalDB {
 			let drained = self.overlay.drain();
 			let removes: Vec<H256> = drained
 				.iter()
-				.filter_map(|(ref k, &(_, ref c))| if *c < 0 {Some(k.clone())} else {None}).cloned()
+				.filter_map(|(k, &(_, c))| if c < 0 {Some(k.clone())} else {None})
 				.collect();
 			let inserts: Vec<(H256, Bytes)> = drained
 				.into_iter()
@@ -382,12 +382,15 @@ impl JournalDB {
 
 	/// Returns heap memory size used
 	pub fn mem_used(&self) -> usize {
-		self.overlay.mem_used() + match &self.counters { &Some(ref c) => c.read().unwrap().heap_size_of_children(), &None => 0 }
+		self.overlay.mem_used() + match self.counters {
+			Some(ref c) => c.read().unwrap().heap_size_of_children(),
+			None => 0
+		}
  	}
  }
 
 impl HashDB for JournalDB {
-	fn keys(&self) -> HashMap<H256, i32> { 
+	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
 		for (key, _) in self.backing.iter() {
 			let h = H256::from_slice(key.deref());
@@ -401,7 +404,7 @@ impl HashDB for JournalDB {
 		ret
 	}
 
-	fn lookup(&self, key: &H256) -> Option<&[u8]> { 
+	fn lookup(&self, key: &H256) -> Option<&[u8]> {
 		let k = self.overlay.raw(key);
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
@@ -416,18 +419,18 @@ impl HashDB for JournalDB {
 		}
 	}
 
-	fn exists(&self, key: &H256) -> bool { 
+	fn exists(&self, key: &H256) -> bool {
 		self.lookup(key).is_some()
 	}
 
-	fn insert(&mut self, value: &[u8]) -> H256 { 
+	fn insert(&mut self, value: &[u8]) -> H256 {
 		self.overlay.insert(value)
 	}
 	fn emplace(&mut self, key: H256, value: Bytes) {
-		self.overlay.emplace(key, value); 
+		self.overlay.emplace(key, value);
 	}
-	fn kill(&mut self, key: &H256) { 
-		self.overlay.kill(key); 
+	fn kill(&mut self, key: &H256) {
+		self.overlay.kill(key);
 	}
 }
 
