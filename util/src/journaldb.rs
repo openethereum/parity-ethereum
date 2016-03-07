@@ -617,7 +617,6 @@ mod tests {
 	fn reopen_remove() {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
-		let bar = H256::random();
 
 		let foo = {
 			let mut jdb = JournalDB::new(dir.to_str().unwrap());
