@@ -575,7 +575,7 @@ impl ChainSync {
 	pub fn on_peer_connected(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Connected {}", peer);
 		if let Err(e) = self.send_status(io) {
-			warn!(target:"sync", "Error sending status request: {:?}", e);
+			trace!(target:"sync", "Error sending status request: {:?}", e);
 			io.disable_peer(peer);
 		}
 	}
