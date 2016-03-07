@@ -1948,58 +1948,6 @@ mod tests {
 		assert_eq!(U256([1, 0, 0, 0]), result);
 	}
 
-	#[test]
-	fn u256_multi_muls() {
-		use hash::*;
-
-		let (result, _) = U256([0, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, 0]));
-		assert_eq!(U256([0, 0, 0, 0]), result);
-
-		let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([1, 0, 0, 0]));
-		assert_eq!(U256([1, 0, 0, 0]), result);
-
-		let (result, _) = U256([5, 0, 0, 0]).overflowing_mul(U256([5, 0, 0, 0]));
-		assert_eq!(U256([25, 0, 0, 0]), result);
-
-		let (result, _) = U256([0, 5, 0, 0]).overflowing_mul(U256([0, 5, 0, 0]));
-		assert_eq!(U256([0, 0, 25, 0]), result);
-
-		let (result, _) = U256([0, 0, 0, 1]).overflowing_mul(U256([1, 0, 0, 0]));
-		assert_eq!(U256([0, 0, 0, 1]), result);
-
-		let (result, _) = U256([0, 0, 0, 5]).overflowing_mul(U256([2, 0, 0, 0]));
-		assert_eq!(U256([0, 0, 0, 10]), result);
-
-		let (result, _) = U256([0, 0, 1, 0]).overflowing_mul(U256([0, 5, 0, 0]));
-		assert_eq!(U256([0, 0, 0, 5]), result);
-
-		let (result, _) = U256([0, 0, 8, 0]).overflowing_mul(U256([0, 0, 7, 0]));
-		assert_eq!(U256([0, 0, 0, 0]), result);
-
-		let (result, _) = U256([2, 0, 0, 0]).overflowing_mul(U256([0, 5, 0, 0]));
-		assert_eq!(U256([0, 10, 0, 0]), result);
-
-		let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, ::std::u64::MAX]));
-		assert_eq!(U256([0, 0, 0, ::std::u64::MAX]), result);
-
-		let x1 = U256::from_str("0000000000000000000000000000000000000000000000000000012365124623").unwrap();
-		let x2sqr_right = U256::from_str("000000000000000000000000000000000000000000014baeef72e0378e2328c9").unwrap();
-		let x1sqr = x1 * x1;
-		assert_eq!(H256::from(x2sqr_right), H256::from(x1sqr));
-		let x1cube = x1sqr * x1;
-		let x1cube_right = U256::from_str("0000000000000000000000000000000001798acde139361466f712813717897b").unwrap();
-		assert_eq!(H256::from(x1cube_right), H256::from(x1cube));
-		let x1quad = x1cube * x1;
-		let x1quad_right = U256::from_str("000000000000000000000001adbdd6bd6ff027485484b97f8a6a4c7129756dd1").unwrap();
-		assert_eq!(H256::from(x1quad_right), H256::from(x1quad));
-		let x1penta = x1quad * x1;
-		let x1penta_right = U256::from_str("00000000000001e92875ac24be246e1c57e0507e8c46cc8d233b77f6f4c72993").unwrap();
-		assert_eq!(H256::from(x1penta_right), H256::from(x1penta));
-		let x1septima = x1penta * x1;
-		let x1septima_right = U256::from_str("00022cca1da3f6e5722b7d3cc5bbfb486465ebc5a708dd293042f932d7eee119").unwrap();
-		assert_eq!(H256::from(x1septima_right), H256::from(x1septima));
-	}
-
     #[test]
     fn u256_multi_muls_overflow() {
 		let (_, overflow) = U256([1, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, 0]));

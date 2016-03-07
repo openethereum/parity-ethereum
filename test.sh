@@ -1,4 +1,11 @@
 #!/bin/sh
 # Running Parity Full Test Sute
 
-cargo test --features ethcore/json-tests $1 -p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity
+cargo test --features ethcore/json-tests $1 \
+	-p ethash \
+	-p ethcore-util \
+	-p ethcore \
+	-p ethsync \
+	-p ethcore-rpc \
+	-p parity \
+	-p bigint
