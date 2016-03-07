@@ -336,7 +336,6 @@ impl JournalDB {
 				try!(batch.delete(&last));
 				index += 1;
 			}
-			try!(batch.put(&LATEST_ERA_KEY, &encode(&end_era)));
 			trace!("JournalDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
 		}
 
