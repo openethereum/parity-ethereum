@@ -191,7 +191,9 @@ impl JournalDB {
 
 			// this is the first entry for this node in the journal.
 			// it is initialised to 1 if it was already in.
-			counters.insert(h.clone(), if Self::is_already_in(backing, h) {1} else {0});
+			if Self::is_already_in(backing, h) {
+				counters.insert(h.clone(), 1);
+			}
 		}
 	}
 
