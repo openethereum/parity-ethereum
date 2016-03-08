@@ -166,6 +166,12 @@ macro_rules! uint_overflowing_add {
 #[cfg(not(all(asm_available, target_arch="x86_64")))]
 macro_rules! uint_overflowing_sub {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		uint_overflowing_sub_reg!($name, $n_words, $self_expr, $other)
+	})
+}
+
+macro_rules! uint_overflowing_sub_reg {
+	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
 		let $name(ref me) = $self_expr;
 		let $name(ref you) = $other;
 
@@ -255,9 +261,7 @@ macro_rules! uint_overflowing_sub {
 		(U512(result), overflow != 0)
 	});
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
-		let res = overflowing!((!$other).overflowing_add(From::from(1u64)));
-		let res = overflowing!($self_expr.overflowing_add(res));
-		(res, $self_expr < $other)
+		uint_overflowing_sub_reg!($name, $n_words, $self_expr, $other)
 	})
 }
 
