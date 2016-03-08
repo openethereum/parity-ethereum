@@ -395,28 +395,31 @@ macro_rules! uint_overflowing_mul_reg {
 		let mut ret = [0u64; 2*$n_words];
 
 		for i in 0..$n_words {
+			if you[i] == 0 {
+				continue;
+			}
+
 			let mut carry2 = 0u64;
-			let (b_u, b_l) = (you[i] >> 32, you[i] & 0xFFFFFFFF);
+			let (b_u, b_l) = split(you[i]);
 
 			for j in 0..$n_words {
-				let a = me[j];
+				if me[j] == 0 {
+					continue;
+				}
+
+				let a = split(me[j]);
 
 				// multiply parts
-				let (c_l, overflow_l) = mul_u32(a, b_l as u32, ret[j + i]);
-				let (c_u, overflow_u) = mul_u32(a, b_u as u32, c_l >> 32);
+				let (c_l, overflow_l) = mul_u32(a, b_l, ret[i + j]);
+				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
+				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
 
-				// This won't overflow
-				ret[j + i] = (c_l & 0xFFFFFFFF) + (c_u << 32);
+				// Only single overflow possible here
+				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
+				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
 
-				// carry1 = overflow_l + (c_u >> 32) + (overflow_u << 32) + carry2 + c0;
-				let (ca1, c1) = overflow_l.overflowing_add((c_u >> 32) + (overflow_u << 32));
-				let (ca1, c2) = ca1.overflowing_add(ret[j + i + 1]);
-				let (ca1, c3) = ca1.overflowing_add(carry2);
-
-				ret[j + i + 1] = ca1;
-
-				// Will never overflow
-				carry2 = (overflow_u >> 32) + c1 as u64 + c2 as u64 + c3 as u64;
+				ret[i + j + 1] = carry;
+				carry2 = o as u64;
 			}
 		}
 
@@ -459,16 +462,20 @@ macro_rules! panic_on_overflow {
 }
 
 #[inline(always)]
-fn mul_u32(a: u64, b: u32, carry: u64) -> (u64, u64) {
-	let b = b as u64;
-	let upper = b * (a >> 32);
-	let lower = b * (a & 0xFFFFFFFF);
+fn mul_u32(a: (u64, u64), b: u64, carry: u64) -> (u64, u64) {
+	let upper = b * a.0;
+	let lower = b * a.1;
 
 	let (res1, overflow1) = lower.overflowing_add(upper << 32);
 	let (res2, overflow2) = res1.overflowing_add(carry);
 
 	let carry = (upper >> 32) + overflow1 as u64 + overflow2 as u64;
 	(res2, carry)
+}
+
+#[inline(always)]
+fn split(a: u64) -> (u64, u64) {
+	(a >> 32, a & 0xFFFFFFFF)
 }
 
 /// Large, fixed-length unsigned integer type.
@@ -734,9 +741,10 @@ macro_rules! construct_uint {
 				let $name(ref arr) = self;
 				let mut ret = [0u64; $n_words];
 				let mut carry = 0;
+				let o = other as u64;
 
 				for i in 0..$n_words {
-					let (res, carry2) = mul_u32(arr[i], other, carry);
+					let (res, carry2) = mul_u32(split(arr[i]), o, carry);
 					ret[i] = res;
 					carry = carry2;
 				}
@@ -1255,28 +1263,31 @@ impl U256 {
 		let mut ret = [0u64; 8];
 
 		for i in 0..4 {
+			if you[i] == 0 {
+				continue;
+			}
+
 			let mut carry2 = 0u64;
-			let (b_u, b_l) = (you[i] >> 32, you[i] & 0xFFFFFFFF);
+			let (b_u, b_l) = split(you[i]);
 
 			for j in 0..4 {
-				let a = me[j];
+				if me[j] == 0 {
+					continue;
+				}
+
+				let a = split(me[j]);
 
 				// multiply parts
-				let (c_l, overflow_l) = mul_u32(a, b_l as u32, ret[j + i]);
-				let (c_u, overflow_u) = mul_u32(a, b_u as u32, c_l >> 32);
+				let (c_l, overflow_l) = mul_u32(a, b_l, ret[i + j]);
+				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
+				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
 
-				// This won't overflow
-				ret[j + i] = (c_l & 0xFFFFFFFF) + (c_u << 32);
+				// Only single overflow possible here
+				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
+				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
 
-				// carry1 = overflow_l + (c_u >> 32) + (overflow_u << 32) + carry2 + c0;
-				let (ca1, c1) = overflow_l.overflowing_add((c_u >> 32) + (overflow_u << 32));
-				let (ca1, c2) = ca1.overflowing_add(ret[j + i + 1]);
-				let (ca1, c3) = ca1.overflowing_add(carry2);
-
-				ret[j + i + 1] = ca1;
-
-				// Will never overflow
-				carry2 = (overflow_u >> 32) + c1 as u64 + c2 as u64 + c3 as u64;
+				ret[i + j + 1] = carry;
+				carry2 = o as u64;
 			}
 		}
 
