@@ -68,7 +68,7 @@
 //!		assert_eq!(txq.status().future, 1);
 //!		assert_eq!(txq.top_transactions(3).len(), 0);
 //!	}
-//!
+//! ```
 //!
 //!	# Maintaing valid state
 //!
