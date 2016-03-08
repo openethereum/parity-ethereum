@@ -17,7 +17,9 @@
 use util::*;
 use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, TransactionId, BlockId, BlockQueueInfo};
 use ethcore::header::{Header as BlockHeader, BlockNumber};
+use ethcore::block::*;
 use ethcore::error::*;
+use ethminer::EthMiner;
 use io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
@@ -308,6 +310,14 @@ impl BlockChainClient for TestBlockChainClient {
 			best_block_number: self.blocks.read().unwrap().len() as BlockNumber - 1,
 		}
 	}
+
+	fn prepare_sealing(&self, author: Address, extra_data: Bytes) -> Option<ClosedBlock> {
+		unimplemented!()
+	}
+
+	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		unimplemented!()
+	}
 }
 
 pub struct TestIo<'p> {
@@ -382,7 +392,7 @@ impl TestNet {
 		for _ in 0..n {
 			net.peers.push(TestPeer {
 				chain: TestBlockChainClient::new(),
-				sync: ChainSync::new(SyncConfig::default()),
+				sync: ChainSync::new(SyncConfig::default(), EthMiner::new()),
 				queue: VecDeque::new(),
 			});
 		}

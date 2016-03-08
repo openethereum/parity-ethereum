@@ -31,7 +31,7 @@
 
 use util::*;
 use std::mem::{replace};
-use ethcore::views::{HeaderView, BlockView};
+use ethcore::views::{HeaderView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo};
 use range_collection::{RangeCollection, ToUsize, FromUsize};
@@ -933,7 +933,9 @@ impl ChainSync {
 			let tx: SignedTransaction = try!(r.val_at(i));
 			transactions.push(tx);
 		}
-		self.miner.import_transactions(transactions);
+		let chain = io.chain();
+		let fetch_nonce = |a: &Address| chain.nonce(a);
+		self.miner.import_transactions(transactions, fetch_nonce);
  		Ok(())
 	}
 
@@ -1262,7 +1264,7 @@ impl ChainSync {
 
 	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, good: &[H256], bad: &[H256], retracted: &[H256]) {
 		// notify miner
-		self.miner.chain_new_blocks(good, bad, retracted);
+		self.miner.chain_new_blocks(io.chain(), good, bad, retracted);
 		// Propagate latests blocks
 		self.propagate_latest_blocks(io);
 		// TODO [todr] propagate transactions?
@@ -1279,6 +1281,7 @@ mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
 	use ethcore::client::*;
+	use ethminer::EthMiner;
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
@@ -1388,7 +1391,7 @@ mod tests {
 	}
 
 	fn dummy_sync_with_peer(peer_latest_hash: H256) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default());
+		let mut sync = ChainSync::new(SyncConfig::default(), EthMiner::new());
 		sync.peers.insert(0,
 		  	PeerInfo {
 				protocol_version: 0,
@@ -1610,14 +1613,14 @@ mod tests {
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &good_blocks, &[]);
-		assert_eq!(sync.transaction_queue.lock().unwrap().status().future, 0);
-		assert_eq!(sync.transaction_queue.lock().unwrap().status().pending, 1);
+		assert_eq!(sync.miner.status().transaction_queue_future, 0);
+		assert_eq!(sync.miner.status().transaction_queue_pending, 1);
 		sync.chain_new_blocks(&mut io, &good_blocks, &retracted_blocks, &[]);
 
 		// then
-		let status = sync.transaction_queue.lock().unwrap().status();
-		assert_eq!(status.pending, 1);
-		assert_eq!(status.future, 0);
+		let status = sync.miner.status();
+		assert_eq!(status.transaction_queue_pending, 1);
+		assert_eq!(status.transaction_queue_future, 0);
 	}
 
 	#[test]

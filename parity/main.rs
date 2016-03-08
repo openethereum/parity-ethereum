@@ -382,7 +382,7 @@ impl Configuration {
 		let client = service.client();
 
 		// Miner
-		let miner = EthMiner::new(client.clone());
+		let miner = EthMiner::new();
 		miner.set_author(self.author());
 		miner.set_extra_data(self.extra_data());
 

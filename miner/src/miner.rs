@@ -23,7 +23,7 @@ use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo};
 use ethcore::block::*;
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
-use transaction_queue::TransactionQueue;
+use transaction_queue::{TransactionQueue, TransactionQueueStatus};
 
 pub struct Miner {
 	/// Transactions Queue
@@ -34,6 +34,11 @@ pub struct Miner {
 	sealing_block: Mutex<Option<ClosedBlock>>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
+}
+
+pub struct MinerStatus {
+	pub transaction_queue_pending: usize,
+	pub transaction_queue_future: usize,
 }
 
 impl Miner {
@@ -47,6 +52,14 @@ impl Miner {
 		}
 	}
 
+	pub fn status(&self) -> MinerStatus {
+		let status = self.transaction_queue.lock().unwrap().status();
+		MinerStatus {
+			transaction_queue_pending: status.pending,
+			transaction_queue_future: status.future,
+		}
+	}
+
 	pub fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T)
 		where T: Fn(&Address) -> U256 {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
@@ -55,7 +68,7 @@ impl Miner {
 
 	/// Get the author that we will seal blocks as.
 	pub fn author(&self) -> Address {
-		self.author.read().unwrap().clone()
+		*self.author.read().unwrap()
 	}
 
 	/// Set the author that we will seal blocks as.
@@ -75,7 +88,7 @@ impl Miner {
 
 	/// New chain head event. Restart mining operation.
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
-		let b = chain.prepare_sealing(self.author.read().unwrap().clone(), self.extra_data.read().unwrap().clone());
+		let b = chain.prepare_sealing(*self.author.read().unwrap(), self.extra_data.read().unwrap().clone());
 		*self.sealing_block.lock().unwrap() = b;
 	}
 

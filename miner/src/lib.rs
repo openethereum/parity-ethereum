@@ -29,58 +29,26 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
-use util::{Bytes, H256, Address};
 use std::ops::*;
 use std::sync::*;
-use util::TimerToken;
-use ethcore::block::*;
-use ethcore::error::*;
-use ethcore::client::{Client, BlockChainClient};
-use ethcore::transaction::*;
-use miner::Miner;
+pub use miner::Miner;
 
 pub struct EthMiner {
 	miner: Miner,
-	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
-	chain: Arc<Client>,
 }
 
 impl EthMiner {
 	/// Creates and register protocol with the network service
-	pub fn new(chain: Arc<Client>) -> Arc<EthMiner> {
+	pub fn new() -> Arc<EthMiner> {
 		Arc::new(EthMiner {
 			miner: Miner::new(),
-			chain: chain,
 		})
 	}
+}
+impl Deref for EthMiner {
+	type Target = Miner;
 
-	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		self.miner.sealing_block(self.chain.deref())
-	}
-
-	pub fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		self.miner.submit_seal(self.chain.deref(), pow_hash, seal)
-	}
-
-	/// Set the author that we will seal blocks as.
-	pub fn set_author(&self, author: Address) {
-		self.miner.set_author(author);
-	}
-
-	/// Set the extra_data that we will seal blocks with.
-	pub fn set_extra_data(&self, extra_data: Bytes) {
-		self.miner.set_extra_data(extra_data);
-	}
-
-	pub fn import_transactions(&self, transactions: Vec<SignedTransaction>) {
-		let chain = self.chain.deref();
-		let fetch_latest_nonce = |a : &Address| chain.nonce(a);
-
-		self.miner.import_transactions(transactions, fetch_latest_nonce);
-	}
-
-	pub fn chain_new_blocks(&self, good: &[H256], bad: &[H256], retracted: &[H256]) {
-		let mut chain = self.chain.deref();
-		self.miner.chain_new_blocks(chain, good, bad, retracted);
+	fn deref(&self) -> &Self::Target {
+		&self.miner
 	}
 }

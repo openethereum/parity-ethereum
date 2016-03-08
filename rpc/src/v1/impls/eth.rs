@@ -17,6 +17,7 @@
 //! Eth rpc implementation.
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, Mutex, RwLock};
+use std::ops::Deref;
 use ethsync::{EthSync, SyncState};
 use ethminer::{EthMiner};
 use jsonrpc_core::*;
@@ -224,7 +225,8 @@ impl Eth for EthClient {
 		match params {
 			Params::None => {
 				let miner = take_weak!(self.miner);
-				let u = miner.sealing_block().lock().unwrap();
+				let client = take_weak!(self.client);
+				let u = miner.sealing_block(client.deref()).lock().unwrap();
 				match *u {
 					Some(ref b) => {
 						let pow_hash = b.hash();
@@ -243,8 +245,9 @@ impl Eth for EthClient {
 		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
 //			trace!("Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 			let miner = take_weak!(self.miner);
+			let client = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
-			let r = miner.submit_seal(pow_hash, seal);
+			let r = miner.submit_seal(client.deref(), pow_hash, seal);
 			to_value(&r.is_ok())
 		})
 	}
