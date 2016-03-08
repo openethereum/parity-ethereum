@@ -50,9 +50,16 @@ fn u256_sub(b: &mut Bencher) {
 fn u512_sub(b: &mut Bencher) {
 	b.iter(|| {
 		let n = black_box(10000);
-		(0..n).fold(U512([rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(),
-				rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()]),
-			|old, new| { old.overflowing_sub(U512([0, 0, 0, 0, 0, 0, 0, new])).0 })
+		(0..n).fold(
+			U512([
+				rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(),
+				rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>(), rand::random::<u64>()
+			]),
+			|old, new| {
+				let p = new % 2;
+				old.overflowing_sub(U512([p, p, p, p, p, p, p, new])).0
+			}
+		)
 	});
 }
 
