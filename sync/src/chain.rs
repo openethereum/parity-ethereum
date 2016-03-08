@@ -582,7 +582,7 @@ impl ChainSync {
 	pub fn on_peer_connected(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Connected {}", peer);
 		if let Err(e) = self.send_status(io) {
-			trace!(target:"sync", "Error sending status request: {:?}", e);
+			warn!(target:"sync", "Error sending status request: {:?}", e);
 			io.disable_peer(peer);
 		}
 	}
@@ -907,9 +907,8 @@ impl ChainSync {
 		}
 		match sync.send(peer_id, packet_id, packet) {
 			Err(e) => {
-				warn!(target:"sync", "Error sending request: {:?}", e);
+				debug!(target:"sync", "Error sending request: {:?}", e);
 				sync.disable_peer(peer_id);
-				self.on_peer_aborting(sync, peer_id);
 			}
 			Ok(_) => {
 				let mut peer = self.peers.get_mut(&peer_id).unwrap();
@@ -922,9 +921,8 @@ impl ChainSync {
 	/// Generic packet sender
 	fn send_packet(&mut self, sync: &mut SyncIo, peer_id: PeerId, packet_id: PacketId, packet: Bytes) {
 		if let Err(e) = sync.send(peer_id, packet_id, packet) {
-			warn!(target:"sync", "Error sending packet: {:?}", e);
+			debug!(target:"sync", "Error sending packet: {:?}", e);
 			sync.disable_peer(peer_id);
-			self.on_peer_aborting(sync, peer_id);
 		}
 	}
 	/// Called when peer sends us new transactions
