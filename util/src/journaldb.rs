@@ -46,17 +46,17 @@ use std::env;
 /// data nodes that go out of history scope and must be written to disk.
 ///
 /// Commit workflow:
-/// Create a new journal record from the transaction overlay.
-/// Inseart each node from the transaction overlay into the History overlay increasing reference
+/// 1. Create a new journal record from the transaction overlay.
+/// 2. Inseart each node from the transaction overlay into the History overlay increasing reference
 /// count if it is already there. Note that the reference counting is managed by `MemoryDB`
-/// Clear the transaction overlay.
-/// For a canonical journal record that becomes ancient inserts its insertions into the disk DB
-/// For each journal record that goes out of the history scope (becomes ancient) remove its
+/// 3. Clear the transaction overlay.
+/// 4. For a canonical journal record that becomes ancient inserts its insertions into the disk DB
+/// 5. For each journal record that goes out of the history scope (becomes ancient) remove its
 /// insertions from the history overlay, decreasing the reference counter and removing entry if 
 /// if reaches zero.
-/// For a canonical journal record that becomes ancient delete its removals from the disk only if 
+/// 6. For a canonical journal record that becomes ancient delete its removals from the disk only if 
 /// the removed key is not present in the history overlay.
-/// Delete ancient record from memory and disk.
+/// 7. Delete ancient record from memory and disk.
 /// 
 pub struct JournalDB {
 	transaction_overlay: MemoryDB,
@@ -66,13 +66,11 @@ pub struct JournalDB {
 
 struct JournalOverlay {
 	backing_overlay: MemoryDB,
-	journal: VecDeque<JournalEntry>
+	journal: HashMap<u64, Vec<JournalEntry>>
 }
 
 struct JournalEntry {
 	id: H256,
-	index: usize,
-	era: u64,
 	insertions: Vec<H256>,
 	deletions: Vec<H256>,
 }
@@ -200,29 +198,6 @@ impl JournalDB {
 		let mut journal_overlay = self.journal_overlay.as_mut().unwrap().write().unwrap();
 		let batch = DBTransaction::new();
 		{
-			let mut index = 0usize;
-			let mut last;
-
-			while {
-				let record = try!(self.backing.get({
-					let mut r = RlpStream::new_list(3);
-					r.append(&now);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					last = r.drain();
-					&last
-				}));
-				match record {
-					Some(r) => {
-						assert!(&Rlp::new(&r).val_at::<H256>(0) != id);
-						true
-					},
-					None => false,
-				}
-			} {
-				index += 1;
-			}
-
 			let mut r = RlpStream::new_list(3);
 			let mut tx = self.transaction_overlay.drain();
 			let inserted_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c > 0 { Some(k.clone()) } else { None }).collect();
@@ -238,55 +213,64 @@ impl JournalDB {
 				journal_overlay.backing_overlay.emplace(k, v);
 			}
 			r.append(&removed_keys);
-			try!(batch.put(&last, r.as_raw()));
+
+			let mut k = RlpStream::new_list(3);
+			let index = journal_overlay.journal.get(&now).map(|j| j.len()).unwrap_or(0);
+			k.append(&now);
+			k.append(&index);
+			k.append(&&PADDING[..]);
+			try!(batch.put(&k.drain(), r.as_raw()));
 			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
-			journal_overlay.journal.push_back(JournalEntry { id: id.clone(), index: index, era: now, insertions: inserted_keys, deletions: removed_keys });
+			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
 		}
 
+		let journal_overlay = journal_overlay.deref_mut();
 		// apply old commits' details
 		if let Some((end_era, canon_id)) = end {
-			let mut canon_insertions: Vec<(H256, Bytes)> = Vec::new();
-			let mut canon_deletions: Vec<H256> = Vec::new();
-			let mut overlay_deletions: Vec<H256> = Vec::new();
-			while journal_overlay.journal.front().map_or(false, |e| e.era <= end_era) {
-				let mut journal = journal_overlay.journal.pop_front().unwrap();
-				//delete the record from the db
-				let mut r = RlpStream::new_list(3);
-				r.append(&journal.era);
-				r.append(&journal.index);
-				r.append(&&PADDING[..]);
-				try!(batch.delete(&r.drain()));
-				trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, journal.index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
-				{
-					if canon_id == journal.id {
-						for h in &journal.insertions {
-							match journal_overlay.backing_overlay.raw(&h) {
-								Some(&(ref d, rc)) if rc > 0 => canon_insertions.push((h.clone(), d.clone())), //TODO: optimizie this to avoid data copy
-								_ => ()
+			if let Some(ref mut records) = journal_overlay.journal.get_mut(&end_era) {
+				let mut canon_insertions: Vec<(H256, Bytes)> = Vec::new();
+				let mut canon_deletions: Vec<H256> = Vec::new();
+				let mut overlay_deletions: Vec<H256> = Vec::new();
+				let mut index = 0usize;
+				for mut journal in records.drain(..) {
+					//delete the record from the db
+					let mut r = RlpStream::new_list(3);
+					r.append(&end_era);
+					r.append(&index);
+					r.append(&&PADDING[..]);
+					try!(batch.delete(&r.drain()));
+					trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
+					{
+						if canon_id == journal.id {
+							for h in &journal.insertions {
+								match journal_overlay.backing_overlay.raw(&h) {
+									Some(&(ref d, rc)) if rc > 0 => canon_insertions.push((h.clone(), d.clone())), //TODO: optimizie this to avoid data copy
+									_ => ()
+								}
 							}
+							canon_deletions = journal.deletions;
 						}
-						canon_deletions = journal.deletions;
+						overlay_deletions.append(&mut journal.insertions);
 					}
-					overlay_deletions.append(&mut journal.insertions);
+					index +=1;
 				}
-				if canon_id == journal.id {
+				// apply canon inserts first
+				for (k, v) in canon_insertions {
+					try!(batch.put(&k, &v));
 				}
-			}
-			// apply canon inserts first
-			for (k, v) in canon_insertions {
-				try!(batch.put(&k, &v));
-			}
-			// clean the overlay
-			for k in overlay_deletions {
-				journal_overlay.backing_overlay.kill(&k);
-			}
-			// apply removes
-			for k in canon_deletions {
-				if !journal_overlay.backing_overlay.exists(&k) {
-					try!(batch.delete(&k));
+				// clean the overlay
+				for k in overlay_deletions {
+					journal_overlay.backing_overlay.kill(&k);
 				}
+				// apply removes
+				for k in canon_deletions {
+					if !journal_overlay.backing_overlay.exists(&k) {
+						try!(batch.delete(&k));
+					}
+				}
+				journal_overlay.backing_overlay.purge();
 			}
-			journal_overlay.backing_overlay.purge();
+			journal_overlay.journal.remove(&end_era);
 		}
 		try!(self.backing.write(batch));
 		Ok(0 as u32)
@@ -297,7 +281,7 @@ impl JournalDB {
 	}
 
 	fn read_overlay(db: &Database) -> JournalOverlay {
-		let mut journal = VecDeque::new();
+		let mut journal = HashMap::new();
 		let mut overlay = MemoryDB::new();
 		let mut count = 0;
 		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
@@ -311,6 +295,7 @@ impl JournalDB {
 					r.append(&&PADDING[..]);
 					&r.drain()
 				}).expect("Low-level database error.") {
+					trace!("read_counters: era={}, index={}", era, index);
 					let rlp = Rlp::new(&rlp_data);
 					let id: H256 = rlp.val_at(0);
 					let insertions = rlp.at(1);
@@ -323,10 +308,8 @@ impl JournalDB {
 						inserted_keys.push(k);
 						count += 1;
 					}
-					journal.push_front(JournalEntry {
+					journal.entry(era).or_insert_with(Vec::new).push(JournalEntry {
 						id: id,
-						index: index,
-						era: era,
 						insertions: inserted_keys,
 						deletions: deletions,
 					});
@@ -412,6 +395,28 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::*;
+
+	#[test]
+	fn insert_same_in_fork() {
+		// history is 1
+		let mut jdb = JournalDB::new_temp();
+
+		let x = jdb.insert(b"X");
+		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		jdb.commit(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.remove(&x);
+		jdb.commit(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		let x = jdb.insert(b"X");
+		jdb.commit(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.commit(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
+		jdb.commit(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
+
+		assert!(jdb.exists(&x));
+	}
 
 	#[test]
 	fn long_history() {
@@ -533,6 +538,7 @@ mod tests {
 		assert!(jdb.exists(&foo));
 	}
 
+
 	#[test]
 	fn reopen() {
 		let mut dir = ::std::env::temp_dir();
@@ -574,20 +580,27 @@ mod tests {
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			// foo is ancient history.
+
 			jdb.insert(b"foo");
-			jdb.commit(1, &b"1".sha3(), None).unwrap();
+			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 			foo
 		};
 
 		{
 			let mut jdb = JournalDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
-			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
-			assert!(jdb.exists(&foo));
 			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+			assert!(jdb.exists(&foo));
+			jdb.remove(&foo);
+			jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(!jdb.exists(&foo));
 		}
 	}
+
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
