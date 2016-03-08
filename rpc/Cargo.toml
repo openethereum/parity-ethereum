@@ -31,4 +31,4 @@ syntex = "0.29.0"
 [features]
 default = ["serde_codegen"]
 nightly = ["serde_macros"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethminer/dev"]
