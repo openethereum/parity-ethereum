@@ -79,6 +79,7 @@ Protocol Options:
   --networkid INDEX        Override the network identifier from the chain we are on.
   --archive                Client should not prune the state/storage trie.
   -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
+  --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
   --identity NAME          Specify your node's name.
 
 Networking Options:
@@ -113,7 +114,7 @@ Memory Footprint Options:
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
   --queue-max-size BYTES   Specify the maximum size of memory to use for block queue [default: 52428800].
-  --cache MEGABYTES        Set total amount of cache to use for the entire system, mutually exclusive with 
+  --cache MEGABYTES        Set total amount of cache to use for the entire system, mutually exclusive with
                            other cache options (geth-compatible).
 
 Miscellaneous Options:
@@ -129,7 +130,7 @@ struct Args {
 	arg_enode: Vec<String>,
 	flag_chain: String,
 	flag_testnet: bool,
-	flag_db_path: String,
+	flag_datadir: String,
 	flag_networkid: Option<String>,
 	flag_identity: String,
 	flag_cache: Option<usize>,
@@ -238,7 +239,7 @@ impl Configuration {
 	}
 
 	fn path(&self) -> String {
-		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+		self.args.flag_datadir.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
 	fn author(&self) -> Address {
