@@ -72,6 +72,7 @@ mod chain;
 mod io;
 mod range_collection;
 mod transaction_queue;
+pub use transaction_queue::TransactionQueue;
 
 #[cfg(test)]
 mod tests;
