@@ -25,10 +25,7 @@ use kvdb::{Database, DBTransaction, DatabaseConfig};
 use std::env;
 
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay
-/// and, possibly, latent-removal semantics.
-///
-/// If `counters` is `None`, then it behaves exactly like OverlayDB. If not it behaves
-/// differently:
+/// and latent-removal semantics.
 ///
 /// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to 
 /// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
@@ -60,7 +57,6 @@ const DB_VERSION_NO_JOURNAL : u32 = 3 + 256;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl JournalDB {
-
 	/// Create a new instance from file
 	pub fn new(path: &str) -> JournalDB {
 		Self::from_prefs(path, true)
@@ -149,6 +145,87 @@ impl JournalDB {
 		Ok(ret as u32)
 	}
 
+	fn morph_key(key: &H256, index: u8) -> Bytes {
+		let mut ret = key.bytes().to_owned();
+		ret.push(index);
+		ret
+	}
+
+	// The next three are valid only as long as there is an insert operation of `key` in the journal.
+	fn set_already_in(batch: &DBTransaction, key: &H256) { batch.put(&Self::morph_key(key, 0), &[1u8]).expect("Low-level database error. Some issue with your hard disk?"); }
+	fn reset_already_in(batch: &DBTransaction, key: &H256) { batch.delete(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?"); }
+	fn is_already_in(backing: &Database, key: &H256) -> bool {
+		backing.get(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
+	}
+
+	fn insert_keys(inserts: &Vec<(H256, Bytes)>, backing: &Database, counters: &mut HashMap<H256, i32>, batch: &DBTransaction) {
+		for &(ref h, ref d) in inserts {
+			if let Some(c) = counters.get_mut(h) {
+				// already counting. increment.
+				*c += 1;
+				continue;
+			}
+
+			// this is the first entry for this node in the journal.
+			if backing.get(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?").is_some() {
+				// already in the backing DB. start counting, and remember it was already in.
+				Self::set_already_in(batch, &h);
+				counters.insert(h.clone(), 1);
+				continue;
+			}
+
+			// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
+			//Self::reset_already_in(&h);
+			assert!(!Self::is_already_in(backing, &h));
+			batch.put(&h.bytes(), d).expect("Low-level database error. Some issue with your hard disk?");
+		}
+	}
+
+	fn replay_keys(inserts: &Vec<H256>, backing: &Database, counters: &mut HashMap<H256, i32>) {
+		trace!("replay_keys: inserts={:?}, counters={:?}", inserts, counters);
+		for h in inserts {
+			if let Some(c) = counters.get_mut(h) {
+				// already counting. increment.
+				*c += 1;
+				continue;
+			}
+
+			// this is the first entry for this node in the journal.
+			// it is initialised to 1 if it was already in.
+			if Self::is_already_in(backing, h) {
+				trace!("replace_keys: Key {} was already in!", h);
+				counters.insert(h.clone(), 1);
+			}
+		}
+		trace!("replay_keys: (end) counters={:?}", counters);
+	}
+
+	fn kill_keys(deletes: Vec<H256>, counters: &mut HashMap<H256, i32>, batch: &DBTransaction) {
+		for h in deletes.into_iter() {
+			let mut n: Option<i32> = None;
+			if let Some(c) = counters.get_mut(&h) {
+				if *c > 1 {
+					*c -= 1;
+					continue;
+				} else {
+					n = Some(*c);
+				}
+			}
+			match &n {
+				&Some(i) if i == 1 => {
+					counters.remove(&h);
+					Self::reset_already_in(batch, &h);
+				}
+				&None => {
+					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
+					//assert!(!Self::is_already_in(db, &h));
+					batch.delete(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+				}
+				_ => panic!("Invalid value in counters: {:?}", n),
+			}
+		}
+	}
+
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
 	fn commit_with_counters(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
@@ -159,60 +236,85 @@ impl JournalDB {
 
 		// TODO: store reclaim_period.
 
-		// when we make a new commit, we journal the inserts and removes.
-		// for each end_era that we journaled that we are no passing by, 
-		// we remove all of its removes assuming it is canonical and all
-		// of its inserts otherwise.
+		// When we make a new commit, we make a journal of all blocks in the recent history and record
+		// all keys that were inserted and deleted. The journal is ordered by era; multiple commits can
+		// share the same era. This forms a data structure similar to a queue but whose items are tuples.
+		// By the time comes to remove a tuple from the queue (i.e. then the era passes from recent history
+		// into ancient history) then only one commit from the tuple is considered canonical. This commit
+		// is kept in the main backing database, whereas any others from the same era are reverted.
+		// 
+		// It is possible that a key, properly available in the backing database be deleted and re-inserted
+		// in the recent history queue, yet have both operations in commits that are eventually non-canonical.
+		// To avoid the original, and still required, key from being deleted, we maintain a reference count
+		// which includes an original key, if any.
+		// 
+		// The semantics of the `counter` are:
+		// insert key k:
+		//   counter already contains k: count += 1
+		//   counter doesn't contain k:
+		//     backing db contains k: count = 1
+		//     backing db doesn't contain k: insert into backing db, count = 0
+		// delete key k:
+		//   counter contains k (count is asserted to be non-zero): 
+		//     count > 1: counter -= 1
+		//     count == 1: remove counter
+		//     count == 0: remove key from backing db
+		//   counter doesn't contain k: remove key from backing db
 		//
-		// We also keep reference counters for each key inserted in the journal to handle 
-		// the following cases where key K must not be deleted from the DB when processing removals :
-		// Given H is the journal size in eras, 0 <= C <= H.
-		// Key K is removed in era A(N) and re-inserted in canonical era B(N + C).
-		// Key K is removed in era A(N) and re-inserted in non-canonical era B`(N + C).
-		// Key K is added in non-canonical era A'(N) canonical B(N + C).
+		// Practically, this means that for each commit block turning from recent to ancient we do the
+		// following:
+		// is_canonical:
+		//   inserts: Ignored (left alone in the backing database).
+		//   deletes: Enacted; however, recent history queue is checked for ongoing references. This is
+		//            reduced as a preference to deletion from the backing database.
+		// !is_canonical:
+		//   inserts: Reverted; however, recent history queue is checked for ongoing references. This is
+		//            reduced as a preference to deletion from the backing database.
+		//   deletes: Ignored (they were never inserted).
 		//
-		// The counter is encreased each time a key is inserted in the journal in the commit. The list of insertions
-		// is saved with the era record. When the era becomes end_era and goes out of journal the counter is decreased
-		// and the key is safe to delete.
 
 		// record new commit's details.
-		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
+		trace!("commit: #{} ({}), end era: {:?}", now, id, end);		
 		let mut counters = self.counters.as_ref().unwrap().write().unwrap();
 		let batch = DBTransaction::new();
 		{
 			let mut index = 0usize;
 			let mut last;
 
-			while {
-				let record = try!(self.backing.get({
-					let mut r = RlpStream::new_list(3);
-					r.append(&now);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					last = r.drain();
-					&last
-				}));
-				match record {
-					Some(r) => {
-						assert!(&Rlp::new(&r).val_at::<H256>(0) != id);
-						true
-					},
-					None => false,
-				}
-			} {
+			while try!(self.backing.get({
+				let mut r = RlpStream::new_list(3);
+				r.append(&now);
+				r.append(&index);
+				r.append(&&PADDING[..]);
+				last = r.drain();
+				&last
+			})).is_some() {
 				index += 1;
 			}
 
+			let drained = self.overlay.drain();
+			let removes: Vec<H256> = drained
+				.iter()
+				.filter_map(|(ref k, &(_, ref c))| if *c < 0 {Some(k.clone())} else {None}).cloned()
+				.collect();
+			let inserts: Vec<(H256, Bytes)> = drained
+				.into_iter()
+				.filter_map(|(k, (v, r))| if r > 0 { assert!(r == 1); Some((k, v)) } else { assert!(r >= -1); None })
+				.collect();
+
 			let mut r = RlpStream::new_list(3);
-			let inserts: Vec<H256> = self.overlay.keys().iter().filter(|&(_, &c)| c > 0).map(|(key, _)| key.clone()).collect();
-			// Increase counter for each inserted key no matter if the block is canonical or not. 
-			for i in &inserts {
-				*counters.entry(i.clone()).or_insert(0) += 1;
-			}
-			let removes: Vec<H256> = self.overlay.keys().iter().filter(|&(_, &c)| c < 0).map(|(key, _)| key.clone()).collect();
 			r.append(id);
-			r.append(&inserts);
+
+			// Process the new inserts.
+			// We use the inserts for three things. For each:
+			// - we place into the backing DB or increment the counter if already in;
+			// - we note in the backing db that it was already in;
+			// - we write the key into our journal for this block;
+
+			r.begin_list(inserts.len());
+			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
 			r.append(&removes);
+			Self::insert_keys(&inserts, &self.backing, &mut counters, &batch);
 			try!(batch.put(&last, r.as_raw()));
 			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
 		}
@@ -221,8 +323,6 @@ impl JournalDB {
 		if let Some((end_era, canon_id)) = end {
 			let mut index = 0usize;
 			let mut last;
-			let mut to_remove: Vec<H256> = Vec::new();
-			let mut canon_inserts: Vec<H256> = Vec::new();
 			while let Some(rlp_data) = try!(self.backing.get({
 				let mut r = RlpStream::new_list(3);
 				r.append(&end_era);
@@ -232,54 +332,19 @@ impl JournalDB {
 				&last
 			})) {
 				let rlp = Rlp::new(&rlp_data);
-				let mut inserts: Vec<H256> = rlp.val_at(1);
-				JournalDB::decrease_counters(&inserts, &mut counters);
+				let inserts: Vec<H256> = rlp.val_at(1);
+				let deletes: Vec<H256> = rlp.val_at(2);
 				// Collect keys to be removed. These are removed keys for canonical block, inserted for non-canonical
-				if canon_id == rlp.val_at(0) {
-					let mut canon_deletes: Vec<H256> = rlp.val_at(2);
-					trace!("Purging nodes deleted from canon: {:?}", canon_deletes);
-					to_remove.append(&mut canon_deletes);
-					canon_inserts = inserts;
-				}
-				else {
-					trace!("Purging nodes inserted in non-canon: {:?}", inserts);
-					to_remove.append(&mut inserts);
-				}
-				trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): {} entries", end_era, index, rlp.val_at::<H256>(0), canon_id, to_remove.len());
+				Self::kill_keys(if canon_id == rlp.val_at(0) {deletes} else {inserts}, &mut counters, &batch);
 				try!(batch.delete(&last));
 				index += 1;
 			}
-
-			let canon_inserts = canon_inserts.drain(..).collect::<HashSet<_>>();
-			// Purge removed keys if they are not referenced and not re-inserted in the canon commit
-			let mut deletes = 0;
-			trace!("Purging filtered nodes: {:?}", to_remove.iter().filter(|h| !counters.contains_key(h) && !canon_inserts.contains(h)).collect::<Vec<_>>());
-			for h in to_remove.iter().filter(|h| !counters.contains_key(h) && !canon_inserts.contains(h)) {
-				try!(batch.delete(&h));
-				deletes += 1;
-			}
-			trace!("Total nodes purged: {}", deletes);
+			trace!("JournalDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
 		}
 
-		// Commit overlay insertions
-		let ret = Self::batch_overlay_insertions(&mut self.overlay, &batch);
 		try!(self.backing.write(batch));
-		Ok(ret as u32)
-	}
-
-
-	// Decrease counters for given keys. Deletes obsolete counters
-	fn decrease_counters(keys: &[H256], counters: &mut HashMap<H256, i32>) {
-		for i in keys.iter() {
-			let delete_counter = {
-				let cnt = counters.get_mut(i).expect("Missing key counter");
-				*cnt -= 1;
-				*cnt == 0
-			};
-			if delete_counter {
-				counters.remove(i);
-			}
-		}
+//		trace!("JournalDB::commit() deleted {} nodes", deletes);
+		Ok(0)
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
@@ -287,7 +352,7 @@ impl JournalDB {
 	}
 
 	fn read_counters(db: &Database) -> HashMap<H256, i32> {
-		let mut res = HashMap::new();
+		let mut counters = HashMap::new();
 		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
 			let mut era = decode::<u64>(&val);
 			loop {
@@ -299,11 +364,10 @@ impl JournalDB {
 					r.append(&&PADDING[..]);
 					&r.drain()
 				}).expect("Low-level database error.") {
+					trace!("read_counters: era={}, index={}", era, index);
 					let rlp = Rlp::new(&rlp_data);
-					let to_add: Vec<H256> = rlp.val_at(1);
-					for h in to_add {
-						*res.entry(h).or_insert(0) += 1;
-					}
+					let inserts: Vec<H256> = rlp.val_at(1);
+					Self::replay_keys(&inserts, db, &mut counters);
 					index += 1;
 				};
 				if index == 0 || era == 0 {
@@ -312,10 +376,15 @@ impl JournalDB {
 				era -= 1;
 			}
 		}
-		trace!("Recovered {} counters", res.len());
-		res
+		trace!("Recovered {} counters", counters.len());
+		counters
 	}
-}
+
+	/// Returns heap memory size used
+	pub fn mem_used(&self) -> usize {
+		self.overlay.mem_used() + match &self.counters { &Some(ref c) => c.read().unwrap().heap_size_of_children(), &None => 0 }
+ 	}
+ }
 
 impl HashDB for JournalDB {
 	fn keys(&self) -> HashMap<H256, i32> { 
@@ -367,6 +436,28 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::*;
+
+	#[test]
+	fn insert_same_in_fork() {
+		// history is 1
+		let mut jdb = JournalDB::new_temp();
+
+		let x = jdb.insert(b"X");
+		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		jdb.commit(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.remove(&x);
+		jdb.commit(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		let x = jdb.insert(b"X");
+		jdb.commit(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
+
+		jdb.commit(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
+		jdb.commit(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
+
+		assert!(jdb.exists(&x));
+	}
 
 	#[test]
 	fn long_history() {
@@ -488,15 +579,18 @@ mod tests {
 		assert!(jdb.exists(&foo));
 	}
 
+
 	#[test]
 	fn reopen() {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
+		let bar = H256::random();
 
 		let foo = {
 			let mut jdb = JournalDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
+			jdb.emplace(bar.clone(), b"bar".to_vec());
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
 			foo
 		};
@@ -510,8 +604,68 @@ mod tests {
 		{
 			let mut jdb = JournalDB::new(dir.to_str().unwrap());
 			assert!(jdb.exists(&foo));
+			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 			assert!(!jdb.exists(&foo));
+		}
+	}
+
+	#[test]
+	fn reopen_remove() {
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+		let bar = H256::random();
+
+		let foo = {
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			// foo is ancient history.
+
+			jdb.insert(b"foo");
+			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			foo
+		};
+
+		{
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			jdb.remove(&foo);
+			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+			assert!(jdb.exists(&foo));
+			jdb.remove(&foo);
+			jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
+			assert!(!jdb.exists(&foo));
+		}
+	}
+	#[test]
+	fn reopen_fork() {
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+		let (foo, bar, baz) = {
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			// history is 1
+			let foo = jdb.insert(b"foo");
+			let bar = jdb.insert(b"bar");
+			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			jdb.remove(&foo);
+			let baz = jdb.insert(b"baz");
+			jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+
+			jdb.remove(&bar);
+			jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+			(foo, bar, baz)
+		};
+
+		{
+			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+			assert!(jdb.exists(&foo));
+			assert!(!jdb.exists(&baz));
+			assert!(!jdb.exists(&bar));
 		}
 	}
 }

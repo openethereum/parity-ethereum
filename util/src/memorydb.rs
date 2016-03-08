@@ -21,6 +21,7 @@ use bytes::*;
 use rlp::*;
 use sha3::*;
 use hashdb::*;
+use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
 
@@ -142,6 +143,11 @@ impl MemoryDB {
 			}
 		}
 		self.raw(key).unwrap()
+	}
+
+	/// Returns the size of allocated heap memory
+	pub fn mem_used(&self) -> usize {
+		self.data.heap_size_of_children()
 	}
 }
 
