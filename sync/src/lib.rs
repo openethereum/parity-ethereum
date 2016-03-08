@@ -51,27 +51,27 @@ extern crate log;
 #[macro_use]
 extern crate ethcore_util as util;
 extern crate ethcore;
+extern crate ethminer;
 extern crate env_logger;
 extern crate time;
 extern crate rand;
-extern crate rayon;
 #[macro_use]
 extern crate heapsize;
 
 use std::ops::*;
 use std::sync::*;
-use ethcore::client::Client;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
 use util::TimerToken;
 use util::{U256, ONE_U256};
-use chain::ChainSync;
+use ethcore::client::Client;
 use ethcore::service::SyncMessage;
+use ethminer::EthMiner;
 use io::NetSyncIo;
+use chain::ChainSync;
 
 mod chain;
 mod io;
 mod range_collection;
-mod transaction_queue;
 
 #[cfg(test)]
 mod tests;
@@ -105,10 +105,10 @@ pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
+	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>, miner: Arc<EthMiner>) -> Arc<EthSync> {
 		let sync = Arc::new(EthSync {
 			chain: chain,
-			sync: RwLock::new(ChainSync::new(config)),
+			sync: RwLock::new(ChainSync::new(config, miner)),
 		});
 		service.register_protocol(sync.clone(), "eth", &[62u8, 63u8]).expect("Error registering eth protocol handler");
 		sync
@@ -154,7 +154,7 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 
 	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
 		match *message {
-			SyncMessage::NewChainBlocks { ref good, ref bad, ref retracted } => {
+			SyncMessage::NewChainBlocks { ref good, ref bad, ref retracted} => {
 				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
 				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, good, bad, retracted);
 			},

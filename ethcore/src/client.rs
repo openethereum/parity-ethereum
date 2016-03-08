@@ -17,7 +17,6 @@
 //! Blockchain database client.
 
 use std::marker::PhantomData;
-use std::sync::atomic::AtomicBool;
 use util::*;
 use util::panics::*;
 use blockchain::{BlockChain, BlockProvider};
@@ -185,6 +184,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
+
+	fn prepare_sealing(&self, author: Address, extra_data: Bytes) -> Option<ClosedBlock>;
+	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock>;
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -219,12 +221,6 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
-
-	// for sealing...
-	sealing_enabled: AtomicBool,
-	sealing_block: Mutex<Option<ClosedBlock>>,
-	author: RwLock<Address>,
-	extra_data: RwLock<Bytes>,
 	verifier: PhantomData<V>,
 	secret_store: Arc<RwLock<SecretStore>>,
 }
@@ -273,10 +269,6 @@ impl<V> Client<V> where V: Verifier {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
-			sealing_enabled: AtomicBool::new(false),
-			sealing_block: Mutex::new(None),
-			author: RwLock::new(Address::new()),
-			extra_data: RwLock::new(Vec::new()),
 			verifier: PhantomData,
 			secret_store: secret_store,
 		}))
@@ -425,10 +417,6 @@ impl<V> Client<V> where V: Verifier {
 			}
 		}
 
-		if self.chain_info().best_block_hash != original_best && self.sealing_enabled.load(atomic::Ordering::Relaxed) {
-			self.prepare_sealing();
-		}
-
 		imported
 	}
 
@@ -477,85 +465,46 @@ impl<V> Client<V> where V: Verifier {
 			BlockId::Latest => Some(self.chain.read().unwrap().best_block_number())
 		}
 	}
+}
 
-	/// Get the author that we will seal blocks as.
-	pub fn author(&self) -> Address {
-		self.author.read().unwrap().clone()
+
+// TODO: need MinerService MinerIoHandler
+
+impl<V> BlockChainClient for Client<V> where V: Verifier {
+
+
+	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
-	/// Set the author that we will seal blocks as.
-	pub fn set_author(&self, author: Address) {
-		*self.author.write().unwrap() = author;
-	}
-
-	/// Get the extra_data that we will seal blocks wuth.
-	pub fn extra_data(&self) -> Bytes {
-		self.extra_data.read().unwrap().clone()
-	}
-
-	/// Set the extra_data that we will seal blocks with.
-	pub fn set_extra_data(&self, extra_data: Bytes) {
-		*self.extra_data.write().unwrap() = extra_data;
-	}
-
-	/// New chain head event. Restart mining operation.
-	pub fn prepare_sealing(&self) {
+	fn prepare_sealing(&self, author: Address, extra_data: Bytes) -> Option<ClosedBlock> {
+		let engine = self.engine.deref().deref();
 		let h = self.chain.read().unwrap().best_block_hash();
+
 		let mut b = OpenBlock::new(
-			self.engine.deref().deref(),
+			engine,
 			self.state_db.lock().unwrap().clone(),
-			match self.chain.read().unwrap().block_header(&h) { Some(ref x) => x, None => {return;} },
+			match self.chain.read().unwrap().block_header(&h) { Some(ref x) => x, None => { return None; } },
 			self.build_last_hashes(h.clone()),
-			self.author(),
-			self.extra_data()
+			author,
+			extra_data,
 		);
 
-		self.chain.read().unwrap().find_uncle_headers(&h, self.engine.deref().deref().maximum_uncle_age()).unwrap().into_iter().take(self.engine.deref().deref().maximum_uncle_count()).foreach(|h| { b.push_uncle(h).unwrap(); });
+		self.chain.read().unwrap().find_uncle_headers(&h, engine.maximum_uncle_age())
+			.unwrap()
+			.into_iter()
+			.take(engine.maximum_uncle_count())
+			.foreach(|h| {
+				b.push_uncle(h).unwrap();
+			});
 
 		// TODO: push transactions.
 
 		let b = b.close();
 		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
-		*self.sealing_block.lock().unwrap() = Some(b);
+		Some(b)
 	}
 
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		if self.sealing_block.lock().unwrap().is_none() {
-			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
-			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
-			self.prepare_sealing();
-		}
-		&self.sealing_block
-	}
-
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	pub fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		let mut maybe_b = self.sealing_block.lock().unwrap();
-		match *maybe_b {
-			Some(ref b) if b.hash() == pow_hash => {}
-			_ => { return Err(Error::PowHashInvalid); }
-		}
-
-		let b = maybe_b.take();
-		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
-			Err(old) => {
-				*maybe_b = Some(old);
-				Err(Error::PowInvalid)
-			}
-			Ok(sealed) => {
-				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
-				try!(self.import_block(sealed.rlp_bytes()));
-				Ok(())
-			}
-		}
-	}
-}
-
-// TODO: need MinerService MinerIoHandler
-
-impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		let chain = self.chain.read().unwrap();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))

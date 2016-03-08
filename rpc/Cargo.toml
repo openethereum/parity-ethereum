@@ -18,6 +18,7 @@ ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethash = { path = "../ethash" }
 ethsync = { path = "../sync" }
+ethminer = { path = "../miner" }
 clippy = { version = "0.0.44", optional = true }
 rustc-serialize = "0.3"
 transient-hashmap = "0.1"

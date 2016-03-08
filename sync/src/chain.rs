@@ -30,17 +30,16 @@
 ///
 
 use util::*;
-use rayon::prelude::*;
 use std::mem::{replace};
 use ethcore::views::{HeaderView, BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo};
 use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
-use ethcore::block::Block;
 use ethcore::transaction::SignedTransaction;
+use ethcore::block::Block;
+use ethminer::EthMiner;
 use io::SyncIo;
-use transaction_queue::TransactionQueue;
 use time;
 use super::SyncConfig;
 
@@ -212,15 +211,15 @@ pub struct ChainSync {
 	max_download_ahead_blocks: usize,
 	/// Network ID
 	network_id: U256,
-	/// Transactions Queue
-	transaction_queue: Mutex<TransactionQueue>,
+	/// Miner
+	miner: Arc<EthMiner>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
-	pub fn new(config: SyncConfig) -> ChainSync {
+	pub fn new(config: SyncConfig, miner: Arc<EthMiner>) -> ChainSync {
 		ChainSync {
 			state: SyncState::NotSynced,
 			starting_block: 0,
@@ -239,7 +238,7 @@ impl ChainSync {
 			last_sent_block_number: 0,
 			max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
-			transaction_queue: Mutex::new(TransactionQueue::new()),
+			miner: miner,
 		}
 	}
 
@@ -298,7 +297,6 @@ impl ChainSync {
 		self.starting_block = 0;
 		self.highest_block = None;
 		self.have_common_block = false;
-		self.transaction_queue.lock().unwrap().clear();
 		self.starting_block = io.chain().chain_info().best_block_number;
 		self.state = SyncState::NotSynced;
 	}
@@ -927,16 +925,15 @@ impl ChainSync {
 	}
 	/// Called when peer sends us new transactions
 	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
-		let chain = io.chain();
 		let item_count = r.item_count();
 		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
-		let fetch_latest_nonce = |a : &Address| chain.nonce(a);
 
-		let mut transaction_queue = self.transaction_queue.lock().unwrap();
+		let mut transactions = Vec::with_capacity(item_count);
 		for i in 0..item_count {
 			let tx: SignedTransaction = try!(r.val_at(i));
-			transaction_queue.add(tx, &fetch_latest_nonce);
+			transactions.push(tx);
 		}
+		self.miner.import_transactions(transactions);
  		Ok(())
 	}
 
@@ -1263,38 +1260,9 @@ impl ChainSync {
 		self.check_resume(io);
 	}
 
-	/// called when block is imported to chain, updates transactions queue and propagates the blocks
-	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, good: &[H256], bad: &[H256], _retracted: &[H256]) {
-		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
-			let block = chain
-				.block(BlockId::Hash(hash.clone()))
-				// Client should send message after commit to db and inserting to chain.
-				.expect("Expected in-chain blocks.");
-			let block = BlockView::new(&block);
-			block.transactions()
-		}
-
-
-		{
-			let chain = io.chain();
-			let good = good.par_iter().map(|h| fetch_transactions(chain, h));
-			let bad = bad.par_iter().map(|h| fetch_transactions(chain, h));
-
-			good.for_each(|txs| {
-				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
-				transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
-			});
-			bad.for_each(|txs| {
-				// populate sender
-				for tx in &txs {
-					let _sender = tx.sender();
-				}
-				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				transaction_queue.add_all(txs, |a| chain.nonce(a));
-			});
-		}
-
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, good: &[H256], bad: &[H256], retracted: &[H256]) {
+		// notify miner
+		self.miner.chain_new_blocks(good, bad, retracted);
 		// Propagate latests blocks
 		self.propagate_latest_blocks(io);
 		// TODO [todr] propagate transactions?
