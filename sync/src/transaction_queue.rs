@@ -17,6 +17,67 @@
 // TODO [todr] - own transactions should have higher priority
 
 //! Transaction Queue
+//!
+//! TransactionQueue keeps track of all transactions seen by the node (received from other peers) and own transactions
+//! and orders them by priority. Top priority transactions are those with low nonce height (difference between
+//! transaction's nonce and next nonce expected from this sender). If nonces are equal transaction's gas price is used
+//! for comparison (higher gas price = higher priority).
+//!
+//! # Usage Example
+//!
+//! ```rust
+//! extern crate ethcore_util as util;
+//! extern crate ethcore;
+//! extern crate ethsync;
+//! extern crate rustc_serialize;
+//!
+//!	use util::crypto::KeyPair;
+//! use util::hash::Address;
+//! use util::numbers::{Uint, U256};
+//!	use ethsync::TransactionQueue;
+//!	use ethcore::transaction::*;
+//!	use rustc_serialize::hex::FromHex;
+//!
+//! fn main() {
+//!		let key = KeyPair::create().unwrap();
+//!		let t1 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
+//!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(10) };
+//!		let t2 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
+//!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(11) };
+//!
+//!		let st1 = t1.sign(&key.secret());
+//!		let st2 = t2.sign(&key.secret());
+//!		let default_nonce = |_a: &Address| U256::from(10);
+//!
+//!		let mut txq = TransactionQueue::new();
+//!		txq.add(st2.clone(), &default_nonce);
+//!		txq.add(st1.clone(), &default_nonce);
+//!
+//!		// Check status
+//!		assert_eq!(txq.status().pending, 2);
+//!		// Check top transactions
+//!		let top = txq.top_transactions(3);
+//!		assert_eq!(top.len(), 2);
+//!		assert_eq!(top[0], st1);
+//!		assert_eq!(top[1], st2);
+//!
+//!		// And when transaction is removed (but nonce haven't changed)
+//!		// it will move invalid transactions to future
+//!		txq.remove(&st1.hash(), &default_nonce);
+//!		assert_eq!(txq.status().pending, 0);
+//!		assert_eq!(txq.status().future, 1);
+//!		assert_eq!(txq.top_transactions(3).len(), 0);
+//!	}
+//! ```
+//!
+//!	# Maintaing valid state
+//!
+//!	1. Whenever transaction is imported to queue (to queue) all other transactions from this sender are revalidated in current. It means that they are moved to future and back again (height recalculation & gap filling).
+//!	2. Whenever transaction is removed:
+//!		- When it's removed from `future` - all `future` transactions heights are recalculated and then
+//!		  we check if the transactions should go to `current` (comparing state nonce)
+//!		- When it's removed from `current` - all transactions from this sender (`current` & `future`) are recalculated.
+//!
 
 use std::cmp::{Ordering};
 use std::collections::{HashMap, BTreeSet};
@@ -27,9 +88,16 @@ use ethcore::transaction::*;
 
 
 #[derive(Clone, Debug)]
+/// Light structure used to identify transaction and it's order
 struct TransactionOrder {
+	/// Primary ordering factory. Difference between transaction nonce and expected nonce in state
+	/// (e.g. Tx(nonce:5), State(nonce:0) -> height: 5)
+	/// High nonce_height = Low priority (processed later)
 	nonce_height: U256,
+	/// Gas Price of the transaction.
+	/// Low gas price = Low priority (processed later)
 	gas_price: U256,
+	/// Hash to identify associated transaction
 	hash: H256,
 }
 
@@ -70,7 +138,7 @@ impl Ord for TransactionOrder {
 		let a_gas = self.gas_price;
 		let b_gas = b.gas_price;
 		if a_gas != b_gas {
-			return a_gas.cmp(&b_gas);
+			return b_gas.cmp(&a_gas);
 		}
 
 		// Compare hashes
@@ -78,6 +146,7 @@ impl Ord for TransactionOrder {
 	}
 }
 
+/// Verified transaction (with sender)
 struct VerifiedTransaction {
 	transaction: SignedTransaction
 }
@@ -101,6 +170,11 @@ impl VerifiedTransaction {
 	}
 }
 
+/// Holds transactions accessible by (address, nonce) and by priority
+///
+/// TransactionSet keeps number of entries below limit, but it doesn't
+/// automatically happen during `insert/remove` operations.
+/// You have to call `enforce_limit` to remove lowest priority transactions from set.
 struct TransactionSet {
 	by_priority: BTreeSet<TransactionOrder>,
 	by_address: Table<Address, U256, TransactionOrder>,
@@ -108,11 +182,15 @@ struct TransactionSet {
 }
 
 impl TransactionSet {
+	/// Inserts `TransactionOrder` to this set
 	fn insert(&mut self, sender: Address, nonce: U256, order: TransactionOrder) -> Option<TransactionOrder> {
 		self.by_priority.insert(order.clone());
 		self.by_address.insert(sender, nonce, order)
 	}
 
+	/// Remove low priority transactions if there is more then specified by given `limit`.
+	///
+	/// It drops transactions from this set but also removes associated `VerifiedTransaction`.
 	fn enforce_limit(&mut self, by_hash: &mut HashMap<H256, VerifiedTransaction>) {
 		let len = self.by_priority.len();
 		if len <= self.limit {
@@ -134,6 +212,7 @@ impl TransactionSet {
 		}
 	}
 
+	/// Drop transaction from this set (remove from `by_priority` and `by_address`)
 	fn drop(&mut self, sender: &Address, nonce: &U256) -> Option<TransactionOrder> {
 		if let Some(tx_order) = self.by_address.remove(sender, nonce) {
 			self.by_priority.remove(&tx_order);
@@ -142,6 +221,7 @@ impl TransactionSet {
 		None
 	}
 
+	/// Drop all transactions.
 	fn clear(&mut self) {
 		self.by_priority.clear();
 		self.by_address.clear();
@@ -260,6 +340,8 @@ impl TransactionQueue {
 			// We will either move transaction to future or remove it completely
 			// so there will be no transactions from this sender in current
 			self.last_nonces.remove(&sender);
+			// First update height of transactions in future to avoid collisions
+			self.update_future(&sender, current_nonce);
 			// This should move all current transactions to future and remove old transactions
 			self.move_all_to_future(&sender, current_nonce);
 			// And now lets check if there is some chain of transactions in future
@@ -269,6 +351,7 @@ impl TransactionQueue {
 		}
 	}
 
+	/// Update height of all transactions in future transactions set.
 	fn update_future(&mut self, sender: &Address, current_nonce: U256) {
 		// We need to drain all transactions for current sender from future and reinsert them with updated height
 		let all_nonces_from_sender = match self.future.by_address.row(&sender) {
@@ -281,6 +364,8 @@ impl TransactionQueue {
 		}
 	}
 
+	/// Drop all transactions from given sender from `current`.
+	/// Either moves them to `future` or removes them from queue completely.
 	fn move_all_to_future(&mut self, sender: &Address, current_nonce: U256) {
 		let all_nonces_from_sender = match self.current.by_address.row(&sender) {
 			Some(row_map) => row_map.keys().cloned().collect::<Vec<U256>>(),
@@ -300,7 +385,7 @@ impl TransactionQueue {
 	}
 
 
-	/// Returns top transactions from the queue
+	/// Returns top transactions from the queue ordered by priority.
 	pub fn top_transactions(&self, size: usize) -> Vec<SignedTransaction> {
 		self.current.by_priority
 			.iter()
@@ -318,6 +403,8 @@ impl TransactionQueue {
 		self.last_nonces.clear();
 	}
 
+	/// Checks if there are any transactions in `future` that should actually be promoted to `current`
+	/// (because nonce matches).
 	fn move_matching_future_to_current(&mut self, address: Address, mut current_nonce: U256, first_nonce: U256) {
 		{
 			let by_nonce = self.future.by_address.row_mut(&address);
@@ -339,6 +426,14 @@ impl TransactionQueue {
 		self.last_nonces.insert(address, current_nonce - U256::one());
 	}
 
+	/// Adds VerifiedTransaction to this queue.
+	///
+	/// Determines if it should be placed in current or future. When transaction is
+	/// imported to `current` also checks if there are any `future` transactions that should be promoted because of
+	/// this.
+	///
+	/// It ignores transactions that has already been imported (same `hash`) and replaces the transaction
+	/// iff `(address, nonce)` is the same but `gas_price` is higher.
 	fn import_tx<T>(&mut self, tx: VerifiedTransaction, fetch_nonce: &T)
 		where T: Fn(&Address) -> U256 {
 
@@ -377,6 +472,10 @@ impl TransactionQueue {
 		self.current.enforce_limit(&mut self.by_hash);
 	}
 
+	/// Replaces transaction in given set (could be `future` or `current`).
+	///
+	/// If there is already transaction with same `(sender, nonce)` it will be replaced iff `gas_price` is higher.
+	/// One of the transactions is dropped from set and also removed from queue entirely (from `by_hash`).
 	fn replace_transaction(tx: VerifiedTransaction, base_nonce: U256, set: &mut TransactionSet, by_hash: &mut HashMap<H256, VerifiedTransaction>) {
 		let order = TransactionOrder::for_transaction(&tx, base_nonce);
 		let hash = tx.hash();
