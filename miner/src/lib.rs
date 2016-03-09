@@ -18,6 +18,37 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
+//! Miner module
+//! Keeps track of transactions and mined block.
+//!
+//! Usage example:
+//!
+//! ```rust
+//! extern crate ethcore_util as util;
+//! extern crate ethcore;
+//! extern crate ethminer;
+//! use std::env;
+//! use std::sync::Arc;
+//! use util::network::{NetworkService, NetworkConfiguration};
+//! use ethcore::client::{Client, ClientConfig};
+//! use ethcore::ethereum;
+//! use ethminer::{Miner, MinerService};
+//!
+//! fn main() {
+//! 	let dir = env::temp_dir();
+//! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
+//!
+//!		let miner: Miner = Miner::default();
+//!		// get status
+//!		assert_eq!(miner.status().transaction_queue_pending, 0);
+//!
+//!		// Check block for sealing
+//!		miner.prepare_sealing(&client);
+//!		assert_eq!(miner.sealing_block(&client).lock().unwrap().is_some());
+//! }
+//! ```
+
+
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -29,28 +60,5 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
-use std::ops::*;
-use std::sync::*;
 pub use miner::{Miner, MinerService};
 
-
-pub struct EthMiner {
-	miner: Miner,
-}
-
-impl EthMiner {
-	/// Creates and register protocol with the network service
-	pub fn new() -> Arc<EthMiner> {
-		Arc::new(EthMiner {
-			miner: Miner::new(),
-		})
-	}
-}
-
-impl Deref for EthMiner {
-	type Target = Miner;
-
-	fn deref(&self) -> &Self::Target {
-		&self.miner
-	}
-}

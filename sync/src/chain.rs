@@ -38,7 +38,7 @@ use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
-use ethminer::{EthMiner, MinerService};
+use ethminer::{Miner, MinerService};
 use io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -212,14 +212,14 @@ pub struct ChainSync {
 	/// Network ID
 	network_id: U256,
 	/// Miner
-	miner: Arc<EthMiner>,
+	miner: Arc<Miner>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
-	pub fn new(config: SyncConfig, miner: Arc<EthMiner>) -> ChainSync {
+	pub fn new(config: SyncConfig, miner: Arc<Miner>) -> ChainSync {
 		ChainSync {
 			state: SyncState::NotSynced,
 			starting_block: 0,
@@ -1285,7 +1285,7 @@ mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
 	use ethcore::client::*;
-	use ethminer::{EthMiner, MinerService};
+	use ethminer::{Miner, MinerService};
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
@@ -1395,7 +1395,7 @@ mod tests {
 	}
 
 	fn dummy_sync_with_peer(peer_latest_hash: H256) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default(), EthMiner::new());
+		let mut sync = ChainSync::new(SyncConfig::default(), Miner::new());
 		sync.peers.insert(0,
 		  	PeerInfo {
 				protocol_version: 0,

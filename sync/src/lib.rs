@@ -65,7 +65,7 @@ use util::TimerToken;
 use util::{U256, ONE_U256};
 use ethcore::client::Client;
 use ethcore::service::SyncMessage;
-use ethminer::EthMiner;
+use ethminer::Miner;
 use io::NetSyncIo;
 use chain::ChainSync;
 
@@ -105,7 +105,7 @@ pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>, miner: Arc<EthMiner>) -> Arc<EthSync> {
+	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>, miner: Arc<Miner>) -> Arc<EthSync> {
 		let sync = Arc::new(EthSync {
 			chain: chain,
 			sync: RwLock::new(ChainSync::new(config, miner)),

@@ -24,20 +24,27 @@ use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use transaction_queue::{TransactionQueue};
 
+/// Miner external API
 pub trait MinerService {
+
+	/// Returns miner's status.
 	fn status(&self) -> MinerStatus;
 
+	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T)
 		where T: Fn(&Address) -> U256;
-
-	/// called when blocks are imported to chain, updates transactions queue
-	fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], _retracted: &[H256]);
 
 	/// Set the author that we will seal blocks as.
 	fn set_author(&self, author: Address);
 
 	/// Set the extra_data that we will seal blocks with.
 	fn set_extra_data(&self, extra_data: Bytes);
+
+	/// Removes all transactions from the queue and restart mining operation.
+	fn clear_and_reset(&self, chain: &BlockChainClient);
+
+	/// called when blocks are imported to chain, updates transactions queue.
+	fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], _retracted: &[H256]);
 
 	/// New chain head event. Restart mining operation.
 	fn prepare_sealing(&self, chain: &BlockChainClient);
@@ -50,11 +57,15 @@ pub trait MinerService {
 	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 }
 
+/// Mining status
 pub struct MinerStatus {
+	/// Number of transactions in queue with state `pending` (ready to be included in block)
 	pub transaction_queue_pending: usize,
+	/// Number of transactions in queue with state `future` (not yet ready to be included in block)
 	pub transaction_queue_future: usize,
 }
 
+/// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
 	transaction_queue: Mutex<TransactionQueue>,
 
@@ -65,9 +76,8 @@ pub struct Miner {
 	extra_data: RwLock<Bytes>,
 }
 
-impl Miner {
-	/// Creates new instance of miner
-	pub fn new() -> Miner {
+impl Default for Miner {
+	fn default() -> Miner {
 		Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			sealing_enabled: AtomicBool::new(false),
@@ -75,6 +85,13 @@ impl Miner {
 			author: RwLock::new(Address::new()),
 			extra_data: RwLock::new(Vec::new()),
 		}
+	}
+}
+
+impl Miner {
+	/// Creates new instance of miner
+	pub fn new() -> Arc<Miner> {
+		Arc::new(Miner::default())
 	}
 
 	/// Get the author that we will seal blocks as.
@@ -89,6 +106,11 @@ impl Miner {
 }
 
 impl MinerService for Miner {
+
+	fn clear_and_reset(&self, chain: &BlockChainClient) {
+		self.transaction_queue.lock().unwrap().clear();
+		self.prepare_sealing(chain);
+	}
 
 	fn status(&self) -> MinerStatus {
 		let status = self.transaction_queue.lock().unwrap().status();

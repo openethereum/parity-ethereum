@@ -50,7 +50,7 @@ use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethsync::{EthSync, SyncConfig};
-use ethminer::{EthMiner, MinerService};
+use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
@@ -192,7 +192,7 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, miner: Arc<EthMiner>, url: &str, cors_domain: &str, apis: Vec<&str>) {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, miner: Arc<Miner>, url: &str, cors_domain: &str, apis: Vec<&str>) {
 	use rpc::v1::*;
 
 	let mut server = rpc::HttpServer::new(1);
@@ -382,7 +382,7 @@ impl Configuration {
 		let client = service.client();
 
 		// Miner
-		let miner = EthMiner::new();
+		let miner = Miner::new();
 		miner.set_author(self.author());
 		miner.set_extra_data(self.extra_data());
 

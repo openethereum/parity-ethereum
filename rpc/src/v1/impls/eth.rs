@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak, Mutex, RwLock};
 use std::ops::Deref;
 use ethsync::{EthSync, SyncState};
-use ethminer::{EthMiner, MinerService};
+use ethminer::{Miner, MinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
@@ -38,13 +38,13 @@ use v1::helpers::{PollFilter, PollManager};
 pub struct EthClient {
 	client: Weak<Client>,
 	sync: Weak<EthSync>,
-	miner: Weak<EthMiner>,
+	miner: Weak<Miner>,
 	hashrates: RwLock<HashMap<H256, u64>>,
 }
 
 impl EthClient {
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<Client>, sync: &Arc<EthSync>, miner: &Arc<EthMiner>) -> Self {
+	pub fn new(client: &Arc<Client>, sync: &Arc<EthSync>, miner: &Arc<Miner>) -> Self {
 		EthClient {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),

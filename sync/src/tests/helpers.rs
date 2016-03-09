@@ -19,7 +19,7 @@ use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, 
 use ethcore::header::{Header as BlockHeader, BlockNumber};
 use ethcore::block::*;
 use ethcore::error::*;
-use ethminer::EthMiner;
+use ethminer::Miner;
 use io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
@@ -392,7 +392,7 @@ impl TestNet {
 		for _ in 0..n {
 			net.peers.push(TestPeer {
 				chain: TestBlockChainClient::new(),
-				sync: ChainSync::new(SyncConfig::default(), EthMiner::new()),
+				sync: ChainSync::new(SyncConfig::default(), Miner::new()),
 				queue: VecDeque::new(),
 			});
 		}
