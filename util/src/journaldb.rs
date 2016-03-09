@@ -243,9 +243,10 @@ impl JournalDB {
 					{
 						if canon_id == journal.id {
 							for h in &journal.insertions {
-								match journal_overlay.backing_overlay.raw(&h) {
-									Some(&(ref d, rc)) if rc > 0 => canon_insertions.push((h.clone(), d.clone())), //TODO: optimizie this to avoid data copy
-									_ => ()
+								if let Some(&(ref d, rc)) =  journal_overlay.backing_overlay.raw(h) {
+									if rc > 0 {
+										canon_insertions.push((h.clone(), d.clone())); //TODO: optimize this to avoid data copy
+									}
 								}
 							}
 							canon_deletions = journal.deletions;
@@ -352,7 +353,7 @@ impl HashDB for JournalDB {
 		ret
 	}
 
-	fn lookup(&self, key: &H256) -> Option<&[u8]> { 
+	fn lookup(&self, key: &H256) -> Option<&[u8]> {
 		let k = self.transaction_overlay.raw(key);
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
@@ -573,7 +574,6 @@ mod tests {
 	fn reopen_remove() {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
-		let bar = H256::random();
 
 		let foo = {
 			let mut jdb = JournalDB::new(dir.to_str().unwrap());
