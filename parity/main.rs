@@ -108,6 +108,7 @@ API and Console Options:
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL (geth-compatible).
 
 Sealing/Mining Options:
+  --gasprice GAS		   Minimal gas price a transaction must have to be accepted for mining [default: 50000000000].
   --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
                            from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
   --extradata STRING       Specify a custom extra-data for authored blocks, no more than 32 characters.
@@ -161,6 +162,7 @@ struct Args {
 	flag_rpcapi: Option<String>,
 	flag_logging: Option<String>,
 	flag_version: bool,
+	flag_gasprice: String,
 	flag_author: String,
 	flag_extra_data: Option<String>,
 }
@@ -246,6 +248,11 @@ impl Configuration {
 
 	fn author(&self) -> Address {
 		Address::from_str(&self.args.flag_author).unwrap_or_else(|_| die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", self.args.flag_author))
+	}
+
+	fn gasprice(&self) -> U256 {
+		U256::from_dec_str(self.args.flag_gasprice).unwrap_or_else(|_| die("{}: Invalid gasprice given. Must be a
+																		   decimal unsigned 256-bit number."))
 	}
 
 	fn extra_data(&self) -> Bytes {
@@ -385,6 +392,7 @@ impl Configuration {
 		let miner = Miner::new();
 		miner.set_author(self.author());
 		miner.set_extra_data(self.extra_data());
+		miner.set_minimal_gas_price(self.gasprice());
 
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());

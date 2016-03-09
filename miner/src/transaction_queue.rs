@@ -159,6 +159,8 @@ pub struct TransactionQueueStatus {
 
 /// TransactionQueue implementation
 pub struct TransactionQueue {
+	/// Gas Price threshold for transactions that can be imported to this queue (defaults to 0)
+	minimal_gas_price: U256,
 	/// Priority queue for transactions that can go to block
 	current: TransactionSet,
 	/// Priority queue for transactions that has been received but are not yet valid to go to block
@@ -189,11 +191,18 @@ impl TransactionQueue {
 		};
 
 		TransactionQueue {
+			minimal_gas_price: U256::zero(),
 			current: current,
 			future: future,
 			by_hash: HashMap::new(),
 			last_nonces: HashMap::new(),
 		}
+	}
+
+	/// Sets new gas price threshold for incoming transactions.
+	/// Any transactions already imported to the queue are not affected.
+	pub fn set_minimal_gas_price(&mut self, min_gas_price: U256) {
+		self.minimal_gas_price = min_gas_price;
 	}
 
 	/// Returns current status for this queue
@@ -215,6 +224,15 @@ impl TransactionQueue {
 	/// Add signed transaction to queue to be verified and imported
 	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_nonce: &T)
 		where T: Fn(&Address) -> U256 {
+
+		if tx.gas_price < self.minimal_gas_price {
+			trace!(target: "sync",
+				"Dropping transaction below minimal gas price threshold: {:?} (gp: {} < {})",
+				tx.hash(), tx.gas_price, self.minimal_gas_price
+			);
+			return;
+		}
+		// Everything ok - import transaction
 		self.import_tx(VerifiedTransaction::new(tx), fetch_nonce);
 	}
 
@@ -501,6 +519,22 @@ mod test {
 		// then
 		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
+	}
+
+	#[test]
+	fn should_not_import_transaction_below_min_gas_price_threshold() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		txq.set_minimal_gas_price(tx.gas_price + U256::one());
+
+		// when
+		txq.add(tx, &default_nonce);
+
+		// then
+		let stats = txq.status();
+		assert_eq!(stats.pending, 0);
+		assert_eq!(stats.future, 0);
 	}
 
 	#[test]
