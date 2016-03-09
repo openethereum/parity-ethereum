@@ -17,9 +17,11 @@
 pub mod verification;
 pub mod verifier;
 mod canon_verifier;
+#[cfg(test)]
 mod noop_verifier;
 
 pub use self::verification::*;
 pub use self::verifier::Verifier;
 pub use self::canon_verifier::CanonVerifier;
+#[cfg(test)]
 pub use self::noop_verifier::NoopVerifier;
