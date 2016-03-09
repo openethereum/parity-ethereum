@@ -24,7 +24,7 @@ use blockchain::block_info::{BlockInfo, BlockLocation};
 pub struct ImportRoute {
 	/// Blocks that were invalidated by new block.
 	pub invalidated_blocks: Vec<H256>,
-	/// Blocks that were validted by new block.
+	/// Blocks that were validated by new block.
 	pub validated_blocks: Vec<H256>,
 }
 
