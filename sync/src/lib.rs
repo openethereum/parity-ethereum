@@ -93,6 +93,12 @@ impl Default for SyncConfig {
 	}
 }
 
+/// Current sync status
+pub trait SyncStatusProvider: Send + Sync {
+	/// Get sync status
+	fn status(&self) -> SyncStatus;
+}
+
 /// Ethereum network protocol handler
 pub struct EthSync {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
@@ -114,11 +120,6 @@ impl EthSync {
 		sync
 	}
 
-	/// Get sync status
-	pub fn status(&self) -> SyncStatus {
-		self.sync.read().unwrap().status()
-	}
-
 	/// Stop sync
 	pub fn stop(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().abort(&mut NetSyncIo::new(io, self.chain.deref()));
@@ -127,6 +128,13 @@ impl EthSync {
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
+	}
+}
+
+impl SyncStatusProvider for EthSync {
+	/// Get sync status
+	fn status(&self) -> SyncStatus {
+		self.sync.read().unwrap().status()
 	}
 }
 
