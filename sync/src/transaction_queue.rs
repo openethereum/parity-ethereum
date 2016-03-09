@@ -24,6 +24,7 @@ use util::numbers::{Uint, U256};
 use util::hash::{Address, H256};
 use util::table::*;
 use ethcore::transaction::*;
+use ethcore::error::Error;
 
 
 #[derive(Clone, Debug)]
@@ -82,10 +83,11 @@ struct VerifiedTransaction {
 	transaction: SignedTransaction
 }
 impl VerifiedTransaction {
-	fn new(transaction: SignedTransaction) -> Self {
-		VerifiedTransaction {
+	fn new(transaction: SignedTransaction) -> Result<Self, Error> {
+		try!(transaction.sender());
+		Ok(VerifiedTransaction {
 			transaction: transaction
-		}
+		})
 	}
 
 	fn hash(&self) -> H256 {
@@ -148,6 +150,8 @@ impl TransactionSet {
 	}
 }
 
+// Will be used when rpc merged
+#[allow(dead_code)]
 #[derive(Debug)]
 /// Current status of the queue
 pub struct TransactionQueueStatus {
@@ -196,6 +200,8 @@ impl TransactionQueue {
 		}
 	}
 
+	// Will be used when rpc merged
+	#[allow(dead_code)]
 	/// Returns current status for this queue
 	pub fn status(&self) -> TransactionQueueStatus {
 		TransactionQueueStatus {
@@ -205,17 +211,19 @@ impl TransactionQueue {
 	}
 
 	/// Adds all signed transactions to queue to be verified and imported
-	pub fn add_all<T>(&mut self, txs: Vec<SignedTransaction>, fetch_nonce: T)
+	pub fn add_all<T>(&mut self, txs: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
 		where T: Fn(&Address) -> U256 {
 		for tx in txs.into_iter() {
-			self.add(tx, &fetch_nonce);
+			try!(self.add(tx, &fetch_nonce));
 		}
+		Ok(())
 	}
 
 	/// Add signed transaction to queue to be verified and imported
-	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_nonce: &T)
+	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_nonce: &T) -> Result<(), Error>
 		where T: Fn(&Address) -> U256 {
-		self.import_tx(VerifiedTransaction::new(tx), fetch_nonce);
+		self.import_tx(try!(VerifiedTransaction::new(tx)), fetch_nonce);
+		Ok(())
 	}
 
 	/// Removes all transactions identified by hashes given in slice
@@ -299,7 +307,8 @@ impl TransactionQueue {
 		self.future.enforce_limit(&mut self.by_hash);
 	}
 
-
+	// Will be used when mining merged
+	#[allow(dead_code)]
 	/// Returns top transactions from the queue
 	pub fn top_transactions(&self, size: usize) -> Vec<SignedTransaction> {
 		self.current.by_priority
@@ -407,13 +416,8 @@ impl TransactionQueue {
 #[cfg(test)]
 mod test {
 	extern crate rustc_serialize;
-	use self::rustc_serialize::hex::FromHex;
-	use std::ops::Deref;
-	use std::collections::{HashMap, BTreeSet};
-	use util::crypto::KeyPair;
-	use util::numbers::{U256, Uint};
-	use util::hash::{Address};
 	use util::table::*;
+	use util::*;
 	use ethcore::transaction::*;
 	use super::*;
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
@@ -457,12 +461,12 @@ mod test {
 			limit: 1
 		};
 		let (tx1, tx2) = new_txs(U256::from(1));
-		let tx1 = VerifiedTransaction::new(tx1);
-		let tx2 = VerifiedTransaction::new(tx2);
+		let tx1 = VerifiedTransaction::new(tx1).unwrap();
+		let tx2 = VerifiedTransaction::new(tx2).unwrap();
 		let mut by_hash = {
 			let mut x = HashMap::new();
-			let tx1 = VerifiedTransaction::new(tx1.transaction.clone());
-			let tx2 = VerifiedTransaction::new(tx2.transaction.clone());
+			let tx1 = VerifiedTransaction::new(tx1.transaction.clone()).unwrap();
+			let tx2 = VerifiedTransaction::new(tx2.transaction.clone()).unwrap();
 			x.insert(tx1.hash(), tx1);
 			x.insert(tx2.hash(), tx2);
 			x
@@ -496,11 +500,37 @@ mod test {
 		let tx = new_tx();
 
 		// when
-		txq.add(tx, &default_nonce);
+		let res = txq.add(tx, &default_nonce);
 
 		// then
+		assert!(res.is_ok());
 		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
+	}
+
+	#[test]
+	fn should_reject_incorectly_signed_transaction() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_unsigned_tx(U256::from(123));
+		let stx = {
+			let mut s = RlpStream::new_list(9);
+			s.append(&tx.nonce);
+			s.append(&tx.gas_price);
+			s.append(&tx.gas);
+			s.append_empty_data(); // action=create
+			s.append(&tx.value);
+			s.append(&tx.data);
+			s.append(&0u64); // v
+			s.append(&U256::zero()); // r
+			s.append(&U256::zero()); // s
+			decode(s.as_raw())
+		};
+		// when
+		let res = txq.add(stx, &default_nonce);
+
+		// then
+		assert!(res.is_err());
 	}
 
 	#[test]
@@ -511,8 +541,8 @@ mod test {
 		let (tx, tx2) = new_txs(U256::from(1));
 
 		// when
-		txq.add(tx.clone(), &default_nonce);
-		txq.add(tx2.clone(), &default_nonce);
+		txq.add(tx.clone(), &default_nonce).unwrap();
+		txq.add(tx2.clone(), &default_nonce).unwrap();
 
 		// then
 		let top = txq.top_transactions(5);
@@ -529,8 +559,8 @@ mod test {
 		let (tx, tx2) = new_txs(U256::from(2));
 
 		// when
-		txq.add(tx.clone(), &default_nonce);
-		txq.add(tx2.clone(), &default_nonce);
+		txq.add(tx.clone(), &default_nonce).unwrap();
+		txq.add(tx2.clone(), &default_nonce).unwrap();
 
 		// then
 		let stats = txq.status();
@@ -551,13 +581,13 @@ mod test {
 		let tx1 = new_unsigned_tx(U256::from(124)).sign(&secret);
 		let tx2 = new_unsigned_tx(U256::from(125)).sign(&secret);
 
-		txq.add(tx, &default_nonce);
+		txq.add(tx, &default_nonce).unwrap();
 		assert_eq!(txq.status().pending, 1);
-		txq.add(tx2, &default_nonce);
+		txq.add(tx2, &default_nonce).unwrap();
 		assert_eq!(txq.status().future, 1);
 
 		// when
-		txq.add(tx1, &default_nonce);
+		txq.add(tx1, &default_nonce).unwrap();
 
 		// then
 		let stats = txq.status();
@@ -570,8 +600,8 @@ mod test {
 		// given
 		let mut txq2 = TransactionQueue::new();
 		let (tx, tx2) = new_txs(U256::from(3));
-		txq2.add(tx.clone(), &default_nonce);
-		txq2.add(tx2.clone(), &default_nonce);
+		txq2.add(tx.clone(), &default_nonce).unwrap();
+		txq2.add(tx2.clone(), &default_nonce).unwrap();
 		assert_eq!(txq2.status().pending, 1);
 		assert_eq!(txq2.status().future, 1);
 
@@ -592,10 +622,10 @@ mod test {
 		let mut txq = TransactionQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
 		let tx3 = new_tx();
-		txq.add(tx2.clone(), &default_nonce);
+		txq.add(tx2.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().future, 1);
-		txq.add(tx3.clone(), &default_nonce);
-		txq.add(tx.clone(), &default_nonce);
+		txq.add(tx3.clone(), &default_nonce).unwrap();
+		txq.add(tx.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().pending, 3);
 
 		// when
@@ -614,8 +644,8 @@ mod test {
 		let (tx, tx2) = new_txs(U256::one());
 
 		// add
-		txq.add(tx2.clone(), &default_nonce);
-		txq.add(tx.clone(), &default_nonce);
+		txq.add(tx2.clone(), &default_nonce).unwrap();
+		txq.add(tx.clone(), &default_nonce).unwrap();
 		let stats = txq.status();
 		assert_eq!(stats.pending, 2);
 
@@ -632,11 +662,11 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::with_limits(1, 1);
 		let (tx, tx2) = new_txs(U256::one());
-		txq.add(tx.clone(), &default_nonce);
+		txq.add(tx.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().pending, 1);
 
 		// when
-		txq.add(tx2.clone(), &default_nonce);
+		txq.add(tx2.clone(), &default_nonce).unwrap();
 
 		// then
 		let t = txq.top_transactions(2);
@@ -650,14 +680,14 @@ mod test {
 		let mut txq = TransactionQueue::with_limits(10, 1);
 		let (tx1, tx2) = new_txs(U256::from(4));
 		let (tx3, tx4) = new_txs(U256::from(4));
-		txq.add(tx1.clone(), &default_nonce);
-		txq.add(tx3.clone(), &default_nonce);
+		txq.add(tx1.clone(), &default_nonce).unwrap();
+		txq.add(tx3.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().pending, 2);
 
 		// when
-		txq.add(tx2.clone(), &default_nonce);
+		txq.add(tx2.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().future, 1);
-		txq.add(tx4.clone(), &default_nonce);
+		txq.add(tx4.clone(), &default_nonce).unwrap();
 
 		// then
 		assert_eq!(txq.status().future, 1);
@@ -671,7 +701,7 @@ mod test {
 		let fetch_last_nonce = |_a: &Address| last_nonce;
 
 		// when
-		txq.add(tx, &fetch_last_nonce);
+		txq.add(tx, &fetch_last_nonce).unwrap();
 
 		// then
 		let stats = txq.status();
@@ -685,12 +715,12 @@ mod test {
 		let nonce = |a: &Address| default_nonce(a) + U256::one();
 		let mut txq = TransactionQueue::new();
 		let (_tx1, tx2) = new_txs(U256::from(1));
-		txq.add(tx2.clone(), &default_nonce);
+		txq.add(tx2.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().future, 1);
 		assert_eq!(txq.status().pending, 0);
 
 		// when
-		txq.add(tx2.clone(), &nonce);
+		txq.add(tx2.clone(), &nonce).unwrap();
 
 		// then
 		let stats = txq.status();
@@ -703,15 +733,15 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::new();
 		let (tx1, tx2) = new_txs(U256::from(1));
-		txq.add(tx1.clone(), &default_nonce);
-		txq.add(tx2.clone(), &default_nonce);
+		txq.add(tx1.clone(), &default_nonce).unwrap();
+		txq.add(tx2.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().pending, 2);
 
 		// when
 		txq.remove(&tx1.hash(), &default_nonce);
 		assert_eq!(txq.status().pending, 0);
 		assert_eq!(txq.status().future, 1);
-		txq.add(tx1.clone(), &default_nonce);
+		txq.add(tx1.clone(), &default_nonce).unwrap();
 
 		// then
 		let stats = txq.status();
@@ -726,10 +756,10 @@ mod test {
 		let mut txq = TransactionQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
 		let tx3 = new_tx();
-		txq.add(tx2.clone(), &default_nonce);
+		txq.add(tx2.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().future, 1);
-		txq.add(tx3.clone(), &default_nonce);
-		txq.add(tx.clone(), &default_nonce);
+		txq.add(tx3.clone(), &default_nonce).unwrap();
+		txq.add(tx.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().pending, 3);
 
 		// when
@@ -754,8 +784,8 @@ mod test {
 		};
 
 		// when
-		txq.add(tx, &default_nonce);
-		txq.add(tx2, &default_nonce);
+		txq.add(tx, &default_nonce).unwrap();
+		txq.add(tx2, &default_nonce).unwrap();
 
 		// then
 		let stats = txq.status();
@@ -782,10 +812,10 @@ mod test {
 		};
 
 		// when
-		txq.add(tx1, &default_nonce);
-		txq.add(tx2, &default_nonce);
+		txq.add(tx1, &default_nonce).unwrap();
+		txq.add(tx2, &default_nonce).unwrap();
 		assert_eq!(txq.status().future, 1);
-		txq.add(tx0, &default_nonce);
+		txq.add(tx0, &default_nonce).unwrap();
 
 		// then
 		let stats = txq.status();
@@ -801,8 +831,8 @@ mod test {
 		let next_nonce = |a: &Address| default_nonce(a) + U256::one();
 		let mut txq = TransactionQueue::new();
 		let (tx1, tx2) = new_txs(U256::one());
-		txq.add(tx1.clone(), &previous_nonce);
-		txq.add(tx2, &previous_nonce);
+		txq.add(tx1.clone(), &previous_nonce).unwrap();
+		txq.add(tx2, &previous_nonce).unwrap();
 		assert_eq!(txq.status().future, 2);
 
 		// when
