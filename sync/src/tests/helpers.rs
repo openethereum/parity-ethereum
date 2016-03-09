@@ -24,7 +24,7 @@ use io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
 use ethcore::receipt::Receipt;
-use ethcore::transaction::{LocalizedTransaction, Transaction, Action};
+use ethcore::transaction::{LocalizedTransaction, SignedTransaction, Transaction, Action};
 use ethcore::filter::Filter;
 use ethcore::log_entry::LocalizedLogEntry;
 
@@ -311,7 +311,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn prepare_sealing(&self, author: Address, extra_data: Bytes) -> Option<ClosedBlock> {
+	fn prepare_sealing(&self, author: Address, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
 		unimplemented!()
 	}
 

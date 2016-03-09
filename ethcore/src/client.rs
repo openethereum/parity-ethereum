@@ -32,7 +32,7 @@ use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
-use transaction::LocalizedTransaction;
+use transaction::{LocalizedTransaction, SignedTransaction};
 use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -185,7 +185,10 @@ pub trait BlockChainClient : Sync + Send {
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
-	fn prepare_sealing(&self, author: Address, extra_data: Bytes) -> Option<ClosedBlock>;
+	/// Returns ClosedBlock prepared for sealing.
+	fn prepare_sealing(&self, author: Address, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock>;
+
+	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
 	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock>;
 }
 
@@ -417,6 +420,12 @@ impl<V> Client<V> where V: Verifier {
 			}
 		}
 
+		{
+			if self.chain_info().best_block_hash != original_best {
+				io.send(NetworkIoMessage::User(SyncMessage::NewChainHead)).unwrap();
+			}
+		}
+
 		imported
 	}
 
@@ -477,7 +486,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
-	fn prepare_sealing(&self, author: Address, extra_data: Bytes) -> Option<ClosedBlock> {
+	fn prepare_sealing(&self, author: Address, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.read().unwrap().best_block_hash();
 
@@ -490,7 +499,9 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			extra_data,
 		);
 
-		self.chain.read().unwrap().find_uncle_headers(&h, engine.maximum_uncle_age())
+		// Add uncles
+		self.chain.read().unwrap()
+			.find_uncle_headers(&h, engine.maximum_uncle_age())
 			.unwrap()
 			.into_iter()
 			.take(engine.maximum_uncle_count())
@@ -498,10 +509,22 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 				b.push_uncle(h).unwrap();
 			});
 
-		// TODO: push transactions.
+		// Add transactions
+		let block_number = b.block().header().number();
+		for tx in transactions {
+			let import = b.push_transaction(tx, None);
+			if let Err(e) = import {
+				trace!("Error adding transaction to block: number={}. Error: {:?}", block_number, e);
+			}
+		}
 
+		// And close
 		let b = b.close();
-		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
+		trace!("Sealing: number={}, hash={}, diff={}",
+			   b.block().header().number(),
+			   b.hash(),
+			   b.block().header().difficulty()
+		);
 		Some(b)
 	}
 

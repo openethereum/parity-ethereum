@@ -158,6 +158,10 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
 				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, good, bad, retracted);
 			},
+			SyncMessage::NewChainHead => {
+				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
+				self.sync.write().unwrap().chain_new_head(&mut sync_io);
+			}
 			_ => {/* Ignore other messages */},
 		}
 	}

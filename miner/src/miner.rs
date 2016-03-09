@@ -87,8 +87,15 @@ impl Miner {
 	}
 
 	/// New chain head event. Restart mining operation.
-	fn prepare_sealing(&self, chain: &BlockChainClient) {
-		let b = chain.prepare_sealing(*self.author.read().unwrap(), self.extra_data.read().unwrap().clone());
+	pub fn prepare_sealing(&self, chain: &BlockChainClient) {
+		let no_of_transactions = 128;
+		let transactions = self.transaction_queue.lock().unwrap().top_transactions(no_of_transactions);
+
+		let b = chain.prepare_sealing(
+			self.author(),
+			self.extra_data(),
+			transactions,
+		);
 		*self.sealing_block.lock().unwrap() = b;
 	}
 
