@@ -27,14 +27,16 @@
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! extern crate ethminer;
+//! use std::ops::Deref;
 //! use std::env;
 //! use std::sync::Arc;
 //! use util::network::{NetworkService, NetworkConfiguration};
-//! use ethcore::client::{Client, ClientConfig};
+//! use ethcore::client::{Client, ClientConfig, BlockChainClient};
 //! use ethcore::ethereum;
 //! use ethminer::{Miner, MinerService};
 //!
 //! fn main() {
+//! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
 //! 	let dir = env::temp_dir();
 //! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
 //!
@@ -43,8 +45,8 @@
 //!		assert_eq!(miner.status().transaction_queue_pending, 0);
 //!
 //!		// Check block for sealing
-//!		miner.prepare_sealing(&client);
-//!		assert_eq!(miner.sealing_block(&client).lock().unwrap().is_some());
+//!		miner.prepare_sealing(client.deref());
+//!		assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
 //! }
 //! ```
 
