@@ -32,6 +32,7 @@ extern crate fdlimit;
 extern crate daemonize;
 extern crate time;
 extern crate number_prefix;
+extern crate rpassword;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -43,7 +44,7 @@ use std::path::PathBuf;
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
-use util::panics::MayPanic;
+use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
@@ -53,6 +54,16 @@ use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 
+fn die_with_message(msg: &str) -> ! {
+	println!("ERROR: {}", msg);
+	exit(1);
+}
+
+#[macro_export]
+macro_rules! die {
+	($($arg:tt)*) => (die_with_message(&format!("{}", format_args!($($arg)*))));
+}
+
 const USAGE: &'static str = r#"
 Parity. Ethereum Client.
   By Wood/Paronyan/Kotewicz/Drwięga/Volf.
@@ -60,15 +71,20 @@ Parity. Ethereum Client.
 
 Usage:
   parity daemon <pid-file> [options] [ --no-bootstrap | <enode>... ]
+  parity account (new | list)
   parity [options] [ --no-bootstrap | <enode>... ]
 
-Options:
+Protocol Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
-                           or frontier, mainnet, morden, or testnet [default: frontier].
+                           or olympic, frontier, homestead, mainnet, morden, or testnet [default: homestead].
+  --testnet                Equivalent to --chain testnet (geth-compatible).
+  --networkid INDEX        Override the network identifier from the chain we are on.
   --archive                Client should not prune the state/storage trie.
-  -d --db-path PATH        Specify the database & configuration directory path [default: $HOME/.parity]
+  -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
+  --identity NAME          Specify your node's name.
 
+Networking Options:
   --no-bootstrap           Don't bother trying to connect to any nodes initially.
   --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
   --public-address URL     Specify the IP/port on which peers may connect.
@@ -78,18 +94,32 @@ Options:
   --no-upnp                Disable trying to figure out the correct public adderss over UPnP.
   --node-key KEY           Specify node secret key, either as 64-character hex string or input to SHA3 operation.
 
+API and Console Options:
+  -j --jsonrpc             Enable the JSON-RPC API sever.
+  --jsonrpc-addr HOST      Specify the hostname portion of the JSONRPC API server [default: 127.0.0.1].
+  --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server [default: 8545].
+  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
+  --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited
+                           list of API name. Possible name are web3, eth and net. [default: web3,eth,net].
+  --rpc                    Equivalent to --jsonrpc (geth-compatible).
+  --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST (geth-compatible).
+  --rpcport PORT           Equivalent to --jsonrpc-port PORT (geth-compatible).
+  --rpcapi APIS            Equivalent to --jsonrpc-apis APIS (geth-compatible).
+  --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL (geth-compatible).
+
+Sealing/Mining Options:
+  --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
+                           from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
+  --extradata STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
+
+Memory Footprint Options:
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
   --queue-max-size BYTES   Specify the maximum size of memory to use for block queue [default: 52428800].
+  --cache MEGABYTES        Set total amount of cache to use for the entire system, mutually exclusive with
+                           other cache options (geth-compatible).
 
-  -j --jsonrpc             Enable the JSON-RPC API sever.
-  --jsonrpc-url URL        Specify URL for JSON-RPC API server [default: 127.0.0.1:8545].
-  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
-
-  --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
-                           from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
-  --extra-data STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
-
+Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level.
   -v --version             Show information about version.
   -h --help                Show this screen.
@@ -98,17 +128,24 @@ Options:
 #[derive(Debug, RustcDecodable)]
 struct Args {
 	cmd_daemon: bool,
+	cmd_account: bool,
+	cmd_new: bool,
+	cmd_list: bool,
 	arg_pid_file: String,
 	arg_enode: Vec<String>,
 	flag_chain: String,
-	flag_db_path: String,
+	flag_testnet: bool,
+	flag_datadir: String,
+	flag_networkid: Option<String>,
+	flag_identity: String,
+	flag_cache: Option<usize>,
 	flag_keys_path: String,
 	flag_archive: bool,
 	flag_no_bootstrap: bool,
 	flag_listen_address: String,
 	flag_public_address: Option<String>,
 	flag_address: Option<String>,
-	flag_peers: u32,
+	flag_peers: usize,
 	flag_no_discovery: bool,
 	flag_no_upnp: bool,
 	flag_node_key: Option<String>,
@@ -116,8 +153,15 @@ struct Args {
 	flag_cache_max_size: usize,
 	flag_queue_max_size: usize,
 	flag_jsonrpc: bool,
-	flag_jsonrpc_url: String,
+	flag_jsonrpc_addr: String,
+	flag_jsonrpc_port: u16,
 	flag_jsonrpc_cors: String,
+	flag_jsonrpc_apis: String,
+	flag_rpc: bool,
+	flag_rpcaddr: Option<String>,
+	flag_rpcport: Option<u16>,
+	flag_rpccorsdomain: Option<String>,
+	flag_rpcapi: Option<String>,
 	flag_logging: Option<String>,
 	flag_version: bool,
 	flag_author: String,
@@ -151,19 +195,29 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str) {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
-	let mut server = rpc::HttpServer::new(1);
-	server.add_delegate(Web3Client::new().to_delegate());
-	server.add_delegate(EthClient::new(&client, &sync).to_delegate());
-	server.add_delegate(EthFilterClient::new(&client).to_delegate());
-	server.add_delegate(NetClient::new(&sync).to_delegate());
-	server.start_async(url, cors_domain);
+	let server = rpc::RpcServer::new();
+	for api in apis.into_iter() {
+		match api {
+			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
+			"net" => server.add_delegate(NetClient::new(&sync).to_delegate()),
+			"eth" => {
+				server.add_delegate(EthClient::new(&client, &sync).to_delegate());
+				server.add_delegate(EthFilterClient::new(&client).to_delegate());
+			}
+			_ => {
+				die!("{}: Invalid API name to be enabled.", api);
+			}
+		}
+	}
+	Some(server.start_http(url, cors_domain, 1))
 }
 
 #[cfg(not(feature = "rpc"))]
-fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
+fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) -> Option<Arc<PanicHandler>> {
+	None
 }
 
 fn print_version() {
@@ -179,16 +233,6 @@ By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 ", version());
 }
 
-fn die_with_message(msg: &str) -> ! {
-	println!("ERROR: {}", msg);
-	exit(1);
-}
-
-#[macro_export]
-macro_rules! die {
-	($($arg:tt)*) => (die_with_message(&format!("{}", format_args!($($arg)*))));
-}
-
 struct Configuration {
 	args: Args
 }
@@ -201,7 +245,7 @@ impl Configuration {
 	}
 
 	fn path(&self) -> String {
-		self.args.flag_db_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+		self.args.flag_datadir.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
 	fn author(&self) -> Address {
@@ -221,8 +265,11 @@ impl Configuration {
 	}
 
 	fn spec(&self) -> Spec {
+		if self.args.flag_testnet {
+			return ethereum::new_morden();
+		}
 		match self.args.flag_chain.as_ref() {
-			"frontier" | "mainnet" => ethereum::new_frontier(),
+			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
 			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| die!("{}: Couldn't read chain specification file. Sure it exists?", f)).as_ref()),
@@ -276,7 +323,7 @@ impl Configuration {
 		ret.public_address = public;
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery;
-		ret.ideal_peers = self.args.flag_peers;
+		ret.ideal_peers = self.args.flag_peers as u32;
 		let mut net_path = PathBuf::from(&self.path());
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
@@ -295,10 +342,44 @@ impl Configuration {
 				.start()
 				.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
 		}
+		if self.args.cmd_account {
+			self.execute_account_cli();
+			return;
+		}
 		self.execute_client();
 	}
 
+	fn execute_account_cli(&self) {
+		use util::keys::store::SecretStore;
+		use rpassword::read_password;
+		let mut secret_store = SecretStore::new();
+		if self.args.cmd_new {
+			println!("Please note that password is NOT RECOVERABLE.");
+			println!("Type password: ");
+			let password = read_password().unwrap();
+			println!("Repeat password: ");
+			let password_repeat = read_password().unwrap();
+			if password != password_repeat {
+				println!("Passwords do not match!");
+				return;
+			}
+			println!("New account address:");
+			let new_address = secret_store.new_account(&password).unwrap();
+			println!("{:?}", new_address);
+			return;
+		}
+		if self.args.cmd_list {
+			println!("Known addresses:");
+			for &(addr, _) in secret_store.accounts().unwrap().iter() {
+				println!("{:?}", addr);
+			}
+		}
+	}
+
 	fn execute_client(&self) {
+		// Setup panic handler
+		let panic_handler = PanicHandler::new_in_arc();
+
 		// Setup logging
 		setup_log(&self.args.flag_logging);
 		// Raise fdlimit
@@ -307,15 +388,25 @@ impl Configuration {
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
 		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = spec.network_id();
+		sync_config.network_id = self.args.flag_networkid.as_ref().map(|id| U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --networkid", id))).unwrap_or(spec.network_id());
 
 		// Build client
 		let mut client_config = ClientConfig::default();
-		client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
-		client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
+		match self.args.flag_cache {
+			Some(mb) => {
+				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
+				client_config.blockchain.pref_cache_size = client_config.blockchain.max_cache_size / 2;
+			}
+			None => {
+				client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
+				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
+			}
+		}
 		client_config.prefer_journal = !self.args.flag_archive;
+		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
+		panic_handler.forward_from(&service);
 		let client = service.client().clone();
 		client.set_author(self.author());
 		client.set_extra_data(self.extra_data());
@@ -324,32 +415,45 @@ impl Configuration {
 		let sync = EthSync::register(service.network(), sync_config, client);
 
 		// Setup rpc
-		if self.args.flag_jsonrpc {
-			setup_rpc_server(service.client(), sync.clone(), &self.args.flag_jsonrpc_url, &self.args.flag_jsonrpc_cors);
-			SocketAddr::from_str(&self.args.flag_jsonrpc_url).unwrap_or_else(|_|die!("{}: Invalid JSONRPC listen address given with --jsonrpc-url. Should be of the form 'IP:port'.", self.args.flag_jsonrpc_url));
+		if self.args.flag_jsonrpc || self.args.flag_rpc {
+			let url = format!("{}:{}",
+				self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_addr),
+				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
+			);
+			SocketAddr::from_str(&url).unwrap_or_else(|_|die!("{}: Invalid JSONRPC listen host/port given.", url));
+			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
+			// TODO: use this as the API list.
+			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
+			let server_handler = setup_rpc_server(service.client(), sync.clone(), &url, cors, apis.split(",").collect());
+			if let Some(handler) = server_handler {
+				panic_handler.forward_from(handler.deref());
+			}
+
 		}
 
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
 			client: service.client(),
 			info: Default::default(),
-			sync: sync
+			sync: sync.clone(),
 		});
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 		// Handle exit
-		wait_for_exit(&service);
+		wait_for_exit(panic_handler);
 	}
 }
 
-fn wait_for_exit(client_service: &ClientService) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.notify_all(); });
+
+	// Handle panics
 	let e = exit.clone();
-	client_service.on_panic(move |_reason| { e.notify_all(); });
+	panic_handler.on_panic(move |_reason| { e.notify_all(); });
 
 	// Wait for signal
 	let mutex = Mutex::new(());

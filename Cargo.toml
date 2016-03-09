@@ -20,7 +20,6 @@ fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
 number_prefix = "0.2"
 clippy = { version = "0.0.44", optional = true }
-
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
@@ -32,6 +31,8 @@ ethcore = { path = "ethcore", features = ["dev"] }
 ethcore-util = { path = "util", features = ["dev"] }
 ethsync = { path = "sync", features = ["dev"] }
 ethcore-rpc = { path = "rpc", features = ["dev"] }
+number_prefix = "0.2"
+rpassword = "0.1"
 
 [features]
 default = ["rpc"]
