@@ -17,16 +17,45 @@
 use util::*;
 use std::sync::atomic::AtomicBool;
 use rayon::prelude::*;
-use ethcore::views::{HeaderView, BlockView};
-use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo};
+use ethcore::views::{BlockView};
+use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::*;
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
-use transaction_queue::{TransactionQueue, TransactionQueueStatus};
+use transaction_queue::{TransactionQueue};
+
+pub trait MinerService {
+	fn status(&self) -> MinerStatus;
+
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T)
+		where T: Fn(&Address) -> U256;
+
+	/// called when blocks are imported to chain, updates transactions queue
+	fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], _retracted: &[H256]);
+
+	/// Set the author that we will seal blocks as.
+	fn set_author(&self, author: Address);
+
+	/// Set the extra_data that we will seal blocks with.
+	fn set_extra_data(&self, extra_data: Bytes);
+
+	/// New chain head event. Restart mining operation.
+	fn prepare_sealing(&self, chain: &BlockChainClient);
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>>;
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
+}
+
+pub struct MinerStatus {
+	pub transaction_queue_pending: usize,
+	pub transaction_queue_future: usize,
+}
 
 pub struct Miner {
-	/// Transactions Queue
 	transaction_queue: Mutex<TransactionQueue>,
 
 	// for sealing...
@@ -36,12 +65,8 @@ pub struct Miner {
 	extra_data: RwLock<Bytes>,
 }
 
-pub struct MinerStatus {
-	pub transaction_queue_pending: usize,
-	pub transaction_queue_future: usize,
-}
-
 impl Miner {
+	/// Creates new instance of miner
 	pub fn new() -> Miner {
 		Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
@@ -52,7 +77,20 @@ impl Miner {
 		}
 	}
 
-	pub fn status(&self) -> MinerStatus {
+	/// Get the author that we will seal blocks as.
+	fn author(&self) -> Address {
+		*self.author.read().unwrap()
+	}
+
+	/// Get the extra_data that we will seal blocks wuth.
+	fn extra_data(&self) -> Bytes {
+		self.extra_data.read().unwrap().clone()
+	}
+}
+
+impl MinerService for Miner {
+
+	fn status(&self) -> MinerStatus {
 		let status = self.transaction_queue.lock().unwrap().status();
 		MinerStatus {
 			transaction_queue_pending: status.pending,
@@ -60,34 +98,22 @@ impl Miner {
 		}
 	}
 
-	pub fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T)
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T)
 		where T: Fn(&Address) -> U256 {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		transaction_queue.add_all(transactions, fetch_nonce);
 	}
 
-	/// Get the author that we will seal blocks as.
-	pub fn author(&self) -> Address {
-		*self.author.read().unwrap()
-	}
-
-	/// Set the author that we will seal blocks as.
-	pub fn set_author(&self, author: Address) {
+	fn set_author(&self, author: Address) {
 		*self.author.write().unwrap() = author;
 	}
 
-	/// Get the extra_data that we will seal blocks wuth.
-	pub fn extra_data(&self) -> Bytes {
-		self.extra_data.read().unwrap().clone()
-	}
 
-	/// Set the extra_data that we will seal blocks with.
-	pub fn set_extra_data(&self, extra_data: Bytes) {
+	fn set_extra_data(&self, extra_data: Bytes) {
 		*self.extra_data.write().unwrap() = extra_data;
 	}
 
-	/// New chain head event. Restart mining operation.
-	pub fn prepare_sealing(&self, chain: &BlockChainClient) {
+	fn prepare_sealing(&self, chain: &BlockChainClient) {
 		let no_of_transactions = 128;
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions(no_of_transactions);
 
@@ -99,8 +125,7 @@ impl Miner {
 		*self.sealing_block.lock().unwrap() = b;
 	}
 
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	pub fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
+	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
 		if self.sealing_block.lock().unwrap().is_none() {
 			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
 			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
@@ -109,9 +134,7 @@ impl Miner {
 		&self.sealing_block
 	}
 
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	pub fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		let mut maybe_b = self.sealing_block.lock().unwrap();
 		match *maybe_b {
 			Some(ref b) if b.hash() == pow_hash => {}
@@ -132,8 +155,7 @@ impl Miner {
 		}
 	}
 
-	/// called when block is imported to chain, updates transactions queue and propagates the blocks
-	pub fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], _retracted: &[H256]) {
+	fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], _retracted: &[H256]) {
 		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
 				.block(BlockId::Hash(hash.clone()))

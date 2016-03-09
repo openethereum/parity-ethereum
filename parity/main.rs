@@ -50,7 +50,7 @@ use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethsync::{EthSync, SyncConfig};
-use ethminer::{EthMiner};
+use ethminer::{EthMiner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};

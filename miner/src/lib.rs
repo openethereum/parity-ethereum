@@ -31,7 +31,8 @@ mod transaction_queue;
 
 use std::ops::*;
 use std::sync::*;
-pub use miner::Miner;
+pub use miner::{Miner, MinerService};
+
 
 pub struct EthMiner {
 	miner: Miner,
@@ -45,6 +46,7 @@ impl EthMiner {
 		})
 	}
 }
+
 impl Deref for EthMiner {
 	type Target = Miner;
 

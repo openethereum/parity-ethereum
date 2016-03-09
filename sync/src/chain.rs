@@ -38,7 +38,7 @@ use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
-use ethminer::EthMiner;
+use ethminer::{EthMiner, MinerService};
 use io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -1285,7 +1285,7 @@ mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
 	use ethcore::client::*;
-	use ethminer::EthMiner;
+	use ethminer::{EthMiner, MinerService};
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();

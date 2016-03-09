@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak, Mutex, RwLock};
 use std::ops::Deref;
 use ethsync::{EthSync, SyncState};
-use ethminer::{EthMiner};
+use ethminer::{EthMiner, MinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
