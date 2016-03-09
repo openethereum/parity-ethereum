@@ -84,6 +84,7 @@ impl SecretStore {
 		let mut path = ::std::env::home_dir().expect("Failed to get home dir");
 		path.push(".parity");
 		path.push("keys");
+		::std::fs::create_dir_all(&path).expect("Should panic since it is critical to be able to access home dir");
 		Self::new_in(&path)
 	}
 
