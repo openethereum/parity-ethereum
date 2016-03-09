@@ -43,7 +43,7 @@ use std::path::PathBuf;
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
-use util::panics::{MayPanic, PanicHandler};
+use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
@@ -341,6 +341,9 @@ impl Configuration {
 	}
 
 	fn execute_client(&self) {
+		// Setup panic handler
+		let panic_handler = PanicHandler::new_in_arc();
+
 		// Setup logging
 		setup_log(&self.args.flag_logging);
 		// Raise fdlimit
@@ -367,6 +370,7 @@ impl Configuration {
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
+		panic_handler.forward_from(&service);
 		let client = service.client().clone();
 		client.set_author(self.author());
 		client.set_extra_data(self.extra_data());
@@ -375,7 +379,7 @@ impl Configuration {
 		let sync = EthSync::register(service.network(), sync_config, client);
 
 		// Setup rpc
-		let server_handler = if self.args.flag_jsonrpc || self.args.flag_rpc {
+		if self.args.flag_jsonrpc || self.args.flag_rpc {
 			let url = format!("{}:{}",
 				self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_addr),
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
@@ -384,10 +388,12 @@ impl Configuration {
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			setup_rpc_server(service.client(), sync.clone(), &url, cors, apis.split(",").collect())
-		} else {
-			None
-		};
+			let server_handler = setup_rpc_server(service.client(), sync.clone(), &url, cors, apis.split(",").collect());
+			if let Some(handler) = server_handler {
+				panic_handler.forward_from(handler.deref());
+			}
+
+		}
 
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
@@ -398,23 +404,20 @@ impl Configuration {
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 		// Handle exit
-		wait_for_exit(&service, server_handler);
+		wait_for_exit(panic_handler);
 	}
 }
 
-fn wait_for_exit(client_service: &ClientService, server_handler: Option<Arc<PanicHandler>>) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.notify_all(); });
-	let e = exit.clone();
-	client_service.on_panic(move |_reason| { e.notify_all(); });
 
-	if let Some(handler) = server_handler {
-		let e = exit.clone();
-		handler.on_panic(move |_reason| { e.notify_all(); });
-	}
+	// Handle panics
+	let e = exit.clone();
+	panic_handler.on_panic(move |_reason| { e.notify_all(); });
 
 	// Wait for signal
 	let mutex = Mutex::new(());
