@@ -274,7 +274,7 @@ impl<'x> OpenBlock<'x> {
 		s.block.base.header.note_dirty();
 
 		ClosedBlock {
-			block: s.block, 
+			block: s.block,
 			uncle_bytes: uncle_bytes,
 		}
 	}

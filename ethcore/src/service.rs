@@ -34,6 +34,8 @@ pub enum SyncMessage {
 		/// Hashes of blocks that were removed from canonical chain
 		retracted: Vec<H256>,
 	},
+	/// Best Block Hash in chain has been changed
+	NewChainHead,
 	/// A block is ready
 	BlockVerified,
 }

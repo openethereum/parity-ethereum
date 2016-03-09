@@ -17,12 +17,14 @@
 use util::*;
 use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, TransactionId, BlockId, BlockQueueInfo};
 use ethcore::header::{Header as BlockHeader, BlockNumber};
+use ethcore::block::*;
 use ethcore::error::*;
+use ethminer::Miner;
 use io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
 use ethcore::receipt::Receipt;
-use ethcore::transaction::{LocalizedTransaction, Transaction, Action};
+use ethcore::transaction::{LocalizedTransaction, SignedTransaction, Transaction, Action};
 use ethcore::filter::Filter;
 use ethcore::log_entry::LocalizedLogEntry;
 
@@ -308,6 +310,14 @@ impl BlockChainClient for TestBlockChainClient {
 			best_block_number: self.blocks.read().unwrap().len() as BlockNumber - 1,
 		}
 	}
+
+	fn prepare_sealing(&self, _author: Address, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+		unimplemented!()
+	}
+
+	fn try_seal(&self, _block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		unimplemented!()
+	}
 }
 
 pub struct TestIo<'p> {
@@ -382,7 +392,7 @@ impl TestNet {
 		for _ in 0..n {
 			net.peers.push(TestPeer {
 				chain: TestBlockChainClient::new(),
-				sync: ChainSync::new(SyncConfig::default()),
+				sync: ChainSync::new(SyncConfig::default(), Miner::new()),
 				queue: VecDeque::new(),
 			});
 		}

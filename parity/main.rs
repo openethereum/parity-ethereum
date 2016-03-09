@@ -24,6 +24,7 @@ extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
+extern crate ethminer;
 #[macro_use]
 extern crate log as rlog;
 extern crate env_logger;
@@ -49,6 +50,7 @@ use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethsync::{EthSync, SyncConfig};
+use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
@@ -108,7 +110,7 @@ API and Console Options:
 Sealing/Mining Options:
   --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
                            from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
-  --extradata STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
+  --extradata STRING       Specify a custom extra-data for authored blocks, no more than 32 characters.
 
 Memory Footprint Options:
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
@@ -190,7 +192,7 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str, apis: Vec<&str>) {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, miner: Arc<Miner>, url: &str, cors_domain: &str, apis: Vec<&str>) {
 	use rpc::v1::*;
 
 	let mut server = rpc::HttpServer::new(1);
@@ -199,7 +201,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_dom
 			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
 			"net" => server.add_delegate(NetClient::new(&sync).to_delegate()),
 			"eth" => {
-				server.add_delegate(EthClient::new(&client, &sync).to_delegate());
+				server.add_delegate(EthClient::new(&client, &sync, &miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&client).to_delegate());
 			}
 			_ => {
@@ -324,6 +326,32 @@ impl Configuration {
 		ret
 	}
 
+	fn client_config(&self) -> ClientConfig {
+		let mut client_config = ClientConfig::default();
+		match self.args.flag_cache {
+			Some(mb) => {
+				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
+				client_config.blockchain.pref_cache_size = client_config.blockchain.max_cache_size / 2;
+			}
+			None => {
+				client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
+				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
+			}
+		}
+		client_config.prefer_journal = !self.args.flag_archive;
+		client_config.name = self.args.flag_identity.clone();
+		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
+		client_config
+	}
+
+	fn sync_config(&self, spec: &Spec) -> SyncConfig {
+		let mut sync_config = SyncConfig::default();
+		sync_config.network_id = self.args.flag_networkid.as_ref().map(|id| {
+			U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --networkid", id))
+		}).unwrap_or(spec.network_id());
+		sync_config
+	}
+
 	fn execute(&self) {
 		if self.args.flag_version {
 			print_version();
@@ -347,31 +375,19 @@ impl Configuration {
 
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
-		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = self.args.flag_networkid.as_ref().map(|id| U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --networkid", id))).unwrap_or(spec.network_id());
+		let sync_config = self.sync_config(&spec);
 
 		// Build client
-		let mut client_config = ClientConfig::default();
-		match self.args.flag_cache {
-			Some(mb) => {
-				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
-				client_config.blockchain.pref_cache_size = client_config.blockchain.max_cache_size / 2;
-			}
-			None => {
-				client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
-				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
-			}
-		}
-		client_config.prefer_journal = !self.args.flag_archive;
-		client_config.name = self.args.flag_identity.clone();
-		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
-		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
-		let client = service.client().clone();
-		client.set_author(self.author());
-		client.set_extra_data(self.extra_data());
+		let mut service = ClientService::start(self.client_config(), spec, net_settings, &Path::new(&self.path())).unwrap();
+		let client = service.client();
+
+		// Miner
+		let miner = Miner::new();
+		miner.set_author(self.author());
+		miner.set_extra_data(self.extra_data());
 
 		// Sync
-		let sync = EthSync::register(service.network(), sync_config, client);
+		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
 
 		// Setup rpc
 		if self.args.flag_jsonrpc || self.args.flag_rpc {
@@ -383,7 +399,7 @@ impl Configuration {
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			setup_rpc_server(service.client(), sync.clone(), &url, cors, apis.split(",").collect());
+			setup_rpc_server(service.client(), sync.clone(), miner.clone(), &url, cors, apis.split(",").collect());
 		}
 
 		// Register IO handler

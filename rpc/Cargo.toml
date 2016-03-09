@@ -18,6 +18,7 @@ ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethash = { path = "../ethash" }
 ethsync = { path = "../sync" }
+ethminer = { path = "../miner" }
 clippy = { version = "0.0.44", optional = true }
 rustc-serialize = "0.3"
 transient-hashmap = "0.1"
@@ -30,4 +31,4 @@ syntex = "0.29.0"
 [features]
 default = ["serde_codegen"]
 nightly = ["serde_macros"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethminer/dev"]
