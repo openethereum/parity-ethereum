@@ -407,7 +407,7 @@ macro_rules! uint_overflowing_mul_reg {
 			let (b_u, b_l) = split(you[i]);
 
 			for j in 0..$n_words {
-				if me[j] == 0 {
+				if me[j] == 0 && carry2 == 0 {
 					continue;
 				}
 
@@ -1638,6 +1638,14 @@ mod tests {
 	#[test]
 	pub fn uint256_mul1() {
 		assert_eq!(U256::from(1u64) * U256::from(10u64), U256::from(10u64));
+	}
+
+	#[test]
+	pub fn uint256_mul2() {
+		let a = U512::from_str("10000000000000000fffffffffffffffe").unwrap();
+		let b = U512::from_str("ffffffffffffffffffffffffffffffff").unwrap();
+
+		assert_eq!(a * b, U512::from_str("10000000000000000fffffffffffffffcffffffffffffffff0000000000000002").unwrap());
 	}
 
 	#[test]
