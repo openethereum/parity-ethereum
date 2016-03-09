@@ -385,7 +385,7 @@ impl BlockQueue {
 		}
 	}
 
-	pub fn collect_garbage(&self) { 
+	pub fn collect_garbage(&self) {
 		{
 			let mut verification = self.verification.lock().unwrap();
 			verification.unverified.shrink_to_fit();
