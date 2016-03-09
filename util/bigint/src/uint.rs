@@ -1275,7 +1275,7 @@ impl U256 {
 			let (b_u, b_l) = split(you[i]);
 
 			for j in 0..4 {
-				if me[j] == 0 {
+				if me[j] == 0 && carry2 == 0 {
 					continue;
 				}
 
