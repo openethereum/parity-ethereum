@@ -193,7 +193,7 @@ fn setup_log(init: &Option<String>) {
 fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
-	let mut server = rpc::HttpServer::new(1);
+	let server = rpc::RpcServer::new();
 	for api in apis.into_iter() {
 		match api {
 			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
@@ -207,7 +207,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_dom
 			}
 		}
 	}
-	Some(server.start_async(url, cors_domain))
+	Some(server.start_http(url, cors_domain, 1))
 }
 
 #[cfg(not(feature = "rpc"))]
