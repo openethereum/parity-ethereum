@@ -29,6 +29,9 @@ extern crate ethcore;
 extern crate ethsync;
 extern crate transient_hashmap;
 
+use std::sync::Arc;
+use std::thread;
+use util::panics::PanicHandler;
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 
 pub mod v1;
@@ -36,7 +39,7 @@ pub mod v1;
 /// Http server.
 pub struct HttpServer {
 	handler: IoHandler,
-	threads: usize
+	threads: usize,
 }
 
 impl HttpServer {
@@ -44,7 +47,7 @@ impl HttpServer {
 	pub fn new(threads: usize) -> HttpServer {
 		HttpServer {
 			handler: IoHandler::new(),
-			threads: threads
+			threads: threads,
 		}
 	}
 
@@ -53,9 +56,18 @@ impl HttpServer {
 		self.handler.add_delegate(delegate);
 	}
 
-	/// Start server asynchronously in new thread
-	pub fn start_async(self, addr: &str, cors_domain: &str) {
+	/// Start server asynchronously in new thread and returns panic handler.
+	pub fn start_async(self, addr: &str, cors_domain: &str) -> Arc<PanicHandler> {
+		let addr = addr.to_owned();
+		let cors_domain = cors_domain.to_owned();
+		let panic_handler = PanicHandler::new_in_arc();
+		let ph = panic_handler.clone();
 		let server = jsonrpc_http_server::Server::new(self.handler, self.threads);
-		server.start_async(addr, jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain.to_owned()))
+		thread::Builder::new().name("jsonrpc_http".to_string()).spawn(move || {
+			ph.catch_panic(move || {
+				server.start(addr.as_ref(), jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain));
+			}).unwrap()
+		}).expect("Error while creating jsonrpc http thread");
+		panic_handler
 	}
 }

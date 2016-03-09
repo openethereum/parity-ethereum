@@ -43,7 +43,7 @@ use std::path::PathBuf;
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
-use util::panics::MayPanic;
+use util::panics::{MayPanic, PanicHandler};
 use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
@@ -151,7 +151,7 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str) {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
 	let mut server = rpc::HttpServer::new(1);
@@ -159,11 +159,12 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_dom
 	server.add_delegate(EthClient::new(&client, &sync).to_delegate());
 	server.add_delegate(EthFilterClient::new(&client).to_delegate());
 	server.add_delegate(NetClient::new(&sync).to_delegate());
-	server.start_async(url, cors_domain);
+	Some(server.start_async(url, cors_domain))
 }
 
 #[cfg(not(feature = "rpc"))]
-fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
+fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) -> Option<Arc<PanicHandler>> {
+	None
 }
 
 fn print_version() {
@@ -323,26 +324,28 @@ impl Configuration {
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client);
 
-		// Setup rpc
-		if self.args.flag_jsonrpc {
-			setup_rpc_server(service.client(), sync.clone(), &self.args.flag_jsonrpc_url, &self.args.flag_jsonrpc_cors);
-			SocketAddr::from_str(&self.args.flag_jsonrpc_url).unwrap_or_else(|_|die!("{}: Invalid JSONRPC listen address given with --jsonrpc-url. Should be of the form 'IP:port'.", self.args.flag_jsonrpc_url));
-		}
-
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
 			client: service.client(),
 			info: Default::default(),
-			sync: sync
+			sync: sync.clone(),
 		});
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
+		// Setup rpc
+		let server_handler = if self.args.flag_jsonrpc {
+			SocketAddr::from_str(&self.args.flag_jsonrpc_url).unwrap_or_else(|_|die!("{}: Invalid JSONRPC listen address given with --jsonrpc-url. Should be of the form 'IP:port'.", self.args.flag_jsonrpc_url));
+			setup_rpc_server(service.client(), sync, &self.args.flag_jsonrpc_url, &self.args.flag_jsonrpc_cors)
+		} else {
+			None
+		};
+
 		// Handle exit
-		wait_for_exit(&service);
+		wait_for_exit(&service, server_handler);
 	}
 }
 
-fn wait_for_exit(client_service: &ClientService) {
+fn wait_for_exit(client_service: &ClientService, server_handler: Option<Arc<PanicHandler>>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
@@ -350,6 +353,11 @@ fn wait_for_exit(client_service: &ClientService) {
 	CtrlC::set_handler(move || { e.notify_all(); });
 	let e = exit.clone();
 	client_service.on_panic(move |_reason| { e.notify_all(); });
+
+	if let Some(handler) = server_handler {
+		let e = exit.clone();
+		handler.on_panic(move |_reason| { e.notify_all(); });
+	}
 
 	// Wait for signal
 	let mutex = Mutex::new(());
