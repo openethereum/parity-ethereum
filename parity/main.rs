@@ -365,6 +365,7 @@ impl Configuration {
 			println!("New account address:");
 			let new_address = secret_store.new_account(&password).unwrap();
 			println!("{:?}", new_address);
+			return;
 		}
 		if command == "list" {
 			println!("Known addresses:");
