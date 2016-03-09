@@ -61,8 +61,8 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 	fn is_zero(&self) -> bool;
 	/// Returns the lowest 8 bytes interpreted as a BigEndian integer.
 	fn low_u64(&self) -> u64;
-	/// Returns 0x-prefixed string for display
-	fn to_hex_str(&self) -> String;
+	/// Returns 0x-prefixed string representation of fixed hash
+	fn as_hex_str(&self) -> String;
 }
 
 fn clean_0x(s: &str) -> &str {
@@ -222,7 +222,7 @@ macro_rules! impl_hash {
 				ret
 			}
 
-			fn to_hex_str(&self) -> String {
+			fn as_hex_str(&self) -> String {
 				let mut hex = "0x".to_owned();
 				hex.push_str(self.to_hex().as_ref());
 				hex
@@ -245,7 +245,7 @@ macro_rules! impl_hash {
 		impl serde::Serialize for $from {
 			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 			where S: serde::Serializer {
-				serializer.serialize_str(self.to_hex_str().as_ref())
+				serializer.serialize_str(self.as_hex_str().as_ref())
 			}
 		}
 
@@ -728,8 +728,8 @@ mod tests {
 	}
 
 	#[test]
-	fn to_hex_string() {
+	fn as_hex_string() {
 		let hash: H256 = x!(0x123456789abcdef0u64);
-		assert_eq!(hash.to_hex_str(), "0x000000000000000000000000000000000000000000000000123456789abcdef0");
+		assert_eq!(hash.as_hex_str(), "0x000000000000000000000000000000000000000000000000123456789abcdef0");
 	}
 }
