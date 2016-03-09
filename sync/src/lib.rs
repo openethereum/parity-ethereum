@@ -164,13 +164,11 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 
 	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
 		match *message {
-			SyncMessage::BlockVerified => {
-				self.sync.write().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
+			SyncMessage::NewChainBlocks { ref good, ref bad, ref retracted } => {
+				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
+				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, good, bad, retracted);
 			},
-			SyncMessage::NewChainBlocks { ref good, ref retracted } => {
-				let sync_io = NetSyncIo::new(io, self.chain.deref());
-				self.sync.write().unwrap().chain_new_blocks(&sync_io, good, retracted);
-			}
+			_ => {/* Ignore other messages */},
 		}
 	}
 }

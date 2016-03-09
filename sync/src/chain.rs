@@ -207,7 +207,7 @@ pub struct ChainSync {
 	/// True if common block for our and remote chain has been found
 	have_common_block: bool,
 	/// Last propagated block number
-	last_send_block_number: BlockNumber,
+	last_sent_block_number: BlockNumber,
 	/// Max blocks to download ahead
 	max_download_ahead_blocks: usize,
 	/// Network ID
@@ -236,7 +236,7 @@ impl ChainSync {
 			last_imported_hash: None,
 			syncing_difficulty: U256::from(0u64),
 			have_common_block: false,
-			last_send_block_number: 0,
+			last_sent_block_number: 0,
 			max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
 			transaction_queue: Mutex::new(TransactionQueue::new()),
@@ -850,8 +850,8 @@ impl ChainSync {
 			self.downloading_bodies.remove(&n);
 			self.downloading_headers.remove(&n);
 		}
-		self.headers.remove_tail(&start);
-		self.bodies.remove_tail(&start);
+		self.headers.remove_from(&start);
+		self.bodies.remove_from(&start);
 	}
 
 	/// Request headers from a peer by block hash
@@ -931,9 +931,11 @@ impl ChainSync {
 		let item_count = r.item_count();
 		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
 		let fetch_latest_nonce = |a : &Address| chain.nonce(a);
+
+		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		for i in 0..item_count {
 			let tx: SignedTransaction = try!(r.val_at(i));
-			self.transaction_queue.lock().unwrap().add(tx, &fetch_latest_nonce);
+			transaction_queue.add(tx, &fetch_latest_nonce);
 		}
  		Ok(())
 	}
@@ -1244,26 +1246,25 @@ impl ChainSync {
 		sent
 	}
 
+	fn propagate_latest_blocks(&mut self, io: &mut SyncIo) {
+		let chain_info = io.chain().chain_info();
+		if (((chain_info.best_block_number as i64) - (self.last_sent_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
+			let blocks = self.propagate_blocks(&chain_info, io);
+			let hashes = self.propagate_new_hashes(&chain_info, io);
+			if blocks != 0 || hashes != 0 {
+				trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
+			}
+		}
+		self.last_sent_block_number = chain_info.best_block_number;
+	}
+
 	/// Maintain other peers. Send out any new blocks and transactions
 	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
 		self.check_resume(io);
 	}
 
-	/// should be called once chain has new block, triggers the latest block propagation
-	pub fn chain_blocks_verified(&mut self, io: &mut SyncIo) {
-		let chain = io.chain().chain_info();
-		if (((chain.best_block_number as i64) - (self.last_send_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
-			let blocks = self.propagate_blocks(&chain, io);
-			let hashes = self.propagate_new_hashes(&chain, io);
-			if blocks != 0 || hashes != 0 {
-				trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
-			}
-		}
-		self.last_send_block_number = chain.best_block_number;
-	}
-
-	/// called when block is imported to chain, updates transactions queue
-	pub fn chain_new_blocks(&mut self, io: &SyncIo, good: &[H256], retracted: &[H256]) {
+	/// called when block is imported to chain, updates transactions queue and propagates the blocks
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, good: &[H256], bad: &[H256], _retracted: &[H256]) {
 		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
 				.block(BlockId::Hash(hash.clone()))
@@ -1274,23 +1275,29 @@ impl ChainSync {
 		}
 
 
-		let chain = io.chain();
-		let good = good.par_iter().map(|h| fetch_transactions(chain, h));
-		let retracted = retracted.par_iter().map(|h| fetch_transactions(chain, h));
+		{
+			let chain = io.chain();
+			let good = good.par_iter().map(|h| fetch_transactions(chain, h));
+			let bad = bad.par_iter().map(|h| fetch_transactions(chain, h));
 
-		good.for_each(|txs| {
-			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
-			transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
-		});
-		retracted.for_each(|txs| {
-			// populate sender
-			for tx in &txs {
-				let _sender = tx.sender();
-			}
-			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			transaction_queue.add_all(txs, |a| chain.nonce(a));
-		});
+			good.for_each(|txs| {
+				let mut transaction_queue = self.transaction_queue.lock().unwrap();
+				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
+				transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
+			});
+			bad.for_each(|txs| {
+				// populate sender
+				for tx in &txs {
+					let _sender = tx.sender();
+				}
+				let mut transaction_queue = self.transaction_queue.lock().unwrap();
+				transaction_queue.add_all(txs, |a| chain.nonce(a));
+			});
+		}
+
+		// Propagate latests blocks
+		self.propagate_latest_blocks(io);
+		// TODO [todr] propagate transactions?
 	}
 
 	pub fn transaction_queue(&self) -> &Mutex<TransactionQueue> {
@@ -1634,13 +1641,13 @@ mod tests {
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
 
 		let mut queue = VecDeque::new();
-		let io = TestIo::new(&mut client, &mut queue, None);
+		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&io, &[], &good_blocks);
+		sync.chain_new_blocks(&mut io, &[], &good_blocks, &[]);
 		assert_eq!(sync.transaction_queue.lock().unwrap().status().future, 0);
 		assert_eq!(sync.transaction_queue.lock().unwrap().status().pending, 1);
-		sync.chain_new_blocks(&io, &good_blocks, &retracted_blocks);
+		sync.chain_new_blocks(&mut io, &good_blocks, &retracted_blocks, &[]);
 
 		// then
 		let status = sync.transaction_queue.lock().unwrap().status();
