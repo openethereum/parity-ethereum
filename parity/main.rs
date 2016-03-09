@@ -71,7 +71,7 @@ Parity. Ethereum Client.
 
 Usage:
   parity daemon <pid-file> [options] [ --no-bootstrap | <enode>... ]
-  parity account <command>
+  parity account (new | list)
   parity [options] [ --no-bootstrap | <enode>... ]
 
 Protocol Options:
@@ -129,9 +129,10 @@ Miscellaneous Options:
 struct Args {
 	cmd_daemon: bool,
 	cmd_account: bool,
+	cmd_new: bool,
+	cmd_list: bool,
 	arg_pid_file: String,
 	arg_enode: Vec<String>,
-	arg_command: String,
 	flag_chain: String,
 	flag_testnet: bool,
 	flag_datadir: String,
@@ -342,17 +343,17 @@ impl Configuration {
 				.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
 		}
 		if self.args.cmd_account {
-			self.execute_account_cli(&self.args.arg_command);
+			self.execute_account_cli();
 			return;
 		}
 		self.execute_client();
 	}
 
-	fn execute_account_cli(&self, command: &str) {
+	fn execute_account_cli(&self) {
 		use util::keys::store::SecretStore;
 		use rpassword::read_password;
 		let mut secret_store = SecretStore::new();
-		if command == "new" {
+		if self.args.cmd_new {
 			println!("Please note that password is NOT RECOVERABLE.");
 			println!("Type password: ");
 			let password = read_password().unwrap();
@@ -367,7 +368,7 @@ impl Configuration {
 			println!("{:?}", new_address);
 			return;
 		}
-		if command == "list" {
+		if self.args.cmd_list {
 			println!("Known addresses:");
 			for &(addr, _) in secret_store.accounts().unwrap().iter() {
 				println!("{:?}", addr);
