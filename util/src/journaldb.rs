@@ -153,7 +153,7 @@ impl JournalDB {
 	}
 
 	/// Commit all recent insert operations.
-	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<(), UtilError> {
 		let have_journal_overlay = self.journal_overlay.is_some();
 		if have_journal_overlay {
 			self.commit_with_overlay(now, id, end)
@@ -183,16 +183,16 @@ impl JournalDB {
 	}
 
 	/// Just commit the transaction overlay into the backing DB.
-	fn commit_without_overlay(&mut self) -> Result<u32, UtilError> {
+	fn commit_without_overlay(&mut self) -> Result<(), UtilError> {
 		let batch = DBTransaction::new();
-		let ret = Self::batch_overlay_insertions(&mut self.transaction_overlay, &batch);
+		Self::batch_overlay_insertions(&mut self.transaction_overlay, &batch);
 		try!(self.backing.write(batch));
-		Ok(ret as u32)
+		Ok(())
 	}
 
 	/// Commit all recent insert operations and historical removals from the old era
 	/// to the backing database.
-	fn commit_with_overlay(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit_with_overlay(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<(), UtilError> {
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
 		let mut journal_overlay = self.journal_overlay.as_mut().unwrap().write().unwrap();
@@ -274,7 +274,7 @@ impl JournalDB {
 			journal_overlay.journal.remove(&end_era);
 		}
 		try!(self.backing.write(batch));
-		Ok(0 as u32)
+		Ok(())
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
