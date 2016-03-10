@@ -188,7 +188,7 @@ impl<'a> Ext for Externalities<'a> {
 		self.state.code(address).unwrap_or_else(|| vec![])
 	}
 
-	#[cfg_attr(feature="dev", allow(match_ref_pats))]
+	#[cfg_attr(all(nightly, feature="dev"), allow(match_ref_pats))]
 	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
 		match &mut self.output {
 			&mut OutputPolicy::Return(BytesRef::Fixed(ref mut slice)) => unsafe {
@@ -226,9 +226,9 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		let address = self.origin_info.address.clone();
-		self.substate.logs.push(LogEntry { 
+		self.substate.logs.push(LogEntry {
 			address: address,
-			topics: topics, 
+			topics: topics,
 			data: data.to_vec()
 		});
 	}

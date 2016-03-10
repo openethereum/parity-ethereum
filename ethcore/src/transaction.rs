@@ -80,7 +80,7 @@ impl Transaction {
 }
 
 impl FromJson for SignedTransaction {
-	#[cfg_attr(feature="dev", allow(single_char_pattern))]
+	#[cfg_attr(all(nightly, feature="dev"), allow(single_char_pattern))]
 	fn from_json(json: &Json) -> SignedTransaction {
 		let t = Transaction {
 			nonce: xjson!(&json["nonce"]),

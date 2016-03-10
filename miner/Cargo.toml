@@ -16,5 +16,5 @@ rayon = "0.3.1"
 clippy = { version = "0.0.44", optional = true }
 
 [features]
-dev = ["clippy"]
 default = []
+dev = []

@@ -23,7 +23,7 @@ use super::journal::*;
 use super::trietraits::*;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
-/// 
+///
 /// Use it as a `Trie` trait object. You can use `db()` to get the backing database object, `keys`
 /// to get the keys belonging to the trie in the backing database, and `db_items_remaining()` to get
 /// which items in the backing database do not belong to this trie. If this is the only trie in the
@@ -66,21 +66,21 @@ enum MaybeChanged<'a> {
 	Changed(Bytes),
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))]
+#[cfg_attr(all(nightly, feature="dev"), allow(wrong_self_convention))]
 impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self { 
+	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self {
 		let mut r = TrieDBMut{
-			db: db, 
+			db: db,
 			root: root,
-			hash_count: 0 
-		}; 
+			hash_count: 0
+		};
 
 		// set root rlp
-		*r.root = SHA3_NULL_RLP.clone(); 
-		r 
+		*r.root = SHA3_NULL_RLP.clone();
+		r
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
@@ -91,21 +91,21 @@ impl<'db> TrieDBMut<'db> {
 			flushln!("Trie root not found {}", root);
 			panic!("Trie root not found!");
 		}
-		TrieDBMut { 
-			db: db, 
+		TrieDBMut {
+			db: db,
 			root: root,
-			hash_count: 0 
+			hash_count: 0
 		}
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB { 
-		self.db 
+	pub fn db(&'db self) -> &'db HashDB {
+		self.db
 	}
 
 	/// Get the backing database.
-	pub fn db_mut(&'db mut self) -> &'db mut HashDB { 
-		self.db 
+	pub fn db_mut(&'db mut self) -> &'db mut HashDB {
+		self.db
 	}
 
 	/// Determine all the keys in the backing database that belong to the trie.
@@ -184,7 +184,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Indentation helper for `formal_all`.
 	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
-		for _ in 0..size { 
+		for _ in 0..size {
 			try!(write!(f, "  "));
 		}
 		Ok(())
@@ -350,7 +350,7 @@ impl<'db> TrieDBMut<'db> {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
 	/// Determine the RLP of the node, assuming we're inserting `partial` into the
 	/// node currently of data `old`. This will *not* delete any hash of `old` from the database;
 	/// it will just return the new RLP that includes the new node.
@@ -378,7 +378,7 @@ impl<'db> TrieDBMut<'db> {
 						// original had empty slot - place a leaf there.
 						true if old_rlp.at(i).is_empty() => journal.new_node(Self::compose_leaf(&partial.mid(1), value), &mut s),
 						// original has something there already; augment.
-						true => {	
+						true => {
 							let new = self.augmented(self.take_node(&old_rlp.at(i), journal), &partial.mid(1), value, journal);
 							journal.new_node(new, &mut s);
 						}

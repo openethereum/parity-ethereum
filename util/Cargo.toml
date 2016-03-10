@@ -40,7 +40,7 @@ chrono = "0.2"
 
 [features]
 default = []
-dev = ["clippy"]
+dev = []
 
 [build-dependencies]
 vergen = "*"

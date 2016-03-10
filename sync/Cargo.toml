@@ -4,20 +4,24 @@ name = "ethsync"
 version = "0.9.99"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io"]
+build = "build.rs"
 
 [lib]
+
+[build-dependencies]
+rustc_version = "0.1"
 
 [dependencies]
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethminer = { path = "../miner" }
-clippy = { version = "0.0.44", optional = true }
 log = "0.3"
 env_logger = "0.3"
 time = "0.1.34"
 rand = "0.3.13"
 heapsize = "0.3"
+clippy = { version = "0.0.44", optional = true }
 
 [features]
 default = []
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethminer/dev"]
+dev = ["ethcore/dev", "ethcore-util/dev", "ethminer/dev"]
