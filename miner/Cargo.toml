@@ -5,6 +5,10 @@ license = "GPL-3.0"
 name = "ethminer"
 version = "0.9.99"
 authors = ["Ethcore <admin@ethcore.io>"]
+build = "build.rs"
+
+[build-dependencies]
+rustc_version = "0.1"
 
 [dependencies]
 ethcore-util = { path = "../util" }
