@@ -113,14 +113,14 @@ impl Discovery {
 	}
 
 	/// Add a new node to discovery table. Pings the node.
-	pub fn add_node(&mut self, e: NodeEntry) { 
+	pub fn add_node(&mut self, e: NodeEntry) {
 		let endpoint = e.endpoint.clone();
 		self.update_node(e);
 		self.ping(&endpoint);
 	}
 
 	/// Add a list of known nodes to the table.
-	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) { 
+	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) {
 		for n in nodes.drain(..) {
 			self.update_node(n);
 		}
@@ -243,7 +243,7 @@ impl Discovery {
 		self.send_to(packet, address.clone());
 	}
 
-	#[cfg_attr(feature="dev", allow(map_clone))]
+	#[cfg_attr(all(nightly, feature="dev"), allow(map_clone))]
 	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry> {
 		let mut found: BTreeMap<u32, Vec<&NodeEntry>> = BTreeMap::new();
 		let mut count = 0;
@@ -251,7 +251,7 @@ impl Discovery {
 		// Sort nodes by distance to target
 		for bucket in buckets {
 			for node in &bucket.nodes {
-				let distance = Discovery::distance(target, &node.address.id); 
+				let distance = Discovery::distance(target, &node.address.id);
 				found.entry(distance).or_insert_with(Vec::new).push(&node.address);
 				if count == BUCKET_SIZE {
 					// delete the most distant element
@@ -310,7 +310,7 @@ impl Discovery {
 				None
 			}),
 			Ok(_) => None,
-			Err(e) => { 
+			Err(e) => {
 				warn!("Error reading UPD socket: {:?}", e);
 				None
 			}
@@ -339,7 +339,7 @@ impl Discovery {
 			PACKET_PONG => self.on_pong(&rlp, &node_id, &from),
 			PACKET_FIND_NODE => self.on_find_node(&rlp, &node_id, &from),
 			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, &node_id, &from),
-			_ => { 
+			_ => {
 				debug!("Unknown UDP packet: {}", packet_id);
 				Ok(None)
 			}
@@ -367,14 +367,14 @@ impl Discovery {
 		}
 		else {
 			self.update_node(entry.clone());
-			added_map.insert(node.clone(), entry); 
+			added_map.insert(node.clone(), entry);
 		}
 		let hash = rlp.as_raw().sha3();
 		let mut response = RlpStream::new_list(2);
 		dest.to_rlp_list(&mut response);
 		response.append(&hash);
 		self.send_packet(PACKET_PONG, from, &response.drain());
-		
+
 		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
 	}
 
@@ -391,7 +391,7 @@ impl Discovery {
 		}
 		self.clear_ping(node);
 		let mut added_map = HashMap::new();
-		added_map.insert(node.clone(), entry); 
+		added_map.insert(node.clone(), entry);
 		Ok(None)
 	}
 
@@ -466,8 +466,8 @@ impl Discovery {
 	pub fn round(&mut self) -> Option<TableUpdates> {
 		let removed = self.check_expired(false);
 		self.discover();
-		if !removed.is_empty() { 
-			Some(TableUpdates { added: HashMap::new(), removed: removed }) 
+		if !removed.is_empty() {
+			Some(TableUpdates { added: HashMap::new(), removed: removed })
 		} else { None }
 	}
 

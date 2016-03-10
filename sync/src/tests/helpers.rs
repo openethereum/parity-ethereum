@@ -22,9 +22,10 @@ use io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
 use ethcore::receipt::Receipt;
-use ethcore::transaction::LocalizedTransaction;
+use ethcore::transaction::{LocalizedTransaction, Transaction, Action};
 use ethcore::filter::Filter;
 use ethcore::log_entry::LocalizedLogEntry;
+use ethcore::block::ClosedBlock;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
@@ -32,6 +33,14 @@ pub struct TestBlockChainClient {
 	pub genesis_hash: H256,
 	pub last_hash: RwLock<H256>,
 	pub difficulty: RwLock<U256>,
+}
+
+#[derive(Clone)]
+pub enum EachBlockWith {
+	Nothing,
+	Uncle,
+	Transaction,
+	UncleAndTransaction
 }
 
 impl TestBlockChainClient {
@@ -44,30 +53,53 @@ impl TestBlockChainClient {
 			last_hash: RwLock::new(H256::new()),
 			difficulty: RwLock::new(From::from(0)),
 		};
-		client.add_blocks(1, true); // add genesis block
+		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
 		client
 	}
 
-	pub fn add_blocks(&mut self, count: usize, empty: bool) {
+	pub fn add_blocks(&mut self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().unwrap().len();
 		for n in len..(len + count) {
 			let mut header = BlockHeader::new();
 			header.difficulty = From::from(n);
 			header.parent_hash = self.last_hash.read().unwrap().clone();
 			header.number = n as BlockNumber;
-			let mut uncles = RlpStream::new_list(if empty {0} else {1});
-			if !empty {
-				let mut uncle_header = BlockHeader::new();
-				uncle_header.difficulty = From::from(n);
-				uncle_header.parent_hash = self.last_hash.read().unwrap().clone();
-				uncle_header.number = n as BlockNumber;
-				uncles.append(&uncle_header);
-				header.uncles_hash = uncles.as_raw().sha3();
-			}
+			let uncles = match with {
+				EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
+					let mut uncles = RlpStream::new_list(1);
+					let mut uncle_header = BlockHeader::new();
+					uncle_header.difficulty = From::from(n);
+					uncle_header.parent_hash = self.last_hash.read().unwrap().clone();
+					uncle_header.number = n as BlockNumber;
+					uncles.append(&uncle_header);
+					header.uncles_hash = uncles.as_raw().sha3();
+					uncles
+				},
+				_ => RlpStream::new_list(0)
+			};
+			let txs = match with {
+				EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction => {
+					let mut txs = RlpStream::new_list(1);
+					let keypair = KeyPair::create().unwrap();
+					let tx = Transaction {
+						action: Action::Create,
+						value: U256::from(100),
+						data: "3331600055".from_hex().unwrap(),
+						gas: U256::from(100_000),
+						gas_price: U256::one(),
+						nonce: U256::zero()
+					};
+					let signed_tx = tx.sign(&keypair.secret());
+					txs.append(&signed_tx);
+					txs.out()
+				},
+				_ => rlp::NULL_RLP.to_vec()
+			};
+
 			let mut rlp = RlpStream::new_list(3);
 			rlp.append(&header);
-			rlp.append_raw(&rlp::NULL_RLP, 1);
+			rlp.append_raw(&txs, 1);
 			rlp.append_raw(uncles.as_raw(), 1);
 			self.import_block(rlp.as_raw().to_vec()).unwrap();
 		}
@@ -109,6 +141,10 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
+	fn nonce(&self, _address: &Address) -> U256 {
+		U256::zero()
+	}
+
 	fn code(&self, _address: &Address) -> Option<Bytes> {
 		unimplemented!();
 	}
@@ -122,6 +158,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
+		unimplemented!();
+	}
+
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
+		unimplemented!();
+	}
+
+	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
 	}
 
@@ -420,8 +464,8 @@ impl TestNet {
 		self.peers.iter().all(|p| p.queue.is_empty())
 	}
 
-	pub fn trigger_block_verified(&mut self, peer_id: usize) {
+	pub fn trigger_chain_new_blocks(&mut self, peer_id: usize) {
 		let mut peer = self.peer_mut(peer_id);
-		peer.sync.chain_blocks_verified(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+		peer.sync.chain_new_blocks(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None), &[], &[], &[]);
 	}
 }

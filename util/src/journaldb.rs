@@ -30,7 +30,7 @@ use std::env;
 /// If `journal_overlay` is `None`, then it behaves exactly like OverlayDB. If not it behaves
 /// differently:
 ///
-/// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to 
+/// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to
 /// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
@@ -339,7 +339,7 @@ impl JournalDB {
 }
 
 impl HashDB for JournalDB {
-	fn keys(&self) -> HashMap<H256, i32> { 
+	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
 		for (key, _) in self.backing.iter() {
 			let h = H256::from_slice(key.deref());
@@ -376,7 +376,7 @@ impl HashDB for JournalDB {
 		}
 	}
 
-	fn exists(&self, key: &H256) -> bool { 
+	fn exists(&self, key: &H256) -> bool {
 		self.lookup(key).is_some()
 	}
 

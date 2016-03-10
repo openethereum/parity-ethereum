@@ -17,24 +17,24 @@
 //! Net rpc implementation.
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
-use ethsync::EthSync;
+use ethsync::SyncProvider;
 use v1::traits::Net;
 
 /// Net rpc implementation.
-pub struct NetClient {
-	sync: Weak<EthSync>
+pub struct NetClient<S> where S: SyncProvider {
+	sync: Weak<S>
 }
 
-impl NetClient {
+impl<S> NetClient<S> where S: SyncProvider {
 	/// Creates new NetClient.
-	pub fn new(sync: &Arc<EthSync>) -> Self {
+	pub fn new(sync: &Arc<S>) -> Self {
 		NetClient {
 			sync: Arc::downgrade(sync)
 		}
 	}
 }
 
-impl Net for NetClient {
+impl<S> Net for NetClient<S> where S: SyncProvider + 'static {
 	fn version(&self, _: Params) -> Result<Value, Error> {
 		Ok(Value::U64(take_weak!(self.sync).status().protocol_version as u64))
 	}

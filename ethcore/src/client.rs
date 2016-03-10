@@ -141,6 +141,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block total difficulty.
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
 
+	/// Get address nonce.
+	fn nonce(&self, address: &Address) -> U256;
+
 	/// Get block hash.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
 
@@ -182,6 +185,13 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>>;
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -370,18 +380,14 @@ impl<V> Client<V> where V: Verifier {
 				bad_blocks.insert(header.hash());
 				continue;
 			}
-
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
 				bad_blocks.insert(header.hash());
 				break;
 			}
-
-			// Insert block
-			let closed_block = closed_block.unwrap();
-			self.chain.write().unwrap().insert_block(&block.bytes, closed_block.block().receipts().clone());
 			good_blocks.push(header.hash());
 
+			// Are we committing an era?
 			let ancient = if header.number() >= HISTORY {
 				let n = header.number() - HISTORY;
 				let chain = self.chain.read().unwrap();
@@ -391,9 +397,16 @@ impl<V> Client<V> where V: Verifier {
 			};
 
 			// Commit results
+			let closed_block = closed_block.unwrap();
+			let receipts = closed_block.block().receipts().clone();
 			closed_block.drain()
 				.commit(header.number(), &header.hash(), ancient)
 				.expect("State DB commit failed.");
+
+			// And update the chain after commit to prevent race conditions
+			// (when something is in chain but you are not able to fetch details)
+			self.chain.write().unwrap()
+				.insert_block(&block.bytes, receipts);
 
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
@@ -404,8 +417,12 @@ impl<V> Client<V> where V: Verifier {
 
 		{
 			let mut block_queue = self.block_queue.write().unwrap();
-			block_queue.mark_as_bad(&bad_blocks);
-			block_queue.mark_as_good(&good_blocks);
+			if !bad_blocks.is_empty() {
+				block_queue.mark_as_bad(&bad_blocks);
+			}
+			if !good_blocks.is_empty() {
+				block_queue.mark_as_good(&good_blocks);
+			}
 		}
 
 		{
@@ -414,6 +431,8 @@ impl<V> Client<V> where V: Verifier {
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
 					good: good_blocks,
 					bad: bad_blocks,
+					// TODO [todr] were to take those from?
+					retracted: vec![],
 				})).unwrap();
 			}
 		}
@@ -511,39 +530,6 @@ impl<V> Client<V> where V: Verifier {
 		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
 		*self.sealing_block.lock().unwrap() = Some(b);
 	}
-
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		if self.sealing_block.lock().unwrap().is_none() {
-			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
-			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
-			self.prepare_sealing();
-		}
-		&self.sealing_block
-	}
-
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	pub fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		let mut maybe_b = self.sealing_block.lock().unwrap();
-		match *maybe_b {
-			Some(ref b) if b.hash() == pow_hash => {}
-			_ => { return Err(Error::PowHashInvalid); }
-		}
-
-		let b = maybe_b.take();
-		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
-			Err(old) => {
-				*maybe_b = Some(old);
-				Err(Error::PowInvalid)
-			}
-			Ok(sealed) => {
-				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
-				try!(self.import_block(sealed.rlp_bytes()));
-				Ok(())
-			}
-		}
-	}
 }
 
 // TODO: need MinerService MinerIoHandler
@@ -586,6 +572,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
 		let chain = self.chain.read().unwrap();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
+	}
+
+	fn nonce(&self, address: &Address) -> U256 {
+		self.state().nonce(address)
 	}
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
@@ -701,6 +691,39 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 			})
 			.collect()
+	}
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
+		if self.sealing_block.lock().unwrap().is_none() {
+			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
+			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
+			self.prepare_sealing();
+		}
+		&self.sealing_block
+	}
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+		let mut maybe_b = self.sealing_block.lock().unwrap();
+		match *maybe_b {
+			Some(ref b) if b.hash() == pow_hash => {}
+			_ => { return Err(Error::PowHashInvalid); }
+		}
+
+		let b = maybe_b.take();
+		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
+			Err(old) => {
+				*maybe_b = Some(old);
+				Err(Error::PowInvalid)
+			}
+			Ok(sealed) => {
+				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
+				try!(self.import_block(sealed.rlp_bytes()));
+				Ok(())
+			}
+		}
 	}
 }
 

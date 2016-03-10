@@ -17,8 +17,8 @@
 //! Ethcore client application.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
+#![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
+#![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -32,6 +32,7 @@ extern crate fdlimit;
 extern crate daemonize;
 extern crate time;
 extern crate number_prefix;
+extern crate rpassword;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -43,12 +44,12 @@ use std::path::PathBuf;
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
-use util::panics::MayPanic;
+use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
-use ethsync::{EthSync, SyncConfig};
+use ethsync::{EthSync, SyncConfig, SyncProvider};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
@@ -70,6 +71,7 @@ Parity. Ethereum Client.
 
 Usage:
   parity daemon <pid-file> [options] [ --no-bootstrap | <enode>... ]
+  parity account (new | list)
   parity [options] [ --no-bootstrap | <enode>... ]
 
 Protocol Options:
@@ -77,7 +79,7 @@ Protocol Options:
                            or olympic, frontier, homestead, mainnet, morden, or testnet [default: homestead].
   --testnet                Equivalent to --chain testnet (geth-compatible).
   --networkid INDEX        Override the network identifier from the chain we are on.
-  --pruning                Enable state/storage trie pruning.
+  --pruning                Client should prune the state/storage trie.
   -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
   --identity NAME          Specify your node's name.
@@ -126,6 +128,9 @@ Miscellaneous Options:
 #[derive(Debug, RustcDecodable)]
 struct Args {
 	cmd_daemon: bool,
+	cmd_account: bool,
+	cmd_new: bool,
+	cmd_list: bool,
 	arg_pid_file: String,
 	arg_enode: Vec<String>,
 	flag_chain: String,
@@ -190,10 +195,10 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str, apis: Vec<&str>) {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
-	let mut server = rpc::HttpServer::new(1);
+	let server = rpc::RpcServer::new();
 	for api in apis.into_iter() {
 		match api {
 			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
@@ -207,11 +212,12 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_dom
 			}
 		}
 	}
-	server.start_async(url, cors_domain);
+	Some(server.start_http(url, cors_domain, 1))
 }
 
 #[cfg(not(feature = "rpc"))]
-fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) {
+fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) -> Option<Arc<PanicHandler>> {
+	None
 }
 
 fn print_version() {
@@ -287,7 +293,7 @@ impl Configuration {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(useless_format))]
+	#[cfg_attr(all(nightly, feature="dev"), allow(useless_format))]
 	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
 		let mut listen_address = None;
 		let mut public_address = None;
@@ -336,10 +342,44 @@ impl Configuration {
 				.start()
 				.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
 		}
+		if self.args.cmd_account {
+			self.execute_account_cli();
+			return;
+		}
 		self.execute_client();
 	}
 
+	fn execute_account_cli(&self) {
+		use util::keys::store::SecretStore;
+		use rpassword::read_password;
+		let mut secret_store = SecretStore::new();
+		if self.args.cmd_new {
+			println!("Please note that password is NOT RECOVERABLE.");
+			println!("Type password: ");
+			let password = read_password().unwrap();
+			println!("Repeat password: ");
+			let password_repeat = read_password().unwrap();
+			if password != password_repeat {
+				println!("Passwords do not match!");
+				return;
+			}
+			println!("New account address:");
+			let new_address = secret_store.new_account(&password).unwrap();
+			println!("{:?}", new_address);
+			return;
+		}
+		if self.args.cmd_list {
+			println!("Known addresses:");
+			for &(addr, _) in secret_store.accounts().unwrap().iter() {
+				println!("{:?}", addr);
+			}
+		}
+	}
+
 	fn execute_client(&self) {
+		// Setup panic handler
+		let panic_handler = PanicHandler::new_in_arc();
+
 		// Setup logging
 		setup_log(&self.args.flag_logging);
 		// Raise fdlimit
@@ -366,6 +406,7 @@ impl Configuration {
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
+		panic_handler.forward_from(&service);
 		let client = service.client().clone();
 		client.set_author(self.author());
 		client.set_extra_data(self.extra_data());
@@ -383,30 +424,36 @@ impl Configuration {
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			setup_rpc_server(service.client(), sync.clone(), &url, cors, apis.split(",").collect());
+			let server_handler = setup_rpc_server(service.client(), sync.clone(), &url, cors, apis.split(",").collect());
+			if let Some(handler) = server_handler {
+				panic_handler.forward_from(handler.deref());
+			}
+
 		}
 
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
 			client: service.client(),
 			info: Default::default(),
-			sync: sync
+			sync: sync.clone(),
 		});
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 		// Handle exit
-		wait_for_exit(&service);
+		wait_for_exit(panic_handler);
 	}
 }
 
-fn wait_for_exit(client_service: &ClientService) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.notify_all(); });
+
+	// Handle panics
 	let e = exit.clone();
-	client_service.on_panic(move |_reason| { e.notify_all(); });
+	panic_handler.on_panic(move |_reason| { e.notify_all(); });
 
 	// Wait for signal
 	let mutex = Mutex::new(());

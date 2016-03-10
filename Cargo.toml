@@ -4,6 +4,10 @@ name = "parity"
 version = "0.9.99"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io>"]
+build = "build.rs"
+
+[build-dependencies]
+rustc_version = "0.1"
 
 [dependencies]
 log = "0.3"
@@ -12,22 +16,30 @@ rustc-serialize = "0.3"
 docopt = "0.6"
 time = "0.1"
 ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
-clippy = { version = "0.0.44", optional = true }
-ethcore-util = { path = "util" }
-ethcore = { path = "ethcore" }
-ethsync = { path = "sync" }
-ethcore-rpc = { path = "rpc", optional = true }
 fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
-ethcore-devtools = { path = "devtools" }
 number_prefix = "0.2"
+clippy = { version = "0.0.44", optional = true }
+ethcore = { path = "ethcore" }
+ethcore-util = { path = "util" }
+ethsync = { path = "sync" }
+ethcore-devtools = { path = "devtools" }
+ethcore-rpc = { path = "rpc", optional = true }
+rpassword = "0.1"
+
+[dev-dependencies]
+ethcore = { path = "ethcore", features = ["dev"] }
+ethcore-util = { path = "util", features = ["dev"] }
+ethsync = { path = "sync", features = ["dev"] }
+ethcore-rpc = { path = "rpc", features = ["dev"] }
 
 [features]
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev"]
+dev = ["ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev"]
+dev-clippy = ["clippy", "ethcore/clippy", "ethcore-util/clippy", "ethsync/clippy", "ethcore-rpc/clippy"]
 travis-beta = ["ethcore/json-tests"]
-travis-nightly = ["ethcore/json-tests", "dev"]
+travis-nightly = ["ethcore/json-tests", "dev-clippy", "dev"]
 
 [[bin]]
 path = "parity/main.rs"
