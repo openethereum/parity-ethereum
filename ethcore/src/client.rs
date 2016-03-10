@@ -404,8 +404,12 @@ impl<V> Client<V> where V: Verifier {
 
 		{
 			let mut block_queue = self.block_queue.write().unwrap();
-			block_queue.mark_as_bad(&bad_blocks);
-			block_queue.mark_as_good(&good_blocks);
+			if !bad_blocks.is_empty() {
+				block_queue.mark_as_bad(&bad_blocks);
+			}
+			if !good_blocks.is_empty() {
+				block_queue.mark_as_good(&good_blocks);
+			}
 		}
 
 		{

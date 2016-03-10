@@ -22,6 +22,7 @@ fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
 ethcore-devtools = { path = "devtools" }
 number_prefix = "0.2"
+rpassword = "0.1"
 
 [features]
 default = ["rpc"]

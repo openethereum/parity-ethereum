@@ -848,8 +848,8 @@ impl ChainSync {
 			self.downloading_bodies.remove(&n);
 			self.downloading_headers.remove(&n);
 		}
-		self.headers.remove_tail(&start);
-		self.bodies.remove_tail(&start);
+		self.headers.remove_from(&start);
+		self.bodies.remove_from(&start);
 	}
 
 	/// Request headers from a peer by block hash
