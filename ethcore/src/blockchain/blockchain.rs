@@ -452,7 +452,32 @@ impl BlockChain {
 		let batch = DBTransaction::new();
 		batch.put(b"best", &update.info.hash).unwrap();
 
-		// These cached values must be updated atomically
+		{
+			let mut write_details = self.block_details.write().unwrap();
+			for (hash, details) in update.block_details.into_iter() {
+				batch.put_extras(&hash, &details);
+				self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash.clone()));
+				write_details.insert(hash, details);
+			}
+		}
+
+		{
+			let mut write_receipts = self.block_receipts.write().unwrap();
+			for (hash, receipt) in &update.block_receipts {
+				batch.put_extras(hash, receipt);
+				write_receipts.remove(hash);
+			}
+		}
+
+		{
+			let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
+			for (bloom_hash, blocks_bloom) in &update.blocks_blooms {
+				batch.put_extras(bloom_hash, blocks_bloom);
+				write_blocks_blooms.remove(bloom_hash);
+			}
+		}
+
+		// These cached values must be updated last and togeterh
 		{
 			let mut best_block = self.best_block.write().unwrap();
 			let mut write_hashes = self.block_hashes.write().unwrap();
@@ -478,31 +503,6 @@ impl BlockChain {
 			for (hash, tx_address) in &update.transactions_addresses {
 				batch.put_extras(hash, tx_address);
 				write_txs.remove(hash);
-			}
-		}
-
-		{
-			let mut write_details = self.block_details.write().unwrap();
-			for (hash, details) in update.block_details.into_iter() {
-				batch.put_extras(&hash, &details);
-				self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash.clone()));
-				write_details.insert(hash, details);
-			}
-		}
-
-		{
-			let mut write_receipts = self.block_receipts.write().unwrap();
-			for (hash, receipt) in &update.block_receipts {
-				batch.put_extras(hash, receipt);
-				write_receipts.remove(hash);
-			}
-		}
-
-		{
-			let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
-			for (bloom_hash, blocks_bloom) in &update.blocks_blooms {
-				batch.put_extras(bloom_hash, blocks_bloom);
-				write_blocks_blooms.remove(bloom_hash);
 			}
 		}
 
