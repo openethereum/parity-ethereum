@@ -17,15 +17,15 @@
 //! Net rpc implementation.
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
-use ethsync::SyncStatusProvider;
+use ethsync::SyncProvider;
 use v1::traits::Net;
 
 /// Net rpc implementation.
-pub struct NetClient<S> where S: SyncStatusProvider {
+pub struct NetClient<S> where S: SyncProvider {
 	sync: Weak<S>
 }
 
-impl<S> NetClient<S> where S: SyncStatusProvider {
+impl<S> NetClient<S> where S: SyncProvider {
 	/// Creates new NetClient.
 	pub fn new(sync: &Arc<S>) -> Self {
 		NetClient {
@@ -34,7 +34,7 @@ impl<S> NetClient<S> where S: SyncStatusProvider {
 	}
 }
 
-impl<S> Net for NetClient<S> where S: SyncStatusProvider + 'static {
+impl<S> Net for NetClient<S> where S: SyncProvider + 'static {
 	fn version(&self, _: Params) -> Result<Value, Error> {
 		Ok(Value::U64(take_weak!(self.sync).status().protocol_version as u64))
 	}
