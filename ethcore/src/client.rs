@@ -391,7 +391,8 @@ impl<V> Client<V> where V: Verifier {
 				.commit(header.number(), &header.hash(), ancient)
 				.expect("State DB commit failed.");
 
-			// And update the chain
+			// And update the chain after commit to prevent race conditions
+			// (when something is in chain but you are not able to fetch details)
 			self.chain.write().unwrap()
 				.insert_block(&block.bytes, receipts);
 
