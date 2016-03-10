@@ -108,7 +108,7 @@ API and Console Options:
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL (geth-compatible).
 
 Sealing/Mining Options:
-  --gasprice GAS		   Minimal gas price a transaction must have to be accepted for mining [default: 20000000000].
+  --gasprice GAS           Minimal gas price a transaction must have to be accepted for mining [default: 20000000000].
   --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
                            from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
   --extradata STRING       Specify a custom extra-data for authored blocks, no more than 32 characters.
