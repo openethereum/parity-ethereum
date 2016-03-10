@@ -307,7 +307,7 @@ impl EthFilter for EthFilterClient {
 		let client = take_weak!(self.client);
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
-				let info = self.polls.lock().unwrap().get_poll_info(&index.value()).cloned();
+				let info = self.polls.lock().unwrap().poll_info(&index.value()).cloned();
 				match info {
 					None => Ok(Value::Array(vec![] as Vec<Value>)),
 					Some(info) => match info.filter {
