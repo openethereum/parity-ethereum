@@ -16,6 +16,8 @@
 
 //! Indexes all rpc poll requests.
 
+use util::hash::H256;
+use std::collections::HashMap;
 use transient_hashmap::{TransientHashMap, Timer, StandardTimer};
 
 /// Lifetime of poll (in seconds).
@@ -43,7 +45,8 @@ impl<F> Clone for PollInfo<F> where F: Clone {
 /// Lazily garbage collects unused polls info.
 pub struct PollManager<F, T = StandardTimer> where T: Timer {
 	polls: TransientHashMap<PollId, PollInfo<F>, T>,
-	next_available_id: PollId
+	transactions_data: HashMap<PollId, Vec<H256>>,
+	next_available_id: PollId,
 }
 
 impl<F> PollManager<F, StandardTimer> {
@@ -57,15 +60,25 @@ impl<F, T> PollManager<F, T> where T: Timer {
 	pub fn new_with_timer(timer: T) -> Self {
 		PollManager {
 			polls: TransientHashMap::new_with_timer(POLL_LIFETIME, timer),
+			transactions_data: HashMap::new(),
 			next_available_id: 0,
 		}
+	}
+
+	fn prune(&mut self) {
+		self.polls.prune();
+		// self.polls.prune()
+		// 	.into_iter()
+		// 	.map(|key| {
+		// 		self.transactions_data.remove(key);
+		// 	});
 	}
 
 	/// Returns id which can be used for new poll.
 	///
 	/// Stores information when last poll happend.
 	pub fn create_poll(&mut self, filter: F, block: BlockNumber) -> PollId {
-		self.polls.prune();
+		self.prune();
 		let id = self.next_available_id;
 		self.next_available_id += 1;
 		self.polls.insert(id, PollInfo {
@@ -77,7 +90,7 @@ impl<F, T> PollManager<F, T> where T: Timer {
 
 	/// Updates information when last poll happend.
 	pub fn update_poll(&mut self, id: &PollId, block: BlockNumber) {
-		self.polls.prune();
+		self.prune();
 		if let Some(info) = self.polls.get_mut(id) {
 			info.block_number = block;
 		}
@@ -85,13 +98,27 @@ impl<F, T> PollManager<F, T> where T: Timer {
 
 	/// Returns number of block when last poll happend.
 	pub fn get_poll_info(&mut self, id: &PollId) -> Option<&PollInfo<F>> {
-		self.polls.prune();
+		self.prune();
 		self.polls.get(id)
+	}
+
+	pub fn set_poll_transactions(&mut self, id: &PollId, transactions: Vec<H256>) {
+		self.prune();
+		if self.polls.get(id).is_some() {
+			self.transactions_data.insert(*id, transactions);
+		}
+	}
+
+	/// Returns last transactions hashes for given poll.
+	pub fn poll_transactions(&mut self, id: &PollId) -> Option<&Vec<H256>> {
+		self.prune();
+		self.transactions_data.get(id)
 	}
 
 	/// Removes poll info.
 	pub fn remove_poll(&mut self, id: &PollId) {
 		self.polls.remove(id);
+		self.transactions_data.remove(id);
 	}
 }
 
@@ -100,6 +127,7 @@ mod tests {
 	use std::cell::RefCell;
 	use transient_hashmap::Timer;
 	use v1::helpers::PollManager;
+	use util::hash::H256;
 
 	struct TestTimer<'a> {
 		time: &'a RefCell<i64>,
@@ -140,5 +168,73 @@ mod tests {
 
 		indexer.remove_poll(&1);
 		assert!(indexer.get_poll_info(&1).is_none());
+	}
+
+	#[test]
+	fn should_return_poll_transactions_hashes() {
+		// given
+		let mut indexer = PollManager::new();
+		let poll_id = indexer.create_poll(false, 20);
+		assert!(indexer.poll_transactions(&poll_id).is_none());
+		let transactions = vec![H256::from(1), H256::from(2)];
+
+		// when
+		indexer.set_poll_transactions(&poll_id, transactions.clone());
+
+		// then
+		let txs = indexer.poll_transactions(&poll_id);
+		assert_eq!(txs.unwrap(), &transactions);
+	}
+
+
+	#[test]
+	fn should_remove_transaction_data_when_poll_timed_out() {
+		// given
+		let time = RefCell::new(0);
+		let timer = TestTimer {
+			time: &time,
+		};
+		let mut indexer = PollManager::new_with_timer(timer);
+		let poll_id = indexer.create_poll(false, 20);
+		let transactions = vec![H256::from(1), H256::from(2)];
+		indexer.set_poll_transactions(&poll_id, transactions.clone());
+		assert!(indexer.poll_transactions(&poll_id).is_some());
+
+		// when
+		*time.borrow_mut() = 75;
+		indexer.prune();
+
+		// then
+		assert!(indexer.poll_transactions(&poll_id).is_none());
+
+	}
+
+	#[test]
+	fn should_remove_transaction_data_when_poll_is_removed() {
+		// given
+		let mut indexer = PollManager::new();
+		let poll_id = indexer.create_poll(false, 20);
+		let transactions = vec![H256::from(1), H256::from(2)];
+
+		// when
+		indexer.set_poll_transactions(&poll_id, transactions.clone());
+		assert!(indexer.poll_transactions(&poll_id).is_some());
+		indexer.remove_poll(&poll_id);
+
+		// then
+		assert!(indexer.poll_transactions(&poll_id).is_none());
+	}
+
+	#[test]
+	fn should_ignore_transactions_for_invalid_poll_id() {
+		// given
+		let mut indexer = PollManager::<()>::new();
+		let transactions = vec![H256::from(1), H256::from(2)];
+
+		// when
+		indexer.set_poll_transactions(&5, transactions.clone());
+
+		// then
+		assert!(indexer.poll_transactions(&5).is_none());
 	}
 }
