@@ -39,7 +39,7 @@ rpc = ["ethcore-rpc"]
 dev = ["ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev"]
 dev-clippy = ["clippy", "ethcore/clippy", "ethcore-util/clippy", "ethsync/clippy", "ethcore-rpc/clippy"]
 travis-beta = ["ethcore/json-tests"]
-travis-nightly = ["ethcore/json-tests", "clippy", "dev"]
+travis-nightly = ["ethcore/json-tests", "dev-clippy", "dev"]
 
 [[bin]]
 path = "parity/main.rs"
