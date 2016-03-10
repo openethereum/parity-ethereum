@@ -542,6 +542,28 @@ mod test {
 	}
 
 	#[test]
+	fn should_correctly_update_futures_when_removing() {
+		// given
+		let prev_nonce = |a: &Address| default_nonce(a) - U256::one();
+		let next2_nonce = |a: &Address| default_nonce(a) + U256::from(2);
+
+		let mut txq = TransactionQueue::new();
+
+		let (tx, tx2) = new_txs(U256::from(1));
+		txq.add(tx.clone(), &prev_nonce);
+		txq.add(tx2.clone(), &prev_nonce);
+		assert_eq!(txq.status().future, 2);
+
+		// when
+		txq.remove(&tx.hash(), &next2_nonce);
+		// should remove both transactions since they are not valid
+
+		// then
+		assert_eq!(txq.status().pending, 0);
+		assert_eq!(txq.status().future, 0);
+	}
+
+	#[test]
 	fn should_move_transactions_if_gap_filled() {
 		// given
 		let mut txq = TransactionQueue::new();
