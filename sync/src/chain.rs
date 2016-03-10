@@ -43,6 +43,7 @@ use io::SyncIo;
 use transaction_queue::TransactionQueue;
 use time;
 use super::SyncConfig;
+use ethcore;
 
 known_heap_size!(0, PeerInfo, Header, HeaderId);
 
@@ -1300,8 +1301,12 @@ impl ChainSync {
 		// TODO [todr] propagate transactions?
 	}
 
-	pub fn transaction_queue(&self) -> &Mutex<TransactionQueue> {
-		return &self.transaction_queue;
+	/// Add transaction to the transaction queue
+	pub fn insert_transaction<T>(&self, transaction: ethcore::transaction::SignedTransaction, fetch_nonce: &T)
+		where T: Fn(&Address) -> U256
+	{
+		let mut queue = self.transaction_queue.lock().unwrap();
+		queue.add(transaction, fetch_nonce);
 	}
 }
 

@@ -135,8 +135,7 @@ impl EthSync {
 
 		let nonce_fn = |a: &Address| self.chain.state().nonce(a) + U256::one();
 		let sync = self.sync.write().unwrap();
-		let mut queue = sync.transaction_queue().lock().unwrap();
-		queue.add(transaction, &nonce_fn);
+		sync.insert_transaction(transaction, &nonce_fn);
 	}
 }
 
