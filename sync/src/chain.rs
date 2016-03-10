@@ -936,7 +936,7 @@ impl ChainSync {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		for i in 0..item_count {
 			let tx: SignedTransaction = try!(r.val_at(i));
-			transaction_queue.add(tx, &fetch_latest_nonce);
+			let _ = transaction_queue.add(tx, &fetch_latest_nonce);
 		}
  		Ok(())
 	}
@@ -1292,7 +1292,7 @@ impl ChainSync {
 					let _sender = tx.sender();
 				}
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				transaction_queue.add_all(txs, |a| chain.nonce(a));
+				let _ = transaction_queue.add_all(txs, |a| chain.nonce(a));
 			});
 		}
 
