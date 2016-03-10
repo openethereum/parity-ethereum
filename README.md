@@ -1,6 +1,7 @@
 # ethcore
 
 [![Build Status][travis-image]][travis-url] [![Coverage Status][coveralls-image]][coveralls-url] [![Join the chat at https://gitter.im/trogdoro/xiki][gitter-image]][gitter-url] [![GPLv3][license-image]][license-url]
+[![Clippy Linting Result][clippy-image]][clippy-url]
 
 [travis-image]: https://travis-ci.org/ethcore/parity.svg?branch=master
 [travis-url]: https://travis-ci.org/ethcore/parity
@@ -10,6 +11,8 @@
 [gitter-url]: https://gitter.im/ethcore/parity?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
 [license-image]: https://img.shields.io/badge/license-GPL%20v3-green.svg
 [license-url]: http://www.gnu.org/licenses/gpl-3.0.en.html
+[clippy-image]: http://clippy.bashy.io/github/ethcore/parity/master/badge.svg
+[clippy-url]: http://clippy.bashy.io/github/ethcore/parity/master/log
 
 [Documentation](http://ethcore.github.io/parity/ethcore/index.html)
 
