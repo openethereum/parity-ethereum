@@ -99,7 +99,7 @@ pub struct Spec {
 	genesis_state: PodState,
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))] // because to_engine(self) should be to_engine(&self)
+#[cfg_attr(all(nightly, feature="dev"), allow(wrong_self_convention))] // because to_engine(self) should be to_engine(&self)
 impl Spec {
 	/// Convert this object into a boxed Engine of the right underlying type.
 	// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
@@ -136,7 +136,7 @@ impl Spec {
 			uncles_hash: RlpStream::new_list(0).out().sha3(),
 			extra_data: self.extra_data.clone(),
 			state_root: self.state_root().clone(),
-			receipts_root: self.receipts_root.clone(),	
+			receipts_root: self.receipts_root.clone(),
 			log_bloom: H2048::new().clone(),
 			gas_used: self.gas_used.clone(),
 			gas_limit: self.gas_limit.clone(),
@@ -182,7 +182,7 @@ impl Spec {
 				)
 			}
 		};
-		
+
 		self.parent_hash = H256::from_json(&genesis["parentHash"]);
 		self.transactions_root = genesis.find("transactionsTrie").and_then(|_| Some(H256::from_json(&genesis["transactionsTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
 		self.receipts_root = genesis.find("receiptTrie").and_then(|_| Some(H256::from_json(&genesis["receiptTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
@@ -249,7 +249,7 @@ impl FromJson for Spec {
 				)
 			}
 		};
-		
+
 		Spec {
 			name: json.find("name").map_or("unknown", |j| j.as_string().unwrap()).to_owned(),
 			engine_name: json["engineName"].as_string().unwrap().to_owned(),
@@ -278,7 +278,7 @@ impl Spec {
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good(&self, db: &mut HashDB) -> bool {
 		if !db.contains(&self.state_root()) {
-			let mut root = H256::new(); 
+			let mut root = H256::new();
 			{
 				let mut t = SecTrieDBMut::new(db, &mut root);
 				for (address, account) in self.genesis_state.get().iter() {

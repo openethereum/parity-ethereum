@@ -29,7 +29,7 @@ use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
-use blockchain::CacheSize;
+use blockchain::{CacheSize, ImportRoute};
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
@@ -419,14 +419,14 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) {
+	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 		let hash = header.sha3();
 
 		if self.is_known(&hash) {
-			return;
+			return ImportRoute::none();
 		}
 
 		let _lock = self.insert_lock.lock();
@@ -441,8 +441,10 @@ impl BlockChain {
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
-			info: info
+			info: info.clone(),
 		});
+
+		ImportRoute::from(info)
 	}
 
 	/// Applies extras update.
@@ -565,9 +567,14 @@ impl BlockChain {
 
 				match route.blocks.len() {
 					0 => BlockLocation::CanonChain,
-					_ => BlockLocation::BranchBecomingCanonChain {
-						ancestor: route.ancestor,
-						route: route.blocks.into_iter().skip(route.index).collect()
+					_ => {
+						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<H256>>();
+
+						BlockLocation::BranchBecomingCanonChain {
+							ancestor: route.ancestor,
+							enacted: route.blocks.into_iter().skip(route.index).collect(),
+							retracted: retracted.into_iter().rev().collect(),
+						}
 					}
 				}
 			} else {
@@ -588,11 +595,11 @@ impl BlockChain {
 			BlockLocation::CanonChain => {
 				block_hashes.insert(number, info.hash.clone());
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route } => {
+			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
 				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				for (index, hash) in route.iter().cloned().enumerate() {
+				for (index, hash) in enacted.iter().cloned().enumerate() {
 					block_hashes.insert(start_number + index as BlockNumber, hash);
 				}
 
@@ -677,11 +684,11 @@ impl BlockChain {
 				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
 					.add_bloom(&header.log_bloom(), header.number() as usize)
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route } => {
+			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
 				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				let mut blooms: Vec<H2048> = route.iter()
+				let mut blooms: Vec<H2048> = enacted.iter()
 					.map(|hash| self.block(hash).unwrap())
 					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
 					.collect();
@@ -841,7 +848,7 @@ mod tests {
 	use rustc_serialize::hex::FromHex;
 	use util::hash::*;
 	use util::sha3::Hashable;
-	use blockchain::{BlockProvider, BlockChain, BlockChainConfig};
+	use blockchain::{BlockProvider, BlockChain, BlockChainConfig, ImportRoute};
 	use tests::helpers::*;
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
@@ -900,7 +907,7 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
 	fn test_find_uncles() {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -938,7 +945,7 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
 	fn test_small_fork() {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -959,10 +966,30 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
-		bc.insert_block(&b1, vec![]);
-		bc.insert_block(&b2, vec![]);
-		bc.insert_block(&b3a, vec![]);
-		bc.insert_block(&b3b, vec![]);
+		let ir1 = bc.insert_block(&b1, vec![]);
+		let ir2 = bc.insert_block(&b2, vec![]);
+		let ir3b = bc.insert_block(&b3b, vec![]);
+		let ir3a = bc.insert_block(&b3a, vec![]);
+
+		assert_eq!(ir1, ImportRoute {
+			enacted: vec![b1_hash],
+			retracted: vec![],
+		});
+
+		assert_eq!(ir2, ImportRoute {
+			enacted: vec![b2_hash],
+			retracted: vec![],
+		});
+
+		assert_eq!(ir3b, ImportRoute {
+			enacted: vec![b3b_hash],
+			retracted: vec![],
+		});
+
+		assert_eq!(ir3a, ImportRoute {
+			enacted: vec![b3a_hash],
+			retracted: vec![b3b_hash],
+		});
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);
 		assert_eq!(bc.block_number(&genesis_hash).unwrap(), 0);

@@ -15,11 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
+#![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
+#![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
 
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
-#![cfg_attr(feature="dev", allow(clone_on_copy))]
+#![cfg_attr(all(nightly, feature="dev"), allow(clone_on_copy))]
 
 //! Blockchain sync module
 //! Implements ethereum protocol version 63 as specified here:
@@ -54,6 +54,7 @@ extern crate ethcore;
 extern crate env_logger;
 extern crate time;
 extern crate rand;
+extern crate rayon;
 #[macro_use]
 extern crate heapsize;
 
@@ -70,8 +71,8 @@ use io::NetSyncIo;
 mod chain;
 mod io;
 mod range_collection;
-// TODO [todr] Made public to suppress dead code warnings
-pub mod transaction_queue;
+mod transaction_queue;
+pub use transaction_queue::TransactionQueue;
 
 #[cfg(test)]
 mod tests;
@@ -91,6 +92,12 @@ impl Default for SyncConfig {
 			network_id: ONE_U256,
 		}
 	}
+}
+
+/// Current sync status
+pub trait SyncStatusProvider: Send + Sync {
+	/// Get sync status
+	fn status(&self) -> SyncStatus;
 }
 
 /// Ethereum network protocol handler
@@ -114,11 +121,6 @@ impl EthSync {
 		sync
 	}
 
-	/// Get sync status
-	pub fn status(&self) -> SyncStatus {
-		self.sync.read().unwrap().status()
-	}
-
 	/// Stop sync
 	pub fn stop(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().abort(&mut NetSyncIo::new(io, self.chain.deref()));
@@ -127,6 +129,22 @@ impl EthSync {
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
+	}
+
+	/// Insert transaction in transaction queue
+	pub fn insert_transaction(&self, transaction: ethcore::transaction::SignedTransaction) {
+		use util::numbers::*;
+
+		let nonce_fn = |a: &Address| self.chain.state().nonce(a) + U256::one();
+		let sync = self.sync.write().unwrap();
+		sync.insert_transaction(transaction, &nonce_fn);
+	}
+}
+
+impl SyncStatusProvider for EthSync {
+	/// Get sync status
+	fn status(&self) -> SyncStatus {
+		self.sync.read().unwrap().status()
 	}
 }
 
@@ -153,8 +171,12 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	}
 
 	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
-		if let SyncMessage::BlockVerified = *message {
-			self.sync.write().unwrap().chain_blocks_verified(&mut NetSyncIo::new(io, self.chain.deref()));
+		match *message {
+			SyncMessage::NewChainBlocks { ref good, ref bad, ref retracted } => {
+				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
+				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, good, bad, retracted);
+			},
+			_ => {/* Ignore other messages */},
 		}
 	}
 }

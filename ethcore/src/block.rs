@@ -16,7 +16,7 @@
 
 //! Blockchain block.
 
-#![cfg_attr(feature="dev", allow(ptr_arg))] // Because of &LastHashes -> &Vec<_>
+#![cfg_attr(all(nightly, feature="dev"), allow(ptr_arg))] // Because of &LastHashes -> &Vec<_>
 
 use common::*;
 use engine::*;
@@ -274,7 +274,7 @@ impl<'x> OpenBlock<'x> {
 		s.block.base.header.note_dirty();
 
 		ClosedBlock {
-			block: s.block, 
+			block: s.block,
 			uncle_bytes: uncle_bytes,
 		}
 	}
