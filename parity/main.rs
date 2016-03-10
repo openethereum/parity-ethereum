@@ -247,12 +247,15 @@ impl Configuration {
 	}
 
 	fn author(&self) -> Address {
-		Address::from_str(&self.args.flag_author).unwrap_or_else(|_| die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", self.args.flag_author))
+		Address::from_str(&self.args.flag_author).unwrap_or_else(|_| {
+			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", self.args.flag_author)
+		})
 	}
 
 	fn gasprice(&self) -> U256 {
-		U256::from_dec_str(self.args.flag_gasprice).unwrap_or_else(|_| die("{}: Invalid gasprice given. Must be a
-																		   decimal unsigned 256-bit number."))
+		U256::from_dec_str(self.args.flag_gasprice).unwrap_or_else(|_| {
+			die("{}: Invalid gasprice given. Must be a decimal unsigned 256-bit number.")
+		})
 	}
 
 	fn extra_data(&self) -> Bytes {
@@ -275,7 +278,9 @@ impl Configuration {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
-			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| die!("{}: Couldn't read chain specification file. Sure it exists?", f)).as_ref()),
+			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| {
+				die!("{}: Couldn't read chain specification file. Sure it exists?", f)
+			}).as_ref()),
 		}
 	}
 
@@ -291,7 +296,9 @@ impl Configuration {
 		if self.args.flag_no_bootstrap { Vec::new() } else {
 			match self.args.arg_enode.len() {
 				0 => spec.nodes().clone(),
-				_ => self.args.arg_enode.iter().map(|s| Self::normalize_enode(s).unwrap_or_else(||die!("{}: Invalid node address format given for a boot node.", s))).collect(),
+				_ => self.args.arg_enode.iter().map(|s| Self::normalize_enode(s).unwrap_or_else(|| {
+					die!("{}: Invalid node address format given for a boot node.", s)
+				})).collect(),
 			}
 		}
 	}
@@ -302,17 +309,23 @@ impl Configuration {
 		let mut public_address = None;
 
 		if let Some(ref a) = self.args.flag_address {
-			public_address = Some(SocketAddr::from_str(a.as_ref()).unwrap_or_else(|_| die!("{}: Invalid listen/public address given with --address", a)));
+			public_address = Some(SocketAddr::from_str(a.as_ref()).unwrap_or_else(|_| {
+				die!("{}: Invalid listen/public address given with --address", a)
+			}));
 			listen_address = public_address;
 		}
 		if listen_address.is_none() {
-			listen_address = Some(SocketAddr::from_str(self.args.flag_listen_address.as_ref()).unwrap_or_else(|_| die!("{}: Invalid listen/public address given with --listen-address", self.args.flag_listen_address)));
+			listen_address = Some(SocketAddr::from_str(self.args.flag_listen_address.as_ref()).unwrap_or_else(|_| {
+				die!("{}: Invalid listen/public address given with --listen-address", self.args.flag_listen_address)
+			}));
 		}
 		if let Some(ref a) = self.args.flag_public_address {
 			if public_address.is_some() {
 				die!("Conflicting flags provided: --address and --public-address");
 			}
-			public_address = Some(SocketAddr::from_str(a.as_ref()).unwrap_or_else(|_| die!("{}: Invalid listen/public address given with --public-address", a)));
+			public_address = Some(SocketAddr::from_str(a.as_ref()).unwrap_or_else(|_| {
+				die!("{}: Invalid listen/public address given with --public-address", a)
+			}));
 		}
 		(listen_address, public_address)
 	}
@@ -403,7 +416,7 @@ impl Configuration {
 				self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_addr),
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
 			);
-			SocketAddr::from_str(&url).unwrap_or_else(|_|die!("{}: Invalid JSONRPC listen host/port given.", url));
+			SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
@@ -475,7 +488,11 @@ impl Informant {
 		let report = client.report();
 		let sync_info = sync.status();
 
-		if let (_, _, &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
+		if let (_, _, &Some(ref last_report)) = (
+			self.chain_info.read().unwrap().deref(),
+			self.cache_info.read().unwrap().deref(),
+			self.report.read().unwrap().deref()
+		) {
 			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···// mem: {} db, {} chain, {} queue, {} sync ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
