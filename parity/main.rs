@@ -32,6 +32,7 @@ extern crate fdlimit;
 extern crate daemonize;
 extern crate time;
 extern crate number_prefix;
+extern crate rpassword;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -70,6 +71,7 @@ Parity. Ethereum Client.
 
 Usage:
   parity daemon <pid-file> [options] [ --no-bootstrap | <enode>... ]
+  parity account (new | list)
   parity [options] [ --no-bootstrap | <enode>... ]
 
 Protocol Options:
@@ -126,6 +128,9 @@ Miscellaneous Options:
 #[derive(Debug, RustcDecodable)]
 struct Args {
 	cmd_daemon: bool,
+	cmd_account: bool,
+	cmd_new: bool,
+	cmd_list: bool,
 	arg_pid_file: String,
 	arg_enode: Vec<String>,
 	flag_chain: String,
@@ -337,7 +342,38 @@ impl Configuration {
 				.start()
 				.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
 		}
+		if self.args.cmd_account {
+			self.execute_account_cli();
+			return;
+		}
 		self.execute_client();
+	}
+
+	fn execute_account_cli(&self) {
+		use util::keys::store::SecretStore;
+		use rpassword::read_password;
+		let mut secret_store = SecretStore::new();
+		if self.args.cmd_new {
+			println!("Please note that password is NOT RECOVERABLE.");
+			println!("Type password: ");
+			let password = read_password().unwrap();
+			println!("Repeat password: ");
+			let password_repeat = read_password().unwrap();
+			if password != password_repeat {
+				println!("Passwords do not match!");
+				return;
+			}
+			println!("New account address:");
+			let new_address = secret_store.new_account(&password).unwrap();
+			println!("{:?}", new_address);
+			return;
+		}
+		if self.args.cmd_list {
+			println!("Known addresses:");
+			for &(addr, _) in secret_store.accounts().unwrap().iter() {
+				println!("{:?}", addr);
+			}
+		}
 	}
 
 	fn execute_client(&self) {
