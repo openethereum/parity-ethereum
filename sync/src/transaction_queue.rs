@@ -277,7 +277,12 @@ impl TransactionQueue {
 		};
 		for k in all_nonces_from_sender {
 			let order = self.future.drop(&sender, &k).unwrap();
-			self.future.insert(sender.clone(), k, order.update_height(k, current_nonce));
+			if k >= current_nonce {
+				self.future.insert(sender.clone(), k, order.update_height(k, current_nonce));
+			} else {
+				// Remove the transaction completely
+				self.by_hash.remove(&order.hash);
+			}
 		}
 	}
 
