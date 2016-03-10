@@ -209,7 +209,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, miner: Arc<Miner>, 
 			"net" => server.add_delegate(NetClient::new(&sync).to_delegate()),
 			"eth" => {
 				server.add_delegate(EthClient::new(&client, &sync, &miner).to_delegate());
-				server.add_delegate(EthFilterClient::new(&client).to_delegate());
+				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 			}
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);

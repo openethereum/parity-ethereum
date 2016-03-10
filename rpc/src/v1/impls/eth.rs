@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak, Mutex, RwLock};
 use std::ops::Deref;
 use ethsync::{EthSync, SyncState};
@@ -264,15 +264,17 @@ impl Eth for EthClient {
 /// Eth filter rpc implementation.
 pub struct EthFilterClient {
 	client: Weak<Client>,
+	miner: Weak<Miner>,
 	polls: Mutex<PollManager<PollFilter>>,
 }
 
 impl EthFilterClient {
 	/// Creates new Eth filter client.
-	pub fn new(client: &Arc<Client>) -> Self {
+	pub fn new(client: &Arc<Client>, miner: &Arc<Miner>) -> Self {
 		EthFilterClient {
 			client: Arc::downgrade(client),
-			polls: Mutex::new(PollManager::new())
+			miner: Arc::downgrade(miner),
+			polls: Mutex::new(PollManager::new()),
 		}
 	}
 }
@@ -302,7 +304,12 @@ impl EthFilter for EthFilterClient {
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::PendingTransaction, take_weak!(self.client).chain_info().best_block_number);
+				let best_block_number = take_weak!(self.client).chain_info().best_block_number;
+				let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
+
+				let id = polls.create_poll(PollFilter::PendingTransaction, best_block_number);
+				polls.update_transactions(&id, pending_transactions);
+
 				to_value(&U256::from(id))
 			},
 			_ => Err(Error::invalid_params())
@@ -330,8 +337,21 @@ impl EthFilter for EthFilterClient {
 							to_value(&hashes)
 						},
 						PollFilter::PendingTransaction => {
-							// TODO: fix implementation once TransactionQueue is merged
-							to_value(&vec![] as &Vec<H256>)
+							let poll_id = index.value();
+							let mut polls = self.polls.lock().unwrap();
+
+							let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
+							let previous_hashes = polls.update_transactions(&poll_id, current_hashes.clone()).unwrap();
+							polls.update_poll(&poll_id, client.chain_info().best_block_number);
+
+							// calculate diff
+							let previous_hashes_set = previous_hashes.into_iter().collect::<HashSet<H256>>();
+							let diff = current_hashes
+								.into_iter()
+								.filter(|hash| previous_hashes_set.contains(&hash))
+								.collect::<Vec<H256>>();
+
+							to_value(&diff)
 						},
 						PollFilter::Logs(mut filter) => {
 							filter.from_block = BlockId::Number(info.block_number);

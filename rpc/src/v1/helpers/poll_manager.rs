@@ -102,15 +102,19 @@ impl<F, T> PollManager<F, T> where T: Timer {
 		self.polls.get(id)
 	}
 
-	pub fn set_poll_transactions(&mut self, id: &PollId, transactions: Vec<H256>) {
+	pub fn update_transactions(&mut self, id: &PollId, transactions: Vec<H256>) -> Option<Vec<H256>> {
 		self.prune();
 		if self.polls.get(id).is_some() {
-			self.transactions_data.insert(*id, transactions);
+			self.transactions_data.insert(*id, transactions)
+		} else {
+			None
 		}
 	}
 
+	// Normal code always replaces transactions
+	#[cfg(test)]
 	/// Returns last transactions hashes for given poll.
-	pub fn poll_transactions(&mut self, id: &PollId) -> Option<&Vec<H256>> {
+	pub fn transactions(&mut self, id: &PollId) -> Option<&Vec<H256>> {
 		self.prune();
 		self.transactions_data.get(id)
 	}
@@ -175,14 +179,14 @@ mod tests {
 		// given
 		let mut indexer = PollManager::new();
 		let poll_id = indexer.create_poll(false, 20);
-		assert!(indexer.poll_transactions(&poll_id).is_none());
+		assert!(indexer.transactions(&poll_id).is_none());
 		let transactions = vec![H256::from(1), H256::from(2)];
 
 		// when
-		indexer.set_poll_transactions(&poll_id, transactions.clone());
+		indexer.update_transactions(&poll_id, transactions.clone());
 
 		// then
-		let txs = indexer.poll_transactions(&poll_id);
+		let txs = indexer.transactions(&poll_id);
 		assert_eq!(txs.unwrap(), &transactions);
 	}
 
@@ -197,15 +201,15 @@ mod tests {
 		let mut indexer = PollManager::new_with_timer(timer);
 		let poll_id = indexer.create_poll(false, 20);
 		let transactions = vec![H256::from(1), H256::from(2)];
-		indexer.set_poll_transactions(&poll_id, transactions.clone());
-		assert!(indexer.poll_transactions(&poll_id).is_some());
+		indexer.update_transactions(&poll_id, transactions.clone());
+		assert!(indexer.transactions(&poll_id).is_some());
 
 		// when
 		*time.borrow_mut() = 75;
 		indexer.prune();
 
 		// then
-		assert!(indexer.poll_transactions(&poll_id).is_none());
+		assert!(indexer.transactions(&poll_id).is_none());
 
 	}
 
@@ -217,12 +221,12 @@ mod tests {
 		let transactions = vec![H256::from(1), H256::from(2)];
 
 		// when
-		indexer.set_poll_transactions(&poll_id, transactions.clone());
-		assert!(indexer.poll_transactions(&poll_id).is_some());
+		indexer.update_transactions(&poll_id, transactions.clone());
+		assert!(indexer.transactions(&poll_id).is_some());
 		indexer.remove_poll(&poll_id);
 
 		// then
-		assert!(indexer.poll_transactions(&poll_id).is_none());
+		assert!(indexer.transactions(&poll_id).is_none());
 	}
 
 	#[test]
@@ -232,9 +236,9 @@ mod tests {
 		let transactions = vec![H256::from(1), H256::from(2)];
 
 		// when
-		indexer.set_poll_transactions(&5, transactions.clone());
+		indexer.update_transactions(&5, transactions.clone());
 
 		// then
-		assert!(indexer.poll_transactions(&5).is_none());
+		assert!(indexer.transactions(&5).is_none());
 	}
 }

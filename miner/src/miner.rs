@@ -34,6 +34,9 @@ pub trait MinerService {
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
 		where T: Fn(&Address) -> U256;
 
+	/// Returns hashes of transactions currently in pending
+	fn pending_transactions_hashes(&self) -> Vec<H256>;
+
 	/// Removes all transactions from the queue and restart mining operation.
 	fn clear_and_reset(&self, chain: &BlockChainClient);
 
@@ -133,6 +136,11 @@ impl MinerService for Miner {
 		where T: Fn(&Address) -> U256 {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		transaction_queue.add_all(transactions, fetch_nonce)
+	}
+
+	fn pending_transactions_hashes(&self) -> Vec<H256> {
+		let transaction_queue = self.transaction_queue.lock().unwrap();
+		transaction_queue.pending_hashes()
 	}
 
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
