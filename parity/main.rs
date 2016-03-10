@@ -196,7 +196,7 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<SecretStore>,  url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<AccountService>,  url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -416,11 +416,7 @@ impl Configuration {
 		let sync = EthSync::register(service.network(), sync_config, client);
 
 		// Secret Store
-		let secret_store = Arc::new(SecretStore::new());
-		{
-			let import_ref = Arc::make_mut(&mut secret_store);
-			import_ref.try_import_existing();
-		}
+		let account_service = Arc::new(AccountService::new());
 
 		// Setup rpc
 		if self.args.flag_jsonrpc || self.args.flag_rpc {
@@ -432,7 +428,7 @@ impl Configuration {
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let server_handler = setup_rpc_server(service.client(), sync.clone(), secret_store.clone(), &url, cors, apis.split(",").collect());
+			let server_handler = setup_rpc_server(service.client(), sync.clone(), account_service.clone(), &url, cors, apis.split(",").collect());
 			if let Some(handler) = server_handler {
 				panic_handler.forward_from(handler.deref());
 			}
