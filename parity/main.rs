@@ -50,7 +50,7 @@ use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
-use ethsync::{EthSync, SyncConfig};
+use ethsync::{EthSync, SyncConfig, SyncStatusProvider};
 use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;

@@ -25,7 +25,7 @@ use ethcore::transaction::SignedTransaction;
 use transaction_queue::{TransactionQueue};
 
 /// Miner client API
-pub trait MinerService {
+pub trait MinerService : Send + Sync {
 
 	/// Returns miner's status.
 	fn status(&self) -> MinerStatus;
