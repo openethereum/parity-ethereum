@@ -368,7 +368,12 @@ impl TransactionQueue {
 		};
 		for k in all_nonces_from_sender {
 			let order = self.future.drop(&sender, &k).unwrap();
-			self.future.insert(sender.clone(), k, order.update_height(k, current_nonce));
+			if k >= current_nonce {
+				self.future.insert(sender.clone(), k, order.update_height(k, current_nonce));
+			} else {
+				// Remove the transaction completely
+				self.by_hash.remove(&order.hash);
+			}
 		}
 	}
 
@@ -668,6 +673,28 @@ mod test {
 		let top = txq.top_transactions(5);
 		assert_eq!(top.len(), 1);
 		assert_eq!(top[0], tx);
+	}
+
+	#[test]
+	fn should_correctly_update_futures_when_removing() {
+		// given
+		let prev_nonce = |a: &Address| default_nonce(a) - U256::one();
+		let next2_nonce = |a: &Address| default_nonce(a) + U256::from(2);
+
+		let mut txq = TransactionQueue::new();
+
+		let (tx, tx2) = new_txs(U256::from(1));
+		txq.add(tx.clone(), &prev_nonce);
+		txq.add(tx2.clone(), &prev_nonce);
+		assert_eq!(txq.status().future, 2);
+
+		// when
+		txq.remove(&tx.hash(), &next2_nonce);
+		// should remove both transactions since they are not valid
+
+		// then
+		assert_eq!(txq.status().pending, 0);
+		assert_eq!(txq.status().future, 0);
 	}
 
 	#[test]
