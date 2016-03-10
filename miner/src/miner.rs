@@ -24,7 +24,7 @@ use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use transaction_queue::{TransactionQueue};
 
-/// Miner external API
+/// Miner client API
 pub trait MinerService {
 
 	/// Returns miner's status.
@@ -33,12 +33,6 @@ pub trait MinerService {
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T)
 		where T: Fn(&Address) -> U256;
-
-	/// Set the author that we will seal blocks as.
-	fn set_author(&self, author: Address);
-
-	/// Set the extra_data that we will seal blocks with.
-	fn set_extra_data(&self, extra_data: Bytes);
 
 	/// Removes all transactions from the queue and restart mining operation.
 	fn clear_and_reset(&self, chain: &BlockChainClient);
@@ -103,6 +97,21 @@ impl Miner {
 	fn extra_data(&self) -> Bytes {
 		self.extra_data.read().unwrap().clone()
 	}
+
+	/// Set the author that we will seal blocks as.
+	pub fn set_author(&self, author: Address) {
+		*self.author.write().unwrap() = author;
+	}
+
+	/// Set the extra_data that we will seal blocks with.
+	pub fn set_extra_data(&self, extra_data: Bytes) {
+		*self.extra_data.write().unwrap() = extra_data;
+	}
+
+	/// Set minimal gas price of transaction to be accepted for mining.
+	pub fn set_minimal_gas_price(&self, min_gas_price: U256) {
+		self.transaction_queue.lock().unwrap().set_minimal_gas_price(min_gas_price);
+	}
 }
 
 impl MinerService for Miner {
@@ -124,15 +133,6 @@ impl MinerService for Miner {
 		where T: Fn(&Address) -> U256 {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		transaction_queue.add_all(transactions, fetch_nonce);
-	}
-
-	fn set_author(&self, author: Address) {
-		*self.author.write().unwrap() = author;
-	}
-
-
-	fn set_extra_data(&self, extra_data: Bytes) {
-		*self.extra_data.write().unwrap() = extra_data;
 	}
 
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
