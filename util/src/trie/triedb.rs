@@ -22,7 +22,7 @@ use super::trietraits::*;
 use super::node::*;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
-/// 
+///
 /// Use it as a `Trie` trait object. You can use `db()` to get the backing database object, `keys`
 /// to get the keys belonging to the trie in the backing database, and `db_items_remaining()` to get
 /// which items in the backing database do not belong to this trie. If this is the only trie in the
@@ -54,7 +54,7 @@ pub struct TrieDB<'db> {
 	pub hash_count: usize,
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))]
+#[cfg_attr(all(nightly, feature="dev"), allow(wrong_self_convention))]
 impl<'db> TrieDB<'db> {
 	/// Create a new trie with the backing database `db` and `root`
 	/// Panics, if `root` does not exist
@@ -63,16 +63,16 @@ impl<'db> TrieDB<'db> {
 			flushln!("TrieDB::new({}): Trie root not found!", root);
 			panic!("Trie root not found!");
 		}
-		TrieDB { 
-			db: db, 
+		TrieDB {
+			db: db,
 			root: root,
-			hash_count: 0 
+			hash_count: 0
 		}
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB { 
-		self.db 
+	pub fn db(&'db self) -> &'db HashDB {
+		self.db
 	}
 
 	/// Determine all the keys in the backing database that belong to the trie.
@@ -142,7 +142,7 @@ impl<'db> TrieDB<'db> {
 
 	/// Indentation helper for `formal_all`.
 	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
-		for _ in 0..size { 
+		for _ in 0..size {
 			try!(write!(f, "  "));
 		}
 		Ok(())
@@ -358,7 +358,7 @@ impl<'db> fmt::Debug for TrieDB<'db> {
 fn iterator() {
 	use memorydb::*;
 	use super::triedbmut::*;
-	
+
 	let d = vec![ &b"A"[..], &b"AA"[..], &b"AB"[..], &b"B"[..] ];
 
 	let mut memdb = MemoryDB::new();
