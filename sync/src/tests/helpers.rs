@@ -25,6 +25,7 @@ use ethcore::receipt::Receipt;
 use ethcore::transaction::{LocalizedTransaction, Transaction, Action};
 use ethcore::filter::Filter;
 use ethcore::log_entry::LocalizedLogEntry;
+use ethcore::block::ClosedBlock;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
@@ -157,6 +158,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
+		unimplemented!();
+	}
+
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
+		unimplemented!();
+	}
+
+	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
 	}
 
