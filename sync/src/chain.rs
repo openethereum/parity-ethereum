@@ -936,7 +936,7 @@ impl ChainSync {
 		}
 		let chain = io.chain();
 		let fetch_nonce = |a: &Address| chain.nonce(a);
-		self.miner.import_transactions(transactions, fetch_nonce);
+		let _ = self.miner.import_transactions(transactions, fetch_nonce);
  		Ok(())
 	}
 

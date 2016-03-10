@@ -259,8 +259,8 @@ impl Configuration {
 	}
 
 	fn gasprice(&self) -> U256 {
-		U256::from_dec_str(self.args.flag_gasprice).unwrap_or_else(|_| {
-			die("{}: Invalid gasprice given. Must be a decimal unsigned 256-bit number.")
+		U256::from_dec_str(self.args.flag_gasprice.as_str()).unwrap_or_else(|_| {
+			die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", self.args.flag_gasprice)
 		})
 	}
 

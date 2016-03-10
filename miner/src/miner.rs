@@ -31,7 +31,7 @@ pub trait MinerService {
 	fn status(&self) -> MinerStatus;
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T)
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
 		where T: Fn(&Address) -> U256;
 
 	/// Removes all transactions from the queue and restart mining operation.
@@ -129,10 +129,10 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T)
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
 		where T: Fn(&Address) -> U256 {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.add_all(transactions, fetch_nonce);
+		transaction_queue.add_all(transactions, fetch_nonce)
 	}
 
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
@@ -180,7 +180,7 @@ impl MinerService for Miner {
 	fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], _retracted: &[H256]) {
 		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
-				.block(BlockId::Hash(hash.clone()))
+				.block(BlockId::Hash(*hash))
 				// Client should send message after commit to db and inserting to chain.
 				.expect("Expected in-chain blocks.");
 			let block = BlockView::new(&block);
@@ -202,7 +202,7 @@ impl MinerService for Miner {
 					let _sender = tx.sender();
 				}
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				transaction_queue.add_all(txs, |a| chain.nonce(a));
+				let _ = transaction_queue.add_all(txs, |a| chain.nonce(a));
 			});
 		}
 

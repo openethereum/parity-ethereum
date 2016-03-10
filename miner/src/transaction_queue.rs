@@ -360,7 +360,7 @@ impl TransactionQueue {
 			self.update_future(&sender, current_nonce);
 			// And now lets check if there is some chain of transactions in future
 			// that should be placed in current
-			self.move_matching_future_to_current(sender.clone(), current_nonce, current_nonce);
+			self.move_matching_future_to_current(sender, current_nonce, current_nonce);
 			return;
 		}
 
@@ -376,7 +376,7 @@ impl TransactionQueue {
 			self.move_all_to_future(&sender, current_nonce);
 			// And now lets check if there is some chain of transactions in future
 			// that should be placed in current. It should also update last_nonces.
-			self.move_matching_future_to_current(sender.clone(), current_nonce, current_nonce);
+			self.move_matching_future_to_current(sender, current_nonce, current_nonce);
 			return;
 		}
 	}
@@ -391,7 +391,7 @@ impl TransactionQueue {
 		for k in all_nonces_from_sender {
 			let order = self.future.drop(&sender, &k).unwrap();
 			if k >= current_nonce {
-				self.future.insert(sender.clone(), k, order.update_height(k, current_nonce));
+				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
 				// Remove the transaction completely
 				self.by_hash.remove(&order.hash);
@@ -411,7 +411,7 @@ impl TransactionQueue {
 			// Goes to future or is removed
 			let order = self.current.drop(&sender, &k).unwrap();
 			if k >= current_nonce {
-				self.future.insert(sender.clone(), k, order.update_height(k, current_nonce));
+				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
 				self.by_hash.remove(&order.hash);
 			}
@@ -452,8 +452,8 @@ impl TransactionQueue {
 				// remove also from priority and hash
 				self.future.by_priority.remove(&order);
 				// Put to current
-				let order = order.update_height(current_nonce.clone(), first_nonce);
-				self.current.insert(address.clone(), current_nonce, order);
+				let order = order.update_height(current_nonce, first_nonce);
+				self.current.insert(address, current_nonce, order);
 				current_nonce = current_nonce + U256::one();
 			}
 		}
@@ -501,10 +501,10 @@ impl TransactionQueue {
 		}
 
 		let base_nonce = fetch_nonce(&address);
-		Self::replace_transaction(tx, base_nonce.clone(), &mut self.current, &mut self.by_hash);
-		self.last_nonces.insert(address.clone(), nonce);
+		Self::replace_transaction(tx, base_nonce, &mut self.current, &mut self.by_hash);
+		self.last_nonces.insert(address, nonce);
 		// But maybe there are some more items waiting in future?
-		self.move_matching_future_to_current(address.clone(), nonce + U256::one(), base_nonce);
+		self.move_matching_future_to_current(address, nonce + U256::one(), base_nonce);
 		self.current.enforce_limit(&mut self.by_hash);
 	}
 
@@ -518,7 +518,7 @@ impl TransactionQueue {
 		let address = tx.sender();
 		let nonce = tx.nonce();
 
-		by_hash.insert(hash.clone(), tx);
+		by_hash.insert(hash, tx);
 		if let Some(old) = set.insert(address, nonce, order.clone()) {
 			// There was already transaction in queue. Let's check which one should stay
 			let old_fee = old.gas_price;
@@ -642,7 +642,7 @@ mod test {
 		txq.set_minimal_gas_price(tx.gas_price + U256::one());
 
 		// when
-		txq.add(tx, &default_nonce);
+		txq.add(tx, &default_nonce).unwrap_err();
 
 		// then
 		let stats = txq.status();
@@ -722,8 +722,8 @@ mod test {
 		let mut txq = TransactionQueue::new();
 
 		let (tx, tx2) = new_txs(U256::from(1));
-		txq.add(tx.clone(), &prev_nonce);
-		txq.add(tx2.clone(), &prev_nonce);
+		txq.add(tx.clone(), &prev_nonce).unwrap();
+		txq.add(tx2.clone(), &prev_nonce).unwrap();
 		assert_eq!(txq.status().future, 2);
 
 		// when
@@ -861,7 +861,7 @@ mod test {
 	fn should_drop_transactions_with_old_nonces() {
 		let mut txq = TransactionQueue::new();
 		let tx = new_tx();
-		let last_nonce = tx.nonce.clone() + U256::one();
+		let last_nonce = tx.nonce + U256::one();
 		let fetch_last_nonce = |_a: &Address| last_nonce;
 
 		// when
