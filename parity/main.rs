@@ -70,9 +70,9 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
-  parity daemon <pid-file> [options] [ --no-bootstrap | <enode>... ]
+  parity daemon <pid-file> [options]
   parity account (new | list)
-  parity [options] [ --no-bootstrap | <enode>... ]
+  parity [options]
 
 Protocol Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
@@ -85,13 +85,13 @@ Protocol Options:
   --identity NAME          Specify your node's name.
 
 Networking Options:
-  --no-bootstrap           Don't bother trying to connect to any nodes initially.
-  --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
-  --public-address URL     Specify the IP/port on which peers may connect.
-  --address URL            Equivalent to --listen-address URL --public-address URL.
-  --peers NUM              Try to maintain that many peers [default: 25].
+  --no-bootstrap           Don't bother trying to connect to standard bootnodes.
+  --bootnodes NODES        Specify additional comma-separated bootnodes.
   --no-discovery           Disable new peer discovery.
-  --no-upnp                Disable trying to figure out the correct public adderss over UPnP.
+  --peers NUM              Try to maintain that many peers [default: 25].
+  --port PORT              Override the port for the node to listen on, supercedes --address.
+  --nat METHOD             Specify method to use for determining public address. Must be one of: any, none,
+                           upnp, extip:(IP) [default: upnp].
   --node-key KEY           Specify node secret key, either as 64-character hex string or input to SHA3 operation.
 
 API and Console Options:
@@ -101,16 +101,11 @@ API and Console Options:
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited
                            list of API name. Possible name are web3, eth and net. [default: web3,eth,net].
-  --rpc                    Equivalent to --jsonrpc (geth-compatible).
-  --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST (geth-compatible).
-  --rpcport PORT           Equivalent to --jsonrpc-port PORT (geth-compatible).
-  --rpcapi APIS            Equivalent to --jsonrpc-apis APIS (geth-compatible).
-  --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL (geth-compatible).
 
 Sealing/Mining Options:
   --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
                            from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
-  --extradata STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
+  --extra-data STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
 
 Memory Footprint Options:
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
@@ -118,6 +113,18 @@ Memory Footprint Options:
   --queue-max-size BYTES   Specify the maximum size of memory to use for block queue [default: 52428800].
   --cache MEGABYTES        Set total amount of cache to use for the entire system, mutually exclusive with
                            other cache options (geth-compatible).
+
+Geth-Compatibility Options
+  --rpc                    Equivalent to --jsonrpc.
+  --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST.
+  --rpcport PORT           Equivalent to --jsonrpc-port PORT.
+  --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
+  --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
+  --maxpeers COUNT         Equivalent to --peers COUNT.
+  --nodekey KEY            Equivalent to --node-key KEY.
+  --nodiscover             Equivalent to --no-discovery.
+  --etherbase ADDRESS      Equivalent to --author ADDRESS.
+  --extradata STRING       Equivalent to --extra-data STRING.
 
 Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level.
@@ -145,7 +152,7 @@ struct Args {
 	flag_listen_address: String,
 	flag_public_address: Option<String>,
 	flag_address: Option<String>,
-	flag_peers: usize,
+	flag_maxpeers: usize,
 	flag_no_discovery: bool,
 	flag_no_upnp: bool,
 	flag_node_key: Option<String>,
@@ -323,7 +330,7 @@ impl Configuration {
 		ret.public_address = public;
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery;
-		ret.ideal_peers = self.args.flag_peers as u32;
+		ret.ideal_peers = self.args.flag_maxpeers as u32;
 		let mut net_path = PathBuf::from(&self.path());
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
