@@ -19,10 +19,12 @@
 mod client;
 mod config;
 mod ids;
+mod test_client;
 
 pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
 pub use self::ids::{BlockId, TransactionId};
+pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
