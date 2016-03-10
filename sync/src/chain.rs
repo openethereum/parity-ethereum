@@ -274,7 +274,7 @@ impl ChainSync {
 	}
 
 
-	#[cfg_attr(feature="dev", allow(for_kv_map))] // Because it's not possible to get `values_mut()`
+	#[cfg_attr(all(nightly, feature="dev"), allow(for_kv_map))] // Because it's not possible to get `values_mut()`
 	/// Rest sync. Clear all downloaded data but keep the queue
 	fn reset(&mut self) {
 		self.downloading_headers.clear();
@@ -342,7 +342,7 @@ impl ChainSync {
 		Ok(())
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		self.reset_peer_asking(peer_id, PeerAsking::BlockHeaders);
@@ -469,6 +469,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block bodies
+	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
 	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let block_rlp = try!(r.at(0));
 		let header_rlp = try!(block_rlp.at(0));
@@ -850,8 +851,8 @@ impl ChainSync {
 			self.downloading_bodies.remove(&n);
 			self.downloading_headers.remove(&n);
 		}
-		self.headers.remove_tail(&start);
-		self.bodies.remove_tail(&start);
+		self.headers.remove_from(&start);
+		self.bodies.remove_from(&start);
 	}
 
 	/// Request headers from a peer by block hash
@@ -935,7 +936,7 @@ impl ChainSync {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		for i in 0..item_count {
 			let tx: SignedTransaction = try!(r.val_at(i));
-			transaction_queue.add(tx, &fetch_latest_nonce);
+			let _ = transaction_queue.add(tx, &fetch_latest_nonce);
 		}
  		Ok(())
 	}
@@ -1291,7 +1292,7 @@ impl ChainSync {
 					let _sender = tx.sender();
 				}
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				transaction_queue.add_all(txs, |a| chain.nonce(a));
+				let _ = transaction_queue.add_all(txs, |a| chain.nonce(a));
 			});
 		}
 
