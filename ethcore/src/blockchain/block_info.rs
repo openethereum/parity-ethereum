@@ -18,6 +18,7 @@ use util::numbers::{U256,H256};
 use header::BlockNumber;
 
 /// Brief info about inserted block.
+#[derive(Clone)]
 pub struct BlockInfo {
 	/// Block hash.
 	pub hash: H256,
@@ -30,6 +31,7 @@ pub struct BlockInfo {
 }
 
 /// Describes location of newly inserted block.
+#[derive(Clone)]
 pub enum BlockLocation {
 	/// It's part of the canon chain.
 	CanonChain,
@@ -42,6 +44,8 @@ pub enum BlockLocation {
 		/// Hash of the newest common ancestor with old canon chain.
 		ancestor: H256,
 		/// Hashes of the blocks between ancestor and this block.
-		route: Vec<H256>
+		enacted: Vec<H256>,
+		/// Hashes of the blocks which were invalidated.
+		retracted: Vec<H256>,
 	}
 }

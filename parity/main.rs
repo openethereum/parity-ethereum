@@ -49,7 +49,7 @@ use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
-use ethsync::{EthSync, SyncConfig};
+use ethsync::{EthSync, SyncConfig, SyncProvider};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
@@ -78,9 +78,9 @@ Protocol Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
                            or olympic, frontier, homestead, mainnet, morden, or testnet [default: homestead].
   --db-path PATH           Specify the database & configuration directory path [default: $HOME/.parity]
+  --pruning                Client should prune the state/storage trie.
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
   --identity NAME          Specify your node's name.
-  --archive                Client should not prune the state/storage trie.
 
 Networking Options:
   --port PORT              Override the port on which the node should listen [default: 30303].
@@ -145,8 +145,8 @@ struct Args {
 	flag_identity: String,
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
-	flag_archive: bool,
 	flag_bootnodes: Option<String>,
+	flag_pruning: bool,
 	flag_no_bootstrap: bool,
 	flag_port: u16,
 	flag_peers: usize,
@@ -412,7 +412,7 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
-		client_config.prefer_journal = !self.args.flag_archive;
+		client_config.prefer_journal = self.args.flag_pruning;
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
