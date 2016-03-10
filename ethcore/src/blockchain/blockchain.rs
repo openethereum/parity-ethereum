@@ -552,12 +552,12 @@ impl BlockChain {
 				match route.blocks.len() {
 					0 => BlockLocation::CanonChain,
 					_ => {
-						let old_route = route.blocks.iter().take(route.index).cloned().collect::<Vec<H256>>();
+						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<H256>>();
 
 						BlockLocation::BranchBecomingCanonChain {
 							ancestor: route.ancestor,
-							route: route.blocks.into_iter().skip(route.index).collect(),
-							old_route: old_route.into_iter().rev().collect(),
+							enacted: route.blocks.into_iter().skip(route.index).collect(),
+							retracted: retracted.into_iter().rev().collect(),
 						}
 					}
 				}
@@ -579,11 +579,11 @@ impl BlockChain {
 			BlockLocation::CanonChain => {
 				block_hashes.insert(number, info.hash.clone());
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route, .. } => {
+			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
 				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				for (index, hash) in route.iter().cloned().enumerate() {
+				for (index, hash) in enacted.iter().cloned().enumerate() {
 					block_hashes.insert(start_number + index as BlockNumber, hash);
 				}
 
@@ -668,11 +668,11 @@ impl BlockChain {
 				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
 					.add_bloom(&header.log_bloom(), header.number() as usize)
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route, .. } => {
+			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
 				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				let mut blooms: Vec<H2048> = route.iter()
+				let mut blooms: Vec<H2048> = enacted.iter()
 					.map(|hash| self.block(hash).unwrap())
 					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
 					.collect();
@@ -956,23 +956,23 @@ mod tests {
 		let ir3a = bc.insert_block(&b3a, vec![]);
 
 		assert_eq!(ir1, ImportRoute {
-			validated_blocks: vec![b1_hash],
-			invalidated_blocks: vec![],
+			enacted: vec![b1_hash],
+			retracted: vec![],
 		});
 
 		assert_eq!(ir2, ImportRoute {
-			validated_blocks: vec![b2_hash],
-			invalidated_blocks: vec![],
+			enacted: vec![b2_hash],
+			retracted: vec![],
 		});
 
 		assert_eq!(ir3b, ImportRoute {
-			validated_blocks: vec![b3b_hash],
-			invalidated_blocks: vec![],
+			enacted: vec![b3b_hash],
+			retracted: vec![],
 		});
 
 		assert_eq!(ir3a, ImportRoute {
-			validated_blocks: vec![b3a_hash],
-			invalidated_blocks: vec![b3b_hash],
+			enacted: vec![b3a_hash],
+			retracted: vec![b3b_hash],
 		});
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);

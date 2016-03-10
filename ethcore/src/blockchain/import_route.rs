@@ -23,16 +23,16 @@ use blockchain::block_info::{BlockInfo, BlockLocation};
 #[derive(Debug, PartialEq)]
 pub struct ImportRoute {
 	/// Blocks that were invalidated by new block.
-	pub invalidated_blocks: Vec<H256>,
+	pub retracted: Vec<H256>,
 	/// Blocks that were validated by new block.
-	pub validated_blocks: Vec<H256>,
+	pub enacted: Vec<H256>,
 }
 
 impl ImportRoute {
 	pub fn none() -> Self {
 		ImportRoute {
-			invalidated_blocks: vec![],
-			validated_blocks: vec![],
+			retracted: vec![],
+			enacted: vec![],
 		}
 	}
 }
@@ -41,15 +41,15 @@ impl From<BlockInfo> for ImportRoute {
 	fn from(info: BlockInfo) -> ImportRoute {
 		match info.location {
 			BlockLocation::CanonChain => ImportRoute {
-				invalidated_blocks: vec![],
-				validated_blocks: vec![info.hash],
+				retracted: vec![],
+				enacted: vec![info.hash],
 			},
 			BlockLocation::Branch => ImportRoute::none(),
-			BlockLocation::BranchBecomingCanonChain { mut route, old_route, .. } => {
-				route.push(info.hash);
+			BlockLocation::BranchBecomingCanonChain { mut enacted, retracted, .. } => {
+				enacted.push(info.hash);
 				ImportRoute {
-					invalidated_blocks: old_route,
-					validated_blocks: route,
+					retracted: retracted,
+					enacted: enacted,
 				}
 			}
 		}
@@ -66,8 +66,8 @@ mod tests {
 	#[test]
 	fn import_route_none() {
 		assert_eq!(ImportRoute::none(), ImportRoute {
-			validated_blocks: vec![],
-			invalidated_blocks: vec![],
+			enacted: vec![],
+			retracted: vec![],
 		});
 	}
 
@@ -93,8 +93,8 @@ mod tests {
 		};
 
 		assert_eq!(ImportRoute::from(info), ImportRoute {
-			invalidated_blocks: vec![],
-			validated_blocks: vec![H256::from(U256::from(1))],
+			retracted: vec![],
+			enacted: vec![H256::from(U256::from(1))],
 		});
 	}
 
@@ -106,14 +106,14 @@ mod tests {
 			total_difficulty: U256::from(0),
 			location: BlockLocation::BranchBecomingCanonChain {
 			ancestor: H256::from(U256::from(0)),
-				route: vec![H256::from(U256::from(1))],
-				old_route: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
+				enacted: vec![H256::from(U256::from(1))],
+				retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
 			}
 		};
 
 		assert_eq!(ImportRoute::from(info), ImportRoute {
-			invalidated_blocks: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
-			validated_blocks: vec![H256::from(U256::from(1)), H256::from(U256::from(2))],
+			retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
+			enacted: vec![H256::from(U256::from(1)), H256::from(U256::from(2))],
 		});
 	}
 }

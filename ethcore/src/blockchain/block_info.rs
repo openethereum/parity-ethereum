@@ -44,8 +44,8 @@ pub enum BlockLocation {
 		/// Hash of the newest common ancestor with old canon chain.
 		ancestor: H256,
 		/// Hashes of the blocks between ancestor and this block.
-		route: Vec<H256>,
+		enacted: Vec<H256>,
 		/// Hashes of the blocks which were invalidated.
-		old_route: Vec<H256>,
+		retracted: Vec<H256>,
 	}
 }
