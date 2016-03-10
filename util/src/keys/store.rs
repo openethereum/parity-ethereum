@@ -78,6 +78,18 @@ struct AccountUnlock {
 	expires: DateTime<UTC>,
 }
 
+/// Basic account management trait
+pub trait AccountProvider : Send + Sync {
+	/// Unlocks account with the password provided
+	fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError>;
+	/// Creates account
+	fn new_account(&mut self, pass: &str) -> Result<Address, ::std::io::Error>;
+	/// Returns secret for unlocked account
+	fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError>;
+	/// Returns secret for unlocked account
+	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError>;
+}
+
 impl SecretStore {
 	/// new instance of Secret Store in default home directory
 	pub fn new() -> SecretStore {
@@ -144,9 +156,11 @@ impl SecretStore {
 			unlocks: RwLock::new(HashMap::new()),
 		}
 	}
+}
 
+impl AccountProvider for SecretStore {
 	/// Unlocks account for use
-	pub fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+	fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
 		let secret_id = try!(self.account(&account).ok_or(EncryptedHashMapError::UnknownIdentifier));
 		let secret = try!(self.get(&secret_id, pass));
 		{
@@ -160,7 +174,7 @@ impl SecretStore {
 	}
 
 	/// Creates new account
-	pub fn new_account(&mut self, pass: &str) -> Result<Address, ::std::io::Error> {
+	fn new_account(&mut self, pass: &str) -> Result<Address, ::std::io::Error> {
 		let secret = H256::random();
 		let key_id = H128::random();
 		self.insert(key_id.clone(), secret, pass);
@@ -173,7 +187,7 @@ impl SecretStore {
 	}
 
 	/// Signs message with unlocked account
-	pub fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
+	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
 		let read_lock = self.unlocks.read().unwrap();
 		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
 		match crypto::KeyPair::from_secret(unlock.secret) {
@@ -186,7 +200,7 @@ impl SecretStore {
 	}
 
 	/// Returns secret for unlocked account
-	pub fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError> {
+	fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError> {
 		let read_lock = self.unlocks.read().unwrap();
 		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
 		Ok(unlock.secret as crypto::Secret)
