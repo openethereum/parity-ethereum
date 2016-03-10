@@ -87,6 +87,8 @@ pub struct ClientConfig {
 	pub blockchain: BlockChainConfig,
 	/// Prefer journal rather than archive.
 	pub prefer_journal: bool,
+	/// The name of the client instance.
+	pub name: String,
 }
 
 impl Default for ClientConfig {
@@ -95,6 +97,7 @@ impl Default for ClientConfig {
 			queue: Default::default(),
 			blockchain: Default::default(),
 			prefer_journal: false,
+			name: Default::default(),
 		}
 	}
 }
@@ -182,6 +185,13 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>>;
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -193,6 +203,8 @@ pub struct ClientReport {
 	pub transactions_applied: usize,
 	/// How much gas has been processed so far.
 	pub gas_processed: U256,
+	/// Memory used by state DB
+	pub state_db_mem: usize,
 }
 
 impl ClientReport {
@@ -225,7 +237,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 }
 
 const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "4.0";
+const CLIENT_DB_VER_STR: &'static str = "5.1";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
@@ -391,7 +403,8 @@ impl<V> Client<V> where V: Verifier {
 				.commit(header.number(), &header.hash(), ancient)
 				.expect("State DB commit failed.");
 
-			// And update the chain
+			// And update the chain after commit to prevent race conditions
+			// (when something is in chain but you are not able to fetch details)
 			self.chain.write().unwrap()
 				.insert_block(&block.bytes, receipts);
 
@@ -404,8 +417,12 @@ impl<V> Client<V> where V: Verifier {
 
 		{
 			let mut block_queue = self.block_queue.write().unwrap();
-			block_queue.mark_as_bad(&bad_blocks);
-			block_queue.mark_as_good(&good_blocks);
+			if !bad_blocks.is_empty() {
+				block_queue.mark_as_bad(&bad_blocks);
+			}
+			if !good_blocks.is_empty() {
+				block_queue.mark_as_good(&good_blocks);
+			}
 		}
 
 		{
@@ -413,7 +430,9 @@ impl<V> Client<V> where V: Verifier {
 			if !good_blocks.is_empty() && block_queue.queue_info().is_empty() {
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
 					good: good_blocks,
-					retracted: bad_blocks,
+					bad: bad_blocks,
+					// TODO [todr] were to take those from?
+					retracted: vec![],
 				})).unwrap();
 			}
 		}
@@ -437,7 +456,9 @@ impl<V> Client<V> where V: Verifier {
 
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
-		self.report.read().unwrap().clone()
+		let mut report = self.report.read().unwrap().clone();
+		report.state_db_mem = self.state_db.lock().unwrap().mem_used();
+		report
 	}
 
 	/// Tick the client.
@@ -508,39 +529,6 @@ impl<V> Client<V> where V: Verifier {
 		let b = b.close();
 		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
 		*self.sealing_block.lock().unwrap() = Some(b);
-	}
-
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		if self.sealing_block.lock().unwrap().is_none() {
-			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
-			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
-			self.prepare_sealing();
-		}
-		&self.sealing_block
-	}
-
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	pub fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		let mut maybe_b = self.sealing_block.lock().unwrap();
-		match *maybe_b {
-			Some(ref b) if b.hash() == pow_hash => {}
-			_ => { return Err(Error::PowHashInvalid); }
-		}
-
-		let b = maybe_b.take();
-		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
-			Err(old) => {
-				*maybe_b = Some(old);
-				Err(Error::PowInvalid)
-			}
-			Ok(sealed) => {
-				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
-				try!(self.import_block(sealed.rlp_bytes()));
-				Ok(())
-			}
-		}
 	}
 }
 
@@ -703,6 +691,39 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 			})
 			.collect()
+	}
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
+		if self.sealing_block.lock().unwrap().is_none() {
+			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
+			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
+			self.prepare_sealing();
+		}
+		&self.sealing_block
+	}
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+		let mut maybe_b = self.sealing_block.lock().unwrap();
+		match *maybe_b {
+			Some(ref b) if b.hash() == pow_hash => {}
+			_ => { return Err(Error::PowHashInvalid); }
+		}
+
+		let b = maybe_b.take();
+		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
+			Err(old) => {
+				*maybe_b = Some(old);
+				Err(Error::PowInvalid)
+			}
+			Ok(sealed) => {
+				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
+				try!(self.import_block(sealed.rlp_bytes()));
+				Ok(())
+			}
+		}
 	}
 }
 

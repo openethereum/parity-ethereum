@@ -25,6 +25,7 @@ use ethcore::receipt::Receipt;
 use ethcore::transaction::{LocalizedTransaction, Transaction, Action};
 use ethcore::filter::Filter;
 use ethcore::log_entry::LocalizedLogEntry;
+use ethcore::block::ClosedBlock;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
@@ -157,6 +158,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
+		unimplemented!();
+	}
+
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
+		unimplemented!();
+	}
+
+	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
 	}
 
@@ -455,8 +464,8 @@ impl TestNet {
 		self.peers.iter().all(|p| p.queue.is_empty())
 	}
 
-	pub fn trigger_block_verified(&mut self, peer_id: usize) {
+	pub fn trigger_chain_new_blocks(&mut self, peer_id: usize) {
 		let mut peer = self.peer_mut(peer_id);
-		peer.sync.chain_blocks_verified(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None));
+		peer.sync.chain_new_blocks(&mut TestIo::new(&mut peer.chain, &mut peer.queue, None), &[], &[], &[]);
 	}
 }

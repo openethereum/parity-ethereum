@@ -129,8 +129,8 @@ fn propagate_hashes() {
 
 	net.peer_mut(0).chain.add_blocks(10, EachBlockWith::Uncle);
 	net.sync();
-	net.trigger_block_verified(0); //first event just sets the marker
-	net.trigger_block_verified(0);
+	net.trigger_chain_new_blocks(0); //first event just sets the marker
+	net.trigger_chain_new_blocks(0);
 
 	// 5 peers to sync
 	assert_eq!(5, net.peer(0).queue.len());
@@ -154,8 +154,8 @@ fn propagate_blocks() {
 	net.sync();
 
 	net.peer_mut(0).chain.add_blocks(10, EachBlockWith::Uncle);
-	net.trigger_block_verified(0); //first event just sets the marker
-	net.trigger_block_verified(0);
+	net.trigger_chain_new_blocks(0); //first event just sets the marker
+	net.trigger_chain_new_blocks(0);
 
 	assert!(!net.peer(0).queue.is_empty());
 	// NEW_BLOCK_PACKET

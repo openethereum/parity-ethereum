@@ -222,7 +222,7 @@ impl Handshake {
 
 	/// Parse, validate and confirm auth message
 	fn read_auth(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"net", "Received handshake auth from {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Received handshake auth from {:?}", self.connection.socket.peer_addr());
 		if data.len() != V4_AUTH_PACKET_SIZE {
 			debug!(target:"net", "Wrong auth packet size");
 			return Err(From::from(NetworkError::BadProtocol));
@@ -253,7 +253,7 @@ impl Handshake {
 	}
 
 	fn read_auth_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"net", "Received EIP8 handshake auth from {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Received EIP8 handshake auth from {:?}", self.connection.socket.peer_addr());
 		self.auth_cipher.extend_from_slice(data);
 		let auth = try!(ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..]));
 		let rlp = UntrustedRlp::new(&auth);
@@ -268,7 +268,7 @@ impl Handshake {
 
 	/// Parse and validate ack message
 	fn read_ack(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"net", "Received handshake auth to {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Received handshake auth to {:?}", self.connection.socket.peer_addr());
 		if data.len() != V4_ACK_PACKET_SIZE {
 			debug!(target:"net", "Wrong ack packet size");
 			return Err(From::from(NetworkError::BadProtocol));
@@ -296,7 +296,7 @@ impl Handshake {
 	}
 
 	fn read_ack_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), UtilError> {
-		trace!(target:"net", "Received EIP8 handshake auth from {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Received EIP8 handshake auth from {:?}", self.connection.socket.peer_addr());
 		self.ack_cipher.extend_from_slice(data);
 		let ack = try!(ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..]));
 		let rlp = UntrustedRlp::new(&ack);
@@ -309,7 +309,7 @@ impl Handshake {
 
 	/// Sends auth message
 	fn write_auth(&mut self, secret: &Secret, public: &Public) -> Result<(), UtilError> {
-		trace!(target:"net", "Sending handshake auth to {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Sending handshake auth to {:?}", self.connection.socket.peer_addr());
 		let mut data = [0u8; /*Signature::SIZE*/ 65 + /*H256::SIZE*/ 32 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32 + 1]; //TODO: use associated constants
 		let len = data.len();
 		{
@@ -336,7 +336,7 @@ impl Handshake {
 
 	/// Sends ack message
 	fn write_ack(&mut self) -> Result<(), UtilError> {
-		trace!(target:"net", "Sending handshake ack to {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Sending handshake ack to {:?}", self.connection.socket.peer_addr());
 		let mut data = [0u8; 1 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32]; //TODO: use associated constants
 		let len = data.len();
 		{
@@ -355,7 +355,7 @@ impl Handshake {
 
 	/// Sends EIP8 ack message
 	fn write_ack_eip8(&mut self) -> Result<(), UtilError> {
-		trace!(target:"net", "Sending EIP8 handshake ack to {:?}", self.connection.socket.peer_addr());
+		trace!(target:"network", "Sending EIP8 handshake ack to {:?}", self.connection.socket.peer_addr());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(self.ecdhe.public());
 		rlp.append(&self.nonce);
