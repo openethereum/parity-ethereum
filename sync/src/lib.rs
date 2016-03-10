@@ -129,6 +129,15 @@ impl EthSync {
 	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
+
+	/// Insert transaction in transaction queue
+	pub fn insert_transaction(&self, transaction: ethcore::transaction::SignedTransaction) {
+		use util::numbers::*;
+
+		let nonce_fn = |a: &Address| self.chain.state().nonce(a) + U256::one();
+		let sync = self.sync.write().unwrap();
+		sync.insert_transaction(transaction, &nonce_fn);
+	}
 }
 
 impl NetworkProtocolHandler<SyncMessage> for EthSync {
