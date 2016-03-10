@@ -26,16 +26,18 @@ pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
 pub use self::ids::{BlockId, TransactionId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 
+use std::sync::Mutex;
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
+use block::ClosedBlock;
 use header::BlockNumber;
 use transaction::LocalizedTransaction;
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use error::ImportResult;
+use error::{ImportResult, Error};
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -100,5 +102,12 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>>;
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 }
 

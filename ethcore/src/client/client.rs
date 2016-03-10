@@ -283,7 +283,8 @@ impl<V> Client<V> where V: Verifier {
 				.commit(header.number(), &header.hash(), ancient)
 				.expect("State DB commit failed.");
 
-			// And update the chain
+			// And update the chain after commit to prevent race conditions
+			// (when something is in chain but you are not able to fetch details)
 			self.chain.write().unwrap()
 				.insert_block(&block.bytes, receipts);
 
@@ -408,39 +409,6 @@ impl<V> Client<V> where V: Verifier {
 		let b = b.close();
 		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
 		*self.sealing_block.lock().unwrap() = Some(b);
-	}
-
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	pub fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		if self.sealing_block.lock().unwrap().is_none() {
-			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
-			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
-			self.prepare_sealing();
-		}
-		&self.sealing_block
-	}
-
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	pub fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		let mut maybe_b = self.sealing_block.lock().unwrap();
-		match *maybe_b {
-			Some(ref b) if b.hash() == pow_hash => {}
-			_ => { return Err(Error::PowHashInvalid); }
-		}
-
-		let b = maybe_b.take();
-		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
-			Err(old) => {
-				*maybe_b = Some(old);
-				Err(Error::PowInvalid)
-			}
-			Ok(sealed) => {
-				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
-				try!(self.import_block(sealed.rlp_bytes()));
-				Ok(())
-			}
-		}
 	}
 }
 
@@ -605,6 +573,39 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 			})
 			.collect()
+	}
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
+		if self.sealing_block.lock().unwrap().is_none() {
+			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
+			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
+			self.prepare_sealing();
+		}
+		&self.sealing_block
+	}
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+		let mut maybe_b = self.sealing_block.lock().unwrap();
+		match *maybe_b {
+			Some(ref b) if b.hash() == pow_hash => {}
+			_ => { return Err(Error::PowHashInvalid); }
+		}
+
+		let b = maybe_b.take();
+		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
+			Err(old) => {
+				*maybe_b = Some(old);
+				Err(Error::PowInvalid)
+			}
+			Ok(sealed) => {
+				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
+				try!(self.import_block(sealed.rlp_bytes()));
+				Ok(())
+			}
+		}
 	}
 }
 

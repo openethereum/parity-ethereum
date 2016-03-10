@@ -17,7 +17,7 @@
 //! Eth rpc implementation.
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, Mutex, RwLock};
-use ethsync::{EthSync, SyncState};
+use ethsync::{SyncProvider, SyncState};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
@@ -25,7 +25,6 @@ use util::rlp::encode;
 use ethcore::client::*;
 use ethcore::block::{IsBlock};
 use ethcore::views::*;
-//#[macro_use] extern crate log;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
 use v1::traits::{Eth, EthFilter};
@@ -33,15 +32,15 @@ use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncIn
 use v1::helpers::{PollFilter, PollManager};
 
 /// Eth rpc implementation.
-pub struct EthClient {
-	client: Weak<Client>,
-	sync: Weak<EthSync>,
+pub struct EthClient<C, S> where C: BlockChainClient, S: SyncProvider {
+	client: Weak<C>,
+	sync: Weak<S>,
 	hashrates: RwLock<HashMap<H256, u64>>,
 }
 
-impl EthClient {
+impl<C, S> EthClient<C, S> where C: BlockChainClient, S: SyncProvider {
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<Client>, sync: &Arc<EthSync>) -> Self {
+	pub fn new(client: &Arc<C>, sync: &Arc<S>) -> Self {
 		EthClient {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
@@ -95,7 +94,7 @@ impl EthClient {
 	}
 }
 
-impl Eth for EthClient {
+impl<C, S> Eth for EthClient<C, S> where C: BlockChainClient + 'static, S: SyncProvider + 'static {
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&U256::from(take_weak!(self.sync).status().protocol_version)),
@@ -256,14 +255,14 @@ impl Eth for EthClient {
 }
 
 /// Eth filter rpc implementation.
-pub struct EthFilterClient {
-	client: Weak<Client>,
+pub struct EthFilterClient<C> where C: BlockChainClient {
+	client: Weak<C>,
 	polls: Mutex<PollManager<PollFilter>>,
 }
 
-impl EthFilterClient {
+impl<C> EthFilterClient<C> where C: BlockChainClient {
 	/// Creates new Eth filter client.
-	pub fn new(client: &Arc<Client>) -> Self {
+	pub fn new(client: &Arc<C>) -> Self {
 		EthFilterClient {
 			client: Arc::downgrade(client),
 			polls: Mutex::new(PollManager::new())
@@ -271,7 +270,7 @@ impl EthFilterClient {
 	}
 }
 
-impl EthFilter for EthFilterClient {
+impl<C> EthFilter for EthFilterClient<C> where C: BlockChainClient + 'static {
 	fn new_filter(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
@@ -307,7 +306,7 @@ impl EthFilter for EthFilterClient {
 		let client = take_weak!(self.client);
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
-				let info = self.polls.lock().unwrap().get_poll_info(&index.value()).cloned();
+				let info = self.polls.lock().unwrap().poll_info(&index.value()).cloned();
 				match info {
 					None => Ok(Value::Array(vec![] as Vec<Value>)),
 					Some(info) => match info.filter {

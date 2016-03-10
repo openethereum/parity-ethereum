@@ -14,19 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//use std::mem;
-//use std::ops::{Deref, DerefMut};
-//use std::collections::HashMap;
-//use rustc_serialize::hex::FromHex;
-//use util::rlp;
-//use util::rlp::*;
-//use util::bytes::Bytes;
-//use util::hash::{FixedHash, Address, H256, H2048};
-//use util::numbers::{Uint, U256};
-//use util::crypto::KeyPair;
-//use util::sha3::Hashable;
+//! Test client.
+
 use util::*;
-//use std::sync::RwLock;
 use transaction::{Transaction, LocalizedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId};
@@ -34,26 +24,39 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::Receipt;
-use error::ImportResult;
+use error::{ImportResult, Error};
 use block_queue::BlockQueueInfo;
+use block::ClosedBlock;
 
+/// Test client.
 pub struct TestBlockChainClient {
+	/// Blocks.
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
+	/// Mapping of numbers to hashes.
  	pub numbers: RwLock<HashMap<usize, H256>>,
+	/// Genesis block hash.
 	pub genesis_hash: H256,
+	/// Last block hash.
 	pub last_hash: RwLock<H256>,
+	/// Difficulty.
 	pub difficulty: RwLock<U256>,
 }
 
 #[derive(Clone)]
+/// Used for generating test client blocks.
 pub enum EachBlockWith {
+	/// Plain block.
 	Nothing,
+	/// Block with an uncle.
 	Uncle,
+	/// Block with a transaction.
 	Transaction,
+	/// Block with an uncle and transaction.
 	UncleAndTransaction
 }
 
 impl TestBlockChainClient {
+	/// Creates new test client.
 	pub fn new() -> TestBlockChainClient {
 
 		let mut client = TestBlockChainClient {
@@ -68,6 +71,7 @@ impl TestBlockChainClient {
 		client
 	}
 
+	/// Add blocks to test client.
 	pub fn add_blocks(&mut self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().unwrap().len();
 		for n in len..(len + count) {
@@ -115,6 +119,7 @@ impl TestBlockChainClient {
 		}
 	}
 
+	/// TODO:
 	pub fn corrupt_block(&mut self, n: BlockNumber) {
 		let hash = self.block_hash(BlockId::Number(n)).unwrap();
 		let mut header: BlockHeader = decode(&self.block_header(BlockId::Number(n)).unwrap());
@@ -126,6 +131,7 @@ impl TestBlockChainClient {
 		self.blocks.write().unwrap().insert(hash, rlp.out());
 	}
 
+	/// TODO:
 	pub fn block_hash_delta_minus(&mut self, delta: usize) -> H256 {
 		let blocks_read = self.numbers.read().unwrap();
 		let index = blocks_read.len() - delta;
@@ -168,6 +174,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
+		unimplemented!();
+	}
+
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
+		unimplemented!();
+	}
+
+	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
 	}
 

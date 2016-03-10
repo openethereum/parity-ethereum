@@ -72,6 +72,7 @@ mod chain;
 mod io;
 mod range_collection;
 mod transaction_queue;
+pub use transaction_queue::TransactionQueue;
 
 #[cfg(test)]
 mod tests;
@@ -91,6 +92,14 @@ impl Default for SyncConfig {
 			network_id: ONE_U256,
 		}
 	}
+}
+
+/// Current sync status
+pub trait SyncProvider: Send + Sync {
+	/// Get sync status
+	fn status(&self) -> SyncStatus;
+	/// Insert transaction in the sync transaction queue
+	fn insert_transaction(&self, transaction: ethcore::transaction::SignedTransaction);
 }
 
 /// Ethereum network protocol handler
@@ -114,11 +123,6 @@ impl EthSync {
 		sync
 	}
 
-	/// Get sync status
-	pub fn status(&self) -> SyncStatus {
-		self.sync.read().unwrap().status()
-	}
-
 	/// Stop sync
 	pub fn stop(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().abort(&mut NetSyncIo::new(io, self.chain.deref()));
@@ -127,6 +131,22 @@ impl EthSync {
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
+	}
+}
+
+impl SyncProvider for EthSync {
+	/// Get sync status
+	fn status(&self) -> SyncStatus {
+		self.sync.read().unwrap().status()
+	}
+
+	/// Insert transaction in transaction queue
+	fn insert_transaction(&self, transaction: ethcore::transaction::SignedTransaction) {
+		use util::numbers::*;
+
+		let nonce_fn = |a: &Address| self.chain.state().nonce(a) + U256::one();
+		let sync = self.sync.write().unwrap();
+		sync.insert_transaction(transaction, &nonce_fn);
 	}
 }
 
