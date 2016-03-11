@@ -4,12 +4,8 @@ name = "ethsync"
 version = "0.9.99"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io"]
-build = "build.rs"
 
 [lib]
-
-[build-dependencies]
-rustc_version = "0.1"
 
 [dependencies]
 ethcore-util = { path = "../util" }
@@ -25,4 +21,4 @@ rayon = "0.3.1"
 
 [features]
 default = []
-dev = ["ethcore/dev", "ethcore-util/dev"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev"]

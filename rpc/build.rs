@@ -14,10 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
-
-use rustc_version::{version_meta, Channel};
-
 #[cfg(not(feature = "serde_macros"))]
 mod inner {
     extern crate syntex;
@@ -46,7 +42,4 @@ mod inner {
 
 fn main() {
     inner::main();
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
-	}
 }

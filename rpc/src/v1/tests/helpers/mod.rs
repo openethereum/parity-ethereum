@@ -14,12 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+mod sync_provider;
 
-use rustc_version::{version_meta, Channel};
-
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
-	}
-}
+pub use self::sync_provider::{Config, TestSyncProvider};

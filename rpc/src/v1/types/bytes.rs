@@ -20,7 +20,7 @@ use serde::de::Visitor;
 use util::common::FromHex;
 
 /// Wrapper structure around vector of bytes.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Bytes(Vec<u8>);
 
 impl Bytes {
