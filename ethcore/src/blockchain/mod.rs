@@ -23,9 +23,9 @@ mod bloom_indexer;
 mod cache;
 mod tree_route;
 mod update;
+mod import_route;
 #[cfg(test)]
 mod generator;
-mod import_route;
 
 pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
 pub use self::cache::CacheSize;
