@@ -907,7 +907,7 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn test_find_uncles() {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -945,7 +945,7 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn test_small_fork() {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();

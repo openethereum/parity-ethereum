@@ -5,10 +5,6 @@ license = "GPL-3.0"
 name = "ethcore"
 version = "0.9.99"
 authors = ["Ethcore <admin@ethcore.io>"]
-build = "build.rs"
-
-[build-dependencies]
-rustc_version = "0.1"
 
 [dependencies]
 log = "0.3"
@@ -31,5 +27,5 @@ jit = ["evmjit"]
 evm-debug = []
 json-tests = []
 test-heavy = []
-dev = []
+dev = ["clippy"]
 default = []

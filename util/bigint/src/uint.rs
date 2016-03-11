@@ -1103,7 +1103,7 @@ macro_rules! construct_uint {
 			}
 		}
 
-		#[cfg_attr(all(nightly, feature="dev"), allow(derive_hash_xor_eq))] // We are pretty sure it's ok.
+		#[cfg_attr(feature="dev", allow(derive_hash_xor_eq))] // We are pretty sure it's ok.
 		impl Hash for $name {
 			fn hash<H>(&self, state: &mut H) where H: Hasher {
 				unsafe { state.write(::std::slice::from_raw_parts(self.0.as_ptr() as *mut u8, self.0.len() * 8)); }
@@ -1485,7 +1485,7 @@ mod tests {
 	}
 
 	#[test]
-	#[cfg_attr(all(nightly, feature="dev"), allow(eq_op))]
+	#[cfg_attr(feature="dev", allow(eq_op))]
 	pub fn uint256_comp_test() {
 		let small = U256([10u64, 0, 0, 0]);
 		let big = U256([0x8C8C3EE70C644118u64, 0x0209E7378231E632, 0, 0]);
@@ -2032,7 +2032,7 @@ mod tests {
 
 
 	#[test]
-	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn u256_multi_full_mul() {
 		let result = U256([0, 0, 0, 0]).full_mul(U256([0, 0, 0, 0]));
 		assert_eq!(U512([0, 0, 0, 0, 0, 0, 0, 0]), result);

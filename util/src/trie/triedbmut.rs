@@ -66,7 +66,7 @@ enum MaybeChanged<'a> {
 	Changed(Bytes),
 }
 
-#[cfg_attr(all(nightly, feature="dev"), allow(wrong_self_convention))]
+#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
@@ -350,7 +350,7 @@ impl<'db> TrieDBMut<'db> {
 		}
 	}
 
-	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	/// Determine the RLP of the node, assuming we're inserting `partial` into the
 	/// node currently of data `old`. This will *not* delete any hash of `old` from the database;
 	/// it will just return the new RLP that includes the new node.
