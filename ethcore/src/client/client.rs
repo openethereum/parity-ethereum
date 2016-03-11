@@ -36,7 +36,7 @@ use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
-use blockchain::{BlockChain, BlockProvider, TreeRoute};
+use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
@@ -230,12 +230,36 @@ impl<V> Client<V> where V: Verifier {
 		Ok(closed_block)
 	}
 
+	fn calculate_enacted_retracted(&self, routes: Vec<ImportRoute>) -> (Vec<H256>, Vec<H256>) {
+		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
+			map.into_iter().map(|(k, _v)| k).collect()
+		}
+
+		// To be sure what is a final state of a block after all inserts
+		// we iterate over all routes and at the end final state will be in the hashmap
+		let map = routes.into_iter().fold(HashMap::new(), |mut map, route| {
+			for hash in route.enacted {
+				map.insert(hash, true);
+			}
+			for hash in route.retracted {
+				map.insert(hash, false);
+			}
+			map
+		});
+
+		// Split to enacted retracted (using hashmap value)
+		let (enacted, retracted) = map.into_iter().partition(|&(_k, v)| v);
+		// And convert tuples to keys
+		(map_to_vec(enacted), map_to_vec(retracted))
+	}
+
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
 		let max_blocks_to_import = 128;
 
 		let mut good_blocks = Vec::with_capacity(max_blocks_to_import);
 		let mut bad_blocks = HashSet::new();
+		let mut routes = Vec::with_capacity(max_blocks_to_import);
 
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.drain(max_blocks_to_import);
@@ -273,7 +297,8 @@ impl<V> Client<V> where V: Verifier {
 
 			// And update the chain after commit to prevent race conditions
 			// (when something is in chain but you are not able to fetch details)
-			self.chain.insert_block(&block.bytes, receipts);
+			let route = self.chain.insert_block(&block.bytes, receipts);
+			routes.push(route);
 
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
@@ -293,11 +318,12 @@ impl<V> Client<V> where V: Verifier {
 
 		{
 			if !good_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
+				let (enacted, retracted) = self.calculate_enacted_retracted(routes);
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
 					good: good_blocks,
 					bad: bad_blocks,
-					// TODO [todr] were to take those from?
-					retracted: vec![],
+					enacted: enacted,
+					retracted: retracted,
 				})).unwrap();
 			}
 		}

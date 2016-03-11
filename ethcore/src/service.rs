@@ -33,6 +33,8 @@ pub enum SyncMessage {
 		bad: Vec<H256>,
 		/// Hashes of blocks that were removed from canonical chain
 		retracted: Vec<H256>,
+		/// Hashes of blocks that has been included in cannonical chain
+		enacted: Vec<H256>,
 	},
 	/// A block is ready
 	BlockVerified,
