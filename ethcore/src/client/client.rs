@@ -466,8 +466,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		}
 	}
 
-	fn state_data(&self, _hash: &H256) -> Option<Bytes> {
-		None
+	fn state_data(&self, hash: &H256) -> Option<Bytes> {
+		self.state_db.lock().unwrap().state(hash)
 	}
 
 	fn block_receipts(&self, _hash: &H256) -> Option<Bytes> {
