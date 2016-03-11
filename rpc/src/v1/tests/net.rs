@@ -19,12 +19,16 @@ use jsonrpc_core::IoHandler;
 use v1::{Net, NetClient};
 use v1::tests::helpers::{Config, TestSyncProvider};
 
-#[test]
-fn rpc_net_version() {
-	let sync = Arc::new(TestSyncProvider::new(Config {
+fn sync_provider() -> Arc<TestSyncProvider> {
+	Arc::new(TestSyncProvider::new(Config {
 		protocol_version: 65,
 		num_peers: 120,
-	}));
+	}))
+}
+
+#[test]
+fn rpc_net_version() {
+	let sync = sync_provider();
 	let net = NetClient::new(&sync).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(net);
@@ -37,10 +41,7 @@ fn rpc_net_version() {
 
 #[test]
 fn rpc_net_peer_count() {
-	let sync = Arc::new(TestSyncProvider::new(Config {
-		protocol_version: 65,
-		num_peers: 120,
-	}));
+	let sync = sync_provider();
 	let net = NetClient::new(&sync).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(net);
@@ -53,10 +54,7 @@ fn rpc_net_peer_count() {
 
 #[test]
 fn rpc_net_listening() {
-	let sync = Arc::new(TestSyncProvider::new(Config {
-		protocol_version: 65,
-		num_peers: 120,
-	}));
+	let sync = sync_provider();
 	let net = NetClient::new(&sync).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(net);
