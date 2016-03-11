@@ -86,6 +86,7 @@ extern crate crossbeam;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
 pub mod block;
+pub mod block_queue;
 pub mod client;
 pub mod error;
 pub mod ethereum;
@@ -119,7 +120,6 @@ mod substate;
 mod executive;
 mod externalities;
 mod verification;
-mod block_queue;
 mod blockchain;
 
 #[cfg(test)]
