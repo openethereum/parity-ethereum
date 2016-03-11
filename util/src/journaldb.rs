@@ -26,9 +26,9 @@ use std::env;
 
 /// A HashDB which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
-pub trait JournalDB : HashDB {
+pub trait JournalDB : HashDB + Sync + Send {
 	/// Return a copy of ourself, in a box.
-	fn spawn(&self) -> Box<JournalDB + Send>;
+	fn spawn(&self) -> Box<Box<JournalDB>>;
 
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;
@@ -418,7 +418,7 @@ impl HashDB for OptionOneDB {
 }
 
 impl JournalDB for OptionOneDB {
-	fn spawn(&self) -> Box<JournalDB + Send> {
+	fn spawn(&self) -> Box<Box<JournalDB>> {
 		Box::new(OptionOneDB {
 			overlay: MemoryDB::new(),
 			backing: self.backing.clone(),
