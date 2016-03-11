@@ -37,8 +37,9 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use util::keys::store::SecretStore;
 use block_queue::{BlockQueue, BlockQueueInfo};
-use blockchain::{BlockChain, BlockProvider, TreeRoute, CacheSize as BlockChainCacheSize};
+use blockchain::{BlockChain, BlockProvider, TreeRoute};
 use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
+pub use blockchain::CacheSize as BlockChainCacheSize;
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
