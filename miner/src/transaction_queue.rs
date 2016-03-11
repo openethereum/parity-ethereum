@@ -431,6 +431,14 @@ impl TransactionQueue {
 			.collect()
 	}
 
+	/// Returns hashes of all transactions from current, ordered by priority.
+	pub fn pending_hashes(&self) -> Vec<H256> {
+		self.current.by_priority
+			.iter()
+			.map(|t| t.hash)
+			.collect()
+	}
+
 	/// Removes all elements (in any state) from the queue
 	pub fn clear(&mut self) {
 		self.current.clear();
@@ -690,6 +698,24 @@ mod test {
 		let top = txq.top_transactions(5);
 		assert_eq!(top[0], tx);
 		assert_eq!(top[1], tx2);
+		assert_eq!(top.len(), 2);
+	}
+
+	#[test]
+	fn should_return_pending_hashes() {
+			// given
+		let mut txq = TransactionQueue::new();
+
+		let (tx, tx2) = new_txs(U256::from(1));
+
+		// when
+		txq.add(tx.clone(), &default_nonce).unwrap();
+		txq.add(tx2.clone(), &default_nonce).unwrap();
+
+		// then
+		let top = txq.pending_hashes();
+		assert_eq!(top[0], tx.hash());
+		assert_eq!(top[1], tx2.hash());
 		assert_eq!(top.len(), 2);
 	}
 
