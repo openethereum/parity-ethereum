@@ -377,10 +377,14 @@ impl ChainSync {
 			let hash = info.hash();
 			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain => {
-					self.have_common_block = true;
-					self.last_imported_block = Some(number);
-					self.last_imported_hash = Some(hash.clone());
-					trace!(target: "sync", "Found common header {} ({})", number, hash);
+					if !self.have_common_block {
+						self.have_common_block = true;
+						self.last_imported_block = Some(number);
+						self.last_imported_hash = Some(hash.clone());
+						trace!(target: "sync", "Found common header {} ({})", number, hash);
+					} else {
+						trace!(target: "sync", "Header already in chain {} ({})", number, hash);
+					}
 				},
 				_ => {
 					if self.have_common_block {
