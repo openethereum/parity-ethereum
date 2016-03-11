@@ -389,7 +389,7 @@ mod tests {
 		let genesis_header = engine.spec().genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(&mut db);
+		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), vec![]);
 		let b = b.close();
@@ -404,14 +404,14 @@ mod tests {
 
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(&mut db);
+		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(engine.deref(), vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(&mut db);
+		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let e = enact_and_seal(&orig_bytes, engine.deref(), db, &genesis_header, vec![genesis_header.hash()]).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);

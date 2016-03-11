@@ -252,7 +252,7 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 
 pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
-	let journal_db = Box::new(OptionOneDB::new(temp.as_str()));
+	let journal_db: Box<JournalDB> = Box::new(OptionOneDB::new(temp.as_str()));
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(journal_db)
