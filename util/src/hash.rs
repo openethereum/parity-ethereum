@@ -257,7 +257,7 @@ macro_rules! impl_hash {
 							return Err(serde::Error::custom("Invalid length."));
 						}
 
-						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::custom("Invalid valid hex."))
+						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::custom("Invalid hex value."))
 					}
 
 					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {

@@ -19,7 +19,7 @@ use util::numbers::{Uint, U256};
 use ethcore::transaction::{Action, Transaction};
 use v1::types::Bytes;
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, PartialEq, Deserialize)]
 pub struct TransactionRequest {
 	pub from: Address,
 	pub to: Option<Address>,
@@ -27,28 +27,26 @@ pub struct TransactionRequest {
 	pub gas_price: Option<U256>,
 	pub gas: Option<U256>,
 	pub value: Option<U256>,
-	pub data: Bytes,
+	pub data: Option<Bytes>,
 	pub nonce: Option<U256>,
 }
 
 impl Into<Transaction> for TransactionRequest {
 	fn into(self) -> Transaction {
 		Transaction {
-			nonce: self.nonce.unwrap_or(U256::zero()),
-			action: match self.to {
-				None => Action::Create,
-				Some(addr) => Action::Call(addr)
-			},
-			gas: self.gas.unwrap_or(U256::zero()),
-			gas_price: self.gas_price.unwrap_or(U256::zero()),
-			value: self.value.unwrap_or(U256::zero()),
-			data: self.data.to_vec()
+			nonce: self.nonce.unwrap_or_else(U256::zero),
+			action: self.to.map_or(Action::Create, Action::Call),
+			gas: self.gas.unwrap_or_else(U256::zero),
+			gas_price: self.gas_price.unwrap_or_else(U256::zero),
+			value: self.value.unwrap_or_else(U256::zero),
+			data: self.data.map_or_else(Vec::new, |d| d.to_vec()),
 		}
 	}
 }
 
 #[cfg(test)]
 mod tests {
+	use serde_json;
 	use util::numbers::{Uint, U256};
 	use util::hash::Address;
 	use ethcore::transaction::{Transaction, Action};
@@ -63,7 +61,7 @@ mod tests {
 			gas_price: Some(U256::from(20)),
 			gas: Some(U256::from(10_000)),
 			value: Some(U256::from(1)),
-			data: Bytes::new(vec![10, 20]),
+			data: Some(Bytes::new(vec![10, 20])),
 			nonce: Some(U256::from(12)),
 		};
 
@@ -85,7 +83,7 @@ mod tests {
 			gas_price: None,
 			gas: None,
 			value: None,
-			data: Bytes::new(vec![]),
+			data: None,
 			nonce: None,
 		};
 
@@ -97,5 +95,45 @@ mod tests {
 			value: U256::zero(),
 			data: vec![],
 		}, tr.into());
+	}
+
+	#[test]
+	fn transaction_request_deserialize() {
+		let s = r#"{
+			"from":"0x0000000000000000000000000000000000000001",
+			"to":"0x0000000000000000000000000000000000000002",
+			"gasPrice":"0x1",
+			"gas":"0x2",
+			"value":"0x3",
+			"data":"0x123456",
+			"nonce":"0x4"
+		}"#;
+		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
+
+		assert_eq!(deserialized, TransactionRequest {
+			from: Address::from(1),
+			to: Some(Address::from(2)),
+			gas_price: Some(U256::from(1)),
+			gas: Some(U256::from(2)),
+			value: Some(U256::from(3)),
+			data: Some(Bytes::new(vec![0x12, 0x34, 0x56])),
+			nonce: Some(U256::from(4)),
+		});
+	}
+
+	#[test]
+	fn transaction_request_deserialize_empty() {
+		let s = r#"{"from":"0x0000000000000000000000000000000000000001"}"#;
+		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
+
+		assert_eq!(deserialized, TransactionRequest {
+			from: Address::from(1),
+			to: None,
+			gas_price: None,
+			gas: None,
+			value: None,
+			data: None,
+			nonce: None,
+		});
 	}
 }
