@@ -139,8 +139,14 @@ impl<V> Client<V> where V: Verifier {
 		state_path.push("state");
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = Box::new(OptionOneDB::from_prefs(state_path.to_str().unwrap(), config.prefer_journal));
-		if state_db.is_empty() && engine.spec().ensure_db_good(state_db.deref_mut()) {
+		let state_path_str = state_path.to_str().unwrap();
+		let mut state_db = if config.prefer_journal {
+			new_optiononedb(state_path_str)
+		} else {
+			new_archivedb(state_path_str)
+		};
+
+		if state_db.is_empty() && engine.spec().ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
