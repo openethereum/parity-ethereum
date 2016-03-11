@@ -36,6 +36,7 @@
 //! The functions here are designed to be fast.
 //!
 
+#[cfg(all(asm_available, target_arch="x86_64"))]
 use std::mem;
 use std::fmt;
 use std::cmp;
