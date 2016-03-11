@@ -27,6 +27,7 @@ use ethcore::block::{IsBlock};
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
+use ethcore::transaction::Transaction as EthTransaction;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, OptionalValue, Index, Filter, Log};
 use v1::helpers::{PollFilter, PollManager};
@@ -274,7 +275,7 @@ impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S:
 				match accounts.account_secret(&transaction_request.from) {
 					Ok(secret) => {
 						let sync = take_weak!(self.sync);
-						let (transaction, _) = transaction_request.to_eth();
+						let transaction: EthTransaction = transaction_request.into();
 						let signed_transaction = transaction.sign(&secret);
 						let hash = signed_transaction.hash();
 						sync.insert_transaction(signed_transaction);
