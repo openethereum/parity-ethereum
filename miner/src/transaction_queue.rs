@@ -28,13 +28,13 @@
 //! ```rust
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
-//! extern crate ethsync;
+//! extern crate ethminer;
 //! extern crate rustc_serialize;
 //!
 //!	use util::crypto::KeyPair;
 //! use util::hash::Address;
 //! use util::numbers::{Uint, U256};
-//!	use ethsync::TransactionQueue;
+//!	use ethminer::TransactionQueue;
 //!	use ethcore::transaction::*;
 //!	use rustc_serialize::hex::FromHex;
 //!

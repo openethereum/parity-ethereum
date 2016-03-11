@@ -15,18 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
+use ::SyncConfig;
 use ethcore::client::{BlockChainClient, BlockStatus, TreeRoute, BlockChainInfo, TransactionId, BlockId, BlockQueueInfo};
 use ethcore::header::{Header as BlockHeader, BlockNumber};
-use ethcore::block::*;
 use ethcore::error::*;
-use ethminer::Miner;
-use io::SyncIo;
-use chain::ChainSync;
-use ::SyncConfig;
 use ethcore::receipt::Receipt;
 use ethcore::transaction::{LocalizedTransaction, SignedTransaction, Transaction, Action};
 use ethcore::filter::Filter;
 use ethcore::log_entry::LocalizedLogEntry;
+use ethcore::block::{ClosedBlock, SealedBlock};
+use ethminer::Miner;
+use io::SyncIo;
+use chain::ChainSync;
 
 pub struct TestBlockChainClient {
 	pub blocks: RwLock<HashMap<H256, Bytes>>,

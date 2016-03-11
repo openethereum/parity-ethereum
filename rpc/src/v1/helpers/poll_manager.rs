@@ -97,7 +97,7 @@ impl<F, T> PollManager<F, T> where T: Timer {
 	}
 
 	/// Returns number of block when last poll happend.
-	pub fn get_poll_info(&mut self, id: &PollId) -> Option<&PollInfo<F>> {
+	pub fn poll_info(&mut self, id: &PollId) -> Option<&PollInfo<F>> {
 		self.prune();
 		self.polls.get(id)
 	}
@@ -156,22 +156,22 @@ mod tests {
 
 		*time.borrow_mut() = 10;
 		indexer.update_poll(&0, 21);
-		assert_eq!(indexer.get_poll_info(&0).unwrap().filter, false);
-		assert_eq!(indexer.get_poll_info(&0).unwrap().block_number, 21);
+		assert_eq!(indexer.poll_info(&0).unwrap().filter, false);
+		assert_eq!(indexer.poll_info(&0).unwrap().block_number, 21);
 
 		*time.borrow_mut() = 30;
 		indexer.update_poll(&1, 23);
-		assert_eq!(indexer.get_poll_info(&1).unwrap().filter, true);
-		assert_eq!(indexer.get_poll_info(&1).unwrap().block_number, 23);
+		assert_eq!(indexer.poll_info(&1).unwrap().filter, true);
+		assert_eq!(indexer.poll_info(&1).unwrap().block_number, 23);
 
 		*time.borrow_mut() = 75;
 		indexer.update_poll(&0, 30);
-		assert!(indexer.get_poll_info(&0).is_none());
-		assert_eq!(indexer.get_poll_info(&1).unwrap().filter, true);
-		assert_eq!(indexer.get_poll_info(&1).unwrap().block_number, 23);
+		assert!(indexer.poll_info(&0).is_none());
+		assert_eq!(indexer.poll_info(&1).unwrap().filter, true);
+		assert_eq!(indexer.poll_info(&1).unwrap().block_number, 23);
 
 		indexer.remove_poll(&1);
-		assert!(indexer.get_poll_info(&1).is_none());
+		assert!(indexer.poll_info(&1).is_none());
 	}
 
 	#[test]

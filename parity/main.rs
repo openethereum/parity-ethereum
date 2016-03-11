@@ -50,7 +50,7 @@ use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
-use ethsync::{EthSync, SyncConfig};
+use ethsync::{EthSync, SyncConfig, SyncProvider};
 use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
@@ -81,7 +81,7 @@ Protocol Options:
                            or olympic, frontier, homestead, mainnet, morden, or testnet [default: homestead].
   --testnet                Equivalent to --chain testnet (geth-compatible).
   --networkid INDEX        Override the network identifier from the chain we are on.
-  --archive                Client should not prune the state/storage trie.
+  --pruning                Client should prune the state/storage trie.
   -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
   --identity NAME          Specify your node's name.
@@ -143,7 +143,7 @@ struct Args {
 	flag_identity: String,
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
-	flag_archive: bool,
+	flag_pruning: bool,
 	flag_no_bootstrap: bool,
 	flag_listen_address: String,
 	flag_public_address: Option<String>,
@@ -364,7 +364,7 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
-		client_config.prefer_journal = !self.args.flag_archive;
+		client_config.prefer_journal = self.args.flag_pruning;
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		client_config

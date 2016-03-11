@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(feature="dev", feature(plugin))]
-#![cfg_attr(feature="dev", plugin(clippy))]
+#![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
+#![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
 
 //! Miner module
 //! Keeps track of transactions and mined block.
@@ -62,5 +62,6 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
+pub use transaction_queue::TransactionQueue;
 pub use miner::{Miner, MinerService};
 

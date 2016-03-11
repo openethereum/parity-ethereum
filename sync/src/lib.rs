@@ -31,18 +31,21 @@
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! extern crate ethsync;
+//! extern crate ethminer;
 //! use std::env;
 //! use std::sync::Arc;
 //! use util::network::{NetworkService, NetworkConfiguration};
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethsync::{EthSync, SyncConfig};
+//! use ethminer::Miner;
 //! use ethcore::ethereum;
 //!
 //! fn main() {
 //! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
 //! 	let dir = env::temp_dir();
 //! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
-//! 	EthSync::register(&mut service, SyncConfig::default(), client);
+//! 	let miner = Miner::new();
+//! 	EthSync::register(&mut service, SyncConfig::default(), client, miner);
 //! }
 //! ```
 
@@ -93,6 +96,12 @@ impl Default for SyncConfig {
 	}
 }
 
+/// Current sync status
+pub trait SyncProvider: Send + Sync {
+	/// Get sync status
+	fn status(&self) -> SyncStatus;
+}
+
 /// Ethereum network protocol handler
 pub struct EthSync {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
@@ -114,11 +123,6 @@ impl EthSync {
 		sync
 	}
 
-	/// Get sync status
-	pub fn status(&self) -> SyncStatus {
-		self.sync.read().unwrap().status()
-	}
-
 	/// Stop sync
 	pub fn stop(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().abort(&mut NetSyncIo::new(io, self.chain.deref()));
@@ -127,6 +131,13 @@ impl EthSync {
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
+	}
+}
+
+impl SyncProvider for EthSync {
+	/// Get sync status
+	fn status(&self) -> SyncStatus {
+		self.sync.read().unwrap().status()
 	}
 }
 

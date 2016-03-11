@@ -190,6 +190,7 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
 	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock>;
+
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
