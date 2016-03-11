@@ -78,7 +78,7 @@ impl PanicHandler {
 
 	/// Invoke closure and catch any possible panics.
 	/// In case of panic notifies all listeners about it.
-	#[cfg_attr(all(nightly, feature="dev"), allow(deprecated))]
+	#[cfg_attr(feature="dev", allow(deprecated))]
 	pub fn catch_panic<G, R>(&self, g: G) -> thread::Result<R> where G: FnOnce() -> R + Send + 'static {
 		let _guard = PanicGuard { handler: self };
 		let result = g();

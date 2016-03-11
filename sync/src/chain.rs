@@ -120,6 +120,7 @@ pub enum SyncState {
 }
 
 /// Syncing status and statistics
+#[derive(Clone)]
 pub struct SyncStatus {
 	/// State
 	pub state: SyncState,
@@ -141,6 +142,8 @@ pub struct SyncStatus {
 	pub num_active_peers: usize,
 	/// Heap memory used in bytes
 	pub mem_used: usize,
+	/// Number of pending transactions in queue
+	pub transaction_queue_pending: usize,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -256,6 +259,7 @@ impl ChainSync {
 			blocks_total: match self.highest_block { Some(x) if x > self.starting_block => x - self.starting_block, _ => 0 },
 			num_peers: self.peers.len(),
 			num_active_peers: self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count(),
+			transaction_queue_pending: self.transaction_queue.lock().unwrap().status().pending,
 			mem_used:
 				//  TODO: https://github.com/servo/heapsize/pull/50
 				//  self.downloading_hashes.heap_size_of_children()
@@ -275,7 +279,7 @@ impl ChainSync {
 	}
 
 
-	#[cfg_attr(all(nightly, feature="dev"), allow(for_kv_map))] // Because it's not possible to get `values_mut()`
+	#[cfg_attr(feature="dev", allow(for_kv_map))] // Because it's not possible to get `values_mut()`
 	/// Rest sync. Clear all downloaded data but keep the queue
 	fn reset(&mut self) {
 		self.downloading_headers.clear();
@@ -343,7 +347,7 @@ impl ChainSync {
 		Ok(())
 	}
 
-	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		self.reset_peer_asking(peer_id, PeerAsking::BlockHeaders);
@@ -470,7 +474,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block bodies
-	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let block_rlp = try!(r.at(0));
 		let header_rlp = try!(block_rlp.at(0));
@@ -1303,11 +1307,11 @@ impl ChainSync {
 	}
 
 	/// Add transaction to the transaction queue
-	pub fn insert_transaction<T>(&self, transaction: ethcore::transaction::SignedTransaction, fetch_nonce: &T)
+	pub fn insert_transaction<T>(&self, transaction: ethcore::transaction::SignedTransaction, fetch_nonce: &T) -> Result<(), Error>
 		where T: Fn(&Address) -> U256
 	{
 		let mut queue = self.transaction_queue.lock().unwrap();
-		let _ = queue.add(transaction, fetch_nonce);
+		queue.add(transaction, fetch_nonce)
 	}
 }
 

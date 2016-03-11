@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
-#![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
-#![cfg_attr(all(nightly, feature="dev"), allow(clone_on_copy))]
+#![cfg_attr(feature="dev", allow(clone_on_copy))]
 // In most cases it expresses function flow better
-#![cfg_attr(all(nightly, feature="dev"), allow(if_not_else))]
+#![cfg_attr(feature="dev", allow(if_not_else))]
 
 //! Blockchain sync module
 //! Implements ethereum protocol version 63 as specified here:
@@ -147,7 +147,8 @@ impl SyncProvider for EthSync {
 
 		let nonce_fn = |a: &Address| self.chain.state().nonce(a) + U256::one();
 		let sync = self.sync.write().unwrap();
-		sync.insert_transaction(transaction, &nonce_fn);
+		sync.insert_transaction(transaction, &nonce_fn).unwrap_or_else(
+			|e| warn!(target: "sync", "Error inserting transaction to queue: {:?}", e));
 	}
 }
 

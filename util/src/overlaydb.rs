@@ -36,6 +36,7 @@ use kvdb::{Database};
 ///
 /// `lookup()` and `contains()` maintain normal behaviour - all `insert()` and `remove()` 
 /// queries have an immediate effect in terms of these functions.
+//#[derive(Clone)]
 pub struct OverlayDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,

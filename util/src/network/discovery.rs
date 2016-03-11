@@ -250,7 +250,7 @@ impl Discovery {
 		self.send_to(packet, address.clone());
 	}
 
-	#[cfg_attr(all(nightly, feature="dev"), allow(map_clone))]
+	#[cfg_attr(feature="dev", allow(map_clone))]
 	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry> {
 		let mut found: BTreeMap<u32, Vec<&NodeEntry>> = BTreeMap::new();
 		let mut count = 0;

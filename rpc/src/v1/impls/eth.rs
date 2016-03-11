@@ -27,23 +27,27 @@ use ethcore::block::{IsBlock};
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
+use ethcore::transaction::Transaction as EthTransaction;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, OptionalValue, Index, Filter, Log};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, OptionalValue, Index, Filter, Log};
 use v1::helpers::{PollFilter, PollManager};
+use util::keys::store::AccountProvider;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S> where C: BlockChainClient, S: SyncProvider {
+pub struct EthClient<C, S, A> where C: BlockChainClient, S: SyncProvider, A: AccountProvider {
 	client: Weak<C>,
 	sync: Weak<S>,
+	accounts: Weak<A>,
 	hashrates: RwLock<HashMap<H256, u64>>,
 }
 
-impl<C, S> EthClient<C, S> where C: BlockChainClient, S: SyncProvider {
+impl<C, S, A> EthClient<C, S, A> where C: BlockChainClient, S: SyncProvider, A: AccountProvider {
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<C>, sync: &Arc<S>) -> Self {
+	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>) -> Self {
 		EthClient {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
+			accounts: Arc::downgrade(accounts),
 			hashrates: RwLock::new(HashMap::new()),
 		}
 	}
@@ -94,7 +98,7 @@ impl<C, S> EthClient<C, S> where C: BlockChainClient, S: SyncProvider {
 	}
 }
 
-impl<C, S> Eth for EthClient<C, S> where C: BlockChainClient + 'static, S: SyncProvider + 'static {
+impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S: SyncProvider + 'static, A: AccountProvider + 'static {
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&U256::from(take_weak!(self.sync).status().protocol_version)),
@@ -158,11 +162,22 @@ impl<C, S> Eth for EthClient<C, S> where C: BlockChainClient + 'static, S: SyncP
 		}
 	}
 
-	fn block_transaction_count(&self, params: Params) -> Result<Value, Error> {
+	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)| match take_weak!(self.client).block(BlockId::Hash(hash)) {
 				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 				None => Ok(Value::Null)
+			})
+	}
+
+	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(BlockNumber,)>(params)
+			.and_then(|(block_number,)| match block_number {
+				BlockNumber::Pending => to_value(&take_weak!(self.sync).status().transaction_queue_pending),
+				_ => match take_weak!(self.client).block(block_number.into()) {
+					Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
+					None => Ok(Value::Null)
+				}
 			})
 	}
 
@@ -250,6 +265,24 @@ impl<C, S> Eth for EthClient<C, S> where C: BlockChainClient + 'static, S: SyncP
 		from_params::<(Index, H256)>(params).and_then(|(rate, id)| {
 			self.hashrates.write().unwrap().insert(id, rate.value() as u64);
 			to_value(&true)
+		})
+	}
+
+	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, )>(params)
+			.and_then(|(transaction_request, )| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.account_secret(&transaction_request.from) {
+					Ok(secret) => {
+						let sync = take_weak!(self.sync);
+						let transaction: EthTransaction = transaction_request.into();
+						let signed_transaction = transaction.sign(&secret);
+						let hash = signed_transaction.hash();
+						sync.insert_transaction(signed_transaction);
+						to_value(&hash)
+					},
+					Err(_) => { to_value(&U256::zero()) }
+				}
 		})
 	}
 }

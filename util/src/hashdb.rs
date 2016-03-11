@@ -20,7 +20,7 @@ use bytes::*;
 use std::collections::HashMap;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
-pub trait HashDB {
+pub trait HashDB : AsHashDB {
 	/// Get the keys in the database together with number of underlying references.
 	fn keys(&self) -> HashMap<H256, i32>;
 
@@ -110,4 +110,17 @@ pub trait HashDB {
 	/// }
 	/// ```
 	fn remove(&mut self, key: &H256) { self.kill(key) }
+}
+
+/// Upcast trait.
+pub trait AsHashDB {
+	/// Perform upcast to HashDB for anything that derives from HashDB.
+	fn as_hashdb(&self) -> &HashDB;
+	/// Perform mutable upcast to HashDB for anything that derives from HashDB.
+	fn as_hashdb_mut(&mut self) -> &mut HashDB;
+}
+
+impl<T: HashDB> AsHashDB for T {
+	fn as_hashdb(&self) -> &HashDB { self }
+	fn as_hashdb_mut(&mut self) -> &mut HashDB { self }
 }

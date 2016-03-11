@@ -20,6 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
+use super::traits::JournalDB;
 use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
@@ -31,63 +32,38 @@ use std::env;
 /// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
-pub struct JournalDB {
+pub struct OptionOneDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
 	counters: Option<Arc<RwLock<HashMap<H256, i32>>>>,
 }
 
-impl Clone for JournalDB {
-	fn clone(&self) -> JournalDB {
-		JournalDB {
-			overlay: MemoryDB::new(),
-			backing: self.backing.clone(),
-			counters: self.counters.clone(),
-		}
-	}
-}
-
 // all keys must be at least 12 bytes
 const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
-
 const DB_VERSION : u32 = 3;
-const DB_VERSION_NO_JOURNAL : u32 = 3 + 256;
-
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
-impl JournalDB {
+impl OptionOneDB {
 	/// Create a new instance from file
-	pub fn new(path: &str) -> JournalDB {
-		Self::from_prefs(path, true)
-	}
-
-	/// Create a new instance from file
-	pub fn from_prefs(path: &str, prefer_journal: bool) -> JournalDB {
+	pub fn new(path: &str) -> OptionOneDB {
 		let opts = DatabaseConfig {
 			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
 		};
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
-		let with_journal;
 		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
-				Ok(Some(DB_VERSION)) => { with_journal = true; },
-				Ok(Some(DB_VERSION_NO_JOURNAL)) => { with_journal = false; },
+				Ok(Some(DB_VERSION)) => {},
 				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v)
 			}
 		} else {
-			backing.put(&VERSION_KEY, &encode(&(if prefer_journal { DB_VERSION } else { DB_VERSION_NO_JOURNAL }))).expect("Error writing version to database");
-			with_journal = prefer_journal;
+			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
-		let counters = if with_journal {
-			Some(Arc::new(RwLock::new(JournalDB::read_counters(&backing))))
-		} else {
-			None
-		};
-		JournalDB {
+		let counters = Some(Arc::new(RwLock::new(OptionOneDB::read_counters(&backing))));
+		OptionOneDB {
 			overlay: MemoryDB::new(),
 			backing: Arc::new(backing),
 			counters: counters,
@@ -96,53 +72,10 @@ impl JournalDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	pub fn new_temp() -> JournalDB {
+	fn new_temp() -> OptionOneDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		Self::new(dir.to_str().unwrap())
-	}
-
-	/// Check if this database has any commits
-	pub fn is_empty(&self) -> bool {
-		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
-	}
-
-	/// Commit all recent insert operations.
-	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		let have_counters = self.counters.is_some();
-		if have_counters {
-			self.commit_with_counters(now, id, end)
-		} else {
-			self.commit_without_counters()
-		}
-	}
-
-	/// Drain the overlay and place it into a batch for the DB.
-	fn batch_overlay_insertions(overlay: &mut MemoryDB, batch: &DBTransaction) -> usize {
-		let mut inserts = 0usize;
-		let mut deletes = 0usize;
-		for i in overlay.drain().into_iter() {
-			let (key, (value, rc)) = i;
-			if rc > 0 {
-				assert!(rc == 1);
-				batch.put(&key.bytes(), &value).expect("Low-level database error. Some issue with your hard disk?");
-				inserts += 1;
-			}
-			if rc < 0 {
-				assert!(rc == -1);
-				deletes += 1;
-			}
-		}
-		trace!("commit: Inserted {}, Deleted {} nodes", inserts, deletes);
-		inserts + deletes
-	}
-
-	/// Just commit the overlay into the backing DB.
-	fn commit_without_counters(&mut self) -> Result<u32, UtilError> {
-		let batch = DBTransaction::new();
-		let ret = Self::batch_overlay_insertions(&mut self.overlay, &batch);
-		try!(self.backing.write(batch));
-		Ok(ret as u32)
 	}
 
 	fn morph_key(key: &H256, index: u8) -> Bytes {
@@ -226,9 +159,106 @@ impl JournalDB {
 		}
 	}
 
-	/// Commit all recent insert operations and historical removals from the old era
-	/// to the backing database.
-	fn commit_with_counters(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn payload(&self, key: &H256) -> Option<Bytes> {
+		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+	}
+
+	fn read_counters(db: &Database) -> HashMap<H256, i32> {
+		let mut counters = HashMap::new();
+		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
+			let mut era = decode::<u64>(&val);
+			loop {
+				let mut index = 0usize;
+				while let Some(rlp_data) = db.get({
+					let mut r = RlpStream::new_list(3);
+					r.append(&era);
+					r.append(&index);
+					r.append(&&PADDING[..]);
+					&r.drain()
+				}).expect("Low-level database error.") {
+					trace!("read_counters: era={}, index={}", era, index);
+					let rlp = Rlp::new(&rlp_data);
+					let inserts: Vec<H256> = rlp.val_at(1);
+					Self::replay_keys(&inserts, db, &mut counters);
+					index += 1;
+				};
+				if index == 0 || era == 0 {
+					break;
+				}
+				era -= 1;
+			}
+		}
+		trace!("Recovered {} counters", counters.len());
+		counters
+	}
+}
+
+impl HashDB for OptionOneDB {
+	fn keys(&self) -> HashMap<H256, i32> {
+		let mut ret: HashMap<H256, i32> = HashMap::new();
+		for (key, _) in self.backing.iter() {
+			let h = H256::from_slice(key.deref());
+			ret.insert(h, 1);
+		}
+
+		for (key, refs) in self.overlay.keys().into_iter() {
+			let refs = *ret.get(&key).unwrap_or(&0) + refs;
+			ret.insert(key, refs);
+		}
+		ret
+	}
+
+	fn lookup(&self, key: &H256) -> Option<&[u8]> {
+		let k = self.overlay.raw(key);
+		match k {
+			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			_ => {
+				if let Some(x) = self.payload(key) {
+					Some(&self.overlay.denote(key, x).0)
+				}
+				else {
+					None
+				}
+			}
+		}
+	}
+
+	fn exists(&self, key: &H256) -> bool {
+		self.lookup(key).is_some()
+	}
+
+	fn insert(&mut self, value: &[u8]) -> H256 {
+		self.overlay.insert(value)
+	}
+	fn emplace(&mut self, key: H256, value: Bytes) {
+		self.overlay.emplace(key, value);
+	}
+	fn kill(&mut self, key: &H256) {
+		self.overlay.kill(key);
+	}
+}
+
+impl JournalDB for OptionOneDB {
+	fn spawn(&self) -> Box<JournalDB> {
+		Box::new(OptionOneDB {
+			overlay: MemoryDB::new(),
+			backing: self.backing.clone(),
+			counters: self.counters.clone(),
+		})
+	}
+
+	fn mem_used(&self) -> usize {
+		self.overlay.mem_used() + match self.counters {
+			Some(ref c) => c.read().unwrap().heap_size_of_children(),
+			None => 0
+		}
+ 	}
+
+	fn is_empty(&self) -> bool {
+		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
+	}
+
+	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -339,98 +369,12 @@ impl JournalDB {
 				try!(batch.delete(&last));
 				index += 1;
 			}
-			trace!("JournalDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
+			trace!("OptionOneDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
 		}
 
 		try!(self.backing.write(batch));
-//		trace!("JournalDB::commit() deleted {} nodes", deletes);
+//		trace!("OptionOneDB::commit() deleted {} nodes", deletes);
 		Ok(0)
-	}
-
-	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
-	}
-
-	fn read_counters(db: &Database) -> HashMap<H256, i32> {
-		let mut counters = HashMap::new();
-		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val);
-			loop {
-				let mut index = 0usize;
-				while let Some(rlp_data) = db.get({
-					let mut r = RlpStream::new_list(3);
-					r.append(&era);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					&r.drain()
-				}).expect("Low-level database error.") {
-					trace!("read_counters: era={}, index={}", era, index);
-					let rlp = Rlp::new(&rlp_data);
-					let inserts: Vec<H256> = rlp.val_at(1);
-					Self::replay_keys(&inserts, db, &mut counters);
-					index += 1;
-				};
-				if index == 0 || era == 0 {
-					break;
-				}
-				era -= 1;
-			}
-		}
-		trace!("Recovered {} counters", counters.len());
-		counters
-	}
-
-	/// Returns heap memory size used
-	pub fn mem_used(&self) -> usize {
-		self.overlay.mem_used() + match self.counters {
-			Some(ref c) => c.read().unwrap().heap_size_of_children(),
-			None => 0
-		}
- 	}
- }
-
-impl HashDB for JournalDB {
-	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iter() {
-			let h = H256::from_slice(key.deref());
-			ret.insert(h, 1);
-		}
-
-		for (key, refs) in self.overlay.keys().into_iter() {
-			let refs = *ret.get(&key).unwrap_or(&0) + refs;
-			ret.insert(key, refs);
-		}
-		ret
-	}
-
-	fn lookup(&self, key: &H256) -> Option<&[u8]> {
-		let k = self.overlay.raw(key);
-		match k {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
-			_ => {
-				if let Some(x) = self.payload(key) {
-					Some(&self.overlay.denote(key, x).0)
-				}
-				else {
-					None
-				}
-			}
-		}
-	}
-
-	fn exists(&self, key: &H256) -> bool {
-		self.lookup(key).is_some()
-	}
-
-	fn insert(&mut self, value: &[u8]) -> H256 {
-		self.overlay.insert(value)
-	}
-	fn emplace(&mut self, key: H256, value: Bytes) {
-		self.overlay.emplace(key, value);
-	}
-	fn kill(&mut self, key: &H256) {
-		self.overlay.kill(key);
 	}
 }
 
@@ -439,11 +383,12 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::*;
+	use journaldb::traits::JournalDB;
 
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 
 		let x = jdb.insert(b"X");
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
@@ -465,7 +410,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.exists(&h));
@@ -483,7 +428,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -521,7 +466,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -549,7 +494,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -568,7 +513,7 @@ mod tests {
 	#[test]
 	fn fork_same_key() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 
 		let foo = jdb.insert(b"foo");
@@ -590,7 +535,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -599,13 +544,13 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		}
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			assert!(jdb.exists(&foo));
 			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -619,7 +564,7 @@ mod tests {
 		dir.push(H32::random().hex());
 
 		let foo = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -633,7 +578,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
@@ -648,7 +593,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -663,7 +608,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
 			assert!(!jdb.exists(&baz));
