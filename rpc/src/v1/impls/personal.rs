@@ -22,20 +22,20 @@ use util::keys::store::*;
 use util::Address;
 
 /// Account management (personal) rpc implementation.
-pub struct PersonalClient {
-	accounts: Weak<AccountProvider>,
+pub struct PersonalClient<A> where A: AccountProvider {
+	accounts: Weak<A>,
 }
 
-impl PersonalClient {
+impl<A> PersonalClient<A> where A: AccountProvider {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<AccountProvider>) -> Self {
+	pub fn new(store: &Arc<A>) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
 		}
 	}
 }
 
-impl Personal for PersonalClient {
+impl<A> Personal for PersonalClient<A> where A: AccountProvider + 'static {
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		let store = take_weak!(self.accounts);
 		match store.accounts() {
