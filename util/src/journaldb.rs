@@ -387,6 +387,11 @@ impl JournalDB {
 			None => 0
 		}
  	}
+
+ 	/// Returns reference to the backing database
+ 	pub fn backing(&self) -> Arc<Database> {
+ 		self.backing.clone()
+ 	}
  }
 
 impl HashDB for JournalDB {
