@@ -166,6 +166,7 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::*;
+	use journaldb::traits::JournalDB;
 
 	#[test]
 	fn insert_same_in_fork() {

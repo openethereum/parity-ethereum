@@ -61,7 +61,7 @@ impl OptionOneDB {
 		} else {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
-		
+
 		let counters = Some(Arc::new(RwLock::new(OptionOneDB::read_counters(&backing))));
 		OptionOneDB {
 			overlay: MemoryDB::new(),
@@ -383,6 +383,7 @@ mod tests {
 	use common::*;
 	use super::*;
 	use hashdb::*;
+	use journaldb::traits::JournalDB;
 
 	#[test]
 	fn insert_same_in_fork() {
