@@ -26,8 +26,53 @@ mod optiononedb;
 /// Export the JournalDB trait.
 pub use self::traits::JournalDB;
 
-/// Create a new JournalDB trait object which is an ArchiveDB.
-pub fn new_archivedb(path: &str) -> Box<JournalDB> { Box::new(archivedb::ArchiveDB::new(path)) }
+/// A journal database algorithm.
+#[derive(Debug)]
+pub enum Algorithm {
+	/// Keep all keys forever.
+	Archive,
 
-/// Create a new JournalDB trait object which is an OptionOneDB.
-pub fn new_optiononedb(path: &str) -> Box<JournalDB> { Box::new(optiononedb::OptionOneDB::new(path)) }
+	/// Ancient and recent history maintained separately; recent history lasts for particular
+	/// number of blocks.
+	///
+	/// Inserts go into backing database, journal retains knowledge of whether backing DB key is
+	/// ancient or recent. Non-canon inserts get explicitly reverted and removed from backing DB.
+	EarlyMerge,
+
+	/// Ancient and recent history maintained separately; recent history lasts for particular
+	/// number of blocks.
+	///
+	/// Inserts go into memory overlay, which is tried for key fetches. Memory overlay gets
+	/// flushed in backing only at end of recent history.
+	OverlayRecent,
+
+	/// Ancient and recent history maintained separately; recent history lasts for particular
+	/// number of blocks.
+	///
+	/// References are counted in disk-backed DB.
+	RefCounted,
+}
+
+impl Default for Algorithm {
+	fn default() -> Algorithm { Algorithm::Archive }
+}
+
+impl fmt::Display for Algorithm {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", match self {
+			&Algorithm::Archive => "archive",
+			&Algorithm::EarlyMerge => "earlymerge",
+			&Algorithm::OverlayRecent => "overlayrecent",
+			&Algorithm::RefCounted => "refcounted",
+		})
+	}
+}
+
+/// Create a new JournalDB trait object.
+pub fn new(path: &str, algorithm: Algorithm) -> Box<JournalDB> {
+	match algorithm {
+		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path)),
+		Algorithm::EarlyMerge => Box::new(optiononedb::OptionOneDB::new(path)),
+		_ => unimplemented!(),
+	}
+}
