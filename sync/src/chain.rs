@@ -1306,11 +1306,11 @@ impl ChainSync {
 	}
 
 	/// Add transaction to the transaction queue
-	pub fn insert_transaction<T>(&self, transaction: ethcore::transaction::SignedTransaction, fetch_nonce: &T)
+	pub fn insert_transaction<T>(&self, transaction: ethcore::transaction::SignedTransaction, fetch_nonce: &T) -> Result<(), Error>
 		where T: Fn(&Address) -> U256
 	{
 		let mut queue = self.transaction_queue.lock().unwrap();
-		queue.add(transaction, fetch_nonce);
+		queue.add(transaction, fetch_nonce)
 	}
 }
 
