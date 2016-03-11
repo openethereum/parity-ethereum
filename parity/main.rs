@@ -302,25 +302,21 @@ impl Configuration {
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
 		let mut r = if self.args.flag_no_bootstrap { Vec::new() } else { spec.nodes().clone() };
 		if let Some(ref x) = self.args.flag_bootnodes {
-			r.extend(x.split(",").map(|s| Self::normalize_enode(s).unwrap_or_else(||die!("{}: Invalid node address format given for a boot node.", s))));
+			r.extend(x.split(",").map(|s| Self::normalize_enode(s).unwrap_or_else(|| die!("{}: Invalid node address format given for a boot node.", s))));
 		}
 		r
 	}
 
 	#[cfg_attr(all(nightly, feature="dev"), allow(useless_format))]
 	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
-		let listen_address = Some(SocketAddr::new(IpAddr::from_str("127.0.0.1").unwrap(), self.args.flag_port));
-
-		let host = if self.args.flag_nat.starts_with("extip:") {
-			&self.args.flag_nat[6..]
+		let listen_address = Some(SocketAddr::new(IpAddr::from_str("0.0.0.0").unwrap(), self.args.flag_port));
+		let public_address = if self.args.flag_nat.starts_with("extip:") {
+			let host = &self.args.flag_nat[6..];
+			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
+			Some(SocketAddr::new(host, self.args.flag_port))
 		} else {
-			"127.0.0.1"
+			listen_address.clone()
 		};
-		let public_address = Some(SocketAddr::new(
-			IpAddr::from_str(&host).unwrap_or_else(|_| die!("{}: Invalid host given with --net extip:", host)),
-			self.args.flag_port
-		));
-
 		(listen_address, public_address)
 	}
 
