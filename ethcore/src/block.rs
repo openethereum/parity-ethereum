@@ -16,7 +16,7 @@
 
 //! Blockchain block.
 
-#![cfg_attr(all(nightly, feature="dev"), allow(ptr_arg))] // Because of &LastHashes -> &Vec<_>
+#![cfg_attr(feature="dev", allow(ptr_arg))] // Because of &LastHashes -> &Vec<_>
 
 use common::*;
 use engine::*;
