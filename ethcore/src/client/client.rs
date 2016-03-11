@@ -470,8 +470,12 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		self.state_db.lock().unwrap().state(hash)
 	}
 
-	fn block_receipts(&self, _hash: &H256) -> Option<Bytes> {
-		None
+	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+		self.chain.block_receipts(hash).and_then(|receipts| {
+			let mut rlp = RlpStream::new();
+			rlp.append(&receipts);
+			Some(rlp.out())
+		})
 	}
 
 	fn import_block(&self, bytes: Bytes) -> ImportResult {
