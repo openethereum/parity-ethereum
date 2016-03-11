@@ -50,3 +50,19 @@ fn rpc_net_peer_count() {
 
 	assert_eq!(io.handle_request(request), Some(response.to_string()));
 }
+
+#[test]
+fn rpc_net_listening() {
+	let sync = Arc::new(TestSyncProvider::new(Config {
+		protocol_version: 65,
+		num_peers: 120,
+	}));
+	let net = NetClient::new(&sync).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(net);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "net_listening", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_string()));
+}
