@@ -381,6 +381,7 @@ mod tests {
 	use super::*;
 	use devtools::*;
 	use common::*;
+	use crypto::KeyPair;
 
 	#[test]
 	fn can_insert() {
@@ -554,5 +555,16 @@ mod tests {
 		let sstore = SecretStore::new_test(&temp);
 		let accounts = sstore.accounts().unwrap();
 		assert_eq!(30, accounts.len());
+	}
+
+	#[test]
+	fn validate_generated_addresses() {
+		let temp = RandomTempPath::create_dir();
+		let mut sstore = SecretStore::new_test(&temp);
+		let addr = sstore.new_account("test").unwrap();
+		let _ok = sstore.unlock_account(&addr, "test").unwrap();
+		let secret = sstore.account_secret(&addr).unwrap();
+		let kp = KeyPair::from_secret(secret).unwrap();
+		assert_eq!(Address::from(kp.public().sha3()), addr);
 	}
 }
