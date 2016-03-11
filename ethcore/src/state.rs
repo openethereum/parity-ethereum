@@ -31,7 +31,7 @@ pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
-	db: JournalDB,
+	db: Box<JournalDB>,
 	root: H256,
 	cache: RefCell<HashMap<Address, Option<Account>>>,
 	snapshots: RefCell<Vec<HashMap<Address, Option<Option<Account>>>>>,
@@ -41,11 +41,11 @@ pub struct State {
 impl State {
 	/// Creates new state with empty state root
 	#[cfg(test)]
-	pub fn new(mut db: JournalDB, account_start_nonce: U256) -> State {
+	pub fn new(mut db: Box<JournalDB>, account_start_nonce: U256) -> State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
-			let _ = SecTrieDBMut::new(&mut db, &mut root);
+			let _ = SecTrieDBMut::new(db.as_hashdb_mut(), &mut root);
 		}
 
 		State {
@@ -58,10 +58,10 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: JournalDB, root: H256, account_start_nonce: U256) -> State {
+	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256) -> State {
 		{
 			// trie should panic! if root does not exist
-			let _ = SecTrieDB::new(&db, &root);
+			let _ = SecTrieDB::new(db.as_hashdb(), &root);
 		}
 
 		State {
@@ -126,7 +126,7 @@ impl State {
 	}
 
 	/// Destroy the current object and return root and database.
-	pub fn drop(self) -> (H256, JournalDB) {
+	pub fn drop(self) -> (H256, Box<JournalDB>) {
 		(self.root, self.db)
 	}
 
@@ -148,7 +148,7 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || SecTrieDB::new(&self.db, &self.root).contains(&a)
+		self.cache.borrow().get(&a).unwrap_or(&None).is_some() || SecTrieDB::new(self.db.as_hashdb(), &self.root).contains(&a)
 	}
 
 	/// Get the balance of account `a`.
@@ -163,7 +163,7 @@ impl State {
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.get(address, false).as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(&self.db, address), key))
+		self.get(address, false).as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::new(self.db.as_hashdb(), address), key))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
@@ -224,7 +224,7 @@ impl State {
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
-	#[cfg_attr(all(nightly, feature="dev"), allow(match_ref_pats))]
+	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	pub fn commit_into(db: &mut HashDB, root: &mut H256, accounts: &mut HashMap<Address, Option<Account>>) {
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
@@ -253,7 +253,7 @@ impl State {
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) {
 		assert!(self.snapshots.borrow().is_empty());
-		Self::commit_into(&mut self.db, &mut self.root, self.cache.borrow_mut().deref_mut());
+		Self::commit_into(self.db.as_hashdb_mut(), &mut self.root, self.cache.borrow_mut().deref_mut());
 	}
 
 	#[cfg(test)]
@@ -285,11 +285,11 @@ impl State {
 	fn get<'a>(&'a self, a: &Address, require_code: bool) -> &'a Option<Account> {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(Account::from_rlp))
+			self.insert_cache(a, SecTrieDB::new(self.db.as_hashdb(), &self.root).get(&a).map(Account::from_rlp))
 		}
 		if require_code {
 			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
-				account.cache_code(&AccountDB::new(&self.db, a));
+				account.cache_code(&AccountDB::new(self.db.as_hashdb(), a));
 			}
 		}
 		unsafe { ::std::mem::transmute(self.cache.borrow().get(a).unwrap()) }
@@ -305,7 +305,7 @@ impl State {
 	fn require_or_from<'a, F: FnOnce() -> Account, G: FnOnce(&mut Account)>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> &'a mut Account {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			self.insert_cache(a, SecTrieDB::new(&self.db, &self.root).get(&a).map(Account::from_rlp))
+			self.insert_cache(a, SecTrieDB::new(self.db.as_hashdb(), &self.root).get(&a).map(Account::from_rlp))
 		} else {
 			self.note_cache(a);
 		}
@@ -318,7 +318,7 @@ impl State {
 
 		unsafe { ::std::mem::transmute(self.cache.borrow_mut().get_mut(a).unwrap().as_mut().map(|account| {
 			if require_code {
-				account.cache_code(&AccountDB::new(&self.db, a));
+				account.cache_code(&AccountDB::new(self.db.as_hashdb(), a));
 			}
 			account
 		}).unwrap()) }

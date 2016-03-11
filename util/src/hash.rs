@@ -257,7 +257,7 @@ macro_rules! impl_hash {
 							return Err(serde::Error::custom("Invalid length."));
 						}
 
-						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::custom("Invalid valid hex."))
+						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::custom("Invalid hex value."))
 					}
 
 					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
@@ -305,7 +305,7 @@ macro_rules! impl_hash {
 		}
 
 		impl Copy for $from {}
-		#[cfg_attr(all(nightly, feature="dev"), allow(expl_impl_clone_on_copy))]
+		#[cfg_attr(feature="dev", allow(expl_impl_clone_on_copy))]
 		impl Clone for $from {
 			fn clone(&self) -> $from {
 				unsafe {
@@ -637,7 +637,7 @@ mod tests {
 	use std::str::FromStr;
 
 	#[test]
-	#[cfg_attr(all(nightly, feature="dev"), allow(eq_op))]
+	#[cfg_attr(feature="dev", allow(eq_op))]
 	fn hash() {
 		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);

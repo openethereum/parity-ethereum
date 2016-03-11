@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Disk-backed HashDB implementation.
+//! JournalDB over in-memory overlay
 
 use common::*;
 use rlp::*;
@@ -23,12 +23,10 @@ use memorydb::*;
 use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
+use super::JournalDB;
 
-/// Implementation of the HashDB trait for a disk-backed database with a memory overlay
+/// Implementation of the JournalDB trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.
-///
-/// If `journal_overlay` is `None`, then it behaves exactly like OverlayDB. If not it behaves
-/// differently:
 ///
 /// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to
 /// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
@@ -58,10 +56,10 @@ use std::env;
 /// the removed key is not present in the history overlay.
 /// 7. Delete ancient record from memory and disk.
 /// 
-pub struct JournalDB {
+pub struct JournalOverlayDB {
 	transaction_overlay: MemoryDB,
 	backing: Arc<Database>,
-	journal_overlay: Option<Arc<RwLock<JournalOverlay>>>,
+	journal_overlay: Arc<RwLock<JournalOverlay>>,
 }
 
 #[derive(PartialEq)]
@@ -84,9 +82,9 @@ impl HeapSizeOf for JournalEntry {
 	}
 }
 
-impl Clone for JournalDB {
-	fn clone(&self) -> JournalDB {
-		JournalDB {
+impl Clone for JournalOverlayDB {
+	fn clone(&self) -> JournalOverlayDB {
+		JournalOverlayDB {
 			transaction_overlay: MemoryDB::new(),
 			backing: self.backing.clone(),
 			journal_overlay: self.journal_overlay.clone(),
@@ -97,45 +95,34 @@ impl Clone for JournalDB {
 // all keys must be at least 12 bytes
 const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
-
-const DB_VERSION : u32 = 3;
-const DB_VERSION_NO_JOURNAL : u32 = 3 + 256;
-
+const DB_VERSION : u32 = 0x200 + 3;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
-impl JournalDB {
+impl JournalOverlayDB {
 	/// Create a new instance from file
-	pub fn new(path: &str) -> JournalDB {
-		Self::from_prefs(path, true)
+	pub fn new(path: &str) -> JournalOverlayDB {
+		Self::from_prefs(path)
 	}
 
 	/// Create a new instance from file
-	pub fn from_prefs(path: &str, prefer_journal: bool) -> JournalDB {
+	pub fn from_prefs(path: &str) -> JournalOverlayDB {
 		let opts = DatabaseConfig {
 			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
 		};
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
-		let with_journal;
 		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
-				Ok(Some(DB_VERSION)) => { with_journal = true; },
-				Ok(Some(DB_VERSION_NO_JOURNAL)) => { with_journal = false; },
+				Ok(Some(DB_VERSION)) => {}
 				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v)
 			}
 		} else {
-			backing.put(&VERSION_KEY, &encode(&(if prefer_journal { DB_VERSION } else { DB_VERSION_NO_JOURNAL }))).expect("Error writing version to database");
-			with_journal = prefer_journal;
+			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
-
-		let journal_overlay = if with_journal {
-			Some(Arc::new(RwLock::new(JournalDB::read_overlay(&backing))))
-		} else {
-			None
-		};
-		JournalDB {
+		let journal_overlay = Arc::new(RwLock::new(JournalOverlayDB::read_overlay(&backing)));
+		JournalOverlayDB {
 			transaction_overlay: MemoryDB::new(),
 			backing: Arc::new(backing),
 			journal_overlay: journal_overlay,
@@ -144,61 +131,92 @@ impl JournalDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	pub fn new_temp() -> JournalDB {
+	pub fn new_temp() -> JournalOverlayDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		Self::new(dir.to_str().unwrap())
 	}
 
-	/// Check if this database has any commits
-	pub fn is_empty(&self) -> bool {
+	#[cfg(test)]
+	fn can_reconstruct_refs(&self) -> bool {
+		let reconstructed = Self::read_overlay(&self.backing);
+		let journal_overlay = self.journal_overlay.read().unwrap();
+		*journal_overlay == reconstructed
+	}
+
+	fn payload(&self, key: &H256) -> Option<Bytes> {
+		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+	}
+
+	fn read_overlay(db: &Database) -> JournalOverlay {
+		let mut journal = HashMap::new();
+		let mut overlay = MemoryDB::new();
+		let mut count = 0;
+		let mut latest_era = 0;
+		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
+			latest_era = decode::<u64>(&val);
+			let mut era = latest_era;
+			loop {
+				let mut index = 0usize;
+				while let Some(rlp_data) = db.get({
+					let mut r = RlpStream::new_list(3);
+					r.append(&era);
+					r.append(&index);
+					r.append(&&PADDING[..]);
+					&r.drain()
+				}).expect("Low-level database error.") {
+					trace!("read_overlay: era={}, index={}", era, index);
+					let rlp = Rlp::new(&rlp_data);
+					let id: H256 = rlp.val_at(0);
+					let insertions = rlp.at(1);
+					let deletions: Vec<H256> = rlp.val_at(2);
+					let mut inserted_keys = Vec::new();
+					for r in insertions.iter() {
+						let k: H256 = r.val_at(0);
+						let v: Bytes = r.val_at(1);
+						overlay.emplace(k.clone(), v);
+						inserted_keys.push(k);
+						count += 1;
+					}
+					journal.entry(era).or_insert_with(Vec::new).push(JournalEntry {
+						id: id,
+						insertions: inserted_keys,
+						deletions: deletions,
+					});
+					index += 1;
+				};
+				if index == 0 || era == 0 {
+					break;
+				}
+				era -= 1;
+			}
+		}
+		trace!("Recovered {} overlay entries, {} journal entries", count, journal.len());
+		JournalOverlay { backing_overlay: overlay, journal: journal, latest_era: latest_era }
+	}
+}
+
+impl JournalDB for JournalOverlayDB {
+	fn spawn(&self) -> Box<JournalDB> {
+		Box::new(self.clone())
+	}
+
+	fn mem_used(&self) -> usize {
+		let mut mem = self.transaction_overlay.mem_used();
+		let overlay = self.journal_overlay.read().unwrap();
+		mem += overlay.backing_overlay.mem_used();
+		mem += overlay.journal.heap_size_of_children();
+		mem
+	}
+
+	fn is_empty(&self) -> bool {
 		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	/// Commit all recent insert operations.
-	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<(), UtilError> {
-		let have_journal_overlay = self.journal_overlay.is_some();
-		if have_journal_overlay {
-			self.commit_with_overlay(now, id, end)
-		} else {
-			self.commit_without_overlay()
-		}
-	}
-
-	/// Drain the overlay and place it into a batch for the DB.
-	fn batch_overlay_insertions(overlay: &mut MemoryDB, batch: &DBTransaction) -> usize {
-		let mut insertions = 0usize;
-		let mut deletions = 0usize;
-		for i in overlay.drain().into_iter() {
-			let (key, (value, rc)) = i;
-			if rc > 0 {
-				assert!(rc == 1);
-				batch.put(&key.bytes(), &value).expect("Low-level database error. Some issue with your hard disk?");
-				insertions += 1;
-			}
-			if rc < 0 {
-				assert!(rc == -1);
-				deletions += 1;
-			}
-		}
-		trace!("commit: Inserted {}, Deleted {} nodes", insertions, deletions);
-		insertions + deletions
-	}
-
-	/// Just commit the transaction overlay into the backing DB.
-	fn commit_without_overlay(&mut self) -> Result<(), UtilError> {
-		let batch = DBTransaction::new();
-		Self::batch_overlay_insertions(&mut self.transaction_overlay, &batch);
-		try!(self.backing.write(batch));
-		Ok(())
-	}
-
-	/// Commit all recent insert operations and historical removals from the old era
-	/// to the backing database.
-	fn commit_with_overlay(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<(), UtilError> {
+	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
-		let mut journal_overlay = self.journal_overlay.as_mut().unwrap().write().unwrap();
+		let mut journal_overlay = self.journal_overlay.write().unwrap();
 		let batch = DBTransaction::new();
 		{
 			let mut r = RlpStream::new_list(3);
@@ -280,80 +298,12 @@ impl JournalDB {
 			journal_overlay.journal.remove(&end_era);
 		}
 		try!(self.backing.write(batch));
-		Ok(())
+		Ok(0)
 	}
 
-	#[cfg(test)]
-	fn can_reconstruct_refs(&self) -> bool {
-		let reconstructed = Self::read_overlay(&self.backing);
-		let journal_overlay = self.journal_overlay.as_ref().unwrap().read().unwrap();
-		*journal_overlay == reconstructed
-	}
-
-	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
-	}
-
-	fn read_overlay(db: &Database) -> JournalOverlay {
-		let mut journal = HashMap::new();
-		let mut overlay = MemoryDB::new();
-		let mut count = 0;
-		let mut latest_era = 0;
-		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
-			latest_era = decode::<u64>(&val);
-			let mut era = latest_era;
-			loop {
-				let mut index = 0usize;
-				while let Some(rlp_data) = db.get({
-					let mut r = RlpStream::new_list(3);
-					r.append(&era);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					&r.drain()
-				}).expect("Low-level database error.") {
-					trace!("read_overlay: era={}, index={}", era, index);
-					let rlp = Rlp::new(&rlp_data);
-					let id: H256 = rlp.val_at(0);
-					let insertions = rlp.at(1);
-					let deletions: Vec<H256> = rlp.val_at(2);
-					let mut inserted_keys = Vec::new();
-					for r in insertions.iter() {
-						let k: H256 = r.val_at(0);
-						let v: Bytes = r.val_at(1);
-						overlay.emplace(k.clone(), v);
-						inserted_keys.push(k);
-						count += 1;
-					}
-					journal.entry(era).or_insert_with(Vec::new).push(JournalEntry {
-						id: id,
-						insertions: inserted_keys,
-						deletions: deletions,
-					});
-					index += 1;
-				};
-				if index == 0 || era == 0 {
-					break;
-				}
-				era -= 1;
-			}
-		}
-		trace!("Recovered {} overlay entries, {} journal entries", count, journal.len());
-		JournalOverlay { backing_overlay: overlay, journal: journal, latest_era: latest_era }
-	}
-
-	/// Returns heap memory size used
-	pub fn mem_used(&self) -> usize {
-		let mut mem = self.transaction_overlay.mem_used();
-		if let Some(ref overlay) = self.journal_overlay.as_ref() {
-			let overlay = overlay.read().unwrap();
-			mem += overlay.backing_overlay.mem_used();
-			mem += overlay.journal.heap_size_of_children();
-		}
-		mem
-	}
 }
 
-impl HashDB for JournalDB {
+impl HashDB for JournalOverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
 		for (key, _) in self.backing.iter() {
@@ -373,7 +323,7 @@ impl HashDB for JournalDB {
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => {
-				let v = self.journal_overlay.as_ref().map_or(None, |ref j| j.read().unwrap().backing_overlay.lookup(key).map(|v| v.to_vec()));
+				let v = self.journal_overlay.read().unwrap().backing_overlay.lookup(key).map(|v| v.to_vec());
 				match v {
 					Some(x) => {
 						Some(&self.transaction_overlay.denote(key, x).0)
@@ -412,11 +362,12 @@ mod tests {
 	use super::*;
 	use hashdb::*;
 	use log::init_log;
+	use journaldb::JournalDB;
 
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = JournalOverlayDB::new_temp();
 
 		let x = jdb.insert(b"X");
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
@@ -446,7 +397,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = JournalOverlayDB::new_temp();
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -469,7 +420,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = JournalOverlayDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -512,7 +463,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = JournalOverlayDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -544,7 +495,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = JournalOverlayDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -569,7 +520,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -597,7 +548,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -625,7 +576,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -663,7 +614,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -673,14 +624,14 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 			assert!(jdb.exists(&foo));
 			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -695,7 +646,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -724,7 +675,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -773,7 +724,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 		// history is 1
 		let foo = jdb.insert(b"foo");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
@@ -804,7 +755,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 		// history is 4
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -844,7 +795,7 @@ mod tests {
 		let foo = b"foo".sha3();
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -865,7 +816,7 @@ mod tests {
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		}; { let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 
 			jdb.remove(&foo);
 			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
@@ -873,14 +824,14 @@ mod tests {
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		}; { let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 
 			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = JournalDB::new(dir.to_str().unwrap());
+		}; { let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 
 			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -893,7 +844,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -911,7 +862,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));

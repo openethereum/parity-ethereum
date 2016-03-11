@@ -42,7 +42,7 @@ pub trait RangeCollection<K, V> {
 	fn remove_head(&mut self, start: &K);
 	/// Remove all elements >= `start` in the range that contains `start`
 	fn remove_tail(&mut self, start: &K);
-	/// Remove all elements >= `start` 
+	/// Remove all elements >= `start`
 	fn remove_from(&mut self, start: &K);
 	/// Remove all elements >= `tail`
 	fn insert_item(&mut self, key: K, value: V);
@@ -231,7 +231,7 @@ impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq +
 }
 
 #[test]
-#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
+#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 fn test_range() {
 	use std::cmp::{Ordering};
 

@@ -14,12 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+//! Unique identifiers.
 
-use rustc_version::{version_meta, Channel};
+use util::hash::H256;
+use header::BlockNumber;
 
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
-	}
+/// Uniquely identifies block.
+#[derive(Debug, PartialEq, Clone)]
+pub enum BlockId {
+	/// Block's sha3.
+	/// Querying by hash is always faster.
+	Hash(H256),
+	/// Block number within canon blockchain.
+	Number(BlockNumber),
+	/// Earliest block (genesis).
+	Earliest,
+	/// Latest mined block.
+	Latest
+}
+
+/// Uniquely identifies transaction.
+#[derive(Debug, PartialEq, Clone)]
+pub enum TransactionId {
+	/// Transaction's sha3.
+	Hash(H256),
+	/// Block id and transaction index within this block.
+	/// Querying by block position is always faster.
+	Location(BlockId, usize)
 }

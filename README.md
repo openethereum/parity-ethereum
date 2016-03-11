@@ -34,9 +34,6 @@ Then, download and build Parity:
 git clone https://github.com/ethcore/parity
 cd parity
 
-# parity should be built with rust beta
-multirust override beta
-
 # build in release mode
 cargo build --release
 ```
