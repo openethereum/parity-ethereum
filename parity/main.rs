@@ -53,6 +53,7 @@ use ethsync::{EthSync, SyncConfig, SyncProvider};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
+use util::keys::store::*;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
@@ -195,7 +196,7 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<AccountService>,  url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -204,7 +205,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, url: &str, cors_dom
 			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
 			"net" => server.add_delegate(NetClient::new(&sync).to_delegate()),
 			"eth" => {
-				server.add_delegate(EthClient::new(&client, &sync).to_delegate());
+				server.add_delegate(EthClient::new(&client, &sync, &secret_store).to_delegate());
 				server.add_delegate(EthFilterClient::new(&client).to_delegate());
 			}
 			_ => {
@@ -414,6 +415,9 @@ impl Configuration {
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client);
 
+		// Secret Store
+		let account_service = Arc::new(AccountService::new());
+
 		// Setup rpc
 		if self.args.flag_jsonrpc || self.args.flag_rpc {
 			let url = format!("{}:{}",
@@ -424,7 +428,7 @@ impl Configuration {
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let server_handler = setup_rpc_server(service.client(), sync.clone(), &url, cors, apis.split(",").collect());
+			let server_handler = setup_rpc_server(service.client(), sync.clone(), account_service.clone(), &url, cors, apis.split(",").collect());
 			if let Some(handler) = server_handler {
 				panic_handler.forward_from(handler.deref());
 			}

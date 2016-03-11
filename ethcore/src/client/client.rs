@@ -35,7 +35,6 @@ use transaction::LocalizedTransaction;
 use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
-use util::keys::store::SecretStore;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute};
 use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
@@ -114,7 +113,6 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
 	verifier: PhantomData<V>,
-	secret_store: Arc<RwLock<SecretStore>>,
 }
 
 const HISTORY: u64 = 1000;
@@ -150,9 +148,6 @@ impl<V> Client<V> where V: Verifier {
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
-		let secret_store = Arc::new(RwLock::new(SecretStore::new()));
-		secret_store.write().unwrap().try_import_existing();
-
 		Ok(Arc::new(Client {
 			chain: chain,
 			engine: engine,
@@ -166,7 +161,6 @@ impl<V> Client<V> where V: Verifier {
 			author: RwLock::new(Address::new()),
 			extra_data: RwLock::new(Vec::new()),
 			verifier: PhantomData,
-			secret_store: secret_store,
 		}))
 	}
 
@@ -188,11 +182,6 @@ impl<V> Client<V> where V: Verifier {
 			}
 		}
 		last_hashes
-	}
-
-	/// Secret store (key manager)
-	pub fn secret_store(&self) -> &Arc<RwLock<SecretStore>> {
-		&self.secret_store
 	}
 
 	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<ClosedBlock, ()> {
