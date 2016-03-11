@@ -154,7 +154,7 @@ pub use rlp::*;
 pub use hashdb::*;
 pub use memorydb::*;
 pub use overlaydb::*;
-pub use journaldb::*;
+pub use journaldb::JournalDB;
 pub use math::*;
 pub use crypto::*;
 pub use triehash::*;

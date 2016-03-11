@@ -131,7 +131,8 @@ impl<V> Client<V> where V: Verifier {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
-		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, if config.prefer_journal { "pruned" } else { "archive" }));
+		// version here is a bit useless now, since it's controlled only be the pruning algo.
+		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, config.pruning));
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, path));
@@ -139,8 +140,10 @@ impl<V> Client<V> where V: Verifier {
 		state_path.push("state");
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = Box::new(OptionOneDB::from_prefs(state_path.to_str().unwrap(), config.prefer_journal));
-		if state_db.is_empty() && engine.spec().ensure_db_good(state_db.deref_mut()) {
+		let state_path_str = state_path.to_str().unwrap();
+		let mut state_db = journaldb::new(state_path_str, config.pruning);
+
+		if state_db.is_empty() && engine.spec().ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
