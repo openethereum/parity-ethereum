@@ -120,6 +120,7 @@ pub enum SyncState {
 }
 
 /// Syncing status and statistics
+#[derive(Clone)]
 pub struct SyncStatus {
 	/// State
 	pub state: SyncState,
