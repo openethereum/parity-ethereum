@@ -36,6 +36,7 @@
 //! The functions here are designed to be fast.
 //!
 
+use std::mem;
 use std::fmt;
 use std::cmp;
 
