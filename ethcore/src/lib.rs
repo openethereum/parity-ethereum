@@ -25,6 +25,8 @@
 #![cfg_attr(all(nightly, feature="dev"), allow(match_bool))]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![cfg_attr(all(nightly, feature="dev"), allow(clone_on_copy))]
+// In most cases it expresses function flow better
+#![cfg_attr(all(nightly, feature="dev"), allow(if_not_else))]
 
 //! Ethcore library
 //!

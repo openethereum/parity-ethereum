@@ -1307,7 +1307,7 @@ impl ChainSync {
 		where T: Fn(&Address) -> U256
 	{
 		let mut queue = self.transaction_queue.lock().unwrap();
-		queue.add(transaction, fetch_nonce);
+		let _ = queue.add(transaction, fetch_nonce);
 	}
 }
 

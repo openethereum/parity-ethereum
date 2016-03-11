@@ -17,9 +17,10 @@
 #![warn(missing_docs)]
 #![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
 #![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
-
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![cfg_attr(all(nightly, feature="dev"), allow(clone_on_copy))]
+// In most cases it expresses function flow better
+#![cfg_attr(all(nightly, feature="dev"), allow(if_not_else))]
 
 //! Blockchain sync module
 //! Implements ethereum protocol version 63 as specified here:
@@ -172,6 +173,7 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 		self.sync.write().unwrap().maintain_sync(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
 
+	#[allow(single_match)]
 	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
 		match *message {
 			SyncMessage::NewChainBlocks { ref good, ref bad, ref retracted } => {

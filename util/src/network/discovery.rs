@@ -19,6 +19,7 @@ use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::mem;
 use std::cmp;
+use std::default::Default;
 use mio::*;
 use mio::udp::*;
 use sha3::*;
@@ -62,8 +63,14 @@ struct NodeBucket {
 	nodes: VecDeque<BucketEntry>, //sorted by last active
 }
 
+impl Default for NodeBucket {
+	fn default() -> Self {
+		NodeBucket::new()
+	}
+}
+
 impl NodeBucket {
-	fn new() -> NodeBucket {
+	fn new() -> Self {
 		NodeBucket {
 			nodes: VecDeque::new()
 		}

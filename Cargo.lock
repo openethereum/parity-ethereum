@@ -2,7 +2,7 @@
 name = "parity"
 version = "0.9.99"
 dependencies = [
- "clippy 0.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/tomusdrw/rust-ctrlc.git)",
  "daemonize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.78 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "clippy"
-version = "0.0.44"
+version = "0.0.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "regex-syntax 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -207,7 +207,7 @@ dependencies = [
 name = "ethcore"
 version = "0.9.99"
 dependencies = [
- "clippy 0.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 0.9.99",
@@ -234,7 +234,7 @@ dependencies = [
 name = "ethcore-rpc"
 version = "0.9.99"
 dependencies = [
- "clippy 0.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 0.9.99",
  "ethcore 0.9.99",
  "ethcore-util 0.9.99",
@@ -258,7 +258,7 @@ dependencies = [
  "arrayvec 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "bigint 0.1.0",
  "chrono 0.2.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -273,7 +273,7 @@ dependencies = [
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rocksdb 0.4.1 (git+https://github.com/arkpar/rust-rocksdb.git)",
+ "rocksdb 0.4.2 (git+https://github.com/arkpar/rust-rocksdb.git)",
  "rust-crypto 0.2.34 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -290,7 +290,7 @@ dependencies = [
 name = "ethsync"
 version = "0.9.99"
 dependencies = [
- "clippy 0.0.44 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 0.9.99",
  "ethcore-util 0.9.99",
@@ -469,11 +469,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "librocksdb-sys"
-version = "0.2.1"
-source = "git+https://github.com/arkpar/rust-rocksdb.git#2156621f583bda95c1c07e89e79e4019f75158ee"
+version = "0.2.2"
+source = "git+https://github.com/arkpar/rust-rocksdb.git#a4f89fea20ee3ae92b692df65d56426a5c0b6fd5"
 dependencies = [
  "libc 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "pkg-config 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -598,11 +597,6 @@ version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "pkg-config"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
 name = "primal"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -697,11 +691,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rocksdb"
-version = "0.4.1"
-source = "git+https://github.com/arkpar/rust-rocksdb.git#2156621f583bda95c1c07e89e79e4019f75158ee"
+version = "0.4.2"
+source = "git+https://github.com/arkpar/rust-rocksdb.git#a4f89fea20ee3ae92b692df65d56426a5c0b6fd5"
 dependencies = [
  "libc 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "librocksdb-sys 0.2.1 (git+https://github.com/arkpar/rust-rocksdb.git)",
+ "librocksdb-sys 0.2.2 (git+https://github.com/arkpar/rust-rocksdb.git)",
 ]
 
 [[package]]
