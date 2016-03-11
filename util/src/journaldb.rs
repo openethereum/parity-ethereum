@@ -28,7 +28,7 @@ use std::env;
 /// exclusive actions.
 pub trait JournalDB : HashDB + Sync + Send {
 	/// Return a copy of ourself, in a box.
-	fn spawn(&self) -> Box<Box<JournalDB>>;
+	fn spawn(&self) -> Box<JournalDB>;
 
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;
@@ -418,7 +418,7 @@ impl HashDB for OptionOneDB {
 }
 
 impl JournalDB for OptionOneDB {
-	fn spawn(&self) -> Box<Box<JournalDB>> {
+	fn spawn(&self) -> Box<JournalDB> {
 		Box::new(OptionOneDB {
 			overlay: MemoryDB::new(),
 			backing: self.backing.clone(),

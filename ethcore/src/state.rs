@@ -31,7 +31,7 @@ pub type ApplyResult = Result<Receipt, Error>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
-	db: Box<Box<JournalDB>>,
+	db: Box<JournalDB>,
 	root: H256,
 	cache: RefCell<HashMap<Address, Option<Account>>>,
 	snapshots: RefCell<Vec<HashMap<Address, Option<Option<Account>>>>>,
@@ -41,7 +41,7 @@ pub struct State {
 impl State {
 	/// Creates new state with empty state root
 	#[cfg(test)]
-	pub fn new(mut db: Box<Box<JournalDB>>, account_start_nonce: U256) -> State {
+	pub fn new(mut db: Box<JournalDB>, account_start_nonce: U256) -> State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
@@ -58,7 +58,7 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: Box<Box<JournalDB>>, root: H256, account_start_nonce: U256) -> State {
+	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256) -> State {
 		{
 			// trie should panic! if root does not exist
 			let _ = SecTrieDB::new(db.as_hashdb(), &root);
@@ -126,7 +126,7 @@ impl State {
 	}
 
 	/// Destroy the current object and return root and database.
-	pub fn drop(self) -> (H256, Box<Box<JournalDB>>) {
+	pub fn drop(self) -> (H256, Box<JournalDB>) {
 		(self.root, self.db)
 	}
 

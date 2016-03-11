@@ -250,7 +250,7 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	}
 }
 
-pub fn get_temp_journal_db() -> GuardedTempResult<Box<Box<JournalDB>>> {
+pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
 	let journal_db = Box::new(OptionOneDB::new(temp.as_str()));
 	GuardedTempResult {
@@ -268,7 +268,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	}
 }
 
-pub fn get_temp_journal_db_in(path: &Path) -> Box<Box<JournalDB>> {
+pub fn get_temp_journal_db_in(path: &Path) -> Box<JournalDB> {
 	Box::new(OptionOneDB::new(path.to_str().unwrap()))
 }
 

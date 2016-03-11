@@ -101,7 +101,7 @@ impl ClientReport {
 pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
 	engine: Arc<Box<Engine>>,
-	state_db: Mutex<Box<Box<JournalDB>>>,
+	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
