@@ -301,7 +301,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
 				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::Logs(filter.into()), take_weak!(self.client).chain_info().best_block_number);
+				let block_number = take_weak!(self.client).chain_info().best_block_number;
+				let id = polls.create_poll(PollFilter::Logs(block_number, filter.into()));
 				to_value(&U256::from(id))
 			})
 	}
@@ -310,7 +311,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::Block, take_weak!(self.client).chain_info().best_block_number);
+				let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
 				to_value(&U256::from(id))
 			},
 			_ => Err(Error::invalid_params())
@@ -321,11 +322,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
-				let best_block_number = take_weak!(self.client).chain_info().best_block_number;
 				let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
-
-				let id = polls.create_poll(PollFilter::PendingTransaction, best_block_number);
-				polls.update_transactions(&id, pending_transactions);
+				let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
 
 				to_value(&U256::from(id))
 			},
@@ -337,50 +335,47 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 		let client = take_weak!(self.client);
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
-				let info = self.polls.lock().unwrap().poll_info(&index.value()).cloned();
-				match info {
+				let mut polls = self.polls.lock().unwrap();
+				match polls.poll_mut(&index.value()) {
 					None => Ok(Value::Array(vec![] as Vec<Value>)),
-					Some(info) => match info.filter {
-						PollFilter::Block => {
+					Some(filter) => match *filter {
+						PollFilter::Block(ref mut block_number) => {
 							// + 1, cause we want to return hashes including current block hash.
 							let current_number = client.chain_info().best_block_number + 1;
-							let hashes = (info.block_number..current_number).into_iter()
+							let hashes = (*block_number..current_number).into_iter()
 								.map(BlockId::Number)
 								.filter_map(|id| client.block_hash(id))
 								.collect::<Vec<H256>>();
 
-							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
+							*block_number = current_number;
 
 							to_value(&hashes)
 						},
-						PollFilter::PendingTransaction => {
-							let poll_id = index.value();
-							let mut polls = self.polls.lock().unwrap();
-
+						PollFilter::PendingTransaction(ref mut previous_hashes) => {
 							let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
-							let previous_hashes = polls.update_transactions(&poll_id, current_hashes.clone()).unwrap();
-							polls.update_poll(&poll_id, client.chain_info().best_block_number);
-
 							// calculate diff
-							let previous_hashes_set = previous_hashes.into_iter().collect::<HashSet<H256>>();
+							let previous_hashes_set = previous_hashes.into_iter().map(|h| h.clone()).collect::<HashSet<H256>>();
 							let diff = current_hashes
-								.into_iter()
+								.iter()
 								.filter(|hash| previous_hashes_set.contains(&hash))
+								.cloned()
 								.collect::<Vec<H256>>();
+
+							*previous_hashes = current_hashes;
 
 							to_value(&diff)
 						},
-						PollFilter::Logs(mut filter) => {
-							filter.from_block = BlockId::Number(info.block_number);
+						PollFilter::Logs(ref mut block_number, ref mut filter) => {
+							filter.from_block = BlockId::Number(*block_number);
 							filter.to_block = BlockId::Latest;
-							let logs = client.logs(filter)
+							let logs = client.logs(filter.clone())
 								.into_iter()
 								.map(From::from)
 								.collect::<Vec<Log>>();
 
 							let current_number = client.chain_info().best_block_number;
-							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
 
+							*block_number = current_number;
 							to_value(&logs)
 						}
 					}
