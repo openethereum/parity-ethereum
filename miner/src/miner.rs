@@ -14,53 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::*;
-use std::sync::atomic::AtomicBool;
 use rayon::prelude::*;
+use std::sync::{Mutex, RwLock, Arc};
+use std::sync::atomic;
+use std::sync::atomic::AtomicBool;
+
+use util::{H256, U256, Address, Bytes};
 use ethcore::views::{BlockView};
 use ethcore::client::{BlockChainClient, BlockId};
-use ethcore::block::*;
-use ethcore::error::*;
+use ethcore::block::{ClosedBlock};
+use ethcore::error::{Error};
 use ethcore::transaction::SignedTransaction;
-use transaction_queue::{TransactionQueue};
-
-/// Miner client API
-pub trait MinerService : Send + Sync {
-
-	/// Returns miner's status.
-	fn status(&self) -> MinerStatus;
-
-	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
-		where T: Fn(&Address) -> U256;
-
-	/// Returns hashes of transactions currently in pending
-	fn pending_transactions_hashes(&self) -> Vec<H256>;
-
-	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset(&self, chain: &BlockChainClient);
-
-	/// called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], _retracted: &[H256]);
-
-	/// New chain head event. Restart mining operation.
-	fn prepare_sealing(&self, chain: &BlockChainClient);
-
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>>;
-
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
-}
-
-/// Mining status
-pub struct MinerStatus {
-	/// Number of transactions in queue with state `pending` (ready to be included in block)
-	pub transaction_queue_pending: usize,
-	/// Number of transactions in queue with state `future` (not yet ready to be included in block)
-	pub transaction_queue_future: usize,
-}
+use super::{MinerService, MinerStatus, TransactionQueue};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
@@ -79,7 +44,7 @@ impl Default for Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			sealing_enabled: AtomicBool::new(false),
 			sealing_block: Mutex::new(None),
-			author: RwLock::new(Address::new()),
+			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 		}
 	}

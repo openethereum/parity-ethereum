@@ -63,5 +63,49 @@ mod miner;
 mod transaction_queue;
 
 pub use transaction_queue::TransactionQueue;
-pub use miner::{Miner, MinerService};
+pub use miner::{Miner};
 
+use std::sync::Mutex;
+use util::{H256, U256, Address, Bytes};
+use ethcore::client::{BlockChainClient};
+use ethcore::block::{ClosedBlock};
+use ethcore::error::{Error};
+use ethcore::transaction::SignedTransaction;
+
+/// Miner client API
+pub trait MinerService : Send + Sync {
+
+	/// Returns miner's status.
+	fn status(&self) -> MinerStatus;
+
+	/// Imports transactions to transaction queue.
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
+		where T: Fn(&Address) -> U256;
+
+	/// Returns hashes of transactions currently in pending
+	fn pending_transactions_hashes(&self) -> Vec<H256>;
+
+	/// Removes all transactions from the queue and restart mining operation.
+	fn clear_and_reset(&self, chain: &BlockChainClient);
+
+	/// called when blocks are imported to chain, updates transactions queue.
+	fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], retracted: &[H256]);
+
+	/// New chain head event. Restart mining operation.
+	fn prepare_sealing(&self, chain: &BlockChainClient);
+
+	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
+	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>>;
+
+	/// Submit `seal` as a valid solution for the header of `pow_hash`.
+	/// Will check the seal, but not actually insert the block into the chain.
+	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
+}
+
+/// Mining status
+pub struct MinerStatus {
+	/// Number of transactions in queue with state `pending` (ready to be included in block)
+	pub transaction_queue_pending: usize,
+	/// Number of transactions in queue with state `future` (not yet ready to be included in block)
+	pub transaction_queue_future: usize,
+}

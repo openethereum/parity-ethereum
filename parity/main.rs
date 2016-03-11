@@ -17,8 +17,8 @@
 //! Ethcore client application.
 
 #![warn(missing_docs)]
-#![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
-#![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -38,7 +38,7 @@ extern crate rpassword;
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
-use std::net::{SocketAddr};
+use std::net::{SocketAddr, IpAddr};
 use std::env;
 use std::process::exit;
 use std::path::PathBuf;
@@ -55,6 +55,7 @@ use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
+use util::keys::store::*;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
@@ -72,28 +73,26 @@ Parity. Ethereum Client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
-  parity daemon <pid-file> [options] [ --no-bootstrap | <enode>... ]
+  parity daemon <pid-file> [options]
   parity account (new | list)
-  parity [options] [ --no-bootstrap | <enode>... ]
+  parity [options]
 
 Protocol Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
                            or olympic, frontier, homestead, mainnet, morden, or testnet [default: homestead].
-  --testnet                Equivalent to --chain testnet (geth-compatible).
-  --networkid INDEX        Override the network identifier from the chain we are on.
+  --db-path PATH           Specify the database & configuration directory path [default: $HOME/.parity]
   --pruning                Client should prune the state/storage trie.
-  -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
   --identity NAME          Specify your node's name.
 
 Networking Options:
-  --no-bootstrap           Don't bother trying to connect to any nodes initially.
-  --listen-address URL     Specify the IP/port on which to listen for peers [default: 0.0.0.0:30304].
-  --public-address URL     Specify the IP/port on which peers may connect.
-  --address URL            Equivalent to --listen-address URL --public-address URL.
+  --port PORT              Override the port on which the node should listen [default: 30303].
   --peers NUM              Try to maintain that many peers [default: 25].
+  --nat METHOD             Specify method to use for determining public address. Must be one of: any, none,
+                           upnp, extip:(IP) [default: any].
+  --bootnodes NODES        Specify additional comma-separated bootnodes.
+  --no-bootstrap           Don't bother trying to connect to standard bootnodes.
   --no-discovery           Disable new peer discovery.
-  --no-upnp                Disable trying to figure out the correct public adderss over UPnP.
   --node-key KEY           Specify node secret key, either as 64-character hex string or input to SHA3 operation.
 
 API and Console Options:
@@ -103,17 +102,12 @@ API and Console Options:
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited
                            list of API name. Possible name are web3, eth and net. [default: web3,eth,net].
-  --rpc                    Equivalent to --jsonrpc (geth-compatible).
-  --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST (geth-compatible).
-  --rpcport PORT           Equivalent to --jsonrpc-port PORT (geth-compatible).
-  --rpcapi APIS            Equivalent to --jsonrpc-apis APIS (geth-compatible).
-  --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL (geth-compatible).
 
 Sealing/Mining Options:
   --gasprice GAS           Minimal gas price a transaction must have to be accepted for mining [default: 20000000000].
   --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
                            from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
-  --extradata STRING       Specify a custom extra-data for authored blocks, no more than 32 characters.
+  --extra-data STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
 
 Memory Footprint Options:
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
@@ -121,6 +115,21 @@ Memory Footprint Options:
   --queue-max-size BYTES   Specify the maximum size of memory to use for block queue [default: 52428800].
   --cache MEGABYTES        Set total amount of cache to use for the entire system, mutually exclusive with
                            other cache options (geth-compatible).
+
+Geth-Compatibility Options
+  --datadir PATH           Equivalent to --db-path PATH.
+  --testnet                Equivalent to --chain testnet.
+  --networkid INDEX        Override the network identifier from the chain we are on.
+  --rpc                    Equivalent to --jsonrpc.
+  --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST.
+  --rpcport PORT           Equivalent to --jsonrpc-port PORT.
+  --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
+  --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
+  --maxpeers COUNT         Equivalent to --peers COUNT.
+  --nodekey KEY            Equivalent to --node-key KEY.
+  --nodiscover             Equivalent to --no-discovery.
+  --etherbase ADDRESS      Equivalent to --author ADDRESS.
+  --extradata STRING       Equivalent to --extra-data STRING.
 
 Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level.
@@ -135,22 +144,18 @@ struct Args {
 	cmd_new: bool,
 	cmd_list: bool,
 	arg_pid_file: String,
-	arg_enode: Vec<String>,
 	flag_chain: String,
-	flag_testnet: bool,
-	flag_datadir: String,
-	flag_networkid: Option<String>,
+	flag_db_path: String,
 	flag_identity: String,
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
+	flag_bootnodes: Option<String>,
 	flag_pruning: bool,
 	flag_no_bootstrap: bool,
-	flag_listen_address: String,
-	flag_public_address: Option<String>,
-	flag_address: Option<String>,
+	flag_port: u16,
 	flag_peers: usize,
 	flag_no_discovery: bool,
-	flag_no_upnp: bool,
+	flag_nat: String,
 	flag_node_key: Option<String>,
 	flag_cache_pref_size: usize,
 	flag_cache_max_size: usize,
@@ -160,16 +165,25 @@ struct Args {
 	flag_jsonrpc_port: u16,
 	flag_jsonrpc_cors: String,
 	flag_jsonrpc_apis: String,
+	flag_logging: Option<String>,
+	flag_version: bool,
+	// geth-compatibility...
+	flag_nodekey: Option<String>,
+	flag_nodiscover: bool,
+	flag_maxpeers: Option<usize>,
+	flag_gasprice: String,
+	flag_author: String,
+	flag_extra_data: Option<String>,
+	flag_datadir: Option<String>,
+	flag_extradata: Option<String>,
+	flag_etherbase: Option<String>,
 	flag_rpc: bool,
 	flag_rpcaddr: Option<String>,
 	flag_rpcport: Option<u16>,
 	flag_rpccorsdomain: Option<String>,
 	flag_rpcapi: Option<String>,
-	flag_logging: Option<String>,
-	flag_version: bool,
-	flag_gasprice: String,
-	flag_author: String,
-	flag_extra_data: Option<String>,
+	flag_testnet: bool,
+	flag_networkid: Option<String>,
 }
 
 fn setup_log(init: &Option<String>) {
@@ -199,7 +213,9 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, miner: Arc<Miner>, url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
+fn setup_rpc_server(
+	client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<AccountService>, miner: Arc<Miner>,
+	url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -208,7 +224,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, miner: Arc<Miner>, 
 			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
 			"net" => server.add_delegate(NetClient::new(&sync).to_delegate()),
 			"eth" => {
-				server.add_delegate(EthClient::new(&client, &sync, &miner).to_delegate());
+				server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 			}
 			_ => {
@@ -220,7 +236,9 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, miner: Arc<Miner>, 
 }
 
 #[cfg(not(feature = "rpc"))]
-fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) -> Option<Arc<PanicHandler>> {
+fn setup_rpc_server(
+	_client: Arc<Client>, _sync: Arc<EthSync>, _secret_store: Arc<AccountService>, _miner: Arc<Miner>,
+	_url: &str, _cors_domain: &str, _apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
 	None
 }
 
@@ -249,12 +267,14 @@ impl Configuration {
 	}
 
 	fn path(&self) -> String {
-		self.args.flag_datadir.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
+		let d = self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path);
+		d.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
 	fn author(&self) -> Address {
-		Address::from_str(&self.args.flag_author).unwrap_or_else(|_| {
-			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", self.args.flag_author)
+		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
+		Address::from_str(d).unwrap_or_else(|_| {
+			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", d)
 		})
 	}
 
@@ -265,7 +285,7 @@ impl Configuration {
 	}
 
 	fn extra_data(&self) -> Bytes {
-		match self.args.flag_extra_data {
+		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
 			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
 			None => version_data(),
 			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
@@ -299,53 +319,40 @@ impl Configuration {
 	}
 
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
-		if self.args.flag_no_bootstrap { Vec::new() } else {
-			match self.args.arg_enode.len() {
-				0 => spec.nodes().clone(),
-				_ => self.args.arg_enode.iter().map(|s| Self::normalize_enode(s).unwrap_or_else(|| {
+		let mut r = if self.args.flag_no_bootstrap { Vec::new() } else { spec.nodes().clone() };
+		if let Some(ref x) = self.args.flag_bootnodes {
+			r.extend(x.split(',').map(|s| {
+				Self::normalize_enode(s).unwrap_or_else(|| {
 					die!("{}: Invalid node address format given for a boot node.", s)
-				})).collect(),
-			}
+				})
+			}));
 		}
+		r
 	}
 
-	#[cfg_attr(all(nightly, feature="dev"), allow(useless_format))]
+	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
-		let mut listen_address = None;
-		let mut public_address = None;
-
-		if let Some(ref a) = self.args.flag_address {
-			public_address = Some(SocketAddr::from_str(a.as_ref()).unwrap_or_else(|_| {
-				die!("{}: Invalid listen/public address given with --address", a)
-			}));
-			listen_address = public_address;
-		}
-		if listen_address.is_none() {
-			listen_address = Some(SocketAddr::from_str(self.args.flag_listen_address.as_ref()).unwrap_or_else(|_| {
-				die!("{}: Invalid listen/public address given with --listen-address", self.args.flag_listen_address)
-			}));
-		}
-		if let Some(ref a) = self.args.flag_public_address {
-			if public_address.is_some() {
-				die!("Conflicting flags provided: --address and --public-address");
-			}
-			public_address = Some(SocketAddr::from_str(a.as_ref()).unwrap_or_else(|_| {
-				die!("{}: Invalid listen/public address given with --public-address", a)
-			}));
-		}
+		let listen_address = Some(SocketAddr::new(IpAddr::from_str("0.0.0.0").unwrap(), self.args.flag_port));
+		let public_address = if self.args.flag_nat.starts_with("extip:") {
+			let host = &self.args.flag_nat[6..];
+			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
+			Some(SocketAddr::new(host, self.args.flag_port))
+		} else {
+			listen_address
+		};
 		(listen_address, public_address)
 	}
 
 	fn net_settings(&self, spec: &Spec) -> NetworkConfiguration {
 		let mut ret = NetworkConfiguration::new();
-		ret.nat_enabled = !self.args.flag_no_upnp;
+		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
 		ret.boot_nodes = self.init_nodes(spec);
 		let (listen, public) = self.net_addresses();
 		ret.listen_address = listen;
 		ret.public_address = public;
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).unwrap_or_else(|_| s.sha3()));
-		ret.discovery_enabled = !self.args.flag_no_discovery;
-		ret.ideal_peers = self.args.flag_peers as u32;
+		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
+		ret.ideal_peers = self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32;
 		let mut net_path = PathBuf::from(&self.path());
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
@@ -372,9 +379,9 @@ impl Configuration {
 
 	fn sync_config(&self, spec: &Spec) -> SyncConfig {
 		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = self.args.flag_networkid.as_ref().map(|id| {
+		sync_config.network_id = self.args.flag_networkid.as_ref().map_or(spec.network_id(), |id| {
 			U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --networkid", id))
-		}).unwrap_or(spec.network_id());
+		});
 		sync_config
 	}
 
@@ -418,7 +425,7 @@ impl Configuration {
 		}
 		if self.args.cmd_list {
 			println!("Known addresses:");
-			for &(addr, _) in secret_store.accounts().unwrap().iter() {
+			for &(addr, _) in &secret_store.accounts().unwrap() {
 				println!("{:?}", addr);
 			}
 		}
@@ -451,6 +458,9 @@ impl Configuration {
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
 
+		// Secret Store
+		let account_service = Arc::new(AccountService::new());
+
 		// Setup rpc
 		if self.args.flag_jsonrpc || self.args.flag_rpc {
 			let url = format!("{}:{}",
@@ -461,8 +471,13 @@ impl Configuration {
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let server_handler = setup_rpc_server(service.client(), sync.clone(), miner.clone(), &url, cors, apis.split(',').collect());
-
+			let server_handler = setup_rpc_server(
+				service.client(),
+				sync.clone(),
+				account_service.clone(),
+				miner.clone(),
+				&url, cors, apis.split(',').collect()
+			);
 			if let Some(handler) = server_handler {
 				panic_handler.forward_from(handler.deref());
 			}

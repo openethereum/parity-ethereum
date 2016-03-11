@@ -14,21 +14,39 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore basic typenames.
+use ethsync::{SyncProvider, SyncStatus, SyncState};
 
-use util::*;
-
-/// Type for a 2048-bit log-bloom, as used by our blocks.
-pub type LogBloom = H2048;
-
-/// Constant 2048-bit datum for 0. Often used as a default.
-pub static ZERO_LOGBLOOM: LogBloom = H2048([0x00; 256]);
-
-#[cfg_attr(feature="dev", allow(enum_variant_names))]
-/// Semantic boolean for when a seal/signature is included.
-pub enum Seal {
-	/// The seal/signature is included.
-	With,
-	/// The seal/signature is not included.
-	Without,
+pub struct Config {
+	pub protocol_version: u8,
+	pub num_peers: usize,
 }
+
+pub struct TestSyncProvider {
+	status: SyncStatus,
+}
+
+impl TestSyncProvider {
+	pub fn new(config: Config) -> Self {
+		TestSyncProvider {
+			status: SyncStatus {
+				state: SyncState::NotSynced,
+				protocol_version: config.protocol_version,
+				start_block_number: 0,
+				last_imported_block_number: None,
+				highest_block_number: None,
+				blocks_total: 0,
+				blocks_received: 0,
+				num_peers: config.num_peers,
+				num_active_peers: 0,
+				mem_used: 0,
+			},
+		}
+	}
+}
+
+impl SyncProvider for TestSyncProvider {
+	fn status(&self) -> SyncStatus {
+		self.status.clone()
+	}
+}
+

@@ -14,12 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_version;
+pub use block_queue::BlockQueueConfig;
+pub use blockchain::BlockChainConfig;
 
-use rustc_version::{version_meta, Channel};
-
-fn main() {
-	if let Channel::Nightly = version_meta().channel {
-		println!("cargo:rustc-cfg=nightly");
-	}
+/// Client configuration. Includes configs for all sub-systems.
+#[derive(Debug, Default)]
+pub struct ClientConfig {
+	/// Block queue configuration.
+	pub queue: BlockQueueConfig,
+	/// Blockchain configuration.
+	pub blockchain: BlockChainConfig,
+	/// Prefer journal rather than archive.
+	pub prefer_journal: bool,
+	/// The name of the client instance.
+	pub name: String,
 }
