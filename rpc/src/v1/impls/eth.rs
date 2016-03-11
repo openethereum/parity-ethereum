@@ -53,7 +53,7 @@ impl<C, S, A, M> EthClient<C, S, A, M>
 		  A: AccountProvider,
 		  M: MinerService {
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<C>, sync: &Arc<S>, miner: &Arc<M>) -> Self {
+	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>) -> Self {
 		EthClient {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
@@ -189,7 +189,7 @@ impl<C, S, A, M> Eth for EthClient<C, S, A, M>
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&take_weak!(self.sync).status().transaction_queue_pending),
+				BlockNumber::Pending => to_value(&take_weak!(self.miner).status().transaction_queue_pending),
 				_ => match take_weak!(self.client).block(block_number.into()) {
 					Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
 					None => Ok(Value::Null)
@@ -292,12 +292,20 @@ impl<C, S, A, M> Eth for EthClient<C, S, A, M>
 				let accounts = take_weak!(self.accounts);
 				match accounts.account_secret(&transaction_request.from) {
 					Ok(secret) => {
-						let sync = take_weak!(self.sync);
+						let miner = take_weak!(self.miner);
+						let client = take_weak!(self.client);
 						let (transaction, _) = transaction_request.to_eth();
 						let signed_transaction = transaction.sign(&secret);
 						let hash = signed_transaction.hash();
-						sync.insert_transaction(signed_transaction);
-						to_value(&hash)
+
+						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| client.nonce(a));
+						match import {
+							Ok(_) => to_value(&hash),
+							Err(e) => {
+								warn!("Error sending transaction: {:?}", e);
+								to_value(&U256::zero())
+							}
+						}
 					},
 					Err(_) => { to_value(&U256::zero()) }
 				}

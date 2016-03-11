@@ -171,6 +171,7 @@ struct Args {
 	flag_nodekey: Option<String>,
 	flag_nodiscover: bool,
 	flag_maxpeers: Option<usize>,
+	flag_gasprice: String,
 	flag_author: String,
 	flag_extra_data: Option<String>,
 	flag_datadir: Option<String>,
