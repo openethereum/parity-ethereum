@@ -115,7 +115,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	verifier: PhantomData<V>,
 }
 
-const HISTORY: u64 = 1000;
+const HISTORY: u64 = 1200;
 const CLIENT_DB_VER_STR: &'static str = "5.1";
 
 impl Client<CanonVerifier> {
