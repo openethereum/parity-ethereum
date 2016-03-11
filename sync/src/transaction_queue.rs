@@ -684,8 +684,8 @@ mod test {
 		let mut txq = TransactionQueue::new();
 
 		let (tx, tx2) = new_txs(U256::from(1));
-		txq.add(tx.clone(), &prev_nonce);
-		txq.add(tx2.clone(), &prev_nonce);
+		txq.add(tx.clone(), &prev_nonce).unwrap();
+		txq.add(tx2.clone(), &prev_nonce).unwrap();
 		assert_eq!(txq.status().future, 2);
 
 		// when

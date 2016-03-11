@@ -412,6 +412,7 @@ impl BlockQueue {
 		}
 	}
 
+	/// Optimise memory footprint of the heap fields.
 	pub fn collect_garbage(&self) {
 		{
 			self.verification.unverified.lock().unwrap().shrink_to_fit();

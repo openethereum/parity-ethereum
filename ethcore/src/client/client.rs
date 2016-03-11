@@ -101,7 +101,7 @@ impl ClientReport {
 pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
 	engine: Arc<Box<Engine>>,
-	state_db: Mutex<JournalDB>,
+	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
@@ -131,7 +131,8 @@ impl<V> Client<V> where V: Verifier {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
-		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, if config.prefer_journal { "pruned" } else { "archive" }));
+		// version here is a bit useless now, since it's controlled only be the pruning algo.
+		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, config.pruning));
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, path));
@@ -139,8 +140,10 @@ impl<V> Client<V> where V: Verifier {
 		state_path.push("state");
 
 		let engine = Arc::new(try!(spec.to_engine()));
-		let mut state_db = JournalDB::from_prefs(state_path.to_str().unwrap(), config.prefer_journal);
-		if state_db.is_empty() && engine.spec().ensure_db_good(&mut state_db) {
+		let state_path_str = state_path.to_str().unwrap();
+		let mut state_db = journaldb::new(state_path_str, config.pruning);
+
+		if state_db.is_empty() && engine.spec().ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
 
@@ -212,7 +215,7 @@ impl<V> Client<V> where V: Verifier {
 		// Enact Verified Block
 		let parent = chain_has_parent.unwrap();
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
-		let db = self.state_db.lock().unwrap().clone();
+		let db = self.state_db.lock().unwrap().spawn();
 
 		let enact_result = enact_verified(&block, engine, db, &parent, last_hashes);
 		if let Err(e) = enact_result {
@@ -311,7 +314,7 @@ impl<V> Client<V> where V: Verifier {
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
-		State::from_existing(self.state_db.lock().unwrap().clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+		State::from_existing(self.state_db.lock().unwrap().spawn(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
 	}
 
 	/// Get info on the cache.
@@ -380,7 +383,7 @@ impl<V> Client<V> where V: Verifier {
 		let h = self.chain.best_block_hash();
 		let mut b = OpenBlock::new(
 			self.engine.deref().deref(),
-			self.state_db.lock().unwrap().clone(),
+			self.state_db.lock().unwrap().spawn(),
 			match self.chain.block_header(&h) { Some(ref x) => x, None => {return;} },
 			self.build_last_hashes(h.clone()),
 			self.author(),
