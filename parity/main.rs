@@ -338,7 +338,7 @@ impl Configuration {
 			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
 			Some(SocketAddr::new(host, self.args.flag_port))
 		} else {
-			listen_address.clone()
+			listen_address
 		};
 		(listen_address, public_address)
 	}
@@ -379,9 +379,9 @@ impl Configuration {
 
 	fn sync_config(&self, spec: &Spec) -> SyncConfig {
 		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = self.args.flag_networkid.as_ref().map(|id| {
+		sync_config.network_id = self.args.flag_networkid.as_ref().map_or(spec.network_id(), |id| {
 			U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --networkid", id))
-		}).unwrap_or(spec.network_id());
+		});
 		sync_config
 	}
 
@@ -425,7 +425,7 @@ impl Configuration {
 		}
 		if self.args.cmd_list {
 			println!("Known addresses:");
-			for &(addr, _) in secret_store.accounts().unwrap().iter() {
+			for &(addr, _) in &secret_store.accounts().unwrap() {
 				println!("{:?}", addr);
 			}
 		}
