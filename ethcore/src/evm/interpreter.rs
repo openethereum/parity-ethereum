@@ -243,7 +243,7 @@ struct CodeReader<'a> {
 	code: &'a Bytes
 }
 
-#[cfg_attr(all(nightly, feature="dev"), allow(len_without_is_empty))]
+#[cfg_attr(feature="dev", allow(len_without_is_empty))]
 impl<'a> CodeReader<'a> {
 	/// Get `no_of_bytes` from code and convert to U256. Move PC
 	fn read(&mut self, no_of_bytes: usize) -> U256 {
@@ -258,7 +258,7 @@ impl<'a> CodeReader<'a> {
 	}
 }
 
-#[cfg_attr(all(nightly, feature="dev"), allow(enum_variant_names))]
+#[cfg_attr(feature="dev", allow(enum_variant_names))]
 enum InstructionCost {
 	Gas(U256),
 	GasMem(U256, U256),
@@ -347,7 +347,7 @@ impl evm::Evm for Interpreter {
 }
 
 impl Interpreter {
-	#[cfg_attr(all(nightly, feature="dev"), allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn get_gas_cost_mem(&self,
 						ext: &evm::Ext,
 						instruction: Instruction,
