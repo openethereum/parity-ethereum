@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::transaction::SignedTransaction;
 use ethsync::{SyncProvider, SyncStatus, SyncState};
 
 pub struct Config {
@@ -40,7 +39,6 @@ impl TestSyncProvider {
 				num_peers: config.num_peers,
 				num_active_peers: 0,
 				mem_used: 0,
-				transaction_queue_pending: 0,
 			},
 		}
 	}
@@ -49,10 +47,6 @@ impl TestSyncProvider {
 impl SyncProvider for TestSyncProvider {
 	fn status(&self) -> SyncStatus {
 		self.status.clone()
-	}
-
-	fn insert_transaction(&self, _transaction: SignedTransaction) {
-		unimplemented!()
 	}
 }
 
