@@ -159,6 +159,10 @@ impl JournalDB for ArchiveDB {
 		try!(self.backing.write(batch));
 		Ok((inserts + deletes) as u32)
 	}
+
+	fn state(&self, id: &H256) -> Option<Bytes> {
+		self.backing.get_by_prefix(&id.bytes()[0..12]).and_then(|b| Some(b.to_vec()))
+	}
 }
 
 #[cfg(test)]
@@ -384,5 +388,24 @@ mod tests {
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
 		}
+	}
+
+	#[test]
+	fn returns_state() {
+		let temp = ::devtools::RandomTempPath::new();
+
+		let key = {
+			let mut jdb = ArchiveDB::new(temp.as_str());
+			let key = jdb.insert(b"foo");
+			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			key
+		};
+
+		{
+			let jdb = ArchiveDB::new(temp.as_str());
+			let state = jdb.state(&key);
+			assert!(state.is_some());
+		}
+
 	}
 }
