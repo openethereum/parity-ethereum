@@ -24,6 +24,22 @@ use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 
+/// A HashDB which can manage a short-term journal potentially containing many forks of mutually
+/// exclusive actions.
+pub trait JournalDB : HashDB {
+	/// Return a copy of ourself, in a box.
+	fn spawn(&self) -> Box<JournalDB + Send>;
+
+	/// Returns heap memory size used
+	fn mem_used(&self) -> usize;
+
+	/// Check if this database has any commits
+	fn is_empty(&self) -> bool;
+
+	/// Commit all recent insert operations.
+	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
+}
+
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
 ///
@@ -31,20 +47,10 @@ use std::env;
 /// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
-pub struct JournalDB {
+pub struct OptionOneDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
 	counters: Option<Arc<RwLock<HashMap<H256, i32>>>>,
-}
-
-impl Clone for JournalDB {
-	fn clone(&self) -> JournalDB {
-		JournalDB {
-			overlay: MemoryDB::new(),
-			backing: self.backing.clone(),
-			counters: self.counters.clone(),
-		}
-	}
 }
 
 // all keys must be at least 12 bytes
@@ -56,14 +62,14 @@ const DB_VERSION_NO_JOURNAL : u32 = 3 + 256;
 
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
-impl JournalDB {
+impl OptionOneDB {
 	/// Create a new instance from file
-	pub fn new(path: &str) -> JournalDB {
+	pub fn new(path: &str) -> OptionOneDB {
 		Self::from_prefs(path, true)
 	}
 
 	/// Create a new instance from file
-	pub fn from_prefs(path: &str, prefer_journal: bool) -> JournalDB {
+	pub fn from_prefs(path: &str, prefer_journal: bool) -> OptionOneDB {
 		let opts = DatabaseConfig {
 			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
 		};
@@ -83,11 +89,11 @@ impl JournalDB {
 		}
 
 		let counters = if with_journal {
-			Some(Arc::new(RwLock::new(JournalDB::read_counters(&backing))))
+			Some(Arc::new(RwLock::new(OptionOneDB::read_counters(&backing))))
 		} else {
 			None
 		};
-		JournalDB {
+		OptionOneDB {
 			overlay: MemoryDB::new(),
 			backing: Arc::new(backing),
 			counters: counters,
@@ -96,25 +102,10 @@ impl JournalDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	pub fn new_temp() -> JournalDB {
+	fn new_temp() -> OptionOneDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		Self::new(dir.to_str().unwrap())
-	}
-
-	/// Check if this database has any commits
-	pub fn is_empty(&self) -> bool {
-		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
-	}
-
-	/// Commit all recent insert operations.
-	pub fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		let have_counters = self.counters.is_some();
-		if have_counters {
-			self.commit_with_counters(now, id, end)
-		} else {
-			self.commit_without_counters()
-		}
 	}
 
 	/// Drain the overlay and place it into a batch for the DB.
@@ -339,11 +330,11 @@ impl JournalDB {
 				try!(batch.delete(&last));
 				index += 1;
 			}
-			trace!("JournalDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
+			trace!("OptionOneDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
 		}
 
 		try!(self.backing.write(batch));
-//		trace!("JournalDB::commit() deleted {} nodes", deletes);
+//		trace!("OptionOneDB::commit() deleted {} nodes", deletes);
 		Ok(0)
 	}
 
@@ -379,17 +370,9 @@ impl JournalDB {
 		trace!("Recovered {} counters", counters.len());
 		counters
 	}
+}
 
-	/// Returns heap memory size used
-	pub fn mem_used(&self) -> usize {
-		self.overlay.mem_used() + match self.counters {
-			Some(ref c) => c.read().unwrap().heap_size_of_children(),
-			None => 0
-		}
- 	}
- }
-
-impl HashDB for JournalDB {
+impl HashDB for OptionOneDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
 		for (key, _) in self.backing.iter() {
@@ -434,6 +417,36 @@ impl HashDB for JournalDB {
 	}
 }
 
+impl JournalDB for OptionOneDB {
+	fn spawn(&self) -> Box<JournalDB + Send> {
+		Box::new(OptionOneDB {
+			overlay: MemoryDB::new(),
+			backing: self.backing.clone(),
+			counters: self.counters.clone(),
+		})
+	}
+
+	fn mem_used(&self) -> usize {
+		self.overlay.mem_used() + match self.counters {
+			Some(ref c) => c.read().unwrap().heap_size_of_children(),
+			None => 0
+		}
+ 	}
+
+	fn is_empty(&self) -> bool {
+		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
+	}
+
+	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		let have_counters = self.counters.is_some();
+		if have_counters {
+			self.commit_with_counters(now, id, end)
+		} else {
+			self.commit_without_counters()
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use common::*;
@@ -443,7 +456,7 @@ mod tests {
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 
 		let x = jdb.insert(b"X");
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
@@ -465,7 +478,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.exists(&h));
@@ -483,7 +496,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -521,7 +534,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -549,7 +562,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -568,7 +581,7 @@ mod tests {
 	#[test]
 	fn fork_same_key() {
 		// history is 1
-		let mut jdb = JournalDB::new_temp();
+		let mut jdb = OptionOneDB::new_temp();
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 
 		let foo = jdb.insert(b"foo");
@@ -590,7 +603,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -599,13 +612,13 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 		}
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			assert!(jdb.exists(&foo));
 			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -619,7 +632,7 @@ mod tests {
 		dir.push(H32::random().hex());
 
 		let foo = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -633,7 +646,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
@@ -648,7 +661,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -663,7 +676,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalDB::new(dir.to_str().unwrap());
+			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
 			assert!(!jdb.exists(&baz));
