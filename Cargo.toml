@@ -44,3 +44,7 @@ travis-nightly = ["ethcore/json-tests", "dev-clippy", "dev"]
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
+
+[profile.release]
+debug = false
+lto = false

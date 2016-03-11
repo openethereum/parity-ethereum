@@ -100,10 +100,10 @@ impl ClientReport {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<V = CanonVerifier> where V: Verifier {
-	chain: Arc<RwLock<BlockChain>>,
+	chain: Arc<BlockChain>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<JournalDB>,
-	block_queue: RwLock<BlockQueue>,
+	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
@@ -136,7 +136,7 @@ impl<V> Client<V> where V: Verifier {
 		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, if config.prefer_journal { "pruned" } else { "archive" }));
 		let path = dir.as_path();
 		let gb = spec.genesis_block();
-		let chain = Arc::new(RwLock::new(BlockChain::new(config.blockchain, &gb, path)));
+		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, path));
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
 
@@ -157,7 +157,7 @@ impl<V> Client<V> where V: Verifier {
 			chain: chain,
 			engine: engine,
 			state_db: Mutex::new(state_db),
-			block_queue: RwLock::new(block_queue),
+			block_queue: block_queue,
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
@@ -172,16 +172,15 @@ impl<V> Client<V> where V: Verifier {
 
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
-		self.block_queue.write().unwrap().flush();
+		self.block_queue.flush();
 	}
 
 	fn build_last_hashes(&self, parent_hash: H256) -> LastHashes {
 		let mut last_hashes = LastHashes::new();
 		last_hashes.resize(256, H256::new());
 		last_hashes[0] = parent_hash;
-		let chain = self.chain.read().unwrap();
 		for i in 0..255 {
-			match chain.block_details(&last_hashes[i]) {
+			match self.chain.block_details(&last_hashes[i]) {
 				Some(details) => {
 					last_hashes[i + 1] = details.parent.clone();
 				},
@@ -201,21 +200,21 @@ impl<V> Client<V> where V: Verifier {
 		let header = &block.header;
 
 		// Check the block isn't so old we won't be able to enact it.
-		let best_block_number = self.chain.read().unwrap().best_block_number();
+		let best_block_number = self.chain.best_block_number();
 		if best_block_number >= HISTORY && header.number() <= best_block_number - HISTORY {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
 			return Err(());
 		}
 
 		// Verify Block Family
-		let verify_family_result = V::verify_block_family(&header, &block.bytes, engine, self.chain.read().unwrap().deref());
+		let verify_family_result = V::verify_block_family(&header, &block.bytes, engine, self.chain.deref());
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		};
 
 		// Check if Parent is in chain
-		let chain_has_parent = self.chain.read().unwrap().block_header(&header.parent_hash);
+		let chain_has_parent = self.chain.block_header(&header.parent_hash);
 		if let None = chain_has_parent {
 			warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash);
 			return Err(());
@@ -250,7 +249,7 @@ impl<V> Client<V> where V: Verifier {
 		let mut bad_blocks = HashSet::new();
 
 		let _import_lock = self.import_lock.lock();
-		let blocks = self.block_queue.write().unwrap().drain(max_blocks_to_import);
+		let blocks = self.block_queue.drain(max_blocks_to_import);
 
 		let original_best = self.chain_info().best_block_hash;
 
@@ -271,8 +270,7 @@ impl<V> Client<V> where V: Verifier {
 			// Are we committing an era?
 			let ancient = if header.number() >= HISTORY {
 				let n = header.number() - HISTORY;
-				let chain = self.chain.read().unwrap();
-				Some((n, chain.block_hash(n).unwrap()))
+				Some((n, self.chain.block_hash(n).unwrap()))
 			} else {
 				None
 			};
@@ -286,8 +284,7 @@ impl<V> Client<V> where V: Verifier {
 
 			// And update the chain after commit to prevent race conditions
 			// (when something is in chain but you are not able to fetch details)
-			self.chain.write().unwrap()
-				.insert_block(&block.bytes, receipts);
+			self.chain.insert_block(&block.bytes, receipts);
 
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
@@ -297,18 +294,16 @@ impl<V> Client<V> where V: Verifier {
 		let bad_blocks = bad_blocks.into_iter().collect::<Vec<H256>>();
 
 		{
-			let mut block_queue = self.block_queue.write().unwrap();
 			if !bad_blocks.is_empty() {
-				block_queue.mark_as_bad(&bad_blocks);
+				self.block_queue.mark_as_bad(&bad_blocks);
 			}
 			if !good_blocks.is_empty() {
-				block_queue.mark_as_good(&good_blocks);
+				self.block_queue.mark_as_good(&good_blocks);
 			}
 		}
 
 		{
-			let block_queue = self.block_queue.read().unwrap();
-			if !good_blocks.is_empty() && block_queue.queue_info().is_empty() {
+			if !good_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
 					good: good_blocks,
 					bad: bad_blocks,
@@ -332,7 +327,7 @@ impl<V> Client<V> where V: Verifier {
 
 	/// Get info on the cache.
 	pub fn blockchain_cache_info(&self) -> BlockChainCacheSize {
-		self.chain.read().unwrap().cache_size()
+		self.chain.cache_size()
 	}
 
 	/// Get the report.
@@ -344,13 +339,13 @@ impl<V> Client<V> where V: Verifier {
 
 	/// Tick the client.
 	pub fn tick(&self) {
-		self.chain.read().unwrap().collect_garbage();
-		self.block_queue.read().unwrap().collect_garbage();
+		self.chain.collect_garbage();
+		self.block_queue.collect_garbage();
 	}
 
 	/// Set up the cache behaviour.
 	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
-		self.chain.write().unwrap().configure_cache(pref_cache_size, max_cache_size);
+		self.chain.configure_cache(pref_cache_size, max_cache_size);
 	}
 
 	fn block_hash(chain: &BlockChain, id: BlockId) -> Option<H256> {
@@ -365,9 +360,9 @@ impl<V> Client<V> where V: Verifier {
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		match id {
 			BlockId::Number(number) => Some(number),
-			BlockId::Hash(ref hash) => self.chain.read().unwrap().block_number(hash),
+			BlockId::Hash(ref hash) => self.chain.block_number(hash),
 			BlockId::Earliest => Some(0),
-			BlockId::Latest => Some(self.chain.read().unwrap().best_block_number())
+			BlockId::Latest => Some(self.chain.best_block_number())
 		}
 	}
 
@@ -393,17 +388,17 @@ impl<V> Client<V> where V: Verifier {
 
 	/// New chain head event. Restart mining operation.
 	pub fn prepare_sealing(&self) {
-		let h = self.chain.read().unwrap().best_block_hash();
+		let h = self.chain.best_block_hash();
 		let mut b = OpenBlock::new(
 			self.engine.deref().deref(),
 			self.state_db.lock().unwrap().clone(),
-			match self.chain.read().unwrap().block_header(&h) { Some(ref x) => x, None => {return;} },
+			match self.chain.block_header(&h) { Some(ref x) => x, None => {return;} },
 			self.build_last_hashes(h.clone()),
 			self.author(),
 			self.extra_data()
 		);
 
-		self.chain.read().unwrap().find_uncle_headers(&h, self.engine.deref().deref().maximum_uncle_age()).unwrap().into_iter().take(self.engine.deref().deref().maximum_uncle_count()).foreach(|h| { b.push_uncle(h).unwrap(); });
+		self.chain.find_uncle_headers(&h, self.engine.deref().deref().maximum_uncle_age()).unwrap().into_iter().take(self.engine.deref().deref().maximum_uncle_count()).foreach(|h| { b.push_uncle(h).unwrap(); });
 
 		// TODO: push transactions.
 
@@ -417,14 +412,12 @@ impl<V> Client<V> where V: Verifier {
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
-		let chain = self.chain.read().unwrap();
-		Self::block_hash(&chain, id).and_then(|hash| chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
+		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<Bytes> {
-		let chain = self.chain.read().unwrap();
-		Self::block_hash(&chain, id).and_then(|hash| {
-			chain.block(&hash).map(|bytes| {
+		Self::block_hash(&self.chain, id).and_then(|hash| {
+			self.chain.block(&hash).map(|bytes| {
 				let rlp = Rlp::new(&bytes);
 				let mut body = RlpStream::new_list(2);
 				body.append_raw(rlp.at(1).as_raw(), 1);
@@ -435,24 +428,21 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn block(&self, id: BlockId) -> Option<Bytes> {
-		let chain = self.chain.read().unwrap();
-		Self::block_hash(&chain, id).and_then(|hash| {
-			chain.block(&hash)
+		Self::block_hash(&self.chain, id).and_then(|hash| {
+			self.chain.block(&hash)
 		})
 	}
 
 	fn block_status(&self, id: BlockId) -> BlockStatus {
-		let chain = self.chain.read().unwrap();
-		match Self::block_hash(&chain, id) {
-			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
-			Some(hash) => self.block_queue.read().unwrap().block_status(&hash),
+		match Self::block_hash(&self.chain, id) {
+			Some(ref hash) if self.chain.is_known(hash) => BlockStatus::InChain,
+			Some(hash) => self.block_queue.block_status(&hash),
 			None => BlockStatus::Unknown
 		}
 	}
 
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
-		let chain = self.chain.read().unwrap();
-		Self::block_hash(&chain, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
+		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
 	fn nonce(&self, address: &Address) -> U256 {
@@ -460,8 +450,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
-		let chain = self.chain.read().unwrap();
-		Self::block_hash(&chain, id)
+		Self::block_hash(&self.chain, id)
 	}
 
 	fn code(&self, address: &Address) -> Option<Bytes> {
@@ -469,20 +458,18 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
-		let chain = self.chain.read().unwrap();
 		match id {
-			TransactionId::Hash(ref hash) => chain.transaction_address(hash),
-			TransactionId::Location(id, index) => Self::block_hash(&chain, id).map(|hash| TransactionAddress {
+			TransactionId::Hash(ref hash) => self.chain.transaction_address(hash),
+			TransactionId::Location(id, index) => Self::block_hash(&self.chain, id).map(|hash| TransactionAddress {
 				block_hash: hash,
 				index: index
 			})
-		}.and_then(|address| chain.transaction(&address))
+		}.and_then(|address| self.chain.transaction(&address))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
-		let chain = self.chain.read().unwrap();
-		match chain.is_known(from) && chain.is_known(to) {
-			true => Some(chain.tree_route(from.clone(), to.clone())),
+		match self.chain.is_known(from) && self.chain.is_known(to) {
+			true => Some(self.chain.tree_route(from.clone(), to.clone())),
 			false => None
 		}
 	}
@@ -498,38 +485,37 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	fn import_block(&self, bytes: Bytes) -> ImportResult {
 		{
 			let header = BlockView::new(&bytes).header_view();
-			if self.chain.read().unwrap().is_known(&header.sha3()) {
+			if self.chain.is_known(&header.sha3()) {
 				return Err(x!(ImportError::AlreadyInChain));
 			}
 			if self.block_status(BlockId::Hash(header.parent_hash())) == BlockStatus::Unknown {
 				return Err(x!(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
-		self.block_queue.write().unwrap().import_block(bytes)
+		self.block_queue.import_block(bytes)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
-		self.block_queue.read().unwrap().queue_info()
+		self.block_queue.queue_info()
 	}
 
 	fn clear_queue(&self) {
-		self.block_queue.write().unwrap().clear();
+		self.block_queue.clear();
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
-		let chain = self.chain.read().unwrap();
 		BlockChainInfo {
-			total_difficulty: chain.best_block_total_difficulty(),
-			pending_total_difficulty: chain.best_block_total_difficulty(),
-			genesis_hash: chain.genesis_hash(),
-			best_block_hash: chain.best_block_hash(),
-			best_block_number: From::from(chain.best_block_number())
+			total_difficulty: self.chain.best_block_total_difficulty(),
+			pending_total_difficulty: self.chain.best_block_total_difficulty(),
+			genesis_hash: self.chain.genesis_hash(),
+			best_block_hash: self.chain.best_block_hash(),
+			best_block_number: From::from(self.chain.best_block_number())
 		}
 	}
 
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
 		match (self.block_number(from_block), self.block_number(to_block)) {
-			(Some(from), Some(to)) => Some(self.chain.read().unwrap().blocks_with_bloom(bloom, from, to)),
+			(Some(from), Some(to)) => Some(self.chain.blocks_with_bloom(bloom, from, to)),
 			_ => None
 		}
 	}
@@ -548,9 +534,9 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		blocks.sort();
 
 		blocks.into_iter()
-			.filter_map(|number| self.chain.read().unwrap().block_hash(number).map(|hash| (number, hash)))
-			.filter_map(|(number, hash)| self.chain.read().unwrap().block_receipts(&hash).map(|r| (number, hash, r.receipts)))
-			.filter_map(|(number, hash, receipts)| self.chain.read().unwrap().block(&hash).map(|ref b| (number, hash, receipts, BlockView::new(b).transaction_hashes())))
+			.filter_map(|number| self.chain.block_hash(number).map(|hash| (number, hash)))
+			.filter_map(|(number, hash)| self.chain.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
+			.filter_map(|(number, hash, receipts)| self.chain.block(&hash).map(|ref b| (number, hash, receipts, BlockView::new(b).transaction_hashes())))
 			.flat_map(|(number, hash, receipts, hashes)| {
 				let mut log_index = 0;
 				receipts.into_iter()
