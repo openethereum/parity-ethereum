@@ -62,5 +62,6 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
+pub use transaction_queue::TransactionQueue;
 pub use miner::{Miner, MinerService};
 
