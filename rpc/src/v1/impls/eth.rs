@@ -29,6 +29,7 @@ use ethcore::block::{IsBlock};
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
+use ethcore::transaction::Transaction as EthTransaction;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, OptionalValue, Index, Filter, Log};
 use v1::helpers::{PollFilter, PollManager};
@@ -294,7 +295,8 @@ impl<C, S, A, M> Eth for EthClient<C, S, A, M>
 					Ok(secret) => {
 						let miner = take_weak!(self.miner);
 						let client = take_weak!(self.client);
-						let (transaction, _) = transaction_request.to_eth();
+
+						let transaction: EthTransaction = transaction_request.into();
 						let signed_transaction = transaction.sign(&secret);
 						let hash = signed_transaction.hash();
 
