@@ -305,7 +305,7 @@ macro_rules! impl_hash {
 		}
 
 		impl Copy for $from {}
-		#[cfg_attr(all(nightly, feature="dev"), allow(expl_impl_clone_on_copy))]
+		#[cfg_attr(feature="dev", allow(expl_impl_clone_on_copy))]
 		impl Clone for $from {
 			fn clone(&self) -> $from {
 				unsafe {
@@ -637,7 +637,7 @@ mod tests {
 	use std::str::FromStr;
 
 	#[test]
-	#[cfg_attr(all(nightly, feature="dev"), allow(eq_op))]
+	#[cfg_attr(feature="dev", allow(eq_op))]
 	fn hash() {
 		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
