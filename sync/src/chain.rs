@@ -660,10 +660,7 @@ impl ChainSync {
 		let mut needed_numbers: Vec<BlockNumber> = Vec::new();
 
 		if self.have_common_block && !self.headers.is_empty() && self.headers.range_iter().next().unwrap().0 == self.current_base_block() + 1 {
-			for (start, ref items) in self.headers.range_iter() {
-				if needed_bodies.len() >= MAX_BODIES_TO_REQUEST {
-					break;
-				}
+			if let Some((start, ref items)) = self.headers.range_iter().next() {
 				let mut index: BlockNumber = 0;
 				while index != items.len() as BlockNumber && needed_bodies.len() < MAX_BODIES_TO_REQUEST {
 					let block = start + index;
@@ -848,18 +845,8 @@ impl ChainSync {
 	/// Remove downloaded bocks/headers starting from specified number.
 	/// Used to recover from an error and re-download parts of the chain detected as bad.
 	fn remove_downloaded_blocks(&mut self, start: BlockNumber) {
-		for n in self.headers.get_tail(&start) {
-			if let Some(ref header_data) = self.headers.find_item(&n) {
-				let header_to_delete = HeaderView::new(&header_data.data);
-				let header_id = HeaderId {
-					transactions_root: header_to_delete.transactions_root(),
-					uncles: header_to_delete.uncles_hash()
-				};
-				self.header_ids.remove(&header_id);
-			}
-			self.downloading_bodies.remove(&n);
-			self.downloading_headers.remove(&n);
-		}
+		self.downloading_bodies.clear();
+		self.downloading_headers.clear();
 		self.headers.remove_from(&start);
 		self.bodies.remove_from(&start);
 	}
