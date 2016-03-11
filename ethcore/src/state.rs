@@ -45,7 +45,7 @@ impl State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
-			let _ = SecTrieDBMut::new(db.deref_mut(), &mut root);
+			let _ = SecTrieDBMut::new(db.as_hashdb_mut(), &mut root);
 		}
 
 		State {
