@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Weak, Mutex, RwLock};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
@@ -316,27 +316,39 @@ impl<C, S, A, M> Eth for EthClient<C, S, A, M>
 }
 
 /// Eth filter rpc implementation.
-pub struct EthFilterClient<C> where C: BlockChainClient {
+pub struct EthFilterClient<C, M>
+	where C: BlockChainClient,
+		  M: MinerService {
+
 	client: Weak<C>,
+	miner: Weak<M>,
 	polls: Mutex<PollManager<PollFilter>>,
 }
 
-impl<C> EthFilterClient<C> where C: BlockChainClient {
+impl<C, M> EthFilterClient<C, M>
+	where C: BlockChainClient,
+		  M: MinerService {
+
 	/// Creates new Eth filter client.
-	pub fn new(client: &Arc<C>) -> Self {
+	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
 		EthFilterClient {
 			client: Arc::downgrade(client),
-			polls: Mutex::new(PollManager::new())
+			miner: Arc::downgrade(miner),
+			polls: Mutex::new(PollManager::new()),
 		}
 	}
 }
 
-impl<C> EthFilter for EthFilterClient<C> where C: BlockChainClient + 'static {
+impl<C, M> EthFilter for EthFilterClient<C, M>
+	where C: BlockChainClient + 'static,
+		  M: MinerService + 'static {
+
 	fn new_filter(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
 				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::Logs(filter.into()), take_weak!(self.client).chain_info().best_block_number);
+				let block_number = take_weak!(self.client).chain_info().best_block_number;
+				let id = polls.create_poll(PollFilter::Logs(block_number, filter.into()));
 				to_value(&U256::from(id))
 			})
 	}
@@ -345,7 +357,7 @@ impl<C> EthFilter for EthFilterClient<C> where C: BlockChainClient + 'static {
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::Block, take_weak!(self.client).chain_info().best_block_number);
+				let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
 				to_value(&U256::from(id))
 			},
 			_ => Err(Error::invalid_params())
@@ -356,7 +368,9 @@ impl<C> EthFilter for EthFilterClient<C> where C: BlockChainClient + 'static {
 		match params {
 			Params::None => {
 				let mut polls = self.polls.lock().unwrap();
-				let id = polls.create_poll(PollFilter::PendingTransaction, take_weak!(self.client).chain_info().best_block_number);
+				let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
+				let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
+
 				to_value(&U256::from(id))
 			},
 			_ => Err(Error::invalid_params())
@@ -367,37 +381,47 @@ impl<C> EthFilter for EthFilterClient<C> where C: BlockChainClient + 'static {
 		let client = take_weak!(self.client);
 		from_params::<(Index,)>(params)
 			.and_then(|(index,)| {
-				let info = self.polls.lock().unwrap().poll_info(&index.value()).cloned();
-				match info {
+				let mut polls = self.polls.lock().unwrap();
+				match polls.poll_mut(&index.value()) {
 					None => Ok(Value::Array(vec![] as Vec<Value>)),
-					Some(info) => match info.filter {
-						PollFilter::Block => {
+					Some(filter) => match *filter {
+						PollFilter::Block(ref mut block_number) => {
 							// + 1, cause we want to return hashes including current block hash.
 							let current_number = client.chain_info().best_block_number + 1;
-							let hashes = (info.block_number..current_number).into_iter()
+							let hashes = (*block_number..current_number).into_iter()
 								.map(BlockId::Number)
 								.filter_map(|id| client.block_hash(id))
 								.collect::<Vec<H256>>();
 
-							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
+							*block_number = current_number;
 
 							to_value(&hashes)
 						},
-						PollFilter::PendingTransaction => {
-							// TODO: fix implementation once TransactionQueue is merged
-							to_value(&vec![] as &Vec<H256>)
+						PollFilter::PendingTransaction(ref mut previous_hashes) => {
+							let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
+							// calculate diff
+							let previous_hashes_set = previous_hashes.into_iter().map(|h| h.clone()).collect::<HashSet<H256>>();
+							let diff = current_hashes
+								.iter()
+								.filter(|hash| previous_hashes_set.contains(&hash))
+								.cloned()
+								.collect::<Vec<H256>>();
+
+							*previous_hashes = current_hashes;
+
+							to_value(&diff)
 						},
-						PollFilter::Logs(mut filter) => {
-							filter.from_block = BlockId::Number(info.block_number);
+						PollFilter::Logs(ref mut block_number, ref mut filter) => {
+							filter.from_block = BlockId::Number(*block_number);
 							filter.to_block = BlockId::Latest;
-							let logs = client.logs(filter)
+							let logs = client.logs(filter.clone())
 								.into_iter()
 								.map(From::from)
 								.collect::<Vec<Log>>();
 
 							let current_number = client.chain_info().best_block_number;
-							self.polls.lock().unwrap().update_poll(&index.value(), current_number);
 
+							*block_number = current_number;
 							to_value(&logs)
 						}
 					}

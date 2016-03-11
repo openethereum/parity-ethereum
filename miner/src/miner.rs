@@ -25,7 +25,6 @@ use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock};
 use ethcore::error::{Error};
 use ethcore::transaction::SignedTransaction;
-
 use super::{MinerService, MinerStatus, TransactionQueue};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
@@ -102,6 +101,11 @@ impl MinerService for Miner {
 		where T: Fn(&Address) -> U256 {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		transaction_queue.add_all(transactions, fetch_nonce)
+	}
+
+	fn pending_transactions_hashes(&self) -> Vec<H256> {
+		let transaction_queue = self.transaction_queue.lock().unwrap();
+		transaction_queue.pending_hashes()
 	}
 
 	fn prepare_sealing(&self, chain: &BlockChainClient) {

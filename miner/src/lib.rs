@@ -82,6 +82,9 @@ pub trait MinerService : Send + Sync {
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
 		where T: Fn(&Address) -> U256;
 
+	/// Returns hashes of transactions currently in pending
+	fn pending_transactions_hashes(&self) -> Vec<H256>;
+
 	/// Removes all transactions from the queue and restart mining operation.
 	fn clear_and_reset(&self, chain: &BlockChainClient);
 
