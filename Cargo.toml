@@ -27,12 +27,6 @@ ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
 rpassword = "0.1"
 
-[dev-dependencies]
-ethcore = { path = "ethcore", features = ["dev"] }
-ethcore-util = { path = "util", features = ["dev"] }
-ethsync = { path = "sync", features = ["dev"] }
-ethcore-rpc = { path = "rpc", features = ["dev"] }
-
 [features]
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
