@@ -17,8 +17,8 @@
 //! Ethcore client application.
 
 #![warn(missing_docs)]
-#![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
-#![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
@@ -294,7 +294,7 @@ impl Configuration {
 		}
 	}
 
-	#[cfg_attr(all(nightly, feature="dev"), allow(useless_format))]
+	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
 		let mut listen_address = None;
 		let mut public_address = None;
