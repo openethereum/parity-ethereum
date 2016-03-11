@@ -36,6 +36,19 @@ fn imports_from_empty() {
 }
 
 #[test]
+fn returns_state_root_basic() {
+	let client_result = generate_dummy_client(6);
+	let client = client_result.reference();
+
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	let state_root = test_engine.spec().genesis_header().state_root;
+
+	assert!(client.state_data(&state_root).is_some());
+
+}
+
+#[test]
 fn imports_good_block() {
 	let dir = RandomTempPath::new();
 	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
