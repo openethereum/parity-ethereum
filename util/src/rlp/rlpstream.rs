@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::Deref;
+use std::default::Default;
 use elastic_array::*;
 use rlp::bytes::{ToBytes, VecLike};
 use rlp::{Stream, Encoder, Encodable};
@@ -42,6 +43,12 @@ pub struct RlpStream {
 	unfinished_lists: ElasticArray16<ListInfo>,
 	encoder: BasicEncoder,
 	finished_list: bool,
+}
+
+impl Default  for RlpStream {
+	fn default() -> Self {
+		RlpStream::new()
+	}
 }
 
 impl Stream for RlpStream {
@@ -190,8 +197,14 @@ struct BasicEncoder {
 	bytes: ElasticArray1024<u8>,
 }
 
+impl Default for BasicEncoder {
+	fn default() -> Self {
+		BasicEncoder::new()
+	}
+}
+
 impl BasicEncoder {
-	fn new() -> BasicEncoder {
+	fn new() -> Self {
 		BasicEncoder { bytes: ElasticArray1024::new() }
 	}
 
@@ -222,7 +235,7 @@ impl Encoder for BasicEncoder {
 			// just 0
 			0 => self.bytes.push(0x80u8),
 			// byte is its own encoding if < 0x80
-			1 => { 
+			1 => {
 				value.to_bytes(&mut self.bytes);
 				let len = self.bytes.len();
 				let last_byte = self.bytes[len - 1];

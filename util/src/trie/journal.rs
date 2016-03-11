@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::default::Default;
 use sha3::*;
 use hash::H256;
 use bytes::*;
@@ -38,6 +39,12 @@ pub struct Score {
 /// A journal of operations on the backing database.
 #[derive(Debug)]
 pub struct Journal (Vec<Operation>);
+
+impl Default for Journal {
+	fn default() -> Self {
+		Journal::new()
+	}
+}
 
 impl Journal {
 	/// Create a new, empty, object.

@@ -35,13 +35,13 @@ pub enum ExtrasIndex {
 	BlocksBlooms = 4,
 	/// Block receipts index
 	BlockReceipts = 5,
-} 
+}
 
 /// trait used to write Extras data to db
 pub trait ExtrasWritable {
 	/// Write extra data to db
 	fn put_extras<K, T>(&self, hash: &K, value: &T) where
-		T: ExtrasIndexable + Encodable, 
+		T: ExtrasIndexable + Encodable,
 		K: ExtrasSliceConvertable;
 }
 
@@ -60,9 +60,9 @@ pub trait ExtrasReadable {
 
 impl ExtrasWritable for DBTransaction {
 	fn put_extras<K, T>(&self, hash: &K, value: &T) where
-		T: ExtrasIndexable + Encodable, 
+		T: ExtrasIndexable + Encodable,
 		K: ExtrasSliceConvertable {
-		
+
 		self.put(&hash.to_extras_slice(T::extras_index()), &encode(value)).unwrap()
 	}
 }
@@ -213,6 +213,12 @@ impl Encodable for BlockLogBlooms {
 pub struct BlocksBlooms {
 	/// List of block blooms.
 	pub blooms: [H2048; 16],
+}
+
+impl Default for BlocksBlooms {
+	fn default() -> Self {
+		BlocksBlooms::new()
+	}
 }
 
 impl BlocksBlooms {

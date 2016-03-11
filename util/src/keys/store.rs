@@ -131,9 +131,15 @@ impl AccountService {
 	}
 }
 
+impl Default for SecretStore {
+	fn default() -> Self {
+		SecretStore::new()
+	}
+}
+
 impl SecretStore {
 	/// new instance of Secret Store in default home directory
-	pub fn new() -> SecretStore {
+	pub fn new() -> Self {
 		let mut path = ::std::env::home_dir().expect("Failed to get home dir");
 		path.push(".parity");
 		path.push("keys");
@@ -142,7 +148,7 @@ impl SecretStore {
 	}
 
 	/// new instance of Secret Store in specific directory
-	pub fn new_in(path: &Path) -> SecretStore {
+	pub fn new_in(path: &Path) -> Self {
 		SecretStore {
 			directory: KeyDirectory::new(path),
 			unlocks: RwLock::new(HashMap::new()),
