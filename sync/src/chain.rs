@@ -142,6 +142,8 @@ pub struct SyncStatus {
 	pub num_active_peers: usize,
 	/// Heap memory used in bytes
 	pub mem_used: usize,
+	/// Number of pending transactions in queue
+	pub transaction_queue_pending: usize,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -257,6 +259,7 @@ impl ChainSync {
 			blocks_total: match self.highest_block { Some(x) if x > self.starting_block => x - self.starting_block, _ => 0 },
 			num_peers: self.peers.len(),
 			num_active_peers: self.peers.values().filter(|p| p.asking != PeerAsking::Nothing).count(),
+			transaction_queue_pending: self.transaction_queue.lock().unwrap().status().pending,
 			mem_used:
 				//  TODO: https://github.com/servo/heapsize/pull/50
 				//  self.downloading_hashes.heap_size_of_children()
