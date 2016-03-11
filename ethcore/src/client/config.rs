@@ -16,6 +16,7 @@
 
 pub use block_queue::BlockQueueConfig;
 pub use blockchain::BlockChainConfig;
+use util::journaldb;
 
 /// Client configuration. Includes configs for all sub-systems.
 #[derive(Debug, Default)]
@@ -24,8 +25,8 @@ pub struct ClientConfig {
 	pub queue: BlockQueueConfig,
 	/// Blockchain configuration.
 	pub blockchain: BlockChainConfig,
-	/// Prefer journal rather than archive.
-	pub prefer_journal: bool,
+	/// The JournalDB ("pruning") algorithm to use.
+	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
 	pub name: String,
 }

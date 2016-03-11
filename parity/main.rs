@@ -80,6 +80,11 @@ Usage:
 Protocol Options:
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
                            or olympic, frontier, homestead, mainnet, morden, or testnet [default: homestead].
+  --testnet                Equivalent to --chain testnet (geth-compatible).
+  --networkid INDEX        Override the network identifier from the chain we are on.
+  --pruning METHOD         Configure pruning of the state/storage trie. METHOD may be one of: archive,
+                           light (experimental) [default: archive].
+  -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --db-path PATH           Specify the database & configuration directory path [default: $HOME/.parity]
   --pruning                Client should prune the state/storage trie.
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
@@ -101,7 +106,12 @@ API and Console Options:
   --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server [default: 8545].
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited
-                           list of API name. Possible name are web3, eth and net. [default: web3,eth,net].
+                           list of API name. Possible names are web3, eth and net. [default: web3,eth,net].
+  --rpc                    Equivalent to --jsonrpc (geth-compatible).
+  --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST (geth-compatible).
+  --rpcport PORT           Equivalent to --jsonrpc-port PORT (geth-compatible).
+  --rpcapi APIS            Equivalent to --jsonrpc-apis APIS (geth-compatible).
+  --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL (geth-compatible).
 
 Sealing/Mining Options:
   --gasprice GAS           Minimal gas price a transaction must have to be accepted for mining [default: 20000000000].
@@ -150,7 +160,7 @@ struct Args {
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
 	flag_bootnodes: Option<String>,
-	flag_pruning: bool,
+	flag_pruning: String,
 	flag_no_bootstrap: bool,
 	flag_port: u16,
 	flag_peers: usize,
@@ -371,7 +381,14 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
-		client_config.prefer_journal = self.args.flag_pruning;
+		client_config.pruning = match self.args.flag_pruning.as_str() {
+			"" => journaldb::Algorithm::Archive,
+			"archive" => journaldb::Algorithm::Archive,
+			"pruned" => journaldb::Algorithm::EarlyMerge,
+//			"fast" => journaldb::Algorithm::OverlayRecent,	// TODO: @arkpar uncomment this once option 2 is merged.
+//			"slow" => journaldb::Algorithm::RefCounted,		// TODO: @gavofyork uncomment this once ref-count algo is merged.
+			_ => { die!("Invalid pruning method given."); }
+		};
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		client_config
