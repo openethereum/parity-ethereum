@@ -21,4 +21,4 @@ clippy = { version = "0.0.44", optional = true }
 
 [features]
 default = []
-dev = []
+dev = ["clippy"]

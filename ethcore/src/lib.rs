@@ -15,16 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-#![cfg_attr(all(nightly, feature="dev"), feature(plugin))]
-#![cfg_attr(all(nightly, feature="dev"), plugin(clippy))]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
 
 // Clippy config
 // TODO [todr] not really sure
-#![cfg_attr(all(nightly, feature="dev"), allow(needless_range_loop))]
+#![cfg_attr(feature="dev", allow(needless_range_loop))]
 // Shorter than if-else
-#![cfg_attr(all(nightly, feature="dev"), allow(match_bool))]
+#![cfg_attr(feature="dev", allow(match_bool))]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
-#![cfg_attr(all(nightly, feature="dev"), allow(clone_on_copy))]
+#![cfg_attr(feature="dev", allow(clone_on_copy))]
 
 //! Ethcore library
 //!
@@ -86,6 +86,7 @@ extern crate crossbeam;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
 pub mod block;
+pub mod block_queue;
 pub mod client;
 pub mod error;
 pub mod ethereum;
@@ -119,7 +120,6 @@ mod substate;
 mod executive;
 mod externalities;
 mod verification;
-mod block_queue;
 mod blockchain;
 
 #[cfg(test)]

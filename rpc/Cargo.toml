@@ -27,9 +27,8 @@ serde_macros = { version = "0.7.0", optional = true }
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
 syntex = "0.29.0"
-rustc_version = "0.1"
 
 [features]
 default = ["serde_codegen"]
 nightly = ["serde_macros"]
-dev = ["ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethminer/dev"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethminer/dev"]

@@ -78,6 +78,59 @@ struct AccountUnlock {
 	expires: DateTime<UTC>,
 }
 
+/// Basic account management trait
+pub trait AccountProvider : Send + Sync {
+	/// Lists all accounts
+	fn accounts(&self) -> Result<Vec<Address>, ::std::io::Error>;
+	/// Unlocks account with the password provided
+	fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError>;
+	/// Creates account
+	fn new_account(&self, pass: &str) -> Result<Address, ::std::io::Error>;
+	/// Returns secret for unlocked account
+	fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError>;
+	/// Returns secret for unlocked account
+	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError>;
+}
+
+/// Thread-safe accounts management
+pub struct AccountService {
+	secret_store: RwLock<SecretStore>,
+}
+
+impl AccountProvider for AccountService {
+	/// Lists all accounts
+	fn accounts(&self) -> Result<Vec<Address>, ::std::io::Error> {
+		Ok(try!(self.secret_store.read().unwrap().accounts()).iter().map(|&(addr, _)| addr).collect::<Vec<Address>>())
+	}
+	/// Unlocks account with the password provided
+	fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+		self.secret_store.read().unwrap().unlock_account(account, pass)
+	}
+	/// Creates account
+	fn new_account(&self, pass: &str) -> Result<Address, ::std::io::Error> {
+		self.secret_store.write().unwrap().new_account(pass)
+	}
+	/// Returns secret for unlocked account
+	fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError> {
+		self.secret_store.read().unwrap().account_secret(account)
+	}
+	/// Returns secret for unlocked account
+	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
+		self.secret_store.read().unwrap().sign(account, message)
+	}
+}
+
+impl AccountService {
+	/// New account service with the default location
+	pub fn new() -> AccountService {
+		let secret_store = RwLock::new(SecretStore::new());
+		secret_store.write().unwrap().try_import_existing();
+		AccountService {
+			secret_store: secret_store
+		}
+	}
+}
+
 impl SecretStore {
 	/// new instance of Secret Store in default home directory
 	pub fn new() -> SecretStore {

@@ -28,21 +28,17 @@ ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
 clippy = { version = "0.0.44", optional = true }
 
-[dev-dependencies]
-ethcore = { path = "ethcore", features = ["dev"] }
-ethcore-util = { path = "util", features = ["dev"] }
-ethsync = { path = "sync", features = ["dev"] }
-ethcore-rpc = { path = "rpc", features = ["dev"] }
-
 [features]
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
-dev = ["ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev"]
-dev-clippy = ["clippy", "ethcore/clippy", "ethcore-util/clippy", "ethsync/clippy", "ethcore-rpc/clippy",
-"ethminer/clippy"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev"]
 travis-beta = ["ethcore/json-tests"]
-travis-nightly = ["ethcore/json-tests", "dev-clippy", "dev"]
+travis-nightly = ["ethcore/json-tests", "dev"]
 
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
+
+[profile.release]
+debug = false
+lto = false
