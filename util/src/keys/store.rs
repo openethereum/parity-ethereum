@@ -214,12 +214,12 @@ impl SecretStore {
 
 	/// Creates new account
 	pub fn new_account(&mut self, pass: &str) -> Result<Address, ::std::io::Error> {
-		let secret = H256::random();
+		let key_pair = crypto::KeyPair::create().expect("Error creating key-pair. Something wrong with crypto libraries?");
+		let address = Address::from(key_pair.public().sha3());
 		let key_id = H128::random();
-		self.insert(key_id.clone(), secret, pass);
+		self.insert(key_id.clone(), key_pair.secret().clone(), pass);
 
 		let mut key_file = self.directory.get(&key_id).expect("the key was just inserted");
-		let address = Address::random();
 		key_file.account = Some(address);
 		try!(self.directory.save(key_file));
 		Ok(address)
