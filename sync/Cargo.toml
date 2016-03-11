@@ -14,7 +14,7 @@ rustc_version = "0.1"
 [dependencies]
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
-clippy = { version = "0.0.44", optional = true }
+clippy = { version = "0.0.49", optional = true }
 log = "0.3"
 env_logger = "0.3"
 time = "0.1.34"
