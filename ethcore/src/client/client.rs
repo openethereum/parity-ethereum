@@ -20,7 +20,6 @@ use std::marker::PhantomData;
 use std::sync::atomic::AtomicBool;
 use util::*;
 use util::panics::*;
-use blockchain::{BlockChain, BlockProvider};
 use views::BlockView;
 use error::*;
 use header::{BlockNumber};
@@ -28,7 +27,6 @@ use state::State;
 use spec::Spec;
 use engine::Engine;
 use views::HeaderView;
-use block_queue::BlockQueue;
 use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
@@ -37,33 +35,10 @@ use transaction::LocalizedTransaction;
 use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
-pub use block_queue::{BlockQueueConfig, BlockQueueInfo};
-pub use blockchain::{TreeRoute, BlockChainConfig, CacheSize as BlockChainCacheSize};
-
-
-/// Uniquely identifies block.
-#[derive(Debug, PartialEq, Clone)]
-pub enum BlockId {
-	/// Block's sha3.
-	/// Querying by hash is always faster.
-	Hash(H256),
-	/// Block number within canon blockchain.
-	Number(BlockNumber),
-	/// Earliest block (genesis).
-	Earliest,
-	/// Latest mined block.
-	Latest
-}
-
-/// Uniquely identifies transaction.
-#[derive(Debug, PartialEq, Clone)]
-pub enum TransactionId {
-	/// Transaction's sha3.
-	Hash(H256),
-	/// Block id and transaction index within this block.
-	/// Querying by block position is always faster.
-	Location(BlockId, usize)
-}
+use block_queue::{BlockQueue, BlockQueueInfo};
+use blockchain::{BlockChain, BlockProvider, TreeRoute};
+use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
+pub use blockchain::CacheSize as BlockChainCacheSize;
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -76,30 +51,6 @@ pub enum BlockStatus {
 	Bad,
 	/// Unknown.
 	Unknown,
-}
-
-/// Client configuration. Includes configs for all sub-systems.
-#[derive(Debug)]
-pub struct ClientConfig {
-	/// Block queue configuration.
-	pub queue: BlockQueueConfig,
-	/// Blockchain configuration.
-	pub blockchain: BlockChainConfig,
-	/// Prefer journal rather than archive.
-	pub prefer_journal: bool,
-	/// The name of the client instance.
-	pub name: String,
-}
-
-impl Default for ClientConfig {
-	fn default() -> ClientConfig {
-		ClientConfig {
-			queue: Default::default(),
-			blockchain: Default::default(),
-			prefer_journal: false,
-			name: Default::default(),
-		}
-	}
 }
 
 /// Information about the blockchain gathered together.
@@ -123,79 +74,8 @@ impl fmt::Display for BlockChainInfo {
 	}
 }
 
-/// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send {
-	/// Get raw block header data by block id.
-	fn block_header(&self, id: BlockId) -> Option<Bytes>;
-
-	/// Get raw block body data by block id.
-	/// Block body is an RLP list of two items: uncles and transactions.
-	fn block_body(&self, id: BlockId) -> Option<Bytes>;
-
-	/// Get raw block data by block header hash.
-	fn block(&self, id: BlockId) -> Option<Bytes>;
-
-	/// Get block status by block header hash.
-	fn block_status(&self, id: BlockId) -> BlockStatus;
-
-	/// Get block total difficulty.
-	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
-
-	/// Get address nonce.
-	fn nonce(&self, address: &Address) -> U256;
-
-	/// Get block hash.
-	fn block_hash(&self, id: BlockId) -> Option<H256>;
-
-	/// Get address code.
-	fn code(&self, address: &Address) -> Option<Bytes>;
-
-	/// Get transaction with given hash.
-	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
-
-	/// Get a tree route between `from` and `to`.
-	/// See `BlockChain::tree_route`.
-	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute>;
-
-	/// Get latest state node
-	fn state_data(&self, hash: &H256) -> Option<Bytes>;
-
-	/// Get raw block receipts data by block header hash.
-	fn block_receipts(&self, hash: &H256) -> Option<Bytes>;
-
-	/// Import a block into the blockchain.
-	fn import_block(&self, bytes: Bytes) -> ImportResult;
-
-	/// Get block queue information.
-	fn queue_info(&self) -> BlockQueueInfo;
-
-	/// Clear block queue and abort all import activity.
-	fn clear_queue(&self);
-
-	/// Get blockchain information.
-	fn chain_info(&self) -> BlockChainInfo;
-
-	/// Get the best block header.
-	fn best_block_header(&self) -> Bytes {
-		self.block_header(BlockId::Hash(self.chain_info().best_block_hash)).unwrap()
-	}
-
-	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
-
-	/// Returns logs matching given filter.
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
-
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>>;
-
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
-}
-
-#[derive(Default, Clone, Debug, Eq, PartialEq)]
 /// Report on the status of a client.
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
 pub struct ClientReport {
 	/// How many blocks have been imported so far.
 	pub blocks_imported: usize,
@@ -630,6 +510,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		// TODO: lock blockchain only once
+
 		let mut blocks = filter.bloom_possibilities().iter()
 			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
 			.flat_map(|m| m)
