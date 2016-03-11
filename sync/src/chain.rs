@@ -377,10 +377,12 @@ impl ChainSync {
 			let hash = info.hash();
 			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain => {
-					if !self.have_common_block {
-						self.have_common_block = true;
+					if self.current_base_block() < number {
 						self.last_imported_block = Some(number);
 						self.last_imported_hash = Some(hash.clone());
+					}
+					if !self.have_common_block {
+						self.have_common_block = true;
 						trace!(target: "sync", "Found common header {} ({})", number, hash);
 					} else {
 						trace!(target: "sync", "Header already in chain {} ({})", number, hash);
@@ -845,8 +847,12 @@ impl ChainSync {
 	/// Remove downloaded bocks/headers starting from specified number.
 	/// Used to recover from an error and re-download parts of the chain detected as bad.
 	fn remove_downloaded_blocks(&mut self, start: BlockNumber) {
-		self.downloading_bodies.clear();
-		self.downloading_headers.clear();
+		let ids = self.header_ids.drain().filter(|&(_, v)| v < start).collect();
+		self.header_ids = ids;
+		let hdrs = self.downloading_headers.drain().filter(|v| *v < start).collect();
+		self.downloading_headers = hdrs;
+		let bodies = self.downloading_bodies.drain().filter(|v| *v < start).collect();
+		self.downloading_bodies = bodies;
 		self.headers.remove_from(&start);
 		self.bodies.remove_from(&start);
 	}
