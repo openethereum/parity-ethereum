@@ -97,7 +97,7 @@ impl Default for SyncConfig {
 }
 
 /// Current sync status
-pub trait SyncStatusProvider: Send + Sync {
+pub trait SyncProvider: Send + Sync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus;
 }
@@ -132,10 +132,9 @@ impl EthSync {
 	pub fn restart(&mut self, io: &mut NetworkContext<SyncMessage>) {
 		self.sync.write().unwrap().restart(&mut NetSyncIo::new(io, self.chain.deref()));
 	}
-
 }
 
-impl SyncStatusProvider for EthSync {
+impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
 		self.sync.read().unwrap().status()

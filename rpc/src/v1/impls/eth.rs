@@ -18,7 +18,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Weak, Mutex, RwLock};
 use std::ops::Deref;
-use ethsync::{SyncStatusProvider, SyncState};
+use ethsync::{SyncProvider, SyncState};
 use ethminer::{MinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
@@ -36,7 +36,7 @@ use v1::helpers::{PollFilter, PollManager};
 /// Eth rpc implementation.
 pub struct EthClient<C, S, M>
 	where C: BlockChainClient,
-		  S: SyncStatusProvider,
+		  S: SyncProvider,
 		  M: MinerService {
 	client: Weak<C>,
 	sync: Weak<S>,
@@ -44,8 +44,10 @@ pub struct EthClient<C, S, M>
 	hashrates: RwLock<HashMap<H256, u64>>,
 }
 
-impl<C, S, M> EthClient<C, S, M> where C: BlockChainClient, S: SyncStatusProvider, M: MinerService {
-
+impl<C, S, M> EthClient<C, S, M>
+	where C: BlockChainClient,
+		  S: SyncProvider,
+		  M: MinerService {
 	/// Creates new EthClient.
 	pub fn new(client: &Arc<C>, sync: &Arc<S>, miner: &Arc<M>) -> Self {
 		EthClient {
@@ -104,7 +106,7 @@ impl<C, S, M> EthClient<C, S, M> where C: BlockChainClient, S: SyncStatusProvide
 
 impl<C, S, M> Eth for EthClient<C, S, M>
 	where C: BlockChainClient + 'static,
-		  S: SyncStatusProvider + 'static,
+		  S: SyncProvider + 'static,
 		  M: MinerService + 'static {
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
