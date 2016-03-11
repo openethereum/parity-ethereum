@@ -16,6 +16,7 @@
 
 //! Blockchain database.
 
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use header::*;
 use extras::*;
@@ -28,7 +29,7 @@ use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
-use blockchain::CacheSize;
+use blockchain::{CacheSize, ImportRoute};
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
@@ -134,8 +135,9 @@ struct CacheManager {
 ///
 /// **Does not do input data verification.**
 pub struct BlockChain {
-	pref_cache_size: usize,
-	max_cache_size: usize,
+	// All locks must be captured in the order declared here.
+	pref_cache_size: AtomicUsize,
+	max_cache_size: AtomicUsize,
 
 	best_block: RwLock<BestBlock>,
 
@@ -157,6 +159,8 @@ pub struct BlockChain {
 
 	// blooms indexing
 	bloom_indexer: BloomIndexer,
+
+	insert_lock: Mutex<()>
 }
 
 impl FilterDataSource for BlockChain {
@@ -262,8 +266,8 @@ impl BlockChain {
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
 
 		let bc = BlockChain {
-			pref_cache_size: config.pref_cache_size,
-			max_cache_size: config.max_cache_size,
+			pref_cache_size: AtomicUsize::new(config.pref_cache_size),
+			max_cache_size: AtomicUsize::new(config.max_cache_size),
 			best_block: RwLock::new(BestBlock::default()),
 			blocks: RwLock::new(HashMap::new()),
 			block_details: RwLock::new(HashMap::new()),
@@ -275,7 +279,8 @@ impl BlockChain {
 			extras_db: extras_db,
 			blocks_db: blocks_db,
 			cache_man: RwLock::new(cache_man),
-			bloom_indexer: BloomIndexer::new(BLOOM_INDEX_SIZE, BLOOM_LEVELS)
+			bloom_indexer: BloomIndexer::new(BLOOM_INDEX_SIZE, BLOOM_LEVELS),
+			insert_lock: Mutex::new(()),
 		};
 
 		// load best block
@@ -318,9 +323,9 @@ impl BlockChain {
 	}
 
 	/// Set the cache configuration.
-	pub fn configure_cache(&mut self, pref_cache_size: usize, max_cache_size: usize) {
-		self.pref_cache_size = pref_cache_size;
-		self.max_cache_size = max_cache_size;
+	pub fn configure_cache(&self, pref_cache_size: usize, max_cache_size: usize) {
+		self.pref_cache_size.store(pref_cache_size, AtomicOrder::Relaxed);
+		self.max_cache_size.store(max_cache_size, AtomicOrder::Relaxed);
 	}
 
 	/// Returns a tree route between `from` and `to`, which is a tuple of:
@@ -414,16 +419,17 @@ impl BlockChain {
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
-	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) {
+	pub fn insert_block(&self, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
 		let hash = header.sha3();
 
 		if self.is_known(&hash) {
-			return;
+			return ImportRoute::none();
 		}
 
+		let _lock = self.insert_lock.lock();
 		// store block in db
 		self.blocks_db.put(&hash, &bytes).unwrap();
 
@@ -435,8 +441,10 @@ impl BlockChain {
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
 			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
-			info: info
+			info: info.clone(),
 		});
+
+		ImportRoute::from(info)
 	}
 
 	/// Applies extras update.
@@ -444,48 +452,58 @@ impl BlockChain {
 		let batch = DBTransaction::new();
 		batch.put(b"best", &update.info.hash).unwrap();
 
-		// update best block
-		let mut best_block = self.best_block.write().unwrap();
-		match update.info.location {
-			BlockLocation::Branch => (),
-			_ => {
-				*best_block = BestBlock {
-					hash: update.info.hash,
-					number: update.info.number,
-					total_difficulty: update.info.total_difficulty
-				};
+		{
+			let mut write_details = self.block_details.write().unwrap();
+			for (hash, details) in update.block_details.into_iter() {
+				batch.put_extras(&hash, &details);
+				self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash.clone()));
+				write_details.insert(hash, details);
 			}
 		}
 
-		let mut write_hashes = self.block_hashes.write().unwrap();
-		for (number, hash) in &update.block_hashes {
-			batch.put_extras(number, hash);
-			write_hashes.remove(number);
+		{
+			let mut write_receipts = self.block_receipts.write().unwrap();
+			for (hash, receipt) in &update.block_receipts {
+				batch.put_extras(hash, receipt);
+				write_receipts.remove(hash);
+			}
 		}
 
-		let mut write_details = self.block_details.write().unwrap();
-		for (hash, details) in update.block_details.into_iter() {
-			batch.put_extras(&hash, &details);
-			write_details.insert(hash.clone(), details);
-			self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash));
+		{
+			let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
+			for (bloom_hash, blocks_bloom) in &update.blocks_blooms {
+				batch.put_extras(bloom_hash, blocks_bloom);
+				write_blocks_blooms.remove(bloom_hash);
+			}
 		}
 
-		let mut write_receipts = self.block_receipts.write().unwrap();
-		for (hash, receipt) in &update.block_receipts {
-			batch.put_extras(hash, receipt);
-			write_receipts.remove(hash);
-		}
+		// These cached values must be updated last and togeterh
+		{
+			let mut best_block = self.best_block.write().unwrap();
+			let mut write_hashes = self.block_hashes.write().unwrap();
+			let mut write_txs = self.transaction_addresses.write().unwrap();
 
-		let mut write_txs = self.transaction_addresses.write().unwrap();
-		for (hash, tx_address) in &update.transactions_addresses {
-			batch.put_extras(hash, tx_address);
-			write_txs.remove(hash);
-		}
+			// update best block
+			match update.info.location {
+				BlockLocation::Branch => (),
+				_ => {
+					*best_block = BestBlock {
+						hash: update.info.hash,
+						number: update.info.number,
+						total_difficulty: update.info.total_difficulty
+					};
+				}
+			}
 
-		let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
-		for (bloom_hash, blocks_bloom) in &update.blocks_blooms {
-			batch.put_extras(bloom_hash, blocks_bloom);
-			write_blocks_blooms.remove(bloom_hash);
+			for (number, hash) in &update.block_hashes {
+				batch.put_extras(number, hash);
+				write_hashes.remove(number);
+			}
+
+			for (hash, tx_address) in &update.transactions_addresses {
+				batch.put_extras(hash, tx_address);
+				write_txs.remove(hash);
+			}
 		}
 
 		// update extras database
@@ -549,9 +567,14 @@ impl BlockChain {
 
 				match route.blocks.len() {
 					0 => BlockLocation::CanonChain,
-					_ => BlockLocation::BranchBecomingCanonChain {
-						ancestor: route.ancestor,
-						route: route.blocks.into_iter().skip(route.index).collect()
+					_ => {
+						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<H256>>();
+
+						BlockLocation::BranchBecomingCanonChain {
+							ancestor: route.ancestor,
+							enacted: route.blocks.into_iter().skip(route.index).collect(),
+							retracted: retracted.into_iter().rev().collect(),
+						}
 					}
 				}
 			} else {
@@ -572,11 +595,11 @@ impl BlockChain {
 			BlockLocation::CanonChain => {
 				block_hashes.insert(number, info.hash.clone());
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route } => {
+			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
 				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				for (index, hash) in route.iter().cloned().enumerate() {
+				for (index, hash) in enacted.iter().cloned().enumerate() {
 					block_hashes.insert(start_number + index as BlockNumber, hash);
 				}
 
@@ -661,11 +684,11 @@ impl BlockChain {
 				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
 					.add_bloom(&header.log_bloom(), header.number() as usize)
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref route } => {
+			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
 				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				let mut blooms: Vec<H2048> = route.iter()
+				let mut blooms: Vec<H2048> = enacted.iter()
 					.map(|hash| self.block(hash).unwrap())
 					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
 					.collect();
@@ -774,11 +797,10 @@ impl BlockChain {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		if self.cache_size().total() < self.pref_cache_size { return; }
+		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) { return; }
 
 		for _ in 0..COLLECTION_QUEUE_SIZE {
 			{
-				let mut cache_man = self.cache_man.write().unwrap();
 				let mut blocks = self.blocks.write().unwrap();
 				let mut block_details = self.block_details.write().unwrap();
 				let mut block_hashes = self.block_hashes.write().unwrap();
@@ -786,6 +808,7 @@ impl BlockChain {
 				let mut block_logs = self.block_logs.write().unwrap();
 				let mut blocks_blooms = self.blocks_blooms.write().unwrap();
 				let mut block_receipts = self.block_receipts.write().unwrap();
+				let mut cache_man = self.cache_man.write().unwrap();
 
 				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
 					cache_man.in_use.remove(&id);
@@ -812,7 +835,7 @@ impl BlockChain {
  				blocks_blooms.shrink_to_fit();
  				block_receipts.shrink_to_fit();
 			}
-			if self.cache_size().total() < self.max_cache_size { break; }
+			if self.cache_size().total() < self.max_cache_size.load(AtomicOrder::Relaxed) { break; }
 		}
 
 		// TODO: m_lastCollection = chrono::system_clock::now();
@@ -825,7 +848,7 @@ mod tests {
 	use rustc_serialize::hex::FromHex;
 	use util::hash::*;
 	use util::sha3::Hashable;
-	use blockchain::{BlockProvider, BlockChain, BlockChainConfig};
+	use blockchain::{BlockProvider, BlockChain, BlockChainConfig, ImportRoute};
 	use tests::helpers::*;
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
@@ -943,10 +966,30 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
-		bc.insert_block(&b1, vec![]);
-		bc.insert_block(&b2, vec![]);
-		bc.insert_block(&b3a, vec![]);
-		bc.insert_block(&b3b, vec![]);
+		let ir1 = bc.insert_block(&b1, vec![]);
+		let ir2 = bc.insert_block(&b2, vec![]);
+		let ir3b = bc.insert_block(&b3b, vec![]);
+		let ir3a = bc.insert_block(&b3a, vec![]);
+
+		assert_eq!(ir1, ImportRoute {
+			enacted: vec![b1_hash],
+			retracted: vec![],
+		});
+
+		assert_eq!(ir2, ImportRoute {
+			enacted: vec![b2_hash],
+			retracted: vec![],
+		});
+
+		assert_eq!(ir3b, ImportRoute {
+			enacted: vec![b3b_hash],
+			retracted: vec![],
+		});
+
+		assert_eq!(ir3a, ImportRoute {
+			enacted: vec![b3a_hash],
+			retracted: vec![b3b_hash],
+		});
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);
 		assert_eq!(bc.block_number(&genesis_hash).unwrap(), 0);

@@ -14,20 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Unique identifiers.
 
-pub mod blockchain;
-mod best_block;
-mod block_info;
-mod bloom_indexer;
-mod cache;
-mod tree_route;
-mod update;
-mod import_route;
-#[cfg(test)]
-mod generator;
+use util::hash::H256;
+use header::BlockNumber;
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainConfig};
-pub use self::cache::CacheSize;
-pub use self::tree_route::TreeRoute;
-pub use self::import_route::ImportRoute;
+/// Uniquely identifies block.
+#[derive(Debug, PartialEq, Clone)]
+pub enum BlockId {
+	/// Block's sha3.
+	/// Querying by hash is always faster.
+	Hash(H256),
+	/// Block number within canon blockchain.
+	Number(BlockNumber),
+	/// Earliest block (genesis).
+	Earliest,
+	/// Latest mined block.
+	Latest
+}
+
+/// Uniquely identifies transaction.
+#[derive(Debug, PartialEq, Clone)]
+pub enum TransactionId {
+	/// Transaction's sha3.
+	Hash(H256),
+	/// Block id and transaction index within this block.
+	/// Querying by block position is always faster.
+	Location(BlockId, usize)
+}

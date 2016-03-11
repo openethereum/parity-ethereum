@@ -153,7 +153,7 @@ struct UserTimer {
 pub struct IoManager<Message> where Message: Send + Sync {
 	timers: Arc<RwLock<HashMap<HandlerId, UserTimer>>>,
 	handlers: Vec<Arc<IoHandler<Message>>>,
-	_workers: Vec<Worker>,
+	workers: Vec<Worker>,
 	worker_channel: chase_lev::Worker<Work<Message>>,
 	work_ready: Arc<Condvar>,
 }
@@ -180,7 +180,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 			timers: Arc::new(RwLock::new(HashMap::new())),
 			handlers: Vec::new(),
 			worker_channel: worker,
-			_workers: workers,
+			workers: workers,
 			work_ready: work_ready,
 		};
 		try!(event_loop.run(&mut io));
@@ -230,7 +230,10 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 
 	fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
 		match msg {
-			IoMessage::Shutdown => event_loop.shutdown(),
+			IoMessage::Shutdown => {
+				self.workers.clear();
+				event_loop.shutdown();
+			},
 			IoMessage::AddHandler { handler } => {
 				let handler_id = {
 					self.handlers.push(handler.clone());

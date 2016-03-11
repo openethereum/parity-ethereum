@@ -55,12 +55,15 @@ pub trait Eth: Sized + Send + Sync + 'static {
 
 	/// Returns block with given number.
 	fn block_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
-	
+
 	/// Returns the number of transactions sent from given address at given time (block number).
 	fn transaction_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns the number of transactions in a block.
-	fn block_transaction_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	/// Returns the number of transactions in a block given block hash.
+	fn block_transaction_count_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns the number of transactions in a block given block number.
+	fn block_transaction_count_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Returns the number of uncles in a given block.
 	fn block_uncles_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
@@ -130,8 +133,8 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_balance", Eth::balance);
 		delegate.add_method("eth_getStorageAt", Eth::storage_at);
 		delegate.add_method("eth_getTransactionCount", Eth::transaction_count);
-		delegate.add_method("eth_getBlockTransactionCountByHash", Eth::block_transaction_count);
-		delegate.add_method("eth_getBlockTransactionCountByNumber", Eth::block_transaction_count);
+		delegate.add_method("eth_getBlockTransactionCountByHash", Eth::block_transaction_count_by_hash);
+		delegate.add_method("eth_getBlockTransactionCountByNumber", Eth::block_transaction_count_by_number);
 		delegate.add_method("eth_getUncleCountByBlockHash", Eth::block_uncles_count);
 		delegate.add_method("eth_getUncleCountByBlockNumber", Eth::block_uncles_count);
 		delegate.add_method("eth_code", Eth::code_at);
