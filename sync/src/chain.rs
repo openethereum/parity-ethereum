@@ -66,6 +66,7 @@ const MAX_BODIES_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_SEND: usize = 512;
 const MAX_NODE_DATA_TO_SEND: usize = 1024;
 const MAX_RECEIPTS_TO_SEND: usize = 1024;
+const MAX_RECEIPTS_HEADERS_TO_SEND: usize = 16;
 const MAX_HEADERS_TO_REQUEST: usize = 512;
 const MAX_BODIES_TO_REQUEST: usize = 256;
 const MIN_PEERS_PROPAGATION: usize = 4;
@@ -1060,17 +1061,20 @@ impl ChainSync {
 			debug!(target: "sync", "Empty GetReceipts request, ignoring.");
 			return Ok(None);
 		}
-		count = min(count, MAX_RECEIPTS_TO_SEND);
-		let mut added = 0usize;
+		count = min(count, MAX_RECEIPTS_HEADERS_TO_SEND);
+		let mut added_headers = 0usize;
+		let mut added_receipts = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			if let Some(mut hdr) = io.chain().block_receipts(&try!(rlp.val_at::<H256>(i))) {
-				data.append(&mut hdr);
-				added += 1;
+			if let Some(mut receipts_bytes) = io.chain().block_receipts(&try!(rlp.val_at::<H256>(i))) {
+				data.append(&mut receipts_bytes);
+				added_receipts += receipts_bytes.len();
+				added_headers += 1;
+				if added_receipts > MAX_RECEIPTS_TO_SEND { break; }
 			}
 		}
-		let mut rlp_result = RlpStream::new_list(added);
-		rlp_result.append_raw(&data, added);
+		let mut rlp_result = RlpStream::new_list(added_headers);
+		rlp_result.append_raw(&data, added_headers);
 		Ok(Some((RECEIPTS_PACKET, rlp_result)))
 	}
 
@@ -1396,7 +1400,7 @@ mod tests {
 		assert!(rlp_result.is_some());
 
 		// the length of two rlp-encoded receipts
-		assert_eq!(597, rlp_result.unwrap().1.out().len());
+		assert_eq!(603, rlp_result.unwrap().1.out().len());
 
 		let mut sync = dummy_sync_with_peer(H256::new());
 		io.sender = Some(2usize);

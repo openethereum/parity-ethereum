@@ -24,6 +24,7 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::Receipt;
+use extras::BlockReceipts;
 use error::{ImportResult, Error};
 use block_queue::BlockQueueInfo;
 use block::ClosedBlock;
@@ -254,10 +255,10 @@ impl BlockChainClient for TestBlockChainClient {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
-			let receipt = Receipt::new(
+			let receipt = BlockReceipts::new(vec![Receipt::new(
 				H256::zero(),
 				U256::zero(),
-				vec![]);
+				vec![])]);
 			let mut rlp = RlpStream::new();
 			rlp.append(&receipt);
 			return Some(rlp.out());
