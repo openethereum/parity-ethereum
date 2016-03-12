@@ -155,6 +155,14 @@ impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S:
 		}
 	}
 
+	fn accounts(&self, _: Params) -> Result<Value, Error> {
+		let store = take_weak!(self.accounts);
+		match store.accounts() {
+			Ok(account_list) => to_value(&account_list),
+			Err(_) => Err(Error::internal_error())
+		}
+	}
+
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&U256::from(take_weak!(self.client).chain_info().best_block_number)),
