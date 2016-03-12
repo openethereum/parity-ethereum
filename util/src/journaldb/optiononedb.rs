@@ -518,6 +518,7 @@ impl JournalDB for OptionOneDB {
 mod tests {
 	use common::*;
 	use super::*;
+	use super::super::traits::JournalDB;
 	use hashdb::*;
 	use log::init_log;
 
