@@ -23,6 +23,7 @@ use std::ops::*;
 use std::cmp::min;
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
+use std::default::Default;
 use std::fs;
 use mio::*;
 use mio::tcp::*;
@@ -75,9 +76,15 @@ pub struct NetworkConfiguration {
 	pub ideal_peers: u32,
 }
 
+impl Default for NetworkConfiguration {
+	fn default() -> Self {
+		NetworkConfiguration::new()
+	}
+}
+
 impl NetworkConfiguration {
 	/// Create a new instance of default settings.
-	pub fn new() -> NetworkConfiguration {
+	pub fn new() -> Self {
 		NetworkConfiguration {
 			config_path: None,
 			listen_address: None,

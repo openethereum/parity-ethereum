@@ -131,9 +131,15 @@ impl AccountService {
 	}
 }
 
+impl Default for SecretStore {
+	fn default() -> Self {
+		SecretStore::new()
+	}
+}
+
 impl SecretStore {
 	/// new instance of Secret Store in default home directory
-	pub fn new() -> SecretStore {
+	pub fn new() -> Self {
 		let mut path = ::std::env::home_dir().expect("Failed to get home dir");
 		path.push(".parity");
 		path.push("keys");
@@ -142,7 +148,7 @@ impl SecretStore {
 	}
 
 	/// new instance of Secret Store in specific directory
-	pub fn new_in(path: &Path) -> SecretStore {
+	pub fn new_in(path: &Path) -> Self {
 		SecretStore {
 			directory: KeyDirectory::new(path),
 			unlocks: RwLock::new(HashMap::new()),
@@ -214,12 +220,12 @@ impl SecretStore {
 
 	/// Creates new account
 	pub fn new_account(&mut self, pass: &str) -> Result<Address, ::std::io::Error> {
-		let secret = H256::random();
+		let key_pair = crypto::KeyPair::create().expect("Error creating key-pair. Something wrong with crypto libraries?");
+		let address = Address::from(key_pair.public().sha3());
 		let key_id = H128::random();
-		self.insert(key_id.clone(), secret, pass);
+		self.insert(key_id.clone(), key_pair.secret().clone(), pass);
 
 		let mut key_file = self.directory.get(&key_id).expect("the key was just inserted");
-		let address = Address::random();
 		key_file.account = Some(address);
 		try!(self.directory.save(key_file));
 		Ok(address)
@@ -381,6 +387,7 @@ mod tests {
 	use super::*;
 	use devtools::*;
 	use common::*;
+	use crypto::KeyPair;
 
 	#[test]
 	fn can_insert() {
@@ -554,5 +561,16 @@ mod tests {
 		let sstore = SecretStore::new_test(&temp);
 		let accounts = sstore.accounts().unwrap();
 		assert_eq!(30, accounts.len());
+	}
+
+	#[test]
+	fn validate_generated_addresses() {
+		let temp = RandomTempPath::create_dir();
+		let mut sstore = SecretStore::new_test(&temp);
+		let addr = sstore.new_account("test").unwrap();
+		let _ok = sstore.unlock_account(&addr, "test").unwrap();
+		let secret = sstore.account_secret(&addr).unwrap();
+		let kp = KeyPair::from_secret(secret).unwrap();
+		assert_eq!(Address::from(kp.public().sha3()), addr);
 	}
 }

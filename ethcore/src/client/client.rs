@@ -116,7 +116,7 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 }
 
 const HISTORY: u64 = 1200;
-const CLIENT_DB_VER_STR: &'static str = "5.1";
+const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.

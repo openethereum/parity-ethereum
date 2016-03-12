@@ -81,10 +81,9 @@ Protocol Options:
   --testnet                Equivalent to --chain testnet (geth-compatible).
   --networkid INDEX        Override the network identifier from the chain we are on.
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD may be one of: archive,
-                           light (experimental) [default: archive].
+                           light (experimental), fast (experimental) [default: archive].
   -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --db-path PATH           Specify the database & configuration directory path [default: $HOME/.parity]
-  --pruning                Client should prune the state/storage trie.
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
   --identity NAME          Specify your node's name.
 
@@ -104,7 +103,8 @@ API and Console Options:
   --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server [default: 8545].
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited
-                           list of API name. Possible names are web3, eth and net. [default: web3,eth,net].
+                           list of API name. Possible name are web3, eth and net. [default: web3,eth,net,personal].
+
   --rpc                    Equivalent to --jsonrpc (geth-compatible).
   --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST (geth-compatible).
   --rpcport PORT           Equivalent to --jsonrpc-port PORT (geth-compatible).
@@ -231,6 +231,7 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<A
 				server.add_delegate(EthClient::new(&client, &sync, &secret_store).to_delegate());
 				server.add_delegate(EthFilterClient::new(&client).to_delegate());
 			}
+			"personal" => server.add_delegate(PersonalClient::new(&secret_store).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
 			}
@@ -423,7 +424,7 @@ impl Configuration {
 			"" => journaldb::Algorithm::Archive,
 			"archive" => journaldb::Algorithm::Archive,
 			"pruned" => journaldb::Algorithm::EarlyMerge,
-//			"fast" => journaldb::Algorithm::OverlayRecent,	// TODO: @arkpar uncomment this once option 2 is merged.
+			"fast" => journaldb::Algorithm::OverlayRecent,
 //			"slow" => journaldb::Algorithm::RefCounted,		// TODO: @gavofyork uncomment this once ref-count algo is merged.
 			_ => { die!("Invalid pruning method given."); }
 		};
