@@ -305,7 +305,6 @@ mod tests {
 		assert!(jdb.exists(&foo));
 	}
 
-
 	#[test]
 	fn reopen() {
 		let mut dir = ::std::env::temp_dir();
@@ -364,6 +363,7 @@ mod tests {
 			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 		}
 	}
+	
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
@@ -406,6 +406,5 @@ mod tests {
 			let state = jdb.state(&key);
 			assert!(state.is_some());
 		}
-
 	}
 }
