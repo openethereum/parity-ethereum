@@ -17,7 +17,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use jsonrpc_core::IoHandler;
-use util::hash::{Address};
+use util::hash::Address;
+use util::numbers::U256;
 use ethcore::client::{TestBlockChainClient, EachBlockWith};
 use v1::{Eth, EthClient};
 use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config};
@@ -25,6 +26,7 @@ use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Con
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let mut client = TestBlockChainClient::new();
 	client.add_blocks(10, EachBlockWith::Nothing);
+	client.set_balance(Address::from(1), U256::from(5));
 	Arc::new(client)
 }
 
@@ -54,6 +56,27 @@ fn rpc_eth_accounts() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_balance() {
+	let client = blockchain_client();
+	let sync = sync_provider();
+	let ap = accounts_provider();
+
+	let eth = EthClient::new(&client, &sync, &ap).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(eth);
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getBalance",
+		"params": ["0x0000000000000000000000000000000000000001", "latest"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x05","id":1}"#;
 
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }

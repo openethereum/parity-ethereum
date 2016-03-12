@@ -170,6 +170,11 @@ impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S:
 		}
 	}
 
+	fn balance(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Address, BlockNumber)>(params)
+			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).balance(&address)))
+	}
+
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)| match take_weak!(self.client).block(BlockId::Hash(hash)) {

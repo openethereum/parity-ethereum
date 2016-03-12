@@ -40,6 +40,8 @@ pub struct TestBlockChainClient {
 	pub last_hash: RwLock<H256>,
 	/// Difficulty.
 	pub difficulty: RwLock<U256>,
+	/// Balances.
+	pub balances: RwLock<HashMap<Address, U256>>,
 }
 
 #[derive(Clone)]
@@ -65,10 +67,15 @@ impl TestBlockChainClient {
 			genesis_hash: H256::new(),
 			last_hash: RwLock::new(H256::new()),
 			difficulty: RwLock::new(From::from(0)),
+			balances: RwLock::new(HashMap::new()),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
 		client
+	}
+
+	pub fn set_balance(&mut self, address: Address, balance: U256) {
+		self.balances.write().unwrap().insert(address, balance);
 	}
 
 	/// Add blocks to test client.
@@ -163,6 +170,10 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn code(&self, _address: &Address) -> Option<Bytes> {
 		unimplemented!();
+	}
+
+	fn balance(&self, address: &Address) -> U256 {
+		self.balances.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero)
 	}
 
 	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
