@@ -394,6 +394,7 @@ impl Configuration {
 		}
 	}
 
+	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn execute_client(&self) {
 		// Setup panic handler
 		let panic_handler = PanicHandler::new_in_arc();
