@@ -70,6 +70,7 @@ use std::default::Default;
 ///   assert!(!m.exists(&k));
 /// }
 /// ```
+#[derive(PartialEq)]
 pub struct MemoryDB {
 	data: HashMap<H256, (Bytes, i32)>,
 	static_null_rlp: (Bytes, i32),

@@ -22,6 +22,7 @@ use common::*;
 pub mod traits;
 mod archivedb;
 mod optiononedb;
+mod overlay;
 
 /// Export the JournalDB trait.
 pub use self::traits::JournalDB;
@@ -73,6 +74,7 @@ pub fn new(path: &str, algorithm: Algorithm) -> Box<JournalDB> {
 	match algorithm {
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path)),
 		Algorithm::EarlyMerge => Box::new(optiononedb::OptionOneDB::new(path)),
+		Algorithm::OverlayRecent => Box::new(overlay::JournalOverlayDB::new(path)),
 		_ => unimplemented!(),
 	}
 }

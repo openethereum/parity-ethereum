@@ -81,10 +81,9 @@ Protocol Options:
   --testnet                Equivalent to --chain testnet (geth-compatible).
   --networkid INDEX        Override the network identifier from the chain we are on.
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD may be one of: archive,
-                           light (experimental) [default: archive].
+                           light (experimental), fast (experimental) [default: archive].
   -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --db-path PATH           Specify the database & configuration directory path [default: $HOME/.parity]
-  --pruning                Client should prune the state/storage trie.
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
   --identity NAME          Specify your node's name.
 
@@ -428,7 +427,7 @@ impl Configuration {
 		client_config.pruning = match self.args.flag_pruning.as_str() {
 			"" | "archive" => journaldb::Algorithm::Archive,
 			"pruned" => journaldb::Algorithm::EarlyMerge,
-//			"fast" => journaldb::Algorithm::OverlayRecent,	// TODO: @arkpar uncomment this once option 2 is merged.
+			"fast" => journaldb::Algorithm::OverlayRecent,
 //			"slow" => journaldb::Algorithm::RefCounted,		// TODO: @gavofyork uncomment this once ref-count algo is merged.
 			_ => { die!("Invalid pruning method given."); }
 		};

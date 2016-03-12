@@ -364,7 +364,7 @@ mod tests {
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
-		let (foo, _bar, _baz) = {
+		let (foo, _, _) = {
 			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
