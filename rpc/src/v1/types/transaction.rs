@@ -17,7 +17,6 @@
 use util::numbers::*;
 use ethcore::transaction::{LocalizedTransaction, Action};
 use v1::types::{Bytes, OptionalValue};
-use serde::Error;
 
 #[derive(Debug, Default, Serialize)]
 pub struct Transaction {
