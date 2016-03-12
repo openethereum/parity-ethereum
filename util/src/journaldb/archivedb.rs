@@ -305,7 +305,6 @@ mod tests {
 		assert!(jdb.exists(&foo));
 	}
 
-
 	#[test]
 	fn reopen() {
 		let mut dir = ::std::env::temp_dir();
@@ -364,11 +363,12 @@ mod tests {
 			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 		}
 	}
+	
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
-		let (foo, bar, baz) = {
+		let (foo, _, _) = {
 			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
@@ -406,6 +406,5 @@ mod tests {
 			let state = jdb.state(&key);
 			assert!(state.is_some());
 		}
-
 	}
 }
