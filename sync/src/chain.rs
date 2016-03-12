@@ -1283,14 +1283,13 @@ impl ChainSync {
 
 		{
 			let chain = io.chain();
-			let in_chain = vec![imported, enacted];
+			let in_chain = vec![imported, enacted, invalid];
 			let in_chain = in_chain
 				.par_iter()
 				.flat_map(|h| h.par_iter().map(|h| fetch_transactions(chain, h)));
-			let out_of_chain = vec![invalid, retracted];
-			let out_of_chain = out_of_chain
+			let out_of_chain = retracted
 				.par_iter()
-				.flat_map(|h| h.par_iter().map(|h| fetch_transactions(chain, h)));
+				.map(|h| fetch_transactions(chain, h));
 
 			in_chain.for_each(|txs| {
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
