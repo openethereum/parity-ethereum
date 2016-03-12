@@ -60,7 +60,7 @@ enum RemoveFrom {
 /// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
-pub struct OptionOneDB {
+pub struct EarlyMergeDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
 	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
@@ -72,9 +72,9 @@ const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 
 const DB_VERSION : u32 = 3;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
-impl OptionOneDB {
+impl EarlyMergeDB {
 	/// Create a new instance from file
-	pub fn new(path: &str) -> OptionOneDB {
+	pub fn new(path: &str) -> EarlyMergeDB {
 		let opts = DatabaseConfig {
 			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
 		};
@@ -90,8 +90,8 @@ impl OptionOneDB {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
-		let refs = Some(Arc::new(RwLock::new(OptionOneDB::read_refs(&backing))));
-		OptionOneDB {
+		let refs = Some(Arc::new(RwLock::new(EarlyMergeDB::read_refs(&backing))));
+		EarlyMergeDB {
 			overlay: MemoryDB::new(),
 			backing: Arc::new(backing),
 			refs: refs,
@@ -100,7 +100,7 @@ impl OptionOneDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	fn new_temp() -> OptionOneDB {
+	fn new_temp() -> EarlyMergeDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		Self::new(dir.to_str().unwrap())
@@ -269,7 +269,7 @@ impl OptionOneDB {
 	}
  }
 
-impl HashDB for OptionOneDB {
+impl HashDB for EarlyMergeDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
 		for (key, _) in self.backing.iter() {
@@ -314,9 +314,9 @@ impl HashDB for OptionOneDB {
 	}
 }
 
-impl JournalDB for OptionOneDB {
+impl JournalDB for EarlyMergeDB {
 	fn spawn(&self) -> Box<JournalDB> {
-		Box::new(OptionOneDB {
+		Box::new(EarlyMergeDB {
 			overlay: MemoryDB::new(),
 			backing: self.backing.clone(),
 			refs: self.refs.clone(),
@@ -498,7 +498,7 @@ impl JournalDB for OptionOneDB {
 				index += 1;
 			}
 			if trace {
-				trace!(target: "jdb", "delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
+				trace!(target: "jdb", "EarlyMergeDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
 			}
 		}
 
@@ -525,7 +525,7 @@ mod tests {
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = OptionOneDB::new_temp();
+		let mut jdb = EarlyMergeDB::new_temp();
 
 		let x = jdb.insert(b"X");
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
@@ -555,7 +555,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = OptionOneDB::new_temp();
+		let mut jdb = EarlyMergeDB::new_temp();
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -578,7 +578,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = OptionOneDB::new_temp();
+		let mut jdb = EarlyMergeDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -621,7 +621,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = OptionOneDB::new_temp();
+		let mut jdb = EarlyMergeDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -653,7 +653,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = OptionOneDB::new_temp();
+		let mut jdb = EarlyMergeDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -678,7 +678,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -706,7 +706,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -734,7 +734,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -772,7 +772,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -782,14 +782,14 @@ mod tests {
 		};
 
 		{
-			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 			assert!(jdb.exists(&foo));
 			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -804,7 +804,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -833,7 +833,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -882,7 +882,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		// history is 1
 		let foo = jdb.insert(b"foo");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
@@ -913,7 +913,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		// history is 4
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -953,7 +953,7 @@ mod tests {
 		let foo = b"foo".sha3();
 
 		{
-			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -974,7 +974,7 @@ mod tests {
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 
 			jdb.remove(&foo);
 			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
@@ -982,14 +982,14 @@ mod tests {
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 
 			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 
 			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -1002,7 +1002,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -1020,7 +1020,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = OptionOneDB::new(dir.to_str().unwrap());
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));

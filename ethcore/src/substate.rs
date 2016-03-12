@@ -31,6 +31,12 @@ pub struct Substate {
 	pub contracts_created: Vec<Address>
 }
 
+impl Default for Substate {
+	fn default() -> Self {
+		Substate::new()
+	}
+}
+
 impl Substate {
 	/// Creates new substate.
 	pub fn new() -> Self {
@@ -67,8 +73,8 @@ mod tests {
 		let mut sub_state = Substate::new();
 		sub_state.contracts_created.push(address_from_u64(1u64));
 		sub_state.logs.push(LogEntry {
-			address: address_from_u64(1u64), 
-			topics: vec![], 
+			address: address_from_u64(1u64),
+			topics: vec![],
 			data: vec![]
 		});
 		sub_state.sstore_clears_count = x!(5);
@@ -77,8 +83,8 @@ mod tests {
 		let mut sub_state_2 = Substate::new();
 		sub_state_2.contracts_created.push(address_from_u64(2u64));
 		sub_state_2.logs.push(LogEntry {
-			address: address_from_u64(1u64), 
-			topics: vec![], 
+			address: address_from_u64(1u64),
+			topics: vec![],
 			data: vec![]
 		});
 		sub_state_2.sstore_clears_count = x!(7);

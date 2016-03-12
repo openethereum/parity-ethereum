@@ -16,12 +16,19 @@
 
 //! Key-Value store abstraction with RocksDB backend.
 
+use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
 	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 pub struct DBTransaction {
 	batch: WriteBatch,
+}
+
+impl Default for DBTransaction {
+	fn default() -> Self {
+		DBTransaction::new()
+	}
 }
 
 impl DBTransaction {

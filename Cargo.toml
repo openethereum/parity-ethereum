@@ -19,7 +19,7 @@ ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
 number_prefix = "0.2"
-clippy = { version = "0.0.44", optional = true }
+clippy = { version = "0.0.49", optional = true }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
