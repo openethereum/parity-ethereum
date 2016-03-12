@@ -44,32 +44,40 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 	}))
 }
 
+struct EthTester {
+	client: Arc<TestBlockChainClient>,
+	sync: Arc<TestSyncProvider>,
+	accounts_provider: Arc<TestAccountProvider>,
+	pub io: IoHandler,
+}
+
+impl Default for EthTester {
+	fn default() -> Self {
+		let client = blockchain_client();
+		let sync = sync_provider();
+		let ap = accounts_provider();
+		let eth = EthClient::new(&client, &sync, &ap).to_delegate();
+		let io = IoHandler::new();
+		io.add_delegate(eth);
+		EthTester {
+			client: client,
+			sync: sync,
+			accounts_provider: ap,
+			io: io
+		}
+	}
+}
+
 #[test]
 fn rpc_eth_accounts() {
-	let client = blockchain_client();
-	let sync = sync_provider();
-	let ap = accounts_provider();
-
-	let eth = EthClient::new(&client, &sync, &ap).to_delegate();
-	let io = IoHandler::new();
-	io.add_delegate(eth);
-
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
 #[test]
 fn rpc_eth_balance() {
-	let client = blockchain_client();
-	let sync = sync_provider();
-	let ap = accounts_provider();
-
-	let eth = EthClient::new(&client, &sync, &ap).to_delegate();
-	let io = IoHandler::new();
-	io.add_delegate(eth);
-
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getBalance",
@@ -78,5 +86,5 @@ fn rpc_eth_balance() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x05","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
