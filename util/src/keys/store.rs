@@ -120,9 +120,15 @@ impl AccountProvider for AccountService {
 	}
 }
 
+impl Default for AccountService {
+	fn default() -> Self {
+		AccountService::new()
+	}
+}
+
 impl AccountService {
 	/// New account service with the default location
-	pub fn new() -> AccountService {
+	pub fn new() -> Self {
 		let secret_store = RwLock::new(SecretStore::new());
 		secret_store.write().unwrap().try_import_existing();
 		AccountService {
