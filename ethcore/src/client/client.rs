@@ -230,14 +230,17 @@ impl<V> Client<V> where V: Verifier {
 		Ok(closed_block)
 	}
 
-	fn calculate_enacted_retracted(&self, routes: Vec<ImportRoute>) -> (Vec<H256>, Vec<H256>) {
+	fn calculate_enacted_retracted(&self, import_results: Vec<ImportRoute>) -> (Vec<H256>, Vec<H256>) {
 		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
 			map.into_iter().map(|(k, _v)| k).collect()
 		}
 
-		// To be sure what is a final state of a block after all inserts
-		// we iterate over all routes and at the end final state will be in the hashmap
-		let map = routes.into_iter().fold(HashMap::new(), |mut map, route| {
+		// In ImportRoute we get all the blocks that have been enacted and retracted by single insert.
+		// Because we are doing multiple inserts some of the blocks that were enacted in import `k`
+		// could be retracted in import `k+1`. This is why to understand if after all inserts
+		// the block is enacted or retracted we iterate over all routes and at the end final state
+		// will be in the hashmap
+		let map = import_results.into_iter().fold(HashMap::new(), |mut map, route| {
 			for hash in route.enacted {
 				map.insert(hash, true);
 			}
