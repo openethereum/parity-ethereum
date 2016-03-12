@@ -506,7 +506,9 @@ impl Configuration {
 				sync.clone(),
 				account_service.clone(),
 				miner.clone(),
-				&url, cors, apis.split(',').collect()
+				&url,
+				cors,
+				apis.split(',').collect()
 			);
 			if let Some(handler) = server_handler {
 				panic_handler.forward_from(handler.deref());
