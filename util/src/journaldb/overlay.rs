@@ -33,14 +33,14 @@ use super::JournalDB;
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
 ///
-/// There are two memory overlays: 
-/// - Transaction overlay contains current transaction data. It is merged with with history 
+/// There are two memory overlays:
+/// - Transaction overlay contains current transaction data. It is merged with with history
 /// overlay on each `commit()`
-/// - History overlay contains all data inserted during the history period. When the node 
+/// - History overlay contains all data inserted during the history period. When the node
 /// in the overlay becomes ancient it is written to disk on `commit()`
 ///
-/// There is also a journal maintained in memory and on the disk as well which lists insertions 
-/// and removals for each commit during the history period. This is used to track 
+/// There is also a journal maintained in memory and on the disk as well which lists insertions
+/// and removals for each commit during the history period. This is used to track
 /// data nodes that go out of history scope and must be written to disk.
 ///
 /// Commit workflow:
@@ -50,12 +50,12 @@ use super::JournalDB;
 /// 3. Clear the transaction overlay.
 /// 4. For a canonical journal record that becomes ancient inserts its insertions into the disk DB
 /// 5. For each journal record that goes out of the history scope (becomes ancient) remove its
-/// insertions from the history overlay, decreasing the reference counter and removing entry if 
+/// insertions from the history overlay, decreasing the reference counter and removing entry if
 /// if reaches zero.
-/// 6. For a canonical journal record that becomes ancient delete its removals from the disk only if 
+/// 6. For a canonical journal record that becomes ancient delete its removals from the disk only if
 /// the removed key is not present in the history overlay.
 /// 7. Delete ancient record from memory and disk.
-/// 
+///
 pub struct JournalOverlayDB {
 	transaction_overlay: MemoryDB,
 	backing: Arc<Database>,
@@ -223,7 +223,7 @@ impl JournalDB for JournalOverlayDB {
 			let mut tx = self.transaction_overlay.drain();
 			let inserted_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c > 0 { Some(k.clone()) } else { None }).collect();
 			let removed_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c < 0 { Some(k.clone()) } else { None }).collect();
-			// Increase counter for each inserted key no matter if the block is canonical or not. 
+			// Increase counter for each inserted key no matter if the block is canonical or not.
 			let insertions = tx.drain().filter_map(|(k, (v, c))| if c > 0 { Some((k, v)) } else { None });
 			r.append(id);
 			r.begin_list(inserted_keys.len());
@@ -236,7 +236,7 @@ impl JournalDB for JournalOverlayDB {
 			r.append(&removed_keys);
 
 			let mut k = RlpStream::new_list(3);
-			let index = journal_overlay.journal.get(&now).map(|j| j.len()).unwrap_or(0);
+			let index = journal_overlay.journal.get(&now).map_or(0, |j| j.len());
 			k.append(&now);
 			k.append(&index);
 			k.append(&&PADDING[..]);
@@ -345,14 +345,14 @@ impl HashDB for JournalOverlayDB {
 		self.lookup(key).is_some()
 	}
 
-	fn insert(&mut self, value: &[u8]) -> H256 { 
+	fn insert(&mut self, value: &[u8]) -> H256 {
 		self.transaction_overlay.insert(value)
 	}
 	fn emplace(&mut self, key: H256, value: Bytes) {
-		self.transaction_overlay.emplace(key, value); 
+		self.transaction_overlay.emplace(key, value);
 	}
-	fn kill(&mut self, key: &H256) { 
-		self.transaction_overlay.kill(key); 
+	fn kill(&mut self, key: &H256) {
+		self.transaction_overlay.kill(key);
 	}
 }
 
@@ -749,7 +749,7 @@ mod tests {
 		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.exists(&foo));
 	}
-	
+
 	#[test]
 	fn reopen_test() {
 		let mut dir = ::std::env::temp_dir();
@@ -784,7 +784,7 @@ mod tests {
 		jdb.commit(7, &b"7".sha3(), Some((3, b"3".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
-	
+
 	#[test]
 	fn reopen_remove_three() {
 		init_log();
@@ -838,7 +838,7 @@ mod tests {
 			assert!(!jdb.exists(&foo));
 		}
 	}
-	
+
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
