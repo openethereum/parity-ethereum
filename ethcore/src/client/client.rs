@@ -350,16 +350,15 @@ impl<V> Client<V> where V: Verifier {
 	}
 }
 
-
-// TODO: need MinerService MinerIoHandler
-
 impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 
+	// TODO [todr] Should be moved to miner crate eventually.
 	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
+	// TODO [todr] Should be moved to miner crate eventually.
 	fn prepare_sealing(&self, author: Address, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
