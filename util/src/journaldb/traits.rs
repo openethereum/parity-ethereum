@@ -34,4 +34,9 @@ pub trait JournalDB : HashDB + Send + Sync {
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
+
+	/// State data query
+	fn state(&self, _id: &H256) -> Option<Bytes> {
+		None
+	}
 }
