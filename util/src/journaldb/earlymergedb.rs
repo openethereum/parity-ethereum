@@ -64,6 +64,7 @@ pub struct EarlyMergeDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
 	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
+	latest_era: u64,
 }
 
 // all keys must be at least 12 bytes
@@ -90,11 +91,13 @@ impl EarlyMergeDB {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
-		let refs = Some(Arc::new(RwLock::new(EarlyMergeDB::read_refs(&backing))));
+		let (latest_era, refs) = EarlyMergeDB::read_refs(&backing);
+		let refs = Some(Arc::new(RwLock::new(refs)));
 		EarlyMergeDB {
 			overlay: MemoryDB::new(),
 			backing: Arc::new(backing),
 			refs: refs,
+			latest_era: latest_era,
 		}
 	}
 
@@ -225,9 +228,9 @@ impl EarlyMergeDB {
 
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
-		let reconstructed = Self::read_refs(&self.backing);
+		let (latest_era, reconstructed) = Self::read_refs(&self.backing);
 		let refs = self.refs.as_ref().unwrap().write().unwrap();
-		if *refs != reconstructed {
+		if *refs != reconstructed || latest_era != self.latest_era {
 			let clean_refs = refs.iter().filter_map(|(k, v)| if reconstructed.get(k) == Some(v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
 			let clean_recon = reconstructed.into_iter().filter_map(|(k, v)| if refs.get(&k) == Some(&v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
 			warn!(target: "jdb", "mem: {:?}  !=  log: {:?}", clean_refs, clean_recon);
@@ -241,10 +244,12 @@ impl EarlyMergeDB {
 		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 
-	fn read_refs(db: &Database) -> HashMap<H256, RefInfo> {
+	fn read_refs(db: &Database) -> (u64, HashMap<H256, RefInfo>) {
 		let mut refs = HashMap::new();
+		let mut latest_era = 0u64;
 		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
-			let mut era = decode::<u64>(&val);
+			latest_era = decode::<u64>(&val);
+			let mut era = latest_era;
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
@@ -265,7 +270,7 @@ impl EarlyMergeDB {
 				era -= 1;
 			}
 		}
-		refs
+		(latest_era, refs)
 	}
  }
 
@@ -320,6 +325,7 @@ impl JournalDB for EarlyMergeDB {
 			overlay: MemoryDB::new(),
 			backing: self.backing.clone(),
 			refs: self.refs.clone(),
+			latest_era: self.latest_era,
 		})
 	}
 
@@ -435,7 +441,10 @@ impl JournalDB for EarlyMergeDB {
 				trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
 			}
 			try!(batch.put(&last, r.as_raw()));
-			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+			if now >= self.latest_era {
+				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+				self.latest_era = now;
+			}
 		}
 
 		// apply old commits' details
