@@ -1269,7 +1269,7 @@ impl ChainSync {
 	}
 
 	/// called when block is imported to chain, updates transactions queue and propagates the blocks
-	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, good: &[H256], bad: &[H256], enacted: &[H256], retracted: &[H256]) {
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
 				.block(BlockId::Hash(hash.clone()))
@@ -1282,11 +1282,11 @@ impl ChainSync {
 
 		{
 			let chain = io.chain();
-			let in_chain = vec![good, enacted];
+			let in_chain = vec![imported, enacted];
 			let in_chain = in_chain
 				.par_iter()
 				.flat_map(|h| h.par_iter().map(|h| fetch_transactions(chain, h)));
-			let out_of_chain = vec![bad, retracted];
+			let out_of_chain = vec![invalid, retracted];
 			let out_of_chain = out_of_chain
 				.par_iter()
 				.flat_map(|h| h.par_iter().map(|h| fetch_transactions(chain, h)));
