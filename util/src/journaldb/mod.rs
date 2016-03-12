@@ -21,8 +21,8 @@ use common::*;
 /// Export the journaldb module.
 pub mod traits;
 mod archivedb;
-mod optiononedb;
-mod overlay;
+mod earlymergedb;
+mod overlayrecentdb;
 
 /// Export the JournalDB trait.
 pub use self::traits::JournalDB;
@@ -73,8 +73,8 @@ impl fmt::Display for Algorithm {
 pub fn new(path: &str, algorithm: Algorithm) -> Box<JournalDB> {
 	match algorithm {
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path)),
-		Algorithm::EarlyMerge => Box::new(optiononedb::OptionOneDB::new(path)),
-		Algorithm::OverlayRecent => Box::new(overlay::JournalOverlayDB::new(path)),
+		Algorithm::EarlyMerge => Box::new(optiononedb::EarlyMergeDB::new(path)),
+		Algorithm::OverlayRecent => Box::new(optiononedb::OverlayRecentDB::new(path)),
 		_ => unimplemented!(),
 	}
 }

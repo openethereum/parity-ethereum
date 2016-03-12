@@ -56,7 +56,7 @@ use super::JournalDB;
 /// the removed key is not present in the history overlay.
 /// 7. Delete ancient record from memory and disk.
 /// 
-pub struct JournalOverlayDB {
+pub struct OverlayRecentDB {
 	transaction_overlay: MemoryDB,
 	backing: Arc<Database>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
@@ -82,9 +82,9 @@ impl HeapSizeOf for JournalEntry {
 	}
 }
 
-impl Clone for JournalOverlayDB {
-	fn clone(&self) -> JournalOverlayDB {
-		JournalOverlayDB {
+impl Clone for OverlayRecentDB {
+	fn clone(&self) -> OverlayRecentDB {
+		OverlayRecentDB {
 			transaction_overlay: MemoryDB::new(),
 			backing: self.backing.clone(),
 			journal_overlay: self.journal_overlay.clone(),
@@ -98,14 +98,14 @@ const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 
 const DB_VERSION : u32 = 0x200 + 3;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
-impl JournalOverlayDB {
+impl OverlayRecentDB {
 	/// Create a new instance from file
-	pub fn new(path: &str) -> JournalOverlayDB {
+	pub fn new(path: &str) -> OverlayRecentDB {
 		Self::from_prefs(path)
 	}
 
 	/// Create a new instance from file
-	pub fn from_prefs(path: &str) -> JournalOverlayDB {
+	pub fn from_prefs(path: &str) -> OverlayRecentDB {
 		let opts = DatabaseConfig {
 			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
 		};
@@ -121,8 +121,8 @@ impl JournalOverlayDB {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
-		let journal_overlay = Arc::new(RwLock::new(JournalOverlayDB::read_overlay(&backing)));
-		JournalOverlayDB {
+		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&backing)));
+		OverlayRecentDB {
 			transaction_overlay: MemoryDB::new(),
 			backing: Arc::new(backing),
 			journal_overlay: journal_overlay,
@@ -131,7 +131,7 @@ impl JournalOverlayDB {
 
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
-	pub fn new_temp() -> JournalOverlayDB {
+	pub fn new_temp() -> OverlayRecentDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		Self::new(dir.to_str().unwrap())
@@ -196,7 +196,7 @@ impl JournalOverlayDB {
 	}
 }
 
-impl JournalDB for JournalOverlayDB {
+impl JournalDB for OverlayRecentDB {
 	fn spawn(&self) -> Box<JournalDB> {
 		Box::new(self.clone())
 	}
@@ -303,7 +303,7 @@ impl JournalDB for JournalOverlayDB {
 
 }
 
-impl HashDB for JournalOverlayDB {
+impl HashDB for OverlayRecentDB {
 	fn keys(&self) -> HashMap<H256, i32> {
 		let mut ret: HashMap<H256, i32> = HashMap::new();
 		for (key, _) in self.backing.iter() {
@@ -367,7 +367,7 @@ mod tests {
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = JournalOverlayDB::new_temp();
+		let mut jdb = OverlayRecentDB::new_temp();
 
 		let x = jdb.insert(b"X");
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
@@ -397,7 +397,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = JournalOverlayDB::new_temp();
+		let mut jdb = OverlayRecentDB::new_temp();
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -420,7 +420,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = JournalOverlayDB::new_temp();
+		let mut jdb = OverlayRecentDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -463,7 +463,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = JournalOverlayDB::new_temp();
+		let mut jdb = OverlayRecentDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -495,7 +495,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = JournalOverlayDB::new_temp();
+		let mut jdb = OverlayRecentDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -520,7 +520,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -548,7 +548,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -576,7 +576,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -614,7 +614,7 @@ mod tests {
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
@@ -624,14 +624,14 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 			assert!(jdb.exists(&foo));
 			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
@@ -646,7 +646,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -675,7 +675,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -724,7 +724,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 		// history is 1
 		let foo = jdb.insert(b"foo");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
@@ -755,7 +755,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 		// history is 4
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -795,7 +795,7 @@ mod tests {
 		let foo = b"foo".sha3();
 
 		{
-			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
@@ -816,7 +816,7 @@ mod tests {
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 
 			jdb.remove(&foo);
 			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
@@ -824,14 +824,14 @@ mod tests {
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 
 			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
 		// incantation to reopen the db
-		}; { let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 
 			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -844,7 +844,7 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 		let (foo, bar, baz) = {
-			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -862,7 +862,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = JournalOverlayDB::new(dir.to_str().unwrap());
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
