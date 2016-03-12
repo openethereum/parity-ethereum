@@ -14,39 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethsync::{SyncProvider, SyncStatus, SyncState};
+extern crate rustc_version;
 
-pub struct Config {
-	pub protocol_version: u8,
-	pub num_peers: usize,
-}
+use rustc_version::{version_meta, Channel};
 
-pub struct TestSyncProvider {
-	status: SyncStatus,
-}
-
-impl TestSyncProvider {
-	pub fn new(config: Config) -> Self {
-		TestSyncProvider {
-			status: SyncStatus {
-				state: SyncState::NotSynced,
-				protocol_version: config.protocol_version,
-				start_block_number: 0,
-				last_imported_block_number: None,
-				highest_block_number: None,
-				blocks_total: 0,
-				blocks_received: 0,
-				num_peers: config.num_peers,
-				num_active_peers: 0,
-				mem_used: 0,
-			},
-		}
+fn main() {
+	if let Channel::Nightly = version_meta().channel {
+		println!("cargo:rustc-cfg=nightly");
 	}
 }
-
-impl SyncProvider for TestSyncProvider {
-	fn status(&self) -> SyncStatus {
-		self.status.clone()
-	}
-}
-
