@@ -79,6 +79,7 @@
 //!		- When it's removed from `current` - all transactions from this sender (`current` & `future`) are recalculated.
 //!
 
+use std::default::Default;
 use std::cmp::{Ordering};
 use std::collections::{HashMap, BTreeSet};
 use util::numbers::{Uint, U256};
@@ -101,6 +102,7 @@ struct TransactionOrder {
 	/// Hash to identify associated transaction
 	hash: H256,
 }
+
 
 impl TransactionOrder {
 	fn for_transaction(tx: &VerifiedTransaction, base_nonce: U256) -> Self {
@@ -253,6 +255,12 @@ pub struct TransactionQueue {
 	by_hash: HashMap<H256, VerifiedTransaction>,
 	/// Last nonce of transaction in current (to quickly check next expected transaction)
 	last_nonces: HashMap<Address, U256>,
+}
+
+impl Default for TransactionQueue {
+	fn default() -> Self {
+		TransactionQueue::new()
+	}
 }
 
 impl TransactionQueue {

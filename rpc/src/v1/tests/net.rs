@@ -36,7 +36,7 @@ fn rpc_net_version() {
 	let request = r#"{"jsonrpc": "2.0", "method": "net_version", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"65","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_string()));
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn rpc_net_peer_count() {
 	let request = r#"{"jsonrpc": "2.0", "method": "net_peerCount", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x78","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_string()));
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -62,5 +62,5 @@ fn rpc_net_listening() {
 	let request = r#"{"jsonrpc": "2.0", "method": "net_listening", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_string()));
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }

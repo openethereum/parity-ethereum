@@ -16,7 +16,7 @@ env_logger = "0.3"
 time = "0.1.34"
 rand = "0.3.13"
 heapsize = "0.3"
-clippy = { version = "0.0.44", optional = true }
+clippy = { version = "0.0.49", optional = true }
 
 [features]
 default = []

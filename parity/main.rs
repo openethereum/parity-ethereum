@@ -106,7 +106,8 @@ API and Console Options:
   --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server [default: 8545].
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited
-                           list of API name. Possible names are web3, eth and net. [default: web3,eth,net].
+                           list of API name. Possible name are web3, eth and net. [default: web3,eth,net,personal].
+
   --rpc                    Equivalent to --jsonrpc (geth-compatible).
   --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST (geth-compatible).
   --rpcport PORT           Equivalent to --jsonrpc-port PORT (geth-compatible).
@@ -237,6 +238,7 @@ fn setup_rpc_server(
 				server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 			}
+			"personal" => server.add_delegate(PersonalClient::new(&secret_store).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
 			}

@@ -15,7 +15,6 @@ rustc-serialize = "0.3"
 arrayvec = "0.3"
 rand = "0.3.12"
 serde = "0.7.0"
-clippy = { version = "0.0.44", optional = true }
 heapsize = "0.3"
 
 [features]
