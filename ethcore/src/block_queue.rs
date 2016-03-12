@@ -121,7 +121,7 @@ struct QueueSignal {
 }
 
 impl QueueSignal {
-	#[cfg_attr(all(nightly, feature="dev"), allow(bool_comparison))]
+	#[cfg_attr(feature="dev", allow(bool_comparison))]
 	fn set(&self) {
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
 			self.message_channel.send(UserMessage(SyncMessage::BlockVerified)).expect("Error sending BlockVerified message");
@@ -412,6 +412,7 @@ impl BlockQueue {
 		}
 	}
 
+	/// Optimise memory footprint of the heap fields.
 	pub fn collect_garbage(&self) {
 		{
 			self.verification.unverified.lock().unwrap().shrink_to_fit();

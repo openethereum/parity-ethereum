@@ -19,7 +19,7 @@ ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
 number_prefix = "0.2"
-clippy = { version = "0.0.44", optional = true }
+clippy = { version = "0.0.49", optional = true }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
@@ -27,19 +27,12 @@ ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
 rpassword = "0.1"
 
-[dev-dependencies]
-ethcore = { path = "ethcore", features = ["dev"] }
-ethcore-util = { path = "util", features = ["dev"] }
-ethsync = { path = "sync", features = ["dev"] }
-ethcore-rpc = { path = "rpc", features = ["dev"] }
-
 [features]
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
-dev = ["ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev"]
-dev-clippy = ["clippy", "ethcore/clippy", "ethcore-util/clippy", "ethsync/clippy", "ethcore-rpc/clippy"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev"]
 travis-beta = ["ethcore/json-tests"]
-travis-nightly = ["ethcore/json-tests", "dev-clippy", "dev"]
+travis-nightly = ["ethcore/json-tests", "dev"]
 
 [[bin]]
 path = "parity/main.rs"

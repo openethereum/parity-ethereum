@@ -250,9 +250,9 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	}
 }
 
-pub fn get_temp_journal_db() -> GuardedTempResult<JournalDB> {
+pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
-	let journal_db = JournalDB::new(temp.as_str());
+	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge);
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(journal_db)
@@ -268,8 +268,8 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	}
 }
 
-pub fn get_temp_journal_db_in(path: &Path) -> JournalDB {
-	JournalDB::new(path.to_str().unwrap())
+pub fn get_temp_journal_db_in(path: &Path) -> Box<JournalDB> {
+	journaldb::new(path.to_str().unwrap(), journaldb::Algorithm::EarlyMerge)
 }
 
 pub fn get_temp_state_in(path: &Path) -> State {

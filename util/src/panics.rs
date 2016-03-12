@@ -19,6 +19,7 @@
 use std::thread;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
+use std::default::Default;
 
 /// Thread-safe closure for handling possible panics
 pub trait OnPanicListener: Send + Sync + 'static {
@@ -56,14 +57,20 @@ pub struct PanicHandler {
 	listeners: Mutex<Vec<Box<OnPanicListener>>>
 }
 
+impl Default for PanicHandler {
+	fn default() -> Self {
+		PanicHandler::new()
+	}
+}
+
 impl PanicHandler {
 	/// Creates new `PanicHandler` wrapped in `Arc`
-	pub fn new_in_arc() -> Arc<PanicHandler> {
+	pub fn new_in_arc() -> Arc<Self> {
 		Arc::new(Self::new())
 	}
 
 	/// Creates new `PanicHandler`
-	pub fn new() -> PanicHandler {
+	pub fn new() -> Self {
 		PanicHandler {
 			listeners: Mutex::new(vec![])
 		}
@@ -71,7 +78,7 @@ impl PanicHandler {
 
 	/// Invoke closure and catch any possible panics.
 	/// In case of panic notifies all listeners about it.
-	#[cfg_attr(all(nightly, feature="dev"), allow(deprecated))]
+	#[cfg_attr(feature="dev", allow(deprecated))]
 	pub fn catch_panic<G, R>(&self, g: G) -> thread::Result<R> where G: FnOnce() -> R + Send + 'static {
 		let _guard = PanicGuard { handler: self };
 		let result = g();

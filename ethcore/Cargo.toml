@@ -5,10 +5,6 @@ license = "GPL-3.0"
 name = "ethcore"
 version = "0.9.99"
 authors = ["Ethcore <admin@ethcore.io>"]
-build = "build.rs"
-
-[build-dependencies]
-rustc_version = "0.1"
 
 [dependencies]
 log = "0.3"
@@ -21,7 +17,7 @@ ethcore-util = { path = "../util" }
 evmjit = { path = "../evmjit", optional = true }
 ethash = { path = "../ethash" }
 num_cpus = "0.2"
-clippy = { version = "0.0.44", optional = true }
+clippy = { version = "0.0.49", optional = true }
 crossbeam = "0.1.5"
 lazy_static = "0.1"
 ethcore-devtools = { path = "../devtools" }
@@ -31,5 +27,5 @@ jit = ["evmjit"]
 evm-debug = []
 json-tests = []
 test-heavy = []
-dev = []
+dev = ["clippy"]
 default = []
