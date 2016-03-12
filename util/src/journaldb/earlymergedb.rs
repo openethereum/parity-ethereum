@@ -64,7 +64,7 @@ pub struct EarlyMergeDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
 	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
-	latest_era: u64,
+	latest_era: Option<u64>,
 }
 
 // all keys must be at least 12 bytes
@@ -244,12 +244,12 @@ impl EarlyMergeDB {
 		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 
-	fn read_refs(db: &Database) -> (u64, HashMap<H256, RefInfo>) {
+	fn read_refs(db: &Database) -> (Option<u64>, HashMap<H256, RefInfo>) {
 		let mut refs = HashMap::new();
-		let mut latest_era = 0u64;
+		let mut latest_era = None;
 		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
-			latest_era = decode::<u64>(&val);
-			let mut era = latest_era;
+			let mut era = decode::<u64>(&val);
+			latest_era = Some(era);
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
@@ -325,7 +325,7 @@ impl JournalDB for EarlyMergeDB {
 			overlay: MemoryDB::new(),
 			backing: self.backing.clone(),
 			refs: self.refs.clone(),
-			latest_era: self.latest_era,
+			latest_era: self.latest_era.clone(),
 		})
 	}
 
@@ -441,9 +441,9 @@ impl JournalDB for EarlyMergeDB {
 				trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
 			}
 			try!(batch.put(&last, r.as_raw()));
-			if now >= self.latest_era {
+			if self.latest_era.map_or(true, |e| now > e) {
 				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
-				self.latest_era = now;
+				self.latest_era = Some(now);
 			}
 		}
 
