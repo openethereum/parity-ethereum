@@ -224,8 +224,14 @@ fn setup_log(init: &Option<String>) {
 
 #[cfg(feature = "rpc")]
 fn setup_rpc_server(
-	client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<AccountService>, miner: Arc<Miner>,
-	url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
+	client: Arc<Client>,
+	sync: Arc<EthSync>,
+	secret_store: Arc<AccountService>,
+	miner: Arc<Miner>,
+	url: &str,
+	cors_domain: &str,
+	apis: Vec<&str>
+) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
