@@ -167,7 +167,7 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	#[allow(single_match)]
 	fn message(&self, io: &NetworkContext<SyncMessage>, message: &SyncMessage) {
 		match *message {
-			SyncMessage::NewChainBlocks { ref good, ref bad, ref retracted} => {
+			SyncMessage::NewChainBlocks { ref good, ref bad, ref retracted } => {
 				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
 				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, good, bad, retracted);
 			},
