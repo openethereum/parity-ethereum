@@ -28,9 +28,15 @@ pub struct MemoryCache {
 	blooms: HashMap<BloomIndex, H2048>,
 }
 
+impl Default for MemoryCache {
+	fn default() -> Self {
+		MemoryCache::new()
+	}
+}
+
 impl MemoryCache {
 	/// Default constructor for MemoryCache
-	pub fn new() -> MemoryCache {
+	pub fn new() -> Self {
 		MemoryCache { blooms: HashMap::new() }
 	}
 

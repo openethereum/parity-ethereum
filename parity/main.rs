@@ -315,7 +315,7 @@ impl Configuration {
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
 		let mut r = if self.args.flag_no_bootstrap { Vec::new() } else { spec.nodes().clone() };
 		if let Some(ref x) = self.args.flag_bootnodes {
-			r.extend(x.split(",").map(|s| Self::normalize_enode(s).unwrap_or_else(|| die!("{}: Invalid node address format given for a boot node.", s))));
+			r.extend(x.split(',').map(|s| Self::normalize_enode(s).unwrap_or_else(|| die!("{}: Invalid node address format given for a boot node.", s))));
 		}
 		r
 	}
@@ -328,7 +328,7 @@ impl Configuration {
 			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
 			Some(SocketAddr::new(host, self.args.flag_port))
 		} else {
-			listen_address.clone()
+			listen_address
 		};
 		(listen_address, public_address)
 	}
@@ -389,7 +389,7 @@ impl Configuration {
 		}
 		if self.args.cmd_list {
 			println!("Known addresses:");
-			for &(addr, _) in secret_store.accounts().unwrap().iter() {
+			for &(addr, _) in &secret_store.accounts().unwrap() {
 				println!("{:?}", addr);
 			}
 		}
@@ -407,7 +407,11 @@ impl Configuration {
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
 		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = self.args.flag_networkid.as_ref().map(|id| U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --networkid", id))).unwrap_or(spec.network_id());
+		sync_config.network_id = self.args.flag_networkid.as_ref().map_or(spec.network_id(), |id| {
+			U256::from_str(id).unwrap_or_else(|_| {
+				die!("{}: Invalid index given with --networkid", id)
+			})
+		});
 
 		// Build client
 		let mut client_config = ClientConfig::default();
@@ -422,8 +426,7 @@ impl Configuration {
 			}
 		}
 		client_config.pruning = match self.args.flag_pruning.as_str() {
-			"" => journaldb::Algorithm::Archive,
-			"archive" => journaldb::Algorithm::Archive,
+			"" | "archive" => journaldb::Algorithm::Archive,
 			"pruned" => journaldb::Algorithm::EarlyMerge,
 //			"fast" => journaldb::Algorithm::OverlayRecent,	// TODO: @arkpar uncomment this once option 2 is merged.
 //			"slow" => journaldb::Algorithm::RefCounted,		// TODO: @gavofyork uncomment this once ref-count algo is merged.
@@ -453,7 +456,7 @@ impl Configuration {
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let server_handler = setup_rpc_server(service.client(), sync.clone(), account_service.clone(), &url, cors, apis.split(",").collect());
+			let server_handler = setup_rpc_server(service.client(), sync.clone(), account_service.clone(), &url, cors, apis.split(',').collect());
 			if let Some(handler) = server_handler {
 				panic_handler.forward_from(handler.deref());
 			}

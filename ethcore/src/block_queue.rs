@@ -523,7 +523,7 @@ mod tests {
 		let engine = spec.to_engine().unwrap();
 		let mut config = BlockQueueConfig::default();
 		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
-		let mut queue = BlockQueue::new(config, Arc::new(engine), IoChannel::disconnected());
+		let queue = BlockQueue::new(config, Arc::new(engine), IoChannel::disconnected());
 		assert!(!queue.queue_info().is_full());
 		let mut blocks = get_good_dummy_block_seq(50);
 		for b in blocks.drain(..) {
