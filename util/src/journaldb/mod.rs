@@ -73,8 +73,8 @@ impl fmt::Display for Algorithm {
 pub fn new(path: &str, algorithm: Algorithm) -> Box<JournalDB> {
 	match algorithm {
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path)),
-		Algorithm::EarlyMerge => Box::new(optiononedb::EarlyMergeDB::new(path)),
-		Algorithm::OverlayRecent => Box::new(optiononedb::OverlayRecentDB::new(path)),
+		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(path)),
+		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(path)),
 		_ => unimplemented!(),
 	}
 }
