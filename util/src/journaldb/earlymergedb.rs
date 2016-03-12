@@ -25,6 +25,34 @@ use kvdb::{Database, DBTransaction, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 
+#[derive(Clone, PartialEq, Eq)]
+struct RefInfo {
+	queue_refs: usize,
+	in_archive: bool,
+}
+
+impl HeapSizeOf for RefInfo {
+	fn heap_size_of_children(&self) -> usize { 0 }
+}
+
+impl fmt::Display for RefInfo {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}+{}", self.queue_refs, if self.in_archive {1} else {0})
+	}
+}
+
+impl fmt::Debug for RefInfo {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}+{}", self.queue_refs, if self.in_archive {1} else {0})
+	}
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum RemoveFrom {
+	Queue,
+	Archive,
+}
+
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
 ///
@@ -35,7 +63,7 @@ use std::env;
 pub struct EarlyMergeDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
-	counters: Option<Arc<RwLock<HashMap<H256, i32>>>>,
+	refs: Option<Arc<RwLock<HashMap<H256, RefInfo>>>>,
 }
 
 // all keys must be at least 12 bytes
@@ -62,11 +90,11 @@ impl EarlyMergeDB {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
-		let counters = Some(Arc::new(RwLock::new(EarlyMergeDB::read_counters(&backing))));
+		let refs = Some(Arc::new(RwLock::new(EarlyMergeDB::read_refs(&backing))));
 		EarlyMergeDB {
 			overlay: MemoryDB::new(),
 			backing: Arc::new(backing),
-			counters: counters,
+			refs: refs,
 		}
 	}
 
@@ -91,11 +119,14 @@ impl EarlyMergeDB {
 		backing.get(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
 
-	fn insert_keys(inserts: &[(H256, Bytes)], backing: &Database, counters: &mut HashMap<H256, i32>, batch: &DBTransaction) {
+	fn insert_keys(inserts: &[(H256, Bytes)], backing: &Database, refs: &mut HashMap<H256, RefInfo>, batch: &DBTransaction, trace: bool) {
 		for &(ref h, ref d) in inserts {
-			if let Some(c) = counters.get_mut(h) {
+			if let Some(c) = refs.get_mut(h) {
 				// already counting. increment.
-				*c += 1;
+				c.queue_refs += 1;
+				if trace {
+					trace!(target: "jdb.fine", "    insert({}): In queue: Incrementing refs to {}", h, c.queue_refs);
+				}
 				continue;
 			}
 
@@ -103,7 +134,10 @@ impl EarlyMergeDB {
 			if backing.get(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?").is_some() {
 				// already in the backing DB. start counting, and remember it was already in.
 				Self::set_already_in(batch, &h);
-				counters.insert(h.clone(), 1);
+				refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: true});
+				if trace {
+					trace!(target: "jdb.fine", "    insert({}): New to queue, in DB: Recording and inserting into queue", h);
+				}
 				continue;
 			}
 
@@ -111,51 +145,95 @@ impl EarlyMergeDB {
 			//Self::reset_already_in(&h);
 			assert!(!Self::is_already_in(backing, &h));
 			batch.put(&h.bytes(), d).expect("Low-level database error. Some issue with your hard disk?");
+			refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: false});
+			if trace {
+				trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
+			}
 		}
 	}
 
-	fn replay_keys(inserts: &[H256], backing: &Database, counters: &mut HashMap<H256, i32>) {
-		trace!("replay_keys: inserts={:?}, counters={:?}", inserts, counters);
+	fn replay_keys(inserts: &[H256], backing: &Database, refs: &mut HashMap<H256, RefInfo>) {
+		trace!(target: "jdb.fine", "replay_keys: inserts={:?}, refs={:?}", inserts, refs);
 		for h in inserts {
-			if let Some(c) = counters.get_mut(h) {
+			if let Some(c) = refs.get_mut(h) {
 				// already counting. increment.
-				*c += 1;
+				c.queue_refs += 1;
 				continue;
 			}
 
 			// this is the first entry for this node in the journal.
 			// it is initialised to 1 if it was already in.
-			if Self::is_already_in(backing, h) {
-				trace!("replace_keys: Key {} was already in!", h);
-				counters.insert(h.clone(), 1);
-			}
+			refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: Self::is_already_in(backing, h)});
 		}
-		trace!("replay_keys: (end) counters={:?}", counters);
+		trace!(target: "jdb.fine", "replay_keys: (end) refs={:?}", refs);
 	}
 
-	fn kill_keys(deletes: Vec<H256>, counters: &mut HashMap<H256, i32>, batch: &DBTransaction) {
-		for h in deletes.into_iter() {
-			let mut n: Option<i32> = None;
-			if let Some(c) = counters.get_mut(&h) {
-				if *c > 1 {
-					*c -= 1;
+	fn kill_keys(deletes: &Vec<H256>, refs: &mut HashMap<H256, RefInfo>, batch: &DBTransaction, from: RemoveFrom, trace: bool) {
+		// with a kill on {queue_refs: 1, in_archive: true}, we have two options:
+		// - convert to {queue_refs: 1, in_archive: false} (i.e. remove it from the conceptual archive)
+		// - convert to {queue_refs: 0, in_archive: true} (i.e. remove it from the conceptual queue)
+		// (the latter option would then mean removing the RefInfo, since it would no longer be counted in the queue.)
+		// both are valid, but we switch between them depending on context.
+		//     All inserts in queue (i.e. those which may yet be reverted) have an entry in refs.
+		for h in deletes.iter() {
+			let mut n: Option<RefInfo> = None;
+			if let Some(c) = refs.get_mut(h) {
+				if c.in_archive && from == RemoveFrom::Archive {
+					c.in_archive = false;
+					Self::reset_already_in(batch, h);
+					if trace {
+						trace!(target: "jdb.fine", "    kill({}): In archive, 1 in queue: Reducing to queue only and recording", h);
+					}
+					continue;
+				} else if c.queue_refs > 1 {
+					c.queue_refs -= 1;
+					if trace {
+						trace!(target: "jdb.fine", "    kill({}): In queue > 1 refs: Decrementing ref count to {}", h, c.queue_refs);
+					}
 					continue;
 				} else {
-					n = Some(*c);
+					n = Some(c.clone());
 				}
 			}
 			match n {
-				Some(i) if i == 1 => {
-					counters.remove(&h);
-					Self::reset_already_in(batch, &h);
+				Some(RefInfo{queue_refs: 1, in_archive: true}) => {
+					refs.remove(h);
+					Self::reset_already_in(batch, h);
+					if trace {
+						trace!(target: "jdb.fine", "    kill({}): In archive, 1 in queue: Removing from queue and leaving in archive", h);
+					}
+				}
+				Some(RefInfo{queue_refs: 1, in_archive: false}) => {
+					refs.remove(h);
+					batch.delete(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+					if trace {
+						trace!(target: "jdb.fine", "    kill({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
+					}
 				}
 				None => {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
 					//assert!(!Self::is_already_in(db, &h));
 					batch.delete(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+					if trace {
+						trace!(target: "jdb.fine", "    kill({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
+					}
 				}
-				_ => panic!("Invalid value in counters: {:?}", n),
+				_ => panic!("Invalid value in refs: {:?}", n),
 			}
+		}
+	}
+
+	#[cfg(test)]
+	fn can_reconstruct_refs(&self) -> bool {
+		let reconstructed = Self::read_refs(&self.backing);
+		let refs = self.refs.as_ref().unwrap().write().unwrap();
+		if *refs != reconstructed {
+			let clean_refs = refs.iter().filter_map(|(k, v)| if reconstructed.get(k) == Some(v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
+			let clean_recon = reconstructed.into_iter().filter_map(|(k, v)| if refs.get(&k) == Some(&v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
+			warn!(target: "jdb", "mem: {:?}  !=  log: {:?}", clean_refs, clean_recon);
+			false
+		} else {
+			true
 		}
 	}
 
@@ -163,8 +241,8 @@ impl EarlyMergeDB {
 		self.backing.get(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
 	}
 
-	fn read_counters(db: &Database) -> HashMap<H256, i32> {
-		let mut counters = HashMap::new();
+	fn read_refs(db: &Database) -> HashMap<H256, RefInfo> {
+		let mut refs = HashMap::new();
 		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
 			let mut era = decode::<u64>(&val);
 			loop {
@@ -176,10 +254,9 @@ impl EarlyMergeDB {
 					r.append(&&PADDING[..]);
 					&r.drain()
 				}).expect("Low-level database error.") {
-					trace!("read_counters: era={}, index={}", era, index);
 					let rlp = Rlp::new(&rlp_data);
 					let inserts: Vec<H256> = rlp.val_at(1);
-					Self::replay_keys(&inserts, db, &mut counters);
+					Self::replay_keys(&inserts, db, &mut refs);
 					index += 1;
 				};
 				if index == 0 || era == 0 {
@@ -188,10 +265,9 @@ impl EarlyMergeDB {
 				era -= 1;
 			}
 		}
-		trace!("Recovered {} counters", counters.len());
-		counters
+		refs
 	}
-}
+ }
 
 impl HashDB for EarlyMergeDB {
 	fn keys(&self) -> HashMap<H256, i32> {
@@ -243,23 +319,23 @@ impl JournalDB for EarlyMergeDB {
 		Box::new(EarlyMergeDB {
 			overlay: MemoryDB::new(),
 			backing: self.backing.clone(),
-			counters: self.counters.clone(),
+			refs: self.refs.clone(),
 		})
 	}
-
-	fn mem_used(&self) -> usize {
-		self.overlay.mem_used() + match self.counters {
-			Some(ref c) => c.read().unwrap().heap_size_of_children(),
-			None => 0
-		}
- 	}
 
 	fn is_empty(&self) -> bool {
 		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
+	fn mem_used(&self) -> usize {
+		self.overlay.mem_used() + match self.refs {
+			Some(ref c) => c.read().unwrap().heap_size_of_children(),
+			None => 0
+		}
+ 	}
+
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		// journal format:
+		// journal format: 
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, n] => [ ... ]
@@ -304,9 +380,9 @@ impl JournalDB for EarlyMergeDB {
 		//
 
 		// record new commit's details.
-		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
-		let mut counters = self.counters.as_ref().unwrap().write().unwrap();
+		let mut refs = self.refs.as_ref().unwrap().write().unwrap();
 		let batch = DBTransaction::new();
+		let trace = false;
 		{
 			let mut index = 0usize;
 			let mut last;
@@ -323,6 +399,11 @@ impl JournalDB for EarlyMergeDB {
 			}
 
 			let drained = self.overlay.drain();
+
+			if trace {
+				trace!(target: "jdb", "commit: #{} ({}), end era: {:?}", now, id, end);
+			}
+
 			let removes: Vec<H256> = drained
 				.iter()
 				.filter_map(|(k, &(_, c))| if c < 0 {Some(k.clone())} else {None})
@@ -331,6 +412,9 @@ impl JournalDB for EarlyMergeDB {
 				.into_iter()
 				.filter_map(|(k, (v, r))| if r > 0 { assert!(r == 1); Some((k, v)) } else { assert!(r >= -1); None })
 				.collect();
+
+
+			// TODO: check all removes are in the db.
 
 			let mut r = RlpStream::new_list(3);
 			r.append(id);
@@ -344,7 +428,12 @@ impl JournalDB for EarlyMergeDB {
 			r.begin_list(inserts.len());
 			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
 			r.append(&removes);
-			Self::insert_keys(&inserts, &self.backing, &mut counters, &batch);
+			Self::insert_keys(&inserts, &self.backing, &mut refs, &batch, trace);
+			if trace {
+				let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
+				trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
+				trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
+			}
 			try!(batch.put(&last, r.as_raw()));
 			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
 		}
@@ -363,17 +452,64 @@ impl JournalDB for EarlyMergeDB {
 			})) {
 				let rlp = Rlp::new(&rlp_data);
 				let inserts: Vec<H256> = rlp.val_at(1);
-				let deletes: Vec<H256> = rlp.val_at(2);
-				// Collect keys to be removed. These are removed keys for canonical block, inserted for non-canonical
-				Self::kill_keys(if canon_id == rlp.val_at(0) {deletes} else {inserts}, &mut counters, &batch);
+
+				if canon_id == rlp.val_at(0) {
+					// Collect keys to be removed. Canon block - remove the (enacted) deletes.
+					let deletes: Vec<H256> = rlp.val_at(2);
+					if trace {
+						trace!(target: "jdb.ops", "  Expunging: {:?}", deletes);
+					}
+					Self::kill_keys(&deletes, &mut refs, &batch, RemoveFrom::Archive, trace);
+
+					if trace {
+						trace!(target: "jdb.ops", "  Finalising: {:?}", inserts);
+					}
+					for k in inserts.iter() {
+						match refs.get(k).cloned() {
+							None => {
+								// [in archive] -> SHIFT remove -> SHIFT insert None->Some{queue_refs: 1, in_archive: true} -> TAKE remove Some{queue_refs: 1, in_archive: true}->None -> TAKE insert
+								// already expunged from the queue (which is allowed since the key is in the archive).
+								// leave well alone.
+							}
+							Some( RefInfo{queue_refs: 1, in_archive: false} ) => {
+								// just delete the refs entry.
+								refs.remove(k);
+							}
+							Some( RefInfo{queue_refs: x, in_archive: false} ) => {
+								// must set already in; ,
+								Self::set_already_in(&batch, k);
+								refs.insert(k.clone(), RefInfo{ queue_refs: x - 1, in_archive: true });
+							}
+							Some( RefInfo{queue_refs: _, in_archive: true} ) => {
+								// Invalid! Reinserted the same key twice.
+								warn!("Key {} inserted twice into same fork.", k);
+							}
+						}
+					}
+				} else {
+					// Collect keys to be removed. Non-canon block - remove the (reverted) inserts.
+					if trace {
+						trace!(target: "jdb.ops", "  Reverting: {:?}", inserts);
+					}
+					Self::kill_keys(&inserts, &mut refs, &batch, RemoveFrom::Queue, trace);
+				}
+
 				try!(batch.delete(&last));
 				index += 1;
 			}
-			trace!("EarlyMergeDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
+			if trace {
+				trace!(target: "jdb", "EarlyMergeDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
+			}
 		}
 
 		try!(self.backing.write(batch));
-//		trace!("EarlyMergeDB::commit() deleted {} nodes", deletes);
+
+		// Comment out for now. TODO: automatically enable in tests.
+
+		if trace {
+			trace!(target: "jdb", "OK: {:?}", refs.clone());
+		}
+
 		Ok(0)
 	}
 }
@@ -382,8 +518,9 @@ impl JournalDB for EarlyMergeDB {
 mod tests {
 	use common::*;
 	use super::*;
+	use super::super::traits::JournalDB;
 	use hashdb::*;
-	use journaldb::traits::JournalDB;
+	use log::init_log;
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -392,17 +529,25 @@ mod tests {
 
 		let x = jdb.insert(b"X");
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		jdb.commit(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		jdb.commit(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&x);
 		jdb.commit(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		let x = jdb.insert(b"X");
 		jdb.commit(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 
 		jdb.commit(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		jdb.commit(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.exists(&x));
 	}
@@ -413,15 +558,20 @@ mod tests {
 		let mut jdb = EarlyMergeDB::new_temp();
 		let h = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&h));
 		jdb.remove(&h);
 		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&h));
 		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&h));
 		jdb.commit(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&h));
 		jdb.commit(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.exists(&h));
 	}
 
@@ -433,6 +583,7 @@ mod tests {
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 		assert!(jdb.exists(&bar));
 
@@ -440,6 +591,7 @@ mod tests {
 		jdb.remove(&bar);
 		let baz = jdb.insert(b"baz");
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 		assert!(jdb.exists(&bar));
 		assert!(jdb.exists(&baz));
@@ -447,17 +599,20 @@ mod tests {
 		let foo = jdb.insert(b"foo");
 		jdb.remove(&baz);
 		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 		assert!(!jdb.exists(&bar));
 		assert!(jdb.exists(&baz));
 
 		jdb.remove(&foo);
 		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 		assert!(!jdb.exists(&bar));
 		assert!(!jdb.exists(&baz));
 
 		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.exists(&foo));
 		assert!(!jdb.exists(&bar));
 		assert!(!jdb.exists(&baz));
@@ -471,21 +626,25 @@ mod tests {
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 		assert!(jdb.exists(&bar));
 
 		jdb.remove(&foo);
 		let baz = jdb.insert(b"baz");
 		jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&bar);
 		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.exists(&foo));
 		assert!(jdb.exists(&bar));
 		assert!(jdb.exists(&baz));
 
 		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 		assert!(!jdb.exists(&baz));
 		assert!(!jdb.exists(&bar));
@@ -498,35 +657,113 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 
 		jdb.remove(&foo);
 		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
 		assert!(jdb.exists(&foo));
 		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 		jdb.commit(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 	}
 
 	#[test]
-	fn fork_same_key() {
-		// history is 1
-		let mut jdb = EarlyMergeDB::new_temp();
+	fn fork_same_key_one() {
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
 		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
 		assert!(jdb.exists(&foo));
 
 		jdb.commit(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.exists(&foo));
 	}
 
+	#[test]
+	fn fork_same_key_other() {
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		let foo = jdb.insert(b"foo");
+		jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		assert!(jdb.exists(&foo));
+
+		jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		assert!(jdb.exists(&foo));
+	}
+
+	#[test]
+	fn fork_ins_del_ins() {
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		let foo = jdb.insert(b"foo");
+		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.remove(&foo);
+		jdb.commit(2, &b"2a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.remove(&foo);
+		jdb.commit(2, &b"2b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(3, &b"3a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(3, &b"3b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.commit(4, &b"4a".sha3(), Some((2, b"2a".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.commit(5, &b"5a".sha3(), Some((3, b"3a".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+	}
 
 	#[test]
 	fn reopen() {
@@ -540,6 +777,7 @@ mod tests {
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), b"bar".to_vec());
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			assert!(jdb.can_reconstruct_refs());
 			foo
 		};
 
@@ -547,6 +785,7 @@ mod tests {
 			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 			jdb.remove(&foo);
 			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
@@ -554,40 +793,210 @@ mod tests {
 			assert!(jdb.exists(&foo));
 			assert!(jdb.exists(&bar));
 			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
 			assert!(!jdb.exists(&foo));
 		}
 	}
 
 	#[test]
-	fn reopen_remove() {
+	fn insert_delete_insert_delete_insert_expunge() {
+		init_log();
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let foo = {
-			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
-			// history is 1
-			let foo = jdb.insert(b"foo");
-			jdb.commit(0, &b"0".sha3(), None).unwrap();
-			jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 
-			// foo is ancient history.
+		// history is 4
+		let foo = jdb.insert(b"foo");
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.remove(&foo);
+		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.insert(b"foo");
+		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.remove(&foo);
+		jdb.commit(3, &b"3".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.insert(b"foo");
+		jdb.commit(4, &b"4".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		// expunge foo
+		jdb.commit(5, &b"5".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+	}
 
-			jdb.insert(b"foo");
-			jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
-			foo
-		};
+	#[test]
+	fn forked_insert_delete_insert_delete_insert_expunge() {
+		init_log();
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+
+		// history is 4
+		let foo = jdb.insert(b"foo");
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.remove(&foo);
+		jdb.commit(1, &b"1a".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.remove(&foo);
+		jdb.commit(1, &b"1b".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(2, &b"2a".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(2, &b"2b".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.remove(&foo);
+		jdb.commit(3, &b"3a".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.remove(&foo);
+		jdb.commit(3, &b"3b".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(4, &b"4a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(4, &b"4b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		// expunge foo
+		jdb.commit(5, &b"5".sha3(), Some((1, b"1a".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+	}
+
+	#[test]
+	fn broken_assert() {
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+		// history is 1
+		let foo = jdb.insert(b"foo");
+		jdb.commit(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		// foo is ancient history.
+
+		jdb.remove(&foo);
+		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.insert(b"foo");
+		jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();	// BROKEN
+		assert!(jdb.can_reconstruct_refs());
+		assert!(jdb.exists(&foo));
+
+		jdb.remove(&foo);
+		jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		assert!(!jdb.exists(&foo));
+	}
+	
+	#[test]
+	fn reopen_test() {
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+
+		let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+		// history is 4
+		let foo = jdb.insert(b"foo");
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.commit(3, &b"3".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.commit(4, &b"4".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		// foo is ancient history.
+
+		jdb.insert(b"foo");
+		let bar = jdb.insert(b"bar");
+		jdb.commit(5, &b"5".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.remove(&foo);
+		jdb.remove(&bar);
+		jdb.commit(6, &b"6".sha3(), Some((2, b"2".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.insert(b"foo");
+		jdb.insert(b"bar");
+		jdb.commit(7, &b"7".sha3(), Some((3, b"3".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+	}
+	
+	#[test]
+	fn reopen_remove_three() {
+		init_log();
+
+		let mut dir = ::std::env::temp_dir();
+		dir.push(H32::random().hex());
+
+		let foo = b"foo".sha3();
 
 		{
 			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			// history is 1
+			jdb.insert(b"foo");
+			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			assert!(jdb.can_reconstruct_refs());
+			jdb.commit(1, &b"1".sha3(), None).unwrap();
+			assert!(jdb.can_reconstruct_refs());
+
+			// foo is ancient history.
+
 			jdb.remove(&foo);
-			jdb.commit(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+			jdb.commit(2, &b"2".sha3(), Some((0, b"0".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
+
+			jdb.insert(b"foo");
+			jdb.commit(3, &b"3".sha3(), Some((1, b"1".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
+			assert!(jdb.exists(&foo));
+
+		// incantation to reopen the db
+		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+
 			jdb.remove(&foo);
-			jdb.commit(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
-			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
+			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
+			assert!(jdb.exists(&foo));
+
+		// incantation to reopen the db
+		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+
+			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
+			assert!(jdb.exists(&foo));
+
+		// incantation to reopen the db
+		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+
+			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
 			assert!(!jdb.exists(&foo));
 		}
 	}
+	
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
@@ -598,18 +1007,22 @@ mod tests {
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
 			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			assert!(jdb.can_reconstruct_refs());
 			jdb.remove(&foo);
 			let baz = jdb.insert(b"baz");
 			jdb.commit(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
 
 			jdb.remove(&bar);
 			jdb.commit(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
 			(foo, bar, baz)
 		};
 
 		{
 			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 			assert!(!jdb.exists(&baz));
 			assert!(!jdb.exists(&bar));
