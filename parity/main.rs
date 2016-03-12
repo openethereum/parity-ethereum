@@ -248,8 +248,14 @@ fn setup_rpc_server(
 
 #[cfg(not(feature = "rpc"))]
 fn setup_rpc_server(
-	_client: Arc<Client>, _sync: Arc<EthSync>, _secret_store: Arc<AccountService>, _miner: Arc<Miner>,
-	_url: &str, _cors_domain: &str, _apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
+	_client: Arc<Client>,
+	_sync: Arc<EthSync>,
+	_secret_store: Arc<AccountService>,
+	_miner: Arc<Miner>,
+	_url: &str,
+	_cors_domain: &str,
+	_apis: Vec<&str>
+) -> Option<Arc<PanicHandler>> {
 	None
 }
 
