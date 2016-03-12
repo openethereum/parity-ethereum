@@ -298,8 +298,6 @@ impl ChainSync {
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut SyncIo) {
 		self.reset();
-		self.last_imported_block = None;
-		self.last_imported_hash = None;
 		self.starting_block = 0;
 		self.highest_block = None;
 		self.have_common_block = false;
@@ -366,7 +364,7 @@ impl ChainSync {
 		for i in 0..item_count {
 			let info: BlockHeader = try!(r.val_at(i));
 			let number = BlockNumber::from(info.number);
-			if number <= self.current_base_block() || self.headers.have_item(&number) {
+			if (number <= self.current_base_block() && self.have_common_block) || self.headers.have_item(&number) {
 				trace!(target: "sync", "Skipping existing block header");
 				continue;
 			}
@@ -376,8 +374,8 @@ impl ChainSync {
 			}
 			let hash = info.hash();
 			match io.chain().block_status(BlockId::Hash(hash.clone())) {
-				BlockStatus::InChain => {
-					if self.current_base_block() < number {
+				BlockStatus::InChain | BlockStatus::Queued => {
+					if !self.have_common_block || self.current_base_block() < number {
 						self.last_imported_block = Some(number);
 						self.last_imported_hash = Some(hash.clone());
 					}
@@ -706,7 +704,10 @@ impl ChainSync {
 		if !self.have_common_block {
 			// download backwards until common block is found 1 header at a time
 			let chain_info = io.chain().chain_info();
-			start = chain_info.best_block_number;
+			start = match self.last_imported_block {
+				Some(n) => n,
+				None => chain_info.best_block_number,
+			};
 			if !self.headers.is_empty() {
 				start = min(start, self.headers.range_iter().next().unwrap().0 - 1);
 			}
