@@ -35,10 +35,12 @@ use std::env;
 pub struct RefCountedDB {
 	forward: OverlayDB,
 	backing: Arc<Database>,
+	latest_era: Option<u64>,
 	inserts: Vec<H256>,
 	removes: Vec<H256>,
 }
 
+const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const DB_VERSION : u32 = 512;
 
@@ -61,11 +63,14 @@ impl RefCountedDB {
 		}
 
 		let backing = Arc::new(backing);
+		let latest_era = backing.get(&LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
+
 		RefCountedDB {
 			forward: OverlayDB::new_with_arc(backing.clone()),
 			backing: backing,
 			inserts: vec![],
 			removes: vec![],
+			latest_era: latest_era,
 		}
 	}
 
@@ -92,6 +97,7 @@ impl JournalDB for RefCountedDB {
 		Box::new(RefCountedDB {
 			forward: self.forward.clone(),
 			backing: self.backing.clone(),
+			latest_era: self.latest_era,
 			inserts: self.inserts.clone(),
 			removes: self.removes.clone(),
 		})
@@ -102,7 +108,7 @@ impl JournalDB for RefCountedDB {
  	}
 
 	fn is_empty(&self) -> bool {
-		self.backing.get(&VERSION_KEY).expect("Low level database error").is_none()
+		self.latest_era.is_none()
 	}
 
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
@@ -141,6 +147,11 @@ impl JournalDB for RefCountedDB {
 			try!(self.backing.put(&last, r.as_raw()));
 			self.inserts.clear();
 			self.removes.clear();
+
+			if self.latest_era.map_or(true, |e| now > e) {
+				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+				self.latest_era = Some(now);
+			}
 		}
 
 		// apply old commits' details
