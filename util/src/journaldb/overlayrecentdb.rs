@@ -66,7 +66,7 @@ pub struct OverlayRecentDB {
 struct JournalOverlay {
 	backing_overlay: MemoryDB,
 	journal: HashMap<u64, Vec<JournalEntry>>,
-	latest_era: u64,
+	latest_era: Option<u64>,
 }
 
 #[derive(PartialEq)]
@@ -152,10 +152,10 @@ impl OverlayRecentDB {
 		let mut journal = HashMap::new();
 		let mut overlay = MemoryDB::new();
 		let mut count = 0;
-		let mut latest_era = 0;
+		let mut latest_era = None;
 		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
-			latest_era = decode::<u64>(&val);
-			let mut era = latest_era;
+			let mut era = decode::<u64>(&val);
+			latest_era = Some(era);
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
@@ -241,9 +241,9 @@ impl JournalDB for OverlayRecentDB {
 			k.append(&index);
 			k.append(&&PADDING[..]);
 			try!(batch.put(&k.drain(), r.as_raw()));
-			if now >= journal_overlay.latest_era {
+			if journal_overlay.latest_era.map_or(true, |e| now > e) {
 				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
-				journal_overlay.latest_era = now;
+				journal_overlay.latest_era = Some(now);
 			}
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
 		}
@@ -869,5 +869,25 @@ mod tests {
 			assert!(!jdb.exists(&baz));
 			assert!(!jdb.exists(&bar));
 		}
+	}
+
+	#[test]
+	fn insert_older_era() {
+		let mut jdb = OverlayRecentDB::new_temp();
+		let foo = jdb.insert(b"foo");
+		jdb.commit(0, &b"0a".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		let bar = jdb.insert(b"bar");
+		jdb.commit(1, &b"1".sha3(), Some((0, b"0a".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.remove(&bar);
+		jdb.commit(0, &b"0b".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.commit(2, &b"1".sha3(), Some((1, b"1".sha3()))).unwrap();
+
+		assert!(jdb.exists(&foo));
+		assert!(jdb.exists(&bar));
 	}
 }

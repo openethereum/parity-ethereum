@@ -562,6 +562,26 @@ mod tests {
 	}
 
 	#[test]
+	fn insert_older_era() {
+		let mut jdb = EarlyMergeDB::new_temp();
+		let foo = jdb.insert(b"foo");
+		jdb.commit(0, &b"0a".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		let bar = jdb.insert(b"bar");
+		jdb.commit(1, &b"1".sha3(), Some((0, b"0a".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.remove(&bar);
+		jdb.commit(0, &b"0b".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.commit(2, &b"1".sha3(), Some((1, b"1".sha3()))).unwrap();
+
+		assert!(jdb.exists(&foo));
+		assert!(jdb.exists(&bar));
+	}
+
+	#[test]
 	fn long_history() {
 		// history is 3
 		let mut jdb = EarlyMergeDB::new_temp();
