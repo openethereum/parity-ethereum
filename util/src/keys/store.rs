@@ -120,9 +120,15 @@ impl AccountProvider for AccountService {
 	}
 }
 
+impl Default for AccountService {
+	fn default() -> Self {
+		AccountService::new()
+	}
+}
+
 impl AccountService {
 	/// New account service with the default location
-	pub fn new() -> AccountService {
+	pub fn new() -> Self {
 		let secret_store = RwLock::new(SecretStore::new());
 		secret_store.write().unwrap().try_import_existing();
 		AccountService {
@@ -568,7 +574,7 @@ mod tests {
 		let temp = RandomTempPath::create_dir();
 		let mut sstore = SecretStore::new_test(&temp);
 		let addr = sstore.new_account("test").unwrap();
-		let _ok = sstore.unlock_account(&addr, "test").unwrap();
+		sstore.unlock_account(&addr, "test").unwrap();
 		let secret = sstore.account_secret(&addr).unwrap();
 		let kp = KeyPair::from_secret(secret).unwrap();
 		assert_eq!(Address::from(kp.public().sha3()), addr);

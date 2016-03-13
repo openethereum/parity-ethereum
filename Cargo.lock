@@ -2,7 +2,7 @@
 name = "parity"
 version = "0.9.99"
 dependencies = [
- "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/tomusdrw/rust-ctrlc.git)",
  "daemonize 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.78 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "clippy"
-version = "0.0.49"
+version = "0.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "regex-syntax 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -207,7 +207,7 @@ dependencies = [
 name = "ethcore"
 version = "0.9.99"
 dependencies = [
- "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 0.9.99",
@@ -233,7 +233,7 @@ dependencies = [
 name = "ethcore-rpc"
 version = "0.9.99"
 dependencies = [
- "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 0.9.99",
  "ethcore 0.9.99",
  "ethcore-util 0.9.99",
@@ -256,7 +256,7 @@ dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "bigint 0.1.0",
  "chrono 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -288,7 +288,7 @@ dependencies = [
 name = "ethsync"
 version = "0.9.99"
 dependencies = [
- "clippy 0.0.49 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 0.9.99",
  "ethcore-util 0.9.99",

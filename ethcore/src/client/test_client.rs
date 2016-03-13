@@ -57,9 +57,15 @@ pub enum EachBlockWith {
 	UncleAndTransaction
 }
 
+impl Default for TestBlockChainClient {
+	fn default() -> Self {
+		TestBlockChainClient::new()
+	}
+}
+
 impl TestBlockChainClient {
 	/// Creates new test client.
-	pub fn new() -> TestBlockChainClient {
+	pub fn new() -> Self {
 
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),

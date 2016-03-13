@@ -160,12 +160,12 @@ impl Connection {
 		}
 	}
 
-	/// Get socket token 
+	/// Get socket token
 	pub fn token(&self) -> StreamToken {
 		self.token
 	}
 
-	/// Replace socket token 
+	/// Replace socket token
 	pub fn set_token(&mut self, token: StreamToken) {
 		self.token = token;
 	}
@@ -261,13 +261,13 @@ pub struct EncryptedConnection {
 }
 
 impl EncryptedConnection {
-	
-	/// Get socket token 
+
+	/// Get socket token
 	pub fn token(&self) -> StreamToken {
 		self.connection.token
 	}
 
-	/// Replace socket token 
+	/// Replace socket token
 	pub fn set_token(&mut self, token: StreamToken) {
 		self.connection.set_token(token);
 	}
@@ -513,8 +513,14 @@ mod tests {
 		buf_size: usize,
 	}
 
+	impl Default for TestSocket {
+		fn default() -> Self {
+			TestSocket::new()
+		}
+	}
+
 	impl TestSocket {
-		fn new() -> TestSocket {
+		fn new() -> Self {
 			TestSocket {
 				read_buffer: vec![],
 				write_buffer: vec![],
@@ -593,8 +599,14 @@ mod tests {
 
 	type TestConnection = GenericConnection<TestSocket>;
 
+	impl Default for TestConnection {
+		fn default() -> Self {
+			TestConnection::new()
+		}
+	}
+
 	impl TestConnection {
-		pub fn new() -> TestConnection {
+		pub fn new() -> Self {
 			TestConnection {
 				token: 999998888usize,
 				socket: TestSocket::new(),
@@ -609,8 +621,14 @@ mod tests {
 
 	type TestBrokenConnection = GenericConnection<TestBrokenSocket>;
 
+	impl Default for TestBrokenConnection {
+		fn default() -> Self {
+			TestBrokenConnection::new()
+		}
+	}
+
 	impl TestBrokenConnection {
-		pub fn new() -> TestBrokenConnection {
+		pub fn new() -> Self {
 			TestBrokenConnection {
 				token: 999998888usize,
 				socket: TestBrokenSocket { error: "test broken socket".to_owned() },
