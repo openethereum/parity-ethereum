@@ -181,37 +181,48 @@ impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S:
 				to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))))
 	}
 
+	fn transaction_count(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Address, BlockNumber)>(params)
+			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).nonce(&address)))
+	}
+
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match take_weak!(self.client).block(BlockId::Hash(hash)) {
-				Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
-				None => Ok(Value::Null)
-			})
+			.and_then(|(hash,)| // match
+				to_value(&take_weak!(self.client).block(BlockId::Hash(hash))
+					.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).transactions_count()))))
 	}
 
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&take_weak!(self.sync).status().transaction_queue_pending),
-				_ => match take_weak!(self.client).block(block_number.into()) {
-					Some(bytes) => to_value(&BlockView::new(&bytes).transactions_count()),
-					None => Ok(Value::Null)
-				}
+				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.sync).status().transaction_queue_pending)),
+				_ => to_value(&take_weak!(self.client).block(block_number.into())
+						.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).transactions_count())))
 			})
 	}
 
-	fn block_uncles_count(&self, params: Params) -> Result<Value, Error> {
+	fn block_uncles_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| match take_weak!(self.client).block(BlockId::Hash(hash)) {
-				Some(bytes) => to_value(&BlockView::new(&bytes).uncles_count()),
-				None => Ok(Value::Null)
+			.and_then(|(hash,)|
+				to_value(&take_weak!(self.client).block(BlockId::Hash(hash))
+					.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).uncles_count()))))
+	}
+
+	fn block_uncles_count_by_number(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(BlockNumber,)>(params)
+			.and_then(|(block_number,)| match block_number {
+				BlockNumber::Pending => to_value(&U256::from(0)),
+				_ => to_value(&take_weak!(self.client).block(block_number.into())
+						.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).uncles_count())))
 			})
 	}
 
 	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
+			.and_then(|(address, _block_number)|
+				to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
 	}
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
@@ -237,6 +248,13 @@ impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S:
 	fn transaction_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
 			.and_then(|(number, index)| self.transaction(TransactionId::Location(number.into(), index.value())))
+	}
+
+	fn compilers(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => to_value(&vec![] as &Vec<String>),
+			_ => Err(Error::invalid_params())
+		}
 	}
 
 	fn logs(&self, params: Params) -> Result<Value, Error> {
