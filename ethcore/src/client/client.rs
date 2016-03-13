@@ -471,11 +471,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.block_receipts(hash).and_then(|receipts| {
-			let mut rlp = RlpStream::new();
-			rlp.append(&receipts);
-			Some(rlp.out())
-		})
+		self.chain.block_receipts(hash).map(|receipts| rlp::encode(&receipts).to_vec())
 	}
 
 	fn import_block(&self, bytes: Bytes) -> ImportResult {
