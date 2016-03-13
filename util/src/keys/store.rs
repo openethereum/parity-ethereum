@@ -137,6 +137,7 @@ impl AccountService {
 	}
 }
 
+
 impl Default for SecretStore {
 	fn default() -> Self {
 		SecretStore::new()
