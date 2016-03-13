@@ -150,3 +150,69 @@ fn rpc_eth_storage_at() {
 
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
+
+#[test]
+fn rpc_eth_transaction_count() {
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionCount",
+		"params": ["0x0000000000000000000000000000000000000001", "latest"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_block_transaction_count_by_hash() {
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getBlockTransactionCountByHash",
+		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_transaction_count_by_number() {
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getBlockTransactionCountByNumber",
+		"params": ["latest"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_uncle_count_by_block_hash() {
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getUncleCountByBlockHash",
+		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_uncle_count_by_block_number() {
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getUncleCountByBlockNumber",
+		"params": ["latest"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
