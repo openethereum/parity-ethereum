@@ -315,7 +315,7 @@ impl<V> Client<V> where V: Verifier {
 			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
 				let (enacted, retracted) = self.calculate_enacted_retracted(import_results);
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
-					good: imported_blocks,
+					imported: imported_blocks,
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,

@@ -150,7 +150,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn chain_new_blocks(&self, chain: &BlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], _retracted: &[H256]) {
+	fn chain_new_blocks(&self, chain: &BlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
 				.block(BlockId::Hash(*hash))
@@ -165,9 +165,9 @@ impl MinerService for Miner {
 			let in_chain = in_chain
 				.par_iter()
 				.flat_map(|h| h.par_iter().map(|h| fetch_transactions(chain, h)));
-				.map(|h| fetch_transactions(chain, h));
 			let out_of_chain = retracted
 				.par_iter()
+				.map(|h| fetch_transactions(chain, h));
 
 			in_chain.for_each(|txs| {
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();

@@ -83,10 +83,12 @@ impl TestBlockChainClient {
 		client
 	}
 
+	/// Set the balance of account `address` to `balance`.
 	pub fn set_balance(&mut self, address: Address, balance: U256) {
 		self.balances.write().unwrap().insert(address, balance);
 	}
 
+	/// Set storage `position` to `value` for account `address`.
 	pub fn set_storage(&mut self, address: Address, position: H256, value: H256) {
 		self.storage.write().unwrap().insert((address, position), value);
 	}
