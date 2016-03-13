@@ -120,9 +120,15 @@ impl AccountProvider for AccountService {
 	}
 }
 
+impl Default for AccountService {
+	fn default() -> Self {
+		AccountService::new()
+	}
+}
+
 impl AccountService {
 	/// New account service with the default location
-	pub fn new() -> AccountService {
+	pub fn new() -> Self {
 		let secret_store = RwLock::new(SecretStore::new());
 		secret_store.write().unwrap().try_import_existing();
 		AccountService {
@@ -363,6 +369,7 @@ mod vector_tests {
 
 
 	#[test]
+	#[cfg(feature="heavy-tests")]
 	fn mac_vector() {
 		let password = "testpassword";
 		let salt = H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap();
@@ -464,6 +471,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature="heavy-tests")]
 	fn can_get() {
 		let temp = RandomTempPath::create_dir();
 		let key_id = {
@@ -568,7 +576,7 @@ mod tests {
 		let temp = RandomTempPath::create_dir();
 		let mut sstore = SecretStore::new_test(&temp);
 		let addr = sstore.new_account("test").unwrap();
-		let _ok = sstore.unlock_account(&addr, "test").unwrap();
+		sstore.unlock_account(&addr, "test").unwrap();
 		let secret = sstore.account_secret(&addr).unwrap();
 		let kp = KeyPair::from_secret(secret).unwrap();
 		assert_eq!(Address::from(kp.public().sha3()), addr);

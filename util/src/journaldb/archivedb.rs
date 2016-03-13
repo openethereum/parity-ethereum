@@ -159,6 +159,10 @@ impl JournalDB for ArchiveDB {
 		try!(self.backing.write(batch));
 		Ok((inserts + deletes) as u32)
 	}
+
+	fn state(&self, id: &H256) -> Option<Bytes> {
+		self.backing.get_by_prefix(&id.bytes()[0..12]).and_then(|b| Some(b.to_vec()))
+	}
 }
 
 #[cfg(test)]
@@ -301,7 +305,6 @@ mod tests {
 		assert!(jdb.exists(&foo));
 	}
 
-
 	#[test]
 	fn reopen() {
 		let mut dir = ::std::env::temp_dir();
@@ -360,6 +363,7 @@ mod tests {
 			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 		}
 	}
+	
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
@@ -383,6 +387,24 @@ mod tests {
 			let mut jdb = ArchiveDB::new(dir.to_str().unwrap());
 			jdb.commit(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
 			assert!(jdb.exists(&foo));
+		}
+	}
+
+	#[test]
+	fn returns_state() {
+		let temp = ::devtools::RandomTempPath::new();
+
+		let key = {
+			let mut jdb = ArchiveDB::new(temp.as_str());
+			let key = jdb.insert(b"foo");
+			jdb.commit(0, &b"0".sha3(), None).unwrap();
+			key
+		};
+
+		{
+			let jdb = ArchiveDB::new(temp.as_str());
+			let state = jdb.state(&key);
+			assert!(state.is_some());
 		}
 	}
 }

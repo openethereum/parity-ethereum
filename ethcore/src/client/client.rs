@@ -449,6 +449,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		self.state().code(address)
 	}
 
+	fn balance(&self, address: &Address) -> U256 {
+		self.state().balance(address)
+	}
+
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
 		match id {
 			TransactionId::Hash(ref hash) => self.chain.transaction_address(hash),

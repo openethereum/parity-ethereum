@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+mod account_provider;
 mod sync_provider;
 
+pub use self::account_provider::{TestAccount, TestAccountProvider};
 pub use self::sync_provider::{Config, TestSyncProvider};

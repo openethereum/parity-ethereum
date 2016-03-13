@@ -66,6 +66,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get address code.
 	fn code(&self, address: &Address) -> Option<Bytes>;
 
+	/// Get address balance.
+	fn balance(&self, address: &Address) -> U256;
+
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
 

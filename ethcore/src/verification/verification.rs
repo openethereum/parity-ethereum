@@ -255,8 +255,14 @@ mod tests {
 		numbers: HashMap<BlockNumber, H256>,
 	}
 
+	impl Default for TestBlockChain {
+		fn default() -> Self {
+			TestBlockChain::new()
+		}
+	}
+
 	impl TestBlockChain {
-		pub fn new() -> TestBlockChain {
+		pub fn new() -> Self {
 			TestBlockChain {
 				blocks: HashMap::new(),
 				numbers: HashMap::new(),

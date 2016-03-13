@@ -39,12 +39,7 @@ impl<A> Personal for PersonalClient<A> where A: AccountProvider + 'static {
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
 		let store = take_weak!(self.accounts);
 		match store.accounts() {
-			Ok(account_list) => {
-				Ok(Value::Array(account_list.iter()
-					.map(|&account| Value::String(format!("{:?}", account)))
-					.collect::<Vec<Value>>())
-				)
-			}
+			Ok(account_list) => to_value(&account_list),
 			Err(_) => Err(Error::internal_error())
 		}
 	}

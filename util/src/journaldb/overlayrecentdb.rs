@@ -33,14 +33,14 @@ use super::JournalDB;
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
 ///
-/// There are two memory overlays: 
-/// - Transaction overlay contains current transaction data. It is merged with with history 
+/// There are two memory overlays:
+/// - Transaction overlay contains current transaction data. It is merged with with history
 /// overlay on each `commit()`
-/// - History overlay contains all data inserted during the history period. When the node 
+/// - History overlay contains all data inserted during the history period. When the node
 /// in the overlay becomes ancient it is written to disk on `commit()`
 ///
-/// There is also a journal maintained in memory and on the disk as well which lists insertions 
-/// and removals for each commit during the history period. This is used to track 
+/// There is also a journal maintained in memory and on the disk as well which lists insertions
+/// and removals for each commit during the history period. This is used to track
 /// data nodes that go out of history scope and must be written to disk.
 ///
 /// Commit workflow:
@@ -50,12 +50,12 @@ use super::JournalDB;
 /// 3. Clear the transaction overlay.
 /// 4. For a canonical journal record that becomes ancient inserts its insertions into the disk DB
 /// 5. For each journal record that goes out of the history scope (becomes ancient) remove its
-/// insertions from the history overlay, decreasing the reference counter and removing entry if 
+/// insertions from the history overlay, decreasing the reference counter and removing entry if
 /// if reaches zero.
-/// 6. For a canonical journal record that becomes ancient delete its removals from the disk only if 
+/// 6. For a canonical journal record that becomes ancient delete its removals from the disk only if
 /// the removed key is not present in the history overlay.
 /// 7. Delete ancient record from memory and disk.
-/// 
+
 pub struct OverlayRecentDB {
 	transaction_overlay: MemoryDB,
 	backing: Arc<Database>,
@@ -66,7 +66,7 @@ pub struct OverlayRecentDB {
 struct JournalOverlay {
 	backing_overlay: MemoryDB,
 	journal: HashMap<u64, Vec<JournalEntry>>,
-	latest_era: u64,
+	latest_era: Option<u64>,
 }
 
 #[derive(PartialEq)]
@@ -152,10 +152,10 @@ impl OverlayRecentDB {
 		let mut journal = HashMap::new();
 		let mut overlay = MemoryDB::new();
 		let mut count = 0;
-		let mut latest_era = 0;
+		let mut latest_era = None;
 		if let Some(val) = db.get(&LATEST_ERA_KEY).expect("Low-level database error.") {
-			latest_era = decode::<u64>(&val);
-			let mut era = latest_era;
+			let mut era = decode::<u64>(&val);
+			latest_era = Some(era);
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
@@ -223,7 +223,7 @@ impl JournalDB for OverlayRecentDB {
 			let mut tx = self.transaction_overlay.drain();
 			let inserted_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c > 0 { Some(k.clone()) } else { None }).collect();
 			let removed_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c < 0 { Some(k.clone()) } else { None }).collect();
-			// Increase counter for each inserted key no matter if the block is canonical or not. 
+			// Increase counter for each inserted key no matter if the block is canonical or not.
 			let insertions = tx.drain().filter_map(|(k, (v, c))| if c > 0 { Some((k, v)) } else { None });
 			r.append(id);
 			r.begin_list(inserted_keys.len());
@@ -236,14 +236,14 @@ impl JournalDB for OverlayRecentDB {
 			r.append(&removed_keys);
 
 			let mut k = RlpStream::new_list(3);
-			let index = journal_overlay.journal.get(&now).map(|j| j.len()).unwrap_or(0);
+			let index = journal_overlay.journal.get(&now).map_or(0, |j| j.len());
 			k.append(&now);
 			k.append(&index);
 			k.append(&&PADDING[..]);
 			try!(batch.put(&k.drain(), r.as_raw()));
-			if now >= journal_overlay.latest_era {
+			if journal_overlay.latest_era.map_or(true, |e| now > e) {
 				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
-				journal_overlay.latest_era = now;
+				journal_overlay.latest_era = Some(now);
 			}
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
 		}
@@ -345,14 +345,14 @@ impl HashDB for OverlayRecentDB {
 		self.lookup(key).is_some()
 	}
 
-	fn insert(&mut self, value: &[u8]) -> H256 { 
+	fn insert(&mut self, value: &[u8]) -> H256 {
 		self.transaction_overlay.insert(value)
 	}
 	fn emplace(&mut self, key: H256, value: Bytes) {
-		self.transaction_overlay.emplace(key, value); 
+		self.transaction_overlay.emplace(key, value);
 	}
-	fn kill(&mut self, key: &H256) { 
-		self.transaction_overlay.kill(key); 
+	fn kill(&mut self, key: &H256) {
+		self.transaction_overlay.kill(key);
 	}
 }
 
@@ -749,7 +749,7 @@ mod tests {
 		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.exists(&foo));
 	}
-	
+
 	#[test]
 	fn reopen_test() {
 		let mut dir = ::std::env::temp_dir();
@@ -784,7 +784,7 @@ mod tests {
 		jdb.commit(7, &b"7".sha3(), Some((3, b"3".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
-	
+
 	#[test]
 	fn reopen_remove_three() {
 		init_log();
@@ -838,7 +838,7 @@ mod tests {
 			assert!(!jdb.exists(&foo));
 		}
 	}
-	
+
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
@@ -869,5 +869,25 @@ mod tests {
 			assert!(!jdb.exists(&baz));
 			assert!(!jdb.exists(&bar));
 		}
+	}
+
+	#[test]
+	fn insert_older_era() {
+		let mut jdb = OverlayRecentDB::new_temp();
+		let foo = jdb.insert(b"foo");
+		jdb.commit(0, &b"0a".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		let bar = jdb.insert(b"bar");
+		jdb.commit(1, &b"1".sha3(), Some((0, b"0a".sha3()))).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+
+		jdb.remove(&bar);
+		jdb.commit(0, &b"0b".sha3(), None).unwrap();
+		assert!(jdb.can_reconstruct_refs());
+		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+
+		assert!(jdb.exists(&foo));
+		assert!(jdb.exists(&bar));
 	}
 }
