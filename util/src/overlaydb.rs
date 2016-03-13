@@ -70,12 +70,14 @@ impl OverlayDB {
 						let (back_value, back_rc) = x;
 						let total_rc: i32 = back_rc as i32 + rc;
 						if total_rc < 0 {
+							warn!("NEGATIVELY REFERENCED HASH {:?}", key);
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
 						deletes += if self.put_payload_in_batch(batch, &key, (back_value, total_rc as u32)) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
+							warn!("NEGATIVELY REFERENCED HASH {:?}", key);
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
 						self.put_payload_in_batch(batch, &key, (value, rc as u32));
@@ -126,12 +128,14 @@ impl OverlayDB {
 						let (back_value, back_rc) = x;
 						let total_rc: i32 = back_rc as i32 + rc;
 						if total_rc < 0 {
+							warn!("NEGATIVELY REFERENCED HASH {:?}", key);
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
 						deletes += if self.put_payload(&key, (back_value, total_rc as u32)) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
+							warn!("NEGATIVELY REFERENCED HASH {:?}", key);
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
 						self.put_payload(&key, (value, rc as u32));
@@ -166,6 +170,9 @@ impl OverlayDB {
 	/// }
 	/// ```
 	pub fn revert(&mut self) { self.overlay.clear(); }
+
+	/// Get the number of references that would be committed.
+	pub fn commit_refs(&self, key: &H256) -> i32 { self.overlay.raw(&key).map_or(0, |&(_, refs)| refs) }
 
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(Bytes, u32)> {
