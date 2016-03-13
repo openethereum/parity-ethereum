@@ -445,7 +445,6 @@ impl Configuration {
 
 		// Secret Store
 		let account_service = Arc::new(AccountService::new());
-		service.io().register_handler(account_service).expect("Error registering IO handler");
 
 		// Setup rpc
 		if self.args.flag_jsonrpc || self.args.flag_rpc {
@@ -581,7 +580,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
 		match timer {
 			INFO_TIMER => { self.info.tick(&self.client, &self.sync); }
-			ACCOUNT_TICK_TIMER => { self.accounts.tick(); }
+			ACCOUNT_TICK_TIMER => { self.accounts.tick(); },
+			_ => {}
 		}
 	}
 }
