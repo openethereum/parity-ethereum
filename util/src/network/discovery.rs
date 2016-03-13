@@ -18,7 +18,6 @@ use bytes::Bytes;
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::mem;
-use std::cmp;
 use std::default::Default;
 use mio::*;
 use mio::udp::*;
@@ -420,24 +419,19 @@ impl Discovery {
 	}
 
 	fn prepare_neighbours_packets(nearest: &[NodeEntry]) -> Vec<Bytes> {
-		let mut packets = Vec::new();
-		let mut rlp = RlpStream::new_list(1);
 		let limit = (MAX_DATAGRAM_SIZE - 109) / 90;
-		let mut count = cmp::min(limit, nearest.len()); 
-		rlp.begin_list(count);
-		for n in 0 .. nearest.len() {
-			rlp.begin_list(4);
-			nearest[n].endpoint.to_rlp(&mut rlp);
-			rlp.append(&nearest[n].id);
-			count -= 1;
-			if count == 0 {
-				packets.push(rlp.out());
-				rlp = RlpStream::new_list(1);
-				count = cmp::min(limit, nearest.len() - n);
-				rlp.begin_list(count);
+		let chunks = nearest.chunks(limit);
+		let packets = chunks.map(|c| {
+			let mut rlp = RlpStream::new_list(1);
+			rlp.begin_list(c.len());
+			for n in 0 .. c.len() {
+				rlp.begin_list(4);
+				c[n].endpoint.to_rlp(&mut rlp);
+				rlp.append(&c[n].id);
 			}
-		}
-		packets
+			rlp.out()
+		});
+		packets.collect()
 	}
 
 	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
@@ -529,11 +523,12 @@ mod tests {
 		}
 
 		let packets = Discovery::prepare_neighbours_packets(&nearest);
-		assert_eq!(packets.len(), 76);
-		for p in &packets {
+		assert_eq!(packets.len(), 77);
+		for p in &packets[0..76] {
 			assert!(p.len() > 1280/2);
 			assert!(p.len() <= 1280);
 		}
+		assert!(packets.last().unwrap().len() > 0);
 	}
 
 	#[test]
