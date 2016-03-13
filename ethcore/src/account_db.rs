@@ -97,6 +97,9 @@ impl<'db> HashDB for AccountDBMut<'db>{
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
+		if value == &NULL_RLP {
+			return SHA3_NULL_RLP.clone();
+		}
 		let k = value.sha3();
 		let ak = combine_key(&self.address, &k);
 		self.db.emplace(ak, value.to_vec());
@@ -104,11 +107,17 @@ impl<'db> HashDB for AccountDBMut<'db>{
 	}
 
 	fn emplace(&mut self, key: H256, value: Bytes) {
+		if key == SHA3_NULL_RLP {
+			return;
+		}
 		let key = combine_key(&self.address, &key);
 		self.db.emplace(key, value.to_vec())
 	}
 
 	fn kill(&mut self, key: &H256) {
+		if key == &SHA3_NULL_RLP {
+			return;
+		}
 		let key = combine_key(&self.address, key);
 		self.db.kill(&key)
 	}
