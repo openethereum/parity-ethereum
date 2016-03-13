@@ -72,13 +72,13 @@ impl OverlayDB {
 						if total_rc < 0 {
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
-						deletes += if self.put_payload(batch, &key, (back_value, total_rc as u32)) {1} else {0};
+						deletes += if self.put_payload_in_batch(batch, &key, (back_value, total_rc as u32)) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
 							return Err(From::from(BaseDataError::NegativelyReferencedHash));
 						}
-						self.put_payload(batch, &key, (value, rc as u32));
+						self.put_payload_in_batch(batch, &key, (value, rc as u32));
 					}
 				};
 				ret += 1;
@@ -116,10 +116,32 @@ impl OverlayDB {
 	/// }
 	/// ```
 	pub fn commit(&mut self) -> Result<u32, UtilError> {
-		let batch = DBTransaction::new();
-		let r = try!(self.commit_to_batch(&batch));
-		try!(self.backing.write(batch));
-		Ok(r)
+		let mut ret = 0u32;
+		let mut deletes = 0usize;
+		for i in self.overlay.drain().into_iter() {
+			let (key, (value, rc)) = i;
+			if rc != 0 {
+				match self.payload(&key) {
+					Some(x) => {
+						let (back_value, back_rc) = x;
+						let total_rc: i32 = back_rc as i32 + rc;
+						if total_rc < 0 {
+							return Err(From::from(BaseDataError::NegativelyReferencedHash));
+						}
+						deletes += if self.put_payload(&key, (back_value, total_rc as u32)) {1} else {0};
+					}
+					None => {
+						if rc < 0 {
+							return Err(From::from(BaseDataError::NegativelyReferencedHash));
+						}
+						self.put_payload(&key, (value, rc as u32));
+					}
+				};
+				ret += 1;
+			}
+		}
+		trace!("OverlayDB::commit() deleted {} nodes", deletes);
+		Ok(ret)
 	}
 
 	/// Revert all operations on this object (i.e. `insert()`s and `kill()`s) since the
@@ -156,7 +178,7 @@ impl OverlayDB {
 	}
 
 	/// Put the refs and value of the given key, possibly deleting it from the db.
-	fn put_payload(&self, batch: &DBTransaction, key: &H256, payload: (Bytes, u32)) -> bool {
+	fn put_payload_in_batch(&self, batch: &DBTransaction, key: &H256, payload: (Bytes, u32)) -> bool {
 		if payload.1 > 0 {
 			let mut s = RlpStream::new_list(2);
 			s.append(&payload.1);
@@ -165,6 +187,20 @@ impl OverlayDB {
 			false
 		} else {
 			batch.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+			true
+		}
+	}
+
+	/// Put the refs and value of the given key, possibly deleting it from the db.
+	fn put_payload(&self, key: &H256, payload: (Bytes, u32)) -> bool {
+		if payload.1 > 0 {
+			let mut s = RlpStream::new_list(2);
+			s.append(&payload.1);
+			s.append(&payload.0);
+			self.backing.put(&key.bytes(), s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
+			false
+		} else {
+			self.backing.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
 			true
 		}
 	}

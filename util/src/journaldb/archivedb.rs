@@ -132,7 +132,7 @@ impl JournalDB for ArchiveDB {
 		Box::new(ArchiveDB {
 			overlay: MemoryDB::new(),
 			backing: self.backing.clone(),
-			latest_era: None,
+			latest_era: self.latest_era,
 		})
 	}
 
@@ -144,7 +144,7 @@ impl JournalDB for ArchiveDB {
 		self.latest_era.is_none()
 	}
 
-	fn commit(&mut self, _: u64, _: &H256, _: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, now: u64, _: &H256, _: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		let batch = DBTransaction::new();
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
@@ -159,6 +159,10 @@ impl JournalDB for ArchiveDB {
 				assert!(rc == -1);
 				deletes += 1;
 			}
+		}
+		if self.latest_era.map_or(true, |e| now > e) {
+			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+			self.latest_era = Some(now);
 		}
 		try!(self.backing.write(batch));
 		Ok((inserts + deletes) as u32)

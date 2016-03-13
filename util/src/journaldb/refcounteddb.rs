@@ -176,7 +176,7 @@ impl JournalDB for RefCountedDB {
 			}
 		}
 
-		let r = try!(self.forward.commit_to_batch(&batch));
+		let r = try!(self.forward.commit());
 		try!(self.backing.write(batch));
 		Ok(r)
 	}

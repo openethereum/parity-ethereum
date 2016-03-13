@@ -427,9 +427,9 @@ impl Configuration {
 		}
 		client_config.pruning = match self.args.flag_pruning.as_str() {
 			"" | "archive" => journaldb::Algorithm::Archive,
-			"pruned" => journaldb::Algorithm::EarlyMerge,
+			"light" => journaldb::Algorithm::EarlyMerge,
 			"fast" => journaldb::Algorithm::OverlayRecent,
-			"slow" => journaldb::Algorithm::RefCounted,
+			"basic" => journaldb::Algorithm::RefCounted,
 			_ => { die!("Invalid pruning method given."); }
 		};
 		client_config.name = self.args.flag_identity.clone();
