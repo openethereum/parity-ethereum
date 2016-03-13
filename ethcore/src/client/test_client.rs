@@ -17,16 +17,16 @@
 //! Test client.
 
 use util::*;
-use transaction::{Transaction, LocalizedTransaction, Action};
+use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::Receipt;
-use error::{ImportResult, Error};
+use error::{ImportResult};
 use block_queue::BlockQueueInfo;
-use block::ClosedBlock;
+use block::{SealedBlock, ClosedBlock};
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -86,17 +86,17 @@ impl TestBlockChainClient {
 		client
 	}
 
-	/// Set code at given address.
-	pub fn set_code(&mut self, address: Address, code: Bytes) {
-		self.code.write().unwrap().insert(address, code);
-	}
-
-	/// Set balance at given address.
+	/// Set the balance of account `address` to `balance`.
 	pub fn set_balance(&mut self, address: Address, balance: U256) {
 		self.balances.write().unwrap().insert(address, balance);
 	}
 
-	/// Set storage at given address and position.
+	/// Set `code` at `address`.
+	pub fn set_code(&mut self, address: Address, code: Bytes) {
+		self.code.write().unwrap().insert(address, code);
+	}
+
+	/// Set storage `position` to `value` for account `address`.
 	pub fn set_storage(&mut self, address: Address, position: H256, value: H256) {
 		self.storage.write().unwrap().insert((address, position), value);
 	}
@@ -215,12 +215,12 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		unimplemented!();
+	fn prepare_sealing(&self, _author: Address, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+		unimplemented!()
 	}
 
-	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
-		unimplemented!();
+	fn try_seal(&self, _block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		unimplemented!()
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {

@@ -15,12 +15,23 @@ if ! type kcov > /dev/null; then
 	exit 1
 fi
 
-cargo test -p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity --no-run || exit $?
+cargo test \
+	-p ethash \
+	-p ethcore-util \
+	-p ethcore \
+	-p ethsync \
+	-p ethcore-rpc \
+	-p parity \
+	-p ethminer \
+	--no-run || exit $?
 rm -rf target/coverage
 mkdir -p target/coverage
-kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests --include-pattern src --verify target/coverage target/debug/deps/ethcore-*
-kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests --include-pattern src --verify target/coverage target/debug/deps/ethash-*
-kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests --include-pattern src --verify target/coverage target/debug/deps/ethcore_util-*
-kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests --include-pattern src --verify target/coverage target/debug/deps/ethsync-*
-kcov --exclude-pattern ~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests --include-pattern src --verify target/coverage target/debug/deps/ethcore_rpc-*
+
+EXCLUDE="~/.multirust,rocksdb,secp256k1,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests"
+kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethcore-*
+kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethash-*
+kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethcore_util-*
+kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethsync-*
+kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethcore_rpc-*
+kcov --exclude-pattern $EXCLUDE --include-pattern src --verify target/coverage target/debug/deps/ethminer-*
 xdg-open target/coverage/index.html
