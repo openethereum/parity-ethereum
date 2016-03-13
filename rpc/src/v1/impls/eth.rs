@@ -155,11 +155,24 @@ impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S:
 		}
 	}
 
+	fn accounts(&self, _: Params) -> Result<Value, Error> {
+		let store = take_weak!(self.accounts);
+		match store.accounts() {
+			Ok(account_list) => to_value(&account_list),
+			Err(_) => Err(Error::internal_error())
+		}
+	}
+
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&U256::from(take_weak!(self.client).chain_info().best_block_number)),
 			_ => Err(Error::invalid_params())
 		}
+	}
+
+	fn balance(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Address, BlockNumber)>(params)
+			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).balance(&address)))
 	}
 
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
