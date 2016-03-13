@@ -575,7 +575,7 @@ mod tests {
 		jdb.remove(&bar);
 		jdb.commit(0, &b"0b".sha3(), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit(2, &b"1".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
 
 		assert!(jdb.exists(&foo));
 		assert!(jdb.exists(&bar));
