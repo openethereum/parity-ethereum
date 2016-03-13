@@ -135,6 +135,19 @@ impl AccountService {
 			secret_store: secret_store
 		}
 	}
+
+	#[cfg(test)]
+	fn new_test(temp: &::devtools::RandomTempPath) -> Self {
+		let secret_store = RwLock::new(SecretStore::new_test(temp));
+		AccountService {
+			secret_store: secret_store
+		}
+	}
+
+	/// Ticks the account service
+	pub fn tick(&self) {
+		self.secret_store.write().unwrap().collect_garbage();
+	}
 }
 
 impl Default for SecretStore {
@@ -256,6 +269,17 @@ impl SecretStore {
 		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
 		Ok(unlock.secret as crypto::Secret)
 	}
+
+	/// Makes account unlocks expire and removes unused key files from memory
+	pub fn collect_garbage(&mut self) {
+		self.directory.collect_garbage();
+		let utc = UTC::now();
+		let expired_addresses = self.unlocks.read().unwrap().iter()
+			.filter(|&(_, unlock)| unlock.expires < utc)
+			.map(|(address, _)| address.clone()).collect::<Vec<Address>>();
+
+		for expired in expired_addresses { self.unlocks.write().unwrap().remove(&expired); }
+	}
 }
 
 fn derive_key_iterations(password: &str, salt: &H256, c: u32) -> (Bytes, Bytes) {
@@ -362,14 +386,12 @@ impl EncryptedHashMap<H128> for SecretStore {
 
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature="heavy-tests"))]
 mod vector_tests {
 	use super::{derive_mac,derive_key_iterations};
 	use common::*;
 
-
 	#[test]
-	#[cfg(feature="heavy-tests")]
 	fn mac_vector() {
 		let password = "testpassword";
 		let salt = H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap();
@@ -395,6 +417,7 @@ mod tests {
 	use devtools::*;
 	use common::*;
 	use crypto::KeyPair;
+	use chrono::*;
 
 	#[test]
 	fn can_insert() {
@@ -580,5 +603,33 @@ mod tests {
 		let secret = sstore.account_secret(&addr).unwrap();
 		let kp = KeyPair::from_secret(secret).unwrap();
 		assert_eq!(Address::from(kp.public().sha3()), addr);
+	}
+
+	#[test]
+	fn can_create_service() {
+		let temp = RandomTempPath::create_dir();
+		let svc = AccountService::new_test(&temp);
+		assert!(svc.accounts().unwrap().is_empty());
+	}
+
+	#[test]
+	fn accounts_expire() {
+		use std::collections::hash_map::*;
+
+		let temp = RandomTempPath::create_dir();
+		let svc = AccountService::new_test(&temp);
+		let address = svc.new_account("pass").unwrap();
+		svc.unlock_account(&address, "pass").unwrap();
+		assert!(svc.account_secret(&address).is_ok());
+		{
+			let ss_rw = svc.secret_store.write().unwrap();
+			let mut ua_rw = ss_rw.unlocks.write().unwrap();
+			let entry = ua_rw.entry(address);
+			if let Entry::Occupied(mut occupied) = entry { occupied.get_mut().expires = UTC::now() - Duration::minutes(1); }
+		}
+
+		svc.tick();
+
+		assert!(svc.account_secret(&address).is_err());
 	}
 }
