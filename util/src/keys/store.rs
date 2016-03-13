@@ -273,13 +273,16 @@ impl SecretStore {
 
 	/// Makes account unlocks expire and removes unused key files from memory
 	pub fn collect_garbage(&mut self) {
+		let mut garbage_lock = self.unlocks.write().unwrap();
 		self.directory.collect_garbage();
 		let utc = UTC::now();
-		let expired_addresses = self.unlocks.read().unwrap().iter()
+		let expired_addresses = garbage_lock.iter()
 			.filter(|&(_, unlock)| unlock.expires < utc)
 			.map(|(address, _)| address.clone()).collect::<Vec<Address>>();
 
-		for expired in expired_addresses { self.unlocks.write().unwrap().remove(&expired); }
+		for expired in expired_addresses { garbage_lock.remove(&expired); }
+
+		garbage_lock.shrink_to_fit();
 	}
 }
 
