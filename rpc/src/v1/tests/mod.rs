@@ -20,3 +20,4 @@ mod eth;
 mod net;
 mod web3;
 mod helpers;
+mod personal;
