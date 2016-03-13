@@ -63,8 +63,15 @@ pub enum ExecutionError {
 }
 
 #[derive(Debug)]
-/// Errors concerning transaction proessing.
+/// Errors concerning transaction processing.
 pub enum TransactionError {
+	/// Transaction's gas price is below threshold.
+	InsufficientGasPrice {
+		/// Minimal expected gas price
+		minimal: U256,
+		/// Transaction gas price
+		got: U256
+	},
 	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
 }

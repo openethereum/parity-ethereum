@@ -24,7 +24,7 @@ impl<'a> From<UntrustedRlp<'a>> for Rlp<'a> {
 }
 
 /// Data-oriented view onto trusted rlp-slice.
-/// 
+///
 /// Unlikely to `UntrustedRlp` doesn't bother you with error
 /// handling. It assumes that you know what you are doing.
 #[derive(Debug)]
@@ -44,7 +44,7 @@ impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
 	type Data = &'a [u8];
 	type Item = Rlp<'a>;
 	type Iter = RlpIterator<'a, 'view>;
-	
+
 	/// Create a new instance of `Rlp`
 	fn new(bytes: &'a [u8]) -> Rlp<'a> {
 		Rlp {
@@ -116,7 +116,7 @@ impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
 impl <'a, 'view> Rlp<'a> where 'a: 'view {
 	fn view_as_val<T, R>(r: &R) -> T where R: View<'a, 'view>, T: RlpDecodable {
 		let res: Result<T, DecoderError> = r.as_val();
-		res.unwrap_or_else(|_| panic!())
+		res.unwrap_or_else(|e| panic!("DecodeError: {}", e))
 	}
 
 	/// Decode into an object

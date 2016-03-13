@@ -17,7 +17,6 @@
 //! Blockchain database client.
 
 use std::marker::PhantomData;
-use std::sync::atomic::AtomicBool;
 use util::*;
 use util::panics::*;
 use views::BlockView;
@@ -31,7 +30,7 @@ use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
-use transaction::LocalizedTransaction;
+use transaction::{LocalizedTransaction, SignedTransaction};
 use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -106,12 +105,6 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
-
-	// for sealing...
-	sealing_enabled: AtomicBool,
-	sealing_block: Mutex<Option<ClosedBlock>>,
-	author: RwLock<Address>,
-	extra_data: RwLock<Bytes>,
 	verifier: PhantomData<V>,
 }
 
@@ -159,10 +152,6 @@ impl<V> Client<V> where V: Verifier {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
-			sealing_enabled: AtomicBool::new(false),
-			sealing_block: Mutex::new(None),
-			author: RwLock::new(Address::new()),
-			extra_data: RwLock::new(Vec::new()),
 			verifier: PhantomData,
 		}))
 	}
@@ -305,8 +294,10 @@ impl<V> Client<V> where V: Verifier {
 			}
 		}
 
-		if self.chain_info().best_block_hash != original_best && self.sealing_enabled.load(atomic::Ordering::Relaxed) {
-			self.prepare_sealing();
+		{
+			if self.chain_info().best_block_hash != original_best {
+				io.send(NetworkIoMessage::User(SyncMessage::NewChainHead)).unwrap();
+			}
 		}
 
 		imported
@@ -357,52 +348,59 @@ impl<V> Client<V> where V: Verifier {
 			BlockId::Latest => Some(self.chain.best_block_number())
 		}
 	}
-
-	/// Get the author that we will seal blocks as.
-	pub fn author(&self) -> Address {
-		self.author.read().unwrap().clone()
-	}
-
-	/// Set the author that we will seal blocks as.
-	pub fn set_author(&self, author: Address) {
-		*self.author.write().unwrap() = author;
-	}
-
-	/// Get the extra_data that we will seal blocks wuth.
-	pub fn extra_data(&self) -> Bytes {
-		self.extra_data.read().unwrap().clone()
-	}
-
-	/// Set the extra_data that we will seal blocks with.
-	pub fn set_extra_data(&self, extra_data: Bytes) {
-		*self.extra_data.write().unwrap() = extra_data;
-	}
-
-	/// New chain head event. Restart mining operation.
-	pub fn prepare_sealing(&self) {
-		let h = self.chain.best_block_hash();
-		let mut b = OpenBlock::new(
-			self.engine.deref().deref(),
-			self.state_db.lock().unwrap().spawn(),
-			match self.chain.block_header(&h) { Some(ref x) => x, None => {return;} },
-			self.build_last_hashes(h.clone()),
-			self.author(),
-			self.extra_data()
-		);
-
-		self.chain.find_uncle_headers(&h, self.engine.deref().deref().maximum_uncle_age()).unwrap().into_iter().take(self.engine.deref().deref().maximum_uncle_count()).foreach(|h| { b.push_uncle(h).unwrap(); });
-
-		// TODO: push transactions.
-
-		let b = b.close();
-		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
-		*self.sealing_block.lock().unwrap() = Some(b);
-	}
 }
 
-// TODO: need MinerService MinerIoHandler
-
 impl<V> BlockChainClient for Client<V> where V: Verifier {
+
+
+	// TODO [todr] Should be moved to miner crate eventually.
+	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		block.try_seal(self.engine.deref().deref(), seal)
+	}
+
+	// TODO [todr] Should be moved to miner crate eventually.
+	fn prepare_sealing(&self, author: Address, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+		let engine = self.engine.deref().deref();
+		let h = self.chain.best_block_hash();
+
+		let mut b = OpenBlock::new(
+			engine,
+			self.state_db.lock().unwrap().spawn(),
+			match self.chain.block_header(&h) { Some(ref x) => x, None => {return None} },
+			self.build_last_hashes(h.clone()),
+			author,
+			extra_data,
+		);
+
+		// Add uncles
+		self.chain
+			.find_uncle_headers(&h, engine.maximum_uncle_age())
+			.unwrap()
+			.into_iter()
+			.take(engine.maximum_uncle_count())
+			.foreach(|h| {
+				b.push_uncle(h).unwrap();
+			});
+
+		// Add transactions
+		let block_number = b.block().header().number();
+		for tx in transactions {
+			let import = b.push_transaction(tx, None);
+			if let Err(e) = import {
+				trace!("Error adding transaction to block: number={}. Error: {:?}", block_number, e);
+			}
+		}
+
+		// And close
+		let b = b.close();
+		trace!("Sealing: number={}, hash={}, diff={}",
+			   b.block().header().number(),
+			   b.hash(),
+			   b.block().header().difficulty()
+		);
+		Some(b)
+	}
+
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
 	}
@@ -560,39 +558,6 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 			})
 			.collect()
-	}
-
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		if self.sealing_block.lock().unwrap().is_none() {
-			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
-			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
-			self.prepare_sealing();
-		}
-		&self.sealing_block
-	}
-
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		let mut maybe_b = self.sealing_block.lock().unwrap();
-		match *maybe_b {
-			Some(ref b) if b.hash() == pow_hash => {}
-			_ => { return Err(Error::PowHashInvalid); }
-		}
-
-		let b = maybe_b.take();
-		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
-			Err(old) => {
-				*maybe_b = Some(old);
-				Err(Error::PowInvalid)
-			}
-			Ok(sealed) => {
-				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
-				try!(self.import_block(sealed.rlp_bytes()));
-				Ok(())
-			}
-		}
 	}
 }
 

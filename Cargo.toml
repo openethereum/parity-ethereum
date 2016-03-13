@@ -20,17 +20,19 @@ fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
 number_prefix = "0.2"
 clippy = { version = "0.0.50", optional = true }
+rpassword = "0.1"
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
+ethminer = { path = "miner" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
-rpassword = "0.1"
+clippy = { version = "0.0.49", optional = true }
 
 [features]
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev"]
 travis-beta = ["ethcore/json-tests"]
 travis-nightly = ["ethcore/json-tests", "dev"]
 

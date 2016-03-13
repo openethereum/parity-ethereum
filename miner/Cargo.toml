@@ -1,0 +1,24 @@
+[package]
+description = "Ethminer library"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "ethminer"
+version = "0.9.99"
+authors = ["Ethcore <admin@ethcore.io>"]
+build = "build.rs"
+
+[build-dependencies]
+rustc_version = "0.1"
+
+[dependencies]
+ethcore-util = { path = "../util" }
+ethcore = { path = "../ethcore" }
+log = "0.3"
+env_logger = "0.3"
+rustc-serialize = "0.3"
+rayon = "0.3.1"
+clippy = { version = "0.0.49", optional = true }
+
+[features]
+default = []
+dev = ["clippy"]

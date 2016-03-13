@@ -32,18 +32,21 @@
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! extern crate ethsync;
+//! extern crate ethminer;
 //! use std::env;
 //! use std::sync::Arc;
 //! use util::network::{NetworkService, NetworkConfiguration};
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethsync::{EthSync, SyncConfig};
+//! use ethminer::Miner;
 //! use ethcore::ethereum;
 //!
 //! fn main() {
 //! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
 //! 	let dir = env::temp_dir();
 //! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
-//! 	EthSync::register(&mut service, SyncConfig::default(), client);
+//! 	let miner = Miner::new();
+//! 	EthSync::register(&mut service, SyncConfig::default(), client, miner);
 //! }
 //! ```
 
@@ -52,28 +55,27 @@ extern crate log;
 #[macro_use]
 extern crate ethcore_util as util;
 extern crate ethcore;
+extern crate ethminer;
 extern crate env_logger;
 extern crate time;
 extern crate rand;
-extern crate rayon;
 #[macro_use]
 extern crate heapsize;
 
 use std::ops::*;
 use std::sync::*;
-use ethcore::client::Client;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
 use util::TimerToken;
 use util::{U256, ONE_U256};
-use chain::ChainSync;
+use ethcore::client::Client;
 use ethcore::service::SyncMessage;
+use ethminer::Miner;
 use io::NetSyncIo;
+use chain::ChainSync;
 
 mod chain;
 mod io;
 mod range_collection;
-mod transaction_queue;
-pub use transaction_queue::TransactionQueue;
 
 #[cfg(test)]
 mod tests;
@@ -99,8 +101,6 @@ impl Default for SyncConfig {
 pub trait SyncProvider: Send + Sync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus;
-	/// Insert transaction in the sync transaction queue
-	fn insert_transaction(&self, transaction: ethcore::transaction::SignedTransaction);
 }
 
 /// Ethereum network protocol handler
@@ -115,10 +115,10 @@ pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>) -> Arc<EthSync> {
+	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>, miner: Arc<Miner>) -> Arc<EthSync> {
 		let sync = Arc::new(EthSync {
 			chain: chain,
-			sync: RwLock::new(ChainSync::new(config)),
+			sync: RwLock::new(ChainSync::new(config, miner)),
 		});
 		service.register_protocol(sync.clone(), "eth", &[62u8, 63u8]).expect("Error registering eth protocol handler");
 		sync
@@ -139,16 +139,6 @@ impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
 		self.sync.read().unwrap().status()
-	}
-
-	/// Insert transaction in transaction queue
-	fn insert_transaction(&self, transaction: ethcore::transaction::SignedTransaction) {
-		use util::numbers::*;
-
-		let nonce_fn = |a: &Address| self.chain.state().nonce(a) + U256::one();
-		let sync = self.sync.write().unwrap();
-		sync.insert_transaction(transaction, &nonce_fn).unwrap_or_else(
-			|e| warn!(target: "sync", "Error inserting transaction to queue: {:?}", e));
 	}
 }
 
@@ -181,6 +171,10 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
 				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, good, bad, retracted);
 			},
+			SyncMessage::NewChainHead => {
+				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
+				self.sync.write().unwrap().chain_new_head(&mut sync_io);
+			}
 			_ => {/* Ignore other messages */},
 		}
 	}

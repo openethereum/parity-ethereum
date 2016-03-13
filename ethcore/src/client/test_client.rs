@@ -17,16 +17,16 @@
 //! Test client.
 
 use util::*;
-use transaction::{Transaction, LocalizedTransaction, Action};
+use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::Receipt;
-use error::{ImportResult, Error};
+use error::{ImportResult};
 use block_queue::BlockQueueInfo;
-use block::ClosedBlock;
+use block::{SealedBlock, ClosedBlock};
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -205,12 +205,12 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		unimplemented!();
+	fn prepare_sealing(&self, _author: Address, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+		unimplemented!()
 	}
 
-	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
-		unimplemented!();
+	fn try_seal(&self, _block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		unimplemented!()
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
