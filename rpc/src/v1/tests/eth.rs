@@ -21,7 +21,7 @@ use util::hash::{Address, H256};
 use util::numbers::U256;
 use ethcore::client::{TestBlockChainClient, EachBlockWith};
 use v1::{Eth, EthClient};
-use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config};
+use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config, TestMinerService};
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let mut client = TestBlockChainClient::new();
@@ -46,10 +46,15 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 	}))
 }
 
+fn miner_service() -> Arc<TestMinerService> {
+	Arc::new(TestMinerService)
+}
+
 struct EthTester {
 	_client: Arc<TestBlockChainClient>,
 	_sync: Arc<TestSyncProvider>,
 	_accounts_provider: Arc<TestAccountProvider>,
+	_miner: Arc<TestMinerService>,
 	pub io: IoHandler,
 }
 
@@ -58,13 +63,15 @@ impl Default for EthTester {
 		let client = blockchain_client();
 		let sync = sync_provider();
 		let ap = accounts_provider();
-		let eth = EthClient::new(&client, &sync, &ap).to_delegate();
+		let miner = miner_service();
+		let eth = EthClient::new(&client, &sync, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);
 		EthTester {
 			_client: client,
 			_sync: sync,
 			_accounts_provider: ap,
+			_miner: miner,
 			io: io
 		}
 	}
