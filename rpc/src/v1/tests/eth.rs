@@ -260,6 +260,13 @@ fn rpc_eth_estimate_gas() {
 	unimplemented!()
 }
 
+#[test]
+fn rpc_eth_compilers() {
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getCompilers", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
 
 
 

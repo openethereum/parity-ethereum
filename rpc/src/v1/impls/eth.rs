@@ -250,6 +250,13 @@ impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S:
 			.and_then(|(number, index)| self.transaction(TransactionId::Location(number.into(), index.value())))
 	}
 
+	fn compilers(&self, params: Params) -> Result<Value, Error> {
+		match params {
+			Params::None => to_value(&vec![] as &Vec<String>),
+			_ => Err(Error::invalid_params())
+		}
+	}
+
 	fn logs(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Filter,)>(params)
 			.and_then(|(filter,)| {
