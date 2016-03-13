@@ -44,6 +44,8 @@ pub struct TestBlockChainClient {
 	pub balances: RwLock<HashMap<Address, U256>>,
 	/// Storage.
 	pub storage: RwLock<HashMap<(Address, H256), H256>>,
+	/// Code.
+	pub code: RwLock<HashMap<Address, Bytes>>,
 }
 
 #[derive(Clone)]
@@ -77,6 +79,7 @@ impl TestBlockChainClient {
 			difficulty: RwLock::new(From::from(0)),
 			balances: RwLock::new(HashMap::new()),
 			storage: RwLock::new(HashMap::new()),
+			code: RwLock::new(HashMap::new()),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
@@ -86,6 +89,11 @@ impl TestBlockChainClient {
 	/// Set the balance of account `address` to `balance`.
 	pub fn set_balance(&mut self, address: Address, balance: U256) {
 		self.balances.write().unwrap().insert(address, balance);
+	}
+
+	/// Set `code` at `address`.
+	pub fn set_code(&mut self, address: Address, code: Bytes) {
+		self.code.write().unwrap().insert(address, code);
 	}
 
 	/// Set storage `position` to `value` for account `address`.
@@ -183,8 +191,8 @@ impl BlockChainClient for TestBlockChainClient {
 		U256::zero()
 	}
 
-	fn code(&self, _address: &Address) -> Option<Bytes> {
-		unimplemented!();
+	fn code(&self, address: &Address) -> Option<Bytes> {
+		self.code.read().unwrap().get(address).cloned()
 	}
 
 	fn balance(&self, address: &Address) -> U256 {
