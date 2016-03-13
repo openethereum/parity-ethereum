@@ -1263,9 +1263,9 @@ impl ChainSync {
 	}
 
 	/// called when block is imported to chain, updates transactions queue and propagates the blocks
-	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, good: &[H256], bad: &[H256], retracted: &[H256]) {
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		// Notify miner
-		self.miner.chain_new_blocks(io.chain(), good, bad, retracted);
+		self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
 		// Propagate latests blocks
 		self.propagate_latest_blocks(io);
 		// TODO [todr] propagate transactions?
@@ -1616,10 +1616,10 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&mut io, &[], &good_blocks, &[]);
+		sync.chain_new_blocks(&mut io, &[], &good_blocks, &[], &[]);
 		assert_eq!(sync.miner.status().transaction_queue_future, 0);
 		assert_eq!(sync.miner.status().transaction_queue_pending, 1);
-		sync.chain_new_blocks(&mut io, &good_blocks, &retracted_blocks, &[]);
+		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
 
 		// then
 		let status = sync.miner.status();

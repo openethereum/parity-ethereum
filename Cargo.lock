@@ -95,6 +95,16 @@ dependencies = [
 
 [[package]]
 name = "clippy"
+version = "0.0.49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "regex-syntax 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unicode-normalization 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "clippy"
 version = "0.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [

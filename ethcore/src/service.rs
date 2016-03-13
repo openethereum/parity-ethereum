@@ -28,11 +28,13 @@ pub enum SyncMessage {
 	/// New block has been imported into the blockchain
 	NewChainBlocks {
 		/// Hashes of blocks imported to blockchain
-		good: Vec<H256>,
-		/// Hashes of blocks not imported to blockchain
-		bad: Vec<H256>,
+		imported: Vec<H256>,
+		/// Hashes of blocks not imported to blockchain (because were invalid)
+		invalid: Vec<H256>,
 		/// Hashes of blocks that were removed from canonical chain
 		retracted: Vec<H256>,
+		/// Hashes of blocks that are now included in cannonical chain
+		enacted: Vec<H256>,
 	},
 	/// Best Block Hash in chain has been changed
 	NewChainHead,

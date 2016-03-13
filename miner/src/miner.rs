@@ -150,7 +150,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], _retracted: &[H256]) {
+	fn chain_new_blocks(&self, chain: &BlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], _retracted: &[H256]) {
 		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
 				.block(BlockId::Hash(*hash))
@@ -161,15 +161,20 @@ impl MinerService for Miner {
 		}
 
 		{
-			let good = good.par_iter().map(|h| fetch_transactions(chain, h));
-			let bad = bad.par_iter().map(|h| fetch_transactions(chain, h));
+			let in_chain = vec![imported, enacted, invalid];
+			let in_chain = in_chain
+				.par_iter()
+				.flat_map(|h| h.par_iter().map(|h| fetch_transactions(chain, h)));
+				.map(|h| fetch_transactions(chain, h));
+			let out_of_chain = retracted
+				.par_iter()
 
-			good.for_each(|txs| {
+			in_chain.for_each(|txs| {
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
 				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
 				transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
 			});
-			bad.for_each(|txs| {
+			out_of_chain.for_each(|txs| {
 				// populate sender
 				for tx in &txs {
 					let _sender = tx.sender();

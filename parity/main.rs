@@ -114,7 +114,7 @@ API and Console Options:
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL (geth-compatible).
 
 Sealing/Mining Options:
-  --gasprice GAS           Minimal gas price a transaction must have to be accepted for mining [default: 20000000000].
+  --gas-price WEI          Minimum amount of Wei to be paid for a transaction to be accepted for mining [default: 20000000000].
   --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
                            from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
   --extra-data STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
@@ -138,11 +138,12 @@ Geth-Compatibility Options
   --maxpeers COUNT         Equivalent to --peers COUNT.
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
+  --gasprice WEI           Equivalent to --gas-price WEI.
   --etherbase ADDRESS      Equivalent to --author ADDRESS.
   --extradata STRING       Equivalent to --extra-data STRING.
 
 Miscellaneous Options:
-  -l --logging LOGGING     Specify the logging level.
+  -l --logging LOGGING     Specify the logging level. Must conform to the same format as RUST_LOG.
   -v --version             Show information about version.
   -h --help                Show this screen.
 "#;
@@ -175,18 +176,19 @@ struct Args {
 	flag_jsonrpc_port: u16,
 	flag_jsonrpc_cors: String,
 	flag_jsonrpc_apis: String,
+	flag_author: String,
+	flag_gas_price: String,
+	flag_extra_data: Option<String>,
 	flag_logging: Option<String>,
 	flag_version: bool,
 	// geth-compatibility...
 	flag_nodekey: Option<String>,
 	flag_nodiscover: bool,
 	flag_maxpeers: Option<usize>,
-	flag_gasprice: String,
-	flag_author: String,
-	flag_extra_data: Option<String>,
 	flag_datadir: Option<String>,
 	flag_extradata: Option<String>,
 	flag_etherbase: Option<String>,
+	flag_gasprice: Option<String>,
 	flag_rpc: bool,
 	flag_rpcaddr: Option<String>,
 	flag_rpcport: Option<u16>,
@@ -301,9 +303,10 @@ impl Configuration {
 		})
 	}
 
-	fn gasprice(&self) -> U256 {
-		U256::from_dec_str(self.args.flag_gasprice.as_str()).unwrap_or_else(|_| {
-			die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", self.args.flag_gasprice)
+	fn gas_price(&self) -> U256 {
+		let d = self.args.flag_gasprice.as_ref().unwrap_or(&self.args.flag_gas_price);
+		U256::from_dec_str(d).unwrap_or_else(|_| {
+			die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
 		})
 	}
 
@@ -483,7 +486,7 @@ impl Configuration {
 		let miner = Miner::new();
 		miner.set_author(self.author());
 		miner.set_extra_data(self.extra_data());
-		miner.set_minimal_gas_price(self.gasprice());
+		miner.set_minimal_gas_price(self.gas_price());
 
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());

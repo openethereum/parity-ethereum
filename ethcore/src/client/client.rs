@@ -35,7 +35,7 @@ use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
-use blockchain::{BlockChain, BlockProvider, TreeRoute};
+use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
@@ -222,12 +222,39 @@ impl<V> Client<V> where V: Verifier {
 		Ok(closed_block)
 	}
 
+	fn calculate_enacted_retracted(&self, import_results: Vec<ImportRoute>) -> (Vec<H256>, Vec<H256>) {
+		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
+			map.into_iter().map(|(k, _v)| k).collect()
+		}
+
+		// In ImportRoute we get all the blocks that have been enacted and retracted by single insert.
+		// Because we are doing multiple inserts some of the blocks that were enacted in import `k`
+		// could be retracted in import `k+1`. This is why to understand if after all inserts
+		// the block is enacted or retracted we iterate over all routes and at the end final state
+		// will be in the hashmap
+		let map = import_results.into_iter().fold(HashMap::new(), |mut map, route| {
+			for hash in route.enacted {
+				map.insert(hash, true);
+			}
+			for hash in route.retracted {
+				map.insert(hash, false);
+			}
+			map
+		});
+
+		// Split to enacted retracted (using hashmap value)
+		let (enacted, retracted) = map.into_iter().partition(|&(_k, v)| v);
+		// And convert tuples to keys
+		(map_to_vec(enacted), map_to_vec(retracted))
+	}
+	
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
 		let max_blocks_to_import = 128;
 
-		let mut good_blocks = Vec::with_capacity(max_blocks_to_import);
-		let mut bad_blocks = HashSet::new();
+		let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
+		let mut invalid_blocks = HashSet::new();
+		let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.drain(max_blocks_to_import);
@@ -237,16 +264,16 @@ impl<V> Client<V> where V: Verifier {
 		for block in blocks {
 			let header = &block.header;
 
-			if bad_blocks.contains(&header.parent_hash) {
-				bad_blocks.insert(header.hash());
+			if invalid_blocks.contains(&header.parent_hash) {
+				invalid_blocks.insert(header.hash());
 				continue;
 			}
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
-				bad_blocks.insert(header.hash());
+				invalid_blocks.insert(header.hash());
 				break;
 			}
-			good_blocks.push(header.hash());
+			imported_blocks.push(header.hash());
 
 			// Are we committing an era?
 			let ancient = if header.number() >= HISTORY {
@@ -265,31 +292,33 @@ impl<V> Client<V> where V: Verifier {
 
 			// And update the chain after commit to prevent race conditions
 			// (when something is in chain but you are not able to fetch details)
-			self.chain.insert_block(&block.bytes, receipts);
+			let route = self.chain.insert_block(&block.bytes, receipts);
+			import_results.push(route);
 
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
 
-		let imported = good_blocks.len();
-		let bad_blocks = bad_blocks.into_iter().collect::<Vec<H256>>();
+		let imported = imported_blocks.len();
+		let invalid_blocks = invalid_blocks.into_iter().collect::<Vec<H256>>();
 
 		{
-			if !bad_blocks.is_empty() {
-				self.block_queue.mark_as_bad(&bad_blocks);
+			if !invalid_blocks.is_empty() {
+				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
-			if !good_blocks.is_empty() {
-				self.block_queue.mark_as_good(&good_blocks);
+			if !imported_blocks.is_empty() {
+				self.block_queue.mark_as_good(&imported_blocks);
 			}
 		}
 
 		{
-			if !good_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
+			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
+				let (enacted, retracted) = self.calculate_enacted_retracted(import_results);
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
-					good: good_blocks,
-					bad: bad_blocks,
-					// TODO [todr] were to take those from?
-					retracted: vec![],
+					good: imported_blocks,
+					invalid: invalid_blocks,
+					enacted: enacted,
+					retracted: retracted,
 				})).unwrap();
 			}
 		}

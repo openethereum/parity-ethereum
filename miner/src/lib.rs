@@ -89,7 +89,7 @@ pub trait MinerService : Send + Sync {
 	fn clear_and_reset(&self, chain: &BlockChainClient);
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, chain: &BlockChainClient, good: &[H256], bad: &[H256], retracted: &[H256]);
+	fn chain_new_blocks(&self, chain: &BlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
 	/// New chain head event. Restart mining operation.
 	fn prepare_sealing(&self, chain: &BlockChainClient);
