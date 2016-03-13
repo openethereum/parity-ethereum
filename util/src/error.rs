@@ -21,12 +21,13 @@ use network::NetworkError;
 use rlp::DecoderError;
 use io;
 use std::fmt;
+use hash::H256;
 
 #[derive(Debug)]
 /// Error in database subsystem.
 pub enum BaseDataError {
 	/// An entry was removed more times than inserted.
-	NegativelyReferencedHash,
+	NegativelyReferencedHash(H256),
 }
 
 #[derive(Debug)]

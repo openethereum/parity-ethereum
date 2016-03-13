@@ -43,6 +43,7 @@ pub struct RefCountedDB {
 const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const DB_VERSION : u32 = 512;
+const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
@@ -131,9 +132,10 @@ impl JournalDB for RefCountedDB {
 			let mut last;
 
 			while try!(self.backing.get({
-				let mut r = RlpStream::new_list(2);
+				let mut r = RlpStream::new_list(3);
 				r.append(&now);
 				r.append(&index);
+				r.append(&&PADDING[..]);
 				last = r.drain();
 				&last
 			})).is_some() {
@@ -144,7 +146,10 @@ impl JournalDB for RefCountedDB {
 			r.append(id);
 			r.append(&self.inserts);
 			r.append(&self.removes);
-			try!(self.backing.put(&last, r.as_raw()));
+			try!(batch.put(&last, r.as_raw()));
+			
+			trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
+
 			self.inserts.clear();
 			self.removes.clear();
 
@@ -158,20 +163,25 @@ impl JournalDB for RefCountedDB {
 		if let Some((end_era, canon_id)) = end {
 			let mut index = 0usize;
 			let mut last;
-			while let Some(rlp_data) = try!(self.backing.get({
-				let mut r = RlpStream::new_list(2);
-				r.append(&end_era);
-				r.append(&index);
-				last = r.drain();
-				&last
-			})) {
+			while let Some(rlp_data) = {
+//				trace!(target: "rcdb", "checking for journal #{}.{}", end_era, index);
+				try!(self.backing.get({
+					let mut r = RlpStream::new_list(3);
+					r.append(&end_era);
+					r.append(&index);
+					r.append(&&PADDING[..]);
+					last = r.drain();
+					&last
+				}))
+			} {
 				let rlp = Rlp::new(&rlp_data);
-				let to_remove: Vec<H256> = rlp.val_at(if canon_id == rlp.val_at(0) {2} else {1});
+				let our_id: H256 = rlp.val_at(0);
+				let to_remove: Vec<H256> = rlp.val_at(if canon_id == our_id {2} else {1});
+				trace!(target: "rcdb", "delete journal for time #{}.{}=>{}, (canon was {}): deleting {:?}", end_era, index, our_id, canon_id, to_remove);
 				for i in &to_remove {
 					self.forward.remove(i);
 				}
-				try!(self.backing.delete(&last));
-				trace!("RefCountedDB: delete journal for time #{}.{}, (canon was {}): {} entries", end_era, index, canon_id, to_remove.len());
+				try!(batch.delete(&last));
 				index += 1;
 			}
 		}
