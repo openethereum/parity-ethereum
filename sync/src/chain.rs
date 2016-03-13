@@ -1616,7 +1616,7 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&mut io, &[], &good_blocks, &[], &[]);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
 		assert_eq!(sync.miner.status().transaction_queue_future, 0);
 		assert_eq!(sync.miner.status().transaction_queue_pending, 1);
 		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
