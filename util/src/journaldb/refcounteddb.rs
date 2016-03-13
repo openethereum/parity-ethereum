@@ -126,6 +126,7 @@ impl JournalDB for RefCountedDB {
 		// of its inserts otherwise.
 
 		// record new commit's details.
+		let batch = DBTransaction::new();
 		{
 			let mut index = 0usize;
 			let mut last;
@@ -145,7 +146,7 @@ impl JournalDB for RefCountedDB {
 			r.append(id);
 			r.append(&self.inserts);
 			r.append(&self.removes);
-			try!(self.backing.put(&last, r.as_raw()));
+			try!(batch.put(&last, r.as_raw()));
 			
 			trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
 
@@ -153,7 +154,7 @@ impl JournalDB for RefCountedDB {
 			self.removes.clear();
 
 			if self.latest_era.map_or(true, |e| now > e) {
-				try!(self.backing.put(&LATEST_ERA_KEY, &encode(&now)));
+				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
 				self.latest_era = Some(now);
 			}
 		}
@@ -180,12 +181,13 @@ impl JournalDB for RefCountedDB {
 				for i in &to_remove {
 					self.forward.remove(i);
 				}
-				try!(self.backing.delete(&last));
+				try!(batch.delete(&last));
 				index += 1;
 			}
 		}
 
-		let r = try!(self.forward.commit());
+		let r = try!(self.forward.commit_to_batch(&batch));
+		try!(self.backing.write(batch));
 		Ok(r)
 	}
 }

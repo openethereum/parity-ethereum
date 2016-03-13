@@ -70,15 +70,13 @@ impl OverlayDB {
 						let (back_value, back_rc) = x;
 						let total_rc: i32 = back_rc as i32 + rc;
 						if total_rc < 0 {
-							warn!("NEGATIVELY REFERENCED HASH {:?}", key);
-							return Err(From::from(BaseDataError::NegativelyReferencedHash));
+							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
 						}
 						deletes += if self.put_payload_in_batch(batch, &key, (back_value, total_rc as u32)) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
-							warn!("NEGATIVELY REFERENCED HASH {:?}", key);
-							return Err(From::from(BaseDataError::NegativelyReferencedHash));
+							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
 						}
 						self.put_payload_in_batch(batch, &key, (value, rc as u32));
 					}
@@ -128,15 +126,13 @@ impl OverlayDB {
 						let (back_value, back_rc) = x;
 						let total_rc: i32 = back_rc as i32 + rc;
 						if total_rc < 0 {
-							warn!("NEGATIVELY REFERENCED HASH {:?}", key);
-							return Err(From::from(BaseDataError::NegativelyReferencedHash));
+							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
 						}
 						deletes += if self.put_payload(&key, (back_value, total_rc as u32)) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
-							warn!("NEGATIVELY REFERENCED HASH {:?}", key);
-							return Err(From::from(BaseDataError::NegativelyReferencedHash));
+							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
 						}
 						self.put_payload(&key, (value, rc as u32));
 					}
