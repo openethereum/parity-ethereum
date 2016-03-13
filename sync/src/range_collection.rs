@@ -300,12 +300,17 @@ fn test_range() {
 	let mut r = ranges.clone();
 	r.remove_from(&20);
 	assert_eq!(r.range_iter().cmp(vec![(2, &['b', 'c', 'd'][..]),  (16, &['p', 'q', 'r'][..])]),  Ordering::Equal);
-	r.remove_from(&17);
-	assert_eq!(r.range_iter().cmp(vec![(2, &['b', 'c', 'd'][..]),  (16, &['p'][..])]),  Ordering::Equal);
-	r.remove_from(&15);
+	r.remove_from(&18);
+	assert!(!r.have_item(&18));
+	assert_eq!(r.range_iter().cmp(vec![(2, &['b', 'c', 'd'][..]),  (16, &['p', 'q'][..])]),  Ordering::Equal);
+	r.remove_from(&16);
+	assert!(!r.have_item(&16));
 	assert_eq!(r.range_iter().cmp(vec![(2, &['b', 'c', 'd'][..])]),  Ordering::Equal);
 	r.remove_from(&3);
 	assert_eq!(r.range_iter().cmp(vec![(2, &['b'][..])]),  Ordering::Equal);
+	r.remove_from(&1);
+	assert_eq!(r.range_iter().next(), None);
+	let mut r = ranges.clone();
 	r.remove_from(&2);
 	assert_eq!(r.range_iter().next(), None);
 }
