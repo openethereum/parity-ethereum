@@ -592,7 +592,7 @@ impl ChainSync {
 	pub fn on_peer_connected(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Connected {}", peer);
 		if let Err(e) = self.send_status(io) {
-			warn!(target:"sync", "Error sending status request: {:?}", e);
+			debug!(target:"sync", "Error sending status request: {:?}", e);
 			io.disable_peer(peer);
 		}
 	}
@@ -1093,7 +1093,7 @@ impl ChainSync {
 		let rlp = UntrustedRlp::new(data);
 
 		if packet_id != STATUS_PACKET && !self.peers.contains_key(&peer) {
-			warn!(target:"sync", "Unexpected packet from unregistered peer: {}:{}", peer, io.peer_info(peer));
+			debug!(target:"sync", "Unexpected packet from unregistered peer: {}:{}", peer, io.peer_info(peer));
 			return;
 		}
 		let result = match packet_id {
