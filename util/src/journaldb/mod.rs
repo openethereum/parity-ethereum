@@ -23,6 +23,7 @@ pub mod traits;
 mod archivedb;
 mod earlymergedb;
 mod overlayrecentdb;
+mod refcounteddb;
 
 /// Export the JournalDB trait.
 pub use self::traits::JournalDB;
@@ -75,6 +76,6 @@ pub fn new(path: &str, algorithm: Algorithm) -> Box<JournalDB> {
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(path)),
 		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(path)),
 		Algorithm::OverlayRecent => Box::new(overlayrecentdb::OverlayRecentDB::new(path)),
-		_ => unimplemented!(),
+		Algorithm::RefCounted => Box::new(refcounteddb::RefCountedDB::new(path)),
 	}
 }
