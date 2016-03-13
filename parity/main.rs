@@ -78,72 +78,86 @@ Usage:
   parity [options]
 
 Protocol Options:
-  --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
-                           or olympic, frontier, homestead, mainnet, morden, or testnet [default: homestead].
-  --testnet                Equivalent to --chain testnet (geth-compatible).
-  --networkid INDEX        Override the network identifier from the chain we are on.
-  --pruning METHOD         Configure pruning of the state/storage trie. METHOD may be one of: archive,
-                           basic (experimental), fast (experimental) [default: archive].
-  -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
-  --db-path PATH           Specify the database & configuration directory path [default: $HOME/.parity]
-  --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
+  --chain CHAIN            Specify the blockchain type. CHAIN may be either a
+                           JSON chain specification file or olympic, frontier,
+                           homestead, mainnet, morden, or testnet
+                           [default: homestead].
+  -d --db-path PATH        Specify the database & configuration directory path
+                           [default: $HOME/.parity].
+  --keys-path PATH         Specify the path for JSON key files to be found
+                           [default: $HOME/.web3/keys].
   --identity NAME          Specify your node's name.
 
 Networking Options:
-  --port PORT              Override the port on which the node should listen [default: 30303].
+  --port PORT              Override the port on which the node should listen
+                           [default: 30303].
   --peers NUM              Try to maintain that many peers [default: 25].
-  --nat METHOD             Specify method to use for determining public address. Must be one of: any, none,
-                           upnp, extip:(IP) [default: any].
-  --bootnodes NODES        Specify additional comma-separated bootnodes.
-  --no-bootstrap           Don't bother trying to connect to standard bootnodes.
+  --nat METHOD             Specify method to use for determining public
+                           address. Must be one of: any, none, upnp,
+                           extip:<IP> [default: any].
+  --network-id INDEX       Override the network identifier from the chain we
+                           are on.
+  --bootnodes NODES        Override the bootnodes from our chain. NODES should
+                           be comma-delimited enodes.
   --no-discovery           Disable new peer discovery.
-  --node-key KEY           Specify node secret key, either as 64-character hex string or input to SHA3 operation.
+  --node-key KEY           Specify node secret key, either as 64-character hex
+                           string or input to SHA3 operation.
 
 API and Console Options:
   -j --jsonrpc             Enable the JSON-RPC API sever.
-  --jsonrpc-addr HOST      Specify the hostname portion of the JSONRPC API server [default: 127.0.0.1].
-  --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server [default: 8545].
-  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
-  --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited
-                           list of API name. Possible name are web3, eth and net. [default: web3,eth,net,personal].
-
-  --rpc                    Equivalent to --jsonrpc (geth-compatible).
-  --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST (geth-compatible).
-  --rpcport PORT           Equivalent to --jsonrpc-port PORT (geth-compatible).
-  --rpcapi APIS            Equivalent to --jsonrpc-apis APIS (geth-compatible).
-  --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL (geth-compatible).
+  --jsonrpc-addr HOST      Specify the hostname portion of the JSONRPC API
+                           server [default: 127.0.0.1].
+  --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
+                           [default: 8545].
+  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses
+                           [default: null].
+  --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
+                           interface. APIS is a comma-delimited list of API
+                           name. Possible name are web3, eth and net.
+                           [default: web3,eth,net,personal].
 
 Sealing/Mining Options:
-  --gas-price WEI          Minimum amount of Wei to be paid for a transaction to be accepted for mining [default: 20000000000].
-  --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
-                           from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
-  --extra-data STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
+  --gas-price WEI          Minimum amount of Wei to be paid for a transaction
+                           to be accepted for mining [default: 20000000000].
+  --author ADDRESS         Specify the block author (aka "coinbase") address
+                           for sending block rewards from sealed blocks
+                           [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
+  --extra-data STRING      Specify a custom extra-data for authored blocks, no
+                           more than 32 characters.
 
-Memory Footprint Options:
-  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
-  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
-  --queue-max-size BYTES   Specify the maximum size of memory to use for block queue [default: 52428800].
-  --cache MEGABYTES        Set total amount of cache to use for the entire system, mutually exclusive with
-                           other cache options (geth-compatible).
+Footprint Options:
+  --pruning METHOD         Configure pruning of the state/storage trie. METHOD
+                           may be one of: archive, basic (experimental), fast
+                           (experimental) [default: archive].
+  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
+                           bytes [default: 16384].
+  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
+                           bytes [default: 262144].
+  --queue-max-size BYTES   Specify the maximum size of memory to use for block
+                           queue [default: 52428800].
+  --cache MEGABYTES        Set total amount of discretionary memory to use for
+                           the entire system, overrides other cache and queue
+                           options.
 
-Geth-Compatibility Options
+Geth-compatibility Options:
   --datadir PATH           Equivalent to --db-path PATH.
   --testnet                Equivalent to --chain testnet.
-  --networkid INDEX        Override the network identifier from the chain we are on.
+  --networkid INDEX        Equivalent to --network-id INDEX.
+  --maxpeers COUNT         Equivalent to --peers COUNT.
+  --nodekey KEY            Equivalent to --node-key KEY.
+  --nodiscover             Equivalent to --no-discovery.
   --rpc                    Equivalent to --jsonrpc.
   --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST.
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
-  --maxpeers COUNT         Equivalent to --peers COUNT.
-  --nodekey KEY            Equivalent to --node-key KEY.
-  --nodiscover             Equivalent to --no-discovery.
   --gasprice WEI           Equivalent to --gas-price WEI.
   --etherbase ADDRESS      Equivalent to --author ADDRESS.
   --extradata STRING       Equivalent to --extra-data STRING.
 
 Miscellaneous Options:
-  -l --logging LOGGING     Specify the logging level. Must conform to the same format as RUST_LOG.
+  -l --logging LOGGING     Specify the logging level. Must conform to the same
+                           format as RUST_LOG.
   -v --version             Show information about version.
   -h --help                Show this screen.
 "#;
@@ -161,8 +175,8 @@ struct Args {
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
 	flag_bootnodes: Option<String>,
+	flag_network_id: Option<String>,
 	flag_pruning: String,
-	flag_no_bootstrap: bool,
 	flag_port: u16,
 	flag_peers: usize,
 	flag_no_discovery: bool,
@@ -345,15 +359,15 @@ impl Configuration {
 	}
 
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
-		let mut r = if self.args.flag_no_bootstrap { Vec::new() } else { spec.nodes().clone() };
-		if let Some(ref x) = self.args.flag_bootnodes {
-			r.extend(x.split(',').map(|s| {
+		match self.args.flag_bootnodes {
+			Some(ref x) if x.len() > 0 => x.split(',').map(|s| {
 				Self::normalize_enode(s).unwrap_or_else(|| {
 					die!("{}: Invalid node address format given for a boot node.", s)
 				})
-			}));
+			}).collect(),
+			Some(_) => Vec::new(),
+			None => spec.nodes().clone(),
 		}
-		r
 	}
 
 	#[cfg_attr(feature="dev", allow(useless_format))]
@@ -390,7 +404,7 @@ impl Configuration {
 		match self.args.flag_cache {
 			Some(mb) => {
 				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
-				client_config.blockchain.pref_cache_size = client_config.blockchain.max_cache_size / 2;
+				client_config.blockchain.pref_cache_size = client_config.blockchain.max_cache_size * 3 / 4;
 			}
 			None => {
 				client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
@@ -411,8 +425,8 @@ impl Configuration {
 
 	fn sync_config(&self, spec: &Spec) -> SyncConfig {
 		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = self.args.flag_networkid.as_ref().map_or(spec.network_id(), |id| {
-			U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --networkid", id))
+		sync_config.network_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref()).map_or(spec.network_id(), |id| {
+			U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --network-id/--networkid", id))
 		});
 		sync_config
 	}
