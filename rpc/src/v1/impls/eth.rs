@@ -101,7 +101,7 @@ impl<C, S, A> EthClient<C, S, A> where C: BlockChainClient, S: SyncProvider, A: 
 impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S: SyncProvider + 'static, A: AccountProvider + 'static {
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&U256::from(take_weak!(self.sync).status().protocol_version)),
+			Params::None => Ok(Value::String(format!("{}", take_weak!(self.sync).status().protocol_version).to_owned())),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -173,6 +173,12 @@ impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S:
 	fn balance(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, BlockNumber)>(params)
 			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).balance(&address)))
+	}
+
+	fn storage_at(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Address, U256, BlockNumber)>(params)
+			.and_then(|(address, position, _block_number)|
+				to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))))
 	}
 
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {

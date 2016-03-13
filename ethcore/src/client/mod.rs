@@ -69,6 +69,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get address balance.
 	fn balance(&self, address: &Address) -> U256;
 
+	/// Get value of the storage at given position.
+	fn storage_at(&self, address: &Address, position: &H256) -> H256;
+
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
 
