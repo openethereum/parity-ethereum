@@ -369,6 +369,7 @@ mod vector_tests {
 
 
 	#[test]
+	#[cfg(feature="heavy-tests")]
 	fn mac_vector() {
 		let password = "testpassword";
 		let salt = H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap();
@@ -470,6 +471,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature="heavy-tests")]
 	fn can_get() {
 		let temp = RandomTempPath::create_dir();
 		let key_id = {
