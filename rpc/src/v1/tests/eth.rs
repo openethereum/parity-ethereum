@@ -230,3 +230,36 @@ fn rpc_eth_code() {
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
+#[test]
+#[ignore]
+fn rpc_eth_call() {
+	unimplemented!()
+}
+
+#[test]
+#[ignore]
+fn rpc_eth_send_transaction() {
+	unimplemented!()
+}
+
+#[test]
+#[ignore]
+fn rpc_eth_send_raw_transaction() {
+	unimplemented!()
+}
+
+#[test]
+#[ignore]
+fn rpc_eth_sign() {
+	unimplemented!()
+}
+
+#[test]
+#[ignore]
+fn rpc_eth_estimate_gas() {
+	unimplemented!()
+}
+
+
+
+

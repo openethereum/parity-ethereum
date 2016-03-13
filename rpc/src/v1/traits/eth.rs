@@ -74,8 +74,14 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	/// Returns the code at given address at given time (block number).
 	fn code_at(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
+	/// Signs the data with given address signature.
+	fn sign(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Sends transaction.
 	fn send_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Sends signed transaction.
+	fn send_raw_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Call contract.
 	fn call(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
@@ -141,7 +147,9 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_getUncleCountByBlockHash", Eth::block_uncles_count_by_hash);
 		delegate.add_method("eth_getUncleCountByBlockNumber", Eth::block_uncles_count_by_number);
 		delegate.add_method("eth_getCode", Eth::code_at);
+		delegate.add_method("eth_sign", Eth::sign);
 		delegate.add_method("eth_sendTransaction", Eth::send_transaction);
+		delegate.add_method("eth_sendRawTransaction", Eth::send_raw_transaction);
 		delegate.add_method("eth_call", Eth::call);
 		delegate.add_method("eth_estimateGas", Eth::estimate_gas);
 		delegate.add_method("eth_getBlockByHash", Eth::block_by_hash);
