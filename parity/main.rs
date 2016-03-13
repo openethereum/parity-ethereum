@@ -523,6 +523,7 @@ impl Configuration {
 			client: service.client(),
 			info: Default::default(),
 			sync: sync.clone(),
+			accounts: account_service.clone(),
 		});
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
@@ -618,20 +619,28 @@ impl Informant {
 
 const INFO_TIMER: TimerToken = 0;
 
+const ACCOUNT_TICK_TIMER: TimerToken = 10;
+const ACCOUNT_TICK_MS: u64 = 60000;
+
 struct ClientIoHandler {
 	client: Arc<Client>,
 	sync: Arc<EthSync>,
+	accounts: Arc<AccountService>,
 	info: Informant,
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
 		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
+		io.register_timer(ACCOUNT_TICK_TIMER, ACCOUNT_TICK_MS).expect("Error registering account timer");
+
 	}
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
-		if INFO_TIMER == timer {
-			self.info.tick(&self.client, &self.sync);
+		match timer {
+			INFO_TIMER => { self.info.tick(&self.client, &self.sync); }
+			ACCOUNT_TICK_TIMER => { self.accounts.tick(); },
+			_ => {}
 		}
 	}
 }
