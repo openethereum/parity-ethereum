@@ -453,6 +453,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		self.state().balance(address)
 	}
 
+	fn storage_at(&self, address: &Address, position: &H256) -> H256 {
+		self.state().storage_at(address, position)
+	}
+
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
 		match id {
 			TransactionId::Hash(ref hash) => self.chain.transaction_address(hash),

@@ -17,7 +17,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use jsonrpc_core::IoHandler;
-use util::hash::Address;
+use util::hash::{Address, H256};
 use util::numbers::U256;
 use ethcore::client::{TestBlockChainClient, EachBlockWith};
 use v1::{Eth, EthClient};
@@ -27,6 +27,7 @@ fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let mut client = TestBlockChainClient::new();
 	client.add_blocks(10, EachBlockWith::Nothing);
 	client.set_balance(Address::from(1), U256::from(5));
+	client.set_storage(Address::from(1), H256::from(4), H256::from(7));
 	Arc::new(client)
 }
 
@@ -45,9 +46,9 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 }
 
 struct EthTester {
-	client: Arc<TestBlockChainClient>,
-	sync: Arc<TestSyncProvider>,
-	accounts_provider: Arc<TestAccountProvider>,
+	_client: Arc<TestBlockChainClient>,
+	_sync: Arc<TestSyncProvider>,
+	_accounts_provider: Arc<TestAccountProvider>,
 	pub io: IoHandler,
 }
 
@@ -60,18 +61,66 @@ impl Default for EthTester {
 		let io = IoHandler::new();
 		io.add_delegate(eth);
 		EthTester {
-			client: client,
-			sync: sync,
-			accounts_provider: ap,
+			_client: client,
+			_sync: sync,
+			_accounts_provider: ap,
 			io: io
 		}
 	}
 }
 
 #[test]
+fn rpc_eth_protocol_version() {
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_protocolVersion", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"65","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+#[ignore]
+fn rpc_eth_syncing() {
+	unimplemented!()
+}
+
+#[test]
+#[ignore]
+fn rpc_eth_hashrate() {
+	unimplemented!()
+}
+
+#[test]
+#[ignore]
+fn rpc_eth_author() {
+	unimplemented!()
+}
+
+#[test]
+#[ignore]
+fn rpc_eth_mining() {
+	unimplemented!()
+}
+
+#[test]
+fn rpc_eth_gas_price() {
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_gasPrice", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0ba43b7400","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_eth_accounts() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_block_number() {
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0a","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
@@ -85,6 +134,19 @@ fn rpc_eth_balance() {
 		"id": 1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x05","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_storage_at() {
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getStorageAt",
+		"params": ["0x0000000000000000000000000000000000000001", "0x4", "latest"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x07","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
