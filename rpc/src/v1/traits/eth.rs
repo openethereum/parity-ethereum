@@ -140,7 +140,7 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_getBlockTransactionCountByNumber", Eth::block_transaction_count_by_number);
 		delegate.add_method("eth_getUncleCountByBlockHash", Eth::block_uncles_count_by_hash);
 		delegate.add_method("eth_getUncleCountByBlockNumber", Eth::block_uncles_count_by_number);
-		delegate.add_method("eth_code", Eth::code_at);
+		delegate.add_method("eth_getCode", Eth::code_at);
 		delegate.add_method("eth_sendTransaction", Eth::send_transaction);
 		delegate.add_method("eth_call", Eth::call);
 		delegate.add_method("eth_estimateGas", Eth::estimate_gas);

@@ -221,7 +221,8 @@ impl<C, S, A> Eth for EthClient<C, S, A> where C: BlockChainClient + 'static, S:
 	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
+			.and_then(|(address, _block_number)|
+				to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
 	}
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {

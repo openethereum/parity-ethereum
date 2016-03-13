@@ -28,6 +28,7 @@ fn blockchain_client() -> Arc<TestBlockChainClient> {
 	client.add_blocks(10, EachBlockWith::Nothing);
 	client.set_balance(Address::from(1), U256::from(5));
 	client.set_storage(Address::from(1), H256::from(4), H256::from(7));
+	client.set_code(Address::from(1), vec![0xff, 0x21]);
 	Arc::new(client)
 }
 
@@ -212,6 +213,19 @@ fn rpc_eth_uncle_count_by_block_number() {
 		"id": 1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_code() {
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getCode",
+		"params": ["0x0000000000000000000000000000000000000001", "latest"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xff21","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
