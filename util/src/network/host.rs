@@ -541,7 +541,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			match TcpStream::connect(&address) {
 				Ok(socket) => socket,
 				Err(e) => {
-					warn!("Can't connect to address {:?}: {:?}", address, e);
+					debug!("Can't connect to address {:?}: {:?}", address, e);
 					return;
 				}
 			}
@@ -695,6 +695,14 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				return;
 			}
 		};
+		if !originated {
+			let session_count = sessions.count();
+			let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
+			if session_count >= ideal_peers as usize {
+				session.disconnect(DisconnectReason::TooManyPeers);
+				return;
+			}
+		}
 		let result = sessions.insert_with(move |session_token| {
 			session.set_token(session_token);
 			io.deregister_stream(token).expect("Error deleting handshake registration");
