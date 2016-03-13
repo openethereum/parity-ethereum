@@ -407,25 +407,37 @@ impl Discovery {
 		let target: NodeId = try!(rlp.val_at(0));
 		let timestamp: u64 = try!(rlp.val_at(1));
 		try!(self.check_timestamp(timestamp));
-		let limit = (MAX_DATAGRAM_SIZE - 109) / 90;
 		let nearest = Discovery::nearest_node_entries(&target, &self.node_buckets);
 		if nearest.is_empty() {
 			return Ok(None);
 		}
+		let mut packets = Discovery::prepare_neighbours_packets(&nearest);
+		for p in packets.drain(..) {
+			self.send_packet(PACKET_NEIGHBOURS, &from, &p);
+		}
+		trace!(target: "discovery", "Sent {} Neighbours to {:?}", nearest.len(), &from);
+		Ok(None)
+	}
+
+	fn prepare_neighbours_packets(nearest: &[NodeEntry]) -> Vec<Bytes> {
+		let mut packets = Vec::new();
 		let mut rlp = RlpStream::new_list(1);
-		rlp.begin_list(cmp::min(limit, nearest.len()));
+		let limit = (MAX_DATAGRAM_SIZE - 109) / 90;
+		let mut count = cmp::min(limit, nearest.len()); 
+		rlp.begin_list(count);
 		for n in 0 .. nearest.len() {
 			rlp.begin_list(4);
 			nearest[n].endpoint.to_rlp(&mut rlp);
 			rlp.append(&nearest[n].id);
-			if (n + 1) % limit == 0 || n == nearest.len() - 1 {
-				self.send_packet(PACKET_NEIGHBOURS, &from, &rlp.drain());
-				trace!(target: "discovery", "Sent {} Neighbours to {:?}", n, &from);
+			count -= 1;
+			if count == 0 {
+				packets.push(rlp.out());
 				rlp = RlpStream::new_list(1);
-				rlp.begin_list(cmp::min(limit, nearest.len() - n));
+				count = cmp::min(limit, nearest.len() - n);
+				rlp.begin_list(count);
 			}
 		}
-		Ok(None)
+		packets
 	}
 
 	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
@@ -506,6 +518,23 @@ mod tests {
 	use crypto::KeyPair;
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
+	use rlp::*;
+
+	#[test]
+	fn find_node() {
+		let mut nearest = Vec::new();
+		let node = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
+		for _ in 0..1000 {
+			nearest.push( NodeEntry { id: node.id.clone(), endpoint: node.endpoint.clone() });
+		}
+
+		let packets = Discovery::prepare_neighbours_packets(&nearest);
+		assert_eq!(packets.len(), 76);
+		for p in &packets {
+			assert!(p.len() > 1280/2);
+			assert!(p.len() <= 1280);
+		}
+	}
 
 	#[test]
 	fn discovery() {
