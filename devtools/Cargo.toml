@@ -3,7 +3,7 @@ description = "Ethcore development/test/build tools"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethcore-devtools"
-version = "0.9.99"
+version = "1.1.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
