@@ -83,7 +83,7 @@ Protocol Options:
   --testnet                Equivalent to --chain testnet (geth-compatible).
   --networkid INDEX        Override the network identifier from the chain we are on.
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD may be one of: archive,
-                           basic (experimental), light (experimental), fast (experimental) [default: archive].
+                           basic (experimental), fast (experimental) [default: archive].
   -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
   --db-path PATH           Specify the database & configuration directory path [default: $HOME/.parity]
   --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
