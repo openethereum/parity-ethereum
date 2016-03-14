@@ -92,10 +92,9 @@ impl Engine for Ethash {
 		}
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256) {
 		header.difficulty = self.calculate_difficuty(header, parent);
 		header.gas_limit = {
-			let gas_floor_target: U256 = x!(3141562);
 			let gas_limit = parent.gas_limit;
 			let bound_divisor = self.u256_param("gasLimitBoundDivisor");
 			if gas_limit < gas_floor_target {
@@ -300,7 +299,7 @@ mod tests {
 		let mut db = db_result.take();
 		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), vec![]);
+		let b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -313,7 +312,7 @@ mod tests {
 		let mut db = db_result.take();
 		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), vec![]);
+		let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let mut uncle = Header::new();
 		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 		uncle.author = uncle_author.clone();
