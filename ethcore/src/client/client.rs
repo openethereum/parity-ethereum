@@ -109,6 +109,11 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 }
 
 const HISTORY: u64 = 1000;
+// DO NOT TOUCH THIS ANY MORE UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
+// Altering it will force a blanket DB update for *all* JournalDB-derived
+//   databases.
+// Instead, add/upgrade the version string of the individual JournalDB-derived database
+// of which you actually want force an upgrade.
 const CLIENT_DB_VER_STR: &'static str = "5.2";
 
 impl Client<CanonVerifier> {
