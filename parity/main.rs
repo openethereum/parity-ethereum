@@ -583,13 +583,15 @@ impl Informant {
 		let chain_info = client.chain_info();
 		let queue_info = client.queue_info();
 		let cache_info = client.blockchain_cache_info();
-		let report = client.report();
 		let sync_info = sync.status();
+
+		let write_report = self.report.write().unwrap();
+		let report = client.report();
 
 		if let (_, _, &Some(ref last_report)) = (
 			self.chain_info.read().unwrap().deref(),
 			self.cache_info.read().unwrap().deref(),
-			self.report.read().unwrap().deref()
+			write_report.deref()
 		) {
 			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···// mem: {} db, {} chain, {} queue, {} sync ]",
 				chain_info.best_block_number,
@@ -613,7 +615,7 @@ impl Informant {
 
 		*self.chain_info.write().unwrap().deref_mut() = Some(chain_info);
 		*self.cache_info.write().unwrap().deref_mut() = Some(cache_info);
-		*self.report.write().unwrap().deref_mut() = Some(report);
+		*write_report.deref_mut() = Some(report);
 	}
 }
 
