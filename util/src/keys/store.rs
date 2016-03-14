@@ -78,17 +78,97 @@ struct AccountUnlock {
 	expires: DateTime<UTC>,
 }
 
+/// Basic account management trait
+pub trait AccountProvider : Send + Sync {
+	/// Lists all accounts
+	fn accounts(&self) -> Result<Vec<Address>, ::std::io::Error>;
+	/// Unlocks account with the password provided
+	fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError>;
+	/// Creates account
+	fn new_account(&self, pass: &str) -> Result<Address, ::std::io::Error>;
+	/// Returns secret for unlocked account
+	fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError>;
+	/// Returns secret for unlocked account
+	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError>;
+}
+
+/// Thread-safe accounts management
+pub struct AccountService {
+	secret_store: RwLock<SecretStore>,
+}
+
+impl AccountProvider for AccountService {
+	/// Lists all accounts
+	fn accounts(&self) -> Result<Vec<Address>, ::std::io::Error> {
+		Ok(try!(self.secret_store.read().unwrap().accounts()).iter().map(|&(addr, _)| addr).collect::<Vec<Address>>())
+	}
+	/// Unlocks account with the password provided
+	fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+		self.secret_store.read().unwrap().unlock_account(account, pass)
+	}
+	/// Creates account
+	fn new_account(&self, pass: &str) -> Result<Address, ::std::io::Error> {
+		self.secret_store.write().unwrap().new_account(pass)
+	}
+	/// Returns secret for unlocked account
+	fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError> {
+		self.secret_store.read().unwrap().account_secret(account)
+	}
+	/// Returns secret for unlocked account
+	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
+		self.secret_store.read().unwrap().sign(account, message)
+	}
+}
+
+impl Default for AccountService {
+	fn default() -> Self {
+		AccountService::new()
+	}
+}
+
+impl AccountService {
+	/// New account service with the default location
+	pub fn new() -> Self {
+		let secret_store = RwLock::new(SecretStore::new());
+		secret_store.write().unwrap().try_import_existing();
+		AccountService {
+			secret_store: secret_store
+		}
+	}
+
+	#[cfg(test)]
+	fn new_test(temp: &::devtools::RandomTempPath) -> Self {
+		let secret_store = RwLock::new(SecretStore::new_test(temp));
+		AccountService {
+			secret_store: secret_store
+		}
+	}
+
+	/// Ticks the account service
+	pub fn tick(&self) {
+		self.secret_store.write().unwrap().collect_garbage();
+	}
+}
+
+
+impl Default for SecretStore {
+	fn default() -> Self {
+		SecretStore::new()
+	}
+}
+
 impl SecretStore {
 	/// new instance of Secret Store in default home directory
-	pub fn new() -> SecretStore {
+	pub fn new() -> Self {
 		let mut path = ::std::env::home_dir().expect("Failed to get home dir");
 		path.push(".parity");
 		path.push("keys");
+		::std::fs::create_dir_all(&path).expect("Should panic since it is critical to be able to access home dir");
 		Self::new_in(&path)
 	}
 
 	/// new instance of Secret Store in specific directory
-	pub fn new_in(path: &Path) -> SecretStore {
+	pub fn new_in(path: &Path) -> Self {
 		SecretStore {
 			directory: KeyDirectory::new(path),
 			unlocks: RwLock::new(HashMap::new()),
@@ -160,12 +240,12 @@ impl SecretStore {
 
 	/// Creates new account
 	pub fn new_account(&mut self, pass: &str) -> Result<Address, ::std::io::Error> {
-		let secret = H256::random();
+		let key_pair = crypto::KeyPair::create().expect("Error creating key-pair. Something wrong with crypto libraries?");
+		let address = Address::from(key_pair.public().sha3());
 		let key_id = H128::random();
-		self.insert(key_id.clone(), secret, pass);
+		self.insert(key_id.clone(), key_pair.secret().clone(), pass);
 
 		let mut key_file = self.directory.get(&key_id).expect("the key was just inserted");
-		let address = Address::random();
 		key_file.account = Some(address);
 		try!(self.directory.save(key_file));
 		Ok(address)
@@ -189,6 +269,20 @@ impl SecretStore {
 		let read_lock = self.unlocks.read().unwrap();
 		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
 		Ok(unlock.secret as crypto::Secret)
+	}
+
+	/// Makes account unlocks expire and removes unused key files from memory
+	pub fn collect_garbage(&mut self) {
+		let mut garbage_lock = self.unlocks.write().unwrap();
+		self.directory.collect_garbage();
+		let utc = UTC::now();
+		let expired_addresses = garbage_lock.iter()
+			.filter(|&(_, unlock)| unlock.expires < utc)
+			.map(|(address, _)| address.clone()).collect::<Vec<Address>>();
+
+		for expired in expired_addresses { garbage_lock.remove(&expired); }
+
+		garbage_lock.shrink_to_fit();
 	}
 }
 
@@ -296,11 +390,10 @@ impl EncryptedHashMap<H128> for SecretStore {
 
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature="heavy-tests"))]
 mod vector_tests {
 	use super::{derive_mac,derive_key_iterations};
 	use common::*;
-
 
 	#[test]
 	fn mac_vector() {
@@ -327,6 +420,8 @@ mod tests {
 	use super::*;
 	use devtools::*;
 	use common::*;
+	use crypto::KeyPair;
+	use chrono::*;
 
 	#[test]
 	fn can_insert() {
@@ -403,6 +498,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature="heavy-tests")]
 	fn can_get() {
 		let temp = RandomTempPath::create_dir();
 		let key_id = {
@@ -500,5 +596,44 @@ mod tests {
 		let sstore = SecretStore::new_test(&temp);
 		let accounts = sstore.accounts().unwrap();
 		assert_eq!(30, accounts.len());
+	}
+
+	#[test]
+	fn validate_generated_addresses() {
+		let temp = RandomTempPath::create_dir();
+		let mut sstore = SecretStore::new_test(&temp);
+		let addr = sstore.new_account("test").unwrap();
+		sstore.unlock_account(&addr, "test").unwrap();
+		let secret = sstore.account_secret(&addr).unwrap();
+		let kp = KeyPair::from_secret(secret).unwrap();
+		assert_eq!(Address::from(kp.public().sha3()), addr);
+	}
+
+	#[test]
+	fn can_create_service() {
+		let temp = RandomTempPath::create_dir();
+		let svc = AccountService::new_test(&temp);
+		assert!(svc.accounts().unwrap().is_empty());
+	}
+
+	#[test]
+	fn accounts_expire() {
+		use std::collections::hash_map::*;
+
+		let temp = RandomTempPath::create_dir();
+		let svc = AccountService::new_test(&temp);
+		let address = svc.new_account("pass").unwrap();
+		svc.unlock_account(&address, "pass").unwrap();
+		assert!(svc.account_secret(&address).is_ok());
+		{
+			let ss_rw = svc.secret_store.write().unwrap();
+			let mut ua_rw = ss_rw.unlocks.write().unwrap();
+			let entry = ua_rw.entry(address);
+			if let Entry::Occupied(mut occupied) = entry { occupied.get_mut().expires = UTC::now() - Duration::minutes(1); }
+		}
+
+		svc.tick();
+
+		assert!(svc.account_secret(&address).is_err());
 	}
 }

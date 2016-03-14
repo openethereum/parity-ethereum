@@ -8,8 +8,8 @@ RUN apt-get update && \
 	# add-apt-repository
 	software-properties-common \
 	curl \
-	gcc \
-	wget \ 
+	g++ \
+	wget \
 	git \
 	# evmjit dependencies
 	zlib1g-dev \
@@ -18,9 +18,8 @@ RUN apt-get update && \
 # cmake, llvm and rocksdb ppas. then update ppas
 RUN add-apt-repository -y "ppa:george-edison55/cmake-3.x" && \
 	add-apt-repository "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.7 main" && \
-	add-apt-repository "deb http://ppa.launchpad.net/giskou/librocksdb/ubuntu trusty main" && \
 	apt-get update && \
-	apt-get install -y --force-yes cmake llvm-3.7-dev librocksdb
+	apt-get install -y --force-yes cmake llvm-3.7-dev
 
 # install evmjit
 RUN git clone https://github.com/debris/evmjit && \
@@ -30,9 +29,6 @@ RUN git clone https://github.com/debris/evmjit && \
 
 # install multirust
 RUN curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
-
-# install nightly and make it default
-RUN multirust update nightly && multirust default nightly
 
 # export rust LIBRARY_PATH
 ENV LIBRARY_PATH /usr/local/lib

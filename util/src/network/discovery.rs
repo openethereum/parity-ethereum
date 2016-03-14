@@ -18,7 +18,7 @@ use bytes::Bytes;
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::mem;
-use std::cmp;
+use std::default::Default;
 use mio::*;
 use mio::udp::*;
 use sha3::*;
@@ -62,8 +62,14 @@ struct NodeBucket {
 	nodes: VecDeque<BucketEntry>, //sorted by last active
 }
 
+impl Default for NodeBucket {
+	fn default() -> Self {
+		NodeBucket::new()
+	}
+}
+
 impl NodeBucket {
-	fn new() -> NodeBucket {
+	fn new() -> Self {
 		NodeBucket {
 			nodes: VecDeque::new()
 		}
@@ -113,14 +119,14 @@ impl Discovery {
 	}
 
 	/// Add a new node to discovery table. Pings the node.
-	pub fn add_node(&mut self, e: NodeEntry) { 
+	pub fn add_node(&mut self, e: NodeEntry) {
 		let endpoint = e.endpoint.clone();
 		self.update_node(e);
 		self.ping(&endpoint);
 	}
 
 	/// Add a list of known nodes to the table.
-	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) { 
+	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) {
 		for n in nodes.drain(..) {
 			self.update_node(n);
 		}
@@ -251,7 +257,7 @@ impl Discovery {
 		// Sort nodes by distance to target
 		for bucket in buckets {
 			for node in &bucket.nodes {
-				let distance = Discovery::distance(target, &node.address.id); 
+				let distance = Discovery::distance(target, &node.address.id);
 				found.entry(distance).or_insert_with(Vec::new).push(&node.address);
 				if count == BUCKET_SIZE {
 					// delete the most distant element
@@ -291,7 +297,7 @@ impl Discovery {
 					return;
 				}
 				Err(e) => {
-					warn!("UDP send error: {:?}, address: {:?}", e, &data.address);
+					debug!("UDP send error: {:?}, address: {:?}", e, &data.address);
 					return;
 				}
 			}
@@ -310,8 +316,8 @@ impl Discovery {
 				None
 			}),
 			Ok(_) => None,
-			Err(e) => { 
-				warn!("Error reading UPD socket: {:?}", e);
+			Err(e) => {
+				debug!("Error reading UPD socket: {:?}", e);
 				None
 			}
 		}
@@ -339,7 +345,7 @@ impl Discovery {
 			PACKET_PONG => self.on_pong(&rlp, &node_id, &from),
 			PACKET_FIND_NODE => self.on_find_node(&rlp, &node_id, &from),
 			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, &node_id, &from),
-			_ => { 
+			_ => {
 				debug!("Unknown UDP packet: {}", packet_id);
 				Ok(None)
 			}
@@ -367,14 +373,14 @@ impl Discovery {
 		}
 		else {
 			self.update_node(entry.clone());
-			added_map.insert(node.clone(), entry); 
+			added_map.insert(node.clone(), entry);
 		}
 		let hash = rlp.as_raw().sha3();
 		let mut response = RlpStream::new_list(2);
 		dest.to_rlp_list(&mut response);
 		response.append(&hash);
 		self.send_packet(PACKET_PONG, from, &response.drain());
-		
+
 		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
 	}
 
@@ -391,7 +397,7 @@ impl Discovery {
 		}
 		self.clear_ping(node);
 		let mut added_map = HashMap::new();
-		added_map.insert(node.clone(), entry); 
+		added_map.insert(node.clone(), entry);
 		Ok(None)
 	}
 
@@ -400,25 +406,32 @@ impl Discovery {
 		let target: NodeId = try!(rlp.val_at(0));
 		let timestamp: u64 = try!(rlp.val_at(1));
 		try!(self.check_timestamp(timestamp));
-		let limit = (MAX_DATAGRAM_SIZE - 109) / 90;
 		let nearest = Discovery::nearest_node_entries(&target, &self.node_buckets);
 		if nearest.is_empty() {
 			return Ok(None);
 		}
-		let mut rlp = RlpStream::new_list(1);
-		rlp.begin_list(cmp::min(limit, nearest.len()));
-		for n in 0 .. nearest.len() {
-			rlp.begin_list(4);
-			nearest[n].endpoint.to_rlp(&mut rlp);
-			rlp.append(&nearest[n].id);
-			if (n + 1) % limit == 0 || n == nearest.len() - 1 {
-				self.send_packet(PACKET_NEIGHBOURS, &from, &rlp.drain());
-				trace!(target: "discovery", "Sent {} Neighbours to {:?}", n, &from);
-				rlp = RlpStream::new_list(1);
-				rlp.begin_list(cmp::min(limit, nearest.len() - n));
-			}
+		let mut packets = Discovery::prepare_neighbours_packets(&nearest);
+		for p in packets.drain(..) {
+			self.send_packet(PACKET_NEIGHBOURS, &from, &p);
 		}
+		trace!(target: "discovery", "Sent {} Neighbours to {:?}", nearest.len(), &from);
 		Ok(None)
+	}
+
+	fn prepare_neighbours_packets(nearest: &[NodeEntry]) -> Vec<Bytes> {
+		let limit = (MAX_DATAGRAM_SIZE - 109) / 90;
+		let chunks = nearest.chunks(limit);
+		let packets = chunks.map(|c| {
+			let mut rlp = RlpStream::new_list(1);
+			rlp.begin_list(c.len());
+			for n in 0 .. c.len() {
+				rlp.begin_list(4);
+				c[n].endpoint.to_rlp(&mut rlp);
+				rlp.append(&c[n].id);
+			}
+			rlp.out()
+		});
+		packets.collect()
 	}
 
 	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
@@ -466,8 +479,8 @@ impl Discovery {
 	pub fn round(&mut self) -> Option<TableUpdates> {
 		let removed = self.check_expired(false);
 		self.discover();
-		if !removed.is_empty() { 
-			Some(TableUpdates { added: HashMap::new(), removed: removed }) 
+		if !removed.is_empty() {
+			Some(TableUpdates { added: HashMap::new(), removed: removed })
 		} else { None }
 	}
 
@@ -499,6 +512,24 @@ mod tests {
 	use crypto::KeyPair;
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
+	use rlp::*;
+
+	#[test]
+	fn find_node() {
+		let mut nearest = Vec::new();
+		let node = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
+		for _ in 0..1000 {
+			nearest.push( NodeEntry { id: node.id.clone(), endpoint: node.endpoint.clone() });
+		}
+
+		let packets = Discovery::prepare_neighbours_packets(&nearest);
+		assert_eq!(packets.len(), 77);
+		for p in &packets[0..76] {
+			assert!(p.len() > 1280/2);
+			assert!(p.len() <= 1280);
+		}
+		assert!(packets.last().unwrap().len() > 0);
+	}
 
 	#[test]
 	fn discovery() {

@@ -1,6 +1,6 @@
 [package]
 name = "ethash"
-version = "0.9.99"
+version = "1.1.0"
 authors = ["arkpar <arkadiy@ethcore.io"]
 
 [lib]

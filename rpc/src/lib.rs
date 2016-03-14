@@ -19,6 +19,8 @@
 #![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
 #![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
 
+#[macro_use]
+extern crate log;
 extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_json;
@@ -27,35 +29,46 @@ extern crate jsonrpc_http_server;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
+extern crate ethminer;
 extern crate transient_hashmap;
 
+use std::sync::Arc;
+use std::thread;
+use util::panics::PanicHandler;
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 
 pub mod v1;
 
 /// Http server.
-pub struct HttpServer {
-	handler: IoHandler,
-	threads: usize
+pub struct RpcServer {
+	handler: Arc<IoHandler>,
 }
 
-impl HttpServer {
+impl RpcServer {
 	/// Construct new http server object with given number of threads.
-	pub fn new(threads: usize) -> HttpServer {
-		HttpServer {
-			handler: IoHandler::new(),
-			threads: threads
+	pub fn new() -> RpcServer {
+		RpcServer {
+			handler: Arc::new(IoHandler::new()),
 		}
 	}
 
 	/// Add io delegate.
-	pub fn add_delegate<D>(&mut self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
+	pub fn add_delegate<D>(&self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
 		self.handler.add_delegate(delegate);
 	}
 
-	/// Start server asynchronously in new thread
-	pub fn start_async(self, addr: &str, cors_domain: &str) {
-		let server = jsonrpc_http_server::Server::new(self.handler, self.threads);
-		server.start_async(addr, jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain.to_owned()))
+	/// Start server asynchronously in new thread and returns panic handler.
+	pub fn start_http(&self, addr: &str, cors_domain: &str, threads: usize) -> Arc<PanicHandler> {
+		let addr = addr.to_owned();
+		let cors_domain = cors_domain.to_owned();
+		let panic_handler = PanicHandler::new_in_arc();
+		let ph = panic_handler.clone();
+		let server = jsonrpc_http_server::Server::new(self.handler.clone());
+		thread::Builder::new().name("jsonrpc_http".to_string()).spawn(move || {
+			ph.catch_panic(move || {
+				server.start(addr.as_ref(), jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain), threads);
+			}).unwrap()
+		}).expect("Error while creating jsonrpc http thread");
+		panic_handler
 	}
 }

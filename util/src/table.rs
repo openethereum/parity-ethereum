@@ -16,6 +16,7 @@
 
 //! A collection associating pair of keys (row and column) with a single value.
 
+use std::default::Default;
 use std::hash::Hash;
 use std::collections::HashMap;
 
@@ -30,11 +31,21 @@ pub struct Table<Row, Col, Val>
 	map: HashMap<Row, HashMap<Col, Val>>,
 }
 
+impl<Row, Col, Val> Default for Table<Row, Col, Val>
+	where Row: Eq + Hash + Clone,
+		  Col: Eq + Hash {
+	fn default() -> Self {
+		Table::new()
+	}
+}
+
+// There is default but clippy does not detect it?
+#[cfg_attr(feature="dev", allow(new_without_default))]
 impl<Row, Col, Val> Table<Row, Col, Val>
 	where Row: Eq + Hash + Clone,
 		  Col: Eq + Hash {
 	/// Creates new Table
-	pub fn new() -> Table<Row, Col, Val> {
+	pub fn new() -> Self {
 		Table {
 			map: HashMap::new(),
 		}

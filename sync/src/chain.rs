@@ -36,7 +36,9 @@ use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo};
 use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
+use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
+use ethminer::{Miner, MinerService};
 use io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -62,6 +64,7 @@ const MAX_BODIES_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_SEND: usize = 512;
 const MAX_NODE_DATA_TO_SEND: usize = 1024;
 const MAX_RECEIPTS_TO_SEND: usize = 1024;
+const MAX_RECEIPTS_HEADERS_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_REQUEST: usize = 512;
 const MAX_BODIES_TO_REQUEST: usize = 256;
 const MIN_PEERS_PROPAGATION: usize = 4;
@@ -116,6 +119,7 @@ pub enum SyncState {
 }
 
 /// Syncing status and statistics
+#[derive(Clone)]
 pub struct SyncStatus {
 	/// State
 	pub state: SyncState,
@@ -204,18 +208,20 @@ pub struct ChainSync {
 	/// True if common block for our and remote chain has been found
 	have_common_block: bool,
 	/// Last propagated block number
-	last_send_block_number: BlockNumber,
+	last_sent_block_number: BlockNumber,
 	/// Max blocks to download ahead
 	max_download_ahead_blocks: usize,
 	/// Network ID
 	network_id: U256,
+	/// Miner
+	miner: Arc<Miner>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
 impl ChainSync {
 	/// Create a new instance of syncing strategy.
-	pub fn new(config: SyncConfig) -> ChainSync {
+	pub fn new(config: SyncConfig, miner: Arc<Miner>) -> ChainSync {
 		ChainSync {
 			state: SyncState::NotSynced,
 			starting_block: 0,
@@ -231,9 +237,10 @@ impl ChainSync {
 			last_imported_hash: None,
 			syncing_difficulty: U256::from(0u64),
 			have_common_block: false,
-			last_send_block_number: 0,
+			last_sent_block_number: 0,
 			max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
+			miner: miner,
 		}
 	}
 
@@ -287,8 +294,6 @@ impl ChainSync {
 	/// Restart sync
 	pub fn restart(&mut self, io: &mut SyncIo) {
 		self.reset();
-		self.last_imported_block = None;
-		self.last_imported_hash = None;
 		self.starting_block = 0;
 		self.highest_block = None;
 		self.have_common_block = false;
@@ -354,7 +359,7 @@ impl ChainSync {
 		for i in 0..item_count {
 			let info: BlockHeader = try!(r.val_at(i));
 			let number = BlockNumber::from(info.number);
-			if number <= self.current_base_block() || self.headers.have_item(&number) {
+			if (number <= self.current_base_block() && self.have_common_block) || self.headers.have_item(&number) {
 				trace!(target: "sync", "Skipping existing block header");
 				continue;
 			}
@@ -364,11 +369,17 @@ impl ChainSync {
 			}
 			let hash = info.hash();
 			match io.chain().block_status(BlockId::Hash(hash.clone())) {
-				BlockStatus::InChain => {
-					self.have_common_block = true;
-					self.last_imported_block = Some(number);
-					self.last_imported_hash = Some(hash.clone());
-					trace!(target: "sync", "Found common header {} ({})", number, hash);
+				BlockStatus::InChain | BlockStatus::Queued => {
+					if !self.have_common_block || self.current_base_block() < number {
+						self.last_imported_block = Some(number);
+						self.last_imported_hash = Some(hash.clone());
+					}
+					if !self.have_common_block {
+						self.have_common_block = true;
+						trace!(target: "sync", "Found common header {} ({})", number, hash);
+					} else {
+						trace!(target: "sync", "Header already in chain {} ({})", number, hash);
+					}
 				},
 				_ => {
 					if self.have_common_block {
@@ -462,6 +473,7 @@ impl ChainSync {
 	}
 
 	/// Called by peer once it has new block bodies
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn on_peer_new_block(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let block_rlp = try!(r.at(0));
 		let header_rlp = try!(block_rlp.at(0));
@@ -484,7 +496,7 @@ impl ChainSync {
 					trace!(target: "sync", "New block already queued {:?}", h);
 				},
 				Ok(_) => {
-					if self.current_base_block() < header.number { 
+					if self.current_base_block() < header.number {
 						self.last_imported_block = Some(header.number);
 						self.remove_downloaded_blocks(header.number);
 					}
@@ -575,7 +587,7 @@ impl ChainSync {
 	pub fn on_peer_connected(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Connected {}", peer);
 		if let Err(e) = self.send_status(io) {
-			warn!(target:"sync", "Error sending status request: {:?}", e);
+			debug!(target:"sync", "Error sending status request: {:?}", e);
 			io.disable_peer(peer);
 		}
 	}
@@ -643,10 +655,7 @@ impl ChainSync {
 		let mut needed_numbers: Vec<BlockNumber> = Vec::new();
 
 		if self.have_common_block && !self.headers.is_empty() && self.headers.range_iter().next().unwrap().0 == self.current_base_block() + 1 {
-			for (start, ref items) in self.headers.range_iter() {
-				if needed_bodies.len() >= MAX_BODIES_TO_REQUEST {
-					break;
-				}
+			if let Some((start, ref items)) = self.headers.range_iter().next() {
 				let mut index: BlockNumber = 0;
 				while index != items.len() as BlockNumber && needed_bodies.len() < MAX_BODIES_TO_REQUEST {
 					let block = start + index;
@@ -690,7 +699,10 @@ impl ChainSync {
 		if !self.have_common_block {
 			// download backwards until common block is found 1 header at a time
 			let chain_info = io.chain().chain_info();
-			start = chain_info.best_block_number;
+			start = match self.last_imported_block {
+				Some(n) => n,
+				None => chain_info.best_block_number,
+			};
 			if !self.headers.is_empty() {
 				start = min(start, self.headers.range_iter().next().unwrap().0 - 1);
 			}
@@ -831,20 +843,14 @@ impl ChainSync {
 	/// Remove downloaded bocks/headers starting from specified number.
 	/// Used to recover from an error and re-download parts of the chain detected as bad.
 	fn remove_downloaded_blocks(&mut self, start: BlockNumber) {
-		for n in self.headers.get_tail(&start) {
-			if let Some(ref header_data) = self.headers.find_item(&n) {
-				let header_to_delete = HeaderView::new(&header_data.data);
-				let header_id = HeaderId {
-					transactions_root: header_to_delete.transactions_root(),
-					uncles: header_to_delete.uncles_hash()
-				};
-				self.header_ids.remove(&header_id);
-			}
-			self.downloading_bodies.remove(&n);
-			self.downloading_headers.remove(&n);
-		}
-		self.headers.remove_tail(&start);
-		self.bodies.remove_tail(&start);
+		let ids = self.header_ids.drain().filter(|&(_, v)| v < start).collect();
+		self.header_ids = ids;
+		let hdrs = self.downloading_headers.drain().filter(|v| *v < start).collect();
+		self.downloading_headers = hdrs;
+		let bodies = self.downloading_bodies.drain().filter(|v| *v < start).collect();
+		self.downloading_bodies = bodies;
+		self.headers.remove_from(&start);
+		self.bodies.remove_from(&start);
 	}
 
 	/// Request headers from a peer by block hash
@@ -919,8 +925,19 @@ impl ChainSync {
 		}
 	}
 	/// Called when peer sends us new transactions
-	fn on_peer_transactions(&mut self, _io: &mut SyncIo, _peer_id: PeerId, _r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
-		Ok(())
+	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		let item_count = r.item_count();
+		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
+
+		let mut transactions = Vec::with_capacity(item_count);
+		for i in 0..item_count {
+			let tx: SignedTransaction = try!(r.val_at(i));
+			transactions.push(tx);
+		}
+		let chain = io.chain();
+		let fetch_nonce = |a: &Address| chain.nonce(a);
+		let _ = self.miner.import_transactions(transactions, fetch_nonce);
+ 		Ok(())
 	}
 
 	/// Send Status message
@@ -1037,17 +1054,20 @@ impl ChainSync {
 			debug!(target: "sync", "Empty GetReceipts request, ignoring.");
 			return Ok(None);
 		}
-		count = min(count, MAX_RECEIPTS_TO_SEND);
-		let mut added = 0usize;
+		count = min(count, MAX_RECEIPTS_HEADERS_TO_SEND);
+		let mut added_headers = 0usize;
+		let mut added_receipts = 0usize;
 		let mut data = Bytes::new();
 		for i in 0..count {
-			if let Some(mut hdr) = io.chain().block_receipts(&try!(rlp.val_at::<H256>(i))) {
-				data.append(&mut hdr);
-				added += 1;
+			if let Some(mut receipts_bytes) = io.chain().block_receipts(&try!(rlp.val_at::<H256>(i))) {
+				data.append(&mut receipts_bytes);
+				added_receipts += receipts_bytes.len();
+				added_headers += 1;
+				if added_receipts > MAX_RECEIPTS_TO_SEND { break; }
 			}
 		}
-		let mut rlp_result = RlpStream::new_list(added);
-		rlp_result.append_raw(&data, added);
+		let mut rlp_result = RlpStream::new_list(added_headers);
+		rlp_result.append_raw(&data, added_headers);
 		Ok(Some((RECEIPTS_PACKET, rlp_result)))
 	}
 
@@ -1072,7 +1092,7 @@ impl ChainSync {
 		let rlp = UntrustedRlp::new(data);
 
 		if packet_id != STATUS_PACKET && !self.peers.contains_key(&peer) {
-			warn!(target:"sync", "Unexpected packet from unregistered peer: {}:{}", peer, io.peer_info(peer));
+			debug!(target:"sync", "Unexpected packet from unregistered peer: {}:{}", peer, io.peer_info(peer));
 			return;
 		}
 		let result = match packet_id {
@@ -1229,22 +1249,34 @@ impl ChainSync {
 		sent
 	}
 
+	fn propagate_latest_blocks(&mut self, io: &mut SyncIo) {
+		let chain_info = io.chain().chain_info();
+		if (((chain_info.best_block_number as i64) - (self.last_sent_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
+			let blocks = self.propagate_blocks(&chain_info, io);
+			let hashes = self.propagate_new_hashes(&chain_info, io);
+			if blocks != 0 || hashes != 0 {
+				trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
+			}
+		}
+		self.last_sent_block_number = chain_info.best_block_number;
+	}
+
 	/// Maintain other peers. Send out any new blocks and transactions
 	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
 		self.check_resume(io);
 	}
 
-	/// should be called once chain has new block, triggers the latest block propagation
-	pub fn chain_blocks_verified(&mut self, io: &mut SyncIo) {
-		let chain = io.chain().chain_info();
-		if (((chain.best_block_number as i64) - (self.last_send_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
-			let blocks = self.propagate_blocks(&chain, io);
-			let hashes = self.propagate_new_hashes(&chain, io);
-			if blocks != 0 || hashes != 0 {
-				trace!(target: "sync", "Sent latest {} blocks and {} hashes to peers.", blocks, hashes);
-			}
-		}
-		self.last_send_block_number = chain.best_block_number;
+	/// called when block is imported to chain, updates transactions queue and propagates the blocks
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
+		// Notify miner
+		self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
+		// Propagate latests blocks
+		self.propagate_latest_blocks(io);
+		// TODO [todr] propagate transactions?
+	}
+
+	pub fn chain_new_head(&mut self, io: &mut SyncIo) {
+		self.miner.prepare_sealing(io.chain());
 	}
 }
 
@@ -1257,6 +1289,7 @@ mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::header::*;
 	use ethcore::client::*;
+	use ethminer::{Miner, MinerService};
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
@@ -1329,7 +1362,7 @@ mod tests {
 		assert!(rlp_result.is_some());
 
 		// the length of two rlp-encoded receipts
-		assert_eq!(597, rlp_result.unwrap().1.out().len());
+		assert_eq!(603, rlp_result.unwrap().1.out().len());
 
 		let mut sync = dummy_sync_with_peer(H256::new());
 		io.sender = Some(2usize);
@@ -1366,7 +1399,7 @@ mod tests {
 	}
 
 	fn dummy_sync_with_peer(peer_latest_hash: H256) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default());
+		let mut sync = ChainSync::new(SyncConfig::default(), Miner::new());
 		sync.peers.insert(0,
 		  	PeerInfo {
 				protocol_version: 0,
@@ -1386,7 +1419,7 @@ mod tests {
 	#[test]
 	fn finds_lagging_peers() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(100, false);
+		client.add_blocks(100, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(10));
 		let chain_info = client.chain_info();
@@ -1400,7 +1433,7 @@ mod tests {
 	#[test]
 	fn calculates_tree_for_lagging_peer() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(15, false);
+		client.add_blocks(15, EachBlockWith::Uncle);
 
 		let start = client.block_hash_delta_minus(4);
 		let end = client.block_hash_delta_minus(2);
@@ -1417,7 +1450,7 @@ mod tests {
 	#[test]
 	fn sends_new_hashes_to_lagging_peer() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(100, false);
+		client.add_blocks(100, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
 		let chain_info = client.chain_info();
@@ -1436,7 +1469,7 @@ mod tests {
 	#[test]
 	fn sends_latest_block_to_lagging_peer() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(100, false);
+		client.add_blocks(100, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
 		let chain_info = client.chain_info();
@@ -1454,7 +1487,7 @@ mod tests {
 	#[test]
 	fn handles_peer_new_block_mallformed() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, false);
+		client.add_blocks(10, EachBlockWith::Uncle);
 
 		let block_data = get_dummy_block(11, client.chain_info().best_block_hash);
 
@@ -1472,7 +1505,7 @@ mod tests {
 	#[test]
 	fn handles_peer_new_block() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, false);
+		client.add_blocks(10, EachBlockWith::Uncle);
 
 		let block_data = get_dummy_blocks(11, client.chain_info().best_block_hash);
 
@@ -1490,7 +1523,7 @@ mod tests {
 	#[test]
 	fn handles_peer_new_block_empty() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, false);
+		client.add_blocks(10, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
 		let mut io = TestIo::new(&mut client, &mut queue, None);
@@ -1506,7 +1539,7 @@ mod tests {
 	#[test]
 	fn handles_peer_new_hashes() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, false);
+		client.add_blocks(10, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
 		let mut io = TestIo::new(&mut client, &mut queue, None);
@@ -1522,7 +1555,7 @@ mod tests {
 	#[test]
 	fn handles_peer_new_hashes_empty() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(10, false);
+		client.add_blocks(10, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
 		let mut io = TestIo::new(&mut client, &mut queue, None);
@@ -1540,7 +1573,7 @@ mod tests {
 	#[test]
 	fn hashes_rlp_mutually_acceptable() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(100, false);
+		client.add_blocks(100, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
 		let chain_info = client.chain_info();
@@ -1558,7 +1591,7 @@ mod tests {
 	#[test]
 	fn block_rlp_mutually_acceptable() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(100, false);
+		client.add_blocks(100, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
 		let chain_info = client.chain_info();
@@ -1572,9 +1605,36 @@ mod tests {
 	}
 
 	#[test]
+	fn should_add_transactions_to_queue() {
+		// given
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(98, EachBlockWith::Uncle);
+		client.add_blocks(1, EachBlockWith::UncleAndTransaction);
+		client.add_blocks(1, EachBlockWith::Transaction);
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+
+		let good_blocks = vec![client.block_hash_delta_minus(2)];
+		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
+
+		let mut queue = VecDeque::new();
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		// when
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
+		assert_eq!(sync.miner.status().transaction_queue_future, 0);
+		assert_eq!(sync.miner.status().transaction_queue_pending, 1);
+		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
+
+		// then
+		let status = sync.miner.status();
+		assert_eq!(status.transaction_queue_pending, 1);
+		assert_eq!(status.transaction_queue_future, 0);
+	}
+
+	#[test]
 	fn returns_requested_block_headers() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(100, false);
+		client.add_blocks(100, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let io = TestIo::new(&mut client, &mut queue, None);
 
@@ -1598,7 +1658,7 @@ mod tests {
 	#[test]
 	fn returns_requested_block_headers_reverse() {
 		let mut client = TestBlockChainClient::new();
-		client.add_blocks(100, false);
+		client.add_blocks(100, EachBlockWith::Uncle);
 		let mut queue = VecDeque::new();
 		let io = TestIo::new(&mut client, &mut queue, None);
 

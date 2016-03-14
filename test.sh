@@ -8,4 +8,5 @@ cargo test --features ethcore/json-tests $1 \
 	-p ethsync \
 	-p ethcore-rpc \
 	-p parity \
+	-p ethminer \
 	-p bigint

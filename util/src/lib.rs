@@ -27,6 +27,8 @@
 #![cfg_attr(feature="dev", allow(match_same_arms))]
 // Keeps consistency (all lines with `.clone()`) and helpful when changing ref to non-ref.
 #![cfg_attr(feature="dev", allow(clone_on_copy))]
+// In most cases it expresses function flow better
+#![cfg_attr(feature="dev", allow(if_not_else))]
 
 //! Ethcore-util library
 //!
@@ -154,7 +156,7 @@ pub use rlp::*;
 pub use hashdb::*;
 pub use memorydb::*;
 pub use overlaydb::*;
-pub use journaldb::*;
+pub use journaldb::JournalDB;
 pub use math::*;
 pub use crypto::*;
 pub use triehash::*;

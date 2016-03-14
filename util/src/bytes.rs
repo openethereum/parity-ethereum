@@ -177,7 +177,7 @@ impl<T> BytesConvertable for T where T: AsRef<[u8]> {
 #[test]
 fn bytes_convertable() {
 	assert_eq!(vec![0x12u8, 0x34].bytes(), &[0x12u8, 0x34]);
-	assert_eq!([0u8; 0].bytes(), &[]);
+	assert!([0u8; 0].as_slice().is_empty());
 }
 
 /// Simple trait to allow for raw population of a Sized object from a byte slice.

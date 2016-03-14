@@ -226,9 +226,9 @@ impl<'a> Ext for Externalities<'a> {
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		let address = self.origin_info.address.clone();
-		self.substate.logs.push(LogEntry { 
+		self.substate.logs.push(LogEntry {
 			address: address,
-			topics: topics, 
+			topics: topics,
 			data: data.to_vec()
 		});
 	}
@@ -301,8 +301,14 @@ mod tests {
 		env_info: EnvInfo
 	}
 
+	impl Default for TestSetup {
+		fn default() -> Self {
+			TestSetup::new()
+		}
+	}
+
 	impl TestSetup {
-		fn new() -> TestSetup {
+		fn new() -> Self {
 			TestSetup {
 				state: get_temp_state(),
 				engine: get_test_spec().to_engine().unwrap(),

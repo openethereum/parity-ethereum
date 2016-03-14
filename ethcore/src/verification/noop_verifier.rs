@@ -20,6 +20,7 @@ use error::Error;
 use header::Header;
 use super::Verifier;
 
+#[allow(dead_code)]
 pub struct NoopVerifier;
 
 impl Verifier for NoopVerifier {

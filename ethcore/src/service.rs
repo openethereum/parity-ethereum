@@ -28,10 +28,16 @@ pub enum SyncMessage {
 	/// New block has been imported into the blockchain
 	NewChainBlocks {
 		/// Hashes of blocks imported to blockchain
-		good: Vec<H256>,
-		/// Hashes of blocks not imported to blockchain
-		bad: Vec<H256>,
+		imported: Vec<H256>,
+		/// Hashes of blocks not imported to blockchain (because were invalid)
+		invalid: Vec<H256>,
+		/// Hashes of blocks that were removed from canonical chain
+		retracted: Vec<H256>,
+		/// Hashes of blocks that are now included in cannonical chain
+		enacted: Vec<H256>,
 	},
+	/// Best Block Hash in chain has been changed
+	NewChainHead,
 	/// A block is ready
 	BlockVerified,
 }
@@ -115,12 +121,11 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
-		if let &UserMessage(ref message) = net_message {
-			match message {
-				&SyncMessage::BlockVerified => {
+		if let UserMessage(ref message) = *net_message {
+			match *message {
+				SyncMessage::BlockVerified => {
 					self.client.import_verified_blocks(&io.channel());
 				},
 				_ => {}, // ignore other messages

@@ -23,6 +23,7 @@ use std::ops::*;
 use std::cmp::min;
 use std::path::{Path, PathBuf};
 use std::io::{Read, Write};
+use std::default::Default;
 use std::fs;
 use mio::*;
 use mio::tcp::*;
@@ -75,9 +76,15 @@ pub struct NetworkConfiguration {
 	pub ideal_peers: u32,
 }
 
+impl Default for NetworkConfiguration {
+	fn default() -> Self {
+		NetworkConfiguration::new()
+	}
+}
+
 impl NetworkConfiguration {
 	/// Create a new instance of default settings.
-	pub fn new() -> NetworkConfiguration {
+	pub fn new() -> Self {
 		NetworkConfiguration {
 			config_path: None,
 			listen_address: None,
@@ -534,7 +541,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			match TcpStream::connect(&address) {
 				Ok(socket) => socket,
 				Err(e) => {
-					warn!("Can't connect to address {:?}: {:?}", address, e);
+					debug!("Can't connect to address {:?}: {:?}", address, e);
 					return;
 				}
 			}
@@ -680,6 +687,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if h.expired {
 			return;
 		}
+		io.deregister_stream(token).expect("Error deleting handshake registration");
+		h.set_expired();
 		let originated = h.originated;
 		let mut session = match Session::new(&mut h, &self.info.read().unwrap()) {
 			Ok(s) => s,
@@ -688,10 +697,16 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				return;
 			}
 		};
+		if !originated {
+			let session_count = sessions.count();
+			let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
+			if session_count >= ideal_peers as usize {
+				session.disconnect(DisconnectReason::TooManyPeers);
+				return;
+			}
+		}
 		let result = sessions.insert_with(move |session_token| {
 			session.set_token(session_token);
-			io.deregister_stream(token).expect("Error deleting handshake registration");
-			h.set_expired();
 			io.register_stream(session_token).expect("Error creating session registration");
 			self.stats.inc_sessions();
 			trace!(target: "network", "Creating session {} -> {}", token, session_token);

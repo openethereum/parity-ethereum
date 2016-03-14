@@ -25,9 +25,8 @@ struct FakeLogEntry {
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[cfg_attr(feature="dev", allow(enum_variant_names))] // Common prefix is C ;)
 enum FakeCallType {
-	CALL, CREATE
+	Call, Create
 }
 
 #[derive(PartialEq, Eq, Hash, Debug)]
@@ -56,7 +55,7 @@ struct FakeExt {
 	info: EnvInfo,
 	schedule: Schedule,
 	balances: HashMap<Address, U256>,
-	calls: HashSet<FakeCall>
+	calls: HashSet<FakeCall>,
 }
 
 impl FakeExt {
@@ -94,7 +93,7 @@ impl Ext for FakeExt {
 
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8]) -> ContractCreateResult {
 		self.calls.insert(FakeCall {
-			call_type: FakeCallType::CREATE,
+			call_type: FakeCallType::Create,
 			gas: *gas,
 			sender_address: None,
 			receive_address: None,
@@ -115,7 +114,7 @@ impl Ext for FakeExt {
 			_output: &mut [u8]) -> MessageCallResult {
 
 		self.calls.insert(FakeCall {
-			call_type: FakeCallType::CALL,
+			call_type: FakeCallType::Call,
 			gas: *gas,
 			sender_address: Some(sender_address.clone()),
 			receive_address: Some(receive_address.clone()),
@@ -347,7 +346,7 @@ fn test_log_empty(factory: super::Factory) {
 	assert_eq!(gas_left, U256::from(99_619));
 	assert_eq!(ext.logs.len(), 1);
 	assert_eq!(ext.logs[0].topics.len(), 0);
-	assert_eq!(ext.logs[0].data, vec![]);
+	assert!(ext.logs[0].data.is_empty());
 }
 
 evm_test!{test_log_sender: test_log_sender_jit, test_log_sender_int}
@@ -909,7 +908,7 @@ fn test_calls(factory: super::Factory) {
 	};
 
 	assert_set_contains(&ext.calls, &FakeCall {
-		call_type: FakeCallType::CALL,
+		call_type: FakeCallType::Call,
 		gas: U256::from(2556),
 		sender_address: Some(address.clone()),
 		receive_address: Some(code_address.clone()),
@@ -918,7 +917,7 @@ fn test_calls(factory: super::Factory) {
 		code_address: Some(code_address.clone())
 	});
 	assert_set_contains(&ext.calls, &FakeCall {
-		call_type: FakeCallType::CALL,
+		call_type: FakeCallType::Call,
 		gas: U256::from(2556),
 		sender_address: Some(address.clone()),
 		receive_address: Some(address.clone()),

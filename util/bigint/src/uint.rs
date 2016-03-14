@@ -36,10 +36,11 @@
 //! The functions here are designed to be fast.
 //!
 
+#[cfg(all(asm_available, target_arch="x86_64"))]
+use std::mem;
 use std::fmt;
 use std::cmp;
 
-use std::mem;
 use std::str::{FromStr};
 use std::convert::From;
 use std::hash::{Hash, Hasher};
@@ -785,14 +786,11 @@ macro_rules! construct_uint {
 
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
 						// 0x + len
-						if value.len() != 2 + $n_words / 8 {
+						if value.len() > 2 + $n_words * 16 {
 							return Err(serde::Error::custom("Invalid length."));
 						}
 
-						match $name::from_str(&value[2..]) {
-							Ok(val) => Ok(val),
-							Err(_) => { return Err(serde::Error::custom("Invalid length.")); }
-						}
+						$name::from_str(&value[2..]).map_err(|_| serde::Error::custom("Invalid hex value."))
 					}
 
 					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
@@ -1970,6 +1968,39 @@ mod tests {
 		assert_eq!(U256([1, 0, 0, 0]), result);
 	}
 
+	#[test]
+	fn u256_multi_muls() {
+		let (result, _) = U256([0, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, 0]));
+		assert_eq!(U256([0, 0, 0, 0]), result);
+
+		let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([1, 0, 0, 0]));
+		assert_eq!(U256([1, 0, 0, 0]), result);
+
+		let (result, _) = U256([5, 0, 0, 0]).overflowing_mul(U256([5, 0, 0, 0]));
+		assert_eq!(U256([25, 0, 0, 0]), result);
+
+		let (result, _) = U256([0, 5, 0, 0]).overflowing_mul(U256([0, 5, 0, 0]));
+		assert_eq!(U256([0, 0, 25, 0]), result);
+
+		let (result, _) = U256([0, 0, 0, 1]).overflowing_mul(U256([1, 0, 0, 0]));
+		assert_eq!(U256([0, 0, 0, 1]), result);
+
+		let (result, _) = U256([0, 0, 0, 5]).overflowing_mul(U256([2, 0, 0, 0]));
+		assert_eq!(U256([0, 0, 0, 10]), result);
+
+		let (result, _) = U256([0, 0, 1, 0]).overflowing_mul(U256([0, 5, 0, 0]));
+		assert_eq!(U256([0, 0, 0, 5]), result);
+
+		let (result, _) = U256([0, 0, 8, 0]).overflowing_mul(U256([0, 0, 7, 0]));
+		assert_eq!(U256([0, 0, 0, 0]), result);
+
+		let (result, _) = U256([2, 0, 0, 0]).overflowing_mul(U256([0, 5, 0, 0]));
+		assert_eq!(U256([0, 10, 0, 0]), result);
+
+		let (result, _) = U256([1, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, ::std::u64::MAX]));
+		assert_eq!(U256([0, 0, 0, ::std::u64::MAX]), result);
+	}
+
     #[test]
     fn u256_multi_muls_overflow() {
 		let (_, overflow) = U256([1, 0, 0, 0]).overflowing_mul(U256([0, 0, 0, 0]));
@@ -2002,7 +2033,7 @@ mod tests {
 
 
 	#[test]
-	#[cfg_attr(feature = "dev", allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn u256_multi_full_mul() {
 		let result = U256([0, 0, 0, 0]).full_mul(U256([0, 0, 0, 0]));
 		assert_eq!(U512([0, 0, 0, 0, 0, 0, 0, 0]), result);

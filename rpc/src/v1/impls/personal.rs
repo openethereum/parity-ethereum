@@ -20,33 +20,26 @@ use jsonrpc_core::*;
 use v1::traits::Personal;
 use util::keys::store::*;
 use util::Address;
-use std::sync::RwLock;
 
 /// Account management (personal) rpc implementation.
-pub struct PersonalClient {
-	secret_store: Weak<RwLock<SecretStore>>,
+pub struct PersonalClient<A> where A: AccountProvider {
+	accounts: Weak<A>,
 }
 
-impl PersonalClient {
+impl<A> PersonalClient<A> where A: AccountProvider {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<RwLock<SecretStore>>) -> Self {
+	pub fn new(store: &Arc<A>) -> Self {
 		PersonalClient {
-			secret_store: Arc::downgrade(store),
+			accounts: Arc::downgrade(store),
 		}
 	}
 }
 
-impl Personal for PersonalClient {
+impl<A> Personal for PersonalClient<A> where A: AccountProvider + 'static {
 	fn accounts(&self, _: Params) -> Result<Value, Error> {
-		let store_wk = take_weak!(self.secret_store);
-		let store = store_wk.read().unwrap();
+		let store = take_weak!(self.accounts);
 		match store.accounts() {
-			Ok(account_list) => {
-				Ok(Value::Array(account_list.iter()
-					.map(|&(account, _)| Value::String(format!("{:?}", account)))
-					.collect::<Vec<Value>>())
-				)
-			}
+			Ok(account_list) => to_value(&account_list),
 			Err(_) => Err(Error::internal_error())
 		}
 	}
@@ -54,10 +47,9 @@ impl Personal for PersonalClient {
 	fn new_account(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(String, )>(params).and_then(
 			|(pass, )| {
-				let store_wk = take_weak!(self.secret_store);
-				let mut store = store_wk.write().unwrap();
+				let store = take_weak!(self.accounts);
 				match store.new_account(&pass) {
-					Ok(address) => Ok(Value::String(format!("{:?}", address))),
+					Ok(address) => Ok(Value::String(format!("0x{:?}", address))),
 					Err(_) => Err(Error::internal_error())
 				}
 			}
@@ -67,8 +59,7 @@ impl Personal for PersonalClient {
 	fn unlock_account(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, String, u64)>(params).and_then(
 			|(account, account_pass, _)|{
-				let store_wk = take_weak!(self.secret_store);
-				let store = store_wk.read().unwrap();
+				let store = take_weak!(self.accounts);
 				match store.unlock_account(&account, &account_pass) {
 					Ok(_) => Ok(Value::Bool(true)),
 					Err(_) => Ok(Value::Bool(false)),
