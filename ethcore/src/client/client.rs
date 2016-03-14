@@ -380,15 +380,13 @@ impl<V> Client<V> where V: Verifier {
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
-
-
 	// TODO [todr] Should be moved to miner crate eventually.
 	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.
-	fn prepare_sealing(&self, author: Address, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
 
@@ -398,6 +396,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			match self.chain.block_header(&h) { Some(ref x) => x, None => {return None} },
 			self.build_last_hashes(h.clone()),
 			author,
+			gas_floor_target,
 			extra_data,
 		);
 

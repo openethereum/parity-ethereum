@@ -171,7 +171,7 @@ pub struct SealedBlock {
 
 impl<'x> OpenBlock<'x> {
 	/// Create a new OpenBlock ready for transaction pushing.
-	pub fn new(engine: &'x Engine, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, author: Address, extra_data: Bytes) -> Self {
+	pub fn new(engine: &'x Engine, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Self {
 		let mut r = OpenBlock {
 			block: ExecutedBlock::new(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce())),
 			engine: engine,
@@ -185,7 +185,7 @@ impl<'x> OpenBlock<'x> {
 		r.block.base.header.extra_data = extra_data;
 		r.block.base.header.note_dirty();
 
-		engine.populate_from_parent(&mut r.block.base.header, parent);
+		engine.populate_from_parent(&mut r.block.base.header, parent, gas_floor_target);
 		engine.on_new_block(&mut r.block);
 		r
 	}
@@ -347,7 +347,7 @@ pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Head
 		}
 	}
 
-	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author().clone(), header.extra_data().clone());
+	let mut b = OpenBlock::new(engine, db, parent, last_hashes, header.author().clone(), x!(3141562), header.extra_data().clone());
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
@@ -391,7 +391,7 @@ mod tests {
 		let mut db = db_result.take();
 		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), vec![]);
+		let b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let b = b.close();
 		let _ = b.seal(engine.deref(), vec![]);
 	}
@@ -405,7 +405,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		engine.spec().ensure_db_good(db.as_hashdb_mut());
-		let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), vec![]).close().seal(engine.deref(), vec![]).unwrap();
+		let b = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), x!(3141562), vec![]).close().seal(engine.deref(), vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 

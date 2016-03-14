@@ -19,7 +19,7 @@ use std::sync::{Mutex, RwLock, Arc};
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
 
-use util::{H256, U256, Address, Bytes};
+use util::{H256, U256, Address, Bytes, Uint};
 use ethcore::views::{BlockView};
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock};
@@ -34,8 +34,10 @@ pub struct Miner {
 	// for sealing...
 	sealing_enabled: AtomicBool,
 	sealing_block: Mutex<Option<ClosedBlock>>,
+	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
+
 }
 
 impl Default for Miner {
@@ -44,6 +46,7 @@ impl Default for Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			sealing_enabled: AtomicBool::new(false),
 			sealing_block: Mutex::new(None),
+			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 		}
@@ -66,6 +69,11 @@ impl Miner {
 		self.extra_data.read().unwrap().clone()
 	}
 
+	/// Get the extra_data that we will seal blocks wuth.
+	fn gas_floor_target(&self) -> U256 {
+		self.gas_floor_target.read().unwrap().clone()
+	}
+
 	/// Set the author that we will seal blocks as.
 	pub fn set_author(&self, author: Address) {
 		*self.author.write().unwrap() = author;
@@ -74,6 +82,11 @@ impl Miner {
 	/// Set the extra_data that we will seal blocks with.
 	pub fn set_extra_data(&self, extra_data: Bytes) {
 		*self.extra_data.write().unwrap() = extra_data;
+	}
+
+	/// Set the gas limit we wish to target when sealing a new block.
+	pub fn set_gas_floor_target(&self, target: U256) {
+		*self.gas_floor_target.write().unwrap() = target;
 	}
 
 	/// Set minimal gas price of transaction to be accepted for mining.
@@ -110,12 +123,14 @@ impl MinerService for Miner {
 
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
 		let no_of_transactions = 128;
+		// TODO: should select transactions orm queue according to gas limit of block.
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions(no_of_transactions);
 
 		let b = chain.prepare_sealing(
 			self.author(),
+			self.gas_floor_target(),
 			self.extra_data(),
-			transactions,
+			transactions
 		);
 		*self.sealing_block.lock().unwrap() = b;
 	}
