@@ -130,7 +130,7 @@ impl MinerService for Miner {
 			self.author(),
 			self.gas_floor_target(),
 			self.extra_data(),
-			transactions
+			transactions,
 		);
 		*self.sealing_block.lock().unwrap() = b;
 	}
