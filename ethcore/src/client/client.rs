@@ -17,7 +17,6 @@
 //! Blockchain database client.
 
 use std::marker::PhantomData;
-use std::sync::atomic::AtomicBool;
 use util::*;
 use util::panics::*;
 use views::BlockView;
@@ -31,12 +30,12 @@ use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
-use transaction::LocalizedTransaction;
+use transaction::{LocalizedTransaction, SignedTransaction};
 use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
-use blockchain::{BlockChain, BlockProvider, TreeRoute};
+use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
@@ -106,12 +105,6 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
-
-	// for sealing...
-	sealing_enabled: AtomicBool,
-	sealing_block: Mutex<Option<ClosedBlock>>,
-	author: RwLock<Address>,
-	extra_data: RwLock<Bytes>,
 	verifier: PhantomData<V>,
 }
 
@@ -159,10 +152,6 @@ impl<V> Client<V> where V: Verifier {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
-			sealing_enabled: AtomicBool::new(false),
-			sealing_block: Mutex::new(None),
-			author: RwLock::new(Address::new()),
-			extra_data: RwLock::new(Vec::new()),
 			verifier: PhantomData,
 		}))
 	}
@@ -233,12 +222,39 @@ impl<V> Client<V> where V: Verifier {
 		Ok(closed_block)
 	}
 
+	fn calculate_enacted_retracted(&self, import_results: Vec<ImportRoute>) -> (Vec<H256>, Vec<H256>) {
+		fn map_to_vec(map: Vec<(H256, bool)>) -> Vec<H256> {
+			map.into_iter().map(|(k, _v)| k).collect()
+		}
+
+		// In ImportRoute we get all the blocks that have been enacted and retracted by single insert.
+		// Because we are doing multiple inserts some of the blocks that were enacted in import `k`
+		// could be retracted in import `k+1`. This is why to understand if after all inserts
+		// the block is enacted or retracted we iterate over all routes and at the end final state
+		// will be in the hashmap
+		let map = import_results.into_iter().fold(HashMap::new(), |mut map, route| {
+			for hash in route.enacted {
+				map.insert(hash, true);
+			}
+			for hash in route.retracted {
+				map.insert(hash, false);
+			}
+			map
+		});
+
+		// Split to enacted retracted (using hashmap value)
+		let (enacted, retracted) = map.into_iter().partition(|&(_k, v)| v);
+		// And convert tuples to keys
+		(map_to_vec(enacted), map_to_vec(retracted))
+	}
+	
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
 		let max_blocks_to_import = 128;
 
-		let mut good_blocks = Vec::with_capacity(max_blocks_to_import);
-		let mut bad_blocks = HashSet::new();
+		let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
+		let mut invalid_blocks = HashSet::new();
+		let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 		let _import_lock = self.import_lock.lock();
 		let blocks = self.block_queue.drain(max_blocks_to_import);
@@ -248,16 +264,16 @@ impl<V> Client<V> where V: Verifier {
 		for block in blocks {
 			let header = &block.header;
 
-			if bad_blocks.contains(&header.parent_hash) {
-				bad_blocks.insert(header.hash());
+			if invalid_blocks.contains(&header.parent_hash) {
+				invalid_blocks.insert(header.hash());
 				continue;
 			}
 			let closed_block = self.check_and_close_block(&block);
 			if let Err(_) = closed_block {
-				bad_blocks.insert(header.hash());
+				invalid_blocks.insert(header.hash());
 				break;
 			}
-			good_blocks.push(header.hash());
+			imported_blocks.push(header.hash());
 
 			// Are we committing an era?
 			let ancient = if header.number() >= HISTORY {
@@ -276,37 +292,41 @@ impl<V> Client<V> where V: Verifier {
 
 			// And update the chain after commit to prevent race conditions
 			// (when something is in chain but you are not able to fetch details)
-			self.chain.insert_block(&block.bytes, receipts);
+			let route = self.chain.insert_block(&block.bytes, receipts);
+			import_results.push(route);
 
 			self.report.write().unwrap().accrue_block(&block);
 			trace!(target: "client", "Imported #{} ({})", header.number(), header.hash());
 		}
 
-		let imported = good_blocks.len();
-		let bad_blocks = bad_blocks.into_iter().collect::<Vec<H256>>();
+		let imported = imported_blocks.len();
+		let invalid_blocks = invalid_blocks.into_iter().collect::<Vec<H256>>();
 
 		{
-			if !bad_blocks.is_empty() {
-				self.block_queue.mark_as_bad(&bad_blocks);
+			if !invalid_blocks.is_empty() {
+				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
-			if !good_blocks.is_empty() {
-				self.block_queue.mark_as_good(&good_blocks);
+			if !imported_blocks.is_empty() {
+				self.block_queue.mark_as_good(&imported_blocks);
 			}
 		}
 
 		{
-			if !good_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
+			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
+				let (enacted, retracted) = self.calculate_enacted_retracted(import_results);
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainBlocks {
-					good: good_blocks,
-					bad: bad_blocks,
-					// TODO [todr] were to take those from?
-					retracted: vec![],
+					imported: imported_blocks,
+					invalid: invalid_blocks,
+					enacted: enacted,
+					retracted: retracted,
 				})).unwrap();
 			}
 		}
 
-		if self.chain_info().best_block_hash != original_best && self.sealing_enabled.load(atomic::Ordering::Relaxed) {
-			self.prepare_sealing();
+		{
+			if self.chain_info().best_block_hash != original_best {
+				io.send(NetworkIoMessage::User(SyncMessage::NewChainHead)).unwrap();
+			}
 		}
 
 		imported
@@ -357,52 +377,59 @@ impl<V> Client<V> where V: Verifier {
 			BlockId::Latest => Some(self.chain.best_block_number())
 		}
 	}
-
-	/// Get the author that we will seal blocks as.
-	pub fn author(&self) -> Address {
-		self.author.read().unwrap().clone()
-	}
-
-	/// Set the author that we will seal blocks as.
-	pub fn set_author(&self, author: Address) {
-		*self.author.write().unwrap() = author;
-	}
-
-	/// Get the extra_data that we will seal blocks wuth.
-	pub fn extra_data(&self) -> Bytes {
-		self.extra_data.read().unwrap().clone()
-	}
-
-	/// Set the extra_data that we will seal blocks with.
-	pub fn set_extra_data(&self, extra_data: Bytes) {
-		*self.extra_data.write().unwrap() = extra_data;
-	}
-
-	/// New chain head event. Restart mining operation.
-	pub fn prepare_sealing(&self) {
-		let h = self.chain.best_block_hash();
-		let mut b = OpenBlock::new(
-			self.engine.deref().deref(),
-			self.state_db.lock().unwrap().spawn(),
-			match self.chain.block_header(&h) { Some(ref x) => x, None => {return;} },
-			self.build_last_hashes(h.clone()),
-			self.author(),
-			self.extra_data()
-		);
-
-		self.chain.find_uncle_headers(&h, self.engine.deref().deref().maximum_uncle_age()).unwrap().into_iter().take(self.engine.deref().deref().maximum_uncle_count()).foreach(|h| { b.push_uncle(h).unwrap(); });
-
-		// TODO: push transactions.
-
-		let b = b.close();
-		trace!("Sealing: number={}, hash={}, diff={}", b.hash(), b.block().header().difficulty(), b.block().header().number());
-		*self.sealing_block.lock().unwrap() = Some(b);
-	}
 }
 
-// TODO: need MinerService MinerIoHandler
-
 impl<V> BlockChainClient for Client<V> where V: Verifier {
+
+
+	// TODO [todr] Should be moved to miner crate eventually.
+	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		block.try_seal(self.engine.deref().deref(), seal)
+	}
+
+	// TODO [todr] Should be moved to miner crate eventually.
+	fn prepare_sealing(&self, author: Address, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+		let engine = self.engine.deref().deref();
+		let h = self.chain.best_block_hash();
+
+		let mut b = OpenBlock::new(
+			engine,
+			self.state_db.lock().unwrap().spawn(),
+			match self.chain.block_header(&h) { Some(ref x) => x, None => {return None} },
+			self.build_last_hashes(h.clone()),
+			author,
+			extra_data,
+		);
+
+		// Add uncles
+		self.chain
+			.find_uncle_headers(&h, engine.maximum_uncle_age())
+			.unwrap()
+			.into_iter()
+			.take(engine.maximum_uncle_count())
+			.foreach(|h| {
+				b.push_uncle(h).unwrap();
+			});
+
+		// Add transactions
+		let block_number = b.block().header().number();
+		for tx in transactions {
+			let import = b.push_transaction(tx, None);
+			if let Err(e) = import {
+				trace!("Error adding transaction to block: number={}. Error: {:?}", block_number, e);
+			}
+		}
+
+		// And close
+		let b = b.close();
+		trace!("Sealing: number={}, hash={}, diff={}",
+			   b.block().header().number(),
+			   b.hash(),
+			   b.block().header().difficulty()
+		);
+		Some(b)
+	}
+
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		Self::block_hash(&self.chain, id).and_then(|hash| self.chain.block(&hash).map(|bytes| BlockView::new(&bytes).rlp().at(0).as_raw().to_vec()))
 	}
@@ -447,6 +474,14 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 	fn code(&self, address: &Address) -> Option<Bytes> {
 		self.state().code(address)
+	}
+
+	fn balance(&self, address: &Address) -> U256 {
+		self.state().balance(address)
+	}
+
+	fn storage_at(&self, address: &Address, position: &H256) -> H256 {
+		self.state().storage_at(address, position)
 	}
 
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
@@ -552,39 +587,6 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 			})
 			.collect()
-	}
-
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		if self.sealing_block.lock().unwrap().is_none() {
-			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
-			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
-			self.prepare_sealing();
-		}
-		&self.sealing_block
-	}
-
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		let mut maybe_b = self.sealing_block.lock().unwrap();
-		match *maybe_b {
-			Some(ref b) if b.hash() == pow_hash => {}
-			_ => { return Err(Error::PowHashInvalid); }
-		}
-
-		let b = maybe_b.take();
-		match b.unwrap().try_seal(self.engine.deref().deref(), seal) {
-			Err(old) => {
-				*maybe_b = Some(old);
-				Err(Error::PowInvalid)
-			}
-			Ok(sealed) => {
-				// TODO: commit DB from `sealed.drain` and make a VerifiedBlock to skip running the transactions twice.
-				try!(self.import_block(sealed.rlp_bytes()));
-				Ok(())
-			}
-		}
 	}
 }
 

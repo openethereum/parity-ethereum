@@ -35,6 +35,7 @@ use std::env;
 pub struct ArchiveDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
+	latest_era: Option<u64>,
 }
 
 // all keys must be at least 12 bytes
@@ -60,9 +61,11 @@ impl ArchiveDB {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
 		}
 
+		let latest_era = backing.get(&LATEST_ERA_KEY).expect("Low-level database error.").map(|val| decode::<u64>(&val));
 		ArchiveDB {
 			overlay: MemoryDB::new(),
 			backing: Arc::new(backing),
+			latest_era: latest_era,
 		}
 	}
 
@@ -129,6 +132,7 @@ impl JournalDB for ArchiveDB {
 		Box::new(ArchiveDB {
 			overlay: MemoryDB::new(),
 			backing: self.backing.clone(),
+			latest_era: self.latest_era,
 		})
 	}
 
@@ -137,10 +141,10 @@ impl JournalDB for ArchiveDB {
  	}
 
 	fn is_empty(&self) -> bool {
-		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
+		self.latest_era.is_none()
 	}
 
-	fn commit(&mut self, _: u64, _: &H256, _: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn commit(&mut self, now: u64, _: &H256, _: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		let batch = DBTransaction::new();
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
@@ -155,6 +159,10 @@ impl JournalDB for ArchiveDB {
 				assert!(rc == -1);
 				deletes += 1;
 			}
+		}
+		if self.latest_era.map_or(true, |e| now > e) {
+			try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
+			self.latest_era = Some(now);
 		}
 		try!(self.backing.write(batch));
 		Ok((inserts + deletes) as u32)

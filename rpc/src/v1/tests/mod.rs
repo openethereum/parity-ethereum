@@ -16,6 +16,8 @@
 
 //!TODO: load custom blockchain state and test
 
+mod eth;
 mod net;
 mod web3;
 mod helpers;
+mod personal;

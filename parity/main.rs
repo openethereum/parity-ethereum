@@ -24,6 +24,7 @@ extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
+extern crate ethminer;
 #[macro_use]
 extern crate log as rlog;
 extern crate env_logger;
@@ -50,6 +51,7 @@ use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
 use ethsync::{EthSync, SyncConfig, SyncProvider};
+use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
@@ -76,70 +78,86 @@ Usage:
   parity [options]
 
 Protocol Options:
-  --chain CHAIN            Specify the blockchain type. CHAIN may be either a JSON chain specification file
-                           or olympic, frontier, homestead, mainnet, morden, or testnet [default: homestead].
-  --testnet                Equivalent to --chain testnet (geth-compatible).
-  --networkid INDEX        Override the network identifier from the chain we are on.
-  --pruning METHOD         Configure pruning of the state/storage trie. METHOD may be one of: archive,
-                           light (experimental), fast (experimental) [default: archive].
-  -d --datadir PATH        Specify the database & configuration directory path [default: $HOME/.parity]
-  --db-path PATH           Specify the database & configuration directory path [default: $HOME/.parity]
-  --keys-path PATH         Specify the path for JSON key files to be found [default: $HOME/.web3/keys]
+  --chain CHAIN            Specify the blockchain type. CHAIN may be either a
+                           JSON chain specification file or olympic, frontier,
+                           homestead, mainnet, morden, or testnet
+                           [default: homestead].
+  -d --db-path PATH        Specify the database & configuration directory path
+                           [default: $HOME/.parity].
+  --keys-path PATH         Specify the path for JSON key files to be found
+                           [default: $HOME/.web3/keys].
   --identity NAME          Specify your node's name.
 
 Networking Options:
-  --port PORT              Override the port on which the node should listen [default: 30303].
+  --port PORT              Override the port on which the node should listen
+                           [default: 30303].
   --peers NUM              Try to maintain that many peers [default: 25].
-  --nat METHOD             Specify method to use for determining public address. Must be one of: any, none,
-                           upnp, extip:(IP) [default: any].
-  --bootnodes NODES        Specify additional comma-separated bootnodes.
-  --no-bootstrap           Don't bother trying to connect to standard bootnodes.
+  --nat METHOD             Specify method to use for determining public
+                           address. Must be one of: any, none, upnp,
+                           extip:<IP> [default: any].
+  --network-id INDEX       Override the network identifier from the chain we
+                           are on.
+  --bootnodes NODES        Override the bootnodes from our chain. NODES should
+                           be comma-delimited enodes.
   --no-discovery           Disable new peer discovery.
-  --node-key KEY           Specify node secret key, either as 64-character hex string or input to SHA3 operation.
+  --node-key KEY           Specify node secret key, either as 64-character hex
+                           string or input to SHA3 operation.
 
 API and Console Options:
   -j --jsonrpc             Enable the JSON-RPC API sever.
-  --jsonrpc-addr HOST      Specify the hostname portion of the JSONRPC API server [default: 127.0.0.1].
-  --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server [default: 8545].
-  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses [default: null].
-  --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC interface. APIS is a comma-delimited
-                           list of API name. Possible name are web3, eth and net. [default: web3,eth,net,personal].
-
-  --rpc                    Equivalent to --jsonrpc (geth-compatible).
-  --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST (geth-compatible).
-  --rpcport PORT           Equivalent to --jsonrpc-port PORT (geth-compatible).
-  --rpcapi APIS            Equivalent to --jsonrpc-apis APIS (geth-compatible).
-  --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL (geth-compatible).
+  --jsonrpc-addr HOST      Specify the hostname portion of the JSONRPC API
+                           server [default: 127.0.0.1].
+  --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
+                           [default: 8545].
+  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses
+                           [default: null].
+  --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
+                           interface. APIS is a comma-delimited list of API
+                           name. Possible name are web3, eth and net.
+                           [default: web3,eth,net,personal].
 
 Sealing/Mining Options:
-  --author ADDRESS         Specify the block author (aka "coinbase") address for sending block rewards
-                           from sealed blocks [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
-  --extra-data STRING      Specify a custom extra-data for authored blocks, no more than 32 characters.
+  --gas-price WEI          Minimum amount of Wei to be paid for a transaction
+                           to be accepted for mining [default: 20000000000].
+  --author ADDRESS         Specify the block author (aka "coinbase") address
+                           for sending block rewards from sealed blocks
+                           [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
+  --extra-data STRING      Specify a custom extra-data for authored blocks, no
+                           more than 32 characters.
 
-Memory Footprint Options:
-  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in bytes [default: 16384].
-  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in bytes [default: 262144].
-  --queue-max-size BYTES   Specify the maximum size of memory to use for block queue [default: 52428800].
-  --cache MEGABYTES        Set total amount of cache to use for the entire system, mutually exclusive with
-                           other cache options (geth-compatible).
+Footprint Options:
+  --pruning METHOD         Configure pruning of the state/storage trie. METHOD
+                           may be one of: archive, basic (experimental), fast
+                           (experimental) [default: archive].
+  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
+                           bytes [default: 16384].
+  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
+                           bytes [default: 262144].
+  --queue-max-size BYTES   Specify the maximum size of memory to use for block
+                           queue [default: 52428800].
+  --cache MEGABYTES        Set total amount of discretionary memory to use for
+                           the entire system, overrides other cache and queue
+                           options.
 
-Geth-Compatibility Options
+Geth-compatibility Options:
   --datadir PATH           Equivalent to --db-path PATH.
   --testnet                Equivalent to --chain testnet.
-  --networkid INDEX        Override the network identifier from the chain we are on.
+  --networkid INDEX        Equivalent to --network-id INDEX.
+  --maxpeers COUNT         Equivalent to --peers COUNT.
+  --nodekey KEY            Equivalent to --node-key KEY.
+  --nodiscover             Equivalent to --no-discovery.
   --rpc                    Equivalent to --jsonrpc.
   --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST.
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
-  --maxpeers COUNT         Equivalent to --peers COUNT.
-  --nodekey KEY            Equivalent to --node-key KEY.
-  --nodiscover             Equivalent to --no-discovery.
+  --gasprice WEI           Equivalent to --gas-price WEI.
   --etherbase ADDRESS      Equivalent to --author ADDRESS.
   --extradata STRING       Equivalent to --extra-data STRING.
 
 Miscellaneous Options:
-  -l --logging LOGGING     Specify the logging level.
+  -l --logging LOGGING     Specify the logging level. Must conform to the same
+                           format as RUST_LOG.
   -v --version             Show information about version.
   -h --help                Show this screen.
 "#;
@@ -157,8 +175,8 @@ struct Args {
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
 	flag_bootnodes: Option<String>,
+	flag_network_id: Option<String>,
 	flag_pruning: String,
-	flag_no_bootstrap: bool,
 	flag_port: u16,
 	flag_peers: usize,
 	flag_no_discovery: bool,
@@ -172,17 +190,19 @@ struct Args {
 	flag_jsonrpc_port: u16,
 	flag_jsonrpc_cors: String,
 	flag_jsonrpc_apis: String,
+	flag_author: String,
+	flag_gas_price: String,
+	flag_extra_data: Option<String>,
 	flag_logging: Option<String>,
 	flag_version: bool,
 	// geth-compatibility...
 	flag_nodekey: Option<String>,
 	flag_nodiscover: bool,
 	flag_maxpeers: Option<usize>,
-	flag_author: String,
-	flag_extra_data: Option<String>,
 	flag_datadir: Option<String>,
 	flag_extradata: Option<String>,
 	flag_etherbase: Option<String>,
+	flag_gasprice: Option<String>,
 	flag_rpc: bool,
 	flag_rpcaddr: Option<String>,
 	flag_rpcport: Option<u16>,
@@ -219,7 +239,15 @@ fn setup_log(init: &Option<String>) {
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<AccountService>,  url: &str, cors_domain: &str, apis: Vec<&str>) -> Option<Arc<PanicHandler>> {
+fn setup_rpc_server(
+	client: Arc<Client>,
+	sync: Arc<EthSync>,
+	secret_store: Arc<AccountService>,
+	miner: Arc<Miner>,
+	url: &str,
+	cors_domain: &str,
+	apis: Vec<&str>
+) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -228,8 +256,8 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<A
 			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
 			"net" => server.add_delegate(NetClient::new(&sync).to_delegate()),
 			"eth" => {
-				server.add_delegate(EthClient::new(&client, &sync, &secret_store).to_delegate());
-				server.add_delegate(EthFilterClient::new(&client).to_delegate());
+				server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
+				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 			}
 			"personal" => server.add_delegate(PersonalClient::new(&secret_store).to_delegate()),
 			_ => {
@@ -241,7 +269,15 @@ fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<A
 }
 
 #[cfg(not(feature = "rpc"))]
-fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _url: &str) -> Option<Arc<PanicHandler>> {
+fn setup_rpc_server(
+	_client: Arc<Client>,
+	_sync: Arc<EthSync>,
+	_secret_store: Arc<AccountService>,
+	_miner: Arc<Miner>,
+	_url: &str,
+	_cors_domain: &str,
+	_apis: Vec<&str>
+) -> Option<Arc<PanicHandler>> {
 	None
 }
 
@@ -276,7 +312,16 @@ impl Configuration {
 
 	fn author(&self) -> Address {
 		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
-		Address::from_str(d).unwrap_or_else(|_| die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", self.args.flag_author))
+		Address::from_str(d).unwrap_or_else(|_| {
+			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", d)
+		})
+	}
+
+	fn gas_price(&self) -> U256 {
+		let d = self.args.flag_gasprice.as_ref().unwrap_or(&self.args.flag_gas_price);
+		U256::from_dec_str(d).unwrap_or_else(|_| {
+			die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
+		})
 	}
 
 	fn extra_data(&self) -> Bytes {
@@ -299,7 +344,9 @@ impl Configuration {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
-			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| die!("{}: Couldn't read chain specification file. Sure it exists?", f)).as_ref()),
+			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| {
+				die!("{}: Couldn't read chain specification file. Sure it exists?", f)
+			}).as_ref()),
 		}
 	}
 
@@ -312,11 +359,15 @@ impl Configuration {
 	}
 
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
-		let mut r = if self.args.flag_no_bootstrap { Vec::new() } else { spec.nodes().clone() };
-		if let Some(ref x) = self.args.flag_bootnodes {
-			r.extend(x.split(",").map(|s| Self::normalize_enode(s).unwrap_or_else(|| die!("{}: Invalid node address format given for a boot node.", s))));
+		match self.args.flag_bootnodes {
+			Some(ref x) if x.len() > 0 => x.split(',').map(|s| {
+				Self::normalize_enode(s).unwrap_or_else(|| {
+					die!("{}: Invalid node address format given for a boot node.", s)
+				})
+			}).collect(),
+			Some(_) => Vec::new(),
+			None => spec.nodes().clone(),
 		}
-		r
 	}
 
 	#[cfg_attr(feature="dev", allow(useless_format))]
@@ -327,7 +378,7 @@ impl Configuration {
 			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
 			Some(SocketAddr::new(host, self.args.flag_port))
 		} else {
-			listen_address.clone()
+			listen_address
 		};
 		(listen_address, public_address)
 	}
@@ -346,6 +397,38 @@ impl Configuration {
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
 		ret
+	}
+
+	fn client_config(&self) -> ClientConfig {
+		let mut client_config = ClientConfig::default();
+		match self.args.flag_cache {
+			Some(mb) => {
+				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
+				client_config.blockchain.pref_cache_size = client_config.blockchain.max_cache_size * 3 / 4;
+			}
+			None => {
+				client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
+				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
+			}
+		}
+		client_config.pruning = match self.args.flag_pruning.as_str() {
+			"archive" => journaldb::Algorithm::Archive,
+			"light" => journaldb::Algorithm::EarlyMerge,
+			"fast" => journaldb::Algorithm::OverlayRecent,
+			"basic" => journaldb::Algorithm::RefCounted,
+			_ => { die!("Invalid pruning method given."); }
+		};
+		client_config.name = self.args.flag_identity.clone();
+		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
+		client_config
+	}
+
+	fn sync_config(&self, spec: &Spec) -> SyncConfig {
+		let mut sync_config = SyncConfig::default();
+		sync_config.network_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref()).map_or(spec.network_id(), |id| {
+			U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --network-id/--networkid", id))
+		});
+		sync_config
 	}
 
 	fn execute(&self) {
@@ -388,12 +471,13 @@ impl Configuration {
 		}
 		if self.args.cmd_list {
 			println!("Known addresses:");
-			for &(addr, _) in secret_store.accounts().unwrap().iter() {
+			for &(addr, _) in &secret_store.accounts().unwrap() {
 				println!("{:?}", addr);
 			}
 		}
 	}
 
+	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn execute_client(&self) {
 		// Setup panic handler
 		let panic_handler = PanicHandler::new_in_arc();
@@ -405,39 +489,21 @@ impl Configuration {
 
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
-		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = self.args.flag_networkid.as_ref().map(|id| U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --networkid", id))).unwrap_or(spec.network_id());
+		let sync_config = self.sync_config(&spec);
 
 		// Build client
-		let mut client_config = ClientConfig::default();
-		match self.args.flag_cache {
-			Some(mb) => {
-				client_config.blockchain.max_cache_size = mb * 1024 * 1024;
-				client_config.blockchain.pref_cache_size = client_config.blockchain.max_cache_size / 2;
-			}
-			None => {
-				client_config.blockchain.pref_cache_size = self.args.flag_cache_pref_size;
-				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
-			}
-		}
-		client_config.pruning = match self.args.flag_pruning.as_str() {
-			"" => journaldb::Algorithm::Archive,
-			"archive" => journaldb::Algorithm::Archive,
-			"pruned" => journaldb::Algorithm::EarlyMerge,
-			"fast" => journaldb::Algorithm::OverlayRecent,
-//			"slow" => journaldb::Algorithm::RefCounted,		// TODO: @gavofyork uncomment this once ref-count algo is merged.
-			_ => { die!("Invalid pruning method given."); }
-		};
-		client_config.name = self.args.flag_identity.clone();
-		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
-		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap();
+		let mut service = ClientService::start(self.client_config(), spec, net_settings, &Path::new(&self.path())).unwrap();
 		panic_handler.forward_from(&service);
-		let client = service.client().clone();
-		client.set_author(self.author());
-		client.set_extra_data(self.extra_data());
+		let client = service.client();
+
+		// Miner
+		let miner = Miner::new();
+		miner.set_author(self.author());
+		miner.set_extra_data(self.extra_data());
+		miner.set_minimal_gas_price(self.gas_price());
 
 		// Sync
-		let sync = EthSync::register(service.network(), sync_config, client);
+		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
 
 		// Secret Store
 		let account_service = Arc::new(AccountService::new());
@@ -452,11 +518,18 @@ impl Configuration {
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let server_handler = setup_rpc_server(service.client(), sync.clone(), account_service.clone(), &url, cors, apis.split(",").collect());
+			let server_handler = setup_rpc_server(
+				service.client(),
+				sync.clone(),
+				account_service.clone(),
+				miner.clone(),
+				&url,
+				cors,
+				apis.split(',').collect()
+			);
 			if let Some(handler) = server_handler {
 				panic_handler.forward_from(handler.deref());
 			}
-
 		}
 
 		// Register IO handler
@@ -464,6 +537,7 @@ impl Configuration {
 			client: service.client(),
 			info: Default::default(),
 			sync: sync.clone(),
+			accounts: account_service.clone(),
 		});
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
@@ -526,7 +600,11 @@ impl Informant {
 		let report = client.report();
 		let sync_info = sync.status();
 
-		if let (_, _, &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), self.report.read().unwrap().deref()) {
+		if let (_, _, &Some(ref last_report)) = (
+			self.chain_info.read().unwrap().deref(),
+			self.cache_info.read().unwrap().deref(),
+			self.report.read().unwrap().deref()
+		) {
 			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···// mem: {} db, {} chain, {} queue, {} sync ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
@@ -555,20 +633,28 @@ impl Informant {
 
 const INFO_TIMER: TimerToken = 0;
 
+const ACCOUNT_TICK_TIMER: TimerToken = 10;
+const ACCOUNT_TICK_MS: u64 = 60000;
+
 struct ClientIoHandler {
 	client: Arc<Client>,
 	sync: Arc<EthSync>,
+	accounts: Arc<AccountService>,
 	info: Informant,
 }
 
 impl IoHandler<NetSyncMessage> for ClientIoHandler {
 	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
 		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
+		io.register_timer(ACCOUNT_TICK_TIMER, ACCOUNT_TICK_MS).expect("Error registering account timer");
+
 	}
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
-		if INFO_TIMER == timer {
-			self.info.tick(&self.client, &self.sync);
+		match timer {
+			INFO_TIMER => { self.info.tick(&self.client, &self.sync); }
+			ACCOUNT_TICK_TIMER => { self.accounts.tick(); },
+			_ => {}
 		}
 	}
 }

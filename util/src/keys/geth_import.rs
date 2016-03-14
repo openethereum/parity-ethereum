@@ -161,6 +161,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature="heavy-tests")]
 	fn can_decrypt_with_imported() {
 		use keys::store::EncryptedHashMap;
 

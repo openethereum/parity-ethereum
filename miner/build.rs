@@ -14,21 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use blockchain::BlockProvider;
-use engine::Engine;
-use error::Error;
-use header::Header;
-use super::Verifier;
+extern crate rustc_version;
 
-#[allow(dead_code)]
-pub struct NoopVerifier;
+use rustc_version::{version_meta, Channel};
 
-impl Verifier for NoopVerifier {
-	fn verify_block_family(_header: &Header, _bytes: &[u8], _engine: &Engine, _bc: &BlockProvider) -> Result<(), Error> {
-		Ok(())
-	}
-
-	fn verify_block_final(_expected: &Header, _got: &Header) -> Result<(), Error> {
-		Ok(())
+fn main() {
+	if let Channel::Nightly = version_meta().channel {
+		println!("cargo:rustc-cfg=nightly");
 	}
 }

@@ -17,7 +17,7 @@
 //! Test client.
 
 use util::*;
-use transaction::{Transaction, LocalizedTransaction, Action};
+use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId};
 use header::{Header as BlockHeader, BlockNumber};
@@ -25,9 +25,10 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::Receipt;
 use extras::BlockReceipts;
-use error::{ImportResult, Error};
+use error::{ImportResult};
+
 use block_queue::BlockQueueInfo;
-use block::ClosedBlock;
+use block::{SealedBlock, ClosedBlock};
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -41,6 +42,12 @@ pub struct TestBlockChainClient {
 	pub last_hash: RwLock<H256>,
 	/// Difficulty.
 	pub difficulty: RwLock<U256>,
+	/// Balances.
+	pub balances: RwLock<HashMap<Address, U256>>,
+	/// Storage.
+	pub storage: RwLock<HashMap<(Address, H256), H256>>,
+	/// Code.
+	pub code: RwLock<HashMap<Address, Bytes>>,
 }
 
 #[derive(Clone)]
@@ -56,9 +63,15 @@ pub enum EachBlockWith {
 	UncleAndTransaction
 }
 
+impl Default for TestBlockChainClient {
+	fn default() -> Self {
+		TestBlockChainClient::new()
+	}
+}
+
 impl TestBlockChainClient {
 	/// Creates new test client.
-	pub fn new() -> TestBlockChainClient {
+	pub fn new() -> Self {
 
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
@@ -66,10 +79,28 @@ impl TestBlockChainClient {
 			genesis_hash: H256::new(),
 			last_hash: RwLock::new(H256::new()),
 			difficulty: RwLock::new(From::from(0)),
+			balances: RwLock::new(HashMap::new()),
+			storage: RwLock::new(HashMap::new()),
+			code: RwLock::new(HashMap::new()),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
 		client
+	}
+
+	/// Set the balance of account `address` to `balance`.
+	pub fn set_balance(&mut self, address: Address, balance: U256) {
+		self.balances.write().unwrap().insert(address, balance);
+	}
+
+	/// Set `code` at `address`.
+	pub fn set_code(&mut self, address: Address, code: Bytes) {
+		self.code.write().unwrap().insert(address, code);
+	}
+
+	/// Set storage `position` to `value` for account `address`.
+	pub fn set_storage(&mut self, address: Address, position: H256, value: H256) {
+		self.storage.write().unwrap().insert((address, position), value);
 	}
 
 	/// Add blocks to test client.
@@ -162,8 +193,16 @@ impl BlockChainClient for TestBlockChainClient {
 		U256::zero()
 	}
 
-	fn code(&self, _address: &Address) -> Option<Bytes> {
-		unimplemented!();
+	fn code(&self, address: &Address) -> Option<Bytes> {
+		self.code.read().unwrap().get(address).cloned()
+	}
+
+	fn balance(&self, address: &Address) -> U256 {
+		self.balances.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero)
+	}
+
+	fn storage_at(&self, address: &Address, position: &H256) -> H256 {
+		self.storage.read().unwrap().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)
 	}
 
 	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
@@ -178,12 +217,12 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		unimplemented!();
+	fn prepare_sealing(&self, _author: Address, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+		unimplemented!()
 	}
 
-	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
-		unimplemented!();
+	fn try_seal(&self, _block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		unimplemented!()
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {

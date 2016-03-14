@@ -26,7 +26,7 @@ use std::ops::*;
 use std::sync::*;
 use std::env;
 use std::collections::HashMap;
-use kvdb::{Database};
+use kvdb::{Database, DBTransaction};
 
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
 ///
@@ -36,7 +36,7 @@ use kvdb::{Database};
 ///
 /// `lookup()` and `contains()` maintain normal behaviour - all `insert()` and `remove()` 
 /// queries have an immediate effect in terms of these functions.
-//#[derive(Clone)]
+#[derive(Clone)]
 pub struct OverlayDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
@@ -56,6 +56,36 @@ impl OverlayDB {
 		let mut dir = env::temp_dir();
 		dir.push(H32::random().hex());
 		Self::new(Database::open_default(dir.to_str().unwrap()).unwrap())
+	}
+
+	/// Commit all operations to given batch.
+	pub fn commit_to_batch(&mut self, batch: &DBTransaction) -> Result<u32, UtilError> {
+		let mut ret = 0u32;
+		let mut deletes = 0usize;
+		for i in self.overlay.drain().into_iter() {
+			let (key, (value, rc)) = i;
+			if rc != 0 {
+				match self.payload(&key) {
+					Some(x) => {
+						let (back_value, back_rc) = x;
+						let total_rc: i32 = back_rc as i32 + rc;
+						if total_rc < 0 {
+							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
+						}
+						deletes += if self.put_payload_in_batch(batch, &key, (back_value, total_rc as u32)) {1} else {0};
+					}
+					None => {
+						if rc < 0 {
+							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
+						}
+						self.put_payload_in_batch(batch, &key, (value, rc as u32));
+					}
+				};
+				ret += 1;
+			}
+		}
+		trace!("OverlayDB::commit() deleted {} nodes", deletes);
+		Ok(ret)
 	}
 
 	/// Commit all memory operations to the backing database.
@@ -96,13 +126,13 @@ impl OverlayDB {
 						let (back_value, back_rc) = x;
 						let total_rc: i32 = back_rc as i32 + rc;
 						if total_rc < 0 {
-							return Err(From::from(BaseDataError::NegativelyReferencedHash));
+							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
 						}
 						deletes += if self.put_payload(&key, (back_value, total_rc as u32)) {1} else {0};
 					}
 					None => {
 						if rc < 0 {
-							return Err(From::from(BaseDataError::NegativelyReferencedHash));
+							return Err(From::from(BaseDataError::NegativelyReferencedHash(key)));
 						}
 						self.put_payload(&key, (value, rc as u32));
 					}
@@ -137,6 +167,9 @@ impl OverlayDB {
 	/// ```
 	pub fn revert(&mut self) { self.overlay.clear(); }
 
+	/// Get the number of references that would be committed.
+	pub fn commit_refs(&self, key: &H256) -> i32 { self.overlay.raw(&key).map_or(0, |&(_, refs)| refs) }
+
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(Bytes, u32)> {
 		self.backing.get(&key.bytes())
@@ -145,6 +178,20 @@ impl OverlayDB {
 				let r = Rlp::new(d.deref());
 				(r.at(1).as_val(), r.at(0).as_val())
 			})
+	}
+
+	/// Put the refs and value of the given key, possibly deleting it from the db.
+	fn put_payload_in_batch(&self, batch: &DBTransaction, key: &H256, payload: (Bytes, u32)) -> bool {
+		if payload.1 > 0 {
+			let mut s = RlpStream::new_list(2);
+			s.append(&payload.1);
+			s.append(&payload.0);
+			batch.put(&key.bytes(), s.as_raw()).expect("Low-level database error. Some issue with your hard disk?");
+			false
+		} else {
+			batch.delete(&key.bytes()).expect("Low-level database error. Some issue with your hard disk?");
+			true
+		}
 	}
 
 	/// Put the refs and value of the given key, possibly deleting it from the db.
