@@ -55,7 +55,7 @@ struct FakeExt {
 	info: EnvInfo,
 	schedule: Schedule,
 	balances: HashMap<Address, U256>,
-	calls: HashSet<FakeCall>
+	calls: HashSet<FakeCall>,
 }
 
 impl FakeExt {
