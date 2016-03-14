@@ -87,22 +87,22 @@ impl TestBlockChainClient {
 	}
 
 	/// Set the balance of account `address` to `balance`.
-	pub fn set_balance(&mut self, address: Address, balance: U256) {
+	pub fn set_balance(&self, address: Address, balance: U256) {
 		self.balances.write().unwrap().insert(address, balance);
 	}
 
 	/// Set `code` at `address`.
-	pub fn set_code(&mut self, address: Address, code: Bytes) {
+	pub fn set_code(&self, address: Address, code: Bytes) {
 		self.code.write().unwrap().insert(address, code);
 	}
 
 	/// Set storage `position` to `value` for account `address`.
-	pub fn set_storage(&mut self, address: Address, position: H256, value: H256) {
+	pub fn set_storage(&self, address: Address, position: H256, value: H256) {
 		self.storage.write().unwrap().insert((address, position), value);
 	}
 
 	/// Add blocks to test client.
-	pub fn add_blocks(&mut self, count: usize, with: EachBlockWith) {
+	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().unwrap().len();
 		for n in len..(len + count) {
 			let mut header = BlockHeader::new();
