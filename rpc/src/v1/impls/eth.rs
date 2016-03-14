@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Weak, Mutex, RwLock};
+use std::collections::HashSet;
+use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
 use ethminer::{MinerService};
@@ -25,42 +25,59 @@ use util::numbers::*;
 use util::sha3::*;
 use util::rlp::encode;
 use ethcore::client::*;
-use ethcore::block::{IsBlock};
+use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
 use ethcore::transaction::Transaction as EthTransaction;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, OptionalValue, Index, Filter, Log};
-use v1::helpers::{PollFilter, PollManager};
+use v1::helpers::{PollFilter, PollManager, ExternalMinerService, ExternalMiner};
 use util::keys::store::AccountProvider;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S, A, M>
+pub struct EthClient<C, S, A, M, EM = ExternalMiner>
 	where C: BlockChainClient,
 		  S: SyncProvider,
 		  A: AccountProvider,
-		  M: MinerService {
+		  M: MinerService,
+		  EM: ExternalMinerService {
 	client: Weak<C>,
 	sync: Weak<S>,
 	accounts: Weak<A>,
 	miner: Weak<M>,
-	hashrates: RwLock<HashMap<H256, u64>>,
+	external_miner: EM,
 }
 
-impl<C, S, A, M> EthClient<C, S, A, M>
+impl<C, S, A, M> EthClient<C, S, A, M, ExternalMiner>
 	where C: BlockChainClient,
 		  S: SyncProvider,
 		  A: AccountProvider,
 		  M: MinerService {
+
 	/// Creates new EthClient.
 	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>) -> Self {
+		EthClient::new_with_external_miner(client, sync, accounts, miner, ExternalMiner::default())
+	}
+}
+
+
+impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
+	where C: BlockChainClient,
+		  S: SyncProvider,
+		  A: AccountProvider,
+		  M: MinerService,
+		  EM: ExternalMinerService {
+
+	/// Creates new EthClient with custom external miner.
+	pub fn new_with_external_miner(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>, em: EM)
+		-> EthClient<C, S, A, M, EM> {
 		EthClient {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
 			miner: Arc::downgrade(miner),
 			accounts: Arc::downgrade(accounts),
-			hashrates: RwLock::new(HashMap::new()),
+			external_miner: em,
 		}
 	}
 
@@ -110,11 +127,12 @@ impl<C, S, A, M> EthClient<C, S, A, M>
 	}
 }
 
-impl<C, S, A, M> Eth for EthClient<C, S, A, M>
+impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	where C: BlockChainClient + 'static,
 		  S: SyncProvider + 'static,
 		  A: AccountProvider + 'static,
-		  M: MinerService + 'static {
+		  M: MinerService + 'static,
+		  EM: ExternalMinerService + 'static {
 
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
@@ -152,7 +170,7 @@ impl<C, S, A, M> Eth for EthClient<C, S, A, M>
 	// TODO: return real value of mining once it's implemented.
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&!self.hashrates.read().unwrap().is_empty()),
+			Params::None => to_value(&self.external_miner.is_mining()),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -160,7 +178,7 @@ impl<C, S, A, M> Eth for EthClient<C, S, A, M>
 	// TODO: return real hashrate once we have mining
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&self.hashrates.read().unwrap().iter().fold(0u64, |sum, (_, v)| sum + v)),
+			Params::None => to_value(&self.external_miner.hashrate()),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -318,8 +336,8 @@ impl<C, S, A, M> Eth for EthClient<C, S, A, M>
 
 	fn submit_hashrate(&self, params: Params) -> Result<Value, Error> {
 		// TODO: Index should be U256.
-		from_params::<(Index, H256)>(params).and_then(|(rate, id)| {
-			self.hashrates.write().unwrap().insert(id, rate.value() as u64);
+		from_params::<(U256, H256)>(params).and_then(|(rate, id)| {
+			self.external_miner.submit_hashrate(rate, id);
 			to_value(&true)
 		})
 	}
