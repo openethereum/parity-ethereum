@@ -687,6 +687,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		if h.expired {
 			return;
 		}
+		io.deregister_stream(token).expect("Error deleting handshake registration");
+		h.set_expired();
 		let originated = h.originated;
 		let mut session = match Session::new(&mut h, &self.info.read().unwrap()) {
 			Ok(s) => s,
@@ -705,8 +707,6 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 		let result = sessions.insert_with(move |session_token| {
 			session.set_token(session_token);
-			io.deregister_stream(token).expect("Error deleting handshake registration");
-			h.set_expired();
 			io.register_stream(session_token).expect("Error creating session registration");
 			self.stats.inc_sessions();
 			trace!(target: "network", "Creating session {} -> {}", token, session_token);
