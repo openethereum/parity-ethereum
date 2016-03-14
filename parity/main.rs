@@ -610,7 +610,7 @@ impl Informant {
 		let cache_info = client.blockchain_cache_info();
 		let sync_info = sync.status();
 
-		let write_report = self.report.write().unwrap();
+		let mut write_report = self.report.write().unwrap();
 		let report = client.report();
 
 		if let (_, _, &Some(ref last_report)) = (
