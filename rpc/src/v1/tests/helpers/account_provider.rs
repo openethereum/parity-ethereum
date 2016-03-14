@@ -42,6 +42,7 @@ impl TestAccount {
 /// Test account provider.
 pub struct TestAccountProvider {
 	accounts: RwLock<HashMap<Address, TestAccount>>,
+	pub adds: RwLock<Vec<String>>,
 }
 
 impl TestAccountProvider {
@@ -49,6 +50,7 @@ impl TestAccountProvider {
 	pub fn new(accounts: HashMap<Address, TestAccount>) -> Self {
 		TestAccountProvider {
 			accounts: RwLock::new(accounts),
+			adds: RwLock::new(vec![]),
 		}
 	}
 }
@@ -69,9 +71,13 @@ impl AccountProvider for TestAccountProvider {
 		}
 	}
 
-	fn new_account(&self, _pass: &str) -> Result<Address, io::Error> {
-		unimplemented!()
+	fn new_account(&self, pass: &str) -> Result<Address, io::Error> {
+		let mut adds = self.adds.write().unwrap();
+		let address = Address::from(adds.len() as u64 + 2);
+		adds.push(pass.to_owned());
+		Ok(address)
 	}
+
 	fn account_secret(&self, _account: &Address) -> Result<Secret, SigningError> {
 		unimplemented!()
 	}
