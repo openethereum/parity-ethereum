@@ -130,9 +130,18 @@ fn rpc_eth_author() {
 }
 
 #[test]
-#[ignore]
 fn rpc_eth_mining() {
-	unimplemented!()
+	let tester = EthTester::default();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_mining", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+
+	tester.hashrates.write().unwrap().insert(H256::from(1), U256::from(0x1));
+
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_mining", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -309,6 +318,30 @@ fn rpc_eth_estimate_gas() {
 fn rpc_eth_compilers() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getCompilers", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_compile_lll() {
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileLLL", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_compile_solidity() {
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSolidity", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_compile_serpent() {
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_compileSerpent", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
