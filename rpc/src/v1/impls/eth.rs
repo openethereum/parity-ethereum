@@ -125,6 +125,11 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 			None => Ok(Value::Null)
 		}
 	}
+
+	fn uncle(&self, _block: BlockId, _index: usize) -> Result<Value, Error> {
+		// TODO: implement!
+		Ok(Value::Null)
+	}
 }
 
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
@@ -283,6 +288,16 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn transaction_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
 			.and_then(|(number, index)| self.transaction(TransactionId::Location(number.into(), index.value())))
+	}
+
+	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H256, Index)>(params)
+			.and_then(|(hash, index)| self.uncle(BlockId::Hash(hash), index.value()))
+	}
+
+	fn uncle_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(BlockNumber, Index)>(params)
+			.and_then(|(number, index)| self.uncle(number.into(), index.value()))
 	}
 
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
