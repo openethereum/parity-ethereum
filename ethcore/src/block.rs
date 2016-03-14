@@ -265,7 +265,7 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 		s.engine.on_close_block(&mut s.block);
 		s.block.base.header.transactions_root = ordered_trie_root(s.block.base.transactions.iter().map(|ref e| e.rlp_bytes().to_vec()).collect());
-		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append(&u.rlp(Seal::With)); s} ).out();
+		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		s.block.base.header.uncles_hash = uncle_bytes.sha3();
 		s.block.base.header.state_root = s.block.state.root().clone();
 		s.block.base.header.receipts_root = ordered_trie_root(s.block.receipts.iter().map(|ref r| r.rlp_bytes().to_vec()).collect());
@@ -419,5 +419,10 @@ mod tests {
 		let db = e.drain();
 		assert_eq!(orig_db.keys(), db.keys());
 		assert!(orig_db.keys().iter().filter(|k| orig_db.get(k.0) != db.get(k.0)).next() == None);
+	}
+
+	#[test]
+	fn enact_block_with_uncle() {
+		// TODO: test for when there's an uncle.
 	}
 }
