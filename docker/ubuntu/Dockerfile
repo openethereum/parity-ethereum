@@ -20,4 +20,4 @@ ENV RUST_BACKTRACE 1
 # build parity
 RUN git clone https://github.com/ethcore/parity && \
 	cd parity && \
-	cargo install
+	cargo build --release

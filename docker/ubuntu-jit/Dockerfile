@@ -10,7 +10,7 @@ RUN apt-get update && \
 	curl \
 	wget \
 	git \
-	gcc \
+	g++ \
 	# evmjit dependencies
 	zlib1g-dev \
 	libedit-dev
@@ -39,4 +39,4 @@ ENV RUST_BACKTRACE 1
 # build parity
 RUN git clone https://github.com/ethcore/parity && \
 	cd parity && \
-	cargo install --features ethcore/jit
+	cargo build --release --features ethcore/jit
