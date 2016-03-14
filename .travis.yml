@@ -33,10 +33,6 @@ addons:
     - libcurl4-openssl-dev
     - libelf-dev
     - libdw-dev
-before_script: |
-  sudo add-apt-repository "deb http://ppa.launchpad.net/giskou/librocksdb/ubuntu trusty main" &&
-  sudo apt-get update &&
-  sudo apt-get install -y --force-yes librocksdb
 script:
 - cargo build --release --verbose ${FEATURES}
 - cargo test --release --verbose ${FEATURES} ${TARGETS}
