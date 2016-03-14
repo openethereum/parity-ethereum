@@ -108,8 +108,8 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	verifier: PhantomData<V>,
 }
 
-const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "5.2";
+const HISTORY: u64 = 1200;
+const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
@@ -501,8 +501,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		}
 	}
 
-	fn state_data(&self, _hash: &H256) -> Option<Bytes> {
-		None
+	fn state_data(&self, hash: &H256) -> Option<Bytes> {
+		self.state_db.lock().unwrap().state(hash)
 	}
 
 	fn block_receipts(&self, _hash: &H256) -> Option<Bytes> {
