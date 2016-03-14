@@ -119,6 +119,8 @@ API and Console Options:
 Sealing/Mining Options:
   --gas-price WEI          Minimum amount of Wei to be paid for a transaction
                            to be accepted for mining [default: 20000000000].
+  --gas-floor-target GAS   Amount of gas per block to target when sealing a new
+                           block [default: 4712388].
   --author ADDRESS         Specify the block author (aka "coinbase") address
                            for sending block rewards from sealed blocks
                            [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
@@ -192,6 +194,7 @@ struct Args {
 	flag_jsonrpc_apis: String,
 	flag_author: String,
 	flag_gas_price: String,
+	flag_gas_floor_target: String,
 	flag_extra_data: Option<String>,
 	flag_logging: Option<String>,
 	flag_version: bool,
@@ -314,6 +317,13 @@ impl Configuration {
 		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
 		Address::from_str(d).unwrap_or_else(|_| {
 			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", d)
+		})
+	}
+
+	fn gas_floor_target(&self) -> U256 {
+		let d = &self.args.flag_gas_floor_target;
+		U256::from_dec_str(d).unwrap_or_else(|_| {
+			die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
 		})
 	}
 
@@ -499,6 +509,7 @@ impl Configuration {
 		// Miner
 		let miner = Miner::new();
 		miner.set_author(self.author());
+		miner.set_gas_floor_target(self.gas_floor_target());
 		miner.set_extra_data(self.extra_data());
 		miner.set_minimal_gas_price(self.gas_price());
 
