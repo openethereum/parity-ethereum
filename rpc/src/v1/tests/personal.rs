@@ -45,3 +45,15 @@ fn accounts() {
 
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }
+
+
+#[test]
+fn new_account() {
+	let (_test_provider, io) = setup();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "personal_newAccount", "params": ["pass"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000002","id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
