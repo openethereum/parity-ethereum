@@ -40,7 +40,7 @@ impl<Row, Col, Val> Default for Table<Row, Col, Val>
 }
 
 // There is default but clippy does not detect it?
-#[allow(new_without_default)]
+#[cfg_attr(feature="dev", allow(new_without_default))]
 impl<Row, Col, Val> Table<Row, Col, Val>
 	where Row: Eq + Hash + Clone,
 		  Col: Eq + Hash {
