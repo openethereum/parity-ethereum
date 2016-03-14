@@ -542,6 +542,8 @@ impl KeyDirectory {
 		if removes.is_empty() { return; }
 		let mut cache = self.cache.write().unwrap();
 		for key in removes { cache.remove(&key); }
+
+		cache.shrink_to_fit();
 	}
 
 	/// Reports how many keys are currently cached.
