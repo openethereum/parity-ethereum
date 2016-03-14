@@ -3,11 +3,10 @@ FROM ubuntu:14.04
 # install tools and dependencies
 RUN apt-get update && \
 	apt-get install -y \
-	gcc \
+	g++ \
 	curl \
 	git \
-	# add-apt-repository
-	software-properties-common
+	make
 
 # install multirust
 RUN curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
