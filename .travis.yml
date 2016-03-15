@@ -17,16 +17,16 @@ matrix:
   include:
   - rust: stable
     env: FEATURES="--features travis-beta" RUN_TESTS="true"
-  - rust: beta
-    env: FEATURES="--features travis-beta" RUN_TESTS="true"
+  # - rust: beta
+    # env: FEATURES="--features travis-beta" RUN_TESTS="true"
   - rust: stable
     env: FEATURES="--features travis-beta" RUN_BUILD="true"
   - rust: beta
     env: FEATURES="--features travis-beta" RUN_BUILD="true"
   - rust: stable
     env: FEATURES="--features travis-beta" RUN_COVERAGE="true"
-  - rust: nightly
-    env: FEATURES="--features travis-nightly" RUN_BENCHES="true"
+  # - rust: nightly
+    # env: FEATURES="--features travis-nightly" RUN_BENCHES="true"
   - rust: nightly
     env: FEATURES="--features travis-nightly" RUN_TESTS="true"
 env:
