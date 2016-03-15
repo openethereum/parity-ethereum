@@ -352,7 +352,6 @@ impl TransactionQueue {
 	pub fn remove<T>(&mut self, transaction_hash: &H256, fetch_nonce: &T)
 		where T: Fn(&Address) -> U256 {
 
-		println!("Removing transaction: (hash: {:?})", transaction_hash);
 		let transaction = self.by_hash.remove(transaction_hash);
 		if transaction.is_none() {
 			// We don't know this transaction
@@ -364,7 +363,6 @@ impl TransactionQueue {
 		let nonce = transaction.nonce();
 		let current_nonce = fetch_nonce(&sender);
 
-		println!("Removing transaction: ({:?}, {:?}, hash: {:?})", sender, nonce, transaction.hash());
 
 		// Remove from future
 		let order = self.future.drop(&sender, &nonce);
@@ -512,7 +510,6 @@ impl TransactionQueue {
 
 		// Check height
 		if nonce > next_nonce {
-			println!("[F] Importing transaction: ({:?}, {:?}, hash: {:?}, gas: {:?})", tx.sender(), tx.nonce(), tx.hash(), tx.transaction.gas_price);
 			// We have a gap - put to future
 			Self::replace_transaction(tx, next_nonce, &mut self.future, &mut self.by_hash);
 			self.future.enforce_limit(&mut self.by_hash);
@@ -522,7 +519,6 @@ impl TransactionQueue {
 			trace!(target: "sync", "Dropping transaction with nonce: {} - expecting: {}", nonce, next_nonce);
 			return;
 		}
-		println!("[C] Importing transaction: ({:?}, {:?}, hash: {:?}, gas: {:?})", tx.sender(), tx.nonce(), tx.hash(), tx.transaction.gas_price);
 
 		Self::replace_transaction(tx, state_nonce, &mut self.current, &mut self.by_hash);
 		self.last_nonces.insert(address, nonce);
@@ -548,13 +544,11 @@ impl TransactionQueue {
 			let new_fee = order.gas_price;
 			if old_fee.cmp(&new_fee) == Ordering::Greater {
 				// Put back old transaction since it has greater priority (higher gas_price)
-				println!("Didn't replace tx (h:{:?}, h:{:?})", hash, old.hash);
 				set.by_address.insert(address, nonce, old);
 				// and remove new one
 				set.by_priority.remove(&order);
 				by_hash.remove(&hash);
 			} else {
-				println!("Replaced h:{:?} with h:{:?}, ", old.hash, hash);
 				// Make sure we remove old transaction entirely
 				set.by_priority.remove(&old);
 				by_hash.remove(&old.hash);
