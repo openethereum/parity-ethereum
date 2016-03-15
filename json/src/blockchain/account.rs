@@ -28,3 +28,23 @@ pub struct Account {
 	nonce: Uint,
 	storage: BTreeMap<Uint, Bytes>,
 }
+
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use blockchain::account::Account;
+
+	#[test]
+	fn header_deserialization() {
+		let s = r#"{
+			"balance" : "0x09184e72a078",
+			"code" : "0x600140600155",
+			"nonce" : "0x00",
+			"storage" : {
+				"0x01" : "0x9a10c2b5bb8f3c602e674006d9b21f09167df57c87a78a5ce96d4159ecb76520"
+			}
+		}"#;
+		let _deserialized: Account= serde_json::from_str(s).unwrap();
+		// TODO: validate all fields
+	}
+}
