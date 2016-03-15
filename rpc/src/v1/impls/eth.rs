@@ -321,7 +321,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn work(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => {
-				// check if we a still syncing and return empty strings int that case
+				// check if we're still syncing and return empty strings int that case
 				{
 					let sync = take_weak!(self.sync);
 					if sync.status().state != SyncState::Idle {
