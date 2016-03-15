@@ -16,6 +16,8 @@
 
 mod poll_manager;
 mod poll_filter;
+pub mod external_miner;
 
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::PollFilter;
+pub use self::external_miner::{ExternalMinerService, ExternalMiner};

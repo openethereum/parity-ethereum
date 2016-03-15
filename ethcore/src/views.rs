@@ -223,6 +223,11 @@ impl<'a> BlockView<'a> {
 	pub fn uncle_hashes(&self) -> Vec<H256> {
 		self.rlp.at(2).iter().map(|rlp| rlp.as_raw().sha3()).collect()
 	}
+
+	/// Return nth uncle.
+	pub fn uncle_at(&self, index: usize) -> Option<Header> {
+		self.rlp.at(2).iter().nth(index).map(|rlp| rlp.as_val())
+	}
 }
 
 impl<'a> Hashable for BlockView<'a> {
@@ -280,7 +285,7 @@ impl<'a> HeaderView<'a> {
 
 	/// Returns block number.
 	pub fn number(&self) -> BlockNumber { self.rlp.val_at(8) }
-	
+
 	/// Returns block gas limit.
 	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
 

@@ -171,7 +171,7 @@ impl EarlyMergeDB {
 		trace!(target: "jdb.fine", "replay_keys: (end) refs={:?}", refs);
 	}
 
-	fn kill_keys(deletes: &Vec<H256>, refs: &mut HashMap<H256, RefInfo>, batch: &DBTransaction, from: RemoveFrom, trace: bool) {
+	fn kill_keys(deletes: &[H256], refs: &mut HashMap<H256, RefInfo>, batch: &DBTransaction, from: RemoveFrom, trace: bool) {
 		// with a kill on {queue_refs: 1, in_archive: true}, we have two options:
 		// - convert to {queue_refs: 1, in_archive: false} (i.e. remove it from the conceptual archive)
 		// - convert to {queue_refs: 0, in_archive: true} (i.e. remove it from the conceptual queue)
@@ -340,8 +340,10 @@ impl JournalDB for EarlyMergeDB {
 		}
  	}
 
+
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		// journal format: 
+		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, n] => [ ... ]
@@ -473,7 +475,7 @@ impl JournalDB for EarlyMergeDB {
 					if trace {
 						trace!(target: "jdb.ops", "  Finalising: {:?}", inserts);
 					}
-					for k in inserts.iter() {
+					for k in &inserts {
 						match refs.get(k).cloned() {
 							None => {
 								// [in archive] -> SHIFT remove -> SHIFT insert None->Some{queue_refs: 1, in_archive: true} -> TAKE remove Some{queue_refs: 1, in_archive: true}->None -> TAKE insert
@@ -489,7 +491,7 @@ impl JournalDB for EarlyMergeDB {
 								Self::set_already_in(&batch, k);
 								refs.insert(k.clone(), RefInfo{ queue_refs: x - 1, in_archive: true });
 							}
-							Some( RefInfo{queue_refs: _, in_archive: true} ) => {
+							Some( RefInfo{in_archive: true, ..} ) => {
 								// Invalid! Reinserted the same key twice.
 								warn!("Key {} inserted twice into same fork.", k);
 							}
@@ -936,7 +938,7 @@ mod tests {
 		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.exists(&foo));
 	}
-	
+
 	#[test]
 	fn reopen_test() {
 		let mut dir = ::std::env::temp_dir();
@@ -971,7 +973,7 @@ mod tests {
 		jdb.commit(7, &b"7".sha3(), Some((3, b"3".sha3()))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
-	
+
 	#[test]
 	fn reopen_remove_three() {
 		init_log();
@@ -1025,7 +1027,7 @@ mod tests {
 			assert!(!jdb.exists(&foo));
 		}
 	}
-	
+
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();

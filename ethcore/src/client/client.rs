@@ -108,8 +108,13 @@ pub struct Client<V = CanonVerifier> where V: Verifier {
 	verifier: PhantomData<V>,
 }
 
-const HISTORY: u64 = 1000;
-const CLIENT_DB_VER_STR: &'static str = "5.2";
+const HISTORY: u64 = 1200;
+// DO NOT TOUCH THIS ANY MORE UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
+// Altering it will force a blanket DB update for *all* JournalDB-derived
+//   databases.
+// Instead, add/upgrade the version string of the individual JournalDB-derived database
+// of which you actually want force an upgrade.
+const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
@@ -247,7 +252,7 @@ impl<V> Client<V> where V: Verifier {
 		// And convert tuples to keys
 		(map_to_vec(enacted), map_to_vec(retracted))
 	}
-	
+
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self, io: &IoChannel<NetSyncMessage>) -> usize {
 		let max_blocks_to_import = 128;
@@ -380,15 +385,13 @@ impl<V> Client<V> where V: Verifier {
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
-
-
 	// TODO [todr] Should be moved to miner crate eventually.
 	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.
-	fn prepare_sealing(&self, author: Address, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
 
@@ -398,6 +401,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			match self.chain.block_header(&h) { Some(ref x) => x, None => {return None} },
 			self.build_last_hashes(h.clone()),
 			author,
+			gas_floor_target,
 			extra_data,
 		);
 
@@ -501,12 +505,12 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		}
 	}
 
-	fn state_data(&self, _hash: &H256) -> Option<Bytes> {
-		None
+	fn state_data(&self, hash: &H256) -> Option<Bytes> {
+		self.state_db.lock().unwrap().state(hash)
 	}
 
-	fn block_receipts(&self, _hash: &H256) -> Option<Bytes> {
-		None
+	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
+		self.chain.block_receipts(hash).map(|receipts| rlp::encode(&receipts).to_vec())
 	}
 
 	fn import_block(&self, bytes: Bytes) -> ImportResult {

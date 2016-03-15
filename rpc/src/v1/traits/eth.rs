@@ -102,7 +102,10 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	fn transaction_receipt(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Returns an uncles at given block and index.
-	fn uncle_at(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn uncle_by_block_hash_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns an uncles at given block and index.
+	fn uncle_by_block_number_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Returns available compilers.
 	fn compilers(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
@@ -158,8 +161,8 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_getTransactionByBlockHashAndIndex", Eth::transaction_by_block_hash_and_index);
 		delegate.add_method("eth_getTransactionByBlockNumberAndIndex", Eth::transaction_by_block_number_and_index);
 		delegate.add_method("eth_getTransactionReceipt", Eth::transaction_receipt);
-		delegate.add_method("eth_getUncleByBlockHashAndIndex", Eth::uncle_at);
-		delegate.add_method("eth_getUncleByBlockNumberAndIndex", Eth::uncle_at);
+		delegate.add_method("eth_getUncleByBlockHashAndIndex", Eth::uncle_by_block_hash_and_index);
+		delegate.add_method("eth_getUncleByBlockNumberAndIndex", Eth::uncle_by_block_number_and_index);
 		delegate.add_method("eth_getCompilers", Eth::compilers);
 		delegate.add_method("eth_compileLLL", Eth::compile_lll);
 		delegate.add_method("eth_compileSolidity", Eth::compile_solidity);

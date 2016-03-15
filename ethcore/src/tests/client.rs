@@ -36,6 +36,17 @@ fn imports_from_empty() {
 }
 
 #[test]
+fn returns_state_root_basic() {
+	let client_result = generate_dummy_client(6);
+	let client = client_result.reference();
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	let state_root = test_engine.spec().genesis_header().state_root;
+
+	assert!(client.state_data(&state_root).is_some());
+}
+
+#[test]
 fn imports_good_block() {
 	let dir = RandomTempPath::new();
 	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
@@ -133,7 +144,7 @@ fn can_mine() {
 	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
 	let client = client_result.reference();
 
-	let b = client.prepare_sealing(Address::default(), vec![], vec![]).unwrap();
+	let b = client.prepare_sealing(Address::default(), x!(31415926), vec![], vec![]).unwrap();
 
 	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
 	assert!(client.try_seal(b, vec![]).is_ok());

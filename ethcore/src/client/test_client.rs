@@ -24,7 +24,9 @@ use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::Receipt;
+use extras::BlockReceipts;
 use error::{ImportResult};
+
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock};
 
@@ -87,22 +89,22 @@ impl TestBlockChainClient {
 	}
 
 	/// Set the balance of account `address` to `balance`.
-	pub fn set_balance(&mut self, address: Address, balance: U256) {
+	pub fn set_balance(&self, address: Address, balance: U256) {
 		self.balances.write().unwrap().insert(address, balance);
 	}
 
 	/// Set `code` at `address`.
-	pub fn set_code(&mut self, address: Address, code: Bytes) {
+	pub fn set_code(&self, address: Address, code: Bytes) {
 		self.code.write().unwrap().insert(address, code);
 	}
 
 	/// Set storage `position` to `value` for account `address`.
-	pub fn set_storage(&mut self, address: Address, position: H256, value: H256) {
+	pub fn set_storage(&self, address: Address, position: H256, value: H256) {
 		self.storage.write().unwrap().insert((address, position), value);
 	}
 
 	/// Add blocks to test client.
-	pub fn add_blocks(&mut self, count: usize, with: EachBlockWith) {
+	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().unwrap().len();
 		for n in len..(len + count) {
 			let mut header = BlockHeader::new();
@@ -215,7 +217,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn prepare_sealing(&self, _author: Address, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
 		unimplemented!()
 	}
 
@@ -292,10 +294,10 @@ impl BlockChainClient for TestBlockChainClient {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
-			let receipt = Receipt::new(
+			let receipt = BlockReceipts::new(vec![Receipt::new(
 				H256::zero(),
 				U256::zero(),
-				vec![]);
+				vec![])]);
 			let mut rlp = RlpStream::new();
 			rlp.append(&receipt);
 			return Some(rlp.out());

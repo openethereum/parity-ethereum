@@ -297,7 +297,7 @@ impl Discovery {
 					return;
 				}
 				Err(e) => {
-					warn!("UDP send error: {:?}, address: {:?}", e, &data.address);
+					debug!("UDP send error: {:?}, address: {:?}", e, &data.address);
 					return;
 				}
 			}
@@ -317,7 +317,7 @@ impl Discovery {
 			}),
 			Ok(_) => None,
 			Err(e) => {
-				warn!("Error reading UPD socket: {:?}", e);
+				debug!("Error reading UPD socket: {:?}", e);
 				None
 			}
 		}
