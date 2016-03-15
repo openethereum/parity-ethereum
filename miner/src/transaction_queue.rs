@@ -516,11 +516,10 @@ impl TransactionQueue {
 			return;
 		}
 
-		let base_nonce = fetch_nonce(&address);
-		Self::replace_transaction(tx, base_nonce, &mut self.current, &mut self.by_hash);
+		Self::replace_transaction(tx, state_nonce, &mut self.current, &mut self.by_hash);
 		self.last_nonces.insert(address, nonce);
 		// But maybe there are some more items waiting in future?
-		self.move_matching_future_to_current(address, nonce + U256::one(), base_nonce);
+		self.move_matching_future_to_current(address, nonce + U256::one(), state_nonce);
 		self.current.enforce_limit(&mut self.by_hash);
 	}
 
