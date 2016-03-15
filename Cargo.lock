@@ -11,6 +11,7 @@ dependencies = [
  "ethcore-devtools 1.1.0",
  "ethcore-rpc 1.1.0",
  "ethcore-util 1.1.0",
+ "ethjson 0.1.0",
  "ethminer 1.1.0",
  "ethsync 1.1.0",
  "fdlimit 0.1.0",
@@ -284,6 +285,18 @@ dependencies = [
  "time 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "vergen 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethjson"
+version = "0.1.0"
+dependencies = [
+ "ethcore-util 1.1.0",
+ "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex 0.29.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
