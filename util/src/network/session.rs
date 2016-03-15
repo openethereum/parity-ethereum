@@ -213,6 +213,10 @@ impl Session {
 
 	/// Send a protocol packet to peer.
 	pub fn send_packet(&mut self, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), UtilError> {
+		if self.info.capabilities.is_empty() || !self.had_hello {
+			debug!(target: "network", "Sending to unconfirmed session {}, protocol: {}, packet: {}", self.token(), protocol, packet_id);
+			return Err(From::from(NetworkError::BadProtocol));
+		}
 		if self.expired() {
 			return Err(From::from(NetworkError::Expired));
 		}
