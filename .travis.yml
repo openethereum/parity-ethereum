@@ -54,8 +54,6 @@ addons:
     - libdw-dev
 
 script:
-  - echo "$TRAVIS_BUILD_DIR/target"
-  - ls "$TRAVIS_BUILD_DIR/target"
   - if [ "$RUN_TESTS" = "true" ]; then cargo test --release --verbose ${FEATURES} ${TARGETS}; fi
   - if [ "$RUN_BENCHES" = "true" ]; then cargo bench --no-run ${FEATURES} ${TARGETS}; fi
   - if [ "$RUN_BUILD" = "true" ]; then cargo build --release --verbose ${FEATURES}; fi
