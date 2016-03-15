@@ -321,6 +321,14 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn work(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => {
+				// check if we a still syncing and return empty strings int that case
+				{
+					let sync = take_weak!(self.sync);
+					if sync.status().state != SyncState::Idle {
+						return to_value(&(String::new(), String::new(), String::new()));
+					}
+				}
+
 				let miner = take_weak!(self.miner);
 				let client = take_weak!(self.client);
 				let u = miner.sealing_block(client.deref()).lock().unwrap();
