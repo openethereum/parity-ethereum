@@ -72,29 +72,19 @@ macro_rules! uint_overflowing_add_reg {
 	($name:ident, $n_words:expr, $self_expr: expr, $other: expr) => ({
 		let $name(ref me) = $self_expr;
 		let $name(ref you) = $other;
+
 		let mut ret = [0u64; $n_words];
-		let mut carry = [0u64; $n_words];
-		let mut b_carry = false;
-		let mut overflow = false;
+		let mut carry = 0u64;
 
 		for i in 0..$n_words {
-			ret[i] = me[i].wrapping_add(you[i]);
+			let (res1, overflow1) = me[i].overflowing_add(you[i]);
+			let (res2, overflow2) = res1.overflowing_add(carry);
 
-			if ret[i] < me[i] {
-				if i < $n_words - 1 {
-					carry[i + 1] = 1;
-					b_carry = true;
-				} else {
-					overflow = true;
-				}
-			}
+			ret[i] = res2;
+			carry = overflow1 as u64 + overflow2 as u64;
 		}
-		if b_carry {
-			let ret = overflowing!($name(ret).overflowing_add($name(carry)), overflow);
-			(ret, overflow)
-		} else {
-			($name(ret), overflow)
-		}
+
+		($name(ret), carry > 0)
 	})
 }
 
@@ -177,9 +167,28 @@ macro_rules! uint_overflowing_add {
 #[cfg(not(all(asm_available, target_arch="x86_64")))]
 macro_rules! uint_overflowing_sub {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
-		let res = overflowing!((!$other).overflowing_add(From::from(1u64)));
-		let res = overflowing!($self_expr.overflowing_add(res));
-		(res, $self_expr < $other)
+		uint_overflowing_sub_reg!($name, $n_words, $self_expr, $other)
+	})
+}
+
+macro_rules! uint_overflowing_sub_reg {
+	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
+		let $name(ref me) = $self_expr;
+		let $name(ref you) = $other;
+
+		let mut ret = [0u64; $n_words];
+		let mut carry = 0u64;
+
+		for i in 0..$n_words {
+			let (res1, overflow1) = me[i].overflowing_sub(you[i]);
+			let (res2, overflow2) = res1.overflowing_sub(carry);
+
+			ret[i] = res2;
+			carry = overflow1 as u64 + overflow2 as u64;
+		}
+
+		($name(ret), carry > 0)
+
 	})
 }
 
@@ -253,9 +262,7 @@ macro_rules! uint_overflowing_sub {
 		(U512(result), overflow != 0)
 	});
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
-		let res = overflowing!((!$other).overflowing_add(From::from(1u64)));
-		let res = overflowing!($self_expr.overflowing_add(res));
-		(res, $self_expr < $other)
+		uint_overflowing_sub_reg!($name, $n_words, $self_expr, $other)
 	})
 }
 
@@ -388,14 +395,50 @@ macro_rules! uint_overflowing_mul {
 
 macro_rules! uint_overflowing_mul_reg {
 	($name:ident, $n_words: expr, $self_expr: expr, $other: expr) => ({
-		let mut res = $name::from(0u64);
-		let mut overflow = false;
-		for i in 0..(2 * $n_words) {
-			let v = overflowing!($self_expr.overflowing_mul_u32(($other >> (32 * i)).low_u32()), overflow);
-			let res2 = overflowing!(v.overflowing_shl(32 * i as u32), overflow);
-			res = overflowing!(res.overflowing_add(res2), overflow);
+		let $name(ref me) = $self_expr;
+		let $name(ref you) = $other;
+		let mut ret = [0u64; 2*$n_words];
+
+		for i in 0..$n_words {
+			if you[i] == 0 {
+				continue;
+			}
+
+			let mut carry2 = 0u64;
+			let (b_u, b_l) = split(you[i]);
+
+			for j in 0..$n_words {
+				if me[j] == 0 && carry2 == 0 {
+					continue;
+				}
+
+				let a = split(me[j]);
+
+				// multiply parts
+				let (c_l, overflow_l) = mul_u32(a, b_l, ret[i + j]);
+				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
+				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
+
+				// Only single overflow possible here
+				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
+				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
+
+				ret[i + j + 1] = carry;
+				carry2 = o as u64;
+			}
 		}
-		(res, overflow)
+
+		let mut res = [0u64; $n_words];
+		let mut overflow = false;
+		for i in 0..$n_words {
+			res[i] = ret[i];
+		}
+
+		for i in $n_words..2*$n_words {
+			overflow |= ret[i] != 0;
+		}
+
+		($name(res), overflow)
 	})
 }
 
@@ -421,6 +464,23 @@ macro_rules! panic_on_overflow {
 			panic!("arithmetic operation overflow")
 		}
 	}
+}
+
+#[inline(always)]
+fn mul_u32(a: (u64, u64), b: u64, carry: u64) -> (u64, u64) {
+	let upper = b * a.0;
+	let lower = b * a.1;
+
+	let (res1, overflow1) = lower.overflowing_add(upper << 32);
+	let (res2, overflow2) = res1.overflowing_add(carry);
+
+	let carry = (upper >> 32) + overflow1 as u64 + overflow2 as u64;
+	(res2, carry)
+}
+
+#[inline(always)]
+fn split(a: u64) -> (u64, u64) {
+	(a >> 32, a & 0xFFFFFFFF)
 }
 
 /// Large, fixed-length unsigned integer type.
@@ -481,9 +541,6 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 
 	/// Returns negation of this `Uint` and overflow (always true)
 	fn overflowing_neg(self) -> (Self, bool);
-
-	/// Shifts this `Uint` and returns overflow
-	fn overflowing_shl(self, shift: u32) -> (Self, bool);
 }
 
 macro_rules! construct_uint {
@@ -672,92 +729,32 @@ macro_rules! construct_uint {
 			fn overflowing_neg(self) -> ($name, bool) {
 				(!self, true)
 			}
-
-			fn overflowing_shl(self, shift32: u32) -> ($name, bool) {
-				let $name(ref original) = self;
-				let mut ret = [0u64; $n_words];
-				let shift = shift32 as usize;
-				let word_shift = shift / 64;
-				let bit_shift = shift % 64;
-				for i in 0..$n_words {
-					// Shift
-					if i + word_shift < $n_words {
-						ret[i + word_shift] += original[i] << bit_shift;
-					}
-					// Carry
-					if bit_shift > 0 && i + word_shift + 1 < $n_words {
-						ret[i + word_shift + 1] += original[i] >> (64 - bit_shift);
-					}
-				}
-				// Detecting overflow
-				let last = $n_words - word_shift - if bit_shift > 0 { 1 } else { 0 };
-				let overflow = if bit_shift > 0 {
-					(original[last] >> (64 - bit_shift)) > 0
-				} else if word_shift > 0 {
-					original[last] > 0
-				} else {
-					false
-				};
-
-				for i in last+1..$n_words-1 {
-					if original[i] > 0 {
-						return ($name(ret), true);
-					}
-				}
-				($name(ret), overflow)
-			}
 		}
 
 		impl $name {
 			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Multiplication by u32
 			fn mul_u32(self, other: u32) -> Self {
-				let $name(ref arr) = self;
-				let mut carry = [0u64; $n_words];
-				let mut ret = [0u64; $n_words];
-				for i in 0..$n_words {
-					let upper = other as u64 * (arr[i] >> 32);
-					let lower = other as u64 * (arr[i] & 0xFFFFFFFF);
-
-					ret[i] = lower.wrapping_add(upper << 32);
-
-					if i < $n_words - 1 {
-						carry[i + 1] = upper >> 32;
-						if ret[i] < lower {
-							carry[i + 1] += 1;
-						}
-					}
-				}
-				$name(ret) + $name(carry)
+				let (ret, overflow) = self.overflowing_mul_u32(other);
+				panic_on_overflow!(overflow);
+				ret
 			}
 
 			#[allow(dead_code)] // not used when multiplied with inline assembly
 			/// Overflowing multiplication by u32
 			fn overflowing_mul_u32(self, other: u32) -> (Self, bool) {
 				let $name(ref arr) = self;
-				let mut carry = [0u64; $n_words];
 				let mut ret = [0u64; $n_words];
-				let mut overflow = false;
+				let mut carry = 0;
+				let o = other as u64;
+
 				for i in 0..$n_words {
-					let upper = other as u64 * (arr[i] >> 32);
-					let lower = other as u64 * (arr[i] & 0xFFFFFFFF);
-
-					ret[i] = lower.wrapping_add(upper << 32);
-
-					if i < $n_words - 1 {
-						carry[i + 1] = upper >> 32;
-						if ret[i] < lower {
-							carry[i + 1] += 1;
-						}
-					} else if (upper >> 32) > 0 || ret[i] < lower {
-						overflow = true
-					}
+					let (res, carry2) = mul_u32(split(arr[i]), o, carry);
+					ret[i] = res;
+					carry = carry2;
 				}
-				let result = overflowing!(
-					$name(ret).overflowing_add($name(carry)),
-					overflow
-					);
-				(result, overflow)
+
+				($name(ret), carry > 0)
 			}
 		}
 
@@ -1006,14 +1003,15 @@ macro_rules! construct_uint {
 				let mut ret = [0u64; $n_words];
 				let word_shift = shift / 64;
 				let bit_shift = shift % 64;
-				for i in 0..$n_words {
-					// Shift
-					if i + word_shift < $n_words {
-						ret[i + word_shift] += original[i] << bit_shift;
-					}
-					// Carry
-					if bit_shift > 0 && i + word_shift + 1 < $n_words {
-						ret[i + word_shift + 1] += original[i] >> (64 - bit_shift);
+
+				// shift
+				for i in word_shift..$n_words {
+					ret[i] += original[i - word_shift] << bit_shift;
+				}
+				// carry
+				if bit_shift > 0 {
+					for i in word_shift+1..$n_words {
+						ret[i] += original[i - 1 - word_shift] >> (64 - bit_shift);
 					}
 				}
 				$name(ret)
@@ -1028,6 +1026,7 @@ macro_rules! construct_uint {
 				let mut ret = [0u64; $n_words];
 				let word_shift = shift / 64;
 				let bit_shift = shift % 64;
+
 				for i in word_shift..$n_words {
 					// Shift
 					ret[i - word_shift] += original[i] >> bit_shift;
@@ -1044,9 +1043,11 @@ macro_rules! construct_uint {
 			fn cmp(&self, other: &$name) -> Ordering {
 				let &$name(ref me) = self;
 				let &$name(ref you) = other;
-				for i in 0..$n_words {
-					if me[$n_words - 1 - i] < you[$n_words - 1 - i] { return Ordering::Less; }
-					if me[$n_words - 1 - i] > you[$n_words - 1 - i] { return Ordering::Greater; }
+				let mut i = $n_words;
+				while i > 0 {
+					i -= 1;
+					if me[i] < you[i] { return Ordering::Less; }
+					if me[i] > you[i] { return Ordering::Greater; }
 				}
 				Ordering::Equal
 			}
@@ -1259,10 +1260,40 @@ impl U256 {
 	/// No overflow possible
 	#[cfg(not(all(asm_available, target_arch="x86_64")))]
 	pub fn full_mul(self, other: U256) -> U512 {
-		let self_512 = U512::from(self);
-		let other_512 = U512::from(other);
-		let (result, _) = self_512.overflowing_mul(other_512);
-		result
+		let U256(ref me) = self;
+		let U256(ref you) = other;
+		let mut ret = [0u64; 8];
+
+		for i in 0..4 {
+			if you[i] == 0 {
+				continue;
+			}
+
+			let mut carry2 = 0u64;
+			let (b_u, b_l) = split(you[i]);
+
+			for j in 0..4 {
+				if me[j] == 0 && carry2 == 0 {
+					continue;
+				}
+
+				let a = split(me[j]);
+
+				// multiply parts
+				let (c_l, overflow_l) = mul_u32(a, b_l, ret[i + j]);
+				let (c_u, overflow_u) = mul_u32(a, b_u, c_l >> 32);
+				ret[i + j] = (c_l & 0xFFFFFFFF) + (c_u << 32);
+
+				// Only single overflow possible here
+				let carry = (c_u >> 32) + (overflow_u << 32) + overflow_l + carry2;
+				let (carry, o) = carry.overflowing_add(ret[i + j + 1]);
+
+				ret[i + j + 1] = carry;
+				carry2 = o as u64;
+			}
+		}
+
+		U512(ret)
 	}
 }
 
@@ -1529,6 +1560,18 @@ mod tests {
 	}
 
 	#[test]
+	pub fn uint256_simple_mul() {
+		let a = U256::from_str("10000000000000000").unwrap();
+		let b = U256::from_str("10000000000000000").unwrap();
+
+		let c = U256::from_str("100000000000000000000000000000000").unwrap();
+		println!("Multiplying");
+		let result = a.overflowing_mul(b);
+		println!("Got result");
+		assert_eq!(result, (c, false))
+	}
+
+	#[test]
 	pub fn uint256_extreme_bitshift_test() {
 		//// Shifting a u64 by 64 bits gives an undefined value, so make sure that
 		//// we're doing the Right Thing here
@@ -1593,6 +1636,14 @@ mod tests {
 	#[test]
 	pub fn uint256_mul1() {
 		assert_eq!(U256::from(1u64) * U256::from(10u64), U256::from(10u64));
+	}
+
+	#[test]
+	pub fn uint256_mul2() {
+		let a = U512::from_str("10000000000000000fffffffffffffffe").unwrap();
+		let b = U512::from_str("ffffffffffffffffffffffffffffffff").unwrap();
+
+		assert_eq!(a * b, U512::from_str("10000000000000000fffffffffffffffcffffffffffffffff0000000000000002").unwrap());
 	}
 
 	#[test]
@@ -1690,54 +1741,25 @@ mod tests {
 	}
 
 	#[test]
-	pub fn uint256_shl_overflow() {
+	pub fn uint256_shl() {
 		assert_eq!(
 			U256::from_str("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(4),
-			(U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap(), true)
+			<< 4,
+			U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap()
 		);
 	}
 
 	#[test]
-	pub fn uint256_shl_overflow_words() {
+	pub fn uint256_shl_words() {
 		assert_eq!(
 			U256::from_str("0000000000000001ffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(64),
-			(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000").unwrap(), true)
+			<< 64,
+			U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000").unwrap()
 		);
 		assert_eq!(
 			U256::from_str("0000000000000000ffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(64),
-			(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000").unwrap(), false)
-		);
-	}
-
-	#[test]
-	pub fn uint256_shl_overflow_words2() {
-		assert_eq!(
-			U256::from_str("00000000000000000000000000000001ffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(128),
-			(U256::from_str("ffffffffffffffffffffffffffffffff00000000000000000000000000000000").unwrap(), true)
-		);
-		assert_eq!(
-			U256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(128),
-			(U256::from_str("ffffffffffffffffffffffffffffffff00000000000000000000000000000000").unwrap(), false)
-		);
-		assert_eq!(
-			U256::from_str("00000000000000000000000000000000ffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(129),
-			(U256::from_str("fffffffffffffffffffffffffffffffe00000000000000000000000000000000").unwrap(), true)
-		);
-	}
-
-
-	#[test]
-	pub fn uint256_shl_overflow2() {
-		assert_eq!(
-			U256::from_str("0fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()
-			.overflowing_shl(4),
-			(U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0").unwrap(), false)
+			<< 64,
+			U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000").unwrap()
 		);
 	}
 
