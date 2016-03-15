@@ -18,15 +18,15 @@
 
 use std::collections::BTreeMap;
 use std::ops::Deref;
-use hash::Hash;
+use hash::Address;
 use blockchain::account::Account;
 
 /// Blockchain test state deserializer.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct State(BTreeMap<Hash, Account>);
+pub struct State(BTreeMap<Address, Account>);
 
 impl Deref for State {
-	type Target = BTreeMap<Hash, Account>;
+	type Target = BTreeMap<Address, Account>;
 
 	fn deref(&self) -> &Self::Target {
 		&self.0
