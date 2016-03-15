@@ -18,6 +18,7 @@ use rayon::prelude::*;
 use std::sync::{Mutex, RwLock, Arc};
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
+use std::collections::HashSet;
 
 use util::{H256, U256, Address, Bytes, Uint};
 use ethcore::views::{BlockView};
@@ -174,21 +175,10 @@ impl MinerService for Miner {
 			let block = BlockView::new(&block);
 			block.transactions()
 		}
-
 		{
-			let in_chain = vec![imported, enacted, invalid];
-			let in_chain = in_chain
-				.par_iter()
-				.flat_map(|h| h.par_iter().map(|h| fetch_transactions(chain, h)));
 			let out_of_chain = retracted
 				.par_iter()
 				.map(|h| fetch_transactions(chain, h));
-
-			in_chain.for_each(|txs| {
-				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
-				transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
-			});
 			out_of_chain.for_each(|txs| {
 				// populate sender
 				for tx in &txs {
@@ -196,6 +186,28 @@ impl MinerService for Miner {
 				}
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
 				let _ = transaction_queue.add_all(txs, |a| chain.nonce(a));
+			});
+		}
+		// First import all transactions and after that remove old ones
+		{
+			let in_chain = {
+				let mut in_chain = HashSet::new();
+				in_chain.extend(imported);
+				in_chain.extend(enacted);
+				in_chain.extend(invalid);
+				in_chain
+					.into_iter()
+					.collect::<Vec<H256>>()
+			};
+
+			let in_chain = in_chain
+				.par_iter()
+				.map(|h: &H256| fetch_transactions(chain, h));
+
+			in_chain.for_each(|txs| {
+				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
+				let mut transaction_queue = self.transaction_queue.lock().unwrap();
+				transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
 			});
 		}
 
