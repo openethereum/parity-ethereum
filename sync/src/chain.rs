@@ -481,6 +481,7 @@ impl ChainSync {
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
 		if !self.have_common_block {
 			trace!(target: "sync", "NewBlock ignored while seeking");
+			return;
 		}
 		let header: BlockHeader = try!(header_rlp.as_val());
  		let mut unknown = false;
