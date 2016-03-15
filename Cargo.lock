@@ -184,11 +184,11 @@ dependencies = [
 [[package]]
 name = "eth-secp256k1"
 version = "0.5.4"
-source = "git+https://github.com/ethcore/rust-secp256k1#283a0677d8327536be58a87e0494d7e0e7b1d1d8"
+source = "git+https://github.com/ethcore/rust-secp256k1#b6fdd43bbcf6d46adb72a92dd1632a0fc834cbf5"
 dependencies = [
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "gcc 0.3.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",

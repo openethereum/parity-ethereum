@@ -504,10 +504,10 @@ impl BlockChain {
 				batch.put_extras(hash, tx_address);
 				write_txs.remove(hash);
 			}
-		}
 
-		// update extras database
-		self.extras_db.write(batch).unwrap();
+			// update extras database
+			self.extras_db.write(batch).unwrap();
+		}
 	}
 
 	/// Iterator that lists `first` and then all of `first`'s ancestors, by hash.
