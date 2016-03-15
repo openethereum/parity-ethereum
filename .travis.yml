@@ -28,6 +28,7 @@ addons:
     - libdw-dev
     - clang
     - libc++-dev
+    - g++
 script:
 - env CC=clang CXX=clang++ cargo test --release --verbose ${FEATURES} ${TARGETS}
 - env CC=clang CXX=clang++ cargo build --release --verbose ${FEATURES}
