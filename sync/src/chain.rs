@@ -479,6 +479,9 @@ impl ChainSync {
 		let header_rlp = try!(block_rlp.at(0));
 		let h = header_rlp.as_raw().sha3();
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
+		if !self.have_common_block {
+			trace!(target: "sync", "NewBlock ignored while seeking");
+		}
 		let header: BlockHeader = try!(header_rlp.as_val());
  		let mut unknown = false;
 		{
@@ -498,9 +501,10 @@ impl ChainSync {
 				Ok(_) => {
 					if self.current_base_block() < header.number {
 						self.last_imported_block = Some(header.number);
+						self.last_imported_hash = Some(header.hash());
 						self.remove_downloaded_blocks(header.number);
 					}
-					trace!(target: "sync", "New block queued {:?}", h);
+					trace!(target: "sync", "New block queued {:?} ({})", h, header.number);
 				},
 				Err(Error::Block(BlockError::UnknownParent(p))) => {
 					unknown = true;
@@ -779,7 +783,7 @@ impl ChainSync {
 		{
 			let headers = self.headers.range_iter().next().unwrap();
 			let bodies = self.bodies.range_iter().next().unwrap();
-			if headers.0 != bodies.0 || headers.0 != self.current_base_block() + 1 {
+			if headers.0 != bodies.0 || headers.0 > self.current_base_block() + 1 {
 				return;
 			}
 
