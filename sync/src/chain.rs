@@ -481,6 +481,7 @@ impl ChainSync {
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
 		if !self.have_common_block {
 			trace!(target: "sync", "NewBlock ignored while seeking");
+			return Ok(());
 		}
 		let header: BlockHeader = try!(header_rlp.as_val());
  		let mut unknown = false;
@@ -1497,6 +1498,7 @@ mod tests {
 
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		sync.have_common_block = true;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		let block = UntrustedRlp::new(&block_data);
