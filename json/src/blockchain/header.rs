@@ -16,15 +16,15 @@
 
 //! Blockchain test header deserializer.
 
-use hash::Hash;
+use hash::{H64, H256, Bloom};
 use uint::Uint;
 use bytes::Bytes;
 
 /// Blockchain test header deserializer.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Header {
-	bloom: Hash, // TODO Bloom
-	coinbase: Hash,
+	bloom: Bloom,
+	coinbase: H256,
 	difficulty: Uint,
 	#[serde(rename="extraData")]
 	extra_data: Bytes,
@@ -32,20 +32,20 @@ pub struct Header {
 	gas_limit: Uint,
 	#[serde(rename="gasUsed")]
 	gas_used: Uint,
-	hash: Hash,
+	hash: H256,
 	#[serde(rename="mixHash")]
-	mix_hash: Hash,
-	nonce: Uint, // TODO fix parsing
+	mix_hash: H256,
+	nonce: H64,
 	number: Uint,
 	#[serde(rename="parentHash")]
-	parent_hash: Hash,
+	parent_hash: H256,
 	#[serde(rename="receiptTrie")]
-	receipt_trie: Hash,
+	receipt_trie: H256,
 	#[serde(rename="stateRoot")]
-	state_root: Hash,
+	state_root: H256,
 	timestamp: Uint,
 	#[serde(rename="transactionsTrie")]
-	transactions_trie: Hash,
+	transactions_trie: H256,
 	#[serde(rename="uncleHash")]
-	uncle_hash: Hash,
+	uncle_hash: H256,
 }

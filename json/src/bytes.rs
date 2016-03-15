@@ -58,24 +58,26 @@ impl Visitor for BytesVisitor {
 }
 
 #[cfg(test)]
-//mod test {
-	//use std::str::FromStr;
-	//use serde_json;
-	//use util::hash::H256;
-	//use hash::Hash;
+mod test {
+	use serde_json;
+	use bytes::Bytes;
 
-	//#[test]
-	//fn uint_deserialization() {
-		//let s = r#"["", "5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae"]"#;
-		//let deserialized: Vec<Hash> = serde_json::from_str(s).unwrap();
-		//assert_eq!(deserialized, vec![
-				   //Hash(H256::from(0)),
-				   //Hash(H256::from_str("5a39ed1020c04d4d84539975b893a4e7c53eab6c2965db8bc3468093a31bc5ae").unwrap())
-		//]);
-	//}
+	#[test]
+	fn bytes_deserialization() {
+		let s = r#"["", "0x", "0x12", "1234"]"#;
+		let deserialized: Vec<Bytes> = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized, vec![
+			Bytes(vec![]),
+			Bytes(vec![]),
+			Bytes(vec![0x12]),
+			Bytes(vec![0x12, 0x34])
+		]);
+	}
 
-	//#[test]
-	//fn uint_into() {
-		//assert_eq!(H256::from(0), Hash(H256::from(0)).into());
-	//}
-//}
+	#[test]
+	fn bytes_into() {
+		let bytes = Bytes(vec![0xff, 0x11]);
+		let v: Vec<u8> = bytes.into();
+		assert_eq!(vec![0xff, 0x11], v);
+	}
+}
