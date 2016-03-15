@@ -46,7 +46,9 @@ macro_rules! impl_hash {
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
 						let value = match value.len() {
 							0 => $inner::from(0),
-							_ => try!($inner::from_str(value).map_err(|_| Error::custom("invalid hex value.")))
+							_ => try!($inner::from_str(value).map_err(|_| {
+								Error::custom(format!("Invalid hex value {}.", value).as_ref())
+							}))
 						};
 
 						Ok($name(value))
