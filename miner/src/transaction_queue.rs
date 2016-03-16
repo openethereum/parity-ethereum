@@ -777,8 +777,10 @@ mod test {
 	#[test]
 	fn should_correctly_update_futures_when_removing() {
 		// given
-		let prev_nonce = |a: &Address| default_nonce(a) - U256::one();
-		let next2_nonce = |a: &Address| default_nonce(a) + U256::from(2);
+		let prev_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce - U256::one(), balance:
+			!U256::zero() };
+		let next2_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce + U256::from(2), balance:
+			!U256::zero() };
 
 		let mut txq = TransactionQueue::new();
 
@@ -923,7 +925,7 @@ mod test {
 		let mut txq = TransactionQueue::new();
 		let tx = new_tx();
 		let last_nonce = tx.nonce + U256::one();
-		let fetch_last_nonce = |_a: &Address| last_nonce;
+		let fetch_last_nonce = |_a: &Address| AccountDetails{ nonce: last_nonce, balance: !U256::zero() };
 
 		// when
 		txq.add(tx, &fetch_last_nonce).unwrap();
@@ -937,7 +939,8 @@ mod test {
 	#[test]
 	fn should_not_insert_same_transaction_twice() {
 		// given
-		let nonce = |a: &Address| default_nonce(a) + U256::one();
+		let nonce = |a: &Address| AccountDetails { nonce: default_nonce(a).nonce + U256::one(),
+			balance: !U256::zero() };
 		let mut txq = TransactionQueue::new();
 		let (_tx1, tx2) = new_txs(U256::from(1));
 		txq.add(tx2.clone(), &default_nonce).unwrap();
@@ -977,7 +980,7 @@ mod test {
 	#[test]
 	fn should_not_move_to_future_if_state_nonce_is_higher() {
 		// given
-		let next_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce + U256::one(), balance:
+		let next_nonce = |a: &Address| AccountDetails { nonce: default_nonce(a).nonce + U256::one(), balance:
 			!U256::zero() };
 		let mut txq = TransactionQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
