@@ -402,6 +402,12 @@ impl ChainSync {
 							debug!(target: "sync", "Mismatched block header {}", number + 1);
 							self.remove_downloaded_blocks(number + 1);
 						}
+						if self.have_common_block && number < self.current_base_block() + 1 {
+							// unkown header 
+							debug!(target: "sync", "Old block header {:?} ({}) is unknown, restarting sync", hash, number);
+							self.restart(io);
+							return Ok(());
+						}
 					}
 					let hdr = Header {
 						data: try!(r.at(i)).as_raw().to_vec(),
