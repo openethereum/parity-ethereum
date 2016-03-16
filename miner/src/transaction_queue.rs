@@ -34,7 +34,7 @@
 //!	use util::crypto::KeyPair;
 //! use util::hash::Address;
 //! use util::numbers::{Uint, U256};
-//!	use ethminer::TransactionQueue;
+//!	use ethminer::{TransactionQueue, AccountDetails};
 //!	use ethcore::transaction::*;
 //!	use rustc_serialize::hex::FromHex;
 //!
@@ -47,7 +47,10 @@
 //!
 //!		let st1 = t1.sign(&key.secret());
 //!		let st2 = t2.sign(&key.secret());
-//!		let default_nonce = |_a: &Address| U256::from(10);
+//!		let default_nonce = |_a: &Address| AccountDetails {
+//!			nonce: U256::from(10),
+//!			balance: U256::from(10_000),
+//!		};
 //!
 //!		let mut txq = TransactionQueue::new();
 //!		txq.add(st2.clone(), &default_nonce);
@@ -675,6 +678,25 @@ mod test {
 		assert!(res.is_ok());
 		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
+	}
+
+	#[test]
+	fn should_drop_transactions_from_senders_without_balance() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		let account = |a: &Address| AccountDetails {
+			nonce: default_nonce(a).nonce,
+			balance: U256::one()
+		};
+
+		// when
+		txq.add(tx, &account).unwrap_err();
+
+		// then
+		let stats = txq.status();
+		assert_eq!(stats.pending, 0);
+		assert_eq!(stats.future, 0);
 	}
 
 	#[test]
