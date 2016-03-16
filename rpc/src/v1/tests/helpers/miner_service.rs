@@ -22,7 +22,19 @@ use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
 use ethminer::{MinerService, MinerStatus};
 
-pub struct TestMinerService;
+pub struct TestMinerService {
+	pub imported_transactions: RwLock<Vec<H256>>,
+	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
+}
+
+impl Default for TestMinerService {
+	fn default() -> TestMinerService {
+		TestMinerService {
+			imported_transactions: RwLock::new(Vec::new()),
+			latest_closed_block: Mutex::new(None),
+		}
+	}
+}
 
 impl MinerService for TestMinerService {
 
@@ -45,7 +57,9 @@ impl MinerService for TestMinerService {
 	fn prepare_sealing(&self, _chain: &BlockChainClient) { unimplemented!(); }
 
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self, _chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> { unimplemented!(); }
+	fn sealing_block(&self, _chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
+		&self.latest_closed_block
+	}
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.

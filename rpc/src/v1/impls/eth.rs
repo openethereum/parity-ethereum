@@ -340,7 +340,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 						let seed_hash = Ethash::get_seedhash(b.block().header().number());
 						to_value(&(pow_hash, seed_hash, target))
 					}
-					_ => Err(Error::invalid_params())
+					_ => Err(Error::internal_error())
 				}
 			},
 			_ => Err(Error::invalid_params())

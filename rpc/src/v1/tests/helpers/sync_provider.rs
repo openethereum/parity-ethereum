@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethsync::{SyncProvider, SyncStatus, SyncState};
+use std::sync::{RwLock};
 
 pub struct Config {
 	pub protocol_version: u8,
@@ -22,13 +23,13 @@ pub struct Config {
 }
 
 pub struct TestSyncProvider {
-	status: SyncStatus,
+	pub status: RwLock<SyncStatus>,
 }
 
 impl TestSyncProvider {
 	pub fn new(config: Config) -> Self {
 		TestSyncProvider {
-			status: SyncStatus {
+			status: RwLock::new(SyncStatus {
 				state: SyncState::NotSynced,
 				protocol_version: config.protocol_version,
 				start_block_number: 0,
@@ -39,14 +40,14 @@ impl TestSyncProvider {
 				num_peers: config.num_peers,
 				num_active_peers: 0,
 				mem_used: 0,
-			},
+			})
 		}
 	}
 }
 
 impl SyncProvider for TestSyncProvider {
 	fn status(&self) -> SyncStatus {
-		self.status.clone()
+		self.status.read().unwrap().clone()
 	}
 }
 
