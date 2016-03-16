@@ -38,7 +38,7 @@ use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
-use ethminer::{Miner, MinerService};
+use ethminer::{Miner, MinerService, AccountDetails};
 use io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -961,8 +961,11 @@ impl ChainSync {
 			transactions.push(tx);
 		}
 		let chain = io.chain();
-		let fetch_nonce = |a: &Address| chain.nonce(a);
-		let _ = self.miner.import_transactions(transactions, fetch_nonce);
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: chain.nonce(a),
+			balance: chain.balance(a)
+		};
+		let _ = self.miner.import_transactions(transactions, fetch_account);
  		Ok(())
 	}
 
