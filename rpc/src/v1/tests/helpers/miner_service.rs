@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, H256, U256, Bytes};
+use util::{Address, H256, Bytes};
 use util::standard::*;
 use ethcore::error::Error;
 use ethcore::client::BlockChainClient;
