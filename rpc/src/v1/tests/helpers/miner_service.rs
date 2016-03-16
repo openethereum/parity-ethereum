@@ -20,7 +20,7 @@ use ethcore::error::Error;
 use ethcore::client::BlockChainClient;
 use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
-use ethminer::{MinerService, MinerStatus};
+use ethminer::{MinerService, MinerStatus, AccountDetails};
 
 pub struct TestMinerService;
 
@@ -30,7 +30,8 @@ impl MinerService for TestMinerService {
 	fn status(&self) -> MinerStatus { unimplemented!(); }
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_nonce: T) -> Result<(), Error> where T: Fn(&Address) -> U256 { unimplemented!(); }
+	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_account: T) -> Result<(), Error>
+		where T: Fn(&Address) -> AccountDetails { unimplemented!(); }
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self) -> Vec<H256> { unimplemented!(); }

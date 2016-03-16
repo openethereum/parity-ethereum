@@ -26,7 +26,7 @@ use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock};
 use ethcore::error::{Error};
 use ethcore::transaction::SignedTransaction;
-use super::{MinerService, MinerStatus, TransactionQueue};
+use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
@@ -72,7 +72,7 @@ impl Miner {
 
 	/// Get the extra_data that we will seal blocks wuth.
 	fn gas_floor_target(&self) -> U256 {
-		self.gas_floor_target.read().unwrap().clone()
+		*self.gas_floor_target.read().unwrap()
 	}
 
 	/// Set the author that we will seal blocks as.
@@ -111,10 +111,10 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
-		where T: Fn(&Address) -> U256 {
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Result<(), Error>
+		where T: Fn(&Address) -> AccountDetails {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.add_all(transactions, fetch_nonce)
+		transaction_queue.add_all(transactions, fetch_account)
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
@@ -185,7 +185,10 @@ impl MinerService for Miner {
 					let _sender = tx.sender();
 				}
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				let _ = transaction_queue.add_all(txs, |a| chain.nonce(a));
+				let _ = transaction_queue.add_all(txs, |a| AccountDetails {
+					nonce: chain.nonce(a),
+					balance: chain.balance(a)
+				});
 			});
 		}
 		// First import all transactions and after that remove old ones
@@ -207,7 +210,10 @@ impl MinerService for Miner {
 			in_chain.for_each(|txs| {
 				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
+				transaction_queue.remove_all(&hashes, |a| AccountDetails {
+					nonce: chain.nonce(a),
+					balance: chain.balance(a)
+				});
 			});
 		}
 
