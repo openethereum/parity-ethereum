@@ -252,7 +252,6 @@ pub struct AccountDetails {
 	pub balance: U256,
 }
 
-
 /// Transactions with `gas > (gas_limit + gas_limit * Factor(in percents))` are not imported to the queue.
 const GAS_LIMIT_HYSTERESIS: usize = 10; // %
 
