@@ -21,6 +21,8 @@ use engine::*;
 use pod_state::*;
 use null_engine::*;
 use account_db::*;
+use ethereum;
+use super::genesis::{Seal as GenesisSeal, Genesis};
 
 /// Convert JSON value to equivalent RLP representation.
 // TODO: handle container types.
@@ -106,7 +108,7 @@ impl Spec {
 	pub fn to_engine(self) -> Result<Box<Engine>, Error> {
 		match self.engine_name.as_ref() {
 			"NullEngine" => Ok(NullEngine::new_boxed(self)),
-			"Ethash" => Ok(super::ethereum::Ethash::new_boxed(self)),
+			"Ethash" => Ok(ethereum::Ethash::new_boxed(self)),
 			_ => Err(Error::UnknownEngineName(self.engine_name.clone()))
 		}
 	}
@@ -195,6 +197,32 @@ impl Spec {
 		self.seal_fields = seal_fields;
 		self.seal_rlp = seal_rlp;
 		self.state_root_memo = RwLock::new(genesis.find("stateRoot").and_then(|_| Some(H256::from_json(&genesis["stateRoot"]))));
+	}
+
+	/// Overwrite the genesis components.
+	pub fn overwrite_genesis_params(&mut self, g: Genesis) {
+		let (seal_fields, seal_rlp) = match g.seal {
+			GenesisSeal::Generic { fields, rlp } => (fields, rlp),
+			GenesisSeal::Ethereum { nonce, mix_hash } => {
+				let mut s = RlpStream::new();
+				s.append(&mix_hash);
+				s.append(&nonce);
+				(2, s.out())
+			}
+		};
+
+		self.parent_hash = g.parent_hash;
+		self.transactions_root = g.transactions_root;
+		self.receipts_root = g.receipts_root;
+		self.author = g.author;
+		self.difficulty = g.difficulty;
+		self.gas_limit = g.gas_limit;
+		self.gas_used = g.gas_used;
+		self.timestamp = g.timestamp;
+		self.extra_data = g.extra_data;
+		self.seal_fields = seal_fields;
+		self.seal_rlp = seal_rlp;
+		self.state_root_memo = RwLock::new(g.state_root);
 	}
 
 	/// Alter the value of the genesis state.
@@ -304,7 +332,7 @@ impl Spec {
 	}
 
 	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
-	pub fn new_test() -> Spec { Self::from_json_utf8(include_bytes!("../res/null_morden.json")) }
+	pub fn new_test() -> Spec { Self::from_json_utf8(include_bytes!("../../res/null_morden.json")) }
 }
 
 #[cfg(test)]

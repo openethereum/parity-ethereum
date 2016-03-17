@@ -53,7 +53,7 @@ pub struct Header {
 	pub parent_hash: H256,
 	/// Receipt root.
 	#[serde(rename="receiptTrie")]
-	pub receipt_root: H256,
+	pub receipts_root: H256,
 	/// State root.
 	#[serde(rename="stateRoot")]
 	pub state_root: H256,

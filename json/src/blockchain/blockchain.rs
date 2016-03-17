@@ -59,6 +59,11 @@ impl BlockChain {
 			timestamp: self.genesis_block.timestamp,
 			parent_hash: self.genesis_block.parent_hash.clone(),
 			gas_limit: self.genesis_block.gas_limit,
+			transactions_root: Some(self.genesis_block.transactions_root.clone()),
+			receipts_root: Some(self.genesis_block.receipts_root.clone()),
+			state_root: Some(self.genesis_block.state_root.clone()),
+			gas_used: Some(self.genesis_block.gas_used),
+			extra_data: Some(self.genesis_block.extra_data.clone()),
 		}
 	}
 }

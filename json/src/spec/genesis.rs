@@ -33,7 +33,7 @@ pub struct Genesis {
 	// new seal // TODO: consider moving it to a separate seal structure
 	#[serde(rename="sealFields")]
 	/// Number of seal fields.
-	pub seal_fields: Option<Uint>,
+	pub seal_fields: Option<usize>,
 	#[serde(rename="sealRlp")]
 	/// Seal rlp.
 	pub seal_rlp: Option<Bytes>,
@@ -50,6 +50,21 @@ pub struct Genesis {
 	/// Gas limit.
 	#[serde(rename="gasLimit")]
 	pub gas_limit: Uint,
+	/// Transactions root.
+	#[serde(rename="transactionsRoot")]
+	pub transactions_root: Option<H256>,
+	/// Receipts root.
+	#[serde(rename="receiptsRoot")]
+	pub receipts_root: Option<H256>,
+	/// State root.
+	#[serde(rename="stateRoot")]
+	pub state_root: Option<H256>,
+	/// Gas used.
+	#[serde(rename="gasUsed")]
+	pub gas_used: Option<Uint>,
+	/// Extra data.
+	#[serde(rename="extraData")]
+	pub extra_data: Option<Bytes>,
 }
 
 #[cfg(test)]
