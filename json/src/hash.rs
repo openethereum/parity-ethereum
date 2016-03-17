@@ -25,7 +25,7 @@ use util::hash::{H64 as Hash64, Address as Hash160, H256 as Hash256, H2048 as Ha
 macro_rules! impl_hash {
 	($name: ident, $inner: ident) => {
 		/// Lenient hash json deserialization for test json files.
-		#[derive(Default, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+		#[derive(Default, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 		pub struct $name($inner);
 
 		impl Into<$inner> for $name {

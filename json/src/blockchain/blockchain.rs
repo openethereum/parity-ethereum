@@ -20,6 +20,7 @@ use bytes::Bytes;
 use blockchain::state::State;
 use blockchain::header::Header;
 use blockchain::block::Block;
+use spec::Genesis;
 
 /// Blockchain deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -44,6 +45,21 @@ impl BlockChain {
 	/// Returns blocks rlp.
 	pub fn blocks_rlp(&self) -> Vec<Vec<u8>> {
 		self.blocks.iter().map(|block| block.rlp()).collect()
+	}
+
+	/// Returns spec compatible genesis struct.
+	pub fn genesis(&self) -> Genesis {
+		Genesis {
+			nonce: Some(self.genesis_block.nonce.clone()),
+			mix_hash: Some(self.genesis_block.mix_hash.clone()),
+			seal_fields: None,
+			seal_rlp: None,
+			difficulty: self.genesis_block.difficulty,
+			author: self.genesis_block.author.clone(),
+			timestamp: self.genesis_block.timestamp,
+			parent_hash: self.genesis_block.parent_hash.clone(),
+			gas_limit: self.genesis_block.gas_limit,
+		}
 	}
 }
 

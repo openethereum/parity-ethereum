@@ -17,30 +17,39 @@
 //! Spec genesis deserialization.
 
 use uint::Uint;
-use hash::{Address, H256};
+use hash::{H64, Address, H256};
 use bytes::Bytes;
 
 /// Spec genesis.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Genesis {
 	// old seal
-	nonce: Option<Uint>,
+	/// Seal nonce.
+	pub nonce: Option<H64>,
 	#[serde(rename="mixHash")]
-	mix_hash: Option<H256>,
+	/// Seal mix hash.
+	pub mix_hash: Option<H256>,
 
 	// new seal // TODO: consider moving it to a separate seal structure
 	#[serde(rename="sealFields")]
-	seal_fields: Option<Uint>,
+	/// Number of seal fields.
+	pub seal_fields: Option<Uint>,
 	#[serde(rename="sealRlp")]
-	seal_rlp: Option<Bytes>,
+	/// Seal rlp.
+	pub seal_rlp: Option<Bytes>,
 
-	difficulty: Uint,
-	author: Address,
-	timestamp: Uint,
+	/// Difficulty.
+	pub difficulty: Uint,
+	/// Block author.
+	pub author: Address,
+	/// Block timestamp.
+	pub timestamp: Uint,
+	/// Parent hash.
 	#[serde(rename="parentHash")]
-	parent_hash: H256,
+	pub parent_hash: H256,
+	/// Gas limit.
 	#[serde(rename="gasLimit")]
-	gas_limit: Uint,
+	pub gas_limit: Uint,
 }
 
 #[cfg(test)]
