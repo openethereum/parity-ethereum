@@ -324,6 +324,7 @@ impl<V> Client<V> where V: Verifier {
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,
+					is_last: self.queue_info().is_empty()
 				})).unwrap();
 			}
 		}
@@ -331,12 +332,6 @@ impl<V> Client<V> where V: Verifier {
 		{
 			if self.chain_info().best_block_hash != original_best {
 				io.send(NetworkIoMessage::User(SyncMessage::NewChainHead)).unwrap();
-			}
-		}
-
-		{
-			if self.queue_info().is_empty() {
-				io.send(NetworkIoMessage::User(SyncMessage::BlockQueueEmpty)).expect("error sending message to sync module");
 			}
 		}
 
