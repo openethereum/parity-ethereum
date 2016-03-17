@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_linux_0.9.0-0_amd64.deb
+PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/v1.0.0-rc1/parity_linux_1.0.0.rc1-0_amd64.deb
 
 
 function run_installer()
