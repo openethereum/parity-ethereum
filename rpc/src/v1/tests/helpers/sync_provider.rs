@@ -40,7 +40,7 @@ impl TestSyncProvider {
 				num_peers: config.num_peers,
 				num_active_peers: 0,
 				mem_used: 0,
-			})
+			}),
 		}
 	}
 }
