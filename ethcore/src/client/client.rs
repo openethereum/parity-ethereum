@@ -334,6 +334,12 @@ impl<V> Client<V> where V: Verifier {
 			}
 		}
 
+		{
+			if self.queue_info().is_empty() {
+				io.send(NetworkIoMessage::User(SyncMessage::BlockQueueEmpty)).expect("error sending message to sync module");
+			}
+		}
+
 		imported
 	}
 
