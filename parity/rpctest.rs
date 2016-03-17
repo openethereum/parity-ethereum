@@ -14,19 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate ctrlc;
 extern crate docopt;
 extern crate rustc_serialize;
 extern crate serde_json;
 extern crate ethjson;
+extern crate ethcore_util as util;
 extern crate ethcore;
+extern crate ethcore_devtools as devtools;
+extern crate ethcore_rpc as rpc;
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, Condvar};
 use std::process;
 use std::fs::File;
 use std::path::Path;
 use docopt::Docopt;
+use ctrlc::CtrlC;
 use ethcore::spec::Genesis;
 use ethcore::pod_state::PodState;
 use ethcore::ethereum;
+use ethcore::client::{BlockChainClient, Client, ClientConfig};
+use devtools::RandomTempPath;
+use util::io::IoChannel;
+use rpc::v1::tests::helpers::{TestSyncProvider, Config as SyncConfig, TestMinerService, TestAccountProvider};
+use rpc::v1::{Eth, EthClient};
+use util::panics::MayPanic;
 
 const USAGE: &'static str = r#"
 Parity rpctest client.
@@ -34,13 +47,22 @@ Parity rpctest client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
-  parity --json <test-file> --name <test-name>
+  parity --json <test-file> --name <test-name> [options]
+  parity --help
+
+Options:
+  --jsonrpc-addr HOST      Specify the hostname portion of the JSONRPC API
+                           server [default: 127.0.0.1].
+  --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
+                           [default: 8545].
 "#;
 
 #[derive(Debug, RustcDecodable)]
 struct Args {
 	arg_test_file: String,
 	arg_test_name: String,
+	flag_jsonrpc_addr: String,
+	flag_jsonrpc_port: u16,
 }
 
 struct Configuration {
@@ -81,8 +103,37 @@ impl Configuration {
 		spec.overwrite_genesis_params(genesis);
 		assert!(spec.is_state_root_valid());
 
-		//let temp = RandomTempPath::new();
-		//spec.
+		let temp = RandomTempPath::new();
+		{
+			let client: Arc<Client> = Client::new(ClientConfig::default(), spec, temp.as_path(), IoChannel::disconnected()).unwrap();
+			for b in &blockchain.blocks_rlp() {
+				let _ = client.import_block(b.clone());
+				client.flush_queue();
+				client.import_verified_blocks(&IoChannel::disconnected());
+			}
+			let sync = Arc::new(TestSyncProvider::new(SyncConfig {
+				protocol_version: 65,
+				num_peers: 120
+			}));
+
+			let miner = Arc::new(TestMinerService::default());
+			let accounts = Arc::new(TestAccountProvider::new(HashMap::new()));
+			let server = rpc::RpcServer::new();
+			server.add_delegate(EthClient::new(&client, &sync, &accounts, &miner).to_delegate());
+
+			let url = format!("{}:{}", self.args.flag_jsonrpc_addr, self.args.flag_jsonrpc_port);
+			let panic_handler = server.start_http(url.as_ref(), "*", 1);
+			let exit = Arc::new(Condvar::new());
+
+			let e = exit.clone();
+			CtrlC::set_handler(move || { e.notify_all(); });
+
+			let e = exit.clone();
+			panic_handler.on_panic(move |_reason| { e.notify_all(); });
+
+			let mutex = Mutex::new(());
+			let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+		}
 
 	}
 }
