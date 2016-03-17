@@ -403,7 +403,7 @@ impl ChainSync {
 							self.remove_downloaded_blocks(number + 1);
 						}
 						if self.have_common_block && number < self.current_base_block() + 1 {
-							// unkown header 
+							// unkown header
 							debug!(target: "sync", "Old block header {:?} ({}) is unknown, restarting sync", hash, number);
 							self.restart(io);
 							return Ok(());
@@ -1636,7 +1636,7 @@ mod tests {
 		for h in vec![good_blocks[0], retracted_blocks[0]] {
 			let block = client.block(BlockId::Hash(h)).unwrap();
 			let view = BlockView::new(&block);
-			client.set_balance(view.transactions()[0].sender().unwrap(), U256::from(10_000));
+			client.set_balance(view.transactions()[0].sender().unwrap(), U256::from(1_000_000_000));
 		}
 
 		let mut queue = VecDeque::new();
