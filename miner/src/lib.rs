@@ -108,4 +108,6 @@ pub struct MinerStatus {
 	pub transaction_queue_pending: usize,
 	/// Number of transactions in queue with state `future` (not yet ready to be included in block)
 	pub transaction_queue_future: usize,
+	/// Number of transactions included in currently mined block
+	pub block_pending: usize,
 }

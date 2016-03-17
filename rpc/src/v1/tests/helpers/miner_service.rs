@@ -27,7 +27,13 @@ pub struct TestMinerService;
 impl MinerService for TestMinerService {
 
 	/// Returns miner's status.
-	fn status(&self) -> MinerStatus { unimplemented!(); }
+	fn status(&self) -> MinerStatus {
+		MinerStatus {
+			transaction_queue_pending: 0,
+			transaction_queue_future: 0,
+			block_pending: 1
+		}
+	}
 
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_nonce: T) -> Result<(), Error> where T: Fn(&Address) -> U256 { unimplemented!(); }

@@ -243,6 +243,20 @@ fn rpc_eth_transaction_count_by_number() {
 }
 
 #[test]
+fn rpc_eth_transaction_count_by_number_pending() {
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getBlockTransactionCountByNumber",
+		"params": ["pending"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x01","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+
+#[test]
 fn rpc_eth_uncle_count_by_block_hash() {
 	let request = r#"{
 		"jsonrpc": "2.0",
