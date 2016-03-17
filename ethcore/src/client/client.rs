@@ -391,7 +391,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
+		-> Option<(ClosedBlock, HashSet<H256>)> {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
 
@@ -417,21 +418,41 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 		// Add transactions
 		let block_number = b.block().header().number();
+		let gas_limit = *b.block().header().gas_limit();
+		let mut gas_left = gas_limit;
+		let mut invalid_transactions = HashSet::new();
+
 		for tx in transactions {
+			let hash = tx.hash();
+			let gas = tx.gas;
+			// TODO [todr] It seems that calculating gas_left here doesn't really look nice. After moving this function
+			// to miner crate we should consider rewriting this logic in some better way.
+			if gas > gas_left {
+				trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+				continue;
+			}
+
 			let import = b.push_transaction(tx, None);
-			if let Err(e) = import {
-				trace!("Error adding transaction to block: number={}. Error: {:?}", block_number, e);
+			match import {
+				Err(e) => {
+					trace!(target: "miner", "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
+						   block_number, hash, e);
+					invalid_transactions.insert(hash);
+				},
+				Ok(receipt) => {
+					gas_left = gas_limit - receipt.gas_used;
+				}
 			}
 		}
 
 		// And close
 		let b = b.close();
-		trace!("Sealing: number={}, hash={}, diff={}",
+		trace!(target: "miner", "Sealing: number={}, hash={}, diff={}",
 			   b.block().header().number(),
 			   b.hash(),
 			   b.block().header().difficulty()
 		);
-		Some(b)
+		Some((b, invalid_transactions))
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
