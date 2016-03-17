@@ -65,6 +65,10 @@ pub enum ExecutionError {
 #[derive(Debug)]
 /// Errors concerning transaction processing.
 pub enum TransactionError {
+	/// Transaction is already imported to the queue
+	AlreadyImported,
+	/// Transaction is not valid anymore (state already has higher nonce)
+	Old,
 	/// Transaction's gas price is below threshold.
 	InsufficientGasPrice {
 		/// Minimal expected gas price

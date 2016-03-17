@@ -951,7 +951,8 @@ impl ChainSync {
 			balance: chain.balance(a),
 		};
 		let res = self.miner.import_transactions(transactions, fetch_account);
-		if res.is_ok() {
+		let any_transaction_imported = res.into_iter().any(|r| r.is_ok());
+		if any_transaction_imported {
 			self.miner.update_sealing(io.chain());
 		}
  		Ok(())

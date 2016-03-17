@@ -128,7 +128,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Result<(), Error>
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
 		where T: Fn(&Address) -> AccountDetails {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		transaction_queue.add_all(transactions, fetch_account)
