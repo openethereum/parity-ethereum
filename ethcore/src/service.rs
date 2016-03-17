@@ -40,6 +40,8 @@ pub enum SyncMessage {
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
+	/// blocks queue is empty
+	BlockQueueEmpty,
 }
 
 /// IO Message type used for Network service
