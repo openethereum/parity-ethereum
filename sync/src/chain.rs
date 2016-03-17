@@ -1297,9 +1297,9 @@ impl ChainSync {
 		if io.is_chain_queue_empty() {
 			// Notify miner
 			self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
+			// Propagate latests blocks
+			self.propagate_latest_blocks(io);
 		}
-		// Propagate latests blocks
-		self.propagate_latest_blocks(io);
 		// TODO [todr] propagate transactions?
 	}
 
