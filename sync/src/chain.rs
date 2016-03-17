@@ -625,13 +625,6 @@ impl ChainSync {
 		self.state = SyncState::Waiting;
 	}
 
-	fn can_sync(&self) -> bool {
-		match self.state {
-			SyncState::Idle | SyncState::NotSynced => true,
-			_ => false
-		}
-	}
-
 	/// Find something to do for a peer. Called for a new peer or when a peer is done with it's task.
 	fn sync_peer(&mut self, io: &mut SyncIo,  peer_id: PeerId, force: bool) {
 		let (peer_latest, peer_difficulty) = {
@@ -651,7 +644,7 @@ impl ChainSync {
 		if force || peer_difficulty > syncing_difficulty {
 			// start sync
 			self.syncing_difficulty = peer_difficulty;
-			if self.can_sync() {
+			if self.state == SyncState::Idle || self.state == SyncState::NotSynced {
 				self.state = SyncState::Blocks;
 			}
 			trace!(target: "sync", "Starting sync with better chain");
@@ -1661,7 +1654,6 @@ mod tests {
 		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
 		assert_eq!(sync.miner.status().transactions_in_pending_queue, 1);
 		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
-
 
 		// then
 		let status = sync.miner.status();
