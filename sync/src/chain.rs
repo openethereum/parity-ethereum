@@ -404,6 +404,12 @@ impl ChainSync {
 							debug!(target: "sync", "Mismatched block header {}", number + 1);
 							self.remove_downloaded_blocks(number + 1);
 						}
+						if self.have_common_block && number < self.current_base_block() + 1 {
+							// unkown header 
+							debug!(target: "sync", "Old block header {:?} ({}) is unknown, restarting sync", hash, number);
+							self.restart(io);
+							return Ok(());
+						}
 					}
 					let hdr = Header {
 						data: try!(r.at(i)).as_raw().to_vec(),
@@ -483,6 +489,7 @@ impl ChainSync {
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
 		if !self.have_common_block {
 			trace!(target: "sync", "NewBlock ignored while seeking");
+			return Ok(());
 		}
 		let header: BlockHeader = try!(header_rlp.as_val());
  		let mut unknown = false;
@@ -1520,6 +1527,7 @@ mod tests {
 
 		let mut queue = VecDeque::new();
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		sync.have_common_block = true;
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		let block = UntrustedRlp::new(&block_data);

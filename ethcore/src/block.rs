@@ -423,6 +423,37 @@ mod tests {
 
 	#[test]
 	fn enact_block_with_uncle() {
-		// TODO: test for when there's an uncle.
+		use spec::*;
+		let engine = Spec::new_test().to_engine().unwrap();
+		let genesis_header = engine.spec().genesis_header();
+
+		let mut db_result = get_temp_journal_db();
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		let mut open_block = OpenBlock::new(engine.deref(), db, &genesis_header, vec![genesis_header.hash()], Address::zero(), x!(3141562), vec![]);
+		let mut uncle1_header = Header::new();
+		uncle1_header.extra_data = b"uncle1".to_vec();
+		let mut uncle2_header = Header::new();
+		uncle2_header.extra_data = b"uncle2".to_vec();
+		open_block.push_uncle(uncle1_header).unwrap();
+		open_block.push_uncle(uncle2_header).unwrap();
+		let b = open_block.close().seal(engine.deref(), vec![]).unwrap();
+		
+		let orig_bytes = b.rlp_bytes();
+		let orig_db = b.drain();
+
+		let mut db_result = get_temp_journal_db();
+		let mut db = db_result.take();
+		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		let e = enact_and_seal(&orig_bytes, engine.deref(), db, &genesis_header, vec![genesis_header.hash()]).unwrap();
+
+		let bytes = e.rlp_bytes();
+		assert_eq!(bytes, orig_bytes);
+		let uncles = BlockView::new(&bytes).uncles();
+		assert_eq!(uncles[1].extra_data, b"uncle2");
+
+		let db = e.drain();
+		assert_eq!(orig_db.keys(), db.keys());
+		assert!(orig_db.keys().iter().filter(|k| orig_db.get(k.0) != db.get(k.0)).next() == None);
 	}
 }
