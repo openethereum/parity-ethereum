@@ -1635,6 +1635,7 @@ mod tests {
 		client.add_blocks(1, EachBlockWith::UncleAndTransaction);
 		client.add_blocks(1, EachBlockWith::Transaction);
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		sync.state = SyncState::Idle;
 
 		let good_blocks = vec![client.block_hash_delta_minus(2)];
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
