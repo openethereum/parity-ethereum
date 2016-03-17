@@ -1287,7 +1287,7 @@ impl ChainSync {
 
 	/// called when block is imported to chain, updates transactions queue and propagates the blocks
 	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
-		if io.is_chain_queue_empty() {
+		if io.is_chain_queue_empty() && self.state != SyncState::NotSynced {
 			// Notify miner
 			self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
 			// Propagate latests blocks
