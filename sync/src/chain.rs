@@ -938,7 +938,7 @@ impl ChainSync {
 	/// Called when peer sends us new transactions
 	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		// accepting transactions once only fully synced
-		if !io.is_chain_queue_empty() {
+		if !io.is_chain_queue_empty() || self.state == SyncState::NotSynced {
 			return Ok(());
 		}
 
@@ -1287,7 +1287,7 @@ impl ChainSync {
 
 	/// called when block is imported to chain, updates transactions queue and propagates the blocks
 	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
-		if io.is_chain_queue_empty() {
+		if io.is_chain_queue_empty() && self.state != SyncState::NotSynced {
 			// Notify miner
 			self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
 			// Propagate latests blocks
@@ -1635,6 +1635,7 @@ mod tests {
 		client.add_blocks(1, EachBlockWith::UncleAndTransaction);
 		client.add_blocks(1, EachBlockWith::Transaction);
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+		sync.state = SyncState::Idle;
 
 		let good_blocks = vec![client.block_hash_delta_minus(2)];
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
