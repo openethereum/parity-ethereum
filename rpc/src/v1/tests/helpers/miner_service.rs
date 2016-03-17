@@ -48,7 +48,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_account: T) -> Result<(), Error>
+	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_account: T) -> Vec<Result<(), Error>>
 		where T: Fn(&Address) -> AccountDetails { unimplemented!(); }
 
 	/// Returns hashes of transactions currently in pending
