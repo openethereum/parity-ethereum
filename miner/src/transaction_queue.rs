@@ -343,14 +343,16 @@ impl TransactionQueue {
 			}));
 		}
 
+
 		let vtx = try!(VerifiedTransaction::new(tx));
 		let account = fetch_account(&vtx.sender());
 
-		if account.balance < vtx.transaction.value {
+		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
+		if account.balance < cost {
 			trace!(target: "miner", "Dropping transaction without sufficient balance: {:?} ({} < {})",
-				vtx.hash(), account.balance, vtx.transaction.value);
+				vtx.hash(), account.balance, cost);
 			return Err(Error::Transaction(TransactionError::InsufficientBalance {
-				cost: vtx.transaction.value,
+				cost: cost,
 				balance: account.balance
 			}));
 		}
