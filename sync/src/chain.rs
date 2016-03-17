@@ -1301,6 +1301,7 @@ mod tests {
 	use ::SyncConfig;
 	use util::*;
 	use super::{PeerInfo, PeerAsking};
+	use ethcore::views::BlockView;
 	use ethcore::header::*;
 	use ethcore::client::*;
 	use ethminer::{Miner, MinerService};
@@ -1630,6 +1631,13 @@ mod tests {
 
 		let good_blocks = vec![client.block_hash_delta_minus(2)];
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
+
+		// Add some balance to clients
+		for h in vec![good_blocks[0], retracted_blocks[0]] {
+			let block = client.block(BlockId::Hash(h)).unwrap();
+			let view = BlockView::new(&block);
+			client.set_balance(view.transactions()[0].sender().unwrap(), U256::from(10_000));
+		}
 
 		let mut queue = VecDeque::new();
 		let mut io = TestIo::new(&mut client, &mut queue, None);
