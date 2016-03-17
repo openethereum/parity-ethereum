@@ -54,7 +54,7 @@ impl MinerService for TestMinerService {
 	fn chain_new_blocks(&self, _chain: &BlockChainClient, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) { unimplemented!(); }
 
 	/// New chain head event. Restart mining operation.
-	fn prepare_sealing(&self, _chain: &BlockChainClient) { unimplemented!(); }
+	fn update_sealing(&self, _chain: &BlockChainClient) { unimplemented!(); }
 
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
 	fn sealing_block(&self, _chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {

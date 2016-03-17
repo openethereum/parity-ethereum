@@ -93,13 +93,28 @@ impl Miner {
 	pub fn set_minimal_gas_price(&self, min_gas_price: U256) {
 		self.transaction_queue.lock().unwrap().set_minimal_gas_price(min_gas_price);
 	}
+
+	/// Prepares new block for sealing including top transactions from queue.
+	pub fn prepare_sealing(&self, chain: &BlockChainClient) {
+		let no_of_transactions = 128;
+		// TODO: should select transactions orm queue according to gas limit of block.
+		let transactions = self.transaction_queue.lock().unwrap().top_transactions(no_of_transactions);
+
+		let b = chain.prepare_sealing(
+			self.author(),
+			self.gas_floor_target(),
+			self.extra_data(),
+			transactions,
+		);
+		*self.sealing_block.lock().unwrap() = b;
+	}
 }
 
 impl MinerService for Miner {
 
 	fn clear_and_reset(&self, chain: &BlockChainClient) {
 		self.transaction_queue.lock().unwrap().clear();
-		self.prepare_sealing(chain);
+		self.update_sealing(chain);
 	}
 
 	fn status(&self) -> MinerStatus {
@@ -121,18 +136,10 @@ impl MinerService for Miner {
 		transaction_queue.pending_hashes()
 	}
 
-	fn prepare_sealing(&self, chain: &BlockChainClient) {
-		let no_of_transactions = 128;
-		// TODO: should select transactions orm queue according to gas limit of block.
-		let transactions = self.transaction_queue.lock().unwrap().top_transactions(no_of_transactions);
-
-		let b = chain.prepare_sealing(
-			self.author(),
-			self.gas_floor_target(),
-			self.extra_data(),
-			transactions,
-		);
-		*self.sealing_block.lock().unwrap() = b;
+	fn update_sealing(&self, chain: &BlockChainClient) {
+		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			self.prepare_sealing(chain);
+		}
 	}
 
 	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
@@ -199,8 +206,6 @@ impl MinerService for Miner {
 			});
 		}
 
-		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
-			self.prepare_sealing(chain);
-		}
+		self.update_sealing(chain);
 	}
 }

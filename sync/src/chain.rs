@@ -403,7 +403,7 @@ impl ChainSync {
 							self.remove_downloaded_blocks(number + 1);
 						}
 						if self.have_common_block && number < self.current_base_block() + 1 {
-							// unkown header 
+							// unkown header
 							debug!(target: "sync", "Old block header {:?} ({}) is unknown, restarting sync", hash, number);
 							self.restart(io);
 							return Ok(());
@@ -947,7 +947,10 @@ impl ChainSync {
 		}
 		let chain = io.chain();
 		let fetch_nonce = |a: &Address| chain.nonce(a);
-		let _ = self.miner.import_transactions(transactions, fetch_nonce);
+		let res = self.miner.import_transactions(transactions, fetch_nonce);
+		if res.is_ok() {
+			self.miner.update_sealing(io.chain());
+		}
  		Ok(())
 	}
 
@@ -1287,7 +1290,7 @@ impl ChainSync {
 	}
 
 	pub fn chain_new_head(&mut self, io: &mut SyncIo) {
-		self.miner.prepare_sealing(io.chain());
+		self.miner.update_sealing(io.chain());
 	}
 }
 
