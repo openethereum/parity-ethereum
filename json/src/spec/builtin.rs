@@ -14,13 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_serialize;
-extern crate serde;
-extern crate serde_json;
-extern crate ethcore_util as util;
+//! Spec builtin deserialization.
 
-pub mod hash;
-pub mod uint;
-pub mod bytes;
-pub mod blockchain;
-pub mod spec;
+/// Linear builin options.
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct Linear {
+	base: u64,
+	word: u64,
+}
+
+/// Spec builtin.
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct Builtin {
+	name: String,
+	linear: Linear,
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use spec::builtin::Builtin;
+
+	#[test]
+	fn builtin_deserialization() {
+		let s = r#"{
+			"name": "ecrecover",
+			"linear": { "base": 3000, "word": 0 }
+		}"#;
+		let _deserialized: Builtin = serde_json::from_str(s).unwrap();
+		// TODO: validate all fields
+	}
+}
