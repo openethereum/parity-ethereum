@@ -321,6 +321,15 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn work(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => {
+				let client = take_weak!(self.client);
+				// check if we're still syncing and return empty strings int that case
+				{
+					let sync = take_weak!(self.sync);
+					if sync.status().state != SyncState::Idle && client.queue_info().is_empty() {
+						return to_value(&(String::new(), String::new(), String::new()));
+					}
+				}
+
 				let miner = take_weak!(self.miner);
 				let client = take_weak!(self.client);
 				let u = miner.sealing_block(client.deref()).lock().unwrap();
@@ -331,7 +340,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 						let seed_hash = Ethash::get_seedhash(b.block().header().number());
 						to_value(&(pow_hash, seed_hash, target))
 					}
-					_ => Err(Error::invalid_params())
+					_ => Err(Error::internal_error())
 				}
 			},
 			_ => Err(Error::invalid_params())
