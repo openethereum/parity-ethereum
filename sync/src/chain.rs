@@ -405,7 +405,7 @@ impl ChainSync {
 							self.remove_downloaded_blocks(number + 1);
 						}
 						if self.have_common_block && number < self.current_base_block() + 1 {
-							// unkown header 
+							// unkown header
 							debug!(target: "sync", "Old block header {:?} ({}) is unknown, restarting sync", hash, number);
 							self.restart(io);
 							return Ok(());
@@ -627,6 +627,13 @@ impl ChainSync {
 		self.state = SyncState::Waiting;
 	}
 
+	fn can_sync(&self) -> bool {
+		match self.state {
+			SyncState::Idle | SyncState::NotSynced | SyncState::FullySynced => true,
+			_ => false
+		}
+	}
+
 	/// Find something to do for a peer. Called for a new peer or when a peer is done with it's task.
 	fn sync_peer(&mut self, io: &mut SyncIo,  peer_id: PeerId, force: bool) {
 		let (peer_latest, peer_difficulty) = {
@@ -646,7 +653,7 @@ impl ChainSync {
 		if force || peer_difficulty > syncing_difficulty {
 			// start sync
 			self.syncing_difficulty = peer_difficulty;
-			if self.state == SyncState::Idle || self.state == SyncState::NotSynced {
+			if self.can_sync() {
 				self.state = SyncState::Blocks;
 			}
 			trace!(target: "sync", "Starting sync with better chain");
