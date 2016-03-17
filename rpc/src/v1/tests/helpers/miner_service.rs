@@ -14,23 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, H256, U256, Bytes};
+use util::{Address, H256, Bytes};
 use util::standard::*;
 use ethcore::error::Error;
 use ethcore::client::BlockChainClient;
 use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
-use ethminer::{MinerService, MinerStatus};
+use ethminer::{MinerService, MinerStatus, AccountDetails};
 
-pub struct TestMinerService;
+pub struct TestMinerService {
+	pub imported_transactions: RwLock<Vec<H256>>,
+	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
+}
+
+impl Default for TestMinerService {
+	fn default() -> TestMinerService {
+		TestMinerService {
+			imported_transactions: RwLock::new(Vec::new()),
+			latest_closed_block: Mutex::new(None),
+		}
+	}
+}
 
 impl MinerService for TestMinerService {
 
 	/// Returns miner's status.
-	fn status(&self) -> MinerStatus { unimplemented!(); }
+	fn status(&self) -> MinerStatus {
+		MinerStatus {
+			transactions_in_pending_queue: 0,
+			transactions_in_future_queue: 0,
+			transactions_in_pending_block: 1
+		}
+	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_nonce: T) -> Result<(), Error> where T: Fn(&Address) -> U256 { unimplemented!(); }
+	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_account: T) -> Result<(), Error>
+		where T: Fn(&Address) -> AccountDetails { unimplemented!(); }
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self) -> Vec<H256> { unimplemented!(); }
@@ -45,7 +64,9 @@ impl MinerService for TestMinerService {
 	fn prepare_sealing(&self, _chain: &BlockChainClient) { unimplemented!(); }
 
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self, _chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> { unimplemented!(); }
+	fn sealing_block(&self, _chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
+		&self.latest_closed_block
+	}
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.

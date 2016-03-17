@@ -19,7 +19,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService};
+use ethminer::{MinerService, AccountDetails};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
@@ -236,7 +236,9 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).status().transaction_queue_pending)),
+				BlockNumber::Pending => to_value(
+					&U256::from(take_weak!(self.miner).status().transactions_in_pending_block)
+				),
 				_ => to_value(&take_weak!(self.client).block(block_number.into())
 						.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).transactions_count())))
 			})
@@ -321,6 +323,15 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn work(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => {
+				let client = take_weak!(self.client);
+				// check if we're still syncing and return empty strings int that case
+				{
+					let sync = take_weak!(self.sync);
+					if sync.status().state != SyncState::Idle && client.queue_info().is_empty() {
+						return to_value(&(String::new(), String::new(), String::new()));
+					}
+				}
+
 				let miner = take_weak!(self.miner);
 				let client = take_weak!(self.client);
 				let u = miner.sealing_block(client.deref()).lock().unwrap();
@@ -331,7 +342,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 						let seed_hash = Ethash::get_seedhash(b.block().header().number());
 						to_value(&(pow_hash, seed_hash, target))
 					}
-					_ => Err(Error::invalid_params())
+					_ => Err(Error::internal_error())
 				}
 			},
 			_ => Err(Error::invalid_params())
@@ -370,7 +381,10 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 						let signed_transaction = transaction.sign(&secret);
 						let hash = signed_transaction.hash();
 
-						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| client.nonce(a));
+						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
+							nonce: client.nonce(a),
+							balance: client.balance(a),
+						});
 						match import {
 							Ok(_) => to_value(&hash),
 							Err(e) => {
