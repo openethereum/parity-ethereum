@@ -106,9 +106,9 @@ impl MinerService for Miner {
 		let status = self.transaction_queue.lock().unwrap().status();
 		let block = self.sealing_block.lock().unwrap();
 		MinerStatus {
-			transaction_queue_pending: status.pending,
-			transaction_queue_future: status.future,
-			block_pending: block.as_ref().map_or(0, |b| b.transactions().len()),
+			transactions_in_pending_queue: status.pending,
+			transactions_in_future_queue: status.future,
+			transactions_in_pending_block: block.as_ref().map_or(0, |b| b.transactions().len()),
 		}
 	}
 
