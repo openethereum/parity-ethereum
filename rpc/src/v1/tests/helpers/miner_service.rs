@@ -29,9 +29,9 @@ impl MinerService for TestMinerService {
 	/// Returns miner's status.
 	fn status(&self) -> MinerStatus {
 		MinerStatus {
-			transaction_queue_pending: 0,
-			transaction_queue_future: 0,
-			block_pending: 1
+			transactions_in_pending_queue: 0,
+			transactions_in_future_queue: 0,
+			transactions_in_pending_block: 1
 		}
 	}
 
