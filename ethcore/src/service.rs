@@ -35,13 +35,13 @@ pub enum SyncMessage {
 		retracted: Vec<H256>,
 		/// Hashes of blocks that are now included in cannonical chain
 		enacted: Vec<H256>,
+		/// Set when blockqueue is empty
+		is_last: bool,
 	},
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
 	/// A block is ready
 	BlockVerified,
-	/// blocks queue is empty
-	BlockQueueEmpty,
 }
 
 /// IO Message type used for Network service

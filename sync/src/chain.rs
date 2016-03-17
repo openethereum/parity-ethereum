@@ -116,8 +116,6 @@ pub enum SyncState {
 	Blocks,
 	/// Downloading blocks learned from NewHashes packet
 	NewBlocks,
-	/// Once has an event that client finished processing new blocks
-	FullySynced,
 }
 
 /// Syncing status and statistics
@@ -217,6 +215,8 @@ pub struct ChainSync {
 	network_id: U256,
 	/// Miner
 	miner: Arc<Miner>,
+	/// Fully-synced flag
+	is_fully_synced: bool,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -243,6 +243,7 @@ impl ChainSync {
 			max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
 			miner: miner,
+			is_fully_synced: true,
 		}
 	}
 
@@ -629,7 +630,7 @@ impl ChainSync {
 
 	fn can_sync(&self) -> bool {
 		match self.state {
-			SyncState::Idle | SyncState::NotSynced | SyncState::FullySynced => true,
+			SyncState::Idle | SyncState::NotSynced => true,
 			_ => false
 		}
 	}
@@ -947,7 +948,7 @@ impl ChainSync {
 	/// Called when peer sends us new transactions
 	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		// accepting transactions once only fully synced
-		if self.state != SyncState::FullySynced {
+		if !self.is_fully_synced {
 			return Ok(());
 		}
 
@@ -1292,8 +1293,10 @@ impl ChainSync {
 	}
 
 	/// called when block is imported to chain, updates transactions queue and propagates the blocks
-	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
-		if self.state == SyncState::FullySynced {
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256], is_last: bool) {
+		// Set the state in which it can accept transactions from the net
+		self.is_fully_synced = is_last;
+		if self.is_fully_synced {
 			// Notify miner
 			self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
 		}
@@ -1303,21 +1306,7 @@ impl ChainSync {
 	}
 
 	pub fn chain_new_head(&mut self, io: &mut SyncIo) {
-		if self.state == SyncState::FullySynced {
-			self.miner.prepare_sealing(io.chain());
-		}
-	}
-
-	// called once has nothing to download and client reports that all that downloaded is imported
-	pub fn set_fully_synced(&mut self) {
-		self.state = SyncState::FullySynced;
-	}
-
-	// handles event from client about empty blow_queue
-	pub fn client_block_queue_empty(&mut self) {
-		if self.state == SyncState::Idle {
-			self.set_fully_synced();
-		}
+		self.miner.prepare_sealing(io.chain());
 	}
 }
 
@@ -1654,7 +1643,6 @@ mod tests {
 		client.add_blocks(1, EachBlockWith::UncleAndTransaction);
 		client.add_blocks(1, EachBlockWith::Transaction);
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
-		sync.state = SyncState::FullySynced;
 
 		let good_blocks = vec![client.block_hash_delta_minus(2)];
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
@@ -1663,10 +1651,10 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, true);
 		assert_eq!(sync.miner.status().transaction_queue_future, 0);
 		assert_eq!(sync.miner.status().transaction_queue_pending, 1);
-		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
+		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks, true);
 
 		// then
 		let status = sync.miner.status();
@@ -1682,7 +1670,6 @@ mod tests {
 		client.add_blocks(1, EachBlockWith::UncleAndTransaction);
 		client.add_blocks(1, EachBlockWith::Transaction);
 		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
-		sync.state = SyncState::Idle;
 
 		let good_blocks = vec![client.block_hash_delta_minus(2)];
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
@@ -1691,10 +1678,10 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, false);
 		assert_eq!(sync.miner.status().transaction_queue_future, 0);
 		assert_eq!(sync.miner.status().transaction_queue_pending, 0);
-		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
+		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks, false);
 
 		// then
 		let status = sync.miner.status();
