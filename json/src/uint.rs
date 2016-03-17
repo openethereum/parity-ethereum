@@ -31,6 +31,12 @@ impl Into<U256> for Uint {
 	}
 }
 
+impl Into<u64> for Uint {
+	fn into(self) -> u64 {
+		u64::from(self.0)
+	}
+}
+
 impl Deserialize for Uint {
 	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
 		where D: Deserializer {
