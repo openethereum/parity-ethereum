@@ -18,14 +18,15 @@ use rayon::prelude::*;
 use std::sync::{Mutex, RwLock, Arc};
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
+use std::collections::HashSet;
 
 use util::{H256, U256, Address, Bytes, Uint};
 use ethcore::views::{BlockView};
 use ethcore::client::{BlockChainClient, BlockId};
-use ethcore::block::{ClosedBlock};
+use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::{Error};
 use ethcore::transaction::SignedTransaction;
-use super::{MinerService, MinerStatus, TransactionQueue};
+use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
@@ -71,7 +72,7 @@ impl Miner {
 
 	/// Get the extra_data that we will seal blocks wuth.
 	fn gas_floor_target(&self) -> U256 {
-		self.gas_floor_target.read().unwrap().clone()
+		*self.gas_floor_target.read().unwrap()
 	}
 
 	/// Set the author that we will seal blocks as.
@@ -104,16 +105,18 @@ impl MinerService for Miner {
 
 	fn status(&self) -> MinerStatus {
 		let status = self.transaction_queue.lock().unwrap().status();
+		let block = self.sealing_block.lock().unwrap();
 		MinerStatus {
-			transaction_queue_pending: status.pending,
-			transaction_queue_future: status.future,
+			transactions_in_pending_queue: status.pending,
+			transactions_in_future_queue: status.future,
+			transactions_in_pending_block: block.as_ref().map_or(0, |b| b.transactions().len()),
 		}
 	}
 
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
-		where T: Fn(&Address) -> U256 {
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Result<(), Error>
+		where T: Fn(&Address) -> AccountDetails {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.add_all(transactions, fetch_nonce)
+		transaction_queue.add_all(transactions, fetch_account)
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
@@ -174,28 +177,45 @@ impl MinerService for Miner {
 			let block = BlockView::new(&block);
 			block.transactions()
 		}
-
 		{
-			let in_chain = vec![imported, enacted, invalid];
-			let in_chain = in_chain
-				.par_iter()
-				.flat_map(|h| h.par_iter().map(|h| fetch_transactions(chain, h)));
 			let out_of_chain = retracted
 				.par_iter()
 				.map(|h| fetch_transactions(chain, h));
-
-			in_chain.for_each(|txs| {
-				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
-				transaction_queue.remove_all(&hashes, |a| chain.nonce(a));
-			});
 			out_of_chain.for_each(|txs| {
 				// populate sender
 				for tx in &txs {
 					let _sender = tx.sender();
 				}
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				let _ = transaction_queue.add_all(txs, |a| chain.nonce(a));
+				let _ = transaction_queue.add_all(txs, |a| AccountDetails {
+					nonce: chain.nonce(a),
+					balance: chain.balance(a)
+				});
+			});
+		}
+		// First import all transactions and after that remove old ones
+		{
+			let in_chain = {
+				let mut in_chain = HashSet::new();
+				in_chain.extend(imported);
+				in_chain.extend(enacted);
+				in_chain.extend(invalid);
+				in_chain
+					.into_iter()
+					.collect::<Vec<H256>>()
+			};
+
+			let in_chain = in_chain
+				.par_iter()
+				.map(|h: &H256| fetch_transactions(chain, h));
+
+			in_chain.for_each(|txs| {
+				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
+				let mut transaction_queue = self.transaction_queue.lock().unwrap();
+				transaction_queue.remove_all(&hashes, |a| AccountDetails {
+					nonce: chain.nonce(a),
+					balance: chain.balance(a)
+				});
 			});
 		}
 
