@@ -21,7 +21,7 @@ use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
 
 /// Lenient bytes json deserialization for test json files.
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, Clone)]
 pub struct Bytes(Vec<u8>);
 
 impl Into<Vec<u8>> for Bytes {

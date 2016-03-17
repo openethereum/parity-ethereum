@@ -35,6 +35,18 @@ pub struct BlockChain {
 	pre_state: State,
 }
 
+impl BlockChain {
+	/// Returns genesis block rlp.
+	pub fn genesis_rlp(&self) -> Vec<u8> {
+		self.genesis_rlp.clone().into()
+	}
+
+	/// Returns blocks rlp.
+	pub fn blocks_rlp(&self) -> Vec<Vec<u8>> {
+		self.blocks.iter().map(|block| block.rlp()).collect()
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use serde_json;
