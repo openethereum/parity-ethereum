@@ -62,11 +62,11 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
-pub use transaction_queue::TransactionQueue;
+pub use transaction_queue::{TransactionQueue, AccountDetails};
 pub use miner::{Miner};
 
 use std::sync::Mutex;
-use util::{H256, U256, Address, Bytes};
+use util::{H256, Address, Bytes};
 use ethcore::client::{BlockChainClient};
 use ethcore::block::{ClosedBlock};
 use ethcore::error::{Error};
@@ -79,8 +79,8 @@ pub trait MinerService : Send + Sync {
 	fn status(&self) -> MinerStatus;
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
-		where T: Fn(&Address) -> U256;
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Result<(), Error>
+		where T: Fn(&Address) -> AccountDetails;
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self) -> Vec<H256>;

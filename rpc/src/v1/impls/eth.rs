@@ -19,7 +19,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService};
+use ethminer::{MinerService, AccountDetails};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
@@ -381,7 +381,10 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 						let signed_transaction = transaction.sign(&secret);
 						let hash = signed_transaction.hash();
 
-						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| client.nonce(a));
+						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
+							nonce: client.nonce(a),
+							balance: client.balance(a),
+						});
 						match import {
 							Ok(_) => to_value(&hash),
 							Err(e) => {
