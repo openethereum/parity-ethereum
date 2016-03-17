@@ -21,7 +21,7 @@ use std::sync::atomic::AtomicBool;
 use std::collections::HashSet;
 
 use util::{H256, U256, Address, Bytes, Uint};
-use ethcore::views::{BlockView};
+use ethcore::views::{BlockView, HeaderView};
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::{Error};
@@ -93,6 +93,12 @@ impl Miner {
 	/// Set minimal gas price of transaction to be accepted for mining.
 	pub fn set_minimal_gas_price(&self, min_gas_price: U256) {
 		self.transaction_queue.lock().unwrap().set_minimal_gas_price(min_gas_price);
+	}
+
+	fn update_gas_limit(&self, chain: &BlockChainClient) {
+		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
+		let mut queue = self.transaction_queue.lock().unwrap();
+		queue.set_gas_limit(gas_limit);
 	}
 }
 
@@ -185,6 +191,11 @@ impl MinerService for Miner {
 			let block = BlockView::new(&block);
 			block.transactions()
 		}
+
+		// First update gas limit in transaction queue
+		self.update_gas_limit(chain);
+
+		// Then import all transactions...
 		{
 			let out_of_chain = retracted
 				.par_iter()
@@ -201,7 +212,8 @@ impl MinerService for Miner {
 				});
 			});
 		}
-		// First import all transactions and after that remove old ones
+
+		// ...and after that remove old ones
 		{
 			let in_chain = {
 				let mut in_chain = HashSet::new();
@@ -227,6 +239,7 @@ impl MinerService for Miner {
 			});
 		}
 
+		// Update mined block
 		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
 			self.prepare_sealing(chain);
 		}
