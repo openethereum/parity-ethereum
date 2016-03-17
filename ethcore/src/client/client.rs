@@ -324,7 +324,6 @@ impl<V> Client<V> where V: Verifier {
 					invalid: invalid_blocks,
 					enacted: enacted,
 					retracted: retracted,
-					is_last: self.queue_info().is_empty()
 				})).unwrap();
 			}
 		}

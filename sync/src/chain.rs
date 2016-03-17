@@ -215,8 +215,6 @@ pub struct ChainSync {
 	network_id: U256,
 	/// Miner
 	miner: Arc<Miner>,
-	/// Fully-synced flag
-	is_fully_synced: bool,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -243,7 +241,6 @@ impl ChainSync {
 			max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
 			miner: miner,
-			is_fully_synced: true,
 		}
 	}
 
@@ -948,7 +945,7 @@ impl ChainSync {
 	/// Called when peer sends us new transactions
 	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		// accepting transactions once only fully synced
-		if !self.is_fully_synced {
+		if !io.is_chain_queue_empty() {
 			return Ok(());
 		}
 
@@ -1296,10 +1293,8 @@ impl ChainSync {
 	}
 
 	/// called when block is imported to chain, updates transactions queue and propagates the blocks
-	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256], is_last: bool) {
-		// Set the state in which it can accept transactions from the net
-		self.is_fully_synced = is_last;
-		if self.is_fully_synced {
+	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
+		if io.is_chain_queue_empty() {
 			// Notify miner
 			self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
 		}
@@ -1662,10 +1657,10 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, true);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
 		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
 		assert_eq!(sync.miner.status().transactions_in_pending_queue, 1);
-		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks, true);
+		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
 
 
 		// then
@@ -1690,10 +1685,10 @@ mod tests {
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks, false);
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
 		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
 		assert_eq!(sync.miner.status().transactions_in_pending_queue, 0);
-		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks, false);
+		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
 
 		// then
 		let status = sync.miner.status();
