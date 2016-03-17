@@ -70,7 +70,14 @@ pub enum TransactionError {
 		/// Minimal expected gas price
 		minimal: U256,
 		/// Transaction gas price
-		got: U256
+		got: U256,
+	},
+	/// Sender doesn't have enough funds to pay for this transaction
+	InsufficientBalance {
+		/// Senders balance
+		balance: U256,
+		/// Transaction cost
+		cost: U256,
 	},
 	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),

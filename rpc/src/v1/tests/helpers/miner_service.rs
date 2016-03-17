@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, H256, U256, Bytes};
+use util::{Address, H256, Bytes};
 use util::standard::*;
 use ethcore::error::Error;
 use ethcore::client::BlockChainClient;
 use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
-use ethminer::{MinerService, MinerStatus};
+use ethminer::{MinerService, MinerStatus, AccountDetails};
 
 pub struct TestMinerService {
 	pub imported_transactions: RwLock<Vec<H256>>,
@@ -39,10 +39,17 @@ impl Default for TestMinerService {
 impl MinerService for TestMinerService {
 
 	/// Returns miner's status.
-	fn status(&self) -> MinerStatus { unimplemented!(); }
+	fn status(&self) -> MinerStatus {
+		MinerStatus {
+			transactions_in_pending_queue: 0,
+			transactions_in_future_queue: 0,
+			transactions_in_pending_block: 1
+		}
+	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_nonce: T) -> Result<(), Error> where T: Fn(&Address) -> U256 { unimplemented!(); }
+	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_account: T) -> Result<(), Error>
+		where T: Fn(&Address) -> AccountDetails { unimplemented!(); }
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self) -> Vec<H256> { unimplemented!(); }

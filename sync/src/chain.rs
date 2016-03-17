@@ -38,7 +38,7 @@ use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
-use ethminer::{Miner, MinerService};
+use ethminer::{Miner, MinerService, AccountDetails};
 use io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -946,8 +946,11 @@ impl ChainSync {
 			transactions.push(tx);
 		}
 		let chain = io.chain();
-		let fetch_nonce = |a: &Address| chain.nonce(a);
-		let res = self.miner.import_transactions(transactions, fetch_nonce);
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: chain.nonce(a),
+			balance: chain.balance(a),
+		};
+		let res = self.miner.import_transactions(transactions, fetch_account);
 		if res.is_ok() {
 			self.miner.update_sealing(io.chain());
 		}
@@ -1301,6 +1304,7 @@ mod tests {
 	use ::SyncConfig;
 	use util::*;
 	use super::{PeerInfo, PeerAsking};
+	use ethcore::views::BlockView;
 	use ethcore::header::*;
 	use ethcore::client::*;
 	use ethminer::{Miner, MinerService};
@@ -1631,19 +1635,26 @@ mod tests {
 		let good_blocks = vec![client.block_hash_delta_minus(2)];
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
 
+		// Add some balance to clients
+		for h in vec![good_blocks[0], retracted_blocks[0]] {
+			let block = client.block(BlockId::Hash(h)).unwrap();
+			let view = BlockView::new(&block);
+			client.set_balance(view.transactions()[0].sender().unwrap(), U256::from(1_000_000_000));
+		}
+
 		let mut queue = VecDeque::new();
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
-		assert_eq!(sync.miner.status().transaction_queue_future, 0);
-		assert_eq!(sync.miner.status().transaction_queue_pending, 1);
+		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
+		assert_eq!(sync.miner.status().transactions_in_pending_queue, 1);
 		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
 
 		// then
 		let status = sync.miner.status();
-		assert_eq!(status.transaction_queue_pending, 1);
-		assert_eq!(status.transaction_queue_future, 0);
+		assert_eq!(status.transactions_in_pending_queue, 1);
+		assert_eq!(status.transactions_in_future_queue, 0);
 	}
 
 	#[test]
