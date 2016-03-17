@@ -132,7 +132,20 @@ impl MinerService for Miner {
 			self.extra_data(),
 			transactions,
 		);
-		*self.sealing_block.lock().unwrap() = b;
+
+		match b {
+			None => {
+				*self.sealing_block.lock().unwrap() = None
+			},
+			Some((block, invalid_transactions)) => {
+				let mut queue = self.transaction_queue.lock().unwrap();
+				queue.remove_all(
+					&invalid_transactions.into_iter().collect::<Vec<H256>>(),
+					|a: &Address| chain.nonce(a)
+				);
+				*self.sealing_block.lock().unwrap() = Some(block)
+			}
+		}
 	}
 
 	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
