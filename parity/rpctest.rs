@@ -18,11 +18,15 @@ extern crate docopt;
 extern crate rustc_serialize;
 extern crate serde_json;
 extern crate ethjson;
+extern crate ethcore;
 
 use std::process;
 use std::fs::File;
 use std::path::Path;
 use docopt::Docopt;
+use ethcore::spec::Genesis;
+use ethcore::pod_state::PodState;
+use ethcore::ethereum;
 
 const USAGE: &'static str = r#"
 Parity rpctest client.
@@ -70,7 +74,15 @@ impl Configuration {
 			process::exit(3);
 		});
 
+		let genesis = Genesis::from(blockchain.genesis());
+		let state = PodState::from(blockchain.pre_state.clone());
+		let mut spec = ethereum::new_frontier_test();
+		spec.set_genesis_state(state);
+		spec.overwrite_genesis_params(genesis);
+		assert!(spec.is_state_root_valid());
 
+		//let temp = RandomTempPath::new();
+		//spec.
 
 	}
 }

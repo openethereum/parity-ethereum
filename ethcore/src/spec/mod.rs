@@ -20,3 +20,4 @@ mod genesis;
 pub mod spec;
 
 pub use self::spec::*;
+pub use self::genesis::Genesis;
