@@ -403,7 +403,7 @@ impl ChainSync {
 							self.remove_downloaded_blocks(number + 1);
 						}
 						if self.have_common_block && number < self.current_base_block() + 1 {
-							// unkown header 
+							// unkown header
 							debug!(target: "sync", "Old block header {:?} ({}) is unknown, restarting sync", hash, number);
 							self.restart(io);
 							return Ok(());
@@ -1633,14 +1633,14 @@ mod tests {
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
-		assert_eq!(sync.miner.status().transaction_queue_future, 0);
-		assert_eq!(sync.miner.status().transaction_queue_pending, 1);
+		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
+		assert_eq!(sync.miner.status().transactions_in_pending_queue, 1);
 		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
 
 		// then
 		let status = sync.miner.status();
-		assert_eq!(status.transaction_queue_pending, 1);
-		assert_eq!(status.transaction_queue_future, 0);
+		assert_eq!(status.transactions_in_pending_queue, 1);
+		assert_eq!(status.transactions_in_future_queue, 0);
 	}
 
 	#[test]

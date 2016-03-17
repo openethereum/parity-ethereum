@@ -39,7 +39,13 @@ impl Default for TestMinerService {
 impl MinerService for TestMinerService {
 
 	/// Returns miner's status.
-	fn status(&self) -> MinerStatus { unimplemented!(); }
+	fn status(&self) -> MinerStatus {
+		MinerStatus {
+			transactions_in_pending_queue: 0,
+			transactions_in_future_queue: 0,
+			transactions_in_pending_block: 1
+		}
+	}
 
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_nonce: T) -> Result<(), Error> where T: Fn(&Address) -> U256 { unimplemented!(); }

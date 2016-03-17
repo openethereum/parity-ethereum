@@ -22,7 +22,7 @@ use std::sync::atomic::AtomicBool;
 use util::{H256, U256, Address, Bytes, Uint};
 use ethcore::views::{BlockView};
 use ethcore::client::{BlockChainClient, BlockId};
-use ethcore::block::{ClosedBlock};
+use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::{Error};
 use ethcore::transaction::SignedTransaction;
 use super::{MinerService, MinerStatus, TransactionQueue};
@@ -104,9 +104,11 @@ impl MinerService for Miner {
 
 	fn status(&self) -> MinerStatus {
 		let status = self.transaction_queue.lock().unwrap().status();
+		let block = self.sealing_block.lock().unwrap();
 		MinerStatus {
-			transaction_queue_pending: status.pending,
-			transaction_queue_future: status.future,
+			transactions_in_pending_queue: status.pending,
+			transactions_in_future_queue: status.future,
+			transactions_in_pending_block: block.as_ref().map_or(0, |b| b.transactions().len()),
 		}
 	}
 

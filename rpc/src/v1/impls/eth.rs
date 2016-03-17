@@ -236,7 +236,9 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).status().transaction_queue_pending)),
+				BlockNumber::Pending => to_value(
+					&U256::from(take_weak!(self.miner).status().transactions_in_pending_block)
+				),
 				_ => to_value(&take_weak!(self.client).block(block_number.into())
 						.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).transactions_count())))
 			})

@@ -42,7 +42,7 @@
 //!
 //!		let miner: Miner = Miner::default();
 //!		// get status
-//!		assert_eq!(miner.status().transaction_queue_pending, 0);
+//!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
 //!		// Check block for sealing
 //!		miner.prepare_sealing(client.deref());
@@ -105,7 +105,9 @@ pub trait MinerService : Send + Sync {
 /// Mining status
 pub struct MinerStatus {
 	/// Number of transactions in queue with state `pending` (ready to be included in block)
-	pub transaction_queue_pending: usize,
+	pub transactions_in_pending_queue: usize,
 	/// Number of transactions in queue with state `future` (not yet ready to be included in block)
-	pub transaction_queue_future: usize,
+	pub transactions_in_future_queue: usize,
+	/// Number of transactions included in currently mined block
+	pub transactions_in_pending_block: usize,
 }
