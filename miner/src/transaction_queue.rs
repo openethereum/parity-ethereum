@@ -49,12 +49,12 @@
 //!		let st2 = t2.sign(&key.secret());
 //!		let default_nonce = |_a: &Address| AccountDetails {
 //!			nonce: U256::from(10),
-//!			balance: U256::from(10_000),
+//!			balance: U256::from(1_000_000),
 //!		};
 //!
 //!		let mut txq = TransactionQueue::new();
-//!		txq.add(st2.clone(), &default_nonce);
-//!		txq.add(st1.clone(), &default_nonce);
+//!		txq.add(st2.clone(), &default_nonce).unwrap();
+//!		txq.add(st1.clone(), &default_nonce).unwrap();
 //!
 //!		// Check status
 //!		assert_eq!(txq.status().pending, 2);
