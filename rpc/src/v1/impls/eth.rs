@@ -372,7 +372,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
 							nonce: client.nonce(a),
-							balance: client.balance(a)
+							balance: client.balance(a),
 						});
 						match import {
 							Ok(_) => to_value(&hash),
