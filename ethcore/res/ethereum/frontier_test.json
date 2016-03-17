@@ -1,5 +1,5 @@
 {
-	"engineName": "Frontier (Test)",
+	"name": "Frontier (Test)",
 	"engineName": "Ethash",
 	"params": {
 		"accountStartNonce": "0x00",
