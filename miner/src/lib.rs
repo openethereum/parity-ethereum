@@ -79,7 +79,7 @@ pub trait MinerService : Send + Sync {
 	fn status(&self) -> MinerStatus;
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Result<(), Error>
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
 		where T: Fn(&Address) -> AccountDetails;
 
 	/// Returns hashes of transactions currently in pending
