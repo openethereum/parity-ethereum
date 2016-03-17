@@ -25,15 +25,20 @@ use spec::Genesis;
 /// Blockchain deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct BlockChain {
+	/// Genesis block header.
 	#[serde(rename="genesisBlockHeader")]
-	genesis_block: Header,
+	pub genesis_block: Header,
+	/// Genesis block rlp.
 	#[serde(rename="genesisRLP")]
-	genesis_rlp: Bytes,
-	blocks: Vec<Block>,
+	pub genesis_rlp: Bytes,
+	/// Blocks.
+	pub blocks: Vec<Block>,
+	/// Post state.
 	#[serde(rename="postState")]
-	post_state: State,
+	pub post_state: State,
+	/// Pre state.
 	#[serde(rename="pre")]
-	pre_state: State,
+	pub pre_state: State,
 }
 
 impl BlockChain {

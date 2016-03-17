@@ -22,8 +22,8 @@ use hash::Address;
 use blockchain::account::Account;
 
 /// Blockchain test state deserializer.
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct State(BTreeMap<Address, Account>);
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+pub struct State(pub BTreeMap<Address, Account>);
 
 impl Deref for State {
 	type Target = BTreeMap<Address, Account>;

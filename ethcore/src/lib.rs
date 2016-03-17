@@ -101,13 +101,13 @@ pub mod spec;
 pub mod transaction;
 pub mod views;
 pub mod receipt;
+pub mod pod_state;
 
 mod common;
 mod basic_types;
 #[macro_use] mod evm;
 mod env_info;
 mod pod_account;
-mod pod_state;
 mod account_diff;
 mod state_diff;
 mod engine;
