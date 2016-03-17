@@ -21,6 +21,7 @@ use std::ops::Deref;
 use blockchain::blockchain::BlockChain;
 
 /// Blockchain test deserializer.
+#[derive(Debug, PartialEq, Deserialize)]
 pub struct Test(BTreeMap<String, BlockChain>);
 
 impl Deref for Test {

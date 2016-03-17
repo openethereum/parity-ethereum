@@ -31,6 +31,13 @@ pub struct Block {
 	uncles: Vec<Header>,
 }
 
+impl Block {
+	/// Returns block rlp.
+	pub fn rlp(&self) -> Vec<u8> {
+		self.rlp.clone().into()
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use serde_json;

@@ -28,6 +28,7 @@ ethminer = { path = "miner" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
 ethjson = { path = "json" }
+serde_json = "0.7.0"
 
 [features]
 default = ["rpc"]
@@ -39,6 +40,10 @@ travis-nightly = ["ethcore/json-tests", "dev"]
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
+
+[[bin]]
+path = "parity/rpctest.rs"
+name = "rpctest"
 
 [profile.release]
 debug = false
