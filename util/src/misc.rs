@@ -88,7 +88,11 @@ pub fn version_data() -> Bytes {
 		u32::from_str(env!("CARGO_PKG_VERSION_PATCH")).unwrap();
 	s.append(&v);
 	s.append(&"Parity");
+<<<<<<< HEAD
 	s.append(&rustc_version());
+=======
+	s.append(&format!("{}", rustc_version()));
+>>>>>>> b1793fc... Prettier version wo git dir; Use rustc compile time version
 	s.append(&&Target::os()[0..2]);
 	s.out()
 }
