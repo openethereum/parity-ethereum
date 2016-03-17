@@ -951,11 +951,11 @@ impl ChainSync {
 			transactions.push(tx);
 		}
 		let chain = io.chain();
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: chain.nonce(a),
-			balance: chain.balance(a),
-		};
-		let _ = self.miner.import_transactions(transactions, fetch_account);
+		let fetch_nonce = |a: &Address| chain.nonce(a);
+		let res = self.miner.import_transactions(transactions, fetch_nonce);
+		if res.is_ok() {
+			self.miner.update_sealing(io.chain());
+		}
  		Ok(())
 	}
 
@@ -1297,7 +1297,7 @@ impl ChainSync {
 	}
 
 	pub fn chain_new_head(&mut self, io: &mut SyncIo) {
-		self.miner.prepare_sealing(io.chain());
+		self.miner.update_sealing(io.chain());
 	}
 }
 

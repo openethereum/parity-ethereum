@@ -92,7 +92,7 @@ pub trait MinerService : Send + Sync {
 	fn chain_new_blocks(&self, chain: &BlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
 	/// New chain head event. Restart mining operation.
-	fn prepare_sealing(&self, chain: &BlockChainClient);
+	fn update_sealing(&self, chain: &BlockChainClient);
 
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
 	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>>;
