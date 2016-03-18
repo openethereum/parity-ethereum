@@ -97,9 +97,7 @@ impl Miner {
 
 	/// Prepares new block for sealing including top transactions from queue.
 	pub fn prepare_sealing(&self, chain: &BlockChainClient) {
-		let no_of_transactions = 128;
-		// TODO: should select transactions orm queue according to gas limit of block.
-		let transactions = self.transaction_queue.lock().unwrap().top_transactions(no_of_transactions);
+		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
 
 		let b = chain.prepare_sealing(
 			self.author(),
@@ -107,6 +105,7 @@ impl Miner {
 			self.extra_data(),
 			transactions,
 		);
+
 		*self.sealing_block.lock().unwrap() = b;
 	}
 }
