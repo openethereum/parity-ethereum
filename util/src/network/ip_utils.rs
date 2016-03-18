@@ -42,7 +42,7 @@ impl SocketAddrExt for Ipv4Addr {
 
 	fn is_global_s(&self) -> bool {
 		!self.is_private() && !self.is_loopback() && !self.is_link_local() &&
-			!self.is_broadcast() && !self.is_documentation() 
+			!self.is_broadcast() && !self.is_documentation()
 	}
 }
 
@@ -216,6 +216,8 @@ fn can_map_external_address_or_fail() {
 
 #[test]
 fn ipv4_properties() {
+
+	#![cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn check(octets: &[u8; 4], unspec: bool, loopback: bool,
 			 private: bool, link_local: bool, global: bool,
 			 multicast: bool, broadcast: bool, documentation: bool) {
@@ -262,7 +264,7 @@ fn ipv6_properties() {
 		assert_eq!(ip.is_global_s(), global);
 	}
 
-	//    unspec loopbk global 
+	//    unspec loopbk global
 	check("::", true,  false, true);
 	check("::1", false, true, false);
 }

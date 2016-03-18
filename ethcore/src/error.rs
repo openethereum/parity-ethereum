@@ -83,6 +83,13 @@ pub enum TransactionError {
 		/// Transaction cost
 		cost: U256,
 	},
+	/// Transactions gas is higher then current gas limit
+	GasLimitExceeded {
+		/// Current gas limit
+		limit: U256,
+		/// Declared transaction gas
+		got: U256,
+	},
 	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
 }
