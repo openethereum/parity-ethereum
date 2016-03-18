@@ -419,36 +419,28 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		// Add transactions
 		let block_number = b.block().header().number();
 		let min_tx_gas = U256::from(self.engine.schedule(&b.env_info()).tx_gas);
-		let gas_limit = *b.block().header().gas_limit();
-		let mut gas_left = gas_limit;
 		let mut invalid_transactions = HashSet::new();
 
 		for tx in transactions {
-			// Stop early if we are sure that no other transaction will be included
-			if gas_left < min_tx_gas {
-				break;
-			}
-
-			// TODO [todr] It seems that calculating gas_left here doesn't look nice. After moving this function
-			// to miner crate we should consider rewriting this logic in some better way.
-			if tx.gas > gas_left {
-				trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", tx.hash());
-				continue;
-			}
-
 			// Push transaction to block
 			let hash = tx.hash();
 			let import = b.push_transaction(tx, None);
+
 			match import {
+				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
+					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+					// Exit early if gas left is smaller then min_tx_gas
+					if gas_limit - gas_used < min_tx_gas {
+						break;
+					}
+				},
 				Err(e) => {
 					invalid_transactions.insert(hash);
 					trace!(target: "miner",
 						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
 						   block_number, hash, e);
 				},
-				Ok(receipt) => {
-					gas_left = gas_limit - receipt.gas_used;
-				}
+				_ => {}
 			}
 		}
 
