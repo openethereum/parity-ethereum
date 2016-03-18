@@ -358,6 +358,8 @@ impl HashDB for OverlayRecentDB {
 
 #[cfg(test)]
 mod tests {
+	#![cfg_attr(feature="dev", allow(blacklisted_name))]
+
 	use common::*;
 	use super::*;
 	use hashdb::*;

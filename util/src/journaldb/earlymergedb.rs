@@ -527,6 +527,8 @@ impl JournalDB for EarlyMergeDB {
 
 #[cfg(test)]
 mod tests {
+	#![cfg_attr(feature="dev", allow(blacklisted_name))]
+
 	use common::*;
 	use super::*;
 	use super::super::traits::JournalDB;
