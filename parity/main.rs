@@ -370,7 +370,7 @@ impl Configuration {
 
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
 		match self.args.flag_bootnodes {
-			Some(ref x) if x.len() > 0 => x.split(',').map(|s| {
+			Some(ref x) if !x.is_empty() => x.split(',').map(|s| {
 				Self::normalize_enode(s).unwrap_or_else(|| {
 					die!("{}: Invalid node address format given for a boot node.", s)
 				})
@@ -409,6 +409,7 @@ impl Configuration {
 		ret
 	}
 
+	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn client_config(&self) -> ClientConfig {
 		let mut client_config = ClientConfig::default();
 		match self.args.flag_cache {

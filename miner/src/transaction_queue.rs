@@ -59,7 +59,7 @@
 //!		// Check status
 //!		assert_eq!(txq.status().pending, 2);
 //!		// Check top transactions
-//!		let top = txq.top_transactions(3);
+//!		let top = txq.top_transactions();
 //!		assert_eq!(top.len(), 2);
 //!		assert_eq!(top[0], st1);
 //!		assert_eq!(top[1], st2);
@@ -69,7 +69,7 @@
 //!		txq.remove(&st1.hash(), &default_nonce);
 //!		assert_eq!(txq.status().pending, 0);
 //!		assert_eq!(txq.status().future, 1);
-//!		assert_eq!(txq.top_transactions(3).len(), 0);
+//!		assert_eq!(txq.top_transactions().len(), 0);
 //!	}
 //! ```
 //!
@@ -306,8 +306,6 @@ impl TransactionQueue {
 		self.minimal_gas_price = min_gas_price;
 	}
 
-	// Will be used when rpc merged
-	#[allow(dead_code)]
 	/// Returns current status for this queue
 	pub fn status(&self) -> TransactionQueueStatus {
 		TransactionQueueStatus {
@@ -456,13 +454,10 @@ impl TransactionQueue {
 		self.future.enforce_limit(&mut self.by_hash);
 	}
 
-	// Will be used when mining merged
-	#[allow(dead_code)]
 	/// Returns top transactions from the queue ordered by priority.
-	pub fn top_transactions(&self, size: usize) -> Vec<SignedTransaction> {
+	pub fn top_transactions(&self) -> Vec<SignedTransaction> {
 		self.current.by_priority
 			.iter()
-			.take(size)
 			.map(|t| self.by_hash.get(&t.hash).expect("Transaction Queue Inconsistency"))
 			.map(|t| t.transaction.clone())
 			.collect()
@@ -754,7 +749,7 @@ mod test {
 		txq.add(tx2.clone(), &default_nonce).unwrap();
 
 		// then
-		let top = txq.top_transactions(5);
+		let top = txq.top_transactions();
 		assert_eq!(top[0], tx);
 		assert_eq!(top[1], tx2);
 		assert_eq!(top.len(), 2);
@@ -793,7 +788,7 @@ mod test {
 		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
 		assert_eq!(stats.future, 1);
-		let top = txq.top_transactions(5);
+		let top = txq.top_transactions();
 		assert_eq!(top.len(), 1);
 		assert_eq!(top[0], tx);
 	}
@@ -920,7 +915,7 @@ mod test {
 		txq.add(tx2.clone(), &default_nonce).unwrap();
 
 		// then
-		let t = txq.top_transactions(2);
+		let t = txq.top_transactions();
 		assert_eq!(txq.status().pending, 1);
 		assert_eq!(t.len(), 1);
 		assert_eq!(t[0], tx);
@@ -1044,7 +1039,7 @@ mod test {
 		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
 		assert_eq!(stats.future, 0);
-		assert_eq!(txq.top_transactions(1)[0].gas_price, U256::from(200));
+		assert_eq!(txq.top_transactions()[0].gas_price, U256::from(200));
 	}
 
 	#[test]
@@ -1074,7 +1069,7 @@ mod test {
 		let stats = txq.status();
 		assert_eq!(stats.future, 0);
 		assert_eq!(stats.pending, 2);
-		assert_eq!(txq.top_transactions(2)[1].gas_price, U256::from(200));
+		assert_eq!(txq.top_transactions()[1].gas_price, U256::from(200));
 	}
 
 	#[test]

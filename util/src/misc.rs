@@ -20,9 +20,9 @@ use std::fs::File;
 use common::*;
 use rlp::{Stream, RlpStream};
 use target_info::Target;
-use rustc_version;
 
 include!(concat!(env!("OUT_DIR"), "/version.rs"));
+include!(concat!(env!("OUT_DIR"), "/rustc_version.rs"));
 
 #[derive(Debug,Clone,PartialEq,Eq)]
 /// Diff type for specifying a change (or not).
@@ -70,7 +70,13 @@ pub fn contents(name: &str) -> Result<Bytes, UtilError> {
 
 /// Get the standard version string for this software.
 pub fn version() -> String {
-	format!("Parity/v{}-unstable-{}-{}/{}-{}-{}/rustc{}", env!("CARGO_PKG_VERSION"), short_sha(), commit_date().replace("-", ""), Target::arch(), Target::os(), Target::env(), rustc_version::version())
+	let sha3 = short_sha();
+	let sha3_dash = if sha3.is_empty() { "" } else { "-" };
+	let commit_date = commit_date().replace("-", "");
+	let date_dash = if commit_date.is_empty() { "" } else { "-" };
+	let env = Target::env();
+	let env_dash = if env.is_empty() { "" } else { "-" };
+	format!("Parity/v{}-unstable{}{}{}{}/{}-{}{}{}/rustc{}", env!("CARGO_PKG_VERSION"), sha3_dash, sha3, date_dash, commit_date, Target::arch(), Target::os(), env_dash, env, rustc_version())
 }
 
 /// Get the standard version data for this software.
@@ -82,7 +88,7 @@ pub fn version_data() -> Bytes {
 		u32::from_str(env!("CARGO_PKG_VERSION_PATCH")).unwrap();
 	s.append(&v);
 	s.append(&"Parity");
-	s.append(&format!("{}", rustc_version::version()));
+	s.append(&rustc_version());
 	s.append(&&Target::os()[0..2]);
 	s.out()
 }

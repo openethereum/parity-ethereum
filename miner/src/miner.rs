@@ -125,17 +125,25 @@ impl MinerService for Miner {
 	}
 
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
-		let no_of_transactions = 128;
-		// TODO: should select transactions orm queue according to gas limit of block.
-		let transactions = self.transaction_queue.lock().unwrap().top_transactions(no_of_transactions);
-
+		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
 		let b = chain.prepare_sealing(
 			self.author(),
 			self.gas_floor_target(),
 			self.extra_data(),
 			transactions,
 		);
-		*self.sealing_block.lock().unwrap() = b;
+
+		*self.sealing_block.lock().unwrap() = b.map(|(block, invalid_transactions)| {
+			let mut queue = self.transaction_queue.lock().unwrap();
+			queue.remove_all(
+				&invalid_transactions.into_iter().collect::<Vec<H256>>(),
+				|a: &Address| AccountDetails {
+					nonce: chain.nonce(a),
+					balance: chain.balance(a),
+				}
+			);
+			block
+		});
 	}
 
 	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {

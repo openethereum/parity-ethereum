@@ -175,6 +175,8 @@ impl JournalDB for ArchiveDB {
 
 #[cfg(test)]
 mod tests {
+	#![cfg_attr(feature="dev", allow(blacklisted_name))]
+
 	use common::*;
 	use super::*;
 	use hashdb::*;
@@ -371,7 +373,7 @@ mod tests {
 			jdb.commit(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
 		}
 	}
-	
+
 	#[test]
 	fn reopen_fork() {
 		let mut dir = ::std::env::temp_dir();
