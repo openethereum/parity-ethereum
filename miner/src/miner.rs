@@ -137,7 +137,10 @@ impl MinerService for Miner {
 			let mut queue = self.transaction_queue.lock().unwrap();
 			queue.remove_all(
 				&invalid_transactions.into_iter().collect::<Vec<H256>>(),
-				|a: &Address| chain.nonce(a)
+				|a: &Address| AccountDetails {
+					nonce: chain.nonce(a),
+					balance: chain.balance(a),
+				}
 			);
 			block
 		});
