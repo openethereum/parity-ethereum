@@ -36,7 +36,7 @@ mod tests {
 	fn account_deserialization() {
 		let s = r#"{
 			"balance": "1",
-			"builtin": { "name": "ecrecover", "pricing": { "base": 3000, "word": 0 } }
+			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } }
 		}"#;
 		let _deserialized: Account = serde_json::from_str(s).unwrap();
 		// TODO: validate all fields

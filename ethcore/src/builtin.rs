@@ -68,9 +68,11 @@ impl Builtin {
 		// NICE: figure out a more convenient means of handing errors here.
 		if let Json::String(ref name) = json["name"] {
 			if let Json::Object(ref o) = json["pricing"] {
-				if let Json::U64(ref word) = o["word"] {
-					if let Json::U64(ref base) = o["base"] {
-						return Self::from_named_linear(&name[..], *base as usize, *word as usize);
+				if let Json::Object(ref o) = o["linear"] {
+					if let Json::U64(ref word) = o["word"] {
+						if let Json::U64(ref base) = o["base"] {
+							return Self::from_named_linear(&name[..], *base as usize, *word as usize);
+						}
 					}
 				}
 			}
@@ -274,7 +276,7 @@ fn from_named_linear() {
 
 #[test]
 fn from_json() {
-	let text = "{ \"name\": \"identity\", \"pricing\": {\"base\": 10, \"word\": 20} }";
+	let text = r#"{"name": "identity", "pricing": {"linear": {"base": 10, "word": 20}}}"#;
 	let json = Json::from_str(text).unwrap();
 	let b = Builtin::from_json(&json).unwrap();
 	assert_eq!((*b.cost)(0), U256::from(10));
