@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Test implementation of account provider.
+
 use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
@@ -42,6 +44,7 @@ impl TestAccount {
 /// Test account provider.
 pub struct TestAccountProvider {
 	accounts: RwLock<HashMap<Address, TestAccount>>,
+	/// Added accounts passwords.
 	pub adds: RwLock<Vec<String>>,
 }
 

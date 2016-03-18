@@ -26,6 +26,7 @@ pub struct TestExternalMiner {
 }
 
 impl TestExternalMiner {
+	/// Creates new external miner.
 	pub fn new(hashrates: Arc<RwLock<HashMap<H256, U256>>>) -> Self {
 		TestExternalMiner {
 			hashrates: hashrates,
