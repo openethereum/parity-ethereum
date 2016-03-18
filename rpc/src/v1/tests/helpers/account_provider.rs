@@ -33,6 +33,7 @@ pub struct TestAccount {
 }
 
 impl TestAccount {
+	/// Creates new test account.
 	pub fn new(password: &str) -> Self {
 		TestAccount {
 			unlocked: false,

@@ -34,6 +34,7 @@ pub struct TestSyncProvider {
 }
 
 impl TestSyncProvider {
+	/// Creates new sync provider.
 	pub fn new(config: Config) -> Self {
 		TestSyncProvider {
 			status: RwLock::new(SyncStatus {
