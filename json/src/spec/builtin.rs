@@ -16,18 +16,35 @@
 
 //! Spec builtin deserialization.
 
-/// Linear builin options.
+use serde::de::{Deserialize, Deserializer};
+
+/// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Linear {
 	base: u64,
 	word: u64,
 }
 
+/// Pricing variants.
+#[derive(Debug, PartialEq)]
+pub enum Pricing {
+	/// Linear pricing.
+	Linear(Linear),
+}
+
+impl Deserialize for Pricing {
+	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error>
+		where D: Deserializer {
+			Deserialize::deserialize(deserializer).map(Pricing::Linear)
+	}
+}
+
+
 /// Spec builtin.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Builtin {
 	name: String,
-	linear: Linear,
+	pricing: Pricing,
 }
 
 #[cfg(test)]
@@ -39,7 +56,7 @@ mod tests {
 	fn builtin_deserialization() {
 		let s = r#"{
 			"name": "ecrecover",
-			"linear": { "base": 3000, "word": 0 }
+			"pricing": { "base": 3000, "word": 0 }
 		}"#;
 		let _deserialized: Builtin = serde_json::from_str(s).unwrap();
 		// TODO: validate all fields
