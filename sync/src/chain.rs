@@ -38,7 +38,7 @@ use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
-use ethminer::{Miner, MinerService};
+use ethminer::{Miner, MinerService, AccountDetails};
 use io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -403,7 +403,7 @@ impl ChainSync {
 							self.remove_downloaded_blocks(number + 1);
 						}
 						if self.have_common_block && number < self.current_base_block() + 1 {
-							// unkown header 
+							// unkown header
 							debug!(target: "sync", "Old block header {:?} ({}) is unknown, restarting sync", hash, number);
 							self.restart(io);
 							return Ok(());
@@ -937,6 +937,11 @@ impl ChainSync {
 	}
 	/// Called when peer sends us new transactions
 	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		// accepting transactions once only fully synced
+		if !io.is_chain_queue_empty() {
+			return Ok(());
+		}
+
 		let item_count = r.item_count();
 		trace!(target: "sync", "{} -> Transactions ({} entries)", peer_id, item_count);
 
@@ -946,8 +951,11 @@ impl ChainSync {
 			transactions.push(tx);
 		}
 		let chain = io.chain();
-		let fetch_nonce = |a: &Address| chain.nonce(a);
-		let _ = self.miner.import_transactions(transactions, fetch_nonce);
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: chain.nonce(a),
+			balance: chain.balance(a),
+		};
+		let _ = self.miner.import_transactions(transactions, fetch_account);
  		Ok(())
 	}
 
@@ -1279,10 +1287,12 @@ impl ChainSync {
 
 	/// called when block is imported to chain, updates transactions queue and propagates the blocks
 	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
-		// Notify miner
-		self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
-		// Propagate latests blocks
-		self.propagate_latest_blocks(io);
+		if io.is_chain_queue_empty() {
+			// Notify miner
+			self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
+			// Propagate latests blocks
+			self.propagate_latest_blocks(io);
+		}
 		// TODO [todr] propagate transactions?
 	}
 
@@ -1298,6 +1308,7 @@ mod tests {
 	use ::SyncConfig;
 	use util::*;
 	use super::{PeerInfo, PeerAsking};
+	use ethcore::views::BlockView;
 	use ethcore::header::*;
 	use ethcore::client::*;
 	use ethminer::{Miner, MinerService};
@@ -1628,19 +1639,53 @@ mod tests {
 		let good_blocks = vec![client.block_hash_delta_minus(2)];
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
 
+		// Add some balance to clients
+		for h in vec![good_blocks[0], retracted_blocks[0]] {
+			let block = client.block(BlockId::Hash(h)).unwrap();
+			let view = BlockView::new(&block);
+			client.set_balance(view.transactions()[0].sender().unwrap(), U256::from(1_000_000_000));
+		}
+
 		let mut queue = VecDeque::new();
 		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
-		assert_eq!(sync.miner.status().transaction_queue_future, 0);
-		assert_eq!(sync.miner.status().transaction_queue_pending, 1);
+		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
+		assert_eq!(sync.miner.status().transactions_in_pending_queue, 1);
 		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
 
 		// then
 		let status = sync.miner.status();
-		assert_eq!(status.transaction_queue_pending, 1);
-		assert_eq!(status.transaction_queue_future, 0);
+		assert_eq!(status.transactions_in_pending_queue, 1);
+		assert_eq!(status.transactions_in_future_queue, 0);
+	}
+
+	#[test]
+	fn should_not_add_transactions_to_queue_if_not_synced() {
+		// given
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(98, EachBlockWith::Uncle);
+		client.add_blocks(1, EachBlockWith::UncleAndTransaction);
+		client.add_blocks(1, EachBlockWith::Transaction);
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(5));
+
+		let good_blocks = vec![client.block_hash_delta_minus(2)];
+		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
+
+		let mut queue = VecDeque::new();
+		let mut io = TestIo::new(&mut client, &mut queue, None);
+
+		// when
+		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
+		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
+		assert_eq!(sync.miner.status().transactions_in_pending_queue, 0);
+		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
+
+		// then
+		let status = sync.miner.status();
+		assert_eq!(status.transactions_in_pending_queue, 0);
+		assert_eq!(status.transactions_in_future_queue, 0);
 	}
 
 	#[test]

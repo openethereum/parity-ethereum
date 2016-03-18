@@ -8,20 +8,43 @@ branches:
   - /^stable-.*$/
   - /^beta$/
   - /^stable$/
+git:
+  depth: 3
 matrix:
-  fast_finish: false
+  fast_finish: true
   allow_failures:
   - rust: nightly
   include:
   - rust: stable
-    env: FEATURES="--features travis-beta" KCOV_FEATURES="" TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethminer" ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
+    env: FEATURES="--features travis-beta" RUN_TESTS="true"
+  # - rust: beta
+    # env: FEATURES="--features travis-beta" RUN_TESTS="true"
+  - rust: stable
+    env: FEATURES="--features travis-beta" RUN_BUILD="true"
+  - rust: beta
+    env: FEATURES="--features travis-beta" RUN_BUILD="true"
+  - rust: stable
+    env: FEATURES="--features travis-beta" RUN_COVERAGE="true"
+  # - rust: nightly
+    # env: FEATURES="--features travis-nightly" RUN_BENCHES="true"
+  - rust: nightly
+    env: FEATURES="--features travis-nightly" RUN_TESTS="true"
+env:
+  global:
+  # GH_TOKEN
+  - secure: bumJASbZSU8bxJ0EyPUJmu16AiV9EXOpyOj86Jlq/Ty9CfwGqsSXt96uDyE+OUJf34RUFQMsw0nk37/zC4lcn6kqk2wpuH3N/o85Zo/cVZY/NusBWLQqtT5VbYWsV+u2Ua4Tmmsw8yVYQhYwU2ZOejNpflL+Cs9XGgORp1L+/gMRMC2y5Se6ZhwnKPQlRJ8LGsG1dzjQULxzADIt3/zuspNBS8a2urJwlHfGMkvHDoUWCviP/GXoSqw3TZR7FmKyxE19I8n9+iSvm9+oZZquvcgfUxMHn8Gq/b44UbPvjtFOg2yam4xdWXF/RyWCHdc/R9EHorSABeCbefIsm+zcUF3/YQxwpSxM4IZEeH2rTiC7dcrsKw3XsO16xFQz5YI5Bay+CT/wTdMmJd7DdYz7Dyf+pOvcM9WOf/zorxYWSBOMYy0uzbusU2iyIghQ82s7E/Ahg+WARtPgkuTLSB5aL1oCTBKHqQscMr7lo5Ti6RpWLxEdTQMBznc+bMr+6dEtkEcG9zqc6cE9XX+ox3wTU6+HVMfQ1ltCntJ4UKcw3A6INEbw9wgocQa812CIASQ2fE+SCAbz6JxBjIAlFUnD1lUB7S8PdMPwn9plfQgKQ2A5YZqg6FnBdf0rQXIJYxQWKHXj/rBHSUCT0tHACDlzTA+EwWggvkP5AGIxRxm8jhw=
+  - TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethminer"
+  - ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
+  - KCOV_FEATURES=""
+  - KCOV_CMD="./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests target/kcov"
+  - RUN_TESTS="false"
+  - RUN_COVERAGE="false"
+  - RUN_BUILD="false"
+  - RUN_BENCHES="false"
 cache:
   apt: true
   directories:
-  - target/debug/deps
-  - target/debug/build
-  - target/release/deps
-  - target/release/build
+  - $TRAVIS_BUILD_DIR/target
   - $HOME/.cargo
 addons:
   apt:
@@ -29,22 +52,25 @@ addons:
     - libcurl4-openssl-dev
     - libelf-dev
     - libdw-dev
+
 script:
-- cargo build --release --verbose ${FEATURES}
-- cargo test --release --verbose ${FEATURES} ${TARGETS}
-#- cargo bench --no-run ${FEATURES} ${TARGETS}
-- tar cvzf parity${ARCHIVE_SUFFIX}.tar.gz -C target/release parity
+  - if [ "$RUN_TESTS" = "true" ]; then cargo test --release --verbose ${FEATURES} ${TARGETS}; fi
+  - if [ "$RUN_BENCHES" = "true" ]; then cargo bench --no-run ${FEATURES} ${TARGETS}; fi
+  - if [ "$RUN_BUILD" = "true" ]; then cargo build --release --verbose ${FEATURES}; fi
+  - if [ "$RUN_BUILD" = "true" ]; then tar cvzf parity${ARCHIVE_SUFFIX}.tar.gz -C target/release parity; fi
+
 after_success: |
+  [ "$RUN_COVERAGE" = "true" ] &&
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
   cargo test --no-run ${KCOV_FEATURES} ${TARGETS} &&
-  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests target/kcov target/debug/deps/ethcore_util-* &&
-  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests target/kcov target/debug/deps/ethash-* &&
-  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests target/kcov target/debug/deps/ethcore-* &&
-  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests target/kcov target/debug/deps/ethsync-* &&
-  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests target/kcov target/debug/deps/ethcore_rpc-* &&
-  ./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests target/kcov target/debug/deps/ethminer-* &&
-  ./kcov-master/tmp/usr/local/bin/kcov --coveralls-id=${TRAVIS_JOB_ID} --exclude-pattern /usr/,/.cargo,/root/.multirust target/kcov target/debug/parity-* &&
+  $KCOV_CMD target/debug/deps/ethcore_util-* &&
+  $KCOV_CMD target/debug/deps/ethash-* &&
+  $KCOV_CMD target/debug/deps/ethcore-* &&
+  $KCOV_CMD target/debug/deps/ethsync-* &&
+  $KCOV_CMD target/debug/deps/ethcore_rpc-* &&
+  $KCOV_CMD target/debug/deps/ethminer-* &&
+  $KCOV_CMD target/debug/parity-* &&
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ] &&
   [ $TRAVIS_RUST_VERSION = stable ] &&
@@ -53,10 +79,6 @@ after_success: |
   pip install --user ghp-import &&
   /home/travis/.local/bin/ghp-import -n target/doc &&
   git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
-env:
-  global:
-  # GH_TOKEN
-  - secure: bumJASbZSU8bxJ0EyPUJmu16AiV9EXOpyOj86Jlq/Ty9CfwGqsSXt96uDyE+OUJf34RUFQMsw0nk37/zC4lcn6kqk2wpuH3N/o85Zo/cVZY/NusBWLQqtT5VbYWsV+u2Ua4Tmmsw8yVYQhYwU2ZOejNpflL+Cs9XGgORp1L+/gMRMC2y5Se6ZhwnKPQlRJ8LGsG1dzjQULxzADIt3/zuspNBS8a2urJwlHfGMkvHDoUWCviP/GXoSqw3TZR7FmKyxE19I8n9+iSvm9+oZZquvcgfUxMHn8Gq/b44UbPvjtFOg2yam4xdWXF/RyWCHdc/R9EHorSABeCbefIsm+zcUF3/YQxwpSxM4IZEeH2rTiC7dcrsKw3XsO16xFQz5YI5Bay+CT/wTdMmJd7DdYz7Dyf+pOvcM9WOf/zorxYWSBOMYy0uzbusU2iyIghQ82s7E/Ahg+WARtPgkuTLSB5aL1oCTBKHqQscMr7lo5Ti6RpWLxEdTQMBznc+bMr+6dEtkEcG9zqc6cE9XX+ox3wTU6+HVMfQ1ltCntJ4UKcw3A6INEbw9wgocQa812CIASQ2fE+SCAbz6JxBjIAlFUnD1lUB7S8PdMPwn9plfQgKQ2A5YZqg6FnBdf0rQXIJYxQWKHXj/rBHSUCT0tHACDlzTA+EwWggvkP5AGIxRxm8jhw=
 
 deploy:
   provider: releases

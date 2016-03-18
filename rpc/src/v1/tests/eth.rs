@@ -43,12 +43,12 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 }
 
 fn miner_service() -> Arc<TestMinerService> {
-	Arc::new(TestMinerService)
+	Arc::new(TestMinerService::default())
 }
 
 struct EthTester {
-	client: Arc<TestBlockChainClient>,
-	_sync: Arc<TestSyncProvider>,
+	pub client: Arc<TestBlockChainClient>,
+	pub sync: Arc<TestSyncProvider>,
 	_accounts_provider: Arc<TestAccountProvider>,
 	_miner: Arc<TestMinerService>,
 	hashrates: Arc<RwLock<HashMap<H256, U256>>>,
@@ -68,7 +68,7 @@ impl Default for EthTester {
 		io.add_delegate(eth);
 		EthTester {
 			client: client,
-			_sync: sync,
+			sync: sync,
 			_accounts_provider: ap,
 			_miner: miner,
 			io: io,
@@ -243,6 +243,20 @@ fn rpc_eth_transaction_count_by_number() {
 }
 
 #[test]
+fn rpc_eth_transaction_count_by_number_pending() {
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getBlockTransactionCountByNumber",
+		"params": ["pending"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x01","id":1}"#;
+
+	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+
+#[test]
 fn rpc_eth_uncle_count_by_block_hash() {
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -346,5 +360,25 @@ fn rpc_eth_compile_serpent() {
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
 
+#[test]
+fn returns_no_work_if_cant_mine() {
+	let eth_tester = EthTester::default();
 
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["","",""],"id":1}"#;
 
+	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn returns_error_if_can_mine_and_no_closed_block() {
+	use ethsync::{SyncState};
+
+	let eth_tester = EthTester::default();
+	eth_tester.sync.status.write().unwrap().state = SyncState::Idle;
+
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":null},"id":1}"#;
+
+	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
+}
