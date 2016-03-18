@@ -47,8 +47,8 @@ Parity rpctest client.
   Copyright 2015, 2016 Ethcore (UK) Limited
 
 Usage:
-  parity --json <test-file> --name <test-name> [options]
-  parity --help
+  rpctest --json <test-file> --name <test-name> [options]
+  rpctest --help
 
 Options:
   --jsonrpc-addr HOST      Specify the hostname portion of the JSONRPC API
