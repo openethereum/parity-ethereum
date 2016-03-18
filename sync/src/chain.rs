@@ -38,7 +38,7 @@ use range_collection::{RangeCollection, ToUsize, FromUsize};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use ethcore::block::Block;
-use ethminer::{Miner, MinerService, AccountDetails};
+use ethminer::{MinerService};
 use io::SyncIo;
 use time;
 use super::SyncConfig;
@@ -178,7 +178,7 @@ struct PeerInfo {
 
 /// Blockchain sync handler.
 /// See module documentation for more details.
-pub struct ChainSync {
+pub struct ChainSync<M: MinerService> {
 	/// Sync state
 	state: SyncState,
 	/// Last block number for the start of sync
@@ -214,14 +214,14 @@ pub struct ChainSync {
 	/// Network ID
 	network_id: U256,
 	/// Miner
-	miner: Arc<Miner>,
+	miner: Arc<M>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
 
-impl ChainSync {
+impl<M: MinerService> ChainSync<M> {
 	/// Create a new instance of syncing strategy.
-	pub fn new(config: SyncConfig, miner: Arc<Miner>) -> ChainSync {
+	pub fn new(config: SyncConfig, miner: Arc<M>) -> ChainSync<M> {
 		ChainSync {
 			state: SyncState::NotSynced,
 			starting_block: 0,
@@ -950,12 +950,7 @@ impl ChainSync {
 			let tx: SignedTransaction = try!(r.val_at(i));
 			transactions.push(tx);
 		}
-		let chain = io.chain();
-		let fetch_account = |a: &Address| AccountDetails {
-			nonce: chain.nonce(a),
-			balance: chain.balance(a),
-		};
-		let _ = self.miner.import_transactions(transactions, fetch_account);
+		let _ = self.miner.import_transactions(transactions);
  		Ok(())
 	}
 
@@ -1123,19 +1118,19 @@ impl ChainSync {
 			NEW_BLOCK_HASHES_PACKET => self.on_peer_new_hashes(io, peer, &rlp),
 
 			GET_BLOCK_BODIES_PACKET => self.return_rlp(io, &rlp,
-				ChainSync::return_block_bodies,
+				ChainSync::<M>::return_block_bodies,
 				|e| format!("Error sending block bodies: {:?}", e)),
 
 			GET_BLOCK_HEADERS_PACKET => self.return_rlp(io, &rlp,
-				ChainSync::return_block_headers,
+				ChainSync::<M>::return_block_headers,
 				|e| format!("Error sending block headers: {:?}", e)),
 
 			GET_RECEIPTS_PACKET => self.return_rlp(io, &rlp,
-				ChainSync::return_receipts,
+				ChainSync::<M>::return_receipts,
 				|e| format!("Error sending receipts: {:?}", e)),
 
 			GET_NODE_DATA_PACKET => self.return_rlp(io, &rlp,
-				ChainSync::return_node_data,
+				ChainSync::<M>::return_node_data,
 				|e| format!("Error sending nodes: {:?}", e)),
 
 			_ => {
@@ -1232,7 +1227,7 @@ impl ChainSync {
 
 		let mut sent = 0;
 		for peer_id in updated_peers {
-			let rlp = ChainSync::create_latest_block_rlp(io.chain());
+			let rlp = ChainSync::<M>::create_latest_block_rlp(io.chain());
 			self.send_packet(io, peer_id, NEW_BLOCK_PACKET, rlp);
 			self.peers.get_mut(&peer_id).unwrap().latest_hash = chain_info.best_block_hash.clone();
 			self.peers.get_mut(&peer_id).unwrap().latest_number = Some(chain_info.best_block_number);
@@ -1252,7 +1247,7 @@ impl ChainSync {
 				// If we think peer is too far behind just send one latest hash
 				peer_best = last_parent.clone();
 			}
-			sent = sent + match ChainSync::create_new_hashes_rlp(io.chain(), &peer_best, &chain_info.best_block_hash) {
+			sent = sent + match ChainSync::<M>::create_new_hashes_rlp(io.chain(), &peer_best, &chain_info.best_block_hash) {
 				Some(rlp) => {
 					{
 						let peer = self.peers.get_mut(&peer_id).unwrap();
@@ -1289,15 +1284,15 @@ impl ChainSync {
 	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		if io.is_chain_queue_empty() {
 			// Notify miner
-			self.miner.chain_new_blocks(io.chain(), imported, invalid, enacted, retracted);
+			self.miner.chain_new_blocks(imported, invalid, enacted, retracted);
 			// Propagate latests blocks
 			self.propagate_latest_blocks(io);
 		}
 		// TODO [todr] propagate transactions?
 	}
 
-	pub fn chain_new_head(&mut self, io: &mut SyncIo) {
-		self.miner.update_sealing(io.chain());
+	pub fn chain_new_head(&mut self) {
+		self.miner.update_sealing();
 	}
 }
 
@@ -1311,7 +1306,7 @@ mod tests {
 	use ethcore::views::BlockView;
 	use ethcore::header::*;
 	use ethcore::client::*;
-	use ethminer::{Miner, MinerService};
+	use ethminer::{MinerService};
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();

@@ -108,14 +108,14 @@ pub struct EthSync {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
 	chain: Arc<Client>,
 	/// Sync strategy
-	sync: RwLock<ChainSync>
+	sync: RwLock<ChainSync<Miner<Client>>>
 }
 
 pub use self::chain::{SyncStatus, SyncState};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>, miner: Arc<Miner>) -> Arc<EthSync> {
+	pub fn register(service: &mut NetworkService<SyncMessage>, config: SyncConfig, chain: Arc<Client>, miner: Arc<Miner<Client>>) -> Arc<EthSync> {
 		let sync = Arc::new(EthSync {
 			chain: chain,
 			sync: RwLock::new(ChainSync::new(config, miner)),
@@ -171,8 +171,7 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, imported, invalid, enacted, retracted);
 			},
 			SyncMessage::NewChainHead => {
-				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
-				self.sync.write().unwrap().chain_new_head(&mut sync_io);
+				self.sync.write().unwrap().chain_new_head();
 			},
 			_ => {/* Ignore other messages */},
 		}

@@ -100,6 +100,7 @@ pub mod spec;
 pub mod transaction;
 pub mod views;
 pub mod receipt;
+pub mod engine;
 
 mod common;
 mod basic_types;
@@ -109,7 +110,6 @@ mod pod_account;
 mod pod_state;
 mod account_diff;
 mod state_diff;
-mod engine;
 mod state;
 mod account;
 mod account_db;

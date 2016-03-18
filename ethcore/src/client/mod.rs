@@ -32,7 +32,7 @@ use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::{ClosedBlock, SealedBlock};
+use block::OpenBlock;
 use header::BlockNumber;
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
@@ -109,14 +109,7 @@ pub trait BlockChainClient : Sync + Send {
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
-	// TODO [todr] Should be moved to miner crate eventually.
-	/// Returns ClosedBlock prepared for sealing.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> Option<(ClosedBlock, HashSet<H256>)>;
-
-	// TODO [todr] Should be moved to miner crate eventually.
-	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
-	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock>;
-
+	///
+	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock;
 }
 

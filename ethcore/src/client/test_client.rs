@@ -28,7 +28,7 @@ use extras::BlockReceipts;
 use error::{ImportResult};
 
 use block_queue::BlockQueueInfo;
-use block::{SealedBlock, ClosedBlock};
+use block::OpenBlock;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -218,12 +218,8 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<(ClosedBlock, HashSet<H256>)> {
-		None
-	}
-
-	fn try_seal(&self, block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
-		Err(block)
+	fn open_block(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes) -> OpenBlock {
+		unimplemented!();
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {

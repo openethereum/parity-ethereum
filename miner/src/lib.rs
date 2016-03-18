@@ -40,7 +40,10 @@
 //! 	let dir = env::temp_dir();
 //! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
 //!
-//!		let miner: Miner = Miner::default();
+//!		let miner: Miner = Miner::new(
+//!			Arc::new(ethereum::new_frontier().to_engine().unwrap()),
+//!			Arc::new(client)
+//!		);
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
@@ -61,45 +64,59 @@ extern crate rayon;
 
 mod miner;
 mod transaction_queue;
+mod client;
 
 pub use transaction_queue::{TransactionQueue, AccountDetails};
 pub use miner::{Miner};
 
 use std::sync::Mutex;
-use util::{H256, Address, Bytes};
+use util::{H256, U256, Address, Bytes};
 use ethcore::client::{BlockChainClient};
-use ethcore::block::{ClosedBlock};
-use ethcore::error::{Error};
+use ethcore::block::{ClosedBlock, OpenBlock};
+use ethcore::error::{Error, ImportResult};
 use ethcore::transaction::SignedTransaction;
 
-/// Miner client API
+/// Miner API
 pub trait MinerService : Send + Sync {
 
 	/// Returns miner's status.
 	fn status(&self) -> MinerStatus;
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
-		where T: Fn(&Address) -> AccountDetails;
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<(), Error>>;
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self) -> Vec<H256>;
 
 	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset(&self, chain: &BlockChainClient);
+	fn clear_and_reset(&self);
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, chain: &BlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
-
-	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self, chain: &BlockChainClient);
+	fn chain_new_blocks(&self, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>>;
+	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>>;
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
+	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
+
+	fn update_sealing(&self);
+}
+
+/// BlockChainClient requirements for mining
+pub trait MinerBlockChain : Send + Sync {
+	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock;
+
+	fn import_block(&self, bytes: Bytes) -> ImportResult;
+
+	fn block_transactions(&self, hash: &H256) -> Vec<SignedTransaction>;
+
+	fn best_block_gas_limit(&self) -> U256;
+
+	fn best_block_number(&self) -> u64;
+
+	fn account_details(&self, address: &Address) -> AccountDetails;
 }
 
 /// Mining status

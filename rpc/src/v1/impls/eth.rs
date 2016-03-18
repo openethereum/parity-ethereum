@@ -17,9 +17,8 @@
 //! Eth rpc implementation.
 use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
-use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService, AccountDetails};
+use ethminer::{MinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
@@ -333,8 +332,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				}
 
 				let miner = take_weak!(self.miner);
-				let client = take_weak!(self.client);
-				let u = miner.sealing_block(client.deref()).lock().unwrap();
+				let u = miner.sealing_block().lock().unwrap();
 				match *u {
 					Some(ref b) => {
 						let pow_hash = b.hash();
@@ -353,9 +351,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
 //			trace!("Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 			let miner = take_weak!(self.miner);
-			let client = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
-			let r = miner.submit_seal(client.deref(), pow_hash, seal);
+			let r = miner.submit_seal(pow_hash, seal);
 			to_value(&r.is_ok())
 		})
 	}
@@ -375,16 +372,12 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				match accounts.account_secret(&transaction_request.from) {
 					Ok(secret) => {
 						let miner = take_weak!(self.miner);
-						let client = take_weak!(self.client);
 
 						let transaction: EthTransaction = transaction_request.into();
 						let signed_transaction = transaction.sign(&secret);
 						let hash = signed_transaction.hash();
 
-						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
-							nonce: client.nonce(a),
-							balance: client.balance(a),
-						});
+						let import = miner.import_transactions(vec![signed_transaction]);
 						match import.into_iter().collect::<Result<Vec<_>, _>>() {
 							Ok(_) => to_value(&hash),
 							Err(e) => {

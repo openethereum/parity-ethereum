@@ -385,21 +385,15 @@ impl<V> Client<V> where V: Verifier {
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
-	// TODO [todr] Should be moved to miner crate eventually.
-	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
-		block.try_seal(self.engine.deref().deref(), seal)
-	}
 
-	// TODO [todr] Should be moved to miner crate eventually.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> Option<(ClosedBlock, HashSet<H256>)> {
+	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
 
 		let mut b = OpenBlock::new(
 			engine,
 			self.state_db.lock().unwrap().spawn(),
-			match self.chain.block_header(&h) { Some(ref x) => x, None => {return None} },
+			&self.chain.block_header(&h).unwrap(),
 			self.build_last_hashes(h.clone()),
 			author,
 			gas_floor_target,
@@ -416,42 +410,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 				b.push_uncle(h).unwrap();
 			});
 
-		// Add transactions
-		let block_number = b.block().header().number();
-		let min_tx_gas = U256::from(self.engine.schedule(&b.env_info()).tx_gas);
-		let mut invalid_transactions = HashSet::new();
-
-		for tx in transactions {
-			// Push transaction to block
-			let hash = tx.hash();
-			let import = b.push_transaction(tx, None);
-
-			match import {
-				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
-					// Exit early if gas left is smaller then min_tx_gas
-					if gas_limit - gas_used < min_tx_gas {
-						break;
-					}
-				},
-				Err(e) => {
-					invalid_transactions.insert(hash);
-					trace!(target: "miner",
-						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
-						   block_number, hash, e);
-				},
-				_ => {}
-			}
-		}
-
-		// And close
-		let b = b.close();
-		trace!(target: "miner", "Sealing: number={}, hash={}, diff={}",
-			   b.block().header().number(),
-			   b.hash(),
-			   b.block().header().difficulty()
-		);
-		Some((b, invalid_transactions))
+		b
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {

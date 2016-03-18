@@ -246,7 +246,7 @@ fn setup_rpc_server(
 	client: Arc<Client>,
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
-	miner: Arc<Miner>,
+	miner: Arc<Miner<Client>>,
 	url: &str,
 	cors_domain: &str,
 	apis: Vec<&str>
@@ -508,7 +508,7 @@ impl Configuration {
 		let client = service.client();
 
 		// Miner
-		let miner = Miner::new();
+		let miner = Miner::new(Arc::new(self.spec().to_engine().unwrap()), client.clone());
 		miner.set_author(self.author());
 		miner.set_gas_floor_target(self.gas_floor_target());
 		miner.set_extra_data(self.extra_data());
