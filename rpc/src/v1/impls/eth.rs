@@ -385,7 +385,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 							nonce: client.nonce(a),
 							balance: client.balance(a),
 						});
-						match import {
+						match import.into_iter().collect::<Result<Vec<_>, _>>() {
 							Ok(_) => to_value(&hash),
 							Err(e) => {
 								warn!("Error sending transaction: {:?}", e);

@@ -333,12 +333,12 @@ impl TransactionQueue {
 	}
 
 	/// Adds all signed transactions to queue to be verified and imported
-	pub fn add_all<T>(&mut self, txs: Vec<SignedTransaction>, fetch_account: T) -> Result<(), Error>
+	pub fn add_all<T>(&mut self, txs: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
 		where T: Fn(&Address) -> AccountDetails {
-		for tx in txs.into_iter() {
-			try!(self.add(tx, &fetch_account));
-		}
-		Ok(())
+
+		txs.into_iter()
+			.map(|tx| self.add(tx, &fetch_account))
+			.collect()
 	}
 
 	/// Add signed transaction to queue to be verified and imported
@@ -385,8 +385,7 @@ impl TransactionQueue {
 			}));
 		}
 
-		self.import_tx(vtx, account.nonce);
-		Ok(())
+		self.import_tx(vtx, account.nonce).map_err(Error::Transaction)
 	}
 
 	/// Removes all transactions identified by hashes given in slice
@@ -540,12 +539,14 @@ impl TransactionQueue {
 	///
 	/// It ignores transactions that has already been imported (same `hash`) and replaces the transaction
 	/// iff `(address, nonce)` is the same but `gas_price` is higher.
-	fn import_tx(&mut self, tx: VerifiedTransaction, state_nonce: U256) {
+	///
+	/// Returns `true` when transaction was imported successfuly
+	fn import_tx(&mut self, tx: VerifiedTransaction, state_nonce: U256) -> Result<(), TransactionError> {
 
 		if self.by_hash.get(&tx.hash()).is_some() {
 			// Transaction is already imported.
 			trace!(target: "miner", "Dropping already imported transaction: {:?}", tx.hash());
-			return;
+			return Err(TransactionError::AlreadyImported);
 		}
 
 
@@ -562,11 +563,11 @@ impl TransactionQueue {
 			// We have a gap - put to future
 			Self::replace_transaction(tx, next_nonce, &mut self.future, &mut self.by_hash);
 			self.future.enforce_limit(&mut self.by_hash);
-			return;
+			return Ok(());
 		} else if nonce < state_nonce {
 			// Droping transaction
 			trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
-			return;
+			return Err(TransactionError::Old);
 		}
 
 		Self::replace_transaction(tx, state_nonce, &mut self.current, &mut self.by_hash);
@@ -576,6 +577,7 @@ impl TransactionQueue {
 		self.current.enforce_limit(&mut self.by_hash);
 
 		trace!(target: "miner", "status: {:?}", self.status());
+		Ok(())
 	}
 
 	/// Replaces transaction in given set (could be `future` or `current`).
@@ -1008,7 +1010,7 @@ mod test {
 		let fetch_last_nonce = |_a: &Address| AccountDetails{ nonce: last_nonce, balance: !U256::zero() };
 
 		// when
-		txq.add(tx, &fetch_last_nonce).unwrap();
+		txq.add(tx, &fetch_last_nonce).unwrap_err();
 
 		// then
 		let stats = txq.status();
@@ -1028,7 +1030,7 @@ mod test {
 		assert_eq!(txq.status().pending, 0);
 
 		// when
-		txq.add(tx2.clone(), &nonce).unwrap();
+		txq.add(tx2.clone(), &nonce).unwrap_err();
 
 		// then
 		let stats = txq.status();

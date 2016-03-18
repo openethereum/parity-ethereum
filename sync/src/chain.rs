@@ -1297,7 +1297,7 @@ impl ChainSync {
 	}
 
 	pub fn chain_new_head(&mut self, io: &mut SyncIo) {
-		self.miner.prepare_sealing(io.chain());
+		self.miner.update_sealing(io.chain());
 	}
 }
 
