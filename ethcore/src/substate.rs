@@ -17,43 +17,110 @@
 //! Execution environment substate.
 use common::*;
 
+#[derive(Debug, Clone)]
+pub struct TraceCall {
+	pub from: Address,
+	pub to: Address,
+	pub value: U256,
+	pub gas: U256,
+	pub input: Bytes,
+	pub result: Option<U256>,
+//	pub output: Bytes,
+}
+
+#[derive(Debug, Clone)]
+pub struct TraceCreate {
+	pub from: Address,
+	pub value: U256,
+	pub gas: U256,
+	pub init: Bytes,
+	pub result: Option<(U256, Address)>,
+//	pub output: Bytes,
+}
+
+#[derive(Debug, Clone)]
+pub enum TraceAction {
+	Unknown,
+	Call(TraceCall),
+	Create(TraceCreate),
+}
+
+#[derive(Debug, Clone)]
+pub struct TraceItem {
+	pub action: TraceAction,
+	pub subs: Vec<TraceItem>,
+}
+
+impl Default for TraceItem {
+	fn default() -> TraceItem {
+		TraceItem {
+			action: TraceAction::Unknown,
+			subs: vec![],
+		}
+	}
+}
+
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Substate {
 	/// Any accounts that have suicided.
 	pub suicides: HashSet<Address>,
+
 	/// Any logs.
 	pub logs: Vec<LogEntry>,
+
 	/// Refund counter of SSTORE nonzero -> zero.
 	pub sstore_clears_count: U256,
-	/// Created contracts.
-	pub contracts_created: Vec<Address>
-}
 
-impl Default for Substate {
-	fn default() -> Self {
-		Substate::new()
-	}
+	/// Created contracts.
+	pub contracts_created: Vec<Address>,
+
+	/// The trace during this execution.
+	pub trace: Vec<TraceItem>,
 }
 
 impl Substate {
 	/// Creates new substate.
 	pub fn new() -> Self {
-		Substate {
-			suicides: HashSet::new(),
-			logs: vec![],
-			sstore_clears_count: U256::zero(),
-			contracts_created: vec![]
-		}
+		Substate::default()
 	}
 
 	/// Merge secondary substate `s` into self, accruing each element correspondingly.
-	pub fn accrue(&mut self, s: Substate) {
+	pub fn accrue(&mut self, s: Substate, action: TraceAction) {
 		self.suicides.extend(s.suicides.into_iter());
 		self.logs.extend(s.logs.into_iter());
 		self.sstore_clears_count = self.sstore_clears_count + s.sstore_clears_count;
 		self.contracts_created.extend(s.contracts_created.into_iter());
+		self.trace.push(TraceItem {
+			action: action,
+			subs: s.trace,
+		});
+	}
+}
+
+
+
+impl TraceAction {
+	pub fn from_call(p: &ActionParams) -> TraceAction {
+		TraceAction::Call(TraceCall {
+			from: p.sender.clone(),
+			to: p.address.clone(),
+			value: match p.value { ActionValue::Transfer(ref x) | ActionValue::Apparent(ref x) => x.clone() },
+			gas: p.gas.clone(),
+			input: p.data.clone().unwrap_or(vec![]),
+			result: None,
+		})
+	}
+
+	pub fn from_create(p: &ActionParams) -> TraceAction {
+		TraceAction::Create(TraceCreate {
+			from: p.sender.clone(),
+			value: match p.value { ActionValue::Transfer(ref x) | ActionValue::Apparent(ref x) => x.clone() },
+			gas: p.gas.clone(),
+			init: p.data.clone().unwrap_or(vec![]),
+			result: None,
+		})
 	}
 }
 
