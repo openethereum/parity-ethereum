@@ -111,6 +111,7 @@ impl TestBlockChainClient {
 			header.difficulty = From::from(n);
 			header.parent_hash = self.last_hash.read().unwrap().clone();
 			header.number = n as BlockNumber;
+			header.gas_limit = U256::from(1_000_000);
 			let uncles = match with {
 				EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
 					let mut uncles = RlpStream::new_list(1);
