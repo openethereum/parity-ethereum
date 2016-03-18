@@ -27,9 +27,8 @@ crossbeam = "0.2"
 slab = "0.1"
 sha3 = { path = "sha3" }
 serde = "0.7.0"
-clippy = { version = "0.0.50", optional = true }
+clippy = { version = "0.0.54", optional = true }
 json-tests = { path = "json-tests" }
-rustc_version = "0.1.0"
 igd = "0.4.2"
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
@@ -44,3 +43,4 @@ dev = ["clippy"]
 
 [build-dependencies]
 vergen = "*"
+rustc_version = "0.1.0"

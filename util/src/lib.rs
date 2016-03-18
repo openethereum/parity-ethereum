@@ -109,9 +109,7 @@ extern crate log as rlog;
 extern crate igd;
 extern crate ethcore_devtools as devtools;
 extern crate libc;
-extern crate rustc_version;
 extern crate target_info;
-extern crate vergen;
 extern crate bigint;
 extern crate chrono;
 

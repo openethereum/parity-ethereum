@@ -521,6 +521,7 @@ impl Interpreter {
 		Ok(overflowing!(offset.overflowing_add(size.clone())))
 	}
 
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn exec_instruction(&self,
 						gas: Gas,
 						params: &ActionParams,
