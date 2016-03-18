@@ -274,7 +274,7 @@ fn from_named_linear() {
 
 #[test]
 fn from_json() {
-	let text = "{ \"name\": \"identity\", \"linear\": {\"base\": 10, \"word\": 20} }";
+	let text = "{ \"name\": \"identity\", \"pricing\": {\"base\": 10, \"word\": 20} }";
 	let json = Json::from_str(text).unwrap();
 	let b = Builtin::from_json(&json).unwrap();
 	assert_eq!((*b.cost)(0), U256::from(10));
