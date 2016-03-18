@@ -252,10 +252,16 @@ pub struct AccountDetails {
 	pub balance: U256,
 }
 
+
+/// Transactions with `gas > (gas_limit + gas_limit * Factor(in percents))` are not imported to the queue.
+const GAS_LIMIT_HYSTERESIS: usize = 10; // %
+
 /// TransactionQueue implementation
 pub struct TransactionQueue {
 	/// Gas Price threshold for transactions that can be imported to this queue (defaults to 0)
 	minimal_gas_price: U256,
+	/// Current gas limit (block gas limit * factor). Transactions above the limit will not be accepted (default to !0)
+	gas_limit: U256,
 	/// Priority queue for transactions that can go to block
 	current: TransactionSet,
 	/// Priority queue for transactions that has been received but are not yet valid to go to block
@@ -293,6 +299,7 @@ impl TransactionQueue {
 
 		TransactionQueue {
 			minimal_gas_price: U256::zero(),
+			gas_limit: !U256::zero(),
 			current: current,
 			future: future,
 			by_hash: HashMap::new(),
@@ -301,9 +308,20 @@ impl TransactionQueue {
 	}
 
 	/// Sets new gas price threshold for incoming transactions.
-	/// Any transactions already imported to the queue are not affected.
+	/// Any transaction already imported to the queue is not affected.
 	pub fn set_minimal_gas_price(&mut self, min_gas_price: U256) {
 		self.minimal_gas_price = min_gas_price;
+	}
+
+	/// Sets new gas limit. Transactions with gas slightly (`GAS_LIMIT_HYSTERESIS`) above the limit won't be imported.
+	/// Any transaction already imported to the queue is not affected.
+	pub fn set_gas_limit(&mut self, gas_limit: U256) {
+		let extra = gas_limit / U256::from(GAS_LIMIT_HYSTERESIS);
+
+		self.gas_limit = match gas_limit.overflowing_add(extra) {
+			(_, true) => !U256::zero(),
+			(val, false) => val,
+		};
 	}
 
 	/// Returns current status for this queue
@@ -335,9 +353,21 @@ impl TransactionQueue {
 				tx.hash(), tx.gas_price, self.minimal_gas_price
 			);
 
-			return Err(Error::Transaction(TransactionError::InsufficientGasPrice{
+			return Err(Error::Transaction(TransactionError::InsufficientGasPrice {
 				minimal: self.minimal_gas_price,
 				got: tx.gas_price,
+			}));
+		}
+
+		if tx.gas > self.gas_limit {
+			trace!(target: "miner",
+				"Dropping transaction above gas limit: {:?} ({} > {})",
+				tx.hash(), tx.gas, self.gas_limit
+			);
+
+			return Err(Error::Transaction(TransactionError::GasLimitExceeded {
+				limit: self.gas_limit,
+				got: tx.gas,
 			}));
 		}
 
@@ -676,6 +706,37 @@ mod test {
 		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
 	}
+
+	#[test]
+	fn gas_limit_should_never_overflow() {
+		// given
+		let mut txq = TransactionQueue::new();
+		txq.set_gas_limit(U256::zero());
+		assert_eq!(txq.gas_limit, U256::zero());
+
+		// when
+		txq.set_gas_limit(!U256::zero());
+
+		// then
+		assert_eq!(txq.gas_limit, !U256::zero());
+	}
+
+	#[test]
+	fn should_not_import_transaction_above_gas_limit() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		txq.set_gas_limit(tx.gas / U256::from(2));
+
+		// when
+		txq.add(tx, &default_nonce).unwrap_err();
+
+		// then
+		let stats = txq.status();
+		assert_eq!(stats.pending, 0);
+		assert_eq!(stats.future, 0);
+	}
+
 
 	#[test]
 	fn should_drop_transactions_from_senders_without_balance() {
