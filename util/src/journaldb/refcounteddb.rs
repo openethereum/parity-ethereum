@@ -28,7 +28,7 @@ use std::env;
 /// Implementation of the HashDB trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
 ///
-/// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to 
+/// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to
 /// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
@@ -113,7 +113,7 @@ impl JournalDB for RefCountedDB {
 	}
 
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		// journal format: 
+		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 		// [era, n] => [ ... ]
@@ -121,7 +121,7 @@ impl JournalDB for RefCountedDB {
 		// TODO: store last_era, reclaim_period.
 
 		// when we make a new commit, we journal the inserts and removes.
-		// for each end_era that we journaled that we are no passing by, 
+		// for each end_era that we journaled that we are no passing by,
 		// we remove all of its removes assuming it is canonical and all
 		// of its inserts otherwise.
 
@@ -147,7 +147,7 @@ impl JournalDB for RefCountedDB {
 			r.append(&self.inserts);
 			r.append(&self.removes);
 			try!(batch.put(&last, r.as_raw()));
-			
+
 			trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
 
 			self.inserts.clear();
@@ -194,6 +194,8 @@ impl JournalDB for RefCountedDB {
 
 #[cfg(test)]
 mod tests {
+	#![cfg_attr(feature="dev", allow(blacklisted_name))]
+
 	use common::*;
 	use super::*;
 	use super::super::traits::JournalDB;

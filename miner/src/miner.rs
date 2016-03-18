@@ -21,7 +21,7 @@ use std::sync::atomic::AtomicBool;
 use std::collections::HashSet;
 
 use util::{H256, U256, Address, Bytes, Uint};
-use ethcore::views::{BlockView};
+use ethcore::views::{BlockView, HeaderView};
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::{Error};
@@ -98,7 +98,6 @@ impl Miner {
 	/// Prepares new block for sealing including top transactions from queue.
 	pub fn prepare_sealing(&self, chain: &BlockChainClient) {
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
-
 		let b = chain.prepare_sealing(
 			self.author(),
 			self.gas_floor_target(),
@@ -106,7 +105,23 @@ impl Miner {
 			transactions,
 		);
 
-		*self.sealing_block.lock().unwrap() = b;
+		*self.sealing_block.lock().unwrap() = b.map(|(block, invalid_transactions)| {
+			let mut queue = self.transaction_queue.lock().unwrap();
+			queue.remove_all(
+				&invalid_transactions.into_iter().collect::<Vec<H256>>(),
+				|a: &Address| AccountDetails {
+					nonce: chain.nonce(a),
+					balance: chain.balance(a),
+				}
+			);
+			block
+		});
+	}
+
+	fn update_gas_limit(&self, chain: &BlockChainClient) {
+		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
+		let mut queue = self.transaction_queue.lock().unwrap();
+		queue.set_gas_limit(gas_limit);
 	}
 }
 
@@ -183,6 +198,11 @@ impl MinerService for Miner {
 			let block = BlockView::new(&block);
 			block.transactions()
 		}
+
+		// First update gas limit in transaction queue
+		self.update_gas_limit(chain);
+
+		// Then import all transactions...
 		{
 			let out_of_chain = retracted
 				.par_iter()
@@ -199,7 +219,8 @@ impl MinerService for Miner {
 				});
 			});
 		}
-		// First import all transactions and after that remove old ones
+
+		// ...and after that remove old ones
 		{
 			let in_chain = {
 				let mut in_chain = HashSet::new();
