@@ -306,8 +306,6 @@ impl TransactionQueue {
 		self.minimal_gas_price = min_gas_price;
 	}
 
-	// Will be used when rpc merged
-	#[allow(dead_code)]
 	/// Returns current status for this queue
 	pub fn status(&self) -> TransactionQueueStatus {
 		TransactionQueueStatus {
@@ -456,8 +454,6 @@ impl TransactionQueue {
 		self.future.enforce_limit(&mut self.by_hash);
 	}
 
-	// Will be used when mining merged
-	#[allow(dead_code)]
 	/// Returns top transactions from the queue ordered by priority.
 	pub fn top_transactions(&self) -> Vec<SignedTransaction> {
 		self.current.by_priority
