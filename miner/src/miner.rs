@@ -94,38 +94,11 @@ impl Miner {
 	pub fn set_minimal_gas_price(&self, min_gas_price: U256) {
 		self.transaction_queue.lock().unwrap().set_minimal_gas_price(min_gas_price);
 	}
-}
 
-impl MinerService for Miner {
-
-	fn clear_and_reset(&self, chain: &BlockChainClient) {
-		self.transaction_queue.lock().unwrap().clear();
-		self.prepare_sealing(chain);
-	}
-
-	fn status(&self) -> MinerStatus {
-		let status = self.transaction_queue.lock().unwrap().status();
-		let block = self.sealing_block.lock().unwrap();
-		MinerStatus {
-			transactions_in_pending_queue: status.pending,
-			transactions_in_future_queue: status.future,
-			transactions_in_pending_block: block.as_ref().map_or(0, |b| b.transactions().len()),
-		}
-	}
-
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Result<(), Error>
-		where T: Fn(&Address) -> AccountDetails {
-		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.add_all(transactions, fetch_account)
-	}
-
-	fn pending_transactions_hashes(&self) -> Vec<H256> {
-		let transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.pending_hashes()
-	}
-
-	fn prepare_sealing(&self, chain: &BlockChainClient) {
+	/// Prepares new block for sealing including top transactions from queue.
+	pub fn prepare_sealing(&self, chain: &BlockChainClient) {
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
+
 		let b = chain.prepare_sealing(
 			self.author(),
 			self.gas_floor_target(),
@@ -144,6 +117,42 @@ impl MinerService for Miner {
 			);
 			block
 		});
+
+	}
+}
+
+impl MinerService for Miner {
+
+	fn clear_and_reset(&self, chain: &BlockChainClient) {
+		self.transaction_queue.lock().unwrap().clear();
+		self.update_sealing(chain);
+	}
+
+	fn status(&self) -> MinerStatus {
+		let status = self.transaction_queue.lock().unwrap().status();
+		let block = self.sealing_block.lock().unwrap();
+		MinerStatus {
+			transactions_in_pending_queue: status.pending,
+			transactions_in_future_queue: status.future,
+			transactions_in_pending_block: block.as_ref().map_or(0, |b| b.transactions().len()),
+		}
+	}
+
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
+		where T: Fn(&Address) -> AccountDetails {
+		let mut transaction_queue = self.transaction_queue.lock().unwrap();
+		transaction_queue.add_all(transactions, fetch_account)
+	}
+
+	fn pending_transactions_hashes(&self) -> Vec<H256> {
+		let transaction_queue = self.transaction_queue.lock().unwrap();
+		transaction_queue.pending_hashes()
+	}
+
+	fn update_sealing(&self, chain: &BlockChainClient) {
+		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			self.prepare_sealing(chain);
+		}
 	}
 
 	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
@@ -227,8 +236,6 @@ impl MinerService for Miner {
 			});
 		}
 
-		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
-			self.prepare_sealing(chain);
-		}
+		self.update_sealing(chain);
 	}
 }
