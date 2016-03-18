@@ -22,6 +22,7 @@ use v1::helpers::ExternalMinerService;
 
 /// Test ExternalMinerService;
 pub struct TestExternalMiner {
+	/// External miners hashrates.
 	pub hashrates: Arc<RwLock<HashMap<H256, U256>>>
 }
 
