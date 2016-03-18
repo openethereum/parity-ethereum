@@ -36,7 +36,7 @@ use ethcore::pod_state::PodState;
 use ethcore::ethereum;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use devtools::RandomTempPath;
-use util::io::IoChannel;
+use util::IoChannel;
 use rpc::v1::tests::helpers::{TestSyncProvider, Config as SyncConfig, TestMinerService, TestAccountProvider};
 use rpc::v1::{Eth, EthClient};
 use util::panics::MayPanic;
