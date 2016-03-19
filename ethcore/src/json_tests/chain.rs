@@ -16,18 +16,18 @@
 
 use super::test_common::*;
 use client::{BlockChainClient, Client, ClientConfig};
-use pod_state::*;
 use block::Block;
 use ethereum;
 use tests::helpers::*;
 use devtools::*;
+use spec::Genesis;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	init_log();
-	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
+	let tests = ethjson::blockchain::Test.load(json_data).unwrap();
 	let mut failed = Vec::new();
 
-	for (name, test) in json.as_object().unwrap() {
+	for (name, blockchain) in tests.deref() {
 		let mut fail = false;
 		{
 			let mut fail_unless = |cond: bool| if !cond && !fail {
@@ -39,37 +39,36 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 			flush!("   - {}...", name);
 
-			let blocks: Vec<(Bytes, bool)> = test["blocks"].as_array().unwrap().iter().map(|e| (xjson!(&e["rlp"]), e.find("blockHeader").is_some())).collect();
 			let mut spec = match era {
 				ChainEra::Frontier => ethereum::new_frontier_test(),
 				ChainEra::Homestead => ethereum::new_homestead_test(),
 			};
-			let s = PodState::from_json(test.find("pre").unwrap());
-			spec.set_genesis_state(s);
-			spec.overwrite_genesis(test.find("genesisBlockHeader").unwrap());
+
+			let genesis = Genesis::from(blockchain.genesis());
+			let state = From::from(blockchain.pre_state.clone());
+			spec.set_genesis_state(state);
+			spec.overwrite_genesis_params(genesis);
 			assert!(spec.is_state_root_valid());
-			let genesis_hash = spec.genesis_header().hash();
-			assert_eq!(genesis_hash, H256::from_json(&test.find("genesisBlockHeader").unwrap()["hash"]));
 
 			let temp = RandomTempPath::new();
 			{
 				let client = Client::new(ClientConfig::default(), spec, temp.as_path(), IoChannel::disconnected()).unwrap();
-				assert_eq!(client.chain_info().best_block_hash, genesis_hash);
-				for (b, is_valid) in blocks.into_iter() {
+				for b in &blockchain.blocks_rlp() {
 					if Block::is_good(&b) {
 						let _ = client.import_block(b.clone());
+						client.flush_queue();
+						client.import_verified_blocks(&IoChannel::disconnected());
 					}
-					client.flush_queue();
-					let imported_ok = client.import_verified_blocks(&IoChannel::disconnected()) > 0;
-					assert_eq!(imported_ok, is_valid);
 				}
-				fail_unless(client.chain_info().best_block_hash == H256::from_json(&test["lastblockhash"]));
+				fail_unless(client.chain_info().best_block_hash == blockchain.best_block.clone().into());
 			}
 		}
+
 		if !fail {
 			flushln!("ok");
 		}
 	}
+
 	println!("!!! {:?} tests from failed.", failed.len());
 	failed
 }

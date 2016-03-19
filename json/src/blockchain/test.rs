@@ -18,6 +18,9 @@
 
 use std::collections::BTreeMap;
 use std::ops::Deref;
+use std::io::Read;
+use serde_json;
+use serde_json::Error;
 use blockchain::blockchain::BlockChain;
 
 /// Blockchain test deserializer.
@@ -29,5 +32,12 @@ impl Deref for Test {
 
 	fn deref(&self) -> &Self::Target {
 		&self.0
+	}
+}
+
+impl Test {
+	/// Loads test from json.
+	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
+		serde_json::from_reader(reader)
 	}
 }
