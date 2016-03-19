@@ -82,7 +82,8 @@ impl From<ethjson::blockchain::Account> for PodAccount {
 			code: a.code.into(),
 			storage: a.storage.into_iter().fold(BTreeMap::new(), |mut acc, (key, value)| {
 				let key: U256 = key.into();
-				acc.insert(H256::from(key), value.into());
+				let value: U256 = value.into();
+				acc.insert(H256::from(key), H256::from(value));
 				acc
 			})
 		}

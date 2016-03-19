@@ -37,9 +37,10 @@ use ethcore::ethereum;
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use devtools::RandomTempPath;
 use util::IoChannel;
-use rpc::v1::tests::helpers::{TestSyncProvider, Config as SyncConfig, TestMinerService, TestAccountProvider};
+use rpc::v1::tests::helpers::{TestSyncProvider, Config as SyncConfig, TestMinerService, TestAccountProvider, TestAccount};
 use rpc::v1::{Eth, EthClient};
 use util::panics::MayPanic;
+use util::hash::Address;
 
 const USAGE: &'static str = r#"
 Parity rpctest client.
@@ -86,8 +87,9 @@ impl Configuration {
 			process::exit(1);
 		});
 
-		let	tests: ethjson::blockchain::Test = serde_json::from_reader(file).unwrap_or_else(|_| {
+		let	tests: ethjson::blockchain::Test = serde_json::from_reader(file).unwrap_or_else(|err| {
 			println!("Invalid json file.");
+			println!("{:?}", err);
 			process::exit(2);
 		});
 
@@ -117,7 +119,9 @@ impl Configuration {
 			}));
 
 			let miner = Arc::new(TestMinerService::default());
-			let accounts = Arc::new(TestAccountProvider::new(HashMap::new()));
+			let mut accs = HashMap::new();
+			accs.insert(Address::from(1), TestAccount::new("test"));
+			let accounts = Arc::new(TestAccountProvider::new(accs));
 			let server = rpc::RpcServer::new();
 			server.add_delegate(EthClient::new(&client, &sync, &accounts, &miner).to_delegate());
 
