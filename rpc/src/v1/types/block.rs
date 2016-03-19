@@ -64,7 +64,7 @@ pub struct Block {
 	#[serde(rename="totalDifficulty")]
 	pub total_difficulty: U256,
 	pub nonce: H64,
-	pub uncles: Vec<U256>,
+	pub uncles: Vec<H256>,
 	pub transactions: BlockTransactions
 }
 
