@@ -14,11 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! State of all accounts in the system expressed in Plain Old Data.
+
 use util::*;
 use pod_account::*;
+use ethjson;
 
-#[derive(Debug,Clone,PartialEq,Eq,Default)]
 /// State of all accounts in the system expressed in Plain Old Data.
+#[derive(Debug,Clone,PartialEq,Eq,Default)]
 pub struct PodState (BTreeMap<Address, PodAccount>);
 
 impl PodState {
@@ -60,6 +63,15 @@ impl FromJson for PodState {
 				});
 			}
 			state
+		}))
+	}
+}
+
+impl From<ethjson::blockchain::State> for PodState {
+	fn from(s: ethjson::blockchain::State) -> PodState {
+		PodState(s.0.into_iter().fold(BTreeMap::new(), |mut acc, (key, value)| {
+			acc.insert(key.into(), PodAccount::from(value));
+			acc
 		}))
 	}
 }

@@ -19,14 +19,19 @@
 use std::collections::BTreeMap;
 use uint::Uint;
 use bytes::Bytes;
+use hash::H256;
 
 /// Blockchain test account deserializer.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Clone)]
 pub struct Account {
-	balance: Uint,
-	code: Bytes,
-	nonce: Uint,
-	storage: BTreeMap<Uint, Bytes>,
+	/// Balance.
+	pub balance: Uint,
+	/// Code.
+	pub code: Bytes,
+	/// Nonce.
+	pub nonce: Uint,
+	/// Storage.
+	pub storage: BTreeMap<Uint, H256>,
 }
 
 #[cfg(test)]
@@ -35,7 +40,7 @@ mod tests {
 	use blockchain::account::Account;
 
 	#[test]
-	fn header_deserialization() {
+	fn account_deserialization() {
 		let s = r#"{
 			"balance" : "0x09184e72a078",
 			"code" : "0x600140600155",

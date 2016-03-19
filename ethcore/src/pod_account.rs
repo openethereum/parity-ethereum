@@ -17,6 +17,7 @@
 use util::*;
 use account::*;
 use account_db::*;
+use ethjson;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
 /// An account, expressed as Plain-Old-Data (hence the name).
@@ -69,6 +70,21 @@ impl PodAccount {
 		let mut t = SecTrieDBMut::new(db, &mut r);
 		for (k, v) in &self.storage {
 			t.insert(k, &encode(&U256::from(v.as_slice())));
+		}
+	}
+}
+
+impl From<ethjson::blockchain::Account> for PodAccount {
+	fn from(a: ethjson::blockchain::Account) -> Self {
+		PodAccount {
+			balance: a.balance.into(),
+			nonce: a.nonce.into(),
+			code: a.code.into(),
+			storage: a.storage.into_iter().fold(BTreeMap::new(), |mut acc, (key, value)| {
+				let key: U256 = key.into();
+				acc.insert(H256::from(key), value.into());
+				acc
+			})
 		}
 	}
 }

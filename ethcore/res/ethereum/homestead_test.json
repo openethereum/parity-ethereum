@@ -26,9 +26,9 @@
 		"gasLimit": "0x1388"
 	},
 	"accounts": {
-		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "linear": { "base": 3000, "word": 0 } } },
-		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "linear": { "base": 60, "word": 12 } } },
-		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "linear": { "base": 600, "word": 120 } } },
-		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "linear": { "base": 15, "word": 3 } } }
+		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } }
 	}
 }

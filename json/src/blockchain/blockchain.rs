@@ -20,19 +20,57 @@ use bytes::Bytes;
 use blockchain::state::State;
 use blockchain::header::Header;
 use blockchain::block::Block;
+use spec::Genesis;
 
 /// Blockchain deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct BlockChain {
+	/// Genesis block header.
 	#[serde(rename="genesisBlockHeader")]
-	genesis_block: Header,
+	pub genesis_block: Header,
+	/// Genesis block rlp.
 	#[serde(rename="genesisRLP")]
-	genesis_rlp: Bytes,
-	blocks: Vec<Block>,
+	pub genesis_rlp: Bytes,
+	/// Blocks.
+	pub blocks: Vec<Block>,
+	/// Post state.
 	#[serde(rename="postState")]
-	post_state: State,
+	pub post_state: State,
+	/// Pre state.
 	#[serde(rename="pre")]
-	pre_state: State,
+	pub pre_state: State,
+}
+
+impl BlockChain {
+	/// Returns genesis block rlp.
+	pub fn genesis_rlp(&self) -> Vec<u8> {
+		self.genesis_rlp.clone().into()
+	}
+
+	/// Returns blocks rlp.
+	pub fn blocks_rlp(&self) -> Vec<Vec<u8>> {
+		self.blocks.iter().map(|block| block.rlp()).collect()
+	}
+
+	/// Returns spec compatible genesis struct.
+	pub fn genesis(&self) -> Genesis {
+		Genesis {
+			nonce: Some(self.genesis_block.nonce.clone()),
+			mix_hash: Some(self.genesis_block.mix_hash.clone()),
+			seal_fields: None,
+			seal_rlp: None,
+			difficulty: self.genesis_block.difficulty,
+			author: self.genesis_block.author.clone(),
+			timestamp: self.genesis_block.timestamp,
+			parent_hash: self.genesis_block.parent_hash.clone(),
+			gas_limit: self.genesis_block.gas_limit,
+			transactions_root: Some(self.genesis_block.transactions_root.clone()),
+			receipts_root: Some(self.genesis_block.receipts_root.clone()),
+			state_root: Some(self.genesis_block.state_root.clone()),
+			gas_used: Some(self.genesis_block.gas_used),
+			extra_data: Some(self.genesis_block.extra_data.clone()),
+		}
+	}
 }
 
 #[cfg(test)]

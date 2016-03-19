@@ -33,10 +33,10 @@
 		"enode://248f12bc8b18d5289358085520ac78cd8076485211e6d96ab0bc93d6cd25442db0ce3a937dc404f64f207b0b9aed50e25e98ce32af5ac7cb321ff285b97de485@parity-node-zero.ethcore.io:30303"
 	],
 	"accounts": {
-		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "linear": { "base": 3000, "word": 0 } } },
-		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "linear": { "base": 60, "word": 12 } } },
-		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "linear": { "base": 600, "word": 120 } } },
-		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "linear": { "base": 15, "word": 3 } } },
+		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
 		"3282791d6fd713f1e94f4bfd565eaa78b3a0599d": {
 			"balance": "1337000000000000000000"
 		},
