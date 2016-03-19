@@ -75,7 +75,7 @@ impl<'a> TestExt<'a> {
 			   depth: usize,
 			   origin_info: OriginInfo,
 			   substate: &'a mut Substate,
-			   output: OutputPolicy<'a>,
+			   output: OutputPolicy<'a, 'a>,
 			   address: Address) -> Self {
 		TestExt {
 			contract_address: contract_address(&address, &state.nonce(&address)),
