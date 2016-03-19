@@ -103,6 +103,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 					timestamp: U256::from(view.timestamp()),
 					difficulty: view.difficulty(),
 					total_difficulty: total_difficulty,
+					nonce: view.seal().get(1).map_or_else(H64::zero, |r| H64::from_slice(r)),
 					uncles: vec![],
 					transactions: {
 						if include_txs {
@@ -111,7 +112,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 							BlockTransactions::Hashes(block_view.transaction_hashes())
 						}
 					},
-					extra_data: Bytes::default()
+					extra_data: Bytes::new(view.extra_data())
 				};
 				to_value(&block)
 			},
