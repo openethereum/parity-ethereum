@@ -50,14 +50,15 @@ impl Substate {
 	}
 
 	/// Merge secondary substate `s` into self, accruing each element correspondingly.
-	pub fn accrue(&mut self, s: Substate, maybe_action: Option<TraceAction>) {
+	pub fn accrue(&mut self, s: Substate, maybe_info: Option<(TraceAction, usize)>) {
 		self.suicides.extend(s.suicides.into_iter());
 		self.logs.extend(s.logs.into_iter());
 		self.sstore_clears_count = self.sstore_clears_count + s.sstore_clears_count;
 		self.contracts_created.extend(s.contracts_created.into_iter());
-		if let Some(action) = maybe_action {
+		if let Some(info) = maybe_info {
 			self.subtraces.as_mut().expect("maybe_action is Some: so we must be tracing: qed").push(Trace {
-				action: action,
+				action: info.0,
+				depth: info.1,
 				subs: s.subtraces.expect("maybe_action is Some: so we must be tracing: qed"),
 			});
 		}

@@ -65,6 +65,9 @@ pub enum TraceAction {
 #[derive(Debug, Clone)]
 /// A trace; includes a description of the action being traced and sub traces of each interior action.
 pub struct Trace {
+	/// The number of EVM execution environments active when this action happened; 0 if it's
+	/// the outer action of the transaction.
+	pub depth: usize,
 	/// The action being performed.
 	pub action: TraceAction,
 	/// The sub traces for each interior action performed as part of this call.
@@ -74,6 +77,7 @@ pub struct Trace {
 impl Default for Trace {
 	fn default() -> Trace {
 		Trace {
+			depth: 0,
 			action: TraceAction::Unknown,
 			subs: vec![],
 		}

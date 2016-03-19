@@ -250,20 +250,20 @@ impl<'a> Executive<'a> {
 			// part of substate that may be reverted
 			let mut unconfirmed_substate = Substate::new(substate.subtraces.is_some());
 
-			let mut action = substate.subtraces.as_ref().map(|_| TraceAction::from_call(&params));
+			let mut trace_info = substate.subtraces.as_ref().map(|_| (TraceAction::from_call(&params), self.depth));
 
 			let res = {
 				self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output))
 			};
 
-			if let Some(TraceAction::Call(ref mut c)) = action {
+			if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
 				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, vec![]));
 			}
 
 			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
 			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 
-			self.enact_result(&res, substate, unconfirmed_substate, action);
+			self.enact_result(&res, substate, unconfirmed_substate, trace_info);
 			trace!("exec: new substate={:?}\n", substate);
 			res
 		} else {
@@ -292,18 +292,18 @@ impl<'a> Executive<'a> {
 			self.state.new_contract(&params.address, prev_bal);
 		}
 
-		let mut action = substate.subtraces.as_ref().map(|_| TraceAction::from_create(&params));
+		let mut trace_info = substate.subtraces.as_ref().map(|_| (TraceAction::from_create(&params), self.depth));
 		let created = params.address.clone();
 
 		let res = {
 			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract)
 		};
 
-		if let Some(TraceAction::Create(ref mut c)) = action {
+		if let Some((TraceAction::Create(ref mut c), _)) = trace_info {
 			c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, vec![]));
 		}
 
-		self.enact_result(&res, substate, unconfirmed_substate, action);
+		self.enact_result(&res, substate, unconfirmed_substate, trace_info);
 		res
 	}
 
@@ -366,7 +366,7 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, maybe_action: Option<TraceAction>) {
+	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, maybe_info: Option<(TraceAction, usize)>) {
 		match *result {
 			Err(evm::Error::OutOfGas)
 				| Err(evm::Error::BadJumpDestination {..})
@@ -377,7 +377,7 @@ impl<'a> Executive<'a> {
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
 				self.state.clear_snapshot();
-				substate.accrue(un_substate, maybe_action)
+				substate.accrue(un_substate, maybe_info)
 			}
 		}
 	}
