@@ -22,12 +22,18 @@ use serde::de::Visitor;
 use util::numbers::{U256, Uint as U};
 
 /// Lenient uint json deserialization for test json files.
-#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct Uint(U256);
 
 impl Into<U256> for Uint {
 	fn into(self) -> U256 {
 		self.0
+	}
+}
+
+impl Into<u64> for Uint {
+	fn into(self) -> u64 {
+		u64::from(self.0)
 	}
 }
 

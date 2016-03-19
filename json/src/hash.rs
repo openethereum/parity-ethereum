@@ -25,7 +25,7 @@ use util::hash::{H64 as Hash64, Address as Hash160, H256 as Hash256, H2048 as Ha
 macro_rules! impl_hash {
 	($name: ident, $inner: ident) => {
 		/// Lenient hash json deserialization for test json files.
-		#[derive(Default, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+		#[derive(Default, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 		pub struct $name($inner);
 
 		impl Into<$inner> for $name {
@@ -46,6 +46,10 @@ macro_rules! impl_hash {
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
 						let value = match value.len() {
 							0 => $inner::from(0),
+							2 if value == "0x" => $inner::from(0),
+							_ if value.starts_with("0x") => try!($inner::from_str(&value[2..]).map_err(|_| {
+								Error::custom(format!("Invalid hex value {}.", value).as_ref())
+							})),
 							_ => try!($inner::from_str(value).map_err(|_| {
 								Error::custom(format!("Invalid hex value {}.", value).as_ref())
 							}))

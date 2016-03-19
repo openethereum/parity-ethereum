@@ -16,8 +16,12 @@
 
 //!TODO: load custom blockchain state and test
 
+pub mod helpers;
+#[cfg(test)]
 mod eth;
+#[cfg(test)]
 mod net;
+#[cfg(test)]
 mod web3;
-mod helpers;
+#[cfg(test)]
 mod personal;

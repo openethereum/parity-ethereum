@@ -14,13 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_serialize;
-extern crate serde;
-extern crate serde_json;
-extern crate ethcore_util as util;
+//! Blockchain params.
 
-pub mod hash;
-pub mod uint;
-pub mod bytes;
-pub mod blockchain;
+mod genesis;
 pub mod spec;
+
+pub use self::spec::*;
+pub use self::genesis::Genesis;
