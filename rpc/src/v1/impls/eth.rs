@@ -397,6 +397,26 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				}
 		})
 	}
+
+	fn call(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, BlockNumber)>(params)
+			.and_then(|(transaction_request, _block_number)| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.account_secret(&transaction_request.from) {
+					Ok(secret) => {
+						let client = take_weak!(self.client);
+
+						let transaction: EthTransaction = transaction_request.into();
+						let signed_transaction = transaction.sign(&secret);
+
+						to_value(&client.call(&signed_transaction)
+								 .map(|e| Bytes::new(e.output))
+								 .unwrap_or(Bytes::default()))
+					},
+					Err(_) => { to_value(&Bytes::default()) }
+				}
+			})
+	}
 }
 
 /// Eth filter rpc implementation.

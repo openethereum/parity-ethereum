@@ -37,7 +37,8 @@ use header::BlockNumber;
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use error::{ImportResult};
+use error::{ImportResult, Error};
+use executive::Executed;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -118,5 +119,7 @@ pub trait BlockChainClient : Sync + Send {
 	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
 	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock>;
 
+	/// Makes a non-persistent transaction call.
+	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;
 }
 
