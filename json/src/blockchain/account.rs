@@ -31,7 +31,7 @@ pub struct Account {
 	/// Nonce.
 	pub nonce: Uint,
 	/// Storage.
-	pub storage: BTreeMap<Uint, H256>,
+	pub storage: BTreeMap<Uint, Uint>,
 }
 
 #[cfg(test)]

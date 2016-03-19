@@ -57,7 +57,7 @@ impl MinerService for TestMinerService {
 		where T: Fn(&Address) -> AccountDetails { unimplemented!(); }
 
 	/// Returns hashes of transactions currently in pending
-	fn pending_transactions_hashes(&self) -> Vec<H256> { unimplemented!(); }
+	fn pending_transactions_hashes(&self) -> Vec<H256> { vec![] }
 
 	/// Removes all transactions from the queue and restart mining operation.
 	fn clear_and_reset(&self, _chain: &BlockChainClient) { unimplemented!(); }
