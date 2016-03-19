@@ -21,10 +21,11 @@ use ethereum;
 use tests::helpers::*;
 use devtools::*;
 use spec::Genesis;
+use ethjson;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	init_log();
-	let tests = ethjson::blockchain::Test.load(json_data).unwrap();
+	let tests = ethjson::blockchain::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 
 	for (name, blockchain) in tests.deref() {
