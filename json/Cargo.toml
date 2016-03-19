@@ -14,7 +14,7 @@ clippy = { version = "0.0.54", optional = true }
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
-syntex = "0.29.0"
+syntex = "0.30.0"
 
 [features]
 default = ["serde_codegen"]

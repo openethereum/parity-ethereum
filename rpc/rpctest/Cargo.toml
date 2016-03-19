@@ -1,0 +1,17 @@
+[package]
+description = "Rpc test client."
+name = "rpctest"
+version = "1.1.0"
+license = "GPL-3.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
+docopt = "0.6"
+rustc-serialize = "0.3"
+ethcore = { path = "../../ethcore" }
+ethcore-devtools = { path = "../../devtools" }
+ethcore-rpc = { path = ".." }
+ethcore-util = { path = "../../util" }
+ethjson = { path = "../../json" }
+serde_json = "0.7.0"
