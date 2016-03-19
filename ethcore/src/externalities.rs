@@ -197,6 +197,7 @@ impl<'a> Ext for Externalities<'a> {
 		match self.output {
 			OutputPolicy::Return(BytesRef::Fixed(ref mut slice), ref mut copy) => {
 				handle_copy(copy);
+
 				let len = cmp::min(slice.len(), data.len());
 				unsafe {
 					ptr::copy(data.as_ptr(), slice.as_mut_ptr(), len);
@@ -205,6 +206,7 @@ impl<'a> Ext for Externalities<'a> {
 			},
 			OutputPolicy::Return(BytesRef::Flexible(ref mut vec), ref mut copy) => {
 				handle_copy(copy);
+				
 				vec.clear();
 				vec.reserve(data.len());
 				unsafe {
@@ -230,8 +232,7 @@ impl<'a> Ext for Externalities<'a> {
 					ptr::copy(data.as_ptr(), code.as_mut_ptr(), data.len());
 					code.set_len(data.len());
 				}
-				let address = &self.origin_info.address;
-				self.state.init_code(address, code);
+				self.state.init_code(&self.origin_info.address, code);
 				Ok(*gas - return_cost)
 			}
 		}

@@ -440,8 +440,8 @@ mod tests {
 		// TODO: just test state root.
 	}
 
-	evm_test!{test_create_contract: test_create_contract_jit, test_create_contract_int}
-	fn test_create_contract(factory: Factory) {
+	evm_test!{test_create_contract_out_of_depth: test_create_contract_out_of_depth_jit, test_create_contract_out_of_depth_int}
+	fn test_create_contract_out_of_depth(factory: Factory) {
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -492,6 +492,83 @@ mod tests {
 		assert_eq!(gas_left, U256::from(62_976));
 		// ended with max depth
 		assert_eq!(substate.contracts_created.len(), 0);
+	}
+
+	evm_test!{test_create_contract: test_create_contract_jit, test_create_contract_int}
+	fn test_create_contract(factory: Factory) {
+		// code:
+		//
+		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
+		// 60 00 - push 0
+		// 52
+		// 60 1d - push 29
+		// 60 03 - push 3
+		// 60 17 - push 17
+		// f0 - create
+		// 60 00 - push 0
+		// 55 sstore
+		//
+		// other code:
+		//
+		// 60 10 - push 16
+		// 80 - duplicate first stack item
+		// 60 0c - push 12
+		// 60 00 - push 0
+		// 39 - copy current code to memory
+		// 60 00 - push 0
+		// f3 - return
+
+		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
+
+		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
+		let address = contract_address(&sender, &U256::zero());
+		// TODO: add tests for 'callcreate'
+		//let next_address = contract_address(&address, &U256::zero());
+		let mut params = ActionParams::default();
+		params.address = address.clone();
+		params.sender = sender.clone();
+		params.origin = sender.clone();
+		params.gas = U256::from(100_000);
+		params.code = Some(code.clone());
+		params.value = ActionValue::Transfer(U256::from(100));
+		let mut state_result = get_temp_state();
+		let mut state = state_result.reference_mut();
+		state.add_balance(&sender, &U256::from(100));
+		let info = EnvInfo::default();
+		let engine = TestEngine::new(5, factory);
+		let mut substate = Substate::new(true);
+
+		let gas_left = {
+			let mut ex = Executive::new(&mut state, &info, &engine);
+			let output = BytesRef::Fixed(&mut[0u8;0]);
+			ex.call(params, &mut substate, output).unwrap()
+		};
+
+		println!("trace: {:?}", substate.subtraces);
+		let expected_trace = Some(vec![ Trace {
+			depth: 0,
+			action: TraceAction::Call(TraceCall {
+				from: x!("cd1722f3947def4cf144679da39c4c32bdc35681"),
+				to: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
+				value: x!(100),
+				gas: x!(100000),
+				input: vec![],
+				result: Some((x!(55248), vec![]))
+			}),
+			subs: vec![Trace {
+				depth: 1,
+				action: TraceAction::Create(TraceCreate {
+					from: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
+					value: x!(23),
+					gas: x!(67979),
+					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+					result: Some((x!(3224), x!("c6d80f262ae5e0f164e5fde365044d7ada2bfa34"), vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53])),
+				}),
+				subs: vec![]
+			}]
+		} ]);
+		assert_eq!(substate.subtraces, expected_trace);
+		assert_eq!(gas_left, U256::from(44_752));
 	}
 
 	evm_test!{test_create_contract_value_too_high: test_create_contract_value_too_high_jit, test_create_contract_value_too_high_int}

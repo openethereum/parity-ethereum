@@ -84,7 +84,7 @@ impl TraceAction {
 			from: p.sender.clone(),
 			value: match p.value { ActionValue::Transfer(ref x) | ActionValue::Apparent(ref x) => x.clone() },
 			gas: p.gas.clone(),
-			init: p.data.clone().unwrap_or(vec![]),
+			init: p.code.clone().unwrap_or(vec![]),
 			result: None,
 		})
 	}

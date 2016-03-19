@@ -18,7 +18,7 @@
 use common::*;
 
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TraceCall {
 	/// The sending account.
 	pub from: Address,
@@ -35,7 +35,7 @@ pub struct TraceCall {
 }
 
 /// Description of a _create_ action, either a `CREATE` operation or a create transction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TraceCreate {
 	/// The address of the creator.
 	pub from: Address,
@@ -52,7 +52,7 @@ pub struct TraceCreate {
 }
 
 /// Description of an action that we trace; will be either a call or a create.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TraceAction {
 	/// Action isn't yet known.
 	Unknown,
@@ -62,7 +62,7 @@ pub enum TraceAction {
 	Create(TraceCreate),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// A trace; includes a description of the action being traced and sub traces of each interior action.
 pub struct Trace {
 	/// The number of EVM execution environments active when this action happened; 0 if it's
