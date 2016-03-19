@@ -249,6 +249,8 @@ impl<'a> Executive<'a> {
 
 			// part of substate that may be reverted
 			let mut unconfirmed_substate = Substate::new(substate.subtraces.is_some());
+
+			// transaction tracing stuff. None if there's no tracing.
 			let mut trace_info = substate.subtraces.as_ref().map(|_| (TraceAction::from_call(&params), self.depth));
 			let mut trace_output = trace_info.as_ref().map(|_| vec![]);
 
@@ -256,6 +258,7 @@ impl<'a> Executive<'a> {
 				self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()))
 			};
 
+			// if there's tracing, make up trace_info's result with trace_output and some arithmetic. 
 			if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
 				if let Some(output) = trace_output { 
 					c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, output));
@@ -295,14 +298,17 @@ impl<'a> Executive<'a> {
 		}
 
 		let mut trace_info = substate.subtraces.as_ref().map(|_| (TraceAction::from_create(&params), self.depth));
+		let mut trace_output = trace_info.as_ref().map(|_| vec![]);
 		let created = params.address.clone();
 
 		let res = {
-			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract)
+			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()))
 		};
 
 		if let Some((TraceAction::Create(ref mut c), _)) = trace_info {
-			c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, vec![]));
+			if let Some(output) = trace_output { 
+				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, output));
+			}
 		}
 
 		self.enact_result(&res, substate, unconfirmed_substate, trace_info);

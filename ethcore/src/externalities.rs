@@ -28,7 +28,7 @@ pub enum OutputPolicy<'a, 'b> {
 	/// Used for message calls.
 	Return(BytesRef<'a>, Option<&'b mut Bytes>),
 	/// Init new contract as soon as `RETURN` is called.
-	InitContract,
+	InitContract(Option<&'b mut Bytes>),
 }
 
 /// Transaction properties that externalities need to know about.
@@ -213,7 +213,7 @@ impl<'a> Ext for Externalities<'a> {
 				}
 				Ok(*gas)
 			},
-			OutputPolicy::InitContract => {
+			OutputPolicy::InitContract(ref mut copy) => {
 				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
 				if return_cost > *gas {
 					return match self.schedule.exceptional_failed_code_deposit {
@@ -221,6 +221,9 @@ impl<'a> Ext for Externalities<'a> {
 						false => Ok(*gas)
 					}
 				}
+				
+				handle_copy(copy);
+
 				let mut code = vec![];
 				code.reserve(data.len());
 				unsafe {
@@ -333,7 +336,7 @@ mod tests {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
 
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
 
 		assert_eq!(ext.env_info().number, 100);
 	}
@@ -342,7 +345,7 @@ mod tests {
 	fn can_return_block_hash_no_env() {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -361,7 +364,7 @@ mod tests {
 			env_info.last_hashes.push(test_hash.clone());
 		}
 		let state = setup.state.reference_mut();
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -373,7 +376,7 @@ mod tests {
 	fn can_call_fail_empty() {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
-		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
 
 		let mut output = vec![];
 
@@ -397,7 +400,7 @@ mod tests {
 		let state = setup.state.reference_mut();
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
 			ext.log(log_topics, &log_data);
 		}
 
@@ -412,7 +415,7 @@ mod tests {
 		let state = setup.state.reference_mut();
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract);
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
 			ext.suicide(&refund_account);
 		}
 
