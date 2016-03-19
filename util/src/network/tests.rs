@@ -103,12 +103,14 @@ fn net_service() {
 
 #[test]
 fn net_connect() {
+	::log::init_log();
 	let key1 = KeyPair::create().unwrap();
 	let mut config1 = NetworkConfiguration::new_local();
 	config1.use_secret = Some(key1.secret().clone());
 	config1.boot_nodes = vec![ ];
 	let mut service1 = NetworkService::<TestProtocolMessage>::start(config1).unwrap();
 	let mut config2 = NetworkConfiguration::new_local();
+	info!("net_connect: local URL: {}", service1.local_url());
 	config2.boot_nodes = vec![ service1.local_url() ];
 	let mut service2 = NetworkService::<TestProtocolMessage>::start(config2).unwrap();
 	let handler1 = TestProtocol::register(&mut service1, false);
