@@ -68,7 +68,7 @@ pub struct Executed {
 	pub contracts_created: Vec<Address>,
 
 	/// The trace of this transaction.
-	pub trace: Vec<TraceItem>,
+	pub trace: Option<Trace>,
 }
 
 /// Transaction execution result.
@@ -85,22 +85,21 @@ pub struct Executive<'a> {
 impl<'a> Executive<'a> {
 	/// Basic constructor.
 	pub fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine) -> Self {
-		Executive::new_with_depth(state, info, engine, 0)
-	}
-
-	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
-		Executive::new_with_depth(state, info, engine, depth + 1)
-	}
-
-	/// Helper constructor. Should be used to create `Executive` with desired depth.
-	/// Private.
-	fn new_with_depth(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
-			depth: depth
+			depth: 0,
+		}
+	}
+
+	/// Populates executive from parent properties. Increments executive depth.
+	pub fn from_parent(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, parent_depth: usize) -> Self {
+		Executive {
+			state: state,
+			info: info,
+			engine: engine,
+			depth: parent_depth + 1,
 		}
 	}
 
@@ -110,7 +109,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// This funtion should be used to execute transaction.
-	pub fn transact(&'a mut self, t: &SignedTransaction) -> Result<Executed, Error> {
+	pub fn transact(&'a mut self, t: &SignedTransaction, tracing: bool) -> Result<Executed, Error> {
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
@@ -151,7 +150,7 @@ impl<'a> Executive<'a> {
 		self.state.inc_nonce(&sender);
 		self.state.sub_balance(&sender, &U256::from(gas_cost));
 
-		let mut substate = Substate::new();
+		let mut substate = Substate::new(tracing);
 
 		let res = match t.action {
 			Action::Create => {
@@ -249,22 +248,22 @@ impl<'a> Executive<'a> {
 			// if destination is a contract, do normal message call
 
 			// part of substate that may be reverted
-			let mut unconfirmed_substate = Substate::new();
+			let mut unconfirmed_substate = Substate::new(substate.subtraces.is_some());
 
-			let mut action = TraceAction::from_call(&params);
+			let mut action = substate.subtraces.as_ref().map(|_| TraceAction::from_call(&params));
 
 			let res = {
 				self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output))
 			};
 
-			if let TraceAction::Call(ref mut c) = action {
-				c.result = res.as_ref().ok().map(|gas_left| c.gas - *gas_left);
+			if let Some(TraceAction::Call(ref mut c)) = action {
+				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, vec![]));
 			}
 
 			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
 			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 
-			self.enact_result(&res, substate, unconfirmed_substate, Some(action));
+			self.enact_result(&res, substate, unconfirmed_substate, action);
 			trace!("exec: new substate={:?}\n", substate);
 			res
 		} else {
@@ -282,7 +281,7 @@ impl<'a> Executive<'a> {
 		self.state.snapshot();
 
 		// part of substate that may be reverted
-		let mut unconfirmed_substate = Substate::new();
+		let mut unconfirmed_substate = Substate::new(substate.subtraces.is_some());
 
 		// create contract and transfer value to it if necessary
 		let prev_bal = self.state.balance(&params.address);
@@ -293,18 +292,18 @@ impl<'a> Executive<'a> {
 			self.state.new_contract(&params.address, prev_bal);
 		}
 
-		let mut action = TraceAction::from_create(&params);
+		let mut action = substate.subtraces.as_ref().map(|_| TraceAction::from_create(&params));
 		let created = params.address.clone();
 
 		let res = {
 			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract)
 		};
 
-		if let TraceAction::Create(ref mut c) = action {
-			c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created));
+		if let Some(TraceAction::Create(ref mut c)) = action {
+			c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, vec![]));
 		}
 
-		self.enact_result(&res, substate, unconfirmed_substate, Some(action));
+		self.enact_result(&res, substate, unconfirmed_substate, action);
 		res
 	}
 
@@ -350,7 +349,7 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
 					contracts_created: vec![],
-					trace: substate.trace,
+					trace: None,
 				})
 			},
 			_ => {
@@ -361,7 +360,7 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + gas_used,
 					logs: substate.logs,
 					contracts_created: substate.contracts_created,
-					trace: substate.trace,
+					trace: substate.subtraces.and_then(|mut v| v.pop()),
 				})
 			},
 		}

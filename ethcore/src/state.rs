@@ -26,8 +26,16 @@ use pod_account::*;
 use pod_state::PodState;
 //use state_diff::*;	// TODO: uncomment once to_pod() works correctly.
 
+/// Used to return information about an `State::apply` operation.
+pub struct ApplyOutcome {
+	/// The receipt for the applied transaction.
+	pub receipt: Receipt,
+	/// The trace for the applied transaction, if None if tracing is disabled.
+	pub trace: Option<Trace>,
+}
+
 /// Result type for the execution ("application") of a transaction.
-pub type ApplyResult = Result<Receipt, Error>;
+pub type ApplyResult = Result<ApplyOutcome, Error>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
@@ -209,17 +217,17 @@ impl State {
 
 	/// Execute a given transaction.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction) -> ApplyResult {
+	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
-		let e = try!(Executive::new(self, env_info, engine).transact(t));
+		let e = try!(Executive::new(self, env_info, engine).transact(t, tracing));
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));
 		self.commit();
 		let receipt = Receipt::new(self.root().clone(), e.cumulative_gas_used, e.logs);
 //		trace!("Transaction receipt: {:?}", receipt);
-		Ok(receipt)
+		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
 	}
 
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.

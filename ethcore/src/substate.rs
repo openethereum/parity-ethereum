@@ -17,52 +17,9 @@
 //! Execution environment substate.
 use common::*;
 
-#[derive(Debug, Clone)]
-pub struct TraceCall {
-	pub from: Address,
-	pub to: Address,
-	pub value: U256,
-	pub gas: U256,
-	pub input: Bytes,
-	pub result: Option<U256>,
-//	pub output: Bytes,
-}
-
-#[derive(Debug, Clone)]
-pub struct TraceCreate {
-	pub from: Address,
-	pub value: U256,
-	pub gas: U256,
-	pub init: Bytes,
-	pub result: Option<(U256, Address)>,
-//	pub output: Bytes,
-}
-
-#[derive(Debug, Clone)]
-pub enum TraceAction {
-	Unknown,
-	Call(TraceCall),
-	Create(TraceCreate),
-}
-
-#[derive(Debug, Clone)]
-pub struct TraceItem {
-	pub action: TraceAction,
-	pub subs: Vec<TraceItem>,
-}
-
-impl Default for TraceItem {
-	fn default() -> TraceItem {
-		TraceItem {
-			action: TraceAction::Unknown,
-			subs: vec![],
-		}
-	}
-}
-
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Substate {
 	/// Any accounts that have suicided.
 	pub suicides: HashSet<Address>,
@@ -76,14 +33,20 @@ pub struct Substate {
 	/// Created contracts.
 	pub contracts_created: Vec<Address>,
 
-	/// The trace during this execution.
-	pub trace: Vec<TraceItem>,
+	/// The trace during this execution or `None` if we're not tracing.
+	pub subtraces: Option<Vec<Trace>>,
 }
 
 impl Substate {
 	/// Creates new substate.
-	pub fn new() -> Self {
-		Substate::default()
+	pub fn new(tracing: bool) -> Self {
+		Substate {
+			suicides: Default::default(),
+			logs: Default::default(),
+			sstore_clears_count: Default::default(),
+			contracts_created: Default::default(),
+			subtraces: if tracing {Some(vec![])} else {None},
+		}
 	}
 
 	/// Merge secondary substate `s` into self, accruing each element correspondingly.
@@ -93,17 +56,16 @@ impl Substate {
 		self.sstore_clears_count = self.sstore_clears_count + s.sstore_clears_count;
 		self.contracts_created.extend(s.contracts_created.into_iter());
 		if let Some(action) = maybe_action {
-			self.trace.push(TraceItem {
+			self.subtraces.as_mut().expect("maybe_action is Some: so we must be tracing: qed").push(Trace {
 				action: action,
-				subs: s.trace,
+				subs: s.subtraces.expect("maybe_action is Some: so we must be tracing: qed"),
 			});
 		}
 	}
 }
 
-
-
 impl TraceAction {
+	/// Compose a `TraceAction` from an `ActionParams`, knowing that the action is a call.
 	pub fn from_call(p: &ActionParams) -> TraceAction {
 		TraceAction::Call(TraceCall {
 			from: p.sender.clone(),
@@ -115,6 +77,7 @@ impl TraceAction {
 		})
 	}
 
+	/// Compose a `TraceAction` from an `ActionParams`, knowing that the action is a create.
 	pub fn from_create(p: &ActionParams) -> TraceAction {
 		TraceAction::Create(TraceCreate {
 			from: p.sender.clone(),

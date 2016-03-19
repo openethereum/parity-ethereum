@@ -398,6 +398,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 		let mut b = OpenBlock::new(
 			engine,
+			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().unwrap().spawn(),
 			match self.chain.block_header(&h) { Some(ref x) => x, None => {return None} },
 			self.build_last_hashes(h.clone()),

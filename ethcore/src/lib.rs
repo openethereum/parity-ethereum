@@ -96,6 +96,7 @@ pub mod filter;
 pub mod header;
 pub mod service;
 pub mod log_entry;
+pub mod trace;
 pub mod spec;
 pub mod transaction;
 pub mod views;
