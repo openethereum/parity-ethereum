@@ -60,7 +60,9 @@ pub struct Executed {
 	/// eg. sender creates contract A and A in constructor creates contract B
 	///
 	/// B creation ends first, and it will be the first element of the vector.
-	pub contracts_created: Vec<Address>
+	pub contracts_created: Vec<Address>,
+	/// Transaction output.
+	pub output: Bytes,
 }
 
 /// Transaction execution result.
@@ -145,7 +147,7 @@ impl<'a> Executive<'a> {
 
 		let mut substate = Substate::new();
 
-		let res = match t.action {
+		let (gas_left, output) = match t.action {
 			Action::Create => {
 				let new_address = contract_address(&sender, &nonce);
 				let params = ActionParams {
@@ -159,7 +161,7 @@ impl<'a> Executive<'a> {
 					code: Some(t.data.clone()),
 					data: None,
 				};
-				self.create(params, &mut substate)
+				(self.create(params, &mut substate), vec![])
 			},
 			Action::Call(ref address) => {
 				let params = ActionParams {
@@ -175,12 +177,12 @@ impl<'a> Executive<'a> {
 				};
 				// TODO: move output upstream
 				let mut out = vec![];
-				self.call(params, &mut substate, BytesRef::Flexible(&mut out))
+				(self.call(params, &mut substate, BytesRef::Flexible(&mut out)), out)
 			}
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, res)))
+		Ok(try!(self.finalize(t, substate, gas_left, output)))
 	}
 
 	fn exec_vm(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy) -> evm::Result {
@@ -286,7 +288,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result) -> ExecutionResult {
+	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result, output: Bytes) -> ExecutionResult {
 		let schedule = self.engine.schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
@@ -326,7 +328,8 @@ impl<'a> Executive<'a> {
 					refunded: U256::zero(),
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
-					contracts_created: vec![]
+					contracts_created: vec![],
+					output: output,
 				})
 			},
 			_ => {
@@ -337,6 +340,7 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + gas_used,
 					logs: substate.logs,
 					contracts_created: substate.contracts_created,
+					output: output,
 				})
 			},
 		}
