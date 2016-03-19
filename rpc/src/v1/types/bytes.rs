@@ -20,7 +20,7 @@ use serde::de::Visitor;
 use util::common::FromHex;
 
 /// Wrapper structure around vector of bytes.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct Bytes(Vec<u8>);
 
 impl Bytes {
@@ -29,13 +29,6 @@ impl Bytes {
 		Bytes(bytes)
 	}
 	pub fn to_vec(self) -> Vec<u8> { let Bytes(x) = self; x }
-}
-
-impl Default for Bytes {
-	fn default() -> Self {
-		// default serialized value is 0x00
-		Bytes(vec![0])
-	}
 }
 
 impl Serialize for Bytes {

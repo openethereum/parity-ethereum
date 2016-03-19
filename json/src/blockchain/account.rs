@@ -19,7 +19,6 @@
 use std::collections::BTreeMap;
 use uint::Uint;
 use bytes::Bytes;
-use hash::H256;
 
 /// Blockchain test account deserializer.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
@@ -31,7 +30,7 @@ pub struct Account {
 	/// Nonce.
 	pub nonce: Uint,
 	/// Storage.
-	pub storage: BTreeMap<Uint, H256>,
+	pub storage: BTreeMap<Uint, Uint>,
 }
 
 #[cfg(test)]
