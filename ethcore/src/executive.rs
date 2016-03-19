@@ -415,7 +415,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new();
+		let mut substate = Substate::new(false);
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -474,7 +474,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new();
+		let mut substate = Substate::new(false);
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -528,7 +528,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new();
+		let mut substate = Substate::new(false);
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -580,7 +580,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(1024, factory);
-		let mut substate = Substate::new();
+		let mut substate = Substate::new(false);
 
 		{
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -641,7 +641,7 @@ mod tests {
 
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new();
+		let mut substate = Substate::new(false);
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -686,7 +686,7 @@ mod tests {
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new();
+		let mut substate = Substate::new(false);
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
@@ -723,7 +723,7 @@ mod tests {
 
 		let executed = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t).unwrap()
+			ex.transact(&t, false).unwrap()
 		};
 
 		assert_eq!(executed.gas, U256::from(100_000));
@@ -756,7 +756,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t)
+			ex.transact(&t, false)
 		};
 
 		match res {
@@ -787,7 +787,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t)
+			ex.transact(&t, false)
 		};
 
 		match res {
@@ -820,7 +820,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t)
+			ex.transact(&t, false)
 		};
 
 		match res {
@@ -853,7 +853,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t)
+			ex.transact(&t, false)
 		};
 
 		match res {
@@ -883,7 +883,7 @@ mod tests {
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new();
+		let mut substate = Substate::new(false);
 
 		let result = {
 			let mut ex = Executive::new(&mut state, &info, &engine);

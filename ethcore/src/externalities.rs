@@ -312,7 +312,7 @@ mod tests {
 			TestSetup {
 				state: get_temp_state(),
 				engine: get_test_spec().to_engine().unwrap(),
-				sub_state: Substate::new(),
+				sub_state: Substate::new(false),
 				env_info: get_test_env_info()
 			}
 		}
