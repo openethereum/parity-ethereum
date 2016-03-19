@@ -264,7 +264,7 @@ impl<'a> Executive<'a> {
 			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
 			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 
-			self.enact_result(&res, substate, unconfirmed_substate, action);
+			self.enact_result(&res, substate, unconfirmed_substate, Some(action));
 			trace!("exec: new substate={:?}\n", substate);
 			res
 		} else {
@@ -304,7 +304,7 @@ impl<'a> Executive<'a> {
 			c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created));
 		}
 
-		self.enact_result(&res, substate, unconfirmed_substate, action);
+		self.enact_result(&res, substate, unconfirmed_substate, Some(action));
 		res
 	}
 
@@ -367,7 +367,7 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, action: TraceAction) {
+	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, maybe_action: Option<TraceAction>) {
 		match *result {
 			Err(evm::Error::OutOfGas)
 				| Err(evm::Error::BadJumpDestination {..})
@@ -378,7 +378,7 @@ impl<'a> Executive<'a> {
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
 				self.state.clear_snapshot();
-				substate.accrue(un_substate, action)
+				substate.accrue(un_substate, maybe_action)
 			}
 		}
 	}

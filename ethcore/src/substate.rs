@@ -87,15 +87,17 @@ impl Substate {
 	}
 
 	/// Merge secondary substate `s` into self, accruing each element correspondingly.
-	pub fn accrue(&mut self, s: Substate, action: TraceAction) {
+	pub fn accrue(&mut self, s: Substate, maybe_action: Option<TraceAction>) {
 		self.suicides.extend(s.suicides.into_iter());
 		self.logs.extend(s.logs.into_iter());
 		self.sstore_clears_count = self.sstore_clears_count + s.sstore_clears_count;
 		self.contracts_created.extend(s.contracts_created.into_iter());
-		self.trace.push(TraceItem {
-			action: action,
-			subs: s.trace,
-		});
+		if let Some(action) = maybe_action {
+			self.trace.push(TraceItem {
+				action: action,
+				subs: s.trace,
+			});
+		}
 	}
 }
 
@@ -156,7 +158,7 @@ mod tests {
 		});
 		sub_state_2.sstore_clears_count = x!(7);
 
-		sub_state.accrue(sub_state_2);
+		sub_state.accrue(sub_state_2, None);
 		assert_eq!(sub_state.contracts_created.len(), 2);
 		assert_eq!(sub_state.sstore_clears_count, x!(12));
 		assert_eq!(sub_state.suicides.len(), 1);
