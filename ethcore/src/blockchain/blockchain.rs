@@ -54,6 +54,9 @@ impl Default for BlockChainConfig {
 
 /// Interface for querying blocks by hash and by number.
 pub trait BlockProvider {
+	/// True if we store full tracing information for transactions.
+	fn have_tracing(&self) -> bool;
+
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool;
@@ -176,6 +179,9 @@ impl BlockProvider for BlockChain {
 	fn is_known(&self, hash: &H256) -> bool {
 		self.query_extras_exist(hash, &self.block_details)
 	}
+
+	// We do not store tracing information.
+	fn have_tracing(&self) -> bool { false }
 
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<Bytes> {

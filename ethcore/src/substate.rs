@@ -23,37 +23,45 @@ use common::*;
 pub struct Substate {
 	/// Any accounts that have suicided.
 	pub suicides: HashSet<Address>,
+
 	/// Any logs.
 	pub logs: Vec<LogEntry>,
+
 	/// Refund counter of SSTORE nonzero -> zero.
 	pub sstore_clears_count: U256,
-	/// Created contracts.
-	pub contracts_created: Vec<Address>
-}
 
-impl Default for Substate {
-	fn default() -> Self {
-		Substate::new()
-	}
+	/// Created contracts.
+	pub contracts_created: Vec<Address>,
+
+	/// The trace during this execution or `None` if we're not tracing.
+	pub subtraces: Option<Vec<Trace>>,
 }
 
 impl Substate {
 	/// Creates new substate.
-	pub fn new() -> Self {
+	pub fn new(tracing: bool) -> Self {
 		Substate {
-			suicides: HashSet::new(),
-			logs: vec![],
-			sstore_clears_count: U256::zero(),
-			contracts_created: vec![]
+			suicides: Default::default(),
+			logs: Default::default(),
+			sstore_clears_count: Default::default(),
+			contracts_created: Default::default(),
+			subtraces: if tracing {Some(vec![])} else {None},
 		}
 	}
 
 	/// Merge secondary substate `s` into self, accruing each element correspondingly.
-	pub fn accrue(&mut self, s: Substate) {
+	pub fn accrue(&mut self, s: Substate, maybe_info: Option<(TraceAction, usize)>) {
 		self.suicides.extend(s.suicides.into_iter());
 		self.logs.extend(s.logs.into_iter());
 		self.sstore_clears_count = self.sstore_clears_count + s.sstore_clears_count;
 		self.contracts_created.extend(s.contracts_created.into_iter());
+		if let Some(info) = maybe_info {
+			self.subtraces.as_mut().expect("maybe_action is Some: so we must be tracing: qed").push(Trace {
+				action: info.0,
+				depth: info.1,
+				subs: s.subtraces.expect("maybe_action is Some: so we must be tracing: qed"),
+			});
+		}
 	}
 }
 
@@ -64,13 +72,13 @@ mod tests {
 
 	#[test]
 	fn created() {
-		let sub_state = Substate::new();
+		let sub_state = Substate::new(false);
 		assert_eq!(sub_state.suicides.len(), 0);
 	}
 
 	#[test]
 	fn accrue() {
-		let mut sub_state = Substate::new();
+		let mut sub_state = Substate::new(false);
 		sub_state.contracts_created.push(address_from_u64(1u64));
 		sub_state.logs.push(LogEntry {
 			address: address_from_u64(1u64),
@@ -80,7 +88,7 @@ mod tests {
 		sub_state.sstore_clears_count = x!(5);
 		sub_state.suicides.insert(address_from_u64(10u64));
 
-		let mut sub_state_2 = Substate::new();
+		let mut sub_state_2 = Substate::new(false);
 		sub_state_2.contracts_created.push(address_from_u64(2u64));
 		sub_state_2.logs.push(LogEntry {
 			address: address_from_u64(1u64),
@@ -89,7 +97,7 @@ mod tests {
 		});
 		sub_state_2.sstore_clears_count = x!(7);
 
-		sub_state.accrue(sub_state_2);
+		sub_state.accrue(sub_state_2, None);
 		assert_eq!(sub_state.contracts_created.len(), 2);
 		assert_eq!(sub_state.sstore_clears_count, x!(12));
 		assert_eq!(sub_state.suicides.len(), 1);
