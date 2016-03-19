@@ -353,9 +353,7 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
-pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &Engine, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
-	let tracing = true;	// TODO: make param
-
+pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
 			let s = State::from_existing(db.spawn(), parent.state_root().clone(), engine.account_start_nonce());
@@ -373,22 +371,22 @@ pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Head
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_bytes(block_bytes: &[u8], engine: &Engine, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
+pub fn enact_bytes(block_bytes: &[u8], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
 	let block = BlockView::new(block_bytes);
 	let header = block.header();
-	enact(&header, &block.transactions(), &block.uncles(), engine, db, parent, last_hashes)
+	enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-pub fn enact_verified(block: &PreverifiedBlock, engine: &Engine, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
+pub fn enact_verified(block: &PreverifiedBlock, engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<ClosedBlock, Error> {
 	let view = BlockView::new(&block.bytes);
-	enact(&block.header, &block.transactions, &view.uncles(), engine, db, parent, last_hashes)
+	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes)
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
-pub fn enact_and_seal(block_bytes: &[u8], engine: &Engine, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<SealedBlock, Error> {
+pub fn enact_and_seal(block_bytes: &[u8], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<SealedBlock, Error> {
 	let header = BlockView::new(block_bytes).header_view();
-	Ok(try!(try!(enact_bytes(block_bytes, engine, db, parent, last_hashes)).seal(engine, header.seal())))
+	Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes)).seal(engine, header.seal())))
 }
 
 #[cfg(test)]
@@ -428,7 +426,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		engine.spec().ensure_db_good(db.as_hashdb_mut());
-		let e = enact_and_seal(&orig_bytes, engine.deref(), db, &genesis_header, vec![genesis_header.hash()]).unwrap();
+		let e = enact_and_seal(&orig_bytes, engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()]).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
 
@@ -461,7 +459,7 @@ mod tests {
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		engine.spec().ensure_db_good(db.as_hashdb_mut());
-		let e = enact_and_seal(&orig_bytes, engine.deref(), db, &genesis_header, vec![genesis_header.hash()]).unwrap();
+		let e = enact_and_seal(&orig_bytes, engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()]).unwrap();
 
 		let bytes = e.rlp_bytes();
 		assert_eq!(bytes, orig_bytes);
