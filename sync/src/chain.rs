@@ -1415,7 +1415,7 @@ mod tests {
 		assert_eq!(1, io.queue.len());
 	}
 
-	fn dummy_sync_with_peer(peer_latest_hash: H256) -> ChainSync {
+	fn dummy_sync_with_peer(peer_latest_hash: H256) -> ChainSync<Miner> {
 		let mut sync = ChainSync::new(SyncConfig::default(), Miner::new());
 		sync.peers.insert(0,
 		  	PeerInfo {

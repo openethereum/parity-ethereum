@@ -321,4 +321,16 @@ mod tests {
 		// then
 		assert!(res.lock().unwrap().is_none(), "Expected to remove sealed block");
 	}
+    //
+	// #[test]
+	// fn can_mine() {
+	// 	let dummy_blocks = get_good_dummy_block_seq(2);
+	// 	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
+	// 	let client = client_result.reference();
+    //
+	// 	let b = client.prepare_sealing(Address::default(), x!(31415926), vec![], vec![]).unwrap();
+    //
+	// 	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
+	// 	assert!(client.try_seal(b, vec![]).is_ok());
+	// }
 }
