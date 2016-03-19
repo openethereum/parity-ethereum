@@ -29,6 +29,8 @@ use error::{ImportResult};
 
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock};
+use executive::Executed;
+use error::Error;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -182,6 +184,10 @@ impl TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
+	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error> {
+		unimplemented!()
+	}
+
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
 		Some(U256::zero())
 	}
