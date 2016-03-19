@@ -38,7 +38,7 @@ use ethcore::client::{BlockChainClient, Client, ClientConfig};
 use devtools::RandomTempPath;
 use util::IoChannel;
 use rpc::v1::tests::helpers::{TestSyncProvider, Config as SyncConfig, TestMinerService, TestAccountProvider, TestAccount};
-use rpc::v1::{Eth, EthClient};
+use rpc::v1::{Eth, EthClient, EthFilter, EthFilterClient};
 use util::panics::MayPanic;
 use util::hash::Address;
 
@@ -124,6 +124,7 @@ impl Configuration {
 			let accounts = Arc::new(TestAccountProvider::new(accs));
 			let server = rpc::RpcServer::new();
 			server.add_delegate(EthClient::new(&client, &sync, &accounts, &miner).to_delegate());
+			server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 
 			let url = format!("{}:{}", self.args.flag_jsonrpc_addr, self.args.flag_jsonrpc_port);
 			let panic_handler = server.start_http(url.as_ref(), "*", 1);

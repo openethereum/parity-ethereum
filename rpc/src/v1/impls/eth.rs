@@ -104,7 +104,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 					difficulty: view.difficulty(),
 					total_difficulty: total_difficulty,
 					nonce: view.seal().get(1).map_or_else(H64::zero, |r| H64::from_slice(r)),
-					uncles: vec![],
+					uncles: block_view.uncle_hashes(),
 					transactions: {
 						if include_txs {
 							BlockTransactions::Full(block_view.localized_transactions().into_iter().map(From::from).collect())
@@ -230,8 +230,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)| // match
-				to_value(&take_weak!(self.client).block(BlockId::Hash(hash))
-					.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).transactions_count()))))
+				take_weak!(self.client).block(BlockId::Hash(hash))
+					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count()))))
 	}
 
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
@@ -240,24 +240,24 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				BlockNumber::Pending => to_value(
 					&U256::from(take_weak!(self.miner).status().transactions_in_pending_block)
 				),
-				_ => to_value(&take_weak!(self.client).block(block_number.into())
-						.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).transactions_count())))
+				_ => take_weak!(self.client).block(block_number.into())
+						.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count())))
 			})
 	}
 
 	fn block_uncles_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)|
-				to_value(&take_weak!(self.client).block(BlockId::Hash(hash))
-					.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).uncles_count()))))
+				take_weak!(self.client).block(BlockId::Hash(hash))
+					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count()))))
 	}
 
 	fn block_uncles_count_by_number(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
 				BlockNumber::Pending => to_value(&U256::from(0)),
-				_ => to_value(&take_weak!(self.client).block(block_number.into())
-						.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).uncles_count())))
+				_ => take_weak!(self.client).block(block_number.into())
+						.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count())))
 			})
 	}
 
