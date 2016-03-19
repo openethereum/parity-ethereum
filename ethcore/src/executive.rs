@@ -104,7 +104,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn as_externalities<'_>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_>) -> Externalities {
+	pub fn as_externalities<'_>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_, '_>) -> Externalities {
 		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output)
 	}
 
@@ -249,15 +249,17 @@ impl<'a> Executive<'a> {
 
 			// part of substate that may be reverted
 			let mut unconfirmed_substate = Substate::new(substate.subtraces.is_some());
-
 			let mut trace_info = substate.subtraces.as_ref().map(|_| (TraceAction::from_call(&params), self.depth));
+			let mut trace_output = trace_info.as_ref().map(|_| vec![]);
 
 			let res = {
-				self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output))
+				self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()))
 			};
 
 			if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
-				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, vec![]));
+				if let Some(output) = trace_output { 
+					c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, output));
+				}
 			}
 
 			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);

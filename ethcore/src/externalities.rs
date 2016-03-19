@@ -23,12 +23,12 @@ use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult};
 use substate::*;
 
 /// Policy for handling output data on `RETURN` opcode.
-pub enum OutputPolicy<'a> {
+pub enum OutputPolicy<'a, 'b> {
 	/// Return reference to fixed sized output.
 	/// Used for message calls.
-	Return(BytesRef<'a>),
+	Return(BytesRef<'a>, Option<&'b mut Bytes>),
 	/// Init new contract as soon as `RETURN` is called.
-	InitContract
+	InitContract,
 }
 
 /// Transaction properties that externalities need to know about.
@@ -62,18 +62,19 @@ pub struct Externalities<'a> {
 	origin_info: OriginInfo,
 	substate: &'a mut Substate,
 	schedule: Schedule,
-	output: OutputPolicy<'a>
+	output: OutputPolicy<'a, 'a>
 }
 
 impl<'a> Externalities<'a> {
 	/// Basic `Externalities` constructor.
 	pub fn new(state: &'a mut State,
-			   env_info: &'a EnvInfo,
-			   engine: &'a Engine,
-			   depth: usize,
-			   origin_info: OriginInfo,
-			   substate: &'a mut Substate,
-			   output: OutputPolicy<'a>) -> Self {
+		env_info: &'a EnvInfo,
+		engine: &'a Engine,
+		depth: usize,
+		origin_info: OriginInfo,
+		substate: &'a mut Substate,
+		output: OutputPolicy<'a, 'a>
+	) -> Self {
 		Externalities {
 			state: state,
 			env_info: env_info,
@@ -190,20 +191,29 @@ impl<'a> Ext for Externalities<'a> {
 
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	fn ret(&mut self, gas: &U256, data: &[u8]) -> Result<U256, evm::Error> {
-		match &mut self.output {
-			&mut OutputPolicy::Return(BytesRef::Fixed(ref mut slice)) => unsafe {
+		let handle_copy = |to: &mut Option<&mut Bytes>| {
+			to.as_mut().map(|b| **b = data.to_owned());
+		};
+		match self.output {
+			OutputPolicy::Return(BytesRef::Fixed(ref mut slice), ref mut copy) => {
+				handle_copy(copy);
 				let len = cmp::min(slice.len(), data.len());
-				ptr::copy(data.as_ptr(), slice.as_mut_ptr(), len);
+				unsafe {
+					ptr::copy(data.as_ptr(), slice.as_mut_ptr(), len);
+				}
 				Ok(*gas)
 			},
-			&mut OutputPolicy::Return(BytesRef::Flexible(ref mut vec)) => unsafe {
+			OutputPolicy::Return(BytesRef::Flexible(ref mut vec), ref mut copy) => {
+				handle_copy(copy);
 				vec.clear();
 				vec.reserve(data.len());
-				ptr::copy(data.as_ptr(), vec.as_mut_ptr(), data.len());
-				vec.set_len(data.len());
+				unsafe {
+					ptr::copy(data.as_ptr(), vec.as_mut_ptr(), data.len());
+					vec.set_len(data.len());
+				}
 				Ok(*gas)
 			},
-			&mut OutputPolicy::InitContract => {
+			OutputPolicy::InitContract => {
 				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
 				if return_cost > *gas {
 					return match self.schedule.exceptional_failed_code_deposit {
