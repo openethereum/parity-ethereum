@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Test implementation of miner service.
+
 use util::{Address, H256, Bytes};
 use util::standard::*;
 use ethcore::error::Error;
@@ -22,8 +24,11 @@ use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
 use ethminer::{MinerService, MinerStatus, AccountDetails};
 
+/// Test miner service.
 pub struct TestMinerService {
+	/// Imported transactions.
 	pub imported_transactions: RwLock<Vec<H256>>,
+	/// Latest closed block.
 	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
 }
 

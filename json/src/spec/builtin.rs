@@ -14,20 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain test deserializer.
+//! Spec builtin deserialization.
 
-use std::collections::BTreeMap;
-use std::ops::Deref;
-use blockchain::blockchain::BlockChain;
-
-/// Blockchain test deserializer.
+/// Linear pricing.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct Test(BTreeMap<String, BlockChain>);
+pub struct Linear {
+	base: u64,
+	word: u64,
+}
 
-impl Deref for Test {
-	type Target = BTreeMap<String, BlockChain>;
+/// Pricing variants.
+#[derive(Debug, PartialEq, Deserialize)]
+pub enum Pricing {
+	/// Linear pricing.
+	#[serde(rename="linear")]
+	Linear(Linear),
+}
 
-	fn deref(&self) -> &Self::Target {
-		&self.0
+/// Spec builtin.
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct Builtin {
+	name: String,
+	pricing: Pricing,
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use spec::builtin::Builtin;
+
+	#[test]
+	fn builtin_deserialization() {
+		let s = r#"{
+			"name": "ecrecover",
+			"pricing": { "linear": { "base": 3000, "word": 0 } }
+		}"#;
+		let _deserialized: Builtin = serde_json::from_str(s).unwrap();
+		// TODO: validate all fields
 	}
 }

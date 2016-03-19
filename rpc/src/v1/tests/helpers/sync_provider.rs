@@ -14,19 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Test implementation of SyncProvider.
+
 use ethsync::{SyncProvider, SyncStatus, SyncState};
 use std::sync::{RwLock};
 
+/// TestSyncProvider config.
 pub struct Config {
+	/// Protocol version.
 	pub protocol_version: u8,
+	/// Number of peers.
 	pub num_peers: usize,
 }
 
+/// Test sync provider.
 pub struct TestSyncProvider {
+	/// Sync status.
 	pub status: RwLock<SyncStatus>,
 }
 
 impl TestSyncProvider {
+	/// Creates new sync provider.
 	pub fn new(config: Config) -> Self {
 		TestSyncProvider {
 			status: RwLock::new(SyncStatus {
