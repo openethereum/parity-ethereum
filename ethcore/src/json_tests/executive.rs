@@ -239,7 +239,7 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 				0,
 				OriginInfo::from(&params),
 				&mut substate,
-				OutputPolicy::Return(&mut BytesRef::Flexible(&mut output), None),
+				OutputPolicy::Return(BytesRef::Flexible(&mut output), None),
 				params.address.clone()
 			);
 			let evm = engine.vm_factory().create();
