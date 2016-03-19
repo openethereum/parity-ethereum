@@ -19,7 +19,6 @@
 use std::collections::BTreeMap;
 use uint::Uint;
 use bytes::Bytes;
-use hash::H256;
 
 /// Blockchain test account deserializer.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
