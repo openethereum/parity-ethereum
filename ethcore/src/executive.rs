@@ -306,11 +306,9 @@ impl<'a> Executive<'a> {
 		};
 
 		if let Some((TraceAction::Create(ref mut c), _)) = trace_info {
-			if let Some(output) = trace_output { 
-				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, output));
-			}
+			c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, trace_output.expect("trace_info is Some: qed")));
 		}
-		
+
 		trace!(target: "executive", "trace_info={:?}", trace_info);
 
 		self.enact_result(&res, substate, unconfirmed_substate, trace_info);
@@ -349,6 +347,8 @@ impl<'a> Executive<'a> {
 			self.state.kill_account(address);
 		}
 
+		let trace = substate.subtraces.and_then(|mut v| v.pop());
+
 		match result {
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
 			Err(_) => {
@@ -359,7 +359,7 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
 					contracts_created: vec![],
-					trace: None,
+					trace: trace,
 				})
 			},
 			_ => {
@@ -370,7 +370,7 @@ impl<'a> Executive<'a> {
 					cumulative_gas_used: self.info.gas_used + gas_used,
 					logs: substate.logs,
 					contracts_created: substate.contracts_created,
-					trace: substate.subtraces.and_then(|mut v| v.pop()),
+					trace: trace,
 				})
 			},
 		}
@@ -384,6 +384,7 @@ impl<'a> Executive<'a> {
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
 				self.state.revert_snapshot();
+				substate.accrue_trace(un_substate.subtraces, maybe_info)
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
 				self.state.clear_snapshot();

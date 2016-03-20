@@ -393,6 +393,44 @@ fn should_apply_create_transaction() {
 }
 
 #[test]
+fn should_trace_failed_create_transaction() {
+	init_log();
+
+	let temp = RandomTempPath::new();
+	let mut state = get_temp_state_in(temp.as_path());
+
+	let mut info = EnvInfo::default();
+	info.gas_limit = x!(1_000_000);
+	let engine = TestEngine::new(5, Factory::default());
+
+	let t = Transaction {
+		nonce: x!(0),
+		gas_price: x!(0),
+		gas: x!(100_000),
+		action: Action::Create,
+		value: x!(100),
+		data: FromHex::from_hex("5b600056").unwrap(),
+	}.sign(&"".sha3());
+
+	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
+	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let expected_trace = Some(Trace {
+		depth: 0,
+		action: TraceAction::Create(TraceCreate {
+			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
+			value: x!(100),
+			gas: x!(78792),
+			init: FromHex::from_hex("5b600056").unwrap(),
+			result: None
+		}),
+		subs: vec![]
+	});
+
+	assert_eq!(result.trace, expected_trace);
+}
+
+
+#[test]
 fn code_from_database() {
 	let a = Address::zero();
 	let temp = RandomTempPath::new();
