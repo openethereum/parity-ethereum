@@ -24,11 +24,18 @@ use blockchain::transaction::Transaction;
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Block {
 	#[serde(rename="blockHeader")]
-	header: Header,
+	header: Option<Header>,
 	rlp: Bytes,
-	transactions: Vec<Transaction>,
+	transactions: Option<Vec<Transaction>>,
 	#[serde(rename="uncleHeaders")]
-	uncles: Vec<Header>,
+	uncles: Option<Vec<Header>>,
+}
+
+impl Block {
+	/// Returns block rlp.
+	pub fn rlp(&self) -> Vec<u8> {
+		self.rlp.clone().into()
+	}
 }
 
 #[cfg(test)]

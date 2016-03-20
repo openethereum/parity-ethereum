@@ -23,8 +23,7 @@ mod impls;
 mod types;
 mod helpers;
 
-#[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub use self::traits::{Web3, Eth, EthFilter, Personal, Net};
 pub use self::impls::*;

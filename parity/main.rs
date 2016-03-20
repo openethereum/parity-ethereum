@@ -46,6 +46,7 @@ use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
+use util::keys::store::*;
 use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
@@ -55,7 +56,6 @@ use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
-use util::keys::store::*;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
@@ -105,8 +105,9 @@ Networking Options:
 
 API and Console Options:
   -j --jsonrpc             Enable the JSON-RPC API sever.
-  --jsonrpc-addr HOST      Specify the hostname portion of the JSONRPC API
-                           server [default: 127.0.0.1].
+  --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
+                           server, IP should be an interface's IP address, or
+                           all (all interfaces) or local [default: local].
   --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
                            [default: 8545].
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses
@@ -149,7 +150,7 @@ Geth-compatibility Options:
   --nodekey KEY            Equivalent to --node-key KEY.
   --nodiscover             Equivalent to --no-discovery.
   --rpc                    Equivalent to --jsonrpc.
-  --rpcaddr HOST           Equivalent to --jsonrpc-addr HOST.
+  --rpcaddr IP             Equivalent to --jsonrpc-interface IP.
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
@@ -188,7 +189,7 @@ struct Args {
 	flag_cache_max_size: usize,
 	flag_queue_max_size: usize,
 	flag_jsonrpc: bool,
-	flag_jsonrpc_addr: String,
+	flag_jsonrpc_interface: String,
 	flag_jsonrpc_port: u16,
 	flag_jsonrpc_cors: String,
 	flag_jsonrpc_apis: String,
@@ -315,7 +316,7 @@ impl Configuration {
 
 	fn author(&self) -> Address {
 		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
-		Address::from_str(d).unwrap_or_else(|_| {
+		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
 			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", d)
 		})
 	}
@@ -523,7 +524,11 @@ impl Configuration {
 		// Setup rpc
 		if self.args.flag_jsonrpc || self.args.flag_rpc {
 			let url = format!("{}:{}",
-				self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_addr),
+				match self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_interface).as_str() {
+					"all" => "0.0.0.0",
+					"local" => "127.0.0.1",
+					x => x,
+				},
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
 			);
 			SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));

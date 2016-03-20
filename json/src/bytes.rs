@@ -21,7 +21,7 @@ use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
 
 /// Lenient bytes json deserialization for test json files.
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, Clone)]
 pub struct Bytes(Vec<u8>);
 
 impl Into<Vec<u8>> for Bytes {
@@ -46,12 +46,8 @@ impl Visitor for BytesVisitor {
 		let v = match value.len() {
 			0 => vec![],
 			2 if value.starts_with("0x") => vec![],
-			_ if value.starts_with("0x") => try!(FromHex::from_hex(&value[2..]).map_err(|_| {
-				Error::custom(format!("Invalid hex value {}.", value).as_ref())
-			})),
-			_ => try!(FromHex::from_hex(value).map_err(|_| {
-				Error::custom(format!("Invalid hex value {}.", value).as_ref())
-			}))
+			_ if value.starts_with("0x") => FromHex::from_hex(&value[2..]).unwrap_or(vec![]),
+			_ => FromHex::from_hex(value).unwrap_or(vec![]),
 		};
 		Ok(Bytes(v))
 	}

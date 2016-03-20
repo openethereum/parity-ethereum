@@ -23,31 +23,48 @@ use bytes::Bytes;
 /// Blockchain test header deserializer.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Header {
-	bloom: Bloom,
-	coinbase: Address,
-	difficulty: Uint,
+	/// Blocks bloom.
+	pub bloom: Bloom,
+	/// Blocks author.
+	#[serde(rename="coinbase")]
+	pub author: Address,
+	/// Difficulty.
+	pub difficulty: Uint,
 	#[serde(rename="extraData")]
-	extra_data: Bytes,
+	/// Extra data.
+	pub extra_data: Bytes,
+	/// Gas limit.
 	#[serde(rename="gasLimit")]
-	gas_limit: Uint,
+	pub gas_limit: Uint,
+	/// Gas used.
 	#[serde(rename="gasUsed")]
-	gas_used: Uint,
-	hash: H256,
+	pub gas_used: Uint,
+	/// Hash.
+	pub hash: H256,
 	#[serde(rename="mixHash")]
-	mix_hash: H256,
-	nonce: H64,
-	number: Uint,
+	/// Mix hash.
+	pub mix_hash: H256,
+	/// Seal nonce.
+	pub nonce: H64,
+	/// Block number.
+	pub number: Uint,
+	/// Parent hash.
 	#[serde(rename="parentHash")]
-	parent_hash: H256,
+	pub parent_hash: H256,
+	/// Receipt root.
 	#[serde(rename="receiptTrie")]
-	receipt_trie: H256,
+	pub receipts_root: H256,
+	/// State root.
 	#[serde(rename="stateRoot")]
-	state_root: H256,
-	timestamp: Uint,
+	pub state_root: H256,
+	/// Timestamp.
+	pub timestamp: Uint,
+	/// Transactions root.
 	#[serde(rename="transactionsTrie")]
-	transactions_trie: H256,
+	pub transactions_root: H256,
+	/// Uncles hash.
 	#[serde(rename="uncleHash")]
-	uncle_hash: H256,
+	pub uncles_hash: H256,
 }
 
 #[cfg(test)]

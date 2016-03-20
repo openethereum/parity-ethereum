@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Test implementation of miner service.
+
 use util::{Address, H256, Bytes};
 use util::standard::*;
 use ethcore::error::Error;
@@ -22,8 +24,11 @@ use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
 use ethminer::{MinerService, MinerStatus, AccountDetails};
 
+/// Test miner service.
 pub struct TestMinerService {
+	/// Imported transactions.
 	pub imported_transactions: RwLock<Vec<H256>>,
+	/// Latest closed block.
 	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
 }
 
@@ -48,11 +53,11 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_account: T) -> Result<(), Error>
+	fn import_transactions<T>(&self, _transactions: Vec<SignedTransaction>, _fetch_account: T) -> Vec<Result<(), Error>>
 		where T: Fn(&Address) -> AccountDetails { unimplemented!(); }
 
 	/// Returns hashes of transactions currently in pending
-	fn pending_transactions_hashes(&self) -> Vec<H256> { unimplemented!(); }
+	fn pending_transactions_hashes(&self) -> Vec<H256> { vec![] }
 
 	/// Removes all transactions from the queue and restart mining operation.
 	fn clear_and_reset(&self, _chain: &BlockChainClient) { unimplemented!(); }
@@ -61,7 +66,7 @@ impl MinerService for TestMinerService {
 	fn chain_new_blocks(&self, _chain: &BlockChainClient, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) { unimplemented!(); }
 
 	/// New chain head event. Restart mining operation.
-	fn prepare_sealing(&self, _chain: &BlockChainClient) { unimplemented!(); }
+	fn update_sealing(&self, _chain: &BlockChainClient) { unimplemented!(); }
 
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
 	fn sealing_block(&self, _chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {

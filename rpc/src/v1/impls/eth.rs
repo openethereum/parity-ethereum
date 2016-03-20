@@ -103,7 +103,8 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 					timestamp: U256::from(view.timestamp()),
 					difficulty: view.difficulty(),
 					total_difficulty: total_difficulty,
-					uncles: vec![],
+					nonce: view.seal().get(1).map_or_else(H64::zero, |r| H64::from_slice(r)),
+					uncles: block_view.uncle_hashes(),
 					transactions: {
 						if include_txs {
 							BlockTransactions::Full(block_view.localized_transactions().into_iter().map(From::from).collect())
@@ -111,7 +112,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 							BlockTransactions::Hashes(block_view.transaction_hashes())
 						}
 					},
-					extra_data: Bytes::default()
+					extra_data: Bytes::new(view.extra_data())
 				};
 				to_value(&block)
 			},
@@ -229,8 +230,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)| // match
-				to_value(&take_weak!(self.client).block(BlockId::Hash(hash))
-					.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).transactions_count()))))
+				take_weak!(self.client).block(BlockId::Hash(hash))
+					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count()))))
 	}
 
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
@@ -239,24 +240,24 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				BlockNumber::Pending => to_value(
 					&U256::from(take_weak!(self.miner).status().transactions_in_pending_block)
 				),
-				_ => to_value(&take_weak!(self.client).block(block_number.into())
-						.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).transactions_count())))
+				_ => take_weak!(self.client).block(block_number.into())
+						.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count())))
 			})
 	}
 
 	fn block_uncles_count_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
 			.and_then(|(hash,)|
-				to_value(&take_weak!(self.client).block(BlockId::Hash(hash))
-					.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).uncles_count()))))
+				take_weak!(self.client).block(BlockId::Hash(hash))
+					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count()))))
 	}
 
 	fn block_uncles_count_by_number(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber,)>(params)
 			.and_then(|(block_number,)| match block_number {
 				BlockNumber::Pending => to_value(&U256::from(0)),
-				_ => to_value(&take_weak!(self.client).block(block_number.into())
-						.map_or_else(U256::zero, |bytes| U256::from(BlockView::new(&bytes).uncles_count())))
+				_ => take_weak!(self.client).block(block_number.into())
+						.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count())))
 			})
 	}
 
@@ -385,7 +386,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 							nonce: client.nonce(a),
 							balance: client.balance(a),
 						});
-						match import {
+						match import.into_iter().collect::<Result<Vec<_>, _>>() {
 							Ok(_) => to_value(&hash),
 							Err(e) => {
 								warn!("Error sending transaction: {:?}", e);
@@ -396,6 +397,50 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 					Err(_) => { to_value(&U256::zero()) }
 				}
 		})
+	}
+
+	fn call(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, BlockNumber)>(params)
+			.and_then(|(transaction_request, _block_number)| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.account_secret(&transaction_request.from) {
+					Ok(secret) => {
+						let client = take_weak!(self.client);
+
+						let transaction: EthTransaction = transaction_request.into();
+						let signed_transaction = transaction.sign(&secret);
+
+						let output = client.call(&signed_transaction)
+							.map(|e| Bytes::new(e.output))
+							.unwrap_or(Bytes::default());
+
+						to_value(&output)
+					},
+					Err(_) => { to_value(&Bytes::default()) }
+				}
+			})
+	}
+
+	fn estimate_gas(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, BlockNumber)>(params)
+			.and_then(|(transaction_request, _block_number)| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.account_secret(&transaction_request.from) {
+					Ok(secret) => {
+						let client = take_weak!(self.client);
+
+						let transaction: EthTransaction = transaction_request.into();
+						let signed_transaction = transaction.sign(&secret);
+
+						let gas_used = client.call(&signed_transaction)
+							.map(|e| e.gas_used + e.refunded)
+							.unwrap_or(U256::zero());
+
+						to_value(&gas_used)
+					},
+					Err(_) => { to_value(&U256::zero()) }
+				}
+			})
 	}
 }
 

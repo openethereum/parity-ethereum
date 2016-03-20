@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Test implementation of account provider.
+
 use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
-use util::hash::{Address, H256};
+use util::hash::{Address, H256, FixedHash};
 use util::crypto::{Secret, Signature};
 use util::keys::store::{AccountProvider, SigningError, EncryptedHashMapError};
 
@@ -31,6 +33,7 @@ pub struct TestAccount {
 }
 
 impl TestAccount {
+	/// Creates new test account.
 	pub fn new(password: &str) -> Self {
 		TestAccount {
 			unlocked: false,
@@ -42,6 +45,7 @@ impl TestAccount {
 /// Test account provider.
 pub struct TestAccountProvider {
 	accounts: RwLock<HashMap<Address, TestAccount>>,
+	/// Added accounts passwords.
 	pub adds: RwLock<Vec<String>>,
 }
 
@@ -79,7 +83,7 @@ impl AccountProvider for TestAccountProvider {
 	}
 
 	fn account_secret(&self, _account: &Address) -> Result<Secret, SigningError> {
-		unimplemented!()
+		Ok(Secret::random())
 	}
 
 	fn sign(&self, _account: &Address, _message: &H256) -> Result<Signature, SigningError> {

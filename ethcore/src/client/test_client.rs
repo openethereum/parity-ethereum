@@ -29,6 +29,8 @@ use error::{ImportResult};
 
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock};
+use executive::Executed;
+use error::Error;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -48,6 +50,8 @@ pub struct TestBlockChainClient {
 	pub storage: RwLock<HashMap<(Address, H256), H256>>,
 	/// Code.
 	pub code: RwLock<HashMap<Address, Bytes>>,
+	/// Execution result.
+	pub execution_result: RwLock<Option<Executed>>,
 }
 
 #[derive(Clone)]
@@ -82,10 +86,16 @@ impl TestBlockChainClient {
 			balances: RwLock::new(HashMap::new()),
 			storage: RwLock::new(HashMap::new()),
 			code: RwLock::new(HashMap::new()),
+			execution_result: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
 		client
+	}
+
+	/// Set the execution result.
+	pub fn set_execution_result(&self, result: Executed) {
+		*self.execution_result.write().unwrap() = Some(result);
 	}
 
 	/// Set the balance of account `address` to `balance`.
@@ -182,6 +192,10 @@ impl TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
+	fn call(&self, _t: &SignedTransaction) -> Result<Executed, Error> {
+		Ok(self.execution_result.read().unwrap().clone().unwrap())
+	}
+
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
 		Some(U256::zero())
 	}
@@ -219,11 +233,11 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<(ClosedBlock, HashSet<H256>)> {
-		unimplemented!()
+		None
 	}
 
-	fn try_seal(&self, _block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
-		unimplemented!()
+	fn try_seal(&self, block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		Err(block)
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {

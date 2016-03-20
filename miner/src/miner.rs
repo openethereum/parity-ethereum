@@ -34,6 +34,7 @@ pub struct Miner {
 
 	// for sealing...
 	sealing_enabled: AtomicBool,
+	sealing_block_last_request: Mutex<u64>,
 	sealing_block: Mutex<Option<ClosedBlock>>,
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
@@ -46,6 +47,7 @@ impl Default for Miner {
 		Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			sealing_enabled: AtomicBool::new(false),
+			sealing_block_last_request: Mutex::new(0),
 			sealing_block: Mutex::new(None),
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
@@ -95,41 +97,7 @@ impl Miner {
 		self.transaction_queue.lock().unwrap().set_minimal_gas_price(min_gas_price);
 	}
 
-	fn update_gas_limit(&self, chain: &BlockChainClient) {
-		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
-		let mut queue = self.transaction_queue.lock().unwrap();
-		queue.set_gas_limit(gas_limit);
-	}
-}
-
-impl MinerService for Miner {
-
-	fn clear_and_reset(&self, chain: &BlockChainClient) {
-		self.transaction_queue.lock().unwrap().clear();
-		self.prepare_sealing(chain);
-	}
-
-	fn status(&self) -> MinerStatus {
-		let status = self.transaction_queue.lock().unwrap().status();
-		let block = self.sealing_block.lock().unwrap();
-		MinerStatus {
-			transactions_in_pending_queue: status.pending,
-			transactions_in_future_queue: status.future,
-			transactions_in_pending_block: block.as_ref().map_or(0, |b| b.transactions().len()),
-		}
-	}
-
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Result<(), Error>
-		where T: Fn(&Address) -> AccountDetails {
-		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.add_all(transactions, fetch_account)
-	}
-
-	fn pending_transactions_hashes(&self) -> Vec<H256> {
-		let transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.pending_hashes()
-	}
-
+	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
 		let b = chain.prepare_sealing(
@@ -152,12 +120,66 @@ impl MinerService for Miner {
 		});
 	}
 
+	fn update_gas_limit(&self, chain: &BlockChainClient) {
+		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
+		let mut queue = self.transaction_queue.lock().unwrap();
+		queue.set_gas_limit(gas_limit);
+	}
+}
+
+const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
+
+impl MinerService for Miner {
+
+	fn clear_and_reset(&self, chain: &BlockChainClient) {
+		self.transaction_queue.lock().unwrap().clear();
+		self.update_sealing(chain);
+	}
+
+	fn status(&self) -> MinerStatus {
+		let status = self.transaction_queue.lock().unwrap().status();
+		let block = self.sealing_block.lock().unwrap();
+		MinerStatus {
+			transactions_in_pending_queue: status.pending,
+			transactions_in_future_queue: status.future,
+			transactions_in_pending_block: block.as_ref().map_or(0, |b| b.transactions().len()),
+		}
+	}
+
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
+		where T: Fn(&Address) -> AccountDetails {
+		let mut transaction_queue = self.transaction_queue.lock().unwrap();
+		transaction_queue.add_all(transactions, fetch_account)
+	}
+
+	fn pending_transactions_hashes(&self) -> Vec<H256> {
+		let transaction_queue = self.transaction_queue.lock().unwrap();
+		transaction_queue.pending_hashes()
+	}
+
+	fn update_sealing(&self, chain: &BlockChainClient) {
+		let should_disable_sealing = {
+			let current_no = chain.chain_info().best_block_number;
+			let last_request = self.sealing_block_last_request.lock().unwrap();
+			let is_greater = current_no > *last_request;
+			is_greater && current_no - *last_request > SEALING_TIMEOUT_IN_BLOCKS
+		};
+
+		if should_disable_sealing {
+			self.sealing_enabled.store(false, atomic::Ordering::Relaxed);
+			*self.sealing_block.lock().unwrap() = None;
+		} else if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			self.prepare_sealing(chain);
+		}
+	}
+
 	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
 		if self.sealing_block.lock().unwrap().is_none() {
 			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
-			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
+
 			self.prepare_sealing(chain);
 		}
+		*self.sealing_block_last_request.lock().unwrap() = chain.chain_info().best_block_number;
 		&self.sealing_block
 	}
 
@@ -239,9 +261,45 @@ impl MinerService for Miner {
 			});
 		}
 
-		// Update mined block
-		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
-			self.prepare_sealing(chain);
-		}
+		self.update_sealing(chain);
+	}
+}
+
+#[cfg(test)]
+mod tests {
+
+	use MinerService;
+	use super::{Miner};
+	use ethcore::client::{TestBlockChainClient, EachBlockWith};
+
+	// TODO [ToDr] To uncomment client is cleaned from mining stuff.
+	#[ignore]
+	#[test]
+	fn should_prepare_block_to_seal() {
+		// given
+		let client = TestBlockChainClient::default();
+		let miner = Miner::default();
+
+		// when
+		let res = miner.sealing_block(&client);
+
+		// then
+		assert!(res.lock().unwrap().is_some(), "Expected closed block");
+	}
+
+	#[test]
+	fn should_reset_seal_after_couple_of_blocks() {
+		// given
+		let client = TestBlockChainClient::default();
+		let miner = Miner::default();
+		let res = miner.sealing_block(&client);
+		// TODO [ToDr] Uncomment after fixing TestBlockChainClient
+		// assert!(res.lock().unwrap().is_some(), "Expected closed block");
+
+		// when
+		client.add_blocks(10, EachBlockWith::Uncle);
+
+		// then
+		assert!(res.lock().unwrap().is_none(), "Expected to remove sealed block");
 	}
 }
