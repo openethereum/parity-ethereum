@@ -452,7 +452,7 @@ mod tests {
 		open_block.push_uncle(uncle1_header).unwrap();
 		open_block.push_uncle(uncle2_header).unwrap();
 		let b = open_block.close().seal(engine.deref(), vec![]).unwrap();
-		
+
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 
