@@ -21,7 +21,7 @@ use pod_account::*;
 use ethjson;
 
 /// State of all accounts in the system expressed in Plain Old Data.
-#[derive(Debug,Clone,PartialEq,Eq,Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct PodState (BTreeMap<Address, PodAccount>);
 
 impl PodState {
