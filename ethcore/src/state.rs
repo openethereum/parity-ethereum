@@ -351,6 +351,7 @@ use tests::helpers::*;
 use devtools::*;
 use evm::factory::*;
 use env_info::*;
+use spec::*;
 use transaction::*;
 use util::log::init_log;
 use trace::*;
@@ -468,6 +469,68 @@ fn should_trace_call_transaction() {
 	assert_eq!(result.trace, expected_trace);
 }
 
+#[test]
+fn should_not_trace_call_transaction_to_builtin() {
+	init_log();
+
+	let temp = RandomTempPath::new();
+	let mut state = get_temp_state_in(temp.as_path());
+
+	let mut info = EnvInfo::default();
+	info.gas_limit = x!(1_000_000);
+	let engine = Spec::new_test().to_engine().unwrap();
+
+	let t = Transaction {
+		nonce: x!(0),
+		gas_price: x!(0),
+		gas: x!(100_000),
+		action: Action::Call(x!(0x1)),
+		value: x!(0),
+		data: vec![],
+	}.sign(&"".sha3());
+
+	let result = state.apply(&info, engine.deref(), &t, true).unwrap();
+
+	assert_eq!(result.trace, None);
+}
+
+#[test]
+fn should_not_trace_subcall_transaction_to_builtin() {
+	init_log();
+
+	let temp = RandomTempPath::new();
+	let mut state = get_temp_state_in(temp.as_path());
+
+	let mut info = EnvInfo::default();
+	info.gas_limit = x!(1_000_000);
+	let engine = Spec::new_test().to_engine().unwrap();
+
+	let t = Transaction {
+		nonce: x!(0),
+		gas_price: x!(0),
+		gas: x!(100_000),
+		action: Action::Call(x!(0xa)),
+		value: x!(0),
+		data: vec![],
+	}.sign(&"".sha3());
+
+	state.init_code(&x!(0xa), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
+	let result = state.apply(&info, engine.deref(), &t, true).unwrap();
+
+	let expected_trace = Some(Trace {
+		depth: 0,
+		action: TraceAction::Call(TraceCall {
+			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
+			to: x!(0xa),
+			value: x!(0),
+			gas: x!(79000),
+			input: vec![],
+			result: Some((x!(28061), vec![]))
+		}),
+		subs: vec![]
+	});
+	assert_eq!(result.trace, expected_trace);
+}
 
 #[test]
 fn should_trace_failed_call_transaction() {
