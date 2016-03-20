@@ -184,7 +184,7 @@ impl TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error> {
+	fn call(&self, _t: &SignedTransaction) -> Result<Executed, Error> {
 		unimplemented!()
 	}
 
