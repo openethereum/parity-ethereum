@@ -432,9 +432,11 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 						let transaction: EthTransaction = transaction_request.into();
 						let signed_transaction = transaction.sign(&secret);
 
-						to_value(&client.call(&signed_transaction)
-								 .map(|e| e.gas_used)
-								 .unwrap_or(U256::zero()))
+						let gas_used = client.call(&signed_transaction)
+							.map(|e| e.gas_used + e.refunded)
+							.unwrap_or(U256::zero());
+
+						to_value(&gas_used)
 					},
 					Err(_) => { to_value(&U256::zero()) }
 				}

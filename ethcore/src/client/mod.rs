@@ -25,6 +25,7 @@ pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
 pub use self::ids::{BlockId, TransactionId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
+pub use executive::Executed;
 
 use std::collections::HashSet;
 use util::bytes::Bytes;
@@ -38,7 +39,6 @@ use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use error::{ImportResult, Error};
-use executive::Executed;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
