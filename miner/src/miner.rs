@@ -34,6 +34,7 @@ pub struct Miner {
 
 	// for sealing...
 	sealing_enabled: AtomicBool,
+	sealing_block_last_request: Mutex<u64>,
 	sealing_block: Mutex<Option<ClosedBlock>>,
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
@@ -46,6 +47,7 @@ impl Default for Miner {
 		Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			sealing_enabled: AtomicBool::new(false),
+			sealing_block_last_request: Mutex::new(0),
 			sealing_block: Mutex::new(None),
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
@@ -96,7 +98,7 @@ impl Miner {
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
-	pub fn prepare_sealing(&self, chain: &BlockChainClient) {
+	fn prepare_sealing(&self, chain: &BlockChainClient) {
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
 		let b = chain.prepare_sealing(
 			self.author(),
@@ -124,6 +126,8 @@ impl Miner {
 		queue.set_gas_limit(gas_limit);
 	}
 }
+
+const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
 
 impl MinerService for Miner {
 
@@ -154,7 +158,17 @@ impl MinerService for Miner {
 	}
 
 	fn update_sealing(&self, chain: &BlockChainClient) {
-		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+		let should_disable_sealing = {
+			let current_no = chain.chain_info().best_block_number;
+			let last_request = self.sealing_block_last_request.lock().unwrap();
+			let is_greater = current_no > *last_request;
+			is_greater && current_no - *last_request > SEALING_TIMEOUT_IN_BLOCKS
+		};
+
+		if should_disable_sealing {
+			self.sealing_enabled.store(false, atomic::Ordering::Relaxed);
+			*self.sealing_block.lock().unwrap() = None;
+		} else if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
 			self.prepare_sealing(chain);
 		}
 	}
@@ -162,9 +176,10 @@ impl MinerService for Miner {
 	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
 		if self.sealing_block.lock().unwrap().is_none() {
 			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
-			// TODO: Above should be on a timer that resets after two blocks have arrived without being asked for.
+
 			self.prepare_sealing(chain);
 		}
+		*self.sealing_block_last_request.lock().unwrap() = chain.chain_info().best_block_number;
 		&self.sealing_block
 	}
 
@@ -247,5 +262,44 @@ impl MinerService for Miner {
 		}
 
 		self.update_sealing(chain);
+	}
+}
+
+#[cfg(test)]
+mod tests {
+
+	use MinerService;
+	use super::{Miner};
+	use ethcore::client::{TestBlockChainClient, EachBlockWith};
+
+	// TODO [ToDr] To uncomment client is cleaned from mining stuff.
+	#[ignore]
+	#[test]
+	fn should_prepare_block_to_seal() {
+		// given
+		let client = TestBlockChainClient::default();
+		let miner = Miner::default();
+
+		// when
+		let res = miner.sealing_block(&client);
+
+		// then
+		assert!(res.lock().unwrap().is_some(), "Expected closed block");
+	}
+
+	#[test]
+	fn should_reset_seal_after_couple_of_blocks() {
+		// given
+		let client = TestBlockChainClient::default();
+		let miner = Miner::default();
+		let res = miner.sealing_block(&client);
+		// TODO [ToDr] Uncomment after fixing TestBlockChainClient
+		// assert!(res.lock().unwrap().is_some(), "Expected closed block");
+
+		// when
+		client.add_blocks(10, EachBlockWith::Uncle);
+
+		// then
+		assert!(res.lock().unwrap().is_none(), "Expected to remove sealed block");
 	}
 }

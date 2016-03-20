@@ -233,11 +233,11 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<(ClosedBlock, HashSet<H256>)> {
-		unimplemented!()
+		None
 	}
 
-	fn try_seal(&self, _block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
-		unimplemented!()
+	fn try_seal(&self, block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		Err(block)
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
