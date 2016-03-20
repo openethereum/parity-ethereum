@@ -315,7 +315,7 @@ impl Session {
 			.append(&host.protocol_version)
 			.append(&host.client_version)
 			.append(&host.capabilities)
-			.append(&host.local_endpoint.address.port())
+			.append(&host.listen_port)
 			.append(host.id());
 		self.connection.send_packet(&rlp.out())
 	}
