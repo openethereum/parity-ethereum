@@ -208,6 +208,7 @@ fn can_select_public_address() {
 	assert!(pub_address.port() == 40477);
 }
 
+#[ignore]
 #[test]
 fn can_map_external_address_or_fail() {
 	let pub_address = select_public_address(40478);
