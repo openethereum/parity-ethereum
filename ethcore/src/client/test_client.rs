@@ -224,6 +224,10 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
+	fn transaction_receipt(&self, _id: TransactionId) -> Option<Receipt> {
+		unimplemented!();
+	}
+
 	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
 		unimplemented!();
 	}

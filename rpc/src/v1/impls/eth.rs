@@ -293,6 +293,12 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 			.and_then(|(number, index)| self.transaction(TransactionId::Location(number.into(), index.value())))
 	}
 
+	fn transaction_receipt(&self, params: Params) -> Result<Value, Error> {
+		unimplemented!();
+		//from_params::<(H256,)>(params)
+			//.and_then(|(hash,)| self.transaction_receipt(TransactionId::Hash(hash)))
+	}
+
 	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, Index)>(params)
 			.and_then(|(hash, index)| self.uncle(BlockId::Hash(hash), index.value()))
