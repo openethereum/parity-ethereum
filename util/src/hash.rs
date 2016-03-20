@@ -63,7 +63,8 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 	fn low_u64(&self) -> u64;
 }
 
-fn clean_0x(s: &str) -> &str {
+/// Return `s` without the `0x` at the beginning of it, if any.
+pub fn clean_0x(s: &str) -> &str {
 	if s.len() >= 2 && &s[0..2] == "0x" {
 		&s[2..]
 	} else {
