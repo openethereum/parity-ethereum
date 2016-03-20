@@ -23,7 +23,7 @@ use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Transaction
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
-use receipt::Receipt;
+use receipt::{Receipt, LocalizedReceipt};
 use extras::BlockReceipts;
 use error::{ImportResult};
 
@@ -224,7 +224,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn transaction_receipt(&self, _id: TransactionId) -> Option<Receipt> {
+	fn transaction_receipt(&self, _id: TransactionId) -> Option<LocalizedReceipt> {
 		unimplemented!();
 	}
 
