@@ -420,7 +420,7 @@ fn should_trace_failed_create_transaction() {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			value: x!(100),
 			gas: x!(78792),
-			init: FromHex::from_hex("5b600056").unwrap(),
+			init: vec![91, 96, 0, 86],
 			result: None
 		}),
 		subs: vec![]
