@@ -161,8 +161,8 @@ impl MinerService for Miner {
 		let should_disable_sealing = {
 			let current_no = chain.chain_info().best_block_number;
 			let last_request = self.sealing_block_last_request.lock().unwrap();
-
-			current_no - *last_request > SEALING_TIMEOUT_IN_BLOCKS
+			let is_greater = current_no > *last_request;
+			is_greater && current_no - *last_request > SEALING_TIMEOUT_IN_BLOCKS
 		};
 
 		if should_disable_sealing {
