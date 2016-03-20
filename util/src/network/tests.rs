@@ -97,23 +97,23 @@ impl NetworkProtocolHandler<TestProtocolMessage> for TestProtocol {
 
 #[test]
 fn net_service() {
-	let mut service = NetworkService::<TestProtocolMessage>::start(NetworkConfiguration::new_with_port(40414)).expect("Error creating network service");
+	let mut service = NetworkService::<TestProtocolMessage>::start(NetworkConfiguration::new_local()).expect("Error creating network service");
 	service.register_protocol(Arc::new(TestProtocol::new(false)), "myproto", &[1u8]).unwrap();
 }
 
 #[test]
 fn net_connect() {
+	::log::init_log();
 	let key1 = KeyPair::create().unwrap();
-	let mut config1 = NetworkConfiguration::new_with_port(30354);
+	let mut config1 = NetworkConfiguration::new_local();
 	config1.use_secret = Some(key1.secret().clone());
-	config1.nat_enabled = false;
 	config1.boot_nodes = vec![ ];
-	let mut config2 = NetworkConfiguration::new_with_port(30355);
-	config2.boot_nodes = vec![ format!("enode://{}@127.0.0.1:30354", key1.public().hex()) ];
-	config2.nat_enabled = false;
 	let mut service1 = NetworkService::<TestProtocolMessage>::start(config1).unwrap();
-	let mut service2 = NetworkService::<TestProtocolMessage>::start(config2).unwrap();
 	let handler1 = TestProtocol::register(&mut service1, false);
+	let mut config2 = NetworkConfiguration::new_local();
+	info!("net_connect: local URL: {}", service1.local_url());
+	config2.boot_nodes = vec![ service1.local_url() ];
+	let mut service2 = NetworkService::<TestProtocolMessage>::start(config2).unwrap();
 	let handler2 = TestProtocol::register(&mut service2, false);
 	while !handler1.got_packet() && !handler2.got_packet() && (service1.stats().sessions() == 0 || service2.stats().sessions() == 0) {
 		thread::sleep(Duration::from_millis(50));
@@ -125,16 +125,14 @@ fn net_connect() {
 #[test]
 fn net_disconnect() {
 	let key1 = KeyPair::create().unwrap();
-	let mut config1 = NetworkConfiguration::new_with_port(30364);
+	let mut config1 = NetworkConfiguration::new_local();
 	config1.use_secret = Some(key1.secret().clone());
-	config1.nat_enabled = false;
 	config1.boot_nodes = vec![ ];
-	let mut config2 = NetworkConfiguration::new_with_port(30365);
-	config2.boot_nodes = vec![ format!("enode://{}@127.0.0.1:30364", key1.public().hex()) ];
-	config2.nat_enabled = false;
 	let mut service1 = NetworkService::<TestProtocolMessage>::start(config1).unwrap();
-	let mut service2 = NetworkService::<TestProtocolMessage>::start(config2).unwrap();
 	let handler1 = TestProtocol::register(&mut service1, false);
+	let mut config2 = NetworkConfiguration::new_local();
+	config2.boot_nodes = vec![ service1.local_url() ];
+	let mut service2 = NetworkService::<TestProtocolMessage>::start(config2).unwrap();
 	let handler2 = TestProtocol::register(&mut service2, true);
 	while !(handler1.got_disconnect() && handler2.got_disconnect()) {
 		thread::sleep(Duration::from_millis(50));
@@ -145,7 +143,7 @@ fn net_disconnect() {
 
 #[test]
 fn net_timeout() {
-	let config = NetworkConfiguration::new_with_port(30346);
+	let config = NetworkConfiguration::new_local();
 	let mut service = NetworkService::<TestProtocolMessage>::start(config).unwrap();
 	let handler = TestProtocol::register(&mut service, false);
 	while !handler.got_timeout() {
