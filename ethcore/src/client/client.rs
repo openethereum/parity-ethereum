@@ -211,7 +211,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().spawn();
 
-		let enact_result = enact_verified(&block, engine, db, &parent, last_hashes);
+		let enact_result = enact_verified(&block, engine, self.chain.have_tracing(), db, &parent, last_hashes);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -398,6 +398,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 		let mut b = OpenBlock::new(
 			engine,
+			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().unwrap().spawn(),
 			match self.chain.block_header(&h) { Some(ref x) => x, None => {return None} },
 			self.build_last_hashes(h.clone()),

@@ -75,7 +75,7 @@ impl<'a> TestExt<'a> {
 			   depth: usize,
 			   origin_info: OriginInfo,
 			   substate: &'a mut Substate,
-			   output: OutputPolicy<'a>,
+			   output: OutputPolicy<'a, 'a>,
 			   address: Address) -> Self {
 		TestExt {
 			contract_address: contract_address(&address, &state.nonce(&address)),
@@ -227,19 +227,21 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 		let out_of_gas = test.find("callcreates").map(|_calls| {
 		}).is_none();
 
-		let mut substate = Substate::new();
+		let mut substate = Substate::new(false);
 		let mut output = vec![];
 
 		// execute
 		let (res, callcreates) = {
-			let mut ex = TestExt::new(&mut state,
-									  &info,
-									  &engine,
-									  0,
-									  OriginInfo::from(&params),
-									  &mut substate,
-									  OutputPolicy::Return(BytesRef::Flexible(&mut output)),
-									  params.address.clone());
+			let mut ex = TestExt::new(
+				&mut state,
+				&info,
+				&engine,
+				0,
+				OriginInfo::from(&params),
+				&mut substate,
+				OutputPolicy::Return(BytesRef::Flexible(&mut output), None),
+				params.address.clone()
+			);
 			let evm = engine.vm_factory().create();
 			let res = evm.exec(params, &mut ex);
 			(res, ex.callcreates)
