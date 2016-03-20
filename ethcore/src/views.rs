@@ -256,6 +256,9 @@ impl<'a> HeaderView<'a> {
 		}
 	}
 
+	/// Returns header hash.
+	pub fn hash(&self) -> H256 { self.sha3() }
+
 	/// Returns raw rlp.
 	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
 

@@ -37,6 +37,8 @@ use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
+use env_info::EnvInfo;
+use executive::{Executive, Executed};
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
 /// General block status
@@ -385,6 +387,29 @@ impl<V> Client<V> where V: Verifier {
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
+	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error> {
+		let header = self.block_header(BlockId::Latest).unwrap();
+		let view = HeaderView::new(&header);
+		let last_hashes = self.build_last_hashes(view.hash());
+		let env_info = EnvInfo {
+			number: view.number(),
+			author: view.author(),
+			timestamp: view.timestamp(),
+			difficulty: view.difficulty(),
+			last_hashes: last_hashes,
+			gas_used: U256::zero(),
+			gas_limit: U256::max_value(),
+		};
+		// that's just a copy of the state.
+		let mut state = self.state();
+		let sender = try!(t.sender());
+		let balance = state.balance(&sender);
+		// give the sender max balance
+		state.sub_balance(&sender, &balance);
+		state.add_balance(&sender, &U256::max_value());
+		Executive::new(&mut state, &env_info, self.engine.deref().deref()).transact(t, false)
+	}
+
 	// TODO [todr] Should be moved to miner crate eventually.
 	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
 		block.try_seal(self.engine.deref().deref(), seal)

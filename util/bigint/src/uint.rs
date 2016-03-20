@@ -490,6 +490,8 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 	fn zero() -> Self;
 	/// Returns new instance equalling one.
 	fn one() -> Self;
+	/// Returns the largest value that can be represented by this integer type.
+	fn max_value() -> Self;
 
 	/// Error type for converting from a decimal string.
 	type FromDecStrErr;
@@ -645,6 +647,15 @@ macro_rules! construct_uint {
 			#[inline]
 			fn one() -> Self {
 				From::from(1u64)
+			}
+
+			#[inline]
+			fn max_value() -> Self {
+				let mut result = [0; $n_words];
+				for i in 0..$n_words {
+					result[i] = u64::max_value();
+				}
+				$name(result)
 			}
 
 			/// Fast exponentation by squaring

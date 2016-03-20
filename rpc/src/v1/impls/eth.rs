@@ -398,6 +398,50 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				}
 		})
 	}
+
+	fn call(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, BlockNumber)>(params)
+			.and_then(|(transaction_request, _block_number)| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.account_secret(&transaction_request.from) {
+					Ok(secret) => {
+						let client = take_weak!(self.client);
+
+						let transaction: EthTransaction = transaction_request.into();
+						let signed_transaction = transaction.sign(&secret);
+
+						let output = client.call(&signed_transaction)
+							.map(|e| Bytes::new(e.output))
+							.unwrap_or(Bytes::default());
+
+						to_value(&output)
+					},
+					Err(_) => { to_value(&Bytes::default()) }
+				}
+			})
+	}
+
+	fn estimate_gas(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TransactionRequest, BlockNumber)>(params)
+			.and_then(|(transaction_request, _block_number)| {
+				let accounts = take_weak!(self.accounts);
+				match accounts.account_secret(&transaction_request.from) {
+					Ok(secret) => {
+						let client = take_weak!(self.client);
+
+						let transaction: EthTransaction = transaction_request.into();
+						let signed_transaction = transaction.sign(&secret);
+
+						let gas_used = client.call(&signed_transaction)
+							.map(|e| e.gas_used + e.refunded)
+							.unwrap_or(U256::zero());
+
+						to_value(&gas_used)
+					},
+					Err(_) => { to_value(&U256::zero()) }
+				}
+			})
+	}
 }
 
 /// Eth filter rpc implementation.
