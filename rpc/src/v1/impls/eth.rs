@@ -31,7 +31,7 @@ use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
 use ethcore::transaction::Transaction as EthTransaction;
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, OptionalValue, Index, Filter, Log};
+use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::helpers::{PollFilter, PollManager, ExternalMinerService, ExternalMiner};
 use util::keys::store::AccountProvider;
 
@@ -291,6 +291,15 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn transaction_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
 			.and_then(|(number, index)| self.transaction(TransactionId::Location(number.into(), index.value())))
+	}
+
+	fn transaction_receipt(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H256,)>(params)
+			.and_then(|(hash,)| {
+				let client = take_weak!(self.client);
+				let receipt = client.transaction_receipt(TransactionId::Hash(hash));
+				to_value(&receipt.map(Receipt::from))
+			})
 	}
 
 	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {

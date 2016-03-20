@@ -18,6 +18,7 @@
 
 use util::*;
 use basic_types::LogBloom;
+use header::BlockNumber;
 
 /// A record of execution for a `LOG` operation.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -84,7 +85,7 @@ pub struct LocalizedLogEntry {
 	/// Block in which this log was created.
 	pub block_hash: H256,
 	/// Block number.
-	pub block_number: usize,
+	pub block_number: BlockNumber,
 	/// Hash of transaction in which this log was created.
 	pub transaction_hash: H256,
 	/// Index of transaction within block.
