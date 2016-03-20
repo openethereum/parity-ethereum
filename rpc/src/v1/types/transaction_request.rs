@@ -46,6 +46,8 @@ impl Into<Transaction> for TransactionRequest {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
+	use rustc_serialize::hex::FromHex;
 	use serde_json;
 	use util::numbers::{Uint, U256};
 	use util::hash::Address;
@@ -118,6 +120,29 @@ mod tests {
 			value: Some(U256::from(3)),
 			data: Some(Bytes::new(vec![0x12, 0x34, 0x56])),
 			nonce: Some(U256::from(4)),
+		});
+	}
+
+	#[test]
+	fn transaction_request_deserialize2() {
+		let s = r#"{
+			"from": "0xb60e8dd61c5d32be8058bb8eb970870f07233155",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a",
+			"data": "0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675"
+		}"#;
+		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
+
+		assert_eq!(deserialized, TransactionRequest {
+			from: Address::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap(),
+			to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+			gas_price: Some(U256::from_str("9184e72a000").unwrap()),
+			gas: Some(U256::from_str("76c0").unwrap()),
+			value: Some(U256::from_str("9184e72a").unwrap()),
+			data: Some(Bytes::new("d46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675".from_hex().unwrap())),
+			nonce: None
 		});
 	}
 

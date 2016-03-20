@@ -37,7 +37,7 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 }
 
 /// Transaction execution receipt.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Executed {
 	/// Gas paid up front for execution of transaction.
 	pub gas: U256,
