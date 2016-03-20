@@ -261,16 +261,14 @@ impl<'a> Executive<'a> {
 
 			// if there's tracing, make up trace_info's result with trace_output and some arithmetic.
 			if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
-				if let Some(output) = trace_output {
-					c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, output));
-				}
+				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, trace_output.expect("trace_info is Some: qed")));
 			}
 
-			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
-			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
+			trace!(target: "executive", "sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
+			trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 
 			self.enact_result(&res, substate, unconfirmed_substate, trace_info);
-			trace!("exec: new substate={:?}\n", substate);
+			trace!(target: "executive", "enacted: substate={:?}\n", substate);
 			res
 		} else {
 			// otherwise, nothing
@@ -307,10 +305,10 @@ impl<'a> Executive<'a> {
 		};
 
 		if let Some((TraceAction::Create(ref mut c), _)) = trace_info {
-			if let Some(output) = trace_output {
-				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, output));
-			}
+			c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, trace_output.expect("trace_info is Some: qed")));
 		}
+
+		trace!(target: "executive", "trace_info={:?}", trace_info);
 
 		self.enact_result(&res, substate, unconfirmed_substate, trace_info);
 		res
@@ -348,6 +346,8 @@ impl<'a> Executive<'a> {
 			self.state.kill_account(address);
 		}
 
+		let trace = substate.subtraces.and_then(|mut v| v.pop());
+
 		match result {
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
 			Err(_) => {
@@ -359,7 +359,7 @@ impl<'a> Executive<'a> {
 					logs: vec![],
 					contracts_created: vec![],
 					output: output,
-					trace: None,
+					trace: trace,
 				})
 			},
 			_ => {
@@ -371,7 +371,7 @@ impl<'a> Executive<'a> {
 					logs: substate.logs,
 					contracts_created: substate.contracts_created,
 					output: output,
-					trace: substate.subtraces.and_then(|mut v| v.pop()),
+					trace: trace,
 				})
 			},
 		}
@@ -385,6 +385,7 @@ impl<'a> Executive<'a> {
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
 				self.state.revert_snapshot();
+				substate.accrue_trace(un_substate.subtraces, maybe_info)
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
 				self.state.clear_snapshot();

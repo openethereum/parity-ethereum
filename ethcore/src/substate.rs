@@ -49,19 +49,27 @@ impl Substate {
 		}
 	}
 
-	/// Merge secondary substate `s` into self, accruing each element correspondingly.
+	/// Merge tracing information from substate `s` if enabled.
+	pub fn accrue_trace(&mut self, subs: Option<Vec<Trace>>, maybe_info: Option<(TraceAction, usize)>) {
+		// it failed, so we don't bother accrueing any protocol-level stuff, only the
+		// trace info.
+		if let Some(info) = maybe_info {
+			self.subtraces.as_mut().expect("maybe_action is Some: so we must be tracing: qed").push(Trace {
+				action: info.0,
+				depth: info.1,
+				subs: subs.expect("maybe_action is Some: so we must be tracing: qed"),
+			});
+		}
+	}
+
+	/// Merge secondary substate `s` into self, accruing each element correspondingly; will merge
+	/// tracing information too, if enabled.
 	pub fn accrue(&mut self, s: Substate, maybe_info: Option<(TraceAction, usize)>) {
 		self.suicides.extend(s.suicides.into_iter());
 		self.logs.extend(s.logs.into_iter());
 		self.sstore_clears_count = self.sstore_clears_count + s.sstore_clears_count;
 		self.contracts_created.extend(s.contracts_created.into_iter());
-		if let Some(info) = maybe_info {
-			self.subtraces.as_mut().expect("maybe_action is Some: so we must be tracing: qed").push(Trace {
-				action: info.0,
-				depth: info.1,
-				subs: s.subtraces.expect("maybe_action is Some: so we must be tracing: qed"),
-			});
-		}
+		self.accrue_trace(s.subtraces, maybe_info);
 	}
 }
 

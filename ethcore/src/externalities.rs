@@ -153,13 +153,15 @@ impl<'a> Ext for Externalities<'a> {
 	}
 
 	fn call(&mut self,
-			gas: &U256,
-			sender_address: &Address,
-			receive_address: &Address,
-			value: Option<U256>,
-			data: &[u8],
-			code_address: &Address,
-			output: &mut [u8]) -> MessageCallResult {
+		gas: &U256,
+		sender_address: &Address,
+		receive_address: &Address,
+		value: Option<U256>,
+		data: &[u8],
+		code_address: &Address,
+		output: &mut [u8]
+	) -> MessageCallResult {
+		trace!(target: "externalities", "call");
 
 		let mut params = ActionParams {
 			sender: sender_address.clone(),
