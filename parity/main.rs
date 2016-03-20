@@ -107,7 +107,7 @@ API and Console Options:
   -j --jsonrpc             Enable the JSON-RPC API sever.
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
                            server, IP should be an interface's IP address, or
-                           all (all interfaces) or local [default: all].
+                           all (all interfaces) or local [default: local].
   --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
                            [default: 8545].
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses
