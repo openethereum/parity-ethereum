@@ -260,16 +260,14 @@ impl<'a> Executive<'a> {
 
 			// if there's tracing, make up trace_info's result with trace_output and some arithmetic. 
 			if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
-				if let Some(output) = trace_output { 
-					c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, output));
-				}
+				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, trace_output.expect("trace_info is Some: qed")));
 			}
 
-			trace!("exec: sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
-			trace!("exec: substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
+			trace!(target: "executive", "sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
+			trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 
 			self.enact_result(&res, substate, unconfirmed_substate, trace_info);
-			trace!("exec: new substate={:?}\n", substate);
+			trace!(target: "executive", "enacted: substate={:?}\n", substate);
 			res
 		} else {
 			// otherwise, nothing
