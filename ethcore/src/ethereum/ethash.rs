@@ -299,7 +299,7 @@ mod tests {
 		let mut db = db_result.take();
 		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
+		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -312,7 +312,7 @@ mod tests {
 		let mut db = db_result.take();
 		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
+		let mut b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let mut uncle = Header::new();
 		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 		uncle.author = uncle_author.clone();
