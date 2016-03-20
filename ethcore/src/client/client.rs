@@ -39,6 +39,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
 use env_info::EnvInfo;
 use executive::{Executive, Executed};
+use receipt::Receipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
 /// General block status
@@ -384,6 +385,16 @@ impl<V> Client<V> where V: Verifier {
 			BlockId::Latest => Some(self.chain.best_block_number())
 		}
 	}
+
+	fn transaction_address(&self, id: TransactionId) -> Option<TransactionAddress> {
+		match id {
+			TransactionId::Hash(ref hash) => self.chain.transaction_address(hash),
+			TransactionId::Location(id, index) => Self::block_hash(&self.chain, id).map(|hash| TransactionAddress {
+				block_hash: hash,
+				index: index
+			})
+		}
+	}
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
@@ -535,13 +546,11 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
-		match id {
-			TransactionId::Hash(ref hash) => self.chain.transaction_address(hash),
-			TransactionId::Location(id, index) => Self::block_hash(&self.chain, id).map(|hash| TransactionAddress {
-				block_hash: hash,
-				index: index
-			})
-		}.and_then(|address| self.chain.transaction(&address))
+		self.transaction_address(id).and_then(|address| self.chain.transaction(&address))
+	}
+
+	fn transaction_receipt(&self, id: TransactionId) -> Option<Receipt> {
+		self.transaction_address(id).and_then(|address| self.chain.transaction_receipt(&address))
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {

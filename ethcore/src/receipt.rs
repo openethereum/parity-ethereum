@@ -18,7 +18,8 @@
 
 use util::*;
 use basic_types::LogBloom;
-use log_entry::LogEntry;
+use header::BlockNumber;
+use log_entry::{LogEntry, LocalizedLogEntry};
 
 /// Information describing execution of a transaction.
 #[derive(Default, Debug, Clone)]
@@ -72,6 +73,26 @@ impl HeapSizeOf for Receipt {
 	fn heap_size_of_children(&self) -> usize {
 		self.logs.heap_size_of_children()
 	}
+}
+
+/// Receipt with additional info.
+pub struct LocalizedReceipt {
+	/// Transaction hash.
+	pub transaction_hash: H256,
+	/// Transaction index.
+	pub transaction_index: usize,
+	/// Block hash.
+	pub block_hash: H256,
+	/// Block number.
+	pub block_number: BlockNumber,
+	/// Cumulative gas used.
+	pub cumulative_gas_used: U256,
+	/// Gas used.
+	pub gas_used: U256,
+	/// Contract address.
+	pub contract_address: Option<Address>,
+	/// Logs
+	pub logs: Vec<LocalizedLogEntry>,
 }
 
 #[test]

@@ -103,6 +103,11 @@ pub trait BlockProvider {
 		self.block(&address.block_hash).and_then(|bytes| BlockView::new(&bytes).localized_transaction_at(address.index))
 	}
 
+	/// Get transaction receipt.
+	fn transaction_receipt(&self, address: &TransactionAddress) -> Option<Receipt> {
+		self.block_receipts(&address.block_hash).and_then(|br| br.receipts.into_iter().nth(address.index))
+	}
+
 	/// Get a list of transactions for a given block.
 	/// Returns None if block does not exist.
 	fn transactions(&self, hash: &H256) -> Option<Vec<LocalizedTransaction>> {
