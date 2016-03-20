@@ -46,12 +46,8 @@ impl Visitor for BytesVisitor {
 		let v = match value.len() {
 			0 => vec![],
 			2 if value.starts_with("0x") => vec![],
-			_ if value.starts_with("0x") => try!(FromHex::from_hex(&value[2..]).map_err(|_| {
-				Error::custom(format!("Invalid hex value {}.", value).as_ref())
-			})),
-			_ => try!(FromHex::from_hex(value).map_err(|_| {
-				Error::custom(format!("Invalid hex value {}.", value).as_ref())
-			}))
+			_ if value.starts_with("0x") => FromHex::from_hex(&value[2..]).unwrap_or(vec![]),
+			_ => FromHex::from_hex(value).unwrap_or(vec![]),
 		};
 		Ok(Bytes(v))
 	}

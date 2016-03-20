@@ -17,6 +17,7 @@
 //! Blockchain deserialization.
 
 use bytes::Bytes;
+use hash::H256;
 use blockchain::state::State;
 use blockchain::header::Header;
 use blockchain::block::Block;
@@ -30,7 +31,7 @@ pub struct BlockChain {
 	pub genesis_block: Header,
 	/// Genesis block rlp.
 	#[serde(rename="genesisRLP")]
-	pub genesis_rlp: Bytes,
+	pub genesis_rlp: Option<Bytes>,
 	/// Blocks.
 	pub blocks: Vec<Block>,
 	/// Post state.
@@ -39,14 +40,12 @@ pub struct BlockChain {
 	/// Pre state.
 	#[serde(rename="pre")]
 	pub pre_state: State,
+	/// Hash of best block.
+	#[serde(rename="lastblockhash")]
+	pub best_block: H256
 }
 
 impl BlockChain {
-	/// Returns genesis block rlp.
-	pub fn genesis_rlp(&self) -> Vec<u8> {
-		self.genesis_rlp.clone().into()
-	}
-
 	/// Returns blocks rlp.
 	pub fn blocks_rlp(&self) -> Vec<Vec<u8>> {
 		self.blocks.iter().map(|block| block.rlp()).collect()

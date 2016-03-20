@@ -56,7 +56,7 @@ impl MinerService for TestMinerService {
 	fn import_transactions(&self, _transactions: Vec<SignedTransaction>) -> Vec<Result<(), Error>> { unimplemented!(); }
 
 	/// Returns hashes of transactions currently in pending
-	fn pending_transactions_hashes(&self) -> Vec<H256> { unimplemented!(); }
+	fn pending_transactions_hashes(&self) -> Vec<H256> { vec![] }
 
 	/// Removes all transactions from the queue and restart mining operation.
 	fn clear_and_reset(&self) { unimplemented!(); }

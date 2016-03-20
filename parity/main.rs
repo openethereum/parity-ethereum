@@ -46,6 +46,7 @@ use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
+use util::keys::store::*;
 use ethcore::spec::*;
 use ethcore::client::*;
 use ethcore::service::{ClientService, NetSyncMessage};
@@ -55,7 +56,6 @@ use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
-use util::keys::store::*;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
@@ -315,7 +315,7 @@ impl Configuration {
 
 	fn author(&self) -> Address {
 		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
-		Address::from_str(d).unwrap_or_else(|_| {
+		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
 			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", d)
 		})
 	}

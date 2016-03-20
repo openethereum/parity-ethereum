@@ -224,7 +224,7 @@ fn rpc_eth_block_transaction_count_by_hash() {
 		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
@@ -264,7 +264,7 @@ fn rpc_eth_uncle_count_by_block_hash() {
 		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x00","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }
