@@ -310,6 +310,8 @@ impl<'a> Executive<'a> {
 				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, output));
 			}
 		}
+		
+		trace!(target: "executive", "trace_info={:?}", trace_info);
 
 		self.enact_result(&res, substate, unconfirmed_substate, trace_info);
 		res

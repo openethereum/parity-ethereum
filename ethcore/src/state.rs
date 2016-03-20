@@ -349,6 +349,48 @@ use util::rlp::*;
 use account::*;
 use tests::helpers::*;
 use devtools::*;
+use evm::factory::*;
+use env_info::*;
+use transaction::*;
+use util::log::init_log;
+use trace::*;
+
+#[test]
+fn should_apply_create_transaction() {
+	init_log();
+
+	let temp = RandomTempPath::new();
+	let mut state = get_temp_state_in(temp.as_path());
+
+	let mut info = EnvInfo::default();
+	info.gas_limit = x!(1_000_000);
+	let engine = TestEngine::new(5, Factory::default());
+
+	let t = Transaction {
+		nonce: x!(0),
+		gas_price: x!(0),
+		gas: x!(100_000),
+		action: Action::Create,
+		value: x!(100),
+		data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
+	}.sign(&"".sha3());
+
+	state.add_balance(t.sender().as_ref().unwrap(), &x!(100));
+	let result = state.apply(&info, &engine, &t, true).unwrap();
+	let expected_trace = Some(Trace {
+		depth: 0,
+		action: TraceAction::Create(TraceCreate {
+			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
+			value: x!(100),
+			gas: x!(77412),
+			init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+			result: Some((x!(3224), x!("8988167e088c87cd314df6d3c2b83da5acb93ace"), vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]))
+		}),
+		subs: vec![]
+	});
+
+	assert_eq!(result.trace, expected_trace);
+}
 
 #[test]
 fn code_from_database() {
