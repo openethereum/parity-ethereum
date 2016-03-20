@@ -39,7 +39,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
 use env_info::EnvInfo;
 use executive::{Executive, Executed};
-use receipt::Receipt;
+use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
 /// General block status
@@ -549,8 +549,40 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		self.transaction_address(id).and_then(|address| self.chain.transaction(&address))
 	}
 
-	fn transaction_receipt(&self, id: TransactionId) -> Option<Receipt> {
-		self.transaction_address(id).and_then(|address| self.chain.transaction_receipt(&address))
+	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
+		self.transaction_address(id).and_then(|address| {
+			let t = self.chain.block(&address.block_hash)
+				.and_then(|block| BlockView::new(&block).localized_transaction_at(address.index));
+
+			match (t, self.chain.transaction_receipt(&address)) {
+				(Some(tx), Some(receipt)) => {
+					let block_hash = tx.block_hash.clone();
+					let block_number = tx.block_number.clone();
+					let transaction_hash = tx.hash();
+					let transaction_index = tx.transaction_index;
+					Some(LocalizedReceipt {
+						transaction_hash: tx.hash(),
+						transaction_index: tx.transaction_index,
+						block_hash: tx.block_hash,
+						block_number: tx.block_number,
+						// TODO: to fix this, query all previous transaction receipts and retrieve their gas usage
+						cumulative_gas_used: receipt.gas_used,
+						gas_used: receipt.gas_used,
+						// TODO: to fix this, store created contract address in db
+						contract_address: None,
+						logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
+							entry: log,
+							block_hash: block_hash.clone(),
+							block_number: block_number,
+							transaction_hash: transaction_hash.clone(),
+							transaction_index: transaction_index,
+							log_index: i
+						}).collect()
+					})
+				},
+				_ => None
+			}
+		})
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
@@ -635,7 +667,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 						 	.map(|(i, log)| LocalizedLogEntry {
 							 	entry: log,
 								block_hash: hash.clone(),
-								block_number: number as usize,
+								block_number: number,
 								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
 								transaction_index: index,
 								log_index: log_index + i
