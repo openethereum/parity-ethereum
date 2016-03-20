@@ -146,7 +146,7 @@ mod tests {
 	fn it_can_be_started() {
 		let spec = get_test_spec();
 		let temp_path = RandomTempPath::new();
-		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_with_port(40456), &temp_path.as_path());
+		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &temp_path.as_path());
 		assert!(service.is_ok());
 	}
 }
