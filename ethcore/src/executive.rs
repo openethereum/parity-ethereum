@@ -196,6 +196,7 @@ impl<'a> Executive<'a> {
 		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy);
 			let vm_factory = self.engine.vm_factory();
+			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
 			return vm_factory.create().exec(params, &mut ext);
 		}
 
@@ -247,24 +248,30 @@ impl<'a> Executive<'a> {
 			}
 		} else if params.code.is_some() {
 			// if destination is a contract, do normal message call
+			
+			// don't trace is it's DELEGATECALL or CALLCODE.
+			let should_trace = if let ActionValue::Transfer(_) = params.value {
+				params.code_address == params.address
+			} else { false };
 
 			// part of substate that may be reverted
 			let mut unconfirmed_substate = Substate::new(substate.subtraces.is_some());
 
 			// transaction tracing stuff. None if there's no tracing.
-			let mut trace_info = substate.subtraces.as_ref().map(|_| (TraceAction::from_call(&params), self.depth));
+			let mut trace_info = if should_trace { substate.subtraces.as_ref().map(|_| (TraceAction::from_call(&params), self.depth)) } else { None };
 			let mut trace_output = trace_info.as_ref().map(|_| vec![]);
 
 			let res = {
 				self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()))
 			};
 
+			trace!(target: "executive", "res={:?}", res);
+
 			// if there's tracing, make up trace_info's result with trace_output and some arithmetic.
 			if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
 				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, trace_output.expect("trace_info is Some: qed")));
 			}
 
-			trace!(target: "executive", "sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
 			trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 
 			self.enact_result(&res, substate, unconfirmed_substate, trace_info);

@@ -533,6 +533,87 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 }
 
 #[test]
+fn should_not_trace_callcode() {
+	init_log();
+
+	let temp = RandomTempPath::new();
+	let mut state = get_temp_state_in(temp.as_path());
+
+	let mut info = EnvInfo::default();
+	info.gas_limit = x!(1_000_000);
+	let engine = Spec::new_test().to_engine().unwrap();
+
+	let t = Transaction {
+		nonce: x!(0),
+		gas_price: x!(0),
+		gas: x!(100_000),
+		action: Action::Call(x!(0xa)),
+		value: x!(0),
+		data: vec![],
+	}.sign(&"".sha3());
+
+	state.init_code(&x!(0xa), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
+	state.init_code(&x!(0xb), FromHex::from_hex("6000").unwrap());
+	let result = state.apply(&info, engine.deref(), &t, true).unwrap();
+
+	let expected_trace = Some(Trace {
+		depth: 0,
+		action: TraceAction::Call(TraceCall {
+			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
+			to: x!(0xa),
+			value: x!(0),
+			gas: x!(79000),
+			input: vec![],
+			result: Some((x!(64), vec![]))
+		}),
+		subs: vec![]
+	});
+	assert_eq!(result.trace, expected_trace);
+}
+
+#[test]
+fn should_not_trace_delegatecall() {
+	init_log();
+
+	let temp = RandomTempPath::new();
+	let mut state = get_temp_state_in(temp.as_path());
+
+	let mut info = EnvInfo::default();
+	info.gas_limit = x!(1_000_000);
+	info.number = 0x789b0;
+	let engine = Spec::new_test().to_engine().unwrap();
+
+	println!("schedule.have_delegate_call: {:?}", engine.schedule(&info).have_delegate_call);
+
+	let t = Transaction {
+		nonce: x!(0),
+		gas_price: x!(0),
+		gas: x!(100_000),
+		action: Action::Call(x!(0xa)),
+		value: x!(0),
+		data: vec![],
+	}.sign(&"".sha3());
+
+	state.init_code(&x!(0xa), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
+	state.init_code(&x!(0xb), FromHex::from_hex("6000").unwrap());
+	let result = state.apply(&info, engine.deref(), &t, true).unwrap();
+
+	let expected_trace = Some(Trace {
+		depth: 0,
+		action: TraceAction::Call(TraceCall {
+			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
+			to: x!(0xa),
+			value: x!(0),
+			gas: x!(79000),
+			input: vec![],
+			result: Some((x!(61), vec![]))
+		}),
+		subs: vec![]
+	});
+	assert_eq!(result.trace, expected_trace);
+}
+
+#[test]
 fn should_trace_failed_call_transaction() {
 	init_log();
 
@@ -572,6 +653,7 @@ fn should_trace_failed_call_transaction() {
 
 	assert_eq!(result.trace, expected_trace);
 }
+
 #[test]
 fn should_trace_call_with_subcall_transaction() {
 	init_log();
