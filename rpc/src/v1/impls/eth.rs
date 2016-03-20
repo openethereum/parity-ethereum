@@ -410,9 +410,11 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 						let transaction: EthTransaction = transaction_request.into();
 						let signed_transaction = transaction.sign(&secret);
 
-						to_value(&client.call(&signed_transaction)
-								 .map(|e| Bytes::new(e.output))
-								 .unwrap_or(Bytes::default()))
+						let output = client.call(&signed_transaction)
+							.map(|e| Bytes::new(e.output))
+							.unwrap_or(Bytes::default());
+
+						to_value(&output)
 					},
 					Err(_) => { to_value(&Bytes::default()) }
 				}
