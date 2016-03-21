@@ -23,13 +23,13 @@ use ethminer::{MinerService, AccountDetails};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
-use util::rlp::encode;
+use util::rlp::{encode, UntrustedRlp, View};
 use ethcore::client::*;
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
-use ethcore::transaction::Transaction as EthTransaction;
+use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction};
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::helpers::{PollFilter, PollManager, ExternalMinerService, ExternalMiner};
@@ -392,6 +392,33 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 						let hash = signed_transaction.hash();
 
 						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
+							nonce: client.nonce(a),
+							balance: client.balance(a),
+						});
+						match import.into_iter().collect::<Result<Vec<_>, _>>() {
+							Ok(_) => to_value(&hash),
+							Err(e) => {
+								warn!("Error sending transaction: {:?}", e);
+								to_value(&U256::zero())
+							}
+						}
+					},
+					Err(_) => { to_value(&U256::zero()) }
+				}
+		})
+	}
+
+	fn send_raw_transaction(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Bytes, )>(params)
+			.and_then(|(raw_transaction, )| {
+				let decoded: Result<SignedTransaction, _> = UntrustedRlp::new(&raw_transaction.to_vec()).as_val();
+				match decoded {
+					Ok(signed_tx) => {
+						let miner = take_weak!(self.miner);
+						let client = take_weak!(self.client);
+
+						let hash = signed_tx.hash();
+						let import = miner.import_transactions(vec![signed_tx], |a: &Address| AccountDetails {
 							nonce: client.nonce(a),
 							balance: client.balance(a),
 						});
