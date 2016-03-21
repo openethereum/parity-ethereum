@@ -1684,8 +1684,8 @@ mod tests {
 
 		// then
 		let status = sync.miner.status();
-		assert_eq!(status.transaction_queue_pending, 0);
-		assert_eq!(status.transaction_queue_future, 0);
+		assert_eq!(status.transactions_in_pending_queue, 0);
+		assert_eq!(status.transactions_in_future_queue, 0);
 	}
 
 	#[test]
