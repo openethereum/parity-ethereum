@@ -774,7 +774,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 			value: x!(100),
 			gas: x!(79000),
 			input: vec![],
-			result: Some((x!(34061), vec![]))
+			result: Some((x!(31761), vec![]))
 		}),
 		subs: vec![Trace {
 			depth: 1,
