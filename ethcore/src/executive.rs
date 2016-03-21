@@ -261,7 +261,7 @@ impl<'a> Executive<'a> {
 
 			if params.code.is_some() {
 				// part of substate that may be reverted
-				let mut unconfirmed_substate = Substate::new(substate.subtraces.is_some());
+				let mut unconfirmed_substate = Substate::new(should_trace);
 
 				let res = {
 					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()))
