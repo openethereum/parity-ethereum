@@ -76,6 +76,7 @@ impl HeapSizeOf for Receipt {
 }
 
 /// Receipt with additional info.
+#[derive(Debug, Clone, PartialEq)]
 pub struct LocalizedReceipt {
 	/// Transaction hash.
 	pub transaction_hash: H256,

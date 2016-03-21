@@ -78,7 +78,7 @@ impl FromJson for LogEntry {
 }
 
 /// Log localized in a blockchain.
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq, Clone)]
 pub struct LocalizedLogEntry {
 	/// Plain log entry.
 	pub entry: LogEntry,
