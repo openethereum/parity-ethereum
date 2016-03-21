@@ -61,7 +61,6 @@ impl<C, S, A, M> EthClient<C, S, A, M, ExternalMiner>
 	}
 }
 
-
 impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 	where C: BlockChainClient,
 		  S: SyncProvider,
@@ -371,7 +370,6 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	}
 
 	fn submit_hashrate(&self, params: Params) -> Result<Value, Error> {
-		// TODO: Index should be U256.
 		from_params::<(U256, H256)>(params).and_then(|(rate, id)| {
 			self.external_miner.submit_hashrate(rate, id);
 			to_value(&true)
