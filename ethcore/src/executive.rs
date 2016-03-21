@@ -287,7 +287,7 @@ impl<'a> Executive<'a> {
 					c.result = Some((x!(0), vec![]));
 				}
 				substate.accrue_trace(if should_trace {Some(vec![])} else {None}, trace_info);
-				Ok(x!(0))
+				Ok(params.gas)
 			}
 		}
 	}
