@@ -25,6 +25,7 @@ curl -sf https://raw.githubusercontent.com/brson/multirust/master/quick-install.
 - OSX with Homebrew:
 ```bash
 brew update && brew install multirust
+multirust default stable
 ```
 
 Then, download and build Parity:

@@ -39,6 +39,7 @@ use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use error::{ImportResult, Error};
+use receipt::LocalizedReceipt;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -75,6 +76,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
+
+	/// Get transaction receipt with given hash.
+	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
 
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.

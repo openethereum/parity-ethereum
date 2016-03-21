@@ -41,6 +41,7 @@ env:
   - RUN_COVERAGE="false"
   - RUN_BUILD="false"
   - RUN_BENCHES="false"
+  - RUST_BACKTRACE="1"
 cache:
   apt: true
   directories:

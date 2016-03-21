@@ -24,6 +24,7 @@ mod optionals;
 mod sync;
 mod transaction;
 mod transaction_request;
+mod receipt;
 
 pub use self::block::{Block, BlockTransactions};
 pub use self::block_number::BlockNumber;
@@ -35,4 +36,5 @@ pub use self::optionals::OptionalValue;
 pub use self::sync::{SyncStatus, SyncInfo};
 pub use self::transaction::Transaction;
 pub use self::transaction_request::TransactionRequest;
+pub use self::receipt::Receipt;
 
