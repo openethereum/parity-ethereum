@@ -214,6 +214,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().spawn();
 
+
 		let enact_result = enact_verified(&block, engine, db, &parent, last_hashes);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
@@ -418,7 +419,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		// give the sender max balance
 		state.sub_balance(&sender, &balance);
 		state.add_balance(&sender, &U256::max_value());
-		Executive::new(&mut state, &env_info, self.engine.deref().deref()).transact(t, false)
+		Executive::new(&mut state, &env_info, self.engine.deref().deref()).transact(t)
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.

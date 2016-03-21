@@ -236,7 +236,6 @@ dependencies = [
 name = "ethcore-rpc"
 version = "1.0.0"
 dependencies = [
- "clippy 0.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.54 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.0.0",
  "ethcore 1.0.0",
@@ -293,7 +292,7 @@ dependencies = [
 name = "ethjson"
 version = "0.1.0"
 dependencies = [
- "ethcore-util 1.1.0",
+ "ethcore-util 1.0.0",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_codegen 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
