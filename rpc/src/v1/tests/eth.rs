@@ -18,8 +18,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
 use util::hash::{Address, H256};
-use util::numbers::U256;
-use ethcore::client::{TestBlockChainClient, EachBlockWith};
+use util::numbers::{Uint, U256};
+use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed};
 use v1::{Eth, EthClient};
 use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config, TestMinerService, TestExternalMiner};
 
@@ -299,9 +299,69 @@ fn rpc_eth_code() {
 }
 
 #[test]
-#[ignore]
 fn rpc_eth_call() {
-	unimplemented!()
+	let tester = EthTester::default();
+	tester.client.set_execution_result(Executed {
+		gas: U256::zero(),
+		gas_used: U256::from(0xff30),
+		refunded: U256::from(0x5),
+		cumulative_gas_used: U256::zero(),
+		logs: vec![],
+		contracts_created: vec![],
+		output: vec![0x12, 0x34, 0xff],
+		trace: None,
+	});
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_call",
+		"params": [{
+			"from": "0xb60e8dd61c5d32be8058bb8eb970870f07233155",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a",
+			"data": "0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675"
+		},
+		"latest"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x1234ff","id":1}"#;
+
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_estimate_gas() {
+	let tester = EthTester::default();
+	tester.client.set_execution_result(Executed {
+		gas: U256::zero(),
+		gas_used: U256::from(0xff30),
+		refunded: U256::from(0x5),
+		cumulative_gas_used: U256::zero(),
+		logs: vec![],
+		contracts_created: vec![],
+		output: vec![0x12, 0x34, 0xff],
+		trace: None,
+	});
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_estimateGas",
+		"params": [{
+			"from": "0xb60e8dd61c5d32be8058bb8eb970870f07233155",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a",
+			"data": "0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675"
+		},
+		"latest"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xff35","id":1}"#;
+
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -319,12 +379,6 @@ fn rpc_eth_send_raw_transaction() {
 #[test]
 #[ignore]
 fn rpc_eth_sign() {
-	unimplemented!()
-}
-
-#[test]
-#[ignore]
-fn rpc_eth_estimate_gas() {
 	unimplemented!()
 }
 

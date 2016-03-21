@@ -19,7 +19,7 @@
 use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
-use util::hash::{Address, H256};
+use util::hash::{Address, H256, FixedHash};
 use util::crypto::{Secret, Signature};
 use util::keys::store::{AccountProvider, SigningError, EncryptedHashMapError};
 
@@ -83,7 +83,7 @@ impl AccountProvider for TestAccountProvider {
 	}
 
 	fn account_secret(&self, _account: &Address) -> Result<Secret, SigningError> {
-		unimplemented!()
+		Ok(Secret::random())
 	}
 
 	fn sign(&self, _account: &Address, _message: &H256) -> Result<Signature, SigningError> {

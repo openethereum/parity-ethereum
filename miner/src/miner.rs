@@ -96,7 +96,7 @@ impl<C : MinerBlockChain> Miner<C> {
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
-	pub fn prepare_sealing(&self) {
+	fn prepare_sealing(&self) {
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
 
 		let mut b = self.chain.open_block(
@@ -161,22 +161,6 @@ const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
 
 impl<C: MinerBlockChain> MinerService for Miner<C> {
 
-	fn update_sealing(&self) {
-		let should_disable_sealing = {
-			let current_no = self.chain.best_block_number();
-			let last_request = self.sealing_block_last_request.lock().unwrap();
-
-			current_no - *last_request > SEALING_TIMEOUT_IN_BLOCKS
-		};
-
-		if should_disable_sealing {
-			self.sealing_enabled.store(false, atomic::Ordering::Relaxed);
-			*self.sealing_block.lock().unwrap() = None;
-		} else if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
-			self.prepare_sealing();
-		}
-	}
-
 	fn clear_and_reset(&self) {
 		self.transaction_queue.lock().unwrap().clear();
 		self.update_sealing();
@@ -200,6 +184,22 @@ impl<C: MinerBlockChain> MinerService for Miner<C> {
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
 		let transaction_queue = self.transaction_queue.lock().unwrap();
 		transaction_queue.pending_hashes()
+	}
+
+	fn update_sealing(&self) {
+		let should_disable_sealing = {
+			let current_no = self.chain.best_block_number();
+			let last_request = self.sealing_block_last_request.lock().unwrap();
+			let is_greater = current_no > *last_request;
+			is_greater && current_no - *last_request > SEALING_TIMEOUT_IN_BLOCKS
+		};
+
+		if should_disable_sealing {
+			self.sealing_enabled.store(false, atomic::Ordering::Relaxed);
+			*self.sealing_block.lock().unwrap() = None;
+		} else if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
+			self.prepare_sealing();
+		}
 	}
 
 	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {

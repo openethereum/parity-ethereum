@@ -459,10 +459,10 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			for n in self.nodes.read().unwrap().unordered_entries() {
 				discovery.add_node(n.clone());
 			}
+			*self.discovery.lock().unwrap().deref_mut() = Some(discovery);
 			io.register_stream(DISCOVERY).expect("Error registering UDP listener");
 			io.register_timer(DISCOVERY_REFRESH, 7200).expect("Error registering discovery timer");
 			io.register_timer(DISCOVERY_ROUND, 300).expect("Error registering discovery timer");
-			*self.discovery.lock().unwrap().deref_mut() = Some(discovery);
 		}
 		try!(io.register_stream(TCP_ACCEPT));
 		Ok(())
