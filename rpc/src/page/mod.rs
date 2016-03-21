@@ -18,46 +18,27 @@ use hyper::uri::RequestUri;
 use hyper::server;
 use hyper::header;
 use hyper::status::StatusCode;
-use std::default::Default;
+use parity_webapp::WebApp;
 
-struct File {
-	path: &'static str,
-	content: &'static str,
-	content_type: &'static str,
+pub struct Page<T : WebApp> {
+	pub app: T
 }
 
-pub struct AdminPage {
-	index: File,
-	css: File,
-	js: File,
-}
-
-impl Default for AdminPage {
-	fn default() -> Self {
-		AdminPage {
-			index: File { path: "index.html", content_type: "text/html", content: include_str!("./web/index.html") },
-			css: File { path: "app.css", content_type: "text/css", content: include_str!("./web/app.css") },
-			js: File { path: "app.js", content_type: "application/javascript", content: include_str!("./web/app.js") },
-		}
-	}
-}
-
-impl AdminPage {
+impl<T: WebApp> Page<T> {
 	fn serve_file(&self, path: &str, mut res: server::Response) {
-		let files = vec![&self.index, &self.css, &self.js];
-
+		let files = self.app.files();
 		for f in files {
 			if path.ends_with(f.path) {
 				*res.status_mut() = StatusCode::Ok;
 				res.headers_mut().set(header::ContentType(f.content_type.parse().unwrap()));
-				res.send(f.content.as_bytes()).expect("Error while writing response");
+				res.send(f.content).expect("Error while writing response");
 				return;
 			}
 		}
 	}
 }
 
-impl server::Handler for AdminPage {
+impl<T: WebApp> server::Handler for Page<T> {
 	fn handle(&self, req: server::Request, mut res: server::Response) {
 		*res.status_mut() = StatusCode::NotFound;
 

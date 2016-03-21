@@ -24,6 +24,10 @@ transient-hashmap = "0.1"
 hyper = { version = "0.8", default-features = false }
 iron = { version = "0.3" }
 serde_macros = { version = "0.7.0", optional = true }
+parity-webapp = { git = "https://github.com/tomusdrw/parity-webapp.git" }
+parity-mist = { git = "https://github.com/tomusdrw/parity-mist.git" }
+parity-wallet = { git = "https://github.com/tomusdrw/parity-wallet.git" }
+parity-demo = { git = "https://github.com/tomusdrw/parity-admin.git" }
 clippy = { version = "0.0.54", optional = true }
 
 [build-dependencies]

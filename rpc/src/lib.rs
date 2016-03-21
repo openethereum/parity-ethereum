@@ -33,6 +33,10 @@ extern crate ethminer;
 extern crate hyper;
 extern crate iron;
 extern crate transient_hashmap;
+extern crate parity_webapp;
+extern crate parity_wallet;
+extern crate parity_demo;
+extern crate parity_mist;
 
 use std::sync::Arc;
 use std::thread;
@@ -40,11 +44,14 @@ use util::panics::PanicHandler;
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 use jsonrpc_http_server::ServerHandler;
 use iron::request::Url;
+use parity_demo::AdminApp;
+use parity_wallet::Wallet as WalletApp;
+use parity_mist::App as MistApp;
 
 pub mod v1;
-mod admin;
+mod page;
 
-use admin::AdminPage;
+use page::Page;
 
 /// Http server.
 pub struct RpcServer {
@@ -75,7 +82,7 @@ impl RpcServer {
 		thread::Builder::new().name("jsonrpc_http".to_string()).spawn(move || {
 			let cors_domain = jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain);
 			let rpc = ServerHandler::new(handler, cors_domain);
-			let router = Router::new(rpc, AdminPage::default());
+			let router = Router::new(rpc);
 
 			ph.catch_panic(move || {
 				hyper::Server::http(addr.as_ref() as &str).unwrap()
@@ -90,14 +97,18 @@ impl RpcServer {
 
 struct Router {
 	rpc: ServerHandler,
-	admin: AdminPage,
+	admin: Page<AdminApp>,
+	wallet: Page<WalletApp>,
+	mist: Page<MistApp>,
 }
 
 impl Router {
-	pub fn new(rpc: ServerHandler, admin: AdminPage) -> Self {
+	pub fn new(rpc: ServerHandler) -> Self {
 		Router {
 			rpc: rpc,
-			admin: admin,
+			admin: Page { app: AdminApp::default() },
+			wallet: Page { app: WalletApp::default() },
+			mist: Page { app: MistApp::default() },
 		}
 	}
 
@@ -135,6 +146,13 @@ impl hyper::server::Handler for Router {
 			Some(ref url) if url.path[0] == "admin" => {
 				self.admin.handle(req, res);
 			},
+			Some(ref url) if url.path[0] == "wallet" => {
+				self.wallet.handle(req, res);
+			},
+			Some(ref url) if url.path[0] == "mist" => {
+				self.mist.handle(req, res);
+			},
+
 			_ => self.rpc.handle(req, res),
 		}
 	}
