@@ -30,14 +30,21 @@ extern crate ethcore_util as util;
 extern crate ethcore;
 extern crate ethsync;
 extern crate ethminer;
+extern crate hyper;
+extern crate iron;
 extern crate transient_hashmap;
 
 use std::sync::Arc;
 use std::thread;
 use util::panics::PanicHandler;
 use self::jsonrpc_core::{IoHandler, IoDelegate};
+use jsonrpc_http_server::ServerHandler;
+use iron::request::Url;
 
 pub mod v1;
+mod admin;
+
+use admin::AdminPage;
 
 /// Http server.
 pub struct RpcServer {
@@ -63,12 +70,72 @@ impl RpcServer {
 		let cors_domain = cors_domain.to_owned();
 		let panic_handler = PanicHandler::new_in_arc();
 		let ph = panic_handler.clone();
-		let server = jsonrpc_http_server::Server::new(self.handler.clone());
+		let handler = self.handler.clone();
+
 		thread::Builder::new().name("jsonrpc_http".to_string()).spawn(move || {
+			let cors_domain = jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain);
+			let rpc = ServerHandler::new(handler, cors_domain);
+			let router = Router::new(rpc, AdminPage::default());
+
 			ph.catch_panic(move || {
-				server.start(addr.as_ref(), jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain), threads);
+				hyper::Server::http(addr.as_ref() as &str).unwrap()
+					.handle_threads(router, threads)
+					.unwrap();
 			}).unwrap()
 		}).expect("Error while creating jsonrpc http thread");
+
 		panic_handler
+	}
+}
+
+struct Router {
+	rpc: ServerHandler,
+	admin: AdminPage,
+}
+
+impl Router {
+	pub fn new(rpc: ServerHandler, admin: AdminPage) -> Self {
+		Router {
+			rpc: rpc,
+			admin: admin,
+		}
+	}
+
+	fn parse_url(req: &hyper::server::Request) -> Option<Url> {
+		match req.uri {
+			hyper::uri::RequestUri::AbsoluteUri(ref url) => {
+				match Url::from_generic_url(url.clone()) {
+					Ok(url) => Some(url),
+					_ => None,
+				}
+			},
+			hyper::uri::RequestUri::AbsolutePath(ref path) => {
+				// Attempt to prepend the Host header (mandatory in HTTP/1.1)
+				let url_string = match req.headers.get::<hyper::header::Host>() {
+					Some(ref host) => {
+						format!("http://{}:1234{}", host.hostname, path)
+					},
+					None => return None
+				};
+
+				match Url::parse(&url_string) {
+					Ok(url) => Some(url),
+					_ => None,
+				}
+			}
+			_ => None,
+		}
+	}
+}
+
+impl hyper::server::Handler for Router {
+	fn handle<'b, 'a>(&'a self, req: hyper::server::Request<'a, 'b>, res: hyper::server::Response<'a>) {
+		let url = Router::parse_url(&req);
+		match url {
+			Some(ref url) if url.path[0] == "admin" => {
+				self.admin.handle(req, res);
+			},
+			_ => self.rpc.handle(req, res),
+		}
 	}
 }
