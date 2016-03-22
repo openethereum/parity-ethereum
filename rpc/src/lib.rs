@@ -45,7 +45,7 @@ use self::jsonrpc_core::{IoHandler, IoDelegate};
 use jsonrpc_http_server::ServerHandler;
 use iron::request::Url;
 use parity_demo::AdminApp;
-use parity_wallet::Wallet as WalletApp;
+use parity_wallet::App as WalletApp;
 use parity_mist::App as MistApp;
 
 pub mod v1;

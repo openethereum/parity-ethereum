@@ -685,7 +685,7 @@ dependencies = [
 [[package]]
 name = "parity-mist"
 version = "0.1.0"
-source = "git+https://github.com/tomusdrw/parity-mist.git#1c0a26be6972187c7c11773b3bb1e0d2443fdaca"
+source = "git+https://github.com/tomusdrw/parity-mist.git#5b7d23bf2133357a9cc1e3fbb5fe3fac3dfbf128"
 dependencies = [
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
 ]
@@ -693,7 +693,7 @@ dependencies = [
 [[package]]
 name = "parity-wallet"
 version = "0.1.0"
-source = "git+https://github.com/tomusdrw/parity-wallet.git#ece9e3f27cb3f2ec7cd5b8046536df00cab47ab6"
+source = "git+https://github.com/tomusdrw/parity-wallet.git#b93eb6cab99423f6ea9fd683959d56e9c714a400"
 dependencies = [
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
 ]
