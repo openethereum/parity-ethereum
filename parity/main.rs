@@ -20,6 +20,7 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 extern crate docopt;
+extern crate num_cpus;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
@@ -269,9 +270,7 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	// 4 is the number of threads which also happens to be the maximum number of concurrent 
-	// connections our jsonrpc can manage.
-	Some(server.start_http(url, cors_domain, 4))
+	Some(server.start_http(url, cors_domain, ::num_cpus::get()))
 }
 
 #[cfg(not(feature = "rpc"))]

@@ -18,6 +18,7 @@ time = "0.1"
 ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
+num_cpus = "0.2"
 number_prefix = "0.2"
 rpassword = "0.1"
 clippy = { version = "0.0.54", optional = true }
