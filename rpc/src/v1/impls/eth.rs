@@ -334,7 +334,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		match params {
 			Params::None => {
 				let client = take_weak!(self.client);
-				// check if we're still syncing and return empty strings int that case
+				// check if we're still syncing and return empty strings in that case
 				{
 					let sync = take_weak!(self.sync);
 					if sync.status().state != SyncState::Idle && client.queue_info().is_empty() {
@@ -343,17 +343,15 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				}
 
 				let miner = take_weak!(self.miner);
-				let client = take_weak!(self.client);
-				let u = miner.sealing_block(client.deref()).lock().unwrap();
-				match *u {
-					Some(ref b) => {
+				miner.map_sealing_work(client.deref(), |b| match b {
+					Some(b) => {
 						let pow_hash = b.hash();
 						let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 						let seed_hash = Ethash::get_seedhash(b.block().header().number());
 						to_value(&(pow_hash, seed_hash, target))
 					}
 					_ => Err(Error::internal_error())
-				}
+				})
 			},
 			_ => Err(Error::invalid_params())
 		}

@@ -75,7 +75,7 @@ impl Decodable for Block {
 }
 
 /// Internal type for a block's common elements.
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct ExecutedBlock {
 	base: Block,
 
@@ -168,9 +168,11 @@ pub struct OpenBlock<'x> {
 /// and collected the uncles.
 ///
 /// There is no function available to push a transaction.
+#[derive(Clone)]
 pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
+	last_hashes: LastHashes,
 }
 
 /// A block that has a valid seal.
@@ -290,6 +292,7 @@ impl<'x> OpenBlock<'x> {
 		ClosedBlock {
 			block: s.block,
 			uncle_bytes: uncle_bytes,
+			last_hashes: s.last_hashes,
 		}
 	}
 }
@@ -332,6 +335,15 @@ impl ClosedBlock {
 
 	/// Drop this object and return the underlieing database.
 	pub fn drain(self) -> Box<JournalDB> { self.block.state.drop().1 }
+
+	/// Given an engine reference, reopen the `ClosedBlock` into an `OpenBlock`.
+	pub fn reopen(self, engine: &Engine) -> OpenBlock {
+		OpenBlock {
+			block: self.block,
+			engine: engine,
+			last_hashes: self.last_hashes,
+		}
+	}
 }
 
 impl SealedBlock {
