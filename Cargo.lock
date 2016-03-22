@@ -677,7 +677,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-demo"
 version = "0.1.0"
-source = "git+https://github.com/tomusdrw/parity-admin.git#3e8f8a0eb904fa914008f5c5a06970c707ac77e8"
+source = "git+https://github.com/tomusdrw/parity-admin.git#3221a2b843c4120522cd4fbe79327822898b76de"
 dependencies = [
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
 ]
@@ -685,7 +685,7 @@ dependencies = [
 [[package]]
 name = "parity-mist"
 version = "0.1.0"
-source = "git+https://github.com/tomusdrw/parity-mist.git#5b7d23bf2133357a9cc1e3fbb5fe3fac3dfbf128"
+source = "git+https://github.com/tomusdrw/parity-mist.git#2f3d42bae07fc219a37e633bcac33c2cec4abd83"
 dependencies = [
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
 ]
@@ -693,7 +693,7 @@ dependencies = [
 [[package]]
 name = "parity-wallet"
 version = "0.1.0"
-source = "git+https://github.com/tomusdrw/parity-wallet.git#b93eb6cab99423f6ea9fd683959d56e9c714a400"
+source = "git+https://github.com/tomusdrw/parity-wallet.git#97c2ff7f810286a4dcf4e4a4b4b8a2c9d43c891a"
 dependencies = [
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
 ]
@@ -701,7 +701,7 @@ dependencies = [
 [[package]]
 name = "parity-webapp"
 version = "0.1.0"
-source = "git+https://github.com/tomusdrw/parity-webapp.git#0fb4d0c3f203d82f01ee91ca0431c1fb87fa4427"
+source = "git+https://github.com/tomusdrw/parity-webapp.git#a24297256bae0ae0712c6478cd1ad681828b3800"
 
 [[package]]
 name = "plugin"

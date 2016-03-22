@@ -269,7 +269,7 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	Some(server.start_http(url, cors_domain, 16))
+	Some(server.start_http(url, cors_domain, 2))
 }
 
 #[cfg(not(feature = "rpc"))]

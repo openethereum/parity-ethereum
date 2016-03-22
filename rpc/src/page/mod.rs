@@ -25,15 +25,16 @@ pub struct Page<T : WebApp> {
 }
 
 impl<T: WebApp> Page<T> {
-	fn serve_file(&self, path: &str, mut res: server::Response) {
-		let files = self.app.files();
-		for f in files {
-			if path.ends_with(f.path) {
-				*res.status_mut() = StatusCode::Ok;
-				res.headers_mut().set(header::ContentType(f.content_type.parse().unwrap()));
-				res.send(f.content).expect("Error while writing response");
-				return;
-			}
+	fn serve_file(&self, mut path: &str, mut res: server::Response) {
+		// Support index file
+		if path == "" {
+			path = "index.html"
+		}
+		let file = self.app.file(path);
+		if let Some(f) = file {
+			*res.status_mut() = StatusCode::Ok;
+			res.headers_mut().set(header::ContentType(f.content_type.parse().unwrap()));
+			res.send(f.content).expect("Error while writing response");
 		}
 	}
 }

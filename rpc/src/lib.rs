@@ -112,7 +112,7 @@ impl Router {
 		}
 	}
 
-	fn parse_url(req: &hyper::server::Request) -> Option<Url> {
+	fn extract_url(req: &hyper::server::Request) -> Option<Url> {
 		match req.uri {
 			hyper::uri::RequestUri::AbsoluteUri(ref url) => {
 				match Url::from_generic_url(url.clone()) {
@@ -137,22 +137,36 @@ impl Router {
 			_ => None,
 		}
 	}
+
+	fn extract_request_path<'a, 'b>(mut req: hyper::server::Request<'a, 'b>) -> (Option<String>, hyper::server::Request<'a, 'b>) {
+		let url = Router::extract_url(&req);
+		match url {
+			Some(url) => {
+				let part = url.path[0].clone();
+				let url = url.path[1..].join("/");
+				req.uri = hyper::uri::RequestUri::AbsolutePath(url);
+				(Some(part), req)
+			},
+			None => {
+				(None, req)
+			}
+		}
+	}
 }
 
 impl hyper::server::Handler for Router {
 	fn handle<'b, 'a>(&'a self, req: hyper::server::Request<'a, 'b>, res: hyper::server::Response<'a>) {
-		let url = Router::parse_url(&req);
-		match url {
-			Some(ref url) if url.path[0] == "admin" => {
+		let (path, req) = Router::extract_request_path(req);
+		match path {
+			Some(ref url) if url == "admin" => {
 				self.admin.handle(req, res);
 			},
-			Some(ref url) if url.path[0] == "wallet" => {
+			Some(ref url) if url == "wallet" => {
 				self.wallet.handle(req, res);
 			},
-			Some(ref url) if url.path[0] == "mist" => {
+			Some(ref url) if url == "mist" => {
 				self.mist.handle(req, res);
 			},
-
 			_ => self.rpc.handle(req, res),
 		}
 	}
