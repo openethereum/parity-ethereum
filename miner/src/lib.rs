@@ -65,7 +65,7 @@ pub use transaction_queue::{TransactionQueue, AccountDetails};
 pub use miner::{Miner};
 
 use std::sync::Mutex;
-use util::{H256, Address, Bytes};
+use util::{H256, Address, FixedHash, Bytes};
 use ethcore::client::{BlockChainClient};
 use ethcore::block::{ClosedBlock};
 use ethcore::error::{Error};
@@ -76,6 +76,12 @@ pub trait MinerService : Send + Sync {
 
 	/// Returns miner's status.
 	fn status(&self) -> MinerStatus;
+
+	/// Get the author that we will seal blocks as.
+	fn author(&self) -> Address { Address::zero() }
+
+	/// Get the extra_data that we will seal blocks wuth.
+	fn extra_data(&self) -> Bytes { vec![] }
 
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
