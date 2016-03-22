@@ -333,6 +333,9 @@ impl Spec {
 
 	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
 	pub fn new_test() -> Spec { Self::from_json_utf8(include_bytes!("../../res/null_morden.json")) }
+
+	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
+	pub fn new_homestead_test() -> Spec { Self::from_json_utf8(include_bytes!("../../res/null_homestead_morden.json")) }
 }
 
 #[cfg(test)]
