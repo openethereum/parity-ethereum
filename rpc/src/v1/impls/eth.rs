@@ -168,8 +168,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	// TODO: do not hardcode author.
 	fn author(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&Address::new()),
-			_ => Err(Error::invalid_params())
+			Params::None => to_value(&take_weak!(self.miner).author()),
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
