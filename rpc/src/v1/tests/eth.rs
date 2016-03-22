@@ -14,12 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
-use util::hash::{Address, H256};
+use util::hash::{Address, H256, FixedHash};
 use util::numbers::{Uint, U256};
-use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed};
+use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
+use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
+use ethcore::receipt::LocalizedReceipt;
 use v1::{Eth, EthClient};
 use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config, TestMinerService, TestExternalMiner};
 
@@ -380,6 +383,63 @@ fn rpc_eth_send_raw_transaction() {
 #[ignore]
 fn rpc_eth_sign() {
 	unimplemented!()
+}
+
+#[test]
+fn rpc_eth_transaction_receipt() {
+	let receipt = LocalizedReceipt {
+		transaction_hash: H256::zero(),
+		transaction_index: 0,
+		block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
+		block_number: 0x4510c,
+		cumulative_gas_used: U256::from(0x20),
+		gas_used: U256::from(0x10),
+		contract_address: None,
+		logs: vec![LocalizedLogEntry {
+			entry: LogEntry {
+				address: Address::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),
+				topics: vec![
+					H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap(),
+					H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap()
+				],
+				data: vec![],
+			},
+			block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
+			block_number: 0x4510c,
+			transaction_hash: H256::new(),
+			transaction_index: 0,
+			log_index: 1,
+		}]
+	};
+
+	let hash = H256::from_str("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238").unwrap();
+	let tester = EthTester::default();
+	tester.client.set_transaction_receipt(TransactionId::Hash(hash), receipt);
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionReceipt",
+		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","contractAddress":null,"cumulativeGasUsed":"0x20","gasUsed":"0x10","logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x04510c","data":"0x","logIndex":"0x01","topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00"}],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x00"},"id":1}"#;
+
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_transaction_receipt_null() {
+	let tester = EthTester::default();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionReceipt",
+		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
 #[test]

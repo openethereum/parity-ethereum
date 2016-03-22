@@ -19,7 +19,7 @@
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId};
+use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -52,6 +52,8 @@ pub struct TestBlockChainClient {
 	pub code: RwLock<HashMap<Address, Bytes>>,
 	/// Execution result.
 	pub execution_result: RwLock<Option<Executed>>,
+	/// Transaction receipts.
+	pub receipts: RwLock<HashMap<TransactionId, LocalizedReceipt>>,
 }
 
 #[derive(Clone)]
@@ -87,10 +89,16 @@ impl TestBlockChainClient {
 			storage: RwLock::new(HashMap::new()),
 			code: RwLock::new(HashMap::new()),
 			execution_result: RwLock::new(None),
+			receipts: RwLock::new(HashMap::new()),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
 		client
+	}
+
+	/// Set the transaction receipt result
+	pub fn set_transaction_receipt(&self, id: TransactionId, receipt: LocalizedReceipt) {
+		self.receipts.write().unwrap().insert(id, receipt);
 	}
 
 	/// Set the execution result.
@@ -224,8 +232,12 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn transaction_receipt(&self, _id: TransactionId) -> Option<LocalizedReceipt> {
+	fn uncle(&self, _id: UncleId) -> Option<BlockHeader> {
 		unimplemented!();
+	}
+
+	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
+		self.receipts.read().unwrap().get(&id).cloned()
 	}
 
 	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
