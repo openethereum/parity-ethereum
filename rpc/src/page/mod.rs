@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::io::Write;
 use hyper::uri::RequestUri;
 use hyper::server;
 use hyper::header;
@@ -34,7 +35,19 @@ impl<T: WebApp> Page<T> {
 		if let Some(f) = file {
 			*res.status_mut() = StatusCode::Ok;
 			res.headers_mut().set(header::ContentType(f.content_type.parse().unwrap()));
-			res.send(f.content).expect("Error while writing response");
+
+			let _ = match res.start() {
+				Ok(mut raw_res) => {
+					for chunk in f.content.chunks(1024 * 20) {
+						let _ = raw_res.write(chunk);
+					}
+					raw_res.end()
+				},
+				Err(_) => {
+					println!("Error while writing response.");
+					Ok(())
+				}
+			};
 		}
 	}
 }

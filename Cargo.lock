@@ -266,7 +266,7 @@ dependencies = [
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-demo 0.1.0 (git+https://github.com/tomusdrw/parity-admin.git)",
  "parity-mist 0.1.0 (git+https://github.com/tomusdrw/parity-mist.git)",
- "parity-wallet 0.1.0 (git+https://github.com/tomusdrw/parity-wallet.git)",
+ "parity-wallet 0.1.0",
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
  "rustc-serialize 0.3.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -693,7 +693,6 @@ dependencies = [
 [[package]]
 name = "parity-wallet"
 version = "0.1.0"
-source = "git+https://github.com/tomusdrw/parity-wallet.git#97c2ff7f810286a4dcf4e4a4b4b8a2c9d43c891a"
 dependencies = [
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
 ]
