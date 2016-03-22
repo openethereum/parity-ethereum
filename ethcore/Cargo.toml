@@ -17,10 +17,11 @@ ethcore-util = { path = "../util" }
 evmjit = { path = "../evmjit", optional = true }
 ethash = { path = "../ethash" }
 num_cpus = "0.2"
-clippy = { version = "0.0.50", optional = true }
+clippy = { version = "0.0.54", optional = true }
 crossbeam = "0.1.5"
 lazy_static = "0.1"
 ethcore-devtools = { path = "../devtools" }
+ethjson = { path = "../json" }
 
 [features]
 jit = ["evmjit"]

@@ -25,7 +25,9 @@ pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
 pub use self::ids::{BlockId, TransactionId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
+pub use executive::Executed;
 
+use std::collections::HashSet;
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
@@ -36,7 +38,8 @@ use header::BlockNumber;
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use error::{ImportResult};
+use error::{ImportResult, Error};
+use receipt::LocalizedReceipt;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -74,6 +77,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
 
+	/// Get transaction receipt with given hash.
+	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;
+
 	/// Get a tree route between `from` and `to`.
 	/// See `BlockChain::tree_route`.
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute>;
@@ -110,11 +116,14 @@ pub trait BlockChainClient : Sync + Send {
 
 	// TODO [todr] Should be moved to miner crate eventually.
 	/// Returns ClosedBlock prepared for sealing.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock>;
+	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
+		-> Option<(ClosedBlock, HashSet<H256>)>;
 
 	// TODO [todr] Should be moved to miner crate eventually.
 	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
 	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock>;
 
+	/// Makes a non-persistent transaction call.
+	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;
 }
 

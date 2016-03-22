@@ -37,6 +37,9 @@ use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
+use env_info::EnvInfo;
+use executive::{Executive, Executed};
+use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
 /// General block status
@@ -211,6 +214,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().spawn();
 
+
 		let enact_result = enact_verified(&block, engine, db, &parent, last_hashes);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
@@ -382,16 +386,50 @@ impl<V> Client<V> where V: Verifier {
 			BlockId::Latest => Some(self.chain.best_block_number())
 		}
 	}
+
+	fn transaction_address(&self, id: TransactionId) -> Option<TransactionAddress> {
+		match id {
+			TransactionId::Hash(ref hash) => self.chain.transaction_address(hash),
+			TransactionId::Location(id, index) => Self::block_hash(&self.chain, id).map(|hash| TransactionAddress {
+				block_hash: hash,
+				index: index
+			})
+		}
+	}
 }
 
 impl<V> BlockChainClient for Client<V> where V: Verifier {
+	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error> {
+		let header = self.block_header(BlockId::Latest).unwrap();
+		let view = HeaderView::new(&header);
+		let last_hashes = self.build_last_hashes(view.hash());
+		let env_info = EnvInfo {
+			number: view.number(),
+			author: view.author(),
+			timestamp: view.timestamp(),
+			difficulty: view.difficulty(),
+			last_hashes: last_hashes,
+			gas_used: U256::zero(),
+			gas_limit: U256::max_value(),
+		};
+		// that's just a copy of the state.
+		let mut state = self.state();
+		let sender = try!(t.sender());
+		let balance = state.balance(&sender);
+		// give the sender max balance
+		state.sub_balance(&sender, &balance);
+		state.add_balance(&sender, &U256::max_value());
+		Executive::new(&mut state, &env_info, self.engine.deref().deref()).transact(t)
+	}
+
 	// TODO [todr] Should be moved to miner crate eventually.
 	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
+	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
+		-> Option<(ClosedBlock, HashSet<H256>)> {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
 
@@ -417,21 +455,40 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 		// Add transactions
 		let block_number = b.block().header().number();
+		let min_tx_gas = U256::from(self.engine.schedule(&b.env_info()).tx_gas);
+		let mut invalid_transactions = HashSet::new();
+
 		for tx in transactions {
+			// Push transaction to block
+			let hash = tx.hash();
 			let import = b.push_transaction(tx, None);
-			if let Err(e) = import {
-				trace!("Error adding transaction to block: number={}. Error: {:?}", block_number, e);
+
+			match import {
+				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
+					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+					// Exit early if gas left is smaller then min_tx_gas
+					if gas_limit - gas_used < min_tx_gas {
+						break;
+					}
+				},
+				Err(e) => {
+					invalid_transactions.insert(hash);
+					trace!(target: "miner",
+						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
+						   block_number, hash, e);
+				},
+				_ => {}
 			}
 		}
 
 		// And close
 		let b = b.close();
-		trace!("Sealing: number={}, hash={}, diff={}",
+		trace!(target: "miner", "Sealing: number={}, hash={}, diff={}",
 			   b.block().header().number(),
 			   b.hash(),
 			   b.block().header().difficulty()
 		);
-		Some(b)
+		Some((b, invalid_transactions))
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
@@ -489,13 +546,43 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
-		match id {
-			TransactionId::Hash(ref hash) => self.chain.transaction_address(hash),
-			TransactionId::Location(id, index) => Self::block_hash(&self.chain, id).map(|hash| TransactionAddress {
-				block_hash: hash,
-				index: index
-			})
-		}.and_then(|address| self.chain.transaction(&address))
+		self.transaction_address(id).and_then(|address| self.chain.transaction(&address))
+	}
+
+	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
+		self.transaction_address(id).and_then(|address| {
+			let t = self.chain.block(&address.block_hash)
+				.and_then(|block| BlockView::new(&block).localized_transaction_at(address.index));
+
+			match (t, self.chain.transaction_receipt(&address)) {
+				(Some(tx), Some(receipt)) => {
+					let block_hash = tx.block_hash.clone();
+					let block_number = tx.block_number.clone();
+					let transaction_hash = tx.hash();
+					let transaction_index = tx.transaction_index;
+					Some(LocalizedReceipt {
+						transaction_hash: tx.hash(),
+						transaction_index: tx.transaction_index,
+						block_hash: tx.block_hash,
+						block_number: tx.block_number,
+						// TODO: to fix this, query all previous transaction receipts and retrieve their gas usage
+						cumulative_gas_used: receipt.gas_used,
+						gas_used: receipt.gas_used,
+						// TODO: to fix this, store created contract address in db
+						contract_address: None,
+						logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
+							entry: log,
+							block_hash: block_hash.clone(),
+							block_number: block_number,
+							transaction_hash: transaction_hash.clone(),
+							transaction_index: transaction_index,
+							log_index: i
+						}).collect()
+					})
+				},
+				_ => None
+			}
+		})
 	}
 
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
@@ -580,7 +667,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 						 	.map(|(i, log)| LocalizedLogEntry {
 							 	entry: log,
 								block_hash: hash.clone(),
-								block_number: number as usize,
+								block_number: number,
 								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::new),
 								transaction_index: index,
 								log_index: log_index + i

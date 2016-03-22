@@ -42,10 +42,9 @@
 //!
 //!		let miner: Miner = Miner::default();
 //!		// get status
-//!		assert_eq!(miner.status().transaction_queue_pending, 0);
+//!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
 //!		// Check block for sealing
-//!		miner.prepare_sealing(client.deref());
 //!		assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
 //! }
 //! ```
@@ -62,11 +61,11 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
-pub use transaction_queue::TransactionQueue;
+pub use transaction_queue::{TransactionQueue, AccountDetails};
 pub use miner::{Miner};
 
 use std::sync::Mutex;
-use util::{H256, U256, Address, Bytes};
+use util::{H256, Address, Bytes};
 use ethcore::client::{BlockChainClient};
 use ethcore::block::{ClosedBlock};
 use ethcore::error::{Error};
@@ -79,8 +78,8 @@ pub trait MinerService : Send + Sync {
 	fn status(&self) -> MinerStatus;
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_nonce: T) -> Result<(), Error>
-		where T: Fn(&Address) -> U256;
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
+		where T: Fn(&Address) -> AccountDetails;
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self) -> Vec<H256>;
@@ -92,7 +91,7 @@ pub trait MinerService : Send + Sync {
 	fn chain_new_blocks(&self, chain: &BlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
 	/// New chain head event. Restart mining operation.
-	fn prepare_sealing(&self, chain: &BlockChainClient);
+	fn update_sealing(&self, chain: &BlockChainClient);
 
 	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
 	fn sealing_block(&self, chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>>;
@@ -105,7 +104,9 @@ pub trait MinerService : Send + Sync {
 /// Mining status
 pub struct MinerStatus {
 	/// Number of transactions in queue with state `pending` (ready to be included in block)
-	pub transaction_queue_pending: usize,
+	pub transactions_in_pending_queue: usize,
 	/// Number of transactions in queue with state `future` (not yet ready to be included in block)
-	pub transaction_queue_future: usize,
+	pub transactions_in_future_queue: usize,
+	/// Number of transactions included in currently mined block
+	pub transactions_in_pending_block: usize,
 }

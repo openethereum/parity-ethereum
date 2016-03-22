@@ -19,7 +19,7 @@ use crypto::sha2::Sha256;
 use crypto::ripemd160::Ripemd160;
 use crypto::digest::Digest;
 
-/// Definition of a contract whose implementation is built-in. 
+/// Definition of a contract whose implementation is built-in.
 pub struct Builtin {
 	/// The gas cost of running this built-in for the given size of input data.
 	pub cost: Box<Fn(usize) -> U256>,	// TODO: U256 should be bignum.
@@ -63,14 +63,16 @@ impl Builtin {
 
 	/// Create a builtin from JSON.
 	///
-	/// JSON must be of the form `{ "name": "identity", "linear": {"base": 10, "word": 20} }`.
+	/// JSON must be of the form `{ "name": "identity", "pricing": {"base": 10, "word": 20} }`.
 	pub fn from_json(json: &Json) -> Option<Builtin> {
 		// NICE: figure out a more convenient means of handing errors here.
 		if let Json::String(ref name) = json["name"] {
-			if let Json::Object(ref o) = json["linear"] {
-				if let Json::U64(ref word) = o["word"] {
-					if let Json::U64(ref base) = o["base"] {
-						return Self::from_named_linear(&name[..], *base as usize, *word as usize);
+			if let Json::Object(ref o) = json["pricing"] {
+				if let Json::Object(ref o) = o["linear"] {
+					if let Json::U64(ref word) = o["word"] {
+						if let Json::U64(ref base) = o["base"] {
+							return Self::from_named_linear(&name[..], *base as usize, *word as usize);
+						}
 					}
 				}
 			}
@@ -274,7 +276,7 @@ fn from_named_linear() {
 
 #[test]
 fn from_json() {
-	let text = "{ \"name\": \"identity\", \"linear\": {\"base\": 10, \"word\": 20} }";
+	let text = r#"{"name": "identity", "pricing": {"linear": {"base": 10, "word": 20}}}"#;
 	let json = Json::from_str(text).unwrap();
 	let b = Builtin::from_json(&json).unwrap();
 	assert_eq!((*b.cost)(0), U256::from(10));

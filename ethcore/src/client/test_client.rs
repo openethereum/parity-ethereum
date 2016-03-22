@@ -23,12 +23,14 @@ use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, Transaction
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
-use receipt::Receipt;
+use receipt::{Receipt, LocalizedReceipt};
 use extras::BlockReceipts;
 use error::{ImportResult};
 
 use block_queue::BlockQueueInfo;
 use block::{SealedBlock, ClosedBlock};
+use executive::Executed;
+use error::Error;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -48,6 +50,8 @@ pub struct TestBlockChainClient {
 	pub storage: RwLock<HashMap<(Address, H256), H256>>,
 	/// Code.
 	pub code: RwLock<HashMap<Address, Bytes>>,
+	/// Execution result.
+	pub execution_result: RwLock<Option<Executed>>,
 }
 
 #[derive(Clone)]
@@ -82,10 +86,16 @@ impl TestBlockChainClient {
 			balances: RwLock::new(HashMap::new()),
 			storage: RwLock::new(HashMap::new()),
 			code: RwLock::new(HashMap::new()),
+			execution_result: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
 		client
+	}
+
+	/// Set the execution result.
+	pub fn set_execution_result(&self, result: Executed) {
+		*self.execution_result.write().unwrap() = Some(result);
 	}
 
 	/// Set the balance of account `address` to `balance`.
@@ -111,6 +121,7 @@ impl TestBlockChainClient {
 			header.difficulty = From::from(n);
 			header.parent_hash = self.last_hash.read().unwrap().clone();
 			header.number = n as BlockNumber;
+			header.gas_limit = U256::from(1_000_000);
 			let uncles = match with {
 				EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
 					let mut uncles = RlpStream::new_list(1);
@@ -181,6 +192,10 @@ impl TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
+	fn call(&self, _t: &SignedTransaction) -> Result<Executed, Error> {
+		Ok(self.execution_result.read().unwrap().clone().unwrap())
+	}
+
 	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
 		Some(U256::zero())
 	}
@@ -209,6 +224,10 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
+	fn transaction_receipt(&self, _id: TransactionId) -> Option<LocalizedReceipt> {
+		unimplemented!();
+	}
+
 	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
 		unimplemented!();
 	}
@@ -217,12 +236,12 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<ClosedBlock> {
-		unimplemented!()
+	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<(ClosedBlock, HashSet<H256>)> {
+		None
 	}
 
-	fn try_seal(&self, _block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
-		unimplemented!()
+	fn try_seal(&self, block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+		Err(block)
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
