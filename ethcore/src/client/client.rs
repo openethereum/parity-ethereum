@@ -21,7 +21,7 @@ use util::*;
 use util::panics::*;
 use views::BlockView;
 use error::*;
-use header::{BlockNumber};
+use header::{BlockNumber, Header};
 use state::State;
 use spec::Spec;
 use engine::Engine;
@@ -36,7 +36,7 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockId, TransactionId, ClientConfig, BlockChainClient};
+use client::{BlockId, TransactionId, UncleId, ClientConfig, BlockChainClient};
 use env_info::EnvInfo;
 use executive::{Executive, Executed};
 use receipt::LocalizedReceipt;
@@ -547,6 +547,11 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
 		self.transaction_address(id).and_then(|address| self.chain.transaction(&address))
+	}
+
+	fn uncle(&self, id: UncleId) -> Option<Header> {
+		let index = id.1;
+		self.block(id.0).and_then(|block| BlockView::new(&block).uncle_at(index))
 	}
 
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {

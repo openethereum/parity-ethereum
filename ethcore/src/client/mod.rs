@@ -23,7 +23,7 @@ mod test_client;
 
 pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
-pub use self::ids::{BlockId, TransactionId};
+pub use self::ids::{BlockId, TransactionId, UncleId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use executive::Executed;
 
@@ -34,7 +34,7 @@ use util::numbers::U256;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
 use block::{ClosedBlock, SealedBlock};
-use header::BlockNumber;
+use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
@@ -76,6 +76,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
+
+	/// Get uncle with given id.
+	fn uncle(&self, id: UncleId) -> Option<Header>;
 
 	/// Get transaction receipt with given hash.
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt>;

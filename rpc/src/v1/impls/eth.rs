@@ -126,9 +126,36 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		}
 	}
 
-	fn uncle(&self, _block: BlockId, _index: usize) -> Result<Value, Error> {
-		// TODO: implement!
-		Ok(Value::Null)
+	fn uncle(&self, id: UncleId) -> Result<Value, Error> {
+		let client = take_weak!(self.client);
+		match client.uncle(id).and_then(|u| client.block_total_difficulty(BlockId::Hash(u.hash())).map(|diff| (diff, u))) {
+			Some((difficulty, uncle)) => {
+				let block = Block {
+					hash: OptionalValue::Value(uncle.hash()),
+					parent_hash: uncle.parent_hash,
+					uncles_hash: uncle.uncles_hash,
+					author: uncle.author,
+					miner: uncle.author,
+					state_root: uncle.state_root,
+					transactions_root: uncle.transactions_root,
+					number: OptionalValue::Value(U256::from(uncle.number)),
+					gas_used: uncle.gas_used,
+					gas_limit: uncle.gas_limit,
+					logs_bloom: uncle.log_bloom,
+					timestamp: U256::from(uncle.timestamp),
+					difficulty: uncle.difficulty,
+					total_difficulty: difficulty,
+					receipts_root: uncle.receipts_root,
+					extra_data: Bytes::new(uncle.extra_data),
+					// todo:
+					nonce: H64::from(0),
+					uncles: vec![],
+					transactions: BlockTransactions::Hashes(vec![]),
+				};
+				to_value(&block)
+			},
+			None => Ok(Value::Null)
+		}
 	}
 }
 
@@ -303,12 +330,12 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| self.uncle(BlockId::Hash(hash), index.value()))
+			.and_then(|(hash, index)| self.uncle(UncleId(BlockId::Hash(hash), index.value())))
 	}
 
 	fn uncle_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(BlockNumber, Index)>(params)
-			.and_then(|(number, index)| self.uncle(number.into(), index.value()))
+			.and_then(|(number, index)| self.uncle(UncleId(number.into(), index.value())))
 	}
 
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
@@ -434,6 +461,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	}
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
+		println!("params: {:?}", params);
 		from_params::<(TransactionRequest, BlockNumber)>(params)
 			.and_then(|(transaction_request, _block_number)| {
 				let accounts = take_weak!(self.accounts);

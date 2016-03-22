@@ -42,3 +42,11 @@ pub enum TransactionId {
 	/// Querying by block position is always faster.
 	Location(BlockId, usize)
 }
+
+/// Uniquely identifies Uncle.
+pub struct UncleId (
+	/// Block id.
+	pub BlockId,
+	/// Position in block.
+	pub usize
+);

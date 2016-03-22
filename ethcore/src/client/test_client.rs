@@ -19,7 +19,7 @@
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId};
+use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -229,6 +229,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
+		unimplemented!();
+	}
+
+	fn uncle(&self, _id: UncleId) -> Option<BlockHeader> {
 		unimplemented!();
 	}
 
