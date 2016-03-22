@@ -269,7 +269,9 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	Some(server.start_http(url, cors_domain, 1))
+	// 4 is the number of threads which also happens to be the maximum number of concurrent 
+	// connections our jsonrpc can manage.
+	Some(server.start_http(url, cors_domain, 4))
 }
 
 #[cfg(not(feature = "rpc"))]
