@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/beta-0.9/parity_linux_0.9.0-0_amd64.deb
+PARITY_DEB_URL=https://github.com/ethcore/parity/releases/download/v1.0.0-rc1/parity_linux_1.0.0.rc1-0_amd64.deb
 
 
 function run_installer()
@@ -236,12 +236,27 @@ function run_installer()
 	{
 		linux_version
 
-		find_rocksdb
-
 		find_curl
 
 		find_apt
 		find_sudo
+	}
+
+	function find_git()
+	{
+		depCount=$((depCount+1))
+		GIT_PATH=`which git 2>/dev/null`
+
+		if [[ -f $GIT_PATH ]]
+		then
+			depFound=$((depFound+1))
+			check "git"
+			isGit=true
+		else
+			uncheck "git is missing"
+			isGit=false
+			INSTALL_FILES+="${blue}${dim}==> git:${reset}${n}"
+		fi
 	}
 
 	function find_brew()
@@ -333,20 +348,6 @@ function run_installer()
 		fi
 	}
 
-	function find_rocksdb()
-	{
-		depCount=$((depCount+1))
-		if [[ $(ldconfig -v 2>/dev/null | grep rocksdb | wc -l) == 1 ]]; then
-			depFound=$((depFound+1))
-			check "librocksdb"
-			isRocksDB=true
-		else
-			uncheck "librocksdb is missing"
-			isRocksDB=false
-			INSTALL_FILES+="${blue}${dim}==>${reset}\tlibrocksdb${n}"
-		fi
-	}
-
 	function find_apt()
 	{
 		depCount=$((depCount+1))
@@ -386,10 +387,9 @@ function run_installer()
 		info "Verifying installation"
 
 		if [[ $OS_TYPE == "linux" ]]; then
-			find_rocksdb
 			find_apt
 
-			if [[ $isRocksDB == false || $isApt == false ]]; then
+			if [[ $isApt == false ]]; then
 				abortInstall
 			fi
 		fi
@@ -397,21 +397,9 @@ function run_installer()
 	
 	function linux_deps_installer()
 	{
-		if [[ $isRocksDB == false || $isCurl == false ]]; then
+		if [[ $isCurl == false ]]; then
 			info "Preparing apt..."
 			sudo apt-get update -qq
-			echo
-		fi
-		
-		if [[ $isRocksDB == false ]]; then
-			info "Installing rocksdb..."
-
-			sudo apt-get install -qq -y software-properties-common
-			sudo apt-add-repository -y ppa:ethcore/ethcore
-			sudo apt-get -f -y install
-			sudo apt-get update -qq
-			sudo apt-get install -qq -y librocksdb
-
 			echo
 		fi
 

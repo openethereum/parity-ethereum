@@ -25,7 +25,7 @@ use evm::Evm;
 /// Type of EVM to use.
 pub enum VMType {
 	/// JIT EVM
-	#[cfg(feature="jit")]
+	#[cfg(feature = "jit")]
 	Jit,
 	/// RUST EVM
 	Interpreter
@@ -52,13 +52,13 @@ impl fmt::Display for VMType {
 #[cfg(feature = "json-tests")]
 impl VMType {
 	/// Return all possible VMs (JIT, Interpreter)
-	#[cfg(feature="jit")]
+	#[cfg(feature = "jit")]
 	pub fn all() -> Vec<VMType> {
 		vec![VMType::Jit, VMType::Interpreter]
 	}
 
 	/// Return all possible VMs (Interpreter)
-	#[cfg(not(feature="jit"))]
+	#[cfg(not(feature = "jit"))]
 	pub fn all() -> Vec<VMType> {
 		vec![VMType::Interpreter]
 	}
@@ -66,12 +66,12 @@ impl VMType {
 
 /// Evm factory. Creates appropriate Evm.
 pub struct Factory {
-	evm : VMType
+	evm: VMType
 }
 
 impl Factory {
 	/// Create fresh instance of VM
-	#[cfg(feature="jit")]
+	#[cfg(feature = "jit")]
 	pub fn create(&self) -> Box<Evm> {
 		match self.evm {
 			VMType::Jit => {
@@ -84,7 +84,7 @@ impl Factory {
 	}
 
 	/// Create fresh instance of VM
-	#[cfg(not(feature="jit"))]
+	#[cfg(not(feature = "jit"))]
 	pub fn create(&self) -> Box<Evm> {
 		match self.evm {
 			VMType::Interpreter => {

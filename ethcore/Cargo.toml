@@ -3,27 +3,30 @@ description = "Ethcore library"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethcore"
-version = "0.9.0"
+version = "1.1.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
 log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
-rocksdb = "0.3"
-heapsize = "0.2.0"
+heapsize = "0.3"
 rust-crypto = "0.2.34"
 time = "0.1"
 ethcore-util = { path = "../util" }
 evmjit = { path = "../evmjit", optional = true }
 ethash = { path = "../ethash" }
 num_cpus = "0.2"
-clippy = "0.0.41"
+clippy = { version = "0.0.54", optional = true }
 crossbeam = "0.1.5"
 lazy_static = "0.1"
+ethcore-devtools = { path = "../devtools" }
+ethjson = { path = "../json" }
 
 [features]
 jit = ["evmjit"]
 evm-debug = []
 json-tests = []
 test-heavy = []
+dev = ["clippy"]
+default = []

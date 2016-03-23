@@ -30,8 +30,6 @@ pub trait Engine : Sync + Send {
 
 	/// The number of additional header fields required for this engine.
 	fn seal_fields(&self) -> usize { 0 }
-	/// Default values of the additional fields RLP-encoded in a raw (non-list) harness.
-	fn seal_rlp(&self) -> Bytes { vec![] }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
@@ -49,6 +47,8 @@ pub trait Engine : Sync + Send {
 	fn maximum_extra_data_size(&self) -> usize { decode(&self.spec().engine_params.get("maximumExtraDataSize").unwrap()) }
 	/// Maximum number of uncles a block is allowed to declare.
 	fn maximum_uncle_count(&self) -> usize { 2 }
+	/// The number of generations back that uncles can be.
+	fn maximum_uncle_age(&self) -> usize { 6 }
 	/// The nonce with which accounts begin.
 	fn account_start_nonce(&self) -> U256 { decode(&self.spec().engine_params.get("accountStartNonce").unwrap()) }
 
@@ -76,9 +76,20 @@ pub trait Engine : Sync + Send {
 	/// Verify a particular transaction is valid.
 	fn verify_transaction(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
 
-	/// Don't forget to call Super::populateFromParent when subclassing & overriding.
+	/// Verify the seal of a block. This is an auxilliary method that actually just calls other `verify_` methods
+	/// to get the job done. By default it must pass `verify_basic` and `verify_block_unordered`. If more or fewer
+	/// methods are needed for an Engine, this may be overridden.
+	fn verify_block_seal(&self, header: &Header) -> Result<(), Error> {
+		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
+	}
+
+	/// Don't forget to call Super::populate_from_parent when subclassing & overriding.
 	// TODO: consider including State in the params.
-	fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) {}
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256) {
+		header.difficulty = parent.difficulty;
+		header.gas_limit = parent.gas_limit;
+		header.note_dirty();
+	}
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.
@@ -92,4 +103,14 @@ pub trait Engine : Sync + Send {
 	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut [u8]) { self.spec().builtins.get(a).unwrap().execute(input, output); }
 
 	// TODO: sealing stuff - though might want to leave this for later.
+
+	/// Get a named parameter from the `spec()`'s `engine_params` item and convert to u64, or 0 if that fails.
+	fn u64_param(&self, name: &str) -> u64 {
+		self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a))
+	}
+
+	/// Get a named parameter from the `spec()`'s `engine_params` item and convert to U256, or 0 if that fails.
+	fn u256_param(&self, name: &str) -> U256 {
+		self.spec().engine_params.get(name).map_or(x!(0), |a| decode(&a))
+	}
 }

@@ -26,10 +26,10 @@
 		"gasLimit": "0x2fefd8"
 	},
 	"accounts": {
-		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "linear": { "base": 3000, "word": 0 } } },
-		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "linear": { "base": 60, "word": 12 } } },
-		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "linear": { "base": 600, "word": 120 } } },
-		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "linear": { "base": 15, "word": 3 } } },
+		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
 		"dbdbdb2cbd23b783741e8d7fcf51e459b497e4a6": { "balance": "1606938044258990275541962092341162602522202993782792835301376" },
 		"e6716f9544a56c530d868e4bfbacb172315bdead": { "balance": "1606938044258990275541962092341162602522202993782792835301376" },
 		"b9c015918bdaba24b4ff057a92a3873d6eb201be": { "balance": "1606938044258990275541962092341162602522202993782792835301376" },

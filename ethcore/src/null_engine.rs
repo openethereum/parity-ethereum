@@ -41,7 +41,16 @@ impl Engine for NullEngine {
 	fn vm_factory(&self) -> &Factory {
 		&self.factory
 	}
+	
 	fn name(&self) -> &str { "NullEngine" }
+
 	fn spec(&self) -> &Spec { &self.spec }
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { Schedule::new_frontier() }
+
+	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
+		if env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
+			Schedule::new_frontier()
+		} else {
+			Schedule::new_homestead()
+		}
+	}
 }

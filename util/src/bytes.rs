@@ -141,7 +141,7 @@ impl<'a> Deref for BytesRef<'a> {
 	fn deref(&self) -> &[u8] {
 		match *self {
 			BytesRef::Flexible(ref bytes) => bytes,
-			BytesRef::Fixed(ref bytes) => bytes
+			BytesRef::Fixed(ref bytes) => bytes,
 		}
 	}
 }
@@ -150,7 +150,7 @@ impl <'a> DerefMut for BytesRef<'a> {
 	fn deref_mut(&mut self) -> &mut [u8] {
 		match *self {
 			BytesRef::Flexible(ref mut bytes) => bytes,
-			BytesRef::Fixed(ref mut bytes) => bytes
+			BytesRef::Fixed(ref mut bytes) => bytes,
 		}
 	}
 }
@@ -170,34 +170,14 @@ pub trait BytesConvertable {
 	fn to_bytes(&self) -> Bytes { self.as_slice().to_vec() }
 }
 
-impl<'a> BytesConvertable for &'a [u8] {
-	fn bytes(&self) -> &[u8] { self }
-}
-
-impl BytesConvertable for Vec<u8> {
-	fn bytes(&self) -> &[u8] { self }
-}
-
-macro_rules! impl_bytes_convertable_for_array {
-	($zero: expr) => ();
-	($len: expr, $($idx: expr),*) => {
-		impl BytesConvertable for [u8; $len] {
-			fn bytes(&self) -> &[u8] { self }
-		}
-		impl_bytes_convertable_for_array! { $($idx),* }
-	}
-}
-
-// -1 at the end is not expanded
-impl_bytes_convertable_for_array! {
-		32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
-		15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, -1
+impl<T> BytesConvertable for T where T: AsRef<[u8]> {
+	fn bytes(&self) -> &[u8] { self.as_ref() }
 }
 
 #[test]
 fn bytes_convertable() {
 	assert_eq!(vec![0x12u8, 0x34].bytes(), &[0x12u8, 0x34]);
-	assert_eq!([0u8; 0].bytes(), &[]);
+	assert!([0u8; 0].as_slice().is_empty());
 }
 
 /// Simple trait to allow for raw population of a Sized object from a byte slice.
@@ -249,6 +229,49 @@ impl<T> Populatable for [T] where T: Sized {
 		unsafe {
 			slice::from_raw_parts_mut(self.as_mut_ptr() as *mut u8, mem::size_of::<T>() * self.len())
 		}
+	}
+}
+
+#[derive(Debug)]
+/// Bytes array deserialization error
+pub enum FromBytesError {
+	/// Not enough bytes for the requested type
+	NotLongEnough,
+	/// Too many bytes for the requested type
+	TooLong,
+}
+
+/// Value that can be serialized from bytes array
+pub trait FromRawBytes : Sized {
+	/// function that will instantiate and initialize object from slice
+	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError>;
+}
+
+impl<T> FromRawBytes for T where T: Sized + FixedHash {
+	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
+		use std::mem;
+		use std::cmp::Ordering;
+		match bytes.len().cmp(&mem::size_of::<T>()) {
+			Ordering::Less => return Err(FromBytesError::NotLongEnough),
+			Ordering::Greater => return Err(FromBytesError::TooLong),
+			Ordering::Equal => ()
+		};
+
+		let mut res: Self = unsafe { mem::uninitialized() };
+		res.copy_raw(bytes);
+		Ok(res)
+	}
+}
+
+impl FromRawBytes for String {
+	fn from_bytes(bytes: &[u8]) -> Result<String, FromBytesError> {
+		Ok(::std::str::from_utf8(bytes).unwrap().to_owned())
+	}
+}
+
+impl FromRawBytes for Vec<u8> {
+	fn from_bytes(bytes: &[u8]) -> Result<Vec<u8>, FromBytesError> {
+		Ok(bytes.clone().to_vec())
 	}
 }
 

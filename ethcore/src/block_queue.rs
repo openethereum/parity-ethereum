@@ -28,6 +28,31 @@ use service::*;
 use client::BlockStatus;
 use util::panics::*;
 
+known_heap_size!(0, UnverifiedBlock, VerifyingBlock, PreverifiedBlock);
+
+const MIN_MEM_LIMIT: usize = 16384;
+const MIN_QUEUE_LIMIT: usize = 512;
+
+/// Block queue configuration
+#[derive(Debug)]
+pub struct BlockQueueConfig {
+	/// Maximum number of blocks to keep in unverified queue.
+	/// When the limit is reached, is_full returns true.
+	pub max_queue_size: usize,
+	/// Maximum heap memory to use.
+	/// When the limit is reached, is_full returns true.
+	pub max_mem_use: usize,
+}
+
+impl Default for BlockQueueConfig {
+	fn default() -> Self {
+		BlockQueueConfig {
+			max_queue_size: 30000,
+			max_mem_use: 50 * 1024 * 1024,
+		}
+	}
+}
+
 /// Block queue status
 #[derive(Debug)]
 pub struct BlockQueueInfo {
@@ -37,6 +62,12 @@ pub struct BlockQueueInfo {
 	pub verified_queue_size: usize,
 	/// Number of blocks being verified
 	pub verifying_queue_size: usize,
+	/// Configured maximum number of blocks in the queue
+	pub max_queue_size: usize,
+	/// Configured maximum number of bytes to use
+	pub max_mem_use: usize,
+	/// Heap memory used in bytes
+	pub mem_used: usize,
 }
 
 impl BlockQueueInfo {
@@ -48,7 +79,8 @@ impl BlockQueueInfo {
 
 	/// Indicates that queue is full
 	pub fn is_full(&self) -> bool {
-		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size > MAX_UNVERIFIED_QUEUE_SIZE
+		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size > self.max_queue_size ||
+			self.mem_used > self.max_mem_use
 	}
 
 	/// Indicates that queue is empty
@@ -63,22 +95,24 @@ pub struct BlockQueue {
 	panic_handler: Arc<PanicHandler>,
 	engine: Arc<Box<Engine>>,
 	more_to_verify: Arc<Condvar>,
-	verification: Arc<Mutex<Verification>>,
+	verification: Arc<Verification>,
 	verifiers: Vec<JoinHandle<()>>,
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal>,
 	empty: Arc<Condvar>,
-	processing: RwLock<HashSet<H256>>
+	processing: RwLock<HashSet<H256>>,
+	max_queue_size: usize,
+	max_mem_use: usize,
 }
 
-struct UnVerifiedBlock {
+struct UnverifiedBlock {
 	header: Header,
 	bytes: Bytes,
 }
 
 struct VerifyingBlock {
 	hash: H256,
-	block: Option<PreVerifiedBlock>,
+	block: Option<PreverifiedBlock>,
 }
 
 struct QueueSignal {
@@ -87,7 +121,7 @@ struct QueueSignal {
 }
 
 impl QueueSignal {
-	#[allow(bool_comparison)]
+	#[cfg_attr(feature="dev", allow(bool_comparison))]
 	fn set(&self) {
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
 			self.message_channel.send(UserMessage(SyncMessage::BlockVerified)).expect("Error sending BlockVerified message");
@@ -98,20 +132,23 @@ impl QueueSignal {
 	}
 }
 
-#[derive(Default)]
 struct Verification {
-	unverified: VecDeque<UnVerifiedBlock>,
-	verified: VecDeque<PreVerifiedBlock>,
-	verifying: VecDeque<VerifyingBlock>,
-	bad: HashSet<H256>,
+	// All locks must be captured in the order declared here.
+	unverified: Mutex<VecDeque<UnverifiedBlock>>,
+	verified: Mutex<VecDeque<PreverifiedBlock>>,
+	verifying: Mutex<VecDeque<VerifyingBlock>>,
+	bad: Mutex<HashSet<H256>>,
 }
-
-const MAX_UNVERIFIED_QUEUE_SIZE: usize = 50000;
 
 impl BlockQueue {
 	/// Creates a new queue instance.
-	pub fn new(engine: Arc<Box<Engine>>, message_channel: IoChannel<NetSyncMessage>) -> BlockQueue {
-		let verification = Arc::new(Mutex::new(Verification::default()));
+	pub fn new(config: BlockQueueConfig, engine: Arc<Box<Engine>>, message_channel: IoChannel<NetSyncMessage>) -> BlockQueue {
+		let verification = Arc::new(Verification {
+			unverified: Mutex::new(VecDeque::new()),
+			verified: Mutex::new(VecDeque::new()),
+			verifying: Mutex::new(VecDeque::new()),
+			bad: Mutex::new(HashSet::new()),
+		});
 		let more_to_verify = Arc::new(Condvar::new());
 		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
 		let deleting = Arc::new(AtomicBool::new(false));
@@ -133,7 +170,7 @@ impl BlockQueue {
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
 					panic_handler.catch_panic(move || {
-					  BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
+						BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
 					}).unwrap()
 				})
 				.expect("Error starting block verification thread")
@@ -149,68 +186,73 @@ impl BlockQueue {
 			deleting: deleting.clone(),
 			processing: RwLock::new(HashSet::new()),
 			empty: empty.clone(),
+			max_queue_size: max(config.max_queue_size, MIN_QUEUE_LIMIT),
+			max_mem_use: max(config.max_mem_use, MIN_MEM_LIMIT),
 		}
 	}
 
-	fn verify(verification: Arc<Mutex<Verification>>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
-		while !deleting.load(AtomicOrdering::Relaxed) {
+	fn verify(verification: Arc<Verification>, engine: Arc<Box<Engine>>, wait: Arc<Condvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<Condvar>) {
+		while !deleting.load(AtomicOrdering::Acquire) {
 			{
-				let mut lock = verification.lock().unwrap();
+				let mut unverified = verification.unverified.lock().unwrap();
 
-				if lock.unverified.is_empty() && lock.verifying.is_empty() {
+				if unverified.is_empty() && verification.verifying.lock().unwrap().is_empty() {
 					empty.notify_all();
 				}
 
-				while lock.unverified.is_empty() && !deleting.load(AtomicOrdering::Relaxed) {
-					lock = wait.wait(lock).unwrap();
+				while unverified.is_empty() && !deleting.load(AtomicOrdering::Acquire) {
+					unverified = wait.wait(unverified).unwrap();
 				}
 
-				if deleting.load(AtomicOrdering::Relaxed) {
+				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}
 			}
 
 			let block = {
-				let mut v = verification.lock().unwrap();
-				if v.unverified.is_empty() {
+				let mut unverified = verification.unverified.lock().unwrap();
+				if unverified.is_empty() {
 					continue;
 				}
-				let block = v.unverified.pop_front().unwrap();
-				v.verifying.push_back(VerifyingBlock{ hash: block.header.hash(), block: None });
+				let mut verifying = verification.verifying.lock().unwrap();
+				let block = unverified.pop_front().unwrap();
+				verifying.push_back(VerifyingBlock{ hash: block.header.hash(), block: None });
 				block
 			};
 
 			let block_hash = block.header.hash();
 			match verify_block_unordered(block.header, block.bytes, engine.deref().deref()) {
 				Ok(verified) => {
-					let mut v = verification.lock().unwrap();
-					for e in &mut v.verifying {
+					let mut verifying = verification.verifying.lock().unwrap();
+					for e in verifying.iter_mut() {
 						if e.hash == block_hash {
 							e.block = Some(verified);
 							break;
 						}
 					}
-					if !v.verifying.is_empty() && v.verifying.front().unwrap().hash == block_hash {
+					if !verifying.is_empty() && verifying.front().unwrap().hash == block_hash {
 						// we're next!
-						let mut vref = v.deref_mut();
-						BlockQueue::drain_verifying(&mut vref.verifying, &mut vref.verified, &mut vref.bad);
+						let mut verified = verification.verified.lock().unwrap();
+						let mut bad = verification.bad.lock().unwrap();
+						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
 						ready.set();
 					}
 				},
 				Err(err) => {
-					let mut v = verification.lock().unwrap();
+					let mut verifying = verification.verifying.lock().unwrap();
+					let mut verified = verification.verified.lock().unwrap();
+					let mut bad = verification.bad.lock().unwrap();
 					warn!(target: "client", "Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
-					v.bad.insert(block_hash.clone());
-					v.verifying.retain(|e| e.hash != block_hash);
-					let mut vref = v.deref_mut();
-					BlockQueue::drain_verifying(&mut vref.verifying, &mut vref.verified, &mut vref.bad);
+					bad.insert(block_hash.clone());
+					verifying.retain(|e| e.hash != block_hash);
+					BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
 					ready.set();
 				}
 			}
 		}
 	}
 
-	fn drain_verifying(verifying: &mut VecDeque<VerifyingBlock>, verified: &mut VecDeque<PreVerifiedBlock>, bad: &mut HashSet<H256>) {
+	fn drain_verifying(verifying: &mut VecDeque<VerifyingBlock>, verified: &mut VecDeque<PreverifiedBlock>, bad: &mut HashSet<H256>) {
 		while !verifying.is_empty() && verifying.front().unwrap().block.is_some() {
 			let block = verifying.pop_front().unwrap().block.unwrap();
 			if bad.contains(&block.header.parent_hash) {
@@ -223,19 +265,21 @@ impl BlockQueue {
 	}
 
 	/// Clear the queue and stop verification activity.
-	pub fn clear(&mut self) {
-		let mut verification = self.verification.lock().unwrap();
-		verification.unverified.clear();
-		verification.verifying.clear();
-		verification.verified.clear();
+	pub fn clear(&self) {
+		let mut unverified = self.verification.unverified.lock().unwrap();
+		let mut verifying = self.verification.verifying.lock().unwrap();
+		let mut verified = self.verification.verified.lock().unwrap();
+		unverified.clear();
+		verifying.clear();
+		verified.clear();
 		self.processing.write().unwrap().clear();
 	}
 
-	/// Wait for queue to be empty
-	pub fn flush(&mut self) {
-		let mut verification = self.verification.lock().unwrap();
-		while !verification.unverified.is_empty() || !verification.verifying.is_empty() {
-			verification = self.empty.wait(verification).unwrap();
+	/// Wait for unverified queue to be empty
+	pub fn flush(&self) {
+		let mut unverified = self.verification.unverified.lock().unwrap();
+		while !unverified.is_empty() || !self.verification.verifying.lock().unwrap().is_empty() {
+			unverified = self.empty.wait(unverified).unwrap();
 		}
 	}
 
@@ -244,84 +288,96 @@ impl BlockQueue {
 		if self.processing.read().unwrap().contains(&hash) {
 			return BlockStatus::Queued;
 		}
-		if self.verification.lock().unwrap().bad.contains(&hash) {
+		if self.verification.bad.lock().unwrap().contains(&hash) {
 			return BlockStatus::Bad;
 		}
 		BlockStatus::Unknown
 	}
 
 	/// Add a block to the queue.
-	pub fn import_block(&mut self, bytes: Bytes) -> ImportResult {
+	pub fn import_block(&self, bytes: Bytes) -> ImportResult {
 		let header = BlockView::new(&bytes).header();
 		let h = header.hash();
-		if self.processing.read().unwrap().contains(&h) {
-			return Err(ImportError::AlreadyQueued);
-		}
 		{
-			let mut verification = self.verification.lock().unwrap();
-			if verification.bad.contains(&h) {
-				return Err(ImportError::Bad(None));
+			if self.processing.read().unwrap().contains(&h) {
+				return Err(x!(ImportError::AlreadyQueued));
 			}
 
-			if verification.bad.contains(&header.parent_hash) {
-				verification.bad.insert(h.clone());
-				return Err(ImportError::Bad(None));
+			let mut bad = self.verification.bad.lock().unwrap();
+			if bad.contains(&h) {
+				return Err(x!(ImportError::KnownBad));
+			}
+
+			if bad.contains(&header.parent_hash) {
+				bad.insert(h.clone());
+				return Err(x!(ImportError::KnownBad));
 			}
 		}
 
 		match verify_block_basic(&header, &bytes, self.engine.deref().deref()) {
 			Ok(()) => {
 				self.processing.write().unwrap().insert(h.clone());
-				self.verification.lock().unwrap().unverified.push_back(UnVerifiedBlock { header: header, bytes: bytes });
+				self.verification.unverified.lock().unwrap().push_back(UnverifiedBlock { header: header, bytes: bytes });
 				self.more_to_verify.notify_all();
 				Ok(h)
 			},
 			Err(err) => {
 				warn!(target: "client", "Stage 1 block verification failed for {}\nError: {:?}", BlockView::new(&bytes).header_view().sha3(), err);
-				self.verification.lock().unwrap().bad.insert(h.clone());
-				Err(From::from(err))
+				self.verification.bad.lock().unwrap().insert(h.clone());
+				Err(err)
 			}
 		}
 	}
 
 	/// Mark given block and all its children as bad. Stops verification.
-	pub fn mark_as_bad(&mut self, hash: &H256) {
-		let mut verification_lock = self.verification.lock().unwrap();
-		let mut verification = verification_lock.deref_mut();
-		verification.bad.insert(hash.clone());
-		self.processing.write().unwrap().remove(&hash);
+	pub fn mark_as_bad(&self, block_hashes: &[H256]) {
+		if block_hashes.is_empty() {
+			return;
+		}
+		let mut verified_lock = self.verification.verified.lock().unwrap();
+		let mut verified = verified_lock.deref_mut();
+		let mut bad = self.verification.bad.lock().unwrap();
+		let mut processing = self.processing.write().unwrap();
+		bad.reserve(block_hashes.len());
+		for hash in block_hashes {
+			bad.insert(hash.clone());
+			processing.remove(&hash);
+		}
+
 		let mut new_verified = VecDeque::new();
-		for block in verification.verified.drain(..) {
-			if verification.bad.contains(&block.header.parent_hash) {
-				verification.bad.insert(block.header.hash());
-				self.processing.write().unwrap().remove(&block.header.hash());
-			}
-			else {
+		for block in verified.drain(..) {
+			if bad.contains(&block.header.parent_hash) {
+				bad.insert(block.header.hash());
+				processing.remove(&block.header.hash());
+			} else {
 				new_verified.push_back(block);
 			}
 		}
-		verification.verified = new_verified;
+		*verified = new_verified;
 	}
 
 	/// Mark given block as processed
-	pub fn mark_as_good(&mut self, hashes: &[H256]) {
+	pub fn mark_as_good(&self, block_hashes: &[H256]) {
+		if block_hashes.is_empty() {
+			return;
+		}
 		let mut processing = self.processing.write().unwrap();
-		for h in hashes {
-			processing.remove(&h);
+		for hash in block_hashes {
+			processing.remove(&hash);
 		}
 	}
 
 	/// Removes up to `max` verified blocks from the queue
-	pub fn drain(&mut self, max: usize) -> Vec<PreVerifiedBlock> {
-		let mut verification = self.verification.lock().unwrap();
-		let count = min(max, verification.verified.len());
+	pub fn drain(&self, max: usize) -> Vec<PreverifiedBlock> {
+		let mut verified = self.verification.verified.lock().unwrap();
+		let count = min(max, verified.len());
 		let mut result = Vec::with_capacity(count);
 		for _ in 0..count {
-			let block = verification.verified.pop_front().unwrap();
+			let block = verified.pop_front().unwrap();
 			result.push(block);
 		}
 		self.ready_signal.reset();
-		if !verification.verified.is_empty() {
+		if !verified.is_empty() {
 			self.ready_signal.set();
 		}
 		result
@@ -329,12 +385,41 @@ impl BlockQueue {
 
 	/// Get queue status.
 	pub fn queue_info(&self) -> BlockQueueInfo {
-		let verification = self.verification.lock().unwrap();
+		let (unverified_len, unverified_bytes) = {
+			let v = self.verification.unverified.lock().unwrap();
+			(v.len(), v.heap_size_of_children())
+		};
+		let (verifying_len, verifying_bytes) = {
+			let v = self.verification.verifying.lock().unwrap();
+			(v.len(), v.heap_size_of_children())
+		};
+		let (verified_len, verified_bytes) = {
+			let v = self.verification.verified.lock().unwrap();
+			(v.len(), v.heap_size_of_children())
+		};
 		BlockQueueInfo {
-			verified_queue_size: verification.verified.len(),
-			unverified_queue_size: verification.unverified.len(),
-			verifying_queue_size: verification.verifying.len(),
+			unverified_queue_size: unverified_len,
+			verifying_queue_size: verifying_len,
+			verified_queue_size: verified_len,
+			max_queue_size: self.max_queue_size,
+			max_mem_use: self.max_mem_use,
+			mem_used:
+				unverified_bytes
+				+ verifying_bytes
+				+ verified_bytes
+				// TODO: https://github.com/servo/heapsize/pull/50
+				//+ self.processing.read().unwrap().heap_size_of_children(),
 		}
+	}
+
+	/// Optimise memory footprint of the heap fields.
+	pub fn collect_garbage(&self) {
+		{
+			self.verification.unverified.lock().unwrap().shrink_to_fit();
+			self.verification.verifying.lock().unwrap().shrink_to_fit();
+			self.verification.verified.lock().unwrap().shrink_to_fit();
+		}
+		self.processing.write().unwrap().shrink_to_fit();
 	}
 }
 
@@ -347,7 +432,7 @@ impl MayPanic for BlockQueue {
 impl Drop for BlockQueue {
 	fn drop(&mut self) {
 		self.clear();
-		self.deleting.store(true, AtomicOrdering::Relaxed);
+		self.deleting.store(true, AtomicOrdering::Release);
 		self.more_to_verify.notify_all();
 		for t in self.verifiers.drain(..) {
 			t.join().unwrap();
@@ -367,7 +452,7 @@ mod tests {
 	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
 		let engine = spec.to_engine().unwrap();
-		BlockQueue::new(Arc::new(engine), IoChannel::disconnected())
+		BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected())
 	}
 
 	#[test]
@@ -375,12 +460,12 @@ mod tests {
 		// TODO better test
 		let spec = Spec::new_test();
 		let engine = spec.to_engine().unwrap();
-		let _ = BlockQueue::new(Arc::new(engine), IoChannel::disconnected());
+		let _ = BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected());
 	}
 
 	#[test]
 	fn can_import_blocks() {
-		let mut queue = get_test_queue();
+		let queue = get_test_queue();
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
@@ -388,7 +473,7 @@ mod tests {
 
 	#[test]
 	fn returns_error_for_duplicates() {
-		let mut queue = get_test_queue();
+		let queue = get_test_queue();
 		if let Err(e) = queue.import_block(get_good_dummy_block()) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
@@ -397,7 +482,7 @@ mod tests {
 		match duplicate_import {
 			Err(e) => {
 				match e {
-					ImportError::AlreadyQueued => {},
+					Error::Import(ImportError::AlreadyQueued) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}
@@ -407,7 +492,7 @@ mod tests {
 
 	#[test]
 	fn returns_ok_for_drained_duplicates() {
-		let mut queue = get_test_queue();
+		let queue = get_test_queue();
 		let block = get_good_dummy_block();
 		let hash = BlockView::new(&block).header().hash().clone();
 		if let Err(e) = queue.import_block(block) {
@@ -424,11 +509,26 @@ mod tests {
 
 	#[test]
 	fn returns_empty_once_finished() {
-		let mut queue = get_test_queue();
+		let queue = get_test_queue();
 		queue.import_block(get_good_dummy_block()).expect("error importing block that is valid by definition");
 		queue.flush();
 		queue.drain(1);
 
 		assert!(queue.queue_info().is_empty());
+	}
+
+	#[test]
+	fn test_mem_limit() {
+		let spec = get_test_spec();
+		let engine = spec.to_engine().unwrap();
+		let mut config = BlockQueueConfig::default();
+		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
+		let queue = BlockQueue::new(config, Arc::new(engine), IoChannel::disconnected());
+		assert!(!queue.queue_info().is_full());
+		let mut blocks = get_good_dummy_block_seq(50);
+		for b in blocks.drain(..) {
+			queue.import_block(b).unwrap();
+		}
+		assert!(queue.queue_info().is_full());
 	}
 }

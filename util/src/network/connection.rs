@@ -16,6 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::VecDeque;
+use std::net::SocketAddr;
 use mio::{Handler, Token, EventSet, EventLoop, PollOpt, TryRead, TryWrite};
 use mio::tcp::*;
 use hash::*;
@@ -159,27 +160,55 @@ impl Connection {
 		}
 	}
 
+	/// Get socket token
+	pub fn token(&self) -> StreamToken {
+		self.token
+	}
+
+	/// Replace socket token
+	pub fn set_token(&mut self, token: StreamToken) {
+		self.token = token;
+	}
+
+	/// Get remote peer address
+	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
+		self.socket.peer_addr()
+	}
+
+	/// Clone this connection. Clears the receiving buffer of the returned connection.
+	pub fn try_clone(&self) -> io::Result<Self> {
+		Ok(Connection {
+			token: self.token,
+			socket: try!(self.socket.try_clone()),
+			rec_buf: Vec::new(),
+			rec_size: 0,
+			send_queue: self.send_queue.clone(),
+			interest: EventSet::hup() | EventSet::readable(),
+			stats: self.stats.clone(),
+		})
+	}
+
 	/// Register this connection with the IO event loop.
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-		trace!(target: "net", "connection register; token={:?}", reg);
-		event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-			debug!("Failed to register {:?}, {:?}", reg, e);
-			Ok(())
-		})
+		trace!(target: "network", "connection register; token={:?}", reg);
+		if let Err(e) = event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()) {
+			trace!(target: "network", "Failed to register {:?}, {:?}", reg, e);
+		}
+		Ok(())
 	}
 
 	/// Update connection registration. Should be called at the end of the IO handler.
 	pub fn update_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-		trace!(target: "net", "connection reregister; token={:?}", reg);
+		trace!(target: "network", "connection reregister; token={:?}", reg);
 		event_loop.reregister( &self.socket, reg, self.interest, PollOpt::edge() | PollOpt::oneshot()).or_else(|e| {
-			debug!("Failed to reregister {:?}, {:?}", reg, e);
+			trace!(target: "network", "Failed to reregister {:?}, {:?}", reg, e);
 			Ok(())
 		})
 	}
 
 	/// Delete connection registration. Should be called at the end of the IO handler.
 	pub fn deregister_socket<Host: Handler>(&self, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
-		trace!(target: "net", "connection deregister; token={:?}", self.token);
+		trace!(target: "network", "connection deregister; token={:?}", self.token);
 		event_loop.deregister(&self.socket).ok(); // ignore errors here
 		Ok(())
 	}
@@ -232,15 +261,25 @@ pub struct EncryptedConnection {
 }
 
 impl EncryptedConnection {
-	
-	/// Get socket token 
+
+	/// Get socket token
 	pub fn token(&self) -> StreamToken {
 		self.connection.token
 	}
 
+	/// Replace socket token
+	pub fn set_token(&mut self, token: StreamToken) {
+		self.connection.set_token(token);
+	}
+
+	/// Get remote peer address
+	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
+		self.connection.remote_addr()
+	}
+
 	/// Create an encrypted connection out of the handshake. Consumes a handshake object.
-	pub fn new(mut handshake: Handshake) -> Result<EncryptedConnection, UtilError> {
-		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_public));
+	pub fn new(handshake: &mut Handshake) -> Result<EncryptedConnection, UtilError> {
+		let shared = try!(crypto::ecdh::agree(handshake.ecdhe.secret(), &handshake.remote_ephemeral));
 		let mut nonce_material = H512::new();
 		if handshake.originated {
 			handshake.remote_nonce.copy_to(&mut nonce_material[0..32]);
@@ -274,9 +313,8 @@ impl EncryptedConnection {
 		ingress_mac.update(&mac_material);
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
 
-		handshake.connection.expect(ENCRYPTED_HEADER_LEN);
-		Ok(EncryptedConnection {
-			connection: handshake.connection,
+		let mut enc = EncryptedConnection {
+			connection: try!(handshake.connection.try_clone()),
 			encoder: encoder,
 			decoder: decoder,
 			mac_encoder: mac_encoder,
@@ -285,7 +323,9 @@ impl EncryptedConnection {
 			read_state: EncryptedConnectionState::Header,
 			protocol_id: 0,
 			payload_len: 0
-		})
+		};
+		enc.connection.expect(ENCRYPTED_HEADER_LEN);
+		Ok(enc)
 	}
 
 	/// Send a packet
@@ -414,6 +454,12 @@ impl EncryptedConnection {
 		Ok(())
 	}
 
+	/// Register socket with the event lpop. This should be called at the end of the event loop.
+	pub fn register_socket<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		try!(self.connection.register_socket(reg, event_loop));
+		Ok(())
+	}
+
 	/// Update connection registration. This should be called at the end of the event loop.
 	pub fn update_socket<Host:Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
 		try!(self.connection.update_socket(reg, event_loop));
@@ -467,8 +513,14 @@ mod tests {
 		buf_size: usize,
 	}
 
+	impl Default for TestSocket {
+		fn default() -> Self {
+			TestSocket::new()
+		}
+	}
+
 	impl TestSocket {
-		fn new() -> TestSocket {
+		fn new() -> Self {
 			TestSocket {
 				read_buffer: vec![],
 				write_buffer: vec![],
@@ -547,8 +599,14 @@ mod tests {
 
 	type TestConnection = GenericConnection<TestSocket>;
 
+	impl Default for TestConnection {
+		fn default() -> Self {
+			TestConnection::new()
+		}
+	}
+
 	impl TestConnection {
-		pub fn new() -> TestConnection {
+		pub fn new() -> Self {
 			TestConnection {
 				token: 999998888usize,
 				socket: TestSocket::new(),
@@ -563,8 +621,14 @@ mod tests {
 
 	type TestBrokenConnection = GenericConnection<TestBrokenSocket>;
 
+	impl Default for TestBrokenConnection {
+		fn default() -> Self {
+			TestBrokenConnection::new()
+		}
+	}
+
 	impl TestBrokenConnection {
-		pub fn new() -> TestBrokenConnection {
+		pub fn new() -> Self {
 			TestBrokenConnection {
 				token: 999998888usize,
 				socket: TestBrokenSocket { error: "test broken socket".to_owned() },

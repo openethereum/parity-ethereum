@@ -116,7 +116,7 @@ impl<'a, 'view> View<'a, 'view> for Rlp<'a> where 'a: 'view {
 impl <'a, 'view> Rlp<'a> where 'a: 'view {
 	fn view_as_val<T, R>(r: &R) -> T where R: View<'a, 'view>, T: RlpDecodable {
 		let res: Result<T, DecoderError> = r.as_val();
-		res.unwrap_or_else(|_| panic!())
+		res.unwrap_or_else(|e| panic!("DecodeError: {}", e))
 	}
 
 	/// Decode into an object

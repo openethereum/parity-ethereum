@@ -18,7 +18,7 @@
 
 use util::*;
 use header::BlockNumber;
-use rocksdb::{DB, Writable};
+use receipt::Receipt;
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -32,14 +32,16 @@ pub enum ExtrasIndex {
 	/// Block log blooms index
 	BlockLogBlooms = 3,
 	/// Block blooms index
-	BlocksBlooms = 4
-} 
+	BlocksBlooms = 4,
+	/// Block receipts index
+	BlockReceipts = 5,
+}
 
 /// trait used to write Extras data to db
 pub trait ExtrasWritable {
 	/// Write extra data to db
 	fn put_extras<K, T>(&self, hash: &K, value: &T) where
-		T: ExtrasIndexable + Encodable, 
+		T: ExtrasIndexable + Encodable,
 		K: ExtrasSliceConvertable;
 }
 
@@ -56,16 +58,16 @@ pub trait ExtrasReadable {
 		K: ExtrasSliceConvertable;
 }
 
-impl<W> ExtrasWritable for W where W: Writable {
+impl ExtrasWritable for DBTransaction {
 	fn put_extras<K, T>(&self, hash: &K, value: &T) where
-		T: ExtrasIndexable + Encodable, 
+		T: ExtrasIndexable + Encodable,
 		K: ExtrasSliceConvertable {
-		
+
 		self.put(&hash.to_extras_slice(T::extras_index()), &encode(value)).unwrap()
 	}
 }
 
-impl ExtrasReadable for DB {
+impl ExtrasReadable for Database {
 	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
 		T: ExtrasIndexable + Decodable,
 		K: ExtrasSliceConvertable {
@@ -210,7 +212,19 @@ impl Encodable for BlockLogBlooms {
 /// Neighboring log blooms on certain level
 pub struct BlocksBlooms {
 	/// List of block blooms.
-	pub blooms: [H2048; 16]
+	pub blooms: [H2048; 16],
+}
+
+impl Default for BlocksBlooms {
+	fn default() -> Self {
+		BlocksBlooms::new()
+	}
+}
+
+impl BlocksBlooms {
+	pub fn new() -> Self {
+		BlocksBlooms { blooms: unsafe { ::std::mem::zeroed() }}
+	}
 }
 
 impl ExtrasIndexable for BlocksBlooms {
@@ -290,5 +304,45 @@ impl Encodable for TransactionAddress {
 		s.begin_list(2);
 		s.append(&self.block_hash);
 		s.append(&self.index);
+	}
+}
+
+/// Contains all block receipts.
+#[derive(Clone)]
+pub struct BlockReceipts {
+	pub receipts: Vec<Receipt>,
+}
+
+impl BlockReceipts {
+	pub fn new(receipts: Vec<Receipt>) -> Self {
+		BlockReceipts {
+			receipts: receipts
+		}
+	}
+}
+
+impl Decodable for BlockReceipts {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		Ok(BlockReceipts {
+			receipts: try!(Decodable::decode(decoder))
+		})
+	}
+}
+
+impl Encodable for BlockReceipts {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.receipts);
+	}
+}
+
+impl HeapSizeOf for BlockReceipts {
+	fn heap_size_of_children(&self) -> usize {
+		self.receipts.heap_size_of_children()
+	}
+}
+
+impl ExtrasIndexable for BlockReceipts {
+	fn extras_index() -> ExtrasIndex {
+		ExtrasIndex::BlockReceipts
 	}
 }

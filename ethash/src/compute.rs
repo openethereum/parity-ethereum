@@ -19,9 +19,9 @@
 
 // TODO: fix endianess for big endian
 
+use primal::is_prime;
 use std::mem;
 use std::ptr;
-use sizes::{CACHE_SIZES, DAG_SIZES};
 use sha3;
 use std::slice;
 use std::path::PathBuf;
@@ -31,9 +31,13 @@ use std::fs::{self, File};
 pub const ETHASH_EPOCH_LENGTH: u64 = 30000;
 pub const ETHASH_CACHE_ROUNDS: usize = 3;
 pub const ETHASH_MIX_BYTES: usize = 128;
-pub const ETHASH_ACCESSES:usize =  64;
-pub const ETHASH_DATASET_PARENTS:u32 = 256;
+pub const ETHASH_ACCESSES: usize = 64;
+pub const ETHASH_DATASET_PARENTS: u32 = 256;
 
+const DATASET_BYTES_INIT: u64 = 1 << 30;
+const DATASET_BYTES_GROWTH: u64 = 1 << 23;
+const CACHE_BYTES_INIT: u64 = 1 << 24;
+const CACHE_BYTES_GROWTH: u64 = 1 << 17;
 const NODE_WORDS: usize = 64 / 4;
 const NODE_BYTES: usize = 64;
 const MIX_WORDS: usize = ETHASH_MIX_BYTES / 4;
@@ -53,7 +57,7 @@ struct Node {
 }
 
 impl Default for Node {
-	fn default() -> Self { 
+	fn default() -> Self {
 		Node { bytes: [0u8; NODE_BYTES] }
 	}
 }
@@ -109,7 +113,7 @@ impl Light {
 	pub fn from_file(block_number: u64) -> io::Result<Light> {
 		let path = Light::file_path(block_number);
 		let mut file = try!(File::open(path));
-		
+
 		let cache_size = get_cache_size(block_number);
 		if try!(file.metadata()).len() != cache_size as u64 {
 			return Err(io::Error::new(io::ErrorKind::Other, "Cache file size mismatch"));
@@ -129,10 +133,10 @@ impl Light {
 		let path = Light::file_path(self.block_number);
 		try!(fs::create_dir_all(path.parent().unwrap()));
 		let mut file = try!(File::create(path));
-		
+
 		let cache_size = self.cache.len() * NODE_BYTES;
 		let buf = unsafe { slice::from_raw_parts(self.cache.as_ptr() as *const u8, cache_size) };
-		try!(file.write(buf)); 
+		try!(file.write(buf));
 		Ok(())
 	}
 }
@@ -149,18 +153,27 @@ fn sha3_512(input: &[u8], output: &mut [u8]) {
 
 #[inline]
 fn get_cache_size(block_number: u64) -> usize {
-	assert!(block_number / ETHASH_EPOCH_LENGTH < 2048);
-	return CACHE_SIZES[(block_number / ETHASH_EPOCH_LENGTH) as usize] as usize;
+    let mut sz: u64 = CACHE_BYTES_INIT + CACHE_BYTES_GROWTH * (block_number / ETHASH_EPOCH_LENGTH);
+    sz = sz - NODE_BYTES as u64;
+    while !is_prime(sz / NODE_BYTES as u64) {
+        sz = sz - 2 * NODE_BYTES as u64;
+    }
+    sz as usize
 }
 
 #[inline]
 fn get_data_size(block_number: u64) -> usize {
-	assert!(block_number / ETHASH_EPOCH_LENGTH < 2048);
-	return DAG_SIZES[(block_number / ETHASH_EPOCH_LENGTH) as usize] as usize;
+    let mut sz: u64 = DATASET_BYTES_INIT + DATASET_BYTES_GROWTH * (block_number / ETHASH_EPOCH_LENGTH);
+    sz = sz - ETHASH_MIX_BYTES as u64;
+    while !is_prime(sz / ETHASH_MIX_BYTES as u64) {
+        sz = sz - 2 * ETHASH_MIX_BYTES as u64;
+    }
+    sz as usize
 }
 
 #[inline]
-fn get_seedhash(block_number: u64) -> H256 {
+/// Given the `block_number`, determine the seed hash for Ethash.
+pub fn get_seedhash(block_number: u64) -> H256 {
 	let epochs = block_number / ETHASH_EPOCH_LENGTH;
 	let mut ret: H256 = [0u8; 32];
 	for _ in 0..epochs {
@@ -289,7 +302,7 @@ fn light_new(block_number: u64) -> Light {
 		for i in 1..num_nodes {
 			sha3::sha3_512(nodes.get_unchecked_mut(i).bytes.as_mut_ptr(), NODE_BYTES, nodes.get_unchecked(i - 1).bytes.as_ptr(), NODE_BYTES);
 		}
-		
+
 		for _ in 0..ETHASH_CACHE_ROUNDS {
 			for i in 0..num_nodes {
 				let idx = *nodes.get_unchecked_mut(i).as_words().get_unchecked(0) as usize % num_nodes;
@@ -322,9 +335,34 @@ fn to_hex(bytes: &[u8]) -> String {
 }
 
 #[test]
+fn test_get_cache_size() {
+	// https://github.com/ethereum/wiki/wiki/Ethash/ef6b93f9596746a088ea95d01ca2778be43ae68f#data-sizes
+	assert_eq!(16776896usize, get_cache_size(0));
+	assert_eq!(16776896usize, get_cache_size(1));
+	assert_eq!(16776896usize, get_cache_size(ETHASH_EPOCH_LENGTH - 1));
+	assert_eq!(16907456usize, get_cache_size(ETHASH_EPOCH_LENGTH));
+	assert_eq!(16907456usize, get_cache_size(ETHASH_EPOCH_LENGTH + 1));
+	assert_eq!(284950208usize, get_cache_size(2046 * ETHASH_EPOCH_LENGTH));
+	assert_eq!(285081536usize, get_cache_size(2047 * ETHASH_EPOCH_LENGTH));
+	assert_eq!(285081536usize, get_cache_size(2048 * ETHASH_EPOCH_LENGTH - 1));
+}
+
+#[test]
+fn test_get_data_size() {
+	// https://github.com/ethereum/wiki/wiki/Ethash/ef6b93f9596746a088ea95d01ca2778be43ae68f#data-sizes
+	assert_eq!(1073739904usize, get_data_size(0));
+	assert_eq!(1073739904usize, get_data_size(1));
+	assert_eq!(1073739904usize, get_data_size(ETHASH_EPOCH_LENGTH - 1));
+	assert_eq!(1082130304usize, get_data_size(ETHASH_EPOCH_LENGTH));
+	assert_eq!(1082130304usize, get_data_size(ETHASH_EPOCH_LENGTH + 1));
+	assert_eq!(18236833408usize, get_data_size(2046 * ETHASH_EPOCH_LENGTH));
+	assert_eq!(18245220736usize, get_data_size(2047 * ETHASH_EPOCH_LENGTH));
+}
+
+#[test]
 fn test_difficulty_test() {
 	let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f, 0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05,  0x52, 0x7d, 0x72];
-	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d ]; 
+	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d ];
 	let nonce = 0xd7b3ac70a301a249;
 	let boundary_good = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
 	assert_eq!(quick_get_difficulty(&hash, nonce, &mix_hash)[..], boundary_good[..]);
@@ -335,7 +373,7 @@ fn test_difficulty_test() {
 #[test]
 fn test_light_compute() {
 	let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f, 0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05,  0x52, 0x7d, 0x72];
-	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d ]; 
+	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d ];
 	let boundary = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
 	let nonce = 0xd7b3ac70a301a249;
 	// difficulty = 0x085657254bd9u64;

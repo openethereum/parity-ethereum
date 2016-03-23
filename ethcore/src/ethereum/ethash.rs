@@ -57,16 +57,6 @@ impl Ethash {
 			u256_params: RwLock::new(HashMap::new())
 		}
 	}
-
-	fn u64_param(&self, name: &str) -> u64 {
-		*self.u64_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
-			self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a)))
-	}
-
-	fn u256_param(&self, name: &str) -> U256 {
-		*self.u256_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
-			self.spec().engine_params.get(name).map_or(x!(0), |a| decode(&a)))
-	}
 }
 
 impl Engine for Ethash {
@@ -74,8 +64,6 @@ impl Engine for Ethash {
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	// Two fields - mix
 	fn seal_fields(&self) -> usize { 2 }
-	// Two empty data items in RLP.
-	fn seal_rlp(&self) -> Bytes { encode(&H64::new()).to_vec() }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
@@ -87,20 +75,16 @@ impl Engine for Ethash {
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
 		trace!(target: "client", "Creating schedule. param={:?}, fCML={}", self.spec().engine_params.get("frontierCompatibilityModeLimit"), self.u64_param("frontierCompatibilityModeLimit"));
-		match env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
-			true => {
-				Schedule::new_frontier()
-			},
-			_ => {
-				Schedule::new_homestead()
-			},
+		if env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
+			Schedule::new_frontier()
+		} else {
+			Schedule::new_homestead()
 		}
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256) {
 		header.difficulty = self.calculate_difficuty(header, parent);
 		header.gas_limit = {
-			let gas_floor_target: U256 = x!(3141562);
 			let gas_limit = parent.gas_limit;
 			let bound_divisor = self.u256_param("gasLimitBoundDivisor");
 			if gas_limit < gas_floor_target {
@@ -109,7 +93,7 @@ impl Engine for Ethash {
 				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1) + (header.gas_used * x!(6) / x!(5)) / bound_divisor)
 			}
 		};
-
+		header.note_dirty();
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
 
@@ -147,9 +131,10 @@ impl Engine for Ethash {
 		}
 
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
-				&Ethash::to_ethash(header.bare_hash()), 
-				header.nonce().low_u64(),
-				&Ethash::to_ethash(header.mix_hash()))));
+			&Ethash::to_ethash(header.bare_hash()),
+			header.nonce().low_u64(),
+			&Ethash::to_ethash(header.mix_hash())
+		)));
 		if difficulty < header.difficulty {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
 		}
@@ -189,7 +174,7 @@ impl Engine for Ethash {
 		let min_gas = parent.gas_limit - parent.gas_limit / gas_limit_divisor;
 		let max_gas = parent.gas_limit + parent.gas_limit / gas_limit_divisor;
 		if header.gas_limit <= min_gas || header.gas_limit >= max_gas {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit }))); 
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit })));
 		}
 		Ok(())
 	}
@@ -204,9 +189,19 @@ impl Engine for Ethash {
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
+
+	fn u64_param(&self, name: &str) -> u64 {
+		*self.u64_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
+			self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a)))
+	}
+
+	fn u256_param(&self, name: &str) -> U256 {
+		*self.u256_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
+			self.spec().engine_params.get(name).map_or(x!(0), |a| decode(&a)))
+	}
 }
 
-#[allow(wrong_self_convention)] // to_ethash should take self
+#[cfg_attr(feature="dev", allow(wrong_self_convention))] // to_ethash should take self
 impl Ethash {
 	fn calculate_difficuty(&self, header: &Header, parent: &Header) -> U256 {
 		const EXP_DIFF_PERIOD: u64 = 100000;
@@ -220,8 +215,8 @@ impl Ethash {
 		let frontier_limit = self.u64_param("frontierCompatibilityModeLimit");
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {
-				parent.difficulty - (parent.difficulty / difficulty_bound_divisor) 
-			} 
+				parent.difficulty - (parent.difficulty / difficulty_bound_divisor)
+			}
 			else {
 				parent.difficulty + (parent.difficulty / difficulty_bound_divisor)
 			}
@@ -243,9 +238,20 @@ impl Ethash {
 		}
 		target
 	}
-	
-	fn boundary_to_difficulty(boundary: &H256) -> U256 {
+
+	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
+	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
 		U256::from((U512::one() << 256) / x!(U256::from(boundary.as_slice())))
+	}
+
+	/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
+	pub fn difficulty_to_boundary(difficulty: &U256) -> H256 {
+		x!(U256::from((U512::one() << 256) / x!(difficulty)))
+	}
+
+	/// Given the `block_number`, determine the seed hash for Ethash.
+	pub fn get_seedhash(number: BlockNumber) -> H256 {
+		Self::from_ethash(ethash::get_seedhash(number))
 	}
 
 	fn to_ethash(hash: H256) -> EH256 {
@@ -258,11 +264,19 @@ impl Ethash {
 }
 
 impl Header {
-	fn nonce(&self) -> H64 {
+	/// Get the none field of the header.
+	pub fn nonce(&self) -> H64 {
 		decode(&self.seal()[1])
 	}
-	fn mix_hash(&self) -> H256 {
+
+	/// Get the mix hash field of the header.
+	pub fn mix_hash(&self) -> H256 {
 		decode(&self.seal()[0])
+	}
+
+	/// Set the nonce and mix hash fields of the header.
+	pub fn set_nonce_and_mix_hash(&mut self, nonce: &H64, mix_hash: &H256) {
+		self.seal = vec![encode(mix_hash).to_vec(), encode(nonce).to_vec()];
 	}
 }
 
@@ -283,9 +297,9 @@ mod tests {
 		let genesis_header = engine.spec().genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(&mut db);
+		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
+		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -296,9 +310,9 @@ mod tests {
 		let genesis_header = engine.spec().genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(&mut db);
+		engine.spec().ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
-		let mut b = OpenBlock::new(engine.deref(), db, &genesis_header, &last_hashes, Address::zero(), vec![]);
+		let mut b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let mut uncle = Header::new();
 		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
 		uncle.author = uncle_author.clone();

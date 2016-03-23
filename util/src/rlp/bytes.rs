@@ -21,7 +21,7 @@ use std::mem;
 use std::fmt;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
-use uint::{Uint, U128, U256};
+use bigint::uint::{Uint, U128, U256};
 use hash::FixedHash;
 use elastic_array::*;
 
@@ -232,12 +232,12 @@ impl_uint_from_bytes!(u64);
 impl_uint_from_bytes!(usize);
 
 macro_rules! impl_uint_from_bytes {
-	($name: ident) => {
+	($name: ident, $size: expr) => {
 		impl FromBytes for $name {
 			fn from_bytes(bytes: &[u8]) -> FromBytesResult<$name> {
 				if !bytes.is_empty() && bytes[0] == 0 {
 					Err(FromBytesError::ZeroPrefixedInt)
-				} else if bytes.len() <= $name::SIZE {
+				} else if bytes.len() <= $size {
 					Ok($name::from(bytes))
 				} else {
 					Err(FromBytesError::DataIsTooLong)
@@ -247,8 +247,8 @@ macro_rules! impl_uint_from_bytes {
 	}
 }
 
-impl_uint_from_bytes!(U256);
-impl_uint_from_bytes!(U128);
+impl_uint_from_bytes!(U256, 32);
+impl_uint_from_bytes!(U128, 16);
 
 impl <T>FromBytes for T where T: FixedHash {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<T> {

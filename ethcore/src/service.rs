@@ -20,13 +20,24 @@ use util::*;
 use util::panics::*;
 use spec::Spec;
 use error::*;
-use client::Client;
+use client::{Client, ClientConfig};
 
 /// Message type for external and internal events
 #[derive(Clone)]
 pub enum SyncMessage {
 	/// New block has been imported into the blockchain
-	NewChainBlock(Bytes), //TODO: use Cow
+	NewChainBlocks {
+		/// Hashes of blocks imported to blockchain
+		imported: Vec<H256>,
+		/// Hashes of blocks not imported to blockchain (because were invalid)
+		invalid: Vec<H256>,
+		/// Hashes of blocks that were removed from canonical chain
+		retracted: Vec<H256>,
+		/// Hashes of blocks that are now included in cannonical chain
+		enacted: Vec<H256>,
+	},
+	/// Best Block Hash in chain has been changed
+	NewChainHead,
 	/// A block is ready
 	BlockVerified,
 }
@@ -43,14 +54,14 @@ pub struct ClientService {
 
 impl ClientService {
 	/// Start the service in a separate thread.
-	pub fn start(spec: Spec, net_config: NetworkConfiguration, db_path: &Path) -> Result<ClientService, Error> {
+	pub fn start(config: ClientConfig, spec: Spec, net_config: NetworkConfiguration, db_path: &Path) -> Result<ClientService, Error> {
 		let panic_handler = PanicHandler::new_in_arc();
 		let mut net_service = try!(NetworkService::start(net_config));
 		panic_handler.forward_from(&net_service);
 
 		info!("Starting {}", net_service.host_info());
 		info!("Configured for {} using {} engine", spec.name, spec.engine_name);
-		let client = try!(Client::new(spec, db_path, net_service.io().channel()));
+		let client = try!(Client::new(config, spec, db_path, net_service.io().channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone()
@@ -110,12 +121,11 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 		}
 	}
 
-	#[allow(match_ref_pats)]
-	#[allow(single_match)]
+	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, io: &IoContext<NetSyncMessage>, net_message: &NetSyncMessage) {
-		if let &UserMessage(ref message) = net_message {
-			match message {
-				&SyncMessage::BlockVerified => {
+		if let UserMessage(ref message) = *net_message {
+			match *message {
+				SyncMessage::BlockVerified => {
 					self.client.import_verified_blocks(&io.channel());
 				},
 				_ => {}, // ignore other messages
@@ -129,12 +139,14 @@ mod tests {
 	use super::*;
 	use tests::helpers::*;
 	use util::network::*;
+	use devtools::*;
+	use client::ClientConfig;
 
 	#[test]
 	fn it_can_be_started() {
 		let spec = get_test_spec();
 		let temp_path = RandomTempPath::new();
-		let service = ClientService::start(spec, NetworkConfiguration::new(), &temp_path.as_path());
+		let service = ClientService::start(ClientConfig::default(), spec, NetworkConfiguration::new_local(), &temp_path.as_path());
 		assert!(service.is_ok());
 	}
 }

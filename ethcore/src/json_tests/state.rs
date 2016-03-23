@@ -69,7 +69,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				let mut state = state_result.reference_mut();
 				state.populate_from(pre);
 				state.commit();
-				let res = state.apply(&env, engine.deref(), &t);
+				let res = state.apply(&env, engine.deref(), &t, false);
 
 				if fail_unless(state.root() == &post_state_root) {
 					println!("!!! {}: State mismatch (got: {}, expect: {}):", name, state.root(), post_state_root);
@@ -80,9 +80,9 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				}
 
 				if let Ok(r) = res {
-					if fail_unless(logs == r.logs) {
+					if fail_unless(logs == r.receipt.logs) {
 						println!("!!! {}: Logs mismatch:", name);
-						println!("Got:\n{:?}", r.logs);
+						println!("Got:\n{:?}", r.receipt.logs);
 						println!("Expect:\n{:?}", logs);
 					}
 				}
@@ -115,7 +115,7 @@ declare_test!{StateTests_stSolidityTest, "StateTests/stSolidityTest"}
 declare_test!{StateTests_stSpecialTest, "StateTests/stSpecialTest"}
 declare_test!{StateTests_stSystemOperationsTest, "StateTests/stSystemOperationsTest"}
 declare_test!{StateTests_stTransactionTest, "StateTests/stTransactionTest"}
-//declare_test!{StateTests_stTransitionTest, "StateTests/stTransitionTest"}
+declare_test!{StateTests_stTransitionTest, "StateTests/stTransitionTest"}
 declare_test!{StateTests_stWalletTest, "StateTests/stWalletTest"}
 
 

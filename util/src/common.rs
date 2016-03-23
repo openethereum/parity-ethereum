@@ -19,10 +19,9 @@
 pub use standard::*;
 pub use from_json::*;
 pub use error::*;
-pub use hash::*;
-pub use uint::*;
 pub use bytes::*;
 pub use vector::*;
+pub use numbers::*;
 pub use sha3::*;
 
 #[macro_export]

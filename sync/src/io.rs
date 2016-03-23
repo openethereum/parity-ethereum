@@ -37,6 +37,10 @@ pub trait SyncIo {
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
 	}
+	/// Returns if the chain block queue empty
+	fn is_chain_queue_empty(&self) -> bool {
+		self.chain().queue_info().is_empty()
+	}
 }
 
 /// Wraps `NetworkContext` and the blockchain client

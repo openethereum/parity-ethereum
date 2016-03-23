@@ -16,29 +16,40 @@
 
 //! Ethash implementation
 //! See https://github.com/ethereum/wiki/wiki/Ethash
+extern crate primal;
 extern crate sha3;
-extern crate lru_cache;
 #[macro_use]
 extern crate log;
-mod sizes;
 mod compute;
 
-use lru_cache::LruCache;
+use std::mem;
 use compute::Light;
-pub use compute::{quick_get_difficulty, H256, ProofOfWork, ETHASH_EPOCH_LENGTH};
+pub use compute::{get_seedhash, quick_get_difficulty, H256, ProofOfWork, ETHASH_EPOCH_LENGTH};
 
 use std::sync::{Arc, Mutex};
 
-/// Lighy/Full cache manager
+struct LightCache {
+	recent_epoch: Option<u64>,
+	recent: Option<Arc<Light>>,
+	prev_epoch: Option<u64>,
+	prev: Option<Arc<Light>>,
+}
+
+/// Light/Full cache manager.
 pub struct EthashManager {
-	lights: Mutex<LruCache<u64, Arc<Light>>>
+	cache: Mutex<LightCache>,
 }
 
 impl EthashManager {
 	/// Create a new new instance of ethash manager
 	pub fn new() -> EthashManager {
-		EthashManager { 
-			lights: Mutex::new(LruCache::new(2))
+		EthashManager {
+			cache: Mutex::new(LightCache {
+				recent_epoch: None,
+				recent: None,
+				prev_epoch: None,
+				prev: None,
+			}),
 		}
 	}
 
@@ -50,12 +61,28 @@ impl EthashManager {
 	pub fn compute_light(&self, block_number: u64, header_hash: &H256, nonce: u64) -> ProofOfWork {
 		let epoch = block_number / ETHASH_EPOCH_LENGTH;
 		let light = {
-			let mut lights = self.lights.lock().unwrap();
-			match lights.get_mut(&epoch).map(|l| l.clone()) {
+			let mut lights = self.cache.lock().unwrap();
+			let light = match lights.recent_epoch.clone() {
+				Some(ref e) if *e == epoch => lights.recent.clone(),
+				_ => match lights.prev_epoch.clone() {
+					Some(e) if e == epoch => {
+						// swap
+						let t = lights.prev_epoch;
+						lights.prev_epoch = lights.recent_epoch;
+						lights.recent_epoch = t;
+						let t = lights.prev.clone();
+						lights.prev = lights.recent.clone();
+						lights.recent = t;
+						lights.recent.clone()
+					}
+					_ => None,
+				}
+			};
+			match light {
 				None => {
 					let light = match Light::from_file(block_number) {
 						Ok(light) => Arc::new(light),
-						Err(e) => { 
+						Err(e) => {
 							debug!("Light cache file not found for {}:{}", block_number, e);
 							let light = Light::new(block_number);
 							if let Err(e) = light.to_file() {
@@ -64,7 +91,8 @@ impl EthashManager {
 							Arc::new(light)
 						}
 					};
-					lights.insert(epoch, light.clone());
+					lights.prev_epoch = mem::replace(&mut lights.recent_epoch, Some(epoch));
+					lights.prev = mem::replace(&mut lights.recent, Some(light.clone()));
 					light
 				}
 				Some(light) => light
@@ -72,4 +100,20 @@ impl EthashManager {
 		};
 		light.compute(header_hash, nonce)
 	}
+}
+
+#[test]
+fn test_lru() {
+	let ethash = EthashManager::new();
+	let hash = [0u8; 32];
+	ethash.compute_light(1, &hash, 1);
+	ethash.compute_light(50000, &hash, 1);
+	assert_eq!(ethash.cache.lock().unwrap().recent_epoch.unwrap(), 1);
+	assert_eq!(ethash.cache.lock().unwrap().prev_epoch.unwrap(), 0);
+	ethash.compute_light(1, &hash, 1);
+	assert_eq!(ethash.cache.lock().unwrap().recent_epoch.unwrap(), 0);
+	assert_eq!(ethash.cache.lock().unwrap().prev_epoch.unwrap(), 1);
+	ethash.compute_light(70000, &hash, 1);
+	assert_eq!(ethash.cache.lock().unwrap().recent_epoch.unwrap(), 2);
+	assert_eq!(ethash.cache.lock().unwrap().prev_epoch.unwrap(), 0);
 }

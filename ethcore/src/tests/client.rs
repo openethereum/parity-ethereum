@@ -14,29 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use client::{BlockChainClient, Client, BlockId};
+use client::{BlockChainClient, Client, ClientConfig, BlockId};
+use block::IsBlock;
 use tests::helpers::*;
 use common::*;
+use devtools::*;
 
 #[test]
 fn created() {
 	let dir = RandomTempPath::new();
-	let client_result = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected());
+	let client_result = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
 	assert!(client_result.is_ok());
 }
 
 #[test]
 fn imports_from_empty() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	client.import_verified_blocks(&IoChannel::disconnected());
 	client.flush_queue();
 }
 
 #[test]
+fn returns_state_root_basic() {
+	let client_result = generate_dummy_client(6);
+	let client = client_result.reference();
+	let test_spec = get_test_spec();
+	let test_engine = test_spec.to_engine().unwrap();
+	let state_root = test_engine.spec().genesis_header().state_root;
+
+	assert!(client.state_data(&state_root).is_some());
+}
+
+#[test]
 fn imports_good_block() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 	let good_block = get_good_dummy_block();
 	if let Err(_) = client.import_block(good_block) {
 		panic!("error importing block being good by definition");
@@ -51,7 +64,7 @@ fn imports_good_block() {
 #[test]
 fn query_none_block() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
 
     let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
@@ -103,5 +116,36 @@ fn can_collect_garbage() {
 	let client_result = generate_dummy_client(100);
 	let client = client_result.reference();
 	client.tick();
-	assert!(client.cache_info().blocks < 100 * 1024);
+	assert!(client.blockchain_cache_info().blocks < 100 * 1024);
+}
+
+#[test]
+fn can_handle_long_fork() {
+	let client_result = generate_dummy_client(1200);
+	let client = client_result.reference();
+	for _ in 0..10 {
+		client.import_verified_blocks(&IoChannel::disconnected());
+	}
+	assert_eq!(1200, client.chain_info().best_block_number);
+
+	push_blocks_to_client(client, 45, 1201, 800);
+	push_blocks_to_client(client, 49, 1201, 800);
+	push_blocks_to_client(client, 53, 1201, 600);
+
+	for _ in 0..20 {
+		client.import_verified_blocks(&IoChannel::disconnected());
+	}
+	assert_eq!(2000, client.chain_info().best_block_number);
+}
+
+#[test]
+fn can_mine() {
+	let dummy_blocks = get_good_dummy_block_seq(2);
+	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
+	let client = client_result.reference();
+
+	let b = client.prepare_sealing(Address::default(), x!(31415926), vec![], vec![]).unwrap().0;
+
+	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
+	assert!(client.try_seal(b, vec![]).is_ok());
 }

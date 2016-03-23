@@ -1,6 +1,6 @@
 # ethcore
 
-[![Build Status][travis-image]][travis-url] [![Coverage Status][coveralls-image]][coveralls-url] [![Join the chat at https://gitter.im/trogdoro/xiki][gitter-image]][gitter-url]
+[![Build Status][travis-image]][travis-url] [![Coverage Status][coveralls-image]][coveralls-url] [![Join the chat at https://gitter.im/trogdoro/xiki][gitter-image]][gitter-url] [![GPLv3][license-image]][license-url]
 
 [travis-image]: https://travis-ci.org/ethcore/parity.svg?branch=master
 [travis-url]: https://travis-ci.org/ethcore/parity
@@ -8,70 +8,33 @@
 [coveralls-url]: https://coveralls.io/github/ethcore/parity?branch=master
 [gitter-image]: https://badges.gitter.im/Join%20Chat.svg
 [gitter-url]: https://gitter.im/ethcore/parity?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+[license-image]: https://img.shields.io/badge/license-GPL%20v3-green.svg
+[license-url]: http://www.gnu.org/licenses/gpl-3.0.en.html
 
 [Documentation](http://ethcore.github.io/parity/ethcore/index.html)
 
 ### Building from source
 
-##### Ubuntu 14.04, 15.04, 15.10
+First (if you don't already have it) get multirust:
 
+- Linux:
 ```bash
-# install rocksdb
-add-apt-repository ppa:ethcore/ethcore
-apt-get update
-apt-get install -y --force-yes librocksdb-dev
-
-# install multirust
-curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
-
-# install nightly and make it default
-multirust update nightly
-multirust default nightly
-
-# download and build parity
-git clone https://github.com/ethcore/parity
-cd parity
-cargo build --release
+curl -sf https://raw.githubusercontent.com/brson/multirust/master/quick-install.sh | sudo sh -s -- --yes
 ```
 
-##### Other Linux
-
+- OSX with Homebrew:
 ```bash
-# install rocksdb
-git clone --tag v4.1 --depth=1 https://github.com/facebook/rocksdb.git
-cd rocksdb
-make shared_lib 
-sudo cp -a librocksdb.so* /usr/lib 
-sudo ldconfig 
-cd ..
-
-# install rust nightly
-curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sudo sh -s -- --yes
-
-# install nightly and make it default
-sudo multirust update nightly
-sudo multirust default nightly
-
-# download and build parity
-git clone https://github.com/ethcore/parity
-cd parity
-cargo build --release
+brew update && brew install multirust
+multirust default stable
 ```
 
-##### OSX with Homebrew
+Then, download and build Parity:
 
 ```bash
-# install rocksdb && multirust
-brew update
-brew install rocksdb
-brew install multirust
-
-# install nightly and make it default
-multirust update nightly && multirust default nightly
-
-# download and build parity
+# download Parity code
 git clone https://github.com/ethcore/parity
 cd parity
+
+# build in release mode
 cargo build --release
 ```
-

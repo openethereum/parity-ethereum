@@ -44,6 +44,7 @@ pub struct Worker {
 	thread: Option<JoinHandle<()>>,
 	wait: Arc<Condvar>,
 	deleting: Arc<AtomicBool>,
+	wait_mutex: Arc<Mutex<()>>,
 }
 
 impl Worker {
@@ -61,6 +62,7 @@ impl Worker {
 			thread: None,
 			wait: wait.clone(),
 			deleting: deleting.clone(),
+			wait_mutex: wait_mutex.clone(),
 		};
 		worker.thread = Some(thread::Builder::new().name(format!("IO Worker #{}", index)).spawn(
 			move || {
@@ -77,13 +79,17 @@ impl Worker {
 						wait_mutex: Arc<Mutex<()>>,
 						deleting: Arc<AtomicBool>)
 						where Message: Send + Sync + Clone + 'static {
-		while !deleting.load(AtomicOrdering::Relaxed) {
+		loop {
 			{
 				let lock = wait_mutex.lock().unwrap();
-				let _ = wait.wait(lock).unwrap();
-				if deleting.load(AtomicOrdering::Relaxed) {
+				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}
+				let _ = wait.wait(lock).unwrap();
+			}
+
+			if deleting.load(AtomicOrdering::Acquire) {
+				return;
 			}
 			while let chase_lev::Steal::Data(work) = stealer.steal() {
 				Worker::do_work(work, channel.clone());
@@ -114,7 +120,8 @@ impl Worker {
 
 impl Drop for Worker {
 	fn drop(&mut self) {
-		self.deleting.store(true, AtomicOrdering::Relaxed);
+		let _ = self.wait_mutex.lock();
+		self.deleting.store(true, AtomicOrdering::Release);
 		self.wait.notify_all();
 		let thread = mem::replace(&mut self.thread, None).unwrap();
 		thread.join().ok();

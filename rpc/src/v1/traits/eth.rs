@@ -55,21 +55,33 @@ pub trait Eth: Sized + Send + Sync + 'static {
 
 	/// Returns block with given number.
 	fn block_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
-	
+
 	/// Returns the number of transactions sent from given address at given time (block number).
 	fn transaction_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns the number of transactions in a block.
-	fn block_transaction_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	/// Returns the number of transactions in a block with given hash.
+	fn block_transaction_count_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns the number of uncles in a given block.
-	fn block_uncles_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	/// Returns the number of transactions in a block with given block number.
+	fn block_transaction_count_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns the number of uncles in a block with given hash.
+	fn block_uncles_count_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns the number of uncles in a block with given block number.
+	fn block_uncles_count_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Returns the code at given address at given time (block number).
 	fn code_at(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
+	/// Signs the data with given address signature.
+	fn sign(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Sends transaction.
 	fn send_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Sends signed transaction.
+	fn send_raw_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Call contract.
 	fn call(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
@@ -90,7 +102,10 @@ pub trait Eth: Sized + Send + Sync + 'static {
 	fn transaction_receipt(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Returns an uncles at given block and index.
-	fn uncle_at(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn uncle_by_block_hash_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns an uncles at given block and index.
+	fn uncle_by_block_number_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Returns available compilers.
 	fn compilers(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
@@ -127,15 +142,17 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_gasPrice", Eth::gas_price);
 		delegate.add_method("eth_accounts", Eth::accounts);
 		delegate.add_method("eth_blockNumber", Eth::block_number);
-		delegate.add_method("eth_balance", Eth::balance);
+		delegate.add_method("eth_getBalance", Eth::balance);
 		delegate.add_method("eth_getStorageAt", Eth::storage_at);
 		delegate.add_method("eth_getTransactionCount", Eth::transaction_count);
-		delegate.add_method("eth_getBlockTransactionCountByHash", Eth::block_transaction_count);
-		delegate.add_method("eth_getBlockTransactionCountByNumber", Eth::block_transaction_count);
-		delegate.add_method("eth_getUncleCountByBlockHash", Eth::block_uncles_count);
-		delegate.add_method("eth_getUncleCountByBlockNumber", Eth::block_uncles_count);
-		delegate.add_method("eth_code", Eth::code_at);
+		delegate.add_method("eth_getBlockTransactionCountByHash", Eth::block_transaction_count_by_hash);
+		delegate.add_method("eth_getBlockTransactionCountByNumber", Eth::block_transaction_count_by_number);
+		delegate.add_method("eth_getUncleCountByBlockHash", Eth::block_uncles_count_by_hash);
+		delegate.add_method("eth_getUncleCountByBlockNumber", Eth::block_uncles_count_by_number);
+		delegate.add_method("eth_getCode", Eth::code_at);
+		delegate.add_method("eth_sign", Eth::sign);
 		delegate.add_method("eth_sendTransaction", Eth::send_transaction);
+		delegate.add_method("eth_sendRawTransaction", Eth::send_raw_transaction);
 		delegate.add_method("eth_call", Eth::call);
 		delegate.add_method("eth_estimateGas", Eth::estimate_gas);
 		delegate.add_method("eth_getBlockByHash", Eth::block_by_hash);
@@ -144,8 +161,8 @@ pub trait Eth: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_getTransactionByBlockHashAndIndex", Eth::transaction_by_block_hash_and_index);
 		delegate.add_method("eth_getTransactionByBlockNumberAndIndex", Eth::transaction_by_block_number_and_index);
 		delegate.add_method("eth_getTransactionReceipt", Eth::transaction_receipt);
-		delegate.add_method("eth_getUncleByBlockHashAndIndex", Eth::uncle_at);
-		delegate.add_method("eth_getUncleByBlockNumberAndIndex", Eth::uncle_at);
+		delegate.add_method("eth_getUncleByBlockHashAndIndex", Eth::uncle_by_block_hash_and_index);
+		delegate.add_method("eth_getUncleByBlockNumberAndIndex", Eth::uncle_by_block_number_and_index);
 		delegate.add_method("eth_getCompilers", Eth::compilers);
 		delegate.add_method("eth_compileLLL", Eth::compile_lll);
 		delegate.add_method("eth_compileSolidity", Eth::compile_solidity);

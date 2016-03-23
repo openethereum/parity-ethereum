@@ -23,7 +23,7 @@ use super::journal::*;
 use super::trietraits::*;
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
-/// 
+///
 /// Use it as a `Trie` trait object. You can use `db()` to get the backing database object, `keys`
 /// to get the keys belonging to the trie in the backing database, and `db_items_remaining()` to get
 /// which items in the backing database do not belong to this trie. If this is the only trie in the
@@ -66,21 +66,21 @@ enum MaybeChanged<'a> {
 	Changed(Bytes),
 }
 
-#[allow(wrong_self_convention)]
+#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl<'db> TrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self { 
+	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self {
 		let mut r = TrieDBMut{
-			db: db, 
+			db: db,
 			root: root,
-			hash_count: 0 
-		}; 
+			hash_count: 0
+		};
 
 		// set root rlp
-		*r.root = SHA3_NULL_RLP.clone(); 
-		r 
+		*r.root = SHA3_NULL_RLP.clone();
+		r
 	}
 
 	/// Create a new trie with the backing database `db` and `root`.
@@ -91,21 +91,21 @@ impl<'db> TrieDBMut<'db> {
 			flushln!("Trie root not found {}", root);
 			panic!("Trie root not found!");
 		}
-		TrieDBMut { 
-			db: db, 
+		TrieDBMut {
+			db: db,
 			root: root,
-			hash_count: 0 
+			hash_count: 0
 		}
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB { 
-		self.db 
+	pub fn db(&'db self) -> &'db HashDB {
+		self.db
 	}
 
 	/// Get the backing database.
-	pub fn db_mut(&'db mut self) -> &'db mut HashDB { 
-		self.db 
+	pub fn db_mut(&'db mut self) -> &'db mut HashDB {
+		self.db
 	}
 
 	/// Determine all the keys in the backing database that belong to the trie.
@@ -184,7 +184,7 @@ impl<'db> TrieDBMut<'db> {
 
 	/// Indentation helper for `formal_all`.
 	fn fmt_indent(&self, f: &mut fmt::Formatter, size: usize) -> fmt::Result {
-		for _ in 0..size { 
+		for _ in 0..size {
 			try!(write!(f, "  "));
 		}
 		Ok(())
@@ -350,7 +350,7 @@ impl<'db> TrieDBMut<'db> {
 		}
 	}
 
-	#[allow(cyclomatic_complexity)]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	/// Determine the RLP of the node, assuming we're inserting `partial` into the
 	/// node currently of data `old`. This will *not* delete any hash of `old` from the database;
 	/// it will just return the new RLP that includes the new node.
@@ -378,7 +378,7 @@ impl<'db> TrieDBMut<'db> {
 						// original had empty slot - place a leaf there.
 						true if old_rlp.at(i).is_empty() => journal.new_node(Self::compose_leaf(&partial.mid(1), value), &mut s),
 						// original has something there already; augment.
-						true => {	
+						true => {
 							let new = self.augmented(self.take_node(&old_rlp.at(i), journal), &partial.mid(1), value, journal);
 							journal.new_node(new, &mut s);
 						}
@@ -687,31 +687,10 @@ mod tests {
 	use super::*;
 	use nibbleslice::*;
 	use rlp::*;
-	use rand::random;
-	use std::collections::HashSet;
-	use bytes::{ToPretty,Bytes,Populatable};
+	use bytes::ToPretty;
 	use super::super::node::*;
 	use super::super::trietraits::*;
-
-	fn random_key(alphabet: &[u8], min_count: usize, journal_count: usize) -> Vec<u8> {
-		let mut ret: Vec<u8> = Vec::new();
-		let r = min_count + if journal_count > 0 {random::<usize>() % journal_count} else {0};
-		for _ in 0..r {
-			ret.push(alphabet[random::<usize>() % alphabet.len()]);
-		}
-		ret
-	}
-	
-	fn random_value_indexed(j: usize) -> Bytes {
-		match random::<usize>() % 2 {
-			0 => encode(&j).to_vec(),
-			_ => {
-				let mut h = H256::new();
-				h.as_slice_mut()[31] = j as u8;
-				encode(&h).to_vec()
-			},
-		}
-	}
+	use super::super::standardmap::*;
 
 	fn populate_trie<'db>(db: &'db mut HashDB, root: &'db mut H256, v: &[(Vec<u8>, Vec<u8>)]) -> TrieDBMut<'db> {
 		let mut t = TrieDBMut::new(db, root);
@@ -756,20 +735,18 @@ mod tests {
 		};*/
 //		panic!();
 
+		let mut seed = H256::new();
 		for test_i in 0..1 {
 			if test_i % 50 == 0 {
 				debug!("{:?} of 10000 stress tests done", test_i);
 			}
-			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
-			let mut got: HashSet<Vec<u8>> = HashSet::new();
-			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
-			for j in 0..100usize {
-				let key = random_key(alphabet, 5, 0);
-				if !got.contains(&key) {
-					x.push((key.clone(), random_value_indexed(j)));
-					got.insert(key);
-				}
-			}
+			let x = StandardMap {
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				min_key: 5,
+				journal_key: 0,
+				value_mode: ValueMode::Index,
+				count: 100,
+			}.make_with(&mut seed);
 
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::new();
@@ -1049,13 +1026,16 @@ mod tests {
 
 	#[test]
 	fn stress() {
+		let mut seed = H256::new();
 		for _ in 0..50 {
-			let mut x: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
-			let alphabet = b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_";
-			for j in 0..4u32 {
-				let key = random_key(alphabet, 5, 1);
-				x.push((key, encode(&j).to_vec()));
-			}
+			let x = StandardMap {
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				min_key: 5,
+				journal_key: 0,
+				value_mode: ValueMode::Index,
+				count: 4,
+			}.make_with(&mut seed);
+
 			let real = trie_root(x.clone());
 			let mut memdb = MemoryDB::new();
 			let mut root = H256::new();

@@ -27,7 +27,7 @@ const MAX_CACHE_USAGE_TRACK: usize = 128;
 #[derive(PartialEq, Debug, Clone)]
 pub enum CryptoCipherType {
 	/// aes-128-ctr with 128-bit initialisation vector(iv)
-	Aes128Ctr(U128)
+	Aes128Ctr(H128)
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -168,6 +168,8 @@ pub struct KeyFileCrypto {
 	pub cipher_text: Bytes,
 	/// Password derived key generator function settings.
 	pub kdf: KeyFileKdf,
+	/// Mac
+	pub mac: H256
 }
 
 impl KeyFileCrypto {
@@ -182,7 +184,7 @@ impl KeyFileCrypto {
 			Some("aes-128-ctr") => CryptoCipherType::Aes128Ctr(
 				match try!(as_object.get("cipherparams").ok_or(CryptoParseError::NoCipherParameters)).as_object() {
 					None => { return Err(CryptoParseError::NoCipherParameters); },
-					Some(cipher_param) => match U128::from_str(match cipher_param["iv"].as_string() {
+					Some(cipher_param) => match H128::from_str(match cipher_param["iv"].as_string() {
 							None => { return Err(CryptoParseError::NoInitialVector); },
 							Some(iv_hex_string) => iv_hex_string
 						})
@@ -216,22 +218,31 @@ impl KeyFileCrypto {
 			}
 		};
 
-		let cipher_text = match as_object["ciphertext"].as_string() {
-			None => { return Err(CryptoParseError::NoCipherText); }
+		let cipher_text = match try!(as_object.get("ciphertext").ok_or(CryptoParseError::NoCipherText)).as_string() {
+			None => { return Err(CryptoParseError::InvalidCipherText); }
 			Some(text) => text
 		};
 
+		let mac: H256 = match try!(as_object.get("mac").ok_or(CryptoParseError::NoMac)).as_string() {
+			None => { return Err(CryptoParseError::InvalidMacFormat(None)) },
+			Some(salt_value) => match H256::from_str(salt_value) {
+				Ok(salt_hex_value) => salt_hex_value,
+				Err(from_hex_error) => { return Err(CryptoParseError::InvalidMacFormat(Some(from_hex_error))); },
+			}
+		};
+
 		Ok(KeyFileCrypto {
-			cipher_text: Bytes::from(cipher_text),
+			cipher_text: match FromHex::from_hex(cipher_text) { Ok(bytes) => bytes, Err(_) => { return Err(CryptoParseError::InvalidCipherText); } },
 			cipher_type: cipher_type,
 			kdf: kdf,
+			mac: mac,
 		})
 	}
 
 	fn to_json(&self) -> Json {
 		let mut map = BTreeMap::new();
 		match self.cipher_type {
-			CryptoCipherType::Aes128Ctr(iv) => {
+			CryptoCipherType::Aes128Ctr(ref iv) => {
 				map.insert("cipher".to_owned(), Json::String("aes-128-ctr".to_owned()));
 				let mut cipher_params = BTreeMap::new();
 				cipher_params.insert("iv".to_owned(), Json::String(format!("{:?}", iv)));
@@ -251,6 +262,8 @@ impl KeyFileCrypto {
 			KeyFileKdf::Scrypt(ref scrypt_params) => scrypt_params.to_json()
 		});
 
+		map.insert("mac".to_owned(), Json::String(format!("{:?}", self.mac)));
+
 		Json::Object(map)
 	}
 
@@ -260,7 +273,7 @@ impl KeyFileCrypto {
 	/// `c` - number of iterations for derived key.
 	/// `salt` - cryptographic site, random 256-bit hash (ensure it's crypto-random).
 	/// `iv` - initialisation vector.
-	pub fn new_pbkdf2(cipher_text: Bytes, iv: U128, salt: H256, c: u32, dk_len: u32) -> KeyFileCrypto {
+	pub fn new_pbkdf2(cipher_text: Bytes, iv: H128, salt: H256, mac: H256, c: u32, dk_len: u32) -> KeyFileCrypto {
 		KeyFileCrypto {
 			cipher_type: CryptoCipherType::Aes128Ctr(iv),
 			cipher_text: cipher_text,
@@ -270,6 +283,7 @@ impl KeyFileCrypto {
 				c: c,
 				prf: Pbkdf2CryptoFunction::HMacSha256
 			}),
+			mac: mac,
 		}
 	}
 }
@@ -291,7 +305,7 @@ fn uuid_to_string(uuid: &Uuid) -> String {
 }
 
 fn uuid_from_string(s: &str) -> Result<Uuid, UtilError> {
-	let parts: Vec<&str> = s.split("-").collect();
+	let parts: Vec<&str> = s.split('-').collect();
 	if parts.len() != 5 { return Err(UtilError::BadSize); }
 
 	let mut uuid = H128::zero();
@@ -319,19 +333,24 @@ pub struct KeyFileContent {
 	/// Holds cypher and decrypt function settings.
 	pub crypto: KeyFileCrypto,
 	/// The identifier.
-	pub id: Uuid
+	pub id: Uuid,
+	/// Account (if present)
+	pub account: Option<Address>,
 }
 
 #[derive(Debug)]
 enum CryptoParseError {
+	InvalidMacFormat(Option<UtilError>),
+	NoMac,
 	NoCipherText,
+	InvalidCipherText,
 	NoCipherType,
 	InvalidJsonFormat,
 	InvalidKdfType(Mismatch<String>),
 	InvalidCipherType(Mismatch<String>),
 	NoInitialVector,
 	NoCipherParameters,
-	InvalidInitialVector(FromHexError),
+	InvalidInitialVector(UtilError),
 	NoKdf,
 	NoKdfType,
 	Scrypt(ScryptParseError),
@@ -357,7 +376,19 @@ impl KeyFileContent {
 		KeyFileContent {
 			id: new_uuid(),
 			version: KeyFileVersion::V3(3),
-			crypto: crypto
+			crypto: crypto,
+			account: None
+		}
+	}
+
+	/// Loads key from valid json, returns error and records warning if key is mallformed
+	pub fn load(json: &Json) -> Result<KeyFileContent, ()> {
+		match Self::from_json(json) {
+			Ok(key_file) => Ok(key_file),
+			Err(e) => {
+				warn!(target: "sstore", "Error parsing json for key: {:?}", e);
+				Err(())
+			}
 		}
 	}
 
@@ -390,6 +421,9 @@ impl KeyFileContent {
 			Ok(id) => id
 		};
 
+		let account = as_object.get("address").and_then(|json| json.as_string()).and_then(
+			|account_text| match Address::from_str(account_text) { Ok(account) => Some(account), Err(_) => None });
+
 		let crypto = match as_object.get("crypto") {
 			None => { return Err(KeyFileParseError::NoCryptoSection); }
 			Some(crypto_json) => match KeyFileCrypto::from_json(crypto_json) {
@@ -401,7 +435,8 @@ impl KeyFileContent {
 		Ok(KeyFileContent {
 			version: version,
 			id: id.clone(),
-			crypto: crypto
+			crypto: crypto,
+			account: account
 		})
 	}
 
@@ -410,6 +445,7 @@ impl KeyFileContent {
 		map.insert("id".to_owned(), Json::String(uuid_to_string(&self.id)));
 		map.insert("version".to_owned(), Json::U64(CURRENT_DECLARED_VERSION));
 		map.insert("crypto".to_owned(), self.crypto.to_json());
+		if let Some(ref address) = self.account { map.insert("address".to_owned(), Json::String(format!("{:?}", address))); }
 		Json::Object(map)
 	}
 }
@@ -425,17 +461,17 @@ enum KeyFileLoadError {
 pub struct KeyDirectory {
 	/// Directory path for key management.
 	path: String,
-	cache: HashMap<Uuid, KeyFileContent>,
-	cache_usage: VecDeque<Uuid>,
+	cache: RwLock<HashMap<Uuid, KeyFileContent>>,
+	cache_usage: RwLock<VecDeque<Uuid>>,
 }
 
 impl KeyDirectory {
 	/// Initializes new cache directory context with a given `path`
 	pub fn new(path: &Path) -> KeyDirectory {
 		KeyDirectory {
-			cache: HashMap::new(),
+			cache: RwLock::new(HashMap::new()),
 			path: path.to_str().expect("Initialized key directory with empty path").to_owned(),
-			cache_usage: VecDeque::new(),
+			cache_usage: RwLock::new(VecDeque::new()),
 		}
 	}
 
@@ -448,25 +484,37 @@ impl KeyDirectory {
 			let json_bytes = json_text.into_bytes();
 			try!(file.write(&json_bytes));
 		}
+		let mut cache = self.cache.write().unwrap();
 		let id = key_file.id.clone();
-		self.cache.insert(id.clone(), key_file);
+		cache.insert(id.clone(), key_file);
 		Ok(id.clone())
 	}
 
 	/// Returns key given by id if corresponding file exists and no load error occured.
 	/// Warns if any error occured during the key loading
-	pub fn get(&mut self, id: &Uuid) -> Option<&KeyFileContent> {
+	pub fn get(&self, id: &Uuid) -> Option<KeyFileContent> {
 		let path = self.key_path(id);
-		self.cache_usage.push_back(id.clone());
-		Some(self.cache.entry(id.to_owned()).or_insert(
+		{
+			let mut usage = self.cache_usage.write().unwrap();
+			usage.push_back(id.clone());
+		}
+
+		if !self.cache.read().unwrap().contains_key(id) {
 			match KeyDirectory::load_key(&path) {
-				Ok(loaded_key) => loaded_key,
+				Ok(loaded_key) => {
+					self.cache.write().unwrap().insert(id.to_owned(), loaded_key);
+				}
 				Err(error) => {
 					warn!(target: "sstore", "error loading key {:?}: {:?}", id, error);
 					return None;
 				}
 			}
-		))
+		}
+
+		// todo: replace with Ref::map when it stabilized to avoid copies
+		Some(self.cache.read().unwrap().get(id)
+			.expect("Key should be there, we have just inserted or checked it.")
+			.clone())
 	}
 
 	/// Returns current path to the directory with keys
@@ -476,29 +524,65 @@ impl KeyDirectory {
 
 	/// Removes keys that never been requested during last `MAX_USAGE_TRACK` times
 	pub fn collect_garbage(&mut self) {
-		let total_usages = self.cache_usage.len();
+		let mut cache_usage = self.cache_usage.write().unwrap();
+
+		let total_usages = cache_usage.len();
 		let untracked_usages = max(total_usages as i64 - MAX_CACHE_USAGE_TRACK as i64, 0) as usize;
 		if untracked_usages > 0 {
-			self.cache_usage.drain(..untracked_usages);
+			cache_usage.drain(..untracked_usages);
 		}
 
-		if self.cache.len() <= MAX_CACHE_USAGE_TRACK { return; }
+		if self.cache.read().unwrap().len() <= MAX_CACHE_USAGE_TRACK { return; }
 
-		let uniqs: HashSet<&Uuid> = self.cache_usage.iter().collect();
-		let mut removes = HashSet::new();
+		let uniqs: HashSet<&Uuid> = cache_usage.iter().collect();
+		let removes:Vec<Uuid> = {
+			let cache = self.cache.read().unwrap();
+			cache.keys().cloned().filter(|key| !uniqs.contains(key)).collect()
+		};
+		if removes.is_empty() { return; }
+		let mut cache = self.cache.write().unwrap();
+		for key in removes { cache.remove(&key); }
 
-		for key in self.cache.keys() {
-			if !uniqs.contains(key) {
-				removes.insert(key.clone());
-			}
-		}
-
-		for removed_key in removes { self.cache.remove(&removed_key); }
+		cache.shrink_to_fit();
 	}
 
 	/// Reports how many keys are currently cached.
 	pub fn cache_size(&self) -> usize {
-		self.cache.len()
+		self.cache.read().unwrap().len()
+	}
+
+	/// Removes key file from key directory
+	pub fn delete(&mut self, id: &Uuid) -> Result<(), ::std::io::Error> {
+		let path = self.key_path(id);
+
+		if !self.cache.read().unwrap().contains_key(id) {
+			return match fs::remove_file(&path) {
+				Ok(_) => {
+					self.cache.write().unwrap().remove(&id);
+					Ok(())
+				},
+				Err(e) => Err(e)
+			};
+		}
+		Ok(())
+	}
+
+	/// Enumerates all keys in the directory
+	pub fn list(&self) -> Result<Vec<Uuid>, ::std::io::Error> {
+		let mut result = Vec::new();
+		for entry in try!(fs::read_dir(&self.path)) {
+			let entry = try!(entry);
+			if !try!(fs::metadata(entry.path())).is_dir() {
+				match entry.file_name().to_str() {
+					Some(ref name) => {
+						if let Ok(uuid) = uuid_from_string(name) { result.push(uuid); }
+					},
+					None => { continue; }
+				};
+
+			}
+		}
+		Ok(result)
 	}
 
 	fn key_path(&self, id: &Uuid) -> PathBuf {
@@ -536,6 +620,8 @@ impl KeyDirectory {
 			Err(_) => Err(KeyFileLoadError::ParseError(KeyFileParseError::InvalidJson))
 		}
 	}
+
+
 }
 
 
@@ -590,7 +676,7 @@ mod file_tests {
 	}
 
 	#[test]
-	fn can_read_scrypt_krf() {
+	fn can_read_scrypt_kdf() {
 		let json = Json::from_str(
 			r#"
 				{
@@ -619,6 +705,47 @@ mod file_tests {
 			Ok(key_file) => {
 				match key_file.crypto.kdf {
 					KeyFileKdf::Scrypt(_) => {},
+					_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
+				}
+			},
+			Err(e) => panic!("Error parsing valid file: {:?}", e)
+		}
+	}
+
+	#[test]
+	fn can_read_scrypt_kdf_params() {
+		let json = Json::from_str(
+			r#"
+				{
+					"crypto" : {
+						"cipher" : "aes-128-ctr",
+						"cipherparams" : {
+							"iv" : "83dbcc02d8ccb40e466191a123791e0e"
+						},
+						"ciphertext" : "d172bf743a674da9cdad04534d56926ef8358534d458fffccd4e6ad2fbde479c",
+						"kdf" : "scrypt",
+						"kdfparams" : {
+							"dklen" : 32,
+							"n" : 262144,
+							"r" : 1,
+							"p" : 8,
+							"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
+						},
+						"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
+					},
+					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+					"version" : 3
+				}
+			"#).unwrap();
+
+		match KeyFileContent::from_json(&json) {
+			Ok(key_file) => {
+				match key_file.crypto.kdf {
+					KeyFileKdf::Scrypt(scrypt_params) => {
+						assert_eq!(262144, scrypt_params.n);
+						assert_eq!(1, scrypt_params.r);
+						assert_eq!(8, scrypt_params.p);
+					},
 					_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
 				}
 			},
@@ -781,7 +908,7 @@ mod file_tests {
 				panic!("Should be error of no identifier, got ok");
 			},
 			Err(KeyFileParseError::Crypto(CryptoParseError::Scrypt(_))) => { },
-			Err(other_error) => { panic!("should be error of no identifier, got {:?}", other_error); }
+			Err(other_error) => { panic!("should be scrypt parse error, got {:?}", other_error); }
 		}
 	}
 
@@ -820,14 +947,14 @@ mod file_tests {
 	#[test]
 	fn can_create_key_with_new_id() {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
-		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32));
+		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), H256::random(), 32, 32));
 		assert!(!uuid_to_string(&key.id).is_empty());
 	}
 
 	#[test]
 	fn can_load_json_from_itself() {
 		let cipher_text: Bytes = FromHex::from_hex("aaaaaaaaaaaaaaaaaaaaaaaaaaa22222222222222222222222").unwrap();
-		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32));
+		let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), H256::random(), 32, 32));
 		let json = key.to_json();
 
 		let loaded_key = KeyFileContent::from_json(&json).unwrap();
@@ -967,7 +1094,7 @@ mod file_tests {
 mod directory_tests {
 	use super::{KeyDirectory, new_uuid, uuid_to_string, KeyFileContent, KeyFileCrypto, MAX_CACHE_USAGE_TRACK};
 	use common::*;
-	use tests::helpers::*;
+	use devtools::*;
 
 	#[test]
 	fn key_directory_locates_keys() {
@@ -985,7 +1112,7 @@ mod directory_tests {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
-		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32))).unwrap();
+		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), H256::random(), 32, 32))).unwrap();
 		let path = directory.key_path(&uuid);
 
 		let key = KeyDirectory::load_key(&path).unwrap();
@@ -1001,7 +1128,7 @@ mod directory_tests {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let mut keys = Vec::new();
 		for _ in 0..1000 {
-			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32));
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), H256::random(), 32, 32));
 			keys.push(directory.save(key).unwrap());
 		}
 
@@ -1021,7 +1148,7 @@ mod directory_tests {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let mut keys = Vec::new();
 		for _ in 0..1000 {
-			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32));
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), H256::random(), 32, 32));
 			keys.push(directory.save(key).unwrap());
 		}
 
@@ -1033,13 +1160,21 @@ mod directory_tests {
 		// since all keys are different, should be exactly MAX_CACHE_USAGE_TRACK
 		assert_eq!(MAX_CACHE_USAGE_TRACK, directory.cache_size())
 	}
+
+	#[test]
+	fn collects_garbage_on_empty() {
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+		directory.collect_garbage();
+		assert_eq!(0, directory.cache_size())
+	}
 }
 
 #[cfg(test)]
 mod specs {
 	use super::*;
 	use common::*;
-	use tests::helpers::*;
+	use devtools::*;
 
 	#[test]
 	fn can_initiate_key_directory() {
@@ -1054,7 +1189,7 @@ mod specs {
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
 
-		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, U128::zero(), H256::random(), 32, 32)));
+		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, H128::zero(), H256::random(), H256::random(), 32, 32)));
 
 		assert!(uuid.is_ok());
 	}
@@ -1064,7 +1199,7 @@ mod specs {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let temp_path = RandomTempPath::create_dir();
 		let mut directory = KeyDirectory::new(&temp_path.as_path());
-		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32))).unwrap();
+		let uuid = directory.save(KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), H256::random(), 32, 32))).unwrap();
 
 		let key = directory.get(&uuid).unwrap();
 
@@ -1079,10 +1214,25 @@ mod specs {
 		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
 		let mut keys = Vec::new();
 		for _ in 0..10 {
-			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), U128::zero(), H256::random(), 32, 32));
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), H256::random(), 32, 32));
 			keys.push(directory.save(key).unwrap());
 		}
 
 		assert_eq!(10, keys.len())
+	}
+
+	#[test]
+	fn can_list_keys() {
+		let temp_path = RandomTempPath::create_dir();
+		let mut directory = KeyDirectory::new(&temp_path.as_path());
+
+		let cipher_text: Bytes = FromHex::from_hex("a0f05555").unwrap();
+		let mut keys = Vec::new();
+		for _ in 0..33 {
+			let key = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text.clone(), H128::zero(), H256::random(), H256::random(), 32, 32));
+			keys.push(directory.save(key).unwrap());
+		}
+
+		assert_eq!(33, directory.list().unwrap().len());
 	}
 }

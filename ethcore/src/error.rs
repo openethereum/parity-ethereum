@@ -63,8 +63,33 @@ pub enum ExecutionError {
 }
 
 #[derive(Debug)]
-/// Errors concerning transaction proessing.
+/// Errors concerning transaction processing.
 pub enum TransactionError {
+	/// Transaction is already imported to the queue
+	AlreadyImported,
+	/// Transaction is not valid anymore (state already has higher nonce)
+	Old,
+	/// Transaction's gas price is below threshold.
+	InsufficientGasPrice {
+		/// Minimal expected gas price
+		minimal: U256,
+		/// Transaction gas price
+		got: U256,
+	},
+	/// Sender doesn't have enough funds to pay for this transaction
+	InsufficientBalance {
+		/// Senders balance
+		balance: U256,
+		/// Transaction cost
+		cost: U256,
+	},
+	/// Transactions gas is higher then current gas limit
+	GasLimitExceeded {
+		/// Current gas limit
+		limit: U256,
+		/// Declared transaction gas
+		got: U256,
+	},
 	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
 }
@@ -131,24 +156,13 @@ pub enum BlockError {
 #[derive(Debug)]
 /// Import to the block queue result
 pub enum ImportError {
-	/// Bad block detected
-	Bad(Option<Error>),
-	/// Already in the block chain
+	/// Already in the block chain.
 	AlreadyInChain,
-	/// Already in the block queue
+	/// Already in the block queue.
 	AlreadyQueued,
-	/// Unknown parent
-	UnknownParent,
+	/// Already marked as bad from a previous import (could mean parent is bad).
+	KnownBad,
 }
-
-impl From<Error> for ImportError {
-	fn from(err: Error) -> ImportError {
-		ImportError::Bad(Some(err))
-	}
-}
-
-/// Result of import block operation.
-pub type ImportResult = Result<H256, ImportError>;
 
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
@@ -163,11 +177,26 @@ pub enum Error {
 	Execution(ExecutionError),
 	/// Error concerning transaction processing.
 	Transaction(TransactionError),
+	/// Error concerning block import.
+	Import(ImportError),
+	/// PoW hash is invalid or out of date.
+	PowHashInvalid,
+	/// The value of the nonce or mishash is invalid.
+	PowInvalid,
 }
+
+/// Result of import block operation.
+pub type ImportResult = Result<H256, Error>;
 
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Error {
 		Error::Transaction(err)
+	}
+}
+
+impl From<ImportError> for Error {
+	fn from(err: ImportError) -> Error {
+		Error::Import(err)
 	}
 }
 

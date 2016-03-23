@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::net::SocketAddr;
+use std::io;
 use mio::*;
 use hash::*;
 use rlp::*;
@@ -23,7 +25,7 @@ use error::*;
 use io::{IoContext, StreamToken};
 use network::error::{NetworkError, DisconnectReason};
 use network::host::*;
-use network::node::NodeId;
+use network::node_table::NodeId;
 use time;
 
 const PING_TIMEOUT_SEC: u64 = 30;
@@ -39,6 +41,8 @@ pub struct Session {
 	connection: EncryptedConnection,
 	/// Session ready flag. Set after successfull Hello packet exchange
 	had_hello: bool,
+	/// Session is no longer active flag.
+	expired: bool,
 	ping_time_ns: u64,
 	pong_time_ns: Option<u64>,
 }
@@ -89,7 +93,7 @@ impl Decodable for PeerCapabilityInfo {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 struct SessionCapabilityInfo {
 	pub protocol: &'static str,
 	pub version: u8,
@@ -107,8 +111,9 @@ const PACKET_USER: u8 = 0x10;
 const PACKET_LAST: u8 = 0x7f;
 
 impl Session {
-	/// Create a new session out of comepleted handshake. Consumes handshake object.
-	pub fn new<Message>(h: Handshake, _io: &IoContext<Message>, host: &HostInfo) -> Result<Session, UtilError> where Message: Send + Sync + Clone {
+	/// Create a new session out of comepleted handshake. This clones the handshake connection object 
+	/// and leaves the handhsake in limbo to be deregistered from the event loop.
+	pub fn new(h: &mut Handshake, host: &HostInfo) -> Result<Session, UtilError> {
 		let id = h.id.clone();
 		let connection = try!(EncryptedConnection::new(h));
 		let mut session = Session {
@@ -123,10 +128,16 @@ impl Session {
 			},
 			ping_time_ns: 0,
 			pong_time_ns: None,
+			expired: false,
 		};
 		try!(session.write_hello(host));
 		try!(session.send_ping());
 		Ok(session)
+	}
+
+	/// Get id of the remote peer
+	pub fn id(&self) -> &NodeId {
+		&self.info.id
 	}
 
 	/// Check if session is ready to send/receive data
@@ -134,8 +145,31 @@ impl Session {
 		self.had_hello
 	}
 
+	/// Mark this session as inactive to be deleted lated.
+	pub fn set_expired(&mut self) {
+		self.expired = true;
+	}
+
+	/// Check if this session is expired.
+	pub fn expired(&self) -> bool {
+		self.expired
+	}
+
+	/// Replace socket token 
+	pub fn set_token(&mut self, token: StreamToken) {
+		self.connection.set_token(token);
+	}
+
+	/// Get remote peer address
+	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
+		self.connection.remote_addr()
+	}
+
 	/// Readable IO handler. Returns packet data if available.
 	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<SessionData, UtilError>  where Message: Send + Sync + Clone {
+		if self.expired() {
+			return Ok(SessionData::None) 
+		}
 		match try!(self.connection.readable(io)) {
 			Some(data) => Ok(try!(self.read_packet(data, host))),
 			None => Ok(SessionData::None)
@@ -144,6 +178,9 @@ impl Session {
 
 	/// Writable IO handler. Sends pending packets.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Sync + Clone {
+		if self.expired() {
+			return Ok(()) 
+		}
 		self.connection.writable(io)
 	}
 
@@ -152,8 +189,20 @@ impl Session {
 		self.info.capabilities.iter().any(|c| c.protocol == protocol)
 	}
 
+	/// Register the session socket with the event loop
+	pub fn register_socket<Host:Handler<Timeout = Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		if self.expired() {
+			return Ok(());
+		}
+		try!(self.connection.register_socket(reg, event_loop));
+		Ok(())
+	}
+
 	/// Update registration with the event loop. Should be called at the end of the IO handler.
 	pub fn update_socket<Host:Handler>(&self, reg:Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
+		if self.expired() {
+			return Ok(());
+		}
 		self.connection.update_socket(reg, event_loop)
 	}
 
@@ -164,6 +213,13 @@ impl Session {
 
 	/// Send a protocol packet to peer.
 	pub fn send_packet(&mut self, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), UtilError> {
+		if self.info.capabilities.is_empty() || !self.had_hello {
+			debug!(target: "network", "Sending to unconfirmed session {}, protocol: {}, packet: {}", self.token(), protocol, packet_id);
+			return Err(From::from(NetworkError::BadProtocol));
+		}
+		if self.expired() {
+			return Err(From::from(NetworkError::Expired));
+		}
 		let mut i = 0usize;
 		while protocol != self.info.capabilities[i].protocol {
 			i += 1;
@@ -214,7 +270,11 @@ impl Session {
 				try!(self.read_hello(&rlp, host));
 				Ok(SessionData::Ready)
 			},
-			PACKET_DISCONNECT => Err(From::from(NetworkError::Disconnect(DisconnectReason::DisconnectRequested))),
+			PACKET_DISCONNECT => {
+				let rlp = UntrustedRlp::new(&packet.data[1..]);
+				let reason: u8 = try!(rlp.val_at(0));
+				Err(From::from(NetworkError::Disconnect(DisconnectReason::from_u8(reason))))
+			}
 			PACKET_PING => {
 				try!(self.send_pong());
 				Ok(SessionData::None)
@@ -255,7 +315,7 @@ impl Session {
 			.append(&host.protocol_version)
 			.append(&host.client_version)
 			.append(&host.capabilities)
-			.append(&host.listen_port)
+			.append(&host.local_endpoint.address.port())
 			.append(host.id());
 		self.connection.send_packet(&rlp.out())
 	}
@@ -298,10 +358,15 @@ impl Session {
 			offset += caps[i].packet_count;
 			i += 1;
 		}
-		trace!(target: "net", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		trace!(target: "network", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;
+		if self.info.capabilities.is_empty() {
+			trace!(target: "network", "No common capabilities with peer.");
+			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
+		}
 		if protocol != host.protocol_version {
+			trace!(target: "network", "Peer protocol version mismatch: {}", protocol);
 			return Err(From::from(self.disconnect(DisconnectReason::UselessPeer)));
 		}
 		self.had_hello = true;

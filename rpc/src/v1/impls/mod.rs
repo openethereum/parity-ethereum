@@ -15,10 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethereum rpc interface implementation.
+
+macro_rules! take_weak {
+	($weak: expr) => {
+		match $weak.upgrade() {
+			Some(arc) => arc,
+			None => return Err(Error::internal_error())
+		}
+	}
+}
+
 mod web3;
 mod eth;
 mod net;
+mod personal;
 
 pub use self::web3::Web3Client;
 pub use self::eth::{EthClient, EthFilterClient};
 pub use self::net::NetClient;
+pub use self::personal::PersonalClient;

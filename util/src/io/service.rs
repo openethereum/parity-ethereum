@@ -153,7 +153,7 @@ struct UserTimer {
 pub struct IoManager<Message> where Message: Send + Sync {
 	timers: Arc<RwLock<HashMap<HandlerId, UserTimer>>>,
 	handlers: Vec<Arc<IoHandler<Message>>>,
-	_workers: Vec<Worker>,
+	workers: Vec<Worker>,
 	worker_channel: chase_lev::Worker<Work<Message>>,
 	work_ready: Arc<Condvar>,
 }
@@ -180,7 +180,7 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 			timers: Arc::new(RwLock::new(HashMap::new())),
 			handlers: Vec::new(),
 			worker_channel: worker,
-			_workers: workers,
+			workers: workers,
 			work_ready: work_ready,
 		};
 		try!(event_loop.run(&mut io));
@@ -230,7 +230,10 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 
 	fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
 		match msg {
-			IoMessage::Shutdown => event_loop.shutdown(),
+			IoMessage::Shutdown => {
+				self.workers.clear();
+				event_loop.shutdown();
+			},
 			IoMessage::AddHandler { handler } => {
 				let handler_id = {
 					self.handlers.push(handler.clone());
@@ -256,6 +259,11 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 			IoMessage::DeregisterStream { handler_id, token } => {
 				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();
 				handler.deregister_stream(token, event_loop);
+				// unregister a timer associated with the token (if any)
+				let timer_id = token + handler_id * TOKENS_PER_HANDLER;
+				if let Some(timer) = self.timers.write().unwrap().remove(&timer_id) {
+					event_loop.clear_timeout(timer.timeout);
+				}
 			},
 			IoMessage::UpdateStreamRegistration { handler_id, token } => {
 				let handler = self.handlers.get(handler_id).expect("Unknown handler id").clone();

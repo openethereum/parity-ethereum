@@ -23,7 +23,7 @@ use rand::Rng;
 use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
 use from_json::*;
-use uint::{Uint, U256};
+use bigint::uint::{Uint, U256};
 use rustc_serialize::hex::ToHex;
 use serde;
 
@@ -63,7 +63,8 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 	fn low_u64(&self) -> u64;
 }
 
-fn clean_0x(s: &str) -> &str {
+/// Return `s` without the `0x` at the beginning of it, if any.
+pub fn clean_0x(s: &str) -> &str {
 	if s.len() >= 2 && &s[0..2] == "0x" {
 		&s[2..]
 	} else {
@@ -77,17 +78,18 @@ macro_rules! impl_hash {
 		/// Unformatted binary data of fixed length.
 		pub struct $from (pub [u8; $size]);
 
-		impl BytesConvertable for $from {
-			fn bytes(&self) -> &[u8] {
-				&self.0
-			}
-		}
-
 		impl Deref for $from {
 			type Target = [u8];
 
 			#[inline]
 			fn deref(&self) -> &[u8] {
+				&self.0
+			}
+		}
+
+		impl AsRef<[u8]> for $from {
+			#[inline]
+			fn as_ref(&self) -> &[u8] {
 				&self.0
 			}
 		}
@@ -234,11 +236,11 @@ macro_rules! impl_hash {
 		}
 
 		impl serde::Serialize for $from {
-			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> 
+			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
 			where S: serde::Serializer {
 				let mut hex = "0x".to_owned();
 				hex.push_str(self.to_hex().as_ref());
-				serializer.visit_str(hex.as_ref())
+				serializer.serialize_str(hex.as_ref())
 			}
 		}
 
@@ -249,14 +251,14 @@ macro_rules! impl_hash {
 
 				impl serde::de::Visitor for HashVisitor {
 					type Value = $from;
-					
+
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
 						// 0x + len
 						if value.len() != 2 + $size * 2 {
-							return Err(serde::Error::syntax("Invalid length."));
+							return Err(serde::Error::custom("Invalid length."));
 						}
 
-						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::syntax("Invalid valid hex."))
+						value[2..].from_hex().map(|ref v| $from::from_slice(v)).map_err(|_| serde::Error::custom("Invalid hex value."))
 					}
 
 					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: serde::Error {
@@ -264,7 +266,7 @@ macro_rules! impl_hash {
 					}
 				}
 
-				deserializer.visit(HashVisitor)
+				deserializer.deserialize(HashVisitor)
 			}
 		}
 
@@ -303,6 +305,8 @@ macro_rules! impl_hash {
 			}
 		}
 
+		impl Copy for $from {}
+		#[cfg_attr(feature="dev", allow(expl_impl_clone_on_copy))]
 		impl Clone for $from {
 			fn clone(&self) -> $from {
 				unsafe {
@@ -410,15 +414,6 @@ macro_rules! impl_hash {
 
 			fn bitor(self, rhs: Self) -> Self::Output {
 				&self | &rhs
-			}
-		}
-
-		/// Moving BitOrAssign
-		impl<'a> BitOrAssign<&'a $from> for $from {
-			fn bitor_assign(&mut self, rhs: &'a Self) {
-				for i in 0..$size {
-					self.0[i] = self.0[i] | rhs.0[i];
-				}
 			}
 		}
 
@@ -603,7 +598,7 @@ pub fn h256_from_hex(s: &str) -> H256 {
 
 /// Convert `n` to an `H256`, setting the rightmost 8 bytes.
 pub fn h256_from_u64(n: u64) -> H256 {
-	use uint::U256;
+	use bigint::uint::U256;
 	H256::from(&U256::from(n))
 }
 
@@ -639,11 +634,11 @@ pub static ZERO_H256: H256 = H256([0x00; 32]);
 #[cfg(test)]
 mod tests {
 	use hash::*;
-	use uint::*;
+	use bigint::uint::*;
 	use std::str::FromStr;
 
 	#[test]
-	#[allow(eq_op)]
+	#[cfg_attr(feature="dev", allow(eq_op))]
 	fn hash() {
 		let h = H64([0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]);
 		assert_eq!(H64::from_str("0123456789abcdef").unwrap(), h);
@@ -727,4 +722,3 @@ mod tests {
 		assert_eq!(r, u);
 	}
 }
-

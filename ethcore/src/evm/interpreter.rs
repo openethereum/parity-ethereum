@@ -243,7 +243,7 @@ struct CodeReader<'a> {
 	code: &'a Bytes
 }
 
-#[allow(len_without_is_empty)]
+#[cfg_attr(feature="dev", allow(len_without_is_empty))]
 impl<'a> CodeReader<'a> {
 	/// Get `no_of_bytes` from code and convert to U256. Move PC
 	fn read(&mut self, no_of_bytes: usize) -> U256 {
@@ -258,7 +258,7 @@ impl<'a> CodeReader<'a> {
 	}
 }
 
-#[allow(enum_variant_names)]
+#[cfg_attr(feature="dev", allow(enum_variant_names))]
 enum InstructionCost {
 	Gas(U256),
 	GasMem(U256, U256),
@@ -299,7 +299,7 @@ impl evm::Evm for Interpreter {
 			let (gas_cost, mem_size) = try!(self.get_gas_cost_mem(ext, instruction, &mut mem, &stack));
 			try!(self.verify_gas(&current_gas, &gas_cost));
 			mem.expand(mem_size);
-			current_gas -= gas_cost;
+			current_gas = current_gas - gas_cost; //TODO: use operator -=
 
 			evm_debug!({
 				println!("[0x{:x}][{}(0x{:x}) Gas: {:x}\n  Gas Before: {:x}",
@@ -320,7 +320,7 @@ impl evm::Evm for Interpreter {
 			match result {
 				InstructionResult::Ok => {},
 				InstructionResult::UnusedGas(gas) => {
-					current_gas += gas;
+					current_gas = current_gas + gas; //TODO: use operator +=
 				},
 				InstructionResult::UseAllGas => {
 					current_gas = U256::zero();
@@ -347,13 +347,14 @@ impl evm::Evm for Interpreter {
 }
 
 impl Interpreter {
-	#[allow(cyclomatic_complexity)]
-	fn get_gas_cost_mem(&self,
-						ext: &evm::Ext,
-						instruction: Instruction,
-						mem: &mut Memory,
-						stack: &Stack<U256>
-					   ) -> Result<(U256, usize), evm::Error> {
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	fn get_gas_cost_mem(
+		&self,
+		ext: &evm::Ext,
+		instruction: Instruction,
+		mem: &mut Memory,
+		stack: &Stack<U256>
+	) -> Result<(U256, usize), evm::Error> {
 		let schedule = ext.schedule();
 		let info = instructions::get_info(instruction);
 
@@ -521,15 +522,17 @@ impl Interpreter {
 		Ok(overflowing!(offset.overflowing_add(size.clone())))
 	}
 
-	fn exec_instruction(&self,
-						gas: Gas,
-						params: &ActionParams,
-						ext: &mut evm::Ext,
-						instruction: Instruction,
-						code: &mut CodeReader,
-						mem: &mut Memory,
-						stack: &mut Stack<U256>
-					   ) -> Result<InstructionResult, evm::Error> {
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
+	fn exec_instruction(
+		&self,
+		gas: Gas,
+		params: &ActionParams,
+		ext: &mut evm::Ext,
+		instruction: Instruction,
+		code: &mut CodeReader,
+		mem: &mut Memory,
+		stack: &mut Stack<U256>
+	) -> Result<InstructionResult, evm::Error> {
 		match instruction {
 			instructions::JUMP => {
 				let jump = stack.pop_back();
@@ -581,9 +584,10 @@ impl Interpreter {
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
 
-				let value = match instruction == instructions::DELEGATECALL {
-					true => None,
-					false => Some(stack.pop_back())
+				let value = if instruction == instructions::DELEGATECALL {
+					None
+				} else {
+					Some(stack.pop_back())
 				};
 
 				let in_off = stack.pop_back();

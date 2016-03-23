@@ -21,8 +21,10 @@ use bytes::*;
 use rlp::*;
 use sha3::*;
 use hashdb::*;
+use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
+use std::default::Default;
 
 #[derive(Debug,Clone)]
 /// Reference-counted memory-based HashDB implementation.
@@ -31,7 +33,7 @@ use std::collections::HashMap;
 /// with `kill()`, check for existance with `exists()` and lookup a hash to derive
 /// the data with `lookup()`. Clear with `clear()` and purge the portions of the data
 /// that have no references with `purge()`.
-/// 
+///
 /// # Example
 /// ```rust
 /// extern crate ethcore_util;
@@ -68,9 +70,16 @@ use std::collections::HashMap;
 ///   assert!(!m.exists(&k));
 /// }
 /// ```
+#[derive(PartialEq)]
 pub struct MemoryDB {
 	data: HashMap<H256, (Bytes, i32)>,
 	static_null_rlp: (Bytes, i32),
+}
+
+impl Default for MemoryDB {
+	fn default() -> Self {
+		MemoryDB::new()
+	}
 }
 
 impl MemoryDB {
@@ -132,7 +141,7 @@ impl MemoryDB {
 
 	/// Denote than an existing value has the given key. Used when a key gets removed without
 	/// a prior insert and thus has a negative reference with no value.
-	/// 
+	///
 	/// May safely be called even if the key's value is known, in which case it will be a no-op.
 	pub fn denote(&self, key: &H256, value: Bytes) -> &(Bytes, i32) {
 		if self.raw(key) == None {
@@ -142,6 +151,11 @@ impl MemoryDB {
 			}
 		}
 		self.raw(key).unwrap()
+	}
+
+	/// Returns the size of allocated heap memory
+	pub fn mem_used(&self) -> usize {
+		self.data.heap_size_of_children()
 	}
 }
 

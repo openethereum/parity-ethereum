@@ -30,7 +30,7 @@ pub enum BlockNumber {
 impl Deserialize for BlockNumber {
 	fn deserialize<D>(deserializer: &mut D) -> Result<BlockNumber, D::Error>
 	where D: Deserializer {
-		deserializer.visit(BlockNumberVisitor)
+		deserializer.deserialize(BlockNumberVisitor)
 	}
 }
 
@@ -44,8 +44,8 @@ impl Visitor for BlockNumberVisitor {
 			"latest" => Ok(BlockNumber::Latest),
 			"earliest" => Ok(BlockNumber::Earliest),
 			"pending" => Ok(BlockNumber::Pending),
-			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|_| Error::syntax("invalid block number")),
-			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|_| Error::syntax("invalid block number"))
+			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|_| Error::custom("invalid block number")),
+			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|_| Error::custom("invalid block number"))
 		}
 	}
 
@@ -55,13 +55,12 @@ impl Visitor for BlockNumberVisitor {
 }
 
 impl Into<BlockId> for BlockNumber {
-	#[allow(match_same_arms)]
 	fn into(self) -> BlockId {
 		match self {
 			BlockNumber::Num(n) => BlockId::Number(n),
 			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
-			BlockNumber::Pending => BlockId::Latest // TODO: change this once blockid support pending
+			// TODO: change this once blockid support pendingst,
+			BlockNumber::Pending | BlockNumber::Latest => BlockId::Latest,
 		}
 	}
 }

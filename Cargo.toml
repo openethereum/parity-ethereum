@@ -1,29 +1,45 @@
 [package]
 description = "Ethcore client."
 name = "parity"
-version = "0.9.0"
+version = "1.1.0"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io>"]
+build = "build.rs"
+
+[build-dependencies]
+rustc_version = "0.1"
 
 [dependencies]
 log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
 docopt = "0.6"
-docopt_macros = "0.6"
+time = "0.1"
 ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
-clippy = "0.0.41"
-ethcore-util = { path = "util" }
-ethcore = { path = "ethcore" }
-ethsync = { path = "sync" }
-ethcore-rpc = { path = "rpc", optional = true }
 fdlimit = { path = "util/fdlimit" }
-target_info = "0.1"
+daemonize = "0.2"
+num_cpus = "0.2"
+number_prefix = "0.2"
+rpassword = "0.1"
+clippy = { version = "0.0.54", optional = true }
+ethcore = { path = "ethcore" }
+ethcore-util = { path = "util" }
+ethsync = { path = "sync" }
+ethminer = { path = "miner" }
+ethcore-devtools = { path = "devtools" }
+ethcore-rpc = { path = "rpc", optional = true }
 
 [features]
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev"]
+travis-beta = ["ethcore/json-tests"]
+travis-nightly = ["ethcore/json-tests", "dev"]
 
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
+
+[profile.release]
+debug = false
+lto = false

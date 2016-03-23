@@ -17,3 +17,5 @@
 //! Key management module
 
 pub mod directory;
+pub mod store;
+mod geth_import;

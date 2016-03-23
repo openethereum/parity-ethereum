@@ -42,6 +42,8 @@ pub trait RangeCollection<K, V> {
 	fn remove_head(&mut self, start: &K);
 	/// Remove all elements >= `start` in the range that contains `start`
 	fn remove_tail(&mut self, start: &K);
+	/// Remove all elements >= `start`
+	fn remove_from(&mut self, start: &K);
 	/// Remove all elements >= `tail`
 	fn insert_item(&mut self, key: K, value: V);
 	/// Get an iterator over ranges
@@ -137,6 +139,28 @@ impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq +
 		}
 	}
 
+	/// Remove the element and all following it.
+	fn remove_from(&mut self, key: &K) {
+		match self.binary_search_by(|&(k, _)| k.cmp(key).reverse()) {
+			Ok(index) => { self.drain(.. index + 1); },
+			Err(index) =>{
+				let mut empty = false;
+				match self.get_mut(index) {
+					Some(&mut (ref k, ref mut v)) if k <= key && (*k + FromUsize::from_usize(v.len())) > *key => {
+						v.truncate((*key - *k).to_usize());
+						empty = v.is_empty();
+					}
+					_ => {}
+				}
+				if empty {
+					self.drain(.. index + 1);
+				} else {
+					self.drain(.. index);
+				}
+			},
+		}
+	}
+
 	/// Remove range elements up to key
 	fn remove_head(&mut self, key: &K) {
 		if *key == FromUsize::from_usize(0) {
@@ -207,7 +231,7 @@ impl<K, V> RangeCollection<K, V> for Vec<(K, Vec<V>)> where K: Ord + PartialEq +
 }
 
 #[test]
-#[allow(cyclomatic_complexity)]
+#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 fn test_range() {
 	use std::cmp::{Ordering};
 
@@ -271,6 +295,23 @@ fn test_range() {
 	r.remove_tail(&3);
 	assert_eq!(r.range_iter().cmp(vec![(2, &['b'][..])]),  Ordering::Equal);
 	r.remove_tail(&2);
+	assert_eq!(r.range_iter().next(), None);
+
+	let mut r = ranges.clone();
+	r.remove_from(&20);
+	assert_eq!(r.range_iter().cmp(vec![(2, &['b', 'c', 'd'][..]),  (16, &['p', 'q', 'r'][..])]),  Ordering::Equal);
+	r.remove_from(&18);
+	assert!(!r.have_item(&18));
+	assert_eq!(r.range_iter().cmp(vec![(2, &['b', 'c', 'd'][..]),  (16, &['p', 'q'][..])]),  Ordering::Equal);
+	r.remove_from(&16);
+	assert!(!r.have_item(&16));
+	assert_eq!(r.range_iter().cmp(vec![(2, &['b', 'c', 'd'][..])]),  Ordering::Equal);
+	r.remove_from(&3);
+	assert_eq!(r.range_iter().cmp(vec![(2, &['b'][..])]),  Ordering::Equal);
+	r.remove_from(&1);
+	assert_eq!(r.range_iter().next(), None);
+	let mut r = ranges.clone();
+	r.remove_from(&2);
 	assert_eq!(r.range_iter().next(), None);
 }
 

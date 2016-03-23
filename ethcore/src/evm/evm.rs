@@ -65,7 +65,7 @@ pub enum Error {
 
 /// Evm result.
 /// 
-/// Returns gas_left if execution is successfull, otherwise error.
+/// Returns gas_left if execution is successful, otherwise error.
 pub type Result = result::Result<U256, Error>;
 
 /// Evm interface.
