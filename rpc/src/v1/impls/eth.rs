@@ -41,7 +41,7 @@ fn default_gas() -> U256 {
 }
 
 fn default_gas_price() -> U256 {
-	shannon() * U256::from(50)
+	shannon() * U256::from(20)
 }
 
 /// Eth rpc implementation.

@@ -120,7 +120,7 @@ pub trait BlockChainClient : Sync + Send {
 	// TODO [todr] Should be moved to miner crate eventually.
 	/// Returns ClosedBlock prepared for sealing.
 	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> Option<(ClosedBlock, HashSet<H256>)>;
+		-> (Option<ClosedBlock>, HashSet<H256>);
 
 	// TODO [todr] Should be moved to miner crate eventually.
 	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
@@ -128,5 +128,8 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;
+
+	/// Executes a function providing it with a reference to an engine.
+	fn with_engine<F>(&self, _f: F) where F: FnOnce(&Engine) {}
 }
 

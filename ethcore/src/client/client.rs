@@ -426,17 +426,23 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
+	// TODO: either work out a better API than this or refactor prepare_sealing and try_seal in terms of this.
+	fn with_engine<F, T>(&self, f: F) -> T where F: FnOnce(&Engine) -> T {
+		f(self.engine.deref().deref())
+	}
+
 	// TODO [todr] Should be moved to miner crate eventually.
 	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> Option<(ClosedBlock, HashSet<H256>)> {
+		-> (Option<ClosedBlock>, HashSet<H256>) {
 		let engine = self.engine.deref().deref();
 		let h = self.chain.best_block_hash();
+		let mut invalid_transactions = HashSet::new();
 
 		let mut b = OpenBlock::new(
 			engine,
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().unwrap().spawn(),
-			match self.chain.block_header(&h) { Some(ref x) => x, None => {return None} },
+			match self.chain.block_header(&h) { Some(ref x) => x, None => { return (None, invalid_transactions) } },
 			self.build_last_hashes(h.clone()),
 			author,
 			gas_floor_target,
@@ -456,7 +462,6 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		// Add transactions
 		let block_number = b.block().header().number();
 		let min_tx_gas = U256::from(self.engine.schedule(&b.env_info()).tx_gas);
-		let mut invalid_transactions = HashSet::new();
 
 		for tx in transactions {
 			// Push transaction to block
@@ -488,7 +493,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			   b.hash(),
 			   b.block().header().difficulty()
 		);
-		Some((b, invalid_transactions))
+		(Some(b), invalid_transactions)
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {

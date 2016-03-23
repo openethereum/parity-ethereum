@@ -261,6 +261,10 @@ impl<'x> OpenBlock<'x> {
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
 	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
+		if self.block.transactions_set.contains(t.hash()) {
+			return Err(From::from(ExecutionError::AlreadyImported));
+		}
+
 		let env_info = self.env_info();
 //		info!("env_info says gas_used={}", env_info.gas_used);
 		match self.block.state.apply(&env_info, self.engine, &t, self.block.traces.is_some()) {
