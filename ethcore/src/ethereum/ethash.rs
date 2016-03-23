@@ -57,16 +57,6 @@ impl Ethash {
 			u256_params: RwLock::new(HashMap::new())
 		}
 	}
-
-	fn u64_param(&self, name: &str) -> u64 {
-		*self.u64_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
-			self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a)))
-	}
-
-	fn u256_param(&self, name: &str) -> U256 {
-		*self.u256_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
-			self.spec().engine_params.get(name).map_or(x!(0), |a| decode(&a)))
-	}
 }
 
 impl Engine for Ethash {
@@ -198,6 +188,16 @@ impl Engine for Ethash {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
+
+	fn u64_param(&self, name: &str) -> u64 {
+		*self.u64_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
+			self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a)))
+	}
+
+	fn u256_param(&self, name: &str) -> U256 {
+		*self.u256_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
+			self.spec().engine_params.get(name).map_or(x!(0), |a| decode(&a)))
 	}
 }
 

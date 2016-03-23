@@ -20,6 +20,7 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 extern crate docopt;
+extern crate num_cpus;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
@@ -269,7 +270,7 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	Some(server.start_http(url, cors_domain, 1))
+	Some(server.start_http(url, cors_domain, ::num_cpus::get()))
 }
 
 #[cfg(not(feature = "rpc"))]

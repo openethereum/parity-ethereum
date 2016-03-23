@@ -19,8 +19,8 @@ use util::numbers::U256;
 use v1::types::Bytes;
 
 #[derive(Debug, Default, PartialEq, Deserialize)]
-pub struct TransactionRequest {
-	pub from: Address,
+pub struct CallRequest {
+	pub from: Option<Address>,
 	pub to: Option<Address>,
 	#[serde(rename="gasPrice")]
 	pub gas_price: Option<U256>,
@@ -52,10 +52,10 @@ mod tests {
 			"data":"0x123456",
 			"nonce":"0x4"
 		}"#;
-		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
+		let deserialized: CallRequest = serde_json::from_str(s).unwrap();
 
-		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from(1),
+		assert_eq!(deserialized, CallRequest {
+			from: Some(Address::from(1)),
 			to: Some(Address::from(2)),
 			gas_price: Some(U256::from(1)),
 			gas: Some(U256::from(2)),
@@ -75,10 +75,10 @@ mod tests {
 			"value": "0x9184e72a",
 			"data": "0xd46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675"
 		}"#;
-		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
+		let deserialized: CallRequest = serde_json::from_str(s).unwrap();
 
-		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap(),
+		assert_eq!(deserialized, CallRequest {
+			from: Some(Address::from_str("b60e8dd61c5d32be8058bb8eb970870f07233155").unwrap()),
 			to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 			gas_price: Some(U256::from_str("9184e72a000").unwrap()),
 			gas: Some(U256::from_str("76c0").unwrap()),
@@ -91,10 +91,10 @@ mod tests {
 	#[test]
 	fn transaction_request_deserialize_empty() {
 		let s = r#"{"from":"0x0000000000000000000000000000000000000001"}"#;
-		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
+		let deserialized: CallRequest = serde_json::from_str(s).unwrap();
 
-		assert_eq!(deserialized, TransactionRequest {
-			from: Address::from(1),
+		assert_eq!(deserialized, CallRequest {
+			from: Some(Address::from(1)),
 			to: None,
 			gas_price: None,
 			gas: None,

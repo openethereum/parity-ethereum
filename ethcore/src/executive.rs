@@ -196,6 +196,7 @@ impl<'a> Executive<'a> {
 		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy);
 			let vm_factory = self.engine.vm_factory();
+			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
 			return vm_factory.create().exec(params, &mut ext);
 		}
 
@@ -245,35 +246,49 @@ impl<'a> Executive<'a> {
 					Err(evm::Error::OutOfGas)
 				}
 			}
-		} else if params.code.is_some() {
+		} else {
 			// if destination is a contract, do normal message call
-
-			// part of substate that may be reverted
-			let mut unconfirmed_substate = Substate::new(substate.subtraces.is_some());
+			
+			// don't trace if it's DELEGATECALL or CALLCODE.
+			let should_trace = if let ActionValue::Transfer(_) = params.value {
+				params.code_address == params.address && substate.subtraces.is_some()
+			} else { false };
 
 			// transaction tracing stuff. None if there's no tracing.
-			let mut trace_info = substate.subtraces.as_ref().map(|_| (TraceAction::from_call(&params), self.depth));
-			let mut trace_output = trace_info.as_ref().map(|_| vec![]);
+			let (mut trace_info, mut trace_output) = if should_trace {
+				(Some((TraceAction::from_call(&params), self.depth)), Some(vec![]))
+			} else { (None, None) };
 
-			let res = {
-				self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()))
-			};
+			if params.code.is_some() {
+				// part of substate that may be reverted
+				let mut unconfirmed_substate = Substate::new(should_trace);
 
-			// if there's tracing, make up trace_info's result with trace_output and some arithmetic.
-			if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
-				c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, trace_output.expect("trace_info is Some: qed")));
+				let res = {
+					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()))
+				};
+
+				trace!(target: "executive", "res={:?}", res);
+
+				// if there's tracing, make up trace_info's result with trace_output and some arithmetic.
+				if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
+					c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, trace_output.expect("trace_info is Some: so should_trace: qed")));
+				}
+
+				trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
+
+				self.enact_result(&res, substate, unconfirmed_substate, trace_info);
+				trace!(target: "executive", "enacted: substate={:?}\n", substate);
+				res
+			} else {
+				// otherwise it's just a basic transaction, only do tracing, if necessary.
+				trace!(target: "executive", "Basic message (send funds) should_trace={}", should_trace);
+				self.state.clear_snapshot();
+				if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
+					c.result = Some((x!(0), vec![]));
+				}
+				substate.accrue_trace(if should_trace {Some(vec![])} else {None}, trace_info);
+				Ok(params.gas)
 			}
-
-			trace!(target: "executive", "sstore-clears={}\n", unconfirmed_substate.sstore_clears_count);
-			trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
-
-			self.enact_result(&res, substate, unconfirmed_substate, trace_info);
-			trace!(target: "executive", "enacted: substate={:?}\n", substate);
-			res
-		} else {
-			// otherwise, nothing
-			self.state.clear_snapshot();
-			Ok(params.gas)
 		}
 	}
 
@@ -530,6 +545,7 @@ mod tests {
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
 		params.address = address.clone();
+		params.code_address = address.clone();
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
@@ -627,6 +643,7 @@ mod tests {
 		assert_eq!(substate.subtraces, expected_trace);
 		assert_eq!(gas_left, U256::from(96_776));
 	}
+
 	evm_test!{test_create_contract_value_too_high: test_create_contract_value_too_high_jit, test_create_contract_value_too_high_int}
 	fn test_create_contract_value_too_high(factory: Factory) {
 		// code:

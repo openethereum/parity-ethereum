@@ -103,4 +103,14 @@ pub trait Engine : Sync + Send {
 	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut [u8]) { self.spec().builtins.get(a).unwrap().execute(input, output); }
 
 	// TODO: sealing stuff - though might want to leave this for later.
+
+	/// Get a named parameter from the `spec()`'s `engine_params` item and convert to u64, or 0 if that fails.
+	fn u64_param(&self, name: &str) -> u64 {
+		self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a))
+	}
+
+	/// Get a named parameter from the `spec()`'s `engine_params` item and convert to U256, or 0 if that fails.
+	fn u256_param(&self, name: &str) -> U256 {
+		self.spec().engine_params.get(name).map_or(x!(0), |a| decode(&a))
+	}
 }

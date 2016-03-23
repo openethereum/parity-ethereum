@@ -225,6 +225,14 @@ impl MinerService for Miner {
 		}
 	}
 
+	fn author(&self) -> Address {
+		*self.author.read().unwrap()
+	}
+
+	fn extra_data(&self) -> Bytes {
+		self.extra_data.read().unwrap().clone()
+	}
+
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
 		where T: Fn(&Address) -> AccountDetails {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
