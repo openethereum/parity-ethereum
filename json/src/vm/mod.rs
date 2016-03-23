@@ -14,14 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_serialize;
-extern crate serde;
-extern crate serde_json;
-extern crate ethcore_util as util;
+//! Vm test loader.
 
-pub mod hash;
-pub mod uint;
-pub mod bytes;
-pub mod blockchain;
-pub mod spec;
+pub mod env;
+pub mod transaction;
 pub mod vm;
+pub mod log;
+pub mod call;
+
+pub use self::env::Env;
+pub use self::transaction::Transaction;
+pub use self::vm::Vm;
+pub use self::log::Log;
+pub use self::call::Call;
