@@ -435,13 +435,8 @@ function run_installer()
 		echo
 
 		info "Installing parity"
-		if [[ $isEth == true ]]
-		then
-			brew reinstall parity
-		else
-			brew install parity
-			brew linkapps parity
-		fi
+		brew reinstall parity
+		brew linkapps parity
 		echo
 	}
 	
