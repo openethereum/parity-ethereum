@@ -23,7 +23,7 @@ use uint::Uint;
 pub struct Env {
 	/// Address.
 	#[serde(rename="currentCoinbase")]
-	pub coinbase: Address,
+	pub author: Address,
 	/// Difficulty
 	#[serde(rename="currentDifficulty")]
 	pub difficulty: Uint,

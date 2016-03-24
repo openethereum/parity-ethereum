@@ -19,7 +19,7 @@
 use bytes::Bytes;
 use uint::Uint;
 use blockchain::State;
-use vm::{Transaction, Log, Call};
+use vm::{Transaction, Log, Call, Env};
 
 /// Reporesents vm execution environment before and after exeuction of transaction.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -27,21 +27,32 @@ pub struct Vm {
 	/// Contract calls made internaly by executed transaction.
 	#[serde(rename="callcreates")]
 	pub calls: Option<Vec<Call>>,
+	/// Env info.
+	pub env: Env,
 	/// Executed transaction
 	#[serde(rename="exec")]
-	pub exec: Transaction,
-	/// Gas.
-	pub gas: Uint,
+	pub transaction: Transaction,
+	/// Gas left after transaction execution.
+	#[serde(rename="gas")]
+	pub gas_left: Option<Uint>,
 	/// Logs created during execution of transaction.
-	pub logs: Vec<Log>,
+	pub logs: Option<Vec<Log>>,
 	/// Transaction output.
-	pub out: Bytes,
+	#[serde(rename="out")]
+	pub output: Option<Bytes>,
 	/// Post execution vm state.
 	#[serde(rename="post")]
-	pub post_state: State,
+	pub post_state: Option<State>,
 	/// Pre execution vm state.
 	#[serde(rename="pre")]
 	pub pre_state: State,
+}
+
+impl Vm {
+	/// Returns true if transaction execution run out of gas.
+	pub fn out_of_gas(&self) -> bool {
+		self.calls.is_none()
+	}
 }
 
 #[cfg(test)]

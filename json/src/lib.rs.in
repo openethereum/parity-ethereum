@@ -25,3 +25,4 @@ pub mod bytes;
 pub mod blockchain;
 pub mod spec;
 pub mod vm;
+pub mod maybe;
