@@ -36,11 +36,11 @@ use syntax::ptr::P;
 pub struct Error;
 
 pub fn expand_ipc_implementation(
-    cx: &mut ExtCtxt,
-    span: Span,
-    meta_item: &MetaItem,
-    annotatable: &Annotatable,
-    push: &mut FnMut(Annotatable)
+	cx: &mut ExtCtxt,
+	span: Span,
+	meta_item: &MetaItem,
+	annotatable: &Annotatable,
+	push: &mut FnMut(Annotatable)
 ) {
 	let item = match *annotatable {
 		Annotatable::Item(ref item) => item,
@@ -68,10 +68,10 @@ fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {
 }
 
 fn push_invoke_signature_aster (
-    builder: &aster::AstBuilder,
+	builder: &aster::AstBuilder,
 	implement: &ImplItem,
 	signature: &MethodSig,
-    push: &mut FnMut(Annotatable),
+	push: &mut FnMut(Annotatable),
 ) -> Dispatch {
 
 	let inputs = &signature.decl.inputs;
@@ -135,7 +135,7 @@ struct Dispatch {
 
 fn implement_dispatch_arm_invoke(
 	cx: &ExtCtxt,
-    builder: &aster::AstBuilder,
+	builder: &aster::AstBuilder,
 	dispatch: &Dispatch,
 ) -> P<ast::Expr>
 {
@@ -221,10 +221,10 @@ fn implement_dispatch_arm(cx: &ExtCtxt, builder: &aster::AstBuilder, index: u32,
 }
 
 fn implement_interface(
-    cx: &ExtCtxt,
-    builder: &aster::AstBuilder,
-    item: &Item,
-    push: &mut FnMut(Annotatable),
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	item: &Item,
+	push: &mut FnMut(Annotatable),
 ) -> Result<P<ast::Item>, Error> {
 	let (generics, impl_items) = match item.node {
 		ast::ItemKind::Impl(_, _, ref generics, _, _, ref impl_items) => (generics, impl_items),
