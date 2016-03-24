@@ -67,7 +67,7 @@ fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {
 	}
 }
 
-fn push_invoke_signature_aster (
+fn push_invoke_signature_aster(
 	builder: &aster::AstBuilder,
 	implement: &ImplItem,
 	signature: &MethodSig,
