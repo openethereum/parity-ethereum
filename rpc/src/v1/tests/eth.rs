@@ -476,7 +476,8 @@ fn rpc_eth_compile_serpent() {
 
 #[test]
 fn returns_no_work_if_cant_mine() {
-	let eth_tester = EthTester::default();
+	let mut eth_tester = EthTester::default();
+	eth_tester.client.set_queue_size(10);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["","",""],"id":1}"#;

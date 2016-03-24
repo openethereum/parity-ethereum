@@ -197,6 +197,8 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 	}
 }
 
+const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
+
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	where C: BlockChainClient + 'static,
 		  S: SyncProvider + 'static,
@@ -400,8 +402,10 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				let client = take_weak!(self.client);
 				// check if we're still syncing and return empty strings in that case
 				{
-					let sync = take_weak!(self.sync);
-					if sync.status().state != SyncState::Idle && client.queue_info().is_empty() {
+					//TODO: check if initial sync is complete here
+					//let sync = take_weak!(self.sync);
+					if /*sync.status().state != SyncState::Idle ||*/ client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
+						trace!(target: "miner", "Syncing. Cannot give any work.");
 						return to_value(&(String::new(), String::new(), String::new()));
 					}
 				}
