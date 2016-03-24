@@ -403,7 +403,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				// check if we're still syncing and return empty strings in that case
 				{
 					let sync = take_weak!(self.sync);
-					if sync.status().state != SyncState::Idle || client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
+					if /*sync.status().state != SyncState::Idle ||*/ client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
 						trace!(target: "miner", "Syncing. Cannot give any work.");
 						return to_value(&(String::new(), String::new(), String::new()));
 					}
