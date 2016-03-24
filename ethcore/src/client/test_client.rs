@@ -16,6 +16,7 @@
 
 //! Test client.
 
+use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
@@ -54,6 +55,8 @@ pub struct TestBlockChainClient {
 	pub execution_result: RwLock<Option<Executed>>,
 	/// Transaction receipts.
 	pub receipts: RwLock<HashMap<TransactionId, LocalizedReceipt>>,
+	/// Block queue size.
+	pub queue_size: AtomicUsize,
 }
 
 #[derive(Clone)]
@@ -90,6 +93,7 @@ impl TestBlockChainClient {
 			code: RwLock::new(HashMap::new()),
 			execution_result: RwLock::new(None),
 			receipts: RwLock::new(HashMap::new()),
+			queue_size: AtomicUsize::new(0),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().unwrap().clone();
@@ -119,6 +123,11 @@ impl TestBlockChainClient {
 	/// Set storage `position` to `value` for account `address`.
 	pub fn set_storage(&self, address: Address, position: H256, value: H256) {
 		self.storage.write().unwrap().insert((address, position), value);
+	}
+
+	/// Set block queue size for testing
+	pub fn set_queue_size(&self, size: usize) {
+		self.queue_size.store(size, AtomicOrder::Relaxed);
 	}
 
 	/// Add blocks to test client.
@@ -383,7 +392,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn queue_info(&self) -> BlockQueueInfo {
 		BlockQueueInfo {
-			verified_queue_size: 0,
+			verified_queue_size: self.queue_size.load(AtomicOrder::Relaxed),
 			unverified_queue_size: 0,
 			verifying_queue_size: 0,
 			max_queue_size: 0,
