@@ -167,12 +167,9 @@ impl MinerService for Miner {
 
 	fn update_sealing(&self, chain: &BlockChainClient) {
 		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
-			let should_disable_sealing = {
-				let current_no = chain.chain_info().best_block_number;
-				let last_request = self.sealing_block_last_request.lock().unwrap();
-				let is_greater = current_no > *last_request;
-				is_greater && current_no - *last_request > SEALING_TIMEOUT_IN_BLOCKS
-			};
+			let current_no = chain.chain_info().best_block_number;
+			let last_request = *self.sealing_block_last_request.lock().unwrap();
+			let should_disable_sealing = current_no > last_request && current_no - last_request > SEALING_TIMEOUT_IN_BLOCKS;
 
 			if should_disable_sealing {
 				trace!(target: "miner", "Miner sleeping (current {}, last {})", current_no, last_request);
@@ -189,10 +186,10 @@ impl MinerService for Miner {
 			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
 			self.prepare_sealing(chain);
 		}
-		let sealing_block_last_request = self.sealing_block_last_request.lock().unwrap();
+		let mut sealing_block_last_request = self.sealing_block_last_request.lock().unwrap();
 		let best_number = chain.chain_info().best_block_number;
 		if *sealing_block_last_request != best_number {
-			trace!(target: "miner", "Miner received request (was {}, now {}) - waking up.", sealing_block_last_request, best_number);
+			trace!(target: "miner", "Miner received request (was {}, now {}) - waking up.", *sealing_block_last_request, best_number);
 			*sealing_block_last_request = best_number;
 		}
 		&self.sealing_block
