@@ -398,10 +398,11 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		match params {
 			Params::None => {
 				let client = take_weak!(self.client);
-				// check if we're still syncing and return empty strings int that case
+				// check if we're still syncing and return empty strings in that case
 				{
 					let sync = take_weak!(self.sync);
 					if sync.status().state != SyncState::Idle && client.queue_info().is_empty() {
+						trace!(target: "miner", "Syncing. Cannot give any work.");
 						return to_value(&(String::new(), String::new(), String::new()));
 					}
 				}
