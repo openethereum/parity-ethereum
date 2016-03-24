@@ -62,7 +62,7 @@ pub fn expand_ipc_implementation(
 
 fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {
 	match arg.pat.node {
-		 PatKind::Ident(_, ref ident, _) => builder.id(ident.node),
+		PatKind::Ident(_, ref ident, _) => builder.id(ident.node),
 		_ => { panic!("unexpected param in interface: {:?}", arg.pat.node) }
 	}
 }
