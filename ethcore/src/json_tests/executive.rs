@@ -25,7 +25,6 @@ use ethereum;
 use externalities::*;
 use substate::*;
 use tests::helpers::*;
-use state_diff::StateDiff;
 use ethjson;
 
 struct TestEngineFrontier {
@@ -238,8 +237,19 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				let vm_output: Option<Vec<u8>> = vm.output.map(Into::into);
 				fail_unless(Some(output) == vm_output, "output is incorrect");
 
-				let diff = StateDiff::diff_pod(&state.to_pod(), &From::from(vm.post_state.unwrap()));
-				fail_unless(diff.is_empty(), format!("diff should be empty!: {:?}", diff).as_ref());
+				for (address, account) in vm.post_state.unwrap().into_iter() {
+					let address = address.into();
+					let code: Vec<u8> = account.code.into();
+					fail_unless(state.code(&address).unwrap_or_else(Vec::new) == code, "code is incorrect");
+					fail_unless(state.balance(&address) == account.balance.into(), "balance is incorrect");
+					fail_unless(state.nonce(&address) == account.nonce.into(), "nonce is incorrect");
+					account.storage.into_iter().foreach(|(k, v)| {
+						let key: U256 = k.into();
+						let value: U256 = v.into();
+						fail_unless(state.storage_at(&address, &From::from(key)) == From::from(value), "storage is incorrect");
+					});
+				}
+
 				let calls: Option<Vec<CallCreate>> = vm.calls.map(|c| c.into_iter().map(From::from).collect());
 				fail_unless(Some(callcreates) == calls, "callcreates does not match");
 			}
