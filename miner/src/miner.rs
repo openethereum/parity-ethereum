@@ -112,7 +112,6 @@ pub struct Miner {
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
-
 }
 
 impl Default for Miner {
