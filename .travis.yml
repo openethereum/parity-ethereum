@@ -56,7 +56,7 @@ matrix:
       addons:
         apt:
           # Use the same packages the stable version uses
-          packages: *arm_unknown_linux_gnueabihf
+          packages: &arm_unknown_linux_gnueabihf
           # Additional libs
           - libcurl4-openssl-dev
           - libelf-dev
@@ -67,7 +67,7 @@ matrix:
       env: TARGET=i686-unknown-linux-gnu CHANNEL=beta
       addons:
         apt:
-          packages: *i686_unknown_linux_gnu
+          packages: &i686_unknown_linux_gnu
           # Additional libs
           - libcurl4-openssl-dev
           - libelf-dev
@@ -84,7 +84,7 @@ matrix:
       addons:
         apt:
           # Use the same packages the stable version uses
-          packages: *arm_unknown_linux_gnueabihf
+          packages: &arm_unknown_linux_gnueabihf
           # Additional libs
           - libcurl4-openssl-dev
           - libelf-dev
@@ -95,7 +95,7 @@ matrix:
       env: TARGET=i686-unknown-linux-gnu CHANNEL=nightly
       addons:
         apt:
-          packages: *i686_unknown_linux_gnu
+          packages: &i686_unknown_linux_gnu
           # Additional libs
           - libcurl4-openssl-dev
           - libelf-dev
