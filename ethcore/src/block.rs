@@ -101,6 +101,22 @@ pub struct BlockRefMut<'a> {
 	pub traces: &'a Option<Vec<Trace>>,
 }
 
+/// A set of immutable references to `ExecutedBlock` fields that are publicly accessible.
+pub struct BlockRef<'a> {
+	/// Block header.
+	pub header: &'a Header,
+	/// Block transactions.
+	pub transactions: &'a Vec<SignedTransaction>,
+	/// Block uncles.
+	pub uncles: &'a Vec<Header>,
+	/// Transaction receipts.
+	pub receipts: &'a Vec<Receipt>,
+	/// State.
+	pub state: &'a State,
+	/// Traces.
+	pub traces: &'a Option<Vec<Trace>>,
+}
+
 impl ExecutedBlock {
 	/// Create a new block from the given `state`.
 	fn new(state: State, tracing: bool) -> ExecutedBlock {
@@ -114,12 +130,24 @@ impl ExecutedBlock {
 	}
 
 	/// Get a structure containing individual references to all public fields.
-	pub fn fields(&mut self) -> BlockRefMut {
+	pub fn fields_mut(&mut self) -> BlockRefMut {
 		BlockRefMut {
 			header: &self.base.header,
 			transactions: &self.base.transactions,
 			uncles: &self.base.uncles,
 			state: &mut self.state,
+			receipts: &self.receipts,
+			traces: &self.traces,
+		}
+	}
+
+	/// Get a structure containing individual references to all public fields.
+	pub fn fields(&self) -> BlockRef {
+		BlockRef {
+			header: &self.base.header,
+			transactions: &self.base.transactions,
+			uncles: &self.base.uncles,
+			state: &self.state,
 			receipts: &self.receipts,
 			traces: &self.traces,
 		}
@@ -261,8 +289,8 @@ impl<'x> OpenBlock<'x> {
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
 	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
-		if self.block.transactions_set.contains(t.hash()) {
-			return Err(From::from(ExecutionError::AlreadyImported));
+		if self.block.transactions_set.contains(&t.hash()) {
+			return Err(From::from(TransactionError::AlreadyImported));
 		}
 
 		let env_info = self.env_info();

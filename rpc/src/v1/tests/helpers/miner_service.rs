@@ -68,10 +68,7 @@ impl MinerService for TestMinerService {
 	/// New chain head event. Restart mining operation.
 	fn update_sealing(&self, _chain: &BlockChainClient) { unimplemented!(); }
 
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self, _chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
-		&self.latest_closed_block
-	}
+	fn map_sealing_work<F, T>(&self, _chain: &BlockChainClient, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T { unimplemented!(); }
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.

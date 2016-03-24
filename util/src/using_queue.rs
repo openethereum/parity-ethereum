@@ -78,6 +78,12 @@ impl<T> UsingQueue<T> where T: Clone {
 		}
 	}
 
+	/// Returns `Some` item which is the first that `f` returns `true` with a reference to it
+	/// as a parameter or `None` if no such item exists in the queue.
+	pub fn take_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+		self.in_use.iter().position(|r| predicate(r)).map(|i| self.in_use.remove(i))
+	}
+
 	/// Returns the most recently pushed block if `f` returns `true` with a reference to it as
 	/// a parameter, otherwise `None`.
 	/// Will not destroy a block if a reference to it has previously been returned by `use_last_ref`,

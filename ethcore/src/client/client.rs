@@ -426,9 +426,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
-	// TODO: either work out a better API than this or refactor prepare_sealing and try_seal in terms of this.
-	fn with_engine<F, T>(&self, f: F) -> T where F: FnOnce(&Engine) -> T {
-		f(self.engine.deref().deref())
+	fn engine(&self) -> &Engine {
+		self.engine.deref().deref()
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.

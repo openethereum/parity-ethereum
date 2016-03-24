@@ -15,91 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rayon::prelude::*;
-use std::sync::{Mutex, RwLock, Arc};
-use std::sync::atomic;
+//use std::sync::{Mutex, RwLock, Arc};
+//use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
-use std::collections::HashSet;
+//use std::collections::HashSet;
 
-use util::{H256, U256, Address, Bytes, Uint};
+use util::*;//{H256, U256, Address, Bytes, Uint, UsingQueue, HashMap};
 use ethcore::views::{BlockView, HeaderView};
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
-use ethcore::error::{Error};
+use ethcore::error::*;//{Error};
 use ethcore::transaction::SignedTransaction;
 use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails};
-
-/// Special ClosedBlock queue-like datastructure that includes the notion of
-/// usage to avoid items that were queued but never used from making it into
-/// the queue.
-struct SealingWork {
-	/// Not yet being sealed by a miner, but if one asks for work, we'd prefer they do this.
-	would_seal: Option<ClosedBlock>,
-	/// Currently being sealed by miners.
-	being_sealed: Vec<ClosedBlock>, 
-}
-
-impl SealingWork {
-	/// Maximum length of the queue.
-	const MAX_SEALING_BLOCKS_CACHE = 5,
-
-	/// Return a reference to the item at the top of the queue (or `None` if the queue is empty);
-	/// it doesn't constitute noting that the item is used.
-	fn peek_last_ref(&self) -> Option<&ClosedBlock> {
-		self.would_seal.as_ref().or(self.being_sealed.last().as_ref())
-	}
-	
-	/// Return a reference to the item at the top of the queue (or `None` if the queue is empty);
-	/// this constitutes using the item and will remain in the queue for at least another
-	/// `MAX_SEALING_BLOCKS_CACHE` invocations of `push()`.
-	fn use_last_ref(&mut self) -> Option<&ClosedBlock> {
-		if let Some(x) = self.would_seal.take() {
-			self.being_sealed.push(x);
-			if self.being_sealed.len() > MAX_SEALING_BLOCKS_CACHE {
-				self.being_sealed.erase(0);
-			}
-		}
-		self.being_sealed.last().as_ref()
-	}
-
-	/// Place an item on the end of the queue. The previously `push()`ed item will be removed
-	/// if `use_last_ref()` since it was `push()`ed.
-	fn push(&mut self, b: ClosedBlock) {
-		self.would_seal = Some(b);
-	}
-
-	// Clears everything; the queue is entirely reset.
-	fn reset(&mut self) {
-		self.would_seal = None;
-		self.being_sealed.clear();
-	}
-
-	// Returns `Some` reference to first block that `f` returns `true` with it as a parameter.
-	// Returns `None` if no such block exists in the queue.
-	fn find_if<F>(&self, f: F) -> Option<&ClosedBlock> where F: Fn(&ClosedBlock) -> bool {
-		if would_seal.as_ref().map(&f).unwrap_or(false) {
-			would_seal.as_ref()
-		} else {
-			being_sealed.iter().find_if(f)
-		}
-	}
-
-	/// Returns the most recently pushed block if `f` returns `true` with a reference to it as
-	/// a parameter, otherwise `None`.
-	/// will not destroy a block if a reference to it has previously been returned by `use_last_ref`.
-	fn pending_if<F>(&mut self, f: F) -> Option<ClosedBlock> where F: Fn(&ClosedBlock) -> bool {
-		// a bit clumsy - TODO: think about a nicer way of expressing this.
-		if let Some(x) = self.would_seal.take() {
-			if f(&x) {
-				Some(x)
-			} else {
-				self.would_seal = x;
-				None
-			}
-		} else {
-			being_sealed.last().iter().cloned().filter(&b)
-		}
-	}
-}
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
@@ -108,7 +35,7 @@ pub struct Miner {
 	// for sealing...
 	sealing_enabled: AtomicBool,
 	sealing_block_last_request: Mutex<u64>,
-	sealing_work: Mutex<SealingWork>,
+	sealing_work: Mutex<UsingQueue<ClosedBlock>>,
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
@@ -120,10 +47,7 @@ impl Default for Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			sealing_enabled: AtomicBool::new(false),
 			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(SealingWork{
-				would_seal: None,
-				being_sealed: vec![],
-			}),
+			sealing_work: Mutex::new(UsingQueue::new(5)),
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
@@ -175,8 +99,8 @@ impl Miner {
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
-		let sealing_work = self.sealing_work.lock().unwrap();
-		let best_hash = chain.best_block_header().hash();
+		let mut sealing_work = self.sealing_work.lock().unwrap();
+		let best_hash = chain.best_block_header().sha3();
 
 /*
 		// check to see if last ClosedBlock in would_seals is actually same parent block.
@@ -187,39 +111,40 @@ impl Miner {
 		// otherwise, author a fresh block.
 */
 
-		let (b, invalid_transactions) = match sealing_work.pending_if(|b| b.block().fields().header().parent_hash() == best_hash) {
-			Some(mut old_block) => {
+		let (b, invalid_transactions) = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
+			Some(old_block) => {
 				// add transactions to old_block
-				chain.with_engine(|e| {
-					let invalid_transactions = HashMap::new();
-					let block = old_block.reopen(e);
+				let e = chain.engine();
+				let mut invalid_transactions = HashSet::new();
+				let mut block = old_block.reopen(e);
+				let block_number = block.block().fields().header.number();
 
-					// TODO: push new uncles, too.
-					let mut have_one = false;
-					// TODO: refactor with chain.prepare_sealing
-					for t in transactions {
-						let hash = tx.hash();
-						let res = block.push_transaction(tx, None);
-						match import {
-							Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-								trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
-								// Exit early if gas left is smaller then min_tx_gas
-								if gas_limit - gas_used < min_tx_gas {
-									break;
-								}
-							},
-							Err(Error::Execution(ExecutionError::AlreadyImported)) => {}	// already have transaction - ignore
-							Err(e) => {
-								invalid_transactions.insert(hash);
-								trace!(target: "miner",
-									   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
-									   block_number, hash, e);
-							},
-							_ => { have_one = true }	// imported ok - note that.
-						}
+				// TODO: push new uncles, too.
+				let mut have_one = false;
+				// TODO: refactor with chain.prepare_sealing
+				for tx in transactions {
+					let hash = tx.hash();
+					let res = block.push_transaction(tx, None);
+					match res {
+						Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
+							trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+							// Exit early if gas left is smaller then min_tx_gas
+							let min_tx_gas: U256 = x!(21000);	// TODO: figure this out properly.
+							if gas_limit - gas_used < min_tx_gas {
+								break;
+							}
+						},
+						Err(Error::Transaction(TransactionError::AlreadyImported)) => {}	// already have transaction - ignore
+						Err(e) => {
+							invalid_transactions.insert(hash);
+							trace!(target: "miner",
+								   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
+								   block_number, hash, e);
+						},
+						_ => { have_one = true }	// imported ok - note that.
 					}
-					(if have_one { Some(block.close()) } else { None }, invalid_transactions)
-				})
+				}
+				(if have_one { Some(block.close()) } else { None }, invalid_transactions)
 			}
 			None => {
 				// block not found - create it.
@@ -230,7 +155,7 @@ impl Miner {
 					transactions,
 				)
 			}
-		}
+		};
 		let mut queue = self.transaction_queue.lock().unwrap();
 		queue.remove_all(
 			&invalid_transactions.into_iter().collect::<Vec<H256>>(),
@@ -266,7 +191,7 @@ impl MinerService for Miner {
 		MinerStatus {
 			transactions_in_pending_queue: status.pending,
 			transactions_in_future_queue: status.future,
-			transactions_in_pending_block: block.peek_last_ref().map_or(0, |b| b.transactions().len()),
+			transactions_in_pending_block: sealing_work.peek_last_ref().map_or(0, |b| b.transactions().len()),
 		}
 	}
 
@@ -299,7 +224,7 @@ impl MinerService for Miner {
 
 		if should_disable_sealing {
 			self.sealing_enabled.store(false, atomic::Ordering::Relaxed);
-			*self.sealing_work.lock().unwrap().reset();
+			self.sealing_work.lock().unwrap().reset();
 		} else if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
 			self.prepare_sealing(chain);
 		}
@@ -316,9 +241,9 @@ impl MinerService for Miner {
 	}
 
 	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		if let Some(b) = self.sealing_work().lock().unwrap().take_if(|b| &b.hash() == &pow_hash) {
-			match chain.try_seal(b.unwrap(), seal) {
-				Err(old) => {
+		if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
+			match chain.try_seal(b, seal) {
+				Err(_) => {
 					Err(Error::PowInvalid)
 				}
 				Ok(sealed) => {

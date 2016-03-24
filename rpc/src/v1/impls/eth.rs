@@ -407,15 +407,12 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				}
 
 				let miner = take_weak!(self.miner);
-				miner.map_sealing_work(client.deref(), |b| match b {
-					Some(b) => {
-						let pow_hash = b.hash();
-						let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-						let seed_hash = Ethash::get_seedhash(b.block().header().number());
-						to_value(&(pow_hash, seed_hash, target))
-					}
-					_ => Err(Error::internal_error())
-				})
+				miner.map_sealing_work(client.deref(), |b| {
+					let pow_hash = b.hash();
+					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
+					let seed_hash = Ethash::get_seedhash(b.block().header().number());
+					to_value(&(pow_hash, seed_hash, target))
+				}).unwrap_or(Err(Error::internal_error()))	// no work found.
 			},
 			_ => Err(Error::invalid_params())
 		}

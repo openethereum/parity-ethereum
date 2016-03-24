@@ -40,6 +40,7 @@ use log_entry::LocalizedLogEntry;
 use filter::Filter;
 use error::{ImportResult, Error};
 use receipt::LocalizedReceipt;
+use engine::{Engine};
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -130,6 +131,6 @@ pub trait BlockChainClient : Sync + Send {
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;
 
 	/// Executes a function providing it with a reference to an engine.
-	fn with_engine<F>(&self, _f: F) where F: FnOnce(&Engine) {}
+	fn engine(&self) -> &Engine;
 }
 
