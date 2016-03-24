@@ -124,6 +124,7 @@ pub mod hash;
 pub mod bytes;
 pub mod rlp;
 pub mod misc;
+pub mod using_queue;
 mod json_aid;
 pub mod vector;
 pub mod sha3;
@@ -149,6 +150,7 @@ pub mod table;
 
 pub use common::*;
 pub use misc::*;
+pub use using_queue::*;
 pub use json_aid::*;
 pub use rlp::*;
 pub use hashdb::*;
