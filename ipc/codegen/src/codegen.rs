@@ -42,22 +42,22 @@ pub fn expand_ipc_implementation(
     annotatable: &Annotatable,
     push: &mut FnMut(Annotatable)
 ) {
-    let item = match *annotatable {
-        Annotatable::Item(ref item) => item,
-        _ => {
-            cx.span_err(meta_item.span, "`#[derive(Ipc)]` may only be applied to struct implementations");
-            return;
-        }
-    };
+	let item = match *annotatable {
+		Annotatable::Item(ref item) => item,
+		_ => {
+			cx.span_err(meta_item.span, "`#[derive(Ipc)]` may only be applied to struct implementations");
+			return;
+		}
+	};
 
-    let builder = aster::AstBuilder::new().span(span);
+	let builder = aster::AstBuilder::new().span(span);
 
-    let impl_item = match implement_interface(cx, &builder, &item, push) {
-        Ok(item) => item,
-        Err(Error) => { return; }
-    };
+	let impl_item = match implement_interface(cx, &builder, &item, push) {
+		Ok(item) => item,
+		Err(Error) => { return; }
+	};
 
-    push(Annotatable::Item(impl_item))
+	push(Annotatable::Item(impl_item))
 }
 
 fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {

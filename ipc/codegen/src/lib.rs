@@ -52,16 +52,16 @@ include!("lib.rs.in");
 
 #[cfg(feature = "with-syntex")]
 pub fn register(reg: &mut syntex::Registry) {
-    reg.add_attr("feature(custom_derive)");
-    reg.add_attr("feature(custom_attribute)");
+	reg.add_attr("feature(custom_derive)");
+	reg.add_attr("feature(custom_attribute)");
 
-    reg.add_decorator("derive_Ipc", codegen::expand_ipc_implementation);
+	reg.add_decorator("derive_Ipc", codegen::expand_ipc_implementation);
 }
 
 #[cfg(not(feature = "with-syntex"))]
 pub fn register(reg: &mut rustc_plugin::Registry) {
-    reg.register_syntax_extension(
-        syntax::parse::token::intern("derive_Ipc"),
-        syntax::ext::base::MultiDecorator(
-            Box::new(ser::expand_derive_serialize)));
+	reg.register_syntax_extension(
+		syntax::parse::token::intern("derive_Ipc"),
+		syntax::ext::base::MultiDecorator(
+			Box::new(ser::expand_derive_serialize)));
 }
