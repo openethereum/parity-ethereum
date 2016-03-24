@@ -27,6 +27,10 @@ matrix:
             - libc6-dev-armhf-cross
             # Emulator
             - qemu-user
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=stable
     - os: linux
@@ -36,6 +40,10 @@ matrix:
           packages: &i686_unknown_linux_gnu
             # Cross compiler and cross compiled C libraries
             - gcc-multilib
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=stable
     - os: linux
@@ -49,6 +57,10 @@ matrix:
         apt:
           # Use the same packages the stable version uses
           packages: *arm_unknown_linux_gnueabihf
+          # Additional libs
+          - libcurl4-openssl-dev
+          - libelf-dev
+          - libdw-dev
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=beta
     - os: linux
@@ -56,6 +68,10 @@ matrix:
       addons:
         apt:
           packages: *i686_unknown_linux_gnu
+          # Additional libs
+          - libcurl4-openssl-dev
+          - libelf-dev
+          - libdw-dev
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=beta
     - os: linux
@@ -69,6 +85,10 @@ matrix:
         apt:
           # Use the same packages the stable version uses
           packages: *arm_unknown_linux_gnueabihf
+          # Additional libs
+          - libcurl4-openssl-dev
+          - libelf-dev
+          - libdw-dev
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=nightly
     - os: linux
@@ -76,6 +96,10 @@ matrix:
       addons:
         apt:
           packages: *i686_unknown_linux_gnu
+          # Additional libs
+          - libcurl4-openssl-dev
+          - libelf-dev
+          - libdw-dev
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=nightly
     - os: linux
@@ -131,4 +155,4 @@ branches:
 
 notifications:
   email:
-    on_success: never
+    on_success: general.beck@gmail.com
