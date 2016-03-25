@@ -172,10 +172,9 @@ branches:
   only:
     # Pushes and PR to the master branch
     - master
-    - /^beta-.*$/
-    - /^stable-.*$/
-    - /^beta$/
-    - /^stable$/
+    # IMPORTANT Ruby regex to match tags. Required, or travis won't trigger deploys when a new tag
+    # is pushed. This regex matches semantic versions like v1.2.3-rc4+2016.02.22
+    - /^v\d+\.\d+\.\d+.*$/
 
 
 notifications:
