@@ -1,0 +1,14 @@
+verbose=false
+max_width=150
+ideal_width=120
+tabs_spaces=4
+fn_call_width=100
+single_line_if_else=true
+where_indent="Visual"
+where_trailing_comma=true
+chain_base_indent="Inherit"
+chain_indent="Tabbed"
+reorder_imports=true
+format_strings=false
+hard_tabs=true
+wrap_match_arms=false

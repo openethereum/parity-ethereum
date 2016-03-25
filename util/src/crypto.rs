@@ -208,7 +208,7 @@ pub mod ec {
 		match context.verify(&try!(Message::from_slice(&message)), &sig, &publ) {
 			Ok(_) => Ok(true),
 			Err(Error::IncorrectSignature) => Ok(false),
-			Err(x) => Err(<CryptoError as From<Error>>::from(x))
+			Err(x) => Err(CryptoError::from(x))
 		}
 	}
 
