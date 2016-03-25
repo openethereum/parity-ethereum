@@ -26,7 +26,6 @@ matrix:
         apt:
           packages: &arm_unknown_linux_gnueabihf
             # Cross compiler and cross compiled C libraries
-            - gcc-arm-linux-gnueabihf
             - g++-arm-linux-gnueabihf
             - libc6-armhf-cross
             - libc6-dev-armhf-cross
@@ -45,7 +44,6 @@ matrix:
           packages: &i686_unknown_linux_gnu
             # Cross compiler and cross compiled C libraries
             - build-essential
-            - gcc-multilib
             - g++-multilib
             - libedit-dev
             # Additional libs
@@ -61,7 +59,6 @@ matrix:
           packages: &x86_64_unknown_linux_gnu
             # Cross compiler and cross compiled C libraries
             - build-essential
-            - gcc
             - g++
             - libedit-dev
             # Additional libs
@@ -75,7 +72,6 @@ matrix:
           packages: &x86_64_unknown_linux_musl
             # Cross compiler and cross compiled C libraries
             - build-essential
-            - gcc
             - g++
             - libedit-dev
             # Additional libs
@@ -106,7 +102,6 @@ matrix:
           packages: &i686_unknown_linux_gnu
             # Cross compiler and cross compiled C libraries
             - build-essential
-            - gcc-multilib
             - g++-multilib
             - libedit-dev
             # Additional libs
@@ -122,7 +117,6 @@ matrix:
           packages: &x86_64_unknown_linux_gnu
             # Cross compiler and cross compiled C libraries
             - build-essential
-            - gcc
             - g++
             - libedit-dev
             # Additional libs
@@ -136,7 +130,6 @@ matrix:
           packages: &x86_64_unknown_linux_musl
             # Cross compiler and cross compiled C libraries
             - build-essential
-            - gcc
             - g++
             - libedit-dev
             # Additional libs
@@ -149,7 +142,6 @@ matrix:
       addons:
         apt:
           packages: &arm_unknown_linux_gnueabihf
-        - gcc-arm-linux-gnueabihf
         - g++-arm-linux-gnueabihf
         - libc6-armhf-cross
         - libc6-dev-armhf-cross
