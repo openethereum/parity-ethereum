@@ -14,30 +14,41 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain test deserializer.
+//! Vm call deserialization.
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use serde_json;
-use serde_json::Error;
-use blockchain::blockchain::BlockChain;
+use bytes::Bytes;
+use hash::Address;
+use uint::Uint;
+use maybe::MaybeEmpty;
 
-/// Blockchain test deserializer.
+/// Vm call deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct Test(BTreeMap<String, BlockChain>);
-
-impl IntoIterator for Test {
-	type Item = <BTreeMap<String, BlockChain> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, BlockChain> as IntoIterator>::IntoIter;
-
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
+pub struct Call {
+	/// Call data.
+	pub data: Bytes,
+	/// Call destination.
+	pub destination: MaybeEmpty<Address>,
+	/// Gas limit.
+	#[serde(rename="gasLimit")]
+	pub gas_limit: Uint,
+	/// Call value.
+	pub value: Uint,
 }
 
-impl Test {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use vm::Call;
+
+	#[test]
+	fn call_deserialization() {
+		let s = r#"{
+			"data" : "0x1111222233334444555566667777888899990000aaaabbbbccccddddeeeeffff",
+			"destination" : "",
+			"gasLimit" : "0x1748766aa5",
+			"value" : "0x00"
+		}"#;
+		let _deserialized: Call = serde_json::from_str(s).unwrap();
+		// TODO: validate all fields
 	}
 }
