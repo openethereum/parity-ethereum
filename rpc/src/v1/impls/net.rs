@@ -36,7 +36,7 @@ impl<S> NetClient<S> where S: SyncProvider {
 
 impl<S> Net for NetClient<S> where S: SyncProvider + 'static {
 	fn version(&self, _: Params) -> Result<Value, Error> {
-		Ok(Value::String(format!("{}", take_weak!(self.sync).status().protocol_version).to_owned()))
+		Ok(Value::String(format!("{}", take_weak!(self.sync).status().network_id).to_owned()))
 	}
 
 	fn peer_count(&self, _params: Params) -> Result<Value, Error> {
