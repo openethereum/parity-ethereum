@@ -7,11 +7,15 @@ env:
     # This will be part of the release tarball
     # TODO change the project name
     - PROJECT_NAME=parity
+    - RUST_BACKTRACE="1"
 
 # AFAICT There are a few ways to set up the build jobs. This one is not the DRYest but I feel is the
 # easiest to reason about.
 # TODO Feel free to remove the channels/targets you don't need
 # NOTE Make *sure* you don't remove a reference (&foo) if you are going to dereference it (*foo)
+cache:
+  apt: true
+
 matrix:
   include:
     # Stable channel
@@ -23,6 +27,7 @@ matrix:
           packages: &arm_unknown_linux_gnueabihf
             # Cross compiler and cross compiled C libraries
             - gcc-arm-linux-gnueabihf
+            - g++-arm-linux-gnueabihf
             - libc6-armhf-cross
             - libc6-dev-armhf-cross
             # Emulator
@@ -39,7 +44,10 @@ matrix:
         apt:
           packages: &i686_unknown_linux_gnu
             # Cross compiler and cross compiled C libraries
+            - build-essential
             - gcc-multilib
+            - g++-multilib
+            - libedit-dev
             # Additional libs
             - libcurl4-openssl-dev
             - libelf-dev
@@ -48,8 +56,32 @@ matrix:
       env: TARGET=x86_64-apple-darwin CHANNEL=stable
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=stable
+      addons:
+        apt:
+          packages: &x86_64_unknown_linux_gnu
+            # Cross compiler and cross compiled C libraries
+            - build-essential
+            - gcc
+            - g++
+            - libedit-dev
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     - os: linux
       env: TARGET=x86_64-unknown-linux-musl CHANNEL=stable
+      addons:
+        apt:
+          packages: &x86_64_unknown_linux_musl
+            # Cross compiler and cross compiled C libraries
+            - build-essential
+            - gcc
+            - g++
+            - libedit-dev
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     # Beta channel
     - os: linux
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
@@ -57,10 +89,16 @@ matrix:
         apt:
           # Use the same packages the stable version uses
           packages: &arm_unknown_linux_gnueabihf
-          # Additional libs
-          - libcurl4-openssl-dev
-          - libelf-dev
-          - libdw-dev
+        - gcc-arm-linux-gnueabihf
+        - g++-arm-linux-gnueabihf
+        - libc6-armhf-cross
+        - libc6-dev-armhf-cross
+        # Emulator
+        - qemu-user
+        # Additional libs
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=beta
     - os: linux
@@ -68,16 +106,45 @@ matrix:
       addons:
         apt:
           packages: &i686_unknown_linux_gnu
-          # Additional libs
-          - libcurl4-openssl-dev
-          - libelf-dev
-          - libdw-dev
+            # Cross compiler and cross compiled C libraries
+            - build-essential
+            - gcc-multilib
+            - g++-multilib
+            - libedit-dev
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=beta
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=beta
+      addons:
+        apt:
+          packages: &x86_64_unknown_linux_gnu
+            # Cross compiler and cross compiled C libraries
+            - build-essential
+            - gcc
+            - g++
+            - libedit-dev
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     - os: linux
       env: TARGET=x86_64-unknown-linux-musl CHANNEL=beta
+      addons:
+        apt:
+          packages: &x86_64_unknown_linux_musl
+            # Cross compiler and cross compiled C libraries
+            - build-essential
+            - gcc
+            - g++
+            - libedit-dev
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     # Nightly channel
     - os: linux
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=nightly
@@ -85,10 +152,16 @@ matrix:
         apt:
           # Use the same packages the stable version uses
           packages: &arm_unknown_linux_gnueabihf
-          # Additional libs
-          - libcurl4-openssl-dev
-          - libelf-dev
-          - libdw-dev
+        - gcc-arm-linux-gnueabihf
+        - g++-arm-linux-gnueabihf
+        - libc6-armhf-cross
+        - libc6-dev-armhf-cross
+        # Emulator
+        - qemu-user
+        # Additional libs
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=nightly
     - os: linux
@@ -96,23 +169,66 @@ matrix:
       addons:
         apt:
           packages: &i686_unknown_linux_gnu
-          # Additional libs
-          - libcurl4-openssl-dev
-          - libelf-dev
-          - libdw-dev
+            # Cross compiler and cross compiled C libraries
+            - build-essential
+            - gcc-multilib
+            - g++-multilib
+            - libedit-dev
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=nightly
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
+      addons:
+        apt:
+          packages: &x86_64_unknown_linux_gnu
+            # Cross compiler and cross compiled C libraries
+            - build-essential
+            - gcc
+            - g++
+            - libedit-dev
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     - os: linux
       env: TARGET=x86_64-unknown-linux-musl CHANNEL=nightly
+      addons:
+        apt:
+          packages: &x86_64_unknown_linux_musl
+            # Cross compiler and cross compiled C libraries
+            - build-essential
+            - gcc
+            - g++
+            - libedit-dev
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
   allow_failures:
     # NOTE rust-lang/rust#30966 Rust 1.7.0 for ARM doesn't work with glibc <2.17. Here we use Ubuntu
     # 12.04 which ships with glibc-2.15 so this build job will always fail. This issue has been
     # fixed in the nightlies and the fix will reach beta and stable by the next stable release.
     # TODO Remove this entry by the time Rust 1.8.0 is out
     - os: linux
-      env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=stable
+      env: TARGET=armv7-unknown-linux-gnueabihf CHANNEL=stable
+      addons:
+        apt:
+          # Use the same packages the stable version uses
+          packages: &armv7_unknown_linux_gnueabihf
+        - gcc-arm-linux-gnueabihf
+        - g++-arm-linux-gnueabihf
+        - libc6-armhf-cross
+        - libc6-dev-armhf-cross
+        # Emulator
+        - qemu-user
+        # Additional libs
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
 
 install:
   - export PATH="$PATH:~/multirust/bin"
@@ -149,9 +265,10 @@ branches:
   only:
     # Pushes and PR to the master branch
     - master
-    # IMPORTANT Ruby regex to match tags. Required, or travis won't trigger deploys when a new tag
-    # is pushed. This regex matches semantic versions like v1.2.3-rc4+2016.02.22
-    - /^v\d+\.\d+\.\d+.*$/
+    - /^beta-.*$/
+    - /^stable-.*$/
+    - /^beta$/
+    - /^stable$/
 
 notifications:
   email:

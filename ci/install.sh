@@ -71,13 +71,13 @@ configure_cargo() {
   esac
 
   # information about the cross compiler
-  $prefix-gcc -v
+  $prefix-g++ -v
 
   # tell cargo which linker to use for cross compilation
   mkdir -p .cargo
   cat >>.cargo/config <<EOF
 [target.$TARGET]
-linker = "$prefix-gcc"
+linker = "$prefix-g++"
 EOF
 }
 
