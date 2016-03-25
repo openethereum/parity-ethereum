@@ -1,0 +1,45 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+use std::sync::RwLock;
+
+pub struct Service {
+	pub commits: RwLock<usize>,
+	pub rollbacks: RwLock<usize>,
+}
+
+#[derive(Ipc)]
+impl Service {
+	fn commit(&self, f: u32) -> u32 {
+		let mut lock = self.commits.write().unwrap();
+		*lock = *lock + f as usize;
+		f
+	}
+	pub fn rollback(&self, a: u32, b: u32) -> i32 {
+		let mut lock = self.rollbacks.write().unwrap();
+		*lock = *lock + a as usize - b as usize;
+		(a - b) as i32
+	}
+}
+
+impl Service {
+	pub fn new() -> Service {
+		Service {
+			commits: RwLock::new(0usize),
+			rollbacks: RwLock::new(0usize),
+		}
+	}
+}
