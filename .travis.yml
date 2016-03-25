@@ -249,6 +249,7 @@ branches:
     - /^beta$/
     - /^stable$/
 
+
 notifications:
   email:
     on_success: general.beck@gmail.com
