@@ -47,8 +47,7 @@ pub struct TraceCreate {
 	pub init: Bytes,
 	/// The result of the operation; tuple of the gas used, the address of the newly created account and its code.
 	/// NOTE: Presently failed operations are not reported so this will always be `Some`.
-	pub result: Option<(U256, Address, Bytes)>,
-//	pub output: Bytes,
+	pub result: Option<(U256, Address, Bytes)>, // pub output: Bytes,
 }
 
 /// Description of an action that we trace; will be either a call or a create.
@@ -90,7 +89,9 @@ impl TraceAction {
 		TraceAction::Call(TraceCall {
 			from: p.sender.clone(),
 			to: p.address.clone(),
-			value: match p.value { ActionValue::Transfer(ref x) | ActionValue::Apparent(ref x) => x.clone() },
+			value: match p.value {
+				ActionValue::Transfer(ref x) | ActionValue::Apparent(ref x) => x.clone(),
+			},
 			gas: p.gas.clone(),
 			input: p.data.clone().unwrap_or(vec![]),
 			result: None,
@@ -101,11 +102,12 @@ impl TraceAction {
 	pub fn from_create(p: &ActionParams) -> TraceAction {
 		TraceAction::Create(TraceCreate {
 			from: p.sender.clone(),
-			value: match p.value { ActionValue::Transfer(ref x) | ActionValue::Apparent(ref x) => x.clone() },
+			value: match p.value {
+				ActionValue::Transfer(ref x) | ActionValue::Apparent(ref x) => x.clone(),
+			},
 			gas: p.gas.clone(),
 			init: p.code.clone().unwrap_or(vec![]),
 			result: None,
 		})
 	}
 }
-

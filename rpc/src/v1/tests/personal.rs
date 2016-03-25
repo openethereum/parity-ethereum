@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use jsonrpc_core::IoHandler;
 use v1::tests::helpers::{TestAccount, TestAccountProvider};
-use v1::{PersonalClient, Personal};
+use v1::{Personal, PersonalClient};
 use util::numbers::*;
 use std::collections::*;
 
@@ -56,4 +56,3 @@ fn new_account() {
 
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }
-

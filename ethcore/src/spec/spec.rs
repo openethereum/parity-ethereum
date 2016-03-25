@@ -22,22 +22,22 @@ use pod_state::*;
 use null_engine::*;
 use account_db::*;
 use ethereum;
-use super::genesis::{Seal as GenesisSeal, Genesis};
+use super::genesis::{Genesis, Seal as GenesisSeal};
 
 /// Convert JSON value to equivalent RLP representation.
 // TODO: handle container types.
 fn json_to_rlp(json: &Json) -> Bytes {
 	match *json {
-		Json::Boolean(o) => encode(&(if o {1u64} else {0})).to_vec(),
+		Json::Boolean(o) => encode(&(if o { 1u64 } else { 0 })).to_vec(),
 		Json::I64(o) => encode(&(o as u64)).to_vec(),
 		Json::U64(o) => encode(&o).to_vec(),
 		Json::String(ref s) if s.len() >= 2 && &s[0..2] == "0x" && U256::from_str(&s[2..]).is_ok() => {
 			encode(&U256::from_str(&s[2..]).unwrap()).to_vec()
-		},
+		}
 		Json::String(ref s) => {
 			encode(s).to_vec()
-		},
-		_ => panic!()
+		}
+		_ => panic!(),
 	}
 }
 
@@ -109,7 +109,7 @@ impl Spec {
 		match self.engine_name.as_ref() {
 			"NullEngine" => Ok(NullEngine::new_boxed(self)),
 			"Ethash" => Ok(ethereum::Ethash::new_boxed(self)),
-			_ => Err(Error::UnknownEngineName(self.engine_name.clone()))
+			_ => Err(Error::UnknownEngineName(self.engine_name.clone())),
 		}
 	}
 
@@ -122,10 +122,14 @@ impl Spec {
 	}
 
 	/// Get the known knodes of the network in enode format.
-	pub fn nodes(&self) -> &Vec<String> { &self.nodes }
+	pub fn nodes(&self) -> &Vec<String> {
+		&self.nodes
+	}
 
 	/// Get the configured Network ID.
-	pub fn network_id(&self) -> U256 { self.network_id }
+	pub fn network_id(&self) -> U256 {
+		self.network_id
+	}
 
 	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {
@@ -178,16 +182,17 @@ impl Spec {
 				(2, s.out())
 			} else {
 				// backup algo that will work with sealFields/sealRlp (and without).
-				(
-					u64::from_json(&genesis["sealFields"]) as usize,
-					Bytes::from_json(&genesis["sealRlp"])
-				)
+				(u64::from_json(&genesis["sealFields"]) as usize, Bytes::from_json(&genesis["sealRlp"]))
 			}
 		};
 
 		self.parent_hash = H256::from_json(&genesis["parentHash"]);
-		self.transactions_root = genesis.find("transactionsTrie").and_then(|_| Some(H256::from_json(&genesis["transactionsTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
-		self.receipts_root = genesis.find("receiptTrie").and_then(|_| Some(H256::from_json(&genesis["receiptTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
+		self.transactions_root = genesis.find("transactionsTrie")
+		                                .and_then(|_| Some(H256::from_json(&genesis["transactionsTrie"])))
+		                                .unwrap_or(SHA3_NULL_RLP.clone());
+		self.receipts_root = genesis.find("receiptTrie")
+		                            .and_then(|_| Some(H256::from_json(&genesis["receiptTrie"])))
+		                            .unwrap_or(SHA3_NULL_RLP.clone());
 		self.author = Address::from_json(&genesis["coinbase"]);
 		self.difficulty = U256::from_json(&genesis["difficulty"]);
 		self.gas_limit = U256::from_json(&genesis["gasLimit"]);
@@ -258,23 +263,24 @@ impl FromJson for Spec {
 		}
 
 		let nodes = if let Some(&Json::Array(ref ns)) = json.find("nodes") {
-			ns.iter().filter_map(|n| if let Json::String(ref s) = *n { Some(s.clone()) } else {None}).collect()
-		} else { Vec::new() };
+			ns.iter().filter_map(|n| if let Json::String(ref s) = *n { Some(s.clone()) } else { None }).collect()
+		} else {
+			Vec::new()
+		};
 
 		let genesis = &json["genesis"];//.as_object().expect("No genesis object in JSON");
 
 		let (seal_fields, seal_rlp) = {
 			if genesis.find("mixHash").is_some() && genesis.find("nonce").is_some() {
 				let mut s = RlpStream::new();
-				s.append(&H256::from_str(&genesis["mixHash"].as_string().expect("mixHash not a string.")[2..]).expect("Invalid mixHash string value"));
+				s.append(&H256::from_str(&genesis["mixHash"].as_string().expect("mixHash not a string.")[2..])
+					.expect("Invalid mixHash string value"));
 				s.append(&H64::from_str(&genesis["nonce"].as_string().expect("nonce not a string.")[2..]).expect("Invalid nonce string value"));
 				(2, s.out())
 			} else {
 				// backup algo that will work with sealFields/sealRlp (and without).
-				(
-					usize::from_str(&genesis["sealFields"].as_string().unwrap_or("0x")[2..]).expect("Invalid sealFields integer data"),
-					genesis["sealRlp"].as_string().unwrap_or("0x")[2..].from_hex().expect("Invalid sealRlp hex data")
-				)
+				(usize::from_str(&genesis["sealFields"].as_string().unwrap_or("0x")[2..]).expect("Invalid sealFields integer data"),
+				 genesis["sealRlp"].as_string().unwrap_or("0x")[2..].from_hex().expect("Invalid sealRlp hex data"))
 			}
 		};
 
@@ -297,7 +303,9 @@ impl FromJson for Spec {
 			genesis_state: state,
 			seal_fields: seal_fields,
 			seal_rlp: seal_rlp,
-			state_root_memo: RwLock::new(genesis.find("stateRoot").and_then(|_| genesis["stateRoot"].as_string()).map(|s| H256::from_str(&s[2..]).unwrap())),
+			state_root_memo: RwLock::new(genesis.find("stateRoot")
+			                                    .and_then(|_| genesis["stateRoot"].as_string())
+			                                    .map(|s| H256::from_str(&s[2..]).unwrap())),
 		}
 	}
 }
@@ -318,7 +326,9 @@ impl Spec {
 			}
 			assert!(db.contains(&self.state_root()));
 			true
-		} else { false }
+		} else {
+			false
+		}
 	}
 
 	/// Create a new Spec from a JSON UTF-8 data resource `data`.
@@ -332,10 +342,14 @@ impl Spec {
 	}
 
 	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
-	pub fn new_test() -> Spec { Self::from_json_utf8(include_bytes!("../../res/null_morden.json")) }
+	pub fn new_test() -> Spec {
+		Self::from_json_utf8(include_bytes!("../../res/null_morden.json"))
+	}
 
 	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
-	pub fn new_homestead_test() -> Spec { Self::from_json_utf8(include_bytes!("../../res/null_homestead_morden.json")) }
+	pub fn new_homestead_test() -> Spec {
+		Self::from_json_utf8(include_bytes!("../../res/null_homestead_morden.json"))
+	}
 }
 
 #[cfg(test)]
@@ -350,9 +364,11 @@ mod tests {
 	fn test_chain() {
 		let test_spec = Spec::new_test();
 
-		assert_eq!(test_spec.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
+		assert_eq!(test_spec.state_root(),
+		           H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = test_spec.genesis_block();
-		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
+		assert_eq!(BlockView::new(&genesis).header_view().sha3(),
+		           H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
 
 		let _ = test_spec.to_engine();
 	}

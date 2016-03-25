@@ -41,13 +41,15 @@ use elastic_array::*;
 /// Vector like object
 pub trait VecLike<T> {
 	/// Add an element to the collection
-    fn vec_push(&mut self, value: T);
+	fn vec_push(&mut self, value: T);
 
 	/// Add a slice to the collection
-    fn vec_extend(&mut self, slice: &[T]);
+	fn vec_extend(&mut self, slice: &[T]);
 }
 
-impl<T> VecLike<T> for Vec<T> where T: Copy {
+impl<T> VecLike<T> for Vec<T>
+    where T: Copy,
+{
 	fn vec_push(&mut self, value: T) {
 		Vec::<T>::push(self, value)
 	}
@@ -76,14 +78,18 @@ impl_veclike_for_elastic_array!(ElasticArray32);
 impl_veclike_for_elastic_array!(ElasticArray1024);
 
 /// Slie pretty print helper
-pub struct PrettySlice<'a> (&'a [u8]);
+pub struct PrettySlice<'a>(&'a [u8]);
 
 impl<'a> fmt::Debug for PrettySlice<'a> {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		for i in 0..self.0.len() {
 			match i > 0 {
-				true => { try!(write!(f, "·{:02x}", self.0[i])); },
-				false => { try!(write!(f, "{:02x}", self.0[i])); },
+				true => {
+					try!(write!(f, "·{:02x}", self.0[i]));
+				}
+				false => {
+					try!(write!(f, "{:02x}", self.0[i]));
+				}
 			}
 		}
 		Ok(())
@@ -132,7 +138,7 @@ pub enum BytesRef<'a> {
 	/// This is a reference to a vector
 	Flexible(&'a mut Bytes),
 	/// This is a reference to a slice
-	Fixed(&'a mut [u8])
+	Fixed(&'a mut [u8]),
 }
 
 impl<'a> Deref for BytesRef<'a> {
@@ -146,7 +152,7 @@ impl<'a> Deref for BytesRef<'a> {
 	}
 }
 
-impl <'a> DerefMut for BytesRef<'a> {
+impl<'a> DerefMut for BytesRef<'a> {
 	fn deref_mut(&mut self) -> &mut [u8] {
 		match *self {
 			BytesRef::Flexible(ref mut bytes) => bytes,
@@ -165,13 +171,21 @@ pub trait BytesConvertable {
 	/// Deprecated - use `as_slice` instead.
 	fn bytes(&self) -> &[u8];
 	/// Get the underlying byte-wise representation of the value.
-	fn as_slice(&self) -> &[u8] { self.bytes() }
+	fn as_slice(&self) -> &[u8] {
+		self.bytes()
+	}
 	/// Get a copy of the underlying byte-wise representation.
-	fn to_bytes(&self) -> Bytes { self.as_slice().to_vec() }
+	fn to_bytes(&self) -> Bytes {
+		self.as_slice().to_vec()
+	}
 }
 
-impl<T> BytesConvertable for T where T: AsRef<[u8]> {
-	fn bytes(&self) -> &[u8] { self.as_ref() }
+impl<T> BytesConvertable for T
+    where T: AsRef<[u8]>,
+{
+	fn bytes(&self) -> &[u8] {
+		self.as_ref()
+	}
 }
 
 #[test]
@@ -188,7 +202,7 @@ pub trait Populatable {
 	fn populate_raw(&mut self, d: &[u8]) {
 		let mut s = self.as_slice_mut();
 		for i in 0..s.len() {
-			s[i] = if i < d.len() {d[i]} else {0};
+			s[i] = if i < d.len() { d[i] } else { 0 };
 		}
 	}
 
@@ -203,32 +217,36 @@ pub trait Populatable {
 	/// Copies the raw representation of an object `d` to `self`, overwriting as necessary.
 	///
 	/// If `d` is smaller, zero-out the remaining bytes.
-	fn populate_raw_from(&mut self, d: &BytesConvertable) { self.populate_raw(d.as_slice()); }
+	fn populate_raw_from(&mut self, d: &BytesConvertable) {
+		self.populate_raw(d.as_slice());
+	}
 
 	/// Copies the raw representation of an object `d` to `self`, overwriting as necessary.
 	///
 	/// If `d` is smaller, will leave some bytes untouched.
-	fn copy_raw_from(&mut self, d: &BytesConvertable) { self.copy_raw(d.as_slice()); }
+	fn copy_raw_from(&mut self, d: &BytesConvertable) {
+		self.copy_raw(d.as_slice());
+	}
 
 	/// Get the raw slice for this object.
 	fn as_slice_mut(&mut self) -> &mut [u8];
 }
 
-impl<T> Populatable for T where T: Sized {
+impl<T> Populatable for T
+    where T: Sized,
+{
 	fn as_slice_mut(&mut self) -> &mut [u8] {
 		use std::mem;
-		unsafe {
-			slice::from_raw_parts_mut(self as *mut T as *mut u8, mem::size_of::<T>())
-		}
+		unsafe { slice::from_raw_parts_mut(self as *mut T as *mut u8, mem::size_of::<T>()) }
 	}
 }
 
-impl<T> Populatable for [T] where T: Sized {
+impl<T> Populatable for [T]
+    where T: Sized,
+{
 	fn as_slice_mut(&mut self) -> &mut [u8] {
 		use std::mem;
-		unsafe {
-			slice::from_raw_parts_mut(self.as_mut_ptr() as *mut u8, mem::size_of::<T>() * self.len())
-		}
+		unsafe { slice::from_raw_parts_mut(self.as_mut_ptr() as *mut u8, mem::size_of::<T>() * self.len()) }
 	}
 }
 
@@ -247,14 +265,16 @@ pub trait FromRawBytes : Sized {
 	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError>;
 }
 
-impl<T> FromRawBytes for T where T: Sized + FixedHash {
+impl<T> FromRawBytes for T
+    where T: Sized + FixedHash,
+{
 	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
 		use std::mem;
 		use std::cmp::Ordering;
 		match bytes.len().cmp(&mem::size_of::<T>()) {
 			Ordering::Less => return Err(FromBytesError::NotLongEnough),
 			Ordering::Greater => return Err(FromBytesError::TooLong),
-			Ordering::Equal => ()
+			Ordering::Equal => (),
 		};
 
 		let mut res: Self = unsafe { mem::uninitialized() };

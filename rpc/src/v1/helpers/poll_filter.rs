@@ -9,5 +9,5 @@ pub type BlockNumber = u64;
 pub enum PollFilter {
 	Block(BlockNumber),
 	PendingTransaction(Vec<H256>),
-	Logs(BlockNumber, Filter)
+	Logs(BlockNumber, Filter),
 }

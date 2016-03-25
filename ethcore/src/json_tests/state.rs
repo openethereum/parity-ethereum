@@ -33,19 +33,25 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	let engine = match era {
 		ChainEra::Frontier => ethereum::new_mainnet_like(),
 		ChainEra::Homestead => ethereum::new_homestead_test(),
-	}.to_engine().unwrap();
+	}
+	.to_engine()
+	.unwrap();
 
 	flushln!("");
 
 	for (name, test) in json.as_object().unwrap() {
 		let mut fail = false;
 		{
-			let mut fail_unless = |cond: bool| if !cond && !fail {
-				failed.push(name.clone());
-				flushln!("FAIL");
-				fail = true;
-				true
-			} else {false};
+			let mut fail_unless = |cond: bool| {
+				if !cond && !fail {
+					failed.push(name.clone());
+					flushln!("FAIL");
+					fail = true;
+					true
+				} else {
+					false
+				}
+			};
 
 			flush!("   - {}...", name);
 
@@ -57,8 +63,8 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 			let post = PodState::from_json(&test["post"]);
 			let logs: Vec<_> = test["logs"].as_array().unwrap().iter().map(&LogEntry::from_json).collect();
 
-			//println!("Transaction: {:?}", t);
-			//println!("Env: {:?}", env);
+			// println!("Transaction: {:?}", t);
+			// println!("Env: {:?}", env);
 			let calc_post = sec_trie_root(post.get().iter().map(|(k, v)| (k.to_vec(), v.rlp())).collect());
 
 			if fail_unless(post_state_root == calc_post) {
@@ -92,7 +98,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 			flushln!("ok");
 		}
 		// TODO: Add extra APIs for output
-		//if fail_unless(out == r.)
+		// if fail_unless(out == r.)
 	}
 	println!("!!! {:?} tests from failed.", failed.len());
 	failed

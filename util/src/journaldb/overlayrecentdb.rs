@@ -20,7 +20,7 @@ use common::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use kvdb::{DBTransaction, Database, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 use super::JournalDB;
@@ -93,10 +93,10 @@ impl Clone for OverlayRecentDB {
 }
 
 // all keys must be at least 12 bytes
-const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const DB_VERSION : u32 = 0x200 + 3;
-const PADDING : [u8; 10] = [ 0u8; 10 ];
+const LATEST_ERA_KEY: [u8; 12] = [b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0];
+const VERSION_KEY: [u8; 12] = [b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0];
+const DB_VERSION: u32 = 0x200 + 3;
+const PADDING: [u8; 10] = [0u8; 10];
 
 impl OverlayRecentDB {
 	/// Create a new instance from file
@@ -106,16 +106,14 @@ impl OverlayRecentDB {
 
 	/// Create a new instance from file
 	pub fn from_prefs(path: &str) -> OverlayRecentDB {
-		let opts = DatabaseConfig {
-			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
-		};
+		let opts = DatabaseConfig { prefix_size: Some(12) /* use 12 bytes as prefix, this must match account_db prefix */ };
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
 				Ok(Some(DB_VERSION)) => {}
-				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v)
+				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v),
 			}
 		} else {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
@@ -159,12 +157,13 @@ impl OverlayRecentDB {
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
-					let mut r = RlpStream::new_list(3);
-					r.append(&era);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					&r.drain()
-				}).expect("Low-level database error.") {
+					                             let mut r = RlpStream::new_list(3);
+					                             r.append(&era);
+					                             r.append(&index);
+					                             r.append(&&PADDING[..]);
+					                             &r.drain()
+					                            })
+				                             .expect("Low-level database error.") {
 					trace!("read_overlay: era={}, index={}", era, index);
 					let rlp = Rlp::new(&rlp_data);
 					let id: H256 = rlp.val_at(0);
@@ -184,7 +183,7 @@ impl OverlayRecentDB {
 						deletions: deletions,
 					});
 					index += 1;
-				};
+				}
 				if index == 0 || era == 0 {
 					break;
 				}
@@ -192,7 +191,11 @@ impl OverlayRecentDB {
 			}
 		}
 		trace!("Recovered {} overlay entries, {} journal entries", count, journal.len());
-		JournalOverlay { backing_overlay: overlay, journal: journal, latest_era: latest_era }
+		JournalOverlay {
+			backing_overlay: overlay,
+			journal: journal,
+			latest_era: latest_era,
+		}
 	}
 }
 
@@ -245,7 +248,11 @@ impl JournalDB for OverlayRecentDB {
 				try!(batch.put(&LATEST_ERA_KEY, &encode(&now)));
 				journal_overlay.latest_era = Some(now);
 			}
-			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
+			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry {
+				id: id.clone(),
+				insertions: inserted_keys,
+				deletions: removed_keys,
+			});
 		}
 
 		let journal_overlay = journal_overlay.deref_mut();
@@ -257,13 +264,19 @@ impl JournalDB for OverlayRecentDB {
 				let mut overlay_deletions: Vec<H256> = Vec::new();
 				let mut index = 0usize;
 				for mut journal in records.drain(..) {
-					//delete the record from the db
+					// delete the record from the db
 					let mut r = RlpStream::new_list(3);
 					r.append(&end_era);
 					r.append(&index);
 					r.append(&&PADDING[..]);
 					try!(batch.delete(&r.drain()));
-					trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
+					trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries",
+					       end_era,
+					       index,
+					       journal.id,
+					       canon_id,
+					       journal.insertions.len(),
+					       journal.deletions.len());
 					{
 						if canon_id == journal.id {
 							for h in &journal.insertions {
@@ -300,7 +313,6 @@ impl JournalDB for OverlayRecentDB {
 		try!(self.backing.write(batch));
 		Ok(0)
 	}
-
 }
 
 impl HashDB for OverlayRecentDB {
@@ -329,12 +341,7 @@ impl HashDB for OverlayRecentDB {
 						Some(&self.transaction_overlay.denote(key, x).0)
 					}
 					_ => {
-						if let Some(x) = self.payload(key) {
-							Some(&self.transaction_overlay.denote(key, x).0)
-						}
-						else {
-							None
-						}
+						if let Some(x) = self.payload(key) { Some(&self.transaction_overlay.denote(key, x).0) } else { None }
 					}
 				}
 			}
@@ -817,23 +824,29 @@ mod tests {
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
-		// incantation to reopen the db
-		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
+			// incantation to reopen the db
+		};
+		{
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 
 			jdb.remove(&foo);
 			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
-		// incantation to reopen the db
-		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
+			// incantation to reopen the db
+		};
+		{
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 
 			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
-		// incantation to reopen the db
-		}; { let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
+			// incantation to reopen the db
+		};
+		{
+			let mut jdb = OverlayRecentDB::new(dir.to_str().unwrap());
 
 			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());

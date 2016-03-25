@@ -32,7 +32,8 @@ impl Indexer {
 		}
 
 		let mut level_sizes = vec![1];
-		level_sizes.extend_from_slice(&(1..).into_iter()
+		level_sizes.extend_from_slice(&(1..)
+			.into_iter()
 			.scan(1, |acc, _| {
 				*acc = *acc * index_size;
 				Some(*acc)

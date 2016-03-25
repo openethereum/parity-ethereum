@@ -18,13 +18,13 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
-use util::hash::{Address, H256, FixedHash};
-use util::numbers::{Uint, U256};
-use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
+use util::hash::{Address, FixedHash, H256};
+use util::numbers::{U256, Uint};
+use ethcore::client::{EachBlockWith, Executed, TestBlockChainClient, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use v1::{Eth, EthClient};
-use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config, TestMinerService, TestExternalMiner};
+use v1::tests::helpers::{Config, TestAccount, TestAccountProvider, TestExternalMiner, TestMinerService, TestSyncProvider};
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -123,7 +123,7 @@ fn rpc_eth_submit_hashrate() {
 
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 	assert_eq!(tester.hashrates.read().unwrap().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned(),
-		Some(U256::from(0x500_000)));
+	           Some(U256::from(0x500_000)));
 }
 
 #[test]
@@ -396,20 +396,18 @@ fn rpc_eth_transaction_receipt() {
 		gas_used: U256::from(0x10),
 		contract_address: None,
 		logs: vec![LocalizedLogEntry {
-			entry: LogEntry {
-				address: Address::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),
-				topics: vec![
-					H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap(),
-					H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap()
-				],
-				data: vec![],
-			},
-			block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
-			block_number: 0x4510c,
-			transaction_hash: H256::new(),
-			transaction_index: 0,
-			log_index: 1,
-		}]
+			           entry: LogEntry {
+				           address: Address::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),
+				           topics: vec![H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap(),
+				                        H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap()],
+				           data: vec![],
+			           },
+			           block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
+			           block_number: 0x4510c,
+			           transaction_hash: H256::new(),
+			           transaction_index: 0,
+			           log_index: 1,
+		           }],
 	};
 
 	let hash = H256::from_str("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238").unwrap();
@@ -486,7 +484,7 @@ fn returns_no_work_if_cant_mine() {
 
 #[test]
 fn returns_error_if_can_mine_and_no_closed_block() {
-	use ethsync::{SyncState};
+	use ethsync::SyncState;
 
 	let eth_tester = EthTester::default();
 	eth_tester.sync.status.write().unwrap().state = SyncState::Idle;

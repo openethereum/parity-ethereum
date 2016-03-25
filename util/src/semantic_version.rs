@@ -38,10 +38,18 @@ pub struct SemanticVersion {
 
 impl SemanticVersion {
 	/// Create a new object.
-	pub fn new(major: u8, minor: u8, tiny: u8) -> SemanticVersion { SemanticVersion{major: major, minor: minor, tiny: tiny} }
+	pub fn new(major: u8, minor: u8, tiny: u8) -> SemanticVersion {
+		SemanticVersion {
+			major: major,
+			minor: minor,
+			tiny: tiny,
+		}
+	}
 
 	/// Convert to a `u32` representation.
-	pub fn as_u32(&self) -> u32 { ((self.major as u32) << 16) + ((self.minor as u32) << 8) + self.tiny as u32 }
+	pub fn as_u32(&self) -> u32 {
+		((self.major as u32) << 16) + ((self.minor as u32) << 8) + self.tiny as u32
+	}
 }
 
 // TODO: implement Eq, Comparison and Debug/Display for SemanticVersion.

@@ -21,7 +21,7 @@ use rlp::*;
 use hashdb::*;
 use memorydb::*;
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use kvdb::{DBTransaction, Database, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 
@@ -32,18 +32,20 @@ struct RefInfo {
 }
 
 impl HeapSizeOf for RefInfo {
-	fn heap_size_of_children(&self) -> usize { 0 }
+	fn heap_size_of_children(&self) -> usize {
+		0
+	}
 }
 
 impl fmt::Display for RefInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}+{}", self.queue_refs, if self.in_archive {1} else {0})
+		write!(f, "{}+{}", self.queue_refs, if self.in_archive { 1 } else { 0 })
 	}
 }
 
 impl fmt::Debug for RefInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}+{}", self.queue_refs, if self.in_archive {1} else {0})
+		write!(f, "{}+{}", self.queue_refs, if self.in_archive { 1 } else { 0 })
 	}
 }
 
@@ -68,24 +70,22 @@ pub struct EarlyMergeDB {
 }
 
 // all keys must be at least 12 bytes
-const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const DB_VERSION : u32 = 3;
-const PADDING : [u8; 10] = [ 0u8; 10 ];
+const LATEST_ERA_KEY: [u8; 12] = [b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0];
+const VERSION_KEY: [u8; 12] = [b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0];
+const DB_VERSION: u32 = 3;
+const PADDING: [u8; 10] = [0u8; 10];
 
 impl EarlyMergeDB {
 	/// Create a new instance from file
 	pub fn new(path: &str) -> EarlyMergeDB {
-		let opts = DatabaseConfig {
-			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
-		};
+		let opts = DatabaseConfig { prefix_size: Some(12) /* use 12 bytes as prefix, this must match account_db prefix */ };
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
-				Ok(Some(DB_VERSION)) => {},
-				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v)
+				Ok(Some(DB_VERSION)) => {}
+				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v),
 			}
 		} else {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
@@ -116,8 +116,12 @@ impl EarlyMergeDB {
 	}
 
 	// The next three are valid only as long as there is an insert operation of `key` in the journal.
-	fn set_already_in(batch: &DBTransaction, key: &H256) { batch.put(&Self::morph_key(key, 0), &[1u8]).expect("Low-level database error. Some issue with your hard disk?"); }
-	fn reset_already_in(batch: &DBTransaction, key: &H256) { batch.delete(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?"); }
+	fn set_already_in(batch: &DBTransaction, key: &H256) {
+		batch.put(&Self::morph_key(key, 0), &[1u8]).expect("Low-level database error. Some issue with your hard disk?");
+	}
+	fn reset_already_in(batch: &DBTransaction, key: &H256) {
+		batch.delete(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?");
+	}
 	fn is_already_in(backing: &Database, key: &H256) -> bool {
 		backing.get(&Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
@@ -137,7 +141,11 @@ impl EarlyMergeDB {
 			if backing.get(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?").is_some() {
 				// already in the backing DB. start counting, and remember it was already in.
 				Self::set_already_in(batch, &h);
-				refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: true});
+				refs.insert(h.clone(),
+				            RefInfo {
+					            queue_refs: 1,
+					            in_archive: true,
+				            });
 				if trace {
 					trace!(target: "jdb.fine", "    insert({}): New to queue, in DB: Recording and inserting into queue", h);
 				}
@@ -145,10 +153,14 @@ impl EarlyMergeDB {
 			}
 
 			// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
-			//Self::reset_already_in(&h);
+			// Self::reset_already_in(&h);
 			assert!(!Self::is_already_in(backing, &h));
 			batch.put(&h.bytes(), d).expect("Low-level database error. Some issue with your hard disk?");
-			refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: false});
+			refs.insert(h.clone(),
+			            RefInfo {
+				            queue_refs: 1,
+				            in_archive: false,
+			            });
 			if trace {
 				trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
 			}
@@ -166,7 +178,11 @@ impl EarlyMergeDB {
 
 			// this is the first entry for this node in the journal.
 			// it is initialised to 1 if it was already in.
-			refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: Self::is_already_in(backing, h)});
+			refs.insert(h.clone(),
+			            RefInfo {
+				            queue_refs: 1,
+				            in_archive: Self::is_already_in(backing, h),
+			            });
 		}
 		trace!(target: "jdb.fine", "replay_keys: (end) refs={:?}", refs);
 	}
@@ -215,7 +231,7 @@ impl EarlyMergeDB {
 				}
 				None => {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
-					//assert!(!Self::is_already_in(db, &h));
+					// assert!(!Self::is_already_in(db, &h));
 					batch.delete(&h.bytes()).expect("Low-level database error. Some issue with your hard disk?");
 					if trace {
 						trace!(target: "jdb.fine", "    kill({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
@@ -231,8 +247,12 @@ impl EarlyMergeDB {
 		let (latest_era, reconstructed) = Self::read_refs(&self.backing);
 		let refs = self.refs.as_ref().unwrap().write().unwrap();
 		if *refs != reconstructed || latest_era != self.latest_era {
-			let clean_refs = refs.iter().filter_map(|(k, v)| if reconstructed.get(k) == Some(v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
-			let clean_recon = reconstructed.into_iter().filter_map(|(k, v)| if refs.get(&k) == Some(&v) {None} else {Some((k.clone(), v.clone()))}).collect::<HashMap<_, _>>();
+			let clean_refs = refs.iter()
+			                     .filter_map(|(k, v)| if reconstructed.get(k) == Some(v) { None } else { Some((k.clone(), v.clone())) })
+			                     .collect::<HashMap<_, _>>();
+			let clean_recon = reconstructed.into_iter()
+			                               .filter_map(|(k, v)| if refs.get(&k) == Some(&v) { None } else { Some((k.clone(), v.clone())) })
+			                               .collect::<HashMap<_, _>>();
 			warn!(target: "jdb", "mem: {:?}  !=  log: {:?}", clean_refs, clean_recon);
 			false
 		} else {
@@ -253,17 +273,18 @@ impl EarlyMergeDB {
 			loop {
 				let mut index = 0usize;
 				while let Some(rlp_data) = db.get({
-					let mut r = RlpStream::new_list(3);
-					r.append(&era);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					&r.drain()
-				}).expect("Low-level database error.") {
+					                             let mut r = RlpStream::new_list(3);
+					                             r.append(&era);
+					                             r.append(&index);
+					                             r.append(&&PADDING[..]);
+					                             &r.drain()
+					                            })
+				                             .expect("Low-level database error.") {
 					let rlp = Rlp::new(&rlp_data);
 					let inserts: Vec<H256> = rlp.val_at(1);
 					Self::replay_keys(&inserts, db, &mut refs);
 					index += 1;
-				};
+				}
 				if index == 0 || era == 0 {
 					break;
 				}
@@ -272,7 +293,7 @@ impl EarlyMergeDB {
 		}
 		(latest_era, refs)
 	}
- }
+}
 
 impl HashDB for EarlyMergeDB {
 	fn keys(&self) -> HashMap<H256, i32> {
@@ -294,12 +315,7 @@ impl HashDB for EarlyMergeDB {
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => {
-				if let Some(x) = self.payload(key) {
-					Some(&self.overlay.denote(key, x).0)
-				}
-				else {
-					None
-				}
+				if let Some(x) = self.payload(key) { Some(&self.overlay.denote(key, x).0) } else { None }
 			}
 		}
 	}
@@ -334,11 +350,12 @@ impl JournalDB for EarlyMergeDB {
 	}
 
 	fn mem_used(&self) -> usize {
-		self.overlay.mem_used() + match self.refs {
+		self.overlay.mem_used() +
+		match self.refs {
 			Some(ref c) => c.read().unwrap().heap_size_of_children(),
-			None => 0
+			None => 0,
 		}
- 	}
+	}
 
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
@@ -402,7 +419,8 @@ impl JournalDB for EarlyMergeDB {
 				r.append(&&PADDING[..]);
 				last = r.drain();
 				&last
-			})).is_some() {
+			}))
+				.is_some() {
 				index += 1;
 			}
 
@@ -412,14 +430,20 @@ impl JournalDB for EarlyMergeDB {
 				trace!(target: "jdb", "commit: #{} ({}), end era: {:?}", now, id, end);
 			}
 
-			let removes: Vec<H256> = drained
-				.iter()
-				.filter_map(|(k, &(_, c))| if c < 0 {Some(k.clone())} else {None})
-				.collect();
-			let inserts: Vec<(H256, Bytes)> = drained
-				.into_iter()
-				.filter_map(|(k, (v, r))| if r > 0 { assert!(r == 1); Some((k, v)) } else { assert!(r >= -1); None })
-				.collect();
+			let removes: Vec<H256> = drained.iter()
+			                                .filter_map(|(k, &(_, c))| if c < 0 { Some(k.clone()) } else { None })
+			                                .collect();
+			let inserts: Vec<(H256, Bytes)> = drained.into_iter()
+			                                         .filter_map(|(k, (v, r))| {
+				                                         if r > 0 {
+					                                         assert!(r == 1);
+					                                         Some((k, v))
+					                                        } else {
+					                                         assert!(r >= -1);
+					                                         None
+					                                        }
+				                                        })
+			                                         .collect();
 
 
 			// TODO: check all removes are in the db.
@@ -434,7 +458,9 @@ impl JournalDB for EarlyMergeDB {
 			// - we write the key into our journal for this block;
 
 			r.begin_list(inserts.len());
-			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
+			inserts.iter().foreach(|&(k, _)| {
+				r.append(&k);
+			});
 			r.append(&removes);
 			Self::insert_keys(&inserts, &self.backing, &mut refs, &batch, trace);
 			if trace {
@@ -482,16 +508,20 @@ impl JournalDB for EarlyMergeDB {
 								// already expunged from the queue (which is allowed since the key is in the archive).
 								// leave well alone.
 							}
-							Some( RefInfo{queue_refs: 1, in_archive: false} ) => {
+							Some(RefInfo{queue_refs: 1, in_archive: false}) => {
 								// just delete the refs entry.
 								refs.remove(k);
 							}
-							Some( RefInfo{queue_refs: x, in_archive: false} ) => {
+							Some(RefInfo{queue_refs: x, in_archive: false}) => {
 								// must set already in; ,
 								Self::set_already_in(&batch, k);
-								refs.insert(k.clone(), RefInfo{ queue_refs: x - 1, in_archive: true });
+								refs.insert(k.clone(),
+								            RefInfo {
+									            queue_refs: x - 1,
+									            in_archive: true,
+								            });
 							}
-							Some( RefInfo{in_archive: true, ..} ) => {
+							Some(RefInfo{in_archive: true, ..}) => {
 								// Invalid! Reinserted the same key twice.
 								warn!("Key {} inserted twice into same fork.", k);
 							}
@@ -1006,23 +1036,29 @@ mod tests {
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
-		// incantation to reopen the db
-		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			// incantation to reopen the db
+		};
+		{
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 
 			jdb.remove(&foo);
 			jdb.commit(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
-		// incantation to reopen the db
-		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			// incantation to reopen the db
+		};
+		{
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 
 			jdb.commit(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.exists(&foo));
 
-		// incantation to reopen the db
-		}; { let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
+			// incantation to reopen the db
+		};
+		{
+			let mut jdb = EarlyMergeDB::new(dir.to_str().unwrap());
 
 			jdb.commit(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
 			assert!(jdb.can_reconstruct_refs());

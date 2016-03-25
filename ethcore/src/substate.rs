@@ -45,7 +45,7 @@ impl Substate {
 			logs: Default::default(),
 			sstore_clears_count: Default::default(),
 			contracts_created: Default::default(),
-			subtraces: if tracing {Some(vec![])} else {None},
+			subtraces: if tracing { Some(vec![]) } else { None },
 		}
 	}
 
@@ -91,7 +91,7 @@ mod tests {
 		sub_state.logs.push(LogEntry {
 			address: address_from_u64(1u64),
 			topics: vec![],
-			data: vec![]
+			data: vec![],
 		});
 		sub_state.sstore_clears_count = x!(5);
 		sub_state.suicides.insert(address_from_u64(10u64));
@@ -101,7 +101,7 @@ mod tests {
 		sub_state_2.logs.push(LogEntry {
 			address: address_from_u64(1u64),
 			topics: vec![],
-			data: vec![]
+			data: vec![],
 		});
 		sub_state_2.sstore_clears_count = x!(7);
 

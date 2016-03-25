@@ -40,12 +40,12 @@
 //! 	let dir = env::temp_dir();
 //! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
 //!
-//!		let miner: Miner = Miner::default();
-//!		// get status
-//!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
+//! 		let miner: Miner = Miner::default();
+//! 		// get status
+//! 		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
-//!		// Check block for sealing
-//!		assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
+//! 		// Check block for sealing
+//! 		assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
 //! }
 //! ```
 
@@ -61,14 +61,14 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
-pub use transaction_queue::{TransactionQueue, AccountDetails};
-pub use miner::{Miner};
+pub use transaction_queue::{AccountDetails, TransactionQueue};
+pub use miner::Miner;
 
 use std::sync::Mutex;
-use util::{H256, Address, FixedHash, Bytes};
-use ethcore::client::{BlockChainClient};
-use ethcore::block::{ClosedBlock};
-use ethcore::error::{Error};
+use util::{Address, Bytes, FixedHash, H256};
+use ethcore::client::BlockChainClient;
+use ethcore::block::ClosedBlock;
+use ethcore::error::Error;
 use ethcore::transaction::SignedTransaction;
 
 /// Miner client API
@@ -78,10 +78,14 @@ pub trait MinerService : Send + Sync {
 	fn status(&self) -> MinerStatus;
 
 	/// Get the author that we will seal blocks as.
-	fn author(&self) -> Address { Address::zero() }
+	fn author(&self) -> Address {
+		Address::zero()
+	}
 
 	/// Get the extra_data that we will seal blocks wuth.
-	fn extra_data(&self) -> Bytes { vec![] }
+	fn extra_data(&self) -> Bytes {
+		vec![]
+	}
 
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>

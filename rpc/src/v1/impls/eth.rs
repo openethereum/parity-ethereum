@@ -16,24 +16,25 @@
 
 //! Eth rpc implementation.
 use std::collections::HashSet;
-use std::sync::{Arc, Weak, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService, AccountDetails};
+use ethminer::{AccountDetails, MinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
-use util::rlp::{encode, UntrustedRlp, View};
+use util::rlp::{UntrustedRlp, View, encode};
 use util::crypto::KeyPair;
 use ethcore::client::*;
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
-use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
 use v1::traits::{Eth, EthFilter};
-use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
-use v1::helpers::{PollFilter, PollManager, ExternalMinerService, ExternalMiner};
+use v1::types::{Block, BlockNumber, BlockTransactions, Bytes, CallRequest, Filter, Index, Log, OptionalValue, Receipt, SyncInfo, SyncStatus,
+                Transaction, TransactionRequest};
+use v1::helpers::{ExternalMiner, ExternalMinerService, PollFilter, PollManager};
 use util::keys::store::AccountProvider;
 
 fn default_gas() -> U256 {
@@ -47,10 +48,11 @@ fn default_gas_price() -> U256 {
 /// Eth rpc implementation.
 pub struct EthClient<C, S, A, M, EM = ExternalMiner>
 	where C: BlockChainClient,
-		  S: SyncProvider,
-		  A: AccountProvider,
-		  M: MinerService,
-		  EM: ExternalMinerService {
+	      S: SyncProvider,
+	      A: AccountProvider,
+	      M: MinerService,
+	      EM: ExternalMinerService,
+{
 	client: Weak<C>,
 	sync: Weak<S>,
 	accounts: Weak<A>,
@@ -60,10 +62,10 @@ pub struct EthClient<C, S, A, M, EM = ExternalMiner>
 
 impl<C, S, A, M> EthClient<C, S, A, M, ExternalMiner>
 	where C: BlockChainClient,
-		  S: SyncProvider,
-		  A: AccountProvider,
-		  M: MinerService {
-
+	      S: SyncProvider,
+	      A: AccountProvider,
+	      M: MinerService,
+{
 	/// Creates new EthClient.
 	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>) -> Self {
 		EthClient::new_with_external_miner(client, sync, accounts, miner, ExternalMiner::default())
@@ -72,14 +74,13 @@ impl<C, S, A, M> EthClient<C, S, A, M, ExternalMiner>
 
 impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 	where C: BlockChainClient,
-		  S: SyncProvider,
-		  A: AccountProvider,
-		  M: MinerService,
-		  EM: ExternalMinerService {
-
+	      S: SyncProvider,
+	      A: AccountProvider,
+	      M: MinerService,
+	      EM: ExternalMinerService,
+{
 	/// Creates new EthClient with custom external miner.
-	pub fn new_with_external_miner(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>, em: EM)
-		-> EthClient<C, S, A, M, EM> {
+	pub fn new_with_external_miner(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>, em: EM) -> EthClient<C, S, A, M, EM> {
 		EthClient {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
@@ -120,18 +121,18 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 							BlockTransactions::Hashes(block_view.transaction_hashes())
 						}
 					},
-					extra_data: Bytes::new(view.extra_data())
+					extra_data: Bytes::new(view.extra_data()),
 				};
 				to_value(&block)
-			},
-			_ => Ok(Value::Null)
+			}
+			_ => Ok(Value::Null),
 		}
 	}
 
 	fn transaction(&self, id: TransactionId) -> Result<Value, Error> {
 		match take_weak!(self.client).transaction(id) {
 			Some(t) => to_value(&Transaction::from(t)),
-			None => Ok(Value::Null)
+			None => Ok(Value::Null),
 		}
 	}
 
@@ -162,8 +163,8 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 					transactions: BlockTransactions::Hashes(vec![]),
 				};
 				to_value(&block)
-			},
-			None => Ok(Value::Null)
+			}
+			None => Ok(Value::Null),
 		}
 	}
 
@@ -176,11 +177,11 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 					gas: request.gas.unwrap_or_else(default_gas),
 					gas_price: request.gas_price.unwrap_or_else(default_gas_price),
 					value: request.value.unwrap_or_else(U256::zero),
-					data: request.data.map_or_else(Vec::new, |d| d.to_vec())
+					data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
 				};
 
 				accounts.account_secret(from).ok().map(|secret| transaction.sign(&secret))
-			},
+			}
 			None => {
 				let transaction = EthTransaction {
 					nonce: request.nonce.unwrap_or_else(U256::zero),
@@ -188,7 +189,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 					gas: request.gas.unwrap_or_else(default_gas),
 					gas_price: request.gas_price.unwrap_or_else(default_gas_price),
 					value: request.value.unwrap_or_else(U256::zero),
-					data: request.data.map_or_else(Vec::new, |d| d.to_vec())
+					data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
 				};
 
 				KeyPair::create().ok().map(|kp| transaction.sign(kp.secret()))
@@ -199,15 +200,15 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	where C: BlockChainClient + 'static,
-		  S: SyncProvider + 'static,
-		  A: AccountProvider + 'static,
-		  M: MinerService + 'static,
-		  EM: ExternalMinerService + 'static {
-
+	      S: SyncProvider + 'static,
+	      A: AccountProvider + 'static,
+	      M: MinerService + 'static,
+	      EM: ExternalMinerService + 'static,
+{
 	fn protocol_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => Ok(Value::String(format!("{}", take_weak!(self.sync).status().protocol_version).to_owned())),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -220,12 +221,12 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 					SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks => SyncStatus::Info(SyncInfo {
 						starting_block: U256::from(status.start_block_number),
 						current_block: U256::from(take_weak!(self.client).chain_info().best_block_number),
-						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number))
-					})
+						highest_block: U256::from(status.highest_block_number.unwrap_or(status.start_block_number)),
+					}),
 				};
 				to_value(&res)
 			}
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -241,7 +242,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn is_mining(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&self.external_miner.is_mining()),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -249,14 +250,14 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn hashrate(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&self.external_miner.hashrate()),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&default_gas_price()),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -264,92 +265,86 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		let store = take_weak!(self.accounts);
 		match store.accounts() {
 			Ok(account_list) => to_value(&account_list),
-			Err(_) => Err(Error::internal_error())
+			Err(_) => Err(Error::internal_error()),
 		}
 	}
 
 	fn block_number(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&U256::from(take_weak!(self.client).chain_info().best_block_number)),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
 	fn balance(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).balance(&address)))
+		from_params::<(Address, BlockNumber)>(params).and_then(|(address, _block_number)| to_value(&take_weak!(self.client).balance(&address)))
 	}
 
 	fn storage_at(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, U256, BlockNumber)>(params)
-			.and_then(|(address, position, _block_number)|
-				to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))))
+			.and_then(|(address, position, _block_number)| to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))))
 	}
 
 	fn transaction_count(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).nonce(&address)))
+		from_params::<(Address, BlockNumber)>(params).and_then(|(address, _block_number)| to_value(&take_weak!(self.client).nonce(&address)))
 	}
 
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| // match
+		from_params::<(H256,)>(params).and_then(|(hash,)| // match
 				take_weak!(self.client).block(BlockId::Hash(hash))
 					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count()))))
 	}
 
 	fn block_transaction_count_by_number(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(BlockNumber,)>(params)
-			.and_then(|(block_number,)| match block_number {
-				BlockNumber::Pending => to_value(
-					&U256::from(take_weak!(self.miner).status().transactions_in_pending_block)
-				),
-				_ => take_weak!(self.client).block(block_number.into())
-						.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count())))
-			})
+		from_params::<(BlockNumber,)>(params).and_then(|(block_number,)| {
+			match block_number {
+				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).status().transactions_in_pending_block)),
+				_ => take_weak!(self.client)
+					.block(block_number.into())
+					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).transactions_count()))),
+			}
+		})
 	}
 
 	fn block_uncles_count_by_hash(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256,)>(params)
-			.and_then(|(hash,)|
-				take_weak!(self.client).block(BlockId::Hash(hash))
-					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count()))))
+		from_params::<(H256,)>(params).and_then(|(hash,)| {
+			take_weak!(self.client)
+				.block(BlockId::Hash(hash))
+				.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count())))
+		})
 	}
 
 	fn block_uncles_count_by_number(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(BlockNumber,)>(params)
-			.and_then(|(block_number,)| match block_number {
+		from_params::<(BlockNumber,)>(params).and_then(|(block_number,)| {
+			match block_number {
 				BlockNumber::Pending => to_value(&U256::from(0)),
-				_ => take_weak!(self.client).block(block_number.into())
-						.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count())))
-			})
+				_ => take_weak!(self.client)
+					.block(block_number.into())
+					.map_or(Ok(Value::Null), |bytes| to_value(&U256::from(BlockView::new(&bytes).uncles_count()))),
+			}
+		})
 	}
 
 	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)|
-				to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
+			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
 	}
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256, bool)>(params)
-			.and_then(|(hash, include_txs)| self.block(BlockId::Hash(hash), include_txs))
+		from_params::<(H256, bool)>(params).and_then(|(hash, include_txs)| self.block(BlockId::Hash(hash), include_txs))
 	}
 
 	fn block_by_number(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(BlockNumber, bool)>(params)
-			.and_then(|(number, include_txs)| self.block(number.into(), include_txs))
+		from_params::<(BlockNumber, bool)>(params).and_then(|(number, include_txs)| self.block(number.into(), include_txs))
 	}
 
 	fn transaction_by_hash(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| self.transaction(TransactionId::Hash(hash)))
+		from_params::<(H256,)>(params).and_then(|(hash,)| self.transaction(TransactionId::Hash(hash)))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| self.transaction(TransactionId::Location(BlockId::Hash(hash), index.value())))
+		from_params::<(H256, Index)>(params).and_then(|(hash, index)| self.transaction(TransactionId::Location(BlockId::Hash(hash), index.value())))
 	}
 
 	fn transaction_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
@@ -358,40 +353,37 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	}
 
 	fn transaction_receipt(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| {
-				let client = take_weak!(self.client);
-				let receipt = client.transaction_receipt(TransactionId::Hash(hash));
-				to_value(&receipt.map(Receipt::from))
-			})
+		from_params::<(H256,)>(params).and_then(|(hash,)| {
+			let client = take_weak!(self.client);
+			let receipt = client.transaction_receipt(TransactionId::Hash(hash));
+			to_value(&receipt.map(Receipt::from))
+		})
 	}
 
 	fn uncle_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256, Index)>(params)
-			.and_then(|(hash, index)| self.uncle(UncleId(BlockId::Hash(hash), index.value())))
+		from_params::<(H256, Index)>(params).and_then(|(hash, index)| self.uncle(UncleId(BlockId::Hash(hash), index.value())))
 	}
 
 	fn uncle_by_block_number_and_index(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(BlockNumber, Index)>(params)
-			.and_then(|(number, index)| self.uncle(UncleId(number.into(), index.value())))
+		from_params::<(BlockNumber, Index)>(params).and_then(|(number, index)| self.uncle(UncleId(number.into(), index.value())))
 	}
 
 	fn compilers(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => to_value(&vec![] as &Vec<String>),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
 	fn logs(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Filter,)>(params)
-			.and_then(|(filter,)| {
-				let logs = take_weak!(self.client).logs(filter.into())
-					.into_iter()
-					.map(From::from)
-					.collect::<Vec<Log>>();
-				to_value(&logs)
-			})
+		from_params::<(Filter,)>(params).and_then(|(filter,)| {
+			let logs = take_weak!(self.client)
+				.logs(filter.into())
+				.into_iter()
+				.map(From::from)
+				.collect::<Vec<Log>>();
+			to_value(&logs)
+		})
 	}
 
 	fn work(&self, params: Params) -> Result<Value, Error> {
@@ -416,16 +408,16 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 						let seed_hash = Ethash::get_seedhash(b.block().header().number());
 						to_value(&(pow_hash, seed_hash, target))
 					}
-					_ => Err(Error::internal_error())
+					_ => Err(Error::internal_error()),
 				}
-			},
-			_ => Err(Error::invalid_params())
+			}
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
 	fn submit_work(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
-//			trace!("Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
+			// trace!("Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
@@ -442,104 +434,112 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	}
 
 	fn send_transaction(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(TransactionRequest, )>(params)
-			.and_then(|(request, )| {
-				let accounts = take_weak!(self.accounts);
-				match accounts.account_secret(&request.from) {
-					Ok(secret) => {
-						let miner = take_weak!(self.miner);
-						let client = take_weak!(self.client);
+		from_params::<(TransactionRequest,)>(params).and_then(|(request,)| {
+			let accounts = take_weak!(self.accounts);
+			match accounts.account_secret(&request.from) {
+				Ok(secret) => {
+					let miner = take_weak!(self.miner);
+					let client = take_weak!(self.client);
 
-						let transaction = EthTransaction {
-							nonce: request.nonce.unwrap_or_else(|| client.nonce(&request.from)),
-							action: request.to.map_or(Action::Create, Action::Call),
-							gas: request.gas.unwrap_or_else(default_gas),
-							gas_price: request.gas_price.unwrap_or_else(default_gas_price),
-							value: request.value.unwrap_or_else(U256::zero),
-							data: request.data.map_or_else(Vec::new, |d| d.to_vec())
-						};
+					let transaction = EthTransaction {
+						nonce: request.nonce.unwrap_or_else(|| client.nonce(&request.from)),
+						action: request.to.map_or(Action::Create, Action::Call),
+						gas: request.gas.unwrap_or_else(default_gas),
+						gas_price: request.gas_price.unwrap_or_else(default_gas_price),
+						value: request.value.unwrap_or_else(U256::zero),
+						data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
+					};
 
-						let signed_transaction = transaction.sign(&secret);
-						let hash = signed_transaction.hash();
+					let signed_transaction = transaction.sign(&secret);
+					let hash = signed_transaction.hash();
 
-						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
+					let import = miner.import_transactions(vec![signed_transaction], |a: &Address| {
+						AccountDetails {
 							nonce: client.nonce(a),
 							balance: client.balance(a),
-						});
-						match import.into_iter().collect::<Result<Vec<_>, _>>() {
-							Ok(_) => to_value(&hash),
-							Err(e) => {
-								warn!("Error sending transaction: {:?}", e);
-								to_value(&U256::zero())
-							}
 						}
-					},
-					Err(_) => { to_value(&U256::zero()) }
+					});
+					match import.into_iter().collect::<Result<Vec<_>, _>>() {
+						Ok(_) => to_value(&hash),
+						Err(e) => {
+							warn!("Error sending transaction: {:?}", e);
+							to_value(&U256::zero())
+						}
+					}
 				}
+				Err(_) => {
+					to_value(&U256::zero())
+				}
+			}
 		})
 	}
 
 	fn send_raw_transaction(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Bytes, )>(params)
-			.and_then(|(raw_transaction, )| {
-				let decoded: Result<SignedTransaction, _> = UntrustedRlp::new(&raw_transaction.to_vec()).as_val();
-				match decoded {
-					Ok(signed_tx) => {
-						let miner = take_weak!(self.miner);
-						let client = take_weak!(self.client);
+		from_params::<(Bytes,)>(params).and_then(|(raw_transaction,)| {
+			let decoded: Result<SignedTransaction, _> = UntrustedRlp::new(&raw_transaction.to_vec()).as_val();
+			match decoded {
+				Ok(signed_tx) => {
+					let miner = take_weak!(self.miner);
+					let client = take_weak!(self.client);
 
-						let hash = signed_tx.hash();
-						let import = miner.import_transactions(vec![signed_tx], |a: &Address| AccountDetails {
+					let hash = signed_tx.hash();
+					let import = miner.import_transactions(vec![signed_tx], |a: &Address| {
+						AccountDetails {
 							nonce: client.nonce(a),
 							balance: client.balance(a),
-						});
-						match import.into_iter().collect::<Result<Vec<_>, _>>() {
-							Ok(_) => to_value(&hash),
-							Err(e) => {
-								warn!("Error sending transaction: {:?}", e);
-								to_value(&U256::zero())
-							}
 						}
-					},
-					Err(_) => { to_value(&U256::zero()) }
+					});
+					match import.into_iter().collect::<Result<Vec<_>, _>>() {
+						Ok(_) => to_value(&hash),
+						Err(e) => {
+							warn!("Error sending transaction: {:?}", e);
+							to_value(&U256::zero())
+						}
+					}
 				}
+				Err(_) => {
+					to_value(&U256::zero())
+				}
+			}
 		})
 	}
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(CallRequest, BlockNumber)>(params)
-			.and_then(|(request, _block_number)| {
-				let client = take_weak!(self.client);
-				let accounts = take_weak!(self.accounts);
-				let signed = Self::sign_call(&client, &accounts, request);
-				let output = signed.map(|tx| client.call(&tx)
-					.map(|e| Bytes::new(e.output))
-					.unwrap_or(Bytes::default()));
+		from_params::<(CallRequest, BlockNumber)>(params).and_then(|(request, _block_number)| {
+			let client = take_weak!(self.client);
+			let accounts = take_weak!(self.accounts);
+			let signed = Self::sign_call(&client, &accounts, request);
+			let output = signed.map(|tx| {
+				client.call(&tx)
+				      .map(|e| Bytes::new(e.output))
+				      .unwrap_or(Bytes::default())
+			});
 
-				to_value(&output)
-			})
+			to_value(&output)
+		})
 	}
 
 	fn estimate_gas(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(CallRequest, BlockNumber)>(params)
-			.and_then(|(request, _block_number)| {
-				let client = take_weak!(self.client);
-				let accounts = take_weak!(self.accounts);
-				let signed = Self::sign_call(&client, &accounts, request);
-				let output = signed.map(|tx| client.call(&tx)
-					.map(|e| e.gas_used + e.refunded)
-					.unwrap_or(U256::zero()));
+		from_params::<(CallRequest, BlockNumber)>(params).and_then(|(request, _block_number)| {
+			let client = take_weak!(self.client);
+			let accounts = take_weak!(self.accounts);
+			let signed = Self::sign_call(&client, &accounts, request);
+			let output = signed.map(|tx| {
+				client.call(&tx)
+				      .map(|e| e.gas_used + e.refunded)
+				      .unwrap_or(U256::zero())
+			});
 
-				to_value(&output)
-			})
+			to_value(&output)
+		})
 	}
 }
 
 /// Eth filter rpc implementation.
 pub struct EthFilterClient<C, M>
 	where C: BlockChainClient,
-		  M: MinerService {
-
+	      M: MinerService,
+{
 	client: Weak<C>,
 	miner: Weak<M>,
 	polls: Mutex<PollManager<PollFilter>>,
@@ -547,8 +547,8 @@ pub struct EthFilterClient<C, M>
 
 impl<C, M> EthFilterClient<C, M>
 	where C: BlockChainClient,
-		  M: MinerService {
-
+	      M: MinerService,
+{
 	/// Creates new Eth filter client.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
 		EthFilterClient {
@@ -561,16 +561,15 @@ impl<C, M> EthFilterClient<C, M>
 
 impl<C, M> EthFilter for EthFilterClient<C, M>
 	where C: BlockChainClient + 'static,
-		  M: MinerService + 'static {
-
+	      M: MinerService + 'static,
+{
 	fn new_filter(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Filter,)>(params)
-			.and_then(|(filter,)| {
-				let mut polls = self.polls.lock().unwrap();
-				let block_number = take_weak!(self.client).chain_info().best_block_number;
-				let id = polls.create_poll(PollFilter::Logs(block_number, filter.into()));
-				to_value(&U256::from(id))
-			})
+		from_params::<(Filter,)>(params).and_then(|(filter,)| {
+			let mut polls = self.polls.lock().unwrap();
+			let block_number = take_weak!(self.client).chain_info().best_block_number;
+			let id = polls.create_poll(PollFilter::Logs(block_number, filter.into()));
+			to_value(&U256::from(id))
+		})
 	}
 
 	fn new_block_filter(&self, params: Params) -> Result<Value, Error> {
@@ -579,8 +578,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 				let mut polls = self.polls.lock().unwrap();
 				let id = polls.create_poll(PollFilter::Block(take_weak!(self.client).chain_info().best_block_number));
 				to_value(&U256::from(id))
-			},
-			_ => Err(Error::invalid_params())
+			}
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
@@ -592,68 +591,66 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 				let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
 
 				to_value(&U256::from(id))
-			},
-			_ => Err(Error::invalid_params())
+			}
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
 	fn filter_changes(&self, params: Params) -> Result<Value, Error> {
 		let client = take_weak!(self.client);
-		from_params::<(Index,)>(params)
-			.and_then(|(index,)| {
-				let mut polls = self.polls.lock().unwrap();
-				match polls.poll_mut(&index.value()) {
-					None => Ok(Value::Array(vec![] as Vec<Value>)),
-					Some(filter) => match *filter {
-						PollFilter::Block(ref mut block_number) => {
-							// + 1, cause we want to return hashes including current block hash.
-							let current_number = client.chain_info().best_block_number + 1;
-							let hashes = (*block_number..current_number).into_iter()
-								.map(BlockId::Number)
-								.filter_map(|id| client.block_hash(id))
-								.collect::<Vec<H256>>();
+		from_params::<(Index,)>(params).and_then(|(index,)| {
+			let mut polls = self.polls.lock().unwrap();
+			match polls.poll_mut(&index.value()) {
+				None => Ok(Value::Array(vec![] as Vec<Value>)),
+				Some(filter) => match *filter {
+					PollFilter::Block(ref mut block_number) => {
+						// + 1, cause we want to return hashes including current block hash.
+						let current_number = client.chain_info().best_block_number + 1;
+						let hashes = (*block_number..current_number)
+							.into_iter()
+							.map(BlockId::Number)
+							.filter_map(|id| client.block_hash(id))
+							.collect::<Vec<H256>>();
 
-							*block_number = current_number;
+						*block_number = current_number;
 
-							to_value(&hashes)
-						},
-						PollFilter::PendingTransaction(ref mut previous_hashes) => {
-							let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
-							// calculate diff
-							let previous_hashes_set = previous_hashes.into_iter().map(|h| h.clone()).collect::<HashSet<H256>>();
-							let diff = current_hashes
-								.iter()
-								.filter(|hash| previous_hashes_set.contains(&hash))
-								.cloned()
-								.collect::<Vec<H256>>();
-
-							*previous_hashes = current_hashes;
-
-							to_value(&diff)
-						},
-						PollFilter::Logs(ref mut block_number, ref mut filter) => {
-							filter.from_block = BlockId::Number(*block_number);
-							filter.to_block = BlockId::Latest;
-							let logs = client.logs(filter.clone())
-								.into_iter()
-								.map(From::from)
-								.collect::<Vec<Log>>();
-
-							let current_number = client.chain_info().best_block_number;
-
-							*block_number = current_number;
-							to_value(&logs)
-						}
+						to_value(&hashes)
 					}
-				}
-			})
+					PollFilter::PendingTransaction(ref mut previous_hashes) => {
+						let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
+						// calculate diff
+						let previous_hashes_set = previous_hashes.into_iter().map(|h| h.clone()).collect::<HashSet<H256>>();
+						let diff = current_hashes.iter()
+						                         .filter(|hash| previous_hashes_set.contains(&hash))
+						                         .cloned()
+						                         .collect::<Vec<H256>>();
+
+						*previous_hashes = current_hashes;
+
+						to_value(&diff)
+					}
+					PollFilter::Logs(ref mut block_number, ref mut filter) => {
+						filter.from_block = BlockId::Number(*block_number);
+						filter.to_block = BlockId::Latest;
+						let logs = client.logs(filter.clone())
+						                 .into_iter()
+						                 .map(From::from)
+						                 .collect::<Vec<Log>>();
+
+						let current_number = client.chain_info().best_block_number;
+
+						*block_number = current_number;
+						to_value(&logs)
+					}
+				},
+			}
+		})
 	}
 
 	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Index,)>(params)
-			.and_then(|(index,)| {
-				self.polls.lock().unwrap().remove_poll(&index.value());
-				to_value(&true)
-			})
+		from_params::<(Index,)>(params).and_then(|(index,)| {
+			self.polls.lock().unwrap().remove_poll(&index.value());
+			to_value(&true)
+		})
 	}
 }

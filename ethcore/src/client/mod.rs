@@ -22,14 +22,14 @@ mod ids;
 mod test_client;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
+pub use self::config::{BlockChainConfig, BlockQueueConfig, ClientConfig};
 pub use self::ids::{BlockId, TransactionId, UncleId};
-pub use self::test_client::{TestBlockChainClient, EachBlockWith};
+pub use self::test_client::{EachBlockWith, TestBlockChainClient};
 pub use executive::Executed;
 
 use std::collections::HashSet;
 use util::bytes::Bytes;
-use util::hash::{Address, H256, H2048};
+use util::hash::{Address, H2048, H256};
 use util::numbers::U256;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
@@ -38,7 +38,7 @@ use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
 use filter::Filter;
-use error::{ImportResult, Error};
+use error::{Error, ImportResult};
 use receipt::LocalizedReceipt;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -119,8 +119,12 @@ pub trait BlockChainClient : Sync + Send {
 
 	// TODO [todr] Should be moved to miner crate eventually.
 	/// Returns ClosedBlock prepared for sealing.
-	fn prepare_sealing(&self, author: Address, gas_floor_target: U256, extra_data: Bytes, transactions: Vec<SignedTransaction>)
-		-> Option<(ClosedBlock, HashSet<H256>)>;
+	fn prepare_sealing(&self,
+	                   author: Address,
+	                   gas_floor_target: U256,
+	                   extra_data: Bytes,
+	                   transactions: Vec<SignedTransaction>)
+	                   -> Option<(ClosedBlock, HashSet<H256>)>;
 
 	// TODO [todr] Should be moved to miner crate eventually.
 	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
@@ -129,4 +133,3 @@ pub trait BlockChainClient : Sync + Send {
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;
 }
-

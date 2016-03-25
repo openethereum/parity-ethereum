@@ -23,16 +23,16 @@ use env_info::EnvInfo;
 /// An engine which does not provide any consensus mechanism.
 pub struct NullEngine {
 	spec: Spec,
-	factory: Factory
+	factory: Factory,
 }
 
 impl NullEngine {
 	/// Returns new instance of NullEngine with default VM Factory
 	pub fn new_boxed(spec: Spec) -> Box<Engine> {
-		Box::new(NullEngine{
+		Box::new(NullEngine {
 			spec: spec,
 			// TODO [todr] should this return any specific factory?
-			factory: Factory::default()
+			factory: Factory::default(),
 		})
 	}
 }
@@ -41,16 +41,16 @@ impl Engine for NullEngine {
 	fn vm_factory(&self) -> &Factory {
 		&self.factory
 	}
-	
-	fn name(&self) -> &str { "NullEngine" }
 
-	fn spec(&self) -> &Spec { &self.spec }
+	fn name(&self) -> &str {
+		"NullEngine"
+	}
+
+	fn spec(&self) -> &Spec {
+		&self.spec
+	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		if env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
-			Schedule::new_frontier()
-		} else {
-			Schedule::new_homestead()
-		}
+		if env_info.number < self.u64_param("frontierCompatibilityModeLimit") { Schedule::new_frontier() } else { Schedule::new_homestead() }
 	}
 }

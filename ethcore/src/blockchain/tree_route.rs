@@ -26,4 +26,3 @@ pub struct TreeRoute {
 	/// An index where best common ancestor would be.
 	pub index: usize,
 }
-

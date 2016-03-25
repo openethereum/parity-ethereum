@@ -25,50 +25,51 @@
 //! use ethcore::chainfilter::*;
 //!
 //! fn main() {
-//!		let (index_size, bloom_levels) = (16, 3);
-//!		let mut cache = MemoryCache::new();
+//! 		let (index_size, bloom_levels) = (16, 3);
+//! 		let mut cache = MemoryCache::new();
 //!
-//!		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
+//! 		let address = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
 //!
-//!		// borrow cache for reading inside the scope
-//!		let modified_blooms = {
-//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-//!			let block_number = 39;
-//!			let mut bloom = H2048::new();
-//!			bloom.shift_bloomed(&address.sha3());
-//!			filter.add_bloom(&bloom, block_number)
-//!		};
+//! 		// borrow cache for reading inside the scope
+//! 		let modified_blooms = {
+//! 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+//! 			let block_number = 39;
+//! 			let mut bloom = H2048::new();
+//! 			bloom.shift_bloomed(&address.sha3());
+//! 			filter.add_bloom(&bloom, block_number)
+//! 		};
 //!
-//!		// number of updated blooms is equal number of levels
-//!		assert_eq!(modified_blooms.len(), bloom_levels as usize);
+//! 		// number of updated blooms is equal number of levels
+//! 		assert_eq!(modified_blooms.len(), bloom_levels as usize);
 //!
-//!		// lets inserts modified blooms into the cache
-//!		cache.insert_blooms(modified_blooms);
+//! 		// lets inserts modified blooms into the cache
+//! 		cache.insert_blooms(modified_blooms);
 //!
-//!		// borrow cache for another reading operations
-//!		{
-//!			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
-//!			let blocks = filter.blocks_with_address(&address, 10, 40);
-//!			assert_eq!(blocks.len(), 1);
-//!			assert_eq!(blocks[0], 39);
-//!		}
+//! 		// borrow cache for another reading operations
+//! 		{
+//! 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
+//! 			let blocks = filter.blocks_with_address(&address, 10, 40);
+//! 			assert_eq!(blocks.len(), 1);
+//! 			assert_eq!(blocks[0], 39);
+//! 		}
 //! }
 //! ```
 //!
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use util::hash::*;
 use chainfilter::{BloomIndex, FilterDataSource};
 use chainfilter::indexer::Indexer;
 
 /// Should be used for search operations on blockchain.
 pub struct ChainFilter<'a, D>
-	where D: FilterDataSource + 'a
+	where D: FilterDataSource + 'a,
 {
 	data_source: &'a D,
 	indexer: Indexer,
 }
 
-impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
+impl<'a, D> ChainFilter<'a, D>
+    where D: FilterDataSource,
 {
 	/// Creates new filter instance.
 	///
@@ -76,7 +77,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 	pub fn new(data_source: &'a D, index_size: usize, levels: u8) -> Self {
 		ChainFilter {
 			data_source: data_source,
-			indexer: Indexer::new(index_size, levels)
+			indexer: Indexer::new(index_size, levels),
 		}
 	}
 
@@ -92,13 +93,13 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 					// take the value if its smaller than to_block
 					true if level_bloom.contains(bloom) => Some(vec![offset]),
 					// return None if it is is equal to to_block
-					_ => None
+					_ => None,
 				},
 				// return None if current level doesnt contain given bloom
 				_ if !level_bloom.contains(bloom) => return None,
 				// continue processing && go down
-				_ => ()
-			}
+				_ => (),
+			},
 		};
 
 		let level_size = self.indexer.level_size(level - 1);
@@ -155,7 +156,7 @@ impl<'a, D> ChainFilter<'a, D> where D: FilterDataSource
 				let index = self.indexer.bloom_index(block_number + i, level);
 				let new_bloom = {
 					// use new blooms before db blooms where necessary
-					let bloom_at = | index | { result.get(&index).cloned().or_else(|| self.data_source.bloom_at_index(&index)) };
+					let bloom_at = |index| result.get(&index).cloned().or_else(|| self.data_source.bloom_at_index(&index));
 
 					self.indexer.lower_level_bloom_indexes(&index)
 						.into_iter()

@@ -28,23 +28,27 @@ pub enum VMType {
 	#[cfg(feature = "jit")]
 	Jit,
 	/// RUST EVM
-	Interpreter
+	Interpreter,
 }
 
 #[cfg(test)]
 impl fmt::Display for VMType {
 	#[cfg(feature="jit")]
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", match *self {
-			VMType::Jit => "JIT",
-			VMType::Interpreter => "INT"
-		})
+		write!(f,
+		       "{}",
+		       match *self {
+			       VMType::Jit => "JIT",
+			       VMType::Interpreter => "INT",
+		       })
 	}
 	#[cfg(not(feature="jit"))]
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", match *self {
-			VMType::Interpreter => "INT"
-		})
+		write!(f,
+		       "{}",
+		       match *self {
+			       VMType::Interpreter => "INT",
+		       })
 	}
 }
 
@@ -66,7 +70,7 @@ impl VMType {
 
 /// Evm factory. Creates appropriate Evm.
 pub struct Factory {
-	evm: VMType
+	evm: VMType,
 }
 
 impl Factory {
@@ -76,11 +80,11 @@ impl Factory {
 		match self.evm {
 			VMType::Jit => {
 				Box::new(super::jit::JitEvm)
-			},
+			}
 			VMType::Interpreter => {
 				Box::new(super::interpreter::Interpreter)
 			}
-		}	
+		}
 	}
 
 	/// Create fresh instance of VM
@@ -90,32 +94,26 @@ impl Factory {
 			VMType::Interpreter => {
 				Box::new(super::interpreter::Interpreter)
 			}
-		}	
+		}
 	}
 
 	/// Create new instance of specific `VMType` factory
 	#[cfg(test)]
 	pub fn new(evm: VMType) -> Factory {
-		Factory {
-			evm: evm
-		}
+		Factory { evm: evm }
 	}
 }
 impl Default for Factory {
 	/// Returns jitvm factory
 	#[cfg(feature = "jit")]
 	fn default() -> Factory {
-		Factory {
-			evm: VMType::Jit
-		}
+		Factory { evm: VMType::Jit }
 	}
 
 	/// Returns native rust evm factory
 	#[cfg(not(feature = "jit"))]
 	fn default() -> Factory {
-		Factory {
-			evm: VMType::Interpreter
-		}
+		Factory { evm: VMType::Interpreter }
 	}
 }
 

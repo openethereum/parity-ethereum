@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::{U256,H256};
+use util::numbers::{H256, U256};
 use header::BlockNumber;
 
 /// Brief info about inserted block.
@@ -27,7 +27,7 @@ pub struct BlockInfo {
 	/// Total block difficulty.
 	pub total_difficulty: U256,
 	/// Block location in blockchain.
-	pub location: BlockLocation
+	pub location: BlockLocation,
 }
 
 /// Describes location of newly inserted block.
@@ -47,5 +47,5 @@ pub enum BlockLocation {
 		enacted: Vec<H256>,
 		/// Hashes of the blocks which were invalidated.
 		retracted: Vec<H256>,
-	}
+	},
 }
