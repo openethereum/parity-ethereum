@@ -80,7 +80,7 @@ matrix:
     - os: linux
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
       addons:
-        apt:
+         apt:
           packages: &arm_unknown_linux_gnueabihf
         - g++-arm-linux-gnueabihf
         - libc6-armhf-cross
