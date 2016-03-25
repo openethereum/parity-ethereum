@@ -79,7 +79,20 @@ matrix:
     # Beta channel
     - os: linux
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
-      # Extra packages only for this job beta
+      # Extra packages only for this job
+      addons:
+        apt:
+          packages: &arm_unknown_linux_gnueabihf
+            # Cross compiler and cross compiled C++ libraries
+            - g++-arm-linux-gnueabihf
+            - libc6-armhf-cross
+            - libc6-dev-armhf-cross
+            # Emulator
+            - qemu-user
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=beta
     - os: linux
@@ -124,18 +137,20 @@ matrix:
     # Nightly channel
     - os: linux
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=nightly
+      # Extra packages only for this job
       addons:
         apt:
           packages: &arm_unknown_linux_gnueabihf
-        - g++-arm-linux-gnueabihf
-        - libc6-armhf-cross
-        - libc6-dev-armhf-cross
-        # Emulator
-        - qemu-user
-        # Additional libs
-        - libcurl4-openssl-dev
-        - libelf-dev
-        - libdw-dev
+            # Cross compiler and cross compiled C++ libraries
+            - g++-arm-linux-gnueabihf
+            - libc6-armhf-cross
+            - libc6-dev-armhf-cross
+            # Emulator
+            - qemu-user
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=nightly
     - os: linux
@@ -184,20 +199,20 @@ matrix:
     # TODO Remove this entry by the time Rust 1.8.0 is out
     - os: linux
       env: TARGET=armv7-unknown-linux-gnueabihf CHANNEL=stable
+      # Extra packages only for this job
       addons:
         apt:
-          # Use the same packages the stable version uses
-          packages: &armv7_unknown_linux_gnueabihf
-        - g++-arm-linux-gnueabihf
-        - libc6-armhf-cross
-        - libc6-dev-armhf-cross
-        # Emulator
-        - qemu-user
-        # Additional libs
-        - libcurl4-openssl-dev
-        - libelf-dev
-        - libdw-dev
-
+          packages: &arm_unknown_linux_gnueabihf
+            # Cross compiler and cross compiled C++ libraries
+            - g++-arm-linux-gnueabihf
+            - libc6-armhf-cross
+            - libc6-dev-armhf-cross
+            # Emulator
+            - qemu-user
+            # Additional libs
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
 install:
   - export PATH="$PATH:~/multirust/bin"
   - bash ci/install.sh
