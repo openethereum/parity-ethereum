@@ -79,11 +79,11 @@ matrix:
     # Beta channel
     - os: linux
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
-# Extra packages only for this job
-addons:
-  apt:
-    packages: &arm_unknown_linux_gnueabihf
-      # Cross compiler and cross compiled C++ libraries
+      # Extra packages only for this job
+      addons:
+        apt:
+          packages: &arm_unknown_linux_gnueabihf
+        # Cross compiler and cross compiled C++ libraries
         - g++-arm-linux-gnueabihf
         - libc6-armhf-cross
         - libc6-dev-armhf-cross
