@@ -67,7 +67,7 @@ fn test_get_swap_position() {
 
 /// Returns number of topcis to take from stack
 /// LOG0 -> 0
-pub fn get_log_topics (i: Instruction) -> usize {
+pub fn get_log_topics(i: Instruction) -> usize {
 	assert!(i >= LOG0 && i <= LOG4);
 	(i - LOG0) as usize
 }
@@ -98,11 +98,11 @@ pub enum GasPriceTier {
 	/// Multiparam or otherwise special
 	Special,
 	/// Invalid
-	Invalid
+	Invalid,
 }
 
 /// Returns the index in schedule for specific `GasPriceTier`
-pub fn get_tier_idx (tier: GasPriceTier) -> usize {
+pub fn get_tier_idx(tier: GasPriceTier) -> usize {
 	match tier {
 		GasPriceTier::Zero => 0,
 		GasPriceTier::Base => 1,
@@ -112,7 +112,7 @@ pub fn get_tier_idx (tier: GasPriceTier) -> usize {
 		GasPriceTier::High => 5,
 		GasPriceTier::Ext => 6,
 		GasPriceTier::Special => 7,
-		GasPriceTier::Invalid => 8
+		GasPriceTier::Invalid => 8,
 	}
 }
 
@@ -122,7 +122,7 @@ pub struct InstructionInfo {
 	pub args: usize,
 	pub ret: usize,
 	pub side_effects: bool,
-	pub tier: GasPriceTier
+	pub tier: GasPriceTier,
 }
 impl InstructionInfo {
 	pub fn new(name: &'static str, additional: usize, args: usize, ret: usize, side_effects: bool, tier: GasPriceTier) -> InstructionInfo {
@@ -132,7 +132,7 @@ impl InstructionInfo {
 			args: args,
 			ret: ret,
 			side_effects: side_effects,
-			tier: tier
+			tier: tier,
 		}
 	}
 }
@@ -534,7 +534,7 @@ pub const LOG3: Instruction = 0xa3;
 /// Makes a log entry; 4 topics.
 pub const LOG4: Instruction = 0xa4;
 /// Maximal number of topics for log instructions
-pub const MAX_NO_OF_TOPICS : usize = 4;
+pub const MAX_NO_OF_TOPICS: usize = 4;
 
 /// create a new account with associated code
 pub const CREATE: Instruction = 0xf0;
@@ -548,4 +548,3 @@ pub const RETURN: Instruction = 0xf3;
 pub const DELEGATECALL: Instruction = 0xf4;
 /// halt execution and register account for later deletion
 pub const SUICIDE: Instruction = 0xff;
-

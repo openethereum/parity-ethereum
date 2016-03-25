@@ -19,9 +19,9 @@
 use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
-use util::hash::{Address, H256, FixedHash};
+use util::hash::{Address, FixedHash, H256};
 use util::crypto::{Secret, Signature};
-use util::keys::store::{AccountProvider, SigningError, EncryptedHashMapError};
+use util::keys::store::{AccountProvider, EncryptedHashMapError, SigningError};
 
 /// Account mock.
 #[derive(Clone)]
@@ -69,7 +69,7 @@ impl AccountProvider for TestAccountProvider {
 			Some(ref mut acc) if acc.password == pass => {
 				acc.unlocked = true;
 				Ok(())
-			},
+			}
 			Some(_) => Err(EncryptedHashMapError::InvalidPassword),
 			None => Err(EncryptedHashMapError::UnknownIdentifier),
 		}
@@ -89,6 +89,4 @@ impl AccountProvider for TestAccountProvider {
 	fn sign(&self, _account: &Address, _message: &H256) -> Result<Signature, SigningError> {
 		unimplemented!()
 	}
-
 }
-

@@ -41,7 +41,7 @@ impl FromJson for U256 {
 				} else {
 					Uint::from_dec_str(s).unwrap_or_else(|_| Default::default())
 				}
-			},
+			}
 			Json::U64(u) => From::from(u),
 			Json::I64(i) => From::from(i as u64),
 			_ => Uint::zero(),

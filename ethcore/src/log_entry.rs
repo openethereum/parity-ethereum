@@ -41,7 +41,9 @@ impl Encodable for LogEntry {
 }
 
 impl Decodable for LogEntry {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
 		let d = decoder.as_rlp();
 		let entry = LogEntry {
 			address: try!(d.val_at(0)),
@@ -114,7 +116,7 @@ mod tests {
 		let log = LogEntry {
 			address: address,
 			topics: vec![],
-			data: vec![]
+			data: vec![],
 		};
 		assert_eq!(log.bloom(), bloom);
 	}

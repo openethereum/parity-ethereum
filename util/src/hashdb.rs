@@ -41,7 +41,9 @@ pub trait HashDB : AsHashDB {
 	///   assert_eq!(m.lookup(&hash).unwrap(), hello_bytes);
 	/// }
 	/// ```
-	fn get(&self, key: &H256) -> Option<&[u8]> { self.lookup(key) }
+	fn get(&self, key: &H256) -> Option<&[u8]> {
+		self.lookup(key)
+	}
 
 	/// Deprecated. Use `contains`.
 	fn exists(&self, key: &H256) -> bool; // TODO: rename to contains.
@@ -63,7 +65,9 @@ pub trait HashDB : AsHashDB {
 	///   assert!(!m.exists(&key));
 	/// }
 	/// ```
-	fn contains(&self, key: &H256) -> bool { self.exists(key) }
+	fn contains(&self, key: &H256) -> bool {
+		self.exists(key)
+	}
 
 	/// Insert a datum item into the DB and return the datum's hash for a later lookup. Insertions
 	/// are counted and the equivalent number of `kill()`s must be performed before the data
@@ -109,7 +113,9 @@ pub trait HashDB : AsHashDB {
 	///   assert_eq!(m.lookup(key).unwrap(), d);
 	/// }
 	/// ```
-	fn remove(&mut self, key: &H256) { self.kill(key) }
+	fn remove(&mut self, key: &H256) {
+		self.kill(key)
+	}
 }
 
 /// Upcast trait.
@@ -121,6 +127,10 @@ pub trait AsHashDB {
 }
 
 impl<T: HashDB> AsHashDB for T {
-	fn as_hashdb(&self) -> &HashDB { self }
-	fn as_hashdb_mut(&mut self) -> &mut HashDB { self }
+	fn as_hashdb(&self) -> &HashDB {
+		self
+	}
+	fn as_hashdb_mut(&mut self) -> &mut HashDB {
+		self
+	}
 }

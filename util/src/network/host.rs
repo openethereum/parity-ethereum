@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::{SocketAddr};
-use std::collections::{HashMap};
-use std::hash::{Hasher};
-use std::str::{FromStr};
+use std::net::SocketAddr;
+use std::collections::HashMap;
+use std::hash::Hasher;
+use std::str::FromStr;
 use std::sync::*;
 use std::ops::*;
 use std::cmp::min;
@@ -40,7 +40,7 @@ use network::{NetworkProtocolHandler, PROTOCOL_VERSION};
 use network::node_table::*;
 use network::stats::NetworkStats;
 use network::error::DisconnectReason;
-use network::discovery::{Discovery, TableUpdates, NodeEntry};
+use network::discovery::{Discovery, NodeEntry, TableUpdates};
 use network::ip_utils::{map_external_address, select_public_address};
 
 type Slab<T> = ::slab::Slab<T, usize>;
@@ -135,7 +135,9 @@ pub type ProtocolId = &'static str;
 
 /// Messages used to communitate with the event loop from other threads.
 #[derive(Clone)]
-pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
+pub enum NetworkIoMessage<Message>
+	where Message: Send + Sync + Clone,
+{
 	/// Register a new protocol handler.
 	AddHandler {
 		/// Handler shared instance.
@@ -181,7 +183,10 @@ impl Encodable for CapabilityInfo {
 }
 
 /// IO access point. This is passed to all IO handlers and provides an interface to the IO subsystem.
-pub struct NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'static, 's {
+pub struct NetworkContext<'s, Message>
+	where Message: Send + Sync + Clone + 'static,
+	      's,
+{
 	io: &'s IoContext<NetworkIoMessage<Message>>,
 	protocol: ProtocolId,
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
@@ -189,11 +194,15 @@ pub struct NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'sta
 	session_id: Option<StreamToken>,
 }
 
-impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone + 'static, {
+impl<'s, Message> NetworkContext<'s, Message>
+    where Message: Send + Sync + Clone + 'static,
+{
 	/// Create a new network IO access point. Takes references to all the data that can be updated within the IO handler.
 	fn new(io: &'s IoContext<NetworkIoMessage<Message>>,
-		protocol: ProtocolId,
-		session: Option<SharedSession>, sessions: Arc<RwLock<Slab<SharedSession>>>) -> NetworkContext<'s, Message> {
+	       protocol: ProtocolId,
+	       session: Option<SharedSession>,
+	       sessions: Arc<RwLock<Slab<SharedSession>>>)
+	       -> NetworkContext<'s, Message> {
 		let id = session.as_ref().map(|s| s.lock().unwrap().token());
 		NetworkContext {
 			io: io,
@@ -217,7 +226,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 		if let Some(session) = session {
 			try!(session.lock().unwrap().deref_mut().send_packet(self.protocol, packet_id as u8, &data));
 			try!(self.io.update_registration(peer));
-		} else  {
+		} else {
 			trace!(target: "network", "Send: Peer no longer exist")
 		}
 		Ok(())
@@ -236,7 +245,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 
 	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
 	pub fn disable_peer(&self, peer: PeerId) {
-		//TODO: remove capability, disconnect if no capabilities left
+		// TODO: remove capability, disconnect if no capabilities left
 		self.disconnect_peer(peer);
 	}
 
@@ -259,7 +268,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 	pub fn peer_info(&self, peer: PeerId) -> String {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
-			return session.lock().unwrap().info.client_version.clone()
+			return session.lock().unwrap().info.client_version.clone();
 		}
 		"unknown".to_owned()
 	}
@@ -313,7 +322,9 @@ struct ProtocolTimer {
 }
 
 /// Root IO handler. Manages protocol handlers, IO timers and network connections.
-pub struct Host<Message> where Message: Send + Sync + Clone {
+pub struct Host<Message>
+	where Message: Send + Sync + Clone,
+{
 	pub info: RwLock<HostInfo>,
 	tcp_listener: Mutex<TcpListener>,
 	handshakes: Arc<RwLock<Slab<SharedHandshake>>>,
@@ -327,7 +338,9 @@ pub struct Host<Message> where Message: Send + Sync + Clone {
 	pinned_nodes: Vec<NodeId>,
 }
 
-impl<Message> Host<Message> where Message: Send + Sync + Clone {
+impl<Message> Host<Message>
+    where Message: Send + Sync + Clone,
+{
 	/// Create a new instance
 	pub fn new(config: NetworkConfiguration) -> Result<Host<Message>, UtilError> {
 		let mut listen_address = match config.listen_address {
@@ -338,22 +351,27 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let keys = if let Some(ref secret) = config.use_secret {
 			KeyPair::from_secret(secret.clone()).unwrap()
 		} else {
-			config.config_path.clone().and_then(|ref p| load_key(&Path::new(&p)))
-				.map_or_else(|| {
-				let key = KeyPair::create().unwrap();
-				if let Some(path) = config.config_path.clone() {
-					save_key(&Path::new(&path), &key.secret());
-				}
-				key
-			},
-			|s| KeyPair::from_secret(s).expect("Error creating node secret key"))
+			config.config_path
+			      .clone()
+			      .and_then(|ref p| load_key(&Path::new(&p)))
+			      .map_or_else(|| {
+				                   let key = KeyPair::create().unwrap();
+				                   if let Some(path) = config.config_path.clone() {
+					                   save_key(&Path::new(&path), &key.secret());
+					                  }
+				                   key
+				                  },
+			                   |s| KeyPair::from_secret(s).expect("Error creating node secret key"))
 		};
 		let path = config.config_path.clone();
 		// Setup the server socket
 		let tcp_listener = try!(TcpListener::bind(&listen_address));
 		listen_address = SocketAddr::new(listen_address.ip(), try!(tcp_listener.local_addr()).port());
 		let udp_port = config.udp_port.unwrap_or(listen_address.port());
-		let local_endpoint = NodeEndpoint { address: listen_address, udp_port: udp_port };
+		let local_endpoint = NodeEndpoint {
+			address: listen_address,
+			udp_port: udp_port,
+		};
 
 		let mut host = Host::<Message> {
 			info: RwLock::new(HostInfo {
@@ -391,9 +409,14 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	pub fn add_node(&mut self, id: &str) {
 		match Node::from_str(id) {
-			Err(e) => { warn!("Could not add node: {:?}", e); },
+			Err(e) => {
+				warn!("Could not add node: {:?}", e);
+			}
 			Ok(n) => {
-				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
+				let entry = NodeEntry {
+					endpoint: n.endpoint.clone(),
+					id: n.id.clone(),
+				};
 				self.pinned_nodes.push(n.id.clone());
 				self.nodes.write().unwrap().add_node(n);
 				if let Some(ref mut discovery) = *self.discovery.lock().unwrap().deref_mut() {
@@ -412,7 +435,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	pub fn local_url(&self) -> String {
-		let r = format!("{}", Node::new(self.info.read().unwrap().id().clone(), self.info.read().unwrap().local_endpoint.clone()));
+		let r = format!("{}",
+		                Node::new(self.info.read().unwrap().id().clone(), self.info.read().unwrap().local_endpoint.clone()));
 		println!("{}", r);
 		r
 	}
@@ -427,20 +451,26 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let public_endpoint = match public_address {
 			None => {
 				let public_address = select_public_address(local_endpoint.address.port());
-				let public_endpoint = NodeEndpoint { address: public_address, udp_port: local_endpoint.udp_port };
+				let public_endpoint = NodeEndpoint {
+					address: public_address,
+					udp_port: local_endpoint.udp_port,
+				};
 				if self.info.read().unwrap().config.nat_enabled {
 					match map_external_address(&local_endpoint) {
 						Some(endpoint) => {
 							info!("NAT mapped to external address {}", endpoint.address);
 							endpoint
-						},
-						None => public_endpoint
+						}
+						None => public_endpoint,
 					}
 				} else {
 					public_endpoint
 				}
 			}
-			Some(addr) => NodeEndpoint { address: addr, udp_port: local_endpoint.udp_port }
+			Some(addr) => NodeEndpoint {
+				address: addr,
+				udp_port: local_endpoint.udp_port,
+			},
 		};
 
 		self.info.write().unwrap().public_endpoint = Some(public_endpoint.clone());
@@ -451,7 +481,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			let info = self.info.read().unwrap();
 			if info.config.discovery_enabled && !info.config.pin {
 				Some(Discovery::new(&info.keys, public_endpoint.address.clone(), public_endpoint, DISCOVERY))
-			} else { None }
+			} else {
+				None
+			}
 		};
 
 		if let Some(mut discovery) = discovery {
@@ -504,8 +536,12 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage<Message>>) {
-		let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
-		let pin = { self.info.read().unwrap().deref().config.pin };
+		let ideal_peers = {
+			self.info.read().unwrap().deref().config.ideal_peers
+		};
+		let pin = {
+			self.info.read().unwrap().deref().config.pin
+		};
 		let session_count = self.session_count();
 		if session_count >= ideal_peers as usize {
 			return;
@@ -519,8 +555,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 
 		let nodes = if pin { self.pinned_nodes.clone() } else { self.nodes.read().unwrap().nodes() };
-		for id in nodes.iter().filter(|ref id| !self.have_session(id) && !self.connecting_to(id))
-			.take(min(MAX_HANDSHAKES_PER_ROUND, handshake_limit - handshake_count)) {
+		for id in nodes.iter()
+		               .filter(|ref id| !self.have_session(id) && !self.connecting_to(id))
+		               .take(min(MAX_HANDSHAKES_PER_ROUND, handshake_limit - handshake_count)) {
 			self.connect_peer(&id, io);
 		}
 		debug!(target: "network", "Connecting peers: {} sessions, {} pending", self.session_count(), self.handshake_count());
@@ -528,8 +565,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	#[cfg_attr(feature="dev", allow(single_match))]
 	fn connect_peer(&self, id: &NodeId, io: &IoContext<NetworkIoMessage<Message>>) {
-		if self.have_session(id)
-		{
+		if self.have_session(id) {
 			trace!(target: "network", "Aborted connect. Node already connected.");
 			return;
 		}
@@ -544,8 +580,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				if let Some(node) = nodes.get_mut(id) {
 					node.last_attempted = Some(::time::now());
 					node.endpoint.address
-				}
-				else {
+				} else {
 					debug!(target: "network", "Connection to expired node aborted");
 					return;
 				}
@@ -566,12 +601,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let nonce = self.info.write().unwrap().next_nonce();
 		let mut handshakes = self.handshakes.write().unwrap();
 		if handshakes.insert_with(|token| {
-			let mut handshake = Handshake::new(token, id, socket, &nonce, self.stats.clone()).expect("Can't create handshake");
-			handshake.start(io, &self.info.read().unwrap(), id.is_some()).and_then(|_| io.register_stream(token)).unwrap_or_else (|e| {
-				debug!(target: "network", "Handshake create error: {:?}", e);
-			});
-			Arc::new(Mutex::new(handshake))
-		}).is_none() {
+			             let mut handshake = Handshake::new(token, id, socket, &nonce, self.stats.clone()).expect("Can't create handshake");
+			             handshake.start(io, &self.info.read().unwrap(), id.is_some()).and_then(|_| io.register_stream(token)).unwrap_or_else(|e| {
+				             debug!(target: "network", "Handshake create error: {:?}", e);
+				            });
+			             Arc::new(Mutex::new(handshake))
+			            })
+		             .is_none() {
 			debug!(target: "network", "Max handshakes reached");
 		}
 	}
@@ -584,8 +620,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 				Ok(Some((sock, _addr))) => sock,
 				Err(e) => {
 					warn!("Error accepting connection: {:?}", e);
-					break
-				},
+					break;
+				}
 			};
 			self.create_connection(socket, None, io);
 		}
@@ -593,7 +629,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn handshake_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
-		let handshake = { self.handshakes.read().unwrap().get(token).cloned() };
+		let handshake = {
+			self.handshakes.read().unwrap().get(token).cloned()
+		};
 		if let Some(handshake) = handshake {
 			let mut h = handshake.lock().unwrap();
 			if let Err(e) = h.writable(io, &self.info.read().unwrap()) {
@@ -603,7 +641,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn session_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
-		let session = { self.sessions.read().unwrap().get(token).cloned() };
+		let session = {
+			self.sessions.read().unwrap().get(token).cloned()
+		};
 		if let Some(session) = session {
 			let mut s = session.lock().unwrap();
 			if let Err(e) = s.writable(io, &self.info.read().unwrap()) {
@@ -620,7 +660,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	fn handshake_readable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
 		let mut create_session = false;
 		let mut kill = false;
-		let handshake = { self.handshakes.read().unwrap().get(token).cloned() };
+		let handshake = {
+			self.handshakes.read().unwrap().get(token).cloned()
+		};
 		if let Some(handshake) = handshake {
 			let mut h = handshake.lock().unwrap();
 			if let Err(e) = h.readable(io, &self.info.read().unwrap()) {
@@ -645,32 +687,36 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Option<(ProtocolId, PacketId, Vec<u8>)> = None;
 		let mut kill = false;
-		let session = { self.sessions.read().unwrap().get(token).cloned() };
+		let session = {
+			self.sessions.read().unwrap().get(token).cloned()
+		};
 		if let Some(session) = session.clone() {
 			let mut s = session.lock().unwrap();
 			match s.readable(io, &self.info.read().unwrap()) {
 				Err(e) => {
 					debug!(target: "network", "Session read error: {}: {:?}", token, e);
 					kill = true;
-				},
+				}
 				Ok(SessionData::Ready) => {
 					for (p, _) in self.handlers.read().unwrap().iter() {
-						if s.have_capability(p)  {
+						if s.have_capability(p) {
 							ready_data.push(p);
 						}
 					}
-				},
+				}
 				Ok(SessionData::Packet {
 					data,
 					protocol,
 					packet_id,
 				}) => {
 					match self.handlers.read().unwrap().get(protocol) {
-						None => { warn!(target: "network", "No handler found for protocol: {:?}", protocol) },
+						None => {
+							warn!(target: "network", "No handler found for protocol: {:?}", protocol)
+						}
 						Some(_) => packet_data = Some((protocol, packet_id, data)),
 					}
-				},
-				Ok(SessionData::None) => {},
+				}
+				Ok(SessionData::None) => {}
 			}
 		}
 		if kill {
@@ -711,7 +757,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		};
 		if !originated {
 			let session_count = sessions.count();
-			let ideal_peers = { self.info.read().unwrap().deref().config.ideal_peers };
+			let ideal_peers = {
+				self.info.read().unwrap().deref().config.ideal_peers
+			};
 			if session_count >= ideal_peers as usize {
 				session.disconnect(DisconnectReason::TooManyPeers);
 				return;
@@ -725,7 +773,13 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			if !originated {
 				// Add it no node table
 				if let Ok(address) = session.remote_addr() {
-					let entry = NodeEntry { id: session.id().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
+					let entry = NodeEntry {
+						id: session.id().clone(),
+						endpoint: NodeEndpoint {
+							address: address,
+							udp_port: address.port(),
+						},
+					};
 					self.nodes.write().unwrap().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
 					let mut discovery = self.discovery.lock().unwrap();
 					if let Some(ref mut discovery) = *discovery.deref_mut() {
@@ -750,7 +804,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		let mut deregister = false;
 		let mut expired_session = None;
 		match token {
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
+			FIRST_HANDSHAKE...LAST_HANDSHAKE => {
 				let handshakes = self.handshakes.write().unwrap();
 				if let Some(handshake) = handshakes.get(token).cloned() {
 					let mut handshake = handshake.lock().unwrap();
@@ -760,8 +814,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						deregister = true;
 					}
 				}
-			},
-			FIRST_SESSION ... LAST_SESSION => {
+			}
+			FIRST_SESSION...LAST_SESSION => {
 				let sessions = self.sessions.write().unwrap();
 				if let Some(session) = sessions.get(token).cloned() {
 					expired_session = Some(session.clone());
@@ -769,7 +823,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 					if !s.expired() {
 						if s.is_ready() {
 							for (p, _) in self.handlers.read().unwrap().iter() {
-								if s.have_capability(p)  {
+								if s.have_capability(p) {
 									to_disconnect.push(p);
 								}
 							}
@@ -779,8 +833,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						deregister = true;
 					}
 				}
-			},
-			_ => {},
+			}
+			_ => {}
 		}
 		if let Some(id) = failure_id {
 			if remote {
@@ -825,7 +879,9 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 }
 
-impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Message: Send + Sync + Clone + 'static {
+impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message>
+    where Message: Send + Sync + Clone + 'static,
+{
 	/// Initialize networking
 	fn initialize(&self, io: &IoContext<NetworkIoMessage<Message>>) {
 		io.register_timer(IDLE, MAINTENANCE_TIMEOUT).expect("Error registering Network idle timer");
@@ -836,23 +892,25 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn stream_hup(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		trace!(target: "network", "Hup: {}", stream);
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.connection_closed(stream, io),
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.connection_closed(stream, io),
+			FIRST_SESSION...LAST_SESSION => self.connection_closed(stream, io),
+			FIRST_HANDSHAKE...LAST_HANDSHAKE => self.connection_closed(stream, io),
 			_ => warn!(target: "network", "Unexpected hup"),
 		};
 	}
 
 	fn stream_readable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_readable(stream, io),
+			FIRST_SESSION...LAST_SESSION => self.session_readable(stream, io),
+			FIRST_HANDSHAKE...LAST_HANDSHAKE => self.handshake_readable(stream, io),
 			DISCOVERY => {
-				let node_changes = { self.discovery.lock().unwrap().as_mut().unwrap().readable() };
+				let node_changes = {
+					self.discovery.lock().unwrap().as_mut().unwrap().readable()
+				};
 				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
-			},
+			}
 			TCP_ACCEPT => self.accept(io),
 			_ => panic!("Received unknown readable token"),
 		}
@@ -860,8 +918,8 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 
 	fn stream_writable(&self, io: &IoContext<NetworkIoMessage<Message>>, stream: StreamToken) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.handshake_writable(stream, io),
+			FIRST_SESSION...LAST_SESSION => self.session_writable(stream, io),
+			FIRST_HANDSHAKE...LAST_HANDSHAKE => self.handshake_writable(stream, io),
 			DISCOVERY => {
 				self.discovery.lock().unwrap().as_mut().unwrap().writable();
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
@@ -873,28 +931,35 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 	fn timeout(&self, io: &IoContext<NetworkIoMessage<Message>>, token: TimerToken) {
 		match token {
 			IDLE => self.maintain_network(io),
-			INIT_PUBLIC => self.init_public_interface(io).unwrap_or_else(|e| 
-				warn!("Error initializing public interface: {:?}", e)),
-			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => self.connection_timeout(token, io),
+			INIT_PUBLIC => self.init_public_interface(io).unwrap_or_else(|e| warn!("Error initializing public interface: {:?}", e)),
+			FIRST_SESSION...LAST_SESSION => self.connection_timeout(token, io),
+			FIRST_HANDSHAKE...LAST_HANDSHAKE => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
 				self.discovery.lock().unwrap().as_mut().unwrap().refresh();
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
-			},
+			}
 			DISCOVERY_ROUND => {
-				let node_changes = { self.discovery.lock().unwrap().as_mut().unwrap().round() };
+				let node_changes = {
+					self.discovery.lock().unwrap().as_mut().unwrap().round()
+				};
 				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
-			},
+			}
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {
-						None => { warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol) },
-						Some(h) => { h.timeout(&NetworkContext::new(io, timer.protocol, None, self.sessions.clone()), timer.token); }
+					None => {
+						warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol)
+					}
+					Some(h) => {
+						h.timeout(&NetworkContext::new(io, timer.protocol, None, self.sessions.clone()), timer.token);
+					}
 				},
-				None => { warn!("Unknown timer token: {}", token); } // timer is not registerd through us
-			}
+				None => {
+					warn!("Unknown timer token: {}", token);
+				} // timer is not registerd through us
+			},
 		}
 	}
 
@@ -910,9 +975,13 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				self.handlers.write().unwrap().insert(protocol, h);
 				let mut info = self.info.write().unwrap();
 				for v in versions {
-					info.capabilities.push(CapabilityInfo { protocol: protocol, version: *v, packet_count:0 });
+					info.capabilities.push(CapabilityInfo {
+						protocol: protocol,
+						version: *v,
+						packet_count: 0,
+					});
 				}
-			},
+			}
 			NetworkIoMessage::AddTimer {
 				ref protocol,
 				ref delay,
@@ -925,16 +994,22 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 					*counter += 1;
 					handler_token
 				};
-				self.timers.write().unwrap().insert(handler_token, ProtocolTimer { protocol: protocol, token: *token });
+				self.timers.write().unwrap().insert(handler_token,
+				                                    ProtocolTimer {
+					                                    protocol: protocol,
+					                                    token: *token,
+				                                    });
 				io.register_timer(handler_token, *delay).expect("Error registering timer");
-			},
+			}
 			NetworkIoMessage::Disconnect(ref peer) => {
-				let session = { self.sessions.read().unwrap().get(*peer).cloned() };
+				let session = {
+					self.sessions.read().unwrap().get(*peer).cloned()
+				};
 				if let Some(session) = session {
 					session.lock().unwrap().disconnect(DisconnectReason::DisconnectRequested);
 				}
 				self.kill_connection(*peer, io, false);
-			},
+			}
 			NetworkIoMessage::User(ref message) => {
 				for (p, h) in self.handlers.read().unwrap().iter() {
 					h.message(&NetworkContext::new(io, p, None, self.sessions.clone()), &message);
@@ -945,34 +1020,39 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 
 	fn register_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => {
-				let session = { self.sessions.read().unwrap().get(stream).cloned() };
+			FIRST_SESSION...LAST_SESSION => {
+				let session = {
+					self.sessions.read().unwrap().get(stream).cloned()
+				};
 				if let Some(session) = session {
 					session.lock().unwrap().register_socket(reg, event_loop).expect("Error registering socket");
 				}
 			}
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
-				let connection = { self.handshakes.read().unwrap().get(stream).cloned() };
+			FIRST_HANDSHAKE...LAST_HANDSHAKE => {
+				let connection = {
+					self.handshakes.read().unwrap().get(stream).cloned()
+				};
 				if let Some(connection) = connection {
 					connection.lock().unwrap().register_socket(reg, event_loop).expect("Error registering socket");
 				}
 			}
 			DISCOVERY => self.discovery.lock().unwrap().as_ref().unwrap().register_socket(event_loop).expect("Error registering discovery socket"),
-			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
-			_ => warn!("Unexpected stream registration")
+			TCP_ACCEPT => event_loop.register(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge())
+			                        .expect("Error registering stream"),
+			_ => warn!("Unexpected stream registration"),
 		}
 	}
 
 	fn deregister_stream(&self, stream: StreamToken, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => {
+			FIRST_SESSION...LAST_SESSION => {
 				let mut connections = self.sessions.write().unwrap();
 				if let Some(connection) = connections.get(stream).cloned() {
 					connection.lock().unwrap().deregister_socket(event_loop).expect("Error deregistering socket");
 					connections.remove(stream);
 				}
 			}
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
+			FIRST_HANDSHAKE...LAST_HANDSHAKE => {
 				let mut connections = self.handshakes.write().unwrap();
 				if let Some(connection) = connections.get(stream).cloned() {
 					connection.lock().unwrap().deregister_socket(event_loop).expect("Error deregistering socket");
@@ -980,27 +1060,38 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				}
 			}
 			DISCOVERY => (),
-			_ => warn!("Unexpected stream deregistration")
+			_ => warn!("Unexpected stream deregistration"),
 		}
 	}
 
 	fn update_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage<Message>>>) {
 		match stream {
-			FIRST_SESSION ... LAST_SESSION => {
-				let connection = { self.sessions.read().unwrap().get(stream).cloned() };
+			FIRST_SESSION...LAST_SESSION => {
+				let connection = {
+					self.sessions.read().unwrap().get(stream).cloned()
+				};
 				if let Some(connection) = connection {
 					connection.lock().unwrap().update_socket(reg, event_loop).expect("Error updating socket");
 				}
 			}
-			FIRST_HANDSHAKE ... LAST_HANDSHAKE => {
-				let connection = { self.handshakes.read().unwrap().get(stream).cloned() };
+			FIRST_HANDSHAKE...LAST_HANDSHAKE => {
+				let connection = {
+					self.handshakes.read().unwrap().get(stream).cloned()
+				};
 				if let Some(connection) = connection {
 					connection.lock().unwrap().update_socket(reg, event_loop).expect("Error updating socket");
 				}
 			}
-			DISCOVERY => self.discovery.lock().unwrap().as_ref().unwrap().update_registration(event_loop).expect("Error reregistering discovery socket"),
-			TCP_ACCEPT => event_loop.reregister(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
-			_ => warn!("Unexpected stream update")
+			DISCOVERY => self.discovery
+			                 .lock()
+			                 .unwrap()
+			                 .as_ref()
+			                 .unwrap()
+			                 .update_registration(event_loop)
+			                 .expect("Error reregistering discovery socket"),
+			TCP_ACCEPT => event_loop.reregister(self.tcp_listener.lock().unwrap().deref(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge())
+			                        .expect("Error reregistering stream"),
+			_ => warn!("Unexpected stream update"),
 		}
 	}
 }
@@ -1036,7 +1127,7 @@ fn load_key(path: &Path) -> Option<Secret> {
 	};
 	let mut buf = String::new();
 	match file.read_to_string(&mut buf) {
-		Ok(_) => {},
+		Ok(_) => {}
 		Err(e) => {
 			warn!("Error reading key file: {:?}", e);
 			return None;
@@ -1053,7 +1144,7 @@ fn load_key(path: &Path) -> Option<Secret> {
 
 #[test]
 fn key_save_load() {
-	use ::devtools::RandomTempPath;
+	use devtools::RandomTempPath;
 	let temp_path = RandomTempPath::create_dir();
 	let key = H256::random();
 	save_key(temp_path.as_path(), &key);

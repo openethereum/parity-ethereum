@@ -20,12 +20,17 @@ pub trait WithBloom {
 	fn with_bloom(self, bloom: H2048) -> Self where Self: Sized;
 }
 
-pub struct Bloom<'a, I> where I: 'a {
+pub struct Bloom<'a, I>
+	where I: 'a,
+{
 	pub iter: &'a mut I,
 	pub bloom: H2048,
 }
 
-impl<'a, I> Iterator for Bloom<'a, I> where I: Iterator, <I as Iterator>::Item: WithBloom {
+impl<'a, I> Iterator for Bloom<'a, I>
+	where I: Iterator,
+	      <I as Iterator>::Item: WithBloom,
+{
 	type Item = <I as Iterator>::Item;
 
 	#[inline]

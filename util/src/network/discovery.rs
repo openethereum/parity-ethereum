@@ -16,7 +16,7 @@
 
 use bytes::Bytes;
 use std::net::SocketAddr;
-use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::mem;
 use std::default::Default;
 use mio::*;
@@ -59,7 +59,7 @@ pub struct BucketEntry {
 }
 
 struct NodeBucket {
-	nodes: VecDeque<BucketEntry>, //sorted by last active
+	nodes: VecDeque<BucketEntry>, // sorted by last active
 }
 
 impl Default for NodeBucket {
@@ -70,9 +70,7 @@ impl Default for NodeBucket {
 
 impl NodeBucket {
 	fn new() -> Self {
-		NodeBucket {
-			nodes: VecDeque::new()
-		}
+		NodeBucket { nodes: VecDeque::new() }
 	}
 }
 
@@ -140,17 +138,24 @@ impl Discovery {
 				node.address = e.clone();
 				node.timeout = None;
 				true
-			} else { false };
+			} else {
+				false
+			};
 
 			if !updated {
-				bucket.nodes.push_front(BucketEntry { address: e, timeout: None });
+				bucket.nodes.push_front(BucketEntry {
+					address: e,
+					timeout: None,
+				});
 			}
 
 			if bucket.nodes.len() > BUCKET_SIZE {
-				//ping least active node
+				// ping least active node
 				bucket.nodes.back_mut().unwrap().timeout = Some(time::precise_time_ns());
 				Some(bucket.nodes.back().unwrap().address.endpoint.clone())
-			} else { None }
+			} else {
+				None
+			}
 		};
 		if let Some(endpoint) = ping {
 			self.ping(&endpoint);
@@ -200,7 +205,7 @@ impl Discovery {
 
 	fn distance(a: &NodeId, b: &NodeId) -> u32 {
 		let d = a.sha3() ^ b.sha3();
-		let mut ret:u32 = 0;
+		let mut ret: u32 = 0;
 		for i in 0..32 {
 			let mut v: u8 = d[i];
 			while v != 0 {
@@ -225,7 +230,7 @@ impl Discovery {
 		rlp.append_raw(&[packet_id], 1);
 		let source = Rlp::new(payload);
 		rlp.begin_list(source.item_count() + 1);
-		for i in 0 .. source.item_count() {
+		for i in 0..source.item_count() {
 			rlp.append_raw(source.at(i).as_raw(), 1);
 		}
 		let timestamp = time::get_time().sec as u32 + 60;
@@ -269,14 +274,13 @@ impl Discovery {
 					if remove {
 						found.remove(&distance);
 					}
-				}
-				else {
+				} else {
 					count += 1;
 				}
 			}
 		}
 
-		let mut ret:Vec<NodeEntry> = Vec::new();
+		let mut ret: Vec<NodeEntry> = Vec::new();
 		for nodes in found.values() {
 			ret.extend(nodes.iter().map(|&n| n.clone()));
 		}
@@ -287,11 +291,10 @@ impl Discovery {
 		while !self.send_queue.is_empty() {
 			let data = self.send_queue.pop_front().unwrap();
 			match self.udp_socket.send_to(&data.payload, &data.address) {
-				Ok(Some(size)) if size == data.payload.len() => {
-				},
+				Ok(Some(size)) if size == data.payload.len() => {}
 				Ok(Some(_)) => {
 					warn!("UDP sent incomplete datagramm");
-				},
+				}
 				Ok(None) => {
 					self.send_queue.push_front(data);
 					return;
@@ -305,7 +308,10 @@ impl Discovery {
 	}
 
 	fn send_to(&mut self, payload: Bytes, address: SocketAddr) {
-		self.send_queue.push_back(Datagramm { payload: payload, address: address });
+		self.send_queue.push_back(Datagramm {
+			payload: payload,
+			address: address,
+		});
 	}
 
 	pub fn readable(&mut self) -> Option<TableUpdates> {
@@ -353,7 +359,7 @@ impl Discovery {
 	}
 
 	fn check_timestamp(&self, timestamp: u64) -> Result<(), NetworkError> {
-		if self.check_timestamps && timestamp < time::get_time().sec as u64{
+		if self.check_timestamps && timestamp < time::get_time().sec as u64 {
 			debug!(target: "discovery", "Expired packet");
 			return Err(NetworkError::Expired);
 		}
@@ -367,11 +373,13 @@ impl Discovery {
 		let timestamp: u64 = try!(rlp.val_at(3));
 		try!(self.check_timestamp(timestamp));
 		let mut added_map = HashMap::new();
-		let entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
+		let entry = NodeEntry {
+			id: node.clone(),
+			endpoint: source.clone(),
+		};
 		if !entry.endpoint.is_valid() || !entry.endpoint.is_global() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
-		}
-		else {
+		} else {
 			self.update_node(entry.clone());
 			added_map.insert(node.clone(), entry);
 		}
@@ -381,7 +389,10 @@ impl Discovery {
 		response.append(&hash);
 		self.send_packet(PACKET_PONG, from, &response.drain());
 
-		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
+		Ok(Some(TableUpdates {
+			added: added_map,
+			removed: HashSet::new(),
+		}))
 	}
 
 	fn on_pong(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
@@ -390,7 +401,10 @@ impl Discovery {
 		let dest = try!(NodeEndpoint::from_rlp(&try!(rlp.at(0))));
 		let timestamp: u64 = try!(rlp.val_at(2));
 		try!(self.check_timestamp(timestamp));
-		let mut entry = NodeEntry { id: node.clone(), endpoint: dest };
+		let mut entry = NodeEntry {
+			id: node.clone(),
+			endpoint: dest,
+		};
 		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Bad address: {:?}", entry);
 			entry.endpoint.address = from.clone();
@@ -424,7 +438,7 @@ impl Discovery {
 		let packets = chunks.map(|c| {
 			let mut rlp = RlpStream::new_list(1);
 			rlp.begin_list(c.len());
-			for n in 0 .. c.len() {
+			for n in 0..c.len() {
 				rlp.begin_list(4);
 				c[n].endpoint.to_rlp(&mut rlp);
 				rlp.append(&c[n].id);
@@ -448,12 +462,18 @@ impl Discovery {
 			if node_id == self.id {
 				continue;
 			}
-			let entry = NodeEntry { id: node_id.clone(), endpoint: endpoint };
+			let entry = NodeEntry {
+				id: node_id.clone(),
+				endpoint: endpoint,
+			};
 			added.insert(node_id, entry.clone());
 			self.ping(&entry.endpoint);
 			self.update_node(entry);
 		}
-		Ok(Some(TableUpdates { added: added, removed: HashSet::new() }))
+		Ok(Some(TableUpdates {
+			added: added,
+			removed: HashSet::new(),
+		}))
 	}
 
 	fn check_expired(&mut self, force: bool) -> HashSet<NodeId> {
@@ -464,13 +484,14 @@ impl Discovery {
 				if let Some(timeout) = node.timeout {
 					if !force && now - timeout < PING_TIMEOUT_MS * 1000_0000 {
 						true
-					}
-					else {
+					} else {
 						trace!(target: "discovery", "Removed expired node {:?}", &node.address);
 						removed.insert(node.address.id.clone());
 						false
 					}
-				} else { true }
+				} else {
+					true
+				}
 			});
 		}
 		removed
@@ -480,20 +501,25 @@ impl Discovery {
 		let removed = self.check_expired(false);
 		self.discover();
 		if !removed.is_empty() {
-			Some(TableUpdates { added: HashMap::new(), removed: removed })
-		} else { None }
+			Some(TableUpdates {
+				added: HashMap::new(),
+				removed: removed,
+			})
+		} else {
+			None
+		}
 	}
 
 	pub fn refresh(&mut self) {
 		self.start();
 	}
 
-	pub fn register_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
+	pub fn register_socket<Host: Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
 		event_loop.register(&self.udp_socket, Token(self.token), EventSet::all(), PollOpt::edge()).expect("Error registering UDP socket");
 		Ok(())
 	}
 
-	pub fn update_registration<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
+	pub fn update_registration<Host: Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
 		let mut registration = EventSet::readable();
 		if !self.send_queue.is_empty() {
 			registration = registration | EventSet::writable();
@@ -519,13 +545,16 @@ mod tests {
 		let mut nearest = Vec::new();
 		let node = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
 		for _ in 0..1000 {
-			nearest.push( NodeEntry { id: node.id.clone(), endpoint: node.endpoint.clone() });
+			nearest.push(NodeEntry {
+				id: node.id.clone(),
+				endpoint: node.endpoint.clone(),
+			});
 		}
 
 		let packets = Discovery::prepare_neighbours_packets(&nearest);
 		assert_eq!(packets.len(), 77);
 		for p in &packets[0..76] {
-			assert!(p.len() > 1280/2);
+			assert!(p.len() > 1280 / 2);
 			assert!(p.len() <= 1280);
 		}
 		assert!(packets.last().unwrap().len() > 0);
@@ -535,20 +564,35 @@ mod tests {
 	fn discovery() {
 		let key1 = KeyPair::create().unwrap();
 		let key2 = KeyPair::create().unwrap();
-		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40444").unwrap(), udp_port: 40444 };
-		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
+		let ep1 = NodeEndpoint {
+			address: SocketAddr::from_str("127.0.0.1:40444").unwrap(),
+			udp_port: 40444,
+		};
+		let ep2 = NodeEndpoint {
+			address: SocketAddr::from_str("127.0.0.1:40445").unwrap(),
+			udp_port: 40445,
+		};
 		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0);
 		let mut discovery2 = Discovery::new(&key2, ep2.address.clone(), ep2.clone(), 0);
 
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7771").unwrap();
-		discovery1.add_node(NodeEntry { id: node1.id.clone(), endpoint: node1.endpoint.clone() });
-		discovery1.add_node(NodeEntry { id: node2.id.clone(), endpoint: node2.endpoint.clone() });
+		discovery1.add_node(NodeEntry {
+			id: node1.id.clone(),
+			endpoint: node1.endpoint.clone(),
+		});
+		discovery1.add_node(NodeEntry {
+			id: node2.id.clone(),
+			endpoint: node2.endpoint.clone(),
+		});
 
-		discovery2.add_node(NodeEntry { id: key1.public().clone(), endpoint: ep1.clone() });
+		discovery2.add_node(NodeEntry {
+			id: key1.public().clone(),
+			endpoint: ep1.clone(),
+		});
 		discovery2.refresh();
 
-		for _ in 0 .. 10 {
+		for _ in 0..10 {
 			while !discovery1.send_queue.is_empty() {
 				let datagramm = discovery1.send_queue.pop_front().unwrap();
 				if datagramm.address == ep2.address {
@@ -569,10 +613,16 @@ mod tests {
 	#[test]
 	fn removes_expired() {
 		let key = KeyPair::create().unwrap();
-		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
+		let ep = NodeEndpoint {
+			address: SocketAddr::from_str("127.0.0.1:40446").unwrap(),
+			udp_port: 40447,
+		};
 		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
 		for _ in 0..1200 {
-			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
+			discovery.add_node(NodeEntry {
+				id: NodeId::random(),
+				endpoint: ep.clone(),
+			});
 		}
 		assert!(Discovery::nearest_node_entries(&NodeId::new(), &discovery.node_buckets).len() <= 16);
 		let removed = discovery.check_expired(true).len();
@@ -582,7 +632,10 @@ mod tests {
 	#[test]
 	fn packets() {
 		let key = KeyPair::create().unwrap();
-		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
+		let ep = NodeEndpoint {
+			address: SocketAddr::from_str("127.0.0.1:40447").unwrap(),
+			udp_port: 40447,
+		};
 		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
 		discovery.check_timestamps = false;
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
@@ -592,7 +645,9 @@ mod tests {
 		aa3d67d641936511c8f8d6ad8698b820a7cf9e1be7155e9a241f556658c55428ec0563514365799a\
 		4be2be5a685a80971ddcfa80cb422cdd0101ec04cb847f000001820cfa8215a8d790000000000000\
 		000000000000000000018208ae820d058443b9a3550102\
-		".from_hex().unwrap();
+		"
+			.from_hex()
+			.unwrap();
 		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
 
 		let packet = "\
@@ -604,7 +659,9 @@ mod tests {
 		3fa4090c408f6b4bc3701562c031041d4702971d102c9ab7fa5eed4cd6bab8f7af956f7d565ee191\
 		7084a95398b6a21eac920fe3dd1345ec0a7ef39367ee69ddf092cbfe5b93e5e568ebc491983c09c7\
 		6d922dc3\
-		".from_hex().unwrap();
+		"
+			.from_hex()
+			.unwrap();
 		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
 
 		let packet = "\
@@ -614,7 +671,9 @@ mod tests {
 		ae82823aa0fbc914b16819237dcd8801d7e53f69e9719adecb3cc0e790c57e91ca4461c9548443b9\
 		a355c6010203c2040506a0c969a58f6f9095004c0177a6b47f451530cab38966a25cca5cb58f0555
 		42124e\
-		".from_hex().unwrap();
+		"
+			.from_hex()
+			.unwrap();
 		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
 
 		let packet = "\
@@ -624,7 +683,9 @@ mod tests {
 		115bf400769cc1400f3258cd31387574077f301b421bc84df7266c44e9e6d569fc56be0081290476\
 		7bf5ccd1fc7f8443b9a35582999983999999280dc62cc8255c73471e0a61da0c89acdc0e035e260a\
 		dd7fc0c04ad9ebf3919644c91cb247affc82b69bd2ca235c71eab8e49737c937a2c396\
-		".from_hex().unwrap();
+		"
+			.from_hex()
+			.unwrap();
 		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
 
 		let packet = "\
@@ -640,7 +701,9 @@ mod tests {
 		13198a2e037073488203e78203e8b8408dcab8618c3253b558d459da53bd8fa68935a719aff8b811\
 		197101a4b2b47dd2d47295286fc00cc081bb542d760717d1bdd6bec2c37cd72eca367d6dd3b9df73\
 		8443b9a355010203b525a138aa34383fec3d2719a0\
-		".from_hex().unwrap();
+		"
+			.from_hex()
+			.unwrap();
 		assert!(discovery.on_packet(&packet, from.clone()).is_ok());
 	}
 

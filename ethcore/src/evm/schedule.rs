@@ -94,7 +94,7 @@ impl Schedule {
 	}
 
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
-		Schedule{
+		Schedule {
 			exceptional_failed_code_deposit: efcd,
 			have_delegate_call: hdc,
 			stack_limit: 1024,
@@ -125,7 +125,7 @@ impl Schedule {
 			tx_create_gas: tcg,
 			tx_data_zero_gas: 4,
 			tx_data_non_zero_gas: 68,
-			copy_gas: 3,	
+			copy_gas: 3,
 		}
 	}
 }

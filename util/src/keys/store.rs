@@ -26,7 +26,7 @@ use chrono::*;
 
 const KEY_LENGTH: u32 = 32;
 const KEY_ITERATIONS: u32 = 10240;
-const KEY_LENGTH_AES: u32 = KEY_LENGTH/2;
+const KEY_LENGTH_AES: u32 = KEY_LENGTH / 2;
 
 const KEY_LENGTH_USIZE: usize = KEY_LENGTH as usize;
 const KEY_LENGTH_AES_USIZE: usize = KEY_LENGTH_AES as usize;
@@ -34,11 +34,11 @@ const KEY_LENGTH_AES_USIZE: usize = KEY_LENGTH_AES as usize;
 /// Encrypted hash-map, each request should contain password
 pub trait EncryptedHashMap<Key: Hash + Eq> {
 	/// Returns existing value for the key, if any
-	fn get<Value: FromRawBytes + BytesConvertable>(&self, key: &Key, password: &str) ->  Result<Value, EncryptedHashMapError>;
+	fn get<Value: FromRawBytes + BytesConvertable>(&self, key: &Key, password: &str) -> Result<Value, EncryptedHashMapError>;
 	/// Insert new encrypted key-value and returns previous if there was any
 	fn insert<Value: FromRawBytes + BytesConvertable>(&mut self, key: Key, value: Value, password: &str) -> Option<Value>;
 	/// Removes key-value by key and returns the removed one, if any exists and password was provided
-	fn remove<Value: FromRawBytes + BytesConvertable> (&mut self, key: &Key, password: Option<&str>) -> Option<Value>;
+	fn remove<Value: FromRawBytes + BytesConvertable>(&mut self, key: &Key, password: Option<&str>) -> Option<Value>;
 	/// Deletes key-value by key and returns if the key-value existed
 	fn delete(&mut self, key: &Key) -> bool {
 		self.remove::<Bytes>(key, None).is_some()
@@ -64,7 +64,7 @@ pub enum SigningError {
 	/// Account passed is not unlocked
 	AccountNotUnlocked,
 	/// Invalid secret in store
-	InvalidSecret
+	InvalidSecret,
 }
 
 /// Represent service for storing encrypted arbitrary data
@@ -131,17 +131,13 @@ impl AccountService {
 	pub fn new() -> Self {
 		let secret_store = RwLock::new(SecretStore::new());
 		secret_store.write().unwrap().try_import_existing();
-		AccountService {
-			secret_store: secret_store
-		}
+		AccountService { secret_store: secret_store }
 	}
 
 	#[cfg(test)]
 	fn new_test(temp: &::devtools::RandomTempPath) -> Self {
 		let secret_store = RwLock::new(SecretStore::new_test(temp));
-		AccountService {
-			secret_store: secret_store
-		}
+		AccountService { secret_store: secret_store }
 	}
 
 	/// Ticks the account service
@@ -191,9 +187,14 @@ impl SecretStore {
 
 	/// Lists all accounts and corresponding key ids
 	pub fn accounts(&self) -> Result<Vec<(Address, H128)>, ::std::io::Error> {
-		let accounts = try!(self.directory.list()).iter().map(|key_id| self.directory.get(key_id))
+		let accounts = try!(self.directory.list())
+			.iter()
+			.map(|key_id| self.directory.get(key_id))
 			.filter(|key| key.is_some())
-			.map(|key| { let some_key = key.unwrap(); (some_key.account, some_key.id) })
+			.map(|key| {
+				let some_key = key.unwrap();
+				(some_key.account, some_key.id)
+			})
 			.filter(|&(ref account, _)| account.is_some())
 			.map(|(account, id)| (account.unwrap(), id))
 			.collect::<Vec<(Address, H128)>>();
@@ -204,7 +205,10 @@ impl SecretStore {
 	pub fn account(&self, account: &Address) -> Option<H128> {
 		let mut accounts = match self.accounts() {
 			Ok(accounts) => accounts,
-			Err(e) => { warn!(target: "sstore", "Failed to load accounts: {}", e); return None; }
+			Err(e) => {
+				warn!(target: "sstore", "Failed to load accounts: {}", e);
+				return None;
+			}
 		};
 		accounts.retain(|&(ref store_account, _)| account == store_account);
 		accounts.first().and_then(|&(_, ref key_id)| Some(key_id.clone()))
@@ -231,7 +235,12 @@ impl SecretStore {
 		{
 			let mut write_lock = self.unlocks.write().unwrap();
 			let mut unlock = write_lock.entry(*account)
-				.or_insert_with(|| AccountUnlock { secret: secret, expires: UTC::now() });
+			                           .or_insert_with(|| {
+				                           AccountUnlock {
+					                           secret: secret,
+					                           expires: UTC::now(),
+				                           }
+				                          });
 			unlock.secret = secret;
 			unlock.expires = UTC::now() + Duration::minutes(20);
 		}
@@ -257,10 +266,10 @@ impl SecretStore {
 		let unlock = try!(read_lock.get(account).ok_or(SigningError::AccountNotUnlocked));
 		match crypto::KeyPair::from_secret(unlock.secret) {
 			Ok(pair) => match pair.sign(message) {
-					Ok(signature) => Ok(signature),
-					Err(_) => Err(SigningError::InvalidSecret)
-				},
-			Err(_) => Err(SigningError::InvalidSecret)
+				Ok(signature) => Ok(signature),
+				Err(_) => Err(SigningError::InvalidSecret),
+			},
+			Err(_) => Err(SigningError::InvalidSecret),
 		}
 	}
 
@@ -277,10 +286,13 @@ impl SecretStore {
 		self.directory.collect_garbage();
 		let utc = UTC::now();
 		let expired_addresses = garbage_lock.iter()
-			.filter(|&(_, unlock)| unlock.expires < utc)
-			.map(|(address, _)| address.clone()).collect::<Vec<Address>>();
+		                                    .filter(|&(_, unlock)| unlock.expires < utc)
+		                                    .map(|(address, _)| address.clone())
+		                                    .collect::<Vec<Address>>();
 
-		for expired in expired_addresses { garbage_lock.remove(&expired); }
+		for expired in expired_addresses {
+			garbage_lock.remove(&expired);
+		}
 
 		garbage_lock.shrink_to_fit();
 	}
@@ -311,7 +323,7 @@ fn derive_key_scrypt(password: &str, salt: &H256, n: u32, p: u32, r: u32) -> (By
 fn derive_mac(derived_left_bits: &[u8], cipher_text: &[u8]) -> Bytes {
 	let mut mac = vec![0u8; KEY_LENGTH_AES_USIZE + cipher_text.len()];
 	mac[0..KEY_LENGTH_AES_USIZE].clone_from_slice(derived_left_bits);
-	mac[KEY_LENGTH_AES_USIZE..cipher_text.len()+KEY_LENGTH_AES_USIZE].clone_from_slice(cipher_text);
+	mac[KEY_LENGTH_AES_USIZE..cipher_text.len() + KEY_LENGTH_AES_USIZE].clone_from_slice(cipher_text);
 	mac
 }
 
@@ -321,11 +333,12 @@ impl EncryptedHashMap<H128> for SecretStore {
 			Some(key_file) => {
 				let (derived_left_bits, derived_right_bits) = match key_file.crypto.kdf {
 					KeyFileKdf::Pbkdf2(ref params) => derive_key_iterations(password, &params.salt, params.c),
-					KeyFileKdf::Scrypt(ref params) => derive_key_scrypt(password, &params.salt, params.n, params.p, params.r)
+					KeyFileKdf::Scrypt(ref params) => derive_key_scrypt(password, &params.salt, params.n, params.p, params.r),
 				};
 
-				if derive_mac(&derived_right_bits, &key_file.crypto.cipher_text)
-					.sha3() != key_file.crypto.mac { return Err(EncryptedHashMapError::InvalidPassword); }
+				if derive_mac(&derived_right_bits, &key_file.crypto.cipher_text).sha3() != key_file.crypto.mac {
+					return Err(EncryptedHashMapError::InvalidPassword);
+				}
 
 				let mut val = vec![0u8; key_file.crypto.cipher_text.len()];
 				match key_file.crypto.cipher_type {
@@ -336,10 +349,10 @@ impl EncryptedHashMap<H128> for SecretStore {
 
 				match Value::from_bytes(&val) {
 					Ok(value) => Ok(value),
-					Err(bytes_error) => Err(EncryptedHashMapError::InvalidValueFormat(bytes_error))
+					Err(bytes_error) => Err(EncryptedHashMapError::InvalidValueFormat(bytes_error)),
 				}
-			},
-			None => Err(EncryptedHashMapError::UnknownIdentifier)
+			}
+			None => Err(EncryptedHashMapError::UnknownIdentifier),
 		}
 	}
 
@@ -361,14 +374,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 		// KECCAK(DK[16..31] ++ <ciphertext>), where DK[16..31] - derived_right_bits
 		let mac = derive_mac(&derived_right_bits, &cipher_text.clone()).sha3();
 
-		let mut key_file = KeyFileContent::new(
-			KeyFileCrypto::new_pbkdf2(
-				cipher_text,
-				iv,
-				salt,
-				mac,
-				KEY_ITERATIONS,
-				KEY_LENGTH));
+		let mut key_file = KeyFileContent::new(KeyFileCrypto::new_pbkdf2(cipher_text, iv, salt, mac, KEY_ITERATIONS, KEY_LENGTH));
 		key_file.id = key;
 		if let Err(io_error) = self.directory.save(key_file) {
 			warn!("Error saving key file: {:?}", io_error);
@@ -379,20 +385,20 @@ impl EncryptedHashMap<H128> for SecretStore {
 	fn remove<Value: FromRawBytes + BytesConvertable>(&mut self, key: &H128, password: Option<&str>) -> Option<Value> {
 		let previous = if let Some(pass) = password {
 			if let Ok(previous_value) = self.get(&key, pass) { Some(previous_value) } else { None }
-		}
-		else { None };
+		} else {
+			None
+		};
 
 		if let Err(io_error) = self.directory.delete(key) {
 			warn!("Error saving key file: {:?}", io_error);
 		}
 		previous
 	}
-
 }
 
 #[cfg(all(test, feature="heavy-tests"))]
 mod vector_tests {
-	use super::{derive_mac,derive_key_iterations};
+	use super::{derive_key_iterations, derive_mac};
 	use common::*;
 
 	#[test]
@@ -407,7 +413,8 @@ mod vector_tests {
 		assert_eq!("e31891a3a773950e6d0fea48a7188551", derived_right_bits.to_hex());
 
 		let mac_body = derive_mac(&derived_right_bits, &cipher_text);
-		assert_eq!("e31891a3a773950e6d0fea48a71885515318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46", mac_body.to_hex());
+		assert_eq!("e31891a3a773950e6d0fea48a71885515318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46",
+		           mac_body.to_hex());
 
 		let mac = mac_body.sha3();
 		assert_eq!("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2", format!("{:?}", mac));
@@ -482,14 +489,15 @@ mod tests {
 		let mut result = Vec::new();
 		for i in 0..count {
 			let mut key_file =
-				KeyFileContent::new(
-					KeyFileCrypto::new_pbkdf2(
-						FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46").unwrap(),
-						H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
-						H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap(),
-						H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
-						262144,
-						32));
+				KeyFileContent::new(KeyFileCrypto::new_pbkdf2(FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46")
+					                                              .unwrap(),
+				                                              H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
+				                                              H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd")
+					                                              .unwrap(),
+				                                              H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2")
+					                                              .unwrap(),
+				                                              262144,
+				                                              32));
 			key_file.account = Some(x!(i as u64));
 			result.push(key_file.id.clone());
 			write_sstore.import_key(key_file).unwrap();
@@ -571,14 +579,15 @@ mod tests {
 		use keys::directory::{KeyFileContent, KeyFileCrypto};
 		let temp = RandomTempPath::create_dir();
 		let mut key_file =
-			KeyFileContent::new(
-				KeyFileCrypto::new_pbkdf2(
-					FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46").unwrap(),
-					H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
-					H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd").unwrap(),
-					H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2").unwrap(),
-					262144,
-					32));
+			KeyFileContent::new(KeyFileCrypto::new_pbkdf2(FromHex::from_hex("5318b4d5bcd28de64ee5559e671353e16f075ecae9f99c7a79a38af5f869aa46")
+				                                              .unwrap(),
+			                                              H128::from_str("6087dab2f9fdbbfaddc31a909735c1e6").unwrap(),
+			                                              H256::from_str("ae3cd4e7013836a3df6bd7241b12db061dbe2c6785853cce422d148a624ce0bd")
+				                                              .unwrap(),
+			                                              H256::from_str("517ead924a9d0dc3124507e3393d175ce3ff7c1e96529c6c555ce9e51205e9b2")
+				                                              .unwrap(),
+			                                              262144,
+			                                              32));
 		key_file.account = Some(Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
 
 		let mut sstore = SecretStore::new_test(&temp);
@@ -629,7 +638,9 @@ mod tests {
 			let ss_rw = svc.secret_store.write().unwrap();
 			let mut ua_rw = ss_rw.unlocks.write().unwrap();
 			let entry = ua_rw.entry(address);
-			if let Entry::Occupied(mut occupied) = entry { occupied.get_mut().expires = UTC::now() - Duration::minutes(1); }
+			if let Entry::Occupied(mut occupied) = entry {
+				occupied.get_mut().expires = UTC::now() - Duration::minutes(1);
+			}
 		}
 
 		svc.tick();

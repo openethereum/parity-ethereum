@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethcore::client::BlockChainClient;
-use util::{NetworkContext, PeerId, PacketId,};
+use util::{NetworkContext, PacketId, PeerId};
 use util::error::UtilError;
 use ethcore::service::SyncMessage;
 
@@ -44,9 +44,11 @@ pub trait SyncIo {
 }
 
 /// Wraps `NetworkContext` and the blockchain client
-pub struct NetSyncIo<'s, 'h> where 'h: 's {
+pub struct NetSyncIo<'s, 'h>
+	where 'h: 's,
+{
 	network: &'s NetworkContext<'h, SyncMessage>,
-	chain: &'s BlockChainClient
+	chain: &'s BlockChainClient,
 }
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
@@ -68,11 +70,11 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.network.disconnect_peer(peer_id);
 	}
 
-	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>{
+	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		self.network.respond(packet_id, data)
 	}
 
-	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError>{
+	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		self.network.send(peer_id, packet_id, data)
 	}
 
@@ -84,5 +86,3 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.network.peer_info(peer_id)
 	}
 }
-
-

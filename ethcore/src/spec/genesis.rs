@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::rlp::*;
-use util::numbers::{Uint, U256};
-use util::hash::{H64, Address, H256};
+use util::numbers::{U256, Uint};
+use util::hash::{Address, H256, H64};
 use ethjson;
 
 /// Genesis seal type.
@@ -74,7 +74,7 @@ impl From<ethjson::spec::Genesis> for Genesis {
 				_ => Seal::Generic {
 					fields: g.seal_fields.unwrap(),
 					rlp: g.seal_rlp.unwrap().into(),
-				}
+				},
 			},
 			difficulty: g.difficulty.into(),
 			author: g.author.into(),

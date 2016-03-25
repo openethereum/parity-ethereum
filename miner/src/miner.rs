@@ -15,18 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rayon::prelude::*;
-use std::sync::{Mutex, RwLock, Arc};
+use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
 use std::collections::HashSet;
 
-use util::{H256, U256, Address, Bytes, Uint};
+use util::{Address, Bytes, H256, U256, Uint};
 use ethcore::views::{BlockView, HeaderView};
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
-use ethcore::error::{Error};
+use ethcore::error::Error;
 use ethcore::transaction::SignedTransaction;
-use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails};
+use super::{AccountDetails, MinerService, MinerStatus, TransactionQueue};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
@@ -39,7 +39,6 @@ pub struct Miner {
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
-
 }
 
 impl Default for Miner {
@@ -100,22 +99,16 @@ impl Miner {
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
-		let b = chain.prepare_sealing(
-			self.author(),
-			self.gas_floor_target(),
-			self.extra_data(),
-			transactions,
-		);
+		let b = chain.prepare_sealing(self.author(), self.gas_floor_target(), self.extra_data(), transactions);
 
 		*self.sealing_block.lock().unwrap() = b.map(|(block, invalid_transactions)| {
 			let mut queue = self.transaction_queue.lock().unwrap();
-			queue.remove_all(
-				&invalid_transactions.into_iter().collect::<Vec<H256>>(),
-				|a: &Address| AccountDetails {
+			queue.remove_all(&invalid_transactions.into_iter().collect::<Vec<H256>>(), |a: &Address| {
+				AccountDetails {
 					nonce: chain.nonce(a),
 					balance: chain.balance(a),
 				}
-			);
+			});
 			block
 		});
 	}
@@ -127,10 +120,9 @@ impl Miner {
 	}
 }
 
-const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
+const SEALING_TIMEOUT_IN_BLOCKS: u64 = 5;
 
 impl MinerService for Miner {
-
 	fn clear_and_reset(&self, chain: &BlockChainClient) {
 		self.transaction_queue.lock().unwrap().clear();
 		self.update_sealing(chain);
@@ -155,7 +147,8 @@ impl MinerService for Miner {
 	}
 
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
-		where T: Fn(&Address) -> AccountDetails {
+		where T: Fn(&Address) -> AccountDetails,
+	{
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		transaction_queue.add_all(transactions, fetch_account)
 	}
@@ -195,7 +188,9 @@ impl MinerService for Miner {
 		let mut maybe_b = self.sealing_block.lock().unwrap();
 		match *maybe_b {
 			Some(ref b) if b.hash() == pow_hash => {}
-			_ => { return Err(Error::PowHashInvalid); }
+			_ => {
+				return Err(Error::PowHashInvalid);
+			}
 		}
 
 		let b = maybe_b.take();
@@ -227,18 +222,19 @@ impl MinerService for Miner {
 
 		// Then import all transactions...
 		{
-			let out_of_chain = retracted
-				.par_iter()
-				.map(|h| fetch_transactions(chain, h));
+			let out_of_chain = retracted.par_iter()
+			                            .map(|h| fetch_transactions(chain, h));
 			out_of_chain.for_each(|txs| {
 				// populate sender
 				for tx in &txs {
 					let _sender = tx.sender();
 				}
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				let _ = transaction_queue.add_all(txs, |a| AccountDetails {
-					nonce: chain.nonce(a),
-					balance: chain.balance(a)
+				let _ = transaction_queue.add_all(txs, |a| {
+					AccountDetails {
+						nonce: chain.nonce(a),
+						balance: chain.balance(a),
+					}
 				});
 			});
 		}
@@ -250,21 +246,21 @@ impl MinerService for Miner {
 				in_chain.extend(imported);
 				in_chain.extend(enacted);
 				in_chain.extend(invalid);
-				in_chain
-					.into_iter()
-					.collect::<Vec<H256>>()
+				in_chain.into_iter()
+				        .collect::<Vec<H256>>()
 			};
 
-			let in_chain = in_chain
-				.par_iter()
-				.map(|h: &H256| fetch_transactions(chain, h));
+			let in_chain = in_chain.par_iter()
+			                       .map(|h: &H256| fetch_transactions(chain, h));
 
 			in_chain.for_each(|txs| {
 				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				transaction_queue.remove_all(&hashes, |a| AccountDetails {
-					nonce: chain.nonce(a),
-					balance: chain.balance(a)
+				transaction_queue.remove_all(&hashes, |a| {
+					AccountDetails {
+						nonce: chain.nonce(a),
+						balance: chain.balance(a),
+					}
 				});
 			});
 		}
@@ -277,8 +273,8 @@ impl MinerService for Miner {
 mod tests {
 
 	use MinerService;
-	use super::{Miner};
-	use ethcore::client::{TestBlockChainClient, EachBlockWith};
+	use super::Miner;
+	use ethcore::client::{EachBlockWith, TestBlockChainClient};
 
 	// TODO [ToDr] To uncomment client is cleaned from mining stuff.
 	#[ignore]

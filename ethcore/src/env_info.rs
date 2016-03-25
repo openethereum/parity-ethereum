@@ -81,8 +81,7 @@ mod tests {
 
 	#[test]
 	fn it_serializes_form_json() {
-		let env_info = EnvInfo::from_json(&json::Json::from_str(
-r#"
+		let env_info = EnvInfo::from_json(&json::Json::from_str(r#"
 	{
 		"currentCoinbase": "0x000000f00000000f000000000000f00000000f00",
 		"currentNumber": 1112339,
@@ -90,8 +89,8 @@ r#"
 		"currentGasLimit" : 40000,
 		"currentTimestamp" : 1100
 	}
-"#
-		).unwrap());
+"#)
+			.unwrap());
 
 		assert_eq!(env_info.number, 1112339);
 		assert_eq!(env_info.author, Address::from_str("000000f00000000f000000000000f00000000f00").unwrap());

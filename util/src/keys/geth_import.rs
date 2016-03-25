@@ -29,13 +29,21 @@ pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, io::Er
 			match entry.file_name().to_str() {
 				Some(name) => {
 					let parts: Vec<&str> = name.split("--").collect();
-					if parts.len() != 3 { continue; }
-					match Address::from_str(parts[2]) {
-						Ok(account_id) => { entries.push((account_id, name.to_owned())); }
-						Err(e) => { panic!("error: {:?}", e); }
+					if parts.len() != 3 {
+						continue;
 					}
-				},
-				None => { continue; }
+					match Address::from_str(parts[2]) {
+						Ok(account_id) => {
+							entries.push((account_id, name.to_owned()));
+						}
+						Err(e) => {
+							panic!("error: {:?}", e);
+						}
+					}
+				}
+				None => {
+					continue;
+				}
 			};
 		}
 	}
@@ -52,7 +60,7 @@ pub enum ImportError {
 }
 
 impl From<io::Error> for ImportError {
-	fn from (err: io::Error) -> ImportError {
+	fn from(err: io::Error) -> ImportError {
 		ImportError::Io(err)
 	}
 }
@@ -66,14 +74,18 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 	let mut json_result = Json::from_str(&buf);
 	let mut json = match json_result {
 		Ok(ref mut parsed_json) => try!(parsed_json.as_object_mut().ok_or(ImportError::Format)),
-		Err(_) => { return Err(ImportError::Format); }
+		Err(_) => {
+			return Err(ImportError::Format);
+		}
 	};
 	let crypto_object = try!(json.get("Crypto").and_then(|crypto| crypto.as_object()).ok_or(ImportError::Format)).clone();
 	json.insert("crypto".to_owned(), Json::Object(crypto_object));
 	json.remove("Crypto");
 	match KeyFileContent::load(&Json::Object(json.clone())) {
 		Ok(key_file) => try!(secret_store.import_key(key_file)),
-		Err(_) => { return Err(ImportError::Format); }
+		Err(_) => {
+			return Err(ImportError::Format);
+		}
 	};
 	Ok(())
 }
@@ -102,7 +114,7 @@ mod tests {
 	fn test_path() -> &'static str {
 		match ::std::fs::metadata("res") {
 			Ok(_) => "res/geth_keystore",
-			Err(_) => "util/res/geth_keystore"
+			Err(_) => "util/res/geth_keystore",
 		}
 	}
 
@@ -120,7 +132,9 @@ mod tests {
 	fn can_import() {
 		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());
-		import_geth_key(&mut secret_store, Path::new(&test_path_param("/UTC--2016-02-17T09-20-45.721400158Z--3f49624084b67849c7b4e805c5988c21a430f9d9"))).unwrap();
+		import_geth_key(&mut secret_store,
+		                Path::new(&test_path_param("/UTC--2016-02-17T09-20-45.721400158Z--3f49624084b67849c7b4e805c5988c21a430f9d9")))
+			.unwrap();
 		let key = secret_store.account(&Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
 		assert!(key.is_some());
 	}
@@ -155,8 +169,10 @@ mod tests {
 				assert_eq!(262144, scrypt_params.n);
 				assert_eq!(8, scrypt_params.r);
 				assert_eq!(1, scrypt_params.p);
-			},
-			_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
+			}
+			_ => {
+				panic!("expected kdf params of crypto to be of scrypt type");
+			}
 		}
 	}
 

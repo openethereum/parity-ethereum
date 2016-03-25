@@ -21,22 +21,18 @@ use transaction::*;
 
 /// View onto transaction rlp.
 pub struct TransactionView<'a> {
-	rlp: Rlp<'a>
+	rlp: Rlp<'a>,
 }
 
 impl<'a> TransactionView<'a> {
 	/// Creates new view onto block from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> TransactionView<'a> {
-		TransactionView {
-			rlp: Rlp::new(bytes)
-		}
+		TransactionView { rlp: Rlp::new(bytes) }
 	}
 
 	/// Creates new view onto block from rlp.
 	pub fn new_from_rlp(rlp: Rlp<'a>) -> TransactionView<'a> {
-		TransactionView {
-			rlp: rlp
-		}
+		TransactionView { rlp: rlp }
 	}
 
 	/// Return reference to underlaying rlp.
@@ -45,28 +41,45 @@ impl<'a> TransactionView<'a> {
 	}
 
 	/// Get the nonce field of the transaction.
-	pub fn nonce(&self) -> U256 { self.rlp.val_at(0) }
+	pub fn nonce(&self) -> U256 {
+		self.rlp.val_at(0)
+	}
 
 	/// Get the gas_price field of the transaction.
-	pub fn gas_price(&self) -> U256 { self.rlp.val_at(1) }
+	pub fn gas_price(&self) -> U256 {
+		self.rlp.val_at(1)
+	}
 
 	/// Get the gas field of the transaction.
-	pub fn gas(&self) -> U256 { self.rlp.val_at(2) }
+	pub fn gas(&self) -> U256 {
+		self.rlp.val_at(2)
+	}
 
 	/// Get the value field of the transaction.
-	pub fn value(&self) -> U256 { self.rlp.val_at(4) }
+	pub fn value(&self) -> U256 {
+		self.rlp.val_at(4)
+	}
 
 	/// Get the data field of the transaction.
-	pub fn data(&self) -> Bytes { self.rlp.val_at(5) }
+	pub fn data(&self) -> Bytes {
+		self.rlp.val_at(5)
+	}
 
 	/// Get the v field of the transaction.
-	pub fn v(&self) -> u8 { let r: u16 = self.rlp.val_at(6); r as u8 }
+	pub fn v(&self) -> u8 {
+		let r: u16 = self.rlp.val_at(6);
+		r as u8
+	}
 
 	/// Get the r field of the transaction.
-	pub fn r(&self) -> U256 { self.rlp.val_at(7) }
+	pub fn r(&self) -> U256 {
+		self.rlp.val_at(7)
+	}
 
 	/// Get the s field of the transaction.
-	pub fn s(&self) -> U256 { self.rlp.val_at(8) }
+	pub fn s(&self) -> U256 {
+		self.rlp.val_at(8)
+	}
 
 	// TODO: something like pub fn action(&self) -> Action { self.rlp.val_at(3) }
 }
@@ -79,22 +92,18 @@ impl<'a> Hashable for TransactionView<'a> {
 
 /// View onto transaction rlp.
 pub struct AccountView<'a> {
-	rlp: Rlp<'a>
+	rlp: Rlp<'a>,
 }
 
 impl<'a> AccountView<'a> {
 	/// Creates new view onto block from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> AccountView<'a> {
-		AccountView {
-			rlp: Rlp::new(bytes)
-		}
+		AccountView { rlp: Rlp::new(bytes) }
 	}
 
 	/// Creates new view onto block from rlp.
 	pub fn new_from_rlp(rlp: Rlp<'a>) -> AccountView<'a> {
-		AccountView {
-			rlp: rlp
-		}
+		AccountView { rlp: rlp }
 	}
 
 	/// Return reference to underlaying rlp.
@@ -103,36 +112,40 @@ impl<'a> AccountView<'a> {
 	}
 
 	/// Get the nonce field of the transaction.
-	pub fn nonce(&self) -> U256 { self.rlp.val_at(0) }
+	pub fn nonce(&self) -> U256 {
+		self.rlp.val_at(0)
+	}
 
 	/// Get the gas_price field of the transaction.
-	pub fn balance(&self) -> U256 { self.rlp.val_at(1) }
+	pub fn balance(&self) -> U256 {
+		self.rlp.val_at(1)
+	}
 
 	/// Get the gas field of the transaction.
-	pub fn storage_root(&self) -> H256 { self.rlp.val_at(2) }
+	pub fn storage_root(&self) -> H256 {
+		self.rlp.val_at(2)
+	}
 
 	/// Get the value field of the transaction.
-	pub fn code_hash(&self) -> H256 { self.rlp.val_at(3) }
+	pub fn code_hash(&self) -> H256 {
+		self.rlp.val_at(3)
+	}
 }
 
 /// View onto block rlp.
 pub struct BlockView<'a> {
-	rlp: Rlp<'a>
+	rlp: Rlp<'a>,
 }
 
 impl<'a> BlockView<'a> {
 	/// Creates new view onto block from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> BlockView<'a> {
-		BlockView {
-			rlp: Rlp::new(bytes)
-		}
+		BlockView { rlp: Rlp::new(bytes) }
 	}
 
 	/// Creates new view onto block from rlp.
 	pub fn new_from_rlp(rlp: Rlp<'a>) -> BlockView<'a> {
-		BlockView {
-			rlp: rlp
-		}
+		BlockView { rlp: rlp }
 	}
 
 	/// Return reference to underlaying rlp.
@@ -161,14 +174,17 @@ impl<'a> BlockView<'a> {
 		let block_hash = header.sha3();
 		let block_number = header.number();
 		self.transactions()
-			.into_iter()
-			.enumerate()
-			.map(|(i, t)| LocalizedTransaction {
-				signed: t,
-				block_hash: block_hash.clone(),
-				block_number: block_number,
-				transaction_index: i
-			}).collect()
+		    .into_iter()
+		    .enumerate()
+		    .map(|(i, t)| {
+			    LocalizedTransaction {
+				    signed: t,
+				    block_hash: block_hash.clone(),
+				    block_number: block_number,
+				    transaction_index: i,
+			    }
+			   })
+		    .collect()
 	}
 
 	/// Return number of transactions in given block, without deserializing them.
@@ -196,11 +212,13 @@ impl<'a> BlockView<'a> {
 		let header = self.header_view();
 		let block_hash = header.sha3();
 		let block_number = header.number();
-		self.transaction_at(index).map(|t| LocalizedTransaction {
-			signed: t,
-			block_hash: block_hash,
-			block_number: block_number,
-			transaction_index: index
+		self.transaction_at(index).map(|t| {
+			LocalizedTransaction {
+				signed: t,
+				block_hash: block_hash,
+				block_number: block_number,
+				transaction_index: index,
+			}
 		})
 	}
 
@@ -238,68 +256,94 @@ impl<'a> Hashable for BlockView<'a> {
 
 /// View onto block header rlp.
 pub struct HeaderView<'a> {
-	rlp: Rlp<'a>
+	rlp: Rlp<'a>,
 }
 
 impl<'a> HeaderView<'a> {
 	/// Creates new view onto header from raw bytes.
 	pub fn new(bytes: &'a [u8]) -> HeaderView<'a> {
-		HeaderView {
-			rlp: Rlp::new(bytes)
-		}
+		HeaderView { rlp: Rlp::new(bytes) }
 	}
 
 	/// Creates new view onto header from rlp.
 	pub fn new_from_rlp(rlp: Rlp<'a>) -> HeaderView<'a> {
-		HeaderView {
-			rlp: rlp
-		}
+		HeaderView { rlp: rlp }
 	}
 
 	/// Returns header hash.
-	pub fn hash(&self) -> H256 { self.sha3() }
+	pub fn hash(&self) -> H256 {
+		self.sha3()
+	}
 
 	/// Returns raw rlp.
-	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
+	pub fn rlp(&self) -> &Rlp<'a> {
+		&self.rlp
+	}
 
 	/// Returns parent hash.
-	pub fn parent_hash(&self) -> H256 { self.rlp.val_at(0) }
+	pub fn parent_hash(&self) -> H256 {
+		self.rlp.val_at(0)
+	}
 
 	/// Returns uncles hash.
-	pub fn uncles_hash(&self) -> H256 { self.rlp.val_at(1) }
+	pub fn uncles_hash(&self) -> H256 {
+		self.rlp.val_at(1)
+	}
 
 	/// Returns author.
-	pub fn author(&self) -> Address { self.rlp.val_at(2) }
+	pub fn author(&self) -> Address {
+		self.rlp.val_at(2)
+	}
 
 	/// Returns state root.
-	pub fn state_root(&self) -> H256 { self.rlp.val_at(3) }
+	pub fn state_root(&self) -> H256 {
+		self.rlp.val_at(3)
+	}
 
 	/// Returns transactions root.
-	pub fn transactions_root(&self) -> H256 { self.rlp.val_at(4) }
+	pub fn transactions_root(&self) -> H256 {
+		self.rlp.val_at(4)
+	}
 
 	/// Returns block receipts root.
-	pub fn receipts_root(&self) -> H256 { self.rlp.val_at(5) }
+	pub fn receipts_root(&self) -> H256 {
+		self.rlp.val_at(5)
+	}
 
 	/// Returns block log bloom.
-	pub fn log_bloom(&self) -> H2048 { self.rlp.val_at(6) }
+	pub fn log_bloom(&self) -> H2048 {
+		self.rlp.val_at(6)
+	}
 
 	/// Returns block difficulty.
-	pub fn difficulty(&self) -> U256 { self.rlp.val_at(7) }
+	pub fn difficulty(&self) -> U256 {
+		self.rlp.val_at(7)
+	}
 
 	/// Returns block number.
-	pub fn number(&self) -> BlockNumber { self.rlp.val_at(8) }
+	pub fn number(&self) -> BlockNumber {
+		self.rlp.val_at(8)
+	}
 
 	/// Returns block gas limit.
-	pub fn gas_limit(&self) -> U256 { self.rlp.val_at(9) }
+	pub fn gas_limit(&self) -> U256 {
+		self.rlp.val_at(9)
+	}
 
 	/// Returns block gas used.
-	pub fn gas_used(&self) -> U256 { self.rlp.val_at(10) }
+	pub fn gas_used(&self) -> U256 {
+		self.rlp.val_at(10)
+	}
 
 	/// Returns timestamp.
-	pub fn timestamp(&self) -> u64 { self.rlp.val_at(11) }
+	pub fn timestamp(&self) -> u64 {
+		self.rlp.val_at(11)
+	}
 
 	/// Returns block extra data.
-	pub fn extra_data(&self) -> Bytes { self.rlp.val_at(12) }
+	pub fn extra_data(&self) -> Bytes {
+		self.rlp.val_at(12)
+	}
 
 	/// Returns block seal.
 	pub fn seal(&self) -> Vec<Bytes> {

@@ -18,11 +18,7 @@ use common::*;
 
 /// Remove the `"0x"`, if present, from the left of `s`, returning the remaining slice.
 pub fn clean(s: &str) -> &str {
-	if s.len() >= 2 && &s[0..2] == "0x" {
-		&s[2..]
-	} else {
-		s
-	}
+	if s.len() >= 2 && &s[0..2] == "0x" { &s[2..] } else { s }
 }
 
 fn u256_from_str(s: &str) -> U256 {
@@ -54,16 +50,20 @@ impl FromJson for BTreeMap<H256, H256> {
 	}
 }
 
-impl<T> FromJson for Vec<T> where T: FromJson {
+impl<T> FromJson for Vec<T>
+    where T: FromJson,
+{
 	fn from_json(json: &Json) -> Self {
 		match *json {
-			Json::Array(ref o) => o.iter().map(|x|T::from_json(x)).collect(),
+			Json::Array(ref o) => o.iter().map(|x| T::from_json(x)).collect(),
 			_ => Vec::new(),
 		}
 	}
 }
 
-impl<T> FromJson for Option<T> where T: FromJson {
+impl<T> FromJson for Option<T>
+    where T: FromJson,
+{
 	fn from_json(json: &Json) -> Self {
 		match *json {
 			Json::String(ref o) if o.is_empty() => None,
@@ -126,7 +126,8 @@ fn vec_h256_from_json() {
 	let j = Json::from_str("{ \"array\": [ \"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\", \"0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef\"] }").unwrap();
 
 	let v: Vec<H256> = xjson!(&j["array"]);
-	assert_eq!(vec![H256::from_str("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").unwrap(); 2], v);
+	assert_eq!(vec![H256::from_str("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef").unwrap(); 2],
+	           v);
 }
 
 #[test]

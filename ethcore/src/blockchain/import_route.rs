@@ -65,10 +65,11 @@ mod tests {
 
 	#[test]
 	fn import_route_none() {
-		assert_eq!(ImportRoute::none(), ImportRoute {
-			enacted: vec![],
-			retracted: vec![],
-		});
+		assert_eq!(ImportRoute::none(),
+		           ImportRoute {
+			           enacted: vec![],
+			           retracted: vec![],
+		           });
 	}
 
 	#[test]
@@ -92,10 +93,11 @@ mod tests {
 			location: BlockLocation::CanonChain,
 		};
 
-		assert_eq!(ImportRoute::from(info), ImportRoute {
-			retracted: vec![],
-			enacted: vec![H256::from(U256::from(1))],
-		});
+		assert_eq!(ImportRoute::from(info),
+		           ImportRoute {
+			           retracted: vec![],
+			           enacted: vec![H256::from(U256::from(1))],
+		           });
 	}
 
 	#[test]
@@ -105,15 +107,16 @@ mod tests {
 			number: 0,
 			total_difficulty: U256::from(0),
 			location: BlockLocation::BranchBecomingCanonChain {
-			ancestor: H256::from(U256::from(0)),
+				ancestor: H256::from(U256::from(0)),
 				enacted: vec![H256::from(U256::from(1))],
 				retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
-			}
+			},
 		};
 
-		assert_eq!(ImportRoute::from(info), ImportRoute {
-			retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
-			enacted: vec![H256::from(U256::from(1)), H256::from(U256::from(2))],
-		});
+		assert_eq!(ImportRoute::from(info),
+		           ImportRoute {
+			           retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
+			           enacted: vec![H256::from(U256::from(1)), H256::from(U256::from(2))],
+		           });
 	}
 }

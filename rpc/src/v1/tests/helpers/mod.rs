@@ -23,5 +23,5 @@ mod external_miner;
 
 pub use self::account_provider::{TestAccount, TestAccountProvider};
 pub use self::sync_provider::{Config, TestSyncProvider};
-pub use self::miner_service::{TestMinerService};
+pub use self::miner_service::TestMinerService;
 pub use self::external_miner::TestExternalMiner;

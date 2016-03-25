@@ -29,8 +29,8 @@ pub use std::result;
 pub use std::option;
 
 pub use std::path::Path;
-pub use std::str::{FromStr};
-pub use std::io::{Read,Write};
+pub use std::str::FromStr;
+pub use std::io::{Read, Write};
 pub use std::hash::{Hash, Hasher};
 pub use std::error::Error as StdError;
 

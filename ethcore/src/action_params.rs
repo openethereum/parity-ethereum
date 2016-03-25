@@ -23,7 +23,7 @@ pub enum ActionValue {
 	/// Value that should be transfered
 	Transfer(U256),
 	/// Apparent value for transaction (not transfered)
-	Apparent(U256)
+	Apparent(U256),
 }
 
 // TODO: should be a trait, possible to avoid cloning everything from a Transaction(/View).
@@ -48,7 +48,7 @@ pub struct ActionParams {
 	/// Code being executed.
 	pub code: Option<Bytes>,
 	/// Input data.
-	pub data: Option<Bytes>
+	pub data: Option<Bytes>,
 }
 
 impl Default for ActionParams {
@@ -63,7 +63,7 @@ impl Default for ActionParams {
 			gas_price: U256::zero(),
 			value: ActionValue::Transfer(U256::zero()),
 			code: None,
-			data: None
+			data: None,
 		}
 	}
 }
