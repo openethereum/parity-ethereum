@@ -87,7 +87,6 @@ matrix:
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
       addons:
         apt:
-          # Use the same packages the stable version uses
           packages: &arm_unknown_linux_gnueabihf
         - gcc-arm-linux-gnueabihf
         - g++-arm-linux-gnueabihf
@@ -150,7 +149,6 @@ matrix:
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=nightly
       addons:
         apt:
-          # Use the same packages the stable version uses
           packages: &arm_unknown_linux_gnueabihf
         - gcc-arm-linux-gnueabihf
         - g++-arm-linux-gnueabihf
