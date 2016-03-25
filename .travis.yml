@@ -79,20 +79,7 @@ matrix:
     # Beta channel
     - os: linux
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
-      # Extra packages only for this job
-      addons:
-        apt:
-          packages: &arm_unknown_linux_gnueabihf
-         # Cross compiler and cross compiled C++ libraries
-        - g++-arm-linux-gnueabihf
-        - libc6-armhf-cross
-        - libc6-dev-armhf-cross
-        # Emulator
-        - qemu-user
-        # Additional libs
-        - libcurl4-openssl-dev
-        - libelf-dev
-        - libdw-dev
+      # Extra packages only for this job beta
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=beta
     - os: linux
