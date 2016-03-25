@@ -328,9 +328,11 @@ mod tests {
 
 	use MinerService;
 	use super::{Miner};
+	use util::*;
 	use ethcore::client::{TestBlockChainClient, EachBlockWith};
+	use ethcore::block::*;
 
-	// TODO [ToDr] To uncomment client is cleaned from mining stuff.
+	// TODO [ToDr] To uncomment when TestBlockChainClient can actually return a ClosedBlock.
 	#[ignore]
 	#[test]
 	fn should_prepare_block_to_seal() {
@@ -339,25 +341,29 @@ mod tests {
 		let miner = Miner::default();
 
 		// when
-		let res = miner.would_seal(&client);
-
-		// then
-		assert!(res.lock().unwrap().is_some(), "Expected closed block");
+		let sealing_work = miner.map_sealing_work(&client, |_| ());
+		assert!(sealing_work.is_some(), "Expected closed block");
 	}
 
+	#[ignore]
 	#[test]
-	fn should_reset_seal_after_couple_of_blocks() {
+	fn should_still_work_after_a_couple_of_blocks() {
 		// given
 		let client = TestBlockChainClient::default();
 		let miner = Miner::default();
-		let res = miner.would_seal(&client);
-		// TODO [ToDr] Uncomment after fixing TestBlockChainClient
-		// assert!(res.lock().unwrap().is_some(), "Expected closed block");
 
-		// when
-		client.add_blocks(10, EachBlockWith::Uncle);
+		let res = miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
+		assert!(res.is_some());
+		assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());
 
-		// then
-		assert!(res.lock().unwrap().is_none(), "Expected to remove sealed block");
+		// two more blocks mined, work requested.
+		client.add_blocks(1, EachBlockWith::Uncle);
+		miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
+
+		client.add_blocks(1, EachBlockWith::Uncle);
+		miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
+
+		// solution to original work submitted.
+		assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());
 	}
 }
