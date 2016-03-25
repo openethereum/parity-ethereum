@@ -20,6 +20,7 @@ use util::*;
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
+use ethjson;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Transaction action type.
@@ -76,6 +77,23 @@ impl Transaction {
 		};
 		s.append(&self.value);
 		s.append(&self.data);
+	}
+}
+
+impl From<ethjson::state::Transaction> for SignedTransaction {
+	fn from(t: ethjson::state::Transaction) -> Self {
+		let to: Option<_> = t.to.into();
+		Transaction {
+			nonce: t.nonce.into(),
+			gas_price: t.gas_price.into(),
+			gas: t.gas_limit.into(),
+			action: match to {
+				Some(to) => Action::Call(to.into()),
+				None => Action::Create
+			},
+			value: t.value.into(),
+			data: t.data.into(),
+		}.sign(&t.secret.into())
 	}
 }
 
