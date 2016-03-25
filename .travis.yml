@@ -83,7 +83,7 @@ matrix:
       addons:
         apt:
           packages: &arm_unknown_linux_gnueabihf
-        # Cross compiler and cross compiled C++ libraries
+         # Cross compiler and cross compiled C++ libraries
         - g++-arm-linux-gnueabihf
         - libc6-armhf-cross
         - libc6-dev-armhf-cross
