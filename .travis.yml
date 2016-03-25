@@ -20,7 +20,7 @@ matrix:
   include:
     # Stable channel
     - os: linux
-      env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=stable
+      env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=stable RUN_TESTS=true
       # Extra packages only for this job
       addons:
         apt:
@@ -79,119 +79,53 @@ matrix:
     # Beta channel
     - os: linux
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
-      # Extra packages only for this job
       addons:
         apt:
-          packages: &arm_unknown_linux_gnueabihf
-            # Cross compiler and cross compiled C++ libraries
-            - g++-arm-linux-gnueabihf
-            - libc6-armhf-cross
-            - libc6-dev-armhf-cross
-            # Emulator
-            - qemu-user
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
+          packages: *arm_unknown_linux_gnueabihf
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=beta
     - os: linux
       env: TARGET=i686-unknown-linux-gnu CHANNEL=beta
       addons:
         apt:
-          packages: &i686_unknown_linux_gnu
-            # Cross compiler and cross compiled C++ libraries
-            - build-essential
-            - g++-multilib
-            - libedit-dev
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
+          packages: *i686_unknown_linux_gnu
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=beta
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=beta
       addons:
         apt:
-          packages: &x86_64_unknown_linux_gnu
-            - build-essential
-            - g++
-            - libedit-dev
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
+          packages: *x86_64_unknown_linux_gnu
     - os: linux
       env: TARGET=x86_64-unknown-linux-musl CHANNEL=beta
       addons:
         apt:
-          packages: &x86_64_unknown_linux_musl
-            - build-essential
-            - g++
-            - libedit-dev
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
+          packages: *x86_64_unknown_linux_musl
     # Nightly channel
     - os: linux
       env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=nightly
-      # Extra packages only for this job
       addons:
         apt:
-          packages: &arm_unknown_linux_gnueabihf
-            # Cross compiler and cross compiled C++ libraries
-            - g++-arm-linux-gnueabihf
-            - libc6-armhf-cross
-            - libc6-dev-armhf-cross
-            # Emulator
-            - qemu-user
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
+          packages: *arm_unknown_linux_gnueabihf
     - os: osx
       env: TARGET=i686-apple-darwin CHANNEL=nightly
     - os: linux
       env: TARGET=i686-unknown-linux-gnu CHANNEL=nightly
       addons:
         apt:
-          packages: &i686_unknown_linux_gnu
-            # Cross compiler and cross compiled C++ libraries
-            - build-essential
-            - g++-multilib
-            - libedit-dev
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
+          packages: *i686_unknown_linux_gnu
     - os: osx
       env: TARGET=x86_64-apple-darwin CHANNEL=nightly
     - os: linux
       env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
       addons:
         apt:
-          packages: &x86_64_unknown_linux_gnu
-            - build-essential
-            - g++
-            - libedit-dev
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
+          packages: *x86_64_unknown_linux_gnu
     - os: linux
       env: TARGET=x86_64-unknown-linux-musl CHANNEL=nightly
       addons:
         apt:
-          packages: &x86_64_unknown_linux_musl
-            - build-essential
-            - g++
-            - libedit-dev
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
+          packages: *x86_64_unknown_linux_musl
   allow_failures:
     # NOTE rust-lang/rust#30966 Rust 1.7.0 for ARM doesn't work with glibc <2.17. Here we use Ubuntu
     # 12.04 which ships with glibc-2.15 so this build job will always fail. This issue has been
@@ -203,16 +137,6 @@ matrix:
       addons:
         apt:
           packages: &arm_unknown_linux_gnueabihf
-            # Cross compiler and cross compiled C++ libraries
-            - g++-arm-linux-gnueabihf
-            - libc6-armhf-cross
-            - libc6-dev-armhf-cross
-            # Emulator
-            - qemu-user
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
 install:
   - export PATH="$PATH:~/multirust/bin"
   - bash ci/install.sh
