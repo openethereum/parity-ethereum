@@ -16,13 +16,14 @@
 
 //! Test implementation of SyncProvider.
 
+use util::U256;
 use ethsync::{SyncProvider, SyncStatus, SyncState};
 use std::sync::{RwLock};
 
 /// TestSyncProvider config.
 pub struct Config {
 	/// Protocol version.
-	pub protocol_version: u8,
+	pub network_id: U256,
 	/// Number of peers.
 	pub num_peers: usize,
 }
@@ -39,7 +40,8 @@ impl TestSyncProvider {
 		TestSyncProvider {
 			status: RwLock::new(SyncStatus {
 				state: SyncState::NotSynced,
-				protocol_version: config.protocol_version,
+				network_id: config.network_id,
+				protocol_version: 63,
 				start_block_number: 0,
 				last_imported_block_number: None,
 				highest_block_number: None,
