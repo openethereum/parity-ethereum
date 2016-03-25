@@ -40,7 +40,7 @@ fn accounts_provider() -> Arc<TestAccountProvider> {
 
 fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
-		protocol_version: 65,
+		network_version: 65,
 		num_peers: 120,
 	}))
 }
