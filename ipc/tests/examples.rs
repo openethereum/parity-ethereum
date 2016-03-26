@@ -17,9 +17,9 @@
 #[cfg(test)]
 mod tests {
 
-	use super::super::socket::*;
 	use super::super::service::*;
 	use ipc::*;
+	use devtools::*;
 
 	#[test]
 	fn call_service() {

@@ -11,6 +11,7 @@ path = "run.rs"
 "ethcore-ipc" = { path = "../rpc" }
 bincode = "*"
 serde = "0.7.0"
+ethcore-devtools = { path = "../../devtools" }
 
 [build-dependencies]
 syntex = "0.30.0"
