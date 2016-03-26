@@ -344,6 +344,7 @@ fn rpc_eth_call_default_block() {
 		logs: vec![],
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
+		trace: None,
 	});
 
 	let request = r#"{
@@ -407,6 +408,7 @@ fn rpc_eth_estimate_gas_default_block() {
 		logs: vec![],
 		contracts_created: vec![],
 		output: vec![0x12, 0x34, 0xff],
+		trace: None,
 	});
 
 	let request = r#"{
