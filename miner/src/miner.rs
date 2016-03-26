@@ -98,6 +98,7 @@ impl Miner {
 
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
+		trace!(target: "miner", "prepare_sealing: entering");
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
 		let mut sealing_work = self.sealing_work.lock().unwrap();
 		let best_hash = chain.best_block_header().sha3();
@@ -113,6 +114,7 @@ impl Miner {
 
 		let (b, invalid_transactions) = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
 			Some(old_block) => {
+				trace!(target: "miner", "Already have previous work; updating and returning");
 				// add transactions to old_block
 				let e = chain.engine();
 				let mut invalid_transactions = HashSet::new();
@@ -144,10 +146,11 @@ impl Miner {
 						_ => { have_one = true }	// imported ok - note that.
 					}
 				}
-				(if have_one { Some(block.close()) } else { None }, invalid_transactions)
+				(Some(block.close()), invalid_transactions)
 			}
 			None => {
 				// block not found - create it.
+				trace!(target: "miner", "No existing work - making new block");
 				chain.prepare_sealing(
 					self.author(),
 					self.gas_floor_target(),
@@ -165,8 +168,12 @@ impl Miner {
 			}
 		);
 		if let Some(block) = b {
-			self.sealing_work.lock().unwrap().push(block);
+			if sealing_work.peek_last_ref().map(|pb| pb.block().fields().header.hash() != block.block().fields().header.hash()).unwrap_or(true) {
+				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
+				sealing_work.push(block);
+			}
 		}
+		trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
 	}
 
 	fn update_gas_limit(&self, chain: &BlockChainClient) {
@@ -231,7 +238,9 @@ impl MinerService for Miner {
 	}
 
 	fn map_sealing_work<F, T>(&self, chain: &BlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
-		let have_work = self.sealing_work.lock().unwrap().peek_last_ref().is_none();
+		trace!(target: "miner", "map_sealing_work: entering");
+		let have_work = self.sealing_work.lock().unwrap().peek_last_ref().is_some();
+		trace!(target: "miner", "map_sealing_work: have_work={}", have_work);
 		if !have_work {
 			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
 			self.prepare_sealing(chain);
@@ -239,10 +248,14 @@ impl MinerService for Miner {
 		let mut sealing_block_last_request = self.sealing_block_last_request.lock().unwrap();
 		let best_number = chain.chain_info().best_block_number;
 		if *sealing_block_last_request != best_number {
-			trace!(target: "miner", "Miner received request (was {}, now {}) - waking up.", *sealing_block_last_request, best_number);
+			trace!(target: "miner", "map_sealing_work: Miner received request (was {}, now {}) - waking up.", *sealing_block_last_request, best_number);
 			*sealing_block_last_request = best_number;
 		}
-		self.sealing_work.lock().unwrap().use_last_ref().map(f)
+
+		let mut sealing_work = self.sealing_work.lock().unwrap();
+		let ret = sealing_work.use_last_ref();
+		trace!(target: "miner", "map_sealing_work: leaving use_last_ref={:?}", ret.as_ref().map(|b| b.block().fields().header.hash()));
+		ret.map(f)
 	}
 
 	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
