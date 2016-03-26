@@ -516,9 +516,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		from_params_discard_second(params).and_then(|(request, )| {
 			let client = take_weak!(self.client);
 			let signed = Self::sign_call(&client, request);
-			info!("call: signed={:?}", signed);
 			let output = client.call(&signed).map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![]));
-			info!("call: output={:?}", output);
 			to_value(&output)
 		})
 	}
