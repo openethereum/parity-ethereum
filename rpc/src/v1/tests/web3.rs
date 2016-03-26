@@ -31,3 +31,17 @@ fn rpc_web3_version() {
 
 	assert_eq!(io.handle_request(request), Some(response));
 }
+
+#[test]
+fn rpc_web3_sha3() {
+	let web3 = Web3Client::new().to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(web3);
+
+	let v = version().to_owned().replace("Parity/", "Parity//");
+
+	let request = r#"{"jsonrpc": "2.0", "method": "web3_sha3", "params": ["0x00"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xbc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a","id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
