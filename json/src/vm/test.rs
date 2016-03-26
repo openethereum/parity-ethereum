@@ -14,21 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain test deserializer.
+//! Vm test deserializer.
 
 use std::collections::BTreeMap;
 use std::io::Read;
 use serde_json;
 use serde_json::Error;
-use blockchain::blockchain::BlockChain;
+use vm::Vm;
 
-/// Blockchain test deserializer.
+/// Vm test deserializer.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct Test(BTreeMap<String, BlockChain>);
+pub struct Test(BTreeMap<String, Vm>);
 
 impl IntoIterator for Test {
-	type Item = <BTreeMap<String, BlockChain> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, BlockChain> as IntoIterator>::IntoIter;
+	type Item = <BTreeMap<String, Vm> as IntoIterator>::Item;
+	type IntoIter = <BTreeMap<String, Vm> as IntoIterator>::IntoIter;
 
 	fn into_iter(self) -> Self::IntoIter {
 		self.0.into_iter()

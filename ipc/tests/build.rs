@@ -14,30 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain test deserializer.
+extern crate syntex;
+extern crate ethcore_ipc_codegen as codegen;
+extern crate serde_codegen;
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use serde_json;
-use serde_json::Error;
-use blockchain::blockchain::BlockChain;
+use std::env;
+use std::path::Path;
 
-/// Blockchain test deserializer.
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct Test(BTreeMap<String, BlockChain>);
+pub fn main() {
+	let out_dir = env::var_os("OUT_DIR").unwrap();
 
-impl IntoIterator for Test {
-	type Item = <BTreeMap<String, BlockChain> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, BlockChain> as IntoIterator>::IntoIter;
-
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
+	// ipc pass
+	{
+		let src = Path::new("service.rs.in");
+		let dst = Path::new(&out_dir).join("service_ipc.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
 	}
-}
 
-impl Test {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
+	// serde pass
+	{
+		let src = Path::new(&out_dir).join("service_ipc.rs");
+		let dst = Path::new(&out_dir).join("service_cg.rs");
+		let mut registry = syntex::Registry::new();
+		serde_codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
 	}
 }

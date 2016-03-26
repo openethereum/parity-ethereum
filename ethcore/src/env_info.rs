@@ -16,6 +16,7 @@
 
 use util::*;
 use header::BlockNumber;
+use ethjson;
 
 /// Simple vector of hashes, should be at most 256 items large, can be smaller if being used
 /// for a block whose number is less than 257.
@@ -65,6 +66,21 @@ impl FromJson for EnvInfo {
 			timestamp: xjson!(&json["currentTimestamp"]),
 			last_hashes: (1..cmp::min(current_number + 1, 257)).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
 			gas_used: x!(0),
+		}
+	}
+}
+
+impl From<ethjson::vm::Env> for EnvInfo {
+	fn from(e: ethjson::vm::Env) -> Self {
+		let number = e.number.into();
+		EnvInfo {
+			number: number,
+			author: e.author.into(),
+			difficulty: e.difficulty.into(),
+			gas_limit: e.gas_limit.into(),
+			timestamp: e.timestamp.into(),
+			last_hashes: (1..cmp::min(number + 1, 257)).map(|i| format!("{}", number - i).as_bytes().sha3()).collect(),
+			gas_used: U256::zero(),
 		}
 	}
 }

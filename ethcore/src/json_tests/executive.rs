@@ -25,6 +25,7 @@ use ethereum;
 use externalities::*;
 use substate::*;
 use tests::helpers::*;
+use ethjson;
 
 struct TestEngineFrontier {
 	vm_factory: Factory,
@@ -53,11 +54,24 @@ impl Engine for TestEngineFrontier {
 	}
 }
 
+#[derive(Debug, PartialEq)]
 struct CallCreate {
 	data: Bytes,
 	destination: Option<Address>,
 	gas_limit: U256,
 	value: U256
+}
+
+impl From<ethjson::vm::Call> for CallCreate {
+	fn from(c: ethjson::vm::Call) -> Self {
+		let dst: Option<_> = c.destination.into();
+		CallCreate {
+			data: c.data.into(),
+			destination: dst.map(Into::into),
+			gas_limit: c.gas_limit.into(),
+			value: c.value.into()
+		}
+	}
 }
 
 /// Tiny wrapper around executive externalities.
@@ -174,58 +188,26 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		.collect()
 }
 
-fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
-	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
+fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
+	let tests = ethjson::vm::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
-	for (name, test) in json.as_object().unwrap() {
+
+	for (name, vm) in tests.into_iter() {
 		println!("name: {:?}", name);
-		// sync io is usefull when something crashes in jit
-		// ::std::io::stdout().write(&name.as_bytes());
-		// ::std::io::stdout().write(b"\n");
-		// ::std::io::stdout().flush();
 		let mut fail = false;
-		//let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.to_string()); fail = true };
+
 		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail {
-			failed.push(format!("[{}] {}: {}", vm, name, s));
+			failed.push(format!("[{}] {}: {}", vm_type, name, s));
 			fail = true
 		};
 
-		// test env
+		let out_of_gas = vm.out_of_gas();
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-
-		test.find("pre").map(|pre| for (addr, s) in pre.as_object().unwrap() {
-			let address = Address::from(addr.as_ref());
-			let balance = xjson!(&s["balance"]);
-			let code = xjson!(&s["code"]);
-			let _nonce: U256 = xjson!(&s["nonce"]);
-
-			state.new_contract(&address, balance);
-			state.init_code(&address, code);
-			BTreeMap::from_json(&s["storage"]).into_iter().foreach(|(k, v)| state.set_storage(&address, k, v));
-		});
-
-		let info = test.find("env").map(|env| {
-			EnvInfo::from_json(env)
-		}).unwrap_or_default();
-
-		let engine = TestEngineFrontier::new(1, vm.clone());
-
-		// params
-		let mut params = ActionParams::default();
-		test.find("exec").map(|exec| {
-			params.address = xjson!(&exec["address"]);
-			params.sender = xjson!(&exec["caller"]);
-			params.origin = xjson!(&exec["origin"]);
-			params.code = xjson!(&exec["code"]);
-			params.data = xjson!(&exec["data"]);
-			params.gas = xjson!(&exec["gas"]);
-			params.gas_price = xjson!(&exec["gasPrice"]);
-			params.value = ActionValue::Transfer(xjson!(&exec["value"]));
-		});
-
-		let out_of_gas = test.find("callcreates").map(|_calls| {
-		}).is_none();
+		state.populate_from(From::from(vm.pre_state.clone()));
+		let info = From::from(vm.env);
+		let engine = TestEngineFrontier::new(1, vm_type.clone());
+		let params = ActionParams::from(vm.transaction);
 
 		let mut substate = Substate::new(false);
 		let mut output = vec![];
@@ -247,44 +229,37 @@ fn do_json_test_for(vm: &VMType, json_data: &[u8]) -> Vec<String> {
 			(res, ex.callcreates)
 		};
 
-		// then validate
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
 			Ok(gas_left) => {
-				// println!("name: {}, gas_left : {:?}", name, gas_left);
 				fail_unless(!out_of_gas, "expected to run out of gas.");
-				fail_unless(gas_left == xjson!(&test["gas"]), "gas_left is incorrect");
-				fail_unless(output == Bytes::from_json(&test["out"]), "output is incorrect");
+				fail_unless(Some(gas_left) == vm.gas_left.map(Into::into), "gas_left is incorrect");
+				let vm_output: Option<Vec<u8>> = vm.output.map(Into::into);
+				fail_unless(Some(output) == vm_output, "output is incorrect");
 
-				test.find("post").map(|pre| for (addr, s) in pre.as_object().unwrap() {
-					let address = Address::from(addr.as_ref());
-
-					fail_unless(state.code(&address).unwrap_or_else(|| vec![]) == Bytes::from_json(&s["code"]), "code is incorrect");
-					fail_unless(state.balance(&address) == xjson!(&s["balance"]), "balance is incorrect");
-					fail_unless(state.nonce(&address) == xjson!(&s["nonce"]), "nonce is incorrect");
-					BTreeMap::from_json(&s["storage"]).iter().foreach(|(k, v)| fail_unless(&state.storage_at(&address, &k) == v, "storage is incorrect"));
-				});
-
-				let cc = test["callcreates"].as_array().unwrap();
-				fail_unless(callcreates.len() == cc.len(), "callcreates does not match");
-				for i in 0..cc.len() {
-					let callcreate = &callcreates[i];
-					let expected = &cc[i];
-					fail_unless(callcreate.data == Bytes::from_json(&expected["data"]), "callcreates data is incorrect");
-					fail_unless(callcreate.destination == xjson!(&expected["destination"]), "callcreates destination is incorrect");
-					fail_unless(callcreate.value == xjson!(&expected["value"]), "callcreates value is incorrect");
-					fail_unless(callcreate.gas_limit == xjson!(&expected["gasLimit"]), "callcreates gas_limit is incorrect");
+				for (address, account) in vm.post_state.unwrap().into_iter() {
+					let address = address.into();
+					let code: Vec<u8> = account.code.into();
+					fail_unless(state.code(&address).unwrap_or_else(Vec::new) == code, "code is incorrect");
+					fail_unless(state.balance(&address) == account.balance.into(), "balance is incorrect");
+					fail_unless(state.nonce(&address) == account.nonce.into(), "nonce is incorrect");
+					account.storage.into_iter().foreach(|(k, v)| {
+						let key: U256 = k.into();
+						let value: U256 = v.into();
+						fail_unless(state.storage_at(&address, &From::from(key)) == From::from(value), "storage is incorrect");
+					});
 				}
-			}
-		}
-	}
 
+				let calls: Option<Vec<CallCreate>> = vm.calls.map(|c| c.into_iter().map(From::from).collect());
+				fail_unless(Some(callcreates) == calls, "callcreates does not match");
+			}
+		};
+	}
 
 	for f in &failed {
 		println!("FAILED: {:?}", f);
 	}
 
-	//assert!(false);
 	failed
 }
 

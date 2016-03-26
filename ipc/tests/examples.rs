@@ -14,30 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain test deserializer.
+#[cfg(test)]
+mod tests {
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use serde_json;
-use serde_json::Error;
-use blockchain::blockchain::BlockChain;
+	use super::super::socket::*;
+	use super::super::service::*;
+	use ipc::*;
 
-/// Blockchain test deserializer.
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct Test(BTreeMap<String, BlockChain>);
+	#[test]
+	fn call_service() {
+		// method_num = 0, f = 10 (method Service::commit)
+		let mut socket = TestSocket::new_ready(vec![0, 0, 0, 0, 0, 10]);
 
-impl IntoIterator for Test {
-	type Item = <BTreeMap<String, BlockChain> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, BlockChain> as IntoIterator>::IntoIter;
+		let service = Service::new();
+		assert_eq!(0, *service.commits.read().unwrap());
 
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
-}
+		service.dispatch(&mut socket);
 
-impl Test {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
+		assert_eq!(10, *service.commits.read().unwrap());
 	}
 }

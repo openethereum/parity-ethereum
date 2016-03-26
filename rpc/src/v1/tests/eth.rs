@@ -40,7 +40,7 @@ fn accounts_provider() -> Arc<TestAccountProvider> {
 
 fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
-		protocol_version: 65,
+		network_id: U256::from(3),
 		num_peers: 120,
 	}))
 }
@@ -83,7 +83,7 @@ impl Default for EthTester {
 #[test]
 fn rpc_eth_protocol_version() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_protocolVersion", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"65","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"63","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
 }

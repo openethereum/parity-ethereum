@@ -14,30 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain test deserializer.
+//! IPC RPC interface
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use serde_json;
-use serde_json::Error;
-use blockchain::blockchain::BlockChain;
-
-/// Blockchain test deserializer.
-#[derive(Debug, PartialEq, Deserialize)]
-pub struct Test(BTreeMap<String, BlockChain>);
-
-impl IntoIterator for Test {
-	type Item = <BTreeMap<String, BlockChain> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, BlockChain> as IntoIterator>::IntoIter;
-
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
-}
-
-impl Test {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
-	}
+pub trait IpcInterface<T> {
+	/// reads the message from io, dispatches the call and returns result
+	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: ::std::io::Read;
+	/// encodes the invocation, writes payload and waits for result
+	fn invoke<W>(&self, method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: ::std::io::Write;
 }
