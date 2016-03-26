@@ -1,182 +1,139 @@
 sudo: false
 dist: trusty
 language: generic
-
 env:
   global:
-    # This will be part of the release tarball
-    # TODO change the project name
-    - PROJECT_NAME=parity
-    - RUST_BACKTRACE="1"
-
-# AFAICT There are a few ways to set up the build jobs. This one is not the DRYest but I feel is the
-# easiest to reason about.
-# TODO Feel free to remove the channels/targets you don't need
-# NOTE Make *sure* you don't remove a reference (&foo) if you are going to dereference it (*foo)
+  - PROJECT_NAME=parity
+  - RUST_BACKTRACE="1"
 cache:
   apt: true
-
 matrix:
   include:
-    # Stable channel
-    - os: linux
-      env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=stable RUN_TESTS=true
-      # Extra packages only for this job
-      addons:
-        apt:
-          packages: &arm_unknown_linux_gnueabihf
-            # Cross compiler and cross compiled C++ libraries
-            - g++-arm-linux-gnueabihf
-            - libc6-armhf-cross
-            - libc6-dev-armhf-cross
-            # Emulator
-            - qemu-user
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
-    - os: osx
-      env: TARGET=i686-apple-darwin CHANNEL=stable
-    - os: linux
-      env: TARGET=i686-unknown-linux-gnu CHANNEL=stable
-      addons:
-        apt:
-          packages: &i686_unknown_linux_gnu
-            # Cross compiler and cross compiled C++ libraries
-            - build-essential
-            - g++-multilib
-            - libedit-dev
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
-    - os: osx
-      env: TARGET=x86_64-apple-darwin CHANNEL=stable
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-gnu CHANNEL=stable
-      addons:
-        apt:
-          packages: &x86_64_unknown_linux_gnu
-            - build-essential
-            - g++
-            - libedit-dev
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-musl CHANNEL=stable
-      addons:
-        apt:
-          packages: &x86_64_unknown_linux_musl
-            - build-essential
-            - g++
-            - libedit-dev
-            # Additional libs
-            - libcurl4-openssl-dev
-            - libelf-dev
-            - libdw-dev
-    # Beta channel
-    - os: linux
-      env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
-      addons:
-        apt:
-          packages: *arm_unknown_linux_gnueabihf
-    - os: osx
-      env: TARGET=i686-apple-darwin CHANNEL=beta
-    - os: linux
-      env: TARGET=i686-unknown-linux-gnu CHANNEL=beta
-      addons:
-        apt:
-          packages: *i686_unknown_linux_gnu
-    - os: osx
-      env: TARGET=x86_64-apple-darwin CHANNEL=beta
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-gnu CHANNEL=beta
-      addons:
-        apt:
-          packages: *x86_64_unknown_linux_gnu
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-musl CHANNEL=beta
-      addons:
-        apt:
-          packages: *x86_64_unknown_linux_musl
-    # Nightly channel
-    - os: linux
-      env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=nightly
-      addons:
-        apt:
-          packages: *arm_unknown_linux_gnueabihf
-    - os: osx
-      env: TARGET=i686-apple-darwin CHANNEL=nightly
-    - os: linux
-      env: TARGET=i686-unknown-linux-gnu CHANNEL=nightly
-      addons:
-        apt:
-          packages: *i686_unknown_linux_gnu
-    - os: osx
-      env: TARGET=x86_64-apple-darwin CHANNEL=nightly
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
-      addons:
-        apt:
-          packages: *x86_64_unknown_linux_gnu
-    - os: linux
-      env: TARGET=x86_64-unknown-linux-musl CHANNEL=nightly
-      addons:
-        apt:
-          packages: *x86_64_unknown_linux_musl
+  - os: linux
+    env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=stable RUN_TESTS=true
+    addons:
+      apt:
+        packages: &15588620
+        - g++-arm-linux-gnueabihf
+        - libc6-armhf-cross
+        - libc6-dev-armhf-cross
+        - qemu-user
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
+  - os: osx
+    env: TARGET=i686-apple-darwin CHANNEL=stable
+  - os: linux
+    env: TARGET=i686-unknown-linux-gnu CHANNEL=stable
+    addons:
+      apt:
+        packages: &15805720
+        - build-essential
+        - g++-multilib
+        - libedit-dev
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
+  - os: osx
+    env: TARGET=x86_64-apple-darwin CHANNEL=stable
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-gnu CHANNEL=stable
+    addons:
+      apt:
+        packages: &16862360
+        - build-essential
+        - g++
+        - libedit-dev
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-musl CHANNEL=stable
+    addons:
+      apt:
+        packages: &17344860
+        - build-essential
+        - g++
+        - libedit-dev
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
+  - os: linux
+    env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
+    addons:
+      apt:
+        packages: *15588620
+  - os: osx
+    env: TARGET=i686-apple-darwin CHANNEL=beta
+  - os: linux
+    env: TARGET=i686-unknown-linux-gnu CHANNEL=beta
+    addons:
+      apt:
+        packages: *15805720
+  - os: osx
+    env: TARGET=x86_64-apple-darwin CHANNEL=beta
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-gnu CHANNEL=beta
+    addons:
+      apt:
+        packages: *16862360
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-musl CHANNEL=beta
+    addons:
+      apt:
+        packages: *17344860
+  - os: linux
+    env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=nightly
+    addons:
+      apt:
+        packages: *15588620
+  - os: osx
+    env: TARGET=i686-apple-darwin CHANNEL=nightly
+  - os: linux
+    env: TARGET=i686-unknown-linux-gnu CHANNEL=nightly
+    addons:
+      apt:
+        packages: *15805720
+  - os: osx
+    env: TARGET=x86_64-apple-darwin CHANNEL=nightly
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
+    addons:
+      apt:
+        packages: *16862360
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-musl CHANNEL=nightly
+    addons:
+      apt:
+        packages: *17344860
   allow_failures:
-    # NOTE rust-lang/rust#30966 Rust 1.7.0 for ARM doesn't work with glibc <2.17. Here we use Ubuntu
-    # 12.04 which ships with glibc-2.15 so this build job will always fail. This issue has been
-    # fixed in the nightlies and the fix will reach beta and stable by the next stable release.
-    # TODO Remove this entry by the time Rust 1.8.0 is out
-    - os: linux
-      env: TARGET=armv7-unknown-linux-gnueabihf CHANNEL=stable
-      # Extra packages only for this job
-      addons:
-        apt:
-          packages: &arm_unknown_linux_gnueabihf
+  - os: linux
+    env: TARGET=armv7-unknown-linux-gnueabihf CHANNEL=stable
+    addons:
+      apt:
+        packages: 
 install:
-  - export PATH="$PATH:~/multirust/bin"
-  - bash ci/install.sh
-
+- export PATH="$PATH:~/multirust/bin"
+- bash ci/install.sh
 script:
-  - bash ci/script.sh
-
+- bash ci/script.sh
 before_deploy:
-  - bash ci/before_deploy.sh
-
+- bash ci/before_deploy.sh
 deploy:
   provider: releases
-  # TODO Regenerate this api_key for your project, this one won't work for you. Here's how:
-  # - Go to 'https://github.com/settings/tokens/new' and generate a Token with only the
-  # `public_repo` scope enabled
-  # - Call `travis encrypt $github_token` where $github_token is the token you got in the previous
-  # step and `travis` is the official Travis CI gem (see https://rubygems.org/gems/travis/)
-  # - Enter the "encrypted value" below
   api_key:
     secure: kIthimcXHUuM/TvzyXBZyABKK7tXvVbKcH6G3wAkZ/kg21OWwBxO0NrY6D0QG26LocZ+oUCQbJnDg56UcUTpegCOJ1zuFYTvceIduFBxP19tzYqztLIOZ5ueufnAzIl/cUOfhpaooOlxzHAPi+aJJSsxEjObwdTkYqyhgte/r8RWJUIBf2qge8+8bvdaDxsgdwR0VWYqaR2Cjo4aCWxhwpZJozKb/mbJEmg/IbhO7LyeD5Ls4gygSJBgn0TmLzPggE+DYMVvVrZNEHwuidy7+nSOjj5gjMD3Sp9ACD9Y6tiJlrFUbb7iYwGngXHyqIOKm/zGwSwn9faT409e3p9CSr+5PaVf24Jg8YFqY9uDX/8ysYRH2zt+M8a9fdWBuRkptJVUqNHVkEQZNQRsg2JKiT2a5/Jt5V3a7xf8hX5uVh9J7Mt2VoaFAZk70NWVu2VqRdGgkNELrqYeprLFteb7UT0DCbJoAvUxWeMPhO4zcomvnOTHz5PSLQ6hiAApnc21XS8rNAD2OK01BayKAntYyVVGGxvIkvNlF8Rhiem70EkZ2dFNRTp5OqlPNicE5ZuYFBMKvhAZW0QosC/m5/EYR8wgydeF7HZ8iAEmOw+hDkga/crMXJd7qwKdFcwl2paqAYTmitSzpEYx1GjCLyZ/IoKjc1DMx4midpIT7ttkFP0=
   file: ${PROJECT_NAME}-${TRAVIS_TAG}-${TARGET}.tar.gz
-  # don't delete the artifacts from previous phases
   skip_cleanup: true
-  # deploy when a new tag is pushed
   on:
-    # channel to use to produce the release artifacts
-    # NOTE make sure you only release *once* per target
-    # TODO you may want to pick a different channel
     condition: $CHANNEL = stable
     tags: true
-
 branches:
   only:
-    # Pushes and PR to the master branch
-    - master
-    # IMPORTANT Ruby regex to match tags. Required, or travis won't trigger deploys when a new tag
-    # is pushed. This regex matches semantic versions like v1.2.3-rc4+2016.02.22
-    - /^v\d+\.\d+\.\d+.*$/
-
-
+  - master
+  - /^v\d+\.\d+\.\d+.*$/
 notifications:
   email:
     on_success: general.beck@gmail.com
+  slack:
+    secure: KmMUp0H/DOEOfXlHFqOCbLiEHkneawz9Tf+EcPbPzruixtYXrJiXAr6qRPmiAMfij6UAMGlxEOQ7VlYyRdvTU8lKHTYe8FdPQD51QVvj8HRbTi8LoVfXvN9JC8slwbwQZJ1kNG6/doZLbgIWPRR2XSOCITdHC2+Vr0mQHep68s7IJ2khJe17V8utBsDM4w0Je3uh2j+2j6w0T8JSouWp138gv36dvmBShm8o0yy7WaH1DIDnV6WmHti52vy+EiWTLeKbMS8/fFB2VzAY7Q9eFTaeuF8gV0Pau2xET8vtcCY3MPXsMILia62XkbA+8IzULr0ZOKATe6fAJG8cylccI2jI9GhIjkNpNXS+x2w93COCC7z4kXHHHDn9Cisw51vzzeXKo3tOqS4/hk7BXS9afP0swrFQUwXFIng4SpkK8nZRT788FQuvmkHdkvclv8En/NZsphdDCxUx9oLpQ/+J9wvxCXVJoM5uXuMEDvaeDCLE7kMbiEP0oTJwVKPjIVSarD+N54uGc9IiqThO3UBS52dK9x9NfvpU7uUmptoKvH9HnHRDUZKbeAx3xzn4Y29GI8B4dtgeO/I3XcqCJGjYRc+HGqyqVri7dRyQGSTYOtsgQZjUTyltwVREosSueGaQAuIC5gjkbRJPWW1OG4dAtYwFolMCkz6otcstPdPNr+Y=
