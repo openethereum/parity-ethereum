@@ -20,5 +20,7 @@
 extern crate rand;
 
 pub mod random_path;
+pub mod test_socket;
 
 pub use random_path::*;
+pub use test_socket::*;
