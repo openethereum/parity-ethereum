@@ -122,7 +122,6 @@ impl Miner {
 				let block_number = block.block().fields().header.number();
 
 				// TODO: push new uncles, too.
-				let mut have_one = false;
 				// TODO: refactor with chain.prepare_sealing
 				for tx in transactions {
 					let hash = tx.hash();
@@ -143,7 +142,7 @@ impl Miner {
 								   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
 								   block_number, hash, e);
 						},
-						_ => { have_one = true }	// imported ok - note that.
+						_ => {}	// imported ok
 					}
 				}
 				(Some(block.close()), invalid_transactions)

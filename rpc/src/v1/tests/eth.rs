@@ -485,6 +485,8 @@ fn returns_no_work_if_cant_mine() {
 	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
 }
 
+#[ignore]
+// enable once TestMinerService supports the mining API.
 #[test]
 fn returns_error_if_can_mine_and_no_closed_block() {
 	use ethsync::{SyncState};
