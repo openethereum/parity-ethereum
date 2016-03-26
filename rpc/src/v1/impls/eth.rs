@@ -35,6 +35,7 @@ use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::helpers::{PollFilter, PollManager, ExternalMinerService, ExternalMiner};
 use util::keys::store::AccountProvider;
+use serde;
 
 fn default_gas() -> U256 {
 	U256::from(21_000)
@@ -199,6 +200,27 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
+fn params_len(params: &Params) -> usize {
+	match params {
+		&Params::Array(ref vec) => vec.len(),
+		_ => 0,
+	}
+}
+
+fn from_params_discard_second<F>(params: Params) -> Result<(F,), Error> where F: serde::de::Deserialize {
+	match params_len(&params) {
+		1 => from_params::<(F, )>(params),
+		_ => from_params::<(F, BlockNumber)>(params).map(|(f, _block_number)| (f, )),
+	}
+}
+
+fn from_params_discard_third<F1, F2>(params: Params) -> Result<(F1, F2,), Error> where F1: serde::de::Deserialize, F2: serde::de::Deserialize {
+	match params_len(&params) {
+		2 => from_params::<(F1, F2, )>(params),
+		_ => from_params::<(F1, F2, BlockNumber)>(params).map(|(f1, f2, _block_number)| (f1, f2, )),
+	}
+}
+
 impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	where C: BlockChainClient + 'static,
 		  S: SyncProvider + 'static,
@@ -278,19 +300,18 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	}
 
 	fn balance(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).balance(&address)))
+		from_params_discard_second(params).and_then(|(address, )|
+			to_value(&take_weak!(self.client).balance(&address)))
 	}
 
 	fn storage_at(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Address, U256, BlockNumber)>(params)
-			.and_then(|(address, position, _block_number)|
-				to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))))
+		from_params_discard_third::<Address, U256>(params).and_then(|(address, position, )|
+			to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))))
 	}
 
 	fn transaction_count(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)| to_value(&take_weak!(self.client).nonce(&address)))
+		from_params_discard_second(params).and_then(|(address, )|
+			to_value(&take_weak!(self.client).nonce(&address)))
 	}
 
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
@@ -329,9 +350,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Address, BlockNumber)>(params)
-			.and_then(|(address, _block_number)|
-				to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
+		from_params_discard_second(params).and_then(|(address, )|
+			to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
 	}
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
@@ -511,31 +531,29 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	}
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(CallRequest, BlockNumber)>(params)
-			.and_then(|(request, _block_number)| {
-				let client = take_weak!(self.client);
-				let accounts = take_weak!(self.accounts);
-				let signed = Self::sign_call(&client, &accounts, request);
-				let output = signed.map(|tx| client.call(&tx)
-					.map(|e| Bytes::new(e.output))
-					.unwrap_or(Bytes::default()));
+		from_params_discard_second(params).and_then(|(request, )| {
+			let client = take_weak!(self.client);
+			let accounts = take_weak!(self.accounts);
+			let signed = Self::sign_call(&client, &accounts, request);
+			let output = signed.map(|tx| client.call(&tx)
+				.map(|e| Bytes::new(e.output))
+				.unwrap_or(Bytes::default()));
 
-				to_value(&output)
-			})
+			to_value(&output)
+		})
 	}
 
 	fn estimate_gas(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(CallRequest, BlockNumber)>(params)
-			.and_then(|(request, _block_number)| {
-				let client = take_weak!(self.client);
-				let accounts = take_weak!(self.accounts);
-				let signed = Self::sign_call(&client, &accounts, request);
-				let output = signed.map(|tx| client.call(&tx)
-					.map(|e| e.gas_used + e.refunded)
-					.unwrap_or(U256::zero()));
+		from_params_discard_second(params).and_then(|(request, )| {
+			let client = take_weak!(self.client);
+			let accounts = take_weak!(self.accounts);
+			let signed = Self::sign_call(&client, &accounts, request);
+			let output = signed.map(|tx| client.call(&tx)
+				.map(|e| e.gas_used + e.refunded)
+				.unwrap_or(U256::zero()));
 
-				to_value(&output)
-			})
+			to_value(&output)
+		})
 	}
 }
 

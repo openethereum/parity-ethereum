@@ -35,9 +35,8 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use serde_json;
-	use util::numbers::{Uint, U256};
+	use util::numbers::{U256};
 	use util::hash::Address;
-	use ethcore::transaction::{Transaction, Action};
 	use v1::types::Bytes;
 	use super::*;
 
