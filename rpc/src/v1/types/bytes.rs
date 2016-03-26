@@ -21,7 +21,7 @@ use util::common::FromHex;
 
 /// Wrapper structure around vector of bytes.
 #[derive(Debug, PartialEq, Default)]
-pub struct Bytes(Vec<u8>);
+pub struct Bytes(pub Vec<u8>);
 
 impl Bytes {
 	/// Simple constructor.

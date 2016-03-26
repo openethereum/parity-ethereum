@@ -137,6 +137,7 @@ impl InstructionInfo {
 	}
 }
 
+#[cfg_attr(rustfmt, rustfmt_skip)]
 /// Return details about specific instruction
 pub fn get_info (instruction: Instruction) -> InstructionInfo {
 	match instruction {
@@ -301,7 +302,7 @@ pub const EXP: Instruction = 0x0a;
 pub const SIGNEXTEND: Instruction = 0x0b;
 
 /// less-than comparision
-pub const LT: Instruction = 0x10;		
+pub const LT: Instruction = 0x10;
 /// greater-than comparision
 pub const GT: Instruction = 0x11;
 /// signed less-than comparision
@@ -324,10 +325,10 @@ pub const NOT: Instruction = 0x19;
 pub const BYTE: Instruction = 0x1a;
 
 /// compute SHA3-256 hash
-pub const SHA3: Instruction = 0x20;	
+pub const SHA3: Instruction = 0x20;
 
 /// get address of currently executing account
-pub const ADDRESS: Instruction = 0x30;	
+pub const ADDRESS: Instruction = 0x30;
 /// get balance of the given account
 pub const BALANCE: Instruction = 0x31;
 /// get execution origination address
@@ -367,7 +368,7 @@ pub const DIFFICULTY: Instruction = 0x44;
 pub const GASLIMIT: Instruction = 0x45;
 
 /// remove item from stack
-pub const POP: Instruction = 0x50;		
+pub const POP: Instruction = 0x50;
 /// load word from memory
 pub const MLOAD: Instruction = 0x51;
 /// save word to memory
@@ -392,7 +393,7 @@ pub const GAS: Instruction = 0x5a;
 pub const JUMPDEST: Instruction = 0x5b;
 
 /// place 1 byte item on stack
-pub const PUSH1: Instruction = 0x60;	
+pub const PUSH1: Instruction = 0x60;
 /// place 2 byte item on stack
 pub const PUSH2: Instruction = 0x61;
 /// place 3 byte item on stack
@@ -457,7 +458,7 @@ pub const PUSH31: Instruction = 0x7e;
 pub const PUSH32: Instruction = 0x7f;
 
 /// copies the highest item in the stack to the top of the stack
-pub const DUP1: Instruction = 0x80;	
+pub const DUP1: Instruction = 0x80;
 /// copies the second highest item in the stack to the top of the stack
 pub const DUP2: Instruction = 0x81;
 /// copies the third highest item in the stack to the top of the stack
@@ -490,7 +491,7 @@ pub const DUP15: Instruction = 0x8e;
 pub const DUP16: Instruction = 0x8f;
 
 /// swaps the highest and second highest value on the stack
-pub const SWAP1: Instruction = 0x90;	
+pub const SWAP1: Instruction = 0x90;
 /// swaps the highest and third highest value on the stack
 pub const SWAP2: Instruction = 0x91;
 /// swaps the highest and 4th highest value on the stack
@@ -523,7 +524,7 @@ pub const SWAP15: Instruction = 0x9e;
 pub const SWAP16: Instruction = 0x9f;
 
 /// Makes a log entry; no topics.
-pub const LOG0: Instruction = 0xa0;	
+pub const LOG0: Instruction = 0xa0;
 /// Makes a log entry; 1 topic.
 pub const LOG1: Instruction = 0xa1;
 /// Makes a log entry; 2 topics.
@@ -536,7 +537,7 @@ pub const LOG4: Instruction = 0xa4;
 pub const MAX_NO_OF_TOPICS : usize = 4;
 
 /// create a new account with associated code
-pub const CREATE: Instruction = 0xf0;	
+pub const CREATE: Instruction = 0xf0;
 /// message-call into an account
 pub const CALL: Instruction = 0xf1;
 /// message-call with another account's code only
@@ -546,5 +547,5 @@ pub const RETURN: Instruction = 0xf3;
 /// like CALLCODE but keeps caller's value and sender
 pub const DELEGATECALL: Instruction = 0xf4;
 /// halt execution and register account for later deletion
-pub const SUICIDE: Instruction = 0xff;	
+pub const SUICIDE: Instruction = 0xff;
 

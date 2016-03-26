@@ -153,7 +153,7 @@ impl<'a, 'view> Iterator for RlpIterator<'a, 'view> {
 
 	fn next(&mut self) -> Option<Rlp<'a>> {
 		let index = self.index;
-		let result = self.rlp.rlp.at(index).ok().map(| iter | { From::from(iter) });
+		let result = self.rlp.rlp.at(index).ok().map(From::from);
 		self.index += 1;
 		result
 	}
