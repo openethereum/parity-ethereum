@@ -45,7 +45,5 @@ impl Web3 for Web3Client {
 				to_value(&sha3)
 			}
 		)
-
 	}
-
 }
