@@ -17,7 +17,7 @@
 extern crate bincode;
 extern crate ethcore_ipc as ipc;
 extern crate serde;
+extern crate ethcore_devtools as devtools;
 
-pub mod socket;
 pub mod service;
 mod examples;

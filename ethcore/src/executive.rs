@@ -905,7 +905,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::zero()
-		}.fake_sign();
+		}.invalid_sign();
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let mut info = EnvInfo::default();
