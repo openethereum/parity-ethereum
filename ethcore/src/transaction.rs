@@ -134,7 +134,7 @@ impl Transaction {
 
 	/// Useful for test incorrectly signed transactions.
 	#[cfg(test)]
-	pub fn fake_sign(self) -> SignedTransaction {
+	pub fn invalid_sign(self) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
 			r: U256::zero(),
@@ -142,6 +142,18 @@ impl Transaction {
 			v: 0,
 			hash: Cell::new(None),
 			sender: Cell::new(None),
+		}
+	}
+
+	/// Specify the sender; this won't survive the serialize/deserialize process, but can be cloned.
+	pub fn fake_sign(self, from: Address) -> SignedTransaction {
+		SignedTransaction {
+			unsigned: self,
+			r: U256::zero(),
+			s: U256::zero(),
+			v: 0,
+			hash: Cell::new(None),
+			sender: Cell::new(Some(from)),
 		}
 	}
 
@@ -341,4 +353,20 @@ fn signing() {
 		data: b"Hello!".to_vec()
 	}.sign(&key.secret());
 	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
+}
+
+#[test]
+fn fake_signing() {
+	let t = Transaction {
+		action: Action::Create,
+		nonce: U256::from(42),
+		gas_price: U256::from(3000),
+		gas: U256::from(50_000),
+		value: U256::from(1),
+		data: b"Hello!".to_vec()
+	}.fake_sign(Address::from(0x69));
+	assert_eq!(Address::from(0x69), t.sender().unwrap());
+
+	let t = t.clone();
+	assert_eq!(Address::from(0x69), t.sender().unwrap());
 }
