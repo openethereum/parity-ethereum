@@ -18,10 +18,11 @@ use std::sync::Arc;
 use jsonrpc_core::IoHandler;
 use v1::{Net, NetClient};
 use v1::tests::helpers::{Config, TestSyncProvider};
+use util::numbers::*;
 
 fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
-		protocol_version: 65,
+		network_id: U256::from(3),
 		num_peers: 120,
 	}))
 }
@@ -34,7 +35,7 @@ fn rpc_net_version() {
 	io.add_delegate(net);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "net_version", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"65","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"3","id":1}"#;
 
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }

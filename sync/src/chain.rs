@@ -125,6 +125,8 @@ pub struct SyncStatus {
 	pub state: SyncState,
 	/// Syncing protocol version. That's the maximum protocol version we connect to.
 	pub protocol_version: u8,
+	/// The underlying p2p network version.
+	pub network_id: U256,
 	/// BlockChain height for the moment the sync started.
 	pub start_block_number: BlockNumber,
 	/// Last fully downloaded and imported block number (if any).
@@ -249,6 +251,7 @@ impl ChainSync {
 		SyncStatus {
 			state: self.state.clone(),
 			protocol_version: 63,
+			network_id: self.network_id,
 			start_block_number: self.starting_block,
 			last_imported_block_number: self.last_imported_block,
 			highest_block_number: self.highest_block,
