@@ -30,6 +30,8 @@ pub struct TestMinerService {
 	pub imported_transactions: RwLock<Vec<H256>>,
 	/// Latest closed block.
 	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
+	/// Pre-existed pending transactions
+	pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
 }
 
 impl Default for TestMinerService {
@@ -37,6 +39,7 @@ impl Default for TestMinerService {
 		TestMinerService {
 			imported_transactions: RwLock::new(Vec::new()),
 			latest_closed_block: Mutex::new(None),
+			pending_transactions: Mutex::new(HashMap::new()),
 		}
 	}
 }
@@ -73,8 +76,8 @@ impl MinerService for TestMinerService {
 		&self.latest_closed_block
 	}
 
-	fn transaction(&self, _hash: &H256) -> Option<SignedTransaction> {
-		unimplemented!();
+	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+		self.pending_transactions.lock().unwrap().get(hash).and_then(|tx_ref| Some(tx_ref.clone()))
 	}
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
