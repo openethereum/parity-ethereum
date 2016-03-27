@@ -508,13 +508,13 @@ impl Configuration {
 				.collect::<Vec<_>>()
 				.into_iter()
 		}).collect::<Vec<_>>();
-		
+
 		let account_service = AccountService::new();
 		for d in &self.args.flag_unlock {
 			let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
 				die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
 			});
-			if passwords.iter().find(|p| account_service.unlock_account(&a, p).is_ok()).is_none() {
+			if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
 				die!("No password given to unlock account {}. Pass the password using `--password`.", a);
 			}
 		}
