@@ -24,7 +24,7 @@ mod compute;
 
 use std::mem;
 use compute::Light;
-pub use compute::{get_seedhash, quick_get_difficulty, H256, ProofOfWork, ETHASH_EPOCH_LENGTH};
+pub use compute::{SeedHashCompute, quick_get_difficulty, H256, ProofOfWork, ETHASH_EPOCH_LENGTH};
 
 use std::sync::{Arc, Mutex};
 

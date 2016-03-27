@@ -15,6 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc implementation.
+
+extern crate ethash;
+
 use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
@@ -30,6 +33,7 @@ use ethcore::views::*;
 use ethcore::ethereum::Ethash;
 use ethcore::ethereum::denominations::shannon;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
+use self::ethash::SeedHashCompute;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
 use v1::helpers::{PollFilter, PollManager, ExternalMinerService, ExternalMiner};
@@ -56,6 +60,7 @@ pub struct EthClient<C, S, A, M, EM = ExternalMiner>
 	accounts: Weak<A>,
 	miner: Weak<M>,
 	external_miner: EM,
+	seed_compute: Mutex<SeedHashCompute>,
 }
 
 impl<C, S, A, M> EthClient<C, S, A, M, ExternalMiner>
@@ -86,6 +91,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 			miner: Arc::downgrade(miner),
 			accounts: Arc::downgrade(accounts),
 			external_miner: em,
+			seed_compute: Mutex::new(SeedHashCompute::new()),
 		}
 	}
 
@@ -425,7 +431,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 					Some(ref b) => {
 						let pow_hash = b.hash();
 						let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-						let seed_hash = Ethash::get_seedhash(b.block().header().number());
+						let seed_compute = self.seed_compute.lock().unwrap();
+						let seed_hash = seed_compute.get_seedhash(b.block().header().number());
 						to_value(&(pow_hash, seed_hash, target))
 					}
 					_ => Err(Error::internal_error())
