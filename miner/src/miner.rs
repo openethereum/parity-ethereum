@@ -15,16 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rayon::prelude::*;
-//use std::sync::{Mutex, RwLock, Arc};
-//use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
-//use std::collections::HashSet;
 
-use util::*;//{H256, U256, Address, Bytes, Uint, UsingQueue, HashMap};
+use util::*;
 use ethcore::views::{BlockView, HeaderView};
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
-use ethcore::error::*;//{Error};
+use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
 use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails};
 
