@@ -39,6 +39,7 @@ extern crate rpassword;
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
+use std::io::{BufRead, BufReader};
 use std::fs::File;
 use std::net::{SocketAddr, IpAddr};
 use std::env;
@@ -500,11 +501,13 @@ impl Configuration {
 
 	fn account_service(&self) -> AccountService {
 		// Secret Store
-		let passwords = self.args.flag_password.iter().map(|filename| {
-				let mut buffer = String::new();
-				File::open(filename).and_then(|mut f| f.read_to_string(&mut buffer)).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename));
-				buffer
-			}).collect::<Vec<_>>();
+		let passwords = self.args.flag_password.iter().flat_map(|filename| {
+			BufReader::new(&File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)))
+				.lines()
+				.map(|l| l.unwrap())
+				.collect::<Vec<_>>()
+				.into_iter()
+		}).collect::<Vec<_>>();
 
 		let account_service = AccountService::new();
 		for d in &self.args.flag_unlock {
