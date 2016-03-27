@@ -476,11 +476,11 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 							Ok(_) => to_value(&hash),
 							Err(e) => {
 								warn!("Error sending transaction: {:?}", e);
-								to_value(&U256::zero())
+								to_value(&H256::zero())
 							}
 						}
 					},
-					Err(_) => { to_value(&U256::zero()) }
+					Err(_) => { to_value(&H256::zero()) }
 				}
 		})
 	}
@@ -503,11 +503,11 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 							Ok(_) => to_value(&hash),
 							Err(e) => {
 								warn!("Error sending transaction: {:?}", e);
-								to_value(&U256::zero())
+								to_value(&H256::zero())
 							}
 						}
 					},
-					Err(_) => { to_value(&U256::zero()) }
+					Err(_) => { to_value(&H256::zero()) }
 				}
 		})
 	}
