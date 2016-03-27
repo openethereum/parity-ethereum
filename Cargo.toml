@@ -28,6 +28,7 @@ ethsync = { path = "sync" }
 ethminer = { path = "miner" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
+hyper = "0.8"
 
 [features]
 default = ["rpc"]

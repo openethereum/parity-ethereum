@@ -36,6 +36,9 @@ extern crate time;
 extern crate number_prefix;
 extern crate rpassword;
 
+// for price_info.rs
+#[macro_use] extern crate hyper;
+
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
@@ -59,6 +62,8 @@ use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
+
+mod price_info;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
@@ -126,8 +131,11 @@ API and Console Options:
                            [default: web3,eth,net,personal].
 
 Sealing/Mining Options:
-  --gas-price WEI          Minimum amount of Wei to be paid for a transaction
-                           to be accepted for mining [default: 20000000000].
+  --usd-per-tx USD         Amount of USD to be paid for a basic transaction
+                           [default: 0.005]. The minimum gas price is set
+                           accordingly.
+  --usd-per-eth SOURCE     USD value of a single ETH. SOURCE may be either an
+                           amount in USD or a web service [default: etherscan].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
                            block [default: 4712388].
   --author ADDRESS         Specify the block author (aka "coinbase") address
@@ -162,7 +170,9 @@ Geth-compatibility Options:
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
-  --gasprice WEI           Equivalent to --gas-price WEI.
+  --gasprice WEI           Minimum amount of Wei per GAS to be paid for a
+                           transaction to be accepted for mining. Overrides
+                           --basic-tx-usd.
   --etherbase ADDRESS      Equivalent to --author ADDRESS.
   --extradata STRING       Equivalent to --extra-data STRING.
 
@@ -204,7 +214,8 @@ struct Args {
 	flag_jsonrpc_cors: String,
 	flag_jsonrpc_apis: String,
 	flag_author: String,
-	flag_gas_price: String,
+	flag_usd_per_tx: String,
+	flag_usd_per_eth: String,
 	flag_gas_floor_target: String,
 	flag_extra_data: Option<String>,
 	flag_logging: Option<String>,
@@ -339,10 +350,29 @@ impl Configuration {
 	}
 
 	fn gas_price(&self) -> U256 {
-		let d = self.args.flag_gasprice.as_ref().unwrap_or(&self.args.flag_gas_price);
-		U256::from_dec_str(d).unwrap_or_else(|_| {
-			die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
-		})
+		match self.args.flag_gasprice.as_ref() {
+			Some(d) => {
+				U256::from_dec_str(d).unwrap_or_else(|_| {
+					die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
+				})
+			}
+			_ => {
+				let usd_per_tx: f32 = FromStr::from_str(&self.args.flag_usd_per_tx).unwrap_or_else(|_| {
+					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
+				});
+				let usd_per_eth = match self.args.flag_usd_per_eth.as_str() {
+					"etherscan" => price_info::PriceInfo::get().map(|x| x.ethusd).unwrap_or_else(|| {
+						die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth.")
+					}),
+					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x))
+				};
+				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
+				let gas_per_tx: f32 = 21000.0;
+				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
+				info!("Using a conversion rate of Ξ1 = US${} ({} wei/gas)", usd_per_eth, wei_per_gas);
+				U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
+			}
+		}
 	}
 
 	fn extra_data(&self) -> Bytes {
