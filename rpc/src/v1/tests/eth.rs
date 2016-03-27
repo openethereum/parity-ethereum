@@ -53,7 +53,7 @@ struct EthTester {
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
 	_accounts_provider: Arc<TestAccountProvider>,
-	_miner: Arc<TestMinerService>,
+	miner: Arc<TestMinerService>,
 	hashrates: Arc<RwLock<HashMap<H256, U256>>>,
 	pub io: IoHandler,
 }
@@ -73,7 +73,7 @@ impl Default for EthTester {
 			client: client,
 			sync: sync,
 			_accounts_provider: ap,
-			_miner: miner,
+			miner: miner,
 			io: io,
 			hashrates: hashrates,
 		}
@@ -256,6 +256,27 @@ fn rpc_eth_transaction_count_by_number_pending() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x01","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_eth_pending_transaction_by_hash() {
+	use util::*;
+	use ethcore::transaction::*;
+
+	let tester = EthTester::default();
+	{
+		let tx: SignedTransaction = decode(&FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+		tester.miner.pending_transactions.lock().unwrap().insert(H256::zero(), tx);
+	}
+
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x01","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x00","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"value":"0x0a"},"id":1}"#;
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getTransactionByHash",
+		"params": ["0x0000000000000000000000000000000000000000000000000000000000000000"],
+		"id": 1
+	}"#;
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
 

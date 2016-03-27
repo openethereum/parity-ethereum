@@ -19,6 +19,7 @@
 use util::*;
 use basic_types::LogBloom;
 use header::BlockNumber;
+use ethjson;
 
 /// A record of execution for a `LOG` operation.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -62,6 +63,16 @@ impl LogEntry {
 	/// Calculates the bloom of this log entry.
 	pub fn bloom(&self) -> LogBloom {
 		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))
+	}
+}
+
+impl From<ethjson::state::Log> for LogEntry {
+	fn from(l: ethjson::state::Log) -> Self {
+		LogEntry {
+			address: l.address.into(),
+			topics: l.topics.into_iter().map(Into::into).collect(),
+			data: l.data.into(),
+		}
 	}
 }
 

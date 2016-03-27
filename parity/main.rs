@@ -39,6 +39,8 @@ extern crate rpassword;
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
+use std::io::{BufRead, BufReader};
+use std::fs::File;
 use std::net::{SocketAddr, IpAddr};
 use std::env;
 use std::process::exit;
@@ -88,6 +90,11 @@ Protocol Options:
   --keys-path PATH         Specify the path for JSON key files to be found
                            [default: $HOME/.web3/keys].
   --identity NAME          Specify your node's name.
+
+Account Options:
+  --unlock ACCOUNT         Unlock ACCOUNT for the duration of the execution.
+  --password FILE          Provide a file containing a password for unlocking
+                           an account.
 
 Networking Options:
   --port PORT              Override the port on which the node should listen
@@ -176,6 +183,8 @@ struct Args {
 	flag_chain: String,
 	flag_db_path: String,
 	flag_identity: String,
+	flag_unlock: Vec<String>,
+	flag_password: Vec<String>,
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
 	flag_bootnodes: Option<String>,
@@ -490,6 +499,28 @@ impl Configuration {
 		}
 	}
 
+	fn account_service(&self) -> AccountService {
+		// Secret Store
+		let passwords = self.args.flag_password.iter().flat_map(|filename| {
+			BufReader::new(&File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)))
+				.lines()
+				.map(|l| l.unwrap())
+				.collect::<Vec<_>>()
+				.into_iter()
+		}).collect::<Vec<_>>();
+
+		let account_service = AccountService::new();
+		for d in &self.args.flag_unlock {
+			let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
+				die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
+			});
+			if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
+				die!("No password given to unlock account {}. Pass the password using `--password`.", a);
+			}
+		}
+		account_service
+	}
+
 	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn execute_client(&self) {
 		// Setup panic handler
@@ -503,6 +534,9 @@ impl Configuration {
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
 		let sync_config = self.sync_config(&spec);
+
+		// Secret Store
+		let account_service = Arc::new(self.account_service());
 
 		// Build client
 		let mut service = ClientService::start(self.client_config(), spec, net_settings, &Path::new(&self.path())).unwrap();
@@ -518,9 +552,6 @@ impl Configuration {
 
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
-
-		// Secret Store
-		let account_service = Arc::new(AccountService::new());
 
 		// Setup rpc
 		if self.args.flag_jsonrpc || self.args.flag_rpc {

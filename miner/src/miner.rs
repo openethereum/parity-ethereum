@@ -217,6 +217,11 @@ impl MinerService for Miner {
 		transaction_queue.pending_hashes()
 	}
 
+	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+		let queue = self.transaction_queue.lock().unwrap();
+		queue.find(hash)
+	}
+
 	fn update_sealing(&self, chain: &BlockChainClient) {
 		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
 			let current_no = chain.chain_info().best_block_number;

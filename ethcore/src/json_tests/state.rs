@@ -19,6 +19,7 @@ use tests::helpers::*;
 use pod_state::*;
 use state_diff::*;
 use ethereum;
+use ethjson;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	json_chain_test(json_data, ChainEra::Frontier)
@@ -26,18 +27,14 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	init_log();
-
-	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
+	let tests = ethjson::state::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
-
 	let engine = match era {
 		ChainEra::Frontier => ethereum::new_mainnet_like(),
 		ChainEra::Homestead => ethereum::new_homestead_test(),
 	}.to_engine().unwrap();
 
-	flushln!("");
-
-	for (name, test) in json.as_object().unwrap() {
+	for (name, test) in tests.into_iter() {
 		let mut fail = false;
 		{
 			let mut fail_unless = |cond: bool| if !cond && !fail {
@@ -49,16 +46,13 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 			flush!("   - {}...", name);
 
-			let t = SignedTransaction::from_json(&test["transaction"]);
-			let env = EnvInfo::from_json(&test["env"]);
-			let _out = Bytes::from_json(&test["out"]);
-			let post_state_root = xjson!(&test["postStateRoot"]);
-			let pre = PodState::from_json(&test["pre"]);
-			let post = PodState::from_json(&test["post"]);
-			let logs: Vec<_> = test["logs"].as_array().unwrap().iter().map(&LogEntry::from_json).collect();
+			let transaction = test.transaction.into();
+			let post_state_root = test.post_state_root.into();
+			let env = test.env.into();
+			let pre: PodState = test.pre_state.into();
+			let post: PodState = test.post_state.into();
+			let logs: Vec<LogEntry> = test.logs.into_iter().map(Into::into).collect();
 
-			//println!("Transaction: {:?}", t);
-			//println!("Env: {:?}", env);
 			let calc_post = sec_trie_root(post.get().iter().map(|(k, v)| (k.to_vec(), v.rlp())).collect());
 
 			if fail_unless(post_state_root == calc_post) {
@@ -69,7 +63,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				let mut state = state_result.reference_mut();
 				state.populate_from(pre);
 				state.commit();
-				let res = state.apply(&env, engine.deref(), &t, false);
+				let res = state.apply(&env, engine.deref(), &transaction, false);
 
 				if fail_unless(state.root() == &post_state_root) {
 					println!("!!! {}: State mismatch (got: {}, expect: {}):", name, state.root(), post_state_root);
@@ -88,12 +82,12 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				}
 			}
 		}
+
 		if !fail {
 			flushln!("ok");
 		}
-		// TODO: Add extra APIs for output
-		//if fail_unless(out == r.)
 	}
+
 	println!("!!! {:?} tests from failed.", failed.len());
 	failed
 }
