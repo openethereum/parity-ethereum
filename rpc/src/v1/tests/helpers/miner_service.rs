@@ -73,6 +73,10 @@ impl MinerService for TestMinerService {
 		&self.latest_closed_block
 	}
 
+	fn transaction(&self, _hash: &H256) -> Option<SignedTransaction> {
+		unimplemented!();
+	}
+
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
 	fn submit_seal(&self, _chain: &BlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> { unimplemented!(); }
