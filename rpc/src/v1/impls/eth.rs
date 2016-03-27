@@ -348,7 +348,13 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	fn transaction_by_hash(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H256,)>(params)
-			.and_then(|(hash,)| self.transaction(TransactionId::Hash(hash)))
+			.and_then(|(hash,)| {
+				let miner = take_weak!(self.miner);
+				match miner.transaction(&hash) {
+					Some(pending_tx) => to_value(&Transaction::from(pending_tx)),
+					None => self.transaction(TransactionId::Hash(hash))
+				}
+			})
 	}
 
 	fn transaction_by_block_hash_and_index(&self, params: Params) -> Result<Value, Error> {

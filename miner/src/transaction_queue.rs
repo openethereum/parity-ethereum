@@ -504,6 +504,11 @@ impl TransactionQueue {
 			.collect()
 	}
 
+	/// Finds transaction in the queue by hash (if any)
+	pub fn find(&self, hash: &H256) -> Option<SignedTransaction> {
+		match self.by_hash.get(hash) { Some(transaction_ref) => Some(transaction_ref.transaction.clone()), None => None }
+	}
+
 	/// Removes all elements (in any state) from the queue
 	pub fn clear(&mut self) {
 		self.current.clear();
