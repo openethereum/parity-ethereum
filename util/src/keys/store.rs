@@ -644,7 +644,7 @@ mod tests {
 			let ss_rw = svc.secret_store.write().unwrap();
 			let mut ua_rw = ss_rw.unlocks.write().unwrap();
 			let entry = ua_rw.entry(address);
-			if let Entry::Occupied(mut occupied) = entry { occupied.get_mut().expires = UTC::now() - Duration::minutes(1); }
+			if let Entry::Occupied(mut occupied) = entry { occupied.get_mut().expires = Some(UTC::now() - Duration::minutes(1)) }
 		}
 
 		svc.tick();
