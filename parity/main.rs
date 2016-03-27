@@ -498,18 +498,15 @@ impl Configuration {
 		}
 	}
 
-	fn passwords(&self) -> Vec<String> {
-		self.args.flag_password.iter().map(|filename| {
-			let mut buffer = String::new();
-			File::open(filename).and_then(|mut f| f.read_to_string(&mut buffer)).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename));
-			buffer
-		}).collect()
-	}
-
 	fn account_service(&self) -> AccountService {
 		// Secret Store
+		let passwords = self.args.flag_password.iter().map(|filename| {
+				let mut buffer = String::new();
+				File::open(filename).and_then(|mut f| f.read_to_string(&mut buffer)).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename));
+				buffer
+			}).collect::<Vec<_>>();
+		
 		let account_service = AccountService::new();
-		let passwords = self.passwords();
 		for d in &self.args.flag_unlock {
 			let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
 				die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
