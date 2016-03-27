@@ -29,7 +29,7 @@ use extras::BlockReceipts;
 use error::{ImportResult};
 
 use block_queue::BlockQueueInfo;
-use block::{SealedBlock, ClosedBlock};
+use block::{SealedBlock, ClosedBlock, LockedBlock};
 use executive::Executed;
 use error::Error;
 use engine::Engine;
@@ -262,7 +262,7 @@ impl BlockChainClient for TestBlockChainClient {
 		(None, HashSet::new())
 	}
 
-	fn try_seal(&self, block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
 		Err(block)
 	}
 

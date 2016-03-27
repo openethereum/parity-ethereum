@@ -256,7 +256,7 @@ impl MinerService for Miner {
 
 	fn submit_seal(&self, chain: &BlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
-			match chain.try_seal(b, seal) {
+			match chain.try_seal(b.lock(), seal) {
 				Err(_) => {
 					Err(Error::PowInvalid)
 				}

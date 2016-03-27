@@ -33,7 +33,7 @@ use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::{ClosedBlock, SealedBlock};
+use block::{ClosedBlock, LockedBlock, SealedBlock};
 use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
@@ -125,7 +125,7 @@ pub trait BlockChainClient : Sync + Send {
 
 	// TODO [todr] Should be moved to miner crate eventually.
 	/// Attempts to seal given block. Returns `SealedBlock` on success and the same block in case of error.
-	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock>;
+	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock>;
 
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;

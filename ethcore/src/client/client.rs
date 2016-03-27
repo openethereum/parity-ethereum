@@ -184,7 +184,7 @@ impl<V> Client<V> where V: Verifier {
 		last_hashes
 	}
 
-	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<ClosedBlock, ()> {
+	fn check_and_close_block(&self, block: &PreverifiedBlock) -> Result<LockedBlock, ()> {
 		let engine = self.engine.deref().deref();
 		let header = &block.header;
 
@@ -221,13 +221,13 @@ impl<V> Client<V> where V: Verifier {
 		};
 
 		// Final Verification
-		let closed_block = enact_result.unwrap();
-		if let Err(e) = V::verify_block_final(&header, closed_block.block().header()) {
+		let locked_block = enact_result.unwrap();
+		if let Err(e) = V::verify_block_final(&header, locked_block.block().header()) {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		}
 
-		Ok(closed_block)
+		Ok(locked_block)
 	}
 
 	fn calculate_enacted_retracted(&self, import_results: Vec<ImportRoute>) -> (Vec<H256>, Vec<H256>) {
@@ -422,7 +422,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.
-	fn try_seal(&self, block: ClosedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+	fn try_seal(&self, block: LockedBlock, seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
 		block.try_seal(self.engine.deref().deref(), seal)
 	}
 
