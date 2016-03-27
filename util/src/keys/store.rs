@@ -154,7 +154,6 @@ impl AccountService {
 	pub fn unlock_account_no_expire(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
 		self.secret_store.write().unwrap().unlock_account_with_expiration(account, pass, None)
 	}
-
 }
 
 
