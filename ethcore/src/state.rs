@@ -406,6 +406,25 @@ fn should_apply_create_transaction() {
 }
 
 #[test]
+fn should_work_when_cloned() {
+	init_log();
+
+	let a = Address::zero();
+
+	let temp = RandomTempPath::new();
+	let mut state = {
+		let mut state = get_temp_state_in(temp.as_path());
+		assert_eq!(state.exists(&a), false);
+		state.inc_nonce(&a);
+		state.commit();
+		state.clone()
+	};
+
+	state.inc_nonce(&a);
+	state.commit();
+}
+
+#[test]
 fn should_trace_failed_create_transaction() {
 	init_log();
 

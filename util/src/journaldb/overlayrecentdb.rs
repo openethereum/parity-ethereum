@@ -85,7 +85,7 @@ impl HeapSizeOf for JournalEntry {
 impl Clone for OverlayRecentDB {
 	fn clone(&self) -> OverlayRecentDB {
 		OverlayRecentDB {
-			transaction_overlay: MemoryDB::new(),
+			transaction_overlay: self.transaction_overlay.clone(),
 			backing: self.backing.clone(),
 			journal_overlay: self.journal_overlay.clone(),
 		}
