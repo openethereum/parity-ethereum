@@ -75,7 +75,8 @@ pub struct SecretStore {
 
 struct AccountUnlock {
 	secret: H256,
-	expires: DateTime<UTC>,
+	/// expiration datetime (None - never)
+	expires: Option<DateTime<UTC>>,
 }
 
 /// Basic account management trait
@@ -148,6 +149,12 @@ impl AccountService {
 	pub fn tick(&self) {
 		self.secret_store.write().unwrap().collect_garbage();
 	}
+
+    /// Unlocks account for use (no expiration of unlock)
+	pub fn unlock_account_no_expire(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+		self.secret_store.write().unwrap().unlock_account_with_expiration(account, pass, None)
+	}
+
 }
 
 
@@ -226,14 +233,23 @@ impl SecretStore {
 
 	/// Unlocks account for use
 	pub fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+		self.unlock_account_with_expiration(account, pass, Some(UTC::now() + Duration::minutes(20)))
+	}
+
+	/// Unlocks account for use (no expiration of unlock)
+	pub fn unlock_account_no_expire(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
+		self.unlock_account_with_expiration(account, pass, None)
+	}
+
+	fn unlock_account_with_expiration(&self, account: &Address, pass: &str, expiration: Option<DateTime<UTC>>) -> Result<(), EncryptedHashMapError> {
 		let secret_id = try!(self.account(&account).ok_or(EncryptedHashMapError::UnknownIdentifier));
 		let secret = try!(self.get(&secret_id, pass));
 		{
 			let mut write_lock = self.unlocks.write().unwrap();
 			let mut unlock = write_lock.entry(*account)
-				.or_insert_with(|| AccountUnlock { secret: secret, expires: UTC::now() });
+				.or_insert_with(|| AccountUnlock { secret: secret, expires: Some(UTC::now()) });
 			unlock.secret = secret;
-			unlock.expires = UTC::now() + Duration::minutes(20);
+			unlock.expires = expiration;
 		}
 		Ok(())
 	}
@@ -277,7 +293,7 @@ impl SecretStore {
 		self.directory.collect_garbage();
 		let utc = UTC::now();
 		let expired_addresses = garbage_lock.iter()
-			.filter(|&(_, unlock)| unlock.expires < utc)
+			.filter(|&(_, unlock)| match unlock.expires { Some(ref expire_val) => expire_val < &utc, _ => false })
 			.map(|(address, _)| address.clone()).collect::<Vec<Address>>();
 
 		for expired in expired_addresses { garbage_lock.remove(&expired); }
