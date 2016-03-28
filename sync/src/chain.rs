@@ -217,6 +217,10 @@ pub struct ChainSync {
 	network_id: U256,
 	/// Miner
 	miner: Arc<Miner>,
+
+	/// Transactions to propagate
+	// TODO: reconsider where this is in the codebase - seems a little dodgy to have here.
+	transactions_to_send: Vec<Bytes>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -243,6 +247,7 @@ impl ChainSync {
 			max_download_ahead_blocks: max(MAX_HEADERS_TO_REQUEST, config.max_download_ahead_blocks),
 			network_id: config.network_id,
 			miner: miner,
+			transactions_to_send: vec![],
 		}
 	}
 
@@ -938,6 +943,12 @@ impl ChainSync {
 			sync.disable_peer(peer_id);
 		}
 	}
+
+	/// Place a new transaction on the wire.
+	pub fn new_transaction(&mut self, raw_transaction: Bytes) {
+		self.transactions_to_send.push(raw_transaction);
+	}
+
 	/// Called when peer sends us new transactions
 	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		// accepting transactions once only fully synced
@@ -1271,7 +1282,44 @@ impl ChainSync {
 		sent
 	}
 
+	/// propagates new transactions to all peers
+	fn propagate_new_transactions(&mut self, io: &mut SyncIo) -> usize {
+
+		// Early out of nobody to send to.
+		if self.peers.len() == 0 {
+			return 0;
+		}
+
+		let mut packet = RlpStream::new_list(self.transactions_to_send.len());
+		for tx in self.transactions_to_send.iter() {
+			packet.append_raw(tx, 1);
+		}
+		self.transactions_to_send.clear();
+		let rlp = packet.out();
+
+		let lucky_peers = {
+			// sqrt(x)/x scaled to max u32
+			let fraction = (self.peers.len() as f64).powf(-0.5).mul(u32::max_value() as f64).round() as u32;
+			let small = self.peers.len() < MIN_PEERS_PROPAGATION;
+			let lucky_peers = self.peers.iter()
+				.filter_map(|(&p, _)| if small || ::rand::random::<u32>() < fraction { Some(p.clone()) } else { None })
+				.collect::<Vec<_>>();
+
+			// taking at max of MAX_PEERS_PROPAGATION
+			lucky_peers.iter().map(|&id| id.clone()).take(min(lucky_peers.len(), MAX_PEERS_PROPAGATION)).collect::<Vec<PeerId>>()
+		};
+
+		let sent = lucky_peers.len();
+		for peer_id in lucky_peers {
+			self.send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp.clone());
+		}
+		sent
+	}
+
 	fn propagate_latest_blocks(&mut self, io: &mut SyncIo) {
+		if !self.transactions_to_send.is_empty() {
+			self.propagate_new_transactions(io);
+		}
 		let chain_info = io.chain().chain_info();
 		if (((chain_info.best_block_number as i64) - (self.last_sent_block_number as i64)).abs() as BlockNumber) < MAX_PEER_LAG_PROPAGATION {
 			let blocks = self.propagate_blocks(&chain_info, io);
