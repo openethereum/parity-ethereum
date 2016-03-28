@@ -25,6 +25,7 @@ use syntax::ast::{
 	Arg,
 	PatKind,
 	FunctionRetTy,
+	Ty,
 };
 
 use syntax::ast;
@@ -77,33 +78,38 @@ fn push_invoke_signature_aster(
 ) -> Dispatch {
 
 	let inputs = &signature.decl.inputs;
-	let (input_type_name, input_arg_names) = if inputs.len() > 0 {
+	let (input_type_name, input_arg_names, input_arg_tys) = if inputs.len() > 0 {
 		let first_field_name = field_name(builder, &inputs[0]).name.as_str();
-		if first_field_name == "self" && inputs.len() == 1 { (None, vec![]) }
+		if first_field_name == "self" && inputs.len() == 1 { (None, vec![], vec![]) }
 		else {
 			let skip = if first_field_name == "self" { 2 } else { 1 };
 			let name_str = format!("{}_input", implement.ident.name.as_str());
 
 			let mut arg_names = Vec::new();
+			let mut arg_tys = Vec::new();
 			let arg_name = format!("{}", field_name(builder, &inputs[skip-1]).name);
+			let arg_ty = inputs[skip-1].ty.clone();
 			let mut tree = builder.item()
 				.attr().word("derive(Serialize, Deserialize)")
 				.attr().word("allow(non_camel_case_types)")
 				.struct_(name_str.as_str())
-				.field(arg_name.as_str()).ty().build(inputs[skip-1].ty.clone());
+				.field(arg_name.as_str()).ty().build(arg_ty.clone());
 			arg_names.push(arg_name);
+			arg_tys.push(arg_ty.clone());
 			for arg in inputs.iter().skip(skip) {
 				let arg_name = format!("{}", field_name(builder, &arg));
-				tree = tree.field(arg_name.as_str()).ty().build(arg.ty.clone());
+				let arg_ty = arg.ty.clone();
+				tree = tree.field(arg_name.as_str()).ty().build(arg_ty.clone());
 				arg_names.push(arg_name);
+				arg_tys.push(arg_ty);
 			}
 
 			push(Annotatable::Item(tree.build()));
-			(Some(name_str.to_owned()), arg_names)
+			(Some(name_str.to_owned()), arg_names, arg_tys)
 		}
 	}
 	else {
-		(None, vec![])
+		(None, vec![], vec![])
 	};
 
 	let return_type_name = match signature.decl.output {
@@ -124,6 +130,7 @@ fn push_invoke_signature_aster(
 		function_name: format!("{}", implement.ident.name.as_str()),
 		input_type_name: input_type_name,
 		input_arg_names: input_arg_names,
+		input_arg_tys: input_arg_tys,
 		return_type_name: return_type_name,
 	}
 }
@@ -132,6 +139,7 @@ struct Dispatch {
 	function_name: String,
 	input_type_name: Option<String>,
 	input_arg_names: Vec<String>,
+	input_arg_tys: Vec<P<Ty>>,
 	return_type_name: Option<String>,
 }
 
@@ -236,6 +244,38 @@ fn push_proxy_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, pus
 
 fn push_proxy(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
 	push_proxy_struct(cx, builder, item, push)
+}
+
+fn push_proxy_implementation_method(
+	cx: &ExtCtxt,
+	builder:
+	&aster::AstBuilder,
+	item: &Item,
+	dispatch: &Dispatch,
+	push: &mut FnMut(Annotatable))
+{
+	let output_type_id = builder.id(dispatch.return_type_name.clone().unwrap().as_str());
+
+	let invariant_serialization = quote_expr!(cx, {
+		let mut socket_ref = self.socket.borrow_mut();
+		let mut socket = socket_ref.deref_mut();
+
+		let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap();
+		::ipc::invoke(0, &Some(serialized_payload), &mut socket);
+
+		while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { }
+		::bincode::serde::deserialize_from::<_, $output_type_id>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
+	});
+}
+
+fn push_proxy_implementation(
+	cx: &ExtCtxt,
+	builder:
+	&aster::AstBuilder,
+	item: &Item,
+	dispatches: &[Dispatch],
+	push: &mut FnMut(Annotatable))
+{
 }
 
 fn implement_interface(
