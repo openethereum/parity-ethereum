@@ -1,100 +1,139 @@
-sudo: required
+sudo: false
 dist: trusty
-language: rust
-branches:
-  only:
-  - master
-  - /^beta-.*$/
-  - /^stable-.*$/
-  - /^beta$/
-  - /^stable$/
-git:
-  depth: 3
-matrix:
-  fast_finish: true
-  allow_failures:
-  - rust: nightly
-  include:
-  - rust: stable
-    env: FEATURES="--features travis-beta" RUN_TESTS="true"
-  # - rust: beta
-    # env: FEATURES="--features travis-beta" RUN_TESTS="true"
-  - rust: stable
-    env: FEATURES="--features travis-beta" RUN_BUILD="true"
-  - rust: beta
-    env: FEATURES="--features travis-beta" RUN_BUILD="true"
-  - rust: stable
-    env: FEATURES="--features travis-beta" RUN_COVERAGE="true"
-  # - rust: nightly
-    # env: FEATURES="--features travis-nightly" RUN_BENCHES="true"
-  - rust: nightly
-    env: FEATURES="--features travis-nightly" RUN_TESTS="true"
+language: generic
 env:
   global:
-  # GH_TOKEN
-  - secure: bumJASbZSU8bxJ0EyPUJmu16AiV9EXOpyOj86Jlq/Ty9CfwGqsSXt96uDyE+OUJf34RUFQMsw0nk37/zC4lcn6kqk2wpuH3N/o85Zo/cVZY/NusBWLQqtT5VbYWsV+u2Ua4Tmmsw8yVYQhYwU2ZOejNpflL+Cs9XGgORp1L+/gMRMC2y5Se6ZhwnKPQlRJ8LGsG1dzjQULxzADIt3/zuspNBS8a2urJwlHfGMkvHDoUWCviP/GXoSqw3TZR7FmKyxE19I8n9+iSvm9+oZZquvcgfUxMHn8Gq/b44UbPvjtFOg2yam4xdWXF/RyWCHdc/R9EHorSABeCbefIsm+zcUF3/YQxwpSxM4IZEeH2rTiC7dcrsKw3XsO16xFQz5YI5Bay+CT/wTdMmJd7DdYz7Dyf+pOvcM9WOf/zorxYWSBOMYy0uzbusU2iyIghQ82s7E/Ahg+WARtPgkuTLSB5aL1oCTBKHqQscMr7lo5Ti6RpWLxEdTQMBznc+bMr+6dEtkEcG9zqc6cE9XX+ox3wTU6+HVMfQ1ltCntJ4UKcw3A6INEbw9wgocQa812CIASQ2fE+SCAbz6JxBjIAlFUnD1lUB7S8PdMPwn9plfQgKQ2A5YZqg6FnBdf0rQXIJYxQWKHXj/rBHSUCT0tHACDlzTA+EwWggvkP5AGIxRxm8jhw=
-  - TARGETS="-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethminer -p ethjson"
-  - ARCHIVE_SUFFIX="-${TRAVIS_OS_NAME}-${TRAVIS_TAG}"
-  - KCOV_FEATURES=""
-  - KCOV_CMD="./kcov-master/tmp/usr/local/bin/kcov --exclude-pattern /usr/,/.cargo,/root/.multirust,src/tests,util/json-tests,util/src/network/tests,sync/src/tests,ethcore/src/tests,ethcore/src/evm/tests target/kcov"
-  - RUN_TESTS="false"
-  - RUN_COVERAGE="false"
-  - RUN_BUILD="false"
-  - RUN_BENCHES="false"
+  - PROJECT_NAME=parity
   - RUST_BACKTRACE="1"
 cache:
   apt: true
-  directories:
-  - $TRAVIS_BUILD_DIR/target
-  - $HOME/.cargo
-addons:
-  apt:
-    packages:
-    - libcurl4-openssl-dev
-    - libelf-dev
-    - libdw-dev
-
+matrix:
+  include:
+  - os: linux
+    env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=stable RUN_TESTS=true
+    addons:
+      apt:
+        packages: &15588620
+        - g++-arm-linux-gnueabihf
+        - libc6-armhf-cross
+        - libc6-dev-armhf-cross
+        - qemu-user
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
+  - os: osx
+    env: TARGET=i686-apple-darwin CHANNEL=stable
+  - os: linux
+    env: TARGET=i686-unknown-linux-gnu CHANNEL=stable
+    addons:
+      apt:
+        packages: &15805720
+        - build-essential
+        - g++-multilib
+        - libedit-dev
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
+  - os: osx
+    env: TARGET=x86_64-apple-darwin CHANNEL=stable
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-gnu CHANNEL=stable
+    addons:
+      apt:
+        packages: &16862360
+        - build-essential
+        - g++
+        - libedit-dev
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-musl CHANNEL=stable
+    addons:
+      apt:
+        packages: &17344860
+        - build-essential
+        - g++
+        - libedit-dev
+        - libcurl4-openssl-dev
+        - libelf-dev
+        - libdw-dev
+  - os: linux
+    env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=beta
+    addons:
+      apt:
+        packages: *15588620
+  - os: osx
+    env: TARGET=i686-apple-darwin CHANNEL=beta
+  - os: linux
+    env: TARGET=i686-unknown-linux-gnu CHANNEL=beta
+    addons:
+      apt:
+        packages: *15805720
+  - os: osx
+    env: TARGET=x86_64-apple-darwin CHANNEL=beta
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-gnu CHANNEL=beta
+    addons:
+      apt:
+        packages: *16862360
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-musl CHANNEL=beta
+    addons:
+      apt:
+        packages: *17344860
+  - os: linux
+    env: TARGET=arm-unknown-linux-gnueabihf CHANNEL=nightly
+    addons:
+      apt:
+        packages: *15588620
+  - os: osx
+    env: TARGET=i686-apple-darwin CHANNEL=nightly
+  - os: linux
+    env: TARGET=i686-unknown-linux-gnu CHANNEL=nightly
+    addons:
+      apt:
+        packages: *15805720
+  - os: osx
+    env: TARGET=x86_64-apple-darwin CHANNEL=nightly
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-gnu CHANNEL=nightly
+    addons:
+      apt:
+        packages: *16862360
+  - os: linux
+    env: TARGET=x86_64-unknown-linux-musl CHANNEL=nightly
+    addons:
+      apt:
+        packages: *17344860
+  allow_failures:
+  - os: linux
+    env: TARGET=armv7-unknown-linux-gnueabihf CHANNEL=stable
+    addons:
+      apt:
+        packages: 
+install:
+- export PATH="$PATH:~/multirust/bin"
+- bash ci/install.sh
 script:
-  - if [ "$RUN_TESTS" = "true" ]; then cargo test --release --verbose ${FEATURES} ${TARGETS}; fi
-  - if [ "$RUN_BENCHES" = "true" ]; then cargo bench --no-run ${FEATURES} ${TARGETS}; fi
-  - if [ "$RUN_BUILD" = "true" ]; then cargo build --release --verbose ${FEATURES}; fi
-  - if [ "$RUN_BUILD" = "true" ]; then tar cvzf parity${ARCHIVE_SUFFIX}.tar.gz -C target/release parity; fi
-
-after_success: |
-  [ "$RUN_COVERAGE" = "true" ] &&
-  wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
-  tar xzf master.tar.gz && mkdir kcov-master/build && cd kcov-master/build && cmake .. && make && make install DESTDIR=../tmp && cd ../.. &&
-  cargo test --no-run ${KCOV_FEATURES} ${TARGETS} &&
-  $KCOV_CMD target/debug/deps/ethcore_util-* &&
-  $KCOV_CMD target/debug/deps/ethash-* &&
-  $KCOV_CMD target/debug/deps/ethcore-* &&
-  $KCOV_CMD target/debug/deps/ethsync-* &&
-  $KCOV_CMD target/debug/deps/ethcore_rpc-* &&
-  $KCOV_CMD target/debug/deps/ethminer-* &&
-  $KCOV_CMD target/debug/deps/ethjson-* &&
-  $KCOV_CMD target/debug/parity-* &&
-  [ $TRAVIS_BRANCH = master ] &&
-  [ $TRAVIS_PULL_REQUEST = false ] &&
-  [ $TRAVIS_RUST_VERSION = stable ] &&
-  cargo doc --no-deps --verbose ${KCOV_FEATURES} ${TARGETS} &&
-  echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html &&
-  pip install --user ghp-import &&
-  /home/travis/.local/bin/ghp-import -n target/doc &&
-  git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
-
+- bash ci/script.sh
+before_deploy:
+- bash ci/before_deploy.sh
 deploy:
   provider: releases
   api_key:
-    secure: "t+oGT/4lsy7IScw5s86Dpntl5Nyck4qG6nhHwMScc6FYzwLldgwgJaafL8Ej+HG+b7nFLriN+Snoa4YQ5o74X5ZlSWubVREOYQlL/fq7vcPB0DwAZ0Jufq1QW2R1M+3SwwF1eAwTv2W3G7A2K7dxjCVvENcy/gdxnZ36NeUPsqaCC9UcI2Yc7+4jyQwvx6ZfBvQeu+HbKENA0eUNs2ZQOID/1IPy0LJBvSyxAQYsysXdjTzGdNu4+Iba20E8uWYe4fAbgz+gwGarXg1L6D6gKyMlWkViqWjvXWBuDJJqMQZ3rw41AwZOoh3mKd2Lc0l6l4oZcEqPuob0yKTNjz1tuJy9xKTC2F2bDzsvUgk1IRfMK5ukXXXS09ZCZWuA9/GtnsqJ1xGTiwX+DhQzpVBHaBiseSNlYE1YN/3jNyGY+iSts1qut+1BwE7swmcTLsAPoAy8Ue+f7ErNoCg1lm71vq7VO2DLn7x2NqHyHUEuJ+7olDHSdE84G7d9otDRu/+TfMOw7GXwTaha6yJRInuNsnj4CFMLNVvYACzCC2idB7f7nUZoSFi9jf18S9fCMPVmazMrFj4g95HWrVHkjpV5zRTeUdTWw6DJl6pC9HFqORHdCvLv4Rc4dm5r3CmOcAQ0ZuiccV2oKzw4/Wic96daae8M5f5KSQ/WTr+h0wXZKp0="
+    secure: kIthimcXHUuM/TvzyXBZyABKK7tXvVbKcH6G3wAkZ/kg21OWwBxO0NrY6D0QG26LocZ+oUCQbJnDg56UcUTpegCOJ1zuFYTvceIduFBxP19tzYqztLIOZ5ueufnAzIl/cUOfhpaooOlxzHAPi+aJJSsxEjObwdTkYqyhgte/r8RWJUIBf2qge8+8bvdaDxsgdwR0VWYqaR2Cjo4aCWxhwpZJozKb/mbJEmg/IbhO7LyeD5Ls4gygSJBgn0TmLzPggE+DYMVvVrZNEHwuidy7+nSOjj5gjMD3Sp9ACD9Y6tiJlrFUbb7iYwGngXHyqIOKm/zGwSwn9faT409e3p9CSr+5PaVf24Jg8YFqY9uDX/8ysYRH2zt+M8a9fdWBuRkptJVUqNHVkEQZNQRsg2JKiT2a5/Jt5V3a7xf8hX5uVh9J7Mt2VoaFAZk70NWVu2VqRdGgkNELrqYeprLFteb7UT0DCbJoAvUxWeMPhO4zcomvnOTHz5PSLQ6hiAApnc21XS8rNAD2OK01BayKAntYyVVGGxvIkvNlF8Rhiem70EkZ2dFNRTp5OqlPNicE5ZuYFBMKvhAZW0QosC/m5/EYR8wgydeF7HZ8iAEmOw+hDkga/crMXJd7qwKdFcwl2paqAYTmitSzpEYx1GjCLyZ/IoKjc1DMx4midpIT7ttkFP0=
+  file: ${PROJECT_NAME}-${TRAVIS_TAG}-${TARGET}.tar.gz
   skip_cleanup: true
-  file: parity${ARCHIVE_SUFFIX}.tar.gz
   on:
+    condition: $CHANNEL = stable
     tags: true
-
+branches:
+  only:
+  - master
+  - /^v\d+\.\d+\.\d+.*$/
 notifications:
- webhooks:
-   urls:
-     - https://hooks.slack.com/services/${SLACK_WEBHOOK}
-   on_success: always
-   on_failure: always
-   on_start: never
+  email:
+    on_success: general.beck@gmail.com
+  slack:
+    secure: KmMUp0H/DOEOfXlHFqOCbLiEHkneawz9Tf+EcPbPzruixtYXrJiXAr6qRPmiAMfij6UAMGlxEOQ7VlYyRdvTU8lKHTYe8FdPQD51QVvj8HRbTi8LoVfXvN9JC8slwbwQZJ1kNG6/doZLbgIWPRR2XSOCITdHC2+Vr0mQHep68s7IJ2khJe17V8utBsDM4w0Je3uh2j+2j6w0T8JSouWp138gv36dvmBShm8o0yy7WaH1DIDnV6WmHti52vy+EiWTLeKbMS8/fFB2VzAY7Q9eFTaeuF8gV0Pau2xET8vtcCY3MPXsMILia62XkbA+8IzULr0ZOKATe6fAJG8cylccI2jI9GhIjkNpNXS+x2w93COCC7z4kXHHHDn9Cisw51vzzeXKo3tOqS4/hk7BXS9afP0swrFQUwXFIng4SpkK8nZRT788FQuvmkHdkvclv8En/NZsphdDCxUx9oLpQ/+J9wvxCXVJoM5uXuMEDvaeDCLE7kMbiEP0oTJwVKPjIVSarD+N54uGc9IiqThO3UBS52dK9x9NfvpU7uUmptoKvH9HnHRDUZKbeAx3xzn4Y29GI8B4dtgeO/I3XcqCJGjYRc+HGqyqVri7dRyQGSTYOtsgQZjUTyltwVREosSueGaQAuIC5gjkbRJPWW1OG4dAtYwFolMCkz6otcstPdPNr+Y=
