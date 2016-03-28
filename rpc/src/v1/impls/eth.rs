@@ -28,7 +28,6 @@ use ethcore::client::*;
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
-use ethcore::ethereum::denominations::shannon;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
@@ -38,10 +37,6 @@ use serde;
 
 fn default_gas() -> U256 {
 	U256::from(21_000)
-}
-
-fn default_gas_price() -> U256 {
-	shannon() * U256::from(50)
 }
 
 /// Eth rpc implementation.
@@ -167,16 +162,18 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		}
 	}
 
-	fn sign_call(client: &Arc<C>, request: CallRequest) -> SignedTransaction {
+	fn sign_call(&self, request: CallRequest) -> Result<SignedTransaction, Error> {
+		let client = take_weak!(self.client);
+		let miner = take_weak!(self.miner);
 		let from = request.from.unwrap_or(Address::zero());
-		EthTransaction {
+		Ok(EthTransaction {
 			nonce: request.nonce.unwrap_or_else(|| client.nonce(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
 			gas: request.gas.unwrap_or_else(default_gas),
-			gas_price: request.gas_price.unwrap_or_else(default_gas_price),
+			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
-		}.fake_sign(from)
+		}.fake_sign(from))
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: SignedTransaction, raw_transaction: Vec<u8>) -> Result<Value, Error> {
@@ -284,7 +281,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	fn gas_price(&self, params: Params) -> Result<Value, Error> {
 		match params {
-			Params::None => to_value(&default_gas_price()),
+			Params::None => to_value(&take_weak!(self.miner).sensible_gas_price()),
 			_ => Err(Error::invalid_params())
 		}
 	}
@@ -484,11 +481,12 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 					Ok(secret) => {
 						let signed_transaction = {
 							let client = take_weak!(self.client);
+							let miner = take_weak!(self.miner);
 							EthTransaction {
 								nonce: request.nonce.unwrap_or_else(|| client.nonce(&request.from)),
 								action: request.to.map_or(Action::Create, Action::Call),
 								gas: request.gas.unwrap_or_else(default_gas),
-								gas_price: request.gas_price.unwrap_or_else(default_gas_price),
+								gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
 								value: request.value.unwrap_or_else(U256::zero),
 								data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
 							}.sign(&secret)
@@ -514,8 +512,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
 		from_params_discard_second(params).and_then(|(request, )| {
+			let signed = try!(self.sign_call(request));
 			let client = take_weak!(self.client);
-			let signed = Self::sign_call(&client, request);
 			let output = client.call(&signed).map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![]));
 			to_value(&output)
 		})
@@ -523,8 +521,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	fn estimate_gas(&self, params: Params) -> Result<Value, Error> {
 		from_params_discard_second(params).and_then(|(request, )| {
+			let signed = try!(self.sign_call(request));
 			let client = take_weak!(self.client);
-			let signed = Self::sign_call(&client, request);
 			let used = client.call(&signed).map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0));
 			to_value(&used)
 		})
