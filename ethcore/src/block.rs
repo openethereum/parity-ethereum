@@ -457,7 +457,7 @@ impl IsBlock for SealedBlock {
 pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
-			let s = State::from_existing(db.spawn(), parent.state_root().clone(), engine.account_start_nonce());
+			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce());
 			trace!("enact(): root={}, author={}, author_balance={}\n", s.root(), header.author(), s.balance(&header.author()));
 		}
 	}

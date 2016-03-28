@@ -342,7 +342,7 @@ impl fmt::Debug for State {
 impl Clone for State {
 	fn clone(&self) -> State {
 		State {
-			db: self.db.spawn(),
+			db: self.db.boxed_clone(),
 			root: self.root.clone(),
 			cache: RefCell::new(self.cache.borrow().clone()),
 			snapshots: RefCell::new(self.snapshots.borrow().clone()),
