@@ -102,4 +102,27 @@ mod tests {
 			nonce: None,
 		});
 	}
+
+	#[test]
+	fn transaction_request_deserialize_test() {
+		let s = r#"{
+			"from":"0xb5f7502a2807cb23615c7456055e1d65b2508625",
+			"to":"0x895d32f2db7d01ebb50053f9e48aacf26584fe40",
+			"data":"0x8595bab1",
+			"gas":"0x2fd618",
+			"gasPrice":"0x0ba43b7400"
+		}"#;
+
+		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
+
+		assert_eq!(deserialized, TransactionRequest {
+			from: Address::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap(),
+			to: Some(Address::from_str("895d32f2db7d01ebb50053f9e48aacf26584fe40").unwrap()),
+			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
+			gas: Some(U256::from_str("2fd618").unwrap()),
+			value: None,
+			data: Some(Bytes::new(vec![0x85, 0x95, 0xba, 0xb1])),
+			nonce: None,
+		});
+	}
 }
