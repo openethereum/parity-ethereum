@@ -16,5 +16,7 @@
 
 //! IPC RPC interface
 
+extern crate ethcore_devtools as devtools;
+
 pub mod interface;
-pub use interface::IpcInterface;
+pub use interface::{IpcInterface, IpcSocket, invoke};

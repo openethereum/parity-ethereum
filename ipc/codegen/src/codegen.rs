@@ -57,6 +57,8 @@ pub fn expand_ipc_implementation(
 		Err(Error) => { return; }
 	};
 
+	push_proxy(cx, &builder, &item, push);
+
 	push(Annotatable::Item(impl_item))
 }
 
@@ -220,6 +222,22 @@ fn implement_dispatch_arm(cx: &ExtCtxt, builder: &aster::AstBuilder, index: u32,
 	quote_arm!(cx, $index_ident => { $invoke_expr } )
 }
 
+fn push_proxy_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
+	let proxy_ident = builder.id(format!("{}Proxy", item.ident.name.as_str()));
+
+	let proxy_struct_item = quote_item!(cx,
+		pub struct $proxy_ident <S: ::ipc::IpcSocket> {
+			socket: ::std::cell::RefCell<S>,
+			phantom: ::std::marker::PhantomData<S>,
+		});
+
+	push(Annotatable::Item(proxy_struct_item.expect(&format!("could not generate proxy struct for {:?}", proxy_ident.name))));
+}
+
+fn push_proxy(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
+	push_proxy_struct(cx, builder, item, push)
+}
+
 fn implement_interface(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -274,11 +292,6 @@ fn implement_interface(
 					_ => vec![]
 				}
 			}
-			fn invoke<W>(&self, _method_num: u16, _payload: &Option<Vec<u8>>, _w: &mut W)
-				where W: ::std::io::Write
-			{
-			}
-
 		}
 	).unwrap())
 }

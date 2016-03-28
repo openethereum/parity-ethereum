@@ -7,3 +7,4 @@ license = "GPL-3.0"
 [features]
 
 [dependencies]
+ethcore-devtools = { path = "../../devtools" }

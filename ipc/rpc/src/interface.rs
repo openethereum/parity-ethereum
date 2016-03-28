@@ -19,6 +19,28 @@
 pub trait IpcInterface<T> {
 	/// reads the message from io, dispatches the call and returns result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: ::std::io::Read;
-	/// encodes the invocation, writes payload and waits for result
-	fn invoke<W>(&self, method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: ::std::io::Write;
+}
+
+pub fn invoke<W>(method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: ::std::io::Write {
+	let buf_len = match *params { None => 2, Some(ref val) => val.len() + 2 };
+	let mut buf = vec![0u8; buf_len];
+	buf[0] = (method_num & (255<<8)) as u8;
+	buf[1] = (method_num >> 8) as u8;
+	if params.is_some() {
+		buf[2..buf_len].clone_from_slice(params.as_ref().unwrap());
+	}
+	if w.write(&buf).unwrap() != buf_len
+	{
+		panic!("failed to write to socket");
+	}
+}
+
+pub trait IpcSocket: ::std::io::Read + ::std::io::Write {
+	fn ready(&self) -> ::std::sync::atomic::AtomicBool;
+}
+
+impl IpcSocket for ::devtools::TestSocket {
+	fn ready(&self) -> ::std::sync::atomic::AtomicBool {
+		::std::sync::atomic::AtomicBool::new(true)
+	}
 }
