@@ -277,7 +277,6 @@ impl ChainSync {
 		self.peers.clear();
 	}
 
-
 	#[cfg_attr(feature="dev", allow(for_kv_map))] // Because it's not possible to get `values_mut()`
 	/// Rest sync. Clear all downloaded data but keep the queue
 	fn reset(&mut self) {
@@ -304,6 +303,13 @@ impl ChainSync {
 		self.state = SyncState::NotSynced;
 	}
 
+	/// Restart sync after bad block has been detected. May end up re-downloading up to QUEUE_SIZE blocks
+	pub fn restart_on_bad_block(&mut self, io: &mut SyncIo) {
+		self.restart(io);
+		// Do not assume that the block queue/chain still has our last_imported_block
+		self.last_imported_block = None;
+		self.last_imported_hash = None;
+	}
 	/// Called by peer to report status
 	fn on_peer_status(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let peer = PeerInfo {
@@ -841,7 +847,7 @@ impl ChainSync {
 		}
 
 		if restart {
-			self.restart(io);
+			self.restart_on_bad_block(io);
 			return;
 		}
 
