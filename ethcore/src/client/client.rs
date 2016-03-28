@@ -212,7 +212,7 @@ impl<V> Client<V> where V: Verifier {
 		// Enact Verified Block
 		let parent = chain_has_parent.unwrap();
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
-		let db = self.state_db.lock().unwrap().spawn();
+		let db = self.state_db.lock().unwrap().boxed_clone();
 
 		let enact_result = enact_verified(&block, engine, self.chain.have_tracing(), db, &parent, last_hashes);
 		if let Err(e) = enact_result {
@@ -342,7 +342,7 @@ impl<V> Client<V> where V: Verifier {
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
-		State::from_existing(self.state_db.lock().unwrap().spawn(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
+		State::from_existing(self.state_db.lock().unwrap().boxed_clone(), HeaderView::new(&self.best_block_header()).state_root(), self.engine.account_start_nonce())
 	}
 
 	/// Get info on the cache.
@@ -440,7 +440,7 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		let mut b = OpenBlock::new(
 			engine,
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
-			self.state_db.lock().unwrap().spawn(),
+			self.state_db.lock().unwrap().boxed_clone(),
 			match self.chain.block_header(&h) { Some(ref x) => x, None => { return (None, invalid_transactions) } },
 			self.build_last_hashes(h.clone()),
 			author,

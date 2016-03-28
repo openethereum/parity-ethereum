@@ -197,7 +197,7 @@ impl OverlayRecentDB {
 }
 
 impl JournalDB for OverlayRecentDB {
-	fn spawn(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(self.clone())
 	}
 
