@@ -28,7 +28,10 @@ ethsync = { path = "sync" }
 ethminer = { path = "miner" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
-hyper = "0.8"
+
+[dependencies.hyper]
+version = "0.8"
+default-features = false
 
 [features]
 default = ["rpc"]
