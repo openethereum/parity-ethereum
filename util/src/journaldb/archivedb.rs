@@ -128,9 +128,9 @@ impl HashDB for ArchiveDB {
 }
 
 impl JournalDB for ArchiveDB {
-	fn spawn(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(ArchiveDB {
-			overlay: MemoryDB::new(),
+			overlay: self.overlay.clone(),
 			backing: self.backing.clone(),
 			latest_era: self.latest_era,
 		})

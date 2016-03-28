@@ -45,7 +45,7 @@ fn default_gas() -> U256 {
 }
 
 fn default_gas_price() -> U256 {
-	shannon() * U256::from(50)
+	shannon() * U256::from(20)
 }
 
 /// Eth rpc implementation.
@@ -425,18 +425,12 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				}
 
 				let miner = take_weak!(self.miner);
-				let client = take_weak!(self.client);
-				let u = miner.sealing_block(client.deref()).lock().unwrap();
-				match *u {
-					Some(ref b) => {
-						let pow_hash = b.hash();
-						let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-						let seed_compute = self.seed_compute.lock().unwrap();
-						let seed_hash = seed_compute.get_seedhash(b.block().header().number());
-						to_value(&(pow_hash, seed_hash, target))
-					}
-					_ => Err(Error::internal_error())
-				}
+				miner.map_sealing_work(client.deref(), |b| {
+					let pow_hash = b.hash();
+					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
+					let seed_hash = self.seed_compute.lock().unwrap().get_seedhash(b.block().header().number());
+					to_value(&(pow_hash, seed_hash, target))
+				}).unwrap_or(Err(Error::internal_error()))	// no work found.
 			},
 			_ => Err(Error::invalid_params())
 		}

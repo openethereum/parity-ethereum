@@ -94,7 +94,7 @@ impl HashDB for RefCountedDB {
 }
 
 impl JournalDB for RefCountedDB {
-	fn spawn(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(RefCountedDB {
 			forward: self.forward.clone(),
 			backing: self.backing.clone(),

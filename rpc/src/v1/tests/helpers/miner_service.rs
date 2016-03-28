@@ -71,10 +71,7 @@ impl MinerService for TestMinerService {
 	/// New chain head event. Restart mining operation.
 	fn update_sealing(&self, _chain: &BlockChainClient) { unimplemented!(); }
 
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self, _chain: &BlockChainClient) -> &Mutex<Option<ClosedBlock>> {
-		&self.latest_closed_block
-	}
+	fn map_sealing_work<F, T>(&self, _chain: &BlockChainClient, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T { unimplemented!(); }
 
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
 		self.pending_transactions.lock().unwrap().get(hash).and_then(|tx_ref| Some(tx_ref.clone()))

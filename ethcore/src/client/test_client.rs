@@ -29,9 +29,10 @@ use extras::BlockReceipts;
 use error::{ImportResult};
 
 use block_queue::BlockQueueInfo;
-use block::{SealedBlock, ClosedBlock};
+use block::{SealedBlock, ClosedBlock, LockedBlock};
 use executive::Executed;
 use error::Error;
+use engine::Engine;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -257,11 +258,11 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> Option<(ClosedBlock, HashSet<H256>)> {
-		None
+	fn prepare_sealing(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes, _transactions: Vec<SignedTransaction>) -> (Option<ClosedBlock>, HashSet<H256>) {
+		(None, HashSet::new())
 	}
 
-	fn try_seal(&self, block: ClosedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, ClosedBlock> {
+	fn try_seal(&self, block: LockedBlock, _seal: Vec<Bytes>) -> Result<SealedBlock, LockedBlock> {
 		Err(block)
 	}
 
@@ -412,5 +413,9 @@ impl BlockChainClient for TestBlockChainClient {
 			best_block_hash: self.last_hash.read().unwrap().clone(),
 			best_block_number: self.blocks.read().unwrap().len() as BlockNumber - 1,
 		}
+	}
+
+	fn engine(&self) -> &Engine {
+		unimplemented!();
 	}
 }

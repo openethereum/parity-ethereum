@@ -68,14 +68,10 @@ impl<T> UsingQueue<T> where T: Clone {
 		self.in_use.clear();
 	}
 
-	/// Returns `Some` reference to first block that `f` returns `true` with it as a parameter
-	/// or `None` if no such block exists in the queue.
-	pub fn find_if<P>(&self, predicate: P) -> Option<&T> where P: Fn(&T) -> bool {
-		if self.pending.as_ref().map(|r| predicate(r)).unwrap_or(false) {
-			self.pending.as_ref()
-		} else {
-			self.in_use.iter().find(|r| predicate(r))
-		}
+	/// Returns `Some` item which is the first that `f` returns `true` with a reference to it
+	/// as a parameter or `None` if no such item exists in the queue.
+	pub fn take_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+		self.in_use.iter().position(|r| predicate(r)).map(|i| self.in_use.remove(i))
 	}
 
 	/// Returns the most recently pushed block if `f` returns `true` with a reference to it as
@@ -101,7 +97,7 @@ impl<T> UsingQueue<T> where T: Clone {
 fn should_find_when_pushed() {
 	let mut q = UsingQueue::new(2);
 	q.push(1);
-	assert!(q.find_if(|i| i == &1).is_some());
+	assert!(q.take_used_if(|i| i == &1).is_none());
 }
 
 #[test]
@@ -109,7 +105,7 @@ fn should_find_when_pushed_and_used() {
 	let mut q = UsingQueue::new(2);
 	q.push(1);
 	q.use_last_ref();
-	assert!(q.find_if(|i| i == &1).is_some());
+	assert!(q.take_used_if(|i| i == &1).is_some());
 }
 
 #[test]
@@ -119,7 +115,7 @@ fn should_find_when_others_used() {
 	q.use_last_ref();
 	q.push(2);
 	q.use_last_ref();
-	assert!(q.find_if(|i| i == &1).is_some());
+	assert!(q.take_used_if(|i| i == &1).is_some());
 }
 
 #[test]
@@ -129,7 +125,7 @@ fn should_not_find_when_too_many_used() {
 	q.use_last_ref();
 	q.push(2);
 	q.use_last_ref();
-	assert!(q.find_if(|i| i == &1).is_none());
+	assert!(q.take_used_if(|i| i == &1).is_none());
 }
 
 #[test]
@@ -138,7 +134,7 @@ fn should_not_find_when_not_used_and_then_pushed() {
 	q.push(1);
 	q.push(2);
 	q.use_last_ref();
-	assert!(q.find_if(|i| i == &1).is_none());
+	assert!(q.take_used_if(|i| i == &1).is_none());
 }
 
 #[test]
@@ -168,7 +164,7 @@ fn should_not_find_when_not_used_peeked_and_then_pushed() {
 	q.peek_last_ref();
 	q.push(2);
 	q.use_last_ref();
-	assert!(q.find_if(|i| i == &1).is_none());
+	assert!(q.take_used_if(|i| i == &1).is_none());
 }
 
 #[test]

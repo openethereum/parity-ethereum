@@ -339,6 +339,18 @@ impl fmt::Debug for State {
 	}
 }
 
+impl Clone for State {
+	fn clone(&self) -> State {
+		State {
+			db: self.db.boxed_clone(),
+			root: self.root.clone(),
+			cache: RefCell::new(self.cache.borrow().clone()),
+			snapshots: RefCell::new(self.snapshots.borrow().clone()),
+			account_start_nonce: self.account_start_nonce.clone(),
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -391,6 +403,25 @@ fn should_apply_create_transaction() {
 	});
 
 	assert_eq!(result.trace, expected_trace);
+}
+
+#[test]
+fn should_work_when_cloned() {
+	init_log();
+
+	let a = Address::zero();
+
+	let temp = RandomTempPath::new();
+	let mut state = {
+		let mut state = get_temp_state_in(temp.as_path());
+		assert_eq!(state.exists(&a), false);
+		state.inc_nonce(&a);
+		state.commit();
+		state.clone()
+	};
+
+	state.inc_nonce(&a);
+	state.commit();
 }
 
 #[test]
