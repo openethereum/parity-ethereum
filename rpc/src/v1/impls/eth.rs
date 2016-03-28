@@ -184,6 +184,29 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from)
 	}
+
+	fn dispatch_transaction(&self, signed_transaction: SignedTransaction, raw_transaction: Vec<u8>) -> Result<Value, Error> {
+		let hash = signed_transaction.hash();
+		
+		let import = {
+			let client = take_weak!(self.client);
+			take_weak!(self.miner).import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
+				nonce: client.nonce(a),
+				balance: client.balance(a),
+			})
+		};
+
+		match import.into_iter().collect::<Result<Vec<_>, _>>() {
+			Ok(_) => {
+				take_weak!(self.sync).new_transaction(raw_transaction);
+				to_value(&hash)
+			}
+			Err(e) => {
+				warn!("Error sending transaction: {:?}", e);
+				to_value(&H256::zero())
+			}
+		}
+	}
 }
 
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
@@ -460,32 +483,19 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				let accounts = take_weak!(self.accounts);
 				match accounts.account_secret(&request.from) {
 					Ok(secret) => {
-						let miner = take_weak!(self.miner);
-						let client = take_weak!(self.client);
-
-						let transaction = EthTransaction {
-							nonce: request.nonce.unwrap_or_else(|| client.nonce(&request.from)),
-							action: request.to.map_or(Action::Create, Action::Call),
-							gas: request.gas.unwrap_or_else(default_gas),
-							gas_price: request.gas_price.unwrap_or_else(default_gas_price),
-							value: request.value.unwrap_or_else(U256::zero),
-							data: request.data.map_or_else(Vec::new, |d| d.to_vec())
+						let signed_transaction = {
+							let client = take_weak!(self.client);
+							EthTransaction {
+								nonce: request.nonce.unwrap_or_else(|| client.nonce(&request.from)),
+								action: request.to.map_or(Action::Create, Action::Call),
+								gas: request.gas.unwrap_or_else(default_gas),
+								gas_price: request.gas_price.unwrap_or_else(default_gas_price),
+								value: request.value.unwrap_or_else(U256::zero),
+								data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
+							}.sign(&secret)
 						};
-
-						let signed_transaction = transaction.sign(&secret);
-						let hash = signed_transaction.hash();
-
-						let import = miner.import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
-							nonce: client.nonce(a),
-							balance: client.balance(a),
-						});
-						match import.into_iter().collect::<Result<Vec<_>, _>>() {
-							Ok(_) => to_value(&hash),
-							Err(e) => {
-								warn!("Error sending transaction: {:?}", e);
-								to_value(&H256::zero())
-							}
-						}
+						let raw_transaction = encode(&signed_transaction).to_vec();
+						self.dispatch_transaction(signed_transaction, raw_transaction)
 					},
 					Err(_) => { to_value(&H256::zero()) }
 				}
@@ -495,26 +505,10 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn send_raw_transaction(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(Bytes, )>(params)
 			.and_then(|(raw_transaction, )| {
-				let decoded: Result<SignedTransaction, _> = UntrustedRlp::new(&raw_transaction.to_vec()).as_val();
-				match decoded {
-					Ok(signed_tx) => {
-						let miner = take_weak!(self.miner);
-						let client = take_weak!(self.client);
-
-						let hash = signed_tx.hash();
-						let import = miner.import_transactions(vec![signed_tx], |a: &Address| AccountDetails {
-							nonce: client.nonce(a),
-							balance: client.balance(a),
-						});
-						match import.into_iter().collect::<Result<Vec<_>, _>>() {
-							Ok(_) => to_value(&hash),
-							Err(e) => {
-								warn!("Error sending transaction: {:?}", e);
-								to_value(&H256::zero())
-							}
-						}
-					},
-					Err(_) => { to_value(&H256::zero()) }
+				let raw_transaction = raw_transaction.to_vec();
+				match UntrustedRlp::new(&raw_transaction).as_val() {
+					Ok(signed_transaction) => self.dispatch_transaction(signed_transaction, raw_transaction),
+					Err(_) => to_value(&H256::zero()),
 				}
 		})
 	}
