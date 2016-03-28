@@ -312,6 +312,11 @@ impl TransactionQueue {
 		}
 	}
 
+	/// Get the minimal gas price.
+	pub fn minimal_gas_price(&self) -> &U256 {
+		&self.minimal_gas_price
+	}
+
 	/// Sets new gas price threshold for incoming transactions.
 	/// Any transaction already imported to the queue is not affected.
 	pub fn set_minimal_gas_price(&mut self, min_gas_price: U256) {

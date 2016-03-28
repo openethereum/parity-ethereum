@@ -198,6 +198,11 @@ impl MinerService for Miner {
 		}
 	}
 
+	fn sensible_gas_price(&self) -> U256 {
+		// 10% above our minimum.
+		self.transaction_queue.lock().unwrap().minimal_gas_price().clone() * x!(110) / x!(100)
+	}
+
 	fn author(&self) -> Address {
 		*self.author.read().unwrap()
 	}
