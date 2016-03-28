@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::RwLock;
+use std::ops::*;
 
 pub struct Service {
 	pub commits: RwLock<usize>,
@@ -32,6 +33,37 @@ impl Service {
 		let mut lock = self.rollbacks.write().unwrap();
 		*lock = *lock + a as usize - b as usize;
 		(a - b) as i32
+	}
+}
+
+impl<S: ::ipc::IpcSocket> ServiceProxy<S> {
+	pub fn commit(&self, f: u32) -> u32 {
+		#[derive(Serialize)]
+		struct Request<'a> {
+			f: &'a u32,
+		}
+		let payload = Request{ f: &f, };
+
+		let mut socket_ref = self.socket.borrow_mut();
+		let mut socket = socket_ref.deref_mut();
+
+		let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap();
+		::ipc::invoke(0, &Some(serialized_payload), &mut socket);
+
+		while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { }
+		::bincode::serde::deserialize_from::<_, u32>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
+	}
+
+	pub fn new(socket: S) -> ServiceProxy<S> {
+		ServiceProxy {
+			socket: ::std::cell::RefCell::new(socket),
+			phantom: ::std::marker::PhantomData,
+		}
+	}
+
+	#[cfg(test)]
+	pub fn socket(&self) -> &::std::cell::RefCell<S> {
+		&self.socket
 	}
 }
 

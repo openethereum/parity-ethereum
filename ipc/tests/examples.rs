@@ -33,4 +33,16 @@ mod tests {
 
 		assert_eq!(10, *service.commits.read().unwrap());
 	}
+
+	#[test]
+	fn call_service_proxy() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![0, 0, 0, 10];
+		let service_proxy = ServiceProxy::new(socket);
+
+		let result = service_proxy.commit(5);
+
+		assert_eq!(vec![0, 0, 0, 0, 0, 5], service_proxy.socket().borrow().write_buffer.clone());
+		assert_eq!(10, result);
+	}
 }
