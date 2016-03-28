@@ -249,11 +249,6 @@ impl Ethash {
 		x!(U256::from((U512::one() << 256) / x!(difficulty)))
 	}
 
-	/// Given the `block_number`, determine the seed hash for Ethash.
-	pub fn get_seedhash(number: BlockNumber) -> H256 {
-		Self::from_ethash(ethash::get_seedhash(number))
-	}
-
 	fn to_ethash(hash: H256) -> EH256 {
 		unsafe { mem::transmute(hash) }
 	}
@@ -512,4 +507,3 @@ mod tests {
 
 	// TODO: difficulty test
 }
-
