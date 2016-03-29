@@ -30,7 +30,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 		let number: Option<u64> = test.block_number.map(Into::into);
 		let schedule = match number {
 			None => &old_schedule,
-			Some(x) if x < 1_000_000 => &old_schedule,
+			Some(x) if x < 1_150_000 => &old_schedule,
 			Some(_) => &new_schedule
 		};
 
