@@ -258,7 +258,9 @@ fn push_proxy(
 fn implement_proxy_method_body(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
-	dispatch: &Dispatch)
+	index: u16,
+	dispatch: &Dispatch,
+	)
 	-> P<ast::Expr>
 {
 	let request = if dispatch.input_arg_names.len() > 0 {
@@ -329,8 +331,10 @@ fn implement_proxy_method_body(
 		request_serialization_statements.push(
 			quote_stmt!(cx, let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()));
 
+		let index_ident = builder.id(format!("{}", index).as_str());
+
 		request_serialization_statements.push(
-			quote_stmt!(cx, ::ipc::invoke(0, &Some(serialized_payload), &mut socket)));
+			quote_stmt!(cx, ::ipc::invoke($index_ident, &Some(serialized_payload), &mut socket)));
 
 
 		request_serialization_statements
@@ -361,11 +365,12 @@ fn implement_proxy_method_body(
 fn implement_proxy_method(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
+	index: u16,
 	dispatch: &Dispatch)
 	-> ast::ImplItem
 {
 	let method_name = builder.id(dispatch.function_name.as_str());
-	let body = implement_proxy_method_body(cx, builder, dispatch);
+	let body = implement_proxy_method_body(cx, builder, index, dispatch);
 
 	let ext_cx = &*cx;
 	// expanded version of this
@@ -418,8 +423,9 @@ fn push_proxy_implementation(
 	dispatches: &[Dispatch],
 	push: &mut FnMut(Annotatable))
 {
+	let mut index = -1i32;
 	let items = dispatches.iter()
-		.map(|dispatch| P(implement_proxy_method(cx, builder, dispatch)))
+		.map(|dispatch| { index = index + 1; P(implement_proxy_method(cx, builder, index as u16, dispatch)) })
 		.collect::<Vec<P<ast::ImplItem>>>();
 
 	let implement = quote_item!(cx,

@@ -24,8 +24,8 @@ pub trait IpcInterface<T> {
 pub fn invoke<W>(method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: ::std::io::Write {
 	let buf_len = match *params { None => 2, Some(ref val) => val.len() + 2 };
 	let mut buf = vec![0u8; buf_len];
-	buf[0] = (method_num & (255<<8)) as u8;
-	buf[1] = (method_num >> 8) as u8;
+	buf[1] = (method_num & 255) as u8;
+	buf[0] = (method_num >> 8) as u8;
 	if params.is_some() {
 		buf[2..buf_len].clone_from_slice(params.as_ref().unwrap());
 	}
