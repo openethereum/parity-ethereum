@@ -121,37 +121,6 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 	}
 }
 
-//impl FromJson for SignedTransaction {
-	//#[cfg_attr(feature="dev", allow(single_char_pattern))]
-	//fn from_json(json: &Json) -> SignedTransaction {
-		//let t = Transaction {
-			//nonce: xjson!(&json["nonce"]),
-			//gas_price: xjson!(&json["gasPrice"]),
-			//gas: xjson!(&json["gasLimit"]),
-			//action: match Bytes::from_json(&json["to"]) {
-				//ref x if x.is_empty() => Action::Create,
-				//ref x => Action::Call(Address::from_slice(x)),
-			//},
-			//value: xjson!(&json["value"]),
-			//data: xjson!(&json["data"]),
-		//};
-		//match json.find("secretKey") {
-			//Some(&Json::String(ref secret_key)) => t.sign(&h256_from_hex(clean(secret_key))),
-			//_ => SignedTransaction {
-				//unsigned: t,
-				//v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
-				//r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
-				//s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
-				//hash: Cell::new(None),
-				//sender: match json.find("sender") {
-					//Some(&Json::String(ref sender)) => Cell::new(Some(address_from_hex(clean(sender)))),
-					//_ => Cell::new(None),
-				//}
-			//}
-		//}
-	//}
-//}
-
 impl Transaction {
 	/// The message hash of the transaction.
 	pub fn hash(&self) -> H256 {
