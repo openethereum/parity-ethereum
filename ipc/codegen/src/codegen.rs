@@ -356,13 +356,6 @@ fn implement_proxy_method_body(
 			$wait_result_stmt
 		})
 	}
-
-	//let output_type_id = builder.id(dispatch.return_type_name.clone().unwrap().as_str());
-//	let invariant_serialization = quote_expr!(cx, {
-//
-//
-//	});
-
 }
 
 fn implement_proxy_method(
