@@ -1344,6 +1344,10 @@ impl ChainSync {
 			// Propagate latests blocks
 			self.propagate_latest_blocks(io);
 		}
+		if !invalid.is_empty() {
+			trace!(target: "sync", "Bad blocks in the queue, restarting");
+			self.restart_on_bad_block(io);
+		}
 		// TODO [todr] propagate transactions?
 	}
 
