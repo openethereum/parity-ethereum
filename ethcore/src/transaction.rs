@@ -97,33 +97,26 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 	}
 }
 
-impl FromJson for SignedTransaction {
-	#[cfg_attr(feature="dev", allow(single_char_pattern))]
-	fn from_json(json: &Json) -> SignedTransaction {
-		let t = Transaction {
-			nonce: xjson!(&json["nonce"]),
-			gas_price: xjson!(&json["gasPrice"]),
-			gas: xjson!(&json["gasLimit"]),
-			action: match Bytes::from_json(&json["to"]) {
-				ref x if x.is_empty() => Action::Create,
-				ref x => Action::Call(Address::from_slice(x)),
+impl From<ethjson::transaction::Transaction> for SignedTransaction {
+	fn from(t: ethjson::transaction::Transaction) -> Self {
+		let to: Option<_> = t.to.into();
+		SignedTransaction {
+			unsigned: Transaction {
+				nonce: t.nonce.into(),
+				gas_price: t.gas_price.into(),
+				gas: t.gas_limit.into(),
+				action: match to {
+					Some(to) => Action::Call(to.into()),
+					None => Action::Create
+				},
+				value: t.value.into(),
+				data: t.data.into(),
 			},
-			value: xjson!(&json["value"]),
-			data: xjson!(&json["data"]),
-		};
-		match json.find("secretKey") {
-			Some(&Json::String(ref secret_key)) => t.sign(&h256_from_hex(clean(secret_key))),
-			_ => SignedTransaction {
-				unsigned: t,
-				v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
-				r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
-				s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
-				hash: Cell::new(None),
-				sender: match json.find("sender") {
-					Some(&Json::String(ref sender)) => Cell::new(Some(address_from_hex(clean(sender)))),
-					_ => Cell::new(None),
-				}
-			}
+			r: t.r.into(),
+			s: t.s.into(),
+			v: t.v.into(),
+			sender: Cell::new(None),
+			hash: Cell::new(None)
 		}
 	}
 }

@@ -16,74 +16,53 @@
 
 use super::test_common::*;
 use evm;
+use ethjson;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
-	let json = Json::from_str(::std::str::from_utf8(json_data).unwrap()).expect("Json is invalid");
+	let tests = ethjson::transaction::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 	let old_schedule = evm::Schedule::new_frontier();
 	let new_schedule = evm::Schedule::new_homestead();
-	let ot = RefCell::new(None);
-	for (name, test) in json.as_object().unwrap() {
+	for (name, test) in tests.into_iter() {
 		let mut fail = false;
-		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.clone()); println!("Transaction: {:?}", ot.borrow()); fail = true };
-		let schedule = match test.find("blocknumber")
-			.and_then(|j| j.as_string())
-			.and_then(|s| BlockNumber::from_str(s).ok())
-			.unwrap_or(0) { x if x < 1_000_000 => &old_schedule, _ => &new_schedule };
-		let rlp = Bytes::from_json(&test["rlp"]);
-		let res = UntrustedRlp::new(&rlp).as_val().map_err(From::from).and_then(|t: SignedTransaction| t.validate(schedule, schedule.have_delegate_call));
-		fail_unless(test.find("transaction").is_none() == res.is_err());
-		if let (Some(&Json::Object(ref tx)), Some(&Json::String(ref expect_sender))) = (test.find("transaction"), test.find("sender")) {
+		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.clone()); println!("Transaction failed: {:?}", name); fail = true };
+
+		let number: Option<u64> = test.block_number.map(Into::into);
+		let schedule = match number {
+			None => &old_schedule,
+			Some(x) if x < 1_150_000 => &old_schedule,
+			Some(_) => &new_schedule
+		};
+
+		let rlp: Vec<u8> = test.rlp.into();
+		let res = UntrustedRlp::new(&rlp)
+			.as_val()
+			.map_err(From::from)
+			.and_then(|t: SignedTransaction| t.validate(schedule, schedule.have_delegate_call));
+
+		fail_unless(test.transaction.is_none() == res.is_err());
+		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {
 			let t = res.unwrap();
-			fail_unless(t.sender().unwrap() == address_from_hex(clean(expect_sender)));
-			fail_unless(t.data == Bytes::from_json(&tx["data"]));
-			fail_unless(t.gas == xjson!(&tx["gasLimit"]));
-			fail_unless(t.gas_price == xjson!(&tx["gasPrice"]));
-			fail_unless(t.nonce == xjson!(&tx["nonce"]));
-			fail_unless(t.value == xjson!(&tx["value"]));
-			if let Action::Call(ref to) = t.action {
-				*ot.borrow_mut() = Some(t.clone());
-				fail_unless(to == &xjson!(&tx["to"]));
-			} else {
-				*ot.borrow_mut() = Some(t.clone());
-				fail_unless(Bytes::from_json(&tx["to"]).is_empty());
+			fail_unless(t.sender().unwrap() == sender.into());
+			let data: Vec<u8> = tx.data.into();
+			fail_unless(t.data == data);
+			fail_unless(t.gas_price == tx.gas_price.into());
+			fail_unless(t.nonce == tx.nonce.into());
+			fail_unless(t.value == tx.value.into());
+			let to: Option<_> = tx.to.into();
+			let to: Option<Address> = to.map(Into::into);
+			match t.action {
+				Action::Call(dest) => fail_unless(Some(dest) == to),
+				Action::Create => fail_unless(None == to),
 			}
 		}
 	}
+
 	for f in &failed {
 		println!("FAILED: {:?}", f);
 	}
 	failed
 }
-
-// Once we have interpolate idents.
-/*macro_rules! declare_test {
-	($test_set_name: ident / $name: ident) => {
-		#[test]
-		#[allow(non_snake_case)]
-		fn $name() {
-			assert!(do_json_test(include_bytes!(concat!("../res/ethereum/tests/", stringify!($test_set_name), "/", stringify!($name), ".json"))).len() == 0);
-		}
-	};
-	($test_set_name: ident / $prename: ident / $name: ident) => {
-		#[test]
-		#[allow(non_snake_case)]
-		interpolate_idents! { fn [$prename _ $name]()
-			{
-				let json = include_bytes!(concat!("../res/ethereum/tests/", stringify!($test_set_name), "/", stringify!($prename), "/", stringify!($name), ".json"));
-				assert!(do_json_test(json).len() == 0);
-			}
-		}
-	};
-}
-
-declare_test!{TransactionTests/ttTransactionTest}
-declare_test!{TransactionTests/tt10mbDataField}
-declare_test!{TransactionTests/ttWrongRLPTransaction}
-declare_test!{TransactionTests/Homestead/ttTransactionTest}
-declare_test!{heavy => TransactionTests/Homestead/tt10mbDataField}
-declare_test!{TransactionTests/Homestead/ttWrongRLPTransaction}
-declare_test!{TransactionTests/RandomTests/tr201506052141PYTHON}*/
 
 declare_test!{TransactionTests_ttTransactionTest, "TransactionTests/ttTransactionTest"}
 declare_test!{heavy => TransactionTests_tt10mbDataField, "TransactionTests/tt10mbDataField"}
