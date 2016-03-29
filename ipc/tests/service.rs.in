@@ -36,21 +36,7 @@ impl Service {
 	}
 }
 
-impl<S: ::ipc::IpcSocket> ServiceProxy<S> {
-	pub fn new(socket: S) -> ServiceProxy<S> {
-		ServiceProxy {
-			socket: ::std::cell::RefCell::new(socket),
-			phantom: ::std::marker::PhantomData,
-		}
-	}
-
-	#[cfg(test)]
-	pub fn socket(&self) -> &::std::cell::RefCell<S> {
-		&self.socket
-	}
-}
-
-impl Service {
+	impl Service {
 	pub fn new() -> Service {
 		Service {
 			commits: RwLock::new(0usize),

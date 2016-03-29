@@ -431,6 +431,18 @@ fn push_proxy_implementation(
 
 	let implement = quote_item!(cx,
 		impl<S> ServiceProxy<S> where S: ::ipc::IpcSocket {
+			pub fn new(socket: S) -> ServiceProxy<S> {
+				ServiceProxy {
+					socket: ::std::cell::RefCell::new(socket),
+					phantom: ::std::marker::PhantomData,
+				}
+			}
+
+			#[cfg(test)]
+			pub fn socket(&self) -> &::std::cell::RefCell<S> {
+				&self.socket
+			}
+
 			$items
 		}).unwrap();
 
