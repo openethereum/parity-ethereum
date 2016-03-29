@@ -36,7 +36,7 @@ impl Service {
 	}
 }
 
-	impl Service {
+impl Service {
 	pub fn new() -> Service {
 		Service {
 			commits: RwLock::new(0usize),
