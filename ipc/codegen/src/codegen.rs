@@ -53,12 +53,12 @@ pub fn expand_ipc_implementation(
 
 	let builder = aster::AstBuilder::new().span(span);
 
-	let impl_item = match implement_interface(cx, &builder, &item, push) {
-		Ok(item) => item,
+	let (impl_item, dispatches) = match implement_interface(cx, &builder, &item, push) {
+		Ok((item, dispatches)) => (item, dispatches),
 		Err(Error) => { return; }
 	};
 
-	push_proxy(cx, &builder, &item, push);
+	push_proxy(cx, &builder, &item, &dispatches, push);
 
 	push(Annotatable::Item(impl_item))
 }
@@ -242,40 +242,184 @@ fn push_proxy_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, pus
 	push(Annotatable::Item(proxy_struct_item.expect(&format!("could not generate proxy struct for {:?}", proxy_ident.name))));
 }
 
-fn push_proxy(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
-	push_proxy_struct(cx, builder, item, push)
-}
-
-fn push_proxy_implementation_method(
+fn push_proxy(
 	cx: &ExtCtxt,
-	builder:
-	&aster::AstBuilder,
-	item: &Item,
-	dispatch: &Dispatch,
-	push: &mut FnMut(Annotatable))
-{
-	let output_type_id = builder.id(dispatch.return_type_name.clone().unwrap().as_str());
-
-	let invariant_serialization = quote_expr!(cx, {
-		let mut socket_ref = self.socket.borrow_mut();
-		let mut socket = socket_ref.deref_mut();
-
-		let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap();
-		::ipc::invoke(0, &Some(serialized_payload), &mut socket);
-
-		while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { }
-		::bincode::serde::deserialize_from::<_, $output_type_id>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
-	});
-}
-
-fn push_proxy_implementation(
-	cx: &ExtCtxt,
-	builder:
-	&aster::AstBuilder,
+	builder: &aster::AstBuilder,
 	item: &Item,
 	dispatches: &[Dispatch],
 	push: &mut FnMut(Annotatable))
 {
+	push_proxy_struct(cx, builder, item, push);
+	push_proxy_implementation(cx, builder, dispatches, push);
+}
+
+fn implement_proxy_method_body(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	dispatch: &Dispatch)
+	-> P<ast::Expr>
+{
+	let request = if dispatch.input_arg_names.len() > 0 {
+		let arg_name = dispatch.input_arg_names[0].as_str();
+		let arg_ty = builder
+			.ty().ref_()
+			.lifetime("'a")
+			.ty().build(dispatch.input_arg_tys[0].clone());
+
+		let mut tree = builder.item()
+			.attr().word("derive(Serialize)")
+			.struct_("Request")
+			.generics()
+			.lifetime_name("'a")
+			.build()
+			.field(arg_name).ty().build(arg_ty);
+
+		for arg_idx in 1..dispatch.input_arg_names.len() {
+			let arg_name = dispatch.input_arg_names[arg_idx].as_str();
+			let arg_ty = builder
+				.ty().ref_()
+				.lifetime("'a")
+				.ty().build(dispatch.input_arg_tys[arg_idx].clone());
+			tree = tree.field(arg_name).ty().build(arg_ty);
+		}
+		let mut request_serialization_statements = Vec::new();
+
+		let struct_tree = tree.build();
+		let struct_stmt = quote_stmt!(cx, $struct_tree);
+		request_serialization_statements.push(struct_stmt);
+
+		// actually this is just expanded version of this:
+		//   request_serialization_statements.push(quote_stmt!(cx, let payload = Request { p1: &p1, p2: &p2, ... pn: &pn, }));
+		// again, cannot dynamically create expression with arbitrary number of comma-separated members
+		request_serialization_statements.push({
+			let ext_cx = &*cx;
+			::quasi::parse_stmt_panic(&mut ::syntax::parse::new_parser_from_tts(
+				ext_cx.parse_sess(),
+				ext_cx.cfg(),
+				{
+					let _sp = ext_cx.call_site();
+					let mut tt = ::std::vec::Vec::new();
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("let"), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("payload"), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Eq));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Request"), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
+
+					for arg in dispatch.input_arg_names.iter() {
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()), ::syntax::parse::token::Plain)));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()), ::syntax::parse::token::Plain)));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+					}
+
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+					tt
+				}))
+			});
+
+		request_serialization_statements.push(
+			quote_stmt!(cx, let mut socket_ref = self.socket.borrow_mut()));
+
+		request_serialization_statements.push(
+			quote_stmt!(cx, let mut socket = socket_ref.deref_mut()));
+
+		request_serialization_statements.push(
+			quote_stmt!(cx, let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()));
+
+		request_serialization_statements.push(
+			quote_stmt!(cx, ::ipc::invoke(0, &Some(serialized_payload), &mut socket)));
+
+
+		request_serialization_statements
+	}
+	else {
+		vec![]
+	};
+
+	let output_type_id = builder.id(dispatch.return_type_name.clone().unwrap().as_str());
+	let invariant_serialization = quote_expr!(cx, {
+		while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { }
+		::bincode::serde::deserialize_from::<_, $output_type_id>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
+	});
+
+	quote_expr!(cx, {
+		$request
+		$invariant_serialization
+	})
+}
+
+fn implement_proxy_method(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	dispatch: &Dispatch)
+	-> ast::ImplItem
+{
+	let method_name = builder.id(dispatch.function_name.as_str());
+	let body = implement_proxy_method_body(cx, builder, dispatch);
+
+	let ext_cx = &*cx;
+	// expanded version of this
+	//   pub fn $method_name(&self, p1: p1_ty, p2: p2_ty ... pn: pn_ty, ) [-> return_ty] { $body }
+	// looks like it's tricky to build function declaration with aster if body already generated
+	let signature = ::syntax::parse::parser::Parser::parse_impl_item(
+		&mut ::syntax::parse::new_parser_from_tts(
+			ext_cx.parse_sess(),
+			ext_cx.cfg(),
+			{
+				let _sp = ext_cx.call_site();
+				let mut tt = ::std::vec::Vec::new();
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("pub"), ::syntax::parse::token::Plain)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("fn"), ::syntax::parse::token::Plain)));
+				tt.extend(::quasi::ToTokens::to_tokens(&method_name, ext_cx).into_iter());
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"), ::syntax::parse::token::Plain)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+				
+				for arg_idx in 0..dispatch.input_arg_names.len() {
+					let arg_name = dispatch.input_arg_names[arg_idx].as_str();
+					let arg_ty = dispatch.input_arg_tys[arg_idx].clone();
+
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg_name), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
+					tt.extend(::quasi::ToTokens::to_tokens(&arg_ty, ext_cx).into_iter());
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+				}
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+
+				if let Some(ref return_name) = dispatch.return_type_name {
+					let return_ident = builder.id(return_name);
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::RArrow));
+					tt.extend(::quasi::ToTokens::to_tokens(&return_ident, ext_cx).into_iter());
+				}
+
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
+				tt.extend(::quasi::ToTokens::to_tokens(&body, ext_cx).into_iter());
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+
+				tt
+			}));
+
+	signature.unwrap()
+}
+
+fn push_proxy_implementation(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	dispatches: &[Dispatch],
+	push: &mut FnMut(Annotatable))
+{
+	let items = dispatches.iter()
+		.map(|dispatch| P(implement_proxy_method(cx, builder, dispatch)))
+		.collect::<Vec<P<ast::ImplItem>>>();
+
+	let implement = quote_item!(cx,
+		impl<S> ServiceProxy<S> where S: ::ipc::IpcSocket {
+			$items
+		}).unwrap();
+
+	push(Annotatable::Item(implement));
 }
 
 fn implement_interface(
@@ -283,7 +427,7 @@ fn implement_interface(
 	builder: &aster::AstBuilder,
 	item: &Item,
 	push: &mut FnMut(Annotatable),
-) -> Result<P<ast::Item>, Error> {
+) -> Result<(P<ast::Item>, Vec<Dispatch>), Error> {
 	let (generics, impl_items) = match item.node {
 		ast::ItemKind::Impl(_, _, ref generics, _, _, ref impl_items) => (generics, impl_items),
 		_ => {
@@ -316,7 +460,7 @@ fn implement_interface(
 	let dispatch_arms: Vec<_> = dispatch_table.iter()
 		.map(|dispatch| { index = index + 1; implement_dispatch_arm(cx, builder, index as u32, dispatch) }).collect();
 
-	Ok(quote_item!(cx,
+	Ok((quote_item!(cx,
 		impl $impl_generics ::ipc::IpcInterface<$ty> for $ty $where_clause {
 			fn dispatch<R>(&self, r: &mut R) -> Vec<u8>
 				where R: ::std::io::Read
@@ -333,5 +477,5 @@ fn implement_interface(
 				}
 			}
 		}
-	).unwrap())
+	).unwrap(), dispatch_table))
 }
