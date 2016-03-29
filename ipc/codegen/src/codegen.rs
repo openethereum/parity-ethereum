@@ -112,7 +112,7 @@ fn push_invoke_signature_aster(
 		(None, vec![], vec![])
 	};
 
-	let return_type_name = match signature.decl.output {
+	let (return_type_name, return_type_ty) = match signature.decl.output {
 		FunctionRetTy::Ty(ref ty) => {
 			let name_str = format!("{}_output", implement.ident.name.as_str());
 			let tree = builder.item()
@@ -121,9 +121,9 @@ fn push_invoke_signature_aster(
 				.struct_(name_str.as_str())
 				.field(format!("payload")).ty().build(ty.clone());
 			push(Annotatable::Item(tree.build()));
-			Some(name_str.to_owned())
+			(Some(name_str.to_owned()), Some(ty.clone()))
 		}
-		_ => None
+		_ => (None, None)
 	};
 
 	Dispatch {
@@ -132,6 +132,7 @@ fn push_invoke_signature_aster(
 		input_arg_names: input_arg_names,
 		input_arg_tys: input_arg_tys,
 		return_type_name: return_type_name,
+		return_type_ty: return_type_ty,
 	}
 }
 
@@ -141,6 +142,7 @@ struct Dispatch {
 	input_arg_names: Vec<String>,
 	input_arg_tys: Vec<P<Ty>>,
 	return_type_name: Option<String>,
+	return_type_ty: Option<P<Ty>>,
 }
 
 fn implement_dispatch_arm_invoke(
@@ -337,16 +339,30 @@ fn implement_proxy_method_body(
 		vec![]
 	};
 
-	let output_type_id = builder.id(dispatch.return_type_name.clone().unwrap().as_str());
-	let invariant_serialization = quote_expr!(cx, {
-		while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { }
-		::bincode::serde::deserialize_from::<_, $output_type_id>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
-	});
+	let wait_result_stmt = quote_stmt!(cx, while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { });
+	if let Some(ref return_ty) = dispatch.return_type_ty {
+		let return_expr = quote_expr!(cx,
+			::bincode::serde::deserialize_from::<_, $return_ty>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
+		);
+		quote_expr!(cx, {
+			$request
+			$wait_result_stmt
+			$return_expr
+		})
+	}
+	else {
+		quote_expr!(cx, {
+			$request
+			$wait_result_stmt
+		})
+	}
 
-	quote_expr!(cx, {
-		$request
-		$invariant_serialization
-	})
+	//let output_type_id = builder.id(dispatch.return_type_name.clone().unwrap().as_str());
+//	let invariant_serialization = quote_expr!(cx, {
+//
+//
+//	});
+
 }
 
 fn implement_proxy_method(
@@ -376,7 +392,7 @@ fn implement_proxy_method(
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"), ::syntax::parse::token::Plain)));
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
-				
+
 				for arg_idx in 0..dispatch.input_arg_names.len() {
 					let arg_name = dispatch.input_arg_names[arg_idx].as_str();
 					let arg_ty = dispatch.input_arg_tys[arg_idx].clone();
@@ -388,10 +404,9 @@ fn implement_proxy_method(
 				}
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
 
-				if let Some(ref return_name) = dispatch.return_type_name {
-					let return_ident = builder.id(return_name);
+				if let Some(ref return_ty) = dispatch.return_type_ty {
 					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::RArrow));
-					tt.extend(::quasi::ToTokens::to_tokens(&return_ident, ext_cx).into_iter());
+					tt.extend(::quasi::ToTokens::to_tokens(return_ty, ext_cx).into_iter());
 				}
 
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
