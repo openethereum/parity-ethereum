@@ -29,10 +29,11 @@ impl Service {
 		*lock = *lock + f as usize;
 		f
 	}
-	pub fn rollback(&self, a: u32, b: u32) -> i32 {
+	pub fn rollback(&self, a: Option<u32>, b: u32) -> i32 {
+		let a_0 = a.unwrap_or_else(|| 0);
 		let mut lock = self.rollbacks.write().unwrap();
-		*lock = *lock + a as usize - b as usize;
-		(a - b) as i32
+		*lock = *lock + a_0 as usize - b as usize;
+		(a_0 - b) as i32
 	}
 }
 
