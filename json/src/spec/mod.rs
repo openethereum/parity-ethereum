@@ -21,9 +21,15 @@ pub mod builtin;
 pub mod genesis;
 pub mod params;
 pub mod spec;
+pub mod seal;
+pub mod engine;
+pub mod state;
 
 pub use self::account::Account;
-pub use self::builtin::Builtin;
+pub use self::builtin::{Builtin, Pricing};
 pub use self::genesis::Genesis;
 pub use self::params::Params;
 pub use self::spec::Spec;
+pub use self::seal::{Seal, Ethereum, Generic};
+pub use self::engine::Engine;
+pub use self::state::State;

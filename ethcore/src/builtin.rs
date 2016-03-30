@@ -18,6 +18,7 @@ use util::*;
 use crypto::sha2::Sha256;
 use crypto::ripemd160::Ripemd160;
 use crypto::digest::Digest;
+use ethjson;
 
 /// Definition of a contract whose implementation is built-in.
 pub struct Builtin {
@@ -46,13 +47,12 @@ impl Builtin {
 	}
 
 	/// Create a new object from a builtin-function name with a linear cost associated with input size.
-	pub fn from_named_linear(name: &str, base_cost: usize, word_cost: usize) -> Option<Builtin> {
-		new_builtin_exec(name).map(|b| {
-			let cost = Box::new(move|s: usize| -> U256 {
-				U256::from(base_cost) + U256::from(word_cost) * U256::from((s + 31) / 32)
-			});
-			Self::new(cost, b)
-		})
+	pub fn from_named_linear(name: &str, base_cost: usize, word_cost: usize) -> Builtin {
+		let cost = Box::new(move|s: usize| -> U256 {
+			U256::from(base_cost) + U256::from(word_cost) * U256::from((s + 31) / 32)
+		});
+
+		Self::new(cost, new_builtin_exec(name))
 	}
 
 	/// Simple forwarder for cost.
@@ -60,24 +60,15 @@ impl Builtin {
 
 	/// Simple forwarder for execute.
 	pub fn execute(&self, input: &[u8], output: &mut[u8]) { (*self.execute)(input, output); }
+}
 
-	/// Create a builtin from JSON.
-	///
-	/// JSON must be of the form `{ "name": "identity", "pricing": {"base": 10, "word": 20} }`.
-	pub fn from_json(json: &Json) -> Option<Builtin> {
-		// NICE: figure out a more convenient means of handing errors here.
-		if let Json::String(ref name) = json["name"] {
-			if let Json::Object(ref o) = json["pricing"] {
-				if let Json::Object(ref o) = o["linear"] {
-					if let Json::U64(ref word) = o["word"] {
-						if let Json::U64(ref base) = o["base"] {
-							return Self::from_named_linear(&name[..], *base as usize, *word as usize);
-						}
-					}
-				}
+impl From<ethjson::spec::Builtin> for Builtin {
+	fn from(b: ethjson::spec::Builtin) -> Self {
+		match b.pricing {
+			ethjson::spec::Pricing::Linear(linear) => {
+				Self::from_named_linear(b.name.as_ref(), linear.base, linear.word)
 			}
 		}
-		None
 	}
 }
 
@@ -92,14 +83,14 @@ pub fn copy_to(src: &[u8], dest: &mut[u8]) {
 
 /// Create a new builtin executor according to `name`.
 /// TODO: turn in to a factory with dynamic registration.
-pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
+pub fn new_builtin_exec(name: &str) -> Box<Fn(&[u8], &mut [u8])> {
 	match name {
-		"identity" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+		"identity" => Box::new(move|input: &[u8], output: &mut[u8]| {
 			for i in 0..min(input.len(), output.len()) {
 				output[i] = input[i];
 			}
-		})),
-		"ecrecover" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+		}),
+		"ecrecover" => Box::new(move|input: &[u8], output: &mut[u8]| {
 			#[repr(packed)]
 			#[derive(Debug)]
 			struct InType {
@@ -122,8 +113,8 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 					}
 				}
 			}
-		})),
-		"sha256" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+		}),
+		"sha256" => Box::new(move|input: &[u8], output: &mut[u8]| {
 			let mut sha = Sha256::new();
 			sha.input(input);
 			if output.len() >= 32 {
@@ -133,15 +124,17 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 				sha.result(ret.as_slice_mut());
 				copy_to(&ret, output);
 			}
-		})),
-		"ripemd160" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+		}),
+		"ripemd160" => Box::new(move|input: &[u8], output: &mut[u8]| {
 			let mut sha = Ripemd160::new();
 			sha.input(input);
 			let mut ret = H256::new();
 			sha.result(&mut ret.as_slice_mut()[12..32]);
 			copy_to(&ret, output);
-		})),
-		_ => None
+		}),
+		_ => {
+			panic!("invalid builtin name {}", name);
+		}
 	}
 }
 

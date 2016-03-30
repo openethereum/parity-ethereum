@@ -16,21 +16,34 @@
 
 //! Spec deserialization.
 
-use std::collections::BTreeMap;
-use hash::Address;
-use spec::account::Account;
-use spec::params::Params;
-use spec::genesis::Genesis;
+use std::io::Read;
+use serde_json;
+use serde_json::Error;
+use spec::{Params, Genesis, Engine, State};
 
 /// Spec deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Spec {
-	name: String,
+	/// Spec name.
+	pub name: String,
+	/// Engine name.
 	#[serde(rename="engineName")]
-	engine_name: String, // TODO: consider making it an enum
-	params: Params,
-	genesis: Genesis,
-	accounts: BTreeMap<Address, Account>,
+	pub engine_name: Engine,
+	/// Spec params.
+	pub params: Params,
+	/// Genesis header.
+	pub genesis: Genesis,
+	/// Genesis state.
+	pub accounts: State,
+	/// Boot nodes.
+	pub nodes: Vec<String>,
+}
+
+impl Spec {
+	/// Loads test from json.
+	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
+		serde_json::from_reader(reader)
+	}
 }
 
 #[cfg(test)]
@@ -58,9 +71,13 @@ mod tests {
 		"networkID" : "0x2"
 	},
 	"genesis": {
-		"nonce": "0x00006d6f7264656e",
+		"seal": {
+			"ethereum": {
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+				"nonce": "0x00006d6f7264656e"
+			}
+		},
 		"difficulty": "0x20000",
-		"mixHash": "0x00000000000000000000000000000000000000647572616c65787365646c6578",
 		"author": "0x0000000000000000000000000000000000000000",
 		"timestamp": "0x00",
 		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",

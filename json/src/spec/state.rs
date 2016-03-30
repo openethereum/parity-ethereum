@@ -18,11 +18,21 @@
 
 use std::collections::BTreeMap;
 use hash::Address;
-use blockchain::account::Account;
+use spec::{Account, Builtin};
 
 /// Blockchain test state deserializer.
-#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Deserialize)]
 pub struct State(BTreeMap<Address, Account>);
+
+impl State {
+	/// Returns all builtins.
+	pub fn builtins(&self) -> BTreeMap<Address, Builtin> {
+		self.0
+			.iter()
+			.filter_map(|ref pair| pair.1.builtin.clone().map(|b| (pair.0.clone(), b.clone())))
+			.collect()
+	}
+}
 
 impl IntoIterator for State {
 	type Item = <BTreeMap<Address, Account> as IntoIterator>::Item;

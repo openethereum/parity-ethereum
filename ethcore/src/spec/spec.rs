@@ -21,8 +21,25 @@ use engine::*;
 use pod_state::*;
 use null_engine::*;
 use account_db::*;
+use super::genesis::Genesis;
+use super::seal::Generic as GenericSeal;
 use ethereum;
-use super::genesis::{Seal as GenesisSeal, Genesis};
+use ethjson;
+
+#[derive(Debug)]
+pub enum EngineName {
+	Null,
+	Ethash,
+}
+
+impl From<ethjson::spec::Engine> for EngineName {
+	fn from(e: ethjson::spec::Engine) -> Self {
+		match e {
+			ethjson::spec::Engine::Null => EngineName::Null,
+			ethjson::spec::Engine::Ethash => EngineName::Ethash
+		}
+	}
+}
 
 /// Convert JSON value to equivalent RLP representation.
 // TODO: handle container types.
@@ -56,7 +73,7 @@ pub struct Spec {
 	/// User friendly spec name
 	pub name: String,
 	/// What engine are we using for this?
-	pub engine_name: String,
+	pub engine_name: EngineName,
 
 	/// Known nodes on the network in enode format.
 	pub nodes: Vec<String>,
@@ -101,15 +118,44 @@ pub struct Spec {
 	genesis_state: PodState,
 }
 
+impl From<ethjson::spec::Spec> for Spec {
+	fn from(s: ethjson::spec::Spec) -> Self {
+		let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+		let params = HashMap::new();
+		let g = Genesis::from(s.genesis);
+		let seal: GenericSeal = g.seal.into();
+		Spec {
+			name: s.name.into(),
+			engine_name: From::from(s.engine_name),
+			engine_params: params,
+			nodes: s.nodes,
+			network_id: s.params.network_id.into(),
+			builtins: builtins,
+			parent_hash: g.parent_hash,
+			transactions_root: g.transactions_root,
+			receipts_root: g.receipts_root,
+			author: g.author,
+			difficulty: g.difficulty,
+			gas_limit: g.gas_limit,
+			gas_used: g.gas_used,
+			timestamp: g.timestamp,
+			extra_data: g.extra_data,
+			seal_fields: seal.fields,
+			seal_rlp: seal.rlp,
+			state_root_memo: RwLock::new(g.state_root),
+			genesis_state: From::from(s.accounts)
+		}
+	}
+}
+
 #[cfg_attr(feature="dev", allow(wrong_self_convention))] // because to_engine(self) should be to_engine(&self)
 impl Spec {
 	/// Convert this object into a boxed Engine of the right underlying type.
 	// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
 	pub fn to_engine(self) -> Result<Box<Engine>, Error> {
-		match self.engine_name.as_ref() {
-			"NullEngine" => Ok(NullEngine::new_boxed(self)),
-			"Ethash" => Ok(ethereum::Ethash::new_boxed(self)),
-			_ => Err(Error::UnknownEngineName(self.engine_name.clone()))
+		match self.engine_name {
+			EngineName::Null => Ok(NullEngine::new_boxed(self)),
+			EngineName::Ethash => Ok(ethereum::Ethash::new_boxed(self)),
 		}
 	}
 
@@ -168,49 +214,40 @@ impl Spec {
 		ret.out()
 	}
 
-	/// Overwrite the genesis components with the given JSON, assuming standard Ethereum test format.
-	pub fn overwrite_genesis(&mut self, genesis: &Json) {
-		let (seal_fields, seal_rlp) = {
-			if genesis.find("mixHash").is_some() && genesis.find("nonce").is_some() {
-				let mut s = RlpStream::new();
-				s.append(&H256::from_json(&genesis["mixHash"]));
-				s.append(&H64::from_json(&genesis["nonce"]));
-				(2, s.out())
-			} else {
-				// backup algo that will work with sealFields/sealRlp (and without).
-				(
-					u64::from_json(&genesis["sealFields"]) as usize,
-					Bytes::from_json(&genesis["sealRlp"])
-				)
-			}
-		};
+	///// Overwrite the genesis components with the given JSON, assuming standard Ethereum test format.
+	//pub fn overwrite_genesis(&mut self, genesis: &Json) {
+		//let (seal_fields, seal_rlp) = {
+			//if genesis.find("mixHash").is_some() && genesis.find("nonce").is_some() {
+				//let mut s = RlpStream::new();
+				//s.append(&H256::from_json(&genesis["mixHash"]));
+				//s.append(&H64::from_json(&genesis["nonce"]));
+				//(2, s.out())
+			//} else {
+				//// backup algo that will work with sealFields/sealRlp (and without).
+				//(
+					//u64::from_json(&genesis["sealFields"]) as usize,
+					//Bytes::from_json(&genesis["sealRlp"])
+				//)
+			//}
+		//};
 
-		self.parent_hash = H256::from_json(&genesis["parentHash"]);
-		self.transactions_root = genesis.find("transactionsTrie").and_then(|_| Some(H256::from_json(&genesis["transactionsTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
-		self.receipts_root = genesis.find("receiptTrie").and_then(|_| Some(H256::from_json(&genesis["receiptTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
-		self.author = Address::from_json(&genesis["coinbase"]);
-		self.difficulty = U256::from_json(&genesis["difficulty"]);
-		self.gas_limit = U256::from_json(&genesis["gasLimit"]);
-		self.gas_used = U256::from_json(&genesis["gasUsed"]);
-		self.timestamp = u64::from_json(&genesis["timestamp"]);
-		self.extra_data = Bytes::from_json(&genesis["extraData"]);
-		self.seal_fields = seal_fields;
-		self.seal_rlp = seal_rlp;
-		self.state_root_memo = RwLock::new(genesis.find("stateRoot").and_then(|_| Some(H256::from_json(&genesis["stateRoot"]))));
-	}
+		//self.parent_hash = H256::from_json(&genesis["parentHash"]);
+		//self.transactions_root = genesis.find("transactionsTrie").and_then(|_| Some(H256::from_json(&genesis["transactionsTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
+		//self.receipts_root = genesis.find("receiptTrie").and_then(|_| Some(H256::from_json(&genesis["receiptTrie"]))).unwrap_or(SHA3_NULL_RLP.clone());
+		//self.author = Address::from_json(&genesis["coinbase"]);
+		//self.difficulty = U256::from_json(&genesis["difficulty"]);
+		//self.gas_limit = U256::from_json(&genesis["gasLimit"]);
+		//self.gas_used = U256::from_json(&genesis["gasUsed"]);
+		//self.timestamp = u64::from_json(&genesis["timestamp"]);
+		//self.extra_data = Bytes::from_json(&genesis["extraData"]);
+		//self.seal_fields = seal_fields;
+		//self.seal_rlp = seal_rlp;
+		//self.state_root_memo = RwLock::new(genesis.find("stateRoot").and_then(|_| Some(H256::from_json(&genesis["stateRoot"]))));
+	//}
 
 	/// Overwrite the genesis components.
 	pub fn overwrite_genesis_params(&mut self, g: Genesis) {
-		let (seal_fields, seal_rlp) = match g.seal {
-			GenesisSeal::Generic { fields, rlp } => (fields, rlp),
-			GenesisSeal::Ethereum { nonce, mix_hash } => {
-				let mut s = RlpStream::new();
-				s.append(&mix_hash);
-				s.append(&nonce);
-				(2, s.out())
-			}
-		};
-
+		let seal: GenericSeal = g.seal.into();
 		self.parent_hash = g.parent_hash;
 		self.transactions_root = g.transactions_root;
 		self.receipts_root = g.receipts_root;
@@ -220,8 +257,8 @@ impl Spec {
 		self.gas_used = g.gas_used;
 		self.timestamp = g.timestamp;
 		self.extra_data = g.extra_data;
-		self.seal_fields = seal_fields;
-		self.seal_rlp = seal_rlp;
+		self.seal_fields = seal.fields;
+		self.seal_rlp = seal.rlp;
 		self.state_root_memo = RwLock::new(g.state_root);
 	}
 
@@ -235,74 +272,72 @@ impl Spec {
 	pub fn is_state_root_valid(&self) -> bool {
 		self.state_root_memo.read().unwrap().clone().map_or(true, |sr| sr == self.genesis_state.root())
 	}
-}
 
-impl FromJson for Spec {
-	/// Loads a chain-specification from a json data structure
-	fn from_json(json: &Json) -> Spec {
-		// once we commit ourselves to some json parsing library (serde?)
-		// move it to proper data structure
-		let mut builtins = BTreeMap::new();
-		let mut state = PodState::new();
+//impl FromJson for Spec {
+	///// Loads a chain-specification from a json data structure
+	//fn from_json(json: &Json) -> Spec {
+		//// once we commit ourselves to some json parsing library (serde?)
+		//// move it to proper data structure
+		//let mut builtins = BTreeMap::new();
+		//let mut state = PodState::new();
 
-		if let Some(&Json::Object(ref accounts)) = json.find("accounts") {
-			for (address, acc) in accounts.iter() {
-				let addr = Address::from_str(address).unwrap();
-				if let Some(ref builtin_json) = acc.find("builtin") {
-					if let Some(builtin) = Builtin::from_json(builtin_json) {
-						builtins.insert(addr.clone(), builtin);
-					}
-				}
-			}
-			state = xjson!(&json["accounts"]);
-		}
+		//if let Some(&Json::Object(ref accounts)) = json.find("accounts") {
+			//for (address, acc) in accounts.iter() {
+				//let addr = Address::from_str(address).unwrap();
+				//if let Some(ref builtin_json) = acc.find("builtin") {
+					//if let Some(builtin) = Builtin::from_json(builtin_json) {
+						//builtins.insert(addr.clone(), builtin);
+					//}
+				//}
+			//}
+			//state = xjson!(&json["accounts"]);
+		//}
 
-		let nodes = if let Some(&Json::Array(ref ns)) = json.find("nodes") {
-			ns.iter().filter_map(|n| if let Json::String(ref s) = *n { Some(s.clone()) } else {None}).collect()
-		} else { Vec::new() };
+		//let nodes = if let Some(&Json::Array(ref ns)) = json.find("nodes") {
+			//ns.iter().filter_map(|n| if let Json::String(ref s) = *n { Some(s.clone()) } else {None}).collect()
+		//} else { Vec::new() };
 
-		let genesis = &json["genesis"];//.as_object().expect("No genesis object in JSON");
+		//let genesis = &json["genesis"];//.as_object().expect("No genesis object in JSON");
 
-		let (seal_fields, seal_rlp) = {
-			if genesis.find("mixHash").is_some() && genesis.find("nonce").is_some() {
-				let mut s = RlpStream::new();
-				s.append(&H256::from_str(&genesis["mixHash"].as_string().expect("mixHash not a string.")[2..]).expect("Invalid mixHash string value"));
-				s.append(&H64::from_str(&genesis["nonce"].as_string().expect("nonce not a string.")[2..]).expect("Invalid nonce string value"));
-				(2, s.out())
-			} else {
-				// backup algo that will work with sealFields/sealRlp (and without).
-				(
-					usize::from_str(&genesis["sealFields"].as_string().unwrap_or("0x")[2..]).expect("Invalid sealFields integer data"),
-					genesis["sealRlp"].as_string().unwrap_or("0x")[2..].from_hex().expect("Invalid sealRlp hex data")
-				)
-			}
-		};
+		//let (seal_fields, seal_rlp) = {
+			//if genesis.find("mixHash").is_some() && genesis.find("nonce").is_some() {
+				//let mut s = RlpStream::new();
+				//s.append(&H256::from_str(&genesis["mixHash"].as_string().expect("mixHash not a string.")[2..]).expect("Invalid mixHash string value"));
+				//s.append(&H64::from_str(&genesis["nonce"].as_string().expect("nonce not a string.")[2..]).expect("Invalid nonce string value"));
+				//(2, s.out())
+			//} else {
+				//// backup algo that will work with sealFields/sealRlp (and without).
+				//(
+					//usize::from_str(&genesis["sealFields"].as_string().unwrap_or("0x")[2..]).expect("Invalid sealFields integer data"),
+					//genesis["sealRlp"].as_string().unwrap_or("0x")[2..].from_hex().expect("Invalid sealRlp hex data")
+				//)
+			//}
+		//};
 
-		Spec {
-			name: json.find("name").map_or("unknown", |j| j.as_string().unwrap()).to_owned(),
-			engine_name: json["engineName"].as_string().unwrap().to_owned(),
-			engine_params: json_to_rlp_map(&json["params"]),
-			nodes: nodes,
-			network_id: U256::from_str(&json["params"]["networkID"].as_string().unwrap()[2..]).unwrap(),
-			builtins: builtins,
-			parent_hash: H256::from_str(&genesis["parentHash"].as_string().unwrap()[2..]).unwrap(),
-			author: Address::from_str(&genesis["author"].as_string().unwrap()[2..]).unwrap(),
-			difficulty: U256::from_str(&genesis["difficulty"].as_string().unwrap()[2..]).unwrap(),
-			gas_limit: U256::from_str(&genesis["gasLimit"].as_string().unwrap()[2..]).unwrap(),
-			gas_used: U256::from(0u8),
-			timestamp: u64::from_str(&genesis["timestamp"].as_string().unwrap()[2..]).unwrap(),
-			transactions_root: SHA3_NULL_RLP.clone(),
-			receipts_root: SHA3_NULL_RLP.clone(),
-			extra_data: genesis["extraData"].as_string().unwrap()[2..].from_hex().unwrap(),
-			genesis_state: state,
-			seal_fields: seal_fields,
-			seal_rlp: seal_rlp,
-			state_root_memo: RwLock::new(genesis.find("stateRoot").and_then(|_| genesis["stateRoot"].as_string()).map(|s| H256::from_str(&s[2..]).unwrap())),
-		}
-	}
-}
+		//Spec {
+			//name: json.find("name").map_or("unknown", |j| j.as_string().unwrap()).to_owned(),
+			//engine_name: json["engineName"].as_string().unwrap().to_owned(),
+			//engine_params: json_to_rlp_map(&json["params"]),
+			//nodes: nodes,
+			//network_id: U256::from_str(&json["params"]["networkID"].as_string().unwrap()[2..]).unwrap(),
+			//builtins: builtins,
+			//parent_hash: H256::from_str(&genesis["parentHash"].as_string().unwrap()[2..]).unwrap(),
+			//author: Address::from_str(&genesis["author"].as_string().unwrap()[2..]).unwrap(),
+			//difficulty: U256::from_str(&genesis["difficulty"].as_string().unwrap()[2..]).unwrap(),
+			//gas_limit: U256::from_str(&genesis["gasLimit"].as_string().unwrap()[2..]).unwrap(),
+			//gas_used: U256::from(0u8),
+			//timestamp: u64::from_str(&genesis["timestamp"].as_string().unwrap()[2..]).unwrap(),
+			//transactions_root: SHA3_NULL_RLP.clone(),
+			//receipts_root: SHA3_NULL_RLP.clone(),
+			//extra_data: genesis["extraData"].as_string().unwrap()[2..].from_hex().unwrap(),
+			//genesis_state: state,
+			//seal_fields: seal_fields,
+			//seal_rlp: seal_rlp,
+			//state_root_memo: RwLock::new(genesis.find("stateRoot").and_then(|_| genesis["stateRoot"].as_string()).map(|s| H256::from_str(&s[2..]).unwrap())),
+		//}
+	//}
+//}
 
-impl Spec {
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good(&self, db: &mut HashDB) -> bool {
 		if !db.contains(&self.state_root()) {
@@ -321,21 +356,33 @@ impl Spec {
 		} else { false }
 	}
 
-	/// Create a new Spec from a JSON UTF-8 data resource `data`.
-	pub fn from_json_utf8(data: &[u8]) -> Spec {
-		Self::from_json_str(::std::str::from_utf8(data).unwrap())
+	///// Create a new Spec from a JSON UTF-8 data resource `data`.
+	//pub fn from_json_utf8(data: &[u8]) -> Spec {
+		//Self::from_json_str(::std::str::from_utf8(data).unwrap())
+	//}
+
+	///// Create a new Spec from a JSON string.
+	//pub fn from_json_str(s: &str) -> Spec {
+		//Self::from_json(&Json::from_str(s).expect("Json is invalid"))
+	//}
+
+
+	pub fn load(reader: &[u8]) -> Self {
+		From::from(ethjson::spec::Spec::load(reader).expect("invalid json file"))
 	}
 
-	/// Create a new Spec from a JSON string.
-	pub fn from_json_str(s: &str) -> Spec {
-		Self::from_json(&Json::from_str(s).expect("Json is invalid"))
+
+	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
+	pub fn new_test() -> Spec {
+		From::from(Spec::load(include_bytes!("../../res/null_morden.json")))
+		//Self::from_json_utf8(include_bytes!("../../res/null_morden.json"))
 	}
 
 	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
-	pub fn new_test() -> Spec { Self::from_json_utf8(include_bytes!("../../res/null_morden.json")) }
-
-	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
-	pub fn new_homestead_test() -> Spec { Self::from_json_utf8(include_bytes!("../../res/null_homestead_morden.json")) }
+	pub fn new_homestead_test() -> Spec {
+		From::from(Spec::load(include_bytes!("../../res/null_homestead_morden.json")))
+		//Self::from_json_utf8(include_bytes!("../../res/null_homestead_morden.json"))
+	}
 }
 
 #[cfg(test)]

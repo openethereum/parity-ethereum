@@ -43,8 +43,9 @@ pub struct Params {
 	#[serde(rename="blockReward")]
 	block_reward: Uint,
 	registrar: Address,
+	/// Network id.
 	#[serde(rename="networkID")]
-	network_id: Uint,
+	pub network_id: Uint,
 }
 
 #[cfg(test)]

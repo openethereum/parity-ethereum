@@ -22,9 +22,12 @@ use spec::builtin::Builtin;
 /// Spec account.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Account {
-	builtin: Option<Builtin>,
-	balance: Option<Uint>,
-	nonce: Option<Uint>,
+	/// Builtin contract.
+	pub builtin: Option<Builtin>,
+	/// Balance.
+	pub balance: Option<Uint>,
+	/// Nonce.
+	pub nonce: Option<Uint>,
 }
 
 #[cfg(test)]

@@ -17,14 +17,16 @@
 //! Spec builtin deserialization.
 
 /// Linear pricing.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Clone)]
 pub struct Linear {
-	base: u64,
-	word: u64,
+	/// Base price.
+	pub base: usize,
+	/// Price for word.
+	pub word: usize,
 }
 
 /// Pricing variants.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Clone)]
 pub enum Pricing {
 	/// Linear pricing.
 	#[serde(rename="linear")]
@@ -32,10 +34,12 @@ pub enum Pricing {
 }
 
 /// Spec builtin.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Clone)]
 pub struct Builtin {
-	name: String,
-	pricing: Pricing,
+	/// Builtin name.
+	pub name: String,
+	/// Builtin pricing.
+	pub pricing: Pricing,
 }
 
 #[cfg(test)]
