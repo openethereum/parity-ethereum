@@ -255,6 +255,35 @@ fn push_client(
 	push_client_implementation(cx, builder, dispatches, item, push);
 }
 
+/// returns an expression with the  method for single operation with the signature identical to server
+/// method and which is basically implements invoke of the remote rpc method, waiting for return (if any
+/// expected) and returning deserialized output
+///
+/// assuming expanded class contains method
+///   fn commit(&self, f: u32) -> u32
+///
+/// the expanded implementation will generate method for the client like that
+///
+///     pub fn commit(&self, f: u32) -> u32 {
+///        {
+///            #[derive(Serialize)]
+///            struct Request<'a> {
+///                f: &'a u32,
+///            }
+///            let payload = Request{f: &f,};
+///            let mut socket_ref = self.socket.borrow_mut();
+///            let mut socket = socket_ref.deref_mut();
+///            let serialized_payload =
+///                ::bincode::serde::serialize(&payload,
+///                                            ::bincode::SizeLimit::Infinite).unwrap();
+///            ::ipc::invoke(0, &Some(serialized_payload), &mut socket);
+///            while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed)
+///                  {
+///            }
+///            ::bincode::serde::deserialize_from::<_, u32>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
+///        }
+///    }
+///
 fn implement_client_method_body(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
