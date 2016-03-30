@@ -26,9 +26,8 @@ use spec::{Params, Genesis, Engine, State};
 pub struct Spec {
 	/// Spec name.
 	pub name: String,
-	/// Engine name.
-	#[serde(rename="engineName")]
-	pub engine_name: Engine,
+	/// Engine.
+	pub engine: Engine,
 	/// Spec params.
 	pub params: Params,
 	/// Genesis header.
@@ -55,19 +54,24 @@ mod tests {
 	fn spec_deserialization() {
 		let s = r#"{
 	"name": "Morden",
-	"engineName": "Ethash",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"tieBreakingGas": false,
+				"gasLimitBoundDivisor": "0x0400",
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000",
+				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
+			}
+		}
+	},
 	"params": {
 		"accountStartNonce": "0x0100000",
 		"frontierCompatibilityModeLimit": "0x789b0",
 		"maximumExtraDataSize": "0x20",
-		"tieBreakingGas": false,
 		"minGasLimit": "0x1388",
-		"gasLimitBoundDivisor": "0x0400",
-		"minimumDifficulty": "0x020000",
-		"difficultyBoundDivisor": "0x0800",
-		"durationLimit": "0x0d",
-		"blockReward": "0x4563918244F40000",
-		"registrar": "",
 		"networkID" : "0x2"
 	},
 	"genesis": {

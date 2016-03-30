@@ -18,39 +18,15 @@
 
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::Visitor;
+use spec::Ethash;
 
 /// Engine deserialization.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Deserialize)]
 pub enum Engine {
 	/// Null engine.
 	Null,
 	/// Ethash engine.
-	Ethash,
-}
-
-impl Deserialize for Engine {
-	fn deserialize<D>(deserializer: &mut D) -> Result<Engine, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(EngineVisitor)
-	}
-}
-
-struct EngineVisitor;
-
-impl Visitor for EngineVisitor {
-	type Value = Engine;
-
-	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
-		match value {
-			"NullEngine" => Ok(Engine::Null),
-			"Ethash" => Ok(Engine::Ethash),
-			_ => Err(Error::custom("invalid engine"))
-		}
-	}
-
-	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: Error {
-		self.visit_str(value.as_ref())
-	}
+	Ethash(Ethash),
 }
 
 #[cfg(test)]
@@ -60,16 +36,28 @@ mod tests {
 
 	#[test]
 	fn engine_deserialization() {
-		let s = r#"["NullEngine", "Ethash"]"#;
-		let deserialized: Vec<Engine> = serde_json::from_str(s).unwrap();
-		assert_eq!(vec![Engine::Null, Engine::Ethash], deserialized);
-	}
+		let s = r#"{
+			"Null": null
+		}"#;
 
-	#[test]
-	fn invalid_engine_deserialization() {
-		let s = r#"["Etash"]"#;
-		let deserialized: Result<Vec<Engine>, _> = serde_json::from_str(s);
-		assert!(deserialized.is_err());
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		assert_eq!(Engine::Null, deserialized);
+
+		let s = r#"{
+			"Ethash": {
+				"params": {
+					"tieBreakingGas": false,
+					"gasLimitBoundDivisor": "0x0400",
+					"minimumDifficulty": "0x020000",
+					"difficultyBoundDivisor": "0x0800",
+					"durationLimit": "0x0d",
+					"blockReward": "0x4563918244F40000",
+					"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
+				}
+			}
+		}"#;
+
+		let _deserialized: Engine = serde_json::from_str(s).unwrap();
 	}
 }
 

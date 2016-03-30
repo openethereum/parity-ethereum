@@ -24,6 +24,7 @@ pub mod spec;
 pub mod seal;
 pub mod engine;
 pub mod state;
+pub mod ethash;
 
 pub use self::account::Account;
 pub use self::builtin::{Builtin, Pricing};
@@ -33,3 +34,4 @@ pub use self::spec::Spec;
 pub use self::seal::{Seal, Ethereum, Generic};
 pub use self::engine::Engine;
 pub use self::state::State;
+pub use self::ethash::Ethash;
