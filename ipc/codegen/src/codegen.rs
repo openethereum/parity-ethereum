@@ -224,6 +224,7 @@ fn implement_dispatch_arm_invoke(
 	})
 }
 
+/// generates dispatch match for method id
 fn implement_dispatch_arm(cx: &ExtCtxt, builder: &aster::AstBuilder, index: u32, dispatch: &Dispatch)
 	-> ast::Arm
 {
@@ -232,6 +233,8 @@ fn implement_dispatch_arm(cx: &ExtCtxt, builder: &aster::AstBuilder, index: u32,
 	quote_arm!(cx, $index_ident => { $invoke_expr } )
 }
 
+/// generates client type for specified server type
+/// for say `Service` it generates `ServiceClient`
 fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
 	let proxy_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
 
@@ -244,6 +247,7 @@ fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, pu
 	push(Annotatable::Item(proxy_struct_item.expect(&format!("could not generate proxy struct for {:?}", proxy_ident.name))));
 }
 
+/// pushes generated code for the client class (type declaration and method invocation implementations)
 fn push_client(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -255,35 +259,26 @@ fn push_client(
 	push_client_implementation(cx, builder, dispatches, item, push);
 }
 
-/// returns an expression with the  method for single operation with the signature identical to server
-/// method and which is basically implements invoke of the remote rpc method, waiting for return (if any
-/// expected) and returning deserialized output
+/// returns an expression with the body for single operation that is being sent to server
+/// operation itself serializes input, writes to socket and waits for socket to respond
+/// (the latter only if original method signature returns anyting)
 ///
 /// assuming expanded class contains method
 ///   fn commit(&self, f: u32) -> u32
 ///
 /// the expanded implementation will generate method for the client like that
-///
-///     pub fn commit(&self, f: u32) -> u32 {
-///        {
-///            #[derive(Serialize)]
-///            struct Request<'a> {
-///                f: &'a u32,
-///            }
-///            let payload = Request{f: &f,};
-///            let mut socket_ref = self.socket.borrow_mut();
-///            let mut socket = socket_ref.deref_mut();
-///            let serialized_payload =
-///                ::bincode::serde::serialize(&payload,
-///                                            ::bincode::SizeLimit::Infinite).unwrap();
-///            ::ipc::invoke(0, &Some(serialized_payload), &mut socket);
-///            while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed)
-///                  {
-///            }
-///            ::bincode::serde::deserialize_from::<_, u32>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
-///        }
+///    #[derive(Serialize)]
+///    struct Request<'a> {
+///	     f: &'a u32,
 ///    }
-///
+///    let payload = Request{f: &f,};
+///    let mut socket_ref = self.socket.borrow_mut();
+///    let mut socket = socket_ref.deref_mut();
+///    let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap();
+///    ::ipc::invoke(0, &Some(serialized_payload), &mut socket);
+///    while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { }
+///    ::bincode::serde::deserialize_from::<_, u32>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
+
 fn implement_client_method_body(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -391,6 +386,8 @@ fn implement_client_method_body(
 	}
 }
 
+///
+/// Generates signature and
 fn implement_client_method(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
