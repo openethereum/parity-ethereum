@@ -278,7 +278,6 @@ fn push_client(
 ///    ::ipc::invoke(0, &Some(serialized_payload), &mut socket);
 ///    while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { }
 ///    ::bincode::serde::deserialize_from::<_, u32>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
-
 fn implement_client_method_body(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -386,8 +385,8 @@ fn implement_client_method_body(
 	}
 }
 
-///
-/// Generates signature and
+/// Generates signature and body (see `implement_client_method_body`)
+/// for the client (signature is identical to the original method)
 fn implement_client_method(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -443,6 +442,7 @@ fn implement_client_method(
 	signature.unwrap()
 }
 
+/// pushes full client side code for the original class exposed via ipc
 fn push_client_implementation(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -476,6 +476,7 @@ fn push_client_implementation(
 	push(Annotatable::Item(implement));
 }
 
+/// implements `IpcInterface<C>` for the given class `C`
 fn implement_interface(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
