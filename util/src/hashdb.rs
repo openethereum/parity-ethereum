@@ -26,7 +26,7 @@ pub trait HashDB : AsHashDB {
 
 	/// Deprecated. use `get`.
 	fn lookup(&self, key: &H256) -> Option<&[u8]>; // TODO: rename to get.
-	/// Look up a given hash into the bytes that hash to it, returning None if the 
+	/// Look up a given hash into the bytes that hash to it, returning None if the
 	/// hash is not known.
 	///
 	/// # Examples
@@ -38,7 +38,7 @@ pub trait HashDB : AsHashDB {
 	///   let mut m = MemoryDB::new();
 	///   let hello_bytes = "Hello world!".as_bytes();
 	///   let hash = m.insert(hello_bytes);
-	///   assert_eq!(m.lookup(&hash).unwrap(), hello_bytes);
+	///   assert_eq!(m.get(&hash).unwrap(), hello_bytes);
 	/// }
 	/// ```
 	fn get(&self, key: &H256) -> Option<&[u8]> { self.lookup(key) }
@@ -56,11 +56,11 @@ pub trait HashDB : AsHashDB {
 	/// fn main() {
 	///   let mut m = MemoryDB::new();
 	///   let hello_bytes = "Hello world!".as_bytes();
-	///   assert!(!m.exists(&hello_bytes.sha3()));
+	///   assert!(!m.contains(&hello_bytes.sha3()));
 	///   let key = m.insert(hello_bytes);
-	///   assert!(m.exists(&key));
-	///   m.kill(&key);
-	///   assert!(!m.exists(&key));
+	///   assert!(m.contains(&key));
+	///   m.remove(&key);
+	///   assert!(!m.contains(&key));
 	/// }
 	/// ```
 	fn contains(&self, key: &H256) -> bool { self.exists(key) }
@@ -78,7 +78,7 @@ pub trait HashDB : AsHashDB {
 	/// fn main() {
 	///   let mut m = MemoryDB::new();
 	///   let key = m.insert("Hello world!".as_bytes());
-	///   assert!(m.exists(&key));
+	///   assert!(m.contains(&key));
 	/// }
 	/// ```
 	fn insert(&mut self, value: &[u8]) -> H256;
@@ -101,12 +101,12 @@ pub trait HashDB : AsHashDB {
 	///   let mut m = MemoryDB::new();
 	///   let d = "Hello world!".as_bytes();
 	///   let key = &d.sha3();
-	///   m.kill(key);	// OK - we now owe an insertion.
-	///   assert!(!m.exists(key));
+	///   m.remove(key);	// OK - we now owe an insertion.
+	///   assert!(!m.contains(key));
 	///   m.insert(d);	// OK - now it's "empty" again.
-	///   assert!(!m.exists(key));
+	///   assert!(!m.contains(key));
 	///   m.insert(d);	// OK - now we've
-	///   assert_eq!(m.lookup(key).unwrap(), d);
+	///   assert_eq!(m.get(key).unwrap(), d);
 	/// }
 	/// ```
 	fn remove(&mut self, key: &H256) { self.kill(key) }
