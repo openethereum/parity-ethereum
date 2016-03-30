@@ -183,7 +183,7 @@ fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.gas_used > header.gas_limit {
 		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used })));
 	}
-	let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
+	let min_gas_limit = engine.params().min_gas_limit;
 	if header.gas_limit < min_gas_limit {
 		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit })));
 	}
@@ -279,7 +279,7 @@ mod tests {
 
 	impl BlockProvider for TestBlockChain {
 		fn have_tracing(&self) -> bool { false }
-		
+
 		fn is_known(&self, hash: &H256) -> bool {
 			self.blocks.contains_key(hash)
 		}

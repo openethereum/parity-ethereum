@@ -34,4 +34,4 @@ pub use self::spec::Spec;
 pub use self::seal::{Seal, Ethereum, Generic};
 pub use self::engine::Engine;
 pub use self::state::State;
-pub use self::ethash::Ethash;
+pub use self::ethash::{Ethash, EthashParams};
