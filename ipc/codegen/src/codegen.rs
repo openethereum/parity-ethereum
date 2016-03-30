@@ -58,7 +58,7 @@ pub fn expand_ipc_implementation(
 		Err(Error) => { return; }
 	};
 
-	push_proxy(cx, &builder, &item, &dispatches, push);
+	push_client(cx, &builder, &item, &dispatches, push);
 
 	push(Annotatable::Item(impl_item))
 }
@@ -232,7 +232,7 @@ fn implement_dispatch_arm(cx: &ExtCtxt, builder: &aster::AstBuilder, index: u32,
 	quote_arm!(cx, $index_ident => { $invoke_expr } )
 }
 
-fn push_proxy_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
+fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
 	let proxy_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
 
 	let proxy_struct_item = quote_item!(cx,
@@ -244,18 +244,18 @@ fn push_proxy_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, pus
 	push(Annotatable::Item(proxy_struct_item.expect(&format!("could not generate proxy struct for {:?}", proxy_ident.name))));
 }
 
-fn push_proxy(
+fn push_client(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	item: &Item,
 	dispatches: &[Dispatch],
 	push: &mut FnMut(Annotatable))
 {
-	push_proxy_struct(cx, builder, item, push);
-	push_proxy_implementation(cx, builder, dispatches, item, push);
+	push_client_struct(cx, builder, item, push);
+	push_client_implementation(cx, builder, dispatches, item, push);
 }
 
-fn implement_proxy_method_body(
+fn implement_client_method_body(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	index: u16,
@@ -362,7 +362,7 @@ fn implement_proxy_method_body(
 	}
 }
 
-fn implement_proxy_method(
+fn implement_client_method(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	index: u16,
@@ -370,7 +370,7 @@ fn implement_proxy_method(
 	-> ast::ImplItem
 {
 	let method_name = builder.id(dispatch.function_name.as_str());
-	let body = implement_proxy_method_body(cx, builder, index, dispatch);
+	let body = implement_client_method_body(cx, builder, index, dispatch);
 
 	let ext_cx = &*cx;
 	// expanded version of this
@@ -417,7 +417,7 @@ fn implement_proxy_method(
 	signature.unwrap()
 }
 
-fn push_proxy_implementation(
+fn push_client_implementation(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	dispatches: &[Dispatch],
@@ -426,7 +426,7 @@ fn push_proxy_implementation(
 {
 	let mut index = -1i32;
 	let items = dispatches.iter()
-		.map(|dispatch| { index = index + 1; P(implement_proxy_method(cx, builder, index as u16, dispatch)) })
+		.map(|dispatch| { index = index + 1; P(implement_client_method(cx, builder, index as u16, dispatch)) })
 		.collect::<Vec<P<ast::ImplItem>>>();
 
 	let client_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
