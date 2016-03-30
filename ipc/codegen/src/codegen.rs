@@ -233,7 +233,7 @@ fn implement_dispatch_arm(cx: &ExtCtxt, builder: &aster::AstBuilder, index: u32,
 }
 
 fn push_proxy_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
-	let proxy_ident = builder.id(format!("{}Proxy", item.ident.name.as_str()));
+	let proxy_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
 
 	let proxy_struct_item = quote_item!(cx,
 		pub struct $proxy_ident <S: ::ipc::IpcSocket> {
@@ -252,7 +252,7 @@ fn push_proxy(
 	push: &mut FnMut(Annotatable))
 {
 	push_proxy_struct(cx, builder, item, push);
-	push_proxy_implementation(cx, builder, dispatches, push);
+	push_proxy_implementation(cx, builder, dispatches, item, push);
 }
 
 fn implement_proxy_method_body(
@@ -421,6 +421,7 @@ fn push_proxy_implementation(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	dispatches: &[Dispatch],
+	item: &Item,
 	push: &mut FnMut(Annotatable))
 {
 	let mut index = -1i32;
@@ -428,10 +429,11 @@ fn push_proxy_implementation(
 		.map(|dispatch| { index = index + 1; P(implement_proxy_method(cx, builder, index as u16, dispatch)) })
 		.collect::<Vec<P<ast::ImplItem>>>();
 
+	let client_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
 	let implement = quote_item!(cx,
-		impl<S> ServiceProxy<S> where S: ::ipc::IpcSocket {
-			pub fn new(socket: S) -> ServiceProxy<S> {
-				ServiceProxy {
+		impl<S> $client_ident<S> where S: ::ipc::IpcSocket {
+			pub fn new(socket: S) -> $client_ident<S> {
+				$client_ident {
 					socket: ::std::cell::RefCell::new(socket),
 					phantom: ::std::marker::PhantomData,
 				}
