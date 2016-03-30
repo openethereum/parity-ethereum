@@ -38,11 +38,11 @@ mod tests {
 	fn call_service_proxy() {
 		let mut socket = TestSocket::new();
 		socket.read_buffer = vec![0, 0, 0, 10];
-		let service_proxy = ServiceProxy::new(socket);
+		let service_client = ServiceClient::new(socket);
 
-		let result = service_proxy.commit(5);
+		let result = service_client.commit(5);
 
-		assert_eq!(vec![0, 0, 0, 0, 0, 5], service_proxy.socket().borrow().write_buffer.clone());
+		assert_eq!(vec![0, 0, 0, 0, 0, 5], service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
@@ -50,11 +50,11 @@ mod tests {
 	fn call_service_proxy_optional() {
 		let mut socket = TestSocket::new();
 		socket.read_buffer = vec![0, 0, 0, 10];
-		let service_proxy = ServiceProxy::new(socket);
+		let service_client = ServiceClient::new(socket);
 
-		let result = service_proxy.rollback(Some(5), 10);
+		let result = service_client.rollback(Some(5), 10);
 
-		assert_eq!(vec![0, 1, 1, 0, 0, 0, 5, 0, 0, 0, 10], service_proxy.socket().borrow().write_buffer.clone());
+		assert_eq!(vec![0, 1, 1, 0, 0, 0, 5, 0, 0, 0, 10], service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 }
