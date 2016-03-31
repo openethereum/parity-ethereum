@@ -140,7 +140,7 @@ pub fn new_builtin_exec(name: &str) -> Box<Fn(&[u8], &mut [u8])> {
 
 #[test]
 fn identity() {
-	let f = new_builtin_exec("identity").unwrap();
+	let f = new_builtin_exec("identity");
 	let i = [0u8, 1, 2, 3];
 
 	let mut o2 = [255u8; 2];
@@ -160,7 +160,7 @@ fn identity() {
 #[test]
 fn sha256() {
 	use rustc_serialize::hex::FromHex;
-	let f = new_builtin_exec("sha256").unwrap();
+	let f = new_builtin_exec("sha256");
 	let i = [0u8; 0];
 
 	let mut o = [255u8; 32];
@@ -179,7 +179,7 @@ fn sha256() {
 #[test]
 fn ripemd160() {
 	use rustc_serialize::hex::FromHex;
-	let f = new_builtin_exec("ripemd160").unwrap();
+	let f = new_builtin_exec("ripemd160");
 	let i = [0u8; 0];
 
 	let mut o = [255u8; 32];
@@ -206,7 +206,7 @@ fn ecrecover() {
 	let s = k.sign(&m).unwrap();
 	println!("Signed: {}", s);*/
 
-	let f = new_builtin_exec("ecrecover").unwrap();
+	let f = new_builtin_exec("ecrecover");
 	let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 
 	let mut o = [255u8; 32];
@@ -254,8 +254,14 @@ fn ecrecover() {
 }
 
 #[test]
+#[should_panic]
+fn from_unknown_linear() {
+	let b = Builtin::from_named_linear("dw", 10, 20);
+}
+
+#[test]
 fn from_named_linear() {
-	let b = Builtin::from_named_linear("identity", 10, 20).unwrap();
+	let b = Builtin::from_named_linear("identity", 10, 20);
 	assert_eq!((*b.cost)(0), U256::from(10));
 	assert_eq!((*b.cost)(1), U256::from(30));
 	assert_eq!((*b.cost)(32), U256::from(30));
@@ -269,9 +275,14 @@ fn from_named_linear() {
 
 #[test]
 fn from_json() {
-	let text = r#"{"name": "identity", "pricing": {"linear": {"base": 10, "word": 20}}}"#;
-	let json = Json::from_str(text).unwrap();
-	let b = Builtin::from_json(&json).unwrap();
+	let b = Builtin::from(ethjson::spec::Builtin {
+		name: "identity".to_owned(),
+		pricing: ethjson::spec::Pricing::Linear(ethjson::spec::Linear {
+			base: 10,
+			word: 20,
+		})
+	});
+
 	assert_eq!((*b.cost)(0), U256::from(10));
 	assert_eq!((*b.cost)(1), U256::from(30));
 	assert_eq!((*b.cost)(32), U256::from(30));

@@ -35,7 +35,7 @@ pub struct Spec {
 	/// Genesis state.
 	pub accounts: State,
 	/// Boot nodes.
-	pub nodes: Vec<String>,
+	pub nodes: Option<Vec<String>>,
 }
 
 impl Spec {

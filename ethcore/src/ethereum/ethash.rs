@@ -306,11 +306,12 @@ mod tests {
 
 	#[test]
 	fn on_close_block() {
-		let engine = new_morden().to_engine().unwrap();
-		let genesis_header = engine.spec().genesis_header();
+		let spec = new_morden();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let b = b.close();
@@ -319,11 +320,12 @@ mod tests {
 
 	#[test]
 	fn on_close_block_with_uncle() {
-		let engine = new_morden().to_engine().unwrap();
-		let genesis_header = engine.spec().genesis_header();
+		let spec = new_morden();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let mut b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let mut uncle = Header::new();
@@ -338,27 +340,28 @@ mod tests {
 
 	#[test]
 	fn has_valid_metadata() {
-		let engine = Ethash::new_boxed(new_morden());
+		let engine = new_morden().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
 	}
 
 	#[test]
 	fn can_return_params() {
-		let engine = Ethash::new_test(new_morden());
-		assert!(engine.u64_param("durationLimit") > 0);
-		assert!(engine.u256_param("minimumDifficulty") > U256::zero());
+		//use std::mem;
+		//let engine: Box<Ethash> = unsafe { mem::transmute(new_morden().engine) };
+		//assert!(engine.ethash_params.duration_limit > 0);
+		//assert!(engine.ethash_params.minimum_difficulty > U256::zero());
 	}
 
 	#[test]
 	fn can_return_factory() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		engine.vm_factory();
 	}
 
 	#[test]
 	fn can_return_schedule() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let schedule = engine.schedule(&EnvInfo {
 			number: 10000000,
 			author: x!(0),
@@ -386,7 +389,8 @@ mod tests {
 
 	#[test]
 	fn can_do_seal_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
+		//let engine = Ethash::new_test(new_morden());
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
@@ -400,7 +404,7 @@ mod tests {
 
 	#[test]
 	fn can_do_difficulty_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 
@@ -415,7 +419,7 @@ mod tests {
 
 	#[test]
 	fn can_do_proof_of_work_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
@@ -431,7 +435,7 @@ mod tests {
 
 	#[test]
 	fn can_do_seal_unordered_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_unordered(&header, None);
@@ -445,7 +449,7 @@ mod tests {
 
 	#[test]
 	fn can_do_seal256_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		let verify_result = engine.verify_block_unordered(&header, None);
@@ -459,7 +463,7 @@ mod tests {
 
 	#[test]
 	fn can_do_proof_of_work_unordered_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
@@ -475,7 +479,7 @@ mod tests {
 
 	#[test]
 	fn can_verify_block_family_genesis_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let header: Header = Header::default();
 		let parent_header: Header = Header::default();
 
@@ -490,7 +494,7 @@ mod tests {
 
 	#[test]
 	fn can_verify_block_family_difficulty_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_number(2);
 		let mut parent_header: Header = Header::default();
@@ -507,7 +511,7 @@ mod tests {
 
 	#[test]
 	fn can_verify_block_family_gas_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_number(2);
 		header.set_difficulty(U256::from_str("0000000000000000000000000000000000000000000000000000000000020000").unwrap());

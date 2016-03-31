@@ -27,7 +27,7 @@ pub mod state;
 pub mod ethash;
 
 pub use self::account::Account;
-pub use self::builtin::{Builtin, Pricing};
+pub use self::builtin::{Builtin, Pricing, Linear};
 pub use self::genesis::Genesis;
 pub use self::params::Params;
 pub use self::spec::Spec;

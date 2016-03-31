@@ -57,11 +57,12 @@ mod tests {
 
 	#[test]
 	fn ensure_db_good() {
-		let engine = new_morden().to_engine().unwrap();
-		let genesis_header = engine.spec().genesis_header();
+		let spec = new_morden();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let s = State::from_existing(db, genesis_header.state_root.clone(), engine.account_start_nonce());
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000001")), U256::from(1u64));
 		assert_eq!(s.balance(&address_from_hex("0000000000000000000000000000000000000002")), U256::from(1u64));
@@ -79,7 +80,7 @@ mod tests {
 		let genesis = morden.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
 
-		let _ = morden.to_engine();
+		let _ = morden.engine;
 	}
 
 	#[test]
@@ -90,6 +91,6 @@ mod tests {
 		let genesis = frontier.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap());
 
-		let _ = frontier.to_engine();
+		let _ = frontier.engine;
 	}
 }

@@ -110,7 +110,7 @@ impl From<ethjson::spec::Spec> for Spec {
 				ethjson::spec::Engine::Null => Box::new(NullEngine::new(params)),
 				ethjson::spec::Engine::Ethash(ethash) => Box::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins))
 			},
-			nodes: s.nodes,
+			nodes: s.nodes.unwrap_or_else(Vec::new),
 			parent_hash: g.parent_hash,
 			transactions_root: g.transactions_root,
 			receipts_root: g.receipts_root,
@@ -261,7 +261,5 @@ mod tests {
 		assert_eq!(test_spec.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = test_spec.genesis_block();
 		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
-
-		let _ = test_spec.to_engine();
 	}
 }

@@ -547,7 +547,7 @@ fn should_not_trace_call_transaction_to_builtin() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = Spec::new_test().to_engine().unwrap();
+	let engine = Spec::new_test().engine;
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -572,7 +572,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = Spec::new_test().to_engine().unwrap();
+	let engine = Spec::new_test().engine;
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -610,7 +610,7 @@ fn should_not_trace_callcode() {
 
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
-	let engine = Spec::new_test().to_engine().unwrap();
+	let engine = Spec::new_test().engine;
 
 	let t = Transaction {
 		nonce: x!(0),
@@ -650,7 +650,7 @@ fn should_not_trace_delegatecall() {
 	let mut info = EnvInfo::default();
 	info.gas_limit = x!(1_000_000);
 	info.number = 0x789b0;
-	let engine = Spec::new_test().to_engine().unwrap();
+	let engine = Spec::new_test().engine;
 
 	println!("schedule.have_delegate_call: {:?}", engine.schedule(&info).have_delegate_call);
 
