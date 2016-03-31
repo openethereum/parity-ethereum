@@ -23,7 +23,7 @@ use util::numbers::{U256, Uint as U};
 
 /// Lenient uint json deserialization for test json files.
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
-pub struct Uint(U256);
+pub struct Uint(pub U256);
 
 impl Into<U256> for Uint {
 	fn into(self) -> U256 {

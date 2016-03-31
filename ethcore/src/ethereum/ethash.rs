@@ -301,7 +301,6 @@ mod tests {
 	use block::*;
 	use engine::*;
 	use tests::helpers::*;
-	use super::{Ethash};
 	use super::super::new_morden;
 
 	#[test]

@@ -256,7 +256,7 @@ fn ecrecover() {
 #[test]
 #[should_panic]
 fn from_unknown_linear() {
-	let b = Builtin::from_named_linear("dw", 10, 20);
+	let _ = Builtin::from_named_linear("dw", 10, 20);
 }
 
 #[test]

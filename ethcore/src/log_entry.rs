@@ -76,18 +76,6 @@ impl From<ethjson::state::Log> for LogEntry {
 	}
 }
 
-impl FromJson for LogEntry {
-	/// Convert given JSON object to a LogEntry.
-	fn from_json(json: &Json) -> LogEntry {
-		// TODO: check bloom.
-		LogEntry {
-			address: xjson!(&json["address"]),
-			topics: xjson!(&json["topics"]),
-			data: xjson!(&json["data"]),
-		}
-	}
-}
-
 /// Log localized in a blockchain.
 #[derive(Default, Debug, PartialEq, Clone)]
 pub struct LocalizedLogEntry {

@@ -17,7 +17,6 @@
 //! Spec params deserialization.
 
 use uint::Uint;
-use hash::Address;
 
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]

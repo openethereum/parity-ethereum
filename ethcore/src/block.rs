@@ -495,7 +495,6 @@ mod tests {
 	use tests::helpers::*;
 	use super::*;
 	use common::*;
-	use engine::*;
 
 	#[test]
 	fn open_block() {
