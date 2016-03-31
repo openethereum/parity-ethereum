@@ -46,6 +46,10 @@ impl Visitor for BytesVisitor {
 		let v = match value.len() {
 			0 => vec![],
 			2 if value.starts_with("0x") => vec![],
+			_ if value.starts_with("0x") && value.len() % 2 == 1 => {
+				let v = "0".to_owned() + &value[2..];
+				FromHex::from_hex(v.as_ref() as &str).unwrap_or(vec![]),
+			},
 			_ if value.starts_with("0x") => FromHex::from_hex(&value[2..]).unwrap_or(vec![]),
 			_ => FromHex::from_hex(value).unwrap_or(vec![]),
 		};
@@ -64,13 +68,14 @@ mod test {
 
 	#[test]
 	fn bytes_deserialization() {
-		let s = r#"["", "0x", "0x12", "1234"]"#;
+		let s = r#"["", "0x", "0x12", "1234", "0x001"]"#;
 		let deserialized: Vec<Bytes> = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, vec![
 			Bytes(vec![]),
 			Bytes(vec![]),
 			Bytes(vec![0x12]),
-			Bytes(vec![0x12, 0x34])
+			Bytes(vec![0x12, 0x34]),
+			Bytes(vec![0, 1])
 		]);
 	}
 
