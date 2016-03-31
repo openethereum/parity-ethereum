@@ -345,14 +345,6 @@ mod tests {
 	}
 
 	#[test]
-	fn can_return_params() {
-		//use std::mem;
-		//let engine: Box<Ethash> = unsafe { mem::transmute(new_morden().engine) };
-		//assert!(engine.ethash_params.duration_limit > 0);
-		//assert!(engine.ethash_params.minimum_difficulty > U256::zero());
-	}
-
-	#[test]
 	fn can_return_factory() {
 		let engine = new_morden().engine;
 		engine.vm_factory();

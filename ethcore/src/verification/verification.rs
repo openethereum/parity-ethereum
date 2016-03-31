@@ -338,10 +338,7 @@ mod tests {
 		let engine = &spec.engine;
 
 		let min_gas_limit = engine.params().min_gas_limit;
-		//let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
-		//let min_difficulty = decode(engine.spec().engine_params.get("minimumDifficulty").unwrap());
 		good.gas_limit = min_gas_limit;
-		//good.difficulty = min_difficulty;
 		good.timestamp = 40;
 		good.number = 10;
 
