@@ -30,6 +30,13 @@ pub struct Account {
 	pub nonce: Option<Uint>,
 }
 
+impl Account {
+	/// Returns true if account does not have nonce and balance.
+	pub fn is_empty(&self) -> bool {
+		self.balance.is_none() && self.nonce.is_none()
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use serde_json;

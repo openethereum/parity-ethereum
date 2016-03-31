@@ -55,7 +55,10 @@ impl From<ethjson::blockchain::State> for PodState {
 
 impl From<ethjson::spec::State> for PodState {
 	fn from(s: ethjson::spec::State) -> PodState {
-		let state = s.into_iter().map(|(addr, acc)| (addr.into(), PodAccount::from(acc))).collect();
+		let state: BTreeMap<_,_> = s.into_iter()
+			.filter(|pair| !pair.1.is_empty())
+			.map(|(addr, acc)| (addr.into(), PodAccount::from(acc)))
+			.collect();
 		PodState(state)
 	}
 }
