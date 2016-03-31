@@ -107,7 +107,7 @@ impl From<ethjson::spec::Spec> for Spec {
 			name: s.name.into(),
 			params: params.clone(),
 			engine: match s.engine {
-				ethjson::spec::Engine::Null => Box::new(NullEngine::new(params)),
+				ethjson::spec::Engine::Null => Box::new(NullEngine::new(params, builtins)),
 				ethjson::spec::Engine::Ethash(ethash) => Box::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins))
 			},
 			nodes: s.nodes.unwrap_or_else(Vec::new),

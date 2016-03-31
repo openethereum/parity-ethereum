@@ -31,10 +31,10 @@ pub struct NullEngine {
 
 impl NullEngine {
 	/// Returns new instance of NullEngine with default VM Factory
-	pub fn new(params: CommonParams) -> Self {
+	pub fn new(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Self {
 		NullEngine{
 			params: params,
-			builtins: BTreeMap::new(),
+			builtins: builtins,
 			factory: Factory::default()
 		}
 	}

@@ -61,6 +61,10 @@ struct UintVisitor;
 impl Visitor for UintVisitor {
 	type Value = Uint;
 
+	fn visit_u64<E>(&mut self, value: u64) -> Result<Self::Value, E> where E: Error {
+		Ok(Uint(U256::from(value)))
+	}
+
 	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
 		let value = match value.len() {
 			0 => U256::from(0),
@@ -89,11 +93,12 @@ mod test {
 
 	#[test]
 	fn uint_deserialization() {
-		let s = r#"["0xa", "10", "", "0x"]"#;
+		let s = r#"["0xa", "10", "", "0x", 0]"#;
 		let deserialized: Vec<Uint> = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, vec![
 				   Uint(U256::from(10)),
 				   Uint(U256::from(10)),
+				   Uint(U256::from(0)),
 				   Uint(U256::from(0)),
 				   Uint(U256::from(0))
 		]);

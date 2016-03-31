@@ -30,9 +30,9 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	let tests = ethjson::state::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 	let engine = match era {
-		ChainEra::Frontier => ethereum::new_mainnet_like(),
-		ChainEra::Homestead => ethereum::new_homestead_test(),
-	}.to_engine().unwrap();
+		ChainEra::Frontier => ethereum::new_mainnet_like().engine,
+		ChainEra::Homestead => ethereum::new_homestead_test().engine
+	};
 
 	for (name, test) in tests.into_iter() {
 		let mut fail = false;
