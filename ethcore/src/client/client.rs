@@ -30,7 +30,7 @@ use service::{NetSyncMessage, SyncMessage};
 use env_info::LastHashes;
 use verification::*;
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction};
+use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use extras::TransactionAddress;
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -38,7 +38,7 @@ use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockId, TransactionId, UncleId, ClientConfig, BlockChainClient};
 use env_info::EnvInfo;
-use executive::{Executive, Executed};
+use executive::{Executive, Executed, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
@@ -577,8 +577,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 						// TODO: to fix this, query all previous transaction receipts and retrieve their gas usage
 						cumulative_gas_used: receipt.gas_used,
 						gas_used: receipt.gas_used,
-						// TODO: to fix this, store created contract address in db
-						contract_address: None,
+						contract_address: match tx.action {
+							Action::Call(_) => None,
+							Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce))
+						},
 						logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
 							entry: log,
 							block_hash: block_hash.clone(),
