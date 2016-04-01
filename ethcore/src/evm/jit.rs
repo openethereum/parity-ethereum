@@ -207,7 +207,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		let receive_address = unsafe { Address::from_jit(&*receive_address) };
 		let code_address = unsafe { Address::from_jit(&*code_address) };
 		let transfer_value = unsafe { U256::from_jit(&*transfer_value) };
-		let mut value = Some(transfer_value);
+		let value = Some(transfer_value);
 
 		// receive address and code address are the same in normal calls
 		let is_callcode = receive_address != code_address;
