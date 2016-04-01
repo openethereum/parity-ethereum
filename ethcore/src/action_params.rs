@@ -27,6 +27,15 @@ pub enum ActionValue {
 	Apparent(U256)
 }
 
+impl ActionValue {
+	/// Returns action value as U256.
+	pub fn value(&self) -> U256 {
+		match *self {
+			ActionValue::Transfer(x) | ActionValue::Apparent(x) => x
+		}
+	}
+}
+
 // TODO: should be a trait, possible to avoid cloning everything from a Transaction(/View).
 /// Action (call/create) input params. Everything else should be specified in Externalities.
 #[derive(Clone, Debug)]
