@@ -32,6 +32,7 @@ pub struct Worker<S> where S: IpcInterface<S> {
 	method_buf: [u8;2],
 }
 
+#[derive(Debug)]
 pub enum SocketError {
 	DuplexLink
 }
@@ -86,22 +87,49 @@ mod tests {
 	use super::Worker;
 	use ipc::*;
 	use std::io::Read;
-	use std::sync::Arc;
+	use std::sync::{Arc, RwLock};
 
-	struct DummyService;
+	struct TestInvoke {
+		method_num: u16,
+		params: Vec<u8>,
+	}
+
+	struct DummyService {
+		methods_stack: RwLock<Vec<TestInvoke>>,
+	}
+
+	impl DummyService {
+		fn new() -> DummyService {
+			DummyService { methods_stack: RwLock::new(Vec::new()) }
+		}
+	}
 
 	impl IpcInterface<DummyService> for DummyService {
-		fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read {
+		fn dispatch<R>(&self, _r: &mut R) -> Vec<u8> where R: Read {
 			vec![]
 		}
 		fn dispatch_buf<R>(&self, method_num: u16, r: &mut R) -> Vec<u8> where R: Read {
+			let mut buf = vec![0u8; 4096];
+			let size = r.read_to_end(&mut buf).unwrap();
+			self.methods_stack.write().unwrap().push(
+				TestInvoke {
+					method_num: method_num,
+					params: unsafe { Vec::from_raw_parts(buf.as_mut_ptr(), size, size) }
+				});
 			vec![]
 		}
 	}
 
 	#[test]
 	fn can_create_worker() {
-		let worker = Worker::<DummyService>::new(Arc::new(DummyService));
+		let worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
 		assert_eq!(0, worker.sockets.len());
+	}
+
+	#[test]
+	fn can_add_duplex_socket_to_worker() {
+		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		worker.add_duplex("ipc://tmp/parity/test1").unwrap();
+		assert_eq!(1, worker.sockets.len());
 	}
 }
