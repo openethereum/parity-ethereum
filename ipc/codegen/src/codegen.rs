@@ -25,6 +25,7 @@ use syntax::ast::{
 	Arg,
 	PatKind,
 	FunctionRetTy,
+	Ty,
 };
 
 use syntax::ast;
@@ -52,10 +53,12 @@ pub fn expand_ipc_implementation(
 
 	let builder = aster::AstBuilder::new().span(span);
 
-	let impl_item = match implement_interface(cx, &builder, &item, push) {
-		Ok(item) => item,
+	let (impl_item, dispatches) = match implement_interface(cx, &builder, &item, push) {
+		Ok((item, dispatches)) => (item, dispatches),
 		Err(Error) => { return; }
 	};
+
+	push_client(cx, &builder, &item, &dispatches, push);
 
 	push(Annotatable::Item(impl_item))
 }
@@ -75,36 +78,41 @@ fn push_invoke_signature_aster(
 ) -> Dispatch {
 
 	let inputs = &signature.decl.inputs;
-	let (input_type_name, input_arg_names) = if inputs.len() > 0 {
+	let (input_type_name, input_arg_names, input_arg_tys) = if inputs.len() > 0 {
 		let first_field_name = field_name(builder, &inputs[0]).name.as_str();
-		if first_field_name == "self" && inputs.len() == 1 { (None, vec![]) }
+		if first_field_name == "self" && inputs.len() == 1 { (None, vec![], vec![]) }
 		else {
 			let skip = if first_field_name == "self" { 2 } else { 1 };
 			let name_str = format!("{}_input", implement.ident.name.as_str());
 
 			let mut arg_names = Vec::new();
+			let mut arg_tys = Vec::new();
 			let arg_name = format!("{}", field_name(builder, &inputs[skip-1]).name);
+			let arg_ty = inputs[skip-1].ty.clone();
 			let mut tree = builder.item()
 				.attr().word("derive(Serialize, Deserialize)")
 				.attr().word("allow(non_camel_case_types)")
 				.struct_(name_str.as_str())
-				.field(arg_name.as_str()).ty().build(inputs[skip-1].ty.clone());
+				.field(arg_name.as_str()).ty().build(arg_ty.clone());
 			arg_names.push(arg_name);
+			arg_tys.push(arg_ty.clone());
 			for arg in inputs.iter().skip(skip) {
 				let arg_name = format!("{}", field_name(builder, &arg));
-				tree = tree.field(arg_name.as_str()).ty().build(arg.ty.clone());
+				let arg_ty = arg.ty.clone();
+				tree = tree.field(arg_name.as_str()).ty().build(arg_ty.clone());
 				arg_names.push(arg_name);
+				arg_tys.push(arg_ty);
 			}
 
 			push(Annotatable::Item(tree.build()));
-			(Some(name_str.to_owned()), arg_names)
+			(Some(name_str.to_owned()), arg_names, arg_tys)
 		}
 	}
 	else {
-		(None, vec![])
+		(None, vec![], vec![])
 	};
 
-	let return_type_name = match signature.decl.output {
+	let (return_type_name, return_type_ty) = match signature.decl.output {
 		FunctionRetTy::Ty(ref ty) => {
 			let name_str = format!("{}_output", implement.ident.name.as_str());
 			let tree = builder.item()
@@ -113,16 +121,18 @@ fn push_invoke_signature_aster(
 				.struct_(name_str.as_str())
 				.field(format!("payload")).ty().build(ty.clone());
 			push(Annotatable::Item(tree.build()));
-			Some(name_str.to_owned())
+			(Some(name_str.to_owned()), Some(ty.clone()))
 		}
-		_ => None
+		_ => (None, None)
 	};
 
 	Dispatch {
 		function_name: format!("{}", implement.ident.name.as_str()),
 		input_type_name: input_type_name,
 		input_arg_names: input_arg_names,
+		input_arg_tys: input_arg_tys,
 		return_type_name: return_type_name,
+		return_type_ty: return_type_ty,
 	}
 }
 
@@ -130,7 +140,9 @@ struct Dispatch {
 	function_name: String,
 	input_type_name: Option<String>,
 	input_arg_names: Vec<String>,
+	input_arg_tys: Vec<P<Ty>>,
 	return_type_name: Option<String>,
+	return_type_ty: Option<P<Ty>>,
 }
 
 fn implement_dispatch_arm_invoke(
@@ -212,6 +224,7 @@ fn implement_dispatch_arm_invoke(
 	})
 }
 
+/// generates dispatch match for method id
 fn implement_dispatch_arm(cx: &ExtCtxt, builder: &aster::AstBuilder, index: u32, dispatch: &Dispatch)
 	-> ast::Arm
 {
@@ -220,12 +233,256 @@ fn implement_dispatch_arm(cx: &ExtCtxt, builder: &aster::AstBuilder, index: u32,
 	quote_arm!(cx, $index_ident => { $invoke_expr } )
 }
 
+/// generates client type for specified server type
+/// for say `Service` it generates `ServiceClient`
+fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
+	let proxy_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
+
+	let proxy_struct_item = quote_item!(cx,
+		pub struct $proxy_ident <S: ::ipc::IpcSocket> {
+			socket: ::std::cell::RefCell<S>,
+			phantom: ::std::marker::PhantomData<S>,
+		});
+
+	push(Annotatable::Item(proxy_struct_item.expect(&format!("could not generate proxy struct for {:?}", proxy_ident.name))));
+}
+
+/// pushes generated code for the client class (type declaration and method invocation implementations)
+fn push_client(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	item: &Item,
+	dispatches: &[Dispatch],
+	push: &mut FnMut(Annotatable))
+{
+	push_client_struct(cx, builder, item, push);
+	push_client_implementation(cx, builder, dispatches, item, push);
+}
+
+/// returns an expression with the body for single operation that is being sent to server
+/// operation itself serializes input, writes to socket and waits for socket to respond
+/// (the latter only if original method signature returns anyting)
+///
+/// assuming expanded class contains method
+///   fn commit(&self, f: u32) -> u32
+///
+/// the expanded implementation will generate method for the client like that
+///    #[derive(Serialize)]
+///    struct Request<'a> {
+///	     f: &'a u32,
+///    }
+///    let payload = Request{f: &f,};
+///    let mut socket_ref = self.socket.borrow_mut();
+///    let mut socket = socket_ref.deref_mut();
+///    let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap();
+///    ::ipc::invoke(0, &Some(serialized_payload), &mut socket);
+///    while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { }
+///    ::bincode::serde::deserialize_from::<_, u32>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
+fn implement_client_method_body(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	index: u16,
+	dispatch: &Dispatch,
+	)
+	-> P<ast::Expr>
+{
+	let request = if dispatch.input_arg_names.len() > 0 {
+		let arg_name = dispatch.input_arg_names[0].as_str();
+		let arg_ty = builder
+			.ty().ref_()
+			.lifetime("'a")
+			.ty().build(dispatch.input_arg_tys[0].clone());
+
+		let mut tree = builder.item()
+			.attr().word("derive(Serialize)")
+			.struct_("Request")
+			.generics()
+			.lifetime_name("'a")
+			.build()
+			.field(arg_name).ty().build(arg_ty);
+
+		for arg_idx in 1..dispatch.input_arg_names.len() {
+			let arg_name = dispatch.input_arg_names[arg_idx].as_str();
+			let arg_ty = builder
+				.ty().ref_()
+				.lifetime("'a")
+				.ty().build(dispatch.input_arg_tys[arg_idx].clone());
+			tree = tree.field(arg_name).ty().build(arg_ty);
+		}
+		let mut request_serialization_statements = Vec::new();
+
+		let struct_tree = tree.build();
+		let struct_stmt = quote_stmt!(cx, $struct_tree);
+		request_serialization_statements.push(struct_stmt);
+
+		// actually this is just expanded version of this:
+		//   request_serialization_statements.push(quote_stmt!(cx, let payload = Request { p1: &p1, p2: &p2, ... pn: &pn, }));
+		// again, cannot dynamically create expression with arbitrary number of comma-separated members
+		request_serialization_statements.push({
+			let ext_cx = &*cx;
+			::quasi::parse_stmt_panic(&mut ::syntax::parse::new_parser_from_tts(
+				ext_cx.parse_sess(),
+				ext_cx.cfg(),
+				{
+					let _sp = ext_cx.call_site();
+					let mut tt = ::std::vec::Vec::new();
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("let"), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("payload"), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Eq));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Request"), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
+
+					for arg in dispatch.input_arg_names.iter() {
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()), ::syntax::parse::token::Plain)));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()), ::syntax::parse::token::Plain)));
+						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+					}
+
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+					tt
+				}))
+			});
+
+		request_serialization_statements.push(
+			quote_stmt!(cx, let mut socket_ref = self.socket.borrow_mut()));
+
+		request_serialization_statements.push(
+			quote_stmt!(cx, let mut socket = socket_ref.deref_mut()));
+
+		request_serialization_statements.push(
+			quote_stmt!(cx, let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()));
+
+		let index_ident = builder.id(format!("{}", index).as_str());
+
+		request_serialization_statements.push(
+			quote_stmt!(cx, ::ipc::invoke($index_ident, &Some(serialized_payload), &mut socket)));
+
+
+		request_serialization_statements
+	}
+	else {
+		vec![]
+	};
+
+	let wait_result_stmt = quote_stmt!(cx, while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { });
+	if let Some(ref return_ty) = dispatch.return_type_ty {
+		let return_expr = quote_expr!(cx,
+			::bincode::serde::deserialize_from::<_, $return_ty>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
+		);
+		quote_expr!(cx, {
+			$request
+			$wait_result_stmt
+			$return_expr
+		})
+	}
+	else {
+		quote_expr!(cx, {
+			$request
+			$wait_result_stmt
+		})
+	}
+}
+
+/// Generates signature and body (see `implement_client_method_body`)
+/// for the client (signature is identical to the original method)
+fn implement_client_method(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	index: u16,
+	dispatch: &Dispatch)
+	-> ast::ImplItem
+{
+	let method_name = builder.id(dispatch.function_name.as_str());
+	let body = implement_client_method_body(cx, builder, index, dispatch);
+
+	let ext_cx = &*cx;
+	// expanded version of this
+	//   pub fn $method_name(&self, p1: p1_ty, p2: p2_ty ... pn: pn_ty, ) [-> return_ty] { $body }
+	// looks like it's tricky to build function declaration with aster if body already generated
+	let signature = ::syntax::parse::parser::Parser::parse_impl_item(
+		&mut ::syntax::parse::new_parser_from_tts(
+			ext_cx.parse_sess(),
+			ext_cx.cfg(),
+			{
+				let _sp = ext_cx.call_site();
+				let mut tt = ::std::vec::Vec::new();
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("pub"), ::syntax::parse::token::Plain)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("fn"), ::syntax::parse::token::Plain)));
+				tt.extend(::quasi::ToTokens::to_tokens(&method_name, ext_cx).into_iter());
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"), ::syntax::parse::token::Plain)));
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+
+				for arg_idx in 0..dispatch.input_arg_names.len() {
+					let arg_name = dispatch.input_arg_names[arg_idx].as_str();
+					let arg_ty = dispatch.input_arg_tys[arg_idx].clone();
+
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg_name), ::syntax::parse::token::Plain)));
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
+					tt.extend(::quasi::ToTokens::to_tokens(&arg_ty, ext_cx).into_iter());
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+				}
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+
+				if let Some(ref return_ty) = dispatch.return_type_ty {
+					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::RArrow));
+					tt.extend(::quasi::ToTokens::to_tokens(return_ty, ext_cx).into_iter());
+				}
+
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
+				tt.extend(::quasi::ToTokens::to_tokens(&body, ext_cx).into_iter());
+				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+
+				tt
+			}));
+
+	signature.unwrap()
+}
+
+/// pushes full client side code for the original class exposed via ipc
+fn push_client_implementation(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	dispatches: &[Dispatch],
+	item: &Item,
+	push: &mut FnMut(Annotatable))
+{
+	let mut index = -1i32;
+	let items = dispatches.iter()
+		.map(|dispatch| { index = index + 1; P(implement_client_method(cx, builder, index as u16, dispatch)) })
+		.collect::<Vec<P<ast::ImplItem>>>();
+
+	let client_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
+	let implement = quote_item!(cx,
+		impl<S> $client_ident<S> where S: ::ipc::IpcSocket {
+			pub fn new(socket: S) -> $client_ident<S> {
+				$client_ident {
+					socket: ::std::cell::RefCell::new(socket),
+					phantom: ::std::marker::PhantomData,
+				}
+			}
+
+			#[cfg(test)]
+			pub fn socket(&self) -> &::std::cell::RefCell<S> {
+				&self.socket
+			}
+
+			$items
+		}).unwrap();
+
+	push(Annotatable::Item(implement));
+}
+
+/// implements `IpcInterface<C>` for the given class `C`
 fn implement_interface(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	item: &Item,
 	push: &mut FnMut(Annotatable),
-) -> Result<P<ast::Item>, Error> {
+) -> Result<(P<ast::Item>, Vec<Dispatch>), Error> {
 	let (generics, impl_items) = match item.node {
 		ast::ItemKind::Impl(_, _, ref generics, _, _, ref impl_items) => (generics, impl_items),
 		_ => {
@@ -258,7 +515,7 @@ fn implement_interface(
 	let dispatch_arms: Vec<_> = dispatch_table.iter()
 		.map(|dispatch| { index = index + 1; implement_dispatch_arm(cx, builder, index as u32, dispatch) }).collect();
 
-	Ok(quote_item!(cx,
+	Ok((quote_item!(cx,
 		impl $impl_generics ::ipc::IpcInterface<$ty> for $ty $where_clause {
 			fn dispatch<R>(&self, r: &mut R) -> Vec<u8>
 				where R: ::std::io::Read
@@ -274,11 +531,6 @@ fn implement_interface(
 					_ => vec![]
 				}
 			}
-			fn invoke<W>(&self, _method_num: u16, _payload: &Option<Vec<u8>>, _w: &mut W)
-				where W: ::std::io::Write
-			{
-			}
-
 		}
-	).unwrap())
+	).unwrap(), dispatch_table))
 }
