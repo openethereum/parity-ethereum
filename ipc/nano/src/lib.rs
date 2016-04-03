@@ -148,7 +148,7 @@ mod tests {
 	#[test]
 	fn can_add_duplex_socket_to_worker() {
 		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
-		worker.add_duplex("ipc://tmp/parity-test10.ipc").unwrap();
+		worker.add_duplex("ipc:///tmp/parity-test10.ipc").unwrap();
 		assert_eq!(1, worker.sockets.len());
 	}
 
@@ -156,7 +156,7 @@ mod tests {
 	fn worker_can_poll_empty() {
 		let service = Arc::new(DummyService::new());
 		let mut worker = Worker::<DummyService>::new(service.clone());
-		worker.add_duplex("ipc://tmp/parity-test20.ipc").unwrap();
+		worker.add_duplex("ipc:///tmp/parity-test20.ipc").unwrap();
 		worker.poll();
 		assert_eq!(0, service.methods_stack.read().unwrap().len());
 	}
