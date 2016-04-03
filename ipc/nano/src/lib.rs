@@ -14,7 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore implementation of IPC over nanomsg transport
+//! IPC over nanomsg transport
 
 extern crate ethcore_ipc as ipc;
 extern crate nanomsg;
+
+pub use ipc::*;
+
+use std::sync::*;
+use nanomsg::{Socket, Protocol};
+
+pub struct Worker<S> where S: IpcInterface<S> {
+	service: Arc<S>,
+	sockets: Vec<Socket>,
+}
+
+impl<S> Worker<S> where S: IpcInterface<S> {
+	pub fn new(service: Arc<S>, socket_addr: &str) -> Worker<S> {
+		Worker::<S> {
+			service: service.clone(),
+			sockets: Vec::new(),
+		}
+	}
+
+	pub fn work_loop(&mut self) {
+	}
+}

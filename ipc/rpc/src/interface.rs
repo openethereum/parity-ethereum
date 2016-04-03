@@ -23,6 +23,10 @@ use std::sync::atomic::*;
 pub trait IpcInterface<T> {
 	/// reads the message from io, dispatches the call and returns result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
+
+	/// deserialize the payload from the io `r` and invokes method specified by `method_num`
+	/// (for non-blocking io)
+	fn dispatch_buf<R>(&self, method_num: u16, r: &mut R) -> Vec<u8> where R: Read;
 }
 
 /// serializes method invocation (method_num and parameters) to the stream specified by `w`

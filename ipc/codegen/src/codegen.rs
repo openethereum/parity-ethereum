@@ -531,6 +531,15 @@ fn implement_interface(
 					_ => vec![]
 				}
 			}
+
+			fn dispatch_buf<R>(&self, method_num: u16, r: &mut R) -> Vec<u8>
+				where R: ::std::io::Read
+			{
+				match method_num {
+					$dispatch_arms
+					_ => vec![]
+				}
+			}
 		}
 	).unwrap(), dispatch_table))
 }
