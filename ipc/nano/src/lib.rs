@@ -22,21 +22,34 @@ extern crate nanomsg;
 pub use ipc::*;
 
 use std::sync::*;
+use std::io::Write;
 use nanomsg::{Socket, Protocol};
 
 pub struct Worker<S> where S: IpcInterface<S> {
 	service: Arc<S>,
 	sockets: Vec<Socket>,
+	method_buf: [u8;2],
 }
 
 impl<S> Worker<S> where S: IpcInterface<S> {
-	pub fn new(service: Arc<S>, socket_addr: &str) -> Worker<S> {
+	pub fn new(service: Arc<S>) -> Worker<S> {
 		Worker::<S> {
 			service: service.clone(),
 			sockets: Vec::new(),
+			method_buf: [0,0]
 		}
 	}
 
-	pub fn work_loop(&mut self) {
+	pub fn poll(&mut self) {
+		for socket in self.sockets.iter_mut() {
+			if let Ok(method_sig_len) = socket.nb_read(&mut self.method_buf) {
+				if method_sig_len == 2 {
+					let result = self.service.dispatch_buf(
+						self.method_buf[1] as u16 * 256 + self.method_buf[0] as u16,
+						socket);
+					socket.write(&result);
+				}
+			}
+		}
 	}
 }
