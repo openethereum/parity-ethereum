@@ -99,6 +99,7 @@ mod tests {
 		}
 	}
 
+	#[test]
 	fn can_create_worker() {
 		let worker = Worker::<DummyService>::new(Arc::new(DummyService));
 		assert_eq!(0, worker.sockets.len());
