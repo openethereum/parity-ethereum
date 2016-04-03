@@ -32,6 +32,10 @@ pub struct Worker<S> where S: IpcInterface<S> {
 	method_buf: [u8;2],
 }
 
+pub enum SocketError {
+	DuplexLink
+}
+
 impl<S> Worker<S> where S: IpcInterface<S> {
 	pub fn new(service: Arc<S>) -> Worker<S> {
 		Worker::<S> {
@@ -43,8 +47,9 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 
 	pub fn poll(&mut self) {
 		for socket in self.sockets.iter_mut() {
-			if let Ok(method_sig_len) = socket.nb_read(&mut self.method_buf) {
-				if method_sig_len == 2 {
+			// non-blocking read only ok if there is something to read from socket
+			if let Ok(method_sign_len) = socket.nb_read(&mut self.method_buf) {
+				if method_sign_len == 2 {
 					let result = self.service.dispatch_buf(
 						self.method_buf[1] as u16 * 256 + self.method_buf[0] as u16,
 						socket);
@@ -52,7 +57,50 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 						warn!(target: "ipc", "Failed to write response: {:?}", e);
 					}
 				}
+				else {
+					warn!(target: "ipc", "Failed to read method signature from socket: unexpected message length({})", method_sign_len);
+				}
 			}
 		}
+	}
+
+	pub fn add_duplex(&mut self, addr: &str) -> Result<(), SocketError>  {
+		let mut socket = try!(Socket::new(Protocol::Pair).map_err(|e| {
+			warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
+			SocketError::DuplexLink
+		}));
+
+		try!(socket.bind(addr).map_err(|e| {
+			warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", addr, e);
+			SocketError::DuplexLink
+		}));
+
+		self.sockets.push(socket);
+		Ok(())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+
+	use super::Worker;
+	use ipc::*;
+	use std::io::Read;
+	use std::sync::Arc;
+
+	struct DummyService;
+
+	impl IpcInterface<DummyService> for DummyService {
+		fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read {
+			vec![]
+		}
+		fn dispatch_buf<R>(&self, method_num: u16, r: &mut R) -> Vec<u8> where R: Read {
+			vec![]
+		}
+	}
+
+	fn can_create_worker() {
+		let worker = Worker::<DummyService>::new(Arc::new(DummyService));
+		assert_eq!(0, worker.sockets.len());
 	}
 }
