@@ -9,3 +9,4 @@ license = "GPL-3.0"
 [dependencies]
 "ethcore-ipc" = { path = "../rpc" }
 nanomsg = "0.5.0"
+log = "0.3"

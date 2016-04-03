@@ -18,6 +18,7 @@
 
 extern crate ethcore_ipc as ipc;
 extern crate nanomsg;
+#[macro_use] extern crate log;
 
 pub use ipc::*;
 
@@ -47,7 +48,9 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 					let result = self.service.dispatch_buf(
 						self.method_buf[1] as u16 * 256 + self.method_buf[0] as u16,
 						socket);
-					socket.write(&result);
+					if let Err(e) = socket.write(&result) {
+						warn!(target: "ipc", "Failed to write response: {:?}", e);
+					}
 				}
 			}
 		}
