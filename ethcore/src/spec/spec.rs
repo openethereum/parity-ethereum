@@ -106,10 +106,7 @@ impl From<ethjson::spec::Spec> for Spec {
 		Spec {
 			name: s.name.into(),
 			params: params.clone(),
-			engine: match s.engine {
-				ethjson::spec::Engine::Null => Box::new(NullEngine::new(params, builtins)),
-				ethjson::spec::Engine::Ethash(ethash) => Box::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins))
-			},
+			engine: Spec::engine(s.engine, params, builtins),
 			nodes: s.nodes.unwrap_or_else(Vec::new),
 			parent_hash: g.parent_hash,
 			transactions_root: g.transactions_root,
@@ -129,6 +126,15 @@ impl From<ethjson::spec::Spec> for Spec {
 }
 
 impl Spec {
+	/// Convert engine spec into a boxed Engine of the right underlying type.
+	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
+	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Box<Engine> {
+		match engine_spec {
+			ethjson::spec::Engine::Null => Box::new(NullEngine::new(params, builtins)),
+			ethjson::spec::Engine::Ethash(ethash) => Box::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins))
+		}
+	}
+
 	/// Return the state root for the genesis state, memoising accordingly.
 	pub fn state_root(&self) -> H256 {
 		if self.state_root_memo.read().unwrap().is_none() {
