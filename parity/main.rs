@@ -338,7 +338,7 @@ impl Configuration {
 	fn author(&self) -> Address {
 		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
 		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", d)
+			die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
 		})
 	}
 
