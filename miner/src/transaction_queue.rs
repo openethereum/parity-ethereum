@@ -213,14 +213,15 @@ impl TransactionSet {
 			self.by_priority
 				.iter()
 				.skip(self.limit)
-				.map(|order| by_hash.get(&order.hash).expect("Inconsistency in queue detected."))
+				.map(|order| by_hash.get(&order.hash)
+					.expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`."))
 				.map(|tx| (tx.sender(), tx.nonce()))
 				.collect()
 		};
 
 		for (sender, nonce) in to_drop {
-			let order = self.drop(&sender, &nonce).expect("Dropping transaction found in priority queue failed.");
-			by_hash.remove(&order.hash).expect("Inconsistency in queue.");
+			let order = self.drop(&sender, &nonce).expect("Transaction has just been found in `by_priority`; so it is in `by_address` also.");
+			by_hash.remove(&order.hash).expect("Hash found in `by_priorty` matches the one dropped; so it is included in `by_hash`");
 		}
 	}
 
@@ -496,7 +497,7 @@ impl TransactionQueue {
 	pub fn top_transactions(&self) -> Vec<SignedTransaction> {
 		self.current.by_priority
 			.iter()
-			.map(|t| self.by_hash.get(&t.hash).expect("Transaction Queue Inconsistency"))
+			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
 			.map(|t| t.transaction.clone())
 			.collect()
 	}
