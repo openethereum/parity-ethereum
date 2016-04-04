@@ -150,7 +150,7 @@ impl AccountService {
 		self.secret_store.write().unwrap().collect_garbage();
 	}
 
-    /// Unlocks account for use (no expiration of unlock)
+	/// Unlocks account for use (no expiration of unlock)
 	pub fn unlock_account_no_expire(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError> {
 		self.secret_store.write().unwrap().unlock_account_with_expiration(account, pass, None)
 	}
@@ -183,13 +183,9 @@ impl SecretStore {
 
 	/// trys to import keys in the known locations
 	pub fn try_import_existing(&mut self) {
-		use std::path::PathBuf;
 		use keys::geth_import;
 
-		let mut import_path = PathBuf::new();
-		import_path.push(::std::env::home_dir().expect("Failed to get home dir"));
-		import_path.push(".ethereum");
-		import_path.push("keystore");
+		let import_path = geth_import::keystore_dir();
 		if let Err(e) = geth_import::import_geth_keys(self, &import_path) {
 			trace!(target: "sstore", "Geth key not imported: {:?}", e);
 		}

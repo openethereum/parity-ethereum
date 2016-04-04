@@ -19,9 +19,10 @@
 use common::*;
 use keys::store::SecretStore;
 use keys::directory::KeyFileContent;
+use std::path::PathBuf;
 
 /// Enumerates all geth keys in the directory and returns collection of tuples `(accountId, filename)`
-pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, io::Error> {
+pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, ImportError> {
 	let mut entries = Vec::new();
 	for entry in try!(fs::read_dir(path)) {
 		let entry = try!(entry);
@@ -30,10 +31,8 @@ pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, io::Er
 				Some(name) => {
 					let parts: Vec<&str> = name.split("--").collect();
 					if parts.len() != 3 { continue; }
-					match Address::from_str(parts[2]) {
-						Ok(account_id) => { entries.push((account_id, name.to_owned())); }
-						Err(e) => { panic!("error: {:?}", e); }
-					}
+					let account_id = try!(Address::from_str(parts[2]).map_err(|_| ImportError::Format));
+					entries.push((account_id, name.to_owned()));
 				},
 				None => { continue; }
 			};
@@ -68,9 +67,10 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 		Ok(ref mut parsed_json) => try!(parsed_json.as_object_mut().ok_or(ImportError::Format)),
 		Err(_) => { return Err(ImportError::Format); }
 	};
-	let crypto_object = try!(json.get("Crypto").and_then(|crypto| crypto.as_object()).ok_or(ImportError::Format)).clone();
-	json.insert("crypto".to_owned(), Json::Object(crypto_object));
-	json.remove("Crypto");
+	if let Some(crypto_object) = json.get("Crypto").and_then(|crypto| crypto.as_object()).cloned() {
+		json.insert("crypto".to_owned(), Json::Object(crypto_object));
+		json.remove("Crypto");
+	}
 	match KeyFileContent::load(&Json::Object(json.clone())) {
 		Ok(key_file) => try!(secret_store.import_key(key_file)),
 		Err(_) => { return Err(ImportError::Format); }
@@ -93,6 +93,37 @@ pub fn import_geth_keys(secret_store: &mut SecretStore, geth_keyfiles_directory:
 	Ok(())
 }
 
+
+/// Gets the default geth keystore directory.
+///
+/// Based on https://github.com/ethereum/go-ethereum/blob/e553215/common/path.go#L75
+pub fn keystore_dir() -> PathBuf {
+	#[cfg(target_os = "macos")]
+	fn data_dir(mut home: PathBuf) -> PathBuf {
+		home.push("Library");
+		home.push("Ethereum");
+		home
+	}
+	
+	#[cfg(windows)]
+	fn data_dir(mut home: PathBuf) -> PathBuf {
+		home.push("AppData");
+		home.push("Roaming");
+		home.push("Ethereum");
+		home	
+	}
+	
+	#[cfg(not(any(target_os = "macos", windows)))]
+	fn data_dir(mut home: PathBuf) -> PathBuf {
+		home.push(".ethereum");
+        home
+	}
+	
+	let mut data_dir = data_dir(::std::env::home_dir().expect("Failed to get home dir"));
+	data_dir.push("keystore");
+	data_dir
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -113,15 +144,24 @@ mod tests {
 	#[test]
 	fn can_enumerate() {
 		let keys = enumerate_geth_keys(Path::new(test_path())).unwrap();
-		assert_eq!(2, keys.len());
+		assert_eq!(3, keys.len());
 	}
 
 	#[test]
-	fn can_import() {
+	fn can_import_geth_old() {
 		let temp = ::devtools::RandomTempPath::create_dir();
 		let mut secret_store = SecretStore::new_in(temp.as_path());
 		import_geth_key(&mut secret_store, Path::new(&test_path_param("/UTC--2016-02-17T09-20-45.721400158Z--3f49624084b67849c7b4e805c5988c21a430f9d9"))).unwrap();
 		let key = secret_store.account(&Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap());
+		assert!(key.is_some());
+	}
+
+	#[test]
+	fn can_import_geth140() {
+		let temp = ::devtools::RandomTempPath::create_dir();
+		let mut secret_store = SecretStore::new_in(temp.as_path());
+		import_geth_key(&mut secret_store, Path::new(&test_path_param("/UTC--2016-04-03T08-58-49.834202900Z--63121b431a52f8043c16fcf0d1df9cb7b5f66649"))).unwrap();
+		let key = secret_store.account(&Address::from_str("63121b431a52f8043c16fcf0d1df9cb7b5f66649").unwrap());
 		assert!(key.is_some());
 	}
 

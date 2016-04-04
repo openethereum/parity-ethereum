@@ -16,9 +16,43 @@
 
 //! IPC RPC interface
 
+use std::io::{Read, Write};
+use std::marker::Sync;
+use std::sync::atomic::*;
+
 pub trait IpcInterface<T> {
 	/// reads the message from io, dispatches the call and returns result
-	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: ::std::io::Read;
-	/// encodes the invocation, writes payload and waits for result
-	fn invoke<W>(&self, method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: ::std::io::Write;
+	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
+}
+
+/// serializes method invocation (method_num and parameters) to the stream specified by `w`
+pub fn invoke<W>(method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: Write {
+	// creating buffer to contain all message
+	let buf_len = match *params { None => 2, Some(ref val) => val.len() + 2 };
+	let mut buf = vec![0u8; buf_len];
+
+	// writing method_num as u16
+	buf[1] = (method_num & 255) as u8;
+	buf[0] = (method_num >> 8) as u8;
+
+	// serializing parameters only if provided with any
+	if params.is_some() {
+		buf[2..buf_len].clone_from_slice(params.as_ref().unwrap());
+	}
+	if w.write(&buf).unwrap() != buf_len
+	{
+		// if write was inconsistent
+		panic!("failed to write to socket");
+	}
+}
+
+/// IpcSocket
+pub trait IpcSocket: Read + Write + Sync {
+	fn ready(&self) -> AtomicBool;
+}
+
+impl IpcSocket for ::devtools::TestSocket {
+	fn ready(&self) -> AtomicBool {
+		AtomicBool::new(true)
+	}
 }
