@@ -348,12 +348,13 @@ impl evm::Evm for Interpreter {
 
 impl Interpreter {
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
-	fn get_gas_cost_mem(&self,
-						ext: &evm::Ext,
-						instruction: Instruction,
-						mem: &mut Memory,
-						stack: &Stack<U256>
-					   ) -> Result<(U256, usize), evm::Error> {
+	fn get_gas_cost_mem(
+		&self,
+		ext: &evm::Ext,
+		instruction: Instruction,
+		mem: &mut Memory,
+		stack: &Stack<U256>
+	) -> Result<(U256, usize), evm::Error> {
 		let schedule = ext.schedule();
 		let info = instructions::get_info(instruction);
 
@@ -522,15 +523,16 @@ impl Interpreter {
 	}
 
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
-	fn exec_instruction(&self,
-						gas: Gas,
-						params: &ActionParams,
-						ext: &mut evm::Ext,
-						instruction: Instruction,
-						code: &mut CodeReader,
-						mem: &mut Memory,
-						stack: &mut Stack<U256>
-					   ) -> Result<InstructionResult, evm::Error> {
+	fn exec_instruction(
+		&self,
+		gas: Gas,
+		params: &ActionParams,
+		ext: &mut evm::Ext,
+		instruction: Instruction,
+		code: &mut CodeReader,
+		mem: &mut Memory,
+		stack: &mut Stack<U256>
+	) -> Result<InstructionResult, evm::Error> {
 		match instruction {
 			instructions::JUMP => {
 				let jump = stack.pop_back();

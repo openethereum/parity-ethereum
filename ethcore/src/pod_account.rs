@@ -19,7 +19,7 @@ use account::*;
 use account_db::*;
 use ethjson;
 
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// An account, expressed as Plain-Old-Data (hence the name).
 /// Does not have a DB overlay cache, code hash or anything like that.
 pub struct PodAccount {

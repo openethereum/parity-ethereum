@@ -23,7 +23,7 @@ use hashdb::*;
 /// exclusive actions.
 pub trait JournalDB : HashDB + Send + Sync {
 	/// Return a copy of ourself, in a box.
-	fn spawn(&self) -> Box<JournalDB>;
+	fn boxed_clone(&self) -> Box<JournalDB>;
 
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;

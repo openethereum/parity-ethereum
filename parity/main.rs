@@ -20,6 +20,7 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 extern crate docopt;
+extern crate num_cpus;
 extern crate rustc_serialize;
 extern crate ethcore_util as util;
 extern crate ethcore;
@@ -35,9 +36,14 @@ extern crate time;
 extern crate number_prefix;
 extern crate rpassword;
 
+// for price_info.rs
+#[macro_use] extern crate hyper;
+
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
+use std::io::{BufRead, BufReader};
+use std::fs::File;
 use std::net::{SocketAddr, IpAddr};
 use std::env;
 use std::process::exit;
@@ -56,6 +62,8 @@ use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
+
+mod price_info;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
@@ -88,6 +96,11 @@ Protocol Options:
                            [default: $HOME/.web3/keys].
   --identity NAME          Specify your node's name.
 
+Account Options:
+  --unlock ACCOUNT         Unlock ACCOUNT for the duration of the execution.
+  --password FILE          Provide a file containing a password for unlocking
+                           an account.
+
 Networking Options:
   --port PORT              Override the port on which the node should listen
                            [default: 30303].
@@ -118,8 +131,11 @@ API and Console Options:
                            [default: web3,eth,net,personal].
 
 Sealing/Mining Options:
-  --gas-price WEI          Minimum amount of Wei to be paid for a transaction
-                           to be accepted for mining [default: 20000000000].
+  --usd-per-tx USD         Amount of USD to be paid for a basic transaction
+                           [default: 0.005]. The minimum gas price is set
+                           accordingly.
+  --usd-per-eth SOURCE     USD value of a single ETH. SOURCE may be either an
+                           amount in USD or a web service [default: etherscan].
   --gas-floor-target GAS   Amount of gas per block to target when sealing a new
                            block [default: 4712388].
   --author ADDRESS         Specify the block author (aka "coinbase") address
@@ -154,7 +170,9 @@ Geth-compatibility Options:
   --rpcport PORT           Equivalent to --jsonrpc-port PORT.
   --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
   --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
-  --gasprice WEI           Equivalent to --gas-price WEI.
+  --gasprice WEI           Minimum amount of Wei per GAS to be paid for a
+                           transaction to be accepted for mining. Overrides
+                           --basic-tx-usd.
   --etherbase ADDRESS      Equivalent to --author ADDRESS.
   --extradata STRING       Equivalent to --extra-data STRING.
 
@@ -175,6 +193,8 @@ struct Args {
 	flag_chain: String,
 	flag_db_path: String,
 	flag_identity: String,
+	flag_unlock: Vec<String>,
+	flag_password: Vec<String>,
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
 	flag_bootnodes: Option<String>,
@@ -194,7 +214,8 @@ struct Args {
 	flag_jsonrpc_cors: String,
 	flag_jsonrpc_apis: String,
 	flag_author: String,
-	flag_gas_price: String,
+	flag_usd_per_tx: String,
+	flag_usd_per_eth: String,
 	flag_gas_floor_target: String,
 	flag_extra_data: Option<String>,
 	flag_logging: Option<String>,
@@ -269,7 +290,7 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	Some(server.start_http(url, cors_domain, 2))
+	Some(server.start_http(url, cors_domain, ::num_cpus::get()))
 }
 
 #[cfg(not(feature = "rpc"))]
@@ -317,7 +338,7 @@ impl Configuration {
 	fn author(&self) -> Address {
 		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
 		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", d)
+			die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
 		})
 	}
 
@@ -329,10 +350,29 @@ impl Configuration {
 	}
 
 	fn gas_price(&self) -> U256 {
-		let d = self.args.flag_gasprice.as_ref().unwrap_or(&self.args.flag_gas_price);
-		U256::from_dec_str(d).unwrap_or_else(|_| {
-			die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
-		})
+		match self.args.flag_gasprice.as_ref() {
+			Some(d) => {
+				U256::from_dec_str(d).unwrap_or_else(|_| {
+					die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
+				})
+			}
+			_ => {
+				let usd_per_tx: f32 = FromStr::from_str(&self.args.flag_usd_per_tx).unwrap_or_else(|_| {
+					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
+				});
+				let usd_per_eth = match self.args.flag_usd_per_eth.as_str() {
+					"etherscan" => price_info::PriceInfo::get().map(|x| x.ethusd).unwrap_or_else(|| {
+						die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth.")
+					}),
+					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x))
+				};
+				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
+				let gas_per_tx: f32 = 21000.0;
+				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
+				info!("Using a conversion rate of Ξ1 = US${} ({} wei/gas)", usd_per_eth, wei_per_gas);
+				U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
+			}
+		}
 	}
 
 	fn extra_data(&self) -> Bytes {
@@ -489,6 +529,28 @@ impl Configuration {
 		}
 	}
 
+	fn account_service(&self) -> AccountService {
+		// Secret Store
+		let passwords = self.args.flag_password.iter().flat_map(|filename| {
+			BufReader::new(&File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)))
+				.lines()
+				.map(|l| l.unwrap())
+				.collect::<Vec<_>>()
+				.into_iter()
+		}).collect::<Vec<_>>();
+
+		let account_service = AccountService::new();
+		for d in &self.args.flag_unlock {
+			let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
+				die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
+			});
+			if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
+				die!("No password given to unlock account {}. Pass the password using `--password`.", a);
+			}
+		}
+		account_service
+	}
+
 	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn execute_client(&self) {
 		// Setup panic handler
@@ -502,6 +564,9 @@ impl Configuration {
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
 		let sync_config = self.sync_config(&spec);
+
+		// Secret Store
+		let account_service = Arc::new(self.account_service());
 
 		// Build client
 		let mut service = ClientService::start(self.client_config(), spec, net_settings, &Path::new(&self.path())).unwrap();
@@ -517,9 +582,6 @@ impl Configuration {
 
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
-
-		// Secret Store
-		let account_service = Arc::new(AccountService::new());
 
 		// Setup rpc
 		if self.args.flag_jsonrpc || self.args.flag_rpc {

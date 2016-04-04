@@ -320,9 +320,9 @@ impl HashDB for EarlyMergeDB {
 }
 
 impl JournalDB for EarlyMergeDB {
-	fn spawn(&self) -> Box<JournalDB> {
+	fn boxed_clone(&self) -> Box<JournalDB> {
 		Box::new(EarlyMergeDB {
-			overlay: MemoryDB::new(),
+			overlay: self.overlay.clone(),
 			backing: self.backing.clone(),
 			refs: self.refs.clone(),
 			latest_era: self.latest_era.clone(),

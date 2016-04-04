@@ -501,77 +501,10 @@ mod tests {
 	use std::sync::*;
 	use super::super::stats::*;
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};
-	use std::cmp;
 	use mio::{EventSet};
 	use std::collections::VecDeque;
 	use bytes::*;
-
-	struct TestSocket {
-		read_buffer: Vec<u8>,
-		write_buffer: Vec<u8>,
-		cursor: usize,
-		buf_size: usize,
-	}
-
-	impl Default for TestSocket {
-		fn default() -> Self {
-			TestSocket::new()
-		}
-	}
-
-	impl TestSocket {
-		fn new() -> Self {
-			TestSocket {
-				read_buffer: vec![],
-				write_buffer: vec![],
-				cursor: 0,
-				buf_size: 0,
-			}
-		}
-
-		fn new_buf(buf_size: usize) -> TestSocket {
-			TestSocket {
-				read_buffer: vec![],
-				write_buffer: vec![],
-				cursor: 0,
-				buf_size: buf_size,
-			}
-		}
-	}
-
-	impl Read for TestSocket {
-		fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-			let end_position = cmp::min(self.read_buffer.len(), self.cursor+buf.len());
-			let len = cmp::max(end_position - self.cursor, 0);
-			match len {
-				0 => Ok(0),
-				_ => {
-					for i in self.cursor..end_position {
-						buf[i-self.cursor] = self.read_buffer[i];
-					}
-					self.cursor = self.cursor + buf.len();
-					Ok(len)
-				}
-			}
-		}
-	}
-
-	impl Write for TestSocket {
-		fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-			if self.buf_size == 0 || buf.len() < self.buf_size {
-				self.write_buffer.extend(buf.iter().cloned());
-				Ok(buf.len())
-			}
-			else {
-				self.write_buffer.extend(buf.iter().take(self.buf_size).cloned());
-				Ok(self.buf_size)
-			}
-		}
-
-		fn flush(&mut self) -> Result<(), Error> {
-			unimplemented!();
-		}
-	}
+	use devtools::*;
 
 	impl GenericSocket for TestSocket {}
 

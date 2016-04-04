@@ -20,19 +20,19 @@ use v1::types::Bytes;
 
 #[derive(Debug, Serialize)]
 pub struct Log {
-	address: Address,
-	topics: Vec<H256>,
-	data: Bytes,
+	pub address: Address,
+	pub topics: Vec<H256>,
+	pub data: Bytes,
 	#[serde(rename="blockHash")]
-	block_hash: H256,
+	pub block_hash: H256,
 	#[serde(rename="blockNumber")]
-	block_number: U256,
+	pub block_number: U256,
 	#[serde(rename="transactionHash")]
-	transaction_hash: H256,
+	pub transaction_hash: H256,
 	#[serde(rename="transactionIndex")]
-	transaction_index: U256,
+	pub transaction_index: U256,
 	#[serde(rename="logIndex")]
-	log_index: U256,
+	pub log_index: U256,
 }
 
 impl From<LocalizedLogEntry> for Log {

@@ -144,8 +144,8 @@ fn can_mine() {
 	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
 	let client = client_result.reference();
 
-	let b = client.prepare_sealing(Address::default(), x!(31415926), vec![], vec![]).unwrap().0;
+	let b = client.prepare_sealing(Address::default(), x!(31415926), vec![], vec![]).0.unwrap();
 
 	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
-	assert!(client.try_seal(b, vec![]).is_ok());
+	assert!(client.try_seal(b.lock(), vec![]).is_ok());
 }

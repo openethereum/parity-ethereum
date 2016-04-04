@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::hash::Address;
-use util::numbers::{Uint, U256};
-use ethcore::transaction::{Action, Transaction};
+use util::numbers::U256;
 use v1::types::Bytes;
 
 #[derive(Debug, Default, PartialEq, Deserialize)]
@@ -31,73 +30,15 @@ pub struct TransactionRequest {
 	pub nonce: Option<U256>,
 }
 
-impl Into<Transaction> for TransactionRequest {
-	fn into(self) -> Transaction {
-		Transaction {
-			nonce: self.nonce.unwrap_or_else(U256::zero),
-			action: self.to.map_or(Action::Create, Action::Call),
-			gas: self.gas.unwrap_or_else(U256::zero),
-			gas_price: self.gas_price.unwrap_or_else(U256::zero),
-			value: self.value.unwrap_or_else(U256::zero),
-			data: self.data.map_or_else(Vec::new, |d| d.to_vec()),
-		}
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use serde_json;
-	use util::numbers::{Uint, U256};
+	use util::numbers::{U256};
 	use util::hash::Address;
-	use ethcore::transaction::{Transaction, Action};
 	use v1::types::Bytes;
 	use super::*;
-
-	#[test]
-	fn transaction_request_into_transaction() {
-		let tr = TransactionRequest {
-			from: Address::default(),
-			to: Some(Address::from(10)),
-			gas_price: Some(U256::from(20)),
-			gas: Some(U256::from(10_000)),
-			value: Some(U256::from(1)),
-			data: Some(Bytes::new(vec![10, 20])),
-			nonce: Some(U256::from(12)),
-		};
-
-		assert_eq!(Transaction {
-			nonce: U256::from(12),
-			action: Action::Call(Address::from(10)),
-			gas: U256::from(10_000),
-			gas_price: U256::from(20),
-			value: U256::from(1),
-			data: vec![10, 20],
-		}, tr.into());
-	}
-
-	#[test]
-	fn empty_transaction_request_into_transaction() {
-		let tr = TransactionRequest {
-			from: Address::default(),
-			to: None,
-			gas_price: None,
-			gas: None,
-			value: None,
-			data: None,
-			nonce: None,
-		};
-
-		assert_eq!(Transaction {
-			nonce: U256::zero(),
-			action: Action::Create,
-			gas: U256::zero(),
-			gas_price: U256::zero(),
-			value: U256::zero(),
-			data: vec![],
-		}, tr.into());
-	}
 
 	#[test]
 	fn transaction_request_deserialize() {
@@ -158,6 +99,29 @@ mod tests {
 			gas: None,
 			value: None,
 			data: None,
+			nonce: None,
+		});
+	}
+
+	#[test]
+	fn transaction_request_deserialize_test() {
+		let s = r#"{
+			"from":"0xb5f7502a2807cb23615c7456055e1d65b2508625",
+			"to":"0x895d32f2db7d01ebb50053f9e48aacf26584fe40",
+			"data":"0x8595bab1",
+			"gas":"0x2fd618",
+			"gasPrice":"0x0ba43b7400"
+		}"#;
+
+		let deserialized: TransactionRequest = serde_json::from_str(s).unwrap();
+
+		assert_eq!(deserialized, TransactionRequest {
+			from: Address::from_str("b5f7502a2807cb23615c7456055e1d65b2508625").unwrap(),
+			to: Some(Address::from_str("895d32f2db7d01ebb50053f9e48aacf26584fe40").unwrap()),
+			gas_price: Some(U256::from_str("0ba43b7400").unwrap()),
+			gas: Some(U256::from_str("2fd618").unwrap()),
+			value: None,
+			data: Some(Bytes::new(vec![0x85, 0x95, 0xba, 0xb1])),
 			nonce: None,
 		});
 	}

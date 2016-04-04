@@ -26,7 +26,7 @@ macro_rules! impl_hash {
 	($name: ident, $inner: ident) => {
 		/// Lenient hash json deserialization for test json files.
 		#[derive(Default, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
-		pub struct $name($inner);
+		pub struct $name(pub $inner);
 
 		impl Into<$inner> for $name {
 			fn into(self) -> $inner {

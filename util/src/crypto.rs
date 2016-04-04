@@ -20,6 +20,7 @@ use numbers::*;
 use bytes::*;
 use secp256k1::{key, Secp256k1};
 use rand::os::OsRng;
+use sha3::Hashable;
 
 /// Secret key for secp256k1 EC operations. 256 bit generic "hash" data.
 pub type Secret = H256;
@@ -135,13 +136,20 @@ impl KeyPair {
 			public: p,
 		})
 	}
+
 	/// Returns public key
 	pub fn public(&self) -> &Public {
 		&self.public
 	}
+
 	/// Returns private key
 	pub fn secret(&self) -> &Secret {
 		&self.secret
+	}
+
+	/// Returns address.
+	pub fn address(&self) -> Address {
+		Address::from(self.public.sha3())
 	}
 
 	/// Sign a message with our secret key.
@@ -200,7 +208,7 @@ pub mod ec {
 		match context.verify(&try!(Message::from_slice(&message)), &sig, &publ) {
 			Ok(_) => Ok(true),
 			Err(Error::IncorrectSignature) => Ok(false),
-			Err(x) => Err(<CryptoError as From<Error>>::from(x))
+			Err(x) => Err(CryptoError::from(x))
 		}
 	}
 

@@ -20,7 +20,7 @@ use pod_state::*;
 use account_diff::*;
 
 #[derive(Debug,Clone,PartialEq,Eq)]
-/// Expression for the delta between two system states. Encoded the 
+/// Expression for the delta between two system states. Encoded the
 /// delta of every altered account.
 pub struct StateDiff (BTreeMap<Address, AccountDiff>);
 
@@ -38,6 +38,14 @@ impl fmt::Display for StateDiff {
 			try!(write!(f, "{} {}: {}", acc.existance(), add, acc));
 		}
 		Ok(())
+	}
+}
+
+impl Deref for StateDiff {
+	type Target = BTreeMap<Address, AccountDiff>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
 	}
 }
 

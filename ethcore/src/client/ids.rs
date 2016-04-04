@@ -20,7 +20,7 @@ use util::hash::H256;
 use header::BlockNumber;
 
 /// Uniquely identifies block.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum BlockId {
 	/// Block's sha3.
 	/// Querying by hash is always faster.
@@ -34,7 +34,7 @@ pub enum BlockId {
 }
 
 /// Uniquely identifies transaction.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum TransactionId {
 	/// Transaction's sha3.
 	Hash(H256),
@@ -42,3 +42,11 @@ pub enum TransactionId {
 	/// Querying by block position is always faster.
 	Location(BlockId, usize)
 }
+
+/// Uniquely identifies Uncle.
+pub struct UncleId (
+	/// Block id.
+	pub BlockId,
+	/// Position in block.
+	pub usize
+);

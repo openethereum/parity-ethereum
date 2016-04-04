@@ -1,0 +1,19 @@
+[package]
+name = "ethcore-ipc-tests"
+version = "0.1.0"
+authors = ["Nikolay Volf"]
+build = "build.rs"
+
+[lib]
+path = "run.rs"
+
+[dependencies]
+"ethcore-ipc" = { path = "../rpc" }
+bincode = "*"
+serde = "0.7.0"
+ethcore-devtools = { path = "../../devtools" }
+
+[build-dependencies]
+syntex = "0.30.0"
+serde_codegen = "0.7.0"
+"ethcore-ipc-codegen" = { path = "../codegen" }
