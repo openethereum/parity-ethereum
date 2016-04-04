@@ -354,7 +354,7 @@ macro_rules! uint_overflowing_mul {
 				mov $12, %rcx
 				jrcxz 11f
 
-				movt $7, %rcx
+				mov $7, %rcx
 				mov $6, %rax
 				add %rax, %rcx
 
