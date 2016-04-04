@@ -23,7 +23,7 @@ extern crate nanomsg;
 pub use ipc::*;
 
 use std::sync::*;
-use std::io::Write;
+use std::io::{Write, Read};
 use nanomsg::{Socket, Protocol, Error};
 
 pub struct Worker<S> where S: IpcInterface<S> {
@@ -64,7 +64,7 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 					}
 				},
 				Err(Error::TryAgain) => {
-				}
+				},
 				Err(x) => {
 					warn!(target: "ipc", "Error polling connection {:?}", x);
 					panic!();
@@ -134,8 +134,6 @@ mod tests {
 		let mut socket = Socket::new(Protocol::Pair).unwrap();
 		socket.connect(addr).unwrap();
 		thread::sleep_ms(10);
-//		socket.nb_write(buf).unwrap();
-//		socket.flush();
 		socket.write_all(buf).unwrap();
 	}
 
@@ -163,15 +161,16 @@ mod tests {
 
 	#[test]
 	fn worker_can_poll() {
-		let service = Arc::new(DummyService::new());
-		let mut worker = Worker::<DummyService>::new(service.clone());
-		worker.add_duplex("ipc:///tmp/parity-test30.ipc").unwrap();
+		let url = "ipc:///tmp/parity-test30.ipc";
+
+		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		worker.add_duplex(url).unwrap();
 		thread::sleep_ms(10);
 
-		dummy_write("ipc:///tmp/parity-test30.ipc", &vec![0, 0, 6, 6, 6, 6]);
+		dummy_write(url, &vec![0, 0]);
 		thread::sleep_ms(10);
 		worker.poll();
 
-		assert_eq!(1, service.methods_stack.read().unwrap().len());
+		assert_eq!(1, worker.service.methods_stack.read().unwrap().len());
 	}
 }
