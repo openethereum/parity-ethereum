@@ -345,9 +345,9 @@ macro_rules! uint_overflowing_mul {
 
 				mov $12, %rcx
 				mov $11, %rax
-				add %rax, %rcx
+				or %rax, %rcx
 				mov $10, %rax
-				add %rax, %rcx
+				or %rax, %rcx
 				jmp 2f
 
 				12:
@@ -356,7 +356,7 @@ macro_rules! uint_overflowing_mul {
 
 				mov $7, %rcx
 				mov $6, %rax
-				add %rax, %rcx
+				or %rax, %rcx
 
 				cmpq $$0, %rcx
 				jne 2f
