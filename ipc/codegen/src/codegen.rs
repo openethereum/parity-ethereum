@@ -145,14 +145,20 @@ struct Dispatch {
 	return_type_ty: Option<P<Ty>>,
 }
 
-fn implement_dispatch_arm_invoke(
+//	This is the expanded version of this:
+//
+//	let invoke_serialize_stmt = quote_stmt!(cx, {
+//		::bincode::serde::serialize(& $output_type_id { payload: self. $function_name ($hand_param_a, $hand_param_b) }, ::bincode::SizeLimit::Infinite).unwrap()
+//  });
+//
+// But the above does not allow comma-separated expressions for arbitrary number
+// of parameters ...$hand_param_a, $hand_param_b, ... $hand_param_n
+fn implement_dispatch_arm_invoke_stmt(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	dispatch: &Dispatch,
-) -> P<ast::Expr>
+) -> ast::Stmt
 {
-	let deserialize_expr = quote_expr!(cx, ::bincode::serde::deserialize_from(r, ::bincode::SizeLimit::Infinite).expect("ipc deserialization error, aborting"));
-	let input_type_id = builder.id(dispatch.input_type_name.clone().unwrap().as_str());
 	let function_name = builder.id(dispatch.function_name.as_str());
 	let output_type_id = builder.id(dispatch.return_type_name.clone().unwrap().as_str());
 
@@ -161,63 +167,71 @@ fn implement_dispatch_arm_invoke(
 		quote_expr!(cx, input. $arg_ident)
 	}).collect::<Vec<P<ast::Expr>>>();
 
-	//	This is the expanded version of this:
-	//
-	//	let invoke_serialize_stmt = quote_stmt!(cx, {
-	//		::bincode::serde::serialize(& $output_type_id { payload: self. $function_name ($hand_param_a, $hand_param_b) }, ::bincode::SizeLimit::Infinite).unwrap()
-	//  });
-	//
-	// But the above does not allow comma-separated expressions for arbitrary number
-	// of parameters ...$hand_param_a, $hand_param_b, ... $hand_param_n
-	let invoke_serialize_stmt = {
-		let ext_cx = &*cx;
-		::quasi::parse_stmt_panic(&mut ::syntax::parse::new_parser_from_tts(
-			ext_cx.parse_sess(),
-			ext_cx.cfg(),
-			{
-				let _sp = ext_cx.call_site();
-				let mut tt = ::std::vec::Vec::new();
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("bincode"), ::syntax::parse::token::ModName)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serde"), ::syntax::parse::token::ModName)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"), ::syntax::parse::token::Plain)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
-				tt.extend(::quasi::ToTokens::to_tokens(&output_type_id, ext_cx).into_iter());
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("payload"), ::syntax::parse::token::Plain)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"), ::syntax::parse::token::Plain)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
-				tt.extend(::quasi::ToTokens::to_tokens(&function_name, ext_cx).into_iter());
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+	let ext_cx = &*cx;
+	::quasi::parse_stmt_panic(&mut ::syntax::parse::new_parser_from_tts(
+		ext_cx.parse_sess(),
+		ext_cx.cfg(),
+		{
+			let _sp = ext_cx.call_site();
+			let mut tt = ::std::vec::Vec::new();
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("bincode"), ::syntax::parse::token::ModName)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serde"), ::syntax::parse::token::ModName)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"), ::syntax::parse::token::Plain)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
+			tt.extend(::quasi::ToTokens::to_tokens(&output_type_id, ext_cx).into_iter());
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("payload"), ::syntax::parse::token::Plain)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"), ::syntax::parse::token::Plain)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
+			tt.extend(::quasi::ToTokens::to_tokens(&function_name, ext_cx).into_iter());
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
 
-				for arg_expr in input_args_exprs {
-					tt.extend(::quasi::ToTokens::to_tokens(&arg_expr, ext_cx).into_iter());
-					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
-				}
-
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+			for arg_expr in input_args_exprs {
+				tt.extend(::quasi::ToTokens::to_tokens(&arg_expr, ext_cx).into_iter());
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("bincode"), ::syntax::parse::token::ModName)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("SizeLimit"), ::syntax::parse::token::ModName)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Infinite"), ::syntax::parse::token::Plain)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("unwrap"), ::syntax::parse::token::Plain)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
-				tt
-			}))
+			}
+
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("bincode"), ::syntax::parse::token::ModName)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("SizeLimit"), ::syntax::parse::token::ModName)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Infinite"), ::syntax::parse::token::Plain)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("unwrap"), ::syntax::parse::token::Plain)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
+			tt
+		})).unwrap()
+}
+
+fn implement_dispatch_arm_invoke(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	dispatch: &Dispatch,
+	buffer: bool,
+) -> P<ast::Expr>
+{
+	let deserialize_expr = if buffer {
+		quote_expr!(cx, ::bincode::serde::deserialize(buf).expect("ipc deserialization error, aborting"))
+	} else {
+		quote_expr!(cx, ::bincode::serde::deserialize_from(r, ::bincode::SizeLimit::Infinite).expect("ipc deserialization error, aborting"))
 	};
+
+	let input_type_id = builder.id(dispatch.input_type_name.clone().unwrap().as_str());
+
+	let invoke_serialize_stmt = implement_dispatch_arm_invoke_stmt(cx, builder, dispatch);
 	quote_expr!(cx, {
 		let input: $input_type_id = $deserialize_expr;
 		$invoke_serialize_stmt
@@ -225,12 +239,29 @@ fn implement_dispatch_arm_invoke(
 }
 
 /// generates dispatch match for method id
-fn implement_dispatch_arm(cx: &ExtCtxt, builder: &aster::AstBuilder, index: u32, dispatch: &Dispatch)
-	-> ast::Arm
+fn implement_dispatch_arm(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	index: u32,
+	dispatch: &Dispatch,
+	buffer: bool,
+) -> ast::Arm
 {
 	let index_ident = builder.id(format!("{}", index).as_str());
-	let invoke_expr = implement_dispatch_arm_invoke(cx, builder, dispatch);
+	let invoke_expr = implement_dispatch_arm_invoke(cx, builder, dispatch, buffer);
 	quote_arm!(cx, $index_ident => { $invoke_expr } )
+}
+
+fn implement_dispatch_arms(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	dispatches: &[Dispatch],
+	buffer: bool,
+) -> Vec<ast::Arm>
+{
+	let mut index = -1;
+	dispatches.iter()
+		.map(|dispatch| { index = index + 1; implement_dispatch_arm(cx, builder, index as u32, dispatch, buffer) }).collect()
 }
 
 /// generates client type for specified server type
@@ -511,9 +542,9 @@ fn implement_interface(
 			dispatch_table.push(push_invoke_signature_aster(builder, &impl_item, signature, push));
 		}
 	}
-	let mut index = -1;
-	let dispatch_arms: Vec<_> = dispatch_table.iter()
-		.map(|dispatch| { index = index + 1; implement_dispatch_arm(cx, builder, index as u32, dispatch) }).collect();
+
+	let dispatch_arms = implement_dispatch_arms(cx, builder, &dispatch_table, false);
+	let dispatch_arms_buffered = implement_dispatch_arms(cx, builder, &dispatch_table, true);
 
 	Ok((quote_item!(cx,
 		impl $impl_generics ::ipc::IpcInterface<$ty> for $ty $where_clause {
@@ -532,11 +563,10 @@ fn implement_interface(
 				}
 			}
 
-			fn dispatch_buf<R>(&self, method_num: u16, r: &mut R) -> Vec<u8>
-				where R: ::std::io::Read
+			fn dispatch_buf(&self, method_num: u16, buf: &[u8]) -> Vec<u8>
 			{
 				match method_num {
-					$dispatch_arms
+					$dispatch_arms_buffered
 					_ => vec![]
 				}
 			}

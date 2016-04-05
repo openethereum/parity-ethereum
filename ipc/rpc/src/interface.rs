@@ -26,7 +26,7 @@ pub trait IpcInterface<T> {
 
 	/// deserialize the payload from the io `r` and invokes method specified by `method_num`
 	/// (for non-blocking io)
-	fn dispatch_buf<R>(&self, method_num: u16, r: &mut R) -> Vec<u8> where R: Read;
+	fn dispatch_buf(&self, method_num: u16, buf: &[u8]) -> Vec<u8>;
 }
 
 /// serializes method invocation (method_num and parameters) to the stream specified by `w`

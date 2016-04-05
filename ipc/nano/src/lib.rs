@@ -23,13 +23,11 @@ extern crate nanomsg;
 pub use ipc::*;
 
 use std::sync::*;
-use std::io::{Write, Read};
 use nanomsg::{Socket, Protocol, Error, Endpoint};
 
 pub struct Worker<S> where S: IpcInterface<S> {
 	service: Arc<S>,
 	sockets: Vec<(Socket, Endpoint)>,
-	method_buf: [u8;2],
 }
 
 #[derive(Debug)]
@@ -42,21 +40,26 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 		Worker::<S> {
 			service: service.clone(),
 			sockets: Vec::new(),
-			method_buf: [0,0]
 		}
 	}
 
 	pub fn poll(&mut self) {
 		for item in self.sockets.iter_mut() {
 			let socket = &mut item.0;
+			let mut buf = Vec::new();
 			// non-blocking read only ok if there is something to read from socket
-			match socket.nb_read(&mut self.method_buf) {
+			match socket.nb_read_to_end(&mut buf) {
 				Ok(method_sign_len) => {
-					if method_sign_len == 2 {
-						let result = self.service.dispatch_buf(
-							self.method_buf[1] as u16 * 256 + self.method_buf[0] as u16,
-							socket);
-						if let Err(e) = socket.write(&result) {
+					if method_sign_len >= 2 {
+						// method_num
+						let method_num = buf[1] as u16 * 256 + buf[0] as u16;
+						// payload
+						let payload = &buf[2..];
+
+						// dispatching for ipc interface
+						let result = self.service.dispatch_buf(method_num, payload);
+
+						if let Err(e) = socket.nb_write(&result) {
 							warn!(target: "ipc", "Failed to write response: {:?}", e);
 						}
 					}
@@ -67,7 +70,7 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 				Err(Error::TryAgain) => {
 				},
 				Err(x) => {
-					warn!(target: "ipc", "Error polling connection {:?}", x);
+					warn!(target: "ipc", "Error polling connections {:?}", x);
 					panic!();
 				}
 			}
@@ -97,8 +100,7 @@ mod tests {
 	use ipc::*;
 	use std::io::{Read, Write};
 	use std::sync::{Arc, RwLock};
-	use nanomsg::{Socket, Protocol};
-	use std::thread;
+	use nanomsg::{Socket, Protocol, Endpoint};
 
 	struct TestInvoke {
 		method_num: u16,
@@ -119,23 +121,22 @@ mod tests {
 		fn dispatch<R>(&self, _r: &mut R) -> Vec<u8> where R: Read {
 			vec![]
 		}
-		fn dispatch_buf<R>(&self, method_num: u16, r: &mut R) -> Vec<u8> where R: Read {
-			let mut buf = vec![0u8; 4096];
-			let size = r.read_to_end(&mut buf).unwrap();
+		fn dispatch_buf(&self, method_num: u16, buf: &[u8]) -> Vec<u8> {
 			self.methods_stack.write().unwrap().push(
 				TestInvoke {
 					method_num: method_num,
-					params: unsafe { Vec::from_raw_parts(buf.as_mut_ptr(), size, size) }
+					params: buf.to_vec(),
 				});
 			vec![]
 		}
 	}
 
-	fn dummy_write(addr: &str, buf: &[u8]) {
+	fn dummy_write(addr: &str, buf: &[u8]) -> (Socket, Endpoint) {
 		let mut socket = Socket::new(Protocol::Pair).unwrap();
 		let endpoint = socket.connect(addr).unwrap();
-		thread::sleep_ms(10);
-		socket.write_all(buf).unwrap();
+		//thread::sleep_ms(10);
+		socket.write(buf).unwrap();
+		(socket, endpoint)
 	}
 
 	#[test]
@@ -167,9 +168,28 @@ mod tests {
 		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
 		worker.add_duplex(url).unwrap();
 
-		dummy_write(url, &vec![0, 0, 7, 7, 6, 6]);
-		worker.poll();
+		let (_socket, _endpoint) = dummy_write(url, &vec![0, 0, 7, 7, 6, 6]);
+		for _ in 0..1000 { worker.poll(); }
 
 		assert_eq!(1, worker.service.methods_stack.read().unwrap().len());
+		assert_eq!(0, worker.service.methods_stack.read().unwrap()[0].method_num);
+		assert_eq!([7, 7, 6, 6], worker.service.methods_stack.read().unwrap()[0].params[..]);
+	}
+
+	#[test]
+	fn worker_can_poll_long() {
+		let url = "ipc:///tmp/parity-test30.ipc";
+
+		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		worker.add_duplex(url).unwrap();
+
+		let message = [0u8; 1024*1024];
+
+		let (_socket, _endpoint) = dummy_write(url, &message);
+		for _ in 0..10000 { worker.poll(); }
+
+		assert_eq!(1, worker.service.methods_stack.read().unwrap().len());
+		assert_eq!(0, worker.service.methods_stack.read().unwrap()[0].method_num);
+		assert_eq!(vec![0u8; 1024*1024-2], worker.service.methods_stack.read().unwrap()[0].params);
 	}
 }
