@@ -21,10 +21,10 @@ use std::marker::Sync;
 use std::sync::atomic::*;
 
 pub trait IpcInterface<T> {
-	/// reads the message from io, dispatches the call and returns result
+	/// reads the message from io, dispatches the call and returns serialized result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
 
-	/// deserialize the payload from the io `r` and invokes method specified by `method_num`
+	/// deserialize the payload from buffer, dispatches invoke and returns serialized result
 	/// (for non-blocking io)
 	fn dispatch_buf(&self, method_num: u16, buf: &[u8]) -> Vec<u8>;
 }
