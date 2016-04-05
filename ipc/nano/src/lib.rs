@@ -178,7 +178,7 @@ mod tests {
 
 	#[test]
 	fn worker_can_poll_long() {
-		let url = "ipc:///tmp/parity-test30.ipc";
+		let url = "ipc:///tmp/parity-test40.ipc";
 
 		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
 		worker.add_duplex(url).unwrap();
