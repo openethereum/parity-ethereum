@@ -169,7 +169,7 @@ mod tests {
 		worker.add_duplex(url).unwrap();
 
 		let (_socket, _endpoint) = dummy_write(url, &vec![0, 0, 7, 7, 6, 6]);
-		for _ in 0..1000 { worker.poll(); }
+		for _ in 0..100 { worker.poll(); }
 
 		assert_eq!(1, worker.service.methods_stack.read().unwrap().len());
 		assert_eq!(0, worker.service.methods_stack.read().unwrap()[0].method_num);
@@ -186,7 +186,7 @@ mod tests {
 		let message = [0u8; 1024*1024];
 
 		let (_socket, _endpoint) = dummy_write(url, &message);
-		for _ in 0..10000 { worker.poll(); }
+		for _ in 0..1000 { worker.poll(); }
 
 		assert_eq!(1, worker.service.methods_stack.read().unwrap().len());
 		assert_eq!(0, worker.service.methods_stack.read().unwrap()[0].method_num);
