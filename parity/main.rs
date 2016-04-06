@@ -642,7 +642,7 @@ fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_handle: Option<rpc::List
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
-	info!("Closing....");
+	info!("Finishing work, please wait...");
 }
 
 fn die_with_error(e: ethcore::error::Error) -> ! {
