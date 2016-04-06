@@ -19,6 +19,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
+#![cfg_attr(feature="dev", allow(useless_format))]
 extern crate docopt;
 extern crate num_cpus;
 extern crate rustc_serialize;
@@ -361,9 +362,9 @@ impl Configuration {
 					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
 				});
 				let usd_per_eth = match self.args.flag_usd_per_eth.as_str() {
-					"etherscan" => price_info::PriceInfo::get().map(|x| x.ethusd).unwrap_or_else(|| {
+					"etherscan" => price_info::PriceInfo::get().map_or_else(|| {
 						die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth.")
-					}),
+					}, |x| x.ethusd),
 					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x))
 				};
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
@@ -421,7 +422,6 @@ impl Configuration {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
 		let listen_address = Some(SocketAddr::new(IpAddr::from_str("0.0.0.0").unwrap(), self.args.flag_port));
 		let public_address = if self.args.flag_nat.starts_with("extip:") {
@@ -450,7 +450,6 @@ impl Configuration {
 		ret
 	}
 
-	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn client_config(&self) -> ClientConfig {
 		let mut client_config = ClientConfig::default();
 		match self.args.flag_cache {
@@ -551,7 +550,6 @@ impl Configuration {
 		account_service
 	}
 
-	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn execute_client(&self) {
 		// Setup panic handler
 		let panic_handler = PanicHandler::new_in_arc();

@@ -22,8 +22,8 @@ use super::triedb::*;
 use super::trietraits::*;
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
-/// 
-/// Use it as a `Trie` trait object. You can use `raw()` to get the backing TrieDB object.
+///
+/// Use it as a `Trie` trait object. You can use `raw()` to get the backing `TrieDB` object.
 pub struct SecTrieDB<'db> {
 	raw: TrieDB<'db>
 }
@@ -32,16 +32,16 @@ impl<'db> SecTrieDB<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db HashDB, root: &'db H256) -> Self { 
+	pub fn new(db: &'db HashDB, root: &'db H256) -> Self {
 		SecTrieDB { raw: TrieDB::new(db, root) }
 	}
 
-	/// Get a reference to the underlying raw TrieDB struct.
+	/// Get a reference to the underlying raw `TrieDB` struct.
 	pub fn raw(&self) -> &TrieDB {
 		&self.raw
 	}
 
-	/// Get a mutable reference to the underlying raw TrieDB struct.
+	/// Get a mutable reference to the underlying raw `TrieDB` struct.
 	pub fn raw_mut(&mut self) -> &TrieDB {
 		&mut self.raw
 	}

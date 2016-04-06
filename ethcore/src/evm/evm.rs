@@ -44,7 +44,7 @@ pub enum Error {
 		/// Invoked instruction
 		instruction: &'static str,
 		/// How many stack elements was requested by instruction
-		wanted: usize, 
+		wanted: usize,
 		/// How many elements were on stack
 		on_stack: usize
 	},
@@ -64,8 +64,8 @@ pub enum Error {
 }
 
 /// Evm result.
-/// 
-/// Returns gas_left if execution is successful, otherwise error.
+///
+/// Returns `gas_left` if execution is successful, otherwise error.
 pub type Result = result::Result<U256, Error>;
 
 /// Evm interface.

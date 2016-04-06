@@ -19,8 +19,8 @@ impl PriceInfo {
 			.and_then(|mut s| s.read_to_string(&mut body).ok())
 			.and_then(|_| Json::from_str(&body).ok())
 			.and_then(|json| json.find_path(&["result", "ethusd"])
-				.and_then(|obj| match obj {
-					&Json::String(ref s) => Some(PriceInfo {
+				.and_then(|obj| match *obj {
+					Json::String(ref s) => Some(PriceInfo {
 						ethusd: FromStr::from_str(&s).unwrap()
 					}),
 					_ => None
