@@ -180,7 +180,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		}.fake_sign(from))
 	}
 
-	fn dispatch_transaction(&self, signed_transaction: SignedTransaction, raw_transaction: Vec<u8>) -> Result<Value, Error> {
+	fn dispatch_transaction(&self, signed_transaction: SignedTransaction) -> Result<Value, Error> {
 		let hash = signed_transaction.hash();
 
 		let import = {
@@ -197,7 +197,6 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 
 		match import.into_iter().collect::<Result<Vec<_>, _>>() {
 			Ok(_) => {
-				take_weak!(self.sync).new_transaction(raw_transaction);
 				to_value(&hash)
 			}
 			Err(e) => {
@@ -503,8 +502,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 								data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
 							}.sign(&secret)
 						};
-						let raw_transaction = encode(&signed_transaction).to_vec();
-						self.dispatch_transaction(signed_transaction, raw_transaction)
+						self.dispatch_transaction(signed_transaction)
 					},
 					Err(_) => { to_value(&H256::zero()) }
 				}
@@ -516,7 +514,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 			.and_then(|(raw_transaction, )| {
 				let raw_transaction = raw_transaction.to_vec();
 				match UntrustedRlp::new(&raw_transaction).as_val() {
-					Ok(signed_transaction) => self.dispatch_transaction(signed_transaction, raw_transaction),
+					Ok(signed_transaction) => self.dispatch_transaction(signed_transaction),
 					Err(_) => to_value(&H256::zero()),
 				}
 		})

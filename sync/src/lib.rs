@@ -66,7 +66,7 @@ use std::ops::*;
 use std::sync::*;
 use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
 use util::TimerToken;
-use util::{U256, Bytes, ONE_U256};
+use util::{U256, ONE_U256};
 use ethcore::client::Client;
 use ethcore::service::SyncMessage;
 use ethminer::Miner;
@@ -101,9 +101,6 @@ impl Default for SyncConfig {
 pub trait SyncProvider: Send + Sync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus;
-
-	/// Note that a user has submitted a new transaction.
-	fn new_transaction(&self, raw_transaction: Bytes);
 }
 
 /// Ethereum network protocol handler
@@ -142,11 +139,6 @@ impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
 		self.sync.read().unwrap().status()
-	}
-
-	/// Note that a user has submitted a new transaction.
-	fn new_transaction(&self, raw_transaction: Bytes) {
-		self.sync.write().unwrap().new_transaction(raw_transaction);
 	}
 }
 
