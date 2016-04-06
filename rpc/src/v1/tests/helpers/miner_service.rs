@@ -98,6 +98,10 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().unwrap().get(hash).cloned()
 	}
 
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		self.pending_transactions.lock().unwrap().values().cloned().collect()
+	}
+
 	fn last_nonce(&self, address: &Address) -> Option<U256> {
 		self.last_nonces.read().unwrap().get(address).cloned()
 	}
