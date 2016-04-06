@@ -594,10 +594,8 @@ impl Configuration {
 		} else {
 			None
 		};
+
 		let rpc_handle = rpc_server.map(|server| {
-			panic_handler.forward_from(&server);
-			server
-		}).map(|server| {
 			let url = format!("{}:{}",
 				match self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_interface).as_str() {
 					"all" => "0.0.0.0",
