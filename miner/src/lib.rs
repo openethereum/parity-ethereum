@@ -108,6 +108,9 @@ pub trait MinerService : Send + Sync {
 	/// Query pending transactions for hash
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction>;
 
+	/// Returns highest transaction nonce for given address.
+	fn last_nonce(&self, address: &Address) -> Option<U256>;
+
 	/// Suggested gas price
 	fn sensible_gas_price(&self) -> U256 { x!(20000000000u64) }
 }

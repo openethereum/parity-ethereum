@@ -49,7 +49,7 @@ impl<A> Personal for PersonalClient<A> where A: AccountProvider + 'static {
 			|(pass, )| {
 				let store = take_weak!(self.accounts);
 				match store.new_account(&pass) {
-					Ok(address) => Ok(Value::String(format!("0x{:?}", address))),
+					Ok(address) => to_value(&address),
 					Err(_) => Err(Error::internal_error())
 				}
 			}

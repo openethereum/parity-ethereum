@@ -157,6 +157,7 @@ impl KeyPair {
 }
 
 /// EC functions
+#[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ec {
 	use numbers::*;
 	use standard::*;
@@ -193,6 +194,7 @@ pub mod ec {
 		}
 		Ok(signature)
 	}
+
 	/// Verify signature.
 	pub fn verify(public: &Public, signature: &Signature, message: &H256) -> Result<bool, CryptoError> {
 		use secp256k1::*;
@@ -233,6 +235,7 @@ pub mod ec {
 }
 
 /// ECDH functions
+#[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecdh {
 	use crypto::*;
 	use crypto::{self};
@@ -254,6 +257,7 @@ pub mod ecdh {
 }
 
 /// ECIES function
+#[cfg_attr(feature="dev", allow(similar_names))]
 pub mod ecies {
 	use hash::*;
 	use bytes::*;

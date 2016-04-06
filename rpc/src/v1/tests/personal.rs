@@ -22,8 +22,7 @@ use util::numbers::*;
 use std::collections::*;
 
 fn accounts_provider() -> Arc<TestAccountProvider> {
-	let mut accounts = HashMap::new();
-	accounts.insert(Address::from(1), TestAccount::new("test"));
+	let accounts = HashMap::new();
 	let ap = TestAccountProvider::new(accounts);
 	Arc::new(ap)
 }
@@ -38,7 +37,11 @@ fn setup() -> (Arc<TestAccountProvider>, IoHandler) {
 
 #[test]
 fn accounts() {
-	let (_test_provider, io) = setup();
+	let (test_provider, io) = setup();
+	test_provider.accounts
+		.write()
+		.unwrap()
+		.insert(Address::from(1), TestAccount::new("test"));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_listAccounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
@@ -49,11 +52,22 @@ fn accounts() {
 
 #[test]
 fn new_account() {
-	let (_test_provider, io) = setup();
-
+	let (test_provider, io) = setup();
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_newAccount", "params": ["pass"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000002","id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	let res = io.handle_request(request);
+
+	let accounts = test_provider.accounts.read().unwrap();
+	assert_eq!(accounts.len(), 1);
+
+	let address = accounts
+		.keys()
+		.nth(0)
+		.cloned()
+		.unwrap();
+
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"","id":1}"#;
+
+	assert_eq!(res, Some(response));
 }
 

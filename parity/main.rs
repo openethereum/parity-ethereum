@@ -19,6 +19,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
+#![cfg_attr(feature="dev", allow(useless_format))]
 extern crate docopt;
 extern crate num_cpus;
 extern crate rustc_serialize;
@@ -82,7 +83,7 @@ Parity. Ethereum Client.
 
 Usage:
   parity daemon <pid-file> [options]
-  parity account (new | list)
+  parity account (new | list) [options]
   parity [options]
 
 Protocol Options:
@@ -93,7 +94,7 @@ Protocol Options:
   -d --db-path PATH        Specify the database & configuration directory path
                            [default: $HOME/.parity].
   --keys-path PATH         Specify the path for JSON key files to be found
-                           [default: $HOME/.web3/keys].
+                           [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
 
 Account Options:
@@ -357,9 +358,9 @@ impl Configuration {
 					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
 				});
 				let usd_per_eth = match self.args.flag_usd_per_eth.as_str() {
-					"etherscan" => price_info::PriceInfo::get().map(|x| x.ethusd).unwrap_or_else(|| {
+					"etherscan" => price_info::PriceInfo::get().map_or_else(|| {
 						die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth.")
-					}),
+					}, |x| x.ethusd),
 					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x))
 				};
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
@@ -379,7 +380,7 @@ impl Configuration {
 		}
 	}
 
-	fn _keys_path(&self) -> String {
+	fn keys_path(&self) -> String {
 		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
@@ -417,7 +418,6 @@ impl Configuration {
 		}
 	}
 
-	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
 		let listen_address = Some(SocketAddr::new(IpAddr::from_str("0.0.0.0").unwrap(), self.args.flag_port));
 		let public_address = if self.args.flag_nat.starts_with("extip:") {
@@ -446,7 +446,6 @@ impl Configuration {
 		ret
 	}
 
-	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn client_config(&self) -> ClientConfig {
 		let mut client_config = ClientConfig::default();
 		match self.args.flag_cache {
@@ -501,7 +500,7 @@ impl Configuration {
 	fn execute_account_cli(&self) {
 		use util::keys::store::SecretStore;
 		use rpassword::read_password;
-		let mut secret_store = SecretStore::new();
+		let mut secret_store = SecretStore::new_in(Path::new(&self.keys_path()));
 		if self.args.cmd_new {
 			println!("Please note that password is NOT RECOVERABLE.");
 			println!("Type password: ");
@@ -535,7 +534,7 @@ impl Configuration {
 				.into_iter()
 		}).collect::<Vec<_>>();
 
-		let account_service = AccountService::new();
+		let account_service = AccountService::new_in(Path::new(&self.keys_path()));
 		for d in &self.args.flag_unlock {
 			let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
 				die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
@@ -547,7 +546,6 @@ impl Configuration {
 		account_service
 	}
 
-	#[cfg_attr(feature="dev", allow(useless_format))]
 	fn execute_client(&self) {
 		// Setup panic handler
 		let panic_handler = PanicHandler::new_in_arc();
