@@ -431,12 +431,14 @@ impl MayPanic for BlockQueue {
 
 impl Drop for BlockQueue {
 	fn drop(&mut self) {
+		trace!(target: "shutdown", "[BlockQueue] Closing...");
 		self.clear();
 		self.deleting.store(true, AtomicOrdering::Release);
 		self.more_to_verify.notify_all();
 		for t in self.verifiers.drain(..) {
 			t.join().unwrap();
 		}
+		trace!(target: "shutdown", "[BlockQueue] Closed.");
 	}
 }
 
