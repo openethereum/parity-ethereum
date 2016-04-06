@@ -258,7 +258,7 @@ impl<'a> Executive<'a> {
 			}
 		} else {
 			// if destination is a contract, do normal message call
-			
+
 			// don't trace if it's DELEGATECALL or CALLCODE.
 			let should_trace = if let ActionValue::Transfer(_) = params.value {
 				params.code_address == params.address && substate.subtraces.is_some()
@@ -281,7 +281,10 @@ impl<'a> Executive<'a> {
 
 				// if there's tracing, make up trace_info's result with trace_output and some arithmetic.
 				if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
-					c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, trace_output.expect("trace_info is Some: so should_trace: qed")));
+					c.result = res.as_ref().ok().map(|gas_left| TraceCallResult {
+						gas_used: c.gas - *gas_left,
+						output: trace_output.expect("trace_info is Some: qed")
+					});
 				}
 
 				trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
@@ -294,7 +297,7 @@ impl<'a> Executive<'a> {
 				trace!(target: "executive", "Basic message (send funds) should_trace={}", should_trace);
 				self.state.clear_snapshot();
 				if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
-					c.result = Some((x!(0), vec![]));
+					c.result = Some(TraceCallResult::default());// Some((x!(0), vec![]));
 				}
 				substate.accrue_trace(if should_trace {Some(vec![])} else {None}, trace_info);
 				Ok(params.gas)
@@ -330,7 +333,11 @@ impl<'a> Executive<'a> {
 		};
 
 		if let Some((TraceAction::Create(ref mut c), _)) = trace_info {
-			c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, trace_output.expect("trace_info is Some: qed")));
+			c.result = res.as_ref().ok().map(|gas_left| TraceCreateResult {
+				gas_used: c.gas - *gas_left,
+				address: created,
+				code: trace_output.expect("trace_info is Some: qed")
+			});
 		}
 
 		trace!(target: "executive", "trace_info={:?}", trace_info);
@@ -583,7 +590,10 @@ mod tests {
 				value: x!(100),
 				gas: x!(100000),
 				input: vec![],
-				result: Some((x!(55248), vec![]))
+				result: Some(TraceCallResult {
+					gas_used: U256::from(55_248),
+					output: vec![],
+				})
 			}),
 			subs: vec![Trace {
 				depth: 1,
@@ -592,7 +602,11 @@ mod tests {
 					value: x!(23),
 					gas: x!(67979),
 					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
-					result: Some((x!(3224), x!("c6d80f262ae5e0f164e5fde365044d7ada2bfa34"), vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53])),
+					result: Some(TraceCreateResult {
+						gas_used: U256::from(3224),
+						address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
+						code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
+					})
 				}),
 				subs: vec![]
 			}]
@@ -646,7 +660,11 @@ mod tests {
 				value: x!(100),
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
-				result: Some((x!(3224), params.address, vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53])),
+				result: Some(TraceCreateResult {
+					gas_used: U256::from(3224),
+					address: params.address,
+					code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
+				})
 			}),
 			subs: vec![]
 		} ]);

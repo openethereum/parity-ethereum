@@ -17,6 +17,26 @@
 //! Tracing datatypes.
 use common::*;
 
+/// TraceCall result.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct TraceCallResult {
+	/// Gas used by call.
+	pub gas_used: U256,
+	/// Call Output.
+	pub output: Bytes,
+}
+
+/// TraceCreate result.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TraceCreateResult {
+	/// Gas used by create.
+	pub gas_used: U256,
+	/// Code of the newly created contract.
+	pub code: Bytes,
+	/// Address of the newly created contract.
+	pub address: Address,
+}
+
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TraceCall {
@@ -31,7 +51,7 @@ pub struct TraceCall {
 	/// The input data provided to the call.
 	pub input: Bytes,
 	/// The result of the operation; the gas used and the output data of the call.
-	pub result: Option<(U256, Bytes)>,
+	pub result: Option<TraceCallResult>,
 }
 
 /// Description of a _create_ action, either a `CREATE` operation or a create transction.
@@ -47,15 +67,12 @@ pub struct TraceCreate {
 	pub init: Bytes,
 	/// The result of the operation; tuple of the gas used, the address of the newly created account and its code.
 	/// NOTE: Presently failed operations are not reported so this will always be `Some`.
-	pub result: Option<(U256, Address, Bytes)>,
-//	pub output: Bytes,
+	pub result: Option<TraceCreateResult>,
 }
 
 /// Description of an action that we trace; will be either a call or a create.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TraceAction {
-	/// Action isn't yet known.
-	Unknown,
 	/// It's a call action.
 	Call(TraceCall),
 	/// It's a create action.
@@ -72,16 +89,6 @@ pub struct Trace {
 	pub action: TraceAction,
 	/// The sub traces for each interior action performed as part of this call.
 	pub subs: Vec<Trace>,
-}
-
-impl Default for Trace {
-	fn default() -> Trace {
-		Trace {
-			depth: 0,
-			action: TraceAction::Unknown,
-			subs: vec![],
-		}
-	}
 }
 
 impl TraceAction {
