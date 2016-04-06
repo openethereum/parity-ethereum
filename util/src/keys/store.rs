@@ -128,9 +128,18 @@ impl Default for AccountService {
 }
 
 impl AccountService {
-	/// New account service with the default location
+	/// New account service with the keys store in default location
 	pub fn new() -> Self {
 		let secret_store = RwLock::new(SecretStore::new());
+		secret_store.write().unwrap().try_import_existing();
+		AccountService {
+			secret_store: secret_store
+		}
+	}
+
+	/// New account service with the keys store in specific location
+	pub fn new_in(path: &Path) -> Self {
+		let secret_store = RwLock::new(SecretStore::new_in(path));
 		secret_store.write().unwrap().try_import_existing();
 		AccountService {
 			secret_store: secret_store
