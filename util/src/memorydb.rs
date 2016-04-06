@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Reference-counted memory-based HashDB implementation.
+//! Reference-counted memory-based `HashDB` implementation.
 
 use hash::*;
 use bytes::*;
@@ -27,7 +27,7 @@ use std::collections::HashMap;
 use std::default::Default;
 
 #[derive(Debug,Clone)]
-/// Reference-counted memory-based HashDB implementation.
+/// Reference-counted memory-based `HashDB` implementation.
 ///
 /// Use `new()` to create a new database. Insert items with `insert()`, remove items
 /// with `remove()`, check for existence with `containce()` and lookup a hash to derive

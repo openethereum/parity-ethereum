@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 ///
-/// BlockChain synchronization strategy.
+/// `BlockChain` synchronization strategy.
 /// Syncs to peers and keeps up to date.
 /// This implementation uses ethereum protocol v63
 ///
@@ -127,7 +127,7 @@ pub struct SyncStatus {
 	pub protocol_version: u8,
 	/// The underlying p2p network version.
 	pub network_id: U256,
-	/// BlockChain height for the moment the sync started.
+	/// `BlockChain` height for the moment the sync started.
 	pub start_block_number: BlockNumber,
 	/// Last fully downloaded and imported block number (if any).
 	pub last_imported_block_number: Option<BlockNumber>,
@@ -1292,12 +1292,12 @@ impl ChainSync {
 	fn propagate_new_transactions(&mut self, io: &mut SyncIo) -> usize {
 
 		// Early out of nobody to send to.
-		if self.peers.len() == 0 {
+		if self.peers.is_empty() {
 			return 0;
 		}
 
 		let mut packet = RlpStream::new_list(self.transactions_to_send.len());
-		for tx in self.transactions_to_send.iter() {
+		for tx in &self.transactions_to_send {
 			packet.append_raw(tx, 1);
 		}
 		self.transactions_to_send.clear();
@@ -1312,7 +1312,7 @@ impl ChainSync {
 				.collect::<Vec<_>>();
 
 			// taking at max of MAX_PEERS_PROPAGATION
-			lucky_peers.iter().map(|&id| id.clone()).take(min(lucky_peers.len(), MAX_PEERS_PROPAGATION)).collect::<Vec<PeerId>>()
+			lucky_peers.iter().cloned().take(min(lucky_peers.len(), MAX_PEERS_PROPAGATION)).collect::<Vec<PeerId>>()
 		};
 
 		let sent = lucky_peers.len();
@@ -1701,8 +1701,8 @@ mod tests {
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
 
 		// Add some balance to clients
-		for h in vec![good_blocks[0], retracted_blocks[0]] {
-			let block = client.block(BlockId::Hash(h)).unwrap();
+		for h in &[good_blocks[0], retracted_blocks[0]] {
+			let block = client.block(BlockId::Hash(*h)).unwrap();
 			let view = BlockView::new(&block);
 			client.set_balance(view.transactions()[0].sender().unwrap(), U256::from(1_000_000_000));
 		}

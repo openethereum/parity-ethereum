@@ -427,6 +427,7 @@ impl BlockChain {
 		}
 	}
 
+	#[cfg_attr(feature="dev", allow(similar_names))]
 	/// Inserts the block into backing cache database.
 	/// Expects the block to be valid and already verified.
 	/// If the block is already known, does nothing.
@@ -855,6 +856,7 @@ impl BlockChain {
 
 #[cfg(test)]
 mod tests {
+	#![cfg_attr(feature="dev", allow(similar_names))]
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use util::hash::*;

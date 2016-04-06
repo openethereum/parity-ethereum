@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A queue of blocks. Sits between network or other I/O and the BlockChain.
+//! A queue of blocks. Sits between network or other I/O and the `BlockChain`.
 //! Sorts them ready for blockchain insertion.
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
@@ -89,7 +89,7 @@ impl BlockQueueInfo {
 	}
 }
 
-/// A queue of blocks. Sits between network or other I/O and the BlockChain.
+/// A queue of blocks. Sits between network or other I/O and the `BlockChain`.
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
 	panic_handler: Arc<PanicHandler>,
