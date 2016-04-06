@@ -34,14 +34,16 @@ extern crate transient_hashmap;
 
 use std::sync::Arc;
 use std::thread;
-use util::panics::PanicHandler;
+use util::panics::{MayPanic, PanicHandler, OnPanicListener};
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 
+pub use jsonrpc_http_server::{Listening, RpcServerError};
 pub mod v1;
 
 /// Http server.
 pub struct RpcServer {
 	handler: Arc<IoHandler>,
+	panic_handler: Arc<PanicHandler>
 }
 
 impl RpcServer {
@@ -49,6 +51,7 @@ impl RpcServer {
 	pub fn new() -> RpcServer {
 		RpcServer {
 			handler: Arc::new(IoHandler::new()),
+			panic_handler: PanicHandler::new_in_arc(),
 		}
 	}
 
@@ -58,17 +61,23 @@ impl RpcServer {
 	}
 
 	/// Start server asynchronously in new thread and returns panic handler.
-	pub fn start_http(&self, addr: &str, cors_domain: &str, threads: usize) -> Arc<PanicHandler> {
+	pub fn start_http(&self, addr: &str, cors_domain: &str, threads: usize) -> Result<Listening, RpcServerError> {
 		let addr = addr.to_owned();
 		let cors_domain = cors_domain.to_owned();
-		let panic_handler = PanicHandler::new_in_arc();
-		let ph = panic_handler.clone();
+		let ph = self.panic_handler.clone();
 		let server = jsonrpc_http_server::Server::new(self.handler.clone());
+
 		thread::Builder::new().name("jsonrpc_http".to_string()).spawn(move || {
 			ph.catch_panic(move || {
-				server.start(addr.as_ref(), jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain), threads);
+				server.start(addr.as_ref(), jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain), threads)
 			}).unwrap()
-		}).expect("Error while creating jsonrpc http thread");
-		panic_handler
+		}).expect("Error while creating jsonrpc http thread").join().unwrap()
 	}
 }
+
+impl MayPanic for RpcServer {
+	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+		self.panic_handler.on_panic(closure);
+	}
+}
+
