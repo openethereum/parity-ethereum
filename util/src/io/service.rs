@@ -231,8 +231,8 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 	fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
 		match msg {
 			IoMessage::Shutdown => {
-				self.workers.clear();
 				event_loop.shutdown();
+				self.workers.clear();
 			},
 			IoMessage::AddHandler { handler } => {
 				let handler_id = {
@@ -376,8 +376,10 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 
 impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
+		trace!(target: "shutdown", "[IoService] Closing...");
 		self.host_channel.send(IoMessage::Shutdown).unwrap();
 		self.thread.take().unwrap().join().ok();
+		trace!(target: "shutdown", "[IoService] Closed.");
 	}
 }
 
