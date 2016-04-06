@@ -656,13 +656,13 @@ fn die_with_error(e: ethcore::error::Error) -> ! {
 fn die_with_io_error(e: std::io::Error) -> ! {
 	match e.kind() {
 		std::io::ErrorKind::PermissionDenied => {
-			die!("We don't have permission to bind to this port.")
+			die!("No permissions to bind to specified port.")
 		},
 		std::io::ErrorKind::AddrInUse => {
-			die!("Specified address is already in use. Please make sure that nothing is listening on specified port or use different one")
+			die!("Specified address is already in use. Please make sure that nothing is listening on the same port or try using a different one.")
 		},
 		std::io::ErrorKind::AddrNotAvailable => {
-			die!("Couldn't use specified interface or given address is invalid.")
+			die!("Could not use specified interface or given address is invalid.")
 		},
 		_ => die!("{:?}", e),
 	}
