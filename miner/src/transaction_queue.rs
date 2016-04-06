@@ -523,6 +523,11 @@ impl TransactionQueue {
 		self.last_nonces.clear();
 	}
 
+	/// Returns highest transaction nonce for given address.
+	pub fn last_nonce(&self, address: &Address) -> Option<U256> {
+		self.last_nonces.get(address).cloned()
+	}
+
 	/// Checks if there are any transactions in `future` that should actually be promoted to `current`
 	/// (because nonce matches).
 	fn move_matching_future_to_current(&mut self, address: Address, mut current_nonce: U256, first_nonce: U256) {
@@ -1254,5 +1259,30 @@ mod test {
 		let stats = txq.status();
 		assert_eq!(stats.future, 0);
 		assert_eq!(stats.pending, 1);
+	}
+
+	#[test]
+	fn should_return_none_when_transaction_from_given_address_does_not_exist() {
+		// given
+		let mut txq = TransactionQueue::new();
+
+		// then
+		assert_eq!(txq.last_nonce(&Address::default()), None);
+	}
+
+	#[test]
+	fn should_return_correct_nonce_when_transactions_from_given_address_exist() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		let from = tx.sender().unwrap();
+		let nonce = tx.nonce;
+		let details = |a: &Address| AccountDetails { nonce: nonce, balance: !U256::zero() };
+
+		// when
+		txq.add(tx, &details).unwrap();
+
+		// then
+		assert_eq!(txq.last_nonce(&from), Some(nonce));
 	}
 }
