@@ -43,6 +43,10 @@ fn default_gas() -> U256 {
 	U256::from(21_000)
 }
 
+fn default_call_gas() -> U256 {
+	U256::from(50_000_000)
+}
+
 /// Eth rpc implementation.
 pub struct EthClient<C, S, A, M, EM = ExternalMiner>
 	where C: BlockChainClient,
@@ -175,7 +179,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		Ok(EthTransaction {
 			nonce: request.nonce.unwrap_or_else(|| client.nonce(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
-			gas: request.gas.unwrap_or_else(default_gas),
+			gas: request.gas.unwrap_or_else(default_call_gas),
 			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
