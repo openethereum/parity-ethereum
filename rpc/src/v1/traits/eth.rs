@@ -190,9 +190,6 @@ pub trait EthFilter: Sized + Send + Sync + 'static {
 	/// Returns filter changes since last poll.
 	fn filter_changes(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns filter logs.
-	fn filter_logs(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
-
 	/// Uninstalls filter.
 	fn uninstall_filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
@@ -203,7 +200,7 @@ pub trait EthFilter: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_newBlockFilter", EthFilter::new_block_filter);
 		delegate.add_method("eth_newPendingTransactionFilter", EthFilter::new_pending_transaction_filter);
 		delegate.add_method("eth_getFilterChanges", EthFilter::filter_changes);
-		delegate.add_method("eth_getFilterLogs", EthFilter::filter_logs);
+		delegate.add_method("eth_getFilterLogs", EthFilter::filter_changes);
 		delegate.add_method("eth_uninstallFilter", EthFilter::uninstall_filter);
 		delegate
 	}
