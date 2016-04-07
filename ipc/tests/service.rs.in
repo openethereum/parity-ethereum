@@ -45,3 +45,5 @@ impl Service {
 		}
 	}
 }
+
+impl ::ipc::IpcConfig for Service {}

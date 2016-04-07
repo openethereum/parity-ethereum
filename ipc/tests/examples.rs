@@ -20,6 +20,7 @@ mod tests {
 	use super::super::service::*;
 	use ipc::*;
 	use devtools::*;
+	use semver::Version;
 
 	#[test]
 	fn call_service() {
@@ -56,5 +57,13 @@ mod tests {
 
 		assert_eq!(vec![0, 1, 1, 0, 0, 0, 5, 0, 0, 0, 10], service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(10, result);
+	}
+
+	#[test]
+	fn query_default_version() {
+		let ver = Service::protocol_version();
+		assert_eq!(ver, Version::parse("1.0.0").unwrap());
+		let ver = Service::api_version();
+		assert_eq!(ver, Version::parse("1.0.0").unwrap());
 	}
 }
