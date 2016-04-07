@@ -16,7 +16,7 @@
 
 use common::*;
 use engine::Engine;
-use executive::Executive;
+use executive::{Executive, TransactOptions};
 use account_db::*;
 #[cfg(test)]
 #[cfg(feature = "json-tests")]
@@ -220,7 +220,8 @@ impl State {
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 //		let old = self.to_pod();
 
-		let e = try!(Executive::new(self, env_info, engine).transact(t, tracing));
+		let options = TransactOptions { tracing: tracing, check_nonce: true };
+		let e = try!(Executive::new(self, env_info, engine).transact(t, options));
 
 		// TODO uncomment once to_pod() works correctly.
 //		trace!("Applied transaction. Diff:\n{}\n", StateDiff::diff_pod(&old, &self.to_pod()));

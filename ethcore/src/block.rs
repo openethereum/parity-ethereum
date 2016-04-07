@@ -154,7 +154,7 @@ impl ExecutedBlock {
 	}
 }
 
-/// Trait for a object that is_a `ExecutedBlock`.
+/// Trait for a object that is a `ExecutedBlock`.
 pub trait IsBlock {
 	/// Get the block associated with this object.
 	fn block(&self) -> &ExecutedBlock;
@@ -192,7 +192,7 @@ pub struct OpenBlock<'x> {
 	last_hashes: LastHashes,
 }
 
-/// Just like OpenBlock, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
+/// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
 /// and collected the uncles.
 ///
 /// There is no function available to push a transaction.
@@ -204,7 +204,7 @@ pub struct ClosedBlock {
 	unclosed_state: State,
 }
 
-/// Just like ClosedBlock except that we can't reopen it and it's faster.
+/// Just like `ClosedBlock` except that we can't reopen it and it's faster.
 ///
 /// We actually store the post-`Engine::on_close_block` state, unlike in `ClosedBlock` where it's the pre.
 #[derive(Clone)]
@@ -216,14 +216,15 @@ pub struct LockedBlock {
 
 /// A block that has a valid seal.
 ///
-/// The block's header has valid seal arguments. The block cannot be reversed into a ClosedBlock or OpenBlock.
+/// The block's header has valid seal arguments. The block cannot be reversed into a `ClosedBlock` or `OpenBlock`.
 pub struct SealedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 }
 
 impl<'x> OpenBlock<'x> {
-	/// Create a new OpenBlock ready for transaction pushing.
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
+	/// Create a new `OpenBlock` ready for transaction pushing.
 	pub fn new(engine: &'x Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Self {
 		let mut r = OpenBlock {
 			block: ExecutedBlock::new(State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce()), tracing),
@@ -319,7 +320,7 @@ impl<'x> OpenBlock<'x> {
 		}
 	}
 
-	/// Turn this into a `ClosedBlock`. A BlockChain must be provided in order to figure out the uncles.
+	/// Turn this into a `ClosedBlock`. A `BlockChain` must be provided in order to figure out the uncles.
 	pub fn close(self) -> ClosedBlock {
 		let mut s = self;
 
@@ -454,6 +455,7 @@ impl IsBlock for SealedBlock {
 }
 
 /// Enact the block given by block header, transactions and uncles
+#[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact(header: &Header, transactions: &[SignedTransaction], uncles: &[Header], engine: &Engine, tracing: bool, db: Box<JournalDB>, parent: &Header, last_hashes: LastHashes) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {

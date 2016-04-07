@@ -20,7 +20,7 @@ use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
 use util::hash::{Address, H256, FixedHash};
-use util::crypto::{Secret, Signature};
+use util::crypto::{Secret, Signature, KeyPair};
 use util::keys::store::{AccountProvider, SigningError, EncryptedHashMapError};
 
 /// Account mock.
@@ -30,23 +30,31 @@ pub struct TestAccount {
 	pub unlocked: bool,
 	/// Account's password.
 	pub password: String,
+	/// Account's secret.
+	pub secret: Secret,
 }
 
 impl TestAccount {
 	/// Creates new test account.
 	pub fn new(password: &str) -> Self {
+		let pair = KeyPair::create().unwrap();
 		TestAccount {
 			unlocked: false,
 			password: password.to_owned(),
+			secret: pair.secret().clone()
 		}
+	}
+
+	/// Returns account address.
+	pub fn address(&self) -> Address {
+		KeyPair::from_secret(self.secret.clone()).unwrap().address()
 	}
 }
 
 /// Test account provider.
 pub struct TestAccountProvider {
-	accounts: RwLock<HashMap<Address, TestAccount>>,
-	/// Added accounts passwords.
-	pub adds: RwLock<Vec<String>>,
+	/// Test provider accounts.
+	pub accounts: RwLock<HashMap<Address, TestAccount>>,
 }
 
 impl TestAccountProvider {
@@ -54,7 +62,6 @@ impl TestAccountProvider {
 	pub fn new(accounts: HashMap<Address, TestAccount>) -> Self {
 		TestAccountProvider {
 			accounts: RwLock::new(accounts),
-			adds: RwLock::new(vec![]),
 		}
 	}
 }
@@ -76,14 +83,20 @@ impl AccountProvider for TestAccountProvider {
 	}
 
 	fn new_account(&self, pass: &str) -> Result<Address, io::Error> {
-		let mut adds = self.adds.write().unwrap();
-		let address = Address::from(adds.len() as u64 + 2);
-		adds.push(pass.to_owned());
+		let account = TestAccount::new(pass);
+		let address = KeyPair::from_secret(account.secret.clone()).unwrap().address();
+		self.accounts.write().unwrap().insert(address.clone(), account);
 		Ok(address)
 	}
 
-	fn account_secret(&self, _account: &Address) -> Result<Secret, SigningError> {
-		Ok(Secret::random())
+	fn account_secret(&self, address: &Address) -> Result<Secret, SigningError> {
+		// todo: consider checking if account is unlock. some test may need alteration then.
+		self.accounts
+			.read()
+			.unwrap()
+			.get(address)
+			.ok_or(SigningError::NoAccount)
+			.map(|acc| acc.secret.clone())
 	}
 
 	fn sign(&self, _account: &Address, _message: &H256) -> Result<Signature, SigningError> {
