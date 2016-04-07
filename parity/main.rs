@@ -645,7 +645,7 @@ impl Configuration {
 		}
 
 		if self.args.flag_webapp {
-			let url = format!("0.0.0.0:{}", self.args.flag_webapp_port);
+			let url = format!("127.0.0.1:{}", self.args.flag_webapp_port);
 			let handler = setup_webapp_server(
 				service.client(),
 				sync.clone(),
