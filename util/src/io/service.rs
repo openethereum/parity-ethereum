@@ -231,8 +231,8 @@ impl<Message> Handler for IoManager<Message> where Message: Send + Clone + Sync 
 	fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Self::Message) {
 		match msg {
 			IoMessage::Shutdown => {
-				event_loop.shutdown();
 				self.workers.clear();
+				event_loop.shutdown();
 			},
 			IoMessage::AddHandler { handler } => {
 				let handler_id = {
