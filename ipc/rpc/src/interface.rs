@@ -19,8 +19,24 @@
 use std::io::{Read, Write};
 use std::marker::Sync;
 use std::sync::atomic::*;
+use semver::Version;
 
-pub trait IpcInterface<T> {
+pub struct Handshake {
+	protocol_version: Version,
+	api_version: Version,
+	reserved: [u8; 64],
+}
+
+pub trait IpcConfig {
+	fn api_version() -> Version {
+		Version::parse("1.0.0").unwrap()
+	}
+	fn protocol_version() -> Version {
+		Version::parse("1.0.0").unwrap()
+	}
+}
+
+pub trait IpcInterface<T> where T: IpcConfig {
 	/// reads the message from io, dispatches the call and returns serialized result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
 

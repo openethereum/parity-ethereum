@@ -36,6 +36,8 @@ use syntax::ptr::P;
 
 pub struct Error;
 
+const RESERVED_MESSAGE_IDS: u16 = 16;
+
 pub fn expand_ipc_implementation(
 	cx: &mut ExtCtxt,
 	span: Span,
