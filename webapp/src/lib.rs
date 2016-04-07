@@ -83,7 +83,9 @@ impl Drop for Listening {
 /// Webapp Server startup error
 #[derive(Debug)]
 pub enum WebappServerError {
+	/// Wrapped `std::io::Error`
 	IoError(std::io::Error),
+	/// Other `hyper` error
 	Other(hyper::error::Error),
 }
 
