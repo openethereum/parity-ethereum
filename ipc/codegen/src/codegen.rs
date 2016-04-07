@@ -249,7 +249,7 @@ fn implement_dispatch_arm(
 	buffer: bool,
 ) -> ast::Arm
 {
-	let index_ident = builder.id(format!("{}", index).as_str());
+	let index_ident = builder.id(format!("{}", index + (RESERVED_MESSAGE_IDS as u32)).as_str());
 	let invoke_expr = implement_dispatch_arm_invoke(cx, builder, dispatch, buffer);
 	quote_arm!(cx, $index_ident => { $invoke_expr } )
 }
@@ -387,7 +387,7 @@ fn implement_client_method_body(
 		request_serialization_statements.push(
 			quote_stmt!(cx, let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()));
 
-		let index_ident = builder.id(format!("{}", index).as_str());
+		let index_ident = builder.id(format!("{}", index + RESERVED_MESSAGE_IDS).as_str());
 
 		request_serialization_statements.push(
 			quote_stmt!(cx, ::ipc::invoke($index_ident, &Some(serialized_payload), &mut socket)));
@@ -559,7 +559,8 @@ fn implement_interface(
 					Err(e) => { panic!("ipc read error: {:?}, aborting", e); }
 					_ => { }
 				}
-				match method_num[0] as u16 + (method_num[1] as u16)*256 {
+				// method_num is a 16-bit little-endian unsigned number
+				match method_num[1] as u16 + (method_num[0] as u16)*256 {
 					$dispatch_arms
 					_ => vec![]
 				}
