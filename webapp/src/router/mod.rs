@@ -16,16 +16,20 @@
 
 //! Router implementation
 
+use std::sync::Arc;
 use hyper;
 use page::Page;
 use apps::Pages;
 use iron::request::Url;
 use jsonrpc_http_server::ServerHandler;
 
+mod api;
+
 pub struct Router {
 	rpc: ServerHandler,
+	api: api::RestApi,
 	main_page: Box<Page>,
-	pages: Pages,
+	pages: Arc<Pages>,
 }
 
 impl hyper::server::Handler for Router {
@@ -34,7 +38,10 @@ impl hyper::server::Handler for Router {
 		match path {
 			Some(ref url) if self.pages.contains_key(url) => {
 				self.pages.get(url).unwrap().handle(req, res);
-			}
+			},
+			Some(ref url) if url == "api" => {
+				self.api.handle(req, res);
+			},
 			_ if req.method == hyper::method::Method::Post => {
 				self.rpc.handle(req, res)
 			},
@@ -45,8 +52,10 @@ impl hyper::server::Handler for Router {
 
 impl Router {
 	pub fn new(rpc: ServerHandler, main_page: Box<Page>, pages: Pages) -> Self {
+		let pages = Arc::new(pages);
 		Router {
 			rpc: rpc,
+			api: api::RestApi { pages: pages.clone() },
 			main_page: main_page,
 			pages: pages,
 		}
