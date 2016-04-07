@@ -94,6 +94,7 @@ impl Miner {
 	}
 
 	/// Prepares new block for sealing including top transactions from queue.
+	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
@@ -164,7 +165,7 @@ impl Miner {
 			}
 		);
 		if let Some(block) = b {
-			if sealing_work.peek_last_ref().map(|pb| pb.block().fields().header.hash() != block.block().fields().header.hash()).unwrap_or(true) {
+			if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
 				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
 				sealing_work.push(block);
 			}
@@ -200,7 +201,7 @@ impl MinerService for Miner {
 
 	fn sensible_gas_price(&self) -> U256 {
 		// 10% above our minimum.
-		self.transaction_queue.lock().unwrap().minimal_gas_price().clone() * x!(110) / x!(100)
+		*self.transaction_queue.lock().unwrap().minimal_gas_price() * x!(110) / x!(100)
 	}
 
 	fn author(&self) -> Address {
@@ -225,6 +226,10 @@ impl MinerService for Miner {
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
 		let queue = self.transaction_queue.lock().unwrap();
 		queue.find(hash)
+	}
+
+	fn last_nonce(&self, address: &Address) -> Option<U256> {
+		self.transaction_queue.lock().unwrap().last_nonce(address)
 	}
 
 	fn update_sealing(&self, chain: &BlockChainClient) {

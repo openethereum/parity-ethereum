@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Key-Value store abstraction with RocksDB backend.
+//! Key-Value store abstraction with `RocksDB` backend.
 
 use std::default::Default;
 use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,

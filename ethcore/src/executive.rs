@@ -36,6 +36,14 @@ pub fn contract_address(address: &Address, nonce: &U256) -> Address {
 	From::from(stream.out().sha3())
 }
 
+/// Transaction execution options.
+pub struct TransactOptions {
+	/// Enable call tracing.
+	pub tracing: bool,
+	/// Check transaction nonce before execution.
+	pub check_nonce: bool,
+}
+
 /// Transaction execution receipt.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Executed {
@@ -110,7 +118,7 @@ impl<'a> Executive<'a> {
 	}
 
 	/// This funtion should be used to execute transaction.
-	pub fn transact(&'a mut self, t: &SignedTransaction, tracing: bool) -> Result<Executed, Error> {
+	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, Error> {
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
@@ -124,8 +132,10 @@ impl<'a> Executive<'a> {
 		let init_gas = t.gas - base_gas_required;
 
 		// validate transaction nonce
-		if t.nonce != nonce {
-			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
+		if options.check_nonce {
+			if t.nonce != nonce {
+				return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
+			}
 		}
 
 		// validate if transaction fits into given block
@@ -151,7 +161,7 @@ impl<'a> Executive<'a> {
 		self.state.inc_nonce(&sender);
 		self.state.sub_balance(&sender, &U256::from(gas_cost));
 
-		let mut substate = Substate::new(tracing);
+		let mut substate = Substate::new(options.tracing);
 
 		let (gas_left, output) = match t.action {
 			Action::Create => {
@@ -881,7 +891,8 @@ mod tests {
 
 		let executed = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t, false).unwrap()
+			let opts = TransactOptions { check_nonce: true, tracing: false };
+			ex.transact(&t, opts).unwrap()
 		};
 
 		assert_eq!(executed.gas, U256::from(100_000));
@@ -914,7 +925,8 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t, false)
+			let opts = TransactOptions { check_nonce: true, tracing: false };
+			ex.transact(&t, opts)
 		};
 
 		match res {
@@ -945,7 +957,8 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t, false)
+			let opts = TransactOptions { check_nonce: true, tracing: false };
+			ex.transact(&t, opts)
 		};
 
 		match res {
@@ -978,7 +991,8 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t, false)
+			let opts = TransactOptions { check_nonce: true, tracing: false };
+			ex.transact(&t, opts)
 		};
 
 		match res {
@@ -1011,7 +1025,8 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.transact(&t, false)
+			let opts = TransactOptions { check_nonce: true, tracing: false };
+			ex.transact(&t, opts)
 		};
 
 		match res {
