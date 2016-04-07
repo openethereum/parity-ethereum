@@ -42,6 +42,8 @@ extern crate rpassword;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
+#[cfg(feature = "webapp")]
+extern crate ethcore_webapp as webapp;
 
 use std::io::{BufRead, BufReader};
 use std::fs::File;
