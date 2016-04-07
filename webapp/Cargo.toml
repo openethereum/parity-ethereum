@@ -10,7 +10,7 @@ authors = ["Ethcore <admin@ethcore.io"]
 [dependencies]
 log = "0.3"
 jsonrpc-core = "2.0"
-jsonrpc-http-server = { git = "https://github.com/tomusdrw/jsonrpc-http-server.git" }
+jsonrpc-http-server = { git = "https://github.com/debris/jsonrpc-http-server.git" }
 hyper = { version = "0.8", default-features = false }
 iron = { version = "0.3" }
 ethcore-rpc = { path = "../rpc" }

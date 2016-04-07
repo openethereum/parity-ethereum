@@ -67,7 +67,7 @@ use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 #[cfg(feature = "rpc")]
 use rpc::Server as RpcServer;
-use webapp::WebappServer;
+use webapp::Listening as WebappServer;
 
 mod price_info;
 
@@ -324,7 +324,7 @@ fn setup_webapp_server(
 ) -> WebappServer {
 	use rpc::v1::*;
 
-	let server = WebappServer::new();
+	let server = webapp::WebappServer::new();
 	server.add_delegate(Web3Client::new().to_delegate());
 	server.add_delegate(NetClient::new(&sync).to_delegate());
 	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
@@ -334,7 +334,7 @@ fn setup_webapp_server(
 	match start_result {
 		Err(webapp::WebappServerError::IoError(err)) => die_with_io_error(err),
 		Err(e) => die!("{:?}", e),
-		Ok(handle) => Box::new(handle),
+		Ok(handle) => handle,
 	}
 
 }
