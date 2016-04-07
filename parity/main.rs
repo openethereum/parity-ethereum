@@ -43,6 +43,7 @@ extern crate rpassword;
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
 
+use std::any::Any;
 use std::io::{BufRead, BufReader};
 use std::fs::File;
 use std::net::{SocketAddr, IpAddr};
@@ -270,8 +271,10 @@ fn setup_rpc_server(
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
+	url: &str,
+	cors_domain: &str,
 	apis: Vec<&str>
-) -> Option<rpc::RpcServer> {
+) -> Box<Any> {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -289,7 +292,12 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	Some(server)
+	let start_result = server.start_http(url, cors_domain, ::num_cpus::get());
+	match start_result {
+		Err(rpc::RpcServerError::IoError(err)) => die_with_io_error(err),
+		Err(e) => die!("{:?}", e),
+		Ok(handle) => Box::new(handle),
+	}
 }
 
 #[cfg(not(feature = "rpc"))]
@@ -298,9 +306,11 @@ fn setup_rpc_server(
 	_sync: Arc<EthSync>,
 	_secret_store: Arc<AccountService>,
 	_miner: Arc<Miner>,
+	_url: &str,
+	_cors_domain: &str,
 	_apis: Vec<&str>
-) -> Option<Arc<PanicHandler>> {
-	None
+) -> ! {
+	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
 
 fn print_version() {
@@ -582,20 +592,7 @@ impl Configuration {
 
 		// Setup rpc
 		let rpc_server = if self.args.flag_jsonrpc || self.args.flag_rpc {
-			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			setup_rpc_server(
-				service.client(),
-				sync.clone(),
-				account_service.clone(),
-				miner.clone(),
-				apis.split(',').collect()
-			)
-		} else {
-			None
-		};
-
-		let rpc_handle = rpc_server.map(|server| {
 			let url = format!("{}:{}",
 				match self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_interface).as_str() {
 					"all" => "0.0.0.0",
@@ -606,13 +603,19 @@ impl Configuration {
 			);
 			SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
-			let start_result = server.start_http(&url, cors_domain, ::num_cpus::get());
-			match start_result {
-				Ok(handle) => handle,
-				Err(rpc::RpcServerError::IoError(err)) => die_with_io_error(err),
-				Err(e) => die!("{:?}", e),
-			}
-		});
+
+			Some(setup_rpc_server(
+				service.client(),
+				sync.clone(),
+				account_service.clone(),
+				miner.clone(),
+				&url,
+				&cors_domain,
+				apis.split(',').collect()
+			))
+		} else {
+			None
+		};
 
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
@@ -624,11 +627,11 @@ impl Configuration {
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 		// Handle exit
-		wait_for_exit(panic_handler, rpc_handle);
+		wait_for_exit(panic_handler, rpc_server);
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_handle: Option<rpc::Listening>) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<Box<Any>>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
