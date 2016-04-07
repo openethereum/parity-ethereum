@@ -303,12 +303,20 @@ fn setup_rpc_server(
 }
 #[cfg(feature = "webapp")]
 fn setup_webapp_server(
+	client: Arc<Client>,
+	sync: Arc<EthSync>,
+	secret_store: Arc<AccountService>,
+	miner: Arc<Miner>,
 	url: &str
 ) -> Option<Arc<PanicHandler>> {
 	use rpc::v1::*;
 
 	let server = webapp::WebappServer::new();
 	server.add_delegate(Web3Client::new().to_delegate());
+	server.add_delegate(NetClient::new(&sync).to_delegate());
+	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
+	server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
+	server.add_delegate(PersonalClient::new(&secret_store).to_delegate());
 	Some(server.start_http(url, ::num_cpus::get()))
 }
 
@@ -327,6 +335,10 @@ fn setup_rpc_server(
 
 #[cfg(not(feature = "webapp"))]
 fn setup_webapp_server(
+	_client: Arc<Client>,
+	_sync: Arc<EthSync>,
+	_secret_store: Arc<AccountService>,
+	_miner: Arc<Miner>,
 	_url: &str
 ) -> Option<Arc<PanicHandler>> {
 	None
@@ -637,6 +649,10 @@ impl Configuration {
 		if self.args.flag_webapp {
 			let url = format!("0.0.0.0:{}", self.args.flag_webapp_port);
 			setup_webapp_server(
+				service.client(),
+				sync.clone(),
+				account_service.clone(),
+				miner.clone(),
 				&url,
 			).map(|handler| {
 				panic_handler.forward_from(handler.deref());
