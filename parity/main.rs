@@ -132,7 +132,7 @@ API and Console Options:
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
                            [default: web3,eth,net,personal].
-  -w --webap               Enable the web applications server (e.g. status page).
+  -w --webapp              Enable the web applications server (e.g. status page).
   --webapp-port PORT       Specify the port portion of the WebApps server
                            [default: 8080].
 
@@ -305,7 +305,10 @@ fn setup_rpc_server(
 fn setup_webapp_server(
 	url: &str
 ) -> Option<Arc<PanicHandler>> {
+	use rpc::v1::*;
+
 	let server = webapp::WebappServer::new();
+	server.add_delegate(Web3Client::new().to_delegate());
 	Some(server.start_http(url, ::num_cpus::get()))
 }
 
