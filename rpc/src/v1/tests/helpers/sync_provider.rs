@@ -16,7 +16,7 @@
 
 //! Test implementation of SyncProvider.
 
-use util::{U256, Bytes};
+use util::{U256};
 use ethsync::{SyncProvider, SyncStatus, SyncState};
 use std::sync::{RwLock};
 
@@ -58,9 +58,6 @@ impl TestSyncProvider {
 impl SyncProvider for TestSyncProvider {
 	fn status(&self) -> SyncStatus {
 		self.status.read().unwrap().clone()
-	}
-
-	fn new_transaction(&self, _raw_transaction: Bytes) {
 	}
 }
 

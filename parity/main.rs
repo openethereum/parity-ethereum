@@ -45,7 +45,6 @@ extern crate ethcore_rpc as rpc;
 #[cfg(feature = "webapp")]
 extern crate ethcore_webapp as webapp;
 
-use std::any::Any;
 use std::io::{BufRead, BufReader};
 use std::fs::File;
 use std::net::{SocketAddr, IpAddr};
@@ -66,6 +65,9 @@ use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
+#[cfg(feature = "rpc")]
+use rpc::Server as RpcServer;
+use webapp::WebappServer;
 
 mod price_info;
 
@@ -283,10 +285,10 @@ fn setup_rpc_server(
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
-	url: &str,
+	url: &SocketAddr,
 	cors_domain: &str,
 	apis: Vec<&str>
-) -> Box<Any> {
+) -> RpcServer {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -304,11 +306,11 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	let start_result = server.start_http(url, cors_domain, ::num_cpus::get());
+	let start_result = server.start_http(url, cors_domain);
 	match start_result {
 		Err(rpc::RpcServerError::IoError(err)) => die_with_io_error(err),
 		Err(e) => die!("{:?}", e),
-		Ok(handle) => Box::new(handle),
+		Ok(server) => server,
 	}
 }
 
@@ -319,10 +321,10 @@ fn setup_webapp_server(
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
 	url: &str
-) -> Box<Any> {
+) -> WebappServer {
 	use rpc::v1::*;
 
-	let server = webapp::WebappServer::new();
+	let server = WebappServer::new();
 	server.add_delegate(Web3Client::new().to_delegate());
 	server.add_delegate(NetClient::new(&sync).to_delegate());
 	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
@@ -338,6 +340,9 @@ fn setup_webapp_server(
 }
 
 #[cfg(not(feature = "rpc"))]
+struct RpcServer;
+
+#[cfg(not(feature = "rpc"))]
 fn setup_rpc_server(
 	_client: Arc<Client>,
 	_sync: Arc<EthSync>,
@@ -349,6 +354,9 @@ fn setup_rpc_server(
 ) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
+
+#[cfg(not(feature = "webapp"))]
+struct WebappServer;
 
 #[cfg(not(feature = "webapp"))]
 fn setup_webapp_server(
@@ -649,7 +657,7 @@ impl Configuration {
 				},
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
 			);
-			SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
+			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 
 			Some(setup_rpc_server(
@@ -657,7 +665,7 @@ impl Configuration {
 				sync.clone(),
 				account_service.clone(),
 				miner.clone(),
-				&url,
+				&addr,
 				&cors_domain,
 				apis.split(',').collect()
 			))
@@ -699,7 +707,7 @@ impl Configuration {
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<Box<Any>>, _webapp_server: Option<Box<Any>>) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _webapp_server: Option<WebappServer>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
