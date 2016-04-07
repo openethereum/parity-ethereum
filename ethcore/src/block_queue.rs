@@ -116,6 +116,7 @@ struct VerifyingBlock {
 }
 
 struct QueueSignal {
+	deleting: Arc<AtomicBool>,
 	signalled: AtomicBool,
 	message_channel: IoChannel<NetSyncMessage>,
 }
@@ -123,10 +124,16 @@ struct QueueSignal {
 impl QueueSignal {
 	#[cfg_attr(feature="dev", allow(bool_comparison))]
 	fn set(&self) {
+		// Do not signal when we are about to close
+		if self.deleting.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
 			self.message_channel.send(UserMessage(SyncMessage::BlockVerified)).expect("Error sending BlockVerified message");
 		}
 	}
+
 	fn reset(&self) {
 		self.signalled.store(false, AtomicOrdering::Relaxed);
 	}
@@ -150,8 +157,12 @@ impl BlockQueue {
 			bad: Mutex::new(HashSet::new()),
 		});
 		let more_to_verify = Arc::new(Condvar::new());
-		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
 		let deleting = Arc::new(AtomicBool::new(false));
+		let ready_signal = Arc::new(QueueSignal {
+			deleting: deleting.clone(),
+			signalled: AtomicBool::new(false),
+			message_channel: message_channel
+		});
 		let empty = Arc::new(Condvar::new());
 		let panic_handler = PanicHandler::new_in_arc();
 
