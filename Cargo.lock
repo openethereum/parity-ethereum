@@ -321,6 +321,7 @@ dependencies = [
  "jsonrpc-core 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 4.0.0 (git+https://github.com/tomusdrw/jsonrpc-http-server.git)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-status 0.1.1 (git+https://github.com/tomusdrw/parity-status.git)",
  "parity-wallet 0.1.0 (git+https://github.com/tomusdrw/parity-wallet.git)",
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
 ]
@@ -692,6 +693,14 @@ dependencies = [
 name = "odds"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "parity-status"
+version = "0.1.1"
+source = "git+https://github.com/tomusdrw/parity-status.git#31cdfd631af970b58c4ddb4e7d7e927af2e07ce3"
+dependencies = [
+ "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
+]
 
 [[package]]
 name = "parity-wallet"

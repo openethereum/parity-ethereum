@@ -60,7 +60,7 @@ impl WebappServer {
 
 		let cors_domain = jsonrpc_http_server::AccessControlAllowOrigin::Null;
 		let rpc = ServerHandler::new(handler, cors_domain);
-		let router = router::Router::new(rpc, apps::all_pages());
+		let router = router::Router::new(rpc, apps::main_page(), apps::all_pages());
 
 		try!(hyper::Server::http(addr.as_ref() as &str))
 			.handle_threads(router, threads)

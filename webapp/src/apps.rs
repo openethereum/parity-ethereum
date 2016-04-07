@@ -17,9 +17,14 @@
 use std::collections::HashMap;
 use page::{Page, PageHandler};
 
+extern crate parity_status;
 extern crate parity_wallet;
 
 pub type Pages = HashMap<String, Box<Page>>;
+
+pub fn main_page() -> Box<Page> {
+	Box::new(PageHandler { app: parity_status::App::default() })
+}
 
 pub fn all_pages() -> Pages {
 	let mut pages = Pages::new();
@@ -27,11 +32,10 @@ pub fn all_pages() -> Pages {
 	pages
 }
 
-#[cfg(feature="parity-wallet")]
+#[cfg(feature = "parity-wallet")]
 fn wallet_page(pages: &mut Pages) {
 	pages.insert("wallet".to_owned(), Box::new(PageHandler { app: parity_wallet::App::default() }));
 }
 
-#[cfg(not(feature="parity-wallet"))]
+#[cfg(not(feature = "parity-wallet"))]
 fn wallet_page(_pages: &mut Pages) {}
-

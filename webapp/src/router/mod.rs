@@ -17,12 +17,14 @@
 //! Router implementation
 
 use hyper;
+use page::Page;
 use apps::Pages;
 use iron::request::Url;
 use jsonrpc_http_server::ServerHandler;
 
 pub struct Router {
 	rpc: ServerHandler,
+	main_page: Box<Page>,
 	pages: Pages,
 }
 
@@ -33,15 +35,19 @@ impl hyper::server::Handler for Router {
 			Some(ref url) if self.pages.contains_key(url) => {
 				self.pages.get(url).unwrap().handle(req, res);
 			}
-			_ => self.rpc.handle(req, res),
+			_ if req.method == hyper::method::Method::Post => {
+				self.rpc.handle(req, res)
+			},
+			_ => self.main_page.handle(req, res),
 		}
 	}
 }
 
 impl Router {
-	pub fn new(rpc: ServerHandler, pages: Pages) -> Self {
+	pub fn new(rpc: ServerHandler, main_page: Box<Page>, pages: Pages) -> Self {
 		Router {
 			rpc: rpc,
+			main_page: main_page,
 			pages: pages,
 		}
 	}
@@ -75,13 +81,18 @@ impl Router {
 	fn extract_request_path<'a, 'b>(mut req: hyper::server::Request<'a, 'b>) -> (Option<String>, hyper::server::Request<'a, 'b>) {
 		let url = Router::extract_url(&req);
 		match url {
-			Some(url) => {
+			Some(ref url) if url.path.len() > 1 => {
 				let part = url.path[0].clone();
 				let url = url.path[1..].join("/");
 				req.uri = hyper::uri::RequestUri::AbsolutePath(url);
 				(Some(part), req)
 			},
-			None => {
+			Some(url) => {
+				let url = url.path.join("/");
+				req.uri = hyper::uri::RequestUri::AbsolutePath(url);
+				(None, req)
+			},
+			_ => {
 				(None, req)
 			}
 		}
