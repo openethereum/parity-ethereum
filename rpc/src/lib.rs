@@ -33,9 +33,10 @@ extern crate ethminer;
 extern crate transient_hashmap;
 
 use std::sync::Arc;
+use std::net::SocketAddr;
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 
-pub use jsonrpc_http_server::{Listening, RpcServerError};
+pub use jsonrpc_http_server::{Server, RpcServerError};
 pub mod v1;
 
 /// Http server.
@@ -56,12 +57,9 @@ impl RpcServer {
 		self.handler.add_delegate(delegate);
 	}
 
-	/// Start server asynchronously and returns result with `Listening` handle on success or an error.
-	pub fn start_http(&self, addr: &str, cors_domain: &str, threads: usize) -> Result<Listening, RpcServerError> {
-		let addr = addr.to_owned();
+	/// Start server asynchronously and returns result with `Server` handle on success or an error.
+	pub fn start_http(&self, addr: &SocketAddr, cors_domain: &str) -> Result<Server, RpcServerError> {
 		let cors_domain = cors_domain.to_owned();
-		let server = jsonrpc_http_server::Server::new(self.handler.clone());
-
-		server.start(addr.as_ref(), jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain), threads)
+		Server::start(addr, self.handler.clone(), jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain))
 	}
 }
