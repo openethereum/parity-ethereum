@@ -136,6 +136,9 @@ API and Console Options:
   -w --webapp              Enable the web applications server (e.g. status page).
   --webapp-port PORT       Specify the port portion of the WebApps server
                            [default: 8080].
+  --webapp-interface IP    Specify the hostname portion of the WebApps
+                           server, IP should be an interface's IP address, or
+                           all (all interfaces) or local [default: local].
 
 
 Sealing/Mining Options:
@@ -223,6 +226,7 @@ struct Args {
 	flag_jsonrpc_apis: String,
 	flag_webapp: bool,
 	flag_webapp_port: u16,
+	flag_webapp_interface: String,
 	flag_author: String,
 	flag_usd_per_tx: String,
 	flag_usd_per_eth: String,
@@ -662,7 +666,14 @@ impl Configuration {
 		};
 
 		let webapp_server = if self.args.flag_webapp {
-			let url = format!("127.0.0.1:{}", self.args.flag_webapp_port);
+			let url = format!("{}:{}",
+				match self.args.flag_webapp_interface.as_str() {
+					"all" => "0.0.0.0",
+					"local" => "127.0.0.1",
+					x => x,
+				},
+				self.args.flag_webapp_port
+			);
 			Some(setup_webapp_server(
 				service.client(),
 				sync.clone(),
