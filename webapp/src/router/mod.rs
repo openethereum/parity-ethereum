@@ -36,7 +36,7 @@ impl hyper::server::Handler for Router {
 				self.pages.get(url).unwrap().handle(req, res);
 			}
 			_ if req.method == hyper::method::Method::Post => {
-				// self.rpc.handle(req, res)
+				self.rpc.handle(req, res)
 			},
 			_ => self.main_page.handle(req, res),
 		}

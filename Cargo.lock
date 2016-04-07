@@ -319,7 +319,7 @@ dependencies = [
  "hyper 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "iron 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-http-server 5.0.0 (git+https://github.com/debris/jsonrpc-http-server.git)",
+ "jsonrpc-http-server 4.0.0 (git+https://github.com/tomusdrw/jsonrpc-http-server.git?branch=old-hyper)",
  "log 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-status 0.1.1 (git+https://github.com/tomusdrw/parity-status.git)",
  "parity-wallet 0.1.0 (git+https://github.com/tomusdrw/parity-wallet.git)",
@@ -522,6 +522,16 @@ dependencies = [
  "serde_codegen 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.30.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "jsonrpc-http-server"
+version = "4.0.0"
+source = "git+https://github.com/tomusdrw/jsonrpc-http-server.git?branch=old-hyper#46bd4e7cf8352e0efc940cf76d3dff99f1a3da15"
+dependencies = [
+ "hyper 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

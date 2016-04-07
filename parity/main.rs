@@ -67,6 +67,7 @@ use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 #[cfg(feature = "rpc")]
 use rpc::Server as RpcServer;
+#[cfg(feature = "webapp")]
 use webapp::Listening as WebappServer;
 
 mod price_info;
