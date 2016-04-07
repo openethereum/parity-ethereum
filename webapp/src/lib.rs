@@ -25,11 +25,9 @@ extern crate iron;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate ethcore_rpc as rpc;
-extern crate ethcore_util as util;
 extern crate parity_webapp;
 
 use std::sync::Arc;
-use util::panics::PanicHandler;
 use self::jsonrpc_core::{IoHandler, IoDelegate};
 use jsonrpc_http_server::ServerHandler;
 
@@ -55,22 +53,45 @@ impl WebappServer {
 		self.handler.add_delegate(delegate);
 	}
 
-	/// Start server asynchronously and returns panic handler.
-	pub fn start_http(&self, addr: &str, threads: usize) -> Arc<PanicHandler> {
+	/// Start server asynchronously and returns result with `Listening` handle on success or an error.
+	pub fn start_http(&self, addr: &str, threads: usize) -> Result<Listening, WebappServerError> {
 		let addr = addr.to_owned();
-		let panic_handler = PanicHandler::new_in_arc();
 		let handler = self.handler.clone();
 
 		let cors_domain = jsonrpc_http_server::AccessControlAllowOrigin::Null;
 		let rpc = ServerHandler::new(handler, cors_domain);
 		let router = router::Router::new(rpc, apps::all_pages());
 
-		panic_handler.catch_panic(move || {
-			hyper::Server::http(addr.as_ref() as &str).unwrap()
-				.handle_threads(router, threads)
-				.unwrap();
-		}).unwrap();
+		try!(hyper::Server::http(addr.as_ref() as &str))
+			.handle_threads(router, threads)
+			.map(|l| Listening { listening: l })
+			.map_err(WebappServerError::from)
+	}
+}
 
-		panic_handler
+/// Listening handle
+pub struct Listening {
+	listening: hyper::server::Listening
+}
+
+impl Drop for Listening {
+	fn drop(&mut self) {
+		self.listening.close().unwrap();
+	}
+}
+
+/// Webapp Server startup error
+#[derive(Debug)]
+pub enum WebappServerError {
+	IoError(std::io::Error),
+	Other(hyper::error::Error),
+}
+
+impl From<hyper::error::Error> for WebappServerError {
+	fn from(err: hyper::error::Error) -> Self {
+		match err {
+			hyper::error::Error::Io(e) => WebappServerError::IoError(e),
+			e => WebappServerError::Other(e)
+		}
 	}
 }

@@ -120,10 +120,12 @@ impl Worker {
 
 impl Drop for Worker {
 	fn drop(&mut self) {
+		trace!(target: "shutdown", "[IoWorker] Closing...");
 		let _ = self.wait_mutex.lock();
 		self.deleting.store(true, AtomicOrdering::Release);
 		self.wait.notify_all();
 		let thread = mem::replace(&mut self.thread, None).unwrap();
 		thread.join().ok();
+		trace!(target: "shutdown", "[IoWorker] Closed");
 	}
 }
