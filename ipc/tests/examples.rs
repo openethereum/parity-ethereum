@@ -25,7 +25,7 @@ mod tests {
 	#[test]
 	fn call_service() {
 		// method_num = 0, f = 10 (method Service::commit)
-		let mut socket = TestSocket::new_ready(vec![0, 0, 0, 0, 0, 10]);
+		let mut socket = TestSocket::new_ready(vec![0, 16, 0, 0, 0, 10]);
 
 		let service = Service::new();
 		assert_eq!(0, *service.commits.read().unwrap());
@@ -43,7 +43,7 @@ mod tests {
 
 		let result = service_client.commit(5);
 
-		assert_eq!(vec![0, 0, 0, 0, 0, 5], service_client.socket().borrow().write_buffer.clone());
+		assert_eq!(vec![0, 16, 0, 0, 0, 5], service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
@@ -55,7 +55,7 @@ mod tests {
 
 		let result = service_client.rollback(Some(5), 10);
 
-		assert_eq!(vec![0, 1, 1, 0, 0, 0, 5, 0, 0, 0, 10], service_client.socket().borrow().write_buffer.clone());
+		assert_eq!(vec![0, 17, 1, 0, 0, 0, 5, 0, 0, 0, 10], service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
