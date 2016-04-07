@@ -54,7 +54,7 @@ impl OriginInfo {
 }
 
 /// Implementation of evm Externalities.
-pub struct Externalities<'a> {
+pub struct Externalities<'a, T> where T: 'a + Tracer {
 	state: &'a mut State,
 	env_info: &'a EnvInfo,
 	engine: &'a Engine,
@@ -62,10 +62,11 @@ pub struct Externalities<'a> {
 	origin_info: OriginInfo,
 	substate: &'a mut Substate,
 	schedule: Schedule,
-	output: OutputPolicy<'a, 'a>
+	output: OutputPolicy<'a, 'a>,
+	tracer: &'a mut T,
 }
 
-impl<'a> Externalities<'a> {
+impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
 	/// Basic `Externalities` constructor.
 	pub fn new(state: &'a mut State,
 		env_info: &'a EnvInfo,
@@ -73,7 +74,8 @@ impl<'a> Externalities<'a> {
 		depth: usize,
 		origin_info: OriginInfo,
 		substate: &'a mut Substate,
-		output: OutputPolicy<'a, 'a>
+		output: OutputPolicy<'a, 'a>,
+		tracer: &'a mut T,
 	) -> Self {
 		Externalities {
 			state: state,
@@ -83,12 +85,13 @@ impl<'a> Externalities<'a> {
 			origin_info: origin_info,
 			substate: substate,
 			schedule: engine.schedule(env_info),
-			output: output
+			output: output,
+			tracer: tracer,
 		}
 	}
 }
 
-impl<'a> Ext for Externalities<'a> {
+impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 	fn storage_at(&self, key: &H256) -> H256 {
 		self.state.storage_at(&self.origin_info.address, key)
 	}
@@ -143,7 +146,7 @@ impl<'a> Ext for Externalities<'a> {
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
 
 		// TODO: handle internal error separately
-		match ex.create(params, self.substate) {
+		match ex.create(params, self.substate, self.tracer) {
 			Ok(gas_left) => {
 				self.substate.contracts_created.push(address.clone());
 				ContractCreateResult::Created(address, gas_left)
@@ -181,7 +184,7 @@ impl<'a> Ext for Externalities<'a> {
 
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
 
-		match ex.call(params, self.substate, BytesRef::Fixed(output)) {
+		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer) {
 			Ok(gas_left) => MessageCallResult::Success(gas_left),
 			_ => MessageCallResult::Failed
 		}
@@ -208,7 +211,7 @@ impl<'a> Ext for Externalities<'a> {
 			},
 			OutputPolicy::Return(BytesRef::Flexible(ref mut vec), ref mut copy) => {
 				handle_copy(copy);
-				
+
 				vec.clear();
 				vec.reserve(data.len());
 				unsafe {
@@ -225,7 +228,7 @@ impl<'a> Ext for Externalities<'a> {
 						false => Ok(*gas)
 					}
 				}
-				
+
 				handle_copy(copy);
 
 				let mut code = vec![];
@@ -328,7 +331,7 @@ mod tests {
 			TestSetup {
 				state: get_temp_state(),
 				engine: get_test_spec().to_engine().unwrap(),
-				sub_state: Substate::new(false),
+				sub_state: Substate::new(),
 				env_info: get_test_env_info()
 			}
 		}
@@ -338,8 +341,9 @@ mod tests {
 	fn can_be_created() {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
+		let mut tracer = NoopTracer;
 
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 
 		assert_eq!(ext.env_info().number, 100);
 	}
@@ -348,7 +352,9 @@ mod tests {
 	fn can_return_block_hash_no_env() {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
+		let mut tracer = NoopTracer;
+
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -367,7 +373,9 @@ mod tests {
 			env_info.last_hashes.push(test_hash.clone());
 		}
 		let state = setup.state.reference_mut();
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
+		let mut tracer = NoopTracer;
+
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -379,7 +387,9 @@ mod tests {
 	fn can_call_fail_empty() {
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
-		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
+		let mut tracer = NoopTracer;
+
+		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 
 		let mut output = vec![];
 
@@ -401,9 +411,10 @@ mod tests {
 
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
+		let mut tracer = NoopTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 			ext.log(log_topics, &log_data);
 		}
 
@@ -416,9 +427,10 @@ mod tests {
 
 		let mut setup = TestSetup::new();
 		let state = setup.state.reference_mut();
+		let mut tracer = NoopTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None));
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer);
 			ext.suicide(&refund_account);
 		}
 
