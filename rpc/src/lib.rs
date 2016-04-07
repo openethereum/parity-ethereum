@@ -44,7 +44,7 @@ pub struct RpcServer {
 }
 
 impl RpcServer {
-	/// Construct new http server object with given number of threads.
+	/// Construct new http server object.
 	pub fn new() -> RpcServer {
 		RpcServer {
 			handler: Arc::new(IoHandler::new()),
@@ -56,7 +56,7 @@ impl RpcServer {
 		self.handler.add_delegate(delegate);
 	}
 
-	/// Start server asynchronously in new thread and returns panic handler.
+	/// Start server asynchronously and returns result with `Listening` handle on success or an error.
 	pub fn start_http(&self, addr: &str, cors_domain: &str, threads: usize) -> Result<Listening, RpcServerError> {
 		let addr = addr.to_owned();
 		let cors_domain = cors_domain.to_owned();
