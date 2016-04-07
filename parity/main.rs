@@ -281,7 +281,7 @@ fn setup_rpc_server(
 	url: &str,
 	cors_domain: &str,
 	apis: Vec<&str>
-) -> Option<Arc<PanicHandler>> {
+) -> Arc<PanicHandler> {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -299,7 +299,7 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	Some(server.start_http(url, cors_domain, ::num_cpus::get()))
+	server.start_http(url, cors_domain, ::num_cpus::get())
 }
 #[cfg(feature = "webapp")]
 fn setup_webapp_server(
@@ -308,7 +308,7 @@ fn setup_webapp_server(
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
 	url: &str
-) -> Option<Arc<PanicHandler>> {
+) -> Arc<PanicHandler> {
 	use rpc::v1::*;
 
 	let server = webapp::WebappServer::new();
@@ -317,7 +317,7 @@ fn setup_webapp_server(
 	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 	server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 	server.add_delegate(PersonalClient::new(&secret_store).to_delegate());
-	Some(server.start_http(url, ::num_cpus::get()))
+	server.start_http(url, ::num_cpus::get())
 }
 
 #[cfg(not(feature = "rpc"))]
@@ -329,8 +329,8 @@ fn setup_rpc_server(
 	_url: &str,
 	_cors_domain: &str,
 	_apis: Vec<&str>
-) -> Option<Arc<PanicHandler>> {
-	None
+) -> Arc<PanicHandler> {
+	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
 
 #[cfg(not(feature = "webapp"))]
@@ -340,8 +340,8 @@ fn setup_webapp_server(
 	_secret_store: Arc<AccountService>,
 	_miner: Arc<Miner>,
 	_url: &str
-) -> Option<Arc<PanicHandler>> {
-	None
+) -> Arc<PanicHandler> {
+	die!("Your Parity version has been compiled without WebApps support.")
 }
 
 fn print_version() {
@@ -632,7 +632,7 @@ impl Configuration {
 			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 			// TODO: use this as the API list.
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let server_handler = setup_rpc_server(
+			let handler = setup_rpc_server(
 				service.client(),
 				sync.clone(),
 				account_service.clone(),
@@ -641,22 +641,19 @@ impl Configuration {
 				cors,
 				apis.split(',').collect()
 			);
-			if let Some(handler) = server_handler {
-				panic_handler.forward_from(handler.deref());
-			}
+			panic_handler.forward_from(handler.deref());
 		}
 
 		if self.args.flag_webapp {
 			let url = format!("0.0.0.0:{}", self.args.flag_webapp_port);
-			setup_webapp_server(
+			let handler = setup_webapp_server(
 				service.client(),
 				sync.clone(),
 				account_service.clone(),
 				miner.clone(),
 				&url,
-			).map(|handler| {
-				panic_handler.forward_from(handler.deref());
-			});
+			);
+			panic_handler.forward_from(handler.deref());
 		}
 
 		// Register IO handler
