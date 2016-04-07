@@ -120,7 +120,7 @@ Networking Options:
                            string or input to SHA3 operation.
 
 API and Console Options:
-  -j --jsonrpc             Enable the JSON-RPC API sever.
+  -j --jsonrpc             Enable the JSON-RPC API server.
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
                            server, IP should be an interface's IP address, or
                            all (all interfaces) or local [default: local].
@@ -132,6 +132,10 @@ API and Console Options:
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
                            [default: web3,eth,net,personal].
+  -w --webap               Enable the web applications server (e.g. status page).
+  --webapp-port PORT       Specify the port portion of the WebApps server
+                           [default: 8080].
+
 
 Sealing/Mining Options:
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
@@ -216,6 +220,8 @@ struct Args {
 	flag_jsonrpc_port: u16,
 	flag_jsonrpc_cors: String,
 	flag_jsonrpc_apis: String,
+	flag_webapp: bool,
+	flag_webapp_port: u16,
 	flag_author: String,
 	flag_usd_per_tx: String,
 	flag_usd_per_eth: String,
@@ -295,6 +301,13 @@ fn setup_rpc_server(
 	}
 	Some(server.start_http(url, cors_domain, ::num_cpus::get()))
 }
+#[cfg(feature = "webapp")]
+fn setup_webapp_server(
+	url: &str
+) -> Option<Arc<PanicHandler>> {
+	let server = webapp::WebappServer::new();
+	Some(server.start_http(url, ::num_cpus::get()))
+}
 
 #[cfg(not(feature = "rpc"))]
 fn setup_rpc_server(
@@ -305,6 +318,13 @@ fn setup_rpc_server(
 	_url: &str,
 	_cors_domain: &str,
 	_apis: Vec<&str>
+) -> Option<Arc<PanicHandler>> {
+	None
+}
+
+#[cfg(not(feature = "webapp"))]
+fn setup_webapp_server(
+	_url: &str
 ) -> Option<Arc<PanicHandler>> {
 	None
 }
@@ -609,6 +629,15 @@ impl Configuration {
 			if let Some(handler) = server_handler {
 				panic_handler.forward_from(handler.deref());
 			}
+		}
+
+		if self.args.flag_webapp {
+			let url = format!("0.0.0.0:{}", self.args.flag_webapp_port);
+			setup_webapp_server(
+				&url,
+			).map(|handler| {
+				panic_handler.forward_from(handler.deref());
+			});
 		}
 
 		// Register IO handler
