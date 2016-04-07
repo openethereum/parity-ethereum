@@ -274,7 +274,7 @@ fn setup_rpc_server(
 	url: &str,
 	cors_domain: &str,
 	apis: Vec<&str>
-) -> Option<Box<Any>> {
+) -> Box<Any> {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -296,7 +296,7 @@ fn setup_rpc_server(
 	match start_result {
 		Err(rpc::RpcServerError::IoError(err)) => die_with_io_error(err),
 		Err(e) => die!("{:?}", e),
-		Ok(handle) => Some(Box::new(handle)),
+		Ok(handle) => Box::new(handle),
 	}
 }
 
@@ -604,7 +604,7 @@ impl Configuration {
 			SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 
-			setup_rpc_server(
+			Some(setup_rpc_server(
 				service.client(),
 				sync.clone(),
 				account_service.clone(),
@@ -612,7 +612,7 @@ impl Configuration {
 				&url,
 				&cors_domain,
 				apis.split(',').collect()
-			)
+			))
 		} else {
 			None
 		};
