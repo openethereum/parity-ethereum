@@ -376,8 +376,10 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 
 impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
+		trace!(target: "shutdown", "[IoService] Closing...");
 		self.host_channel.send(IoMessage::Shutdown).unwrap();
 		self.thread.take().unwrap().join().ok();
+		trace!(target: "shutdown", "[IoService] Closed.");
 	}
 }
 

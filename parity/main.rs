@@ -270,10 +270,8 @@ fn setup_rpc_server(
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
-	url: &str,
-	cors_domain: &str,
 	apis: Vec<&str>
-) -> Option<Arc<PanicHandler>> {
+) -> Option<rpc::RpcServer> {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -291,7 +289,7 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	Some(server.start_http(url, cors_domain, ::num_cpus::get()))
+	Some(server)
 }
 
 #[cfg(not(feature = "rpc"))]
@@ -300,8 +298,6 @@ fn setup_rpc_server(
 	_sync: Arc<EthSync>,
 	_secret_store: Arc<AccountService>,
 	_miner: Arc<Miner>,
-	_url: &str,
-	_cors_domain: &str,
 	_apis: Vec<&str>
 ) -> Option<Arc<PanicHandler>> {
 	None
@@ -567,7 +563,10 @@ impl Configuration {
 		let account_service = Arc::new(self.account_service());
 
 		// Build client
-		let mut service = ClientService::start(self.client_config(), spec, net_settings, &Path::new(&self.path())).unwrap();
+		let mut service = ClientService::start(
+			self.client_config(), spec, net_settings, &Path::new(&self.path())
+		).unwrap_or_else(|e| die_with_error(e));
+
 		panic_handler.forward_from(&service);
 		let client = service.client();
 
@@ -582,7 +581,21 @@ impl Configuration {
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
 
 		// Setup rpc
-		if self.args.flag_jsonrpc || self.args.flag_rpc {
+		let rpc_server = if self.args.flag_jsonrpc || self.args.flag_rpc {
+			// TODO: use this as the API list.
+			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
+			setup_rpc_server(
+				service.client(),
+				sync.clone(),
+				account_service.clone(),
+				miner.clone(),
+				apis.split(',').collect()
+			)
+		} else {
+			None
+		};
+
+		let rpc_handle = rpc_server.map(|server| {
 			let url = format!("{}:{}",
 				match self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_interface).as_str() {
 					"all" => "0.0.0.0",
@@ -592,22 +605,14 @@ impl Configuration {
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
 			);
 			SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
-			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
-			// TODO: use this as the API list.
-			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let server_handler = setup_rpc_server(
-				service.client(),
-				sync.clone(),
-				account_service.clone(),
-				miner.clone(),
-				&url,
-				cors,
-				apis.split(',').collect()
-			);
-			if let Some(handler) = server_handler {
-				panic_handler.forward_from(handler.deref());
+			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
+			let start_result = server.start_http(&url, cors_domain, ::num_cpus::get());
+			match start_result {
+				Ok(handle) => handle,
+				Err(rpc::RpcServerError::IoError(err)) => die_with_io_error(err),
+				Err(e) => die!("{:?}", e),
 			}
-		}
+		});
 
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
@@ -619,11 +624,11 @@ impl Configuration {
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 		// Handle exit
-		wait_for_exit(panic_handler);
+		wait_for_exit(panic_handler, rpc_handle);
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_handle: Option<rpc::Listening>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
@@ -637,6 +642,30 @@ fn wait_for_exit(panic_handler: Arc<PanicHandler>) {
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+	info!("Finishing work, please wait...");
+}
+
+fn die_with_error(e: ethcore::error::Error) -> ! {
+	use ethcore::error::Error;
+
+	match e {
+		Error::Util(UtilError::StdIo(e)) => die_with_io_error(e),
+		_ => die!("{:?}", e),
+	}
+}
+fn die_with_io_error(e: std::io::Error) -> ! {
+	match e.kind() {
+		std::io::ErrorKind::PermissionDenied => {
+			die!("No permissions to bind to specified port.")
+		},
+		std::io::ErrorKind::AddrInUse => {
+			die!("Specified address is already in use. Please make sure that nothing is listening on the same port or try using a different one.")
+		},
+		std::io::ErrorKind::AddrNotAvailable => {
+			die!("Could not use specified interface or given address is invalid.")
+		},
+		_ => die!("{:?}", e),
+	}
 }
 
 fn main() {
