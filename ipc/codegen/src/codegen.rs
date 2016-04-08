@@ -13,7 +13,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-
 use aster;
 
 use syntax::ast::{
@@ -61,8 +60,22 @@ pub fn expand_ipc_implementation(
 	};
 
 	push_client(cx, &builder, &item, &dispatches, push);
+	push_handshake_struct(cx, push);
 
 	push(Annotatable::Item(impl_item))
+}
+
+fn push_handshake_struct(cx: &ExtCtxt, push: &mut FnMut(Annotatable)) {
+	let handshake_item = quote_item!(cx,
+		#[derive(Serialize, Deserialize)]
+		pub struct BinHandshake {
+			api_version: String,
+			protocol_version: String,
+			_reserved: Vec<u8>,
+		}
+	).unwrap();
+
+	push(Annotatable::Item(handshake_item));
 }
 
 fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {
@@ -548,6 +561,14 @@ fn implement_interface(
 	let dispatch_arms = implement_dispatch_arms(cx, builder, &dispatch_table, false);
 	let dispatch_arms_buffered = implement_dispatch_arms(cx, builder, &dispatch_table, true);
 
+	let handshake_arm = quote_arm!(&cx, 0 => {
+		let handshake_payload = ::bincode::serde::deserialize_from::<_, BinHandshake>(r, ::bincode::SizeLimit::Infinite).unwrap();
+		::bincode::serde::serialize::<bool>(&Self::handshake(&::ipc::Handshake {
+			api_version: ::semver::Version::parse(&handshake_payload.api_version).unwrap(),
+			protocol_version: ::semver::Version::parse(&handshake_payload.protocol_version).unwrap(),
+		}), ::bincode::SizeLimit::Infinite).unwrap()
+	});
+
 	Ok((quote_item!(cx,
 		impl $impl_generics ::ipc::IpcInterface<$ty> for $ty $where_clause {
 			fn dispatch<R>(&self, r: &mut R) -> Vec<u8>
@@ -561,6 +582,9 @@ fn implement_interface(
 				}
 				// method_num is a 16-bit little-endian unsigned number
 				match method_num[1] as u16 + (method_num[0] as u16)*256 {
+					// handshake
+					$handshake_arm
+					// user methods
 					$dispatch_arms
 					_ => vec![]
 				}
