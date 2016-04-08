@@ -305,7 +305,7 @@ impl<'a> Executive<'a> {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.clear_snapshot();
 
-				tracer.trace_call(trace_info, U256::zero(), Some(vec![]), self.depth, vec![], delegate_call);
+				tracer.trace_call(trace_info, U256::zero(), trace_output, self.depth, vec![], delegate_call);
 				Ok(params.gas)
 			}
 		}
