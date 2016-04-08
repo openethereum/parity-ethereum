@@ -15,37 +15,46 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Router implementation
+//! Processes request handling authorization and dispatching it to proper application.
+
+mod api;
+mod auth;
 
 use std::sync::Arc;
 use hyper;
+use hyper::{server, uri, header};
 use page::Page;
 use apps::Pages;
 use iron::request::Url;
 use jsonrpc_http_server::ServerHandler;
-
-mod api;
+use self::auth::{Authorization, NoAuth, Authorized};
 
 pub struct Router {
+	auth: NoAuth,
 	rpc: ServerHandler,
 	api: api::RestApi,
 	main_page: Box<Page>,
 	pages: Arc<Pages>,
 }
 
-impl hyper::server::Handler for Router {
-	fn handle<'b, 'a>(&'a self, req: hyper::server::Request<'a, 'b>, res: hyper::server::Response<'a>) {
-		let (path, req) = Router::extract_request_path(req);
-		match path {
-			Some(ref url) if self.pages.contains_key(url) => {
-				self.pages.get(url).unwrap().handle(req, res);
-			},
-			Some(ref url) if url == "api" => {
-				self.api.handle(req, res);
-			},
-			_ if req.method == hyper::method::Method::Post => {
-				self.rpc.handle(req, res)
-			},
-			_ => self.main_page.handle(req, res),
+impl server::Handler for Router {
+	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>) {
+		let auth = self.auth.handle(req, res);
+
+		if let Authorized::Yes(req, res) = auth {
+			let (path, req) = Router::extract_request_path(req);
+			match path {
+				Some(ref url) if self.pages.contains_key(url) => {
+					self.pages.get(url).unwrap().handle(req, res);
+				},
+				Some(ref url) if url == "api" => {
+					self.api.handle(req, res);
+				},
+				_ if req.method == hyper::method::Method::Post => {
+					self.rpc.handle(req, res)
+				},
+				_ => self.main_page.handle(req, res),
+			}
 		}
 	}
 }
@@ -54,6 +63,7 @@ impl Router {
 	pub fn new(rpc: ServerHandler, main_page: Box<Page>, pages: Pages) -> Self {
 		let pages = Arc::new(pages);
 		Router {
+			auth: NoAuth,
 			rpc: rpc,
 			api: api::RestApi { pages: pages.clone() },
 			main_page: main_page,
@@ -61,17 +71,17 @@ impl Router {
 		}
 	}
 
-	fn extract_url(req: &hyper::server::Request) -> Option<Url> {
+	fn extract_url(req: &server::Request) -> Option<Url> {
 		match req.uri {
-			hyper::uri::RequestUri::AbsoluteUri(ref url) => {
+			uri::RequestUri::AbsoluteUri(ref url) => {
 				match Url::from_generic_url(url.clone()) {
 					Ok(url) => Some(url),
 					_ => None,
 				}
 			},
-			hyper::uri::RequestUri::AbsolutePath(ref path) => {
+			uri::RequestUri::AbsolutePath(ref path) => {
 				// Attempt to prepend the Host header (mandatory in HTTP/1.1)
-				let url_string = match req.headers.get::<hyper::header::Host>() {
+				let url_string = match req.headers.get::<header::Host>() {
 					Some(ref host) => {
 						format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
 					},
@@ -87,18 +97,18 @@ impl Router {
 		}
 	}
 
-	fn extract_request_path<'a, 'b>(mut req: hyper::server::Request<'a, 'b>) -> (Option<String>, hyper::server::Request<'a, 'b>) {
+	fn extract_request_path<'a, 'b>(mut req: server::Request<'a, 'b>) -> (Option<String>, server::Request<'a, 'b>) {
 		let url = Router::extract_url(&req);
 		match url {
 			Some(ref url) if url.path.len() > 1 => {
 				let part = url.path[0].clone();
 				let url = url.path[1..].join("/");
-				req.uri = hyper::uri::RequestUri::AbsolutePath(url);
+				req.uri = uri::RequestUri::AbsolutePath(url);
 				(Some(part), req)
 			},
 			Some(url) => {
 				let url = url.path.join("/");
-				req.uri = hyper::uri::RequestUri::AbsolutePath(url);
+				req.uri = uri::RequestUri::AbsolutePath(url);
 				(None, req)
 			},
 			_ => {
