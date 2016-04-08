@@ -29,7 +29,7 @@ pub enum Authorized<'a, 'b> where 'b : 'a {
 }
 
 /// Authorization interface
-pub trait Authorization {
+pub trait Authorization : Send + Sync {
 	/// Handle authorization process and return `Request` and `Response` when authorization is successful.
 	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>)-> Authorized<'a, 'b>;
 }

@@ -35,6 +35,8 @@ mod apps;
 mod page;
 mod router;
 
+use router::auth::{Authorization, NoAuth, HttpBasicAuth};
+
 /// Http server.
 pub struct WebappServer {
 	handler: Arc<IoHandler>,
@@ -53,14 +55,25 @@ impl WebappServer {
 		self.handler.add_delegate(delegate);
 	}
 
-	/// Start server asynchronously and returns result with `Listening` handle on success or an error.
-	pub fn start_http(&self, addr: &str, threads: usize) -> Result<Listening, WebappServerError> {
+	/// Asynchronously start server with no authentication,
+	/// return result with `Listening` handle on success or an error.
+	pub fn start_unsecure_http(&self, addr: &str, threads: usize) -> Result<Listening, WebappServerError> {
+		self.start_http(addr, threads, NoAuth)
+	}
+
+	/// Asynchronously start server with `HTTP Basic Authentication`,
+	/// return result with `Listening` handle on success or an error.
+	pub fn start_basic_auth_http(&self, addr: &str, threads: usize, username: &str, password: &str) -> Result<Listening, WebappServerError> {
+		self.start_http(addr, threads, HttpBasicAuth::single_user(username, password))
+	}
+
+	fn start_http<A: Authorization + 'static>(&self, addr: &str, threads: usize, authorization: A) -> Result<Listening, WebappServerError> {
 		let addr = addr.to_owned();
 		let handler = self.handler.clone();
 
 		let cors_domain = jsonrpc_http_server::AccessControlAllowOrigin::Null;
 		let rpc = ServerHandler::new(handler, cors_domain);
-		let router = router::Router::new(rpc, apps::main_page(), apps::all_pages());
+		let router = router::Router::new(rpc, apps::main_page(), apps::all_pages(), authorization);
 
 		try!(hyper::Server::http(addr.as_ref() as &str))
 			.handle_threads(router, threads)

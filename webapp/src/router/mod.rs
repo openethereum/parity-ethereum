@@ -18,7 +18,7 @@
 //! Processes request handling authorization and dispatching it to proper application.
 
 mod api;
-mod auth;
+pub mod auth;
 
 use std::sync::Arc;
 use hyper;
@@ -27,22 +27,22 @@ use page::Page;
 use apps::Pages;
 use iron::request::Url;
 use jsonrpc_http_server::ServerHandler;
-use self::auth::{Authorization, NoAuth, Authorized};
+use self::auth::{Authorization, Authorized};
 
-pub struct Router {
-	auth: NoAuth,
+pub struct Router<A: Authorization> {
+	authorization: A,
 	rpc: ServerHandler,
 	api: api::RestApi,
 	main_page: Box<Page>,
 	pages: Arc<Pages>,
 }
 
-impl server::Handler for Router {
+impl<A: Authorization> server::Handler for Router<A> {
 	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>) {
-		let auth = self.auth.handle(req, res);
+		let auth = self.authorization.handle(req, res);
 
 		if let Authorized::Yes(req, res) = auth {
-			let (path, req) = Router::extract_request_path(req);
+			let (path, req) = self.extract_request_path(req);
 			match path {
 				Some(ref url) if self.pages.contains_key(url) => {
 					self.pages.get(url).unwrap().handle(req, res);
@@ -59,11 +59,15 @@ impl server::Handler for Router {
 	}
 }
 
-impl Router {
-	pub fn new(rpc: ServerHandler, main_page: Box<Page>, pages: Pages) -> Self {
+impl<A: Authorization> Router<A> {
+	pub fn new(
+		rpc: ServerHandler,
+		main_page: Box<Page>,
+		pages: Pages,
+		authorization: A) -> Self {
 		let pages = Arc::new(pages);
 		Router {
-			auth: NoAuth,
+			authorization: authorization,
 			rpc: rpc,
 			api: api::RestApi { pages: pages.clone() },
 			main_page: main_page,
@@ -71,7 +75,7 @@ impl Router {
 		}
 	}
 
-	fn extract_url(req: &server::Request) -> Option<Url> {
+	fn extract_url(&self, req: &server::Request) -> Option<Url> {
 		match req.uri {
 			uri::RequestUri::AbsoluteUri(ref url) => {
 				match Url::from_generic_url(url.clone()) {
@@ -97,8 +101,8 @@ impl Router {
 		}
 	}
 
-	fn extract_request_path<'a, 'b>(mut req: server::Request<'a, 'b>) -> (Option<String>, server::Request<'a, 'b>) {
-		let url = Router::extract_url(&req);
+	fn extract_request_path<'a, 'b>(&self, mut req: server::Request<'a, 'b>) -> (Option<String>, server::Request<'a, 'b>) {
+		let url = self.extract_url(&req);
 		match url {
 			Some(ref url) if url.path.len() > 1 => {
 				let part = url.path[0].clone();
