@@ -75,14 +75,14 @@ impl Router {
 					Some(ref host) => {
 						format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
 					},
-					None => return None
+					None => return None,
 				};
 
 				match Url::parse(&url_string) {
 					Ok(url) => Some(url),
 					_ => None,
 				}
-			}
+			},
 			_ => None,
 		}
 	}
@@ -103,7 +103,7 @@ impl Router {
 			},
 			_ => {
 				(None, req)
-			}
+			},
 		}
 	}
 }

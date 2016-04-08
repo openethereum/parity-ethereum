@@ -93,7 +93,7 @@ impl From<hyper::error::Error> for WebappServerError {
 	fn from(err: hyper::error::Error) -> Self {
 		match err {
 			hyper::error::Error::Io(e) => WebappServerError::IoError(e),
-			e => WebappServerError::Other(e)
+			e => WebappServerError::Other(e),
 		}
 	}
 }

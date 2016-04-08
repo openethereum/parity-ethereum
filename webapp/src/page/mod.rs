@@ -26,7 +26,7 @@ pub trait Page : Send + Sync {
 }
 
 pub struct PageHandler<T : WebApp> {
-	pub app: T
+	pub app: T,
 }
 
 impl<T: WebApp> Page for PageHandler<T> {
@@ -50,7 +50,7 @@ impl<T: WebApp> Page for PageHandler<T> {
 				Err(_) => {
 					println!("Error while writing response.");
 					Ok(())
-				}
+				},
 			};
 		}
 	}
