@@ -7,6 +7,6 @@ echo "set -e" >> $FILE
 echo "cargo build --release --features dev" >> $FILE
 # Build tests
 echo "cargo test --no-run --features dev \\" >> $FILE
-echo "	-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethminer" >> $FILE
+echo "	-p ethash -p ethcore-util -p ethcore -p ethsync -p ethcore-rpc -p parity -p ethminer -p ethcore-webapp" >> $FILE
 echo "" >> $FILE
 chmod +x $FILE

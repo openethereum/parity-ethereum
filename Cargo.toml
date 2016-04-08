@@ -28,6 +28,8 @@ ethsync = { path = "sync" }
 ethminer = { path = "miner" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
+ethcore-webapp = { path = "webapp", optional = true }
+
 
 [dependencies.hyper]
 version = "0.8"
@@ -36,7 +38,9 @@ default-features = false
 [features]
 default = ["rpc"]
 rpc = ["ethcore-rpc"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev"]
+webapp = ["ethcore-webapp"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev",
+"ethcore-webapp/dev"]
 travis-beta = ["ethcore/json-tests"]
 travis-nightly = ["ethcore/json-tests", "dev"]
 

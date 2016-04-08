@@ -42,6 +42,8 @@ extern crate rpassword;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
+#[cfg(feature = "webapp")]
+extern crate ethcore_webapp as webapp;
 
 use std::io::{BufRead, BufReader};
 use std::fs::File;
@@ -65,6 +67,8 @@ use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 #[cfg(feature = "rpc")]
 use rpc::Server as RpcServer;
+#[cfg(feature = "webapp")]
+use webapp::Listening as WebappServer;
 
 mod price_info;
 
@@ -120,7 +124,7 @@ Networking Options:
                            string or input to SHA3 operation.
 
 API and Console Options:
-  -j --jsonrpc             Enable the JSON-RPC API sever.
+  -j --jsonrpc             Enable the JSON-RPC API server.
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
                            server, IP should be an interface's IP address, or
                            all (all interfaces) or local [default: local].
@@ -132,6 +136,13 @@ API and Console Options:
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
                            [default: web3,eth,net,personal].
+  -w --webapp              Enable the web applications server (e.g. status page).
+  --webapp-port PORT       Specify the port portion of the WebApps server
+                           [default: 8080].
+  --webapp-interface IP    Specify the hostname portion of the WebApps
+                           server, IP should be an interface's IP address, or
+                           all (all interfaces) or local [default: local].
+
 
 Sealing/Mining Options:
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
@@ -216,6 +227,9 @@ struct Args {
 	flag_jsonrpc_port: u16,
 	flag_jsonrpc_cors: String,
 	flag_jsonrpc_apis: String,
+	flag_webapp: bool,
+	flag_webapp_port: u16,
+	flag_webapp_interface: String,
 	flag_author: String,
 	flag_usd_per_tx: String,
 	flag_usd_per_eth: String,
@@ -301,6 +315,31 @@ fn setup_rpc_server(
 	}
 }
 
+#[cfg(feature = "webapp")]
+fn setup_webapp_server(
+	client: Arc<Client>,
+	sync: Arc<EthSync>,
+	secret_store: Arc<AccountService>,
+	miner: Arc<Miner>,
+	url: &str
+) -> WebappServer {
+	use rpc::v1::*;
+
+	let server = webapp::WebappServer::new();
+	server.add_delegate(Web3Client::new().to_delegate());
+	server.add_delegate(NetClient::new(&sync).to_delegate());
+	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
+	server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
+	server.add_delegate(PersonalClient::new(&secret_store).to_delegate());
+	let start_result = server.start_http(url, ::num_cpus::get());
+	match start_result {
+		Err(webapp::WebappServerError::IoError(err)) => die_with_io_error(err),
+		Err(e) => die!("{:?}", e),
+		Ok(handle) => handle,
+	}
+
+}
+
 #[cfg(not(feature = "rpc"))]
 struct RpcServer;
 
@@ -315,6 +354,20 @@ fn setup_rpc_server(
 	_apis: Vec<&str>
 ) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
+}
+
+#[cfg(not(feature = "webapp"))]
+struct WebappServer;
+
+#[cfg(not(feature = "webapp"))]
+fn setup_webapp_server(
+	_client: Arc<Client>,
+	_sync: Arc<EthSync>,
+	_secret_store: Arc<AccountService>,
+	_miner: Arc<Miner>,
+	_url: &str
+) -> ! {
+	die!("Your Parity version has been compiled without WebApps support.")
 }
 
 fn print_version() {
@@ -621,6 +674,26 @@ impl Configuration {
 			None
 		};
 
+		let webapp_server = if self.args.flag_webapp {
+			let url = format!("{}:{}",
+				match self.args.flag_webapp_interface.as_str() {
+					"all" => "0.0.0.0",
+					"local" => "127.0.0.1",
+					x => x,
+				},
+				self.args.flag_webapp_port
+			);
+			Some(setup_webapp_server(
+				service.client(),
+				sync.clone(),
+				account_service.clone(),
+				miner.clone(),
+				&url,
+			))
+		} else {
+			None
+		};
+
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
 			client: service.client(),
@@ -631,11 +704,11 @@ impl Configuration {
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 		// Handle exit
-		wait_for_exit(panic_handler, rpc_server);
+		wait_for_exit(panic_handler, rpc_server, webapp_server);
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _webapp_server: Option<WebappServer>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
