@@ -22,9 +22,8 @@ use std::sync::atomic::*;
 use semver::Version;
 
 pub struct Handshake {
-	protocol_version: Version,
-	api_version: Version,
-	reserved: [u8; 64],
+	pub protocol_version: Version,
+	pub api_version: Version,
 }
 
 pub trait IpcConfig {
@@ -34,13 +33,22 @@ pub trait IpcConfig {
 	fn protocol_version() -> Version {
 		Version::parse("1.0.0").unwrap()
 	}
+	fn handshake(handshake: &Handshake) -> bool {
+		handshake.protocol_version == Self::protocol_version() &&
+			handshake.api_version == Self::api_version()
+	}
+}
+
+pub enum Error {
+	UnkownSystemCall,
+	ClientUnsupported,
 }
 
 pub trait IpcInterface<T> where T: IpcConfig {
 	/// reads the message from io, dispatches the call and returns serialized result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
 
-	/// deserialize the payload from buffer, dispatches invoke and returns serialized result
+	/// deserializes the payload from buffer, dispatches invoke and returns serialized result
 	/// (for non-blocking io)
 	fn dispatch_buf(&self, method_num: u16, buf: &[u8]) -> Vec<u8>;
 }
