@@ -36,7 +36,7 @@ version = "0.8"
 default-features = false
 
 [features]
-default = ["rpc"]
+default = ["rpc", "webapp"]
 rpc = ["ethcore-rpc"]
 webapp = ["ethcore-webapp"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev",
