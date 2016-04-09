@@ -46,33 +46,20 @@ impl PodState {
 	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
 }
 
-impl FromJson for PodState {
-	/// Translate the JSON object into a hash map of account information ready for insertion into State.
-	fn from_json(json: &Json) -> PodState {
-		PodState(json.as_object().unwrap().iter().fold(BTreeMap::new(), |mut state, (address, acc)| {
-			let balance = acc.find("balance").map(&U256::from_json);
-			let nonce = acc.find("nonce").map(&U256::from_json);
-			let storage = acc.find("storage").map(&BTreeMap::from_json);
-			let code = acc.find("code").map(&Bytes::from_json);
-			if balance.is_some() || nonce.is_some() || storage.is_some() || code.is_some() {
-				state.insert(address_from_hex(address), PodAccount{
-					balance: balance.unwrap_or_else(U256::zero),
-					nonce: nonce.unwrap_or_else(U256::zero),
-					storage: storage.unwrap_or_else(BTreeMap::new),
-					code: code.unwrap_or_else(Vec::new)
-				});
-			}
-			state
-		}))
+impl From<ethjson::blockchain::State> for PodState {
+	fn from(s: ethjson::blockchain::State) -> PodState {
+		let state = s.into_iter().map(|(addr, acc)| (addr.into(), PodAccount::from(acc))).collect();
+		PodState(state)
 	}
 }
 
-impl From<ethjson::blockchain::State> for PodState {
-	fn from(s: ethjson::blockchain::State) -> PodState {
-		PodState(s.0.into_iter().fold(BTreeMap::new(), |mut acc, (key, value)| {
-			acc.insert(key.into(), PodAccount::from(value));
-			acc
-		}))
+impl From<ethjson::spec::State> for PodState {
+	fn from(s: ethjson::spec::State) -> PodState {
+		let state: BTreeMap<_,_> = s.into_iter()
+			.filter(|pair| !pair.1.is_empty())
+			.map(|(addr, acc)| (addr.into(), PodAccount::from(acc)))
+			.collect();
+		PodState(state)
 	}
 }
 
@@ -85,30 +72,3 @@ impl fmt::Display for PodState {
 	}
 }
 
-#[cfg(test)]
-mod tests {
-	extern crate rustc_serialize;
-
-	use super::*;
-	use rustc_serialize::*;
-	use util::from_json::FromJson;
-	use util::hash::*;
-
-	#[test]
-	fn it_serializes_form_json() {
-		let pod_state = PodState::from_json(&json::Json::from_str(
-r#"
-	{
-		"0000000000000000000000000000000000000000": {
-			"balance": "1000",
-			"nonce": "100",
-			"storage": {},
-			"code" : []
-		}
-	}
-"#
-		).unwrap());
-
-		assert!(pod_state.get().get(&ZERO_ADDRESS).is_some());
-	}
-}

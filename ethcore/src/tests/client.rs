@@ -40,8 +40,7 @@ fn returns_state_root_basic() {
 	let client_result = generate_dummy_client(6);
 	let client = client_result.reference();
 	let test_spec = get_test_spec();
-	let test_engine = test_spec.to_engine().unwrap();
-	let state_root = test_engine.spec().genesis_header().state_root;
+	let state_root = test_spec.genesis_header().state_root;
 
 	assert!(client.state_data(&state_root).is_some());
 }

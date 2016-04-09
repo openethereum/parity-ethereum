@@ -18,6 +18,7 @@ use util::*;
 use crypto::sha2::Sha256;
 use crypto::ripemd160::Ripemd160;
 use crypto::digest::Digest;
+use ethjson;
 
 /// Definition of a contract whose implementation is built-in.
 pub struct Builtin {
@@ -46,13 +47,12 @@ impl Builtin {
 	}
 
 	/// Create a new object from a builtin-function name with a linear cost associated with input size.
-	pub fn from_named_linear(name: &str, base_cost: usize, word_cost: usize) -> Option<Builtin> {
-		new_builtin_exec(name).map(|b| {
-			let cost = Box::new(move|s: usize| -> U256 {
-				U256::from(base_cost) + U256::from(word_cost) * U256::from((s + 31) / 32)
-			});
-			Self::new(cost, b)
-		})
+	pub fn from_named_linear(name: &str, base_cost: usize, word_cost: usize) -> Builtin {
+		let cost = Box::new(move|s: usize| -> U256 {
+			U256::from(base_cost) + U256::from(word_cost) * U256::from((s + 31) / 32)
+		});
+
+		Self::new(cost, new_builtin_exec(name))
 	}
 
 	/// Simple forwarder for cost.
@@ -60,24 +60,15 @@ impl Builtin {
 
 	/// Simple forwarder for execute.
 	pub fn execute(&self, input: &[u8], output: &mut[u8]) { (*self.execute)(input, output); }
+}
 
-	/// Create a builtin from JSON.
-	///
-	/// JSON must be of the form `{ "name": "identity", "pricing": {"base": 10, "word": 20} }`.
-	pub fn from_json(json: &Json) -> Option<Builtin> {
-		// NICE: figure out a more convenient means of handing errors here.
-		if let Json::String(ref name) = json["name"] {
-			if let Json::Object(ref o) = json["pricing"] {
-				if let Json::Object(ref o) = o["linear"] {
-					if let Json::U64(ref word) = o["word"] {
-						if let Json::U64(ref base) = o["base"] {
-							return Self::from_named_linear(&name[..], *base as usize, *word as usize);
-						}
-					}
-				}
+impl From<ethjson::spec::Builtin> for Builtin {
+	fn from(b: ethjson::spec::Builtin) -> Self {
+		match b.pricing {
+			ethjson::spec::Pricing::Linear(linear) => {
+				Self::from_named_linear(b.name.as_ref(), linear.base, linear.word)
 			}
 		}
-		None
 	}
 }
 
@@ -92,14 +83,14 @@ pub fn copy_to(src: &[u8], dest: &mut[u8]) {
 
 /// Create a new builtin executor according to `name`.
 /// TODO: turn in to a factory with dynamic registration.
-pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
+pub fn new_builtin_exec(name: &str) -> Box<Fn(&[u8], &mut [u8])> {
 	match name {
-		"identity" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+		"identity" => Box::new(move|input: &[u8], output: &mut[u8]| {
 			for i in 0..min(input.len(), output.len()) {
 				output[i] = input[i];
 			}
-		})),
-		"ecrecover" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+		}),
+		"ecrecover" => Box::new(move|input: &[u8], output: &mut[u8]| {
 			#[repr(packed)]
 			#[derive(Debug)]
 			struct InType {
@@ -122,8 +113,8 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 					}
 				}
 			}
-		})),
-		"sha256" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+		}),
+		"sha256" => Box::new(move|input: &[u8], output: &mut[u8]| {
 			let mut sha = Sha256::new();
 			sha.input(input);
 			if output.len() >= 32 {
@@ -133,21 +124,23 @@ pub fn new_builtin_exec(name: &str) -> Option<Box<Fn(&[u8], &mut [u8])>> {
 				sha.result(ret.as_slice_mut());
 				copy_to(&ret, output);
 			}
-		})),
-		"ripemd160" => Some(Box::new(move|input: &[u8], output: &mut[u8]| {
+		}),
+		"ripemd160" => Box::new(move|input: &[u8], output: &mut[u8]| {
 			let mut sha = Ripemd160::new();
 			sha.input(input);
 			let mut ret = H256::new();
 			sha.result(&mut ret.as_slice_mut()[12..32]);
 			copy_to(&ret, output);
-		})),
-		_ => None
+		}),
+		_ => {
+			panic!("invalid builtin name {}", name);
+		}
 	}
 }
 
 #[test]
 fn identity() {
-	let f = new_builtin_exec("identity").unwrap();
+	let f = new_builtin_exec("identity");
 	let i = [0u8, 1, 2, 3];
 
 	let mut o2 = [255u8; 2];
@@ -167,7 +160,7 @@ fn identity() {
 #[test]
 fn sha256() {
 	use rustc_serialize::hex::FromHex;
-	let f = new_builtin_exec("sha256").unwrap();
+	let f = new_builtin_exec("sha256");
 	let i = [0u8; 0];
 
 	let mut o = [255u8; 32];
@@ -186,7 +179,7 @@ fn sha256() {
 #[test]
 fn ripemd160() {
 	use rustc_serialize::hex::FromHex;
-	let f = new_builtin_exec("ripemd160").unwrap();
+	let f = new_builtin_exec("ripemd160");
 	let i = [0u8; 0];
 
 	let mut o = [255u8; 32];
@@ -213,7 +206,7 @@ fn ecrecover() {
 	let s = k.sign(&m).unwrap();
 	println!("Signed: {}", s);*/
 
-	let f = new_builtin_exec("ecrecover").unwrap();
+	let f = new_builtin_exec("ecrecover");
 	let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 
 	let mut o = [255u8; 32];
@@ -261,8 +254,14 @@ fn ecrecover() {
 }
 
 #[test]
+#[should_panic]
+fn from_unknown_linear() {
+	let _ = Builtin::from_named_linear("dw", 10, 20);
+}
+
+#[test]
 fn from_named_linear() {
-	let b = Builtin::from_named_linear("identity", 10, 20).unwrap();
+	let b = Builtin::from_named_linear("identity", 10, 20);
 	assert_eq!((*b.cost)(0), U256::from(10));
 	assert_eq!((*b.cost)(1), U256::from(30));
 	assert_eq!((*b.cost)(32), U256::from(30));
@@ -276,9 +275,14 @@ fn from_named_linear() {
 
 #[test]
 fn from_json() {
-	let text = r#"{"name": "identity", "pricing": {"linear": {"base": 10, "word": 20}}}"#;
-	let json = Json::from_str(text).unwrap();
-	let b = Builtin::from_json(&json).unwrap();
+	let b = Builtin::from(ethjson::spec::Builtin {
+		name: "identity".to_owned(),
+		pricing: ethjson::spec::Pricing::Linear(ethjson::spec::Linear {
+			base: 10,
+			word: 20,
+		})
+	});
+
 	assert_eq!((*b.cost)(0), U256::from(10));
 	assert_eq!((*b.cost)(1), U256::from(30));
 	assert_eq!((*b.cost)(32), U256::from(30));

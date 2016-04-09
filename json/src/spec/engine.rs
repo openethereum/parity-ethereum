@@ -14,41 +14,50 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Spec account deserialization.
+//! Engine deserialization.
 
-use uint::Uint;
-use spec::builtin::Builtin;
+use serde::{Deserializer, Error};
+use serde::de::Visitor;
+use spec::Ethash;
 
-/// Spec account.
+/// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct Account {
-	/// Builtin contract.
-	pub builtin: Option<Builtin>,
-	/// Balance.
-	pub balance: Option<Uint>,
-	/// Nonce.
-	pub nonce: Option<Uint>,
-}
-
-impl Account {
-	/// Returns true if account does not have nonce and balance.
-	pub fn is_empty(&self) -> bool {
-		self.balance.is_none() && self.nonce.is_none()
-	}
+pub enum Engine {
+	/// Null engine.
+	Null,
+	/// Ethash engine.
+	Ethash(Ethash),
 }
 
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use spec::account::Account;
+	use spec::Engine;
 
 	#[test]
-	fn account_deserialization() {
+	fn engine_deserialization() {
 		let s = r#"{
-			"balance": "1",
-			"builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } }
+			"Null": null
 		}"#;
-		let _deserialized: Account = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
+
+		let deserialized: Engine = serde_json::from_str(s).unwrap();
+		assert_eq!(Engine::Null, deserialized);
+
+		let s = r#"{
+			"Ethash": {
+				"params": {
+					"tieBreakingGas": false,
+					"gasLimitBoundDivisor": "0x0400",
+					"minimumDifficulty": "0x020000",
+					"difficultyBoundDivisor": "0x0800",
+					"durationLimit": "0x0d",
+					"blockReward": "0x4563918244F40000",
+					"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
+				}
+			}
+		}"#;
+
+		let _deserialized: Engine = serde_json::from_str(s).unwrap();
 	}
 }
+

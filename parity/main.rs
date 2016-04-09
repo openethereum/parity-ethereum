@@ -476,7 +476,7 @@ impl Configuration {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
-			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| {
+			f => Spec::load(contents(f).unwrap_or_else(|_| {
 				die!("{}: Couldn't read chain specification file. Sure it exists?", f)
 			}).as_ref()),
 		}

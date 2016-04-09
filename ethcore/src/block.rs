@@ -497,16 +497,16 @@ mod tests {
 	use tests::helpers::*;
 	use super::*;
 	use common::*;
-	use engine::*;
 
 	#[test]
 	fn open_block() {
 		use spec::*;
-		let engine = Spec::new_test().to_engine().unwrap();
-		let genesis_header = engine.spec().genesis_header();
+		let spec = Spec::new_test();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let b = b.close_and_lock();
@@ -516,19 +516,20 @@ mod tests {
 	#[test]
 	fn enact_block() {
 		use spec::*;
-		let engine = Spec::new_test().to_engine().unwrap();
-		let genesis_header = engine.spec().genesis_header();
+		let spec = Spec::new_test();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
 
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), x!(3141562), vec![]).close_and_lock().seal(engine.deref(), vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
 
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let e = enact_and_seal(&orig_bytes, engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()]).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
@@ -541,12 +542,13 @@ mod tests {
 	#[test]
 	fn enact_block_with_uncle() {
 		use spec::*;
-		let engine = Spec::new_test().to_engine().unwrap();
-		let genesis_header = engine.spec().genesis_header();
+		let spec = Spec::new_test();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
 
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let mut open_block = OpenBlock::new(engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()], Address::zero(), x!(3141562), vec![]);
 		let mut uncle1_header = Header::new();
 		uncle1_header.extra_data = b"uncle1".to_vec();
@@ -561,7 +563,7 @@ mod tests {
 
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let e = enact_and_seal(&orig_bytes, engine.deref(), false, db, &genesis_header, vec![genesis_header.hash()]).unwrap();
 
 		let bytes = e.rlp_bytes();

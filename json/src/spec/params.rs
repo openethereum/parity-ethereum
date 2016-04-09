@@ -17,34 +17,25 @@
 //! Spec params deserialization.
 
 use uint::Uint;
-use hash::Address;
 
 /// Spec params.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Params {
+	/// Account start nonce.
 	#[serde(rename="accountStartNonce")]
-	account_start_nonce: Uint,
+	pub account_start_nonce: Uint,
+	/// Homestead transition block number.
 	#[serde(rename="frontierCompatibilityModeLimit")]
-	frontier_compatibility_mode_limit: Uint,
+	pub frontier_compatibility_mode_limit: Uint,
+	/// Maximum size of extra data.
 	#[serde(rename="maximumExtraDataSize")]
-	maximum_extra_data_size: Uint,
-	#[serde(rename="tieBreakingGas")]
-	tie_breaking_gas: bool,
-	#[serde(rename="minGasLimit")]
-	min_gas_limit: Uint,
-	#[serde(rename="gasLimitBoundDivisor")]
-	gas_limit_bound_divisor: Uint,
-	#[serde(rename="minimumDifficulty")]
-	minimum_difficulty: Uint,
-	#[serde(rename="difficultyBoundDivisor")]
-	difficulty_bound_divisor: Uint,
-	#[serde(rename="durationLimit")]
-	duration_limit: Uint,
-	#[serde(rename="blockReward")]
-	block_reward: Uint,
-	registrar: Address,
+	pub maximum_extra_data_size: Uint,
+	/// Network id.
 	#[serde(rename="networkID")]
-	network_id: Uint,
+	pub network_id: Uint,
+	/// Minimum gas limit.
+	#[serde(rename="minGasLimit")]
+	pub min_gas_limit: Uint,
 }
 
 #[cfg(test)]
@@ -55,19 +46,13 @@ mod tests {
 	#[test]
 	fn params_deserialization() {
 		let s = r#"{
-			"accountStartNonce": "0x00",
 			"frontierCompatibilityModeLimit": "0x118c30",
 			"maximumExtraDataSize": "0x20",
-			"tieBreakingGas": false,
+			"networkID" : "0x1",
 			"minGasLimit": "0x1388",
-			"gasLimitBoundDivisor": "0x0400",
-			"minimumDifficulty": "0x020000",
-			"difficultyBoundDivisor": "0x0800",
-			"durationLimit": "0x0d",
-			"blockReward": "0x4563918244F40000",
-			"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-			"networkID" : "0x1"
+			"accountStartNonce": "0x00"
 		}"#;
+
 		let _deserialized: Params = serde_json::from_str(s).unwrap();
 		// TODO: validate all fields
 	}

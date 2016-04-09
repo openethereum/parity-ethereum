@@ -464,7 +464,7 @@ mod tests {
 
 	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
-		let engine = spec.to_engine().unwrap();
+		let engine = spec.engine;
 		BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected())
 	}
 
@@ -472,7 +472,7 @@ mod tests {
 	fn can_be_created() {
 		// TODO better test
 		let spec = Spec::new_test();
-		let engine = spec.to_engine().unwrap();
+		let engine = spec.engine;
 		let _ = BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected());
 	}
 
@@ -533,7 +533,7 @@ mod tests {
 	#[test]
 	fn test_mem_limit() {
 		let spec = get_test_spec();
-		let engine = spec.to_engine().unwrap();
+		let engine = spec.engine;
 		let mut config = BlockQueueConfig::default();
 		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
 		let queue = BlockQueue::new(config, Arc::new(engine), IoChannel::disconnected());
