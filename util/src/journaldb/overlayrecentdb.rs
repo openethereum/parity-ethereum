@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! JournalDB over in-memory overlay
+//! `JournalDB` over in-memory overlay
 
 use common::*;
 use rlp::*;
@@ -25,11 +25,11 @@ use kvdb::{Database, DBTransaction, DatabaseConfig};
 use std::env;
 use super::JournalDB;
 
-/// Implementation of the JournalDB trait for a disk-backed database with a memory overlay
+/// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.
 ///
-/// Like OverlayDB, there is a memory overlay; `commit()` must be called in order to
-/// write operations out to disk. Unlike OverlayDB, `remove()` operations do not take effect
+/// Like `OverlayDB`, there is a memory overlay; `commit()` must be called in order to
+/// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
 ///
@@ -359,6 +359,7 @@ impl HashDB for OverlayRecentDB {
 #[cfg(test)]
 mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
+	#![cfg_attr(feature="dev", allow(similar_names))]
 
 	use common::*;
 	use super::*;

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Disk-backed HashDB implementation.
+//! Disk-backed `HashDB` implementation.
 
 use error::*;
 use hash::*;
@@ -28,7 +28,7 @@ use std::env;
 use std::collections::HashMap;
 use kvdb::{Database, DBTransaction};
 
-/// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
+/// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
 /// The operations `insert()` and `remove()` take place on the memory overlay; batches of
 /// such operations may be flushed to the disk-backed DB with `commit()` or discarded with

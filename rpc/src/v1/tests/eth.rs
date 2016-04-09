@@ -23,6 +23,7 @@ use util::numbers::{Uint, U256};
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
+use ethcore::transaction::{Transaction, Action};
 use v1::{Eth, EthClient};
 use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config, TestMinerService, TestExternalMiner};
 
@@ -52,7 +53,7 @@ fn miner_service() -> Arc<TestMinerService> {
 struct EthTester {
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
-	_accounts_provider: Arc<TestAccountProvider>,
+	pub accounts_provider: Arc<TestAccountProvider>,
 	miner: Arc<TestMinerService>,
 	hashrates: Arc<RwLock<HashMap<H256, U256>>>,
 	pub io: IoHandler,
@@ -72,7 +73,7 @@ impl Default for EthTester {
 		EthTester {
 			client: client,
 			sync: sync,
-			_accounts_provider: ap,
+			accounts_provider: ap,
 			miner: miner,
 			io: io,
 			hashrates: hashrates,
@@ -453,9 +454,53 @@ fn rpc_eth_estimate_gas_default_block() {
 }
 
 #[test]
-#[ignore]
 fn rpc_eth_send_transaction() {
-	unimplemented!()
+	let account = TestAccount::new("123");
+	let address = account.address();
+	let secret = account.secret.clone();
+
+	let tester = EthTester::default();
+	tester.accounts_provider.accounts.write().unwrap().insert(address.clone(), account);
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a"
+		}],
+		"id": 1
+	}"#;
+
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	}.sign(&secret);
+
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+
+	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
+
+	tester.miner.last_nonces.write().unwrap().insert(address.clone(), U256::zero());
+
+	let t = Transaction {
+		nonce: U256::one(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	}.sign(&secret);
+
+	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
+
+	assert_eq!(tester.io.handle_request(request.as_ref()), Some(response));
 }
 
 #[test]

@@ -21,22 +21,26 @@ daemonize = "0.2"
 num_cpus = "0.2"
 number_prefix = "0.2"
 rpassword = "0.1"
-clippy = { version = "0.0.54", optional = true }
+clippy = { version = "0.0.61", optional = true}
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
 ethminer = { path = "miner" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
+ethcore-webapp = { path = "webapp", optional = true }
+
 
 [dependencies.hyper]
 version = "0.8"
 default-features = false
 
 [features]
-default = ["rpc"]
+default = ["rpc", "webapp"]
 rpc = ["ethcore-rpc"]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev"]
+webapp = ["ethcore-webapp"]
+dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethminer/dev",
+"ethcore-webapp/dev"]
 travis-beta = ["ethcore/json-tests"]
 travis-nightly = ["ethcore/json-tests", "dev"]
 

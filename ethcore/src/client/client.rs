@@ -38,7 +38,7 @@ use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{BlockId, TransactionId, UncleId, ClientConfig, BlockChainClient};
 use env_info::EnvInfo;
-use executive::{Executive, Executed, contract_address};
+use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 
@@ -418,7 +418,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		// give the sender max balance
 		state.sub_balance(&sender, &balance);
 		state.add_balance(&sender, &U256::max_value());
-		Executive::new(&mut state, &env_info, self.engine.deref().deref()).transact(t, false)
+		let options = TransactOptions { tracing: false, check_nonce: false };
+		Executive::new(&mut state, &env_info, self.engine.deref().deref()).transact(t, options)
 	}
 
 	// TODO [todr] Should be moved to miner crate eventually.

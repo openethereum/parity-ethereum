@@ -48,7 +48,7 @@ enum HandshakeState {
 	StartSession,
 }
 
-/// RLPx protocol handhake. See https://github.com/ethereum/devp2p/blob/master/rlpx.md#encrypted-handshake
+/// `RLPx` protocol handhake. See https://github.com/ethereum/devp2p/blob/master/rlpx.md#encrypted-handshake
 pub struct Handshake {
 	/// Remote node public key
 	pub id: NodeId,
@@ -66,11 +66,11 @@ pub struct Handshake {
 	pub remote_ephemeral: Public,
 	/// Remote connection nonce.
 	pub remote_nonce: H256,
-	/// Remote RLPx protocol version.
+	/// Remote `RLPx` protocol version.
 	pub remote_version: u64,
-	/// A copy of received encryped auth packet 
+	/// A copy of received encryped auth packet
 	pub auth_cipher: Bytes,
-	/// A copy of received encryped ack packet 
+	/// A copy of received encryped ack packet
 	pub ack_cipher: Bytes,
 	/// This Handshake is marked for deleteion flag
 	pub expired: bool,
@@ -413,7 +413,7 @@ mod test {
 	fn test_handshake_auth_plain() {
 		let mut h = create_handshake(None);
 		let secret = Secret::from_str("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291").unwrap();
-		let auth = 
+		let auth =
 			"\
 			048ca79ad18e4b0659fab4853fe5bc58eb83992980f4c9cc147d2aa31532efd29a3d3dc6a3d89eaf\
 			913150cfc777ce0ce4af2758bf4810235f6e6ceccfee1acc6b22c005e9e3a49d6448610a58e98744\
@@ -434,7 +434,7 @@ mod test {
 	fn test_handshake_auth_eip8() {
 		let mut h = create_handshake(None);
 		let secret = Secret::from_str("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291").unwrap();
-		let auth = 
+		let auth =
 			"\
 			01b304ab7578555167be8154d5cc456f567d5ba302662433674222360f08d5f1534499d3678b513b\
 			0fca474f3a514b18e75683032eb63fccb16c156dc6eb2c0b1593f0d84ac74f6e475f1b8d56116b84\
@@ -460,7 +460,7 @@ mod test {
 	fn test_handshake_auth_eip8_2() {
 		let mut h = create_handshake(None);
 		let secret = Secret::from_str("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291").unwrap();
-		let auth = 
+		let auth =
 			"\
 			01b8044c6c312173685d1edd268aa95e1d495474c6959bcdd10067ba4c9013df9e40ff45f5bfd6f7\
 			2471f93a91b493f8e00abc4b80f682973de715d77ba3a005a242eb859f9a211d93a347fa64b597bf\
@@ -481,7 +481,7 @@ mod test {
 		h.read_auth_eip8(&secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
 		assert_eq!(h.state, super::HandshakeState::StartSession);
 		check_auth(&h, 56);
-		let ack = h.ack_cipher.clone(); 
+		let ack = h.ack_cipher.clone();
 		let total = (((ack[0] as u16) << 8 | (ack[1] as u16)) as usize) + 2;
 		assert_eq!(ack.len(), total);
 	}
@@ -491,7 +491,7 @@ mod test {
 		let remote = Public::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap();
 		let mut h = create_handshake(Some(&remote));
 		let secret = Secret::from_str("49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee").unwrap();
-		let ack = 
+		let ack =
 			"\
 			049f8abcfa9c0dc65b982e98af921bc0ba6e4243169348a236abe9df5f93aa69d99cadddaa387662\
 			b0ff2c08e9006d5a11a278b1b3331e5aaabf0a32f01281b6f4ede0e09a2d5f585b26513cb794d963\
@@ -511,7 +511,7 @@ mod test {
 		let remote = Public::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap();
 		let mut h = create_handshake(Some(&remote));
 		let secret = Secret::from_str("49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee").unwrap();
-		let ack = 
+		let ack =
 			"\
 			01ea0451958701280a56482929d3b0757da8f7fbe5286784beead59d95089c217c9b917788989470\
 			b0e330cc6e4fb383c0340ed85fab836ec9fb8a49672712aeabbdfd1e837c1ff4cace34311cd7f4de\
@@ -540,7 +540,7 @@ mod test {
 		let remote = Public::from_str("fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877").unwrap();
 		let mut h = create_handshake(Some(&remote));
 		let secret = Secret::from_str("49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee").unwrap();
-		let ack = 
+		let ack =
 			"\
 			01f004076e58aae772bb101ab1a8e64e01ee96e64857ce82b1113817c6cdd52c09d26f7b90981cd7\
 			ae835aeac72e1573b8a0225dd56d157a010846d888dac7464baf53f2ad4e3d584531fa203658fab0\

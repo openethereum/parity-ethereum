@@ -223,7 +223,7 @@ pub enum WriteStatus {
 	Complete
 }
 
-/// RLPx packet
+/// `RLPx` packet
 pub struct Packet {
 	pub protocol: u16,
 	pub data: Bytes,
@@ -237,7 +237,7 @@ enum EncryptedConnectionState {
 	Payload,
 }
 
-/// Connection implementing RLPx framing
+/// Connection implementing `RLPx` framing
 /// https://github.com/ethereum/devp2p/blob/master/rlpx.md#framing
 pub struct EncryptedConnection {
 	/// Underlying tcp connection

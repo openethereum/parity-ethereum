@@ -18,7 +18,7 @@
 
 //! Transaction Queue
 //!
-//! TransactionQueue keeps track of all transactions seen by the node (received from other peers) and own transactions
+//! `TransactionQueue` keeps track of all transactions seen by the node (received from other peers) and own transactions
 //! and orders them by priority. Top priority transactions are those with low nonce height (difference between
 //! transaction's nonce and next nonce expected from this sender). If nonces are equal transaction's gas price is used
 //! for comparison (higher gas price = higher priority).
@@ -179,7 +179,7 @@ impl VerifiedTransaction {
 
 /// Holds transactions accessible by (address, nonce) and by priority
 ///
-/// TransactionSet keeps number of entries below limit, but it doesn't
+/// `TransactionSet` keeps number of entries below limit, but it doesn't
 /// automatically happen during `insert/remove` operations.
 /// You have to call `enforce_limit` to remove lowest priority transactions from set.
 struct TransactionSet {
@@ -262,7 +262,7 @@ pub struct AccountDetails {
 /// Transactions with `gas > (gas_limit + gas_limit * Factor(in percents))` are not imported to the queue.
 const GAS_LIMIT_HYSTERESIS: usize = 10; // %
 
-/// TransactionQueue implementation
+/// `TransactionQueue` implementation
 pub struct TransactionQueue {
 	/// Gas Price threshold for transactions that can be imported to this queue (defaults to 0)
 	minimal_gas_price: U256,
@@ -521,6 +521,11 @@ impl TransactionQueue {
 		self.future.clear();
 		self.by_hash.clear();
 		self.last_nonces.clear();
+	}
+
+	/// Returns highest transaction nonce for given address.
+	pub fn last_nonce(&self, address: &Address) -> Option<U256> {
+		self.last_nonces.get(address).cloned()
 	}
 
 	/// Checks if there are any transactions in `future` that should actually be promoted to `current`
@@ -1254,5 +1259,30 @@ mod test {
 		let stats = txq.status();
 		assert_eq!(stats.future, 0);
 		assert_eq!(stats.pending, 1);
+	}
+
+	#[test]
+	fn should_return_none_when_transaction_from_given_address_does_not_exist() {
+		// given
+		let mut txq = TransactionQueue::new();
+
+		// then
+		assert_eq!(txq.last_nonce(&Address::default()), None);
+	}
+
+	#[test]
+	fn should_return_correct_nonce_when_transactions_from_given_address_exist() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		let from = tx.sender().unwrap();
+		let nonce = tx.nonce;
+		let details = |a: &Address| AccountDetails { nonce: nonce, balance: !U256::zero() };
+
+		// when
+		txq.add(tx, &details).unwrap();
+
+		// then
+		assert_eq!(txq.last_nonce(&from), Some(nonce));
 	}
 }

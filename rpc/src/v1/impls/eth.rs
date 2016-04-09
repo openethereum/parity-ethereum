@@ -43,6 +43,10 @@ fn default_gas() -> U256 {
 	U256::from(21_000)
 }
 
+fn default_call_gas() -> U256 {
+	U256::from(50_000_000)
+}
+
 /// Eth rpc implementation.
 pub struct EthClient<C, S, A, M, EM = ExternalMiner>
 	where C: BlockChainClient,
@@ -175,27 +179,30 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		Ok(EthTransaction {
 			nonce: request.nonce.unwrap_or_else(|| client.nonce(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
-			gas: request.gas.unwrap_or_else(default_gas),
+			gas: request.gas.unwrap_or_else(default_call_gas),
 			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
 		}.fake_sign(from))
 	}
 
-	fn dispatch_transaction(&self, signed_transaction: SignedTransaction, raw_transaction: Vec<u8>) -> Result<Value, Error> {
+	fn dispatch_transaction(&self, signed_transaction: SignedTransaction) -> Result<Value, Error> {
 		let hash = signed_transaction.hash();
-		
+
 		let import = {
+			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
 			take_weak!(self.miner).import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
-				nonce: client.nonce(a),
+				nonce: miner
+					.last_nonce(a)
+					.map(|nonce| nonce + U256::one())
+					.unwrap_or_else(|| client.nonce(a)),
 				balance: client.balance(a),
 			})
 		};
 
 		match import.into_iter().collect::<Result<Vec<_>, _>>() {
 			Ok(_) => {
-				take_weak!(self.sync).new_transaction(raw_transaction);
 				to_value(&hash)
 			}
 			Err(e) => {
@@ -484,7 +491,11 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 							let client = take_weak!(self.client);
 							let miner = take_weak!(self.miner);
 							EthTransaction {
-								nonce: request.nonce.unwrap_or_else(|| client.nonce(&request.from)),
+								nonce: request.nonce
+									.or_else(|| miner
+											 .last_nonce(&request.from)
+											 .map(|nonce| nonce + U256::one()))
+									.unwrap_or_else(|| client.nonce(&request.from)),
 								action: request.to.map_or(Action::Create, Action::Call),
 								gas: request.gas.unwrap_or_else(default_gas),
 								gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
@@ -492,8 +503,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 								data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
 							}.sign(&secret)
 						};
-						let raw_transaction = encode(&signed_transaction).to_vec();
-						self.dispatch_transaction(signed_transaction, raw_transaction)
+						self.dispatch_transaction(signed_transaction)
 					},
 					Err(_) => { to_value(&H256::zero()) }
 				}
@@ -505,7 +515,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 			.and_then(|(raw_transaction, )| {
 				let raw_transaction = raw_transaction.to_vec();
 				match UntrustedRlp::new(&raw_transaction).as_val() {
-					Ok(signed_transaction) => self.dispatch_transaction(signed_transaction, raw_transaction),
+					Ok(signed_transaction) => self.dispatch_transaction(signed_transaction),
 					Err(_) => to_value(&H256::zero()),
 				}
 		})

@@ -60,7 +60,7 @@ impl Indexer {
 	}
 
 	/// Return bloom which are dependencies for given index.
-	/// 
+	///
 	/// Bloom indexes are ordered from lowest to highest.
 	pub fn lower_level_bloom_indexes(&self, index: &BloomIndex) -> Vec<BloomIndex> {
 		// this is the lowest level
@@ -87,6 +87,7 @@ impl Indexer {
 
 #[cfg(test)]
 mod tests {
+	#![cfg_attr(feature="dev", allow(similar_names))]
 	use chainfilter::BloomIndex;
 	use chainfilter::indexer::Indexer;
 

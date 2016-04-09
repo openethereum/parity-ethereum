@@ -326,7 +326,7 @@ fn uuid_from_string(s: &str) -> Result<Uuid, UtilError> {
 
 
 #[derive(Clone)]
-/// Stored key file struct with encrypted message (cipher_text)
+/// Stored key file struct with encrypted message (`cipher_text`)
 /// also contains password derivation function settings (PBKDF2/Scrypt)
 pub struct KeyFileContent {
 	version: KeyFileVersion,
@@ -369,9 +369,9 @@ enum KeyFileParseError {
 }
 
 impl KeyFileContent {
-	/// New stored key file struct with encrypted message (cipher_text)
+	/// New stored key file struct with encrypted message (`cipher_text`)
 	/// also contains password derivation function settings (PBKDF2/Scrypt)
-	/// to decrypt cipher_text given the password is provided.
+	/// to decrypt `cipher_text` given the password is provided.
 	pub fn new(crypto: KeyFileCrypto) -> KeyFileContent {
 		KeyFileContent {
 			id: new_uuid(),
