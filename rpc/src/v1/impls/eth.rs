@@ -465,7 +465,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	fn submit_work(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
-//			trace!("Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
+			trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
