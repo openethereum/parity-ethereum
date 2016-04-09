@@ -91,19 +91,11 @@ impl HttpBasicAuth {
 
 	fn check_auth(&self, req: &server::Request) -> Access {
 		match req.headers.get::<header::Authorization<header::Basic>>() {
-			Some(&header::Authorization(header::Basic { ref username, password: Some(ref password) })) => {
-                if self.is_authorized(username, password) {
-					Access::Granted
-				} else {
-					Access::Denied
-				}
-            },
-            Some(&header::Authorization(header::Basic { username: _, password: None })) => {
-				Access::Denied
-            },
-            None => {
-				Access::AuthRequired
-			},
+			Some(&header::Authorization(
+				header::Basic { ref username, password: Some(ref password) }
+			)) if self.is_authorized(username, password) => Access::Granted,
+			Some(_) => Access::Denied,
+			None => Access::AuthRequired,
 		}
 	}
 
