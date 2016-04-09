@@ -59,6 +59,8 @@ use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
+#[cfg(feature = "rpc")]
+use rpc::Server as RpcServer;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
@@ -77,7 +79,7 @@ Parity. Ethereum Client.
 
 Usage:
   parity daemon <pid-file> [options]
-  parity account (new | list)
+  parity account (new | list) [options]
   parity [options]
 
 Protocol Options:
@@ -88,7 +90,7 @@ Protocol Options:
   -d --db-path PATH        Specify the database & configuration directory path
                            [default: $HOME/.parity].
   --keys-path PATH         Specify the path for JSON key files to be found
-                           [default: $HOME/.web3/keys].
+                           [default: $HOME/.parity/keys].
   --identity NAME          Specify your node's name.
 
 Account Options:
@@ -258,10 +260,10 @@ fn setup_rpc_server(
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
-	url: &str,
+	url: &SocketAddr,
 	cors_domain: &str,
 	apis: Vec<&str>
-) -> Option<Arc<PanicHandler>> {
+) -> RpcServer {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -279,8 +281,16 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	Some(server.start_http(url, cors_domain, ::num_cpus::get()))
+	let start_result = server.start_http(url, cors_domain);
+	match start_result {
+		Err(rpc::RpcServerError::IoError(err)) => die_with_io_error(err),
+		Err(e) => die!("{:?}", e),
+		Ok(server) => server,
+	}
 }
+
+#[cfg(not(feature = "rpc"))]
+struct RpcServer;
 
 #[cfg(not(feature = "rpc"))]
 fn setup_rpc_server(
@@ -291,8 +301,8 @@ fn setup_rpc_server(
 	_url: &str,
 	_cors_domain: &str,
 	_apis: Vec<&str>
-) -> Option<Arc<PanicHandler>> {
-	None
+) -> ! {
+	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
 
 fn print_version() {
@@ -327,7 +337,7 @@ impl Configuration {
 	fn author(&self) -> Address {
 		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
 		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-			die!("{}: Invalid address for --author. Must be 40 hex characters, without the 0x at the beginning.", d)
+			die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
 		})
 	}
 
@@ -353,7 +363,7 @@ impl Configuration {
 		}
 	}
 
-	fn _keys_path(&self) -> String {
+	fn keys_path(&self) -> String {
 		self.args.flag_keys_path.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
 	}
 
@@ -475,7 +485,7 @@ impl Configuration {
 	fn execute_account_cli(&self) {
 		use util::keys::store::SecretStore;
 		use rpassword::read_password;
-		let mut secret_store = SecretStore::new();
+		let mut secret_store = SecretStore::new_in(Path::new(&self.keys_path()));
 		if self.args.cmd_new {
 			println!("Please note that password is NOT RECOVERABLE.");
 			println!("Type password: ");
@@ -508,8 +518,8 @@ impl Configuration {
 				.collect::<Vec<_>>()
 				.into_iter()
 		}).collect::<Vec<_>>();
-		
-		let account_service = AccountService::new();
+
+		let account_service = AccountService::new_in(Path::new(&self.keys_path()));
 		for d in &self.args.flag_unlock {
 			let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
 				die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
@@ -539,7 +549,10 @@ impl Configuration {
 		let account_service = Arc::new(self.account_service());
 
 		// Build client
-		let mut service = ClientService::start(self.client_config(), spec, net_settings, &Path::new(&self.path())).unwrap();
+		let mut service = ClientService::start(
+			self.client_config(), spec, net_settings, &Path::new(&self.path())
+		).unwrap_or_else(|e| die_with_error(e));
+
 		panic_handler.forward_from(&service);
 		let client = service.client();
 
@@ -554,7 +567,8 @@ impl Configuration {
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
 
 		// Setup rpc
-		if self.args.flag_jsonrpc || self.args.flag_rpc {
+		let rpc_server = if self.args.flag_jsonrpc || self.args.flag_rpc {
+			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
 			let url = format!("{}:{}",
 				match self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_interface).as_str() {
 					"all" => "0.0.0.0",
@@ -563,23 +577,21 @@ impl Configuration {
 				},
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
 			);
-			SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
-			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
-			// TODO: use this as the API list.
-			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let server_handler = setup_rpc_server(
+			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
+			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
+
+			Some(setup_rpc_server(
 				service.client(),
 				sync.clone(),
 				account_service.clone(),
 				miner.clone(),
-				&url,
-				cors,
+				&addr,
+				&cors_domain,
 				apis.split(',').collect()
-			);
-			if let Some(handler) = server_handler {
-				panic_handler.forward_from(handler.deref());
-			}
-		}
+			))
+		} else {
+			None
+		};
 
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
@@ -591,11 +603,11 @@ impl Configuration {
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 		// Handle exit
-		wait_for_exit(panic_handler);
+		wait_for_exit(panic_handler, rpc_server);
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
@@ -609,6 +621,30 @@ fn wait_for_exit(panic_handler: Arc<PanicHandler>) {
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+	info!("Finishing work, please wait...");
+}
+
+fn die_with_error(e: ethcore::error::Error) -> ! {
+	use ethcore::error::Error;
+
+	match e {
+		Error::Util(UtilError::StdIo(e)) => die_with_io_error(e),
+		_ => die!("{:?}", e),
+	}
+}
+fn die_with_io_error(e: std::io::Error) -> ! {
+	match e.kind() {
+		std::io::ErrorKind::PermissionDenied => {
+			die!("No permissions to bind to specified port.")
+		},
+		std::io::ErrorKind::AddrInUse => {
+			die!("Specified address is already in use. Please make sure that nothing is listening on the same port or try using a different one.")
+		},
+		std::io::ErrorKind::AddrNotAvailable => {
+			die!("Could not use specified interface or given address is invalid.")
+		},
+		_ => die!("{:?}", e),
+	}
 }
 
 fn main() {

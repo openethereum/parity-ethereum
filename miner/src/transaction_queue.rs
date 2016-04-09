@@ -213,14 +213,15 @@ impl TransactionSet {
 			self.by_priority
 				.iter()
 				.skip(self.limit)
-				.map(|order| by_hash.get(&order.hash).expect("Inconsistency in queue detected."))
+				.map(|order| by_hash.get(&order.hash)
+					.expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`."))
 				.map(|tx| (tx.sender(), tx.nonce()))
 				.collect()
 		};
 
 		for (sender, nonce) in to_drop {
-			let order = self.drop(&sender, &nonce).expect("Dropping transaction found in priority queue failed.");
-			by_hash.remove(&order.hash).expect("Inconsistency in queue.");
+			let order = self.drop(&sender, &nonce).expect("Transaction has just been found in `by_priority`; so it is in `by_address` also.");
+			by_hash.remove(&order.hash).expect("Hash found in `by_priorty` matches the one dropped; so it is included in `by_hash`");
 		}
 	}
 
@@ -497,7 +498,7 @@ impl TransactionQueue {
 	pub fn top_transactions(&self) -> Vec<SignedTransaction> {
 		self.current.by_priority
 			.iter()
-			.map(|t| self.by_hash.get(&t.hash).expect("Transaction Queue Inconsistency"))
+			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
 			.map(|t| t.transaction.clone())
 			.collect()
 	}
@@ -521,6 +522,11 @@ impl TransactionQueue {
 		self.future.clear();
 		self.by_hash.clear();
 		self.last_nonces.clear();
+	}
+
+	/// Returns highest transaction nonce for given address.
+	pub fn last_nonce(&self, address: &Address) -> Option<U256> {
+		self.last_nonces.get(address).cloned()
 	}
 
 	/// Checks if there are any transactions in `future` that should actually be promoted to `current`
@@ -1254,5 +1260,30 @@ mod test {
 		let stats = txq.status();
 		assert_eq!(stats.future, 0);
 		assert_eq!(stats.pending, 1);
+	}
+
+	#[test]
+	fn should_return_none_when_transaction_from_given_address_does_not_exist() {
+		// given
+		let mut txq = TransactionQueue::new();
+
+		// then
+		assert_eq!(txq.last_nonce(&Address::default()), None);
+	}
+
+	#[test]
+	fn should_return_correct_nonce_when_transactions_from_given_address_exist() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx();
+		let from = tx.sender().unwrap();
+		let nonce = tx.nonce;
+		let details = |a: &Address| AccountDetails { nonce: nonce, balance: !U256::zero() };
+
+		// when
+		txq.add(tx, &details).unwrap();
+
+		// then
+		assert_eq!(txq.last_nonce(&from), Some(nonce));
 	}
 }
