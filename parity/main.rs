@@ -136,13 +136,19 @@ API and Console Options:
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
                            [default: web3,eth,net,personal].
-  -w --webapp              Enable the web applications server (e.g. status page).
+  -w --webapp              Enable the web applications server (e.g.
+                           status page).
   --webapp-port PORT       Specify the port portion of the WebApps server
                            [default: 8080].
   --webapp-interface IP    Specify the hostname portion of the WebApps
                            server, IP should be an interface's IP address, or
                            all (all interfaces) or local [default: local].
-
+  --webapp-user USERNAME   Specify username for WebApps server. It will be
+                           used in HTTP Basic Authentication Scheme.
+                           If --webapp-pass is not specified you will be
+                           asked for password on startup.
+  --webapp-pass PASSWORD   Specify password for WebApps server. Use only in
+                           conjunction with --webapp-user.
 
 Sealing/Mining Options:
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
@@ -230,6 +236,8 @@ struct Args {
 	flag_webapp: bool,
 	flag_webapp_port: u16,
 	flag_webapp_interface: String,
+	flag_webapp_user: Option<String>,
+	flag_webapp_pass: Option<String>,
 	flag_author: String,
 	flag_usd_per_tx: String,
 	flag_usd_per_eth: String,
@@ -288,7 +296,7 @@ fn setup_rpc_server(
 	miner: Arc<Miner>,
 	url: &SocketAddr,
 	cors_domain: &str,
-	apis: Vec<&str>
+	apis: Vec<&str>,
 ) -> RpcServer {
 	use rpc::v1::*;
 
@@ -321,7 +329,8 @@ fn setup_webapp_server(
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
-	url: &str
+	url: &str,
+	auth: Option<(String, String)>,
 ) -> WebappServer {
 	use rpc::v1::*;
 
@@ -331,7 +340,14 @@ fn setup_webapp_server(
 	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 	server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 	server.add_delegate(PersonalClient::new(&secret_store).to_delegate());
-	let start_result = server.start_http(url, ::num_cpus::get());
+	let start_result = match auth {
+		None => {
+			server.start_unsecure_http(url, ::num_cpus::get())
+		},
+		Some((username, password)) => {
+			server.start_basic_auth_http(url, ::num_cpus::get(), &username, &password)
+		},
+	};
 	match start_result {
 		Err(webapp::WebappServerError::IoError(err)) => die_with_io_error(err),
 		Err(e) => die!("{:?}", e),
@@ -351,7 +367,7 @@ fn setup_rpc_server(
 	_miner: Arc<Miner>,
 	_url: &str,
 	_cors_domain: &str,
-	_apis: Vec<&str>
+	_apis: Vec<&str>,
 ) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
@@ -365,7 +381,8 @@ fn setup_webapp_server(
 	_sync: Arc<EthSync>,
 	_secret_store: Arc<AccountService>,
 	_miner: Arc<Miner>,
-	_url: &str
+	_url: &str,
+	_auth: Option<(String, String)>,
 ) -> ! {
 	die!("Your Parity version has been compiled without WebApps support.")
 }
@@ -683,12 +700,24 @@ impl Configuration {
 				},
 				self.args.flag_webapp_port
 			);
+			let auth = self.args.flag_webapp_user.as_ref().map(|username| {
+				let password = self.args.flag_webapp_pass.as_ref().map_or_else(|| {
+					use rpassword::read_password;
+					println!("Type password for WebApps server (user: {}): ", username);
+					let pass = read_password().unwrap();
+					println!("OK, got it. Starting server...");
+					pass
+				}, |pass| pass.to_owned());
+				(username.to_owned(), password)
+			});
+
 			Some(setup_webapp_server(
 				service.client(),
 				sync.clone(),
 				account_service.clone(),
 				miner.clone(),
 				&url,
+				auth,
 			))
 		} else {
 			None
