@@ -61,7 +61,6 @@ impl<F, T> PollManager<F, T> where T: Timer {
 	}
 
 	// Implementation is always using `poll_mut`
-	#[cfg(test)]
 	/// Get a reference to stored poll filter
 	pub fn poll(&mut self, id: &PollId) -> Option<&F> {
 		self.polls.prune();
