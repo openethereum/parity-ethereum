@@ -121,22 +121,7 @@ impl AccountProvider for AccountService {
 	}
 }
 
-impl Default for AccountService {
-	fn default() -> Self {
-		AccountService::new()
-	}
-}
-
 impl AccountService {
-	/// New account service with the keys store in default location
-	pub fn new() -> Self {
-		let secret_store = RwLock::new(SecretStore::new());
-		secret_store.write().unwrap().try_import_existing();
-		AccountService {
-			secret_store: secret_store
-		}
-	}
-
 	/// New account service with the keys store in specific location
 	pub fn new_in(path: &Path) -> Self {
 		let secret_store = RwLock::new(SecretStore::new_in(path));
@@ -165,23 +150,7 @@ impl AccountService {
 	}
 }
 
-
-impl Default for SecretStore {
-	fn default() -> Self {
-		SecretStore::new()
-	}
-}
-
 impl SecretStore {
-	/// new instance of Secret Store in default home directory
-	pub fn new() -> Self {
-		let mut path = ::std::env::home_dir().expect("Failed to get home dir");
-		path.push(".parity");
-		path.push("keys");
-		::std::fs::create_dir_all(&path).expect("Should panic since it is critical to be able to access home dir");
-		Self::new_in(&path)
-	}
-
 	/// new instance of Secret Store in specific directory
 	pub fn new_in(path: &Path) -> Self {
 		::std::fs::create_dir_all(&path).expect("Cannot access requested key directory - critical");
