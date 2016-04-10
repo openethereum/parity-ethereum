@@ -152,6 +152,8 @@ API and Console Options:
                            conjunction with --webapp-user.
 
 Sealing/Mining Options:
+  --force-sealing          Force the node to author new blocks as if it were
+                           always sealing/mining.
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
                            [default: 0.005]. The minimum gas price is set
                            accordingly.
@@ -239,6 +241,7 @@ struct Args {
 	flag_webapp_interface: String,
 	flag_webapp_user: Option<String>,
 	flag_webapp_pass: Option<String>,
+	flag_force_sealing: bool,
 	flag_author: String,
 	flag_usd_per_tx: String,
 	flag_usd_per_eth: String,
@@ -657,7 +660,7 @@ impl Configuration {
 		let client = service.client();
 
 		// Miner
-		let miner = Miner::new();
+		let miner = Miner::new(self.args.flag_force_sealing);
 		miner.set_author(self.author());
 		miner.set_gas_floor_target(self.gas_floor_target());
 		miner.set_extra_data(self.extra_data());
