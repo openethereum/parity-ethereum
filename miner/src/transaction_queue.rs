@@ -348,7 +348,12 @@ impl TransactionQueue {
 		where T: Fn(&Address) -> AccountDetails {
 
 		txs.into_iter()
-			.map(|tx| self.add(tx, &fetch_account))
+			.map(|tx| {
+				trace!(target: "miner", "adding...");
+				let r = self.add(tx, &fetch_account);
+				trace!(target: "miner", "added.");
+				r
+			})
 			.collect()
 	}
 
@@ -383,7 +388,9 @@ impl TransactionQueue {
 		}
 
 		let vtx = try!(VerifiedTransaction::new(tx));
+		trace!(target: "miner", "txq::add: fetching details of {}", vtx.sender());
 		let account = fetch_account(&vtx.sender());
+		trace!(target: "miner", "txq::add: fetched.");
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
 		if account.balance < cost {
