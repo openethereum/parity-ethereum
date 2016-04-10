@@ -348,12 +348,7 @@ impl TransactionQueue {
 		where T: Fn(&Address) -> AccountDetails {
 
 		txs.into_iter()
-			.map(|tx| {
-				trace!(target: "miner", "adding...");
-				let r = self.add(tx, &fetch_account);
-				trace!(target: "miner", "added.");
-				r
-			})
+			.map(|tx| self.add(tx, &fetch_account))			
 			.collect()
 	}
 
