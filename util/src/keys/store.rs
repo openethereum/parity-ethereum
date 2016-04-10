@@ -184,6 +184,7 @@ impl SecretStore {
 
 	/// new instance of Secret Store in specific directory
 	pub fn new_in(path: &Path) -> Self {
+		::std::fs::create_dir_all(&path).expect("Cannot access requested key directory - critical");
 		SecretStore {
 			directory: KeyDirectory::new(path),
 			unlocks: RwLock::new(HashMap::new()),
