@@ -36,6 +36,7 @@ extern crate daemonize;
 extern crate time;
 extern crate number_prefix;
 extern crate rpassword;
+extern crate semver;
 
 // for price_info.rs
 #[macro_use] extern crate hyper;
@@ -71,6 +72,7 @@ use rpc::Server as RpcServer;
 use webapp::Listening as WebappServer;
 
 mod price_info;
+mod upgrade;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
