@@ -780,6 +780,17 @@ fn die_with_io_error(e: std::io::Error) -> ! {
 }
 
 fn main() {
+	match ::upgrade::upgrade() {
+		Ok(upgrades_applied) => {
+			if upgrades_applied > 0 {
+				println!("Executed {} upgrade scripts - ok", upgrades_applied);
+			}
+		},
+		Err(e) => {
+			die!("Error upgrading parity data: {:?}", e);
+		}
+	}
+
 	Configuration::parse().execute();
 }
 

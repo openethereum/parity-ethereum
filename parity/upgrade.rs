@@ -18,11 +18,11 @@
 
 use semver::Version;
 use std::collections::*;
-use std::path::*;
 use std::fs::File;
 use std::env;
 use std::io::{Read, Write};
 
+#[derive(Debug)]
 pub enum Error {
 	CannotLockVersionFile,
 	CannotUpdateVersionFile,
@@ -61,6 +61,7 @@ impl UpgradeKey {
 
 // dummy upgrade (remove when the first one is in)
 fn dummy_upgrade() -> Result<(), Error> {
+	println!("Adding ver.lock");
 	Ok(())
 }
 
@@ -68,7 +69,7 @@ fn push_updrades(upgrades: &mut UpgradeList)
 {
 	// dummy upgrade (remove when the first one is in)
 	upgrades.insert(
-		UpgradeKey { old_version: Version::parse("1.0.0").unwrap(), new_version: Version::parse("99.99.0").unwrap() },
+		UpgradeKey { old_version: Version::parse("0.9.0").unwrap(), new_version: Version::parse("1.0.0").unwrap() },
 		dummy_upgrade);
 }
 
