@@ -19,8 +19,14 @@
 use semver::Version;
 use std::collections::*;
 use std::path::*;
+use std::fs::File;
+use std::env;
+use std::io::{Read, Write};
 
-struct Error;
+pub enum Error {
+	CannotLockVersionFile,
+	CannotUpdateVersionFile,
+}
 
 const CURRENT_VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -81,4 +87,43 @@ fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 		}
 	}
 	Ok(count)
+}
+
+fn with_locked_version<F>(script: F) -> Result<usize, Error>
+	where F: Fn(&Version) -> Result<usize, Error>
+{
+	let mut path = env::home_dir().expect("Applications should have a home dir");
+	path.push(".parity");
+	path.push("ver.lock");
+
+	let version: Option<Version> = {
+		match File::open(&path) {
+			Ok(mut file) => {
+				let mut version_string = String::new();
+				match file.read_to_string(&mut version_string) {
+					Ok(_) => Some(Version::parse(&version_string).unwrap()),
+					Err(_) => None
+				}
+			},
+			Err(_) => None
+		}
+	};
+	let effective_version = version.unwrap_or_else(|| Version::parse("0.9.0").unwrap());
+
+	let script_result = {
+		let mut lock = try!(File::create(&path).map_err(|_| Error::CannotLockVersionFile));
+		let result = script(&effective_version);
+
+		let written_version = Version::parse(CURRENT_VERSION).unwrap();
+		try!(lock.write_all(written_version.to_string().as_bytes()).map_err(|_| Error::CannotUpdateVersionFile));
+		result
+	};
+
+	script_result
+}
+
+pub fn upgrade() -> Result<usize, Error> {
+	with_locked_version(|ver| {
+		upgrade_from_version(ver)
+	})
 }
