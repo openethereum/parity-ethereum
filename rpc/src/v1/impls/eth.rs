@@ -191,31 +191,16 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		let hash = signed_transaction.hash();
 
 		let import = {
-			let a = signed_transaction.sender().map(|a| a.clone()).unwrap_or(Address::new());
-			let (cn, cb) = {
-				let client = take_weak!(self.client);
-				(client.nonce(&a), client.balance(&a))
-			};
+			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
-			let mln = miner.last_nonce(&a);
-
-			trace!(target: "miner", "dispatch_transaction: importing...");
-			let txs = miner.import_transactions(vec![signed_transaction], |a: &Address| {
-				trace!(target: "miner", "dispatch_transaction: fetching details for {}", a);
-				let d = AccountDetails {
-					nonce: mln
-						.map(|nonce| nonce + U256::one())
-						.unwrap_or(cn),
-					balance: cb,
-				};
-				trace!(target: "miner", "dispatch_transaction: fetched.");
-				d
-			});
-			trace!(target: "miner", "dispatch_transaction: imported.");
-			txs
+			miner.import_transactions(vec![signed_transaction], |a: &Address| {
+				AccountDetails {
+					nonce: client.nonce(&a),
+					balance: client.balance(&a),
+				}
+			})
 		};
 
-		trace!(target: "miner", "dispatch_transaction: returning...");
 		match import.into_iter().collect::<Result<Vec<_>, _>>() {
 			Ok(_) => {
 				to_value(&hash)

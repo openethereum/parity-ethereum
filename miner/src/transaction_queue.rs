@@ -388,21 +388,20 @@ impl TransactionQueue {
 		}
 
 		let vtx = try!(VerifiedTransaction::new(tx));
-		trace!(target: "miner", "txq::add: fetching details of {}", vtx.sender());
-		let account = fetch_account(&vtx.sender());
-		trace!(target: "miner", "txq::add: fetched.");
+		let client_account = fetch_account(&vtx.sender());
+		let next_nonce = self.last_nonce(&vtx.sender()).map(|nonce| nonce + U256::one()).unwrap_or(client_account.nonce);
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
-		if account.balance < cost {
+		if client_account.balance < cost {
 			trace!(target: "miner", "Dropping transaction without sufficient balance: {:?} ({} < {})",
-				vtx.hash(), account.balance, cost);
+				vtx.hash(), client_account.balance, cost);
 			return Err(Error::Transaction(TransactionError::InsufficientBalance {
 				cost: cost,
-				balance: account.balance
+				balance: client_account.balance
 			}));
 		}
 
-		self.import_tx(vtx, account.nonce).map_err(Error::Transaction)
+		self.import_tx(vtx, next_nonce).map_err(Error::Transaction)
 	}
 
 	/// Removes all transactions identified by hashes given in slice
