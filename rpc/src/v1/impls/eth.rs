@@ -636,10 +636,11 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 
 							to_value(&diff)
 						},
-						PollFilter::Logs(ref mut block_number, ref mut filter) => {
+						PollFilter::Logs(ref mut block_number, ref filter) => {
+							let mut filter = filter.clone();
 							filter.from_block = BlockId::Number(*block_number);
 							filter.to_block = BlockId::Latest;
-							let logs = client.logs(filter.clone())
+							let logs = client.logs(filter)
 								.into_iter()
 								.map(From::from)
 								.collect::<Vec<Log>>();
@@ -652,6 +653,27 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 					}
 				}
 			})
+	}
+
+	fn filter_logs(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Index,)>(params)
+			.and_then(|(index,)| {
+				let mut polls = self.polls.lock().unwrap();
+				match polls.poll(&index.value()) {
+					Some(&PollFilter::Logs(ref _block_number, ref filter)) => {
+						let logs = take_weak!(self.client).logs(filter.clone())
+							.into_iter()
+							.map(From::from)
+							.collect::<Vec<Log>>();
+						to_value(&logs)
+					},
+					// just empty array
+					_ => Ok(Value::Array(vec![] as Vec<Value>)),
+				}
+			})
+
+
+
 	}
 
 	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
