@@ -670,9 +670,6 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 					_ => Ok(Value::Array(vec![] as Vec<Value>)),
 				}
 			})
-
-
-
 	}
 
 	fn uninstall_filter(&self, params: Params) -> Result<Value, Error> {
