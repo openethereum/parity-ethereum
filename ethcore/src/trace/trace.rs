@@ -30,8 +30,21 @@ pub struct TraceCallResult {
 
 impl Encodable for TraceCallResult {
 	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
 		s.append(&self.gas_used);
 		s.append(&self.output);
+	}
+}
+
+impl Decodable for TraceCallResult {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = TraceCallResult {
+			gas_used: try!(d.val_at(0)),
+			output: try!(d.val_at(1)),
+		};
+
+		Ok(res)
 	}
 }
 
@@ -48,9 +61,23 @@ pub struct TraceCreateResult {
 
 impl Encodable for TraceCreateResult {
 	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(3);
 		s.append(&self.gas_used);
 		s.append(&self.code);
 		s.append(&self.address);
+	}
+}
+
+impl Decodable for TraceCreateResult {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = TraceCreateResult {
+			gas_used: try!(d.val_at(0)),
+			code: try!(d.val_at(1)),
+			address: try!(d.val_at(2)),
+		};
+
+		Ok(res)
 	}
 }
 
@@ -83,11 +110,27 @@ impl From<ActionParams> for TraceCall {
 
 impl Encodable for TraceCall {
 	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(5);
 		s.append(&self.from);
 		s.append(&self.to);
 		s.append(&self.value);
 		s.append(&self.gas);
 		s.append(&self.input);
+	}
+}
+
+impl Decodable for TraceCall {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = TraceCall {
+			from: try!(d.val_at(0)),
+			to: try!(d.val_at(1)),
+			value: try!(d.val_at(2)),
+			gas: try!(d.val_at(3)),
+			input: try!(d.val_at(4)),
+		};
+
+		Ok(res)
 	}
 }
 
@@ -117,10 +160,25 @@ impl From<ActionParams> for TraceCreate {
 
 impl Encodable for TraceCreate {
 	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
 		s.append(&self.from);
 		s.append(&self.value);
 		s.append(&self.gas);
 		s.append(&self.init);
+	}
+}
+
+impl Decodable for TraceCreate {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = TraceCreate {
+			from: try!(d.val_at(0)),
+			value: try!(d.val_at(1)),
+			gas: try!(d.val_at(2)),
+			init: try!(d.val_at(3)),
+		};
+
+		Ok(res)
 	}
 }
 
@@ -135,6 +193,7 @@ pub enum TraceAction {
 
 impl Encodable for TraceAction {
 	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(2);
 		match *self {
 			TraceAction::Call(ref call) => {
 				s.append(&0u8);
@@ -144,6 +203,18 @@ impl Encodable for TraceAction {
 				s.append(&1u8);
 				s.append(create);
 			}
+		}
+	}
+}
+
+impl Decodable for TraceAction {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let action_type: u8 = try!(d.val_at(0));
+		match action_type {
+			0 => d.val_at(1).map(TraceAction::Call),
+			1 => d.val_at(1).map(TraceAction::Create),
+			_ => Err(DecoderError::Custom("Invalid action type.")),
 		}
 	}
 }
@@ -165,19 +236,37 @@ impl Encodable for TraceResult {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		match *self {
 			TraceResult::Call(ref call) => {
+				s.begin_list(2);
 				s.append(&0u8);
 				s.append(call);
 			},
 			TraceResult::Create(ref create) => {
+				s.begin_list(2);
 				s.append(&1u8);
 				s.append(create);
 			},
 			TraceResult::FailedCall => {
+				s.begin_list(1);
 				s.append(&2u8);
 			},
 			TraceResult::FailedCreate => {
+				s.begin_list(1);
 				s.append(&3u8);
 			}
+		}
+	}
+}
+
+impl Decodable for TraceResult {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let action_type: u8 = try!(d.val_at(0));
+		match action_type {
+			0 => d.val_at(1).map(TraceResult::Call),
+			1 => d.val_at(1).map(TraceResult::Create),
+			2 => Ok(TraceResult::FailedCall),
+			3 => Ok(TraceResult::FailedCreate),
+			_ => Err(DecoderError::Custom("Invalid result type.")),
 		}
 	}
 }
@@ -198,9 +287,66 @@ pub struct Trace {
 
 impl Encodable for Trace {
 	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(4);
 		s.append(&self.depth);
 		s.append(&self.action);
 		s.append(&self.subs);
 		s.append(&self.result);
+	}
+}
+
+impl Decodable for Trace {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let d = decoder.as_rlp();
+		let res = Trace {
+			depth: try!(d.val_at(0)),
+			action: try!(d.val_at(1)),
+			subs: try!(d.val_at(2)),
+			result: try!(d.val_at(3)),
+		};
+
+		Ok(res)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use util::{Address, U256};
+	use util::rlp::{encode, decode};
+	use trace::{TraceCall, TraceCallResult, TraceCreate, TraceResult, TraceAction, Trace};
+
+	#[test]
+	fn traces_rlp() {
+		let trace = Trace {
+			depth: 2,
+			action: TraceAction::Call(TraceCall {
+				from: Address::from(1),
+				to: Address::from(2),
+				value: U256::from(3),
+				gas: U256::from(4),
+				input: vec![0x5]
+			}),
+			subs: vec![
+				Trace {
+					depth: 3,
+					action: TraceAction::Create(TraceCreate {
+						from: Address::from(6),
+						value: U256::from(7),
+						gas: U256::from(8),
+						init: vec![0x9]
+					}),
+					subs: vec![],
+					result: TraceResult::FailedCreate
+				}
+			],
+			result: TraceResult::Call(TraceCallResult {
+				gas_used: U256::from(10),
+				output: vec![0x11, 0x12]
+			})
+		};
+
+		let encoded = encode(&trace);
+		let decoded: Trace = decode(&encoded);
+		assert_eq!(trace, decoded);
 	}
 }
