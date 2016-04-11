@@ -17,6 +17,7 @@
 //! Tracing
 
 mod trace;
+mod filter;
 
 pub use self::trace::*;
 use util::bytes::Bytes;

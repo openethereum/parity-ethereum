@@ -15,9 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tracing datatypes.
-use util::{U256, Bytes, Address};
+use util::{U256, Bytes, Address, FixedHash};
 use util::rlp::*;
+use util::sha3::Hashable;
 use action_params::ActionParams;
+use basic_types::LogBloom;
 
 /// TraceCall result.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -134,6 +136,13 @@ impl Decodable for TraceCall {
 	}
 }
 
+impl TraceCall {
+	pub fn bloom(&self) -> LogBloom {
+		LogBloom::from_bloomed(&self.from.sha3())
+			.with_bloomed(&self.to.sha3())
+	}
+}
+
 /// Description of a _create_ action, either a `CREATE` operation or a create transction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TraceCreate {
@@ -182,6 +191,12 @@ impl Decodable for TraceCreate {
 	}
 }
 
+impl TraceCreate {
+	pub fn bloom(&self) -> LogBloom {
+		LogBloom::from_bloomed(&self.from.sha3())
+	}
+}
+
 /// Description of an action that we trace; will be either a call or a create.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TraceAction {
@@ -215,6 +230,15 @@ impl Decodable for TraceAction {
 			0 => d.val_at(1).map(TraceAction::Call),
 			1 => d.val_at(1).map(TraceAction::Create),
 			_ => Err(DecoderError::Custom("Invalid action type.")),
+		}
+	}
+}
+
+impl TraceAction {
+	pub fn bloom(&self) -> LogBloom {
+		match *self {
+			TraceAction::Call(ref call) => call.bloom(),
+			TraceAction::Create(ref create) => create.bloom(),
 		}
 	}
 }
@@ -309,10 +333,17 @@ impl Decodable for Trace {
 	}
 }
 
+impl Trace {
+	pub fn bloom(&self) -> LogBloom {
+		self.subs.iter().fold(self.action.bloom(), |b, s| b | s.bloom())
+	}
+}
+
 #[cfg(test)]
 mod tests {
-	use util::{Address, U256};
+	use util::{Address, U256, FixedHash};
 	use util::rlp::{encode, decode};
+	use util::sha3::Hashable;
 	use trace::{TraceCall, TraceCallResult, TraceCreate, TraceResult, TraceAction, Trace};
 
 	#[test]
@@ -348,5 +379,44 @@ mod tests {
 		let encoded = encode(&trace);
 		let decoded: Trace = decode(&encoded);
 		assert_eq!(trace, decoded);
+	}
+
+	#[test]
+	fn traces_bloom() {
+		let trace = Trace {
+			depth: 2,
+			action: TraceAction::Call(TraceCall {
+				from: Address::from(1),
+				to: Address::from(2),
+				value: U256::from(3),
+				gas: U256::from(4),
+				input: vec![0x5]
+			}),
+			subs: vec![
+				Trace {
+					depth: 3,
+					action: TraceAction::Create(TraceCreate {
+						from: Address::from(6),
+						value: U256::from(7),
+						gas: U256::from(8),
+						init: vec![0x9]
+					}),
+					subs: vec![],
+					result: TraceResult::FailedCreate
+				}
+			],
+			result: TraceResult::Call(TraceCallResult {
+				gas_used: U256::from(10),
+				output: vec![0x11, 0x12]
+			})
+		};
+
+		let bloom = trace.bloom();
+
+		// right now only addresses are bloomed
+		assert!(bloom.contains_bloomed(&Address::from(1).sha3()));
+		assert!(bloom.contains_bloomed(&Address::from(2).sha3()));
+		assert!(!bloom.contains_bloomed(&Address::from(20).sha3()));
+		assert!(bloom.contains_bloomed(&Address::from(6).sha3()));
 	}
 }
