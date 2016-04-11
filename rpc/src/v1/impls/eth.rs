@@ -190,13 +190,9 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		let hash = signed_transaction.hash();
 
 		let import = {
-			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
 			take_weak!(self.miner).import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
-				nonce: miner
-					.last_nonce(a)
-					.map(|nonce| nonce + U256::one())
-					.unwrap_or_else(|| client.nonce(a)),
+				nonce: client.nonce(a),
 				balance: client.balance(a),
 			})
 		};
