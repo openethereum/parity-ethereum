@@ -60,7 +60,7 @@ impl ClientService {
 		panic_handler.forward_from(&net_service);
 
 		info!("Starting {}", net_service.host_info());
-		info!("Configured for {} using {} engine", spec.name, spec.engine_name);
+		info!("Configured for {} using {:?} engine", spec.name, spec.engine.name());
 		let client = try!(Client::new(config, spec, db_path, net_service.io().channel()));
 		panic_handler.forward_from(client.deref());
 		let client_io = Arc::new(ClientIoHandler {

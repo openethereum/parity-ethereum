@@ -22,9 +22,19 @@ use spec::builtin::Builtin;
 /// Spec account.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Account {
-	builtin: Option<Builtin>,
-	balance: Option<Uint>,
-	nonce: Option<Uint>,
+	/// Builtin contract.
+	pub builtin: Option<Builtin>,
+	/// Balance.
+	pub balance: Option<Uint>,
+	/// Nonce.
+	pub nonce: Option<Uint>,
+}
+
+impl Account {
+	/// Returns true if account does not have nonce and balance.
+	pub fn is_empty(&self) -> bool {
+		self.balance.is_none() && self.nonce.is_none()
+	}
 }
 
 #[cfg(test)]

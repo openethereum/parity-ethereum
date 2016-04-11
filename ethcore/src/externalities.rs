@@ -330,7 +330,7 @@ mod tests {
 		fn new() -> Self {
 			TestSetup {
 				state: get_temp_state(),
-				engine: get_test_spec().to_engine().unwrap(),
+				engine: get_test_spec().engine,
 				sub_state: Substate::new(),
 				env_info: get_test_env_info()
 			}

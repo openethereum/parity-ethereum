@@ -190,7 +190,7 @@ pub trait EthFilter: Sized + Send + Sync + 'static {
 	/// Returns filter changes since last poll.
 	fn filter_changes(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns filter logs.
+	/// Returns all logs matching given filter (in a range 'from' - 'to').
 	fn filter_logs(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Uninstalls filter.

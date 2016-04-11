@@ -80,12 +80,22 @@ impl From<ethjson::blockchain::Account> for PodAccount {
 			balance: a.balance.into(),
 			nonce: a.nonce.into(),
 			code: a.code.into(),
-			storage: a.storage.into_iter().fold(BTreeMap::new(), |mut acc, (key, value)| {
+			storage: a.storage.into_iter().map(|(key, value)| {
 				let key: U256 = key.into();
 				let value: U256 = value.into();
-				acc.insert(H256::from(key), H256::from(value));
-				acc
-			})
+				(H256::from(key), H256::from(value))
+			}).collect()
+		}
+	}
+}
+
+impl From<ethjson::spec::Account> for PodAccount {
+	fn from(a: ethjson::spec::Account) -> Self {
+		PodAccount {
+			balance: a.balance.map_or_else(U256::zero, Into::into),
+			nonce: a.nonce.map_or_else(U256::zero, Into::into),
+			code: vec![],
+			storage: BTreeMap::new()
 		}
 	}
 }

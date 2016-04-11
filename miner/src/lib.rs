@@ -105,8 +105,11 @@ pub trait MinerService : Send + Sync {
 	/// Get the sealing work package and if `Some`, apply some transform.
 	fn map_sealing_work<F, T>(&self, chain: &BlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T;
 
-	/// Query pending transactions for hash
+	/// Query pending transactions for hash.
 	fn transaction(&self, hash: &H256) -> Option<SignedTransaction>;
+
+	/// Get a list of all pending transactions.
+	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 
 	/// Returns highest transaction nonce for given address.
 	fn last_nonce(&self, address: &Address) -> Option<U256>;

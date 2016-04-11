@@ -42,6 +42,8 @@ extern crate rpassword;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
+#[cfg(feature = "webapp")]
+extern crate ethcore_webapp as webapp;
 
 use std::io::{BufRead, BufReader};
 use std::fs::File;
@@ -63,6 +65,10 @@ use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
+#[cfg(feature = "rpc")]
+use rpc::Server as RpcServer;
+#[cfg(feature = "webapp")]
+use webapp::Listening as WebappServer;
 
 mod price_info;
 
@@ -98,7 +104,8 @@ Protocol Options:
   --identity NAME          Specify your node's name.
 
 Account Options:
-  --unlock ACCOUNT         Unlock ACCOUNT for the duration of the execution.
+  --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
+                           ACCOUNTS is a comma-delimited list of addresses.
   --password FILE          Provide a file containing a password for unlocking
                            an account.
 
@@ -118,7 +125,7 @@ Networking Options:
                            string or input to SHA3 operation.
 
 API and Console Options:
-  -j --jsonrpc             Enable the JSON-RPC API sever.
+  -j --jsonrpc             Enable the JSON-RPC API server.
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
                            server, IP should be an interface's IP address, or
                            all (all interfaces) or local [default: local].
@@ -130,6 +137,19 @@ API and Console Options:
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
                            [default: web3,eth,net,personal].
+  -w --webapp              Enable the web applications server (e.g.
+                           status page).
+  --webapp-port PORT       Specify the port portion of the WebApps server
+                           [default: 8080].
+  --webapp-interface IP    Specify the hostname portion of the WebApps
+                           server, IP should be an interface's IP address, or
+                           all (all interfaces) or local [default: local].
+  --webapp-user USERNAME   Specify username for WebApps server. It will be
+                           used in HTTP Basic Authentication Scheme.
+                           If --webapp-pass is not specified you will be
+                           asked for password on startup.
+  --webapp-pass PASSWORD   Specify password for WebApps server. Use only in
+                           conjunction with --webapp-user.
 
 Sealing/Mining Options:
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
@@ -194,7 +214,7 @@ struct Args {
 	flag_chain: String,
 	flag_db_path: String,
 	flag_identity: String,
-	flag_unlock: Vec<String>,
+	flag_unlock: Option<String>,
 	flag_password: Vec<String>,
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
@@ -214,6 +234,11 @@ struct Args {
 	flag_jsonrpc_port: u16,
 	flag_jsonrpc_cors: String,
 	flag_jsonrpc_apis: String,
+	flag_webapp: bool,
+	flag_webapp_port: u16,
+	flag_webapp_interface: String,
+	flag_webapp_user: Option<String>,
+	flag_webapp_pass: Option<String>,
 	flag_author: String,
 	flag_usd_per_tx: String,
 	flag_usd_per_eth: String,
@@ -270,10 +295,10 @@ fn setup_rpc_server(
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
-	url: &str,
+	url: &SocketAddr,
 	cors_domain: &str,
-	apis: Vec<&str>
-) -> Option<Arc<PanicHandler>> {
+	apis: Vec<&str>,
+) -> RpcServer {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -291,8 +316,49 @@ fn setup_rpc_server(
 			}
 		}
 	}
-	Some(server.start_http(url, cors_domain, ::num_cpus::get()))
+	let start_result = server.start_http(url, cors_domain);
+	match start_result {
+		Err(rpc::RpcServerError::IoError(err)) => die_with_io_error(err),
+		Err(e) => die!("{:?}", e),
+		Ok(server) => server,
+	}
 }
+
+#[cfg(feature = "webapp")]
+fn setup_webapp_server(
+	client: Arc<Client>,
+	sync: Arc<EthSync>,
+	secret_store: Arc<AccountService>,
+	miner: Arc<Miner>,
+	url: &str,
+	auth: Option<(String, String)>,
+) -> WebappServer {
+	use rpc::v1::*;
+
+	let server = webapp::WebappServer::new();
+	server.add_delegate(Web3Client::new().to_delegate());
+	server.add_delegate(NetClient::new(&sync).to_delegate());
+	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
+	server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
+	server.add_delegate(PersonalClient::new(&secret_store).to_delegate());
+	let start_result = match auth {
+		None => {
+			server.start_unsecure_http(url, ::num_cpus::get())
+		},
+		Some((username, password)) => {
+			server.start_basic_auth_http(url, ::num_cpus::get(), &username, &password)
+		},
+	};
+	match start_result {
+		Err(webapp::WebappServerError::IoError(err)) => die_with_io_error(err),
+		Err(e) => die!("{:?}", e),
+		Ok(handle) => handle,
+	}
+
+}
+
+#[cfg(not(feature = "rpc"))]
+struct RpcServer;
 
 #[cfg(not(feature = "rpc"))]
 fn setup_rpc_server(
@@ -302,9 +368,24 @@ fn setup_rpc_server(
 	_miner: Arc<Miner>,
 	_url: &str,
 	_cors_domain: &str,
-	_apis: Vec<&str>
-) -> Option<Arc<PanicHandler>> {
-	None
+	_apis: Vec<&str>,
+) -> ! {
+	die!("Your Parity version has been compiled without JSON-RPC support.")
+}
+
+#[cfg(not(feature = "webapp"))]
+struct WebappServer;
+
+#[cfg(not(feature = "webapp"))]
+fn setup_webapp_server(
+	_client: Arc<Client>,
+	_sync: Arc<EthSync>,
+	_secret_store: Arc<AccountService>,
+	_miner: Arc<Miner>,
+	_url: &str,
+	_auth: Option<(String, String)>,
+) -> ! {
+	die!("Your Parity version has been compiled without WebApps support.")
 }
 
 fn print_version() {
@@ -396,7 +477,7 @@ impl Configuration {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
-			f => Spec::from_json_utf8(contents(f).unwrap_or_else(|_| {
+			f => Spec::load(contents(f).unwrap_or_else(|_| {
 				die!("{}: Couldn't read chain specification file. Sure it exists?", f)
 			}).as_ref()),
 		}
@@ -537,14 +618,15 @@ impl Configuration {
 				.collect::<Vec<_>>()
 				.into_iter()
 		}).collect::<Vec<_>>();
-
 		let account_service = AccountService::new_in(Path::new(&self.keys_path()));
-		for d in &self.args.flag_unlock {
-			let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
-				die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
-			});
-			if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
-				die!("No password given to unlock account {}. Pass the password using `--password`.", a);
+		if let Some(ref unlocks) = self.args.flag_unlock {
+			for d in unlocks.split(',') {
+				let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
+					die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
+				});
+				if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
+					die!("No password given to unlock account {}. Pass the password using `--password`.", a);
+				}
 			}
 		}
 		account_service
@@ -567,7 +649,10 @@ impl Configuration {
 		let account_service = Arc::new(self.account_service());
 
 		// Build client
-		let mut service = ClientService::start(self.client_config(), spec, net_settings, &Path::new(&self.path())).unwrap();
+		let mut service = ClientService::start(
+			self.client_config(), spec, net_settings, &Path::new(&self.path())
+		).unwrap_or_else(|e| die_with_error(e));
+
 		panic_handler.forward_from(&service);
 		let client = service.client();
 
@@ -582,7 +667,8 @@ impl Configuration {
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
 
 		// Setup rpc
-		if self.args.flag_jsonrpc || self.args.flag_rpc {
+		let rpc_server = if self.args.flag_jsonrpc || self.args.flag_rpc {
+			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
 			let url = format!("{}:{}",
 				match self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_interface).as_str() {
 					"all" => "0.0.0.0",
@@ -591,23 +677,53 @@ impl Configuration {
 				},
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
 			);
-			SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
-			let cors = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
-			// TODO: use this as the API list.
-			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let server_handler = setup_rpc_server(
+			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
+			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
+
+			Some(setup_rpc_server(
+				service.client(),
+				sync.clone(),
+				account_service.clone(),
+				miner.clone(),
+				&addr,
+				&cors_domain,
+				apis.split(',').collect()
+			))
+		} else {
+			None
+		};
+
+		let webapp_server = if self.args.flag_webapp {
+			let url = format!("{}:{}",
+				match self.args.flag_webapp_interface.as_str() {
+					"all" => "0.0.0.0",
+					"local" => "127.0.0.1",
+					x => x,
+				},
+				self.args.flag_webapp_port
+			);
+			let auth = self.args.flag_webapp_user.as_ref().map(|username| {
+				let password = self.args.flag_webapp_pass.as_ref().map_or_else(|| {
+					use rpassword::read_password;
+					println!("Type password for WebApps server (user: {}): ", username);
+					let pass = read_password().unwrap();
+					println!("OK, got it. Starting server...");
+					pass
+				}, |pass| pass.to_owned());
+				(username.to_owned(), password)
+			});
+
+			Some(setup_webapp_server(
 				service.client(),
 				sync.clone(),
 				account_service.clone(),
 				miner.clone(),
 				&url,
-				cors,
-				apis.split(',').collect()
-			);
-			if let Some(handler) = server_handler {
-				panic_handler.forward_from(handler.deref());
-			}
-		}
+				auth,
+			))
+		} else {
+			None
+		};
 
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
@@ -619,11 +735,11 @@ impl Configuration {
 		service.io().register_handler(io_handler).expect("Error registering IO handler");
 
 		// Handle exit
-		wait_for_exit(panic_handler);
+		wait_for_exit(panic_handler, rpc_server, webapp_server);
 	}
 }
 
-fn wait_for_exit(panic_handler: Arc<PanicHandler>) {
+fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _webapp_server: Option<WebappServer>) {
 	let exit = Arc::new(Condvar::new());
 
 	// Handle possible exits
@@ -637,6 +753,30 @@ fn wait_for_exit(panic_handler: Arc<PanicHandler>) {
 	// Wait for signal
 	let mutex = Mutex::new(());
 	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+	info!("Finishing work, please wait...");
+}
+
+fn die_with_error(e: ethcore::error::Error) -> ! {
+	use ethcore::error::Error;
+
+	match e {
+		Error::Util(UtilError::StdIo(e)) => die_with_io_error(e),
+		_ => die!("{:?}", e),
+	}
+}
+fn die_with_io_error(e: std::io::Error) -> ! {
+	match e.kind() {
+		std::io::ErrorKind::PermissionDenied => {
+			die!("No permissions to bind to specified port.")
+		},
+		std::io::ErrorKind::AddrInUse => {
+			die!("Specified address is already in use. Please make sure that nothing is listening on the same port or try using a different one.")
+		},
+		std::io::ErrorKind::AddrNotAvailable => {
+			die!("Could not use specified interface or given address is invalid.")
+		},
+		_ => die!("{:?}", e),
+	}
 }
 
 fn main() {

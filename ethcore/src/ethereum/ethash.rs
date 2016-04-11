@@ -19,42 +19,63 @@ extern crate ethash;
 use self::ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
-use spec::*;
+use spec::CommonParams;
 use engine::*;
-use evm::Schedule;
-use evm::Factory;
+use evm::{Schedule, Factory};
+use ethjson;
+
+/// Ethash params.
+#[derive(Debug, PartialEq)]
+pub struct EthashParams {
+	/// Tie breaking gas.
+	pub tie_breaking_gas: bool,
+	/// Gas limit divisor.
+	pub gas_limit_bound_divisor: U256,
+	/// Minimum difficulty.
+	pub minimum_difficulty: U256,
+	/// Difficulty bound divisor.
+	pub difficulty_bound_divisor: U256,
+	/// Block duration.
+	pub duration_limit: u64,
+	/// Block reward.
+	pub block_reward: U256,
+	/// Namereg contract address.
+	pub registrar: Address,
+}
+
+impl From<ethjson::spec::EthashParams> for EthashParams {
+	fn from(p: ethjson::spec::EthashParams) -> Self {
+		EthashParams {
+			tie_breaking_gas: p.tie_breaking_gas,
+			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
+			minimum_difficulty: p.minimum_difficulty.into(),
+			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
+			duration_limit: p.duration_limit.into(),
+			block_reward: p.block_reward.into(),
+			registrar: p.registrar.into(),
+		}
+	}
+}
 
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct Ethash {
-	spec: Spec,
+	params: CommonParams,
+	ethash_params: EthashParams,
+	builtins: BTreeMap<Address, Builtin>,
 	pow: EthashManager,
 	factory: Factory,
-	u64_params: RwLock<HashMap<String, u64>>,
-	u256_params: RwLock<HashMap<String, U256>>,
 }
 
 impl Ethash {
-	/// Create a new boxed instance of Ethash engine
-	pub fn new_boxed(spec: Spec) -> Box<Engine> {
-		Box::new(Ethash {
-			spec: spec,
-			pow: EthashManager::new(),
-			// TODO [todr] should this return any specific factory?
-			factory: Factory::default(),
-			u64_params: RwLock::new(HashMap::new()),
-			u256_params: RwLock::new(HashMap::new())
-		})
-	}
-
-	#[cfg(test)]
-	fn new_test(spec: Spec) -> Ethash {
+	/// Create a new instance of Ethash engine
+	pub fn new(params: CommonParams, ethash_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Self {
 		Ethash {
-			spec: spec,
+			params: params,
+			ethash_params: ethash_params,
+			builtins: builtins,
 			pow: EthashManager::new(),
 			factory: Factory::default(),
-			u64_params: RwLock::new(HashMap::new()),
-			u256_params: RwLock::new(HashMap::new())
 		}
 	}
 }
@@ -65,17 +86,23 @@ impl Engine for Ethash {
 	// Two fields - mix
 	fn seal_fields(&self) -> usize { 2 }
 
+	fn params(&self) -> &CommonParams { &self.params }
+
+	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
+		&self.builtins
+	}
+
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
-	fn spec(&self) -> &Spec { &self.spec }
 
 	fn vm_factory(&self) -> &Factory {
 		&self.factory
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		trace!(target: "client", "Creating schedule. param={:?}, fCML={}", self.spec().engine_params.get("frontierCompatibilityModeLimit"), self.u64_param("frontierCompatibilityModeLimit"));
-		if env_info.number < self.u64_param("frontierCompatibilityModeLimit") {
+		trace!(target: "client", "Creating schedule. fCML={}", self.params.frontier_compatibility_mode_limit);
+
+		if env_info.number < self.params.frontier_compatibility_mode_limit {
 			Schedule::new_frontier()
 		} else {
 			Schedule::new_homestead()
@@ -86,7 +113,7 @@ impl Engine for Ethash {
 		header.difficulty = self.calculate_difficuty(header, parent);
 		header.gas_limit = {
 			let gas_limit = parent.gas_limit;
-			let bound_divisor = self.u256_param("gasLimitBoundDivisor");
+			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - x!(1))
 			} else {
@@ -100,7 +127,7 @@ impl Engine for Ethash {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) {
-		let reward = self.spec().engine_params.get("blockReward").map_or(U256::from(0u64), |a| decode(&a));
+		let reward = self.ethash_params.block_reward;
 		let fields = block.fields_mut();
 
 		// Bestow block reward
@@ -125,7 +152,7 @@ impl Engine for Ethash {
 		try!(UntrustedRlp::new(&header.seal[1]).as_val::<H64>());
 
 		// TODO: consider removing these lines.
-		let min_difficulty = decode(self.spec().engine_params.get("minimumDifficulty").unwrap());
+		let min_difficulty = self.ethash_params.minimum_difficulty;
 		if header.difficulty < min_difficulty {
 			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty })))
 		}
@@ -170,7 +197,7 @@ impl Engine for Ethash {
 		if header.difficulty != expected_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty })))
 		}
-		let gas_limit_divisor = decode(self.spec().engine_params.get("gasLimitBoundDivisor").unwrap());
+		let gas_limit_divisor = self.ethash_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit - parent.gas_limit / gas_limit_divisor;
 		let max_gas = parent.gas_limit + parent.gas_limit / gas_limit_divisor;
 		if header.gas_limit <= min_gas || header.gas_limit >= max_gas {
@@ -180,7 +207,7 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
-		if header.number() >= self.u64_param("frontierCompatibilityModeLimit") {
+		if header.number() >= self.params.frontier_compatibility_mode_limit {
 			try!(t.check_low_s());
 		}
 		Ok(())
@@ -188,16 +215,6 @@ impl Engine for Ethash {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
-	}
-
-	fn u64_param(&self, name: &str) -> u64 {
-		*self.u64_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
-			self.spec().engine_params.get(name).map_or(0u64, |a| decode(&a)))
-	}
-
-	fn u256_param(&self, name: &str) -> U256 {
-		*self.u256_params.write().unwrap().entry(name.to_owned()).or_insert_with(||
-			self.spec().engine_params.get(name).map_or(x!(0), |a| decode(&a)))
 	}
 }
 
@@ -209,10 +226,11 @@ impl Ethash {
 			panic!("Can't calculate genesis block difficulty");
 		}
 
-		let min_difficulty = self.u256_param("minimumDifficulty");
-		let difficulty_bound_divisor = self.u256_param("difficultyBoundDivisor");
-		let duration_limit = self.u64_param("durationLimit");
-		let frontier_limit = self.u64_param("frontierCompatibilityModeLimit");
+		let min_difficulty = self.ethash_params.minimum_difficulty;
+		let difficulty_bound_divisor = self.ethash_params.difficulty_bound_divisor;
+		let duration_limit = self.ethash_params.duration_limit;
+		let frontier_limit = self.params.frontier_compatibility_mode_limit;
+
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {
 				parent.difficulty - (parent.difficulty / difficulty_bound_divisor)
@@ -283,16 +301,16 @@ mod tests {
 	use block::*;
 	use engine::*;
 	use tests::helpers::*;
-	use super::{Ethash};
 	use super::super::new_morden;
 
 	#[test]
 	fn on_close_block() {
-		let engine = new_morden().to_engine().unwrap();
-		let genesis_header = engine.spec().genesis_header();
+		let spec = new_morden();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let b = b.close();
@@ -301,11 +319,12 @@ mod tests {
 
 	#[test]
 	fn on_close_block_with_uncle() {
-		let engine = new_morden().to_engine().unwrap();
-		let genesis_header = engine.spec().genesis_header();
+		let spec = new_morden();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
-		engine.spec().ensure_db_good(db.as_hashdb_mut());
+		spec.ensure_db_good(db.as_hashdb_mut());
 		let last_hashes = vec![genesis_header.hash()];
 		let mut b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
 		let mut uncle = Header::new();
@@ -320,27 +339,20 @@ mod tests {
 
 	#[test]
 	fn has_valid_metadata() {
-		let engine = Ethash::new_boxed(new_morden());
+		let engine = new_morden().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
 	}
 
 	#[test]
-	fn can_return_params() {
-		let engine = Ethash::new_test(new_morden());
-		assert!(engine.u64_param("durationLimit") > 0);
-		assert!(engine.u256_param("minimumDifficulty") > U256::zero());
-	}
-
-	#[test]
 	fn can_return_factory() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		engine.vm_factory();
 	}
 
 	#[test]
 	fn can_return_schedule() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let schedule = engine.schedule(&EnvInfo {
 			number: 10000000,
 			author: x!(0),
@@ -368,7 +380,8 @@ mod tests {
 
 	#[test]
 	fn can_do_seal_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
+		//let engine = Ethash::new_test(new_morden());
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
@@ -382,7 +395,7 @@ mod tests {
 
 	#[test]
 	fn can_do_difficulty_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 
@@ -397,7 +410,7 @@ mod tests {
 
 	#[test]
 	fn can_do_proof_of_work_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
@@ -413,7 +426,7 @@ mod tests {
 
 	#[test]
 	fn can_do_seal_unordered_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_unordered(&header, None);
@@ -427,7 +440,7 @@ mod tests {
 
 	#[test]
 	fn can_do_seal256_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		let verify_result = engine.verify_block_unordered(&header, None);
@@ -441,7 +454,7 @@ mod tests {
 
 	#[test]
 	fn can_do_proof_of_work_unordered_verification_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
@@ -457,7 +470,7 @@ mod tests {
 
 	#[test]
 	fn can_verify_block_family_genesis_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let header: Header = Header::default();
 		let parent_header: Header = Header::default();
 
@@ -472,7 +485,7 @@ mod tests {
 
 	#[test]
 	fn can_verify_block_family_difficulty_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_number(2);
 		let mut parent_header: Header = Header::default();
@@ -489,7 +502,7 @@ mod tests {
 
 	#[test]
 	fn can_verify_block_family_gas_fail() {
-		let engine = Ethash::new_test(new_morden());
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_number(2);
 		header.set_difficulty(U256::from_str("0000000000000000000000000000000000000000000000000000000000020000").unwrap());

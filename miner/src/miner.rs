@@ -228,6 +228,11 @@ impl MinerService for Miner {
 		queue.find(hash)
 	}
 
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		let queue = self.transaction_queue.lock().unwrap();
+		queue.top_transactions()
+	}
+
 	fn last_nonce(&self, address: &Address) -> Option<U256> {
 		self.transaction_queue.lock().unwrap().last_nonce(address)
 	}
