@@ -194,11 +194,6 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
 
-			let queue_nonce: Option<U256> = match signed_transaction.sender() {
-				Ok(ref sender) => miner.last_nonce(sender),
-				Err(_) => None,
-			};
-
 			miner.import_transactions(vec![signed_transaction], |a: &Address| {
 				AccountDetails {
 					nonce: queue_nonce.unwrap_or(client.nonce(&a)),

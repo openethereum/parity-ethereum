@@ -348,7 +348,7 @@ impl TransactionQueue {
 		where T: Fn(&Address) -> AccountDetails {
 
 		txs.into_iter()
-			.map(|tx| self.add(tx, &fetch_account))			
+			.map(|tx| self.add(tx, &fetch_account))
 			.collect()
 	}
 
@@ -384,7 +384,6 @@ impl TransactionQueue {
 
 		let vtx = try!(VerifiedTransaction::new(tx));
 		let client_account = fetch_account(&vtx.sender());
-//		let next_nonce = self.last_nonce(&vtx.sender()).map(|nonce| nonce + U256::one()).unwrap_or(client_account.nonce);
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
 		if client_account.balance < cost {
