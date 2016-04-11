@@ -135,6 +135,7 @@ impl Tracer for ExecutiveTracer {
 
 	fn trace_call(&mut self, call: Option<TraceCall>, gas_used: U256, output: Option<Bytes>, depth: usize, subs:
 				  Vec<Trace>, delegate_call: bool) {
+		// don't trace if it's DELEGATECALL or CALLCODE.
 		if delegate_call {
 			return;
 		}
@@ -166,6 +167,7 @@ impl Tracer for ExecutiveTracer {
 	}
 
 	fn trace_failed_call(&mut self, call: Option<TraceCall>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
+		// don't trace if it's DELEGATECALL or CALLCODE.
 		if delegate_call {
 			return;
 		}
