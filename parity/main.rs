@@ -106,7 +106,8 @@ Protocol Options:
   --identity NAME          Specify your node's name.
 
 Account Options:
-  --unlock ACCOUNT         Unlock ACCOUNT for the duration of the execution.
+  --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
+                           ACCOUNTS is a comma-delimited list of addresses.
   --password FILE          Provide a file containing a password for unlocking
                            an account.
 
@@ -215,7 +216,7 @@ struct Args {
 	flag_chain: String,
 	flag_db_path: String,
 	flag_identity: String,
-	flag_unlock: Vec<String>,
+	flag_unlock: Option<String>,
 	flag_password: Vec<String>,
 	flag_cache: Option<usize>,
 	flag_keys_path: String,
@@ -619,14 +620,15 @@ impl Configuration {
 				.collect::<Vec<_>>()
 				.into_iter()
 		}).collect::<Vec<_>>();
-
 		let account_service = AccountService::new_in(Path::new(&self.keys_path()));
-		for d in &self.args.flag_unlock {
-			let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
-				die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
-			});
-			if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
-				die!("No password given to unlock account {}. Pass the password using `--password`.", a);
+		if let Some(ref unlocks) = self.args.flag_unlock {
+			for d in unlocks.split(',') {
+				let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
+					die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
+				});
+				if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
+					die!("No password given to unlock account {}. Pass the password using `--password`.", a);
+				}
 			}
 		}
 		account_service

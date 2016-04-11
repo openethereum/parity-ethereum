@@ -190,13 +190,9 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		let hash = signed_transaction.hash();
 
 		let import = {
-			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
 			take_weak!(self.miner).import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
-				nonce: miner
-					.last_nonce(a)
-					.map(|nonce| nonce + U256::one())
-					.unwrap_or_else(|| client.nonce(a)),
+				nonce: client.nonce(a),
 				balance: client.balance(a),
 			})
 		};
@@ -465,7 +461,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	fn submit_work(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
-//			trace!("Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
+			trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
@@ -636,10 +632,11 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 
 							to_value(&diff)
 						},
-						PollFilter::Logs(ref mut block_number, ref mut filter) => {
+						PollFilter::Logs(ref mut block_number, ref filter) => {
+							let mut filter = filter.clone();
 							filter.from_block = BlockId::Number(*block_number);
 							filter.to_block = BlockId::Latest;
-							let logs = client.logs(filter.clone())
+							let logs = client.logs(filter)
 								.into_iter()
 								.map(From::from)
 								.collect::<Vec<Log>>();
@@ -650,6 +647,24 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 							to_value(&logs)
 						}
 					}
+				}
+			})
+	}
+
+	fn filter_logs(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(Index,)>(params)
+			.and_then(|(index,)| {
+				let mut polls = self.polls.lock().unwrap();
+				match polls.poll(&index.value()) {
+					Some(&PollFilter::Logs(ref _block_number, ref filter)) => {
+						let logs = take_weak!(self.client).logs(filter.clone())
+							.into_iter()
+							.map(From::from)
+							.collect::<Vec<Log>>();
+						to_value(&logs)
+					},
+					// just empty array
+					_ => Ok(Value::Array(vec![] as Vec<Value>)),
 				}
 			})
 	}
