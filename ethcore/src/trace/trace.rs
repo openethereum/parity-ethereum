@@ -15,7 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tracing datatypes.
-use common::*;
+use util::{U256, Bytes, Address};
+use util::rlp::*;
+use action_params::ActionParams;
 
 /// TraceCall result.
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -24,6 +26,13 @@ pub struct TraceCallResult {
 	pub gas_used: U256,
 	/// Call Output.
 	pub output: Bytes,
+}
+
+impl Encodable for TraceCallResult {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.gas_used);
+		s.append(&self.output);
+	}
 }
 
 /// TraceCreate result.
@@ -35,6 +44,14 @@ pub struct TraceCreateResult {
 	pub code: Bytes,
 	/// Address of the newly created contract.
 	pub address: Address,
+}
+
+impl Encodable for TraceCreateResult {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.gas_used);
+		s.append(&self.code);
+		s.append(&self.address);
+	}
 }
 
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
@@ -64,6 +81,16 @@ impl From<ActionParams> for TraceCall {
 	}
 }
 
+impl Encodable for TraceCall {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.from);
+		s.append(&self.to);
+		s.append(&self.value);
+		s.append(&self.gas);
+		s.append(&self.input);
+	}
+}
+
 /// Description of a _create_ action, either a `CREATE` operation or a create transction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TraceCreate {
@@ -88,6 +115,15 @@ impl From<ActionParams> for TraceCreate {
 	}
 }
 
+impl Encodable for TraceCreate {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.from);
+		s.append(&self.value);
+		s.append(&self.gas);
+		s.append(&self.init);
+	}
+}
+
 /// Description of an action that we trace; will be either a call or a create.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TraceAction {
@@ -95,6 +131,21 @@ pub enum TraceAction {
 	Call(TraceCall),
 	/// It's a create action.
 	Create(TraceCreate),
+}
+
+impl Encodable for TraceAction {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		match *self {
+			TraceAction::Call(ref call) => {
+				s.append(&0u8);
+				s.append(call);
+			},
+			TraceAction::Create(ref create) => {
+				s.append(&1u8);
+				s.append(create);
+			}
+		}
+	}
 }
 
 /// The result of the performed action.
@@ -110,6 +161,27 @@ pub enum TraceResult {
 	FailedCreate,
 }
 
+impl Encodable for TraceResult {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		match *self {
+			TraceResult::Call(ref call) => {
+				s.append(&0u8);
+				s.append(call);
+			},
+			TraceResult::Create(ref create) => {
+				s.append(&1u8);
+				s.append(create);
+			},
+			TraceResult::FailedCall => {
+				s.append(&2u8);
+			},
+			TraceResult::FailedCreate => {
+				s.append(&3u8);
+			}
+		}
+	}
+}
+
 #[derive(Debug, Clone, PartialEq)]
 /// A trace; includes a description of the action being traced and sub traces of each interior action.
 pub struct Trace {
@@ -122,4 +194,13 @@ pub struct Trace {
 	pub subs: Vec<Trace>,
 	/// The result of the performed action.
 	pub result: TraceResult,
+}
+
+impl Encodable for Trace {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.depth);
+		s.append(&self.action);
+		s.append(&self.subs);
+		s.append(&self.result);
+	}
 }
