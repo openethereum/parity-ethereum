@@ -26,6 +26,7 @@ use ethminer::{MinerService, AccountDetails};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
+use util::bytes::{ToPretty};
 use util::rlp::{encode, UntrustedRlp, View};
 use ethcore::client::*;
 use ethcore::block::IsBlock;
@@ -191,9 +192,13 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 
 		let import = {
 			let client = take_weak!(self.client);
-			take_weak!(self.miner).import_transactions(vec![signed_transaction], |a: &Address| AccountDetails {
-				nonce: client.nonce(a),
-				balance: client.balance(a),
+			let miner = take_weak!(self.miner);
+
+			miner.import_transactions(vec![signed_transaction], |a: &Address| {
+				AccountDetails {
+					nonce: client.nonce(&a),
+					balance: client.balance(&a),
+				}
 			})
 		};
 
@@ -499,6 +504,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 								data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
 							}.sign(&secret)
 						};
+						trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
 						self.dispatch_transaction(signed_transaction)
 					},
 					Err(_) => { to_value(&H256::zero()) }
