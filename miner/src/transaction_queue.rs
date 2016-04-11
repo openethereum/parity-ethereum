@@ -384,7 +384,7 @@ impl TransactionQueue {
 
 		let vtx = try!(VerifiedTransaction::new(tx));
 		let client_account = fetch_account(&vtx.sender());
-		let next_nonce = self.last_nonce(&vtx.sender()).map(|nonce| nonce + U256::one()).unwrap_or(client_account.nonce);
+//		let next_nonce = self.last_nonce(&vtx.sender()).map(|nonce| nonce + U256::one()).unwrap_or(client_account.nonce);
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
 		if client_account.balance < cost {
@@ -396,7 +396,7 @@ impl TransactionQueue {
 			}));
 		}
 
-		self.import_tx(vtx, next_nonce).map_err(Error::Transaction)
+		self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction)
 	}
 
 	/// Removes all transactions identified by hashes given in slice
@@ -1189,6 +1189,7 @@ mod test {
 
 	#[test]
 	fn should_replace_same_transaction_when_has_higher_fee() {
+		init_log();
 		// given
 		let mut txq = TransactionQueue::new();
 		let keypair = KeyPair::create().unwrap();
@@ -1265,7 +1266,7 @@ mod test {
 	#[test]
 	fn should_return_none_when_transaction_from_given_address_does_not_exist() {
 		// given
-		let mut txq = TransactionQueue::new();
+		let txq = TransactionQueue::new();
 
 		// then
 		assert_eq!(txq.last_nonce(&Address::default()), None);
@@ -1278,7 +1279,7 @@ mod test {
 		let tx = new_tx();
 		let from = tx.sender().unwrap();
 		let nonce = tx.nonce;
-		let details = |a: &Address| AccountDetails { nonce: nonce, balance: !U256::zero() };
+		let details = |_a: &Address| AccountDetails { nonce: nonce, balance: !U256::zero() };
 
 		// when
 		txq.add(tx, &details).unwrap();
