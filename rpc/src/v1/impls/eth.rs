@@ -196,7 +196,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 
 			miner.import_transactions(vec![signed_transaction], |a: &Address| {
 				AccountDetails {
-					nonce: queue_nonce.unwrap_or(client.nonce(&a)),
+					nonce: client.nonce(&a),
 					balance: client.balance(&a),
 				}
 			})
