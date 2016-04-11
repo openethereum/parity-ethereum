@@ -58,21 +58,6 @@ impl Miner {
 		Arc::new(Miner::default())
 	}
 
-	/// Get the author that we will seal blocks as.
-	fn author(&self) -> Address {
-		*self.author.read().unwrap()
-	}
-
-	/// Get the extra_data that we will seal blocks wuth.
-	fn extra_data(&self) -> Bytes {
-		self.extra_data.read().unwrap().clone()
-	}
-
-	/// Get the extra_data that we will seal blocks wuth.
-	fn gas_floor_target(&self) -> U256 {
-		*self.gas_floor_target.read().unwrap()
-	}
-
 	/// Set the author that we will seal blocks as.
 	pub fn set_author(&self, author: Address) {
 		*self.author.write().unwrap() = author;
@@ -204,12 +189,19 @@ impl MinerService for Miner {
 		*self.transaction_queue.lock().unwrap().minimal_gas_price() * x!(110) / x!(100)
 	}
 
+	/// Get the author that we will seal blocks as.
 	fn author(&self) -> Address {
 		*self.author.read().unwrap()
 	}
 
+	/// Get the extra_data that we will seal blocks with.
 	fn extra_data(&self) -> Bytes {
 		self.extra_data.read().unwrap().clone()
+	}
+
+	/// Get the gas limit we wish to target when sealing a new block.
+	fn gas_floor_target(&self) -> U256 {
+		*self.gas_floor_target.read().unwrap()
 	}
 
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>

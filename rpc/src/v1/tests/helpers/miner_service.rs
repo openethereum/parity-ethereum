@@ -111,4 +111,12 @@ impl MinerService for TestMinerService {
 	fn submit_seal(&self, _chain: &BlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
 	}
+
+	fn extra_data(&self) -> Bytes {
+		vec![1, 2, 3, 4]
+	}
+
+	fn gas_floor_target(&self) -> U256 {
+		U256::from(12345)
+	}
 }
