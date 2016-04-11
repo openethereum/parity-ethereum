@@ -112,6 +112,8 @@ impl JournalDB for RefCountedDB {
 		self.latest_era.is_none()
 	}
 
+	fn latest_era() -> Option<u64> { self.latest_era }
+
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format:
 		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
@@ -218,6 +220,25 @@ mod tests {
 		assert!(jdb.exists(&h));
 		jdb.commit(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
 		assert!(!jdb.exists(&h));
+	}
+
+	#[test]
+	fn latest_era_should_work() {
+		// history is 3
+		let mut jdb = RefCountedDB::new_temp();
+		assert_eq!(jdb.latest_era(), None);
+		let h = jdb.insert(b"foo");
+		jdb.commit(0, &b"0".sha3(), None).unwrap();
+		assert_eq!(jdb.latest_era(), Some(0));
+		jdb.remove(&h);
+		jdb.commit(1, &b"1".sha3(), None).unwrap();
+		assert_eq!(jdb.latest_era(), Some(1));
+		jdb.commit(2, &b"2".sha3(), None).unwrap();
+		assert_eq!(jdb.latest_era(), Some(2));
+		jdb.commit(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
+		assert_eq!(jdb.latest_era(), Some(3));
+		jdb.commit(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert_eq!(jdb.latest_era(), Some(4));
 	}
 
 	#[test]

@@ -31,6 +31,9 @@ pub trait JournalDB : HashDB + Send + Sync {
 	/// Check if this database has any commits
 	fn is_empty(&self) -> bool;
 
+	/// Get the latest era in the DB. None if there isn't yet any data in there.
+	fn latest_era() -> Option<u64> { self.latest_era }
+
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;

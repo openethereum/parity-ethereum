@@ -333,6 +333,8 @@ impl JournalDB for EarlyMergeDB {
 		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
+	fn latest_era() -> Option<u64> { self.latest_era }
+
 	fn mem_used(&self) -> usize {
 		self.overlay.mem_used() + match self.refs {
 			Some(ref c) => c.read().unwrap().heap_size_of_children(),

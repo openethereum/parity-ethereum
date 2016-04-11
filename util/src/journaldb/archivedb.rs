@@ -168,6 +168,8 @@ impl JournalDB for ArchiveDB {
 		Ok((inserts + deletes) as u32)
 	}
 
+	fn latest_era() -> Option<u64> { self.latest_era }
+
 	fn state(&self, id: &H256) -> Option<Bytes> {
 		self.backing.get_by_prefix(&id.bytes()[0..12]).and_then(|b| Some(b.to_vec()))
 	}

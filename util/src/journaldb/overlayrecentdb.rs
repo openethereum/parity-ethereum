@@ -213,6 +213,8 @@ impl JournalDB for OverlayRecentDB {
 		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
+	fn latest_era() -> Option<u64> { self.latest_era }
+
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// record new commit's details.
 		trace!("commit: #{} ({}), end era: {:?}", now, id, end);
