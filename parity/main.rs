@@ -136,7 +136,7 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
-                           [default: web3,eth,net,personal].
+                           [default: web3,eth,net,personal,ethcore].
   -w --webapp              Enable the web applications server (e.g.
                            status page).
   --webapp-port PORT       Specify the port portion of the WebApps server
@@ -312,11 +312,12 @@ fn setup_rpc_server(
 			"eth" => {
 				server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
-			}
+			},
 			"personal" => server.add_delegate(PersonalClient::new(&secret_store).to_delegate()),
+			"ethcore" => server.add_delegate(EthcoreClient::new(&miner).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
-			}
+			},
 		}
 	}
 	let start_result = server.start_http(url, cors_domain);
@@ -344,6 +345,7 @@ fn setup_webapp_server(
 	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 	server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 	server.add_delegate(PersonalClient::new(&secret_store).to_delegate());
+	server.add_delegate(EthcoreClient::new(&miner).to_delegate());
 	let start_result = match auth {
 		None => {
 			server.start_unsecure_http(url, ::num_cpus::get())
