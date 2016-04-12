@@ -502,6 +502,7 @@ fn push_client_implementation(
 		.collect::<Vec<P<ast::ImplItem>>>();
 
 	let client_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
+	let item_ident =  builder.id(format!("{}", item.ident.name.as_str()));
 	let implement = quote_item!(cx,
 		impl<S> $client_ident<S> where S: ::ipc::IpcSocket {
 			pub fn new(socket: S) -> $client_ident<S> {
@@ -509,6 +510,27 @@ fn push_client_implementation(
 					socket: ::std::cell::RefCell::new(socket),
 					phantom: ::std::marker::PhantomData,
 				}
+			}
+
+			pub fn handshake(&self) -> bool {
+				let payload = BinHandshake {
+					protocol_version: $item_ident::protocol_version().to_string(),
+					api_version: $item_ident::api_version().to_string(),
+					_reserved: vec![0u8, 64],
+				};
+
+				let mut socket_ref = self.socket.borrow_mut();
+				let mut socket = socket_ref.deref_mut();
+				::ipc::invoke(
+					0,
+					&Some(::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()),
+					&mut socket);
+
+				let mut result = vec![0u8; 1];
+				if socket.read(&mut result).unwrap() == 1 {
+					result[0] == 1
+				}
+				else { false }
 			}
 
 			#[cfg(test)]
@@ -520,6 +542,38 @@ fn push_client_implementation(
 		}).unwrap();
 
 	push(Annotatable::Item(implement));
+}
+
+/// implements dispatching of system handshake invocation (method_num 0)
+fn implement_handshake_arm(
+	cx: &ExtCtxt,
+) -> (ast::Arm, ast::Arm)
+{
+	let handshake_deserialize = quote_stmt!(&cx,
+		let handshake_payload = ::bincode::serde::deserialize_from::<_, BinHandshake>(r, ::bincode::SizeLimit::Infinite).unwrap();
+	);
+
+	let handshake_deserialize_buf = quote_stmt!(&cx,
+		let handshake_payload = ::bincode::serde::deserialize::<BinHandshake>(buf).unwrap();
+	);
+
+	let handshake_serialize = quote_expr!(&cx,
+		::bincode::serde::serialize::<bool>(&Self::handshake(&::ipc::Handshake {
+			api_version: ::semver::Version::parse(&handshake_payload.api_version).unwrap(),
+			protocol_version: ::semver::Version::parse(&handshake_payload.protocol_version).unwrap(),
+		}), ::bincode::SizeLimit::Infinite).unwrap()
+	);
+
+	(
+		quote_arm!(&cx, 0 => {
+			$handshake_deserialize
+			$handshake_serialize
+		}),
+		quote_arm!(&cx, 0 => {
+			$handshake_deserialize_buf
+			$handshake_serialize
+		}),
+	)
 }
 
 /// implements `IpcInterface<C>` for the given class `C`
@@ -561,13 +615,7 @@ fn implement_interface(
 	let dispatch_arms = implement_dispatch_arms(cx, builder, &dispatch_table, false);
 	let dispatch_arms_buffered = implement_dispatch_arms(cx, builder, &dispatch_table, true);
 
-	let handshake_arm = quote_arm!(&cx, 0 => {
-		let handshake_payload = ::bincode::serde::deserialize_from::<_, BinHandshake>(r, ::bincode::SizeLimit::Infinite).unwrap();
-		::bincode::serde::serialize::<bool>(&Self::handshake(&::ipc::Handshake {
-			api_version: ::semver::Version::parse(&handshake_payload.api_version).unwrap(),
-			protocol_version: ::semver::Version::parse(&handshake_payload.protocol_version).unwrap(),
-		}), ::bincode::SizeLimit::Infinite).unwrap()
-	});
+	let (handshake_arm, handshake_arm_buf) = implement_handshake_arm(cx);
 
 	Ok((quote_item!(cx,
 		impl $impl_generics ::ipc::IpcInterface<$ty> for $ty $where_clause {
@@ -593,6 +641,7 @@ fn implement_interface(
 			fn dispatch_buf(&self, method_num: u16, buf: &[u8]) -> Vec<u8>
 			{
 				match method_num {
+					$handshake_arm_buf
 					$dispatch_arms_buffered
 					_ => vec![]
 				}
