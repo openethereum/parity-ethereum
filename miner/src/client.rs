@@ -26,7 +26,7 @@ use super::{MinerBlockChain, AccountDetails};
 
 impl<C : BlockChainClient> MinerBlockChain for C {
 
-	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock {
+	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Option<OpenBlock> {
 		unimplemented!()
 	}
 

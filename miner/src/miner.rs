@@ -22,7 +22,7 @@ use std::collections::HashSet;
 
 use util::{H256, U256, Address, Bytes, Uint, UsingQueue};
 use ethcore::engine::Engine;
-use ethcore::block::{ClosedBlock, IsBlock};
+use ethcore::block::{ClosedBlock, OpenBlock, IsBlock};
 use ethcore::error::{Error, ExecutionError, TransactionError};
 use ethcore::transaction::SignedTransaction;
 use super::{MinerService, MinerStatus, TransactionQueue, MinerBlockChain};
@@ -84,107 +84,61 @@ impl<C : MinerBlockChain> Miner<C> {
 		let mut sealing_work = self.sealing_work.lock().unwrap();
 		let best_hash = self.chain.best_block_hash();
 
-/*
 		// check to see if last ClosedBlock in would_seals is actually same parent block.
 		// if so
 		//   duplicate, re-open and push any new transactions.
 		//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 		//   otherwise, leave everything alone.
 		// otherwise, author a fresh block.
-*/
-
-		let (b, invalid_transactions) = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
+		let mut block = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
 			Some(old_block) => {
 				trace!(target: "miner", "Already have previous work; updating and returning");
-				// add transactions to old_block
-				let mut invalid_transactions = HashSet::new();
-				let mut block = old_block.reopen(self.chain.engine());
-				let block_number = block.block().fields().header.number();
-
-				// TODO: push new uncles, too.
-				// TODO: refactor with chain.prepare_sealing
-				for tx in transactions {
-					let hash = tx.hash();
-					let res = block.push_transaction(tx, None);
-					match res {
-						Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-							trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
-							// Exit early if gas left is smaller then min_tx_gas
-							let min_tx_gas: U256 = x!(21000);	// TODO: figure this out properly.
-							if gas_limit - gas_used < min_tx_gas {
-								break;
-							}
-						},
-						Err(Error::Transaction(TransactionError::AlreadyImported)) => {}	// already have transaction - ignore
-						Err(e) => {
-							invalid_transactions.insert(hash);
-							trace!(target: "miner",
-								   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
-								   block_number, hash, e);
-						},
-						_ => {}	// imported ok
-					}
-				}
-				(Some(block.close()), invalid_transactions)
+				old_block.reopen(self.chain.engine())
 			}
 			None => {
 				// block not found - create it.
 				trace!(target: "miner", "No existing work - making new block");
-				let transactions = self.transaction_queue.lock().unwrap().top_transactions();
-
-				let mut b = self.chain.open_block(
-					self.author(),
-					self.gas_floor_target(),
-					self.extra_data()
-				);
-
-				let block_number = b.block().header().number();
-				let min_tx_gas = U256::from(self.chain.engine().schedule(&b.env_info()).tx_gas);
-				let mut invalid_transactions = HashSet::new();
-
-				for tx in transactions {
-					// Push transaction to block
-					let hash = tx.hash();
-					let import = b.push_transaction(tx, None);
-
-					match import {
-						Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
-							trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
-							// Exit early if gas left is smaller then min_tx_gas
-							if gas_limit - gas_used < min_tx_gas {
-								break;
-							}
-						},
-						Err(e) => {
-							invalid_transactions.insert(hash);
-							trace!(target: "miner",
-								   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
-								   block_number, hash, e);
-						},
-						_ => {}
-					}
+				let block = self.chain.open_block(self.author(), self.gas_floor_target(), self.extra_data());
+				match block {
+					None => {
+						trace!(
+							target: "miner",
+							"prepare_sealing: couldn't open block, leaving (last={:?})",
+							sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash())
+						);
+						return;
+					},
+					Some(block) => {
+						block
+					},
 				}
-
-				// And close
-				let b = b.close();
-				trace!(target: "miner", "Sealing: number={}, hash={}, diff={}",
-					   b.block().header().number(),
-					   b.hash(),
-					   b.block().header().difficulty()
-				);
-				(Some(b), invalid_transactions)
 			}
 		};
+
+		let min_tx_gas = U256::from(self.chain.engine().schedule(&block.env_info()).tx_gas);
+		// TODO: If block has been reopened push new uncles, too.
+		let invalid_transactions = Self::push_transactions_to_block(&mut block, transactions, min_tx_gas);
+
+		// And close
+		let block = block.close();
+		trace!(target: "miner", "Sealing: number={}, hash={}, diff={}",
+			   block.header().number(),
+			   block.hash(),
+			   block.header().difficulty()
+			  );
+
+		// Remove invalid transactions from queue
 		let mut queue = self.transaction_queue.lock().unwrap();
 		queue.remove_all(
 			&invalid_transactions.into_iter().collect::<Vec<H256>>(),
 			|a: &Address| self.chain.account_details(a)
 		);
-		if let Some(block) = b {
-			if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
-				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
-				sealing_work.push(block);
-			}
+
+		// And save the block
+		let hash = block.block().fields().header.hash();
+		if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != hash) {
+			trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", hash);
+			sealing_work.push(block);
 		}
 		trace!(target: "miner", "prepare_sealing: leaving (last={:?})", sealing_work.peek_last_ref().map(|b| b.block().fields().header.hash()));
 	}
@@ -195,6 +149,36 @@ impl<C : MinerBlockChain> Miner<C> {
 		queue.set_gas_limit(gas_limit);
 	}
 
+	fn push_transactions_to_block(block: &mut OpenBlock, transactions: Vec<SignedTransaction>, min_tx_gas: U256) -> HashSet<H256> {
+		let block_number = block.block().header().number();
+		let mut invalid_transactions = HashSet::new();
+
+		for tx in transactions {
+			// Push transaction to block
+			let hash = tx.hash();
+			let import = block.push_transaction(tx, None);
+
+			match import {
+				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, .. })) => {
+					trace!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?}", hash);
+					// Exit early if gas left is smaller then min_tx_gas
+					if gas_limit - gas_used < min_tx_gas {
+						break;
+					}
+				},
+				Err(Error::Transaction(TransactionError::AlreadyImported)) => {}	// already have transaction - ignore
+				Err(e) => {
+					invalid_transactions.insert(hash);
+					trace!(target: "miner",
+						   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
+						   block_number, hash, e);
+				},
+				_ => {}
+			}
+		}
+
+		invalid_transactions
+	}
 }
 
 const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;

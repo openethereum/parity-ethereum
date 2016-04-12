@@ -125,7 +125,7 @@ pub trait MinerService : Send + Sync {
 
 /// `BlockChainClient` requirements for mining
 pub trait MinerBlockChain : Send + Sync {
-	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock;
+	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Option<OpenBlock>;
 
 	fn import_block(&self, bytes: Bytes) -> ImportResult;
 
