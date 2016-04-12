@@ -1,0 +1,16 @@
+[package]
+name = "ethcore-bin-serde"
+version = "0.1.0"
+authors = ["Nikolay Volf"]
+build = "build.rs"
+
+[lib]
+
+[dependencies]
+bincode = "*"
+serde = "0.7.0"
+ethcore-devtools = { path = "../../devtools" }
+
+[build-dependencies]
+syntex = "*"
+serde_codegen = "0.7.0"
