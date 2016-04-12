@@ -20,8 +20,8 @@
 
 #[macro_use]
 extern crate log;
+extern crate url;
 extern crate hyper;
-extern crate iron;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate ethcore_rpc as rpc;

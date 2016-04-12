@@ -18,6 +18,7 @@
 //! Processes request handling authorization and dispatching it to proper application.
 
 mod api;
+mod url;
 pub mod auth;
 
 use std::sync::Arc;
@@ -25,7 +26,7 @@ use hyper;
 use hyper::{server, uri, header};
 use page::Page;
 use apps::Pages;
-use iron::request::Url;
+use self::url::Url;
 use jsonrpc_http_server::ServerHandler;
 use self::auth::{Authorization, Authorized};
 
