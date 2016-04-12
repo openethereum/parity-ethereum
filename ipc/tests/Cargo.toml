@@ -12,6 +12,7 @@ path = "run.rs"
 bincode = "*"
 serde = "0.7.0"
 ethcore-devtools = { path = "../../devtools" }
+semver = "0.2.0"
 
 [build-dependencies]
 syntex = "0.30.0"
