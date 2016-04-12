@@ -20,6 +20,15 @@ mod tests {
 	use super::super::service::*;
 	use nanoipc;
 	use std::sync::Arc;
+	use std::io::{Write, Read};
+
+	fn dummy_write(addr: &str, buf: &[u8]) -> (::nanomsg::Socket, ::nanomsg::Endpoint) {
+		let mut socket = ::nanomsg::Socket::new(::nanomsg::Protocol::Pair).unwrap();
+		let endpoint = socket.connect(addr).unwrap();
+		socket.write(buf).unwrap();
+		(socket, endpoint)
+	}
+
 
 	fn init_worker(addr: &str) -> nanoipc::Worker<Service> {
 		let mut worker = nanoipc::Worker::<Service>::new(Arc::new(Service::new()));
@@ -35,12 +44,11 @@ mod tests {
 
 	#[test]
 	fn can_call_handshake() {
+		let url = "ipc:///tmp/parity-test-nano-20.ipc";
 		let worker_should_exit = Arc::new(::std::sync::atomic::AtomicBool::new(false));
 		let worker_is_ready = Arc::new(::std::sync::atomic::AtomicBool::new(false));
 		let c_worker_should_exit = worker_should_exit.clone();
 		let c_worker_is_ready = worker_is_ready.clone();
-
-		let url = "ipc:///tmp/parity-test-nano-20.ipc";
 
 		::std::thread::spawn(move || {
 			let mut worker = init_worker(url);
@@ -57,6 +65,44 @@ mod tests {
 
 		worker_should_exit.store(true, ::std::sync::atomic::Ordering::Relaxed);
 		assert!(hs.is_ok());
+	}
+
+	#[test]
+	fn can_receive_dummy_writes_in_thread() {
+		let url = "ipc:///tmp/parity-test-nano-30.ipc";
+		let worker_should_exit = Arc::new(::std::sync::atomic::AtomicBool::new(false));
+		let worker_is_ready = Arc::new(::std::sync::atomic::AtomicBool::new(false));
+		let c_worker_should_exit = worker_should_exit.clone();
+		let c_worker_is_ready = worker_is_ready.clone();
+
+		::std::thread::spawn(move || {
+			let mut worker = init_worker(url);
+    		while !c_worker_should_exit.load(::std::sync::atomic::Ordering::Relaxed) {
+				worker.poll();
+				c_worker_is_ready.store(true, ::std::sync::atomic::Ordering::Relaxed);
+			}
+		});
+		while !worker_is_ready.load(::std::sync::atomic::Ordering::Relaxed) { }
+
+		let (mut _s, _e) = dummy_write(url, &vec![0, 0,
+			// protocol version
+			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
+			// api version
+			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
+			// reserved
+			0, 0, 0, 0, 0, 0, 0, 64,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			]);
+
+		let mut buf = vec![0u8;1];
+		let result = _s.read(&mut buf);
+		assert_eq!(1, buf.len());
+		assert_eq!(1, buf[0]);
+
+		worker_should_exit.store(true, ::std::sync::atomic::Ordering::Relaxed);
 	}
 
 }

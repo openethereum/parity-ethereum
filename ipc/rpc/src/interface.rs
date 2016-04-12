@@ -69,6 +69,7 @@ pub fn invoke<W>(method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: 
 	if params.is_some() {
 		buf[2..buf_len].clone_from_slice(params.as_ref().unwrap());
 	}
+
 	if w.write(&buf).unwrap() != buf_len
 	{
 		// if write was inconsistent
