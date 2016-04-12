@@ -69,7 +69,7 @@ pub use transaction_queue::{TransactionQueue, AccountDetails};
 pub use miner::{Miner};
 
 use util::{H256, U256, Address, FixedHash, Bytes};
-use ethcore::client::{BlockChainClient};
+use ethcore::engine::Engine;
 use ethcore::block::{ClosedBlock, OpenBlock};
 use ethcore::error::{Error, ImportResult};
 use ethcore::transaction::SignedTransaction;
@@ -102,7 +102,7 @@ pub trait MinerService : Send + Sync {
 	fn chain_new_blocks(&self, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
 	/// Get the sealing work package and if `Some`, apply some transform.
-	fn map_sealing_work<F, T>(&self, chain: &BlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T;
+	fn map_sealing_work<F, T>(&self, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T;
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
@@ -123,7 +123,7 @@ pub trait MinerService : Send + Sync {
 
 }
 
-/// BlockChainClient requirements for mining
+/// `BlockChainClient` requirements for mining
 pub trait MinerBlockChain : Send + Sync {
 	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock;
 
@@ -135,7 +135,11 @@ pub trait MinerBlockChain : Send + Sync {
 
 	fn best_block_number(&self) -> u64;
 
+	fn best_block_hash(&self) -> H256;
+
 	fn account_details(&self, address: &Address) -> AccountDetails;
+
+	fn engine(&self) -> &Engine;
 }
 
 /// Mining status

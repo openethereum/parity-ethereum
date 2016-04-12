@@ -14,14 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethcore::engine::Engine;
 use ethcore::client::{BlockChainClient};
 use ethcore::block::OpenBlock;
 use ethcore::error::ImportResult;
 use ethcore::transaction::SignedTransaction;
 
-use util::{H256, U256, Address, Bytes, Uint};
+use util::{H256, U256, Address, Bytes};
 
-use super::{MinerService, MinerBlockChain, AccountDetails};
+use super::{MinerBlockChain, AccountDetails};
 
 impl<C : BlockChainClient> MinerBlockChain for C {
 
@@ -41,12 +42,19 @@ impl<C : BlockChainClient> MinerBlockChain for C {
 		unimplemented!()
 	}
 
-
 	fn best_block_number(&self) -> u64 {
 		unimplemented!()
 	}
 
+	fn best_block_hash(&self) -> H256 {
+		unimplemented!()
+	}
+
 	fn account_details(&self, address: &Address) -> AccountDetails {
+		unimplemented!()
+	}
+
+	fn engine(&self) -> &Engine {
 		unimplemented!()
 	}
 }

@@ -27,7 +27,6 @@ pub use self::ids::{BlockId, TransactionId, UncleId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use executive::Executed;
 
-use std::collections::HashSet;
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
@@ -118,7 +117,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
-	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> OpenBlock;
+	/// Returns new open block with given author, extra data and desired gas floor target.
+	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Option<OpenBlock>;
 
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;

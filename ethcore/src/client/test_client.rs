@@ -258,7 +258,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn open_block(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes) -> OpenBlock {
+	fn open_block(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes) -> Option<OpenBlock> {
 		unimplemented!();
 	}
 

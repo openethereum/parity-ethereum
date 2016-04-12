@@ -19,7 +19,6 @@
 use util::{Address, H256, Bytes, U256};
 use util::standard::*;
 use ethcore::error::Error;
-use ethcore::client::BlockChainClient;
 use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
 use ethminer::{MinerService, MinerStatus};
@@ -59,8 +58,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<(), Error>>
-		where T: Fn(&Address) -> AccountDetails {
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<(), Error>> {
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
 

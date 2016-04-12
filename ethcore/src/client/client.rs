@@ -430,15 +430,14 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Option<OpenBlock> {
 		let engine = self.engine.deref().deref();
-		let h = self.chain.best_block_hash();
-		let mut invalid_transactions = HashSet::new();
+		let best_block_hash = self.chain.best_block_hash();
 
-		let mut b = OpenBlock::new(
+		let mut block = OpenBlock::new(
 			engine,
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
 			self.state_db.lock().unwrap().boxed_clone(),
-			match self.chain.block_header(&h) { Some(ref x) => x, None => { return None } },
-			self.build_last_hashes(h.clone()),
+			match self.chain.block_header(&best_block_hash) { Some(ref x) => x, None => { return None } },
+			self.build_last_hashes(best_block_hash.clone()),
 			author,
 			gas_floor_target,
 			extra_data,
@@ -446,15 +445,15 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 		// Add uncles
 		self.chain
-			.find_uncle_headers(&h, engine.maximum_uncle_age())
+			.find_uncle_headers(&best_block_hash, engine.maximum_uncle_age())
 			.unwrap()
 			.into_iter()
 			.take(engine.maximum_uncle_count())
 			.foreach(|h| {
-				b.push_uncle(h).unwrap();
+				block.push_uncle(h).unwrap();
 			});
 
-		b
+		Some(block)
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {

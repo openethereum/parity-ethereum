@@ -335,7 +335,7 @@ fn setup_webapp_server(
 	client: Arc<Client>,
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
-	miner: Arc<Miner>,
+	miner: Arc<Miner<Client>>,
 	url: &str,
 	auth: Option<(String, String)>,
 ) -> WebappServer {

@@ -15,26 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rayon::prelude::*;
-use std::ops::Deref;
 use std::sync::{Mutex, RwLock, Arc};
 use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
+use std::collections::HashSet;
 
-use util::{H256, U256, Address, Bytes, Uint};
+use util::{H256, U256, Address, Bytes, Uint, UsingQueue};
 use ethcore::engine::Engine;
-use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
-use ethcore::error::{Error, ExecutionError};
-use ethcore::views::{BlockView, HeaderView};
+use ethcore::error::{Error, ExecutionError, TransactionError};
 use ethcore::transaction::SignedTransaction;
-use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails, MinerBlockChain};
+use super::{MinerService, MinerStatus, TransactionQueue, MinerBlockChain};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner<C: MinerBlockChain> {
-	engine: Arc<Box<Engine>>,
 	chain: Arc<C>,
 	transaction_queue: Mutex<TransactionQueue>,
-
 	// for sealing...
 	force_sealing: bool,
 	sealing_enabled: AtomicBool,
@@ -47,12 +43,11 @@ pub struct Miner<C: MinerBlockChain> {
 
 impl<C : MinerBlockChain> Miner<C> {
 	/// Creates new instance of miner
-	pub fn new(engine: Arc<Box<Engine>>, chain: Arc<C>) -> Arc<Miner<C>> {
+	pub fn new(chain: Arc<C>, force_sealing: bool) -> Arc<Miner<C>> {
 		Arc::new(Miner {
-			engine: engine,
 			chain: chain,
 			transaction_queue: Mutex::new(TransactionQueue::new()),
-			force_sealing: false,
+			force_sealing: force_sealing,
 			sealing_enabled: AtomicBool::new(false),
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(UsingQueue::new(5)),
@@ -87,7 +82,7 @@ impl<C : MinerBlockChain> Miner<C> {
 		trace!(target: "miner", "prepare_sealing: entering");
 		let transactions = self.transaction_queue.lock().unwrap().top_transactions();
 		let mut sealing_work = self.sealing_work.lock().unwrap();
-		let best_hash = self.chain.best_block_header().sha3();
+		let best_hash = self.chain.best_block_hash();
 
 /*
 		// check to see if last ClosedBlock in would_seals is actually same parent block.
@@ -103,7 +98,7 @@ impl<C : MinerBlockChain> Miner<C> {
 				trace!(target: "miner", "Already have previous work; updating and returning");
 				// add transactions to old_block
 				let mut invalid_transactions = HashSet::new();
-				let mut block = b.repoen(self.engine.deref().deref());
+				let mut block = old_block.reopen(self.chain.engine());
 				let block_number = block.block().fields().header.number();
 
 				// TODO: push new uncles, too.
@@ -144,7 +139,7 @@ impl<C : MinerBlockChain> Miner<C> {
 				);
 
 				let block_number = b.block().header().number();
-				let min_tx_gas = U256::from(self.engine.schedule(&b.env_info()).tx_gas);
+				let min_tx_gas = U256::from(self.chain.engine().schedule(&b.env_info()).tx_gas);
 				let mut invalid_transactions = HashSet::new();
 
 				for tx in transactions {
@@ -290,7 +285,7 @@ impl<C: MinerBlockChain> MinerService for Miner<C> {
 			self.prepare_sealing();
 		}
 		let mut sealing_block_last_request = self.sealing_block_last_request.lock().unwrap();
-		let best_number = self.best_block_number();
+		let best_number = self.chain.best_block_number();
 		if *sealing_block_last_request != best_number {
 			trace!(target: "miner", "map_sealing_work: Miner received request (was {}, now {}) - waking up.", *sealing_block_last_request, best_number);
 			*sealing_block_last_request = best_number;
@@ -304,7 +299,7 @@ impl<C: MinerBlockChain> MinerService for Miner<C> {
 
 	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		if let Some(b) = self.sealing_work.lock().unwrap().take_used_if(|b| &b.hash() == &pow_hash) {
-			match b.lock().try_seal(self.engine.deref().deref(), seal) {
+			match b.lock().try_seal(self.chain.engine(), seal) {
 				Err(_) => {
 					Err(Error::PowInvalid)
 				}
