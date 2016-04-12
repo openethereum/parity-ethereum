@@ -17,7 +17,7 @@
 //! Tracing datatypes.
 use common::*;
 
-/// TraceCall result.
+/// `TraceCall` result.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct TraceCallResult {
 	/// Gas used by call.
@@ -26,7 +26,7 @@ pub struct TraceCallResult {
 	pub output: Bytes,
 }
 
-/// TraceCreate result.
+/// `TraceCreate` result.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TraceCreateResult {
 	/// Gas used by create.
