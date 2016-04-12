@@ -19,17 +19,17 @@
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
 use trace::Tracer;
-use trace::trace::{Trace, TraceCall, TraceCreate};
+use trace::trace::{Trace, Call, Create};
 
 /// Nonoperative tracer. Does not trace anything.
 pub struct NoopTracer;
 
 impl Tracer for NoopTracer {
-	fn prepare_trace_call(&self, _: &ActionParams) -> Option<TraceCall> {
+	fn prepare_trace_call(&self, _: &ActionParams) -> Option<Call> {
 		None
 	}
 
-	fn prepare_trace_create(&self, _: &ActionParams) -> Option<TraceCreate> {
+	fn prepare_trace_create(&self, _: &ActionParams) -> Option<Create> {
 		None
 	}
 
@@ -37,22 +37,22 @@ impl Tracer for NoopTracer {
 		None
 	}
 
-	fn trace_call(&mut self, call: Option<TraceCall>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>,
+	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>,
 				  _: bool) {
 		assert!(call.is_none());
 		assert!(output.is_none());
 	}
 
-	fn trace_create(&mut self, create: Option<TraceCreate>, _: U256, code: Option<Bytes>, _: Address, _: usize, _: Vec<Trace>) {
+	fn trace_create(&mut self, create: Option<Create>, _: U256, code: Option<Bytes>, _: Address, _: usize, _: Vec<Trace>) {
 		assert!(create.is_none());
 		assert!(code.is_none());
 	}
 
-	fn trace_failed_call(&mut self, call: Option<TraceCall>, _: usize, _: Vec<Trace>, _: bool) {
+	fn trace_failed_call(&mut self, call: Option<Call>, _: usize, _: Vec<Trace>, _: bool) {
 		assert!(call.is_none());
 	}
 
-	fn trace_failed_create(&mut self, create: Option<TraceCreate>, _: usize, _: Vec<Trace>) {
+	fn trace_failed_create(&mut self, create: Option<Create>, _: usize, _: Vec<Trace>) {
 		assert!(create.is_none());
 	}
 

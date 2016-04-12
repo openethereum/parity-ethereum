@@ -21,16 +21,16 @@ use util::sha3::Hashable;
 use action_params::ActionParams;
 use basic_types::LogBloom;
 
-/// TraceCall result.
+/// Call result.
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct TraceCallResult {
+pub struct CallResult {
 	/// Gas used by call.
 	pub gas_used: U256,
 	/// Call Output.
 	pub output: Bytes,
 }
 
-impl Encodable for TraceCallResult {
+impl Encodable for CallResult {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 		s.append(&self.gas_used);
@@ -38,10 +38,10 @@ impl Encodable for TraceCallResult {
 	}
 }
 
-impl Decodable for TraceCallResult {
+impl Decodable for CallResult {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let res = TraceCallResult {
+		let res = CallResult {
 			gas_used: try!(d.val_at(0)),
 			output: try!(d.val_at(1)),
 		};
@@ -50,9 +50,9 @@ impl Decodable for TraceCallResult {
 	}
 }
 
-/// TraceCreate result.
+/// Create result.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TraceCreateResult {
+pub struct CreateResult {
 	/// Gas used by create.
 	pub gas_used: U256,
 	/// Code of the newly created contract.
@@ -61,7 +61,7 @@ pub struct TraceCreateResult {
 	pub address: Address,
 }
 
-impl Encodable for TraceCreateResult {
+impl Encodable for CreateResult {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(3);
 		s.append(&self.gas_used);
@@ -70,10 +70,10 @@ impl Encodable for TraceCreateResult {
 	}
 }
 
-impl Decodable for TraceCreateResult {
+impl Decodable for CreateResult {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let res = TraceCreateResult {
+		let res = CreateResult {
 			gas_used: try!(d.val_at(0)),
 			code: try!(d.val_at(1)),
 			address: try!(d.val_at(2)),
@@ -85,7 +85,7 @@ impl Decodable for TraceCreateResult {
 
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TraceCall {
+pub struct Call {
 	/// The sending account.
 	pub from: Address,
 	/// The destination account.
@@ -98,9 +98,9 @@ pub struct TraceCall {
 	pub input: Bytes,
 }
 
-impl From<ActionParams> for TraceCall {
+impl From<ActionParams> for Call {
 	fn from(p: ActionParams) -> Self {
-		TraceCall {
+		Call {
 			from: p.sender,
 			to: p.address,
 			value: p.value.value(),
@@ -110,7 +110,7 @@ impl From<ActionParams> for TraceCall {
 	}
 }
 
-impl Encodable for TraceCall {
+impl Encodable for Call {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(5);
 		s.append(&self.from);
@@ -121,10 +121,10 @@ impl Encodable for TraceCall {
 	}
 }
 
-impl Decodable for TraceCall {
+impl Decodable for Call {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let res = TraceCall {
+		let res = Call {
 			from: try!(d.val_at(0)),
 			to: try!(d.val_at(1)),
 			value: try!(d.val_at(2)),
@@ -136,7 +136,7 @@ impl Decodable for TraceCall {
 	}
 }
 
-impl TraceCall {
+impl Call {
 	pub fn bloom(&self) -> LogBloom {
 		LogBloom::from_bloomed(&self.from.sha3())
 			.with_bloomed(&self.to.sha3())
@@ -145,7 +145,7 @@ impl TraceCall {
 
 /// Description of a _create_ action, either a `CREATE` operation or a create transction.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TraceCreate {
+pub struct Create {
 	/// The address of the creator.
 	pub from: Address,
 	/// The value with which the new account is endowed.
@@ -156,9 +156,9 @@ pub struct TraceCreate {
 	pub init: Bytes,
 }
 
-impl From<ActionParams> for TraceCreate {
+impl From<ActionParams> for Create {
 	fn from(p: ActionParams) -> Self {
-		TraceCreate {
+		Create {
 			from: p.sender,
 			value: p.value.value(),
 			gas: p.gas,
@@ -167,7 +167,7 @@ impl From<ActionParams> for TraceCreate {
 	}
 }
 
-impl Encodable for TraceCreate {
+impl Encodable for Create {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(4);
 		s.append(&self.from);
@@ -177,10 +177,10 @@ impl Encodable for TraceCreate {
 	}
 }
 
-impl Decodable for TraceCreate {
+impl Decodable for Create {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
-		let res = TraceCreate {
+		let res = Create {
 			from: try!(d.val_at(0)),
 			value: try!(d.val_at(1)),
 			gas: try!(d.val_at(2)),
@@ -191,7 +191,7 @@ impl Decodable for TraceCreate {
 	}
 }
 
-impl TraceCreate {
+impl Create {
 	pub fn bloom(&self) -> LogBloom {
 		LogBloom::from_bloomed(&self.from.sha3())
 	}
@@ -201,9 +201,9 @@ impl TraceCreate {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TraceAction {
 	/// It's a call action.
-	Call(TraceCall),
+	Call(Call),
 	/// It's a create action.
-	Create(TraceCreate),
+	Create(Create),
 }
 
 impl Encodable for TraceAction {
@@ -247,9 +247,9 @@ impl TraceAction {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TraceResult {
 	/// Successful call action result.
-	Call(TraceCallResult),
+	Call(CallResult),
 	/// Successful create action result.
-	Create(TraceCreateResult),
+	Create(CreateResult),
 	/// Failed call.
 	FailedCall,
 	/// Failed create.
@@ -345,13 +345,13 @@ mod tests {
 	use util::{Address, U256, FixedHash};
 	use util::rlp::{encode, decode};
 	use util::sha3::Hashable;
-	use trace::trace::{TraceCall, TraceCallResult, TraceCreate, TraceResult, TraceAction, Trace};
+	use trace::trace::{Call, CallResult, Create, TraceResult, TraceAction, Trace};
 
 	#[test]
 	fn traces_rlp() {
 		let trace = Trace {
 			depth: 2,
-			action: TraceAction::Call(TraceCall {
+			action: TraceAction::Call(Call {
 				from: Address::from(1),
 				to: Address::from(2),
 				value: U256::from(3),
@@ -361,7 +361,7 @@ mod tests {
 			subs: vec![
 				Trace {
 					depth: 3,
-					action: TraceAction::Create(TraceCreate {
+					action: TraceAction::Create(Create {
 						from: Address::from(6),
 						value: U256::from(7),
 						gas: U256::from(8),
@@ -371,7 +371,7 @@ mod tests {
 					result: TraceResult::FailedCreate
 				}
 			],
-			result: TraceResult::Call(TraceCallResult {
+			result: TraceResult::Call(CallResult {
 				gas_used: U256::from(10),
 				output: vec![0x11, 0x12]
 			})
@@ -386,7 +386,7 @@ mod tests {
 	fn traces_bloom() {
 		let trace = Trace {
 			depth: 2,
-			action: TraceAction::Call(TraceCall {
+			action: TraceAction::Call(Call {
 				from: Address::from(1),
 				to: Address::from(2),
 				value: U256::from(3),
@@ -396,7 +396,7 @@ mod tests {
 			subs: vec![
 				Trace {
 					depth: 3,
-					action: TraceAction::Create(TraceCreate {
+					action: TraceAction::Create(Create {
 						from: Address::from(6),
 						value: U256::from(7),
 						gas: U256::from(8),
@@ -406,7 +406,7 @@ mod tests {
 					result: TraceResult::FailedCreate
 				}
 			],
-			result: TraceResult::Call(TraceCallResult {
+			result: TraceResult::Call(CallResult {
 				gas_used: U256::from(10),
 				output: vec![0x11, 0x12]
 			})

@@ -21,7 +21,7 @@ mod filter;
 mod noop_tracer;
 mod executive_tracer;
 
-pub use self::trace::{Trace, TraceCall, TraceCreate, TraceAction};
+pub use self::trace::{Trace, Call, Create, TraceAction};
 pub use self::filter::Filter;
 pub use self::noop_tracer::NoopTracer;
 pub use self::executive_tracer::ExecutiveTracer;
@@ -31,10 +31,10 @@ use action_params::ActionParams;
 /// This trait is used by executive to build traces.
 pub trait Tracer: Send {
 	/// Prepares call trace for given params. Noop tracer should return None.
-	fn prepare_trace_call(&self, params: &ActionParams) -> Option<TraceCall>;
+	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call>;
 
 	/// Prepares create trace for given params. Noop tracer should return None.
-	fn prepare_trace_create(&self, params: &ActionParams) -> Option<TraceCreate>;
+	fn prepare_trace_create(&self, params: &ActionParams) -> Option<Create>;
 
 	/// Prepare trace output. Noop tracer should return None.
 	fn prepare_trace_output(&self) -> Option<Bytes>;
@@ -42,7 +42,7 @@ pub trait Tracer: Send {
 	/// Stores trace call info.
 	fn trace_call(
 		&mut self,
-		call: Option<TraceCall>,
+		call: Option<Call>,
 		gas_used: U256,
 		output: Option<Bytes>,
 		depth: usize,
@@ -53,7 +53,7 @@ pub trait Tracer: Send {
 	/// Stores trace create info.
 	fn trace_create(
 		&mut self,
-		create: Option<TraceCreate>,
+		create: Option<Create>,
 		gas_used: U256,
 		code: Option<Bytes>,
 		address: Address,
@@ -62,10 +62,10 @@ pub trait Tracer: Send {
 	);
 
 	/// Stores failed call trace.
-	fn trace_failed_call(&mut self, call: Option<TraceCall>, depth: usize, subs: Vec<Trace>, delegate_call: bool);
+	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>, delegate_call: bool);
 
 	/// Stores failed create trace.
-	fn trace_failed_create(&mut self, create: Option<TraceCreate>, depth: usize, subs: Vec<Trace>);
+	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>);
 
 	/// Spawn subracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;

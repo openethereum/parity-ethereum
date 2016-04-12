@@ -444,6 +444,7 @@ mod tests {
 	use evm::{Factory, VMType};
 	use substate::*;
 	use tests::helpers::*;
+	use trace::trace;
 	use trace::trace::*;
 	use trace::{Tracer, NoopTracer, ExecutiveTracer};
 
@@ -595,26 +596,26 @@ mod tests {
 
 		let expected_trace = vec![ Trace {
 			depth: 0,
-			action: TraceAction::Call(TraceCall {
+			action: TraceAction::Call(trace::Call {
 				from: x!("cd1722f3947def4cf144679da39c4c32bdc35681"),
 				to: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
 				value: x!(100),
 				gas: x!(100000),
 				input: vec![],
 			}),
-			result: TraceResult::Call(TraceCallResult {
+			result: TraceResult::Call(trace::CallResult {
 				gas_used: U256::from(55_248),
 				output: vec![],
 			}),
 			subs: vec![Trace {
 				depth: 1,
-				action: TraceAction::Create(TraceCreate {
+				action: TraceAction::Create(trace::Create {
 					from: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
 					value: x!(23),
 					gas: x!(67979),
 					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
 				}),
-				result: TraceResult::Create(TraceCreateResult {
+				result: TraceResult::Create(trace::CreateResult {
 					gas_used: U256::from(3224),
 					address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
 					code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
@@ -666,13 +667,13 @@ mod tests {
 
 		let expected_trace = vec![Trace {
 			depth: 0,
-			action: TraceAction::Create(TraceCreate {
+			action: TraceAction::Create(trace::Create {
 				from: params.sender,
 				value: x!(100),
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 			}),
-			result: TraceResult::Create(TraceCreateResult {
+			result: TraceResult::Create(trace::CreateResult {
 				gas_used: U256::from(3224),
 				address: params.address,
 				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]

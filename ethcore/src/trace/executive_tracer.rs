@@ -18,7 +18,7 @@
 
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
-use trace::trace::{Trace, TraceCall, TraceCreate, TraceAction, TraceResult, TraceCreateResult, TraceCallResult};
+use trace::trace::{Trace, Call, Create, TraceAction, TraceResult, CreateResult, CallResult};
 use trace::Tracer;
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
@@ -28,19 +28,19 @@ pub struct ExecutiveTracer {
 }
 
 impl Tracer for ExecutiveTracer {
-	fn prepare_trace_call(&self, params: &ActionParams) -> Option<TraceCall> {
-		Some(TraceCall::from(params.clone()))
+	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call> {
+		Some(Call::from(params.clone()))
 	}
 
-	fn prepare_trace_create(&self, params: &ActionParams) -> Option<TraceCreate> {
-		Some(TraceCreate::from(params.clone()))
+	fn prepare_trace_create(&self, params: &ActionParams) -> Option<Create> {
+		Some(Create::from(params.clone()))
 	}
 
 	fn prepare_trace_output(&self) -> Option<Bytes> {
 		Some(vec![])
 	}
 
-	fn trace_call(&mut self, call: Option<TraceCall>, gas_used: U256, output: Option<Bytes>, depth: usize, subs:
+	fn trace_call(&mut self, call: Option<Call>, gas_used: U256, output: Option<Bytes>, depth: usize, subs:
 				  Vec<Trace>, delegate_call: bool) {
 		// don't trace if it's DELEGATECALL or CALLCODE.
 		if delegate_call {
@@ -51,7 +51,7 @@ impl Tracer for ExecutiveTracer {
 			depth: depth,
 			subs: subs,
 			action: TraceAction::Call(call.expect("Trace call expected to be Some.")),
-			result: TraceResult::Call(TraceCallResult {
+			result: TraceResult::Call(CallResult {
 				gas_used: gas_used,
 				output: output.expect("Trace call output expected to be Some.")
 			})
@@ -59,12 +59,12 @@ impl Tracer for ExecutiveTracer {
 		self.traces.push(trace);
 	}
 
-	fn trace_create(&mut self, create: Option<TraceCreate>, gas_used: U256, code: Option<Bytes>, address: Address, depth: usize, subs: Vec<Trace>) {
+	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: Option<Bytes>, address: Address, depth: usize, subs: Vec<Trace>) {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
 			action: TraceAction::Create(create.expect("Trace create expected to be Some.")),
-			result: TraceResult::Create(TraceCreateResult {
+			result: TraceResult::Create(CreateResult {
 				gas_used: gas_used,
 				code: code.expect("Trace create code expected to be Some."),
 				address: address
@@ -73,7 +73,7 @@ impl Tracer for ExecutiveTracer {
 		self.traces.push(trace);
 	}
 
-	fn trace_failed_call(&mut self, call: Option<TraceCall>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
+	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
 		// don't trace if it's DELEGATECALL or CALLCODE.
 		if delegate_call {
 			return;
@@ -88,7 +88,7 @@ impl Tracer for ExecutiveTracer {
 		self.traces.push(trace);
 	}
 
-	fn trace_failed_create(&mut self, create: Option<TraceCreate>, depth: usize, subs: Vec<Trace>) {
+	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>) {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
