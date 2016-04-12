@@ -136,7 +136,7 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
-                           [default: web3,eth,net,personal].
+                           [default: web3,eth,net,personal,ethcore].
   -w --webapp              Enable the web applications server (e.g.
                            status page).
   --webapp-port PORT       Specify the port portion of the WebApps server
@@ -152,6 +152,8 @@ API and Console Options:
                            conjunction with --webapp-user.
 
 Sealing/Mining Options:
+  --force-sealing          Force the node to author new blocks as if it were
+                           always sealing/mining.
   --usd-per-tx USD         Amount of USD to be paid for a basic transaction
                            [default: 0.005]. The minimum gas price is set
                            accordingly.
@@ -239,6 +241,7 @@ struct Args {
 	flag_webapp_interface: String,
 	flag_webapp_user: Option<String>,
 	flag_webapp_pass: Option<String>,
+	flag_force_sealing: bool,
 	flag_author: String,
 	flag_usd_per_tx: String,
 	flag_usd_per_eth: String,
@@ -309,11 +312,12 @@ fn setup_rpc_server(
 			"eth" => {
 				server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
-			}
+			},
 			"personal" => server.add_delegate(PersonalClient::new(&secret_store).to_delegate()),
+			"ethcore" => server.add_delegate(EthcoreClient::new(&miner).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
-			}
+			},
 		}
 	}
 	let start_result = server.start_http(url, cors_domain);
@@ -341,6 +345,7 @@ fn setup_webapp_server(
 	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 	server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 	server.add_delegate(PersonalClient::new(&secret_store).to_delegate());
+	server.add_delegate(EthcoreClient::new(&miner).to_delegate());
 	let start_result = match auth {
 		None => {
 			server.start_unsecure_http(url, ::num_cpus::get())
@@ -657,7 +662,7 @@ impl Configuration {
 		let client = service.client();
 
 		// Miner
-		let miner = Miner::new();
+		let miner = Miner::new(self.args.flag_force_sealing);
 		miner.set_author(self.author());
 		miner.set_gas_floor_target(self.gas_floor_target());
 		miner.set_extra_data(self.extra_data());

@@ -30,6 +30,7 @@ pub struct Miner {
 	transaction_queue: Mutex<TransactionQueue>,
 
 	// for sealing...
+	force_sealing: bool,
 	sealing_enabled: AtomicBool,
 	sealing_block_last_request: Mutex<u64>,
 	sealing_work: Mutex<UsingQueue<ClosedBlock>>,
@@ -42,6 +43,7 @@ impl Default for Miner {
 	fn default() -> Miner {
 		Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
+			force_sealing: false,
 			sealing_enabled: AtomicBool::new(false),
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(UsingQueue::new(5)),
@@ -54,23 +56,17 @@ impl Default for Miner {
 
 impl Miner {
 	/// Creates new instance of miner
-	pub fn new() -> Arc<Miner> {
-		Arc::new(Miner::default())
-	}
-
-	/// Get the author that we will seal blocks as.
-	fn author(&self) -> Address {
-		*self.author.read().unwrap()
-	}
-
-	/// Get the extra_data that we will seal blocks wuth.
-	fn extra_data(&self) -> Bytes {
-		self.extra_data.read().unwrap().clone()
-	}
-
-	/// Get the extra_data that we will seal blocks wuth.
-	fn gas_floor_target(&self) -> U256 {
-		*self.gas_floor_target.read().unwrap()
+	pub fn new(force_sealing: bool) -> Arc<Miner> {
+		Arc::new(Miner {
+			transaction_queue: Mutex::new(TransactionQueue::new()),
+			force_sealing: force_sealing,
+			sealing_enabled: AtomicBool::new(force_sealing),
+			sealing_block_last_request: Mutex::new(0),
+			sealing_work: Mutex::new(UsingQueue::new(5)),
+			gas_floor_target: RwLock::new(U256::zero()),
+			author: RwLock::new(Address::default()),
+			extra_data: RwLock::new(Vec::new()),
+		})
 	}
 
 	/// Set the author that we will seal blocks as.
@@ -204,12 +200,19 @@ impl MinerService for Miner {
 		*self.transaction_queue.lock().unwrap().minimal_gas_price() * x!(110) / x!(100)
 	}
 
+	/// Get the author that we will seal blocks as.
 	fn author(&self) -> Address {
 		*self.author.read().unwrap()
 	}
 
+	/// Get the extra_data that we will seal blocks with.
 	fn extra_data(&self) -> Bytes {
 		self.extra_data.read().unwrap().clone()
+	}
+
+	/// Get the gas limit we wish to target when sealing a new block.
+	fn gas_floor_target(&self) -> U256 {
+		*self.gas_floor_target.read().unwrap()
 	}
 
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
@@ -241,7 +244,7 @@ impl MinerService for Miner {
 		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
 			let current_no = chain.chain_info().best_block_number;
 			let last_request = *self.sealing_block_last_request.lock().unwrap();
-			let should_disable_sealing = current_no > last_request && current_no - last_request > SEALING_TIMEOUT_IN_BLOCKS;
+			let should_disable_sealing = !self.force_sealing && current_no > last_request && current_no - last_request > SEALING_TIMEOUT_IN_BLOCKS;
 
 			if should_disable_sealing {
 				trace!(target: "miner", "Miner sleeping (current {}, last {})", current_no, last_request);

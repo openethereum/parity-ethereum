@@ -383,19 +383,19 @@ impl TransactionQueue {
 		}
 
 		let vtx = try!(VerifiedTransaction::new(tx));
-		let account = fetch_account(&vtx.sender());
+		let client_account = fetch_account(&vtx.sender());
 
 		let cost = vtx.transaction.value + vtx.transaction.gas_price * vtx.transaction.gas;
-		if account.balance < cost {
+		if client_account.balance < cost {
 			trace!(target: "miner", "Dropping transaction without sufficient balance: {:?} ({} < {})",
-				vtx.hash(), account.balance, cost);
+				vtx.hash(), client_account.balance, cost);
 			return Err(Error::Transaction(TransactionError::InsufficientBalance {
 				cost: cost,
-				balance: account.balance
+				balance: client_account.balance
 			}));
 		}
 
-		self.import_tx(vtx, account.nonce).map_err(Error::Transaction)
+		self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction)
 	}
 
 	/// Removes all transactions identified by hashes given in slice
@@ -1188,6 +1188,7 @@ mod test {
 
 	#[test]
 	fn should_replace_same_transaction_when_has_higher_fee() {
+		init_log();
 		// given
 		let mut txq = TransactionQueue::new();
 		let keypair = KeyPair::create().unwrap();
@@ -1264,7 +1265,7 @@ mod test {
 	#[test]
 	fn should_return_none_when_transaction_from_given_address_does_not_exist() {
 		// given
-		let mut txq = TransactionQueue::new();
+		let txq = TransactionQueue::new();
 
 		// then
 		assert_eq!(txq.last_nonce(&Address::default()), None);
@@ -1277,7 +1278,7 @@ mod test {
 		let tx = new_tx();
 		let from = tx.sender().unwrap();
 		let nonce = tx.nonce;
-		let details = |a: &Address| AccountDetails { nonce: nonce, balance: !U256::zero() };
+		let details = |_a: &Address| AccountDetails { nonce: nonce, balance: !U256::zero() };
 
 		// when
 		txq.add(tx, &details).unwrap();
