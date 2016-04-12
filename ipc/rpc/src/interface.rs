@@ -34,11 +34,13 @@ pub trait IpcConfig {
 	fn api_version() -> Version {
 		Version::parse("1.0.0").unwrap()
 	}
+
 	/// Current ipc protocol version
 	/// Should be increased only if signature of system methods changes
 	fn protocol_version() -> Version {
 		Version::parse("1.0.0").unwrap()
 	}
+
 	/// Default handshake requires exact versions match
 	fn handshake(handshake: &Handshake) -> bool {
 		handshake.protocol_version == Self::protocol_version() &&

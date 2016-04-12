@@ -113,12 +113,20 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn as_externalities<'_>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_, '_>) -> Externalities {
-		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output)
+	pub fn as_externalities<'_, T>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_, '_>, tracer: &'_ mut T) -> Externalities<'_, T> where T: Tracer {
+		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer)
 	}
 
 	/// This funtion should be used to execute transaction.
 	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, Error> {
+		let check = options.check_nonce;
+		match options.tracing {
+			true => self.transact_with_tracer(t, check, ExecutiveTracer::default()),
+			false => self.transact_with_tracer(t, check, NoopTracer),
+		}
+	}
+
+	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, Error> where T: Tracer {
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
@@ -132,7 +140,7 @@ impl<'a> Executive<'a> {
 		let init_gas = t.gas - base_gas_required;
 
 		// validate transaction nonce
-		if options.check_nonce {
+		if check_nonce {
 			if t.nonce != nonce {
 				return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
 			}
@@ -161,7 +169,7 @@ impl<'a> Executive<'a> {
 		self.state.inc_nonce(&sender);
 		self.state.sub_balance(&sender, &U256::from(gas_cost));
 
-		let mut substate = Substate::new(options.tracing);
+		let mut substate = Substate::new();
 
 		let (gas_left, output) = match t.action {
 			Action::Create => {
@@ -177,7 +185,7 @@ impl<'a> Executive<'a> {
 					code: Some(t.data.clone()),
 					data: None,
 				};
-				(self.create(params, &mut substate), vec![])
+				(self.create(params, &mut substate, &mut tracer), vec![])
 			},
 			Action::Call(ref address) => {
 				let params = ActionParams {
@@ -193,18 +201,19 @@ impl<'a> Executive<'a> {
 				};
 				// TODO: move output upstream
 				let mut out = vec![];
-				(self.call(params, &mut substate, BytesRef::Flexible(&mut out)), out)
+				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer), out)
 			}
 		};
 
 		// finalize here!
-		Ok(try!(self.finalize(t, substate, gas_left, output)))
+		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop())))
 	}
 
-	fn exec_vm(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy) -> evm::Result {
+	fn exec_vm<T>(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy, tracer: &mut T)
+		-> evm::Result where T: Tracer {
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
 			let vm_factory = self.engine.vm_factory();
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
 			return vm_factory.create().exec(params, &mut ext);
@@ -214,7 +223,7 @@ impl<'a> Executive<'a> {
 		// TODO [todr] No thread builder yet, so we need to reset once for a while
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
 			let vm_factory = self.engine.vm_factory();
 
 			scope.spawn(move || {
@@ -227,7 +236,8 @@ impl<'a> Executive<'a> {
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
-	pub fn call(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef) -> evm::Result {
+	pub fn call<T>(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef, tracer: &mut T)
+		-> evm::Result where T: Tracer {
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
@@ -257,46 +267,45 @@ impl<'a> Executive<'a> {
 				}
 			}
 		} else {
-			// if destination is a contract, do normal message call
-			
-			// don't trace if it's DELEGATECALL or CALLCODE.
-			let should_trace = if let ActionValue::Transfer(_) = params.value {
-				params.code_address == params.address && substate.subtraces.is_some()
-			} else { false };
-
-			// transaction tracing stuff. None if there's no tracing.
-			let (mut trace_info, mut trace_output) = if should_trace {
-				(Some((TraceAction::from_call(&params), self.depth)), Some(vec![]))
-			} else { (None, None) };
+			let trace_info = tracer.prepare_trace_call(&params);
+			let mut trace_output = tracer.prepare_trace_output();
+			let mut subtracer = tracer.subtracer();
+			let delegate_call = params.code_address != params.address;
+			let gas = params.gas;
 
 			if params.code.is_some() {
 				// part of substate that may be reverted
-				let mut unconfirmed_substate = Substate::new(should_trace);
+				let mut unconfirmed_substate = Substate::new();
 
 				let res = {
-					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()))
+					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer)
 				};
 
 				trace!(target: "executive", "res={:?}", res);
 
-				// if there's tracing, make up trace_info's result with trace_output and some arithmetic.
-				if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
-					c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, trace_output.expect("trace_info is Some: so should_trace: qed")));
-				}
+				let traces = subtracer.traces();
+				match res {
+					Ok(gas_left) => tracer.trace_call(
+						trace_info,
+						gas - gas_left,
+						trace_output,
+						self.depth,
+						traces,
+						delegate_call
+					),
+					_ => tracer.trace_failed_call(trace_info, self.depth, traces, delegate_call),
+				};
 
 				trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
 
-				self.enact_result(&res, substate, unconfirmed_substate, trace_info);
+				self.enact_result(&res, substate, unconfirmed_substate);
 				trace!(target: "executive", "enacted: substate={:?}\n", substate);
 				res
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
-				trace!(target: "executive", "Basic message (send funds) should_trace={}", should_trace);
 				self.state.clear_snapshot();
-				if let Some((TraceAction::Call(ref mut c), _)) = trace_info {
-					c.result = Some((x!(0), vec![]));
-				}
-				substate.accrue_trace(if should_trace {Some(vec![])} else {None}, trace_info);
+
+				tracer.trace_call(trace_info, U256::zero(), trace_output, self.depth, vec![], delegate_call);
 				Ok(params.gas)
 			}
 		}
@@ -305,12 +314,13 @@ impl<'a> Executive<'a> {
 	/// Creates contract with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
-	pub fn create(&mut self, params: ActionParams, substate: &mut Substate) -> evm::Result {
+	pub fn create<T>(&mut self, params: ActionParams, substate: &mut Substate, tracer: &mut T) -> evm::Result where T:
+		Tracer {
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
 		// part of substate that may be reverted
-		let mut unconfirmed_substate = Substate::new(substate.subtraces.is_some());
+		let mut unconfirmed_substate = Substate::new();
 
 		// create contract and transfer value to it if necessary
 		let prev_bal = self.state.balance(&params.address);
@@ -321,26 +331,34 @@ impl<'a> Executive<'a> {
 			self.state.new_contract(&params.address, prev_bal);
 		}
 
-		let mut trace_info = substate.subtraces.as_ref().map(|_| (TraceAction::from_create(&params), self.depth));
-		let mut trace_output = trace_info.as_ref().map(|_| vec![]);
+		let trace_info = tracer.prepare_trace_create(&params);
+		let mut trace_output = tracer.prepare_trace_output();
+		let mut subtracer = tracer.subtracer();
+		let gas = params.gas;
 		let created = params.address.clone();
 
 		let res = {
-			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()))
+			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer)
 		};
 
-		if let Some((TraceAction::Create(ref mut c), _)) = trace_info {
-			c.result = res.as_ref().ok().map(|gas_left| (c.gas - *gas_left, created, trace_output.expect("trace_info is Some: qed")));
-		}
+		match res {
+			Ok(gas_left) => tracer.trace_create(
+				trace_info,
+				gas - gas_left,
+				trace_output,
+				created,
+				self.depth,
+				subtracer.traces()
+			),
+			_ => tracer.trace_failed_create(trace_info, self.depth, subtracer.traces())
+		};
 
-		trace!(target: "executive", "trace_info={:?}", trace_info);
-
-		self.enact_result(&res, substate, unconfirmed_substate, trace_info);
+		self.enact_result(&res, substate, unconfirmed_substate);
 		res
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result, output: Bytes) -> ExecutionResult {
+	fn finalize(&mut self, t: &SignedTransaction, substate: Substate, result: evm::Result, output: Bytes, trace: Option<Trace>) -> ExecutionResult {
 		let schedule = self.engine.schedule(self.info);
 
 		// refunds from SSTORE nonzero -> zero
@@ -371,8 +389,6 @@ impl<'a> Executive<'a> {
 			self.state.kill_account(address);
 		}
 
-		let trace = substate.subtraces.and_then(|mut v| v.pop());
-
 		match result {
 			Err(evm::Error::Internal) => Err(ExecutionError::Internal),
 			Err(_) => {
@@ -402,19 +418,18 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate, maybe_info: Option<(TraceAction, usize)>) {
+	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate) {
 		match *result {
 			Err(evm::Error::OutOfGas)
 				| Err(evm::Error::BadJumpDestination {..})
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
-				self.state.revert_snapshot();
-				substate.accrue_trace(un_substate.subtraces, maybe_info)
+					self.state.revert_snapshot();
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
 				self.state.clear_snapshot();
-				substate.accrue(un_substate, maybe_info)
+				substate.accrue(un_substate);
 			}
 		}
 	}
@@ -452,11 +467,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(0x100u64));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new(false);
+		let mut substate = Substate::new();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(79_975));
@@ -511,11 +526,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new(false);
+		let mut substate = Substate::new();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -566,16 +581,16 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(5, factory);
-		let mut substate = Substate::new(true);
+		let mut substate = Substate::new();
+		let mut tracer = ExecutiveTracer::default();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
-			ex.call(params, &mut substate, output).unwrap()
+			ex.call(params, &mut substate, output, &mut tracer).unwrap()
 		};
 
-		println!("trace: {:?}", substate.subtraces);
-		let expected_trace = Some(vec![ Trace {
+		let expected_trace = vec![ Trace {
 			depth: 0,
 			action: TraceAction::Call(TraceCall {
 				from: x!("cd1722f3947def4cf144679da39c4c32bdc35681"),
@@ -583,7 +598,10 @@ mod tests {
 				value: x!(100),
 				gas: x!(100000),
 				input: vec![],
-				result: Some((x!(55248), vec![]))
+			}),
+			result: TraceResult::Call(TraceCallResult {
+				gas_used: U256::from(55_248),
+				output: vec![],
 			}),
 			subs: vec![Trace {
 				depth: 1,
@@ -591,13 +609,17 @@ mod tests {
 					from: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
 					value: x!(23),
 					gas: x!(67979),
-					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
-					result: Some((x!(3224), x!("c6d80f262ae5e0f164e5fde365044d7ada2bfa34"), vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53])),
+					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
+				}),
+				result: TraceResult::Create(TraceCreateResult {
+					gas_used: U256::from(3224),
+					address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
+					code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
 				}),
 				subs: vec![]
 			}]
-		} ]);
-		assert_eq!(substate.subtraces, expected_trace);
+		}];
+		assert_eq!(tracer.traces(), expected_trace);
 		assert_eq!(gas_left, U256::from(44_752));
 	}
 
@@ -631,26 +653,31 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(5, factory);
-		let mut substate = Substate::new(true);
+		let mut substate = Substate::new();
+		let mut tracer = ExecutiveTracer::default();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params.clone(), &mut substate).unwrap()
+			ex.create(params.clone(), &mut substate, &mut tracer).unwrap()
 		};
 
-		println!("trace: {:?}", substate.subtraces);
-		let expected_trace = Some(vec![Trace {
+		let expected_trace = vec![Trace {
 			depth: 0,
 			action: TraceAction::Create(TraceCreate {
 				from: params.sender,
 				value: x!(100),
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
-				result: Some((x!(3224), params.address, vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53])),
+			}),
+			result: TraceResult::Create(TraceCreateResult {
+				gas_used: U256::from(3224),
+				address: params.address,
+				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
 			}),
 			subs: vec![]
-		} ]);
-		assert_eq!(substate.subtraces, expected_trace);
+		}];
+
+		assert_eq!(tracer.traces(), expected_trace);
 		assert_eq!(gas_left, U256::from(96_776));
 	}
 
@@ -696,11 +723,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new(false);
+		let mut substate = Substate::new();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate).unwrap()
+			ex.create(params, &mut substate, &mut NoopTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -748,11 +775,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100));
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(1024, factory);
-		let mut substate = Substate::new(false);
+		let mut substate = Substate::new();
 
 		{
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate).unwrap();
+			ex.create(params, &mut substate, &mut NoopTracer).unwrap();
 		}
 
 		assert_eq!(substate.contracts_created.len(), 1);
@@ -809,11 +836,11 @@ mod tests {
 
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new(false);
+		let mut substate = Substate::new();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.call(params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
+			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(73_237));
@@ -854,11 +881,11 @@ mod tests {
 		state.init_code(&address, code.clone());
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new(false);
+		let mut substate = Substate::new();
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.call(params, &mut substate, BytesRef::Fixed(&mut [])).unwrap()
+			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(59_870));
@@ -1056,11 +1083,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0, factory);
-		let mut substate = Substate::new(false);
+		let mut substate = Substate::new();
 
 		let result = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate)
+			ex.create(params, &mut substate, &mut NoopTracer)
 		};
 
 		match result {

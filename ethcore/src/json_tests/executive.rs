@@ -49,13 +49,13 @@ impl From<ethjson::vm::Call> for CallCreate {
 
 /// Tiny wrapper around executive externalities.
 /// Stores callcreates.
-struct TestExt<'a> {
-	ext: Externalities<'a>,
+struct TestExt<'a, T> where T: 'a + Tracer {
+	ext: Externalities<'a, T>,
 	callcreates: Vec<CallCreate>,
 	contract_address: Address
 }
 
-impl<'a> TestExt<'a> {
+impl<'a, T> TestExt<'a, T> where T: 'a + Tracer {
 	fn new(state: &'a mut State,
 			   info: &'a EnvInfo,
 			   engine: &'a Engine,
@@ -63,16 +63,17 @@ impl<'a> TestExt<'a> {
 			   origin_info: OriginInfo,
 			   substate: &'a mut Substate,
 			   output: OutputPolicy<'a, 'a>,
-			   address: Address) -> Self {
+			   address: Address,
+			   tracer: &'a mut T) -> Self {
 		TestExt {
 			contract_address: contract_address(&address, &state.nonce(&address)),
-			ext: Externalities::new(state, info, engine, depth, origin_info, substate, output),
+			ext: Externalities::new(state, info, engine, depth, origin_info, substate, output, tracer),
 			callcreates: vec![]
 		}
 	}
 }
 
-impl<'a> Ext for TestExt<'a> {
+impl<'a, T> Ext for TestExt<'a, T> where T: Tracer {
 	fn storage_at(&self, key: &H256) -> H256 {
 		self.ext.storage_at(key)
 	}
@@ -182,7 +183,8 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		let engine = TestEngine::new(1, Factory::new(vm_type.clone()));
 		let params = ActionParams::from(vm.transaction);
 
-		let mut substate = Substate::new(false);
+		let mut substate = Substate::new();
+		let mut tracer = NoopTracer;
 		let mut output = vec![];
 
 		// execute
@@ -195,7 +197,8 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				OriginInfo::from(&params),
 				&mut substate,
 				OutputPolicy::Return(BytesRef::Flexible(&mut output), None),
-				params.address.clone()
+				params.address.clone(),
+				&mut tracer,
 			);
 			let evm = engine.vm_factory().create();
 			let res = evm.exec(params, &mut ex);
