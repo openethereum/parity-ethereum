@@ -121,14 +121,14 @@ const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
-	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Arc<Client> {
 		Client::<CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
 	}
 }
 
 impl<V> Client<V> where V: Verifier {
 	///  Create a new client with given spec and DB path and custom verifier.
-	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, Error> {
+	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Arc<Client<V>> {
 		let mut dir = path.to_path_buf();
 		dir.push(H64::from(spec.genesis_header().hash()).hex());
 		//TODO: sec/fat: pruned/full versioning
@@ -153,7 +153,7 @@ impl<V> Client<V> where V: Verifier {
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
-		Ok(Arc::new(Client {
+		Arc::new(Client {
 			chain: chain,
 			engine: engine,
 			state_db: Mutex::new(state_db),
@@ -162,7 +162,7 @@ impl<V> Client<V> where V: Verifier {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			verifier: PhantomData,
-		}))
+		})
 	}
 
 	/// Flush the block import queue.
