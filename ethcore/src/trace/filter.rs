@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::Address;
+use util::{Address, H2048, FixedHash};
+use util::sha3::Hashable;
+use basic_types::LogBloom;
 use client::BlockId;
 
 /// Traces filter.
@@ -32,3 +34,23 @@ pub struct Filter {
 	pub to_address: Vec<Address>,
 }
 
+impl Filter {
+	/// Returns combinations of each address.
+	pub fn bloom_possibilities(&self) -> Vec<LogBloom> {
+		let blooms = match self.from_address.is_empty() {
+			true => vec![LogBloom::new()],
+			false => self.from_address
+				.iter()
+				.map(|address| LogBloom::from_bloomed(&address.sha3()))
+				.collect()
+		};
+
+		blooms
+			.into_iter()
+			.flat_map(|bloom| self.to_address
+				.iter()
+				.map(| address | bloom.with_bloomed(&address.sha3()))
+				.collect::<Vec<_>>())
+			.collect()
+	}
+}
