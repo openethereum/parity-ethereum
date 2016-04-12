@@ -18,6 +18,7 @@
 
 extern crate ethcore_devtools as devtools;
 extern crate semver;
+extern crate nanomsg;
 
 pub mod interface;
-pub use interface::{IpcInterface, IpcSocket, invoke, IpcConfig, Handshake, Error};
+pub use interface::{IpcInterface, IpcSocket, invoke, IpcConfig, Handshake, Error, WithSocket};
