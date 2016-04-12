@@ -18,6 +18,6 @@ ethcore-ipc-nano = { path = "../nano" }
 
 
 [build-dependencies]
-syntex = "0.30.0"
+syntex = "*"
 serde_codegen = "0.7.0"
 "ethcore-ipc-codegen" = { path = "../codegen" }
