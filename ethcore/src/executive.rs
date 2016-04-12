@@ -140,10 +140,8 @@ impl<'a> Executive<'a> {
 		let init_gas = t.gas - base_gas_required;
 
 		// validate transaction nonce
-		if check_nonce {
-			if t.nonce != nonce {
-				return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
-			}
+		if check_nonce && t.nonce != nonce {
+			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
 		}
 
 		// validate if transaction fits into given block
