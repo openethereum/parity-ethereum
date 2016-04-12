@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Reference-counted memory-based HashDB implementation.
+//! Reference-counted memory-based `HashDB` implementation.
 
 use hash::*;
 use bytes::*;
@@ -27,11 +27,11 @@ use std::collections::HashMap;
 use std::default::Default;
 
 #[derive(Debug,Clone)]
-/// Reference-counted memory-based HashDB implementation.
+/// Reference-counted memory-based `HashDB` implementation.
 ///
 /// Use `new()` to create a new database. Insert items with `insert()`, remove items
-/// with `kill()`, check for existance with `exists()` and lookup a hash to derive
-/// the data with `lookup()`. Clear with `clear()` and purge the portions of the data
+/// with `remove()`, check for existence with `containce()` and lookup a hash to derive
+/// the data with `get()`. Clear with `clear()` and purge the portions of the data
 /// that have no references with `purge()`.
 ///
 /// # Example
@@ -44,30 +44,30 @@ use std::default::Default;
 ///   let d = "Hello world!".as_bytes();
 ///
 ///   let k = m.insert(d);
-///   assert!(m.exists(&k));
-///   assert_eq!(m.lookup(&k).unwrap(), d);
+///   assert!(m.contains(&k));
+///   assert_eq!(m.get(&k).unwrap(), d);
 ///
 ///   m.insert(d);
-///   assert!(m.exists(&k));
+///   assert!(m.contains(&k));
 ///
-///   m.kill(&k);
-///   assert!(m.exists(&k));
+///   m.remove(&k);
+///   assert!(m.contains(&k));
 ///
-///   m.kill(&k);
-///   assert!(!m.exists(&k));
+///   m.remove(&k);
+///   assert!(!m.contains(&k));
 ///
-///   m.kill(&k);
-///   assert!(!m.exists(&k));
+///   m.remove(&k);
+///   assert!(!m.contains(&k));
 ///
 ///   m.insert(d);
-///   assert!(!m.exists(&k));
+///   assert!(!m.contains(&k));
 
 ///   m.insert(d);
-///   assert!(m.exists(&k));
-///   assert_eq!(m.lookup(&k).unwrap(), d);
+///   assert!(m.contains(&k));
+///   assert_eq!(m.get(&k).unwrap(), d);
 ///
-///   m.kill(&k);
-///   assert!(!m.exists(&k));
+///   m.remove(&k);
+///   assert!(!m.contains(&k));
 /// }
 /// ```
 #[derive(PartialEq)]
@@ -102,9 +102,9 @@ impl MemoryDB {
 	///   let mut m = MemoryDB::new();
 	///   let hello_bytes = "Hello world!".as_bytes();
 	///   let hash = m.insert(hello_bytes);
-	///   assert!(m.exists(&hash));
+	///   assert!(m.contains(&hash));
 	///   m.clear();
-	///   assert!(!m.exists(&hash));
+	///   assert!(!m.contains(&hash));
 	/// }
 	/// ```
 	pub fn clear(&mut self) {
@@ -240,7 +240,7 @@ fn memorydb_denote() {
 	let mut m = MemoryDB::new();
 	let hello_bytes = b"Hello world!";
 	let hash = m.insert(hello_bytes);
-	assert_eq!(m.lookup(&hash).unwrap(), b"Hello world!");
+	assert_eq!(m.get(&hash).unwrap(), b"Hello world!");
 
 	for _ in 0..1000 {
 		let r = H256::random();
@@ -250,5 +250,5 @@ fn memorydb_denote() {
 		assert_eq!(*rc, 0);
 	}
 
-	assert_eq!(m.lookup(&hash).unwrap(), b"Hello world!");
+	assert_eq!(m.get(&hash).unwrap(), b"Hello world!");
 }

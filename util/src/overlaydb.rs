@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Disk-backed HashDB implementation.
+//! Disk-backed `HashDB` implementation.
 
 use error::*;
 use hash::*;
@@ -28,13 +28,13 @@ use std::env;
 use std::collections::HashMap;
 use kvdb::{Database, DBTransaction};
 
-/// Implementation of the HashDB trait for a disk-backed database with a memory overlay.
+/// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
 /// The operations `insert()` and `remove()` take place on the memory overlay; batches of
 /// such operations may be flushed to the disk-backed DB with `commit()` or discarded with
 /// `revert()`.
 ///
-/// `lookup()` and `contains()` maintain normal behaviour - all `insert()` and `remove()` 
+/// `lookup()` and `contains()` maintain normal behaviour - all `insert()` and `remove()`
 /// queries have an immediate effect in terms of these functions.
 #[derive(Clone)]
 pub struct OverlayDB {
@@ -91,7 +91,7 @@ impl OverlayDB {
 	/// Commit all memory operations to the backing database.
 	///
 	/// Returns either an error or the number of items changed in the backing database.
-	/// 
+	///
 	/// Will return an error if the number of `kill()`s ever exceeds the number of
 	/// `insert()`s for any key. This will leave the database in an undeterminate
 	/// state. Don't ever let it happen.
@@ -144,7 +144,7 @@ impl OverlayDB {
 		Ok(ret)
 	}
 
-	/// Revert all operations on this object (i.e. `insert()`s and `kill()`s) since the
+	/// Revert all operations on this object (i.e. `insert()`s and `remove()`s) since the
 	/// last `commit()`.
 	///
 	/// # Example
@@ -157,12 +157,12 @@ impl OverlayDB {
 	///   let foo = m.insert(b"foo");	// insert foo.
 	///   m.commit().unwrap();			// commit - new operations begin here...
 	///   let bar = m.insert(b"bar");	// insert bar.
-	///   m.kill(&foo);					// kill foo.
-	///   assert!(!m.exists(&foo));		// foo is gone.
-	///   assert!(m.exists(&bar));		// bar is here.
+	///   m.remove(&foo);					// remove foo.
+	///   assert!(!m.contains(&foo));		// foo is gone.
+	///   assert!(m.contains(&bar));		// bar is here.
 	///   m.revert();					// revert the last two operations.
-	///   assert!(m.exists(&foo));		// foo is here.
-	///   assert!(!m.exists(&bar));		// bar is gone.
+	///   assert!(m.contains(&foo));		// foo is here.
+	///   assert!(!m.contains(&bar));		// bar is gone.
 	/// }
 	/// ```
 	pub fn revert(&mut self) { self.overlay.clear(); }
@@ -275,47 +275,47 @@ impl HashDB for OverlayDB {
 }
 
 #[test]
-fn overlaydb_overlay_insert_and_kill() {
+fn overlaydb_overlay_insert_and_remove() {
 	let mut trie = OverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
-	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
-	trie.kill(&h);
-	assert_eq!(trie.lookup(&h), None);
+	assert_eq!(trie.get(&h).unwrap(), b"hello world");
+	trie.remove(&h);
+	assert_eq!(trie.get(&h), None);
 }
 
 #[test]
 fn overlaydb_backing_insert_revert() {
 	let mut trie = OverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
-	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
+	assert_eq!(trie.get(&h).unwrap(), b"hello world");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
+	assert_eq!(trie.get(&h).unwrap(), b"hello world");
 	trie.revert();
-	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
+	assert_eq!(trie.get(&h).unwrap(), b"hello world");
 }
 
 #[test]
-fn overlaydb_backing_kill() {
+fn overlaydb_backing_remove() {
 	let mut trie = OverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
 	trie.commit().unwrap();
-	trie.kill(&h);
-	assert_eq!(trie.lookup(&h), None);
+	trie.remove(&h);
+	assert_eq!(trie.get(&h), None);
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&h), None);
+	assert_eq!(trie.get(&h), None);
 	trie.revert();
-	assert_eq!(trie.lookup(&h), None);
+	assert_eq!(trie.get(&h), None);
 }
 
 #[test]
-fn overlaydb_backing_kill_revert() {
+fn overlaydb_backing_remove_revert() {
 	let mut trie = OverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
 	trie.commit().unwrap();
-	trie.kill(&h);
-	assert_eq!(trie.lookup(&h), None);
+	trie.remove(&h);
+	assert_eq!(trie.get(&h), None);
 	trie.revert();
-	assert_eq!(trie.lookup(&h).unwrap(), b"hello world");
+	assert_eq!(trie.get(&h).unwrap(), b"hello world");
 }
 
 #[test]
@@ -323,9 +323,9 @@ fn overlaydb_negative() {
 	let mut trie = OverlayDB::new_temp();
 	let h = trie.insert(b"hello world");
 	trie.commit().unwrap();
-	trie.kill(&h);
-	trie.kill(&h);	//bad - sends us into negative refs.
-	assert_eq!(trie.lookup(&h), None);
+	trie.remove(&h);
+	trie.remove(&h);	//bad - sends us into negative refs.
+	assert_eq!(trie.get(&h), None);
 	assert!(trie.commit().is_err());
 }
 
@@ -333,33 +333,33 @@ fn overlaydb_negative() {
 fn overlaydb_complex() {
 	let mut trie = OverlayDB::new_temp();
 	let hfoo = trie.insert(b"foo");
-	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
+	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
 	let hbar = trie.insert(b"bar");
-	assert_eq!(trie.lookup(&hbar).unwrap(), b"bar");
+	assert_eq!(trie.get(&hbar).unwrap(), b"bar");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
-	assert_eq!(trie.lookup(&hbar).unwrap(), b"bar");
+	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+	assert_eq!(trie.get(&hbar).unwrap(), b"bar");
 	trie.insert(b"foo");	// two refs
-	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
+	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
-	assert_eq!(trie.lookup(&hbar).unwrap(), b"bar");
-	trie.kill(&hbar);		// zero refs - delete
-	assert_eq!(trie.lookup(&hbar), None);
-	trie.kill(&hfoo);		// one ref - keep
-	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
+	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+	assert_eq!(trie.get(&hbar).unwrap(), b"bar");
+	trie.remove(&hbar);		// zero refs - delete
+	assert_eq!(trie.get(&hbar), None);
+	trie.remove(&hfoo);		// one ref - keep
+	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
-	trie.kill(&hfoo);		// zero ref - would delete, but...
-	assert_eq!(trie.lookup(&hfoo), None);
+	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+	trie.remove(&hfoo);		// zero ref - would delete, but...
+	assert_eq!(trie.get(&hfoo), None);
 	trie.insert(b"foo");	// one ref - keep after all.
-	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
+	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
 	trie.commit().unwrap();
-	assert_eq!(trie.lookup(&hfoo).unwrap(), b"foo");
-	trie.kill(&hfoo);		// zero ref - delete
-	assert_eq!(trie.lookup(&hfoo), None);
-	trie.commit().unwrap();	// 
-	assert_eq!(trie.lookup(&hfoo), None);
+	assert_eq!(trie.get(&hfoo).unwrap(), b"foo");
+	trie.remove(&hfoo);		// zero ref - delete
+	assert_eq!(trie.get(&hfoo), None);
+	trie.commit().unwrap();	//
+	assert_eq!(trie.get(&hfoo), None);
 }
 
 #[test]

@@ -22,8 +22,8 @@ use super::triedbmut::*;
 use super::trietraits::*;
 
 /// A mutable `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
-/// 
-/// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing TrieDBMut object.
+///
+/// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDBMut` object.
 pub struct SecTrieDBMut<'db> {
 	raw: TrieDBMut<'db>
 }
@@ -32,7 +32,7 @@ impl<'db> SecTrieDBMut<'db> {
 	/// Create a new trie with the backing database `db` and empty `root`
 	/// Initialise to the state entailed by the genesis block.
 	/// This guarantees the trie is built correctly.
-	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self { 
+	pub fn new(db: &'db mut HashDB, root: &'db mut H256) -> Self {
 		SecTrieDBMut { raw: TrieDBMut::new(db, root) }
 	}
 

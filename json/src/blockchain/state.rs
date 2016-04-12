@@ -17,18 +17,18 @@
 //! Blockchain test state deserializer.
 
 use std::collections::BTreeMap;
-use std::ops::Deref;
 use hash::Address;
 use blockchain::account::Account;
 
 /// Blockchain test state deserializer.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
-pub struct State(pub BTreeMap<Address, Account>);
+pub struct State(BTreeMap<Address, Account>);
 
-impl Deref for State {
-	type Target = BTreeMap<Address, Account>;
+impl IntoIterator for State {
+	type Item = <BTreeMap<Address, Account> as IntoIterator>::Item;
+	type IntoIter = <BTreeMap<Address, Account> as IntoIterator>::IntoIter;
 
-	fn deref(&self) -> &Self::Target {
-		&self.0
+	fn into_iter(self) -> Self::IntoIter {
+		self.0.into_iter()
 	}
 }

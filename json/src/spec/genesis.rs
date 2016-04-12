@@ -17,27 +17,15 @@
 //! Spec genesis deserialization.
 
 use uint::Uint;
-use hash::{H64, Address, H256};
+use hash::{Address, H256};
 use bytes::Bytes;
+use spec::Seal;
 
 /// Spec genesis.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Genesis {
-	// old seal
-	/// Seal nonce.
-	pub nonce: Option<H64>,
-	#[serde(rename="mixHash")]
-	/// Seal mix hash.
-	pub mix_hash: Option<H256>,
-
-	// new seal // TODO: consider moving it to a separate seal structure
-	#[serde(rename="sealFields")]
-	/// Number of seal fields.
-	pub seal_fields: Option<usize>,
-	#[serde(rename="sealRlp")]
-	/// Seal rlp.
-	pub seal_rlp: Option<Bytes>,
-
+	/// Seal.
+	pub seal: Seal,
 	/// Difficulty.
 	pub difficulty: Uint,
 	/// Block author.
@@ -77,7 +65,12 @@ mod tests {
 		let s = r#"{
 			"nonce": "0x0000000000000042",
 			"difficulty": "0x400000000",
-			"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+			"seal": {
+				"ethereum": {
+					"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+					"nonce": "0x00006d6f7264656e"
+				}
+			},
 			"author": "0x0000000000000000000000000000000000000000",
 			"timestamp": "0x00",
 			"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",

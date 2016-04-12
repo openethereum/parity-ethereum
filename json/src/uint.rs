@@ -23,7 +23,7 @@ use util::numbers::{U256, Uint as U};
 
 /// Lenient uint json deserialization for test json files.
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
-pub struct Uint(U256);
+pub struct Uint(pub U256);
 
 impl Into<U256> for Uint {
 	fn into(self) -> U256 {
@@ -34,6 +34,18 @@ impl Into<U256> for Uint {
 impl Into<u64> for Uint {
 	fn into(self) -> u64 {
 		u64::from(self.0)
+	}
+}
+
+impl Into<usize> for Uint {
+	fn into(self) -> usize {
+		// TODO: clean it after util conversions refactored.
+		u64::from(self.0) as usize
+	}
+}
+impl Into<u8> for Uint {
+	fn into(self) -> u8 {
+		u64::from(self.0) as u8
 	}
 }
 
@@ -48,6 +60,10 @@ struct UintVisitor;
 
 impl Visitor for UintVisitor {
 	type Value = Uint;
+
+	fn visit_u64<E>(&mut self, value: u64) -> Result<Self::Value, E> where E: Error {
+		Ok(Uint(U256::from(value)))
+	}
 
 	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
 		let value = match value.len() {
@@ -77,11 +93,12 @@ mod test {
 
 	#[test]
 	fn uint_deserialization() {
-		let s = r#"["0xa", "10", "", "0x"]"#;
+		let s = r#"["0xa", "10", "", "0x", 0]"#;
 		let deserialized: Vec<Uint> = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, vec![
 				   Uint(U256::from(10)),
 				   Uint(U256::from(10)),
+				   Uint(U256::from(0)),
 				   Uint(U256::from(0)),
 				   Uint(U256::from(0))
 		]);

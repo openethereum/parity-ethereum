@@ -14,16 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Disk-backed HashDB implementation.
+//! Disk-backed `HashDB` implementation.
 
 use common::*;
 use hashdb::*;
 
-/// A HashDB which can manage a short-term journal potentially containing many forks of mutually
+/// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.
 pub trait JournalDB : HashDB + Send + Sync {
 	/// Return a copy of ourself, in a box.
-	fn spawn(&self) -> Box<JournalDB>;
+	fn boxed_clone(&self) -> Box<JournalDB>;
 
 	/// Returns heap memory size used
 	fn mem_used(&self) -> usize;

@@ -92,9 +92,14 @@ deploy:
     tags: true
 
 notifications:
- webhooks:
-   urls:
-     - https://hooks.slack.com/services/${SLACK_WEBHOOK}
-   on_success: always
-   on_failure: always
-   on_start: never
+  webhooks:
+    urls:
+      - https://hooks.slack.com/services/${SLACK_WEBHOOK}
+    on_success: always
+    on_failure: always
+    on_start: never
+
+notifications:
+  slack:
+    rooms:
+      - ethcore:4EGxt9WP6AS7uX4JKXSfR9vi#chatops

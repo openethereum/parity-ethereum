@@ -16,7 +16,7 @@
 
 //! Test implementation of miner service.
 
-use util::{Address, H256, Bytes};
+use util::{Address, H256, Bytes, U256};
 use util::standard::*;
 use ethcore::error::Error;
 use ethcore::client::BlockChainClient;
@@ -27,16 +27,22 @@ use ethminer::{MinerService, MinerStatus};
 /// Test miner service.
 pub struct TestMinerService {
 	/// Imported transactions.
-	pub imported_transactions: RwLock<Vec<H256>>,
+	pub imported_transactions: Mutex<Vec<SignedTransaction>>,
 	/// Latest closed block.
 	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
+	/// Pre-existed pending transactions
+	pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
+	/// Last nonces.
+	pub last_nonces: RwLock<HashMap<Address, U256>>,
 }
 
 impl Default for TestMinerService {
 	fn default() -> TestMinerService {
 		TestMinerService {
-			imported_transactions: RwLock::new(Vec::new()),
+			imported_transactions: Mutex::new(Vec::new()),
 			latest_closed_block: Mutex::new(None),
+			pending_transactions: Mutex::new(HashMap::new()),
+			last_nonces: RwLock::new(HashMap::new()),
 		}
 	}
 }
@@ -53,26 +59,61 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions(&self, _transactions: Vec<SignedTransaction>) -> Vec<Result<(), Error>> { unimplemented!(); }
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<(), Error>>
+		where T: Fn(&Address) -> AccountDetails {
+		// lets assume that all txs are valid
+		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
+
+		transactions
+			.iter()
+			.map(|_| Ok(()))
+			.collect()
+	}
 
 	/// Returns hashes of transactions currently in pending
-	fn pending_transactions_hashes(&self) -> Vec<H256> { vec![] }
+	fn pending_transactions_hashes(&self) -> Vec<H256> {
+		vec![]
+	}
 
 	/// Removes all transactions from the queue and restart mining operation.
 	fn clear_and_reset(&self) { unimplemented!(); }
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) { unimplemented!(); }
+	fn chain_new_blocks(&self, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
+		unimplemented!();
+	}
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self) { unimplemented!(); }
+	fn update_sealing(&self) {
+		unimplemented!();
+	}
 
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>> {
-		&self.latest_closed_block
+	fn map_sealing_work<F, T>(&self, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
+		unimplemented!();
+	}
+
+	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+		self.pending_transactions.lock().unwrap().get(hash).cloned()
+	}
+
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		self.pending_transactions.lock().unwrap().values().cloned().collect()
+	}
+
+	fn last_nonce(&self, address: &Address) -> Option<U256> {
+		self.last_nonces.read().unwrap().get(address).cloned()
 	}
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> { unimplemented!(); }
+	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
+		unimplemented!();
+	}
+
+	fn extra_data(&self) -> Bytes {
+		vec![1, 2, 3, 4]
+	}
+
+	fn gas_floor_target(&self) -> U256 {
+		U256::from(12345)
+	}
 }

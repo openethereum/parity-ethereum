@@ -16,26 +16,9 @@
 
 use util::rlp::*;
 use util::numbers::{Uint, U256};
-use util::hash::{H64, Address, H256};
+use util::hash::{Address, H256};
 use ethjson;
-
-/// Genesis seal type.
-pub enum Seal {
-	/// Classic ethereum seal.
-	Ethereum {
-		/// Seal nonce.
-		nonce: H64,
-		/// Seal mix hash.
-		mix_hash: H256,
-	},
-	/// Generic seal.
-	Generic {
-		/// Number of seal fields.
-		fields: usize,
-		/// Seal rlp.
-		rlp: Vec<u8>,
-	},
-}
+use super::seal::Seal;
 
 /// Genesis components.
 pub struct Genesis {
@@ -66,16 +49,7 @@ pub struct Genesis {
 impl From<ethjson::spec::Genesis> for Genesis {
 	fn from(g: ethjson::spec::Genesis) -> Self {
 		Genesis {
-			seal: match (g.nonce, g.mix_hash) {
-				(Some(nonce), Some(mix_hash)) => Seal::Ethereum {
-					nonce: nonce.into(),
-					mix_hash: mix_hash.into(),
-				},
-				_ => Seal::Generic {
-					fields: g.seal_fields.unwrap(),
-					rlp: g.seal_rlp.unwrap().into(),
-				}
-			},
+			seal: From::from(g.seal),
 			difficulty: g.difficulty.into(),
 			author: g.author.into(),
 			timestamp: g.timestamp.into(),

@@ -340,31 +340,31 @@ macro_rules! uint_overflowing_mul {
 				cmpq $$0, %rcx
 				jne 2f
 
-				popcnt $8, %rcx
+				mov $8, %rcx
 				jrcxz 12f
 
-				popcnt $12, %rcx
-				popcnt $11, %rax
-				add %rax, %rcx
-				popcnt $10, %rax
-				add %rax, %rcx
+				mov $12, %rcx
+				mov $11, %rax
+				or %rax, %rcx
+				mov $10, %rax
+				or %rax, %rcx
 				jmp 2f
 
 				12:
-				popcnt $12, %rcx
+				mov $12, %rcx
 				jrcxz 11f
 
-				popcnt $7, %rcx
-				popcnt $6, %rax
-				add %rax, %rcx
+				mov $7, %rcx
+				mov $6, %rax
+				or %rax, %rcx
 
 				cmpq $$0, %rcx
 				jne 2f
 
 				11:
-				popcnt $11, %rcx
+				mov $11, %rcx
 				jrcxz 2f
-				popcnt $7, %rcx
+				mov $7, %rcx
 
 				2:
 				"

@@ -16,6 +16,7 @@
 
 //! Evm input params.
 use common::*;
+use ethjson;
 
 /// Transaction value
 #[derive(Clone, Debug)]
@@ -24,6 +25,15 @@ pub enum ActionValue {
 	Transfer(U256),
 	/// Apparent value for transaction (not transfered)
 	Apparent(U256)
+}
+
+impl ActionValue {
+	/// Returns action value as U256.
+	pub fn value(&self) -> U256 {
+		match *self {
+			ActionValue::Transfer(x) | ActionValue::Apparent(x) => x
+		}
+	}
 }
 
 // TODO: should be a trait, possible to avoid cloning everything from a Transaction(/View).
@@ -64,6 +74,22 @@ impl Default for ActionParams {
 			value: ActionValue::Transfer(U256::zero()),
 			code: None,
 			data: None
+		}
+	}
+}
+
+impl From<ethjson::vm::Transaction> for ActionParams {
+	fn from(t: ethjson::vm::Transaction) -> Self {
+		ActionParams {
+			code_address: Address::new(),
+			address: t.address.into(),
+			sender: t.sender.into(),
+			origin: t.origin.into(),
+			code: Some(t.code.into()),
+			data: Some(t.data.into()),
+			gas: t.gas.into(),
+			gas_price: t.gas_price.into(),
+			value: ActionValue::Transfer(t.value.into()),
 		}
 	}
 }

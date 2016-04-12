@@ -138,7 +138,7 @@ impl Account {
 	/// get someone who knows to call `note_code`.
 	pub fn code(&self) -> Option<&[u8]> {
 		match self.code_hash {
-			Some(SHA3_EMPTY) | None if self.code_cache.is_empty() => Some(&self.code_cache),
+			Some(c) if c == SHA3_EMPTY && self.code_cache.is_empty() => Some(&self.code_cache),
 			Some(_) if !self.code_cache.is_empty() => Some(&self.code_cache),
 			None => Some(&self.code_cache),
 			_ => None,

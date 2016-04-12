@@ -48,7 +48,7 @@
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
 //!		// Check block for sealing
-//!		assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
+//!		//assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
 //! }
 //! ```
 
@@ -68,8 +68,7 @@ mod client;
 pub use transaction_queue::{TransactionQueue, AccountDetails};
 pub use miner::{Miner};
 
-use std::sync::Mutex;
-use util::{H256, U256, Address, Bytes};
+use util::{H256, U256, Address, FixedHash, Bytes};
 use ethcore::client::{BlockChainClient};
 use ethcore::block::{ClosedBlock, OpenBlock};
 use ethcore::error::{Error, ImportResult};
@@ -80,6 +79,15 @@ pub trait MinerService : Send + Sync {
 
 	/// Returns miner's status.
 	fn status(&self) -> MinerStatus;
+
+	/// Get the author that we will seal blocks as.
+	fn author(&self) -> Address { Address::zero() }
+
+	/// Get the extra_data that we will seal blocks wuth.
+	fn extra_data(&self) -> Bytes { vec![] }
+
+	/// Get the gas limit we wish to target when sealing a new block.
+	fn gas_floor_target(&self) -> U256;
 
 	/// Imports transactions to transaction queue.
 	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<(), Error>>;
@@ -93,14 +101,26 @@ pub trait MinerService : Send + Sync {
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks(&self, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
-	/// Grab the `ClosedBlock` that we want to be sealed. Comes as a mutex that you have to lock.
-	fn sealing_block(&self) -> &Mutex<Option<ClosedBlock>>;
+	/// Get the sealing work package and if `Some`, apply some transform.
+	fn map_sealing_work<F, T>(&self, chain: &BlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T;
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
 	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 
 	fn update_sealing(&self);
+
+	/// Query pending transactions for hash.
+	fn transaction(&self, hash: &H256) -> Option<SignedTransaction>;
+
+	/// Get a list of all pending transactions.
+	fn pending_transactions(&self) -> Vec<SignedTransaction>;
+
+	/// Returns highest transaction nonce for given address.
+	fn last_nonce(&self, address: &Address) -> Option<U256>;
+
+	/// Suggested gas price
+	fn sensible_gas_price(&self) -> U256 { x!(20000000000u64) }
+
 }
 
 /// BlockChainClient requirements for mining

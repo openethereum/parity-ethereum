@@ -153,7 +153,7 @@ impl <T>ToBytes for T where T: FixedHash {
 	fn to_bytes_len(&self) -> usize { self.bytes().len() }
 }
 
-/// Error returned when FromBytes conversation goes wrong
+/// Error returned when `FromBytes` conversation goes wrong
 #[derive(Debug, PartialEq, Eq)]
 pub enum FromBytesError {
 	/// Expected more RLP data
@@ -174,7 +174,7 @@ impl fmt::Display for FromBytesError {
 	}
 }
 
-/// Alias for the result of FromBytes trait
+/// Alias for the result of `FromBytes` trait
 pub type FromBytesResult<T> = Result<T, FromBytesError>;
 
 /// Converts to given type from its bytes representation

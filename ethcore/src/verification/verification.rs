@@ -55,7 +55,7 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
-/// Returns a PreverifiedBlock structure populated with transactions
+/// Returns a `PreverifiedBlock` structure populated with transactions
 pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreverifiedBlock, Error> {
 	try!(engine.verify_block_unordered(&header, Some(&bytes)));
 	for u in Rlp::new(&bytes).at(2).iter().map(|rlp| rlp.as_val::<Header>()) {
@@ -183,7 +183,7 @@ fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.gas_used > header.gas_limit {
 		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used })));
 	}
-	let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
+	let min_gas_limit = engine.params().min_gas_limit;
 	if header.gas_limit < min_gas_limit {
 		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit })));
 	}
@@ -279,7 +279,7 @@ mod tests {
 
 	impl BlockProvider for TestBlockChain {
 		fn have_tracing(&self) -> bool { false }
-		
+
 		fn is_known(&self, hash: &H256) -> bool {
 			self.blocks.contains_key(hash)
 		}
@@ -331,16 +331,15 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg_attr(feature="dev", allow(similar_names))]
 	fn test_verify_block() {
 		// Test against morden
 		let mut good = Header::new();
 		let spec = Spec::new_test();
-		let engine = spec.to_engine().unwrap();
+		let engine = &spec.engine;
 
-		let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
-		let min_difficulty = decode(engine.spec().engine_params.get("minimumDifficulty").unwrap());
+		let min_gas_limit = engine.params().min_gas_limit;
 		good.gas_limit = min_gas_limit;
-		good.difficulty = min_difficulty;
 		good.timestamp = 40;
 		good.number = 10;
 

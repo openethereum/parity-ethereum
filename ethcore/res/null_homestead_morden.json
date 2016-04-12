@@ -1,0 +1,34 @@
+{
+	"name": "Morden",
+	"engine": {
+		"Null": null
+	},
+	"params": {
+		"accountStartNonce": "0x0100000",
+		"frontierCompatibilityModeLimit": "0x0",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID" : "0x2"
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x00006d6f7264656e",
+				"mixHash": "0x00000000000000000000000000000000000000647572616c65787365646c6578"
+			}
+		},
+		"difficulty": "0x20000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x",
+		"gasLimit": "0x2fefd8"
+	},
+	"accounts": {
+		"0000000000000000000000000000000000000001": { "balance": "1", "nonce": "1048576", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "balance": "1", "nonce": "1048576", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "balance": "1", "nonce": "1048576", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "balance": "1", "nonce": "1048576", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c": { "balance": "1606938044258990275541962092341162602522202993782792835301376", "nonce": "1048576" }
+	}
+}

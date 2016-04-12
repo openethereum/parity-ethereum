@@ -21,7 +21,7 @@ use hash::H256;
 use blockchain::state::State;
 use blockchain::header::Header;
 use blockchain::block::Block;
-use spec::Genesis;
+use spec::{Genesis, Seal, Ethereum};
 
 /// Blockchain deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -54,10 +54,10 @@ impl BlockChain {
 	/// Returns spec compatible genesis struct.
 	pub fn genesis(&self) -> Genesis {
 		Genesis {
-			nonce: Some(self.genesis_block.nonce.clone()),
-			mix_hash: Some(self.genesis_block.mix_hash.clone()),
-			seal_fields: None,
-			seal_rlp: None,
+			seal: Seal::Ethereum(Ethereum {
+				nonce: self.genesis_block.nonce.clone(),
+				mix_hash: self.genesis_block.mix_hash.clone(),
+			}),
 			difficulty: self.genesis_block.difficulty,
 			author: self.genesis_block.author.clone(),
 			timestamp: self.genesis_block.timestamp,

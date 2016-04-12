@@ -392,7 +392,7 @@ macro_rules! impl_hash {
 			}
 		}
 
-		/// BitOr on references
+		/// `BitOr` on references
 		impl<'a> BitOr for &'a $from {
 			type Output = $from;
 
@@ -408,7 +408,7 @@ macro_rules! impl_hash {
 			}
 		}
 
-		/// Moving BitOr
+		/// Moving `BitOr`
 		impl BitOr for $from {
 			type Output = $from;
 
@@ -417,7 +417,7 @@ macro_rules! impl_hash {
 			}
 		}
 
-		/// BitAnd on references
+		/// `BitAnd` on references
 		impl <'a> BitAnd for &'a $from {
 			type Output = $from;
 
@@ -433,7 +433,7 @@ macro_rules! impl_hash {
 			}
 		}
 
-		/// Moving BitAnd
+		/// Moving `BitAnd`
 		impl BitAnd for $from {
 			type Output = $from;
 
@@ -442,7 +442,7 @@ macro_rules! impl_hash {
 			}
 		}
 
-		/// BitXor on references
+		/// `BitXor` on references
 		impl <'a> BitXor for &'a $from {
 			type Output = $from;
 
@@ -458,7 +458,7 @@ macro_rules! impl_hash {
 			}
 		}
 
-		/// Moving BitXor
+		/// Moving `BitXor`
 		impl BitXor for $from {
 			type Output = $from;
 

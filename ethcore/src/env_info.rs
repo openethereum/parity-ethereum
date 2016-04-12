@@ -16,6 +16,7 @@
 
 use util::*;
 use header::BlockNumber;
+use ethjson;
 
 /// Simple vector of hashes, should be at most 256 items large, can be smaller if being used
 /// for a block whose number is less than 257.
@@ -54,17 +55,17 @@ impl Default for EnvInfo {
 	}
 }
 
-impl FromJson for EnvInfo {
-	fn from_json(json: &Json) -> EnvInfo {
-		let current_number: u64 = xjson!(&json["currentNumber"]);
+impl From<ethjson::vm::Env> for EnvInfo {
+	fn from(e: ethjson::vm::Env) -> Self {
+		let number = e.number.into();
 		EnvInfo {
-			number: current_number,
-			author: xjson!(&json["currentCoinbase"]),
-			difficulty: xjson!(&json["currentDifficulty"]),
-			gas_limit: xjson!(&json["currentGasLimit"]),
-			timestamp: xjson!(&json["currentTimestamp"]),
-			last_hashes: (1..cmp::min(current_number + 1, 257)).map(|i| format!("{}", current_number - i).as_bytes().sha3()).collect(),
-			gas_used: x!(0),
+			number: number,
+			author: e.author.into(),
+			difficulty: e.difficulty.into(),
+			gas_limit: e.gas_limit.into(),
+			timestamp: e.timestamp.into(),
+			last_hashes: (1..cmp::min(number + 1, 257)).map(|i| format!("{}", number - i).as_bytes().sha3()).collect(),
+			gas_used: U256::zero(),
 		}
 	}
 }
@@ -74,24 +75,20 @@ mod tests {
 	extern crate rustc_serialize;
 
 	use super::*;
-	use rustc_serialize::*;
-	use util::from_json::FromJson;
 	use util::hash::*;
+	use util::numbers::U256;
 	use std::str::FromStr;
+	use ethjson;
 
 	#[test]
 	fn it_serializes_form_json() {
-		let env_info = EnvInfo::from_json(&json::Json::from_str(
-r#"
-	{
-		"currentCoinbase": "0x000000f00000000f000000000000f00000000f00",
-		"currentNumber": 1112339,
-		"currentDifficulty": 50000,
-		"currentGasLimit" : 40000,
-		"currentTimestamp" : 1100
-	}
-"#
-		).unwrap());
+		let env_info = EnvInfo::from(ethjson::vm::Env {
+			author: ethjson::hash::Address(Address::from_str("000000f00000000f000000000000f00000000f00").unwrap()),
+			number: ethjson::uint::Uint(U256::from(1_112_339)),
+			difficulty: ethjson::uint::Uint(U256::from(50_000)),
+			gas_limit: ethjson::uint::Uint(U256::from(40_000)),
+			timestamp: ethjson::uint::Uint(U256::from(1_100))
+		});
 
 		assert_eq!(env_info.number, 1112339);
 		assert_eq!(env_info.author, Address::from_str("000000f00000000f000000000000f00000000f00").unwrap());

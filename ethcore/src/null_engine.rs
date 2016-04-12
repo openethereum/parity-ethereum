@@ -14,26 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
+use util::hash::Address;
+use builtin::Builtin;
 use engine::Engine;
-use spec::Spec;
-use evm::Schedule;
-use evm::Factory;
+use spec::CommonParams;
+use evm::{Schedule, Factory};
 use env_info::EnvInfo;
 
 /// An engine which does not provide any consensus mechanism.
 pub struct NullEngine {
-	spec: Spec,
-	factory: Factory
+	params: CommonParams,
+	builtins: BTreeMap<Address, Builtin>,
+	factory: Factory,
 }
 
 impl NullEngine {
 	/// Returns new instance of NullEngine with default VM Factory
-	pub fn new_boxed(spec: Spec) -> Box<Engine> {
-		Box::new(NullEngine{
-			spec: spec,
-			// TODO [todr] should this return any specific factory?
+	pub fn new(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Self {
+		NullEngine{
+			params: params,
+			builtins: builtins,
 			factory: Factory::default()
-		})
+		}
 	}
 }
 
@@ -41,7 +44,24 @@ impl Engine for NullEngine {
 	fn vm_factory(&self) -> &Factory {
 		&self.factory
 	}
-	fn name(&self) -> &str { "NullEngine" }
-	fn spec(&self) -> &Spec { &self.spec }
-	fn schedule(&self, _env_info: &EnvInfo) -> Schedule { Schedule::new_frontier() }
+
+	fn name(&self) -> &str {
+		"NullEngine"
+	}
+
+	fn params(&self) -> &CommonParams {
+		&self.params
+	}
+
+	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
+		&self.builtins
+	}
+
+	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
+		if env_info.number < self.params.frontier_compatibility_mode_limit {
+			Schedule::new_frontier()
+		} else {
+			Schedule::new_homestead()
+		}
+	}
 }

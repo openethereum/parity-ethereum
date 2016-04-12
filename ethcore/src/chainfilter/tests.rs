@@ -23,7 +23,7 @@ use chainfilter::{BloomIndex, FilterDataSource, ChainFilter};
 
 /// In memory cache for blooms.
 ///
-/// Stores all blooms in HashMap, which indexes them by `BloomIndex`.
+/// Stores all blooms in `HashMap`, which indexes them by `BloomIndex`.
 pub struct MemoryCache {
 	blooms: HashMap<BloomIndex, H2048>,
 }

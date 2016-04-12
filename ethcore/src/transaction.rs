@@ -20,6 +20,7 @@ use util::*;
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
+use ethjson;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// Transaction action type.
@@ -79,33 +80,43 @@ impl Transaction {
 	}
 }
 
-impl FromJson for SignedTransaction {
-	#[cfg_attr(feature="dev", allow(single_char_pattern))]
-	fn from_json(json: &Json) -> SignedTransaction {
-		let t = Transaction {
-			nonce: xjson!(&json["nonce"]),
-			gas_price: xjson!(&json["gasPrice"]),
-			gas: xjson!(&json["gasLimit"]),
-			action: match Bytes::from_json(&json["to"]) {
-				ref x if x.is_empty() => Action::Create,
-				ref x => Action::Call(Address::from_slice(x)),
+impl From<ethjson::state::Transaction> for SignedTransaction {
+	fn from(t: ethjson::state::Transaction) -> Self {
+		let to: Option<_> = t.to.into();
+		Transaction {
+			nonce: t.nonce.into(),
+			gas_price: t.gas_price.into(),
+			gas: t.gas_limit.into(),
+			action: match to {
+				Some(to) => Action::Call(to.into()),
+				None => Action::Create
 			},
-			value: xjson!(&json["value"]),
-			data: xjson!(&json["data"]),
-		};
-		match json.find("secretKey") {
-			Some(&Json::String(ref secret_key)) => t.sign(&h256_from_hex(clean(secret_key))),
-			_ => SignedTransaction {
-				unsigned: t,
-				v: match json.find("v") { Some(ref j) => u16::from_json(j) as u8, None => 0 },
-				r: match json.find("r") { Some(j) => xjson!(j), None => x!(0) },
-				s: match json.find("s") { Some(j) => xjson!(j), None => x!(0) },
-				hash: Cell::new(None),
-				sender: match json.find("sender") {
-					Some(&Json::String(ref sender)) => Cell::new(Some(address_from_hex(clean(sender)))),
-					_ => Cell::new(None),
-				}
-			}
+			value: t.value.into(),
+			data: t.data.into(),
+		}.sign(&t.secret.into())
+	}
+}
+
+impl From<ethjson::transaction::Transaction> for SignedTransaction {
+	fn from(t: ethjson::transaction::Transaction) -> Self {
+		let to: Option<_> = t.to.into();
+		SignedTransaction {
+			unsigned: Transaction {
+				nonce: t.nonce.into(),
+				gas_price: t.gas_price.into(),
+				gas: t.gas_limit.into(),
+				action: match to {
+					Some(to) => Action::Call(to.into()),
+					None => Action::Create
+				},
+				value: t.value.into(),
+				data: t.data.into(),
+			},
+			r: t.r.into(),
+			s: t.s.into(),
+			v: t.v.into(),
+			sender: Cell::new(None),
+			hash: Cell::new(None)
 		}
 	}
 }
@@ -134,7 +145,7 @@ impl Transaction {
 
 	/// Useful for test incorrectly signed transactions.
 	#[cfg(test)]
-	pub fn fake_sign(self) -> SignedTransaction {
+	pub fn invalid_sign(self) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
 			r: U256::zero(),
@@ -142,6 +153,18 @@ impl Transaction {
 			v: 0,
 			hash: Cell::new(None),
 			sender: Cell::new(None),
+		}
+	}
+
+	/// Specify the sender; this won't survive the serialize/deserialize process, but can be cloned.
+	pub fn fake_sign(self, from: Address) -> SignedTransaction {
+		SignedTransaction {
+			unsigned: self,
+			r: U256::zero(),
+			s: U256::zero(),
+			v: 0,
+			hash: Cell::new(None),
+			sender: Cell::new(Some(from)),
 		}
 	}
 
@@ -341,4 +364,20 @@ fn signing() {
 		data: b"Hello!".to_vec()
 	}.sign(&key.secret());
 	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
+}
+
+#[test]
+fn fake_signing() {
+	let t = Transaction {
+		action: Action::Create,
+		nonce: U256::from(42),
+		gas_price: U256::from(3000),
+		gas: U256::from(50_000),
+		value: U256::from(1),
+		data: b"Hello!".to_vec()
+	}.fake_sign(Address::from(0x69));
+	assert_eq!(Address::from(0x69), t.sender().unwrap());
+
+	let t = t.clone();
+	assert_eq!(Address::from(0x69), t.sender().unwrap());
 }

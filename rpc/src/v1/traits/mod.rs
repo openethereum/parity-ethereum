@@ -24,8 +24,10 @@ pub mod web3;
 pub mod eth;
 pub mod net;
 pub mod personal;
+pub mod ethcore;
 
 pub use self::web3::Web3;
 pub use self::eth::{Eth, EthFilter};
 pub use self::net::Net;
 pub use self::personal::Personal;
+pub use self::ethcore::Ethcore;

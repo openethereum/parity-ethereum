@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A queue of blocks. Sits between network or other I/O and the BlockChain.
+//! A queue of blocks. Sits between network or other I/O and the `BlockChain`.
 //! Sorts them ready for blockchain insertion.
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
@@ -89,7 +89,7 @@ impl BlockQueueInfo {
 	}
 }
 
-/// A queue of blocks. Sits between network or other I/O and the BlockChain.
+/// A queue of blocks. Sits between network or other I/O and the `BlockChain`.
 /// Sorts them ready for blockchain insertion.
 pub struct BlockQueue {
 	panic_handler: Arc<PanicHandler>,
@@ -116,6 +116,7 @@ struct VerifyingBlock {
 }
 
 struct QueueSignal {
+	deleting: Arc<AtomicBool>,
 	signalled: AtomicBool,
 	message_channel: IoChannel<NetSyncMessage>,
 }
@@ -123,10 +124,16 @@ struct QueueSignal {
 impl QueueSignal {
 	#[cfg_attr(feature="dev", allow(bool_comparison))]
 	fn set(&self) {
+		// Do not signal when we are about to close
+		if self.deleting.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
 			self.message_channel.send(UserMessage(SyncMessage::BlockVerified)).expect("Error sending BlockVerified message");
 		}
 	}
+
 	fn reset(&self) {
 		self.signalled.store(false, AtomicOrdering::Relaxed);
 	}
@@ -150,8 +157,12 @@ impl BlockQueue {
 			bad: Mutex::new(HashSet::new()),
 		});
 		let more_to_verify = Arc::new(Condvar::new());
-		let ready_signal = Arc::new(QueueSignal { signalled: AtomicBool::new(false), message_channel: message_channel });
 		let deleting = Arc::new(AtomicBool::new(false));
+		let ready_signal = Arc::new(QueueSignal {
+			deleting: deleting.clone(),
+			signalled: AtomicBool::new(false),
+			message_channel: message_channel
+		});
 		let empty = Arc::new(Condvar::new());
 		let panic_handler = PanicHandler::new_in_arc();
 
@@ -431,12 +442,14 @@ impl MayPanic for BlockQueue {
 
 impl Drop for BlockQueue {
 	fn drop(&mut self) {
+		trace!(target: "shutdown", "[BlockQueue] Closing...");
 		self.clear();
 		self.deleting.store(true, AtomicOrdering::Release);
 		self.more_to_verify.notify_all();
 		for t in self.verifiers.drain(..) {
 			t.join().unwrap();
 		}
+		trace!(target: "shutdown", "[BlockQueue] Closed.");
 	}
 }
 
@@ -451,7 +464,7 @@ mod tests {
 
 	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
-		let engine = spec.to_engine().unwrap();
+		let engine = spec.engine;
 		BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected())
 	}
 
@@ -459,7 +472,7 @@ mod tests {
 	fn can_be_created() {
 		// TODO better test
 		let spec = Spec::new_test();
-		let engine = spec.to_engine().unwrap();
+		let engine = spec.engine;
 		let _ = BlockQueue::new(BlockQueueConfig::default(), Arc::new(engine), IoChannel::disconnected());
 	}
 
@@ -520,7 +533,7 @@ mod tests {
 	#[test]
 	fn test_mem_limit() {
 		let spec = get_test_spec();
-		let engine = spec.to_engine().unwrap();
+		let engine = spec.engine;
 		let mut config = BlockQueueConfig::default();
 		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
 		let queue = BlockQueue::new(config, Arc::new(engine), IoChannel::disconnected());

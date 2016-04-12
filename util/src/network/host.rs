@@ -391,7 +391,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	pub fn add_node(&mut self, id: &str) {
 		match Node::from_str(id) {
-			Err(e) => { warn!("Could not add node: {:?}", e); },
+			Err(e) => { debug!("Could not add node {}: {:?}", id, e); },
 			Ok(n) => {
 				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
 				self.pinned_nodes.push(n.id.clone());
