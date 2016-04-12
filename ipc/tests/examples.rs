@@ -60,7 +60,7 @@ mod tests {
 
 
 	#[test]
-	fn call_service_proxy() {
+	fn call_service_client() {
 		let mut socket = TestSocket::new();
 		socket.read_buffer = vec![0, 0, 0, 10];
 		let service_client = ServiceClient::new(socket);
@@ -72,7 +72,7 @@ mod tests {
 	}
 
 	#[test]
-	fn call_service_proxy_optional() {
+	fn call_service_client_optional() {
 		let mut socket = TestSocket::new();
 		socket.read_buffer = vec![0, 0, 0, 10];
 		let service_client = ServiceClient::new(socket);
@@ -89,5 +89,16 @@ mod tests {
 		assert_eq!(ver, Version::parse("1.0.0").unwrap());
 		let ver = Service::api_version();
 		assert_eq!(ver, Version::parse("1.0.0").unwrap());
+	}
+
+	#[test]
+	fn call_service_client_handshake() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![1];
+		let service_client = ServiceClient::new(socket);
+
+		let result = service_client.handshake();
+
+		assert!(result.is_ok());
 	}
 }

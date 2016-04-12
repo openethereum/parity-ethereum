@@ -512,7 +512,7 @@ fn push_client_implementation(
 				}
 			}
 
-			pub fn handshake(&self) -> bool {
+			pub fn handshake(&self) -> Result<(), ::ipc::Error> {
 				let payload = BinHandshake {
 					protocol_version: $item_ident::protocol_version().to_string(),
 					api_version: $item_ident::api_version().to_string(),
@@ -527,10 +527,13 @@ fn push_client_implementation(
 					&mut socket);
 
 				let mut result = vec![0u8; 1];
-				if socket.read(&mut result).unwrap() == 1 {
-					result[0] == 1
+				if try!(socket.read(&mut result).map_err(|_| ::ipc::Error::HandshakeFailed)) == 1 {
+					match result[0] {
+						1 => Ok(()),
+						_ => Err(::ipc::Error::RemoteServiceUnsupported),
+					}
 				}
-				else { false }
+				else { Err(::ipc::Error::HandshakeFailed) }
 			}
 
 			#[cfg(test)]

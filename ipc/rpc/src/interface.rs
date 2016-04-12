@@ -39,9 +39,12 @@ pub trait IpcConfig {
 	}
 }
 
+#[derive(Debug)]
 pub enum Error {
 	UnkownSystemCall,
 	ClientUnsupported,
+	RemoteServiceUnsupported,
+	HandshakeFailed,
 }
 
 pub trait IpcInterface<T> where T: IpcConfig {
