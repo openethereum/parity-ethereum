@@ -28,6 +28,7 @@ use std::ops::Deref;
 
 const POLL_TIMEOUT: isize = 100;
 
+/// Generic worker to handle service (binded) sockets
 pub struct Worker<S> where S: IpcInterface<S> {
 	service: Arc<S>,
 	sockets: Vec<(Socket, Endpoint)>,
@@ -35,6 +36,8 @@ pub struct Worker<S> where S: IpcInterface<S> {
 	buf: Vec<u8>,
 }
 
+/// struct for guarding `_endpoint` (so that it wont drop)
+/// derefs to client `S`
 pub struct GuardedSocket<S> where S: WithSocket<Socket> {
 	client: Arc<S>,
 	_endpoint: Endpoint,
@@ -48,6 +51,9 @@ impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
     }
 }
 
+/// Spawns client <`S`> over specified address
+/// creates socket and connects endpoint to it
+/// for duplex (paired) connections with the service
 pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
 	let mut socket = try!(Socket::new(Protocol::Pair).map_err(|e| {
 		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
@@ -65,12 +71,15 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 	})
 }
 
+/// Error occured while establising socket or endpoint
 #[derive(Debug)]
 pub enum SocketError {
+	/// Error establising duplex (paired) socket and/or endpoint
 	DuplexLink
 }
 
 impl<S> Worker<S> where S: IpcInterface<S> {
+	/// New worker over specified `service`
 	pub fn new(service: Arc<S>) -> Worker<S> {
 		Worker::<S> {
 			service: service.clone(),
@@ -80,6 +89,7 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 		}
 	}
 
+	/// Polls all sockets, reads and dispatches method invocations
 	pub fn poll(&mut self) {
 		let mut request = PollRequest::new(&mut self.polls[..]);
  		let _result_guard = Socket::poll(&mut request, POLL_TIMEOUT);
@@ -119,12 +129,15 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 		}
 	}
 
+	/// Stores nanomsg poll request for reuse
 	fn rebuild_poll_request(&mut self) {
 		self.polls = self.sockets.iter()
 			.map(|&(ref socket, _)| socket.new_pollfd(PollInOut::In))
 			.collect::<Vec<PollFd>>();
 	}
 
+	/// Add exclusive socket for paired client
+	/// Only one connection over this address is allowed
 	pub fn add_duplex(&mut self, addr: &str) -> Result<(), SocketError>  {
 		let mut socket = try!(Socket::new(Protocol::Pair).map_err(|e| {
 			warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);

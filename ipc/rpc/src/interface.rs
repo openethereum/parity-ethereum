@@ -20,26 +20,35 @@ use std::io::{Read, Write};
 use std::marker::Sync;
 use semver::Version;
 
+/// Handshake for client and server to negotiate api/protocol version
 pub struct Handshake {
 	pub protocol_version: Version,
 	pub api_version: Version,
 }
 
+/// Allows to configure custom version and custom handshake response for
+/// ipc host
 pub trait IpcConfig {
+	/// Current service api version
+	/// Should be increased if any of the methods changes signature
 	fn api_version() -> Version {
 		Version::parse("1.0.0").unwrap()
 	}
 
+	/// Current ipc protocol version
+	/// Should be increased only if signature of system methods changes
 	fn protocol_version() -> Version {
 		Version::parse("1.0.0").unwrap()
 	}
 
+	/// Default handshake requires exact versions match
 	fn handshake(handshake: &Handshake) -> bool {
 		handshake.protocol_version == Self::protocol_version() &&
 			handshake.api_version == Self::api_version()
 	}
 }
 
+/// Error in dispatching or invoking methods via IPC
 #[derive(Debug)]
 pub enum Error {
 	UnkownSystemCall,
@@ -48,6 +57,8 @@ pub enum Error {
 	HandshakeFailed,
 }
 
+/// Allows implementor to be attached to generic worker and dispatch rpc requests
+/// over IPC
 pub trait IpcInterface<T>: IpcConfig {
 	/// reads the message from io, dispatches the call and returns serialized result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
@@ -79,11 +90,11 @@ pub fn invoke<W>(method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: 
 	}
 }
 
-/// IpcSocket
+/// IpcSocket, read/write generalization
 pub trait IpcSocket: Read + Write + Sync {
 }
 
-
+/// Basically something that needs only socket to be spawned
 pub trait WithSocket<S: IpcSocket> {
 	fn init(socket: S) -> Self;
 }

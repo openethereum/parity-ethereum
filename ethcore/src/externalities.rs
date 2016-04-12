@@ -67,6 +67,8 @@ pub struct Externalities<'a, T> where T: 'a + Tracer {
 }
 
 impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
+
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	/// Basic `Externalities` constructor.
 	pub fn new(state: &'a mut State,
 		env_info: &'a EnvInfo,
