@@ -72,8 +72,6 @@ impl From<ethjson::vm::Env> for EnvInfo {
 
 #[cfg(test)]
 mod tests {
-	extern crate rustc_serialize;
-
 	use super::*;
 	use util::hash::*;
 	use util::numbers::U256;
