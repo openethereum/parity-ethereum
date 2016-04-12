@@ -30,9 +30,11 @@ pub trait IpcConfig {
 	fn api_version() -> Version {
 		Version::parse("1.0.0").unwrap()
 	}
+
 	fn protocol_version() -> Version {
 		Version::parse("1.0.0").unwrap()
 	}
+
 	fn handshake(handshake: &Handshake) -> bool {
 		handshake.protocol_version == Self::protocol_version() &&
 			handshake.api_version == Self::api_version()
