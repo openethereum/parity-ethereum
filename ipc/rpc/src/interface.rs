@@ -46,7 +46,7 @@ pub enum Error {
 	HandshakeFailed,
 }
 
-pub trait IpcInterface<T>:IpcConfig {
+pub trait IpcInterface<T>: IpcConfig {
 	/// reads the message from io, dispatches the call and returns serialized result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
 
