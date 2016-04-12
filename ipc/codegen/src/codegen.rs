@@ -13,7 +13,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-
 use aster;
 
 use syntax::ast::{
@@ -35,6 +34,8 @@ use syntax::ext::build::AstBuilder;
 use syntax::ptr::P;
 
 pub struct Error;
+
+const RESERVED_MESSAGE_IDS: u16 = 16;
 
 pub fn expand_ipc_implementation(
 	cx: &mut ExtCtxt,
@@ -59,8 +60,22 @@ pub fn expand_ipc_implementation(
 	};
 
 	push_client(cx, &builder, &item, &dispatches, push);
+	push_handshake_struct(cx, push);
 
 	push(Annotatable::Item(impl_item))
+}
+
+fn push_handshake_struct(cx: &ExtCtxt, push: &mut FnMut(Annotatable)) {
+	let handshake_item = quote_item!(cx,
+		#[derive(Serialize, Deserialize)]
+		pub struct BinHandshake {
+			api_version: String,
+			protocol_version: String,
+			_reserved: Vec<u8>,
+		}
+	).unwrap();
+
+	push(Annotatable::Item(handshake_item));
 }
 
 fn field_name(builder: &aster::AstBuilder, arg: &Arg) -> ast::Ident {
@@ -247,7 +262,7 @@ fn implement_dispatch_arm(
 	buffer: bool,
 ) -> ast::Arm
 {
-	let index_ident = builder.id(format!("{}", index).as_str());
+	let index_ident = builder.id(format!("{}", index + (RESERVED_MESSAGE_IDS as u32)).as_str());
 	let invoke_expr = implement_dispatch_arm_invoke(cx, builder, dispatch, buffer);
 	quote_arm!(cx, $index_ident => { $invoke_expr } )
 }
@@ -385,7 +400,7 @@ fn implement_client_method_body(
 		request_serialization_statements.push(
 			quote_stmt!(cx, let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()));
 
-		let index_ident = builder.id(format!("{}", index).as_str());
+		let index_ident = builder.id(format!("{}", index + RESERVED_MESSAGE_IDS).as_str());
 
 		request_serialization_statements.push(
 			quote_stmt!(cx, ::ipc::invoke($index_ident, &Some(serialized_payload), &mut socket)));
@@ -397,21 +412,18 @@ fn implement_client_method_body(
 		vec![]
 	};
 
-	let wait_result_stmt = quote_stmt!(cx, while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { });
 	if let Some(ref return_ty) = dispatch.return_type_ty {
 		let return_expr = quote_expr!(cx,
 			::bincode::serde::deserialize_from::<_, $return_ty>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
 		);
 		quote_expr!(cx, {
 			$request
-			$wait_result_stmt
 			$return_expr
 		})
 	}
 	else {
 		quote_expr!(cx, {
 			$request
-			$wait_result_stmt
 		})
 	}
 }
@@ -487,6 +499,7 @@ fn push_client_implementation(
 		.collect::<Vec<P<ast::ImplItem>>>();
 
 	let client_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
+	let item_ident =  builder.id(format!("{}", item.ident.name.as_str()));
 	let implement = quote_item!(cx,
 		impl<S> $client_ident<S> where S: ::ipc::IpcSocket {
 			pub fn new(socket: S) -> $client_ident<S> {
@@ -494,6 +507,30 @@ fn push_client_implementation(
 					socket: ::std::cell::RefCell::new(socket),
 					phantom: ::std::marker::PhantomData,
 				}
+			}
+
+			pub fn handshake(&self) -> Result<(), ::ipc::Error> {
+				let payload = BinHandshake {
+					protocol_version: $item_ident::protocol_version().to_string(),
+					api_version: $item_ident::api_version().to_string(),
+					_reserved: vec![0u8, 64],
+				};
+
+				let mut socket_ref = self.socket.borrow_mut();
+				let mut socket = socket_ref.deref_mut();
+				::ipc::invoke(
+					0,
+					&Some(::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()),
+					&mut socket);
+
+				let mut result = vec![0u8; 1];
+				if try!(socket.read(&mut result).map_err(|_| ::ipc::Error::HandshakeFailed)) == 1 {
+					match result[0] {
+						1 => Ok(()),
+						_ => Err(::ipc::Error::RemoteServiceUnsupported),
+					}
+				}
+				else { Err(::ipc::Error::HandshakeFailed) }
 			}
 
 			#[cfg(test)]
@@ -505,6 +542,38 @@ fn push_client_implementation(
 		}).unwrap();
 
 	push(Annotatable::Item(implement));
+}
+
+/// implements dispatching of system handshake invocation (method_num 0)
+fn implement_handshake_arm(
+	cx: &ExtCtxt,
+) -> (ast::Arm, ast::Arm)
+{
+	let handshake_deserialize = quote_stmt!(&cx,
+		let handshake_payload = ::bincode::serde::deserialize_from::<_, BinHandshake>(r, ::bincode::SizeLimit::Infinite).unwrap();
+	);
+
+	let handshake_deserialize_buf = quote_stmt!(&cx,
+		let handshake_payload = ::bincode::serde::deserialize::<BinHandshake>(buf).unwrap();
+	);
+
+	let handshake_serialize = quote_expr!(&cx,
+		::bincode::serde::serialize::<bool>(&Self::handshake(&::ipc::Handshake {
+			api_version: ::semver::Version::parse(&handshake_payload.api_version).unwrap(),
+			protocol_version: ::semver::Version::parse(&handshake_payload.protocol_version).unwrap(),
+		}), ::bincode::SizeLimit::Infinite).unwrap()
+	);
+
+	(
+		quote_arm!(&cx, 0 => {
+			$handshake_deserialize
+			$handshake_serialize
+		}),
+		quote_arm!(&cx, 0 => {
+			$handshake_deserialize_buf
+			$handshake_serialize
+		}),
+	)
 }
 
 /// implements `IpcInterface<C>` for the given class `C`
@@ -546,6 +615,8 @@ fn implement_interface(
 	let dispatch_arms = implement_dispatch_arms(cx, builder, &dispatch_table, false);
 	let dispatch_arms_buffered = implement_dispatch_arms(cx, builder, &dispatch_table, true);
 
+	let (handshake_arm, handshake_arm_buf) = implement_handshake_arm(cx);
+
 	Ok((quote_item!(cx,
 		impl $impl_generics ::ipc::IpcInterface<$ty> for $ty $where_clause {
 			fn dispatch<R>(&self, r: &mut R) -> Vec<u8>
@@ -557,7 +628,11 @@ fn implement_interface(
 					Err(e) => { panic!("ipc read error: {:?}, aborting", e); }
 					_ => { }
 				}
-				match method_num[0] as u16 + (method_num[1] as u16)*256 {
+				// method_num is a 16-bit little-endian unsigned number
+				match method_num[1] as u16 + (method_num[0] as u16)*256 {
+					// handshake
+					$handshake_arm
+					// user methods
 					$dispatch_arms
 					_ => vec![]
 				}
@@ -566,6 +641,7 @@ fn implement_interface(
 			fn dispatch_buf(&self, method_num: u16, buf: &[u8]) -> Vec<u8>
 			{
 				match method_num {
+					$handshake_arm_buf
 					$dispatch_arms_buffered
 					_ => vec![]
 				}

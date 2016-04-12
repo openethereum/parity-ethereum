@@ -20,11 +20,12 @@ mod tests {
 	use super::super::service::*;
 	use ipc::*;
 	use devtools::*;
+	use semver::Version;
 
 	#[test]
 	fn call_service() {
 		// method_num = 0, f = 10 (method Service::commit)
-		let mut socket = TestSocket::new_ready(vec![0, 0, 0, 0, 0, 10]);
+		let mut socket = TestSocket::new_ready(vec![0, 16, 0, 0, 0, 10]);
 
 		let service = Service::new();
 		assert_eq!(0, *service.commits.read().unwrap());
@@ -34,27 +35,70 @@ mod tests {
 		assert_eq!(10, *service.commits.read().unwrap());
 	}
 
+
 	#[test]
-	fn call_service_proxy() {
+	fn call_service_handshake() {
+		let mut socket = TestSocket::new_ready(vec![0, 0,
+			// protocol version
+			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
+			// api version
+			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
+			// reserved
+			0, 0, 0, 0, 0, 0, 0, 64,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			]);
+
+		let service = Service::new();
+		let result = service.dispatch(&mut socket);
+
+		// single `true`
+		assert_eq!(vec![1], result);
+	}
+
+
+	#[test]
+	fn call_service_client() {
 		let mut socket = TestSocket::new();
 		socket.read_buffer = vec![0, 0, 0, 10];
 		let service_client = ServiceClient::new(socket);
 
 		let result = service_client.commit(5);
 
-		assert_eq!(vec![0, 0, 0, 0, 0, 5], service_client.socket().borrow().write_buffer.clone());
+		assert_eq!(vec![0, 16, 0, 0, 0, 5], service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
 	#[test]
-	fn call_service_proxy_optional() {
+	fn call_service_client_optional() {
 		let mut socket = TestSocket::new();
 		socket.read_buffer = vec![0, 0, 0, 10];
 		let service_client = ServiceClient::new(socket);
 
 		let result = service_client.rollback(Some(5), 10);
 
-		assert_eq!(vec![0, 1, 1, 0, 0, 0, 5, 0, 0, 0, 10], service_client.socket().borrow().write_buffer.clone());
+		assert_eq!(vec![0, 17, 1, 0, 0, 0, 5, 0, 0, 0, 10], service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(10, result);
+	}
+
+	#[test]
+	fn query_default_version() {
+		let ver = Service::protocol_version();
+		assert_eq!(ver, Version::parse("1.0.0").unwrap());
+		let ver = Service::api_version();
+		assert_eq!(ver, Version::parse("1.0.0").unwrap());
+	}
+
+	#[test]
+	fn call_service_client_handshake() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![1];
+		let service_client = ServiceClient::new(socket);
+
+		let result = service_client.handshake();
+
+		assert!(result.is_ok());
 	}
 }

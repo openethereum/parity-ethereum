@@ -16,6 +16,7 @@
 
 use std::sync::RwLock;
 use std::ops::*;
+use ipc::IpcConfig;
 
 pub struct Service {
 	pub commits: RwLock<usize>,
@@ -45,3 +46,5 @@ impl Service {
 		}
 	}
 }
+
+impl ::ipc::IpcConfig for Service {}

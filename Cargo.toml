@@ -29,7 +29,7 @@ ethminer = { path = "miner" }
 ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
 ethcore-webapp = { path = "webapp", optional = true }
-
+semver = "0.2"
 
 [dependencies.hyper]
 version = "0.8"
