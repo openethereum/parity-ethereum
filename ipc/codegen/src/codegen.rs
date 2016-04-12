@@ -303,6 +303,7 @@ fn push_client(
 {
 	push_client_struct(cx, builder, item, push);
 	push_client_implementation(cx, builder, dispatches, item, push);
+	push_with_socket_client_implementation(cx, builder, item, push);
 }
 
 /// returns an expression with the body for single operation that is being sent to server
@@ -485,6 +486,25 @@ fn implement_client_method(
 	signature.unwrap()
 }
 
+fn push_with_socket_client_implementation(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	item: &Item,
+	push: &mut FnMut(Annotatable))
+{
+	let client_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
+	let implement = quote_item!(cx,
+		impl<S> ::ipc::WithSocket<S> for $client_ident<S> where S: ::ipc::IpcSocket {
+			fn init(socket: S) -> $client_ident<S> {
+				$client_ident {
+					socket: ::std::cell::RefCell::new(socket),
+					phantom: ::std::marker::PhantomData,
+				}
+			}
+		}).unwrap();
+	push(Annotatable::Item(implement));
+}
+
 /// pushes full client side code for the original class exposed via ipc
 fn push_client_implementation(
 	cx: &ExtCtxt,
@@ -502,18 +522,11 @@ fn push_client_implementation(
 	let item_ident =  builder.id(format!("{}", item.ident.name.as_str()));
 	let implement = quote_item!(cx,
 		impl<S> $client_ident<S> where S: ::ipc::IpcSocket {
-			pub fn new(socket: S) -> $client_ident<S> {
-				$client_ident {
-					socket: ::std::cell::RefCell::new(socket),
-					phantom: ::std::marker::PhantomData,
-				}
-			}
-
 			pub fn handshake(&self) -> Result<(), ::ipc::Error> {
 				let payload = BinHandshake {
 					protocol_version: $item_ident::protocol_version().to_string(),
 					api_version: $item_ident::api_version().to_string(),
-					_reserved: vec![0u8, 64],
+					_reserved: vec![0u8; 64],
 				};
 
 				let mut socket_ref = self.socket.borrow_mut();

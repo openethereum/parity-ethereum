@@ -22,6 +22,7 @@ use std::fs::File;
 use std::env;
 use std::io::{Read, Write};
 
+#[cfg_attr(feature="dev", allow(enum_variant_names))]
 #[derive(Debug)]
 pub enum Error {
 	CannotLockVersionFile,
@@ -107,16 +108,12 @@ fn with_locked_version<F>(script: F) -> Result<usize, Error>
 			})
 			.unwrap_or_else(|| Version::parse("0.9.0").unwrap());
 
-	let script_result = {
-		let mut lock = try!(File::create(&path).map_err(|_| Error::CannotLockVersionFile));
-		let result = script(&version);
+	let mut lock = try!(File::create(&path).map_err(|_| Error::CannotLockVersionFile));
+	let result = script(&version);
 
-		let written_version = Version::parse(CURRENT_VERSION).unwrap();
-		try!(lock.write_all(written_version.to_string().as_bytes()).map_err(|_| Error::CannotUpdateVersionFile));
-		result
-	};
-
-	script_result
+	let written_version = Version::parse(CURRENT_VERSION).unwrap();
+	try!(lock.write_all(written_version.to_string().as_bytes()).map_err(|_| Error::CannotUpdateVersionFile));
+	result
 }
 
 pub fn upgrade() -> Result<usize, Error> {

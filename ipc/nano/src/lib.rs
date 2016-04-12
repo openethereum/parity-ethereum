@@ -20,10 +20,11 @@ extern crate ethcore_ipc as ipc;
 extern crate nanomsg;
 #[macro_use] extern crate log;
 
-pub use ipc::*;
+pub use ipc::{WithSocket, IpcInterface, IpcConfig};
 
 use std::sync::*;
 use nanomsg::{Socket, Protocol, Error, Endpoint, PollRequest, PollFd, PollInOut};
+use std::ops::Deref;
 
 const POLL_TIMEOUT: isize = 100;
 
@@ -32,6 +33,36 @@ pub struct Worker<S> where S: IpcInterface<S> {
 	sockets: Vec<(Socket, Endpoint)>,
 	polls: Vec<PollFd>,
 	buf: Vec<u8>,
+}
+
+pub struct GuardedSocket<S> where S: WithSocket<Socket> {
+	client: Arc<S>,
+	_endpoint: Endpoint,
+}
+
+impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
+    type Target = S;
+
+    fn deref(&self) -> &S {
+        &self.client
+    }
+}
+
+pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
+	let mut socket = try!(Socket::new(Protocol::Pair).map_err(|e| {
+		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
+		SocketError::DuplexLink
+	}));
+
+	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
+		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
+		SocketError::DuplexLink
+	}));
+
+	Ok(GuardedSocket {
+		client: Arc::new(S::init(socket)),
+		_endpoint: endpoint,
+	})
 }
 
 #[derive(Debug)]
@@ -60,6 +91,7 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 				match socket.nb_read_to_end(&mut self.buf) {
 					Ok(method_sign_len) => {
 						if method_sign_len >= 2 {
+
 							// method_num
 							let method_num = self.buf[1] as u16 * 256 + self.buf[0] as u16;
 							// payload
@@ -113,7 +145,7 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 }
 
 #[cfg(test)]
-mod tests {
+mod service_tests {
 
 	use super::Worker;
 	use ipc::*;
@@ -150,10 +182,11 @@ mod tests {
 		}
 	}
 
+	impl IpcConfig for DummyService {}
+
 	fn dummy_write(addr: &str, buf: &[u8]) -> (Socket, Endpoint) {
 		let mut socket = Socket::new(Protocol::Pair).unwrap();
 		let endpoint = socket.connect(addr).unwrap();
-		//thread::sleep_ms(10);
 		socket.write(buf).unwrap();
 		(socket, endpoint)
 	}

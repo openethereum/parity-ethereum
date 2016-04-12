@@ -63,7 +63,7 @@ mod tests {
 	fn call_service_client() {
 		let mut socket = TestSocket::new();
 		socket.read_buffer = vec![0, 0, 0, 10];
-		let service_client = ServiceClient::new(socket);
+		let service_client = ServiceClient::init(socket);
 
 		let result = service_client.commit(5);
 
@@ -75,7 +75,7 @@ mod tests {
 	fn call_service_client_optional() {
 		let mut socket = TestSocket::new();
 		socket.read_buffer = vec![0, 0, 0, 10];
-		let service_client = ServiceClient::new(socket);
+		let service_client = ServiceClient::init(socket);
 
 		let result = service_client.rollback(Some(5), 10);
 
@@ -95,7 +95,7 @@ mod tests {
 	fn call_service_client_handshake() {
 		let mut socket = TestSocket::new();
 		socket.read_buffer = vec![1];
-		let service_client = ServiceClient::new(socket);
+		let service_client = ServiceClient::init(socket);
 
 		let result = service_client.handshake();
 

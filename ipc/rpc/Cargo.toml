@@ -9,3 +9,4 @@ license = "GPL-3.0"
 [dependencies]
 ethcore-devtools = { path = "../../devtools" }
 semver = "0.2.0"
+nanomsg = "0.5.0"
