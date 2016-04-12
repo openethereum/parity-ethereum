@@ -526,7 +526,7 @@ fn push_client_implementation(
 				let payload = BinHandshake {
 					protocol_version: $item_ident::protocol_version().to_string(),
 					api_version: $item_ident::api_version().to_string(),
-					_reserved: vec![0u8, 64],
+					_reserved: vec![0u8; 64],
 				};
 
 				let mut socket_ref = self.socket.borrow_mut();

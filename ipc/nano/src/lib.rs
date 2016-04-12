@@ -54,7 +54,7 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 		SocketError::DuplexLink
 	}));
 
-	let endpoint = try!(socket.bind(socket_addr).map_err(|e| {
+	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
 		SocketError::DuplexLink
 	}));
