@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, H2048, FixedHash};
+use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
 use client::BlockId;
+use trace::{Trace, TraceAction};
 
 /// Traces filter.
 pub struct Filter {
@@ -45,12 +46,137 @@ impl Filter {
 				.collect()
 		};
 
-		blooms
-			.into_iter()
-			.flat_map(|bloom| self.to_address
-				.iter()
-				.map(| address | bloom.with_bloomed(&address.sha3()))
-				.collect::<Vec<_>>())
-			.collect()
+		match self.to_address.is_empty() {
+			true => blooms,
+			false => blooms
+				.into_iter()
+				.flat_map(|bloom| self.to_address
+					.iter()
+					.map(| address | bloom.with_bloomed(&address.sha3()))
+					.collect::<Vec<_>>())
+				.collect()
+		}
+	}
+
+	/// Returns true if given trace matches the filter.
+	pub fn matches(&self, trace: &Trace) -> bool {
+		let matches = match trace.action {
+			TraceAction::Call(ref call) => {
+				let from_matches = self.from_address.is_empty() || self.from_address.contains(&call.from);
+				let to_matches = self.to_address.is_empty() || self.to_address.contains(&call.to);
+				from_matches && to_matches
+			},
+			TraceAction::Create(ref create) => {
+				let from_matches = self.from_address.is_empty() || self.from_address.contains(&create.from);
+				let to_matches = self.to_address.is_empty();
+				from_matches && to_matches
+			}
+		};
+
+		matches || trace.subs.iter().any(|subtrace| self.matches(subtrace))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use util::{FixedHash, Address};
+	use util::sha3::Hashable;
+	use trace::Filter;
+	use client::BlockId;
+	use basic_types::LogBloom;
+
+	#[test]
+	fn empty_trace_filter_bloom_possibilies() {
+		let filter = Filter {
+			from_block: BlockId::Number(0),
+			to_block: BlockId::Number(0),
+			from_address: vec![],
+			to_address: vec![],
+		};
+
+		let blooms = filter.bloom_possibilities();
+		assert_eq!(blooms, vec![LogBloom::new()]);
+	}
+
+	#[test]
+	fn single_trace_filter_bloom_possibility() {
+		let filter = Filter {
+			from_block: BlockId::Number(0),
+			to_block: BlockId::Number(0),
+			from_address: vec![Address::from(1)],
+			to_address: vec![Address::from(2)],
+		};
+
+		let blooms = filter.bloom_possibilities();
+		assert_eq!(blooms.len(), 1);
+
+		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
+		assert!(blooms[0].contains_bloomed(&Address::from(2).sha3()));
+		assert!(!blooms[0].contains_bloomed(&Address::from(3).sha3()));
+	}
+
+	#[test]
+	fn only_from_trace_filter_bloom_possibility() {
+		let filter = Filter {
+			from_block: BlockId::Number(0),
+			to_block: BlockId::Number(0),
+			from_address: vec![Address::from(1)],
+			to_address: vec![],
+		};
+
+		let blooms = filter.bloom_possibilities();
+		assert_eq!(blooms.len(), 1);
+
+		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
+		assert!(!blooms[0].contains_bloomed(&Address::from(2).sha3()));
+	}
+
+	#[test]
+	fn only_to_trace_filter_bloom_possibility() {
+		let filter = Filter {
+			from_block: BlockId::Number(0),
+			to_block: BlockId::Number(0),
+			from_address: vec![],
+			to_address: vec![Address::from(1)],
+		};
+
+		let blooms = filter.bloom_possibilities();
+		assert_eq!(blooms.len(), 1);
+
+		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
+		assert!(!blooms[0].contains_bloomed(&Address::from(2).sha3()));
+	}
+
+	#[test]
+	fn multiple_trace_filter_bloom_possibility() {
+		let filter = Filter {
+			from_block: BlockId::Number(0),
+			to_block: BlockId::Number(0),
+			from_address: vec![Address::from(1), Address::from(3)],
+			to_address: vec![Address::from(2), Address::from(4)],
+		};
+
+		let blooms = filter.bloom_possibilities();
+		assert_eq!(blooms.len(), 4);
+
+		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
+		assert!(blooms[0].contains_bloomed(&Address::from(2).sha3()));
+		assert!(!blooms[0].contains_bloomed(&Address::from(3).sha3()));
+		assert!(!blooms[0].contains_bloomed(&Address::from(4).sha3()));
+
+		assert!(blooms[1].contains_bloomed(&Address::from(1).sha3()));
+		assert!(blooms[1].contains_bloomed(&Address::from(4).sha3()));
+		assert!(!blooms[1].contains_bloomed(&Address::from(2).sha3()));
+		assert!(!blooms[1].contains_bloomed(&Address::from(3).sha3()));
+
+		assert!(blooms[2].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[2].contains_bloomed(&Address::from(3).sha3()));
+		assert!(!blooms[2].contains_bloomed(&Address::from(1).sha3()));
+		assert!(!blooms[2].contains_bloomed(&Address::from(4).sha3()));
+
+		assert!(blooms[3].contains_bloomed(&Address::from(3).sha3()));
+		assert!(blooms[3].contains_bloomed(&Address::from(4).sha3()));
+		assert!(!blooms[3].contains_bloomed(&Address::from(1).sha3()));
+		assert!(!blooms[3].contains_bloomed(&Address::from(2).sha3()));
 	}
 }

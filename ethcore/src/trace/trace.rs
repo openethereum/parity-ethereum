@@ -334,6 +334,7 @@ impl Decodable for Trace {
 }
 
 impl Trace {
+	/// Returns trace bloom.
 	pub fn bloom(&self) -> LogBloom {
 		self.subs.iter().fold(self.action.bloom(), |b, s| b | s.bloom())
 	}

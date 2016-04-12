@@ -20,6 +20,7 @@ mod trace;
 mod filter;
 
 pub use self::trace::*;
+pub use self::filter::Filter;
 use util::bytes::Bytes;
 use util::hash::Address;
 use util::numbers::U256;
