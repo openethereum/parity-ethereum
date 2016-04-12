@@ -15,10 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use v1::{Ethcore, EthcoreClient};
-use v1::tests::helpers::{TestMinerService};
+use ethminer::MinerService;
+use v1::tests::helpers::TestMinerService;
 use util::numbers::*;
+use rustc_serialize::hex::FromHex;
 
 
 fn miner_service() -> Arc<TestMinerService> {
@@ -52,3 +55,71 @@ fn rpc_ethcore_gas_floor_target() {
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }
 
+#[test]
+fn rpc_ethcore_min_gas_price() {
+	let miner = miner_service();
+	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_minGasPrice", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x01312d00","id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_set_min_gas_price() {
+	let miner = miner_service();
+	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setMinGasPrice", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(miner.minimal_gas_price(), U256::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
+}
+
+#[test]
+fn rpc_ethcore_set_gas_floor_target() {
+	let miner = miner_service();
+	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setGasFloorTarget", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(miner.gas_floor_target(), U256::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
+}
+
+#[test]
+fn rpc_ethcore_set_extra_data() {
+	let miner = miner_service();
+	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setExtraData", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(miner.extra_data(), "cd1722f3947def4cf144679da39c4c32bdc35681".from_hex().unwrap());
+}
+
+#[test]
+fn rpc_ethcore_set_author() {
+	let miner = miner_service();
+	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setAuthor", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(miner.author(), Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
+}
