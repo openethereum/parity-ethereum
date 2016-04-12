@@ -29,25 +29,33 @@ mod tests {
 
 	#[test]
 	fn can_create_client() {
-		let client = nanoipc::init_client::<ServiceClient<_>>("ipc:///tmp/parity-examples-test10.ipc");
+		let client = nanoipc::init_client::<ServiceClient<_>>("ipc:///tmp/parity-nano-test10.ipc");
 		assert!(client.is_ok());
 	}
 
 	#[test]
 	fn can_call_handshake() {
-		let exit = Arc::new(::std::sync::atomic::AtomicBool::new(false));
-		let url = "ipc:///tmp/parity-test-examples-20.ipc";
+		let worker_should_exit = Arc::new(::std::sync::atomic::AtomicBool::new(false));
+		let worker_is_ready = Arc::new(::std::sync::atomic::AtomicBool::new(false));
+		let c_worker_should_exit = worker_should_exit.clone();
+		let c_worker_is_ready = worker_is_ready.clone();
 
-		let worker_exit = exit.clone();
+		let url = "ipc:///tmp/parity-test-nano-20.ipc";
+
 		::std::thread::spawn(move || {
 			let mut worker = init_worker(url);
-    		while !worker_exit.load(::std::sync::atomic::Ordering::Relaxed) { worker.poll() }
+    		while !c_worker_should_exit.load(::std::sync::atomic::Ordering::Relaxed) {
+				worker.poll();
+				c_worker_is_ready.store(true, ::std::sync::atomic::Ordering::Relaxed);
+			}
 		});
+
+		while !worker_is_ready.load(::std::sync::atomic::Ordering::Relaxed) { }
 		let client = nanoipc::init_client::<ServiceClient<_>>(url).unwrap();
 
 		let hs = client.handshake();
 
-		exit.store(true, ::std::sync::atomic::Ordering::Relaxed);
+		worker_should_exit.store(true, ::std::sync::atomic::Ordering::Relaxed);
 		assert!(hs.is_ok());
 	}
 
