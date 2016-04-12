@@ -64,7 +64,7 @@ mod transaction_queue;
 pub use transaction_queue::{TransactionQueue, AccountDetails};
 pub use miner::{Miner};
 
-use util::{H256, U256, Address, FixedHash, Bytes};
+use util::{H256, U256, Address, Bytes};
 use ethcore::client::{BlockChainClient};
 use ethcore::block::{ClosedBlock};
 use ethcore::error::{Error};
@@ -77,13 +77,28 @@ pub trait MinerService : Send + Sync {
 	fn status(&self) -> MinerStatus;
 
 	/// Get the author that we will seal blocks as.
-	fn author(&self) -> Address { Address::zero() }
+	fn author(&self) -> Address;
 
-	/// Get the extra_data that we will seal blocks wuth.
-	fn extra_data(&self) -> Bytes { vec![] }
+	/// Set the author that we will seal blocks as.
+	fn set_author(&self, author: Address);
+
+	/// Get the extra_data that we will seal blocks with.
+	fn extra_data(&self) -> Bytes;
+
+	/// Set the extra_data that we will seal blocks with.
+	fn set_extra_data(&self, extra_data: Bytes);
+
+	/// Get current minimal gas price for transactions accepted to queue.
+	fn minimal_gas_price(&self) -> U256;
+
+	/// Set minimal gas price of transaction to be accepted for mining.
+	fn set_minimal_gas_price(&self, min_gas_price: U256);
 
 	/// Get the gas limit we wish to target when sealing a new block.
 	fn gas_floor_target(&self) -> U256;
+
+	/// Set the gas limit we wish to target when sealing a new block.
+	fn set_gas_floor_target(&self, target: U256);
 
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>

@@ -69,26 +69,6 @@ impl Miner {
 		})
 	}
 
-	/// Set the author that we will seal blocks as.
-	pub fn set_author(&self, author: Address) {
-		*self.author.write().unwrap() = author;
-	}
-
-	/// Set the extra_data that we will seal blocks with.
-	pub fn set_extra_data(&self, extra_data: Bytes) {
-		*self.extra_data.write().unwrap() = extra_data;
-	}
-
-	/// Set the gas limit we wish to target when sealing a new block.
-	pub fn set_gas_floor_target(&self, target: U256) {
-		*self.gas_floor_target.write().unwrap() = target;
-	}
-
-	/// Set minimal gas price of transaction to be accepted for mining.
-	pub fn set_minimal_gas_price(&self, min_gas_price: U256) {
-		self.transaction_queue.lock().unwrap().set_minimal_gas_price(min_gas_price);
-	}
-
 	/// Prepares new block for sealing including top transactions from queue.
 	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	fn prepare_sealing(&self, chain: &BlockChainClient) {
@@ -193,6 +173,27 @@ impl MinerService for Miner {
 			transactions_in_future_queue: status.future,
 			transactions_in_pending_block: sealing_work.peek_last_ref().map_or(0, |b| b.transactions().len()),
 		}
+	}
+
+	fn set_author(&self, author: Address) {
+		*self.author.write().unwrap() = author;
+	}
+
+	fn set_extra_data(&self, extra_data: Bytes) {
+		*self.extra_data.write().unwrap() = extra_data;
+	}
+
+	/// Set the gas limit we wish to target when sealing a new block.
+	fn set_gas_floor_target(&self, target: U256) {
+		*self.gas_floor_target.write().unwrap() = target;
+	}
+
+	fn set_minimal_gas_price(&self, min_gas_price: U256) {
+		self.transaction_queue.lock().unwrap().set_minimal_gas_price(min_gas_price);
+	}
+
+	fn minimal_gas_price(&self) -> U256 {
+		*self.transaction_queue.lock().unwrap().minimal_gas_price()
 	}
 
 	fn sensible_gas_price(&self) -> U256 {
