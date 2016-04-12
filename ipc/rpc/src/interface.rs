@@ -18,7 +18,6 @@
 
 use std::io::{Read, Write};
 use std::marker::Sync;
-use std::sync::atomic::*;
 use semver::Version;
 
 pub struct Handshake {
@@ -47,7 +46,7 @@ pub enum Error {
 	HandshakeFailed,
 }
 
-pub trait IpcInterface<T> where T: IpcConfig {
+pub trait IpcInterface<T>:IpcConfig {
 	/// reads the message from io, dispatches the call and returns serialized result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
 
@@ -81,5 +80,12 @@ pub fn invoke<W>(method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: 
 pub trait IpcSocket: Read + Write + Sync {
 }
 
-impl IpcSocket for ::devtools::TestSocket {
+
+pub trait WithSocket<S: IpcSocket> {
+	fn init(socket: S) -> Self;
 }
+
+
+impl IpcSocket for ::devtools::TestSocket {}
+
+impl IpcSocket for ::nanomsg::Socket {}
