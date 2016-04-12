@@ -42,7 +42,7 @@ pub struct RefCountedDB {
 
 const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const DB_VERSION : u32 = 512;
+const DB_VERSION : u32 = 0x200;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl RefCountedDB {
@@ -57,7 +57,7 @@ impl RefCountedDB {
 		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
 				Ok(Some(DB_VERSION)) => {},
-				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v)
+				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
 			}
 		} else {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
@@ -112,7 +112,7 @@ impl JournalDB for RefCountedDB {
 		self.latest_era.is_none()
 	}
 
-	fn latest_era() -> Option<u64> { self.latest_era }
+	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format:

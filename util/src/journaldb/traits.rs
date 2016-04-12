@@ -32,7 +32,7 @@ pub trait JournalDB : HashDB + Send + Sync {
 	fn is_empty(&self) -> bool;
 
 	/// Get the latest era in the DB. None if there isn't yet any data in there.
-	fn latest_era() -> Option<u64> { self.latest_era }
+	fn latest_era(&self) -> Option<u64>;
 
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.

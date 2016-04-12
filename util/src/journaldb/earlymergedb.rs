@@ -70,7 +70,7 @@ pub struct EarlyMergeDB {
 // all keys must be at least 12 bytes
 const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const DB_VERSION : u32 = 3;
+const DB_VERSION : u32 = 0x003;
 const PADDING : [u8; 10] = [ 0u8; 10 ];
 
 impl EarlyMergeDB {
@@ -85,7 +85,7 @@ impl EarlyMergeDB {
 		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
 				Ok(Some(DB_VERSION)) => {},
-				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v)
+				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
 			}
 		} else {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
@@ -333,7 +333,7 @@ impl JournalDB for EarlyMergeDB {
 		self.backing.get(&LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn latest_era() -> Option<u64> { self.latest_era }
+	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn mem_used(&self) -> usize {
 		self.overlay.mem_used() + match self.refs {
@@ -341,7 +341,6 @@ impl JournalDB for EarlyMergeDB {
 			None => 0
 		}
  	}
-
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {

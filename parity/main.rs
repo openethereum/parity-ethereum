@@ -542,24 +542,25 @@ impl Configuration {
 		ret
 	}
 
-	fn find_best_db(path: &str) -> Option<journaldb::Algorithm> {
+	fn find_best_db(&self, spec: &Spec) -> Option<journaldb::Algorithm> {
 		let mut ret = None;
 		let mut latest_era = None;
-		for i in [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted].into_iter() {
-			let db = journaldb::new(path, i);
+		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
+		for i in jdb_types.into_iter() {
+			let db = journaldb::new(&append_path(&get_db_path(&Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
 				(_, None) => {}
 				(_, Some(this)) => {
 					latest_era = Some(this);
-					ret = Some(i);
+					ret = Some(*i);
 				}
 			}
 		}
 		ret
 	}
 
-	fn client_config(&self) -> ClientConfig {
+	fn client_config(&self, spec: &Spec) -> ClientConfig {
 		let mut client_config = ClientConfig::default();
 		match self.args.flag_cache {
 			Some(mb) => {
@@ -576,9 +577,10 @@ impl Configuration {
 			"light" => journaldb::Algorithm::EarlyMerge,
 			"fast" => journaldb::Algorithm::OverlayRecent,
 			"basic" => journaldb::Algorithm::RefCounted,
-			"auto" => Self::find_best_db().unwrap_or(journaldb::Algorithm::OverlayRecent),
+			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
+		info!("Using state DB of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		client_config
@@ -673,13 +675,14 @@ impl Configuration {
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
 		let sync_config = self.sync_config(&spec);
+		let client_config = self.client_config(&spec);
 
 		// Secret Store
 		let account_service = Arc::new(self.account_service());
 
 		// Build client
 		let mut service = ClientService::start(
-			self.client_config(), spec, net_settings, &Path::new(&self.path())
+			client_config, spec, net_settings, &Path::new(&self.path())
 		).unwrap_or_else(|e| die_with_error(e));
 
 		panic_handler.forward_from(&service);
