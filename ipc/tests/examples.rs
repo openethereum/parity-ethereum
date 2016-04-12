@@ -35,6 +35,30 @@ mod tests {
 		assert_eq!(10, *service.commits.read().unwrap());
 	}
 
+
+	#[test]
+	fn call_service_handshake() {
+		let mut socket = TestSocket::new_ready(vec![0, 0,
+			// protocol version
+			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
+			// api version
+			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
+			// reserved
+			0, 0, 0, 0, 0, 0, 0, 64,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			]);
+
+		let service = Service::new();
+		let result = service.dispatch(&mut socket);
+
+		// single `true`
+		assert_eq!(vec![1], result);
+	}
+
+
 	#[test]
 	fn call_service_proxy() {
 		let mut socket = TestSocket::new();
