@@ -347,8 +347,6 @@ impl<C: MinerBlockChain> MinerService for Miner<C> {
 #[cfg(test)]
 mod tests {
 
-	use std::sync::Arc;
-
 	use MinerService;
 	use super::{Miner};
 	use util::*;

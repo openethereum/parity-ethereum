@@ -15,10 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethcore::engine::Engine;
-use ethcore::client::{BlockChainClient};
+use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::OpenBlock;
 use ethcore::error::ImportResult;
 use ethcore::transaction::SignedTransaction;
+use ethcore::views::{BlockView, HeaderView};
 
 use util::{H256, U256, Address, Bytes};
 
@@ -27,34 +28,42 @@ use super::{MinerBlockChain, AccountDetails};
 impl<C : BlockChainClient> MinerBlockChain for C {
 
 	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Option<OpenBlock> {
-		unimplemented!()
+		BlockChainClient::open_block(self, author, gas_floor_target, extra_data)
 	}
 
 	fn import_block(&self, bytes: Bytes) -> ImportResult {
-		unimplemented!()
+		BlockChainClient::import_block(self, bytes)
 	}
 
 	fn block_transactions(&self, hash: &H256) -> Vec<SignedTransaction> {
-		unimplemented!()
+		let block = self
+				.block(BlockId::Hash(*hash))
+				// Client should send message after commit to db and inserting to chain.
+				.expect("Expected in-chain blocks.");
+		let block = BlockView::new(&block);
+		block.transactions()
 	}
 
 	fn best_block_gas_limit(&self) -> U256 {
-		unimplemented!()
+		HeaderView::new(&self.best_block_header()).gas_limit()
 	}
 
 	fn best_block_number(&self) -> u64 {
-		unimplemented!()
+		self.chain_info().best_block_number
 	}
 
 	fn best_block_hash(&self) -> H256 {
-		unimplemented!()
+		self.chain_info().best_block_hash
 	}
 
 	fn account_details(&self, address: &Address) -> AccountDetails {
-		unimplemented!()
+		AccountDetails {
+			nonce: self.nonce(address),
+			balance: self.balance(address),
+		}
 	}
 
 	fn engine(&self) -> &Engine {
-		unimplemented!()
+		BlockChainClient::engine(self)
 	}
 }
