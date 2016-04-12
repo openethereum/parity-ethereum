@@ -1,8 +1,8 @@
 verbose=false
-max_width=150
-ideal_width=120
+max_width=1000
+ideal_width=1000
 tabs_spaces=4
-fn_call_width=100
+fn_call_width=1000
 fn_arg_indent="Tabbed"
 single_line_if_else=true
 where_indent="Visual"

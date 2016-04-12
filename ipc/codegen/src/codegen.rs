@@ -282,15 +282,14 @@ fn implement_dispatch_arms(
 /// generates client type for specified server type
 /// for say `Service` it generates `ServiceClient`
 fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
-	let proxy_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
-
-	let proxy_struct_item = quote_item!(cx,
-		pub struct $proxy_ident <S: ::ipc::IpcSocket> {
+	let (_, client_ident) = get_item_idents(builder, item);
+	let client_struct_item = quote_item!(cx,
+		pub struct $client_ident <S: ::ipc::IpcSocket> {
 			socket: ::std::cell::RefCell<S>,
 			phantom: ::std::marker::PhantomData<S>,
 		});
 
-	push(Annotatable::Item(proxy_struct_item.expect(&format!("could not generate proxy struct for {:?}", proxy_ident.name))));
+	push(Annotatable::Item(client_struct_item.expect(&format!("could not generate client struct for {:?}", client_ident.name))));
 }
 
 /// pushes generated code for the client class (type declaration and method invocation implementations)
@@ -492,7 +491,8 @@ fn push_with_socket_client_implementation(
 	item: &Item,
 	push: &mut FnMut(Annotatable))
 {
-	let client_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
+	let (_, client_ident) = get_item_idents(builder, item);
+
 	let implement = quote_item!(cx,
 		impl<S> ::ipc::WithSocket<S> for $client_ident<S> where S: ::ipc::IpcSocket {
 			fn init(socket: S) -> $client_ident<S> {
@@ -513,13 +513,13 @@ fn push_client_implementation(
 	item: &Item,
 	push: &mut FnMut(Annotatable))
 {
+	let (item_ident, client_ident) = get_item_idents(builder, item);
+
 	let mut index = -1i32;
 	let items = dispatches.iter()
 		.map(|dispatch| { index = index + 1; P(implement_client_method(cx, builder, index as u16, dispatch)) })
 		.collect::<Vec<P<ast::ImplItem>>>();
 
-	let client_ident = builder.id(format!("{}Client", item.ident.name.as_str()));
-	let item_ident =  builder.id(format!("{}", item.ident.name.as_str()));
 	let implement = quote_item!(cx,
 		impl<S> $client_ident<S> where S: ::ipc::IpcSocket {
 			pub fn handshake(&self) -> Result<(), ::ipc::Error> {
@@ -589,6 +589,24 @@ fn implement_handshake_arm(
 	)
 }
 
+fn get_item_idents(builder: &aster::AstBuilder, item: &Item) -> (::syntax::ast::Ident, ::syntax::ast::Ident) {
+	let ty = match item.node {
+		ast::ItemKind::Impl(_, _, _, _, ref ty, _) => ty.clone(),
+		_ => { builder.ty().id("") }
+	};
+
+	let (item_ident, client_ident) = match ty.node {
+		::syntax::ast::TyKind::Path(_, ref path) => {
+			(
+				builder.id(format!("{}", path.segments[0].identifier)),
+				builder.id(format!("{}Client", path.segments[0].identifier))
+			)
+		},
+		_ => { panic!("incompatible implementation"); }
+	};
+	(item_ident, client_ident)
+}
+
 /// implements `IpcInterface<C>` for the given class `C`
 fn implement_interface(
 	cx: &ExtCtxt,
@@ -612,11 +630,9 @@ fn implement_interface(
 		)
 		.build();
 
-	let ty = builder.ty().path()
-		.segment(item.ident).with_generics(impl_generics.clone()).build()
-		.build();
-
 	let where_clause = &impl_generics.where_clause;
+
+	let (ty, _) = get_item_idents(builder, item);
 
 	let mut dispatch_table = Vec::new();
 	for impl_item in impl_items {
