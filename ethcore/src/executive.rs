@@ -21,6 +21,7 @@ use engine::*;
 use evm::{self, Ext};
 use externalities::*;
 use substate::*;
+use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
 use crossbeam;
 
 /// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)
@@ -443,6 +444,8 @@ mod tests {
 	use evm::{Factory, VMType};
 	use substate::*;
 	use tests::helpers::*;
+	use trace::trace::*;
+	use trace::{Tracer, NoopTracer, ExecutiveTracer};
 
 	#[test]
 	fn test_contract_address() {

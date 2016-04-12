@@ -345,7 +345,7 @@ mod tests {
 	use util::{Address, U256, FixedHash};
 	use util::rlp::{encode, decode};
 	use util::sha3::Hashable;
-	use trace::{TraceCall, TraceCallResult, TraceCreate, TraceResult, TraceAction, Trace};
+	use trace::trace::{TraceCall, TraceCallResult, TraceCreate, TraceResult, TraceAction, Trace};
 
 	#[test]
 	fn traces_rlp() {

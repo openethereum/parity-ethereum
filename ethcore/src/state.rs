@@ -18,6 +18,7 @@ use common::*;
 use engine::Engine;
 use executive::{Executive, TransactOptions};
 use account_db::*;
+use trace::Trace;
 #[cfg(test)]
 #[cfg(feature = "json-tests")]
 use pod_account::*;
@@ -367,7 +368,7 @@ use env_info::*;
 use spec::*;
 use transaction::*;
 use util::log::init_log;
-use trace::*;
+use trace::trace::*;
 
 #[test]
 fn should_apply_create_transaction() {
