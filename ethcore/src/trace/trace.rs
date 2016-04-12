@@ -21,7 +21,7 @@ use util::sha3::Hashable;
 use action_params::ActionParams;
 use basic_types::LogBloom;
 
-/// Call result.
+/// `Call` result.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct CallResult {
 	/// Gas used by call.
@@ -50,7 +50,7 @@ impl Decodable for CallResult {
 	}
 }
 
-/// Create result.
+/// `Create` result.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CreateResult {
 	/// Gas used by create.
