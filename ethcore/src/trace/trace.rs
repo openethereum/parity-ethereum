@@ -245,7 +245,7 @@ impl Action {
 
 /// The result of the performed action.
 #[derive(Debug, Clone, PartialEq)]
-pub enum TraceResult {
+pub enum Res {
 	/// Successful call action result.
 	Call(CallResult),
 	/// Successful create action result.
@@ -256,24 +256,24 @@ pub enum TraceResult {
 	FailedCreate,
 }
 
-impl Encodable for TraceResult {
+impl Encodable for Res {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		match *self {
-			TraceResult::Call(ref call) => {
+			Res::Call(ref call) => {
 				s.begin_list(2);
 				s.append(&0u8);
 				s.append(call);
 			},
-			TraceResult::Create(ref create) => {
+			Res::Create(ref create) => {
 				s.begin_list(2);
 				s.append(&1u8);
 				s.append(create);
 			},
-			TraceResult::FailedCall => {
+			Res::FailedCall => {
 				s.begin_list(1);
 				s.append(&2u8);
 			},
-			TraceResult::FailedCreate => {
+			Res::FailedCreate => {
 				s.begin_list(1);
 				s.append(&3u8);
 			}
@@ -281,15 +281,15 @@ impl Encodable for TraceResult {
 	}
 }
 
-impl Decodable for TraceResult {
+impl Decodable for Res {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let action_type: u8 = try!(d.val_at(0));
 		match action_type {
-			0 => d.val_at(1).map(TraceResult::Call),
-			1 => d.val_at(1).map(TraceResult::Create),
-			2 => Ok(TraceResult::FailedCall),
-			3 => Ok(TraceResult::FailedCreate),
+			0 => d.val_at(1).map(Res::Call),
+			1 => d.val_at(1).map(Res::Create),
+			2 => Ok(Res::FailedCall),
+			3 => Ok(Res::FailedCreate),
 			_ => Err(DecoderError::Custom("Invalid result type.")),
 		}
 	}
@@ -306,7 +306,7 @@ pub struct Trace {
 	/// The sub traces for each interior action performed as part of this call.
 	pub subs: Vec<Trace>,
 	/// The result of the performed action.
-	pub result: TraceResult,
+	pub result: Res,
 }
 
 impl Encodable for Trace {
@@ -345,7 +345,7 @@ mod tests {
 	use util::{Address, U256, FixedHash};
 	use util::rlp::{encode, decode};
 	use util::sha3::Hashable;
-	use trace::trace::{Call, CallResult, Create, TraceResult, Action, Trace};
+	use trace::trace::{Call, CallResult, Create, Res, Action, Trace};
 
 	#[test]
 	fn traces_rlp() {
@@ -368,10 +368,10 @@ mod tests {
 						init: vec![0x9]
 					}),
 					subs: vec![],
-					result: TraceResult::FailedCreate
+					result: Res::FailedCreate
 				}
 			],
-			result: TraceResult::Call(CallResult {
+			result: Res::Call(CallResult {
 				gas_used: U256::from(10),
 				output: vec![0x11, 0x12]
 			})
@@ -403,10 +403,10 @@ mod tests {
 						init: vec![0x9]
 					}),
 					subs: vec![],
-					result: TraceResult::FailedCreate
+					result: Res::FailedCreate
 				}
 			],
-			result: TraceResult::Call(CallResult {
+			result: Res::Call(CallResult {
 				gas_used: U256::from(10),
 				output: vec![0x11, 0x12]
 			})

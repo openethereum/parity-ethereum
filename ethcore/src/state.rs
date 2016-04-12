@@ -369,7 +369,7 @@ use spec::*;
 use transaction::*;
 use util::log::init_log;
 use trace::trace;
-use trace::trace::{Trace, TraceResult};
+use trace::trace::{Trace};
 
 #[test]
 fn should_apply_create_transaction() {
@@ -401,7 +401,7 @@ fn should_apply_create_transaction() {
 			gas: x!(77412),
 			init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 		}),
-		result: TraceResult::Create(trace::CreateResult {
+		result: trace::Res::Create(trace::CreateResult {
 			gas_used: U256::from(3224),
 			address: Address::from_str("8988167e088c87cd314df6d3c2b83da5acb93ace").unwrap(),
 			code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
@@ -461,7 +461,7 @@ fn should_trace_failed_create_transaction() {
 			gas: x!(78792),
 			init: vec![91, 96, 0, 86],
 		}),
-		result: TraceResult::FailedCreate,
+		result: trace::Res::FailedCreate,
 		subs: vec![]
 	});
 
@@ -500,7 +500,7 @@ fn should_trace_call_transaction() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(3),
 			output: vec![]
 		}),
@@ -541,7 +541,7 @@ fn should_trace_basic_call_transaction() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(0),
 			output: vec![]
 		}),
@@ -608,7 +608,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(28_061),
 			output: vec![]
 		}),
@@ -650,7 +650,7 @@ fn should_not_trace_callcode() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(64),
 			output: vec![]
 		}),
@@ -695,7 +695,7 @@ fn should_not_trace_delegatecall() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(61),
 			output: vec![]
 		}),
@@ -736,7 +736,7 @@ fn should_trace_failed_call_transaction() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::FailedCall,
+		result: trace::Res::FailedCall,
 		subs: vec![]
 	});
 
@@ -778,7 +778,7 @@ fn should_trace_call_with_subcall_transaction() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(69),
 			output: vec![]
 		}),
@@ -791,7 +791,7 @@ fn should_trace_call_with_subcall_transaction() {
 				gas: x!(78934),
 				input: vec![],
 			}),
-			result: TraceResult::Call(trace::CallResult {
+			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(3),
 				output: vec![]
 			}),
@@ -834,7 +834,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(31761),
 			output: vec![]
 		}),
@@ -847,7 +847,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 				gas: x!(2300),
 				input: vec![],
 			}),
-			result: TraceResult::Call(trace::CallResult::default()),
+			result: trace::Res::Call(trace::CallResult::default()),
 			subs: vec![]
 		}]
 	});
@@ -887,7 +887,7 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(31761),
 			output: vec![]
 		}),
@@ -930,7 +930,7 @@ fn should_trace_failed_subcall_transaction() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(79_000),
 			output: vec![]
 		}),
@@ -943,7 +943,7 @@ fn should_trace_failed_subcall_transaction() {
 				gas: x!(78934),
 				input: vec![],
 			}),
-			result: TraceResult::FailedCall,
+			result: trace::Res::FailedCall,
 			subs: vec![]
 		}]
 	});
@@ -985,7 +985,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(135),
 			output: vec![]
 		}),
@@ -998,7 +998,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 				gas: x!(78934),
 				input: vec![],
 			}),
-			result: TraceResult::Call(trace::CallResult {
+			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(69),
 				output: vec![]
 			}),
@@ -1011,7 +1011,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 					gas: x!(78868),
 					input: vec![],
 				}),
-				result: TraceResult::Call(trace::CallResult {
+				result: trace::Res::Call(trace::CallResult {
 					gas_used: U256::from(3),
 					output: vec![]
 				}),
@@ -1057,7 +1057,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 			gas: x!(79000),
 			input: vec![],
 		}),
-		result: TraceResult::Call(trace::CallResult {
+		result: trace::Res::Call(trace::CallResult {
 			gas_used: U256::from(79_000),
 			output: vec![]
 		}),
@@ -1070,7 +1070,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 				gas: x!(78934),
 				input: vec![],
 			}),
-			result: TraceResult::FailedCall,
+			result: trace::Res::FailedCall,
 			subs: vec![Trace {
 				depth: 2,
 				action: trace::Action::Call(trace::Call {
@@ -1080,7 +1080,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 					gas: x!(78868),
 					input: vec![],
 				}),
-				result: TraceResult::Call(trace::CallResult {
+				result: trace::Res::Call(trace::CallResult {
 					gas_used: U256::from(3),
 					output: vec![]
 				}),

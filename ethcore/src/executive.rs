@@ -445,7 +445,6 @@ mod tests {
 	use substate::*;
 	use tests::helpers::*;
 	use trace::trace;
-	use trace::trace::TraceResult;
 	use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
 
 	#[test]
@@ -603,7 +602,7 @@ mod tests {
 				gas: x!(100000),
 				input: vec![],
 			}),
-			result: TraceResult::Call(trace::CallResult {
+			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(55_248),
 				output: vec![],
 			}),
@@ -615,7 +614,7 @@ mod tests {
 					gas: x!(67979),
 					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
 				}),
-				result: TraceResult::Create(trace::CreateResult {
+				result: trace::Res::Create(trace::CreateResult {
 					gas_used: U256::from(3224),
 					address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
 					code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
@@ -673,7 +672,7 @@ mod tests {
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 			}),
-			result: TraceResult::Create(trace::CreateResult {
+			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),
 				address: params.address,
 				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
