@@ -21,6 +21,7 @@ mod tests {
 	use nanoipc;
 	use std::sync::Arc;
 	use std::io::{Write, Read};
+	use std::sync::atomic::{Ordering, AtomicBool};
 
 	fn dummy_write(addr: &str, buf: &[u8]) -> (::nanomsg::Socket, ::nanomsg::Endpoint) {
 		let mut socket = ::nanomsg::Socket::new(::nanomsg::Protocol::Pair).unwrap();
@@ -45,44 +46,44 @@ mod tests {
 	#[test]
 	fn can_call_handshake() {
 		let url = "ipc:///tmp/parity-test-nano-20.ipc";
-		let worker_should_exit = Arc::new(::std::sync::atomic::AtomicBool::new(false));
-		let worker_is_ready = Arc::new(::std::sync::atomic::AtomicBool::new(false));
+		let worker_should_exit = Arc::new(AtomicBool::new(false));
+		let worker_is_ready = Arc::new(AtomicBool::new(false));
 		let c_worker_should_exit = worker_should_exit.clone();
 		let c_worker_is_ready = worker_is_ready.clone();
 
 		::std::thread::spawn(move || {
 			let mut worker = init_worker(url);
-    		while !c_worker_should_exit.load(::std::sync::atomic::Ordering::Relaxed) {
+    		while !c_worker_should_exit.load(Ordering::Relaxed) {
 				worker.poll();
-				c_worker_is_ready.store(true, ::std::sync::atomic::Ordering::Relaxed);
+				c_worker_is_ready.store(true, Ordering::Relaxed);
 			}
 		});
 
-		while !worker_is_ready.load(::std::sync::atomic::Ordering::Relaxed) { }
+		while !worker_is_ready.load(Ordering::Relaxed) { }
 		let client = nanoipc::init_client::<ServiceClient<_>>(url).unwrap();
 
 		let hs = client.handshake();
 
-		worker_should_exit.store(true, ::std::sync::atomic::Ordering::Relaxed);
+		worker_should_exit.store(true, Ordering::Relaxed);
 		assert!(hs.is_ok());
 	}
 
 	#[test]
 	fn can_receive_dummy_writes_in_thread() {
 		let url = "ipc:///tmp/parity-test-nano-30.ipc";
-		let worker_should_exit = Arc::new(::std::sync::atomic::AtomicBool::new(false));
-		let worker_is_ready = Arc::new(::std::sync::atomic::AtomicBool::new(false));
+		let worker_should_exit = Arc::new(AtomicBool::new(false));
+		let worker_is_ready = Arc::new(AtomicBool::new(false));
 		let c_worker_should_exit = worker_should_exit.clone();
 		let c_worker_is_ready = worker_is_ready.clone();
 
 		::std::thread::spawn(move || {
 			let mut worker = init_worker(url);
-    		while !c_worker_should_exit.load(::std::sync::atomic::Ordering::Relaxed) {
+    		while !c_worker_should_exit.load(Ordering::Relaxed) {
 				worker.poll();
-				c_worker_is_ready.store(true, ::std::sync::atomic::Ordering::Relaxed);
+				c_worker_is_ready.store(true, Ordering::Relaxed);
 			}
 		});
-		while !worker_is_ready.load(::std::sync::atomic::Ordering::Relaxed) { }
+		while !worker_is_ready.load(Ordering::Relaxed) { }
 
 		let (mut _s, _e) = dummy_write(url, &vec![0, 0,
 			// protocol version
@@ -98,11 +99,11 @@ mod tests {
 			]);
 
 		let mut buf = vec![0u8;1];
-		let result = _s.read(&mut buf);
+		_s.read(&mut buf).unwrap();
 		assert_eq!(1, buf.len());
 		assert_eq!(1, buf[0]);
 
-		worker_should_exit.store(true, ::std::sync::atomic::Ordering::Relaxed);
+		worker_should_exit.store(true, Ordering::Relaxed);
 	}
 
 }
