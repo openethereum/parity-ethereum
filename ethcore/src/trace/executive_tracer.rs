@@ -18,7 +18,7 @@
 
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
-use trace::trace::{Trace, Call, Create, TraceAction, TraceResult, CreateResult, CallResult};
+use trace::trace::{Trace, Call, Create, Action, TraceResult, CreateResult, CallResult};
 use trace::Tracer;
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
@@ -50,7 +50,7 @@ impl Tracer for ExecutiveTracer {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
-			action: TraceAction::Call(call.expect("Trace call expected to be Some.")),
+			action: Action::Call(call.expect("Trace call expected to be Some.")),
 			result: TraceResult::Call(CallResult {
 				gas_used: gas_used,
 				output: output.expect("Trace call output expected to be Some.")
@@ -63,7 +63,7 @@ impl Tracer for ExecutiveTracer {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
-			action: TraceAction::Create(create.expect("Trace create expected to be Some.")),
+			action: Action::Create(create.expect("Trace create expected to be Some.")),
 			result: TraceResult::Create(CreateResult {
 				gas_used: gas_used,
 				code: code.expect("Trace create code expected to be Some."),
@@ -82,7 +82,7 @@ impl Tracer for ExecutiveTracer {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
-			action: TraceAction::Call(call.expect("Trace call expected to be Some.")),
+			action: Action::Call(call.expect("Trace call expected to be Some.")),
 			result: TraceResult::FailedCall,
 		};
 		self.traces.push(trace);
@@ -92,7 +92,7 @@ impl Tracer for ExecutiveTracer {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
-			action: TraceAction::Create(create.expect("Trace create expected to be Some.")),
+			action: Action::Create(create.expect("Trace create expected to be Some.")),
 			result: TraceResult::FailedCreate,
 		};
 		self.traces.push(trace);

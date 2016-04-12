@@ -199,22 +199,22 @@ impl Create {
 
 /// Description of an action that we trace; will be either a call or a create.
 #[derive(Debug, Clone, PartialEq)]
-pub enum TraceAction {
+pub enum Action {
 	/// It's a call action.
 	Call(Call),
 	/// It's a create action.
 	Create(Create),
 }
 
-impl Encodable for TraceAction {
+impl Encodable for Action {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
 		match *self {
-			TraceAction::Call(ref call) => {
+			Action::Call(ref call) => {
 				s.append(&0u8);
 				s.append(call);
 			},
-			TraceAction::Create(ref create) => {
+			Action::Create(ref create) => {
 				s.append(&1u8);
 				s.append(create);
 			}
@@ -222,23 +222,23 @@ impl Encodable for TraceAction {
 	}
 }
 
-impl Decodable for TraceAction {
+impl Decodable for Action {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let d = decoder.as_rlp();
 		let action_type: u8 = try!(d.val_at(0));
 		match action_type {
-			0 => d.val_at(1).map(TraceAction::Call),
-			1 => d.val_at(1).map(TraceAction::Create),
+			0 => d.val_at(1).map(Action::Call),
+			1 => d.val_at(1).map(Action::Create),
 			_ => Err(DecoderError::Custom("Invalid action type.")),
 		}
 	}
 }
 
-impl TraceAction {
+impl Action {
 	pub fn bloom(&self) -> LogBloom {
 		match *self {
-			TraceAction::Call(ref call) => call.bloom(),
-			TraceAction::Create(ref create) => create.bloom(),
+			Action::Call(ref call) => call.bloom(),
+			Action::Create(ref create) => create.bloom(),
 		}
 	}
 }
@@ -302,7 +302,7 @@ pub struct Trace {
 	/// the outer action of the transaction.
 	pub depth: usize,
 	/// The action being performed.
-	pub action: TraceAction,
+	pub action: Action,
 	/// The sub traces for each interior action performed as part of this call.
 	pub subs: Vec<Trace>,
 	/// The result of the performed action.
@@ -345,13 +345,13 @@ mod tests {
 	use util::{Address, U256, FixedHash};
 	use util::rlp::{encode, decode};
 	use util::sha3::Hashable;
-	use trace::trace::{Call, CallResult, Create, TraceResult, TraceAction, Trace};
+	use trace::trace::{Call, CallResult, Create, TraceResult, Action, Trace};
 
 	#[test]
 	fn traces_rlp() {
 		let trace = Trace {
 			depth: 2,
-			action: TraceAction::Call(Call {
+			action: Action::Call(Call {
 				from: Address::from(1),
 				to: Address::from(2),
 				value: U256::from(3),
@@ -361,7 +361,7 @@ mod tests {
 			subs: vec![
 				Trace {
 					depth: 3,
-					action: TraceAction::Create(Create {
+					action: Action::Create(Create {
 						from: Address::from(6),
 						value: U256::from(7),
 						gas: U256::from(8),
@@ -386,7 +386,7 @@ mod tests {
 	fn traces_bloom() {
 		let trace = Trace {
 			depth: 2,
-			action: TraceAction::Call(Call {
+			action: Action::Call(Call {
 				from: Address::from(1),
 				to: Address::from(2),
 				value: U256::from(3),
@@ -396,7 +396,7 @@ mod tests {
 			subs: vec![
 				Trace {
 					depth: 3,
-					action: TraceAction::Create(Create {
+					action: Action::Create(Create {
 						from: Address::from(6),
 						value: U256::from(7),
 						gas: U256::from(8),

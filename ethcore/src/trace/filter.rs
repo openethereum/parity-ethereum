@@ -18,7 +18,7 @@ use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
 use client::BlockId;
-use trace::{Trace, TraceAction};
+use super::trace::{Trace, Action};
 
 /// Traces filter.
 pub struct Filter {
@@ -61,12 +61,12 @@ impl Filter {
 	/// Returns true if given trace matches the filter.
 	pub fn matches(&self, trace: &Trace) -> bool {
 		let matches = match trace.action {
-			TraceAction::Call(ref call) => {
+			Action::Call(ref call) => {
 				let from_matches = self.from_address.is_empty() || self.from_address.contains(&call.from);
 				let to_matches = self.to_address.is_empty() || self.to_address.contains(&call.to);
 				from_matches && to_matches
 			},
-			TraceAction::Create(ref create) => {
+			Action::Create(ref create) => {
 				let from_matches = self.from_address.is_empty() || self.from_address.contains(&create.from);
 				let to_matches = self.to_address.is_empty();
 				from_matches && to_matches

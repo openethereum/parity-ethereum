@@ -445,8 +445,8 @@ mod tests {
 	use substate::*;
 	use tests::helpers::*;
 	use trace::trace;
-	use trace::trace::*;
-	use trace::{Tracer, NoopTracer, ExecutiveTracer};
+	use trace::trace::TraceResult;
+	use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
 
 	#[test]
 	fn test_contract_address() {
@@ -596,7 +596,7 @@ mod tests {
 
 		let expected_trace = vec![ Trace {
 			depth: 0,
-			action: TraceAction::Call(trace::Call {
+			action: trace::Action::Call(trace::Call {
 				from: x!("cd1722f3947def4cf144679da39c4c32bdc35681"),
 				to: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
 				value: x!(100),
@@ -609,7 +609,7 @@ mod tests {
 			}),
 			subs: vec![Trace {
 				depth: 1,
-				action: TraceAction::Create(trace::Create {
+				action: trace::Action::Create(trace::Create {
 					from: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
 					value: x!(23),
 					gas: x!(67979),
@@ -667,7 +667,7 @@ mod tests {
 
 		let expected_trace = vec![Trace {
 			depth: 0,
-			action: TraceAction::Create(trace::Create {
+			action: trace::Action::Create(trace::Create {
 				from: params.sender,
 				value: x!(100),
 				gas: params.gas,

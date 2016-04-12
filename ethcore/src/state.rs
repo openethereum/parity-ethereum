@@ -369,7 +369,7 @@ use spec::*;
 use transaction::*;
 use util::log::init_log;
 use trace::trace;
-use trace::trace::*;
+use trace::trace::{Trace, TraceResult};
 
 #[test]
 fn should_apply_create_transaction() {
@@ -395,7 +395,7 @@ fn should_apply_create_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Create(trace::Create {
+		action: trace::Action::Create(trace::Create {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			value: x!(100),
 			gas: x!(77412),
@@ -455,7 +455,7 @@ fn should_trace_failed_create_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Create(trace::Create {
+		action: trace::Action::Create(trace::Create {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			value: x!(100),
 			gas: x!(78792),
@@ -493,7 +493,7 @@ fn should_trace_call_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(100),
@@ -534,7 +534,7 @@ fn should_trace_basic_call_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(100),
@@ -601,7 +601,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(0),
@@ -643,7 +643,7 @@ fn should_not_trace_callcode() {
 
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(0),
@@ -688,7 +688,7 @@ fn should_not_trace_delegatecall() {
 
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(0),
@@ -729,7 +729,7 @@ fn should_trace_failed_call_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(100),
@@ -771,7 +771,7 @@ fn should_trace_call_with_subcall_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(100),
@@ -784,7 +784,7 @@ fn should_trace_call_with_subcall_transaction() {
 		}),
 		subs: vec![Trace {
 			depth: 1,
-			action: TraceAction::Call(trace::Call {
+			action: trace::Action::Call(trace::Call {
 				from: x!(0xa),
 				to: x!(0xb),
 				value: x!(0),
@@ -827,7 +827,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(100),
@@ -840,7 +840,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 		}),
 		subs: vec![Trace {
 			depth: 1,
-			action: TraceAction::Call(trace::Call {
+			action: trace::Action::Call(trace::Call {
 				from: x!(0xa),
 				to: x!(0xb),
 				value: x!(69),
@@ -880,7 +880,7 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(100),
@@ -923,7 +923,7 @@ fn should_trace_failed_subcall_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(100),
@@ -936,7 +936,7 @@ fn should_trace_failed_subcall_transaction() {
 		}),
 		subs: vec![Trace {
 			depth: 1,
-			action: TraceAction::Call(trace::Call {
+			action: trace::Action::Call(trace::Call {
 				from: x!(0xa),
 				to: x!(0xb),
 				value: x!(0),
@@ -978,7 +978,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(100),
@@ -991,7 +991,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 		}),
 		subs: vec![Trace {
 			depth: 1,
-			action: TraceAction::Call(trace::Call {
+			action: trace::Action::Call(trace::Call {
 				from: x!(0xa),
 				to: x!(0xb),
 				value: x!(0),
@@ -1004,7 +1004,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 			}),
 			subs: vec![Trace {
 				depth: 2,
-				action: TraceAction::Call(trace::Call {
+				action: trace::Action::Call(trace::Call {
 					from: x!(0xb),
 					to: x!(0xc),
 					value: x!(0),
@@ -1050,7 +1050,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 	let result = state.apply(&info, &engine, &t, true).unwrap();
 	let expected_trace = Some(Trace {
 		depth: 0,
-		action: TraceAction::Call(trace::Call {
+		action: trace::Action::Call(trace::Call {
 			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
 			to: x!(0xa),
 			value: x!(100),
@@ -1063,7 +1063,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 		}),
 		subs: vec![Trace {
 			depth: 1,
-			action: TraceAction::Call(trace::Call {
+			action: trace::Action::Call(trace::Call {
 				from: x!(0xa),
 				to: x!(0xb),
 				value: x!(0),
@@ -1073,7 +1073,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 			result: TraceResult::FailedCall,
 			subs: vec![Trace {
 				depth: 2,
-				action: TraceAction::Call(trace::Call {
+				action: trace::Action::Call(trace::Call {
 					from: x!(0xb),
 					to: x!(0xc),
 					value: x!(0),

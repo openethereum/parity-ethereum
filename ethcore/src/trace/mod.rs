@@ -21,12 +21,13 @@ mod filter;
 mod noop_tracer;
 mod executive_tracer;
 
-pub use self::trace::{Trace, Call, Create, TraceAction};
+pub use self::trace::Trace;
 pub use self::filter::Filter;
 pub use self::noop_tracer::NoopTracer;
 pub use self::executive_tracer::ExecutiveTracer;
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
+use self::trace::{Call, Create};
 
 /// This trait is used by executive to build traces.
 pub trait Tracer: Send {
