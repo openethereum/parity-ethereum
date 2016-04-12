@@ -59,7 +59,7 @@ pub enum Error {
 
 /// Allows implementor to be attached to generic worker and dispatch rpc requests
 /// over IPC
-pub trait IpcInterface<T>:IpcConfig {
+pub trait IpcInterface<T>: IpcConfig {
 	/// reads the message from io, dispatches the call and returns serialized result
 	fn dispatch<R>(&self, r: &mut R) -> Vec<u8> where R: Read;
 
