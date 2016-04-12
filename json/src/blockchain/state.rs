@@ -22,7 +22,7 @@ use blockchain::account::Account;
 
 /// Blockchain test state deserializer.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
-pub struct State(pub BTreeMap<Address, Account>);
+pub struct State(BTreeMap<Address, Account>);
 
 impl IntoIterator for State {
 	type Item = <BTreeMap<Address, Account> as IntoIterator>::Item;

@@ -208,7 +208,7 @@ impl<'a> Ext for Externalities<'a> {
 			},
 			OutputPolicy::Return(BytesRef::Flexible(ref mut vec), ref mut copy) => {
 				handle_copy(copy);
-				
+
 				vec.clear();
 				vec.reserve(data.len());
 				unsafe {
@@ -225,7 +225,7 @@ impl<'a> Ext for Externalities<'a> {
 						false => Ok(*gas)
 					}
 				}
-				
+
 				handle_copy(copy);
 
 				let mut code = vec![];
@@ -327,7 +327,7 @@ mod tests {
 		fn new() -> Self {
 			TestSetup {
 				state: get_temp_state(),
-				engine: get_test_spec().to_engine().unwrap(),
+				engine: get_test_spec().engine,
 				sub_state: Substate::new(false),
 				env_info: get_test_env_info()
 			}

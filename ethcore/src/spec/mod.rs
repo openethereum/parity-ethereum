@@ -17,6 +17,7 @@
 //! Blockchain params.
 
 mod genesis;
+mod seal;
 pub mod spec;
 
 pub use self::spec::*;

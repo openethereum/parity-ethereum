@@ -183,7 +183,7 @@ fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.gas_used > header.gas_limit {
 		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds { max: Some(header.gas_limit), min: None, found: header.gas_used })));
 	}
-	let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
+	let min_gas_limit = engine.params().min_gas_limit;
 	if header.gas_limit < min_gas_limit {
 		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas_limit), max: None, found: header.gas_limit })));
 	}
@@ -336,12 +336,10 @@ mod tests {
 		// Test against morden
 		let mut good = Header::new();
 		let spec = Spec::new_test();
-		let engine = spec.to_engine().unwrap();
+		let engine = &spec.engine;
 
-		let min_gas_limit = decode(engine.spec().engine_params.get("minGasLimit").unwrap());
-		let min_difficulty = decode(engine.spec().engine_params.get("minimumDifficulty").unwrap());
+		let min_gas_limit = engine.params().min_gas_limit;
 		good.gas_limit = min_gas_limit;
-		good.difficulty = min_difficulty;
 		good.timestamp = 40;
 		good.number = 10;
 

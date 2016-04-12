@@ -25,3 +25,5 @@ mod net;
 mod web3;
 #[cfg(test)]
 mod personal;
+#[cfg(test)]
+mod ethcore;

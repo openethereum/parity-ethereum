@@ -82,6 +82,9 @@ pub trait MinerService : Send + Sync {
 	/// Get the extra_data that we will seal blocks wuth.
 	fn extra_data(&self) -> Bytes { vec![] }
 
+	/// Get the gas limit we wish to target when sealing a new block.
+	fn gas_floor_target(&self) -> U256;
+
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
 		where T: Fn(&Address) -> AccountDetails;

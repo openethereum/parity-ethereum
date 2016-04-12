@@ -16,21 +16,33 @@
 
 //! Spec deserialization.
 
-use std::collections::BTreeMap;
-use hash::Address;
-use spec::account::Account;
-use spec::params::Params;
-use spec::genesis::Genesis;
+use std::io::Read;
+use serde_json;
+use serde_json::Error;
+use spec::{Params, Genesis, Engine, State};
 
 /// Spec deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Spec {
-	name: String,
-	#[serde(rename="engineName")]
-	engine_name: String, // TODO: consider making it an enum
-	params: Params,
-	genesis: Genesis,
-	accounts: BTreeMap<Address, Account>,
+	/// Spec name.
+	pub name: String,
+	/// Engine.
+	pub engine: Engine,
+	/// Spec params.
+	pub params: Params,
+	/// Genesis header.
+	pub genesis: Genesis,
+	/// Genesis state.
+	pub accounts: State,
+	/// Boot nodes.
+	pub nodes: Option<Vec<String>>,
+}
+
+impl Spec {
+	/// Loads test from json.
+	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
+		serde_json::from_reader(reader)
+	}
 }
 
 #[cfg(test)]
@@ -42,25 +54,34 @@ mod tests {
 	fn spec_deserialization() {
 		let s = r#"{
 	"name": "Morden",
-	"engineName": "Ethash",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"tieBreakingGas": false,
+				"gasLimitBoundDivisor": "0x0400",
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000",
+				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
+			}
+		}
+	},
 	"params": {
 		"accountStartNonce": "0x0100000",
 		"frontierCompatibilityModeLimit": "0x789b0",
 		"maximumExtraDataSize": "0x20",
-		"tieBreakingGas": false,
 		"minGasLimit": "0x1388",
-		"gasLimitBoundDivisor": "0x0400",
-		"minimumDifficulty": "0x020000",
-		"difficultyBoundDivisor": "0x0800",
-		"durationLimit": "0x0d",
-		"blockReward": "0x4563918244F40000",
-		"registrar": "",
 		"networkID" : "0x2"
 	},
 	"genesis": {
-		"nonce": "0x00006d6f7264656e",
+		"seal": {
+			"ethereum": {
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+				"nonce": "0x00006d6f7264656e"
+			}
+		},
 		"difficulty": "0x20000",
-		"mixHash": "0x00000000000000000000000000000000000000647572616c65787365646c6578",
 		"author": "0x0000000000000000000000000000000000000000",
 		"timestamp": "0x00",
 		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",

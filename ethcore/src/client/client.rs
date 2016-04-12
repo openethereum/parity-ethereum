@@ -140,13 +140,14 @@ impl<V> Client<V> where V: Verifier {
 		let mut state_path = path.to_path_buf();
 		state_path.push("state");
 
-		let engine = Arc::new(try!(spec.to_engine()));
 		let state_path_str = state_path.to_str().unwrap();
 		let mut state_db = journaldb::new(state_path_str, config.pruning);
 
-		if state_db.is_empty() && engine.spec().ensure_db_good(state_db.as_hashdb_mut()) {
-			state_db.commit(0, &engine.spec().genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
+		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
+			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
 		}
+
+		let engine = Arc::new(spec.engine);
 
 		let block_queue = BlockQueue::new(config.queue, engine.clone(), message_channel);
 		let panic_handler = PanicHandler::new_in_arc();
