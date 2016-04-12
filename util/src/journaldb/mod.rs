@@ -29,7 +29,7 @@ mod refcounteddb;
 pub use self::traits::JournalDB;
 
 /// A journal database algorithm.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Algorithm {
 	/// Keep all keys forever.
 	Archive,

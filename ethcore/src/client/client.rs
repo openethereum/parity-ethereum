@@ -17,6 +17,7 @@
 //! Blockchain database client.
 
 use std::marker::PhantomData;
+use std::path::PathBuf;
 use util::*;
 use util::panics::*;
 use views::BlockView;
@@ -126,22 +127,29 @@ impl Client<CanonVerifier> {
 	}
 }
 
+pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256) -> PathBuf {
+	let mut dir = path.to_path_buf();
+	dir.push(H64::from(genesis_hash).hex());
+	//TODO: sec/fat: pruned/full versioning
+	// version here is a bit useless now, since it's controlled only be the pruning algo.
+	dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, pruning));
+	dir
+}
+
+pub fn append_path(path: &Path, item: &str) -> String {
+	let mut p = path.to_path_buf();
+	p.push(item);
+	p.to_str().unwrap().to_owned()
+}
+
 impl<V> Client<V> where V: Verifier {
 	///  Create a new client with given spec and DB path and custom verifier.
 	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, Error> {
-		let mut dir = path.to_path_buf();
-		dir.push(H64::from(spec.genesis_header().hash()).hex());
-		//TODO: sec/fat: pruned/full versioning
-		// version here is a bit useless now, since it's controlled only be the pruning algo.
-		dir.push(format!("v{}-sec-{}", CLIENT_DB_VER_STR, config.pruning));
-		let path = dir.as_path();
+		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
-		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, path));
-		let mut state_path = path.to_path_buf();
-		state_path.push("state");
+		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
 
-		let state_path_str = state_path.to_str().unwrap();
-		let mut state_db = journaldb::new(state_path_str, config.pruning);
+		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
 
 		if state_db.is_empty() && spec.ensure_db_good(state_db.as_hashdb_mut()) {
 			state_db.commit(0, &spec.genesis_header().hash(), None).expect("Error commiting genesis state to state DB");
