@@ -91,6 +91,7 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 				match socket.nb_read_to_end(&mut self.buf) {
 					Ok(method_sign_len) => {
 						if method_sign_len >= 2 {
+
 							// method_num
 							let method_num = self.buf[1] as u16 * 256 + self.buf[0] as u16;
 							// payload
@@ -186,7 +187,6 @@ mod service_tests {
 	fn dummy_write(addr: &str, buf: &[u8]) -> (Socket, Endpoint) {
 		let mut socket = Socket::new(Protocol::Pair).unwrap();
 		let endpoint = socket.connect(addr).unwrap();
-		//thread::sleep_ms(10);
 		socket.write(buf).unwrap();
 		(socket, endpoint)
 	}
