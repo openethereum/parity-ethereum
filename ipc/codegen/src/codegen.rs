@@ -412,21 +412,18 @@ fn implement_client_method_body(
 		vec![]
 	};
 
-	let wait_result_stmt = quote_stmt!(cx, while !socket.ready().load(::std::sync::atomic::Ordering::Relaxed) { });
 	if let Some(ref return_ty) = dispatch.return_type_ty {
 		let return_expr = quote_expr!(cx,
 			::bincode::serde::deserialize_from::<_, $return_ty>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
 		);
 		quote_expr!(cx, {
 			$request
-			$wait_result_stmt
 			$return_expr
 		})
 	}
 	else {
 		quote_expr!(cx, {
 			$request
-			$wait_result_stmt
 		})
 	}
 }

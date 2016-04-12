@@ -79,11 +79,7 @@ pub fn invoke<W>(method_num: u16, params: &Option<Vec<u8>>, w: &mut W) where W: 
 
 /// IpcSocket
 pub trait IpcSocket: Read + Write + Sync {
-	fn ready(&self) -> AtomicBool;
 }
 
 impl IpcSocket for ::devtools::TestSocket {
-	fn ready(&self) -> AtomicBool {
-		AtomicBool::new(true)
-	}
 }
