@@ -16,14 +16,6 @@
 use aster;
 
 use syntax::ast::{
-	MetaItem,
-	Item,
-	ImplItemKind,
-	ImplItem,
-	MethodSig,
-	Arg,
-	PatKind,
-	FunctionRetTy,
 	Ty,
 	TyKind,
 	Path,

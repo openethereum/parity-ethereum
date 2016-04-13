@@ -656,11 +656,7 @@ fn get_item_idents(builder: &aster::AstBuilder, item: &Item) -> (::syntax::ast::
 	(item_ident, client_ident)
 }
 
-fn collect_tys(
-	cx: &ExtCtxt,
-	builder: &aster::AstBuilder,
-	items: &[&MethodSig],
-) -> Vec<P<Ty>> {
+fn collect_tys(items: &[&MethodSig]) -> Vec<P<Ty>> {
 	let mut result = Vec::new();
 	for signature in items {
 		result.extend(signature.decl.inputs.iter().map(|input_arg| input_arg.ty.clone()));
