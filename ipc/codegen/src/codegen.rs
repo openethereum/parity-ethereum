@@ -34,6 +34,7 @@ use syntax::ext::build::AstBuilder;
 use syntax::ptr::P;
 
 use super::typegen;
+use std::collections::HashMap;
 
 pub struct Error;
 
@@ -94,6 +95,7 @@ fn push_invoke_signature_aster(
 	builder: &aster::AstBuilder,
 	implement: &ImplItem,
 	signature: &MethodSig,
+	replacements: &HashMap<String, P<Ty>>,
 	push: &mut FnMut(Annotatable),
 ) -> Dispatch {
 
@@ -108,17 +110,25 @@ fn push_invoke_signature_aster(
 			let mut arg_names = Vec::new();
 			let mut arg_tys = Vec::new();
 			let arg_name = format!("{}", field_name(builder, &inputs[skip-1]).name);
-			let arg_ty = inputs[skip-1].ty.clone();
+
+			let mut arg_ty = inputs[skip-1].ty.clone();
+			arg_ty = typegen::argument_replacement(builder, replacements, &arg_ty).unwrap_or(arg_ty);
+
 			let mut tree = builder.item()
 				.attr().word("derive(Serialize, Deserialize)")
 				.attr().word("allow(non_camel_case_types)")
 				.struct_(name_str.as_str())
-				.field(arg_name.as_str()).ty().build(arg_ty.clone());
+				.field(arg_name.as_str()).ty()
+				.build(arg_ty.clone());
+
 			arg_names.push(arg_name);
-			arg_tys.push(arg_ty.clone());
+			arg_tys.push(arg_ty);
 			for arg in inputs.iter().skip(skip) {
 				let arg_name = format!("{}", field_name(builder, &arg));
-				let arg_ty = arg.ty.clone();
+
+				let mut arg_ty = arg.ty.clone();
+				arg_ty = typegen::argument_replacement(builder, replacements, &arg_ty).unwrap_or(arg_ty);
+
 				tree = tree.field(arg_name.as_str()).ty().build(arg_ty.clone());
 				arg_names.push(arg_name);
 				arg_tys.push(arg_ty);
@@ -338,8 +348,6 @@ fn implement_client_method_body(
 	-> P<ast::Expr>
 {
 	let request = if dispatch.input_arg_names.len() > 0 {
-
-		let substitutes = typegen::match_unknown_tys(cx, builder, dispatch.input_arg_tys
 
 		let arg_name = dispatch.input_arg_names[0].as_str();
 		let arg_ty = builder
@@ -645,7 +653,7 @@ fn implement_interface(
 	let mut dispatch_table = Vec::new();
 	for impl_item in impl_items {
 		if let ImplItemKind::Method(ref signature, _) = impl_item.node {
-			dispatch_table.push(push_invoke_signature_aster(builder, &impl_item, signature, push));
+			dispatch_table.push(push_invoke_signature_aster(builder, &impl_item, signature, &HashMap::<String, P<Ty>>::new(), push));
 		}
 	}
 

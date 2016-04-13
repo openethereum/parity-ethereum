@@ -27,6 +27,7 @@ use syntax::ast::{
 	Ty,
 	TyKind,
 	Path,
+	DUMMY_NODE_ID,
 };
 
 use syntax::ast;
@@ -56,7 +57,7 @@ fn is_new_entry(builder: &aster::AstBuilder, path: &Path) -> Option<String> {
 	};
 
 	if known { None }
-	else { Some(path_str(path)) }
+	else { Some(::syntax::print::pprust::path_to_string(path)) }
 }
 
 fn path_str(path: &Path) -> String {
@@ -65,6 +66,57 @@ fn path_str(path: &Path) -> String {
 		res.push_str(&format!("{}_", segment.identifier.name.as_str()));
 	}
 	res
+}
+
+pub fn argument_replacement(
+	builder: &aster::AstBuilder,
+	replacements: &HashMap<String, P<Ty>>,
+	ty: &P<Ty>,
+) -> Option<P<Ty>> {
+	match ty.node {
+		TyKind::Vec(ref nested_ty) => {
+			argument_replacement(builder, replacements, nested_ty).and_then(|replaced_with| {
+				let mut inplace_ty = nested_ty.deref().clone();
+				inplace_ty.node = TyKind::Vec(replaced_with);
+				inplace_ty.id = DUMMY_NODE_ID;
+				Some(P(inplace_ty))
+			})
+		},
+		TyKind::FixedLengthVec(ref nested_ty, ref len_expr) => {
+			argument_replacement(builder, replacements, nested_ty).and_then(|replaced_with| {
+				let mut inplace_ty = nested_ty.deref().clone();
+				inplace_ty.node = TyKind::FixedLengthVec(replaced_with, len_expr.clone());
+				inplace_ty.id = DUMMY_NODE_ID;
+				Some(P(inplace_ty))
+			})
+		},
+		TyKind::Path(_, ref path) => {
+			if path.segments.len() > 0 && path.segments[0].identifier.name.as_str() == "Option" ||
+				path.segments[0].identifier.name.as_str() == "Result" {
+
+				let nested_ty = &path.segments[0].parameters.types()[0];
+				argument_replacement(builder, replacements, nested_ty).and_then(|replaced_with| {
+					let mut inplace_path = path.clone();
+					match inplace_path.segments[0].parameters {
+						::syntax::ast::PathParameters::AngleBracketed(ref mut data) => {
+							data.types = data.types.map(|_| replaced_with.clone());
+						},
+						_ => {}
+					}
+					let mut inplace_ty = nested_ty.deref().deref().clone();
+					inplace_ty.node = TyKind::Path(None, inplace_path);
+					inplace_ty.id = DUMMY_NODE_ID;
+					Some(P(inplace_ty))
+				})
+			}
+			else {
+				replacements.get(&::syntax::print::pprust::path_to_string(path)).and_then(|replaced_with| {
+					Some(replaced_with.clone())
+				})
+			}
+		}
+		_ => { None }
+	}
 }
 
 pub fn push_bin_box(
