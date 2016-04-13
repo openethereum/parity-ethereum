@@ -23,7 +23,6 @@ use syntax::ast::{
 };
 
 use syntax::ast;
-use syntax::codemap::Span;
 use syntax::ext::base::{Annotatable, ExtCtxt};
 use syntax::ext::build::AstBuilder;
 use syntax::ptr::P;
@@ -31,13 +30,12 @@ use syntax::ptr::P;
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 
-fn is_new_entry(builder: &aster::AstBuilder, path: &Path) -> Option<String> {
+fn is_new_entry(path: &Path) -> Option<String> {
 	let known = {
 		if path.segments.len() > 1 {
 			false
 		} else {
 			let ident = format!("{}", path.segments[0].identifier.name.as_str());
-
 			ident == "u32"       ||
 			ident == "u64"       ||
 			ident == "usize"     ||
@@ -50,14 +48,6 @@ fn is_new_entry(builder: &aster::AstBuilder, path: &Path) -> Option<String> {
 
 	if known { None }
 	else { Some(::syntax::print::pprust::path_to_string(path)) }
-}
-
-fn path_str(path: &Path) -> String {
-	let mut res: String = "_".to_owned();
-	for segment in path.segments.iter() {
-		res.push_str(&format!("{}_", segment.identifier.name.as_str()));
-	}
-	res
 }
 
 pub fn argument_replacement(
@@ -219,7 +209,7 @@ pub fn match_unknown_tys(
 					continue;
 				}
 
-				match is_new_entry(builder, path) {
+				match is_new_entry(path) {
 					Some(old_path) => {
 						if hash_map.get(&old_path).is_some() {
 							continue;

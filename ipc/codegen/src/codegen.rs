@@ -702,9 +702,10 @@ fn implement_interface(
 	}
 
 	let all_tys = collect_tys(
-		cx,
-		builder,
-		&method_signatures.iter().map(|&(_, signature)| signature).collect::<Vec<&MethodSig>>());
+		&method_signatures
+			.iter()
+			.map(|&(_, signature)| signature)
+			.collect::<Vec<&MethodSig>>());
 
 	let replacements = typegen::match_unknown_tys(cx, builder, &all_tys, push);
 
