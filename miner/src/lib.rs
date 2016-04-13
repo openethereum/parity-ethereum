@@ -132,8 +132,11 @@ pub trait MinerService : Send + Sync {
 	/// Returns highest transaction nonce for given address.
 	fn last_nonce(&self, address: &Address) -> Option<U256>;
 
-	/// Suggested gas price
+	/// Suggested gas price.
 	fn sensible_gas_price(&self) -> U256 { x!(20000000000u64) }
+
+	/// Suggested gas limit.
+	fn sensible_gas_limit(&self) -> U256 { x!(21000) }
 }
 
 /// Mining status

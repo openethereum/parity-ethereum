@@ -201,6 +201,10 @@ impl MinerService for Miner {
 		*self.transaction_queue.lock().unwrap().minimal_gas_price() * x!(110) / x!(100)
 	}
 
+	fn sensible_gas_limit(&self) -> U256 {
+		*self.gas_floor_target.read().unwrap() / x!(5)
+	}
+
 	/// Get the author that we will seal blocks as.
 	fn author(&self) -> Address {
 		*self.author.read().unwrap()
