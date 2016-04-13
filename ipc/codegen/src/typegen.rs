@@ -52,7 +52,7 @@ fn is_new_entry(builder: &aster::AstBuilder, path: &Path) -> Option<String> {
 			ident == "i32"		 ||
 			ident == "i64"       ||
 			ident == "String"    ||
-			ident == "Option"
+			ident == "bool"
 		}
 	};
 
@@ -146,13 +146,12 @@ pub fn push_bin_box(
 			}
 		}).unwrap()));
 
-
 	let serialize_impl = quote_item!(cx,
 		impl ::serde::ser::Serialize for $ident {
 			fn serialize<__S>(&self, _serializer: &mut __S) -> ::std::result::Result<(), __S::Error>
 				where __S: ::serde::ser::Serializer
 			{
-				let &$ident(val) = self;
+				let &$ident(ref val) = self;
 				_serializer.serialize_bytes(val.as_slice())
 			}
 	 	}).unwrap();
@@ -242,7 +241,7 @@ pub fn match_unknown_tys(
 					None => {}
 				}
 			},
-			_ => { panic!("bad parameter in input args: {:?}", ty) }
+			_ => { }
 		}
 	}
 
