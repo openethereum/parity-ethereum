@@ -33,6 +33,8 @@ use syntax::ext::base::{Annotatable, ExtCtxt};
 use syntax::ext::build::AstBuilder;
 use syntax::ptr::P;
 
+use super::typegen;
+
 pub struct Error;
 
 const RESERVED_MESSAGE_IDS: u16 = 16;
@@ -62,7 +64,10 @@ pub fn expand_ipc_implementation(
 	push_client(cx, &builder, &item, &dispatches, push);
 	push_handshake_struct(cx, push);
 
-	push(Annotatable::Item(impl_item))
+	push(Annotatable::Item(impl_item));
+
+	let all_tys = dispatches.iter().flat_map(|ref dispatch| &dispatch.input_arg_tys).cloned().collect::<Vec<P<Ty>>>();
+	typegen::match_unknown_tys(cx, &builder, &all_tys, push);
 }
 
 fn push_handshake_struct(cx: &ExtCtxt, push: &mut FnMut(Annotatable)) {
@@ -333,6 +338,9 @@ fn implement_client_method_body(
 	-> P<ast::Expr>
 {
 	let request = if dispatch.input_arg_names.len() > 0 {
+
+		let substitutes = typegen::match_unknown_tys(cx, builder, dispatch.input_arg_tys
+
 		let arg_name = dispatch.input_arg_names[0].as_str();
 		let arg_ty = builder
 			.ty().ref_()

@@ -16,11 +16,30 @@
 
 use std::sync::RwLock;
 use std::ops::*;
+use std::convert::*;
 use ipc::IpcConfig;
+use util::bytes::{FromRawBytes, BytesConvertable, FromBytesError};
 
 pub struct Service {
 	pub commits: RwLock<usize>,
 	pub rollbacks: RwLock<usize>,
+}
+
+pub struct CustomData {
+	a: usize,
+	b: usize,
+}
+
+impl FromRawBytes for CustomData {
+	fn from_bytes(bytes: &[u8]) -> Result<CustomData, FromBytesError> {
+		Ok(CustomData { a: bytes[0] * 256 + bytes[1], b: bytes[2] * 256 + bytes[3]})
+	}
+}
+
+impl BytesConvertable for CustomData {
+	fn bytes(&self) -> &[u8] {
+		unsafe { &::std::mem::transmute::<[u8;8]>(self) }
+	}
 }
 
 #[derive(Ipc)]
@@ -35,6 +54,15 @@ impl Service {
 		let mut lock = self.rollbacks.write().unwrap();
 		*lock = *lock + a_0 as usize - b as usize;
 		(a_0 - b) as i32
+	}
+	pub fn push_custom(&self, data: CustomData) -> bool {
+		let clock = self.commits.write().unwrap();
+		let rlock = self.commits.write().unwrap();
+
+		*clock = data.a;
+		*rlock = data.b;
+
+		true
 	}
 }
 
