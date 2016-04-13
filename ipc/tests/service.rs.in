@@ -26,8 +26,8 @@ pub struct Service {
 }
 
 pub struct CustomData {
-	a: usize,
-	b: usize,
+	pub a: usize,
+	pub b: usize,
 }
 
 impl FromRawBytes for CustomData {
@@ -46,7 +46,7 @@ impl BytesConvertable for CustomData {
 		unsafe {
     		::std::slice::from_raw_parts(
         		ptr,
-        		::std::mem::size_of::<i64>()
+        		::std::mem::size_of::<CustomData>()
     		)
 		}
 	}

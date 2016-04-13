@@ -101,4 +101,24 @@ mod tests {
 
 		assert!(result.is_ok());
 	}
+
+	#[test]
+	fn can_use_custom_params() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![1];
+		let service_client = ServiceClient::init(socket);
+
+		let result = service_client.push_custom(CustomData { a: 3, b: 11});
+
+		assert_eq!(vec![
+			// message num..
+			0, 18,
+			// payload length
+			0, 0, 0, 0, 0, 0, 0, 16,
+			// structure raw bytes (bigendians :( )
+			3, 0, 0, 0, 0, 0, 0, 0,
+			11, 0, 0, 0, 0, 0, 0, 0],
+			service_client.socket().borrow().write_buffer.clone());
+		assert_eq!(true, result);
+	}
 }
