@@ -400,26 +400,19 @@ impl TransactionQueue {
 		self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction)
 	}
 
-	/// Removes all transactions from particular sender up to (and including) given nonce.
-	pub fn remove_all(&mut self, sender: Address, nonce: U256) {
-		// Remove from future and current, and remove from by_hash
-		let order1 = self.current.drop(&sender, &nonce);
-		let order2 = self.future.drop(&sender, &nonce);
-		if let Some(o) = order1.or(order2) {
-			self.by_hash.remove(&o.hash);
-		}
-		// Because we are removing all transactions <= nonce it means that current (state) nonce is:
-		let current_nonce = nonce + U256::one();
+	/// Removes all transactions from particular sender up to (excluding) given client (state) nonce.
+	/// Client (State) Nonce = next valid nonce for this sender.
+	pub fn remove_all(&mut self, sender: Address, client_nonce: U256) {
 		// We will either move transaction to future or remove it completely
 		// so there will be no transactions from this sender in current
 		self.last_nonces.remove(&sender);
 		// First update height of transactions in future to avoid collisions
-		self.update_future(&sender, current_nonce);
+		self.update_future(&sender, client_nonce);
 		// This should move all current transactions to future and remove old transactions
-		self.move_all_to_future(&sender, current_nonce);
+		self.move_all_to_future(&sender, client_nonce);
 		// And now lets check if there is some batch of transactions in future
 		// that should be placed in current. It should also update last_nonces.
-		self.move_matching_future_to_current(sender, current_nonce, current_nonce);
+		self.move_matching_future_to_current(sender, client_nonce, client_nonce);
 	}
 
 	/// Removes invalid transaction identified by hash from queue.
@@ -479,7 +472,7 @@ impl TransactionQueue {
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
-				trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
+				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				// Remove the transaction completely
 				self.by_hash.remove(&order.hash);
 			}
@@ -500,7 +493,7 @@ impl TransactionQueue {
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
-				trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
+				trace!(target: "miner", "Removing old transaction: {:?} (nonce: {} < {})", order.hash, k, current_nonce);
 				self.by_hash.remove(&order.hash);
 			}
 		}
@@ -984,7 +977,7 @@ mod test {
 		// given
 		let prev_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce - U256::one(), balance:
 			!U256::zero() };
-		let next2_nonce = default_nonce_val() + U256::from(2);
+		let next2_nonce = default_nonce_val() + U256::from(3);
 
 		let mut txq = TransactionQueue::new();
 
@@ -1037,8 +1030,8 @@ mod test {
 		assert_eq!(txq2.status().future, 1);
 
 		// when
-		txq2.remove_all(tx.sender().unwrap(), tx.nonce);
-		txq2.remove_all(tx2.sender().unwrap(), tx2.nonce);
+		txq2.remove_all(tx.sender().unwrap(), tx.nonce + U256::one());
+		txq2.remove_all(tx2.sender().unwrap(), tx2.nonce + U256::one());
 
 
 		// then
@@ -1195,7 +1188,7 @@ mod test {
 
 		// when
 		let sender = tx.sender().unwrap();
-		txq.remove_all(sender, default_nonce_val());
+		txq.remove_all(sender, default_nonce_val() + U256::one());
 
 		// then
 		let stats = txq.status();
@@ -1316,7 +1309,7 @@ mod test {
 		txq.add(tx1, &details1).unwrap();
 
 		// when
-		txq.remove_all(tx2.sender().unwrap(), nonce2);
+		txq.remove_all(tx2.sender().unwrap(), nonce2 + U256::one());
 
 		// then
 		assert!(txq.top_transactions().is_empty());
