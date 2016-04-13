@@ -17,8 +17,7 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
 use std::default::Default;
-use rocksdb::{DB, Writable, WriteBatch, IteratorMode, DBVector, DBIterator,
-	IndexType, Options, DBCompactionStyle, BlockBasedOptions, Direction};
+use rocksdb::{BlockBasedOptions, DB, DBCompactionStyle, DBIterator, DBVector, Direction, IndexType, IteratorMode, Options, Writable, WriteBatch};
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 pub struct DBTransaction {
@@ -51,7 +50,7 @@ impl DBTransaction {
 /// Database configuration
 pub struct DatabaseConfig {
 	/// Optional prefix size in bytes. Allows lookup by partial key.
-	pub prefix_size: Option<usize>
+	pub prefix_size: Option<usize>,
 }
 
 /// Database iterator
@@ -62,7 +61,7 @@ pub struct DatabaseIterator<'a> {
 impl<'a> Iterator for DatabaseIterator<'a> {
 	type Item = (Box<[u8]>, Box<[u8]>);
 
-    fn next(&mut self) -> Option<Self::Item> {
+	fn next(&mut self) -> Option<Self::Item> {
 		self.iter.next()
 	}
 }
@@ -85,23 +84,22 @@ impl Database {
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
 		opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
-		/*
-		opts.set_bytes_per_sync(8388608);
-		opts.set_disable_data_sync(false);
-		opts.set_block_cache_size_mb(1024);
-		opts.set_table_cache_num_shard_bits(6);
-		opts.set_max_write_buffer_number(32);
-		opts.set_write_buffer_size(536870912);
-		opts.set_target_file_size_base(1073741824);
-		opts.set_min_write_buffer_number_to_merge(4);
-		opts.set_level_zero_stop_writes_trigger(2000);
-		opts.set_level_zero_slowdown_writes_trigger(0);
-		opts.set_compaction_style(DBUniversalCompaction);
-		opts.set_max_background_compactions(4);
-		opts.set_max_background_flushes(4);
-		opts.set_filter_deletes(false);
-		opts.set_disable_auto_compactions(false);
-		*/
+		// opts.set_bytes_per_sync(8388608);
+		// opts.set_disable_data_sync(false);
+		// opts.set_block_cache_size_mb(1024);
+		// opts.set_table_cache_num_shard_bits(6);
+		// opts.set_max_write_buffer_number(32);
+		// opts.set_write_buffer_size(536870912);
+		// opts.set_target_file_size_base(1073741824);
+		// opts.set_min_write_buffer_number_to_merge(4);
+		// opts.set_level_zero_stop_writes_trigger(2000);
+		// opts.set_level_zero_slowdown_writes_trigger(0);
+		// opts.set_compaction_style(DBUniversalCompaction);
+		// opts.set_max_background_compactions(4);
+		// opts.set_max_background_flushes(4);
+		// opts.set_filter_deletes(false);
+		// opts.set_disable_auto_compactions(false);
+		//
 
 		if let Some(size) = config.prefix_size {
 			let mut block_opts = BlockBasedOptions::new();
@@ -138,8 +136,8 @@ impl Database {
 		let mut iter = self.db.iterator(IteratorMode::From(prefix, Direction::forward));
 		match iter.next() {
 			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
-			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },
-			_ => None
+			Some((k, v)) => if k[0..prefix.len()] == prefix[..] { Some(v) } else { None },
+			_ => None,
 		}
 	}
 
@@ -209,4 +207,3 @@ mod tests {
 		test_db(&DatabaseConfig { prefix_size: Some(32) });
 	}
 }
-

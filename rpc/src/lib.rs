@@ -34,9 +34,9 @@ extern crate transient_hashmap;
 
 use std::sync::Arc;
 use std::net::SocketAddr;
-use self::jsonrpc_core::{IoHandler, IoDelegate};
+use self::jsonrpc_core::{IoDelegate, IoHandler};
 
-pub use jsonrpc_http_server::{Server, RpcServerError};
+pub use jsonrpc_http_server::{RpcServerError, Server};
 pub mod v1;
 
 /// Http server.
@@ -47,13 +47,13 @@ pub struct RpcServer {
 impl RpcServer {
 	/// Construct new http server object.
 	pub fn new() -> RpcServer {
-		RpcServer {
-			handler: Arc::new(IoHandler::new()),
-		}
+		RpcServer { handler: Arc::new(IoHandler::new()) }
 	}
 
 	/// Add io delegate.
-	pub fn add_delegate<D>(&self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
+	pub fn add_delegate<D>(&self, delegate: IoDelegate<D>)
+		where D: Send + Sync + 'static,
+	{
 		self.handler.add_delegate(delegate);
 	}
 

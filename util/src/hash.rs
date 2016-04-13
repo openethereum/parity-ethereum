@@ -21,9 +21,9 @@ use math::log2;
 use error::UtilError;
 use rand::Rng;
 use rand::os::OsRng;
-use bytes::{BytesConvertable,Populatable};
+use bytes::{BytesConvertable, Populatable};
 use from_json::*;
-use bigint::uint::{Uint, U256};
+use bigint::uint::{U256, Uint};
 use rustc_serialize::hex::ToHex;
 use serde;
 
@@ -50,7 +50,12 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 	/// When interpreting self as a bloom output, augment (bit-wise OR) with the a bloomed version of `b`.
 	fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
 	/// Same as `shift_bloomed` except that `self` is consumed and a new value returned.
-	fn with_bloomed<T>(mut self, b: &T) -> Self where T: FixedHash { self.shift_bloomed(b); self }
+	fn with_bloomed<T>(mut self, b: &T) -> Self
+		where T: FixedHash,
+	{
+		self.shift_bloomed(b);
+		self
+	}
 	/// Bloom the current value using the bloom parameter `m`.
 	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
 	/// Check to see whether this hash, interpreted as a bloom, contains the value `b` when bloomed.
@@ -65,11 +70,7 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 
 /// Return `s` without the `0x` at the beginning of it, if any.
 pub fn clean_0x(s: &str) -> &str {
-	if s.len() >= 2 && &s[0..2] == "0x" {
-		&s[2..]
-	} else {
-		s
-	}
+	if s.len() >= 2 && &s[0..2] == "0x" { &s[2..] } else { s }
 }
 
 macro_rules! impl_hash {
@@ -558,17 +559,16 @@ impl From<H256> for H64 {
 		}
 	}
 }
-/*
-impl<'_> From<&'_ H256> for Address {
-	fn from(value: &'_ H256) -> Address {
-		unsafe {
-			let mut ret: Address = ::std::mem::uninitialized();
-			::std::ptr::copy(value.as_ptr().offset(12), ret.as_mut_ptr(), 20);
-			ret
-		}
-	}
-}
-*/
+// impl<'_> From<&'_ H256> for Address {
+// fn from(value: &'_ H256) -> Address {
+// unsafe {
+// let mut ret: Address = ::std::mem::uninitialized();
+// ::std::ptr::copy(value.as_ptr().offset(12), ret.as_mut_ptr(), 20);
+// ret
+// }
+// }
+// }
+//
 impl From<Address> for H256 {
 	fn from(value: Address) -> H256 {
 		unsafe {

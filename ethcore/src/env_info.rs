@@ -87,7 +87,7 @@ mod tests {
 			number: ethjson::uint::Uint(U256::from(1_112_339)),
 			difficulty: ethjson::uint::Uint(U256::from(50_000)),
 			gas_limit: ethjson::uint::Uint(U256::from(40_000)),
-			timestamp: ethjson::uint::Uint(U256::from(1_100))
+			timestamp: ethjson::uint::Uint(U256::from(1_100)),
 		});
 
 		assert_eq!(env_info.number, 1112339);

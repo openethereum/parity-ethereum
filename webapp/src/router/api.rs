@@ -46,7 +46,7 @@ impl hyper::server::Handler for RestApi {
 				*res.status_mut() = StatusCode::Ok;
 				res.headers_mut().set(header::ContentType("application/json".parse().unwrap()));
 				let _ = res.send(self.list_pages().as_bytes());
-			},
+			}
 			_ => (),
 		}
 	}

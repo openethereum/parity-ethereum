@@ -113,7 +113,9 @@ impl<'a> Executive<'a> {
 	}
 
 	/// Creates `Externalities` from `Executive`.
-	pub fn as_externalities<'_, T>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_, '_>, tracer: &'_ mut T) -> Externalities<'_, T> where T: Tracer {
+	pub fn as_externalities<'_, T>(&'_ mut self, origin_info: OriginInfo, substate: &'_ mut Substate, output: OutputPolicy<'_, '_>, tracer: &'_ mut T) -> Externalities<'_, T>
+		where T: Tracer,
+	{
 		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer)
 	}
 
@@ -126,7 +128,9 @@ impl<'a> Executive<'a> {
 		}
 	}
 
-	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, Error> where T: Tracer {
+	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, Error>
+		where T: Tracer,
+	{
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);
 
@@ -134,14 +138,20 @@ impl<'a> Executive<'a> {
 		let base_gas_required = U256::from(t.gas_required(&schedule));
 
 		if t.gas < base_gas_required {
-			return Err(From::from(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas }));
+			return Err(From::from(ExecutionError::NotEnoughBaseGas {
+				required: base_gas_required,
+				got: t.gas,
+			}));
 		}
 
 		let init_gas = t.gas - base_gas_required;
 
 		// validate transaction nonce
 		if check_nonce && t.nonce != nonce {
-			return Err(From::from(ExecutionError::InvalidNonce { expected: nonce, got: t.nonce }));
+			return Err(From::from(ExecutionError::InvalidNonce {
+				expected: nonce,
+				got: t.nonce,
+			}));
 		}
 
 		// validate if transaction fits into given block
@@ -149,7 +159,7 @@ impl<'a> Executive<'a> {
 			return Err(From::from(ExecutionError::BlockGasLimitReached {
 				gas_limit: self.info.gas_limit,
 				gas_used: self.info.gas_used,
-				gas: t.gas
+				gas: t.gas,
 			}));
 		}
 
@@ -160,7 +170,10 @@ impl<'a> Executive<'a> {
 
 		// avoid unaffordable transactions
 		if U512::from(balance) < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: U512::from(balance) }));
+			return Err(From::from(ExecutionError::NotEnoughCash {
+				required: total_cost,
+				got: U512::from(balance),
+			}));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
@@ -184,7 +197,7 @@ impl<'a> Executive<'a> {
 					data: None,
 				};
 				(self.create(params, &mut substate, &mut tracer), vec![])
-			},
+			}
 			Action::Call(ref address) => {
 				let params = ActionParams {
 					code_address: address.clone(),
@@ -207,8 +220,9 @@ impl<'a> Executive<'a> {
 		Ok(try!(self.finalize(t, substate, gas_left, output, tracer.traces().pop())))
 	}
 
-	fn exec_vm<T>(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy, tracer: &mut T)
-		-> evm::Result where T: Tracer {
+	fn exec_vm<T>(&mut self, params: ActionParams, unconfirmed_substate: &mut Substate, output_policy: OutputPolicy, tracer: &mut T) -> evm::Result
+		where T: Tracer,
+	{
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
@@ -224,18 +238,18 @@ impl<'a> Executive<'a> {
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer);
 			let vm_factory = self.engine.vm_factory();
 
-			scope.spawn(move || {
-				vm_factory.create().exec(params, &mut ext)
-			})
-		}).join()
+			scope.spawn(move || vm_factory.create().exec(params, &mut ext))
+		})
+			.join()
 	}
 
 	/// Calls contract function with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
 	/// Returns either gas_left or `evm::Error`.
-	pub fn call<T>(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef, tracer: &mut T)
-		-> evm::Result where T: Tracer {
+	pub fn call<T>(&mut self, params: ActionParams, substate: &mut Substate, mut output: BytesRef, tracer: &mut T) -> evm::Result
+		where T: Tracer,
+	{
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
@@ -257,7 +271,7 @@ impl<'a> Executive<'a> {
 					self.engine.execute_builtin(&params.code_address, data, &mut output);
 					self.state.clear_snapshot();
 					Ok(params.gas - cost)
-				},
+				}
 				// just drain the whole gas
 				false => {
 					self.state.revert_snapshot();
@@ -283,14 +297,7 @@ impl<'a> Executive<'a> {
 
 				let traces = subtracer.traces();
 				match res {
-					Ok(gas_left) => tracer.trace_call(
-						trace_info,
-						gas - gas_left,
-						trace_output,
-						self.depth,
-						traces,
-						delegate_call
-					),
+					Ok(gas_left) => tracer.trace_call(trace_info, gas - gas_left, trace_output, self.depth, traces, delegate_call),
 					_ => tracer.trace_failed_call(trace_info, self.depth, traces, delegate_call),
 				};
 
@@ -312,8 +319,9 @@ impl<'a> Executive<'a> {
 	/// Creates contract with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate.
-	pub fn create<T>(&mut self, params: ActionParams, substate: &mut Substate, tracer: &mut T) -> evm::Result where T:
-		Tracer {
+	pub fn create<T>(&mut self, params: ActionParams, substate: &mut Substate, tracer: &mut T) -> evm::Result
+		where T: Tracer,
+	{
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
@@ -340,15 +348,8 @@ impl<'a> Executive<'a> {
 		};
 
 		match res {
-			Ok(gas_left) => tracer.trace_create(
-				trace_info,
-				gas - gas_left,
-				trace_output,
-				created,
-				self.depth,
-				subtracer.traces()
-			),
-			_ => tracer.trace_failed_create(trace_info, self.depth, subtracer.traces())
+			Ok(gas_left) => tracer.trace_create(trace_info, gas - gas_left, trace_output, created, self.depth, subtracer.traces()),
+			_ => tracer.trace_failed_create(trace_info, self.depth, subtracer.traces()),
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);
@@ -366,7 +367,10 @@ impl<'a> Executive<'a> {
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left_prerefund = match result { Ok(x) => x, _ => x!(0) };
+		let gas_left_prerefund = match result {
+			Ok(x) => x,
+			_ => x!(0),
+		};
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
 		let gas_left = gas_left_prerefund + refunded;
 
@@ -374,8 +378,7 @@ impl<'a> Executive<'a> {
 		let refund_value = gas_left * t.gas_price;
 		let fees_value = gas_used * t.gas_price;
 
-		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
-			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
+		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n", t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
 		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
 		self.state.add_balance(&t.sender().unwrap(), &refund_value);
@@ -400,7 +403,7 @@ impl<'a> Executive<'a> {
 					output: output,
 					trace: trace,
 				})
-			},
+			}
 			_ => {
 				Ok(Executed {
 					gas: t.gas,
@@ -412,19 +415,19 @@ impl<'a> Executive<'a> {
 					output: output,
 					trace: trace,
 				})
-			},
+			}
 		}
 	}
 
 	fn enact_result(&mut self, result: &evm::Result, substate: &mut Substate, un_substate: Substate) {
 		match *result {
-			Err(evm::Error::OutOfGas)
-				| Err(evm::Error::BadJumpDestination {..})
-				| Err(evm::Error::BadInstruction {.. })
-				| Err(evm::Error::StackUnderflow {..})
-				| Err(evm::Error::OutOfStack {..}) => {
-					self.state.revert_snapshot();
-			},
+			Err(evm::Error::OutOfGas) |
+			Err(evm::Error::BadJumpDestination {..}) |
+			Err(evm::Error::BadInstruction {.. }) |
+			Err(evm::Error::StackUnderflow {..}) |
+			Err(evm::Error::OutOfStack {..}) => {
+				self.state.revert_snapshot();
+			}
 			Ok(_) | Err(evm::Error::Internal) => {
 				self.state.clear_snapshot();
 				substate.accrue(un_substate);
@@ -511,7 +514,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
-		//let next_address = contract_address(&address, &U256::zero());
+		// let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -565,7 +568,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
-		//let next_address = contract_address(&address, &U256::zero());
+		// let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.code_address = address.clone();
@@ -584,39 +587,39 @@ mod tests {
 
 		let gas_left = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let output = BytesRef::Fixed(&mut[0u8;0]);
+			let output = BytesRef::Fixed(&mut [0u8; 0]);
 			ex.call(params, &mut substate, output, &mut tracer).unwrap()
 		};
 
-		let expected_trace = vec![ Trace {
-			depth: 0,
-			action: TraceAction::Call(TraceCall {
-				from: x!("cd1722f3947def4cf144679da39c4c32bdc35681"),
-				to: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
-				value: x!(100),
-				gas: x!(100000),
-				input: vec![],
-			}),
-			result: TraceResult::Call(TraceCallResult {
-				gas_used: U256::from(55_248),
-				output: vec![],
-			}),
-			subs: vec![Trace {
-				depth: 1,
-				action: TraceAction::Create(TraceCreate {
-					from: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
-					value: x!(23),
-					gas: x!(67979),
-					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
-				}),
-				result: TraceResult::Create(TraceCreateResult {
-					gas_used: U256::from(3224),
-					address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
-					code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
-				}),
-				subs: vec![]
-			}]
-		}];
+		let expected_trace = vec![Trace {
+			                          depth: 0,
+			                          action: TraceAction::Call(TraceCall {
+				                          from: x!("cd1722f3947def4cf144679da39c4c32bdc35681"),
+				                          to: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
+				                          value: x!(100),
+				                          gas: x!(100000),
+				                          input: vec![],
+			                          }),
+			                          result: TraceResult::Call(TraceCallResult {
+				                          gas_used: U256::from(55_248),
+				                          output: vec![],
+			                          }),
+			                          subs: vec![Trace {
+				                                     depth: 1,
+				                                     action: TraceAction::Create(TraceCreate {
+					                                     from: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
+					                                     value: x!(23),
+					                                     gas: x!(67979),
+					                                     init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+				                                     }),
+				                                     result: TraceResult::Create(TraceCreateResult {
+					                                     gas_used: U256::from(3224),
+					                                     address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
+					                                     code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53],
+				                                     }),
+				                                     subs: vec![],
+			                                     }],
+		                          }];
 		assert_eq!(tracer.traces(), expected_trace);
 		assert_eq!(gas_left, U256::from(44_752));
 	}
@@ -638,7 +641,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
-		//let next_address = contract_address(&address, &U256::zero());
+		// let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -660,20 +663,20 @@ mod tests {
 		};
 
 		let expected_trace = vec![Trace {
-			depth: 0,
-			action: TraceAction::Create(TraceCreate {
-				from: params.sender,
-				value: x!(100),
-				gas: params.gas,
-				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
-			}),
-			result: TraceResult::Create(TraceCreateResult {
-				gas_used: U256::from(3224),
-				address: params.address,
-				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
-			}),
-			subs: vec![]
-		}];
+			                          depth: 0,
+			                          action: TraceAction::Create(TraceCreate {
+				                          from: params.sender,
+				                          value: x!(100),
+				                          gas: params.gas,
+				                          init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+			                          }),
+			                          result: TraceResult::Create(TraceCreateResult {
+				                          gas_used: U256::from(3224),
+				                          address: params.address,
+				                          code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53],
+			                          }),
+			                          subs: vec![],
+		                          }];
 
 		assert_eq!(tracer.traces(), expected_trace);
 		assert_eq!(gas_left, U256::from(96_776));
@@ -708,7 +711,7 @@ mod tests {
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
-		//let next_address = contract_address(&address, &U256::zero());
+		// let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -816,7 +819,7 @@ mod tests {
 		let code_b = "60006000600060006017730f572e5295c57f15886f9b263e2f6d2d6c7b5ec66101f4f16001015855".from_hex().unwrap();
 
 		let address_a = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let address_b = Address::from_str("945304eb96065b2a98b57a48a06ae28d285a71b5" ).unwrap();
+		let address_b = Address::from_str("945304eb96065b2a98b57a48a06ae28d285a71b5").unwrap();
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 
 		let mut params = ActionParams::default();
@@ -902,8 +905,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
-			nonce: U256::zero()
-		}.sign(&keypair.secret());
+			nonce: U256::zero(),
+		}
+		.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 		let contract = contract_address(&sender, &U256::zero());
 
@@ -916,7 +920,10 @@ mod tests {
 
 		let executed = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions {
+				check_nonce: true,
+				tracing: false,
+			};
 			ex.transact(&t, opts).unwrap()
 		};
 
@@ -940,8 +947,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
-			nonce: U256::zero()
-		}.invalid_sign();
+			nonce: U256::zero(),
+		}
+		.invalid_sign();
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
 		let mut info = EnvInfo::default();
@@ -950,13 +958,16 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions {
+				check_nonce: true,
+				tracing: false,
+			};
 			ex.transact(&t, opts)
 		};
 
 		match res {
 			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => (),
-			_ => assert!(false, "Expected invalid signature error.")
+			_ => assert!(false, "Expected invalid signature error."),
 		}
 	}
 
@@ -969,8 +980,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
-			nonce: U256::one()
-		}.sign(&keypair.secret());
+			nonce: U256::one(),
+		}
+		.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -982,14 +994,16 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions {
+				check_nonce: true,
+				tracing: false,
+			};
 			ex.transact(&t, opts)
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::InvalidNonce { expected, got }))
-				if expected == U256::zero() && got == U256::one() => (),
-			_ => assert!(false, "Expected invalid nonce error.")
+			Err(Error::Execution(ExecutionError::InvalidNonce { expected, got })) if expected == U256::zero() && got == U256::one() => (),
+			_ => assert!(false, "Expected invalid nonce error."),
 		}
 	}
 
@@ -1002,8 +1016,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(80_001),
 			gas_price: U256::zero(),
-			nonce: U256::zero()
-		}.sign(&keypair.secret());
+			nonce: U256::zero(),
+		}
+		.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -1016,14 +1031,16 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions {
+				check_nonce: true,
+				tracing: false,
+			};
 			ex.transact(&t, opts)
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas }))
-				if gas_limit == U256::from(100_000) && gas_used == U256::from(20_000) && gas == U256::from(80_001) => (),
-			_ => assert!(false, "Expected block gas limit error.")
+			Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) if gas_limit == U256::from(100_000) && gas_used == U256::from(20_000) && gas == U256::from(80_001) => (),
+			_ => assert!(false, "Expected block gas limit error."),
 		}
 	}
 
@@ -1037,8 +1054,9 @@ mod tests {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
 			gas_price: U256::one(),
-			nonce: U256::zero()
-		}.sign(&keypair.secret());
+			nonce: U256::zero(),
+		}
+		.sign(&keypair.secret());
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -1050,14 +1068,16 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let opts = TransactOptions { check_nonce: true, tracing: false };
+			let opts = TransactOptions {
+				check_nonce: true,
+				tracing: false,
+			};
 			ex.transact(&t, opts)
 		};
 
 		match res {
-			Err(Error::Execution(ExecutionError::NotEnoughCash { required , got }))
-				if required == U512::from(100_018) && got == U512::from(100_017) => (),
-			_ => assert!(false, "Expected not enough cash error. {:?}", res)
+			Err(Error::Execution(ExecutionError::NotEnoughCash { required , got })) if required == U512::from(100_018) && got == U512::from(100_017) => (),
+			_ => assert!(false, "Expected not enough cash error. {:?}", res),
 		}
 	}
 
@@ -1068,7 +1088,7 @@ mod tests {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(&sender, &U256::zero());
 		// TODO: add tests for 'callcreate'
-		//let next_address = contract_address(&address, &U256::zero());
+		// let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -1089,8 +1109,7 @@ mod tests {
 		};
 
 		match result {
-			Err(_) => {
-			},
+			Err(_) => {}
 			_ => {
 				panic!("Expected OutOfGas");
 			}

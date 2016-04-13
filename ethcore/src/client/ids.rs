@@ -30,7 +30,7 @@ pub enum BlockId {
 	/// Earliest block (genesis).
 	Earliest,
 	/// Latest mined block.
-	Latest
+	Latest,
 }
 
 /// Uniquely identifies transaction.
@@ -40,13 +40,11 @@ pub enum TransactionId {
 	Hash(H256),
 	/// Block id and transaction index within this block.
 	/// Querying by block position is always faster.
-	Location(BlockId, usize)
+	Location(BlockId, usize),
 }
 
 /// Uniquely identifies Uncle.
-pub struct UncleId (
-	/// Block id.
-	pub BlockId,
-	/// Position in block.
-	pub usize
-);
+pub struct UncleId(/// Block id.
+                   pub BlockId,
+                   /// Position in block.
+                   pub usize);

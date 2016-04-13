@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use jsonrpc_core::IoHandler;
 use v1::tests::helpers::{TestAccount, TestAccountProvider};
-use v1::{PersonalClient, Personal};
+use v1::{Personal, PersonalClient};
 use util::numbers::*;
 use std::collections::*;
 
@@ -39,9 +39,9 @@ fn setup() -> (Arc<TestAccountProvider>, IoHandler) {
 fn accounts() {
 	let (test_provider, io) = setup();
 	test_provider.accounts
-		.write()
-		.unwrap()
-		.insert(Address::from(1), TestAccount::new("test"));
+	             .write()
+	             .unwrap()
+	             .insert(Address::from(1), TestAccount::new("test"));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_listAccounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x0000000000000000000000000000000000000001"],"id":1}"#;
@@ -60,14 +60,12 @@ fn new_account() {
 	let accounts = test_provider.accounts.read().unwrap();
 	assert_eq!(accounts.len(), 1);
 
-	let address = accounts
-		.keys()
-		.nth(0)
-		.cloned()
-		.unwrap();
+	let address = accounts.keys()
+	                      .nth(0)
+	                      .cloned()
+	                      .unwrap();
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"","id":1}"#;
 
 	assert_eq!(res, Some(response));
 }
-

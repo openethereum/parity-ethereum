@@ -36,4 +36,3 @@ pub use self::eth::{EthClient, EthFilterClient};
 pub use self::net::NetClient;
 pub use self::personal::PersonalClient;
 pub use self::ethcore::EthcoreClient;
-

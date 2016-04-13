@@ -21,20 +21,22 @@ use std::mem;
 use std::fmt;
 use std::cmp::Ordering;
 use std::error::Error as StdError;
-use bigint::uint::{Uint, U128, U256};
+use bigint::uint::{U128, U256, Uint};
 use hash::FixedHash;
 use elastic_array::*;
 
 /// Vector like object
 pub trait VecLike<T> {
 	/// Add an element to the collection
-    fn vec_push(&mut self, value: T);
+	fn vec_push(&mut self, value: T);
 
 	/// Add a slice to the collection
-    fn vec_extend(&mut self, slice: &[T]);
+	fn vec_extend(&mut self, slice: &[T]);
 }
 
-impl<T> VecLike<T> for Vec<T> where T: Copy {
+impl<T> VecLike<T> for Vec<T>
+    where T: Copy,
+{
 	fn vec_push(&mut self, value: T) {
 		Vec::<T>::push(self, value)
 	}
@@ -72,7 +74,7 @@ pub trait ToBytes {
 	fn to_bytes_len(&self) -> usize;
 }
 
-impl <'a> ToBytes for &'a str {
+impl<'a> ToBytes for &'a str {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
 		out.vec_extend(self.as_bytes());
 	}
@@ -101,7 +103,9 @@ impl ToBytes for u64 {
 		}
 	}
 
-	fn to_bytes_len(&self) -> usize { 8 - self.leading_zeros() as usize / 8 }
+	fn to_bytes_len(&self) -> usize {
+		8 - self.leading_zeros() as usize / 8
+	}
 }
 
 impl ToBytes for bool {
@@ -109,7 +113,9 @@ impl ToBytes for bool {
 		out.vec_push(if *self { 1u8 } else { 0u8 })
 	}
 
-	fn to_bytes_len(&self) -> usize { 1 }
+	fn to_bytes_len(&self) -> usize {
+		1
+	}
 }
 
 macro_rules! impl_map_to_bytes {
@@ -146,11 +152,15 @@ macro_rules! impl_uint_to_bytes {
 impl_uint_to_bytes!(U256);
 impl_uint_to_bytes!(U128);
 
-impl <T>ToBytes for T where T: FixedHash {
+impl<T> ToBytes for T
+    where T: FixedHash,
+{
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
 		out.vec_extend(self.bytes());
 	}
-	fn to_bytes_len(&self) -> usize { self.bytes().len() }
+	fn to_bytes_len(&self) -> usize {
+		self.bytes().len()
+	}
 }
 
 /// Error returned when `FromBytes` conversation goes wrong
@@ -165,7 +175,9 @@ pub enum FromBytesError {
 }
 
 impl StdError for FromBytesError {
-	fn description(&self) -> &str { "from_bytes error" }
+	fn description(&self) -> &str {
+		"from_bytes error"
+	}
 }
 
 impl fmt::Display for FromBytesError {
@@ -225,7 +237,7 @@ impl FromBytes for bool {
 	}
 }
 
-//impl_uint_from_bytes!(u8);
+// impl_uint_from_bytes!(u8);
 impl_uint_from_bytes!(u16);
 impl_uint_from_bytes!(u32);
 impl_uint_from_bytes!(u64);
@@ -250,12 +262,14 @@ macro_rules! impl_uint_from_bytes {
 impl_uint_from_bytes!(U256, 32);
 impl_uint_from_bytes!(U128, 16);
 
-impl <T>FromBytes for T where T: FixedHash {
+impl<T> FromBytes for T
+    where T: FixedHash,
+{
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<T> {
 		match bytes.len().cmp(&T::len()) {
 			Ordering::Less => return Err(FromBytesError::DataIsTooShort),
 			Ordering::Greater => return Err(FromBytesError::DataIsTooLong),
-			Ordering::Equal => ()
+			Ordering::Equal => (),
 		};
 
 		unsafe {
@@ -268,4 +282,3 @@ impl <T>FromBytes for T where T: FixedHash {
 		}
 	}
 }
-

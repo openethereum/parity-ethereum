@@ -21,7 +21,7 @@ use rlp::*;
 use hashdb::*;
 use memorydb::*;
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use kvdb::{DBTransaction, Database, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 
@@ -39,23 +39,21 @@ pub struct ArchiveDB {
 }
 
 // all keys must be at least 12 bytes
-const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const DB_VERSION : u32 = 0x103;
+const LATEST_ERA_KEY: [u8; 12] = [b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0];
+const VERSION_KEY: [u8; 12] = [b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0];
+const DB_VERSION: u32 = 0x103;
 
 impl ArchiveDB {
 	/// Create a new instance from file
 	pub fn new(path: &str) -> ArchiveDB {
-		let opts = DatabaseConfig {
-			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
-		};
+		let opts = DatabaseConfig { prefix_size: Some(12) /* use 12 bytes as prefix, this must match account_db prefix */ };
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
-				Ok(Some(DB_VERSION)) => {},
-				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
+				Ok(Some(DB_VERSION)) => {}
+				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path),
 			}
 		} else {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
@@ -102,12 +100,7 @@ impl HashDB for ArchiveDB {
 		match k {
 			Some(&(ref d, rc)) if rc > 0 => Some(d),
 			_ => {
-				if let Some(x) = self.payload(key) {
-					Some(&self.overlay.denote(key, x).0)
-				}
-				else {
-					None
-				}
+				if let Some(x) = self.payload(key) { Some(&self.overlay.denote(key, x).0) } else { None }
 			}
 		}
 	}
@@ -138,7 +131,7 @@ impl JournalDB for ArchiveDB {
 
 	fn mem_used(&self) -> usize {
 		self.overlay.mem_used()
- 	}
+	}
 
 	fn is_empty(&self) -> bool {
 		self.latest_era.is_none()
@@ -168,7 +161,9 @@ impl JournalDB for ArchiveDB {
 		Ok((inserts + deletes) as u32)
 	}
 
-	fn latest_era(&self) -> Option<u64> { self.latest_era }
+	fn latest_era(&self) -> Option<u64> {
+		self.latest_era
+	}
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
 		self.backing.get_by_prefix(&id.bytes()[0..12]).and_then(|b| Some(b.to_vec()))

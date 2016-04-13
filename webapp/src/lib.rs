@@ -28,14 +28,14 @@ extern crate ethcore_rpc as rpc;
 extern crate parity_webapp;
 
 use std::sync::Arc;
-use self::jsonrpc_core::{IoHandler, IoDelegate};
+use self::jsonrpc_core::{IoDelegate, IoHandler};
 use jsonrpc_http_server::ServerHandler;
 
 mod apps;
 mod page;
 mod router;
 
-use router::auth::{Authorization, NoAuth, HttpBasicAuth};
+use router::auth::{Authorization, HttpBasicAuth, NoAuth};
 
 /// Http server.
 pub struct WebappServer {
@@ -45,13 +45,13 @@ pub struct WebappServer {
 impl WebappServer {
 	/// Construct new http server object
 	pub fn new() -> Self {
-		WebappServer {
-			handler: Arc::new(IoHandler::new()),
-		}
+		WebappServer { handler: Arc::new(IoHandler::new()) }
 	}
 
 	/// Add io delegate.
-	pub fn add_delegate<D>(&self, delegate: IoDelegate<D>) where D: Send + Sync + 'static {
+	pub fn add_delegate<D>(&self, delegate: IoDelegate<D>)
+		where D: Send + Sync + 'static,
+	{
 		self.handler.add_delegate(delegate);
 	}
 
@@ -84,7 +84,7 @@ impl WebappServer {
 
 /// Listening handle
 pub struct Listening {
-	listening: hyper::server::Listening
+	listening: hyper::server::Listening,
 }
 
 impl Drop for Listening {

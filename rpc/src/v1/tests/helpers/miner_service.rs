@@ -16,13 +16,13 @@
 
 //! Test implementation of miner service.
 
-use util::{Address, H256, Bytes, U256, FixedHash};
+use util::{Address, Bytes, FixedHash, H256, U256};
 use util::standard::*;
 use ethcore::error::Error;
 use ethcore::client::BlockChainClient;
 use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
-use ethminer::{MinerService, MinerStatus, AccountDetails};
+use ethminer::{AccountDetails, MinerService, MinerStatus};
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -57,13 +57,12 @@ impl Default for TestMinerService {
 }
 
 impl MinerService for TestMinerService {
-
 	/// Returns miner's status.
 	fn status(&self) -> MinerStatus {
 		MinerStatus {
 			transactions_in_pending_queue: 0,
 			transactions_in_future_queue: 0,
-			transactions_in_pending_block: 1
+			transactions_in_pending_block: 1,
 		}
 	}
 
@@ -102,14 +101,14 @@ impl MinerService for TestMinerService {
 
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, _fetch_account: T) -> Vec<Result<(), Error>>
-		where T: Fn(&Address) -> AccountDetails {
+		where T: Fn(&Address) -> AccountDetails,
+	{
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
 
-		transactions
-			.iter()
-			.map(|_| Ok(()))
-			.collect()
+		transactions.iter()
+		            .map(|_| Ok(()))
+		            .collect()
 	}
 
 	/// Returns hashes of transactions currently in pending
@@ -132,7 +131,9 @@ impl MinerService for TestMinerService {
 		unimplemented!();
 	}
 
-	fn map_sealing_work<F, T>(&self, _chain: &BlockChainClient, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
+	fn map_sealing_work<F, T>(&self, _chain: &BlockChainClient, _f: F) -> Option<T>
+		where F: FnOnce(&ClosedBlock) -> T,
+	{
 		unimplemented!();
 	}
 

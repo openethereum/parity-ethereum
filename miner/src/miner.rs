@@ -23,7 +23,7 @@ use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
-use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails};
+use super::{AccountDetails, MinerService, MinerStatus, TransactionQueue};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
@@ -77,14 +77,13 @@ impl Miner {
 		let mut sealing_work = self.sealing_work.lock().unwrap();
 		let best_hash = chain.best_block_header().sha3();
 
-/*
 		// check to see if last ClosedBlock in would_seals is actually same parent block.
 		// if so
 		//   duplicate, re-open and push any new transactions.
 		//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 		//   otherwise, leave everything alone.
 		// otherwise, author a fresh block.
-*/
+		//
 
 		let (b, invalid_transactions) = match sealing_work.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
 			Some(old_block) => {
@@ -108,14 +107,14 @@ impl Miner {
 							if gas_limit - gas_used < min_tx_gas {
 								break;
 							}
-						},
+						}
 						Err(Error::Transaction(TransactionError::AlreadyImported)) => {}	// already have transaction - ignore
 						Err(e) => {
 							invalid_transactions.insert(hash);
 							trace!(target: "miner",
 								   "Error adding transaction to block: number={}. transaction_hash={:?}, Error: {:?}",
 								   block_number, hash, e);
-						},
+						}
 						_ => {}	// imported ok
 					}
 				}
@@ -124,22 +123,16 @@ impl Miner {
 			None => {
 				// block not found - create it.
 				trace!(target: "miner", "No existing work - making new block");
-				chain.prepare_sealing(
-					self.author(),
-					self.gas_floor_target(),
-					self.extra_data(),
-					transactions,
-				)
+				chain.prepare_sealing(self.author(), self.gas_floor_target(), self.extra_data(), transactions)
 			}
 		};
 		let mut queue = self.transaction_queue.lock().unwrap();
-		queue.remove_all(
-			&invalid_transactions.into_iter().collect::<Vec<H256>>(),
-			|a: &Address| AccountDetails {
+		queue.remove_all(&invalid_transactions.into_iter().collect::<Vec<H256>>(), |a: &Address| {
+			AccountDetails {
 				nonce: chain.nonce(a),
 				balance: chain.balance(a),
 			}
-		);
+		});
 		if let Some(block) = b {
 			if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
 				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
@@ -156,10 +149,9 @@ impl Miner {
 	}
 }
 
-const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
+const SEALING_TIMEOUT_IN_BLOCKS: u64 = 5;
 
 impl MinerService for Miner {
-
 	fn clear_and_reset(&self, chain: &BlockChainClient) {
 		self.transaction_queue.lock().unwrap().clear();
 		self.update_sealing(chain);
@@ -217,7 +209,8 @@ impl MinerService for Miner {
 	}
 
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
-		where T: Fn(&Address) -> AccountDetails {
+		where T: Fn(&Address) -> AccountDetails,
+	{
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		transaction_queue.add_all(transactions, fetch_account)
 	}
@@ -257,7 +250,9 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn map_sealing_work<F, T>(&self, chain: &BlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
+	fn map_sealing_work<F, T>(&self, chain: &BlockChainClient, f: F) -> Option<T>
+		where F: FnOnce(&ClosedBlock) -> T,
+	{
 		trace!(target: "miner", "map_sealing_work: entering");
 		let have_work = self.sealing_work.lock().unwrap().peek_last_ref().is_some();
 		trace!(target: "miner", "map_sealing_work: have_work={}", have_work);
@@ -310,18 +305,19 @@ impl MinerService for Miner {
 
 		// Then import all transactions...
 		{
-			let out_of_chain = retracted
-				.par_iter()
-				.map(|h| fetch_transactions(chain, h));
+			let out_of_chain = retracted.par_iter()
+			                            .map(|h| fetch_transactions(chain, h));
 			out_of_chain.for_each(|txs| {
 				// populate sender
 				for tx in &txs {
 					let _sender = tx.sender();
 				}
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				let _ = transaction_queue.add_all(txs, |a| AccountDetails {
-					nonce: chain.nonce(a),
-					balance: chain.balance(a)
+				let _ = transaction_queue.add_all(txs, |a| {
+					AccountDetails {
+						nonce: chain.nonce(a),
+						balance: chain.balance(a),
+					}
 				});
 			});
 		}
@@ -333,21 +329,21 @@ impl MinerService for Miner {
 				in_chain.extend(imported);
 				in_chain.extend(enacted);
 				in_chain.extend(invalid);
-				in_chain
-					.into_iter()
-					.collect::<Vec<H256>>()
+				in_chain.into_iter()
+				        .collect::<Vec<H256>>()
 			};
 
-			let in_chain = in_chain
-				.par_iter()
-				.map(|h: &H256| fetch_transactions(chain, h));
+			let in_chain = in_chain.par_iter()
+			                       .map(|h: &H256| fetch_transactions(chain, h));
 
 			in_chain.for_each(|txs| {
 				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				transaction_queue.remove_all(&hashes, |a| AccountDetails {
-					nonce: chain.nonce(a),
-					balance: chain.balance(a)
+				transaction_queue.remove_all(&hashes, |a| {
+					AccountDetails {
+						nonce: chain.nonce(a),
+						balance: chain.balance(a),
+					}
 				});
 			});
 		}
@@ -360,9 +356,9 @@ impl MinerService for Miner {
 mod tests {
 
 	use MinerService;
-	use super::{Miner};
+	use super::Miner;
 	use util::*;
-	use ethcore::client::{TestBlockChainClient, EachBlockWith};
+	use ethcore::client::{EachBlockWith, TestBlockChainClient};
 	use ethcore::block::*;
 
 	// TODO [ToDr] To uncomment when TestBlockChainClient can actually return a ClosedBlock.

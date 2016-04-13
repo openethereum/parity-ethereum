@@ -49,7 +49,7 @@ pub type NetSyncMessage = NetworkIoMessage<SyncMessage>;
 pub struct ClientService {
 	net_service: NetworkService<SyncMessage>,
 	client: Arc<Client>,
-	panic_handler: Arc<PanicHandler>
+	panic_handler: Arc<PanicHandler>,
 }
 
 impl ClientService {
@@ -63,9 +63,7 @@ impl ClientService {
 		info!("Configured for {} using {:?} engine", spec.name, spec.engine.name());
 		let client = try!(Client::new(config, spec, db_path, net_service.io().channel()));
 		panic_handler.forward_from(client.deref());
-		let client_io = Arc::new(ClientIoHandler {
-			client: client.clone()
-		});
+		let client_io = Arc::new(ClientIoHandler { client: client.clone() });
 		try!(net_service.io().register_handler(client_io));
 
 		Ok(ClientService {
@@ -97,14 +95,16 @@ impl ClientService {
 }
 
 impl MayPanic for ClientService {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+	fn on_panic<F>(&self, closure: F)
+		where F: OnPanicListener,
+	{
 		self.panic_handler.on_panic(closure);
 	}
 }
 
 /// IO interface for the Client handler
 struct ClientIoHandler {
-	client: Arc<Client>
+	client: Arc<Client>,
 }
 
 const CLIENT_TICK_TIMER: TimerToken = 0;
@@ -127,8 +127,8 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 			match *message {
 				SyncMessage::BlockVerified => {
 					self.client.import_verified_blocks(&io.channel());
-				},
-				_ => {}, // ignore other messages
+				}
+				_ => {} // ignore other messages
 			}
 		}
 	}

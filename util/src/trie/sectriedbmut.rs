@@ -25,7 +25,7 @@ use super::trietraits::*;
 ///
 /// Use it as a `Trie` or `TrieMut` trait object. You can use `raw()` to get the backing `TrieDBMut` object.
 pub struct SecTrieDBMut<'db> {
-	raw: TrieDBMut<'db>
+	raw: TrieDBMut<'db>,
 }
 
 impl<'db> SecTrieDBMut<'db> {
@@ -43,20 +43,28 @@ impl<'db> SecTrieDBMut<'db> {
 	}
 
 	/// Get the backing database.
-	pub fn db(&'db self) -> &'db HashDB { self.raw.db() }
+	pub fn db(&'db self) -> &'db HashDB {
+		self.raw.db()
+	}
 
 	/// Get the backing database.
-	pub fn db_mut(&'db mut self) -> &'db mut HashDB { self.raw.db_mut() }
+	pub fn db_mut(&'db mut self) -> &'db mut HashDB {
+		self.raw.db_mut()
+	}
 }
 
 impl<'db> Trie for SecTrieDBMut<'db> {
-	fn root(&self) -> &H256 { self.raw.root() }
+	fn root(&self) -> &H256 {
+		self.raw.root()
+	}
 
 	fn contains(&self, key: &[u8]) -> bool {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]> where 'a: 'key {
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Option<&'a [u8]>
+		where 'a: 'key,
+	{
 		self.raw.get(&key.sha3())
 	}
 }

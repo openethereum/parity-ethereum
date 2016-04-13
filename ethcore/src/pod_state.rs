@@ -22,18 +22,24 @@ use ethjson;
 
 /// State of all accounts in the system expressed in Plain Old Data.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct PodState (BTreeMap<Address, PodAccount>);
+pub struct PodState(BTreeMap<Address, PodAccount>);
 
 impl PodState {
 	/// Contruct a new object from the `m`.
-	pub fn new() -> PodState { Default::default() }
+	pub fn new() -> PodState {
+		Default::default()
+	}
 
 	/// Contruct a new object from the `m`.
 	#[cfg(test)]
-	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState { PodState(m) }
+	pub fn from(m: BTreeMap<Address, PodAccount>) -> PodState {
+		PodState(m)
+	}
 
 	/// Get the underlying map.
-	pub fn get(&self) -> &BTreeMap<Address, PodAccount> { &self.0 }
+	pub fn get(&self) -> &BTreeMap<Address, PodAccount> {
+		&self.0
+	}
 
 	/// Get the root hash of the trie of the RLP of this.
 	pub fn root(&self) -> H256 {
@@ -43,7 +49,9 @@ impl PodState {
 	/// Drain object to get the underlying map.
 	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
-	pub fn drain(self) -> BTreeMap<Address, PodAccount> { self.0 }
+	pub fn drain(self) -> BTreeMap<Address, PodAccount> {
+		self.0
+	}
 }
 
 impl From<ethjson::blockchain::State> for PodState {
@@ -55,10 +63,10 @@ impl From<ethjson::blockchain::State> for PodState {
 
 impl From<ethjson::spec::State> for PodState {
 	fn from(s: ethjson::spec::State) -> PodState {
-		let state: BTreeMap<_,_> = s.into_iter()
-			.filter(|pair| !pair.1.is_empty())
-			.map(|(addr, acc)| (addr.into(), PodAccount::from(acc)))
-			.collect();
+		let state: BTreeMap<_, _> = s.into_iter()
+		                             .filter(|pair| !pair.1.is_empty())
+		                             .map(|(addr, acc)| (addr.into(), PodAccount::from(acc)))
+		                             .collect();
 		PodState(state)
 	}
 }
@@ -71,4 +79,3 @@ impl fmt::Display for PodState {
 		Ok(())
 	}
 }
-

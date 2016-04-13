@@ -16,9 +16,9 @@
 
 //! Test implementation of SyncProvider.
 
-use util::{U256};
-use ethsync::{SyncProvider, SyncStatus, SyncState};
-use std::sync::{RwLock};
+use util::U256;
+use ethsync::{SyncProvider, SyncState, SyncStatus};
+use std::sync::RwLock;
 
 /// TestSyncProvider config.
 pub struct Config {
@@ -60,4 +60,3 @@ impl SyncProvider for TestSyncProvider {
 		self.status.read().unwrap().clone()
 	}
 }
-

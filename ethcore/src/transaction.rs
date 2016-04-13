@@ -32,17 +32,17 @@ pub enum Action {
 }
 
 impl Default for Action {
-	fn default() -> Action { Action::Create }
+	fn default() -> Action {
+		Action::Create
+	}
 }
 
 impl Decodable for Action {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
 		let rlp = decoder.as_rlp();
-		if rlp.is_empty() {
-			Ok(Action::Create)
-		} else {
-			Ok(Action::Call(try!(rlp.as_val())))
-		}
+		if rlp.is_empty() { Ok(Action::Create) } else { Ok(Action::Call(try!(rlp.as_val()))) }
 	}
 }
 
@@ -73,7 +73,7 @@ impl Transaction {
 		s.append(&self.gas);
 		match self.action {
 			Action::Create => s.append_empty_data(),
-			Action::Call(ref to) => s.append(to)
+			Action::Call(ref to) => s.append(to),
 		};
 		s.append(&self.value);
 		s.append(&self.data);
@@ -89,11 +89,12 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 			gas: t.gas_limit.into(),
 			action: match to {
 				Some(to) => Action::Call(to.into()),
-				None => Action::Create
+				None => Action::Create,
 			},
 			value: t.value.into(),
 			data: t.data.into(),
-		}.sign(&t.secret.into())
+		}
+		.sign(&t.secret.into())
 	}
 }
 
@@ -107,7 +108,7 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 				gas: t.gas_limit.into(),
 				action: match to {
 					Some(to) => Action::Call(to.into()),
-					None => Action::Create
+					None => Action::Create,
 				},
 				value: t.value.into(),
 				data: t.data.into(),
@@ -116,7 +117,7 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 			s: t.s.into(),
 			v: t.v.into(),
 			sender: Cell::new(None),
-			hash: Cell::new(None)
+			hash: Cell::new(None),
 		}
 	}
 }
@@ -170,15 +171,23 @@ impl Transaction {
 
 	/// Get the transaction cost in gas for the given params.
 	pub fn gas_required_for(is_create: bool, data: &[u8], schedule: &Schedule) -> u64 {
-		data.iter().fold(
-			(if is_create {schedule.tx_create_gas} else {schedule.tx_gas}) as u64,
-			|g, b| g + (match *b { 0 => schedule.tx_data_zero_gas, _ => schedule.tx_data_non_zero_gas }) as u64
-		)
+		data.iter().fold((if is_create { schedule.tx_create_gas } else { schedule.tx_gas }) as u64, |g, b| {
+			g +
+			(match *b {
+				0 => schedule.tx_data_zero_gas,
+				_ => schedule.tx_data_non_zero_gas,
+			}) as u64
+		})
 	}
 
 	/// Get the transaction cost in gas for this transaction.
 	pub fn gas_required(&self, schedule: &Schedule) -> u64 {
-		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
+		Self::gas_required_for(match self.action {
+			                       Action::Create => true,
+			                       Action::Call(_) => false,
+		                       },
+		                       &self.data,
+		                       schedule)
 	}
 }
 
@@ -214,7 +223,9 @@ impl Deref for SignedTransaction {
 }
 
 impl Decodable for SignedTransaction {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
 		let d = decoder.as_rlp();
 		if d.item_count() != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
@@ -238,7 +249,9 @@ impl Decodable for SignedTransaction {
 }
 
 impl Encodable for SignedTransaction {
-	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_sealed_transaction(s) }
+	fn rlp_append(&self, s: &mut RlpStream) {
+		self.rlp_append_sealed_transaction(s)
+	}
 }
 
 impl SignedTransaction {
@@ -250,7 +263,7 @@ impl SignedTransaction {
 		s.append(&self.gas);
 		match self.action {
 			Action::Create => s.append_empty_data(),
-			Action::Call(ref to) => s.append(to)
+			Action::Call(ref to) => s.append(to),
 		};
 		s.append(&self.value);
 		s.append(&self.data);
@@ -273,18 +286,22 @@ impl SignedTransaction {
 	}
 
 	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
-	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
+	pub fn standard_v(&self) -> u8 {
+		match self.v {
+			27 => 0,
+			28 => 1,
+			_ => 4,
+		}
+	}
 
 	/// Construct a signature object from the sig.
-	pub fn signature(&self) -> Signature { Signature::from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v()) }
+	pub fn signature(&self) -> Signature {
+		Signature::from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v())
+	}
 
 	/// Checks whether the signature has a low 's' value.
 	pub fn check_low_s(&self) -> Result<(), Error> {
-		if !ec::is_low_s(&self.s) {
-			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)))
-		} else {
-			Ok(())
-		}
+		if !ec::is_low_s(&self.s) { Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) } else { Ok(()) }
 	}
 
 	/// Returns transaction sender.
@@ -310,7 +327,11 @@ impl SignedTransaction {
 		}
 		try!(self.sender());
 		if self.gas < U256::from(self.gas_required(&schedule)) {
-			Err(From::from(TransactionError::InvalidGasLimit(OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas})))
+			Err(From::from(TransactionError::InvalidGasLimit(OutOfBounds {
+				min: Some(U256::from(self.gas_required(&schedule))),
+				max: None,
+				found: self.gas,
+			})))
 		} else {
 			Ok(self)
 		}
@@ -327,7 +348,7 @@ pub struct LocalizedTransaction {
 	/// Block hash.
 	pub block_hash: H256,
 	/// Transaction index within block.
-	pub transaction_index: usize
+	pub transaction_index: usize,
 }
 
 impl Deref for LocalizedTransaction {
@@ -347,7 +368,9 @@ fn sender_test() {
 	assert_eq!(t.nonce, U256::from(0x00u64));
 	if let Action::Call(ref to) = t.action {
 		assert_eq!(*to, address_from_hex("095e7baea6a6c7c4c2dfeb977efac326af552d87"));
-	} else { panic!(); }
+	} else {
+		panic!();
+	}
 	assert_eq!(t.value, U256::from(0x0au64));
 	assert_eq!(t.sender().unwrap(), address_from_hex("0f65fe9276bc9a24ae7083ae28e2660ef72df99e"));
 }
@@ -361,8 +384,9 @@ fn signing() {
 		gas_price: U256::from(3000),
 		gas: U256::from(50_000),
 		value: U256::from(1),
-		data: b"Hello!".to_vec()
-	}.sign(&key.secret());
+		data: b"Hello!".to_vec(),
+	}
+	.sign(&key.secret());
 	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
 }
 
@@ -374,8 +398,9 @@ fn fake_signing() {
 		gas_price: U256::from(3000),
 		gas: U256::from(50_000),
 		value: U256::from(1),
-		data: b"Hello!".to_vec()
-	}.fake_sign(Address::from(0x69));
+		data: b"Hello!".to_vec(),
+	}
+	.fake_sign(Address::from(0x69));
 	assert_eq!(Address::from(0x69), t.sender().unwrap());
 
 	let t = t.clone();

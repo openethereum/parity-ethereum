@@ -23,16 +23,21 @@ pub struct Fork<I> {
 	pub fork_number: usize,
 }
 
-impl<I> Clone for Fork<I> where I: Iterator + Clone {
+impl<I> Clone for Fork<I>
+    where I: Iterator + Clone,
+{
 	fn clone(&self) -> Self {
 		Fork {
 			iter: self.iter.clone(),
-			fork_number: self.fork_number
+			fork_number: self.fork_number,
 		}
 	}
 }
 
-impl<I> Iterator for Fork<I> where I: Iterator, <I as Iterator>::Item: Forkable {
+impl<I> Iterator for Fork<I>
+	where I: Iterator,
+	      <I as Iterator>::Item: Forkable,
+{
 	type Item = <I as Iterator>::Item;
 
 	#[inline]

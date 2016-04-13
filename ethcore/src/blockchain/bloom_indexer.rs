@@ -37,7 +37,7 @@ impl BloomIndexer {
 	pub fn new(index_size: usize, levels: u8) -> Self {
 		BloomIndexer {
 			index_size: index_size,
-			levels: levels
+			levels: levels,
 		}
 	}
 
@@ -55,7 +55,7 @@ impl BloomIndexer {
 
 		BlocksBloomLocation {
 			hash: hash,
-			index: bloom_index.index % self.index_size
+			index: bloom_index.index % self.index_size,
 		}
 	}
 
@@ -73,30 +73,33 @@ impl BloomIndexer {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use util::hash::{H256, FixedHash};
+	use util::hash::{FixedHash, H256};
 	use chainfilter::BloomIndex;
-	use blockchain::bloom_indexer::{BloomIndexer, BlocksBloomLocation};
+	use blockchain::bloom_indexer::{BlocksBloomLocation, BloomIndexer};
 
 	#[test]
 	fn test_bloom_indexer() {
 		let bi = BloomIndexer::new(16, 3);
 
 		let index = BloomIndex::new(0, 0);
-		assert_eq!(bi.location(&index), BlocksBloomLocation {
-			hash: H256::new(),
-			index: 0
-		});
+		assert_eq!(bi.location(&index),
+		           BlocksBloomLocation {
+			           hash: H256::new(),
+			           index: 0,
+		           });
 
 		let index = BloomIndex::new(1, 0);
-		assert_eq!(bi.location(&index), BlocksBloomLocation {
-			hash: H256::from_str("0000000000000000000000000000000000000000000000010000000000000000").unwrap(),
-			index: 0
-		});
+		assert_eq!(bi.location(&index),
+		           BlocksBloomLocation {
+			           hash: H256::from_str("0000000000000000000000000000000000000000000000010000000000000000").unwrap(),
+			           index: 0,
+		           });
 
 		let index = BloomIndex::new(0, 299_999);
-		assert_eq!(bi.location(&index), BlocksBloomLocation {
-			hash: H256::from_str("000000000000000000000000000000000000000000000000000000000000493d").unwrap(),
-			index: 15
-		});
+		assert_eq!(bi.location(&index),
+		           BlocksBloomLocation {
+			           hash: H256::from_str("000000000000000000000000000000000000000000000000000000000000493d").unwrap(),
+			           index: 15,
+		           });
 	}
 }

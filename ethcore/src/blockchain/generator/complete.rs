@@ -21,7 +21,7 @@ use views::BlockView;
 
 #[derive(Default, Clone)]
 pub struct BlockFinalizer {
-	parent_hash: H256
+	parent_hash: H256,
 }
 
 impl BlockFinalizer {
@@ -34,12 +34,17 @@ pub trait CompleteBlock {
 	fn complete(self, parent_hash: H256) -> Bytes;
 }
 
-pub struct Complete<'a, I> where I: 'a {
+pub struct Complete<'a, I>
+	where I: 'a,
+{
 	pub iter: &'a mut I,
 	pub finalizer: &'a mut BlockFinalizer,
 }
 
-impl<'a, I> Iterator for Complete<'a, I> where I: Iterator, <I as Iterator>::Item: CompleteBlock {
+impl<'a, I> Iterator for Complete<'a, I>
+	where I: Iterator,
+	      <I as Iterator>::Item: CompleteBlock,
+{
 	type Item = Bytes;
 
 	#[inline]

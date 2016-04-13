@@ -25,7 +25,7 @@ impl<'db> AccountDB<'db> {
 	}
 }
 
-impl<'db> HashDB for AccountDB<'db>{
+impl<'db> HashDB for AccountDB<'db> {
 	fn keys(&self) -> HashMap<H256, i32> {
 		unimplemented!()
 	}
@@ -73,11 +73,14 @@ impl<'db> AccountDBMut<'db> {
 
 	#[allow(dead_code)]
 	pub fn immutable(&'db self) -> AccountDB<'db> {
-		AccountDB { db: self.db, address: self.address.clone() }
+		AccountDB {
+			db: self.db,
+			address: self.address.clone(),
+		}
 	}
 }
 
-impl<'db> HashDB for AccountDBMut<'db>{
+impl<'db> HashDB for AccountDBMut<'db> {
 	fn keys(&self) -> HashMap<H256, i32> {
 		unimplemented!()
 	}
@@ -122,5 +125,3 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		self.db.kill(&key)
 	}
 }
-
-

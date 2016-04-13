@@ -26,24 +26,24 @@ pub struct Web3Client;
 
 impl Web3Client {
 	/// Creates new Web3Client.
-	pub fn new() -> Self { Web3Client }
+	pub fn new() -> Self {
+		Web3Client
+	}
 }
 
 impl Web3 for Web3Client {
 	fn client_version(&self, params: Params) -> Result<Value, Error> {
 		match params {
 			Params::None => Ok(Value::String(version().to_owned().replace("Parity/", "Parity//"))),
-			_ => Err(Error::invalid_params())
+			_ => Err(Error::invalid_params()),
 		}
 	}
 
 	fn sha3(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(Bytes,)>(params).and_then(
-			|(data,)| {
-				let Bytes(ref v) = data;
-				let sha3 = v.sha3();
-				to_value(&sha3)
-			}
-		)
+		from_params::<(Bytes,)>(params).and_then(|(data,)| {
+			let Bytes(ref v) = data;
+			let sha3 = v.sha3();
+			to_value(&sha3)
+		})
 	}
 }

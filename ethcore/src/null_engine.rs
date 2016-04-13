@@ -19,7 +19,7 @@ use util::hash::Address;
 use builtin::Builtin;
 use engine::Engine;
 use spec::CommonParams;
-use evm::{Schedule, Factory};
+use evm::{Factory, Schedule};
 use env_info::EnvInfo;
 
 /// An engine which does not provide any consensus mechanism.
@@ -32,10 +32,10 @@ pub struct NullEngine {
 impl NullEngine {
 	/// Returns new instance of NullEngine with default VM Factory
 	pub fn new(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Self {
-		NullEngine{
+		NullEngine {
 			params: params,
 			builtins: builtins,
-			factory: Factory::default()
+			factory: Factory::default(),
 		}
 	}
 }
@@ -58,10 +58,6 @@ impl Engine for NullEngine {
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		if env_info.number < self.params.frontier_compatibility_mode_limit {
-			Schedule::new_frontier()
-		} else {
-			Schedule::new_homestead()
-		}
+		if env_info.number < self.params.frontier_compatibility_mode_limit { Schedule::new_frontier() } else { Schedule::new_homestead() }
 	}
 }

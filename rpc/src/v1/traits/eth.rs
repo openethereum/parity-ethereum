@@ -21,115 +21,189 @@ use jsonrpc_core::*;
 /// Eth rpc interface.
 pub trait Eth: Sized + Send + Sync + 'static {
 	/// Returns protocol version.
-	fn protocol_version(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn protocol_version(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns an object with data about the sync status or false. (wtf?)
-	fn syncing(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn syncing(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns the number of hashes per second that the node is mining with.
-	fn hashrate(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn hashrate(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns block author.
-	fn author(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn author(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns true if client is actively mining new blocks.
-	fn is_mining(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn is_mining(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns current gas_price.
-	fn gas_price(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn gas_price(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns accounts list.
-	fn accounts(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn accounts(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns highest block number.
-	fn block_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn block_number(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns balance of the given account.
-	fn balance(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn balance(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns content of the storage at given address.
-	fn storage_at(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn storage_at(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns block with given hash.
-	fn block_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn block_by_hash(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns block with given number.
-	fn block_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn block_by_number(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns the number of transactions sent from given address at given time (block number).
-	fn transaction_count(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn transaction_count(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns the number of transactions in a block with given hash.
-	fn block_transaction_count_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn block_transaction_count_by_hash(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns the number of transactions in a block with given block number.
-	fn block_transaction_count_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn block_transaction_count_by_number(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns the number of uncles in a block with given hash.
-	fn block_uncles_count_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn block_uncles_count_by_hash(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns the number of uncles in a block with given block number.
-	fn block_uncles_count_by_number(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn block_uncles_count_by_number(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns the code at given address at given time (block number).
-	fn code_at(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn code_at(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Signs the data with given address signature.
-	fn sign(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn sign(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Sends transaction.
-	fn send_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn send_transaction(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Sends signed transaction.
-	fn send_raw_transaction(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn send_raw_transaction(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Call contract.
-	fn call(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn call(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Estimate gas needed for execution of given contract.
-	fn estimate_gas(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn estimate_gas(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Get transaction by it's hash.
-	fn transaction_by_hash(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn transaction_by_hash(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns transaction at given block hash and index.
-	fn transaction_by_block_hash_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn transaction_by_block_hash_and_index(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns transaction by given block number and index.
-	fn transaction_by_block_number_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn transaction_by_block_number_and_index(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns transaction receipt.
-	fn transaction_receipt(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn transaction_receipt(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns an uncles at given block and index.
-	fn uncle_by_block_hash_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn uncle_by_block_hash_and_index(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns an uncles at given block and index.
-	fn uncle_by_block_number_and_index(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn uncle_by_block_number_and_index(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns available compilers.
-	fn compilers(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn compilers(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Compiles lll code.
-	fn compile_lll(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn compile_lll(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Compiles solidity.
-	fn compile_solidity(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn compile_solidity(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Compiles serpent.
-	fn compile_serpent(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn compile_serpent(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns logs matching given filter object.
-	fn logs(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn logs(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns the hash of the current block, the seedHash, and the boundary condition to be met.
-	fn work(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn work(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Used for submitting a proof-of-work solution.
-	fn submit_work(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn submit_work(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Used for submitting mining hashrate.
-	fn submit_hashrate(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn submit_hashrate(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
@@ -179,22 +253,34 @@ pub trait Eth: Sized + Send + Sync + 'static {
 // TODO: do filters api properly
 pub trait EthFilter: Sized + Send + Sync + 'static {
 	/// Returns id of new filter.
-	fn new_filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn new_filter(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns id of new block filter.
-	fn new_block_filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn new_block_filter(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns id of new block filter.
-	fn new_pending_transaction_filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn new_pending_transaction_filter(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns filter changes since last poll.
-	fn filter_changes(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn filter_changes(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Returns all logs matching given filter (in a range 'from' - 'to').
-	fn filter_logs(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn filter_logs(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Uninstalls filter.
-	fn uninstall_filter(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn uninstall_filter(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {

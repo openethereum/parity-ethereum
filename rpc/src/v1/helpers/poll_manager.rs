@@ -16,7 +16,7 @@
 
 //! Indexes all rpc poll requests.
 
-use transient_hashmap::{TransientHashMap, Timer, StandardTimer};
+use transient_hashmap::{StandardTimer, Timer, TransientHashMap};
 
 /// Lifetime of poll (in seconds).
 const POLL_LIFETIME: u64 = 60;
@@ -26,7 +26,9 @@ pub type PollId = usize;
 /// Indexes all poll requests.
 ///
 /// Lazily garbage collects unused polls info.
-pub struct PollManager<F, T = StandardTimer> where T: Timer {
+pub struct PollManager<F, T = StandardTimer>
+	where T: Timer,
+{
 	polls: TransientHashMap<PollId, F, T>,
 	next_available_id: PollId,
 }
@@ -38,8 +40,9 @@ impl<F> PollManager<F, StandardTimer> {
 	}
 }
 
-impl<F, T> PollManager<F, T> where T: Timer {
-
+impl<F, T> PollManager<F, T>
+    where T: Timer,
+{
 	pub fn new_with_timer(timer: T) -> Self {
 		PollManager {
 			polls: TransientHashMap::new_with_timer(POLL_LIFETIME, timer),
@@ -98,9 +101,7 @@ mod tests {
 	#[test]
 	fn test_poll_indexer() {
 		let time = Cell::new(0);
-		let timer = TestTimer {
-			time: &time,
-		};
+		let timer = TestTimer { time: &time };
 
 		let mut indexer = PollManager::new_with_timer(timer);
 		assert_eq!(indexer.create_poll(20), 0);

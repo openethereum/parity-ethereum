@@ -19,8 +19,7 @@ use crypto::CryptoError;
 use rlp::*;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum DisconnectReason
-{
+pub enum DisconnectReason {
 	DisconnectRequested,
 	TCPError,
 	BadProtocol,
@@ -95,18 +94,18 @@ impl From<CryptoError> for NetworkError {
 fn test_errors() {
 	assert_eq!(DisconnectReason::ClientQuit, DisconnectReason::from_u8(8));
 	let mut r = DisconnectReason::DisconnectRequested;
-	for i in 0 .. 20 {
+	for i in 0..20 {
 		r = DisconnectReason::from_u8(i);
 	}
 	assert_eq!(DisconnectReason::Unknown, r);
 
-	match <NetworkError as From<DecoderError>>::from(DecoderError::RlpIsTooBig) {
-		NetworkError::Auth => {},
+	match <NetworkError as From::<DecoderError>>::from(DecoderError::RlpIsTooBig) {
+		NetworkError::Auth => {}
 		_ => panic!("Unexpeceted error"),
 	}
 
-	match <NetworkError as From<CryptoError>>::from(CryptoError::InvalidSecret) {
-		NetworkError::Auth => {},
+	match <NetworkError as From::<CryptoError>>::from(CryptoError::InvalidSecret) {
+		NetworkError::Auth => {}
 		_ => panic!("Unexpeceted error"),
 	}
 }

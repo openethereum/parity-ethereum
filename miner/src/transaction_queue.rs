@@ -31,61 +31,61 @@
 //! extern crate ethminer;
 //! extern crate rustc_serialize;
 //!
-//!	use util::crypto::KeyPair;
+//! 	use util::crypto::KeyPair;
 //! use util::hash::Address;
 //! use util::numbers::{Uint, U256};
-//!	use ethminer::{TransactionQueue, AccountDetails};
-//!	use ethcore::transaction::*;
-//!	use rustc_serialize::hex::FromHex;
+//! 	use ethminer::{TransactionQueue, AccountDetails};
+//! 	use ethcore::transaction::*;
+//! 	use rustc_serialize::hex::FromHex;
 //!
 //! fn main() {
-//!		let key = KeyPair::create().unwrap();
-//!		let t1 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
-//!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(10) };
-//!		let t2 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
-//!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(11) };
+//! 		let key = KeyPair::create().unwrap();
+//! 		let t1 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
+//! 			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(10) };
+//! 		let t2 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
+//! 			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(11) };
 //!
-//!		let st1 = t1.sign(&key.secret());
-//!		let st2 = t2.sign(&key.secret());
-//!		let default_nonce = |_a: &Address| AccountDetails {
-//!			nonce: U256::from(10),
-//!			balance: U256::from(1_000_000),
-//!		};
+//! 		let st1 = t1.sign(&key.secret());
+//! 		let st2 = t2.sign(&key.secret());
+//! 		let default_nonce = |_a: &Address| AccountDetails {
+//! 			nonce: U256::from(10),
+//! 			balance: U256::from(1_000_000),
+//! 		};
 //!
-//!		let mut txq = TransactionQueue::new();
-//!		txq.add(st2.clone(), &default_nonce).unwrap();
-//!		txq.add(st1.clone(), &default_nonce).unwrap();
+//! 		let mut txq = TransactionQueue::new();
+//! 		txq.add(st2.clone(), &default_nonce).unwrap();
+//! 		txq.add(st1.clone(), &default_nonce).unwrap();
 //!
-//!		// Check status
-//!		assert_eq!(txq.status().pending, 2);
-//!		// Check top transactions
-//!		let top = txq.top_transactions();
-//!		assert_eq!(top.len(), 2);
-//!		assert_eq!(top[0], st1);
-//!		assert_eq!(top[1], st2);
+//! 		// Check status
+//! 		assert_eq!(txq.status().pending, 2);
+//! 		// Check top transactions
+//! 		let top = txq.top_transactions();
+//! 		assert_eq!(top.len(), 2);
+//! 		assert_eq!(top[0], st1);
+//! 		assert_eq!(top[1], st2);
 //!
-//!		// And when transaction is removed (but nonce haven't changed)
-//!		// it will move invalid transactions to future
-//!		txq.remove(&st1.hash(), &default_nonce);
-//!		assert_eq!(txq.status().pending, 0);
-//!		assert_eq!(txq.status().future, 1);
-//!		assert_eq!(txq.top_transactions().len(), 0);
-//!	}
+//! 		// And when transaction is removed (but nonce haven't changed)
+//! 		// it will move invalid transactions to future
+//! 		txq.remove(&st1.hash(), &default_nonce);
+//! 		assert_eq!(txq.status().pending, 0);
+//! 		assert_eq!(txq.status().future, 1);
+//! 		assert_eq!(txq.top_transactions().len(), 0);
+//! 	}
 //! ```
 //!
-//!	# Maintaing valid state
+//! 	# Maintaing valid state
 //!
-//!	1. Whenever transaction is imported to queue (to queue) all other transactions from this sender are revalidated in current. It means that they are moved to future and back again (height recalculation & gap filling).
-//!	2. Whenever transaction is removed:
-//!		- When it's removed from `future` - all `future` transactions heights are recalculated and then
-//!		  we check if the transactions should go to `current` (comparing state nonce)
-//!		- When it's removed from `current` - all transactions from this sender (`current` & `future`) are recalculated.
+//! 	1. Whenever transaction is imported to queue (to queue) all other transactions from this sender are revalidated in current. It means that they are moved to future and back again (height recalculation & gap filling).
+//! 	2. Whenever transaction is removed:
+//! 		- When it's removed from `future` - all `future` transactions heights are recalculated and then
+//! 		  we check if the transactions should go to `current` (comparing state nonce)
+//! 		- When it's removed from `current` - all transactions from this sender (`current` & `future`) are recalculated.
 //!
 
 use std::default::Default;
-use std::cmp::{Ordering};
-use std::collections::{HashMap, BTreeSet};
-use util::numbers::{Uint, U256};
+use std::cmp::Ordering;
+use std::collections::{BTreeSet, HashMap};
+use util::numbers::{U256, Uint};
 use util::hash::{Address, H256};
 use util::table::*;
 use ethcore::transaction::*;
@@ -154,14 +154,12 @@ impl Ord for TransactionOrder {
 
 /// Verified transaction (with sender)
 struct VerifiedTransaction {
-	transaction: SignedTransaction
+	transaction: SignedTransaction,
 }
 impl VerifiedTransaction {
 	fn new(transaction: SignedTransaction) -> Result<Self, Error> {
 		try!(transaction.sender());
-		Ok(VerifiedTransaction {
-			transaction: transaction
-		})
+		Ok(VerifiedTransaction { transaction: transaction })
 	}
 
 	fn hash(&self) -> H256 {
@@ -209,14 +207,16 @@ impl TransactionSet {
 			return;
 		}
 
-		let to_drop : Vec<(Address, U256)> = {
+		let to_drop: Vec<(Address, U256)> = {
 			self.by_priority
-				.iter()
-				.skip(self.limit)
-				.map(|order| by_hash.get(&order.hash)
-					.expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`."))
-				.map(|tx| (tx.sender(), tx.nonce()))
-				.collect()
+			    .iter()
+			    .skip(self.limit)
+			    .map(|order| {
+				    by_hash.get(&order.hash)
+				           .expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`.")
+				   })
+			    .map(|tx| (tx.sender(), tx.nonce()))
+			    .collect()
 		};
 
 		for (sender, nonce) in to_drop {
@@ -345,16 +345,18 @@ impl TransactionQueue {
 
 	/// Adds all signed transactions to queue to be verified and imported
 	pub fn add_all<T>(&mut self, txs: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
-		where T: Fn(&Address) -> AccountDetails {
+		where T: Fn(&Address) -> AccountDetails,
+	{
 
 		txs.into_iter()
-			.map(|tx| self.add(tx, &fetch_account))
-			.collect()
+		   .map(|tx| self.add(tx, &fetch_account))
+		   .collect()
 	}
 
 	/// Add signed transaction to queue to be verified and imported
 	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_account: &T) -> Result<(), Error>
-		where T: Fn(&Address) -> AccountDetails {
+		where T: Fn(&Address) -> AccountDetails,
+	{
 
 		trace!(target: "miner", "Importing: {:?}", tx.hash());
 
@@ -391,7 +393,7 @@ impl TransactionQueue {
 				vtx.hash(), client_account.balance, cost);
 			return Err(Error::Transaction(TransactionError::InsufficientBalance {
 				cost: cost,
-				balance: client_account.balance
+				balance: client_account.balance,
 			}));
 		}
 
@@ -402,7 +404,8 @@ impl TransactionQueue {
 	///
 	/// If gap is introduced marks subsequent transactions as future
 	pub fn remove_all<T>(&mut self, transaction_hashes: &[H256], fetch_account: T)
-		where T: Fn(&Address) -> AccountDetails {
+		where T: Fn(&Address) -> AccountDetails,
+	{
 		for hash in transaction_hashes {
 			self.remove(&hash, &fetch_account);
 		}
@@ -412,7 +415,8 @@ impl TransactionQueue {
 	///
 	/// If gap is introduced marks subsequent transactions as future
 	pub fn remove<T>(&mut self, transaction_hash: &H256, fetch_account: &T)
-		where T: Fn(&Address) -> AccountDetails {
+		where T: Fn(&Address) -> AccountDetails,
+	{
 
 		let transaction = self.by_hash.remove(transaction_hash);
 		if transaction.is_none() {
@@ -495,24 +499,29 @@ impl TransactionQueue {
 
 	/// Returns top transactions from the queue ordered by priority.
 	pub fn top_transactions(&self) -> Vec<SignedTransaction> {
-		self.current.by_priority
-			.iter()
-			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
-			.map(|t| t.transaction.clone())
-			.collect()
+		self.current
+		    .by_priority
+		    .iter()
+		    .map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
+		    .map(|t| t.transaction.clone())
+		    .collect()
 	}
 
 	/// Returns hashes of all transactions from current, ordered by priority.
 	pub fn pending_hashes(&self) -> Vec<H256> {
-		self.current.by_priority
-			.iter()
-			.map(|t| t.hash)
-			.collect()
+		self.current
+		    .by_priority
+		    .iter()
+		    .map(|t| t.hash)
+		    .collect()
 	}
 
 	/// Finds transaction in the queue by hash (if any)
 	pub fn find(&self, hash: &H256) -> Option<SignedTransaction> {
-		match self.by_hash.get(hash) { Some(transaction_ref) => Some(transaction_ref.transaction.clone()), None => None }
+		match self.by_hash.get(hash) {
+			Some(transaction_ref) => Some(transaction_ref.transaction.clone()),
+			None => None,
+		}
 	}
 
 	/// Removes all elements (in any state) from the queue
@@ -574,9 +583,9 @@ impl TransactionQueue {
 		let nonce = tx.nonce();
 
 		let next_nonce = self.last_nonces
-			.get(&address)
-			.cloned()
-			.map_or(state_nonce, |n| n + U256::one());
+		                     .get(&address)
+		                     .cloned()
+		                     .map_or(state_nonce, |n| n + U256::one());
 
 		// Check height
 		if nonce > next_nonce {
@@ -647,7 +656,7 @@ mod test {
 	use util::*;
 	use ethcore::transaction::*;
 	use super::*;
-	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
+	use super::{TransactionOrder, TransactionSet, VerifiedTransaction};
 
 	fn new_unsigned_tx(nonce: U256) -> Transaction {
 		Transaction {
@@ -656,7 +665,7 @@ mod test {
 			data: "3331600055".from_hex().unwrap(),
 			gas: U256::from(100_000),
 			gas_price: U256::one(),
-			nonce: nonce
+			nonce: nonce,
 		}
 	}
 
@@ -668,7 +677,7 @@ mod test {
 	fn default_nonce(_address: &Address) -> AccountDetails {
 		AccountDetails {
 			nonce: U256::from(123),
-			balance: !U256::zero()
+			balance: !U256::zero(),
 		}
 	}
 
@@ -700,7 +709,7 @@ mod test {
 		let mut set = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
-			limit: 1
+			limit: 1,
 		};
 		let (tx1, tx2) = new_txs(U256::from(1));
 		let tx1 = VerifiedTransaction::new(tx1).unwrap();
@@ -739,7 +748,7 @@ mod test {
 		let mut set = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
-			limit: 1
+			limit: 1,
 		};
 		// Create two transactions with same nonce
 		// (same hash)
@@ -777,8 +786,12 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::new();
 		let (tx, tx2) = new_similar_txs();
-		let prev_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce - U256::one(), balance:
-			!U256::zero() };
+		let prev_nonce = |a: &Address| {
+			AccountDetails {
+				nonce: default_nonce(a).nonce - U256::one(),
+				balance: !U256::zero(),
+			}
+		};
 
 		// First insert one transaction to future
 		let res = txq.add(tx, &prev_nonce);
@@ -849,9 +862,11 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::new();
 		let tx = new_tx();
-		let account = |a: &Address| AccountDetails {
-			nonce: default_nonce(a).nonce,
-			balance: U256::one()
+		let account = |a: &Address| {
+			AccountDetails {
+				nonce: default_nonce(a).nonce,
+				balance: U256::one(),
+			}
 		};
 
 		// when
@@ -924,7 +939,7 @@ mod test {
 
 	#[test]
 	fn should_return_pending_hashes() {
-			// given
+		// given
 		let mut txq = TransactionQueue::new();
 
 		let (tx, tx2) = new_txs(U256::from(1));
@@ -963,10 +978,18 @@ mod test {
 	#[test]
 	fn should_correctly_update_futures_when_removing() {
 		// given
-		let prev_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce - U256::one(), balance:
-			!U256::zero() };
-		let next2_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce + U256::from(2), balance:
-			!U256::zero() };
+		let prev_nonce = |a: &Address| {
+			AccountDetails {
+				nonce: default_nonce(a).nonce - U256::one(),
+				balance: !U256::zero(),
+			}
+		};
+		let next2_nonce = |a: &Address| {
+			AccountDetails {
+				nonce: default_nonce(a).nonce + U256::from(2),
+				balance: !U256::zero(),
+			}
+		};
 
 		let mut txq = TransactionQueue::new();
 
@@ -1111,7 +1134,12 @@ mod test {
 		let mut txq = TransactionQueue::new();
 		let tx = new_tx();
 		let last_nonce = tx.nonce + U256::one();
-		let fetch_last_nonce = |_a: &Address| AccountDetails{ nonce: last_nonce, balance: !U256::zero() };
+		let fetch_last_nonce = |_a: &Address| {
+			AccountDetails {
+				nonce: last_nonce,
+				balance: !U256::zero(),
+			}
+		};
 
 		// when
 		txq.add(tx, &fetch_last_nonce).unwrap_err();
@@ -1125,8 +1153,12 @@ mod test {
 	#[test]
 	fn should_not_insert_same_transaction_twice() {
 		// given
-		let nonce = |a: &Address| AccountDetails { nonce: default_nonce(a).nonce + U256::one(),
-			balance: !U256::zero() };
+		let nonce = |a: &Address| {
+			AccountDetails {
+				nonce: default_nonce(a).nonce + U256::one(),
+				balance: !U256::zero(),
+			}
+		};
 		let mut txq = TransactionQueue::new();
 		let (_tx1, tx2) = new_txs(U256::from(1));
 		txq.add(tx2.clone(), &default_nonce).unwrap();
@@ -1166,8 +1198,12 @@ mod test {
 	#[test]
 	fn should_not_move_to_future_if_state_nonce_is_higher() {
 		// given
-		let next_nonce = |a: &Address| AccountDetails { nonce: default_nonce(a).nonce + U256::one(), balance:
-			!U256::zero() };
+		let next_nonce = |a: &Address| {
+			AccountDetails {
+				nonce: default_nonce(a).nonce + U256::one(),
+				balance: !U256::zero(),
+			}
+		};
 		let mut txq = TransactionQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
 		let tx3 = new_tx();
@@ -1243,10 +1279,18 @@ mod test {
 	#[test]
 	fn should_recalculate_height_when_removing_from_future() {
 		// given
-		let previous_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce - U256::one(), balance:
-			!U256::zero() };
-		let next_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce + U256::one(), balance:
-			!U256::zero() };
+		let previous_nonce = |a: &Address| {
+			AccountDetails {
+				nonce: default_nonce(a).nonce - U256::one(),
+				balance: !U256::zero(),
+			}
+		};
+		let next_nonce = |a: &Address| {
+			AccountDetails {
+				nonce: default_nonce(a).nonce + U256::one(),
+				balance: !U256::zero(),
+			}
+		};
 		let mut txq = TransactionQueue::new();
 		let (tx1, tx2) = new_txs(U256::one());
 		txq.add(tx1.clone(), &previous_nonce).unwrap();
@@ -1278,7 +1322,12 @@ mod test {
 		let tx = new_tx();
 		let from = tx.sender().unwrap();
 		let nonce = tx.nonce;
-		let details = |_a: &Address| AccountDetails { nonce: nonce, balance: !U256::zero() };
+		let details = |_a: &Address| {
+			AccountDetails {
+				nonce: nonce,
+				balance: !U256::zero(),
+			}
+		};
 
 		// when
 		txq.add(tx, &details).unwrap();

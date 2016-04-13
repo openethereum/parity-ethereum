@@ -15,30 +15,32 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-use util::{U256, Address};
+use util::{Address, U256};
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
-use ethminer::{MinerService};
+use ethminer::MinerService;
 use v1::traits::Ethcore;
 use v1::types::Bytes;
 
 /// Ethcore implementation.
 pub struct EthcoreClient<M>
-	where M: MinerService {
+	where M: MinerService,
+{
 	miner: Weak<M>,
 }
 
-impl<M> EthcoreClient<M> where M: MinerService {
+impl<M> EthcoreClient<M>
+    where M: MinerService,
+{
 	/// Creates new `EthcoreClient`.
 	pub fn new(miner: &Arc<M>) -> Self {
-		EthcoreClient {
-			miner: Arc::downgrade(miner)
-		}
+		EthcoreClient { miner: Arc::downgrade(miner) }
 	}
 }
 
-impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
-
+impl<M> Ethcore for EthcoreClient<M>
+    where M: MinerService + 'static,
+{
 	fn set_min_gas_price(&self, params: Params) -> Result<Value, Error> {
 		from_params::<(U256,)>(params).and_then(|(gas_price,)| {
 			take_weak!(self.miner).set_minimal_gas_price(gas_price);

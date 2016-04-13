@@ -17,7 +17,7 @@
 //! Spec seal.
 
 use util::rlp::*;
-use util::hash::{H64, H256};
+use util::hash::{H256, H64};
 use ethjson;
 
 /// Classic ethereum seal.
@@ -35,7 +35,7 @@ impl Into<Generic> for Ethereum {
 		s.append(&self.nonce);
 		Generic {
 			fields: 2,
-			rlp: s.out()
+			rlp: s.out(),
 		}
 	}
 }
@@ -61,12 +61,12 @@ impl From<ethjson::spec::Seal> for Seal {
 		match s {
 			ethjson::spec::Seal::Ethereum(eth) => Seal::Ethereum(Ethereum {
 				nonce: eth.nonce.into(),
-				mix_hash: eth.mix_hash.into()
+				mix_hash: eth.mix_hash.into(),
 			}),
 			ethjson::spec::Seal::Generic(g) => Seal::Generic(Generic {
 				fields: g.fields,
-				rlp: g.rlp.into()
-			})
+				rlp: g.rlp.into(),
+			}),
 		}
 	}
 }
@@ -75,7 +75,7 @@ impl Into<Generic> for Seal {
 	fn into(self) -> Generic {
 		match self {
 			Seal::Generic(generic) => generic,
-			Seal::Ethereum(eth) => eth.into()
+			Seal::Ethereum(eth) => eth.into(),
 		}
 	}
 }

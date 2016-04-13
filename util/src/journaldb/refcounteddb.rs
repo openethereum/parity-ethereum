@@ -21,7 +21,7 @@ use rlp::*;
 use hashdb::*;
 use overlaydb::*;
 use super::traits::JournalDB;
-use kvdb::{Database, DBTransaction, DatabaseConfig};
+use kvdb::{DBTransaction, Database, DatabaseConfig};
 #[cfg(test)]
 use std::env;
 
@@ -40,24 +40,22 @@ pub struct RefCountedDB {
 	removes: Vec<H256>,
 }
 
-const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const DB_VERSION : u32 = 0x200;
-const PADDING : [u8; 10] = [ 0u8; 10 ];
+const LATEST_ERA_KEY: [u8; 12] = [b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0];
+const VERSION_KEY: [u8; 12] = [b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0];
+const DB_VERSION: u32 = 0x200;
+const PADDING: [u8; 10] = [0u8; 10];
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
 	pub fn new(path: &str) -> RefCountedDB {
-		let opts = DatabaseConfig {
-			prefix_size: Some(12) //use 12 bytes as prefix, this must match account_db prefix
-		};
+		let opts = DatabaseConfig { prefix_size: Some(12) /* use 12 bytes as prefix, this must match account_db prefix */ };
 		let backing = Database::open(&opts, path).unwrap_or_else(|e| {
 			panic!("Error opening state db: {}", e);
 		});
 		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
-				Ok(Some(DB_VERSION)) => {},
-				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
+				Ok(Some(DB_VERSION)) => {}
+				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path),
 			}
 		} else {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
@@ -85,12 +83,27 @@ impl RefCountedDB {
 }
 
 impl HashDB for RefCountedDB {
-	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
-	fn lookup(&self, key: &H256) -> Option<&[u8]> { self.forward.lookup(key) }
-	fn exists(&self, key: &H256) -> bool { self.forward.exists(key) }
-	fn insert(&mut self, value: &[u8]) -> H256 { let r = self.forward.insert(value); self.inserts.push(r.clone()); r }
-	fn emplace(&mut self, key: H256, value: Bytes) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }
-	fn kill(&mut self, key: &H256) { self.removes.push(key.clone()); }
+	fn keys(&self) -> HashMap<H256, i32> {
+		self.forward.keys()
+	}
+	fn lookup(&self, key: &H256) -> Option<&[u8]> {
+		self.forward.lookup(key)
+	}
+	fn exists(&self, key: &H256) -> bool {
+		self.forward.exists(key)
+	}
+	fn insert(&mut self, value: &[u8]) -> H256 {
+		let r = self.forward.insert(value);
+		self.inserts.push(r.clone());
+		r
+	}
+	fn emplace(&mut self, key: H256, value: Bytes) {
+		self.inserts.push(key.clone());
+		self.forward.emplace(key, value);
+	}
+	fn kill(&mut self, key: &H256) {
+		self.removes.push(key.clone());
+	}
 }
 
 impl JournalDB for RefCountedDB {
@@ -106,13 +119,15 @@ impl JournalDB for RefCountedDB {
 
 	fn mem_used(&self) -> usize {
 		self.inserts.heap_size_of_children() + self.removes.heap_size_of_children()
- 	}
+	}
 
 	fn is_empty(&self) -> bool {
 		self.latest_era.is_none()
 	}
 
-	fn latest_era(&self) -> Option<u64> { self.latest_era }
+	fn latest_era(&self) -> Option<u64> {
+		self.latest_era
+	}
 
 	fn commit(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// journal format:
@@ -140,7 +155,8 @@ impl JournalDB for RefCountedDB {
 				r.append(&&PADDING[..]);
 				last = r.drain();
 				&last
-			})).is_some() {
+			}))
+				.is_some() {
 				index += 1;
 			}
 
@@ -166,7 +182,7 @@ impl JournalDB for RefCountedDB {
 			let mut index = 0usize;
 			let mut last;
 			while let Some(rlp_data) = {
-//				trace!(target: "rcdb", "checking for journal #{}.{}", end_era, index);
+				// trace!(target: "rcdb", "checking for journal #{}.{}", end_era, index);
 				try!(self.backing.get({
 					let mut r = RlpStream::new_list(3);
 					r.append(&end_era);
@@ -178,7 +194,7 @@ impl JournalDB for RefCountedDB {
 			} {
 				let rlp = Rlp::new(&rlp_data);
 				let our_id: H256 = rlp.val_at(0);
-				let to_remove: Vec<H256> = rlp.val_at(if canon_id == our_id {2} else {1});
+				let to_remove: Vec<H256> = rlp.val_at(if canon_id == our_id { 2 } else { 1 });
 				trace!(target: "rcdb", "delete journal for time #{}.{}=>{}, (canon was {}): deleting {:?}", end_era, index, our_id, canon_id, to_remove);
 				for i in &to_remove {
 					self.forward.remove(i);

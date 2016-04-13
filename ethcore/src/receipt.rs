@@ -19,7 +19,7 @@
 use util::*;
 use basic_types::LogBloom;
 use header::BlockNumber;
-use log_entry::{LogEntry, LocalizedLogEntry};
+use log_entry::{LocalizedLogEntry, LogEntry};
 
 /// Information describing execution of a transaction.
 #[derive(Default, Debug, Clone)]
@@ -40,7 +40,10 @@ impl Receipt {
 		Receipt {
 			state_root: state_root,
 			gas_used: gas_used,
-			log_bloom: logs.iter().fold(LogBloom::new(), |mut b, l| { b = &b | &l.bloom(); b }), //TODO: use |= operator
+			log_bloom: logs.iter().fold(LogBloom::new(), |mut b, l| {
+				b = &b | &l.bloom();
+				b
+			}), // TODO: use |= operator
 			logs: logs,
 		}
 	}
@@ -57,7 +60,9 @@ impl Encodable for Receipt {
 }
 
 impl Decodable for Receipt {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
 		let d = decoder.as_rlp();
 		let receipt = Receipt {
 			state_root: try!(d.val_at(0)),
@@ -99,14 +104,12 @@ pub struct LocalizedReceipt {
 #[test]
 fn test_basic() {
 	let expected = FromHex::from_hex("f90162a02f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee83040caeb9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000f838f794dcf421d093428b096ca501a7cd1a740855a7976fc0a00000000000000000000000000000000000000000000000000000000000000000").unwrap();
-	let r = Receipt::new(
-		x!("2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee"),
-		x!(0x40cae),
-		vec![LogEntry {
-			address: x!("dcf421d093428b096ca501a7cd1a740855a7976f"),
-			topics: vec![],
-			data: vec![0u8; 32]
-		}]
-	);
+	let r = Receipt::new(x!("2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee"),
+	                     x!(0x40cae),
+	                     vec![LogEntry {
+		                          address: x!("dcf421d093428b096ca501a7cd1a740855a7976f"),
+		                          topics: vec![],
+		                          data: vec![0u8; 32],
+	                          }]);
 	assert_eq!(&encode(&r)[..], &expected[..]);
 }

@@ -16,12 +16,12 @@
 
 use std::mem;
 use std::slice::from_raw_parts;
-use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, SocketAddrV6, Ipv4Addr, Ipv6Addr};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 use std::hash::{Hash, Hasher};
-use std::str::{FromStr};
+use std::str::FromStr;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::fmt;
 use std::fs;
 use std::io::{Read, Write};
@@ -29,7 +29,7 @@ use hash::*;
 use rlp::*;
 use time::Tm;
 use error::*;
-use network::discovery::{TableUpdates, NodeEntry};
+use network::discovery::{NodeEntry, TableUpdates};
 use network::ip_utils::*;
 pub use rustc_serialize::json::Json;
 
@@ -42,7 +42,7 @@ pub struct NodeEndpoint {
 	/// IP(V4 or V6) address
 	pub address: SocketAddr,
 	/// Conneciton port.
-	pub udp_port: u16
+	pub udp_port: u16,
 }
 
 impl NodeEndpoint {
@@ -66,9 +66,12 @@ impl NodeEndpoint {
 				let o = from_raw_parts(o, 8);
 				Ok(SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::new(o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7]), tcp_port, 0, 0)))
 			},
-			_ => Err(DecoderError::RlpInconsistentLengthAndData)
+			_ => Err(DecoderError::RlpInconsistentLengthAndData),
 		});
-		Ok(NodeEndpoint { address: address, udp_port: udp_port })
+		Ok(NodeEndpoint {
+			address: address,
+			udp_port: udp_port,
+		})
 	}
 
 	pub fn to_rlp(&self, rlp: &mut RlpStream) {
@@ -79,7 +82,7 @@ impl NodeEndpoint {
 			SocketAddr::V6(a) => unsafe {
 				let o: *const u8 = mem::transmute(a.ip().segments().as_ptr());
 				rlp.append(&from_raw_parts(o, 16));
-			}
+			},
 		};
 		rlp.append(&self.udp_port);
 		rlp.append(&self.address.port());
@@ -94,14 +97,14 @@ impl NodeEndpoint {
 		self.udp_port != 0 && self.address.port() != 0 &&
 		match self.address {
 			SocketAddr::V4(a) => !a.ip().is_unspecified_s(),
-			SocketAddr::V6(a) => !a.ip().is_unspecified_s()
+			SocketAddr::V6(a) => !a.ip().is_unspecified_s(),
 		}
 	}
 
 	pub fn is_global(&self) -> bool {
 		match self.address {
 			SocketAddr::V4(a) => a.ip().is_global_s(),
-			SocketAddr::V6(a) => a.ip().is_global_s()
+			SocketAddr::V6(a) => a.ip().is_global_s(),
 		}
 	}
 }
@@ -115,10 +118,10 @@ impl FromStr for NodeEndpoint {
 		match address {
 			Ok(Some(a)) => Ok(NodeEndpoint {
 				address: a,
-				udp_port: a.port()
+				udp_port: a.port(),
 			}),
 			Ok(_) => Err(UtilError::AddressResolve(None)),
-			Err(e) => Err(UtilError::AddressResolve(Some(e)))
+			Err(e) => Err(UtilError::AddressResolve(Some(e))),
 		}
 	}
 }
@@ -126,7 +129,7 @@ impl FromStr for NodeEndpoint {
 #[derive(PartialEq, Eq, Copy, Clone)]
 pub enum PeerType {
 	_Required,
-	Optional
+	Optional,
 }
 
 pub struct Node {
@@ -163,12 +166,7 @@ impl Display for Node {
 impl FromStr for Node {
 	type Err = UtilError;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
-			(try!(NodeId::from_str(&s[8..136])), try!(NodeEndpoint::from_str(&s[137..])))
-		}
-		else {
-			(NodeId::new(), try!(NodeEndpoint::from_str(s)))
-		};
+		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" { (try!(NodeId::from_str(&s[8..136])), try!(NodeEndpoint::from_str(&s[137..]))) } else { (NodeId::new(), try!(NodeEndpoint::from_str(s))) };
 
 		Ok(Node {
 			id: id,
@@ -188,7 +186,9 @@ impl PartialEq for Node {
 impl Eq for Node {}
 
 impl Hash for Node {
-	fn hash<H>(&self, state: &mut H) where H: Hasher {
+	fn hash<H>(&self, state: &mut H)
+		where H: Hasher,
+	{
 		self.id.hash(state)
 	}
 }
@@ -225,7 +225,15 @@ impl NodeTable {
 	/// Unordered list of all entries
 	pub fn unordered_entries(&self) -> Vec<NodeEntry> {
 		// preserve failure counter
-		self.nodes.values().map(|n| NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() }).collect()
+		self.nodes
+		    .values()
+		    .map(|n| {
+			    NodeEntry {
+				    endpoint: n.endpoint.clone(),
+				    id: n.id.clone(),
+			    }
+			   })
+		    .collect()
 	}
 
 	/// Get particular node
@@ -263,9 +271,9 @@ impl NodeTable {
 			json.push_str("{\n");
 			json.push_str("\"nodes\": [\n");
 			let node_ids = self.nodes();
-			for i in 0 .. node_ids.len() {
+			for i in 0..node_ids.len() {
 				let node = self.nodes.get(&node_ids[i]).unwrap();
-				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","}))
+				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 { "" } else { "," }))
 			}
 			json.push_str("]\n");
 			json.push_str("}");
@@ -277,7 +285,7 @@ impl NodeTable {
 				}
 			};
 			if let Err(e) = file.write(&json.into_bytes()) {
-					warn!("Error writing node table file: {:?}", e);
+				warn!("Error writing node table file: {:?}", e);
 			}
 		}
 	}
@@ -296,7 +304,7 @@ impl NodeTable {
 			};
 			let mut buf = String::new();
 			match file.read_to_string(&mut buf) {
-				Ok(_) => {},
+				Ok(_) => {}
 				Err(e) => {
 					warn!("Error reading node table file: {:?}", e);
 					return nodes;
@@ -352,7 +360,7 @@ mod tests {
 		assert!(endpoint.is_ok());
 		let v4 = match endpoint.unwrap().address {
 			SocketAddr::V4(v4address) => v4address,
-			_ => panic!("should ve v4 address")
+			_ => panic!("should ve v4 address"),
 		};
 		assert_eq!(SocketAddrV4::new(Ipv4Addr::new(123, 99, 55, 44), 7770), v4);
 	}
@@ -365,12 +373,10 @@ mod tests {
 		let node = node.unwrap();
 		let v4 = match node.endpoint.address {
 			SocketAddr::V4(v4address) => v4address,
-			_ => panic!("should ve v4 address")
+			_ => panic!("should ve v4 address"),
 		};
 		assert_eq!(SocketAddrV4::new(Ipv4Addr::new(22, 99, 55, 44), 7770), v4);
-		assert_eq!(
-			H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap(),
-			node.id);
+		assert_eq!(H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap(), node.id);
 	}
 
 	#[test]

@@ -67,31 +67,49 @@ impl<'a> Iterator for NibbleSliceIterator<'a> {
 	}
 }
 
-impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
+impl<'a, 'view> NibbleSlice<'a>
+    where 'a: 'view,
+{
 	/// Create a new nibble slice with the given byte-slice.
-	pub fn new(data: &'a [u8]) -> Self { NibbleSlice::new_offset(data, 0) }
+	pub fn new(data: &'a [u8]) -> Self {
+		NibbleSlice::new_offset(data, 0)
+	}
 
 	/// Create a new nibble slice with the given byte-slice with a nibble offset.
-	pub fn new_offset(data: &'a [u8], offset: usize) -> Self { NibbleSlice{data: data, offset: offset, data_encode_suffix: &b""[..], offset_encode_suffix: 0} }
+	pub fn new_offset(data: &'a [u8], offset: usize) -> Self {
+		NibbleSlice {
+			data: data,
+			offset: offset,
+			data_encode_suffix: &b""[..],
+			offset_encode_suffix: 0,
+		}
+	}
 
 	/// Create a composed nibble slice; one followed by the other.
-	pub fn new_composed(a: &'a NibbleSlice, b: &'a NibbleSlice) -> Self { NibbleSlice{data: a.data, offset: a.offset, data_encode_suffix: b.data, offset_encode_suffix: b.offset} }
+	pub fn new_composed(a: &'a NibbleSlice, b: &'a NibbleSlice) -> Self {
+		NibbleSlice {
+			data: a.data,
+			offset: a.offset,
+			data_encode_suffix: b.data,
+			offset_encode_suffix: b.offset,
+		}
+	}
 
-	/*pub fn new_composed_bytes_offset(a: &NibbleSlice, b: &NibbleSlice) -> (Bytes, usize) {
-		let r: Vec<u8>::with_capacity((a.len() + b.len() + 1) / 2);
-		let mut i = (a.len() + b.len()) % 2;
-		while i < a.len() {
-			match i % 2 {
-				0 => ,
-				1 => ,
-			}
-			i += 1;
-		}
-		while i < a.len() + b.len() {
-			i += 1;
-		}
-		(r, a.len() + b.len())
-	}*/
+	// pub fn new_composed_bytes_offset(a: &NibbleSlice, b: &NibbleSlice) -> (Bytes, usize) {
+	// let r: Vec<u8>::with_capacity((a.len() + b.len() + 1) / 2);
+	// let mut i = (a.len() + b.len()) % 2;
+	// while i < a.len() {
+	// match i % 2 {
+	// 0 => ,
+	// 1 => ,
+	// }
+	// i += 1;
+	// }
+	// while i < a.len() + b.len() {
+	// i += 1;
+	// }
+	// (r, a.len() + b.len())
+	// }
 
 	/// Get an iterator for the series of nibbles.
 	pub fn iter(&'a self) -> NibbleSliceIterator<'a> {
@@ -100,49 +118,53 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 
 	/// Create a new nibble slice from the given HPE encoded data (e.g. output of `encoded()`).
 	pub fn from_encoded(data: &'a [u8]) -> (NibbleSlice, bool) {
-		(Self::new_offset(data, if data[0] & 16 == 16 {1} else {2}), data[0] & 32 == 32)
+		(Self::new_offset(data, if data[0] & 16 == 16 { 1 } else { 2 }), data[0] & 32 == 32)
 	}
 
 	/// Is this an empty slice?
-	pub fn is_empty(&self) -> bool { self.len() == 0 }
+	pub fn is_empty(&self) -> bool {
+		self.len() == 0
+	}
 
 	/// Get the length (in nibbles, naturally) of this slice.
-	pub fn len(&self) -> usize { (self.data.len() + self.data_encode_suffix.len()) * 2 - self.offset - self.offset_encode_suffix }
+	pub fn len(&self) -> usize {
+		(self.data.len() + self.data_encode_suffix.len()) * 2 - self.offset - self.offset_encode_suffix
+	}
 
 	/// Get the nibble at position `i`.
 	pub fn at(&self, i: usize) -> u8 {
 		let l = self.data.len() * 2 - self.offset;
 		if i < l {
-			if (self.offset + i) & 1 == 1 {
-				self.data[(self.offset + i) / 2] & 15u8
-			}
-			else {
-				self.data[(self.offset + i) / 2] >> 4
-			}
-		}
-		else {
+			if (self.offset + i) & 1 == 1 { self.data[(self.offset + i) / 2] & 15u8 } else { self.data[(self.offset + i) / 2] >> 4 }
+		} else {
 			let i = i - l;
-			if (self.offset_encode_suffix + i) & 1 == 1 {
-				self.data_encode_suffix[(self.offset_encode_suffix + i) / 2] & 15u8
-			}
-			else {
-				self.data_encode_suffix[(self.offset_encode_suffix + i) / 2] >> 4
-			}
+			if (self.offset_encode_suffix + i) & 1 == 1 { self.data_encode_suffix[(self.offset_encode_suffix + i) / 2] & 15u8 } else { self.data_encode_suffix[(self.offset_encode_suffix + i) / 2] >> 4 }
 		}
 	}
 
 	/// Return object which represents a view on to this slice (further) offset by `i` nibbles.
-	pub fn mid(&'view self, i: usize) -> NibbleSlice<'a> { NibbleSlice{ data: self.data, offset: self.offset + i, data_encode_suffix: &b""[..], offset_encode_suffix: 0 } }
+	pub fn mid(&'view self, i: usize) -> NibbleSlice<'a> {
+		NibbleSlice {
+			data: self.data,
+			offset: self.offset + i,
+			data_encode_suffix: &b""[..],
+			offset_encode_suffix: 0,
+		}
+	}
 
 	/// Do we start with the same nibbles as the whole of `them`?
- 	pub fn starts_with(&self, them: &Self) -> bool { self.common_prefix(them) == them.len() }
+	pub fn starts_with(&self, them: &Self) -> bool {
+		self.common_prefix(them) == them.len()
+	}
 
- 	/// How many of the same nibbles at the beginning do we match with `them`?
+	/// How many of the same nibbles at the beginning do we match with `them`?
 	pub fn common_prefix(&self, them: &Self) -> usize {
 		let s = min(self.len(), them.len());
 		let mut i = 0usize;
 		while i < s {
-			if self.at(i) != them.at(i) { break; }
+			if self.at(i) != them.at(i) {
+				break;
+			}
 			i += 1;
 		}
 		i
@@ -153,7 +175,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		let l = self.len();
 		let mut r = Bytes::with_capacity(l / 2 + 1);
 		let mut i = l % 2;
-		r.push(if i == 1 {0x10 + self.at(0)} else {0} + if is_leaf {0x20} else {0});
+		r.push(if i == 1 { 0x10 + self.at(0) } else { 0 } + if is_leaf { 0x20 } else { 0 });
 		while i < l {
 			r.push(self.at(i) * 16 + self.at(i + 1));
 			i += 2;
@@ -167,7 +189,7 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 		let l = min(self.len(), n);
 		let mut r = Bytes::with_capacity(l / 2 + 1);
 		let mut i = l % 2;
-		r.push(if i == 1 {0x10 + self.at(0)} else {0} + if is_leaf {0x20} else {0});
+		r.push(if i == 1 { 0x10 + self.at(0) } else { 0 } + if is_leaf { 0x20 } else { 0 });
 		while i < l {
 			r.push(self.at(i) * 16 + self.at(i + 1));
 			i += 2;
@@ -212,7 +234,7 @@ impl<'a> fmt::Debug for NibbleSlice<'a> {
 #[cfg(test)]
 mod tests {
 	use super::NibbleSlice;
-	static D: &'static [u8;3] = &[0x01u8, 0x23, 0x45];
+	static D: &'static [u8; 3] = &[0x01u8, 0x23, 0x45];
 
 	#[test]
 	fn basics() {

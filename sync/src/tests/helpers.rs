@@ -15,11 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::*;
-use ethcore::client::{TestBlockChainClient, BlockChainClient};
+use ethcore::client::{BlockChainClient, TestBlockChainClient};
 use io::SyncIo;
 use chain::ChainSync;
 use ethminer::Miner;
-use ::SyncConfig;
+use SyncConfig;
 
 pub struct TestIo<'p> {
 	pub chain: &'p mut TestBlockChainClient,
@@ -32,23 +32,21 @@ impl<'p> TestIo<'p> {
 		TestIo {
 			chain: chain,
 			queue: queue,
-			sender: sender
+			sender: sender,
 		}
 	}
 }
 
 impl<'p> SyncIo for TestIo<'p> {
-	fn disable_peer(&mut self, _peer_id: PeerId) {
-	}
+	fn disable_peer(&mut self, _peer_id: PeerId) {}
 
-	fn disconnect_peer(&mut self, _peer_id: PeerId) {
-	}
+	fn disconnect_peer(&mut self, _peer_id: PeerId) {}
 
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), UtilError> {
 		self.queue.push_back(TestPacket {
 			data: data,
 			packet_id: packet_id,
-			recipient: self.sender.unwrap()
+			recipient: self.sender.unwrap(),
 		});
 		Ok(())
 	}

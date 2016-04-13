@@ -64,9 +64,9 @@ extern crate heapsize;
 
 use std::ops::*;
 use std::sync::*;
-use util::network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId};
+use util::network::{NetworkContext, NetworkProtocolHandler, NetworkService, PeerId};
 use util::TimerToken;
-use util::{U256, ONE_U256};
+use util::{ONE_U256, U256};
 use ethcore::client::Client;
 use ethcore::service::SyncMessage;
 use ethminer::Miner;
@@ -108,10 +108,10 @@ pub struct EthSync {
 	/// Shared blockchain client. TODO: this should evetually become an IPC endpoint
 	chain: Arc<Client>,
 	/// Sync strategy
-	sync: RwLock<ChainSync>
+	sync: RwLock<ChainSync>,
 }
 
-pub use self::chain::{SyncStatus, SyncState};
+pub use self::chain::{SyncState, SyncStatus};
 
 impl EthSync {
 	/// Creates and register protocol with the network service
@@ -148,7 +148,7 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 	}
 
 	fn read(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		self.sync.write().unwrap().on_packet(&mut NetSyncIo::new(io, self.chain.deref()) , *peer, packet_id, data);
+		self.sync.write().unwrap().on_packet(&mut NetSyncIo::new(io, self.chain.deref()), *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext<SyncMessage>, peer: &PeerId) {
@@ -169,12 +169,14 @@ impl NetworkProtocolHandler<SyncMessage> for EthSync {
 			SyncMessage::NewChainBlocks { ref imported, ref invalid, ref enacted, ref retracted } => {
 				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
 				self.sync.write().unwrap().chain_new_blocks(&mut sync_io, imported, invalid, enacted, retracted);
-			},
+			}
 			SyncMessage::NewChainHead => {
 				let mut sync_io = NetSyncIo::new(io, self.chain.deref());
 				self.sync.write().unwrap().chain_new_head(&mut sync_io);
-			},
-			_ => {/* Ignore other messages */},
+			}
+			_ => {
+				// Ignore other messages
+			}
 		}
 	}
 }

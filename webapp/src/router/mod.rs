@@ -22,7 +22,7 @@ pub mod auth;
 
 use std::sync::Arc;
 use hyper;
-use hyper::{server, uri, header};
+use hyper::{header, server, uri};
 use page::Page;
 use apps::Pages;
 use iron::request::Url;
@@ -46,13 +46,13 @@ impl<A: Authorization> server::Handler for Router<A> {
 			match path {
 				Some(ref url) if self.pages.contains_key(url) => {
 					self.pages.get(url).unwrap().handle(req, res);
-				},
+				}
 				Some(ref url) if url == "api" => {
 					self.api.handle(req, res);
-				},
+				}
 				_ if req.method == hyper::method::Method::Post => {
 					self.rpc.handle(req, res)
-				},
+				}
 				_ => self.main_page.handle(req, res),
 			}
 		}
@@ -60,11 +60,7 @@ impl<A: Authorization> server::Handler for Router<A> {
 }
 
 impl<A: Authorization> Router<A> {
-	pub fn new(
-		rpc: ServerHandler,
-		main_page: Box<Page>,
-		pages: Pages,
-		authorization: A) -> Self {
+	pub fn new(rpc: ServerHandler, main_page: Box<Page>, pages: Pages, authorization: A) -> Self {
 		let pages = Arc::new(pages);
 		Router {
 			authorization: authorization,
@@ -82,13 +78,13 @@ impl<A: Authorization> Router<A> {
 					Ok(url) => Some(url),
 					_ => None,
 				}
-			},
+			}
 			uri::RequestUri::AbsolutePath(ref path) => {
 				// Attempt to prepend the Host header (mandatory in HTTP/1.1)
 				let url_string = match req.headers.get::<header::Host>() {
 					Some(ref host) => {
 						format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
-					},
+					}
 					None => return None,
 				};
 
@@ -96,7 +92,7 @@ impl<A: Authorization> Router<A> {
 					Ok(url) => Some(url),
 					_ => None,
 				}
-			},
+			}
 			_ => None,
 		}
 	}
@@ -109,15 +105,15 @@ impl<A: Authorization> Router<A> {
 				let url = url.path[1..].join("/");
 				req.uri = uri::RequestUri::AbsolutePath(url);
 				(Some(part), req)
-			},
+			}
 			Some(url) => {
 				let url = url.path.join("/");
 				req.uri = uri::RequestUri::AbsolutePath(url);
 				(None, req)
-			},
+			}
 			_ => {
 				(None, req)
-			},
+			}
 		}
 	}
 }

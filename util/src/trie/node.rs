@@ -26,11 +26,11 @@ pub enum Node<'a> {
 	/// Null trie node; could be an empty root or an empty branch entry.
 	Empty,
 	/// Leaf node; has key slice and value. Value may not be empty.
-	Leaf(NibbleSlice<'a>, &'a[u8]),
+	Leaf(NibbleSlice<'a>, &'a [u8]),
 	/// Extension node; has key slice and node data. Data may not be null.
-	Extension(NibbleSlice<'a>, &'a[u8]),
+	Extension(NibbleSlice<'a>, &'a [u8]),
 	/// Branch node; has array of 16 child nodes (each possibly null) and an optional immediate node data.
-	Branch([&'a[u8]; 16], Option<&'a [u8]>)
+	Branch([&'a [u8]; 16], Option<&'a [u8]>),
 }
 
 impl<'a> Node<'a> {
@@ -38,10 +38,10 @@ impl<'a> Node<'a> {
 	pub fn decoded(node_rlp: &'a [u8]) -> Node<'a> {
 		let r = Rlp::new(node_rlp);
 		match r.prototype() {
-			// either leaf or extension - decode first item with NibbleSlice::??? 
+			// either leaf or extension - decode first item with NibbleSlice::???
 			// and use is_leaf return to figure out which.
 			// if leaf, second item is a value (is_data())
-			// if extension, second item is a node (either SHA3 to be looked up and 
+			// if extension, second item is a node (either SHA3 to be looked up and
 			// fed back into this function or inline RLP which can be fed back into this function).
 			Prototype::List(2) => match NibbleSlice::from_encoded(r.at(0).data()) {
 				(slice, true) => Node::Leaf(slice, r.at(1).data()),
@@ -54,11 +54,11 @@ impl<'a> Node<'a> {
 					nodes[i] = r.at(i).as_raw();
 				}
 				Node::Branch(nodes, if r.at(16).is_empty() { None } else { Some(r.at(16).data()) })
-			},
+			}
 			// an empty branch index.
 			Prototype::Data(0) => Node::Empty,
 			// something went wrong.
-			_ => panic!("Rlp is not valid.")
+			_ => panic!("Rlp is not valid."),
 		}
 	}
 
@@ -73,24 +73,28 @@ impl<'a> Node<'a> {
 				stream.append(&slice.encoded(true));
 				stream.append(value);
 				stream.out()
-			},
+			}
 			Node::Extension(ref slice, ref raw_rlp) => {
 				let mut stream = RlpStream::new_list(2);
 				stream.append(&slice.encoded(false));
 				stream.append_raw(raw_rlp, 1);
 				stream.out()
-			},
+			}
 			Node::Branch(ref nodes, ref value) => {
 				let mut stream = RlpStream::new_list(17);
 				for i in 0..16 {
 					stream.append_raw(nodes[i], 1);
 				}
 				match *value {
-					Some(n) => { stream.append(&n); },
-					None => { stream.append_empty_data(); },
+					Some(n) => {
+						stream.append(&n);
+					}
+					None => {
+						stream.append_empty_data();
+					}
 				}
 				stream.out()
-			},
+			}
 			Node::Empty => {
 				let mut stream = RlpStream::new();
 				stream.append_empty_data();
@@ -108,29 +112,33 @@ impl<'a> Node<'a> {
 				stream.begin_list(2);
 				stream.append(&slice.encoded(true));
 				stream.append(value);
-			},
+			}
 			Node::Extension(ref slice, ref raw_rlp) => {
 				stream.begin_list(2);
 				stream.append(&slice.encoded(false));
 				stream.append_raw(raw_rlp, 1);
-			},
+			}
 			Node::Branch(ref nodes, ref value) => {
 				stream.begin_list(17);
 				for i in 0..16 {
 					stream.append_raw(nodes[i], 1);
 				}
 				match *value {
-					Some(n) => { stream.append(&n); },
-					None => { stream.append_empty_data(); },
+					Some(n) => {
+						stream.append(&n);
+					}
+					None => {
+						stream.append_empty_data();
+					}
 				}
-			},
+			}
 			Node::Empty => {
 				stream.append_empty_data();
 			}
 		}
 		let node = stream.out();
 		match node.len() {
-			0 ... 31 => node,
+			0...31 => node,
 			_ => {
 				let mut stream = RlpStream::new();
 				journal.new_node(node, &mut stream);

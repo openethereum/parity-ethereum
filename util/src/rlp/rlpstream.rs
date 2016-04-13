@@ -18,7 +18,7 @@ use std::ops::Deref;
 use std::default::Default;
 use elastic_array::*;
 use rlp::bytes::{ToBytes, VecLike};
-use rlp::{Stream, Encoder, Encodable};
+use rlp::{Encodable, Encoder, Stream};
 use rlp::rlptraits::{ByteEncodable, RlpEncodable};
 
 #[derive(Debug, Copy, Clone)]
@@ -45,7 +45,7 @@ pub struct RlpStream {
 	finished_list: bool,
 }
 
-impl Default  for RlpStream {
+impl Default for RlpStream {
 	fn default() -> Self {
 		RlpStream::new()
 	}
@@ -66,7 +66,9 @@ impl Stream for RlpStream {
 		stream
 	}
 
-	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: RlpEncodable {
+	fn append<'a, E>(&'a mut self, value: &E) -> &'a mut Self
+		where E: RlpEncodable,
+	{
 		self.finished_list = false;
 		value.rlp_append(self);
 		if !self.finished_list {
@@ -83,11 +85,11 @@ impl Stream for RlpStream {
 				self.encoder.bytes.push(0xc0u8);
 				self.note_appended(1);
 				self.finished_list = true;
-			},
+			}
 			_ => {
 				let position = self.encoder.bytes.len();
 				self.unfinished_lists.push(ListInfo::new(position, len));
-			},
+			}
 		}
 
 		// return chainable self
@@ -135,20 +137,23 @@ impl Stream for RlpStream {
 	fn out(self) -> Vec<u8> {
 		match self.is_finished() {
 			true => self.encoder.out().to_vec(),
-			false => panic!()
+			false => panic!(),
 		}
 	}
 }
 
 impl RlpStream {
-
 	/// Appends primitive value to the end of stream
-	fn append_value<E>(&mut self, object: &E) where E: ByteEncodable {
+	fn append_value<E>(&mut self, object: &E)
+		where E: ByteEncodable,
+	{
 		// encode given value and add it at the end of the stream
 		self.encoder.emit_value(object);
 	}
 
-	fn append_internal<'a, E>(&'a mut self, value: &E) -> &'a mut Self where E: Encodable {
+	fn append_internal<'a, E>(&'a mut self, value: &E) -> &'a mut Self
+		where E: Encodable,
+	{
 		self.finished_list = false;
 		value.rlp_append(self);
 		if !self.finished_list {
@@ -188,7 +193,7 @@ impl RlpStream {
 	pub fn drain(self) -> ElasticArray1024<u8> {
 		match self.is_finished() {
 			true => self.encoder.bytes,
-			false => panic!()
+			false => panic!(),
 		}
 	}
 }
@@ -263,7 +268,9 @@ impl Encoder for BasicEncoder {
 	}
 }
 
-impl<T> ByteEncodable for T where T: ToBytes {
+impl<T> ByteEncodable for T
+    where T: ToBytes,
+{
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
 		ToBytes::to_bytes(self, out)
 	}
@@ -285,7 +292,7 @@ impl<'a> ByteEncodable for U8Slice<'a> {
 	}
 }
 
-impl<'a> Encodable for &'a[u8] {
+impl<'a> Encodable for &'a [u8] {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.append_value(&U8Slice(self))
 	}
@@ -297,20 +304,24 @@ impl Encodable for Vec<u8> {
 	}
 }
 
-impl<T> Encodable for T where T: ByteEncodable {
+impl<T> Encodable for T
+    where T: ByteEncodable,
+{
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.append_value(self)
 	}
 }
 
-struct EncodableU8 (u8);
+struct EncodableU8(u8);
 
 impl ByteEncodable for EncodableU8 {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
 		out.vec_push(self.0)
 	}
 
-	fn bytes_len(&self) -> usize { 1 }
+	fn bytes_len(&self) -> usize {
+		1
+	}
 }
 
 impl RlpEncodable for u8 {
@@ -319,7 +330,9 @@ impl RlpEncodable for u8 {
 	}
 }
 
-impl<'a, T> Encodable for &'a[T] where T: Encodable {
+impl<'a, T> Encodable for &'a [T]
+    where T: Encodable,
+{
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(self.len());
 		for el in self.iter() {
@@ -328,15 +341,18 @@ impl<'a, T> Encodable for &'a[T] where T: Encodable {
 	}
 }
 
-impl<T> Encodable for Vec<T>  where T: Encodable {
+impl<T> Encodable for Vec<T>
+    where T: Encodable,
+{
 	fn rlp_append(&self, s: &mut RlpStream) {
 		Encodable::rlp_append(&self.deref(), s);
 	}
 }
 
-impl<T> RlpEncodable for T where T: Encodable {
+impl<T> RlpEncodable for T
+    where T: Encodable,
+{
 	fn rlp_append(&self, s: &mut RlpStream) {
 		Encodable::rlp_append(self, s)
 	}
 }
-

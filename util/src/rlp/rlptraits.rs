@@ -26,8 +26,7 @@ use sha3::*;
 /// Type is able to decode RLP.
 pub trait Decoder: Sized {
 	/// Read a value from the RLP into a given type.
-	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError>
-		where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
+	fn read_value<T, F>(&self, f: F) -> Result<T, DecoderError> where F: FnOnce(&[u8]) -> Result<T, DecoderError>;
 
 	/// Get underlying `UntrustedRLP` object.
 	fn as_rlp(&self) -> &UntrustedRlp;
@@ -38,13 +37,13 @@ pub trait Decoder: Sized {
 /// RLP decodable trait
 pub trait Decodable: Sized {
 	/// Decode a value from RLP bytes
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder;
 }
 
 /// Internal helper trait. Implement `Decodable` for custom types.
 pub trait RlpDecodable: Sized {
 	/// Decode a value from RLP bytes
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>  where D: Decoder;
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder;
 }
 
 /// A view into RLP encoded data
@@ -257,7 +256,9 @@ pub trait Encodable {
 	}
 
 	/// Get the hash or RLP encoded representation
-	fn rlp_sha3(&self) -> H256 { self.rlp_bytes().deref().sha3() }
+	fn rlp_sha3(&self) -> H256 {
+		self.rlp_bytes().deref().sha3()
+	}
 }
 
 /// Encodable wrapper trait required to handle special case of encoding a &[u8] as string and not as list

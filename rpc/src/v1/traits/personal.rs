@@ -22,13 +22,19 @@ use jsonrpc_core::*;
 pub trait Personal: Sized + Send + Sync + 'static {
 
 	/// Lists all stored accounts
-	fn accounts(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn accounts(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Creates new account (it becomes new current unlocked account)
-	fn new_account(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn new_account(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Unlocks specified account for use (can only be one unlocked account at one moment)
-	fn unlock_account(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+	fn unlock_account(&self, _: Params) -> Result<Value, Error> {
+		rpc_unimplemented!()
+	}
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {

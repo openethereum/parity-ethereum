@@ -49,9 +49,9 @@ pub struct AccountDiff {
 	/// Change in balance, allowed to be `Diff::Same`.
 	pub balance: Diff<U256>,
 	/// Change in nonce, allowed to be `Diff::Same`.
-	pub nonce: Diff<U256>,					// Allowed to be Same
+	pub nonce: Diff<U256>, // Allowed to be Same
 	/// Change in code, allowed to be `Diff::Same`.
-	pub code: Diff<Bytes>,					// Allowed to be Same
+	pub code: Diff<Bytes>, // Allowed to be Same
 	/// Change in storage, values are not allowed to be `Diff::Same`.
 	pub storage: BTreeMap<H256, Diff<H256>>,
 }
@@ -84,25 +84,21 @@ impl AccountDiff {
 				storage: x.storage.iter().map(|(k, v)| (k.clone(), Diff::Died(v.clone()))).collect(),
 			}),
 			(Some(pre), Some(post)) => {
-				let storage: Vec<_> = pre.storage.keys().merge(post.storage.keys())
-					.filter(|k| pre.storage.get(k).unwrap_or(&H256::new()) != post.storage.get(k).unwrap_or(&H256::new()))
-					.collect();
+				let storage: Vec<_> = pre.storage
+				                         .keys()
+				                         .merge(post.storage.keys())
+				                         .filter(|k| pre.storage.get(k).unwrap_or(&H256::new()) != post.storage.get(k).unwrap_or(&H256::new()))
+				                         .collect();
 				let r = AccountDiff {
 					balance: Diff::new(pre.balance, post.balance),
 					nonce: Diff::new(pre.nonce, post.nonce),
 					code: Diff::new(pre.code.clone(), post.code.clone()),
-					storage: storage.into_iter().map(|k|
-						(k.clone(), Diff::new(
-							pre.storage.get(&k).cloned().unwrap_or_else(H256::new),
-							post.storage.get(&k).cloned().unwrap_or_else(H256::new)
-						))).collect(),
+					storage: storage.into_iter()
+					                .map(|k| (k.clone(), Diff::new(pre.storage.get(&k).cloned().unwrap_or_else(H256::new), post.storage.get(&k).cloned().unwrap_or_else(H256::new))))
+					                .collect(),
 				};
-				if r.balance.is_same() && r.nonce.is_same() && r.code.is_same() && r.storage.is_empty() {
-					None
-				} else {
-					Some(r)
-				}
-			},
+				if r.balance.is_same() && r.nonce.is_same() && r.code.is_same() && r.storage.is_empty() { None } else { Some(r) }
+			}
 			_ => None,
 		}
 	}
@@ -114,8 +110,8 @@ fn interpreted_hash(u: &H256) -> String {
 		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u32(), U256::from(u.as_slice()).low_u32())
 	} else if u <= &H256::from(u64::max_value()) {
 		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u64(), U256::from(u.as_slice()).low_u64())
-//	} else if u <= &H256::from("0xffffffffffffffffffffffffffffffffffffffff") {
-//		format!("@{}", Address::from(u))
+		// 	} else if u <= &H256::from("0xffffffffffffffffffffffffffffffffffffffff") {
+		// 		format!("@{}", Address::from(u))
 	} else {
 		format!("#{}", u)
 	}
@@ -125,13 +121,13 @@ impl fmt::Display for AccountDiff {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self.nonce {
 			Diff::Born(ref x) => try!(write!(f, "  non {}", x)),
-			Diff::Changed(ref pre, ref post) => try!(write!(f, "#{} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *	min(pre, post))),
-			_ => {},
+			Diff::Changed(ref pre, ref post) => try!(write!(f, "#{} ({} {} {})", post, pre, if pre > post { "-" } else { "+" }, *max(pre, post) - *min(pre, post))),
+			_ => {}
 		}
 		match self.balance {
 			Diff::Born(ref x) => try!(write!(f, "  bal {}", x)),
-			Diff::Changed(ref pre, ref post) => try!(write!(f, "${} ({} {} {})", post, pre, if pre > post {"-"} else {"+"}, *max(pre, post) - *min(pre, post))),
-			_ => {},
+			Diff::Changed(ref pre, ref post) => try!(write!(f, "${} ({} {} {})", post, pre, if pre > post { "-" } else { "+" }, *max(pre, post) - *min(pre, post))),
+			_ => {}
 		}
 		if let Diff::Born(ref x) = self.code {
 			try!(write!(f, "  code {}", x.pretty()));
@@ -142,10 +138,9 @@ impl fmt::Display for AccountDiff {
 				Diff::Born(ref v) => try!(write!(f, "    +  {} => {}\n", interpreted_hash(k), interpreted_hash(v))),
 				Diff::Changed(ref pre, ref post) => try!(write!(f, "    *  {} => {} (was {})\n", interpreted_hash(k), interpreted_hash(post), interpreted_hash(pre))),
 				Diff::Died(_) => try!(write!(f, "    X  {}\n", interpreted_hash(k))),
-				_ => {},
+				_ => {}
 			}
 		}
 		Ok(())
 	}
 }
-

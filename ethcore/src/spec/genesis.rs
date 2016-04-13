@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::rlp::*;
-use util::numbers::{Uint, U256};
+use util::numbers::{U256, Uint};
 use util::hash::{Address, H256};
 use ethjson;
 use super::seal::Seal;
