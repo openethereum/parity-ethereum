@@ -90,7 +90,7 @@ pub fn argument_replacement(
 				argument_replacement(builder, replacements, nested_ty).and_then(|replaced_with| {
 					let mut inplace_path = path.clone();
 					match inplace_path.segments[0].parameters {
-						::syntax::ast::PathParameters::AngleBracketed(ref mut data) => {
+						ast::PathParameters::AngleBracketed(ref mut data) => {
 							data.types = data.types.map(|_| replaced_with.clone());
 						},
 						_ => {}
