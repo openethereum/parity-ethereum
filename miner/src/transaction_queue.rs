@@ -65,8 +65,8 @@
 //!		assert_eq!(top[1], st2);
 //!
 //!		// And when transaction is removed (but nonce haven't changed)
-//!		// it will move invalid transactions to future
-//!		txq.remove(&st1.hash(), &default_nonce);
+//!		// it will move subsequent transactions to future
+//!		txq.remove_invalid(&st1.hash(), &default_nonce);
 //!		assert_eq!(txq.status().pending, 0);
 //!		assert_eq!(txq.status().future, 1);
 //!		assert_eq!(txq.top_transactions().len(), 0);
@@ -76,11 +76,13 @@
 //!	# Maintaing valid state
 //!
 //!	1. Whenever transaction is imported to queue (to queue) all other transactions from this sender are revalidated in current. It means that they are moved to future and back again (height recalculation & gap filling).
-//!	2. Whenever transaction is removed:
+//!	2. Whenever invalid transaction is removed:
 //!		- When it's removed from `future` - all `future` transactions heights are recalculated and then
 //!		  we check if the transactions should go to `current` (comparing state nonce)
 //!		- When it's removed from `current` - all transactions from this sender (`current` & `future`) are recalculated.
-//!
+//!	3. `remove_all` is used to inform the queue about client (state) nonce changes.
+//!      - It removes all transactions (either from `current` or `future`) with nonce < client nonce
+//!      - It moves matching `future` transactions to `current`
 
 use std::default::Default;
 use std::cmp::{Ordering};
@@ -398,22 +400,35 @@ impl TransactionQueue {
 		self.import_tx(vtx, client_account.nonce).map_err(Error::Transaction)
 	}
 
-	/// Removes all transactions identified by hashes given in slice
-	///
-	/// If gap is introduced marks subsequent transactions as future
-	pub fn remove_all<T>(&mut self, transaction_hashes: &[H256], fetch_account: T)
-		where T: Fn(&Address) -> AccountDetails {
-		for hash in transaction_hashes {
-			self.remove(&hash, &fetch_account);
+	/// Removes all transactions from particular sender up to (and including) given nonce.
+	pub fn remove_all(&mut self, sender: Address, nonce: U256) {
+		// Remove from future and current, and remove from by_hash
+		let order1 = self.current.drop(&sender, &nonce);
+		let order2 = self.future.drop(&sender, &nonce);
+		if let Some(o) = order1.or(order2) {
+			self.by_hash.remove(&o.hash);
 		}
+		// Because we are removing all transactions <= nonce it means that current (state) nonce is:
+		let current_nonce = nonce + U256::one();
+		// We will either move transaction to future or remove it completely
+		// so there will be no transactions from this sender in current
+		self.last_nonces.remove(&sender);
+		// First update height of transactions in future to avoid collisions
+		self.update_future(&sender, current_nonce);
+		// This should move all current transactions to future and remove old transactions
+		self.move_all_to_future(&sender, current_nonce);
+		// And now lets check if there is some batch of transactions in future
+		// that should be placed in current. It should also update last_nonces.
+		self.move_matching_future_to_current(sender, current_nonce, current_nonce);
 	}
 
-	/// Removes transaction identified by hashes from queue.
+	/// Removes invalid transaction identified by hash from queue.
+	/// Assumption is that this transaction nonce is not related to client nonce,
+	/// so transactions left in queue are processed according to client nonce.
 	///
 	/// If gap is introduced marks subsequent transactions as future
-	pub fn remove<T>(&mut self, transaction_hash: &H256, fetch_account: &T)
+	pub fn remove_invalid<T>(&mut self, transaction_hash: &H256, fetch_account: &T)
 		where T: Fn(&Address) -> AccountDetails {
-
 		let transaction = self.by_hash.remove(transaction_hash);
 		if transaction.is_none() {
 			// We don't know this transaction
@@ -424,7 +439,6 @@ impl TransactionQueue {
 		let sender = transaction.sender();
 		let nonce = transaction.nonce();
 		let current_nonce = fetch_account(&sender).nonce;
-
 
 		// Remove from future
 		let order = self.future.drop(&sender, &nonce);
@@ -665,9 +679,14 @@ mod test {
 		new_unsigned_tx(U256::from(123)).sign(&keypair.secret())
 	}
 
+
+	fn default_nonce_val() -> U256 {
+		U256::from(123)
+	}
+
 	fn default_nonce(_address: &Address) -> AccountDetails {
 		AccountDetails {
-			nonce: U256::from(123),
+			nonce: default_nonce_val(),
 			balance: !U256::zero()
 		}
 	}
@@ -965,8 +984,7 @@ mod test {
 		// given
 		let prev_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce - U256::one(), balance:
 			!U256::zero() };
-		let next2_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce + U256::from(2), balance:
-			!U256::zero() };
+		let next2_nonce = default_nonce_val() + U256::from(2);
 
 		let mut txq = TransactionQueue::new();
 
@@ -976,7 +994,7 @@ mod test {
 		assert_eq!(txq.status().future, 2);
 
 		// when
-		txq.remove(&tx.hash(), &next2_nonce);
+		txq.remove_all(tx.sender().unwrap(), next2_nonce);
 		// should remove both transactions since they are not valid
 
 		// then
@@ -1019,8 +1037,8 @@ mod test {
 		assert_eq!(txq2.status().future, 1);
 
 		// when
-		txq2.remove(&tx.hash(), &default_nonce);
-		txq2.remove(&tx2.hash(), &default_nonce);
+		txq2.remove_all(tx.sender().unwrap(), tx.nonce);
+		txq2.remove_all(tx2.sender().unwrap(), tx2.nonce);
 
 
 		// then
@@ -1042,7 +1060,7 @@ mod test {
 		assert_eq!(txq.status().pending, 3);
 
 		// when
-		txq.remove(&tx.hash(), &default_nonce);
+		txq.remove_invalid(&tx.hash(), &default_nonce);
 
 		// then
 		let stats = txq.status();
@@ -1152,7 +1170,7 @@ mod test {
 		assert_eq!(txq.status().pending, 2);
 
 		// when
-		txq.remove(&tx1.hash(), &default_nonce);
+		txq.remove_invalid(&tx1.hash(), &default_nonce);
 		assert_eq!(txq.status().pending, 0);
 		assert_eq!(txq.status().future, 1);
 		txq.add(tx1.clone(), &default_nonce).unwrap();
@@ -1166,8 +1184,6 @@ mod test {
 	#[test]
 	fn should_not_move_to_future_if_state_nonce_is_higher() {
 		// given
-		let next_nonce = |a: &Address| AccountDetails { nonce: default_nonce(a).nonce + U256::one(), balance:
-			!U256::zero() };
 		let mut txq = TransactionQueue::new();
 		let (tx, tx2) = new_txs(U256::from(1));
 		let tx3 = new_tx();
@@ -1178,7 +1194,8 @@ mod test {
 		assert_eq!(txq.status().pending, 3);
 
 		// when
-		txq.remove(&tx.hash(), &next_nonce);
+		let sender = tx.sender().unwrap();
+		txq.remove_all(sender, default_nonce_val());
 
 		// then
 		let stats = txq.status();
@@ -1254,7 +1271,7 @@ mod test {
 		assert_eq!(txq.status().future, 2);
 
 		// when
-		txq.remove(&tx1.hash(), &next_nonce);
+		txq.remove_invalid(&tx1.hash(), &next_nonce);
 
 		// then
 		let stats = txq.status();
@@ -1285,5 +1302,23 @@ mod test {
 
 		// then
 		assert_eq!(txq.last_nonce(&from), Some(nonce));
+	}
+
+	#[test]
+	fn should_remove_old_transaction_even_if_newer_transaction_was_not_known() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let (tx1, tx2) = new_txs(U256::one());
+		let (nonce1, nonce2) = (tx1.nonce, tx2.nonce);
+		let details1 = |_a: &Address| AccountDetails { nonce: nonce1, balance: !U256::zero() };
+
+		// Insert first transaction
+		txq.add(tx1, &details1).unwrap();
+
+		// when
+		txq.remove_all(tx2.sender().unwrap(), nonce2);
+
+		// then
+		assert!(txq.top_transactions().is_empty());
 	}
 }

@@ -133,13 +133,13 @@ impl Miner {
 			}
 		};
 		let mut queue = self.transaction_queue.lock().unwrap();
-		queue.remove_all(
-			&invalid_transactions.into_iter().collect::<Vec<H256>>(),
-			|a: &Address| AccountDetails {
-				nonce: chain.nonce(a),
-				balance: chain.balance(a),
-			}
-		);
+		let fetch_account = |a: &Address| AccountDetails {
+			nonce: chain.nonce(a),
+			balance: chain.balance(a),
+		};
+		for hash in invalid_transactions.into_iter() {
+			queue.remove_invalid(&hash, &fetch_account);
+		}
 		if let Some(block) = b {
 			if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
 				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
@@ -342,13 +342,17 @@ impl MinerService for Miner {
 				.par_iter()
 				.map(|h: &H256| fetch_transactions(chain, h));
 
-			in_chain.for_each(|txs| {
-				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
+			in_chain.for_each(|mut txs| {
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				transaction_queue.remove_all(&hashes, |a| AccountDetails {
-					nonce: chain.nonce(a),
-					balance: chain.balance(a)
-				});
+
+				let to_remove = txs.drain(..)
+						.map(|tx| {
+							tx.sender().expect("Transaction is in block, so sender has to be defined.")
+						})
+						.collect::<HashSet<Address>>();
+				for sender in to_remove.into_iter() {
+					transaction_queue.remove_all(sender, chain.nonce(&sender));
+				}
 			});
 		}
 
