@@ -155,6 +155,26 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 
 		Ok(())
 	}
+
+	/// Add generic socket for request-reply style communications
+	/// with multiple clients
+	pub fn add_reqrep(&mut self, addr: &str) -> Result<(), SocketError>  {
+		let mut socket = try!(Socket::new(Protocol::Rep).map_err(|e| {
+			warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
+			SocketError::DuplexLink
+		}));
+
+		let endpoint = try!(socket.bind(addr).map_err(|e| {
+			warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", addr, e);
+			SocketError::DuplexLink
+		}));
+
+		self.sockets.push((socket, endpoint));
+
+		self.rebuild_poll_request();
+
+		Ok(())
+	}
 }
 
 #[cfg(test)]

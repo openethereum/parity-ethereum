@@ -1,0 +1,50 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+use std::sync::{RwLock,Arc};
+use std::ops::*;
+use ipc::IpcConfig;
+use std::collections::HashMap;
+
+type IpcModuleId = u64;
+
+const DATABASE_MODULE_ID: IpcModuleId = 1000;
+const BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
+
+pub struct HypervisorService {
+	check_list: RwLock<HashMap<IpcModuleId, bool>>,
+}
+
+#[derive(Ipc)]
+impl HypervisorService {
+	fn module_ready(&self, module_id: u64) -> bool {
+		let mut check_list = self.check_list.write().unwrap();
+		check_list.get_mut(&module_id).map(|mut status| *status = true);
+		check_list.iter().any(|(_, status)| !status)
+	}
+}
+
+impl HypervisorService {
+	pub fn new() -> Arc<HypervisorService> {
+		let mut check_list = HashMap::new();
+		check_list.insert(DATABASE_MODULE_ID, false);
+		Arc::new(HypervisorService {
+			check_list: RwLock::new(check_list),
+		})
+	}
+}
+
+impl ::ipc::IpcConfig for HypervisorService {}
