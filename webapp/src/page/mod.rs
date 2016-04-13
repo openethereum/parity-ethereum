@@ -25,7 +25,7 @@ pub trait Page : Send + Sync {
 	fn serve_file(&self, mut path: &str, mut res: server::Response);
 }
 
-pub struct PageHandler<T : WebApp> {
+pub struct PageHandler<T: WebApp> {
 	pub app: T,
 }
 
@@ -46,11 +46,11 @@ impl<T: WebApp> Page for PageHandler<T> {
 						let _ = raw_res.write(chunk);
 					}
 					raw_res.end()
-				},
+				}
 				Err(_) => {
 					println!("Error while writing response.");
 					Ok(())
-				},
+				}
 			};
 		}
 	}

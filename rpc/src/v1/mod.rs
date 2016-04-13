@@ -25,5 +25,5 @@ mod helpers;
 
 pub mod tests;
 
-pub use self::traits::{Web3, Eth, EthFilter, Personal, Net, Ethcore};
+pub use self::traits::{Eth, EthFilter, Ethcore, Net, Personal, Web3};
 pub use self::impls::*;

@@ -29,7 +29,7 @@ pub enum ExecutionError {
 		/// Absolute minimum gas required.
 		required: U256,
 		/// Gas provided.
-		got: U256
+		got: U256,
 	},
 	/// Returned when block (gas_used + gas) > gas_limit.
 	///
@@ -41,14 +41,14 @@ pub enum ExecutionError {
 		/// Gas used in block prior to transaction.
 		gas_used: U256,
 		/// Amount of gas in block.
-		gas: U256
+		gas: U256,
 	},
 	/// Returned when transaction nonce does not match state nonce.
 	InvalidNonce {
 		/// Nonce expected.
 		expected: U256,
 		/// Nonce found.
-		got: U256
+		got: U256,
 	},
 	/// Returned when cost of transaction (value + gas_price * gas) exceeds
 	/// current sender balance.
@@ -56,10 +56,10 @@ pub enum ExecutionError {
 		/// Minimum required balance.
 		required: U512,
 		/// Actual balance.
-		got: U512
+		got: U512,
 	},
 	/// Returned when internal evm error occurs.
-	Internal
+	Internal,
 }
 
 #[derive(Debug)]
@@ -237,15 +237,15 @@ impl From<IoError> for Error {
 }
 
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
-/*#![feature(concat_idents)]
-macro_rules! assimilate {
-    ($name:ident) => (
-		impl From<concat_idents!($name, Error)> for Error {
-			fn from(err: concat_idents!($name, Error)) -> Error {
-				Error:: $name (err)
-			}
-		}
-    )
-}
-assimilate!(FromHex);
-assimilate!(BaseData);*/
+// #![feature(concat_idents)]
+// macro_rules! assimilate {
+// ($name:ident) => (
+// impl From<concat_idents!($name, Error)> for Error {
+// fn from(err: concat_idents!($name, Error)) -> Error {
+// Error:: $name (err)
+// }
+// }
+// )
+// }
+// assimilate!(FromHex);
+// assimilate!(BaseData);

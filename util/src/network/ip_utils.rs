@@ -20,9 +20,9 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::io;
 use igd::{PortMappingProtocol, search_gateway_from_timeout};
 use std::time::Duration;
-use network::node_table::{NodeEndpoint};
+use network::node_table::NodeEndpoint;
 
-pub enum IpAddr{
+pub enum IpAddr {
 	V4(Ipv4Addr),
 	V6(Ipv6Addr),
 }
@@ -41,8 +41,7 @@ impl SocketAddrExt for Ipv4Addr {
 	}
 
 	fn is_global_s(&self) -> bool {
-		!self.is_private() && !self.is_loopback() && !self.is_link_local() &&
-			!self.is_broadcast() && !self.is_documentation()
+		!self.is_private() && !self.is_loopback() && !self.is_link_local() && !self.is_broadcast() && !self.is_documentation()
 	}
 }
 
@@ -52,60 +51,43 @@ impl SocketAddrExt for Ipv6Addr {
 	}
 
 	fn is_global_s(&self) -> bool {
-		if self.is_multicast() {
-			self.segments()[0] & 0x000f == 14
-		} else {
-			!self.is_loopback() && !((self.segments()[0] & 0xffc0) == 0xfe80) &&
-            	!((self.segments()[0] & 0xffc0) == 0xfec0) && !((self.segments()[0] & 0xfe00) == 0xfc00)
-		}
+		if self.is_multicast() { self.segments()[0] & 0x000f == 14 } else { !self.is_loopback() && !((self.segments()[0] & 0xffc0) == 0xfe80) && !((self.segments()[0] & 0xffc0) == 0xfec0) && !((self.segments()[0] & 0xfe00) == 0xfc00) }
 	}
 }
 
 #[cfg(not(windows))]
 mod getinterfaces {
-	use std::{mem, io, ptr};
+	use std::{io, mem, ptr};
 	use libc::{AF_INET, AF_INET6};
-	use libc::{getifaddrs, freeifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
+	use libc::{freeifaddrs, getifaddrs, ifaddrs, sockaddr, sockaddr_in, sockaddr_in6};
 	use std::net::{Ipv4Addr, Ipv6Addr};
 	use super::IpAddr;
 
-	fn convert_sockaddr (sa: *mut sockaddr) -> Option<IpAddr> {
-		if sa == ptr::null_mut() { return None; }
+	fn convert_sockaddr(sa: *mut sockaddr) -> Option<IpAddr> {
+		if sa == ptr::null_mut() {
+			return None;
+		}
 
 		let (addr, _) = match unsafe { *sa }.sa_family as i32 {
 			AF_INET => {
 				let sa: *const sockaddr_in = unsafe { mem::transmute(sa) };
-				let sa = & unsafe { *sa };
+				let sa = &unsafe { *sa };
 				let (addr, port) = (sa.sin_addr.s_addr, sa.sin_port);
-				(IpAddr::V4(Ipv4Addr::new(
-					(addr & 0x000000FF) as u8,
-					((addr & 0x0000FF00) >>  8) as u8,
-					((addr & 0x00FF0000) >> 16) as u8,
-					((addr & 0xFF000000) >> 24) as u8)),
-					port)
-			},
+				(IpAddr::V4(Ipv4Addr::new((addr & 0x000000FF) as u8, ((addr & 0x0000FF00) >> 8) as u8, ((addr & 0x00FF0000) >> 16) as u8, ((addr & 0xFF000000) >> 24) as u8)), port)
+			}
 			AF_INET6 => {
 				let sa: *const sockaddr_in6 = unsafe { mem::transmute(sa) };
-				let sa = & unsafe { *sa };
+				let sa = &unsafe { *sa };
 				let (addr, port) = (sa.sin6_addr.s6_addr, sa.sin6_port);
 				let addr: [u16; 8] = unsafe { mem::transmute(addr) };
-				(IpAddr::V6(Ipv6Addr::new(
-					addr[0],
-					addr[1],
-					addr[2],
-					addr[3],
-					addr[4],
-					addr[5],
-					addr[6],
-					addr[7])),
-					port)
-			},
+				(IpAddr::V6(Ipv6Addr::new(addr[0], addr[1], addr[2], addr[3], addr[4], addr[5], addr[6], addr[7])), port)
+			}
 			_ => return None,
 		};
 		Some(addr)
 	}
 
-	fn convert_ifaddrs (ifa: *mut ifaddrs) -> Option<IpAddr> {
+	fn convert_ifaddrs(ifa: *mut ifaddrs) -> Option<IpAddr> {
 		let ifa = unsafe { &mut *ifa };
 		convert_sockaddr(ifa.ifa_addr)
 	}
@@ -123,7 +105,7 @@ mod getinterfaces {
 				ret.push(ip_addr);
 			}
 
-			//TODO: do something else maybe?
+			// TODO: do something else maybe?
 			cur = unsafe { (*cur).ifa_next };
 		}
 
@@ -146,25 +128,26 @@ fn get_if_addrs() -> io::Result<Vec<IpAddr>> {
 pub fn select_public_address(port: u16) -> SocketAddr {
 	match get_if_addrs() {
 		Ok(list) => {
-			//prefer IPV4 bindings
-			for addr in &list { //TODO: use better criteria than just the first in the list
+			// prefer IPV4 bindings
+			for addr in &list {
+				// TODO: use better criteria than just the first in the list
 				match *addr {
 					IpAddr::V4(a) if !a.is_unspecified_s() && !a.is_loopback() && !a.is_link_local() => {
 						return SocketAddr::V4(SocketAddrV4::new(a, port));
-					},
-					_ => {},
+					}
+					_ => {}
 				}
 			}
 			for addr in list {
 				match addr {
 					IpAddr::V6(a) if !a.is_unspecified_s() && !a.is_loopback() => {
 						return SocketAddr::V6(SocketAddrV6::new(a, port, 0, 0));
-					},
-					_ => {},
+					}
+					_ => {}
 				}
 			}
-		},
-		Err(e) => debug!("Error listing public interfaces: {:?}", e)
+		}
+		Err(e) => debug!("Error listing public interfaces: {:?}", e),
 	}
 	SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port))
 }
@@ -177,26 +160,29 @@ pub fn map_external_address(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 				match gateway.get_external_ip() {
 					Err(ref err) => {
 						debug!("IP request error: {}", err);
-					},
+					}
 					Ok(external_addr) => {
 						match gateway.add_any_port(PortMappingProtocol::TCP, SocketAddrV4::new(local_addr.ip().clone(), local_addr.port()), 0, "Parity Node/TCP") {
 							Err(ref err) => {
 								debug!("Port mapping error: {}", err);
-							},
+							}
 							Ok(tcp_port) => {
 								match gateway.add_any_port(PortMappingProtocol::UDP, SocketAddrV4::new(local_addr.ip().clone(), local.udp_port), 0, "Parity Node/UDP") {
 									Err(ref err) => {
 										debug!("Port mapping error: {}", err);
-									},
+									}
 									Ok(udp_port) => {
-										return Some(NodeEndpoint { address: SocketAddr::V4(SocketAddrV4::new(external_addr, tcp_port)), udp_port: udp_port });
-									},
+										return Some(NodeEndpoint {
+											address: SocketAddr::V4(SocketAddrV4::new(external_addr, tcp_port)),
+											udp_port: udp_port,
+										});
+									}
 								}
-							},
+							}
 						}
-					},
+					}
 				}
-			},
+			}
 		}
 	}
 	None
@@ -212,16 +198,17 @@ fn can_select_public_address() {
 #[test]
 fn can_map_external_address_or_fail() {
 	let pub_address = select_public_address(40478);
-	let _ = map_external_address(&NodeEndpoint { address: pub_address, udp_port: 40478 });
+	let _ = map_external_address(&NodeEndpoint {
+		address: pub_address,
+		udp_port: 40478,
+	});
 }
 
 #[test]
 fn ipv4_properties() {
 
 	#![cfg_attr(feature="dev", allow(too_many_arguments))]
-	fn check(octets: &[u8; 4], unspec: bool, loopback: bool,
-			 private: bool, link_local: bool, global: bool,
-			 multicast: bool, broadcast: bool, documentation: bool) {
+	fn check(octets: &[u8; 4], unspec: bool, loopback: bool, private: bool, link_local: bool, global: bool, multicast: bool, broadcast: bool, documentation: bool) {
 		let ip = Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3]);
 		assert_eq!(octets, &ip.octets());
 
@@ -235,23 +222,23 @@ fn ipv4_properties() {
 		assert_eq!(ip.is_documentation(), documentation);
 	}
 
-	//    address                unspec loopbk privt  linloc global multicast brdcast doc
-	check(&[0, 0, 0, 0],         true,  false, false, false, true,  false,    false,  false);
-	check(&[0, 0, 0, 1],         false, false, false, false, true,  false,    false,  false);
-	check(&[1, 0, 0, 0],         false, false, false, false, true,  false,    false,  false);
-	check(&[10, 9, 8, 7],        false, false, true,  false, false, false,    false,  false);
-	check(&[127, 1, 2, 3],       false, true,  false, false, false, false,    false,  false);
-	check(&[172, 31, 254, 253],  false, false, true,  false, false, false,    false,  false);
-	check(&[169, 254, 253, 242], false, false, false, true,  false, false,    false,  false);
-	check(&[192, 0, 2, 183],     false, false, false, false, false, false,    false,  true);
-	check(&[192, 1, 2, 183],     false, false, false, false, true,  false,    false,  false);
-	check(&[192, 168, 254, 253], false, false, true,  false, false, false,    false,  false);
-	check(&[198, 51, 100, 0],    false, false, false, false, false, false,    false,  true);
-	check(&[203, 0, 113, 0],     false, false, false, false, false, false,    false,  true);
-	check(&[203, 2, 113, 0],     false, false, false, false, true,  false,    false,  false);
-	check(&[224, 0, 0, 0],       false, false, false, false, true,  true,     false,  false);
-	check(&[239, 255, 255, 255], false, false, false, false, true,  true,     false,  false);
-	check(&[255, 255, 255, 255], false, false, false, false, false, false,    true,   false);
+	// address                unspec loopbk privt  linloc global multicast brdcast doc
+	check(&[0, 0, 0, 0], true, false, false, false, true, false, false, false);
+	check(&[0, 0, 0, 1], false, false, false, false, true, false, false, false);
+	check(&[1, 0, 0, 0], false, false, false, false, true, false, false, false);
+	check(&[10, 9, 8, 7], false, false, true, false, false, false, false, false);
+	check(&[127, 1, 2, 3], false, true, false, false, false, false, false, false);
+	check(&[172, 31, 254, 253], false, false, true, false, false, false, false, false);
+	check(&[169, 254, 253, 242], false, false, false, true, false, false, false, false);
+	check(&[192, 0, 2, 183], false, false, false, false, false, false, false, true);
+	check(&[192, 1, 2, 183], false, false, false, false, true, false, false, false);
+	check(&[192, 168, 254, 253], false, false, true, false, false, false, false, false);
+	check(&[198, 51, 100, 0], false, false, false, false, false, false, false, true);
+	check(&[203, 0, 113, 0], false, false, false, false, false, false, false, true);
+	check(&[203, 2, 113, 0], false, false, false, false, true, false, false, false);
+	check(&[224, 0, 0, 0], false, false, false, false, true, true, false, false);
+	check(&[239, 255, 255, 255], false, false, false, false, true, true, false, false);
+	check(&[255, 255, 255, 255], false, false, false, false, false, false, true, false);
 }
 
 #[test]
@@ -265,7 +252,7 @@ fn ipv6_properties() {
 		assert_eq!(ip.is_global_s(), global);
 	}
 
-	//    unspec loopbk global
-	check("::", true,  false, true);
+	// unspec loopbk global
+	check("::", true, false, true);
 	check("::1", false, true, false);
 }

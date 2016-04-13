@@ -40,12 +40,12 @@
 //! 	let dir = env::temp_dir();
 //! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
 //!
-//!		let miner: Miner = Miner::default();
-//!		// get status
-//!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
+//! 		let miner: Miner = Miner::default();
+//! 		// get status
+//! 		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
-//!		// Check block for sealing
-//!		//assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
+//! 		// Check block for sealing
+//! 		//assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
 //! }
 //! ```
 
@@ -61,13 +61,13 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
-pub use transaction_queue::{TransactionQueue, AccountDetails};
-pub use miner::{Miner};
+pub use transaction_queue::{AccountDetails, TransactionQueue};
+pub use miner::Miner;
 
-use util::{H256, U256, Address, Bytes};
-use ethcore::client::{BlockChainClient};
-use ethcore::block::{ClosedBlock};
-use ethcore::error::{Error};
+use util::{Address, Bytes, H256, U256};
+use ethcore::client::BlockChainClient;
+use ethcore::block::ClosedBlock;
+use ethcore::error::Error;
 use ethcore::transaction::SignedTransaction;
 
 /// Miner client API
@@ -101,8 +101,7 @@ pub trait MinerService : Send + Sync {
 	fn set_gas_floor_target(&self, target: U256);
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
-		where T: Fn(&Address) -> AccountDetails;
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>> where T: Fn(&Address) -> AccountDetails;
 
 	/// Returns hashes of transactions currently in pending
 	fn pending_transactions_hashes(&self) -> Vec<H256>;
@@ -133,7 +132,9 @@ pub trait MinerService : Send + Sync {
 	fn last_nonce(&self, address: &Address) -> Option<U256>;
 
 	/// Suggested gas price
-	fn sensible_gas_price(&self) -> U256 { x!(20000000000u64) }
+	fn sensible_gas_price(&self) -> U256 {
+		x!(20000000000u64)
+	}
 }
 
 /// Mining status

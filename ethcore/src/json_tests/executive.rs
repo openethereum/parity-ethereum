@@ -20,7 +20,7 @@ use executive::*;
 use spec::*;
 use engine::*;
 use evm;
-use evm::{Schedule, Ext, Factory, VMType, ContractCreateResult, MessageCallResult};
+use evm::{ContractCreateResult, Ext, Factory, MessageCallResult, Schedule, VMType};
 use ethereum;
 use externalities::*;
 use substate::*;
@@ -32,7 +32,7 @@ struct CallCreate {
 	data: Bytes,
 	destination: Option<Address>,
 	gas_limit: U256,
-	value: U256
+	value: U256,
 }
 
 impl From<ethjson::vm::Call> for CallCreate {
@@ -42,38 +42,36 @@ impl From<ethjson::vm::Call> for CallCreate {
 			data: c.data.into(),
 			destination: dst.map(Into::into),
 			gas_limit: c.gas_limit.into(),
-			value: c.value.into()
+			value: c.value.into(),
 		}
 	}
 }
 
 /// Tiny wrapper around executive externalities.
 /// Stores callcreates.
-struct TestExt<'a, T> where T: 'a + Tracer {
+struct TestExt<'a, T>
+	where T: 'a + Tracer,
+{
 	ext: Externalities<'a, T>,
 	callcreates: Vec<CallCreate>,
-	contract_address: Address
+	contract_address: Address,
 }
 
-impl<'a, T> TestExt<'a, T> where T: 'a + Tracer {
-	fn new(state: &'a mut State,
-			   info: &'a EnvInfo,
-			   engine: &'a Engine,
-			   depth: usize,
-			   origin_info: OriginInfo,
-			   substate: &'a mut Substate,
-			   output: OutputPolicy<'a, 'a>,
-			   address: Address,
-			   tracer: &'a mut T) -> Self {
+impl<'a, T> TestExt<'a, T>
+    where T: 'a + Tracer,
+{
+	fn new(state: &'a mut State, info: &'a EnvInfo, engine: &'a Engine, depth: usize, origin_info: OriginInfo, substate: &'a mut Substate, output: OutputPolicy<'a, 'a>, address: Address, tracer: &'a mut T) -> Self {
 		TestExt {
 			contract_address: contract_address(&address, &state.nonce(&address)),
 			ext: Externalities::new(state, info, engine, depth, origin_info, substate, output, tracer),
-			callcreates: vec![]
+			callcreates: vec![],
 		}
 	}
 }
 
-impl<'a, T> Ext for TestExt<'a, T> where T: Tracer {
+impl<'a, T> Ext for TestExt<'a, T>
+    where T: Tracer,
+{
 	fn storage_at(&self, key: &H256) -> H256 {
 		self.ext.storage_at(key)
 	}
@@ -99,29 +97,22 @@ impl<'a, T> Ext for TestExt<'a, T> where T: Tracer {
 			data: code.to_vec(),
 			destination: None,
 			gas_limit: *gas,
-			value: *value
+			value: *value,
 		});
 		ContractCreateResult::Created(self.contract_address.clone(), *gas)
 	}
 
-	fn call(&mut self,
-			gas: &U256,
-			_sender_address: &Address,
-			receive_address: &Address,
-			value: Option<U256>,
-			data: &[u8],
-			_code_address: &Address,
-			_output: &mut [u8]) -> MessageCallResult {
+	fn call(&mut self, gas: &U256, _sender_address: &Address, receive_address: &Address, value: Option<U256>, data: &[u8], _code_address: &Address, _output: &mut [u8]) -> MessageCallResult {
 		self.callcreates.push(CallCreate {
 			data: data.to_vec(),
 			destination: Some(receive_address.clone()),
 			gas_limit: *gas,
-			value: value.unwrap()
+			value: value.unwrap(),
 		});
 		MessageCallResult::Success(*gas)
 	}
 
-	fn extcode(&self, address: &Address) -> Bytes  {
+	fn extcode(&self, address: &Address) -> Bytes {
 		self.ext.extcode(address)
 	}
 
@@ -156,10 +147,9 @@ impl<'a, T> Ext for TestExt<'a, T> where T: Tracer {
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let vms = VMType::all();
-	vms
-		.iter()
-		.flat_map(|vm| do_json_test_for(vm, json_data))
-		.collect()
+	vms.iter()
+	   .flat_map(|vm| do_json_test_for(vm, json_data))
+	   .collect()
 }
 
 fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
@@ -170,9 +160,11 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		println!("name: {:?}", name);
 		let mut fail = false;
 
-		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail {
-			failed.push(format!("[{}] {}: {}", vm_type, name, s));
-			fail = true
+		let mut fail_unless = |cond: bool, s: &str| {
+			if !cond && !fail {
+				failed.push(format!("[{}] {}: {}", vm_type, name, s));
+				fail = true
+			}
 		};
 
 		let out_of_gas = vm.out_of_gas();
@@ -189,17 +181,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 
 		// execute
 		let (res, callcreates) = {
-			let mut ex = TestExt::new(
-				&mut state,
-				&info,
-				&engine,
-				0,
-				OriginInfo::from(&params),
-				&mut substate,
-				OutputPolicy::Return(BytesRef::Flexible(&mut output), None),
-				params.address.clone(),
-				&mut tracer,
-			);
+			let mut ex = TestExt::new(&mut state, &info, &engine, 0, OriginInfo::from(&params), &mut substate, OutputPolicy::Return(BytesRef::Flexible(&mut output), None), params.address.clone(), &mut tracer);
 			let evm = engine.vm_factory().create();
 			let res = evm.exec(params, &mut ex);
 			(res, ex.callcreates)
@@ -242,7 +224,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
 declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperationTest"}
 declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
- // TODO [todr] Fails with Signal 11 when using JIT
+// TODO [todr] Fails with Signal 11 when using JIT
 declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfoTest"}
 declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperationsTest"}
 declare_test!{heavy => ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}

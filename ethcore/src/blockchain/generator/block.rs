@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::rlp::*;
-use util::{H256, H2048};
+use util::{H2048, H256};
 use util::U256;
 use util::bytes::Bytes;
 use header::Header;
@@ -30,7 +30,7 @@ use super::complete::CompleteBlock;
 pub struct Block {
 	pub header: Header,
 	pub transactions: Vec<SignedTransaction>,
-	pub uncles: Vec<Header>
+	pub uncles: Vec<Header>,
 }
 
 impl Encodable for Block {
@@ -43,14 +43,18 @@ impl Encodable for Block {
 }
 
 impl Forkable for Block {
-	fn fork(mut self, fork_number: usize) -> Self where Self: Sized {
+	fn fork(mut self, fork_number: usize) -> Self
+		where Self: Sized,
+	{
 		self.header.difficulty = self.header.difficulty - U256::from(fork_number);
 		self
 	}
 }
 
 impl WithBloom for Block {
-	fn with_bloom(mut self, bloom: H2048) -> Self where Self: Sized {
+	fn with_bloom(mut self, bloom: H2048) -> Self
+		where Self: Sized,
+	{
 		self.header.log_bloom = bloom;
 		self
 	}

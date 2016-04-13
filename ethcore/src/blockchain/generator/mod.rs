@@ -21,4 +21,4 @@ mod fork;
 pub mod generator;
 
 pub use self::complete::BlockFinalizer;
-pub use self::generator::{ChainIterator, ChainGenerator};
+pub use self::generator::{ChainGenerator, ChainIterator};

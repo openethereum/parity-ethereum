@@ -30,11 +30,15 @@ pub fn enumerate_geth_keys(path: &Path) -> Result<Vec<(Address, String)>, Import
 			match entry.file_name().to_str() {
 				Some(name) => {
 					let parts: Vec<&str> = name.split("--").collect();
-					if parts.len() != 3 { continue; }
+					if parts.len() != 3 {
+						continue;
+					}
 					let account_id = try!(Address::from_str(parts[2]).map_err(|_| ImportError::Format));
 					entries.push((account_id, name.to_owned()));
-				},
-				None => { continue; }
+				}
+				None => {
+					continue;
+				}
 			};
 		}
 	}
@@ -51,7 +55,7 @@ pub enum ImportError {
 }
 
 impl From<io::Error> for ImportError {
-	fn from (err: io::Error) -> ImportError {
+	fn from(err: io::Error) -> ImportError {
 		ImportError::Io(err)
 	}
 }
@@ -65,7 +69,9 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 	let mut json_result = Json::from_str(&buf);
 	let mut json = match json_result {
 		Ok(ref mut parsed_json) => try!(parsed_json.as_object_mut().ok_or(ImportError::Format)),
-		Err(_) => { return Err(ImportError::Format); }
+		Err(_) => {
+			return Err(ImportError::Format);
+		}
 	};
 	if let Some(crypto_object) = json.get("Crypto").and_then(|crypto| crypto.as_object()).cloned() {
 		json.insert("crypto".to_owned(), Json::Object(crypto_object));
@@ -73,7 +79,9 @@ pub fn import_geth_key(secret_store: &mut SecretStore, geth_keyfile_path: &Path)
 	}
 	match KeyFileContent::load(&Json::Object(json.clone())) {
 		Ok(key_file) => try!(secret_store.import_key(key_file)),
-		Err(_) => { return Err(ImportError::Format); }
+		Err(_) => {
+			return Err(ImportError::Format);
+		}
 	};
 	Ok(())
 }
@@ -104,21 +112,21 @@ pub fn keystore_dir() -> PathBuf {
 		home.push("Ethereum");
 		home
 	}
-	
+
 	#[cfg(windows)]
 	fn data_dir(mut home: PathBuf) -> PathBuf {
 		home.push("AppData");
 		home.push("Roaming");
 		home.push("Ethereum");
-		home	
+		home
 	}
-	
+
 	#[cfg(not(any(target_os = "macos", windows)))]
 	fn data_dir(mut home: PathBuf) -> PathBuf {
 		home.push(".ethereum");
-        home
+		home
 	}
-	
+
 	let mut data_dir = data_dir(::std::env::home_dir().expect("Failed to get home dir"));
 	data_dir.push("keystore");
 	data_dir
@@ -133,7 +141,7 @@ mod tests {
 	fn test_path() -> &'static str {
 		match ::std::fs::metadata("res") {
 			Ok(_) => "res/geth_keystore",
-			Err(_) => "util/res/geth_keystore"
+			Err(_) => "util/res/geth_keystore",
 		}
 	}
 
@@ -195,8 +203,10 @@ mod tests {
 				assert_eq!(262144, scrypt_params.n);
 				assert_eq!(8, scrypt_params.r);
 				assert_eq!(1, scrypt_params.p);
-			},
-			_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
+			}
+			_ => {
+				panic!("expected kdf params of crypto to be of scrypt type");
+			}
 		}
 	}
 

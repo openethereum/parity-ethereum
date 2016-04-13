@@ -20,7 +20,7 @@ use util::bytes::Bytes;
 use header::BlockNumber;
 use super::fork::Fork;
 use super::bloom::Bloom;
-use super::complete::{BlockFinalizer, CompleteBlock, Complete};
+use super::complete::{BlockFinalizer, Complete, CompleteBlock};
 use super::block::Block;
 
 /// Chain iterator interface.
@@ -36,29 +36,35 @@ pub trait ChainIterator: Iterator + Sized {
 	fn generate<'a>(&'a mut self, finalizer: &'a mut BlockFinalizer) -> Option<Bytes> where Self::Item: CompleteBlock;
 }
 
-impl<I> ChainIterator for I where I: Iterator + Sized {
-	fn fork(&self, fork_number: usize) -> Fork<Self> where I: Clone {
+impl<I> ChainIterator for I
+    where I: Iterator + Sized,
+{
+	fn fork(&self, fork_number: usize) -> Fork<Self>
+		where I: Clone,
+	{
 		Fork {
 			iter: self.clone(),
-			fork_number: fork_number
+			fork_number: fork_number,
 		}
 	}
 
 	fn with_bloom(&mut self, bloom: H2048) -> Bloom<Self> {
 		Bloom {
 			iter: self,
-			bloom: bloom
+			bloom: bloom,
 		}
 	}
 
 	fn complete<'a>(&'a mut self, finalizer: &'a mut BlockFinalizer) -> Complete<'a, Self> {
 		Complete {
 			iter: self,
-			finalizer: finalizer
+			finalizer: finalizer,
 		}
 	}
 
-	fn generate<'a>(&'a mut self, finalizer: &'a mut BlockFinalizer) -> Option<Bytes> where <I as Iterator>::Item: CompleteBlock {
+	fn generate<'a>(&'a mut self, finalizer: &'a mut BlockFinalizer) -> Option<Bytes>
+		where <I as Iterator>::Item: CompleteBlock,
+	{
 		self.complete(finalizer).next()
 	}
 }
@@ -101,10 +107,10 @@ impl Iterator for ChainGenerator {
 }
 
 mod tests {
-	use util::hash::{H256, H2048};
+	use util::hash::{H2048, H256};
 	use util::sha3::Hashable;
 	use views::BlockView;
-	use blockchain::generator::{ChainIterator, ChainGenerator, BlockFinalizer};
+	use blockchain::generator::{BlockFinalizer, ChainGenerator, ChainIterator};
 
 	#[test]
 	fn canon_chain_generator() {
@@ -166,4 +172,3 @@ mod tests {
 		assert_eq!(blocks.len(), 1000);
 	}
 }
-

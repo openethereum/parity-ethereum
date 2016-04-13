@@ -23,7 +23,7 @@ use extras::*;
 use transaction::*;
 use views::*;
 use receipt::Receipt;
-use chainfilter::{ChainFilter, BloomIndex, FilterDataSource};
+use chainfilter::{BloomIndex, ChainFilter, FilterDataSource};
 use blockchain::block_info::{BlockInfo, BlockLocation};
 use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
@@ -168,7 +168,7 @@ pub struct BlockChain {
 	// blooms indexing
 	bloom_indexer: BloomIndexer,
 
-	insert_lock: Mutex<()>
+	insert_lock: Mutex<()>,
 }
 
 impl FilterDataSource for BlockChain {
@@ -186,7 +186,9 @@ impl BlockProvider for BlockChain {
 	}
 
 	// We do not store tracing information.
-	fn have_tracing(&self) -> bool { false }
+	fn have_tracing(&self) -> bool {
+		false
+	}
 
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<Bytes> {
@@ -197,8 +199,9 @@ impl BlockProvider for BlockChain {
 			}
 		}
 
-		let opt = self.blocks_db.get(hash)
-			.expect("Low level database error. Some issue with disk?");
+		let opt = self.blocks_db
+		              .get(hash)
+		              .expect("Low level database error. Some issue with disk?");
 
 		self.note_used(CacheID::Block(hash.clone()));
 
@@ -208,8 +211,8 @@ impl BlockProvider for BlockChain {
 				let mut write = self.blocks.write().unwrap();
 				write.insert(hash.clone(), bytes.clone());
 				Some(bytes)
-			},
-			None => None
+			}
+			None => None,
 		}
 	}
 
@@ -273,7 +276,10 @@ impl BlockChain {
 		blocks_path.push("blocks");
 		let blocks_db = Database::open_default(blocks_path.to_str().unwrap()).unwrap();
 
-		let mut cache_man = CacheManager{cache_usage: VecDeque::new(), in_use: HashSet::new()};
+		let mut cache_man = CacheManager {
+			cache_usage: VecDeque::new(),
+			in_use: HashSet::new(),
+		};
 		(0..COLLECTION_QUEUE_SIZE).foreach(|_| cache_man.cache_usage.push_back(HashSet::new()));
 
 		let bc = BlockChain {
@@ -308,7 +314,7 @@ impl BlockChain {
 					number: header.number(),
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
-					children: vec![]
+					children: vec![],
 				};
 
 				bc.blocks_db.put(&hash, genesis).unwrap();
@@ -423,7 +429,7 @@ impl BlockChain {
 		TreeRoute {
 			blocks: from_branch,
 			ancestor: current_from,
-			index: index
+			index: index,
 		}
 	}
 
@@ -502,7 +508,7 @@ impl BlockChain {
 					*best_block = BestBlock {
 						hash: update.info.hash,
 						number: update.info.number,
-						total_difficulty: update.info.total_difficulty
+						total_difficulty: update.info.total_difficulty,
 					};
 				}
 			}
@@ -536,7 +542,9 @@ impl BlockChain {
 
 	/// Given a block's `parent`, find every block header which represents a valid possible uncle.
 	pub fn find_uncle_headers(&self, parent: &H256, uncle_generations: usize) -> Option<Vec<Header>> {
-		if !self.is_known(parent) { return None; }
+		if !self.is_known(parent) {
+			return None;
+		}
 
 		let mut excluded = HashSet::new();
 		for a in self.ancestry_iter(parent.clone()).unwrap().take(uncle_generations) {
@@ -546,9 +554,11 @@ impl BlockChain {
 
 		let mut ret = Vec::new();
 		for a in self.ancestry_iter(parent.clone()).unwrap().skip(1).take(uncle_generations) {
-			ret.extend(self.block_details(&a).unwrap().children.iter()
-				.filter_map(|h| if excluded.contains(h) { None } else { self.block_header(h) })
-			);
+			ret.extend(self.block_details(&a)
+			               .unwrap()
+			               .children
+			               .iter()
+			               .filter_map(|h| if excluded.contains(h) { None } else { self.block_header(h) }));
 		}
 		Some(ret)
 	}
@@ -591,7 +601,7 @@ impl BlockChain {
 				}
 			} else {
 				BlockLocation::Branch
-			}
+			},
 		}
 	}
 
@@ -606,7 +616,7 @@ impl BlockChain {
 			BlockLocation::Branch => (),
 			BlockLocation::CanonChain => {
 				block_hashes.insert(number, info.hash.clone());
-			},
+			}
 			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
 				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
@@ -637,7 +647,7 @@ impl BlockChain {
 			number: header.number(),
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash.clone(),
-			children: vec![]
+			children: vec![],
 		};
 
 		// write to batch
@@ -660,14 +670,15 @@ impl BlockChain {
 		let transaction_hashes = block.transaction_hashes();
 
 		transaction_hashes.into_iter()
-			.enumerate()
-			.fold(HashMap::new(), |mut acc, (i ,tx_hash)| {
-				acc.insert(tx_hash, TransactionAddress {
-					block_hash: info.hash.clone(),
-					index: i
-				});
-				acc
-			})
+		                  .enumerate()
+		                  .fold(HashMap::new(), |mut acc, (i, tx_hash)| {
+			                  acc.insert(tx_hash,
+			                             TransactionAddress {
+				                             block_hash: info.hash.clone(),
+				                             index: i,
+			                             });
+			                  acc
+			                 })
 	}
 
 	/// This functions returns modified blocks blooms.
@@ -693,37 +704,34 @@ impl BlockChain {
 		let modified_blooms = match info.location {
 			BlockLocation::Branch => HashMap::new(),
 			BlockLocation::CanonChain => {
-				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
-					.add_bloom(&header.log_bloom(), header.number() as usize)
-			},
+				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels()).add_bloom(&header.log_bloom(), header.number() as usize)
+			}
 			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
 				let ancestor_number = self.block_number(ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
 				let mut blooms: Vec<H2048> = enacted.iter()
-					.map(|hash| self.block(hash).unwrap())
-					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
-					.collect();
+				                                    .map(|hash| self.block(hash).unwrap())
+				                                    .map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
+				                                    .collect();
 
 				blooms.push(header.log_bloom());
 
-				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
-					.reset_chain_head(&blooms, start_number as usize, self.best_block_number() as usize)
+				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels()).reset_chain_head(&blooms, start_number as usize, self.best_block_number() as usize)
 			}
 		};
 
 		modified_blooms.into_iter()
-			.fold(HashMap::new(), | mut acc, (bloom_index, bloom) | {
-			{
-				let location = self.bloom_indexer.location(&bloom_index);
-				let mut blocks_blooms = acc
-					.entry(location.hash.clone())
-					.or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
-				assert_eq!(self.bloom_indexer.index_size(), blocks_blooms.blooms.len());
-				blocks_blooms.blooms[location.index] = bloom;
-			}
-			acc
-		})
+		               .fold(HashMap::new(), |mut acc, (bloom_index, bloom)| {
+			               {
+				               let location = self.bloom_indexer.location(&bloom_index);
+				               let mut blocks_blooms = acc.entry(location.hash.clone())
+				                                          .or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
+				               assert_eq!(self.bloom_indexer.index_size(), blocks_blooms.blooms.len());
+				               blocks_blooms.blooms[location.index] = bloom;
+				              }
+			               acc
+			              })
 	}
 
 	/// Get best block hash.
@@ -746,9 +754,10 @@ impl BlockChain {
 		self.query_extras(hash, &self.blocks_blooms)
 	}
 
-	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
-		T: Clone + Decodable + ExtrasIndexable,
-		K: ExtrasSliceConvertable + Eq + Hash + Clone {
+	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T>
+		where T: Clone + Decodable + ExtrasIndexable,
+		      K: ExtrasSliceConvertable + Eq + Hash + Clone,
+	{
 		{
 			let read = cache.read().unwrap();
 			if let Some(v) = read.get(hash) {
@@ -760,16 +769,17 @@ impl BlockChain {
 			self.note_used(CacheID::Extras(T::extras_index(), h.clone()));
 		}
 
-		self.extras_db.get_extras(hash).map(| t: T | {
+		self.extras_db.get_extras(hash).map(|t: T| {
 			let mut write = cache.write().unwrap();
 			write.insert(hash.clone(), t.clone());
 			t
 		})
 	}
 
-	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> bool where
-		K: ExtrasSliceConvertable + Eq + Hash + Clone,
-		T: ExtrasIndexable {
+	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> bool
+		where K: ExtrasSliceConvertable + Eq + Hash + Clone,
+		      T: ExtrasIndexable,
+	{
 		{
 			let read = cache.read().unwrap();
 			if let Some(_) = read.get(hash) {
@@ -788,7 +798,7 @@ impl BlockChain {
 			transaction_addresses: self.transaction_addresses.read().unwrap().heap_size_of_children(),
 			block_logs: self.block_logs.read().unwrap().heap_size_of_children(),
 			blocks_blooms: self.blocks_blooms.read().unwrap().heap_size_of_children(),
-			block_receipts: self.block_receipts.read().unwrap().heap_size_of_children()
+			block_receipts: self.block_receipts.read().unwrap().heap_size_of_children(),
 		}
 	}
 
@@ -798,7 +808,7 @@ impl BlockChain {
 		if !cache_man.cache_usage[0].contains(&id) {
 			cache_man.cache_usage[0].insert(id.clone());
 			if cache_man.in_use.contains(&id) {
-				if let Some(c) = cache_man.cache_usage.iter_mut().skip(1).find(|e|e.contains(&id)) {
+				if let Some(c) = cache_man.cache_usage.iter_mut().skip(1).find(|e| e.contains(&id)) {
 					c.remove(&id);
 				}
 			} else {
@@ -809,7 +819,9 @@ impl BlockChain {
 
 	/// Ticks our cache system and throws out any old data.
 	pub fn collect_garbage(&self) {
-		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) { return; }
+		if self.cache_size().total() < self.pref_cache_size.load(AtomicOrder::Relaxed) {
+			return;
+		}
 
 		for _ in 0..COLLECTION_QUEUE_SIZE {
 			{
@@ -825,12 +837,24 @@ impl BlockChain {
 				for id in cache_man.cache_usage.pop_back().unwrap().into_iter() {
 					cache_man.in_use.remove(&id);
 					match id {
-						CacheID::Block(h) => { blocks.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlockDetails, h) => { block_details.remove(&h); },
-						CacheID::Extras(ExtrasIndex::TransactionAddress, h) => { transaction_addresses.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => { blocks_blooms.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlockReceipts, h) => { block_receipts.remove(&h); },
+						CacheID::Block(h) => {
+							blocks.remove(&h);
+						}
+						CacheID::Extras(ExtrasIndex::BlockDetails, h) => {
+							block_details.remove(&h);
+						}
+						CacheID::Extras(ExtrasIndex::TransactionAddress, h) => {
+							transaction_addresses.remove(&h);
+						}
+						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => {
+							block_logs.remove(&h);
+						}
+						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => {
+							blocks_blooms.remove(&h);
+						}
+						CacheID::Extras(ExtrasIndex::BlockReceipts, h) => {
+							block_receipts.remove(&h);
+						}
 						_ => panic!(),
 					}
 				}
@@ -841,13 +865,15 @@ impl BlockChain {
 
 				blocks.shrink_to_fit();
 				block_details.shrink_to_fit();
- 				block_hashes.shrink_to_fit();
- 				transaction_addresses.shrink_to_fit();
- 				block_logs.shrink_to_fit();
- 				blocks_blooms.shrink_to_fit();
- 				block_receipts.shrink_to_fit();
+				block_hashes.shrink_to_fit();
+				transaction_addresses.shrink_to_fit();
+				block_logs.shrink_to_fit();
+				blocks_blooms.shrink_to_fit();
+				block_receipts.shrink_to_fit();
 			}
-			if self.cache_size().total() < self.max_cache_size.load(AtomicOrder::Relaxed) { break; }
+			if self.cache_size().total() < self.max_cache_size.load(AtomicOrder::Relaxed) {
+				break;
+			}
 		}
 
 		// TODO: m_lastCollection = chrono::system_clock::now();
@@ -861,10 +887,10 @@ mod tests {
 	use rustc_serialize::hex::FromHex;
 	use util::hash::*;
 	use util::sha3::Hashable;
-	use blockchain::{BlockProvider, BlockChain, BlockChainConfig, ImportRoute};
+	use blockchain::{BlockChain, BlockChainConfig, BlockProvider, ImportRoute};
 	use tests::helpers::*;
 	use devtools::*;
-	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
+	use blockchain::generator::{BlockFinalizer, ChainGenerator, ChainIterator};
 	use views::BlockView;
 
 	#[test]
@@ -949,10 +975,7 @@ mod tests {
 		bc.insert_block(&b5a, vec![]);
 		bc.insert_block(&b5b, vec![]);
 
-		assert_eq!(
-			[&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(),
-			bc.find_uncle_headers(&BlockView::new(&b4a).header_view().sha3(), 3).unwrap()
-		);
+		assert_eq!([&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(), bc.find_uncle_headers(&BlockView::new(&b4a).header_view().sha3(), 3).unwrap());
 
 		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
 	}
@@ -969,10 +992,10 @@ mod tests {
 		let b3a = canon_chain.generate(&mut finalizer).unwrap();
 
 		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
-		let b1_hash= BlockView::new(&b1).header_view().sha3();
-		let b2_hash= BlockView::new(&b2).header_view().sha3();
-		let b3a_hash= BlockView::new(&b3a).header_view().sha3();
-		let b3b_hash= BlockView::new(&b3b).header_view().sha3();
+		let b1_hash = BlockView::new(&b1).header_view().sha3();
+		let b2_hash = BlockView::new(&b2).header_view().sha3();
+		let b3a_hash = BlockView::new(&b3a).header_view().sha3();
+		let b3b_hash = BlockView::new(&b3b).header_view().sha3();
 
 		// b3a is a part of canon chain, whereas b3b is part of sidechain
 		let best_block_hash = b3a_hash.clone();
@@ -984,25 +1007,29 @@ mod tests {
 		let ir3b = bc.insert_block(&b3b, vec![]);
 		let ir3a = bc.insert_block(&b3a, vec![]);
 
-		assert_eq!(ir1, ImportRoute {
-			enacted: vec![b1_hash],
-			retracted: vec![],
-		});
+		assert_eq!(ir1,
+		           ImportRoute {
+			           enacted: vec![b1_hash],
+			           retracted: vec![],
+		           });
 
-		assert_eq!(ir2, ImportRoute {
-			enacted: vec![b2_hash],
-			retracted: vec![],
-		});
+		assert_eq!(ir2,
+		           ImportRoute {
+			           enacted: vec![b2_hash],
+			           retracted: vec![],
+		           });
 
-		assert_eq!(ir3b, ImportRoute {
-			enacted: vec![b3b_hash],
-			retracted: vec![],
-		});
+		assert_eq!(ir3b,
+		           ImportRoute {
+			           enacted: vec![b3b_hash],
+			           retracted: vec![],
+		           });
 
-		assert_eq!(ir3a, ImportRoute {
-			enacted: vec![b3a_hash],
-			retracted: vec![b3b_hash],
-		});
+		assert_eq!(ir3a,
+		           ImportRoute {
+			           enacted: vec![b3a_hash],
+			           retracted: vec![b3b_hash],
+		           });
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);
 		assert_eq!(bc.block_number(&genesis_hash).unwrap(), 0);

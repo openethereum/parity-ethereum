@@ -36,12 +36,8 @@ impl FromJson for U256 {
 	fn from_json(json: &Json) -> Self {
 		match *json {
 			Json::String(ref s) => {
-				if s.len() >= 2 && &s[0..2] == "0x" {
-					FromStr::from_str(&s[2..]).unwrap_or_else(|_| Default::default())
-				} else {
-					Uint::from_dec_str(s).unwrap_or_else(|_| Default::default())
-				}
-			},
+				if s.len() >= 2 && &s[0..2] == "0x" { FromStr::from_str(&s[2..]).unwrap_or_else(|_| Default::default()) } else { Uint::from_dec_str(s).unwrap_or_else(|_| Default::default()) }
+			}
 			Json::U64(u) => From::from(u),
 			Json::I64(i) => From::from(i as u64),
 			_ => Uint::zero(),

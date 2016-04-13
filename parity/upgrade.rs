@@ -46,12 +46,12 @@ impl UpgradeKey {
 	//  current_version 1.4 (`current_version`)
 	//
 	//
-	//upgrades (set of `UpgradeKey`)
-	//	1.0 -> 1.1 (u1)
-	//	1.1 -> 1.2 (u2)
-	//	1.2 -> 1.3 (u3)
-	//	1.3 -> 1.4 (u4)
-	//	1.4 -> 1.5 (u5)
+	// upgrades (set of `UpgradeKey`)
+	// 	1.0 -> 1.1 (u1)
+	// 	1.1 -> 1.2 (u2)
+	// 	1.2 -> 1.3 (u3)
+	// 	1.3 -> 1.4 (u4)
+	// 	1.4 -> 1.5 (u5)
 	//
 	// then the following upgrades should be applied:
 	// u2, u3, u4
@@ -66,12 +66,13 @@ fn dummy_upgrade() -> Result<(), Error> {
 	Ok(())
 }
 
-fn push_updrades(upgrades: &mut UpgradeList)
-{
+fn push_updrades(upgrades: &mut UpgradeList) {
 	// dummy upgrade (remove when the first one is in)
-	upgrades.insert(
-		UpgradeKey { old_version: Version::parse("0.9.0").unwrap(), new_version: Version::parse("1.0.0").unwrap() },
-		dummy_upgrade);
+	upgrades.insert(UpgradeKey {
+		                old_version: Version::parse("0.9.0").unwrap(),
+		                new_version: Version::parse("1.0.0").unwrap(),
+	                },
+	                dummy_upgrade);
 }
 
 fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
@@ -92,21 +93,21 @@ fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 }
 
 fn with_locked_version<F>(script: F) -> Result<usize, Error>
-	where F: Fn(&Version) -> Result<usize, Error>
+	where F: Fn(&Version) -> Result<usize, Error>,
 {
 	let mut path = env::home_dir().expect("Applications should have a home dir");
 	path.push(".parity");
 	path.push("ver.lock");
 
-	let version =
-		File::open(&path).ok().and_then(|ref mut file|
-			{
-				let mut version_string = String::new();
-				file.read_to_string(&mut version_string)
-					.ok()
-					.and_then(|_| Version::parse(&version_string).ok())
-			})
-			.unwrap_or_else(|| Version::parse("0.9.0").unwrap());
+	let version = File::open(&path)
+		.ok()
+		.and_then(|ref mut file| {
+			let mut version_string = String::new();
+			file.read_to_string(&mut version_string)
+			    .ok()
+			    .and_then(|_| Version::parse(&version_string).ok())
+		})
+		.unwrap_or_else(|| Version::parse("0.9.0").unwrap());
 
 	let mut lock = try!(File::create(&path).map_err(|_| Error::CannotLockVersionFile));
 	let result = script(&version);
@@ -117,7 +118,5 @@ fn with_locked_version<F>(script: F) -> Result<usize, Error>
 }
 
 pub fn upgrade() -> Result<usize, Error> {
-	with_locked_version(|ver| {
-		upgrade_from_version(ver)
-	})
+	with_locked_version(|ver| upgrade_from_version(ver))
 }

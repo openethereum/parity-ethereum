@@ -19,9 +19,9 @@
 use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
-use util::hash::{Address, H256, FixedHash};
-use util::crypto::{Secret, Signature, KeyPair};
-use util::keys::store::{AccountProvider, SigningError, EncryptedHashMapError};
+use util::hash::{Address, FixedHash, H256};
+use util::crypto::{KeyPair, Secret, Signature};
+use util::keys::store::{AccountProvider, EncryptedHashMapError, SigningError};
 
 /// Account mock.
 #[derive(Clone)]
@@ -41,7 +41,7 @@ impl TestAccount {
 		TestAccount {
 			unlocked: false,
 			password: password.to_owned(),
-			secret: pair.secret().clone()
+			secret: pair.secret().clone(),
 		}
 	}
 
@@ -60,9 +60,7 @@ pub struct TestAccountProvider {
 impl TestAccountProvider {
 	/// Basic constructor.
 	pub fn new(accounts: HashMap<Address, TestAccount>) -> Self {
-		TestAccountProvider {
-			accounts: RwLock::new(accounts),
-		}
+		TestAccountProvider { accounts: RwLock::new(accounts) }
 	}
 }
 
@@ -76,7 +74,7 @@ impl AccountProvider for TestAccountProvider {
 			Some(ref mut acc) if acc.password == pass => {
 				acc.unlocked = true;
 				Ok(())
-			},
+			}
 			Some(_) => Err(EncryptedHashMapError::InvalidPassword),
 			None => Err(EncryptedHashMapError::UnknownIdentifier),
 		}
@@ -92,16 +90,14 @@ impl AccountProvider for TestAccountProvider {
 	fn account_secret(&self, address: &Address) -> Result<Secret, SigningError> {
 		// todo: consider checking if account is unlock. some test may need alteration then.
 		self.accounts
-			.read()
-			.unwrap()
-			.get(address)
-			.ok_or(SigningError::NoAccount)
-			.map(|acc| acc.secret.clone())
+		    .read()
+		    .unwrap()
+		    .get(address)
+		    .ok_or(SigningError::NoAccount)
+		    .map(|acc| acc.secret.clone())
 	}
 
 	fn sign(&self, _account: &Address, _message: &H256) -> Result<Signature, SigningError> {
 		unimplemented!()
 	}
-
 }
-

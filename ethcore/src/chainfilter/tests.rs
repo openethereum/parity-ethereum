@@ -19,7 +19,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::str::FromStr;
 use util::hash::*;
 use util::sha3::*;
-use chainfilter::{BloomIndex, FilterDataSource, ChainFilter};
+use chainfilter::{BloomIndex, ChainFilter, FilterDataSource};
 
 /// In memory cache for blooms.
 ///
@@ -54,7 +54,9 @@ impl FilterDataSource for MemoryCache {
 	}
 }
 
-fn to_bloom<T>(hashable: &T) -> H2048 where T: Hashable {
+fn to_bloom<T>(hashable: &T) -> H2048
+	where T: Hashable,
+{
 	let mut bloom = H2048::new();
 	bloom.shift_bloomed(&hashable.sha3());
 	bloom
@@ -167,7 +169,9 @@ fn test_reset_chain_head_simple() {
 	assert_eq!(filter.blocks_with_bloom(&to_bloom(&topic_5), 0, 100), vec![16]);
 }
 
-fn for_each_bloom<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &H2048) {
+fn for_each_bloom<F>(bytes: &[u8], mut f: F)
+	where F: FnMut(usize, &H2048),
+{
 	let mut reader = BufReader::new(bytes);
 	let mut line = String::new();
 	while reader.read_line(&mut line).unwrap() > 0 {
@@ -180,7 +184,7 @@ fn for_each_bloom<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &H2048) {
 			line_reader.consume(2);
 			line_reader.read_exact(&mut bloom_bytes).unwrap();
 
-			let number = String::from_utf8(number_bytes).map(|s| s[..s.len() -1].to_owned()).unwrap().parse::<usize>().unwrap();
+			let number = String::from_utf8(number_bytes).map(|s| s[..s.len() - 1].to_owned()).unwrap().parse::<usize>().unwrap();
 			let bloom = H2048::from_str(&String::from_utf8(bloom_bytes.to_vec()).unwrap()).unwrap();
 			f(number, &bloom);
 		}
@@ -188,14 +192,16 @@ fn for_each_bloom<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &H2048) {
 	}
 }
 
-fn for_each_log<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &Address, &[H256]) {
+fn for_each_log<F>(bytes: &[u8], mut f: F)
+	where F: FnMut(usize, &Address, &[H256]),
+{
 	let mut reader = BufReader::new(bytes);
 	let mut line = String::new();
 	while reader.read_line(&mut line).unwrap() > 0 {
 		{
 			let mut number_bytes = vec![];
-			let mut address_bytes = [0;42];
-			let mut topic = [0;66];
+			let mut address_bytes = [0; 42];
+			let mut topic = [0; 66];
 			let mut topics_bytes = vec![];
 
 			let mut line_reader = BufReader::new(line.as_ref() as &[u8]);
@@ -207,12 +213,11 @@ fn for_each_log<F>(bytes: &[u8], mut f: F) where F: FnMut(usize, &Address, &[H25
 				topics_bytes.push(topic.to_vec());
 			}
 
-			let number = String::from_utf8(number_bytes).map(|s| s[..s.len() -1].to_owned()).unwrap().parse::<usize>().unwrap();
+			let number = String::from_utf8(number_bytes).map(|s| s[..s.len() - 1].to_owned()).unwrap().parse::<usize>().unwrap();
 			let address = Address::from_str(&String::from_utf8(address_bytes.to_vec()).map(|a| a[2..].to_owned()).unwrap()).unwrap();
-			let topics: Vec<H256> = topics_bytes
-				.into_iter()
-				.map(|t| H256::from_str(&String::from_utf8(t).map(|t| t[2..].to_owned()).unwrap()).unwrap())
-				.collect();
+			let topics: Vec<H256> = topics_bytes.into_iter()
+			                                    .map(|t| H256::from_str(&String::from_utf8(t).map(|t| t[2..].to_owned()).unwrap()).unwrap())
+			                                    .collect();
 			f(number, &address, &topics);
 		}
 		line.clear();
@@ -227,7 +232,7 @@ fn test_chainfilter_real_data_short_searches() {
 
 	let mut cache = MemoryCache::new();
 
-	for_each_bloom(include_bytes!("blooms.txt"), | block_number, bloom | {
+	for_each_bloom(include_bytes!("blooms.txt"), |block_number, bloom| {
 		let modified_blooms = {
 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 			filter.add_bloom(bloom, block_number)
@@ -238,7 +243,7 @@ fn test_chainfilter_real_data_short_searches() {
 		cache.insert_blooms(modified_blooms);
 	});
 
-	for_each_log(include_bytes!("logs.txt"), | block_number, address, topics | {
+	for_each_log(include_bytes!("logs.txt"), |block_number, address, topics| {
 		println!("block_number: {:?}", block_number);
 		let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 		let blocks = filter.blocks_with_bloom(&to_bloom(address), block_number, block_number);
@@ -259,7 +264,7 @@ fn test_chainfilter_real_data_single_search() {
 
 	let mut cache = MemoryCache::new();
 
-	for_each_bloom(include_bytes!("blooms.txt"), | block_number, bloom | {
+	for_each_bloom(include_bytes!("blooms.txt"), |block_number, bloom| {
 		let modified_blooms = {
 			let filter = ChainFilter::new(&cache, index_size, bloom_levels);
 			filter.add_bloom(bloom, block_number)
@@ -279,5 +284,3 @@ fn test_chainfilter_real_data_single_search() {
 	assert_eq!(blocks[1], 396348);
 	assert_eq!(blocks[2], 399804);
 }
-
-

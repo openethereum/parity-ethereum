@@ -27,13 +27,15 @@ use std::collections::HashMap;
 /// `HashMap<Col, Val>` for specific `Row`
 pub struct Table<Row, Col, Val>
 	where Row: Eq + Hash + Clone,
-		  Col: Eq + Hash {
+	      Col: Eq + Hash,
+{
 	map: HashMap<Row, HashMap<Col, Val>>,
 }
 
 impl<Row, Col, Val> Default for Table<Row, Col, Val>
 	where Row: Eq + Hash + Clone,
-		  Col: Eq + Hash {
+	      Col: Eq + Hash,
+{
 	fn default() -> Self {
 		Table::new()
 	}
@@ -43,12 +45,11 @@ impl<Row, Col, Val> Default for Table<Row, Col, Val>
 #[cfg_attr(feature="dev", allow(new_without_default))]
 impl<Row, Col, Val> Table<Row, Col, Val>
 	where Row: Eq + Hash + Clone,
-		  Col: Eq + Hash {
+	      Col: Eq + Hash,
+{
 	/// Creates new Table
 	pub fn new() -> Self {
-		Table {
-			map: HashMap::new(),
-		}
+		Table { map: HashMap::new() }
 	}
 
 	/// Removes all elements from this Table
@@ -133,7 +134,7 @@ mod test {
 	#[test]
 	fn should_create_empty_table() {
 		// when
-		let table : Table<usize, usize, bool> = Table::new();
+		let table: Table<usize, usize, bool> = Table::new();
 
 		// then
 		assert!(table.is_empty());
@@ -174,14 +175,14 @@ mod test {
 
 		// then
 		assert!(table.is_empty());
-		assert_eq!(table.len() ,0);
+		assert_eq!(table.len(), 0);
 		assert_eq!(r.unwrap(), true);
 	}
 
 	#[test]
 	fn should_return_none_if_trying_to_remove_non_existing_element() {
-				// given
-		let mut table : Table<usize, usize, usize> = Table::new();
+		// given
+		let mut table: Table<usize, usize, usize> = Table::new();
 		assert!(table.is_empty());
 
 		// when

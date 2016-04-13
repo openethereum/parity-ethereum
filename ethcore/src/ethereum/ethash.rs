@@ -16,12 +16,12 @@
 
 extern crate ethash;
 
-use self::ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
+use self::ethash::{EthashManager, H256 as EH256, quick_get_difficulty};
 use common::*;
 use block::*;
 use spec::CommonParams;
 use engine::*;
-use evm::{Schedule, Factory};
+use evm::{Factory, Schedule};
 use ethjson;
 
 /// Ethash params.
@@ -81,19 +81,29 @@ impl Ethash {
 }
 
 impl Engine for Ethash {
-	fn name(&self) -> &str { "Ethash" }
-	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
+	fn name(&self) -> &str {
+		"Ethash"
+	}
+	fn version(&self) -> SemanticVersion {
+		SemanticVersion::new(1, 0, 0)
+	}
 	// Two fields - mix
-	fn seal_fields(&self) -> usize { 2 }
+	fn seal_fields(&self) -> usize {
+		2
+	}
 
-	fn params(&self) -> &CommonParams { &self.params }
+	fn params(&self) -> &CommonParams {
+		&self.params
+	}
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
 		&self.builtins
 	}
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
+	fn extra_info(&self, _header: &Header) -> HashMap<String, String> {
+		HashMap::new()
+	}
 
 	fn vm_factory(&self) -> &Factory {
 		&self.factory
@@ -102,11 +112,7 @@ impl Engine for Ethash {
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
 		trace!(target: "client", "Creating schedule. fCML={}", self.params.frontier_compatibility_mode_limit);
 
-		if env_info.number < self.params.frontier_compatibility_mode_limit {
-			Schedule::new_frontier()
-		} else {
-			Schedule::new_homestead()
-		}
+		if env_info.number < self.params.frontier_compatibility_mode_limit { Schedule::new_frontier() } else { Schedule::new_homestead() }
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256) {
@@ -114,14 +120,10 @@ impl Engine for Ethash {
 		header.gas_limit = {
 			let gas_limit = parent.gas_limit;
 			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
-			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - x!(1))
-			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1) + (header.gas_used * x!(6) / x!(5)) / bound_divisor)
-			}
+			if gas_limit < gas_floor_target { min(gas_floor_target, gas_limit + gas_limit / bound_divisor - x!(1)) } else { max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1) + (header.gas_used * x!(6) / x!(5)) / bound_divisor) }
 		};
 		header.note_dirty();
-//		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
+		// info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
 
 	/// Apply the block reward on finalisation of the block.
@@ -144,9 +146,10 @@ impl Engine for Ethash {
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the seal fields.
 		if header.seal.len() != self.seal_fields() {
-			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
-			)));
+			return Err(From::from(BlockError::InvalidSealArity(Mismatch {
+				expected: self.seal_fields(),
+				found: header.seal.len(),
+			})));
 		}
 		try!(UntrustedRlp::new(&header.seal[0]).as_val::<H256>());
 		try!(UntrustedRlp::new(&header.seal[1]).as_val::<H64>());
@@ -154,34 +157,46 @@ impl Engine for Ethash {
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 		if header.difficulty < min_difficulty {
-			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty })))
+			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: Some(min_difficulty),
+				max: None,
+				found: header.difficulty,
+			})));
 		}
 
-		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
-			&Ethash::to_ethash(header.bare_hash()),
-			header.nonce().low_u64(),
-			&Ethash::to_ethash(header.mix_hash())
-		)));
+		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(&Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64(), &Ethash::to_ethash(header.mix_hash()))));
 		if difficulty < header.difficulty {
-			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
+			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds {
+				min: Some(header.difficulty),
+				max: None,
+				found: difficulty,
+			})));
 		}
 		Ok(())
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		if header.seal.len() != self.seal_fields() {
-			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
-			)));
+			return Err(From::from(BlockError::InvalidSealArity(Mismatch {
+				expected: self.seal_fields(),
+				found: header.seal.len(),
+			})));
 		}
 		let result = self.pow.compute_light(header.number as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
 		if mix != header.mix_hash() {
-			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
+			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch {
+				expected: mix,
+				found: header.mix_hash(),
+			})));
 		}
 		if difficulty < header.difficulty {
-			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
+			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds {
+				min: Some(header.difficulty),
+				max: None,
+				found: difficulty,
+			})));
 		}
 		Ok(())
 	}
@@ -189,19 +204,30 @@ impl Engine for Ethash {
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
-			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds {
+				min: Some(1),
+				max: None,
+				found: header.number(),
+			})));
 		}
 
 		// Check difficulty is correct given the two timestamps.
 		let expected_difficulty = self.calculate_difficuty(header, parent);
 		if header.difficulty != expected_difficulty {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty })))
+			return Err(From::from(BlockError::InvalidDifficulty(Mismatch {
+				expected: expected_difficulty,
+				found: header.difficulty,
+			})));
 		}
 		let gas_limit_divisor = self.ethash_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit - parent.gas_limit / gas_limit_divisor;
 		let max_gas = parent.gas_limit + parent.gas_limit / gas_limit_divisor;
 		if header.gas_limit <= min_gas || header.gas_limit >= max_gas {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit })));
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds {
+				min: Some(min_gas),
+				max: Some(max_gas),
+				found: header.gas_limit,
+			})));
 		}
 		Ok(())
 	}
@@ -214,7 +240,7 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
-		t.sender().map(|_|()) // Perform EC recovery and cache sender
+		t.sender().map(|_| ()) // Perform EC recovery and cache sender
 	}
 }
 
@@ -232,22 +258,12 @@ impl Ethash {
 		let frontier_limit = self.params.frontier_compatibility_mode_limit;
 
 		let mut target = if header.number < frontier_limit {
-			if header.timestamp >= parent.timestamp + duration_limit {
-				parent.difficulty - (parent.difficulty / difficulty_bound_divisor)
-			}
-			else {
-				parent.difficulty + (parent.difficulty / difficulty_bound_divisor)
-			}
-		}
-		else {
+			if header.timestamp >= parent.timestamp + duration_limit { parent.difficulty - (parent.difficulty / difficulty_bound_divisor) } else { parent.difficulty + (parent.difficulty / difficulty_bound_divisor) }
+		} else {
 			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty, header.timestamp, parent.timestamp);
-			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
+			// block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
 			let diff_inc = (header.timestamp - parent.timestamp) / 10;
-			if diff_inc <= 1 {
-				parent.difficulty + parent.difficulty / From::from(2048) * From::from(1 - diff_inc)
-			} else {
-				parent.difficulty - parent.difficulty / From::from(2048) * From::from(min(diff_inc - 1, 99))
-			}
+			if diff_inc <= 1 { parent.difficulty + parent.difficulty / From::from(2048) * From::from(1 - diff_inc) } else { parent.difficulty - parent.difficulty / From::from(2048) * From::from(min(diff_inc - 1, 99)) }
 		};
 		target = max(min_difficulty, target);
 		let period = ((parent.number + 1) / EXP_DIFF_PERIOD) as usize;
@@ -360,7 +376,7 @@ mod tests {
 			difficulty: x!(0),
 			last_hashes: vec![],
 			gas_used: x!(0),
-			gas_limit: x!(0)
+			gas_limit: x!(0),
 		});
 
 		assert!(schedule.stack_limit > 0);
@@ -372,7 +388,7 @@ mod tests {
 			difficulty: x!(0),
 			last_hashes: vec![],
 			gas_used: x!(0),
-			gas_limit: x!(0)
+			gas_limit: x!(0),
 		});
 
 		assert!(!schedule.have_delegate_call);
@@ -381,15 +397,19 @@ mod tests {
 	#[test]
 	fn can_do_seal_verification_fail() {
 		let engine = new_morden().engine;
-		//let engine = Ethash::new_test(new_morden());
+		// let engine = Ethash::new_test(new_morden());
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
-			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {}
+			Err(_) => {
+				panic!("should be block seal-arity mismatch error (got {:?})", verify_result);
+			}
+			_ => {
+				panic!("Should be error, got Ok");
+			}
 		}
 	}
 
@@ -402,9 +422,13 @@ mod tests {
 		let verify_result = engine.verify_block_basic(&header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
-			Err(_) => { panic!("should be block difficulty error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {}
+			Err(_) => {
+				panic!("should be block difficulty error (got {:?})", verify_result);
+			}
+			_ => {
+				panic!("Should be error, got Ok");
+			}
 		}
 	}
 
@@ -418,9 +442,13 @@ mod tests {
 		let verify_result = engine.verify_block_basic(&header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
-			Err(_) => { panic!("should be invalid proof of work error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {}
+			Err(_) => {
+				panic!("should be invalid proof of work error (got {:?})", verify_result);
+			}
+			_ => {
+				panic!("Should be error, got Ok");
+			}
 		}
 	}
 
@@ -432,9 +460,13 @@ mod tests {
 		let verify_result = engine.verify_block_unordered(&header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
-			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {}
+			Err(_) => {
+				panic!("should be block seal-arity mismatch error (got {:?})", verify_result);
+			}
+			_ => {
+				panic!("Should be error, got Ok");
+			}
 		}
 	}
 
@@ -446,9 +478,13 @@ mod tests {
 		let verify_result = engine.verify_block_unordered(&header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
-			Err(_) => { panic!("should be invalid 256-bit seal fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {}
+			Err(_) => {
+				panic!("should be invalid 256-bit seal fail (got {:?})", verify_result);
+			}
+			_ => {
+				panic!("Should be error, got Ok");
+			}
 		}
 	}
 
@@ -462,9 +498,13 @@ mod tests {
 		let verify_result = engine.verify_block_unordered(&header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
-			Err(_) => { panic!("should be invalid proof-of-work fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {}
+			Err(_) => {
+				panic!("should be invalid proof-of-work fail (got {:?})", verify_result);
+			}
+			_ => {
+				panic!("Should be error, got Ok");
+			}
 		}
 	}
 
@@ -477,9 +517,13 @@ mod tests {
 		let verify_result = engine.verify_block_family(&header, &parent_header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::RidiculousNumber(_))) => {},
-			Err(_) => { panic!("should be invalid block number fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockError::RidiculousNumber(_))) => {}
+			Err(_) => {
+				panic!("should be invalid block number fail (got {:?})", verify_result);
+			}
+			_ => {
+				panic!("Should be error, got Ok");
+			}
 		}
 	}
 
@@ -494,9 +538,13 @@ mod tests {
 		let verify_result = engine.verify_block_family(&header, &parent_header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {},
-			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {}
+			Err(_) => {
+				panic!("should be invalid difficulty fail (got {:?})", verify_result);
+			}
+			_ => {
+				panic!("Should be error, got Ok");
+			}
 		}
 	}
 
@@ -512,9 +560,13 @@ mod tests {
 		let verify_result = engine.verify_block_family(&header, &parent_header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::InvalidGasLimit(_))) => {},
-			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockError::InvalidGasLimit(_))) => {}
+			Err(_) => {
+				panic!("should be invalid difficulty fail (got {:?})", verify_result);
+			}
+			_ => {
+				panic!("Should be error, got Ok");
+			}
 		}
 	}
 

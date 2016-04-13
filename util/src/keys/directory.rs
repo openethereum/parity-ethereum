@@ -17,7 +17,7 @@
 //! Keys Directory
 
 use common::*;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 const CURRENT_DECLARED_VERSION: u64 = 3;
 const MAX_KEY_FILE_LEN: u64 = 1024 * 80;
@@ -27,19 +27,19 @@ const MAX_CACHE_USAGE_TRACK: usize = 128;
 #[derive(PartialEq, Debug, Clone)]
 pub enum CryptoCipherType {
 	/// aes-128-ctr with 128-bit initialisation vector(iv)
-	Aes128Ctr(H128)
+	Aes128Ctr(H128),
 }
 
 #[derive(PartialEq, Debug, Clone)]
 enum KeyFileVersion {
-	V3(u64)
+	V3(u64),
 }
 
 /// key generator function
 #[derive(PartialEq, Debug, Clone)]
 pub enum Pbkdf2CryptoFunction {
 	/// keyed-hash generator (HMAC-256)
-	HMacSha256
+	HMacSha256,
 }
 
 #[derive(Clone)]
@@ -53,7 +53,7 @@ pub struct KdfPbkdf2Params {
 	/// number of iterations for derived key
 	pub c: u32,
 	/// pseudo-random 2-parameters function
-	pub prf: Pbkdf2CryptoFunction
+	pub prf: Pbkdf2CryptoFunction,
 }
 
 #[derive(Debug)]
@@ -66,18 +66,29 @@ enum Pbkdf2ParseError {
 
 impl KdfPbkdf2Params {
 	fn from_json(json: &BTreeMap<String, Json>) -> Result<KdfPbkdf2Params, Pbkdf2ParseError> {
-		Ok(KdfPbkdf2Params{
+		Ok(KdfPbkdf2Params {
 			salt: match try!(json.get("salt").ok_or(Pbkdf2ParseError::MissingParameter("salt"))).as_string() {
-				None => { return Err(Pbkdf2ParseError::InvalidParameter("salt")) },
+				None => {
+					return Err(Pbkdf2ParseError::InvalidParameter("salt"));
+				}
 				Some(salt_value) => match H256::from_str(salt_value) {
 					Ok(salt_hex_value) => salt_hex_value,
-					Err(from_hex_error) => { return Err(Pbkdf2ParseError::InvalidSaltFormat(from_hex_error)); },
-				}
+					Err(from_hex_error) => {
+						return Err(Pbkdf2ParseError::InvalidSaltFormat(from_hex_error));
+					}
+				},
 			},
 			prf: match try!(json.get("prf").ok_or(Pbkdf2ParseError::MissingParameter("prf"))).as_string() {
 				Some("hmac-sha256") => Pbkdf2CryptoFunction::HMacSha256,
-				Some(unexpected_prf) => { return Err(Pbkdf2ParseError::InvalidPrf(Mismatch { expected: "hmac-sha256".to_owned(), found: unexpected_prf.to_owned() })); },
-				None => { return Err(Pbkdf2ParseError::InvalidParameter("prf")); },
+				Some(unexpected_prf) => {
+					return Err(Pbkdf2ParseError::InvalidPrf(Mismatch {
+						expected: "hmac-sha256".to_owned(),
+						found: unexpected_prf.to_owned(),
+					}));
+				}
+				None => {
+					return Err(Pbkdf2ParseError::InvalidParameter("prf"));
+				}
 			},
 			dk_len: try!(try!(json.get("dklen").ok_or(Pbkdf2ParseError::MissingParameter("dklen"))).as_u64().ok_or(Pbkdf2ParseError::InvalidParameter("dkLen"))) as u32,
 			c: try!(try!(json.get("c").ok_or(Pbkdf2ParseError::MissingParameter("c"))).as_u64().ok_or(Pbkdf2ParseError::InvalidParameter("c"))) as u32,
@@ -117,17 +128,23 @@ enum ScryptParseError {
 	MissingParameter(&'static str),
 }
 
-fn json_from_u32(number: u32) -> Json { Json::U64(number as u64) }
+fn json_from_u32(number: u32) -> Json {
+	Json::U64(number as u64)
+}
 
 impl KdfScryptParams {
 	fn from_json(json: &BTreeMap<String, Json>) -> Result<KdfScryptParams, ScryptParseError> {
-		Ok(KdfScryptParams{
+		Ok(KdfScryptParams {
 			salt: match try!(json.get("salt").ok_or(ScryptParseError::MissingParameter("salt"))).as_string() {
-				None => { return Err(ScryptParseError::InvalidParameter("salt")) },
+				None => {
+					return Err(ScryptParseError::InvalidParameter("salt"));
+				}
 				Some(salt_value) => match H256::from_str(salt_value) {
 					Ok(salt_hex_value) => salt_hex_value,
-					Err(from_hex_error) => { return Err(ScryptParseError::InvalidSaltFormat(from_hex_error)); },
-				}
+					Err(from_hex_error) => {
+						return Err(ScryptParseError::InvalidSaltFormat(from_hex_error));
+					}
+				},
 			},
 			dk_len: try!(try!(json.get("dklen").ok_or(ScryptParseError::MissingParameter("dklen"))).as_u64().ok_or(ScryptParseError::InvalidParameter("dkLen"))) as u32,
 			p: try!(try!(json.get("p").ok_or(ScryptParseError::MissingParameter("p"))).as_u64().ok_or(ScryptParseError::InvalidParameter("p"))) as u32,
@@ -155,7 +172,7 @@ pub enum KeyFileKdf {
 	Pbkdf2(KdfPbkdf2Params),
 	/// Scrypt password-based key derivation function.
 	/// https://en.wikipedia.org/wiki/Scrypt
-	Scrypt(KdfScryptParams)
+	Scrypt(KdfScryptParams),
 }
 
 #[derive(Clone)]
@@ -169,70 +186,99 @@ pub struct KeyFileCrypto {
 	/// Password derived key generator function settings.
 	pub kdf: KeyFileKdf,
 	/// Mac
-	pub mac: H256
+	pub mac: H256,
 }
 
 impl KeyFileCrypto {
 	fn from_json(json: &Json) -> Result<KeyFileCrypto, CryptoParseError> {
 		let as_object = match json.as_object() {
-			None => { return Err(CryptoParseError::InvalidJsonFormat); }
-			Some(obj) => obj
+			None => {
+				return Err(CryptoParseError::InvalidJsonFormat);
+			}
+			Some(obj) => obj,
 		};
 
 		let cipher_type = match try!(as_object.get("cipher").ok_or(CryptoParseError::NoCipherType)).as_string() {
-			None => { return Err(CryptoParseError::InvalidCipherType(Mismatch { expected: "aes-128-ctr".to_owned(), found: "not a json string".to_owned() })); }
-			Some("aes-128-ctr") => CryptoCipherType::Aes128Ctr(
-				match try!(as_object.get("cipherparams").ok_or(CryptoParseError::NoCipherParameters)).as_object() {
-					None => { return Err(CryptoParseError::NoCipherParameters); },
-					Some(cipher_param) => match H128::from_str(match cipher_param["iv"].as_string() {
-							None => { return Err(CryptoParseError::NoInitialVector); },
-							Some(iv_hex_string) => iv_hex_string
-						})
-					{
-						Ok(iv_value) => iv_value,
-						Err(hex_error) => { return Err(CryptoParseError::InvalidInitialVector(hex_error)); }
-					}
+			None => {
+				return Err(CryptoParseError::InvalidCipherType(Mismatch {
+					expected: "aes-128-ctr".to_owned(),
+					found: "not a json string".to_owned(),
+				}));
+			}
+			Some("aes-128-ctr") => CryptoCipherType::Aes128Ctr(match try!(as_object.get("cipherparams").ok_or(CryptoParseError::NoCipherParameters)).as_object() {
+				None => {
+					return Err(CryptoParseError::NoCipherParameters);
 				}
-			),
+				Some(cipher_param) => match H128::from_str(match cipher_param["iv"].as_string() {
+					None => {
+						return Err(CryptoParseError::NoInitialVector);
+					}
+					Some(iv_hex_string) => iv_hex_string,
+				}) {
+					Ok(iv_value) => iv_value,
+					Err(hex_error) => {
+						return Err(CryptoParseError::InvalidInitialVector(hex_error));
+					}
+				},
+			}),
 			Some(other_cipher_type) => {
-				return Err(CryptoParseError::InvalidCipherType(
-					Mismatch { expected: "aes-128-ctr".to_owned(), found: other_cipher_type.to_owned() }));
+				return Err(CryptoParseError::InvalidCipherType(Mismatch {
+					expected: "aes-128-ctr".to_owned(),
+					found: other_cipher_type.to_owned(),
+				}));
 			}
 		};
 
 		let kdf = match (try!(as_object.get("kdf").ok_or(CryptoParseError::NoKdf)).as_string(), try!(as_object.get("kdfparams").ok_or(CryptoParseError::NoKdfType)).as_object()) {
-			(None, _) => { return Err(CryptoParseError::NoKdfType); },
-			(Some("scrypt"), Some(kdf_params)) =>
-				match KdfScryptParams::from_json(kdf_params) {
-					Err(scrypt_params_error) => { return Err(CryptoParseError::Scrypt(scrypt_params_error)); },
-					Ok(scrypt_params) => KeyFileKdf::Scrypt(scrypt_params)
-				},
-			(Some("pbkdf2"), Some(kdf_params)) =>
-				match KdfPbkdf2Params::from_json(kdf_params) {
-					Err(pbkdf2_params_error) => { return Err(CryptoParseError::KdfPbkdf2(pbkdf2_params_error)); },
-					Ok(pbkdf2_params) => KeyFileKdf::Pbkdf2(pbkdf2_params)
-				},
+			(None, _) => {
+				return Err(CryptoParseError::NoKdfType);
+			}
+			(Some("scrypt"), Some(kdf_params)) => match KdfScryptParams::from_json(kdf_params) {
+				Err(scrypt_params_error) => {
+					return Err(CryptoParseError::Scrypt(scrypt_params_error));
+				}
+				Ok(scrypt_params) => KeyFileKdf::Scrypt(scrypt_params),
+			},
+			(Some("pbkdf2"), Some(kdf_params)) => match KdfPbkdf2Params::from_json(kdf_params) {
+				Err(pbkdf2_params_error) => {
+					return Err(CryptoParseError::KdfPbkdf2(pbkdf2_params_error));
+				}
+				Ok(pbkdf2_params) => KeyFileKdf::Pbkdf2(pbkdf2_params),
+			},
 			(Some(other_kdf), _) => {
-				return Err(CryptoParseError::InvalidKdfType(
-					Mismatch { expected: "pbkdf2/scrypt".to_owned(), found: other_kdf.to_owned()}));
+				return Err(CryptoParseError::InvalidKdfType(Mismatch {
+					expected: "pbkdf2/scrypt".to_owned(),
+					found: other_kdf.to_owned(),
+				}));
 			}
 		};
 
 		let cipher_text = match try!(as_object.get("ciphertext").ok_or(CryptoParseError::NoCipherText)).as_string() {
-			None => { return Err(CryptoParseError::InvalidCipherText); }
-			Some(text) => text
+			None => {
+				return Err(CryptoParseError::InvalidCipherText);
+			}
+			Some(text) => text,
 		};
 
 		let mac: H256 = match try!(as_object.get("mac").ok_or(CryptoParseError::NoMac)).as_string() {
-			None => { return Err(CryptoParseError::InvalidMacFormat(None)) },
+			None => {
+				return Err(CryptoParseError::InvalidMacFormat(None));
+			}
 			Some(salt_value) => match H256::from_str(salt_value) {
 				Ok(salt_hex_value) => salt_hex_value,
-				Err(from_hex_error) => { return Err(CryptoParseError::InvalidMacFormat(Some(from_hex_error))); },
-			}
+				Err(from_hex_error) => {
+					return Err(CryptoParseError::InvalidMacFormat(Some(from_hex_error)));
+				}
+			},
 		};
 
 		Ok(KeyFileCrypto {
-			cipher_text: match FromHex::from_hex(cipher_text) { Ok(bytes) => bytes, Err(_) => { return Err(CryptoParseError::InvalidCipherText); } },
+			cipher_text: match FromHex::from_hex(cipher_text) {
+				Ok(bytes) => bytes,
+				Err(_) => {
+					return Err(CryptoParseError::InvalidCipherText);
+				}
+			},
 			cipher_type: cipher_type,
 			kdf: kdf,
 			mac: mac,
@@ -249,18 +295,19 @@ impl KeyFileCrypto {
 				map.insert("cipherparams".to_owned(), Json::Object(cipher_params));
 			}
 		}
-		map.insert("ciphertext".to_owned(), Json::String(
-			self.cipher_text.iter().map(|b| format!("{:02x}", b)).collect::<Vec<String>>().join("")));
+		map.insert("ciphertext".to_owned(), Json::String(self.cipher_text.iter().map(|b| format!("{:02x}", b)).collect::<Vec<String>>().join("")));
 
-		map.insert("kdf".to_owned(), Json::String(match self.kdf {
-			KeyFileKdf::Pbkdf2(_) => "pbkdf2".to_owned(),
-			KeyFileKdf::Scrypt(_) => "scrypt".to_owned()
-		}));
+		map.insert("kdf".to_owned(),
+		           Json::String(match self.kdf {
+			           KeyFileKdf::Pbkdf2(_) => "pbkdf2".to_owned(),
+			           KeyFileKdf::Scrypt(_) => "scrypt".to_owned(),
+		           }));
 
-		map.insert("kdfparams".to_owned(), match self.kdf {
-			KeyFileKdf::Pbkdf2(ref pbkdf2_params) => pbkdf2_params.to_json(),
-			KeyFileKdf::Scrypt(ref scrypt_params) => scrypt_params.to_json()
-		});
+		map.insert("kdfparams".to_owned(),
+		           match self.kdf {
+			           KeyFileKdf::Pbkdf2(ref pbkdf2_params) => pbkdf2_params.to_json(),
+			           KeyFileKdf::Scrypt(ref scrypt_params) => scrypt_params.to_json(),
+		           });
 
 		map.insert("mac".to_owned(), Json::String(format!("{:?}", self.mac)));
 
@@ -281,7 +328,7 @@ impl KeyFileCrypto {
 				dk_len: dk_len,
 				salt: salt,
 				c: c,
-				prf: Pbkdf2CryptoFunction::HMacSha256
+				prf: Pbkdf2CryptoFunction::HMacSha256,
 			}),
 			mac: mac,
 		}
@@ -306,19 +353,31 @@ fn uuid_to_string(uuid: &Uuid) -> String {
 
 fn uuid_from_string(s: &str) -> Result<Uuid, UtilError> {
 	let parts: Vec<&str> = s.split('-').collect();
-	if parts.len() != 5 { return Err(UtilError::BadSize); }
+	if parts.len() != 5 {
+		return Err(UtilError::BadSize);
+	}
 
 	let mut uuid = H128::zero();
 
-	if parts[0].len() != 8 { return Err(UtilError::BadSize); }
+	if parts[0].len() != 8 {
+		return Err(UtilError::BadSize);
+	}
 	uuid[0..4].clone_from_slice(&try!(FromHex::from_hex(parts[0])));
-	if parts[1].len() != 4 { return Err(UtilError::BadSize); }
+	if parts[1].len() != 4 {
+		return Err(UtilError::BadSize);
+	}
 	uuid[4..6].clone_from_slice(&try!(FromHex::from_hex(parts[1])));
-	if parts[2].len() != 4 { return Err(UtilError::BadSize); }
+	if parts[2].len() != 4 {
+		return Err(UtilError::BadSize);
+	}
 	uuid[6..8].clone_from_slice(&try!(FromHex::from_hex(parts[2])));
-	if parts[3].len() != 4 { return Err(UtilError::BadSize); }
+	if parts[3].len() != 4 {
+		return Err(UtilError::BadSize);
+	}
 	uuid[8..10].clone_from_slice(&try!(FromHex::from_hex(parts[3])));
-	if parts[4].len() != 12 { return Err(UtilError::BadSize); }
+	if parts[4].len() != 12 {
+		return Err(UtilError::BadSize);
+	}
 	uuid[10..16].clone_from_slice(&try!(FromHex::from_hex(parts[4])));
 
 	Ok(uuid)
@@ -354,7 +413,7 @@ enum CryptoParseError {
 	NoKdf,
 	NoKdfType,
 	Scrypt(ScryptParseError),
-	KdfPbkdf2(Pbkdf2ParseError)
+	KdfPbkdf2(Pbkdf2ParseError),
 }
 
 #[derive(Debug)]
@@ -377,7 +436,7 @@ impl KeyFileContent {
 			id: new_uuid(),
 			version: KeyFileVersion::V3(3),
 			crypto: crypto,
-			account: None
+			account: None,
 		}
 	}
 
@@ -395,21 +454,29 @@ impl KeyFileContent {
 	/// Returns key file version if it is known.
 	pub fn version(&self) -> Option<u64> {
 		match self.version {
-			KeyFileVersion::V3(declared) => Some(declared)
+			KeyFileVersion::V3(declared) => Some(declared),
 		}
 	}
 
 	fn from_json(json: &Json) -> Result<KeyFileContent, KeyFileParseError> {
 		let as_object = match json.as_object() {
-			None => { return Err(KeyFileParseError::InvalidJsonFormat); },
-			Some(obj) => obj
+			None => {
+				return Err(KeyFileParseError::InvalidJsonFormat);
+			}
+			Some(obj) => obj,
 		};
 
 		let version = match as_object["version"].as_u64() {
-			None => { return Err(KeyFileParseError::InvalidVersion); },
+			None => {
+				return Err(KeyFileParseError::InvalidVersion);
+			}
 			Some(json_version) => {
 				if json_version <= 2 {
-					return Err(KeyFileParseError::UnsupportedVersion(OutOfBounds { min: Some(3), max: None, found: json_version }))
+					return Err(KeyFileParseError::UnsupportedVersion(OutOfBounds {
+						min: Some(3),
+						max: None,
+						found: json_version,
+					}));
 				};
 				KeyFileVersion::V3(json_version)
 			}
@@ -417,26 +484,36 @@ impl KeyFileContent {
 
 		let id_text = try!(as_object.get("id").and_then(|json| json.as_string()).ok_or(KeyFileParseError::InvalidIdentifier));
 		let id = match uuid_from_string(&id_text) {
-			Err(_) => { return Err(KeyFileParseError::InvalidIdentifier); },
-			Ok(id) => id
+			Err(_) => {
+				return Err(KeyFileParseError::InvalidIdentifier);
+			}
+			Ok(id) => id,
 		};
 
-		let account = as_object.get("address").and_then(|json| json.as_string()).and_then(
-			|account_text| match Address::from_str(account_text) { Ok(account) => Some(account), Err(_) => None });
+		let account = as_object.get("address").and_then(|json| json.as_string()).and_then(|account_text| {
+			match Address::from_str(account_text) {
+				Ok(account) => Some(account),
+				Err(_) => None,
+			}
+		});
 
 		let crypto = match as_object.get("crypto") {
-			None => { return Err(KeyFileParseError::NoCryptoSection); }
+			None => {
+				return Err(KeyFileParseError::NoCryptoSection);
+			}
 			Some(crypto_json) => match KeyFileCrypto::from_json(crypto_json) {
-					Ok(crypto) => crypto,
-					Err(crypto_error) => { return Err(KeyFileParseError::Crypto(crypto_error)); }
+				Ok(crypto) => crypto,
+				Err(crypto_error) => {
+					return Err(KeyFileParseError::Crypto(crypto_error));
 				}
+			},
 		};
 
 		Ok(KeyFileContent {
 			version: version,
 			id: id.clone(),
 			crypto: crypto,
-			account: account
+			account: account,
 		})
 	}
 
@@ -445,7 +522,9 @@ impl KeyFileContent {
 		map.insert("id".to_owned(), Json::String(uuid_to_string(&self.id)));
 		map.insert("version".to_owned(), Json::U64(CURRENT_DECLARED_VERSION));
 		map.insert("crypto".to_owned(), self.crypto.to_json());
-		if let Some(ref address) = self.account { map.insert("address".to_owned(), Json::String(format!("{:?}", address))); }
+		if let Some(ref address) = self.account {
+			map.insert("address".to_owned(), Json::String(format!("{:?}", address)));
+		}
 		Json::Object(map)
 	}
 }
@@ -512,9 +591,12 @@ impl KeyDirectory {
 		}
 
 		// todo: replace with Ref::map when it stabilized to avoid copies
-		Some(self.cache.read().unwrap().get(id)
-			.expect("Key should be there, we have just inserted or checked it.")
-			.clone())
+		Some(self.cache
+		         .read()
+		         .unwrap()
+		         .get(id)
+		         .expect("Key should be there, we have just inserted or checked it.")
+		         .clone())
 	}
 
 	/// Returns current path to the directory with keys
@@ -532,16 +614,22 @@ impl KeyDirectory {
 			cache_usage.drain(..untracked_usages);
 		}
 
-		if self.cache.read().unwrap().len() <= MAX_CACHE_USAGE_TRACK { return; }
+		if self.cache.read().unwrap().len() <= MAX_CACHE_USAGE_TRACK {
+			return;
+		}
 
 		let uniqs: HashSet<&Uuid> = cache_usage.iter().collect();
-		let removes:Vec<Uuid> = {
+		let removes: Vec<Uuid> = {
 			let cache = self.cache.read().unwrap();
 			cache.keys().cloned().filter(|key| !uniqs.contains(key)).collect()
 		};
-		if removes.is_empty() { return; }
+		if removes.is_empty() {
+			return;
+		}
 		let mut cache = self.cache.write().unwrap();
-		for key in removes { cache.remove(&key); }
+		for key in removes {
+			cache.remove(&key);
+		}
 
 		cache.shrink_to_fit();
 	}
@@ -560,8 +648,8 @@ impl KeyDirectory {
 				Ok(_) => {
 					self.cache.write().unwrap().remove(&id);
 					Ok(())
-				},
-				Err(e) => Err(e)
+				}
+				Err(e) => Err(e),
 			};
 		}
 		Ok(())
@@ -575,9 +663,13 @@ impl KeyDirectory {
 			if !try!(fs::metadata(entry.path())).is_dir() {
 				match entry.file_name().to_str() {
 					Some(ref name) => {
-						if let Ok(uuid) = uuid_from_string(name) { result.push(uuid); }
-					},
-					None => { continue; }
+						if let Ok(uuid) = uuid_from_string(name) {
+							result.push(uuid);
+						}
+					}
+					None => {
+						continue;
+					}
 				};
 
 			}
@@ -596,38 +688,44 @@ impl KeyDirectory {
 		match fs::File::open(path.clone()) {
 			Ok(mut open_file) => {
 				match open_file.metadata() {
-					Ok(metadata) =>
-						if metadata.len() > MAX_KEY_FILE_LEN { Err(KeyFileLoadError::TooLarge(OutOfBounds { min: Some(2), max: Some(MAX_KEY_FILE_LEN), found: metadata.len() })) }
-						else { KeyDirectory::load_from_file(&mut open_file) },
-					Err(read_error) => Err(KeyFileLoadError::ReadError(read_error))
+					Ok(metadata) => if metadata.len() > MAX_KEY_FILE_LEN {
+						Err(KeyFileLoadError::TooLarge(OutOfBounds {
+							min: Some(2),
+							max: Some(MAX_KEY_FILE_LEN),
+							found: metadata.len(),
+						}))
+					} else {
+						KeyDirectory::load_from_file(&mut open_file)
+					},
+					Err(read_error) => Err(KeyFileLoadError::ReadError(read_error)),
 				}
-			},
-			Err(read_error) => Err(KeyFileLoadError::ReadError(read_error))
+			}
+			Err(read_error) => Err(KeyFileLoadError::ReadError(read_error)),
 		}
 	}
 
 	fn load_from_file(file: &mut fs::File) -> Result<KeyFileContent, KeyFileLoadError> {
 		let mut buf = String::new();
 		match file.read_to_string(&mut buf) {
-			Ok(_) => {},
-			Err(read_error) => { return Err(KeyFileLoadError::ReadError(read_error)); }
+			Ok(_) => {}
+			Err(read_error) => {
+				return Err(KeyFileLoadError::ReadError(read_error));
+			}
 		}
 		match Json::from_str(&buf) {
 			Ok(json) => match KeyFileContent::from_json(&json) {
 				Ok(key_file_content) => Ok(key_file_content),
-				Err(parse_error) => Err(KeyFileLoadError::ParseError(parse_error))
+				Err(parse_error) => Err(KeyFileLoadError::ParseError(parse_error)),
 			},
-			Err(_) => Err(KeyFileLoadError::ParseError(KeyFileParseError::InvalidJson))
+			Err(_) => Err(KeyFileLoadError::ParseError(KeyFileParseError::InvalidJson)),
 		}
 	}
-
-
 }
 
 
 #[cfg(test)]
 mod file_tests {
-	use super::{KeyFileContent, KeyFileVersion, KeyFileKdf, KeyFileParseError, CryptoParseError, uuid_from_string, uuid_to_string, KeyFileCrypto, KdfPbkdf2Params};
+	use super::{CryptoParseError, KdfPbkdf2Params, KeyFileContent, KeyFileCrypto, KeyFileKdf, KeyFileParseError, KeyFileVersion, uuid_from_string, uuid_to_string};
 	use common::*;
 
 	#[test]
@@ -644,8 +742,7 @@ mod file_tests {
 
 	#[test]
 	fn can_read_keyfile() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 				{
 					"crypto" : {
 						"cipher" : "aes-128-ctr",
@@ -665,20 +762,20 @@ mod file_tests {
 					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
 					"version" : 3
 				}
-			"#).unwrap();
+			"#)
+			.unwrap();
 
 		match KeyFileContent::from_json(&json) {
 			Ok(key_file) => {
 				assert_eq!(KeyFileVersion::V3(3), key_file.version)
-			},
-			Err(e) => panic!("Error parsing valid file: {:?}", e)
+			}
+			Err(e) => panic!("Error parsing valid file: {:?}", e),
 		}
 	}
 
 	#[test]
 	fn can_read_scrypt_kdf() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 				{
 					"crypto" : {
 						"cipher" : "aes-128-ctr",
@@ -699,23 +796,25 @@ mod file_tests {
 					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
 					"version" : 3
 				}
-			"#).unwrap();
+			"#)
+			.unwrap();
 
 		match KeyFileContent::from_json(&json) {
 			Ok(key_file) => {
 				match key_file.crypto.kdf {
-					KeyFileKdf::Scrypt(_) => {},
-					_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
+					KeyFileKdf::Scrypt(_) => {}
+					_ => {
+						panic!("expected kdf params of crypto to be of scrypt type");
+					}
 				}
-			},
-			Err(e) => panic!("Error parsing valid file: {:?}", e)
+			}
+			Err(e) => panic!("Error parsing valid file: {:?}", e),
 		}
 	}
 
 	#[test]
 	fn can_read_scrypt_kdf_params() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 				{
 					"crypto" : {
 						"cipher" : "aes-128-ctr",
@@ -736,7 +835,8 @@ mod file_tests {
 					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
 					"version" : 3
 				}
-			"#).unwrap();
+			"#)
+			.unwrap();
 
 		match KeyFileContent::from_json(&json) {
 			Ok(key_file) => {
@@ -745,18 +845,19 @@ mod file_tests {
 						assert_eq!(262144, scrypt_params.n);
 						assert_eq!(1, scrypt_params.r);
 						assert_eq!(8, scrypt_params.p);
-					},
-					_ => { panic!("expected kdf params of crypto to be of scrypt type" ); }
+					}
+					_ => {
+						panic!("expected kdf params of crypto to be of scrypt type");
+					}
 				}
-			},
-			Err(e) => panic!("Error parsing valid file: {:?}", e)
+			}
+			Err(e) => panic!("Error parsing valid file: {:?}", e),
 		}
 	}
 
 	#[test]
 	fn can_return_error_no_id() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 				{
 					"crypto" : {
 						"cipher" : "aes-128-ctr",
@@ -776,40 +877,44 @@ mod file_tests {
 					},
 					"version" : 3
 				}
-			"#).unwrap();
+			"#)
+			.unwrap();
 
 		match KeyFileContent::from_json(&json) {
 			Ok(_) => {
 				panic!("Should be error of no crypto section, got ok");
-			},
-			Err(KeyFileParseError::InvalidIdentifier) => { },
-			Err(other_error) => { panic!("should be error of no crypto section, got {:?}", other_error); }
+			}
+			Err(KeyFileParseError::InvalidIdentifier) => {}
+			Err(other_error) => {
+				panic!("should be error of no crypto section, got {:?}", other_error);
+			}
 		}
 	}
 
 	#[test]
 	fn can_return_error_no_crypto() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 				{
 					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
 					"version" : 3
 				}
-			"#).unwrap();
+			"#)
+			.unwrap();
 
 		match KeyFileContent::from_json(&json) {
 			Ok(_) => {
 				panic!("Should be error of no identifier, got ok");
-			},
-			Err(KeyFileParseError::NoCryptoSection) => { },
-			Err(other_error) => { panic!("should be error of no identifier, got {:?}", other_error); }
+			}
+			Err(KeyFileParseError::NoCryptoSection) => {}
+			Err(other_error) => {
+				panic!("should be error of no identifier, got {:?}", other_error);
+			}
 		}
 	}
 
 	#[test]
 	fn can_return_error_unsupported_version() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 				{
 					"crypto" : {
 						"cipher" : "aes-128-ctr",
@@ -830,22 +935,24 @@ mod file_tests {
 					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
 					"version" : 1
 				}
-			"#).unwrap();
+			"#)
+			.unwrap();
 
 		match KeyFileContent::from_json(&json) {
 			Ok(_) => {
 				panic!("should be error of unsupported version, got ok");
-			},
-			Err(KeyFileParseError::UnsupportedVersion(_)) => { },
-			Err(other_error) => { panic!("should be error of unsupported version, got {:?}", other_error); }
+			}
+			Err(KeyFileParseError::UnsupportedVersion(_)) => {}
+			Err(other_error) => {
+				panic!("should be error of unsupported version, got {:?}", other_error);
+			}
 		}
 	}
 
 
 	#[test]
 	fn can_return_error_initial_vector() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 				{
 					"crypto" : {
 						"cipher" : "aes-128-ctr",
@@ -866,21 +973,23 @@ mod file_tests {
 					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
 					"version" : 3
 				}
-			"#).unwrap();
+			"#)
+			.unwrap();
 
 		match KeyFileContent::from_json(&json) {
 			Ok(_) => {
 				panic!("should be error of invalid initial vector, got ok");
-			},
-			Err(KeyFileParseError::Crypto(CryptoParseError::InvalidInitialVector(_))) => { },
-			Err(other_error) => { panic!("should be error of invalid initial vector, got {:?}", other_error); }
+			}
+			Err(KeyFileParseError::Crypto(CryptoParseError::InvalidInitialVector(_))) => {}
+			Err(other_error) => {
+				panic!("should be error of invalid initial vector, got {:?}", other_error);
+			}
 		}
 	}
 
 	#[test]
 	fn can_return_error_for_invalid_scrypt_kdf() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 				{
 					"crypto" : {
 						"cipher" : "aes-128-ctr",
@@ -901,21 +1010,23 @@ mod file_tests {
 					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
 					"version" : 3
 				}
-			"#).unwrap();
+			"#)
+			.unwrap();
 
 		match KeyFileContent::from_json(&json) {
 			Ok(_) => {
 				panic!("Should be error of no identifier, got ok");
-			},
-			Err(KeyFileParseError::Crypto(CryptoParseError::Scrypt(_))) => { },
-			Err(other_error) => { panic!("should be scrypt parse error, got {:?}", other_error); }
+			}
+			Err(KeyFileParseError::Crypto(CryptoParseError::Scrypt(_))) => {}
+			Err(other_error) => {
+				panic!("should be scrypt parse error, got {:?}", other_error);
+			}
 		}
 	}
 
 	#[test]
 	fn can_serialize_scrypt_back() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 				{
 					"crypto" : {
 						"cipher" : "aes-128-ctr",
@@ -936,7 +1047,8 @@ mod file_tests {
 					"id" : "3198bc9c-6672-5ab3-d995-4942343ae5b6",
 					"version" : 3
 				}
-			"#).unwrap();
+			"#)
+			.unwrap();
 
 		let key = KeyFileContent::from_json(&json).unwrap();
 		let serialized = key.to_json();
@@ -964,8 +1076,7 @@ mod file_tests {
 
 	#[test]
 	fn can_parse_kdf_params_fail() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 			{
 				"dklen" : 32,
 				"n" : 262144,
@@ -973,7 +1084,8 @@ mod file_tests {
 				"p" : 8,
 				"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
 			}
-			"#).unwrap();
+			"#)
+			.unwrap();
 		{
 			let mut invalid_json = json.as_object().unwrap().clone();
 			invalid_json.remove("dklen");
@@ -1009,15 +1121,15 @@ mod file_tests {
 
 	#[test]
 	fn can_parse_kdf_params_scrypt_fail() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 			{
 				"dklen" : 32,
 				"r" : 1,
 				"p" : 8,
 				"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
 			}
-			"#).unwrap();
+			"#)
+			.unwrap();
 		{
 			let mut invalid_json = json.as_object().unwrap().clone();
 			invalid_json.remove("dklen");
@@ -1046,8 +1158,7 @@ mod file_tests {
 
 	#[test]
 	fn can_parse_crypto_fails() {
-		let json = Json::from_str(
-			r#"
+		let json = Json::from_str(r#"
 			{
 				"cipher" : "aes-128-ctr",
 				"cipherparams" : {
@@ -1063,7 +1174,8 @@ mod file_tests {
 					"salt" : "ab0c7876052600dd703518d6fc3fe8984592145b591fc8fb5c6d43190334ba19"
 				},
 				"mac" : "2103ac29920d71da29f15d75b4a16dbe95cfd7ff8faea1056c33131d846e3097"
-			}"#).unwrap();
+			}"#)
+			.unwrap();
 
 		{
 			let mut invalid_json = json.as_object().unwrap().clone();
@@ -1092,7 +1204,7 @@ mod file_tests {
 
 #[cfg(test)]
 mod directory_tests {
-	use super::{KeyDirectory, new_uuid, uuid_to_string, KeyFileContent, KeyFileCrypto, MAX_CACHE_USAGE_TRACK};
+	use super::{KeyDirectory, KeyFileContent, KeyFileCrypto, MAX_CACHE_USAGE_TRACK, new_uuid, uuid_to_string};
 	use common::*;
 	use devtools::*;
 

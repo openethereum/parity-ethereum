@@ -22,13 +22,13 @@ use account_diff::*;
 #[derive(Debug,Clone,PartialEq,Eq)]
 /// Expression for the delta between two system states. Encoded the
 /// delta of every altered account.
-pub struct StateDiff (BTreeMap<Address, AccountDiff>);
+pub struct StateDiff(BTreeMap<Address, AccountDiff>);
 
 impl StateDiff {
 	#[cfg(test)]
 	/// Calculate and return diff between `pre` state and `post` state.
 	pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
-		StateDiff(pre.get().keys().merge(post.get().keys()).filter_map(|acc| AccountDiff::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d|(acc.clone(), d))).collect())
+		StateDiff(pre.get().keys().merge(post.get().keys()).filter_map(|acc| AccountDiff::diff_pod(pre.get().get(acc), post.get().get(acc)).map(|d| (acc.clone(), d))).collect())
 	}
 }
 
@@ -60,7 +60,8 @@ mod test {
 	#[test]
 	fn create_delete() {
 		let a = PodState::from(map![ x!(1) => PodAccount::new(x!(69), x!(0), vec![], map![]) ]);
-		assert_eq!(StateDiff::diff_pod(&a, &PodState::new()), StateDiff(map![
+		assert_eq!(StateDiff::diff_pod(&a, &PodState::new()),
+		           StateDiff(map![
 			x!(1) => AccountDiff{
 				balance: Diff::Died(x!(69)),
 				nonce: Diff::Died(x!(0)),
@@ -68,7 +69,8 @@ mod test {
 				storage: map![],
 			}
 		]));
-		assert_eq!(StateDiff::diff_pod(&PodState::new(), &a), StateDiff(map![
+		assert_eq!(StateDiff::diff_pod(&PodState::new(), &a),
+		           StateDiff(map![
 			x!(1) => AccountDiff{
 				balance: Diff::Born(x!(69)),
 				nonce: Diff::Born(x!(0)),
@@ -85,7 +87,8 @@ mod test {
 			x!(1) => PodAccount::new(x!(69), x!(0), vec![], map![]),
 			x!(2) => PodAccount::new(x!(69), x!(0), vec![], map![])
 		]);
-		assert_eq!(StateDiff::diff_pod(&a, &b), StateDiff(map![
+		assert_eq!(StateDiff::diff_pod(&a, &b),
+		           StateDiff(map![
 			x!(2) => AccountDiff{
 				balance: Diff::Born(x!(69)),
 				nonce: Diff::Born(x!(0)),
@@ -93,7 +96,8 @@ mod test {
 				storage: map![],
 			}
 		]));
-		assert_eq!(StateDiff::diff_pod(&b, &a), StateDiff(map![
+		assert_eq!(StateDiff::diff_pod(&b, &a),
+		           StateDiff(map![
 			x!(2) => AccountDiff{
 				balance: Diff::Died(x!(69)),
 				nonce: Diff::Died(x!(0)),
@@ -113,7 +117,8 @@ mod test {
 			x!(1) => PodAccount::new(x!(69), x!(1), vec![], map![]),
 			x!(2) => PodAccount::new(x!(69), x!(0), vec![], map![])
 		]);
-		assert_eq!(StateDiff::diff_pod(&a, &b), StateDiff(map![
+		assert_eq!(StateDiff::diff_pod(&a, &b),
+		           StateDiff(map![
 			x!(1) => AccountDiff{
 				balance: Diff::Same,
 				nonce: Diff::Changed(x!(0), x!(1)),

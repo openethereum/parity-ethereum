@@ -16,11 +16,11 @@
 
 use std::sync::*;
 use std::mem;
-use std::thread::{JoinHandle, self};
+use std::thread::{self, JoinHandle};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use crossbeam::sync::chase_lev;
 use io::service::{HandlerId, IoChannel, IoContext};
-use io::{IoHandler};
+use io::IoHandler;
 use panics::*;
 
 pub enum WorkType<Message> {
@@ -28,7 +28,7 @@ pub enum WorkType<Message> {
 	Writable,
 	Hup,
 	Timeout,
-	Message(Message)
+	Message(Message),
 }
 
 pub struct Work<Message> {
@@ -49,14 +49,9 @@ pub struct Worker {
 
 impl Worker {
 	/// Creates a new worker instance.
-	pub fn new<Message>(index: usize,
-						stealer: chase_lev::Stealer<Work<Message>>,
-						channel: IoChannel<Message>,
-						wait: Arc<Condvar>,
-						wait_mutex: Arc<Mutex<()>>,
-						panic_handler: Arc<PanicHandler>
-					   ) -> Worker
-					where Message: Send + Sync + Clone + 'static {
+	pub fn new<Message>(index: usize, stealer: chase_lev::Stealer<Work<Message>>, channel: IoChannel<Message>, wait: Arc<Condvar>, wait_mutex: Arc<Mutex<()>>, panic_handler: Arc<PanicHandler>) -> Worker
+		where Message: Send + Sync + Clone + 'static,
+	{
 		let deleting = Arc::new(AtomicBool::new(false));
 		let mut worker = Worker {
 			thread: None,
@@ -64,21 +59,19 @@ impl Worker {
 			deleting: deleting.clone(),
 			wait_mutex: wait_mutex.clone(),
 		};
-		worker.thread = Some(thread::Builder::new().name(format!("IO Worker #{}", index)).spawn(
-			move || {
-				panic_handler.catch_panic(move || {
-					Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting)
-				}).unwrap()
+		worker.thread = Some(thread::Builder::new()
+			.name(format!("IO Worker #{}", index))
+			.spawn(move || {
+				panic_handler.catch_panic(move || Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting))
+				             .unwrap()
 			})
 			.expect("Error creating worker thread"));
 		worker
 	}
 
-	fn work_loop<Message>(stealer: chase_lev::Stealer<Work<Message>>,
-						channel: IoChannel<Message>, wait: Arc<Condvar>,
-						wait_mutex: Arc<Mutex<()>>,
-						deleting: Arc<AtomicBool>)
-						where Message: Send + Sync + Clone + 'static {
+	fn work_loop<Message>(stealer: chase_lev::Stealer<Work<Message>>, channel: IoChannel<Message>, wait: Arc<Condvar>, wait_mutex: Arc<Mutex<()>>, deleting: Arc<AtomicBool>)
+		where Message: Send + Sync + Clone + 'static,
+	{
 		loop {
 			{
 				let lock = wait_mutex.lock().unwrap();
@@ -97,11 +90,13 @@ impl Worker {
 		}
 	}
 
-	fn do_work<Message>(work: Work<Message>, channel: IoChannel<Message>) where Message: Send + Sync + Clone + 'static {
+	fn do_work<Message>(work: Work<Message>, channel: IoChannel<Message>)
+		where Message: Send + Sync + Clone + 'static,
+	{
 		match work.work_type {
 			WorkType::Readable => {
 				work.handler.stream_readable(&IoContext::new(channel, work.handler_id), work.token);
-			},
+			}
 			WorkType::Writable => {
 				work.handler.stream_writable(&IoContext::new(channel, work.handler_id), work.token);
 			}

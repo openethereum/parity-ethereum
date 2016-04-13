@@ -120,7 +120,7 @@ impl From<ethjson::spec::Spec> for Spec {
 			seal_fields: seal.fields,
 			seal_rlp: seal.rlp,
 			state_root_memo: RwLock::new(g.state_root),
-			genesis_state: From::from(s.accounts)
+			genesis_state: From::from(s.accounts),
 		}
 	}
 }
@@ -131,7 +131,7 @@ impl Spec {
 	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Box<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Box::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::Ethash(ethash) => Box::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins))
+			ethjson::spec::Engine::Ethash(ethash) => Box::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 		}
 	}
 
@@ -144,10 +144,14 @@ impl Spec {
 	}
 
 	/// Get the known knodes of the network in enode format.
-	pub fn nodes(&self) -> &Vec<String> { &self.nodes }
+	pub fn nodes(&self) -> &Vec<String> {
+		&self.nodes
+	}
 
 	/// Get the configured Network ID.
-	pub fn network_id(&self) -> U256 { self.params.network_id }
+	pub fn network_id(&self) -> U256 {
+		self.params.network_id
+	}
 
 	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {
@@ -233,7 +237,9 @@ impl Spec {
 			}
 			assert!(db.contains(&self.state_root()));
 			true
-		} else { false }
+		} else {
+			false
+		}
 	}
 
 	/// Loads spec from json file.

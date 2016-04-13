@@ -32,4 +32,3 @@ pub trait FilterDataSource {
 	/// returns reference to log at given position if it exists
 	fn bloom_at_index(&self, index: &BloomIndex) -> Option<H2048>;
 }
-

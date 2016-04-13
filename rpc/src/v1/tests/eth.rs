@@ -18,14 +18,14 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
-use util::hash::{Address, H256, FixedHash};
-use util::numbers::{Uint, U256};
-use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
+use util::hash::{Address, FixedHash, H256};
+use util::numbers::{U256, Uint};
+use ethcore::client::{EachBlockWith, Executed, TestBlockChainClient, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
-use ethcore::transaction::{Transaction, Action};
+use ethcore::transaction::{Action, Transaction};
 use v1::{Eth, EthClient};
-use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config, TestMinerService, TestExternalMiner};
+use v1::tests::helpers::{Config, TestAccount, TestAccountProvider, TestExternalMiner, TestMinerService, TestSyncProvider};
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -123,8 +123,7 @@ fn rpc_eth_submit_hashrate() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
-	assert_eq!(tester.hashrates.read().unwrap().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned(),
-		Some(U256::from(0x500_000)));
+	assert_eq!(tester.hashrates.read().unwrap().get(&H256::from("0x59daa26581d0acd1fce254fb7e85952f4c09d0915afd33d3886cd914bc7d283c")).cloned(), Some(U256::from(0x500_000)));
 }
 
 #[test]
@@ -465,7 +464,9 @@ fn rpc_eth_send_transaction() {
 		"jsonrpc": "2.0",
 		"method": "eth_sendTransaction",
 		"params": [{
-			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"from": ""#
+		.to_owned() + format!("0x{:?}", address).as_ref() +
+	              r#"",
 			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
 			"gas": "0x76c0",
 			"gasPrice": "0x9184e72a000",
@@ -480,8 +481,9 @@ fn rpc_eth_send_transaction() {
 		gas: U256::from(0x76c0),
 		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		value: U256::from(0x9184e72au64),
-		data: vec![]
-	}.sign(&secret);
+		data: vec![],
+	}
+	.sign(&secret);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
@@ -495,8 +497,9 @@ fn rpc_eth_send_transaction() {
 		gas: U256::from(0x76c0),
 		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		value: U256::from(0x9184e72au64),
-		data: vec![]
-	}.sign(&secret);
+		data: vec![],
+	}
+	.sign(&secret);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
@@ -526,20 +529,17 @@ fn rpc_eth_transaction_receipt() {
 		gas_used: U256::from(0x10),
 		contract_address: None,
 		logs: vec![LocalizedLogEntry {
-			entry: LogEntry {
-				address: Address::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),
-				topics: vec![
-					H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap(),
-					H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap()
-				],
-				data: vec![],
-			},
-			block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
-			block_number: 0x4510c,
-			transaction_hash: H256::new(),
-			transaction_index: 0,
-			log_index: 1,
-		}]
+			           entry: LogEntry {
+				           address: Address::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),
+				           topics: vec![H256::from_str("a6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc").unwrap(), H256::from_str("4861736852656700000000000000000000000000000000000000000000000000").unwrap()],
+				           data: vec![],
+			           },
+			           block_hash: H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap(),
+			           block_number: 0x4510c,
+			           transaction_hash: H256::new(),
+			           transaction_index: 0,
+			           log_index: 1,
+		           }],
 	};
 
 	let hash = H256::from_str("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238").unwrap();
@@ -619,7 +619,7 @@ fn returns_no_work_if_cant_mine() {
 // enable once TestMinerService supports the mining API.
 #[test]
 fn returns_error_if_can_mine_and_no_closed_block() {
-	use ethsync::{SyncState};
+	use ethsync::SyncState;
 
 	let eth_tester = EthTester::default();
 	eth_tester.sync.status.write().unwrap().state = SyncState::Idle;

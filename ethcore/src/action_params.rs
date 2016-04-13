@@ -24,14 +24,14 @@ pub enum ActionValue {
 	/// Value that should be transfered
 	Transfer(U256),
 	/// Apparent value for transaction (not transfered)
-	Apparent(U256)
+	Apparent(U256),
 }
 
 impl ActionValue {
 	/// Returns action value as U256.
 	pub fn value(&self) -> U256 {
 		match *self {
-			ActionValue::Transfer(x) | ActionValue::Apparent(x) => x
+			ActionValue::Transfer(x) | ActionValue::Apparent(x) => x,
 		}
 	}
 }
@@ -58,7 +58,7 @@ pub struct ActionParams {
 	/// Code being executed.
 	pub code: Option<Bytes>,
 	/// Input data.
-	pub data: Option<Bytes>
+	pub data: Option<Bytes>,
 }
 
 impl Default for ActionParams {
@@ -73,7 +73,7 @@ impl Default for ActionParams {
 			gas_price: U256::zero(),
 			value: ActionValue::Transfer(U256::zero()),
 			code: None,
-			data: None
+			data: None,
 		}
 	}
 }

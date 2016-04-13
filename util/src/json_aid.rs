@@ -18,19 +18,11 @@ use common::*;
 
 /// Remove the `"0x"`, if present, from the left of `s`, returning the remaining slice.
 pub fn clean(s: &str) -> &str {
-	if s.len() >= 2 && &s[0..2] == "0x" {
-		&s[2..]
-	} else {
-		s
-	}
+	if s.len() >= 2 && &s[0..2] == "0x" { &s[2..] } else { s }
 }
 
 fn u256_from_str(s: &str) -> U256 {
-	if s.len() >= 2 && &s[0..2] == "0x" {
-		U256::from_str(&s[2..]).unwrap_or_else(|_| U256::zero())
-	} else {
-		U256::from_dec_str(s).unwrap_or_else(|_| U256::zero())
-	}
+	if s.len() >= 2 && &s[0..2] == "0x" { U256::from_str(&s[2..]).unwrap_or_else(|_| U256::zero()) } else { U256::from_dec_str(s).unwrap_or_else(|_| U256::zero()) }
 }
 
 impl FromJson for Bytes {
@@ -54,16 +46,20 @@ impl FromJson for BTreeMap<H256, H256> {
 	}
 }
 
-impl<T> FromJson for Vec<T> where T: FromJson {
+impl<T> FromJson for Vec<T>
+    where T: FromJson,
+{
 	fn from_json(json: &Json) -> Self {
 		match *json {
-			Json::Array(ref o) => o.iter().map(|x|T::from_json(x)).collect(),
+			Json::Array(ref o) => o.iter().map(|x| T::from_json(x)).collect(),
 			_ => Vec::new(),
 		}
 	}
 }
 
-impl<T> FromJson for Option<T> where T: FromJson {
+impl<T> FromJson for Option<T>
+    where T: FromJson,
+{
 	fn from_json(json: &Json) -> Self {
 		match *json {
 			Json::String(ref o) if o.is_empty() => None,

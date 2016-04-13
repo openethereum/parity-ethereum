@@ -18,18 +18,18 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
-use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
+use transaction::{Action, LocalizedTransaction, SignedTransaction, Transaction};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId};
-use header::{Header as BlockHeader, BlockNumber};
+use client::{BlockChainClient, BlockChainInfo, BlockId, BlockStatus, TransactionId, UncleId};
+use header::{BlockNumber, Header as BlockHeader};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
-use receipt::{Receipt, LocalizedReceipt};
+use receipt::{LocalizedReceipt, Receipt};
 use extras::BlockReceipts;
-use error::{ImportResult};
+use error::ImportResult;
 
 use block_queue::BlockQueueInfo;
-use block::{SealedBlock, ClosedBlock, LockedBlock};
+use block::{ClosedBlock, LockedBlock, SealedBlock};
 use executive::Executed;
 use error::Error;
 use engine::Engine;
@@ -39,7 +39,7 @@ pub struct TestBlockChainClient {
 	/// Blocks.
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
 	/// Mapping of numbers to hashes.
- 	pub numbers: RwLock<HashMap<usize, H256>>,
+	pub numbers: RwLock<HashMap<usize, H256>>,
 	/// Genesis block hash.
 	pub genesis_hash: H256,
 	/// Last block hash.
@@ -70,7 +70,7 @@ pub enum EachBlockWith {
 	/// Block with a transaction.
 	Transaction,
 	/// Block with an uncle and transaction.
-	UncleAndTransaction
+	UncleAndTransaction,
 }
 
 impl Default for TestBlockChainClient {
@@ -150,8 +150,8 @@ impl TestBlockChainClient {
 					uncles.append(&uncle_header);
 					header.uncles_hash = uncles.as_raw().sha3();
 					uncles
-				},
-				_ => RlpStream::new_list(0)
+				}
+				_ => RlpStream::new_list(0),
 			};
 			let txs = match with {
 				EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction => {
@@ -163,13 +163,13 @@ impl TestBlockChainClient {
 						data: "3331600055".from_hex().unwrap(),
 						gas: U256::from(100_000),
 						gas_price: U256::one(),
-						nonce: U256::zero()
+						nonce: U256::zero(),
 					};
 					let signed_tx = tx.sign(&keypair.secret());
 					txs.append(&signed_tx);
 					txs.out()
-				},
-				_ => rlp::NULL_RLP.to_vec()
+				}
+				_ => rlp::NULL_RLP.to_vec(),
 			};
 
 			let mut rlp = RlpStream::new_list(3);
@@ -204,7 +204,7 @@ impl TestBlockChainClient {
 			BlockId::Hash(hash) => Some(hash),
 			BlockId::Number(n) => self.numbers.read().unwrap().get(&(n as usize)).cloned(),
 			BlockId::Earliest => self.numbers.read().unwrap().get(&0).cloned(),
-			BlockId::Latest => self.numbers.read().unwrap().get(&(self.numbers.read().unwrap().len() - 1)).cloned()
+			BlockId::Latest => self.numbers.read().unwrap().get(&(self.numbers.read().unwrap().len() - 1)).cloned(),
 		}
 	}
 }
@@ -271,12 +271,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<Bytes> {
-		self.block_hash(id).and_then(|hash| self.blocks.read().unwrap().get(&hash).map(|r| {
-			let mut stream = RlpStream::new_list(2);
-			stream.append_raw(Rlp::new(&r).at(1).as_raw(), 1);
-			stream.append_raw(Rlp::new(&r).at(2).as_raw(), 1);
-			stream.out()
-		}))
+		self.block_hash(id).and_then(|hash| {
+			self.blocks.read().unwrap().get(&hash).map(|r| {
+				let mut stream = RlpStream::new_list(2);
+				stream.append_raw(Rlp::new(&r).at(1).as_raw(), 1);
+				stream.append_raw(Rlp::new(&r).at(2).as_raw(), 1);
+				stream.out()
+			})
+		})
 	}
 
 	fn block(&self, id: BlockId) -> Option<Bytes> {
@@ -287,7 +289,7 @@ impl BlockChainClient for TestBlockChainClient {
 		match id {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().unwrap().len() => BlockStatus::InChain,
 			BlockId::Hash(ref hash) if self.blocks.read().unwrap().get(hash).is_some() => BlockStatus::InChain,
-			_ => BlockStatus::Unknown
+			_ => BlockStatus::Unknown,
 		}
 	}
 
@@ -317,7 +319,7 @@ impl BlockChainClient for TestBlockChainClient {
 					}
 				}
 				if adding { Vec::new() } else { blocks }
-			}
+			},
 		})
 	}
 
@@ -335,10 +337,7 @@ impl BlockChainClient for TestBlockChainClient {
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
-			let receipt = BlockReceipts::new(vec![Receipt::new(
-				H256::zero(),
-				U256::zero(),
-				vec![])]);
+			let receipt = BlockReceipts::new(vec![Receipt::new(H256::zero(), U256::zero(), vec![])]);
 			let mut rlp = RlpStream::new();
 			rlp.append(&receipt);
 			return Some(rlp.out());
@@ -360,7 +359,7 @@ impl BlockChainClient for TestBlockChainClient {
 					if parent.number != (header.number - 1) {
 						panic!("Unexpected block parent");
 					}
-				},
+				}
 				None => {
 					panic!("Unknown block parent {:?} for block {}", header.parent_hash, number);
 				}
@@ -384,8 +383,7 @@ impl BlockChainClient for TestBlockChainClient {
 					parent_hash = Rlp::new(&self.blocks.read().unwrap()[&parent_hash]).val_at::<BlockHeader>(0).parent_hash;
 				}
 			}
-		}
-		else {
+		} else {
 			self.blocks.write().unwrap().insert(h.clone(), b.to_vec());
 		}
 		Ok(h)
@@ -402,8 +400,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn clear_queue(&self) {
-	}
+	fn clear_queue(&self) {}
 
 	fn chain_info(&self) -> BlockChainInfo {
 		BlockChainInfo {

@@ -31,16 +31,16 @@
 //!
 //! impl IoHandler<MyMessage> for MyHandler {
 //! 	fn initialize(&self, io: &IoContext<MyMessage>) {
-//!			io.register_timer(0, 1000).unwrap();
-//!		}
+//! 			io.register_timer(0, 1000).unwrap();
+//! 		}
 //!
-//!		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
-//!			println!("Timeout {}", timer);
-//!		}
+//! 		fn timeout(&self, _io: &IoContext<MyMessage>, timer: TimerToken) {
+//! 			println!("Timeout {}", timer);
+//! 		}
 //!
-//!		fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
-//!			println!("Message {}", message.data);
-//!		}
+//! 		fn message(&self, _io: &IoContext<MyMessage>, message: &MyMessage) {
+//! 			println!("Message {}", message.data);
+//! 		}
 //! }
 //!
 //! fn main () {
@@ -64,7 +64,9 @@ pub enum IoError {
 	Mio(::std::io::Error),
 }
 
-impl<Message> From<::mio::NotifyError<service::IoMessage<Message>>> for IoError where Message: Send + Clone {
+impl<Message> From<::mio::NotifyError<service::IoMessage<Message>>> for IoError
+    where Message: Send + Clone,
+{
 	fn from(_err: ::mio::NotifyError<service::IoMessage<Message>>) -> IoError {
 		IoError::Mio(::std::io::Error::new(::std::io::ErrorKind::ConnectionAborted, "Network IO notification error"))
 	}
@@ -112,7 +114,7 @@ mod tests {
 
 	#[derive(Clone)]
 	struct MyMessage {
-		data: u32
+		data: u32,
 	}
 
 	impl IoHandler<MyMessage> for MyHandler {
@@ -130,7 +132,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_service_register_handler () {
+	fn test_service_register_handler() {
 		let mut service = IoService::<MyMessage>::start().expect("Error creating network service");
 		service.register_handler(Arc::new(MyHandler)).unwrap();
 	}

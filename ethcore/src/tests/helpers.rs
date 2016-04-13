@@ -19,7 +19,7 @@ use common::*;
 use spec::*;
 use blockchain::{BlockChain, BlockChainConfig};
 use state::*;
-use evm::{Schedule, Factory};
+use evm::{Factory, Schedule};
 use engine::*;
 use ethereum;
 use devtools::*;
@@ -33,17 +33,17 @@ pub enum ChainEra {
 #[cfg(test)]
 pub struct GuardedTempResult<T> {
 	result: Option<T>,
-	_temp: RandomTempPath
+	_temp: RandomTempPath,
 }
 
 impl<T> GuardedTempResult<T> {
-    pub fn reference(&self) -> &T {
-        self.result.as_ref().unwrap()
-    }
+	pub fn reference(&self) -> &T {
+		self.result.as_ref().unwrap()
+	}
 
-    pub fn reference_mut(&mut self) -> &mut T {
-    	self.result.as_mut().unwrap()
-    }
+	pub fn reference_mut(&mut self) -> &mut T {
+		self.result.as_mut().unwrap()
+	}
 
 	pub fn take(&mut self) -> T {
 		self.result.take().unwrap()
@@ -53,7 +53,7 @@ impl<T> GuardedTempResult<T> {
 pub struct TestEngine {
 	factory: Factory,
 	engine: Box<Engine>,
-	max_depth: usize
+	max_depth: usize,
 }
 
 impl TestEngine {
@@ -61,7 +61,7 @@ impl TestEngine {
 		TestEngine {
 			factory: factory,
 			engine: ethereum::new_frontier_test().engine,
-			max_depth: max_depth
+			max_depth: max_depth,
 		}
 	}
 }
@@ -176,14 +176,14 @@ pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
-		result: Some(client)
+		result: Some(client),
 	}
 }
 
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
-	//let test_engine = test_spec.to_engine().unwrap();
+	// let test_engine = test_spec.to_engine().unwrap();
 	let state_root = test_spec.genesis_header().state_root;
 	let mut rolling_hash = client.chain_info().best_block_hash;
 	let mut rolling_block_number = starting_number as u64;
@@ -222,7 +222,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 
 	GuardedTempResult::<Arc<Client>> {
 		_temp: dir,
-		result: Some(client)
+		result: Some(client),
 	}
 }
 
@@ -235,7 +235,7 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: Some(bc)
+		result: Some(bc),
 	}
 }
 
@@ -248,7 +248,7 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: Some(bc)
+		result: Some(bc),
 	}
 }
 
@@ -258,7 +258,7 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 
 	GuardedTempResult::<BlockChain> {
 		_temp: temp,
-		result: Some(bc)
+		result: Some(bc),
 	}
 }
 
@@ -267,7 +267,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let journal_db = journaldb::new(temp.as_str(), journaldb::Algorithm::EarlyMerge);
 	GuardedTempResult {
 		_temp: temp,
-		result: Some(journal_db)
+		result: Some(journal_db),
 	}
 }
 
@@ -275,8 +275,8 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	let temp = RandomTempPath::new();
 	let journal_db = get_temp_journal_db_in(temp.as_path());
 	GuardedTempResult {
-	    _temp: temp,
-		result: Some(State::new(journal_db, U256::from(0u8)))
+		_temp: temp,
+		result: Some(State::new(journal_db, U256::from(0u8))),
 	}
 }
 
@@ -291,7 +291,7 @@ pub fn get_temp_state_in(path: &Path) -> State {
 
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
 	let test_spec = get_test_spec();
-  	get_good_dummy_block_fork_seq(1, count, &test_spec.genesis_header().hash())
+	get_good_dummy_block_fork_seq(1, count, &test_spec.genesis_header().hash())
 }
 
 pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
@@ -300,7 +300,7 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 	let mut rolling_timestamp = start_number as u64 * 10;
 	let mut parent = *parent_hash;
 	let mut r = Vec::new();
-	for i in start_number .. start_number + count + 1 {
+	for i in start_number..start_number + count + 1 {
 		let mut block_header = Header::new();
 		block_header.gas_limit = test_engine.params().min_gas_limit;
 		block_header.difficulty = U256::from(i).mul(U256([0, 1, 0, 0]));

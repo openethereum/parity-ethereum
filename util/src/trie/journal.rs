@@ -38,7 +38,7 @@ pub struct Score {
 
 /// A journal of operations on the backing database.
 #[derive(Debug)]
-pub struct Journal (Vec<Operation>);
+pub struct Journal(Vec<Operation>);
 
 impl Default for Journal {
 	fn default() -> Self {
@@ -48,7 +48,9 @@ impl Default for Journal {
 
 impl Journal {
 	/// Create a new, empty, object.
-	pub fn new() -> Journal { Journal(vec![]) }
+	pub fn new() -> Journal {
+		Journal(vec![])
+	}
 
 	/// Given the RLP that encodes a node, append a reference to that node `out` and leave `journal`
 	/// such that the reference is valid, once applied.
@@ -59,8 +61,7 @@ impl Journal {
 			trace!("new_node: reference node {:?} => {:?}", rlp_sha3, rlp.pretty());
 			out.append(&rlp_sha3);
 			self.0.push(Operation::New(rlp_sha3, rlp));
-		}
-		else {
+		} else {
 			trace!("new_node: inline node {:?}", rlp.pretty());
 			out.append_raw(&rlp, 1);
 		}
@@ -83,14 +84,17 @@ impl Journal {
 	/// Apply this journal to the HashDB `db` and return the number of insertions and removals done.
 	pub fn apply(self, db: &mut HashDB) -> Score {
 		trace!("applying {:?} changes", self.0.len());
-		let mut ret = Score{inserts: 0, removes: 0};
+		let mut ret = Score {
+			inserts: 0,
+			removes: 0,
+		};
 		for d in self.0.into_iter() {
 			match d {
 				Operation::Delete(h) => {
 					trace!("TrieDBMut::apply --- {:?}", &h);
 					db.remove(&h);
 					ret.removes += 1;
-				},
+				}
 				Operation::New(h, d) => {
 					trace!("TrieDBMut::apply +++ {:?} -> {:?}", &h, d.pretty());
 					db.emplace(h, d);

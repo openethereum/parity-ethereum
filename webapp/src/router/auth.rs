@@ -21,7 +21,9 @@ use hyper::{header, server};
 use hyper::status::StatusCode;
 
 /// Authorization result
-pub enum Authorized<'a, 'b> where 'b : 'a {
+pub enum Authorized<'a, 'b>
+	where 'b: 'a,
+{
 	/// Authorization was successful. Request and Response are returned for further processing.
 	Yes(server::Request<'a, 'b>, server::Response<'a>),
 	/// Unsuccessful authorization. Request and Response has been consumed.
@@ -31,7 +33,7 @@ pub enum Authorized<'a, 'b> where 'b : 'a {
 /// Authorization interface
 pub trait Authorization : Send + Sync {
 	/// Handle authorization process and return `Request` and `Response` when authorization is successful.
-	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>)-> Authorized<'a, 'b>;
+	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>) -> Authorized<'a, 'b>;
 }
 
 /// HTTP Basic Authorization handler
@@ -43,28 +45,27 @@ pub struct HttpBasicAuth {
 pub struct NoAuth;
 
 impl Authorization for NoAuth {
-	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>)-> Authorized<'a, 'b> {
+	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>) -> Authorized<'a, 'b> {
 		Authorized::Yes(req, res)
 	}
 }
 
 impl Authorization for HttpBasicAuth {
-
-	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>)-> Authorized<'a, 'b> {
+	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>) -> Authorized<'a, 'b> {
 		let auth = self.check_auth(&req);
 
 		match auth {
 			Access::Denied => {
 				self.respond_with_unauthorized(res);
 				Authorized::No
-			},
+			}
 			Access::AuthRequired => {
 				self.respond_with_auth_required(res);
 				Authorized::No
-			},
+			}
 			Access::Granted => {
 				Authorized::Yes(req, res)
-			},
+			}
 		}
 	}
 }
@@ -80,9 +81,7 @@ impl HttpBasicAuth {
 	pub fn single_user(username: &str, password: &str) -> Self {
 		let mut users = HashMap::new();
 		users.insert(username.to_owned(), password.to_owned());
-		HttpBasicAuth {
-			users: users
-		}
+		HttpBasicAuth { users: users }
 	}
 
 	fn is_authorized(&self, username: &str, password: &str) -> bool {
@@ -91,9 +90,7 @@ impl HttpBasicAuth {
 
 	fn check_auth(&self, req: &server::Request) -> Access {
 		match req.headers.get::<header::Authorization<header::Basic>>() {
-			Some(&header::Authorization(
-				header::Basic { ref username, password: Some(ref password) }
-			)) if self.is_authorized(username, password) => Access::Granted,
+			Some(&header::Authorization(header::Basic { ref username, password: Some(ref password) })) if self.is_authorized(username, password) => Access::Granted,
 			Some(_) => Access::Denied,
 			None => Access::AuthRequired,
 		}
@@ -109,4 +106,3 @@ impl HttpBasicAuth {
 		res.headers_mut().set_raw("WWW-Authenticate", vec![b"Basic realm=\"Parity\"".to_vec()]);
 	}
 }
-

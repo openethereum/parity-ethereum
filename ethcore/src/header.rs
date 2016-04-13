@@ -72,20 +72,7 @@ pub struct Header {
 
 impl PartialEq for Header {
 	fn eq(&self, c: &Header) -> bool {
-		self.parent_hash == c.parent_hash &&
-		self.timestamp == c.timestamp &&
-		self.number == c.number &&
-		self.author == c.author &&
-		self.transactions_root == c.transactions_root &&
-		self.uncles_hash == c.uncles_hash &&
-		self.extra_data == c.extra_data &&
-		self.state_root == c.state_root &&
-		self.receipts_root == c.receipts_root &&
-		self.log_bloom == c.log_bloom &&
-		self.gas_used == c.gas_used &&
-		self.gas_limit == c.gas_limit &&
-		self.difficulty == c.difficulty &&
-		self.seal == c.seal
+		self.parent_hash == c.parent_hash && self.timestamp == c.timestamp && self.number == c.number && self.author == c.author && self.transactions_root == c.transactions_root && self.uncles_hash == c.uncles_hash && self.extra_data == c.extra_data && self.state_root == c.state_root && self.receipts_root == c.receipts_root && self.log_bloom == c.log_bloom && self.gas_used == c.gas_used && self.gas_limit == c.gas_limit && self.difficulty == c.difficulty && self.seal == c.seal
 	}
 }
 
@@ -122,64 +109,118 @@ impl Header {
 	}
 
 	/// Get the parent_hash field of the header.
-	pub fn parent_hash(&self) -> &H256 { &self.parent_hash }
+	pub fn parent_hash(&self) -> &H256 {
+		&self.parent_hash
+	}
 	/// Get the timestamp field of the header.
-	pub fn timestamp(&self) -> u64 { self.timestamp }
+	pub fn timestamp(&self) -> u64 {
+		self.timestamp
+	}
 	/// Get the number field of the header.
-	pub fn number(&self) -> BlockNumber { self.number }
+	pub fn number(&self) -> BlockNumber {
+		self.number
+	}
 	/// Get the author field of the header.
-	pub fn author(&self) -> &Address { &self.author }
+	pub fn author(&self) -> &Address {
+		&self.author
+	}
 
 	/// Get the extra data field of the header.
-	pub fn extra_data(&self) -> &Bytes { &self.extra_data }
+	pub fn extra_data(&self) -> &Bytes {
+		&self.extra_data
+	}
 
 	/// Get the state root field of the header.
-	pub fn state_root(&self) -> &H256 { &self.state_root }
+	pub fn state_root(&self) -> &H256 {
+		&self.state_root
+	}
 	/// Get the receipts root field of the header.
-	pub fn receipts_root(&self) -> &H256 { &self.receipts_root }
+	pub fn receipts_root(&self) -> &H256 {
+		&self.receipts_root
+	}
 	/// Get the gas limit field of the header.
-	pub fn gas_limit(&self) -> &U256 { &self.gas_limit }
+	pub fn gas_limit(&self) -> &U256 {
+		&self.gas_limit
+	}
 
 	/// Get the difficulty field of the header.
-	pub fn difficulty(&self) -> &U256 { &self.difficulty }
+	pub fn difficulty(&self) -> &U256 {
+		&self.difficulty
+	}
 	/// Get the seal field of the header.
-	pub fn seal(&self) -> &Vec<Bytes> { &self.seal }
+	pub fn seal(&self) -> &Vec<Bytes> {
+		&self.seal
+	}
 
 	// TODO: seal_at, set_seal_at &c.
 
 	/// Set the number field of the header.
-	pub fn set_parent_hash(&mut self, a: H256) { self.parent_hash = a; self.note_dirty(); }
+	pub fn set_parent_hash(&mut self, a: H256) {
+		self.parent_hash = a;
+		self.note_dirty();
+	}
 	/// Set the timestamp field of the header.
-	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
+	pub fn set_timestamp(&mut self, a: u64) {
+		self.timestamp = a;
+		self.note_dirty();
+	}
 	/// Set the timestamp field of the header to the current time.
-	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = max(now_utc().to_timespec().sec as u64, but_later_than + 1); self.note_dirty(); }
+	pub fn set_timestamp_now(&mut self, but_later_than: u64) {
+		self.timestamp = max(now_utc().to_timespec().sec as u64, but_later_than + 1);
+		self.note_dirty();
+	}
 	/// Set the number field of the header.
-	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
+	pub fn set_number(&mut self, a: BlockNumber) {
+		self.number = a;
+		self.note_dirty();
+	}
 	/// Set the author field of the header.
-	pub fn set_author(&mut self, a: Address) { if a != self.author { self.author = a; self.note_dirty(); } }
+	pub fn set_author(&mut self, a: Address) {
+		if a != self.author {
+			self.author = a;
+			self.note_dirty();
+		}
+	}
 
 	/// Set the extra data field of the header.
-	pub fn set_extra_data(&mut self, a: Bytes) { if a != self.extra_data { self.extra_data = a; self.note_dirty(); } }
+	pub fn set_extra_data(&mut self, a: Bytes) {
+		if a != self.extra_data {
+			self.extra_data = a;
+			self.note_dirty();
+		}
+	}
 
 	/// Set the gas used field of the header.
-	pub fn set_gas_used(&mut self, a: U256) { self.gas_used = a; self.note_dirty(); }
+	pub fn set_gas_used(&mut self, a: U256) {
+		self.gas_used = a;
+		self.note_dirty();
+	}
 	/// Set the gas limit field of the header.
-	pub fn set_gas_limit(&mut self, a: U256) { self.gas_limit = a; self.note_dirty(); }
+	pub fn set_gas_limit(&mut self, a: U256) {
+		self.gas_limit = a;
+		self.note_dirty();
+	}
 
 	/// Set the difficulty field of the header.
-	pub fn set_difficulty(&mut self, a: U256) { self.difficulty = a; self.note_dirty(); }
+	pub fn set_difficulty(&mut self, a: U256) {
+		self.difficulty = a;
+		self.note_dirty();
+	}
 	/// Set the seal field of the header.
-	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
+	pub fn set_seal(&mut self, a: Vec<Bytes>) {
+		self.seal = a;
+		self.note_dirty();
+	}
 
 	/// Get the hash of this header (sha3 of the RLP).
 	pub fn hash(&self) -> H256 {
- 		let mut hash = self.hash.borrow_mut();
- 		match &mut *hash {
- 			&mut Some(ref h) => h.clone(),
- 			hash @ &mut None => {
- 				*hash = Some(self.rlp_sha3(Seal::With));
- 				hash.as_ref().unwrap().clone()
- 			}
+		let mut hash = self.hash.borrow_mut();
+		match &mut *hash {
+			&mut Some(ref h) => h.clone(),
+			hash @ &mut None => {
+				*hash = Some(self.rlp_sha3(Seal::With));
+				hash.as_ref().unwrap().clone()
+			}
 		}
 	}
 
@@ -197,14 +238,18 @@ impl Header {
 
 	/// Note that some fields have changed. Resets the memoised hash.
 	pub fn note_dirty(&self) {
- 		*self.hash.borrow_mut() = None;
- 		*self.bare_hash.borrow_mut() = None;
+		*self.hash.borrow_mut() = None;
+		*self.bare_hash.borrow_mut() = None;
 	}
 
-	// TODO: make these functions traity 
+	// TODO: make these functions traity
 	/// Place this header into an RLP stream `s`, optionally `with_seal`.
 	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: Seal) {
-		s.begin_list(13 + match with_seal { Seal::With => self.seal.len(), _ => 0 });
+		s.begin_list(13 +
+		             match with_seal {
+			Seal::With => self.seal.len(),
+			_ => 0,
+		});
 		s.append(&self.parent_hash);
 		s.append(&self.uncles_hash);
 		s.append(&self.author);
@@ -219,8 +264,8 @@ impl Header {
 		s.append(&self.timestamp);
 		s.append(&self.extra_data);
 		if let Seal::With = with_seal {
-			for b in &self.seal { 
-				s.append_raw(&b, 1); 
+			for b in &self.seal {
+				s.append_raw(&b, 1);
 			}
 		}
 	}
@@ -233,11 +278,15 @@ impl Header {
 	}
 
 	/// Get the SHA3 (Keccak) of this header, optionally `with_seal`.
-	pub fn rlp_sha3(&self, with_seal: Seal) -> H256 { self.rlp(with_seal).sha3() }
+	pub fn rlp_sha3(&self, with_seal: Seal) -> H256 {
+		self.rlp(with_seal).sha3()
+	}
 }
 
 impl Decodable for Header {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
 		let r = decoder.as_rlp();
 
 		let mut blockheader = Header {
@@ -274,5 +323,4 @@ impl Encodable for Header {
 }
 
 #[cfg(test)]
-mod tests {
-}
+mod tests {}

@@ -47,7 +47,7 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: Some(code.sha3()),
-			code_cache: code
+			code_cache: code,
 		}
 	}
 
@@ -61,7 +61,7 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(pod.storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: Some(pod.code.sha3()),
-			code_cache: pod.code
+			code_cache: pod.code,
 		}
 	}
 
@@ -117,16 +117,23 @@ impl Account {
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
-		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
-			(Filth::Clean, H256::from(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).map_or(U256::zero(), |v| -> U256 {decode(v)})))
-		}).1.clone()
+		self.storage_overlay
+		    .borrow_mut()
+		    .entry(key.clone())
+		    .or_insert_with(|| (Filth::Clean, H256::from(SecTrieDB::new(db, &self.storage_root).get(key.bytes()).map_or(U256::zero(), |v| -> U256 { decode(v) }))))
+		    .1
+		    .clone()
 	}
 
 	/// return the balance associated with this account.
-	pub fn balance(&self) -> &U256 { &self.balance }
+	pub fn balance(&self) -> &U256 {
+		&self.balance
+	}
 
 	/// return the nonce associated with this account.
-	pub fn nonce(&self) -> &U256 { &self.nonce }
+	pub fn nonce(&self) -> &U256 {
+		&self.nonce
+	}
 
 	#[cfg(test)]
 	/// return the code hash associated with this account.
@@ -153,8 +160,8 @@ impl Account {
 			Some(ref i) if h == *i => {
 				self.code_cache = code;
 				Ok(())
-			},
-			_ => Err(h)
+			}
+			_ => Err(h),
 		}
 	}
 
@@ -168,34 +175,47 @@ impl Account {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.is_cached() ||
-			match self.code_hash {
-				Some(ref h) => match db.lookup(h) {
-					Some(x) => { self.code_cache = x.to_vec(); true },
-					_ => {
-						warn!("Failed reverse lookup of {}", h);
-						false
-					},
-				},
-				_ => false,
-			}
+		match self.code_hash {
+			Some(ref h) => match db.lookup(h) {
+				Some(x) => {
+					self.code_cache = x.to_vec();
+					true
+				}
+				_ => {
+					warn!("Failed reverse lookup of {}", h);
+					false
+				}
+			},
+			_ => false,
+		}
 	}
 
 	#[cfg(test)]
 	/// Determine whether there are any un-`commit()`-ed storage-setting operations.
-	pub fn storage_is_clean(&self) -> bool { self.storage_overlay.borrow().iter().find(|&(_, &(f, _))| f == Filth::Dirty).is_none() }
+	pub fn storage_is_clean(&self) -> bool {
+		self.storage_overlay.borrow().iter().find(|&(_, &(f, _))| f == Filth::Dirty).is_none()
+	}
 
 	#[cfg(test)]
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
-	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
+	pub fn storage_root(&self) -> Option<&H256> {
+		if self.storage_is_clean() { Some(&self.storage_root) } else { None }
+	}
 
 	/// return the storage overlay.
-	pub fn storage_overlay(&self) -> Ref<HashMap<H256, (Filth, H256)>> { self.storage_overlay.borrow() }
+	pub fn storage_overlay(&self) -> Ref<HashMap<H256, (Filth, H256)>> {
+		self.storage_overlay.borrow()
+	}
 
 	/// Increment the nonce of the account by one.
-	pub fn inc_nonce(&mut self) { self.nonce = self.nonce + U256::from(1u8); }
+	pub fn inc_nonce(&mut self) {
+		self.nonce = self.nonce + U256::from(1u8);
+	}
 
 	/// Increment the nonce of the account by one.
-	pub fn add_balance(&mut self, x: &U256) { self.balance = self.balance + *x; }
+	pub fn add_balance(&mut self, x: &U256) {
+		self.balance = self.balance + *x;
+	}
 
 	/// Increment the nonce of the account by one.
 	/// Panics if balance is less than `x`
@@ -212,8 +232,12 @@ impl Account {
 				// cast key and value to trait type,
 				// so we can call overloaded `to_bytes` method
 				match v.is_zero() {
-					true => { t.remove(k); },
-					false => { t.insert(k, &encode(&U256::from(v.as_slice()))); },
+					true => {
+						t.remove(k);
+					}
+					false => {
+						t.insert(k, &encode(&U256::from(v.as_slice())));
+					}
 				}
 				*f = Filth::Clean;
 			}
@@ -227,8 +251,8 @@ impl Account {
 			(true, true) => self.code_hash = Some(SHA3_EMPTY),
 			(true, false) => {
 				self.code_hash = Some(db.insert(&self.code_cache));
-			},
-			(false, _) => {},
+			}
+			(false, _) => {}
 		}
 	}
 

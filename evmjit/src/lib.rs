@@ -15,26 +15,26 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Bare rust wrapper around evmjit.
-//! 
+//!
 //! Requires latest version of Ethereum EVM JIT. https://github.com/debris/evmjit
-//! 
+//!
 //! ```
 //! extern crate evmjit;
 //! use evmjit::*;
-//! 
+//!
 //! fn main() {
 //! 	let mut context = ContextHandle::new(RuntimeDataHandle::new(), ExtHandle::empty());
 //! 	assert_eq!(context.exec(), ReturnCode::Stop);
 //! }
 //! ```
-//! 
+//!
 //!
 //! To verify that c abi is "imported" correctly, run:
-//! 
+//!
 //! ```bash
-//!	nm your_executable -g | grep ext 
+//! 	nm your_executable -g | grep ext
 //! ```
-//! 
+//!
 //! It should give the following output:
 //!
 //! ```bash
@@ -64,15 +64,13 @@ pub use self::ffi::JitH256 as H256;
 /// cause underneath it's a `C++` structure. Incompatible with rust
 /// structs.
 pub struct RuntimeDataHandle {
-	runtime_data: *mut JitRuntimeData
+	runtime_data: *mut JitRuntimeData,
 }
 
 impl RuntimeDataHandle {
 	/// Creates new `RuntimeData` handle.
 	pub fn new() -> Self {
-		RuntimeDataHandle {
-			runtime_data: unsafe { evmjit_create_runtime_data() }
-		}
+		RuntimeDataHandle { runtime_data: unsafe { evmjit_create_runtime_data() } }
 	}
 }
 
@@ -102,15 +100,13 @@ impl DerefMut for RuntimeDataHandle {
 /// cause underneath it's a `C++` structure. Incompatible with rust
 /// structs.
 pub struct ScheduleHandle {
-	schedule: *mut JitSchedule
+	schedule: *mut JitSchedule,
 }
 
 impl ScheduleHandle {
 	/// Creates new `Schedule` handle.
 	pub fn new() -> Self {
-		ScheduleHandle {
-			schedule: unsafe { evmjit_create_schedule() }
-		}
+		ScheduleHandle { schedule: unsafe { evmjit_create_schedule() } }
 	}
 }
 
@@ -142,7 +138,7 @@ impl DerefMut for ScheduleHandle {
 pub struct ContextHandle {
 	context: *mut JitContext,
 	data_handle: RuntimeDataHandle,
-	schedule_handle: ScheduleHandle
+	schedule_handle: ScheduleHandle,
 }
 
 impl ContextHandle {
@@ -187,7 +183,9 @@ impl ContextHandle {
 
 impl Drop for ContextHandle {
 	fn drop(&mut self) {
-		unsafe { evmjit_destroy_context(self.context); }
+		unsafe {
+			evmjit_destroy_context(self.context);
+		}
 	}
 }
 
@@ -198,45 +196,25 @@ pub trait Ext {
 	fn balance(&self, address: *const JitH256, out_value: *mut JitI256);
 	fn blockhash(&self, number: *const JitI256, out_hash: *mut JitH256);
 
-	fn create(&mut self,
-			  io_gas: *mut u64,
-			  endowment: *const JitI256,
-			  init_beg: *const u8,
-			  init_size: u64,
-			  address: *mut JitH256);
+	fn create(&mut self, io_gas: *mut u64, endowment: *const JitI256, init_beg: *const u8, init_size: u64, address: *mut JitH256);
 
-	fn call(&mut self,
-				io_gas: *mut u64,
-				call_gas: u64,
-				sender_address: *const JitH256,
-				receive_address: *const JitH256,
-				code_address: *const JitH256,
-				transfer_value: *const JitI256,
-				apparent_value: *const JitI256,
-				in_beg: *const u8,
-				in_size: u64,
-				out_beg: *mut u8,
-				out_size: u64) -> bool;
+	fn call(&mut self, io_gas: *mut u64, call_gas: u64, sender_address: *const JitH256, receive_address: *const JitH256, code_address: *const JitH256, transfer_value: *const JitI256, apparent_value: *const JitI256, in_beg: *const u8, in_size: u64, out_beg: *mut u8, out_size: u64) -> bool;
 
-	fn log(&mut self,
-		   beg: *const u8,
-		   size: u64,
-		   topic1: *const JitH256,
-		   topic2: *const JitH256,
-		   topic3: *const JitH256,
-		   topic4: *const JitH256);
+	fn log(&mut self, beg: *const u8, size: u64, topic1: *const JitH256, topic2: *const JitH256, topic3: *const JitH256, topic4: *const JitH256);
 
 	fn extcode(&self, address: *const JitH256, size: *mut u64) -> *const u8;
 }
 
 /// C abi compatible wrapper for jit ext implementers.
 pub struct ExtHandle {
-	ext_impl: Option<Box<Ext>>
+	ext_impl: Option<Box<Ext>>,
 }
 
 impl ExtHandle {
 	/// Creates new extironment wrapper for given implementation
-	pub fn new<T>(ext_impl: T) -> Self where T: Ext + 'static {
+	pub fn new<T>(ext_impl: T) -> Self
+		where T: Ext + 'static,
+	{
 		ExtHandle { ext_impl: Some(Box::new(ext_impl)) }
 	}
 
@@ -253,7 +231,9 @@ impl Deref for ExtHandle {
 	fn deref(&self) -> &Self::Target {
 		match self.ext_impl {
 			Some(ref ext) => ext,
-			None => { panic!("Handle is empty!"); }
+			None => {
+				panic!("Handle is empty!");
+			}
 		}
 	}
 }
@@ -262,7 +242,9 @@ impl DerefMut for ExtHandle {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		match self.ext_impl {
 			Some(ref mut ext) => ext,
-			None => { panic!("Handle is empty!"); }
+			None => {
+				panic!("Handle is empty!");
+			}
 		}
 	}
 }
@@ -288,21 +270,21 @@ pub mod ffi {
 		OutOfGas = -1,
 
 		LLVMError = -101,
-		UnexpectedError = -111
+		UnexpectedError = -111,
 	}
 
 	#[repr(C)]
 	#[derive(Debug, Copy, Clone)]
 	/// Signed 256 bit integer.
 	pub struct JitI256 {
-		pub words: [u64; 4]
+		pub words: [u64; 4],
 	}
 
 	#[repr(C)]
 	#[derive(Debug, Copy, Clone)]
 	/// Jit Hash
 	pub struct JitH256 {
-		pub words: [u64; 4]
+		pub words: [u64; 4],
 	}
 
 	impl From<JitH256> for JitI256 {
@@ -349,14 +331,14 @@ pub mod ffi {
 		pub timestamp: i64,
 		pub code: *const u8,
 		pub code_size: u64,
-		pub code_hash: JitI256
+		pub code_hash: JitI256,
 	}
 
 	#[repr(C)]
 	#[derive(Debug)]
 	/// Configurable properties of git schedule.
 	pub struct JitSchedule {
-		pub have_delegate_call: bool
+		pub have_delegate_call: bool,
 	}
 
 	#[no_mangle]
@@ -384,29 +366,13 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_create(ext: *mut ExtHandle, 
-							 io_gas: *mut u64, 
-							 endowment: *const JitI256, 
-							 init_beg: *const u8, 
-							 init_size: u64, 
-							 address: *mut JitH256) {
+	pub unsafe extern "C" fn env_create(ext: *mut ExtHandle, io_gas: *mut u64, endowment: *const JitI256, init_beg: *const u8, init_size: u64, address: *mut JitH256) {
 		let ext = &mut *ext;
 		ext.create(io_gas, endowment, init_beg, init_size, address);
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_call(ext: *mut ExtHandle, 
-						   io_gas: *mut u64,
-						   call_gas: u64,
-						   sender_address: *const JitH256,
-						   receive_address: *const JitH256,
-						   code_address: *const JitH256,
-						   transfer_value: *const JitI256,
-						   apparent_value: *const JitI256,
-						   in_beg: *const u8,
-						   in_size: u64,
-						   out_beg: *mut u8,
-						   out_size: u64) -> bool {
+	pub unsafe extern "C" fn env_call(ext: *mut ExtHandle, io_gas: *mut u64, call_gas: u64, sender_address: *const JitH256, receive_address: *const JitH256, code_address: *const JitH256, transfer_value: *const JitI256, apparent_value: *const JitI256, in_beg: *const u8, in_size: u64, out_beg: *mut u8, out_size: u64) -> bool {
 		let ext = &mut *ext;
 		ext.call(io_gas, call_gas, sender_address, receive_address, code_address, transfer_value, apparent_value, in_beg, in_size, out_beg, out_size)
 	}
@@ -418,7 +384,7 @@ pub mod ffi {
 		let outlen = out_hash.words.len() * 8;
 		let output = slice::from_raw_parts_mut(out_hash.words.as_mut_ptr() as *mut u8, outlen);
 		let mut sha3 = Keccak::new_keccak256();
-		sha3.update(input);	
+		sha3.update(input);
 		sha3.finalize(output);
 	}
 
@@ -429,13 +395,7 @@ pub mod ffi {
 	}
 
 	#[no_mangle]
-	pub unsafe extern "C" fn env_log(ext: *mut ExtHandle,
-						  beg: *const u8,
-						  size: u64,
-						  topic1: *const JitH256,
-						  topic2: *const JitH256,
-						  topic3: *const JitH256,
-						  topic4: *const JitH256) {
+	pub unsafe extern "C" fn env_log(ext: *mut ExtHandle, beg: *const u8, size: u64, topic1: *const JitH256, topic2: *const JitH256, topic3: *const JitH256, topic4: *const JitH256) {
 		let ext = &mut *ext;
 		ext.log(beg, size, topic1, topic2, topic3, topic4);
 	}
@@ -451,7 +411,7 @@ pub mod ffi {
 		pub fn evmjit_exec(context: *mut JitContext, schedule: *mut JitSchedule) -> JitReturnCode;
 	}
 
-	// ExtHandle is not a C type, so we need to allow "improper_ctypes" 
+	// ExtHandle is not a C type, so we need to allow "improper_ctypes"
 	#[link(name="evmjit")]
 	#[allow(improper_ctypes)]
 	extern "C" {
@@ -486,7 +446,7 @@ fn handle_test() {
 
 #[test]
 fn hash_to_int() {
-	let h = H256 { words:[0x0123456789abcdef, 0, 0, 0] };
+	let h = H256 { words: [0x0123456789abcdef, 0, 0, 0] };
 	let i = I256::from(h);
 	assert_eq!([0u64, 0, 0, 0xefcdab8967452301], i.words);
 	assert_eq!(H256::from(i).words, h.words);

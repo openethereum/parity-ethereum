@@ -40,45 +40,49 @@ pub enum ExtrasIndex {
 /// trait used to write Extras data to db
 pub trait ExtrasWritable {
 	/// Write extra data to db
-	fn put_extras<K, T>(&self, hash: &K, value: &T) where
-		T: ExtrasIndexable + Encodable,
-		K: ExtrasSliceConvertable;
+	fn put_extras<K, T>(&self, hash: &K, value: &T)
+		where T: ExtrasIndexable + Encodable,
+		      K: ExtrasSliceConvertable;
 }
 
 /// trait used to read Extras data from db
 pub trait ExtrasReadable {
 	/// Read extra data from db
-	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
-		T: ExtrasIndexable + Decodable,
-		K: ExtrasSliceConvertable;
+	fn get_extras<K, T>(&self, hash: &K) -> Option<T>
+		where T: ExtrasIndexable + Decodable,
+		      K: ExtrasSliceConvertable;
 
 	/// Check if extra data exists in the db
-	fn extras_exists<K, T>(&self, hash: &K) -> bool where
-		T: ExtrasIndexable,
-		K: ExtrasSliceConvertable;
+	fn extras_exists<K, T>(&self, hash: &K) -> bool
+		where T: ExtrasIndexable,
+		      K: ExtrasSliceConvertable;
 }
 
 impl ExtrasWritable for DBTransaction {
-	fn put_extras<K, T>(&self, hash: &K, value: &T) where
-		T: ExtrasIndexable + Encodable,
-		K: ExtrasSliceConvertable {
+	fn put_extras<K, T>(&self, hash: &K, value: &T)
+		where T: ExtrasIndexable + Encodable,
+		      K: ExtrasSliceConvertable,
+	{
 
 		self.put(&hash.to_extras_slice(T::extras_index()), &encode(value)).unwrap()
 	}
 }
 
 impl ExtrasReadable for Database {
-	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
-		T: ExtrasIndexable + Decodable,
-		K: ExtrasSliceConvertable {
+	fn get_extras<K, T>(&self, hash: &K) -> Option<T>
+		where T: ExtrasIndexable + Decodable,
+		      K: ExtrasSliceConvertable,
+	{
 
-		self.get(&hash.to_extras_slice(T::extras_index())).unwrap()
-			.map(|v| decode(&v))
+		self.get(&hash.to_extras_slice(T::extras_index()))
+		    .unwrap()
+		    .map(|v| decode(&v))
 	}
 
-	fn extras_exists<K, T>(&self, hash: &K) -> bool where
-		T: ExtrasIndexable,
-		K: ExtrasSliceConvertable {
+	fn extras_exists<K, T>(&self, hash: &K) -> bool
+		where T: ExtrasIndexable,
+		      K: ExtrasSliceConvertable,
+	{
 
 		self.get(&hash.to_extras_slice(T::extras_index())).unwrap().is_some()
 	}
@@ -89,7 +93,9 @@ pub trait ExtrasSliceConvertable {
 	/// Convert self, with `i` (the index), to a 264-bit extras DB key.
 	fn to_extras_slice(&self, i: ExtrasIndex) -> H264;
 	/// Interpret self as a 256-bit hash, if natively `H256`.
-	fn as_h256(&self) -> Option<&H256> { None }
+	fn as_h256(&self) -> Option<&H256> {
+		None
+	}
 }
 
 impl ExtrasSliceConvertable for H256 {
@@ -98,7 +104,9 @@ impl ExtrasSliceConvertable for H256 {
 		slice[32] = i as u8;
 		slice
 	}
-	fn as_h256(&self) -> Option<&H256> { Some(self) }
+	fn as_h256(&self) -> Option<&H256> {
+		Some(self)
+	}
 }
 
 impl ExtrasSliceConvertable for U256 {
@@ -136,7 +144,7 @@ pub struct BlockDetails {
 	/// Parent block hash
 	pub parent: H256,
 	/// List of children block hashes
-	pub children: Vec<H256>
+	pub children: Vec<H256>,
 }
 
 impl ExtrasIndexable for BlockDetails {
@@ -152,7 +160,9 @@ impl HeapSizeOf for BlockDetails {
 }
 
 impl Decodable for BlockDetails {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
 		let d = decoder.as_rlp();
 		let details = BlockDetails {
 			number: try!(d.val_at(0)),
@@ -178,7 +188,7 @@ impl Encodable for BlockDetails {
 #[derive(Clone)]
 pub struct BlockLogBlooms {
 	/// List of log blooms for the block
-	pub blooms: Vec<H2048>
+	pub blooms: Vec<H2048>,
 }
 
 impl ExtrasIndexable for BlockLogBlooms {
@@ -194,10 +204,10 @@ impl HeapSizeOf for BlockLogBlooms {
 }
 
 impl Decodable for BlockLogBlooms {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let block_blooms = BlockLogBlooms {
-			blooms: try!(Decodable::decode(decoder))
-		};
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
+		let block_blooms = BlockLogBlooms { blooms: try!(Decodable::decode(decoder)) };
 
 		Ok(block_blooms)
 	}
@@ -223,7 +233,7 @@ impl Default for BlocksBlooms {
 
 impl BlocksBlooms {
 	pub fn new() -> Self {
-		BlocksBlooms { blooms: unsafe { ::std::mem::zeroed() }}
+		BlocksBlooms { blooms: unsafe { ::std::mem::zeroed() } }
 	}
 }
 
@@ -234,7 +244,9 @@ impl ExtrasIndexable for BlocksBlooms {
 }
 
 impl HeapSizeOf for BlocksBlooms {
-	fn heap_size_of_children(&self) -> usize { 0 }
+	fn heap_size_of_children(&self) -> usize {
+		0
+	}
 }
 
 impl Clone for BlocksBlooms {
@@ -245,17 +257,15 @@ impl Clone for BlocksBlooms {
 			blooms[i] = self.blooms[i].clone();
 		}
 
-		BlocksBlooms {
-			blooms: blooms
-		}
+		BlocksBlooms { blooms: blooms }
 	}
 }
 
 impl Decodable for BlocksBlooms {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let blocks_blooms = BlocksBlooms {
-			blooms: try!(Decodable::decode(decoder))
-		};
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
+		let blocks_blooms = BlocksBlooms { blooms: try!(Decodable::decode(decoder)) };
 
 		Ok(blocks_blooms)
 	}
@@ -274,7 +284,7 @@ pub struct TransactionAddress {
 	/// Block hash
 	pub block_hash: H256,
 	/// Transaction index within the block
-	pub index: usize
+	pub index: usize,
 }
 
 impl ExtrasIndexable for TransactionAddress {
@@ -284,11 +294,15 @@ impl ExtrasIndexable for TransactionAddress {
 }
 
 impl HeapSizeOf for TransactionAddress {
-	fn heap_size_of_children(&self) -> usize { 0 }
+	fn heap_size_of_children(&self) -> usize {
+		0
+	}
 }
 
 impl Decodable for TransactionAddress {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
 		let d = decoder.as_rlp();
 		let tx_address = TransactionAddress {
 			block_hash: try!(d.val_at(0)),
@@ -315,17 +329,15 @@ pub struct BlockReceipts {
 
 impl BlockReceipts {
 	pub fn new(receipts: Vec<Receipt>) -> Self {
-		BlockReceipts {
-			receipts: receipts
-		}
+		BlockReceipts { receipts: receipts }
 	}
 }
 
 impl Decodable for BlockReceipts {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		Ok(BlockReceipts {
-			receipts: try!(Decodable::decode(decoder))
-		})
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError>
+		where D: Decoder,
+	{
+		Ok(BlockReceipts { receipts: try!(Decodable::decode(decoder)) })
 	}
 }
 

@@ -13,12 +13,14 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-//! Queue-like datastructure including notion of usage.
+// Queue-like datastructure including notion of usage.
 
 /// Special queue-like datastructure that includes the notion of
 /// usage to avoid items that were queued but never used from making it into
 /// the queue.
-pub struct UsingQueue<T> where T: Clone {
+pub struct UsingQueue<T>
+	where T: Clone,
+{
 	/// Not yet being sealed by a miner, but if one asks for work, we'd prefer they do this.
 	pending: Option<T>,
 	/// Currently being sealed by miners.
@@ -27,7 +29,9 @@ pub struct UsingQueue<T> where T: Clone {
 	max_size: usize,
 }
 
-impl<T> UsingQueue<T> where T: Clone {
+impl<T> UsingQueue<T>
+    where T: Clone,
+{
 	/// Create a new struct with a maximum size of `max_size`.
 	pub fn new(max_size: usize) -> UsingQueue<T> {
 		UsingQueue {
@@ -42,7 +46,7 @@ impl<T> UsingQueue<T> where T: Clone {
 	pub fn peek_last_ref(&self) -> Option<&T> {
 		self.pending.as_ref().or(self.in_use.last())
 	}
-	
+
 	/// Return a reference to the item at the top of the queue (or `None` if the queue is empty);
 	/// this constitutes using the item and will remain in the queue for at least another
 	/// `max_size` invocations of `push()`.
@@ -70,7 +74,9 @@ impl<T> UsingQueue<T> where T: Clone {
 
 	/// Returns `Some` item which is the first that `f` returns `true` with a reference to it
 	/// as a parameter or `None` if no such item exists in the queue.
-	pub fn take_used_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+	pub fn take_used_if<P>(&mut self, predicate: P) -> Option<T>
+		where P: Fn(&T) -> bool,
+	{
 		self.in_use.iter().position(|r| predicate(r)).map(|i| self.in_use.remove(i))
 	}
 
@@ -78,7 +84,9 @@ impl<T> UsingQueue<T> where T: Clone {
 	/// a parameter, otherwise `None`.
 	/// Will not destroy a block if a reference to it has previously been returned by `use_last_ref`,
 	/// but rather clone it.
-	pub fn pop_if<P>(&mut self, predicate: P) -> Option<T> where P: Fn(&T) -> bool {
+	pub fn pop_if<P>(&mut self, predicate: P) -> Option<T>
+		where P: Fn(&T) -> bool,
+	{
 		// a bit clumsy - TODO: think about a nicer way of expressing this.
 		if let Some(x) = self.pending.take() {
 			if predicate(&x) {

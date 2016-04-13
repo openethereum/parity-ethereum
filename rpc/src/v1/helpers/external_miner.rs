@@ -38,9 +38,7 @@ pub struct ExternalMiner {
 
 impl Default for ExternalMiner {
 	fn default() -> Self {
-		ExternalMiner {
-			hashrates: RwLock::new(HashMap::new()),
-		}
+		ExternalMiner { hashrates: RwLock::new(HashMap::new()) }
 	}
 }
 

@@ -36,26 +36,10 @@ pub trait Tracer: Send {
 	fn prepare_trace_output(&self) -> Option<Bytes>;
 
 	/// Stores trace call info.
-	fn trace_call(
-		&mut self,
-		call: Option<TraceCall>,
-		gas_used: U256,
-		output: Option<Bytes>,
-		depth: usize,
-		subs: Vec<Trace>,
-		delegate_call: bool
-	);
+	fn trace_call(&mut self, call: Option<TraceCall>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<Trace>, delegate_call: bool);
 
 	/// Stores trace create info.
-	fn trace_create(
-		&mut self,
-		create: Option<TraceCreate>,
-		gas_used: U256,
-		code: Option<Bytes>,
-		address: Address,
-		depth: usize,
-		subs: Vec<Trace>
-	);
+	fn trace_create(&mut self, create: Option<TraceCreate>, gas_used: U256, code: Option<Bytes>, address: Address, depth: usize, subs: Vec<Trace>);
 
 	/// Stores failed call trace.
 	fn trace_failed_call(&mut self, call: Option<TraceCall>, depth: usize, subs: Vec<Trace>, delegate_call: bool);
@@ -86,8 +70,7 @@ impl Tracer for NoopTracer {
 		None
 	}
 
-	fn trace_call(&mut self, call: Option<TraceCall>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>,
-				  _: bool) {
+	fn trace_call(&mut self, call: Option<TraceCall>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>, _: bool) {
 		assert!(call.is_none());
 		assert!(output.is_none());
 	}
@@ -117,7 +100,7 @@ impl Tracer for NoopTracer {
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
 #[derive(Default)]
 pub struct ExecutiveTracer {
-	traces: Vec<Trace>
+	traces: Vec<Trace>,
 }
 
 impl Tracer for ExecutiveTracer {
@@ -133,8 +116,7 @@ impl Tracer for ExecutiveTracer {
 		Some(vec![])
 	}
 
-	fn trace_call(&mut self, call: Option<TraceCall>, gas_used: U256, output: Option<Bytes>, depth: usize, subs:
-				  Vec<Trace>, delegate_call: bool) {
+	fn trace_call(&mut self, call: Option<TraceCall>, gas_used: U256, output: Option<Bytes>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
 		// don't trace if it's DELEGATECALL or CALLCODE.
 		if delegate_call {
 			return;
@@ -146,8 +128,8 @@ impl Tracer for ExecutiveTracer {
 			action: TraceAction::Call(call.expect("Trace call expected to be Some.")),
 			result: TraceResult::Call(TraceCallResult {
 				gas_used: gas_used,
-				output: output.expect("Trace call output expected to be Some.")
-			})
+				output: output.expect("Trace call output expected to be Some."),
+			}),
 		};
 		self.traces.push(trace);
 	}
@@ -160,8 +142,8 @@ impl Tracer for ExecutiveTracer {
 			result: TraceResult::Create(TraceCreateResult {
 				gas_used: gas_used,
 				code: code.expect("Trace create code expected to be Some."),
-				address: address
-			})
+				address: address,
+			}),
 		};
 		self.traces.push(trace);
 	}

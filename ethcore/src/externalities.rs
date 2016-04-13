@@ -19,7 +19,7 @@ use common::*;
 use state::*;
 use engine::*;
 use executive::*;
-use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult};
+use evm::{self, ContractCreateResult, Ext, MessageCallResult, Schedule};
 use substate::*;
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -36,7 +36,7 @@ pub struct OriginInfo {
 	address: Address,
 	origin: Address,
 	gas_price: U256,
-	value: U256
+	value: U256,
 }
 
 impl OriginInfo {
@@ -47,14 +47,16 @@ impl OriginInfo {
 			origin: params.origin.clone(),
 			gas_price: params.gas_price,
 			value: match params.value {
-				ActionValue::Transfer(val) | ActionValue::Apparent(val) => val
-			}
+				ActionValue::Transfer(val) | ActionValue::Apparent(val) => val,
+			},
 		}
 	}
 }
 
 /// Implementation of evm Externalities.
-pub struct Externalities<'a, T> where T: 'a + Tracer {
+pub struct Externalities<'a, T>
+	where T: 'a + Tracer,
+{
 	state: &'a mut State,
 	env_info: &'a EnvInfo,
 	engine: &'a Engine,
@@ -66,19 +68,12 @@ pub struct Externalities<'a, T> where T: 'a + Tracer {
 	tracer: &'a mut T,
 }
 
-impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
-
+impl<'a, T> Externalities<'a, T>
+    where T: 'a + Tracer,
+{
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	/// Basic `Externalities` constructor.
-	pub fn new(state: &'a mut State,
-		env_info: &'a EnvInfo,
-		engine: &'a Engine,
-		depth: usize,
-		origin_info: OriginInfo,
-		substate: &'a mut Substate,
-		output: OutputPolicy<'a, 'a>,
-		tracer: &'a mut T,
-	) -> Self {
+	pub fn new(state: &'a mut State, env_info: &'a EnvInfo, engine: &'a Engine, depth: usize, origin_info: OriginInfo, substate: &'a mut Substate, output: OutputPolicy<'a, 'a>, tracer: &'a mut T) -> Self {
 		Externalities {
 			state: state,
 			env_info: env_info,
@@ -93,7 +88,9 @@ impl<'a, T> Externalities<'a, T> where T: 'a + Tracer {
 	}
 }
 
-impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
+impl<'a, T> Ext for Externalities<'a, T>
+    where T: 'a + Tracer,
+{
 	fn storage_at(&self, key: &H256) -> H256 {
 		self.state.storage_at(&self.origin_info.address, key)
 	}
@@ -115,15 +112,15 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 		match *number < U256::from(self.env_info.number) && number.low_u64() >= cmp::max(256, self.env_info.number) - 256 {
 			true => {
 				let index = self.env_info.number - number.low_u64() - 1;
-				assert!(index < self.env_info.last_hashes.len() as u64, format!("Inconsistent env_info, should contain at least {:?} last hashes", index+1));
+				assert!(index < self.env_info.last_hashes.len() as u64, format!("Inconsistent env_info, should contain at least {:?} last hashes", index + 1));
 				let r = self.env_info.last_hashes[index as usize].clone();
 				trace!("ext: blockhash({}) -> {} self.env_info.number={}\n", number, r, self.env_info.number);
 				r
-			},
+			}
 			false => {
 				trace!("ext: blockhash({}) -> null self.env_info.number={}\n", number, self.env_info.number);
 				H256::zero()
-			},
+			}
 		}
 	}
 
@@ -152,20 +149,12 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 			Ok(gas_left) => {
 				self.substate.contracts_created.push(address.clone());
 				ContractCreateResult::Created(address, gas_left)
-			},
-			_ => ContractCreateResult::Failed
+			}
+			_ => ContractCreateResult::Failed,
 		}
 	}
 
-	fn call(&mut self,
-		gas: &U256,
-		sender_address: &Address,
-		receive_address: &Address,
-		value: Option<U256>,
-		data: &[u8],
-		code_address: &Address,
-		output: &mut [u8]
-	) -> MessageCallResult {
+	fn call(&mut self, gas: &U256, sender_address: &Address, receive_address: &Address, value: Option<U256>, data: &[u8], code_address: &Address, output: &mut [u8]) -> MessageCallResult {
 		trace!(target: "externalities", "call");
 
 		let mut params = ActionParams {
@@ -188,7 +177,7 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 
 		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer) {
 			Ok(gas_left) => MessageCallResult::Success(gas_left),
-			_ => MessageCallResult::Failed
+			_ => MessageCallResult::Failed,
 		}
 	}
 
@@ -210,7 +199,7 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 					ptr::copy(data.as_ptr(), slice.as_mut_ptr(), len);
 				}
 				Ok(*gas)
-			},
+			}
 			OutputPolicy::Return(BytesRef::Flexible(ref mut vec), ref mut copy) => {
 				handle_copy(copy);
 
@@ -221,14 +210,14 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 					vec.set_len(data.len());
 				}
 				Ok(*gas)
-			},
+			}
 			OutputPolicy::InitContract(ref mut copy) => {
 				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
 				if return_cost > *gas {
 					return match self.schedule.exceptional_failed_code_deposit {
 						true => Err(evm::Error::OutOfGas),
-						false => Ok(*gas)
-					}
+						false => Ok(*gas),
+					};
 				}
 
 				handle_copy(copy);
@@ -250,7 +239,7 @@ impl<'a, T> Ext for Externalities<'a, T> where T: 'a + Tracer {
 		self.substate.logs.push(LogEntry {
 			address: address,
 			topics: topics,
-			data: data.to_vec()
+			data: data.to_vec(),
 		});
 	}
 
@@ -289,7 +278,7 @@ mod tests {
 	use common::*;
 	use state::*;
 	use engine::*;
-	use evm::{Ext};
+	use evm::Ext;
 	use substate::*;
 	use tests::helpers::*;
 	use super::*;
@@ -299,7 +288,7 @@ mod tests {
 			address: Address::zero(),
 			origin: Address::zero(),
 			gas_price: U256::zero(),
-			value: U256::zero()
+			value: U256::zero(),
 		}
 	}
 
@@ -311,7 +300,7 @@ mod tests {
 			difficulty: x!(0),
 			last_hashes: vec![],
 			gas_used: x!(0),
-			gas_limit: x!(0)
+			gas_limit: x!(0),
 		}
 	}
 
@@ -319,7 +308,7 @@ mod tests {
 		state: GuardedTempResult<State>,
 		engine: Box<Engine>,
 		sub_state: Substate,
-		env_info: EnvInfo
+		env_info: EnvInfo,
 	}
 
 	impl Default for TestSetup {
@@ -334,7 +323,7 @@ mod tests {
 				state: get_temp_state(),
 				engine: get_test_spec().engine,
 				sub_state: Substate::new(),
-				env_info: get_test_env_info()
+				env_info: get_test_env_info(),
 			}
 		}
 	}
@@ -396,14 +385,7 @@ mod tests {
 		let mut output = vec![];
 
 		// this should panic because we have no balance on any account
-		ext.call(
-			&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap(),
-			&Address::new(),
-			&Address::new(),
-			Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000150000").unwrap()),
-			&[],
-			&Address::new(),
-			&mut output);
+		ext.call(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap(), &Address::new(), &Address::new(), Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000150000").unwrap()), &[], &Address::new(), &mut output);
 	}
 
 	#[test]

@@ -39,7 +39,8 @@ extern crate rpassword;
 extern crate semver;
 
 // for price_info.rs
-#[macro_use] extern crate hyper;
+#[macro_use]
+extern crate hyper;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc as rpc;
@@ -48,14 +49,14 @@ extern crate ethcore_webapp as webapp;
 
 use std::io::{BufRead, BufReader};
 use std::fs::File;
-use std::net::{SocketAddr, IpAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::env;
 use std::process::exit;
 use std::path::PathBuf;
 use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
-use util::panics::{MayPanic, ForwardPanic, PanicHandler};
+use util::panics::{ForwardPanic, MayPanic, PanicHandler};
 use util::keys::store::*;
 use ethcore::spec::*;
 use ethcore::client::*;
@@ -65,7 +66,7 @@ use ethsync::{EthSync, SyncConfig, SyncProvider};
 use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
-use number_prefix::{binary_prefix, Standalone, Prefixed};
+use number_prefix::{Prefixed, Standalone, binary_prefix};
 #[cfg(feature = "rpc")]
 use rpc::Server as RpcServer;
 #[cfg(feature = "webapp")]
@@ -290,26 +291,14 @@ fn setup_log(init: &Option<String>) {
 
 	let format = |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
-		if max_log_level() <= LogLevelFilter::Info {
-			format!("{}{}", timestamp, record.args())
-		} else {
-			format!("{}{}:{}: {}", timestamp, record.level(), record.target(), record.args())
-		}
-    };
+		if max_log_level() <= LogLevelFilter::Info { format!("{}{}", timestamp, record.args()) } else { format!("{}{}:{}: {}", timestamp, record.level(), record.target(), record.args()) }
+	};
 	builder.format(format);
 	builder.init().unwrap();
 }
 
 #[cfg(feature = "rpc")]
-fn setup_rpc_server(
-	client: Arc<Client>,
-	sync: Arc<EthSync>,
-	secret_store: Arc<AccountService>,
-	miner: Arc<Miner>,
-	url: &SocketAddr,
-	cors_domain: &str,
-	apis: Vec<&str>,
-) -> RpcServer {
+fn setup_rpc_server(client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<AccountService>, miner: Arc<Miner>, url: &SocketAddr, cors_domain: &str, apis: Vec<&str>) -> RpcServer {
 	use rpc::v1::*;
 
 	let server = rpc::RpcServer::new();
@@ -320,12 +309,12 @@ fn setup_rpc_server(
 			"eth" => {
 				server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
-			},
+			}
 			"personal" => server.add_delegate(PersonalClient::new(&secret_store).to_delegate()),
 			"ethcore" => server.add_delegate(EthcoreClient::new(&miner).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
-			},
+			}
 		}
 	}
 	let start_result = server.start_http(url, cors_domain);
@@ -337,14 +326,7 @@ fn setup_rpc_server(
 }
 
 #[cfg(feature = "webapp")]
-fn setup_webapp_server(
-	client: Arc<Client>,
-	sync: Arc<EthSync>,
-	secret_store: Arc<AccountService>,
-	miner: Arc<Miner>,
-	url: &str,
-	auth: Option<(String, String)>,
-) -> WebappServer {
+fn setup_webapp_server(client: Arc<Client>, sync: Arc<EthSync>, secret_store: Arc<AccountService>, miner: Arc<Miner>, url: &str, auth: Option<(String, String)>) -> WebappServer {
 	use rpc::v1::*;
 
 	let server = webapp::WebappServer::new();
@@ -357,10 +339,10 @@ fn setup_webapp_server(
 	let start_result = match auth {
 		None => {
 			server.start_unsecure_http(url, ::num_cpus::get())
-		},
+		}
 		Some((username, password)) => {
 			server.start_basic_auth_http(url, ::num_cpus::get(), &username, &password)
-		},
+		}
 	};
 	match start_result {
 		Err(webapp::WebappServerError::IoError(err)) => die_with_io_error(err),
@@ -374,15 +356,7 @@ fn setup_webapp_server(
 struct RpcServer;
 
 #[cfg(not(feature = "rpc"))]
-fn setup_rpc_server(
-	_client: Arc<Client>,
-	_sync: Arc<EthSync>,
-	_secret_store: Arc<AccountService>,
-	_miner: Arc<Miner>,
-	_url: &str,
-	_cors_domain: &str,
-	_apis: Vec<&str>,
-) -> ! {
+fn setup_rpc_server(_client: Arc<Client>, _sync: Arc<EthSync>, _secret_store: Arc<AccountService>, _miner: Arc<Miner>, _url: &str, _cors_domain: &str, _apis: Vec<&str>) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
 
@@ -390,14 +364,7 @@ fn setup_rpc_server(
 struct WebappServer;
 
 #[cfg(not(feature = "webapp"))]
-fn setup_webapp_server(
-	_client: Arc<Client>,
-	_sync: Arc<EthSync>,
-	_secret_store: Arc<AccountService>,
-	_miner: Arc<Miner>,
-	_url: &str,
-	_auth: Option<(String, String)>,
-) -> ! {
+fn setup_webapp_server(_client: Arc<Client>, _sync: Arc<EthSync>, _secret_store: Arc<AccountService>, _miner: Arc<Miner>, _url: &str, _auth: Option<(String, String)>) -> ! {
 	die!("Your Parity version has been compiled without WebApps support.")
 }
 
@@ -411,18 +378,17 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.
 
 By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
-", version());
+",
+	         version());
 }
 
 struct Configuration {
-	args: Args
+	args: Args,
 }
 
 impl Configuration {
 	fn parse() -> Self {
-		Configuration {
-			args: Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit()),
-		}
+		Configuration { args: Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit()) }
 	}
 
 	fn path(&self) -> String {
@@ -432,34 +398,24 @@ impl Configuration {
 
 	fn author(&self) -> Address {
 		let d = self.args.flag_etherbase.as_ref().unwrap_or(&self.args.flag_author);
-		Address::from_str(clean_0x(d)).unwrap_or_else(|_| {
-			die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d)
-		})
+		Address::from_str(clean_0x(d)).unwrap_or_else(|_| die!("{}: Invalid address for --author. Must be 40 hex characters, with or without the 0x at the beginning.", d))
 	}
 
 	fn gas_floor_target(&self) -> U256 {
 		let d = &self.args.flag_gas_floor_target;
-		U256::from_dec_str(d).unwrap_or_else(|_| {
-			die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d)
-		})
+		U256::from_dec_str(d).unwrap_or_else(|_| die!("{}: Invalid target gas floor given. Must be a decimal unsigned 256-bit number.", d))
 	}
 
 	fn gas_price(&self) -> U256 {
 		match self.args.flag_gasprice.as_ref() {
 			Some(d) => {
-				U256::from_dec_str(d).unwrap_or_else(|_| {
-					die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d)
-				})
+				U256::from_dec_str(d).unwrap_or_else(|_| die!("{}: Invalid gas price given. Must be a decimal unsigned 256-bit number.", d))
 			}
 			_ => {
-				let usd_per_tx: f32 = FromStr::from_str(&self.args.flag_usd_per_tx).unwrap_or_else(|_| {
-					die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx)
-				});
+				let usd_per_tx: f32 = FromStr::from_str(&self.args.flag_usd_per_tx).unwrap_or_else(|_| die!("{}: Invalid basic transaction price given in USD. Must be a decimal number.", self.args.flag_usd_per_tx));
 				let usd_per_eth = match self.args.flag_usd_per_eth.as_str() {
-					"etherscan" => price_info::PriceInfo::get().map_or_else(|| {
-						die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth.")
-					}, |x| x.ethusd),
-					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x))
+					"etherscan" => price_info::PriceInfo::get().map_or_else(|| die!("Unable to retrieve USD value of ETH from etherscan. Rerun with a different value for --usd-per-eth."), |x| x.ethusd),
+					x => FromStr::from_str(x).unwrap_or_else(|_| die!("{}: Invalid ether price given in USD. Must be a decimal number.", x)),
 				};
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 				let gas_per_tx: f32 = 21000.0;
@@ -474,7 +430,9 @@ impl Configuration {
 		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
 			Some(ref x) if x.len() <= 32 => x.as_bytes().to_owned(),
 			None => version_data(),
-			Some(ref x) => { die!("{}: Extra data must be at most 32 characters.", x); }
+			Some(ref x) => {
+				die!("{}: Extra data must be at most 32 characters.", x);
+			}
 		}
 	}
 
@@ -490,27 +448,21 @@ impl Configuration {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
-			f => Spec::load(contents(f).unwrap_or_else(|_| {
-				die!("{}: Couldn't read chain specification file. Sure it exists?", f)
-			}).as_ref()),
+			f => Spec::load(contents(f)
+				.unwrap_or_else(|_| die!("{}: Couldn't read chain specification file. Sure it exists?", f))
+				.as_ref()),
 		}
 	}
 
 	fn normalize_enode(e: &str) -> Option<String> {
-		if is_valid_node_url(e) {
-			Some(e.to_owned())
-		} else {
-			None
-		}
+		if is_valid_node_url(e) { Some(e.to_owned()) } else { None }
 	}
 
 	fn init_nodes(&self, spec: &Spec) -> Vec<String> {
 		match self.args.flag_bootnodes {
-			Some(ref x) if !x.is_empty() => x.split(',').map(|s| {
-				Self::normalize_enode(s).unwrap_or_else(|| {
-					die!("{}: Invalid node address format given for a boot node.", s)
-				})
-			}).collect(),
+			Some(ref x) if !x.is_empty() => x.split(',')
+			                                 .map(|s| Self::normalize_enode(s).unwrap_or_else(|| die!("{}: Invalid node address format given for a boot node.", s)))
+			                                 .collect(),
 			Some(_) => Vec::new(),
 			None => spec.nodes().clone(),
 		}
@@ -580,7 +532,9 @@ impl Configuration {
 			"fast" => journaldb::Algorithm::OverlayRecent,
 			"basic" => journaldb::Algorithm::RefCounted,
 			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
-			_ => { die!("Invalid pruning method given."); }
+			_ => {
+				die!("Invalid pruning method given.");
+			}
 		};
 		info!("Using state DB of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
@@ -590,9 +544,7 @@ impl Configuration {
 
 	fn sync_config(&self, spec: &Spec) -> SyncConfig {
 		let mut sync_config = SyncConfig::default();
-		sync_config.network_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref()).map_or(spec.network_id(), |id| {
-			U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --network-id/--networkid", id))
-		});
+		sync_config.network_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref()).map_or(spec.network_id(), |id| U256::from_str(id).unwrap_or_else(|_| die!("{}: Invalid index given with --network-id/--networkid", id)));
 		sync_config
 	}
 
@@ -644,19 +596,21 @@ impl Configuration {
 
 	fn account_service(&self) -> AccountService {
 		// Secret Store
-		let passwords = self.args.flag_password.iter().flat_map(|filename| {
-			BufReader::new(&File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)))
-				.lines()
-				.map(|l| l.unwrap())
-				.collect::<Vec<_>>()
-				.into_iter()
-		}).collect::<Vec<_>>();
+		let passwords = self.args
+		                    .flag_password
+		                    .iter()
+		                    .flat_map(|filename| {
+			                    BufReader::new(&File::open(filename).unwrap_or_else(|_| die!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)))
+				                    .lines()
+				                    .map(|l| l.unwrap())
+				                    .collect::<Vec<_>>()
+				                    .into_iter()
+			                   })
+		                    .collect::<Vec<_>>();
 		let account_service = AccountService::new_in(Path::new(&self.keys_path()));
 		if let Some(ref unlocks) = self.args.flag_unlock {
 			for d in unlocks.split(',') {
-				let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| {
-					die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d)
-				});
+				let a = Address::from_str(clean_0x(&d)).unwrap_or_else(|_| die!("{}: Invalid address for --unlock. Must be 40 hex characters, without the 0x at the beginning.", d));
 				if passwords.iter().find(|p| account_service.unlock_account_no_expire(&a, p).is_ok()).is_none() {
 					die!("No password given to unlock account {}. Pass the password using `--password`.", a);
 				}
@@ -672,7 +626,9 @@ impl Configuration {
 		// Setup logging
 		setup_log(&self.args.flag_logging);
 		// Raise fdlimit
-		unsafe { ::fdlimit::raise_fd_limit(); }
+		unsafe {
+			::fdlimit::raise_fd_limit();
+		}
 
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
@@ -683,9 +639,7 @@ impl Configuration {
 		let account_service = Arc::new(self.account_service());
 
 		// Build client
-		let mut service = ClientService::start(
-			client_config, spec, net_settings, &Path::new(&self.path())
-		).unwrap_or_else(|e| die_with_error(e));
+		let mut service = ClientService::start(client_config, spec, net_settings, &Path::new(&self.path())).unwrap_or_else(|e| die_with_error(e));
 
 		panic_handler.forward_from(&service);
 		let client = service.client();
@@ -704,63 +658,47 @@ impl Configuration {
 		let rpc_server = if self.args.flag_jsonrpc || self.args.flag_rpc {
 			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
 			let url = format!("{}:{}",
-				match self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_interface).as_str() {
-					"all" => "0.0.0.0",
-					"local" => "127.0.0.1",
-					x => x,
-				},
-				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
-			);
+			                  match self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_interface).as_str() {
+				                  "all" => "0.0.0.0",
+				                  "local" => "127.0.0.1",
+				                  x => x,
+			                  },
+			                  self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port));
 			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
 
-			Some(setup_rpc_server(
-				service.client(),
-				sync.clone(),
-				account_service.clone(),
-				miner.clone(),
-				&addr,
-				&cors_domain,
-				apis.split(',').collect()
-			))
+			Some(setup_rpc_server(service.client(), sync.clone(), account_service.clone(), miner.clone(), &addr, &cors_domain, apis.split(',').collect()))
 		} else {
 			None
 		};
 
 		let webapp_server = if self.args.flag_webapp {
 			let url = format!("{}:{}",
-				match self.args.flag_webapp_interface.as_str() {
-					"all" => "0.0.0.0",
-					"local" => "127.0.0.1",
-					x => x,
-				},
-				self.args.flag_webapp_port
-			);
+			                  match self.args.flag_webapp_interface.as_str() {
+				                  "all" => "0.0.0.0",
+				                  "local" => "127.0.0.1",
+				                  x => x,
+			                  },
+			                  self.args.flag_webapp_port);
 			let auth = self.args.flag_webapp_user.as_ref().map(|username| {
 				let password = self.args.flag_webapp_pass.as_ref().map_or_else(|| {
-					use rpassword::read_password;
-					println!("Type password for WebApps server (user: {}): ", username);
-					let pass = read_password().unwrap();
-					println!("OK, got it. Starting server...");
-					pass
-				}, |pass| pass.to_owned());
+					                                                               use rpassword::read_password;
+					                                                               println!("Type password for WebApps server (user: {}): ", username);
+					                                                               let pass = read_password().unwrap();
+					                                                               println!("OK, got it. Starting server...");
+					                                                               pass
+					                                                              },
+				                                                               |pass| pass.to_owned());
 				(username.to_owned(), password)
 			});
 
-			Some(setup_webapp_server(
-				service.client(),
-				sync.clone(),
-				account_service.clone(),
-				miner.clone(),
-				&url,
-				auth,
-			))
+			Some(setup_webapp_server(service.client(), sync.clone(), account_service.clone(), miner.clone(), &url, auth))
 		} else {
 			None
 		};
 
 		// Register IO handler
-		let io_handler  = Arc::new(ClientIoHandler {
+		let io_handler = Arc::new(ClientIoHandler {
 			client: service.client(),
 			info: Default::default(),
 			sync: sync.clone(),
@@ -778,11 +716,15 @@ fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer
 
 	// Handle possible exits
 	let e = exit.clone();
-	CtrlC::set_handler(move || { e.notify_all(); });
+	CtrlC::set_handler(move || {
+		e.notify_all();
+	});
 
 	// Handle panics
 	let e = exit.clone();
-	panic_handler.on_panic(move |_reason| { e.notify_all(); });
+	panic_handler.on_panic(move |_reason| {
+		e.notify_all();
+	});
 
 	// Wait for signal
 	let mutex = Mutex::new(());
@@ -802,13 +744,13 @@ fn die_with_io_error(e: std::io::Error) -> ! {
 	match e.kind() {
 		std::io::ErrorKind::PermissionDenied => {
 			die!("No permissions to bind to specified port.")
-		},
+		}
 		std::io::ErrorKind::AddrInUse => {
 			die!("Specified address is already in use. Please make sure that nothing is listening on the same port or try using a different one.")
-		},
+		}
 		std::io::ErrorKind::AddrNotAvailable => {
 			die!("Could not use specified interface or given address is invalid.")
-		},
+		}
 		_ => die!("{:?}", e),
 	}
 }
@@ -819,7 +761,7 @@ fn main() {
 			if upgrades_applied > 0 {
 				println!("Executed {} upgrade scripts - ok", upgrades_applied);
 			}
-		},
+		}
 		Err(e) => {
 			die!("Error upgrading parity data: {:?}", e);
 		}
@@ -847,7 +789,7 @@ impl Default for Informant {
 impl Informant {
 	fn format_bytes(b: usize) -> String {
 		match binary_prefix(b as f64) {
-			Standalone(bytes)   => format!("{} bytes", bytes),
+			Standalone(bytes) => format!("{} bytes", bytes),
 			Prefixed(prefix, n) => format!("{:.0} {}B", n, prefix),
 		}
 	}
@@ -864,11 +806,7 @@ impl Informant {
 		let mut write_report = self.report.write().unwrap();
 		let report = client.report();
 
-		if let (_, _, &Some(ref last_report)) = (
-			self.chain_info.read().unwrap().deref(),
-			self.cache_info.read().unwrap().deref(),
-			write_report.deref()
-		) {
+		if let (_, _, &Some(ref last_report)) = (self.chain_info.read().unwrap().deref(), self.cache_info.read().unwrap().deref(), write_report.deref()) {
 			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···// mem: {} db, {} chain, {} queue, {} sync ]",
 				chain_info.best_block_number,
 				chain_info.best_block_hash,
@@ -916,8 +854,12 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
 		match timer {
-			INFO_TIMER => { self.info.tick(&self.client, &self.sync); }
-			ACCOUNT_TICK_TIMER => { self.accounts.tick(); },
+			INFO_TIMER => {
+				self.info.tick(&self.client, &self.sync);
+			}
+			ACCOUNT_TICK_TIMER => {
+				self.accounts.tick();
+			}
 			_ => {}
 		}
 	}
@@ -925,5 +867,4 @@ impl IoHandler<NetSyncMessage> for ClientIoHandler {
 
 /// Parity needs at least 1 test to generate coverage reports correctly.
 #[test]
-fn if_works() {
-}
+fn if_works() {}

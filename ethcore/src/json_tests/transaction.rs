@@ -25,13 +25,19 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let new_schedule = evm::Schedule::new_homestead();
 	for (name, test) in tests.into_iter() {
 		let mut fail = false;
-		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.clone()); println!("Transaction failed: {:?}", name); fail = true };
+		let mut fail_unless = |cond: bool| {
+			if !cond && !fail {
+				failed.push(name.clone());
+				println!("Transaction failed: {:?}", name);
+				fail = true
+			}
+		};
 
 		let number: Option<u64> = test.block_number.map(Into::into);
 		let schedule = match number {
 			None => &old_schedule,
 			Some(x) if x < 1_150_000 => &old_schedule,
-			Some(_) => &new_schedule
+			Some(_) => &new_schedule,
 		};
 
 		let rlp: Vec<u8> = test.rlp.into();

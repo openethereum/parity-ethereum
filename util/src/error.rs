@@ -133,15 +133,15 @@ impl From<String> for UtilError {
 }
 
 // TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
-/*#![feature(concat_idents)]
-macro_rules! assimilate {
-    ($name:ident) => (
-		impl From<concat_idents!($name, Error)> for Error {
-			fn from(err: concat_idents!($name, Error)) -> Error {
-				Error:: $name (err)
-			}
-		}
-    )
-}
-assimilate!(FromHex);
-assimilate!(BaseData);*/
+// #![feature(concat_idents)]
+// macro_rules! assimilate {
+// ($name:ident) => (
+// impl From<concat_idents!($name, Error)> for Error {
+// fn from(err: concat_idents!($name, Error)) -> Error {
+// Error:: $name (err)
+// }
+// }
+// )
+// }
+// assimilate!(FromHex);
+// assimilate!(BaseData);

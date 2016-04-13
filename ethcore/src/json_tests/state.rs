@@ -31,18 +31,22 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	let mut failed = Vec::new();
 	let engine = match era {
 		ChainEra::Frontier => ethereum::new_mainnet_like().engine,
-		ChainEra::Homestead => ethereum::new_homestead_test().engine
+		ChainEra::Homestead => ethereum::new_homestead_test().engine,
 	};
 
 	for (name, test) in tests.into_iter() {
 		let mut fail = false;
 		{
-			let mut fail_unless = |cond: bool| if !cond && !fail {
-				failed.push(name.clone());
-				flushln!("FAIL");
-				fail = true;
-				true
-			} else {false};
+			let mut fail_unless = |cond: bool| {
+				if !cond && !fail {
+					failed.push(name.clone());
+					flushln!("FAIL");
+					fail = true;
+					true
+				} else {
+					false
+				}
+			};
 
 			flush!("   - {}...", name);
 

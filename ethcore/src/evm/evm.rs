@@ -32,7 +32,7 @@ pub enum Error {
 	/// to position that wasn't marked with JUMPDEST instruction
 	BadJumpDestination {
 		/// Position the code tried to jump to.
-		destination: usize
+		destination: usize,
 	},
 	/// `BadInstructions` is returned when given instruction is not supported
 	BadInstruction {
@@ -46,7 +46,7 @@ pub enum Error {
 		/// How many stack elements was requested by instruction
 		wanted: usize,
 		/// How many elements were on stack
-		on_stack: usize
+		on_stack: usize,
 	},
 	/// When execution would exceed defined Stack Limit
 	OutOfStack {
@@ -55,11 +55,11 @@ pub enum Error {
 		/// How many stack elements instruction wanted to push
 		wanted: usize,
 		/// What was the stack limit
-		limit: usize
+		limit: usize,
 	},
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
-	#[allow(dead_code)] // created only by jit
+	#[allow(dead_code)]
 	Internal,
 }
 

@@ -30,7 +30,7 @@ pub trait OnPanicListener: Send + Sync + 'static {
 /// Forwards panics from child
 pub trait ForwardPanic {
 	/// Attach `on_panic` listener to `child` and rethrow all panics
-	fn forward_from<S>(&self, child: &S) where S : MayPanic;
+	fn forward_from<S>(&self, child: &S) where S: MayPanic;
 }
 
 /// Trait indicating that the structure catches some of the panics (most probably from spawned threads)
@@ -54,7 +54,7 @@ impl<'a> Drop for PanicGuard<'a> {
 
 /// Structure that allows to catch panics and notify listeners
 pub struct PanicHandler {
-	listeners: Mutex<Vec<Box<OnPanicListener>>>
+	listeners: Mutex<Vec<Box<OnPanicListener>>>,
 }
 
 impl Default for PanicHandler {
@@ -71,15 +71,15 @@ impl PanicHandler {
 
 	/// Creates new `PanicHandler`
 	pub fn new() -> Self {
-		PanicHandler {
-			listeners: Mutex::new(vec![])
-		}
+		PanicHandler { listeners: Mutex::new(vec![]) }
 	}
 
 	/// Invoke closure and catch any possible panics.
 	/// In case of panic notifies all listeners about it.
 	#[cfg_attr(feature="dev", allow(deprecated))]
-	pub fn catch_panic<G, R>(&self, g: G) -> thread::Result<R> where G: FnOnce() -> R + Send + 'static {
+	pub fn catch_panic<G, R>(&self, g: G) -> thread::Result<R>
+		where G: FnOnce() -> R + Send + 'static,
+	{
 		let _guard = PanicGuard { handler: self };
 		let result = g();
 		Ok(result)
@@ -94,20 +94,25 @@ impl PanicHandler {
 }
 
 impl MayPanic for PanicHandler {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
+	fn on_panic<F>(&self, closure: F)
+		where F: OnPanicListener,
+	{
 		self.listeners.lock().unwrap().push(Box::new(closure));
 	}
 }
 
 impl ForwardPanic for Arc<PanicHandler> {
-	fn forward_from<S>(&self, child: &S) where S : MayPanic {
+	fn forward_from<S>(&self, child: &S)
+		where S: MayPanic,
+	{
 		let p = self.clone();
 		child.on_panic(move |t| p.notify_all(t));
 	}
 }
 
 impl<F> OnPanicListener for F
-	where F: FnMut(String) + Send + Sync + 'static {
+    where F: FnMut(String) + Send + Sync + 'static,
+{
 	fn call(&mut self, arg: &str) {
 		self(arg.to_owned())
 	}
@@ -115,7 +120,7 @@ impl<F> OnPanicListener for F
 
 #[test]
 #[ignore] // panic forwarding doesnt work on the same thread in beta
-fn should_notify_listeners_about_panic () {
+fn should_notify_listeners_about_panic() {
 	use std::sync::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
@@ -132,7 +137,7 @@ fn should_notify_listeners_about_panic () {
 
 #[test]
 #[ignore] // panic forwarding doesnt work on the same thread in beta
-fn should_notify_listeners_about_panic_when_string_is_dynamic () {
+fn should_notify_listeners_about_panic_when_string_is_dynamic() {
 	use std::sync::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
@@ -148,7 +153,7 @@ fn should_notify_listeners_about_panic_when_string_is_dynamic () {
 }
 
 #[test]
-fn should_notify_listeners_about_panic_in_other_thread () {
+fn should_notify_listeners_about_panic_in_other_thread() {
 	use std::thread;
 	use std::sync::RwLock;
 
@@ -159,9 +164,7 @@ fn should_notify_listeners_about_panic_in_other_thread () {
 	p.on_panic(move |t| i.write().unwrap().push(t));
 
 	// when
-	let t = thread::spawn(move ||
-		p.catch_panic(|| panic!("Panic!")).unwrap()
-	);
+	let t = thread::spawn(move || p.catch_panic(|| panic!("Panic!")).unwrap());
 	t.join().unwrap_err();
 
 	// then
@@ -170,8 +173,8 @@ fn should_notify_listeners_about_panic_in_other_thread () {
 
 #[test]
 #[ignore] // panic forwarding doesnt work on the same thread in beta
-fn should_forward_panics () {
-use std::sync::RwLock;
+fn should_forward_panics() {
+	use std::sync::RwLock;
 	// given
 	let invocations = Arc::new(RwLock::new(vec![]));
 	let i = invocations.clone();

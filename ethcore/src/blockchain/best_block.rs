@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::numbers::{U256,H256};
+use util::numbers::{H256, U256};
 use header::BlockNumber;
 
 /// Best block info.
@@ -25,5 +25,5 @@ pub struct BestBlock {
 	/// Best block number.
 	pub number: BlockNumber,
 	/// Best block total difficulty.
-	pub total_difficulty: U256
+	pub total_difficulty: U256,
 }

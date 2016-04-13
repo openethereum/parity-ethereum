@@ -56,17 +56,21 @@ pub enum Algorithm {
 }
 
 impl Default for Algorithm {
-	fn default() -> Algorithm { Algorithm::Archive }
+	fn default() -> Algorithm {
+		Algorithm::Archive
+	}
 }
 
 impl fmt::Display for Algorithm {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", match self {
-			&Algorithm::Archive => "archive",
-			&Algorithm::EarlyMerge => "earlymerge",
-			&Algorithm::OverlayRecent => "overlayrecent",
-			&Algorithm::RefCounted => "refcounted",
-		})
+		write!(f,
+		       "{}",
+		       match self {
+			       &Algorithm::Archive => "archive",
+			       &Algorithm::EarlyMerge => "earlymerge",
+			       &Algorithm::OverlayRecent => "overlayrecent",
+			       &Algorithm::RefCounted => "refcounted",
+		       })
 	}
 }
 

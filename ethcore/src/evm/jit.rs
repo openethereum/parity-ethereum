@@ -111,14 +111,14 @@ impl IntoJit<evmjit::H256> for Address {
 /// This adapter 'catches' them and moves upstream.
 struct ExtAdapter<'a> {
 	ext: &'a mut evm::Ext,
-	address: Address
+	address: Address,
 }
 
 impl<'a> ExtAdapter<'a> {
 	fn new(ext: &'a mut evm::Ext, address: Address) -> Self {
 		ExtAdapter {
 			ext: ext,
-			address: address
+			address: address,
 		}
 	}
 }
@@ -159,13 +159,8 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		}
 	}
 
-	fn create(&mut self,
-			  io_gas: *mut u64,
-			  value: *const evmjit::I256,
-			  init_beg: *const u8,
-			  init_size: u64,
-			  address: *mut evmjit::H256) {
-			
+	fn create(&mut self, io_gas: *mut u64, value: *const evmjit::I256, init_beg: *const u8, init_size: u64, address: *mut evmjit::H256) {
+
 		let gas = unsafe { U256::from(*io_gas) };
 		let value = unsafe { U256::from_jit(&*value) };
 		let code = unsafe { slice::from_raw_parts(init_beg, init_size as usize) };
@@ -180,25 +175,16 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				evm::ContractCreateResult::Failed => unsafe {
 					*address = Address::new().into_jit();
 					*io_gas = 0;
-				}
+				},
 			}
 		} else {
-			unsafe { *address = Address::new().into_jit(); }
+			unsafe {
+				*address = Address::new().into_jit();
+			}
 		}
 	}
 
-	fn call(&mut self,
-				io_gas: *mut u64,
-				call_gas: u64,
-				sender_address: *const evmjit::H256,
-				receive_address: *const evmjit::H256,
-				code_address: *const evmjit::H256,
-				transfer_value: *const evmjit::I256,
-				_apparent_value: *const evmjit::I256,
-				in_beg: *const u8,
-				in_size: u64,
-				out_beg: *mut u8,
-				out_size: u64) -> bool {
+	fn call(&mut self, io_gas: *mut u64, call_gas: u64, sender_address: *const evmjit::H256, receive_address: *const evmjit::H256, code_address: *const evmjit::H256, transfer_value: *const evmjit::I256, _apparent_value: *const evmjit::I256, in_beg: *const u8, in_size: u64, out_beg: *mut u8, out_size: u64) -> bool {
 
 		let mut gas = unsafe { U256::from(*io_gas) };
 		let mut call_gas = U256::from(call_gas);
@@ -239,14 +225,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			}
 		}
 
-		match self.ext.call(
-					  &call_gas, 
-					  &sender_address,
-					  &receive_address, 
-					  value,
-					  unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
-					  &code_address,
-					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) }) {
+		match self.ext.call(&call_gas, &sender_address, &receive_address, value, unsafe { slice::from_raw_parts(in_beg, in_size as usize) }, &code_address, unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) }) {
 			evm::MessageCallResult::Success(gas_left) => unsafe {
 				*io_gas = (gas + gas_left).low_u64();
 				true
@@ -254,17 +233,11 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			evm::MessageCallResult::Failed => unsafe {
 				*io_gas = gas.low_u64();
 				false
-			}
+			},
 		}
 	}
 
-	fn log(&mut self,
-		   beg: *const u8,
-		   size: u64,
-		   topic1: *const evmjit::H256,
-		   topic2: *const evmjit::H256,
-		   topic3: *const evmjit::H256,
-		   topic4: *const evmjit::H256) {
+	fn log(&mut self, beg: *const u8, size: u64, topic1: *const evmjit::H256, topic2: *const evmjit::H256, topic3: *const evmjit::H256, topic4: *const evmjit::H256) {
 
 		unsafe {
 			let mut topics = vec![];
@@ -283,7 +256,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			if !topic4.is_null() {
 				topics.push(H256::from_jit(&*topic4));
 			}
-		
+
 			let bytes_ref: &[u8] = slice::from_raw_parts(beg, size as usize);
 			self.ext.log(topics, bytes_ref);
 		}
@@ -328,7 +301,7 @@ impl evm::Evm for JitEvm {
 		data.origin = params.origin.into_jit();
 		data.transfer_value = match params.value {
 			ActionValue::Transfer(val) => val.into_jit(),
-			ActionValue::Apparent(val) => val.into_jit()
+			ActionValue::Apparent(val) => val.into_jit(),
 		};
 		data.apparent_value = data.transfer_value;
 
@@ -344,16 +317,16 @@ impl evm::Evm for JitEvm {
 
 		let mut context = unsafe { evmjit::ContextHandle::new(data, schedule, &mut ext_handle) };
 		let res = context.exec();
-		
+
 		match res {
 			evmjit::ReturnCode::Stop => Ok(U256::from(context.gas_left())),
 			evmjit::ReturnCode::Return => ext.ret(&U256::from(context.gas_left()), context.output_data()),
-			evmjit::ReturnCode::Suicide => { 
+			evmjit::ReturnCode::Suicide => {
 				ext.suicide(&Address::from_jit(&context.suicide_refund_address()));
 				Ok(U256::from(context.gas_left()))
-			},
+			}
 			evmjit::ReturnCode::OutOfGas => Err(evm::Error::OutOfGas),
-			_err => Err(evm::Error::Internal)
+			_err => Err(evm::Error::Internal),
 		}
 	}
 }
@@ -371,7 +344,7 @@ fn test_to_and_from_h256() {
 	let h = H256::from_str("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3").unwrap();
 	let j: ::evmjit::I256 = h.clone().into_jit();
 	let h2 = H256::from_jit(&j);
-	
+
 	assert_eq!(h, h2);
 
 	let j: ::evmjit::H256 = h.clone().into_jit();
