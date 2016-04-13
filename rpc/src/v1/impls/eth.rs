@@ -172,7 +172,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		Ok(EthTransaction {
 			nonce: request.nonce.unwrap_or_else(|| client.nonce(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
-			gas: request.gas.unwrap_or(x!(50_000_000)),
+			gas: request.gas.unwrap_or(U256::from!(50_000_000)),
 			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
