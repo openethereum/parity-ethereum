@@ -295,7 +295,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn chain_new_blocks(&self, chain: &BlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
+	fn chain_new_blocks(&self, chain: &BlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
 				.block(BlockId::Hash(*hash))
@@ -304,6 +304,11 @@ impl MinerService for Miner {
 			let block = BlockView::new(&block);
 			block.transactions()
 		}
+
+		// 1. We ignore blocks that were `imported` (because it means that they are not in canon-chain, and transactions
+		//	  should be still available in the queue.
+		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
+		//    are in those blocks
 
 		// First update gas limit in transaction queue
 		self.update_gas_limit(chain);
@@ -326,37 +331,9 @@ impl MinerService for Miner {
 			});
 		}
 
-		// ...remove invalid transactions
-		{
-			invalid
-				.par_iter()
-				.map(|h: &H256| fetch_transactions(chain, h))
-				.for_each(|txs| {
-					let mut transaction_queue = self.transaction_queue.lock().unwrap();
-					let fetch_account = |a: &Address| AccountDetails {
-						nonce: chain.nonce(a),
-						balance: chain.balance(a)
-					};
-
-					for tx in txs {
-						transaction_queue.remove_invalid(&tx.hash(), &fetch_account);
-					}
-				})
-
-		}
-
 		// ...and at the end remove old ones
 		{
-			let in_chain = {
-				let mut in_chain = HashSet::new();
-				in_chain.extend(imported);
-				in_chain.extend(enacted);
-				in_chain
-					.into_iter()
-					.collect::<Vec<H256>>()
-			};
-
-			let in_chain = in_chain
+			let in_chain = enacted
 				.par_iter()
 				.map(|h: &H256| fetch_transactions(chain, h));
 
