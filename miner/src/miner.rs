@@ -326,13 +326,31 @@ impl MinerService for Miner {
 			});
 		}
 
-		// ...and after that remove old ones
+		// ...remove invalid transactions
+		{
+			invalid
+				.par_iter()
+				.map(|h: &H256| fetch_transactions(chain, h))
+				.for_each(|txs| {
+					let mut transaction_queue = self.transaction_queue.lock().unwrap();
+					let fetch_account = |a: &Address| AccountDetails {
+						nonce: chain.nonce(a),
+						balance: chain.balance(a)
+					};
+
+					for tx in txs {
+						transaction_queue.remove_invalid(&tx.hash(), &fetch_account);
+					}
+				})
+
+		}
+
+		// ...and at the end remove old ones
 		{
 			let in_chain = {
 				let mut in_chain = HashSet::new();
 				in_chain.extend(imported);
 				in_chain.extend(enacted);
-				in_chain.extend(invalid);
 				in_chain
 					.into_iter()
 					.collect::<Vec<H256>>()
