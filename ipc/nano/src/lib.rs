@@ -125,7 +125,7 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 						if method_sign_len >= 2 {
 
 							// method_num
-							let method_num = self.buf[1] as u16 * 256 + self.buf[0] as u16;
+							let method_num = self.buf[0] as u16 * 256 + self.buf[1] as u16;
 							// payload
 							let payload = &self.buf[2..];
 

@@ -32,7 +32,7 @@ mod tests {
 
 
 	fn init_worker(addr: &str) -> nanoipc::Worker<Service> {
-		let mut worker = nanoipc::Worker::<Service>::new(Arc::new(Service::new()));
+		let mut worker = nanoipc::Worker::<Service>::new(&Arc::new(Service::new()));
 		worker.add_duplex(addr).unwrap();
 		worker
 	}
@@ -105,5 +105,4 @@ mod tests {
 
 		worker_should_exit.store(true, Ordering::Relaxed);
 	}
-
 }

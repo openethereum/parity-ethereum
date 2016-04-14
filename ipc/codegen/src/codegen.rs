@@ -188,7 +188,6 @@ fn implement_dispatch_arm_invoke_stmt(
 ) -> ast::Stmt
 {
 	let function_name = builder.id(dispatch.function_name.as_str());
-	let output_type_id = builder.id(dispatch.return_type_name.clone().unwrap().as_str());
 
 	let input_args_exprs = dispatch.input_arg_names.iter().enumerate().map(|(arg_index, arg_name)| {
 		let arg_ident = builder.id(arg_name);
@@ -216,10 +215,6 @@ fn implement_dispatch_arm_invoke_stmt(
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"), ::syntax::parse::token::Plain)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
-			tt.extend(::quasi::ToTokens::to_tokens(&output_type_id, ext_cx).into_iter());
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("payload"), ::syntax::parse::token::Plain)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("self"), ::syntax::parse::token::Plain)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
 			tt.extend(::quasi::ToTokens::to_tokens(&function_name, ext_cx).into_iter());
@@ -231,7 +226,6 @@ fn implement_dispatch_arm_invoke_stmt(
 			}
 
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Brace)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("bincode"), ::syntax::parse::token::ModName)));
@@ -729,6 +723,7 @@ fn implement_interface(
 					Err(e) => { panic!("ipc read error: {:?}, aborting", e); }
 					_ => { }
 				}
+
 				// method_num is a 16-bit little-endian unsigned number
 				match method_num[1] as u16 + (method_num[0] as u16)*256 {
 					// handshake

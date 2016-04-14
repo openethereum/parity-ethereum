@@ -72,7 +72,7 @@ mod tests {
 
 	#[test]
 	fn can_init() {
-		let url = "ipc:///tmp/test-parity-hypervisor-10";
+		let url = "ipc:///tmp/test-parity-hypervisor-10.ipc";
 
 		let hypervisor = Hypervisor::with_url(url);
 		assert_eq!(false, hypervisor.modules_ready());
@@ -80,7 +80,7 @@ mod tests {
 
 	#[test]
 	fn can_wait_for_startup() {
-		let url = "ipc:///tmp/test-parity-hypervisor-20";
+		let url = "ipc:///tmp/test-parity-hypervisor-20.ipc";
 		let test_module_id = 8080u64;
 
 		let hypervisor_ready = Arc::new(AtomicBool::new(false));
@@ -90,6 +90,7 @@ mod tests {
 			while !hypervisor_ready.load(Ordering::Relaxed) { }
 
 			let client = nanoipc::init_client::<HypervisorServiceClient<_>>(url).unwrap();
+			client.handshake().unwrap();
 			client.module_ready(test_module_id);
 		});
 
