@@ -21,6 +21,7 @@
 
 pub mod service;
 
+/// Default value for hypervisor ipc listener
 pub const HYPERVISOR_IPC_URL: &'static str = "ipc:///tmp/parity-internal-hyper-status.ipc";
 
 use nanoipc;
@@ -46,10 +47,13 @@ impl Hypervisor {
 		Hypervisor::with_url(HYPERVISOR_IPC_URL)
 	}
 
+	/// Starts on the specified address for ipc listener
 	fn with_url(addr: &str) -> Hypervisor{
 		Hypervisor::with_url_and_service(addr, HypervisorService::new())
 	}
 
+	/// Starts with the specified address for the ipc listener and
+	/// the specified list of modules in form of created service
 	fn with_url_and_service(addr: &str, service: Arc<HypervisorService>) -> Hypervisor {
 		let worker = nanoipc::Worker::new(&service);
 		Hypervisor{
@@ -70,6 +74,7 @@ impl Hypervisor {
 		}
 	}
 
+	/// Creates IPC listener and starts all binaries
 	fn start(&self) {
 		let mut worker = self.ipc_worker.write().unwrap();
 		worker.add_reqrep(&self.ipc_addr).unwrap_or_else(|e| panic!("Hypervisor ipc worker can not start - critical! ({:?})", e));
@@ -79,6 +84,9 @@ impl Hypervisor {
 		}
 	}
 
+	/// Start binary for the specified module
+	/// Does nothing when it is already started on module is inside the
+	/// main binary
 	fn start_module(&self, module_id: IpcModuleId) {
 		Self::match_module(&module_id).map(|binary_id|
 		   {
@@ -96,6 +104,7 @@ impl Hypervisor {
 			});
 	}
 
+	/// Reports if all modules are checked in
 	pub fn modules_ready(&self) -> bool {
 		self.service.unchecked_count() == 0
 	}

@@ -21,8 +21,10 @@ use std::collections::HashMap;
 
 pub type IpcModuleId = u64;
 
+/// Blockhain database module id
 pub const BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
 
+/// IPC service that handles module management
 pub struct HypervisorService {
 	check_list: RwLock<HashMap<IpcModuleId, bool>>,
 }
@@ -37,10 +39,12 @@ impl HypervisorService {
 }
 
 impl HypervisorService {
+	/// New service with the default list of modules
 	pub fn new() -> Arc<HypervisorService> {
 		HypervisorService::with_modules(vec![])
 	}
 
+	/// New service with list of modules that will report for being ready
 	pub fn with_modules(module_ids: Vec<IpcModuleId>) -> Arc<HypervisorService> {
 		let mut check_list = HashMap::new();
 		for module_id in module_ids {
@@ -51,10 +55,12 @@ impl HypervisorService {
 		})
 	}
 
+	/// Number of modules still being waited for check-in
 	pub fn unchecked_count(&self) -> usize {
 		self.check_list.read().unwrap().iter().filter(|&(_, status)| !status).count()
 	}
 
+	/// List of all modules within this service
 	pub fn module_ids(&self) -> Vec<IpcModuleId> {
 		self.check_list.read().unwrap().iter().map(|(module_id, _)| module_id).cloned().collect()
 	}
