@@ -305,7 +305,7 @@ fn setup_rpc_server(
 	client: Arc<Client>,
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
-	miner: Arc<Miner>,
+	miner: Arc<Miner<Client>>,
 	url: &SocketAddr,
 	cors_domain: &str,
 	apis: Vec<&str>,
@@ -341,7 +341,7 @@ fn setup_webapp_server(
 	client: Arc<Client>,
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
-	miner: Arc<Miner>,
+	miner: Arc<Miner<Client>>,
 	url: &str,
 	auth: Option<(String, String)>,
 ) -> WebappServer {
@@ -692,7 +692,7 @@ impl Configuration {
 		let client = service.client();
 
 		// Miner
-		let miner = Miner::new(self.args.flag_force_sealing);
+		let miner = Miner::new(client.clone(), self.args.flag_force_sealing);
 		miner.set_author(self.author());
 		miner.set_gas_floor_target(self.gas_floor_target());
 		miner.set_extra_data(self.extra_data());

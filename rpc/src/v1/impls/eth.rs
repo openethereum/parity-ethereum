@@ -20,9 +20,8 @@ extern crate ethash;
 
 use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
-use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService, AccountDetails};
+use ethminer::{MinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
@@ -191,15 +190,8 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		let hash = signed_transaction.hash();
 
 		let import = {
-			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
-
-			miner.import_transactions(vec![signed_transaction], |a: &Address| {
-				AccountDetails {
-					nonce: client.nonce(&a),
-					balance: client.balance(&a),
-				}
-			})
+			miner.import_transactions(vec![signed_transaction])
 		};
 
 		match import.into_iter().collect::<Result<Vec<_>, _>>() {
@@ -453,7 +445,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 				}
 
 				let miner = take_weak!(self.miner);
-				miner.map_sealing_work(client.deref(), |b| {
+				miner.map_sealing_work(|b| {
 					let pow_hash = b.hash();
 					let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 					let seed_hash = &self.seed_compute.lock().unwrap().get_seedhash(b.block().header().number());
@@ -468,9 +460,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 		from_params::<(H64, H256, H256)>(params).and_then(|(nonce, pow_hash, mix_hash)| {
 			trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 			let miner = take_weak!(self.miner);
-			let client = take_weak!(self.client);
 			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
-			let r = miner.submit_seal(client.deref(), pow_hash, seal);
+			let r = miner.submit_seal(pow_hash, seal);
 			to_value(&r.is_ok())
 		})
 	}

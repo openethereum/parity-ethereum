@@ -19,10 +19,9 @@
 use util::{Address, H256, Bytes, U256, FixedHash};
 use util::standard::*;
 use ethcore::error::Error;
-use ethcore::client::BlockChainClient;
 use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
-use ethminer::{MinerService, MinerStatus, AccountDetails};
+use ethminer::{MinerService, MinerStatus};
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -101,8 +100,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, _fetch_account: T) -> Vec<Result<(), Error>>
-		where T: Fn(&Address) -> AccountDetails {
+	fn import_transactions(&self, transactions: Vec<SignedTransaction>) -> Vec<Result<(), Error>> {
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
 
@@ -118,21 +116,19 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Removes all transactions from the queue and restart mining operation.
-	fn clear_and_reset(&self, _chain: &BlockChainClient) {
-		unimplemented!();
-	}
+	fn clear_and_reset(&self) { unimplemented!(); }
 
 	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks(&self, _chain: &BlockChainClient, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
+	fn chain_new_blocks(&self, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256]) {
 		unimplemented!();
 	}
 
 	/// New chain head event. Restart mining operation.
-	fn update_sealing(&self, _chain: &BlockChainClient) {
+	fn update_sealing(&self) {
 		unimplemented!();
 	}
 
-	fn map_sealing_work<F, T>(&self, _chain: &BlockChainClient, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
+	fn map_sealing_work<F, T>(&self, _f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
 		unimplemented!();
 	}
 
@@ -149,8 +145,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, _chain: &BlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
 	}
 }
