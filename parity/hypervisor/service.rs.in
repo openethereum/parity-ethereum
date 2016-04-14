@@ -21,8 +21,7 @@ use std::collections::HashMap;
 
 pub type IpcModuleId = u64;
 
-pub const _DATABASE_MODULE_ID: IpcModuleId = 1000;
-pub const _BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
+pub const BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
 
 pub struct HypervisorService {
 	check_list: RwLock<HashMap<IpcModuleId, bool>>,
@@ -54,6 +53,10 @@ impl HypervisorService {
 
 	pub fn unchecked_count(&self) -> usize {
 		self.check_list.read().unwrap().iter().filter(|&(_, status)| !status).count()
+	}
+
+	pub fn module_ids(&self) -> Vec<IpcModuleId> {
+		self.check_list.read().unwrap().iter().map(|(module_id, _)| module_id).cloned().collect()
 	}
 }
 
