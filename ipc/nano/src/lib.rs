@@ -54,7 +54,7 @@ impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
 /// Spawns client <`S`> over specified address
 /// creates socket and connects endpoint to it
 /// for duplex (paired) connections with the service
-pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
+pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
 	let mut socket = try!(Socket::new(Protocol::Pair).map_err(|e| {
 		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 		SocketError::DuplexLink
@@ -71,11 +71,33 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 	})
 }
 
+/// Spawns client <`S`> over specified address
+/// creates socket and connects endpoint to it
+/// for request-reply connections to the service
+pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
+	let mut socket = try!(Socket::new(Protocol::Req).map_err(|e| {
+		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
+		SocketError::RequestLink
+	}));
+
+	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
+		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
+		SocketError::RequestLink
+	}));
+
+	Ok(GuardedSocket {
+		client: Arc::new(S::init(socket)),
+		_endpoint: endpoint,
+	})
+}
+
 /// Error occured while establising socket or endpoint
 #[derive(Debug)]
 pub enum SocketError {
 	/// Error establising duplex (paired) socket and/or endpoint
-	DuplexLink
+	DuplexLink,
+	/// Error establising duplex (paired) socket and/or endpoint
+	RequestLink,
 }
 
 impl<S> Worker<S> where S: IpcInterface<S> {

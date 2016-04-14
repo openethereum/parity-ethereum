@@ -39,7 +39,7 @@ mod tests {
 
 	#[test]
 	fn can_create_client() {
-		let client = nanoipc::init_client::<ServiceClient<_>>("ipc:///tmp/parity-nano-test10.ipc");
+		let client = nanoipc::init_duplex_client::<ServiceClient<_>>("ipc:///tmp/parity-nano-test10.ipc");
 		assert!(client.is_ok());
 	}
 
@@ -60,7 +60,7 @@ mod tests {
 		});
 
 		while !worker_is_ready.load(Ordering::Relaxed) { }
-		let client = nanoipc::init_client::<ServiceClient<_>>(url).unwrap();
+		let client = nanoipc::init_duplex_client::<ServiceClient<_>>(url).unwrap();
 
 		let hs = client.handshake();
 

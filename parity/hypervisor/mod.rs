@@ -37,7 +37,10 @@ impl Hypervisor {
 	}
 
 	fn with_url(addr: &str) -> Arc<Hypervisor>{
-		let service = HypervisorService::new();
+		Hypervisor::with_url_and_service(addr, HypervisorService::new())
+	}
+
+	fn with_url_and_service(addr: &str, service: Arc<HypervisorService>) -> Arc<Hypervisor> {
 		let mut worker = nanoipc::Worker::new(&service);
 		worker.add_reqrep(addr);
 
@@ -62,17 +65,38 @@ impl Hypervisor {
 
 mod tests {
 	use super::*;
+	use std::sync::atomic::{AtomicBool,Ordering};
+	use std::sync::Arc;
+	use super::service::*;
+	use nanoipc;
 
 	#[test]
 	fn can_init() {
-		let hypervisor = Hypervisor::with_url("ipc:///tmp/test-parity-hypervisor-10");
+		let url = "ipc:///tmp/test-parity-hypervisor-10";
+
+		let hypervisor = Hypervisor::with_url(url);
 		assert_eq!(false, hypervisor.modules_ready());
 	}
 
 	#[test]
 	fn can_wait_for_startup() {
-		let hypervisor = Hypervisor::with_url("ipc:///tmp/test-parity-hypervisor-10");
+		let url = "ipc:///tmp/test-parity-hypervisor-20";
+		let test_module_id = 8080u64;
+
+		let hypervisor_ready = Arc::new(AtomicBool::new(false));
+		let hypervisor_ready_local = hypervisor_ready.clone();
+
+		::std::thread::spawn(move || {
+			while !hypervisor_ready.load(Ordering::Relaxed) { }
+
+			let client = nanoipc::init_client::<HypervisorServiceClient<_>>(url).unwrap();
+			client.module_ready(test_module_id);
+		});
+
+		let hypervisor = Hypervisor::with_url_and_service(url, HypervisorService::with_modules(vec![test_module_id]));
+		hypervisor_ready_local.store(true, Ordering::Relaxed);
 		hypervisor.wait_for_startup();
-		assert_eq!(false, hypervisor.modules_ready());
+
+		assert_eq!(true, hypervisor.modules_ready());
 	}
 }

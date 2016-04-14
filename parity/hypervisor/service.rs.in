@@ -19,10 +19,10 @@ use std::ops::*;
 use ipc::IpcConfig;
 use std::collections::HashMap;
 
-type IpcModuleId = u64;
+pub type IpcModuleId = u64;
 
-const DATABASE_MODULE_ID: IpcModuleId = 1000;
-const BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
+pub const DATABASE_MODULE_ID: IpcModuleId = 1000;
+pub const BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
 
 pub struct HypervisorService {
 	check_list: RwLock<HashMap<IpcModuleId, bool>>,
@@ -39,10 +39,10 @@ impl HypervisorService {
 
 impl HypervisorService {
 	pub fn new() -> Arc<HypervisorService> {
-		HypervisorService::with_modules(vec![DATABASE_MODULE_ID]);
+		HypervisorService::with_modules(vec![DATABASE_MODULE_ID])
 	}
 
-	pub fn with_modules(module_ids: Vec<IpcModuleID>) -> Arc<HypervisorService> {
+	pub fn with_modules(module_ids: Vec<IpcModuleId>) -> Arc<HypervisorService> {
 		let mut check_list = HashMap::new();
 		for module_id in module_ids {
 			check_list.insert(module_id, false);
