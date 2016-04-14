@@ -622,9 +622,9 @@ impl Configuration {
 		let mut secret_store = SecretStore::new_in(Path::new(&self.keys_path()));
 		if self.args.cmd_new {
 			println!("Please note that password is NOT RECOVERABLE.");
-			println!("Type password: ");
+			print!("Type password: ");
 			let password = read_password().unwrap();
-			println!("Repeat password: ");
+			print!("Repeat password: ");
 			let password_repeat = read_password().unwrap();
 			if password != password_repeat {
 				println!("Passwords do not match!");
