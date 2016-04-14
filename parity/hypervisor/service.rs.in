@@ -21,8 +21,8 @@ use std::collections::HashMap;
 
 pub type IpcModuleId = u64;
 
-pub const DATABASE_MODULE_ID: IpcModuleId = 1000;
-pub const BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
+pub const _DATABASE_MODULE_ID: IpcModuleId = 1000;
+pub const _BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
 
 pub struct HypervisorService {
 	check_list: RwLock<HashMap<IpcModuleId, bool>>,
@@ -39,7 +39,7 @@ impl HypervisorService {
 
 impl HypervisorService {
 	pub fn new() -> Arc<HypervisorService> {
-		HypervisorService::with_modules(vec![DATABASE_MODULE_ID])
+		HypervisorService::with_modules(vec![])
 	}
 
 	pub fn with_modules(module_ids: Vec<IpcModuleId>) -> Arc<HypervisorService> {

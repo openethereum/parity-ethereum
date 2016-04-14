@@ -16,6 +16,9 @@
 
 //! Parity interprocess hypervisor module
 
+// while not in binary
+#![allow(dead_code)]
+
 pub mod service;
 
 pub const HYPERVISOR_IPC_URL: &'static str = "ipc:///tmp/parity-internal-hyper-status.ipc";
@@ -23,7 +26,6 @@ pub const HYPERVISOR_IPC_URL: &'static str = "ipc:///tmp/parity-internal-hyper-s
 use nanoipc;
 use std::sync::{Arc,RwLock};
 use hypervisor::service::*;
-use ipc::IpcInterface;
 
 pub struct Hypervisor {
 	service: Arc<HypervisorService>,
@@ -42,7 +44,7 @@ impl Hypervisor {
 
 	fn with_url_and_service(addr: &str, service: Arc<HypervisorService>) -> Arc<Hypervisor> {
 		let mut worker = nanoipc::Worker::new(&service);
-		worker.add_reqrep(addr);
+		worker.add_reqrep(addr).expect("Hypervisor ipc worker can not start - critical!");
 
 		Arc::new(Hypervisor{
 			service: service,
@@ -73,8 +75,9 @@ mod tests {
 	#[test]
 	fn can_init() {
 		let url = "ipc:///tmp/test-parity-hypervisor-10.ipc";
+		let test_module_id = 8080u64;
 
-		let hypervisor = Hypervisor::with_url(url);
+		let hypervisor = Hypervisor::with_url_and_service(url, HypervisorService::with_modules(vec![test_module_id]));
 		assert_eq!(false, hypervisor.modules_ready());
 	}
 
