@@ -80,7 +80,7 @@ pub enum SocketError {
 
 impl<S> Worker<S> where S: IpcInterface<S> {
 	/// New worker over specified `service`
-	pub fn new(service: Arc<S>) -> Worker<S> {
+	pub fn new(service: &Arc<S>) -> Worker<S> {
 		Worker::<S> {
 			service: service.clone(),
 			sockets: Vec::new(),
@@ -226,13 +226,13 @@ mod service_tests {
 
 	#[test]
 	fn can_create_worker() {
-		let worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		let worker = Worker::<DummyService>::new(&Arc::new(DummyService::new()));
 		assert_eq!(0, worker.sockets.len());
 	}
 
 	#[test]
 	fn can_add_duplex_socket_to_worker() {
-		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		let mut worker = Worker::<DummyService>::new(&Arc::new(DummyService::new()));
 		worker.add_duplex("ipc:///tmp/parity-test10.ipc").unwrap();
 		assert_eq!(1, worker.sockets.len());
 	}
@@ -240,7 +240,7 @@ mod service_tests {
 	#[test]
 	fn worker_can_poll_empty() {
 		let service = Arc::new(DummyService::new());
-		let mut worker = Worker::<DummyService>::new(service.clone());
+		let mut worker = Worker::<DummyService>::new(&service);
 		worker.add_duplex("ipc:///tmp/parity-test20.ipc").unwrap();
 		worker.poll();
 		assert_eq!(0, service.methods_stack.read().unwrap().len());
@@ -250,7 +250,7 @@ mod service_tests {
 	fn worker_can_poll() {
 		let url = "ipc:///tmp/parity-test30.ipc";
 
-		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		let mut worker = Worker::<DummyService>::new(&Arc::new(DummyService::new()));
 		worker.add_duplex(url).unwrap();
 
 		let (_socket, _endpoint) = dummy_write(url, &vec![0, 0, 7, 7, 6, 6]);
@@ -265,7 +265,7 @@ mod service_tests {
 	fn worker_can_poll_long() {
 		let url = "ipc:///tmp/parity-test40.ipc";
 
-		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		let mut worker = Worker::<DummyService>::new(&Arc::new(DummyService::new()));
 		worker.add_duplex(url).unwrap();
 
 		let message = [0u8; 1024*1024];

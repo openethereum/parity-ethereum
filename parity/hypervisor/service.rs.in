@@ -39,11 +39,21 @@ impl HypervisorService {
 
 impl HypervisorService {
 	pub fn new() -> Arc<HypervisorService> {
+		HypervisorService::with_modules(vec![DATABASE_MODULE_ID]);
+	}
+
+	pub fn with_modules(module_ids: Vec<IpcModuleID>) -> Arc<HypervisorService> {
 		let mut check_list = HashMap::new();
-		check_list.insert(DATABASE_MODULE_ID, false);
+		for module_id in module_ids {
+			check_list.insert(module_id, false);
+		}
 		Arc::new(HypervisorService {
 			check_list: RwLock::new(check_list),
 		})
+	}
+
+	pub fn unchecked_count(&self) -> usize {
+		self.check_list.read().unwrap().iter().filter(|&(_, status)| !status).count()
 	}
 }
 
