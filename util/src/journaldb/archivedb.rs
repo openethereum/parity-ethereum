@@ -41,7 +41,7 @@ pub struct ArchiveDB {
 // all keys must be at least 12 bytes
 const LATEST_ERA_KEY : [u8; 12] = [ b'l', b'a', b's', b't', 0, 0, 0, 0, 0, 0, 0, 0 ];
 const VERSION_KEY : [u8; 12] = [ b'j', b'v', b'e', b'r', 0, 0, 0, 0, 0, 0, 0, 0 ];
-const DB_VERSION : u32 = 259;
+const DB_VERSION : u32 = 0x103;
 
 impl ArchiveDB {
 	/// Create a new instance from file
@@ -55,7 +55,7 @@ impl ArchiveDB {
 		if !backing.is_empty() {
 			match backing.get(&VERSION_KEY).map(|d| d.map(|v| decode::<u32>(&v))) {
 				Ok(Some(DB_VERSION)) => {},
-				v => panic!("Incompatible DB version, expected {}, got {:?}", DB_VERSION, v)
+				v => panic!("Incompatible DB version, expected {}, got {:?}; to resolve, remove {} and restart.", DB_VERSION, v, path)
 			}
 		} else {
 			backing.put(&VERSION_KEY, &encode(&DB_VERSION)).expect("Error writing version to database");
@@ -167,6 +167,8 @@ impl JournalDB for ArchiveDB {
 		try!(self.backing.write(batch));
 		Ok((inserts + deletes) as u32)
 	}
+
+	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
 		self.backing.get_by_prefix(&id.bytes()[0..12]).and_then(|b| Some(b.to_vec()))

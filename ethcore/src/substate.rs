@@ -19,7 +19,7 @@ use common::*;
 
 /// State changes which should be applied in finalize,
 /// after transaction is fully executed.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Substate {
 	/// Any accounts that have suicided.
 	pub suicides: HashSet<Address>,

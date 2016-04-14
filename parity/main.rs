@@ -133,11 +133,11 @@ Networking Options:
 
 API and Console Options:
   -j --jsonrpc             Enable the JSON-RPC API server.
+  --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
+                           [default: 8545].
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
                            server, IP should be an interface's IP address, or
                            all (all interfaces) or local [default: local].
-  --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
-                           [default: 8545].
   --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses
                            [default: null].
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
@@ -176,8 +176,14 @@ Sealing/Mining Options:
 
 Footprint Options:
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
-                           may be one of: archive, basic (experimental), fast
-                           (experimental) [default: archive].
+                           may be one of auto, archive, basic, fast, light:
+                           archive - keep all state trie data. No pruning.
+                           basic - reference count in disk DB. Slow but light.
+                           fast - maintain journal overlay. Fast but 50MB used.
+                           light - early merges with partial tracking. Fast
+                           and light. Experimental!
+                           auto - use the method most recently synced or
+                           default to archive if none synced [default: auto].
   --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
                            bytes [default: 16384].
   --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
@@ -543,7 +549,26 @@ impl Configuration {
 		ret
 	}
 
-	fn client_config(&self) -> ClientConfig {
+	fn find_best_db(&self, spec: &Spec) -> Option<journaldb::Algorithm> {
+		let mut ret = None;
+		let mut latest_era = None;
+		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
+		for i in jdb_types.into_iter() {
+			let db = journaldb::new(&append_path(&get_db_path(&Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
+			match (latest_era, db.latest_era()) {
+				(Some(best), Some(this)) if best >= this => {}
+				(_, None) => {}
+				(_, Some(this)) => {
+					latest_era = Some(this);
+					ret = Some(*i);
+				}
+			}
+		}
+		ret
+	}
+
+	fn client_config(&self, spec: &Spec) -> ClientConfig {
 		let mut client_config = ClientConfig::default();
 		match self.args.flag_cache {
 			Some(mb) => {
@@ -560,8 +585,10 @@ impl Configuration {
 			"light" => journaldb::Algorithm::EarlyMerge,
 			"fast" => journaldb::Algorithm::OverlayRecent,
 			"basic" => journaldb::Algorithm::RefCounted,
+			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
+		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		client_config
@@ -656,13 +683,14 @@ impl Configuration {
 		let spec = self.spec();
 		let net_settings = self.net_settings(&spec);
 		let sync_config = self.sync_config(&spec);
+		let client_config = self.client_config(&spec);
 
 		// Secret Store
 		let account_service = Arc::new(self.account_service());
 
 		// Build client
 		let mut service = ClientService::start(
-			self.client_config(), spec, net_settings, &Path::new(&self.path())
+			client_config, spec, net_settings, &Path::new(&self.path())
 		).unwrap_or_else(|e| die_with_error(e));
 
 		panic_handler.forward_from(&service);

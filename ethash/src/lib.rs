@@ -24,7 +24,7 @@ mod compute;
 
 use std::mem;
 use compute::Light;
-pub use compute::{SeedHashCompute, quick_get_difficulty, H256, ProofOfWork, ETHASH_EPOCH_LENGTH};
+pub use compute::{ETHASH_EPOCH_LENGTH, H256, ProofOfWork, SeedHashCompute, quick_get_difficulty};
 
 use std::sync::{Arc, Mutex};
 
@@ -76,7 +76,7 @@ impl EthashManager {
 						lights.recent.clone()
 					}
 					_ => None,
-				}
+				},
 			};
 			match light {
 				None => {
@@ -95,7 +95,7 @@ impl EthashManager {
 					lights.prev = mem::replace(&mut lights.recent, Some(light.clone()));
 					light
 				}
-				Some(light) => light
+				Some(light) => light,
 			}
 		};
 		light.compute(header_hash, nonce)
