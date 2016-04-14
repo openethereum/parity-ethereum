@@ -14,19 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::ops::Range;
+use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
-use client::BlockId;
 use super::trace::{Trace, Action};
 
 /// Traces filter.
 pub struct Filter {
-	/// Traces will be searched from this block.
-	pub from_block: BlockId,
-
-	/// Till this block.
-	pub to_block: BlockId,
+	/// Block range.
+	pub range: Range<usize>,
 
 	/// From address. If empty, match all, if not, match one of the values.
 	pub from_address: Vec<Address>,
@@ -35,9 +33,22 @@ pub struct Filter {
 	pub to_address: Vec<Address>,
 }
 
+impl BloomFilter for Filter {
+	fn bloom_possibilities(&self) -> Vec<Bloom> {
+		self.bloom_possibilities()
+			.into_iter()
+			.map(|b| Bloom::from(b.0))
+			.collect()
+	}
+
+	fn range(&self) -> Range<Number> {
+		self.range.clone()
+	}
+}
+
 impl Filter {
 	/// Returns combinations of each address.
-	pub fn bloom_possibilities(&self) -> Vec<LogBloom> {
+	fn bloom_possibilities(&self) -> Vec<LogBloom> {
 		let blooms = match self.from_address.is_empty() {
 			true => vec![LogBloom::new()],
 			false => self.from_address
@@ -88,8 +99,7 @@ mod tests {
 	#[test]
 	fn empty_trace_filter_bloom_possibilies() {
 		let filter = Filter {
-			from_block: BlockId::Number(0),
-			to_block: BlockId::Number(0),
+			range: (0..0),
 			from_address: vec![],
 			to_address: vec![],
 		};
@@ -101,8 +111,7 @@ mod tests {
 	#[test]
 	fn single_trace_filter_bloom_possibility() {
 		let filter = Filter {
-			from_block: BlockId::Number(0),
-			to_block: BlockId::Number(0),
+			range: (0..0),
 			from_address: vec![Address::from(1)],
 			to_address: vec![Address::from(2)],
 		};
@@ -118,8 +127,7 @@ mod tests {
 	#[test]
 	fn only_from_trace_filter_bloom_possibility() {
 		let filter = Filter {
-			from_block: BlockId::Number(0),
-			to_block: BlockId::Number(0),
+			range: (0..0),
 			from_address: vec![Address::from(1)],
 			to_address: vec![],
 		};
@@ -134,8 +142,7 @@ mod tests {
 	#[test]
 	fn only_to_trace_filter_bloom_possibility() {
 		let filter = Filter {
-			from_block: BlockId::Number(0),
-			to_block: BlockId::Number(0),
+			range: (0..0),
 			from_address: vec![],
 			to_address: vec![Address::from(1)],
 		};
@@ -150,8 +157,7 @@ mod tests {
 	#[test]
 	fn multiple_trace_filter_bloom_possibility() {
 		let filter = Filter {
-			from_block: BlockId::Number(0),
-			to_block: BlockId::Number(0),
+			range: (0..0),
 			from_address: vec![Address::from(1), Address::from(3)],
 			to_address: vec![Address::from(2), Address::from(4)],
 		};
