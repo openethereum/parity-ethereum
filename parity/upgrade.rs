@@ -92,11 +92,14 @@ fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 	Ok(count)
 }
 
-fn with_locked_version<F>(script: F) -> Result<usize, Error>
+fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Error>
 	where F: Fn(&Version) -> Result<usize, Error>
 {
-	let mut path = env::home_dir().expect("Applications should have a home dir");
-	path.push(".parity");
+	let mut path = db_path.map_or({
+		let mut path = env::home_dir().expect("Applications should have a home dir");
+		path.push(".parity");
+		path
+	}, |s| ::std::path::PathBuf::from(s));
 	try!(create_dir_all(&path).map_err(|_| Error::CannotCreateConfigPath));
 	path.push("ver.lock");
 
@@ -118,8 +121,8 @@ fn with_locked_version<F>(script: F) -> Result<usize, Error>
 	result
 }
 
-pub fn upgrade() -> Result<usize, Error> {
-	with_locked_version(|ver| {
+pub fn upgrade(db_path: Option<&str>) -> Result<usize, Error> {
+	with_locked_version(db_path, |ver| {
 		upgrade_from_version(ver)
 	})
 }
