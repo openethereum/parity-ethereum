@@ -550,6 +550,7 @@ impl Configuration {
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
 			let db = journaldb::new(&append_path(&get_db_path(&Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
 				(_, None) => {}
@@ -582,7 +583,7 @@ impl Configuration {
 			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
-		info!("Using state DB of {}", client_config.pruning);
+		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		client_config

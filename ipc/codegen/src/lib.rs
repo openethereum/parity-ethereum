@@ -63,5 +63,5 @@ pub fn register(reg: &mut rustc_plugin::Registry) {
 	reg.register_syntax_extension(
 		syntax::parse::token::intern("derive_Ipc"),
 		syntax::ext::base::MultiDecorator(
-			Box::new(ser::expand_derive_serialize)));
+			Box::new(codegen::expand_ipc_implementation)));
 }
