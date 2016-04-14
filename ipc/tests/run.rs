@@ -21,6 +21,7 @@ extern crate ethcore_devtools as devtools;
 extern crate semver;
 extern crate nanomsg;
 extern crate ethcore_ipc_nano as nanoipc;
+extern crate ethcore_util as util;
 
 pub mod service;
 mod examples;
