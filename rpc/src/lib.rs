@@ -58,8 +58,8 @@ impl RpcServer {
 	}
 
 	/// Start server asynchronously and returns result with `Server` handle on success or an error.
-	pub fn start_http(&self, addr: &SocketAddr, cors_domain: &str) -> Result<Server, RpcServerError> {
+	pub fn start_http(&self, addr: &SocketAddr, cors_domain: Option<String>) -> Result<Server, RpcServerError> {
 		let cors_domain = cors_domain.to_owned();
-		Server::start(addr, self.handler.clone(), jsonrpc_http_server::AccessControlAllowOrigin::Value(cors_domain))
+		Server::start(addr, self.handler.clone(), cors_domain.map(jsonrpc_http_server::AccessControlAllowOrigin::Value))
 	}
 }

@@ -538,7 +538,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "5.0.1"
-source = "git+https://github.com/debris/jsonrpc-http-server.git#239066b94660a1af24c8b2efc16e800f9c7cce18"
+source = "git+https://github.com/debris/jsonrpc-http-server.git#e728f2e080799b7a62b0b5cf5fa9d4ad65cd8c96"
 dependencies = [
  "hyper 0.9.0-mio (git+https://github.com/hyperium/hyper?branch=mio)",
  "jsonrpc-core 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
