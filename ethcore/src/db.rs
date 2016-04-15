@@ -41,21 +41,33 @@ pub trait Readable {
 
 impl Writable for DBTransaction {
 	fn write<T>(&self, key: &Key<T>, value: &T) where T: Encodable {
-		self.put(&key.key(), &encode(value))
-			.expect("db put failed");
+		let result = self.put(&key.key(), &encode(value));
+		if let Err(err) = result {
+			panic!("db put failed, key: {:?}, err: {:?}", key.key(), err);
+		}
 	}
 }
 
 impl Readable for Database {
 	fn read<T>(&self, key: &Key<T>) -> Option<T> where T: Decodable {
-		self.get(&key.key())
-			.expect("db get failed")
-			.map(|v| decode(&v))
+		let result = self.get(&key.key());
+
+		match result {
+			Ok(option) => option.map(|v| decode(&v)),
+			Err(err) => {
+				panic!("db get failed, key: {:?}, err: {:?}", key.key(), err);
+			}
+		}
 	}
 
 	fn exists<T>(&self, key: &Key<T>) -> bool {
-		self.get(&key.key())
-			.expect("db get failed")
-			.is_some()
+		let result = self.get(&key.key());
+
+		match result {
+			Ok(v) => v.is_some(),
+			Err(err) => {
+				panic!("db get failed, key: {:?}, err: {:?}", key.key(), err);
+			}
+		}
 	}
 }
