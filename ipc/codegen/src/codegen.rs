@@ -141,7 +141,7 @@ fn push_invoke_signature_aster(
 		(None, vec![], vec![])
 	};
 
-	let (return_type_name, return_type_ty) = match signature.decl.output {
+	let return_type_ty = match signature.decl.output {
 		FunctionRetTy::Ty(ref ty) => {
 			let name_str = format!("{}_output", implement.ident.name.as_str());
 			let tree = builder.item()
@@ -150,9 +150,9 @@ fn push_invoke_signature_aster(
 				.struct_(name_str.as_str())
 				.field(format!("payload")).ty().build(ty.clone());
 			push(Annotatable::Item(tree.build()));
-			(Some(name_str.to_owned()), Some(ty.clone()))
+			Some(ty.clone())
 		}
-		_ => (None, None)
+		_ => None
 	};
 
 	Dispatch {
@@ -160,7 +160,6 @@ fn push_invoke_signature_aster(
 		input_type_name: input_type_name,
 		input_arg_names: input_arg_names,
 		input_arg_tys: input_arg_tys,
-		return_type_name: return_type_name,
 		return_type_ty: return_type_ty,
 	}
 }
@@ -170,7 +169,6 @@ struct Dispatch {
 	input_type_name: Option<String>,
 	input_arg_names: Vec<String>,
 	input_arg_tys: Vec<P<Ty>>,
-	return_type_name: Option<String>,
 	return_type_ty: Option<P<Ty>>,
 }
 
@@ -532,7 +530,6 @@ fn client_phantom_ident(builder: &aster::AstBuilder, interface_map: &InterfaceMa
 fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, interface_map: &InterfaceMap, push: &mut FnMut(Annotatable)) {
 	let generics = client_generics(builder, interface_map);
 	let client_short_ident = interface_map.ident_map.client_ident(builder);
-	let where_clause = &generics.where_clause;
 	let phantom = client_phantom_ident(builder, interface_map);
 
 	let client_struct_item = quote_item!(cx,
@@ -587,11 +584,11 @@ fn push_client_implementation(
 	interface_map: &InterfaceMap,
 	push: &mut FnMut(Annotatable),
 ) {
-	let (item_ident, client_ident) = (interface_map.ident_map.qualified_ident(builder), interface_map.ident_map.client_ident(builder));
+	let item_ident = interface_map.ident_map.qualified_ident(builder);
 
 	let mut index = -1i32;
 	let items = interface_map.dispatches.iter()
-		.map(|dispatch| { index = index + 1; P(implement_client_method(cx, builder, index as u16, interface_map)) })
+		.map(|_| { index = index + 1; P(implement_client_method(cx, builder, index as u16, interface_map)) })
 		.collect::<Vec<P<ast::ImplItem>>>();
 
 	let generics = client_generics(builder, interface_map);
@@ -713,13 +710,6 @@ fn ty_ident_map(original_ty: &P<Ty>) -> IdentMap {
 	};
 	let ident_map = IdentMap { original_path: original_path };
 	ident_map
-}
-
-fn item_ident_map(item: &Item) -> IdentMap {
-	match item.node {
-		ast::ItemKind::Impl(_, _, _, _, ref ty, _) => ty_ident_map(ty),
-		_ => { panic!("Queried for non-implementation item!"); }
-	}
 }
 
 /// implements `IpcInterface<C>` for the given class `C`
