@@ -23,36 +23,57 @@ use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, Bloo
 use util::{H256, Database};
 use header::BlockNumber;
 use trace::Trace;
+use blockchain::BlockProvider;
+use basic_types::LogBloom;
 use super::trace::{Filter, TraceGroupPosition, TraceBloom, TraceBloomGroup};
 
 /// Fat database.
 struct Fatdb {
 	// cache
-	traces: RwLock<HashMap<H256, Trace>>,
-	cache: RwLock<HashMap<TraceGroupPosition, TraceBloomGroup>>,
+	traces: RwLock<HashMap<BlockNumber, Vec<Trace>>>,
+	blooms: RwLock<HashMap<TraceGroupPosition, TraceBloomGroup>>,
 	// db
-	traces_db: Database,
+	db: Database,
 	// config,
 	bloom_config: Config,
 }
 
 impl BloomGroupDatabase for Fatdb {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
-		unimplemented!();
+		// TODO: look for blooms in db
+		self.blooms.read()
+			.unwrap()
+			.get(&TraceGroupPosition::from(position.clone()))
+			.cloned()
+			.map(Into::into)
 	}
 }
 
 impl Fatdb {
 	/// Creates new instance of `Fatdb`.
-	pub fn new(path: &Path) -> Fatdb {
-		unimplemented!();
+	pub fn new(path: &Path) -> Self {
+		let mut fatdb_path = path.to_path_buf();
+		fatdb_path.push("fatdb");
+		let fatdb = Database::open_default(fatdb_path.to_str().unwrap()).unwrap();
+
+		Fatdb {
+			traces: RwLock::new(HashMap::new()),
+			blooms: RwLock::new(HashMap::new()),
+			db: fatdb,
+			bloom_config: Config {
+				levels: 3,
+				elements_per_index: 16
+			},
+		}
 	}
 
 	/// Inserts new trace to database.
-	pub fn insert_trace(&self, number: BlockNumber, trace: Trace) {
+	pub fn insert_traces(&self, number: BlockNumber, traces: Vec<Trace>) {
 		let modified_blooms = {
 			let chain = BloomGroupChain::new(self.bloom_config, self);
-			let trace_bloom = TraceBloom::from(trace.bloom());
+			let bloom = traces.iter()
+				.fold(LogBloom::default(), |acc, trace| acc | trace.bloom());
+			let trace_bloom = TraceBloom::from(bloom);
 			chain.insert(number as Number, trace_bloom.into())
 		};
 
@@ -60,12 +81,16 @@ impl Fatdb {
 			.into_iter()
 			.map(|p| (From::from(p.0), From::from(p.1)))
 			.collect::<HashMap<TraceGroupPosition, TraceBloomGroup>>();
-		unimplemented!();
+
+		self.traces.write().unwrap().insert(number, traces);
+		self.blooms.write().unwrap().extend(trace_blooms);
+		// TODO: insert them to db.
 	}
 
 	/// Returns traces at block with given number.
-	pub fn traces(&self, block_number: BlockNumber) -> Vec<Trace> {
-		unimplemented!();
+	pub fn traces(&self, block_number: BlockNumber) -> Option<Vec<Trace>> {
+		// TODO: look for traces in db
+		self.traces.read().unwrap().get(&block_number).cloned()
 	}
 
 	/// Returns traces matching given filter.
@@ -76,7 +101,8 @@ impl Fatdb {
 		};
 
 		numbers.into_iter()
-			.flat_map(|block_number| self.traces(block_number as BlockNumber))
+			.filter_map(|block_number| self.traces(block_number as BlockNumber))
+			.flat_map(|trace| trace)
 			.filter(|trace| filter.matches(trace))
 			.collect()
 	}

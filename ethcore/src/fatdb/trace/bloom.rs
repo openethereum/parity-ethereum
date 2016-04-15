@@ -4,6 +4,7 @@ use util::rlp::*;
 use util::{H256, H2048};
 use basic_types::LogBloom;
 
+#[derive(Clone)]
 pub struct TraceBloom(LogBloom);
 
 impl From<LogBloom> for TraceBloom {
@@ -26,6 +27,7 @@ impl Into<Bloom> for TraceBloom {
 	}
 }
 
+#[derive(Clone)]
 pub struct TraceBloomGroup {
 	blooms: Vec<TraceBloom>,
 }
