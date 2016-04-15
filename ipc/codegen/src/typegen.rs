@@ -36,6 +36,10 @@ fn is_new_entry(path: &Path) -> Option<String> {
 			false
 		} else {
 			let ident = format!("{}", path.segments[0].identifier.name.as_str());
+			ident == "u8"        ||
+			ident == "i8"        ||
+			ident == "u16"       ||
+			ident == "i16"       ||
 			ident == "u32"       ||
 			ident == "u64"       ||
 			ident == "usize"     ||
@@ -199,12 +203,14 @@ pub fn match_unknown_tys(
 				}
 			},
 			TyKind::Path(_, ref path) => {
-				if path.segments.len() > 0 && path.segments[0].identifier.name.as_str() == "Option" ||
-					path.segments[0].identifier.name.as_str() == "Result" {
-					for extra_type in path.segments[0].parameters.types() {
-						if !stop_list.contains(extra_type) {
-							fringe.push(extra_type);
-						}
+				if path.segments.len() > 0 && {
+					let first_segment = path.segments[0].identifier.name.as_str();
+					first_segment == "Option" || first_segment  == "Result" || first_segment == "Vec"
+				}
+				{
+					let extra_type = &path.segments[0].parameters.types()[0];
+					if !stop_list.contains(extra_type) {
+						fringe.push(extra_type);
 					}
 					continue;
 				}
