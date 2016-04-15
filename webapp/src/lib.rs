@@ -34,9 +34,9 @@
 //! 	let io = IoHandler::new();
 //! 	io.add_method("say_hello", SayHello);
 //! 	let _server = Server::start_unsecure_http(
-//!			&"127.0.0.1:3030".parse().unwrap(),
-//!			Arc::new(io)
-//!		);
+//!		&"127.0.0.1:3030".parse().unwrap(),
+//!		Arc::new(io)
+//!	);
 //! }
 //! ```
 //!
