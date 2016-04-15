@@ -17,12 +17,10 @@
 //! Tracing
 
 pub mod trace;
-mod filter;
 mod noop_tracer;
 mod executive_tracer;
 
 pub use self::trace::Trace;
-pub use self::filter::Filter;
 pub use self::noop_tracer::NoopTracer;
 pub use self::executive_tracer::ExecutiveTracer;
 use util::{Bytes, Address, U256};

@@ -19,7 +19,7 @@ use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
-use super::trace::{Trace, Action};
+use trace::trace::{Trace, Action};
 
 /// Traces filter.
 pub struct Filter {
