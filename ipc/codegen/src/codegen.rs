@@ -466,7 +466,6 @@ fn implement_client_method(
 			{
 				let _sp = ext_cx.call_site();
 				let mut tt = ::std::vec::Vec::new();
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("pub"), ::syntax::parse::token::Plain)));
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("fn"), ::syntax::parse::token::Plain)));
 				tt.extend(::quasi::ToTokens::to_tokens(&method_name, ext_cx).into_iter());
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
@@ -595,41 +594,74 @@ fn push_client_implementation(
 	let client_ident = client_qualified_ident(builder, interface_map);
 	let where_clause = &generics.where_clause;
 
-	let implement = quote_item!(cx,
-		impl $generics $client_ident $where_clause {
-			pub fn handshake(&self) -> Result<(), ::ipc::Error> {
-				let payload = BinHandshake {
-					protocol_version: $item_ident::protocol_version().to_string(),
-					api_version: $item_ident::api_version().to_string(),
-					_reserved: vec![0u8; 64],
-				};
+	let handshake_item = quote_impl_item!(cx,
+		pub fn handshake(&self) -> Result<(), ::ipc::Error> {
+			let payload = BinHandshake {
+				protocol_version: $item_ident::protocol_version().to_string(),
+				api_version: $item_ident::api_version().to_string(),
+				_reserved: vec![0u8; 64],
+			};
 
-				let mut socket_ref = self.socket.borrow_mut();
-				let mut socket = socket_ref.deref_mut();
-				::ipc::invoke(
-					0,
-					&Some(::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()),
-					&mut socket);
+			let mut socket_ref = self.socket.borrow_mut();
+			let mut socket = socket_ref.deref_mut();
+			::ipc::invoke(
+				0,
+				&Some(::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()),
+				&mut socket);
 
-				let mut result = vec![0u8; 1];
-				if try!(socket.read(&mut result).map_err(|_| ::ipc::Error::HandshakeFailed)) == 1 {
-					match result[0] {
-						1 => Ok(()),
-						_ => Err(::ipc::Error::RemoteServiceUnsupported),
-					}
+			let mut result = vec![0u8; 1];
+			if try!(socket.read(&mut result).map_err(|_| ::ipc::Error::HandshakeFailed)) == 1 {
+				match result[0] {
+					1 => Ok(()),
+					_ => Err(::ipc::Error::RemoteServiceUnsupported),
 				}
-				else { Err(::ipc::Error::HandshakeFailed) }
 			}
-
-			#[cfg(test)]
-			pub fn socket(&self) -> &::std::cell::RefCell<S> {
-				&self.socket
-			}
-
-			$items
+			else { Err(::ipc::Error::HandshakeFailed) }
 		}).unwrap();
 
-	push(Annotatable::Item(implement));
+	let socket_item = quote_impl_item!(cx,
+		#[cfg(test)]
+		pub fn socket(&self) -> &::std::cell::RefCell<S> {
+			&self.socket
+		}).unwrap();
+
+	let generic_items = vec![P(handshake_item), P(socket_item)];
+
+	if interface_map.impl_trait.is_some() {
+		let trait_ty = builder.id(
+			::syntax::print::pprust::path_to_string(
+				&interface_map.impl_trait.as_ref().unwrap().path));
+
+		let implement_trait =
+			quote_item!(cx,
+				impl $generics $trait_ty for $client_ident $where_clause {
+					$items
+				}
+			).unwrap();
+		push(Annotatable::Item(implement_trait));
+
+		let implement =
+			quote_item!(cx,
+				impl $generics $client_ident $where_clause {
+					$generic_items
+				}
+			).unwrap();
+		push(Annotatable::Item(implement));
+	}
+	else {
+		let pub_items = items.iter().map(|item| {
+			let pub_item = item.clone();
+			pub_item.map(|mut val| { val.vis = ast::Visibility::Public; val })
+		}).collect::<Vec<P<ast::ImplItem>>>();
+
+		let implement = quote_item!(cx,
+			impl $generics $client_ident $where_clause {
+				$pub_items
+				$generic_items
+			}).unwrap();
+		push(Annotatable::Item(implement));
+	}
+
 }
 
 /// implements dispatching of system handshake invocation (method_num 0)

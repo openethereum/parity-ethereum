@@ -18,7 +18,7 @@
 mod tests {
 
 	use super::super::service::*;
-	use super::super::nested::DBClient;
+	use super::super::nested::{DBClient,DBWriter};
 	use ipc::*;
 	use devtools::*;
 	use semver::Version;
