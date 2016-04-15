@@ -73,6 +73,7 @@ impl server::Handler<HttpStream> for RestApiHandler {
 		res.headers_mut().set(header::ContentType("application/json".parse().unwrap()));
 		Next::write()
 	}
+	
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		let bytes = self.pages.as_bytes();
 		if self.write_pos == bytes.len() {
