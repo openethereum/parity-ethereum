@@ -25,13 +25,13 @@ use endpoint::Endpoint;
 pub fn rpc(handler: Arc<IoHandler>) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
 		handler: handler,
-		cors_domain: AccessControlAllowOrigin::Null
+		cors_domain: Some(AccessControlAllowOrigin::Null)
 	})
 }
 
 struct RpcEndpoint {
 	handler: Arc<IoHandler>,
-	cors_domain: AccessControlAllowOrigin,
+	cors_domain: Option<AccessControlAllowOrigin>,
 }
 
 impl Endpoint for RpcEndpoint {

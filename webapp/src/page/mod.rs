@@ -42,7 +42,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 		Box::new(PageHandler {
 			app: self.app.clone(),
 			prefix: prefix.to_owned(),
-			prefix2: prefix.to_owned() + "/",
+			prefix_with_slash: prefix.to_owned() + "/",
 			path: None,
 			write_pos: 0,
 		})
@@ -52,7 +52,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 struct PageHandler<T: WebApp + 'static> {
 	app: Arc<T>,
 	prefix: String,
-	prefix2: String,
+	prefix_with_slash: String,
 	path: Option<String>,
 	write_pos: usize,
 }
@@ -60,12 +60,11 @@ struct PageHandler<T: WebApp + 'static> {
 impl<T: WebApp + 'static> server::Handler<HttpStream> for PageHandler<T> {
 	fn on_request(&mut self, req: server::Request) -> Next {
 		if let RequestUri::AbsolutePath(ref path) = *req.uri() {
-			// Support index file
-			if path == &self.prefix || path == &self.prefix2 {
-				self.path = Some("index.html".to_owned());
-			} else {
-				self.path = Some(path[self.prefix2.len()..].to_owned());
-			}
+			// Index file support
+			self.path = match path == &self.prefix || path == &self.prefix_with_slash {
+				true => Some("index.html".to_owned()),
+				false => Some(path[self.prefix_with_slash.len()..].to_owned()),
+			};
 		}
 		Next::write()
 	}
