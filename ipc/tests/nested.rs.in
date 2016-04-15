@@ -24,7 +24,7 @@ pub struct DB<L: Sized> {
 	pub holdings: L,
 }
 
-trait DBWriter {
+pub trait DBWriter {
 	fn write(&self, data: Vec<u8>)  -> Result<(), DBError>;
 }
 
