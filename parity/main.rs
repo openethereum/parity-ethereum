@@ -37,6 +37,10 @@ extern crate time;
 extern crate number_prefix;
 extern crate rpassword;
 extern crate semver;
+extern crate ethcore_ipc as ipc;
+extern crate ethcore_ipc_nano as nanoipc;
+extern crate serde;
+extern crate bincode;
 
 // for price_info.rs
 #[macro_use] extern crate hyper;
@@ -73,6 +77,7 @@ use webapp::Listening as WebappServer;
 
 mod price_info;
 mod upgrade;
+mod hypervisor;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);

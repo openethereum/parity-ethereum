@@ -2,6 +2,7 @@
 name = "parity"
 version = "1.1.0"
 dependencies = [
+ "bincode 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.63 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/tomusdrw/rust-ctrlc.git)",
  "daemonize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -9,6 +10,9 @@ dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.1.0",
  "ethcore-devtools 1.1.0",
+ "ethcore-ipc 1.1.0",
+ "ethcore-ipc-codegen 1.1.0",
+ "ethcore-ipc-nano 1.1.0",
  "ethcore-rpc 1.1.0",
  "ethcore-util 1.1.0",
  "ethcore-webapp 1.1.0",
@@ -23,6 +27,9 @@ dependencies = [
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -64,6 +71,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "bincode"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "bitflags"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -76,6 +94,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "blastfig"
 version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "byteorder"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -252,6 +275,36 @@ name = "ethcore-devtools"
 version = "1.1.0"
 dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-ipc"
+version = "1.1.0"
+dependencies = [
+ "ethcore-devtools 1.1.0",
+ "nanomsg 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
+ "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-ipc-codegen"
+version = "1.1.0"
+dependencies = [
+ "aster 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-ipc 1.1.0",
+ "quasi 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quasi_codegen 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex_syntax 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-ipc-nano"
+version = "1.1.0"
+dependencies = [
+ "ethcore-ipc 1.1.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nanomsg 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
 ]
 
 [[package]]
@@ -658,6 +711,24 @@ dependencies = [
 name = "modifier"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "nanomsg"
+version = "0.5.0"
+source = "git+https://github.com/ethcore/nanomsg.rs.git#26449b15f29b850bcf62a577f1ee3a56474a0bc9"
+dependencies = [
+ "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
+]
+
+[[package]]
+name = "nanomsg-sys"
+version = "0.5.0"
+source = "git+https://github.com/ethcore/nanomsg.rs.git#26449b15f29b850bcf62a577f1ee3a56474a0bc9"
+dependencies = [
+ "gcc 0.3.26 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "net2"
