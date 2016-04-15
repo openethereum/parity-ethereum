@@ -116,6 +116,7 @@ impl server::Handler<HttpStream> for UnauthorizedHandler {
 		res.set_status(StatusCode::Unauthorized);
 		Next::write()
 	}
+	
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		let response = "Unauthorized".as_bytes();
 
