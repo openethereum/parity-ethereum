@@ -18,6 +18,7 @@
 mod tests {
 
 	use super::super::service::*;
+	use super::super::nested::{DBClient,DBWriter};
 	use ipc::*;
 	use devtools::*;
 	use semver::Version;
@@ -120,5 +121,26 @@ mod tests {
 			11, 0, 0, 0, 0, 0, 0, 0],
 			service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(true, result);
+	}
+
+	#[test]
+	fn can_invoke_generic_service() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![0, 0, 0, 0];
+		let db_client = DBClient::<u64, _>::init(socket);
+
+		let result = db_client.write(vec![0u8; 100]);
+
+		assert!(result.is_ok());
+	}
+	#[test]
+	fn can_handshake_generic_service() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![1];
+		let db_client = DBClient::<u64, _>::init(socket);
+
+		let result = db_client.handshake();
+
+		assert!(result.is_ok());
 	}
 }

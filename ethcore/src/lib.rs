@@ -106,6 +106,7 @@ pub mod receipt;
 pub mod pod_state;
 
 mod fatdb;
+mod db;
 mod common;
 mod basic_types;
 #[macro_use] mod evm;

@@ -25,6 +25,9 @@ use syntax::ast::{
 	PatKind,
 	FunctionRetTy,
 	Ty,
+	TraitRef,
+	Ident,
+	Generics,
 };
 
 use syntax::ast;
@@ -57,15 +60,15 @@ pub fn expand_ipc_implementation(
 
 	let builder = aster::AstBuilder::new().span(span);
 
-	let (impl_item, dispatches, replacements) = match implement_interface(cx, &builder, &item, push) {
-		Ok((item, dispatches, replacements)) => (item, dispatches, replacements),
+	let interface_map = match implement_interface(cx, &builder, &item, push) {
+		Ok(interface_map) => interface_map,
 		Err(Error) => { return; }
 	};
 
-	push_client(cx, &builder, &item, &dispatches, push, &replacements);
+	push_client(cx, &builder, &interface_map, push);
 	push_handshake_struct(cx, push);
 
-	push(Annotatable::Item(impl_item));
+	push(Annotatable::Item(interface_map.item));
 }
 
 fn push_handshake_struct(cx: &ExtCtxt, push: &mut FnMut(Annotatable)) {
@@ -95,7 +98,6 @@ fn push_invoke_signature_aster(
 	replacements: &HashMap<String, P<Ty>>,
 	push: &mut FnMut(Annotatable),
 ) -> Dispatch {
-
 	let inputs = &signature.decl.inputs;
 	let (input_type_name, input_arg_names, input_arg_tys) = if inputs.len() > 0 {
 		let first_field_name = field_name(builder, &inputs[0]).name.as_str();
@@ -139,7 +141,7 @@ fn push_invoke_signature_aster(
 		(None, vec![], vec![])
 	};
 
-	let (return_type_name, return_type_ty) = match signature.decl.output {
+	let return_type_ty = match signature.decl.output {
 		FunctionRetTy::Ty(ref ty) => {
 			let name_str = format!("{}_output", implement.ident.name.as_str());
 			let tree = builder.item()
@@ -148,9 +150,9 @@ fn push_invoke_signature_aster(
 				.struct_(name_str.as_str())
 				.field(format!("payload")).ty().build(ty.clone());
 			push(Annotatable::Item(tree.build()));
-			(Some(name_str.to_owned()), Some(ty.clone()))
+			Some(ty.clone())
 		}
-		_ => (None, None)
+		_ => None
 	};
 
 	Dispatch {
@@ -158,7 +160,6 @@ fn push_invoke_signature_aster(
 		input_type_name: input_type_name,
 		input_arg_names: input_arg_names,
 		input_arg_tys: input_arg_tys,
-		return_type_name: return_type_name,
 		return_type_ty: return_type_ty,
 	}
 }
@@ -168,7 +169,6 @@ struct Dispatch {
 	input_type_name: Option<String>,
 	input_arg_names: Vec<String>,
 	input_arg_tys: Vec<P<Ty>>,
-	return_type_name: Option<String>,
 	return_type_ty: Option<P<Ty>>,
 }
 
@@ -294,33 +294,6 @@ fn implement_dispatch_arms(
 		.map(|dispatch| { index = index + 1; implement_dispatch_arm(cx, builder, index as u32, dispatch, buffer, replacements) }).collect()
 }
 
-/// generates client type for specified server type
-/// for say `Service` it generates `ServiceClient`
-fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
-	let (_, client_ident) = get_item_idents(builder, item);
-	let client_struct_item = quote_item!(cx,
-		pub struct $client_ident <S: ::ipc::IpcSocket> {
-			socket: ::std::cell::RefCell<S>,
-			phantom: ::std::marker::PhantomData<S>,
-		});
-
-	push(Annotatable::Item(client_struct_item.expect(&format!("could not generate client struct for {:?}", client_ident.name))));
-}
-
-/// pushes generated code for the client class (type declaration and method invocation implementations)
-fn push_client(
-	cx: &ExtCtxt,
-	builder: &aster::AstBuilder,
-	item: &Item,
-	dispatches: &[Dispatch],
-	push: &mut FnMut(Annotatable),
-	replacements: &HashMap<String, P<Ty>>,
-) {
-	push_client_struct(cx, builder, item, push);
-	push_client_implementation(cx, builder, dispatches, item, push, replacements);
-	push_with_socket_client_implementation(cx, builder, item, push);
-}
-
 /// returns an expression with the body for single operation that is being sent to server
 /// operation itself serializes input, writes to socket and waits for socket to respond
 /// (the latter only if original method signature returns anyting)
@@ -344,10 +317,10 @@ fn implement_client_method_body(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	index: u16,
-	dispatch: &Dispatch,
-	replacements: &HashMap<String, P<Ty>>,
+	interface_map: &InterfaceMap,
 ) -> P<ast::Expr>
 {
+	let dispatch = &interface_map.dispatches[index as usize];
 	let request = if dispatch.input_arg_names.len() > 0 {
 
 		let arg_name = dispatch.input_arg_names[0].as_str();
@@ -356,7 +329,7 @@ fn implement_client_method_body(
 			.ty().ref_()
 			.lifetime("'a")
 			.ty()
-			.build(typegen::argument_replacement(builder, replacements, static_ty).unwrap_or(static_ty.clone()));
+			.build(typegen::argument_replacement(builder, &interface_map.replacements, static_ty).unwrap_or(static_ty.clone()));
 
 		let mut tree = builder.item()
 			.attr().word("derive(Serialize)")
@@ -374,7 +347,7 @@ fn implement_client_method_body(
 				.ty().ref_()
 				.lifetime("'a")
 				.ty()
-				.build(typegen::argument_replacement(builder, replacements, static_ty).unwrap_or(static_ty.clone()));
+				.build(typegen::argument_replacement(builder, &interface_map.replacements, static_ty).unwrap_or(static_ty.clone()));
 			tree = tree.field(arg_name).ty().build(arg_ty);
 
 		}
@@ -408,7 +381,7 @@ fn implement_client_method_body(
 						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
 
 						let arg_ty = &dispatch.input_arg_tys[idx];
-						let replacement = typegen::argument_replacement(builder, replacements, arg_ty);
+						let replacement = typegen::argument_replacement(builder, &interface_map.replacements, arg_ty);
 						if let Some(ref replacement_ty) = replacement {
 							let replacor_ident = ::syntax::print::pprust::ty_to_string(replacement_ty);
 							tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(&replacor_ident), ::syntax::parse::token::Plain)));
@@ -474,13 +447,13 @@ fn implement_client_method(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	index: u16,
-	dispatch: &Dispatch,
-	replacements: &HashMap<String, P<Ty>>,
+	interface_map: &InterfaceMap,
 )
 	-> ast::ImplItem
 {
+	let dispatch = &interface_map.dispatches[index as usize];
 	let method_name = builder.id(dispatch.function_name.as_str());
-	let body = implement_client_method_body(cx, builder, index, dispatch, replacements);
+	let body = implement_client_method_body(cx, builder, index, interface_map);
 
 	let ext_cx = &*cx;
 	// expanded version of this
@@ -493,7 +466,6 @@ fn implement_client_method(
 			{
 				let _sp = ext_cx.call_site();
 				let mut tt = ::std::vec::Vec::new();
-				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("pub"), ::syntax::parse::token::Plain)));
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("fn"), ::syntax::parse::token::Plain)));
 				tt.extend(::quasi::ToTokens::to_tokens(&method_name, ext_cx).into_iter());
 				tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
@@ -527,18 +499,75 @@ fn implement_client_method(
 	signature.unwrap()
 }
 
+fn client_generics(builder: &aster::AstBuilder, interface_map: &InterfaceMap) -> Generics {
+	let ty_param = aster::ty_param::TyParamBuilder::new(
+		builder.id("S")).trait_bound(
+			builder.path().global().ids(&["ipc", "IpcSocket"]).build()
+		).build().build();
+
+	builder.from_generics(interface_map.generics.clone())
+		.with_ty_param(ty_param)
+		.build()
+}
+
+fn client_qualified_ident(builder: &aster::AstBuilder, interface_map: &InterfaceMap) -> P<Ty> {
+	let generics = client_generics(builder, interface_map);
+	aster::ty::TyBuilder::new().path().segment(interface_map.ident_map.client_ident(builder))
+		.with_generics(generics).build()
+		.build()
+}
+
+fn client_phantom_ident(builder: &aster::AstBuilder, interface_map: &InterfaceMap) -> P<Ty> {
+	let generics = client_generics(builder, interface_map);
+	aster::ty::TyBuilder::new().phantom_data()
+		.tuple().with_tys(generics.ty_params.iter().map(|x| aster::ty::TyBuilder::new().id(x.ident)))
+		.build()
+}
+
+/// generates client type for specified server type
+/// for say `Service` it generates `ServiceClient`
+fn push_client_struct(cx: &ExtCtxt, builder: &aster::AstBuilder, interface_map: &InterfaceMap, push: &mut FnMut(Annotatable)) {
+	let generics = client_generics(builder, interface_map);
+	let client_short_ident = interface_map.ident_map.client_ident(builder);
+	let phantom = client_phantom_ident(builder, interface_map);
+
+	let client_struct_item = quote_item!(cx,
+		pub struct $client_short_ident $generics {
+			socket: ::std::cell::RefCell<S>,
+			phantom: $phantom,
+		});
+
+	push(Annotatable::Item(client_struct_item.expect(&format!("could not generate client struct for {:?}", client_short_ident.name))));
+}
+
+/// pushes generated code for the client class (type declaration and method invocation implementations)
+fn push_client(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	interface_map: &InterfaceMap,
+	push: &mut FnMut(Annotatable),
+) {
+	push_client_struct(cx, builder, interface_map, push);
+	push_client_implementation(cx, builder, interface_map, push);
+	push_with_socket_client_implementation(cx, builder, interface_map, push);
+}
+
+
 fn push_with_socket_client_implementation(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
-	item: &Item,
+	interface_map: &InterfaceMap,
 	push: &mut FnMut(Annotatable))
 {
-	let (_, client_ident) = get_item_idents(builder, item);
+	let generics = client_generics(builder, interface_map);
+	let client_ident = client_qualified_ident(builder, interface_map);
+	let where_clause = &generics.where_clause;
+	let client_short_ident = interface_map.ident_map.client_ident(builder);
 
 	let implement = quote_item!(cx,
-		impl<S> ::ipc::WithSocket<S> for $client_ident<S> where S: ::ipc::IpcSocket {
-			fn init(socket: S) -> $client_ident<S> {
-				$client_ident {
+		impl $generics ::ipc::WithSocket<S> for $client_ident $where_clause {
+			fn init(socket: S) -> $client_ident {
+				$client_short_ident {
 					socket: ::std::cell::RefCell::new(socket),
 					phantom: ::std::marker::PhantomData,
 				}
@@ -551,53 +580,88 @@ fn push_with_socket_client_implementation(
 fn push_client_implementation(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
-	dispatches: &[Dispatch],
-	item: &Item,
+	interface_map: &InterfaceMap,
 	push: &mut FnMut(Annotatable),
-	replacements: &HashMap<String, P<Ty>>,
 ) {
-	let (item_ident, client_ident) = get_item_idents(builder, item);
+	let item_ident = interface_map.ident_map.qualified_ident(builder);
 
 	let mut index = -1i32;
-	let items = dispatches.iter()
-		.map(|dispatch| { index = index + 1; P(implement_client_method(cx, builder, index as u16, dispatch, replacements)) })
+	let items = interface_map.dispatches.iter()
+		.map(|_| { index = index + 1; P(implement_client_method(cx, builder, index as u16, interface_map)) })
 		.collect::<Vec<P<ast::ImplItem>>>();
 
-	let implement = quote_item!(cx,
-		impl<S> $client_ident<S> where S: ::ipc::IpcSocket {
-			pub fn handshake(&self) -> Result<(), ::ipc::Error> {
-				let payload = BinHandshake {
-					protocol_version: $item_ident::protocol_version().to_string(),
-					api_version: $item_ident::api_version().to_string(),
-					_reserved: vec![0u8; 64],
-				};
+	let generics = client_generics(builder, interface_map);
+	let client_ident = client_qualified_ident(builder, interface_map);
+	let where_clause = &generics.where_clause;
 
-				let mut socket_ref = self.socket.borrow_mut();
-				let mut socket = socket_ref.deref_mut();
-				::ipc::invoke(
-					0,
-					&Some(::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()),
-					&mut socket);
+	let handshake_item = quote_impl_item!(cx,
+		pub fn handshake(&self) -> Result<(), ::ipc::Error> {
+			let payload = BinHandshake {
+				protocol_version: $item_ident::protocol_version().to_string(),
+				api_version: $item_ident::api_version().to_string(),
+				_reserved: vec![0u8; 64],
+			};
 
-				let mut result = vec![0u8; 1];
-				if try!(socket.read(&mut result).map_err(|_| ::ipc::Error::HandshakeFailed)) == 1 {
-					match result[0] {
-						1 => Ok(()),
-						_ => Err(::ipc::Error::RemoteServiceUnsupported),
-					}
+			let mut socket_ref = self.socket.borrow_mut();
+			let mut socket = socket_ref.deref_mut();
+			::ipc::invoke(
+				0,
+				&Some(::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()),
+				&mut socket);
+
+			let mut result = vec![0u8; 1];
+			if try!(socket.read(&mut result).map_err(|_| ::ipc::Error::HandshakeFailed)) == 1 {
+				match result[0] {
+					1 => Ok(()),
+					_ => Err(::ipc::Error::RemoteServiceUnsupported),
 				}
-				else { Err(::ipc::Error::HandshakeFailed) }
 			}
-
-			#[cfg(test)]
-			pub fn socket(&self) -> &::std::cell::RefCell<S> {
-				&self.socket
-			}
-
-			$items
+			else { Err(::ipc::Error::HandshakeFailed) }
 		}).unwrap();
 
-	push(Annotatable::Item(implement));
+	let socket_item = quote_impl_item!(cx,
+		#[cfg(test)]
+		pub fn socket(&self) -> &::std::cell::RefCell<S> {
+			&self.socket
+		}).unwrap();
+
+	let generic_items = vec![P(handshake_item), P(socket_item)];
+
+	if interface_map.impl_trait.is_some() {
+		let trait_ty = builder.id(
+			::syntax::print::pprust::path_to_string(
+				&interface_map.impl_trait.as_ref().unwrap().path));
+
+		let implement_trait =
+			quote_item!(cx,
+				impl $generics $trait_ty for $client_ident $where_clause {
+					$items
+				}
+			).unwrap();
+		push(Annotatable::Item(implement_trait));
+
+		let implement =
+			quote_item!(cx,
+				impl $generics $client_ident $where_clause {
+					$generic_items
+				}
+			).unwrap();
+		push(Annotatable::Item(implement));
+	}
+	else {
+		let pub_items = items.iter().map(|item| {
+			let pub_item = item.clone();
+			pub_item.map(|mut val| { val.vis = ast::Visibility::Public; val })
+		}).collect::<Vec<P<ast::ImplItem>>>();
+
+		let implement = quote_item!(cx,
+			impl $generics $client_ident $where_clause {
+				$pub_items
+				$generic_items
+			}).unwrap();
+		push(Annotatable::Item(implement));
+	}
+
 }
 
 /// implements dispatching of system handshake invocation (method_num 0)
@@ -632,24 +696,6 @@ fn implement_handshake_arm(
 	)
 }
 
-fn get_item_idents(builder: &aster::AstBuilder, item: &Item) -> (::syntax::ast::Ident, ::syntax::ast::Ident) {
-	let ty = match item.node {
-		ast::ItemKind::Impl(_, _, _, _, ref ty, _) => ty.clone(),
-		_ => { builder.ty().id("") }
-	};
-
-	let (item_ident, client_ident) = match ty.node {
-		::syntax::ast::TyKind::Path(_, ref path) => {
-			(
-				builder.id(format!("{}", path.segments[0].identifier)),
-				builder.id(format!("{}Client", path.segments[0].identifier))
-			)
-		},
-		_ => { panic!("incompatible implementation"); }
-	};
-	(item_ident, client_ident)
-}
-
 fn collect_tys(items: &[&MethodSig]) -> Vec<P<Ty>> {
 	let mut result = Vec::new();
 	for signature in items {
@@ -661,15 +707,52 @@ fn collect_tys(items: &[&MethodSig]) -> Vec<P<Ty>> {
 	result
 }
 
+struct InterfaceMap {
+	pub original_item: Item,
+	pub item: P<ast::Item>,
+	pub dispatches: Vec<Dispatch>,
+	pub replacements: HashMap<String, P<Ty>>,
+	pub generics: Generics,
+	pub impl_trait: Option<TraitRef>,
+	pub ident_map: IdentMap,
+}
+
+struct IdentMap {
+	original_path: ast::Path,
+}
+
+impl IdentMap {
+	fn ident(&self, builder: &aster::AstBuilder) -> Ident {
+		builder.id(format!("{}", ::syntax::print::pprust::path_to_string(&self.original_path)))
+	}
+
+	fn client_ident(&self, builder: &aster::AstBuilder) -> Ident {
+		builder.id(format!("{}Client", self.original_path.segments[0].identifier))
+	}
+
+	fn qualified_ident(&self, builder: &aster::AstBuilder) -> Ident {
+		builder.id(format!("{}", ::syntax::print::pprust::path_to_string(&self.original_path).replace("<", "::<")))
+	}
+}
+
+fn ty_ident_map(original_ty: &P<Ty>) -> IdentMap {
+	let original_path = match original_ty.node {
+		::syntax::ast::TyKind::Path(_, ref path) => path.clone(),
+		_ => { panic!("incompatible implementation"); }
+	};
+	let ident_map = IdentMap { original_path: original_path };
+	ident_map
+}
+
 /// implements `IpcInterface<C>` for the given class `C`
 fn implement_interface(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	item: &Item,
 	push: &mut FnMut(Annotatable),
-) -> Result<(P<ast::Item>, Vec<Dispatch>, HashMap<String, P<Ty>>), Error> {
-	let (generics, impl_items) = match item.node {
-		ast::ItemKind::Impl(_, _, ref generics, _, _, ref impl_items) => (generics, impl_items),
+) -> Result<InterfaceMap, Error> {
+	let (generics, impl_trait, original_ty, impl_items) = match item.node {
+		ast::ItemKind::Impl(_, _, ref generics, ref impl_trait, ref ty, ref impl_items) => (generics, impl_trait, ty, impl_items),
 		_ => {
 			cx.span_err(
 				item.span,
@@ -677,16 +760,8 @@ fn implement_interface(
 			return Err(Error);
 		}
 	};
-
-	let impl_generics = builder.from_generics(generics.clone())
-		.add_ty_param_bound(
-			builder.path().global().ids(&["ethcore_ipc"]).build()
-		)
-		.build();
-
+	let impl_generics = builder.from_generics(generics.clone()).build();
 	let where_clause = &impl_generics.where_clause;
-
-	let (ty, _) = get_item_idents(builder, item);
 
 	let mut method_signatures = Vec::new();
 	for impl_item in impl_items {
@@ -712,7 +787,8 @@ fn implement_interface(
 
 	let (handshake_arm, handshake_arm_buf) = implement_handshake_arm(cx);
 
-	Ok((quote_item!(cx,
+	let ty = ty_ident_map(&original_ty).ident(builder);
+	let ipc_item = quote_item!(cx,
 		impl $impl_generics ::ipc::IpcInterface<$ty> for $ty $where_clause {
 			fn dispatch<R>(&self, r: &mut R) -> Vec<u8>
 				where R: ::std::io::Read
@@ -743,5 +819,15 @@ fn implement_interface(
 				}
 			}
 		}
-	).unwrap(), dispatch_table, replacements))
+	).unwrap();
+
+	Ok(InterfaceMap {
+		ident_map: ty_ident_map(&original_ty),
+		original_item: item.clone(),
+		item: ipc_item,
+		dispatches: dispatch_table,
+		replacements: replacements,
+		generics: generics.clone(),
+		impl_trait: impl_trait.clone(),
+	})
 }

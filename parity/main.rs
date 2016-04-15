@@ -606,6 +606,18 @@ impl Configuration {
 			print_version();
 			return;
 		}
+
+		match ::upgrade::upgrade(Some(&self.path())) {
+			Ok(upgrades_applied) => {
+				if upgrades_applied > 0 {
+					println!("Executed {} upgrade scripts - ok", upgrades_applied);
+				}
+			},
+			Err(e) => {
+				die!("Error upgrading parity data: {:?}", e);
+			}
+		}
+
 		if self.args.cmd_daemon {
 			Daemonize::new()
 				.pid_file(self.args.arg_pid_file.clone())
@@ -819,16 +831,6 @@ fn die_with_io_error(e: std::io::Error) -> ! {
 }
 
 fn main() {
-	match ::upgrade::upgrade() {
-		Ok(upgrades_applied) => {
-			if upgrades_applied > 0 {
-				println!("Executed {} upgrade scripts - ok", upgrades_applied);
-			}
-		},
-		Err(e) => {
-			die!("Error upgrading parity data: {:?}", e);
-		}
-	}
 
 	Configuration::parse().execute();
 }
