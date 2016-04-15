@@ -88,20 +88,18 @@ impl Hypervisor {
 	/// Does nothing when it is already started on module is inside the
 	/// main binary
 	fn start_module(&self, module_id: IpcModuleId) {
-		Self::match_module(&module_id).map(|binary_id|
-		   {
-				let mut processes = self.processes.write().unwrap();
-				{
-					let process = processes.get(binary_id);
-					if process.is_some() {
-						// already started for another module
-						return;
-					}
+		Self::match_module(&module_id).map(|binary_id| {
+			let mut processes = self.processes.write().unwrap();
+			{
+				if processes.get(binary_id).is_some() {
+					// already started for another module
+					return;
 				}
-				let child = Command::new(binary_id).spawn().unwrap_or_else(
-					|e| panic!("Hypervisor cannot start binary: {}", e));
-				processes.insert(binary_id, child);
-			});
+			}
+			let child = Command::new(binary_id).spawn().unwrap_or_else(
+				|e| panic!("Hypervisor cannot start binary: {}", e));
+			processes.insert(binary_id, child);
+		});
 	}
 
 	/// Reports if all modules are checked in
