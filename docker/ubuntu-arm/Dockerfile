@@ -12,11 +12,9 @@ RUN apt-get -y update && \
 # install multirust
 RUN curl -sf https://raw.githubusercontent.com/brson/multirust/master/blastoff.sh | sh -s -- --yes
 ENV RUST_TARGETS="arm-unknown-linux-gnueabihf"
-# multirust override beta
-RUN multirust override beta
 
 # multirust add arm--linux-gnuabhf toolchain
-RUN multirust add-target beta arm-unknown-linux-gnueabihf
+RUN multirust add-target stable arm-unknown-linux-gnueabihf
 
 # show backtraces
 ENV RUST_BACKTRACE 1
@@ -41,7 +39,6 @@ RUN git clone https://github.com/ethcore/parity && \
 	cat .cargo/config && \
 	rustc -vV && \
 	cargo -V && \
-	cargo update && \
 	cargo build --target arm-unknown-linux-gnueabihf --release --verbose && \
 	ls /build/parity/target/arm-unknown-linux-gnueabihf/release/parity &&	\
 	file /build/parity/target/arm-unknown-linux-gnueabihf/release/parity && \

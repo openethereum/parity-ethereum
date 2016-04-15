@@ -1694,21 +1694,34 @@ mod tests {
 		let good_blocks = vec![client.block_hash_delta_minus(2)];
 		let retracted_blocks = vec![client.block_hash_delta_minus(1)];
 
-		// Add some balance to clients
+		// Add some balance to clients and reset nonces
 		for h in &[good_blocks[0], retracted_blocks[0]] {
 			let block = client.block(BlockId::Hash(*h)).unwrap();
 			let view = BlockView::new(&block);
 			client.set_balance(view.transactions()[0].sender().unwrap(), U256::from(1_000_000_000));
+			client.set_nonce(view.transactions()[0].sender().unwrap(), U256::from(0));
 		}
 
-		let mut queue = VecDeque::new();
-		let mut io = TestIo::new(&mut client, &mut queue, None);
 
 		// when
-		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
-		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
-		assert_eq!(sync.miner.status().transactions_in_pending_queue, 1);
-		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
+		{
+			let mut queue = VecDeque::new();
+			let mut io = TestIo::new(&mut client, &mut queue, None);
+			sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
+			assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
+			assert_eq!(sync.miner.status().transactions_in_pending_queue, 1);
+		}
+		// We need to update nonce status (because we say that the block has been imported)
+		for h in &[good_blocks[0]] {
+			let block = client.block(BlockId::Hash(*h)).unwrap();
+			let view = BlockView::new(&block);
+			client.set_nonce(view.transactions()[0].sender().unwrap(), U256::from(1));
+		}
+		{
+			let mut queue = VecDeque::new();
+			let mut io = TestIo::new(&mut client, &mut queue, None);
+			sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks);
+		}
 
 		// then
 		let status = sync.miner.status();
@@ -1735,7 +1748,7 @@ mod tests {
 		sync.chain_new_blocks(&mut io, &[], &[], &[], &good_blocks);
 		assert_eq!(sync.miner.status().transactions_in_future_queue, 0);
 		assert_eq!(sync.miner.status().transactions_in_pending_queue, 0);
-		sync.chain_new_blocks(&mut io, &good_blocks, &[], &[], &retracted_blocks);
+		sync.chain_new_blocks(&mut io, &[], &[], &good_blocks, &retracted_blocks);
 
 		// then
 		let status = sync.miner.status();

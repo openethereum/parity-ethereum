@@ -138,8 +138,7 @@ API and Console Options:
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
                            server, IP should be an interface's IP address, or
                            all (all interfaces) or local [default: local].
-  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses
-                           [default: null].
+  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses.
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
@@ -247,7 +246,7 @@ struct Args {
 	flag_jsonrpc: bool,
 	flag_jsonrpc_interface: String,
 	flag_jsonrpc_port: u16,
-	flag_jsonrpc_cors: String,
+	flag_jsonrpc_cors: Option<String>,
 	flag_jsonrpc_apis: String,
 	flag_webapp: bool,
 	flag_webapp_port: u16,
@@ -312,7 +311,7 @@ fn setup_rpc_server(
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
 	url: &SocketAddr,
-	cors_domain: &str,
+	cors_domain: Option<String>,
 	apis: Vec<&str>,
 ) -> RpcServer {
 	use rpc::v1::*;
@@ -385,7 +384,7 @@ fn setup_rpc_server(
 	_secret_store: Arc<AccountService>,
 	_miner: Arc<Miner>,
 	_url: &str,
-	_cors_domain: &str,
+	_cors_domain: Option<String>,
 	_apis: Vec<&str>,
 ) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
@@ -627,9 +626,9 @@ impl Configuration {
 		let mut secret_store = SecretStore::new_in(Path::new(&self.keys_path()));
 		if self.args.cmd_new {
 			println!("Please note that password is NOT RECOVERABLE.");
-			println!("Type password: ");
+			print!("Type password: ");
 			let password = read_password().unwrap();
-			println!("Repeat password: ");
+			print!("Repeat password: ");
 			let password_repeat = read_password().unwrap();
 			if password != password_repeat {
 				println!("Passwords do not match!");
@@ -718,7 +717,7 @@ impl Configuration {
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
 			);
 			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
-			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
+			let cors_domain = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
 
 			Some(setup_rpc_server(
 				service.client(),
@@ -726,7 +725,7 @@ impl Configuration {
 				account_service.clone(),
 				miner.clone(),
 				&addr,
-				&cors_domain,
+				cors_domain,
 				apis.split(',').collect()
 			))
 		} else {

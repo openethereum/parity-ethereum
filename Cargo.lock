@@ -375,7 +375,7 @@ dependencies = [
  "jsonrpc-core 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 4.0.0 (git+https://github.com/tomusdrw/jsonrpc-http-server.git?branch=old-hyper)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-status 0.1.6 (git+https://github.com/tomusdrw/parity-status.git)",
+ "parity-status 0.1.7 (git+https://github.com/tomusdrw/parity-status.git)",
  "parity-wallet 0.1.1 (git+https://github.com/tomusdrw/parity-wallet.git)",
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
 ]
@@ -591,7 +591,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "5.0.1"
-source = "git+https://github.com/debris/jsonrpc-http-server.git#239066b94660a1af24c8b2efc16e800f9c7cce18"
+source = "git+https://github.com/debris/jsonrpc-http-server.git#e728f2e080799b7a62b0b5cf5fa9d4ad65cd8c96"
 dependencies = [
  "hyper 0.9.0-mio (git+https://github.com/hyperium/hyper?branch=mio)",
  "jsonrpc-core 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -715,7 +715,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "nanomsg"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#26449b15f29b850bcf62a577f1ee3a56474a0bc9"
+source = "git+https://github.com/ethcore/nanomsg.rs.git#9c81fb3b0f71714b173d0abf14bfd30addf8c7b1"
 dependencies = [
  "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanomsg-sys 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
@@ -724,7 +724,7 @@ dependencies = [
 [[package]]
 name = "nanomsg-sys"
 version = "0.5.0"
-source = "git+https://github.com/ethcore/nanomsg.rs.git#26449b15f29b850bcf62a577f1ee3a56474a0bc9"
+source = "git+https://github.com/ethcore/nanomsg.rs.git#9c81fb3b0f71714b173d0abf14bfd30addf8c7b1"
 dependencies = [
  "gcc 0.3.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -796,8 +796,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "parity-status"
-version = "0.1.6"
-source = "git+https://github.com/tomusdrw/parity-status.git#bbd45f5ccc6a0ccc9ed2c8b666b012844f9b89a8"
+version = "0.1.7"
+source = "git+https://github.com/tomusdrw/parity-status.git#5b7010eb7ecc38e80ab506902e083dc0dd48c43f"
 dependencies = [
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
 ]
