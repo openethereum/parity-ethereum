@@ -8,6 +8,9 @@ build = "build.rs"
 
 [build-dependencies]
 rustc_version = "0.1"
+syntex = "*"
+serde_codegen = "0.7.0"
+"ethcore-ipc-codegen" = { path = "ipc/codegen" }
 
 [dependencies]
 log = "0.3"
@@ -30,6 +33,10 @@ ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
 ethcore-webapp = { path = "webapp", optional = true }
 semver = "0.2"
+ethcore-ipc-nano = { path = "ipc/nano" }
+"ethcore-ipc" = { path = "ipc/rpc" }
+bincode = "*"
+serde = "0.7.0"
 
 [dependencies.hyper]
 version = "0.8"
