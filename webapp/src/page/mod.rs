@@ -92,9 +92,7 @@ impl<T: WebApp + 'static> server::Handler<HttpStream> for PageHandler<T> {
 				None => (None, Next::end()),
 				Some(f) if self.write_pos == f.content.len() => (None, Next::end()),
 				Some(f) => match encoder.write(&f.content[self.write_pos..]) {
-					Ok(bytes) => {
-						(Some(bytes), Next::write())
-					},
+					Ok(bytes) => (Some(bytes), Next::write()),
 					Err(e) => match e.kind() {
 						::std::io::ErrorKind::WouldBlock => (None, Next::write()),
 						_ => (None, Next::end())
