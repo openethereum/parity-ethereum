@@ -16,10 +16,12 @@
 
 //! Tracing
 
+mod block;
 pub mod trace;
 mod noop_tracer;
 mod executive_tracer;
 
+pub use self::block::BlockTraces;
 pub use self::trace::Trace;
 pub use self::noop_tracer::NoopTracer;
 pub use self::executive_tracer::ExecutiveTracer;

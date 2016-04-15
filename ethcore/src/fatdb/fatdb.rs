@@ -22,7 +22,7 @@ use bloomchain::{Config, Number};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use util::{H256, Database};
 use header::BlockNumber;
-use trace::Trace;
+use trace::{Trace, BlockTraces};
 use blockchain::BlockProvider;
 use basic_types::LogBloom;
 use super::trace::{Filter, TraceGroupPosition, TraceBloom, TraceBloomGroup};
@@ -30,7 +30,7 @@ use super::trace::{Filter, TraceGroupPosition, TraceBloom, TraceBloomGroup};
 /// Fat database.
 struct Fatdb {
 	// cache
-	traces: RwLock<HashMap<BlockNumber, Vec<Trace>>>,
+	traces: RwLock<HashMap<BlockNumber, BlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, TraceBloomGroup>>,
 	// db
 	db: Database,
@@ -82,13 +82,17 @@ impl Fatdb {
 			.map(|p| (From::from(p.0), From::from(p.1)))
 			.collect::<HashMap<TraceGroupPosition, TraceBloomGroup>>();
 
-		self.traces.write().unwrap().insert(number, traces);
+		let block_traces = BlockTraces {
+			traces: traces
+		};
+
+		self.traces.write().unwrap().insert(number, block_traces);
 		self.blooms.write().unwrap().extend(trace_blooms);
 		// TODO: insert them to db.
 	}
 
 	/// Returns traces at block with given number.
-	pub fn traces(&self, block_number: BlockNumber) -> Option<Vec<Trace>> {
+	pub fn traces(&self, block_number: BlockNumber) -> Option<BlockTraces> {
 		// TODO: look for traces in db
 		self.traces.read().unwrap().get(&block_number).cloned()
 	}
@@ -102,7 +106,7 @@ impl Fatdb {
 
 		numbers.into_iter()
 			.filter_map(|block_number| self.traces(block_number as BlockNumber))
-			.flat_map(|trace| trace)
+			.flat_map(|block_traces| block_traces.traces)
 			.filter(|trace| filter.matches(trace))
 			.collect()
 	}

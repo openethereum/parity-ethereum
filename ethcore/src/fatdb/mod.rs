@@ -16,3 +16,4 @@
 
 mod fatdb;
 mod trace;
+mod db;
