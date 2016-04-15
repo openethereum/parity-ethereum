@@ -32,14 +32,14 @@ mod tests {
 
 
 	fn init_worker(addr: &str) -> nanoipc::Worker<Service> {
-		let mut worker = nanoipc::Worker::<Service>::new(Arc::new(Service::new()));
+		let mut worker = nanoipc::Worker::<Service>::new(&Arc::new(Service::new()));
 		worker.add_duplex(addr).unwrap();
 		worker
 	}
 
 	#[test]
 	fn can_create_client() {
-		let client = nanoipc::init_client::<ServiceClient<_>>("ipc:///tmp/parity-nano-test10.ipc");
+		let client = nanoipc::init_duplex_client::<ServiceClient<_>>("ipc:///tmp/parity-nano-test10.ipc");
 		assert!(client.is_ok());
 	}
 
@@ -60,7 +60,7 @@ mod tests {
 		});
 
 		while !worker_is_ready.load(Ordering::Relaxed) { }
-		let client = nanoipc::init_client::<ServiceClient<_>>(url).unwrap();
+		let client = nanoipc::init_duplex_client::<ServiceClient<_>>(url).unwrap();
 
 		let hs = client.handshake();
 
@@ -105,5 +105,4 @@ mod tests {
 
 		worker_should_exit.store(true, Ordering::Relaxed);
 	}
-
 }

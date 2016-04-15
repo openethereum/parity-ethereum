@@ -54,7 +54,7 @@ impl<S> Deref for GuardedSocket<S> where S: WithSocket<Socket> {
 /// Spawns client <`S`> over specified address
 /// creates socket and connects endpoint to it
 /// for duplex (paired) connections with the service
-pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
+pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
 	let mut socket = try!(Socket::new(Protocol::Pair).map_err(|e| {
 		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 		SocketError::DuplexLink
@@ -71,16 +71,38 @@ pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError
 	})
 }
 
+/// Spawns client <`S`> over specified address
+/// creates socket and connects endpoint to it
+/// for request-reply connections to the service
+pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
+	let mut socket = try!(Socket::new(Protocol::Req).map_err(|e| {
+		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
+		SocketError::RequestLink
+	}));
+
+	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
+		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
+		SocketError::RequestLink
+	}));
+
+	Ok(GuardedSocket {
+		client: Arc::new(S::init(socket)),
+		_endpoint: endpoint,
+	})
+}
+
 /// Error occured while establising socket or endpoint
 #[derive(Debug)]
 pub enum SocketError {
 	/// Error establising duplex (paired) socket and/or endpoint
-	DuplexLink
+	DuplexLink,
+	/// Error establising duplex (paired) socket and/or endpoint
+	RequestLink,
 }
 
 impl<S> Worker<S> where S: IpcInterface<S> {
 	/// New worker over specified `service`
-	pub fn new(service: Arc<S>) -> Worker<S> {
+	pub fn new(service: &Arc<S>) -> Worker<S> {
 		Worker::<S> {
 			service: service.clone(),
 			sockets: Vec::new(),
@@ -103,7 +125,7 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 						if method_sign_len >= 2 {
 
 							// method_num
-							let method_num = self.buf[1] as u16 * 256 + self.buf[0] as u16;
+							let method_num = self.buf[0] as u16 * 256 + self.buf[1] as u16;
 							// payload
 							let payload = &self.buf[2..];
 
@@ -140,6 +162,26 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 	/// Only one connection over this address is allowed
 	pub fn add_duplex(&mut self, addr: &str) -> Result<(), SocketError>  {
 		let mut socket = try!(Socket::new(Protocol::Pair).map_err(|e| {
+			warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
+			SocketError::DuplexLink
+		}));
+
+		let endpoint = try!(socket.bind(addr).map_err(|e| {
+			warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", addr, e);
+			SocketError::DuplexLink
+		}));
+
+		self.sockets.push((socket, endpoint));
+
+		self.rebuild_poll_request();
+
+		Ok(())
+	}
+
+	/// Add generic socket for request-reply style communications
+	/// with multiple clients
+	pub fn add_reqrep(&mut self, addr: &str) -> Result<(), SocketError>  {
+		let mut socket = try!(Socket::new(Protocol::Rep).map_err(|e| {
 			warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 			SocketError::DuplexLink
 		}));
@@ -206,13 +248,13 @@ mod service_tests {
 
 	#[test]
 	fn can_create_worker() {
-		let worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		let worker = Worker::<DummyService>::new(&Arc::new(DummyService::new()));
 		assert_eq!(0, worker.sockets.len());
 	}
 
 	#[test]
 	fn can_add_duplex_socket_to_worker() {
-		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		let mut worker = Worker::<DummyService>::new(&Arc::new(DummyService::new()));
 		worker.add_duplex("ipc:///tmp/parity-test10.ipc").unwrap();
 		assert_eq!(1, worker.sockets.len());
 	}
@@ -220,7 +262,7 @@ mod service_tests {
 	#[test]
 	fn worker_can_poll_empty() {
 		let service = Arc::new(DummyService::new());
-		let mut worker = Worker::<DummyService>::new(service.clone());
+		let mut worker = Worker::<DummyService>::new(&service);
 		worker.add_duplex("ipc:///tmp/parity-test20.ipc").unwrap();
 		worker.poll();
 		assert_eq!(0, service.methods_stack.read().unwrap().len());
@@ -230,7 +272,7 @@ mod service_tests {
 	fn worker_can_poll() {
 		let url = "ipc:///tmp/parity-test30.ipc";
 
-		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		let mut worker = Worker::<DummyService>::new(&Arc::new(DummyService::new()));
 		worker.add_duplex(url).unwrap();
 
 		let (_socket, _endpoint) = dummy_write(url, &vec![0, 0, 7, 7, 6, 6]);
@@ -245,7 +287,7 @@ mod service_tests {
 	fn worker_can_poll_long() {
 		let url = "ipc:///tmp/parity-test40.ipc";
 
-		let mut worker = Worker::<DummyService>::new(Arc::new(DummyService::new()));
+		let mut worker = Worker::<DummyService>::new(&Arc::new(DummyService::new()));
 		worker.add_duplex(url).unwrap();
 
 		let message = [0u8; 1024*1024];

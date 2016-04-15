@@ -17,7 +17,7 @@ ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 parity-webapp = { git = "https://github.com/tomusdrw/parity-webapp.git" }
 # List of apps
-parity-status = { git = "https://github.com/tomusdrw/parity-status.git", version = "0.1.5" }
+parity-status = { git = "https://github.com/tomusdrw/parity-status.git", version = "0.1.7" }
 parity-wallet = { git = "https://github.com/tomusdrw/parity-wallet.git", optional = true }
 clippy = { version = "0.0.63", optional = true}
 

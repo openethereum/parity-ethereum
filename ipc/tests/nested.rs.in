@@ -14,5 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod codegen;
-pub mod typegen;
+use std::sync::RwLock;
+use std::ops::*;
+use ipc::IpcConfig;
+
+pub struct DB<L: Sized> {
+	pub writes: RwLock<u64>,
+	pub reads: RwLock<u64>,
+	pub holdings: L,
+}
+
+trait DBWriter {
+	fn write(&self, data: Vec<u8>)  -> Result<(), DBError>;
+}
+
+impl<L: Sized> IpcConfig for DB<L> {}
+
+#[derive(Serialize, Deserialize)]
+pub enum DBError { Write, Read }
+
+#[derive(Ipc)]
+impl<L: Sized> DBWriter for DB<L> {
+	fn write(&self, data: Vec<u8>) -> Result<(), DBError> {
+		let mut writes = self.writes.write().unwrap();
+		*writes = *writes + data.len() as u64;
+		Ok(())
+	}
+}
+

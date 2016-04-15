@@ -18,6 +18,7 @@
 mod tests {
 
 	use super::super::service::*;
+	use super::super::nested::DBClient;
 	use ipc::*;
 	use devtools::*;
 	use semver::Version;
@@ -98,6 +99,47 @@ mod tests {
 		let service_client = ServiceClient::init(socket);
 
 		let result = service_client.handshake();
+
+		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn can_use_custom_params() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![1];
+		let service_client = ServiceClient::init(socket);
+
+		let result = service_client.push_custom(CustomData { a: 3, b: 11});
+
+		assert_eq!(vec![
+			// message num..
+			0, 18,
+			// payload length
+			0, 0, 0, 0, 0, 0, 0, 16,
+			// structure raw bytes (bigendians :( )
+			3, 0, 0, 0, 0, 0, 0, 0,
+			11, 0, 0, 0, 0, 0, 0, 0],
+			service_client.socket().borrow().write_buffer.clone());
+		assert_eq!(true, result);
+	}
+
+	#[test]
+	fn can_invoke_generic_service() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![0, 0, 0, 0];
+		let db_client = DBClient::<u64, _>::init(socket);
+
+		let result = db_client.write(vec![0u8; 100]);
+
+		assert!(result.is_ok());
+	}
+	#[test]
+	fn can_handshake_generic_service() {
+		let mut socket = TestSocket::new();
+		socket.read_buffer = vec![1];
+		let db_client = DBClient::<u64, _>::init(socket);
+
+		let result = db_client.handshake();
 
 		assert!(result.is_ok());
 	}

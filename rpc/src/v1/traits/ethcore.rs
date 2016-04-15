@@ -20,17 +20,39 @@ use jsonrpc_core::*;
 
 /// Ethcore-specific rpc interface.
 pub trait Ethcore: Sized + Send + Sync + 'static {
+
+	/// Sets new minimal gas price for mined blocks.
+	fn set_min_gas_price(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Sets new gas floor target for mined blocks.
+	fn set_gas_floor_target(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Sets new extra data for mined blocks.
+	fn set_extra_data(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Sets new author for mined block.
+	fn set_author(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Returns mining extra data.
 	fn extra_data(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Returns mining gas floor target.
 	fn gas_floor_target(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
+	/// Returns minimal gas price for transaction to be included in queue.
+	fn min_gas_price(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
+		delegate.add_method("ethcore_setMinGasPrice", Ethcore::set_min_gas_price);
+		delegate.add_method("ethcore_setGasFloorTarget", Ethcore::set_gas_floor_target);
+		delegate.add_method("ethcore_setExtraData", Ethcore::set_extra_data);
+		delegate.add_method("ethcore_setAuthor", Ethcore::set_author);
+
 		delegate.add_method("ethcore_extraData", Ethcore::extra_data);
 		delegate.add_method("ethcore_gasFloorTarget", Ethcore::gas_floor_target);
+		delegate.add_method("ethcore_minGasPrice", Ethcore::min_gas_price);
 		delegate
 	}
 }

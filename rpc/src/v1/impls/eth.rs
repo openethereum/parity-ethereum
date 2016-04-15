@@ -40,14 +40,6 @@ use v1::helpers::{PollFilter, PollManager, ExternalMinerService, ExternalMiner};
 use util::keys::store::AccountProvider;
 use serde;
 
-fn default_gas() -> U256 {
-	U256::from(21_000)
-}
-
-fn default_call_gas() -> U256 {
-	U256::from(50_000_000)
-}
-
 /// Eth rpc implementation.
 pub struct EthClient<C, S, A, M, EM = ExternalMiner>
 	where C: BlockChainClient,
@@ -180,7 +172,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		Ok(EthTransaction {
 			nonce: request.nonce.unwrap_or_else(|| client.nonce(&from)),
 			action: request.to.map_or(Action::Create, Action::Call),
-			gas: request.gas.unwrap_or_else(default_call_gas),
+			gas: request.gas.unwrap_or(U256::from(50_000_000)),
 			gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
 			value: request.value.unwrap_or_else(U256::zero),
 			data: request.data.map_or_else(Vec::new, |d| d.to_vec())
@@ -498,7 +490,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 											 .map(|nonce| nonce + U256::one()))
 									.unwrap_or_else(|| client.nonce(&request.from)),
 								action: request.to.map_or(Action::Create, Action::Call),
-								gas: request.gas.unwrap_or_else(default_gas),
+								gas: request.gas.unwrap_or_else(|| miner.sensible_gas_limit()),
 								gas_price: request.gas_price.unwrap_or_else(|| miner.sensible_gas_price()),
 								value: request.value.unwrap_or_else(U256::zero),
 								data: request.data.map_or_else(Vec::new, |d| d.to_vec()),
@@ -524,6 +516,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	}
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
+		trace!(target: "jsonrpc", "call: {:?}", params);
 		from_params_discard_second(params).and_then(|(request, )| {
 			let signed = try!(self.sign_call(request));
 			let client = take_weak!(self.client);

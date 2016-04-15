@@ -37,6 +37,10 @@ extern crate time;
 extern crate number_prefix;
 extern crate rpassword;
 extern crate semver;
+extern crate ethcore_ipc as ipc;
+extern crate ethcore_ipc_nano as nanoipc;
+extern crate serde;
+extern crate bincode;
 
 // for price_info.rs
 #[macro_use] extern crate hyper;
@@ -73,6 +77,7 @@ use webapp::Server as WebappServer;
 
 mod price_info;
 mod upgrade;
+mod hypervisor;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
@@ -133,8 +138,7 @@ API and Console Options:
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
                            server, IP should be an interface's IP address, or
                            all (all interfaces) or local [default: local].
-  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses
-                           [default: null].
+  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses.
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
@@ -242,7 +246,7 @@ struct Args {
 	flag_jsonrpc: bool,
 	flag_jsonrpc_interface: String,
 	flag_jsonrpc_port: u16,
-	flag_jsonrpc_cors: String,
+	flag_jsonrpc_cors: Option<String>,
 	flag_jsonrpc_apis: String,
 	flag_webapp: bool,
 	flag_webapp_port: u16,
@@ -307,7 +311,7 @@ fn setup_rpc_server(
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
 	url: &SocketAddr,
-	cors_domain: &str,
+	cors_domain: Option<String>,
 	apis: Vec<&str>,
 ) -> RpcServer {
 	use rpc::v1::*;
@@ -380,7 +384,7 @@ fn setup_rpc_server(
 	_secret_store: Arc<AccountService>,
 	_miner: Arc<Miner>,
 	_url: &SocketAddr,
-	_cors_domain: &str,
+	_cors_domain: Option<String>,
 	_apis: Vec<&str>,
 ) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
@@ -550,6 +554,7 @@ impl Configuration {
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
 			let db = journaldb::new(&append_path(&get_db_path(&Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
 				(_, None) => {}
@@ -582,7 +587,7 @@ impl Configuration {
 			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
-		info!("Using state DB of {}", client_config.pruning);
+		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		client_config
@@ -601,6 +606,18 @@ impl Configuration {
 			print_version();
 			return;
 		}
+
+		match ::upgrade::upgrade(Some(&self.path())) {
+			Ok(upgrades_applied) => {
+				if upgrades_applied > 0 {
+					println!("Executed {} upgrade scripts - ok", upgrades_applied);
+				}
+			},
+			Err(e) => {
+				die!("Error upgrading parity data: {:?}", e);
+			}
+		}
+
 		if self.args.cmd_daemon {
 			Daemonize::new()
 				.pid_file(self.args.arg_pid_file.clone())
@@ -621,9 +638,9 @@ impl Configuration {
 		let mut secret_store = SecretStore::new_in(Path::new(&self.keys_path()));
 		if self.args.cmd_new {
 			println!("Please note that password is NOT RECOVERABLE.");
-			println!("Type password: ");
+			print!("Type password: ");
 			let password = read_password().unwrap();
-			println!("Repeat password: ");
+			print!("Repeat password: ");
 			let password_repeat = read_password().unwrap();
 			if password != password_repeat {
 				println!("Passwords do not match!");
@@ -712,7 +729,7 @@ impl Configuration {
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
 			);
 			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
-			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
+			let cors_domain = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
 
 			Some(setup_rpc_server(
 				service.client(),
@@ -720,7 +737,7 @@ impl Configuration {
 				account_service.clone(),
 				miner.clone(),
 				&addr,
-				&cors_domain,
+				cors_domain,
 				apis.split(',').collect()
 			))
 		} else {
@@ -815,16 +832,6 @@ fn die_with_io_error(e: std::io::Error) -> ! {
 }
 
 fn main() {
-	match ::upgrade::upgrade() {
-		Ok(upgrades_applied) => {
-			if upgrades_applied > 0 {
-				println!("Executed {} upgrade scripts - ok", upgrades_applied);
-			}
-		},
-		Err(e) => {
-			die!("Error upgrading parity data: {:?}", e);
-		}
-	}
 
 	Configuration::parse().execute();
 }
