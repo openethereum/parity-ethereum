@@ -247,7 +247,7 @@ pub trait FromRawBytes : Sized {
 	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError>;
 }
 
-impl<T> FromRawBytes for T where T: Sized + FixedHash {
+impl<T> FromRawBytes for (T) where T: FixedHash {
 	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
 		use std::mem;
 		use std::cmp::Ordering;
@@ -263,15 +263,79 @@ impl<T> FromRawBytes for T where T: Sized + FixedHash {
 	}
 }
 
-impl FromRawBytes for String {
-	fn from_bytes(bytes: &[u8]) -> Result<String, FromBytesError> {
+impl FromRawBytes for u16 {
+	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
+		use std::mem;
+		use std::cmp::Ordering;
+
+		match bytes.len().cmp(&2) {
+			Ordering::Less => return Err(FromBytesError::NotLongEnough),
+			Ordering::Greater => return Err(FromBytesError::TooLong),
+			Ordering::Equal => ()
+		};
+		let mut res: Self = unsafe { mem::uninitialized() };
+		res.copy_raw(bytes);
+		Ok(res)
+	}
+}
+
+impl FromRawBytes for u8 {
+	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
+		use std::mem;
+		use std::cmp::Ordering;
+
+		match bytes.len().cmp(&1) {
+			Ordering::Less => return Err(FromBytesError::NotLongEnough),
+			Ordering::Greater => return Err(FromBytesError::TooLong),
+			Ordering::Equal => ()
+		};
+		let mut res: Self = unsafe { mem::uninitialized() };
+		res.copy_raw(bytes);
+		Ok(res)
+	}
+}
+
+pub trait FromRawBytesVariable : Sized {
+	fn from_bytes_var(d: &[u8], len: u64) -> Result<Self, FromBytesError>;
+}
+
+impl<T> FromRawBytesVariable for T where T: FromRawBytes {
+	fn from_bytes_var(d: &[u8], _len: u64) -> Result<Self, FromBytesError> {
+		T::from_bytes(d)
+	}
+}
+
+impl FromRawBytesVariable for String {
+	fn from_bytes_var(bytes: &[u8], _len: u64) -> Result<String, FromBytesError> {
 		Ok(::std::str::from_utf8(bytes).unwrap().to_owned())
 	}
 }
 
-impl FromRawBytes for Vec<u8> {
-	fn from_bytes(bytes: &[u8]) -> Result<Vec<u8>, FromBytesError> {
-		Ok(bytes.clone().to_vec())
+impl<T> FromRawBytesVariable for Vec<T> where T: FromRawBytes {
+	fn from_bytes_var(d: &[u8], len: u64) -> Result<Self, FromBytesError> {
+		let size_of_t = ::std::mem::size_of::<T>();
+		assert_eq!(len, 8);
+		let length_in_chunks = len as usize / size_of_t;
+
+		let mut result = Vec::with_capacity(length_in_chunks as usize);
+		unsafe { result.set_len(length_in_chunks as usize) };
+		for i in 0..length_in_chunks { *result.get_mut(i).unwrap() = try!(T::from_bytes(&d[size_of_t * i..size_of_t * (i+1)])) }
+		Ok(result)
+	}
+}
+
+impl<V1, T2> FromRawBytes for (V1, T2) where V1: FromRawBytesVariable, T2: FromRawBytes {
+	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError> {
+		let header = 8usize;
+		let mut map: (u64, ) = unsafe { ::std::mem::uninitialized() };
+
+		if d.len() < header { return  Err(FromBytesError::NotLongEnough); }
+		map.copy_raw(&d[0..header]);
+
+		Ok((
+			try!(V1::from_bytes_var(&d[header..header + (map.0 as usize)], map.0)),
+			try!(T2::from_bytes(&d[header + (map.0 as usize)..d.len()])),
+		))
 	}
 }
 
@@ -325,4 +389,25 @@ fn populate_big_types() {
 	let mut h = h256_from_u64(0x69);
 	h.copy_raw_from(&a);
 	assert_eq!(h, h256_from_hex("ffffffffffffffffffffffffffffffffffffffff000000000000000000000069"));
+}
+
+#[test]
+fn raw_bytes_from_tuple() {
+	let tup = (vec![1u16, 1u16, 1u16, 1u16], 10u16);
+	let bytes = vec![
+		// map
+		8u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+		// four 1u16
+		0u8, 1u8,
+		0u8, 1u8,
+		0u8, 1u8,
+		0u8, 1u8,
+		// 10u16
+		0u8, 10u8];
+
+	type tup = (Vec<u16>, u16);
+
+	let tup_from = tup::from_bytes(&bytes).unwrap();
+
+	assert_eq!(tup, tup_from);
 }
