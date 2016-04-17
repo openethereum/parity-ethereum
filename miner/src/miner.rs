@@ -374,39 +374,28 @@ mod tests {
 		assert!(sealing_work.is_some(), "Expected closed block");
 	}
 
-	// #[test]
-	// fn should_still_work_after_a_couple_of_blocks() {
-	// 	// given
-	// 	let client = Arc::new(TestBlockChainClient::default());
-	// 	let miner = Miner::new(engine, client.clone());
-	// 	let res = miner.sealing_block();
-	// 	// TODO [ToDr] Uncomment after fixing TestBlockChainClient
-	// 	// assert!(res.lock().unwrap().is_some(), "Expected closed block");
-    //
-	// 	let res = miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
-	// 	assert!(res.is_some());
-	// 	assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());
-    //
-	// 	// two more blocks mined, work requested.
-	// 	client.add_blocks(1, EachBlockWith::Uncle);
-	// 	miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
-    //
-	// 	client.add_blocks(1, EachBlockWith::Uncle);
-	// 	miner.map_sealing_work(&client, |b| b.block().fields().header.hash());
-    //
-	// 	// solution to original work submitted.
-	// 	assert!(miner.submit_seal(&client, res.unwrap(), vec![]).is_ok());
-	// }
-    //
-	// #[test]
-	// fn can_mine() {
-	// 	let dummy_blocks = get_good_dummy_block_seq(2);
-	// 	let client_result = get_test_client_with_blocks(vec![dummy_blocks[0].clone()]);
-	// 	let client = client_result.reference();
-    //
-	// 	let b = client.prepare_sealing(Address::default(), x!(31415926), vec![], vec![]).unwrap();
-    //
-	// 	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
-	// 	assert!(client.try_seal(b, vec![]).is_ok());
-	// }
+	#[test]
+	fn should_still_work_after_a_couple_of_blocks() {
+		// given
+		let client = Arc::new(TestBlockChainClient::default());
+		let miner = Miner::new(client.clone(), false);
+
+		let res = miner.map_sealing_work(|b| b.block().fields().header.hash());
+		assert!(res.is_some());
+		assert!(miner.submit_seal(res.unwrap(), vec![]).is_ok());
+
+		// two more blocks mined, work requested.
+		client.add_blocks(1, EachBlockWith::Uncle);
+		miner.update_sealing();
+		let h1 = miner.map_sealing_work(|b| b.block().fields().header.hash());
+
+		client.add_blocks(1, EachBlockWith::Uncle);
+		miner.update_sealing();
+		let h2 = miner.map_sealing_work(|b| b.block().fields().header.hash());
+
+		// solution to original work submitted.
+		assert!(h1 != h2);
+		assert!(miner.submit_seal(res.unwrap(), vec![]).is_ok());
+	}
+
 }

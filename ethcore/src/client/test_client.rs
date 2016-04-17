@@ -277,14 +277,16 @@ impl BlockChainClient for TestBlockChainClient {
 	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Option<OpenBlock> {
 		let mut db_result = get_temp_journal_db();
 		let mut state_db = db_result.take();
-		let best_block_header = self.spec.genesis_header();
-		self.spec.ensure_db_good(state_db.as_hashdb_mut());
+		let best_block_hash = self.chain_info().best_block_hash;
+		let best_block_header = self.block_header(BlockId::Hash(best_block_hash)).unwrap();
+		let header : BlockHeader = decode(&best_block_header);
+
 		Some(OpenBlock::new(
 			self.engine(),
 			false,
 			state_db,
-			&best_block_header,
-			vec![best_block_header.hash()],
+			&header,
+			vec![best_block_hash],
 			author,
 			gas_floor_target,
 			extra_data,

@@ -121,6 +121,7 @@ pub trait MinerService : Send + Sync {
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	fn submit_seal(&self, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error>;
 
+	/// Should be called when new blocks are imported to chain and we want miner to include new work for sealing.
 	fn update_sealing(&self);
 
 	/// Query pending transactions for hash.
