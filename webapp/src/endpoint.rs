@@ -14,28 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use endpoint::Endpoints;
-use page::PageEndpoint;
+//! URL Endpoint traits
 
-extern crate parity_status;
-extern crate parity_wallet;
+use hyper::server;
+use hyper::net::HttpStream;
+use std::collections::HashMap;
 
-
-pub fn main_page() -> &'static str {
-	"/status/"
+pub trait Endpoint : Send + Sync {
+	fn to_handler(&self, prefix: &str) -> Box<server::Handler<HttpStream>>;
 }
 
-pub fn all_endpoints() -> Endpoints {
-	let mut pages = Endpoints::new();
-	pages.insert("status".to_owned(), Box::new(PageEndpoint::new(parity_status::App::default())));
-	wallet_page(&mut pages);
-	pages
-}
-
-#[cfg(feature = "parity-wallet")]
-fn wallet_page(pages: &mut Endpoints) {
-	pages.insert("wallet".to_owned(), Box::new(PageEndpoint::new(parity_wallet::App::default())));
-}
-
-#[cfg(not(feature = "parity-wallet"))]
-fn wallet_page(_pages: &mut Endpoints) {}
+pub type Endpoints = HashMap<String, Box<Endpoint>>;

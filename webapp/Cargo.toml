@@ -10,9 +10,9 @@ authors = ["Ethcore <admin@ethcore.io"]
 [dependencies]
 log = "0.3"
 jsonrpc-core = "2.0"
-jsonrpc-http-server = { git = "https://github.com/tomusdrw/jsonrpc-http-server.git", branch="old-hyper" }
-hyper = { version = "0.8", default-features = false }
-iron = { version = "0.3" }
+jsonrpc-http-server = { git = "https://github.com/debris/jsonrpc-http-server.git" }
+hyper = { default-features = false, git = "https://github.com/hyperium/hyper", branch = "mio" }
+url = "0.5"
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 parity-webapp = { git = "https://github.com/tomusdrw/parity-webapp.git" }
