@@ -314,7 +314,6 @@ impl FromRawBytesVariable for String {
 impl<T> FromRawBytesVariable for Vec<T> where T: FromRawBytes {
 	fn from_bytes_var(d: &[u8], len: u64) -> Result<Self, FromBytesError> {
 		let size_of_t = ::std::mem::size_of::<T>();
-		assert_eq!(len, 8);
 		let length_in_chunks = len as usize / size_of_t;
 
 		let mut result = Vec::with_capacity(length_in_chunks as usize);
