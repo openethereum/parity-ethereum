@@ -23,7 +23,7 @@ use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::*;
 use ethcore::transaction::SignedTransaction;
-use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails};
+use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
@@ -220,10 +220,18 @@ impl MinerService for Miner {
 		*self.gas_floor_target.read().unwrap()
 	}
 
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
+		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
 		transaction_queue.add_all(transactions, fetch_account)
+	}
+
+	fn import_own_transaction<T>(&self, transaction: SignedTransaction, fetch_account: T) ->
+		Result<TransactionImportResult, Error>
+		where T: Fn(&Address) -> AccountDetails {
+		let mut transaction_queue = self.transaction_queue.lock().unwrap();
+		transaction_queue.add(transaction, &fetch_account)
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {

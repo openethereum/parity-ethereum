@@ -182,24 +182,30 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 	fn dispatch_transaction(&self, signed_transaction: SignedTransaction) -> Result<Value, Error> {
 		let hash = signed_transaction.hash();
 
-		let import = {
+		let (import, status) = {
 			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
 
-			miner.import_transactions(vec![signed_transaction], |a: &Address| {
+			let import = miner.import_own_transaction(signed_transaction, |a: &Address| {
 				AccountDetails {
 					nonce: client.nonce(&a),
 					balance: client.balance(&a),
 				}
-			})
+			});
+			let status_after = miner.status();
+			(import, status_after)
 		};
 
-		match import.into_iter().collect::<Result<Vec<_>, _>>() {
-			Ok(_) => {
+		match import {
+			Ok(res) => {
+				trace!(target: "tx", "Imported transaction to {:?} (hash: {:?})", res, hash);
+				trace!(target: "tx", "Status: {:?}", status);
 				to_value(&hash)
 			}
 			Err(e) => {
 				warn!("Error sending transaction: {:?}", e);
+				trace!(target: "tx", "Failed to import transaction {:?} (hash: {:?})", e, hash);
+				trace!(target: "tx", "Status: {:?}", status);
 				to_value(&H256::zero())
 			}
 		}

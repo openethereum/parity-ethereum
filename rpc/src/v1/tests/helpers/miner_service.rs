@@ -22,7 +22,7 @@ use ethcore::error::Error;
 use ethcore::client::BlockChainClient;
 use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
-use ethminer::{MinerService, MinerStatus, AccountDetails};
+use ethminer::{MinerService, MinerStatus, AccountDetails, TransactionImportResult};
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -101,15 +101,26 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, _fetch_account: T) -> Vec<Result<(), Error>>
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, _fetch_account: T) ->
+		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
 
 		transactions
 			.iter()
-			.map(|_| Ok(()))
+			.map(|_| Ok(TransactionImportResult::Current))
 			.collect()
+	}
+
+	/// Imports transactions to transaction queue.
+	fn import_own_transaction<T>(&self, transaction: SignedTransaction, _fetch_account: T) ->
+		Result<TransactionImportResult, Error>
+		where T: Fn(&Address) -> AccountDetails {
+		// lets assume that all txs are valid
+		self.imported_transactions.lock().unwrap().push(transaction);
+
+		Ok(TransactionImportResult::Current)
 	}
 
 	/// Returns hashes of transactions currently in pending

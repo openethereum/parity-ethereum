@@ -274,7 +274,6 @@ name = "ethcore-ipc-codegen"
 version = "1.1.0"
 dependencies = [
  "aster 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-ipc 1.1.0",
  "quasi 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quasi_codegen 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
