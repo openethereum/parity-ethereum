@@ -16,6 +16,7 @@
 
 //! Test client.
 
+// TODO [ToDr] Consider moving to devtools?
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
@@ -33,9 +34,13 @@ use block::OpenBlock;
 use executive::Executed;
 use error::Error;
 use engine::Engine;
+use spec::Spec;
+use tests::helpers::*;
 
 /// Test client.
 pub struct TestBlockChainClient {
+	/// Spec instance for tests.
+	pub spec: Spec,
 	/// Blocks.
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
 	/// Mapping of numbers to hashes.
@@ -86,6 +91,7 @@ impl TestBlockChainClient {
 	pub fn new() -> Self {
 
 		let mut client = TestBlockChainClient {
+			spec: Spec::new_test(),
 			blocks: RwLock::new(HashMap::new()),
 			numbers: RwLock::new(HashMap::new()),
 			genesis_hash: H256::new(),
@@ -268,8 +274,21 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn open_block(&self, _author: Address, _gas_floor_target: U256, _extra_data: Bytes) -> Option<OpenBlock> {
-		unimplemented!();
+	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Option<OpenBlock> {
+		let mut db_result = get_temp_journal_db();
+		let mut state_db = db_result.take();
+		let best_block_header = self.spec.genesis_header();
+		self.spec.ensure_db_good(state_db.as_hashdb_mut());
+		Some(OpenBlock::new(
+			self.engine(),
+			false,
+			state_db,
+			&best_block_header,
+			vec![best_block_header.hash()],
+			author,
+			gas_floor_target,
+			extra_data,
+		))
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<Bytes> {
@@ -422,6 +441,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn engine(&self) -> &Engine {
-		unimplemented!();
+		self.spec.engine.deref()
 	}
 }

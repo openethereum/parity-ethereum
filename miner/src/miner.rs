@@ -305,15 +305,6 @@ impl<C: MinerBlockChain> MinerService for Miner<C> {
 	}
 
 	fn chain_new_blocks(&self, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
-		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
-			let block = chain
-				.block(BlockId::Hash(*hash))
-				// Client should send message after commit to db and inserting to chain.
-				.expect("Expected in-chain blocks.");
-			let block = BlockView::new(&block);
-			block.transactions()
-		}
-
 		// 1. We ignore blocks that were `imported` (because it means that they are not in canon-chain, and transactions
 		//	  should be still available in the queue.
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
@@ -352,7 +343,7 @@ impl<C: MinerBlockChain> MinerService for Miner<C> {
 						})
 						.collect::<HashSet<Address>>();
 				for sender in to_remove.into_iter() {
-					transaction_queue.remove_all(sender, chain.nonce(&sender));
+					transaction_queue.remove_all(sender, self.chain.account_details(&sender).nonce);
 				}
 			});
 		}
@@ -370,23 +361,19 @@ mod tests {
 	use ethcore::client::{TestBlockChainClient, EachBlockWith};
 	use ethcore::block::*;
 
-	// TODO [ToDr] To uncomment when TestBlockChainClient can actually return a ClosedBlock.
-	// #[ignore]
-	// #[test]
-	// fn should_prepare_block_to_seal() {
-	// 	// given
-	// 	let engine = unimplemented!();
-	// 	let client = Arc::new(TestBlockChainClient::default());
-	// 	let miner = Miner::new(engine, client);
-    //
-	// 	// when
-	// 	let sealing_work = miner.map_sealing_work(&client, |_| ());
-    //
-	// 	// then
-	// 	assert!(sealing_work.is_some(), "Expected closed block");
-	// }
-    //
-	// #[ignore]
+	#[test]
+	fn should_prepare_block_to_seal() {
+		// given
+		let client = Arc::new(TestBlockChainClient::default());
+		let miner = Miner::new(client, true);
+
+		// when
+		let sealing_work = miner.map_sealing_work(|_| ());
+
+		// then
+		assert!(sealing_work.is_some(), "Expected closed block");
+	}
+
 	// #[test]
 	// fn should_still_work_after_a_couple_of_blocks() {
 	// 	// given

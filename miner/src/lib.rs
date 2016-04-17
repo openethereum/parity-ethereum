@@ -39,16 +39,15 @@
 //! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
 //! 	let dir = env::temp_dir();
 //! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
+//! 	let force_sealing = true; // Enable sealing even if no-one asks for work.
 //!
-//!		let miner: Miner = Miner::new(
-//!			Arc::new(ethereum::new_frontier().to_engine().unwrap()),
-//!			Arc::new(client)
-//!		);
+//!		let miner = Miner::new(client, true);
+//!
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
 //!		// Check block for sealing
-//!		//assert!(miner.sealing_block(client.deref()).lock().unwrap().is_some());
+//!		assert!(miner.map_sealing_work(|_| ()).is_some());
 //! }
 //! ```
 
@@ -142,20 +141,28 @@ pub trait MinerService : Send + Sync {
 
 /// `BlockChainClient` requirements for mining
 pub trait MinerBlockChain : Send + Sync {
+	/// Returns new `OpenBlock` given the parameters. `OpenBlock` can later be sealed and imported into the blockchain.
 	fn open_block(&self, author: Address, gas_floor_target: U256, extra_data: Bytes) -> Option<OpenBlock>;
 
+	/// Imports sealed block to `BlockChain`.
 	fn import_block(&self, bytes: Bytes) -> ImportResult;
 
+	/// Returns all transactions included in block identified by hash.
 	fn block_transactions(&self, hash: &H256) -> Vec<SignedTransaction>;
 
+	/// Returns gas limit of current best block.
 	fn best_block_gas_limit(&self) -> U256;
 
+	/// Returns number of current best block.
 	fn best_block_number(&self) -> u64;
 
+	/// Returns hash of current best block.
 	fn best_block_hash(&self) -> H256;
 
+	/// Returns details (balance & nonce) for account under given `address`.
 	fn account_details(&self, address: &Address) -> AccountDetails;
 
+	/// Returns current instance of engine.
 	fn engine(&self) -> &Engine;
 }
 

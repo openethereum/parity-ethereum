@@ -85,7 +85,7 @@ extern crate num_cpus;
 extern crate crossbeam;
 extern crate ethjson;
 
-#[cfg(test)] extern crate ethcore_devtools as devtools;
+extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
 pub mod block;
@@ -126,7 +126,6 @@ mod externalities;
 mod verification;
 mod blockchain;
 
-#[cfg(test)]
 mod tests;
 #[cfg(test)]
 #[cfg(feature="json-tests")]

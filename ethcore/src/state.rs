@@ -48,7 +48,6 @@ pub struct State {
 
 impl State {
 	/// Creates new state with empty state root
-	#[cfg(test)]
 	pub fn new(mut db: Box<JournalDB>, account_start_nonce: U256) -> State {
 		let mut root = H256::new();
 		{

@@ -30,7 +30,6 @@ pub enum ChainEra {
 	Homestead,
 }
 
-#[cfg(test)]
 pub struct GuardedTempResult<T> {
 	result: Option<T>,
 	_temp: RandomTempPath
