@@ -324,7 +324,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 					}
 				};
 
-				match Value::from_bytes_var(&val, val.len() as u64) {
+				match Value::from_bytes_variable(&val) {
 					Ok(value) => Ok(value),
 					Err(bytes_error) => Err(EncryptedHashMapError::InvalidValueFormat(bytes_error))
 				}

@@ -37,6 +37,8 @@ use std::slice;
 use std::ops::{Deref, DerefMut};
 use hash::FixedHash;
 use elastic_array::*;
+use std::mem;
+use std::cmp::Ordering;
 
 /// Vector like object
 pub trait VecLike<T> {
@@ -249,8 +251,6 @@ pub trait FromRawBytes : Sized {
 
 impl<T> FromRawBytes for T where T: FixedHash {
 	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
-		use std::mem;
-		use std::cmp::Ordering;
 		match bytes.len().cmp(&mem::size_of::<T>()) {
 			Ordering::Less => return Err(FromBytesError::NotLongEnough),
 			Ordering::Greater => return Err(FromBytesError::TooLong),
@@ -265,9 +265,6 @@ impl<T> FromRawBytes for T where T: FixedHash {
 
 impl FromRawBytes for u16 {
 	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
-		use std::mem;
-		use std::cmp::Ordering;
-
 		match bytes.len().cmp(&2) {
 			Ordering::Less => return Err(FromBytesError::NotLongEnough),
 			Ordering::Greater => return Err(FromBytesError::TooLong),
@@ -282,51 +279,75 @@ impl FromRawBytes for u16 {
 /// Value that can be serialized from variable-length byte array
 pub trait FromRawBytesVariable : Sized {
 	/// Create value from slice
-	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError>;
+	fn from_bytes_variable(bytes: &[u8]) -> Result<Self, FromBytesError>;
 }
 
 impl<T> FromRawBytesVariable for T where T: FromRawBytes {
-	fn from_bytes(bytes: &[u8],) -> Result<Self, FromBytesError> {
-		match bytes.len().cmp(&::std::mem::size_of::<T>()) {
+	fn from_bytes_variable(bytes: &[u8]) -> Result<Self, FromBytesError> {
+		match bytes.len().cmp(&mem::size_of::<T>()) {
 			Ordering::Less => return Err(FromBytesError::NotLongEnough),
 			Ordering::Greater => return Err(FromBytesError::TooLong),
 			Ordering::Equal => ()
 		};
 
-		T::from_bytes(d)
+		T::from_bytes(bytes)
 	}
 }
 
 impl FromRawBytesVariable for String {
-	fn from_bytes_var(bytes: &[u8], _len: u64) -> Result<String, FromBytesError> {
+	fn from_bytes_variable(bytes: &[u8]) -> Result<String, FromBytesError> {
 		Ok(::std::str::from_utf8(bytes).unwrap().to_owned())
 	}
 }
 
 impl<T> FromRawBytesVariable for Vec<T> where T: FromRawBytes {
-	fn from_bytes_var(d: &[u8], len: u64) -> Result<Self, FromBytesError> {
-		let size_of_t = ::std::mem::size_of::<T>();
-		let length_in_chunks = len as usize / size_of_t;
+	fn from_bytes_variable(bytes: &[u8]) -> Result<Self, FromBytesError> {
+		let size_of_t = mem::size_of::<T>();
+		let length_in_chunks = bytes.len() / size_of_t;
 
-		let mut result = Vec::with_capacity(length_in_chunks as usize);
-		unsafe { result.set_len(length_in_chunks as usize) };
-		for i in 0..length_in_chunks { *result.get_mut(i).unwrap() = try!(T::from_bytes(&d[size_of_t * i..size_of_t * (i+1)])) }
+		let mut result = Vec::with_capacity(length_in_chunks );
+		unsafe { result.set_len(length_in_chunks) };
+		for i in 0..length_in_chunks {
+			*result.get_mut(i).unwrap() = try!(T::from_bytes(
+				&bytes[size_of_t * i..size_of_t * (i+1)]))
+		}
 		Ok(result)
 	}
 }
 
 impl<V1, T2> FromRawBytes for (V1, T2) where V1: FromRawBytesVariable, T2: FromRawBytes {
-	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError> {
+	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
 		let header = 8usize;
-		let mut map: (u64, ) = unsafe { ::std::mem::uninitialized() };
+		let mut map: (u64, ) = unsafe { mem::uninitialized() };
 
-		if d.len() < header { return  Err(FromBytesError::NotLongEnough); }
-		map.copy_raw(&d[0..header]);
+		if bytes.len() < header { return  Err(FromBytesError::NotLongEnough); }
+		map.copy_raw(&bytes[0..header]);
 
 		Ok((
-			try!(V1::from_bytes_var(&d[header..header + (map.0 as usize)], map.0)),
-			try!(T2::from_bytes(&d[header + (map.0 as usize)..d.len()])),
+			try!(V1::from_bytes_variable(&bytes[header..header + (map.0 as usize)])),
+			try!(T2::from_bytes(&bytes[header + (map.0 as usize)..bytes.len()])),
 		))
+	}
+}
+
+impl<V1, T2> BytesConvertable for (Vec<V1>, T2) where V1: BytesConvertable, T2: BytesConvertable {
+	fn bytes(&self) -> &[u8] {
+		let header = 8usize;
+		let mut result = Vec::new(header + self.0.len() * mem::size_of::<V1>() + mem::size_of::<T2>());
+
+		*result[0..header] = (self.0.len() as u64).as_slice();
+		for i in 0..self.0.len() {
+			*result[header + i*mem::size_of::<V1>()..header + (i+1)*mem::size_of::<V1>()] =
+				self.0[i].as_slice();
+		}
+		*result[header + self.0.len()..result.len()] = self.1.as_slice();
+	}
+
+}
+
+impl FromRawBytesVariable for Vec<u8> {
+	fn from_bytes_variable(bytes: &[u8]) -> Result<Vec<u8>, FromBytesError> {
+		Ok(bytes.clone().to_vec())
 	}
 }
 
@@ -399,6 +420,8 @@ fn raw_bytes_from_tuple() {
 	type Tup = (Vec<u16>, u16);
 
 	let tup_from = Tup::from_bytes(&bytes).unwrap();
-
 	assert_eq!(tup, tup_from);
+
+	let bytes_to = Tup::as_slice();
+	assert_eq!(bytes_to, bytes);
 }
