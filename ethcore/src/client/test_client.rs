@@ -48,6 +48,8 @@ pub struct TestBlockChainClient {
 	pub difficulty: RwLock<U256>,
 	/// Balances.
 	pub balances: RwLock<HashMap<Address, U256>>,
+	/// Nonces.
+	pub nonces: RwLock<HashMap<Address, U256>>,
 	/// Storage.
 	pub storage: RwLock<HashMap<(Address, H256), H256>>,
 	/// Code.
@@ -90,6 +92,7 @@ impl TestBlockChainClient {
 			last_hash: RwLock::new(H256::new()),
 			difficulty: RwLock::new(From::from(0)),
 			balances: RwLock::new(HashMap::new()),
+			nonces: RwLock::new(HashMap::new()),
 			storage: RwLock::new(HashMap::new()),
 			code: RwLock::new(HashMap::new()),
 			execution_result: RwLock::new(None),
@@ -114,6 +117,11 @@ impl TestBlockChainClient {
 	/// Set the balance of account `address` to `balance`.
 	pub fn set_balance(&self, address: Address, balance: U256) {
 		self.balances.write().unwrap().insert(address, balance);
+	}
+
+	/// Set nonce of account `address` to `nonce`.
+	pub fn set_nonce(&self, address: Address, nonce: U256) {
+		self.nonces.write().unwrap().insert(address, nonce);
 	}
 
 	/// Set `code` at `address`.
@@ -157,6 +165,8 @@ impl TestBlockChainClient {
 				EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction => {
 					let mut txs = RlpStream::new_list(1);
 					let keypair = KeyPair::create().unwrap();
+					// Update nonces value
+					self.nonces.write().unwrap().insert(keypair.address(), U256::one());
 					let tx = Transaction {
 						action: Action::Create,
 						value: U256::from(100),
@@ -222,8 +232,8 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn nonce(&self, _address: &Address) -> U256 {
-		U256::zero()
+	fn nonce(&self, address: &Address) -> U256 {
+		self.nonces.read().unwrap().get(address).cloned().unwrap_or_else(U256::zero)
 	}
 
 	fn code(&self, address: &Address) -> Option<Bytes> {

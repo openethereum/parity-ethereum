@@ -18,14 +18,15 @@
 
 use semver::Version;
 use std::collections::*;
-use std::fs::File;
+use std::fs::{File, create_dir_all};
 use std::env;
 use std::io::{Read, Write};
 
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
 #[derive(Debug)]
 pub enum Error {
-	CannotLockVersionFile,
+	CannotCreateConfigPath,
+	CannotWriteVersionFile,
 	CannotUpdateVersionFile,
 }
 
@@ -66,7 +67,7 @@ fn dummy_upgrade() -> Result<(), Error> {
 	Ok(())
 }
 
-fn push_updrades(upgrades: &mut UpgradeList)
+fn push_upgrades(upgrades: &mut UpgradeList)
 {
 	// dummy upgrade (remove when the first one is in)
 	upgrades.insert(
@@ -76,7 +77,7 @@ fn push_updrades(upgrades: &mut UpgradeList)
 
 fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 	let mut upgrades = HashMap::new();
-	push_updrades(&mut upgrades);
+	push_upgrades(&mut upgrades);
 
 	let current_version = Version::parse(CURRENT_VERSION).unwrap();
 
@@ -91,11 +92,15 @@ fn upgrade_from_version(previous_version: &Version) -> Result<usize, Error> {
 	Ok(count)
 }
 
-fn with_locked_version<F>(script: F) -> Result<usize, Error>
+fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Error>
 	where F: Fn(&Version) -> Result<usize, Error>
 {
-	let mut path = env::home_dir().expect("Applications should have a home dir");
-	path.push(".parity");
+	let mut path = db_path.map_or({
+		let mut path = env::home_dir().expect("Applications should have a home dir");
+		path.push(".parity");
+		path
+	}, |s| ::std::path::PathBuf::from(s));
+	try!(create_dir_all(&path).map_err(|_| Error::CannotCreateConfigPath));
 	path.push("ver.lock");
 
 	let version =
@@ -108,7 +113,7 @@ fn with_locked_version<F>(script: F) -> Result<usize, Error>
 			})
 			.unwrap_or_else(|| Version::parse("0.9.0").unwrap());
 
-	let mut lock = try!(File::create(&path).map_err(|_| Error::CannotLockVersionFile));
+	let mut lock = try!(File::create(&path).map_err(|_| Error::CannotWriteVersionFile));
 	let result = script(&version);
 
 	let written_version = Version::parse(CURRENT_VERSION).unwrap();
@@ -116,8 +121,8 @@ fn with_locked_version<F>(script: F) -> Result<usize, Error>
 	result
 }
 
-pub fn upgrade() -> Result<usize, Error> {
-	with_locked_version(|ver| {
+pub fn upgrade(db_path: Option<&str>) -> Result<usize, Error> {
+	with_locked_version(db_path, |ver| {
 		upgrade_from_version(ver)
 	})
 }

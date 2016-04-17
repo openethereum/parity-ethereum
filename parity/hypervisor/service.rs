@@ -14,5 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod codegen;
-pub mod typegen;
+//! Parity interprocess hypervisor IPC service
+
+include!(concat!(env!("OUT_DIR"), "/hypervisor_service_cg.rs"));

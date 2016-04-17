@@ -110,10 +110,10 @@ impl<C : MinerBlockChain> Miner<C> {
 
 		// Remove invalid transactions from queue
 		let mut queue = self.transaction_queue.lock().unwrap();
-		queue.remove_all(
-			&invalid_transactions.into_iter().collect::<Vec<H256>>(),
-			|a: &Address| self.chain.account_details(a)
-		);
+		let fetch_account = |a: &Address| self.chain.account_details(a);
+		for hash in invalid_transactions.into_iter() {
+			queue.remove_invalid(&hash, &fetch_account);
+		}
 
 		// And save the block
 		let hash = block.block().fields().header.hash();
@@ -205,6 +205,10 @@ impl<C: MinerBlockChain> MinerService for Miner<C> {
 	fn sensible_gas_price(&self) -> U256 {
 		// 10% above our minimum.
 		*self.transaction_queue.lock().unwrap().minimal_gas_price() * x!(110) / x!(100)
+	}
+
+	fn sensible_gas_limit(&self) -> U256 {
+		*self.gas_floor_target.read().unwrap() / x!(5)
 	}
 
 	/// Get the author that we will seal blocks as.
@@ -300,7 +304,21 @@ impl<C: MinerBlockChain> MinerService for Miner<C> {
 		}
 	}
 
-	fn chain_new_blocks(&self, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
+	fn chain_new_blocks(&self, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
+		fn fetch_transactions(chain: &BlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
+			let block = chain
+				.block(BlockId::Hash(*hash))
+				// Client should send message after commit to db and inserting to chain.
+				.expect("Expected in-chain blocks.");
+			let block = BlockView::new(&block);
+			block.transactions()
+		}
+
+		// 1. We ignore blocks that were `imported` (because it means that they are not in canon-chain, and transactions
+		//	  should be still available in the queue.
+		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
+		//    are in those blocks
+
 		// First update gas limit in transaction queue
 		self.update_gas_limit();
 
@@ -319,26 +337,23 @@ impl<C: MinerBlockChain> MinerService for Miner<C> {
 			});
 		}
 
-		// ...and after that remove old ones
+		// ...and at the end remove old ones
 		{
-			let in_chain = {
-				let mut in_chain = HashSet::new();
-				in_chain.extend(imported);
-				in_chain.extend(enacted);
-				in_chain.extend(invalid);
-				in_chain
-					.into_iter()
-					.collect::<Vec<H256>>()
-			};
-
-			let in_chain = in_chain
+			let in_chain = enacted
 				.par_iter()
 				.map(|h: &H256| self.chain.block_transactions(h));
 
-			in_chain.for_each(|txs| {
-				let hashes = txs.iter().map(|tx| tx.hash()).collect::<Vec<H256>>();
+			in_chain.for_each(|mut txs| {
 				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				transaction_queue.remove_all(&hashes, |a: &Address| self.chain.account_details(a));
+
+				let to_remove = txs.drain(..)
+						.map(|tx| {
+							tx.sender().expect("Transaction is in block, so sender has to be defined.")
+						})
+						.collect::<HashSet<Address>>();
+				for sender in to_remove.into_iter() {
+					transaction_queue.remove_all(sender, chain.nonce(&sender));
+				}
 			});
 		}
 

@@ -14,5 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod codegen;
-pub mod typegen;
+include!(concat!(env!("OUT_DIR"), "/nested_cg.rs"));
