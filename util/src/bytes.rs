@@ -410,7 +410,7 @@ impl<'a, V1, V2, T3> ToBytesWithMap for (&'a Vec<V1>, &'a Vec<V2>, &'a T3)
 			mem::size_of::<T3>()
 		);
 		result.extend(((self.0.len() * v1_size) as u64).to_bytes_map());
-		result.extend(((self.1.len() * v1_size) as u64).to_bytes_map());
+		result.extend(((self.1.len() * v2_size) as u64).to_bytes_map());
 		for i in 0..self.0.len() {
 			result.extend(self.0[i].to_bytes_map());
 		}
@@ -515,4 +515,20 @@ fn raw_bytes_from_tuple() {
 	let tup_to = (&tup_from.0, &tup_from.1);
 	let bytes_to = tup_to.to_bytes_map();
 	assert_eq!(bytes_to, bytes);
+}
+
+#[test]
+fn bytes_map_from_triple() {
+	let data = (vec![2u16; 6], vec![6u32; 3], 12u64);
+	let bytes_map = (&data.0, &data.1, &data.2).to_bytes_map();
+	assert_eq!(bytes_map, vec![
+		// data map 2 x u64
+		12, 0, 0, 0, 0, 0, 0, 0,
+		12, 0, 0, 0, 0, 0, 0, 0,
+		// vec![2u16; 6]
+		2, 0, 2, 0, 2, 0, 2, 0, 2, 0, 2, 0,
+		// vec![6u32; 3]
+		6, 0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 0,
+		// 12u64
+		12, 0, 0, 0, 0, 0, 0, 0]);
 }
