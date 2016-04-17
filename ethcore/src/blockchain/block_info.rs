@@ -80,3 +80,17 @@ impl ToBytesWithMap for BranchBecomingCanonChainData {
 		(&self.enacted, &self.retracted, &self.ancestor).to_bytes_map()
 	}
 }
+
+impl ToBytesWithMap for BlockLocation {
+	fn to_bytes_map(&self) -> Vec<u8> {
+		match *self {
+			BlockLocation::CanonChain => vec![0u8],
+			BlockLocation::Branch => vec![1u8],
+			BlockLocation::BranchBecomingCanonChain(ref data) => {
+				let mut bytes = (&data.enacted, &data.retracted, &data.ancestor).to_bytes_map();
+				bytes.insert(0, 2u8);
+				bytes
+			}
+		}
+	}
+}
