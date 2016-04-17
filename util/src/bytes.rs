@@ -247,7 +247,7 @@ pub trait FromRawBytes : Sized {
 	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError>;
 }
 
-impl<T> FromRawBytes for (T) where T: FixedHash {
+impl<T> FromRawBytes for T where T: FixedHash {
 	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
 		use std::mem;
 		use std::cmp::Ordering;
@@ -279,28 +279,20 @@ impl FromRawBytes for u16 {
 	}
 }
 
-impl FromRawBytes for u8 {
-	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
-		use std::mem;
-		use std::cmp::Ordering;
-
-		match bytes.len().cmp(&1) {
-			Ordering::Less => return Err(FromBytesError::NotLongEnough),
-			Ordering::Greater => return Err(FromBytesError::TooLong),
-			Ordering::Equal => ()
-		};
-		let mut res: Self = unsafe { mem::uninitialized() };
-		res.copy_raw(bytes);
-		Ok(res)
-	}
-}
-
+/// Value that can be serialized from variable-length byte array
 pub trait FromRawBytesVariable : Sized {
+	/// Create value from slice
 	fn from_bytes_var(d: &[u8], len: u64) -> Result<Self, FromBytesError>;
 }
 
 impl<T> FromRawBytesVariable for T where T: FromRawBytes {
-	fn from_bytes_var(d: &[u8], _len: u64) -> Result<Self, FromBytesError> {
+	fn from_bytes_var(bytes: &[u8], len: u64) -> Result<Self, FromBytesError> {
+		match bytes.len().cmp(&len) {
+			Ordering::Less => return Err(FromBytesError::NotLongEnough),
+			Ordering::Greater => return Err(FromBytesError::TooLong),
+			Ordering::Equal => ()
+		};
+
 		T::from_bytes(d)
 	}
 }
@@ -395,18 +387,18 @@ fn raw_bytes_from_tuple() {
 	let tup = (vec![1u16, 1u16, 1u16, 1u16], 10u16);
 	let bytes = vec![
 		// map
-		8u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+		8u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
 		// four 1u16
-		0u8, 1u8,
-		0u8, 1u8,
-		0u8, 1u8,
-		0u8, 1u8,
+		1u8, 0u8,
+		1u8, 0u8,
+		1u8, 0u8,
+		1u8, 0u8,
 		// 10u16
-		0u8, 10u8];
+		10u8, 0u8];
 
-	type tup = (Vec<u16>, u16);
+	type Tup = (Vec<u16>, u16);
 
-	let tup_from = tup::from_bytes(&bytes).unwrap();
+	let tup_from = Tup::from_bytes(&bytes).unwrap();
 
 	assert_eq!(tup, tup_from);
 }
