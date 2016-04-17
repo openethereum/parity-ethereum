@@ -282,12 +282,12 @@ impl FromRawBytes for u16 {
 /// Value that can be serialized from variable-length byte array
 pub trait FromRawBytesVariable : Sized {
 	/// Create value from slice
-	fn from_bytes_var(d: &[u8], len: u64) -> Result<Self, FromBytesError>;
+	fn from_bytes(d: &[u8]) -> Result<Self, FromBytesError>;
 }
 
 impl<T> FromRawBytesVariable for T where T: FromRawBytes {
-	fn from_bytes_var(bytes: &[u8], len: u64) -> Result<Self, FromBytesError> {
-		match bytes.len().cmp(&len) {
+	fn from_bytes(bytes: &[u8],) -> Result<Self, FromBytesError> {
+		match bytes.len().cmp(&::std::mem::size_of::<T>()) {
 			Ordering::Less => return Err(FromBytesError::NotLongEnough),
 			Ordering::Greater => return Err(FromBytesError::TooLong),
 			Ordering::Equal => ()
