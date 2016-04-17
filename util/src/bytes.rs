@@ -265,18 +265,41 @@ impl<T> FromRawBytes for T where T: FixedHash {
 	}
 }
 
-impl FromRawBytes for u16 {
-	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
-		match bytes.len().cmp(&2) {
-			Ordering::Less => return Err(FromBytesError::NotLongEnough),
-			Ordering::Greater => return Err(FromBytesError::TooLong),
-			Ordering::Equal => ()
-		};
-		let mut res: Self = unsafe { mem::uninitialized() };
-		res.copy_raw(bytes);
-		Ok(res)
+#[macro_export]
+macro_rules! sized_binary_map {
+	($target_ty: ident) => {
+		impl FromRawBytes for $target_ty {
+			fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
+				match bytes.len().cmp(&::std::mem::size_of::<$target_ty>()) {
+					::std::cmp::Ordering::Less => return Err(FromBytesError::NotLongEnough),
+					::std::cmp::Ordering::Greater => return Err(FromBytesError::TooLong),
+					::std::cmp::Ordering::Equal => ()
+				};
+				let mut res: Self = unsafe { ::std::mem::uninitialized() };
+				res.copy_raw(bytes);
+				Ok(res)
+			}
+		}
+		impl ToBytesWithMap for $target_ty {
+			fn to_bytes_map(&self) -> Vec<u8> {
+				let sz = ::std::mem::size_of::<$target_ty>();
+				let mut res = Vec::<u8>::with_capacity(sz);
+
+				let ip: *const $target_ty = self;
+				let ptr: *const u8 = ip as *const _;
+				unsafe {
+					res.set_len(sz);
+					::std::ptr::copy(ptr, res.as_mut_ptr(), sz);
+				}
+				res
+			}
+		}
 	}
 }
+
+sized_binary_map!(u16);
+sized_binary_map!(u32);
+sized_binary_map!(u64);
 
 /// Value that can be serialized from variable-length byte array
 pub trait FromRawBytesVariable : Sized {
@@ -406,43 +429,15 @@ impl FromRawBytesVariable for Vec<u8> {
 	}
 }
 
+/// Value that serializes directly to variable-sized byte array and stores map
 pub trait ToBytesWithMap {
+	/// serialize to variable-sized byte array and store map
 	fn to_bytes_map(&self) -> Vec<u8>;
 }
 
 impl<T> ToBytesWithMap for T where T: FixedHash {
 	fn to_bytes_map(&self) -> Vec<u8> {
 		self.as_slice().to_vec()
-	}
-}
-
-impl ToBytesWithMap for u16 {
-	fn to_bytes_map(&self) -> Vec<u8> {
-		let sz = mem::size_of::<u16>();
-		let mut res = Vec::<u8>::with_capacity(sz);
-
-		let ip: *const u16 = self;
-		let ptr: *const u8 = ip as *const _;
-		unsafe {
-			res.set_len(sz);
-			::std::ptr::copy(ptr, res.as_mut_ptr(), sz);
-		}
-		res
-	}
-}
-
-impl ToBytesWithMap for u64 {
-	fn to_bytes_map(&self) -> Vec<u8> {
-		let sz = mem::size_of::<u64>();
-		let mut res = Vec::<u8>::with_capacity(sz);
-
-		let ip: *const u64 = self;
-		let ptr: *const u8 = ip as *const _;
-		unsafe {
-			res.set_len(sz);
-			::std::ptr::copy(ptr, res.as_mut_ptr(), sz);
-		}
-		res
 	}
 }
 
