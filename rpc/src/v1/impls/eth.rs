@@ -182,6 +182,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 	fn dispatch_transaction(&self, signed_transaction: SignedTransaction) -> Result<Value, Error> {
 		let hash = signed_transaction.hash();
 
+		trace!(target: "tx", "Importing transaction: {:?}", signed_transaction);
 		let (import, status) = {
 			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
