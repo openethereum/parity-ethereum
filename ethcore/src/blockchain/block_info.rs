@@ -17,6 +17,8 @@
 use util::numbers::{U256,H256};
 use header::BlockNumber;
 
+use util::bytes::{FromRawBytesVariable, FromBytesError, ToBytesWithMap};
+
 /// Brief info about inserted block.
 #[derive(Clone)]
 pub struct BlockInfo {
@@ -40,12 +42,41 @@ pub enum BlockLocation {
 	/// It's part of the fork which should become canon chain,
 	/// because it's total difficulty is higher than current
 	/// canon chain difficulty.
-	BranchBecomingCanonChain {
-		/// Hash of the newest common ancestor with old canon chain.
-		ancestor: H256,
-		/// Hashes of the blocks between ancestor and this block.
-		enacted: Vec<H256>,
-		/// Hashes of the blocks which were invalidated.
-		retracted: Vec<H256>,
+	BranchBecomingCanonChain(BranchBecomingCanonChainData),
+}
+
+#[derive(Clone)]
+pub struct BranchBecomingCanonChainData {
+	/// Hash of the newest common ancestor with old canon chain.
+	pub ancestor: H256,
+	/// Hashes of the blocks between ancestor and this block.
+	pub enacted: Vec<H256>,
+	/// Hashes of the blocks which were invalidated.
+	pub retracted: Vec<H256>,
+}
+
+impl FromRawBytesVariable for BranchBecomingCanonChainData {
+	fn from_bytes_variable(bytes: &[u8]) -> Result<BranchBecomingCanonChainData, FromBytesError> {
+		type Tuple = (Vec<H256>, Vec<H256>, H256);
+		let (enacted, retracted, ancestor) = try!(Tuple::from_bytes_variable(bytes));
+		Ok(BranchBecomingCanonChainData { ancestor: ancestor, enacted: enacted, retracted: retracted })
+	}
+}
+
+impl FromRawBytesVariable for BlockLocation {
+	fn from_bytes_variable(bytes: &[u8]) -> Result<BlockLocation, FromBytesError> {
+		match bytes[0] {
+			0 => Ok(BlockLocation::CanonChain),
+			1 => Ok(BlockLocation::Branch),
+			2 => Ok(BlockLocation::BranchBecomingCanonChain(
+				try!(BranchBecomingCanonChainData::from_bytes_variable(&bytes[1..bytes.len()])))),
+			_ => Err(FromBytesError::UnknownMarker)
+		}
+	}
+}
+
+impl ToBytesWithMap for BranchBecomingCanonChainData {
+	fn to_bytes_map(&self) -> Vec<u8> {
+		(&self.enacted, &self.retracted, &self.ancestor).to_bytes_map()
 	}
 }

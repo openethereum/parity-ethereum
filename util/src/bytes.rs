@@ -241,6 +241,8 @@ pub enum FromBytesError {
 	NotLongEnough,
 	/// Too many bytes for the requested type
 	TooLong,
+	/// Invalid marker for (enums)
+	UnknownMarker,
 }
 
 /// Value that can be serialized from bytes array
@@ -330,24 +332,117 @@ impl<V1, T2> FromRawBytes for (V1, T2) where V1: FromRawBytesVariable, T2: FromR
 	}
 }
 
-impl<V1, T2> BytesConvertable for (Vec<V1>, T2) where V1: BytesConvertable, T2: BytesConvertable {
-	fn bytes(&self) -> &[u8] {
-		let header = 8usize;
-		let mut result = Vec::new(header + self.0.len() * mem::size_of::<V1>() + mem::size_of::<T2>());
+impl<V1, V2, T3> FromRawBytes for (V1, V2, T3)
+	where V1: FromRawBytesVariable,
+		V2: FromRawBytesVariable,
+		T3: FromRawBytes
+{
+	fn from_bytes(bytes: &[u8]) -> Result<Self, FromBytesError> {
+		let header = 16usize;
+		let mut map: (u64, u64, ) = unsafe { mem::uninitialized() };
 
-		*result[0..header] = (self.0.len() as u64).as_slice();
+		if bytes.len() < header { return  Err(FromBytesError::NotLongEnough); }
+		map.copy_raw(&bytes[0..header]);
+
+		let map_1 = (header, header + map.0 as usize);
+		let map_2 = (map_1.1 as usize, map_1.1 as usize + map.1 as usize);
+		Ok((
+			try!(V1::from_bytes_variable(&bytes[map_1.0..map_1.1])),
+			try!(V2::from_bytes_variable(&bytes[map_2.0..map_2.1])),
+			try!(T3::from_bytes(&bytes[map_2.1..bytes.len()])),
+		))
+	}
+}
+
+impl<'a, V1, T2> ToBytesWithMap for (&'a Vec<V1>, &'a T2) where V1: ToBytesWithMap, T2: ToBytesWithMap {
+	fn to_bytes_map(&self) -> Vec<u8> {
+		let header = 8usize;
+		let v1_size = mem::size_of::<V1>();
+		let mut result = Vec::with_capacity(header + self.0.len() * v1_size + mem::size_of::<T2>());
+		result.extend(((self.0.len() * v1_size) as u64).to_bytes_map());
+
 		for i in 0..self.0.len() {
-			*result[header + i*mem::size_of::<V1>()..header + (i+1)*mem::size_of::<V1>()] =
-				self.0[i].as_slice();
+			result.extend(self.0[i].to_bytes_map());
 		}
-		*result[header + self.0.len()..result.len()] = self.1.as_slice();
+		result.extend(self.1.to_bytes_map());
+
+		result
 	}
 
+}
+
+impl<'a, V1, V2, T3> ToBytesWithMap for (&'a Vec<V1>, &'a Vec<V2>, &'a T3)
+	where V1: ToBytesWithMap,
+		V2: ToBytesWithMap,
+		T3: ToBytesWithMap
+{
+	fn to_bytes_map(&self) -> Vec<u8> {
+		let header = 16usize;
+		let v1_size = mem::size_of::<V1>();
+		let v2_size = mem::size_of::<V2>();
+		let mut result = Vec::with_capacity(
+			header +
+			self.0.len() * v1_size +
+			self.1.len() * v2_size +
+			mem::size_of::<T3>()
+		);
+		result.extend(((self.0.len() * v1_size) as u64).to_bytes_map());
+		result.extend(((self.1.len() * v1_size) as u64).to_bytes_map());
+		for i in 0..self.0.len() {
+			result.extend(self.0[i].to_bytes_map());
+		}
+		for i in 0..self.1.len() {
+			result.extend(self.1[i].to_bytes_map());
+		}
+		result.extend(self.2.to_bytes_map());
+
+		result
+	}
 }
 
 impl FromRawBytesVariable for Vec<u8> {
 	fn from_bytes_variable(bytes: &[u8]) -> Result<Vec<u8>, FromBytesError> {
 		Ok(bytes.clone().to_vec())
+	}
+}
+
+pub trait ToBytesWithMap {
+	fn to_bytes_map(&self) -> Vec<u8>;
+}
+
+impl<T> ToBytesWithMap for T where T: FixedHash {
+	fn to_bytes_map(&self) -> Vec<u8> {
+		self.as_slice().to_vec()
+	}
+}
+
+impl ToBytesWithMap for u16 {
+	fn to_bytes_map(&self) -> Vec<u8> {
+		let sz = mem::size_of::<u16>();
+		let mut res = Vec::<u8>::with_capacity(sz);
+
+		let ip: *const u16 = self;
+		let ptr: *const u8 = ip as *const _;
+		unsafe {
+			res.set_len(sz);
+			::std::ptr::copy(ptr, res.as_mut_ptr(), sz);
+		}
+		res
+	}
+}
+
+impl ToBytesWithMap for u64 {
+	fn to_bytes_map(&self) -> Vec<u8> {
+		let sz = mem::size_of::<u64>();
+		let mut res = Vec::<u8>::with_capacity(sz);
+
+		let ip: *const u64 = self;
+		let ptr: *const u8 = ip as *const _;
+		unsafe {
+			res.set_len(sz);
+			::std::ptr::copy(ptr, res.as_mut_ptr(), sz);
+		}
+		res
 	}
 }
 
@@ -422,6 +517,7 @@ fn raw_bytes_from_tuple() {
 	let tup_from = Tup::from_bytes(&bytes).unwrap();
 	assert_eq!(tup, tup_from);
 
-	let bytes_to = Tup::as_slice();
+	let tup_to = (&tup_from.0, &tup_from.1);
+	let bytes_to = tup_to.to_bytes_map();
 	assert_eq!(bytes_to, bytes);
 }
