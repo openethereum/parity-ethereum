@@ -110,27 +110,27 @@ fn push_invoke_signature_aster(
 			let mut arg_tys = Vec::new();
 
 			let arg_name = format!("{}", field_name(builder, &inputs[skip-1]).name);
-			let arg_ty = inputs[skip-1].ty.clone();
+			let arg_ty = &inputs[skip-1].ty;
 
 			let mut tree = builder.item()
 				.attr().word("derive(Serialize, Deserialize)")
 				.attr().word("allow(non_camel_case_types)")
 				.struct_(name_str.as_str())
 				.field(arg_name.as_str()).ty()
-				.build(typegen::argument_replacement(builder, replacements, &arg_ty).unwrap_or(arg_ty.clone()));
+				.build(typegen::argument_replacement(builder, replacements, arg_ty)
+					.unwrap_or(strip_ptr(arg_ty)));
 
 			arg_names.push(arg_name);
-			arg_tys.push(arg_ty);
+			arg_tys.push(arg_ty.clone());
 			for arg in inputs.iter().skip(skip) {
 				let arg_name = format!("{}", field_name(builder, &arg));
+				let arg_ty = &arg.ty;
 
-				let mut arg_ty = arg.ty.clone();
-				arg_ty = typegen::argument_replacement(builder, replacements, &arg_ty).unwrap_or(arg_ty);
-
-				tree = tree.field(arg_name.as_str()).ty()
-					.build(typegen::argument_replacement(builder, replacements, &arg_ty).unwrap_or(arg_ty.clone()));
+				tree = tree.field(arg_name.as_str()).ty().build(
+					typegen::argument_replacement(builder, replacements, arg_ty).unwrap_or(strip_ptr(arg_ty))
+				);
 				arg_names.push(arg_name);
-				arg_tys.push(arg_ty);
+				arg_tys.push(arg_ty.clone());
 			}
 
 			push(Annotatable::Item(tree.build()));
@@ -191,12 +191,15 @@ fn implement_dispatch_arm_invoke_stmt(
 
 	let input_args_exprs = dispatch.input_arg_names.iter().enumerate().map(|(arg_index, arg_name)| {
 		let arg_ident = builder.id(arg_name);
-		if typegen::argument_replacement(builder, replacements, &dispatch.input_arg_tys[arg_index]).is_some() {
+		let expr = if typegen::argument_replacement(builder, replacements, &dispatch.input_arg_tys[arg_index]).is_some() {
 			quote_expr!(cx, input. $arg_ident .into())
 		}
 		else {
 			quote_expr!(cx, input. $arg_ident)
-		}
+		};
+
+		if has_ptr(&dispatch.input_arg_tys[arg_index]) { quote_expr!(cx, & $expr) }
+		else { expr }
 	}).collect::<Vec<P<ast::Expr>>>();
 
 	let ext_cx = &*cx;
@@ -257,13 +260,14 @@ fn implement_dispatch_arm_invoke(
 		quote_expr!(cx, ::bincode::serde::deserialize_from(r, ::bincode::SizeLimit::Infinite).expect("ipc deserialization error, aborting"))
 	};
 
-	let input_type_id = builder.id(dispatch.input_type_name.clone().unwrap().as_str());
-
 	let invoke_serialize_stmt = implement_dispatch_arm_invoke_stmt(cx, builder, dispatch, replacements);
-	quote_expr!(cx, {
-		let input: $input_type_id = $deserialize_expr;
-		$invoke_serialize_stmt
-	})
+	dispatch.input_type_name.as_ref().map(|val| {
+			let input_type_id = builder.id(val.clone().as_str());
+			quote_expr!(cx, {
+				let input: $input_type_id = $deserialize_expr;
+				$invoke_serialize_stmt
+			})
+		}).unwrap_or(quote_expr!(cx, { $invoke_serialize_stmt }))
 }
 
 /// generates dispatch match for method id
@@ -294,6 +298,20 @@ fn implement_dispatch_arms(
 		.map(|dispatch| { index = index + 1; implement_dispatch_arm(cx, builder, index as u32, dispatch, buffer, replacements) }).collect()
 }
 
+fn strip_ptr(ty: &P<ast::Ty>) -> P<ast::Ty> {
+	if let ast::TyKind::Rptr(_, ref ptr_mut) = ty.node {
+		ptr_mut.ty.clone()
+	}
+	else { ty.clone() }
+}
+
+fn has_ptr(ty: &P<ast::Ty>) -> bool {
+	if let ast::TyKind::Rptr(_, ref ptr_mut) = ty.node {
+		true
+	}
+	else { false }
+}
+
 /// returns an expression with the body for single operation that is being sent to server
 /// operation itself serializes input, writes to socket and waits for socket to respond
 /// (the latter only if original method signature returns anyting)
@@ -321,15 +339,17 @@ fn implement_client_method_body(
 ) -> P<ast::Expr>
 {
 	let dispatch = &interface_map.dispatches[index as usize];
+	let index_ident = builder.id(format!("{}", index + RESERVED_MESSAGE_IDS).as_str());
+
 	let request = if dispatch.input_arg_names.len() > 0 {
 
 		let arg_name = dispatch.input_arg_names[0].as_str();
-		let static_ty = &dispatch.input_arg_tys[0];
+		let static_ty = strip_ptr(&dispatch.input_arg_tys[0]);
 		let arg_ty = builder
 			.ty().ref_()
 			.lifetime("'a")
 			.ty()
-			.build(typegen::argument_replacement(builder, &interface_map.replacements, static_ty).unwrap_or(static_ty.clone()));
+			.build(typegen::argument_replacement(builder, &interface_map.replacements, &static_ty).unwrap_or(static_ty.clone()));
 
 		let mut tree = builder.item()
 			.attr().word("derive(Serialize)")
@@ -342,12 +362,13 @@ fn implement_client_method_body(
 
 		for arg_idx in 1..dispatch.input_arg_names.len() {
 			let arg_name = dispatch.input_arg_names[arg_idx].as_str();
-			let static_ty = &dispatch.input_arg_tys[arg_idx];
+			let static_ty = strip_ptr(&dispatch.input_arg_tys[arg_idx]);
+
 			let arg_ty = builder
 				.ty().ref_()
 				.lifetime("'a")
 				.ty()
-				.build(typegen::argument_replacement(builder, &interface_map.replacements, static_ty).unwrap_or(static_ty.clone()));
+				.build(typegen::argument_replacement(builder, &interface_map.replacements, &static_ty).unwrap_or(static_ty));
 			tree = tree.field(arg_name).ty().build(arg_ty);
 
 		}
@@ -413,8 +434,6 @@ fn implement_client_method_body(
 		request_serialization_statements.push(
 			quote_stmt!(cx, let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()));
 
-		let index_ident = builder.id(format!("{}", index + RESERVED_MESSAGE_IDS).as_str());
-
 		request_serialization_statements.push(
 			quote_stmt!(cx, ::ipc::invoke($index_ident, &Some(serialized_payload), &mut socket)));
 
@@ -422,7 +441,14 @@ fn implement_client_method_body(
 		request_serialization_statements
 	}
 	else {
-		vec![]
+		let mut request_serialization_statements = Vec::new();
+		request_serialization_statements.push(
+			quote_stmt!(cx, let mut socket_ref = self.socket.borrow_mut()));
+		request_serialization_statements.push(
+			quote_stmt!(cx, let mut socket = socket_ref.deref_mut()));
+		request_serialization_statements.push(
+			quote_stmt!(cx, ::ipc::invoke($index_ident, Vec::new(), &mut socket)));
+		request_serialization_statements
 	};
 
 	if let Some(ref return_ty) = dispatch.return_type_ty {
