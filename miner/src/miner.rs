@@ -230,8 +230,23 @@ impl MinerService for Miner {
 	fn import_own_transaction<T>(&self, transaction: SignedTransaction, fetch_account: T) ->
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails {
+		let hash = transaction.hash();
+		trace!(target: "own_tx", "Importing transaction: {:?}", transaction);
+
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.add(transaction, &fetch_account)
+		let import = transaction_queue.add(transaction, &fetch_account);
+
+		match import {
+			Ok(ref res) => {
+				trace!(target: "own_tx", "Imported transaction to {:?} (hash: {:?})", res, hash);
+				trace!(target: "own_tx", "Status: {:?}", self.status());
+			},
+			Err(ref e) => {
+				trace!(target: "own_tx", "Failed to import transaction {:?} (hash: {:?})", e, hash);
+				trace!(target: "own_tx", "Status: {:?}", self.status());
+			},
+		}
+		import
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
