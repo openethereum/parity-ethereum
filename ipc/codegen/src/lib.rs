@@ -39,8 +39,6 @@ extern crate syntax;
 #[cfg(not(feature = "with-syntex"))]
 extern crate rustc_plugin;
 
-extern crate ethcore_ipc as ipc;
-
 #[cfg(not(feature = "with-syntex"))]
 use syntax::feature_gate::AttributeType;
 
