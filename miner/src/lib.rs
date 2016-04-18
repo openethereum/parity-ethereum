@@ -61,7 +61,7 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
-pub use transaction_queue::{TransactionQueue, AccountDetails};
+pub use transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult};
 pub use miner::{Miner};
 
 use util::{H256, U256, Address, Bytes};
@@ -149,15 +149,6 @@ pub trait MinerService : Send + Sync {
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { x!(21000) }
-}
-
-/// Represents the result of importing transaction.
-#[derive(Debug)]
-pub enum TransactionImportResult {
-	/// Transaction was imported to current queue.
-	Current,
-	/// Transaction was imported to future queue.
-	Future
 }
 
 /// Mining status
