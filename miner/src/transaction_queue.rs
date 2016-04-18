@@ -96,7 +96,7 @@ use ethcore::error::{Error, TransactionError};
 macro_rules! check_too_cheap {
 	($is_in:expr) => {
 		if !($is_in) {
-			return Err(TransactionError::TooCheap);
+			return Err(TransactionError::TooCheapToReplace);
 		}
 	}
 }
@@ -856,7 +856,7 @@ mod test {
 		let res = txq.add(tx2.clone(), &default_nonce);
 
 		// and then there should be only one transaction in current (the one with higher gas_price)
-		assert_eq!(unwrap_tx_err(res), TransactionError::TooCheap);
+		assert_eq!(unwrap_tx_err(res), TransactionError::TooCheapToReplace);
 		assert_eq!(txq.status().pending, 1);
 		assert_eq!(txq.status().future, 0);
 		assert_eq!(txq.current.by_priority.len(), 1);

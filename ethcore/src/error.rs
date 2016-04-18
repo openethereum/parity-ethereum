@@ -71,7 +71,7 @@ pub enum TransactionError {
 	Old,
 	/// Transaction has too low fee
 	/// (there is already a transaction with the same sender-nonce but higher gas price)
-	TooCheap,
+	TooCheapToReplace,
 	/// Transaction was not imported to the queue because limit has been reached.
 	LimitReached,
 	/// Transaction's gas price is below threshold.
