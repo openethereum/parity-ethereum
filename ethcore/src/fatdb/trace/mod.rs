@@ -1,3 +1,5 @@
+//! Trace filtering structures.
+
 mod bloom;
 mod filter;
 

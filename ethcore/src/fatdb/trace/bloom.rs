@@ -4,6 +4,7 @@ use util::rlp::*;
 use util::{H256};
 use basic_types::LogBloom;
 
+/// Helper structure representing bloom of the trace.
 #[derive(Clone)]
 pub struct TraceBloom(LogBloom);
 
@@ -27,6 +28,7 @@ impl Into<Bloom> for TraceBloom {
 	}
 }
 
+/// Represents group of X consecutive blooms.
 #[derive(Clone)]
 pub struct TraceBloomGroup {
 	blooms: Vec<TraceBloom>,
@@ -105,6 +107,7 @@ impl From<GroupPosition> for TraceGroupPosition {
 }
 
 impl TraceGroupPosition {
+	/// Returns trace group position represented as a 256 bit hash.
 	pub fn hash(&self) -> H256 {
 		use std::ptr;
 		let mut hash = H256::default();

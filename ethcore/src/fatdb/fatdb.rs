@@ -21,10 +21,8 @@ use std::path::Path;
 use bloomchain::{Config, Number};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use util::{FixedHash, H256, H264, Database, DBTransaction};
-use util::rlp::encode;
 use header::BlockNumber;
 use trace::{Trace, BlockTraces};
-use blockchain::BlockProvider;
 use basic_types::LogBloom;
 use db::{Key, Writable, Readable};
 use super::trace::{Filter, TraceGroupPosition, TraceBloom, TraceBloomGroup};
@@ -68,12 +66,19 @@ pub struct Fatdb {
 
 impl BloomGroupDatabase for Fatdb {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
-		// TODO: look for blooms in db
-		self.blooms.read()
-			.unwrap()
-			.get(&TraceGroupPosition::from(position.clone()))
-			.cloned()
-			.map(Into::into)
+		let position = TraceGroupPosition::from(position.clone());
+		{
+			let blooms = self.blooms.read().unwrap();
+			if let Some(v) = blooms.get(&position) {
+				return Some(v.clone().into())
+			}
+		}
+
+		self.db.read(&position).map(|t: TraceBloomGroup| {
+			let mut blooms = self.blooms.write().unwrap();
+			blooms.insert(position, t.clone());
+			t.into()
+		})
 	}
 }
 
