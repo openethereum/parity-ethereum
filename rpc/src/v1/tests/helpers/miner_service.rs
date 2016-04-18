@@ -39,6 +39,7 @@ pub struct TestMinerService {
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
+	limit: RwLock<usize>,
 }
 
 impl Default for TestMinerService {
@@ -52,6 +53,7 @@ impl Default for TestMinerService {
 			gas_floor_target: RwLock::new(U256::from(12345)),
 			author: RwLock::new(Address::zero()),
 			extra_data: RwLock::new(vec![1, 2, 3, 4]),
+			limit: RwLock::new(1024),
 		}
 	}
 }
@@ -82,6 +84,14 @@ impl MinerService for TestMinerService {
 
 	fn set_minimal_gas_price(&self, min_gas_price: U256) {
 		*self.min_gas_price.write().unwrap() = min_gas_price;
+	}
+
+	fn set_transactions_limit(&self, limit: usize) {
+		*self.limit.write().unwrap() = limit;
+	}
+
+	fn transactions_limit(&self) -> usize {
+		*self.limit.read().unwrap()
 	}
 
 	fn author(&self) -> Address {
