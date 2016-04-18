@@ -137,6 +137,8 @@ impl Decodable for Call {
 }
 
 impl Call {
+	/// Returns call action bloom.
+	/// The bloom contains from and to addresses.
 	pub fn bloom(&self) -> LogBloom {
 		LogBloom::from_bloomed(&self.from.sha3())
 			.with_bloomed(&self.to.sha3())
@@ -192,6 +194,8 @@ impl Decodable for Create {
 }
 
 impl Create {
+	/// Returns bloom create action bloom.
+	/// The bloom contains only from address.
 	pub fn bloom(&self) -> LogBloom {
 		LogBloom::from_bloomed(&self.from.sha3())
 	}
@@ -235,6 +239,7 @@ impl Decodable for Action {
 }
 
 impl Action {
+	/// Returns action bloom.
 	pub fn bloom(&self) -> LogBloom {
 		match *self {
 			Action::Call(ref call) => call.bloom(),

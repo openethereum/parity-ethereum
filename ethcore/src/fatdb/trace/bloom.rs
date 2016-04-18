@@ -1,7 +1,7 @@
 use bloomchain::Bloom;
 use bloomchain::group::{BloomGroup, GroupPosition};
 use util::rlp::*;
-use util::{H256, H2048};
+use util::{H256};
 use basic_types::LogBloom;
 
 #[derive(Clone)]

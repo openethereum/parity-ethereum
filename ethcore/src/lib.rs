@@ -104,8 +104,8 @@ pub mod transaction;
 pub mod views;
 pub mod receipt;
 pub mod pod_state;
+pub mod fatdb;
 
-mod fatdb;
 mod db;
 mod common;
 mod basic_types;

@@ -20,15 +20,43 @@ use std::sync::RwLock;
 use std::path::Path;
 use bloomchain::{Config, Number};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
-use util::{H256, Database};
+use util::{FixedHash, H256, H264, Database, DBTransaction};
+use util::rlp::encode;
 use header::BlockNumber;
 use trace::{Trace, BlockTraces};
 use blockchain::BlockProvider;
 use basic_types::LogBloom;
+use db::{Key, Writable, Readable};
 use super::trace::{Filter, TraceGroupPosition, TraceBloom, TraceBloomGroup};
 
+#[derive(Debug, Copy, Clone)]
+pub enum FatdbIndex {
+	/// Block traces index.
+	BlockTraces = 0,
+	/// Trace bloom group index.
+	TraceBloomGroups = 1,
+}
+
+fn with_index(hash: &H256, i: FatdbIndex) -> H264 {
+	let mut slice = H264::from_slice(hash);
+	slice[32] = i as u8;
+	slice
+}
+
+impl Key<BlockTraces> for BlockNumber {
+	fn key(&self) -> H264 {
+		with_index(&From::from(*self), FatdbIndex::BlockTraces)
+	}
+}
+
+impl Key<TraceBloomGroup> for TraceGroupPosition {
+	fn key(&self) -> H264 {
+		with_index(&self.hash(), FatdbIndex::TraceBloomGroups)
+	}
+}
+
 /// Fat database.
-struct Fatdb {
+pub struct Fatdb {
 	// cache
 	traces: RwLock<HashMap<BlockNumber, BlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, TraceBloomGroup>>,
@@ -86,15 +114,31 @@ impl Fatdb {
 			traces: traces
 		};
 
+		let batch = DBTransaction::new();
+		batch.write(&number, &block_traces);
+		for (position, trace_group) in &trace_blooms {
+			batch.write(position, trace_group);
+		}
+
 		self.traces.write().unwrap().insert(number, block_traces);
 		self.blooms.write().unwrap().extend(trace_blooms);
-		// TODO: insert them to db.
+		self.db.write(batch).unwrap();
 	}
 
 	/// Returns traces at block with given number.
 	pub fn traces(&self, block_number: BlockNumber) -> Option<BlockTraces> {
-		// TODO: look for traces in db
-		self.traces.read().unwrap().get(&block_number).cloned()
+		{
+			let traces = self.traces.read().unwrap();
+			if let Some(v) = traces.get(&block_number) {
+				return Some(v.clone())
+			}
+		}
+
+		self.db.read(&block_number).map(|t: BlockTraces| {
+			let mut traces = self.traces.write().unwrap();
+			traces.insert(block_number, t.clone());
+			t
+		})
 	}
 
 	/// Returns traces matching given filter.

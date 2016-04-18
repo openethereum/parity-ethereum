@@ -15,5 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 mod fatdb;
-mod trace;
-mod db;
+pub mod trace;
+
+pub use self::fatdb::Fatdb;
