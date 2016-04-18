@@ -92,6 +92,7 @@ use util::hash::{Address, H256};
 use util::table::*;
 use ethcore::transaction::*;
 use ethcore::error::{Error, TransactionError};
+use super::TransactionImportResult;
 
 
 #[derive(Clone, Debug)]
@@ -346,7 +347,7 @@ impl TransactionQueue {
 	}
 
 	/// Adds all signed transactions to queue to be verified and imported
-	pub fn add_all<T>(&mut self, txs: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
+	pub fn add_all<T>(&mut self, txs: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
 
 		txs.into_iter()
@@ -355,7 +356,7 @@ impl TransactionQueue {
 	}
 
 	/// Add signed transaction to queue to be verified and imported
-	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_account: &T) -> Result<(), Error>
+	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_account: &T) -> Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails {
 
 		trace!(target: "miner", "Importing: {:?}", tx.hash());
@@ -568,7 +569,7 @@ impl TransactionQueue {
 	/// iff `(address, nonce)` is the same but `gas_price` is higher.
 	///
 	/// Returns `true` when transaction was imported successfuly
-	fn import_tx(&mut self, tx: VerifiedTransaction, state_nonce: U256) -> Result<(), TransactionError> {
+	fn import_tx(&mut self, tx: VerifiedTransaction, state_nonce: U256) -> Result<TransactionImportResult, TransactionError> {
 
 		if self.by_hash.get(&tx.hash()).is_some() {
 			// Transaction is already imported.
@@ -590,7 +591,7 @@ impl TransactionQueue {
 			// We have a gap - put to future
 			Self::replace_transaction(tx, next_nonce, &mut self.future, &mut self.by_hash);
 			self.future.enforce_limit(&mut self.by_hash);
-			return Ok(());
+			return Ok(TransactionImportResult::Future);
 		} else if nonce < state_nonce {
 			// Droping transaction
 			trace!(target: "miner", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, next_nonce);
@@ -615,7 +616,7 @@ impl TransactionQueue {
 		self.current.enforce_limit(&mut self.by_hash);
 
 		trace!(target: "miner", "status: {:?}", self.status());
-		Ok(())
+		Ok(TransactionImportResult::Current)
 	}
 
 	/// Replaces transaction in given set (could be `future` or `current`).

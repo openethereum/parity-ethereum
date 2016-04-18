@@ -16,22 +16,24 @@
 
 //! HTTP Authorization implementations
 
+use std::io::Write;
 use std::collections::HashMap;
-use hyper::{header, server};
+use hyper::{header, server, Decoder, Encoder, Next};
+use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
 /// Authorization result
-pub enum Authorized<'a, 'b> where 'b : 'a {
-	/// Authorization was successful. Request and Response are returned for further processing.
-	Yes(server::Request<'a, 'b>, server::Response<'a>),
-	/// Unsuccessful authorization. Request and Response has been consumed.
-	No,
+pub enum Authorized {
+	/// Authorization was successful.
+	Yes,
+	/// Unsuccessful authorization. Handler for further work is returned.
+	No(Box<server::Handler<HttpStream>>),
 }
 
 /// Authorization interface
 pub trait Authorization : Send + Sync {
-	/// Handle authorization process and return `Request` and `Response` when authorization is successful.
-	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>)-> Authorized<'a, 'b>;
+	/// Checks if authorization is valid.
+	fn is_authorized(&self, req: &server::Request)-> Authorized;
 }
 
 /// HTTP Basic Authorization handler
@@ -43,27 +45,24 @@ pub struct HttpBasicAuth {
 pub struct NoAuth;
 
 impl Authorization for NoAuth {
-	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>)-> Authorized<'a, 'b> {
-		Authorized::Yes(req, res)
+	fn is_authorized(&self, _req: &server::Request)-> Authorized {
+		Authorized::Yes
 	}
 }
 
 impl Authorization for HttpBasicAuth {
-
-	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>)-> Authorized<'a, 'b> {
+	fn is_authorized(&self, req: &server::Request) -> Authorized {
 		let auth = self.check_auth(&req);
 
 		match auth {
 			Access::Denied => {
-				self.respond_with_unauthorized(res);
-				Authorized::No
+				Authorized::No(Box::new(UnauthorizedHandler { write_pos: 0 }))
 			},
 			Access::AuthRequired => {
-				self.respond_with_auth_required(res);
-				Authorized::No
+				Authorized::No(Box::new(AuthRequiredHandler))
 			},
 			Access::Granted => {
-				Authorized::Yes(req, res)
+				Authorized::Yes
 			},
 		}
 	}
@@ -90,7 +89,7 @@ impl HttpBasicAuth {
 	}
 
 	fn check_auth(&self, req: &server::Request) -> Access {
-		match req.headers.get::<header::Authorization<header::Basic>>() {
+		match req.headers().get::<header::Authorization<header::Basic>>() {
 			Some(&header::Authorization(
 				header::Basic { ref username, password: Some(ref password) }
 			)) if self.is_authorized(username, password) => Access::Granted,
@@ -98,15 +97,64 @@ impl HttpBasicAuth {
 			None => Access::AuthRequired,
 		}
 	}
+}
 
-	fn respond_with_unauthorized(&self, mut res: server::Response) {
-		*res.status_mut() = StatusCode::Unauthorized;
-		let _ = res.send(b"Unauthorized");
+pub struct UnauthorizedHandler {
+	write_pos: usize,
+}
+
+impl server::Handler<HttpStream> for UnauthorizedHandler {
+	fn on_request(&mut self, _request: server::Request) -> Next {
+		Next::write()
 	}
 
-	fn respond_with_auth_required(&self, mut res: server::Response) {
-		*res.status_mut() = StatusCode::Unauthorized;
-		res.headers_mut().set_raw("WWW-Authenticate", vec![b"Basic realm=\"Parity\"".to_vec()]);
+	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
+		Next::write()
+	}
+
+	fn on_response(&mut self, res: &mut server::Response) -> Next {
+		res.set_status(StatusCode::Unauthorized);
+		Next::write()
+	}
+	
+	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
+		let response = "Unauthorized".as_bytes();
+
+		if self.write_pos == response.len() {
+			return Next::end();
+		}
+
+		match encoder.write(&response[self.write_pos..]) {
+			Ok(bytes) => {
+				self.write_pos += bytes;
+				Next::write()
+			},
+			Err(e) => match e.kind() {
+				::std::io::ErrorKind::WouldBlock => Next::write(),
+				_ => Next::end()
+			},
+		}
 	}
 }
 
+pub struct AuthRequiredHandler;
+
+impl server::Handler<HttpStream> for AuthRequiredHandler {
+	fn on_request(&mut self, _request: server::Request) -> Next {
+		Next::write()
+	}
+
+	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
+		Next::write()
+	}
+
+	fn on_response(&mut self, res: &mut server::Response) -> Next {
+		res.set_status(StatusCode::Unauthorized);
+		res.headers_mut().set_raw("WWW-Authenticate", vec![b"Basic realm=\"Parity\"".to_vec()]);
+		Next::end()
+	}
+
+	fn on_response_writable(&mut self, _encoder: &mut Encoder<HttpStream>) -> Next {
+		Next::end()
+	}
+}

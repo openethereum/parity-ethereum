@@ -101,7 +101,13 @@ pub trait MinerService : Send + Sync {
 	fn set_gas_floor_target(&self, target: U256);
 
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) -> Vec<Result<(), Error>>
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
+		Vec<Result<TransactionImportResult, Error>>
+		where T: Fn(&Address) -> AccountDetails;
+
+	/// Imports own (node owner) transaction to queue.
+	fn import_own_transaction<T>(&self, transaction: SignedTransaction, fetch_account: T) ->
+		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails;
 
 	/// Returns hashes of transactions currently in pending
@@ -139,7 +145,17 @@ pub trait MinerService : Send + Sync {
 	fn sensible_gas_limit(&self) -> U256 { x!(21000) }
 }
 
+/// Represents the result of importing transaction.
+#[derive(Debug)]
+pub enum TransactionImportResult {
+	/// Transaction was imported to current queue.
+	Current,
+	/// Transaction was imported to future queue.
+	Future
+}
+
 /// Mining status
+#[derive(Debug)]
 pub struct MinerStatus {
 	/// Number of transactions in queue with state `pending` (ready to be included in block)
 	pub transactions_in_pending_queue: usize,

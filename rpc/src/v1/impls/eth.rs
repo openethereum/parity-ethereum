@@ -186,7 +186,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
 
-			miner.import_transactions(vec![signed_transaction], |a: &Address| {
+			miner.import_own_transaction(signed_transaction, |a: &Address| {
 				AccountDetails {
 					nonce: client.nonce(&a),
 					balance: client.balance(&a),
@@ -194,10 +194,8 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 			})
 		};
 
-		match import.into_iter().collect::<Result<Vec<_>, _>>() {
-			Ok(_) => {
-				to_value(&hash)
-			}
+		match import {
+			Ok(_) => to_value(&hash),
 			Err(e) => {
 				warn!("Error sending transaction: {:?}", e);
 				to_value(&H256::zero())

@@ -24,4 +24,3 @@ quasi = { version = "*", default-features = false }
 quasi_macros = { version = "*", optional = true }
 syntex = { version = "*", optional = true }
 syntex_syntax = { version = "*", optional = true }
-"ethcore-ipc" = { path = "../rpc"}
