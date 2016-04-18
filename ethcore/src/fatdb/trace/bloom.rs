@@ -89,7 +89,7 @@ impl Encodable for TraceBloomGroup {
 }
 
 /// Represents BloomGroup position in database.
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub struct TraceGroupPosition {
 	/// Bloom level.
 	pub level: usize,

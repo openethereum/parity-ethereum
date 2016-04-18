@@ -39,6 +39,21 @@ impl<'a, K, V> BatchWriter<'a, K, V> {
 		}
 	}
 
+
+	pub fn write(&mut self, key: K, value: V, policy: CacheUpdatePolicy) where
+	K: Key<V> + Hash + Eq,
+	V: Encodable {
+		self.batch.write(&key, &value);
+		match policy {
+			CacheUpdatePolicy::Overwrite => {
+				self.cache.insert(key, value);
+			},
+			CacheUpdatePolicy::Remove => {
+				self.cache.remove(&key);
+			}
+		}
+	}
+
 	pub fn extend(&mut self, map: HashMap<K, V>, policy: CacheUpdatePolicy) where
 	K: Key<V> + Hash + Eq,
 	V: Encodable {

@@ -24,7 +24,7 @@ use util::{FixedHash, H256, H264, Database, DBTransaction};
 use header::BlockNumber;
 use trace::{Trace, BlockTraces};
 use basic_types::LogBloom;
-use db::{Key, Writable, Readable};
+use db::{Key, Writable, Readable, BatchWriter, DatabaseReader, CacheUpdatePolicy};
 use super::trace::{Filter, TraceGroupPosition, TraceBloom, TraceBloomGroup};
 
 #[derive(Debug, Copy, Clone)]
@@ -67,18 +67,9 @@ pub struct Fatdb {
 impl BloomGroupDatabase for Fatdb {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
-		{
-			let blooms = self.blooms.read().unwrap();
-			if let Some(v) = blooms.get(&position) {
-				return Some(v.clone().into())
-			}
-		}
-
-		self.db.read(&position).map(|t: TraceBloomGroup| {
-			let mut blooms = self.blooms.write().unwrap();
-			blooms.insert(position, t.clone());
-			t.into()
-		})
+		DatabaseReader::new(&self.db, &self.blooms)
+			.read(&position)
+			.map(Into::into)
 	}
 }
 
@@ -120,30 +111,16 @@ impl Fatdb {
 		};
 
 		let batch = DBTransaction::new();
-		batch.write(&number, &block_traces);
-		for (position, trace_group) in &trace_blooms {
-			batch.write(position, trace_group);
-		}
-
-		self.traces.write().unwrap().insert(number, block_traces);
-		self.blooms.write().unwrap().extend(trace_blooms);
+		let mut traces = self.traces.write().unwrap();
+		let mut blooms = self.blooms.write().unwrap();
+		BatchWriter::new(&batch, &mut traces).write(number, block_traces, CacheUpdatePolicy::Remove);
+		BatchWriter::new(&batch, &mut blooms).extend(trace_blooms, CacheUpdatePolicy::Remove);
 		self.db.write(batch).unwrap();
 	}
 
 	/// Returns traces at block with given number.
 	pub fn traces(&self, block_number: BlockNumber) -> Option<BlockTraces> {
-		{
-			let traces = self.traces.read().unwrap();
-			if let Some(v) = traces.get(&block_number) {
-				return Some(v.clone())
-			}
-		}
-
-		self.db.read(&block_number).map(|t: BlockTraces| {
-			let mut traces = self.traces.write().unwrap();
-			traces.insert(block_number, t.clone());
-			t
-		})
+		DatabaseReader::new(&self.db, &self.traces).read(&block_number)
 	}
 
 	/// Returns traces matching given filter.
