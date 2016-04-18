@@ -830,7 +830,8 @@ impl BlockChain {
 						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
 						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => { blocks_blooms.remove(&h); },
 						CacheID::Extras(ExtrasIndex::BlockReceipts, h) => { block_receipts.remove(&h); },
-						_ => panic!(),
+						// TODO: debris, temporary fix
+						CacheID::Extras(ExtrasIndex::BlockHash, _) => { },
 					}
 				}
 				cache_man.cache_usage.push_front(HashSet::new());
