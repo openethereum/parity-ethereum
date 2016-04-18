@@ -629,7 +629,11 @@ impl TransactionQueue {
 			try!(check_too_cheap(Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		}
 		// Also enforce the limit
-		try!(check_if_removed(&hash, self.current.enforce_limit(&mut self.by_hash)));
+		if let Err(e) = check_if_removed(&hash, self.current.enforce_limit(&mut self.by_hash)) {
+			// If current transaction was removed because of limit we need to update last_nonces also.
+			self.last_nonces.insert(address, nonce - U256::one());
+			return Err(e);
+		}
 
 		trace!(target: "miner", "status: {:?}", self.status());
 		Ok(TransactionImportResult::Current)
@@ -1157,6 +1161,8 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::with_limits(1, 1);
 		let (tx, tx2) = new_txs(U256::one());
+		let sender = tx.sender().unwrap();
+		let nonce = tx.nonce;
 		txq.add(tx.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().pending, 1);
 
@@ -1169,6 +1175,7 @@ mod test {
 		assert_eq!(txq.status().pending, 1);
 		assert_eq!(t.len(), 1);
 		assert_eq!(t[0], tx);
+		assert_eq!(txq.last_nonce(&sender), Some(nonce));
 	}
 
 	#[test]
