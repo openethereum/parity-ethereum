@@ -628,6 +628,7 @@ impl TransactionQueue {
 			let future_tx = self.by_hash.remove(&order.hash).unwrap();
 			try!(check_too_cheap(Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		}
+
 		// Also enforce the limit
 		if let Err(e) = check_if_removed(&hash, self.current.enforce_limit(&mut self.by_hash)) {
 			// If current transaction was removed because of limit we need to update last_nonces also.
