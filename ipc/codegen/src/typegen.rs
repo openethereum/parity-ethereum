@@ -46,7 +46,11 @@ fn is_new_entry(path: &Path) -> Option<String> {
 			ident == "i32"		 ||
 			ident == "i64"       ||
 			ident == "String"    ||
-			ident == "bool"
+			ident == "bool"      ||
+			ident == "H256"      ||
+			ident == "U256"      ||
+			ident == "H2048"     ||
+			ident == "Address"
 		}
 	};
 
@@ -200,6 +204,11 @@ pub fn match_unknown_tys(
 			TyKind::FixedLengthVec(ref nested_ty, _) => {
 				if !stop_list.contains(nested_ty) {
 					fringe.push(nested_ty);
+				}
+			},
+			TyKind::Rptr(_, ref nested_ty) => {
+				if !stop_list.contains(&nested_ty.ty) {
+					fringe.push(&nested_ty.ty);
 				}
 			},
 			TyKind::Path(_, ref path) => {
