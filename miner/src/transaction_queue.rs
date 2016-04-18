@@ -242,6 +242,12 @@ impl TransactionSet {
 		self.by_priority.clear();
 		self.by_address.clear();
 	}
+
+	/// Sets new limit for number of transactions in this `TransactionSet`.
+	/// Note the limit is not applied (no transactions are removed) by calling this method.
+	fn set_limit(&mut self, limit: usize) {
+		self.limit = limit;
+	}
 }
 
 #[derive(Debug)]
@@ -290,20 +296,21 @@ impl Default for TransactionQueue {
 impl TransactionQueue {
 	/// Creates new instance of this Queue
 	pub fn new() -> Self {
-		Self::with_limits(1024, 1024)
+		Self::with_limit(1024)
 	}
 
 	/// Create new instance of this Queue with specified limits
-	pub fn with_limits(current_limit: usize, future_limit: usize) -> Self {
+	pub fn with_limit(limit: usize) -> Self {
 		let current = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
-			limit: current_limit,
+			limit: limit,
 		};
+
 		let future = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
-			limit: future_limit,
+			limit: limit,
 		};
 
 		TransactionQueue {
@@ -314,6 +321,20 @@ impl TransactionQueue {
 			by_hash: HashMap::new(),
 			last_nonces: HashMap::new(),
 		}
+	}
+
+	/// Set the new limit for `current` and `future` queue.
+	pub fn set_limit(&mut self, limit: usize) {
+		self.current.set_limit(limit);
+		self.future.set_limit(limit);
+		// And ensure the limits
+		self.current.enforce_limit(&mut self.by_hash);
+		self.future.enforce_limit(&mut self.by_hash);
+	}
+
+	/// Returns current limit of transactions in the queue.
+	pub fn limit(&self) -> usize {
+		self.current.limit
 	}
 
 	/// Get the minimal gas price.
@@ -1085,7 +1106,7 @@ mod test {
 	#[test]
 	fn should_drop_old_transactions_when_hitting_the_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limits(1, 1);
+		let mut txq = TransactionQueue::with_limit(1);
 		let (tx, tx2) = new_txs(U256::one());
 		txq.add(tx.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().pending, 1);
@@ -1102,7 +1123,8 @@ mod test {
 
 	#[test]
 	fn should_limit_future_transactions() {
-		let mut txq = TransactionQueue::with_limits(10, 1);
+		let mut txq = TransactionQueue::with_limit(1);
+		txq.current.set_limit(10);
 		let (tx1, tx2) = new_txs(U256::from(4));
 		let (tx3, tx4) = new_txs(U256::from(4));
 		txq.add(tx1.clone(), &default_nonce).unwrap();

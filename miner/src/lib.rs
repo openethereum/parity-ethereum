@@ -100,6 +100,12 @@ pub trait MinerService : Send + Sync {
 	/// Set the gas limit we wish to target when sealing a new block.
 	fn set_gas_floor_target(&self, target: U256);
 
+	/// Get current transactions limit in queue.
+	fn transactions_limit(&self) -> usize;
+
+	/// Set maximal number of transactions kept in the queue (both current and future).
+	fn set_transactions_limit(&self, limit: usize);
+
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
 		Vec<Result<TransactionImportResult, Error>>
