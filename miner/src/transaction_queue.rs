@@ -93,24 +93,6 @@ use util::table::*;
 use ethcore::transaction::*;
 use ethcore::error::{Error, TransactionError};
 
-macro_rules! check_too_cheap {
-	($is_in:expr) => {
-		if !($is_in) {
-			return Err(TransactionError::TooCheapToReplace);
-		}
-	}
-}
-
-macro_rules! check_limit {
-	($hash:expr, $dropped:expr) => {
-		if let Some(dropped) = $dropped {
-			if dropped.contains(&$hash) {
-				return Err(TransactionError::LimitReached);
-			}
-		}
-	}
-}
-
 #[derive(Clone, Debug)]
 /// Light structure used to identify transaction and it's order
 struct TransactionOrder {
@@ -623,8 +605,8 @@ impl TransactionQueue {
 		// Check height
 		if nonce > next_nonce {
 			// We have a gap - put to future
-			check_too_cheap!(Self::replace_transaction(tx, next_nonce, &mut self.future, &mut self.by_hash));
-			check_limit!(hash, self.future.enforce_limit(&mut self.by_hash));
+			try!(check_too_cheap(Self::replace_transaction(tx, next_nonce, &mut self.future, &mut self.by_hash)));
+			try!(check_if_removed(&hash, self.future.enforce_limit(&mut self.by_hash)));
 			return Ok(TransactionImportResult::Future);
 		} else if nonce < state_nonce {
 			// Droping transaction
@@ -632,7 +614,7 @@ impl TransactionQueue {
 			return Err(TransactionError::Old);
 		}
 
-		check_too_cheap!(Self::replace_transaction(tx, state_nonce, &mut self.current, &mut self.by_hash));
+		try!(check_too_cheap(Self::replace_transaction(tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		// Keep track of highest nonce stored in current
 		self.last_nonces.insert(address, nonce);
 		// Update nonces of transactions in future
@@ -644,10 +626,10 @@ impl TransactionQueue {
 		if let Some(order) = self.future.drop(&address, &nonce) {
 			// Let's insert that transaction to current (if it has higher gas_price)
 			let future_tx = self.by_hash.remove(&order.hash).unwrap();
-			check_too_cheap!(Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash));
+			try!(check_too_cheap(Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		}
 		// Also enforce the limit
-		check_limit!(hash, self.current.enforce_limit(&mut self.by_hash));
+		try!(check_if_removed(&hash, self.current.enforce_limit(&mut self.by_hash)));
 
 		trace!(target: "miner", "status: {:?}", self.status());
 		Ok(TransactionImportResult::Current)
@@ -688,6 +670,24 @@ impl TransactionQueue {
 		}
 	}
 }
+
+fn check_too_cheap(is_in: bool) -> Result<(), TransactionError> {
+	if !is_in {
+		Err(TransactionError::TooCheapToReplace)
+	} else {
+		Ok(())
+	}
+}
+
+fn check_if_removed(hash: &H256, dropped: Option<HashSet<H256>>) -> Result<(), TransactionError> {
+	match dropped {
+		Some(ref dropped) if dropped.contains(hash) => {
+			Err(TransactionError::LimitReached)
+		},
+		_ => Ok(())
+	}
+}
+
 
 #[cfg(test)]
 mod test {
