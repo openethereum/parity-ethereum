@@ -672,10 +672,10 @@ impl TransactionQueue {
 }
 
 fn check_too_cheap(is_in: bool) -> Result<(), TransactionError> {
-	if !is_in {
-		Err(TransactionError::TooCheapToReplace)
-	} else {
+	if is_in {
 		Ok(())
+	} else {
+		Err(TransactionError::TooCheapToReplace)
 	}
 }
 

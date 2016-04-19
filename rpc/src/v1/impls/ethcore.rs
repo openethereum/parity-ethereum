@@ -84,7 +84,7 @@ impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
 
 	fn dev_logs(&self, _params: Params) -> Result<Value, Error> {
 		let logs = self.logger.logs();
-		to_value(&logs.deref())
+		to_value(&logs.deref().as_slice())
 	}
 
 	fn dev_logs_levels(&self, _params: Params) -> Result<Value, Error> {

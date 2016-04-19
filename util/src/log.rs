@@ -20,7 +20,7 @@ use std::env;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
 use std::sync::{RwLock, RwLockReadGuard};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use arrayvec::ArrayVec;
 
 lazy_static! {
 	static ref LOG_DUMMY: bool = {
@@ -43,35 +43,39 @@ pub fn init_log() {
 	let _ = *LOG_DUMMY;
 }
 
-static LOG_SIZE : usize = 128;
+const LOG_SIZE : usize = 128;
 
+/// Logger implementation that keeps up to `LOG_SIZE` log elements.
 pub struct RotatingLogger {
-	idx: AtomicUsize,
+	/// Defined logger levels
 	levels: String,
-	logs: RwLock<Vec<String>>,
+	/// Logs array. Latest log is always at index 0
+	logs: RwLock<ArrayVec<[String; LOG_SIZE]>>,
 }
 
 impl RotatingLogger {
 
+	/// Creates new `RotatingLogger` with given levels.
+	/// It does not enforce levels - it's just read only.
 	pub fn new(levels: String) -> Self {
 		RotatingLogger {
-			idx: AtomicUsize::new(0),
 			levels: levels,
-			logs: RwLock::new(Vec::with_capacity(LOG_SIZE)),
+			logs: RwLock::new(ArrayVec::<[_; LOG_SIZE]>::new()),
 		}
 	}
 
+	/// Append new log entry
 	pub fn append(&self, log: String) {
-		let idx = self.idx.fetch_add(1, Ordering::SeqCst);
-		let idx = idx % LOG_SIZE;
-		self.logs.write().unwrap().insert(idx, log);
+		self.logs.write().unwrap().insert(0, log);
 	}
 
+	/// Return levels
 	pub fn levels(&self) -> &str {
 		&self.levels
 	}
 
-	pub fn logs(&self) -> RwLockReadGuard<Vec<String>> {
+	/// Return logs
+	pub fn logs(&self) -> RwLockReadGuard<ArrayVec<[String; LOG_SIZE]>> {
 		self.logs.read().unwrap()
 	}
 
