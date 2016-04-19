@@ -67,6 +67,17 @@ impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
 		})
 	}
 
+	fn set_transactions_limit(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(usize,)>(params).and_then(|(limit,)| {
+			take_weak!(self.miner).set_transactions_limit(limit);
+			to_value(&true)
+		})
+	}
+
+	fn transactions_limit(&self, _: Params) -> Result<Value, Error> {
+		to_value(&take_weak!(self.miner).transactions_limit())
+	}
+
 	fn min_gas_price(&self, _: Params) -> Result<Value, Error> {
 		to_value(&take_weak!(self.miner).minimal_gas_price())
 	}
