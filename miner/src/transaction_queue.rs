@@ -1220,7 +1220,7 @@ mod test {
 	#[test]
 	fn should_return_correct_nonces_when_dropped_because_of_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limits(2, 2);
+		let mut txq = TransactionQueue::with_limit(2);
 		let tx = new_tx();
 		let (tx1, tx2) = new_txs(U256::one());
 		let sender = tx1.sender().unwrap();
