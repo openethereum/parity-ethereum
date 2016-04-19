@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-use util::{U256, Address};
+use util::{U256, Address, RotatingLogger};
 use std::sync::{Arc, Weak};
+use std::ops::Deref;
 use jsonrpc_core::*;
 use ethminer::{MinerService};
 use v1::traits::Ethcore;
@@ -26,13 +27,15 @@ use v1::types::Bytes;
 pub struct EthcoreClient<M>
 	where M: MinerService {
 	miner: Weak<M>,
+	logger: Arc<RotatingLogger>,
 }
 
 impl<M> EthcoreClient<M> where M: MinerService {
 	/// Creates new `EthcoreClient`.
-	pub fn new(miner: &Arc<M>) -> Self {
+	pub fn new(miner: &Arc<M>, logger: Arc<RotatingLogger>) -> Self {
 		EthcoreClient {
-			miner: Arc::downgrade(miner)
+			miner: Arc::downgrade(miner),
+			logger: logger,
 		}
 	}
 }
@@ -78,4 +81,14 @@ impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
 	fn gas_floor_target(&self, _: Params) -> Result<Value, Error> {
 		to_value(&take_weak!(self.miner).gas_floor_target())
 	}
+
+	fn dev_logs(&self, _params: Params) -> Result<Value, Error> {
+		let logs = self.logger.logs();
+		to_value(&logs.deref())
+	}
+
+	fn dev_logs_levels(&self, _params: Params) -> Result<Value, Error> {
+		to_value(&self.logger.levels())
+	}
+
 }

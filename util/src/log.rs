@@ -19,6 +19,8 @@
 use std::env;
 use rlog::{LogLevelFilter};
 use env_logger::LogBuilder;
+use std::sync::{RwLock, RwLockReadGuard};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 lazy_static! {
 	static ref LOG_DUMMY: bool = {
@@ -40,3 +42,46 @@ lazy_static! {
 pub fn init_log() {
 	let _ = *LOG_DUMMY;
 }
+
+static LOG_SIZE : usize = 128;
+
+pub struct RotatingLogger {
+	idx: AtomicUsize,
+	levels: String,
+	logs: RwLock<Vec<String>>,
+}
+
+impl RotatingLogger {
+
+	pub fn new(levels: String) -> Self {
+		RotatingLogger {
+			idx: AtomicUsize::new(0),
+			levels: levels,
+			logs: RwLock::new(Vec::with_capacity(LOG_SIZE)),
+		}
+	}
+
+	pub fn append(&self, log: String) {
+		let idx = self.idx.fetch_add(1, Ordering::SeqCst);
+		let idx = idx % LOG_SIZE;
+		self.logs.write().unwrap().insert(idx, log);
+	}
+
+	pub fn levels(&self) -> &str {
+		&self.levels
+	}
+
+	pub fn logs(&self) -> RwLockReadGuard<Vec<String>> {
+		self.logs.read().unwrap()
+	}
+
+}
+
+#[cfg(test)]
+mod test {
+	#[test]
+	fn should_have_some_tests() {
+		assert_eq!(true, false);
+	}
+}
+
