@@ -16,13 +16,13 @@
 
 //! Test implementation of miner service.
 
-use util::{Address, H256, Bytes, U256};
+use util::{Address, H256, Bytes, U256, FixedHash};
 use util::standard::*;
 use ethcore::error::Error;
 use ethcore::client::BlockChainClient;
 use ethcore::block::ClosedBlock;
 use ethcore::transaction::SignedTransaction;
-use ethminer::{MinerService, MinerStatus, AccountDetails};
+use ethminer::{MinerService, MinerStatus, AccountDetails, TransactionImportResult};
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -34,6 +34,12 @@ pub struct TestMinerService {
 	pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
 	/// Last nonces.
 	pub last_nonces: RwLock<HashMap<Address, U256>>,
+
+	min_gas_price: RwLock<U256>,
+	gas_floor_target: RwLock<U256>,
+	author: RwLock<Address>,
+	extra_data: RwLock<Bytes>,
+	limit: RwLock<usize>,
 }
 
 impl Default for TestMinerService {
@@ -43,6 +49,11 @@ impl Default for TestMinerService {
 			latest_closed_block: Mutex::new(None),
 			pending_transactions: Mutex::new(HashMap::new()),
 			last_nonces: RwLock::new(HashMap::new()),
+			min_gas_price: RwLock::new(U256::from(20_000_000)),
+			gas_floor_target: RwLock::new(U256::from(12345)),
+			author: RwLock::new(Address::zero()),
+			extra_data: RwLock::new(vec![1, 2, 3, 4]),
+			limit: RwLock::new(1024),
 		}
 	}
 }
@@ -58,16 +69,68 @@ impl MinerService for TestMinerService {
 		}
 	}
 
+	fn set_author(&self, author: Address) {
+		*self.author.write().unwrap() = author;
+	}
+
+	fn set_extra_data(&self, extra_data: Bytes) {
+		*self.extra_data.write().unwrap() = extra_data;
+	}
+
+	/// Set the gas limit we wish to target when sealing a new block.
+	fn set_gas_floor_target(&self, target: U256) {
+		*self.gas_floor_target.write().unwrap() = target;
+	}
+
+	fn set_minimal_gas_price(&self, min_gas_price: U256) {
+		*self.min_gas_price.write().unwrap() = min_gas_price;
+	}
+
+	fn set_transactions_limit(&self, limit: usize) {
+		*self.limit.write().unwrap() = limit;
+	}
+
+	fn transactions_limit(&self) -> usize {
+		*self.limit.read().unwrap()
+	}
+
+	fn author(&self) -> Address {
+		*self.author.read().unwrap()
+	}
+
+	fn minimal_gas_price(&self) -> U256 {
+		*self.min_gas_price.read().unwrap()
+	}
+
+	fn extra_data(&self) -> Bytes {
+		self.extra_data.read().unwrap().clone()
+	}
+
+	fn gas_floor_target(&self) -> U256 {
+		*self.gas_floor_target.read().unwrap()
+	}
+
 	/// Imports transactions to transaction queue.
-	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, _fetch_account: T) -> Vec<Result<(), Error>>
+	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, _fetch_account: T) ->
+		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
 		// lets assume that all txs are valid
 		self.imported_transactions.lock().unwrap().extend_from_slice(&transactions);
 
 		transactions
 			.iter()
-			.map(|_| Ok(()))
+			.map(|_| Ok(TransactionImportResult::Current))
 			.collect()
+	}
+
+	/// Imports transactions to transaction queue.
+	fn import_own_transaction<T>(&self, transaction: SignedTransaction, _fetch_account: T) ->
+		Result<TransactionImportResult, Error>
+		where T: Fn(&Address) -> AccountDetails {
+		// lets assume that all txs are valid
+		self.imported_transactions.lock().unwrap().push(transaction);
+
+		Ok(TransactionImportResult::Current)
 	}
 
 	/// Returns hashes of transactions currently in pending
@@ -110,13 +173,5 @@ impl MinerService for TestMinerService {
 	/// Will check the seal, but not actually insert the block into the chain.
 	fn submit_seal(&self, _chain: &BlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
-	}
-
-	fn extra_data(&self) -> Bytes {
-		vec![1, 2, 3, 4]
-	}
-
-	fn gas_floor_target(&self) -> U256 {
-		U256::from(12345)
 	}
 }

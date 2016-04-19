@@ -39,8 +39,6 @@ extern crate syntax;
 #[cfg(not(feature = "with-syntex"))]
 extern crate rustc_plugin;
 
-extern crate ethcore_ipc as ipc;
-
 #[cfg(not(feature = "with-syntex"))]
 use syntax::feature_gate::AttributeType;
 
@@ -63,5 +61,5 @@ pub fn register(reg: &mut rustc_plugin::Registry) {
 	reg.register_syntax_extension(
 		syntax::parse::token::intern("derive_Ipc"),
 		syntax::ext::base::MultiDecorator(
-			Box::new(ser::expand_derive_serialize)));
+			Box::new(codegen::expand_ipc_implementation)));
 }

@@ -8,6 +8,9 @@ build = "build.rs"
 
 [build-dependencies]
 rustc_version = "0.1"
+syntex = "*"
+serde_codegen = "0.7.0"
+"ethcore-ipc-codegen" = { path = "ipc/codegen" }
 
 [dependencies]
 log = "0.3"
@@ -20,7 +23,7 @@ fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
 num_cpus = "0.2"
 number_prefix = "0.2"
-rpassword = "0.1"
+rpassword = "0.2.1"
 clippy = { version = "0.0.63", optional = true}
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
@@ -30,6 +33,10 @@ ethcore-devtools = { path = "devtools" }
 ethcore-rpc = { path = "rpc", optional = true }
 ethcore-webapp = { path = "webapp", optional = true }
 semver = "0.2"
+ethcore-ipc-nano = { path = "ipc/nano" }
+"ethcore-ipc" = { path = "ipc/rpc" }
+bincode = "*"
+serde = "0.7.0"
 
 [dependencies.hyper]
 version = "0.8"

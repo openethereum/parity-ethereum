@@ -61,7 +61,7 @@ pub struct Filter {
 impl Into<EthFilter> for Filter {
 	fn into(self) -> EthFilter {
 		EthFilter {
-			from_block: self.from_block.map_or_else(|| BlockId::Earliest, Into::into),
+			from_block: self.from_block.map_or_else(|| BlockId::Latest, Into::into),
 			to_block: self.to_block.map_or_else(|| BlockId::Latest, Into::into),
 			address: self.address.and_then(|address| match address {
 				VariadicValue::Null => None,

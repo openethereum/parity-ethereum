@@ -37,6 +37,10 @@ extern crate time;
 extern crate number_prefix;
 extern crate rpassword;
 extern crate semver;
+extern crate ethcore_ipc as ipc;
+extern crate ethcore_ipc_nano as nanoipc;
+extern crate serde;
+extern crate bincode;
 
 // for price_info.rs
 #[macro_use] extern crate hyper;
@@ -69,10 +73,11 @@ use number_prefix::{binary_prefix, Standalone, Prefixed};
 #[cfg(feature = "rpc")]
 use rpc::Server as RpcServer;
 #[cfg(feature = "webapp")]
-use webapp::Listening as WebappServer;
+use webapp::Server as WebappServer;
 
 mod price_info;
 mod upgrade;
+mod hypervisor;
 
 fn die_with_message(msg: &str) -> ! {
 	println!("ERROR: {}", msg);
@@ -133,8 +138,7 @@ API and Console Options:
   --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
                            server, IP should be an interface's IP address, or
                            all (all interfaces) or local [default: local].
-  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses
-                           [default: null].
+  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses.
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
@@ -168,6 +172,8 @@ Sealing/Mining Options:
                            [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
   --extra-data STRING      Specify a custom extra-data for authored blocks, no
                            more than 32 characters.
+  --tx-limit LIMIT         Limit of transactions kept in the queue (waiting to
+                           be included in next block) [default: 1024].
 
 Footprint Options:
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
@@ -242,7 +248,7 @@ struct Args {
 	flag_jsonrpc: bool,
 	flag_jsonrpc_interface: String,
 	flag_jsonrpc_port: u16,
-	flag_jsonrpc_cors: String,
+	flag_jsonrpc_cors: Option<String>,
 	flag_jsonrpc_apis: String,
 	flag_webapp: bool,
 	flag_webapp_port: u16,
@@ -255,6 +261,7 @@ struct Args {
 	flag_usd_per_eth: String,
 	flag_gas_floor_target: String,
 	flag_extra_data: Option<String>,
+	flag_tx_limit: usize,
 	flag_logging: Option<String>,
 	flag_version: bool,
 	// geth-compatibility...
@@ -307,7 +314,7 @@ fn setup_rpc_server(
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
 	url: &SocketAddr,
-	cors_domain: &str,
+	cors_domain: Option<String>,
 	apis: Vec<&str>,
 ) -> RpcServer {
 	use rpc::v1::*;
@@ -342,12 +349,12 @@ fn setup_webapp_server(
 	sync: Arc<EthSync>,
 	secret_store: Arc<AccountService>,
 	miner: Arc<Miner>,
-	url: &str,
+	url: &SocketAddr,
 	auth: Option<(String, String)>,
 ) -> WebappServer {
 	use rpc::v1::*;
 
-	let server = webapp::WebappServer::new();
+	let server = webapp::ServerBuilder::new();
 	server.add_delegate(Web3Client::new().to_delegate());
 	server.add_delegate(NetClient::new(&sync).to_delegate());
 	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
@@ -356,14 +363,14 @@ fn setup_webapp_server(
 	server.add_delegate(EthcoreClient::new(&miner).to_delegate());
 	let start_result = match auth {
 		None => {
-			server.start_unsecure_http(url, ::num_cpus::get())
+			server.start_unsecure_http(url)
 		},
 		Some((username, password)) => {
-			server.start_basic_auth_http(url, ::num_cpus::get(), &username, &password)
+			server.start_basic_auth_http(url, &username, &password)
 		},
 	};
 	match start_result {
-		Err(webapp::WebappServerError::IoError(err)) => die_with_io_error(err),
+		Err(webapp::ServerError::IoError(err)) => die_with_io_error(err),
 		Err(e) => die!("{:?}", e),
 		Ok(handle) => handle,
 	}
@@ -379,8 +386,8 @@ fn setup_rpc_server(
 	_sync: Arc<EthSync>,
 	_secret_store: Arc<AccountService>,
 	_miner: Arc<Miner>,
-	_url: &str,
-	_cors_domain: &str,
+	_url: &SocketAddr,
+	_cors_domain: Option<String>,
 	_apis: Vec<&str>,
 ) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
@@ -395,7 +402,7 @@ fn setup_webapp_server(
 	_sync: Arc<EthSync>,
 	_secret_store: Arc<AccountService>,
 	_miner: Arc<Miner>,
-	_url: &str,
+	_url: &SocketAddr,
 	_auth: Option<(String, String)>,
 ) -> ! {
 	die!("Your Parity version has been compiled without WebApps support.")
@@ -550,6 +557,7 @@ impl Configuration {
 		let jdb_types = [journaldb::Algorithm::Archive, journaldb::Algorithm::EarlyMerge, journaldb::Algorithm::OverlayRecent, journaldb::Algorithm::RefCounted];
 		for i in jdb_types.into_iter() {
 			let db = journaldb::new(&append_path(&get_db_path(&Path::new(&self.path()), *i, spec.genesis_header().hash()), "state"), *i);
+			trace!(target: "parity", "Looking for best DB: {} at {:?}", i, db.latest_era());
 			match (latest_era, db.latest_era()) {
 				(Some(best), Some(this)) if best >= this => {}
 				(_, None) => {}
@@ -582,7 +590,7 @@ impl Configuration {
 			"auto" => self.find_best_db(spec).unwrap_or(journaldb::Algorithm::OverlayRecent),
 			_ => { die!("Invalid pruning method given."); }
 		};
-		info!("Using state DB of {}", client_config.pruning);
+		trace!(target: "parity", "Using pruning strategy of {}", client_config.pruning);
 		client_config.name = self.args.flag_identity.clone();
 		client_config.queue.max_mem_use = self.args.flag_queue_max_size;
 		client_config
@@ -601,6 +609,18 @@ impl Configuration {
 			print_version();
 			return;
 		}
+
+		match ::upgrade::upgrade(Some(&self.path())) {
+			Ok(upgrades_applied) => {
+				if upgrades_applied > 0 {
+					println!("Executed {} upgrade scripts - ok", upgrades_applied);
+				}
+			},
+			Err(e) => {
+				die!("Error upgrading parity data: {:?}", e);
+			}
+		}
+
 		if self.args.cmd_daemon {
 			Daemonize::new()
 				.pid_file(self.args.arg_pid_file.clone())
@@ -621,9 +641,9 @@ impl Configuration {
 		let mut secret_store = SecretStore::new_in(Path::new(&self.keys_path()));
 		if self.args.cmd_new {
 			println!("Please note that password is NOT RECOVERABLE.");
-			println!("Type password: ");
+			print!("Type password: ");
 			let password = read_password().unwrap();
-			println!("Repeat password: ");
+			print!("Repeat password: ");
 			let password_repeat = read_password().unwrap();
 			if password != password_repeat {
 				println!("Passwords do not match!");
@@ -696,6 +716,7 @@ impl Configuration {
 		miner.set_gas_floor_target(self.gas_floor_target());
 		miner.set_extra_data(self.extra_data());
 		miner.set_minimal_gas_price(self.gas_price());
+		miner.set_transactions_limit(self.args.flag_tx_limit);
 
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
@@ -712,7 +733,7 @@ impl Configuration {
 				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
 			);
 			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
-			let cors_domain = self.args.flag_rpccorsdomain.as_ref().unwrap_or(&self.args.flag_jsonrpc_cors);
+			let cors_domain = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
 
 			Some(setup_rpc_server(
 				service.client(),
@@ -720,7 +741,7 @@ impl Configuration {
 				account_service.clone(),
 				miner.clone(),
 				&addr,
-				&cors_domain,
+				cors_domain,
 				apis.split(',').collect()
 			))
 		} else {
@@ -736,6 +757,7 @@ impl Configuration {
 				},
 				self.args.flag_webapp_port
 			);
+			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid Webapps listen host/port given.", url));
 			let auth = self.args.flag_webapp_user.as_ref().map(|username| {
 				let password = self.args.flag_webapp_pass.as_ref().map_or_else(|| {
 					use rpassword::read_password;
@@ -752,7 +774,7 @@ impl Configuration {
 				sync.clone(),
 				account_service.clone(),
 				miner.clone(),
-				&url,
+				&addr,
 				auth,
 			))
 		} else {
@@ -814,16 +836,6 @@ fn die_with_io_error(e: std::io::Error) -> ! {
 }
 
 fn main() {
-	match ::upgrade::upgrade() {
-		Ok(upgrades_applied) => {
-			if upgrades_applied > 0 {
-				println!("Executed {} upgrade scripts - ok", upgrades_applied);
-			}
-		},
-		Err(e) => {
-			die!("Error upgrading parity data: {:?}", e);
-		}
-	}
 
 	Configuration::parse().execute();
 }

@@ -19,6 +19,7 @@
 use util::*;
 use header::BlockNumber;
 use receipt::Receipt;
+use db::Key;
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -37,92 +38,85 @@ pub enum ExtrasIndex {
 	BlockReceipts = 5,
 }
 
-/// trait used to write Extras data to db
-pub trait ExtrasWritable {
-	/// Write extra data to db
-	fn put_extras<K, T>(&self, hash: &K, value: &T) where
-		T: ExtrasIndexable + Encodable,
-		K: ExtrasSliceConvertable;
+fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
+	let mut slice = H264::from_slice(hash);
+	slice[32] = i as u8;
+	slice
 }
 
-/// trait used to read Extras data from db
-pub trait ExtrasReadable {
-	/// Read extra data from db
-	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
-		T: ExtrasIndexable + Decodable,
-		K: ExtrasSliceConvertable;
-
-	/// Check if extra data exists in the db
-	fn extras_exists<K, T>(&self, hash: &K) -> bool where
-		T: ExtrasIndexable,
-		K: ExtrasSliceConvertable;
-}
-
-impl ExtrasWritable for DBTransaction {
-	fn put_extras<K, T>(&self, hash: &K, value: &T) where
-		T: ExtrasIndexable + Encodable,
-		K: ExtrasSliceConvertable {
-
-		self.put(&hash.to_extras_slice(T::extras_index()), &encode(value)).unwrap()
-	}
-}
-
-impl ExtrasReadable for Database {
-	fn get_extras<K, T>(&self, hash: &K) -> Option<T> where
-		T: ExtrasIndexable + Decodable,
-		K: ExtrasSliceConvertable {
-
-		self.get(&hash.to_extras_slice(T::extras_index())).unwrap()
-			.map(|v| decode(&v))
-	}
-
-	fn extras_exists<K, T>(&self, hash: &K) -> bool where
-		T: ExtrasIndexable,
-		K: ExtrasSliceConvertable {
-
-		self.get(&hash.to_extras_slice(T::extras_index())).unwrap().is_some()
-	}
-}
-
-/// Implementations should convert arbitrary type to database key slice
-pub trait ExtrasSliceConvertable {
-	/// Convert self, with `i` (the index), to a 264-bit extras DB key.
-	fn to_extras_slice(&self, i: ExtrasIndex) -> H264;
-	/// Interpret self as a 256-bit hash, if natively `H256`.
-	fn as_h256(&self) -> Option<&H256> { None }
-}
-
-impl ExtrasSliceConvertable for H256 {
-	fn to_extras_slice(&self, i: ExtrasIndex) -> H264 {
-		let mut slice = H264::from_slice(self);
-		slice[32] = i as u8;
-		slice
-	}
-	fn as_h256(&self) -> Option<&H256> { Some(self) }
-}
-
-impl ExtrasSliceConvertable for U256 {
-	fn to_extras_slice(&self, i: ExtrasIndex) -> H264 {
-		H256::from(self).to_extras_slice(i)
-	}
-}
-
-// NICE: make less horrible.
-impl ExtrasSliceConvertable for BlockNumber {
-	fn to_extras_slice(&self, i: ExtrasIndex) -> H264 {
-		U256::from(*self).to_extras_slice(i)
-	}
-}
-
-/// Types implementing this trait can be indexed in extras database
 pub trait ExtrasIndexable {
-	/// Returns this data index
-	fn extras_index() -> ExtrasIndex;
+	fn index() -> ExtrasIndex;
 }
 
 impl ExtrasIndexable for H256 {
-	fn extras_index() -> ExtrasIndex {
+	fn index() -> ExtrasIndex {
 		ExtrasIndex::BlockHash
+	}
+}
+
+impl ExtrasIndexable for BlockDetails {
+	fn index() -> ExtrasIndex {
+		ExtrasIndex::BlockDetails
+	}
+}
+
+impl ExtrasIndexable for TransactionAddress {
+	fn index() -> ExtrasIndex {
+		ExtrasIndex::TransactionAddress
+	}
+}
+
+impl ExtrasIndexable for BlockLogBlooms {
+	fn index() -> ExtrasIndex {
+		ExtrasIndex::BlockLogBlooms
+	}
+}
+
+impl ExtrasIndexable for BlocksBlooms {
+	fn index() -> ExtrasIndex {
+		ExtrasIndex::BlocksBlooms
+	}
+}
+
+impl ExtrasIndexable for BlockReceipts {
+	fn index() -> ExtrasIndex {
+		ExtrasIndex::BlockReceipts
+	}
+}
+
+impl Key<H256> for BlockNumber {
+	fn key(&self) -> H264 {
+		with_index(&H256::from(*self), ExtrasIndex::BlockHash)
+	}
+}
+
+impl Key<BlockDetails> for H256 {
+	fn key(&self) -> H264 {
+		with_index(self, ExtrasIndex::BlockDetails)
+	}
+}
+
+impl Key<TransactionAddress> for H256 {
+	fn key(&self) -> H264 {
+		with_index(self, ExtrasIndex::TransactionAddress)
+	}
+}
+
+impl Key<BlockLogBlooms> for H256 {
+	fn key(&self) -> H264 {
+		with_index(self, ExtrasIndex::BlockLogBlooms)
+	}
+}
+
+impl Key<BlocksBlooms> for H256 {
+	fn key(&self) -> H264 {
+		with_index(self, ExtrasIndex::BlocksBlooms)
+	}
+}
+
+impl Key<BlockReceipts> for H256 {
+	fn key(&self) -> H264 {
+		with_index(self, ExtrasIndex::BlockReceipts)
 	}
 }
 
@@ -137,12 +131,6 @@ pub struct BlockDetails {
 	pub parent: H256,
 	/// List of children block hashes
 	pub children: Vec<H256>
-}
-
-impl ExtrasIndexable for BlockDetails {
-	fn extras_index() -> ExtrasIndex {
-		ExtrasIndex::BlockDetails
-	}
 }
 
 impl HeapSizeOf for BlockDetails {
@@ -179,12 +167,6 @@ impl Encodable for BlockDetails {
 pub struct BlockLogBlooms {
 	/// List of log blooms for the block
 	pub blooms: Vec<H2048>
-}
-
-impl ExtrasIndexable for BlockLogBlooms {
-	fn extras_index() -> ExtrasIndex {
-		ExtrasIndex::BlockLogBlooms
-	}
 }
 
 impl HeapSizeOf for BlockLogBlooms {
@@ -224,12 +206,6 @@ impl Default for BlocksBlooms {
 impl BlocksBlooms {
 	pub fn new() -> Self {
 		BlocksBlooms { blooms: unsafe { ::std::mem::zeroed() }}
-	}
-}
-
-impl ExtrasIndexable for BlocksBlooms {
-	fn extras_index() -> ExtrasIndex {
-		ExtrasIndex::BlocksBlooms
 	}
 }
 
@@ -275,12 +251,6 @@ pub struct TransactionAddress {
 	pub block_hash: H256,
 	/// Transaction index within the block
 	pub index: usize
-}
-
-impl ExtrasIndexable for TransactionAddress {
-	fn extras_index() -> ExtrasIndex {
-		ExtrasIndex::TransactionAddress
-	}
 }
 
 impl HeapSizeOf for TransactionAddress {
@@ -338,11 +308,5 @@ impl Encodable for BlockReceipts {
 impl HeapSizeOf for BlockReceipts {
 	fn heap_size_of_children(&self) -> usize {
 		self.receipts.heap_size_of_children()
-	}
-}
-
-impl ExtrasIndexable for BlockReceipts {
-	fn extras_index() -> ExtrasIndex {
-		ExtrasIndex::BlockReceipts
 	}
 }

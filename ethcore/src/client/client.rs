@@ -127,6 +127,7 @@ impl Client<CanonVerifier> {
 	}
 }
 
+/// Get the path for the databases given the root path and information on the databases.
 pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H256) -> PathBuf {
 	let mut dir = path.to_path_buf();
 	dir.push(H64::from(genesis_hash).hex());
@@ -136,6 +137,7 @@ pub fn get_db_path(path: &Path, pruning: journaldb::Algorithm, genesis_hash: H25
 	dir
 }
 
+/// Append a path element to the given path and return the string.
 pub fn append_path(path: &Path, item: &str) -> String {
 	let mut p = path.to_path_buf();
 	p.push(item);

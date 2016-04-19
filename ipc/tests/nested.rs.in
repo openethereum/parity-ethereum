@@ -14,28 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use endpoint::Endpoints;
-use page::PageEndpoint;
+use std::sync::RwLock;
+use std::ops::*;
+use ipc::IpcConfig;
 
-extern crate parity_status;
-extern crate parity_wallet;
-
-
-pub fn main_page() -> &'static str {
-	"/status/"
+pub struct DB<L: Sized> {
+	pub writes: RwLock<u64>,
+	pub reads: RwLock<u64>,
+	pub holdings: L,
 }
 
-pub fn all_endpoints() -> Endpoints {
-	let mut pages = Endpoints::new();
-	pages.insert("status".to_owned(), Box::new(PageEndpoint::new(parity_status::App::default())));
-	wallet_page(&mut pages);
-	pages
+pub trait DBWriter {
+	fn write(&self, data: Vec<u8>)  -> Result<(), DBError>;
 }
 
-#[cfg(feature = "parity-wallet")]
-fn wallet_page(pages: &mut Endpoints) {
-	pages.insert("wallet".to_owned(), Box::new(PageEndpoint::new(parity_wallet::App::default())));
+impl<L: Sized> IpcConfig for DB<L> {}
+
+#[derive(Serialize, Deserialize)]
+pub enum DBError { Write, Read }
+
+#[derive(Ipc)]
+impl<L: Sized> DBWriter for DB<L> {
+	fn write(&self, data: Vec<u8>) -> Result<(), DBError> {
+		let mut writes = self.writes.write().unwrap();
+		*writes = *writes + data.len() as u64;
+		Ok(())
+	}
 }
 
-#[cfg(not(feature = "parity-wallet"))]
-fn wallet_page(_pages: &mut Endpoints) {}

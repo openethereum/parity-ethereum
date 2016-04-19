@@ -30,6 +30,7 @@ use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute};
+use db::{Writable, Readable, Key};
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
@@ -314,8 +315,8 @@ impl BlockChain {
 				bc.blocks_db.put(&hash, genesis).unwrap();
 
 				let batch = DBTransaction::new();
-				batch.put_extras(&hash, &details);
-				batch.put_extras(&header.number(), &hash);
+				batch.write(&hash, &details);
+				batch.write(&header.number(), &hash);
 				batch.put(b"best", &hash).unwrap();
 				bc.extras_db.write(batch).unwrap();
 
@@ -467,7 +468,7 @@ impl BlockChain {
 		{
 			let mut write_details = self.block_details.write().unwrap();
 			for (hash, details) in update.block_details.into_iter() {
-				batch.put_extras(&hash, &details);
+				batch.write(&hash, &details);
 				self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash.clone()));
 				write_details.insert(hash, details);
 			}
@@ -476,7 +477,7 @@ impl BlockChain {
 		{
 			let mut write_receipts = self.block_receipts.write().unwrap();
 			for (hash, receipt) in &update.block_receipts {
-				batch.put_extras(hash, receipt);
+				batch.write(hash, receipt);
 				write_receipts.remove(hash);
 			}
 		}
@@ -484,7 +485,7 @@ impl BlockChain {
 		{
 			let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
 			for (bloom_hash, blocks_bloom) in &update.blocks_blooms {
-				batch.put_extras(bloom_hash, blocks_bloom);
+				batch.write(bloom_hash, blocks_bloom);
 				write_blocks_blooms.remove(bloom_hash);
 			}
 		}
@@ -508,12 +509,12 @@ impl BlockChain {
 			}
 
 			for (number, hash) in &update.block_hashes {
-				batch.put_extras(number, hash);
+				batch.write(number, hash);
 				write_hashes.remove(number);
 			}
 
 			for (hash, tx_address) in &update.transactions_addresses {
-				batch.put_extras(hash, tx_address);
+				batch.write(hash, tx_address);
 				write_txs.remove(hash);
 			}
 
@@ -747,8 +748,9 @@ impl BlockChain {
 	}
 
 	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
-		T: Clone + Decodable + ExtrasIndexable,
-		K: ExtrasSliceConvertable + Eq + Hash + Clone {
+		T: ExtrasIndexable + Clone + Decodable,
+		K: Key<T> + Eq + Hash + Clone,
+		H256: From<K> {
 		{
 			let read = cache.read().unwrap();
 			if let Some(v) = read.get(hash) {
@@ -756,11 +758,9 @@ impl BlockChain {
 			}
 		}
 
-		if let Some(h) = hash.as_h256() {
-			self.note_used(CacheID::Extras(T::extras_index(), h.clone()));
-		}
+		self.note_used(CacheID::Extras(T::index(), H256::from(hash.clone())));
 
-		self.extras_db.get_extras(hash).map(| t: T | {
+		self.extras_db.read(hash).map(|t: T| {
 			let mut write = cache.write().unwrap();
 			write.insert(hash.clone(), t.clone());
 			t
@@ -768,8 +768,7 @@ impl BlockChain {
 	}
 
 	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> bool where
-		K: ExtrasSliceConvertable + Eq + Hash + Clone,
-		T: ExtrasIndexable {
+		K: Key<T> + Eq + Hash + Clone {
 		{
 			let read = cache.read().unwrap();
 			if let Some(_) = read.get(hash) {
@@ -777,7 +776,7 @@ impl BlockChain {
 			}
 		}
 
-		self.extras_db.extras_exists::<_, T>(hash)
+		self.extras_db.exists::<T>(hash)
 	}
 
 	/// Get current cache size.
@@ -831,7 +830,8 @@ impl BlockChain {
 						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
 						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => { blocks_blooms.remove(&h); },
 						CacheID::Extras(ExtrasIndex::BlockReceipts, h) => { block_receipts.remove(&h); },
-						_ => panic!(),
+						// TODO: debris, temporary fix
+						CacheID::Extras(ExtrasIndex::BlockHash, _) => { },
 					}
 				}
 				cache_man.cache_usage.push_front(HashSet::new());

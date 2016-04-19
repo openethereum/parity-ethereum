@@ -17,66 +17,97 @@
 //! Router implementation
 //! Processes request handling authorization and dispatching it to proper application.
 
-mod api;
+mod url;
+mod redirect;
 pub mod auth;
 
 use std::sync::Arc;
 use hyper;
 use hyper::{server, uri, header};
-use page::Page;
-use apps::Pages;
-use iron::request::Url;
-use jsonrpc_http_server::ServerHandler;
+use hyper::{Next, Encoder, Decoder};
+use hyper::net::HttpStream;
+use endpoint::{Endpoint, Endpoints};
+use self::url::Url;
 use self::auth::{Authorization, Authorized};
+use self::redirect::Redirection;
 
-pub struct Router<A: Authorization> {
-	authorization: A,
-	rpc: ServerHandler,
-	api: api::RestApi,
-	main_page: Box<Page>,
-	pages: Arc<Pages>,
+pub struct Router<A: Authorization + 'static> {
+	main_page: &'static str,
+	endpoints: Arc<Endpoints>,
+	rpc: Arc<Box<Endpoint>>,
+	api: Arc<Box<Endpoint>>,
+	authorization: Arc<A>,
+	handler: Box<server::Handler<HttpStream>>,
 }
 
-impl<A: Authorization> server::Handler for Router<A> {
-	fn handle<'b, 'a>(&'a self, req: server::Request<'a, 'b>, res: server::Response<'a>) {
-		let auth = self.authorization.handle(req, res);
+impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 
-		if let Authorized::Yes(req, res) = auth {
-			let (path, req) = self.extract_request_path(req);
-			match path {
-				Some(ref url) if self.pages.contains_key(url) => {
-					self.pages.get(url).unwrap().handle(req, res);
-				},
-				Some(ref url) if url == "api" => {
-					self.api.handle(req, res);
-				},
-				_ if req.method == hyper::method::Method::Post => {
-					self.rpc.handle(req, res)
-				},
-				_ => self.main_page.handle(req, res),
+	fn on_request(&mut self, req: server::Request) -> Next {
+		let auth = self.authorization.is_authorized(&req);
+		self.handler = match auth {
+			Authorized::No(handler) => handler,
+			Authorized::Yes => {
+				let path = self.extract_request_path(&req);
+				match path {
+					Some(ref url) if self.endpoints.contains_key(url) => {
+						let prefix = "/".to_owned() + url;
+						self.endpoints.get(url).unwrap().to_handler(&prefix)
+					},
+					Some(ref url) if url == "api" => {
+						self.api.to_handler("/api")
+					},
+					_ if *req.method() == hyper::method::Method::Get => {
+						Redirection::new(self.main_page)
+					},
+					_ => {
+						self.rpc.to_handler(&"/")
+					}
+				}
 			}
-		}
+		};
+		self.handler.on_request(req)
+		// Check authorization
+		// Choose proper handler depending on path
+		// Delegate on_request to proper handler
+	}
+
+	/// This event occurs each time the `Request` is ready to be read from.
+	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
+		self.handler.on_request_readable(decoder)
+	}
+
+	/// This event occurs after the first time this handled signals `Next::write()`.
+	fn on_response(&mut self, response: &mut server::Response) -> Next {
+		self.handler.on_response(response)
+	}
+
+	/// This event occurs each time the `Response` is ready to be written to.
+	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
+		self.handler.on_response_writable(encoder)
 	}
 }
 
 impl<A: Authorization> Router<A> {
 	pub fn new(
-		rpc: ServerHandler,
-		main_page: Box<Page>,
-		pages: Pages,
-		authorization: A) -> Self {
-		let pages = Arc::new(pages);
+		main_page: &'static str,
+		endpoints: Arc<Endpoints>,
+		rpc: Arc<Box<Endpoint>>,
+		api: Arc<Box<Endpoint>>,
+		authorization: Arc<A>) -> Self {
+
+		let handler = rpc.to_handler(&"/");
 		Router {
-			authorization: authorization,
-			rpc: rpc,
-			api: api::RestApi { pages: pages.clone() },
 			main_page: main_page,
-			pages: pages,
+			endpoints: endpoints,
+			rpc: rpc,
+			api: api,
+			authorization: authorization,
+			handler: handler,
 		}
 	}
 
 	fn extract_url(&self, req: &server::Request) -> Option<Url> {
-		match req.uri {
+		match *req.uri() {
 			uri::RequestUri::AbsoluteUri(ref url) => {
 				match Url::from_generic_url(url.clone()) {
 					Ok(url) => Some(url),
@@ -85,7 +116,7 @@ impl<A: Authorization> Router<A> {
 			},
 			uri::RequestUri::AbsolutePath(ref path) => {
 				// Attempt to prepend the Host header (mandatory in HTTP/1.1)
-				let url_string = match req.headers.get::<header::Host>() {
+				let url_string = match req.headers().get::<header::Host>() {
 					Some(ref host) => {
 						format!("http://{}:{}{}", host.hostname, host.port.unwrap_or(80), path)
 					},
@@ -101,22 +132,15 @@ impl<A: Authorization> Router<A> {
 		}
 	}
 
-	fn extract_request_path<'a, 'b>(&self, mut req: server::Request<'a, 'b>) -> (Option<String>, server::Request<'a, 'b>) {
+	fn extract_request_path(&self, req: &server::Request) -> Option<String> {
 		let url = self.extract_url(&req);
 		match url {
 			Some(ref url) if url.path.len() > 1 => {
 				let part = url.path[0].clone();
-				let url = url.path[1..].join("/");
-				req.uri = uri::RequestUri::AbsolutePath(url);
-				(Some(part), req)
-			},
-			Some(url) => {
-				let url = url.path.join("/");
-				req.uri = uri::RequestUri::AbsolutePath(url);
-				(None, req)
+				Some(part)
 			},
 			_ => {
-				(None, req)
+				None
 			},
 		}
 	}

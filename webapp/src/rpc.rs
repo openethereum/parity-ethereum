@@ -14,28 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use endpoint::Endpoints;
-use page::PageEndpoint;
+use std::sync::Arc;
+use hyper::server;
+use hyper::net::HttpStream;
+use jsonrpc_core::IoHandler;
+use jsonrpc_http_server::ServerHandler;
+use jsonrpc_http_server::AccessControlAllowOrigin;
+use endpoint::Endpoint;
 
-extern crate parity_status;
-extern crate parity_wallet;
-
-
-pub fn main_page() -> &'static str {
-	"/status/"
+pub fn rpc(handler: Arc<IoHandler>) -> Box<Endpoint> {
+	Box::new(RpcEndpoint {
+		handler: handler,
+		cors_domain: Some(AccessControlAllowOrigin::Null)
+	})
 }
 
-pub fn all_endpoints() -> Endpoints {
-	let mut pages = Endpoints::new();
-	pages.insert("status".to_owned(), Box::new(PageEndpoint::new(parity_status::App::default())));
-	wallet_page(&mut pages);
-	pages
+struct RpcEndpoint {
+	handler: Arc<IoHandler>,
+	cors_domain: Option<AccessControlAllowOrigin>,
 }
 
-#[cfg(feature = "parity-wallet")]
-fn wallet_page(pages: &mut Endpoints) {
-	pages.insert("wallet".to_owned(), Box::new(PageEndpoint::new(parity_wallet::App::default())));
+impl Endpoint for RpcEndpoint {
+	fn to_handler(&self, _prefix: &str) -> Box<server::Handler<HttpStream>> {
+		Box::new(ServerHandler::new(self.handler.clone(), self.cors_domain.clone()))
+	}
 }
-
-#[cfg(not(feature = "parity-wallet"))]
-fn wallet_page(_pages: &mut Endpoints) {}

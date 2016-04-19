@@ -1,0 +1,69 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+use std::sync::{RwLock,Arc};
+use std::ops::*;
+use ipc::IpcConfig;
+use std::collections::HashMap;
+
+pub type IpcModuleId = u64;
+
+/// Blockhain database module id
+pub const BLOCKCHAIN_MODULE_ID: IpcModuleId = 2000;
+
+/// IPC service that handles module management
+pub struct HypervisorService {
+	check_list: RwLock<HashMap<IpcModuleId, bool>>,
+}
+
+#[derive(Ipc)]
+impl HypervisorService {
+	fn module_ready(&self, module_id: u64) -> bool {
+		let mut check_list = self.check_list.write().unwrap();
+		check_list.get_mut(&module_id).map(|mut status| *status = true);
+		check_list.iter().any(|(_, status)| !status)
+	}
+}
+
+impl HypervisorService {
+	/// New service with the default list of modules
+	pub fn new() -> Arc<HypervisorService> {
+		HypervisorService::with_modules(vec![])
+	}
+
+	/// New service with list of modules that will report for being ready
+	pub fn with_modules(module_ids: Vec<IpcModuleId>) -> Arc<HypervisorService> {
+		let mut check_list = HashMap::new();
+		for module_id in module_ids {
+			check_list.insert(module_id, false);
+		}
+		Arc::new(HypervisorService {
+			check_list: RwLock::new(check_list),
+		})
+	}
+
+	/// Number of modules still being waited for check-in
+	pub fn unchecked_count(&self) -> usize {
+		self.check_list.read().unwrap().iter().filter(|&(_, status)| !status).count()
+	}
+
+	/// List of all modules within this service
+	pub fn module_ids(&self) -> Vec<IpcModuleId> {
+		self.check_list.read().unwrap().iter().map(|(module_id, _)| module_id).cloned().collect()
+	}
+}
+
+impl ::ipc::IpcConfig for HypervisorService {}
