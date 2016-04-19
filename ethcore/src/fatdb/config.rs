@@ -18,6 +18,7 @@
 use super::trace::Config as TraceConfig;
 
 /// Fatdb config.
+#[derive(Debug)]
 pub struct Config {
 	/// Indicates if tracing should be enabled or not.
 	pub tracing: TraceConfig,

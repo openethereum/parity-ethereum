@@ -104,7 +104,6 @@ pub mod transaction;
 pub mod views;
 pub mod receipt;
 pub mod pod_state;
-pub mod fatdb;
 
 mod db;
 mod common;
@@ -128,6 +127,7 @@ mod executive;
 mod externalities;
 mod verification;
 mod blockchain;
+mod fatdb;
 
 #[cfg(test)]
 mod tests;

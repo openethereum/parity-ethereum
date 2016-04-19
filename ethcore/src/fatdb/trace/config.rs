@@ -18,9 +18,11 @@
 use bloomchain::Config as BloomConfig;
 
 ///. Traces config.
+#[derive(Debug)]
 pub struct Config {
 	/// Indicates if tracing should be enabled or not.
-	pub enabled: bool,
+	/// If it's None, it will be automatically configured.
+	pub enabled: Option<bool>,
 	/// Traces blooms configuration.
 	pub blooms: BloomConfig,
 }
@@ -28,7 +30,7 @@ pub struct Config {
 impl Default for Config {
 	fn default() -> Self {
 		Config {
-			enabled: false,
+			enabled: None,
 			blooms: BloomConfig {
 				levels: 3,
 				elements_per_index: 16,

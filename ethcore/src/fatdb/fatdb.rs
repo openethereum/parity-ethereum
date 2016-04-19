@@ -60,7 +60,7 @@ pub struct Fatdb {
 	traces: RwLock<HashMap<H256, BlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>,
 	// db
-	db: Database,
+	tracesdb: Database,
 	// config,
 	config: Config,
 }
@@ -68,7 +68,7 @@ pub struct Fatdb {
 impl BloomGroupDatabase for Fatdb {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
-		DatabaseReader::new(&self.db, &self.blooms)
+		DatabaseReader::new(&self.tracesdb, &self.blooms)
 			.read(&position)
 			.map(Into::into)
 	}
@@ -76,22 +76,46 @@ impl BloomGroupDatabase for Fatdb {
 
 impl Fatdb {
 	/// Creates new instance of `Fatdb`.
-	pub fn new(config: Config, path: &Path) -> Self {
+	pub fn new(mut config: Config, path: &Path) -> Self {
 		let mut fatdb_path = path.to_path_buf();
 		fatdb_path.push("fatdb");
-		let fatdb = Database::open_default(fatdb_path.to_str().unwrap()).unwrap();
+		let mut tracesdb_path = fatdb_path.clone();
+		tracesdb_path.push("traces");
+		let tracesdb = Database::open_default(tracesdb_path.to_str().unwrap()).unwrap();
+
+		// check if in previously tracing was enabled
+		let tracing_was_enabled = match tracesdb.get(b"enabled").unwrap() {
+			Some(ref value) if value as &[u8] == &[0x1] => Some(true),
+			Some(ref value) if value as &[u8] == &[0x0] => Some(false),
+			Some(_) => { panic!("tracesdb is malformed") },
+			None => None,
+		};
+
+		// compare it with the current option.
+		let tracing = match (tracing_was_enabled, config.tracing.enabled) {
+			(Some(true), Some(true)) => true,
+			(Some(true), None) => true,
+			(Some(true), Some(false)) => false,
+			(Some(false), Some(true)) => { panic!("Tracing can't be enabled. Resync required."); },
+			(Some(false), None) => false,
+			(Some(false), Some(false)) => false,
+			(None, Some(true)) => true,
+			_ => false,
+		};
+
+		config.tracing.enabled = Some(tracing);
 
 		Fatdb {
 			traces: RwLock::new(HashMap::new()),
 			blooms: RwLock::new(HashMap::new()),
-			db: fatdb,
+			tracesdb: tracesdb,
 			config: config,
 		}
 	}
 
 	/// Returns true if trasing is enabled. Otherwise false.
 	pub fn is_tracing_enabled(&self) -> bool {
-		self.config.tracing.enabled
+		self.config.tracing.enabled.expect("Auto tracing hasn't been properly configured.")
 	}
 
 	/// Imports new block traces and rebuilds the blooms based on the import route.
@@ -143,12 +167,12 @@ impl Fatdb {
 			BatchWriter::new(&batch, &mut blooms).extend(blooms_to_insert, CacheUpdatePolicy::Remove);
 		}
 
-		self.db.write(batch).unwrap();
+		self.tracesdb.write(batch).unwrap();
 	}
 
 	/// Returns traces for block with hash.
 	pub fn traces(&self, block_hash: &H256) -> Option<BlockTraces> {
-		DatabaseReader::new(&self.db, &self.traces).read(block_hash)
+		DatabaseReader::new(&self.tracesdb, &self.traces).read(block_hash)
 	}
 
 	/// Returns traces matching given filter.

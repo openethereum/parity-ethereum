@@ -174,6 +174,11 @@ Sealing/Mining Options:
                            more than 32 characters.
 
 Footprint Options:
+  --tracing BOOL           Indicates if full transaction tracing should be
+                           enabled. Works only if client had been fully synced with
+						   tracing enabled. BOOL may be one of auto, on, off.
+						   auto uses last used value of this option (off it does
+						   not exist) [default: auto].
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
                            may be one of auto, archive, basic, fast, light:
                            archive - keep all state trie data. No pruning.
@@ -235,6 +240,7 @@ struct Args {
 	flag_bootnodes: Option<String>,
 	flag_network_id: Option<String>,
 	flag_pruning: String,
+	flag_tracing: String,
 	flag_port: u16,
 	flag_peers: usize,
 	flag_no_discovery: bool,
@@ -579,6 +585,12 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
+		client_config.fatdb.tracing.enabled = match self.args.flag_tracing.as_str() {
+			"auto" => None,
+			"on" => Some(true),
+			"off" => Some(false),
+			_ => { die!("Invalid tracing method given."); }
+		};
 		client_config.pruning = match self.args.flag_pruning.as_str() {
 			"archive" => journaldb::Algorithm::Archive,
 			"light" => journaldb::Algorithm::EarlyMerge,
