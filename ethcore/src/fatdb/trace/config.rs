@@ -14,12 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Fat database.
+//! Traces config.
+use bloomchain::Config as BloomConfig;
 
-mod config;
-mod fatdb;
-pub mod trace;
+///. Traces config.
+pub struct Config {
+	/// Indicates if tracing should be enabled or not.
+	pub enabled: bool,
+	/// Traces blooms configuration.
+	pub blooms: BloomConfig,
+}
 
-pub use self::config::Config;
-pub use self::fatdb::Fatdb;
-pub use self::trace::BlockTracesDetails;
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			enabled: false,
+			blooms: BloomConfig {
+				levels: 3,
+				elements_per_index: 16,
+			}
+		}
+	}
+}

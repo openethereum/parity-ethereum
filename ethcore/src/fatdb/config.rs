@@ -14,12 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Fat database.
+//! Fatdb config.
+use super::trace::Config as TraceConfig;
 
-mod config;
-mod fatdb;
-pub mod trace;
+/// Fatdb config.
+pub struct Config {
+	/// Indicates if tracing should be enabled or not.
+	pub tracing: TraceConfig,
+}
 
-pub use self::config::Config;
-pub use self::fatdb::Fatdb;
-pub use self::trace::BlockTracesDetails;
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			tracing: TraceConfig::default(),
+		}
+	}
+}

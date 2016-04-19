@@ -18,20 +18,22 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 use std::path::Path;
-use bloomchain::{Config, Number};
+use bloomchain::Number;
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
+use blockchain::ImportRoute;
 use util::{FixedHash, H256, H264, Database, DBTransaction};
 use header::BlockNumber;
-use trace::{Trace, BlockTraces};
+use trace::BlockTraces;
 use db::{Key, Writable, Readable, BatchWriter, DatabaseReader, CacheUpdatePolicy};
-use super::trace::{Filter, TraceGroupPosition, TraceBloom, TraceBloomGroup};
+use super::Config;
+use super::trace::{Filter, TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup, BlockTracesDetails};
 
 #[derive(Debug, Copy, Clone)]
 pub enum FatdbIndex {
 	/// Block traces index.
 	BlockTraces = 0,
 	/// Trace bloom group index.
-	TraceBloomGroups = 1,
+	BlockTracesBloomGroups = 1,
 }
 
 fn with_index(hash: &H256, i: FatdbIndex) -> H264 {
@@ -40,27 +42,27 @@ fn with_index(hash: &H256, i: FatdbIndex) -> H264 {
 	slice
 }
 
-impl Key<BlockTraces> for BlockNumber {
+impl Key<BlockTraces> for H256 {
 	fn key(&self) -> H264 {
-		with_index(&From::from(*self), FatdbIndex::BlockTraces)
+		with_index(self, FatdbIndex::BlockTraces)
 	}
 }
 
-impl Key<TraceBloomGroup> for TraceGroupPosition {
+impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
 	fn key(&self) -> H264 {
-		with_index(&self.hash(), FatdbIndex::TraceBloomGroups)
+		with_index(&self.hash(), FatdbIndex::BlockTracesBloomGroups)
 	}
 }
 
 /// Fat database.
 pub struct Fatdb {
 	// cache
-	traces: RwLock<HashMap<BlockNumber, BlockTraces>>,
-	blooms: RwLock<HashMap<TraceGroupPosition, TraceBloomGroup>>,
+	traces: RwLock<HashMap<H256, BlockTraces>>,
+	blooms: RwLock<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>,
 	// db
 	db: Database,
 	// config,
-	bloom_config: Config,
+	config: Config,
 }
 
 impl BloomGroupDatabase for Fatdb {
@@ -74,7 +76,7 @@ impl BloomGroupDatabase for Fatdb {
 
 impl Fatdb {
 	/// Creates new instance of `Fatdb`.
-	pub fn new(path: &Path) -> Self {
+	pub fn new(config: Config, path: &Path) -> Self {
 		let mut fatdb_path = path.to_path_buf();
 		fatdb_path.push("fatdb");
 		let fatdb = Database::open_default(fatdb_path.to_str().unwrap()).unwrap();
@@ -83,50 +85,73 @@ impl Fatdb {
 			traces: RwLock::new(HashMap::new()),
 			blooms: RwLock::new(HashMap::new()),
 			db: fatdb,
-			bloom_config: Config {
-				levels: 3,
-				elements_per_index: 16
-			},
+			config: config,
 		}
 	}
 
-	/// Inserts new trace to database.
-	pub fn insert_traces(&self, number: BlockNumber, traces: BlockTraces) {
-		let modified_blooms = {
-			let chain = BloomGroupChain::new(self.bloom_config, self);
-			let trace_bloom = TraceBloom::from(traces.bloom());
-			chain.insert(number as Number, trace_bloom.into())
-		};
-
-		let trace_blooms = modified_blooms
-			.into_iter()
-			.map(|p| (From::from(p.0), From::from(p.1)))
-			.collect::<HashMap<TraceGroupPosition, TraceBloomGroup>>();
+	/// Imports new block traces and rebuilds the blooms based on the import route.
+	///
+	/// Traces of all import route's enacted blocks are expected to be already in database
+	/// or to be the currenly inserted trace.
+	pub fn import_traces(&self, details: BlockTracesDetails, route: &ImportRoute) {
+		// fast return if tracing is disabled
+		if !self.config.tracing.enabled {
+			return;
+		}
+		// in real world it's impossible to get import route with retracted blocks
+		// and no enacted blocks and this function does not handle this case
+		// so let's just panic.
+		assert!(! (!route.retracted.is_empty() && route.enacted.is_empty() ), "Invalid import route!");
 
 		let batch = DBTransaction::new();
-		let mut ts = self.traces.write().unwrap();
-		let mut blooms = self.blooms.write().unwrap();
-		BatchWriter::new(&batch, &mut ts).write(number, traces, CacheUpdatePolicy::Remove);
-		BatchWriter::new(&batch, &mut blooms).extend(trace_blooms, CacheUpdatePolicy::Remove);
+
+		// at first, let's insert new block traces
+		{
+			let mut traces = self.traces.write().unwrap();
+			// it's important to use overwrite here,
+			// cause this value might be queried by hash later
+			BatchWriter::new(&batch, &mut traces).write(details.hash, details.traces, CacheUpdatePolicy::Overwrite);
+		}
+
+		// now let's rebuild the blooms
+		// do it only if some blocks have been enacted
+		if !route.enacted.is_empty() {
+			let replaced_range = details.number as Number - route.retracted.len()..details.number as Number;
+			let enacted_blooms = route.enacted
+				.iter()
+				// all traces are expected to be found here. That's why `expect` has been used
+				// instead of `filter_map`. If some traces haven't been found, it meens that
+				// traces database is malformed or incomplete.
+				.map(|block_hash| self.traces(block_hash).expect("Traces database is incomplete."))
+				.map(|block_traces| block_traces.bloom())
+				.map(BlockTracesBloom::from)
+				.map(Into::into)
+				.collect();
+
+			let chain = BloomGroupChain::new(self.config.tracing.blooms, self);
+			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
+			let blooms_to_insert = trace_blooms.into_iter()
+				.map(|p| (From::from(p.0), From::from(p.1)))
+				.collect::<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>();
+
+			let mut blooms = self.blooms.write().unwrap();
+			BatchWriter::new(&batch, &mut blooms).extend(blooms_to_insert, CacheUpdatePolicy::Remove);
+		}
+
 		self.db.write(batch).unwrap();
 	}
 
-	/// Returns traces at block with given number.
-	pub fn traces(&self, block_number: BlockNumber) -> Option<BlockTraces> {
-		DatabaseReader::new(&self.db, &self.traces).read(&block_number)
+	/// Returns traces for block with hash.
+	pub fn traces(&self, block_hash: &H256) -> Option<BlockTraces> {
+		DatabaseReader::new(&self.db, &self.traces).read(block_hash)
 	}
 
 	/// Returns traces matching given filter.
-	pub fn filter_traces(&self, filter: &Filter) -> Vec<Trace> {
-		let numbers = {
-			let chain = BloomGroupChain::new(self.bloom_config, self);
-			chain.filter(filter)
-		};
-
+	pub fn filter_traces(&self, filter: &Filter) -> Vec<BlockNumber> {
+		let chain = BloomGroupChain::new(self.config.tracing.blooms, self);
+		let numbers = chain.filter(filter);
 		numbers.into_iter()
-			.filter_map(|block_number| self.traces(block_number as BlockNumber))
-			.flat_map(|block_traces| block_traces.traces)
-			.filter(|trace| filter.matches(trace))
+			.map(|n| n as BlockNumber)
 			.collect()
 	}
 }

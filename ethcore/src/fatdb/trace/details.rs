@@ -14,12 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Fat database.
+//! Block traces details.
+use util::H256;
+use header::BlockNumber;
+use trace::BlockTraces;
 
-mod config;
-mod fatdb;
-pub mod trace;
+/// Block traces and associated block data.
+pub struct BlockTracesDetails {
+	/// Block hash.
+	pub hash: H256,
+	/// Block number.
+	pub number: BlockNumber,
+	/// Block traces.
+	pub traces: BlockTraces,
+}
 
-pub use self::config::Config;
-pub use self::fatdb::Fatdb;
-pub use self::trace::BlockTracesDetails;

@@ -42,6 +42,7 @@ use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
+use fatdb::{Fatdb, Config as FatdbConfig, BlockTracesDetails};
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -103,6 +104,7 @@ impl ClientReport {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
+	fatdb: Arc<Fatdb>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
@@ -150,6 +152,7 @@ impl<V> Client<V> where V: Verifier {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
+		let fatdb = Arc::new(Fatdb::new(FatdbConfig::default(), &path));
 
 		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
 
@@ -165,6 +168,7 @@ impl<V> Client<V> where V: Verifier {
 
 		Ok(Arc::new(Client {
 			chain: chain,
+			fatdb: fatdb,
 			engine: engine,
 			state_db: Mutex::new(state_db),
 			block_queue: block_queue,
@@ -305,6 +309,14 @@ impl<V> Client<V> where V: Verifier {
 			// Commit results
 			let closed_block = closed_block.unwrap();
 			let receipts = closed_block.block().receipts().clone();
+
+			let traces = From::from(closed_block.block().traces().clone().unwrap_or_else(Vec::new));
+			let traces_details = BlockTracesDetails {
+				hash: header.hash(),
+				number: header.number(),
+				traces: traces,
+			};
+
 			closed_block.drain()
 				.commit(header.number(), &header.hash(), ancient)
 				.expect("State DB commit failed.");
@@ -312,6 +324,7 @@ impl<V> Client<V> where V: Verifier {
 			// And update the chain after commit to prevent race conditions
 			// (when something is in chain but you are not able to fetch details)
 			let route = self.chain.insert_block(&block.bytes, receipts);
+			self.fatdb.import_traces(traces_details, &route);
 			import_results.push(route);
 
 			self.report.write().unwrap().accrue_block(&block);
