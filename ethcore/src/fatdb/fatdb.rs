@@ -89,13 +89,18 @@ impl Fatdb {
 		}
 	}
 
+	/// Returns true if trasing is enabled. Otherwise false.
+	pub fn is_tracing_enabled(&self) -> bool {
+		self.config.tracing.enabled
+	}
+
 	/// Imports new block traces and rebuilds the blooms based on the import route.
 	///
 	/// Traces of all import route's enacted blocks are expected to be already in database
 	/// or to be the currenly inserted trace.
 	pub fn import_traces(&self, details: BlockTracesDetails, route: &ImportRoute) {
 		// fast return if tracing is disabled
-		if !self.config.tracing.enabled {
+		if !self.is_tracing_enabled() {
 			return;
 		}
 		// in real world it's impossible to get import route with retracted blocks
