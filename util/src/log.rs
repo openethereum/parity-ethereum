@@ -83,9 +83,38 @@ impl RotatingLogger {
 
 #[cfg(test)]
 mod test {
+	use super::RotatingLogger;
+
+	fn logger() -> RotatingLogger {
+		RotatingLogger::new("test".to_owned())
+	}
+
 	#[test]
-	fn should_have_some_tests() {
-		assert_eq!(true, false);
+	fn should_return_log_levels() {
+		// given
+		let logger = logger();
+
+		// when
+		let levels = logger.levels();
+
+		// then
+		assert_eq!(levels, "test");
+	}
+
+	#[test]
+	fn should_return_latest_logs() {
+		// given
+		let logger = logger();
+
+		// when
+		logger.append("a".to_owned());
+		logger.append("b".to_owned());
+
+		// then
+		let logs = logger.logs();
+		assert_eq!(logs[0], "b".to_owned());
+		assert_eq!(logs[1], "a".to_owned());
+		assert_eq!(logs.len(), 2);
 	}
 }
 
