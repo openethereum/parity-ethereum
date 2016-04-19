@@ -172,6 +172,8 @@ Sealing/Mining Options:
                            [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
   --extra-data STRING      Specify a custom extra-data for authored blocks, no
                            more than 32 characters.
+  --tx-limit LIMIT         Limit of transactions kept in the queue (waiting to
+                           be included in next block) [default: 1024].
 
 Footprint Options:
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
@@ -259,6 +261,7 @@ struct Args {
 	flag_usd_per_eth: String,
 	flag_gas_floor_target: String,
 	flag_extra_data: Option<String>,
+	flag_tx_limit: usize,
 	flag_logging: Option<String>,
 	flag_version: bool,
 	// geth-compatibility...
@@ -727,6 +730,7 @@ impl Configuration {
 		miner.set_gas_floor_target(self.gas_floor_target());
 		miner.set_extra_data(self.extra_data());
 		miner.set_minimal_gas_price(self.gas_price());
+		miner.set_transactions_limit(self.args.flag_tx_limit);
 
 		// Sync
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());

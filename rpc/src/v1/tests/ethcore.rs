@@ -153,6 +153,32 @@ fn rpc_ethcore_dev_logs_levels() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogsLevels", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"rpc=trace","id":1}"#;
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
+fn rpc_ethcore_set_transactions_limit() {
+	let miner = miner_service();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setTransactionsLimit", "params":[10240240], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(miner.transactions_limit(), 10_240_240);
+}
+
+
+#[test]
+fn rpc_ethcore_transactions_limit() {
+	let miner = miner_service();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_transactionsLimit", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":1024,"id":1}"#;
 
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }

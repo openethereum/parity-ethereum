@@ -21,16 +21,9 @@ use common::*;
 use devtools::*;
 
 #[test]
-fn created() {
-	let dir = RandomTempPath::new();
-	let client_result = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
-	assert!(client_result.is_ok());
-}
-
-#[test]
 fn imports_from_empty() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
 	client.import_verified_blocks(&IoChannel::disconnected());
 	client.flush_queue();
 }
@@ -48,7 +41,7 @@ fn returns_state_root_basic() {
 #[test]
 fn imports_good_block() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
 	let good_block = get_good_dummy_block();
 	if let Err(_) = client.import_block(good_block) {
 		panic!("error importing block being good by definition");
@@ -63,7 +56,7 @@ fn imports_good_block() {
 #[test]
 fn query_none_block() {
 	let dir = RandomTempPath::new();
-	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected()).unwrap();
+	let client = Client::new(ClientConfig::default(), get_test_spec(), dir.as_path(), IoChannel::disconnected());
 
     let non_existant = client.block_header(BlockId::Number(188));
 	assert!(non_existant.is_none());
