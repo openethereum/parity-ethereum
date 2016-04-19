@@ -86,7 +86,8 @@
 
 use std::default::Default;
 use std::cmp::{Ordering};
-use std::collections::{HashMap, HashSet, BTreeSet};
+use std::cmp;
+use std::collections::{HashMap, BTreeSet};
 use util::numbers::{Uint, U256};
 use util::hash::{Address, H256};
 use util::table::*;
@@ -204,8 +205,8 @@ impl TransactionSet {
 	/// Remove low priority transactions if there is more then specified by given `limit`.
 	///
 	/// It drops transactions from this set but also removes associated `VerifiedTransaction`.
-	/// Returns hashes of transactions removed because of limit.
-	fn enforce_limit(&mut self, by_hash: &mut HashMap<H256, VerifiedTransaction>) -> Option<HashSet<H256>> {
+	/// Returns addresses and highes nonces of transactions removed because of limit.
+	fn enforce_limit(&mut self, by_hash: &mut HashMap<H256, VerifiedTransaction>) -> Option<HashMap<Address, U256>> {
 		let len = self.by_priority.len();
 		if len <= self.limit {
 			return None;
@@ -221,17 +222,18 @@ impl TransactionSet {
 				.collect()
 		};
 
-		Some(to_drop
-			.into_iter()
-			.map(|(sender, nonce)| {
+		Some(to_drop.into_iter()
+			.fold(HashMap::new(), |mut removed, (sender, nonce)| {
 				let order = self.drop(&sender, &nonce)
 					.expect("Transaction has just been found in `by_priority`; so it is in `by_address` also.");
 
 				by_hash.remove(&order.hash)
 					.expect("Hash found in `by_priorty` matches the one dropped; so it is included in `by_hash`");
-				order.hash
-			})
-			.collect::<HashSet<H256>>())
+
+				let max = removed.get(&sender).map(|val| cmp::max(*val, nonce)).unwrap_or(nonce);
+				removed.insert(sender, max);
+				removed
+			}))
 	}
 
 	/// Drop transaction from this set (remove from `by_priority` and `by_address`)
@@ -595,7 +597,6 @@ impl TransactionQueue {
 
 		let address = tx.sender();
 		let nonce = tx.nonce();
-		let hash = tx.hash();
 
 		let next_nonce = self.last_nonces
 			.get(&address)
@@ -606,7 +607,7 @@ impl TransactionQueue {
 		if nonce > next_nonce {
 			// We have a gap - put to future
 			try!(check_too_cheap(Self::replace_transaction(tx, next_nonce, &mut self.future, &mut self.by_hash)));
-			try!(check_if_removed(&hash, self.future.enforce_limit(&mut self.by_hash)));
+			try!(check_if_removed(&address, &nonce, self.future.enforce_limit(&mut self.by_hash)));
 			return Ok(TransactionImportResult::Future);
 		} else if nonce < state_nonce {
 			// Droping transaction
@@ -628,11 +629,29 @@ impl TransactionQueue {
 			let future_tx = self.by_hash.remove(&order.hash).unwrap();
 			try!(check_too_cheap(Self::replace_transaction(future_tx, state_nonce, &mut self.current, &mut self.by_hash)));
 		}
+
 		// Also enforce the limit
-		try!(check_if_removed(&hash, self.current.enforce_limit(&mut self.by_hash)));
+		let removed = self.current.enforce_limit(&mut self.by_hash);
+		// If some transaction were removed because of limit we need to update last_nonces also.
+		self.update_last_nonces(&removed);
+		// Trigger error if we were removed.
+		try!(check_if_removed(&address, &nonce, removed));
 
 		trace!(target: "miner", "status: {:?}", self.status());
 		Ok(TransactionImportResult::Current)
+	}
+
+	/// Updates
+	fn update_last_nonces(&mut self, removed_max_nonces: &Option<HashMap<Address, U256>>) {
+		if let Some(ref max_nonces) = *removed_max_nonces {
+			for (sender, nonce) in max_nonces.iter() {
+				if *nonce == U256::zero() {
+					self.last_nonces.remove(sender);
+				} else {
+					self.last_nonces.insert(*sender, *nonce - U256::one());
+				}
+			}
+		}
 	}
 
 	/// Replaces transaction in given set (could be `future` or `current`).
@@ -679,12 +698,15 @@ fn check_too_cheap(is_in: bool) -> Result<(), TransactionError> {
 	}
 }
 
-fn check_if_removed(hash: &H256, dropped: Option<HashSet<H256>>) -> Result<(), TransactionError> {
+fn check_if_removed(sender: &Address, nonce: &U256, dropped: Option<HashMap<Address, U256>>) -> Result<(), TransactionError> {
 	match dropped {
-		Some(ref dropped) if dropped.contains(hash) => {
-			Err(TransactionError::LimitReached)
+		Some(ref dropped) => match dropped.get(sender) {
+			Some(max) if nonce <= max => {
+				Err(TransactionError::LimitReached)
+			},
+			_ => Ok(()),
 		},
-		_ => Ok(())
+		_ => Ok(()),
 	}
 }
 
@@ -1157,6 +1179,8 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::with_limits(1, 1);
 		let (tx, tx2) = new_txs(U256::one());
+		let sender = tx.sender().unwrap();
+		let nonce = tx.nonce;
 		txq.add(tx.clone(), &default_nonce).unwrap();
 		assert_eq!(txq.status().pending, 1);
 
@@ -1169,6 +1193,29 @@ mod test {
 		assert_eq!(txq.status().pending, 1);
 		assert_eq!(t.len(), 1);
 		assert_eq!(t[0], tx);
+		assert_eq!(txq.last_nonce(&sender), Some(nonce));
+	}
+
+	#[test]
+	fn should_return_correct_nonces_when_dropped_because_of_limit() {
+		// given
+		let mut txq = TransactionQueue::with_limits(2, 2);
+		let tx = new_tx();
+		let (tx1, tx2) = new_txs(U256::one());
+		let sender = tx1.sender().unwrap();
+		let nonce = tx1.nonce;
+		txq.add(tx1.clone(), &default_nonce).unwrap();
+		txq.add(tx2.clone(), &default_nonce).unwrap();
+		assert_eq!(txq.status().pending, 2);
+		assert_eq!(txq.last_nonce(&sender), Some(nonce + U256::one()));
+
+		// when
+		let res = txq.add(tx.clone(), &default_nonce);
+
+		// then
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		assert_eq!(txq.status().pending, 2);
+		assert_eq!(txq.last_nonce(&sender), Some(nonce));
 	}
 
 	#[test]
