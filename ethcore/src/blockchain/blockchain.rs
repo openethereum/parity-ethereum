@@ -547,7 +547,7 @@ impl BlockChain {
 		Some(ret)
 	}
 
-	/// Get inserted block info which is critical to preapre extras updates.
+	/// Get inserted block info which is critical to prepare extras updates.
 	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
@@ -956,21 +956,25 @@ mod tests {
 		assert_eq!(ir1, ImportRoute {
 			enacted: vec![b1_hash],
 			retracted: vec![],
+			ommited: vec![],
 		});
 
 		assert_eq!(ir2, ImportRoute {
 			enacted: vec![b2_hash],
 			retracted: vec![],
+			ommited: vec![],
 		});
 
 		assert_eq!(ir3b, ImportRoute {
 			enacted: vec![b3b_hash],
 			retracted: vec![],
+			ommited: vec![],
 		});
 
 		assert_eq!(ir3a, ImportRoute {
 			enacted: vec![b3a_hash],
 			retracted: vec![b3b_hash],
+			ommited: vec![],
 		});
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);
