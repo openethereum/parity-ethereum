@@ -62,13 +62,18 @@ pub enum ExecutionError {
 	Internal
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// Errors concerning transaction processing.
 pub enum TransactionError {
 	/// Transaction is already imported to the queue
 	AlreadyImported,
 	/// Transaction is not valid anymore (state already has higher nonce)
 	Old,
+	/// Transaction has too low fee
+	/// (there is already a transaction with the same sender-nonce but higher gas price)
+	TooCheapToReplace,
+	/// Transaction was not imported to the queue because limit has been reached.
+	LimitReached,
 	/// Transaction's gas price is below threshold.
 	InsufficientGasPrice {
 		/// Minimal expected gas price
@@ -153,7 +158,7 @@ pub enum BlockError {
 	UnknownUncleParent(H256),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// Import to the block queue result
 pub enum ImportError {
 	/// Already in the block chain.
