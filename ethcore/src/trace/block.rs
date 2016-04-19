@@ -1,4 +1,5 @@
 use util::rlp::*;
+use basic_types::LogBloom;
 use super::Trace;
 
 /// Traces created by transactions from the same block.
@@ -21,6 +22,14 @@ impl Decodable for BlockTraces {
 impl Encodable for BlockTraces {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		Encodable::rlp_append(&self.traces, s)
+	}
+}
+
+impl BlockTraces {
+	/// Returns bloom of all traces in given block.
+	pub fn bloom(&self) -> LogBloom {
+		self.traces.iter()
+			.fold(LogBloom::default(), |acc, trace| acc | trace.bloom())
 	}
 }
 

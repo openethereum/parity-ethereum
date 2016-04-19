@@ -93,7 +93,6 @@ mod tests {
 	use util::{FixedHash, Address};
 	use util::sha3::Hashable;
 	use fatdb::trace::Filter;
-	use client::BlockId;
 	use basic_types::LogBloom;
 
 	#[test]

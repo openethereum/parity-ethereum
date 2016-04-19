@@ -23,7 +23,6 @@ use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, Bloo
 use util::{FixedHash, H256, H264, Database, DBTransaction};
 use header::BlockNumber;
 use trace::{Trace, BlockTraces};
-use basic_types::LogBloom;
 use db::{Key, Writable, Readable, BatchWriter, DatabaseReader, CacheUpdatePolicy};
 use super::trace::{Filter, TraceGroupPosition, TraceBloom, TraceBloomGroup};
 
@@ -92,12 +91,10 @@ impl Fatdb {
 	}
 
 	/// Inserts new trace to database.
-	pub fn insert_traces(&self, number: BlockNumber, traces: Vec<Trace>) {
+	pub fn insert_traces(&self, number: BlockNumber, traces: BlockTraces) {
 		let modified_blooms = {
 			let chain = BloomGroupChain::new(self.bloom_config, self);
-			let bloom = traces.iter()
-				.fold(LogBloom::default(), |acc, trace| acc | trace.bloom());
-			let trace_bloom = TraceBloom::from(bloom);
+			let trace_bloom = TraceBloom::from(traces.bloom());
 			chain.insert(number as Number, trace_bloom.into())
 		};
 
@@ -106,14 +103,10 @@ impl Fatdb {
 			.map(|p| (From::from(p.0), From::from(p.1)))
 			.collect::<HashMap<TraceGroupPosition, TraceBloomGroup>>();
 
-		let block_traces = BlockTraces {
-			traces: traces
-		};
-
 		let batch = DBTransaction::new();
-		let mut traces = self.traces.write().unwrap();
+		let mut ts = self.traces.write().unwrap();
 		let mut blooms = self.blooms.write().unwrap();
-		BatchWriter::new(&batch, &mut traces).write(number, block_traces, CacheUpdatePolicy::Remove);
+		BatchWriter::new(&batch, &mut ts).write(number, traces, CacheUpdatePolicy::Remove);
 		BatchWriter::new(&batch, &mut blooms).extend(trace_blooms, CacheUpdatePolicy::Remove);
 		self.db.write(batch).unwrap();
 	}
