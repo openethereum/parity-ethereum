@@ -42,7 +42,8 @@ use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
-use fatdb::{Fatdb, Config as FatdbConfig, BlockTracesDetails};
+use trace::{Tracedb, Config as TraceConfig, BlockTracesDetails};
+//use fatdb::{Fatdb, Config as FatdbConfig, BlockTracesDetails};
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -104,7 +105,7 @@ impl ClientReport {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
-	fatdb: Arc<Fatdb>,
+	fatdb: Arc<Tracedb>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
@@ -152,7 +153,7 @@ impl<V> Client<V> where V: Verifier {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
-		let fatdb = Arc::new(Fatdb::new(FatdbConfig::default(), &path));
+		let fatdb = Arc::new(Tracedb::new(config.tracing, &path));
 
 		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
 

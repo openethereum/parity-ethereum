@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use basic_types::LogBloom;
-use trace::trace::{Trace, Action, Res};
 use trace::BlockTraces;
+use super::trace::{Trace, Action, Res};
 
 /// Trace localized in vector of traces produced by a single transaction.
 ///

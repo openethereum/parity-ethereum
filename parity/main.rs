@@ -588,7 +588,7 @@ impl Configuration {
 				client_config.blockchain.max_cache_size = self.args.flag_cache_max_size;
 			}
 		}
-		client_config.fatdb.tracing.enabled = match self.args.flag_tracing.as_str() {
+		client_config.tracing.enabled = match self.args.flag_tracing.as_str() {
 			"auto" => None,
 			"on" => Some(true),
 			"off" => Some(false),

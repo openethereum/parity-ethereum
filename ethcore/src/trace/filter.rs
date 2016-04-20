@@ -19,8 +19,8 @@ use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
-use super::FlatTrace;
-use trace::trace::{Action};
+use super::flat::FlatTrace;
+use super::trace::Action;
 
 /// Traces filter.
 pub struct Filter {
@@ -91,7 +91,7 @@ impl Filter {
 mod tests {
 	use util::{FixedHash, Address};
 	use util::sha3::Hashable;
-	use fatdb::trace::Filter;
+	use super::Filter;
 	use basic_types::LogBloom;
 
 	#[test]

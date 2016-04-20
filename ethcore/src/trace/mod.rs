@@ -17,15 +17,25 @@
 //! Tracing
 
 mod block;
-pub mod trace;
-mod noop_tracer;
+mod bloom;
+mod config;
+mod db;
+mod details;
 mod executive_tracer;
+mod filter;
+mod flat;
 mod localized;
+mod noop_tracer;
+pub mod trace;
 
 pub use self::block::BlockTraces;
+pub use self::config::Config;
+pub use self::db::Tracedb;
+pub use self::details::BlockTracesDetails;
 pub use self::trace::Trace;
 pub use self::noop_tracer::NoopTracer;
 pub use self::executive_tracer::ExecutiveTracer;
+pub use self::filter::Filter;
 pub use self::localized::LocalizedTrace;
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;

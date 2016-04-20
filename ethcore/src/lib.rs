@@ -127,7 +127,6 @@ mod executive;
 mod externalities;
 mod verification;
 mod blockchain;
-mod fatdb;
 
 #[cfg(test)]
 mod tests;

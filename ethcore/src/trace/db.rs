@@ -23,21 +23,23 @@ use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, Bloo
 use blockchain::ImportRoute;
 use util::{FixedHash, H256, H264, Database, DBTransaction};
 use header::BlockNumber;
-use trace::{BlockTraces, LocalizedTrace};
+use trace::{BlockTraces, LocalizedTrace, Config, Filter, BlockTracesDetails};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
-use super::Config;
-use super::trace::{Filter, TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup, BlockTracesDetails,
-FlatBlockTraces, FlatTransactionTraces, FlatTrace};
+use super::bloom::{TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup};
+use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
+//use super::Config;
+//use super::Filter, TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup, BlockTracesDetails,
+//FlatBlockTraces, FlatTransactionTraces, FlatTrace};
 
 #[derive(Debug, Copy, Clone)]
-pub enum FatdbIndex {
+pub enum TracedbIndex {
 	/// Block traces index.
 	BlockTraces = 0,
 	/// Trace bloom group index.
 	BlockTracesBloomGroups = 1,
 }
 
-fn with_index(hash: &H256, i: FatdbIndex) -> H264 {
+fn with_index(hash: &H256, i: TracedbIndex) -> H264 {
 	let mut slice = H264::from_slice(hash);
 	slice[32] = i as u8;
 	slice
@@ -45,18 +47,18 @@ fn with_index(hash: &H256, i: FatdbIndex) -> H264 {
 
 impl Key<BlockTraces> for H256 {
 	fn key(&self) -> H264 {
-		with_index(self, FatdbIndex::BlockTraces)
+		with_index(self, TracedbIndex::BlockTraces)
 	}
 }
 
 impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
 	fn key(&self) -> H264 {
-		with_index(&self.hash(), FatdbIndex::BlockTracesBloomGroups)
+		with_index(&self.hash(), TracedbIndex::BlockTracesBloomGroups)
 	}
 }
 
 /// Fat database.
-pub struct Fatdb {
+pub struct Tracedb {
 	// cache
 	traces: RwLock<HashMap<H256, BlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>,
@@ -66,15 +68,15 @@ pub struct Fatdb {
 	config: Config,
 }
 
-impl BloomGroupDatabase for Fatdb {
+impl BloomGroupDatabase for Tracedb {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
 		self.tracesdb.read_with_cache(&self.blooms, &position).map(Into::into)
 	}
 }
 
-impl Fatdb {
-	/// Creates new instance of `Fatdb`.
+impl Tracedb {
+	/// Creates new instance of `Tracedb`.
 	pub fn new(mut config: Config, path: &Path) -> Self {
 		let mut fatdb_path = path.to_path_buf();
 		fatdb_path.push("fatdb");
@@ -91,7 +93,7 @@ impl Fatdb {
 		};
 
 		// compare it with the current option.
-		let tracing = match (tracing_was_enabled, config.tracing.enabled) {
+		let tracing = match (tracing_was_enabled, config.enabled) {
 			(Some(true), Some(true)) => true,
 			(Some(true), None) => true,
 			(Some(true), Some(false)) => false,
@@ -102,7 +104,7 @@ impl Fatdb {
 			_ => false,
 		};
 
-		config.tracing.enabled = Some(tracing);
+		config.enabled = Some(tracing);
 
 		let encoded_tracing= match tracing {
 			true => [0x1],
@@ -111,7 +113,7 @@ impl Fatdb {
 
 		tracesdb.put(b"enabled", &encoded_tracing).unwrap();
 
-		Fatdb {
+		Tracedb {
 			traces: RwLock::new(HashMap::new()),
 			blooms: RwLock::new(HashMap::new()),
 			tracesdb: tracesdb,
@@ -121,7 +123,7 @@ impl Fatdb {
 
 	/// Returns true if trasing is enabled. Otherwise false.
 	pub fn is_tracing_enabled(&self) -> bool {
-		self.config.tracing.enabled.expect("Auto tracing hasn't been properly configured.")
+		self.config.enabled.expect("Auto tracing hasn't been properly configured.")
 	}
 
 	/// Imports new block traces and rebuilds the blooms based on the import route.
@@ -163,7 +165,7 @@ impl Fatdb {
 				.map(Into::into)
 				.collect();
 
-			let chain = BloomGroupChain::new(self.config.tracing.blooms, self);
+			let chain = BloomGroupChain::new(self.config.blooms, self);
 			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
 			let blooms_to_insert = trace_blooms.into_iter()
 				.map(|p| (From::from(p.0), From::from(p.1)))
@@ -228,7 +230,7 @@ impl Fatdb {
 	/// Returns traces matching given filter.
 	pub fn filter_traces<F>(&self, filter: &Filter, block_hash: F) -> Vec<LocalizedTrace>
 		where F: Fn(BlockNumber) -> H256 {
-		let chain = BloomGroupChain::new(self.config.tracing.blooms, self);
+		let chain = BloomGroupChain::new(self.config.blooms, self);
 		let numbers = chain.filter(filter);
 		numbers.into_iter()
 			.flat_map(|n| {
@@ -245,8 +247,8 @@ impl Fatdb {
 #[cfg(test)]
 mod tests {
 	use devtools::RandomTempPath;
-	use fatdb::Config;
-	use super::Fatdb;
+	use trace::Config;
+	use super::Tracedb;
 
 	#[test]
 	fn test_reopening_db_with_tracing_off() {
@@ -254,22 +256,22 @@ mod tests {
 		let mut config = Config::default();
 
 		// set autotracing
-		config.tracing.enabled = None;
+		config.enabled = None;
 
 		{
-			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			let fatdb = Tracedb::new(config.clone(), temp.as_path());
 			assert_eq!(fatdb.is_tracing_enabled(), false);
 		}
 
 		{
-			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			let fatdb = Tracedb::new(config.clone(), temp.as_path());
 			assert_eq!(fatdb.is_tracing_enabled(), false);
 		}
 
-		config.tracing.enabled = Some(false);
+		config.enabled = Some(false);
 
 		{
-			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			let fatdb = Tracedb::new(config.clone(), temp.as_path());
 			assert_eq!(fatdb.is_tracing_enabled(), false);
 		}
 	}
@@ -280,29 +282,29 @@ mod tests {
 		let mut config = Config::default();
 
 		// set tracing on
-		config.tracing.enabled = Some(true);
+		config.enabled = Some(true);
 
 		{
-			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			let fatdb = Tracedb::new(config.clone(), temp.as_path());
 			assert_eq!(fatdb.is_tracing_enabled(), true);
 		}
 
 		{
-			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			let fatdb = Tracedb::new(config.clone(), temp.as_path());
 			assert_eq!(fatdb.is_tracing_enabled(), true);
 		}
 
-		config.tracing.enabled = None;
+		config.enabled = None;
 
 		{
-			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			let fatdb = Tracedb::new(config.clone(), temp.as_path());
 			assert_eq!(fatdb.is_tracing_enabled(), true);
 		}
 
-		config.tracing.enabled = Some(false);
+		config.enabled = Some(false);
 
 		{
-			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			let fatdb = Tracedb::new(config.clone(), temp.as_path());
 			assert_eq!(fatdb.is_tracing_enabled(), false);
 		}
 	}
@@ -314,14 +316,14 @@ mod tests {
 		let mut config = Config::default();
 
 		// set tracing on
-		config.tracing.enabled = Some(false);
+		config.enabled = Some(false);
 
 		{
-			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			let fatdb = Tracedb::new(config.clone(), temp.as_path());
 			assert_eq!(fatdb.is_tracing_enabled(), true);
 		}
 
-		config.tracing.enabled = Some(true);
-		Fatdb::new(config.clone(), temp.as_path()); // should panic!
+		config.enabled = Some(true);
+		Tracedb::new(config.clone(), temp.as_path()); // should panic!
 	}
 }

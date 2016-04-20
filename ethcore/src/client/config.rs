@@ -16,7 +16,7 @@
 
 pub use block_queue::BlockQueueConfig;
 pub use blockchain::BlockChainConfig;
-pub use fatdb::Config as FatdbConfig;
+pub use trace::Config as TraceConfig;
 use util::journaldb;
 
 /// Client configuration. Includes configs for all sub-systems.
@@ -26,8 +26,8 @@ pub struct ClientConfig {
 	pub queue: BlockQueueConfig,
 	/// Blockchain configuration.
 	pub blockchain: BlockChainConfig,
-	/// Fatdb configuration.
-	pub fatdb: FatdbConfig,
+	/// Trace configuration.
+	pub tracing: TraceConfig,
 	/// The JournalDB ("pruning") algorithm to use.
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
