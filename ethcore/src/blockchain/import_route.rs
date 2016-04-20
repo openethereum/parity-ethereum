@@ -45,11 +45,11 @@ impl From<BlockInfo> for ImportRoute {
 				enacted: vec![info.hash],
 			},
 			BlockLocation::Branch => ImportRoute::none(),
-			BlockLocation::BranchBecomingCanonChain { mut enacted, retracted, .. } => {
-				enacted.push(info.hash);
+			BlockLocation::BranchBecomingCanonChain(mut data) => {
+				data.enacted.push(info.hash);
 				ImportRoute {
-					retracted: retracted,
-					enacted: enacted,
+					retracted: data.retracted,
+					enacted: data.enacted,
 				}
 			}
 		}
@@ -60,7 +60,7 @@ impl From<BlockInfo> for ImportRoute {
 mod tests {
 	use util::hash::H256;
 	use util::numbers::U256;
-	use blockchain::block_info::{BlockInfo, BlockLocation};
+	use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 	use blockchain::ImportRoute;
 
 	#[test]
@@ -104,11 +104,11 @@ mod tests {
 			hash: H256::from(U256::from(2)),
 			number: 0,
 			total_difficulty: U256::from(0),
-			location: BlockLocation::BranchBecomingCanonChain {
-			ancestor: H256::from(U256::from(0)),
+			location: BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
+				ancestor: H256::from(U256::from(0)),
 				enacted: vec![H256::from(U256::from(1))],
 				retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
-			}
+			})
 		};
 
 		assert_eq!(ImportRoute::from(info), ImportRoute {

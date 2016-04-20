@@ -24,7 +24,7 @@ use transaction::*;
 use views::*;
 use receipt::Receipt;
 use chainfilter::{ChainFilter, BloomIndex, FilterDataSource};
-use blockchain::block_info::{BlockInfo, BlockLocation};
+use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
@@ -583,11 +583,11 @@ impl BlockChain {
 					_ => {
 						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<H256>>();
 
-						BlockLocation::BranchBecomingCanonChain {
+						BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
 							ancestor: route.ancestor,
 							enacted: route.blocks.into_iter().skip(route.index).collect(),
 							retracted: retracted.into_iter().rev().collect(),
-						}
+						})
 					}
 				}
 			} else {
@@ -608,11 +608,11 @@ impl BlockChain {
 			BlockLocation::CanonChain => {
 				block_hashes.insert(number, info.hash.clone());
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
-				let ancestor_number = self.block_number(ancestor).unwrap();
+			BlockLocation::BranchBecomingCanonChain(ref data) => {
+				let ancestor_number = self.block_number(&data.ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				for (index, hash) in enacted.iter().cloned().enumerate() {
+				for (index, hash) in data.enacted.iter().cloned().enumerate() {
 					block_hashes.insert(start_number + index as BlockNumber, hash);
 				}
 
@@ -697,11 +697,11 @@ impl BlockChain {
 				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
 					.add_bloom(&header.log_bloom(), header.number() as usize)
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
-				let ancestor_number = self.block_number(ancestor).unwrap();
+			BlockLocation::BranchBecomingCanonChain(ref data) => {
+				let ancestor_number = self.block_number(&data.ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				let mut blooms: Vec<H2048> = enacted.iter()
+				let mut blooms: Vec<H2048> = data.enacted.iter()
 					.map(|hash| self.block(hash).unwrap())
 					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
 					.collect();
