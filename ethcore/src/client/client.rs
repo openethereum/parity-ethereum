@@ -43,7 +43,6 @@ use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
 use trace::{Tracedb, Config as TraceConfig, BlockTracesDetails};
-//use fatdb::{Fatdb, Config as FatdbConfig, BlockTracesDetails};
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -105,7 +104,7 @@ impl ClientReport {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
-	fatdb: Arc<Tracedb>,
+	tracedb: Arc<Tracedb>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
@@ -153,7 +152,7 @@ impl<V> Client<V> where V: Verifier {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
-		let fatdb = Arc::new(Tracedb::new(config.tracing, &path));
+		let tracedb = Arc::new(Tracedb::new(config.tracing, &path));
 
 		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
 
@@ -169,7 +168,7 @@ impl<V> Client<V> where V: Verifier {
 
 		Arc::new(Client {
 			chain: chain,
-			fatdb: fatdb,
+			tracedb: tracedb,
 			engine: engine,
 			state_db: Mutex::new(state_db),
 			block_queue: block_queue,
@@ -230,7 +229,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.fatdb.is_tracing_enabled(), db, &parent, last_hashes);
+		let enact_result = enact_verified(&block, engine, self.tracedb.is_tracing_enabled(), db, &parent, last_hashes);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -325,7 +324,7 @@ impl<V> Client<V> where V: Verifier {
 			// And update the chain after commit to prevent race conditions
 			// (when something is in chain but you are not able to fetch details)
 			let route = self.chain.insert_block(&block.bytes, receipts);
-			self.fatdb.import_traces(traces_details, &route);
+			self.tracedb.import_traces(traces_details, &route);
 			import_results.push(route);
 
 			self.report.write().unwrap().accrue_block(&block);
