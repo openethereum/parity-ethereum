@@ -14,6 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod codegen;
-mod serialization;
-pub mod typegen;
+//! Binary representation of types
+
+trait BinaryConvertable {
+	fn size(&self) -> usize;
+
+	fn to_bytes(buffer: &mut [u8]);
+
+	fn from_bytes(buffer: &[u8]) -> Self;
+}

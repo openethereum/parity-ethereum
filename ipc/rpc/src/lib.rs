@@ -21,4 +21,4 @@ extern crate semver;
 extern crate nanomsg;
 
 pub mod interface;
-pub use interface::{IpcInterface, IpcSocket, invoke, IpcConfig, Handshake, Error, WithSocket};
+pub use interface::{IpcInterface, IpcSocket, invoke, IpcConfig, Handshake, Error, WithSocket, BinaryConvertable};
