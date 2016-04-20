@@ -16,8 +16,17 @@
 
 //! Extras db utils.
 
+use std::hash::Hash;
+use std::sync::RwLock;
+use std::collections::HashMap;
 use util::{H264, DBTransaction, Database};
 use util::rlp::{encode, Encodable, decode, Decodable};
+
+#[derive(Clone, Copy)]
+pub enum CacheUpdatePolicy {
+	Overwrite,
+	Remove,
+}
 
 /// Should be used to get database key associated with given value.
 pub trait Key<T> {
@@ -27,16 +36,82 @@ pub trait Key<T> {
 
 /// Should be used to write value into database.
 pub trait Writable {
-	/// Writes key into database.
+	/// Writes the value into the database.
 	fn write<T>(&self, key: &Key<T>, value: &T) where T: Encodable;
+
+	/// Writes the value into the database and updates the cache.
+	fn write_with_cache<K, T>(&self, cache: &mut HashMap<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
+	K: Key<T> + Hash + Eq,
+	T: Encodable {
+		self.write(&key, &value);
+		match policy {
+			CacheUpdatePolicy::Overwrite => {
+				cache.insert(key, value);
+			},
+			CacheUpdatePolicy::Remove => {
+				cache.remove(&key);
+			}
+		}
+	}
+
+	/// Writes the values into the database and updates the cache.
+	fn extend_with_cache<K, T>(&self, cache: &mut HashMap<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy)
+	where K: Key<T> + Hash + Eq, T: Encodable {
+		match policy {
+			CacheUpdatePolicy::Overwrite => {
+				for (key, value) in values.into_iter() {
+					self.write(&key, &value);
+					cache.insert(key, value);
+				}
+			},
+			CacheUpdatePolicy::Remove => {
+				for (key, value) in &values {
+					self.write(key, value);
+					cache.remove(key);
+				}
+			},
+		}
+	}
 }
 
 /// Should be used to read values from database.
 pub trait Readable {
 	/// Returns value for given key.
 	fn read<T>(&self, key: &Key<T>) -> Option<T> where T: Decodable;
+
+	/// Returns value for given key either in cache or in database.
+	fn read_with_cache<K, T>(&self, cache: &RwLock<HashMap<K, T>>,  key: &K) -> Option<T> where
+		K: Key<T> + Eq + Hash + Clone,
+		T: Clone + Decodable {
+		{
+			let read = cache.read().unwrap();
+			if let Some(v) = read.get(key) {
+				return Some(v.clone());
+			}
+		}
+
+		self.read(key).map(|value: T|{
+			let mut write = cache.write().unwrap();
+			write.insert(key.clone(), value.clone());
+			value
+		})
+	}
+
 	/// Returns true if given value exists.
 	fn exists<T>(&self, key: &Key<T>) -> bool;
+
+	/// Returns true if given value exists either in cache or in database.
+	fn exists_with_cache<K, T>(&self, cache: &RwLock<HashMap<K, T>>, key: &K) -> bool where
+		K: Eq + Hash + Key<T> {
+		{
+			let read = cache.read().unwrap();
+			if read.get(key).is_some() {
+				return true;
+			}
+		}
+
+		self.exists::<T>(key)
+	}
 }
 
 impl Writable for DBTransaction {

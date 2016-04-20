@@ -124,7 +124,7 @@ const CLIENT_DB_VER_STR: &'static str = "5.3";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
-	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client>, Error> {
+	pub fn new(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Arc<Client> {
 		Client::<CanonVerifier>::new_with_verifier(config, spec, path, message_channel)
 	}
 }
@@ -148,7 +148,7 @@ pub fn append_path(path: &Path, item: &str) -> String {
 
 impl<V> Client<V> where V: Verifier {
 	///  Create a new client with given spec and DB path and custom verifier.
-	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Result<Arc<Client<V>>, Error> {
+	pub fn new_with_verifier(config: ClientConfig, spec: Spec, path: &Path, message_channel: IoChannel<NetSyncMessage> ) -> Arc<Client<V>> {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
@@ -166,7 +166,7 @@ impl<V> Client<V> where V: Verifier {
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
-		Ok(Arc::new(Client {
+		Arc::new(Client {
 			chain: chain,
 			fatdb: fatdb,
 			engine: engine,
@@ -176,7 +176,7 @@ impl<V> Client<V> where V: Verifier {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			verifier: PhantomData,
-		}))
+		})
 	}
 
 	/// Flush the block import queue.

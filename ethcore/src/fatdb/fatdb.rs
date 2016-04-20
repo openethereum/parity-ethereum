@@ -24,7 +24,7 @@ use blockchain::ImportRoute;
 use util::{FixedHash, H256, H264, Database, DBTransaction};
 use header::BlockNumber;
 use trace::{BlockTraces, LocalizedTrace};
-use db::{Key, Writable, Readable, BatchWriter, DatabaseReader, CacheUpdatePolicy};
+use db::{Key, Writable, Readable, CacheUpdatePolicy};
 use super::Config;
 use super::trace::{Filter, TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup, BlockTracesDetails,
 FlatBlockTraces, FlatTransactionTraces, FlatTrace};
@@ -69,9 +69,7 @@ pub struct Fatdb {
 impl BloomGroupDatabase for Fatdb {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
-		DatabaseReader::new(&self.tracesdb, &self.blooms)
-			.read(&position)
-			.map(Into::into)
+		self.tracesdb.read_with_cache(&self.blooms, &position).map(Into::into)
 	}
 }
 
@@ -147,7 +145,7 @@ impl Fatdb {
 			let mut traces = self.traces.write().unwrap();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
-			BatchWriter::new(&batch, &mut traces).write(details.hash, details.traces, CacheUpdatePolicy::Overwrite);
+			batch.write_with_cache(&mut traces, details.hash, details.traces, CacheUpdatePolicy::Overwrite);
 		}
 
 		// now let's rebuild the blooms
@@ -172,7 +170,7 @@ impl Fatdb {
 				.collect::<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>();
 
 			let mut blooms = self.blooms.write().unwrap();
-			BatchWriter::new(&batch, &mut blooms).extend(blooms_to_insert, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
 		}
 
 		self.tracesdb.write(batch).unwrap();
@@ -180,7 +178,7 @@ impl Fatdb {
 
 	/// Returns traces for block with hash.
 	pub fn traces(&self, block_hash: &H256) -> Option<BlockTraces> {
-		DatabaseReader::new(&self.tracesdb, &self.traces).read(block_hash)
+		self.tracesdb.read_with_cache(&self.traces, block_hash)
 	}
 
 	fn matching_block_traces(
