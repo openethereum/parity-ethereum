@@ -15,15 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ipc::*;
+use std::mem;
 
 #[derive(Binary)]
 enum Root {
 	Top,
 	Middle(u32, u64),
-	Bottom {
-		number1: u32,
-		number2: u64,
-	},
 }
 
 #[derive(Binary)]

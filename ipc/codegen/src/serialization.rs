@@ -108,8 +108,7 @@ fn serialize_item(
 			}
 
 			fn from_bytes(buffer: &[u8]) -> Result<Self, BinaryConvertError> {
-				//$read_expr
-				Err(::ipc::BinaryConvertError)
+				$read_expr
 			}
         }
     ).unwrap())
@@ -164,6 +163,7 @@ fn binary_expr_struct(
 	ty: P<ast::Ty>,
     fields: &[ast::StructField],
 	value_ident: Option<ast::Ident>,
+	instance_ident: Option<ast::Ident>,
 ) -> Result<BinaryExpressions, Error> {
 	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
 		let index_ident = builder.id(format!("__field{}", index));
@@ -182,6 +182,11 @@ fn binary_expr_struct(
 
 	let mut write_stmts = Vec::<ast::Stmt>::new();
 	write_stmts.push(quote_stmt!(cx, let mut offset = 0usize;).unwrap());
+
+	let mut map_stmts = Vec::<ast::Stmt>::new();
+	let field_amount = builder.id(&format!("{}",fields.len()));
+	map_stmts.push(quote_stmt!(cx, let mut map = vec![0usize; $field_amount];).unwrap());
+	map_stmts.push(quote_stmt!(cx, let mut total = 0usize;).unwrap());
 	for (index, field) in fields.iter().enumerate() {
 		let size_expr = &size_exprs[index];
 		write_stmts.push(quote_stmt!(cx, let next_line = offset + $size_expr; ).unwrap());
@@ -198,12 +203,26 @@ fn binary_expr_struct(
 			}
 		}
 		write_stmts.push(quote_stmt!(cx, offset = next_line; ).unwrap());
+
+		let field_index = builder.id(&format!("{}", index));
+		let field_type_ident = builder.id(&::syntax::print::pprust::ty_to_string(&field.ty));
+		map_stmts.push(quote_stmt!(cx, map[$field_index] = total;).unwrap());
+		map_stmts.push(quote_stmt!(cx, total = total + mem::size_of::<$field_type_ident>();).unwrap());
+	};
+
+	let read_expr = if value_ident.is_some() {
+		let instance_create = named_fields_sequence(cx, &ty, fields);
+		quote_expr!(cx, { $map_stmts; $instance_create; Ok(result) })
+	}
+	else {
+		let map_variant = P(fields_sequence(cx, &ty, fields, &instance_ident.unwrap_or(builder.id("Self"))));
+		quote_expr!(cx, { $map_stmts; Ok($map_variant) })
 	};
 
     Ok(BinaryExpressions {
 		size: total_size_expr,
 		write: quote_expr!(cx, { $write_stmts; Ok(()) } ),
-		read: quote_expr!(cx, Err(::ipc::BinaryConvertError)),
+		read: read_expr,
 	})
 }
 
@@ -223,6 +242,7 @@ fn binary_expr_item_struct(
 				ty,
 				fields,
 				Some(builder.id("self")),
+				None,
 			)
 		}
 		ast::VariantData::Struct(ref fields, _) => {
@@ -232,6 +252,7 @@ fn binary_expr_item_struct(
 				ty,
 				fields,
 				Some(builder.id("self")),
+				None,
 			)
 		},
 		_ => {
@@ -270,15 +291,17 @@ fn binary_expr_enum(
 			.collect()
 	);
 
-	let (size_arms, write_arms, read_arms) = (
+	let (size_arms, write_arms, mut read_arms) = (
 		arms.iter().map(|x| x.size.clone()).collect::<Vec<ast::Arm>>(),
 		arms.iter().map(|x| x.write.clone()).collect::<Vec<ast::Arm>>(),
 		arms.iter().map(|x| x.read.clone()).collect::<Vec<ast::Arm>>());
 
+	read_arms.push(quote_arm!(cx, _ => { Err(BinaryConvertError) } ));
+
 	Ok(BinaryExpressions {
 		size: quote_expr!(cx, 1usize + match *self { $size_arms }),
 		write: quote_expr!(cx, match *self { $write_arms }; ),
-		read: quote_expr!(cx, match *self { $read_arms }),
+		read: quote_expr!(cx, match buffer[0] { $read_arms }),
 	})
 }
 
@@ -286,6 +309,132 @@ struct BinaryArm {
 	size: ast::Arm,
 	write: ast::Arm,
 	read: ast::Arm,
+}
+
+fn fields_sequence(
+	ext_cx: &ExtCtxt,
+	ty: &P<ast::Ty>,
+    fields: &[ast::StructField],
+	variant_ident: &ast::Ident,
+) -> ast::Expr {
+	use syntax::parse::token;
+	use syntax::ast::TokenTree::Token;
+
+	::quasi::parse_expr_panic(&mut ::syntax::parse::new_parser_from_tts(
+		ext_cx.parse_sess(),
+		ext_cx.cfg(),
+		{
+			let _sp = ext_cx.call_site();
+			let mut tt = ::std::vec::Vec::new();
+			tt.push(Token(_sp, token::Ident(variant_ident.clone(), token::Plain)));
+			tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+
+			for (idx, field) in fields.iter().enumerate() {
+				if field.ident.is_some() {
+					tt.push(Token(_sp, token::Ident(field.ident.clone().unwrap(), token::Plain)));
+					tt.push(Token(_sp, token::Colon));
+				}
+
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("try!"), token::Plain)));
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+				tt.push(Token(
+					_sp,
+					token::Ident(
+						ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(&field.ty)),
+						token::Plain)));
+				tt.push(Token(_sp, token::ModSep));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"), token::Plain)));
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+
+				tt.push(Token(_sp, token::BinOp(token::And)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("buffer"), token::Plain)));
+
+				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)), token::Plain)));
+				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+				tt.push(Token(_sp, token::DotDot));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
+				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+				tt.push(Token(_sp, token::Comma));
+			}
+			tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+
+			tt
+		})
+	).unwrap()
+}
+
+fn named_fields_sequence(
+	ext_cx: &ExtCtxt,
+	ty: &P<ast::Ty>,
+    fields: &[ast::StructField],
+) -> ast::Stmt {
+	use syntax::parse::token;
+	use syntax::ast::TokenTree::Token;
+
+	::quasi::parse_stmt_panic(&mut ::syntax::parse::new_parser_from_tts(
+		ext_cx.parse_sess(),
+		ext_cx.cfg(),
+		{
+			let _sp = ext_cx.call_site();
+			let mut tt = ::std::vec::Vec::new();
+			tt.push(Token(_sp, token::Ident(ext_cx.ident_of("let"), token::Plain)));
+			tt.push(Token(_sp, token::Ident(ext_cx.ident_of("result"), token::Plain)));
+			tt.push(Token(_sp, token::Eq));
+
+			tt.push(Token(
+				_sp,
+			  	token::Ident(
+					ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(ty)),
+			 		token::Plain)));
+
+			tt.push(Token(_sp, token::OpenDelim(token::Brace)));
+
+			for (idx, field) in fields.iter().enumerate() {
+				tt.push(Token(_sp, token::Ident(field.ident.clone().unwrap(), token::Plain)));
+				tt.push(Token(_sp, token::Colon));
+
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("try!"), token::Plain)));
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+				tt.push(Token(
+					_sp,
+					token::Ident(
+						ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(&field.ty)),
+						token::Plain)));
+				tt.push(Token(_sp, token::ModSep));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"), token::Plain)));
+				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
+
+				tt.push(Token(_sp, token::BinOp(token::And)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("buffer"), token::Plain)));
+
+				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)), token::Plain)));
+				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+				tt.push(Token(_sp, token::DotDot));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
+				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
+				tt.push(Token(_sp, token::Comma));
+			}
+
+			tt.push(Token(_sp, token::CloseDelim(token::Brace)));
+			tt
+		})
+	).unwrap()
 }
 
 fn binary_expr_variant(
@@ -309,10 +458,12 @@ fn binary_expr_variant(
 				.id(type_ident).id(variant_ident)
 				.build();
 
+			let variant_val = builder.id(format!("{}::{}", type_ident, variant_ident));
+
 			Ok(BinaryArm {
 				size: quote_arm!(cx, $pat => { 0usize } ),
 				write: quote_arm!(cx, $pat => { buffer[0] = $variant_index_ident; Ok(()) } ),
-				read: quote_arm!(cx, $pat => { } ),
+				read: quote_arm!(cx, $variant_index_ident => { Ok($variant_val) } ),
 			})
 		},
 		ast::VariantData::Tuple(ref fields, _) => {
@@ -334,6 +485,7 @@ fn binary_expr_variant(
 				ty,
 				fields,
 				None,
+				Some(builder.id(format!("{}::{}", type_ident, variant_ident))),
 			));
 
 			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
@@ -345,7 +497,7 @@ fn binary_expr_variant(
 						let buffer = &mut buffer[1..];
 						$write_expr
 				}),
-				read: quote_arm!(cx, $pat => { $read_expr } ),
+				read: quote_arm!(cx, $variant_index_ident => { $read_expr } ),
 			})
 		}
 		ast::VariantData::Struct(ref fields, _) => {
@@ -368,6 +520,7 @@ fn binary_expr_variant(
 				ty,
 				fields,
 				None,
+				Some(builder.id(format!("{}::{}", type_ident, variant_ident))),
 			));
 
 			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
