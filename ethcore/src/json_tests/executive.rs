@@ -24,7 +24,7 @@ use externalities::*;
 use substate::*;
 use tests::helpers::*;
 use ethjson;
-use trace::Tracer;
+use trace::{Tracer, NoopTracer};
 
 #[derive(Debug, PartialEq)]
 struct CallCreate {
