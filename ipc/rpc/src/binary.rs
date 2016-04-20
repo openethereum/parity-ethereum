@@ -16,7 +16,7 @@
 
 //! Binary representation of types
 
-trait BinaryConvertable {
+pub trait BinaryConvertable {
 	fn size(&self) -> usize;
 
 	fn to_bytes(buffer: &mut [u8]);

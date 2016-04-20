@@ -122,7 +122,7 @@ fn binary_expr(
 ) -> Result<BinaryExpressions, Error> {
 	match item.node {
 		ast::ItemKind::Struct(ref variant_data, _) => {
-			binary_expr_struct(
+			binary_expr_item_struct(
 				cx,
 				builder,
 				impl_generics,
@@ -149,29 +149,54 @@ fn binary_expr(
 }
 
 struct BinaryExpressions {
-	size: P<ast::Expr>,
-	write: P<ast::Stmt>,
-	read: P<ast::Expr>,
-}
-
-fn serialize_tuple_struct(
-	cx: &ExtCtxt,
-	builder: &aster::AstBuilder,
-	impl_generics: &ast::Generics,
-	ty: P<ast::Ty>,
-	fields: usize,
-) -> Result<P<ast::Expr>, Error> {
-    let type_name = field.ty;
-	let id = field.id;
-
-    Ok(BinaryExpressions {
-		size: quote_expr!(cx, self. $id .size() ),
-		write: quote_stmt!(cx, self. $id .write(buffer); ),
-		read: quote_expr!(cx, Self { $id: $type_name ::from_bytes(buffer) }),
-	});
+	pub size: P<ast::Expr>,
+	pub write: P<ast::Stmt>,
+	pub read: P<ast::Expr>,
 }
 
 fn binary_expr_struct(
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	ty: P<ast::Ty>,
+    fields: &[ast::StructField],
+	value_ident: Option<P<ast::Ident>>,
+) -> Result<BinaryExpressions, Error> {
+    let type_name = field.ty;
+	let id = field.id;
+
+	let mut size_exprs = Vec::new();
+	fields.iter().enumerate(|(index, field)| {
+		let index_ident = builder.id(format!("{}", index));
+		value_ident.and_then(|value_ident| size_exprs.push(quote_expr!(cx, $value_ident . $index_ident .size())))
+			.unwrap_or_else(|| size_exprs.push(quote_expr!(cx, $index_ident .size())));
+	});
+
+	let mut total_size_expr = size_exprs[0].clone();
+	for index in 1..size_expr.len() {
+		let next_expr = size_exprs[i].clone();
+		total_size_expr = quote_expr!(cx, $total_size_expr + $next_expr);
+	}
+
+	let mut write_stmts = Vec::new();
+	write_stmts.push(quote_stmt!(cx, let mut offset = 0usize;));
+	fields.iter().enumerate(|(index, field)| {
+		let index_ident = builder.id(format!("{}", index));
+		let size_expr = size_exprs[index];
+		write_stmts.push(quote_stmt!(cx, let next_line = offset + $size_expr; ));
+		value_ident.and_then(|x|
+				write_stmts.push(quote_stmt!(cx, $x . $index_ident .write(&mut buffer[offset..next_line]);))
+			).unwrap_or_else(|| write_stmts.push(quote_stmt!(cx, $index_ident .write(&mut buffer[offset..next_line]);)));
+		write_stmts.push(quote_stmt!(cx, offset = next_line; ));
+	});
+
+    Ok(BinaryExpressions {
+		size: total_size_expr,
+		write: quote_stmt!(cx, { $write_stmts } ),
+		read: quote_expr!(cx, $ty { }),
+	});
+}
+
+fn binary_expr_item_struct(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	impl_generics: &ast::Generics,
@@ -181,22 +206,139 @@ fn binary_expr_struct(
 ) -> Result<BinaryExpressions, Error> {
 	match *variant_data {
 		ast::VariantData::Tuple(ref fields, _) => {
-			binary_expr_struct_tuple(
+			binary_expr_struct(
 				cx,
 				&builder,
-				impl_generics,
 				ty,
 				fields,
 			)
 		}
 		ast::VariantData::Struct(ref fields, _) => {
-			binary_expr_struct_inner(
+			binary_expr_struct(
 				cx,
 				&builder,
-				impl_generics,
 				ty,
 				fields,
 			)
+		}
+	}
+}
+
+fn binary_expr_enum(
+    cx: &ExtCtxt,
+    builder: &aster::AstBuilder,
+    type_ident: Ident,
+    impl_generics: &ast::Generics,
+    ty: P<ast::Ty>,
+    enum_def: &ast::EnumDef,
+) -> Result<BinaryExpressions, Error> {
+	let arms: Vec<_> = try!(
+		enum_def.variants.iter()
+			.enumerate()
+			.map(|(variant_index, variant)| {
+				binary_expr_variant(
+					cx,
+					builder,
+					type_ident,
+					impl_generics,
+					ty.clone(),
+					variant,
+					variant_index,
+				)
+			})
+			.collect()
+	);
+
+	let (size_arms, write_arms, read_arms) = (
+		arms.iter().map(|x| x.size).collect::<Vec<P<ast::Arm>>>(),
+		arms.iter().map(|x| x.write).collect::<Vec<P<ast::Arm>>>(),
+		arms.iter().map(|x| x.read).collect::<Vec<P<ast::Arm>>>());
+
+	Ok(BinaryExpressions {
+		size: quote_expr!(cx, match *self { $size_arms }),
+		write: quote_stmt!(cx, match *self { $write_arms }; ),
+		read: quote_expr!(cx, match *self { $read_arms }),
+	});
+
+}
+
+struct BinaryArm {
+	size: P<ast::Arm>,
+	write: P<ast::Arm>,
+	read: P<ast::Arm>,
+}
+
+fn binary_expr_variant(
+    cx: &ExtCtxt,
+    builder: &aster::AstBuilder,
+    type_ident: Ident,
+    generics: &ast::Generics,
+    ty: P<ast::Ty>,
+    variant: &ast::Variant,
+    variant_index: usize,
+) -> Result<BinaryArm, Error> {
+	let type_name = ty.name;
+
+	let variant_ident = variant.node.name;
+
+	match variant.node.data {
+		ast::VariantData::Tuple(ref fields, _) => {
+			let field_names: Vec<ast::Ident> = (0 .. fields.len())
+				.map(|i| builder.id(format!("__field{}", i)))
+				.collect();
+
+			let pat = builder.pat().enum_()
+				.id(type_ident).id(variant_ident).build()
+				.with_pats(
+					field_names.iter()
+						.map(|field| builder.pat().ref_id(field))
+				)
+				.build();
+
+			let binary_expr = try!(binary_expr_struct(
+				cx,
+				&builder,
+				ty,
+				fields,
+				None,
+			));
+
+			let (size_expr, write, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
+
+			Ok(BinaryArm {
+				size: P(quote_arm!(cx, $pat => { $size_expr } )),
+				write: P(quote_arm!(cx, $pat => { $write } )),
+				read: P(quote_arm!(cx, $pat => { $read_expr } )),
+			})
+		}
+		ast::VariantData::Struct(ref fields, _) => {
+			let field_names: Vec<_> = (0 .. fields.len())
+				.map(|i| builder.id(format!("__field{}", i)))
+				.collect();
+
+			let pat = builder.pat().struct_()
+				.id(type_ident).id(variant_ident).build()
+				.with_pats(
+					field_names.iter()
+						.zip(fields.iter())
+						.map(|(id, field)|(name, builder.pat().ref_id(id))))
+				.build();
+
+
+			let binary_expr = try!(binary_expr_struct(
+				cx,
+				&builder,
+				ty,
+				fields,
+				None,
+			));
+
+			let (size_expr, write, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
+			Ok(BinaryArm {
+				size: P(quote_arm!(cx, $pat => { $size_expr } )),
+				write: P(quote_arm!(cx, $pat => { $write } )),
+				read: P(quote_arm!(cx, $pat => { $read_expr } )),
+			})
 		}
 	}
 }
