@@ -15,9 +15,4 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 pub mod db;
-mod reader;
-mod writer;
-
-pub use self::db::{Key, Writable, Readable};
-pub use self::reader::DatabaseReader;
-pub use self::writer::{BatchWriter, CacheUpdatePolicy};
+pub use self::db::{Key, Writable, Readable, CacheUpdatePolicy};

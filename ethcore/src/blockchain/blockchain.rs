@@ -30,7 +30,7 @@ use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute};
-use db::{Writable, Readable, Key, DatabaseReader, BatchWriter, CacheUpdatePolicy};
+use db::{Writable, Readable, Key, CacheUpdatePolicy};
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
@@ -183,7 +183,7 @@ impl BlockProvider for BlockChain {
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool {
-		DatabaseReader::new(&self.extras_db, &self.block_details).exists(hash)
+		self.extras_db.exists_with_cache(&self.block_details, hash)
 	}
 
 	// We do not store tracing information.
@@ -471,20 +471,17 @@ impl BlockChain {
 			}
 
 			let mut write_details = self.block_details.write().unwrap();
-			BatchWriter::new(&batch, &mut write_details)
-				.extend(update.block_details, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(&mut write_details, update.block_details, CacheUpdatePolicy::Overwrite);
 		}
 
 		{
 			let mut write_receipts = self.block_receipts.write().unwrap();
-			BatchWriter::new(&batch, &mut write_receipts)
-				.extend(update.block_receipts, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
 		{
 			let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
-			BatchWriter::new(&batch, &mut write_blocks_blooms)
-				.extend(update.blocks_blooms, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
 		// These cached values must be updated last and togeterh
@@ -505,11 +502,8 @@ impl BlockChain {
 				}
 			}
 
-			BatchWriter::new(&batch, &mut write_hashes)
-				.extend(update.block_hashes, CacheUpdatePolicy::Remove);
-
-			BatchWriter::new(&batch, &mut write_txs)
-				.extend(update.transactions_addresses, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
 
 			// update extras database
 			self.extras_db.write(batch).unwrap();
@@ -745,7 +739,7 @@ impl BlockChain {
 		K: Key<T> + Eq + Hash + Clone,
 		H256: From<K> {
 		self.note_used(CacheID::Extras(T::index(), H256::from(hash.clone())));
-		DatabaseReader::new(&self.extras_db, cache).read(hash)
+		self.extras_db.read_with_cache(cache, hash)
 	}
 
 	/// Get current cache size.
