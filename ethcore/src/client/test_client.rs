@@ -33,6 +33,7 @@ use block::{SealedBlock, ClosedBlock, LockedBlock};
 use executive::Executed;
 use error::Error;
 use engine::Engine;
+use trace::{LocalizedTrace, Filter as TraceFilter};
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -426,6 +427,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn engine(&self) -> &Engine {
+		unimplemented!();
+	}
+
+	fn traces(&self, _filter: TraceFilter) -> Vec<LocalizedTrace> {
 		unimplemented!();
 	}
 }

@@ -42,7 +42,7 @@ use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
-use trace::{Tracedb, Config as TraceConfig, BlockTracesDetails};
+use trace::{Tracedb, BlockTracesDetails, LocalizedTrace, Filter as TraceFilter};
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -714,6 +714,12 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 			})
 			.collect()
+	}
+
+	fn traces(&self, filter: TraceFilter) -> Vec<LocalizedTrace> {
+		self.tracedb.filter_traces(&filter, |block_number| {
+			self.chain.block_hash(block_number).expect("Expected to find block number. Database is probably malformed.")
+		})
 	}
 }
 

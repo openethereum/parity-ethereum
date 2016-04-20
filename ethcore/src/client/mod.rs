@@ -41,6 +41,7 @@ use filter::Filter;
 use error::{ImportResult, Error};
 use receipt::LocalizedReceipt;
 use engine::{Engine};
+use trace::{LocalizedTrace, Filter as TraceFilter};
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -132,5 +133,8 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Executes a function providing it with a reference to an engine.
 	fn engine(&self) -> &Engine;
+
+	/// Returns traces matching given filter.
+	fn traces(&self, filter: TraceFilter) -> Vec<LocalizedTrace>;
 }
 

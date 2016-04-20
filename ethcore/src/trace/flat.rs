@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use basic_types::LogBloom;
 use trace::BlockTraces;
 use super::trace::{Trace, Action, Res};
 
@@ -96,7 +95,7 @@ impl FlatBlockTraces {
 mod tests {
 	use super::{FlatBlockTraces, FlatTransactionTraces, FlatTrace};
 	use util::{U256, Address};
-	use trace::trace::{Action, Res, CallResult, Call, CreateResult, Create, Trace};
+	use trace::trace::{Action, Res, CallResult, Call, Create, Trace};
 	use trace::BlockTraces;
 
 	#[test]

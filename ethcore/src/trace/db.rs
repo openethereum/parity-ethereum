@@ -27,9 +27,6 @@ use trace::{BlockTraces, LocalizedTrace, Config, Filter, BlockTracesDetails};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
 use super::bloom::{TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup};
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
-//use super::Config;
-//use super::Filter, TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup, BlockTracesDetails,
-//FlatBlockTraces, FlatTransactionTraces, FlatTrace};
 
 #[derive(Debug, Copy, Clone)]
 pub enum TracedbIndex {

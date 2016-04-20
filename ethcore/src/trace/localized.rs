@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::H256;
-use super::trace::{Trace, Action, Res};
+use super::trace::{Action, Res};
 use header::BlockNumber;
 
 /// Localized trace.
