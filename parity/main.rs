@@ -281,30 +281,40 @@ struct Args {
 	flag_networkid: Option<String>,
 }
 
-fn setup_log(init: &Option<String>) {
+fn setup_log(init: &Option<String>) -> Arc<RotatingLogger> {
 	use rlog::*;
 
+	let mut levels = String::new();
 	let mut builder = LogBuilder::new();
 	builder.filter(None, LogLevelFilter::Info);
 
 	if env::var("RUST_LOG").is_ok() {
-		builder.parse(&env::var("RUST_LOG").unwrap());
+		let lvl = &env::var("RUST_LOG").unwrap();
+		levels.push_str(&lvl);
+		levels.push_str(",");
+		builder.parse(lvl);
 	}
 
 	if let Some(ref s) = *init {
+		levels.push_str(s);
 		builder.parse(s);
 	}
 
-	let format = |record: &LogRecord| {
+	let logs = Arc::new(RotatingLogger::new(levels));
+	let log2 = logs.clone();
+	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
-		if max_log_level() <= LogLevelFilter::Info {
+		let format = if max_log_level() <= LogLevelFilter::Info {
 			format!("{}{}", timestamp, record.args())
 		} else {
 			format!("{}{}:{}: {}", timestamp, record.level(), record.target(), record.args())
-		}
+		};
+		log2.append(format.clone());
+		format
     };
 	builder.format(format);
 	builder.init().unwrap();
+	logs
 }
 
 #[cfg(feature = "rpc")]
@@ -316,6 +326,7 @@ fn setup_rpc_server(
 	url: &SocketAddr,
 	cors_domain: Option<String>,
 	apis: Vec<&str>,
+	logger: Arc<RotatingLogger>,
 ) -> RpcServer {
 	use rpc::v1::*;
 
@@ -329,7 +340,7 @@ fn setup_rpc_server(
 				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 			},
 			"personal" => server.add_delegate(PersonalClient::new(&secret_store).to_delegate()),
-			"ethcore" => server.add_delegate(EthcoreClient::new(&miner).to_delegate()),
+			"ethcore" => server.add_delegate(EthcoreClient::new(&miner, logger.clone()).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
 			},
@@ -351,6 +362,7 @@ fn setup_webapp_server(
 	miner: Arc<Miner>,
 	url: &SocketAddr,
 	auth: Option<(String, String)>,
+	logger: Arc<RotatingLogger>,
 ) -> WebappServer {
 	use rpc::v1::*;
 
@@ -360,7 +372,7 @@ fn setup_webapp_server(
 	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
 	server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
 	server.add_delegate(PersonalClient::new(&secret_store).to_delegate());
-	server.add_delegate(EthcoreClient::new(&miner).to_delegate());
+	server.add_delegate(EthcoreClient::new(&miner, logger).to_delegate());
 	let start_result = match auth {
 		None => {
 			server.start_unsecure_http(url)
@@ -389,6 +401,7 @@ fn setup_rpc_server(
 	_url: &SocketAddr,
 	_cors_domain: Option<String>,
 	_apis: Vec<&str>,
+	_logger: Arc<RotatingLogger>,
 ) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
@@ -404,6 +417,7 @@ fn setup_webapp_server(
 	_miner: Arc<Miner>,
 	_url: &SocketAddr,
 	_auth: Option<(String, String)>,
+	_logger: Arc<RotatingLogger>,
 ) -> ! {
 	die!("Your Parity version has been compiled without WebApps support.")
 }
@@ -690,7 +704,7 @@ impl Configuration {
 		let panic_handler = PanicHandler::new_in_arc();
 
 		// Setup logging
-		setup_log(&self.args.flag_logging);
+		let logger = setup_log(&self.args.flag_logging);
 		// Raise fdlimit
 		unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -742,7 +756,8 @@ impl Configuration {
 				miner.clone(),
 				&addr,
 				cors_domain,
-				apis.split(',').collect()
+				apis.split(',').collect(),
+				logger.clone(),
 			))
 		} else {
 			None
@@ -776,6 +791,7 @@ impl Configuration {
 				miner.clone(),
 				&addr,
 				auth,
+				logger.clone(),
 			))
 		} else {
 			None

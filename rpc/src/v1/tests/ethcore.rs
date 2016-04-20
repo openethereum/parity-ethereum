@@ -22,16 +22,20 @@ use ethminer::MinerService;
 use v1::tests::helpers::TestMinerService;
 use util::numbers::*;
 use rustc_serialize::hex::FromHex;
+use util::log::RotatingLogger;
 
 
 fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
 }
+fn logger() -> Arc<RotatingLogger> {
+	Arc::new(RotatingLogger::new("rpc=trace".to_owned()))
+}
 
 #[test]
 fn rpc_ethcore_extra_data() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -45,7 +49,7 @@ fn rpc_ethcore_extra_data() {
 #[test]
 fn rpc_ethcore_gas_floor_target() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -58,7 +62,7 @@ fn rpc_ethcore_gas_floor_target() {
 #[test]
 fn rpc_ethcore_min_gas_price() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -71,7 +75,7 @@ fn rpc_ethcore_min_gas_price() {
 #[test]
 fn rpc_ethcore_set_min_gas_price() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -85,7 +89,7 @@ fn rpc_ethcore_set_min_gas_price() {
 #[test]
 fn rpc_ethcore_set_gas_floor_target() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -99,7 +103,7 @@ fn rpc_ethcore_set_gas_floor_target() {
 #[test]
 fn rpc_ethcore_set_extra_data() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -113,7 +117,7 @@ fn rpc_ethcore_set_extra_data() {
 #[test]
 fn rpc_ethcore_set_author() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -125,9 +129,36 @@ fn rpc_ethcore_set_author() {
 }
 
 #[test]
+fn rpc_ethcore_dev_logs() {
+	let miner = miner_service();
+	let logger = logger();
+	logger.append("a".to_owned());
+	logger.append("b".to_owned());
+	let ethcore = EthcoreClient::new(&miner, logger.clone()).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogs", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["b","a"],"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_dev_logs_levels() {
+	let miner = miner_service();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogsLevels", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"rpc=trace","id":1}"#;
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
 fn rpc_ethcore_set_transactions_limit() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -142,7 +173,7 @@ fn rpc_ethcore_set_transactions_limit() {
 #[test]
 fn rpc_ethcore_transactions_limit() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
