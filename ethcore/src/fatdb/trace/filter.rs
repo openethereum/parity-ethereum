@@ -19,7 +19,8 @@ use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
-use trace::trace::{Trace, Action};
+use super::FlatTrace;
+use trace::trace::{Action};
 
 /// Traces filter.
 pub struct Filter {
@@ -70,8 +71,8 @@ impl Filter {
 	}
 
 	/// Returns true if given trace matches the filter.
-	pub fn matches(&self, trace: &Trace) -> bool {
-		let matches = match trace.action {
+	pub fn matches(&self, trace: &FlatTrace) -> bool {
+		match trace.action {
 			Action::Call(ref call) => {
 				let from_matches = self.from_address.is_empty() || self.from_address.contains(&call.from);
 				let to_matches = self.to_address.is_empty() || self.to_address.contains(&call.to);
@@ -82,9 +83,7 @@ impl Filter {
 				let to_matches = self.to_address.is_empty();
 				from_matches && to_matches
 			}
-		};
-
-		matches || trace.subs.iter().any(|subtrace| self.matches(subtrace))
+		}
 	}
 }
 

@@ -14,27 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces config.
-use bloomchain::Config as BloomConfig;
+use util::H256;
+use trace::trace::{Trace, Action, Res};
+use header::BlockNumber;
 
-///. Traces config.
-#[derive(Debug, Clone)]
-pub struct Config {
-	/// Indicates if tracing should be enabled or not.
-	/// If it's None, it will be automatically configured.
-	pub enabled: Option<bool>,
-	/// Traces blooms configuration.
-	pub blooms: BloomConfig,
-}
-
-impl Default for Config {
-	fn default() -> Self {
-		Config {
-			enabled: None,
-			blooms: BloomConfig {
-				levels: 3,
-				elements_per_index: 16,
-			}
-		}
-	}
+/// Localized trace.
+pub struct LocalizedTrace {
+	/// Index of the parent trace within the same transaction.
+	pub parent: Option<usize>,
+	/// Indexes of child traces within the same transaction.
+	pub children: Vec<usize>,
+	/// VM depth.
+	pub depth: usize,
+	/// Type of action performed by a transaction.
+	pub action: Action,
+	/// Result of this action.
+	pub result: Res,
+	/// Trace number within the transaction.
+	pub trace_number: usize,
+	/// Transaction number within the block.
+	pub transaction_number: usize,
+	/// Block number.
+	pub block_number: BlockNumber,
+	/// Block hash.
+	pub block_hash: H256,
 }

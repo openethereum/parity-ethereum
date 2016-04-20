@@ -23,10 +23,11 @@ use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, Bloo
 use blockchain::ImportRoute;
 use util::{FixedHash, H256, H264, Database, DBTransaction};
 use header::BlockNumber;
-use trace::BlockTraces;
+use trace::{BlockTraces, LocalizedTrace};
 use db::{Key, Writable, Readable, BatchWriter, DatabaseReader, CacheUpdatePolicy};
 use super::Config;
-use super::trace::{Filter, TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup, BlockTracesDetails};
+use super::trace::{Filter, TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup, BlockTracesDetails,
+FlatBlockTraces, FlatTransactionTraces, FlatTrace};
 
 #[derive(Debug, Copy, Clone)]
 pub enum FatdbIndex {
@@ -105,6 +106,13 @@ impl Fatdb {
 
 		config.tracing.enabled = Some(tracing);
 
+		let encoded_tracing= match tracing {
+			true => [0x1],
+			false => [0x0]
+		};
+
+		tracesdb.put(b"enabled", &encoded_tracing).unwrap();
+
 		Fatdb {
 			traces: RwLock::new(HashMap::new()),
 			blooms: RwLock::new(HashMap::new()),
@@ -176,11 +184,127 @@ impl Fatdb {
 	}
 
 	/// Returns traces matching given filter.
-	pub fn filter_traces(&self, filter: &Filter) -> Vec<BlockNumber> {
+	pub fn filter_traces<F>(&self, filter: &Filter, block_hash: F) -> Vec<LocalizedTrace> where
+	F: Fn(BlockNumber) -> H256 {
 		let chain = BloomGroupChain::new(self.config.tracing.blooms, self);
 		let numbers = chain.filter(filter);
 		numbers.into_iter()
-			.map(|n| n as BlockNumber)
-			.collect()
+			.flat_map(|n| {
+				let number = n as BlockNumber;
+				let hash = block_hash(number);
+				let traces = self.traces(&hash).expect("Expected to find a trace. Db is probably malformed.");
+				let flat_block = FlatBlockTraces::from(traces);
+				let tx_traces: Vec<FlatTransactionTraces> = flat_block.into();
+				tx_traces.into_iter()
+					.enumerate()
+					.flat_map(|(tx_number, tx_trace)| {
+						let flat_traces: Vec<FlatTrace> = tx_trace.into();
+						flat_traces.into_iter()
+							.enumerate()
+							.filter_map(|(index, trace)| {
+								match filter.matches(&trace) {
+									true => Some(LocalizedTrace {
+										parent: trace.parent,
+										children: trace.children,
+										depth: trace.depth,
+										action: trace.action,
+										result: trace.result,
+										trace_number: index,
+										transaction_number: tx_number,
+										block_number: number,
+										block_hash: hash.clone()
+									}),
+									false => None
+								}
+							})
+							.collect::<Vec<_>>()
+					})
+					.collect::<Vec<_>>()
+			})
+			.collect::<Vec<_>>()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use devtools::RandomTempPath;
+	use fatdb::Config;
+	use super::Fatdb;
+
+	#[test]
+	fn test_reopening_db_with_tracing_off() {
+		let temp = RandomTempPath::new();
+		let mut config = Config::default();
+
+		// set autotracing
+		config.tracing.enabled = None;
+
+		{
+			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			assert_eq!(fatdb.is_tracing_enabled(), false);
+		}
+
+		{
+			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			assert_eq!(fatdb.is_tracing_enabled(), false);
+		}
+
+		config.tracing.enabled = Some(false);
+
+		{
+			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			assert_eq!(fatdb.is_tracing_enabled(), false);
+		}
+	}
+
+	#[test]
+	fn test_reopeining_db_with_tracing_on() {
+		let temp = RandomTempPath::new();
+		let mut config = Config::default();
+
+		// set tracing on
+		config.tracing.enabled = Some(true);
+
+		{
+			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			assert_eq!(fatdb.is_tracing_enabled(), true);
+		}
+
+		{
+			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			assert_eq!(fatdb.is_tracing_enabled(), true);
+		}
+
+		config.tracing.enabled = None;
+
+		{
+			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			assert_eq!(fatdb.is_tracing_enabled(), true);
+		}
+
+		config.tracing.enabled = Some(false);
+
+		{
+			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			assert_eq!(fatdb.is_tracing_enabled(), false);
+		}
+	}
+
+	#[test]
+	#[should_panic]
+	fn test_invalid_reopeining_db() {
+		let temp = RandomTempPath::new();
+		let mut config = Config::default();
+
+		// set tracing on
+		config.tracing.enabled = Some(false);
+
+		{
+			let fatdb = Fatdb::new(config.clone(), temp.as_path());
+			assert_eq!(fatdb.is_tracing_enabled(), true);
+		}
+
+		config.tracing.enabled = Some(true);
+		Fatdb::new(config.clone(), temp.as_path()); // should panic!
 	}
 }

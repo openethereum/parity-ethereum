@@ -20,11 +20,13 @@ mod block;
 pub mod trace;
 mod noop_tracer;
 mod executive_tracer;
+mod localized;
 
 pub use self::block::BlockTraces;
 pub use self::trace::Trace;
 pub use self::noop_tracer::NoopTracer;
 pub use self::executive_tracer::ExecutiveTracer;
+pub use self::localized::LocalizedTrace;
 use util::{Bytes, Address, U256};
 use action_params::ActionParams;
 use self::trace::{Call, Create};
