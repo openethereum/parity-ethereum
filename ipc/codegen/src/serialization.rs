@@ -301,6 +301,7 @@ fn binary_expr_variant(
 	let type_name = ::syntax::print::pprust::ty_to_string(&ty);
 
 	let variant_ident = variant.node.name;
+	let variant_index_ident = builder.id(format!("{}", variant_index));
 
 	match variant.node.data {
 		ast::VariantData::Unit(_) => {
@@ -310,7 +311,7 @@ fn binary_expr_variant(
 
 			Ok(BinaryArm {
 				size: quote_arm!(cx, $pat => { 0usize } ),
-				write: quote_arm!(cx, $pat => { Ok(()) } ),
+				write: quote_arm!(cx, $pat => { buffer[0] = $variant_index_ident; Ok(()) } ),
 				read: quote_arm!(cx, $pat => { } ),
 			})
 		},
@@ -336,11 +337,14 @@ fn binary_expr_variant(
 			));
 
 			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
-
-			let variant_index_ident = builder.id(format!("{}", variant_index));
 			Ok(BinaryArm {
 				size: quote_arm!(cx, $pat => { $size_expr } ),
-				write: quote_arm!(cx, $pat => { buffer[0] = $variant_index_ident; let buffer = &mut buffer[1..]; $write_expr } ),
+				write: quote_arm!(cx,
+					$pat => {
+						buffer[0] = $variant_index_ident;
+						let buffer = &mut buffer[1..];
+						$write_expr
+				}),
 				read: quote_arm!(cx, $pat => { $read_expr } ),
 			})
 		}
@@ -369,7 +373,12 @@ fn binary_expr_variant(
 			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
 			Ok(BinaryArm {
 				size: quote_arm!(cx, $pat => { $size_expr } ),
-				write: quote_arm!(cx, $pat => { $write_expr } ),
+				write: quote_arm!(cx,
+					$pat => {
+						buffer[0] = $variant_index_ident;
+						let buffer = &mut buffer[1..];
+						$write_expr
+				}),
 				read: quote_arm!(cx, $pat => { $read_expr } ),
 			})
 		},

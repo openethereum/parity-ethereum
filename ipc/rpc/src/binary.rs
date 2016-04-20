@@ -27,6 +27,67 @@ pub trait BinaryConvertable : Sized {
 	fn to_bytes(&self, buffer: &mut [u8]) -> Result<(), BinaryConvertError>;
 
 	fn from_bytes(buffer: &[u8]) -> Result<Self, BinaryConvertError>;
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Err(BinaryConvertError)
+	}
+
+	fn len_params() -> usize {
+		0
+	}
+}
+
+impl<T> BinaryConvertable for Option<T> where T: BinaryConvertable {
+	fn size(&self) -> usize {
+		match * self { None => 0, Some(ref val) => val.size() }
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8]) -> Result<(), BinaryConvertError> {
+		match *self { None => Err(BinaryConvertError), Some(ref val) => val.to_bytes(buffer) }
+	}
+
+	fn from_bytes(buffer: &[u8]) -> Result<Self, BinaryConvertError> {
+		Ok(Some(try!(T::from_bytes(buffer))))
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(None)
+	}
+
+	fn len_params() -> usize {
+		1
+	}
+}
+
+impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
+	fn size(&self) -> usize {
+		match T::len_params() {
+			0 => mem::size_of::<T>() * self.len(),
+			_ => self.iter().fold(0usize, |acc, t| acc + t.size()),
+		}
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8]) -> Result<(), BinaryConvertError> {
+		let mut offset = 0usize;
+		for (index, item) in self.iter().enumerate() {
+			let item_end = offset + item.size();
+			try!(item.to_bytes(&mut buffer[offset..item_end]));
+			offset = item_end;
+		}
+		Ok(())
+	}
+
+	fn from_bytes(buffer: &[u8]) -> Result<Self, BinaryConvertError> {
+		Err(BinaryConvertError)
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(Self::new())
+	}
+
+	fn len_params() -> usize {
+		1
+	}
 }
 
 macro_rules! binary_fixed_size {
