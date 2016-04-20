@@ -14,14 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Binary representation of types
-
-pub struct BinaryConvertError;
-
-pub trait BinaryConvertable : Sized {
-	fn size(&self) -> Result<usize, BinaryConvertError>;
-
-	fn to_bytes(buffer: &mut [u8]) -> Result<(), BinaryConvertError>;
-
-	fn from_bytes(buffer: &[u8]) -> Result<Self, BinaryConvertError>;
+#[derive(Binary)]
+enum Root {
+	Top,
+	Middle(String)
 }

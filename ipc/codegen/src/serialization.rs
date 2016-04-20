@@ -77,27 +77,28 @@ fn serialize_item(
 		_ => {
 			cx.span_err(
 				item.span,
-				"`#[derive(Serialize)]` may only be applied to structs and enums");
+				"`#[derive(Binary)]` may only be applied to structs and enums");
 			return Err(Error);
 		}
 	};
 
-	let impl_generics = build_impl_generics(cx, builder, item, generics);
-
 	let ty = builder.ty().path()
-		.segment(item.ident).with_generics(impl_generics.clone()).build()
+		.segment(item.ident).with_generics(generics.clone()).build()
 		.build();
 
-	let where_clause = &impl_generics.where_clause;
+	let where_clause = &generics.where_clause;
 
 	let binary_expressions = try!(binary_expr(cx,
 		&builder,
 		&item,
-		&impl_generics,
+		&generics,
 		ty.clone()));
 
+	let (size_expr, read_expr, write_expr) =
+		(binary_expressions.size, binary_expressions.read, binary_expressions.write);
+
 	Ok(quote_item!(cx,
-		impl $impl_generics ::ipc::BinaryConvertable for $ty $where_clause {
+		impl $generics ::ipc::BinaryConvertable for $ty $where_clause {
 			fn size(&self) -> usize {
 				$size_expr
 			}
@@ -107,7 +108,7 @@ fn serialize_item(
 			}
 
 			fn from_bytes(buffer: &[u8]) -> Self {
-				$create_expr
+				$read_expr
 			}
         }
     ).unwrap())
@@ -138,19 +139,21 @@ fn binary_expr(
 				item.ident,
 				impl_generics,
 				ty,
+				item.span,
 				enum_def,
 			)
 		}
 		_ => {
 			cx.span_bug(item.span,
-						"expected ItemStruct or ItemEnum in #[derive(Serialize)]");
+						"expected ItemStruct or ItemEnum in #[derive(Binary)]");
+			Err(Error)
 		}
 	}
 }
 
 struct BinaryExpressions {
 	pub size: P<ast::Expr>,
-	pub write: P<ast::Stmt>,
+	pub write: P<ast::Expr>,
 	pub read: P<ast::Expr>,
 }
 
@@ -159,41 +162,44 @@ fn binary_expr_struct(
 	builder: &aster::AstBuilder,
 	ty: P<ast::Ty>,
     fields: &[ast::StructField],
-	value_ident: Option<P<ast::Ident>>,
+	value_ident: Option<ast::Ident>,
 ) -> Result<BinaryExpressions, Error> {
-    let type_name = field.ty;
-	let id = field.id;
-
-	let mut size_exprs = Vec::new();
-	fields.iter().enumerate(|(index, field)| {
+	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
 		let index_ident = builder.id(format!("{}", index));
-		value_ident.and_then(|value_ident| size_exprs.push(quote_expr!(cx, $value_ident . $index_ident .size())))
-			.unwrap_or_else(|| size_exprs.push(quote_expr!(cx, $index_ident .size())));
-	});
+		value_ident.and_then(|x| Some(quote_expr!(cx, $x . $index_ident .size())))
+			.unwrap_or_else(|| quote_expr!(cx, $index_ident .size()))
+	}).collect();
 
 	let mut total_size_expr = size_exprs[0].clone();
-	for index in 1..size_expr.len() {
-		let next_expr = size_exprs[i].clone();
+	for index in 1..size_exprs.len() {
+		let next_expr = size_exprs[index].clone();
 		total_size_expr = quote_expr!(cx, $total_size_expr + $next_expr);
 	}
 
-	let mut write_stmts = Vec::new();
-	write_stmts.push(quote_stmt!(cx, let mut offset = 0usize;));
-	fields.iter().enumerate(|(index, field)| {
+	let mut write_stmts = Vec::<ast::Stmt>::new();
+	write_stmts.push(quote_stmt!(cx, let mut offset = 0usize;).unwrap());
+	for (index, field) in fields.iter().enumerate() {
 		let index_ident = builder.id(format!("{}", index));
-		let size_expr = size_exprs[index];
-		write_stmts.push(quote_stmt!(cx, let next_line = offset + $size_expr; ));
-		value_ident.and_then(|x|
-				write_stmts.push(quote_stmt!(cx, $x . $index_ident .write(&mut buffer[offset..next_line]);))
-			).unwrap_or_else(|| write_stmts.push(quote_stmt!(cx, $index_ident .write(&mut buffer[offset..next_line]);)));
-		write_stmts.push(quote_stmt!(cx, offset = next_line; ));
-	});
+		let size_expr = &size_exprs[index];
+		write_stmts.push(quote_stmt!(cx, let next_line = offset + $size_expr; ).unwrap());
+		match value_ident {
+			Some(x) => {
+				write_stmts.push(
+					quote_stmt!(cx, $x . $index_ident .write(&mut buffer[offset..next_line]);).unwrap())
+			},
+			None => {
+				write_stmts.push(
+					quote_stmt!(cx, $index_ident .write(&mut buffer[offset..next_line]);).unwrap())
+			}
+		}
+		write_stmts.push(quote_stmt!(cx, offset = next_line; ).unwrap());
+	};
 
     Ok(BinaryExpressions {
 		size: total_size_expr,
-		write: quote_stmt!(cx, { $write_stmts } ),
+		write: quote_expr!(cx, { write_stmts; Ok(()) } ),
 		read: quote_expr!(cx, $ty { }),
-	});
+	})
 }
 
 fn binary_expr_item_struct(
@@ -211,6 +217,7 @@ fn binary_expr_item_struct(
 				&builder,
 				ty,
 				fields,
+				Some(builder.id("self")),
 			)
 		}
 		ast::VariantData::Struct(ref fields, _) => {
@@ -219,8 +226,13 @@ fn binary_expr_item_struct(
 				&builder,
 				ty,
 				fields,
+				Some(builder.id("self")),
 			)
-		}
+		},
+		_ => {
+			cx.span_bug(span, "#[derive(Binary)] Unsupported struct content, expected tuple/struct");
+			Err(Error)
+		},
 	}
 }
 
@@ -230,6 +242,7 @@ fn binary_expr_enum(
     type_ident: Ident,
     impl_generics: &ast::Generics,
     ty: P<ast::Ty>,
+	span: Span,
     enum_def: &ast::EnumDef,
 ) -> Result<BinaryExpressions, Error> {
 	let arms: Vec<_> = try!(
@@ -242,6 +255,7 @@ fn binary_expr_enum(
 					type_ident,
 					impl_generics,
 					ty.clone(),
+					span,
 					variant,
 					variant_index,
 				)
@@ -250,22 +264,21 @@ fn binary_expr_enum(
 	);
 
 	let (size_arms, write_arms, read_arms) = (
-		arms.iter().map(|x| x.size).collect::<Vec<P<ast::Arm>>>(),
-		arms.iter().map(|x| x.write).collect::<Vec<P<ast::Arm>>>(),
-		arms.iter().map(|x| x.read).collect::<Vec<P<ast::Arm>>>());
+		arms.iter().map(|x| x.size.clone()).collect::<Vec<ast::Arm>>(),
+		arms.iter().map(|x| x.write.clone()).collect::<Vec<ast::Arm>>(),
+		arms.iter().map(|x| x.read.clone()).collect::<Vec<ast::Arm>>());
 
 	Ok(BinaryExpressions {
 		size: quote_expr!(cx, match *self { $size_arms }),
-		write: quote_stmt!(cx, match *self { $write_arms }; ),
+		write: quote_expr!(cx, match *self { $write_arms }; ),
 		read: quote_expr!(cx, match *self { $read_arms }),
-	});
-
+	})
 }
 
 struct BinaryArm {
-	size: P<ast::Arm>,
-	write: P<ast::Arm>,
-	read: P<ast::Arm>,
+	size: ast::Arm,
+	write: ast::Arm,
+	read: ast::Arm,
 }
 
 fn binary_expr_variant(
@@ -274,10 +287,11 @@ fn binary_expr_variant(
     type_ident: Ident,
     generics: &ast::Generics,
     ty: P<ast::Ty>,
+	span: Span,
     variant: &ast::Variant,
     variant_index: usize,
 ) -> Result<BinaryArm, Error> {
-	let type_name = ty.name;
+	let type_name = ::syntax::print::pprust::ty_to_string(&ty);
 
 	let variant_ident = variant.node.name;
 
@@ -303,12 +317,12 @@ fn binary_expr_variant(
 				None,
 			));
 
-			let (size_expr, write, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
+			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
 
 			Ok(BinaryArm {
-				size: P(quote_arm!(cx, $pat => { $size_expr } )),
-				write: P(quote_arm!(cx, $pat => { $write } )),
-				read: P(quote_arm!(cx, $pat => { $read_expr } )),
+				size: quote_arm!(cx, $pat => { $size_expr } ),
+				write: quote_arm!(cx, $pat => { $write_expr } ),
+				read: quote_arm!(cx, $pat => { $read_expr } ),
 			})
 		}
 		ast::VariantData::Struct(ref fields, _) => {
@@ -321,7 +335,7 @@ fn binary_expr_variant(
 				.with_pats(
 					field_names.iter()
 						.zip(fields.iter())
-						.map(|(id, field)|(name, builder.pat().ref_id(id))))
+						.map(|(id, field)|(field.ident.unwrap(), builder.pat().ref_id(id))))
 				.build();
 
 
@@ -333,12 +347,16 @@ fn binary_expr_variant(
 				None,
 			));
 
-			let (size_expr, write, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
+			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
 			Ok(BinaryArm {
-				size: P(quote_arm!(cx, $pat => { $size_expr } )),
-				write: P(quote_arm!(cx, $pat => { $write } )),
-				read: P(quote_arm!(cx, $pat => { $read_expr } )),
+				size: quote_arm!(cx, $pat => { $size_expr } ),
+				write: quote_arm!(cx, $pat => { $write_expr } ),
+				read: quote_arm!(cx, $pat => { $read_expr } ),
 			})
-		}
+		},
+		_ => {
+			cx.span_bug(span, "#[derive(Binary)] Unsupported struct content, expected tuple/struct");
+			Err(Error)
+		},
 	}
 }

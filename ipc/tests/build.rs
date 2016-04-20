@@ -60,4 +60,13 @@ pub fn main() {
 		registry.expand("", &src, &dst).unwrap();
 	}
 
+
+	// ipc pass
+	{
+		let src = Path::new("binary.rs.in");
+		let dst = Path::new(&out_dir).join("binary.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
 }
