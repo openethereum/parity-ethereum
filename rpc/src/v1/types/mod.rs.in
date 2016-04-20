@@ -26,6 +26,8 @@ mod transaction;
 mod transaction_request;
 mod call_request;
 mod receipt;
+mod trace;
+mod trace_filter;
 
 pub use self::block::{Block, BlockTransactions};
 pub use self::block_number::BlockNumber;

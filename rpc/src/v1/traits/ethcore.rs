@@ -48,6 +48,9 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns minimal gas price for transaction to be included in queue.
 	fn min_gas_price(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
+	/// Returns traces matching given filter.
+	fn traces(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -61,6 +64,7 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_gasFloorTarget", Ethcore::gas_floor_target);
 		delegate.add_method("ethcore_minGasPrice", Ethcore::min_gas_price);
 		delegate.add_method("ethcore_transactionsLimit", Ethcore::transactions_limit);
+		delegate.add_method("ethcore_traces", Ethcore::traces);
 		delegate
 	}
 }
