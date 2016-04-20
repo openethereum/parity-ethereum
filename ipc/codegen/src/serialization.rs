@@ -167,7 +167,10 @@ fn binary_expr_struct(
 ) -> Result<BinaryExpressions, Error> {
 	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
 		let index_ident = builder.id(format!("__field{}", index));
-		value_ident.and_then(|x| Some(quote_expr!(cx, $x . $index_ident .size())))
+		value_ident.and_then(|x| {
+				let field_id = builder.id(field.ident.unwrap());
+				Some(quote_expr!(cx, $x . $field_id .size()))
+			})
 			.unwrap_or_else(|| quote_expr!(cx, $index_ident .size()))
 	}).collect();
 
@@ -184,9 +187,9 @@ fn binary_expr_struct(
 		write_stmts.push(quote_stmt!(cx, let next_line = offset + $size_expr; ).unwrap());
 		match value_ident {
 			Some(x) => {
-				let index_ident = builder.id(format!("{}", index));
+				let field_id = builder.id(field.ident.unwrap());
 				write_stmts.push(
-					quote_stmt!(cx, $x . $index_ident .to_bytes(&mut buffer[offset..next_line]);).unwrap())
+					quote_stmt!(cx, $x . $field_id .to_bytes(&mut buffer[offset..next_line]);).unwrap())
 			},
 			None => {
 				let index_ident = builder.id(format!("__field{}", index));
@@ -370,11 +373,5 @@ fn binary_expr_variant(
 				read: quote_arm!(cx, $pat => { $read_expr } ),
 			})
 		},
-//		_ => {
-//			cx.span_bug(span,
-//				&format!("#[derive(Binary)] Unsupported enum variant content, expected tuple/struct, found: {:?}",
-//					variant));
-//			Err(Error)
-//		},
 	}
 }

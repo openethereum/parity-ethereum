@@ -25,3 +25,10 @@ enum Root {
 		number2: u64,
 	},
 }
+
+#[derive(Binary)]
+struct DoubleRoot {
+	x1: u32,
+	x2: u64,
+	x3: u32,
+}
