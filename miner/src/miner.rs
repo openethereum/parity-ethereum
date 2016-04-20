@@ -205,6 +205,14 @@ impl MinerService for Miner {
 		*self.gas_floor_target.read().unwrap() / x!(5)
 	}
 
+	fn transactions_limit(&self) -> usize {
+		self.transaction_queue.lock().unwrap().limit()
+	}
+
+	fn set_transactions_limit(&self, limit: usize) {
+		self.transaction_queue.lock().unwrap().set_limit(limit)
+	}
+
 	/// Get the author that we will seal blocks as.
 	fn author(&self) -> Address {
 		*self.author.read().unwrap()

@@ -38,7 +38,7 @@
 //! fn main() {
 //! 	let mut service = NetworkService::start(NetworkConfiguration::new()).unwrap();
 //! 	let dir = env::temp_dir();
-//! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel()).unwrap();
+//! 	let client = Client::new(ClientConfig::default(), ethereum::new_frontier(), &dir, service.io().channel());
 //!
 //!		let miner: Miner = Miner::default();
 //!		// get status
@@ -61,7 +61,7 @@ extern crate rayon;
 mod miner;
 mod transaction_queue;
 
-pub use transaction_queue::{TransactionQueue, AccountDetails};
+pub use transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult};
 pub use miner::{Miner};
 
 use util::{H256, U256, Address, Bytes};
@@ -99,6 +99,12 @@ pub trait MinerService : Send + Sync {
 
 	/// Set the gas limit we wish to target when sealing a new block.
 	fn set_gas_floor_target(&self, target: U256);
+
+	/// Get current transactions limit in queue.
+	fn transactions_limit(&self) -> usize;
+
+	/// Set maximal number of transactions kept in the queue (both current and future).
+	fn set_transactions_limit(&self, limit: usize);
 
 	/// Imports transactions to transaction queue.
 	fn import_transactions<T>(&self, transactions: Vec<SignedTransaction>, fetch_account: T) ->
@@ -143,15 +149,6 @@ pub trait MinerService : Send + Sync {
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { x!(21000) }
-}
-
-/// Represents the result of importing transaction.
-#[derive(Debug)]
-pub enum TransactionImportResult {
-	/// Transaction was imported to current queue.
-	Current,
-	/// Transaction was imported to future queue.
-	Future
 }
 
 /// Mining status

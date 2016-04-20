@@ -17,11 +17,9 @@
 use super::test_common::*;
 use state::*;
 use executive::*;
-use spec::*;
 use engine::*;
 use evm;
 use evm::{Schedule, Ext, Factory, VMType, ContractCreateResult, MessageCallResult};
-use ethereum;
 use externalities::*;
 use substate::*;
 use tests::helpers::*;
