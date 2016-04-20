@@ -183,9 +183,53 @@ impl Fatdb {
 		DatabaseReader::new(&self.tracesdb, &self.traces).read(block_hash)
 	}
 
+	fn matching_block_traces(
+		filter: &Filter,
+		traces: FlatBlockTraces,
+		block_hash: H256,
+		block_number: BlockNumber
+	) -> Vec<LocalizedTrace> {
+		let tx_traces: Vec<FlatTransactionTraces> = traces.into();
+		tx_traces.into_iter()
+			.enumerate()
+			.flat_map(|(tx_number, tx_trace)| {
+				Self::matching_transaction_traces(filter, tx_trace, block_hash.clone(), block_number, tx_number)
+			})
+			.collect()
+	}
+
+	fn matching_transaction_traces(
+		filter: &Filter,
+		traces: FlatTransactionTraces,
+		block_hash: H256,
+		block_number: BlockNumber,
+		tx_number: usize
+	) -> Vec<LocalizedTrace> {
+		let flat_traces: Vec<FlatTrace> = traces.into();
+		flat_traces.into_iter()
+			.enumerate()
+			.filter_map(|(index, trace)| {
+				match filter.matches(&trace) {
+					true => Some(LocalizedTrace {
+						parent: trace.parent,
+						children: trace.children,
+						depth: trace.depth,
+						action: trace.action,
+						result: trace.result,
+						trace_number: index,
+						transaction_number: tx_number,
+						block_number: block_number,
+						block_hash: block_hash
+					}),
+					false => None
+				}
+			})
+			.collect()
+	}
+
 	/// Returns traces matching given filter.
-	pub fn filter_traces<F>(&self, filter: &Filter, block_hash: F) -> Vec<LocalizedTrace> where
-	F: Fn(BlockNumber) -> H256 {
+	pub fn filter_traces<F>(&self, filter: &Filter, block_hash: F) -> Vec<LocalizedTrace>
+		where F: Fn(BlockNumber) -> H256 {
 		let chain = BloomGroupChain::new(self.config.tracing.blooms, self);
 		let numbers = chain.filter(filter);
 		numbers.into_iter()
@@ -194,34 +238,9 @@ impl Fatdb {
 				let hash = block_hash(number);
 				let traces = self.traces(&hash).expect("Expected to find a trace. Db is probably malformed.");
 				let flat_block = FlatBlockTraces::from(traces);
-				let tx_traces: Vec<FlatTransactionTraces> = flat_block.into();
-				tx_traces.into_iter()
-					.enumerate()
-					.flat_map(|(tx_number, tx_trace)| {
-						let flat_traces: Vec<FlatTrace> = tx_trace.into();
-						flat_traces.into_iter()
-							.enumerate()
-							.filter_map(|(index, trace)| {
-								match filter.matches(&trace) {
-									true => Some(LocalizedTrace {
-										parent: trace.parent,
-										children: trace.children,
-										depth: trace.depth,
-										action: trace.action,
-										result: trace.result,
-										trace_number: index,
-										transaction_number: tx_number,
-										block_number: number,
-										block_hash: hash.clone()
-									}),
-									false => None
-								}
-							})
-							.collect::<Vec<_>>()
-					})
-					.collect::<Vec<_>>()
+				Self::matching_block_traces(filter, flat_block, hash, number)
 			})
-			.collect::<Vec<_>>()
+			.collect()
 	}
 }
 
