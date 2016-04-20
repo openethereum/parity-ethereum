@@ -16,12 +16,50 @@
 
 //! Binary representation of types
 
+use util::bytes::*;
+use std::mem;
+
 pub struct BinaryConvertError;
 
 pub trait BinaryConvertable : Sized {
-	fn size(&self) -> Result<usize, BinaryConvertError>;
+	fn size(&self) -> usize;
 
-	fn to_bytes(buffer: &mut [u8]) -> Result<(), BinaryConvertError>;
+	fn to_bytes(&self, buffer: &mut [u8]) -> Result<(), BinaryConvertError>;
 
 	fn from_bytes(buffer: &[u8]) -> Result<Self, BinaryConvertError>;
 }
+
+macro_rules! binary_fixed_size {
+	($target_ty: ident) => {
+		impl BinaryConvertable for $target_ty {
+			fn size(&self) -> usize {
+				mem::size_of::<$target_ty>()
+			}
+
+			fn from_bytes(bytes: &[u8]) -> Result<Self, BinaryConvertError> {
+				match bytes.len().cmp(&::std::mem::size_of::<$target_ty>()) {
+					::std::cmp::Ordering::Less => return Err(BinaryConvertError),
+					::std::cmp::Ordering::Greater => return Err(BinaryConvertError),
+					::std::cmp::Ordering::Equal => ()
+				};
+				let mut res: Self = unsafe { ::std::mem::uninitialized() };
+				res.copy_raw(bytes);
+				Ok(res)
+			}
+
+			fn to_bytes(&self, buffer: &mut [u8]) -> Result<(), BinaryConvertError> {
+				let sz = ::std::mem::size_of::<$target_ty>();
+				let ip: *const $target_ty = self;
+				let ptr: *const u8 = ip as *const _;
+				unsafe {
+					::std::ptr::copy(ptr, buffer.as_mut_ptr(), sz);
+				}
+				Ok(())
+			}
+		}
+	}
+}
+
+binary_fixed_size!(u64);
+binary_fixed_size!(u32);
+binary_fixed_size!(bool);

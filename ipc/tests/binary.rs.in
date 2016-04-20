@@ -14,8 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use ipc::*;
+
 #[derive(Binary)]
 enum Root {
 	Top,
-	Middle(String)
+	Middle(u32, u64),
+	Bottom {
+		number1: u32,
+		number2: u64,
+	},
 }

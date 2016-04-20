@@ -103,12 +103,13 @@ fn serialize_item(
 				$size_expr
 			}
 
-			fn to_bytes(buffer: &mut [u8]) {
+			fn to_bytes(&self, buffer: &mut [u8]) -> Result<(), BinaryConvertError> {
 				$write_expr
 			}
 
-			fn from_bytes(buffer: &[u8]) -> Self {
-				$read_expr
+			fn from_bytes(buffer: &[u8]) -> Result<Self, BinaryConvertError> {
+				//$read_expr
+				Err(::ipc::BinaryConvertError)
 			}
         }
     ).unwrap())
@@ -165,7 +166,7 @@ fn binary_expr_struct(
 	value_ident: Option<ast::Ident>,
 ) -> Result<BinaryExpressions, Error> {
 	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
-		let index_ident = builder.id(format!("{}", index));
+		let index_ident = builder.id(format!("__field{}", index));
 		value_ident.and_then(|x| Some(quote_expr!(cx, $x . $index_ident .size())))
 			.unwrap_or_else(|| quote_expr!(cx, $index_ident .size()))
 	}).collect();
@@ -179,17 +180,18 @@ fn binary_expr_struct(
 	let mut write_stmts = Vec::<ast::Stmt>::new();
 	write_stmts.push(quote_stmt!(cx, let mut offset = 0usize;).unwrap());
 	for (index, field) in fields.iter().enumerate() {
-		let index_ident = builder.id(format!("{}", index));
 		let size_expr = &size_exprs[index];
 		write_stmts.push(quote_stmt!(cx, let next_line = offset + $size_expr; ).unwrap());
 		match value_ident {
 			Some(x) => {
+				let index_ident = builder.id(format!("{}", index));
 				write_stmts.push(
-					quote_stmt!(cx, $x . $index_ident .write(&mut buffer[offset..next_line]);).unwrap())
+					quote_stmt!(cx, $x . $index_ident .to_bytes(&mut buffer[offset..next_line]);).unwrap())
 			},
 			None => {
+				let index_ident = builder.id(format!("__field{}", index));
 				write_stmts.push(
-					quote_stmt!(cx, $index_ident .write(&mut buffer[offset..next_line]);).unwrap())
+					quote_stmt!(cx, $index_ident .to_bytes(&mut buffer[offset..next_line]);).unwrap())
 			}
 		}
 		write_stmts.push(quote_stmt!(cx, offset = next_line; ).unwrap());
@@ -197,8 +199,8 @@ fn binary_expr_struct(
 
     Ok(BinaryExpressions {
 		size: total_size_expr,
-		write: quote_expr!(cx, { write_stmts; Ok(()) } ),
-		read: quote_expr!(cx, $ty { }),
+		write: quote_expr!(cx, { $write_stmts; Ok(()) } ),
+		read: quote_expr!(cx, Err(::ipc::BinaryConvertError)),
 	})
 }
 
@@ -230,7 +232,9 @@ fn binary_expr_item_struct(
 			)
 		},
 		_ => {
-			cx.span_bug(span, "#[derive(Binary)] Unsupported struct content, expected tuple/struct");
+			cx.span_bug(span,
+				&format!("#[derive(Binary)] Unsupported struct content, expected tuple/struct, found: {:?}",
+					variant_data));
 			Err(Error)
 		},
 	}
@@ -269,7 +273,7 @@ fn binary_expr_enum(
 		arms.iter().map(|x| x.read.clone()).collect::<Vec<ast::Arm>>());
 
 	Ok(BinaryExpressions {
-		size: quote_expr!(cx, match *self { $size_arms }),
+		size: quote_expr!(cx, 1usize + match *self { $size_arms }),
 		write: quote_expr!(cx, match *self { $write_arms }; ),
 		read: quote_expr!(cx, match *self { $read_arms }),
 	})
@@ -296,6 +300,17 @@ fn binary_expr_variant(
 	let variant_ident = variant.node.name;
 
 	match variant.node.data {
+		ast::VariantData::Unit(_) => {
+			let pat = builder.pat().path()
+				.id(type_ident).id(variant_ident)
+				.build();
+
+			Ok(BinaryArm {
+				size: quote_arm!(cx, $pat => { 0usize } ),
+				write: quote_arm!(cx, $pat => { Ok(()) } ),
+				read: quote_arm!(cx, $pat => { } ),
+			})
+		},
 		ast::VariantData::Tuple(ref fields, _) => {
 			let field_names: Vec<ast::Ident> = (0 .. fields.len())
 				.map(|i| builder.id(format!("__field{}", i)))
@@ -319,9 +334,10 @@ fn binary_expr_variant(
 
 			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
 
+			let variant_index_ident = builder.id(format!("{}", variant_index));
 			Ok(BinaryArm {
 				size: quote_arm!(cx, $pat => { $size_expr } ),
-				write: quote_arm!(cx, $pat => { $write_expr } ),
+				write: quote_arm!(cx, $pat => { buffer[0] = $variant_index_ident; let buffer = &mut buffer[1..]; $write_expr } ),
 				read: quote_arm!(cx, $pat => { $read_expr } ),
 			})
 		}
@@ -354,9 +370,11 @@ fn binary_expr_variant(
 				read: quote_arm!(cx, $pat => { $read_expr } ),
 			})
 		},
-		_ => {
-			cx.span_bug(span, "#[derive(Binary)] Unsupported struct content, expected tuple/struct");
-			Err(Error)
-		},
+//		_ => {
+//			cx.span_bug(span,
+//				&format!("#[derive(Binary)] Unsupported enum variant content, expected tuple/struct, found: {:?}",
+//					variant));
+//			Err(Error)
+//		},
 	}
 }
