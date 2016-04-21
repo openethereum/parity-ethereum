@@ -25,6 +25,7 @@ use docopt::Docopt;
 use die::*;
 use util::*;
 use util::keys::store::AccountService;
+use util::network_settings::NetworkSettings;
 use ethcore::client::{append_path, get_db_path, ClientConfig};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
@@ -235,6 +236,18 @@ impl Configuration {
 			}
 		}
 		account_service
+	}
+
+	pub fn network_settings(&self) -> NetworkSettings {
+		NetworkSettings {
+			name: self.args.flag_identity.clone(),
+			chain: self.args.flag_chain.clone(),
+			max_peers: self.args.flag_maxpeers.unwrap_or(self.args.flag_peers),
+			network_port: self.args.flag_port,
+			rpc_enabled: self.args.flag_rpc || self.args.flag_jsonrpc,
+			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
+			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
+		}
 	}
 }
 

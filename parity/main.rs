@@ -153,6 +153,8 @@ fn execute_client(conf: Configuration) {
 	miner.set_minimal_gas_price(conf.gas_price());
 	miner.set_transactions_limit(conf.args.flag_tx_limit);
 
+	let network_settings = Arc::new(conf.network_settings());
+
 	// Sync
 	let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
 
@@ -168,7 +170,8 @@ fn execute_client(conf: Configuration) {
 		sync: sync.clone(),
 		secret_store: account_service.clone(),
 		miner: miner.clone(),
-		logger: logger.clone()
+		logger: logger.clone(),
+		settings: network_settings.clone(),
 	});
 
 	let webapp_server = webapp::new(webapp::Configuration {
@@ -182,7 +185,8 @@ fn execute_client(conf: Configuration) {
 		sync: sync.clone(),
 		secret_store: account_service.clone(),
 		miner: miner.clone(),
-		logger: logger.clone()
+		logger: logger.clone(),
+		settings: network_settings.clone(),
 	});
 
 	// Register IO handler

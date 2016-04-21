@@ -16,8 +16,10 @@
 
 //! Ethcore-specific rpc implementation.
 use util::{U256, Address, RotatingLogger};
+use util::network_settings::NetworkSettings;
 use std::sync::{Arc, Weak};
 use std::ops::Deref;
+use std::collections::BTreeMap;
 use jsonrpc_core::*;
 use ethminer::{MinerService};
 use v1::traits::Ethcore;
@@ -28,14 +30,16 @@ pub struct EthcoreClient<M>
 	where M: MinerService {
 	miner: Weak<M>,
 	logger: Arc<RotatingLogger>,
+	settings: Arc<NetworkSettings>,
 }
 
 impl<M> EthcoreClient<M> where M: MinerService {
 	/// Creates new `EthcoreClient`.
-	pub fn new(miner: &Arc<M>, logger: Arc<RotatingLogger>) -> Self {
+	pub fn new(miner: &Arc<M>, logger: Arc<RotatingLogger>, settings: Arc<NetworkSettings>) -> Self {
 		EthcoreClient {
 			miner: Arc::downgrade(miner),
 			logger: logger,
+			settings: settings,
 		}
 	}
 }
@@ -102,4 +106,27 @@ impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
 		to_value(&self.logger.levels())
 	}
 
+	fn net_chain(&self, _params: Params) -> Result<Value, Error> {
+		to_value(&self.settings.chain)
+	}
+
+	fn net_max_peers(&self, _params: Params) -> Result<Value, Error> {
+		to_value(&self.settings.max_peers)
+	}
+
+	fn net_port(&self, _params: Params) -> Result<Value, Error> {
+		to_value(&self.settings.network_port)
+	}
+
+	fn node_name(&self, _params: Params) -> Result<Value, Error> {
+		to_value(&self.settings.name)
+	}
+
+	fn rpc_settings(&self, _params: Params) -> Result<Value, Error> {
+		let mut map = BTreeMap::new();
+		map.insert("enabled".to_owned(), Value::Bool(self.settings.rpc_enabled));
+		map.insert("interface".to_owned(), Value::String(self.settings.rpc_interface.clone()));
+		map.insert("port".to_owned(), Value::U64(self.settings.rpc_port as u64));
+		Ok(Value::Object(map))
+	}
 }
