@@ -48,9 +48,6 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns minimal gas price for transaction to be included in queue.
 	fn min_gas_price(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
-	/// Returns traces matching given filter.
-	fn traces(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
-
 	/// Returns latest logs
 	fn dev_logs(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
@@ -70,7 +67,6 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_gasFloorTarget", Ethcore::gas_floor_target);
 		delegate.add_method("ethcore_minGasPrice", Ethcore::min_gas_price);
 		delegate.add_method("ethcore_transactionsLimit", Ethcore::transactions_limit);
-		delegate.add_method("ethcore_traces", Ethcore::traces);
 		delegate.add_method("ethcore_devLogs", Ethcore::dev_logs);
 		delegate.add_method("ethcore_devLogsLevels", Ethcore::dev_logs_levels);
 		delegate
