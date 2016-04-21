@@ -37,12 +37,12 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockId, TransactionId, UncleId, ClientConfig, BlockChainClient};
+use client::{BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient};
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
-use trace::{Tracedb, BlockTracesDetails, LocalizedTrace, Filter as TraceFilter};
+use trace::{Tracedb, ImportRequest as TraceImportRequest, LocalizedTrace, Filter as TraceFilter, Database as TraceDatabase};
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -104,7 +104,7 @@ impl ClientReport {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
-	tracedb: Arc<Tracedb>,
+	tracedb: Arc<Tracedb<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
@@ -152,7 +152,7 @@ impl<V> Client<V> where V: Verifier {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
-		let tracedb = Arc::new(Tracedb::new(config.tracing, &path));
+		let tracedb = Arc::new(Tracedb::new(config.tracing, &path, chain.clone()));
 
 		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
 
@@ -229,7 +229,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.tracedb.is_tracing_enabled(), db, &parent, last_hashes);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -309,13 +309,7 @@ impl<V> Client<V> where V: Verifier {
 			// Commit results
 			let closed_block = closed_block.unwrap();
 			let receipts = closed_block.block().receipts().clone();
-
 			let traces = From::from(closed_block.block().traces().clone().unwrap_or_else(Vec::new));
-			let traces_details = BlockTracesDetails {
-				hash: header.hash(),
-				number: header.number(),
-				traces: traces,
-			};
 
 			closed_block.drain()
 				.commit(header.number(), &header.hash(), ancient)
@@ -324,7 +318,14 @@ impl<V> Client<V> where V: Verifier {
 			// And update the chain after commit to prevent race conditions
 			// (when something is in chain but you are not able to fetch details)
 			let route = self.chain.insert_block(&block.bytes, receipts);
-			self.tracedb.import_traces(traces_details, &route);
+			self.tracedb.import(TraceImportRequest {
+				traces: traces,
+				block_hash: header.hash(),
+				block_number: header.number(),
+				enacted: route.enacted.clone(),
+				retracted: route.retracted.len()
+			});
+
 			import_results.push(route);
 
 			self.report.write().unwrap().accrue_block(&block);
@@ -717,9 +718,11 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn traces(&self, filter: TraceFilter) -> Vec<LocalizedTrace> {
-		self.tracedb.filter_traces(&filter, |block_number| {
-			self.chain.block_hash(block_number).expect("Expected to find block number. Database is probably malformed.")
-		})
+		self.tracedb.filter(&filter)
+	}
+
+	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
+		unimplemented!();
 	}
 }
 

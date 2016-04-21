@@ -16,14 +16,14 @@
 
 //! Fat database.
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{RwLock, Arc};
 use std::path::Path;
 use bloomchain::Number;
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
-use blockchain::ImportRoute;
 use util::{FixedHash, H256, H264, Database, DBTransaction};
 use header::BlockNumber;
-use trace::{BlockTraces, LocalizedTrace, Config, Filter, BlockTracesDetails};
+use trace::{BlockTraces, LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest,
+DatabaseExtras};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
 use super::bloom::{TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup};
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
@@ -55,7 +55,7 @@ impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
 }
 
 /// Fat database.
-pub struct Tracedb {
+pub struct Tracedb<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, BlockTraces>>,
 	blooms: RwLock<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>,
@@ -63,18 +63,20 @@ pub struct Tracedb {
 	tracesdb: Database,
 	// config,
 	config: Config,
+	// extras
+	extras: Arc<T>,
 }
 
-impl BloomGroupDatabase for Tracedb {
+impl<T> BloomGroupDatabase for Tracedb<T> where T: DatabaseExtras {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
 		let position = TraceGroupPosition::from(position.clone());
 		self.tracesdb.read_with_cache(&self.blooms, &position).map(Into::into)
 	}
 }
 
-impl Tracedb {
+impl<T> Tracedb<T> where T: DatabaseExtras {
 	/// Creates new instance of `Tracedb`.
-	pub fn new(mut config: Config, path: &Path) -> Self {
+	pub fn new(mut config: Config, path: &Path, extras: Arc<T>) -> Self {
 		let mut fatdb_path = path.to_path_buf();
 		fatdb_path.push("fatdb");
 		let mut tracesdb_path = fatdb_path.clone();
@@ -115,68 +117,12 @@ impl Tracedb {
 			blooms: RwLock::new(HashMap::new()),
 			tracesdb: tracesdb,
 			config: config,
+			extras: extras,
 		}
-	}
-
-	/// Returns true if trasing is enabled. Otherwise false.
-	pub fn is_tracing_enabled(&self) -> bool {
-		self.config.enabled.expect("Auto tracing hasn't been properly configured.")
-	}
-
-	/// Imports new block traces and rebuilds the blooms based on the import route.
-	///
-	/// Traces of all import route's enacted blocks are expected to be already in database
-	/// or to be the currenly inserted trace.
-	pub fn import_traces(&self, details: BlockTracesDetails, route: &ImportRoute) {
-		// fast return if tracing is disabled
-		if !self.is_tracing_enabled() {
-			return;
-		}
-		// in real world it's impossible to get import route with retracted blocks
-		// and no enacted blocks and this function does not handle this case
-		// so let's just panic.
-		assert!(! (!route.retracted.is_empty() && route.enacted.is_empty() ), "Invalid import route!");
-
-		let batch = DBTransaction::new();
-
-		// at first, let's insert new block traces
-		{
-			let mut traces = self.traces.write().unwrap();
-			// it's important to use overwrite here,
-			// cause this value might be queried by hash later
-			batch.write_with_cache(&mut traces, details.hash, details.traces, CacheUpdatePolicy::Overwrite);
-		}
-
-		// now let's rebuild the blooms
-		// do it only if some blocks have been enacted
-		if !route.enacted.is_empty() {
-			let replaced_range = details.number as Number - route.retracted.len()..details.number as Number;
-			let enacted_blooms = route.enacted
-				.iter()
-				// all traces are expected to be found here. That's why `expect` has been used
-				// instead of `filter_map`. If some traces haven't been found, it meens that
-				// traces database is malformed or incomplete.
-				.map(|block_hash| self.traces(block_hash).expect("Traces database is incomplete."))
-				.map(|block_traces| block_traces.bloom())
-				.map(BlockTracesBloom::from)
-				.map(Into::into)
-				.collect();
-
-			let chain = BloomGroupChain::new(self.config.blooms, self);
-			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
-			let blooms_to_insert = trace_blooms.into_iter()
-				.map(|p| (From::from(p.0), From::from(p.1)))
-				.collect::<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>();
-
-			let mut blooms = self.blooms.write().unwrap();
-			batch.extend_with_cache(&mut blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
-		}
-
-		self.tracesdb.write(batch).unwrap();
 	}
 
 	/// Returns traces for block with hash.
-	pub fn traces(&self, block_hash: &H256) -> Option<BlockTraces> {
+	fn traces(&self, block_hash: &H256) -> Option<BlockTraces> {
 		self.tracesdb.read_with_cache(&self.traces, block_hash)
 	}
 
@@ -223,17 +169,147 @@ impl Tracedb {
 			})
 			.collect()
 	}
+}
 
-	/// Returns traces matching given filter.
-	pub fn filter_traces<F>(&self, filter: &Filter, block_hash: F) -> Vec<LocalizedTrace>
-		where F: Fn(BlockNumber) -> H256 {
+impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
+	fn tracing_enabled(&self) -> bool {
+		self.config.enabled.expect("Auto tracing hasn't been properly configured.")
+	}
+
+	/// Traces of impor request's enacted blocks are expected to be already in database
+	/// or to be the currenly inserted trace.
+	fn import(&self, request: ImportRequest) {
+		// fast return if tracing is disabled
+		if !self.tracing_enabled() {
+			return;
+		}
+
+		let batch = DBTransaction::new();
+
+		// at first, let's insert new block traces
+		{
+			let mut traces = self.traces.write().unwrap();
+			// it's important to use overwrite here,
+			// cause this value might be queried by hash later
+			batch.write_with_cache(&mut traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+		}
+
+		// now let's rebuild the blooms
+		{
+			let range_start = request.block_number as Number - request.enacted.len();
+			let range_end = range_start + request.retracted;
+			let replaced_range = range_start..range_end;
+			let enacted_blooms = request.enacted
+				.iter()
+				// all traces are expected to be found here. That's why `expect` has been used
+				// instead of `filter_map`. If some traces haven't been found, it meens that
+				// traces database is malformed or incomplete.
+				.map(|block_hash| self.traces(block_hash).expect("Traces database is incomplete."))
+				.map(|block_traces| block_traces.bloom())
+				.map(BlockTracesBloom::from)
+				.map(Into::into)
+				.collect();
+
+			let chain = BloomGroupChain::new(self.config.blooms, self);
+			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
+			let blooms_to_insert = trace_blooms.into_iter()
+				.map(|p| (From::from(p.0), From::from(p.1)))
+				.collect::<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>();
+
+			let mut blooms = self.blooms.write().unwrap();
+			batch.extend_with_cache(&mut blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
+		}
+
+		self.tracesdb.write(batch).unwrap();
+	}
+
+	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: usize) -> Option<LocalizedTrace> {
+		self.extras.block_hash(block_number)
+			.and_then(|block_hash| self.traces(&block_hash)
+				.map(FlatBlockTraces::from)
+				.map(Into::<Vec<FlatTransactionTraces>>::into)
+				.and_then(|traces| traces.into_iter().nth(tx_position))
+				.map(Into::<Vec<FlatTrace>>::into)
+				.and_then(|traces| traces.into_iter().nth(trace_position))
+				.map(|trace| LocalizedTrace {
+					parent: trace.parent,
+					children: trace.children,
+					depth: trace.depth,
+					action: trace.action,
+					result: trace.result,
+					trace_number: trace_position,
+					transaction_number: tx_position,
+					block_number: block_number,
+					block_hash: block_hash,
+				})
+			)
+	}
+
+	fn transaction_traces(&self, block_number: BlockNumber, tx_position: usize) -> Option<Vec<LocalizedTrace>> {
+		self.extras.block_hash(block_number)
+			.and_then(|block_hash| self.traces(&block_hash)
+				.map(FlatBlockTraces::from)
+				.map(Into::<Vec<FlatTransactionTraces>>::into)
+				.and_then(|traces| traces.into_iter().nth(tx_position))
+				.map(Into::<Vec<FlatTrace>>::into)
+				.map(|traces| traces.into_iter()
+					.enumerate()
+					.map(|(i, trace)| LocalizedTrace {
+						parent: trace.parent,
+						children: trace.children,
+						depth: trace.depth,
+						action: trace.action,
+						result: trace.result,
+						trace_number: i,
+						transaction_number: tx_position,
+						block_number: block_number,
+						block_hash: block_hash
+					})
+					.collect()
+				)
+			)
+	}
+
+	fn block_traces(&self, block_number: BlockNumber) -> Option<Vec<LocalizedTrace>> {
+		self.extras.block_hash(block_number)
+			.and_then(|block_hash| self.traces(&block_hash)
+				.map(FlatBlockTraces::from)
+				.map(Into::<Vec<FlatTransactionTraces>>::into)
+				.map(|traces| {
+					traces.into_iter()
+						.map(Into::<Vec<FlatTrace>>::into)
+						.enumerate()
+						.flat_map(|(tx_position, traces)| {
+							traces.into_iter()
+								.enumerate()
+								.map(|(i, trace)| LocalizedTrace {
+									parent: trace.parent,
+									children: trace.children,
+									depth: trace.depth,
+									action: trace.action,
+									result: trace.result,
+									trace_number: i,
+									transaction_number: tx_position,
+									block_number: block_number,
+									block_hash: block_hash,
+								})
+								.collect::<Vec<LocalizedTrace>>()
+						})
+						.collect::<Vec<LocalizedTrace>>()
+				})
+			)
+	}
+
+	fn filter(&self, filter: &Filter) -> Vec<LocalizedTrace> {
 		let chain = BloomGroupChain::new(self.config.blooms, self);
 		let numbers = chain.filter(filter);
 		numbers.into_iter()
 			.flat_map(|n| {
 				let number = n as BlockNumber;
-				let hash = block_hash(number);
-				let traces = self.traces(&hash).expect("Expected to find a trace. Db is probably malformed.");
+				let hash = self.extras.block_hash(number)
+					.expect("Expected to find block hash. Extras db is probably malformed");
+				let traces = self.traces(&hash)
+					.expect("Expected to find a trace. Db is probably malformed.");
 				let flat_block = FlatBlockTraces::from(traces);
 				Self::matching_block_traces(filter, flat_block, hash, number)
 			})
@@ -243,9 +319,23 @@ impl Tracedb {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
+	use util::H256;
 	use devtools::RandomTempPath;
-	use trace::Config;
-	use super::Tracedb;
+	use header::BlockNumber;
+	use trace::{Config, Tracedb, Database, DatabaseExtras};
+
+	struct Extras;
+
+	impl DatabaseExtras for Extras {
+		fn block_hash(&self, _block_number: BlockNumber) -> Option<H256> {
+			unimplemented!();
+		}
+
+		fn transaction_hash(&self, _block_number: BlockNumber, _tx_position: usize) -> Option<H256> {
+			unimplemented!();
+		}
+	}
 
 	#[test]
 	fn test_reopening_db_with_tracing_off() {
@@ -256,20 +346,20 @@ mod tests {
 		config.enabled = None;
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path());
-			assert_eq!(fatdb.is_tracing_enabled(), false);
+			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
+			assert_eq!(fatdb.tracing_enabled(), false);
 		}
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path());
-			assert_eq!(fatdb.is_tracing_enabled(), false);
+			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
+			assert_eq!(fatdb.tracing_enabled(), false);
 		}
 
 		config.enabled = Some(false);
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path());
-			assert_eq!(fatdb.is_tracing_enabled(), false);
+			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
+			assert_eq!(fatdb.tracing_enabled(), false);
 		}
 	}
 
@@ -282,27 +372,27 @@ mod tests {
 		config.enabled = Some(true);
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path());
-			assert_eq!(fatdb.is_tracing_enabled(), true);
+			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
+			assert_eq!(fatdb.tracing_enabled(), true);
 		}
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path());
-			assert_eq!(fatdb.is_tracing_enabled(), true);
+			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
+			assert_eq!(fatdb.tracing_enabled(), true);
 		}
 
 		config.enabled = None;
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path());
-			assert_eq!(fatdb.is_tracing_enabled(), true);
+			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
+			assert_eq!(fatdb.tracing_enabled(), true);
 		}
 
 		config.enabled = Some(false);
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path());
-			assert_eq!(fatdb.is_tracing_enabled(), false);
+			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
+			assert_eq!(fatdb.tracing_enabled(), false);
 		}
 	}
 
@@ -316,11 +406,11 @@ mod tests {
 		config.enabled = Some(false);
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path());
-			assert_eq!(fatdb.is_tracing_enabled(), true);
+			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
+			assert_eq!(fatdb.tracing_enabled(), true);
 		}
 
 		config.enabled = Some(true);
-		Tracedb::new(config.clone(), temp.as_path()); // should panic!
+		Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras)); // should panic!
 	}
 }

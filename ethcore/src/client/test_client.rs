@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId};
+use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId, TraceId};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -431,6 +431,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn traces(&self, _filter: TraceFilter) -> Vec<LocalizedTrace> {
+		unimplemented!();
+	}
+
+	fn trace(&self, _trace: TraceId) -> Option<LocalizedTrace> {
 		unimplemented!();
 	}
 }

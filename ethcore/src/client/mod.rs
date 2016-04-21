@@ -20,10 +20,11 @@ mod client;
 mod config;
 mod ids;
 mod test_client;
+mod trace;
 
 pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
-pub use self::ids::{BlockId, TransactionId, UncleId};
+pub use self::ids::{BlockId, TransactionId, UncleId, TraceId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use executive::Executed;
 
@@ -136,5 +137,8 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns traces matching given filter.
 	fn traces(&self, filter: TraceFilter) -> Vec<LocalizedTrace>;
+
+	/// Returns trace with given id.
+	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace>;
 }
 

@@ -43,6 +43,14 @@ pub enum TransactionId {
 	Location(BlockId, usize)
 }
 
+/// Uniquely identifies Trace.
+pub struct TraceId {
+	/// Transaction
+	transaction: TransactionId,
+	/// Trace index within transaction.
+	index: usize,
+}
+
 /// Uniquely identifies Uncle.
 pub struct UncleId (
 	/// Block id.
