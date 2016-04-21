@@ -18,17 +18,7 @@ use aster;
 use syntax::ast::{
 	MetaItem,
 	Item,
-	ImplItemKind,
-	ImplItem,
-	MethodSig,
-	Arg,
-	PatKind,
-	FunctionRetTy,
-	Ty,
-	TraitRef,
 	Ident,
-	Generics,
-	TyKind,
 };
 
 use syntax::ast;
@@ -203,7 +193,6 @@ fn binary_expr_struct(
 	map_stmts.push(quote_stmt!(cx, let mut map = vec![0usize; $field_amount];).unwrap());
 	map_stmts.push(quote_stmt!(cx, let mut total = 0usize;).unwrap());
 	for (index, field) in fields.iter().enumerate() {
-		let size_expr = &size_exprs[index];
 		let field_type_ident = builder.id(&::syntax::print::pprust::ty_to_string(&field.ty));
 
 		let member_expr = match value_ident {
@@ -223,7 +212,7 @@ fn binary_expr_struct(
 			}).unwrap());
 
 		write_stmts.push(quote_stmt!(cx,
-				$member_expr .to_bytes(&mut buffer[offset..next_line], length_stack);).unwrap());
+			if let Err(e) = $member_expr .to_bytes(&mut buffer[offset..next_line], length_stack) { return Err(e) };).unwrap());
 
 		write_stmts.push(quote_stmt!(cx, offset = next_line; ).unwrap());
 
@@ -339,7 +328,7 @@ struct BinaryArm {
 
 fn fields_sequence(
 	ext_cx: &ExtCtxt,
-	ty: &P<ast::Ty>,
+	_ty: &P<ast::Ty>,
     fields: &[ast::StructField],
 	variant_ident: &ast::Ident,
 ) -> ast::Expr {
@@ -381,10 +370,14 @@ fn fields_sequence(
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)), token::Plain)));
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 				tt.push(Token(_sp, token::DotDot));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
-				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
-				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+
+				if idx+1 != fields.len() {
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+					tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
+					tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+				}
+
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 
 				tt.push(Token(_sp, token::Comma));
@@ -451,11 +444,13 @@ fn named_fields_sequence(
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)), token::Plain)));
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 				tt.push(Token(_sp, token::DotDot));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
-				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
+				if idx + 1 != fields.len() {
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+					tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
+					tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+				}
 
-				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 
 				tt.push(Token(_sp, token::Comma));
@@ -477,14 +472,12 @@ fn binary_expr_variant(
     cx: &ExtCtxt,
     builder: &aster::AstBuilder,
     type_ident: Ident,
-    generics: &ast::Generics,
+    _generics: &ast::Generics,
     ty: P<ast::Ty>,
-	span: Span,
+	_span: Span,
     variant: &ast::Variant,
     variant_index: usize,
 ) -> Result<BinaryArm, Error> {
-	let type_name = ::syntax::print::pprust::ty_to_string(&ty);
-
 	let variant_ident = variant.node.name;
 	let variant_index_ident = builder.id(format!("{}", variant_index));
 
