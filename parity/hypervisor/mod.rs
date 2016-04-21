@@ -41,6 +41,12 @@ pub struct Hypervisor {
 	processes: RwLock<HashMap<BinaryId, Child>>,
 }
 
+impl Default for Hypervisor {
+	fn default() -> Self {
+		Hypervisor::new()
+	}
+}
+
 impl Hypervisor {
 	/// initializes the Hypervisor service with the open ipc socket for incoming clients
 	pub fn new() -> Hypervisor {
@@ -116,6 +122,7 @@ impl Hypervisor {
 	}
 }
 
+#[cfg(test)]
 mod tests {
 	use super::*;
 	use std::sync::atomic::{AtomicBool,Ordering};

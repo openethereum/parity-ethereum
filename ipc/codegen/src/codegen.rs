@@ -77,7 +77,7 @@ fn push_handshake_struct(cx: &ExtCtxt, push: &mut FnMut(Annotatable)) {
 		pub struct BinHandshake {
 			api_version: String,
 			protocol_version: String,
-			_reserved: Vec<u8>,
+			reserved: Vec<u8>,
 		}
 	).unwrap();
 
@@ -306,7 +306,7 @@ fn strip_ptr(ty: &P<ast::Ty>) -> P<ast::Ty> {
 }
 
 fn has_ptr(ty: &P<ast::Ty>) -> bool {
-	if let ast::TyKind::Rptr(_, ref ptr_mut) = ty.node {
+	if let ast::TyKind::Rptr(_, ref _ptr_mut) = ty.node {
 		true
 	}
 	else { false }
@@ -625,7 +625,7 @@ fn push_client_implementation(
 			let payload = BinHandshake {
 				protocol_version: $item_ident::protocol_version().to_string(),
 				api_version: $item_ident::api_version().to_string(),
-				_reserved: vec![0u8; 64],
+				reserved: vec![0u8; 64],
 			};
 
 			let mut socket_ref = self.socket.borrow_mut();
