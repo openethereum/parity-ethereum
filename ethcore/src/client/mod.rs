@@ -26,6 +26,7 @@ pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
 pub use self::ids::{BlockId, TransactionId, UncleId, TraceId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
+pub use self::trace::Filter as TraceFilter;
 pub use executive::Executed;
 
 use std::collections::HashSet;
@@ -42,7 +43,7 @@ use filter::Filter;
 use error::{ImportResult, Error};
 use receipt::LocalizedReceipt;
 use engine::{Engine};
-use trace::{LocalizedTrace, Filter as TraceFilter};
+use trace::LocalizedTrace;
 
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -136,9 +137,15 @@ pub trait BlockChainClient : Sync + Send {
 	fn engine(&self) -> &Engine;
 
 	/// Returns traces matching given filter.
-	fn traces(&self, filter: TraceFilter) -> Vec<LocalizedTrace>;
+	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
 
 	/// Returns trace with given id.
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace>;
+
+	/// Returns traces created by transaction.
+	fn transaction_traces(&self, trace: TransactionId) -> Option<Vec<LocalizedTrace>>;
+
+	/// Returns traces created by transaction from block.
+	fn block_traces(&self, trace: BlockId) -> Option<Vec<LocalizedTrace>>;
 }
 

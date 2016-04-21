@@ -37,12 +37,14 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient};
+use client::{BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient, TraceFilter};
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
-use trace::{Tracedb, ImportRequest as TraceImportRequest, LocalizedTrace, Filter as TraceFilter, Database as TraceDatabase};
+use trace::{Tracedb, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase, Filter as
+	TracedbFilter};
+use trace;
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -717,11 +719,32 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			.collect()
 	}
 
-	fn traces(&self, filter: TraceFilter) -> Vec<LocalizedTrace> {
-		self.tracedb.filter(&filter)
+	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
+		let start = self.block_number(filter.range.start);
+		let end = self.block_number(filter.range.end);
+
+		if start.is_some() && end.is_some() {
+			let filter = trace::Filter {
+				range: start.unwrap() as usize..end.unwrap() as usize,
+				from_address: filter.from_address,
+				to_address: filter.to_address,
+			};
+
+			Some(self.tracedb.filter(&filter))
+		} else {
+			None
+		}
 	}
 
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
+		unimplemented!();
+	}
+
+	fn transaction_traces(&self, _trace: TransactionId) -> Option<Vec<LocalizedTrace>> {
+		unimplemented!();
+	}
+
+	fn block_traces(&self, _trace: BlockId) -> Option<Vec<LocalizedTrace>> {
 		unimplemented!();
 	}
 }

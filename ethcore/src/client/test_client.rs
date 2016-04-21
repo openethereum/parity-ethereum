@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId, TraceId};
+use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId, TraceId, TraceFilter};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -33,7 +33,7 @@ use block::{SealedBlock, ClosedBlock, LockedBlock};
 use executive::Executed;
 use error::Error;
 use engine::Engine;
-use trace::{LocalizedTrace, Filter as TraceFilter};
+use trace::LocalizedTrace;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -430,11 +430,19 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn traces(&self, _filter: TraceFilter) -> Vec<LocalizedTrace> {
+	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
 		unimplemented!();
 	}
 
 	fn trace(&self, _trace: TraceId) -> Option<LocalizedTrace> {
+		unimplemented!();
+	}
+
+	fn transaction_traces(&self, _trace: TransactionId) -> Option<Vec<LocalizedTrace>> {
+		unimplemented!();
+	}
+
+	fn block_traces(&self, _trace: BlockId) -> Option<Vec<LocalizedTrace>> {
 		unimplemented!();
 	}
 }
