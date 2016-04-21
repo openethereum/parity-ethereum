@@ -18,6 +18,7 @@
 
 // while not included in binary
 #![allow(dead_code)]
+#![cfg_attr(feature="dev", allow(used_underscore_binding))]
 
 pub mod service;
 
