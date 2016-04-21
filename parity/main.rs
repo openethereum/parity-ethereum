@@ -42,7 +42,6 @@ extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate serde;
 extern crate bincode;
-
 // for price_info.rs
 #[macro_use] extern crate hyper;
 
@@ -50,7 +49,7 @@ extern crate bincode;
 extern crate ethcore_rpc;
 
 #[cfg(feature = "webapp")]
-extern crate ethcore_webapp as webapp;
+extern crate ethcore_webapp;
 
 use std::io::{BufRead, BufReader};
 use std::fs::File;
@@ -63,16 +62,12 @@ use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use util::keys::store::*;
 use ethcore::spec::*;
 use ethcore::client::*;
-use ethcore::service::{ClientService, NetSyncMessage};
 use ethcore::ethereum;
-use ethsync::{EthSync, SyncConfig, SyncProvider};
+use ethcore::service::ClientService;
+use ethsync::{EthSync, SyncConfig};
 use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
-use number_prefix::{binary_prefix, Standalone, Prefixed};
-
-#[cfg(feature = "webapp")]
-use webapp::Server as WebappServer;
 
 #[macro_use]
 mod die;
@@ -81,9 +76,14 @@ mod upgrade;
 mod hypervisor;
 mod setup_log;
 mod rpc;
+mod webapp;
+mod informant;
+mod io_handler;
 
 use die::*;
 use rpc::RpcServer;
+use webapp::WebappServer;
+use io_handler::ClientIoHandler;
 
 const USAGE: &'static str = r#"
 Parity. Ethereum Client.
@@ -277,58 +277,6 @@ struct Args {
 	flag_networkid: Option<String>,
 }
 
-
-#[cfg(feature = "webapp")]
-fn setup_webapp_server(
-	client: Arc<Client>,
-	sync: Arc<EthSync>,
-	secret_store: Arc<AccountService>,
-	miner: Arc<Miner>,
-	url: &SocketAddr,
-	auth: Option<(String, String)>,
-	logger: Arc<RotatingLogger>,
-) -> WebappServer {
-	use ethcore_rpc::v1::*;
-
-	let server = webapp::ServerBuilder::new();
-	server.add_delegate(Web3Client::new().to_delegate());
-	server.add_delegate(NetClient::new(&sync).to_delegate());
-	server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
-	server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
-	server.add_delegate(PersonalClient::new(&secret_store).to_delegate());
-	server.add_delegate(EthcoreClient::new(&miner, logger).to_delegate());
-	let start_result = match auth {
-		None => {
-			server.start_unsecure_http(url)
-		},
-		Some((username, password)) => {
-			server.start_basic_auth_http(url, &username, &password)
-		},
-	};
-	match start_result {
-		Err(webapp::ServerError::IoError(err)) => die_with_io_error(err),
-		Err(e) => die!("{:?}", e),
-		Ok(handle) => handle,
-	}
-
-}
-
-
-#[cfg(not(feature = "webapp"))]
-struct WebappServer;
-
-#[cfg(not(feature = "webapp"))]
-fn setup_webapp_server(
-	_client: Arc<Client>,
-	_sync: Arc<EthSync>,
-	_secret_store: Arc<AccountService>,
-	_miner: Arc<Miner>,
-	_url: &SocketAddr,
-	_auth: Option<(String, String)>,
-	_logger: Arc<RotatingLogger>,
-) -> ! {
-	die!("Your Parity version has been compiled without WebApps support.")
-}
 
 fn print_version() {
 	println!("\
@@ -644,66 +592,33 @@ impl Configuration {
 		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
 
 		// Setup rpc
-		let rpc_server = if self.args.flag_jsonrpc || self.args.flag_rpc {
-			let apis = self.args.flag_rpcapi.as_ref().unwrap_or(&self.args.flag_jsonrpc_apis);
-			let url = format!("{}:{}",
-				match self.args.flag_rpcaddr.as_ref().unwrap_or(&self.args.flag_jsonrpc_interface).as_str() {
-					"all" => "0.0.0.0",
-					"local" => "127.0.0.1",
-					x => x,
-				},
-				self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port)
-			);
-			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
-			let cors_domain = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
+		let rpc_server = rpc::new(rpc::Configuration {
+			enabled: self.args.flag_jsonrpc || self.args.flag_rpc,
+			interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
+			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
+			apis: self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone()),
+			cors: self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone()),
+		}, rpc::Dependencies {
+			client: client.clone(),
+			sync: sync.clone(),
+			secret_store: account_service.clone(),
+			miner: miner.clone(),
+			logger: logger.clone()
+		});
 
-			Some(rpc::setup_rpc_server(
-				service.client(),
-				sync.clone(),
-				account_service.clone(),
-				miner.clone(),
-				&addr,
-				cors_domain,
-				apis.split(',').collect(),
-				logger.clone(),
-			))
-		} else {
-			None
-		};
-
-		let webapp_server = if self.args.flag_webapp {
-			let url = format!("{}:{}",
-				match self.args.flag_webapp_interface.as_str() {
-					"all" => "0.0.0.0",
-					"local" => "127.0.0.1",
-					x => x,
-				},
-				self.args.flag_webapp_port
-			);
-			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid Webapps listen host/port given.", url));
-			let auth = self.args.flag_webapp_user.as_ref().map(|username| {
-				let password = self.args.flag_webapp_pass.as_ref().map_or_else(|| {
-					use rpassword::read_password;
-					println!("Type password for WebApps server (user: {}): ", username);
-					let pass = read_password().unwrap();
-					println!("OK, got it. Starting server...");
-					pass
-				}, |pass| pass.to_owned());
-				(username.to_owned(), password)
-			});
-
-			Some(setup_webapp_server(
-				service.client(),
-				sync.clone(),
-				account_service.clone(),
-				miner.clone(),
-				&addr,
-				auth,
-				logger.clone(),
-			))
-		} else {
-			None
-		};
+		let webapp_server = webapp::new(webapp::Configuration {
+			enabled: self.args.flag_webapp,
+			interface: self.args.flag_webapp_interface.clone(),
+			port: self.args.flag_webapp_port,
+			user: self.args.flag_webapp_user.clone(),
+			pass: self.args.flag_webapp_pass.clone(),
+		}, webapp::Dependencies {
+			client: client.clone(),
+			sync: sync.clone(),
+			secret_store: account_service.clone(),
+			miner: miner.clone(),
+			logger: logger.clone()
+		});
 
 		// Register IO handler
 		let io_handler  = Arc::new(ClientIoHandler {
@@ -738,101 +653,6 @@ fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer
 
 fn main() {
 	Configuration::parse().execute();
-}
-
-struct Informant {
-	chain_info: RwLock<Option<BlockChainInfo>>,
-	cache_info: RwLock<Option<BlockChainCacheSize>>,
-	report: RwLock<Option<ClientReport>>,
-}
-
-impl Default for Informant {
-	fn default() -> Self {
-		Informant {
-			chain_info: RwLock::new(None),
-			cache_info: RwLock::new(None),
-			report: RwLock::new(None),
-		}
-	}
-}
-
-impl Informant {
-	fn format_bytes(b: usize) -> String {
-		match binary_prefix(b as f64) {
-			Standalone(bytes)   => format!("{} bytes", bytes),
-			Prefixed(prefix, n) => format!("{:.0} {}B", n, prefix),
-		}
-	}
-
-	pub fn tick(&self, client: &Client, sync: &EthSync) {
-		// 5 seconds betwen calls. TODO: calculate this properly.
-		let dur = 5usize;
-
-		let chain_info = client.chain_info();
-		let queue_info = client.queue_info();
-		let cache_info = client.blockchain_cache_info();
-		let sync_info = sync.status();
-
-		let mut write_report = self.report.write().unwrap();
-		let report = client.report();
-
-		if let (_, _, &Some(ref last_report)) = (
-			self.chain_info.read().unwrap().deref(),
-			self.cache_info.read().unwrap().deref(),
-			write_report.deref()
-		) {
-			println!("[ #{} {} ]---[ {} blk/s | {} tx/s | {} gas/s  //··· {}/{} peers, #{}, {}+{} queued ···// mem: {} db, {} chain, {} queue, {} sync ]",
-				chain_info.best_block_number,
-				chain_info.best_block_hash,
-				(report.blocks_imported - last_report.blocks_imported) / dur,
-				(report.transactions_applied - last_report.transactions_applied) / dur,
-				(report.gas_processed - last_report.gas_processed) / From::from(dur),
-
-				sync_info.num_active_peers,
-				sync_info.num_peers,
-				sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number),
-				queue_info.unverified_queue_size,
-				queue_info.verified_queue_size,
-
-				Informant::format_bytes(report.state_db_mem),
-				Informant::format_bytes(cache_info.total()),
-				Informant::format_bytes(queue_info.mem_used),
-				Informant::format_bytes(sync_info.mem_used),
-			);
-		}
-
-		*self.chain_info.write().unwrap().deref_mut() = Some(chain_info);
-		*self.cache_info.write().unwrap().deref_mut() = Some(cache_info);
-		*write_report.deref_mut() = Some(report);
-	}
-}
-
-const INFO_TIMER: TimerToken = 0;
-
-const ACCOUNT_TICK_TIMER: TimerToken = 10;
-const ACCOUNT_TICK_MS: u64 = 60000;
-
-struct ClientIoHandler {
-	client: Arc<Client>,
-	sync: Arc<EthSync>,
-	accounts: Arc<AccountService>,
-	info: Informant,
-}
-
-impl IoHandler<NetSyncMessage> for ClientIoHandler {
-	fn initialize(&self, io: &IoContext<NetSyncMessage>) {
-		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
-		io.register_timer(ACCOUNT_TICK_TIMER, ACCOUNT_TICK_MS).expect("Error registering account timer");
-
-	}
-
-	fn timeout(&self, _io: &IoContext<NetSyncMessage>, timer: TimerToken) {
-		match timer {
-			INFO_TIMER => { self.info.tick(&self.client, &self.sync); }
-			ACCOUNT_TICK_TIMER => { self.accounts.tick(); },
-			_ => {}
-		}
-	}
 }
 
 /// Parity needs at least 1 test to generate coverage reports correctly.

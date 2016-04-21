@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 
+use std::str::FromStr;
 use std::sync::Arc;
 use std::net::SocketAddr;
 use ethcore::client::Client;
@@ -28,34 +29,58 @@ use die::*;
 pub use ethcore_rpc::Server as RpcServer;
 #[cfg(feature = "rpc")]
 use ethcore_rpc::{RpcServerError, RpcServer as Server};
-
 #[cfg(not(feature = "rpc"))]
 pub struct RpcServer;
 
+pub struct Configuration {
+	pub enabled: bool,
+	pub interface: String,
+	pub port: u16,
+	pub apis: String,
+	pub cors: Option<String>,
+}
+
+pub struct Dependencies {
+	pub client: Arc<Client>,
+	pub sync: Arc<EthSync>,
+	pub secret_store: Arc<AccountService>,
+	pub miner: Arc<Miner>,
+	pub logger: Arc<RotatingLogger>,
+}
+
+pub fn new(conf: Configuration, deps: Dependencies) -> Option<RpcServer> {
+	if !conf.enabled {
+		return None;
+	}
+
+	let interface = match conf.interface.as_str() {
+		"all" => "0.0.0.0",
+		"local" => "127.0.0.1",
+		x => x,
+	};
+	let apis = conf.apis.split(',').collect();
+	let url = format!("{}:{}", interface, conf.port);
+	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
+
+	Some(setup_rpc_server(deps, &addr, conf.cors, apis))
+}
+
 #[cfg(not(feature = "rpc"))]
 pub fn setup_rpc_server(
-	_client: Arc<Client>,
-	_sync: Arc<EthSync>,
-	_secret_store: Arc<AccountService>,
-	_miner: Arc<Miner>,
+	_deps: Dependencies,
 	_url: &SocketAddr,
 	_cors_domain: Option<String>,
 	_apis: Vec<&str>,
-	_logger: Arc<RotatingLogger>,
 ) -> ! {
 	die!("Your Parity version has been compiled without JSON-RPC support.")
 }
 
 #[cfg(feature = "rpc")]
 pub fn setup_rpc_server(
-	client: Arc<Client>,
-	sync: Arc<EthSync>,
-	secret_store: Arc<AccountService>,
-	miner: Arc<Miner>,
+	deps: Dependencies,
 	url: &SocketAddr,
 	cors_domain: Option<String>,
 	apis: Vec<&str>,
-	logger: Arc<RotatingLogger>,
 ) -> RpcServer {
 	use ethcore_rpc::v1::*;
 
@@ -63,13 +88,13 @@ pub fn setup_rpc_server(
 	for api in apis.into_iter() {
 		match api {
 			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
-			"net" => server.add_delegate(NetClient::new(&sync).to_delegate()),
+			"net" => server.add_delegate(NetClient::new(&deps.sync).to_delegate()),
 			"eth" => {
-				server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
-				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
+				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner).to_delegate());
+				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 			},
-			"personal" => server.add_delegate(PersonalClient::new(&secret_store).to_delegate()),
-			"ethcore" => server.add_delegate(EthcoreClient::new(&miner, logger.clone()).to_delegate()),
+			"personal" => server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate()),
+			"ethcore" => server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone()).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
 			},
