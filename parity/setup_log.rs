@@ -42,7 +42,7 @@ pub fn setup_log(init: &Option<String>) -> Arc<RotatingLogger> {
 	}
 
 	let logs = Arc::new(RotatingLogger::new(levels));
-	let log2 = logs.clone();
+	let loggger = logs.clone();
 	let format = move |record: &LogRecord| {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 		let format = if max_log_level() <= LogLevelFilter::Info {
@@ -50,7 +50,7 @@ pub fn setup_log(init: &Option<String>) -> Arc<RotatingLogger> {
 		} else {
 			format!("{}{}:{}: {}", timestamp, record.level(), record.target(), record.args())
 		};
-		log2.append(format.clone());
+		logger.append(format.clone());
 		format
     };
 	builder.format(format);
