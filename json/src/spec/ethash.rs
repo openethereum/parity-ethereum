@@ -22,9 +22,6 @@ use hash::Address;
 /// Ethash params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct EthashParams {
-	/// Tie breaking gas.
-	#[serde(rename="tieBreakingGas")]
-	pub tie_breaking_gas: bool,
 	/// Gas limit divisor.
 	#[serde(rename="gasLimitBoundDivisor")]
 	pub gas_limit_bound_divisor: Uint,
@@ -60,7 +57,6 @@ mod tests {
 	fn ethash_deserialization() {
 		let s = r#"{
 			"params": {
-				"tieBreakingGas": false,
 				"gasLimitBoundDivisor": "0x0400",
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",

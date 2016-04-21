@@ -14,9 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate ethash;
-
-use self::ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
 use spec::CommonParams;
@@ -26,95 +23,68 @@ use ethjson;
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
-pub struct EthashParams {
+pub struct BasicAuthorityParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
-	/// Minimum difficulty.
-	pub minimum_difficulty: U256,
-	/// Difficulty bound divisor.
-	pub difficulty_bound_divisor: U256,
 	/// Block duration.
 	pub duration_limit: u64,
-	/// Block reward.
-	pub block_reward: U256,
-	/// Namereg contract address.
-	pub registrar: Address,
 }
 
-impl From<ethjson::spec::EthashParams> for EthashParams {
-	fn from(p: ethjson::spec::EthashParams) -> Self {
-		EthashParams {
-			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			minimum_difficulty: p.minimum_difficulty.into(),
-			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
-			duration_limit: p.duration_limit.into(),
-			block_reward: p.block_reward.into(),
-			registrar: p.registrar.into(),
+impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
+	fn from(p: ethjson::spec::BasicAuthorityParams) -> Self {
+		BasicAuthorityParams {
 		}
 	}
 }
 
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
-pub struct Ethash {
+pub struct BasicAuthority {
 	params: CommonParams,
-	ethash_params: EthashParams,
+	our_params: BasicAuthorityParams,
 	builtins: BTreeMap<Address, Builtin>,
-	pow: EthashManager,
 	factory: Factory,
 }
 
-impl Ethash {
+impl BasicAuthority {
 	/// Create a new instance of Ethash engine
-	pub fn new(params: CommonParams, ethash_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Self {
-		Ethash {
+	pub fn new(params: CommonParams, our_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Self {
+		BasicAuthority {
 			params: params,
-			ethash_params: ethash_params,
+			our_params: our_params,
 			builtins: builtins,
-			pow: EthashManager::new(),
 			factory: Factory::default(),
 		}
 	}
 }
 
-impl Engine for Ethash {
-	fn name(&self) -> &str { "Ethash" }
+impl Engine for BasicAuthority {
+	fn name(&self) -> &str { "BasicAuthority" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
-	// Two fields - mix
-	fn seal_fields(&self) -> usize { 2 }
+	// One field - the signature
+	fn seal_fields(&self) -> usize { 1 }
 
 	fn params(&self) -> &CommonParams { &self.params }
-
-	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
-		&self.builtins
-	}
+	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
+	fn extra_info(&self, header: &Header) -> HashMap<String, String> { map!["signature" => "TODO"] }
 
-	fn vm_factory(&self) -> &Factory {
-		&self.factory
-	}
+	fn vm_factory(&self) -> &Factory { &self.factory }
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		trace!(target: "client", "Creating schedule. fCML={}", self.params.frontier_compatibility_mode_limit);
-
-		if env_info.number < self.params.frontier_compatibility_mode_limit {
-			Schedule::new_frontier()
-		} else {
-			Schedule::new_homestead()
-		}
+		Schedule::new_homestead()
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256) {
-		header.difficulty = self.calculate_difficuty(header, parent);
+		header.difficulty = parent.difficulty;
 		header.gas_limit = {
 			let gas_limit = parent.gas_limit;
-			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
+			let bound_divisor = 1024;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - x!(1))
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1) + (header.gas_used * x!(6) / x!(5)) / bound_divisor)
+				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + x!(1))
 			}
 		};
 		header.note_dirty();
@@ -123,30 +93,17 @@ impl Engine for Ethash {
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, block: &mut ExecutedBlock) {
-		let reward = self.ethash_params.block_reward;
-		let fields = block.fields_mut();
-
-		// Bestow block reward
-		fields.state.add_balance(&fields.header.author, &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
-
-		// Bestow uncle rewards
-		let current_number = fields.header.number();
-		for u in fields.uncles.iter() {
-			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
-		}
-		fields.state.commit();
-	}
+	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the seal fields.
+		// TODO: pull this out into common code.
 		if header.seal.len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
 			)));
 		}
-		try!(UntrustedRlp::new(&header.seal[0]).as_val::<H256>());
-		try!(UntrustedRlp::new(&header.seal[1]).as_val::<H64>());
+		try!(UntrustedRlp::new(&header.seal[0]).as_val::<H520>());
 
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
