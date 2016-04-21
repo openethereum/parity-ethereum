@@ -104,12 +104,16 @@ fn serialize_item(
 				$size_expr
 			}
 
-			fn to_bytes(&self, buffer: &mut [u8]) -> Result<(), BinaryConvertError> {
+			fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
 				$write_expr
 			}
 
-			fn from_bytes(buffer: &[u8]) -> Result<Self, BinaryConvertError> {
+			fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
 				$read_expr
+			}
+
+			fn len_params() -> usize {
+				1
 			}
         }
     ).unwrap())
@@ -158,23 +162,6 @@ struct BinaryExpressions {
 	pub read: P<ast::Expr>,
 }
 
-fn is_variable_size(ty: &P<Ty>) -> bool {
-	match ty.node {
-		TyKind::Vec(_) => true,
-		TyKind::FixedLengthVec(_, _) => false,
-		TyKind::Path(_, ref path) => {
-			path.segments[0].identifier.name.as_str() == "Option" ||
-			path.segments[0].identifier.name.as_str() == "Result" ||
-			path.segments[0].identifier.name.as_str() == "String"
-		},
-		_ => { false }
-	}
-}
-
-fn variable_sizes(cx: &ExtCtxt, fields: &[ast::StructField]) -> Vec<bool> {
-	fields.iter().map(|field| is_variable_size(&field.ty)).collect::<Vec<bool>>()
-}
-
 fn binary_expr_struct(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -183,24 +170,26 @@ fn binary_expr_struct(
 	value_ident: Option<ast::Ident>,
 	instance_ident: Option<ast::Ident>,
 ) -> Result<BinaryExpressions, Error> {
-	let variable_sizes = variable_size_indexes(fields);
 
 	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
-		if variable_sizes[index] {
-			let index_ident = builder.id(format!("__field{}", index));
-			value_ident.and_then(|x| {
-					let field_id = builder.id(field.ident.unwrap());
-					Some(quote_expr!(cx, $x . $field_id .size()))
-				})
-				.unwrap_or_else(|| quote_expr!(cx, $index_ident .size()))
-		}
-		else {
-			let field_type_ident = builder.id(&::syntax::print::pprust::ty_to_string(&field.ty));
-			quote_expr!(cx, mem::sizeof_of::<field_type_ident>());
-		}
+		let field_type_ident = builder.id(&::syntax::print::pprust::ty_to_string(&field.ty));
+		let index_ident = builder.id(format!("__field{}", index));
+		value_ident.and_then(|x| {
+				let field_id = builder.id(field.ident.unwrap());
+				Some(quote_expr!(cx,
+					match $field_type_ident::len_params() {
+						0 => mem::size_of::<$field_type_ident>(),
+						_ => $x. $field_id .size()
+					}))
+			})
+			.unwrap_or_else(|| quote_expr!(cx, match $field_type_ident::len_params() {
+				0 => mem::size_of::<$field_type_ident>(),
+				_ => $index_ident .size()
+			}))
 	}).collect();
 
-	let mut total_size_expr = size_exprs[0].clone();
+	let first_size_expr = size_exprs[0].clone();
+	let mut total_size_expr = quote_expr!(cx, 0usize + $first_size_expr);
 	for index in 1..size_exprs.len() {
 		let next_expr = size_exprs[index].clone();
 		total_size_expr = quote_expr!(cx, $total_size_expr + $next_expr);
@@ -215,25 +204,36 @@ fn binary_expr_struct(
 	map_stmts.push(quote_stmt!(cx, let mut total = 0usize;).unwrap());
 	for (index, field) in fields.iter().enumerate() {
 		let size_expr = &size_exprs[index];
-		write_stmts.push(quote_stmt!(cx, let next_line = offset + $size_expr; ).unwrap());
-		match value_ident {
+		let field_type_ident = builder.id(&::syntax::print::pprust::ty_to_string(&field.ty));
+
+		let member_expr = match value_ident {
 			Some(x) => {
 				let field_id = builder.id(field.ident.unwrap());
-				write_stmts.push(
-					quote_stmt!(cx, $x . $field_id .to_bytes(&mut buffer[offset..next_line]);).unwrap())
+				quote_expr!(cx, $x . $field_id)
 			},
 			None => {
 				let index_ident = builder.id(format!("__field{}", index));
-				write_stmts.push(
-					quote_stmt!(cx, $index_ident .to_bytes(&mut buffer[offset..next_line]);).unwrap())
+				quote_expr!(cx, $index_ident)
 			}
-		}
+		};
+
+		write_stmts.push(quote_stmt!(cx, let next_line = offset + match $field_type_ident::len_params() {
+				0 => mem::size_of::<$field_type_ident>(),
+				_ => { let size = $member_expr .size(); length_stack.push_back(size); size }
+			}).unwrap());
+
+		write_stmts.push(quote_stmt!(cx,
+				$member_expr .to_bytes(&mut buffer[offset..next_line], length_stack);).unwrap());
+
 		write_stmts.push(quote_stmt!(cx, offset = next_line; ).unwrap());
 
 		let field_index = builder.id(&format!("{}", index));
-		let field_type_ident = builder.id(&::syntax::print::pprust::ty_to_string(&field.ty));
 		map_stmts.push(quote_stmt!(cx, map[$field_index] = total;).unwrap());
-		map_stmts.push(quote_stmt!(cx, total = total + mem::size_of::<$field_type_ident>();).unwrap());
+		map_stmts.push(quote_stmt!(cx, let size = match $field_type_ident::len_params() {
+				0 => mem::size_of::<$field_type_ident>(),
+				_ => length_stack.pop_front().unwrap()
+			}).unwrap());
+		map_stmts.push(quote_stmt!(cx, total = total + size;).unwrap());
 	};
 
 	let read_expr = if value_ident.is_some() {
@@ -386,6 +386,10 @@ fn fields_sequence(
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+
+				tt.push(Token(_sp, token::Comma));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("length_stack"), token::Plain)));
+
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
 				tt.push(Token(_sp, token::Comma));
@@ -450,8 +454,14 @@ fn named_fields_sequence(
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
 				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
+
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
+
+				tt.push(Token(_sp, token::Comma));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("length_stack"), token::Plain)));
+
+
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
 				tt.push(Token(_sp, token::Comma));
