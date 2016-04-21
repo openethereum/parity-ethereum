@@ -247,11 +247,11 @@ impl MinerService for Miner {
 		match import {
 			Ok(ref res) => {
 				trace!(target: "own_tx", "Imported transaction to {:?} (hash: {:?})", res, hash);
-				trace!(target: "own_tx", "Status: {:?}", self.status());
+				trace!(target: "own_tx", "Status: {:?}", self.transaction_queue.status());
 			},
 			Err(ref e) => {
 				trace!(target: "own_tx", "Failed to import transaction {:?} (hash: {:?})", e, hash);
-				trace!(target: "own_tx", "Status: {:?}", self.status());
+				trace!(target: "own_tx", "Status: {:?}", self.transaction_queue.status());
 			},
 		}
 		import
