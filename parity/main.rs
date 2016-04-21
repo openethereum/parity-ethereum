@@ -20,6 +20,7 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 #![cfg_attr(feature="dev", allow(useless_format))]
+
 extern crate docopt;
 extern crate num_cpus;
 extern crate rustc_serialize;
@@ -46,7 +47,8 @@ extern crate bincode;
 #[macro_use] extern crate hyper;
 
 #[cfg(feature = "rpc")]
-extern crate ethcore_rpc as rpc;
+extern crate ethcore_rpc;
+
 #[cfg(feature = "webapp")]
 extern crate ethcore_webapp as webapp;
 
@@ -54,9 +56,7 @@ use std::io::{BufRead, BufReader};
 use std::fs::File;
 use std::net::{SocketAddr, IpAddr};
 use std::env;
-use std::process::exit;
 use std::path::PathBuf;
-use env_logger::LogBuilder;
 use ctrlc::CtrlC;
 use util::*;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
@@ -70,24 +70,20 @@ use ethminer::{Miner, MinerService};
 use docopt::Docopt;
 use daemonize::Daemonize;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
-#[cfg(feature = "rpc")]
-use rpc::Server as RpcServer;
+
 #[cfg(feature = "webapp")]
 use webapp::Server as WebappServer;
 
+#[macro_use]
+mod die;
 mod price_info;
 mod upgrade;
 mod hypervisor;
+mod setup_log;
+mod rpc;
 
-fn die_with_message(msg: &str) -> ! {
-	println!("ERROR: {}", msg);
-	exit(1);
-}
-
-#[macro_export]
-macro_rules! die {
-	($($arg:tt)*) => (die_with_message(&format!("{}", format_args!($($arg)*))));
-}
+use die::*;
+use rpc::RpcServer;
 
 const USAGE: &'static str = r#"
 Parity. Ethereum Client.
@@ -281,78 +277,6 @@ struct Args {
 	flag_networkid: Option<String>,
 }
 
-fn setup_log(init: &Option<String>) -> Arc<RotatingLogger> {
-	use rlog::*;
-
-	let mut levels = String::new();
-	let mut builder = LogBuilder::new();
-	builder.filter(None, LogLevelFilter::Info);
-
-	if env::var("RUST_LOG").is_ok() {
-		let lvl = &env::var("RUST_LOG").unwrap();
-		levels.push_str(&lvl);
-		levels.push_str(",");
-		builder.parse(lvl);
-	}
-
-	if let Some(ref s) = *init {
-		levels.push_str(s);
-		builder.parse(s);
-	}
-
-	let logs = Arc::new(RotatingLogger::new(levels));
-	let log2 = logs.clone();
-	let format = move |record: &LogRecord| {
-		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
-		let format = if max_log_level() <= LogLevelFilter::Info {
-			format!("{}{}", timestamp, record.args())
-		} else {
-			format!("{}{}:{}: {}", timestamp, record.level(), record.target(), record.args())
-		};
-		log2.append(format.clone());
-		format
-    };
-	builder.format(format);
-	builder.init().unwrap();
-	logs
-}
-
-#[cfg(feature = "rpc")]
-fn setup_rpc_server(
-	client: Arc<Client>,
-	sync: Arc<EthSync>,
-	secret_store: Arc<AccountService>,
-	miner: Arc<Miner>,
-	url: &SocketAddr,
-	cors_domain: Option<String>,
-	apis: Vec<&str>,
-	logger: Arc<RotatingLogger>,
-) -> RpcServer {
-	use rpc::v1::*;
-
-	let server = rpc::RpcServer::new();
-	for api in apis.into_iter() {
-		match api {
-			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
-			"net" => server.add_delegate(NetClient::new(&sync).to_delegate()),
-			"eth" => {
-				server.add_delegate(EthClient::new(&client, &sync, &secret_store, &miner).to_delegate());
-				server.add_delegate(EthFilterClient::new(&client, &miner).to_delegate());
-			},
-			"personal" => server.add_delegate(PersonalClient::new(&secret_store).to_delegate()),
-			"ethcore" => server.add_delegate(EthcoreClient::new(&miner, logger.clone()).to_delegate()),
-			_ => {
-				die!("{}: Invalid API name to be enabled.", api);
-			},
-		}
-	}
-	let start_result = server.start_http(url, cors_domain);
-	match start_result {
-		Err(rpc::RpcServerError::IoError(err)) => die_with_io_error(err),
-		Err(e) => die!("{:?}", e),
-		Ok(server) => server,
-	}
-}
 
 #[cfg(feature = "webapp")]
 fn setup_webapp_server(
@@ -364,7 +288,7 @@ fn setup_webapp_server(
 	auth: Option<(String, String)>,
 	logger: Arc<RotatingLogger>,
 ) -> WebappServer {
-	use rpc::v1::*;
+	use ethcore_rpc::v1::*;
 
 	let server = webapp::ServerBuilder::new();
 	server.add_delegate(Web3Client::new().to_delegate());
@@ -389,22 +313,6 @@ fn setup_webapp_server(
 
 }
 
-#[cfg(not(feature = "rpc"))]
-struct RpcServer;
-
-#[cfg(not(feature = "rpc"))]
-fn setup_rpc_server(
-	_client: Arc<Client>,
-	_sync: Arc<EthSync>,
-	_secret_store: Arc<AccountService>,
-	_miner: Arc<Miner>,
-	_url: &SocketAddr,
-	_cors_domain: Option<String>,
-	_apis: Vec<&str>,
-	_logger: Arc<RotatingLogger>,
-) -> ! {
-	die!("Your Parity version has been compiled without JSON-RPC support.")
-}
 
 #[cfg(not(feature = "webapp"))]
 struct WebappServer;
@@ -704,7 +612,7 @@ impl Configuration {
 		let panic_handler = PanicHandler::new_in_arc();
 
 		// Setup logging
-		let logger = setup_log(&self.args.flag_logging);
+		let logger = setup_log::setup_log(&self.args.flag_logging);
 		// Raise fdlimit
 		unsafe { ::fdlimit::raise_fd_limit(); }
 
@@ -749,7 +657,7 @@ impl Configuration {
 			let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 			let cors_domain = self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone());
 
-			Some(setup_rpc_server(
+			Some(rpc::setup_rpc_server(
 				service.client(),
 				sync.clone(),
 				account_service.clone(),
@@ -828,31 +736,7 @@ fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer
 	info!("Finishing work, please wait...");
 }
 
-fn die_with_error(e: ethcore::error::Error) -> ! {
-	use ethcore::error::Error;
-
-	match e {
-		Error::Util(UtilError::StdIo(e)) => die_with_io_error(e),
-		_ => die!("{:?}", e),
-	}
-}
-fn die_with_io_error(e: std::io::Error) -> ! {
-	match e.kind() {
-		std::io::ErrorKind::PermissionDenied => {
-			die!("No permissions to bind to specified port.")
-		},
-		std::io::ErrorKind::AddrInUse => {
-			die!("Specified address is already in use. Please make sure that nothing is listening on the same port or try using a different one.")
-		},
-		std::io::ErrorKind::AddrNotAvailable => {
-			die!("Could not use specified interface or given address is invalid.")
-		},
-		_ => die!("{:?}", e),
-	}
-}
-
 fn main() {
-
 	Configuration::parse().execute();
 }
 

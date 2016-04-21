@@ -116,6 +116,7 @@ impl Hypervisor {
 	}
 }
 
+#[cfg(test)]
 mod tests {
 	use super::*;
 	use std::sync::atomic::{AtomicBool,Ordering};
