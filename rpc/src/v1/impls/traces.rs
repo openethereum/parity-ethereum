@@ -14,28 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interface implementation.
+//! Traces api implementation.
 
-macro_rules! take_weak {
-	($weak: expr) => {
-		match $weak.upgrade() {
-			Some(arc) => arc,
-			None => return Err(Error::internal_error())
+use std::sync::{Weak, Arc};
+use ethcore::client::BlockChainClient;
+use v1::traits::Traces;
+
+/// Traces api implementation.
+pub struct TracesClient<C> where C: BlockChainClient {
+	client: Weak<C>,
+}
+
+impl<C> TracesClient<C> where C: BlockChainClient {
+	/// Creates new Traces client.
+	pub fn new(client: &Arc<C>) -> Self {
+		TracesClient {
+			client: Arc::downgrade(client),
 		}
 	}
 }
 
-mod web3;
-mod eth;
-mod net;
-mod personal;
-mod ethcore;
-mod traces;
+impl<C> Traces for TracesClient<C> where C: BlockChainClient + 'static {
 
-pub use self::web3::Web3Client;
-pub use self::eth::{EthClient, EthFilterClient};
-pub use self::net::NetClient;
-pub use self::personal::PersonalClient;
-pub use self::ethcore::EthcoreClient;
-pub use self::traces::TracesClient;
-
+}
