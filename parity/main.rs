@@ -59,10 +59,10 @@ use std::path::PathBuf;
 use ctrlc::CtrlC;
 use util::*;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
-use util::keys::store::*;
-use ethcore::spec::*;
-use ethcore::client::*;
+use util::keys::store::AccountService;
 use ethcore::ethereum;
+use ethcore::client::{append_path, get_db_path, ClientConfig};
+use ethcore::spec::Spec;
 use ethcore::service::ClientService;
 use ethsync::{EthSync, SyncConfig};
 use ethminer::{Miner, MinerService};
@@ -79,220 +79,179 @@ mod rpc;
 mod webapp;
 mod informant;
 mod io_handler;
+mod cli;
 
 use die::*;
+use cli::{USAGE, print_version, Args};
 use rpc::RpcServer;
 use webapp::WebappServer;
 use io_handler::ClientIoHandler;
 
-const USAGE: &'static str = r#"
-Parity. Ethereum Client.
-  By Wood/Paronyan/Kotewicz/Drwięga/Volf.
-  Copyright 2015, 2016 Ethcore (UK) Limited
-
-Usage:
-  parity daemon <pid-file> [options]
-  parity account (new | list) [options]
-  parity [options]
-
-Protocol Options:
-  --chain CHAIN            Specify the blockchain type. CHAIN may be either a
-                           JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, or testnet
-                           [default: homestead].
-  -d --db-path PATH        Specify the database & configuration directory path
-                           [default: $HOME/.parity].
-  --keys-path PATH         Specify the path for JSON key files to be found
-                           [default: $HOME/.parity/keys].
-  --identity NAME          Specify your node's name.
-
-Account Options:
-  --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
-                           ACCOUNTS is a comma-delimited list of addresses.
-  --password FILE          Provide a file containing a password for unlocking
-                           an account.
-
-Networking Options:
-  --port PORT              Override the port on which the node should listen
-                           [default: 30303].
-  --peers NUM              Try to maintain that many peers [default: 25].
-  --nat METHOD             Specify method to use for determining public
-                           address. Must be one of: any, none, upnp,
-                           extip:<IP> [default: any].
-  --network-id INDEX       Override the network identifier from the chain we
-                           are on.
-  --bootnodes NODES        Override the bootnodes from our chain. NODES should
-                           be comma-delimited enodes.
-  --no-discovery           Disable new peer discovery.
-  --node-key KEY           Specify node secret key, either as 64-character hex
-                           string or input to SHA3 operation.
-
-API and Console Options:
-  -j --jsonrpc             Enable the JSON-RPC API server.
-  --jsonrpc-port PORT      Specify the port portion of the JSONRPC API server
-                           [default: 8545].
-  --jsonrpc-interface IP   Specify the hostname portion of the JSONRPC API
-                           server, IP should be an interface's IP address, or
-                           all (all interfaces) or local [default: local].
-  --jsonrpc-cors URL       Specify CORS header for JSON-RPC API responses.
-  --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
-                           interface. APIS is a comma-delimited list of API
-                           name. Possible name are web3, eth and net.
-                           [default: web3,eth,net,personal,ethcore].
-  -w --webapp              Enable the web applications server (e.g.
-                           status page).
-  --webapp-port PORT       Specify the port portion of the WebApps server
-                           [default: 8080].
-  --webapp-interface IP    Specify the hostname portion of the WebApps
-                           server, IP should be an interface's IP address, or
-                           all (all interfaces) or local [default: local].
-  --webapp-user USERNAME   Specify username for WebApps server. It will be
-                           used in HTTP Basic Authentication Scheme.
-                           If --webapp-pass is not specified you will be
-                           asked for password on startup.
-  --webapp-pass PASSWORD   Specify password for WebApps server. Use only in
-                           conjunction with --webapp-user.
-
-Sealing/Mining Options:
-  --force-sealing          Force the node to author new blocks as if it were
-                           always sealing/mining.
-  --usd-per-tx USD         Amount of USD to be paid for a basic transaction
-                           [default: 0.005]. The minimum gas price is set
-                           accordingly.
-  --usd-per-eth SOURCE     USD value of a single ETH. SOURCE may be either an
-                           amount in USD or a web service [default: etherscan].
-  --gas-floor-target GAS   Amount of gas per block to target when sealing a new
-                           block [default: 4712388].
-  --author ADDRESS         Specify the block author (aka "coinbase") address
-                           for sending block rewards from sealed blocks
-                           [default: 0037a6b811ffeb6e072da21179d11b1406371c63].
-  --extra-data STRING      Specify a custom extra-data for authored blocks, no
-                           more than 32 characters.
-  --tx-limit LIMIT         Limit of transactions kept in the queue (waiting to
-                           be included in next block) [default: 1024].
-
-Footprint Options:
-  --pruning METHOD         Configure pruning of the state/storage trie. METHOD
-                           may be one of auto, archive, basic, fast, light:
-                           archive - keep all state trie data. No pruning.
-                           basic - reference count in disk DB. Slow but light.
-                           fast - maintain journal overlay. Fast but 50MB used.
-                           light - early merges with partial tracking. Fast
-                           and light. Experimental!
-                           auto - use the method most recently synced or
-                           default to archive if none synced [default: auto].
-  --cache-pref-size BYTES  Specify the prefered size of the blockchain cache in
-                           bytes [default: 16384].
-  --cache-max-size BYTES   Specify the maximum size of the blockchain cache in
-                           bytes [default: 262144].
-  --queue-max-size BYTES   Specify the maximum size of memory to use for block
-                           queue [default: 52428800].
-  --cache MEGABYTES        Set total amount of discretionary memory to use for
-                           the entire system, overrides other cache and queue
-                           options.
-
-Geth-compatibility Options:
-  --datadir PATH           Equivalent to --db-path PATH.
-  --testnet                Equivalent to --chain testnet.
-  --networkid INDEX        Equivalent to --network-id INDEX.
-  --maxpeers COUNT         Equivalent to --peers COUNT.
-  --nodekey KEY            Equivalent to --node-key KEY.
-  --nodiscover             Equivalent to --no-discovery.
-  --rpc                    Equivalent to --jsonrpc.
-  --rpcaddr IP             Equivalent to --jsonrpc-interface IP.
-  --rpcport PORT           Equivalent to --jsonrpc-port PORT.
-  --rpcapi APIS            Equivalent to --jsonrpc-apis APIS.
-  --rpccorsdomain URL      Equivalent to --jsonrpc-cors URL.
-  --gasprice WEI           Minimum amount of Wei per GAS to be paid for a
-                           transaction to be accepted for mining. Overrides
-                           --basic-tx-usd.
-  --etherbase ADDRESS      Equivalent to --author ADDRESS.
-  --extradata STRING       Equivalent to --extra-data STRING.
-
-Miscellaneous Options:
-  -l --logging LOGGING     Specify the logging level. Must conform to the same
-                           format as RUST_LOG.
-  -v --version             Show information about version.
-  -h --help                Show this screen.
-"#;
-
-#[derive(Debug, RustcDecodable)]
-struct Args {
-	cmd_daemon: bool,
-	cmd_account: bool,
-	cmd_new: bool,
-	cmd_list: bool,
-	arg_pid_file: String,
-	flag_chain: String,
-	flag_db_path: String,
-	flag_identity: String,
-	flag_unlock: Option<String>,
-	flag_password: Vec<String>,
-	flag_cache: Option<usize>,
-	flag_keys_path: String,
-	flag_bootnodes: Option<String>,
-	flag_network_id: Option<String>,
-	flag_pruning: String,
-	flag_port: u16,
-	flag_peers: usize,
-	flag_no_discovery: bool,
-	flag_nat: String,
-	flag_node_key: Option<String>,
-	flag_cache_pref_size: usize,
-	flag_cache_max_size: usize,
-	flag_queue_max_size: usize,
-	flag_jsonrpc: bool,
-	flag_jsonrpc_interface: String,
-	flag_jsonrpc_port: u16,
-	flag_jsonrpc_cors: Option<String>,
-	flag_jsonrpc_apis: String,
-	flag_webapp: bool,
-	flag_webapp_port: u16,
-	flag_webapp_interface: String,
-	flag_webapp_user: Option<String>,
-	flag_webapp_pass: Option<String>,
-	flag_force_sealing: bool,
-	flag_author: String,
-	flag_usd_per_tx: String,
-	flag_usd_per_eth: String,
-	flag_gas_floor_target: String,
-	flag_extra_data: Option<String>,
-	flag_tx_limit: usize,
-	flag_logging: Option<String>,
-	flag_version: bool,
-	// geth-compatibility...
-	flag_nodekey: Option<String>,
-	flag_nodiscover: bool,
-	flag_maxpeers: Option<usize>,
-	flag_datadir: Option<String>,
-	flag_extradata: Option<String>,
-	flag_etherbase: Option<String>,
-	flag_gasprice: Option<String>,
-	flag_rpc: bool,
-	flag_rpcaddr: Option<String>,
-	flag_rpcport: Option<u16>,
-	flag_rpccorsdomain: Option<String>,
-	flag_rpcapi: Option<String>,
-	flag_testnet: bool,
-	flag_networkid: Option<String>,
-}
-
-
-fn print_version() {
-	println!("\
-Parity
-  version {}
-Copyright 2015, 2016 Ethcore (UK) Limited
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-
-By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
-", version());
-}
-
 struct Configuration {
 	args: Args
+}
+
+fn main() {
+	let conf = Configuration::parse();
+	execute(conf);
+}
+
+fn execute(conf: Configuration) {
+	if conf.args.flag_version {
+		print_version();
+		return;
+	}
+
+	execute_upgrades(&conf);
+
+	if conf.args.cmd_daemon {
+		Daemonize::new()
+			.pid_file(conf.args.arg_pid_file.clone())
+			.chown_pid_file(true)
+			.start()
+			.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
+	}
+
+	if conf.args.cmd_account {
+		execute_account_cli(conf);
+		return;
+	}
+
+	execute_client(conf);
+}
+
+fn execute_upgrades(conf: &Configuration) {
+	match ::upgrade::upgrade(Some(&conf.path())) {
+		Ok(upgrades_applied) if upgrades_applied > 0 => {
+			println!("Executed {} upgrade scripts - ok", upgrades_applied);
+		},
+		Err(e) => {
+			die!("Error upgrading parity data: {:?}", e);
+		},
+		_ => {},
+	}
+}
+
+fn execute_client(conf: Configuration) {
+	// Setup panic handler
+	let panic_handler = PanicHandler::new_in_arc();
+
+	// Setup logging
+	let logger = setup_log::setup_log(&conf.args.flag_logging);
+	// Raise fdlimit
+	unsafe { ::fdlimit::raise_fd_limit(); }
+
+	let spec = conf.spec();
+	let net_settings = conf.net_settings(&spec);
+	let sync_config = conf.sync_config(&spec);
+	let client_config = conf.client_config(&spec);
+
+	// Secret Store
+	let account_service = Arc::new(conf.account_service());
+
+	// Build client
+	let mut service = ClientService::start(
+		client_config, spec, net_settings, &Path::new(&conf.path())
+	).unwrap_or_else(|e| die_with_error(e));
+
+	panic_handler.forward_from(&service);
+	let client = service.client();
+
+	// Miner
+	let miner = Miner::new(conf.args.flag_force_sealing);
+	miner.set_author(conf.author());
+	miner.set_gas_floor_target(conf.gas_floor_target());
+	miner.set_extra_data(conf.extra_data());
+	miner.set_minimal_gas_price(conf.gas_price());
+	miner.set_transactions_limit(conf.args.flag_tx_limit);
+
+	// Sync
+	let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
+
+	// Setup rpc
+	let rpc_server = rpc::new(rpc::Configuration {
+		enabled: conf.args.flag_jsonrpc || conf.args.flag_rpc,
+		interface: conf.args.flag_rpcaddr.clone().unwrap_or(conf.args.flag_jsonrpc_interface.clone()),
+		port: conf.args.flag_rpcport.unwrap_or(conf.args.flag_jsonrpc_port),
+		apis: conf.args.flag_rpcapi.clone().unwrap_or(conf.args.flag_jsonrpc_apis.clone()),
+		cors: conf.args.flag_jsonrpc_cors.clone().or(conf.args.flag_rpccorsdomain.clone()),
+	}, rpc::Dependencies {
+		client: client.clone(),
+		sync: sync.clone(),
+		secret_store: account_service.clone(),
+		miner: miner.clone(),
+		logger: logger.clone()
+	});
+
+	let webapp_server = webapp::new(webapp::Configuration {
+		enabled: conf.args.flag_webapp,
+		interface: conf.args.flag_webapp_interface.clone(),
+		port: conf.args.flag_webapp_port,
+		user: conf.args.flag_webapp_user.clone(),
+		pass: conf.args.flag_webapp_pass.clone(),
+	}, webapp::Dependencies {
+		client: client.clone(),
+		sync: sync.clone(),
+		secret_store: account_service.clone(),
+		miner: miner.clone(),
+		logger: logger.clone()
+	});
+
+	// Register IO handler
+	let io_handler  = Arc::new(ClientIoHandler {
+		client: service.client(),
+		info: Default::default(),
+		sync: sync.clone(),
+		accounts: account_service.clone(),
+	});
+	service.io().register_handler(io_handler).expect("Error registering IO handler");
+
+	// Handle exit
+	wait_for_exit(panic_handler, rpc_server, webapp_server);
+}
+
+fn execute_account_cli(conf: Configuration) {
+	use util::keys::store::SecretStore;
+	use rpassword::read_password;
+	let mut secret_store = SecretStore::new_in(Path::new(&conf.keys_path()));
+	if conf.args.cmd_new {
+		println!("Please note that password is NOT RECOVERABLE.");
+		print!("Type password: ");
+		let password = read_password().unwrap();
+		print!("Repeat password: ");
+		let password_repeat = read_password().unwrap();
+		if password != password_repeat {
+			println!("Passwords do not match!");
+			return;
+		}
+		println!("New account address:");
+		let new_address = secret_store.new_account(&password).unwrap();
+		println!("{:?}", new_address);
+		return;
+	}
+	if conf.args.cmd_list {
+		println!("Known addresses:");
+		for &(addr, _) in &secret_store.accounts().unwrap() {
+			println!("{:?}", addr);
+		}
+	}
+}
+
+fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _webapp_server: Option<WebappServer>) {
+	let exit = Arc::new(Condvar::new());
+
+	// Handle possible exits
+	let e = exit.clone();
+	CtrlC::set_handler(move || { e.notify_all(); });
+
+	// Handle panics
+	let e = exit.clone();
+	panic_handler.on_panic(move |_reason| { e.notify_all(); });
+
+	// Wait for signal
+	let mutex = Mutex::new(());
+	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
+	info!("Finishing work, please wait...");
 }
 
 impl Configuration {
@@ -474,64 +433,6 @@ impl Configuration {
 		sync_config
 	}
 
-	fn execute(&self) {
-		if self.args.flag_version {
-			print_version();
-			return;
-		}
-
-		match ::upgrade::upgrade(Some(&self.path())) {
-			Ok(upgrades_applied) => {
-				if upgrades_applied > 0 {
-					println!("Executed {} upgrade scripts - ok", upgrades_applied);
-				}
-			},
-			Err(e) => {
-				die!("Error upgrading parity data: {:?}", e);
-			}
-		}
-
-		if self.args.cmd_daemon {
-			Daemonize::new()
-				.pid_file(self.args.arg_pid_file.clone())
-				.chown_pid_file(true)
-				.start()
-				.unwrap_or_else(|e| die!("Couldn't daemonize; {}", e));
-		}
-		if self.args.cmd_account {
-			self.execute_account_cli();
-			return;
-		}
-		self.execute_client();
-	}
-
-	fn execute_account_cli(&self) {
-		use util::keys::store::SecretStore;
-		use rpassword::read_password;
-		let mut secret_store = SecretStore::new_in(Path::new(&self.keys_path()));
-		if self.args.cmd_new {
-			println!("Please note that password is NOT RECOVERABLE.");
-			print!("Type password: ");
-			let password = read_password().unwrap();
-			print!("Repeat password: ");
-			let password_repeat = read_password().unwrap();
-			if password != password_repeat {
-				println!("Passwords do not match!");
-				return;
-			}
-			println!("New account address:");
-			let new_address = secret_store.new_account(&password).unwrap();
-			println!("{:?}", new_address);
-			return;
-		}
-		if self.args.cmd_list {
-			println!("Known addresses:");
-			for &(addr, _) in &secret_store.accounts().unwrap() {
-				println!("{:?}", addr);
-			}
-		}
-	}
-
 	fn account_service(&self) -> AccountService {
 		// Secret Store
 		let passwords = self.args.flag_password.iter().flat_map(|filename| {
@@ -554,105 +455,6 @@ impl Configuration {
 		}
 		account_service
 	}
-
-	fn execute_client(&self) {
-		// Setup panic handler
-		let panic_handler = PanicHandler::new_in_arc();
-
-		// Setup logging
-		let logger = setup_log::setup_log(&self.args.flag_logging);
-		// Raise fdlimit
-		unsafe { ::fdlimit::raise_fd_limit(); }
-
-		let spec = self.spec();
-		let net_settings = self.net_settings(&spec);
-		let sync_config = self.sync_config(&spec);
-		let client_config = self.client_config(&spec);
-
-		// Secret Store
-		let account_service = Arc::new(self.account_service());
-
-		// Build client
-		let mut service = ClientService::start(
-			client_config, spec, net_settings, &Path::new(&self.path())
-		).unwrap_or_else(|e| die_with_error(e));
-
-		panic_handler.forward_from(&service);
-		let client = service.client();
-
-		// Miner
-		let miner = Miner::new(self.args.flag_force_sealing);
-		miner.set_author(self.author());
-		miner.set_gas_floor_target(self.gas_floor_target());
-		miner.set_extra_data(self.extra_data());
-		miner.set_minimal_gas_price(self.gas_price());
-		miner.set_transactions_limit(self.args.flag_tx_limit);
-
-		// Sync
-		let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
-
-		// Setup rpc
-		let rpc_server = rpc::new(rpc::Configuration {
-			enabled: self.args.flag_jsonrpc || self.args.flag_rpc,
-			interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
-			port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
-			apis: self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone()),
-			cors: self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone()),
-		}, rpc::Dependencies {
-			client: client.clone(),
-			sync: sync.clone(),
-			secret_store: account_service.clone(),
-			miner: miner.clone(),
-			logger: logger.clone()
-		});
-
-		let webapp_server = webapp::new(webapp::Configuration {
-			enabled: self.args.flag_webapp,
-			interface: self.args.flag_webapp_interface.clone(),
-			port: self.args.flag_webapp_port,
-			user: self.args.flag_webapp_user.clone(),
-			pass: self.args.flag_webapp_pass.clone(),
-		}, webapp::Dependencies {
-			client: client.clone(),
-			sync: sync.clone(),
-			secret_store: account_service.clone(),
-			miner: miner.clone(),
-			logger: logger.clone()
-		});
-
-		// Register IO handler
-		let io_handler  = Arc::new(ClientIoHandler {
-			client: service.client(),
-			info: Default::default(),
-			sync: sync.clone(),
-			accounts: account_service.clone(),
-		});
-		service.io().register_handler(io_handler).expect("Error registering IO handler");
-
-		// Handle exit
-		wait_for_exit(panic_handler, rpc_server, webapp_server);
-	}
-}
-
-fn wait_for_exit(panic_handler: Arc<PanicHandler>, _rpc_server: Option<RpcServer>, _webapp_server: Option<WebappServer>) {
-	let exit = Arc::new(Condvar::new());
-
-	// Handle possible exits
-	let e = exit.clone();
-	CtrlC::set_handler(move || { e.notify_all(); });
-
-	// Handle panics
-	let e = exit.clone();
-	panic_handler.on_panic(move |_reason| { e.notify_all(); });
-
-	// Wait for signal
-	let mutex = Mutex::new(());
-	let _ = exit.wait(mutex.lock().unwrap()).unwrap();
-	info!("Finishing work, please wait...");
-}
-
-fn main() {
-	Configuration::parse().execute();
 }
 
 /// Parity needs at least 1 test to generate coverage reports correctly.
