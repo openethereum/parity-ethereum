@@ -21,6 +21,7 @@ use std::collections::*;
 use std::fs::{File, create_dir_all};
 use std::env;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
 #[derive(Debug)]
@@ -99,7 +100,7 @@ fn with_locked_version<F>(db_path: Option<&str>, script: F) -> Result<usize, Err
 		let mut path = env::home_dir().expect("Applications should have a home dir");
 		path.push(".parity");
 		path
-	}, |s| ::std::path::PathBuf::from(s));
+	}, PathBuf::from);
 	try!(create_dir_all(&path).map_err(|_| Error::CannotCreateConfigPath));
 	path.push("ver.lock");
 

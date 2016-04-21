@@ -495,6 +495,8 @@ fn populate_big_types() {
 
 #[test]
 fn raw_bytes_from_tuple() {
+	type Tup = (Vec<u16>, u16);
+
 	let tup = (vec![1u16, 1u16, 1u16, 1u16], 10u16);
 	let bytes = vec![
 		// map
@@ -506,8 +508,6 @@ fn raw_bytes_from_tuple() {
 		1u8, 0u8,
 		// 10u16
 		10u8, 0u8];
-
-	type Tup = (Vec<u16>, u16);
 
 	let tup_from = Tup::from_bytes(&bytes).unwrap();
 	assert_eq!(tup, tup_from);

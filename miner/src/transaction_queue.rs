@@ -230,7 +230,7 @@ impl TransactionSet {
 				by_hash.remove(&order.hash)
 					.expect("Hash found in `by_priorty` matches the one dropped; so it is included in `by_hash`");
 
-				let max = removed.get(&sender).map(|val| cmp::max(*val, nonce)).unwrap_or(nonce);
+				let max = removed.get(&sender).map_or(nonce, |val| cmp::max(*val, nonce));
 				removed.insert(sender, max);
 				removed
 			}))
