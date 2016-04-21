@@ -69,7 +69,7 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
-                           [default: web3,eth,net,personal,ethcore].
+                           [default: web3,eth,net,personal,ethcore,traces].
   -w --webapp              Enable the web applications server (e.g.
                            status page).
   --webapp-port PORT       Specify the port portion of the WebApps server

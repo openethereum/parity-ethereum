@@ -17,8 +17,10 @@
 //! Traces api implementation.
 
 use std::sync::{Weak, Arc};
+use jsonrpc_core::*;
 use ethcore::client::BlockChainClient;
 use v1::traits::Traces;
+use v1::types::{TraceFilter, Trace};
 
 /// Traces api implementation.
 pub struct TracesClient<C> where C: BlockChainClient {
@@ -35,5 +37,13 @@ impl<C> TracesClient<C> where C: BlockChainClient {
 }
 
 impl<C> Traces for TracesClient<C> where C: BlockChainClient + 'static {
-
+	fn filter(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(TraceFilter,)>(params)
+			.and_then(|(filter, )| {
+				let client = take_weak!(self.client);
+				let traces = client.filter_traces(filter.into());
+				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(Trace::from).collect());
+				to_value(&traces)
+			})
+	}
 }
