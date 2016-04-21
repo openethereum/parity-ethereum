@@ -28,6 +28,7 @@ use syntax::ast::{
 	TraitRef,
 	Ident,
 	Generics,
+	TyKind,
 };
 
 use syntax::ast;
@@ -157,6 +158,23 @@ struct BinaryExpressions {
 	pub read: P<ast::Expr>,
 }
 
+fn is_variable_size(ty: &P<Ty>) -> bool {
+	match ty.node {
+		TyKind::Vec(_) => true,
+		TyKind::FixedLengthVec(_, _) => false,
+		TyKind::Path(_, ref path) => {
+			path.segments[0].identifier.name.as_str() == "Option" ||
+			path.segments[0].identifier.name.as_str() == "Result" ||
+			path.segments[0].identifier.name.as_str() == "String"
+		},
+		_ => { false }
+	}
+}
+
+fn variable_sizes(cx: &ExtCtxt, fields: &[ast::StructField]) -> Vec<bool> {
+	fields.iter().map(|field| is_variable_size(&field.ty)).collect::<Vec<bool>>()
+}
+
 fn binary_expr_struct(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -165,13 +183,21 @@ fn binary_expr_struct(
 	value_ident: Option<ast::Ident>,
 	instance_ident: Option<ast::Ident>,
 ) -> Result<BinaryExpressions, Error> {
+	let variable_sizes = variable_size_indexes(fields);
+
 	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
-		let index_ident = builder.id(format!("__field{}", index));
-		value_ident.and_then(|x| {
-				let field_id = builder.id(field.ident.unwrap());
-				Some(quote_expr!(cx, $x . $field_id .size()))
-			})
-			.unwrap_or_else(|| quote_expr!(cx, $index_ident .size()))
+		if variable_sizes[index] {
+			let index_ident = builder.id(format!("__field{}", index));
+			value_ident.and_then(|x| {
+					let field_id = builder.id(field.ident.unwrap());
+					Some(quote_expr!(cx, $x . $field_id .size()))
+				})
+				.unwrap_or_else(|| quote_expr!(cx, $index_ident .size()))
+		}
+		else {
+			let field_type_ident = builder.id(&::syntax::print::pprust::ty_to_string(&field.ty));
+			quote_expr!(cx, mem::sizeof_of::<field_type_ident>());
+		}
 	}).collect();
 
 	let mut total_size_expr = size_exprs[0].clone();
