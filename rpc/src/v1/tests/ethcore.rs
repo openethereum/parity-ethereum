@@ -156,6 +156,7 @@ fn rpc_ethcore_dev_logs_levels() {
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }
 
+#[test]
 fn rpc_ethcore_set_transactions_limit() {
 	let miner = miner_service();
 	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
