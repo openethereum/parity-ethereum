@@ -16,7 +16,7 @@
 
 //! Engine deserialization.
 
-use serde::{Deserializer, Error};
+use serde::Deserializer;
 use serde::de::Visitor;
 use spec::Ethash;
 
