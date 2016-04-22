@@ -20,9 +20,10 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use ethcore::client::Client;
 use ethsync::EthSync;
-use ethminer::Miner;
+use ethminer::{Miner, ExternalMiner};
 use util::RotatingLogger;
 use util::keys::store::{AccountService};
+use util::network_settings::NetworkSettings;
 use die::*;
 
 #[cfg(feature = "rpc")]
@@ -45,7 +46,9 @@ pub struct Dependencies {
 	pub sync: Arc<EthSync>,
 	pub secret_store: Arc<AccountService>,
 	pub miner: Arc<Miner>,
+	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
+	pub settings: Arc<NetworkSettings>,
 }
 
 pub fn new(conf: Configuration, deps: Dependencies) -> Option<RpcServer> {
@@ -90,11 +93,11 @@ pub fn setup_rpc_server(
 			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
 			"net" => server.add_delegate(NetClient::new(&deps.sync).to_delegate()),
 			"eth" => {
-				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner).to_delegate());
+				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 			},
 			"personal" => server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate()),
-			"ethcore" => server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone()).to_delegate()),
+			"ethcore" => server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate()),
 			"traces" => server.add_delegate(TracesClient::new(&deps.client).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);

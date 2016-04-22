@@ -147,6 +147,7 @@ pub mod log;
 pub mod panics;
 pub mod keys;
 pub mod table;
+pub mod network_settings;
 
 pub use common::*;
 pub use misc::*;
