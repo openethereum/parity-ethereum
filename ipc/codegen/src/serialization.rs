@@ -111,6 +111,7 @@ fn serialize_item(
     ).unwrap())
 }
 
+#[allow(unreachable_code)]
 fn binary_expr(
     cx: &ExtCtxt,
     builder: &aster::AstBuilder,
@@ -128,7 +129,7 @@ fn binary_expr(
 				item.span,
 				variant_data,
 			)
-		}
+		},
 		ast::ItemKind::Enum(ref enum_def, _) => {
 			binary_expr_enum(
 				cx,
@@ -139,7 +140,7 @@ fn binary_expr(
 				item.span,
 				enum_def,
 			)
-		}
+		},
 		_ => {
 			cx.span_bug(item.span,
 						"expected ItemStruct or ItemEnum in #[derive(Binary)]");
@@ -255,10 +256,11 @@ fn binary_expr_struct(
 	})
 }
 
+#[allow(unreachable_code)]
 fn binary_expr_item_struct(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
-	impl_generics: &ast::Generics,
+	_impl_generics: &ast::Generics,
 	ty: P<ast::Ty>,
 	span: Span,
 	variant_data: &ast::VariantData,

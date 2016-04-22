@@ -305,7 +305,7 @@ pub fn strip_ptr(ty: &P<ast::Ty>) -> P<ast::Ty> {
 	else { ty.clone() }
 }
 
-fn has_ptr(ty: &P<ast::Ty>) -> bool {
+pub fn has_ptr(ty: &P<ast::Ty>) -> bool {
 	if let ast::TyKind::Rptr(_, ref _ptr_mut) = ty.node {
 		true
 	}
