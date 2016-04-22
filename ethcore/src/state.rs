@@ -552,6 +552,10 @@ fn should_trace_basic_call_transaction() {
 }
 
 #[test]
+#[ignore]
+// call tracing turned on to make
+// number of transactions and traces in a block equal
+// debris
 fn should_not_trace_call_transaction_to_builtin() {
 	init_log();
 
@@ -577,6 +581,8 @@ fn should_not_trace_call_transaction_to_builtin() {
 }
 
 #[test]
+#[ignore]
+// call tracing turned on, debris
 fn should_not_trace_subcall_transaction_to_builtin() {
 	init_log();
 

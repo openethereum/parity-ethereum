@@ -246,22 +246,44 @@ impl<'a> Executive<'a> {
 		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
+		let delegate_call = params.code_address != params.address;
+
 		if self.engine.is_builtin(&params.code_address) {
 			// if destination is builtin, try to execute it
 
 			let default = [];
 			let data = if let Some(ref d) = params.data { d as &[u8] } else { &default as &[u8] };
 
+			let trace_info = tracer.prepare_trace_call(&params);
+
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			match cost <= params.gas {
 				true => {
 					self.engine.execute_builtin(&params.code_address, data, &mut output);
 					self.state.clear_snapshot();
+
+					let mut trace_output = tracer.prepare_trace_output();
+					if let Some(mut out) = trace_output.as_mut() {
+						*out = output.to_owned();
+					}
+
+					tracer.trace_call(
+						trace_info,
+						cost,
+						trace_output,
+						self.depth,
+						vec![],
+						delegate_call
+					);
+
 					Ok(params.gas - cost)
 				},
 				// just drain the whole gas
 				false => {
 					self.state.revert_snapshot();
+
+					tracer.trace_failed_call(trace_info, self.depth, vec![], delegate_call);
+
 					Err(evm::Error::OutOfGas)
 				}
 			}
@@ -269,7 +291,6 @@ impl<'a> Executive<'a> {
 			let trace_info = tracer.prepare_trace_call(&params);
 			let mut trace_output = tracer.prepare_trace_output();
 			let mut subtracer = tracer.subtracer();
-			let delegate_call = params.code_address != params.address;
 			let gas = params.gas;
 
 			if params.code.is_some() {
