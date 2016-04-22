@@ -77,11 +77,9 @@ impl<T> BloomGroupDatabase for Tracedb<T> where T: DatabaseExtras {
 impl<T> Tracedb<T> where T: DatabaseExtras {
 	/// Creates new instance of `Tracedb`.
 	pub fn new(mut config: Config, path: &Path, extras: Arc<T>) -> Self {
-		let mut fatdb_path = path.to_path_buf();
-		fatdb_path.push("fatdb");
-		let mut tracesdb_path = fatdb_path.clone();
-		tracesdb_path.push("traces");
-		let tracesdb = Database::open_default(tracesdb_path.to_str().unwrap()).unwrap();
+		let mut tracedb_path = path.to_path_buf();
+		tracedb_path.push("tracedb");
+		let tracesdb = Database::open_default(tracedb_path.to_str().unwrap()).unwrap();
 
 		// check if in previously tracing was enabled
 		let tracing_was_enabled = match tracesdb.get(b"enabled").unwrap() {
@@ -196,7 +194,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 
 		// now let's rebuild the blooms
 		{
-			let range_start = request.block_number as Number - request.enacted.len();
+			let range_start = request.block_number as Number + 1 - request.enacted.len();
 			let range_end = range_start + request.retracted;
 			let replaced_range = range_start..range_end;
 			let enacted_blooms = request.enacted
@@ -319,21 +317,48 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::HashMap;
 	use std::sync::Arc;
-	use util::H256;
+	use util::{Address, U256, H256};
 	use devtools::RandomTempPath;
 	use header::BlockNumber;
-	use trace::{Config, Tracedb, Database, DatabaseExtras};
+	use trace::{Config, Tracedb, Database, DatabaseExtras, ImportRequest, BlockTraces, Trace, Filter, LocalizedTrace};
+	use trace::trace::{Call, Action, Res};
 
-	struct Extras;
+	struct NoopExtras;
 
-	impl DatabaseExtras for Extras {
+	impl DatabaseExtras for NoopExtras {
 		fn block_hash(&self, _block_number: BlockNumber) -> Option<H256> {
 			unimplemented!();
 		}
 
 		fn transaction_hash(&self, _block_number: BlockNumber, _tx_position: usize) -> Option<H256> {
 			unimplemented!();
+		}
+	}
+
+	struct Extras {
+		block_hashes: HashMap<BlockNumber, H256>,
+		transaction_hashes: HashMap<BlockNumber, Vec<H256>>,
+	}
+
+	impl Default for Extras {
+		fn default() -> Self {
+			Extras {
+				block_hashes: HashMap::new(),
+				transaction_hashes: HashMap::new(),
+			}
+		}
+	}
+
+	impl DatabaseExtras for Extras {
+		fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
+			self.block_hashes.get(&block_number).cloned()
+		}
+
+		fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256> {
+			self.transaction_hashes.get(&block_number)
+				.and_then(|hashes| hashes.iter().cloned().nth(tx_position))
 		}
 	}
 
@@ -346,20 +371,20 @@ mod tests {
 		config.enabled = None;
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
-			assert_eq!(fatdb.tracing_enabled(), false);
+			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
+			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
-			assert_eq!(fatdb.tracing_enabled(), false);
+			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
+			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 
 		config.enabled = Some(false);
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
-			assert_eq!(fatdb.tracing_enabled(), false);
+			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
+			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 	}
 
@@ -372,27 +397,27 @@ mod tests {
 		config.enabled = Some(true);
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
-			assert_eq!(fatdb.tracing_enabled(), true);
+			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
+			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
-			assert_eq!(fatdb.tracing_enabled(), true);
+			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
+			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
 		config.enabled = None;
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
-			assert_eq!(fatdb.tracing_enabled(), true);
+			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
+			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
 		config.enabled = Some(false);
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
-			assert_eq!(fatdb.tracing_enabled(), false);
+			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
+			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 	}
 
@@ -406,11 +431,71 @@ mod tests {
 		config.enabled = Some(false);
 
 		{
-			let fatdb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras));
-			assert_eq!(fatdb.tracing_enabled(), true);
+			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
+			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
 		config.enabled = Some(true);
-		Tracedb::new(config.clone(), temp.as_path(), Arc::new(Extras)); // should panic!
+		Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)); // should panic!
+	}
+
+	#[test]
+	fn test_import() {
+		let temp = RandomTempPath::new();
+		let mut config = Config::default();
+		config.enabled = Some(true);
+		let block_0 = H256::from(0xa1);
+
+		let mut extras = Extras::default();
+		extras.block_hashes.insert(0, block_0.clone());
+
+		let tracedb = Tracedb::new(config, temp.as_path(), Arc::new(extras));
+
+		let request = ImportRequest {
+			traces: BlockTraces::from(vec![Trace {
+				depth: 0,
+				action: Action::Call(Call {
+					from: Address::from(1),
+					to: Address::from(2),
+					value: U256::from(3),
+					gas: U256::from(4),
+					input: vec![],
+				}),
+				result: Res::FailedCall,
+				subs: vec![],
+			}]),
+			block_hash: block_0.clone(),
+			block_number: 0,
+			enacted: vec![block_0.clone()],
+			retracted: 0,
+		};
+
+		tracedb.import(request);
+
+		let filter = Filter {
+			range: (0..0),
+			from_address: vec![Address::from(1)],
+			to_address: vec![],
+		};
+
+		let traces = tracedb.filter(&filter);
+		assert_eq!(traces.len(), 1);
+		assert_eq!(traces[0], LocalizedTrace {
+			parent: None,
+			children: vec![],
+			depth: 0,
+			action: Action::Call(Call {
+				from: Address::from(1),
+				to: Address::from(2),
+				value: U256::from(3),
+				gas: U256::from(4),
+				input: vec![],
+			}),
+			result: Res::FailedCall,
+			trace_number: 0,
+			transaction_number: 0,
+			block_number: 0,
+			block_hash: block_0.clone(),
+		});
 	}
 }

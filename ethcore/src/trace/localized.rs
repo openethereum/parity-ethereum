@@ -19,6 +19,7 @@ use super::trace::{Action, Res};
 use header::BlockNumber;
 
 /// Localized trace.
+#[derive(Debug, PartialEq)]
 pub struct LocalizedTrace {
 	/// Index of the parent trace within the same transaction.
 	pub parent: Option<usize>,
