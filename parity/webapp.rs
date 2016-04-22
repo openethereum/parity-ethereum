@@ -22,6 +22,7 @@ use ethsync::EthSync;
 use ethminer::{Miner, ExternalMiner};
 use util::RotatingLogger;
 use util::keys::store::{AccountService};
+use util::network_settings::NetworkSettings;
 use die::*;
 
 #[cfg(feature = "webapp")]
@@ -44,6 +45,7 @@ pub struct Dependencies {
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
+	pub settings: Arc<NetworkSettings>,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Option<WebappServer> {
@@ -97,7 +99,7 @@ pub fn setup_webapp_server(
 	server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
 	server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 	server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate());
-	server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger).to_delegate());
+	server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger, deps.settings).to_delegate());
 
 	let start_result = match auth {
 		None => {

@@ -23,6 +23,7 @@ use v1::tests::helpers::TestMinerService;
 use util::numbers::*;
 use rustc_serialize::hex::FromHex;
 use util::log::RotatingLogger;
+use util::network_settings::NetworkSettings;
 
 
 fn miner_service() -> Arc<TestMinerService> {
@@ -32,10 +33,26 @@ fn logger() -> Arc<RotatingLogger> {
 	Arc::new(RotatingLogger::new("rpc=trace".to_owned()))
 }
 
+fn settings() -> Arc<NetworkSettings> {
+	Arc::new(NetworkSettings {
+		name: "mynode".to_owned(),
+		chain: "testchain".to_owned(),
+		max_peers: 25,
+		network_port: 30303,
+		rpc_enabled: true,
+		rpc_interface: "all".to_owned(),
+		rpc_port: 8545,
+	})
+}
+
+fn ethcore_client(miner: &Arc<TestMinerService>) -> EthcoreClient<TestMinerService> {
+	EthcoreClient::new(&miner, logger(), settings())
+}
+
 #[test]
 fn rpc_ethcore_extra_data() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -49,7 +66,7 @@ fn rpc_ethcore_extra_data() {
 #[test]
 fn rpc_ethcore_gas_floor_target() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -62,7 +79,7 @@ fn rpc_ethcore_gas_floor_target() {
 #[test]
 fn rpc_ethcore_min_gas_price() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -75,7 +92,7 @@ fn rpc_ethcore_min_gas_price() {
 #[test]
 fn rpc_ethcore_set_min_gas_price() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -89,7 +106,7 @@ fn rpc_ethcore_set_min_gas_price() {
 #[test]
 fn rpc_ethcore_set_gas_floor_target() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -103,7 +120,7 @@ fn rpc_ethcore_set_gas_floor_target() {
 #[test]
 fn rpc_ethcore_set_extra_data() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -117,7 +134,7 @@ fn rpc_ethcore_set_extra_data() {
 #[test]
 fn rpc_ethcore_set_author() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -134,7 +151,7 @@ fn rpc_ethcore_dev_logs() {
 	let logger = logger();
 	logger.append("a".to_owned());
 	logger.append("b".to_owned());
-	let ethcore = EthcoreClient::new(&miner, logger.clone()).to_delegate();
+	let ethcore = EthcoreClient::new(&miner, logger.clone(), settings()).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -147,7 +164,7 @@ fn rpc_ethcore_dev_logs() {
 #[test]
 fn rpc_ethcore_dev_logs_levels() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -159,7 +176,7 @@ fn rpc_ethcore_dev_logs_levels() {
 #[test]
 fn rpc_ethcore_set_transactions_limit() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
@@ -170,16 +187,80 @@ fn rpc_ethcore_set_transactions_limit() {
 	assert_eq!(miner.transactions_limit(), 10_240_240);
 }
 
-
 #[test]
 fn rpc_ethcore_transactions_limit() {
 	let miner = miner_service();
-	let ethcore = EthcoreClient::new(&miner, logger()).to_delegate();
+	let ethcore = ethcore_client(&miner).to_delegate();
 	let io = IoHandler::new();
 	io.add_delegate(ethcore);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_transactionsLimit", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":1024,"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_net_chain() {
+	let miner = miner_service();
+	let ethcore = ethcore_client(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netChain", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"testchain","id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_net_max_peers() {
+	let miner = miner_service();
+	let ethcore = ethcore_client(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netMaxPeers", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":25,"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_net_port() {
+	let miner = miner_service();
+	let ethcore = ethcore_client(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netPort", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":30303,"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_rpc_settings() {
+	let miner = miner_service();
+	let ethcore = ethcore_client(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_rpcSettings", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"enabled":true,"interface":"all","port":8545},"id":1}"#;
+
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_node_name() {
+	let miner = miner_service();
+	let ethcore = ethcore_client(&miner).to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_nodeName", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"mynode","id":1}"#;
 
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }

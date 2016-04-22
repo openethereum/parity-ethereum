@@ -23,6 +23,7 @@ use ethsync::EthSync;
 use ethminer::{Miner, ExternalMiner};
 use util::RotatingLogger;
 use util::keys::store::{AccountService};
+use util::network_settings::NetworkSettings;
 use die::*;
 
 #[cfg(feature = "rpc")]
@@ -47,6 +48,7 @@ pub struct Dependencies {
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
+	pub settings: Arc<NetworkSettings>,
 }
 
 pub fn new(conf: Configuration, deps: Dependencies) -> Option<RpcServer> {
@@ -95,7 +97,7 @@ pub fn setup_rpc_server(
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 			},
 			"personal" => server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate()),
-			"ethcore" => server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone()).to_delegate()),
+			"ethcore" => server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
 			},
