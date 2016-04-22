@@ -89,9 +89,11 @@ impl Filter {
 
 #[cfg(test)]
 mod tests {
-	use util::{FixedHash, Address};
+	use util::{FixedHash, Address, U256};
 	use util::sha3::Hashable;
-	use super::Filter;
+	use trace::trace::{Action, Call, Res};
+	use trace::flat::FlatTrace;
+	use trace::Filter;
 	use basic_types::LogBloom;
 
 	#[test]
@@ -182,5 +184,72 @@ mod tests {
 		assert!(blooms[3].contains_bloomed(&Address::from(4).sha3()));
 		assert!(!blooms[3].contains_bloomed(&Address::from(1).sha3()));
 		assert!(!blooms[3].contains_bloomed(&Address::from(2).sha3()));
+	}
+
+	#[test]
+	fn filter_matches() {
+		let f0 = Filter {
+			range: (0..0),
+			from_address: vec![Address::from(1)],
+			to_address: vec![],
+		};
+
+		let f1 = Filter {
+			range: (0..0),
+			from_address: vec![Address::from(3), Address::from(1)],
+			to_address: vec![],
+		};
+
+		let f2 = Filter {
+			range: (0..0),
+			from_address: vec![],
+			to_address: vec![],
+		};
+
+		let f3 = Filter {
+			range: (0..0),
+			from_address: vec![],
+			to_address: vec![Address::from(2)],
+		};
+
+		let f4 = Filter {
+			range: (0..0),
+			from_address: vec![],
+			to_address: vec![Address::from(2), Address::from(3)],
+		};
+
+		let f5 = Filter {
+			range: (0..0),
+			from_address: vec![Address::from(1)],
+			to_address: vec![Address::from(2), Address::from(3)],
+		};
+
+		let f6 = Filter {
+			range: (0..0),
+			from_address: vec![Address::from(1)],
+			to_address: vec![Address::from(4)],
+		};
+
+		let trace = FlatTrace {
+			parent: None,
+			children: vec![],
+			depth: 0,
+			action: Action::Call(Call {
+				from: Address::from(1),
+				to: Address::from(2),
+				value: U256::from(3),
+				gas: U256::from(4),
+				input: vec![0x5],
+			}),
+			result: Res::FailedCall,
+		};
+
+		assert!(f0.matches(&trace));
+		assert!(f1.matches(&trace));
+		assert!(f2.matches(&trace));
+		assert!(f3.matches(&trace));
+		assert!(f4.matches(&trace));
+		assert!(f5.matches(&trace));
+		assert!(!f6.matches(&trace));
 	}
 }
