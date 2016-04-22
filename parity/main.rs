@@ -69,7 +69,7 @@ use util::*;
 use util::panics::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::service::ClientService;
 use ethsync::EthSync;
-use ethminer::{Miner, MinerService};
+use ethminer::{Miner, MinerService, ExternalMiner};
 use daemonize::Daemonize;
 
 use die::*;
@@ -153,6 +153,7 @@ fn execute_client(conf: Configuration) {
 	miner.set_minimal_gas_price(conf.gas_price());
 	miner.set_transactions_limit(conf.args.flag_tx_limit);
 
+	let external_miner = Arc::new(ExternalMiner::default());
 	let network_settings = Arc::new(conf.network_settings());
 
 	// Sync
@@ -170,6 +171,7 @@ fn execute_client(conf: Configuration) {
 		sync: sync.clone(),
 		secret_store: account_service.clone(),
 		miner: miner.clone(),
+		external_miner: external_miner.clone(),
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 	});
@@ -185,6 +187,7 @@ fn execute_client(conf: Configuration) {
 		sync: sync.clone(),
 		secret_store: account_service.clone(),
 		miner: miner.clone(),
+		external_miner: external_miner.clone(),
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 	});

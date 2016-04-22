@@ -22,7 +22,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Weak, Mutex};
 use std::ops::Deref;
 use ethsync::{SyncProvider, SyncState};
-use ethminer::{MinerService, AccountDetails};
+use ethminer::{MinerService, AccountDetails, ExternalMinerService};
 use jsonrpc_core::*;
 use util::numbers::*;
 use util::sha3::*;
@@ -36,12 +36,12 @@ use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Act
 use self::ethash::SeedHashCompute;
 use v1::traits::{Eth, EthFilter};
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, TransactionRequest, CallRequest, OptionalValue, Index, Filter, Log, Receipt};
-use v1::helpers::{PollFilter, PollManager, ExternalMinerService, ExternalMiner};
+use v1::helpers::{PollFilter, PollManager};
 use util::keys::store::AccountProvider;
 use serde;
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S, A, M, EM = ExternalMiner>
+pub struct EthClient<C, S, A, M, EM>
 	where C: BlockChainClient,
 		  S: SyncProvider,
 		  A: AccountProvider,
@@ -51,20 +51,8 @@ pub struct EthClient<C, S, A, M, EM = ExternalMiner>
 	sync: Weak<S>,
 	accounts: Weak<A>,
 	miner: Weak<M>,
-	external_miner: EM,
+	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
-}
-
-impl<C, S, A, M> EthClient<C, S, A, M, ExternalMiner>
-	where C: BlockChainClient,
-		  S: SyncProvider,
-		  A: AccountProvider,
-		  M: MinerService {
-
-	/// Creates new EthClient.
-	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>) -> Self {
-		EthClient::new_with_external_miner(client, sync, accounts, miner, ExternalMiner::default())
-	}
 }
 
 impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
@@ -74,15 +62,15 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 		  M: MinerService,
 		  EM: ExternalMinerService {
 
-	/// Creates new EthClient with custom external miner.
-	pub fn new_with_external_miner(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>, em: EM)
+	/// Creates new EthClient.
+	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<A>, miner: &Arc<M>, em: &Arc<EM>)
 		-> EthClient<C, S, A, M, EM> {
 		EthClient {
 			client: Arc::downgrade(client),
 			sync: Arc::downgrade(sync),
 			miner: Arc::downgrade(miner),
 			accounts: Arc::downgrade(accounts),
-			external_miner: em,
+			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::new()),
 		}
 	}

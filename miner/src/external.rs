@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use util::numbers::U256;
 use util::hash::H256;
 
@@ -33,13 +33,22 @@ pub trait ExternalMinerService: Send + Sync {
 
 /// External Miner.
 pub struct ExternalMiner {
-	hashrates: RwLock<HashMap<H256, U256>>,
+	hashrates: Arc<RwLock<HashMap<H256, U256>>>,
 }
 
 impl Default for ExternalMiner {
 	fn default() -> Self {
 		ExternalMiner {
-			hashrates: RwLock::new(HashMap::new()),
+			hashrates: Arc::new(RwLock::new(HashMap::new())),
+		}
+	}
+}
+
+impl ExternalMiner {
+	/// Creates new external miner with prefilled hashrates.
+	pub fn new(hashrates: Arc<RwLock<HashMap<H256, U256>>>) -> Self {
+		ExternalMiner {
+			hashrates: hashrates
 		}
 	}
 }
@@ -55,5 +64,45 @@ impl ExternalMinerService for ExternalMiner {
 
 	fn is_mining(&self) -> bool {
 		!self.hashrates.read().unwrap().is_empty()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use util::{H256, U256};
+
+	fn miner() -> ExternalMiner {
+		ExternalMiner::default()
+	}
+
+	#[test]
+	fn should_return_that_is_mining_if_there_is_at_least_one_entry() {
+		// given
+		let m = miner();
+		assert_eq!(m.is_mining(), false);
+
+		// when
+		m.submit_hashrate(U256::from(10), H256::from(1));
+
+		// then
+		assert_eq!(m.is_mining(), true);
+	}
+
+	#[test]
+	fn should_sum_up_hashrate() {
+		// given
+		let m = miner();
+		assert_eq!(m.hashrate(), U256::from(0));
+		m.submit_hashrate(U256::from(10), H256::from(1));
+		assert_eq!(m.hashrate(), U256::from(10));
+
+		// when
+		m.submit_hashrate(U256::from(15), H256::from(1));
+		m.submit_hashrate(U256::from(20), H256::from(2));
+
+
+		// then
+		assert_eq!(m.hashrate(), U256::from(35));
 	}
 }
