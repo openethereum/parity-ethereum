@@ -31,3 +31,8 @@ pub struct DoubleRoot {
 	pub x2: u64,
 	pub x3: u32,
 }
+
+#[derive(Binary, PartialEq, Debug)]
+pub struct ReferenceStruct<'a> {
+	pub ref_data: &'a u64,
+}

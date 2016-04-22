@@ -29,6 +29,8 @@ use syntax::ptr::P;
 
 pub struct Error;
 
+use super::codegen;
+
 pub fn expand_serialization_implementation(
 	cx: &mut ExtCtxt,
 	span: Span,
@@ -162,7 +164,9 @@ fn binary_expr_struct(
 ) -> Result<BinaryExpressions, Error> {
 
 	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
-		let field_type_ident = builder.id(&::syntax::print::pprust::ty_to_string(&field.ty));
+		let field_type_ident = builder.id(
+			&::syntax::print::pprust::ty_to_string(
+				&codegen::strip_ptr(&field.ty)));
 		let index_ident = builder.id(format!("__field{}", index));
 		value_ident.and_then(|x| {
 				let field_id = builder.id(field.ident.unwrap());
@@ -193,7 +197,9 @@ fn binary_expr_struct(
 	map_stmts.push(quote_stmt!(cx, let mut map = vec![0usize; $field_amount];).unwrap());
 	map_stmts.push(quote_stmt!(cx, let mut total = 0usize;).unwrap());
 	for (index, field) in fields.iter().enumerate() {
-		let field_type_ident = builder.id(&::syntax::print::pprust::ty_to_string(&field.ty));
+		let field_type_ident = builder.id(
+			&::syntax::print::pprust::ty_to_string(
+				&codegen::strip_ptr(&field.ty)));
 
 		let member_expr = match value_ident {
 			Some(x) => {
@@ -225,13 +231,21 @@ fn binary_expr_struct(
 		map_stmts.push(quote_stmt!(cx, total = total + size;).unwrap());
 	};
 
-	let read_expr = if value_ident.is_some() {
-		let instance_create = named_fields_sequence(cx, &ty, fields);
-		quote_expr!(cx, { $map_stmts; $instance_create; Ok(result) })
-	}
-	else {
-		let map_variant = P(fields_sequence(cx, &ty, fields, &instance_ident.unwrap_or(builder.id("Self"))));
-		quote_expr!(cx, { $map_stmts; Ok($map_variant) })
+	let read_expr = match fields.iter().any(|f| codegen::has_ptr(&f.ty)) {
+		true => {
+			// cannot create structs with pointers
+			quote_expr!(cx, Err(::ipc::binary::BinaryConvertError))
+		},
+		false => {
+			if value_ident.is_some() {
+				let instance_create = named_fields_sequence(cx, &ty, fields);
+				quote_expr!(cx, { $map_stmts; $instance_create; Ok(result) })
+			}
+			else {
+				let map_variant = P(fields_sequence(cx, &ty, fields, &instance_ident.unwrap_or(builder.id("Self"))));
+				quote_expr!(cx, { $map_stmts; Ok($map_variant) })
+			}
+		}
 	};
 
     Ok(BinaryExpressions {
@@ -553,6 +567,7 @@ fn binary_expr_variant(
 			));
 
 			let (size_expr, write_expr, read_expr) = (binary_expr.size, vec![binary_expr.write], binary_expr.read);
+
 			Ok(BinaryArm {
 				size: quote_arm!(cx, $pat => { $size_expr } ),
 				write: quote_arm!(cx,
