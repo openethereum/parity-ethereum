@@ -18,9 +18,10 @@
 
 use std::sync::{Weak, Arc};
 use jsonrpc_core::*;
-use ethcore::client::BlockChainClient;
+use util::H256;
+use ethcore::client::{BlockChainClient, TransactionId, TraceId};
 use v1::traits::Traces;
-use v1::types::{TraceFilter, Trace};
+use v1::types::{TraceFilter, Trace, BlockNumber, Index};
 
 /// Traces api implementation.
 pub struct TracesClient<C> where C: BlockChainClient {
@@ -44,6 +45,40 @@ impl<C> Traces for TracesClient<C> where C: BlockChainClient + 'static {
 				let traces = client.filter_traces(filter.into());
 				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(Trace::from).collect());
 				to_value(&traces)
+			})
+	}
+
+	fn block_traces(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(BlockNumber,)>(params)
+			.and_then(|(block_number,)| {
+				let client = take_weak!(self.client);
+				let traces = client.block_traces(block_number.into());
+				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(Trace::from).collect());
+				to_value(&traces)
+			})
+	}
+
+	fn transaction_traces(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H256,)>(params)
+			.and_then(|(transaction_hash,)| {
+				let client = take_weak!(self.client);
+				let traces = client.transaction_traces(TransactionId::Hash(transaction_hash));
+				let traces = traces.map_or_else(Vec::new, |traces| traces.into_iter().map(Trace::from).collect());
+				to_value(&traces)
+			})
+	}
+
+	fn trace(&self, params: Params) -> Result<Value, Error> {
+		from_params::<(H256, Index)>(params)
+			.and_then(|(transaction_hash, index)| {
+				let client = take_weak!(self.client);
+				let id = TraceId {
+					transaction: TransactionId::Hash(transaction_hash),
+					index: index.value(),
+				};
+				let trace = client.trace(id);
+				let trace = trace.map(Trace::from);
+				to_value(&trace)
 			})
 	}
 }
