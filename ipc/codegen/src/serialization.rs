@@ -166,18 +166,21 @@ fn binary_expr_struct(
 
 	let size_exprs: Vec<P<ast::Expr>> = fields.iter().enumerate().map(|(index, field)| {
 		let field_type_ident = builder.id(
-			&::syntax::print::pprust::ty_to_string(
-				&codegen::strip_ptr(&field.ty)));
+			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)));
+
+		let field_type_ident_qualified = builder.id(
+			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)).replace("<", "::<"));
+
 		let index_ident = builder.id(format!("__field{}", index));
 		value_ident.and_then(|x| {
 				let field_id = builder.id(field.ident.unwrap());
 				Some(quote_expr!(cx,
-					match $field_type_ident::len_params() {
+					match $field_type_ident_qualified::len_params() {
 						0 => mem::size_of::<$field_type_ident>(),
 						_ => $x. $field_id .size()
 					}))
 			})
-			.unwrap_or_else(|| quote_expr!(cx, match $field_type_ident::len_params() {
+			.unwrap_or_else(|| quote_expr!(cx, match $field_type_ident_qualified::len_params() {
 				0 => mem::size_of::<$field_type_ident>(),
 				_ => $index_ident .size()
 			}))
@@ -199,8 +202,10 @@ fn binary_expr_struct(
 	map_stmts.push(quote_stmt!(cx, let mut total = 0usize;).unwrap());
 	for (index, field) in fields.iter().enumerate() {
 		let field_type_ident = builder.id(
-			&::syntax::print::pprust::ty_to_string(
-				&codegen::strip_ptr(&field.ty)));
+			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)));
+
+		let field_type_ident_qualified = builder.id(
+			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)).replace("<", "::<"));
 
 		let member_expr = match value_ident {
 			Some(x) => {
@@ -213,7 +218,7 @@ fn binary_expr_struct(
 			}
 		};
 
-		write_stmts.push(quote_stmt!(cx, let next_line = offset + match $field_type_ident::len_params() {
+		write_stmts.push(quote_stmt!(cx, let next_line = offset + match $field_type_ident_qualified::len_params() {
 				0 => mem::size_of::<$field_type_ident>(),
 				_ => { let size = $member_expr .size(); length_stack.push_back(size); size }
 			}).unwrap());
@@ -225,7 +230,7 @@ fn binary_expr_struct(
 
 		let field_index = builder.id(&format!("{}", index));
 		map_stmts.push(quote_stmt!(cx, map[$field_index] = total;).unwrap());
-		map_stmts.push(quote_stmt!(cx, let size = match $field_type_ident::len_params() {
+		map_stmts.push(quote_stmt!(cx, let size = match $field_type_ident_qualified::len_params() {
 				0 => mem::size_of::<$field_type_ident>(),
 				_ => length_stack.pop_front().unwrap()
 			}).unwrap());
@@ -371,7 +376,7 @@ fn fields_sequence(
 				tt.push(Token(
 					_sp,
 					token::Ident(
-						ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(&field.ty)),
+						ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(&field.ty).replace("<", "::<")),
 						token::Plain)));
 				tt.push(Token(_sp, token::ModSep));
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"), token::Plain)));
@@ -445,7 +450,7 @@ fn named_fields_sequence(
 				tt.push(Token(
 					_sp,
 					token::Ident(
-						ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(&field.ty)),
+						ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(&field.ty).replace("<", "::<")),
 						token::Plain)));
 				tt.push(Token(_sp, token::ModSep));
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"), token::Plain)));

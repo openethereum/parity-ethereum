@@ -41,12 +41,20 @@ mod tests {
 	#[test]
 	fn call_service_handshake() {
 		let mut socket = TestSocket::new_ready(vec![0, 0,
-			// protocol version
-			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
-			// api version
-			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
-			// reserved
+			// part count = 3
+			0, 0, 0, 0, 0, 0, 0, 3,
+			// part sizes
+			0, 0, 0, 0, 0, 0, 0, 5,
+			0, 0, 0, 0, 0, 0, 0, 5,
 			0, 0, 0, 0, 0, 0, 0, 64,
+			// total payload length
+			0, 0, 0, 0, 0, 0, 0, 70,
+			// protocol version
+			b'1', b'.', b'0', b'.', b'0',
+			// api version
+			b'1', b'.', b'0', b'.', b'0',
+			// reserved
+
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

@@ -63,6 +63,63 @@ impl<T> BinaryConvertable for Option<T> where T: BinaryConvertable {
 	}
 }
 
+impl<E: BinaryConvertable> BinaryConvertable for Result<(), E> {
+	fn size(&self) -> usize {
+		1usize + match *self {
+			Ok(ref r) => 0,
+			Err(ref e) => e.size(),
+		}
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		match *self {
+			Ok(ref r) => Ok(()),
+			Err(ref e) => Ok(try!(e.to_bytes(buffer, length_stack))),
+		}
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		match buffer[0] {
+			0 => Ok(Ok(())),
+			1 => Ok(Err(try!(E::from_bytes(&buffer[1..], length_stack)))),
+			_ => Err(BinaryConvertError)
+		}
+	}
+
+	fn len_params() -> usize {
+		1
+	}
+}
+
+
+impl<R: BinaryConvertable, E: BinaryConvertable> BinaryConvertable for Result<R, E> {
+	fn size(&self) -> usize {
+		1usize + match *self {
+			Ok(ref r) => r.size(),
+			Err(ref e) => e.size(),
+		}
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		match *self {
+			Ok(ref r) => Ok(try!(r.to_bytes(buffer, length_stack))),
+			Err(ref e) => Ok(try!(e.to_bytes(buffer, length_stack))),
+		}
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		match buffer[0] {
+			0 => Ok(Ok(try!(R::from_bytes(&buffer[1..], length_stack)))),
+			1 => Ok(Err(try!(E::from_bytes(&buffer[1..], length_stack)))),
+			_ => Err(BinaryConvertError)
+		}
+	}
+
+	fn len_params() -> usize {
+		1
+	}
+}
+
 impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 	fn size(&self) -> usize {
 		match T::len_params() {
@@ -128,6 +185,55 @@ impl<T> BinaryConvertable for Vec<T> where T: BinaryConvertable {
 	}
 }
 
+impl BinaryConvertable for String {
+	fn size(&self) -> usize {
+		self.as_bytes().len()
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(String::new())
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], _length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		buffer[..].clone_from_slice(self.as_bytes());
+		Ok(())
+	}
+
+	fn from_bytes(buffer: &[u8], _length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		Ok(::std::str::from_utf8(buffer).unwrap().to_owned())
+	}
+
+	fn len_params() -> usize {
+		1
+	}
+}
+
+impl BinaryConvertable for Vec<u8> {
+	fn size(&self) -> usize {
+		self.len()
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(Vec::new())
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], _length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		buffer[..].clone_from_slice(&self[..]);
+		Ok(())
+	}
+
+	fn from_bytes(buffer: &[u8], _length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		let mut res = Self::with_capacity(buffer.len());
+		unsafe { res.set_len(buffer.len()) }
+		res[..].clone_from_slice(&buffer[..]);
+		Ok(res)
+	}
+
+	fn len_params() -> usize {
+		1
+	}
+}
+
 pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryConvertError>
 	where R: ::std::io::Read,
 		T: BinaryConvertable
@@ -156,6 +262,12 @@ pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryConvertError>
 	try!(r.read(&mut data).map_err(|_| BinaryConvertError));
 
 	T::from_bytes(&data[..], &mut length_stack)
+}
+
+pub fn deserialize<T: BinaryConvertable>(buffer: &[u8]) -> Result<T, BinaryConvertError> {
+	use std::io::Cursor;
+	let mut buff = Cursor::new(buffer);
+	deserialize_from::<T, _>(&mut buff)
 }
 
 pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
@@ -197,6 +309,13 @@ pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
 	Ok(())
 }
 
+pub fn serialize<T: BinaryConvertable>(t: &T) -> Result<Vec<u8>, BinaryConvertError> {
+	use std::io::Cursor;
+	let mut buff = Cursor::new(Vec::new());
+	try!(serialize_into(t, &mut buff));
+	Ok(buff.into_inner())
+}
+
 macro_rules! binary_fixed_size {
 	($target_ty: ident) => {
 		impl BinaryConvertable for $target_ty {
@@ -226,6 +345,7 @@ macro_rules! binary_fixed_size {
 
 binary_fixed_size!(u64);
 binary_fixed_size!(u32);
+binary_fixed_size!(i32);
 binary_fixed_size!(bool);
 
 #[test]
