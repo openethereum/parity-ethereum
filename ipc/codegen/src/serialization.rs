@@ -159,7 +159,7 @@ fn binary_expr_struct(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	ty: P<ast::Ty>,
-    fields: &[ast::StructField],
+	fields: &[ast::StructField],
 	value_ident: Option<ast::Ident>,
 	instance_ident: Option<ast::Ident>,
 ) -> Result<BinaryExpressions, Error> {
