@@ -166,6 +166,7 @@ fn execute_client(conf: Configuration) {
 		apis: conf.args.flag_rpcapi.clone().unwrap_or(conf.args.flag_jsonrpc_apis.clone()),
 		cors: conf.args.flag_jsonrpc_cors.clone().or(conf.args.flag_rpccorsdomain.clone()),
 	}, rpc::Dependencies {
+		panic_handler: panic_handler.clone(),
 		client: client.clone(),
 		sync: sync.clone(),
 		secret_store: account_service.clone(),
@@ -181,6 +182,7 @@ fn execute_client(conf: Configuration) {
 		user: conf.args.flag_webapp_user.clone(),
 		pass: conf.args.flag_webapp_pass.clone(),
 	}, webapp::Dependencies {
+		panic_handler: panic_handler.clone(),
 		client: client.clone(),
 		sync: sync.clone(),
 		secret_store: account_service.clone(),

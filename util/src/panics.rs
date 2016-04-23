@@ -85,7 +85,9 @@ impl PanicHandler {
 		Ok(result)
 	}
 
-	fn notify_all(&self, r: String) {
+	/// Notifies all listeners in case there is a panic.
+	/// You should use `catch_panic` instead of calling this method explicitly.
+	pub fn notify_all(&self, r: String) {
 		let mut listeners = self.listeners.lock().unwrap();
 		for listener in listeners.deref_mut() {
 			listener.call(&r);
