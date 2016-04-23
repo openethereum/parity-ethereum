@@ -60,9 +60,9 @@ pub fn expand_serialization_implementation(
 }
 
 fn serialize_item(
-    cx: &ExtCtxt,
-    builder: &aster::AstBuilder,
-    item: &Item,
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	item: &Item,
 ) -> Result<P<ast::Item>, Error> {
 	let generics = match item.node {
 		ast::ItemKind::Struct(_, ref generics) => generics,
@@ -296,13 +296,13 @@ fn binary_expr_item_struct(
 }
 
 fn binary_expr_enum(
-    cx: &ExtCtxt,
-    builder: &aster::AstBuilder,
-    type_ident: Ident,
-    impl_generics: &ast::Generics,
-    ty: P<ast::Ty>,
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	type_ident: Ident,
+	impl_generics: &ast::Generics,
+	ty: P<ast::Ty>,
 	span: Span,
-    enum_def: &ast::EnumDef,
+	enum_def: &ast::EnumDef,
 ) -> Result<BinaryExpressions, Error> {
 	let arms: Vec<_> = try!(
 		enum_def.variants.iter()
@@ -345,7 +345,7 @@ struct BinaryArm {
 fn fields_sequence(
 	ext_cx: &ExtCtxt,
 	_ty: &P<ast::Ty>,
-    fields: &[ast::StructField],
+	fields: &[ast::StructField],
 	variant_ident: &ast::Ident,
 ) -> ast::Expr {
 	use syntax::parse::token;
@@ -413,7 +413,7 @@ fn fields_sequence(
 fn named_fields_sequence(
 	ext_cx: &ExtCtxt,
 	ty: &P<ast::Ty>,
-    fields: &[ast::StructField],
+	fields: &[ast::StructField],
 ) -> ast::Stmt {
 	use syntax::parse::token;
 	use syntax::ast::TokenTree::Token;
@@ -485,14 +485,14 @@ fn named_fields_sequence(
 }
 
 fn binary_expr_variant(
-    cx: &ExtCtxt,
-    builder: &aster::AstBuilder,
-    type_ident: Ident,
-    _generics: &ast::Generics,
-    ty: P<ast::Ty>,
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	type_ident: Ident,
+	_generics: &ast::Generics,
+	ty: P<ast::Ty>,
 	_span: Span,
-    variant: &ast::Variant,
-    variant_index: usize,
+	variant: &ast::Variant,
+	variant_index: usize,
 ) -> Result<BinaryArm, Error> {
 	let variant_ident = variant.node.name;
 	let variant_index_ident = builder.id(format!("{}", variant_index));
