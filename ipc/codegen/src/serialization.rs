@@ -113,11 +113,11 @@ fn serialize_item(
 
 #[allow(unreachable_code)]
 fn binary_expr(
-    cx: &ExtCtxt,
-    builder: &aster::AstBuilder,
-    item: &Item,
-    impl_generics: &ast::Generics,
-    ty: P<ast::Ty>,
+	cx: &ExtCtxt,
+	builder: &aster::AstBuilder,
+	item: &Item,
+	impl_generics: &ast::Generics,
+	ty: P<ast::Ty>,
 ) -> Result<BinaryExpressions, Error> {
 	match item.node {
 		ast::ItemKind::Struct(ref variant_data, _) => {
