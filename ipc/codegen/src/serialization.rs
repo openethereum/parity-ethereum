@@ -48,15 +48,15 @@ pub fn expand_serialization_implementation(
 
 	let builder = aster::AstBuilder::new().span(span);
 
-    let impl_item = match serialize_item(cx, &builder, &item) {
-        Ok(item) => item,
-        Err(Error) => {
-            // An error occured, but it should have been reported already.
-            return;
-        }
-    };
+	let impl_item = match serialize_item(cx, &builder, &item) {
+		Ok(item) => item,
+		Err(Error) => {
+			// An error occured, but it should have been reported already.
+			return;
+		}
+	};
 
-    push(Annotatable::Item(impl_item))
+	push(Annotatable::Item(impl_item))
 }
 
 fn serialize_item(
