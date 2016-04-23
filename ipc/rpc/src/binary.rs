@@ -66,14 +66,14 @@ impl<T> BinaryConvertable for Option<T> where T: BinaryConvertable {
 impl<E: BinaryConvertable> BinaryConvertable for Result<(), E> {
 	fn size(&self) -> usize {
 		1usize + match *self {
-			Ok(ref r) => 0,
+			Ok(_) => 0,
 			Err(ref e) => e.size(),
 		}
 	}
 
 	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
 		match *self {
-			Ok(ref r) => Ok(()),
+			Ok(_) => Ok(()),
 			Err(ref e) => Ok(try!(e.to_bytes(buffer, length_stack))),
 		}
 	}
@@ -239,29 +239,41 @@ pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryConvertError>
 		T: BinaryConvertable
 {
 	let mut fake_stack = VecDeque::new();
-	let mut length_stack = VecDeque::<usize>::new();
-	let mut size_buffer = [0u8; 8];
-	try!(r.read(&mut size_buffer[..]).map_err(|_| BinaryConvertError));
-	let stack_len = try!(u64::from_bytes(&mut size_buffer[..], &mut fake_stack)) as usize;
-	if stack_len > 0 {
-		let mut header_buffer = Vec::with_capacity(stack_len * 8);
-		unsafe {  header_buffer.set_len(stack_len * 8); };
 
-		try!(r.read(&mut header_buffer[..]).map_err(|_| BinaryConvertError));
-		for idx in 0..stack_len {
-			let stack_item = try!(u64::from_bytes(&header_buffer[idx*8..(idx+1)*8], &mut fake_stack));
-			length_stack.push_back(stack_item as usize);
+	match T::len_params() {
+		0 => {
+			let fixed_size = mem::size_of::<T>();
+			let mut payload_buffer = Vec::with_capacity(fixed_size);
+			unsafe { payload_buffer.set_len(fixed_size); }
+			try!(r.read(&mut payload_buffer).map_err(|_| BinaryConvertError));
+			T::from_bytes(&payload_buffer[..], &mut fake_stack)
+		},
+		_ => {
+			let mut length_stack = VecDeque::<usize>::new();
+			let mut size_buffer = [0u8; 8];
+			try!(r.read(&mut size_buffer[..]).map_err(|_| BinaryConvertError));
+			let stack_len = try!(u64::from_bytes(&mut size_buffer[..], &mut fake_stack)) as usize;
+			if stack_len > 0 {
+				let mut header_buffer = Vec::with_capacity(stack_len * 8);
+				unsafe {  header_buffer.set_len(stack_len * 8); };
+
+				try!(r.read(&mut header_buffer[..]).map_err(|_| BinaryConvertError));
+				for idx in 0..stack_len {
+					let stack_item = try!(u64::from_bytes(&header_buffer[idx*8..(idx+1)*8], &mut fake_stack));
+					length_stack.push_back(stack_item as usize);
+				}
+			}
+
+			try!(r.read(&mut size_buffer[..]).map_err(|_| BinaryConvertError));
+			let size = try!(u64::from_bytes(&size_buffer[..], &mut fake_stack)) as usize;
+
+			let mut data = Vec::with_capacity(size);
+			unsafe { data.set_len(size) };
+			try!(r.read(&mut data).map_err(|_| BinaryConvertError));
+
+			T::from_bytes(&data[..], &mut length_stack)
 		}
 	}
-
-	try!(r.read(&mut size_buffer[..]).map_err(|_| BinaryConvertError));
-	let size = try!(u64::from_bytes(&size_buffer[..], &mut fake_stack)) as usize;
-
-	let mut data = Vec::with_capacity(size);
-	unsafe { data.set_len(size) };
-	try!(r.read(&mut data).map_err(|_| BinaryConvertError));
-
-	T::from_bytes(&data[..], &mut length_stack)
 }
 
 pub fn deserialize<T: BinaryConvertable>(buffer: &[u8]) -> Result<T, BinaryConvertError> {
@@ -274,39 +286,52 @@ pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
 	where W: ::std::io::Write,
 		T: BinaryConvertable
 {
-	let mut length_stack = VecDeque::<usize>::new();
 	let mut fake_stack = VecDeque::new();
-	let mut size_buffer = [0u8; 8];
 
-	let size = t.size();
-	let mut buffer = Vec::with_capacity(size);
-	unsafe { buffer.set_len(size); }
-	try!(t.to_bytes(&mut buffer[..], &mut length_stack));
+	match T::len_params() {
+		0 => {
+			let fixed_size = mem::size_of::<T>();
+			let mut buffer = Vec::with_capacity(fixed_size);
+			unsafe { buffer.set_len(fixed_size); }
+			try!(t.to_bytes(&mut buffer[..], &mut fake_stack));
+			try!(w.write(&buffer[..]).map_err(|_| BinaryConvertError));
+			Ok(())
+		},
+		_ => {
+			let mut length_stack = VecDeque::<usize>::new();
+			let mut size_buffer = [0u8; 8];
 
-	let stack_len = length_stack.len();
-	try!((stack_len as u64).to_bytes(&mut size_buffer[..], &mut fake_stack));
-	try!(w.write(&size_buffer[..]).map_err(|_| BinaryConvertError));
-	if stack_len > 0 {
-		let mut header_buffer = Vec::with_capacity(stack_len * 8);
-		unsafe {  header_buffer.set_len(stack_len * 8); };
-		try!((stack_len as u64).to_bytes(&mut header_buffer[0..8], &mut fake_stack));
-		let mut idx = 0;
-		loop {
-			match length_stack.pop_front() {
-				Some(val) => try!((val as u64).to_bytes(&mut header_buffer[idx * 8..(idx+1) * 8], &mut fake_stack)),
-				None => { break; }
+			let size = t.size();
+			let mut buffer = Vec::with_capacity(size);
+			unsafe { buffer.set_len(size); }
+			try!(t.to_bytes(&mut buffer[..], &mut length_stack));
+
+			let stack_len = length_stack.len();
+			try!((stack_len as u64).to_bytes(&mut size_buffer[..], &mut fake_stack));
+			try!(w.write(&size_buffer[..]).map_err(|_| BinaryConvertError));
+			if stack_len > 0 {
+				let mut header_buffer = Vec::with_capacity(stack_len * 8);
+				unsafe {  header_buffer.set_len(stack_len * 8); };
+				try!((stack_len as u64).to_bytes(&mut header_buffer[0..8], &mut fake_stack));
+				let mut idx = 0;
+				loop {
+					match length_stack.pop_front() {
+						Some(val) => try!((val as u64).to_bytes(&mut header_buffer[idx * 8..(idx+1) * 8], &mut fake_stack)),
+						None => { break; }
+					}
+					idx = idx + 1;
+				}
+				try!(w.write(&header_buffer[..]).map_err(|_| BinaryConvertError));
 			}
-			idx = idx + 1;
+
+			try!((size as u64).to_bytes(&mut size_buffer[..], &mut fake_stack));
+			try!(w.write(&size_buffer[..]).map_err(|_| BinaryConvertError));
+
+			try!(w.write(&buffer[..]).map_err(|_| BinaryConvertError));
+
+			Ok(())
 		}
-		try!(w.write(&header_buffer[..]).map_err(|_| BinaryConvertError));
 	}
-
-	try!((size as u64).to_bytes(&mut size_buffer[..], &mut fake_stack));
-	try!(w.write(&size_buffer[..]).map_err(|_| BinaryConvertError));
-
-	try!(w.write(&buffer[..]).map_err(|_| BinaryConvertError));
-
-	Ok(())
 }
 
 pub fn serialize<T: BinaryConvertable>(t: &T) -> Result<Vec<u8>, BinaryConvertError> {
