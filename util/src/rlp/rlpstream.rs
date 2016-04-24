@@ -313,11 +313,7 @@ impl ByteEncodable for EncodableU8 {
 	}
 
 	fn bytes_len(&self) -> usize {
-		if self.0 == 0 {
-			0
-		} else {
-			1
-		}
+		match self.0 { 0 => 0, _ => 1 }
 	}
 }
 
