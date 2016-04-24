@@ -88,6 +88,7 @@ extern crate ethjson;
 #[cfg(test)] extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;
 
+pub mod basic_authority;
 pub mod block;
 pub mod block_queue;
 pub mod client;

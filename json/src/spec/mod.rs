@@ -25,6 +25,7 @@ pub mod seal;
 pub mod engine;
 pub mod state;
 pub mod ethash;
+pub mod basic_authority;
 
 pub use self::account::Account;
 pub use self::builtin::{Builtin, Pricing, Linear};
@@ -35,3 +36,4 @@ pub use self::seal::{Seal, Ethereum, Generic};
 pub use self::engine::Engine;
 pub use self::state::State;
 pub use self::ethash::{Ethash, EthashParams};
+pub use self::basic_authority::{BasicAuthority, BasicAuthorityParams};

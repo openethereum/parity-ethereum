@@ -24,9 +24,6 @@ pub struct Params {
 	/// Account start nonce.
 	#[serde(rename="accountStartNonce")]
 	pub account_start_nonce: Uint,
-	/// Homestead transition block number.
-	#[serde(rename="frontierCompatibilityModeLimit")]
-	pub frontier_compatibility_mode_limit: Uint,
 	/// Maximum size of extra data.
 	#[serde(rename="maximumExtraDataSize")]
 	pub maximum_extra_data_size: Uint,

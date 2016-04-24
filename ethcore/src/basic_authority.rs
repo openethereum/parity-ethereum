@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! A blockchain engine that supports a basic, non-BFT proof-of-authority.
+
 use common::*;
 use block::*;
 use spec::CommonParams;
@@ -21,23 +23,28 @@ use engine::*;
 use evm::{Schedule, Factory};
 use ethjson;
 
-/// Ethash params.
+/// BasicAuthority params.
 #[derive(Debug, PartialEq)]
 pub struct BasicAuthorityParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
 	/// Block duration.
 	pub duration_limit: u64,
+	/// Valid signatories.
+	pub authorities: HashSet<Address>,
 }
 
 impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
 	fn from(p: ethjson::spec::BasicAuthorityParams) -> Self {
 		BasicAuthorityParams {
+			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
+			duration_limit: p.duration_limit.into(),
+			authorities: p.authorities.into_iter().map(Into::into).collect::<HashSet<_>>(),
 		}
 	}
 }
 
-/// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
+/// Engine using BasicAuthority proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct BasicAuthority {
 	params: CommonParams,
@@ -47,8 +54,8 @@ pub struct BasicAuthority {
 }
 
 impl BasicAuthority {
-	/// Create a new instance of Ethash engine
-	pub fn new(params: CommonParams, our_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Self {
+	/// Create a new instance of BasicAuthority engine
+	pub fn new(params: CommonParams, our_params: BasicAuthorityParams, builtins: BTreeMap<Address, Builtin>) -> Self {
 		BasicAuthority {
 			params: params,
 			our_params: our_params,
@@ -68,11 +75,11 @@ impl Engine for BasicAuthority {
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, header: &Header) -> HashMap<String, String> { map!["signature" => "TODO"] }
+	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { hash_map!["signature".to_owned() => "TODO".to_owned()] }
 
 	fn vm_factory(&self) -> &Factory { &self.factory }
 
-	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
+	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
 		Schedule::new_homestead()
 	}
 
@@ -80,7 +87,7 @@ impl Engine for BasicAuthority {
 		header.difficulty = parent.difficulty;
 		header.gas_limit = {
 			let gas_limit = parent.gas_limit;
-			let bound_divisor = 1024;
+			let bound_divisor = self.our_params.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - x!(1))
 			} else {
@@ -103,40 +110,18 @@ impl Engine for BasicAuthority {
 				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
 			)));
 		}
-		try!(UntrustedRlp::new(&header.seal[0]).as_val::<H520>());
 
-		// TODO: consider removing these lines.
-		let min_difficulty = self.ethash_params.minimum_difficulty;
-		if header.difficulty < min_difficulty {
-			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty })))
+		// check the signature is legit.
+		let sig = try!(UntrustedRlp::new(&header.seal[0]).as_val::<H520>());
+		let signer = Address::from(try!(ec::recover(&sig, &header.bare_hash())).sha3());
+		if !self.our_params.authorities.contains(&signer) {
+			return try!(Err(BlockError::InvalidSeal));
 		}
 
-		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
-			&Ethash::to_ethash(header.bare_hash()),
-			header.nonce().low_u64(),
-			&Ethash::to_ethash(header.mix_hash())
-		)));
-		if difficulty < header.difficulty {
-			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
-		}
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
-		if header.seal.len() != self.seal_fields() {
-			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
-			)));
-		}
-		let result = self.pow.compute_light(header.number as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
-		let mix = Ethash::from_ethash(result.mix_hash);
-		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
-		if mix != header.mix_hash() {
-			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
-		}
-		if difficulty < header.difficulty {
-			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty), max: None, found: difficulty })));
-		}
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		Ok(())
 	}
 
@@ -147,11 +132,10 @@ impl Engine for BasicAuthority {
 		}
 
 		// Check difficulty is correct given the two timestamps.
-		let expected_difficulty = self.calculate_difficuty(header, parent);
-		if header.difficulty != expected_difficulty {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty })))
+		if header.difficulty() != parent.difficulty() {
+			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: *parent.difficulty(), found: *header.difficulty() })))
 		}
-		let gas_limit_divisor = self.ethash_params.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit - parent.gas_limit / gas_limit_divisor;
 		let max_gas = parent.gas_limit + parent.gas_limit / gas_limit_divisor;
 		if header.gas_limit <= min_gas || header.gas_limit >= max_gas {
@@ -160,10 +144,8 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
-		if header.number() >= self.params.frontier_compatibility_mode_limit {
-			try!(t.check_low_s());
-		}
+	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> result::Result<(), Error> {
+		try!(t.check_low_s());
 		Ok(())
 	}
 
@@ -172,84 +154,21 @@ impl Engine for BasicAuthority {
 	}
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))] // to_ethash should take self
-impl Ethash {
-	fn calculate_difficuty(&self, header: &Header, parent: &Header) -> U256 {
-		const EXP_DIFF_PERIOD: u64 = 100000;
-		if header.number == 0 {
-			panic!("Can't calculate genesis block difficulty");
-		}
-
-		let min_difficulty = self.ethash_params.minimum_difficulty;
-		let difficulty_bound_divisor = self.ethash_params.difficulty_bound_divisor;
-		let duration_limit = self.ethash_params.duration_limit;
-		let frontier_limit = self.params.frontier_compatibility_mode_limit;
-
-		let mut target = if header.number < frontier_limit {
-			if header.timestamp >= parent.timestamp + duration_limit {
-				parent.difficulty - (parent.difficulty / difficulty_bound_divisor)
-			}
-			else {
-				parent.difficulty + (parent.difficulty / difficulty_bound_divisor)
-			}
-		}
-		else {
-			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty, header.timestamp, parent.timestamp);
-			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
-			let diff_inc = (header.timestamp - parent.timestamp) / 10;
-			if diff_inc <= 1 {
-				parent.difficulty + parent.difficulty / From::from(2048) * From::from(1 - diff_inc)
-			} else {
-				parent.difficulty - parent.difficulty / From::from(2048) * From::from(min(diff_inc - 1, 99))
-			}
-		};
-		target = max(min_difficulty, target);
-		let period = ((parent.number + 1) / EXP_DIFF_PERIOD) as usize;
-		if period > 1 {
-			target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
-		}
-		target
-	}
-
-	/// Convert an Ethash boundary to its original difficulty. Basically just `f(x) = 2^256 / x`.
-	pub fn boundary_to_difficulty(boundary: &H256) -> U256 {
-		U256::from((U512::one() << 256) / x!(U256::from(boundary.as_slice())))
-	}
-
-	/// Convert an Ethash difficulty to the target boundary. Basically just `f(x) = 2^256 / x`.
-	pub fn difficulty_to_boundary(difficulty: &U256) -> H256 {
-		x!(U256::from((U512::one() << 256) / x!(difficulty)))
-	}
-
-	fn to_ethash(hash: H256) -> EH256 {
-		unsafe { mem::transmute(hash) }
-	}
-
-	fn from_ethash(hash: EH256) -> H256 {
-		unsafe { mem::transmute(hash) }
-	}
-}
-
 impl Header {
 	/// Get the none field of the header.
-	pub fn nonce(&self) -> H64 {
-		decode(&self.seal()[1])
-	}
-
-	/// Get the mix hash field of the header.
-	pub fn mix_hash(&self) -> H256 {
+	pub fn signature(&self) -> H520 {
 		decode(&self.seal()[0])
 	}
 
 	/// Set the nonce and mix hash fields of the header.
-	pub fn set_nonce_and_mix_hash(&mut self, nonce: &H64, mix_hash: &H256) {
-		self.seal = vec![encode(mix_hash).to_vec(), encode(nonce).to_vec()];
+	pub fn sign(&mut self, secret: &Secret) {
+		self.seal = vec![encode(&ec::sign(secret, &self.bare_hash()).unwrap_or(Signature::new())).to_vec()];
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	extern crate ethash;
+/*	extern crate ethash;
 
 	use common::*;
 	use block::*;
@@ -471,6 +390,6 @@ mod tests {
 			_ => { panic!("Should be error, got Ok"); },
 		}
 	}
-
+*/
 	// TODO: difficulty test
 }

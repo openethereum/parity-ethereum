@@ -57,11 +57,7 @@ impl Engine for NullEngine {
 		&self.builtins
 	}
 
-	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		if env_info.number < self.params.frontier_compatibility_mode_limit {
-			Schedule::new_frontier()
-		} else {
-			Schedule::new_homestead()
-		}
+	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
+		Schedule::new_homestead()
 	}
 }
