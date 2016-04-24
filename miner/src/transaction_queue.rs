@@ -577,7 +577,7 @@ impl TransactionQueue {
 	/// Checks if there are any transactions in `future` that should actually be promoted to `current`
 	/// (because nonce matches).
 	fn move_matching_future_to_current(&mut self, address: Address, mut current_nonce: U256, first_nonce: U256) {
-		let mut should_update_last_nonces = false;
+		let mut update_last_nonce_to = None;
 		{
 			let by_nonce = self.future.by_address.row_mut(&address);
 			if let None = by_nonce {
@@ -590,14 +590,14 @@ impl TransactionQueue {
 				// Put to current
 				let order = order.update_height(current_nonce, first_nonce);
 				self.current.insert(address, current_nonce, order);
+				update_last_nonce_to = Some(current_nonce);
 				current_nonce = current_nonce + U256::one();
-				should_update_last_nonces = true;
 			}
 		}
 		self.future.by_address.clear_if_empty(&address);
-		if should_update_last_nonces {
+		if let Some(x) = update_last_nonce_to {
 			// Update last inserted nonce
-			self.last_nonces.insert(address, current_nonce - U256::one());
+			self.last_nonces.insert(address, x);
 		}
 	}
 
