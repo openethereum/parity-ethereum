@@ -43,7 +43,7 @@ pub fn expand_serialization_implementation(
 		_ => {
 			cx.span_err(meta_item.span, "`#[derive(Binary)]` may only be applied to structs and enums");
 			return;
-		}
+		},
 	};
 
 	let builder = aster::AstBuilder::new().span(span);
@@ -53,7 +53,7 @@ pub fn expand_serialization_implementation(
 		Err(Error) => {
 			// An error occured, but it should have been reported already.
 			return;
-		}
+		},
 	};
 
 	push(Annotatable::Item(impl_item))
@@ -72,7 +72,7 @@ fn serialize_item(
 				item.span,
 				"`#[derive(Binary)]` may only be applied to structs and enums");
 			return Err(Error);
-		}
+		},
 	};
 
 	let ty = builder.ty().path()
@@ -145,7 +145,7 @@ fn binary_expr(
 			cx.span_bug(item.span,
 						"expected ItemStruct or ItemEnum in #[derive(Binary)]");
 			Err(Error)
-		}
+		},
 	}
 }
 
@@ -174,12 +174,12 @@ fn binary_expr_struct(
 				Some(quote_expr!(cx,
 					match $field_type_ident::len_params() {
 						0 => mem::size_of::<$field_type_ident>(),
-						_ => $x. $field_id .size()
+						_ => $x. $field_id .size(),
 					}))
 			})
 			.unwrap_or_else(|| quote_expr!(cx, match $field_type_ident::len_params() {
 				0 => mem::size_of::<$field_type_ident>(),
-				_ => $index_ident .size()
+				_ => $index_ident .size(),
 			}))
 	}).collect();
 
@@ -210,12 +210,12 @@ fn binary_expr_struct(
 			None => {
 				let index_ident = builder.id(format!("__field{}", index));
 				quote_expr!(cx, $index_ident)
-			}
+			},
 		};
 
 		write_stmts.push(quote_stmt!(cx, let next_line = offset + match $field_type_ident::len_params() {
 				0 => mem::size_of::<$field_type_ident>(),
-				_ => { let size = $member_expr .size(); length_stack.push_back(size); size }
+				_ => { let size = $member_expr .size(); length_stack.push_back(size); size },
 			}).unwrap());
 
 		write_stmts.push(quote_stmt!(cx,
@@ -227,7 +227,7 @@ fn binary_expr_struct(
 		map_stmts.push(quote_stmt!(cx, map[$field_index] = total;).unwrap());
 		map_stmts.push(quote_stmt!(cx, let size = match $field_type_ident::len_params() {
 				0 => mem::size_of::<$field_type_ident>(),
-				_ => length_stack.pop_front().unwrap()
+				_ => length_stack.pop_front().unwrap(),
 			}).unwrap());
 		map_stmts.push(quote_stmt!(cx, total = total + size;).unwrap());
 	};
@@ -246,7 +246,7 @@ fn binary_expr_struct(
 				let map_variant = P(fields_sequence(cx, &ty, fields, &instance_ident.unwrap_or(builder.id("Self"))));
 				quote_expr!(cx, { $map_stmts; Ok($map_variant) })
 			}
-		}
+		},
 	};
 
     Ok(BinaryExpressions {
@@ -275,7 +275,7 @@ fn binary_expr_item_struct(
 				Some(builder.id("self")),
 				None,
 			)
-		}
+		},
 		ast::VariantData::Struct(ref fields, _) => {
 			binary_expr_struct(
 				cx,
@@ -544,7 +544,7 @@ fn binary_expr_variant(
 				}),
 				read: quote_arm!(cx, $variant_index_ident => { $read_expr } ),
 			})
-		}
+		},
 		ast::VariantData::Struct(ref fields, _) => {
 			let field_names: Vec<_> = (0 .. fields.len())
 				.map(|i| builder.id(format!("__field{}", i)))
