@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use common::*;
+use util::keys::store::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;
-use evm::Schedule;
-use evm::Factory;
+use evm::{Schedule, Factory};
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -60,6 +60,14 @@ pub trait Engine : Sync + Send {
 	fn on_new_block(&self, _block: &mut ExecutedBlock) {}
 	/// Block transformation functions, after the transactions.
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
+
+	/// Attempt to seal the block internally.
+	///
+	/// If `true` is returned, then `_block` is mutated such that it it sealed.
+	///
+	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
+	/// be returned.
+	fn attempt_seal_block(&self, _block: &mut ExecutedBlock, _accounts: Option<&AccountProvider>) -> bool { false }
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.

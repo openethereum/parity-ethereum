@@ -17,6 +17,7 @@
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
 use common::*;
+use util::keys::store::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engine::*;
@@ -101,6 +102,23 @@ impl Engine for BasicAuthority {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
+
+	/// Attempt to seal the block internally.
+	///
+	/// This operation is asynchronous and may (quite reasonably) not be available, in which `false` will
+	/// be returned.
+	fn attempt_seal_block(&self, block: &mut ExecutedBlock, accounts: Option<&AccountProvider>) -> bool {
+		// TODO: check to see if author is contained in self.our_params.authorities
+		if let Some(ap) = accounts {
+			if self.our_params.authorities.contains(block.header().author()) {
+				if let Ok(secret) = ap.account_secret(block.header().author()) {
+					block.fields_mut().header.sign(&secret);
+					return true;
+				}
+			}
+		}
+		false
+	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the seal fields.

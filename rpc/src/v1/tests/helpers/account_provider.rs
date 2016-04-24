@@ -19,8 +19,8 @@
 use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
-use util::hash::{Address, H256, FixedHash};
-use util::crypto::{Secret, Signature, KeyPair};
+use util::hash::{Address, FixedHash};
+use util::crypto::{Secret, KeyPair};
 use util::keys::store::{AccountProvider, SigningError, EncryptedHashMapError};
 
 /// Account mock.
@@ -98,10 +98,5 @@ impl AccountProvider for TestAccountProvider {
 			.ok_or(SigningError::NoAccount)
 			.map(|acc| acc.secret.clone())
 	}
-
-	fn sign(&self, _account: &Address, _message: &H256) -> Result<Signature, SigningError> {
-		unimplemented!()
-	}
-
 }
 

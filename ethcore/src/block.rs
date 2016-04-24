@@ -88,7 +88,7 @@ pub struct ExecutedBlock {
 /// A set of references to `ExecutedBlock` fields that are publicly accessible.
 pub struct BlockRefMut<'a> {
 	/// Block header.
-	pub header: &'a Header,
+	pub header: &'a mut Header,
 	/// Block transactions.
 	pub transactions: &'a Vec<SignedTransaction>,
 	/// Block uncles.
@@ -132,7 +132,7 @@ impl ExecutedBlock {
 	/// Get a structure containing individual references to all public fields.
 	pub fn fields_mut(&mut self) -> BlockRefMut {
 		BlockRefMut {
-			header: &self.base.header,
+			header: &mut self.base.header,
 			transactions: &self.base.transactions,
 			uncles: &self.base.uncles,
 			state: &mut self.state,

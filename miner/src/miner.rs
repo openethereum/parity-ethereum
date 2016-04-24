@@ -18,6 +18,7 @@ use rayon::prelude::*;
 use std::sync::atomic::AtomicBool;
 
 use util::*;
+use util::keys::store::AccountService;
 use ethcore::views::{BlockView, HeaderView};
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
@@ -37,6 +38,8 @@ pub struct Miner {
 	gas_floor_target: RwLock<U256>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
+
+	accounts: RwLock<Option<Arc<AccountService>>>,		// TODO: this is horrible since AccountService already contains a single RwLock field. refactor.
 }
 
 impl Default for Miner {
@@ -50,13 +53,14 @@ impl Default for Miner {
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
+			accounts: RwLock::new(None),
 		}
 	}
 }
 
 impl Miner {
 	/// Creates new instance of miner
-	pub fn new(force_sealing: bool) -> Arc<Miner> {
+	pub fn new(force_sealing: bool, accounts: Arc<AccountService>) -> Arc<Miner> {
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			force_sealing: force_sealing,
@@ -66,6 +70,7 @@ impl Miner {
 			gas_floor_target: RwLock::new(U256::zero()),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
+			accounts: RwLock::new(Some(accounts)),
 		})
 	}
 
