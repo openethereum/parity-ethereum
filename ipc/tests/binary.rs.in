@@ -14,6 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-mod codegen;
-mod serialization;
-pub mod typegen;
+
+use ipc::*;
+use std::mem;
+use std::collections::VecDeque;
+
+#[derive(Binary)]
+pub enum Root {
+	Top,
+	Middle(u32, u64),
+}
+
+#[derive(Binary, PartialEq, Debug)]
+pub struct DoubleRoot {
+	pub x1: u32,
+	pub x2: u64,
+	pub x3: u32,
+}
+
+#[derive(Binary, PartialEq, Debug)]
+pub struct ReferenceStruct<'a> {
+	pub ref_data: &'a u64,
+}

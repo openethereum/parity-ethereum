@@ -50,7 +50,8 @@ fn is_new_entry(path: &Path) -> Option<String> {
 			ident == "H256"      ||
 			ident == "U256"      ||
 			ident == "H2048"     ||
-			ident == "Address"
+			ident == "Address"   ||
+			ident == "Bytes"
 		}
 	};
 
