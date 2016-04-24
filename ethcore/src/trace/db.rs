@@ -125,6 +125,7 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 	}
 
 	fn matching_block_traces(
+		&self,
 		filter: &Filter,
 		traces: FlatBlockTraces,
 		block_hash: H256,
@@ -134,18 +135,22 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 		tx_traces.into_iter()
 			.enumerate()
 			.flat_map(|(tx_number, tx_trace)| {
-				Self::matching_transaction_traces(filter, tx_trace, block_hash.clone(), block_number, tx_number)
+				self.matching_transaction_traces(filter, tx_trace, block_hash.clone(), block_number, tx_number)
 			})
 			.collect()
 	}
 
 	fn matching_transaction_traces(
+		&self,
 		filter: &Filter,
 		traces: FlatTransactionTraces,
 		block_hash: H256,
 		block_number: BlockNumber,
 		tx_number: usize
 	) -> Vec<LocalizedTrace> {
+		let tx_hash = self.extras.transaction_hash(block_number, tx_number)
+		.expect("Expected to find transaction hash. Database is probably malformed");
+
 		let flat_traces: Vec<FlatTrace> = traces.into();
 		flat_traces.into_iter()
 			.enumerate()
@@ -159,6 +164,7 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 						result: trace.result,
 						trace_number: index,
 						transaction_number: tx_number,
+						transaction_hash: tx_hash.clone(),
 						block_number: block_number,
 						block_hash: block_hash
 					}),
@@ -229,16 +235,22 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 				.and_then(|traces| traces.into_iter().nth(tx_position))
 				.map(Into::<Vec<FlatTrace>>::into)
 				.and_then(|traces| traces.into_iter().nth(trace_position))
-				.map(|trace| LocalizedTrace {
-					parent: trace.parent,
-					children: trace.children,
-					depth: trace.depth,
-					action: trace.action,
-					result: trace.result,
-					trace_number: trace_position,
-					transaction_number: tx_position,
-					block_number: block_number,
-					block_hash: block_hash,
+				.map(|trace| {
+					let tx_hash = self.extras.transaction_hash(block_number, tx_position)
+						.expect("Expected to find transaction hash. Database is probably malformed");
+
+					LocalizedTrace {
+						parent: trace.parent,
+						children: trace.children,
+						depth: trace.depth,
+						action: trace.action,
+						result: trace.result,
+						trace_number: trace_position,
+						transaction_number: tx_position,
+						transaction_hash: tx_hash,
+						block_number: block_number,
+						block_hash: block_hash,
+					}
 				})
 			)
 	}
@@ -250,7 +262,11 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 				.map(Into::<Vec<FlatTransactionTraces>>::into)
 				.and_then(|traces| traces.into_iter().nth(tx_position))
 				.map(Into::<Vec<FlatTrace>>::into)
-				.map(|traces| traces.into_iter()
+				.map(|traces| {
+					let tx_hash = self.extras.transaction_hash(block_number, tx_position)
+						.expect("Expected to find transaction hash. Database is probably malformed");
+
+					traces.into_iter()
 					.enumerate()
 					.map(|(i, trace)| LocalizedTrace {
 						parent: trace.parent,
@@ -260,11 +276,12 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 						result: trace.result,
 						trace_number: i,
 						transaction_number: tx_position,
+						transaction_hash: tx_hash.clone(),
 						block_number: block_number,
 						block_hash: block_hash
 					})
 					.collect()
-				)
+				})
 			)
 	}
 
@@ -278,6 +295,9 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 						.map(Into::<Vec<FlatTrace>>::into)
 						.enumerate()
 						.flat_map(|(tx_position, traces)| {
+							let tx_hash = self.extras.transaction_hash(block_number, tx_position)
+								.expect("Expected to find transaction hash. Database is probably malformed");
+
 							traces.into_iter()
 								.enumerate()
 								.map(|(i, trace)| LocalizedTrace {
@@ -288,6 +308,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 									result: trace.result,
 									trace_number: i,
 									transaction_number: tx_position,
+									transaction_hash: tx_hash.clone(),
 									block_number: block_number,
 									block_hash: block_hash,
 								})
@@ -309,7 +330,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 				let traces = self.traces(&hash)
 					.expect("Expected to find a trace. Db is probably malformed.");
 				let flat_block = FlatBlockTraces::from(traces);
-				Self::matching_block_traces(filter, flat_block, hash, number)
+				self.matching_block_traces(filter, flat_block, hash, number)
 			})
 			.collect()
 	}
@@ -445,9 +466,11 @@ mod tests {
 		let mut config = Config::default();
 		config.enabled = Some(true);
 		let block_0 = H256::from(0xa1);
+		let tx_0 = H256::from(0xff);
 
 		let mut extras = Extras::default();
 		extras.block_hashes.insert(0, block_0.clone());
+		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
 
 		let tracedb = Tracedb::new(config, temp.as_path(), Arc::new(extras));
 
@@ -494,6 +517,7 @@ mod tests {
 			result: Res::FailedCall,
 			trace_number: 0,
 			transaction_number: 0,
+			transaction_hash: tx_0.clone(),
 			block_number: 0,
 			block_hash: block_0.clone(),
 		});

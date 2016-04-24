@@ -142,6 +142,7 @@ pub struct Trace {
 	result: Res,
 	trace_number: U256,
 	transaction_number: U256,
+	transaction_hash: H256,
 	block_number: U256,
 	block_hash: H256,
 }
@@ -156,8 +157,9 @@ impl From<LocalizedTrace> for Trace {
 			result: From::from(t.result),
 			trace_number: From::from(t.trace_number),
 			transaction_number: From::from(t.transaction_number),
+			transaction_hash: t.transaction_hash,
 			block_number: From::from(t.block_number),
-			block_hash: From::from(t.block_hash),
+			block_hash: t.block_hash,
 		}
 	}
 }

@@ -35,6 +35,8 @@ pub struct LocalizedTrace {
 	pub trace_number: usize,
 	/// Transaction number within the block.
 	pub transaction_number: usize,
+	/// Signed transaction hash.
+	pub transaction_hash: H256,
 	/// Block number.
 	pub block_number: BlockNumber,
 	/// Block hash.
