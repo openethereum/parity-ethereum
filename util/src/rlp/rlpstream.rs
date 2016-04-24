@@ -307,10 +307,14 @@ struct EncodableU8 (u8);
 
 impl ByteEncodable for EncodableU8 {
 	fn to_bytes<V: VecLike<u8>>(&self, out: &mut V) {
-		out.vec_push(self.0)
+		if self.0 != 0 {
+			out.vec_push(self.0)
+		}
 	}
 
-	fn bytes_len(&self) -> usize { 1 }
+	fn bytes_len(&self) -> usize {
+		match self.0 { 0 => 0, _ => 1 }
+	}
 }
 
 impl RlpEncodable for u8 {

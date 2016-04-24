@@ -78,6 +78,12 @@ macro_rules! impl_hash {
 		/// Unformatted binary data of fixed length.
 		pub struct $from (pub [u8; $size]);
 
+		impl From<[u8; $size]> for $from {
+			fn from(bytes: [u8; $size]) -> Self {
+				$from(bytes)
+			}
+		}
+
 		impl Deref for $from {
 			type Target = [u8];
 
