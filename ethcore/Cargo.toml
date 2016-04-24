@@ -22,7 +22,7 @@ crossbeam = "0.1.5"
 lazy_static = "0.1"
 ethcore-devtools = { path = "../devtools" }
 ethjson = { path = "../json" }
-bloomchain = { git = "https://github.com/debris/bloomchain.git" }
+bloomchain = "0.1"
 
 [features]
 jit = ["evmjit"]
