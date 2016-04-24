@@ -577,6 +577,7 @@ impl TransactionQueue {
 	/// Checks if there are any transactions in `future` that should actually be promoted to `current`
 	/// (because nonce matches).
 	fn move_matching_future_to_current(&mut self, address: Address, mut current_nonce: U256, first_nonce: U256) {
+		let mut should_update_last_nonces = false;
 		{
 			let by_nonce = self.future.by_address.row_mut(&address);
 			if let None = by_nonce {
@@ -590,11 +591,14 @@ impl TransactionQueue {
 				let order = order.update_height(current_nonce, first_nonce);
 				self.current.insert(address, current_nonce, order);
 				current_nonce = current_nonce + U256::one();
+				should_update_last_nonces = true;
 			}
 		}
 		self.future.by_address.clear_if_empty(&address);
-		// Update last inserted nonce
-		self.last_nonces.insert(address, current_nonce - U256::one());
+		if should_update_last_nonces {
+			// Update last inserted nonce
+			self.last_nonces.insert(address, current_nonce - U256::one());
+		}
 	}
 
 	/// Adds VerifiedTransaction to this queue.
@@ -1456,5 +1460,30 @@ mod test {
 
 		// then
 		assert!(txq.top_transactions().is_empty());
+	}
+
+	#[test]
+	fn should_return_valid_last_nonce_after_remove_all() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let (tx1, tx2) = new_txs(U256::from(4));
+		let sender = tx1.sender().unwrap();
+		let (nonce1, nonce2) = (tx1.nonce, tx2.nonce);
+		let details1 = |_a: &Address| AccountDetails { nonce: nonce1, balance: !U256::zero() };
+
+		// when
+		// Insert first transaction
+		assert_eq!(txq.add(tx1, &details1).unwrap(), TransactionImportResult::Current);
+		// Second should go to future
+		assert_eq!(txq.add(tx2, &details1).unwrap(), TransactionImportResult::Future);
+		// Now block is imported
+		txq.remove_all(sender, nonce2 - U256::from(1));
+		// tx2 should be not be promoted to current
+		assert_eq!(txq.status().pending, 0);
+		assert_eq!(txq.status().future, 1);
+
+		// then
+		assert_eq!(txq.last_nonce(&sender), None);
+
 	}
 }
