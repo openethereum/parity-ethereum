@@ -730,22 +730,33 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 				to_address: filter.to_address,
 			};
 
-			Some(self.tracedb.filter(&filter))
+			let traces = self.tracedb.filter(&filter);
+			Some(traces)
 		} else {
 			None
 		}
 	}
 
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
-		unimplemented!();
+		let trace_position = trace.index;
+		self.transaction_address(trace.transaction)
+			.and_then(|tx_address| {
+				self.block_number(BlockId::Hash(tx_address.block_hash))
+					.and_then(|number| self.tracedb.trace(number, tx_address.index, trace_position))
+			})
 	}
 
-	fn transaction_traces(&self, _trace: TransactionId) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+	fn transaction_traces(&self, transaction: TransactionId) -> Option<Vec<LocalizedTrace>> {
+		self.transaction_address(transaction)
+			.and_then(|tx_address| {
+				self.block_number(BlockId::Hash(tx_address.block_hash))
+					.and_then(|number| self.tracedb.transaction_traces(number, tx_address.index))
+			})
 	}
 
-	fn block_traces(&self, _trace: BlockId) -> Option<Vec<LocalizedTrace>> {
-		unimplemented!();
+	fn block_traces(&self, block: BlockId) -> Option<Vec<LocalizedTrace>> {
+		self.block_number(block)
+			.and_then(|number| self.tracedb.block_traces(number))
 	}
 }
 
