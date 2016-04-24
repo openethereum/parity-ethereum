@@ -52,14 +52,14 @@ pub fn expand_ipc_implementation(
 		_ => {
 			cx.span_err(meta_item.span, "`#[derive(Ipc)]` may only be applied to struct implementations");
 			return;
-		}
+		},
 	};
 
 	let builder = aster::AstBuilder::new().span(span);
 
 	let interface_map = match implement_interface(cx, &builder, &item, push) {
 		Ok(interface_map) => interface_map,
-		Err(Error) => { return; }
+		Err(Error) => { return; },
 	};
 
 	push_client(cx, &builder, &interface_map, push);
@@ -733,7 +733,7 @@ fn implement_interface(
 				item.span,
 				"`#[derive(Ipc)]` may only be applied to item implementations");
 			return Err(Error);
-		}
+		},
 	};
 	let impl_generics = builder.from_generics(generics.clone()).build();
 	let where_clause = &impl_generics.where_clause;

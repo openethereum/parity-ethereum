@@ -272,7 +272,7 @@ pub fn deserialize_from<T, R>(r: &mut R) -> Result<T, BinaryConvertError>
 			try!(r.read(&mut data).map_err(|_| BinaryConvertError));
 
 			T::from_bytes(&data[..], &mut length_stack)
-		}
+		},
 	}
 }
 
@@ -330,7 +330,7 @@ pub fn serialize_into<T, W>(t: &T, w: &mut W) -> Result<(), BinaryConvertError>
 			try!(w.write(&buffer[..]).map_err(|_| BinaryConvertError));
 
 			Ok(())
-		}
+		},
 	}
 }
 
