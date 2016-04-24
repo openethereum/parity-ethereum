@@ -55,9 +55,6 @@ impl Default for BlockChainConfig {
 
 /// Interface for querying blocks by hash and by number.
 pub trait BlockProvider {
-	/// True if we store full tracing information for transactions.
-	fn have_tracing(&self) -> bool;
-
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool;
@@ -185,9 +182,6 @@ impl BlockProvider for BlockChain {
 	fn is_known(&self, hash: &H256) -> bool {
 		self.extras_db.exists_with_cache(&self.block_details, hash)
 	}
-
-	// We do not store tracing information.
-	fn have_tracing(&self) -> bool { false }
 
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<Bytes> {
@@ -541,7 +535,7 @@ impl BlockChain {
 		Some(ret)
 	}
 
-	/// Get inserted block info which is critical to preapre extras updates.
+	/// Get inserted block info which is critical to prepare extras updates.
 	fn block_info(&self, block_bytes: &[u8]) -> BlockInfo {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
@@ -950,21 +944,25 @@ mod tests {
 		assert_eq!(ir1, ImportRoute {
 			enacted: vec![b1_hash],
 			retracted: vec![],
+			ommited: vec![],
 		});
 
 		assert_eq!(ir2, ImportRoute {
 			enacted: vec![b2_hash],
 			retracted: vec![],
+			ommited: vec![],
 		});
 
 		assert_eq!(ir3b, ImportRoute {
 			enacted: vec![b3b_hash],
 			retracted: vec![],
+			ommited: vec![],
 		});
 
 		assert_eq!(ir3a, ImportRoute {
 			enacted: vec![b3a_hash],
 			retracted: vec![b3b_hash],
+			ommited: vec![],
 		});
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);

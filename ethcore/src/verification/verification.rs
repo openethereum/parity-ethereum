@@ -278,8 +278,6 @@ mod tests {
 	}
 
 	impl BlockProvider for TestBlockChain {
-		fn have_tracing(&self) -> bool { false }
-
 		fn is_known(&self, hash: &H256) -> bool {
 			self.blocks.contains_key(hash)
 		}

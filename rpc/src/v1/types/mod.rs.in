@@ -26,6 +26,8 @@ mod transaction;
 mod transaction_request;
 mod call_request;
 mod receipt;
+mod trace;
+mod trace_filter;
 
 pub use self::block::{Block, BlockTransactions};
 pub use self::block_number::BlockNumber;
@@ -39,4 +41,5 @@ pub use self::transaction::Transaction;
 pub use self::transaction_request::TransactionRequest;
 pub use self::call_request::CallRequest;
 pub use self::receipt::Receipt;
-
+pub use self::trace::Trace;
+pub use self::trace_filter::TraceFilter;

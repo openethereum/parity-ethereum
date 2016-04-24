@@ -14,15 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use util::*;
-pub use basic_types::*;
-pub use error::*;
-pub use env_info::*;
-pub use views::*;
-pub use builtin::*;
-pub use header::*;
-pub use account::*;
-pub use transaction::*;
-pub use log_entry::*;
-pub use receipt::*;
-pub use action_params::*;
+//! Traces import request.
+use util::H256;
+use header::BlockNumber;
+use trace::BlockTraces;
+
+/// Traces import request.
+pub struct ImportRequest {
+	/// Traces to import.
+	pub traces: BlockTraces,
+	/// Hash of traces block.
+	pub block_hash: H256,
+	/// Number of traces block.
+	pub block_number: BlockNumber,
+	/// Blocks enacted by this import.
+	///
+	/// They should be ordered from oldest to newest.
+	pub enacted: Vec<H256>,
+	/// Number of blocks retracted by this import.
+	pub retracted: usize,
+}

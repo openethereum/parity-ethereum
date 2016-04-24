@@ -14,15 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use util::*;
-pub use basic_types::*;
-pub use error::*;
-pub use env_info::*;
-pub use views::*;
-pub use builtin::*;
-pub use header::*;
-pub use account::*;
-pub use transaction::*;
-pub use log_entry::*;
-pub use receipt::*;
-pub use action_params::*;
+//! Traces config.
+use bloomchain::Config as BloomConfig;
+
+///. Traces config.
+#[derive(Debug, Clone)]
+pub struct Config {
+	/// Indicates if tracing should be enabled or not.
+	/// If it's None, it will be automatically configured.
+	pub enabled: Option<bool>,
+	/// Traces blooms configuration.
+	pub blooms: BloomConfig,
+}
+
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			enabled: None,
+			blooms: BloomConfig {
+				levels: 3,
+				elements_per_index: 16,
+			}
+		}
+	}
+}

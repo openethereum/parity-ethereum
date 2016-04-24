@@ -37,11 +37,14 @@ use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use block_queue::{BlockQueue, BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
-use client::{BlockId, TransactionId, UncleId, ClientConfig, BlockChainClient};
+use client::{BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient, TraceFilter};
 use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
+use trace::{Tracedb, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase, Filter as
+	TracedbFilter};
+use trace;
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -103,6 +106,7 @@ impl ClientReport {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
+	tracedb: Arc<Tracedb<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
@@ -150,6 +154,7 @@ impl<V> Client<V> where V: Verifier {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
+		let tracedb = Arc::new(Tracedb::new(config.tracing, &path, chain.clone()));
 
 		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
 
@@ -165,6 +170,7 @@ impl<V> Client<V> where V: Verifier {
 
 		Arc::new(Client {
 			chain: chain,
+			tracedb: tracedb,
 			engine: engine,
 			state_db: Mutex::new(state_db),
 			block_queue: block_queue,
@@ -225,7 +231,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.chain.have_tracing(), db, &parent, last_hashes);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -305,6 +311,8 @@ impl<V> Client<V> where V: Verifier {
 			// Commit results
 			let closed_block = closed_block.unwrap();
 			let receipts = closed_block.block().receipts().clone();
+			let traces = From::from(closed_block.block().traces().clone().unwrap_or_else(Vec::new));
+
 			closed_block.drain()
 				.commit(header.number(), &header.hash(), ancient)
 				.expect("State DB commit failed.");
@@ -312,6 +320,14 @@ impl<V> Client<V> where V: Verifier {
 			// And update the chain after commit to prevent race conditions
 			// (when something is in chain but you are not able to fetch details)
 			let route = self.chain.insert_block(&block.bytes, receipts);
+			self.tracedb.import(TraceImportRequest {
+				traces: traces,
+				block_hash: header.hash(),
+				block_number: header.number(),
+				enacted: route.enacted.clone(),
+				retracted: route.retracted.len()
+			});
+
 			import_results.push(route);
 
 			self.report.write().unwrap().accrue_block(&block);
@@ -701,6 +717,46 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 
 			})
 			.collect()
+	}
+
+	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
+		let start = self.block_number(filter.range.start);
+		let end = self.block_number(filter.range.end);
+
+		if start.is_some() && end.is_some() {
+			let filter = trace::Filter {
+				range: start.unwrap() as usize..end.unwrap() as usize,
+				from_address: filter.from_address,
+				to_address: filter.to_address,
+			};
+
+			let traces = self.tracedb.filter(&filter);
+			Some(traces)
+		} else {
+			None
+		}
+	}
+
+	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
+		let trace_position = trace.index;
+		self.transaction_address(trace.transaction)
+			.and_then(|tx_address| {
+				self.block_number(BlockId::Hash(tx_address.block_hash))
+					.and_then(|number| self.tracedb.trace(number, tx_address.index, trace_position))
+			})
+	}
+
+	fn transaction_traces(&self, transaction: TransactionId) -> Option<Vec<LocalizedTrace>> {
+		self.transaction_address(transaction)
+			.and_then(|tx_address| {
+				self.block_number(BlockId::Hash(tx_address.block_hash))
+					.and_then(|number| self.tracedb.transaction_traces(number, tx_address.index))
+			})
+	}
+
+	fn block_traces(&self, block: BlockId) -> Option<Vec<LocalizedTrace>> {
+		self.block_number(block)
+			.and_then(|number| self.tracedb.block_traces(number))
 	}
 }
 

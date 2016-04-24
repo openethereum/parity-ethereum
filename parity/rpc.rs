@@ -98,6 +98,7 @@ pub fn setup_rpc_server(
 			},
 			"personal" => server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate()),
 			"ethcore" => server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate()),
+			"traces" => server.add_delegate(TracesClient::new(&deps.client).to_delegate()),
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
 			},
