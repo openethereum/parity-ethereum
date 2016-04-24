@@ -34,11 +34,11 @@ const KEY_LENGTH_AES_USIZE: usize = KEY_LENGTH_AES as usize;
 /// Encrypted hash-map, each request should contain password
 pub trait EncryptedHashMap<Key: Hash + Eq> {
 	/// Returns existing value for the key, if any
-	fn get<Value: FromRawBytes + BytesConvertable>(&self, key: &Key, password: &str) ->  Result<Value, EncryptedHashMapError>;
+	fn get<Value: FromRawBytesVariable + BytesConvertable>(&self, key: &Key, password: &str) ->  Result<Value, EncryptedHashMapError>;
 	/// Insert new encrypted key-value and returns previous if there was any
-	fn insert<Value: FromRawBytes + BytesConvertable>(&mut self, key: Key, value: Value, password: &str) -> Option<Value>;
+	fn insert<Value: FromRawBytesVariable + BytesConvertable>(&mut self, key: Key, value: Value, password: &str) -> Option<Value>;
 	/// Removes key-value by key and returns the removed one, if any exists and password was provided
-	fn remove<Value: FromRawBytes + BytesConvertable> (&mut self, key: &Key, password: Option<&str>) -> Option<Value>;
+	fn remove<Value: FromRawBytesVariable + BytesConvertable> (&mut self, key: &Key, password: Option<&str>) -> Option<Value>;
 	/// Deletes key-value by key and returns if the key-value existed
 	fn delete(&mut self, key: &Key) -> bool {
 		self.remove::<Bytes>(key, None).is_some()
@@ -306,7 +306,7 @@ fn derive_mac(derived_left_bits: &[u8], cipher_text: &[u8]) -> Bytes {
 }
 
 impl EncryptedHashMap<H128> for SecretStore {
-	fn get<Value: FromRawBytes + BytesConvertable>(&self, key: &H128, password: &str) -> Result<Value, EncryptedHashMapError> {
+	fn get<Value: FromRawBytesVariable + BytesConvertable>(&self, key: &H128, password: &str) -> Result<Value, EncryptedHashMapError> {
 		match self.directory.get(key) {
 			Some(key_file) => {
 				let (derived_left_bits, derived_right_bits) = match key_file.crypto.kdf {
@@ -324,7 +324,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 					}
 				};
 
-				match Value::from_bytes(&val) {
+				match Value::from_bytes_variable(&val) {
 					Ok(value) => Ok(value),
 					Err(bytes_error) => Err(EncryptedHashMapError::InvalidValueFormat(bytes_error))
 				}
@@ -333,7 +333,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 		}
 	}
 
-	fn insert<Value: FromRawBytes + BytesConvertable>(&mut self, key: H128, value: Value, password: &str) -> Option<Value> {
+	fn insert<Value: FromRawBytesVariable + BytesConvertable>(&mut self, key: H128, value: Value, password: &str) -> Option<Value> {
 		let previous = if let Ok(previous_value) = self.get(&key, password) { Some(previous_value) } else { None };
 
 		// crypto random initiators
@@ -366,7 +366,7 @@ impl EncryptedHashMap<H128> for SecretStore {
 		previous
 	}
 
-	fn remove<Value: FromRawBytes + BytesConvertable>(&mut self, key: &H128, password: Option<&str>) -> Option<Value> {
+	fn remove<Value: FromRawBytesVariable + BytesConvertable>(&mut self, key: &H128, password: Option<&str>) -> Option<Value> {
 		let previous = if let Some(pass) = password {
 			if let Ok(previous_value) = self.get(&key, pass) { Some(previous_value) } else { None }
 		}

@@ -13,13 +13,23 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+//! Structure to hold network settings configured from CLI
 
-//! Test rpc services.
+/// Networking & RPC settings
+pub struct NetworkSettings {
+	/// Node name
+	pub name: String,
+	/// Name of the chain we are connected to
+	pub chain: String,
+	/// Ideal number of peers
+	pub max_peers: usize,
+	/// Networking port
+	pub network_port: u16,
+	/// Is JSON-RPC server enabled?
+	pub rpc_enabled: bool,
+	/// Interface that JSON-RPC listens on
+	pub rpc_interface: String,
+	/// Port for JSON-RPC server
+	pub rpc_port: u16,
+}
 
-mod account_provider;
-mod sync_provider;
-mod miner_service;
-
-pub use self::account_provider::{TestAccount, TestAccountProvider};
-pub use self::sync_provider::{Config, TestSyncProvider};
-pub use self::miner_service::{TestMinerService};

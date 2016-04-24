@@ -48,6 +48,27 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns minimal gas price for transaction to be included in queue.
 	fn min_gas_price(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
+	/// Returns latest logs
+	fn dev_logs(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns logs levels
+	fn dev_logs_levels(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns chain name
+	fn net_chain(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns max peers
+	fn net_max_peers(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns network port
+	fn net_port(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns rpc settings
+	fn rpc_settings(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns node name
+	fn node_name(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -61,6 +82,14 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_gasFloorTarget", Ethcore::gas_floor_target);
 		delegate.add_method("ethcore_minGasPrice", Ethcore::min_gas_price);
 		delegate.add_method("ethcore_transactionsLimit", Ethcore::transactions_limit);
+		delegate.add_method("ethcore_devLogs", Ethcore::dev_logs);
+		delegate.add_method("ethcore_devLogsLevels", Ethcore::dev_logs_levels);
+		delegate.add_method("ethcore_netChain", Ethcore::net_chain);
+		delegate.add_method("ethcore_netMaxPeers", Ethcore::net_max_peers);
+		delegate.add_method("ethcore_netPort", Ethcore::net_port);
+		delegate.add_method("ethcore_rpcSettings", Ethcore::rpc_settings);
+		delegate.add_method("ethcore_nodeName", Ethcore::node_name);
+
 		delegate
 	}
 }

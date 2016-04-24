@@ -24,13 +24,13 @@ use transaction::*;
 use views::*;
 use receipt::Receipt;
 use chainfilter::{ChainFilter, BloomIndex, FilterDataSource};
-use blockchain::block_info::{BlockInfo, BlockLocation};
+use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute};
-use db::{Writable, Readable, Key};
+use db::{Writable, Readable, Key, CacheUpdatePolicy};
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
@@ -183,7 +183,7 @@ impl BlockProvider for BlockChain {
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool {
-		self.query_extras_exist(hash, &self.block_details)
+		self.extras_db.exists_with_cache(&self.block_details, hash)
 	}
 
 	// We do not store tracing information.
@@ -466,28 +466,22 @@ impl BlockChain {
 		batch.put(b"best", &update.info.hash).unwrap();
 
 		{
-			let mut write_details = self.block_details.write().unwrap();
-			for (hash, details) in update.block_details.into_iter() {
-				batch.write(&hash, &details);
-				self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash.clone()));
-				write_details.insert(hash, details);
+			for hash in update.block_details.keys().cloned() {
+				self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash));
 			}
+
+			let mut write_details = self.block_details.write().unwrap();
+			batch.extend_with_cache(&mut write_details, update.block_details, CacheUpdatePolicy::Overwrite);
 		}
 
 		{
 			let mut write_receipts = self.block_receipts.write().unwrap();
-			for (hash, receipt) in &update.block_receipts {
-				batch.write(hash, receipt);
-				write_receipts.remove(hash);
-			}
+			batch.extend_with_cache(&mut write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
 		{
 			let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
-			for (bloom_hash, blocks_bloom) in &update.blocks_blooms {
-				batch.write(bloom_hash, blocks_bloom);
-				write_blocks_blooms.remove(bloom_hash);
-			}
+			batch.extend_with_cache(&mut write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
 		// These cached values must be updated last and togeterh
@@ -508,15 +502,8 @@ impl BlockChain {
 				}
 			}
 
-			for (number, hash) in &update.block_hashes {
-				batch.write(number, hash);
-				write_hashes.remove(number);
-			}
-
-			for (hash, tx_address) in &update.transactions_addresses {
-				batch.write(hash, tx_address);
-				write_txs.remove(hash);
-			}
+			batch.extend_with_cache(&mut write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(&mut write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
 
 			// update extras database
 			self.extras_db.write(batch).unwrap();
@@ -583,11 +570,11 @@ impl BlockChain {
 					_ => {
 						let retracted = route.blocks.iter().take(route.index).cloned().collect::<Vec<H256>>();
 
-						BlockLocation::BranchBecomingCanonChain {
+						BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
 							ancestor: route.ancestor,
 							enacted: route.blocks.into_iter().skip(route.index).collect(),
 							retracted: retracted.into_iter().rev().collect(),
-						}
+						})
 					}
 				}
 			} else {
@@ -608,11 +595,11 @@ impl BlockChain {
 			BlockLocation::CanonChain => {
 				block_hashes.insert(number, info.hash.clone());
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
-				let ancestor_number = self.block_number(ancestor).unwrap();
+			BlockLocation::BranchBecomingCanonChain(ref data) => {
+				let ancestor_number = self.block_number(&data.ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				for (index, hash) in enacted.iter().cloned().enumerate() {
+				for (index, hash) in data.enacted.iter().cloned().enumerate() {
 					block_hashes.insert(start_number + index as BlockNumber, hash);
 				}
 
@@ -697,11 +684,11 @@ impl BlockChain {
 				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
 					.add_bloom(&header.log_bloom(), header.number() as usize)
 			},
-			BlockLocation::BranchBecomingCanonChain { ref ancestor, ref enacted, .. } => {
-				let ancestor_number = self.block_number(ancestor).unwrap();
+			BlockLocation::BranchBecomingCanonChain(ref data) => {
+				let ancestor_number = self.block_number(&data.ancestor).unwrap();
 				let start_number = ancestor_number + 1;
 
-				let mut blooms: Vec<H2048> = enacted.iter()
+				let mut blooms: Vec<H2048> = data.enacted.iter()
 					.map(|hash| self.block(hash).unwrap())
 					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
 					.collect();
@@ -751,32 +738,8 @@ impl BlockChain {
 		T: ExtrasIndexable + Clone + Decodable,
 		K: Key<T> + Eq + Hash + Clone,
 		H256: From<K> {
-		{
-			let read = cache.read().unwrap();
-			if let Some(v) = read.get(hash) {
-				return Some(v.clone());
-			}
-		}
-
 		self.note_used(CacheID::Extras(T::index(), H256::from(hash.clone())));
-
-		self.extras_db.read(hash).map(|t: T| {
-			let mut write = cache.write().unwrap();
-			write.insert(hash.clone(), t.clone());
-			t
-		})
-	}
-
-	fn query_extras_exist<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> bool where
-		K: Key<T> + Eq + Hash + Clone {
-		{
-			let read = cache.read().unwrap();
-			if let Some(_) = read.get(hash) {
-				return true;
-			}
-		}
-
-		self.extras_db.exists::<T>(hash)
+		self.extras_db.read_with_cache(cache, hash)
 	}
 
 	/// Get current cache size.

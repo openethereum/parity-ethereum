@@ -18,6 +18,7 @@
 
 // while not included in binary
 #![allow(dead_code)]
+#![cfg_attr(feature="dev", allow(used_underscore_binding))]
 
 pub mod service;
 
@@ -39,6 +40,12 @@ pub struct Hypervisor {
 	service: Arc<HypervisorService>,
 	ipc_worker: RwLock<nanoipc::Worker<HypervisorService>>,
 	processes: RwLock<HashMap<BinaryId, Child>>,
+}
+
+impl Default for Hypervisor {
+	fn default() -> Self {
+		Hypervisor::new()
+	}
 }
 
 impl Hypervisor {
@@ -116,6 +123,7 @@ impl Hypervisor {
 	}
 }
 
+#[cfg(test)]
 mod tests {
 	use super::*;
 	use std::sync::atomic::{AtomicBool,Ordering};
