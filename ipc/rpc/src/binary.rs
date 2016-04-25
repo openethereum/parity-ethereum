@@ -17,6 +17,7 @@
 //! Binary representation of types
 
 use util::bytes::Populatable;
+use util::numbers::{U256, H256, H2048, Address};
 use std::mem;
 use std::collections::VecDeque;
 
@@ -208,6 +209,29 @@ impl BinaryConvertable for String {
 	}
 }
 
+impl<T> BinaryConvertable for ::std::cell::RefCell<T> where T: BinaryConvertable {
+	fn size(&self) -> usize {
+		self.borrow().size()
+	}
+
+	fn from_empty_bytes() -> Result<Self, BinaryConvertError> {
+		Ok(::std::cell::RefCell::new(try!(T::from_empty_bytes())))
+	}
+
+	fn from_bytes(buffer: &[u8], length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
+		Ok(::std::cell::RefCell::new(try!(T::from_bytes(buffer, length_stack))))
+	}
+
+	fn to_bytes(&self, buffer: &mut [u8], length_stack: &mut VecDeque<usize>) -> Result<(), BinaryConvertError> {
+		try!(self.borrow().to_bytes(buffer, length_stack));
+		Ok(())
+	}
+
+	fn len_params() -> usize {
+		T::len_params()
+	}
+}
+
 impl BinaryConvertable for Vec<u8> {
 	fn size(&self) -> usize {
 		self.len()
@@ -370,8 +394,13 @@ macro_rules! binary_fixed_size {
 
 binary_fixed_size!(u64);
 binary_fixed_size!(u32);
+binary_fixed_size!(usize);
 binary_fixed_size!(i32);
 binary_fixed_size!(bool);
+binary_fixed_size!(U256);
+binary_fixed_size!(H256);
+binary_fixed_size!(H2048);
+binary_fixed_size!(Address);
 
 #[test]
 fn vec_serialize() {

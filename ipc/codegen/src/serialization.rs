@@ -155,6 +155,16 @@ struct BinaryExpressions {
 	pub read: P<ast::Expr>,
 }
 
+fn replace_qualified(s: &str) -> String {
+	if let Some(pos) = s.find("<") {
+		let mut source = s.to_owned();
+		source.insert(pos, ':');
+		source.insert(pos, ':');
+		source
+	}
+	else { s.to_owned() }
+}
+
 fn binary_expr_struct(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
@@ -169,7 +179,7 @@ fn binary_expr_struct(
 			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)));
 
 		let field_type_ident_qualified = builder.id(
-			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)).replace("<", "::<"));
+			replace_qualified(&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty))));
 
 		let index_ident = builder.id(format!("__field{}", index));
 		value_ident.and_then(|x| {
@@ -205,7 +215,7 @@ fn binary_expr_struct(
 			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)));
 
 		let field_type_ident_qualified = builder.id(
-			&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty)).replace("<", "::<"));
+			replace_qualified(&::syntax::print::pprust::ty_to_string(&codegen::strip_ptr(&field.ty))));
 
 		let member_expr = match value_ident {
 			Some(x) => {
@@ -376,7 +386,7 @@ fn fields_sequence(
 				tt.push(Token(
 					_sp,
 					token::Ident(
-						ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(&field.ty).replace("<", "::<")),
+						ext_cx.ident_of(&replace_qualified(&::syntax::print::pprust::ty_to_string(&field.ty))),
 						token::Plain)));
 				tt.push(Token(_sp, token::ModSep));
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"), token::Plain)));
@@ -450,7 +460,7 @@ fn named_fields_sequence(
 				tt.push(Token(
 					_sp,
 					token::Ident(
-						ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(&field.ty).replace("<", "::<")),
+						ext_cx.ident_of(&replace_qualified(&::syntax::print::pprust::ty_to_string(&field.ty))),
 						token::Plain)));
 				tt.push(Token(_sp, token::ModSep));
 				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"), token::Plain)));
