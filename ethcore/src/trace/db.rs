@@ -460,21 +460,8 @@ mod tests {
 		Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)); // should panic!
 	}
 
-	#[test]
-	fn test_import() {
-		let temp = RandomTempPath::new();
-		let mut config = Config::default();
-		config.enabled = Some(true);
-		let block_0 = H256::from(0xa1);
-		let tx_0 = H256::from(0xff);
-
-		let mut extras = Extras::default();
-		extras.block_hashes.insert(0, block_0.clone());
-		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
-
-		let tracedb = Tracedb::new(config, temp.as_path(), Arc::new(extras));
-
-		let request = ImportRequest {
+	fn create_simple_import_request(block_number: BlockNumber, block_hash: H256) -> ImportRequest {
+		ImportRequest {
 			traces: BlockTraces::from(vec![Trace {
 				depth: 0,
 				action: Action::Call(Call {
@@ -487,23 +474,15 @@ mod tests {
 				result: Res::FailedCall,
 				subs: vec![],
 			}]),
-			block_hash: block_0.clone(),
-			block_number: 0,
-			enacted: vec![block_0.clone()],
+			block_hash: block_hash.clone(),
+			block_number: block_number,
+			enacted: vec![block_hash],
 			retracted: 0,
-		};
+		}
+	}
 
-		tracedb.import(request);
-
-		let filter = Filter {
-			range: (0..0),
-			from_address: vec![Address::from(1)],
-			to_address: vec![],
-		};
-
-		let traces = tracedb.filter(&filter);
-		assert_eq!(traces.len(), 1);
-		assert_eq!(traces[0], LocalizedTrace {
+	fn create_simple_localized_trace(block_number: BlockNumber, block_hash: H256, tx_hash: H256) -> LocalizedTrace {
+		LocalizedTrace {
 			parent: None,
 			children: vec![],
 			depth: 0,
@@ -517,9 +496,78 @@ mod tests {
 			result: Res::FailedCall,
 			trace_number: 0,
 			transaction_number: 0,
-			transaction_hash: tx_0.clone(),
-			block_number: 0,
-			block_hash: block_0.clone(),
-		});
+			transaction_hash: tx_hash,
+			block_number: block_number,
+			block_hash: block_hash,
+		}
+	}
+
+
+	#[test]
+	fn test_import() {
+		let temp = RandomTempPath::new();
+		let mut config = Config::default();
+		config.enabled = Some(true);
+		let block_0 = H256::from(0xa1);
+		let block_1 = H256::from(0xa2);
+		let tx_0 = H256::from(0xff);
+		let tx_1 = H256::from(0xaf);
+
+		let mut extras = Extras::default();
+		extras.block_hashes.insert(0, block_0.clone());
+		extras.block_hashes.insert(1, block_1.clone());
+		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
+		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
+
+		let tracedb = Tracedb::new(config, temp.as_path(), Arc::new(extras));
+
+		// import block 0
+		let request = create_simple_import_request(0, block_0.clone());
+		tracedb.import(request);
+
+		let filter = Filter {
+			range: (0..0),
+			from_address: vec![Address::from(1)],
+			to_address: vec![],
+		};
+
+		let traces = tracedb.filter(&filter);
+		assert_eq!(traces.len(), 1);
+		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+
+		// import block 1
+		let request = create_simple_import_request(1, block_1.clone());
+		tracedb.import(request);
+
+		let filter = Filter {
+			range: (0..1),
+			from_address: vec![Address::from(1)],
+			to_address: vec![],
+		};
+
+		let traces = tracedb.filter(&filter);
+		assert_eq!(traces.len(), 2);
+		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		assert_eq!(traces[1], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+
+		let traces = tracedb.block_traces(0).unwrap();
+		assert_eq!(traces.len(), 1);
+		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+
+		let traces = tracedb.block_traces(1).unwrap();
+		assert_eq!(traces.len(), 1);
+		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+
+		assert_eq!(None, tracedb.block_traces(2));
+
+		let traces = tracedb.transaction_traces(0, 0).unwrap();
+		assert_eq!(traces.len(), 1);
+		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+
+		let traces = tracedb.transaction_traces(1, 0).unwrap();
+		assert_eq!(traces.len(), 1);
+		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+
+		assert_eq!(None, tracedb.transaction_traces(1, 1));
 	}
 }
