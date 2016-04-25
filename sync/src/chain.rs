@@ -387,7 +387,10 @@ impl ChainSync {
 						self.have_common_block = true;
 						trace!(target: "sync", "Found common header {} ({})", number, hash);
 					} else {
-						trace!(target: "sync", "Header already in chain {} ({})", number, hash);
+						trace!(target: "sync", "Header already in chain {} ({}), restarting", number, hash);
+						self.restart(io);
+						self.continue_sync(io);
+						return Ok(());
 					}
 				},
 				_ => {
@@ -460,6 +463,12 @@ impl ChainSync {
 		}
 		if self.state == SyncState::Waiting {
 			trace!(target: "sync", "Ignored block bodies while waiting");
+			return Ok(());
+		}
+		if item_count == 0 {
+			trace!(target: "sync", "No bodies returned, restarting");
+			self.restart(io);
+			self.continue_sync(io);
 			return Ok(());
 		}
 		for i in 0..item_count {
