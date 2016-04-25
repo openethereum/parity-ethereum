@@ -24,8 +24,9 @@ use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, Transaction
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
+use ethminer::ExternalMiner;
 use v1::{Eth, EthClient};
-use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config, TestMinerService, TestExternalMiner};
+use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config, TestMinerService};
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -66,8 +67,8 @@ impl Default for EthTester {
 		let ap = accounts_provider();
 		let miner = miner_service();
 		let hashrates = Arc::new(RwLock::new(HashMap::new()));
-		let external_miner = TestExternalMiner::new(hashrates.clone());
-		let eth = EthClient::new_with_external_miner(&client, &sync, &ap, &miner, external_miner).to_delegate();
+		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
+		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);
 		EthTester {
