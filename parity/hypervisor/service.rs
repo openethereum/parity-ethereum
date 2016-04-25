@@ -15,5 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity interprocess hypervisor IPC service
+#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
 
 include!(concat!(env!("OUT_DIR"), "/hypervisor_service_cg.rs"));
