@@ -27,7 +27,7 @@ pub struct ImportRoute {
 	/// Blocks that were validated by new block.
 	pub enacted: Vec<H256>,
 	/// Blocks which are neither retracted nor enacted.
-	pub ommited: Vec<H256>,
+	pub omitted: Vec<H256>,
 }
 
 impl ImportRoute {
@@ -35,7 +35,7 @@ impl ImportRoute {
 		ImportRoute {
 			retracted: vec![],
 			enacted: vec![],
-			ommited: vec![],
+			omitted: vec![],
 		}
 	}
 }
@@ -46,19 +46,19 @@ impl From<BlockInfo> for ImportRoute {
 			BlockLocation::CanonChain => ImportRoute {
 				retracted: vec![],
 				enacted: vec![info.hash],
-				ommited: vec![],
+				omitted: vec![],
 			},
 			BlockLocation::Branch => ImportRoute {
 				retracted: vec![],
 				enacted: vec![],
-				ommited: vec![info.hash],
+				omitted: vec![info.hash],
 			},
 			BlockLocation::BranchBecomingCanonChain(mut data) => {
 				data.enacted.push(info.hash);
 				ImportRoute {
 					retracted: data.retracted,
 					enacted: data.enacted,
-					ommited: vec![],
+					omitted: vec![],
 				}
 			}
 		}
@@ -77,7 +77,7 @@ mod tests {
 		assert_eq!(ImportRoute::none(), ImportRoute {
 			enacted: vec![],
 			retracted: vec![],
-			ommited: vec![],
+			omitted: vec![],
 		});
 	}
 
@@ -93,7 +93,7 @@ mod tests {
 		assert_eq!(ImportRoute::from(info), ImportRoute {
 			retracted: vec![],
 			enacted: vec![],
-			ommited: vec![H256::from(U256::from(1))],
+			omitted: vec![H256::from(U256::from(1))],
 		});
 	}
 
@@ -109,7 +109,7 @@ mod tests {
 		assert_eq!(ImportRoute::from(info), ImportRoute {
 			retracted: vec![],
 			enacted: vec![H256::from(U256::from(1))],
-			ommited: vec![],
+			omitted: vec![],
 		});
 	}
 
@@ -129,7 +129,7 @@ mod tests {
 		assert_eq!(ImportRoute::from(info), ImportRoute {
 			retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
 			enacted: vec![H256::from(U256::from(1)), H256::from(U256::from(2))],
-			ommited: vec![],
+			omitted: vec![],
 		});
 	}
 }

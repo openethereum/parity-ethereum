@@ -944,25 +944,25 @@ mod tests {
 		assert_eq!(ir1, ImportRoute {
 			enacted: vec![b1_hash],
 			retracted: vec![],
-			ommited: vec![],
+			omitted: vec![],
 		});
 
 		assert_eq!(ir2, ImportRoute {
 			enacted: vec![b2_hash],
 			retracted: vec![],
-			ommited: vec![],
+			omitted: vec![],
 		});
 
 		assert_eq!(ir3b, ImportRoute {
 			enacted: vec![b3b_hash],
 			retracted: vec![],
-			ommited: vec![],
+			omitted: vec![],
 		});
 
 		assert_eq!(ir3a, ImportRoute {
 			enacted: vec![b3a_hash],
 			retracted: vec![b3b_hash],
-			ommited: vec![],
+			omitted: vec![],
 		});
 
 		assert_eq!(bc.best_block_hash(), best_block_hash);

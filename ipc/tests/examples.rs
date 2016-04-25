@@ -18,6 +18,7 @@
 mod tests {
 
 	use super::super::service::*;
+	use super::super::binary::*;
 	use super::super::nested::{DBClient,DBWriter};
 	use ipc::*;
 	use devtools::*;
@@ -142,5 +143,20 @@ mod tests {
 		let result = db_client.handshake();
 
 		assert!(result.is_ok());
+	}
+
+	#[test]
+	fn can_serialize_dummy_structs() {
+		let mut socket = TestSocket::new();
+
+		let struct_ = DoubleRoot { x1: 0, x2: 100, x3: 100000};
+		let res = ::ipc::binary::serialize_into(&struct_, &mut socket);
+
+		assert!(res.is_ok());
+
+		let mut read_socket = TestSocket::new_ready(socket.write_buffer.clone());
+		let new_struct: DoubleRoot = ::ipc::binary::deserialize_from(&mut read_socket).unwrap();
+
+		assert_eq!(struct_, new_struct);
 	}
 }

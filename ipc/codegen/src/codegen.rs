@@ -298,14 +298,14 @@ fn implement_dispatch_arms(
 		.map(|dispatch| { index = index + 1; implement_dispatch_arm(cx, builder, index as u32, dispatch, buffer, replacements) }).collect()
 }
 
-fn strip_ptr(ty: &P<ast::Ty>) -> P<ast::Ty> {
+pub fn strip_ptr(ty: &P<ast::Ty>) -> P<ast::Ty> {
 	if let ast::TyKind::Rptr(_, ref ptr_mut) = ty.node {
 		ptr_mut.ty.clone()
 	}
 	else { ty.clone() }
 }
 
-fn has_ptr(ty: &P<ast::Ty>) -> bool {
+pub fn has_ptr(ty: &P<ast::Ty>) -> bool {
 	if let ast::TyKind::Rptr(_, ref _ptr_mut) = ty.node {
 		true
 	}
