@@ -344,7 +344,8 @@ mod tests {
 	use util::{Address, U256, H256};
 	use devtools::RandomTempPath;
 	use header::BlockNumber;
-	use trace::{Config, Tracedb, Database, DatabaseExtras, ImportRequest, BlockTraces, Trace, Filter, LocalizedTrace};
+	use trace::{Config, Tracedb, Database, DatabaseExtras, ImportRequest};
+	use trace::{BlockTraces, Trace, Filter, LocalizedTrace, AddressesFilter};
 	use trace::trace::{Call, Action, Res};
 
 	struct NoopExtras;
@@ -528,8 +529,8 @@ mod tests {
 
 		let filter = Filter {
 			range: (0..0),
-			from_address: vec![Address::from(1)],
-			to_address: vec![],
+			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let traces = tracedb.filter(&filter);
@@ -542,8 +543,8 @@ mod tests {
 
 		let filter = Filter {
 			range: (0..1),
-			from_address: vec![Address::from(1)],
-			to_address: vec![],
+			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let traces = tracedb.filter(&filter);

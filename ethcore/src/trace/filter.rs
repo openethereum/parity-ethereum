@@ -22,16 +22,62 @@ use basic_types::LogBloom;
 use super::flat::FlatTrace;
 use super::trace::Action;
 
+/// Addresses filter.
+///
+/// Used to create bloom possibilities and match filters.
+pub struct AddressesFilter(Vec<Address>);
+
+impl From<Vec<Address>> for AddressesFilter {
+	fn from(addresses: Vec<Address>) -> Self {
+		AddressesFilter(addresses)
+	}
+}
+
+impl AddressesFilter {
+	/// Returns true if address matches one of the searched addresses.
+	pub fn matches(&self, address: &Address) -> bool {
+		self.matches_all() || self.0.contains(address)
+	}
+
+	/// Returns true if this address filter matches everything.
+	pub fn matches_all(&self) -> bool {
+		self.0.is_empty()
+	}
+
+	/// Returns blooms of this addresses filter.
+	pub fn blooms(&self) -> Vec<LogBloom> {
+		match self.0.is_empty() {
+			true => vec![LogBloom::new()],
+			false => self.0.iter()
+				.map(|address| LogBloom::from_bloomed(&address.sha3()))
+				.collect()
+		}
+	}
+
+	/// Returns vector of blooms zipped with blooms of this addresses filter.
+	pub fn with_blooms(&self, blooms: Vec<LogBloom>) -> Vec<LogBloom> {
+		match self.0.is_empty() {
+			true => blooms,
+			false => blooms
+				.into_iter()
+				.flat_map(|bloom| self.0.iter()
+					.map(|address| bloom.with_bloomed(&address.sha3()))
+					.collect::<Vec<_>>())
+				.collect()
+		}
+	}
+}
+
 /// Traces filter.
 pub struct Filter {
 	/// Block range.
 	pub range: Range<usize>,
 
 	/// From address. If empty, match all, if not, match one of the values.
-	pub from_address: Vec<Address>,
+	pub from_address: AddressesFilter,
 
 	/// To address. If empty, match all, if not, match one of the values.
-	pub to_address: Vec<Address>,
+	pub to_address: AddressesFilter,
 }
 
 impl BloomFilter for Filter {
@@ -50,37 +96,20 @@ impl BloomFilter for Filter {
 impl Filter {
 	/// Returns combinations of each address.
 	fn bloom_possibilities(&self) -> Vec<LogBloom> {
-		let blooms = match self.from_address.is_empty() {
-			true => vec![LogBloom::new()],
-			false => self.from_address
-				.iter()
-				.map(|address| LogBloom::from_bloomed(&address.sha3()))
-				.collect()
-		};
-
-		match self.to_address.is_empty() {
-			true => blooms,
-			false => blooms
-				.into_iter()
-				.flat_map(|bloom| self.to_address
-					.iter()
-					.map(| address | bloom.with_bloomed(&address.sha3()))
-					.collect::<Vec<_>>())
-				.collect()
-		}
+		self.to_address.with_blooms(self.from_address.blooms())
 	}
 
 	/// Returns true if given trace matches the filter.
 	pub fn matches(&self, trace: &FlatTrace) -> bool {
 		match trace.action {
 			Action::Call(ref call) => {
-				let from_matches = self.from_address.is_empty() || self.from_address.contains(&call.from);
-				let to_matches = self.to_address.is_empty() || self.to_address.contains(&call.to);
+				let from_matches = self.from_address.matches(&call.from);
+				let to_matches = self.to_address.matches(&call.to);
 				from_matches && to_matches
 			},
 			Action::Create(ref create) => {
-				let from_matches = self.from_address.is_empty() || self.from_address.contains(&create.from);
-				let to_matches = self.to_address.is_empty();
+				let from_matches = self.from_address.matches(&create.from);
+				let to_matches = self.to_address.matches_all();
 				from_matches && to_matches
 			}
 		}
@@ -93,15 +122,15 @@ mod tests {
 	use util::sha3::Hashable;
 	use trace::trace::{Action, Call, Res};
 	use trace::flat::FlatTrace;
-	use trace::Filter;
+	use trace::{Filter, AddressesFilter};
 	use basic_types::LogBloom;
 
 	#[test]
 	fn empty_trace_filter_bloom_possibilies() {
 		let filter = Filter {
 			range: (0..0),
-			from_address: vec![],
-			to_address: vec![],
+			from_address: AddressesFilter::from(vec![]),
+			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let blooms = filter.bloom_possibilities();
@@ -112,8 +141,8 @@ mod tests {
 	fn single_trace_filter_bloom_possibility() {
 		let filter = Filter {
 			range: (0..0),
-			from_address: vec![Address::from(1)],
-			to_address: vec![Address::from(2)],
+			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			to_address: AddressesFilter::from(vec![Address::from(2)]),
 		};
 
 		let blooms = filter.bloom_possibilities();
@@ -128,8 +157,8 @@ mod tests {
 	fn only_from_trace_filter_bloom_possibility() {
 		let filter = Filter {
 			range: (0..0),
-			from_address: vec![Address::from(1)],
-			to_address: vec![],
+			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let blooms = filter.bloom_possibilities();
@@ -143,8 +172,8 @@ mod tests {
 	fn only_to_trace_filter_bloom_possibility() {
 		let filter = Filter {
 			range: (0..0),
-			from_address: vec![],
-			to_address: vec![Address::from(1)],
+			from_address: AddressesFilter::from(vec![]),
+			to_address: AddressesFilter::from(vec![Address::from(1)]),
 		};
 
 		let blooms = filter.bloom_possibilities();
@@ -158,8 +187,8 @@ mod tests {
 	fn multiple_trace_filter_bloom_possibility() {
 		let filter = Filter {
 			range: (0..0),
-			from_address: vec![Address::from(1), Address::from(3)],
-			to_address: vec![Address::from(2), Address::from(4)],
+			from_address: AddressesFilter::from(vec![Address::from(1), Address::from(3)]),
+			to_address: AddressesFilter::from(vec![Address::from(2), Address::from(4)]),
 		};
 
 		let blooms = filter.bloom_possibilities();
@@ -190,44 +219,44 @@ mod tests {
 	fn filter_matches() {
 		let f0 = Filter {
 			range: (0..0),
-			from_address: vec![Address::from(1)],
-			to_address: vec![],
+			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let f1 = Filter {
 			range: (0..0),
-			from_address: vec![Address::from(3), Address::from(1)],
-			to_address: vec![],
+			from_address: AddressesFilter::from(vec![Address::from(3), Address::from(1)]),
+			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let f2 = Filter {
 			range: (0..0),
-			from_address: vec![],
-			to_address: vec![],
+			from_address: AddressesFilter::from(vec![]),
+			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let f3 = Filter {
 			range: (0..0),
-			from_address: vec![],
-			to_address: vec![Address::from(2)],
+			from_address: AddressesFilter::from(vec![]),
+			to_address: AddressesFilter::from(vec![Address::from(2)]),
 		};
 
 		let f4 = Filter {
 			range: (0..0),
-			from_address: vec![],
-			to_address: vec![Address::from(2), Address::from(3)],
+			from_address: AddressesFilter::from(vec![]),
+			to_address: AddressesFilter::from(vec![Address::from(2), Address::from(3)]),
 		};
 
 		let f5 = Filter {
 			range: (0..0),
-			from_address: vec![Address::from(1)],
-			to_address: vec![Address::from(2), Address::from(3)],
+			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			to_address: AddressesFilter::from(vec![Address::from(2), Address::from(3)]),
 		};
 
 		let f6 = Filter {
 			range: (0..0),
-			from_address: vec![Address::from(1)],
-			to_address: vec![Address::from(4)],
+			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			to_address: AddressesFilter::from(vec![Address::from(4)]),
 		};
 
 		let trace = FlatTrace {

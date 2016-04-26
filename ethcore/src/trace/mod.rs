@@ -34,7 +34,7 @@ pub use self::db::Tracedb;
 pub use self::trace::Trace;
 pub use self::noop_tracer::NoopTracer;
 pub use self::executive_tracer::ExecutiveTracer;
-pub use self::filter::Filter;
+pub use self::filter::{Filter, AddressesFilter};
 pub use self::import::ImportRequest;
 pub use self::localized::LocalizedTrace;
 use util::{Bytes, Address, U256, H256};
