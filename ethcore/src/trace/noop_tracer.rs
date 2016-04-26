@@ -37,8 +37,7 @@ impl Tracer for NoopTracer {
 		None
 	}
 
-	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>,
-				  _: bool) {
+	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>, _: bool) {
 		assert!(call.is_none());
 		assert!(output.is_none());
 	}

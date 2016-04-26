@@ -124,6 +124,13 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 		self.tracesdb.read_with_cache(&self.traces, block_hash)
 	}
 
+	/// Returns vector of transaction traces for given block.
+	fn transactions_traces(&self, block_hash: &H256) -> Option<Vec<FlatTransactionTraces>> {
+		self.traces(block_hash)
+			.map(FlatBlockTraces::from)
+			.map(Into::into)
+	}
+
 	fn matching_block_traces(
 		&self,
 		filter: &Filter,
@@ -149,7 +156,7 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 		tx_number: usize
 	) -> Vec<LocalizedTrace> {
 		let tx_hash = self.extras.transaction_hash(block_number, tx_number)
-		.expect("Expected to find transaction hash. Database is probably malformed");
+			.expect("Expected to find transaction hash. Database is probably malformed");
 
 		let flat_traces: Vec<FlatTrace> = traces.into();
 		flat_traces.into_iter()
@@ -180,8 +187,8 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 		self.config.enabled.expect("Auto tracing hasn't been properly configured.")
 	}
 
-	/// Traces of impor request's enacted blocks are expected to be already in database
-	/// or to be the currenly inserted trace.
+	/// Traces of import request's enacted blocks are expected to be already in database
+	/// or to be the currently inserted trace.
 	fn import(&self, request: ImportRequest) {
 		// fast return if tracing is disabled
 		if !self.tracing_enabled() {
@@ -229,9 +236,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 
 	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: usize) -> Option<LocalizedTrace> {
 		self.extras.block_hash(block_number)
-			.and_then(|block_hash| self.traces(&block_hash)
-				.map(FlatBlockTraces::from)
-				.map(Into::<Vec<FlatTransactionTraces>>::into)
+			.and_then(|block_hash| self.transactions_traces(&block_hash)
 				.and_then(|traces| traces.into_iter().nth(tx_position))
 				.map(Into::<Vec<FlatTrace>>::into)
 				.and_then(|traces| traces.into_iter().nth(trace_position))
@@ -257,9 +262,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 
 	fn transaction_traces(&self, block_number: BlockNumber, tx_position: usize) -> Option<Vec<LocalizedTrace>> {
 		self.extras.block_hash(block_number)
-			.and_then(|block_hash| self.traces(&block_hash)
-				.map(FlatBlockTraces::from)
-				.map(Into::<Vec<FlatTransactionTraces>>::into)
+			.and_then(|block_hash| self.transactions_traces(&block_hash)
 				.and_then(|traces| traces.into_iter().nth(tx_position))
 				.map(Into::<Vec<FlatTrace>>::into)
 				.map(|traces| {
@@ -287,9 +290,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 
 	fn block_traces(&self, block_number: BlockNumber) -> Option<Vec<LocalizedTrace>> {
 		self.extras.block_hash(block_number)
-			.and_then(|block_hash| self.traces(&block_hash)
-				.map(FlatBlockTraces::from)
-				.map(Into::<Vec<FlatTransactionTraces>>::into)
+			.and_then(|block_hash| self.transactions_traces(&block_hash)
 				.map(|traces| {
 					traces.into_iter()
 						.map(Into::<Vec<FlatTrace>>::into)
