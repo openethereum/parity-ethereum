@@ -16,4 +16,3 @@
 
 mod codegen;
 mod serialization;
-pub mod typegen;

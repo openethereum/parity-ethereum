@@ -27,7 +27,11 @@ mod tests {
 	#[test]
 	fn call_service() {
 		// method_num = 0, f = 10 (method Service::commit)
-		let mut socket = TestSocket::new_ready(vec![0, 16, 0, 0, 0, 10]);
+		let mut socket = TestSocket::new_ready(vec![
+			0, 16,
+			0, 0, 0, 0, 0, 0, 0, 0,
+			4, 0, 0, 0, 0, 0, 0, 0,
+			10, 0, 0, 0]);
 
 		let service = Service::new();
 		assert_eq!(0, *service.commits.read().unwrap());
@@ -41,12 +45,20 @@ mod tests {
 	#[test]
 	fn call_service_handshake() {
 		let mut socket = TestSocket::new_ready(vec![0, 0,
+			// part count = 3
+			3, 0, 0, 0, 0, 0, 0, 0,
+			// part sizes
+			5, 0, 0, 0, 0, 0, 0, 0,
+			5, 0, 0, 0, 0, 0, 0, 0,
+			64, 0, 0, 0, 0, 0, 0, 0,
+			// total payload length
+			70, 0, 0, 0, 0, 0, 0, 0,
 			// protocol version
-			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
+			b'1', b'.', b'0', b'.', b'0',
 			// api version
-			0, 0, 0, 0, 0, 0, 0, 5, b'1', b'.', b'0', b'.', b'0',
+			b'1', b'.', b'0', b'.', b'0',
 			// reserved
-			0, 0, 0, 0, 0, 0, 0, 64,
+
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -64,24 +76,34 @@ mod tests {
 	#[test]
 	fn call_service_client() {
 		let mut socket = TestSocket::new();
-		socket.read_buffer = vec![0, 0, 0, 10];
+		socket.read_buffer = vec![10, 0, 0, 0];
 		let service_client = ServiceClient::init(socket);
 
 		let result = service_client.commit(5);
 
-		assert_eq!(vec![0, 16, 0, 0, 0, 5], service_client.socket().borrow().write_buffer.clone());
+		assert_eq!(
+			vec![0, 16,
+				0, 0, 0, 0, 0, 0, 0, 0,
+				4, 0, 0, 0, 0, 0, 0, 0,
+				5, 0, 0, 0],
+			service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
 	#[test]
 	fn call_service_client_optional() {
 		let mut socket = TestSocket::new();
-		socket.read_buffer = vec![0, 0, 0, 10];
+		socket.read_buffer = vec![10, 0, 0, 0];
 		let service_client = ServiceClient::init(socket);
 
 		let result = service_client.rollback(Some(5), 10);
 
-		assert_eq!(vec![0, 17, 1, 0, 0, 0, 5, 0, 0, 0, 10], service_client.socket().borrow().write_buffer.clone());
+		assert_eq!(vec![
+			0, 17,
+			1, 0, 0, 0, 0, 0, 0, 0,
+			4, 0, 0, 0, 0, 0, 0, 0,
+			8, 0, 0, 0, 0, 0, 0, 0,
+			5, 0, 0, 0, 10, 0, 0, 0], service_client.socket().borrow().write_buffer.clone());
 		assert_eq!(10, result);
 	}
 
@@ -115,9 +137,12 @@ mod tests {
 		assert_eq!(vec![
 			// message num..
 			0, 18,
-			// payload length
-			0, 0, 0, 0, 0, 0, 0, 16,
-			// structure raw bytes (bigendians :( )
+			// variable size length-s
+			1, 0, 0, 0, 0, 0, 0, 0,
+			16, 0, 0, 0, 0, 0, 0, 0,
+			// total length
+			16, 0, 0, 0, 0, 0, 0, 0,
+			// items
 			3, 0, 0, 0, 0, 0, 0, 0,
 			11, 0, 0, 0, 0, 0, 0, 0],
 			service_client.socket().borrow().write_buffer.clone());
@@ -127,13 +152,19 @@ mod tests {
 	#[test]
 	fn can_invoke_generic_service() {
 		let mut socket = TestSocket::new();
-		socket.read_buffer = vec![0, 0, 0, 0];
+		socket.read_buffer = vec![
+			1, 0, 0, 0, 0, 0, 0, 0,
+			1, 0, 0, 0, 0, 0, 0, 0,
+			1, 0, 0, 0, 0, 0, 0, 0,
+			0,
+		];
 		let db_client = DBClient::<u64, _>::init(socket);
 
 		let result = db_client.write(vec![0u8; 100]);
 
 		assert!(result.is_ok());
 	}
+
 	#[test]
 	fn can_handshake_generic_service() {
 		let mut socket = TestSocket::new();
