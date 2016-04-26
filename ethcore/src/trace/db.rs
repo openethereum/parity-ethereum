@@ -22,7 +22,7 @@ use bloomchain::Number;
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use util::{FixedHash, H256, H264, Database, DBTransaction};
 use header::BlockNumber;
-use trace::{BlockTraces, LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest,
+use trace::{BlockTraces, LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest,
 DatabaseExtras};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
 use super::bloom::{TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup};
@@ -82,28 +82,17 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 		let tracesdb = Database::open_default(tracedb_path.to_str().unwrap()).unwrap();
 
 		// check if in previously tracing was enabled
-		let tracing_was_enabled = match tracesdb.get(b"enabled").unwrap() {
-			Some(ref value) if value as &[u8] == &[0x1] => Some(true),
-			Some(ref value) if value as &[u8] == &[0x0] => Some(false),
+		let old_tracing = match tracesdb.get(b"enabled").unwrap() {
+			Some(ref value) if value as &[u8] == &[0x1] => Switch::On,
+			Some(ref value) if value as &[u8] == &[0x0] => Switch::Off,
 			Some(_) => { panic!("tracesdb is corrupted") },
-			None => None,
+			None => Switch::Auto,
 		};
 
-		// compare it with the current option.
-		let tracing = match (tracing_was_enabled, config.enabled) {
-			(Some(true), Some(true)) => true,
-			(Some(true), None) => true,
-			(Some(true), Some(false)) => false,
-			(Some(false), Some(true)) => { panic!("Tracing can't be enabled. Resync required."); },
-			(Some(false), None) => false,
-			(Some(false), Some(false)) => false,
-			(None, Some(true)) => true,
-			_ => false,
-		};
+		let tracing = old_tracing.turn_to(config.enabled).expect("Tracing can't be enabled.Resync required.");
+		config.enabled = tracing;
 
-		config.enabled = Some(tracing);
-
-		let encoded_tracing= match tracing {
+		let encoded_tracing = match tracing.as_bool() {
 			true => [0x1],
 			false => [0x0]
 		};
@@ -184,7 +173,7 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 
 impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 	fn tracing_enabled(&self) -> bool {
-		self.config.enabled.expect("Auto tracing hasn't been properly configured.")
+		self.config.enabled.as_bool()
 	}
 
 	/// Traces of import request's enacted blocks are expected to be already in database
@@ -344,7 +333,7 @@ mod tests {
 	use util::{Address, U256, H256};
 	use devtools::RandomTempPath;
 	use header::BlockNumber;
-	use trace::{Config, Tracedb, Database, DatabaseExtras, ImportRequest};
+	use trace::{Config, Switch, Tracedb, Database, DatabaseExtras, ImportRequest};
 	use trace::{BlockTraces, Trace, Filter, LocalizedTrace, AddressesFilter};
 	use trace::trace::{Call, Action, Res};
 
@@ -391,7 +380,7 @@ mod tests {
 		let mut config = Config::default();
 
 		// set autotracing
-		config.enabled = None;
+		config.enabled = Switch::Auto;
 
 		{
 			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
@@ -403,7 +392,7 @@ mod tests {
 			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 
-		config.enabled = Some(false);
+		config.enabled = Switch::Off;
 
 		{
 			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
@@ -417,7 +406,7 @@ mod tests {
 		let mut config = Config::default();
 
 		// set tracing on
-		config.enabled = Some(true);
+		config.enabled = Switch::On;
 
 		{
 			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
@@ -429,14 +418,14 @@ mod tests {
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
-		config.enabled = None;
+		config.enabled = Switch::Auto;
 
 		{
 			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
-		config.enabled = Some(false);
+		config.enabled = Switch::Off;
 
 		{
 			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
@@ -451,14 +440,14 @@ mod tests {
 		let mut config = Config::default();
 
 		// set tracing on
-		config.enabled = Some(false);
+		config.enabled = Switch::Off;
 
 		{
 			let tracedb = Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras));
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
 
-		config.enabled = Some(true);
+		config.enabled = Switch::On;
 		Tracedb::new(config.clone(), temp.as_path(), Arc::new(NoopExtras)); // should panic!
 	}
 
@@ -509,7 +498,7 @@ mod tests {
 	fn test_import() {
 		let temp = RandomTempPath::new();
 		let mut config = Config::default();
-		config.enabled = Some(true);
+		config.enabled = Switch::On;
 		let block_0 = H256::from(0xa1);
 		let block_1 = H256::from(0xa2);
 		let tx_0 = H256::from(0xff);

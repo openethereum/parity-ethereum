@@ -17,12 +17,47 @@
 //! Traces config.
 use bloomchain::Config as BloomConfig;
 
-///. Traces config.
+/// 3-value enum.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Switch {
+	/// True.
+	On,
+	/// False.
+	Off,
+	/// Auto.
+	Auto,
+}
+
+impl Switch {
+	/// Tries to turn old switch to new value.
+	pub fn turn_to(&self, to: Switch) -> Result<Switch, &'static str> {
+		match (*self, to) {
+			(Switch::On, Switch::On) => Ok(Switch::On),
+			(Switch::On, Switch::Auto) => Ok(Switch::On),
+			(Switch::On, Switch::Off) => Ok(Switch::Off),
+			(Switch::Off, Switch::On) => Err("Tracing can't be enabled"),
+			(Switch::Off, Switch::Auto) => Ok(Switch::Off),
+			(Switch::Off, Switch::Off) => Ok(Switch::Off),
+			(Switch::Auto, Switch::On) => Ok(Switch::On),
+			_ => Ok(Switch::Off),
+		}
+	}
+
+	/// Returns switch boolean switch value.
+	pub fn as_bool(&self) -> bool {
+		match *self {
+			Switch::On => true,
+			Switch::Off | Switch::Auto => false,
+		}
+	}
+}
+
+/// Traces config.
 #[derive(Debug, Clone)]
 pub struct Config {
 	/// Indicates if tracing should be enabled or not.
 	/// If it's None, it will be automatically configured.
-	pub enabled: Option<bool>,
+	pub enabled: Switch,
 	/// Traces blooms configuration.
 	pub blooms: BloomConfig,
 }
@@ -30,7 +65,7 @@ pub struct Config {
 impl Default for Config {
 	fn default() -> Self {
 		Config {
-			enabled: None,
+			enabled: Switch::Auto,
 			blooms: BloomConfig {
 				levels: 3,
 				elements_per_index: 16,

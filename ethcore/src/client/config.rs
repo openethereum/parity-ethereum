@@ -16,7 +16,7 @@
 
 pub use block_queue::BlockQueueConfig;
 pub use blockchain::BlockChainConfig;
-pub use trace::Config as TraceConfig;
+pub use trace::{Config as TraceConfig, Switch};
 use util::journaldb;
 
 /// Client configuration. Includes configs for all sub-systems.

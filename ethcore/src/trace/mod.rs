@@ -29,7 +29,7 @@ mod noop_tracer;
 pub mod trace;
 
 pub use self::block::BlockTraces;
-pub use self::config::Config;
+pub use self::config::{Config, Switch};
 pub use self::db::Tracedb;
 pub use self::trace::Trace;
 pub use self::noop_tracer::NoopTracer;
