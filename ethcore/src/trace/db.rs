@@ -85,7 +85,7 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 		let tracing_was_enabled = match tracesdb.get(b"enabled").unwrap() {
 			Some(ref value) if value as &[u8] == &[0x1] => Some(true),
 			Some(ref value) if value as &[u8] == &[0x0] => Some(false),
-			Some(_) => { panic!("tracesdb is malformed") },
+			Some(_) => { panic!("tracesdb is corrupted") },
 			None => None,
 		};
 
@@ -156,7 +156,7 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 		tx_number: usize
 	) -> Vec<LocalizedTrace> {
 		let tx_hash = self.extras.transaction_hash(block_number, tx_number)
-			.expect("Expected to find transaction hash. Database is probably malformed");
+			.expect("Expected to find transaction hash. Database is probably corrupted");
 
 		let flat_traces: Vec<FlatTrace> = traces.into();
 		flat_traces.into_iter()
@@ -214,7 +214,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 				.iter()
 				// all traces are expected to be found here. That's why `expect` has been used
 				// instead of `filter_map`. If some traces haven't been found, it meens that
-				// traces database is malformed or incomplete.
+				// traces database is corrupted or incomplete.
 				.map(|block_hash| self.traces(block_hash).expect("Traces database is incomplete."))
 				.map(|block_traces| block_traces.bloom())
 				.map(BlockTracesBloom::from)
@@ -242,7 +242,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 				.and_then(|traces| traces.into_iter().nth(trace_position))
 				.map(|trace| {
 					let tx_hash = self.extras.transaction_hash(block_number, tx_position)
-						.expect("Expected to find transaction hash. Database is probably malformed");
+						.expect("Expected to find transaction hash. Database is probably corrupted");
 
 					LocalizedTrace {
 						parent: trace.parent,
@@ -267,7 +267,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 				.map(Into::<Vec<FlatTrace>>::into)
 				.map(|traces| {
 					let tx_hash = self.extras.transaction_hash(block_number, tx_position)
-						.expect("Expected to find transaction hash. Database is probably malformed");
+						.expect("Expected to find transaction hash. Database is probably corrupted");
 
 					traces.into_iter()
 					.enumerate()
@@ -297,7 +297,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 						.enumerate()
 						.flat_map(|(tx_position, traces)| {
 							let tx_hash = self.extras.transaction_hash(block_number, tx_position)
-								.expect("Expected to find transaction hash. Database is probably malformed");
+								.expect("Expected to find transaction hash. Database is probably corrupted");
 
 							traces.into_iter()
 								.enumerate()
@@ -327,9 +327,9 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 			.flat_map(|n| {
 				let number = n as BlockNumber;
 				let hash = self.extras.block_hash(number)
-					.expect("Expected to find block hash. Extras db is probably malformed");
+					.expect("Expected to find block hash. Extras db is probably corrupted");
 				let traces = self.traces(&hash)
-					.expect("Expected to find a trace. Db is probably malformed.");
+					.expect("Expected to find a trace. Db is probably corrupted.");
 				let flat_block = FlatBlockTraces::from(traces);
 				self.matching_block_traces(filter, flat_block, hash, number)
 			})
