@@ -17,7 +17,6 @@
 extern crate rustc_version;
 extern crate syntex;
 extern crate ethcore_ipc_codegen as codegen;
-extern crate serde_codegen;
 
 use std::env;
 use std::path::Path;
@@ -39,12 +38,12 @@ fn main() {
 		registry.expand("", &src, &dst).unwrap();
 	}
 
-	// serde pass
+	// serialization pass
 	{
 		let src = Path::new(&out_dir).join("hypervisor_service_ipc.rs");
 		let dst = Path::new(&out_dir).join("hypervisor_service_cg.rs");
 		let mut registry = syntex::Registry::new();
-		serde_codegen::register(&mut registry);
+		codegen::register(&mut registry);
 		registry.expand("", &src, &dst).unwrap();
 	}
 }

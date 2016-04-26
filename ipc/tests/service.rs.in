@@ -16,40 +16,20 @@
 
 use std::sync::RwLock;
 use std::ops::*;
-use std::convert::*;
 use ipc::IpcConfig;
-use util::bytes::{FromRawBytes, BytesConvertable, FromBytesError};
+use std::mem;
+use ipc::binary::BinaryConvertError;
+use std::collections::VecDeque;
 
 pub struct Service {
 	pub commits: RwLock<usize>,
 	pub rollbacks: RwLock<usize>,
 }
 
+#[derive(Binary)]
 pub struct CustomData {
-	pub a: usize,
-	pub b: usize,
-}
-
-impl FromRawBytes for CustomData {
-	fn from_bytes(bytes: &[u8]) -> Result<CustomData, FromBytesError> {
-		Ok(CustomData {
-			a: bytes[0] as usize * 256 + bytes[1] as usize,
-			b: bytes[2] as usize * 256 + bytes[3] as usize
-		})
-	}
-}
-
-impl BytesConvertable for CustomData {
-	fn bytes(&self) -> &[u8] {
-		let ip: *const CustomData = self;
-    	let ptr: *const u8 = ip as *const _;
-		unsafe {
-    		::std::slice::from_raw_parts(
-        		ptr,
-        		::std::mem::size_of::<CustomData>()
-    		)
-		}
-	}
+	pub a: u64,
+	pub b: u64,
 }
 
 #[derive(Ipc)]
@@ -69,8 +49,8 @@ impl Service {
 		let mut clock = self.commits.write().unwrap();
 		let mut rlock = self.commits.write().unwrap();
 
-		*clock = data.a;
-		*rlock = data.b;
+		*clock = data.a as usize;
+		*rlock = data.b as usize;
 
 		true
 	}
