@@ -9,8 +9,6 @@ path = "run.rs"
 
 [dependencies]
 "ethcore-ipc" = { path = "../rpc" }
-bincode = "*"
-serde = "0.7.0"
 ethcore-devtools = { path = "../../devtools" }
 semver = "0.2.0"
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
