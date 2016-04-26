@@ -446,7 +446,7 @@ mod tests {
 
 	#[test]
 	#[should_panic]
-	fn test_invalid_reopeining_db() {
+	fn test_invalid_reopening_db() {
 		let temp = RandomTempPath::new();
 		let mut config = Config::default();
 

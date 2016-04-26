@@ -73,10 +73,10 @@ pub struct Filter {
 	/// Block range.
 	pub range: Range<usize>,
 
-	/// From address. If empty, match all, if not, match one of the values.
+	/// From address filter.
 	pub from_address: AddressesFilter,
 
-	/// To address. If empty, match all, if not, match one of the values.
+	/// To address filter.
 	pub to_address: AddressesFilter,
 }
 
