@@ -154,6 +154,22 @@ impl Miner {
 		let mut queue = self.transaction_queue.lock().unwrap();
 		queue.set_gas_limit(gas_limit);
 	}
+
+	fn enable_and_prepare_sealing(&self, chain: &BlockChainClient) {
+		trace!(target: "miner", "enable_and_prepare_sealing: entering");
+		let have_work = self.sealing_work.lock().unwrap().peek_last_ref().is_some();
+		trace!(target: "miner", "enable_and_prepare_sealing: have_work={}", have_work);
+		if !have_work {
+			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
+			self.prepare_sealing(chain);
+		}
+		let mut sealing_block_last_request = self.sealing_block_last_request.lock().unwrap();
+		let best_number = chain.chain_info().best_block_number;
+		if *sealing_block_last_request != best_number {
+			trace!(target: "miner", "enable_and_prepare_sealing: Miner received request (was {}, now {}) - waking up.", *sealing_block_last_request, best_number);
+			*sealing_block_last_request = best_number;
+		}
+	}
 }
 
 const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
@@ -235,7 +251,7 @@ impl MinerService for Miner {
 		transaction_queue.add_all(transactions, fetch_account)
 	}
 
-	fn import_own_transaction<T>(&self, transaction: SignedTransaction, fetch_account: T) ->
+	fn import_own_transaction<T>(&self, chain: &BlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails {
 		let hash = transaction.hash();
@@ -254,6 +270,10 @@ impl MinerService for Miner {
 				trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
 			},
 		}
+
+		// We need to create pending block and enable sealing
+		self.enable_and_prepare_sealing(chain);
+
 		import
 	}
 
@@ -294,19 +314,8 @@ impl MinerService for Miner {
 
 	fn map_sealing_work<F, T>(&self, chain: &BlockChainClient, f: F) -> Option<T> where F: FnOnce(&ClosedBlock) -> T {
 		trace!(target: "miner", "map_sealing_work: entering");
-		let have_work = self.sealing_work.lock().unwrap().peek_last_ref().is_some();
-		trace!(target: "miner", "map_sealing_work: have_work={}", have_work);
-		if !have_work {
-			self.sealing_enabled.store(true, atomic::Ordering::Relaxed);
-			self.prepare_sealing(chain);
-		}
-		let mut sealing_block_last_request = self.sealing_block_last_request.lock().unwrap();
-		let best_number = chain.chain_info().best_block_number;
-		if *sealing_block_last_request != best_number {
-			trace!(target: "miner", "map_sealing_work: Miner received request (was {}, now {}) - waking up.", *sealing_block_last_request, best_number);
-			*sealing_block_last_request = best_number;
-		}
-
+		self.enable_and_prepare_sealing(chain);
+		trace!(target: "miner", "map_sealing_work: sealing prepared");
 		let mut sealing_work = self.sealing_work.lock().unwrap();
 		let ret = sealing_work.use_last_ref();
 		trace!(target: "miner", "map_sealing_work: leaving use_last_ref={:?}", ret.as_ref().map(|b| b.block().fields().header.hash()));
