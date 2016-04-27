@@ -199,6 +199,117 @@ impl<S> Worker<S> where S: IpcInterface<S> {
 	}
 }
 
+/// Error in handling JSON RPC request
+pub enum IoHandlerError {
+	BadRequest,
+	HandlerError,
+}
+
+/// Worker to handle JSON RPC requests
+pub struct IoHandlerWorker {
+	handler: Arc<IoHandler>,
+	socket: Socket,
+	endpoint: Endpoint,
+	poll: Vec<PollFd>,
+	buffer: Vec<u8>,
+}
+
+/// IPC server for json-rpc handler (single thread)
+pub struct IoHandlerServer {
+	is_stopping: Arc<AtomicBool>,
+	handler: Arc<IoHandler>,
+	socket_addr: String,
+}
+
+impl IoHandlerServer {
+	/// New IPC server for JSON RPC `handler` and ipc socket address `socket_addr`
+	pub fn new(handler: &Arc<IoHandler>, socket_addr: &str) -> IoHandlerServer {
+		IoHandlerServer {
+			handler: handler.clone(),
+			is_stopping: Arc::new(AtomicBool::new(false)),
+			socket_addr: socket_addr.to_owned(),
+		}
+	}
+
+	/// IPC Server starts (non-blocking, in seprate thread)
+	pub fn start(&self) {
+		let worker = IoHandlerWorker::new(&self.handler, self.socket_addr);
+		self.is_stopping.store(false, Ordering::Relaxed);
+		let worker_is_stopping = self.is_stopping.clone();
+
+		::std::thread::spawn(move || {
+			while !worker_is_stopping.load(Ordering::Relaxed) {
+				worker.poll()
+			}
+		});
+	}
+
+	/// IPC server will eventually stop
+	pub fn stop() {
+		self.is_stopping(true);
+	}
+}
+
+
+impl IoHandlerWorker {
+	pub fn new(handler: &Arc<IoHandler>, socket_addr: &str) -> Result<IoHandlerWorker, SocketError> {
+		let mut socket = try!(Socket::new(Protocol::Rep).map_err(|e| {
+			warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
+			SocketError::RequestLink
+		}));
+
+		let endpoint = try!(socket.bind(addr).map_err(|e| {
+			warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", addr, e);
+			SocketError::RequestLink
+		}));
+
+		let poll = vec![socket.new_pollfd(PollInOut::In)];
+
+		IoHandlerWorker {
+			handler: handler.clone(),
+			socket: socket,
+			endpoint: endpoint,
+			poll: poll,
+			buffer: Vec::with_capacity(1024),
+		}
+	}
+
+	pub fn poll(&mut self) {
+		let mut request = PollRequest::new(&mut self.polls[..]);
+ 		let _result_guard = Socket::poll(&mut request, POLL_TIMEOUT);
+		let fd = request.get_fds()[0]; 	// guaranteed to exist and be the only one
+										// because contains only immutable socket field as a member
+		if fd.can_read() {
+			unsafe { self.buf.set_len(0); }
+			match self.socket.nb_read_to_end(&mut self.buf) {
+				Ok(rpc_msg_bytes) => {
+					let rpc_msg = try!(String::from_utf8(rpc_msg_bytes).unwrap_or_else(|e| {
+						warn!(target: "ipc", "RPC decoding error (utf-8): {:?}", e);
+					}));
+
+					let response = self.handler.handle_request(rpc_msg);
+					if let Some(response_str) = response {
+						let response_bytes = try!(response.as_bytes()).unwrap_or_else(|e| {
+							warn!(target: "ipc", "RPC encoding error (utf-8): {:?}", e);
+						})).clone();
+						if let Err(e) = socket.nb_write(&response_bytes) {
+							warn!(target: "ipc", "Failed to write response: {:?}", e);
+						}
+					}
+				},
+				Err(Error::TryAgain) => {
+					// no data
+				},
+				Err(x) => {
+					warn!(target: "ipc", "Error polling connections {:?}", x);
+					panic!("IPC RPC fatal error");
+				}
+			}
+		}
+	}
+
+}
+
 #[cfg(test)]
 mod service_tests {
 
