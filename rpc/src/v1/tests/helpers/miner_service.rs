@@ -16,11 +16,11 @@
 
 //! Test implementation of miner service.
 
-use util::{Address, H256, Bytes, U256, FixedHash};
+use util::{Address, H256, Bytes, U256, FixedHash, Uint};
 use util::standard::*;
 use ethcore::error::Error;
-use ethcore::client::BlockChainClient;
-use ethcore::block::ClosedBlock;
+use ethcore::client::{BlockChainClient, Executed};
+use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::transaction::SignedTransaction;
 use ethminer::{MinerService, MinerStatus, AccountDetails, TransactionImportResult};
 
@@ -174,4 +174,25 @@ impl MinerService for TestMinerService {
 	fn submit_seal(&self, _chain: &BlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
 	}
+
+	fn balance(&self, address: &Address) -> U256 {
+		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
+	}
+
+	fn call(&self, _t: &SignedTransaction, _chain: &BlockChainClient) -> Result<Executed, Error> {
+		unimplemented!();
+	}
+
+	fn storage_at(&self, address: &Address, position: &H256) -> H256 {
+		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(H256::default, |b| b.block().fields().state.storage_at(address, position).clone())
+	}
+
+	fn nonce(&self, address: &Address) -> U256 {
+		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.nonce(address).clone())
+	}
+
+	fn code(&self, address: &Address) -> Option<Bytes> {
+		self.latest_closed_block.lock().unwrap().as_ref().map_or(None, |b| b.block().fields().state.code(address).clone())
+	}
+
 }
