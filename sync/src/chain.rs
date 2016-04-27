@@ -66,7 +66,7 @@ const MAX_NODE_DATA_TO_SEND: usize = 1024;
 const MAX_RECEIPTS_TO_SEND: usize = 1024;
 const MAX_RECEIPTS_HEADERS_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_REQUEST: usize = 512;
-const MAX_BODIES_TO_REQUEST: usize = 256;
+const MAX_BODIES_TO_REQUEST: usize = 64;
 const MIN_PEERS_PROPAGATION: usize = 4;
 const MAX_PEERS_PROPAGATION: usize = 128;
 const MAX_PEER_LAG_PROPAGATION: BlockNumber = 20;
@@ -85,7 +85,7 @@ const NODE_DATA_PACKET: u8 = 0x0e;
 const GET_RECEIPTS_PACKET: u8 = 0x0f;
 const RECEIPTS_PACKET: u8 = 0x10;
 
-const CONNECTION_TIMEOUT_SEC: f64 = 5f64;
+const CONNECTION_TIMEOUT_SEC: f64 = 10f64;
 
 struct Header {
 	/// Header data
