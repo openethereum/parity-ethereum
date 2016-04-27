@@ -484,6 +484,15 @@ impl KeyDirectory {
 			let json_bytes = json_text.into_bytes();
 			try!(file.write(&json_bytes));
 		}
+		{
+			let cstr = ::std::ffi::CString::new(self.key_path(&key_file.id).as_path().to_str().unwrap())
+				.unwrap();
+			let result_i32 = unsafe { ::libc::chmod(cstr.as_ptr(), ::libc::S_IWUSR | ::libc::S_IRUSR) };
+			if result_i32 != 0 {
+				fs::remove_file(self.key_path(&key_file.id)).unwrap();
+				panic!("fatal: failed to modify permissions of the file (chmod: {})", result_i32);
+			}
+		}
 		let mut cache = self.cache.write().unwrap();
 		let id = key_file.id.clone();
 		cache.insert(id.clone(), key_file);
