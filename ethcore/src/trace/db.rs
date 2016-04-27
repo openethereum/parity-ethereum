@@ -43,12 +43,16 @@ fn with_index(hash: &H256, i: TracedbIndex) -> H264 {
 }
 
 impl Key<BlockTraces> for H256 {
+	type Target = H264;
+
 	fn key(&self) -> H264 {
 		with_index(self, TracedbIndex::BlockTraces)
 	}
 }
 
 impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
+	type Target = H264;
+
 	fn key(&self) -> H264 {
 		with_index(&self.hash(), TracedbIndex::BlockTracesBloomGroups)
 	}

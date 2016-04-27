@@ -85,36 +85,48 @@ impl ExtrasIndexable for BlockReceipts {
 }
 
 impl Key<H256> for BlockNumber {
+	type Target = H264;
+
 	fn key(&self) -> H264 {
 		with_index(&H256::from(*self), ExtrasIndex::BlockHash)
 	}
 }
 
 impl Key<BlockDetails> for H256 {
+	type Target = H264;
+
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::BlockDetails)
 	}
 }
 
 impl Key<TransactionAddress> for H256 {
+	type Target = H264;
+
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::TransactionAddress)
 	}
 }
 
 impl Key<BlockLogBlooms> for H256 {
+	type Target = H264;
+
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::BlockLogBlooms)
 	}
 }
 
 impl Key<BlocksBlooms> for H256 {
+	type Target = H264;
+
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::BlocksBlooms)
 	}
 }
 
 impl Key<BlockReceipts> for H256 {
+	type Target = H264;
+
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::BlockReceipts)
 	}

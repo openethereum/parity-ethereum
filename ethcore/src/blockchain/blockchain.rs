@@ -728,9 +728,10 @@ impl BlockChain {
 		self.query_extras(hash, &self.blocks_blooms)
 	}
 
-	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
+	fn query_extras<K, T, R>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
 		T: ExtrasIndexable + Clone + Decodable,
-		K: Key<T> + Eq + Hash + Clone,
+		K: Key<T, Target = R> + Eq + Hash + Clone,
+		R: Deref<Target = [u8]>,
 		H256: From<K> {
 		self.note_used(CacheID::Extras(T::index(), H256::from(hash.clone())));
 		self.extras_db.read_with_cache(cache, hash)
