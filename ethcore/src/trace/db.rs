@@ -30,6 +30,8 @@ use db::{Key, Writable, Readable, CacheUpdatePolicy};
 use super::bloom::{TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup};
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 
+const TRACE_DB_VER: &'static [u8] = b"1.0";
+
 #[derive(Debug, Copy, Clone)]
 pub enum TracedbIndex {
 	/// Block traces index.
@@ -120,6 +122,7 @@ impl<T> Tracedb<T> where T: DatabaseExtras {
 		};
 
 		tracesdb.put(b"enabled", &encoded_tracing).unwrap();
+		tracesdb.put(b"version", TRACE_DB_VER).unwrap();
 
 		Tracedb {
 			traces: RwLock::new(HashMap::new()),
