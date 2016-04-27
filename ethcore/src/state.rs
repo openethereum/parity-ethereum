@@ -552,10 +552,6 @@ fn should_trace_basic_call_transaction() {
 }
 
 #[test]
-#[ignore]
-// call tracing turned on to make
-// number of transactions and traces in a block equal
-// debris
 fn should_not_trace_call_transaction_to_builtin() {
 	init_log();
 
@@ -577,12 +573,24 @@ fn should_not_trace_call_transaction_to_builtin() {
 
 	let result = state.apply(&info, engine.deref(), &t, true).unwrap();
 
-	assert_eq!(result.trace, None);
+	assert_eq!(result.trace, Some(Trace {
+		depth: 0,
+		action: trace::Action::Call(trace::Call {
+			from: x!("9cce34f7ab185c7aba1b7c8140d620b4bda941d6"),
+			to: x!("0000000000000000000000000000000000000001"),
+			value: x!(0),
+			gas: x!(79_000),
+			input: vec![],
+		}),
+		result: trace::Res::Call(trace::CallResult {
+			gas_used: U256::from(3000),
+			output: vec![]
+		}),
+		subs: vec![]
+	}));
 }
 
 #[test]
-#[ignore]
-// call tracing turned on, debris
 fn should_not_trace_subcall_transaction_to_builtin() {
 	init_log();
 
@@ -618,7 +626,21 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 			gas_used: U256::from(28_061),
 			output: vec![]
 		}),
-		subs: vec![]
+		subs: vec![Trace {
+			depth: 1,
+			action: trace::Action::Call(trace::Call {
+				from: x!("000000000000000000000000000000000000000a"),
+				to: x!("0000000000000000000000000000000000000001"),
+				value: x!(0),
+				gas: x!(3040),
+				input: vec![]
+			}),
+			subs: vec![],
+			result: trace::Res::Call(trace::CallResult {
+				gas_used: x!(3000),
+				output: vec![]
+			})
+		}]
 	});
 	assert_eq!(result.trace, expected_trace);
 }
