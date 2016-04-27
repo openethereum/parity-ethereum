@@ -57,9 +57,14 @@ impl RpcServer {
 		self.handler.add_delegate(delegate);
 	}
 
-	/// Start server asynchronously and returns result with `Server` handle on success or an error.
+	/// Start http server asynchronously and returns result with `Server` handle on success or an error.
 	pub fn start_http(&self, addr: &SocketAddr, cors_domain: Option<String>) -> Result<Server, RpcServerError> {
 		let cors_domain = cors_domain.to_owned();
 		Server::start(addr, self.handler.clone(), cors_domain.map(jsonrpc_http_server::AccessControlAllowOrigin::Value))
+	}
+
+	/// Start ipc server
+	pub fn start_ipc(&self, addr: &str) - > Result<::ipc::json_rpc::Worker, ::ipc::json_rpc::Error> {
+
 	}
 }
