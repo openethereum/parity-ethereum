@@ -20,7 +20,7 @@ use std::ops::Deref;
 use std::hash::Hash;
 use std::sync::RwLock;
 use std::collections::HashMap;
-use util::{H264, DBTransaction, Database};
+use util::{DBTransaction, Database};
 use util::rlp::{encode, Encodable, decode, Decodable};
 
 #[derive(Clone, Copy)]

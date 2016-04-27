@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Fat database.
+use std::ptr;
+use std::ops::Deref;
 use std::collections::HashMap;
 use std::sync::{RwLock, Arc};
 use std::path::Path;
@@ -36,25 +38,41 @@ pub enum TracedbIndex {
 	BlockTracesBloomGroups = 1,
 }
 
-fn with_index(hash: &H256, i: TracedbIndex) -> H264 {
-	let mut slice = H264::from_slice(hash);
-	slice[32] = i as u8;
-	slice
-}
-
 impl Key<BlockTraces> for H256 {
 	type Target = H264;
 
 	fn key(&self) -> H264 {
-		with_index(self, TracedbIndex::BlockTraces)
+		let mut result = H264::default();
+		result[0] = TracedbIndex::BlockTraces as u8;
+		unsafe {
+			ptr::copy(self.as_ptr(), result.as_mut_ptr().offset(1), 32);
+		}
+		result
+	}
+}
+
+/// Helper data structure created cause [u8; 6] does not implement Deref to &[u8].
+pub struct TraceGroupKey([u8; 6]);
+
+impl Deref for TraceGroupKey {
+	type Target = [u8];
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
 	}
 }
 
 impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
-	type Target = H264;
+	type Target = TraceGroupKey;
 
-	fn key(&self) -> H264 {
-		with_index(&self.hash(), TracedbIndex::BlockTracesBloomGroups)
+	fn key(&self) -> Self::Target {
+		let mut result = [0u8; 6];
+		result[0] = TracedbIndex::BlockTracesBloomGroups as u8;
+		result[1] = self.level;
+		unsafe {
+			ptr::copy(&[self.index] as *const u32 as *const u8, result.as_mut_ptr().offset(2), 4);
+		}
+		TraceGroupKey(result)
 	}
 }
 

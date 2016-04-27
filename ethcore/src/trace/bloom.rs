@@ -1,7 +1,6 @@
 use bloomchain::Bloom;
 use bloomchain::group::{BloomGroup, GroupPosition};
 use util::rlp::*;
-use util::{H256};
 use basic_types::LogBloom;
 
 /// Helper structure representing bloom of the trace.
@@ -89,31 +88,19 @@ impl Encodable for BlockTracesBloomGroup {
 }
 
 /// Represents BloomGroup position in database.
-#[derive(PartialEq, Eq, Hash, Clone)]
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct TraceGroupPosition {
 	/// Bloom level.
-	pub level: usize,
+	pub level: u8,
 	/// Group index.
-	pub index: usize,
+	pub index: u32,
 }
 
 impl From<GroupPosition> for TraceGroupPosition {
 	fn from(p: GroupPosition) -> Self {
 		TraceGroupPosition {
-			level: p.level,
-			index: p.index,
+			level: p.level as u8,
+			index: p.index as u32,
 		}
-	}
-}
-
-impl TraceGroupPosition {
-	/// Returns trace group position represented as a 256 bit hash.
-	pub fn hash(&self) -> H256 {
-		use std::ptr;
-		let mut hash = H256::default();
-		unsafe {
-			ptr::copy(&[self.level, self.index] as *const usize as *const u8, hash.as_mut_ptr(), 16);
-		}
-		hash
 	}
 }
