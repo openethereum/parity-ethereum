@@ -155,7 +155,8 @@ impl Miner {
 		queue.set_gas_limit(gas_limit);
 	}
 
-	fn enable_and_prepare_sealing(&self, chain: &BlockChainClient) {
+	/// Returns true if we had to prepare new pending block
+	fn enable_and_prepare_sealing(&self, chain: &BlockChainClient) -> bool {
 		trace!(target: "miner", "enable_and_prepare_sealing: entering");
 		let have_work = self.sealing_work.lock().unwrap().peek_last_ref().is_some();
 		trace!(target: "miner", "enable_and_prepare_sealing: have_work={}", have_work);
@@ -169,6 +170,9 @@ impl Miner {
 			trace!(target: "miner", "enable_and_prepare_sealing: Miner received request (was {}, now {}) - waking up.", *sealing_block_last_request, best_number);
 			*sealing_block_last_request = best_number;
 		}
+
+		// Return if
+		!have_work
 	}
 }
 
@@ -248,7 +252,10 @@ impl MinerService for Miner {
 		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		transaction_queue.add_all(transactions, fetch_account)
+		let is_local = false;
+		transactions.into_iter()
+			.map(|tx| transaction_queue.add(tx, &fetch_account, is_local))
+			.collect()
 	}
 
 	fn import_own_transaction<T>(&self, chain: &BlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
@@ -257,10 +264,10 @@ impl MinerService for Miner {
 		let hash = transaction.hash();
 		trace!(target: "own_tx", "Importing transaction: {:?}", transaction);
 
-		let import = {
+		let imported = {
 			// Be sure to release the lock before we call enable_and_prepare_sealing
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			let import = transaction_queue.add(transaction, &fetch_account);
+			let import = transaction_queue.add(transaction, &fetch_account, true);
 
 			match import {
 				Ok(ref res) => {
@@ -275,11 +282,18 @@ impl MinerService for Miner {
 			import
 		};
 
-		// Make sure to do it after transaction is imported and lock is droped.
-		// We need to create pending block and enable sealing
-		self.enable_and_prepare_sealing(chain);
+		if imported.is_ok() {
+			// Make sure to do it after transaction is imported and lock is droped.
+			// We need to create pending block and enable sealing
+			let prepared = self.enable_and_prepare_sealing(chain);
+			// If new block has not been prepared (means we already had one)
+			// we need to update sealing
+			if !prepared {
+				self.update_sealing(chain);
+			}
+		}
 
-		import
+		imported
 	}
 
 	fn pending_transactions_hashes(&self) -> Vec<H256> {
@@ -304,8 +318,12 @@ impl MinerService for Miner {
 	fn update_sealing(&self, chain: &BlockChainClient) {
 		if self.sealing_enabled.load(atomic::Ordering::Relaxed) {
 			let current_no = chain.chain_info().best_block_number;
+			let has_local_transactions = self.transaction_queue.lock().unwrap().has_local_pending_transactions();
 			let last_request = *self.sealing_block_last_request.lock().unwrap();
-			let should_disable_sealing = !self.force_sealing && current_no > last_request && current_no - last_request > SEALING_TIMEOUT_IN_BLOCKS;
+			let should_disable_sealing = !self.force_sealing
+				&& !has_local_transactions
+				&& current_no > last_request
+				&& current_no - last_request > SEALING_TIMEOUT_IN_BLOCKS;
 
 			if should_disable_sealing {
 				trace!(target: "miner", "Miner sleeping (current {}, last {})", current_no, last_request);
@@ -372,10 +390,9 @@ impl MinerService for Miner {
 				for tx in &txs {
 					let _sender = tx.sender();
 				}
-				let mut transaction_queue = self.transaction_queue.lock().unwrap();
-				let _ = transaction_queue.add_all(txs, |a| AccountDetails {
+				let _ = self.import_transactions(txs, |a| AccountDetails {
 					nonce: chain.nonce(a),
-					balance: chain.balance(a)
+					balance: chain.balance(a),
 				});
 			});
 		}
