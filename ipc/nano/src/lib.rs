@@ -325,11 +325,13 @@ impl IoHandlerWorker {
 #[cfg(test)]
 mod service_tests {
 
-	use super::Worker;
+	use super::{Worker, IoHandlerServer};
 	use ipc::*;
 	use std::io::{Read, Write};
 	use std::sync::{Arc, RwLock};
 	use nanomsg::{Socket, Protocol, Endpoint};
+	use jsonrpc_core;
+	use jsonrpc_core::{IoHandler, Value, Params, MethodCommand};
 
 	struct TestInvoke {
 		method_num: u16,
@@ -367,6 +369,15 @@ mod service_tests {
 		let endpoint = socket.connect(addr).unwrap();
 		socket.write(buf).unwrap();
 		(socket, endpoint)
+	}
+
+	fn dummy_request(addr: &str, buf: &[u8]) -> Vec<u8> {
+		let mut socket = Socket::new(Protocol::Req).unwrap();
+		let endpoint = socket.connect(addr).unwrap();
+		socket.write(buf).unwrap();
+		let mut buf = Vec::new();
+		socket.read_to_end(&mut buf);
+		buf
 	}
 
 	#[test]
@@ -421,5 +432,30 @@ mod service_tests {
 		assert_eq!(1, worker.service.methods_stack.read().unwrap().len());
 		assert_eq!(0, worker.service.methods_stack.read().unwrap()[0].method_num);
 		assert_eq!(vec![0u8; 1024*1024-2], worker.service.methods_stack.read().unwrap()[0].params);
+	}
+
+	#[test]
+	fn test_jsonrpc_handler() {
+		let url = "ipc:///tmp/parity-test50.ipc";
+
+		struct SayHello;
+		impl MethodCommand for SayHello {
+			fn execute(&self, _params: Params) -> Result<Value, jsonrpc_core::Error> {
+				Ok(Value::String("hello".to_string()))
+			}
+		}
+
+		let io = Arc::new(IoHandler::new());
+		io.add_method("say_hello", SayHello);
+
+		let request = r#"{"jsonrpc": "2.0", "method": "say_hello", "params": [42, 23], "id": 1}"#;
+		let response = r#"{"jsonrpc":"2.0","result":"hello","id":1}"#;
+
+		let server = IoHandlerServer::new(&io, url);
+		server.start();
+
+		assert_eq!(String::from_utf8(dummy_request(url, request.as_bytes())).unwrap(), response.to_string());
+
+		server.stop();
 	}
 }
