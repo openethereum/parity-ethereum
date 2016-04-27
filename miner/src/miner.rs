@@ -257,20 +257,25 @@ impl MinerService for Miner {
 		let hash = transaction.hash();
 		trace!(target: "own_tx", "Importing transaction: {:?}", transaction);
 
-		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		let import = transaction_queue.add(transaction, &fetch_account);
+		let import = {
+			// Be sure to release the lock before we call enable_and_prepare_sealing
+			let mut transaction_queue = self.transaction_queue.lock().unwrap();
+			let import = transaction_queue.add(transaction, &fetch_account);
 
-		match import {
-			Ok(ref res) => {
-				trace!(target: "own_tx", "Imported transaction to {:?} (hash: {:?})", res, hash);
-				trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
-			},
-			Err(ref e) => {
-				trace!(target: "own_tx", "Failed to import transaction {:?} (hash: {:?})", e, hash);
-				trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
-			},
-		}
+			match import {
+				Ok(ref res) => {
+					trace!(target: "own_tx", "Imported transaction to {:?} (hash: {:?})", res, hash);
+					trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
+				},
+				Err(ref e) => {
+					trace!(target: "own_tx", "Failed to import transaction {:?} (hash: {:?})", e, hash);
+					trace!(target: "own_tx", "Status: {:?}", transaction_queue.status());
+				},
+			}
+			import
+		};
 
+		// Make sure to do it after transaction is imported and lock is droped.
 		// We need to create pending block and enable sealing
 		self.enable_and_prepare_sealing(chain);
 
