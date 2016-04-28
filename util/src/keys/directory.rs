@@ -494,7 +494,8 @@ impl KeyDirectory {
 		}
 		if let Err(error_code) = restrict_permissions_owner(self.key_path(&key_file.id).as_path()) {
 			fs::remove_file(self.key_path(&key_file.id)).unwrap();
-			panic!("fatal: failed to modify permissions of the file (chmod: {})", error_code);
+			warn!(target: "sstore", "fatal: failed to modify permissions of the file (chmod: {})", error_code);
+			return Err(::std::io::Error::last_os_error());
 		}
 		let mut cache = self.cache.write().unwrap();
 		let id = key_file.id.clone();
