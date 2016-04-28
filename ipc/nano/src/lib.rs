@@ -303,11 +303,11 @@ impl IoHandlerWorker {
 
 		unsafe { self.buf.set_len(0); }
 		match self.socket.nb_read_to_end(&mut self.buf) {
-			Ok(size) => {
-				if size == 0 {
-					warn!(target: "ipc", "RPC empty message received");
-					return;
-				}
+			Ok(0) => {
+				warn!(target: "ipc", "RPC empty message received");
+				return;
+			},
+			Ok(_) => {
 				let rpc_msg = match String::from_utf8(self.buf.clone()) {
 					Ok(val) => val,
 					Err(e) => {
@@ -329,7 +329,7 @@ impl IoHandlerWorker {
 			Err(x) => {
 				warn!(target: "ipc", "Error polling connections {:?}", x);
 				panic!("IPC RPC fatal error");
-			}
+			},
 		}
 	}
 
