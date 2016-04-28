@@ -17,14 +17,13 @@
 //! HTTP/HTTPS URL type. Based on URL type from Iron library.
 
 use url::Host;
-use url::{whatwg_scheme_type_mapper};
-use url::{self, SchemeData, SchemeType};
+use url::{self};
 
 /// HTTP/HTTPS URL type for Iron.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Url {
-	/// The lower-cased scheme of the URL, typically "http" or "https".
-	pub scheme: String,
+	/// Raw url of url
+	pub raw: url::Url,
 
 	/// The host field of the URL, probably a domain.
 	pub host: Host,
@@ -51,18 +50,6 @@ pub struct Url {
 	/// if a blank password was provided.
 	/// Otherwise, a non-empty string.
 	pub password: Option<String>,
-
-	/// The URL query string.
-	///
-	/// `None` if the `?` character was not part of the input.
-	/// Otherwise, a possibly empty, percent encoded string.
-	pub query: Option<String>,
-
-	/// The URL fragment.
-	///
-	/// `None` if the `#` character was not part of the input.
-	/// Otherwise, a possibly empty, percent encoded string.
-	pub fragment: Option<String>
 }
 
 impl Url {
@@ -83,50 +70,31 @@ impl Url {
 
 	/// Create a `Url` from a `rust-url` `Url`.
 	pub fn from_generic_url(raw_url: url::Url) -> Result<Url, String> {
-		// Create an Iron URL by extracting the special scheme data.
-		match raw_url.scheme_data {
-			SchemeData::Relative(data) => {
-				// Extract the port as a 16-bit unsigned integer.
-				let port: u16 = match data.port {
-					// If explicitly defined, unwrap it.
-					Some(port) => port,
+		// Map empty usernames to None.
+		let username = match raw_url.username() {
+			"" => None,
+			username => Some(username.to_owned())
+		};
 
-					// Otherwise, use the scheme's default port.
-					None => {
-					match whatwg_scheme_type_mapper(&raw_url.scheme) {
-						SchemeType::Relative(port) => port,
-						_ => return Err(format!("Invalid special scheme: `{}`",
-												raw_url.scheme))
-					}
-					}
-				};
+		// Map empty passwords to None.
+		let password = match raw_url.password() {
+			Some(password) if !password.is_empty() => Some(password.to_owned()),
+			_ => None,
+		};
 
-				// Map empty usernames to None.
-				let username = match &*data.username {
-					"" => None,
-					_ => Some(data.username)
-				};
+		let port = try!(raw_url.port_or_known_default().ok_or_else(|| format!("Unknown port for scheme: `{}`", raw_url.scheme())));
+		let host = try!(raw_url.host().ok_or_else(|| "Valid host, because only data:, mailto: protocols does not have host.".to_owned())).to_owned();
+		let path = try!(raw_url.path_segments().ok_or_else(|| "Valid path segments. In HTTP we won't get cannot-be-a-base URLs".to_owned()))
+					.map(|part| part.to_owned()).collect();
 
-				// Map empty passwords to None.
-				let password = match data.password {
-					None => None,
-					Some(ref x) if x.is_empty() => None,
-					Some(password) => Some(password)
-				};
-
-				Ok(Url {
-					scheme: raw_url.scheme,
-					host: data.host,
-					port: port,
-					path: data.path,
-					username: username,
-					password: password,
-					query: raw_url.query,
-					fragment: raw_url.fragment
-				})
-			},
-			_ => Err(format!("Not a special scheme: `{}`", raw_url.scheme))
-		}
+		Ok(Url {
+			port: port,
+			host: host,
+			path: path,
+			raw: raw_url,
+			username: username,
+			password: password,
+		})
 	}
 }
 

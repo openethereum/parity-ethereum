@@ -364,7 +364,7 @@ dependencies = [
  "parity-status 0.2.2 (git+https://github.com/tomusdrw/parity-status.git)",
  "parity-wallet 0.1.1 (git+https://github.com/tomusdrw/parity-wallet.git)",
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
- "url 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -494,21 +494,22 @@ dependencies = [
 [[package]]
 name = "hyper"
 version = "0.9.0-mio"
-source = "git+https://github.com/hyperium/hyper?branch=mio#55c7d7a1d88001e529b3d3b3a6783548ce8c3d06"
+source = "git+https://github.com/hyperium/hyper?branch=mio#fab6c4173063a10f2aacfe3872150537da3dcfdd"
 dependencies = [
  "cookie 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mime 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rotor 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spmc 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "traitobject 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "typeable 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "vecio 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1060,6 +1061,11 @@ dependencies = [
  "hpack 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "spmc"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "strsim"
