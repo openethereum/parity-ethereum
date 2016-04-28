@@ -22,5 +22,5 @@ parity-wallet = { git = "https://github.com/tomusdrw/parity-wallet.git", optiona
 clippy = { version = "0.0.63", optional = true}
 
 [features]
-default = ["parity-wallet"]
+default = []
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]
