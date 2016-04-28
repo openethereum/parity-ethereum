@@ -124,7 +124,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Imports transactions to transaction queue.
-	fn import_own_transaction<T>(&self, transaction: SignedTransaction, _fetch_account: T) ->
+	fn import_own_transaction<T>(&self, _chain: &BlockChainClient, transaction: SignedTransaction, _fetch_account: T) ->
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails {
 		// lets assume that all txs are valid

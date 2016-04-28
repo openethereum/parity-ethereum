@@ -108,7 +108,7 @@ pub trait MinerService : Send + Sync {
 		where T: Fn(&Address) -> AccountDetails;
 
 	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction<T>(&self, transaction: SignedTransaction, fetch_account: T) ->
+	fn import_own_transaction<T>(&self, chain: &BlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails;
 

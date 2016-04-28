@@ -173,7 +173,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
 
-			miner.import_own_transaction(signed_transaction, |a: &Address| {
+			miner.import_own_transaction(client.deref(), signed_transaction, |a: &Address| {
 				AccountDetails {
 					nonce: client.nonce(&a),
 					balance: client.balance(&a),
