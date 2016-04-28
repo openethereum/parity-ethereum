@@ -58,7 +58,7 @@ mod router;
 mod rpc;
 mod api;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
@@ -97,13 +97,15 @@ impl ServerBuilder {
 /// Webapps HTTP server.
 pub struct Server {
 	server: Option<hyper::server::Listening>,
+	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
 }
 
 impl Server {
 	fn start_http<A: Authorization + 'static>(addr: &SocketAddr, authorization: A, handler: Arc<IoHandler>) -> Result<Server, ServerError> {
+		let panic_handler = Arc::new(Mutex::new(None));
 		let endpoints = Arc::new(apps::all_endpoints());
 		let authorization = Arc::new(authorization);
-		let rpc_endpoint = Arc::new(rpc::rpc(handler));
+		let rpc_endpoint = Arc::new(rpc::rpc(handler, panic_handler.clone()));
 		let api = Arc::new(api::RestApi::new(endpoints.clone()));
 
 		try!(hyper::Server::http(addr))
@@ -114,8 +116,16 @@ impl Server {
 				api.clone(),
 				authorization.clone(),
 			))
-			.map(|l| Server { server: Some(l) })
+			.map(|l| Server {
+				server: Some(l),
+				panic_handler: panic_handler,
+			})
 			.map_err(ServerError::from)
+	}
+
+	/// Set callback for panics.
+	pub fn set_panic_handler<F>(&self, handler: F) where F : Fn() -> () + Send + 'static {
+		*self.panic_handler.lock().unwrap() = Some(Box::new(handler));
 	}
 }
 
