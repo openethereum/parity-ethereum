@@ -126,7 +126,7 @@ mod tests {
 	use basic_types::LogBloom;
 
 	#[test]
-	fn empty_trace_filter_bloom_possibilies() {
+	fn empty_trace_filter_bloom_possibilities() {
 		let filter = Filter {
 			range: (0..0),
 			from_address: AddressesFilter::from(vec![]),

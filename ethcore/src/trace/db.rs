@@ -426,7 +426,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_reopeining_db_with_tracing_on() {
+	fn test_reopening_db_with_tracing_on() {
 		let temp = RandomTempPath::new();
 		let mut config = Config::default();
 
