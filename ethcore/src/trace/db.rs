@@ -20,7 +20,7 @@ use std::ops::Deref;
 use std::collections::HashMap;
 use std::sync::{RwLock, Arc};
 use std::path::Path;
-use bloomchain::Number;
+use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use util::{FixedHash, H256, H264, Database, DBTransaction};
 use header::BlockNumber;
@@ -86,7 +86,9 @@ pub struct TraceDB<T> where T: DatabaseExtras {
 	// db
 	tracesdb: Database,
 	// config,
-	config: Config,
+	bloom_config: BloomConfig,
+	// tracing enabled
+	enabled: bool,
 	// extras
 	extras: Arc<T>,
 }
@@ -113,10 +115,9 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 			None => Switch::Auto,
 		};
 
-		let tracing = old_tracing.turn_to(config.enabled).expect("Tracing can't be enabled.Resync required.");
-		config.enabled = tracing;
+		let enabled = old_tracing.turn_to(config.enabled).expect("Tracing can't be enabled. Resync required.");
 
-		let encoded_tracing = match tracing.as_bool() {
+		let encoded_tracing = match enabled {
 			true => [0x1],
 			false => [0x0]
 		};
@@ -128,7 +129,8 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 			traces: RwLock::new(HashMap::new()),
 			blooms: RwLock::new(HashMap::new()),
 			tracesdb: tracesdb,
-			config: config,
+			bloom_config: config.blooms,
+			enabled: enabled,
 			extras: extras,
 		}
 	}
@@ -198,7 +200,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	fn tracing_enabled(&self) -> bool {
-		self.config.enabled.as_bool()
+		self.enabled
 	}
 
 	/// Traces of import request's enacted blocks are expected to be already in database
@@ -235,7 +237,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				.map(Into::into)
 				.collect();
 
-			let chain = BloomGroupChain::new(self.config.blooms, self);
+			let chain = BloomGroupChain::new(self.bloom_config, self);
 			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
 			let blooms_to_insert = trace_blooms.into_iter()
 				.map(|p| (From::from(p.0), From::from(p.1)))
@@ -335,7 +337,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 	}
 
 	fn filter(&self, filter: &Filter) -> Vec<LocalizedTrace> {
-		let chain = BloomGroupChain::new(self.config.blooms, self);
+		let chain = BloomGroupChain::new(self.bloom_config, self);
 		let numbers = chain.filter(filter);
 		numbers.into_iter()
 			.flat_map(|n| {

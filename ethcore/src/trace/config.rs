@@ -30,24 +30,11 @@ pub enum Switch {
 
 impl Switch {
 	/// Tries to turn old switch to new value.
-	pub fn turn_to(&self, to: Switch) -> Result<Switch, &'static str> {
+	pub fn turn_to(&self, to: Switch) -> Result<bool, &'static str> {
 		match (*self, to) {
-			(Switch::On, Switch::On) => Ok(Switch::On),
-			(Switch::On, Switch::Auto) => Ok(Switch::On),
-			(Switch::On, Switch::Off) => Ok(Switch::Off),
+			(Switch::On, Switch::On) | (Switch::On, Switch::Auto) | (Switch::Auto, Switch::On) => Ok(true),
 			(Switch::Off, Switch::On) => Err("Tracing can't be enabled"),
-			(Switch::Off, Switch::Auto) => Ok(Switch::Off),
-			(Switch::Off, Switch::Off) => Ok(Switch::Off),
-			(Switch::Auto, Switch::On) => Ok(Switch::On),
-			_ => Ok(Switch::Off),
-		}
-	}
-
-	/// Returns switch boolean switch value.
-	pub fn as_bool(&self) -> bool {
-		match *self {
-			Switch::On => true,
-			Switch::Off | Switch::Auto => false,
+			_ => Ok(false),
 		}
 	}
 }
