@@ -262,19 +262,22 @@ impl<'a> Executive<'a> {
 					self.engine.execute_builtin(&params.code_address, data, &mut output);
 					self.state.clear_snapshot();
 
-					let mut trace_output = tracer.prepare_trace_output();
-					if let Some(mut out) = trace_output.as_mut() {
-						*out = output.to_owned();
-					}
+					// trace only top level calls to builtins to avoid DDoS attacks
+					if self.depth == 0 {
+						let mut trace_output = tracer.prepare_trace_output();
+						if let Some(mut out) = trace_output.as_mut() {
+							*out = output.to_owned();
+						}
 
-					tracer.trace_call(
-						trace_info,
-						cost,
-						trace_output,
-						self.depth,
-						vec![],
-						delegate_call
-					);
+						tracer.trace_call(
+							trace_info,
+							cost,
+							trace_output,
+							self.depth,
+							vec![],
+							delegate_call
+						);
+					}
 
 					Ok(params.gas - cost)
 				},

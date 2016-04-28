@@ -552,7 +552,7 @@ fn should_trace_basic_call_transaction() {
 }
 
 #[test]
-fn should_not_trace_call_transaction_to_builtin() {
+fn should_trace_call_transaction_to_builtin() {
 	init_log();
 
 	let temp = RandomTempPath::new();
@@ -626,21 +626,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 			gas_used: U256::from(28_061),
 			output: vec![]
 		}),
-		subs: vec![Trace {
-			depth: 1,
-			action: trace::Action::Call(trace::Call {
-				from: x!("000000000000000000000000000000000000000a"),
-				to: x!("0000000000000000000000000000000000000001"),
-				value: x!(0),
-				gas: x!(3040),
-				input: vec![]
-			}),
-			subs: vec![],
-			result: trace::Res::Call(trace::CallResult {
-				gas_used: x!(3000),
-				output: vec![]
-			})
-		}]
+		subs: vec![]
 	});
 	assert_eq!(result.trace, expected_trace);
 }
