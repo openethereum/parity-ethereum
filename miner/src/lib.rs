@@ -147,19 +147,19 @@ pub trait MinerService : Send + Sync {
 	fn sensible_gas_limit(&self) -> U256 { x!(21000) }
 
 	/// Account balance
-	fn balance(&self, address: &Address) -> U256;
+	fn balance(&self, chain: &BlockChainClient, address: &Address) -> U256;
 
 	/// Call into contract code using pending state.
-	fn call(&self, t: &SignedTransaction, chain: &BlockChainClient) -> Result<Executed, Error>;
+	fn call(&self, chain: &BlockChainClient, t: &SignedTransaction) -> Result<Executed, Error>;
 
 	/// Get storage value in pending state.
-	fn storage_at(&self, address: &Address, position: &H256) -> H256;
+	fn storage_at(&self, chain: &BlockChainClient, address: &Address, position: &H256) -> H256;
 
 	/// Get account nonce in pending state.
-	fn nonce(&self, address: &Address) -> U256;
+	fn nonce(&self, chain: &BlockChainClient, address: &Address) -> U256;
 
 	/// Get contract code in pending state.
-	fn code(&self, address: &Address) -> Option<Bytes>;
+	fn code(&self, chain: &BlockChainClient, address: &Address) -> Option<Bytes>;
 }
 
 /// Mining status

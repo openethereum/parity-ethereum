@@ -295,8 +295,8 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn balance(&self, params: Params) -> Result<Value, Error> {
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&take_weak!(self.miner).balance(&address)),
 				BlockNumber::Latest => to_value(&take_weak!(self.client).balance(&address)),
+				BlockNumber::Pending => to_value(&take_weak!(self.miner).balance(take_weak!(self.client).deref(), &address)),
 				_ => Err(Error::invalid_params()),
 			})
 	}
@@ -304,7 +304,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn storage_at(&self, params: Params) -> Result<Value, Error> {
 		from_params_default_third::<Address, U256>(params)
 			.and_then(|(address, position, block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).storage_at(&address, &H256::from(position)))),
+				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).storage_at(take_weak!(self.client).deref(), &address, &H256::from(position)))),
 				BlockNumber::Latest => to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))),
 				_ => Err(Error::invalid_params()),
 			})
@@ -313,7 +313,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn transaction_count(&self, params: Params) -> Result<Value, Error> {
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&take_weak!(self.miner).nonce(&address)),
+				BlockNumber::Pending => to_value(&take_weak!(self.miner).nonce(take_weak!(self.client).deref(), &address)),
 				BlockNumber::Latest => to_value(&take_weak!(self.client).nonce(&address)),
 				_ => Err(Error::invalid_params()),
 			})
@@ -356,7 +356,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
 		from_params_default_second(params)
 			.and_then(|(address, block_number,)| match block_number {
-				BlockNumber::Pending => to_value(&take_weak!(self.miner).code(&address).map_or_else(Bytes::default, Bytes::new)),
+				BlockNumber::Pending => to_value(&take_weak!(self.miner).code(take_weak!(self.client).deref(), &address).map_or_else(Bytes::default, Bytes::new)),
 				BlockNumber::Latest => to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)),
 				_ => Err(Error::invalid_params()),
 			})
@@ -521,7 +521,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 			.and_then(|(request, block_number,)| {
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(&signed, take_weak!(self.client).deref()),
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
 					BlockNumber::Latest => take_weak!(self.client).call(&signed),
 					_ => panic!("{:?}", block_number),
 				};
@@ -534,7 +534,7 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 			.and_then(|(request, block_number,)| {
 				let signed = try!(self.sign_call(request));
 				let r = match block_number {
-					BlockNumber::Pending => take_weak!(self.miner).call(&signed, take_weak!(self.client).deref()),
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
 					BlockNumber::Latest => take_weak!(self.client).call(&signed),
 					_ => return Err(Error::invalid_params()),
 				};

@@ -175,23 +175,23 @@ impl MinerService for TestMinerService {
 		unimplemented!();
 	}
 
-	fn balance(&self, address: &Address) -> U256 {
+	fn balance(&self, _chain: &BlockChainClient, address: &Address) -> U256 {
 		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.balance(address).clone())
 	}
 
-	fn call(&self, _t: &SignedTransaction, _chain: &BlockChainClient) -> Result<Executed, Error> {
+	fn call(&self, _chain: &BlockChainClient, _t: &SignedTransaction) -> Result<Executed, Error> {
 		unimplemented!();
 	}
 
-	fn storage_at(&self, address: &Address, position: &H256) -> H256 {
+	fn storage_at(&self, _chain: &BlockChainClient, address: &Address, position: &H256) -> H256 {
 		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(H256::default, |b| b.block().fields().state.storage_at(address, position).clone())
 	}
 
-	fn nonce(&self, address: &Address) -> U256 {
+	fn nonce(&self, _chain: &BlockChainClient, address: &Address) -> U256 {
 		self.latest_closed_block.lock().unwrap().as_ref().map_or_else(U256::zero, |b| b.block().fields().state.nonce(address).clone())
 	}
 
-	fn code(&self, address: &Address) -> Option<Bytes> {
+	fn code(&self, _chain: &BlockChainClient, address: &Address) -> Option<Bytes> {
 		self.latest_closed_block.lock().unwrap().as_ref().map_or(None, |b| b.block().fields().state.code(address).clone())
 	}
 

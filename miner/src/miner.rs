@@ -176,49 +176,56 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn call(&self, t: &SignedTransaction, chain: &BlockChainClient) -> Result<Executed, Error> {
+	fn call(&self, chain: &BlockChainClient, t: &SignedTransaction) -> Result<Executed, Error> {
 		let sealing_work = self.sealing_work.lock().unwrap();
-		let block = try!(sealing_work.peek_last_ref().ok_or(ExecutionError::Internal)).block();
-		let header = block.header();
-		let last_hashes = chain.last_hashes();
-		let env_info = EnvInfo {
-			number: header.number(),
-			author: header.author().clone(),
-			timestamp: header.timestamp(),
-			difficulty: header.difficulty().clone(),
-			last_hashes: last_hashes,
-			gas_used: U256::zero(),
-			gas_limit: U256::max_value(),
-		};
-		// that's just a copy of the state.
-		let mut state = block.state().clone();
-		let sender = try!(t.sender());
-		let balance = state.balance(&sender);
-		// give the sender max balance
-		state.sub_balance(&sender, &balance);
-		state.add_balance(&sender, &U256::max_value());
-		let options = TransactOptions { tracing: false, check_nonce: false };
-		Executive::new(&mut state, &env_info, chain.engine()).transact(t, options)
+		match sealing_work.peek_last_ref() {
+			Some(work) => {
+				let block = work.block();
+				let header = block.header();
+				let last_hashes = chain.last_hashes();
+				let env_info = EnvInfo {
+					number: header.number(),
+					author: header.author().clone(),
+					timestamp: header.timestamp(),
+					difficulty: header.difficulty().clone(),
+					last_hashes: last_hashes,
+					gas_used: U256::zero(),
+					gas_limit: U256::max_value(),
+				};
+				// that's just a copy of the state.
+				let mut state = block.state().clone();
+				let sender = try!(t.sender());
+				let balance = state.balance(&sender);
+				// give the sender max balance
+				state.sub_balance(&sender, &balance);
+				state.add_balance(&sender, &U256::max_value());
+				let options = TransactOptions { tracing: false, check_nonce: false };
+				Executive::new(&mut state, &env_info, chain.engine()).transact(t, options)
+			},
+			None => {
+				chain.call(t)
+			}
+		}
 	}
 
-	fn balance(&self, address: &Address) -> U256 {
+	fn balance(&self, chain: &BlockChainClient, address: &Address) -> U256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
-		sealing_work.peek_last_ref().map_or(x!(0), |b| b.block().fields().state.balance(address))
+		sealing_work.peek_last_ref().map_or_else(|| chain.balance(address), |b| b.block().fields().state.balance(address))
 	}
 
-	fn storage_at(&self, address: &Address, position: &H256) -> H256 {
+	fn storage_at(&self, chain: &BlockChainClient, address: &Address, position: &H256) -> H256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
-		sealing_work.peek_last_ref().map_or(x!(0), |b| b.block().fields().state.storage_at(address, position))
+		sealing_work.peek_last_ref().map_or_else(|| chain.storage_at(address, position), |b| b.block().fields().state.storage_at(address, position))
 	}
 
-	fn nonce(&self, address: &Address) -> U256 {
+	fn nonce(&self, chain: &BlockChainClient, address: &Address) -> U256 {
 		let sealing_work = self.sealing_work.lock().unwrap();
-		sealing_work.peek_last_ref().map_or(x!(0), |b| b.block().fields().state.nonce(address))
+		sealing_work.peek_last_ref().map_or_else(|| chain.nonce(address), |b| b.block().fields().state.nonce(address))
 	}
 
-	fn code(&self, address: &Address) -> Option<Bytes> {
+	fn code(&self, chain: &BlockChainClient, address: &Address) -> Option<Bytes> {
 		let sealing_work = self.sealing_work.lock().unwrap();
-		sealing_work.peek_last_ref().map_or(None, |b| b.block().fields().state.code(address))
+		sealing_work.peek_last_ref().map_or_else(|| chain.code(address), |b| b.block().fields().state.code(address))
 	}
 
 	fn set_author(&self, author: Address) {
