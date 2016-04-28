@@ -220,6 +220,7 @@ pub struct IoHandlerWorker {
 /// IPC server for json-rpc handler (single thread)
 pub struct IoHandlerServer {
 	is_stopping: Arc<AtomicBool>,
+	is_stopped: Arc<AtomicBool>,
 	handler: Arc<IoHandler>,
 	socket_addr: String,
 }
@@ -230,6 +231,7 @@ impl IoHandlerServer {
 		IoHandlerServer {
 			handler: handler.clone(),
 			is_stopping: Arc::new(AtomicBool::new(false)),
+			is_stopped: Arc::new(AtomicBool::new(true)),
 			socket_addr: socket_addr.to_owned(),
 		}
 	}
@@ -239,22 +241,33 @@ impl IoHandlerServer {
 		let mut worker = try!(IoHandlerWorker::new(&self.handler, &self.socket_addr));
 		self.is_stopping.store(false, Ordering::Relaxed);
 		let worker_is_stopping = self.is_stopping.clone();
+		let worker_is_stopped = self.is_stopped.clone();
 
 		::std::thread::spawn(move || {
+			worker_is_stopped.store(false, Ordering::Relaxed);
 			while !worker_is_stopping.load(Ordering::Relaxed) {
 				worker.poll()
 			}
+			worker_is_stopped.store(true, Ordering::Relaxed);
 		});
 
 		Ok(())
 	}
 
-	/// IPC server will eventually stop
+	/// IPC server stop (func will wait until effective stop)
 	pub fn stop(&self) {
 		self.is_stopping.store(true, Ordering::Relaxed);
+		while !self.is_stopped.load(Ordering::Relaxed) {
+			std::thread::sleep(std::time::Duration::from_millis(50));
+		}
 	}
 }
 
+impl Drop for IoHandlerServer {
+	fn drop(&mut self) {
+		self.stop()
+	}
+}
 
 impl IoHandlerWorker {
 	pub fn new(handler: &Arc<IoHandler>, socket_addr: &str) -> Result<IoHandlerWorker, SocketError> {
@@ -373,10 +386,10 @@ mod service_tests {
 
 	fn dummy_request(addr: &str, buf: &[u8]) -> Vec<u8> {
 		let mut socket = Socket::new(Protocol::Req).unwrap();
-		let endpoint = socket.connect(addr).unwrap();
+		let _endpoint = socket.connect(addr).unwrap();
 		socket.write(buf).unwrap();
 		let mut buf = Vec::new();
-		socket.read_to_end(&mut buf);
+		socket.read_to_end(&mut buf).unwrap();
 		buf
 	}
 
@@ -452,7 +465,7 @@ mod service_tests {
 		let response = r#"{"jsonrpc":"2.0","result":"hello","id":1}"#;
 
 		let server = IoHandlerServer::new(&io, url);
-		server.start();
+		server.start().unwrap();
 
 		assert_eq!(String::from_utf8(dummy_request(url, request.as_bytes())).unwrap(), response.to_string());
 
