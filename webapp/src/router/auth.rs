@@ -68,6 +68,7 @@ impl Authorization for HttpBasicAuth {
 	}
 }
 
+#[derive(Debug)]
 enum Access {
 	Granted,
 	Denied,
@@ -116,7 +117,7 @@ impl server::Handler<HttpStream> for UnauthorizedHandler {
 		res.set_status(StatusCode::Unauthorized);
 		Next::write()
 	}
-	
+
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		let response = "Unauthorized".as_bytes();
 
@@ -151,7 +152,7 @@ impl server::Handler<HttpStream> for AuthRequiredHandler {
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		res.set_status(StatusCode::Unauthorized);
 		res.headers_mut().set_raw("WWW-Authenticate", vec![b"Basic realm=\"Parity\"".to_vec()]);
-		Next::end()
+		Next::write()
 	}
 
 	fn on_response_writable(&mut self, _encoder: &mut Encoder<HttpStream>) -> Next {
