@@ -50,10 +50,10 @@ impl Tracer for ExecutiveTracer {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
-			action: Action::Call(call.expect("Trace call expected to be Some.")),
+			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::Call(CallResult {
 				gas_used: gas_used,
-				output: output.expect("Trace call output expected to be Some.")
+				output: output.expect("self.prepare_trace_output().is_some(): so we must be tracing: qed")
 			})
 		};
 		self.traces.push(trace);
@@ -63,10 +63,10 @@ impl Tracer for ExecutiveTracer {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
-			action: Action::Create(create.expect("Trace create expected to be Some.")),
+			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
 			result: Res::Create(CreateResult {
 				gas_used: gas_used,
-				code: code.expect("Trace create code expected to be Some."),
+				code: code.expect("self.prepare_trace_output.is_some(): so we must be tracing: qed"),
 				address: address
 			})
 		};
@@ -82,7 +82,7 @@ impl Tracer for ExecutiveTracer {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
-			action: Action::Call(call.expect("Trace call expected to be Some.")),
+			action: Action::Call(call.expect("self.prepare_trace_call().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCall,
 		};
 		self.traces.push(trace);
@@ -92,7 +92,7 @@ impl Tracer for ExecutiveTracer {
 		let trace = Trace {
 			depth: depth,
 			subs: subs,
-			action: Action::Create(create.expect("Trace create expected to be Some.")),
+			action: Action::Create(create.expect("self.prepare_trace_create().is_some(): so we must be tracing: qed")),
 			result: Res::FailedCreate,
 		};
 		self.traces.push(trace);

@@ -38,21 +38,21 @@ impl Tracer for NoopTracer {
 	}
 
 	fn trace_call(&mut self, call: Option<Call>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>, _: bool) {
-		assert!(call.is_none());
-		assert!(output.is_none());
+		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
+		assert!(output.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
 	fn trace_create(&mut self, create: Option<Create>, _: U256, code: Option<Bytes>, _: Address, _: usize, _: Vec<Trace>) {
-		assert!(create.is_none());
-		assert!(code.is_none());
+		assert!(create.is_none(), "self.prepare_trace_create().is_none(): so we can't be tracing: qed");
+		assert!(code.is_none(), "self.prepare_trace_output().is_none(): so we can't be tracing: qed");
 	}
 
 	fn trace_failed_call(&mut self, call: Option<Call>, _: usize, _: Vec<Trace>, _: bool) {
-		assert!(call.is_none());
+		assert!(call.is_none(), "self.prepare_trace_call().is_none(): so we can't be tracing: qed");
 	}
 
 	fn trace_failed_create(&mut self, create: Option<Create>, _: usize, _: Vec<Trace>) {
-		assert!(create.is_none());
+		assert!(create.is_none(), "self.prepare_trace_create().is_none(): so we can't be tracing: qed");
 	}
 
 	fn subtracer(&self) -> Self {
