@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Fat database.
+//! Trace database.
 use std::ptr;
 use std::ops::Deref;
 use std::collections::HashMap;
@@ -78,7 +78,7 @@ impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
 	}
 }
 
-/// Fat database.
+/// Trace database.
 pub struct TraceDB<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, BlockTraces>>,
