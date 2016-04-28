@@ -465,6 +465,14 @@ pub struct KeyDirectory {
 	cache_usage: RwLock<VecDeque<Uuid>>,
 }
 
+fn restrict_permissions_owner(file_path: &Path) -> Result<(), i32>  {
+	let cstr = ::std::ffi::CString::new(file_path.to_str().unwrap()).unwrap();
+	match unsafe { ::libc::chmod(cstr.as_ptr(), ::libc::S_IWUSR | ::libc::S_IRUSR) } {
+		0 => Ok(()),
+		x => Err(x),
+	}
+}
+
 impl KeyDirectory {
 	/// Initializes new cache directory context with a given `path`
 	pub fn new(path: &Path) -> KeyDirectory {
@@ -484,14 +492,9 @@ impl KeyDirectory {
 			let json_bytes = json_text.into_bytes();
 			try!(file.write(&json_bytes));
 		}
-		{
-			let cstr = ::std::ffi::CString::new(self.key_path(&key_file.id).as_path().to_str().unwrap())
-				.unwrap();
-			let result_i32 = unsafe { ::libc::chmod(cstr.as_ptr(), ::libc::S_IWUSR | ::libc::S_IRUSR) };
-			if result_i32 != 0 {
-				fs::remove_file(self.key_path(&key_file.id)).unwrap();
-				panic!("fatal: failed to modify permissions of the file (chmod: {})", result_i32);
-			}
+		if let Err(error_code) = restrict_permissions_owner(self.key_path(&key_file.id).as_path()) {
+			fs::remove_file(self.key_path(&key_file.id)).unwrap();
+			panic!("fatal: failed to modify permissions of the file (chmod: {})", error_code);
 		}
 		let mut cache = self.cache.write().unwrap();
 		let id = key_file.id.clone();
