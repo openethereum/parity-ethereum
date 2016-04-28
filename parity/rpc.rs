@@ -107,8 +107,8 @@ pub fn setup_rpc_server(
 	}
 	let start_result = server.start_http(url, cors_domain);
 	match start_result {
-		Err(RpcServerError::IoError(err)) => die_with_io_error(err),
-		Err(e) => die!("{:?}", e),
+		Err(RpcServerError::IoError(err)) => die_with_io_error("RPC", err),
+		Err(e) => die!("RPC: {:?}", e),
 		Ok(server) => {
 			server.set_panic_handler(move || {
 				deps.panic_handler.notify_all("Panic in RPC thread.".to_owned());
