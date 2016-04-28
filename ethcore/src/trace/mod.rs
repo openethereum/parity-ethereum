@@ -30,7 +30,7 @@ pub mod trace;
 
 pub use self::block::BlockTraces;
 pub use self::config::{Config, Switch};
-pub use self::db::Tracedb;
+pub use self::db::TraceDB;
 pub use self::trace::Trace;
 pub use self::noop_tracer::NoopTracer;
 pub use self::executive_tracer::ExecutiveTracer;
