@@ -702,6 +702,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 			})
 			.collect()
 	}
+
+	fn last_hashes(&self) -> LastHashes {
+		self.build_last_hashes(self.chain.best_block_hash())
+	}
 }
 
 impl MayPanic for Client {

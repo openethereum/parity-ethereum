@@ -192,6 +192,22 @@ fn rpc_eth_balance() {
 	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
 }
 
+#[ignore] //TODO: propert test
+#[test]
+fn rpc_eth_balance_pending() {
+	let tester = EthTester::default();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_getBalance",
+		"params": ["0x0000000000000000000000000000000000000001", "latest"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x","id":1}"#;
+
+	assert_eq!(tester.io.handle_request(request), Some(response.to_owned()));
+}
+
 #[test]
 fn rpc_eth_storage_at() {
 	let tester = EthTester::default();
