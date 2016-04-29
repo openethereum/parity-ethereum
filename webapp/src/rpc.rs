@@ -14,28 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use hyper::server;
 use hyper::net::HttpStream;
 use jsonrpc_core::IoHandler;
-use jsonrpc_http_server::ServerHandler;
-use jsonrpc_http_server::AccessControlAllowOrigin;
+use jsonrpc_http_server::{ServerHandler, PanicHandler, AccessControlAllowOrigin};
 use endpoint::Endpoint;
 
-pub fn rpc(handler: Arc<IoHandler>) -> Box<Endpoint> {
+pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>) -> Box<Endpoint> {
 	Box::new(RpcEndpoint {
 		handler: handler,
+		panic_handler: panic_handler,
 		cors_domain: Some(AccessControlAllowOrigin::Null)
 	})
 }
 
 struct RpcEndpoint {
 	handler: Arc<IoHandler>,
+	panic_handler: Arc<Mutex<Option<Box<Fn() -> () + Send>>>>,
 	cors_domain: Option<AccessControlAllowOrigin>,
 }
 
 impl Endpoint for RpcEndpoint {
 	fn to_handler(&self, _prefix: &str) -> Box<server::Handler<HttpStream>> {
-		Box::new(ServerHandler::new(self.handler.clone(), self.cors_domain.clone()))
+		let panic_handler = PanicHandler { handler: self.panic_handler.clone() };
+		Box::new(ServerHandler::new(self.handler.clone(), self.cors_domain.clone(), panic_handler))
 	}
 }

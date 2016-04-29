@@ -22,6 +22,7 @@ use ethcore::client::Client;
 use ethsync::EthSync;
 use ethminer::{Miner, ExternalMiner};
 use util::RotatingLogger;
+use util::panics::PanicHandler;
 use util::keys::store::{AccountService};
 use util::network_settings::NetworkSettings;
 use die::*;
@@ -42,6 +43,7 @@ pub struct Configuration {
 }
 
 pub struct Dependencies {
+	pub panic_handler: Arc<PanicHandler>,
 	pub client: Arc<Client>,
 	pub sync: Arc<EthSync>,
 	pub secret_store: Arc<AccountService>,
@@ -105,9 +107,14 @@ pub fn setup_rpc_server(
 	}
 	let start_result = server.start_http(url, cors_domain);
 	match start_result {
-		Err(RpcServerError::IoError(err)) => die_with_io_error(err),
-		Err(e) => die!("{:?}", e),
-		Ok(server) => server,
+		Err(RpcServerError::IoError(err)) => die_with_io_error("RPC", err),
+		Err(e) => die!("RPC: {:?}", e),
+		Ok(server) => {
+			server.set_panic_handler(move || {
+				deps.panic_handler.notify_all("Panic in RPC thread.".to_owned());
+			});
+			server
+		},
 	}
 }
 

@@ -36,9 +36,6 @@ use syntax::ext::base::{Annotatable, ExtCtxt};
 use syntax::ext::build::AstBuilder;
 use syntax::ptr::P;
 
-use super::typegen;
-use std::collections::HashMap;
-
 pub struct Error;
 
 const RESERVED_MESSAGE_IDS: u16 = 16;
@@ -55,14 +52,14 @@ pub fn expand_ipc_implementation(
 		_ => {
 			cx.span_err(meta_item.span, "`#[derive(Ipc)]` may only be applied to struct implementations");
 			return;
-		}
+		},
 	};
 
 	let builder = aster::AstBuilder::new().span(span);
 
 	let interface_map = match implement_interface(cx, &builder, &item, push) {
 		Ok(interface_map) => interface_map,
-		Err(Error) => { return; }
+		Err(Error) => { return; },
 	};
 
 	push_client(cx, &builder, &interface_map, push);
@@ -73,7 +70,7 @@ pub fn expand_ipc_implementation(
 
 fn push_handshake_struct(cx: &ExtCtxt, push: &mut FnMut(Annotatable)) {
 	let handshake_item = quote_item!(cx,
-		#[derive(Serialize, Deserialize)]
+		#[derive(Binary)]
 		pub struct BinHandshake {
 			api_version: String,
 			protocol_version: String,
@@ -95,7 +92,6 @@ fn push_invoke_signature_aster(
 	builder: &aster::AstBuilder,
 	implement: &ImplItem,
 	signature: &MethodSig,
-	replacements: &HashMap<String, P<Ty>>,
 	push: &mut FnMut(Annotatable),
 ) -> Dispatch {
 	let inputs = &signature.decl.inputs;
@@ -113,12 +109,11 @@ fn push_invoke_signature_aster(
 			let arg_ty = &inputs[skip-1].ty;
 
 			let mut tree = builder.item()
-				.attr().word("derive(Serialize, Deserialize)")
+				.attr().word("derive(Binary)")
 				.attr().word("allow(non_camel_case_types)")
 				.struct_(name_str.as_str())
 				.field(arg_name.as_str()).ty()
-				.build(typegen::argument_replacement(builder, replacements, arg_ty)
-					.unwrap_or(strip_ptr(arg_ty)));
+				.build(strip_ptr(arg_ty));
 
 			arg_names.push(arg_name);
 			arg_tys.push(arg_ty.clone());
@@ -126,9 +121,7 @@ fn push_invoke_signature_aster(
 				let arg_name = format!("{}", field_name(builder, &arg));
 				let arg_ty = &arg.ty;
 
-				tree = tree.field(arg_name.as_str()).ty().build(
-					typegen::argument_replacement(builder, replacements, arg_ty).unwrap_or(strip_ptr(arg_ty))
-				);
+				tree = tree.field(arg_name.as_str()).ty().build(strip_ptr(arg_ty));
 				arg_names.push(arg_name);
 				arg_tys.push(arg_ty.clone());
 			}
@@ -145,7 +138,7 @@ fn push_invoke_signature_aster(
 		FunctionRetTy::Ty(ref ty) => {
 			let name_str = format!("{}_output", implement.ident.name.as_str());
 			let tree = builder.item()
-				.attr().word("derive(Serialize, Deserialize)")
+				.attr().word("derive(Binary)")
 				.attr().word("allow(non_camel_case_types)")
 				.struct_(name_str.as_str())
 				.field(format!("payload")).ty().build(ty.clone());
@@ -184,20 +177,13 @@ fn implement_dispatch_arm_invoke_stmt(
 	cx: &ExtCtxt,
 	builder: &aster::AstBuilder,
 	dispatch: &Dispatch,
-	replacements: &HashMap<String, P<Ty>>,
 ) -> ast::Stmt
 {
 	let function_name = builder.id(dispatch.function_name.as_str());
 
 	let input_args_exprs = dispatch.input_arg_names.iter().enumerate().map(|(arg_index, arg_name)| {
 		let arg_ident = builder.id(arg_name);
-		let expr = if typegen::argument_replacement(builder, replacements, &dispatch.input_arg_tys[arg_index]).is_some() {
-			quote_expr!(cx, input. $arg_ident .into())
-		}
-		else {
-			quote_expr!(cx, input. $arg_ident)
-		};
-
+		let expr = quote_expr!(cx, input. $arg_ident);
 		if has_ptr(&dispatch.input_arg_tys[arg_index]) { quote_expr!(cx, & $expr) }
 		else { expr }
 	}).collect::<Vec<P<ast::Expr>>>();
@@ -211,9 +197,9 @@ fn implement_dispatch_arm_invoke_stmt(
 			let mut tt = ::std::vec::Vec::new();
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("bincode"), ::syntax::parse::token::ModName)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("ipc"), ::syntax::parse::token::ModName)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serde"), ::syntax::parse::token::ModName)));
+			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("binary"), ::syntax::parse::token::ModName)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("serialize"), ::syntax::parse::token::Plain)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
@@ -229,13 +215,6 @@ fn implement_dispatch_arm_invoke_stmt(
 			}
 
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("bincode"), ::syntax::parse::token::ModName)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("SizeLimit"), ::syntax::parse::token::ModName)));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Infinite"), ::syntax::parse::token::Plain)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Dot));
 			tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("unwrap"), ::syntax::parse::token::Plain)));
@@ -251,16 +230,15 @@ fn implement_dispatch_arm_invoke(
 	builder: &aster::AstBuilder,
 	dispatch: &Dispatch,
 	buffer: bool,
-	replacements: &HashMap<String, P<Ty>>,
 ) -> P<ast::Expr>
 {
 	let deserialize_expr = if buffer {
-		quote_expr!(cx, ::bincode::serde::deserialize(buf).expect("ipc deserialization error, aborting"))
+		quote_expr!(cx, ::ipc::binary::deserialize(buf).expect("ipc deserialization error, aborting"))
 	} else {
-		quote_expr!(cx, ::bincode::serde::deserialize_from(r, ::bincode::SizeLimit::Infinite).expect("ipc deserialization error, aborting"))
+		quote_expr!(cx, ::ipc::binary::deserialize_from(r).expect("ipc deserialization error, aborting"))
 	};
 
-	let invoke_serialize_stmt = implement_dispatch_arm_invoke_stmt(cx, builder, dispatch, replacements);
+	let invoke_serialize_stmt = implement_dispatch_arm_invoke_stmt(cx, builder, dispatch);
 	dispatch.input_type_name.as_ref().map(|val| {
 			let input_type_id = builder.id(val.clone().as_str());
 			quote_expr!(cx, {
@@ -277,11 +255,10 @@ fn implement_dispatch_arm(
 	index: u32,
 	dispatch: &Dispatch,
 	buffer: bool,
-	replacements: &HashMap<String, P<Ty>>,
 ) -> ast::Arm
 {
 	let index_ident = builder.id(format!("{}", index + (RESERVED_MESSAGE_IDS as u32)).as_str());
-	let invoke_expr = implement_dispatch_arm_invoke(cx, builder, dispatch, buffer, replacements);
+	let invoke_expr = implement_dispatch_arm_invoke(cx, builder, dispatch, buffer);
 	quote_arm!(cx, $index_ident => { $invoke_expr } )
 }
 
@@ -290,22 +267,21 @@ fn implement_dispatch_arms(
 	builder: &aster::AstBuilder,
 	dispatches: &[Dispatch],
 	buffer: bool,
-	replacements: &HashMap<String, P<Ty>>,
 ) -> Vec<ast::Arm>
 {
 	let mut index = -1;
 	dispatches.iter()
-		.map(|dispatch| { index = index + 1; implement_dispatch_arm(cx, builder, index as u32, dispatch, buffer, replacements) }).collect()
+		.map(|dispatch| { index = index + 1; implement_dispatch_arm(cx, builder, index as u32, dispatch, buffer) }).collect()
 }
 
-fn strip_ptr(ty: &P<ast::Ty>) -> P<ast::Ty> {
+pub fn strip_ptr(ty: &P<ast::Ty>) -> P<ast::Ty> {
 	if let ast::TyKind::Rptr(_, ref ptr_mut) = ty.node {
 		ptr_mut.ty.clone()
 	}
 	else { ty.clone() }
 }
 
-fn has_ptr(ty: &P<ast::Ty>) -> bool {
+pub fn has_ptr(ty: &P<ast::Ty>) -> bool {
 	if let ast::TyKind::Rptr(_, ref _ptr_mut) = ty.node {
 		true
 	}
@@ -349,10 +325,10 @@ fn implement_client_method_body(
 			.ty().ref_()
 			.lifetime("'a")
 			.ty()
-			.build(typegen::argument_replacement(builder, &interface_map.replacements, &static_ty).unwrap_or(static_ty.clone()));
+			.build(static_ty.clone());
 
 		let mut tree = builder.item()
-			.attr().word("derive(Serialize)")
+			.attr().word("derive(Binary)")
 			.struct_("Request")
 			.generics()
 			.lifetime_name("'a")
@@ -368,7 +344,7 @@ fn implement_client_method_body(
 				.ty().ref_()
 				.lifetime("'a")
 				.ty()
-				.build(typegen::argument_replacement(builder, &interface_map.replacements, &static_ty).unwrap_or(static_ty));
+				.build(static_ty);
 			tree = tree.field(arg_name).ty().build(arg_ty);
 
 		}
@@ -395,28 +371,12 @@ fn implement_client_method_body(
 					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("Request"), ::syntax::parse::token::Plain)));
 					tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Brace)));
 
-					for (idx, arg) in dispatch.input_arg_names.iter().enumerate() {
+					for arg in dispatch.input_arg_names.iter() {
 						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()), ::syntax::parse::token::Plain)));
 						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Colon));
-
 						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::BinOp(::syntax::parse::token::And)));
 
-						let arg_ty = &dispatch.input_arg_tys[idx];
-						let replacement = typegen::argument_replacement(builder, &interface_map.replacements, arg_ty);
-						if let Some(ref replacement_ty) = replacement {
-							let replacor_ident = ::syntax::print::pprust::ty_to_string(replacement_ty);
-							tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(&replacor_ident), ::syntax::parse::token::Plain)));
-							tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::ModSep));
-							tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of("from"), ::syntax::parse::token::Plain)));
-							tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::OpenDelim(::syntax::parse::token::Paren)));
-						}
-
 						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Ident(ext_cx.ident_of(arg.as_str()), ::syntax::parse::token::Plain)));
-
-						if replacement.is_some() {
-							tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::CloseDelim(::syntax::parse::token::Paren)));
-						}
-
 						tt.push(::syntax::ast::TokenTree::Token(_sp, ::syntax::parse::token::Comma));
 					}
 
@@ -432,7 +392,7 @@ fn implement_client_method_body(
 			quote_stmt!(cx, let mut socket = socket_ref.deref_mut()));
 
 		request_serialization_statements.push(
-			quote_stmt!(cx, let serialized_payload = ::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()));
+			quote_stmt!(cx, let serialized_payload = ::ipc::binary::serialize(&payload).unwrap()));
 
 		request_serialization_statements.push(
 			quote_stmt!(cx, ::ipc::invoke($index_ident, &Some(serialized_payload), &mut socket)));
@@ -453,7 +413,7 @@ fn implement_client_method_body(
 
 	if let Some(ref return_ty) = dispatch.return_type_ty {
 		let return_expr = quote_expr!(cx,
-			::bincode::serde::deserialize_from::<_, $return_ty>(&mut socket, ::bincode::SizeLimit::Infinite).unwrap()
+			::ipc::binary::deserialize_from::<$return_ty, _>(&mut socket).unwrap()
 		);
 		quote_expr!(cx, {
 			$request
@@ -632,7 +592,7 @@ fn push_client_implementation(
 			let mut socket = socket_ref.deref_mut();
 			::ipc::invoke(
 				0,
-				&Some(::bincode::serde::serialize(&payload, ::bincode::SizeLimit::Infinite).unwrap()),
+				&Some(::ipc::binary::serialize(&payload).unwrap()),
 				&mut socket);
 
 			let mut result = vec![0u8; 1];
@@ -696,18 +656,18 @@ fn implement_handshake_arm(
 ) -> (ast::Arm, ast::Arm)
 {
 	let handshake_deserialize = quote_stmt!(&cx,
-		let handshake_payload = ::bincode::serde::deserialize_from::<_, BinHandshake>(r, ::bincode::SizeLimit::Infinite).unwrap();
+		let handshake_payload = ::ipc::binary::deserialize_from::<BinHandshake, _>(r).unwrap();
 	);
 
 	let handshake_deserialize_buf = quote_stmt!(&cx,
-		let handshake_payload = ::bincode::serde::deserialize::<BinHandshake>(buf).unwrap();
+		let handshake_payload = ::ipc::binary::deserialize::<BinHandshake>(buf).unwrap();
 	);
 
 	let handshake_serialize = quote_expr!(&cx,
-		::bincode::serde::serialize::<bool>(&Self::handshake(&::ipc::Handshake {
+		::ipc::binary::serialize::<bool>(&Self::handshake(&::ipc::Handshake {
 			api_version: ::semver::Version::parse(&handshake_payload.api_version).unwrap(),
 			protocol_version: ::semver::Version::parse(&handshake_payload.protocol_version).unwrap(),
-		}), ::bincode::SizeLimit::Infinite).unwrap()
+		})).unwrap()
 	);
 
 	(
@@ -722,22 +682,11 @@ fn implement_handshake_arm(
 	)
 }
 
-fn collect_tys(items: &[&MethodSig]) -> Vec<P<Ty>> {
-	let mut result = Vec::new();
-	for signature in items {
-		result.extend(signature.decl.inputs.iter().map(|input_arg| input_arg.ty.clone()));
-		if let FunctionRetTy::Ty(ref ty) = signature.decl.output {
-			 result.push(ty.clone())
-		};
-	}
-	result
-}
 
 struct InterfaceMap {
 	pub original_item: Item,
 	pub item: P<ast::Item>,
 	pub dispatches: Vec<Dispatch>,
-	pub replacements: HashMap<String, P<Ty>>,
 	pub generics: Generics,
 	pub impl_trait: Option<TraitRef>,
 	pub ident_map: IdentMap,
@@ -784,7 +733,7 @@ fn implement_interface(
 				item.span,
 				"`#[derive(Ipc)]` may only be applied to item implementations");
 			return Err(Error);
-		}
+		},
 	};
 	let impl_generics = builder.from_generics(generics.clone()).build();
 	let where_clause = &impl_generics.where_clause;
@@ -796,20 +745,12 @@ fn implement_interface(
 		}
 	}
 
-	let all_tys = collect_tys(
-		&method_signatures
-			.iter()
-			.map(|&(_, signature)| signature)
-			.collect::<Vec<&MethodSig>>());
-
-	let replacements = typegen::match_unknown_tys(cx, builder, &all_tys, push);
-
 	let dispatch_table = method_signatures.iter().map(|&(impl_item, signature)|
-			push_invoke_signature_aster(builder, impl_item, signature, &replacements, push))
+			push_invoke_signature_aster(builder, impl_item, signature, push))
 		.collect::<Vec<Dispatch>>();
 
-	let dispatch_arms = implement_dispatch_arms(cx, builder, &dispatch_table, false, &replacements);
-	let dispatch_arms_buffered = implement_dispatch_arms(cx, builder, &dispatch_table, true, &replacements);
+	let dispatch_arms = implement_dispatch_arms(cx, builder, &dispatch_table, false);
+	let dispatch_arms_buffered = implement_dispatch_arms(cx, builder, &dispatch_table, true);
 
 	let (handshake_arm, handshake_arm_buf) = implement_handshake_arm(cx);
 
@@ -852,7 +793,6 @@ fn implement_interface(
 		original_item: item.clone(),
 		item: ipc_item,
 		dispatches: dispatch_table,
-		replacements: replacements,
 		generics: generics.clone(),
 		impl_trait: impl_trait.clone(),
 	})

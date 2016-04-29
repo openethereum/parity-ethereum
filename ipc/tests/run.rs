@@ -29,3 +29,4 @@ pub mod service;
 mod examples;
 mod over_nano;
 mod nested;
+mod binary;

@@ -45,7 +45,7 @@ impl server::Handler<HttpStream> for Redirection {
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		res.set_status(StatusCode::MovedPermanently);
 		res.headers_mut().set(header::Location(self.to_url.to_owned()));
-		Next::end()
+		Next::write()
 	}
 	fn on_response_writable(&mut self, _encoder: &mut Encoder<HttpStream>) -> Next {
 		Next::end()

@@ -17,6 +17,10 @@
 use std::sync::RwLock;
 use std::ops::*;
 use ipc::IpcConfig;
+use ipc::BinaryConvertable;
+use std::mem;
+use ipc::binary::BinaryConvertError;
+use std::collections::VecDeque;
 
 pub struct DB<L: Sized> {
 	pub writes: RwLock<u64>,
@@ -30,7 +34,7 @@ pub trait DBWriter {
 
 impl<L: Sized> IpcConfig for DB<L> {}
 
-#[derive(Serialize, Deserialize)]
+#[derive(Binary)]
 pub enum DBError { Write, Read }
 
 #[derive(Ipc)]

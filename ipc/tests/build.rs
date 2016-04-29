@@ -38,7 +38,7 @@ pub fn main() {
 		let src = Path::new(&out_dir).join("nested_ipc.rs");
 		let dst = Path::new(&out_dir).join("nested_cg.rs");
 		let mut registry = syntex::Registry::new();
-		serde_codegen::register(&mut registry);
+		codegen::register(&mut registry);
 		registry.expand("", &src, &dst).unwrap();
 	}
 
@@ -56,8 +56,17 @@ pub fn main() {
 		let src = Path::new(&out_dir).join("service_ipc.rs");
 		let dst = Path::new(&out_dir).join("service_cg.rs");
 		let mut registry = syntex::Registry::new();
-		serde_codegen::register(&mut registry);
+		codegen::register(&mut registry);
 		registry.expand("", &src, &dst).unwrap();
 	}
 
+
+	// ipc pass
+	{
+		let src = Path::new("binary.rs.in");
+		let dst = Path::new(&out_dir).join("binary.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
 }

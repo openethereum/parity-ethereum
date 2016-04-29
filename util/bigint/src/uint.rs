@@ -797,7 +797,7 @@ macro_rules! construct_uint {
 
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: serde::Error {
 						// 0x + len
-						if value.len() > 2 + $n_words * 16 {
+						if value.len() > 2 + $n_words * 16 || value.len() < 2 {
 							return Err(serde::Error::custom("Invalid length."));
 						}
 

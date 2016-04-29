@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
-use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId};
+use client::{BlockChainClient, BlockChainInfo, BlockStatus, BlockId, TransactionId, UncleId, LastHashes};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -265,6 +265,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
+		unimplemented!();
+	}
+
+	fn last_hashes(&self) -> LastHashes {
 		unimplemented!();
 	}
 

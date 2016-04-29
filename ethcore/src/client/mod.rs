@@ -25,7 +25,8 @@ pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
 pub use self::ids::{BlockId, TransactionId, UncleId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
-pub use executive::Executed;
+pub use executive::{Executed, Executive, TransactOptions};
+pub use env_info::{LastHashes, EnvInfo};
 
 use std::collections::HashSet;
 use util::bytes::Bytes;
@@ -132,5 +133,8 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Executes a function providing it with a reference to an engine.
 	fn engine(&self) -> &Engine;
+
+	/// Get last hashes starting from best block.
+	fn last_hashes(&self) -> LastHashes;
 }
 
