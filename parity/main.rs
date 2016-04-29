@@ -140,7 +140,7 @@ fn execute_client(conf: Configuration) {
 	// Build client
 	let mut service = ClientService::start(
 		client_config, spec, net_settings, &Path::new(&conf.path())
-	).unwrap_or_else(|e| die_with_error(e));
+	).unwrap_or_else(|e| die_with_error("Client", e));
 
 	panic_handler.forward_from(&service);
 	let client = service.client();

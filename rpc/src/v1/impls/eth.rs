@@ -173,7 +173,7 @@ impl<C, S, A, M, EM> EthClient<C, S, A, M, EM>
 			let client = take_weak!(self.client);
 			let miner = take_weak!(self.miner);
 
-			miner.import_own_transaction(signed_transaction, |a: &Address| {
+			miner.import_own_transaction(client.deref(), signed_transaction, |a: &Address| {
 				AccountDetails {
 					nonce: client.nonce(&a),
 					balance: client.balance(&a),
@@ -200,17 +200,17 @@ fn params_len(params: &Params) -> usize {
 	}
 }
 
-fn from_params_discard_second<F>(params: Params) -> Result<(F,), Error> where F: serde::de::Deserialize {
+fn from_params_default_second<F>(params: Params) -> Result<(F, BlockNumber, ), Error> where F: serde::de::Deserialize {
 	match params_len(&params) {
-		1 => from_params::<(F, )>(params),
-		_ => from_params::<(F, BlockNumber)>(params).map(|(f, _block_number)| (f, )),
+		1 => from_params::<(F, )>(params).map(|(f,)| (f, BlockNumber::Latest)),
+		_ => from_params::<(F, BlockNumber)>(params),
 	}
 }
 
-fn from_params_discard_third<F1, F2>(params: Params) -> Result<(F1, F2,), Error> where F1: serde::de::Deserialize, F2: serde::de::Deserialize {
+fn from_params_default_third<F1, F2>(params: Params) -> Result<(F1, F2, BlockNumber, ), Error> where F1: serde::de::Deserialize, F2: serde::de::Deserialize {
 	match params_len(&params) {
-		2 => from_params::<(F1, F2, )>(params),
-		_ => from_params::<(F1, F2, BlockNumber)>(params).map(|(f1, f2, _block_number)| (f1, f2, )),
+		2 => from_params::<(F1, F2, )>(params).map(|(f1, f2)| (f1, f2, BlockNumber::Latest)),
+		_ => from_params::<(F1, F2, BlockNumber)>(params)
 	}
 }
 
@@ -293,18 +293,30 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 	}
 
 	fn balance(&self, params: Params) -> Result<Value, Error> {
-		from_params_discard_second(params).and_then(|(address, )|
-			to_value(&take_weak!(self.client).balance(&address)))
+		from_params_default_second(params)
+			.and_then(|(address, block_number,)| match block_number {
+				BlockNumber::Latest => to_value(&take_weak!(self.client).balance(&address)),
+				BlockNumber::Pending => to_value(&take_weak!(self.miner).balance(take_weak!(self.client).deref(), &address)),
+				_ => Err(Error::invalid_params()),
+			})
 	}
 
 	fn storage_at(&self, params: Params) -> Result<Value, Error> {
-		from_params_discard_third::<Address, U256>(params).and_then(|(address, position, )|
-			to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))))
+		from_params_default_third::<Address, U256>(params)
+			.and_then(|(address, position, block_number,)| match block_number {
+				BlockNumber::Pending => to_value(&U256::from(take_weak!(self.miner).storage_at(take_weak!(self.client).deref(), &address, &H256::from(position)))),
+				BlockNumber::Latest => to_value(&U256::from(take_weak!(self.client).storage_at(&address, &H256::from(position)))),
+				_ => Err(Error::invalid_params()),
+			})
 	}
 
 	fn transaction_count(&self, params: Params) -> Result<Value, Error> {
-		from_params_discard_second(params).and_then(|(address, )|
-			to_value(&take_weak!(self.client).nonce(&address)))
+		from_params_default_second(params)
+			.and_then(|(address, block_number,)| match block_number {
+				BlockNumber::Pending => to_value(&take_weak!(self.miner).nonce(take_weak!(self.client).deref(), &address)),
+				BlockNumber::Latest => to_value(&take_weak!(self.client).nonce(&address)),
+				_ => Err(Error::invalid_params()),
+			})
 	}
 
 	fn block_transaction_count_by_hash(&self, params: Params) -> Result<Value, Error> {
@@ -341,10 +353,13 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 			})
 	}
 
-	// TODO: do not ignore block number param
 	fn code_at(&self, params: Params) -> Result<Value, Error> {
-		from_params_discard_second(params).and_then(|(address, )|
-			to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)))
+		from_params_default_second(params)
+			.and_then(|(address, block_number,)| match block_number {
+				BlockNumber::Pending => to_value(&take_weak!(self.miner).code(take_weak!(self.client).deref(), &address).map_or_else(Bytes::default, Bytes::new)),
+				BlockNumber::Latest => to_value(&take_weak!(self.client).code(&address).map_or_else(Bytes::default, Bytes::new)),
+				_ => Err(Error::invalid_params()),
+			})
 	}
 
 	fn block_by_hash(&self, params: Params) -> Result<Value, Error> {
@@ -502,21 +517,29 @@ impl<C, S, A, M, EM> Eth for EthClient<C, S, A, M, EM>
 
 	fn call(&self, params: Params) -> Result<Value, Error> {
 		trace!(target: "jsonrpc", "call: {:?}", params);
-		from_params_discard_second(params).and_then(|(request, )| {
-			let signed = try!(self.sign_call(request));
-			let client = take_weak!(self.client);
-			let output = client.call(&signed).map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![]));
-			to_value(&output)
-		})
+		from_params_default_second(params)
+			.and_then(|(request, block_number,)| {
+				let signed = try!(self.sign_call(request));
+				let r = match block_number {
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
+					BlockNumber::Latest => take_weak!(self.client).call(&signed),
+					_ => panic!("{:?}", block_number),
+				};
+				to_value(&r.map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![])))
+			})
 	}
 
 	fn estimate_gas(&self, params: Params) -> Result<Value, Error> {
-		from_params_discard_second(params).and_then(|(request, )| {
-			let signed = try!(self.sign_call(request));
-			let client = take_weak!(self.client);
-			let used = client.call(&signed).map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0));
-			to_value(&used)
-		})
+		from_params_default_second(params)
+			.and_then(|(request, block_number,)| {
+				let signed = try!(self.sign_call(request));
+				let r = match block_number {
+					BlockNumber::Pending => take_weak!(self.miner).call(take_weak!(self.client).deref(), &signed),
+					BlockNumber::Latest => take_weak!(self.client).call(&signed),
+					_ => return Err(Error::invalid_params()),
+				};
+				to_value(&r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0)))
+			})
 	}
 }
 

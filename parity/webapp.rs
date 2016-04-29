@@ -113,8 +113,8 @@ pub fn setup_webapp_server(
 	};
 
 	match start_result {
-		Err(webapp::ServerError::IoError(err)) => die_with_io_error(err),
-		Err(e) => die!("{:?}", e),
+		Err(webapp::ServerError::IoError(err)) => die_with_io_error("WebApps", err),
+		Err(e) => die!("WebApps: {:?}", e),
 		Ok(server) => {
 			server.set_panic_handler(move || {
 				deps.panic_handler.notify_all("Panic in WebApp thread.".to_owned());
