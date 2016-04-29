@@ -164,24 +164,14 @@ mod tests {
 		assert_eq!(transaction_traces.len(), 1);
 		let ordered_traces: Vec<FlatTrace> = transaction_traces.into_iter().nth(0).unwrap().into();
 		assert_eq!(ordered_traces.len(), 5);
-		//assert_eq!(ordered_traces[0].parent, None);
-		//assert_eq!(ordered_traces[0].children, vec![1, 4]);
 		assert_eq!(ordered_traces[0].trace_address, vec![0]);
 		assert_eq!(ordered_traces[0].subtraces, 2);
-		//assert_eq!(ordered_traces[1].parent, Some(0));
-		//assert_eq!(ordered_traces[1].children, vec![2, 3]);
 		assert_eq!(ordered_traces[1].trace_address, vec![0, 0]);
 		assert_eq!(ordered_traces[1].subtraces, 2);
-		//assert_eq!(ordered_traces[2].parent, Some(1));
-		//assert_eq!(ordered_traces[2].children, vec![]);
 		assert_eq!(ordered_traces[2].trace_address, vec![0, 0, 0]);
 		assert_eq!(ordered_traces[2].subtraces, 0);
-		//assert_eq!(ordered_traces[3].parent, Some(1));
-		//assert_eq!(ordered_traces[3].children, vec![]);
 		assert_eq!(ordered_traces[3].trace_address, vec![0, 0, 1]);
 		assert_eq!(ordered_traces[3].subtraces, 0);
-		//assert_eq!(ordered_traces[4].parent, Some(0));
-		//assert_eq!(ordered_traces[4].children, vec![]);
 		assert_eq!(ordered_traces[4].trace_address, vec![0, 1]);
 		assert_eq!(ordered_traces[4].subtraces, 0);
 	}
