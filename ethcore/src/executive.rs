@@ -118,7 +118,7 @@ impl<'a> Executive<'a> {
 		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer)
 	}
 
-	/// This funtion should be used to execute transaction.
+	/// This function should be used to execute transaction.
 	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, Error> {
 		let check = options.check_nonce;
 		match options.tracing {
@@ -127,6 +127,7 @@ impl<'a> Executive<'a> {
 		}
 	}
 
+	/// Execute transaction/call with tracing enabled
 	pub fn transact_with_tracer<T>(&'a mut self, t: &SignedTransaction, check_nonce: bool, mut tracer: T) -> Result<Executed, Error> where T: Tracer {
 		let sender = try!(t.sender());
 		let nonce = self.state.nonce(&sender);

@@ -18,6 +18,7 @@ use endpoint::Endpoints;
 use page::PageEndpoint;
 
 extern crate parity_status;
+#[cfg(feature = "parity-wallet")]
 extern crate parity_wallet;
 
 

@@ -24,27 +24,27 @@ macro_rules! die {
 	($($arg:tt)*) => (die_with_message(&format!("{}", format_args!($($arg)*))));
 }
 
-pub fn die_with_error(e: ethcore::error::Error) -> ! {
+pub fn die_with_error(module: &'static str, e: ethcore::error::Error) -> ! {
 	use ethcore::error::Error;
 
 	match e {
-		Error::Util(UtilError::StdIo(e)) => die_with_io_error(e),
-		_ => die!("{:?}", e),
+		Error::Util(UtilError::StdIo(e)) => die_with_io_error(module, e),
+		_ => die!("{}: {:?}", module, e),
 	}
 }
 
-pub fn die_with_io_error(e: std::io::Error) -> ! {
+pub fn die_with_io_error(module: &'static str, e: std::io::Error) -> ! {
 	match e.kind() {
 		std::io::ErrorKind::PermissionDenied => {
-			die!("No permissions to bind to specified port.")
+			die!("{}: No permissions to bind to specified port.", module)
 		},
 		std::io::ErrorKind::AddrInUse => {
-			die!("Specified address is already in use. Please make sure that nothing is listening on the same port or try using a different one.")
+			die!("{}: Specified address is already in use. Please make sure that nothing is listening on the same port or try using a different one.", module)
 		},
 		std::io::ErrorKind::AddrNotAvailable => {
-			die!("Could not use specified interface or given address is invalid.")
+			die!("{}: Could not use specified interface or given address is invalid.", module)
 		},
-		_ => die!("{:?}", e),
+		_ => die!("{}: {:?}", module, e),
 	}
 }
 

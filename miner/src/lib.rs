@@ -61,7 +61,7 @@ pub use miner::{Miner};
 pub use external::{ExternalMiner, ExternalMinerService};
 
 use util::{H256, U256, Address, Bytes};
-use ethcore::client::{BlockChainClient};
+use ethcore::client::{BlockChainClient, Executed};
 use ethcore::block::{ClosedBlock};
 use ethcore::error::{Error};
 use ethcore::transaction::SignedTransaction;
@@ -108,7 +108,7 @@ pub trait MinerService : Send + Sync {
 		where T: Fn(&Address) -> AccountDetails;
 
 	/// Imports own (node owner) transaction to queue.
-	fn import_own_transaction<T>(&self, transaction: SignedTransaction, fetch_account: T) ->
+	fn import_own_transaction<T>(&self, chain: &BlockChainClient, transaction: SignedTransaction, fetch_account: T) ->
 		Result<TransactionImportResult, Error>
 		where T: Fn(&Address) -> AccountDetails;
 
@@ -145,6 +145,21 @@ pub trait MinerService : Send + Sync {
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { x!(21000) }
+
+	/// Account balance
+	fn balance(&self, chain: &BlockChainClient, address: &Address) -> U256;
+
+	/// Call into contract code using pending state.
+	fn call(&self, chain: &BlockChainClient, t: &SignedTransaction) -> Result<Executed, Error>;
+
+	/// Get storage value in pending state.
+	fn storage_at(&self, chain: &BlockChainClient, address: &Address, position: &H256) -> H256;
+
+	/// Get account nonce in pending state.
+	fn nonce(&self, chain: &BlockChainClient, address: &Address) -> U256;
+
+	/// Get contract code in pending state.
+	fn code(&self, chain: &BlockChainClient, address: &Address) -> Option<Bytes>;
 }
 
 /// Mining status
