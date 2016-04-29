@@ -241,7 +241,7 @@ impl Configuration {
 	pub fn network_settings(&self) -> NetworkSettings {
 		NetworkSettings {
 			name: self.args.flag_identity.clone(),
-			chain: self.args.flag_chain.clone(),
+			chain: if self.args.flag_testnet { "morden".to_owned() } else { self.args.flag_chain.clone() },
 			max_peers: self.args.flag_maxpeers.unwrap_or(self.args.flag_peers),
 			network_port: self.args.flag_port,
 			rpc_enabled: self.args.flag_rpc || self.args.flag_jsonrpc,
