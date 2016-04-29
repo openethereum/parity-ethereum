@@ -295,6 +295,7 @@ name = "ethcore-ipc-nano"
 version = "1.1.0"
 dependencies = [
  "ethcore-ipc 1.1.0",
+ "jsonrpc-core 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanomsg 0.5.0 (git+https://github.com/ethcore/nanomsg.rs.git)",
 ]
