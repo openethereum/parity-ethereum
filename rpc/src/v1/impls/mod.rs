@@ -30,10 +30,12 @@ mod eth;
 mod net;
 mod personal;
 mod ethcore;
+mod rpc;
 
 pub use self::web3::Web3Client;
 pub use self::eth::{EthClient, EthFilterClient};
 pub use self::net::NetClient;
 pub use self::personal::PersonalClient;
 pub use self::ethcore::EthcoreClient;
+pub use self::rpc::RpcClient;
 

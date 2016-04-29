@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 
+use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::net::SocketAddr;
@@ -90,21 +91,36 @@ pub fn setup_rpc_server(
 	use ethcore_rpc::v1::*;
 
 	let server = Server::new();
+	let mut modules = BTreeMap::new();
 	for api in apis.into_iter() {
 		match api {
-			"web3" => server.add_delegate(Web3Client::new().to_delegate()),
-			"net" => server.add_delegate(NetClient::new(&deps.sync).to_delegate()),
+			"web3" => {
+				modules.insert("web3".to_owned(), "1.0".to_owned());
+				server.add_delegate(Web3Client::new().to_delegate());
+			},
+			"net" => {
+				modules.insert("web3".to_owned(), "1.0".to_owned());
+				server.add_delegate(NetClient::new(&deps.sync).to_delegate());
+			},
 			"eth" => {
+				modules.insert("eth".to_owned(), "1.0".to_owned());
 				server.add_delegate(EthClient::new(&deps.client, &deps.sync, &deps.secret_store, &deps.miner, &deps.external_miner).to_delegate());
 				server.add_delegate(EthFilterClient::new(&deps.client, &deps.miner).to_delegate());
 			},
-			"personal" => server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate()),
-			"ethcore" => server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate()),
+			"personal" => {
+				modules.insert("personal".to_owned(), "1.0".to_owned());
+				server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate())
+			},
+			"ethcore" => {
+				// not adding to modules, since `ethcore` is not supported in geth
+				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
+			},
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
 			},
 		}
 	}
+	server.add_delegate(RpcClient::new(modules).to_delegate());
 	let start_result = server.start_http(url, cors_domain);
 	match start_result {
 		Err(RpcServerError::IoError(err)) => die_with_io_error("RPC", err),

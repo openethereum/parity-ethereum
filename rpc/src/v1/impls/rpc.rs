@@ -14,16 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc v1.
-//!
-//! Compliant with ethereum rpc.
+//! RPC generic methods implementation.
+use std::collections::BTreeMap;
+use jsonrpc_core::*;
+use v1::traits::Rpc;
 
-pub mod traits;
-mod impls;
-mod types;
-mod helpers;
+/// RPC generic methods implementation.
+pub struct RpcClient {
+	modules: BTreeMap<String, String>,
+}
 
-pub mod tests;
+impl RpcClient {
+	/// Creates new `RpcClient`.
+	pub fn new(modules: BTreeMap<String, String>) -> Self {
+		RpcClient {
+			modules: modules
+		}
+	}
+}
 
-pub use self::traits::{Web3, Eth, EthFilter, Personal, Net, Ethcore, Rpc};
-pub use self::impls::*;
+impl Rpc for RpcClient {
+	fn modules(&self, _: Params) -> Result<Value, Error> {
+		let modules = self.modules.iter().fold(BTreeMap::new(), |mut map, (k, v)| {
+			map.insert(k.to_owned(), Value::String(v.to_owned()));
+			map
+		});
+		Ok(Value::Object(modules))
+	}
+}
