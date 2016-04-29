@@ -21,16 +21,16 @@ use super::trace::{Trace, Action, Res};
 ///
 /// Parent and children indexes refer to positions in this vector.
 pub struct FlatTrace {
-	/// Index of the parent trace within the same transaction.
-	pub parent: Option<usize>,
-	/// Indexes of child traces within the same transaction.
-	pub children: Vec<usize>,
-	/// VM depth.
-	pub depth: usize,
 	/// Type of action performed by a transaction.
 	pub action: Action,
 	/// Result of this action.
 	pub result: Res,
+	/// Number of subtraces.
+	pub subtraces: usize,
+	/// Exact location of trace.
+	///
+	/// [index in root, index in first CALL, index in second CALL, ...]
+	pub trace_address: Vec<usize>,
 }
 
 /// Represents all traces produced by a single transaction.
@@ -49,7 +49,7 @@ impl From<BlockTraces> for FlatBlockTraces {
 	fn from(block_traces: BlockTraces) -> Self {
 		let traces: Vec<Trace> = block_traces.into();
 		let ordered = traces.into_iter()
-			.map(|trace| FlatBlockTraces::flatten(None, 0, trace))
+			.map(|trace| FlatBlockTraces::flatten(vec![], 0, trace))
 			.map(FlatTransactionTraces)
 			.collect();
 		FlatBlockTraces(ordered)
@@ -64,25 +64,20 @@ impl Into<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 
 impl FlatBlockTraces {
 	/// Helper function flattening nested tree structure to vector of ordered traces.
-	fn flatten(parent_index: Option<usize>, len: usize, trace: Trace) -> Vec<FlatTrace> {
-		let mut children = vec![];
-		let mut next_index = len + 1;
+	fn flatten(mut parent_indexes: Vec<usize>, current: usize, trace: Trace) -> Vec<FlatTrace> {
+		parent_indexes.push(current);
+		let subtraces = trace.subs.len();
 		let all_subs = trace.subs
 			.into_iter()
-			.flat_map(|subtrace| {
-				let subs = FlatBlockTraces::flatten(Some(len), next_index, subtrace);
-				children.push(next_index);
-				next_index = next_index + subs.len();
-				subs
-			})
+			.enumerate()
+			.flat_map(|(index, subtrace)| FlatBlockTraces::flatten(parent_indexes.clone(), index, subtrace))
 			.collect::<Vec<_>>();
 
 		let ordered = FlatTrace {
-			parent: parent_index,
-			children: children,
-			depth: trace.depth,
 			action: trace.action,
 			result: trace.result,
+			subtraces: subtraces,
+			trace_address: parent_indexes,
 		};
 
 		let mut result = vec![ordered];
@@ -169,15 +164,25 @@ mod tests {
 		assert_eq!(transaction_traces.len(), 1);
 		let ordered_traces: Vec<FlatTrace> = transaction_traces.into_iter().nth(0).unwrap().into();
 		assert_eq!(ordered_traces.len(), 5);
-		assert_eq!(ordered_traces[0].parent, None);
-		assert_eq!(ordered_traces[0].children, vec![1, 4]);
-		assert_eq!(ordered_traces[1].parent, Some(0));
-		assert_eq!(ordered_traces[1].children, vec![2, 3]);
-		assert_eq!(ordered_traces[2].parent, Some(1));
-		assert_eq!(ordered_traces[2].children, vec![]);
-		assert_eq!(ordered_traces[3].parent, Some(1));
-		assert_eq!(ordered_traces[3].children, vec![]);
-		assert_eq!(ordered_traces[4].parent, Some(0));
-		assert_eq!(ordered_traces[4].children, vec![]);
+		//assert_eq!(ordered_traces[0].parent, None);
+		//assert_eq!(ordered_traces[0].children, vec![1, 4]);
+		assert_eq!(ordered_traces[0].trace_address, vec![0]);
+		assert_eq!(ordered_traces[0].subtraces, 2);
+		//assert_eq!(ordered_traces[1].parent, Some(0));
+		//assert_eq!(ordered_traces[1].children, vec![2, 3]);
+		assert_eq!(ordered_traces[1].trace_address, vec![0, 0]);
+		assert_eq!(ordered_traces[1].subtraces, 2);
+		//assert_eq!(ordered_traces[2].parent, Some(1));
+		//assert_eq!(ordered_traces[2].children, vec![]);
+		assert_eq!(ordered_traces[2].trace_address, vec![0, 0, 0]);
+		assert_eq!(ordered_traces[2].subtraces, 0);
+		//assert_eq!(ordered_traces[3].parent, Some(1));
+		//assert_eq!(ordered_traces[3].children, vec![]);
+		assert_eq!(ordered_traces[3].trace_address, vec![0, 0, 1]);
+		assert_eq!(ordered_traces[3].subtraces, 0);
+		//assert_eq!(ordered_traces[4].parent, Some(0));
+		//assert_eq!(ordered_traces[4].children, vec![]);
+		assert_eq!(ordered_traces[4].trace_address, vec![0, 1]);
+		assert_eq!(ordered_traces[4].subtraces, 0);
 	}
 }

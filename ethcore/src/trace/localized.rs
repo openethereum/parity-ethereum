@@ -21,18 +21,16 @@ use header::BlockNumber;
 /// Localized trace.
 #[derive(Debug, PartialEq)]
 pub struct LocalizedTrace {
-	/// Index of the parent trace within the same transaction.
-	pub parent: Option<usize>,
-	/// Indexes of child traces within the same transaction.
-	pub children: Vec<usize>,
-	/// VM depth.
-	pub depth: usize,
 	/// Type of action performed by a transaction.
 	pub action: Action,
 	/// Result of this action.
 	pub result: Res,
-	/// Trace number within the transaction.
-	pub trace_number: usize,
+	/// Number of subtraces.
+	pub subtraces: usize,
+	/// Exact location of trace.
+	///
+	/// [index in root, index in first CALL, index in second CALL, ...]
+	pub trace_address: Vec<usize>,
 	/// Transaction number within the block.
 	pub transaction_number: usize,
 	/// Signed transaction hash.

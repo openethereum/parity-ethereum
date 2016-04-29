@@ -260,9 +260,6 @@ mod tests {
 		};
 
 		let trace = FlatTrace {
-			parent: None,
-			children: vec![],
-			depth: 0,
 			action: Action::Call(Call {
 				from: Address::from(1),
 				to: Address::from(2),
@@ -271,6 +268,8 @@ mod tests {
 				input: vec![0x5],
 			}),
 			result: Res::FailedCall,
+			trace_address: vec![0],
+			subtraces: 0,
 		};
 
 		assert!(f0.matches(&trace));
