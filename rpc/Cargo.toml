@@ -12,8 +12,8 @@ build = "build.rs"
 log = "0.3"
 serde = "0.7.0"
 serde_json = "0.7.0"
-jsonrpc-core = "2.0"
-jsonrpc-http-server = { git = "https://github.com/debris/jsonrpc-http-server.git", version = "5.1.0" }
+jsonrpc-core = { git = "https://github.com/tomusdrw/jsonrpc-core.git" }
+jsonrpc-http-server = { git = "https://github.com/tomusdrw/jsonrpc-http-server.git", version = "5.1.0" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
 ethash = { path = "../ethash" }
