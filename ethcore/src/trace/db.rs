@@ -498,7 +498,7 @@ mod tests {
 				input: vec![],
 			}),
 			result: Res::FailedCall,
-			trace_address: vec![0],
+			trace_address: vec![],
 			subtraces: 0,
 			transaction_number: 0,
 			transaction_hash: tx_hash,

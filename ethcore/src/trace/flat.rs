@@ -49,7 +49,7 @@ impl From<BlockTraces> for FlatBlockTraces {
 	fn from(block_traces: BlockTraces) -> Self {
 		let traces: Vec<Trace> = block_traces.into();
 		let ordered = traces.into_iter()
-			.map(|trace| FlatBlockTraces::flatten(vec![], 0, trace))
+			.map(|trace| FlatBlockTraces::flatten(vec![], trace))
 			.map(FlatTransactionTraces)
 			.collect();
 		FlatBlockTraces(ordered)
@@ -64,20 +64,23 @@ impl Into<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 
 impl FlatBlockTraces {
 	/// Helper function flattening nested tree structure to vector of ordered traces.
-	fn flatten(mut parent_indexes: Vec<usize>, current: usize, trace: Trace) -> Vec<FlatTrace> {
-		parent_indexes.push(current);
+	fn flatten(address: Vec<usize>, trace: Trace) -> Vec<FlatTrace> {
 		let subtraces = trace.subs.len();
 		let all_subs = trace.subs
 			.into_iter()
 			.enumerate()
-			.flat_map(|(index, subtrace)| FlatBlockTraces::flatten(parent_indexes.clone(), index, subtrace))
+			.flat_map(|(index, subtrace)| {
+				let mut subtrace_address = address.clone();
+				subtrace_address.push(index);
+				FlatBlockTraces::flatten(subtrace_address, subtrace)
+			})
 			.collect::<Vec<_>>();
 
 		let ordered = FlatTrace {
 			action: trace.action,
 			result: trace.result,
 			subtraces: subtraces,
-			trace_address: parent_indexes,
+			trace_address: address,
 		};
 
 		let mut result = vec![ordered];
@@ -164,15 +167,15 @@ mod tests {
 		assert_eq!(transaction_traces.len(), 1);
 		let ordered_traces: Vec<FlatTrace> = transaction_traces.into_iter().nth(0).unwrap().into();
 		assert_eq!(ordered_traces.len(), 5);
-		assert_eq!(ordered_traces[0].trace_address, vec![0]);
+		assert_eq!(ordered_traces[0].trace_address, vec![]);
 		assert_eq!(ordered_traces[0].subtraces, 2);
-		assert_eq!(ordered_traces[1].trace_address, vec![0, 0]);
+		assert_eq!(ordered_traces[1].trace_address, vec![0]);
 		assert_eq!(ordered_traces[1].subtraces, 2);
-		assert_eq!(ordered_traces[2].trace_address, vec![0, 0, 0]);
+		assert_eq!(ordered_traces[2].trace_address, vec![0, 0]);
 		assert_eq!(ordered_traces[2].subtraces, 0);
-		assert_eq!(ordered_traces[3].trace_address, vec![0, 0, 1]);
+		assert_eq!(ordered_traces[3].trace_address, vec![0, 1]);
 		assert_eq!(ordered_traces[3].subtraces, 0);
-		assert_eq!(ordered_traces[4].trace_address, vec![0, 1]);
+		assert_eq!(ordered_traces[4].trace_address, vec![1]);
 		assert_eq!(ordered_traces[4].subtraces, 0);
 	}
 }
