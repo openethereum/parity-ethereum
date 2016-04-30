@@ -42,6 +42,7 @@ use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
+use trace::{TraceDB, Database as TraceDatabase};
 
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
@@ -103,6 +104,7 @@ impl ClientReport {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
+	tracedb: Arc<TraceDB<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
@@ -150,6 +152,7 @@ impl<V> Client<V> where V: Verifier {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
+		let tracedb = Arc::new(TraceDB::new(config.tracing, &path, chain.clone()));
 
 		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
 
@@ -165,6 +168,7 @@ impl<V> Client<V> where V: Verifier {
 
 		Arc::new(Client {
 			chain: chain,
+			tracedb: tracedb,
 			engine: engine,
 			state_db: Mutex::new(state_db),
 			block_queue: block_queue,
@@ -225,7 +229,7 @@ impl<V> Client<V> where V: Verifier {
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let db = self.state_db.lock().unwrap().boxed_clone();
 
-		let enact_result = enact_verified(&block, engine, self.chain.have_tracing(), db, &parent, last_hashes);
+		let enact_result = enact_verified(&block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes);
 		if let Err(e) = enact_result {
 			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());

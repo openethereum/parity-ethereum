@@ -40,7 +40,9 @@ pub enum DecoderError {
 	/// Non-canonical (longer than necessary) representation used for data or list.
 	RlpInvalidIndirection,
 	/// Declared length is inconsistent with data specified after.
-	RlpInconsistentLengthAndData
+	RlpInconsistentLengthAndData,
+	/// Custom rlp decoding error.
+	Custom(&'static str),
 }
 
 impl StdError for DecoderError {

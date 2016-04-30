@@ -20,6 +20,7 @@ mod client;
 mod config;
 mod ids;
 mod test_client;
+mod trace;
 
 pub use self::client::*;
 pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};

@@ -55,9 +55,6 @@ impl Default for BlockChainConfig {
 
 /// Interface for querying blocks by hash and by number.
 pub trait BlockProvider {
-	/// True if we store full tracing information for transactions.
-	fn have_tracing(&self) -> bool;
-
 	/// Returns true if the given block is known
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool;
@@ -185,9 +182,6 @@ impl BlockProvider for BlockChain {
 	fn is_known(&self, hash: &H256) -> bool {
 		self.extras_db.exists_with_cache(&self.block_details, hash)
 	}
-
-	/// We do not store tracing information.
-	fn have_tracing(&self) -> bool { false }
 
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<Bytes> {
@@ -734,9 +728,10 @@ impl BlockChain {
 		self.query_extras(hash, &self.blocks_blooms)
 	}
 
-	fn query_extras<K, T>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
+	fn query_extras<K, T, R>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
 		T: ExtrasIndexable + Clone + Decodable,
-		K: Key<T> + Eq + Hash + Clone,
+		K: Key<T, Target = R> + Eq + Hash + Clone,
+		R: Deref<Target = [u8]>,
 		H256: From<K> {
 		self.note_used(CacheID::Extras(T::index(), H256::from(hash.clone())));
 		self.extras_db.read_with_cache(cache, hash)

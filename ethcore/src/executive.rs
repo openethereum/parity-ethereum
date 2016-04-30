@@ -21,6 +21,7 @@ use engine::*;
 use evm::{self, Ext};
 use externalities::*;
 use substate::*;
+use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
 use crossbeam;
 
 /// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)
@@ -246,22 +247,47 @@ impl<'a> Executive<'a> {
 		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
+		let delegate_call = params.code_address != params.address;
+
 		if self.engine.is_builtin(&params.code_address) {
 			// if destination is builtin, try to execute it
 
 			let default = [];
 			let data = if let Some(ref d) = params.data { d as &[u8] } else { &default as &[u8] };
 
+			let trace_info = tracer.prepare_trace_call(&params);
+
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			match cost <= params.gas {
 				true => {
 					self.engine.execute_builtin(&params.code_address, data, &mut output);
 					self.state.clear_snapshot();
+
+					// trace only top level calls to builtins to avoid DDoS attacks
+					if self.depth == 0 {
+						let mut trace_output = tracer.prepare_trace_output();
+						if let Some(mut out) = trace_output.as_mut() {
+							*out = output.to_owned();
+						}
+
+						tracer.trace_call(
+							trace_info,
+							cost,
+							trace_output,
+							self.depth,
+							vec![],
+							delegate_call
+						);
+					}
+
 					Ok(params.gas - cost)
 				},
 				// just drain the whole gas
 				false => {
 					self.state.revert_snapshot();
+
+					tracer.trace_failed_call(trace_info, self.depth, vec![], delegate_call);
+
 					Err(evm::Error::OutOfGas)
 				}
 			}
@@ -269,7 +295,6 @@ impl<'a> Executive<'a> {
 			let trace_info = tracer.prepare_trace_call(&params);
 			let mut trace_output = tracer.prepare_trace_output();
 			let mut subtracer = tracer.subtracer();
-			let delegate_call = params.code_address != params.address;
 			let gas = params.gas;
 
 			if params.code.is_some() {
@@ -442,6 +467,8 @@ mod tests {
 	use evm::{Factory, VMType};
 	use substate::*;
 	use tests::helpers::*;
+	use trace::trace;
+	use trace::{Trace, Tracer, NoopTracer, ExecutiveTracer};
 
 	#[test]
 	fn test_contract_address() {
@@ -591,26 +618,26 @@ mod tests {
 
 		let expected_trace = vec![ Trace {
 			depth: 0,
-			action: TraceAction::Call(TraceCall {
+			action: trace::Action::Call(trace::Call {
 				from: x!("cd1722f3947def4cf144679da39c4c32bdc35681"),
 				to: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
 				value: x!(100),
 				gas: x!(100000),
 				input: vec![],
 			}),
-			result: TraceResult::Call(TraceCallResult {
+			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(55_248),
 				output: vec![],
 			}),
 			subs: vec![Trace {
 				depth: 1,
-				action: TraceAction::Create(TraceCreate {
+				action: trace::Action::Create(trace::Create {
 					from: x!("b010143a42d5980c7e5ef0e4a4416dc098a4fed3"),
 					value: x!(23),
 					gas: x!(67979),
 					init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
 				}),
-				result: TraceResult::Create(TraceCreateResult {
+				result: trace::Res::Create(trace::CreateResult {
 					gas_used: U256::from(3224),
 					address: Address::from_str("c6d80f262ae5e0f164e5fde365044d7ada2bfa34").unwrap(),
 					code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]
@@ -662,13 +689,13 @@ mod tests {
 
 		let expected_trace = vec![Trace {
 			depth: 0,
-			action: TraceAction::Create(TraceCreate {
+			action: trace::Action::Create(trace::Create {
 				from: params.sender,
 				value: x!(100),
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 			}),
-			result: TraceResult::Create(TraceCreateResult {
+			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),
 				address: params.address,
 				code: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53]

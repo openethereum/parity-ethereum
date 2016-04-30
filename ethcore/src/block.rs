@@ -22,6 +22,7 @@ use common::*;
 use engine::*;
 use state::*;
 use verification::PreverifiedBlock;
+use trace::Trace;
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone)]

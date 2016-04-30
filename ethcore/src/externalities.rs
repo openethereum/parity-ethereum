@@ -21,6 +21,7 @@ use engine::*;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult};
 use substate::*;
+use trace::Tracer;
 
 /// Policy for handling output data on `RETURN` opcode.
 pub enum OutputPolicy<'a, 'b> {
@@ -293,6 +294,7 @@ mod tests {
 	use substate::*;
 	use tests::helpers::*;
 	use super::*;
+	use trace::{NoopTracer};
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {
