@@ -575,5 +575,8 @@ mod tests {
 		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
 
 		assert_eq!(None, tracedb.transaction_traces(1, 1));
+
+		assert_eq!(tracedb.trace(0, 0, vec![]).unwrap(), create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		assert_eq!(tracedb.trace(1, 0, vec![]).unwrap(), create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
 	}
 }
