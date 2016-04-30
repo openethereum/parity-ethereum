@@ -69,7 +69,7 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth and net.
-                           [default: web3,eth,net,personal,ethcore].
+                           [default: web3,eth,net,personal,ethcore,traces].
   -w --webapp              Enable the web applications server (e.g.
                            status page).
   --webapp-port PORT       Specify the port portion of the WebApps server
@@ -103,6 +103,11 @@ Sealing/Mining Options:
                            be included in next block) [default: 1024].
 
 Footprint Options:
+  --tracing BOOL           Indicates if full transaction tracing should be
+                           enabled. Works only if client had been fully synced with
+                           tracing enabled. BOOL may be one of auto, on, off.
+                           auto uses last used value of this option (off it does
+                           not exist) [default: auto].
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
                            may be one of auto, archive, basic, fast, light:
                            archive - keep all state trie data. No pruning.
@@ -164,6 +169,7 @@ pub struct Args {
 	pub flag_bootnodes: Option<String>,
 	pub flag_network_id: Option<String>,
 	pub flag_pruning: String,
+	pub flag_tracing: String,
 	pub flag_port: u16,
 	pub flag_peers: usize,
 	pub flag_no_discovery: bool,

@@ -115,6 +115,10 @@ pub fn setup_rpc_server(
 				// not adding to modules, since `ethcore` is not supported in geth
 				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
 			},
+			"traces" => {
+				// not adding to modules, since `traces` is not supported in geth
+				server.add_delegate(TracesClient::new(&deps.client).to_delegate())
+			},
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
 			},
