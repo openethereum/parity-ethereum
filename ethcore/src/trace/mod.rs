@@ -107,7 +107,7 @@ pub trait Database {
 	fn import(&self, request: ImportRequest);
 
 	/// Returns localized trace at given position.
-	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: usize) -> Option<LocalizedTrace>;
+	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace>;
 
 	/// Returns localized traces created by a single transaction.
 	fn transaction_traces(&self, block_number: BlockNumber, tx_position: usize) -> Option<Vec<LocalizedTrace>>;
