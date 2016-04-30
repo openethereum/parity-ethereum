@@ -14,16 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc v1.
-//!
-//! Compliant with ethereum rpc.
+//! RPC interface.
 
-pub mod traits;
-mod impls;
-mod types;
-mod helpers;
+use std::sync::Arc;
+use jsonrpc_core::*;
 
-pub mod tests;
+/// RPC Interface.
+pub trait Rpc: Sized + Send + Sync + 'static {
 
-pub use self::traits::{Web3, Eth, EthFilter, Personal, Net, Ethcore, Rpc};
-pub use self::impls::*;
+	/// Returns supported modules.
+	fn modules(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Should be used to convert object to io delegate.
+	fn to_delegate(self) -> IoDelegate<Self> {
+		let mut delegate = IoDelegate::new(Arc::new(self));
+		// Geth 1.3.6 compatibility
+		delegate.add_method("modules", Rpc::modules);
+		// Geth 1.4.0 compatibility
+		delegate.add_method("rpc_modules", Rpc::modules);
+		delegate
+	}
+}
+
