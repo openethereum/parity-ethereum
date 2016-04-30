@@ -16,13 +16,14 @@
 //! Structure to hold network settings configured from CLI
 
 /// Networking & RPC settings
+#[derive(Debug, PartialEq)]
 pub struct NetworkSettings {
 	/// Node name
 	pub name: String,
 	/// Name of the chain we are connected to
 	pub chain: String,
 	/// Ideal number of peers
-	pub max_peers: usize,
+	pub max_peers: u32,
 	/// Networking port
 	pub network_port: u16,
 	/// Is JSON-RPC server enabled?
