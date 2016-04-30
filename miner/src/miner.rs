@@ -61,7 +61,22 @@ impl Default for Miner {
 
 impl Miner {
 	/// Creates new instance of miner
-	pub fn new(force_sealing: bool, accounts: Arc<AccountService>) -> Arc<Miner> {
+	pub fn new(force_sealing: bool) -> Arc<Miner> {
+		Arc::new(Miner {
+			transaction_queue: Mutex::new(TransactionQueue::new()),
+			force_sealing: force_sealing,
+			sealing_enabled: AtomicBool::new(force_sealing),
+			sealing_block_last_request: Mutex::new(0),
+			sealing_work: Mutex::new(UsingQueue::new(5)),
+			gas_floor_target: RwLock::new(U256::zero()),
+			author: RwLock::new(Address::default()),
+			extra_data: RwLock::new(Vec::new()),
+			accounts: RwLock::new(None),
+		})
+	}
+
+	/// Creates new instance of miner
+	pub fn with_accounts(force_sealing: bool, accounts: Arc<AccountService>) -> Arc<Miner> {
 		Arc::new(Miner {
 			transaction_queue: Mutex::new(TransactionQueue::new()),
 			force_sealing: force_sealing,
