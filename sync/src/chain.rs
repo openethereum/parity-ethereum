@@ -1357,7 +1357,6 @@ impl ChainSync {
 			trace!(target: "sync", "Bad blocks in the queue, restarting");
 			self.restart_on_bad_block(io);
 		}
-		// TODO [todr] propagate transactions?
 	}
 
 	pub fn chain_new_head(&mut self, io: &mut SyncIo) {

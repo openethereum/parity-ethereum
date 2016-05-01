@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// TODO [todr] - own transactions should have higher priority
-
 //! Transaction Queue
 //!
 //! `TransactionQueue` keeps track of all transactions seen by the node (received from other peers) and own transactions
@@ -95,12 +93,32 @@ use ethcore::transaction::*;
 use ethcore::error::{Error, TransactionError};
 
 /// Transaction origin
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransactionOrigin {
 	/// Transaction coming from local RPC
 	Local,
 	/// External transaction received from network
 	External,
+}
+
+impl PartialOrd for TransactionOrigin {
+	fn partial_cmp(&self, other: &TransactionOrigin) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for TransactionOrigin {
+	fn cmp(&self, other: &TransactionOrigin) -> Ordering {
+		if *other == *self {
+			return Ordering::Equal;
+		}
+
+		if *self == TransactionOrigin::Local {
+			Ordering::Less
+		} else {
+			Ordering::Greater
+		}
+	}
 }
 
 #[derive(Clone, Debug)]
@@ -147,8 +165,14 @@ impl PartialOrd for TransactionOrder {
 		Some(self.cmp(other))
 	}
 }
+
 impl Ord for TransactionOrder {
 	fn cmp(&self, b: &TransactionOrder) -> Ordering {
+		// Local transactions should always have priority
+		if self.origin != b.origin {
+			return self.origin.cmp(&b.origin);
+		}
+
 		// First check nonce_height
 		if self.nonce_height != b.nonce_height {
 			return self.nonce_height.cmp(&b.nonce_height);
@@ -1059,6 +1083,23 @@ mod test {
 		let top = txq.top_transactions();
 		assert_eq!(top[0], tx);
 		assert_eq!(top[1], tx2);
+		assert_eq!(top.len(), 2);
+	}
+
+	#[test]
+	fn should_prioritize_local_transactions() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let (tx, tx2) = new_txs(U256::from(1));
+
+		// when
+		txq.add(tx.clone(), &default_nonce, TransactionOrigin::External).unwrap();
+		txq.add(tx2.clone(), &default_nonce, TransactionOrigin::Local).unwrap();
+
+		// then
+		let top = txq.top_transactions();
+		assert_eq!(top[0], tx2);
+		assert_eq!(top[1], tx);
 		assert_eq!(top.len(), 2);
 	}
 
