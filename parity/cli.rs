@@ -106,7 +106,7 @@ Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
                            enabled. Works only if client had been fully synced with
                            tracing enabled. BOOL may be one of auto, on, off.
-                           auto uses last used value of this option (off it does
+                           auto uses last used value of this option (off if it does
                            not exist) [default: auto].
   --pruning METHOD         Configure pruning of the state/storage trie. METHOD
                            may be one of auto, archive, basic, fast, light:
