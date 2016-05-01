@@ -316,8 +316,8 @@ dependencies = [
  "ethcore-util 1.1.0",
  "ethminer 1.1.0",
  "ethsync 1.1.0",
- "jsonrpc-core 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-http-server 5.1.0 (git+https://github.com/debris/jsonrpc-http-server.git)",
+ "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
+ "jsonrpc-http-server 5.1.0 (git+https://github.com/tomusdrw/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -370,8 +370,8 @@ dependencies = [
  "ethcore-rpc 1.1.0",
  "ethcore-util 1.1.0",
  "hyper 0.9.0-mio (git+https://github.com/hyperium/hyper?branch=mio)",
- "jsonrpc-core 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-http-server 5.1.0 (git+https://github.com/debris/jsonrpc-http-server.git)",
+ "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
+ "jsonrpc-http-server 5.1.0 (git+https://github.com/tomusdrw/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-status 0.3.3 (git+https://github.com/tomusdrw/parity-status.git)",
  "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
@@ -571,12 +571,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonrpc-core"
+version = "2.0.3"
+source = "git+https://github.com/tomusdrw/jsonrpc-core.git#9d51f1b6679938846d93cbafdd052733c816d28b"
+dependencies = [
+ "serde 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_codegen 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex 0.31.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "jsonrpc-http-server"
 version = "5.1.0"
-source = "git+https://github.com/debris/jsonrpc-http-server.git#b32815330c191aff06a6e017ba00c10e872bb4f6"
+source = "git+https://github.com/tomusdrw/jsonrpc-http-server.git#fafd6410284710b7e662fe7d76249cc496451f27"
 dependencies = [
  "hyper 0.9.0-mio (git+https://github.com/hyperium/hyper?branch=mio)",
- "jsonrpc-core 2.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

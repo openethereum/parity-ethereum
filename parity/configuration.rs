@@ -43,6 +43,22 @@ impl Configuration {
 		}
 	}
 
+	fn net_port(&self) -> u16 {
+		self.args.flag_port
+	}
+
+	fn chain(&self) -> String {
+		if self.args.flag_testnet {
+			"morden".to_owned()
+		} else {
+			self.args.flag_chain.clone()
+		}
+	}
+
+	fn max_peers(&self) -> u32 {
+		self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32
+	}
+
 	pub fn path(&self) -> String {
 		let d = self.args.flag_datadir.as_ref().unwrap_or(&self.args.flag_db_path);
 		d.replace("$HOME", env::home_dir().unwrap().to_str().unwrap())
@@ -101,10 +117,7 @@ impl Configuration {
 	}
 
 	pub fn spec(&self) -> Spec {
-		if self.args.flag_testnet {
-			return ethereum::new_morden();
-		}
-		match self.args.flag_chain.as_ref() {
+		match self.chain().as_str() {
 			"frontier" | "homestead" | "mainnet" => ethereum::new_frontier(),
 			"morden" | "testnet" => ethereum::new_morden(),
 			"olympic" => ethereum::new_olympic(),
@@ -135,11 +148,12 @@ impl Configuration {
 	}
 
 	pub fn net_addresses(&self) -> (Option<SocketAddr>, Option<SocketAddr>) {
-		let listen_address = Some(SocketAddr::new(IpAddr::from_str("0.0.0.0").unwrap(), self.args.flag_port));
+		let port = self.net_port();
+		let listen_address = Some(SocketAddr::new(IpAddr::from_str("0.0.0.0").unwrap(), port));
 		let public_address = if self.args.flag_nat.starts_with("extip:") {
 			let host = &self.args.flag_nat[6..];
 			let host = IpAddr::from_str(host).unwrap_or_else(|_| die!("Invalid host given with `--nat extip:{}`", host));
-			Some(SocketAddr::new(host, self.args.flag_port))
+			Some(SocketAddr::new(host, port))
 		} else {
 			listen_address
 		};
@@ -155,7 +169,7 @@ impl Configuration {
 		ret.public_address = public;
 		ret.use_secret = self.args.flag_node_key.as_ref().map(|s| Secret::from_str(&s).unwrap_or_else(|_| s.sha3()));
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
-		ret.ideal_peers = self.args.flag_maxpeers.unwrap_or(self.args.flag_peers) as u32;
+		ret.ideal_peers = self.max_peers();
 		let mut net_path = PathBuf::from(&self.path());
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
@@ -244,16 +258,88 @@ impl Configuration {
 		account_service
 	}
 
+	pub fn rpc_apis(&self) -> String {
+		self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone())
+	}
+
+	pub fn rpc_cors(&self) -> Option<String> {
+		self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone())
+	}
+
 	pub fn network_settings(&self) -> NetworkSettings {
 		NetworkSettings {
 			name: self.args.flag_identity.clone(),
-			chain: self.args.flag_chain.clone(),
-			max_peers: self.args.flag_maxpeers.unwrap_or(self.args.flag_peers),
-			network_port: self.args.flag_port,
+			chain: self.chain(),
+			max_peers: self.max_peers(),
+			network_port: self.net_port(),
 			rpc_enabled: self.args.flag_rpc || self.args.flag_jsonrpc,
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use cli::USAGE;
+	use docopt::Docopt;
+	use util::network_settings::NetworkSettings;
+
+	fn parse(args: &[&str]) -> Configuration {
+		Configuration {
+			args: Docopt::new(USAGE).unwrap().argv(args).decode().unwrap(),
+		}
+	}
+
+	#[test]
+	fn should_parse_network_settings() {
+		// given
+
+		// when
+		let conf = parse(&["parity", "--testnet", "--identity", "testname"]);
+
+		// then
+		assert_eq!(conf.network_settings(), NetworkSettings {
+			name: "testname".to_owned(),
+			chain: "morden".to_owned(),
+			max_peers: 25,
+			network_port: 30303,
+			rpc_enabled: false,
+			rpc_interface: "local".to_owned(),
+			rpc_port: 8545,
+		});
+	}
+
+	#[test]
+	fn should_parse_rpc_settings_with_geth_compatiblity() {
+		// given
+		fn assert(conf: Configuration) {
+			let net = conf.network_settings();
+			assert_eq!(net.rpc_enabled, true);
+			assert_eq!(net.rpc_interface, "all".to_owned());
+			assert_eq!(net.rpc_port, 8000);
+			assert_eq!(conf.rpc_cors(), Some("*".to_owned()));
+			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
+		}
+
+		// when
+		let conf1 = parse(&["parity", "-j",
+						 "--jsonrpc-port", "8000",
+						 "--jsonrpc-interface", "all",
+						 "--jsonrpc-cors", "*",
+						 "--jsonrpc-apis", "web3,eth"
+						 ]);
+		let conf2 = parse(&["parity", "--rpc",
+						  "--rpcport", "8000",
+						  "--rpcaddr", "all",
+						  "--rpccorsdomain", "*",
+						  "--rpcapi", "web3,eth"
+						  ]);
+
+		// then
+		assert(conf1);
+		assert(conf2);
 	}
 }
 
