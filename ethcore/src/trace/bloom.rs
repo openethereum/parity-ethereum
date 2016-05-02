@@ -87,7 +87,7 @@ impl Encodable for BlockTracesBloomGroup {
 	}
 }
 
-/// Represents BloomGroup position in database.
+/// Represents `BloomGroup` position in database.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
 pub struct TraceGroupPosition {
 	/// Bloom level.

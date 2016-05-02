@@ -27,7 +27,7 @@ crossbeam = "0.2"
 slab = "0.1"
 sha3 = { path = "sha3" }
 serde = "0.7.0"
-clippy = { version = "0.0.63", optional = true}
+clippy = { version = "0.0.64", optional = true}
 json-tests = { path = "json-tests" }
 igd = "0.4.2"
 ethcore-devtools = { path = "../devtools" }
