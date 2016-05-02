@@ -39,7 +39,7 @@ use io::*;
 use network::{NetworkProtocolHandler, PROTOCOL_VERSION};
 use network::node_table::*;
 use network::stats::NetworkStats;
-use network::error::DisconnectReason;
+use network::error::{NetworkError, DisconnectReason};
 use network::discovery::{Discovery, TableUpdates, NodeEntry};
 use network::ip_utils::{map_external_address, select_public_address};
 
@@ -122,6 +122,7 @@ const DISCOVERY: usize = LAST_HANDSHAKE + 3;
 const DISCOVERY_REFRESH: usize = LAST_HANDSHAKE + 4;
 const DISCOVERY_ROUND: usize = LAST_HANDSHAKE + 5;
 const INIT_PUBLIC: usize = LAST_HANDSHAKE + 6;
+const NODE_TABLE: usize = LAST_HANDSHAKE + 7;
 const FIRST_SESSION: usize = 0;
 const LAST_SESSION: usize = FIRST_SESSION + MAX_SESSIONS - 1;
 const FIRST_HANDSHAKE: usize = LAST_SESSION + 1;
@@ -154,8 +155,10 @@ pub enum NetworkIoMessage<Message> where Message: Send + Sync + Clone {
 		/// Timer delay in milliseconds.
 		delay: u64,
 	},
-	/// Disconnect a peer
+	/// Disconnect a peer.
 	Disconnect(PeerId),
+	/// Disconnect and temporary disable peer.
+	DisablePeer(PeerId),
 	/// User message
 	User(Message),
 }
@@ -237,7 +240,7 @@ impl<'s, Message> NetworkContext<'s, Message> where Message: Send + Sync + Clone
 	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
 	pub fn disable_peer(&self, peer: PeerId) {
 		//TODO: remove capability, disconnect if no capabilities left
-		self.disconnect_peer(peer);
+		self.io.message(NetworkIoMessage::DisablePeer(peer));
 	}
 
 	/// Disconnect peer. Reconnect can be attempted later.
@@ -391,7 +394,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 
 	pub fn add_node(&mut self, id: &str) {
 		match Node::from_str(id) {
-			Err(e) => { debug!("Could not add node {}: {:?}", id, e); },
+			Err(e) => { debug!(target: "network", "Could not add node {}: {:?}", id, e); },
 			Ok(n) => {
 				let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
 				self.pinned_nodes.push(n.id.clone());
@@ -463,6 +466,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			io.register_stream(DISCOVERY).expect("Error registering UDP listener");
 			io.register_timer(DISCOVERY_REFRESH, 7200).expect("Error registering discovery timer");
 			io.register_timer(DISCOVERY_ROUND, 300).expect("Error registering discovery timer");
+			io.register_timer(NODE_TABLE, 300_000).expect("Error registering node table timer");
 		}
 		try!(io.register_stream(TCP_ACCEPT));
 		Ok(())
@@ -499,6 +503,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 		}
 		for p in to_kill {
+			trace!(target: "network", "Ping timeout: {}", p);
 			self.kill_connection(p, io, true);
 		}
 	}
@@ -553,7 +558,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			match TcpStream::connect(&address) {
 				Ok(socket) => socket,
 				Err(e) => {
-					debug!("Can't connect to address {:?}: {:?}", address, e);
+					debug!(target: "network", "Can't connect to address {:?}: {:?}", address, e);
 					return;
 				}
 			}
@@ -609,11 +614,16 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			if let Err(e) = s.writable(io, &self.info.read().unwrap()) {
 				trace!(target: "network", "Session write error: {}: {:?}", token, e);
 			}
-			io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Session registration error: {:?}", e));
+			if s.done() {
+				io.deregister_stream(token).expect("Error deregistering stream");
+			} else {
+				io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Session registration error: {:?}", e));
+			}
 		}
 	}
 
 	fn connection_closed(&self, token: TimerToken, io: &IoContext<NetworkIoMessage<Message>>) {
+		trace!(target: "network", "Connection closed: {}", token);
 		self.kill_connection(token, io, true);
 	}
 
@@ -650,7 +660,14 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			let mut s = session.lock().unwrap();
 			match s.readable(io, &self.info.read().unwrap()) {
 				Err(e) => {
-					debug!(target: "network", "Session read error: {}: {:?}", token, e);
+					trace!(target: "network", "Session read error: {}:{} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
+					match e {
+						UtilError::Network(NetworkError::Disconnect(DisconnectReason::UselessPeer)) |
+						UtilError::Network(NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol)) => {
+							self.nodes.write().unwrap().mark_as_useless(s.id());
+						}
+						_ => (),
+					}
 					kill = true;
 				},
 				Ok(SessionData::Ready) => {
@@ -721,7 +738,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			session.set_token(session_token);
 			io.register_stream(session_token).expect("Error creating session registration");
 			self.stats.inc_sessions();
-			trace!(target: "network", "Creating session {} -> {}", token, session_token);
+			trace!(target: "network", "Creating session {} -> {}:{} ({:?})", token, session_token, session.id(), session.remote_addr());
 			if !originated {
 				// Add it no node table
 				if let Ok(address) = session.remote_addr() {
@@ -741,6 +758,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 	}
 
 	fn connection_timeout(&self, token: StreamToken, io: &IoContext<NetworkIoMessage<Message>>) {
+		trace!(target: "network", "Connection timeout: {}", token);
 		self.kill_connection(token, io, true)
 	}
 
@@ -776,8 +794,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 						}
 						s.set_expired();
 						failure_id = Some(s.id().clone());
-						deregister = true;
 					}
+					deregister = remote || s.done();
 				}
 			},
 			_ => {},
@@ -793,6 +811,8 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 		}
 		if deregister {
 			io.deregister_stream(token).expect("Error deregistering stream");
+		} else if expired_session.is_some() {
+			io.update_registration(token).unwrap_or_else(|e| debug!(target: "network", "Connection registration error: {:?}", e));
 		}
 	}
 
@@ -819,6 +839,7 @@ impl<Message> Host<Message> where Message: Send + Sync + Clone {
 			}
 		}
 		for i in to_remove {
+			trace!(target: "network", "Removed from node table: {}", i);
 			self.kill_connection(i, io, false);
 		}
 		self.nodes.write().unwrap().update(node_changes);
@@ -888,6 +909,9 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				}
 				io.update_registration(DISCOVERY).expect("Error updating discovery registration");
 			},
+			NODE_TABLE => {
+				self.nodes.write().unwrap().clear_useless();
+			},
 			_ => match self.timers.read().unwrap().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().unwrap().get(timer.protocol).cloned() {
 						None => { warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol) },
@@ -933,6 +957,16 @@ impl<Message> IoHandler<NetworkIoMessage<Message>> for Host<Message> where Messa
 				if let Some(session) = session {
 					session.lock().unwrap().disconnect(DisconnectReason::DisconnectRequested);
 				}
+				trace!(target: "network", "Disconnect requested {}", peer);
+				self.kill_connection(*peer, io, false);
+			},
+			NetworkIoMessage::DisablePeer(ref peer) => {
+				let session = { self.sessions.read().unwrap().get(*peer).cloned() };
+				if let Some(session) = session {
+					session.lock().unwrap().disconnect(DisconnectReason::DisconnectRequested);
+					self.nodes.write().unwrap().mark_as_useless(session.lock().unwrap().id());
+				}
+				trace!(target: "network", "Disabling peer {}", peer);
 				self.kill_connection(*peer, io, false);
 			},
 			NetworkIoMessage::User(ref message) => {
