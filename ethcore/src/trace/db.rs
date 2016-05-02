@@ -33,6 +33,7 @@ use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 const TRACE_DB_VER: &'static [u8] = b"1.0";
 
 #[derive(Debug, Copy, Clone)]
+#[cfg_attr(feature="dev", allow(enum_variant_names))]
 enum TraceDBIndex {
 	/// Block traces index.
 	BlockTraces = 0,

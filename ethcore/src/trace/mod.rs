@@ -88,7 +88,7 @@ pub trait Tracer: Send {
 	fn traces(self) -> Vec<Trace>;
 }
 
-/// DbExtras provides an interface to query extra data which is not stored in tracesdb,
+/// `DbExtras` provides an interface to query extra data which is not stored in tracesdb,
 /// but necessary to work correctly.
 pub trait DatabaseExtras {
 	/// Returns hash of given block number.

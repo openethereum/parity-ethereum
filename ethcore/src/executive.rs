@@ -26,7 +26,7 @@ use crossbeam;
 
 /// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
-/// Maybe something like here: https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp
+/// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
 const MAX_VM_DEPTH_FOR_THREAD: usize = 64;
 
 /// Returns new address created from address and given nonce.

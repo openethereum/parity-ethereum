@@ -205,9 +205,9 @@ impl MinerService for Miner {
 				let last_hashes = chain.last_hashes();
 				let env_info = EnvInfo {
 					number: header.number(),
-					author: header.author().clone(),
+					author: *header.author(),
 					timestamp: header.timestamp(),
-					difficulty: header.difficulty().clone(),
+					difficulty: *header.difficulty(),
 					last_hashes: last_hashes,
 					gas_used: U256::zero(),
 					gas_limit: U256::max_value(),
