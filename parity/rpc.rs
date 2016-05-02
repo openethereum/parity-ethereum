@@ -99,7 +99,7 @@ pub fn setup_rpc_server(
 				server.add_delegate(Web3Client::new().to_delegate());
 			},
 			"net" => {
-				modules.insert("web3".to_owned(), "1.0".to_owned());
+				modules.insert("net".to_owned(), "1.0".to_owned());
 				server.add_delegate(NetClient::new(&deps.sync).to_delegate());
 			},
 			"eth" => {
@@ -114,6 +114,10 @@ pub fn setup_rpc_server(
 			"ethcore" => {
 				// not adding to modules, since `ethcore` is not supported in geth
 				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
+			},
+			"traces" => {
+				modules.insert("traces".to_owned(), "1.0".to_owned());
+				server.add_delegate(TracesClient::new(&deps.client).to_delegate())
 			},
 			_ => {
 				die!("{}: Invalid API name to be enabled.", api);
