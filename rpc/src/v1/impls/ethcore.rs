@@ -17,6 +17,7 @@
 //! Ethcore-specific rpc implementation.
 use util::{U256, Address, RotatingLogger};
 use util::network_settings::NetworkSettings;
+use util::misc::version_data;
 use std::sync::{Arc, Weak};
 use std::ops::Deref;
 use std::collections::BTreeMap;
@@ -128,5 +129,10 @@ impl<M> Ethcore for EthcoreClient<M> where M: MinerService + 'static {
 		map.insert("interface".to_owned(), Value::String(self.settings.rpc_interface.clone()));
 		map.insert("port".to_owned(), Value::U64(self.settings.rpc_port as u64));
 		Ok(Value::Object(map))
+	}
+
+	fn default_extra_data(&self, _params: Params) -> Result<Value, Error> {
+		let version = version_data();
+		to_value(&version)
 	}
 }
