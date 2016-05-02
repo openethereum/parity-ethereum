@@ -155,6 +155,10 @@ impl Session {
 		self.expired
 	}
 
+	/// Check if this session is over and there is nothing to be sent.
+	pub fn done(&self) -> bool {
+		self.expired() && !self.connection.is_sending()
+	}
 	/// Replace socket token 
 	pub fn set_token(&mut self, token: StreamToken) {
 		self.connection.set_token(token);
@@ -178,9 +182,6 @@ impl Session {
 
 	/// Writable IO handler. Sends pending packets.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), UtilError> where Message: Send + Sync + Clone {
-		if self.expired() {
-			return Ok(()) 
-		}
 		self.connection.writable(io)
 	}
 
@@ -200,9 +201,6 @@ impl Session {
 
 	/// Update registration with the event loop. Should be called at the end of the IO handler.
 	pub fn update_socket<Host:Handler>(&self, reg:Token, event_loop: &mut EventLoop<Host>) -> Result<(), UtilError> {
-		if self.expired() {
-			return Ok(());
-		}
 		self.connection.update_socket(reg, event_loop)
 	}
 
