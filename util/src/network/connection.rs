@@ -102,6 +102,11 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 		}
 	}
 
+	/// Check if this connection has data to be sent.
+	pub fn is_sending(&self) -> bool {
+		self.interest.is_writable()
+	}
+
 	/// Writable IO handler. Called when the socket is ready to send.
 	pub fn writable(&mut self) -> io::Result<WriteStatus> {
 		if self.send_queue.is_empty() {
@@ -275,6 +280,11 @@ impl EncryptedConnection {
 	/// Get remote peer address
 	pub fn remote_addr(&self) -> io::Result<SocketAddr> {
 		self.connection.remote_addr()
+	}
+
+	/// Check if this connection has data to be sent.
+	pub fn is_sending(&self) -> bool {
+		self.connection.is_sending()
 	}
 
 	/// Create an encrypted connection out of the handshake. Consumes a handshake object.
