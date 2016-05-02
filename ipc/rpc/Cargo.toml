@@ -1,6 +1,6 @@
 [package]
 name = "ethcore-ipc"
-version = "1.1.0"
+version = "1.2.0"
 authors = ["Nikolay Volf <nikvolf@gmail.com>"]
 license = "GPL-3.0"
 
