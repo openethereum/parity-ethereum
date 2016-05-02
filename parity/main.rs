@@ -207,6 +207,10 @@ fn execute_client(conf: Configuration) {
 	wait_for_exit(panic_handler, rpc_server, webapp_server);
 }
 
+fn flush_stdout() {
+	::std::io::stdout().flush().ok().expect("stdout is flushable; qed");
+}
+
 fn execute_account_cli(conf: Configuration) {
 	use util::keys::store::SecretStore;
 	use rpassword::read_password;
@@ -214,8 +218,10 @@ fn execute_account_cli(conf: Configuration) {
 	if conf.args.cmd_new {
 		println!("Please note that password is NOT RECOVERABLE.");
 		print!("Type password: ");
+		flush_stdout();
 		let password = read_password().unwrap();
 		print!("Repeat password: ");
+		flush_stdout();
 		let password_repeat = read_password().unwrap();
 		if password != password_repeat {
 			println!("Passwords do not match!");
