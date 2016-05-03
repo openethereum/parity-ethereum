@@ -3,7 +3,7 @@ description = "Ethminer library"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethminer"
-version = "1.1.0"
+version = "1.2.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
