@@ -27,8 +27,6 @@ use ethjson;
 /// Ethash params.
 #[derive(Debug, PartialEq)]
 pub struct EthashParams {
-	/// Tie breaking gas.
-	pub tie_breaking_gas: bool,
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
 	/// Minimum difficulty.
@@ -41,18 +39,20 @@ pub struct EthashParams {
 	pub block_reward: U256,
 	/// Namereg contract address.
 	pub registrar: Address,
+	/// Homestead transition block number.
+	pub frontier_compatibility_mode_limit: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
 	fn from(p: ethjson::spec::EthashParams) -> Self {
 		EthashParams {
-			tie_breaking_gas: p.tie_breaking_gas,
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			minimum_difficulty: p.minimum_difficulty.into(),
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.into(),
+			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.into(),
 		}
 	}
 }
@@ -100,9 +100,9 @@ impl Engine for Ethash {
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		trace!(target: "client", "Creating schedule. fCML={}", self.params.frontier_compatibility_mode_limit);
+		trace!(target: "client", "Creating schedule. fCML={}", self.ethash_params.frontier_compatibility_mode_limit);
 
-		if env_info.number < self.params.frontier_compatibility_mode_limit {
+		if env_info.number < self.ethash_params.frontier_compatibility_mode_limit {
 			Schedule::new_frontier()
 		} else {
 			Schedule::new_homestead()
@@ -207,7 +207,7 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
-		if header.number() >= self.params.frontier_compatibility_mode_limit {
+		if header.number() >= self.ethash_params.frontier_compatibility_mode_limit {
 			try!(t.check_low_s());
 		}
 		Ok(())
@@ -229,7 +229,7 @@ impl Ethash {
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 		let difficulty_bound_divisor = self.ethash_params.difficulty_bound_divisor;
 		let duration_limit = self.ethash_params.duration_limit;
-		let frontier_limit = self.params.frontier_compatibility_mode_limit;
+		let frontier_limit = self.ethash_params.frontier_compatibility_mode_limit;
 
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {

@@ -19,6 +19,7 @@
 use serde::Deserializer;
 use serde::de::Visitor;
 use spec::Ethash;
+use spec::BasicAuthority;
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -27,6 +28,8 @@ pub enum Engine {
 	Null,
 	/// Ethash engine.
 	Ethash(Ethash),
+	/// BasicAuthority engine.
+	BasicAuthority(BasicAuthority),
 }
 
 #[cfg(test)]
@@ -46,13 +49,13 @@ mod tests {
 		let s = r#"{
 			"Ethash": {
 				"params": {
-					"tieBreakingGas": false,
 					"gasLimitBoundDivisor": "0x0400",
 					"minimumDifficulty": "0x020000",
 					"difficultyBoundDivisor": "0x0800",
 					"durationLimit": "0x0d",
 					"blockReward": "0x4563918244F40000",
-					"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b"
+					"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
+					"frontierCompatibilityModeLimit" : "0x"
 				}
 			}
 		}"#;

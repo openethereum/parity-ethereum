@@ -1484,7 +1484,7 @@ mod tests {
 	}
 
 	fn dummy_sync_with_peer(peer_latest_hash: H256) -> ChainSync {
-		let mut sync = ChainSync::new(SyncConfig::default(), Miner::new(false));
+		let mut sync = ChainSync::new(SyncConfig::default(), Arc::new(Miner::default()));
 		sync.peers.insert(0,
 		  	PeerInfo {
 				protocol_version: 0,

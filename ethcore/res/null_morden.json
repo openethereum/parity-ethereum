@@ -5,7 +5,6 @@
 	},
 	"params": {
 		"accountStartNonce": "0x0100000",
-		"frontierCompatibilityModeLimit": "0x789b0",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x2"

@@ -31,6 +31,8 @@ const KEY_LENGTH_AES: u32 = KEY_LENGTH/2;
 const KEY_LENGTH_USIZE: usize = KEY_LENGTH as usize;
 const KEY_LENGTH_AES_USIZE: usize = KEY_LENGTH_AES as usize;
 
+// TODO: this file needs repotting into several separate files.
+
 /// Encrypted hash-map, each request should contain password
 pub trait EncryptedHashMap<Key: Hash + Eq> {
 	/// Returns existing value for the key, if any
@@ -87,10 +89,12 @@ pub trait AccountProvider : Send + Sync {
 	fn unlock_account(&self, account: &Address, pass: &str) -> Result<(), EncryptedHashMapError>;
 	/// Creates account
 	fn new_account(&self, pass: &str) -> Result<Address, ::std::io::Error>;
-	/// Returns secret for unlocked account
+	/// Returns secret for unlocked `account`.
 	fn account_secret(&self, account: &Address) -> Result<crypto::Secret, SigningError>;
-	/// Returns secret for unlocked account
-	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError>;
+	/// Returns signature when unlocked `account` signs `message`.
+	fn sign(&self, account: &Address, message: &H256) -> Result<crypto::Signature, SigningError> {
+		self.account_secret(account).and_then(|s| crypto::ec::sign(&s, message).map_err(|_| SigningError::InvalidSecret))
+	}
 }
 
 /// Thread-safe accounts management

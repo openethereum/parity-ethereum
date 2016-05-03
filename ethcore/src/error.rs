@@ -137,6 +137,8 @@ pub enum BlockError {
 	MismatchedH256SealElement(Mismatch<H256>),
 	/// Proof-of-work aspect of seal, which we assume is a 256-bit value, is invalid.
 	InvalidProofOfWork(OutOfBounds<U256>),
+	/// Some low-level aspect of the seal in incorrect.
+	InvalidSeal,
 	/// Gas limit header field is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
 	/// Receipts trie root header field is invalid.

@@ -24,6 +24,7 @@ use account_db::*;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
+use basic_authority::BasicAuthority;
 use ethjson;
 
 /// Parameters common to all engines.
@@ -31,8 +32,6 @@ use ethjson;
 pub struct CommonParams {
 	/// Account start nonce.
 	pub account_start_nonce: U256,
-	/// Frontier compatibility mode limit.
-	pub frontier_compatibility_mode_limit: u64,
 	/// Maximum size of extra data.
 	pub maximum_extra_data_size: usize,
 	/// Network id.
@@ -45,7 +44,6 @@ impl From<ethjson::spec::Params> for CommonParams {
 	fn from(p: ethjson::spec::Params) -> Self {
 		CommonParams {
 			account_start_nonce: p.account_start_nonce.into(),
-			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.into(),
 			maximum_extra_data_size: p.maximum_extra_data_size.into(),
 			network_id: p.network_id.into(),
 			min_gas_limit: p.min_gas_limit.into(),
@@ -131,7 +129,8 @@ impl Spec {
 	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Box<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Box::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::Ethash(ethash) => Box::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins))
+			ethjson::spec::Engine::Ethash(ethash) => Box::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
+			ethjson::spec::Engine::BasicAuthority(basic_authority) => Box::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 		}
 	}
 
@@ -241,14 +240,9 @@ impl Spec {
 		From::from(ethjson::spec::Spec::load(reader).expect("invalid json file"))
 	}
 
-	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
 	pub fn new_test() -> Spec {
 		Spec::load(include_bytes!("../../res/null_morden.json"))
-	}
-
-	/// Create a new Spec which conforms to the Morden chain except that it's a NullEngine consensus.
-	pub fn new_homestead_test() -> Spec {
-		Spec::load(include_bytes!("../../res/null_homestead_morden.json"))
 	}
 }
 

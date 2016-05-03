@@ -34,9 +34,10 @@ use std::collections::HashSet;
 use util::bytes::Bytes;
 use util::hash::{Address, H256, H2048};
 use util::numbers::U256;
+use util::keys::store::AccountProvider;
 use blockchain::TreeRoute;
 use block_queue::BlockQueueInfo;
-use block::{ClosedBlock, LockedBlock, SealedBlock};
+use block::{ExecutedBlock, ClosedBlock, LockedBlock, SealedBlock};
 use header::{BlockNumber, Header};
 use transaction::{LocalizedTransaction, SignedTransaction};
 use log_entry::LocalizedLogEntry;
@@ -133,6 +134,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction) -> Result<Executed, Error>;
+
+	/// Attempt to seal the block internally. See `Engine`.
+	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { self.engine().generate_seal(block, accounts) }
 
 	/// Executes a function providing it with a reference to an engine.
 	fn engine(&self) -> &Engine;
