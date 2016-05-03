@@ -20,13 +20,14 @@ use std::sync::{Arc, RwLock};
 use jsonrpc_core::IoHandler;
 use util::hash::{Address, H256, FixedHash};
 use util::numbers::{Uint, U256};
+use util::keys::{TestAccount, TestAccountProvider};
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
 use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
 use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
 use ethminer::ExternalMiner;
 use v1::{Eth, EthClient};
-use v1::tests::helpers::{TestAccount, TestAccountProvider, TestSyncProvider, Config, TestMinerService};
+use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
