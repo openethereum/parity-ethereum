@@ -3,28 +3,39 @@ use spec::ParamType;
 use token::Token;
 use error::Error;
 
+fn pad_u32(value: u32) -> [u8; 32] {
+	let mut padded = [0u8; 32];
+	let bytes = (32 - value.leading_zeros() + 7) / 8;
+	unsafe {
+		ptr::copy(&[value] as *const u32 as *const u8, padded.as_mut_ptr().offset(32 - bytes as isize), bytes as usize);
+	}
+	padded
+}
+
+#[derive(Debug)]
 enum Mediate {
 	Raw(Vec<[u8; 32]>),
 	Prefixed(Vec<[u8; 32]>),
-	Nested(Vec<Mediate>),
+	FixedArray(Vec<Mediate>),
+	Array(Vec<Mediate>),
 }
 
 impl Mediate {
 	fn init_len(&self) -> u32 {
-		let len = match *self {
-			Mediate::Raw(ref raw) => raw.len(),
-			Mediate::Prefixed(_) => 1,
-			Mediate::Nested(_) => 1,
-		};
-
-		len as u32 * 32
+		match *self {
+			Mediate::Raw(ref raw) => 32 * raw.len() as u32,
+			Mediate::Prefixed(_) => 32,
+			Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.init_len()),
+			Mediate::Array(_) => 32,
+		}
 	}
 
 	fn closing_len(&self) -> u32 {
 		match *self {
 			Mediate::Raw(_) => 0,
 			Mediate::Prefixed(ref pre) => pre.len() as u32 * 32,
-			Mediate::Nested(ref nes) => nes.iter().fold(0, |acc, m| acc + m.init_len() + m.closing_len()),
+			Mediate::FixedArray(ref nes) => nes.iter().fold(0, |acc, m| acc + m.closing_len()),
+			Mediate::Array(ref nes) => nes.iter().fold(32, |acc, m| acc + m.init_len() + m.closing_len()),
 		}
 	}
 
@@ -38,8 +49,14 @@ impl Mediate {
 	fn init(&self, suffix_offset: u32) -> Vec<[u8; 32]> {
 		match *self {
 			Mediate::Raw(ref raw) => raw.clone(),
-			Mediate::Prefixed(_) | Mediate::Nested(_) => {
-				unimplemented!();
+			Mediate::FixedArray(ref nes) => {
+				nes.iter()
+					.enumerate()
+					.flat_map(|(i, m)| m.init(Mediate::offset_for(nes, i)))
+					.collect()
+			},
+			Mediate::Prefixed(_) | Mediate::Array(_) => {
+				vec![pad_u32(suffix_offset)]
 			}
 		}
 	}
@@ -48,8 +65,15 @@ impl Mediate {
 		match *self {
 			Mediate::Raw(ref raw) => vec![],
 			Mediate::Prefixed(ref pre) => pre.clone(),
-			Mediate::Nested(ref nes) => {
-				unimplemented!();
+			Mediate::FixedArray(ref nes) => {
+				nes.iter()
+					.enumerate()
+					.flat_map(|(i, m)| m.closing(Mediate::offset_for(nes, i)))
+					.collect()
+			},
+			Mediate::Array(ref nes) => {
+				let prefix = vec![pad_u32(nes.len() as u32)].into_iter();
+
 				let inits = nes.iter()
 					.enumerate()
 					.flat_map(|(i, m)| m.init(offset + Mediate::offset_for(nes, i)));
@@ -58,7 +82,7 @@ impl Mediate {
 					.enumerate()
 					.flat_map(|(i, m)| m.closing(offset + Mediate::offset_for(nes, i)));
 
-				inits.chain(closings).collect()
+				prefix.chain(inits).chain(closings).collect()
 			},
 		}
 	}
@@ -94,9 +118,23 @@ impl Encoder {
 				}
 				Mediate::Raw(vec![padded])
 			},
+			Token::Array(tokens) => {
+				let mediates = tokens.into_iter()
+					.map(Encoder::encode_token)
+					.collect();
+
+				Mediate::Array(mediates)
+			},
+			Token::FixedArray(tokens) => {
+				let mediates = tokens.into_iter()
+					.map(Encoder::encode_token)
+					.collect();
+
+				Mediate::FixedArray(mediates)
+			},
 			_ => {
 				unimplemented!();
-			}
+			},
 		}
 	}
 }
@@ -122,5 +160,75 @@ mod tests {
 		let expected = "0000000000000000000000001111111111111111111111111111111111111111".from_hex().unwrap();
 		assert_eq!(encoded, expected);	
 	}
+
+	#[test]
+	fn encode_dynamic_array_of_addresses() {
+		let address1 = Token::Address([0x11u8; 20]);
+		let address2 = Token::Address([0x22u8; 20]);
+		let addresses = Token::Array(vec![address1, address2]);
+		let encoded = Encoder::encode(vec![addresses]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000020" + 
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"0000000000000000000000001111111111111111111111111111111111111111" +
+			"0000000000000000000000002222222222222222222222222222222222222222").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
+	fn encode_fixed_array_of_addresses() {
+		let address1 = Token::Address([0x11u8; 20]);
+		let address2 = Token::Address([0x22u8; 20]);
+		let addresses = Token::FixedArray(vec![address1, address2]);
+		let encoded = Encoder::encode(vec![addresses]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000001111111111111111111111111111111111111111" +
+			"0000000000000000000000002222222222222222222222222222222222222222").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
+	fn encode_fixed_array_of_dynamic_array_of_addresses() {
+		let address1 = Token::Address([0x11u8; 20]);
+		let address2 = Token::Address([0x22u8; 20]);
+		let address3 = Token::Address([0x33u8; 20]);
+		let address4 = Token::Address([0x44u8; 20]);
+		let array0 = Token::Array(vec![address1, address2]);
+		let array1 = Token::Array(vec![address3, address4]);
+		let fixed = Token::FixedArray(vec![array0, array1]);
+		let encoded = Encoder::encode(vec![fixed]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000040" + 
+			"00000000000000000000000000000000000000000000000000000000000000a0" + 
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"0000000000000000000000001111111111111111111111111111111111111111" +
+			"0000000000000000000000002222222222222222222222222222222222222222" +
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"0000000000000000000000003333333333333333333333333333333333333333" +
+			"0000000000000000000000004444444444444444444444444444444444444444").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
+	fn encode_dynamic_array_of_fixed_array_of_addresses() {
+		let address1 = Token::Address([0x11u8; 20]);
+		let address2 = Token::Address([0x22u8; 20]);
+		let address3 = Token::Address([0x33u8; 20]);
+		let address4 = Token::Address([0x44u8; 20]);
+		let array0 = Token::FixedArray(vec![address1, address2]);
+		let array1 = Token::FixedArray(vec![address3, address4]);
+		let dynamic = Token::Array(vec![array0, array1]);
+		let encoded = Encoder::encode(vec![dynamic]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000020" +
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"0000000000000000000000001111111111111111111111111111111111111111" +
+			"0000000000000000000000002222222222222222222222222222222222222222" +
+			"0000000000000000000000003333333333333333333333333333333333333333" +
+			"0000000000000000000000004444444444444444444444444444444444444444").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+
 }
 
