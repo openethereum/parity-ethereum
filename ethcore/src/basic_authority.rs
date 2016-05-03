@@ -19,7 +19,7 @@
 use common::*;
 use util::keys::store::AccountProvider;
 use block::*;
-use spec::CommonParams;
+use spec::{CommonParams, Spec};
 use engine::*;
 use evm::{Schedule, Factory};
 use ethjson;
@@ -194,66 +194,34 @@ impl Header {
 	}
 }
 
+/// Create a new Morden chain spec.
+pub fn new_test_authority() -> Spec { Spec::load(include_bytes!("../res/test_authority.json")) }
+
 #[cfg(test)]
 mod tests {
-/*	extern crate ethash;
-
+	use super::*;
 	use common::*;
 	use block::*;
 	use engine::*;
 	use tests::helpers::*;
-	use super::super::new_morden;
-
-	#[test]
-	fn on_close_block() {
-		let spec = new_morden();
-		let engine = &spec.engine;
-		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut());
-		let last_hashes = vec![genesis_header.hash()];
-		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
-		let b = b.close();
-		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("4563918244f40000").unwrap());
-	}
-
-	#[test]
-	fn on_close_block_with_uncle() {
-		let spec = new_morden();
-		let engine = &spec.engine;
-		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut());
-		let last_hashes = vec![genesis_header.hash()];
-		let mut b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, Address::zero(), x!(3141562), vec![]);
-		let mut uncle = Header::new();
-		let uncle_author = address_from_hex("ef2d6d194084c2de36e0dabfce45d046b37d1106");
-		uncle.author = uncle_author.clone();
-		b.push_uncle(uncle).unwrap();
-
-		let b = b.close();
-		assert_eq!(b.state().balance(&Address::zero()), U256::from_str("478eae0e571ba000").unwrap());
-		assert_eq!(b.state().balance(&uncle_author), U256::from_str("3cb71f51fc558000").unwrap());
-	}
+	use util::keys::{TestAccountProvider, TestAccount};
 
 	#[test]
 	fn has_valid_metadata() {
-		let engine = new_morden().engine;
+		let engine = new_test_authority().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
 	}
 
 	#[test]
 	fn can_return_factory() {
-		let engine = new_morden().engine;
+		let engine = new_test_authority().engine;
 		engine.vm_factory();
 	}
 
 	#[test]
 	fn can_return_schedule() {
-		let engine = new_morden().engine;
+		let engine = new_test_authority().engine;
 		let schedule = engine.schedule(&EnvInfo {
 			number: 10000000,
 			author: x!(0),
@@ -265,24 +233,11 @@ mod tests {
 		});
 
 		assert!(schedule.stack_limit > 0);
-
-		let schedule = engine.schedule(&EnvInfo {
-			number: 100,
-			author: x!(0),
-			timestamp: 0,
-			difficulty: x!(0),
-			last_hashes: vec![],
-			gas_used: x!(0),
-			gas_limit: x!(0)
-		});
-
-		assert!(!schedule.have_delegate_call);
 	}
 
 	#[test]
 	fn can_do_seal_verification_fail() {
-		let engine = new_morden().engine;
-		//let engine = Ethash::new_test(new_morden());
+		let engine = new_test_authority().engine;
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
@@ -295,129 +250,50 @@ mod tests {
 	}
 
 	#[test]
-	fn can_do_difficulty_verification_fail() {
-		let engine = new_morden().engine;
+	fn can_do_signature_verification_fail() {
+		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
 
 		let verify_result = engine.verify_block_basic(&header, None);
 
 		match verify_result {
-			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
+			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => {},
 			Err(_) => { panic!("should be block difficulty error (got {:?})", verify_result); },
 			_ => { panic!("Should be error, got Ok"); },
 		}
 	}
 
 	#[test]
-	fn can_do_proof_of_work_verification_fail() {
-		let engine = new_morden().engine;
+	fn can_do_signature_verification() {
+		let secret = "".sha3();
+		let addr = KeyPair::from_secret("".sha3()).unwrap().address();
+
+		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
-		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
+		header.set_author(addr);
+		header.sign(&secret);
 
-		let verify_result = engine.verify_block_basic(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
-			Err(_) => { panic!("should be invalid proof of work error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
+		assert!(engine.verify_block_basic(&header, None).is_ok());
 	}
 
 	#[test]
-	fn can_do_seal_unordered_verification_fail() {
-		let engine = new_morden().engine;
-		let header: Header = Header::default();
+	fn can_generate_seal() {
+		let addr = KeyPair::from_secret("".sha3()).unwrap().address();
+		let accounts = hash_map![addr => TestAccount{unlocked: true, password: Default::default(), secret: "".sha3()}];
+		let tap = TestAccountProvider::new(accounts);
 
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let spec = new_test_authority();
+		let engine = &spec.engine;
+		let genesis_header = spec.genesis_header();
+		let mut db_result = get_temp_journal_db();
+		let mut db = db_result.take();
+		spec.ensure_db_good(db.as_hashdb_mut());
+		let last_hashes = vec![genesis_header.hash()];
+		let b = OpenBlock::new(engine.deref(), false, db, &genesis_header, last_hashes, addr.clone(), x!(3141562), vec![]);
+		let b = b.close_and_lock();
+		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
-			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
+		assert!(b.try_seal(engine.deref(), seal).is_ok());
 	}
-
-	#[test]
-	fn can_do_seal256_verification_fail() {
-		let engine = new_morden().engine;
-		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
-		let verify_result = engine.verify_block_unordered(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
-			Err(_) => { panic!("should be invalid 256-bit seal fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_do_proof_of_work_unordered_verification_fail() {
-		let engine = new_morden().engine;
-		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
-		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
-
-		let verify_result = engine.verify_block_unordered(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
-			Err(_) => { panic!("should be invalid proof-of-work fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_verify_block_family_genesis_fail() {
-		let engine = new_morden().engine;
-		let header: Header = Header::default();
-		let parent_header: Header = Header::default();
-
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::RidiculousNumber(_))) => {},
-			Err(_) => { panic!("should be invalid block number fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_verify_block_family_difficulty_fail() {
-		let engine = new_morden().engine;
-		let mut header: Header = Header::default();
-		header.set_number(2);
-		let mut parent_header: Header = Header::default();
-		parent_header.set_number(1);
-
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {},
-			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
-	fn can_verify_block_family_gas_fail() {
-		let engine = new_morden().engine;
-		let mut header: Header = Header::default();
-		header.set_number(2);
-		header.set_difficulty(U256::from_str("0000000000000000000000000000000000000000000000000000000000020000").unwrap());
-		let mut parent_header: Header = Header::default();
-		parent_header.set_number(1);
-
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidGasLimit(_))) => {},
-			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-*/
-	// TODO: difficulty test
 }

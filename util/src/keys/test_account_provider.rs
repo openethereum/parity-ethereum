@@ -19,9 +19,9 @@
 use std::sync::RwLock;
 use std::collections::HashMap;
 use std::io;
-use util::hash::{Address, FixedHash};
-use util::crypto::{Secret, KeyPair};
-use util::keys::store::{AccountProvider, SigningError, EncryptedHashMapError};
+use hash::{Address, FixedHash};
+use crypto::{Secret, KeyPair};
+use super::store::{AccountProvider, SigningError, EncryptedHashMapError};
 
 /// Account mock.
 #[derive(Clone)]
