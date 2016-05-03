@@ -316,6 +316,7 @@ dependencies = [
  "ethcore-util 1.2.0",
  "ethminer 1.2.0",
  "ethsync 1.2.0",
+ "json-ipc-server 0.1.0 (git+https://github.com/NikVolf/json-ipc-server.git)",
  "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/tomusdrw/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -550,6 +551,17 @@ dependencies = [
 name = "itertools"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "json-ipc-server"
+version = "0.1.0"
+source = "git+https://github.com/NikVolf/json-ipc-server.git#734f3eba637173a882ec7456032b1af05557b13a"
+dependencies = [
+ "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
+ "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "json-tests"

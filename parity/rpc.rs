@@ -35,7 +35,7 @@ use ethcore_rpc::{RpcServerError, RpcServer as Server};
 #[cfg(not(feature = "rpc"))]
 pub struct RpcServer;
 
-pub struct Configuration {
+pub struct HttpConfiguration {
 	pub enabled: bool,
 	pub interface: String,
 	pub port: u16,
@@ -54,7 +54,7 @@ pub struct Dependencies {
 	pub settings: Arc<NetworkSettings>,
 }
 
-pub fn new(conf: Configuration, deps: Dependencies) -> Option<RpcServer> {
+pub fn new_http(conf: HttpConfiguration, deps: &Arc<Dependencies>) -> Option<RpcServer> {
 	if !conf.enabled {
 		return None;
 	}
@@ -68,26 +68,10 @@ pub fn new(conf: Configuration, deps: Dependencies) -> Option<RpcServer> {
 	let url = format!("{}:{}", interface, conf.port);
 	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 
-	Some(setup_rpc_server(deps, &addr, conf.cors, apis))
+	Some(setup_http_rpc_server(deps, &addr, conf.cors, apis))
 }
 
-#[cfg(not(feature = "rpc"))]
-pub fn setup_rpc_server(
-	_deps: Dependencies,
-	_url: &SocketAddr,
-	_cors_domain: Option<String>,
-	_apis: Vec<&str>,
-) -> ! {
-	die!("Your Parity version has been compiled without JSON-RPC support.")
-}
-
-#[cfg(feature = "rpc")]
-pub fn setup_rpc_server(
-	deps: Dependencies,
-	url: &SocketAddr,
-	cors_domain: Option<String>,
-	apis: Vec<&str>,
-) -> RpcServer {
+fn setup_rpc_server(apis: Vec<&str>, deps: &Arc<Dependencies>) -> Server {
 	use ethcore_rpc::v1::*;
 
 	let server = Server::new();
@@ -125,7 +109,29 @@ pub fn setup_rpc_server(
 		}
 	}
 	server.add_delegate(RpcClient::new(modules).to_delegate());
+	server
+}
+
+#[cfg(not(feature = "rpc"))]
+pub fn setup_http_rpc_server(
+	_deps: Dependencies,
+	_url: &SocketAddr,
+	_cors_domain: Option<String>,
+	_apis: Vec<&str>,
+) -> ! {
+	die!("Your Parity version has been compiled without JSON-RPC support.")
+}
+
+#[cfg(feature = "rpc")]
+pub fn setup_http_rpc_server(
+	dependencies: &Arc<Dependencies>,
+	url: &SocketAddr,
+	cors_domain: Option<String>,
+	apis: Vec<&str>,
+) -> RpcServer {
+	let server = setup_rpc_server(apis, dependencies);
 	let start_result = server.start_http(url, cors_domain);
+	let deps = dependencies.clone();
 	match start_result {
 		Err(RpcServerError::IoError(err)) => die_with_io_error("RPC", err),
 		Err(e) => die!("RPC: {:?}", e),

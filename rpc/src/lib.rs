@@ -31,6 +31,7 @@ extern crate ethcore;
 extern crate ethsync;
 extern crate ethminer;
 extern crate transient_hashmap;
+extern crate json_ipc_server as ipc;
 
 use std::sync::Arc;
 use std::net::SocketAddr;
@@ -41,7 +42,7 @@ pub mod v1;
 
 /// Http server.
 pub struct RpcServer {
-	handler: Arc<IoHandler>,
+	handler: Arc<jsonrpc_core::io::IoHandler>,
 }
 
 impl RpcServer {
@@ -61,5 +62,12 @@ impl RpcServer {
 	pub fn start_http(&self, addr: &SocketAddr, cors_domain: Option<String>) -> Result<Server, RpcServerError> {
 		let cors_domain = cors_domain.to_owned();
 		Server::start(addr, self.handler.clone(), cors_domain.map(jsonrpc_http_server::AccessControlAllowOrigin::Value))
+	}
+
+	/// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
+	pub fn start_ipc(&self, addr: &str) -> Result<ipc::Server, ipc::Error> {
+		let server = try!(ipc::Server::new(addr, &self.handler));
+		try!(server.run_async());
+		Ok(server)
 	}
 }
