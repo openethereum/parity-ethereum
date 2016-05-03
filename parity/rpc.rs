@@ -27,6 +27,7 @@ use util::panics::PanicHandler;
 use util::keys::store::{AccountService};
 use util::network_settings::NetworkSettings;
 use die::*;
+use ipc;
 
 #[cfg(feature = "rpc")]
 pub use ethcore_rpc::Server as RpcServer;
@@ -41,6 +42,12 @@ pub struct HttpConfiguration {
 	pub port: u16,
 	pub apis: String,
 	pub cors: Option<String>,
+}
+
+pub struct IpcConfiguration {
+	pub enabled: bool,
+	pub socket_addr: String,
+	pub apis: String,
 }
 
 pub struct Dependencies {
@@ -69,6 +76,16 @@ pub fn new_http(conf: HttpConfiguration, deps: &Arc<Dependencies>) -> Option<Rpc
 	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 
 	Some(setup_http_rpc_server(deps, &addr, conf.cors, apis))
+}
+
+pub fn new_ipc(conf: IpcConfiguration, deps: &Arc<Dependencies>) -> Option<ipc::Server> {
+	if !conf.enabled {
+		return None;
+	}
+
+	let apis = conf.apis.split(',').collect();
+
+	Some(setup_ipc_rpc_server(deps, conf.addr, apis))
 }
 
 fn setup_rpc_server(apis: Vec<&str>, deps: &Arc<Dependencies>) -> Server {
@@ -144,3 +161,11 @@ pub fn setup_http_rpc_server(
 	}
 }
 
+pub fn setup_ipc_rpc_server(dependencies: &Arc<Dependencies>, addr: &str, apis: Vec<&str>) {
+	let server = setup_rpc_server(apis, dependencies);
+	match server.start_ipc(addr) {
+		Err(ipc::Error::Io(io_error)) => die_with_io_error("RPC", err),
+		Err(e) => die!("RPC: {:?}", e),
+		Ok(server) => server
+	}
+}
