@@ -133,18 +133,16 @@ impl Engine for BasicAuthority {
 				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
 			)));
 		}
+		Ok(())
+	}
 
+	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the signature is legit.
 		let sig = try!(UntrustedRlp::new(&header.seal[0]).as_val::<H520>());
 		let signer = Address::from(try!(ec::recover(&sig, &header.bare_hash())).sha3());
 		if !self.our_params.authorities.contains(&signer) {
 			return try!(Err(BlockError::InvalidSeal));
 		}
-
-		Ok(())
-	}
-
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		Ok(())
 	}
 
@@ -194,7 +192,7 @@ impl Header {
 	}
 }
 
-/// Create a new Morden chain spec.
+/// Create a new test chain spec with BasicAuthority consensus engine.
 pub fn new_test_authority() -> Spec { Spec::load(include_bytes!("../res/test_authority.json")) }
 
 #[cfg(test)]
@@ -255,7 +253,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
 
-		let verify_result = engine.verify_block_basic(&header, None);
+		let verify_result = engine.verify_block_unordered(&header, None);
 
 		match verify_result {
 			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => {},
@@ -274,7 +272,7 @@ mod tests {
 		header.set_author(addr);
 		header.sign(&secret);
 
-		assert!(engine.verify_block_basic(&header, None).is_ok());
+		assert!(engine.verify_block_unordered(&header, None).is_ok());
 	}
 
 	#[test]

@@ -49,7 +49,6 @@ fn accounts() {
 	assert_eq!(io.handle_request(request), Some(response.to_owned()));
 }
 
-
 #[test]
 fn new_account() {
 	let (test_provider, io) = setup();
