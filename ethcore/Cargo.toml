@@ -3,7 +3,7 @@ description = "Ethcore library"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethcore"
-version = "1.1.0"
+version = "1.2.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
@@ -17,11 +17,12 @@ ethcore-util = { path = "../util" }
 evmjit = { path = "../evmjit", optional = true }
 ethash = { path = "../ethash" }
 num_cpus = "0.2"
-clippy = { version = "0.0.63", optional = true}
+clippy = { version = "0.0.64", optional = true}
 crossbeam = "0.1.5"
 lazy_static = "0.1"
 ethcore-devtools = { path = "../devtools" }
 ethjson = { path = "../json" }
+bloomchain = "0.1"
 
 [features]
 jit = ["evmjit"]

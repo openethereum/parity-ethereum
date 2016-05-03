@@ -16,21 +16,39 @@
 
 //! Tracing
 
-mod trace;
+mod block;
+mod bloom;
+mod config;
+mod db;
+mod executive_tracer;
+mod filter;
+mod flat;
+mod import;
+mod localized;
+mod noop_tracer;
+pub mod trace;
 
-pub use self::trace::*;
-use util::bytes::Bytes;
-use util::hash::Address;
-use util::numbers::U256;
+pub use self::block::BlockTraces;
+pub use self::config::{Config, Switch};
+pub use self::db::TraceDB;
+pub use self::trace::Trace;
+pub use self::noop_tracer::NoopTracer;
+pub use self::executive_tracer::ExecutiveTracer;
+pub use self::filter::{Filter, AddressesFilter};
+pub use self::import::ImportRequest;
+pub use self::localized::LocalizedTrace;
+use util::{Bytes, Address, U256, H256};
+use self::trace::{Call, Create};
 use action_params::ActionParams;
+use header::BlockNumber;
 
 /// This trait is used by executive to build traces.
 pub trait Tracer: Send {
 	/// Prepares call trace for given params. Noop tracer should return None.
-	fn prepare_trace_call(&self, params: &ActionParams) -> Option<TraceCall>;
+	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call>;
 
 	/// Prepares create trace for given params. Noop tracer should return None.
-	fn prepare_trace_create(&self, params: &ActionParams) -> Option<TraceCreate>;
+	fn prepare_trace_create(&self, params: &ActionParams) -> Option<Create>;
 
 	/// Prepare trace output. Noop tracer should return None.
 	fn prepare_trace_output(&self) -> Option<Bytes>;
@@ -38,7 +56,7 @@ pub trait Tracer: Send {
 	/// Stores trace call info.
 	fn trace_call(
 		&mut self,
-		call: Option<TraceCall>,
+		call: Option<Call>,
 		gas_used: U256,
 		output: Option<Bytes>,
 		depth: usize,
@@ -49,7 +67,7 @@ pub trait Tracer: Send {
 	/// Stores trace create info.
 	fn trace_create(
 		&mut self,
-		create: Option<TraceCreate>,
+		create: Option<Create>,
 		gas_used: U256,
 		code: Option<Bytes>,
 		address: Address,
@@ -58,10 +76,10 @@ pub trait Tracer: Send {
 	);
 
 	/// Stores failed call trace.
-	fn trace_failed_call(&mut self, call: Option<TraceCall>, depth: usize, subs: Vec<Trace>, delegate_call: bool);
+	fn trace_failed_call(&mut self, call: Option<Call>, depth: usize, subs: Vec<Trace>, delegate_call: bool);
 
 	/// Stores failed create trace.
-	fn trace_failed_create(&mut self, create: Option<TraceCreate>, depth: usize, subs: Vec<Trace>);
+	fn trace_failed_create(&mut self, create: Option<Create>, depth: usize, subs: Vec<Trace>);
 
 	/// Spawn subracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;
@@ -70,132 +88,33 @@ pub trait Tracer: Send {
 	fn traces(self) -> Vec<Trace>;
 }
 
-/// Nonoperative tracer. Does not trace anything.
-pub struct NoopTracer;
+/// `DbExtras` provides an interface to query extra data which is not stored in tracesdb,
+/// but necessary to work correctly.
+pub trait DatabaseExtras {
+	/// Returns hash of given block number.
+	fn block_hash(&self, block_number: BlockNumber) -> Option<H256>;
 
-impl Tracer for NoopTracer {
-	fn prepare_trace_call(&self, _: &ActionParams) -> Option<TraceCall> {
-		None
-	}
-
-	fn prepare_trace_create(&self, _: &ActionParams) -> Option<TraceCreate> {
-		None
-	}
-
-	fn prepare_trace_output(&self) -> Option<Bytes> {
-		None
-	}
-
-	fn trace_call(&mut self, call: Option<TraceCall>, _: U256, output: Option<Bytes>, _: usize, _: Vec<Trace>,
-				  _: bool) {
-		assert!(call.is_none());
-		assert!(output.is_none());
-	}
-
-	fn trace_create(&mut self, create: Option<TraceCreate>, _: U256, code: Option<Bytes>, _: Address, _: usize, _: Vec<Trace>) {
-		assert!(create.is_none());
-		assert!(code.is_none());
-	}
-
-	fn trace_failed_call(&mut self, call: Option<TraceCall>, _: usize, _: Vec<Trace>, _: bool) {
-		assert!(call.is_none());
-	}
-
-	fn trace_failed_create(&mut self, create: Option<TraceCreate>, _: usize, _: Vec<Trace>) {
-		assert!(create.is_none());
-	}
-
-	fn subtracer(&self) -> Self {
-		NoopTracer
-	}
-
-	fn traces(self) -> Vec<Trace> {
-		vec![]
-	}
+	/// Returns hash of transaction at given position.
+	fn transaction_hash(&self, block_number: BlockNumber, tx_position: usize) -> Option<H256>;
 }
 
-/// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
-#[derive(Default)]
-pub struct ExecutiveTracer {
-	traces: Vec<Trace>
-}
+/// Db provides an interface to query tracesdb.
+pub trait Database {
+	/// Returns true if tracing is enabled. Otherwise false.
+	fn tracing_enabled(&self) -> bool;
 
-impl Tracer for ExecutiveTracer {
-	fn prepare_trace_call(&self, params: &ActionParams) -> Option<TraceCall> {
-		Some(TraceCall::from(params.clone()))
-	}
+	/// Imports new block traces.
+	fn import(&self, request: ImportRequest);
 
-	fn prepare_trace_create(&self, params: &ActionParams) -> Option<TraceCreate> {
-		Some(TraceCreate::from(params.clone()))
-	}
+	/// Returns localized trace at given position.
+	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace>;
 
-	fn prepare_trace_output(&self) -> Option<Bytes> {
-		Some(vec![])
-	}
+	/// Returns localized traces created by a single transaction.
+	fn transaction_traces(&self, block_number: BlockNumber, tx_position: usize) -> Option<Vec<LocalizedTrace>>;
 
-	fn trace_call(&mut self, call: Option<TraceCall>, gas_used: U256, output: Option<Bytes>, depth: usize, subs:
-				  Vec<Trace>, delegate_call: bool) {
-		// don't trace if it's DELEGATECALL or CALLCODE.
-		if delegate_call {
-			return;
-		}
+	/// Returns localized traces created in given block.
+	fn block_traces(&self, block_number: BlockNumber) -> Option<Vec<LocalizedTrace>>;
 
-		let trace = Trace {
-			depth: depth,
-			subs: subs,
-			action: TraceAction::Call(call.expect("Trace call expected to be Some.")),
-			result: TraceResult::Call(TraceCallResult {
-				gas_used: gas_used,
-				output: output.expect("Trace call output expected to be Some.")
-			})
-		};
-		self.traces.push(trace);
-	}
-
-	fn trace_create(&mut self, create: Option<TraceCreate>, gas_used: U256, code: Option<Bytes>, address: Address, depth: usize, subs: Vec<Trace>) {
-		let trace = Trace {
-			depth: depth,
-			subs: subs,
-			action: TraceAction::Create(create.expect("Trace create expected to be Some.")),
-			result: TraceResult::Create(TraceCreateResult {
-				gas_used: gas_used,
-				code: code.expect("Trace create code expected to be Some."),
-				address: address
-			})
-		};
-		self.traces.push(trace);
-	}
-
-	fn trace_failed_call(&mut self, call: Option<TraceCall>, depth: usize, subs: Vec<Trace>, delegate_call: bool) {
-		// don't trace if it's DELEGATECALL or CALLCODE.
-		if delegate_call {
-			return;
-		}
-
-		let trace = Trace {
-			depth: depth,
-			subs: subs,
-			action: TraceAction::Call(call.expect("Trace call expected to be Some.")),
-			result: TraceResult::FailedCall,
-		};
-		self.traces.push(trace);
-	}
-
-	fn trace_failed_create(&mut self, create: Option<TraceCreate>, depth: usize, subs: Vec<Trace>) {
-		let trace = Trace {
-			depth: depth,
-			subs: subs,
-			action: TraceAction::Create(create.expect("Trace create expected to be Some.")),
-			result: TraceResult::FailedCreate,
-		};
-		self.traces.push(trace);
-	}
-
-	fn subtracer(&self) -> Self {
-		ExecutiveTracer::default()
-	}
-
-	fn traces(self) -> Vec<Trace> {
-		self.traces
-	}
+	/// Filter traces matching given filter.
+	fn filter(&self, filter: &Filter) -> Vec<LocalizedTrace>;
 }

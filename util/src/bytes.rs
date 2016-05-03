@@ -425,7 +425,7 @@ impl<'a, V1, V2, T3> ToBytesWithMap for (&'a Vec<V1>, &'a Vec<V2>, &'a T3)
 
 impl FromRawBytesVariable for Vec<u8> {
 	fn from_bytes_variable(bytes: &[u8]) -> Result<Vec<u8>, FromBytesError> {
-		Ok(bytes.clone().to_vec())
+		Ok(bytes.to_vec())
 	}
 }
 

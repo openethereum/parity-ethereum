@@ -84,6 +84,7 @@ extern crate env_logger;
 extern crate num_cpus;
 extern crate crossbeam;
 extern crate ethjson;
+extern crate bloomchain;
 
 #[cfg(test)] extern crate ethcore_devtools as devtools;
 #[cfg(feature = "jit" )] extern crate evmjit;

@@ -3,7 +3,7 @@ description = "Ethminer library"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethminer"
-version = "1.1.0"
+version = "1.2.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
@@ -17,7 +17,7 @@ log = "0.3"
 env_logger = "0.3"
 rustc-serialize = "0.3"
 rayon = "0.3.1"
-clippy = { version = "0.0.63", optional = true}
+clippy = { version = "0.0.64", optional = true}
 
 [features]
 default = []

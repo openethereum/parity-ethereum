@@ -26,7 +26,7 @@
 /// Start with out best block and request headers from peer backwards until a common block is found
 /// 3. Download headers and block bodies from peers in parallel.
 /// As soon as a set of the blocks is fully downloaded at the head of the queue it is fed to the blockchain
-/// 4. Maintain sync by handling NewBlocks/NewHashes messages
+/// 4. Maintain sync by handling `NewBlocks/NewHashes` messages
 ///
 
 use util::*;
@@ -114,7 +114,7 @@ pub enum SyncState {
 	Waiting,
 	/// Downloading blocks
 	Blocks,
-	/// Downloading blocks learned from NewHashes packet
+	/// Downloading blocks learned from `NewHashes` packet
 	NewBlocks,
 }
 
@@ -557,7 +557,7 @@ impl ChainSync {
 		Ok(())
 	}
 
-	/// Handles NewHashes packet. Initiates headers download for any unknown hashes.
+	/// Handles `NewHashes` packet. Initiates headers download for any unknown hashes.
 	fn on_peer_new_hashes(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		if self.peers.get_mut(&peer_id).unwrap().asking != PeerAsking::Nothing {
 			trace!(target: "sync", "Ignoring new hashes since we're already downloading.");

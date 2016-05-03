@@ -19,7 +19,7 @@ use std::slice::from_raw_parts;
 use std::net::{SocketAddr, ToSocketAddrs, SocketAddrV4, SocketAddrV6, Ipv4Addr, Ipv6Addr};
 use std::hash::{Hash, Hasher};
 use std::str::{FromStr};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 use std::path::{PathBuf};
 use std::fmt;
@@ -196,6 +196,7 @@ impl Hash for Node {
 /// Node table backed by disk file.
 pub struct NodeTable {
 	nodes: HashMap<NodeId, Node>,
+	useless_nodes: HashSet<NodeId>,
 	path: Option<String>,
 }
 
@@ -204,6 +205,7 @@ impl NodeTable {
 		NodeTable {
 			path: path.clone(),
 			nodes: NodeTable::load(path),
+			useless_nodes: HashSet::new(),
 		}
 	}
 
@@ -217,7 +219,7 @@ impl NodeTable {
 
 	/// Returns node ids sorted by number of failures
 	pub fn nodes(&self) -> Vec<NodeId> {
-		let mut refs: Vec<&Node> = self.nodes.values().collect();
+		let mut refs: Vec<&Node> = self.nodes.values().filter(|n| !self.useless_nodes.contains(&n.id)).collect();
 		refs.sort_by(|a, b| a.failures.cmp(&b.failures));
 		refs.iter().map(|n| n.id.clone()).collect()
 	}
@@ -249,6 +251,16 @@ impl NodeTable {
 		if let Some(node) = self.nodes.get_mut(id) {
 			node.failures += 1;
 		}
+	}
+
+	/// Mark as useless, no furter attempts to connect until next call to `clear_useless`.
+	pub fn mark_as_useless(&mut self, id: &NodeId) {
+		self.useless_nodes.insert(id.clone());
+	}
+
+	/// Atempt to connect to useless nodes again.
+	pub fn clear_useless(&mut self) {
+		self.useless_nodes.clear();
 	}
 
 	fn save(&self) {

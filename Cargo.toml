@@ -1,7 +1,7 @@
 [package]
 description = "Ethcore client."
 name = "parity"
-version = "1.1.0"
+version = "1.2.0"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
@@ -23,7 +23,7 @@ daemonize = "0.2"
 num_cpus = "0.2"
 number_prefix = "0.2"
 rpassword = "0.2.1"
-clippy = { version = "0.0.63", optional = true}
+clippy = { version = "0.0.64", optional = true}
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }

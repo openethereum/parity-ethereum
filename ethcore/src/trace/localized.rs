@@ -14,15 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use util::*;
-pub use basic_types::*;
-pub use error::*;
-pub use env_info::*;
-pub use views::*;
-pub use builtin::*;
-pub use header::*;
-pub use account::*;
-pub use transaction::*;
-pub use log_entry::*;
-pub use receipt::*;
-pub use action_params::*;
+use util::H256;
+use super::trace::{Action, Res};
+use header::BlockNumber;
+
+/// Localized trace.
+#[derive(Debug, PartialEq)]
+pub struct LocalizedTrace {
+	/// Type of action performed by a transaction.
+	pub action: Action,
+	/// Result of this action.
+	pub result: Res,
+	/// Number of subtraces.
+	pub subtraces: usize,
+	/// Exact location of trace.
+	///
+	/// [index in root, index in first CALL, index in second CALL, ...]
+	pub trace_address: Vec<usize>,
+	/// Transaction number within the block.
+	pub transaction_number: usize,
+	/// Signed transaction hash.
+	pub transaction_hash: H256,
+	/// Block number.
+	pub block_number: BlockNumber,
+	/// Block hash.
+	pub block_hash: H256,
+}

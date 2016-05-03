@@ -161,11 +161,11 @@ fn execute_client(conf: Configuration) {
 
 	// Setup rpc
 	let rpc_server = rpc::new(rpc::Configuration {
-		enabled: conf.args.flag_jsonrpc || conf.args.flag_rpc,
-		interface: conf.args.flag_rpcaddr.clone().unwrap_or(conf.args.flag_jsonrpc_interface.clone()),
-		port: conf.args.flag_rpcport.unwrap_or(conf.args.flag_jsonrpc_port),
-		apis: conf.args.flag_rpcapi.clone().unwrap_or(conf.args.flag_jsonrpc_apis.clone()),
-		cors: conf.args.flag_jsonrpc_cors.clone().or(conf.args.flag_rpccorsdomain.clone()),
+		enabled: network_settings.rpc_enabled,
+		interface: network_settings.rpc_interface.clone(),
+		port: network_settings.rpc_port,
+		apis: conf.rpc_apis(),
+		cors: conf.rpc_cors(),
 	}, rpc::Dependencies {
 		panic_handler: panic_handler.clone(),
 		client: client.clone(),
@@ -207,6 +207,10 @@ fn execute_client(conf: Configuration) {
 	wait_for_exit(panic_handler, rpc_server, webapp_server);
 }
 
+fn flush_stdout() {
+	::std::io::stdout().flush().ok().expect("stdout is flushable; qed");
+}
+
 fn execute_account_cli(conf: Configuration) {
 	use util::keys::store::SecretStore;
 	use rpassword::read_password;
@@ -214,8 +218,10 @@ fn execute_account_cli(conf: Configuration) {
 	if conf.args.cmd_new {
 		println!("Please note that password is NOT RECOVERABLE.");
 		print!("Type password: ");
+		flush_stdout();
 		let password = read_password().unwrap();
 		print!("Repeat password: ");
+		flush_stdout();
 		let password_repeat = read_password().unwrap();
 		if password != password_repeat {
 			println!("Passwords do not match!");
