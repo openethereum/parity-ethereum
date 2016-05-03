@@ -25,7 +25,7 @@ use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::error::*;
 use ethcore::client::{Executive, Executed, EnvInfo, TransactOptions};
 use ethcore::transaction::SignedTransaction;
-use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult};
+use super::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
 pub struct Miner {
@@ -349,9 +349,8 @@ impl MinerService for Miner {
 		Vec<Result<TransactionImportResult, Error>>
 		where T: Fn(&Address) -> AccountDetails {
 		let mut transaction_queue = self.transaction_queue.lock().unwrap();
-		let is_local = false;
 		transactions.into_iter()
-			.map(|tx| transaction_queue.add(tx, &fetch_account, is_local))
+			.map(|tx| transaction_queue.add(tx, &fetch_account, TransactionOrigin::External))
 			.collect()
 	}
 
@@ -364,7 +363,7 @@ impl MinerService for Miner {
 		let imported = {
 			// Be sure to release the lock before we call enable_and_prepare_sealing
 			let mut transaction_queue = self.transaction_queue.lock().unwrap();
-			let import = transaction_queue.add(transaction, &fetch_account, true);
+			let import = transaction_queue.add(transaction, &fetch_account, TransactionOrigin::Local);
 
 			match import {
 				Ok(ref res) => {
