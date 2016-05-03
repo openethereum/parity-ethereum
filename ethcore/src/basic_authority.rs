@@ -105,19 +105,24 @@ impl Engine for BasicAuthority {
 
 	/// Attempt to seal the block internally.
 	///
-	/// This operation is asynchronous and may (quite reasonably) not be available, in which `false` will
+	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
-	fn attempt_seal_block(&self, block: &mut ExecutedBlock, accounts: Option<&AccountProvider>) -> bool {
-		// TODO: check to see if author is contained in self.our_params.authorities
+	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
 		if let Some(ap) = accounts {
+			// check to see if author is contained in self.our_params.authorities
 			if self.our_params.authorities.contains(block.header().author()) {
 				if let Ok(secret) = ap.account_secret(block.header().author()) {
-					block.fields_mut().header.sign(&secret);
-					return true;
+					return Some(block.header().author_seal(&secret));
+				} else {
+					trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 				}
+			} else {
+				trace!(target: "basicauthority", "generate_seal: FAIL: block author {} isn't one of the authorized accounts {:?}", block.header().author(), self.our_params.authorities);
 			}
+		} else {
+			trace!(target: "basicauthority", "generate_seal: FAIL: accounts not provided");
 		}
-		false
+		None
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -178,9 +183,14 @@ impl Header {
 		decode(&self.seal()[0])
 	}
 
+	/// Generate a seal for the block with the given `secret`.
+	pub fn author_seal(&self, secret: &Secret) -> Vec<Bytes> {
+		vec![encode(&ec::sign(secret, &self.bare_hash()).unwrap_or(Signature::new())).to_vec()]
+	}
+
 	/// Set the nonce and mix hash fields of the header.
 	pub fn sign(&mut self, secret: &Secret) {
-		self.seal = vec![encode(&ec::sign(secret, &self.bare_hash()).unwrap_or(Signature::new())).to_vec()];
+		self.seal = self.author_seal(secret);
 	}
 }
 

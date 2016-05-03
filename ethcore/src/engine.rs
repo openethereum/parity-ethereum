@@ -63,11 +63,11 @@ pub trait Engine : Sync + Send {
 
 	/// Attempt to seal the block internally.
 	///
-	/// If `true` is returned, then `_block` is mutated such that it it sealed.
+	/// If `Some` is returned, then you get a valid seal.
 	///
-	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
+	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
-	fn attempt_seal_block(&self, _block: &mut ExecutedBlock, _accounts: Option<&AccountProvider>) -> bool { false }
+	fn generate_seal(&self, _block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { None }
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.

@@ -18,7 +18,7 @@ use rayon::prelude::*;
 use std::sync::atomic::AtomicBool;
 
 use util::*;
-use util::keys::store::AccountService;
+use util::keys::store::{AccountService, AccountProvider};
 use ethcore::views::{BlockView, HeaderView};
 use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::block::{ClosedBlock, IsBlock};
@@ -162,6 +162,30 @@ impl Miner {
 			queue.remove_invalid(&hash, &fetch_account);
 		}
 		if let Some(block) = b {
+			if !block.transactions().is_empty() {
+				trace!(target: "miner", "prepare_sealing: block has transaction - attempting internal seal.");
+				// block with transactions - see if we can seal immediately.
+				let a = self.accounts.read().unwrap();
+				let s = chain.generate_seal(block.block(), match a.deref() {
+					&Some(ref x) => Some(x.deref() as &AccountProvider),
+					&None => None,
+				});
+				if let Some(seal) = s {
+					trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
+					if let Ok(sealed) = chain.try_seal(block.lock(), seal) {
+						if let Ok(_) = chain.import_block(sealed.rlp_bytes()) {
+							trace!(target: "miner", "prepare_sealing: sealed internally and imported. leaving.");
+						} else {
+							warn!("prepare_sealing: ERROR: could not import internally sealed block. WTF?");
+						}
+					} else {
+						warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal. WTF?");
+					}
+					return;
+				} else {
+					trace!(target: "miner", "prepare_sealing: unable to generate seal internally");					
+				}
+			}
 			if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
 				trace!(target: "miner", "Pushing a new, refreshed or borrowed pending {}...", block.block().fields().header.hash());
 				sealing_work.push(block);
