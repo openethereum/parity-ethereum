@@ -56,7 +56,7 @@ mod miner;
 mod external;
 mod transaction_queue;
 
-pub use transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult};
+pub use transaction_queue::{TransactionQueue, AccountDetails, TransactionImportResult, TransactionOrigin};
 pub use miner::{Miner};
 pub use external::{ExternalMiner, ExternalMinerService};
 
