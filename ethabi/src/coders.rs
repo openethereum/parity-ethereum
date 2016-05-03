@@ -66,17 +66,20 @@ impl Mediate {
 			Mediate::Raw(ref raw) => vec![],
 			Mediate::Prefixed(ref pre) => pre.clone(),
 			Mediate::FixedArray(ref nes) => {
+				// offset is not taken into account, cause it would be counted twice
+				// fixed array is just raw representations of similar consecutive items
 				nes.iter()
 					.enumerate()
 					.flat_map(|(i, m)| m.closing(Mediate::offset_for(nes, i)))
 					.collect()
 			},
 			Mediate::Array(ref nes) => {
+				// + 32 added to offset represents len of the array prepanded to closing
 				let prefix = vec![pad_u32(nes.len() as u32)].into_iter();
 
 				let inits = nes.iter()
 					.enumerate()
-					.flat_map(|(i, m)| m.init(offset + Mediate::offset_for(nes, i)));
+					.flat_map(|(i, m)| m.init(offset + Mediate::offset_for(nes, i) + 32));
 
 				let closings = nes.iter()
 					.enumerate()
@@ -188,6 +191,17 @@ mod tests {
 	}
 
 	#[test]
+	fn encode_two_addresses() {
+		let address1 = Token::Address([0x11u8; 20]);
+		let address2 = Token::Address([0x22u8; 20]);
+		let encoded = Encoder::encode(vec![address1, address2]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000001111111111111111111111111111111111111111" +
+			"0000000000000000000000002222222222222222222222222222222222222222").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
 	fn encode_fixed_array_of_dynamic_array_of_addresses() {
 		let address1 = Token::Address([0x11u8; 20]);
 		let address2 = Token::Address([0x22u8; 20]);
@@ -229,6 +243,48 @@ mod tests {
 		assert_eq!(encoded, expected);
 	}
 
+	#[test]
+	fn encode_dynamic_array_of_dynamic_arrays() {
+		let address1 = Token::Address([0x11u8; 20]);
+		let address2 = Token::Address([0x22u8; 20]);
+		let array0 = Token::Array(vec![address1]);
+		let array1 = Token::Array(vec![address2]);
+		let dynamic = Token::Array(vec![array0, array1]);
+		let encoded = Encoder::encode(vec![dynamic]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000020" + 
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"0000000000000000000000000000000000000000000000000000000000000080" +
+			"00000000000000000000000000000000000000000000000000000000000000c0" +
+			"0000000000000000000000000000000000000000000000000000000000000001" +
+			"0000000000000000000000001111111111111111111111111111111111111111" +
+			"0000000000000000000000000000000000000000000000000000000000000001" +
+			"0000000000000000000000002222222222222222222222222222222222222222").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
 
+	#[test]
+	fn encode_dynamic_array_of_dynamic_arrays2() {
+		let address1 = Token::Address([0x11u8; 20]);
+		let address2 = Token::Address([0x22u8; 20]);
+		let address3 = Token::Address([0x33u8; 20]);
+		let address4 = Token::Address([0x44u8; 20]);
+		let array0 = Token::Array(vec![address1, address2]);
+		let array1 = Token::Array(vec![address3, address4]);
+		let dynamic = Token::Array(vec![array0, array1]);
+		let encoded = Encoder::encode(vec![dynamic]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000020" + 
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"0000000000000000000000000000000000000000000000000000000000000080" +
+			"00000000000000000000000000000000000000000000000000000000000000e0" +
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"0000000000000000000000001111111111111111111111111111111111111111" +
+			"0000000000000000000000002222222222222222222222222222222222222222" +
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"0000000000000000000000003333333333333333333333333333333333333333" +
+			"0000000000000000000000004444444444444444444444444444444444444444").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
 }
 
