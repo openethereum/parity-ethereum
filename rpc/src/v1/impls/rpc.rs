@@ -22,23 +22,41 @@ use v1::traits::Rpc;
 /// RPC generic methods implementation.
 pub struct RpcClient {
 	modules: BTreeMap<String, String>,
+	valid_apis: Vec<String>,
 }
 
 impl RpcClient {
 	/// Creates new `RpcClient`.
 	pub fn new(modules: BTreeMap<String, String>) -> Self {
+		// geth 1.3.6 fails upon receiving unknown api
+		let valid_apis = vec!["web3", "eth", "net", "personal", "rpc"];
+
 		RpcClient {
-			modules: modules
+			modules: modules,
+			valid_apis: valid_apis.into_iter().map(|x| x.to_owned()).collect(),
 		}
 	}
 }
 
 impl Rpc for RpcClient {
+	fn rpc_modules(&self, _: Params) -> Result<Value, Error> {
+		let modules = self.modules.iter()
+			.fold(BTreeMap::new(), |mut map, (k, v)| {
+				map.insert(k.to_owned(), Value::String(v.to_owned()));
+				map
+			});
+		Ok(Value::Object(modules))
+	}
+
 	fn modules(&self, _: Params) -> Result<Value, Error> {
-		let modules = self.modules.iter().fold(BTreeMap::new(), |mut map, (k, v)| {
-			map.insert(k.to_owned(), Value::String(v.to_owned()));
-			map
-		});
+		let modules = self.modules.iter()
+			.filter(|&(k, _v)| {
+				self.valid_apis.contains(k)
+			})
+			.fold(BTreeMap::new(), |mut map, (k, v)| {
+				map.insert(k.to_owned(), Value::String(v.to_owned()));
+				map
+			});
 		Ok(Value::Object(modules))
 	}
 }

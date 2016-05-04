@@ -112,7 +112,7 @@ pub fn setup_rpc_server(
 				server.add_delegate(PersonalClient::new(&deps.secret_store).to_delegate())
 			},
 			"ethcore" => {
-				// not adding to modules, since `ethcore` is not supported in geth
+				modules.insert("ethcore".to_owned(), "1.0".to_owned());
 				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
 			},
 			"traces" => {
