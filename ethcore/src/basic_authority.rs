@@ -24,7 +24,7 @@ use engine::*;
 use evm::{Schedule, Factory};
 use ethjson;
 
-/// BasicAuthority params.
+/// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]
 pub struct BasicAuthorityParams {
 	/// Gas limit divisor.
@@ -45,7 +45,7 @@ impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
 	}
 }
 
-/// Engine using BasicAuthority proof-of-work consensus algorithm, suitable for Ethereum
+/// Engine using `BasicAuthority` proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct BasicAuthority {
 	params: CommonParams,
@@ -192,7 +192,7 @@ impl Header {
 	}
 }
 
-/// Create a new test chain spec with BasicAuthority consensus engine.
+/// Create a new test chain spec with `BasicAuthority` consensus engine.
 pub fn new_test_authority() -> Spec { Spec::load(include_bytes!("../res/test_authority.json")) }
 
 #[cfg(test)]
