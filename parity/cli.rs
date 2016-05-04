@@ -85,7 +85,7 @@ API and Console Options:
                            conjunction with --webapp-user.
 
   --ipc-disable            Disable JSON-RPC over IPC service
-  --ipc-path PATH          Specify custom path for IPC servie
+  --ipc-path PATH          Specify custom path for IPC service
                            [default: $HOME/.parity/jsonrpc.ipc]
   --ipc-api APIS           Specify custom API set available via IPC service
                            [default: web3,eth,net,personal,ethcore]

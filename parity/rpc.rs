@@ -79,12 +79,8 @@ pub fn new_http(conf: HttpConfiguration, deps: &Arc<Dependencies>) -> Option<Rpc
 }
 
 pub fn new_ipc(conf: IpcConfiguration, deps: &Arc<Dependencies>) -> Option<jsonipc::Server> {
-	if !conf.enabled {
-		return None;
-	}
-
+	if !conf.enabled { return None; }
 	let apis = conf.apis.split(',').collect();
-
 	Some(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))
 }
 
