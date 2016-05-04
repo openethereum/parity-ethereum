@@ -121,7 +121,7 @@ const HISTORY: u64 = 1200;
 //   databases.
 // Instead, add/upgrade the version string of the individual JournalDB-derived database
 // of which you actually want force an upgrade.
-const CLIENT_DB_VER_STR: &'static str = "5.3";
+const CLIENT_DB_VER_STR: &'static str = "6.0";
 
 impl Client<CanonVerifier> {
 	/// Create a new client with given spec and DB path.
