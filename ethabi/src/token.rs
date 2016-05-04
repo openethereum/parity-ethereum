@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub enum Token {
 	Address([u8;20]),
 	FixedBytes(Vec<u8>),

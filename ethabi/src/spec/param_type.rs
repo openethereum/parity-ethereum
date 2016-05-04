@@ -6,7 +6,7 @@ pub enum ParamType {
 	Uint,
 	Bool,
 	String,
-	Array(Box<ParamType>),
+	Array(Vec<ParamType>),
 	FixedBytes(usize),
-	FixedArray(usize, Box<ParamType>),
+	FixedArray(Vec<ParamType>),
 }
