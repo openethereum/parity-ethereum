@@ -1,15 +1,50 @@
 use std::ptr;
-use spec::ParamType;
 use token::Token;
-use error::Error;
 
 fn pad_u32(value: u32) -> [u8; 32] {
 	let mut padded = [0u8; 32];
-	let bytes = (32 - value.leading_zeros() + 7) / 8;
+	let bytes = ((32 - value.leading_zeros() + 7) / 8) as usize;
+	let offset = 32 - bytes as isize;
 	unsafe {
-		ptr::copy(&[value] as *const u32 as *const u8, padded.as_mut_ptr().offset(32 - bytes as isize), bytes as usize);
+		let mut value_bytes = Vec::with_capacity(bytes);
+		value_bytes.set_len(bytes);
+		ptr::copy(&[value] as *const u32 as *const u8, value_bytes.as_mut_ptr(), bytes);
+		value_bytes.reverse();
+		ptr::copy(value_bytes.as_ptr(), padded.as_mut_ptr().offset(offset), bytes);
 	}
 	padded
+}
+
+fn pad_bytes(bytes: Vec<u8>) -> Vec<[u8; 32]> {
+	let mut result = vec![pad_u32(bytes.len() as u32)];
+	result.extend(pad_fixed_bytes(bytes));
+	result	
+}
+
+fn pad_fixed_bytes(bytes: Vec<u8>) -> Vec<[u8; 32]> {
+	let mut result = vec![];
+	let len = (bytes.len() + 31) / 32;
+	for i in 0..len {
+		let mut padded = [0u8; 32];
+
+		let to_copy = match i == len - 1 {
+			false => 32,
+			true => match bytes.len() % 32 {
+				0 => 32,
+				x => x,
+			},
+		};
+
+		let offset = 32 * i as isize;
+
+		unsafe {
+			ptr::copy(bytes.as_ptr().offset(offset), padded.as_mut_ptr(), to_copy);
+		}
+
+		result.push(padded);
+	}
+
+	result
 }
 
 #[derive(Debug)]
@@ -121,33 +156,9 @@ impl Encoder {
 				}
 				Mediate::Raw(vec![padded])
 			},
-			Token::Bytes(bytes) => {
-				let mut result = vec![];
-				let len = (bytes.len() + 31) / 32;
-				result.push(pad_u32(bytes.len() as u32));
-
-				for i in 0..len {
-					let mut padded = [0u8; 32];
-
-					let to_copy = match i == len - 1 {
-						false => 32,
-						true => match bytes.len() % 32 {
-							0 => 32,
-							x => x,
-						},
-					};
-
-					let offset = 32 * i as isize;
-
-					unsafe {
-						ptr::copy(bytes.as_ptr().offset(offset), padded.as_mut_ptr(), to_copy);
-					}
-
-					result.push(padded);
-				}
-
-				Mediate::Prefixed(result)
-			},
+			Token::Bytes(bytes) => Mediate::Prefixed(pad_bytes(bytes)),
+			Token::String(s) => Mediate::Prefixed(pad_bytes(s.into_bytes())),
+			Token::FixedBytes(bytes) => Mediate::Raw(pad_fixed_bytes(bytes)),
 			Token::Int(int) => Mediate::Raw(vec![int]),
 			Token::Uint(uint) => Mediate::Raw(vec![uint]),
 			Token::Bool(b) => {
@@ -168,9 +179,6 @@ impl Encoder {
 
 				Mediate::FixedArray(mediates)
 			},
-			_ => {
-				unimplemented!();
-			},
 		}
 	}
 }
@@ -179,7 +187,7 @@ impl Encoder {
 mod tests {
 	use rustc_serialize::hex::FromHex;
 	use token::Token;
-	use super::Encoder;
+	use super::{Encoder, pad_u32};
 
 	#[test]
 	fn encode_address() {
@@ -342,6 +350,26 @@ mod tests {
 	}
 
 	#[test]
+	fn encode_fixed_bytes() {
+		let bytes = Token::FixedBytes(vec![0x12, 0x34]);
+		let encoded = Encoder::encode(vec![bytes]);
+		let expected = ("".to_owned() + 
+			"1234000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
+	fn encode_string() {
+		let s = Token::String("gavofyork".to_owned());
+		let encoded = Encoder::encode(vec![s]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000020" +
+			"0000000000000000000000000000000000000000000000000000000000000009" +
+			"6761766f66796f726b0000000000000000000000000000000000000000000000").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
 	fn encode_bytes2() {
 		let bytes = Token::Bytes("10000000000000000000000000000000000000000000000000000000000002".from_hex().unwrap());
 		let encoded = Encoder::encode(vec![bytes]);
@@ -414,6 +442,70 @@ mod tests {
 		let encoded = Encoder::encode(vec![Token::Bool(false)]);
 		let expected = ("".to_owned() + 
 			"0000000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
+	fn comprehensive_test() {
+		let bytes = ("".to_owned() + 
+			"131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b" +
+			"131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b").from_hex().unwrap();
+		let encoded = Encoder::encode(vec![
+			Token::Int(pad_u32(5)),
+			Token::Bytes(bytes.clone()),
+			Token::Int(pad_u32(3)),
+			Token::Bytes(bytes)
+		]);
+		
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000005" +
+			"0000000000000000000000000000000000000000000000000000000000000080" +
+			"0000000000000000000000000000000000000000000000000000000000000003" +
+			"00000000000000000000000000000000000000000000000000000000000000e0" +
+			"0000000000000000000000000000000000000000000000000000000000000040" +
+			"131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b" +
+			"131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b" +
+			"0000000000000000000000000000000000000000000000000000000000000040" +
+			"131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b" +
+			"131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
+	fn test_pad_u32() {
+		// this will fail if endianess is not supported
+		assert_eq!(pad_u32(0x1)[31], 1);
+		assert_eq!(pad_u32(0x100)[30], 1);
+	}
+
+	#[test]
+	fn comprehensive_test2() {
+		let encoded = Encoder::encode(vec![
+			Token::Int(pad_u32(1)),
+			Token::String("gavofyork".to_owned()),
+			Token::Int(pad_u32(2)),
+			Token::Int(pad_u32(3)),
+			Token::Int(pad_u32(4)),
+			Token::Array(vec![
+				Token::Int(pad_u32(5)), 
+				Token::Int(pad_u32(6)), 
+				Token::Int(pad_u32(7))
+			])
+		]);
+		
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000001" +
+			"00000000000000000000000000000000000000000000000000000000000000c0" +
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"0000000000000000000000000000000000000000000000000000000000000003" +
+			"0000000000000000000000000000000000000000000000000000000000000004" +
+			"0000000000000000000000000000000000000000000000000000000000000100" +
+			"0000000000000000000000000000000000000000000000000000000000000009" +
+			"6761766f66796f726b0000000000000000000000000000000000000000000000" +
+			"0000000000000000000000000000000000000000000000000000000000000003" +
+			"0000000000000000000000000000000000000000000000000000000000000005" +
+			"0000000000000000000000000000000000000000000000000000000000000006" +
+			"0000000000000000000000000000000000000000000000000000000000000007").from_hex().unwrap();
 		assert_eq!(encoded, expected);
 	}
 }
