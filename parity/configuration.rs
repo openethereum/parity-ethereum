@@ -269,20 +269,21 @@ impl Configuration {
 
 	pub fn ipc_settings(&self) -> IpcConfiguration {
 		IpcConfiguration {
-			enabled: !self.args.flag_ipc_disable,
-			socket_addr: self.args.flag_ipc_path.clone()
+			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off),
+			socket_addr: self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone())
 				.replace("$HOME", env::home_dir().unwrap().to_str().unwrap()),
-			apis: self.args.flag_ipc_api.clone(),
+			apis: self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()),
 		}
 	}
 
 	pub fn network_settings(&self) -> NetworkSettings {
+		if self.args.flag_jsonrpc { println!("WARNING: Flag -j/--json-rpc is deprecated. JSON-RPC is now on by default. Ignoring."); }
 		NetworkSettings {
 			name: self.args.flag_identity.clone(),
 			chain: self.chain(),
 			max_peers: self.max_peers(),
 			network_port: self.net_port(),
-			rpc_enabled: self.args.flag_rpc || self.args.flag_jsonrpc,
+			rpc_enabled: !self.args.flag_jsonrpc_off,
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
