@@ -8,7 +8,7 @@ extern crate serde_json;
 
 mod spec;
 mod contract;
-mod address;
-mod token;
-mod coders;
+mod decoder;
+mod encoder;
 mod error;
+mod token;

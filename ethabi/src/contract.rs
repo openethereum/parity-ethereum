@@ -1,7 +1,7 @@
 use spec::Interface;
 use token::Token;
 use error::Error;
-use coders::Encoder;
+use encoder::Encoder;
 
 /// API building calls to contracts ABI.
 pub struct Contract {

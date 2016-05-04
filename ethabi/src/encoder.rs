@@ -63,7 +63,7 @@ impl Mediate {
 
 	fn closing(&self, offset: u32) -> Vec<[u8; 32]> {
 		match *self {
-			Mediate::Raw(ref raw) => vec![],
+			Mediate::Raw(_) => vec![],
 			Mediate::Prefixed(ref pre) => pre.clone(),
 			Mediate::FixedArray(ref nes) => {
 				// offset is not taken into account, cause it would be counted twice
@@ -150,6 +150,10 @@ impl Encoder {
 			},
 			Token::Int(int) => Mediate::Raw(vec![int]),
 			Token::Uint(uint) => Mediate::Raw(vec![uint]),
+			Token::Bool(b) => {
+				let value = if b { 1 } else { 0 };
+				Mediate::Raw(vec![pad_u32(value)])
+			},
 			Token::Array(tokens) => {
 				let mediates = tokens.into_iter()
 					.map(Encoder::encode_token)
@@ -168,14 +172,6 @@ impl Encoder {
 				unimplemented!();
 			},
 		}
-	}
-}
-
-pub struct Decoder;
-
-impl Decoder {
-	pub fn decode(types: Vec<ParamType>, data: Vec<u8>) -> Result<Vec<Token>, Error> {
-		unimplemented!();
 	}
 }
 
@@ -402,6 +398,22 @@ mod tests {
 		let encoded = Encoder::encode(vec![Token::Int(int)]);
 		let expected = ("".to_owned() + 
 			"0000000000000000000000000000000000000000000000000000000000000004").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
+	fn encode_bool() {
+		let encoded = Encoder::encode(vec![Token::Bool(true)]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000001").from_hex().unwrap();
+		assert_eq!(encoded, expected);
+	}
+
+	#[test]
+	fn encode_bool2() {
+		let encoded = Encoder::encode(vec![Token::Bool(false)]);
+		let expected = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
 		assert_eq!(encoded, expected);
 	}
 }
