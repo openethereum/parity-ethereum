@@ -316,7 +316,7 @@ mod tests {
 			chain: "morden".to_owned(),
 			max_peers: 25,
 			network_port: 30303,
-			rpc_enabled: false,
+			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),
 			rpc_port: 8545,
 		});
