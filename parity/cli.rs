@@ -88,7 +88,7 @@ API and Console Options:
   --ipc-path PATH          Specify custom path for IPC servie
                            [default: $HOME/.parity/jsonrpc.ipc]
   --ipc-api APIS           Specify custom API set available via IPC service
-                           [default: web3,eth,net,personal,ethcore,traces]
+                           [default: web3,eth,net,personal,ethcore]
 
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
