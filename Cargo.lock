@@ -557,7 +557,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "json-ipc-server"
 version = "0.1.0"
-source = "git+https://github.com/NikVolf/json-ipc-server.git#bd987c75b5f23c35eb7e2b0bd8b30ba88f758338"
+source = "git+https://github.com/NikVolf/json-ipc-server.git#6515f27c7b41e5e62bc87ef4e0947b838a6c7d01"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
