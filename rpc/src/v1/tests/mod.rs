@@ -27,3 +27,5 @@ mod web3;
 mod personal;
 #[cfg(test)]
 mod ethcore;
+#[cfg(test)]
+mod rpc;
