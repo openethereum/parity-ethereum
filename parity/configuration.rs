@@ -268,10 +268,11 @@ impl Configuration {
 	}
 
 	pub fn ipc_settings(&self) -> IpcConfiguration {
-		IpcSettings {
-			enabled: self.args.flag_ipc,
-			socket_addr: self.args.flag_ipc_path.clone(),
-			apis: self.flag_ipc_apis.clone(),
+		IpcConfiguration {
+			enabled: !self.args.flag_ipc_disable,
+			socket_addr: self.args.flag_ipc_path.clone()
+				.replace("$HOME", env::home_dir().unwrap().to_str().unwrap()),
+			apis: self.args.flag_ipc_api.clone(),
 		}
 	}
 

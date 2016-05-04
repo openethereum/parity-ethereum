@@ -44,7 +44,7 @@ extern crate serde;
 extern crate bincode;
 #[macro_use]
 extern crate hyper; // for price_info.rs
-extern crate json_ipc_server as ipc;
+extern crate json_ipc_server as jsonipc;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
@@ -181,7 +181,7 @@ fn execute_client(conf: Configuration) {
 	}, &dependencies);
 
 	// setup ipc rpc
-	let ipc_server = rpc::new_ipc(conf.ipc_settings());
+	let ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
 
 	let webapp_server = webapp::new(webapp::Configuration {
 		enabled: conf.args.flag_webapp,

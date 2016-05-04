@@ -27,7 +27,7 @@ use util::panics::PanicHandler;
 use util::keys::store::{AccountService};
 use util::network_settings::NetworkSettings;
 use die::*;
-use ipc;
+use jsonipc;
 
 #[cfg(feature = "rpc")]
 pub use ethcore_rpc::Server as RpcServer;
@@ -78,14 +78,14 @@ pub fn new_http(conf: HttpConfiguration, deps: &Arc<Dependencies>) -> Option<Rpc
 	Some(setup_http_rpc_server(deps, &addr, conf.cors, apis))
 }
 
-pub fn new_ipc(conf: IpcConfiguration, deps: &Arc<Dependencies>) -> Option<ipc::Server> {
+pub fn new_ipc(conf: IpcConfiguration, deps: &Arc<Dependencies>) -> Option<jsonipc::Server> {
 	if !conf.enabled {
 		return None;
 	}
 
 	let apis = conf.apis.split(',').collect();
 
-	Some(setup_ipc_rpc_server(deps, conf.addr, apis))
+	Some(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))
 }
 
 fn setup_rpc_server(apis: Vec<&str>, deps: &Arc<Dependencies>) -> Server {
@@ -161,11 +161,11 @@ pub fn setup_http_rpc_server(
 	}
 }
 
-pub fn setup_ipc_rpc_server(dependencies: &Arc<Dependencies>, addr: &str, apis: Vec<&str>) {
+pub fn setup_ipc_rpc_server(dependencies: &Arc<Dependencies>, addr: &str, apis: Vec<&str>) -> jsonipc::Server {
 	let server = setup_rpc_server(apis, dependencies);
 	match server.start_ipc(addr) {
-		Err(ipc::Error::Io(io_error)) => die_with_io_error("RPC", err),
-		Err(e) => die!("RPC: {:?}", e),
+		Err(jsonipc::Error::Io(io_error)) => die_with_io_error("RPC", io_error),
+		Err(any_error) => die!("RPC: {:?}", any_error),
 		Ok(server) => server
 	}
 }
