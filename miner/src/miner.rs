@@ -166,9 +166,9 @@ impl Miner {
 				trace!(target: "miner", "prepare_sealing: block has transaction - attempting internal seal.");
 				// block with transactions - see if we can seal immediately.
 				let a = self.accounts.read().unwrap();
-				let s = chain.generate_seal(block.block(), match a.deref() {
-					&Some(ref x) => Some(x.deref() as &AccountProvider),
-					&None => None,
+				let s = chain.generate_seal(block.block(), match *a.deref() {
+					Some(ref x) => Some(x.deref() as &AccountProvider),
+					None => None,
 				});
 				if let Some(seal) = s {
 					trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
@@ -183,7 +183,7 @@ impl Miner {
 					}
 					return;
 				} else {
-					trace!(target: "miner", "prepare_sealing: unable to generate seal internally");					
+					trace!(target: "miner", "prepare_sealing: unable to generate seal internally");
 				}
 			}
 			if sealing_work.peek_last_ref().map_or(true, |pb| pb.block().fields().header.hash() != block.block().fields().header.hash()) {
