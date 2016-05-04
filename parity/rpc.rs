@@ -27,6 +27,7 @@ use util::panics::PanicHandler;
 use util::keys::store::{AccountService};
 use util::network_settings::NetworkSettings;
 use die::*;
+use jsonipc;
 
 #[cfg(feature = "rpc")]
 pub use ethcore_rpc::Server as RpcServer;
@@ -35,12 +36,18 @@ use ethcore_rpc::{RpcServerError, RpcServer as Server};
 #[cfg(not(feature = "rpc"))]
 pub struct RpcServer;
 
-pub struct Configuration {
+pub struct HttpConfiguration {
 	pub enabled: bool,
 	pub interface: String,
 	pub port: u16,
 	pub apis: String,
 	pub cors: Option<String>,
+}
+
+pub struct IpcConfiguration {
+	pub enabled: bool,
+	pub socket_addr: String,
+	pub apis: String,
 }
 
 pub struct Dependencies {
@@ -54,7 +61,7 @@ pub struct Dependencies {
 	pub settings: Arc<NetworkSettings>,
 }
 
-pub fn new(conf: Configuration, deps: Dependencies) -> Option<RpcServer> {
+pub fn new_http(conf: HttpConfiguration, deps: &Arc<Dependencies>) -> Option<RpcServer> {
 	if !conf.enabled {
 		return None;
 	}
@@ -68,26 +75,16 @@ pub fn new(conf: Configuration, deps: Dependencies) -> Option<RpcServer> {
 	let url = format!("{}:{}", interface, conf.port);
 	let addr = SocketAddr::from_str(&url).unwrap_or_else(|_| die!("{}: Invalid JSONRPC listen host/port given.", url));
 
-	Some(setup_rpc_server(deps, &addr, conf.cors, apis))
+	Some(setup_http_rpc_server(deps, &addr, conf.cors, apis))
 }
 
-#[cfg(not(feature = "rpc"))]
-pub fn setup_rpc_server(
-	_deps: Dependencies,
-	_url: &SocketAddr,
-	_cors_domain: Option<String>,
-	_apis: Vec<&str>,
-) -> ! {
-	die!("Your Parity version has been compiled without JSON-RPC support.")
+pub fn new_ipc(conf: IpcConfiguration, deps: &Arc<Dependencies>) -> Option<jsonipc::Server> {
+	if !conf.enabled { return None; }
+	let apis = conf.apis.split(',').collect();
+	Some(setup_ipc_rpc_server(deps, &conf.socket_addr, apis))
 }
 
-#[cfg(feature = "rpc")]
-pub fn setup_rpc_server(
-	deps: Dependencies,
-	url: &SocketAddr,
-	cors_domain: Option<String>,
-	apis: Vec<&str>,
-) -> RpcServer {
+fn setup_rpc_server(apis: Vec<&str>, deps: &Arc<Dependencies>) -> Server {
 	use ethcore_rpc::v1::*;
 
 	let server = Server::new();
@@ -125,7 +122,29 @@ pub fn setup_rpc_server(
 		}
 	}
 	server.add_delegate(RpcClient::new(modules).to_delegate());
+	server
+}
+
+#[cfg(not(feature = "rpc"))]
+pub fn setup_http_rpc_server(
+	_deps: Dependencies,
+	_url: &SocketAddr,
+	_cors_domain: Option<String>,
+	_apis: Vec<&str>,
+) -> ! {
+	die!("Your Parity version has been compiled without JSON-RPC support.")
+}
+
+#[cfg(feature = "rpc")]
+pub fn setup_http_rpc_server(
+	dependencies: &Arc<Dependencies>,
+	url: &SocketAddr,
+	cors_domain: Option<String>,
+	apis: Vec<&str>,
+) -> RpcServer {
+	let server = setup_rpc_server(apis, dependencies);
 	let start_result = server.start_http(url, cors_domain);
+	let deps = dependencies.clone();
 	match start_result {
 		Err(RpcServerError::IoError(err)) => die_with_io_error("RPC", err),
 		Err(e) => die!("RPC: {:?}", e),
@@ -138,3 +157,11 @@ pub fn setup_rpc_server(
 	}
 }
 
+pub fn setup_ipc_rpc_server(dependencies: &Arc<Dependencies>, addr: &str, apis: Vec<&str>) -> jsonipc::Server {
+	let server = setup_rpc_server(apis, dependencies);
+	match server.start_ipc(addr) {
+		Err(jsonipc::Error::Io(io_error)) => die_with_io_error("RPC", io_error),
+		Err(any_error) => die!("RPC: {:?}", any_error),
+		Ok(server) => server
+	}
+}

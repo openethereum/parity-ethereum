@@ -44,6 +44,7 @@ extern crate serde;
 extern crate bincode;
 #[macro_use]
 extern crate hyper; // for price_info.rs
+extern crate json_ipc_server as jsonipc;
 
 #[cfg(feature = "rpc")]
 extern crate ethcore_rpc;
@@ -159,14 +160,7 @@ fn execute_client(conf: Configuration) {
 	// Sync
 	let sync = EthSync::register(service.network(), sync_config, client.clone(), miner.clone());
 
-	// Setup rpc
-	let rpc_server = rpc::new(rpc::Configuration {
-		enabled: network_settings.rpc_enabled,
-		interface: network_settings.rpc_interface.clone(),
-		port: network_settings.rpc_port,
-		apis: conf.rpc_apis(),
-		cors: conf.rpc_cors(),
-	}, rpc::Dependencies {
+	let dependencies = Arc::new(rpc::Dependencies {
 		panic_handler: panic_handler.clone(),
 		client: client.clone(),
 		sync: sync.clone(),
@@ -176,6 +170,18 @@ fn execute_client(conf: Configuration) {
 		logger: logger.clone(),
 		settings: network_settings.clone(),
 	});
+
+	// Setup http rpc
+	let rpc_server = rpc::new_http(rpc::HttpConfiguration {
+		enabled: network_settings.rpc_enabled,
+		interface: network_settings.rpc_interface.clone(),
+		port: network_settings.rpc_port,
+		apis: conf.rpc_apis(),
+		cors: conf.rpc_cors(),
+	}, &dependencies);
+
+	// setup ipc rpc
+	let ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
 
 	let webapp_server = webapp::new(webapp::Configuration {
 		enabled: conf.args.flag_webapp,

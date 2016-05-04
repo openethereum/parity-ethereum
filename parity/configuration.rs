@@ -31,6 +31,7 @@ use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
 use price_info::PriceInfo;
+use rpc::IpcConfiguration;
 
 pub struct Configuration {
 	pub args: Args
@@ -264,6 +265,15 @@ impl Configuration {
 
 	pub fn rpc_cors(&self) -> Option<String> {
 		self.args.flag_jsonrpc_cors.clone().or(self.args.flag_rpccorsdomain.clone())
+	}
+
+	pub fn ipc_settings(&self) -> IpcConfiguration {
+		IpcConfiguration {
+			enabled: !self.args.flag_ipc_disable,
+			socket_addr: self.args.flag_ipc_path.clone()
+				.replace("$HOME", env::home_dir().unwrap().to_str().unwrap()),
+			apis: self.args.flag_ipc_api.clone(),
+		}
 	}
 
 	pub fn network_settings(&self) -> NetworkSettings {

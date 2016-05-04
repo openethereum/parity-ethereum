@@ -84,6 +84,12 @@ API and Console Options:
   --webapp-pass PASSWORD   Specify password for WebApps server. Use only in
                            conjunction with --webapp-user.
 
+  --ipc-disable            Disable JSON-RPC over IPC service
+  --ipc-path PATH          Specify custom path for IPC service
+                           [default: $HOME/.parity/jsonrpc.ipc]
+  --ipc-api APIS           Specify custom API set available via IPC service
+                           [default: web3,eth,net,personal,ethcore]
+
 Sealing/Mining Options:
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
@@ -197,6 +203,9 @@ pub struct Args {
 	pub flag_tx_limit: usize,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
+	pub flag_ipc_disable: bool,
+	pub flag_ipc_path: String,
+	pub flag_ipc_api: String,
 	// geth-compatibility...
 	pub flag_nodekey: Option<String>,
 	pub flag_nodiscover: bool,
