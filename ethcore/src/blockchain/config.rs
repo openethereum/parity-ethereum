@@ -14,27 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Represents bloom index in cache
+//! Blockchain configuration.
+use bloomchain::Config as BloomConfig;
 
-/// Represents bloom index in cache
-/// 
-/// On cache level 0, every block bloom is represented by different index.
-/// On higher cache levels, multiple block blooms are represented by one
-/// index. Their `BloomIndex` can be created from block number and given level.
-#[derive(Eq, PartialEq, Hash, Clone, Debug)]
-pub struct BloomIndex {
-	/// Bloom level
-	pub level: u8,
-	///  Filter Index
-	pub index: usize,
+/// Blockchain configuration.
+#[derive(Debug)]
+pub struct Config {
+	/// Preferred cache size in bytes.
+	pub pref_cache_size: usize,
+	/// Maximum cache size in bytes.
+	pub max_cache_size: usize,
+	/// Log blooms configuration.
+	pub log_blooms: BloomConfig,
 }
 
-impl BloomIndex {
-	/// Default constructor for `BloomIndex`
-	pub fn new(level: u8, index: usize) -> BloomIndex {
-		BloomIndex {
-			level: level,
-			index: index,
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			pref_cache_size: 1 << 14,
+			max_cache_size: 1 << 20,
+			log_blooms: BloomConfig {
+				levels: 3,
+				elements_per_index: 16,
+			}
 		}
 	}
 }
+

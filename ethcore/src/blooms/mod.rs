@@ -14,22 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Multilevel blockchain bloom filter.
+//! Bridge between bloomchain crate types and ethcore.
 
-mod bloomindex;
-mod chainfilter;
-mod indexer;
+mod bloom;
+mod bloom_group;
+mod group_position;
 
-#[cfg(test)]
-mod tests;
-
-pub use self::bloomindex::BloomIndex;
-pub use self::chainfilter::ChainFilter;
-use util::hash::H2048;
-
-/// Types implementing this trait provide read access for bloom filters database.
-pub trait FilterDataSource {
-	/// returns reference to log at given position if it exists
-	fn bloom_at_index(&self, index: &BloomIndex) -> Option<H2048>;
-}
-
+pub use self::bloom::Bloom;
+pub use self::bloom_group::BloomGroup;
+pub use self::group_position::GroupPosition;

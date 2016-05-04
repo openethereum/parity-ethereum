@@ -113,6 +113,7 @@ fn setup_rpc_server(apis: Vec<&str>, deps: &Arc<Dependencies>) -> Server {
 				server.add_delegate(EthcoreClient::new(&deps.miner, deps.logger.clone(), deps.settings.clone()).to_delegate())
 			},
 			"traces" => {
+				// not adding to modules, since `traces` is not supported in geth
 				modules.insert("traces".to_owned(), "1.0".to_owned());
 				server.add_delegate(TracesClient::new(&deps.client).to_delegate())
 			},

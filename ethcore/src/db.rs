@@ -29,6 +29,28 @@ pub enum CacheUpdatePolicy {
 	Remove,
 }
 
+pub trait Cache<K, V> {
+	fn insert(&mut self, k: K, v: V) -> Option<V>;
+
+	fn remove(&mut self, k: &K) -> Option<V>;
+
+	fn get(&self, k: &K) -> Option<&V>;
+}
+
+impl<K, V> Cache<K, V> for HashMap<K, V> where K: Hash + Eq {
+	fn insert(&mut self, k: K, v: V) -> Option<V> {
+		HashMap::insert(self, k, v)
+	}
+
+	fn remove(&mut self, k: &K) -> Option<V> {
+		HashMap::remove(self, k)
+	}
+
+	fn get(&self, k: &K) -> Option<&V> {
+		HashMap::get(self, k)
+	}
+}
+
 /// Should be used to get database key associated with given value.
 pub trait Key<T> {
 	type Target: Deref<Target = [u8]>;
@@ -43,7 +65,7 @@ pub trait Writable {
 	fn write<T, R>(&self, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]>;
 
 	/// Writes the value into the database and updates the cache.
-	fn write_with_cache<K, T, R>(&self, cache: &mut HashMap<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
+	fn write_with_cache<K, T, R>(&self, cache: &mut Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
 	T: Encodable,
 	R: Deref<Target = [u8]> {
@@ -59,7 +81,7 @@ pub trait Writable {
 	}
 
 	/// Writes the values into the database and updates the cache.
-	fn extend_with_cache<K, T, R>(&self, cache: &mut HashMap<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
+	fn extend_with_cache<K, T, R>(&self, cache: &mut Cache<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
 	T: Encodable,
 	R: Deref<Target = [u8]> {
@@ -88,9 +110,10 @@ pub trait Readable {
 	R: Deref<Target = [u8]>;
 
 	/// Returns value for given key either in cache or in database.
-	fn read_with_cache<K, T>(&self, cache: &RwLock<HashMap<K, T>>,  key: &K) -> Option<T> where
+	fn read_with_cache<K, T, C>(&self, cache: &RwLock<C>, key: &K) -> Option<T> where
 		K: Key<T> + Eq + Hash + Clone,
-		T: Clone + Decodable {
+		T: Clone + Decodable,
+		C: Cache<K, T> {
 		{
 			let read = cache.read().unwrap();
 			if let Some(v) = read.get(key) {
@@ -109,9 +132,10 @@ pub trait Readable {
 	fn exists<T, R>(&self, key: &Key<T, Target = R>) -> bool where R: Deref<Target= [u8]>;
 
 	/// Returns true if given value exists either in cache or in database.
-	fn exists_with_cache<K, T, R>(&self, cache: &RwLock<HashMap<K, T>>, key: &K) -> bool where
+	fn exists_with_cache<K, T, R, C>(&self, cache: &RwLock<C>, key: &K) -> bool where
 	K: Eq + Hash + Key<T, Target = R>,
-	R: Deref<Target = [u8]> {
+	R: Deref<Target = [u8]>,
+	C: Cache<K, T> {
 		{
 			let read = cache.read().unwrap();
 			if read.get(key).is_some() {
