@@ -350,6 +350,7 @@ dependencies = [
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocksdb 0.4.3 (git+https://github.com/arkpar/rust-rocksdb.git)",
  "rust-crypto 0.2.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -375,8 +376,8 @@ dependencies = [
  "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/tomusdrw/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-status 0.3.6 (git+https://github.com/tomusdrw/parity-status.git)",
- "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
+ "parity-status 0.3.6 (git+https://github.com/ethcore/parity-status.git)",
+ "parity-webapp 0.1.0 (git+https://github.com/ethcore/parity-webapp.git)",
  "url 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -850,15 +851,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-status"
 version = "0.3.6"
-source = "git+https://github.com/tomusdrw/parity-status.git#1ce8771a62f5f2564617c0e386ff7552a5fe7ecf"
+source = "git+https://github.com/ethcore/parity-status.git#738f8d9da554f82492721f99ba064e7fec693300"
 dependencies = [
- "parity-webapp 0.1.0 (git+https://github.com/tomusdrw/parity-webapp.git)",
+ "parity-webapp 0.1.0 (git+https://github.com/ethcore/parity-webapp.git)",
 ]
 
 [[package]]
 name = "parity-webapp"
 version = "0.1.0"
-source = "git+https://github.com/tomusdrw/parity-webapp.git#0bf133f193863ba0e88b0b824a5c330037cce3f1"
+source = "git+https://github.com/ethcore/parity-webapp.git#0bf133f193863ba0e88b0b824a5c330037cce3f1"
 
 [[package]]
 name = "primal"
