@@ -181,10 +181,11 @@ fn execute_client(conf: Configuration) {
 	}, &dependencies);
 
 	// setup ipc rpc
-	let ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
+	let _ipc_server = rpc::new_ipc(conf.ipc_settings(), &dependencies);
 
+	if conf.args.flag_webapp { println!("WARNING: Flag -w/--webapp is deprecated. Web app server is now on by default. Ignoring."); }
 	let webapp_server = webapp::new(webapp::Configuration {
-		enabled: conf.args.flag_webapp,
+		enabled: !conf.args.flag_webapp_off,
 		interface: conf.args.flag_webapp_interface.clone(),
 		port: conf.args.flag_webapp_port,
 		user: conf.args.flag_webapp_user.clone(),
