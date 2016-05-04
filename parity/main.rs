@@ -215,7 +215,7 @@ fn execute_client(conf: Configuration) {
 }
 
 fn flush_stdout() {
-	::std::io::stdout().flush().ok().expect("stdout is flushable; qed");
+	::std::io::stdout().flush().expect("stdout is flushable; qed");
 }
 
 fn execute_account_cli(conf: Configuration) {

@@ -372,7 +372,7 @@ dependencies = [
  "clippy 0.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-rpc 1.2.0",
  "ethcore-util 1.2.0",
- "hyper 0.9.0-mio (git+https://github.com/hyperium/hyper?branch=mio)",
+ "hyper 0.9.1 (git+https://github.com/hyperium/hyper?branch=mio)",
  "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
  "jsonrpc-http-server 5.1.0 (git+https://github.com/tomusdrw/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -507,8 +507,8 @@ dependencies = [
 
 [[package]]
 name = "hyper"
-version = "0.9.0-mio"
-source = "git+https://github.com/hyperium/hyper?branch=mio#fab6c4173063a10f2aacfe3872150537da3dcfdd"
+version = "0.9.1"
+source = "git+https://github.com/hyperium/hyper?branch=mio#8d121824231651cf22e7ad929e404032b28406df"
 dependencies = [
  "cookie 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -557,7 +557,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "json-ipc-server"
 version = "0.1.0"
-source = "git+https://github.com/NikVolf/json-ipc-server.git#bd987c75b5f23c35eb7e2b0bd8b30ba88f758338"
+source = "git+https://github.com/NikVolf/json-ipc-server.git#6515f27c7b41e5e62bc87ef4e0947b838a6c7d01"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
@@ -600,7 +600,7 @@ name = "jsonrpc-http-server"
 version = "5.1.0"
 source = "git+https://github.com/tomusdrw/jsonrpc-http-server.git#fafd6410284710b7e662fe7d76249cc496451f27"
 dependencies = [
- "hyper 0.9.0-mio (git+https://github.com/hyperium/hyper?branch=mio)",
+ "hyper 0.9.1 (git+https://github.com/hyperium/hyper?branch=mio)",
  "jsonrpc-core 2.0.3 (git+https://github.com/tomusdrw/jsonrpc-core.git)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

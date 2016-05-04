@@ -22,8 +22,11 @@ use jsonrpc_core::*;
 /// RPC Interface.
 pub trait Rpc: Sized + Send + Sync + 'static {
 
-	/// Returns supported modules.
+	/// Returns supported modules for Geth 1.3.6
 	fn modules(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Returns supported modules for Geth 1.4.0
+	fn rpc_modules(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
 
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
@@ -31,7 +34,7 @@ pub trait Rpc: Sized + Send + Sync + 'static {
 		// Geth 1.3.6 compatibility
 		delegate.add_method("modules", Rpc::modules);
 		// Geth 1.4.0 compatibility
-		delegate.add_method("rpc_modules", Rpc::modules);
+		delegate.add_method("rpc_modules", Rpc::rpc_modules);
 		delegate
 	}
 }
