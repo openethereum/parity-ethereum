@@ -27,7 +27,7 @@ json-ipc-server = { git = "https://github.com/NikVolf/json-ipc-server.git" }
 
 [build-dependencies]
 serde_codegen = { version = "0.7.0", optional = true }
-syntex = "0.31.0"
+syntex = "0.32.0"
 
 [features]
 default = ["serde_codegen"]
