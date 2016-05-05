@@ -14,7 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Types used in the public api
+extern crate syntex;
+extern crate ethcore_ipc_codegen as codegen;
 
-#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
-include!(concat!(env!("OUT_DIR"), "/types.rs"));
+use std::env;
+use std::path::Path;
+
+fn main() {
+	let out_dir = env::var_os("OUT_DIR").unwrap();
+	// serialization pass
+	{
+		let src = Path::new("src/types/mod.rs.in");
+		let dst = Path::new(&out_dir).join("types.rs");
+		let mut registry = syntex::Registry::new();
+		codegen::register(&mut registry);
+		registry.expand("", &src, &dst).unwrap();
+	}
+
+}
