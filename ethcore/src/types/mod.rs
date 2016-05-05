@@ -21,3 +21,4 @@ pub mod ids;
 pub mod receipt;
 pub mod tree_route;
 pub mod blockchain_info;
+pub mod log_entry;
