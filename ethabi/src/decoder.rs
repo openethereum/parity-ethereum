@@ -10,6 +10,11 @@ struct DecodeResult {
 	new_offset: usize,
 }
 
+struct BytesTaken {
+	bytes: Vec<u8>,
+	new_offset: usize,
+}
+
 fn slice_data(data: Vec<u8>) -> Result<Vec<[u8; 32]>, Error> {
 	if data.len() % 32 != 0 {
 		return Err(Error::InvalidData);
@@ -27,11 +32,25 @@ fn slice_data(data: Vec<u8>) -> Result<Vec<[u8; 32]>, Error> {
 	Ok(result)
 }
 
-fn as_u32(slice: &[u8; 32]) -> u32 {
-	((slice[28] as u32) << 3) +
-	((slice[29] as u32) << 2) +
-	((slice[30] as u32) << 1) +
-	(slice[31] as u32)
+fn as_u32(slice: &[u8; 32]) -> Result<u32, Error> {
+	if !slice[..28].iter().all(|x| *x == 0) {
+		return Err(Error::InvalidData);
+	}
+
+	let result = ((slice[28] as u32) << 3) +
+		((slice[29] as u32) << 2) +
+		((slice[30] as u32) << 1) +
+		(slice[31] as u32);
+
+	Ok(result)
+}
+
+fn as_bool(slice: &[u8; 32]) -> Result<bool, Error> {
+	if !slice[..31].iter().all(|x| *x == 0) {
+		return Err(Error::InvalidData);
+	}
+
+	Ok(slice[31] == 1)
 }
 
 impl Decoder {
@@ -49,6 +68,28 @@ impl Decoder {
 
 	fn peek(slices: &Vec<[u8; 32]>, position: usize) -> Result<&[u8; 32], Error> {
 		slices.get(position).ok_or(Error::InvalidData)
+	}
+
+	fn take_bytes(slices: &Vec<[u8; 32]>, position: usize, len: usize) -> Result<BytesTaken, Error> {
+		let slices_len = (len + 31) / 32;
+
+		let mut bytes_slices = vec![];
+		for i in 0..slices_len {
+			let slice = try!(Self::peek(slices, position + i)).clone();
+			bytes_slices.push(slice);
+		}
+
+		let bytes = bytes_slices.into_iter()
+			.flat_map(|slice| slice.to_vec())
+			.take(len)
+			.collect();
+
+		let taken = BytesTaken {
+			bytes: bytes,
+			new_offset: position + slices_len,
+		};
+
+		Ok(taken)
 	}
 
 	fn decode_param(param: ParamType, slices: &Vec<[u8; 32]>, offset: usize) -> Result<DecodeResult, Error> {
@@ -87,12 +128,66 @@ impl Decoder {
 
 				Ok(result)
 			},
+			ParamType::Bool => {
+				let slice = try!(Self::peek(slices, offset));
+		
+				let b = try!(as_bool(slice));
+
+				let result = DecodeResult {
+					token: Token::Bool(b),
+					new_offset: offset + 1,
+				};
+
+				Ok(result)
+			},
+			ParamType::FixedBytes(len) => {
+				let taken = try!(Self::take_bytes(slices, offset, len));
+
+				let result = DecodeResult {
+					token: Token::FixedBytes(taken.bytes),
+					new_offset: taken.new_offset,
+				};
+
+				Ok(result)
+			},
+			ParamType::Bytes => {
+				let offset_slice = try!(Self::peek(slices, offset));
+				let len_offset = (try!(as_u32(offset_slice)) / 32) as usize;
+
+				let len_slice = try!(Self::peek(slices, len_offset));
+				let len = try!(as_u32(len_slice)) as usize;
+
+				let taken = try!(Self::take_bytes(slices, len_offset + 1, len));
+
+				let result = DecodeResult {
+					token: Token::Bytes(taken.bytes),
+					new_offset: offset + 1,
+				};
+
+				Ok(result)
+			},
+			ParamType::String => {
+				let offset_slice = try!(Self::peek(slices, offset));
+				let len_offset = (try!(as_u32(offset_slice)) / 32) as usize;
+
+				let len_slice = try!(Self::peek(slices, len_offset));
+				let len = try!(as_u32(len_slice)) as usize;
+
+				let taken = try!(Self::take_bytes(slices, len_offset + 1, len));
+
+				let result = DecodeResult {
+					token: Token::String(try!(String::from_utf8(taken.bytes))),
+					new_offset: offset + 1,
+				};
+
+				Ok(result)
+			},
 			ParamType::Array(types) => {
 				let offset_slice = try!(Self::peek(slices, offset));
-				let len_offset = (as_u32(offset_slice) / 32) as usize;
+				let len_offset = (try!(as_u32(offset_slice)) / 32) as usize;
 				
 				let len_slice = try!(Self::peek(slices, len_offset));
-				let len = as_u32(len_slice);
+				let len = try!(as_u32(len_slice));
 
 				let mut tokens = vec![];
 				let mut new_offset = len_offset + 1;
@@ -125,9 +220,6 @@ impl Decoder {
 				};
 
 				Ok(result)
-			},
-			_ => { 
-				unimplemented!()
 			}
 		}
 	}
@@ -317,7 +409,7 @@ mod tests {
 	}
 
 	#[test]
-	fn encode_fixed_array_of_dynamic_array_of_addresses() {
+	fn decode_fixed_array_of_dynamic_array_of_addresses() {
 		let encoded  = ("".to_owned() + 
 			"0000000000000000000000000000000000000000000000000000000000000040" + 
 			"00000000000000000000000000000000000000000000000000000000000000a0" + 
@@ -343,6 +435,71 @@ mod tests {
 			])
 		], encoded).unwrap();
 
+		assert_eq!(decoded, expected);
+	}
+
+	#[test]
+	fn decode_fixed_bytes() {
+		let encoded  = ("".to_owned() + 
+			"1234000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
+		let bytes = Token::FixedBytes(vec![0x12, 0x34]);
+		let expected = vec![bytes];
+		let decoded = Decoder::decode(vec![ParamType::FixedBytes(2)], encoded).unwrap();
+		assert_eq!(decoded, expected);
+	}
+
+	#[test]
+	fn decode_bytes() {
+		let encoded = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000020" +
+			"0000000000000000000000000000000000000000000000000000000000000002" +
+			"1234000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
+		let bytes = Token::Bytes(vec![0x12, 0x34]);
+		let expected = vec![bytes];
+		let decoded = Decoder::decode(vec![ParamType::Bytes], encoded).unwrap();
+		assert_eq!(decoded, expected);
+	}
+
+	#[test]
+	fn decode_bytes2() {
+		let encoded = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000020" +
+			"0000000000000000000000000000000000000000000000000000000000000040" +
+			"1000000000000000000000000000000000000000000000000000000000000000" +
+			"1000000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap();
+		let bytes = Token::Bytes(("".to_owned() + 
+			"1000000000000000000000000000000000000000000000000000000000000000" +
+			"1000000000000000000000000000000000000000000000000000000000000000").from_hex().unwrap());
+		let expected = vec![bytes];
+		let decoded = Decoder::decode(vec![ParamType::Bytes], encoded).unwrap();
+		assert_eq!(decoded, expected);
+	}
+
+	#[test]
+	fn decode_two_bytes() {
+		let encoded = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000040" +
+			"0000000000000000000000000000000000000000000000000000000000000080" +
+			"000000000000000000000000000000000000000000000000000000000000001f" +
+			"1000000000000000000000000000000000000000000000000000000000000200" +
+			"0000000000000000000000000000000000000000000000000000000000000020" +
+			"0010000000000000000000000000000000000000000000000000000000000002").from_hex().unwrap();
+		let bytes1 = Token::Bytes("10000000000000000000000000000000000000000000000000000000000002".from_hex().unwrap());
+		let bytes2 = Token::Bytes("0010000000000000000000000000000000000000000000000000000000000002".from_hex().unwrap());
+		let expected = vec![bytes1, bytes2];
+		let decoded = Decoder::decode(vec![ParamType::Bytes, ParamType::Bytes], encoded).unwrap();
+		assert_eq!(decoded, expected);
+	}
+
+	#[test]
+	fn decode_string() {
+		let encoded = ("".to_owned() + 
+			"0000000000000000000000000000000000000000000000000000000000000020" +
+			"0000000000000000000000000000000000000000000000000000000000000009" +
+			"6761766f66796f726b0000000000000000000000000000000000000000000000").from_hex().unwrap();
+		let s = Token::String("gavofyork".to_owned());
+		let expected = vec![s];
+		let decoded = Decoder::decode(vec![ParamType::String], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
 }
