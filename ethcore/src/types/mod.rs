@@ -17,3 +17,4 @@
 //! Types used in the public api
 
 pub mod transaction;
+pub mod ids;
