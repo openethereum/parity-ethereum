@@ -19,8 +19,8 @@ use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
-use super::flat::FlatTrace;
-use super::trace::Action;
+use trace::flat::FlatTrace;
+use trace::trace::Action;
 
 /// Addresses filter.
 ///

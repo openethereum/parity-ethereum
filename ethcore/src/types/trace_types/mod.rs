@@ -16,10 +16,4 @@
 
 //! Types used in the public api
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
-pub mod log_entry;
-pub mod trace_types;
+pub mod filter;
