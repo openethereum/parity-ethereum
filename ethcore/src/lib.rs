@@ -101,7 +101,6 @@ pub mod service;
 pub mod log_entry;
 pub mod trace;
 pub mod spec;
-pub mod transaction;
 pub mod views;
 pub mod receipt;
 pub mod pod_state;
@@ -128,9 +127,12 @@ mod executive;
 mod externalities;
 mod verification;
 mod blockchain;
+mod types;
 
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 #[cfg(feature="json-tests")]
 mod json_tests;
+
+pub use types::*;
