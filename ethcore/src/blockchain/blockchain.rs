@@ -27,7 +27,7 @@ use chainfilter::{ChainFilter, BloomIndex, FilterDataSource};
 use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
-use blockchain::tree_route::TreeRoute;
+use types::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute};
 use db::{Writable, Readable, Key, CacheUpdatePolicy};
