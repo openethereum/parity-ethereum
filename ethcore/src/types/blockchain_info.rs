@@ -14,10 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Types used in the public api
+use util::*;
+use header::BlockNumber;
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
+/// Information about the blockchain gathered together.
+#[derive(Debug)]
+pub struct BlockChainInfo {
+	/// Blockchain difficulty.
+	pub total_difficulty: U256,
+	/// Block queue difficulty.
+	pub pending_total_difficulty: U256,
+	/// Genesis block hash.
+	pub genesis_hash: H256,
+	/// Best blockchain block hash.
+	pub best_block_hash: H256,
+	/// Best blockchain block number.
+	pub best_block_number: BlockNumber
+}
