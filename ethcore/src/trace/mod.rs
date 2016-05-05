@@ -23,7 +23,6 @@ mod db;
 mod executive_tracer;
 pub mod flat;
 mod import;
-mod localized;
 mod noop_tracer;
 
 pub use types::trace_types::*;
