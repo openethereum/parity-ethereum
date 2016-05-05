@@ -16,7 +16,6 @@
 
 extern crate syntex;
 extern crate ethcore_ipc_codegen as codegen;
-extern crate serde_codegen;
 
 use std::env;
 use std::path::Path;

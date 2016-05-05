@@ -14,8 +14,8 @@ nightly-testing = ["clippy"]
 with-syntex = ["quasi/with-syntex", "quasi_codegen", "quasi_codegen/with-syntex", "syntex", "syntex_syntax"]
 
 [build-dependencies]
-quasi_codegen = { version = "*", optional = true }
-syntex = { version = "*", optional = true }
+quasi_codegen = { version = "0.10", optional = true }
+syntex = { version = "^0.31", optional = true }
 
 [dependencies]
 aster = { version = "0.16", default-features = false }
