@@ -7,7 +7,7 @@ license = "GPL-3.0"
 [features]
 
 [dependencies]
-jsonrpc-core = "2.0"
+jsonrpc-core = { git = "https://github.com/tomusdrw/jsonrpc-core.git" }
 "ethcore-ipc" = { path = "../rpc" }
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 log = "0.3"

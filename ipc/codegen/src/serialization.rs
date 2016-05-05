@@ -372,47 +372,47 @@ fn fields_sequence(
 		{
 			let _sp = ext_cx.call_site();
 			let mut tt = ::std::vec::Vec::new();
-			tt.push(Token(_sp, token::Ident(variant_ident.clone(), token::Plain)));
+			tt.push(Token(_sp, token::Ident(variant_ident.clone())));
 			tt.push(Token(_sp, token::OpenDelim(token::Paren)));
 
 			for (idx, field) in fields.iter().enumerate() {
 				if field.ident.is_some() {
-					tt.push(Token(_sp, token::Ident(field.ident.clone().unwrap(), token::Plain)));
+					tt.push(Token(_sp, token::Ident(field.ident.clone().unwrap())));
 					tt.push(Token(_sp, token::Colon));
 				}
 
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("try!"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("try!"))));
 				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
-				tt.push(Token(
-					_sp,
-					token::Ident(
-						ext_cx.ident_of(&replace_qualified(&::syntax::print::pprust::ty_to_string(&field.ty))),
-						token::Plain)));
+				tt.push(
+					Token(
+						_sp,
+						token::Ident(ext_cx.ident_of(&replace_qualified(&::syntax::print::pprust::ty_to_string(&field.ty))))
+					));
 				tt.push(Token(_sp, token::ModSep));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"))));
 				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
 
 				tt.push(Token(_sp, token::BinOp(token::And)));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("buffer"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("buffer"))));
 
 				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"))));
 				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)))));
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 				tt.push(Token(_sp, token::DotDot));
 
 				if idx+1 != fields.len() {
-					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"))));
 					tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
-					tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)))));
 					tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 				}
 
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 
 				tt.push(Token(_sp, token::Comma));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("length_stack"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("length_stack"))));
 
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
@@ -439,53 +439,53 @@ fn named_fields_sequence(
 		{
 			let _sp = ext_cx.call_site();
 			let mut tt = ::std::vec::Vec::new();
-			tt.push(Token(_sp, token::Ident(ext_cx.ident_of("let"), token::Plain)));
-			tt.push(Token(_sp, token::Ident(ext_cx.ident_of("result"), token::Plain)));
+			tt.push(Token(_sp, token::Ident(ext_cx.ident_of("let"))));
+			tt.push(Token(_sp, token::Ident(ext_cx.ident_of("result"))));
 			tt.push(Token(_sp, token::Eq));
 
 			tt.push(Token(
 				_sp,
 			  	token::Ident(
-					ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(ty)),
-			 		token::Plain)));
+					ext_cx.ident_of(&::syntax::print::pprust::ty_to_string(ty))
+			 		)));
 
 			tt.push(Token(_sp, token::OpenDelim(token::Brace)));
 
 			for (idx, field) in fields.iter().enumerate() {
-				tt.push(Token(_sp, token::Ident(field.ident.clone().unwrap(), token::Plain)));
+				tt.push(Token(_sp, token::Ident(field.ident.clone().unwrap())));
 				tt.push(Token(_sp, token::Colon));
 
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("try!"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("try!"))));
 				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
 				tt.push(Token(
 					_sp,
 					token::Ident(
-						ext_cx.ident_of(&replace_qualified(&::syntax::print::pprust::ty_to_string(&field.ty))),
-						token::Plain)));
+						ext_cx.ident_of(&replace_qualified(&::syntax::print::pprust::ty_to_string(&field.ty)))
+						)));
 				tt.push(Token(_sp, token::ModSep));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("from_bytes"))));
 				tt.push(Token(_sp, token::OpenDelim(token::Paren)));
 
 				tt.push(Token(_sp, token::BinOp(token::And)));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("buffer"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("buffer"))));
 
 				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"))));
 				tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx)))));
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 				tt.push(Token(_sp, token::DotDot));
 				if idx + 1 != fields.len() {
-					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"), token::Plain)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of("map"))));
 					tt.push(Token(_sp, token::OpenDelim(token::Bracket)));
-					tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)), token::Plain)));
+					tt.push(Token(_sp, token::Ident(ext_cx.ident_of(&format!("{}", idx+1)))));
 					tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 				}
 
 				tt.push(Token(_sp, token::CloseDelim(token::Bracket)));
 
 				tt.push(Token(_sp, token::Comma));
-				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("length_stack"), token::Plain)));
+				tt.push(Token(_sp, token::Ident(ext_cx.ident_of("length_stack"))));
 
 
 				tt.push(Token(_sp, token::CloseDelim(token::Paren)));
