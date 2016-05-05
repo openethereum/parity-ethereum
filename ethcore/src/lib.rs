@@ -102,7 +102,6 @@ pub mod log_entry;
 pub mod trace;
 pub mod spec;
 pub mod views;
-pub mod receipt;
 pub mod pod_state;
 
 mod db;
