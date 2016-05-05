@@ -20,7 +20,7 @@ use util::{Address, FixedHash};
 use util::sha3::Hashable;
 use basic_types::LogBloom;
 use trace::flat::FlatTrace;
-use trace::trace::Action;
+use types::trace_types::trace::Action;
 
 /// Addresses filter.
 ///
