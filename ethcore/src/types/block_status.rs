@@ -14,14 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Types used in the public api
+//! Block status description module
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
-pub mod log_entry;
-pub mod trace_types;
-pub mod executed;
-pub mod block_status;
+/// General block status
+#[derive(Debug, Eq, PartialEq)]
+pub enum BlockStatus {
+	/// Part of the blockchain.
+	InChain,
+	/// Queued for import.
+	Queued,
+	/// Known as bad.
+	Bad,
+	/// Unknown.
+	Unknown,
+}

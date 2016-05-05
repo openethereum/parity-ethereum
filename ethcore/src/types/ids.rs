@@ -60,6 +60,3 @@ pub struct UncleId (
 	pub usize
 );
 
-sized_binary_map!(TransactionId);
-sized_binary_map!(UncleId);
-sized_binary_map!(BlockId);

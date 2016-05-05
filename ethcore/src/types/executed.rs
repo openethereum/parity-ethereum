@@ -20,8 +20,6 @@ use util::*;
 use trace::Trace;
 use types::log_entry::LogEntry;
 
-
-
 /// Transaction execution receipt.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Executed {

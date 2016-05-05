@@ -45,19 +45,7 @@ pub use blockchain::CacheSize as BlockChainCacheSize;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
 pub use types::blockchain_info::BlockChainInfo;
-
-/// General block status
-#[derive(Debug, Eq, PartialEq)]
-pub enum BlockStatus {
-	/// Part of the blockchain.
-	InChain,
-	/// Queued for import.
-	Queued,
-	/// Known as bad.
-	Bad,
-	/// Unknown.
-	Unknown,
-}
+pub use types::block_status::BlockStatus;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
