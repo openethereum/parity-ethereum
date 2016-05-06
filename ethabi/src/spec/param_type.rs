@@ -152,7 +152,7 @@ mod tests {
 	}
 	
 	#[test]
-	fn param_deserialization() {
+	fn param_type_deserialization() {
 		let s = r#"["address", "bytes", "bytes32", "bool", "string", "int", "uint", "address[]", "uint[3]", "bool[][5]"]"#;
 		let deserialized: Vec<ParamType> = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, vec![
