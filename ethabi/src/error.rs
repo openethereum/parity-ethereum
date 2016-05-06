@@ -1,11 +1,13 @@
+//! ABI error variants.
+
 use std::string::FromUtf8Error;
 
+/// ABI error variants.
 #[derive(Debug)]
 pub enum Error {
-	FunctionNotFound,
-	EventNotFound,
+	/// Returned when encoded / decoded data does not match params.
 	InvalidData,
-	InvalidFunctionParams,
+	/// Returned when there is a problem with decoding utf8 string.
 	Utf8(FromUtf8Error),
 }
 

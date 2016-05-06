@@ -1,4 +1,4 @@
-use super::{EventParam, ParamType};
+use super::EventParam;
 
 #[derive(Debug, Clone)]
 pub struct Event {

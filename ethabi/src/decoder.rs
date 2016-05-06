@@ -1,8 +1,11 @@
+//! ABI decoder.
+
 use std::ptr;
 use spec::ParamType;
 use error::Error;
 use token::Token;
 
+/// ABI decoder.
 pub struct Decoder;
 
 struct DecodeResult {
@@ -54,6 +57,7 @@ fn as_bool(slice: &[u8; 32]) -> Result<bool, Error> {
 }
 
 impl Decoder {
+	/// Decodes ABI compliant vector of bytes into vector of tokens described by types param.
 	pub fn decode(types: Vec<ParamType>, data: Vec<u8>) -> Result<Vec<Token>, Error> {
 		let slices = try!(slice_data(data));
 		let mut tokens = vec![];
@@ -187,7 +191,11 @@ impl Decoder {
 				let len_offset = (try!(as_u32(offset_slice)) / 32) as usize;
 				
 				let len_slice = try!(Self::peek(slices, len_offset));
-				let len = try!(as_u32(len_slice));
+				let len = try!(as_u32(len_slice)) as usize;
+
+				if len != types.len() {
+					return Err(Error::InvalidData);
+				}
 
 				let mut tokens = vec![];
 				let mut new_offset = len_offset + 1;

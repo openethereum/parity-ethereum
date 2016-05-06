@@ -1,3 +1,5 @@
+//! ABI encoder.
+
 use std::ptr;
 use token::Token;
 
@@ -126,9 +128,11 @@ impl Mediate {
 	}
 }
 
+/// ABI encoder.
 pub struct Encoder;
 
 impl Encoder {
+	/// Encodes vector of tokens into ABI compliant vector of bytes.
 	pub fn encode(tokens: Vec<Token>) -> Vec<u8> {
 		let mediates: Vec<Mediate> = tokens.into_iter()
 			.map(Self::encode_token)

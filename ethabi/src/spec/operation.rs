@@ -7,6 +7,13 @@ pub enum Operation {
 }
 
 impl Operation {
+	pub fn constructor(&self) -> Option<&Function> {
+		match *self {
+			Operation::Constructor(ref f) => Some(f),
+			_ => None
+		}
+	}
+
 	pub fn function(&self) -> Option<&Function> {
 		match *self {
 			Operation::Function(ref f) => Some(f),

@@ -3,6 +3,13 @@ use super::{Operation, Function, Event};
 pub struct Interface(Vec<Operation>);
 
 impl Interface {
+	pub fn constructor(&self) -> Option<Function> {
+		self.0.iter()
+			.filter_map(Operation::constructor)
+			.next()
+			.cloned()
+	}
+
 	pub fn function(&self, name: String) -> Option<Function> { 
 		self.0.iter()
 			.filter_map(Operation::function)
