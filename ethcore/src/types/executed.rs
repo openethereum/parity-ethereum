@@ -16,12 +16,16 @@
 
 //! Transaction execution format module.
 
-use util::*;
+use util::numbers::*;
+use util::Bytes;
 use trace::Trace;
 use types::log_entry::LogEntry;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
 /// Transaction execution receipt.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Binary)]
 pub struct Executed {
 	/// Gas paid up front for execution of transaction.
 	pub gas: U256,
