@@ -1,5 +1,6 @@
 //! Contract interface.
 
+use serde_json;
 use super::{Operation, Function, Event};
 
 /// Contract interface.
@@ -7,6 +8,11 @@ use super::{Operation, Function, Event};
 pub struct Interface(Vec<Operation>);
 
 impl Interface {
+	/// Loads interface from json.
+	pub fn load(bytes: &[u8]) -> Result<Self, serde_json::Error> {
+		serde_json::from_slice(bytes)
+	}
+
 	/// Returns contract constructor specification.
 	pub fn constructor(&self) -> Option<Function> {
 		self.0.iter()
