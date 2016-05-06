@@ -1,6 +1,6 @@
 use super::{Param, ParamType};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Function {
 	pub name: String,
 	pub inputs: Vec<Param>,

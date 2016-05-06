@@ -1,6 +1,6 @@
 use super::EventParam;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Event {
 	pub name: String,
 	pub inputs: Vec<EventParam>,
