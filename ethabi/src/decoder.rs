@@ -62,7 +62,7 @@ impl Decoder {
 		let slices = try!(slice_data(data));
 		let mut tokens = vec![];
 		let mut offset = 0;
-		for param in types.into_iter() {
+		for param in &types {
 			let res = try!(Self::decode_param(param, &slices, offset));
 			offset = res.new_offset;
 			tokens.push(res.token);
@@ -96,8 +96,8 @@ impl Decoder {
 		Ok(taken)
 	}
 
-	fn decode_param(param: ParamType, slices: &Vec<[u8; 32]>, offset: usize) -> Result<DecodeResult, Error> {
-		match param {
+	fn decode_param(param: &ParamType, slices: &Vec<[u8; 32]>, offset: usize) -> Result<DecodeResult, Error> {
+		match *param {
 			ParamType::Address => {
 				let slice = try!(Self::peek(slices, offset));
 				let mut address = [0u8; 20];
@@ -186,22 +186,18 @@ impl Decoder {
 
 				Ok(result)
 			},
-			ParamType::Array(types) => {
+			ParamType::Array(ref t) => {
 				let offset_slice = try!(Self::peek(slices, offset));
 				let len_offset = (try!(as_u32(offset_slice)) / 32) as usize;
 				
 				let len_slice = try!(Self::peek(slices, len_offset));
 				let len = try!(as_u32(len_slice)) as usize;
 
-				if len != types.len() {
-					return Err(Error::InvalidData);
-				}
-
 				let mut tokens = vec![];
 				let mut new_offset = len_offset + 1;
 
-				for param in types.into_iter() {
-					let res = try!(Self::decode_param(param, &slices, new_offset));
+				for _ in 0..len {
+					let res = try!(Self::decode_param(t, &slices, new_offset));
 					new_offset = res.new_offset;
 					tokens.push(res.token);
 				}
@@ -213,11 +209,11 @@ impl Decoder {
 
 				Ok(result)
 			},
-			ParamType::FixedArray(types) => {
+			ParamType::FixedArray(ref t, len) => {
 				let mut tokens = vec![];
 				let mut new_offset = offset;
-				for param in types.into_iter() {
-					let res = try!(Self::decode_param(param, &slices, new_offset));
+				for _ in 0..len {
+					let res = try!(Self::decode_param(t, &slices, new_offset));
 					new_offset = res.new_offset;
 					tokens.push(res.token);
 				}
@@ -269,7 +265,7 @@ mod tests {
 		let address1 = Token::Address([0x11u8; 20]);
 		let address2 = Token::Address([0x22u8; 20]);
 		let expected = vec![Token::FixedArray(vec![address1, address2])];
-		let decoded = Decoder::decode(vec![ParamType::FixedArray(vec![ParamType::Address, ParamType::Address])], encoded).unwrap();
+		let decoded = Decoder::decode(vec![ParamType::FixedArray(Box::new(ParamType::Address), 2)], encoded).unwrap();
 		assert_eq!(decoded, expected);	
 	}
 
@@ -302,7 +298,7 @@ mod tests {
 		let address2 = Token::Address([0x22u8; 20]);
 		let addresses = Token::Array(vec![address1, address2]);
 		let expected = vec![addresses];
-		let decoded = Decoder::decode(vec![ParamType::Array(vec![ParamType::Address, ParamType::Address])], encoded).unwrap();
+		let decoded = Decoder::decode(vec![ParamType::Array(Box::new(ParamType::Address))], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
 
@@ -324,10 +320,9 @@ mod tests {
 		let dynamic = Token::Array(vec![array0, array1]);
 		let expected = vec![dynamic];
 		let decoded = Decoder::decode(vec![
-			ParamType::Array(vec![
-				ParamType::FixedArray(vec![ParamType::Address, ParamType::Address]),
-				ParamType::FixedArray(vec![ParamType::Address, ParamType::Address])
-			])
+			ParamType::Array(Box::new(
+				ParamType::FixedArray(Box::new(ParamType::Address), 2)
+			))
 		], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
@@ -351,10 +346,9 @@ mod tests {
 		let dynamic = Token::Array(vec![array0, array1]);
 		let expected = vec![dynamic];
 		let decoded = Decoder::decode(vec![
-			ParamType::Array(vec![
-				ParamType::Array(vec![ParamType::Address]),
-				ParamType::Array(vec![ParamType::Address])
-			])
+			ParamType::Array(Box::new(
+				ParamType::Array(Box::new(ParamType::Address))
+			))
 		], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
@@ -382,10 +376,9 @@ mod tests {
 		let dynamic = Token::Array(vec![array0, array1]);
 		let expected = vec![dynamic];
 		let decoded = Decoder::decode(vec![
-			ParamType::Array(vec![
-				ParamType::Array(vec![ParamType::Address, ParamType::Address]),
-				ParamType::Array(vec![ParamType::Address, ParamType::Address])
-			])
+			ParamType::Array(Box::new(
+				ParamType::Array(Box::new(ParamType::Address))
+			))
 		], encoded).unwrap();
 		assert_eq!(decoded, expected);
 	}
@@ -407,10 +400,10 @@ mod tests {
 		let expected = vec![fixed];
 
 		let decoded = Decoder::decode(vec![
-			ParamType::FixedArray(vec![
-				ParamType::FixedArray(vec![ParamType::Address, ParamType::Address]),
-				ParamType::FixedArray(vec![ParamType::Address, ParamType::Address])
-			])
+			ParamType::FixedArray(
+				Box::new(ParamType::FixedArray(Box::new(ParamType::Address), 2)), 
+				2
+			)
 		], encoded).unwrap();
 
 		assert_eq!(decoded, expected);
@@ -437,10 +430,10 @@ mod tests {
 		let expected = vec![fixed];
 
 		let decoded = Decoder::decode(vec![
-			ParamType::FixedArray(vec![
-				ParamType::Array(vec![ParamType::Address, ParamType::Address]),
-				ParamType::Array(vec![ParamType::Address, ParamType::Address])
-			])
+			ParamType::FixedArray(
+				Box::new(ParamType::Array(Box::new(ParamType::Address))),
+				2
+			)
 		], encoded).unwrap();
 
 		assert_eq!(decoded, expected);
