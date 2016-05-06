@@ -20,6 +20,7 @@ use util::bytes::Populatable;
 use util::numbers::{U256, H256, H2048, Address};
 use std::mem;
 use std::collections::VecDeque;
+use std::ops::Range;
 
 #[derive(Debug)]
 pub struct BinaryConvertError;
@@ -366,7 +367,7 @@ pub fn serialize<T: BinaryConvertable>(t: &T) -> Result<Vec<u8>, BinaryConvertEr
 }
 
 macro_rules! binary_fixed_size {
-	($target_ty: ident) => {
+	($target_ty: ty) => {
 		impl BinaryConvertable for $target_ty {
 			fn from_bytes(bytes: &[u8], _length_stack: &mut VecDeque<usize>) -> Result<Self, BinaryConvertError> {
 				match bytes.len().cmp(&::std::mem::size_of::<$target_ty>()) {
@@ -401,6 +402,8 @@ binary_fixed_size!(U256);
 binary_fixed_size!(H256);
 binary_fixed_size!(H2048);
 binary_fixed_size!(Address);
+binary_fixed_size!(Range<usize>);
+binary_fixed_size!(Range<u64>);
 
 #[test]
 fn vec_serialize() {

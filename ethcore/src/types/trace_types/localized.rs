@@ -17,9 +17,12 @@
 use util::H256;
 use super::trace::{Action, Res};
 use header::BlockNumber;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
 /// Localized trace.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Binary)]
 pub struct LocalizedTrace {
 	/// Type of action performed by a transaction.
 	pub action: Action,
