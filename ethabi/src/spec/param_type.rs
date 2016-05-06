@@ -1,16 +1,48 @@
 use std::num::ParseIntError;
+use serde::{Deserialize, Deserializer, Error as SerdeError};
+use serde::de::Visitor;
 
+/// Describes function params.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParamType {
+	/// Address.
 	Address,
+	/// Bytes.
 	Bytes,
+	/// Signed integer.
 	Int,
+	/// Unisgned integer.
 	Uint,
+	/// Boolean.
 	Bool,
+	/// String.
 	String,
+	/// Array of unknown size.
 	Array(Box<ParamType>),
+	/// Vector of bytes with fixed size.
 	FixedBytes(usize),
+	/// Array with fixed size.
 	FixedArray(Box<ParamType>, usize),
+}
+
+impl Deserialize for ParamType {
+	fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
+		deserializer.deserialize(ParamTypeVisitor)
+	}
+}
+
+struct ParamTypeVisitor;
+
+impl Visitor for ParamTypeVisitor {
+	type Value = ParamType;
+
+	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
+		Reader::read(value).map_err(|e| SerdeError::custom(format!("{:?}", e).as_ref()))
+	}
+
+	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: SerdeError {
+		self.visit_str(value.as_ref())
+	}
 }
 
 #[derive(Debug)]
@@ -84,12 +116,14 @@ impl Reader {
 
 #[cfg(test)]
 mod tests {
+	use serde_json;
 	use super::{Reader, ParamType};
 
 	#[test]
 	fn test_read_param() {
 		assert_eq!(Reader::read("address").unwrap(), ParamType::Address);
 		assert_eq!(Reader::read("bytes").unwrap(), ParamType::Bytes);
+		assert_eq!(Reader::read("bytes32").unwrap(), ParamType::FixedBytes(32));
 		assert_eq!(Reader::read("bool").unwrap(), ParamType::Bool);
 		assert_eq!(Reader::read("string").unwrap(), ParamType::String);
 		assert_eq!(Reader::read("int").unwrap(), ParamType::Int);
@@ -116,4 +150,23 @@ mod tests {
 		assert_eq!(Reader::read("bool[][3]").unwrap(), ParamType::FixedArray(Box::new(ParamType::Array(Box::new(ParamType::Bool))), 3));
 		assert_eq!(Reader::read("bool[3][]").unwrap(), ParamType::Array(Box::new(ParamType::FixedArray(Box::new(ParamType::Bool), 3))));
 	}
+	
+	#[test]
+	fn param_deserialization() {
+		let s = r#"["address", "bytes", "bytes32", "bool", "string", "int", "uint", "address[]", "uint[3]", "bool[][5]"]"#;
+		let deserialized: Vec<ParamType> = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized, vec![
+			ParamType::Address,
+			ParamType::Bytes,
+			ParamType::FixedBytes(32),
+			ParamType::Bool,
+			ParamType::String,
+			ParamType::Int,
+			ParamType::Uint,
+			ParamType::Array(Box::new(ParamType::Address)),
+			ParamType::FixedArray(Box::new(ParamType::Uint), 3),
+			ParamType::FixedArray(Box::new(ParamType::Array(Box::new(ParamType::Bool))), 5)
+		]);
+	}
+
 }
