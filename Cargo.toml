@@ -17,7 +17,7 @@ env_logger = "0.3"
 rustc-serialize = "0.3"
 docopt = "0.6"
 time = "0.1"
-ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
+ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
 daemonize = "0.2"
 num_cpus = "0.2"

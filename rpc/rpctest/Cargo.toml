@@ -6,7 +6,7 @@ license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
-ctrlc = { git = "https://github.com/tomusdrw/rust-ctrlc.git" }
+ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 docopt = "0.6"
 rustc-serialize = "0.3"
 ethcore = { path = "../../ethcore" }
