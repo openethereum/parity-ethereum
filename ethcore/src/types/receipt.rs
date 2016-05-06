@@ -16,13 +16,21 @@
 
 //! Receipt
 
-use util::*;
+use util::numbers::*;
+use std::ops::Deref;
+use util::rlp::*;
+use util::Bytes;
+use util::HeapSizeOf;
+use util::sha3::*;
 use basic_types::LogBloom;
 use header::BlockNumber;
 use log_entry::{LogEntry, LocalizedLogEntry};
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
 /// Information describing execution of a transaction.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Binary)]
 pub struct Receipt {
 	/// The state root after executing the transaction.
 	pub state_root: H256,
