@@ -14,11 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::*;
+use util::numbers::*;
 use header::BlockNumber;
+use ipc::binary::BinaryConvertError;
+use std::mem;
+use std::collections::VecDeque;
 
 /// Information about the blockchain gathered together.
-#[derive(Debug)]
+#[derive(Debug, Binary)]
 pub struct BlockChainInfo {
 	/// Blockchain difficulty.
 	pub total_difficulty: U256,

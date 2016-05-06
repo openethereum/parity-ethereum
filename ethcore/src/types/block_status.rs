@@ -16,8 +16,11 @@
 
 //! Block status description module
 
+use ipc::binary::BinaryConvertError;
+use std::collections::VecDeque;
+
 /// General block status
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Binary)]
 pub enum BlockStatus {
 	/// Part of the blockchain.
 	InChain,
