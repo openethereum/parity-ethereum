@@ -9,7 +9,7 @@ authors = ["Ethcore <admin@ethcore.io"]
 
 [dependencies]
 log = "0.3"
-jsonrpc-core = { git = "https://github.com/ethcore/jsonrpc-core.git" }
+jsonrpc-core = "2.0"
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
 hyper = { default-features = false, git = "https://github.com/hyperium/hyper", branch = "mio" }
 url = "1.0"

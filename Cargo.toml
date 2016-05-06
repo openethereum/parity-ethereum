@@ -34,7 +34,7 @@ ethcore-webapp = { path = "webapp", optional = true }
 semver = "0.2"
 ethcore-ipc-nano = { path = "ipc/nano" }
 "ethcore-ipc" = { path = "ipc/rpc" }
-json-ipc-server = { git = "https://github.com/NikVolf/json-ipc-server.git" }
+json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 
 [dependencies.hyper]
 version = "0.8"
