@@ -8,7 +8,7 @@ extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_json;
 
-mod spec;
+pub mod spec;
 mod constructor;
 mod contract;
 mod decoder;

@@ -1,8 +1,10 @@
+//! Function and event param types.
+
 use std::num::ParseIntError;
 use serde::{Deserialize, Deserializer, Error as SerdeError};
 use serde::de::Visitor;
 
-/// Describes function params.
+/// Function and event param types.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParamType {
 	/// Address.

@@ -1,3 +1,4 @@
+//! Contract interface specification.
 
 #[cfg(feature = "serde_macros")]
 include!("mod.rs.in");

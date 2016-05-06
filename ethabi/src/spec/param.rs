@@ -1,8 +1,13 @@
+//! Function param.
+
 use super::ParamType;
 
+/// Function param.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Param {
+	/// Param name.
 	pub name: String,
+	/// Param type.
 	#[serde(rename="type")]
 	pub kind: ParamType,
 }
