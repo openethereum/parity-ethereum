@@ -54,6 +54,6 @@ mod tests {
 		assert_eq!(StrictTokenizer::tokenize(&ParamType::Bool, "true"), Some(Token::Bool(true)));
 		assert_eq!(StrictTokenizer::tokenize(&ParamType::Bool, "1"), Some(Token::Bool(true)));
 		assert_eq!(StrictTokenizer::tokenize(&ParamType::Bool, "false"), Some(Token::Bool(false)));
-		assert_eq!(StrictTokenizer::tokenize(&ParamType::Bool, "false"), Some(Token::Bool(false)));
+		assert_eq!(StrictTokenizer::tokenize(&ParamType::Bool, "0"), Some(Token::Bool(false)));
 	}
 }
